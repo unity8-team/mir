@@ -111,10 +111,12 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 	nvWriteMC(pNv, 0x1850, 0x1);
 }
 
+#define NV_PRAMIN_ROM_OFFSET 0x00700000
+
 static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const uint32_t *pramin = (void*)&pNv->REGS[0x00700000/4];
+	const uint32_t *pramin = (void*)&pNv->REGS[NV_PRAMIN_ROM_OFFSET/4];
 	uint32_t old_bar0_pramin = 0;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -214,6 +216,8 @@ static int nv_valid_reg(uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PROM_OFFSET,NV_PROM_SIZE))
 		return 1;
+	if (WITHIN(reg,NV_PRAMIN_ROM_OFFSET,NV_PROM_SIZE))
+		return 1;
 	#undef WITHIN
 	return 0;
 }
@@ -221,23 +225,67 @@ static int nv_valid_reg(uint32_t reg)
 static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
+
 	*data = pNv->REGS[reg/4];
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, *data);
 }
 
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
-#ifdef PERFORM_WRITE
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv32_wr reg 0x%X value 0x%X\n", reg, data);
-	still_alive();
+	if (DEBUGLEVEL >= 8) {
+		uint32_t tmp;
+		nv32_rd(pScrn, reg, &tmp);
+	}
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
 	if (!nv_valid_reg(reg)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "========= unknown reg 0x%X ==========\n", reg);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"========= unknown reg 0x%X ==========\n", reg);
 		return 0;
 	}
-
+#ifdef PERFORM_WRITE
+	still_alive();
 	NVPtr pNv = NVPTR(pScrn);
 	pNv->REGS[reg/4] = data;
 #endif
 	return 1;
+}
+
+static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data, int head)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	volatile uint8_t *ptr = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	VGA_WR08(ptr, port, index);
+	*data = VGA_RD08(ptr, port + 1);
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+				port, index, head, *data);
+}
+
+static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data, int head)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	volatile uint8_t *ptr = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	if (DEBUGLEVEL >= 8) {
+		uint8_t tmp;
+		nv_port_rd(pScrn, port, index, &tmp, head);
+	}
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+				port, index, head, data);
+#ifdef PERFORM_WRITE
+	still_alive();
+	VGA_WR08(ptr, port, index);
+	VGA_WR08(ptr, port + 1, data);
+#endif
 }
 
 static void nv_set_crtc_index(ScrnInfoPtr pScrn, CARD8 index)
@@ -345,9 +393,6 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	 * Read the appropriate value using this index and write to "register"
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
@@ -362,13 +407,15 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: %02X, Count: %02X, Reg: %08X\n",
+			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 				offset, crtcport, crtcindex, mask, shift, count, reg);
 
-	VGA_WR08(ptr, crtcport, crtcindex);
-	if ((config = (VGA_RD08(ptr, crtcport + 1) & mask) >> shift) > count) {
+	/* FIXME how to choose head?? */
+	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
+	config = (config & mask) >> shift;
+	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Config 0x%02X exceeds maximal bound %02X\n",
+			"0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 				offset, config, count);
 		return FALSE;
 	}
@@ -377,8 +424,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: %08X, Write dword%02X: %08X\n",
-				offset, reg, config, configval);
+			"0x%04X: Writing config %02X\n", offset, config);
 
 	nv32_wr(pScrn, reg, configval);
 
@@ -428,9 +474,6 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	 * (REGVAL("register") >> "shift" & "srcmask") and write-back to CRTC port
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
 	uint8_t shift = *((uint8_t *)(&bios->data[offset + 5]));
 	uint8_t srcmask = *((uint8_t *)(&bios->data[offset + 6]));
@@ -443,16 +486,12 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	if (!iexec->execute)
 		return TRUE;
 
-	nv32_rd(pScrn, reg, &data);
-
-	if (DEBUGLEVEL >= 6) {
+	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%02X, Port: %04X, Index: %02X, Mask: %02X\n",
+			"0x%04X: Reg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%02X, Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X\n",
 				offset, reg, shift, srcmask, crtcport, crtcindex, mask);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: 0x%08X, Read: 0x%08X\n",
-				offset, reg, data);
-	}
+
+	nv32_rd(pScrn, reg, &data);
 
 	if (shift < 0x80)
 		data >>= shift;
@@ -461,18 +500,10 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	data &= srcmask;
 
-	VGA_WR08(ptr, crtcport, crtcindex);
-	crtcdata = (VGA_RD08(ptr, crtcport + 1) & mask) | (uint8_t)data;
-
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Write: 0x%02X\n",
-				offset, crtcport, crtcindex, crtcdata);
-
-#ifdef PERFORM_WRITE 
-	still_alive();
-	VGA_WR08(ptr, crtcport + 1, crtcdata);
-#endif
+	/* FIXME how to choose head?? */
+	nv_port_rd(pScrn, crtcport, crtcindex, &crtcdata, 0);
+	crtcdata = (crtcdata & mask) | (uint8_t)data;
+	nv_port_wr(pScrn, crtcport, crtcindex, crtcdata, 0);
 
 	return TRUE;
 }
@@ -507,9 +538,6 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	 * against the masked byte from the flag table.
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint16_t condptr = bios->io_flag_condition_tbl_ptr + cond * IO_FLAG_CONDITION_SIZE;
 	uint16_t crtcport = *((uint16_t *)(&bios->data[condptr]));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[condptr + 2]));
@@ -520,22 +548,23 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	uint8_t cmpval = *((uint8_t *)(&bios->data[condptr + 8]));
 	uint8_t data;
 
-	VGA_WR08(ptr, crtcport, crtcindex);
-	data = VGA_RD08(ptr, crtcport + 1);
-
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X, CRTC data: 0x%02X\n",
-				offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval, data);
+			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
+				offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
+
+	/* FIXME how to choose head?? */
+	nv_port_rd(pScrn, crtcport, crtcindex, &data, 0);
 
 	data = *((uint8_t *)(&bios->data[flagarray + ((data & mask) >> shift)]));
+	data &= flagarraymask;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Checking if 0x%02X AND 0x%02X equals 0x%02X\n",
-				offset, data, flagarraymask, cmpval);
+			"0x%04X: Checking if 0x%02X equals 0x%02X\n",
+				offset, data, cmpval);
 
-	if ((data & flagarraymask) == cmpval)
+	if (data == cmpval)
 		return TRUE;
 
 	return FALSE;
@@ -594,9 +623,6 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	 * and condition met, double frequency before setting it.
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
@@ -612,19 +638,20 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: %02X, IO Flag Condition: %02X, Count: %02X, Reg: %08X\n",
+			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 				offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
 
-	VGA_WR08(ptr, crtcport, crtcindex);
-
-	if ((config = (VGA_RD08(ptr, crtcport + 1) & mask) >> shift) > count) {
+	/* FIXME how to choose head?? */
+	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
+	config = (config & mask) >> shift;
+	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Config 0x%02X exceeds maximal bound %02X\n",
+			"0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 				offset, config, count);
 		return FALSE;
 	}
 
-	freq = *((uint16_t *)(&bios->data[offset + 11 + config * 4]));
+	freq = *((uint16_t *)(&bios->data[offset + 12 + config * 2]));
 
 	if (io_flag_condition_idx > 0) {
 		if (io_flag_condition(pScrn, bios, offset, io_flag_condition_idx)) {
@@ -638,7 +665,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Reg: %08X, Config: %02X, Freq: %d0kHz\n",
+			"0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %d0kHz\n",
 				offset, reg, config, freq);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
@@ -1020,9 +1047,6 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	 *
 	 * Write "data" to index "CRTC index" of "CRTC port"
 	 */
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t data = *((uint8_t *)(&bios->data[offset + 4]));
@@ -1030,16 +1054,8 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	if (!iexec->execute)
 		return TRUE;
 
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: 0x%02X, Write: 0x%02X\n",
-				offset, crtcport, crtcindex, data);
-
-	VGA_WR08(ptr, crtcport, crtcindex);
-#ifdef PERFORM_WRITE
-	still_alive();
-	VGA_WR08(ptr, crtcport + 1, value);
-#endif
+	/* FIXME how to choose head?? */
+	nv_port_wr(pScrn, crtcport, crtcindex, data, 0);
 
 	return TRUE;
 }
@@ -1117,17 +1133,12 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	if (!iexec->execute)
 		return TRUE;
 
-	/* it's not clear from my .dmp file, but it seems we should zero out NV_PBUS_PCI_NV_19(0x0000184C) and then restore it */
-	nv32_rd(pScrn, NV_PBUS_PCI_NV_19, &pci_nv_19);
-
-	if (DEBUGLEVEL >= 6) {
+	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Value1: 0x%08X, Value2: 0x%08X\n",
 			offset, reg, value1, value2);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Write: 0x%08X\n",
-			offset, reg, value1);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Write: 0x%08X\n",
-			offset, reg, value2);
-	}
+
+	/* it's not clear from my .dmp file, but it seems we should zero out NV_PBUS_PCI_NV_19(0x0000184C) and then restore it */
+	nv32_rd(pScrn, NV_PBUS_PCI_NV_19, &pci_nv_19);
 #if 0
 	nv32_rd(pScrn, PCICFG(PCICFG_ROMSHADOW), &tmpval);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: PCICFG_ROMSHADOW: 0x%02X\n", offset, tmpval);
@@ -1254,14 +1265,11 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	if (!iexec->execute)
 		return TRUE;
 
-	nv32_rd(pScrn, reg, &value);
-
-	if (DEBUGLEVEL >= 6) {
+	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Mask: 0x%08X, Data: 0x%08X\n",
 			offset, reg, mask, data);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Read: 0x%08X, Write: 0x%08X\n",
-			offset, reg, value, (value & mask) | data);
-	}
+
+	nv32_rd(pScrn, reg, &value);
 
 	value = (value & mask) | data;
 
@@ -1296,19 +1304,14 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Macro: %02X, MacroTableIndex: %02X, Count: %02X\n",
+			"0x%04X: Macro: 0x%02X, MacroTableIndex: 0x%02X, Count: 0x%02X\n",
 				offset, macro_index_tbl_idx, macro_tbl_idx, count);
 
 	for (i = 0; i < count; i++) {
 		reg = *((uint32_t *)
-			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i * MACRO_SIZE)]));
+			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i) * MACRO_SIZE]));
 		data = *((uint32_t *)
-			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i * MACRO_SIZE) + 4]));
-
-		if (DEBUGLEVEL >= 6)
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				"0x%04X: Reg: 0x%08X, Write: 0x%08X\n",
-					offset, reg, data);
+			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i) * MACRO_SIZE + 4]));
 
 		nv32_wr(pScrn, reg, data);
 	}
@@ -1424,26 +1427,32 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	 */
 
 	uint8_t cond = *((uint8_t *)(&bios->data[offset + 1]));
+	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
 	uint32_t reg = *((uint32_t *)
-			(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE]));
+			(&bios->data[condptr]));
 	uint32_t mask = *((uint32_t *)
-			(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE + 4]));
+			(&bios->data[condptr + 4]));
 	uint32_t cmpval = *((uint32_t *)
-			(&bios->data[bios->condition_tbl_ptr + cond * CONDITION_SIZE + 8]));
+			(&bios->data[condptr + 8]));
 	uint32_t data;
 
 	if (!iexec->execute)
 		return TRUE;
 
-	nv32_rd(pScrn, reg, &data);
-
-	if (DEBUGLEVEL >= 6) {
+	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Checking if data 0x%08X (from reg 0x%08X) AND 0x%08X equals 0x%08X\n",
-				offset, data, reg, mask, cmpval);
-	}
+			"0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
+				offset, cond, reg, mask, cmpval);
 
-	if ((data & mask) == cmpval) {
+	nv32_rd(pScrn, reg, &data);
+	data &= mask;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"0x%04X: Checking if 0x%08X equals 0x%08X\n",
+				offset, data, cmpval);
+
+	if (data == cmpval) {
 		if (DEBUGLEVEL >= 6)
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				"0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
@@ -1472,9 +1481,6 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 	 * Read value at index "CRTC index" on "CRTC port", AND with "mask", OR with "data", write-back
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
@@ -1484,24 +1490,15 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 	if (!iexec->execute)
 		return TRUE;
 
-	VGA_WR08(ptr, crtcport, crtcindex);
-	value = VGA_RD08(ptr, crtcport + 1);
-
-	if (DEBUGLEVEL >= 6) {
+	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: %02X, Mask: 0x%08X, Data: 0x%08X\n",
+			"0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
 				offset, crtcport, crtcindex, mask, data);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"0x%04X: Port: 0x%04X, Index: %02X, Read: %02X Write: %02X\n",
-				offset, crtcport, crtcindex, value, (value & mask) | data);
-	}
 
+	/* FIXME how to choose head?? */
+	nv_port_rd(pScrn, crtcport, crtcindex, &value, 0);
 	value = (value & mask) | data;
-
-#ifdef PERFORM_WRITE
-	still_alive();
-	VGA_WR08(ptr, crtcport + 1, value);
-#endif
+	nv_port_wr(pScrn, crtcport, crtcindex, value, 0);
 
 	return TRUE;
 }
@@ -1522,10 +1519,6 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 
 	if (!iexec->execute)
 		return TRUE;
-
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Reg: 0x%08X, Write: 0x%08X\n",
-			offset, reg, value);
 
 	nv32_wr(pScrn, reg, value);
 
@@ -1739,17 +1732,18 @@ v1common:
 	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
 		return;
 
-	mode->Clock = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 0] * 10;
-	mode->HDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 2];
-	mode->HSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 10] + 1;
-	mode->HSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 12] + 1;
-	mode->HTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 14] + 1;
-	mode->VDisplay = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 16];
-	mode->VSyncStart = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 24] + 1;
-	mode->VSyncEnd = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 26] + 1;
-	mode->VTotal = *(uint16_t *)&fptable[headerlen + recordlen * fpindex + ofs + 28] + 1;
-	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
-	mode->Flags |= (fptable[headerlen + recordlen * fpindex + ofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
+	int modeofs = headerlen + recordlen * fpindex + ofs;
+	mode->Clock = *(uint16_t *)&fptable[modeofs] * 10;
+	mode->HDisplay = *(uint16_t *)&fptable[modeofs + 2];
+	mode->HSyncStart = *(uint16_t *)&fptable[modeofs + 10] + 1;
+	mode->HSyncEnd = *(uint16_t *)&fptable[modeofs + 12] + 1;
+	mode->HTotal = *(uint16_t *)&fptable[modeofs + 14] + 1;
+	mode->VDisplay = *(uint16_t *)&fptable[modeofs + 16];
+	mode->VSyncStart = *(uint16_t *)&fptable[modeofs + 24] + 1;
+	mode->VSyncEnd = *(uint16_t *)&fptable[modeofs + 26] + 1;
+	mode->VTotal = *(uint16_t *)&fptable[modeofs + 28] + 1;
+	mode->Flags |= (fptable[modeofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
+	mode->Flags |= (fptable[modeofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
 
 	/* for version 1.0:
 	 * bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.)
