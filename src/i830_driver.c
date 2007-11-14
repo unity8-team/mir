@@ -2554,14 +2554,16 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			  "Couldn't allocate tiled memory, page flipping "
 			  "disabled\n");
 	    pI830->allowPageFlip = FALSE;
+	    if (pI830->fb_compression)
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "Couldn't allocate tiled memory, fb compression "
+			  "disabled\n");
+	    pI830->fb_compression = FALSE;
 	 }
 
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		    "Attempting memory allocation with %s buffers.\n",
 		    (i & 1) ? "untiled" : "tiled");
-
-	 if (!pI830->tiling && pI830->fb_compression)
-	     pI830->fb_compression = FALSE;
 
 	 if (i830_allocate_2d_memory(pScrn) &&
 	     i830_allocate_3d_memory(pScrn))
