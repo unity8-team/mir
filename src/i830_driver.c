@@ -2560,6 +2560,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "Attempting memory allocation with %s buffers.\n",
 		    (i & 1) ? "untiled" : "tiled");
 
+	 if (!pI830->tiling && pI830->fb_compression)
+	     pI830->fb_compression = FALSE;
+
 	 if (i830_allocate_2d_memory(pScrn) &&
 	     i830_allocate_3d_memory(pScrn))
 	 {
