@@ -293,14 +293,6 @@ static Bool i915_map_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpri
         return FALSE;
     }
 
-    if (drmAddMap(pI830->drmSubFD,
-                  (drm_handle_t)(xvmc_driver->batch->offset + pI830->LinearAddr),
-                  xvmc_driver->batch->size, DRM_AGP, 0,
-                  &xvmc_driver->batch_handle) < 0) {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[drm] drmAddMap(batchbuffer_handle) failed!\n");
-        return FALSE;
-    }
         
     return TRUE;
 }
@@ -339,10 +331,6 @@ static void i915_unmap_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxp
         ctxpriv->corrdata_handle = 0;
     }
 
-    if (xvmc_driver->batch_handle) {
-        drmRmMap(pI830->drmSubFD, xvmc_driver->batch_handle);
-        xvmc_driver->batch_handle = 0;
-    }
 }
 
 static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpriv)
@@ -390,11 +378,6 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
         return FALSE;
     }
 
-    if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC]batch buffer",
-                                   &(xvmc_driver->batch), 8 * 1024,
-                                   ALIGN_BOTH_ENDS)) {
-        return FALSE;
-    }
 
     i830_describe_allocations(pScrn, 1, "");
     return TRUE;
@@ -432,10 +415,6 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpr
         ctxpriv->mcCorrdata = NULL;
     }
 
-    if (xvmc_driver->batch) {
-        i830_free_memory(pScrn, xvmc_driver->batch);
-        xvmc_driver->batch = NULL;
-    }
 }
 
 /**************************************************************************
@@ -859,6 +838,40 @@ static int i915_xvmc_putimage_size(ScrnInfoPtr pScrn)
     return sizeof(I915XvMCCommandBuffer);
 }
 
+static Bool i915_xvmc_init_batch(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC] batch buffer",
+                                   &(xvmc_driver->batch), 8 * 1024,
+                                   ALIGN_BOTH_ENDS))
+        return FALSE;
+
+    if (drmAddMap(pI830->drmSubFD,
+                  (drm_handle_t)(xvmc_driver->batch->offset+pI830->LinearAddr),
+                  xvmc_driver->batch->size, DRM_AGP, 0,
+                  &xvmc_driver->batch_handle) < 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[drm] drmAddMap(batchbuffer_handle) failed!\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void i915_xvmc_fini_batch(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (xvmc_driver->batch_handle) {
+        drmRmMap(pI830->drmSubFD, xvmc_driver->batch_handle);
+        xvmc_driver->batch_handle = 0;
+    }
+    if (xvmc_driver->batch) {
+        i830_free_memory(pScrn, xvmc_driver->batch);
+        xvmc_driver->batch = NULL;
+    }
+}
+
 static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
 {
     I915XvMCPtr pXvMC;
@@ -870,6 +883,12 @@ static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
         return FALSE;
     }
     xvmc_driver->devPrivate = (void*)pXvMC;
+    if (!i915_xvmc_init_batch(pScrn)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"[XvMC] fail to init batch buffer\n");
+	xfree(pXvMC);
+	return FALSE;
+    }
     initI915XvMC(pXvMC);
 
     /* set up wrappers */
@@ -883,6 +902,7 @@ static void i915_xvmc_fini(ScrnInfoPtr pScrn)
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
 
     cleanupI915XvMC(pXvMC);
+    i915_xvmc_fini_batch(pScrn);
     xfree(xvmc_driver->devPrivate);
 }
 

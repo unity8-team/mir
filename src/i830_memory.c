@@ -2010,5 +2010,8 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
         return FALSE;
     }
 
+    if (!i830_bind_memory(pScrn, *buffer))
+	return FALSE;
+
     return TRUE;
 }
