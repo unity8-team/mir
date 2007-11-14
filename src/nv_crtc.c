@@ -767,7 +767,7 @@ void nv_crtc_calc_state_ext(
 	} else {
 		state->vpll = state->pll;
 		state->vpllB = state->pllB;
-		if (nv_output->type == OUTPUT_LVDS)
+		if (pNv->Architecture < NV_ARCH_40)
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
 		else
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
