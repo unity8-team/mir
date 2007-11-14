@@ -1416,7 +1416,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, i
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, i2c_index, old_i2c_index, or;
+	unsigned char type, i2c_index = 0xf, old_i2c_index, or;
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
@@ -1424,9 +1424,9 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	/* check how many TMDS ports there are */
 	if (pNv->dcb_table.entries) {
 		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-			type = pNv->dcb_table.connection[i] & 0xf;
+			type = pNv->dcb_table.entry[i].type;
 			old_i2c_index = i2c_index;
-			i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
+			i2c_index = pNv->dcb_table.entry[i].i2c_index;
 
 			dvi_pair[i] = FALSE;
 
@@ -1468,12 +1468,12 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-		type = pNv->dcb_table.connection[i] & 0xf;
-		i2c_index = (pNv->dcb_table.connection[i] >> 4) & 0xf;
-		or = ffs((pNv->dcb_table.connection[i] >> 24) & 0xf);
+		type = pNv->dcb_table.entry[i].type;
+		i2c_index = pNv->dcb_table.entry[i].i2c_index;
+		or = ffs(pNv->dcb_table.entry[i].or);
 
 		if (type < 4) {
-			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry: %d: %08X type: %d, i2c_index: %d, or: %d\n", i, pNv->dcb_table.connection[i], type, i2c_index, or);
+			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, or: %d\n", i, type, i2c_index, or);
 
 			switch(type) {
 			case OUTPUT_ANALOG:

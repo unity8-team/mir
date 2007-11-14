@@ -238,6 +238,14 @@ typedef enum {
 	OUTPUT_1_CROSSWIRED_TMDS = (1 << 5)
 } OutputInfo;
 
+struct dcb_entry {
+	uint8_t type;
+	uint8_t i2c_index;
+	uint8_t head;
+	uint8_t bus;
+	uint8_t or;
+};
+
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
@@ -395,29 +403,26 @@ typedef struct _NVRec {
 	int dvi_a_count;
 	int lvds_count;
 
-    struct {
-	    int entries;
-	    int i2c_entries;
-	    int version;
-	    uint32_t connection[MAX_NUM_DCB_ENTRIES];
-	    uint32_t config[MAX_NUM_DCB_ENTRIES];
-	    unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
-	    unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
-    } dcb_table;
+	struct {
+		int entries;
+		struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
+		unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
+		unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
+	} dcb_table;
 
-    uint32_t output_info;
-    MiscStartupInfo misc_info;
+	uint32_t output_info;
+	MiscStartupInfo misc_info;
 
-    DisplayModePtr fp_native_mode;
+	DisplayModePtr fp_native_mode;
 
-    struct {
-	    ORNum dac;
-	    ORNum sor;
-    } i2cMap[4];
-    struct {
-	    Bool  present;
-	    ORNum or;
-    } lvds;
+	struct {
+		ORNum dac;
+		ORNum sor;
+	} i2cMap[4];
+	struct {
+		Bool  present;
+		ORNum or;
+	} lvds;
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {
