@@ -389,6 +389,7 @@ NVIdentify(int flags)
 }
 
 
+#ifndef XSERVER_LIBPCIACCESS
 static Bool
 NVGetScrnInfoRec(PciChipsets *chips, int chip)
 {
@@ -404,11 +405,7 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
     pScrn->driverName       = NV_DRIVER_NAME;
     pScrn->name             = NV_NAME;
 
-#ifndef XSERVER_LIBPCIACCESS
-	pScrn->Probe = NVProbe;
-#else
-	pScrn->Probe = NULL;
-#endif
+    pScrn->Probe = NVProbe;
     pScrn->PreInit          = NVPreInit;
     pScrn->ScreenInit       = NVScreenInit;
     pScrn->SwitchMode       = NVSwitchMode;
@@ -420,6 +417,7 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
 
     return TRUE;
 }
+#endif
 
 /* This returns architecture in hexdecimal, so NV40 is 0x40 */
 static int NVGetArchitecture (volatile CARD32 *regs)
@@ -488,7 +486,8 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	volatile uint32_t *regs = NULL;
 
 	/* Temporary mapping to discover the architecture */
-	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0, (void **) &regs);
+	pci_device_map_range(dev, PCI_DEV_MEM_BASE(dev, 0), 0x90000, 0,
+			     (void *) &regs);
 
 	uint8_t architecture = NVGetArchitecture(regs);
 
@@ -500,9 +499,10 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 	/* For safety the fictional NV8F is used */
 	if (architecture >= 0x04 && architecture <= 0x8F) {
 
-		/* At this stage the pci_id should be ok, so we generate this to avoid list duplication */
+		/* At this stage the pci_id should be ok, so we generate this
+		 * to avoid list duplication */
 		/* AGP bridge chips need their bridge chip id to be detected */
-		const PciChipsets NVChipsets[] = {
+		PciChipsets NVChipsets[] = {
 			{ pci_id, PCI_DEV_PCI_ID(dev), RES_SHARED_VGA },
 			{ -1, -1, RES_UNDEFINED }
 		};
@@ -1150,7 +1150,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	volatile uint32_t *regs = NULL;
 #ifdef XSERVER_LIBPCIACCESS
-	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0), 0x90000, 0, (void **) &regs);
+	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0),
+			     0x90000, 0, (void *)&regs);
 	pNv->Chipset = NVGetPCIID(regs) & 0xffff;
 	pNv->NVArch = NVGetArchitecture(regs);
 	pci_device_unmap_range(pNv->PciInfo, (void *) regs, 0x90000);
@@ -1746,9 +1747,9 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   "Unable to allocate GART memory\n");
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "GART: mapped %dMiB at %p, offset is %d\n",
+			   "GART: mapped %dMiB at %p\n",
 			   (unsigned int)(pNv->GARTScratch->size >> 20),
-			   pNv->GARTScratch->map, pNv->GARTScratch->offset);
+			   pNv->GARTScratch->map);
 	}
 
 

@@ -732,9 +732,12 @@ void nv30UpdateArbitrationSettings (NVPtr pNv,
 struct pci_device GetDeviceByPCITAG(uint32_t bus, uint32_t dev, uint32_t func)
 {
 	const struct pci_slot_match match[] = { {0, bus, dev, func, 0} };
-	struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+	struct pci_device_iterator *iterator;
+	struct pci_device *device;
+	
 	/* assume one device to exist */
-	struct pci_device *device = pci_device_next(iterator);
+	iterator = pci_slot_match_iterator_create(match);
+	device = pci_device_next(iterator);
 
 	return *device;
 }

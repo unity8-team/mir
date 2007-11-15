@@ -273,7 +273,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 	}
 
 	ret = drmMap(pNv->drm_fd, pNv->fifo.cmdbuf, pNv->fifo.cmdbuf_size,
-		     (drmAddressPtr)&pNv->dmaBase);
+		     (void *)&pNv->dmaBase);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to map DMA push buffer: %d\n", ret);
@@ -281,7 +281,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 	}
 
 	ret = drmMap(pNv->drm_fd, pNv->fifo.ctrl, pNv->fifo.ctrl_size,
-		     (drmAddressPtr)&pNv->FIFO);
+		     (void *)&pNv->FIFO);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to map FIFO control regs: %d\n", ret);

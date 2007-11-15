@@ -1253,7 +1253,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 		nv_output->fpHeight = pNv->fp_native_mode->VDisplay;
 	}
 
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %lu x %lu\n",
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %u x %u\n",
 		nv_output->fpWidth, nv_output->fpHeight);
 
 	nv_output->native_mode = xf86DuplicateMode(pNv->fp_native_mode);

@@ -100,10 +100,6 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 
 	switch(pScrn->depth)
 	{
-		case 8:
-		case 15:
-			xf86DrvMsg(pScreen->myNum, X_ERROR, "[dri] no DRI at %d bpp ",pScrn->depth);
-			break;
 		case 16:
 		case 24:
 			num_configs=2*3*((pScrn->depth==24)?2:1)*2; /* db*depth*alpha*stencil */
@@ -183,6 +179,9 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 				i++;
 			}
 			break;
+		default:
+			xf86DrvMsg(pScreen->myNum, X_ERROR, "[dri] no DRI at %d bpp ",pScrn->depth);
+			return FALSE;
 	}
 	GlxSetVisualConfigs(num_configs, pConfigs, (void**)pNVConfigPtrs);
 	return TRUE;
@@ -245,7 +244,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	
 	/* temporary lock step versioning */
 #if NOUVEAU_DRM_HEADER_PATCHLEVEL != 10
-#error nouveau_drm.h doesn\'t match expected patchlevel, update libdrm.
+#error nouveau_drm.h does not match expected patchlevel, update libdrm.
 #endif
 	if (pNv->pKernelDRMVersion->version_patchlevel !=
 			NOUVEAU_DRM_HEADER_PATCHLEVEL) {

@@ -300,7 +300,7 @@ static void nv10GetConfig (NVPtr pNv)
 		uint32_t amt;
 #ifdef XSERVER_LIBPCIACCESS
 		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
-		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(match);
 		/* assume one device to exist */
 		struct pci_device *device = pci_device_next(iterator);
 		PCI_DEV_READ_LONG(device, 0x7c, &amt);
@@ -312,7 +312,7 @@ static void nv10GetConfig (NVPtr pNv)
 		uint32_t amt; 
 #ifdef XSERVER_LIBPCIACCESS
 		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
-		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(&match);
+		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(match);
 		/* assume one device to exist */
 		struct pci_device *device = pci_device_next(iterator);
 		PCI_DEV_READ_LONG(device, 0x84, &amt);
@@ -386,7 +386,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			pNv->PciTag, pNv->IOAddress, 0x01000000);
 #else
 	/* 0x01000000 is the size */
-	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, &(pNv->REGS));
+	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->REGS);
 #endif /* XSERVER_LIBPCIACCESS */
 
     pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
