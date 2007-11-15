@@ -614,15 +614,21 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
 	}
 
-	/* This seems to be a common mode (0x11100000)
+	/*
 	* bit0: positive vsync
 	* bit4: positive hsync
 	* bit8: enable panel scaling 
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit31: sometimes seen on LVDS panels
 	* This must also be set for non-flatpanels
+	* Some bits seem shifted for vga monitors
 	*/
-	regp->fp_control = 0x11100000;
+
+	if (is_fp) {
+		regp->fp_control = 0x11100000;
+	} else {
+		regp->fp_control = 0x21100000;
+	}
 	if (nv_output->type == OUTPUT_LVDS) {
 		/* Let's assume LVDS to be on ramdac0, remember that in the ramdac routing is somewhat random (compared to bios setup), so don't trust it */
 		regp->fp_control = nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
@@ -632,12 +638,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	}
 
 	/* Deal with vsync/hsync polarity */
+	/* These analog monitor offsets are guesswork */
 	if (adjusted_mode->Flags & V_PVSYNC) {
-		regp->fp_control |= (1 << 0);
+		regp->fp_control |= (1 << (0 + !is_fp));
 	}
 
 	if (adjusted_mode->Flags & V_PHSYNC) {
-		regp->fp_control |= (1 << 4);
+		regp->fp_control |= (1 << (4 + !is_fp));
 	}
 
 	if (is_fp) {
