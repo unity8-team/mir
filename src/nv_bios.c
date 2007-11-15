@@ -54,6 +54,24 @@ typedef struct {
 	uint16_t fpxlatemanufacturertableptr;
 } bios_t;
 
+static uint16_t le16_to_cpu(const uint16_t x)
+{
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	return bswap_16(x);
+#else
+	return x;
+#endif
+}
+
+static uint32_t le32_to_cpu(const uint32_t x)
+{
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	return bswap_32(x);
+#else
+	return x;
+#endif
+}
+
 static Bool nv_cksum(const uint8_t *data, unsigned int offset, unsigned int length)
 {
 	/* there's a few checksums in the BIOS, so here's a generic checking function */
@@ -116,7 +134,7 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const uint32_t *pramin = (void*)&pNv->REGS[NV_PRAMIN_ROM_OFFSET/4];
+	const uint32_t *pramin = (uint32_t *)&pNv->REGS[NV_PRAMIN_ROM_OFFSET/4];
 	uint32_t old_bar0_pramin = 0;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -226,6 +244,11 @@ static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (!nv_valid_reg(reg)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "========= unknown reg 0x%08X ==========\n", reg);
+		return;
+	}
 	*data = pNv->REGS[reg/4];
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -243,7 +266,7 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 			   "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
 	if (!nv_valid_reg(reg)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "========= unknown reg 0x%X ==========\n", reg);
+			   "========= unknown reg 0x%08X ==========\n", reg);
 		return 0;
 	}
 #ifdef PERFORM_WRITE
@@ -393,12 +416,12 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	 * Read the appropriate value using this index and write to "register"
 	 */
 
-	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
 	uint8_t shift = *((uint8_t *)(&bios->data[offset + 5]));
 	uint8_t count = *((uint8_t *)(&bios->data[offset + 6]));
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 7]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 7])));
 	uint8_t config;
 	uint32_t configval;
 
@@ -420,7 +443,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 		return FALSE;
 	}
 
-	configval = *((uint32_t *)(&bios->data[offset + 11 + config * 4]));
+	configval = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 11 + config * 4])));
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -474,10 +497,10 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	 * (REGVAL("register") >> "shift" & "srcmask") and write-back to CRTC port
 	 */
 
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
 	uint8_t shift = *((uint8_t *)(&bios->data[offset + 5]));
 	uint8_t srcmask = *((uint8_t *)(&bios->data[offset + 6]));
-	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 7]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 7])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 9]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 10]));
 	uint32_t data;
@@ -539,11 +562,11 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	 */
 
 	uint16_t condptr = bios->io_flag_condition_tbl_ptr + cond * IO_FLAG_CONDITION_SIZE;
-	uint16_t crtcport = *((uint16_t *)(&bios->data[condptr]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[condptr])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[condptr + 2]));
 	uint8_t mask = *((uint8_t *)(&bios->data[condptr + 3]));
 	uint8_t shift = *((uint8_t *)(&bios->data[condptr + 4]));
-	uint16_t flagarray = *((uint16_t *)(&bios->data[condptr + 5]));
+	uint16_t flagarray = le16_to_cpu(*((uint16_t *)(&bios->data[condptr + 5])));
 	uint8_t flagarraymask = *((uint8_t *)(&bios->data[condptr + 7]));
 	uint8_t cmpval = *((uint8_t *)(&bios->data[condptr + 8]));
 	uint8_t data;
@@ -623,13 +646,13 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	 * and condition met, double frequency before setting it.
 	 */
 
-	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
 	uint8_t shift = *((uint8_t *)(&bios->data[offset + 5]));
 	int8_t io_flag_condition_idx = *((int8_t *)(&bios->data[offset + 6]));
 	uint8_t count = *((uint8_t *)(&bios->data[offset + 7]));
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 8]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 8])));
 	uint8_t config;
 	uint16_t freq;
 
@@ -651,7 +674,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 		return FALSE;
 	}
 
-	freq = *((uint16_t *)(&bios->data[offset + 12 + config * 2]));
+	freq = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 12 + config * 2])));
 
 	if (io_flag_condition_idx > 0) {
 		if (io_flag_condition(pScrn, bios, offset, io_flag_condition_idx)) {
@@ -694,8 +717,8 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 	 * Set PLL register "register" to coefficients for frequency (10kHz) "freq"
 	 */
 
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
-	uint16_t freq = *((uint16_t *)(&bios->data[offset + 5]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint16_t freq = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 5])));
 
 	if (!iexec->execute)
 		return TRUE;
@@ -735,8 +758,8 @@ Bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	 * FIXME
 	 */
 
-	uint32_t rega = *((uint32_t *)(&bios->data[offset + 1]));
-	uint32_t regb = *((uint32_t *)(&bios->data[offset + 5]));
+	uint32_t rega = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t regb = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
 	uint8_t count = *((uint8_t *)(&bios->data[offset + 17]));
 	int i;
 
@@ -954,7 +977,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 	 */
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD32 data = *((CARD16 *) (&bios->data[offset + 5]));
+	CARD16 data = le16_to_cpu(*((CARD16 *) (&bios->data[offset + 5])));
 	CARD32 data2 = bios->data[data];
 
 	if (iexec->execute) {
@@ -984,7 +1007,7 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init
 	 * is found. 
 	 */
 
-	CARD16 sub_offset = *((CARD16 *) (&bios->data[offset + 1]));
+	CARD16 sub_offset = le16_to_cpu(*((CARD16 *) (&bios->data[offset + 1])));
 
 	if (iexec->execute) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-ROUTINE AT: 0x%04X\n", 
@@ -1047,7 +1070,7 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	 *
 	 * Write "data" to index "CRTC index" of "CRTC port"
 	 */
-	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t data = *((uint8_t *)(&bios->data[offset + 4]));
 
@@ -1071,7 +1094,7 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
 #if 0
-	uint16_t ramcfg = *((uint16_t *)(&bios->data[bios->ram_table_offset]));
+	uint16_t ramcfg = le16_to_cpu(*((uint16_t *)(&bios->data[bios->ram_table_offset])));
 	uint32_t pfb_debug;
 	uint32_t strapinfo;
 	uint32_t ramcfg2;
@@ -1089,8 +1112,8 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	pfb_debug &= 0xffffffef;
 	strapinfo >>= 2;
 	strapinfo &= 0x0000000f;
-	ramcfg2 = *((uint16_t *)
-			(&bios->data[bios->ram_table_offset + (2 * strapinfo)]));
+	ramcfg2 = le16_to_cpu(*((uint16_t *)
+			(&bios->data[bios->ram_table_offset + (2 * strapinfo)])));
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "AFTER MANIPULATION\n");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "STRAPINFO: 0x%08X\n", strapinfo);
@@ -1125,9 +1148,9 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	 * Assign "value1" to "register", then assign "value2" to "register"
 	 */
 
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
-	uint32_t value1 = *((uint32_t *)(&bios->data[offset + 5]));
-	uint32_t value2 = *((uint32_t *)(&bios->data[offset + 9]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t value1 = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+	uint32_t value2 = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 9])));
 	uint32_t pci_nv_19;
 
 	if (!iexec->execute)
@@ -1171,7 +1194,7 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	NVPtr pNv = NVPTR(pScrn);
 	/* FIXME how to choose head?? */
 	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
-	CARD16 reg = *((CARD16 *)(&bios->data[offset + 1]));
+	CARD16 reg = le16_to_cpu(*((CARD16 *)(&bios->data[offset + 1])));
 	CARD8 and  = *((CARD8 *)(&bios->data[offset + 3]));
 	CARD8 or = *((CARD8 *)(&bios->data[offset + 4]));
 	CARD8 data;
@@ -1202,7 +1225,7 @@ static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-SCRIPT: %d\n", offset, sub);
 
 		parse_init_table(pScrn, bios, 
-				*((CARD16 *) (&bios->data[bios->init_script_tbls_ptr + sub * 2])),
+				le16_to_cpu(*((CARD16 *) (&bios->data[bios->init_script_tbls_ptr + sub * 2]))),
 				iexec);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-SCRIPT\n", offset);
@@ -1258,9 +1281,9 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	 * Assign ((REGVAL("register") & "mask") | "data") to "register"
 	 */
 
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
-	uint32_t mask = *((uint32_t *)(&bios->data[offset + 5]));
-	uint32_t data = *((uint32_t *)(&bios->data[offset + 9]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+	uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 9])));
 	uint32_t value;
 
 	if (!iexec->execute)
@@ -1310,10 +1333,10 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 			   offset, macro_index_tbl_idx, macro_tbl_idx, count);
 
 	for (i = 0; i < count; i++) {
-		reg = *((uint32_t *)
-			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i) * MACRO_SIZE]));
-		data = *((uint32_t *)
-			(&bios->data[bios->macro_tbl_ptr + (macro_tbl_idx + i) * MACRO_SIZE + 4]));
+		uint16_t macroentryptr = bios->macro_tbl_ptr + (macro_tbl_idx + i) * MACRO_SIZE;
+
+		reg = le32_to_cpu(*((uint32_t *)(&bios->data[macroentryptr])));
+		data = le32_to_cpu(*((uint32_t *)(&bios->data[macroentryptr + 4])));
 
 		nv32_wr(pScrn, reg, data);
 	}
@@ -1399,7 +1422,7 @@ static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	 * Sleep for "time" microseconds.
 	 */
 
-	uint16_t time = *((uint16_t *)(&bios->data[offset + 1]));
+	uint16_t time = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 
 	if (!iexec->execute)
 		return TRUE;
@@ -1429,12 +1452,9 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 
 	uint8_t cond = *((uint8_t *)(&bios->data[offset + 1]));
 	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
-	uint32_t reg = *((uint32_t *)
-			(&bios->data[condptr]));
-	uint32_t mask = *((uint32_t *)
-			(&bios->data[condptr + 4]));
-	uint32_t cmpval = *((uint32_t *)
-			(&bios->data[condptr + 8]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
+	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
+	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
 	uint32_t data;
 
 	if (!iexec->execute)
@@ -1482,7 +1502,7 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 	 * Read value at index "CRTC index" on "CRTC port", AND with "mask", OR with "data", write-back
 	 */
 
-	uint16_t crtcport = *((uint16_t *)(&bios->data[offset + 1]));
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 	uint8_t crtcindex = *((uint8_t *)(&bios->data[offset + 3]));
 	uint8_t mask = *((uint8_t *)(&bios->data[offset + 4]));
 	uint8_t data = *((uint8_t *)(&bios->data[offset + 5]));
@@ -1515,8 +1535,8 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	 * Assign "value" to "register"
 	 */
 
-	uint32_t reg = *((uint32_t *)(&bios->data[offset + 1]));
-	uint32_t value = *((uint32_t *)(&bios->data[offset + 5]));
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t value = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
 
 	if (!iexec->execute)
 		return TRUE;
@@ -1638,7 +1658,7 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	uint16_t table;
 	init_exec_t iexec = {TRUE, FALSE};
 
-	while ((table = *((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i])))) {
+	while ((table = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i]))))) {
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing init table %d\n",
 			table, i / 2);
@@ -1735,15 +1755,15 @@ v1common:
 		return;
 
 	int modeofs = headerlen + recordlen * fpindex + ofs;
-	mode->Clock = *(uint16_t *)&fptable[modeofs] * 10;
-	mode->HDisplay = *(uint16_t *)&fptable[modeofs + 2];
-	mode->HSyncStart = *(uint16_t *)&fptable[modeofs + 10] + 1;
-	mode->HSyncEnd = *(uint16_t *)&fptable[modeofs + 12] + 1;
-	mode->HTotal = *(uint16_t *)&fptable[modeofs + 14] + 1;
-	mode->VDisplay = *(uint16_t *)&fptable[modeofs + 16];
-	mode->VSyncStart = *(uint16_t *)&fptable[modeofs + 24] + 1;
-	mode->VSyncEnd = *(uint16_t *)&fptable[modeofs + 26] + 1;
-	mode->VTotal = *(uint16_t *)&fptable[modeofs + 28] + 1;
+	mode->Clock = le16_to_cpu(*(uint16_t *)&fptable[modeofs]) * 10;
+	mode->HDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 2]);
+	mode->HSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 10] + 1);
+	mode->HSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 12] + 1);
+	mode->HTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 14] + 1);
+	mode->VDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 16]);
+	mode->VSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 24] + 1);
+	mode->VSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 26] + 1);
+	mode->VTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 28] + 1);
 	mode->Flags |= (fptable[modeofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
 	mode->Flags |= (fptable[modeofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
 
@@ -1794,8 +1814,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 		return 0;
 	}
 
-	table = *((uint16_t *)(&bios->data[bitentry->offset]));
-	bios->fptablepointer = *((uint16_t *)(&bios->data[bitentry->offset + 2]));
+	table = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	bios->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
 	parse_fp_tables(pScrn, bios);
 
@@ -1826,13 +1846,13 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 		return 0;
 	}
 
-	bios->init_script_tbls_ptr = *((uint16_t *)(&bios->data[bitentry->offset]));
-	bios->macro_index_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 2]));
-	bios->macro_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 4]));
-	bios->condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 6]));
-	bios->io_condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 8]));
-	bios->io_flag_condition_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 10]));
-	bios->init_function_tbl_ptr = *((uint16_t *)(&bios->data[bitentry->offset + 12]));
+	bios->init_script_tbls_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	bios->macro_index_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
+	bios->macro_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 4])));
+	bios->condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 6])));
+	bios->io_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 8])));
+	bios->io_flag_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 10])));
+	bios->init_function_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 12])));
 
 	parse_init_tables(pScrn, bios);
 
@@ -1863,12 +1883,12 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 		return 1;
 
 	if (bitentry->length > 33) {
-		bios->fptablepointer = *((uint16_t *)(&bios->data[bitentry->offset + 30]));
-		bios->fpxlatetableptr = *((uint16_t *)(&bios->data[bitentry->offset + 32]));
+		bios->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
+		bios->fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
 	}
 	if (bitentry->length > 45) {
-		bios->lvdsmanufacturerpointer = *((uint16_t *)(&bios->data[bitentry->offset + 42]));
-		bios->fpxlatemanufacturertableptr = *((uint16_t *)(&bios->data[bitentry->offset + 44]));
+		bios->lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
+		bios->fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
 	}
 
 	parse_fp_tables(pScrn, bios);
@@ -1934,7 +1954,7 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 		return;
 	}
 
-	switch(pins_version_major) {
+	switch (pins_version_major) {
 		case 2:
 			ram_tab = init1-0x0010;
 			break;
@@ -2071,7 +2091,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	pNv->dcb_table.entries = 0;
 
 	/* get the offset from 0x36 */
-	dcbptr = *(uint16_t *)&bios->data[0x36];
+	dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
 
 	if (dcbptr == 0x0) {
 		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
@@ -2098,16 +2118,16 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (dcb_version >= 0x30) { /* NV40+ */
 			headerlen = dcbtable[1];
 			entries = dcbtable[2];
-			i2ctabptr = *(uint16_t *)&dcbtable[4];
-			sig = *(uint32_t *)&dcbtable[6];
+			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[4]);
+			sig = le32_to_cpu(*(uint32_t *)&dcbtable[6]);
 
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "DCB header length %02X, with %02X possible entries\n",
 				   headerlen, entries);
 		} else {
 			/* dcb_block_count = *(dcbtable[1]); */
-			i2ctabptr = *(uint16_t *)&dcbtable[2];
-			sig = *(uint32_t *)&dcbtable[4];
+			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
+			sig = le32_to_cpu(*(uint32_t *)&dcbtable[4]);
 			headerlen = 8;
 		}
 
@@ -2122,7 +2142,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		memset(sig, 0, 8);
 		strncpy(sig, (char *)&dcbtable[-7], 7);
 		/* dcb_block_count = *(dcbtable[1]); */
-		i2ctabptr = *(uint16_t *)&dcbtable[2];
+		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		recordlength = 10;
 		confofs = 6;
 
@@ -2133,7 +2153,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		}
 	} else if (dcb_version >= 0x12) { /* some NV6/10, and NV15+ */
 		/* dcb_block_count = *(dcbtable[1]); */
-		i2ctabptr = *(uint16_t *)&dcbtable[2];
+		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		configblock = FALSE;
 	} else {	/* NV5+, maybe NV4 */
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2147,15 +2167,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	for (i = 0; i < entries; i++) {
 		uint32_t connection, config = 0;
 
-		if (is_g5_nv43) {
-			connection = __bswap_32(*(uint32_t *)&dcbtable[headerlen + recordlength * i]);
-			if (configblock)
-				config = __bswap_32(*(uint32_t *)&dcbtable[headerlen + confofs + recordlength * i]);
-		} else {
-			connection = *(uint32_t *)&dcbtable[headerlen + recordlength * i];
-			if (configblock)
-				config = *(uint32_t *)&dcbtable[headerlen + confofs + recordlength * i];
-		}
+		connection = le32_to_cpu(*(uint32_t *)&dcbtable[headerlen + recordlength * i]);
+		if (configblock)
+			config = le32_to_cpu(*(uint32_t *)&dcbtable[headerlen + confofs + recordlength * i]);
 
 		/* I think this is a good descriminator, but I don't understand
 		 * pre v2.0 DCBs so well, so maybe those need testing against
