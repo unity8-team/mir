@@ -334,6 +334,19 @@ DEBUGSTRING(i830_debug_sdvo)
 		     enable, pipe, stall, detected, sdvoextra, gang);
 }
 
+#if 0
+DEBUGSTRING(i810_debug_fence_new)
+{
+    char *enable = (val & FENCE_VALID) ? "enabled" : "disabled";
+    char format = (val & I965_FENCE_Y_MAJOR) ? 'Y' : 'X';
+    int pitch = ((val & 0xffc) >> 2) * 128;
+    unsigned int offset = val & 0xfffff000;
+
+    return XNFprintf("%s, %c tile walk, %d pitch, 0x%08x offset",
+		     enable, format, pitch, offset);
+}
+#endif
+
 #define DEFINEREG(reg) \
 	{ reg, #reg, NULL, 0 }
 #define DEFINEREG2(reg, func) \
@@ -465,6 +478,25 @@ static struct i830SnapshotRec {
     DEFINEREG(TV_H_LUMA_59),
     DEFINEREG(TV_H_CHROMA_0),
     DEFINEREG(TV_H_CHROMA_59),
+
+#if 0
+    DEFINEREG2(FENCE_NEW + 0, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 8, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 16, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 24, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 32, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 40, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 48, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 56, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 64, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 72, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 80, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 88, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 96, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 104, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 112, i810_debug_fence_new),
+    DEFINEREG2(FENCE_NEW + 120, i810_debug_fence_new),
+#endif
 };
 #undef DEFINEREG
 #define NUM_I830_SNAPSHOTREGS (sizeof(i830_snapshot) / sizeof(i830_snapshot[0]))
@@ -528,6 +560,34 @@ static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int
     }
 }
 
+static void i830DumpAR(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int i;
+    uint16_t st01, palette_enable = 0;
+    unsigned char orig_arx, msr;
+
+    msr = INREG8(0x3cc);
+    if (msr & 1)
+	st01 = 0x3da;
+    else
+	st01 = 0x3ba;
+
+    INREG8(st01); /* make sure index/write register is in index mode */
+    orig_arx = INREG8(0x3c0);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%19.19sX: 0x%02x\n",
+	       "AR", orig_arx);
+    
+    for (i = 0; i <= 0x14; i++) {
+	INREG8(st01);
+	OUTREG8(0x3c0, i);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%18.18s%02x: 0x%02x\n",
+		   "AR", i, INREG8(0x3c1));
+    }
+    INREG8(st01);
+    OUTREG8(0x3c0, orig_arx);
+}
+
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -562,6 +622,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%02x\n",
 		    "MSR", (unsigned int) msr);
 
+    i830DumpAR (pScrn);
     if (msr & 1)
 	crt = 0x3d0;
     else

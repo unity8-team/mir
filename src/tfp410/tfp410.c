@@ -48,9 +48,11 @@ static Bool
 tfp410ReadByte(TFP410Ptr tfp, int addr, CARD8 *ch)
 {
     if (!xf86I2CReadByte(&(tfp->d), addr, ch)) {
-	xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to read from %s Slave %d.\n",
-		   tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	if (!tfp->quiet) {
+	    xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
+		       "Unable to read from %s Slave %d.\n",
+		       tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	}
 	return FALSE;
     }
     return TRUE;
@@ -60,9 +62,11 @@ static Bool
 tfp410WriteByte(TFP410Ptr tfp, int addr, CARD8 ch)
 {
     if (!xf86I2CWriteByte(&(tfp->d), addr, ch)) {
-	xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to write to %s Slave %d.\n",
-		   tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	if (!tfp->quiet) {
+	    xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
+		       "Unable to write to %s Slave %d.\n",
+		       tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	}
 	return FALSE;
     }
     return TRUE;
@@ -89,8 +93,6 @@ tfp410_init(I2CBusPtr b, I2CSlaveAddr addr)
     TFP410Ptr tfp;
     int id;
 
-    xf86DrvMsg(b->scrnIndex, X_INFO, "detecting tfp410\n");
-
     tfp = xcalloc(1, sizeof(TFP410Rec));
     if (tfp == NULL)
 	return NULL;
@@ -103,11 +105,14 @@ tfp410_init(I2CBusPtr b, I2CSlaveAddr addr)
     tfp->d.AcknTimeout = b->AcknTimeout;
     tfp->d.ByteTimeout = b->ByteTimeout;
     tfp->d.DriverPrivate.ptr = tfp;
+    tfp->quiet = TRUE;
 
     if ((id = tfp410GetID(tfp, TFP410_VID_LO)) != TFP410_VID) {
-	xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
-		   "tfp410 not detected got VID %X: from %s Slave %d.\n",
-		   id, tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	if (id != 0xffffffff) {
+	    xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_ERROR,
+		       "tfp410 not detected got VID %X: from %s Slave %d.\n",
+		       id, tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
+	}
 	goto out;
     }
 
@@ -117,6 +122,7 @@ tfp410_init(I2CBusPtr b, I2CSlaveAddr addr)
 		   id, tfp->d.pI2CBus->BusName, tfp->d.SlaveAddr);
 	goto out;
     }
+    tfp->quiet = FALSE;
 
     if (!xf86I2CDevInit(&(tfp->d))) {
 	goto out;

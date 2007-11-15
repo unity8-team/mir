@@ -371,13 +371,14 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     dest_surf_state->ss0.mipmap_layout_mode = 0;
     dest_surf_state->ss0.render_cache_read_mode = 0;
 
-    dest_surf_state->ss1.base_addr = (long)pPixmap->devPrivate.ptr -
-	(long)pI830->FbBase;
+    dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pPixmap);
     dest_surf_state->ss2.height = pScrn->virtualY - 1;
     dest_surf_state->ss2.width = pScrn->virtualX - 1;
     dest_surf_state->ss2.mip_count = 0;
     dest_surf_state->ss2.render_target_rotation = 0;
-    dest_surf_state->ss3.pitch = pPixmap->devKind - 1;
+    dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
+    dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pPixmap);
+    dest_surf_state->ss3.tile_walk = 0; /* TileX */
 
     /* Set up the source surface state buffer */
     memset(src_surf_state, 0, sizeof(*src_surf_state));
@@ -408,6 +409,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     src_surf_state->ss2.mip_count = 0;
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = video_pitch - 1;
+    /* FIXME: account for tiling if we ever do it */
 
     /* Set up a binding table for our two surfaces.  Only the PS will use it */
     /* XXX: are these offset from the right place? */

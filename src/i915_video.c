@@ -127,8 +127,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    /* front buffer, pitch, offset */
    OUT_RING(_3DSTATE_BUF_INFO_CMD);
    OUT_RING(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
-	    BUF_3D_PITCH(pPixmap->devKind));
-   OUT_RING(BUF_3D_ADDR((long)pPixmap->devPrivate.ptr - (long)pI830->FbBase));
+	    BUF_3D_PITCH(intel_get_pixmap_pitch(pPixmap)));
+   OUT_RING(BUF_3D_ADDR(intel_get_pixmap_offset(pPixmap)));
    ADVANCE_LP_RING();
 
    if (!planar) {
@@ -149,7 +149,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(_3DSTATE_MAP_STATE | 3);
       OUT_RING(0x00000001);	/* texture map #1 */
       OUT_RING(pPriv->YBuf0offset);
-      ms3 = MAPSURF_422;
+      ms3 = MAPSURF_422 | MS3_USE_FENCE_REGS;
       switch (id) {
       case FOURCC_YUY2:
 	 ms3 |= MT_422_YCRCB_NORMAL;
@@ -160,8 +160,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       }
       ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
-      if (!pI830->disableTiling)
-	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
       ADVANCE_LP_RING();
@@ -248,29 +246,23 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       OUT_RING(0x00000007);
 
       OUT_RING(pPriv->YBuf0offset);
-      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
-      if (!pI830->disableTiling)
-	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
       OUT_RING(((video_pitch * 2 / 4) - 1) << MS4_PITCH_SHIFT);
 
       OUT_RING(pPriv->UBuf0offset);
-      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
-      if (!pI830->disableTiling)
-	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
 
       OUT_RING(pPriv->VBuf0offset);
-      ms3 = MAPSURF_8BIT | MT_8BIT_I8;
+      ms3 = MAPSURF_8BIT | MT_8BIT_I8 | MS3_USE_FENCE_REGS;
       ms3 |= (height / 2 - 1) << MS3_HEIGHT_SHIFT;
       ms3 |= (width / 2 - 1) << MS3_WIDTH_SHIFT;
-      if (!pI830->disableTiling)
-	 ms3 |= MS3_USE_FENCE_REGS;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
       ADVANCE_LP_RING();

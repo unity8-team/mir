@@ -37,20 +37,6 @@ Index: xserver-xorg-video-intel-2.1.1/src/i830_video.c
      {
  	texturedAdaptor = I830SetupImageVideoTextured(pScreen);
  	if (texturedAdaptor != NULL) {
-@@ -2486,9 +2490,10 @@
-     }
- #endif
- 
--    if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
--	((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
--	 pI830->FbMapSize)) {
-+    if (pPriv->textured &&
-+	(((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
-+	 ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
-+	  pI830->FbMapSize))) {
- 	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
- 	 * force it there.  So, we simply refuse to draw and fail.
- 	 */
 @@ -2504,6 +2509,7 @@
  	if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
  	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);

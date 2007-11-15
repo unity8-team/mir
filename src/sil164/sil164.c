@@ -49,9 +49,11 @@ static Bool
 sil164ReadByte(SIL164Ptr sil, int addr, CARD8 *ch)
 {
     if (!xf86I2CReadByte(&(sil->d), addr, ch)) {
-	xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to read from %s Slave %d.\n",
-		   sil->d.pI2CBus->BusName, sil->d.SlaveAddr);
+	if (!sil->quiet) {
+	    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
+		       "Unable to read from %s Slave %d.\n",
+		       sil->d.pI2CBus->BusName, sil->d.SlaveAddr);
+	}
 	return FALSE;
     }
     return TRUE;
@@ -61,9 +63,11 @@ static Bool
 sil164WriteByte(SIL164Ptr sil, int addr, CARD8 ch)
 {
     if (!xf86I2CWriteByte(&(sil->d), addr, ch)) {
-	xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
-		   "Unable to write to %s Slave %d.\n",
-		   sil->d.pI2CBus->BusName, sil->d.SlaveAddr);
+	if (!sil->quiet) {
+	    xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_ERROR,
+		       "Unable to write to %s Slave %d.\n",
+		       sil->d.pI2CBus->BusName, sil->d.SlaveAddr);
+	}
 	return FALSE;
     }
     return TRUE;
@@ -77,8 +81,6 @@ sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
     SIL164Ptr sil;
     unsigned char ch;
 
-    xf86DrvMsg(b->scrnIndex, X_ERROR, "detecting sil164\n");
-
     sil = xcalloc(1, sizeof(SIL164Rec));
     if (sil == NULL)
 	return NULL;
@@ -91,6 +93,7 @@ sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
     sil->d.AcknTimeout = b->AcknTimeout;
     sil->d.ByteTimeout = b->ByteTimeout;
     sil->d.DriverPrivate.ptr = sil;
+    sil->quiet = TRUE;
 
     if (!sil164ReadByte(sil, SIL164_VID_LO, &ch))
 	goto out;
@@ -111,6 +114,7 @@ sil164_init(I2CBusPtr b, I2CSlaveAddr addr)
 		   ch, sil->d.pI2CBus->BusName, sil->d.SlaveAddr);
 	goto out;
     }
+    sil->quiet = FALSE;
 
     if (!xf86I2CDevInit(&(sil->d))) {
 	goto out;

@@ -1,10 +1,849 @@
-commit 69ea37ebf72b92d842aa80dfa3578e328c7ceaa3
-Author: Kyle McMartin <kyle@phobos.i.cabal.ca>
-Date:   Tue Aug 14 01:28:30 2007 -0400
+commit 177924e879564b7e9e70fd607141978bfd053fff
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Thu Nov 8 18:16:48 2007 -0800
 
-    Bump driver version to 2.1.1
+    Bump driver version to 2.1.99 in preparation for 2.2 release
 
-commit 46ca27eb547ad225b306d7f0886232d408b98c7f
+commit cb4e5796f0537ea5e0e646d473930c7b826c85d8
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Thu Nov 8 18:13:47 2007 -0800
+
+    Default to EXA
+    
+    If EXA is compiled into the driver, default to using it for acceleration.
+    Hopefully we can remove XAA entirely one day.
+
+commit 43a59ab26b09fcc24de1ed7bd770bb622f899ceb
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 8 16:52:41 2007 -0800
+
+    Clear current video crtc on DPMS off
+    
+    When calling the video DPMS off function, make sure we zero out the current
+    crtc so that it will be properly re-set up next time video is turned on.
+    
+    Fix from Peter Clifton with changes by Keith Packard.
+
+commit e784e152a8e84b6e447b55a5c7019e7b47e17621
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 8 16:37:53 2007 -0800
+
+    Fix overlay destination clamping
+    
+    The overlay width & height scaling clamp check was reversed.  Fix that and
+    update the comment.
+
+commit b8770f710729d616b3ac72544aa522161a78f819
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 8 16:19:01 2007 -0800
+
+    Setup 3D state at EnterVT time
+    
+    In the absence of full suspend/resume support in the kernel, we have to
+    save/restore state in Enter/LeaveVT.  For 8xx chips, 3D state may be lost
+    during suspend/resume, so re-emit the basic setup at EnterVT time.
+    
+    Patch from Peter Clifton.
+
+commit 5f92b4c2db9712496b829ee239468e3d14e27d2f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Nov 8 13:31:51 2007 -0800
+
+    Bug #12059: Add ch7019 to the list of supported devices for ch7017.
+    
+    While I'm here, fix the chip description to be LVDS instead of TMDS in i2c
+    device.
+
+commit eecd3ccedee6c4acf101591f7e60673660379e62
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 8 09:31:08 2007 -0800
+
+    Check DPLL status before writing PIPEnCONF regs
+    
+    If the DPLL isn't enabled or is in VGA mode, writing the PIPEnCONF registers
+    may cause a hang or crash.  So ensure the DPLL is in the proper state before
+    writing them.
+    
+    Another excellent fix from Peter Clifton.
+
+commit b434c1a437c407de88396b219560649c2dae82b2
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Thu Nov 1 12:06:07 2007 -0700
+
+    Framebuffer compression fix: front buffer may not be at fence 0
+    
+    Fix a long standing bug in the framebuffer compression code (thanks to
+    Pierre Willenbrock!) that prevented FBC from working correctly if the front
+    buffer was anywhere but fence register 0.
+
+commit 50d3693a6862028e50bc5ba8c788e7ea573c3eb8
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Nov 1 22:22:27 2007 +0800
+
+    Fix allocation reset for really not free BO allocator
+
+commit ecd995d533d28b622afc71a20504d47c33ff5b8d
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Tue Oct 30 18:20:49 2007 -0700
+
+    Fix builds without DRI
+
+commit 7c88b58a93fce9fda59b6344acb87af16336e287
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Tue Oct 30 18:20:15 2007 -0700
+
+    Clear compiler error: "void functions cannot return values"
+
+commit d2c78f82c20f33fc9c22cab8a7ca161e57a34bf8
+Author: Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
+Date:   Wed Oct 24 19:34:12 2007 +0200
+
+    Adapt to DRM Lockfree and setStatus changes.
+
+commit 78aaec0ffc711742bf8ad77757ed8c15cc3f7a9f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 24 11:50:54 2007 -0700
+
+    Fix typo in my hand-application of rglowery's patch.
+
+commit 021265fbec9fd4ee31bdc9767c0c0453479ea22c
+Author: Rob <rglowery@exemail.com.au>
+Date:   Wed Oct 24 11:06:53 2007 -0700
+
+    Fix a crash in TV mode handling by initializing the prev field of modes.
+
+commit 87345e820d20f1a98216c52e156c2e18c15ffa44
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Mon Oct 22 14:22:37 2007 -0700
+
+    intel_reg_dumper - dump VGA AR registers too
+    
+    Add a VGA AR dumping function so we can debug text mode problems too.
+
+commit 78e251db671e21bc859c9b505d391b70babee2dc
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 19 15:04:10 2007 -0700
+
+    In the clock graph, draw the VCO as erasures in the lines representing clocks.
+    
+    This shows one of the reasons for the gaps: with the other settings, the VCO
+    is too low inside the gap.  However, it also points out another issue: we
+    aren't using the high end of the VCO range due to some other limits being hit.
+
+commit 9f9b888525b274036d301d6e06351583d0415f9e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 18 11:25:24 2007 -0700
+
+    Warn in the log if we choose a PLL clock that's way out of line.
+
+commit 1f8bf110394cc1df66aae9acf5c818145ae19b52
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 18 11:17:38 2007 -0700
+
+    Add some nickle scripts for looking at PLL issues.
+    
+    While here, move similar nickle scripts under src/scripts/
+
+commit 79636b8c776ae024518103c9fa137c8498c21d48
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 17 17:10:24 2007 -0700
+
+    Bump pciaccess version requirement for  new API usage.
+
+commit c824c45e72908b5b3fa832fec91c7b47f305180c
+Author: Dave Airlie <airlied@optimus.(none)>
+Date:   Wed Oct 17 16:35:29 2007 +1000
+
+    intel: make block handler hook happen no matter what video is in use
+    
+    This shouldn't make a difference now, but for upcoming EXA/batch changes it
+    will be more useful
+
+commit aa88d23e615e7f154cf850927a0a7bb9fbb0d2f9
+Author: Rob <rglowery@exemail.com.au>
+Date:   Wed Oct 17 09:19:19 2007 +0800
+
+    AOpen 965GM mini pc has no LVDS
+
+commit 38900f55e2b50ea383f78adb016e3a02c3bd17ad
+Author: Kyle McMartin <kyle@freedesktop.org>
+Date:   Tue Oct 16 16:38:28 2007 -0400
+
+    toshiba satellite u300 has no tv out
+
+commit 74ac5de14ebb77aeb39d698e9e8d188c9d9abd76
+Author: Michel Dänzer <michel@tungstengraphics.com>
+Date:   Tue Oct 16 15:08:26 2007 +0200
+
+    Adapt to libdrm buffer object API changes.
+
+commit d66e924680a3504aa1feb9c228145a95d1a16b1e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 15 11:31:51 2007 -0700
+
+    In update_front_offset(), set pScrn->fbOffset even at EnterVT during init.
+    
+    Failure to do so led to the memset() at EnterVT being done to an invalid
+    offset.
+
+commit c94cdfd6ddbc580523737f596e97b96a7ce100b9
+Author: Jesse Barnes <jbarnes@jbarnes-mobile.amr.corp.intel.com>
+Date:   Sat Oct 13 15:57:45 2007 -0700
+
+    Fix palette save/restore
+    
+    When restoring the palette, we weren't checking to make sure the
+    associated pipe was enabled before writing the registers.  In some
+    configurations, this led to a driver crash.  Add new routines to handle
+    palette save/restore and verify that the pipes are on before we touch
+    the registers (could easily be changed to enable/disable the pipes
+    around the save/restore as well).
+
+commit e04333a6352040bc883655d606923c912d005981
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 12 12:42:45 2007 -0700
+
+    Fix failure in tiling setup on non-power-of-two allocations on pre-965.
+
+commit a1612b7728d4153499fe86b6713a13c8702cc7d9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 12 12:42:06 2007 -0700
+
+    Use mprotect on unbound AGP memory to attempt to catch use while unbound.
+    
+    This doesn't help with the most common use-while-unbound cases, which are
+    from the hardware side.
+
+commit 3af442ba52550a9d183e215d49cc12dac0cb9e4b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 11 11:56:06 2007 -0700
+
+    Don't double-free the memory manager allocation.
+
+commit 6c485ff5bd25e9aa6a3c1eb669843e6b969d94df
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 15:52:56 2007 -0700
+
+    Update memory manager sizing for the current set of LIFETIME_FIXED bufffers.
+
+commit d47cf148776d74f9035863b23eefdc2b5893af08
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 15:45:51 2007 -0700
+
+    Move tiling fence register setup to bind time instead of allocate time.
+    
+    This allows us to allocate tiled buffers in buffer objects.  In the process
+    I removed the fence division that we had for tiled buffers on pre-965.  If we
+    resurrect that code, it should probably be managed by just dividing all the
+    objects in roughly half and fencing those halves (to reduce the alignment
+    requirement), instead of using giant fences until we run out of space and then
+    trying to deal with scarce space on the last (or not) buffer.  Halving
+    our tiled objects would use 6/8 of our fence registers on that hardware.
+
+commit a6dc81a0864f9ab2f6fc1aa31002c0191f674ceb
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 12:37:19 2007 -0700
+
+    Allow front/back/depth to move over the lifetime of the server.
+
+commit 132dce7565feeea1055899f8c1627766fe84c88c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 12:12:06 2007 -0700
+
+    Delay SAREA and mapping setup until EnterVT when using the memory manager.
+    
+    Otherwise, we would use uninitialized offsets in the early setup.
+
+commit 4ca3550fb7d488741f8dc1ba3c8722393277c3b8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 4 17:02:15 2007 -0700
+
+    Rework DRI buffer mappings and sarea setup to allow for moving buffers.
+    
+    While this has been a desired feature for some time, to allow for reallocation
+    of the front buffer, it was made more necessary by the desire to avoid
+    requiring a NO_MOVE buffer type in TTM because buffer objects may not be left
+    pinned over VT switch.  This is a step towards making those buffers
+    movable and resizable.
+
+commit f393a12d21eed668cf4771f022beded9a4c547c7
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 4 13:03:14 2007 -0700
+
+    Move drmMMLock to after we have unbound our (pinned) buffers.
+    
+    There are still issues due to the fact that we're allocating
+    NEED_LIFETIME_FIXED memory as buffer objects, which we refuse to unpin because
+    we have no way of pinning it back in the same location.
+
+commit 8fc4e3078210f726c7c375faa2f2fd8d05017c09
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 11:51:55 2007 -0700
+
+    Refuse to allocate LIFETIME_FIXED objects in buffer objects.
+    
+    We can't guarantee the offset will stay the same using the current DRM
+    interface, but the correct solution is fixing our code to allow these objects
+    to move.  Breaks TTM mode of the DRI driver for now.
+
+commit 0de747f7d219a56434dad49a8a6d1d9d4c251ca7
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 11 10:36:01 2007 -0700
+
+    In i830_allocate_memory_bo, bind if we control the VT, not on lifetime-fixed.
+
+commit 0040bb95445e800af80ca9fa1b92f5db33f1b4ac
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Oct 10 16:48:12 2007 -0700
+
+    Fix potential use-after-free in XV overlay code on video stop.
+
+commit 56ae767180da4a8bd4b7a4c35b92e019ab67d753
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Oct 11 10:09:29 2007 +0800
+
+    Revert "Fix G33 GTT stolen mem range"
+    
+    This reverts commit 2a8592f2ebcba86b1127aa889155d58a3dc186ca.
+    
+    This causes compat issue between ddx and kernel apggart version.
+    Revert it as it shouldn't hurt normal people's default GTT size,
+    but if you change it to 1MB in bios, it's supposed to be broken now.
+
+commit 5faee02e97b7543b41bb1f8e3751558c48802833
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Oct 10 13:55:30 2007 +0800
+
+    EXA: fix tiled dest rendering on i8XX chips
+
+commit 5bbe9f09fda1238da04e6b584813d40fc646f49d
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Wed Oct 3 00:18:25 2007 -0700
+
+    Include xf86mm.h if using XF86DRI_MM
+    
+    This header file doesn't appear to be getting automatically included for
+    some reason.
+
+commit 41dacf97ec1d4ba6f54057f4fcc7bb76033a454e
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Wed Oct 3 00:17:41 2007 -0700
+
+    Quirk for Samsung Q35 which has no TV output.
+
+commit 9e770bf69edaa8944048049e11266dbe1ef145e5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 4 14:31:37 2007 -0700
+
+    Replace setting of LIFETIME_FIXED on cursors with just updating the offsets.
+
+commit c9d6e90c2523096c45d330552f471e6bf1752704
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 4 14:27:07 2007 -0700
+
+    Don't set overlay registers LIFETIME_FIXED. It always uses the current offset.
+
+commit 1cc6bec4628a4ca04a68919a84148a1e6312072f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Oct 4 14:23:48 2007 -0700
+
+    Revert setting of exa_965_state as LIFETIME_FIXED.
+    
+    The current offset is used every time in render setup.
+
+commit dfa22df8ce7713b491c4766ce6ce652db91b5f90
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 12:53:07 2007 -0700
+
+    Don't leak buffer object allocations in i830_reset_allocations().
+
+commit 7db9d706a1bc9da7afc4823cee92b23e96ae55b8
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 12:40:48 2007 -0700
+
+    Warning cleanup.
+
+commit bf33c4e2d91172efd08690fadda7b3743dd3de62
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Oct 5 12:40:37 2007 -0700
+
+    Fix formatting of error message.
+
+commit 04e936935f0b0045600241424f1d04a6721a2432
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 17:29:35 2007 -0700
+
+    Bring the CH7017 driver closer to spec.
+    
+    This is also closer to what my hardware is programmed with, except for some
+    very confusing off-by-one bugs in an unexpected direction.
+
+commit 263d48ad93a0fb7100729d0c6e0443797c20c80a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 16:23:30 2007 -0700
+
+    Fix probing of the sample CH7017 device I found by allowing GPIO overrides.
+    
+    It may be that the LVDS chips need to be DVOA and GPIOB only on mobility
+    devices with them, and DVOC/GPIOE on non-mobility like this 845.  But until
+    more examples are found, just make this one device probe.
+
+commit 219354af212c7b68c20df689692c55331e36a705
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 16:09:13 2007 -0700
+
+    Restore building of pciaccess-based tools even if the server doesn't use it.
+
+commit 1b83e5e589105d05c1b78032fa47eecee478cb99
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 14:32:28 2007 -0700
+
+    Remove more DVO probing noise.
+
+commit 29d3188ee9676f697f6fcb859c7f680f5df30318
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 13:45:09 2007 -0700
+
+    Suppress I2C failure error messages during DVO device detection.
+    
+    Otherwise, errors would be printed for every chip probed which wasn't present
+    on the system.
+
+commit 6dd8228a386334d05836353672aae9f8c456e435
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 12:07:22 2007 -0700
+
+    Enable CH7017/7018 DVO driver by default.
+    
+    On hardware containing one of these chips (generally single pipe with an LVDS
+    connected), it's probably better to try to enable it and fail in some cases
+    than to not probe the output at all.
+
+commit 994ee6721d9f1650ad37e21198b86848352b73af
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Oct 1 12:01:16 2007 -0700
+
+    Disable TV/VGA output on the CH7017/7018 devices.
+    
+    We don't support those outputs on this chip yet, so turn them off if the BIOS
+    had set them on.
+
+commit 0e5574e842eeaac75271ccd50027d3e54c57722d
+Author: Regis Prevot <regis@myrix.net>
+Date:   Sat Sep 29 16:21:08 2007 +0200
+
+    Ignore detection of TV output on Panasonic CF-Y7
+
+commit 1845e7c6e9caf7a9ad7f46a8fbfa321ddec69a1e
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Sep 28 10:12:11 2007 -0700
+
+    Go back to using old drm_i915_flip_t field name
+    
+    This field shouldn't have been renamed in the first place.  Go back to using
+    the old name so that the tree is backward and forward compatible again.
+
+commit f3d92ab474de11babe507b0e3c15aca146b6cb66
+Author: Kyle McMartin <kyle@freedesktop.org>
+Date:   Fri Sep 28 10:17:55 2007 -0400
+
+    Dell XPS 1330 has no TV out
+
+commit bbf69c7446aa9748dacecccfe0b63d803f865b00
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Sep 27 17:37:19 2007 +0800
+
+    Pin cursor, overlay(no physical) and exa state buffers
+    
+    And cursor mem counting for dri mem manager is not relate
+    to overlay.
+
+commit ca67fa767dc762dac369e84b27a7ef15673d527c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Sep 24 11:12:22 2007 -0700
+
+    Remove logic for supporting i915tex_dri.so vs. i915_dri.so.
+    
+    There can be only one.
+
+commit 130f79613bfe6a8cfa7f431c8cce06cbb93cc91a
+Merge: b73235f... 1260316...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Sep 21 17:14:44 2007 -0700
+
+    Merge branch 'buffer-objects'
+    
+    This branch changes i830_memory.c's allocator to use TTM when available to
+    allocate memory, which also allows TTM to control almost the entire aperture.
+    As a result, our front/back/depth buffers are created as real buffer objects,
+    which may be used by the DRI driver instead of the fake buffer type in TTM.
+    The updated DRM with bo_set_pin ioctl is required, to allow us to pin and
+    unpin our buffers as needed.
+
+commit 126031655c3c1db9881ad17d712461533eb59632
+Merge: c343835... bda3c69...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Sep 20 08:57:58 2007 -0700
+
+    Merge remote branch 'origin/master' into buffer-objects
+    
+    Conflicts:
+    
+    	src/i830.h
+    	src/i830_driver.c
+
+commit b73235f40497cfb10792ba191d4f6eac3a5df009
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Thu Sep 20 11:28:52 2007 +0800
+
+    Fix pixmap offset
+    
+    Use consistent interface for counting pixmap offset.
+
+commit bda3c69a7a044869ea63514b97f8aa9260d6b5a7
+Author: Dmitry Babrovich <dmitry.babrovich@densitrongaming.com>
+Date:   Tue Sep 18 09:34:34 2007 -0700
+
+    Bug #12457: Let the ch7xxx driver probe the 7301
+    
+    Looking at the 7304, this chipset likely requires slightly different
+    programming.  However, this change allows for at least some functionality.
+
+commit 445a59d262b93bd9d2c16cee9934ce77a103776b
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Wed Sep 12 09:32:41 2007 -0700
+
+    Remove unused plane->pipe mappings from SAREA private
+    
+    Turns out we can get away without this, so remove it, fix a crash, and only
+    swap planes/pipes if the DRM can support it.
+
+commit d02336290bea30de3c390b8121046c38fd6b0f62
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Tue Sep 11 04:28:14 2007 -0700
+
+    Fix plane/pipe mapping compat code
+    
+    Move plane->pipe mapping adjustment to ScreenInit so we can check
+    against the DRM driver version accurately.
+
+commit d9f2b3c0d2d08a4b7fad865dab7deb6224b57999
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Mon Sep 10 23:49:34 2007 -0700
+
+    Fix crash in ScreenInit
+    
+    Use pScreen directly when getting at the SAREA private, since
+    pScrn->pScreen may not be initialized yet.
+
+commit 4c7542ef43a5267e470ca1608a2ae57abf9783ec
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Mon Sep 10 23:30:50 2007 -0700
+
+    Only swap planes and pipes if DRM supports it
+    
+    We want to associate plane A with pipe B on pre-965 mobile chips, since that's
+    the only way to get framebuffer compression on the builtin LVDS on those
+    platforms.  However, if we do this swapping and DRM isn't aware of it, we may
+    end up requesting vblank events for the wrong pipe, or setting up SAREA buffer
+    swap state incorrectly.
+    
+    This mod checks whether DRM supports the new plane->pipe swapping behavior, and
+    only enables the swapping if so.  This should fix the bugs Lukas found and
+    debugged.  Reviewed by Michel Danzer.
+
+commit 286f5df0b62f571cbb4dbf120679d3af029b8775
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Thu Sep 6 14:31:55 2007 -0700
+
+    Switch to pci_device_map_range/pci_device_unmap_range APIs.
+    
+    With the libpciaccess change that added these new APIs, use them
+    for all mapping.
+
+commit 2a8592f2ebcba86b1127aa889155d58a3dc186ca
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Sep 5 14:52:56 2007 +0800
+
+    Fix G33 GTT stolen mem range
+    
+    G33 GTT table lives in seperate stolen mem with
+    graphics data stolen mem.
+
+commit 7fd9a98178cdebda4213796fdc452a8a265a1197
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Tue Aug 28 16:00:01 2007 -0700
+
+    Don't set supported TV formats until after RandR initialized.
+    
+    The TV format property cannot be configured until RandR has been
+    initialized.
+
+commit c6e637cd683dc60567b3b4f69b7f2b4c338c89ea
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Tue Aug 28 12:17:15 2007 -0700
+
+    Limit TV formats to those supported by current connection
+
+commit ddd6053987b9ca9bd3722ddbdfd412a3d8d252cf
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Tue Aug 28 12:30:46 2007 -0700
+
+    Add register defines for hw binning
+
+commit 3fbbd0afde49c53a5a8661f75c8c8c4be3020c30
+Author: Michel Dänzer <michel@tungstengraphics.com>
+Date:   Tue Aug 28 17:48:20 2007 +0200
+
+    Fix build against pre-pci-rework xserver.
+
+commit 0fdbf64b34e4114c2b89d696b268b9c7464f1efd
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Aug 28 21:56:21 2007 +0800
+
+    Fix i915 a8 color buffer blending
+    
+    From spec, i915 engine uses green channel when reading from 8bit
+    color buffer for blending, and also writes back green channel.
+    Fix blend factor in dest alpha case by using dest color instead.
+    Now rendercheck can pass a8 tests.
+
+commit 3411eb0dbae470b910af3116a4ab960c821b9b20
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 23:09:01 2007 -0700
+
+    i830_driver.c changes for libpciaccess.
+    
+    Change to use libpciaccess APIs, including computing and using BAR indices
+    for various mapping activities.
+
+commit 387fed6daa7426e4a85d30ba7cf608b5f41d24bb
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 23:06:57 2007 -0700
+
+    i810_driver.c changes for libpciaccess.
+    
+    This includes new probe code (intel_pci_probe) and changes for i810 to
+    use BAR indices to refer to suitable portions of the device mappings.
+
+commit 2c794192052ca55c3263e27e13d16aafe8caa92c
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 22:46:19 2007 -0700
+
+    Mechanical API conversions for libpciaccess.
+    
+    Uncomplicated API transistions for libpciaccess usage:
+    
+    	Legacy xf86 API		libpciaccess API
+    	---------------		----------------
+    	xf86ReadPciBIOS 	pci_device_read_rom
+    	pciReadWord 		pci_device_cfg_read_u16
+    	pciWriteByte 		pci_device_cfg_write_u8
+    
+    And, more use of the API-independent DEVICE_ID/SUBVENDOR_ID/SUBSYS_ID macros
+    to pull PCI identification data from the underlying structure.
+
+commit 70e8e5957200401474967a467663ae049e9080f2
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 22:40:25 2007 -0700
+
+    Change DRI interface to fill in PCI data from new libpciaccess structure.
+    
+    The DRI interface requires bus identification for each DRI object; pull that
+    data from the libpciaccess structures as necessary.
+
+commit 5516cc781bd488c936af225123812a61ed5874b8
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 22:37:38 2007 -0700
+
+    Add libpciaccess declarations to I810Rec and I830Rec.
+    
+    Using libpciaccess requires a different type for PciInfo (struct pci_device
+    instead of pciVideoPtr) and it requires knowing which BAR each memory region
+    needs to be mapped from. Add these definitions to the driver private record
+    along with the includes necessary to use libpciaccess.
+
+commit daada59b5f8c2294b524a4b5920dc6b1c213642f
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 22:32:39 2007 -0700
+
+    Change IS_Ixxx tests to work with or without libpciaccess.
+    
+    libpciaccess has a new structure that holds the PCI identifier data; borrow
+    macros from the mga driver to work with either the old xf86-specific
+    structure or the new libpciaccess structure.
+
+commit 3d3bf493a3973f4067433d27a4d7ddfecaa18f1c
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 22:27:34 2007 -0700
+
+    Intel driver configuration (only) changes for X server libpciaccess usage.
+    
+    Detect whether the target X server uses libpciaccess, using it in the driver
+    compilation as necessary. This change means that utilities that used to use
+    libpciaccess will not do so unless the driver itself uses libpciaccess. Yes,
+    that could be fixed, but it doesn't seem that important.
+    
+    This patch does not include any code changes necessary to actually have the
+    driver build against an X server using libpciaccess.
+
+commit 5faf9cc6afe1c30fa88bc6446088a6fa47fc5d0b
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sun Aug 26 09:34:06 2007 -0700
+
+    Sort quirk table, add Dell Latitude X1
+
+commit a9e1d42a47cef79d8bbde2afd89d26aed964e344
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sat Aug 25 12:54:11 2007 -0700
+
+    Lenovo 201a is x60s, not x61s
+
+commit ffc2907f7f2eb039004eff0014c5563a01463fb0
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Sat Aug 25 12:31:21 2007 -0700
+
+    Thinkpad X61s has no TV out
+
+commit 0c20fbabd18c19b2753cb60280f89e240ce5645f
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Fri Aug 17 22:21:47 2007 -0700
+
+    Make sure XV_PIPE is used whenever possible.
+    
+    The code was not consistently using XV_PIPE when the desired crtc contained
+    any portion of the video output.
+
+commit e443f83dd6f110156743c93f7d793cdddb8195a1
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 17 18:13:49 2007 -0700
+
+    Tune acceleration architecture allocator sizes down.
+
+commit bd874b11bbfe582aebd3115771f90807e75afc31
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 17 17:49:21 2007 -0700
+
+    Replace AA allocator usage with i830_memory.c for RandR rotation.
+    
+    This requires EXA 2.2 (server 1.3) for rotated performance with EXA, because
+    the i830_memory.c allocation may not fall within what EXA considers the
+    offscreen area, so the PixmapIsOffscreen hook is needed.
+
+commit 9ad33dd65a79277ef75a6e95373614852725f5a9
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 17 16:46:48 2007 -0700
+
+    Use i830_memory.c instead of the AA's allocator for XV buffers.
+    
+    This should fix issues with XV being allocated into XAA's tiled pixmap
+    cache and resulting bad rendering.  Its also brings us closer to being able
+    to shrink the size of the pixmap cache on XAA, which is of limited utility.
+
+commit 3655a1ecb62f6c387a16fa87cf6f00bf7835dce4
+Merge: e5c336e... 2231cdc...
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Aug 16 12:04:20 2007 -0700
+
+    Merge branch 'master' of ssh://git.freedesktop.org/git/xorg/driver/xf86-video-intel
+
+commit e5c336eaa32be8f9379a2c1dd51006b85bc8b270
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Aug 16 12:04:02 2007 -0700
+
+    Disambiguate plane and pipe mapping, use plane A on pipe B on pre-965 LVDS
+    
+    Add a new 'plane' field to the intel_crtc private structure for tracking
+    planes separate from pipes.  This allows pre-965 chips to use plane A
+    on pipe B, enabling framebuffer compression for builtin LVDS displays.
+
+commit c3438356d6b7b63ad9d0086efb084be8e048980e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Aug 16 11:34:02 2007 -0700
+
+    Add tiling information to BO layout description.
+
+commit 0c9e4aeea84e20a18e3b76d8cf8e802af004df57
+Merge: 79d9a30... 2231cdc...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Aug 16 11:30:16 2007 -0700
+
+    Merge branch 'master' into buffer-objects
+    
+    Conflicts:
+    
+    	src/i830_dri.c
+    	src/i830_memory.c
+
+commit 2231cdcd8f1ee81b3e59cc5e3a325c22ee0f40e4
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Thu Aug 16 17:15:54 2007 +1000
+
+    i915: add support for render to a8
+
+commit a69db6f7fe1703b473e5c1d1e0088ccc203f4d5a
+Author: Dave Airlie <airlied@redhat.com>
+Date:   Wed Aug 15 18:28:50 2007 +1000
+
+    intel: don't setup texOffsetStart unless using EXA
+
+commit 5126a71f82767b9e23cd590453718f3364789740
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Aug 14 13:54:55 2007 +0800
+
+    Fix seg fault introduced in tiling patch when TV detect
+    
+    When TV does load detect, fb hasn't been setup, so we should check
+    that in i830_display_tiled(). Caught by Nanhai.
+
+commit d9f89a1af7e7ff4056727060cdf2e35c15a4dcdd
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Fri Aug 10 17:59:33 2007 -0700
+
+    Save/restore tile-mode offset registers DSPATILEOFF and DSPBTILEOFF
+    
+    Now that the driver sets these registers, they must be saved and restored.
+
+commit 5bc194d3d3c87bb0128d9ac10f090f031345eb37
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Fri Aug 10 17:54:32 2007 -0700
+
+    Set DSPATILEOFF/DSPBTILEOFF to handle 965 tiled frame buffers.
+    
+    DSPATILEOFF and DSPBTILEOFF replace DSPASURF and DSPBSURF when the frame
+    buffer is in tiled mode.
+
+commit 64b943c79cf957a4c54482720195d7f27b7f0c0d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 10 15:48:05 2007 -0700
+
+    Add #if 0-ed fence debugging code.  It's noisy, and of little use to most.
+
+commit ba9a503ba2099025e393f3382bb453985ef23497
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 10 15:06:58 2007 -0700
+
+    Don't force tiling on if it is disabled in configuration but fbc is possible.
+
+commit b7751c7d1d6bcf310824295c3bab4ff36760c791
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 10 17:42:09 2007 -0700
+
+    Fix stack-smashing in the last commit.
+
+commit cb36635a053d4ac3971fea05060d31dbd3d382d2
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 10 14:16:59 2007 -0700
+
+    Attempt to fix several front buffer tiling failure cases.
+    
+    Front buffer tiling is now disabled with G965 and XAA.  Some of the acceleration
+    that i830_xaa.c does can't be supported on tiled buffers.
+    
+    Adds a tiling field to struct i830_memory, and uses it instead of separate
+    variables for each potential tiled buffer.
+
+commit ed1b106fabf3a18489bdb3083326f27387a9cb72
 Author: Keith Packard <keithp@koto.keithp.com>
 Date:   Fri Aug 10 14:31:16 2007 -0700
 
@@ -14,23 +853,49 @@ Date:   Fri Aug 10 14:31:16 2007 -0700
     size. The signalling has been moved to the TV_FORMAT property, but the
     allocation and initialization of the mode name was left a bit messy as a
     result.
-    (cherry picked from commit ed1b106fabf3a18489bdb3083326f27387a9cb72)
 
-commit cd6807306009f57219d5863b9fba785c7bb4f79e
+commit f71b9358b4157a8cfdc694ddef8ca3f98926ca91
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 10 15:53:04 2007 -0400
+
+    Cleanup tiling and FBC driver output.
+    
+    Remove an extra "FBC enabled" message from i830_memory.c (only report errors
+    if they occur), and don't print the "forcing FBC on" message if tiling was
+    already enabled, as it's redundant and confusing.
+
+commit e6746d0f286ef9d9a87f748d40e5421c268f2f7d
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 10 15:48:15 2007 -0400
+
+    Enable tiling by default on 965.
+
+commit e0fcf645a228094620b8f7fdd580963611bdd6ef
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 10 15:43:06 2007 -0400
+
+    Tiling fixes for 965
+    
+    This should be close to the last set of tiling fixes for 965 chipsets.
+    Prior to this commit, the 965 composite hook didn't take tiling into
+    account, nor did 965 textured video, which caused display corruption.
+    However, there seems to be at least one last bug to squash--on occasion,
+    a configuration with tiling enabled won't properly display text.  This
+    is likely another tiling related problem with the composite hook.
+
+commit 7b143e5c8397da077c0e02455c21c5a99cf50942
 Author: Dave Airlie <airlied@redhat.com>
 Date:   Thu Aug 9 12:14:44 2007 +1000
 
     i965: increase composite vertex buffer size and alignment to be safe
-    (cherry picked from commit 7b143e5c8397da077c0e02455c21c5a99cf50942)
 
-commit ba59c2794b89cbd85a1fe743d4f8661edf08c03f
+commit 14691b24da5aa29d8c41ac7b7c61828e3cd9eab7
 Author: Dave Airlie <airlied@linux.ie>
 Date:   Thu Aug 9 09:41:32 2007 +1000
 
     i965: fix memcpy of the sf_kernel when a mask is needed
-    (cherry picked from commit 14691b24da5aa29d8c41ac7b7c61828e3cd9eab7)
 
-commit 24708b9d3f99513c287df14859a7e34affd67fe1
+commit 5e18c6af9051da654d2a6a97553ef4fe777bb61e
 Author: Carl Worth <cworth@cworth.org>
 Date:   Wed Aug 8 11:13:37 2007 -0700
 
@@ -38,66 +903,167 @@ Date:   Wed Aug 8 11:13:37 2007 -0700
     
     Note that this is a slowdown in text rendering due to the high overhead of our
     compositing setup, but appears to be correct according to rendercheck.
-    (cherry picked from commit 5e18c6af9051da654d2a6a97553ef4fe777bb61e)
 
-commit 77f55151708e6331107a7e25fbf5d23d87517869
+commit b0ec670cdb0b6ca6fc0f4f165fa3ee5a20d7c985
 Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Aug 8 11:03:51 2007 -0700
 
     Bug #11593: Remove dead struct vch_bdb_20 which was angering the sun compiler.
-    (cherry picked from commit b0ec670cdb0b6ca6fc0f4f165fa3ee5a20d7c985)
 
-commit ff5c9436bb94e2093775b6c8678641eba7291857
+commit 92af2f4bbcb395cbde097776718449d99843ad67
+Merge: da82a47... e0be352...
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Aug 7 15:18:17 2007 -0700
+
+    Merge branch 'origin'
+    
+    Conflicts:
+    
+    	src/i830_exa.c
+
+commit da82a47a558597f3653e2b33bc6adbab18574b57
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Aug 6 17:01:37 2007 -0700
+
+    Fix EXA rendering with tiled front buffer on pre-965.
+    
+    The 915 and earlier appear to respect the fence registers, while only the 965
+    requires the per-operation tiling setting and pitch shifting.  This will also
+    fix issues with rendering on the 965 involving multiple cliprects, where the
+    pitch would get divided repeatedly.
+    
+    This removes the offset < 4096 fallback, which essentially resulted in no
+    acceleration to tiled buffers, hiding the issues.
+
+commit e0be352f5017f0e645a4ff8a40961d9c2b98863a
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Tue Aug 7 12:37:25 2007 -0700
+
+    Fixup pitch in Prepare* functions, since actual hooks may
+    be called many times for the same pixmap, and we don't want
+    to keep dividing the pitch by 4.
+
+commit 7431abee5fb971d1f8bc7ac4bea137f6ece9418b
 Author: Brice Goglin <bgoglin@debian.org>
 Date:   Tue Aug 7 09:13:00 2007 +0200
 
     Define INTEL_VERSION_MAJOR/MINOR/PATCH using PACKAGE_VERSION_*
-    (cherry picked from commit 7431abee5fb971d1f8bc7ac4bea137f6ece9418b)
 
-commit ab950611401575145fa01084a85d817ea13bb9cf
+commit 9e1914270a0978ec4dfae757d3dd57ca7ffe17e5
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Mon Aug 6 17:55:00 2007 -0700
+
+    Remove 4k offset checks from Copy & Solid hooks.
+    Reading the docs too literally can cause you to hide bugs with false fixes...
+
+commit 3510d5728fa972b36d022b4f9189d46ff98d7b16
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Aug 6 16:44:39 2007 -0700
+
+    Fix accumulated whitespace nits in i830_exa.c
+
+commit 5ff05dffe229e35da7619762628fdd0f125585e8
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Mon Aug 6 16:01:10 2007 -0700
+
+    More tiled rendering fixes: - check for tiling, not just offset in PrepareSolid - combine pI830->tiling and frontbuffer checks into new exaPixmapTiled function for readability
+
+commit ba90d944329dd8c79a757c38128964fbbe4ab898
 Author: Eric Anholt <eric@anholt.net>
 Date:   Fri Aug 3 16:46:09 2007 -0700
 
     Add the file mode for bios_dumper output so it doesn't have 000 permissions.
-    (cherry picked from commit ba90d944329dd8c79a757c38128964fbbe4ab898)
 
-commit a85dd7adc35601a988b1001e8b3c8aa4d53de0c0
-Author: Jesse Barnes <jesse.barnes@intel.com>
-Date:   Wed Aug 8 15:29:52 2007 -0400
-
-    Legacy backlight changes: - add support for 965GM - make sure legacy enabled systems don't reduce the range of backlight values we can present to the user
-    
-    (cherry picked from commit 0da4f2b0cd7203377ad10407928a367b8c6d310e)
-    
-    Conflicts:
-    
-    	src/i830.h
-
-commit c989cb4897e2e2d395c52df4822290a767cdc866
+commit 322a163cfbda885adc6bb09c1f976d36617ea83b
 Author: Eric Anholt <eric@anholt.net>
 Date:   Fri Aug 3 10:46:39 2007 -0700
 
     Quirk away the nonexistent TV connector on the Panasonic CF-Y4.
-    (cherry picked from commit 322a163cfbda885adc6bb09c1f976d36617ea83b)
 
-commit 010eda526fd42f1d42d2f82d0ba77e852f9a5349
+commit ffbab2ee5dc227b2a8a5ffd1717ae00e8e37f956
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 3 21:27:52 2007 -0700
+
+    Limit Solid & Copy offsets to 4k when rendering to tiled targets
+
+commit 019dbfda294aaafb28d8bea0fe2f5dadc2ea3e0b
+Merge: 3d3c0e8... 15f71ed...
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 3 20:45:14 2007 -0700
+
+    Merge branch 'master' of ssh://git.freedesktop.org/git/xorg/driver/xf86-video-intel
+
+commit 3d3c0e8c55f639a501c0756948b518abd903d7d0
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Aug 3 20:40:45 2007 -0700
+
+    Tiled rendering & fbc fixes:
+      - actually enable tiling in DSP(A|B)CNTR if needed
+      - add logic to EXA routines for tiled case (still needs work)
+      - enable/disable fbc on DPMS events (meant moving functions higher in file)
+      - fix fence register pitch programming (use correct pitch instead of kludged value)
+
+commit 79d9a309b19e22561e000a47b732c67479c2e6d4
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Aug 2 15:50:42 2007 -0700
+
+    Mark DRI buffers as shareable, and pass their buffer handles through the SAREA.
+
+commit 0da4f2b0cd7203377ad10407928a367b8c6d310e
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Tue Jul 31 16:22:36 2007 -0700
+
+    Legacy backlight changes:
+      - add support for 965GM
+      - make sure legacy enabled systems don't reduce the range of backlight values we can present to the user
+
+commit 15f71edba37738f8ba279fa07452fda10cc65298
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Sat Jul 28 17:43:29 2007 +0800
 
     Update Lenovo TV quirk info
-    
-    (cherry picked from commit 15f71edba37738f8ba279fa07452fda10cc65298)
 
-commit c518635bdbb2b8e0a43b130ddcf95e9520315802
+commit 857b4a7bcb69ca43b866b4283fe075abbafb1d22
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jul 27 18:03:12 2007 -0700
+
+    Pin some buffer objects at creation time, which can't be moved yet.
+    
+    A number of other interfaces of ours don't allow buffer offsets to be updated
+    after screeninit.  This attempts to catalog why for each one, so that they
+    can be fixed one by one.
+    
+    This happens to restore the EXA offscreen allocator for now, as a fixed-offset
+    object.
+
+commit d7b5b595ad29ae0ac3adbd3a176be3fe7ffa6474
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jul 27 12:48:08 2007 -0700
+
+    Delay the first screen pixmap update to CreateScreenResources.
+    
+    The return value of GetScreenPixmap before CreateScreenResources is not, in
+    fact, a pixmap.
+
+commit 2b1ec0f51479c1d7e5e62803c68feca29375519d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Jul 27 10:00:35 2007 -0700
+
+    Use the dontMapFramebuffer option available with DRIINFO 5.4.
+    
+    If not available, AIGLX init will fail.  While here, simplify DRIINFO tests
+    since we refuse to init with a version queried less than the version we
+    compiled against, anyway.
+
+commit f403a50afbcef1e54f554481c72037338bd5357c
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Fri Jul 27 09:24:24 2007 +0800
 
     Add another Lenovo TV output quirk
     
     From issue report http://lists.freedesktop.org/archives/xorg/2007-July/026644.html
-    (cherry picked from commit f403a50afbcef1e54f554481c72037338bd5357c)
 
-commit 2fa82154066c9061f8503685bb520065deb496b7
+commit 34c82ad7ce83394db47588693b578cf91991bf1c
 Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
 Date:   Fri Jul 27 09:14:13 2007 +0800
 
@@ -105,21 +1071,23 @@ Date:   Fri Jul 27 09:14:13 2007 +0800
     
     This one trys to use a flag for possible quirks. It adds a quirk
     for my Lenovo T61 TV output, and ports some origin LVDS quirks to it.
-    (cherry picked from commit 34c82ad7ce83394db47588693b578cf91991bf1c)
 
-commit 91d3c4702de892cf8445166e43efa4b94c973847
+commit 1a585d03972394cb97dec2462937b0104bdf4de2
 Author: Eric Anholt <eric@anholt.net>
-Date:   Mon Jul 9 12:56:13 2007 -0700
+Date:   Thu Jul 26 10:46:35 2007 -0700
 
-    Fix some physical address handling for >4GB addresses.
+    Use new drmBOSetPin interface instead of NO_EVICT/NO_MOVE buffers.
     
-    The upper bits would have been inappropriately dropped on G33-class hardware,
-    and on G965-class hardware in a 32-bit environment.  The only use of physical
-    addresses on these should be for FBC, though, and FBC requires addresses
-    below 4GB.  This is unresolved.
-    (cherry picked from commit 88f8b688e2316ae4a1f7485f0010ce90de54783a)
+    To do this, we have to deal with buffer offsets being set at EnterVT time
+    instead of screen init time. We've wanted to move this direction for a long
+    time, but there are repercussions.  The EXA offscreen memory manager has to
+    be disabled, because it can't be moved.  That will be replaced by BO-backed
+    pixmaps soon.  Also unresolved is whether our moving
+    front/back/depth/texture buffers will break the classic-mode DRI driver.
+    
+    This code doesn't actually work yet.
 
-commit e64614e9374e54dfc6a2a5bac3d82218f793e400
+commit 0fd3ba0518b3cde9ca0e4e2fc1854c00d8a43d5c
 Author: Brice Goglin <Brice.Goglin@ens-lyon.org>
 Date:   Wed Jul 25 20:11:32 2007 +0200
 
@@ -127,18 +1095,67 @@ Date:   Wed Jul 25 20:11:32 2007 +0200
     
     Reported by A. Costa" <agcosta@gis.net> in
     http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=432061
-    (cherry picked from commit 0fd3ba0518b3cde9ca0e4e2fc1854c00d8a43d5c)
 
-commit 3f5c3b63bf0672a3c092215c77838bb936900944
+commit 18c707a8c13ac5fffdd30d55e6f5926a68b367df
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jul 25 10:11:16 2007 -0700
+
+    When TTM is available, use it instead of manual AGP allocations when possible.
+    
+    This is a step towards being able to expose buffer objects through the screen
+    private to DRI clients, instead of having them have to use the fake buffer
+    object type.
+    
+    This fails in two ways.  First, the kernel memory manager is not currently
+    suitable for doing the physical allocations we need, so we still use AGP for
+    those.  Additionally, the DRI lock can't be initialized early enough for us, so
+    these buffer object allocations fail.  This will be fixed by improving the
+    DRM interface.
+
+commit 45962eed51120ff77326c29d72cf8b6cd8a934b5
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Jul 23 09:50:17 2007 +0800
+
+    Fix a typo in i915 render
+    
+    Fence setting is in mapstate actually. This fixes rotation in
+    tiled fb case, thanks Keith to report this.
+
+commit b1af2c0e01c54ef1d40fd0ca1ede29a1dd7ed97b
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Fri Jul 20 15:18:48 2007 +0800
 
     Fix device id info for 945GME, 965GME
     
     which do have new host bridge ids
-    (cherry picked from commit b1af2c0e01c54ef1d40fd0ca1ede29a1dd7ed97b)
 
-commit b5b97f117d28202065018c167bad2c330bb6c25c
+commit c7920a0e819308762fca3d6fc7ab194bd565b06a
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Thu Jul 19 15:09:54 2007 +1000
+
+    strip out remainder of drmmm code in driver
+
+commit 37652b68880f1881b90bd22218cfe86eca7e5974
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Tue Jul 17 14:03:21 2007 +1000
+
+    intel: oops I commited pixman local workaround - undo it
+
+commit e40f6a4923d1323702406266e90eae3218a8a44e
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Tue Jul 17 09:20:07 2007 +1000
+
+    intel: actually 2.3.1 should be good enough
+
+commit 1e169be25b2e4ab34afd4b8ae8ae0041f6069125
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Tue Jul 17 09:17:31 2007 +1000
+
+    intel: don't try and use TTM memory manager with old libdrm interface
+    
+    I probably need to release a libdrm with this interface in it now..
+
+commit ff2be3995d33f9e4b7f63b380f166b6168c9b9c6
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Fri Jul 13 12:47:18 2007 -0700
 
@@ -148,9 +1165,8 @@ Date:   Fri Jul 13 12:47:18 2007 -0700
     the 8xx load detection path now adjusts blanking just during load detection.
     Adjusting the blanking interval turned out to cause many monitors to fail to
     sync.
-    (cherry picked from commit ff2be3995d33f9e4b7f63b380f166b6168c9b9c6)
 
-commit 760bd1bbeaa8daa3bf05267b34897e175058f4f0
+commit 00f4587025a3879626623135b0a153fcdb906719
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Fri Jul 13 10:58:06 2007 -0700
 
@@ -159,9 +1175,8 @@ Date:   Fri Jul 13 10:58:06 2007 -0700
     If the pipe or output have been set to DPMSOff, then load detection will not
     work correctly. Also, share the load detection configuration code between
     crt and tv outputs.
-    (cherry picked from commit 00f4587025a3879626623135b0a153fcdb906719)
 
-commit 9d6fca93760b7fba7dfb774171eca94ca52d0115
+commit 6f18300aed1340348c6d395f326061b5315be643
 Author: Keith Packard <keithp@neko.keithp.com>
 Date:   Mon Jul 9 21:29:55 2007 -0700
 
@@ -172,13 +1187,129 @@ Date:   Mon Jul 9 21:29:55 2007 -0700
     necessary on i8xx hardware to make load detection work. This may cause
     flashing when a usable crtc is not otherwise idle when load detection is
     requested.
-    (cherry picked from commit 6f18300aed1340348c6d395f326061b5315be643)
+
+commit 04130ac6b705aa49161fb6dae83ad0bdd76e89d9
+Author: Wang Zhenyu <zhenyu.z.wang@intel.com>
+Date:   Wed Jul 11 11:42:56 2007 +0800
+
+    Fix i915 rendering for tiled buffer
+    
+    Make it to check fence register for dest buffer.
+
+commit 88f8b688e2316ae4a1f7485f0010ce90de54783a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jul 9 12:56:13 2007 -0700
+
+    Fix some physical address handling for >4GB addresses.
+    
+    The upper bits would have been inappropriately dropped on G33-class hardware,
+    and on G965-class hardware in a 32-bit environment.  The only use of physical
+    addresses on these should be for FBC, though, and FBC requires addresses
+    below 4GB.  This is unresolved.
+
+commit bf831117b4659cc4f2774098dee938505f780a9b
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Sat Jul 7 10:15:32 2007 -0700
+
+    FBC fixes:
+      - allow FBC and Tiling to be forced off if configured to do so
+      - only touch FBC registers if pI830->fb_compression is true
+
+commit b426866fe1be2ad3861559beff69186379a6afad
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 20:48:40 2007 -0700
+
+    Fix manpage to reflect default behavior.
+
+commit 377c58373daa6bef5d37ead2b6f9a769a905b6fa
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 20:39:19 2007 -0700
+
+    Fix naming of FBC plane enable bits (mistakenly called them pipes earlier).
+
+commit 9c0388dc8d4c6495fae21af6da644b34e20173d1
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 20:38:41 2007 -0700
+
+    Update man page with current behavior.
+
+commit cecbc71fdc9af832cef23427696f6f654f7d6104
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 16:36:34 2007 -0700
+
+    Fix debug output in fbc enable/disable routines.  Add logic to make sure fbc
+    isn't enabled twice on two different pipes.
+
+commit 4359df9419d2d02a2f9d9adc7f5a49ecf07ddd30
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 16:17:45 2007 -0700
+
+    Fix tiling and fb compression defaults for 965 (not yet fully supported).
+
+commit ca593a5219549df94a6d234ebbcf9e7c44723c9b
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jul 6 16:10:52 2007 -0700
+
+    FBC and tiling changes
+      - change framebuffer option name to "FramebufferCompression"
+      - add new "Tiling" option (controls all tiling, not just front buffer)
+      - add debug message to fb compression enable/disable routines
+      - update man page with new options
+
+commit 8798ef11321ee6957919279076758d47ad956cf3
+Merge: 8919b22... 3c552af...
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Jul 5 12:21:31 2007 -0700
+
+    Merge branch 'master' into fbc
+
+commit 8919b2292147add41a1c1c6e5e673257cb6c6c6e
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Jul 5 12:21:06 2007 -0700
+
+    Re-add tiling kludge, but only for 965.
+
+commit 407b124af8f7bb42abe4eecc87476c4c3e555cd0
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Jul 5 11:31:34 2007 -0700
+
+    Remove tiling kludge.  May need more fixes for 965.
+
+commit 7a87b9d2a2eb4d281dce67586756ff5653b2805a
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Jul 5 11:23:06 2007 -0700
+
+    Revert discard alpha change, requires other fixes to work.
+
+commit fecf964534f5ba6d40480cb13adc89094946a51e
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Thu Jul 5 10:59:23 2007 -0700
+
+    FBC fixes:
+      - properly check several FBC enablement constraints
+      - don't use alpha discard if FBC is in use
+
+commit 60ee7b6a91b2b8c447130c60cd8b19eb68119777
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Tue Jul 3 14:20:34 2007 -0700
+
+    Fixup line length buffer padding, add kludge for front buffer tile
+    pitch.
 
 commit 3c552af65d28fafec1d09484a8914b690b961349
 Author: Eric Anholt <eric@anholt.net>
 Date:   Mon Jul 2 18:33:47 2007 -0700
 
     Update documentation and bump driver version to 2.1.0.
+
+commit f02036aedcd7866c567a6adc070eda3dad872105
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Mon Jul 2 15:42:02 2007 -0700
+
+    Framebuffer compression changes:
+      - move FBC register definitions to i830_reg.h
+      - add fix from Arjan for 965 depth buffer tiling
+      - add VT switch and clear-at-server-start code for FBC registers
 
 commit 2b9961eb9ce8734565ecdb01cb11610714d7f610
 Author: Eric Anholt <eric@anholt.net>
@@ -195,6 +1326,13 @@ Date:   Mon Jul 2 14:38:28 2007 -0700
     The automatic panel scaling appears to choose bad sampling on some GM965
     hardware for 1:1 mapping modes, and there's no real sense in having it on
     if we just want 1:1.
+
+commit b384c608978dcd3d2ea6c0018179673cb4735f4c
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Mon Jul 2 09:32:28 2007 -0700
+
+    Enable framebuffer compression (use Option "FrameBufferCompression"
+    "true" in your xorg.conf).  Should save ~0.5W during typical 2D usage.
 
 commit 1e2e301348b4168aeed38b3fdc6b0e43d5678a86
 Author: Keith Packard <keithp@dulcimer.keithp.com>

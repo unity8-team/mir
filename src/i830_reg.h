@@ -29,6 +29,37 @@
 #ifndef _I830_REG_H_
 #define _I830_REG_H_
 
+/* Framebuffer compression */
+#define FBC_CFB_BASE		0x03200 /* 4k page aligned */
+#define FBC_LL_BASE		0x03204 /* 4k page aligned */
+#define FBC_CONTROL		0x03208
+#define   FBC_CTL_EN		(1<<31)
+#define   FBC_CTL_PERIODIC	(1<<30)
+#define   FBC_CTL_INTERVAL_SHIFT (16)
+#define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
+#define   FBC_CTL_STRIDE_SHIFT	(5)
+#define   FBC_CTL_FENCENO	(1<<0)
+#define FBC_COMMAND		0x0320c
+#define   FBC_CMD_COMPRESS	(1<<0)
+#define FBC_STATUS		0x03210
+#define   FBC_STAT_COMPRESSING	(1<<31)
+#define   FBC_STAT_COMPRESSED	(1<<30)
+#define   FBC_STAT_MODIFIED	(1<<29)
+#define   FBC_STAT_CURRENT_LINE	(1<<0)
+#define FBC_CONTROL2		0x03214
+#define   FBC_CTL_FENCE_DBL	(0<<4)
+#define   FBC_CTL_IDLE_IMM	(0<<2)
+#define   FBC_CTL_IDLE_FULL	(1<<2)
+#define   FBC_CTL_IDLE_LINE	(2<<2)
+#define   FBC_CTL_IDLE_DEBUG	(3<<2)
+#define   FBC_CTL_CPU_FENCE	(1<<1)
+#define   FBC_CTL_PLANEA	(0<<0)
+#define   FBC_CTL_PLANEB	(1<<0)
+#define FBC_FENCE_OFF		0x0321b
+
+#define FBC_LL_SIZE		(1536)
+#define FBC_LL_PAD		(32)
+
 #define I830_SET_FIELD( var, mask, value ) (var &= ~(mask), var |= value)
 
 #define CMD_3D (0x3<<29)

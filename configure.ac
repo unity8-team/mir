@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.1.1,
+        2.1.99,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -78,9 +78,6 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 PKG_CHECK_MODULES(XORG, [xorg-server xproto xvmc fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
-PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0], have_pciaccess=yes, have_pciaccess=no)
-AM_CONDITIONAL(HAVE_PCIACCESS, test "x$have_pciaccess" = xyes)
-
 # Checks for libraries.
 
 # Checks for header files.
@@ -112,8 +109,22 @@ AC_MSG_RESULT([$DRI])
 save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
+	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
+	      [#include "xorg-server.h"])
 CFLAGS="$save_CFLAGS"
 
+if test x$XSERVER_LIBPCIACCESS = xyes; then
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0])
+else
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0],
+				       have_libpciaccess=yes,
+				       have_libpciaccess=no)
+fi
+have_libpciaccess=no
+AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
+AM_CONDITIONAL(LIBPCIACCESS,
+	test "x$XSERVER_LIBPCIACCESS" = xyes -o "x$have_libpciaccess" = xyes)
 AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
 
 if test "x$XSERVER_SOURCE" = x; then
@@ -173,7 +184,7 @@ if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [libdrm xf86driproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
-	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.2],[DRI_MM=yes], [DRI_MM=no])
+	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.3.1],[DRI_MM=yes], [DRI_MM=no])
 	if test "x$DRI_MM" = xyes; then
 		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
 	fi

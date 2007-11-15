@@ -1,37 +1,14 @@
-xserver-xorg-video-intel (2:2.1.1-4ubuntu2) hardy; urgency=low
-
-  * Duh, really nuke the i810 manpage conflict.
-
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 08 Nov 2007 18:52:43 +0200
-
-xserver-xorg-video-intel (2:2.1.1-4ubuntu1) hardy; urgency=low
+xserver-xorg-video-intel (2:2.1.99-1ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable, remaining changes:
     - debian/patches
       + 01_fix_compiz_video.diff:
         use xf86XVFillKeyHelperDrawable() to fix video playback with
         compositing enabled
-      + 02_xps1330_tvout_quirk.diff:
-        add quirk, xps1330 has no tv out
-      + 03_fix_brightness_control.diff:
-        add code from upstream to avoid confusing the platform firmware
-        brightness control
-      + 04_fix_hw_restore.diff
-        Only restore PIPE[AB]CONF if the DPLL for that PIPE is running
-        and not in VGA pipeline mode.
       + 05_fix_xv_reset.diff
         Playing Xv video after switching modes once the Xv driver is
         initialised causes a lockup, as the overlay regisers need
         re-programming. Ensure such a reset happens after a mode-switch.
-      + 06_sync_quirks.diff:
-        Sync TV out quirks with upstream
-      + 07_fix_startup_blink.diff
-        Alter startup sequence to avoid blinking the display whilst
-        initialising the graphics chip.
-      + 08_fix_855_3D_state.diff
-        Emit the invariant 3D state to the GPU during EnterVT after
-        marking the 3D state as clobbered. This fixes / works around
-        textured surface corruption after resume on 855GM hardware.
     - debian/control
       + Change the maintainer address.
       + Add lpia to the list of architectures.
@@ -42,8 +19,41 @@ xserver-xorg-video-intel (2:2.1.1-4ubuntu1) hardy; urgency=low
       debian/rules:
       + Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
       + Nuke /usr/share/man/man4/i810.4 conflict
+  * Drop patches 02, 06, 08 which have been merged upstream.
+  * These patches have been disabled for now, since they don't apply fully
+    and need closer investigation:
+    - 03_fix_brightness_control.diff:
+      add code from upstream to avoid confusing the platform firmware
+      brightness control
+    - 04_fix_hw_restore.diff
+      Only restore PIPE[AB]CONF if the DPLL for that PIPE is running
+      and not in VGA pipeline mode.
+    - 07_fix_startup_blink.diff
+      Alter startup sequence to avoid blinking the display whilst
+      initialising the graphics chip.
 
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 08 Nov 2007 08:53:28 +0200
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 15 Nov 2007 00:12:47 +0200
+
+xserver-xorg-video-intel (2:2.1.99-1) experimental; urgency=low
+
+  [ David Nusinow ]
+  * Make -i810 arch: all again
+
+  [ Julien Cristau ]
+  * New upstream release candidate
+    + fixes VT switch issues (closes: #431373, #436336)
+    + fixes memory allocation issues (closes: #423416)
+    + adds support for ch701x LVDS controllers (closes: #438650, #420350,
+      #424952)
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 11 Nov 2007 11:16:03 +0100
+
+xserver-xorg-video-intel (2:2.1.1-5) unstable; urgency=low
+
+  * Use the same architectures for the -dbg and i810 packages as -intel.
+    This should allow it to transition to testing. Closes: #449228
+
+ -- David Nusinow <dnusinow@debian.org>  Sun, 04 Nov 2007 09:10:31 -0500
 
 xserver-xorg-video-intel (2:2.1.1-4) unstable; urgency=low
 
@@ -81,110 +91,6 @@ xserver-xorg-video-intel (2:2.1.1-1) unstable; urgency=low
 
  -- Julien Cristau <jcristau@debian.org>  Tue, 14 Aug 2007 12:48:02 +0200
 
-xserver-xorg-video-intel (2:2.1.1-0ubuntu10) hardy; urgency=low
-
-  [ Bryce Harrington ]
-  [Peter Clifton]
-  * 08_fix_855_3D_state.diff
-    - Emit the invariant 3D state to the GPU during EnterVT after
-      marking the 3D state as clobbered. This fixes / works around
-      textured surface corruption after resume on 855GM hardware.
-      (Closes LP: #133118)
-  * 07_fix_startup_blink.diff
-    - Alter startup sequence to avoid blinking the display whilst
-      initialising the graphics chip.
-      (Closes LP: #148686)
-  * 04_fix_hw_restore.diff
-    - Only restore PIPE[AB]CONF if the DPLL for that PIPE is running
-      and not in VGA pipeline mode.
-      (Closes LP: #108056)
-
-  [Kyle McMartin, Bryce Harrington]
-  * 06_sync_quirks.diff:
-    - Sync TV out quirks with upstream
-
- -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 01 Nov 2007 21:44:36 +0200
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu9) gutsy; urgency=low
-
-   [Peter Clifton]
-   * 01_fix_compiz_video.diff:
-     - Bracket second clause in test for textured video to avoid
-       compiler warning and possibly incorrect testing.
-   * 04_fix_hw_restore.diff
-     - Only restore palette registers for pipes which are enabled, or
-       the system may hard-lock. (Initial patch by Bryce Harrington).
-       (Closes LP: #127101)
-   * 05_fix_xv_reset.diff
-     - Playing Xv video after switching modes once the Xv driver is
-       initialised causes a lockup, as the overlay regisers need
-       re-programming. Ensure such a reset happens after a mode-switch.
-       (Closes LP: #141063)
-
- -- Bryce Harrington <bryce@ubuntu.com>  Sat, 13 Oct 2007 12:58:07 -0700
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu8) gutsy; urgency=low
-
-  * Brown paper bag release.
-  * Uncomment dh_installchangelogs.
-
- -- Kyle McMartin <kyle@ubunut.com>  Thu, 11 Oct 2007 13:05:43 -0400
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu7) gutsy; urgency=low
-
-  * 04-fix-g33-gtt-stolen-mem-range.diff:
-    - Nuke, caused graphics corruption on G33, reverted kernel code.
-
- -- Kyle McMartin <kyle@ubuntu.com>  Tue, 09 Oct 2007 09:51:18 -0400
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu6) gutsy; urgency=low
-
-  * 04-fix-g33-gtt-stolen-mem-range.diff:
-    - Latest kernel release changes how stolen mem range is computed on
-      G33 hardware, needs this corresponding X change otherwise we die
-      trying to allocate GART memory.
-
- -- Kyle McMartin <kyle@ubuntu.com>  Sat, 06 Oct 2007 10:01:17 -0400
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu5) gutsy; urgency=low
-
-  * 03_fix_brightness_control.diff:
-    - add code from upstream to avoid confusing the platform firmware
-      brightness control
-
- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 04 Oct 2007 00:09:54 +0100
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu4) gutsy; urgency=low
-
-  * 02_xps1330_tvout_quirk.diff:
-    - add quirk, xps1330 has no tv out
-
- -- Kyle McMartin <kyle@ubuntu.com>  Fri, 28 Sep 2007 09:45:48 -0400
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu3) gutsy; urgency=low
-
-  * debian/patches/01_fix_compiz_video.diff:
-    - default to overlay mode on hardware that supports it to
-      make compiz video work
-
- -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 18 Sep 2007 09:48:45 +0100
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu2) gutsy; urgency=low
-
-  * debian/patches/01_fix_compiz_video.diff:
-    - use xf86XVFillKeyHelperDrawable() to fix video playback with
-      compositing enabled
-
- -- Michael Vogt <michael.vogt@ubuntu.com>  Tue, 14 Aug 2007 21:46:28 +0200
-
-xserver-xorg-video-intel (2:2.1.1-0ubuntu1) gutsy; urgency=low
-
-  * New upstream version.
-  * Drop ChangeLog since it isn't updated upstream and is just
-    needless diff.
-
- -- Kyle McMartin <kyle@ubuntu.com>  Tue, 14 Aug 2007 02:38:09 -0400
-
 xserver-xorg-video-intel (2:2.1.0-2) unstable; urgency=low
 
   [ Brice Goglin ]
@@ -195,26 +101,6 @@ xserver-xorg-video-intel (2:2.1.0-2) unstable; urgency=low
   * Add upstream URL in the copyright file (thanks, Loïc Minier).
 
  -- Julien Cristau <jcristau@debian.org>  Mon, 09 Jul 2007 14:25:25 +0200
-
-xserver-xorg-video-intel (2:2.1.0-1ubuntu2) gutsy; urgency=low
-
-  * Add lpia to the list of architectures.
-
- -- Matthias Klose <doko@ubuntu.com>  Tue, 07 Aug 2007 13:12:48 +0000
-
-xserver-xorg-video-intel (2:2.1.0-1ubuntu1) gutsy; urgency=low
-
-  [ Kyle McMartin ]
-
-  * Merge changes from 2.0.0-1ubuntu2.
-  * Set Maintainer to core-dev.
-  * Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to coexist
-    until -intel is able to replace it completely.
-    - Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
-    - Nuke /usr/share/man/man4/i810.4 conflict
-    - Nuke Conflicts and Replaces related to -i810.
-
- -- Kyle McMartin <kyle@ubuntu.com>  Tue, 03 Jul 2007 12:45:17 -0400
 
 xserver-xorg-video-intel (2:2.1.0-1) unstable; urgency=low
 
@@ -551,4 +437,3 @@ xserver-xorg-driver-i810 (1:1.4.0-1) breezy; urgency=low
   * First xserver-xorg-driver-i810 release.
 
  -- Daniel Stone <daniel.stone@ubuntu.com>  Wed,  6 Jul 2005 15:48:17 +1000
-

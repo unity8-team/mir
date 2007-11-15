@@ -84,7 +84,11 @@ i830_lvds_set_backlight(xf86OutputPtr output, int level)
     CARD32 blc_pwm_ctl;
 
     if (i830_lvds_backlight_legacy(pI830))
+#if XSERVER_LIBPCIACCESS
+	pci_device_cfg_write_u8 (pI830->PciInfo, 0xfe, LEGACY_BACKLIGHT_BRIGHTNESS);
+#else
 	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 0xfe);
+#endif
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
