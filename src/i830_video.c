@@ -2550,7 +2550,7 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	break;
     case FOURCC_XVMC:
         *h = (*h + 1) & ~1;
-        size = intel_xvmc_putimage_size(pScrn);
+        size = intel_xvmc_put_image_size(pScrn);
         if (pitches)
             pitches[0] = size;
         break;

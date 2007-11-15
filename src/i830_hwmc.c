@@ -112,7 +112,7 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
     return TRUE;
 }
 
-int intel_xvmc_putimage_size(ScrnInfoPtr pScrn)
+int intel_xvmc_put_image_size(ScrnInfoPtr pScrn)
 {
-    return (*xvmc_driver->putimage_size)(pScrn);
+    return (*xvmc_driver->put_image_size)(pScrn);
 }

@@ -70,7 +70,7 @@ struct intel_xvmc_driver {
     /* more items for xvmv surface manage? */
     Bool (*init)(ScrnInfoPtr, XF86VideoAdaptorPtr);
     void (*fini)(ScrnInfoPtr);
-    int (*putimage_size)(ScrnInfoPtr);
+    int (*put_image_size)(ScrnInfoPtr);
     void* devPrivate;
 };
 
@@ -83,7 +83,7 @@ extern Bool intel_xvmc_probe(ScrnInfoPtr);
 extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
 extern void intel_xvmc_finish(ScrnInfoPtr);
-extern int intel_xvmc_putimage_size(ScrnInfoPtr);
+extern int  intel_xvmc_put_image_size(ScrnInfoPtr);
 #endif
 
 #endif

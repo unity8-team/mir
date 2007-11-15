@@ -85,7 +85,7 @@ typedef struct _I915XvMCContextPriv
     drm_handle_t corrdata_handle;
 } I915XvMCContextPriv;
 
-typedef struct _I915XvMC 
+typedef struct _I915XvMC
 {
     XID contexts[I915_XVMC_MAX_CONTEXTS];
     XID surfaces[I915_XVMC_MAX_SURFACES];
@@ -96,19 +96,8 @@ typedef struct _I915XvMC
 } I915XvMC, *I915XvMCPtr;
 
 #define ARRARY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
-                                  int *num_priv, long **priv );
-static void I915XvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext);
 
-static int I915XvMCCreateSurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
-                                  int *num_priv, long **priv );
-static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf);
-
-static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSurf,
-                                     int *num_priv, long **priv );
-static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSurf);
-
-static int yv12_subpicture_index_list[2] = 
+static int yv12_subpicture_index_list[2] =
 {
     FOURCC_IA44,
     FOURCC_AI44
@@ -119,10 +108,10 @@ static XF86MCImageIDList yv12_subpicture_list =
     ARRARY_SIZE(yv12_subpicture_index_list),
     yv12_subpicture_index_list
 };
- 
+
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
 {
-    FOURCC_YV12,  
+    FOURCC_YV12,
     XVMC_CHROMA_FORMAT_420,
     0,
     720,
@@ -138,7 +127,7 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface =
 {
-    FOURCC_YV12,  
+    FOURCC_YV12,
     XVMC_CHROMA_FORMAT_420,
     0,
     720,
@@ -152,7 +141,7 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface =
     NULL,
 };
 
-static XF86MCSurfaceInfoPtr ppSI[2] = 
+static XF86MCSurfaceInfoPtr ppSI[2] =
 {
     (XF86MCSurfaceInfoPtr)&i915_YV12_mpg2_surface,
     (XF86MCSurfaceInfoPtr)&i915_YV12_mpg1_surface
@@ -168,31 +157,6 @@ static XF86ImagePtr i915_subpicture_list[2] =
     (XF86ImagePtr)&ai44_subpicture
 };
 
-/* Fill in the device dependent adaptor record. 
- * This is named "Intel(R) Textured Video" because this code falls under the
- * XV extenstion, the name must match or it won't be used.
- *
- * Surface and Subpicture - see above
- * Function pointers to functions below
- */
-static XF86MCAdaptorRec pAdapt = 
-{
-    "Intel(R) Textured Video",		                        /* name */
-    ARRARY_SIZE(ppSI),                                          /* num_surfaces */
-    ppSI,				                        /* surfaces */
-    0,
-    NULL,
-#if 0
-    ARRARY_SIZE(i915_subpicture_list),                          /* num_subpictures */
-    i915_subpicture_list,		                        /* subpictures */
-#endif
-    (xf86XvMCCreateContextProcPtr)I915XvMCCreateContext,
-    (xf86XvMCDestroyContextProcPtr)I915XvMCDestroyContext,
-    (xf86XvMCCreateSurfaceProcPtr)I915XvMCCreateSurface,
-    (xf86XvMCDestroySurfaceProcPtr)I915XvMCDestroySurface,
-    (xf86XvMCCreateSubpictureProcPtr)I915XvMCCreateSubpicture,
-    (xf86XvMCDestroySubpictureProcPtr)I915XvMCDestroySubpicture
-};
 
 /*
  * Init and clean up the screen private parts of XvMC.
@@ -417,9 +381,8 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpr
 
 }
 
-/**************************************************************************
- *
- *  I915XvMCCreateContext
+/*
+ *  i915_xvmc_create_context
  *
  *  Some info about the private data:
  *
@@ -431,7 +394,7 @@ static void i915_free_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *ctxpr
  *
  **************************************************************************/
 
-static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
+static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
                                   int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -447,7 +410,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
     if (!pI830->XvMCEnabled) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateContext: Cannot use XvMC!\n");
+                   "[XvMC] i915: XvMC disabled!\n");
         return BadAlloc;
     }
 
@@ -456,10 +419,10 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
             break;
     }
 
-    if (i == I915_XVMC_MAX_CONTEXTS || 
+    if (i == I915_XVMC_MAX_CONTEXTS ||
 	    pXvMC->ncontexts >= I915_XVMC_MAX_CONTEXTS) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateContext: Out of contexts.\n");
+                   "[XvMC] i915: Out of contexts.\n");
         return BadAlloc;
     }
 
@@ -477,7 +440,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
 
     if (!ctxpriv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateContext: Unable to allocate memory!\n");
+                   "[XvMC] i915: Unable to allocate memory!\n");
         xfree(*priv);
         *priv = NULL;
         *num_priv = 0;
@@ -548,7 +511,7 @@ static int I915XvMCCreateContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     return Success;
 }
 
-static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
+static int i915_xvmc_create_surface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
                                  int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -561,7 +524,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
     if (!pI830->XvMCEnabled) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateContext: Cannot use XvMC!\n");
+                   "[XvMC] i915: XvMC disabled!\n");
         return BadAlloc;
     }
 
@@ -576,16 +539,16 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     if (srfno == I915_XVMC_MAX_SURFACES ||
 	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSurface: Too many surfaces !\n");
+                   "[XvMC] i915: Too many surfaces !\n");
         return BadAlloc;
     }
 
     *priv = xcalloc(1, sizeof(I915XvMCCreateSurfaceRec));
-    surfaceRec = (I915XvMCCreateSurfaceRec *)*priv;     
+    surfaceRec = (I915XvMCCreateSurfaceRec *)*priv;
 
     if (!*priv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSurface: Unable to allocate memory!\n");
+                   "[XvMC] i915:Unable to allocate surface priv ret memory!\n");
         return BadAlloc;
     }
 
@@ -594,7 +557,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
 
     if (!sfpriv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSurface: Unable to allocate memory!\n");
+                   "[XvMC] i915: Unable to allocate surface priv memory!\n");
         xfree(*priv);
         *priv = NULL;
         *num_priv = 0;
@@ -604,12 +567,11 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     ctx = pSurf->context;
     bufsize = SIZE_YUV420(ctx->width, ctx->height);
 
-    /* FIXME xvmc ttm */
-    if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface", 
+    if (!i830_allocate_xvmc_buffer(pScrn, "XvMC surface",
                                    &(sfpriv->surface), bufsize,
                                    ALIGN_BOTH_ENDS)) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSurface: Failed to allocate XvMC surface space!\n");
+                   "[XvMC] i915 : Failed to allocate XvMC surface space!\n");
         xfree(sfpriv);
         xfree(*priv);
         *priv = NULL;
@@ -643,7 +605,7 @@ static int I915XvMCCreateSurface(ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
     return Success;
 }
 
-static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
+static int i915_xvmc_create_subpict(ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
                                      int *num_priv, long **priv )
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -665,7 +627,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     if (srfno == I915_XVMC_MAX_SURFACES ||
 	    pXvMC->nsurfaces >= I915_XVMC_MAX_SURFACES) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSubpicture: Too many surfaces !\n");
+                   "[XvMC] i915: Too many surfaces !\n");
         return BadAlloc;
     }
 
@@ -674,7 +636,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 
     if (!*priv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSubpicture: Unable to allocate memory!\n");
+                   "[XvMC] i915: Unable to allocate memory!\n");
         return BadAlloc;
     }
 
@@ -683,7 +645,7 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
 
     if (!sfpriv) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "[XvMC] I915XvMCCreateSubpicture: Unable to allocate memory!\n");
+                   "[XvMC] i915: Unable to allocate memory!\n");
         xfree(*priv);
         *priv = NULL;
         *num_priv = 0;
@@ -731,7 +693,8 @@ static int I915XvMCCreateSubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp,
     return Success;
 }
 
-static void I915XvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
+static void i915_xvmc_destroy_context (ScrnInfoPtr pScrn,
+					XvMCContextPtr pContext)
 {
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     int i;
@@ -751,7 +714,7 @@ static void I915XvMCDestroyContext (ScrnInfoPtr pScrn, XvMCContextPtr pContext)
     return;
 }
 
-static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
+static void i915_xvmc_destroy_surface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
@@ -760,7 +723,7 @@ static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSurf->surface_id) {
             drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
-            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);            
+            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
             pXvMC->sfprivs[i] = 0;
@@ -772,7 +735,8 @@ static void I915XvMCDestroySurface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf)
     return;
 }
 
-static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSubp)
+static void i915_xvmc_destroy_subpict (ScrnInfoPtr pScrn,
+					XvMCSubpicturePtr pSubp)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
@@ -781,7 +745,7 @@ static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSub
     for (i = 0; i < I915_XVMC_MAX_SURFACES; i++) {
         if (pXvMC->surfaces[i] == pSubp->subpicture_id) {
             drmRmMap(pI830->drmSubFD, pXvMC->sfprivs[i]->surface_handle);
-            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);            
+            i830_free_memory(pScrn, pXvMC->sfprivs[i]->surface);
             xfree(pXvMC->sfprivs[i]);
             pXvMC->nsurfaces--;
             pXvMC->sfprivs[i] = 0;
@@ -793,12 +757,13 @@ static void I915XvMCDestroySubpicture (ScrnInfoPtr pScrn, XvMCSubpicturePtr pSub
     return;
 }
 
-static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
-                                     short drw_x, short drw_y, short src_w,
-                                     short src_h, short drw_w, short drw_h,
-                                     int id, unsigned char *buf, short width,
-                                     short height, Bool sync, RegionPtr clipBoxes, pointer data,
-                                     DrawablePtr pDraw)
+static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
+	short src_x, short src_y,
+	short drw_x, short drw_y, short src_w,
+	short src_h, short drw_w, short drw_h,
+	int id, unsigned char *buf, short width,
+	short height, Bool sync, RegionPtr clipBoxes, pointer data,
+	DrawablePtr pDraw)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
@@ -813,11 +778,12 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
 			!pXvMC->surfaces[i915XvMCData->srfNo] ||
 			!pXvMC->sfprivs[i915XvMCData->srfNo]) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			    "[XvMC] I915XvMCPutImage: Invalid parameters !\n");
+			    "[XvMC] i915 put image: Invalid parameters!\n");
 		    return 1;
 		}
 
-		buf = pI830->FbBase + pXvMC->sfprivs[i915XvMCData->srfNo]->surface->offset;
+		buf = pI830->FbBase +
+		    pXvMC->sfprivs[i915XvMCData->srfNo]->surface->offset;
 		id = i915XvMCData->real_id;
 		pI830->IsXvMCSurface = 1;
 		break;
@@ -828,12 +794,13 @@ static int I915XvMCPutImage(ScrnInfoPtr pScrn, short src_x, short src_y,
     }
 
     ret = pXvMC->savePutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-                        drw_w, drw_h, id, buf, width, height, sync, clipBoxes, data, pDraw);
+                        drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
+			data, pDraw);
     pI830->IsXvMCSurface = 0;
     return ret;
 }
 
-static int i915_xvmc_putimage_size(ScrnInfoPtr pScrn)
+static int i915_xvmc_put_image_size(ScrnInfoPtr pScrn)
 {
     return sizeof(I915XvMCCommandBuffer);
 }
@@ -893,7 +860,7 @@ static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
 
     /* set up wrappers */
     pXvMC->savePutImage = XvAdapt->PutImage;
-    XvAdapt->PutImage = I915XvMCPutImage;
+    XvAdapt->PutImage = i915_xvmc_put_image;
     return TRUE;
 }
 
@@ -906,12 +873,38 @@ static void i915_xvmc_fini(ScrnInfoPtr pScrn)
     xfree(xvmc_driver->devPrivate);
 }
 
+/* Fill in the device dependent adaptor record.
+ * This is named "Intel(R) Textured Video" because this code falls under the
+ * XV extenstion, the name must match or it won't be used.
+ *
+ * Surface and Subpicture - see above
+ * Function pointers to functions below
+ */
+static XF86MCAdaptorRec pAdapt =
+{
+    .name		= "Intel(R) Textured Video",
+    .num_surfaces	= ARRARY_SIZE(ppSI),
+    .surfaces		= ppSI,
+#if 0
+    .num_subpictures	= ARRARY_SIZE(i915_subpicture_list),
+    .subpictures	= i915_subpicture_list,
+#endif
+    .num_subpictures	= 0,
+    .subpictures	= NULL,
+    .CreateContext	= (xf86XvMCCreateContextProcPtr) i915_xvmc_create_context,
+    .DestroyContext	= (xf86XvMCDestroyContextProcPtr) i915_xvmc_destroy_context,
+    .CreateSurface	= (xf86XvMCCreateSurfaceProcPtr) i915_xvmc_create_surface,
+    .DestroySurface	= (xf86XvMCDestroySurfaceProcPtr) i915_xvmc_destroy_surface,
+    .CreateSubpicture	= (xf86XvMCCreateSubpictureProcPtr) i915_xvmc_create_subpict,
+    .DestroySubpicture	= (xf86XvMCDestroySubpictureProcPtr) i915_xvmc_destroy_subpict,
+};
+
 /* new xvmc driver interface */
 struct intel_xvmc_driver i915_xvmc_driver = {
-    .name	= "i915_xvmc",
-    .adaptor	= &pAdapt,
-    .flag	= XVMC_I915_MPEG2_MC,
-    .init	= i915_xvmc_init,
-    .fini	= i915_xvmc_fini,
-    .putimage_size = i915_xvmc_putimage_size,
+    .name		= "i915_xvmc",
+    .adaptor		= &pAdapt,
+    .flag		= XVMC_I915_MPEG2_MC,
+    .init		= i915_xvmc_init,
+    .fini		= i915_xvmc_fini,
+    .put_image_size	= i915_xvmc_put_image_size,
 };
