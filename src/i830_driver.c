@@ -194,7 +194,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 #include "shadow.h"
 #include "i830.h"
-#include "i830_reg.h"
 #include "i830_display.h"
 #include "i830_debug.h"
 #include "i830_bios.h"
