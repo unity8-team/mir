@@ -67,7 +67,8 @@ static CARD8 NVReadPVIO(xf86CrtcPtr crtc, CARD32 address)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (nv_crtc->head == 1) {
+	/* Only NV4x have two pvio ranges */
+	if (nv_crtc->head == 1 && pNv->Architecture == NV_ARCH_40) {
 		return NV_RD08(pNv->PVIO1, address);
 	} else {
 		return NV_RD08(pNv->PVIO0, address);
@@ -80,7 +81,8 @@ static void NVWritePVIO(xf86CrtcPtr crtc, CARD32 address, CARD8 value)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (nv_crtc->head == 1) {
+	/* Only NV4x have two pvio ranges */
+	if (nv_crtc->head == 1 && pNv->Architecture == NV_ARCH_40) {
 		NV_WR08(pNv->PVIO1, address, value);
 	} else {
 		NV_WR08(pNv->PVIO0, address, value);
