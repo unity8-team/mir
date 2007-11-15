@@ -614,16 +614,22 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
 	}
 
-	/* This seems to be a common mode
+	/* This seems to be a common mode (0x11100000)
 	* bit0: positive vsync
 	* bit4: positive hsync
 	* bit8: enable panel scaling 
+	* bit26: a bit sometimes seen on some g70 cards
 	* bit31: sometimes seen on LVDS panels
 	* This must also be set for non-flatpanels
 	*/
 	regp->fp_control = 0x11100000;
-	if (nv_output->type == OUTPUT_LVDS);
-		regp->fp_control = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
+	if (nv_output->type == OUTPUT_LVDS) {
+		/* Let's assume LVDS to be on ramdac0, remember that in the ramdac routing is somewhat random (compared to bios setup), so don't trust it */
+		regp->fp_control = nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
+	} else {
+		/* If the special bit exists, it exists on both ramdac's */
+		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
+	}
 
 	/* Deal with vsync/hsync polarity */
 	if (adjusted_mode->Flags & V_PVSYNC) {
@@ -842,7 +848,11 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	regp->unk_a34 = 0x1;
 
 	/* Put test control into what seems to be the neutral position */
-	regp->test_control = 0xf0000000;
+	if (pNv->NVArch < 0x44) {
+		regp->test_control = 0xf0000000;
+	} else {
+		regp->test_control = 0xf0100000;
+	}
 
 	/* This is a similar register to test control */
 	/* Common values are 0xf0000000, 0xf0100000 and 0xf0010000, also without the f */

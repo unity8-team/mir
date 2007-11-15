@@ -1279,15 +1279,20 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* bit2 = 0 -> fine pitched crtc granularity */
 	/* The rest disables double buffering on CRTC access */
-	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfb;
+	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
-	/* Common values are 0x0, 0x3, 0x8, 0xb, see logic below */
-	if (nv_crtc->head == 0) {
-		regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3);
-	}
+	if (savep->CRTC[NV_VGA_CRTCX_LCD] <= 0xb) {
+		/* Common values are 0x0, 0x3, 0x8, 0xb, see logic below */
+		if (nv_crtc->head == 0) {
+			regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3);
+		}
 
-	if (is_fp) {
-		regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0) | (1 << 1);
+		if (is_fp) {
+			regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0) | (1 << 1);
+		}
+	} else {
+		/* Let's keep any abnormal value there may be, like 0x54 or 0x79 */
+		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD];
 	}
 
 	/* I'm trusting haiku driver on this one, they say it enables an external TDMS clock */
