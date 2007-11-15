@@ -100,14 +100,26 @@ typedef struct {
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
 #define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      3
-#define I9XX_N_MAX		      8
+
+/* Haven't found any reason to go this fast, but newer chips support it */
+#define I96X_VCO_MAX		3200000
+
+/*
+ * These values are taken from the broadwater/crestline PLL spreadsheet.
+ * All of the defines here are for the programmed register value, not
+ * the 'counter' value (e.g. Ncounter = Nregister + 2)
+ */
+#define I9XX_N_MIN		      1
+#define I9XX_N_MAX		      6
 #define I9XX_M_MIN		     70
 #define I9XX_M_MAX		    120
+
+/* these two come from the calm1 macro */
 #define I9XX_M1_MIN		     10
-#define I9XX_M1_MAX		     20
+#define I9XX_M1_MAX		     22
 #define I9XX_M2_MIN		      5
 #define I9XX_M2_MAX		      9
+
 #define I9XX_P_SDVO_DAC_MIN	      5
 #define I9XX_P_SDVO_DAC_MAX	     80
 #define I9XX_P_LVDS_MIN		      7
@@ -634,7 +646,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on pipe %c\n", plane);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on plane %c\n", plane);
 }
 
 /**

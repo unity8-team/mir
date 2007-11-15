@@ -670,7 +670,7 @@ i830_crtc_hide_cursor (xf86CrtcPtr crtc);
 void
 i830_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
 
-extern void I830RefreshRing(ScrnInfoPtr pScrn);
+extern void i830_refresh_ring(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
 #ifdef I830_XV
@@ -814,6 +814,11 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     if (!IS_MOBILE(pI830))
 	return FALSE;
     if (IS_I810(pI830) || IS_I815(pI830) || IS_I830(pI830))
+	return FALSE;
+    /* fbc depends on tiled surface. And we don't support tiled
+     * front buffer with XAA now.
+     */
+    if (!pI830->tiling || (IS_I965G(pI830) && !pI830->useEXA))
 	return FALSE;
     return TRUE;
 }
