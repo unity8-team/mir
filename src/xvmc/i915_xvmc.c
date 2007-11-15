@@ -32,10 +32,6 @@
 #include "i915_structs.h"
 #include "i915_program.h"
 
-#define SAREAPTR(ctx) ((drmI830Sarea *)                     \
-                       (((CARD8 *)(ctx)->sarea_address) +   \
-                        (ctx)->sarea_priv_offset))
-
 #define YOFFSET(surface)        (surface->srf.offset)
 #define UOFFSET(surface)        (surface->srf.offset + \
                                  SIZE_Y420(surface->width, surface->height) + \
