@@ -145,64 +145,6 @@ static __inline__ void renderError(void)
     XVMC_ERR("Invalid Macroblock Parameters found.");
 }
 
-static void I915XvMCContendedLock(i915XvMCContext *pI915XvMC, drmLockFlags flags)
-{
-    drmGetLock(xvmc_driver->fd, pI915XvMC->hHWContext, flags);
-}
-
-#define SET_BLOCKED_SIGSET(pI915XvMC)   do {    \
-        sigset_t bl_mask;                       \
-        sigfillset(&bl_mask);           \
-        sigdelset(&bl_mask, SIGFPE);    \
-        sigdelset(&bl_mask, SIGILL);    \
-        sigdelset(&bl_mask, SIGSEGV);   \
-        sigdelset(&bl_mask, SIGBUS);    \
-        sigdelset(&bl_mask, SIGKILL);   \
-        pthread_sigmask(SIG_SETMASK, &bl_mask, &pI915XvMC->sa_mask); \
-    } while (0)
-
-#define RESTORE_BLOCKED_SIGSET(pI915XvMC) do {    \
-        pthread_sigmask(SIG_SETMASK, &pI915XvMC->sa_mask, NULL); \
-    } while (0)
-
-#define PPTHREAD_MUTEX_LOCK(pI915XvMC) do {             \
-        SET_BLOCKED_SIGSET(pI915XvMC);                  \
-        pthread_mutex_lock(&pI915XvMC->ctxmutex);       \
-    } while (0)
-
-#define PPTHREAD_MUTEX_UNLOCK(pI915XvMC) do {           \
-        pthread_mutex_unlock(&pI915XvMC->ctxmutex);     \
-        RESTORE_BLOCKED_SIGSET(pI915XvMC);              \
-    } while (0)
-
-/* Lock the hardware and validate our state.
- */
-static void LOCK_HARDWARE(i915XvMCContext  *pI915XvMC)
-{
-    char __ret = 0;
-
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
-    assert(!pI915XvMC->locked);
-
-    DRM_CAS(pI915XvMC->driHwLock, pI915XvMC->hHWContext,
-            (DRM_LOCK_HELD|pI915XvMC->hHWContext), __ret);
-
-    if (__ret)
-        I915XvMCContendedLock(pI915XvMC, 0);
-
-    pI915XvMC->locked = 1;
-}
-
-/* Unlock the hardware using the global current context
- */
-static void UNLOCK_HARDWARE(i915XvMCContext *pI915XvMC)
-{
-    pI915XvMC->locked = 0;
-    DRM_UNLOCK(xvmc_driver->fd, pI915XvMC->driHwLock, 
-               pI915XvMC->hHWContext);
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
-}
-
 static void i915_flush(int map, int render)
 {
     struct i915_mi_flush mi_flush;
@@ -1712,7 +1654,7 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     driDestroyHashContents(pI915XvMC->drawHash);
     drmHashDestroy(pI915XvMC->drawHash);
 
-    pthread_mutex_destroy(&pI915XvMC->ctxmutex);
+    pthread_mutex_destroy(&xvmc_driver->ctxmutex);
 
     XLockDisplay(display);
     uniDRIDestroyContext(display, screen, pI915XvMC->id);
@@ -1806,7 +1748,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     priv_data = NULL;
 
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
-    pI915XvMC->driHwLock = (drmLock *)&pSAREA->lock;
     pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
     ret = XMatchVisualInfo(display, screen,
                            (pI915XvMC->depth == 32) ? 24 : pI915XvMC->depth, TrueColor,
@@ -1850,10 +1791,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->haveXv = 0;
     pI915XvMC->dual_prime = 0;
     pI915XvMC->last_flip = 0;
-    pI915XvMC->locked = 0;
     pI915XvMC->port = context->port;
-    /* XXX */
-    pthread_mutex_init(&pI915XvMC->ctxmutex, NULL);
     pI915XvMC->ref = 1;
     return Success;
 }
@@ -1898,11 +1836,11 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
     if (!(pI915XvMC = context->privData))
         return (error_base + XvMCBadContext);
 
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    PPTHREAD_MUTEX_LOCK();
     surface->privData = (i915XvMCSurface *)malloc(sizeof(i915XvMCSurface));
 
     if (!(pI915Surface = surface->privData)) {
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAlloc;
     }
 
@@ -1924,7 +1862,7 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
         XVMC_ERR("Unable to create XvMCSurface.");
         free(pI915Surface);
         surface->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return ret;
     }
 
@@ -1938,7 +1876,7 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
         free(priv_data);
         free(pI915Surface);
         surface->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAlloc;
     }
 
@@ -1957,12 +1895,12 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
         _xvmc_destroy_surface(display, surface);
         free(pI915Surface);
         surface->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAlloc;
     }
 
     pI915XvMC->ref++;
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    PPTHREAD_MUTEX_UNLOCK();
     return 0;
 }
 
@@ -2096,7 +2034,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         picture_coding_type = MPEG_B_PICTURE;
     }
 
-    LOCK_HARDWARE(pI915XvMC);
+    LOCK_HARDWARE(pI915XvMC->hHWContext);
     corrdata_ptr = pI915XvMC->corrdata.map;
     corrdata_size = 0;
 
@@ -2204,7 +2142,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     xvmc_driver->last_render = xvmc_driver->alloc.irq_emitted;
     privTarget->last_render = xvmc_driver->last_render;
 
-    UNLOCK_HARDWARE(pI915XvMC);
+    UNLOCK_HARDWARE(pI915XvMC->hHWContext);
     return 0;
 }
 
@@ -2264,12 +2202,12 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
     if (!(pI915XvMC = pI915Surface->privContext))
         return (error_base + XvMCBadSurface);
 
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    PPTHREAD_MUTEX_LOCK();
     /*
     if (getDRIDrawableInfoLocked(pI915XvMC->drawHash, display,
                                  pI915XvMC->screen, draw, 0, pI915XvMC->fd, pI915XvMC->hHWContext,
                                  pI915XvMC->sarea_address, FALSE, &drawInfo, sizeof(*drawInfo))) {
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAccess;
     }
     */
@@ -2297,14 +2235,14 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
                           pI915XvMC->xvImage, srcx, srcy, srcw, srch,
                           destx, desty, destw, desth))) {
         XUnlockDisplay(display);
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
 
         return ret;
     }
 
     XSync(display, 0);
     XUnlockDisplay(display);
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    PPTHREAD_MUTEX_UNLOCK();
 
     return 0;
 }
@@ -2374,13 +2312,13 @@ static int i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surfac
     if (!(pI915XvMC = pI915Surface->privContext))
         return (error_base + XvMCBadSurface);
 
-    // LOCK_HARDWARE(pI915XvMC);
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    // LOCK_HARDWARE(pI915XvMC->hHWContext);
+    PPTHREAD_MUTEX_LOCK();
     if (pI915Surface->last_flip) {
         /* This can not happen */
         if (pI915XvMC->last_flip < pI915Surface->last_flip) {
             XVMC_ERR("Context last flip is less than surface last flip.");
-            PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+            PPTHREAD_MUTEX_UNLOCK();
             return BadValue;
         }
 
@@ -2404,8 +2342,8 @@ static int i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surfac
         *stat |= XVMC_RENDERING;
     }
 
-    // UNLOCK_HARDWARE(pI915XvMC);
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    // UNLOCK_HARDWARE(pI915XvMC->hHWContext);
+    PPTHREAD_MUTEX_UNLOCK();
     return 0;
 }
 
@@ -2505,7 +2443,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
     if (!subpicture->privData)
         return BadAlloc;
 
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    PPTHREAD_MUTEX_LOCK();
     subpicture->context_id = context->context_id;
     subpicture->xvimage_id = xvimage_id;
     subpicture->width = width;
@@ -2519,7 +2457,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
         XVMC_ERR("Unable to create XvMCSubpicture.");
         free(pI915Subpicture);
         subpicture->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return ret;
     }
     XUnlockDisplay(display);
@@ -2534,7 +2472,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
         free(priv_data);
         free(pI915Subpicture);
         subpicture->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAlloc;
     }
 
@@ -2554,7 +2492,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
         XUnlockDisplay(display);
         free(pI915Subpicture);
         subpicture->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadAlloc;
     }
 
@@ -2581,12 +2519,12 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
         XUnlockDisplay(display);
         free(pI915Subpicture);
         subpicture->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+        PPTHREAD_MUTEX_UNLOCK();
         return BadMatch;
     }
 
     pI915XvMC->ref++;
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    PPTHREAD_MUTEX_UNLOCK();
     return Success;
 }
 
@@ -2712,7 +2650,7 @@ Status XvMCDestroySubpicture(Display *display, XvMCSubpicture *subpicture)
     if (pI915Subpicture->srf.map)
         drmUnmap(pI915Subpicture->srf.map, pI915Subpicture->srf.size);
 
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    PPTHREAD_MUTEX_LOCK();
     XLockDisplay(display);
     _xvmc_destroy_subpicture(display,subpicture);
     XUnlockDisplay(display);
@@ -2720,7 +2658,7 @@ Status XvMCDestroySubpicture(Display *display, XvMCSubpicture *subpicture)
     free(pI915Subpicture);
     subpicture->privData = NULL;
     pI915XvMC->ref--;
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    PPTHREAD_MUTEX_UNLOCK();
 
     return Success;
 }
@@ -2980,16 +2918,16 @@ Status XvMCGetSubpictureStatus(Display *display, XvMCSubpicture *subpicture,
     if (!(pI915XvMC = pI915Subpicture->privContext))
         return (error_base + XvMCBadSubpicture);
 
-    // LOCK_HARDWARE(pI915XvMC);
-    PPTHREAD_MUTEX_LOCK(pI915XvMC);
+    // LOCK_HARDWARE(pI915XvMC->hHWContext);
+    PPTHREAD_MUTEX_LOCK();
     /* FIXME: */
     if (pI915Subpicture->last_render &&
         (pI915Subpicture->last_render > pI915XvMC->sarea->last_dispatch)) {
         *stat |= XVMC_RENDERING;
     }
 
-    // UNLOCK_HARDWARE(pI915XvMC);
-    PPTHREAD_MUTEX_UNLOCK(pI915XvMC);
+    // UNLOCK_HARDWARE(pI915XvMC->hHWContext);
+    PPTHREAD_MUTEX_UNLOCK();
     return Success;
 }
 

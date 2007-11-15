@@ -136,6 +136,12 @@ typedef struct _intel_xvmc_driver {
     intel_xvmc_drm_map_t batchbuffer;
     unsigned int last_render;
 
+    sigset_t sa_mask;
+    pthread_mutex_t ctxmutex;
+    int lock;   /* Lightweight lock to avoid locking twice */
+    int locked;
+    drmLock *driHwLock;
+
     void *private;
 
     /* XXX: remove? */
@@ -180,4 +186,31 @@ typedef struct _intel_xvmc_driver {
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
 extern struct _intel_xvmc_driver *xvmc_driver;
 
+#define SET_BLOCKED_SIGSET()   do {    \
+        sigset_t bl_mask;                       \
+        sigfillset(&bl_mask);           \
+        sigdelset(&bl_mask, SIGFPE);    \
+        sigdelset(&bl_mask, SIGILL);    \
+        sigdelset(&bl_mask, SIGSEGV);   \
+        sigdelset(&bl_mask, SIGBUS);    \
+        sigdelset(&bl_mask, SIGKILL);   \
+        pthread_sigmask(SIG_SETMASK, &bl_mask, &xvmc_driver->sa_mask); \
+    } while (0)
+
+#define RESTORE_BLOCKED_SIGSET() do {    \
+        pthread_sigmask(SIG_SETMASK, &xvmc_driver->sa_mask, NULL); \
+    } while (0)
+
+#define PPTHREAD_MUTEX_LOCK() do {             \
+        SET_BLOCKED_SIGSET();                  \
+        pthread_mutex_lock(&xvmc_driver->ctxmutex);       \
+    } while (0)
+
+#define PPTHREAD_MUTEX_UNLOCK() do {           \
+        pthread_mutex_unlock(&xvmc_driver->ctxmutex);     \
+        RESTORE_BLOCKED_SIGSET();              \
+    } while (0)
+
+extern void LOCK_HARDWARE(drm_context_t);
+extern void UNLOCK_HARDWARE(drm_context_t);
 #endif

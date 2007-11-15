@@ -68,12 +68,7 @@ typedef struct _i915XvMCContext {
     unsigned int yStride;
     unsigned int uvStride;
     unsigned short ref;
-    pthread_mutex_t ctxmutex;
-    int lock;   /* Lightweight lock to avoid locking twice */
-    int locked;
     volatile drmI830Sarea *sarea;
-    
-    drmLock *driHwLock;
     drm_context_t hHWContext; /* drmcontext; */
     unsigned int sarea_priv_offset;	        /* Offset in sarea to private part */
     unsigned int depth;
@@ -94,11 +89,7 @@ typedef struct _i915XvMCContext {
     i915XvMCDrmMap ssb;
     i915XvMCDrmMap psp;
     i915XvMCDrmMap psc;
-
     i915XvMCDrmMap corrdata;
-
-    sigset_t sa_mask;
-
 } i915XvMCContext;
 
 /***************************************************************************

@@ -30,6 +30,35 @@ struct _intel_xvmc_driver *xvmc_driver = NULL;
 static int error_base;
 static int event_base;
 
+/* locking */
+static void intel_xvmc_try_heavy_lock(drm_context_t ctx)
+{
+    drmGetLock(xvmc_driver->fd, ctx, 0);
+}
+
+void LOCK_HARDWARE(drm_context_t ctx)
+{
+    char __ret = 0;
+
+    PPTHREAD_MUTEX_LOCK();
+    assert(!xvmc_driver->locked);
+
+    DRM_CAS(xvmc_driver->driHwLock, ctx,
+            (DRM_LOCK_HELD | ctx), __ret);
+
+    if (__ret)
+	intel_xvmc_try_heavy_lock(ctx);
+
+    xvmc_driver->locked = 1;
+}
+
+void UNLOCK_HARDWARE(drm_context_t ctx)
+{
+    xvmc_driver->locked = 0;
+    DRM_UNLOCK(xvmc_driver->fd, xvmc_driver->driHwLock, ctx);
+    PPTHREAD_MUTEX_UNLOCK();
+}
+
 /*
 * Function: XvMCCreateContext
 * Description: Create a XvMC context for the given surface parameters.
@@ -196,6 +225,9 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	free(priv_data);
         return BadAlloc;
     }
+    pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
+    xvmc_driver->driHwLock = (drmLock *)&pSAREA->lock;
+    pthread_mutex_init(&xvmc_driver->ctxmutex, NULL);
 
     /* call driver hook.
      * driver hook should free priv_data after return if success.*/
