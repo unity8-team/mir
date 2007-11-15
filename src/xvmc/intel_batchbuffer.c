@@ -98,6 +98,14 @@ void intelDestroyBatchBuffer(void)
 
 Bool intelInitBatchBuffer(void)
 {
+    if (drmMap(xvmc_driver->fd,
+		xvmc_driver->batchbuffer.handle,
+		xvmc_driver->batchbuffer.size,
+		(drmAddress *)&xvmc_driver->batchbuffer.map) != 0) {
+	XVMC_ERR("fail to map batch buffer\n");
+	return False;
+    }
+
     if (xvmc_driver->batchbuffer.map) {
 	xvmc_driver->alloc.size = xvmc_driver->batchbuffer.size;
 	xvmc_driver->alloc.offset = xvmc_driver->batchbuffer.offset;
@@ -110,14 +118,6 @@ Bool intelInitBatchBuffer(void)
 
     xvmc_driver->alloc.active_buf = 0;
     assert(xvmc_driver->alloc.ptr);
-
-    if (drmMap(xvmc_driver->fd,
-		xvmc_driver->batchbuffer.handle,
-		xvmc_driver->batchbuffer.size,
-		(drmAddress *)&xvmc_driver->batchbuffer.map) != 0) {
-	XVMC_ERR("fail to map batch buffer\n");
-	return False;
-    }
 }
 
 void intelFiniBatchBuffer(void)
