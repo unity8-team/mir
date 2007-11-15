@@ -716,7 +716,6 @@ void NV10Composite(PixmapPtr pDst,
 
 	if ( state.is_a8_plus_a8 )
 		{
-		xf86DrvMsg(0, X_INFO, "Yes I'm there\n");
 		/*We do A8 + A8 in 2-pass : setup the source texture as A8 twice, 
 			with different tex coords, do B and G on first pass
 		Then setup again and do R and A on second pass
