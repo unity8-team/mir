@@ -295,7 +295,7 @@ i830_lvds_get_backlight_kernel(xf86OutputPtr output)
 
     sprintf(path, "%s/%s/actual_brightness", BACKLIGHT_CLASS,
 	    backlight_interfaces[backlight_index]);
-    fd = open(path, O_RDWR);
+    fd = open(path, O_RDONLY);
     if (fd == -1) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "failed to open %s for backlight "
 		   "control: %s\n", path, strerror(errno));
@@ -1014,6 +1014,8 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "bad backlight control method\n");
 	break;
     }
+
+    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 
     return;
 
