@@ -28,7 +28,7 @@
 #include <pthread.h>
 #include <sys/ioctl.h>
 
-#include "I915XvMC.h"
+#include "i915_xvmc.h"
 #include "i915_structs.h"
 #include "i915_program.h"
 
