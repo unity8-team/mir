@@ -38,7 +38,6 @@
 
 #include "xf86.h"
 #include "i830.h"
-#include "i830_reg.h"
 #include "i830_bios.h"
 #include "i830_display.h"
 #include "i830_debug.h"
