@@ -74,7 +74,7 @@ typedef struct {
    unsigned int depth_offset;
    unsigned int w;
    unsigned int h;
-   unsigned int pitch;
+   unsigned int pitch; /* Pitch of front buffer in units of pixels */
    unsigned int pitch_bits;
    unsigned int back_pitch;
    unsigned int depth_pitch;
@@ -124,20 +124,29 @@ typedef struct {
         unsigned int rotated_tiled;
         unsigned int rotated2_tiled;
 
-	int pipeA_x;
-	int pipeA_y;
-	int pipeA_w;
-	int pipeA_h;
-	int pipeB_x;
-	int pipeB_y;
-	int pipeB_w;
-	int pipeB_h;
+	int planeA_x;
+	int planeA_y;
+	int planeA_w;
+	int planeA_h;
+	int planeB_x;
+	int planeB_y;
+	int planeB_w;
+	int planeB_h;
 
 	/* Triple buffering */
 	drm_handle_t third_handle;
 	int third_offset;
 	int third_size;
 	unsigned int third_tiled;
+
+	/* buffer object handles for the static buffers.  May change
+	 * over the lifetime of the client, though it doesn't in our current
+	 * implementation.
+	 */
+	unsigned int front_bo_handle;
+	unsigned int back_bo_handle;
+	unsigned int third_bo_handle;
+	unsigned int depth_bo_handle;
 } drmI830Sarea;
 
 /* Flags for perf_boxes

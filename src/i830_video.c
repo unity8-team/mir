@@ -105,11 +105,6 @@ static int I830QueryImageAttributesOverlay(ScrnInfoPtr, int, unsigned short *,
 static int I830QueryImageAttributesTextured(ScrnInfoPtr, int, unsigned short *,
 					    unsigned short *, int *, int *);
 
-static void I830BlockHandler(int, pointer, pointer, pointer);
-
-static void
-I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear);
-
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 static Atom xvBrightness, xvContrast, xvSaturation, xvColorKey, xvPipe, xvDoubleBuffer;
@@ -841,7 +836,7 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
     pPriv->saturation = 128;
     pPriv->current_crtc = NULL;
     pPriv->desired_crtc = NULL;
-    memset(&pPriv->linear, 0, sizeof(pPriv->linear));
+    pPriv->buf = NULL;
     pPriv->currentBuf = 0;
     pPriv->gamma5 = 0xc0c0c0;
     pPriv->gamma4 = 0x808080;
@@ -868,9 +863,6 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
      * setup.
      */
     pPriv->overlayOK = TRUE;
-
-    pI830->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = I830BlockHandler;
 
     xvColorKey = MAKE_ATOM("XV_COLORKEY");
     xvBrightness = MAKE_ATOM("XV_BRIGHTNESS");
@@ -955,7 +947,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
 
 	pPriv->textured = TRUE;
 	pPriv->videoStatus = 0;
-	memset(&pPriv->linear, 0, sizeof(pPriv->linear));
+	pPriv->buf = NULL;
 	pPriv->currentBuf = 0;
 	pPriv->doubleBuffer = 0;
 
@@ -1015,7 +1007,11 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 	    if (pI830->entityPrivate)
 		pI830->entityPrivate->XvInUse = -1;
 	}
-	I830FreeMemory(pScrn, &pPriv->linear);
+	/* Sync before freeing the buffer, because the pages will be unbound.
+	 */
+	I830Sync(pScrn);
+	i830_free_memory(pScrn, pPriv->buf);
+	pPriv->buf = NULL;
 	pPriv->videoStatus = 0;
     } else {
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
@@ -1712,11 +1708,14 @@ i830_covering_crtc (ScrnInfoPtr pScrn,
 	i830_crtc_box (crtc, &crtc_box);
 	i830_box_intersect (&cover_box, &crtc_box, box);
 	coverage = i830_box_area (&cover_box);
+	if (coverage && crtc == desired)
+	{
+	    *crtc_box_ret = crtc_box;
+	    return crtc;
+	}
 	if (coverage > best_coverage)
 	{
 	    *crtc_box_ret = crtc_box;
-	    if (crtc == desired)
-		return crtc;
 	    best_crtc = crtc;
 	    best_coverage = coverage;
 	}
@@ -2075,112 +2074,6 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     i830_overlay_continue (pScrn, scaleChanged);
 }
 
-#ifdef I830_USE_EXA
-static void
-I830VideoSave(ScreenPtr pScreen, ExaOffscreenArea *area)
-{
-    struct linear_alloc *linear = area->privData;
-
-    linear->exa = NULL;
-    linear->offset = 0;
-}
-#endif /* I830_USE_EXA */
-
-/**
- * Allocates linear memory using the XFree86 (XAA) or EXA allocator.
- *
- * \param pPriv adaptor the memory is being allocated for.
- * \param size size of the allocation, in bytes.
- * \param alignment offset alignment of the allocation, in bytes.
- *
- * \return byte offset of the allocated memory from the start of framebuffer.
- */
-static void
-I830AllocateMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear, int size,
-		   int align)
-{
-    ScreenPtr pScreen = pScrn->pScreen;
-    I830Ptr pI830 = I830PTR(pScrn);
-
-#ifdef I830_USE_EXA
-    if (pI830->useEXA) {
-	if (linear->exa != NULL) {
-	    if (linear->exa->size >= size)
-		return;
-
-	    exaOffscreenFree(pScreen, linear->exa);
-	    linear->offset = 0;
-	}
-
-	linear->exa = exaOffscreenAlloc(pScreen, size, align, TRUE,
-					I830VideoSave, linear);
-	if (linear->exa == NULL)
-	    return;
-	linear->offset = linear->exa->offset;
-    }
-#endif /* I830_USE_EXA */
-#ifdef I830_USE_XAA
-    if (!pI830->useEXA) {
-	/* Converts an offset from XAA's linear allocator to an offset from the
-	 * start of fb.
-	 */
-#define XAA_OFFSET_TO_OFFSET(x) \
-	(pI830->front_buffer->offset + (x * pI830->cpp))
-
-	/* The XFree86 linear allocator operates in units of screen pixels,
-	 * sadly.
-	 */
-	size = (size + pI830->cpp - 1) / pI830->cpp;
-	align = (align + pI830->cpp - 1) / pI830->cpp;
-
-	if (linear->xaa != NULL) {
-	    if (linear->xaa->size >= size) {
-		linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
-		return;
-	    }
-
-	    if (xf86ResizeOffscreenLinear(linear->xaa, size)) {
-		linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
-		return;
-	    }
-
-	    xf86FreeOffscreenLinear(linear->xaa);
-	}
-
-	linear->xaa = i830_xf86AllocateOffscreenLinear(pScreen, size, align,
-						       NULL, NULL, NULL);
-	if (linear->xaa == NULL)
-	    return;
-
-	linear->offset = XAA_OFFSET_TO_OFFSET(linear->xaa->offset);
-    }
-#endif /* I830_USE_XAA */
-}
-
-static void
-I830FreeMemory(ScrnInfoPtr pScrn, struct linear_alloc *linear)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-
-#ifdef I830_USE_EXA
-    if (pI830->useEXA) {
-	if (linear->exa != NULL) {
-	    exaOffscreenFree(pScrn->pScreen, linear->exa);
-	    linear->exa = NULL;
-	}
-    }
-#endif /* I830_USE_EXA */
-#ifdef I830_USE_XAA
-    if (!pI830->useEXA) {
-	if (linear->xaa != NULL) {
-	    xf86FreeOffscreenLinear(linear->xaa);
-	    linear->xaa = NULL;
-	}
-    }
-#endif /* I830_USE_XAA */
-    linear->offset = 0;
-}
-
 static Bool
 i830_clip_video_helper (ScrnInfoPtr pScrn,
 			xf86CrtcPtr *crtc_ret,
@@ -2293,7 +2186,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int pitchAlignMask;
-    int extraLinear;
+    int alloc_size, extraLinear;
     xf86CrtcPtr	crtc;
 
     if (pPriv->textured)
@@ -2323,11 +2216,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
-    /* overlay limits */
-    if(src_w > (drw_w * 7))
+    /* Clamp dst width & height to 7x of src (overlay limit) */
+    if(drw_w > (src_w * 7))
 	drw_w = src_w * 7;
 
-    if(src_h > (drw_h * 7))
+    if(drw_h > (src_h * 7))
 	drw_h = src_h * 7;
 
     /* Clip */
@@ -2410,19 +2303,38 @@ I830PutImage(ScrnInfoPtr pScrn,
     else
 	extraLinear = 0;
 
-    /* size is multiplied by 2 because we have two buffers that are flipping */
-    I830AllocateMemory(pScrn, &pPriv->linear,
-		       extraLinear + (pPriv->doubleBuffer ? size * 2 : size),
-		       16);
+    alloc_size = size;
+    if (pPriv->doubleBuffer)
+	alloc_size *= 2;
+    alloc_size += extraLinear;
 
-    if (pPriv->linear.offset == 0)
+    if (pPriv->buf) {
+	/* Wait for any previous acceleration to the buffer to have completed.
+	 * When we start using BOs for rendering, we won't have to worry
+	 * because mapping or freeing will take care of it automatically.
+	 */
+	I830Sync(pScrn);
+    }
+
+    /* Free the current buffer if we're going to have to reallocate */
+    if (pPriv->buf && pPriv->buf->size < alloc_size) {
+	i830_free_memory(pScrn, pPriv->buf);
+	pPriv->buf = NULL;
+    }
+
+    if (pPriv->buf == NULL) {
+	pPriv->buf = i830_allocate_memory(pScrn, "xv buffer", alloc_size, 16,
+					  0);
+    }
+
+    if (pPriv->buf == NULL)
 	return BadAlloc;
 
-    pPriv->extra_offset = pPriv->linear.offset +
+    pPriv->extra_offset = pPriv->buf->offset +
     (pPriv->doubleBuffer ? size * 2 : size);
 
     /* fixup pointers */
-    pPriv->YBuf0offset = pPriv->linear.offset;
+    pPriv->YBuf0offset = pPriv->buf->offset;
     if (pI830->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
 	pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * width / 2);
@@ -2486,9 +2398,10 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 #endif
 
-    if (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
-	((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
-	 pI830->FbMapSize)) {
+    if (!pI830->useEXA &&
+	    (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
+	     ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
+	      pI830->FbMapSize))) {
 	/* If the pixmap wasn't in framebuffer, then we have no way in XAA to
 	 * force it there.  So, we simply refuse to draw and fail.
 	 */
@@ -2618,20 +2531,22 @@ I830QueryImageAttributesTextured(ScrnInfoPtr pScrn,
     return I830QueryImageAttributes(pScrn, id, w, h, pitches, offsets, TRUE);
 }
 
-static void
-I830BlockHandler(int i,
-		 pointer blockData, pointer pTimeout, pointer pReadmask)
+void
+I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
+		      pointer pReadmask)
 {
-    ScreenPtr pScreen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I830Ptr pI830 = I830PTR(pScrn);
-    I830PortPrivPtr pPriv = GET_PORT_PRIVATE(pScrn);
+    I830PortPrivPtr pPriv;
 
-    pScreen->BlockHandler = pI830->BlockHandler;
+    if (pI830->adaptor == NULL)
+        return;
 
-    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+    /* No overlay scaler on the 965. */
+    if (IS_I965G(pI830))
+        return;
 
-    pScreen->BlockHandler = I830BlockHandler;
+    pPriv = GET_PORT_PRIVATE(pScrn);
 
     if (pPriv->videoStatus & TIMER_MASK) {
 #if 1
@@ -2654,7 +2569,11 @@ I830BlockHandler(int i,
 	    }
 	} else {				/* FREE_TIMER */
 	    if (pPriv->freeTime < now) {
-		I830FreeMemory(pScrn, &pPriv->linear);
+		/* Sync before freeing the buffer, because the pages will be
+		 * unbound.
+		 */
+		I830Sync(pScrn);
+		i830_free_memory(pScrn, pPriv->buf);
 		pPriv->videoStatus = 0;
 	    }
 	}
@@ -2666,7 +2585,7 @@ I830BlockHandler(int i,
  ***************************************************************************/
 
 typedef struct {
-    struct linear_alloc linear;
+    i830_memory *buf;
     Bool isOn;
 } OffscreenPrivRec, *OffscreenPrivPtr;
 
@@ -2711,8 +2630,8 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
     fbpitch = pI830->cpp * pScrn->displayWidth;
     size = pitch * h;
 
-    I830AllocateMemory(pScrn, &pPriv->linear, size, 16);
-    if (pPriv->linear.offset == 0) {
+    pPriv->buf = i830_allocate_memory(pScrn, "xv surface buffer", size, 16, 0);
+    if (pPriv->buf == NULL) {
 	xfree(surface->pitches);
 	xfree(surface->offsets);
 	xfree(pPriv);
@@ -2727,7 +2646,7 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
     surface->pScrn = pScrn;
     surface->id = id;
     surface->pitches[0] = pitch;
-    surface->offsets[0] = pPriv->linear.offset;
+    surface->offsets[0] = pPriv->buf->offset;
     surface->devPrivate.ptr = (pointer) pPriv;
 
     memset(pI830->FbBase + surface->offsets[0], 0, size);
@@ -2760,10 +2679,13 @@ I830StopSurface(XF86SurfacePtr surface)
 static int
 I830FreeSurface(XF86SurfacePtr surface)
 {
+    ScrnInfoPtr pScrn = surface->pScrn;
     OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
 
     I830StopSurface(surface);
-    I830FreeMemory(surface->pScrn, &pPriv->linear);
+    /* Sync before freeing the buffer, because the pages will be unbound. */
+    I830Sync(pScrn);
+    i830_free_memory(surface->pScrn, pPriv->buf);
     xfree(surface->pitches);
     xfree(surface->offsets);
     xfree(surface->devPrivate.ptr);
@@ -2853,7 +2775,6 @@ I830DisplaySurface(XF86SurfacePtr surface,
 	UpdateCurrentTime();
 	pI830Priv->videoStatus = FREE_TIMER;
 	pI830Priv->freeTime = currentTime.milliseconds + FREE_DELAY;
-	pScrn->pScreen->BlockHandler = I830BlockHandler;
     }
 
     return Success;
@@ -2911,15 +2832,14 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
     if (crtc != pPriv->current_crtc)
 	return;
 
-    /* Check if it's the crtc the overlay is on */
-    if (on) {
-	i830_overlay_switch_to_crtc (pScrn, crtc);
-    } else {
+    /* Check if it's the crtc the overlay is off */
+    if (!on) {
 	/* We stop the video when mode switching, so we don't lock up
 	 * the engine. The overlayOK will determine whether we can re-enable
 	 * with the current video on completion of the mode switch.
 	 */
 	I830StopVideo(pScrn, pPriv, TRUE);
+	pPriv->current_crtc = NULL;
 	pPriv->overlayOK = FALSE;
 	pPriv->oneLineMode = FALSE;
     }

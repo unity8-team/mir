@@ -425,7 +425,8 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* color buffer */
 	OUT_RING(_3DSTATE_BUF_INFO_CMD);
-	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_PITCH(dst_pitch));
+	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
+			BUF_3D_PITCH(dst_pitch));
 	OUT_RING(BUF_3D_ADDR(dst_offset));
 	OUT_RING(MI_NOOP);
 

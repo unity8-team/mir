@@ -42,14 +42,14 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
-@HAVE_PCIACCESS_TRUE@am__EXEEXT_1 = bios_dumper$(EXEEXT)
+@LIBPCIACCESS_TRUE@am__EXEEXT_1 = bios_dumper$(EXEEXT)
 PROGRAMS = $(noinst_PROGRAMS)
 am__bios_dumper_SOURCES_DIST = bios_dumper.c
-@HAVE_PCIACCESS_TRUE@am_bios_dumper_OBJECTS =  \
-@HAVE_PCIACCESS_TRUE@	bios_dumper-bios_dumper.$(OBJEXT)
+@LIBPCIACCESS_TRUE@am_bios_dumper_OBJECTS =  \
+@LIBPCIACCESS_TRUE@	bios_dumper-bios_dumper.$(OBJEXT)
 bios_dumper_OBJECTS = $(am_bios_dumper_OBJECTS)
 am__DEPENDENCIES_1 =
-@HAVE_PCIACCESS_TRUE@bios_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
+@LIBPCIACCESS_TRUE@bios_dumper_DEPENDENCIES = $(am__DEPENDENCIES_1)
 bios_dumper_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(bios_dumper_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
@@ -213,10 +213,10 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @XMODES_CFLAGS@
-@HAVE_PCIACCESS_TRUE@BIOS_DUMPER = bios_dumper
-@HAVE_PCIACCESS_TRUE@bios_dumper_SOURCES = bios_dumper.c
-@HAVE_PCIACCESS_TRUE@bios_dumper_CFLAGS = $(PCIACCESS_CFLAGS)
-@HAVE_PCIACCESS_TRUE@bios_dumper_LDADD = $(PCIACCESS_LIBS)
+@LIBPCIACCESS_TRUE@BIOS_DUMPER = bios_dumper
+@LIBPCIACCESS_TRUE@bios_dumper_SOURCES = bios_dumper.c
+@LIBPCIACCESS_TRUE@bios_dumper_CFLAGS = $(PCIACCESS_CFLAGS)
+@LIBPCIACCESS_TRUE@bios_dumper_LDADD = $(PCIACCESS_LIBS)
 all: all-am
 
 .SUFFIXES:
@@ -230,9 +230,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  src/bios_reader/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  src/bios_reader/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu  src/bios_reader/Makefile
+	  $(AUTOMAKE) --foreign  src/bios_reader/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

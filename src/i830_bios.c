@@ -97,7 +97,11 @@ i830_bios_get (ScrnInfoPtr pScrn)
 	       INTEL_VBIOS_SIZE);
 	vbeFree (pVbe);
     } else {
+#if XSERVER_LIBPCIACCESS
+	pci_device_read_rom (pI830->PciInfo, bios);
+#else
 	xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, INTEL_VBIOS_SIZE);
+#endif
     }
 
     if (0)

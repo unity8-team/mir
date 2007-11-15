@@ -75,6 +75,18 @@ driver attempts to allocate space for at 3 screenfuls of pixmaps plus an
 HD-sized XV video.  The default used for a specific configuration can be found
 by examining the __xservername__ log file.
 .TP
+.BI "Option \*qFramebufferCompression\*q \*q" boolean \*q
+This option controls whether the framebuffer compression feature is enabled.
+If possible, the front buffer will be allocated in a tiled format and compressed
+periodically to save memory bandwidth and power.
+This option is only available on mobile chipsets.
+Default: enabled on supported configurations.
+.TP
+.BI "Option \*qTiling\*q \*q" boolean \*q
+This option controls whether memory buffers are allocated in tiled mode.  In
+many cases (especially for complex rendering), tiling can improve performance.
+Default: enabled.
+.TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
 Default: DRI is enabled for configurations where it is supported.
@@ -116,9 +128,8 @@ Default: XVideo is enabled for configurations where it is supported.
 Enable support for the legacy i915_dri.so 3D driver.
 This will, among other things, make the 2D driver tell libGL to
 load the 3D driver i915_dri.so instead of the newer i915tex_dri.so.
-This option is only used for chipsets in the range i830-i945. 
-Default for i830-i945 series: Enabled for i915 drm versions < 1.7.0. Otherwise
-disabled. 
+This option is only used for chipsets in the range i830-i945.
+Default for i830-i945 series: Enabled.
 Default for i810: The option is not used.
 Default for i965: The option is always true.
 .TP
