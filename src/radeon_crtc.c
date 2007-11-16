@@ -1280,7 +1280,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
 
     pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
     pRADEONEnt->Controller[1]->crtc_id = 1;
-    pRADEONEnt->Controller[0]->crtc_offset = AVIVO_CRTC2_H_TOTAL - AVIVO_CRTC1_H_TOTAL;
+    pRADEONEnt->Controller[1]->crtc_offset = AVIVO_CRTC2_H_TOTAL - AVIVO_CRTC1_H_TOTAL;
     return TRUE;
 }
 
