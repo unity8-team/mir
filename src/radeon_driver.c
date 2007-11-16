@@ -736,7 +736,7 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
 	OUTREG(AVIVO_MC_INDEX, 0);
 	(void)INREG(AVIVO_MC_INDEX);
     } else {
-	OUTREG8(R300_MC_IND_INDEX, addr & 0x3f);
+	OUTREG(R300_MC_IND_INDEX, addr & 0x3f);
 	(void)INREG(R300_MC_IND_INDEX);
 	data = INREG(R300_MC_IND_DATA);
 	
@@ -760,8 +760,8 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data)
 	OUTREG(AVIVO_MC_INDEX, 0);
 	(void)INREG(AVIVO_MC_INDEX);
     } else {
-	OUTREG8(R300_MC_IND_INDEX, (((addr) & 0x3f) |
-				    R300_MC_IND_WR_EN));
+	OUTREG(R300_MC_IND_INDEX, (((addr) & 0x3f) |
+				   R300_MC_IND_WR_EN));
 	(void)INREG(R300_MC_IND_INDEX);
 	OUTREG(R300_MC_IND_DATA, data);
 	OUTREG(R300_MC_IND_INDEX, 0);
