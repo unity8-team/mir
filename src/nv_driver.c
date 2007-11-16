@@ -1695,13 +1695,14 @@ NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int gart_scratch_size;
+	uint64_t res;
 
-	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE,
-				 &pNv->VRAMSize);
-	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_PHYSICAL,
-				 &pNv->VRAMPhysical);
-	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE,
-				 &pNv->AGPSize);
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
+	pNv->VRAMSize=res;
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_PHYSICAL, &res);
+	pNv->VRAMPhysical=res;
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
+	pNv->AGPSize=res;
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 			   0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
