@@ -687,11 +687,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 			if (radeon_output->type == OUTPUT_LVDS)
 			    radeon_output->MonType = MT_LCD;
 			if (!radeon_output->MonType) {
-			    if (radeon_output->DACType == DAC_PRIMARY) {
-				radeon_output->MonType = atombios_dac_detect(pScrn, output);
-			    } else if (radeon_output->DACType == DAC_TVDAC) {
-				radeon_output->MonType = atombios_dac_detect(pScrn, output);
-			    }
+			    radeon_output->MonType = atombios_dac_detect(pScrn, output);
 			}
 		    }
 		} else {
