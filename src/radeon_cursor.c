@@ -96,15 +96,15 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     unsigned char     *RADEONMMIO = info->MMIO;
 
-    OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset, 0);
+    OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset, 0);
 
     if (enable) {
-	OUTREG(AVIVO_CURSOR1_LOCATION + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       info->fbLocation + info->cursor_offset);
-	OUTREG(AVIVO_CURSOR1_SIZE + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset,
 	       ((info->cursor_width -1) << 16) | (info->cursor_height-1));
-	OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset,
-	       AVIVO_CURSOR_EN | (AVIVO_CURSOR_FORMAT_ARGB << AVIVO_CURSOR_FORMAT_SHIFT));
+	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
+	       AVIVO_D1CURSOR_EN | (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
     }
 }
 
@@ -124,9 +124,9 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     RADEON_SYNC(info, pScrn);
 
     if (IS_AVIVO_VARIANT) {
-	OUTREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset,
-	       INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
-	       | AVIVO_CURSOR_EN);
+	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
+	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
+	       | AVIVO_D1CURSOR_EN);
 	avivo_setup_cursor(crtc, TRUE);
     } else {
 	if (crtc_id == 0) 
@@ -158,9 +158,9 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     RADEON_SYNC(info, pScrn);
 
     if (IS_AVIVO_VARIANT) {
-	OUTREG(AVIVO_CURSOR1_CNTL+ radeon_crtc->crtc_offset,
-	       INREG(AVIVO_CURSOR1_CNTL + radeon_crtc->crtc_offset)
-	       & ~(AVIVO_CURSOR_EN));
+	OUTREG(AVIVO_D1CUR_CONTROL+ radeon_crtc->crtc_offset,
+	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
+	       & ~(AVIVO_D1CURSOR_EN));
 	avivo_setup_cursor(crtc, FALSE);
     } else {
 	if (crtc_id == 0)
@@ -202,7 +202,7 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	if (y < 0)
 	    y = 0;
 
-	OUTREG(AVIVO_CURSOR1_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
+	OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
 	radeon_crtc->cursor_x = x;
 	radeon_crtc->cursor_y = y;
     } else {

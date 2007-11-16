@@ -104,9 +104,7 @@ atombios_crtc_enable(xf86CrtcPtr crtc, int enable)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    int scan_enable, cntl;
-    AtomBiosResult res;
+
     atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, enable);
     
     //TODOavivo_wait_idle(avivo);
@@ -465,55 +463,46 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	radeon_crtc->fb_length = radeon_crtc->fb_pitch * radeon_crtc->fb_height * 4;
 	switch (crtc->scrn->bitsPerPixel) {
 	case 15:
-	    radeon_crtc->fb_format = AVIVO_CRTC_FORMAT_ARGB15;
+	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
 	    break;
 	case 16:
-	    radeon_crtc->fb_format = AVIVO_CRTC_FORMAT_ARGB16;
+ 	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
 	    break;
 	case 24:
 	case 32:
-	    radeon_crtc->fb_format = AVIVO_CRTC_FORMAT_ARGB32;
+ 	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
 	    break;
 	default:
 	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
 	}
 	if (info->tilingEnabled) {
-	    radeon_crtc->fb_format |= AVIVO_CRTC_MACRO_ADDRESS_MODE;
+	    radeon_crtc->fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 	}
 
 	if (radeon_crtc->crtc_id == 0)
-	    OUTREG(AVIVO_VGA1_CONTROL, 0);
+	    OUTREG(AVIVO_D1VGA_CONTROL, 0);
 	else
-	    OUTREG(AVIVO_VGA2_CONTROL, 0);
+	    OUTREG(AVIVO_D1VGA_CONTROL, 0);
 
 	/* setup fb format and location
 	 */
-	OUTREG(AVIVO_CRTC1_EXPANSION_SOURCE + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
+	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);
 
-	OUTREG(AVIVO_CRTC1_FB_LOCATION + radeon_crtc->crtc_offset, fb_location);
-	OUTREG(AVIVO_CRTC1_FB_END + radeon_crtc->crtc_offset, fb_location);
-	OUTREG(AVIVO_CRTC1_FB_FORMAT + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
+	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
+	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset,
 	       radeon_crtc->fb_format);
 
-	OUTREG(AVIVO_CRTC1_X_LENGTH + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset,
 	       crtc->scrn->virtualX);
-	OUTREG(AVIVO_CRTC1_Y_LENGTH + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset,
 	       crtc->scrn->virtualY);
-	OUTREG(AVIVO_CRTC1_PITCH + radeon_crtc->crtc_offset,
+	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
 
-	/* avivo can only shift offset by 4 pixel in x if you program somethings
-	 * not multiple of 4 you gonna drive the GPU crazy and likely won't
-	 * be able to restore it without cold reboot (vbe post not enough)
-	 */
-	x = x & ~3;
-	OUTREG(AVIVO_CRTC1_OFFSET_END + radeon_crtc->crtc_offset,
-	       ((mode->HDisplay + x -128) << 16) | (mode->VDisplay + y - 128));
-	OUTREG(AVIVO_CRTC1_OFFSET_START + radeon_crtc->crtc_offset, (x << 16) | y);
-
-	OUTREG(AVIVO_CRTC1_SCAN_ENABLE + radeon_crtc->crtc_offset, 1);
-
+	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
     }
 
     atombios_set_crtc_source(crtc);

@@ -1273,13 +1273,11 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 
     if (IS_AVIVO_VARIANT) {
         if (info->ChipFamily == CHIP_FAMILY_RV515) {
-            info->mc_fb_location = INMC(pScrn, MC01);
-            ErrorF("mc fb is %08X\n", info->mc_fb_location);
-            info->mc_agp_location = INMC(pScrn, MC02);
+            info->mc_fb_location = INMC(pScrn, RV515_MC_FB_LOCATION);
+            info->mc_agp_location = INMC(pScrn, RV515_MC_AGP_LOCATION);
         } else {
-            info->mc_fb_location = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
-            ErrorF("mc fb is %08X\n", info->mc_fb_location);
-            info->mc_agp_location = INMC(pScrn, MC05);
+  	    info->mc_fb_location = INMC(pScrn, R520_MC_FB_LOCATION);
+            info->mc_agp_location = INMC(pScrn, R520_MC_AGP_LOCATION);
         }
     } else {
 	/* Default to existing values */
@@ -3922,17 +3920,16 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     if (IS_AVIVO_VARIANT) {
 	CARD32 mc_fb_loc, mc_agp_loc;
 	if (info->ChipFamily == CHIP_FAMILY_RV515) {
-	    mc_fb_loc = INMC(pScrn, MC01);
-	    ErrorF("%s: save mc is %08x\n", __func__, mc_fb_loc);
-	    mc_agp_loc = INMC(pScrn, MC02);
+	    mc_fb_loc = INMC(pScrn, RV515_MC_FB_LOCATION);
+	    mc_agp_loc = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
-	    mc_fb_loc = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
-	    mc_agp_loc = INMC(pScrn, MC05);
+	    mc_fb_loc = INMC(pScrn, R520_MC_FB_LOCATION);
+	    mc_agp_loc = INMC(pScrn, R520_MC_AGP_LOCATION);
 	}
 #if 1
 	/* disable VGA CTRL */
-	OUTREG(AVIVO_D1VGA_CTRL, INREG(AVIVO_D1VGA_CTRL) & ~AVIVO_DVGA_MODE_ENABLE);
-	OUTREG(AVIVO_D2VGA_CTRL, INREG(AVIVO_D2VGA_CTRL) & ~AVIVO_DVGA_MODE_ENABLE);
+	OUTREG(AVIVO_D1VGA_CONTROL, INREG(AVIVO_D1VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
+	OUTREG(AVIVO_D2VGA_CONTROL, INREG(AVIVO_D2VGA_CONTROL) & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
 #endif
 	if (mc_fb_loc != info->mc_fb_location ||
 	    mc_agp_loc != info->mc_agp_location) {
@@ -3941,14 +3938,13 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    RADEONWaitForIdleMMIO(pScrn);
 
 	    /* Stop display & memory access */
-	    tmp = INREG(AVIVO_CRTC1_CNTL);
-	    OUTREG(AVIVO_CRTC1_CNTL, tmp & ~AVIVO_CRTC_EN);
+	    tmp = INREG(AVIVO_D1CRTC_CONTROL);
+	    OUTREG(AVIVO_D1CRTC_CONTROL, tmp & ~AVIVO_CRTC_EN);
 
-	    tmp = INREG(AVIVO_CRTC2_CNTL);
-	    tmp &= ~AVIVO_CRTC_EN;
-	    OUTREG(AVIVO_CRTC2_CNTL, tmp);
+	    tmp = INREG(AVIVO_D2CRTC_CONTROL);
+	    OUTREG(AVIVO_D2CRTC_CONTROL, tmp & ~AVIVO_CRTC_EN);
 
-	    tmp = INREG(AVIVO_CRTC2_CNTL);
+	    tmp = INREG(AVIVO_D2CRTC_CONTROL);
 
 	    usleep(10000);
 	    timeout = 0;
@@ -3969,13 +3965,13 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    }
 
 	    if (info->ChipFamily == CHIP_FAMILY_RV515) {
-		OUTMC(pScrn, MC01, info->mc_fb_location);
-		OUTMC(pScrn, MC02, 0x003f0000);
-		(void)INMC(pScrn, MC02);
+		OUTMC(pScrn, RV515_MC_FB_LOCATION, info->mc_fb_location);
+		OUTMC(pScrn, RV515_MC_AGP_LOCATION, 0x003f0000);
+		(void)INMC(pScrn, RV515_MC_AGP_LOCATION);
 	    } else {
-		OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, info->mc_fb_location);
-		OUTMC(pScrn, MC05, 0x003f0000);
-		(void)INMC(pScrn, AVIVO_MC_MEMORY_MAP);
+		OUTMC(pScrn, R520_MC_FB_LOCATION, info->mc_fb_location);
+		OUTMC(pScrn, R520_MC_AGP_LOCATION, 0x003f0000);
+		(void)INMC(pScrn, R520_MC_FB_LOCATION);
 	    }
 	    OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
 	    
@@ -4132,11 +4128,11 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     if (IS_AVIVO_VARIANT) {
 	if (info->ChipFamily == CHIP_FAMILY_RV515) {
-	    fb = INMC(pScrn, MC01);
-	    agp = INMC(pScrn, MC02);
+	    fb = INMC(pScrn, RV515_MC_FB_LOCATION);
+	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
-	    fb = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
-	    agp = INMC(pScrn, MC05);
+	    fb = INMC(pScrn, R520_MC_FB_LOCATION);
+	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	}
 	fb_loc_changed = (fb != info->mc_fb_location);
 
@@ -5524,101 +5520,129 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &save->avivo;
 
-    state->mc_memory_map = INMC(pScrn, AVIVO_MC_MEMORY_MAP);
-    state->vga_memory_base = INREG(AVIVO_VGA_MEMORY_BASE);
-    state->vga_fb_start = INREG(AVIVO_VGA_FB_START);
-    state->vga1_cntl = INREG(AVIVO_VGA1_CONTROL);
-    state->vga2_cntl = INREG(AVIVO_VGA2_CONTROL);
+    //    state->vga_memory_base = INREG(AVIVO_VGA_MEMORY_BASE);
+    //    state->vga_fb_start = INREG(AVIVO_VGA_FB_START);
+    state->vga1_cntl = INREG(AVIVO_D1VGA_CONTROL);
+    state->vga2_cntl = INREG(AVIVO_D1VGA_CONTROL);
 
-    state->pll1_post_div_cntl = INREG(AVIVO_PLL1_POST_DIV_CNTL);
-    state->pll1_post_div = INREG(AVIVO_PLL1_POST_DIV);
-    state->pll1_post_div_mystery = INREG(AVIVO_PLL1_POST_DIV_MYSTERY);
-    state->pll1_post_mul = INREG(AVIVO_PLL1_POST_MUL);
-    state->pll1_divider_cntl = INREG(AVIVO_PLL1_DIVIDER_CNTL);
-    state->pll1_divider = INREG(AVIVO_PLL1_DIVIDER);
-    state->pll1_mystery0 = INREG(AVIVO_PLL1_MYSTERY0);
-    state->pll1_mystery1 = INREG(AVIVO_PLL1_MYSTERY1);
-    state->pll2_post_div_cntl = INREG(AVIVO_PLL2_POST_DIV_CNTL);
-    state->pll2_post_div = INREG(AVIVO_PLL2_POST_DIV);
-    state->pll2_post_div_mystery = INREG(AVIVO_PLL2_POST_DIV_MYSTERY);
-    state->pll2_post_mul = INREG(AVIVO_PLL2_POST_MUL);
-    state->pll2_divider_cntl = INREG(AVIVO_PLL2_DIVIDER_CNTL);
-    state->pll2_divider = INREG(AVIVO_PLL2_DIVIDER);
-    state->pll2_mystery0 = INREG(AVIVO_PLL2_MYSTERY0);
-    state->pll2_mystery1 = INREG(AVIVO_PLL2_MYSTERY1);
-    state->crtc_pll_source = INREG(AVIVO_CRTC_PLL_SOURCE);
+    state->crtc_master_en = INREG(AVIVO_DC_CRTC_MASTER_EN);
+    state->crtc_tv_control = INREG(AVIVO_DC_CRTC_TV_CONTROL);
 
-    state->crtc1_h_total = INREG(AVIVO_CRTC1_H_TOTAL);
-    state->crtc1_h_blank = INREG(AVIVO_CRTC1_H_BLANK);
-    state->crtc1_h_sync_wid = INREG(AVIVO_CRTC1_H_SYNC_WID);
-    state->crtc1_h_sync_pol = INREG(AVIVO_CRTC1_H_SYNC_POL);
-    state->crtc1_v_total = INREG(AVIVO_CRTC1_V_TOTAL);
-    state->crtc1_v_blank = INREG(AVIVO_CRTC1_V_BLANK);
-    state->crtc1_v_sync_wid = INREG(AVIVO_CRTC1_V_SYNC_WID);
-    state->crtc1_v_sync_pol = INREG(AVIVO_CRTC1_V_SYNC_POL);
-    state->crtc1_cntl = INREG(AVIVO_CRTC1_CNTL);
-    state->crtc1_blank_status = INREG(AVIVO_CRTC1_BLANK_STATUS);
-    state->crtc1_stereo_status = INREG(AVIVO_CRTC1_STEREO_STATUS);
-    state->crtc1_scan_enable = INREG(AVIVO_CRTC1_SCAN_ENABLE);
-    state->crtc1_fb_format = INREG(AVIVO_CRTC1_FB_FORMAT);
-    state->crtc1_fb_location = INREG(AVIVO_CRTC1_FB_LOCATION);
-    state->crtc1_fb_end = INREG(AVIVO_CRTC1_FB_END);
-    state->crtc1_pitch = INREG(AVIVO_CRTC1_PITCH);
-    state->crtc1_x_length = INREG(AVIVO_CRTC1_X_LENGTH);
-    state->crtc1_y_length = INREG(AVIVO_CRTC1_Y_LENGTH);
-    state->crtc1_fb_height = INREG(AVIVO_CRTC1_FB_HEIGHT);
-    state->crtc1_offset_start = INREG(AVIVO_CRTC1_OFFSET_START);
-    state->crtc1_offset_end = INREG(AVIVO_CRTC1_OFFSET_END);
-    state->crtc1_expn_size = INREG(AVIVO_CRTC1_EXPANSION_SOURCE);
-    state->crtc1_expn_cntl = INREG(AVIVO_CRTC1_EXPANSION_CNTL);
-    state->crtc1_6594 = INREG(AVIVO_CRTC1_6594);
-    state->crtc1_659c = INREG(AVIVO_CRTC1_659C);
-    state->crtc1_65a4 = INREG(AVIVO_CRTC1_65A4);
-    state->crtc1_65a8 = INREG(AVIVO_CRTC1_65A8);
-    state->crtc1_65ac = INREG(AVIVO_CRTC1_65AC);
-    state->crtc1_65b0 = INREG(AVIVO_CRTC1_65B0);
-    state->crtc1_65b8 = INREG(AVIVO_CRTC1_65B8);
-    state->crtc1_65bc = INREG(AVIVO_CRTC1_65BC);
-    state->crtc1_65c0 = INREG(AVIVO_CRTC1_65C0);
-    state->crtc1_65c8 = INREG(AVIVO_CRTC1_65C8);
+    state->pll1.ref_div_src = INREG(AVIVO_EXT1_PPLL_REF_DIV_SRC);
+    state->pll1.ref_div = INREG(AVIVO_EXT1_PPLL_REF_DIV);
+    state->pll1.fb_div = INREG(AVIVO_EXT1_PPLL_FB_DIV);
+    state->pll1.post_div_src = INREG(AVIVO_EXT1_PPLL_POST_DIV_SRC);
+    state->pll1.post_div = INREG(AVIVO_EXT1_PPLL_POST_DIV);
+    state->pll1.ext_ppll_cntl = INREG(AVIVO_EXT1_PPLL_CNTL);
+    state->pll1.pll_cntl = INREG(AVIVO_P1PLL_CNTL);
+    state->pll1.int_ss_cntl = INREG(AVIVO_P1PLL_INT_SS_CNTL);
 
-    state->crtc2_h_total = INREG(AVIVO_CRTC2_H_TOTAL);
-    state->crtc2_h_blank = INREG(AVIVO_CRTC2_H_BLANK);
-    state->crtc2_h_sync_wid = INREG(AVIVO_CRTC2_H_SYNC_WID);
-    state->crtc2_h_sync_pol = INREG(AVIVO_CRTC2_H_SYNC_POL);
-    state->crtc2_v_total = INREG(AVIVO_CRTC2_V_TOTAL);
-    state->crtc2_v_blank = INREG(AVIVO_CRTC2_V_BLANK);
-    state->crtc2_v_sync_wid = INREG(AVIVO_CRTC2_V_SYNC_WID);
-    state->crtc2_v_sync_pol = INREG(AVIVO_CRTC2_V_SYNC_POL);
-    state->crtc2_cntl = INREG(AVIVO_CRTC2_CNTL);
-    state->crtc2_blank_status = INREG(AVIVO_CRTC2_BLANK_STATUS);
-    state->crtc2_scan_enable = INREG(AVIVO_CRTC2_SCAN_ENABLE);
-    state->crtc2_fb_format = INREG(AVIVO_CRTC2_FB_FORMAT);
-    state->crtc2_fb_location = INREG(AVIVO_CRTC2_FB_LOCATION);
-    state->crtc2_fb_end = INREG(AVIVO_CRTC2_FB_END);
-    state->crtc2_pitch = INREG(AVIVO_CRTC2_PITCH);
-    state->crtc2_x_length = INREG(AVIVO_CRTC2_X_LENGTH);
-    state->crtc2_y_length = INREG(AVIVO_CRTC2_Y_LENGTH);
+    state->pll2.ref_div_src = INREG(AVIVO_EXT1_PPLL_REF_DIV_SRC);
+    state->pll2.ref_div = INREG(AVIVO_EXT2_PPLL_REF_DIV);
+    state->pll2.fb_div = INREG(AVIVO_EXT2_PPLL_FB_DIV);
+    state->pll2.post_div_src = INREG(AVIVO_EXT2_PPLL_POST_DIV_SRC);
+    state->pll2.post_div = INREG(AVIVO_EXT2_PPLL_POST_DIV);
+    state->pll2.ext_ppll_cntl = INREG(AVIVO_EXT2_PPLL_CNTL);
+    state->pll2.pll_cntl = INREG(AVIVO_P2PLL_CNTL);
+    state->pll2.int_ss_cntl = INREG(AVIVO_P2PLL_INT_SS_CNTL);
 
-    state->dac1_cntl = INREG(AVIVO_DACA_CNTL);
-    state->dac1_force_output_cntl = INREG(AVIVO_DACA_FORCE_OUTPUT_CNTL);
-    state->dac1_powerdown = INREG(AVIVO_DACA_POWERDOWN);
+    state->crtc1.pll_source = INREG(AVIVO_PCLK_CRTC1_CNTL);
 
-    state->tmds1_cntl = INREG(AVIVO_TMDSA_CNTL);
-    state->tmds1_bit_depth_cntl = INREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL);
-    state->tmds1_data_sync = INREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION);
-    state->tmds1_transmitter_enable = INREG(AVIVO_TMDSA_TRANSMITTER_ENABLE);
-    state->tmds1_transmitter_cntl = INREG(AVIVO_TMDSA_TRANSMITTER_CONTROL);
+    state->crtc1.h_total = INREG(AVIVO_D1CRTC_H_TOTAL);
+    state->crtc1.h_blank_start_end = INREG(AVIVO_D1CRTC_H_BLANK_START_END);
+    state->crtc1.h_sync_a = INREG(AVIVO_D1CRTC_H_SYNC_A);
+    state->crtc1.h_sync_a_cntl = INREG(AVIVO_D1CRTC_H_SYNC_A_CNTL);
+    state->crtc1.h_sync_b = INREG(AVIVO_D1CRTC_H_SYNC_B);
+    state->crtc1.h_sync_b_cntl = INREG(AVIVO_D1CRTC_H_SYNC_B_CNTL);
 
-    state->dac2_cntl = INREG(AVIVO_DACB_CNTL);
-    state->dac2_force_output_cntl = INREG(AVIVO_DACB_FORCE_OUTPUT_CNTL);
-    state->dac2_powerdown = INREG(AVIVO_DACB_POWERDOWN);
+    state->crtc1.v_total = INREG(AVIVO_D1CRTC_V_TOTAL);
+    state->crtc1.v_blank_start_end = INREG(AVIVO_D1CRTC_V_BLANK_START_END);
+    state->crtc1.v_sync_a = INREG(AVIVO_D1CRTC_V_SYNC_A);
+    state->crtc1.v_sync_a_cntl = INREG(AVIVO_D1CRTC_V_SYNC_A_CNTL);
+    state->crtc1.v_sync_b = INREG(AVIVO_D1CRTC_V_SYNC_B);
+    state->crtc1.v_sync_b_cntl = INREG(AVIVO_D1CRTC_V_SYNC_B_CNTL);
 
-    state->tmds2_cntl = INREG(AVIVO_LVTMA_CNTL);
-    state->tmds2_bit_depth_cntl = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
-    state->tmds2_data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
-    state->tmds2_transmitter_enable = INREG(AVIVO_LVTMA_TRANSMITTER_ENABLE);
-    state->tmds2_transmitter_cntl = INREG(AVIVO_LVTMA_TRANSMITTER_CONTROL);
+    state->crtc1.control = INREG(AVIVO_D1CRTC_CONTROL);
+    state->crtc1.blank_control = INREG(AVIVO_D1CRTC_BLANK_CONTROL);
+    state->crtc1.interlace_control = INREG(AVIVO_D1CRTC_INTERLACE_CONTROL);
+    state->crtc1.stereo_control = INREG(AVIVO_D1CRTC_STEREO_CONTROL);
+
+    state->grph1.enable = INREG(AVIVO_D1GRPH_ENABLE);
+    state->grph1.control = INREG(AVIVO_D1GRPH_CONTROL);
+    state->grph1.control = INREG(AVIVO_D1GRPH_CONTROL);
+    state->grph1.prim_surf_addr = INREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS);
+    state->grph1.sec_surf_addr = INREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS);
+    state->grph1.pitch = INREG(AVIVO_D1GRPH_PITCH);
+    state->grph1.x_offset = INREG(AVIVO_D1GRPH_SURFACE_OFFSET_X);
+    state->grph1.y_offset = INREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y);
+    state->grph1.x_start = INREG(AVIVO_D1GRPH_X_START);
+    state->grph1.y_start = INREG(AVIVO_D1GRPH_Y_START);
+    state->grph1.x_end = INREG(AVIVO_D1GRPH_X_END);
+    state->grph1.y_end = INREG(AVIVO_D1GRPH_Y_END);
+
+    state->grph1.viewport_start = INREG(AVIVO_D1MODE_VIEWPORT_START);
+    state->grph1.viewport_size = INREG(AVIVO_D1MODE_VIEWPORT_SIZE);
+    state->grph1.scl_enable = INREG(AVIVO_D1SCL_SCALER_ENABLE);
+
+    state->crtc2.pll_source = INREG(AVIVO_PCLK_CRTC2_CNTL);
+
+    state->crtc2.h_total = INREG(AVIVO_D2CRTC_H_TOTAL);
+    state->crtc2.h_blank_start_end = INREG(AVIVO_D2CRTC_H_BLANK_START_END);
+    state->crtc2.h_sync_a = INREG(AVIVO_D2CRTC_H_SYNC_A);
+    state->crtc2.h_sync_a_cntl = INREG(AVIVO_D2CRTC_H_SYNC_A_CNTL);
+    state->crtc2.h_sync_b = INREG(AVIVO_D2CRTC_H_SYNC_B);
+    state->crtc2.h_sync_b_cntl = INREG(AVIVO_D2CRTC_H_SYNC_B_CNTL);
+
+    state->crtc2.v_total = INREG(AVIVO_D2CRTC_V_TOTAL);
+    state->crtc2.v_blank_start_end = INREG(AVIVO_D2CRTC_V_BLANK_START_END);
+    state->crtc2.v_sync_a = INREG(AVIVO_D2CRTC_V_SYNC_A);
+    state->crtc2.v_sync_a_cntl = INREG(AVIVO_D2CRTC_V_SYNC_A_CNTL);
+    state->crtc2.v_sync_b = INREG(AVIVO_D2CRTC_V_SYNC_B);
+    state->crtc2.v_sync_b_cntl = INREG(AVIVO_D2CRTC_V_SYNC_B_CNTL);
+
+    state->crtc2.control = INREG(AVIVO_D2CRTC_CONTROL);
+    state->crtc2.blank_control = INREG(AVIVO_D2CRTC_BLANK_CONTROL);
+    state->crtc2.interlace_control = INREG(AVIVO_D2CRTC_INTERLACE_CONTROL);
+    state->crtc2.stereo_control = INREG(AVIVO_D2CRTC_STEREO_CONTROL);
+
+    state->grph2.enable = INREG(AVIVO_D2GRPH_ENABLE);
+    state->grph2.control = INREG(AVIVO_D2GRPH_CONTROL);
+    state->grph2.control = INREG(AVIVO_D2GRPH_CONTROL);
+    state->grph2.prim_surf_addr = INREG(AVIVO_D2GRPH_PRIMARY_SURFACE_ADDRESS);
+    state->grph2.sec_surf_addr = INREG(AVIVO_D2GRPH_SECONDARY_SURFACE_ADDRESS);
+    state->grph2.pitch = INREG(AVIVO_D2GRPH_PITCH);
+    state->grph2.x_offset = INREG(AVIVO_D2GRPH_SURFACE_OFFSET_X);
+    state->grph2.y_offset = INREG(AVIVO_D2GRPH_SURFACE_OFFSET_Y);
+    state->grph2.x_start = INREG(AVIVO_D2GRPH_X_START);
+    state->grph2.y_start = INREG(AVIVO_D2GRPH_Y_START);
+    state->grph2.x_end = INREG(AVIVO_D2GRPH_X_END);
+    state->grph2.y_end = INREG(AVIVO_D2GRPH_Y_END);
+
+    state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
+    state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
+    state->grph2.scl_enable = INREG(AVIVO_D2SCL_SCALER_ENABLE);
+
+    state->daca.enable = INREG(AVIVO_DACA_ENABLE);
+    state->daca.source_select = INREG(AVIVO_DACA_SOURCE_SELECT);
+    state->daca.force_output_cntl = INREG(AVIVO_DACA_FORCE_OUTPUT_CNTL);
+    state->daca.powerdown = INREG(AVIVO_DACA_POWERDOWN);
+
+    state->dacb.enable = INREG(AVIVO_DACB_ENABLE);
+    state->dacb.source_select = INREG(AVIVO_DACB_SOURCE_SELECT);
+    state->dacb.force_output_cntl = INREG(AVIVO_DACB_FORCE_OUTPUT_CNTL);
+    state->dacb.powerdown = INREG(AVIVO_DACB_POWERDOWN);
+
+    state->tmds1.cntl = INREG(AVIVO_TMDSA_CNTL);
+    state->tmds1.bit_depth_cntl = INREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL);
+    state->tmds1.data_sync = INREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION);
+    state->tmds1.transmitter_enable = INREG(AVIVO_TMDSA_TRANSMITTER_ENABLE);
+    state->tmds1.transmitter_cntl = INREG(AVIVO_TMDSA_TRANSMITTER_CONTROL);
+
+    state->tmds2.cntl = INREG(AVIVO_LVTMA_CNTL);
+    state->tmds2.bit_depth_cntl = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
+    state->tmds2.data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
+    state->tmds2.transmitter_enable = INREG(AVIVO_LVTMA_TRANSMITTER_ENABLE);
+    state->tmds2.transmitter_cntl = INREG(AVIVO_LVTMA_TRANSMITTER_CONTROL);
 
 }
 
@@ -5628,36 +5652,45 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &restore->avivo;
 
-    OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, state->mc_memory_map);
-    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
-    OUTREG(AVIVO_VGA_FB_START, state->vga_fb_start);
-    OUTREG(AVIVO_VGA1_CONTROL, state->vga1_cntl);
-    OUTREG(AVIVO_VGA2_CONTROL, state->vga2_cntl);
+    //    OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, state->mc_memory_map);
+    //    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
+    //    OUTREG(AVIVO_VGA_FB_START, state->vga_fb_start);
 
-    OUTREG(AVIVO_PLL1_POST_DIV_CNTL, state->pll1_post_div_cntl);
-    OUTREG(AVIVO_PLL1_POST_DIV, state->pll1_post_div);
-    OUTREG(AVIVO_PLL1_POST_DIV_MYSTERY, state->pll1_post_div_mystery);
-    OUTREG(AVIVO_PLL1_POST_MUL, state->pll1_post_mul);
-    OUTREG(AVIVO_PLL1_DIVIDER_CNTL, state->pll1_divider_cntl);
-    OUTREG(AVIVO_PLL1_DIVIDER, state->pll1_divider);
-    OUTREG(AVIVO_PLL1_MYSTERY0, state->pll1_mystery0);
-    OUTREG(AVIVO_PLL1_MYSTERY1, state->pll1_mystery1);
-    OUTREG(AVIVO_PLL2_POST_DIV_CNTL, state->pll2_post_div_cntl);
-    OUTREG(AVIVO_PLL2_POST_DIV, state->pll2_post_div);
-    OUTREG(AVIVO_PLL2_POST_DIV_MYSTERY, state->pll2_post_div_mystery);
-    OUTREG(AVIVO_PLL2_POST_MUL, state->pll2_post_mul);
-    OUTREG(AVIVO_PLL2_DIVIDER_CNTL, state->pll2_divider_cntl);
-    OUTREG(AVIVO_PLL2_DIVIDER, state->pll2_divider);
-    OUTREG(AVIVO_PLL2_MYSTERY0, state->pll2_mystery0);
-    OUTREG(AVIVO_PLL2_MYSTERY1, state->pll2_mystery1);
-    OUTREG(AVIVO_CRTC_PLL_SOURCE, state->crtc_pll_source);
+    OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
+    OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 
-    OUTREG(AVIVO_CRTC1_H_TOTAL, state->crtc1_h_total);
-    OUTREG(AVIVO_CRTC1_H_BLANK, state->crtc1_h_blank);
-    OUTREG(AVIVO_CRTC1_H_SYNC_WID, state->crtc1_h_sync_wid);
-    OUTREG(AVIVO_CRTC1_H_SYNC_POL, state->crtc1_h_sync_pol);
-    OUTREG(AVIVO_CRTC1_V_TOTAL, state->crtc1_v_total);
-    OUTREG(AVIVO_CRTC1_V_BLANK, state->crtc1_v_blank);
+    OUTREG(AVIVO_DC_CRTC_MASTER_EN, state->crtc_master_en);
+    OUTREG(AVIVO_DC_CRTC_TV_CONTROL, state->crtc_tv_control);
+
+    OUTREG(AVIVO_EXT1_PPLL_REF_DIV_SRC, state->pll1.ref_div_src);
+    OUTREG(AVIVO_EXT1_PPLL_REF_DIV, state->pll1.ref_div);
+    OUTREG(AVIVO_EXT1_PPLL_FB_DIV, state->pll1.fb_div);
+    OUTREG(AVIVO_EXT1_PPLL_POST_DIV_SRC, state->pll1.post_div_src);
+    OUTREG(AVIVO_EXT1_PPLL_POST_DIV, state->pll1.post_div);
+    OUTREG(AVIVO_EXT1_PPLL_CNTL, state->pll1.ext_ppll_cntl);
+    OUTREG(AVIVO_P1PLL_CNTL, state->pll1.pll_cntl);
+    OUTREG(AVIVO_P1PLL_INT_SS_CNTL, state->pll1.int_ss_cntl);
+
+    OUTREG(AVIVO_EXT2_PPLL_REF_DIV_SRC, state->pll2.ref_div_src);
+    OUTREG(AVIVO_EXT2_PPLL_REF_DIV, state->pll2.ref_div);
+    OUTREG(AVIVO_EXT2_PPLL_FB_DIV, state->pll2.fb_div);
+    OUTREG(AVIVO_EXT2_PPLL_POST_DIV_SRC, state->pll2.post_div_src);
+    OUTREG(AVIVO_EXT2_PPLL_POST_DIV, state->pll2.post_div);
+    OUTREG(AVIVO_EXT2_PPLL_CNTL, state->pll2.ext_ppll_cntl);
+    OUTREG(AVIVO_P2PLL_CNTL, state->pll2.pll_cntl);
+    OUTREG(AVIVO_P2PLL_INT_SS_CNTL, state->pll2.int_ss_cntl);
+
+    OUTREG(AVIVO_PCLK_CRTC1_CNTL, state->crtc1.pll_source);
+
+    OUTREG(AVIVO_D1CRTC_H_TOTAL, state->crtc1.h_total);
+    OUTREG(AVIVO_D1CRTC_H_BLANK_START_END, state->crtc1.h_blank_start_end);
+    OUTREG(AVIVO_D1CRTC_H_SYNC_A, state->crtc1.h_sync_a);
+    OUTREG(AVIVO_D1CRTC_H_SYNC_A_CNTL, state->crtc1.h_sync_a_cntl);
+    OUTREG(AVIVO_D1CRTC_H_SYNC_B, state->crtc1.h_sync_b);
+    OUTREG(AVIVO_D1CRTC_H_SYNC_B_CNTL, state->crtc1.h_sync_b_cntl);
+
+    OUTREG(AVIVO_D1CRTC_V_TOTAL, state->crtc1.v_total);
+    OUTREG(AVIVO_D1CRTC_V_BLANK_START_END, state->crtc1.v_blank_start_end);
     /*
      * Weird we shouldn't restore sync width when going back to text
      * mode, it must not be a 0 value, i guess a deeper look in cold
@@ -5665,71 +5698,100 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
      * truely needed to do.
      */
 #if 0
-    OUTREG(AVIVO_CRTC1_V_SYNC_WID, state->crtc1_v_sync_wid);
+    OUTREG(AVIVO_D1CRTC_V_SYNC_A, state->crtc1_v_sync_a);
 #endif
-    OUTREG(AVIVO_CRTC1_V_SYNC_POL, state->crtc1_v_sync_pol);
-    OUTREG(AVIVO_CRTC1_CNTL, state->crtc1_cntl);
-    OUTREG(AVIVO_CRTC1_SCAN_ENABLE, state->crtc1_scan_enable);
-    OUTREG(AVIVO_CRTC1_FB_FORMAT, state->crtc1_fb_format);
-    OUTREG(AVIVO_CRTC1_FB_LOCATION, state->crtc1_fb_location);
-    OUTREG(AVIVO_CRTC1_FB_END, state->crtc1_fb_end);
-    OUTREG(AVIVO_CRTC1_PITCH, state->crtc1_pitch);
-    OUTREG(AVIVO_CRTC1_X_LENGTH, state->crtc1_x_length);
-    OUTREG(AVIVO_CRTC1_Y_LENGTH, state->crtc1_y_length);
-    OUTREG(AVIVO_CRTC1_FB_HEIGHT, state->crtc1_fb_height);
-    OUTREG(AVIVO_CRTC1_OFFSET_START, state->crtc1_offset_start);
-    OUTREG(AVIVO_CRTC1_OFFSET_END, state->crtc1_offset_end);
-    OUTREG(AVIVO_CRTC1_EXPANSION_SOURCE, state->crtc1_expn_size);
-    OUTREG(AVIVO_CRTC1_EXPANSION_CNTL, state->crtc1_expn_cntl);
-    OUTREG(AVIVO_CRTC1_6594, state->crtc1_6594);
-    OUTREG(AVIVO_CRTC1_659C, state->crtc1_659c);
-    OUTREG(AVIVO_CRTC1_65A4, state->crtc1_65a4);
-    OUTREG(AVIVO_CRTC1_65A8, state->crtc1_65a8);
-    OUTREG(AVIVO_CRTC1_65AC, state->crtc1_65ac);
-    OUTREG(AVIVO_CRTC1_65B0, state->crtc1_65b0);
-    OUTREG(AVIVO_CRTC1_65B8, state->crtc1_65b8);
-    OUTREG(AVIVO_CRTC1_65BC, state->crtc1_65bc);
-    OUTREG(AVIVO_CRTC1_65C0, state->crtc1_65c0);
-    OUTREG(AVIVO_CRTC1_65C8, state->crtc1_65c8);
-    OUTREG(AVIVO_CRTC2_H_TOTAL, state->crtc2_h_total);
-    OUTREG(AVIVO_CRTC2_H_BLANK, state->crtc2_h_blank);
+    OUTREG(AVIVO_D1CRTC_V_SYNC_A_CNTL, state->crtc1.v_sync_a_cntl);
+    OUTREG(AVIVO_D1CRTC_V_SYNC_B, state->crtc1.v_sync_b);
+    OUTREG(AVIVO_D1CRTC_V_SYNC_B_CNTL, state->crtc1.v_sync_b_cntl);
+
+    OUTREG(AVIVO_D1CRTC_CONTROL, state->crtc1.control);
+    OUTREG(AVIVO_D1CRTC_BLANK_CONTROL, state->crtc1.blank_control);
+    OUTREG(AVIVO_D1CRTC_INTERLACE_CONTROL, state->crtc1.interlace_control);
+    OUTREG(AVIVO_D1CRTC_STEREO_CONTROL, state->crtc1.stereo_control);
+
+    OUTREG(AVIVO_D1GRPH_ENABLE, state->grph1.enable);
+    OUTREG(AVIVO_D1GRPH_CONTROL, state->grph1.control);
+    OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS, state->grph1.prim_surf_addr);
+    OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS, state->grph1.sec_surf_addr);
+    OUTREG(AVIVO_D1GRPH_PITCH, state->grph1.pitch);
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X, state->grph1.x_offset);
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y, state->grph1.y_offset);
+    OUTREG(AVIVO_D1GRPH_X_START, state->grph1.x_start);
+    OUTREG(AVIVO_D1GRPH_Y_START, state->grph1.y_start);
+    OUTREG(AVIVO_D1GRPH_X_END, state->grph1.x_end);
+    OUTREG(AVIVO_D1GRPH_Y_END, state->grph1.y_end);
+
+    OUTREG(AVIVO_D1MODE_VIEWPORT_START, state->grph1.viewport_start);
+    OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE, state->grph1.viewport_size);
+    OUTREG(AVIVO_D1SCL_SCALER_ENABLE, state->grph1.scl_enable);
+
+    OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
+
+    OUTREG(AVIVO_D2CRTC_H_TOTAL, state->crtc2.h_total);
+    OUTREG(AVIVO_D2CRTC_H_BLANK_START_END, state->crtc2.h_blank_start_end);
+    OUTREG(AVIVO_D2CRTC_H_SYNC_A, state->crtc2.h_sync_a);
+    OUTREG(AVIVO_D2CRTC_H_SYNC_A_CNTL, state->crtc2.h_sync_a_cntl);
+    OUTREG(AVIVO_D2CRTC_H_SYNC_B, state->crtc2.h_sync_b);
+    OUTREG(AVIVO_D2CRTC_H_SYNC_B_CNTL, state->crtc2.h_sync_b_cntl);
+
+    OUTREG(AVIVO_D2CRTC_V_TOTAL, state->crtc2.v_total);
+    OUTREG(AVIVO_D2CRTC_V_BLANK_START_END, state->crtc2.v_blank_start_end);
+    /*
+     * Weird we shouldn't restore sync width when going back to text
+     * mode, it must not be a 0 value, i guess a deeper look in cold
+     * text mode register value would help to understand what is
+     * truely needed to do.
+     */
 #if 0
-    OUTREG(AVIVO_CRTC2_H_SYNC_WID, state->crtc2_h_sync_wid);
+    OUTREG(AVIVO_D2CRTC_V_SYNC_A, state->crtc2_v_sync_a);
 #endif
-    OUTREG(AVIVO_CRTC2_H_SYNC_POL, state->crtc2_h_sync_pol);
-    OUTREG(AVIVO_CRTC2_V_TOTAL, state->crtc2_v_total);
-    OUTREG(AVIVO_CRTC2_V_BLANK, state->crtc2_v_blank);
-    OUTREG(AVIVO_CRTC2_V_SYNC_WID, state->crtc2_v_sync_wid);
-    OUTREG(AVIVO_CRTC2_V_SYNC_POL, state->crtc2_v_sync_pol);
-    OUTREG(AVIVO_CRTC2_CNTL, state->crtc2_cntl);
-    OUTREG(AVIVO_CRTC2_BLANK_STATUS, state->crtc2_blank_status);
-    OUTREG(AVIVO_CRTC2_SCAN_ENABLE, state->crtc2_scan_enable);
-    OUTREG(AVIVO_CRTC2_FB_FORMAT, state->crtc2_fb_format);
-    OUTREG(AVIVO_CRTC2_FB_LOCATION, state->crtc2_fb_location);
-    OUTREG(AVIVO_CRTC2_FB_END, state->crtc2_fb_end);
-    OUTREG(AVIVO_CRTC2_PITCH, state->crtc2_pitch);
-    OUTREG(AVIVO_CRTC2_X_LENGTH, state->crtc2_x_length);
-    OUTREG(AVIVO_CRTC2_Y_LENGTH, state->crtc2_y_length);
+    OUTREG(AVIVO_D2CRTC_V_SYNC_A_CNTL, state->crtc2.v_sync_a_cntl);
+    OUTREG(AVIVO_D2CRTC_V_SYNC_B, state->crtc2.v_sync_b);
+    OUTREG(AVIVO_D2CRTC_V_SYNC_B_CNTL, state->crtc2.v_sync_b_cntl);
 
-    OUTREG(AVIVO_DACA_CNTL, state->dac1_cntl);
-    OUTREG(AVIVO_DACA_FORCE_OUTPUT_CNTL, state->dac1_force_output_cntl);
-    OUTREG(AVIVO_DACA_POWERDOWN, state->dac1_powerdown);
+    OUTREG(AVIVO_D2CRTC_CONTROL, state->crtc2.control);
+    OUTREG(AVIVO_D2CRTC_BLANK_CONTROL, state->crtc2.blank_control);
+    OUTREG(AVIVO_D2CRTC_INTERLACE_CONTROL, state->crtc2.interlace_control);
+    OUTREG(AVIVO_D2CRTC_STEREO_CONTROL, state->crtc2.stereo_control);
 
-    OUTREG(AVIVO_TMDSA_CNTL, state->tmds1_cntl);
-    OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, state->tmds1_bit_depth_cntl);
-    OUTREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION, state->tmds1_data_sync);
-    OUTREG(AVIVO_TMDSA_TRANSMITTER_ENABLE, state->tmds1_transmitter_enable);
-    OUTREG(AVIVO_TMDSA_TRANSMITTER_CONTROL, state->tmds1_transmitter_cntl);
+    OUTREG(AVIVO_D2GRPH_ENABLE, state->grph2.enable);
+    OUTREG(AVIVO_D2GRPH_CONTROL, state->grph2.control);
+    OUTREG(AVIVO_D2GRPH_PRIMARY_SURFACE_ADDRESS, state->grph2.prim_surf_addr);
+    OUTREG(AVIVO_D2GRPH_SECONDARY_SURFACE_ADDRESS, state->grph2.sec_surf_addr);
+    OUTREG(AVIVO_D2GRPH_PITCH, state->grph2.pitch);
+    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_X, state->grph2.x_offset);
+    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_Y, state->grph2.y_offset);
+    OUTREG(AVIVO_D2GRPH_X_START, state->grph2.x_start);
+    OUTREG(AVIVO_D2GRPH_Y_START, state->grph2.y_start);
+    OUTREG(AVIVO_D2GRPH_X_END, state->grph2.x_end);
+    OUTREG(AVIVO_D2GRPH_Y_END, state->grph2.y_end);
 
-    OUTREG(AVIVO_DACB_CNTL, state->dac2_cntl);
-    OUTREG(AVIVO_DACB_FORCE_OUTPUT_CNTL, state->dac2_force_output_cntl);
-    OUTREG(AVIVO_DACB_POWERDOWN, state->dac2_powerdown);
+    OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
+    OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
+    OUTREG(AVIVO_D2SCL_SCALER_ENABLE, state->grph2.scl_enable);
 
-    OUTREG(AVIVO_LVTMA_CNTL, state->tmds2_cntl);
-    OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, state->tmds2_bit_depth_cntl);
-    OUTREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION, state->tmds2_data_sync);
-    OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2_transmitter_enable);
-    OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2_transmitter_cntl);
+
+    OUTREG(AVIVO_DACA_ENABLE, state->daca.enable);
+    OUTREG(AVIVO_DACA_SOURCE_SELECT, state->daca.source_select);
+    OUTREG(AVIVO_DACA_FORCE_OUTPUT_CNTL, state->daca.force_output_cntl);
+    OUTREG(AVIVO_DACA_POWERDOWN, state->daca.powerdown);
+
+    OUTREG(AVIVO_TMDSA_CNTL, state->tmds1.cntl);
+    OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, state->tmds1.bit_depth_cntl);
+    OUTREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION, state->tmds1.data_sync);
+    OUTREG(AVIVO_TMDSA_TRANSMITTER_ENABLE, state->tmds1.transmitter_enable);
+    OUTREG(AVIVO_TMDSA_TRANSMITTER_CONTROL, state->tmds1.transmitter_cntl);
+
+    OUTREG(AVIVO_DACB_ENABLE, state->dacb.enable);
+    OUTREG(AVIVO_DACB_SOURCE_SELECT, state->dacb.source_select);
+    OUTREG(AVIVO_DACB_FORCE_OUTPUT_CNTL, state->dacb.force_output_cntl);
+    OUTREG(AVIVO_DACB_POWERDOWN, state->dacb.powerdown);
+
+    OUTREG(AVIVO_LVTMA_CNTL, state->tmds2.cntl);
+    OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, state->tmds2.bit_depth_cntl);
+    OUTREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION, state->tmds2.data_sync);
+    OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
+    OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
 
 }
 

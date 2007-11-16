@@ -198,6 +198,70 @@ typedef struct {
     CARD16 rr4_offset;
 } RADEONBIOSInitTable;
 
+struct avivo_pll_state {
+    CARD32 ref_div_src;
+    CARD32 ref_div;
+    CARD32 fb_div;
+    CARD32 post_div_src;
+    CARD32 post_div;
+    CARD32 ext_ppll_cntl;
+    CARD32 pll_cntl;
+    CARD32 int_ss_cntl;
+};
+
+struct avivo_crtc_state {
+    CARD32 pll_source;
+    CARD32 h_total;
+    CARD32 h_blank_start_end;
+    CARD32 h_sync_a;
+    CARD32 h_sync_a_cntl;
+    CARD32 h_sync_b;
+    CARD32 h_sync_b_cntl;
+    CARD32 v_total;
+    CARD32 v_blank_start_end;
+    CARD32 v_sync_a;
+    CARD32 v_sync_a_cntl;
+    CARD32 v_sync_b;
+    CARD32 v_sync_b_cntl;
+    CARD32 control;
+    CARD32 blank_control;
+    CARD32 interlace_control;
+    CARD32 stereo_control;
+};
+
+struct avivo_grph_state {
+    CARD32 enable;
+    CARD32 control;
+    CARD32 prim_surf_addr;
+    CARD32 sec_surf_addr;
+    CARD32 pitch;
+    CARD32 x_offset;
+    CARD32 y_offset;
+    CARD32 x_start;
+    CARD32 y_start;
+    CARD32 x_end;
+    CARD32 y_end;
+
+    CARD32 viewport_start;
+    CARD32 viewport_size;
+    CARD32 scl_enable;
+};
+
+struct avivo_dac_state {
+    CARD32 enable;
+    CARD32 source_select;
+    CARD32 force_output_cntl;
+    CARD32 powerdown;
+};
+
+struct avivo_dig_state {
+    CARD32 cntl;
+    CARD32 bit_depth_cntl;
+    CARD32 data_sync;
+    CARD32 transmitter_enable;
+    CARD32 transmitter_cntl;
+};
+
 struct avivo_state
 {
     CARD32 hdp_fb_location;
@@ -208,96 +272,24 @@ struct avivo_state
     CARD32 vga1_cntl;
     CARD32 vga2_cntl;
 
-    CARD32 pll1_post_div_cntl;
-    CARD32 pll1_post_div;
-    CARD32 pll1_post_div_mystery;
-    CARD32 pll1_post_mul;
-    CARD32 pll1_divider_cntl;
-    CARD32 pll1_divider;
-    CARD32 pll1_mystery0;
-    CARD32 pll1_mystery1;
+    CARD32 crtc_master_en;
+    CARD32 crtc_tv_control;
 
-    CARD32 pll2_post_div_cntl;
-    CARD32 pll2_post_div;
-    CARD32 pll2_post_div_mystery;
-    CARD32 pll2_post_mul;
-    CARD32 pll2_divider_cntl;
-    CARD32 pll2_divider;
-    CARD32 pll2_mystery0;
-    CARD32 pll2_mystery1;
+    struct avivo_pll_state pll1;
+    struct avivo_pll_state pll2;
 
-    CARD32 crtc_pll_source;
-    CARD32 crtc1_h_total;
-    CARD32 crtc1_h_blank;
-    CARD32 crtc1_h_sync_wid;
-    CARD32 crtc1_h_sync_pol;
-    CARD32 crtc1_v_total;
-    CARD32 crtc1_v_blank;
-    CARD32 crtc1_v_sync_wid;
-    CARD32 crtc1_v_sync_pol;
-    CARD32 crtc1_cntl;
-    CARD32 crtc1_blank_status;
-    CARD32 crtc1_stereo_status;
-    CARD32 crtc1_scan_enable;
-    CARD32 crtc1_fb_format;
-    CARD32 crtc1_fb_location;
-    CARD32 crtc1_fb_end;
-    CARD32 crtc1_pitch;
-    CARD32 crtc1_x_length;
-    CARD32 crtc1_y_length;
-    CARD32 crtc1_fb_height;
-    CARD32 crtc1_offset_start;
-    CARD32 crtc1_offset_end;
-    CARD32 crtc1_expn_size;
-    CARD32 crtc1_expn_cntl;
-    CARD32 crtc1_6594;
-    CARD32 crtc1_659c;
-    CARD32 crtc1_65a4;
-    CARD32 crtc1_65a8;
-    CARD32 crtc1_65ac;
-    CARD32 crtc1_65b0;
-    CARD32 crtc1_65b8;
-    CARD32 crtc1_65bc;
-    CARD32 crtc1_65c0;
-    CARD32 crtc1_65c8;
+    struct avivo_crtc_state crtc1;
+    struct avivo_crtc_state crtc2;
 
-    CARD32 crtc2_h_total;
-    CARD32 crtc2_h_blank;
-    CARD32 crtc2_h_sync_wid;
-    CARD32 crtc2_h_sync_pol;
-    CARD32 crtc2_v_total;
-    CARD32 crtc2_v_blank;
-    CARD32 crtc2_v_sync_wid;
-    CARD32 crtc2_v_sync_pol;
-    CARD32 crtc2_cntl;
-    CARD32 crtc2_blank_status;
-    CARD32 crtc2_scan_enable;
-    CARD32 crtc2_fb_format;
-    CARD32 crtc2_fb_location;
-    CARD32 crtc2_fb_end;
-    CARD32 crtc2_pitch;
-    CARD32 crtc2_x_length;
-    CARD32 crtc2_y_length;
+    struct avivo_grph_state grph1;
+    struct avivo_grph_state grph2;
 
-    CARD32 dac1_cntl;
-    CARD32 dac1_force_output_cntl;
-    CARD32 dac1_powerdown;
+    struct avivo_dac_state daca;
+    struct avivo_dac_state dacb;
 
-    CARD32 tmds1_cntl;
-    CARD32 tmds1_bit_depth_cntl;
-    CARD32 tmds1_data_sync;
-    CARD32 tmds1_transmitter_enable;
-    CARD32 tmds1_transmitter_cntl;
+    struct avivo_dig_state tmds1;
+    struct avivo_dig_state tmds2;
 
-    CARD32 dac2_cntl;
-    CARD32 dac2_force_output_cntl;
-    CARD32 dac2_powerdown;
-
-    CARD32 tmds2_cntl;
-    CARD32 tmds2_bit_depth_cntl;
-    CARD32 tmds2_data_sync;
-    CARD32 tmds2_transmitter_enable;
-    CARD32 tmds2_transmitter_cntl;
 };
 
 typedef struct {
