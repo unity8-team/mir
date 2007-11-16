@@ -31,6 +31,7 @@ nouveau_drv_ladir = @moduledir@/drivers
 nouveau_drv_la_SOURCES = \
 			 nouveau_device.c nouveau_device.h nouveau_drmif.h \
 			 nouveau_channel.c nouveau_channel.h \
+			 nouveau_grobj.c nouveau_grobj.h \
 			 nv_accel_common.c \
 			 nv_bios.c \
 			 nv_const.h \

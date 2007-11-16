@@ -72,7 +72,6 @@ void  NVDmaKickoffCallback(NVPtr pNv);
 void  NVDmaWaitNNN(ScrnInfoPtr pScrn, int size);
 void  NVSync(ScrnInfoPtr pScrn);
 void  NVResetGraphics(ScrnInfoPtr pScrn);
-Bool  NVDmaCreateContextObject(NVPtr pNv, int handle, int class);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
 
 /* in nv_exa.c */

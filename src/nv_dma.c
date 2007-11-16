@@ -207,20 +207,6 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	NVAccelCommonInit(pScrn);
 }
 
-Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class)
-{
-	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
-	struct drm_nouveau_grobj_alloc cto;
-	int ret;
-
-	cto.channel = pNv->chan->id;
-	cto.handle  = handle;
-	cto.class   = class;
-	ret = drmCommandWrite(nv->fd, DRM_NOUVEAU_GROBJ_ALLOC,
-			      &cto, sizeof(cto));
-	return ret == 0;
-}
-
 static void NVInitDmaCB(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);

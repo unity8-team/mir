@@ -424,6 +424,21 @@ typedef struct _NVRec {
 
 	/* GPU context */
 	struct nouveau_channel *chan;
+	struct nouveau_grobj *NvNull;
+	struct nouveau_grobj *NvContextSurfaces;
+	struct nouveau_grobj *NvContextBeta1;
+	struct nouveau_grobj *NvContextBeta4;
+	struct nouveau_grobj *NvImagePattern;
+	struct nouveau_grobj *NvRop;
+	struct nouveau_grobj *NvRectangle;
+	struct nouveau_grobj *NvImageBlit;
+	struct nouveau_grobj *NvScaledImage;
+	struct nouveau_grobj *NvClipRectangle;
+	struct nouveau_grobj *NvMemFormat;
+	struct nouveau_grobj *NvImageFromCpu;
+	struct nouveau_grobj *Nv2D;
+	struct nouveau_grobj *Nv3D;
+
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {

@@ -61,7 +61,11 @@ nouveau_channel_alloc(struct nouveau_device *userdev, uint32_t fb_ctxdma,
 void
 nouveau_channel_free(struct nouveau_channel **userchan)
 {
-	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
+	struct nouveau_channel_priv *chan;
+	
+	if (!userchan)
+		return;
+	chan = nouveau_channel(*userchan);
 
 	if (chan) {
 		struct nouveau_device_priv *nv;
@@ -76,4 +80,5 @@ nouveau_channel_free(struct nouveau_channel **userchan)
 		free(chan);
 	}
 }
+
 

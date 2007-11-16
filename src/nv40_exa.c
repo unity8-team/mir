@@ -600,7 +600,6 @@ Bool
 NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t class = 0, chipset;
 	int i;
 
@@ -621,10 +620,9 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, Nv3D, class))
+	if (!pNv->Nv3D) {
+		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_DMA_NOTIFY, 1);

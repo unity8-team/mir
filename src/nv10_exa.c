@@ -867,10 +867,9 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	else
 		class = NV10_TCL_PRIMITIVE_3D;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, Nv3D, class))
+	if (!pNv->Nv3D) {
+		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_NOTIFY, 1);

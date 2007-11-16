@@ -26,12 +26,11 @@ static Bool
 NVAccelInitNullObject(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvNullObject, NV01_NULL))
+	if (!pNv->NvNull) {
+		if (nouveau_grobj_alloc(pNv->chan, NvNullObject, NV01_NULL,
+					&pNv->NvNull))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	return TRUE;
@@ -76,16 +75,15 @@ static Bool
 NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = (pNv->Architecture >= NV_10) ? NV10_CONTEXT_SURFACES_2D :
 					       NV04_CONTEXT_SURFACES_2D;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvContextSurfaces, class))
+	if (!pNv->NvContextSurfaces) {
+		if (nouveau_grobj_alloc(pNv->chan, NvContextSurfaces, class,
+					&pNv->NvContextSurfaces))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_DMA_NOTIFY, 1);
@@ -103,15 +101,14 @@ static Bool
 NVAccelInitContextBeta1(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = 0x12;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvContextBeta1, class))
+	if (!pNv->NvContextBeta1) {
+		if (nouveau_grobj_alloc(pNv->chan, NvContextBeta1, class,
+					&pNv->NvContextBeta1))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvContextBeta1, 0x300, 1); /*alpha factor*/
@@ -125,15 +122,14 @@ static Bool
 NVAccelInitContextBeta4(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 	
 	class = 0x72;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvContextBeta4, class))
+	if (!pNv->NvContextBeta4) {
+		if (nouveau_grobj_alloc(pNv->chan, NvContextBeta4, class,
+					&pNv->NvContextBeta4))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvContextBeta4, 0x300, 1); /*RGBA factor*/
@@ -207,15 +203,14 @@ static Bool
 NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = NV04_IMAGE_PATTERN;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvImagePattern, class))
+	if (!pNv->NvImagePattern) {
+		if (nouveau_grobj_alloc(pNv->chan, NvImagePattern, class,
+					&pNv->NvImagePattern))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvImagePattern, NV04_IMAGE_PATTERN_DMA_NOTIFY, 1);
@@ -236,15 +231,14 @@ static Bool
 NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = NV03_CONTEXT_ROP;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvRop, class))
+	if (!pNv->NvRop) {
+		if (nouveau_grobj_alloc(pNv->chan, NvRop, class,
+					&pNv->NvRop))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvRop, NV03_CONTEXT_ROP_DMA_NOTIFY, 1);
@@ -258,15 +252,14 @@ static Bool
 NVAccelInitRectangle(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = NV04_GDI_RECTANGLE_TEXT;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvRectangle, class))
+	if (!pNv->NvRectangle) {
+		if (nouveau_grobj_alloc(pNv->chan, NvRectangle, class,
+					&pNv->NvRectangle))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_DMA_NOTIFY, 1);
@@ -296,15 +289,14 @@ static Bool
 NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	class = (pNv->WaitVSyncPossible) ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvImageBlit, class))
+	if (!pNv->NvImageBlit) {
+		if (nouveau_grobj_alloc(pNv->chan, NvImageBlit, class,
+					&pNv->NvImageBlit))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
@@ -334,7 +326,6 @@ static Bool
 NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	switch (pNv->Architecture) {
@@ -352,10 +343,10 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 		break;
 	}
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvScaledImage, class))
+	if (!pNv->NvScaledImage) {
+		if (nouveau_grobj_alloc(pNv->chan, NvScaledImage, class,
+					&pNv->NvScaledImage))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvScaledImage,
@@ -382,42 +373,16 @@ static Bool
 NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	int class = NV01_CONTEXT_CLIP_RECTANGLE;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvClipRectangle, class))
+	if (!pNv->NvClipRectangle) {
+		if (nouveau_grobj_alloc(pNv->chan, NvClipRectangle, class,
+					&pNv->NvClipRectangle))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvClipRectangle, NV01_CONTEXT_CLIP_RECTANGLE_DMA_NOTIFY, 1);
 	OUT_RING  (NvNullObject);
-
-	return TRUE;
-}
-
-static Bool
-NVAccelInitSolidLine(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
-	int class = NV04_RENDER_SOLID_LINE;
-
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvSolidLine, class))
-			return FALSE;
-		have_object = TRUE;
-	}
-
-	BEGIN_RING(NvSolidLine, NV01_RENDER_SOLID_LINE_CLIP_RECTANGLE, 3);
-	OUT_RING  (NvClipRectangle);
-	OUT_RING  (NvImagePattern);
-	OUT_RING  (NvRop);
-	BEGIN_RING(NvSolidLine, NV04_RENDER_SOLID_LINE_SURFACE, 1);
-	OUT_RING  (NvContextSurfaces);
-	BEGIN_RING(NvSolidLine, NV01_RENDER_SOLID_LINE_OPERATION, 1);
-	OUT_RING  (NV01_RENDER_SOLID_LINE_OPERATION_ROP_AND);
 
 	return TRUE;
 }
@@ -427,7 +392,6 @@ static Bool
 NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	if (pNv->Architecture < NV_ARCH_50)
@@ -435,10 +399,10 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	else
 		class = NV50_MEMORY_TO_MEMORY_FORMAT;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvMemFormat, class))
-				return FALSE;
-		have_object = TRUE;
+	if (!pNv->NvMemFormat) {
+		if (nouveau_grobj_alloc(pNv->chan, NvMemFormat, class,
+					&pNv->NvMemFormat))
+			return FALSE;
 	}
 
 	BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
@@ -455,7 +419,6 @@ static Bool
 NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t   class;
 
 	switch (pNv->Architecture) {
@@ -471,10 +434,10 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 		break;
 	}
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, NvImageFromCpu, class))
+	if (!pNv->NvImageFromCpu) {
+		if (nouveau_grobj_alloc(pNv->chan, NvImageFromCpu, class,
+					&pNv->NvImageFromCpu))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_DMA_NOTIFY, 1);
@@ -503,12 +466,11 @@ static Bool
 NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, Nv2D, 0x502d))
-				return FALSE;
-		have_object = TRUE;
+	if (!pNv->Nv2D) {
+		if (nouveau_grobj_alloc(pNv->chan, Nv2D, 0x502d,
+					&pNv->Nv2D))
+			return FALSE;
 	}
 
 	BEGIN_RING(Nv2D, 0x180, 3);
@@ -564,7 +526,6 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		INIT_CONTEXT_OBJECT(ImageBlit);
 		INIT_CONTEXT_OBJECT(ScaledImage);
 		INIT_CONTEXT_OBJECT(ClipRectangle);
-		INIT_CONTEXT_OBJECT(SolidLine);
 		INIT_CONTEXT_OBJECT(ImageFromCpu);
 	} else {
 		INIT_CONTEXT_OBJECT(2D_NV50);

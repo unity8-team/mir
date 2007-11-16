@@ -671,10 +671,10 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (!have_object) {
-		if (!NVDmaCreateContextObject(pNv, Nv3D, class))
+
+	if (!pNv->Nv3D) {
+		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DMA_IN_MEMORY0, 3);

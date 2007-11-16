@@ -7,6 +7,7 @@
 
 #include "nouveau_device.h"
 #include "nouveau_channel.h"
+#include "nouveau_grobj.h"
 
 struct nouveau_device_priv {
 	struct nouveau_device base;
@@ -72,11 +73,17 @@ nouveau_channel_alloc(struct nouveau_device *, uint32_t fb, uint32_t tt,
 extern void
 nouveau_channel_free(struct nouveau_channel **);
 
-#if 0
+struct nouveau_grobj_priv {
+	struct nouveau_grobj base;
+};
+#define nouveau_grobj(n) \
+	((n) ? (struct nouveau_grobj_priv *)(n) : NULL)
+
 extern int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
 			       int class, struct nouveau_grobj **);
 extern void nouveau_grobj_free(struct nouveau_grobj **);
 
+#if 0
 extern int nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
 				  int count, struct nouveau_grobj **);
 extern void nouveau_notifier_free(struct nouveau_grobj **);
