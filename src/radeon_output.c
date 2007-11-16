@@ -2326,27 +2326,8 @@ Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
 	    temp &= ~((1 << 0) | (1 << 8));
     }
     OUTREG(gpio_reg + 4, temp);
+    temp = INREG(gpio_reg + 4);
 
-    switch(lock_state) {
-    case 0:
-	temp = INREG(AVIVO_I2C_CNTL);
-	OUTREG(AVIVO_I2C_CNTL, temp | 0x100);
-	/* enable hdcp block */
-	OUTREG(R520_PCLK_HDCP_CNTL, 0x0);
-	break;
-    case 1:
-	/* disable hdcp block */
-	OUTREG(R520_PCLK_HDCP_CNTL, 0x1);
-	usleep(1);
-	OUTREG(AVIVO_I2C_CNTL, 0x1);
-	usleep(1);
-	temp = INREG(AVIVO_I2C_CNTL);
-	if (!(temp & 0x2)) {
-	    ErrorF("Lock failed %08X\n", temp);
-	    return FALSE;
-	}
-	break;
-    }
     return TRUE;
 }
 
@@ -2360,14 +2341,11 @@ avivo_i2c_gpio_get_bits(I2CBusPtr b, int *Clock, int *data)
 
     /* Get the result */
     if (b->DriverPrivate.uval == AVIVO_GPIO_0) {
-	val = INREG(b->DriverPrivate.uval + 0xC);
+	val = INREG(b->DriverPrivate.uval + 0xc);
 	*Clock = (val & (1<<19)) != 0;
 	*data  = (val & (1<<18)) != 0;
     } else {
-	if (INREG(b->DriverPrivate.uval) == 0)
-	    OUTREG(b->DriverPrivate.uval, (1<<0) | (1<<8));
-	
-	val = INREG(b->DriverPrivate.uval + 0xC);
+	val = INREG(b->DriverPrivate.uval + 0xc);
 	*Clock = (val & (1<<0)) != 0;
 	*data  = (val & (1<<8)) != 0;
     }
@@ -2390,6 +2368,7 @@ avivo_i2c_gpio_put_bits(I2CBusPtr b, int Clock, int data)
 	val |= (data ? 0:(1<<8));
 
     }
+
     OUTREG(b->DriverPrivate.uval + 0x8, val);
     /* read back to improve reliability on some cards. */
     val = INREG(b->DriverPrivate.uval + 0x8);
