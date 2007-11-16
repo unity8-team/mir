@@ -28,9 +28,6 @@
 #ifndef _I915XVMC_H
 #define _I915XVMC_H
 
-/* #define XVMC_DEBUG(x) do {x; }while(0); */
-#define XVMC_DEBUG(x)
-
 #include "intel_xvmc.h"
 #include "i915_hwmc.h"
 
@@ -46,9 +43,9 @@
 #define PCI_CHIP_Q35_G                  0x29B2
 #define PCI_CHIP_Q33_G                  0x29D2
 
-/***************************************************************************
-// i915XvMCDrmMap: Holds the data about the DRM maps
-***************************************************************************/
+/*
+ * i915XvMCDrmMap: Holds the data about the DRM maps
+ */
 typedef struct _i915XvMCDrmMap {
     drm_handle_t handle;
     unsigned long offset;
@@ -57,10 +54,11 @@ typedef struct _i915XvMCDrmMap {
     drmAddress map;
 } i915XvMCDrmMap, *i915XvMCDrmMapPtr;
 
-/***************************************************************************
-// i915XvMCContext: Private Context data referenced via the privData
-//  pointer in the XvMCContext structure.
-***************************************************************************/
+/*
+ * i915XvMCContext:
+ *	Private Context data referenced via the privData
+ *      pointer in the XvMCContext structure.
+ */
 typedef struct _i915XvMCContext {
     unsigned int ctxno;
     unsigned int last_flip;
@@ -92,11 +90,12 @@ typedef struct _i915XvMCContext {
     i915XvMCDrmMap corrdata;
 } i915XvMCContext;
 
-/***************************************************************************
-// i915XvMCSubpicture: Private data structure for each XvMCSubpicture. This
-//  structure is referenced by the privData pointer in the XvMCSubpicture
-//  structure.
-***************************************************************************/
+/*
+ * i915XvMCSubpicture:
+ *  Private data structure for each XvMCSubpicture. This
+ *  structure is referenced by the privData pointer in the XvMCSubpicture
+ *  structure.
+ */
 typedef struct _i915XvMCSubpicture {
     unsigned int srfNo;
     unsigned int last_render;
@@ -107,12 +106,14 @@ typedef struct _i915XvMCSubpicture {
     i915XvMCContext *privContext;
 } i915XvMCSubpicture;
 
-/***************************************************************************
-// i915XvMCSurface: Private data structure for each XvMCSurface. This
-//  structure is referenced by the privData pointer in the XvMCSurface
-//  structure.
-***************************************************************************/
-#define I830_MAX_BUFS 2                   /*Number of YUV buffers per surface */
+/* Number of YUV buffers per surface */
+#define I830_MAX_BUFS 2
+
+/*
+ * i915XvMCSurface: Private data structure for each XvMCSurface. This
+ *  structure is referenced by the privData pointer in the XvMCSurface
+ *  structure.
+ */
 typedef struct _i915XvMCSurface {
     unsigned int srfNo;                    /* XvMC private surface numbers */
     unsigned int last_render;

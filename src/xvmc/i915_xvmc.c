@@ -46,7 +46,7 @@ static unsigned int mb_bytes[] = {
     128, 256, 256, 384, 256, 384, 384, 512,  // 10
     256, 384, 384, 512, 384, 512, 512, 640,  // 11
     128, 256, 256, 384, 256, 384, 384, 512,  // 100
-    256, 384, 384, 512, 384, 512, 512, 640,  // 101    
+    256, 384, 384, 512, 384, 512, 512, 640,  // 101
     256, 384, 384, 512, 384, 512, 512, 640,  // 110
     384, 512, 512, 640, 512, 640, 640, 768   // 111
 };
@@ -60,49 +60,18 @@ static char I915KernelDriverName[] = "i915";
 static int error_base;
 static int event_base;
 
-static Status i915_xvmc_mc_create_context(Display* display, XvMCContext *context, int priv_count, CARD32* priv_data);
-static Status i915_xvmc_mc_destroy_context(Display* display, XvMCContext *context);
-static Status i915_xvmc_mc_create_surface(Display* display, XvMCContext *context, XvMCSurface *surface);
-static Status i915_xvmc_mc_destroy_surface(Display* display, XvMCSurface *surface);
-static Status i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
-                         unsigned int picture_structure,
-                         XvMCSurface *target_surface,
-                         XvMCSurface *past_surface,
-                         XvMCSurface *future_surface,
-                         unsigned int flags,
-                         unsigned int num_macroblocks,
-                         unsigned int first_macroblock,
-                         XvMCMacroBlockArray *macroblock_array,
-                         XvMCBlockArray *blocks);
-static Status i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
-                      Drawable draw, short srcx, short srcy,
-                      unsigned short srcw, unsigned short srch,
-                      short destx, short desty,
-                      unsigned short destw, unsigned short desth,
-                      int flags);
-static Status i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surface, int *stat);
-//XXX
 static int i915_xvmc_mc_init()
-{return 0;}
+{
+    return 0;
+}
+
 static void i915_xvmc_mc_fini()
 {}
 
-struct _intel_xvmc_driver i915_xvmc_mc_driver = {
-    .type = XVMC_I915_MPEG2_MC,
-    .init = i915_xvmc_mc_init,
-    .fini = i915_xvmc_mc_fini,
-    .create_context = i915_xvmc_mc_create_context,
-    .destroy_context = i915_xvmc_mc_destroy_context,
-    .create_surface = i915_xvmc_mc_create_surface,
-    .destroy_surface = i915_xvmc_mc_destroy_surface,
-    .render_surface = i915_xvmc_mc_render_surface,
-    .put_surface = i915_xvmc_mc_put_surface,
-    .get_surface_status = i915_xvmc_mc_get_surface_status,
-};
 
 static int findOverlap(unsigned int width, unsigned int height,
                        short *dstX, short *dstY,
-                       short *srcX, short *srcY, 
+                       short *srcX, short *srcY,
                        unsigned short *areaW, unsigned short *areaH)
 {
     int w, h;
@@ -136,11 +105,6 @@ static int findOverlap(unsigned int width, unsigned int height,
     return 0;
 }
 
-static __inline__ void renderError(void) 
-{
-    XVMC_ERR("Invalid Macroblock Parameters found.");
-}
-
 static void i915_flush(int map, int render)
 {
     struct i915_mi_flush mi_flush;
@@ -155,11 +119,11 @@ static void i915_flush(int map, int render)
 }
 
 /* for MC picture rendering */
-static void i915_mc_static_indirect_state_buffer(XvMCContext *context, 
-                                                   XvMCSurface *surface,
-                                                   unsigned int picture_structure,
-                                                   unsigned int flags,
-                                                   unsigned int picture_coding_type)
+static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
+	XvMCSurface *surface,
+	unsigned int picture_structure,
+	unsigned int flags,
+	unsigned int picture_coding_type)
 {
     struct i915_3dstate_buffer_info *buffer_info;
     struct i915_3dstate_dest_buffer_variables *dest_buffer_variables;
@@ -193,7 +157,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.buffer_id = BUFFERID_COLOR_AUX;
     buffer_info->dw1.fence_regs = 0;
     buffer_info->dw1.tiled_surface = 0;
-    buffer_info->dw1.walk = TILEWALK_XMAJOR; 
+    buffer_info->dw1.walk = TILEWALK_XMAJOR;
     buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in DWords */
     buffer_info->dw2.base_address = (UOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
 
@@ -207,7 +171,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.buffer_id = BUFFERID_COLOR_AUX;
     buffer_info->dw1.fence_regs = 0;
     buffer_info->dw1.tiled_surface = 0;
-    buffer_info->dw1.walk = TILEWALK_XMAJOR; 
+    buffer_info->dw1.walk = TILEWALK_XMAJOR;
     buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in Dwords */
     buffer_info->dw2.base_address = (VOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
 
@@ -220,7 +184,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     dest_buffer_variables->dw1.dest_v_bias = 8; /* 0.5 */
     dest_buffer_variables->dw1.dest_h_bias = 8; /* 0.5 */
     dest_buffer_variables->dw1.color_fmt = COLORBUFFER_8BIT;
-    dest_buffer_variables->dw1.v_ls = 0;    
+    dest_buffer_variables->dw1.v_ls = 0;
     dest_buffer_variables->dw1.v_ls_offset = 0;
 
     if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
@@ -240,10 +204,10 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     dest_buffer_variables_mpeg->dw0.length = 1;
     dest_buffer_variables_mpeg->dw1.decode_mode = MPEG_DECODE_MC;
     dest_buffer_variables_mpeg->dw1.rcontrol = 0;               /* for MPEG-1/MPEG-2 */
-    dest_buffer_variables_mpeg->dw1.bidir_avrg_control = 0;     /* for MPEG-1/MPEG-2/MPEG-4 */ 
+    dest_buffer_variables_mpeg->dw1.bidir_avrg_control = 0;     /* for MPEG-1/MPEG-2/MPEG-4 */
     dest_buffer_variables_mpeg->dw1.abort_on_error = 1;
     dest_buffer_variables_mpeg->dw1.intra8 = 0;         /* 16-bit formatted correction data */
-    dest_buffer_variables_mpeg->dw1.tff = 1;            
+    dest_buffer_variables_mpeg->dw1.tff = 1;
 
     if (picture_structure & XVMC_FRAME_PICTURE) {
         ;
@@ -258,7 +222,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
         else
             dest_buffer_variables_mpeg->dw1.tff = 0;
     }
-        
+
     dest_buffer_variables_mpeg->dw1.v_subsample_factor = MC_SUB_1V;
     dest_buffer_variables_mpeg->dw1.h_subsample_factor = MC_SUB_1H;
     dest_buffer_variables_mpeg->dw1.picture_width = (w >> 4);     /* in macroblocks */
@@ -274,14 +238,14 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     buffer_info->dw1.aux_id = 0;
     buffer_info->dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
     buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.fence_regs = 0; 
-    buffer_info->dw1.tiled_surface = 0; 
+    buffer_info->dw1.fence_regs = 0;
+    buffer_info->dw1.tiled_surface = 0;
     buffer_info->dw1.walk = 0;
     buffer_info->dw1.pitch = 0;
     buffer_info->dw2.base_address = (pI915XvMC->corrdata.offset >> 2);  /* starting DWORD address */
 }
 
-static void i915_mc_map_state_buffer(XvMCContext *context, 
+static void i915_mc_map_state_buffer(XvMCContext *context,
                                        i915XvMCSurface *privTarget,
                                        i915XvMCSurface *privPast,
                                        i915XvMCSurface *privFuture)
@@ -290,7 +254,7 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     struct texture_map *tm;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
     unsigned int w = context->width, h = context->height;
- 
+
     /* 3DSATE_MAP_STATE: Y */
     map_state = (struct i915_3dstate_map_state *)pI915XvMC->msb.map;
     memset(map_state, 0, sizeof(*map_state));
@@ -379,7 +343,7 @@ static void i915_mc_map_state_buffer(XvMCContext *context,
     tm->tm2.depth = 0;
     tm->tm2.max_lod = 0;
     tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privFuture->uvStride >> 2) - 1;     
+    tm->tm2.pitch = (privFuture->uvStride >> 2) - 1;
 
     /* 3DSATE_MAP_STATE: V */
     map_state = (struct i915_3dstate_map_state *)(++tm);
@@ -518,12 +482,12 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
     macroblock_0mv.header.dw0.type = CMD_3D;
     macroblock_0mv.header.dw0.opcode = OPC_3DMPEG_MACROBLOCK;
     macroblock_0mv.header.dw0.length = 0;
-    macroblock_0mv.header.dw1.mb_intra = 1;     /* should be 1 */ 
+    macroblock_0mv.header.dw1.mb_intra = 1;     /* should be 1 */
     macroblock_0mv.header.dw1.forward = 0;      /* should be 0 */
     macroblock_0mv.header.dw1.backward = 0;     /* should be 0 */
     macroblock_0mv.header.dw1.h263_4mv = 0;     /* should be 0 */
     macroblock_0mv.header.dw1.dct_type = (mb->dct_type == XVMC_DCT_TYPE_FIELD);
-    
+
 /*
     if (!mb->coded_block_pattern)
         macroblock_0mv.header.dw1.dct_type = XVMC_DCT_TYPE_FRAME;
@@ -540,7 +504,7 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
 static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_1fbmv macroblock_1fbmv;
-    
+
     /* Motion Vectors */
     su_t fmv;
     su_t bmv;
@@ -550,19 +514,19 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_1fbmv.header.dw0.type = CMD_3D;
     macroblock_1fbmv.header.dw0.opcode = OPC_3DMPEG_MACROBLOCK;
     macroblock_1fbmv.header.dw0.length = 2;
-    macroblock_1fbmv.header.dw1.mb_intra = 0;   /* should be 0 */ 
+    macroblock_1fbmv.header.dw1.mb_intra = 0;   /* should be 0 */
     macroblock_1fbmv.header.dw1.forward = ((mb->macroblock_type & XVMC_MB_TYPE_MOTION_FORWARD) ? 1 : 0);
     macroblock_1fbmv.header.dw1.backward = ((mb->macroblock_type & XVMC_MB_TYPE_MOTION_BACKWARD) ? 1 : 0);
     macroblock_1fbmv.header.dw1.h263_4mv = 0;   /* should be 0 */
     macroblock_1fbmv.header.dw1.dct_type = (mb->dct_type == XVMC_DCT_TYPE_FIELD);
-    
+
     if (!(mb->coded_block_pattern & 0x3f))
         macroblock_1fbmv.header.dw1.dct_type = XVMC_DCT_TYPE_FRAME;
 
     macroblock_1fbmv.header.dw1.motion_type = (mb->motion_type & 0x03);
     macroblock_1fbmv.header.dw1.vertical_field_select = (mb->motion_vertical_field_select & 0x0f);
-    macroblock_1fbmv.header.dw1.coded_block_pattern = mb->coded_block_pattern; 
-    macroblock_1fbmv.header.dw1.skipped_macroblocks = 0;      
+    macroblock_1fbmv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
+    macroblock_1fbmv.header.dw1.skipped_macroblocks = 0;
 
     fmv.s[0] = mb->PMV[0][0][0];
     fmv.s[1] = mb->PMV[0][0][1];
@@ -571,7 +535,7 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
 
     macroblock_1fbmv.dw2 = fmv.u[0];
     macroblock_1fbmv.dw3 = bmv.u[0];
-    
+
     intelBatchbufferData(&macroblock_1fbmv, sizeof(macroblock_1fbmv), 0);
 }
 
@@ -579,7 +543,7 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *
 {
     struct i915_3dmpeg_macroblock_2fbmv macroblock_2fbmv;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    
+
     /* Motion Vectors */
     su_t fmv;
     su_t bmv;
@@ -594,7 +558,7 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_2fbmv.header.dw1.backward = ((mb->macroblock_type & XVMC_MB_TYPE_MOTION_BACKWARD) ? 1 : 0);
     macroblock_2fbmv.header.dw1.h263_4mv = 0;   /* should be 0 */
     macroblock_2fbmv.header.dw1.dct_type = (mb->dct_type == XVMC_DCT_TYPE_FIELD);
-    
+
     if (!(mb->coded_block_pattern & 0x3f))
         macroblock_2fbmv.header.dw1.dct_type = XVMC_DCT_TYPE_FRAME;
 
@@ -648,7 +612,7 @@ static void i915_mc_sampler_state_buffer(XvMCContext *context)
     struct i915_3dstate_sampler_state *sampler_state;
     struct texture_sampler *ts;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    
+
     /* 3DSATE_SAMPLER_STATE */
     sampler_state = (struct i915_3dstate_sampler_state *)pI915XvMC->ssb.map;
     memset(sampler_state, 0, sizeof(*sampler_state));
@@ -727,13 +691,13 @@ static void i915_inst_arith(unsigned int *inst,
     *inst = (A2_SRC1(src1) | A2_SRC2(src2));
 }
 
-static void i915_inst_decl(unsigned int *inst, 
+static void i915_inst_decl(unsigned int *inst,
                            unsigned int type,
                            unsigned int nr,
                            unsigned int d0_flags)
 {
     unsigned int reg = UREG(type, nr);
-    
+
     *inst = (D0_DCL | D0_DEST(reg) | d0_flags);
     inst++;
     *inst = D1_MBZ;
@@ -797,7 +761,7 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     i915_inst_decl(inst, REG_TYPE_S, 0, D0_SAMPLE_TYPE_2D);
     /* texld r0, t0, s0 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 0); 
+    dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_T, 0); /* COORD */
     src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
@@ -828,7 +792,7 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     i915_inst_decl(inst, REG_TYPE_S, 1, D0_SAMPLE_TYPE_2D);
     /* texld r0, t2, s1 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 0); 
+    dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_T, 2); /* COORD */
     src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
@@ -868,13 +832,13 @@ static void i915_mc_pixel_shader_program_buffer(XvMCContext *context)
     i915_inst_decl(inst, REG_TYPE_S, 1, D0_SAMPLE_TYPE_2D);
     /* texld r0, t0, s0 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 0); 
+    dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_T, 0); /* COORD */
     src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
     /* texld r1, t2, s1 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 1); 
+    dest = UREG(REG_TYPE_R, 1);
     src0 = UREG(REG_TYPE_T, 2); /* COORD */
     src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
@@ -1007,7 +971,7 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     psp->dw0.valid = 1;
     psp->dw0.force = 1;
     psp->dw1.length = 66; /* 4 + 16 + 16 + 31 - 1 */
-    
+
     if (mem_select)
         psp->dw0.buffer_address = (pI915XvMC->psp.offset >> 2);
     else
@@ -1217,7 +1181,7 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
 }
 
 /*
- * Video post processing 
+ * Video post processing
  */
 static void i915_yuv2rgb_map_state_buffer(XvMCSurface *target_surface)
 {
@@ -1299,7 +1263,7 @@ static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
     struct texture_sampler *ts;
     i915XvMCSurface *privSurface = (i915XvMCSurface *)surface->privData;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)privSurface->privContext;
-    
+
     /* 3DSATE_SAMPLER_STATE */
     sampler_state = (struct i915_3dstate_sampler_state *)pI915XvMC->ssb.map;
     memset(sampler_state, 0, sizeof(*sampler_state));
@@ -1391,7 +1355,7 @@ static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
 }
 
 static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
-                                                      unsigned int dstaddr, 
+                                                      unsigned int dstaddr,
                                                       int dstpitch)
 {
     struct i915_3dstate_buffer_info *buffer_info;
@@ -1407,7 +1371,7 @@ static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
     buffer_info->dw0.length = 1;
     buffer_info->dw1.aux_id = 0;
     buffer_info->dw1.buffer_id = BUFFERID_COLOR_BACK;
-    buffer_info->dw1.fence_regs = 1;   
+    buffer_info->dw1.fence_regs = 1;
     buffer_info->dw1.tiled_surface = 0;   /* linear */
     buffer_info->dw1.walk = TILEWALK_XMAJOR;
     buffer_info->dw1.pitch = dstpitch;
@@ -1456,13 +1420,13 @@ static void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
     i915_inst_decl(inst, REG_TYPE_S, 2, D0_SAMPLE_TYPE_2D);
     /* texld    r0 t1 s0 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 0); 
+    dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_T, 1); /* COORD */
     src1 = UREG(REG_TYPE_S, 0); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
     /* texld    r0 t0 s1 */
     inst += 3;
-    dest = UREG(REG_TYPE_R, 0); 
+    dest = UREG(REG_TYPE_R, 0);
     src0 = UREG(REG_TYPE_T, 0); /* COORD */
     src1 = UREG(REG_TYPE_S, 1); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
@@ -1530,7 +1494,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     s4->fog_shade_mode = SHADEMODE_FLAT;
     s4->alpha_shade_mode = SHADEMODE_FLAT;
     s4->line_width = 0x2;     /* FIXME: 1.0??? */
-    s4->point_width = 0x1; 
+    s4->point_width = 0x1;
 
     s5 = (struct s5_dword *)(++s4);
     s6 = (struct s6_dword *)(++s5);
@@ -1573,14 +1537,14 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     ssb = (ssb_state *)(++sis);
     ssb->dw0.valid = 1;
     ssb->dw0.buffer_address = pI915XvMC->ssb.offset;
-    ssb->dw1.length = ((sizeof(struct i915_3dstate_sampler_state) + 
+    ssb->dw1.length = ((sizeof(struct i915_3dstate_sampler_state) +
                         sizeof(struct texture_sampler) * 3) >> 2) - 1;
 
     /* MSB */
     msb = (msb_state *)(++ssb);
     msb->dw0.valid = 1;
     msb->dw0.buffer_address = pI915XvMC->msb.offset;
-    msb->dw1.length = ((sizeof(struct i915_3dstate_map_state) + 
+    msb->dw1.length = ((sizeof(struct i915_3dstate_map_state) +
                         sizeof(struct texture_map) * 3) >> 2) - 1;
 
     /* PSP */
@@ -1631,11 +1595,9 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     free(base);
 }
 
-/***************************************************************************
-// Function: i915_release_resource
-// Description:
-***************************************************************************/
-//XXX
+/*
+ * Function: i915_release_resource
+ */
 static void i915_release_resource(Display *display, XvMCContext *context)
 {
     i915XvMCContext *pI915XvMC;
@@ -1792,16 +1754,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCDestroyContext
-// Description: Destorys the specified context.
-//
-// Arguments:
-//   display - Specifies the connection to the server.
-//   context - The context to be destroyed.
-//
-// Returns: Status
-***************************************************************************/
 static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
 {
     i915XvMCContext *pI915XvMC;
@@ -1814,10 +1766,8 @@ static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCCreateSurface
-***************************************************************************/
-static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context, XvMCSurface *surface) 
+static Status i915_xvmc_mc_create_surface(Display *display,
+	XvMCContext *context, XvMCSurface *surface)
 {
     Status ret;
     i915XvMCContext *pI915XvMC;
@@ -1901,10 +1851,7 @@ static Status i915_xvmc_mc_create_surface(Display *display, XvMCContext *context
 }
 
 
-/***************************************************************************
-// Function: XvMCDestroySurface
-***************************************************************************/
-static int i915_xvmc_mc_destroy_surface(Display *display, XvMCSurface *surface) 
+static int i915_xvmc_mc_destroy_surface(Display *display, XvMCSurface *surface)
 {
     i915XvMCSurface *pI915Surface;
     i915XvMCContext *pI915XvMC;
@@ -1936,12 +1883,6 @@ static int i915_xvmc_mc_destroy_surface(Display *display, XvMCSurface *surface)
 }
 
 
-/***************************************************************************
-// Function: XvMCRenderSurface
-// Description: This function does the actual HWMC. Given a list of
-//  macroblock structures it dispatched the hardware commands to execute
-//  them. 
-***************************************************************************/
 static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
                          unsigned int picture_structure,
                          XvMCSurface *target_surface,
@@ -2009,7 +1950,6 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
             XVMC_ERR("Invalid Past Surface!");
             return (error_base + XvMCBadSurface);
         }
-        
         picture_coding_type = MPEG_P_PICTURE;
     }
 
@@ -2057,7 +1997,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
             mb->coded_block_pattern = 0;
             XVMC_INFO("no coded blocks present!");
         }
-        
+
         bspm = mb_bytes[mb->coded_block_pattern];
 
         if (!bspm)
@@ -2071,10 +2011,10 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         }
         memcpy(corrdata_ptr, block_ptr, bspm);
         corrdata_ptr += bspm;
-    } 
+    }
 
     i915_flush(1, 0);
-    // i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB 
+    // i915_mc_invalidate_subcontext_buffers(context, BLOCK_SIS | BLOCK_DIS | BLOCK_SSB
     // | BLOCK_MSB | BLOCK_PSP | BLOCK_PSC);
 
     i915_mc_sampler_state_buffer(context);
@@ -2082,7 +2022,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     i915_mc_pixel_shader_constants_buffer(context);
     i915_mc_one_time_state_initialization(context);
 
-    i915_mc_static_indirect_state_buffer(context, target_surface, 
+    i915_mc_static_indirect_state_buffer(context, target_surface,
                                          picture_structure, flags,
                                          picture_coding_type);
     i915_mc_map_state_buffer(context, privTarget, privPast, privFuture);
@@ -2095,7 +2035,8 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         /* Intra Blocks */
         if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
             i915_mc_mpeg_macroblock_ipicture(context, mb);
-        } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) { /* Frame Picture */
+        } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
+	    /* Frame Picture */
             switch (mb->motion_type & 3) {
             case XVMC_PREDICTION_FIELD: /* Field Based */
                 i915_mc_mpeg_macroblock_2fbmv(context, mb, picture_structure);
@@ -2110,9 +2051,9 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
                 break;
 
             default:    /* No Motion Type */
-                renderError();
+		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
-            }   
+            }
         } else {        /* Frame Picture */
             switch (mb->motion_type & 3) {
             case XVMC_PREDICTION_FIELD: /* Field Based */
@@ -2122,13 +2063,13 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
             case XVMC_PREDICTION_16x8:  /* 16x8 MC */
                 i915_mc_mpeg_macroblock_2fbmv(context, mb, picture_structure);
                 break;
-                
+
             case XVMC_PREDICTION_DUAL_PRIME:    /* Dual Prime */
                 i915_mc_mpeg_macroblock_1fbmv(context, mb);
                 break;
 
             default:    /* No Motion Type */
-                renderError();
+		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
             }
         }       /* Field Picture */
@@ -2142,44 +2083,12 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     return 0;
 }
 
-/***************************************************************************
-// Function: XvMCPutSurface
-// Description:
-// Arguments:
-//  display: Connection to X server
-//  surface: Surface to be displayed
-//  draw: X Drawable on which to display the surface
-//  srcx: X coordinate of the top left corner of the region to be
-//          displayed within the surface.
-//  srcy: Y coordinate of the top left corner of the region to be
-//          displayed within the surface.
-//  srcw: Width of the region to be displayed.
-//  srch: Height of the region to be displayed.
-//  destx: X cordinate of the top left corner of the destination region
-//         in the drawable coordinates.
-//  desty: Y cordinate of the top left corner of the destination region
-//         in the drawable coordinates.
-//  destw: Width of the destination region.
-//  desth: Height of the destination region.
-//  flags: One or more of the following.
-//     XVMC_TOP_FIELD - Display only the Top field of the surface.
-//     XVMC_BOTTOM_FIELD - Display only the Bottom Field of the surface.
-//     XVMC_FRAME_PICTURE - Display both fields or frame.
-//
-// Info: Portions of this function derived from i915_video.c (XFree86)
-//
-//   This function is organized so that we wait as long as possible before
-//   touching the overlay registers. Since we don't know that the last
-//   flip has happened yet we want to give the overlay as long as
-//   possible to catch up before we have to check on its progress. This
-//   makes it unlikely that we have to wait on the last flip.
-***************************************************************************/
 static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
                       Drawable draw, short srcx, short srcy,
                       unsigned short srcw, unsigned short srch,
                       short destx, short desty,
                       unsigned short destw, unsigned short desth,
-                      int flags) 
+                      int flags)
 {
     i915XvMCContext *pI915XvMC;
     i915XvMCSurface *pI915Surface;
@@ -2243,63 +2152,15 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
     return 0;
 }
 
-/***************************************************************************
-// Function: XvMCSyncSurface
-// Arguments:
-//   display - Connection to the X server
-//   surface - The surface to synchronize
-// Info:
-// Returns: Status
-***************************************************************************/
-#if 0
-Status XvMCSyncSurface(Display *display, XvMCSurface *surface) 
-{
-    Status ret;
-    int stat = 0;
-
-    do {
-        ret = XvMCGetSurfaceStatus(display, surface, &stat);
-    } while (!ret && (stat & XVMC_RENDERING));
-
-    return ret;
-}
-
-/***************************************************************************
-// Function: XvMCFlushSurface
-// Description:
-//   This function commits pending rendering requests to ensure that they
-//   wll be completed in a finite amount of time.
-// Arguments:
-//   display - Connection to X server
-//   surface - Surface to flush
-// Returns: Status
-***************************************************************************/
-Status XvMCFlushSurface(Display * display, XvMCSurface *surface) 
-{
-    return Success;
-}
-#endif
-
-/***************************************************************************
-// Function: XvMCGetSurfaceStatus
-// Description:
-// Arguments:
-//  display: connection to X server
-//  surface: The surface to query
-//  stat: One of the Following
-//    XVMC_RENDERING - The last XvMCRenderSurface command has not
-//                     completed.
-//    XVMC_DISPLAYING - The surface is currently being displayed or a
-//                     display is pending.
-***************************************************************************/
-static int i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surface, int *stat) 
+static int i915_xvmc_mc_get_surface_status(Display *display,
+	XvMCSurface *surface, int *stat)
 {
     i915XvMCSurface *pI915Surface;
     i915XvMCContext *pI915XvMC;
 
     if (!display || !surface || !stat)
         return BadValue;
-    
+
     *stat = 0;
 
     if (!(pI915Surface = surface->privData))
@@ -2343,23 +2204,9 @@ static int i915_xvmc_mc_get_surface_status(Display *display, XvMCSurface *surfac
     return 0;
 }
 
-/***************************************************************************
-// 
-//  Surface manipulation functions
-//
-***************************************************************************/
-
-/***************************************************************************
-// Function: XvMCHideSurface
-// Description: Stops the display of a surface.
-// Arguments:
-//   display - Connection to the X server.
-//   surface - surface to be hidden.
-//
-// Returns: Status
-***************************************************************************/
+/* XXX WIP code */
 #if 0
-Status XvMCHideSurface(Display *display, XvMCSurface *surface) 
+Status XvMCHideSurface(Display *display, XvMCSurface *surface)
 {
     i915XvMCSurface *pI915Surface;
     i915XvMCContext *pI915XvMC;
@@ -2391,32 +2238,10 @@ Status XvMCHideSurface(Display *display, XvMCSurface *surface)
     return Success;
 }
 
-/***************************************************************************
-//
-// Functions that deal with subpictures
-//
-***************************************************************************/
-
-
-
-/***************************************************************************
-// Function: XvMCCreateSubpicture
-// Description: This creates a subpicture by filling out the XvMCSubpicture
-//              structure passed to it and returning Success.
-// Arguments:
-//   display - Connection to the X server.
-//   context - The context to create the subpicture for.
-//   subpicture - Pre-allocated XvMCSubpicture structure to be filled in.
-//   width - of subpicture
-//   height - of subpicture
-//   xvimage_id - The id describing the XvImage format.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
+Status i915_xvmc_create_subpict(Display *display, XvMCContext *context,
                             XvMCSubpicture *subpicture,
                             unsigned short width, unsigned short height,
-                            int xvimage_id) 
+                            int xvimage_id)
 {
     Status ret;
     i915XvMCContext *pI915XvMC;
@@ -2427,7 +2252,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
 
     if (!subpicture || !context || !display)
         return BadValue;
-  
+
     pI915XvMC = (i915XvMCContext *)context->privData;
 
     if (!pI915XvMC)
@@ -2460,7 +2285,7 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
 
     if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
         XVMC_ERR("_xvmc_create_subpicture() returned incorrect data size!");
-        XVMC_INFO("\tExpected %d, got %d", 
+        XVMC_INFO("\tExpected %d, got %d",
                (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2), priv_count);
         XLockDisplay(display);
         _xvmc_destroy_subpicture(display, subpicture);
@@ -2524,22 +2349,10 @@ Status XvMCCreateSubpicture(Display *display, XvMCContext *context,
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCClearSubpicture
-// Description: Clear the area of the given subpicture to "color".
-//              structure passed to it and returning Success.
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - Subpicture to clear.
-//   x, y, width, height - rectangle in the subpicture to clear.
-//   color - The data to file the rectangle with.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCClearSubpicture(Display *display, XvMCSubpicture *subpicture,
+Status i915_xvmc_clear_subpict(Display *display, XvMCSubpicture *subpicture,
                            short x, short y,
                            unsigned short width, unsigned short height,
-                           unsigned int color) 
+                           unsigned int color)
 {
     i915XvMCContext *pI915XvMC;
     i915XvMCSubpicture *pI915Subpicture;
@@ -2564,26 +2377,11 @@ Status XvMCClearSubpicture(Display *display, XvMCSubpicture *subpicture,
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCCompositeSubpicture
-// Description: Composite the XvImae on the subpicture. This composit uses
-//              non-premultiplied alpha. Destination alpha is utilized
-//              except for with indexed subpictures. Indexed subpictures
-//              use a simple "replace".
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - Subpicture to clear.
-//   image - the XvImage to be used as the source of the composite.
-//   srcx, srcy, width, height - The rectangle from the image to be used.
-//   dstx, dsty - location in the subpicture to composite the source.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCCompositeSubpicture(Display *display, XvMCSubpicture *subpicture,
+Status i915_xvmc_composite_subpict(Display *display, XvMCSubpicture *subpicture,
                                XvImage *image,
                                short srcx, short srcy,
                                unsigned short width, unsigned short height,
-                               short dstx, short dsty) 
+                               short dstx, short dsty)
 {
     i915XvMCContext *pI915XvMC;
     i915XvMCSubpicture *pI915Subpicture;
@@ -2617,16 +2415,7 @@ Status XvMCCompositeSubpicture(Display *display, XvMCSubpicture *subpicture,
 }
 
 
-/***************************************************************************
-// Function: XvMCDestroySubpicture
-// Description: Destroys the specified subpicture.
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - Subpicture to be destroyed.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCDestroySubpicture(Display *display, XvMCSubpicture *subpicture) 
+Status i915_xvmc_destroy_subpict(Display *display, XvMCSubpicture *subpicture)
 {
     i915XvMCSubpicture *pI915Subpicture;
     i915XvMCContext *pI915XvMC;
@@ -2660,19 +2449,9 @@ Status XvMCDestroySubpicture(Display *display, XvMCSubpicture *subpicture)
 }
 
 
-/***************************************************************************
-// Function: XvMCSetSubpicturePalette
-// Description: Set the subpictures palette
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - Subpiture to set palette for.
-//   palette - A pointer to an array holding the palette data. The array
-//     is num_palette_entries * entry_bytes in size.
-// Returns: Status
-***************************************************************************/
-
-Status XvMCSetSubpicturePalette(Display *display, XvMCSubpicture *subpicture,
-                                unsigned char *palette) 
+Status i915_xvmc_set_subpict_palette(Display *display,
+	XvMCSubpicture *subpicture,
+	unsigned char *palette)
 {
     i915XvMCSubpicture *pI915Subpicture;
     int i, j;
@@ -2694,35 +2473,12 @@ Status XvMCSetSubpicturePalette(Display *display, XvMCSubpicture *subpicture,
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCBlendSubpicture
-// Description: 
-//    The behavior of this function is different depending on whether
-//    or not the XVMC_BACKEND_SUBPICTURE flag is set in the XvMCSurfaceInfo.
-//    i915 only support frontend behavior.
-//  
-//    XVMC_BACKEND_SUBPICTURE not set ("frontend" behavior):
-//   
-//    XvMCBlendSubpicture is a no-op in this case.
-//   
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - The subpicture to be blended into the video.
-//   target_surface - The surface to be displayed with the blended subpic.
-//   source_surface - Source surface prior to blending.
-//   subx, suby, subw, subh - The rectangle from the subpicture to use.
-//   surfx, surfy, surfw, surfh - The rectangle in the surface to blend
-//      blend the subpicture rectangle into. Scaling can ocure if 
-//      XVMC_SUBPICTURE_INDEPENDENT_SCALING is set.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCBlendSubpicture(Display *display, XvMCSurface *target_surface,
+Status i915_xvmc_blend_subpict(Display *display, XvMCSurface *target_surface,
                            XvMCSubpicture *subpicture,
                            short subx, short suby,
                            unsigned short subw, unsigned short subh,
                            short surfx, short surfy,
-                           unsigned short surfw, unsigned short surfh) 
+                           unsigned short surfw, unsigned short surfh)
 {
     i915XvMCSubpicture *pI915Subpicture;
     i915XvMCSurface *privTargetSurface;
@@ -2749,33 +2505,7 @@ Status XvMCBlendSubpicture(Display *display, XvMCSurface *target_surface,
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCBlendSubpicture2
-// Description: 
-//    The behavior of this function is different depending on whether
-//    or not the XVMC_BACKEND_SUBPICTURE flag is set in the XvMCSurfaceInfo.
-//    i915 only supports frontend blending.
-//  
-//    XVMC_BACKEND_SUBPICTURE not set ("frontend" behavior):
-//   
-//    XvMCBlendSubpicture2 blends the source_surface and subpicture and
-//    puts it in the target_surface.  This does not effect the status of
-//    the source surface but will cause the target_surface to query
-//    XVMC_RENDERING until the blend is completed.
-//   
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - The subpicture to be blended into the video.
-//   target_surface - The surface to be displayed with the blended subpic.
-//   source_surface - Source surface prior to blending.
-//   subx, suby, subw, subh - The rectangle from the subpicture to use.
-//   surfx, surfy, surfw, surfh - The rectangle in the surface to blend
-//      blend the subpicture rectangle into. Scaling can ocure if 
-//      XVMC_SUBPICTURE_INDEPENDENT_SCALING is set.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCBlendSubpicture2(Display *display, 
+Status i915_xvmc_blend_subpict2(Display *display,
                             XvMCSurface *source_surface,
                             XvMCSurface *target_surface,
                             XvMCSubpicture *subpicture,
@@ -2834,17 +2564,7 @@ Status XvMCBlendSubpicture2(Display *display,
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCSyncSubpicture
-// Description: This function blocks until all composite/clear requests on
-//              the subpicture have been complete.
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - The subpicture to synchronize
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCSyncSubpicture(Display *display, XvMCSubpicture *subpicture) 
+Status i915_xvmc_sync_subpict(Display *display, XvMCSubpicture *subpicture)
 {
     Status ret;
     int stat = 0;
@@ -2859,18 +2579,7 @@ Status XvMCSyncSubpicture(Display *display, XvMCSubpicture *subpicture)
     return ret;
 }
 
-/***************************************************************************
-// Function: XvMCFlushSubpicture
-// Description: This function commits pending composite/clear requests to
-//              ensure that they will be completed in a finite amount of
-//              time.
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - The subpicture whos compsiting should be flushed
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCFlushSubpicture(Display *display, XvMCSubpicture *subpicture) 
+Status i915_xvmc_flush_subpict(Display *display, XvMCSubpicture *subpicture)
 {
     i915XvMCSubpicture *pI915Subpicture;
 
@@ -2883,22 +2592,8 @@ Status XvMCFlushSubpicture(Display *display, XvMCSubpicture *subpicture)
     return Success;
 }
 
-/***************************************************************************
-// Function: XvMCGetSubpictureStatus
-// Description: This function gets the current status of a subpicture
-//
-// Arguments:
-//   display - Connection to the X server.
-//   subpicture - The subpicture whos status is being queried
-//   stat - The status of the subpicture. It can be any of the following
-//          OR'd together:
-//          XVMC_RENDERING  - Last composite or clear request not completed
-//          XVMC_DISPLAYING - Suppicture currently being displayed.
-//
-// Returns: Status
-***************************************************************************/
-Status XvMCGetSubpictureStatus(Display *display, XvMCSubpicture *subpicture,
-                               int *stat) 
+Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture,
+                               int *stat)
 {
     i915XvMCSubpicture *pI915Subpicture;
     i915XvMCContext *pI915XvMC;
@@ -2928,3 +2623,16 @@ Status XvMCGetSubpictureStatus(Display *display, XvMCSubpicture *subpicture,
 }
 
 #endif
+
+struct _intel_xvmc_driver i915_xvmc_mc_driver = {
+    .type = XVMC_I915_MPEG2_MC,
+    .init = i915_xvmc_mc_init,
+    .fini = i915_xvmc_mc_fini,
+    .create_context = i915_xvmc_mc_create_context,
+    .destroy_context = i915_xvmc_mc_destroy_context,
+    .create_surface = i915_xvmc_mc_create_surface,
+    .destroy_surface = i915_xvmc_mc_destroy_surface,
+    .render_surface = i915_xvmc_mc_render_surface,
+    .put_surface = i915_xvmc_mc_put_surface,
+    .get_surface_status = i915_xvmc_mc_get_surface_status,
+};
