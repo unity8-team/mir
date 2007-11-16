@@ -849,7 +849,6 @@ Bool
 NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 	uint32_t class = 0, chipset;
 	int i;
 

@@ -54,9 +54,6 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image);
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
 
 /* in nv_dma.c */
-void  NVDmaKickoffNNN(NVPtr pNv);
-void  NVDmaKickoffCallback(NVPtr pNv);
-void  NVDmaWaitNNN(ScrnInfoPtr pScrn, int size);
 void  NVSync(ScrnInfoPtr pScrn);
 void  NVResetGraphics(ScrnInfoPtr pScrn);
 Bool  NVInitDma(ScrnInfoPtr pScrn);

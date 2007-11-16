@@ -18,8 +18,7 @@ struct nouveau_device_priv {
 	drmLock *lock;
 	int needs_close;
 };
-#define nouveau_device(n) \
-	((n) ? (struct nouveau_device_priv *)(n) : NULL)
+#define nouveau_device(n) ((struct nouveau_device_priv *)(n))
 
 extern int
 nouveau_device_open_existing(struct nouveau_device **, int close,
@@ -57,15 +56,14 @@ struct nouveau_channel_priv {
 	volatile uint32_t *ref_cnt;
 
 	struct {
-		uint64_t base, max;
-		uint64_t cur, put;
-		uint64_t free;
+		uint32_t base, max;
+		uint32_t cur, put;
+		uint32_t free;
 
 		int push_free;
 	} dma;
 };
-#define nouveau_channel(n) \
-	((n) ? (struct nouveau_channel_priv *)(n) : NULL)
+#define nouveau_channel(n) ((struct nouveau_channel_priv *)(n))
 
 extern int
 nouveau_channel_alloc(struct nouveau_device *, uint32_t fb, uint32_t tt,
@@ -77,8 +75,7 @@ nouveau_channel_free(struct nouveau_channel **);
 struct nouveau_grobj_priv {
 	struct nouveau_grobj base;
 };
-#define nouveau_grobj(n) \
-	((n) ? (struct nouveau_grobj_priv *)(n) : NULL)
+#define nouveau_grobj(n) ((struct nouveau_grobj_priv *)(n))
 
 extern int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
 			       int class, struct nouveau_grobj **);
@@ -91,8 +88,7 @@ struct nouveau_notifier_priv {
 	struct drm_nouveau_notifierobj_alloc drm;
 	volatile void *map;
 };
-#define nouveau_notifier(n) \
-	((n) ? (struct nouveau_notifier_priv *)(n) : NULL)
+#define nouveau_notifier(n) ((struct nouveau_notifier_priv *)(n))
 
 extern int nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
 				  int count, struct nouveau_notifier **);

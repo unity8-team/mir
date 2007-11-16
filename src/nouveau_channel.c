@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #include "nouveau_drmif.h"
+#include "nouveau_dma.h"
 
 int
 nouveau_channel_alloc(struct nouveau_device *userdev, uint32_t fb_ctxdma,
@@ -53,6 +54,8 @@ nouveau_channel_alloc(struct nouveau_device *userdev, uint32_t fb_ctxdma,
 		nouveau_channel_free((void *)&chan);
 		return ret;
 	}
+
+	nouveau_dma_channel_init(&chan->base);
 
 	*userchan = &chan->base;
 	return 0;

@@ -180,7 +180,6 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
 	OUT_RING  (fg);
 
-	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
 	return TRUE;
 }
 
@@ -236,7 +235,6 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (!NVAccelSetCtxSurf2D(pSrcPixmap, pDstPixmap, fmt))
 		return FALSE;
 
-	pNv->DMAKickoffCallback = NVDmaKickoffCallback;
 	return TRUE;
 }
 
@@ -507,12 +505,9 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	OUT_RING  ((h << 16) | iw); /* width/height in */
 
 	while (h--) {
-		char *dst;
 		/* send a line */
 		BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_COLOR(0), id);
-		dst = (char *)pNv->dmaBase + (pNv->dmaCurrent << 2);
-		memcpy(dst, src, line_len);
-		pNv->dmaCurrent += id;
+		OUT_RINGp (src, id);
 
 		src += src_pitch;
 	}

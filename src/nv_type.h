@@ -312,7 +312,6 @@ typedef struct _NVRec {
     volatile CARD32 *PVIDEO;
     volatile CARD32 *PMC;
     volatile CARD32 *PRAMIN;
-    volatile CARD32 *FIFO;
     volatile CARD32 *CURSOR;
     volatile CARD8 *PCIO0;
     volatile CARD8 *PCIO1;
@@ -343,7 +342,6 @@ typedef struct _NVRec {
     xf86Int10InfoPtr    pInt10;
     I2CBusPtr           I2C;
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
-    void		(*DMAKickoffCallback)(NVPtr pNv);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
     int			videoKey;
@@ -368,15 +366,6 @@ typedef struct _NVRec {
     Bool                LVDS;
 
     Bool                LockedUp;
-
-    volatile void *     NotifierBlock;
-    struct drm_nouveau_notifierobj_alloc *Notifier0;
-
-    CARD32              dmaPut;
-    CARD32              dmaCurrent;
-    CARD32              dmaFree;
-    CARD32              dmaMax;
-    CARD32              *dmaBase;
 
     CARD32              currentRop;
     int                 M2MFDirection;
