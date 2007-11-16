@@ -154,7 +154,7 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state);
+static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio);
 
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
@@ -283,9 +283,9 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONDDCType DDCType = radeon_output->DDCType;
 
     if (radeon_output->pI2CBus) {
-	AVIVOI2CDoLock(output->scrn, 1);
+	AVIVOI2CDoLock(output->scrn, 1, radeon_output->gpio);
 	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	AVIVOI2CDoLock(output->scrn, 0);
+	AVIVOI2CDoLock(output->scrn, 0, radeon_output->gpio);
     }
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
@@ -2307,85 +2307,52 @@ Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
 }
 
 static
-Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state)
+Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 temp;
 
-    switch(lock_state) {
-    case 0:
-	temp = INREG(AVIVO_I2C_CNTL);
-	OUTREG(AVIVO_I2C_CNTL, temp | 0x100);
-	/* enable hdcp block */
-	OUTREG(R520_PCLK_HDCP_CNTL, 0x0);
-	break;
-    case 1:
-	/* disable hdcp block */
-	OUTREG(R520_PCLK_HDCP_CNTL, 0x1);
-	usleep(1);
-	OUTREG(AVIVO_I2C_CNTL, 0x1);
-	usleep(1);
-	temp = INREG(AVIVO_I2C_CNTL);
-	if (!(temp & 0x2)) {
-	    ErrorF("Lock failed %08X\n", temp);
-	    return FALSE;
-	}
-	break;
+    temp = INREG(gpio_reg + 4);
+    if (gpio_reg == AVIVO_GPIO_0) {
+	if (lock_state == 0)
+	    temp |= (1 << 19) | (1 << 18);
+	else
+	    temp &= ~((1 << 19) | (1 << 18));
+    } else {
+	if (lock_state == 0)
+	    temp |= (1 << 0) | (1 << 8);
+	else
+	    temp &= ~((1 << 0) | (1 << 8));
     }
+    OUTREG(gpio_reg + 4, temp);
+    temp = INREG(gpio_reg + 4);
+
     return TRUE;
 }
 
 void
-avivo_i2c_gpio0_get_bits(I2CBusPtr b, int *Clock, int *data)
+avivo_i2c_gpio_get_bits(I2CBusPtr b, int *Clock, int *data)
 {
     ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
     RADEONInfoPtr info       = RADEONPTR(screen_info);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long  val;
-
-    ErrorF("INREG %08x\n", INREG(b->DriverPrivate.uval));
-    /* Get the result */
-    val = INREG(b->DriverPrivate.uval + 0xC);
-    *Clock = (val & (1<<19)) != 0;
-    *data  = (val & (1<<18)) != 0;
-}
-
-void
-avivo_i2c_gpio0_put_bits(I2CBusPtr b, int Clock, int data)
-{
-    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
-    RADEONInfoPtr info       = RADEONPTR(screen_info);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long  val;
-
-    val = 0;
-    val |= (Clock ? 0:(1<<19));
-    val |= (data ? 0:(1<<18));
-    OUTREG(b->DriverPrivate.uval + 0x8, val);
-    /* read back to improve reliability on some cards. */
-    val = INREG(b->DriverPrivate.uval + 0x8);
-}
-
-void
-avivo_i2c_gpio123_get_bits(I2CBusPtr b, int *Clock, int *data)
-{
-    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
-    RADEONInfoPtr info       = RADEONPTR(screen_info);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long  val;
-
-    if (INREG(b->DriverPrivate.uval) == 0)
-	OUTREG(b->DriverPrivate.uval, (1<<0) | (1<<8));
 
     /* Get the result */
-    val = INREG(b->DriverPrivate.uval + 0xC);
-    *Clock = (val & (1<<0)) != 0;
-    *data  = (val & (1<<8)) != 0;
+    if (b->DriverPrivate.uval == AVIVO_GPIO_0) {
+	val = INREG(b->DriverPrivate.uval + 0xc);
+	*Clock = (val & (1<<19)) != 0;
+	*data  = (val & (1<<18)) != 0;
+    } else {
+	val = INREG(b->DriverPrivate.uval + 0xc);
+	*Clock = (val & (1<<0)) != 0;
+	*data  = (val & (1<<8)) != 0;
+    }
 }
 
 static void
-avivo_i2c_gpio123_put_bits(I2CBusPtr b, int Clock, int data)
+avivo_i2c_gpio_put_bits(I2CBusPtr b, int Clock, int data)
 {
     ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
     RADEONInfoPtr info       = RADEONPTR(screen_info);
@@ -2393,8 +2360,15 @@ avivo_i2c_gpio123_put_bits(I2CBusPtr b, int Clock, int data)
     unsigned long  val;
 
     val = 0;
-    val |= (Clock ? 0:(1<<0));
-    val |= (data ? 0:(1<<8));
+    if (b->DriverPrivate.uval == AVIVO_GPIO_0) {
+	val |= (Clock ? 0:(1<<19));
+	val |= (data ? 0:(1<<18));
+    } else {
+	val |= (Clock ? 0:(1<<0));
+	val |= (data ? 0:(1<<8));
+
+    }
+
     OUTREG(b->DriverPrivate.uval + 0x8, val);
     /* read back to improve reliability on some cards. */
     val = INREG(b->DriverPrivate.uval + 0x8);
@@ -2410,13 +2384,8 @@ avivo_i2c_init(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 
     pI2CBus->BusName    = name;
     pI2CBus->scrnIndex  = pScrn->scrnIndex;
-    if (i2c_reg == AVIVO_GPIO_0) {
-	pI2CBus->I2CPutBits = avivo_i2c_gpio0_put_bits;
-	pI2CBus->I2CGetBits = avivo_i2c_gpio0_get_bits;
-    } else {
-	pI2CBus->I2CPutBits = avivo_i2c_gpio123_put_bits;
-	pI2CBus->I2CGetBits = avivo_i2c_gpio123_get_bits;
-    }
+    pI2CBus->I2CPutBits = avivo_i2c_gpio_put_bits;
+    pI2CBus->I2CGetBits = avivo_i2c_gpio_get_bits;
     pI2CBus->AcknTimeout = 5;
     pI2CBus->DriverPrivate.uval = i2c_reg;
 
