@@ -2,6 +2,7 @@
 #include <errno.h>
 
 #include "nouveau_drmif.h"
+#include "nouveau_dma.h"
 #include "nouveau_local.h"
 
 int
@@ -95,5 +96,31 @@ void
 nouveau_bo_unmap(struct nouveau_bo *userbo)
 {
 	userbo->map = NULL;
+}
+
+void
+nouveau_bo_emit_reloc(struct nouveau_channel *userchan, void *ptr,
+		      struct nouveau_bo *userbo, uint32_t data, uint32_t flags,
+		      uint32_t vor, uint32_t tor)
+{
+	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
+	struct nouveau_bo_priv *bo = nouveau_bo(userbo);
+	struct nouveau_bo_reloc *r;
+
+	if (chan->num_relocs >= chan->max_relocs)
+		FIRE_RING_CH(userchan);
+	r = &chan->relocs[chan->num_relocs++];
+
+	r->ptr = ptr;
+	r->bo = bo;
+	r->data = data;
+	r->flags = flags;
+	r->vor = vor;
+	r->tor = tor;
+}
+
+void
+nouveau_bo_validate(struct nouveau_channel *userchan)
+{
 }
 

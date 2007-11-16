@@ -5,10 +5,8 @@
 
 /* in nv_accel_common.c */
 Bool NVAccelCommonInit(ScrnInfoPtr pScrn);
-uint32_t NVAccelGetPixmapOffset(PixmapPtr pPix);
 Bool NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret);
 Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
-Bool NVAccelSetCtxSurf2D(PixmapPtr psPix, PixmapPtr pdPix, int fmt);
 
 /* in nv_driver.c */
 Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);

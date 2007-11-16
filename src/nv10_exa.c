@@ -314,7 +314,7 @@ Bool NV10CheckComposite(int	op,
 static void NV10SetTexture(NVPtr pNv,int unit,PicturePtr Pict,PixmapPtr pixmap)
 {
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 1 );
-	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
+	OUT_PIXMAPl(pixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	int log2w = log2i(Pict->pDrawable->width);
 	int log2h = log2i(Pict->pDrawable->height);
 	int w;
@@ -394,7 +394,7 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 		}
 	
 	OUT_RING  (((uint32_t)exaGetPixmapPitch(pixmap) << 16) |(uint32_t)exaGetPixmapPitch(pixmap));
-	OUT_RING  (NVAccelGetPixmapOffset(pixmap));
+	OUT_PIXMAPl(pixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (0);
 		
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VIEWPORT_HORIZ, 2);

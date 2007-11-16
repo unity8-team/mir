@@ -31,10 +31,13 @@ NV50EXAAcquireSurface2D(PixmapPtr pPix, int is_src)
 {
 	NV50EXA_LOCALS(pPix);
 	int mthd = is_src ? NV50_2D_SRC_FORMAT : NV50_2D_DST_FORMAT;
-	uint32_t fmt;
+	uint32_t fmt, bo_flags;
 
 	if (!NV50EXA2DSurfaceFormat(pPix, &fmt))
 		return FALSE;
+
+	bo_flags  = NOUVEAU_BO_VRAM;
+	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
 	BEGIN_RING(Nv2D, mthd, 2);
 	OUT_RING  (fmt);
@@ -44,8 +47,8 @@ NV50EXAAcquireSurface2D(PixmapPtr pPix, int is_src)
 	OUT_RING  ((uint32_t)exaGetPixmapPitch(pPix));
 	OUT_RING  (pPix->drawable.width);
 	OUT_RING  (pPix->drawable.height);
-	OUT_RING  (0);
-	OUT_RING  (NVAccelGetPixmapOffset(pPix));
+	OUT_PIXMAPh(pPix, 0, bo_flags);
+	OUT_PIXMAPl(pPix, 0, bo_flags);
 
 	if (is_src == 0) {
 		BEGIN_RING(Nv2D, NV50_2D_CLIP_X, 4);

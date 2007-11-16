@@ -36,24 +36,6 @@ NVAccelInitNullObject(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-uint32_t
-NVAccelGetPixmapOffset(PixmapPtr pPix)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned long offset;
-
-	offset = exaGetPixmapOffset(pPix);
-	if (offset >= pNv->FB->size) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "AII, passed bad pixmap: offset 0x%lx\n", offset);
-		return pNv->FB->offset;
-	}
-	offset += pNv->FB->offset;
-
-	return offset;
-}
-
 static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
@@ -177,22 +159,6 @@ NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPict, int *fmt_ret)
 	default:
 		return FALSE;
 	}
-
-	return TRUE;
-}
-
-Bool
-NVAccelSetCtxSurf2D(PixmapPtr psPix, PixmapPtr pdPix, int format)
-{
-	ScrnInfoPtr pScrn = xf86Screens[psPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
-	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
-	OUT_RING  (format);
-	OUT_RING  (((uint32_t)exaGetPixmapPitch(pdPix) << 16) |
-			 (uint32_t)exaGetPixmapPitch(psPix));
-	OUT_RING  (NVAccelGetPixmapOffset(psPix));
-	OUT_RING  (NVAccelGetPixmapOffset(pdPix));
 
 	return TRUE;
 }
@@ -409,7 +375,6 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	OUT_RING  (NvDmaFB);
 	OUT_RING  (NvDmaFB);
 
-	pNv->M2MFDirection = -1;
 	return TRUE;
 }
 

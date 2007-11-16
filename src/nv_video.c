@@ -797,7 +797,11 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	}
 
 	NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
-	NVAccelSetCtxSurf2D(pPix, pPix, dst_format);
+	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	OUT_RING  (dst_format);
+	OUT_RING  ((exaGetPixmapPitch(pPix) << 16) | exaGetPixmapPitch(pPix));
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 #ifdef COMPOSITE
 	/* Adjust coordinates if drawing to an offscreen pixmap */
@@ -1703,7 +1707,6 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		OUT_RING  (NvDmaTT);
 		OUT_RING  (NvDmaFB);
-		pNv->M2MFDirection = 1;
 		
 		/* DMA to VRAM */
 		if ( action_flags & IS_YV12 && ! (action_flags & CONVERT_TO_YUY2) )

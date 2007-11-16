@@ -105,20 +105,6 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	}
 }
 
-static void setM2MFDirection(ScrnInfoPtr pScrn, int dir)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->M2MFDirection != dir) {
-
-		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
-		OUT_RING  (dir ? NvDmaTT : NvDmaFB);
-		OUT_RING  (dir ? NvDmaFB : NvDmaTT);
-		pNv->M2MFDirection = dir;
-	}
-}
-
 static CARD32 rectFormat(DrawablePtr pDrawable)
 {
 	switch(pDrawable->bitsPerPixel) {
@@ -148,7 +134,7 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	int fmt;
+	unsigned int fmt, pitch;
 
 	planemask |= ~0 << pPixmap->drawable.bitsPerPixel;
 	if (planemask != ~0 || alu != GXcopy) {
@@ -162,8 +148,9 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 		OUT_RING  (3); /* SRCCOPY */
 	}
 
-	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pPixmap, &fmt))
+	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pPixmap, (int*)&fmt))
 		return FALSE;
+	pitch = exaGetPixmapPitch(pPixmap);
 
 	/* When SURFACE_FORMAT_A8R8G8B8 is used with GDI_RECTANGLE_TEXT, the 
 	 * alpha channel gets forced to 0xFF for some reason.  We're using 
@@ -172,8 +159,11 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	if (fmt == NV04_CONTEXT_SURFACES_2D_FORMAT_A8R8G8B8)
 		fmt = NV04_CONTEXT_SURFACES_2D_FORMAT_Y32;
 
-	if (!NVAccelSetCtxSurf2D(pPixmap, pPixmap, fmt))
-		return FALSE;
+	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	OUT_RING  (fmt);
+	OUT_RING  ((pitch << 16) | pitch);
+	OUT_PIXMAPl(pPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_PIXMAPl(pPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
 	OUT_RING  (rectFormat(&pPixmap->drawable));
@@ -232,8 +222,13 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDstPixmap, &fmt))
 		return FALSE;
-	if (!NVAccelSetCtxSurf2D(pSrcPixmap, pDstPixmap, fmt))
-		return FALSE;
+
+	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	OUT_RING  (fmt);
+	OUT_RING  ((exaGetPixmapPitch(pDstPixmap) << 16) |
+		   (exaGetPixmapPitch(pSrcPixmap)));
+	OUT_PIXMAPl(pSrcPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_PIXMAPl(pDstPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	return TRUE;
 }
@@ -345,13 +340,15 @@ static inline Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 }
 
 static inline Bool
-NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
-				     int dst_pitch, int src_pitch,
-				     int line_len, int line_count)
+NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, PixmapPtr pspix,
+		    uint32_t src_offset, int dst_pitch, int src_pitch,
+		    int line_len, int line_count)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	setM2MFDirection(pScrn, 0);
+	BEGIN_RING(NvMemFormat, 0x184, 2);
+	OUT_PIXMAPo(pspix, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCo(pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 
 	while (line_count) {
 		char *src = pNv->GART->map;
@@ -376,14 +373,17 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 			OUT_RING  (1);
 			/* probably high-order bits of address */
 			BEGIN_RING(NvMemFormat, 0x238, 2);
-			OUT_RING  (0);
-			OUT_RING  (0);
+			OUT_PIXMAPh(pspix, src_offset, NOUVEAU_BO_GART |
+				    NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+			OUT_RELOCh(pNv->GART, 0, NOUVEAU_BO_GART |
+				   NOUVEAU_BO_WR);
 		}
 
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING  ((uint32_t)src_offset);
-		OUT_RING  ((uint32_t)pNv->GART->offset);
+		OUT_PIXMAPl(pspix, src_offset, NOUVEAU_BO_GART |
+			    NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+		OUT_RELOCl(pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		OUT_RING  (src_pitch);
 		OUT_RING  (line_len);
 		OUT_RING  (line_len);
@@ -437,17 +437,15 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pSrc->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	int src_offset, src_pitch, cpp, offset;
+	int src_pitch, cpp, offset;
 	const char *src;
 
-	src_offset = NVAccelGetPixmapOffset(pSrc);
 	src_pitch  = exaGetPixmapPitch(pSrc);
 	cpp = pSrc->drawable.bitsPerPixel >> 3;
 	offset = (y * src_pitch) + (x * cpp);
 
 	if (pNv->GART) {
-		if (NVAccelDownloadM2MF(pScrn, dst,
-					src_offset + offset,
+		if (NVAccelDownloadM2MF(pScrn, dst, pSrc, offset,
 					dst_pitch, src_pitch, w * cpp, h))
 			return TRUE;
 	}
@@ -462,11 +460,11 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 
 static inline Bool
 NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch, 
-		 PixmapPtr pDst, int fmt, int x, int y, int w, int h, int cpp)
+		 PixmapPtr pDst, int x, int y, int w, int h, int cpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int line_len = w * cpp;
-	int iw, id, ifc_fmt;
+	int iw, id, surf_fmt, ifc_fmt;
 
 	if (pNv->Architecture >= NV_ARCH_50)
 		return FALSE;
@@ -481,7 +479,14 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		return FALSE;
 	}
 
-	NVAccelSetCtxSurf2D(pDst, pDst, fmt);
+	if (NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &surf_fmt))
+		return FALSE;
+
+	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	OUT_RING  (surf_fmt);
+	OUT_RING  ((exaGetPixmapPitch(pDst) << 16) | exaGetPixmapPitch(pDst));
+	OUT_PIXMAPl(pDst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_PIXMAPl(pDst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	/* Pad out input width to cover both COLORA() and COLORB() */
 	iw  = (line_len + 7) & ~7;
@@ -516,13 +521,15 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 }
 
 static inline Bool
-NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
-				     int dst_pitch, int src_pitch,
-				     int line_len, int line_count)
+NVAccelUploadM2MF(ScrnInfoPtr pScrn, PixmapPtr pdpix, uint32_t dst_offset,
+		  const char *src, int dst_pitch, int src_pitch,
+		  int line_len, int line_count)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	setM2MFDirection(pScrn, 1);
+	BEGIN_RING(NvMemFormat, 0x184, 2);
+	OUT_RELOCo(pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+	OUT_PIXMAPo(pdpix, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 
 	while (line_count) {
 		char *dst = pNv->GART->map;
@@ -560,15 +567,18 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 			OUT_RING  (1);
 			/* probably high-order bits of address */
 			BEGIN_RING(NvMemFormat, 0x238, 2);
-			OUT_RING  (0);
-			OUT_RING  (0);
+			OUT_RELOCh(pNv->GART, 0, NOUVEAU_BO_GART |
+				   NOUVEAU_BO_RD);
+			OUT_PIXMAPh(pdpix, 0, NOUVEAU_BO_VRAM | 
+				    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		}
 
 		/* DMA to VRAM */
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING  ((uint32_t)pNv->GART->offset);
-		OUT_RING  ((uint32_t)dst_offset);
+		OUT_RELOCl(pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+		OUT_PIXMAPl(pdpix, dst_offset, NOUVEAU_BO_VRAM |
+			    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		OUT_RING  (line_len);
 		OUT_RING  (dst_pitch);
 		OUT_RING  (line_len);
@@ -598,32 +608,26 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	int dst_offset, dst_pitch, cpp;
+	int dst_pitch, cpp;
 	char *dst;
 
-	dst_offset = NVAccelGetPixmapOffset(pDst);
 	dst_pitch  = exaGetPixmapPitch(pDst);
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
 	/* try hostdata transfer */
 	if (pNv->Architecture < NV_ARCH_50 && w*h*cpp<16*1024) /* heuristic */
 	{
-		int fmt;
-
-		if (NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &fmt)) {
-			if (NVAccelUploadIFC(pScrn, src, src_pitch, pDst, fmt,
-						    x, y, w, h, cpp)) {
-				exaMarkSync(pDst->drawable.pScreen);
-				return TRUE;
-			}
+		if (NVAccelUploadIFC(pScrn, src, src_pitch, pDst,
+				     x, y, w, h, cpp)) {
+			exaMarkSync(pDst->drawable.pScreen);
+			return TRUE;
 		}
 	}
 
 	/* try gart-based transfer */
 	if (pNv->GART) {
-		dst_offset += (y * dst_pitch) + (x * cpp);
-		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
-					src_pitch, w * cpp, h))
+		if (NVAccelUploadM2MF(pScrn, pDst, (y * dst_pitch) + (x * cpp),
+				      src, dst_pitch, src_pitch, w * cpp, h))
 			return TRUE;
 	}
 

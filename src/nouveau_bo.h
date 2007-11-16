@@ -9,6 +9,9 @@
 #define NOUVEAU_BO_RDWR (NOUVEAU_BO_RD | NOUVEAU_BO_WR)
 #define NOUVEAU_BO_MAP  (1 << 4)
 #define NOUVEAU_BO_PIN  (1 << 5)
+#define NOUVEAU_BO_LOW  (1 << 6)
+#define NOUVEAU_BO_HIGH (1 << 7)
+#define NOUVEAU_BO_OR   (1 << 8)
 
 struct nouveau_bo {
 	struct nouveau_device *device;

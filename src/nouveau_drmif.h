@@ -63,6 +63,10 @@ struct nouveau_channel_priv {
 
 		int push_free;
 	} dma;
+
+	struct nouveau_bo_reloc *relocs;
+	int num_relocs;
+	int max_relocs;
 };
 #define nouveau_channel(n) ((struct nouveau_channel_priv *)(n))
 
@@ -117,6 +121,14 @@ struct nouveau_bo_priv {
 	struct drm_nouveau_mem_alloc drm;
 	void *map;
 };
+
+struct nouveau_bo_reloc {
+	struct nouveau_bo_priv *bo;
+	uint32_t *ptr;
+	uint32_t flags;
+	uint32_t data, vor, tor;
+};
+
 #define nouveau_bo(n) ((struct nouveau_bo_priv *)(n))
 
 extern int
@@ -134,5 +146,13 @@ nouveau_bo_map(struct nouveau_bo *, uint32_t flags);
 
 extern void
 nouveau_bo_unmap(struct nouveau_bo *);
+
+extern void
+nouveau_bo_emit_reloc(struct nouveau_channel *chan, void *ptr,
+		      struct nouveau_bo *, uint32_t data, uint32_t flags,
+		      uint32_t vor, uint32_t tor);
+
+extern void
+nouveau_bo_validate(struct nouveau_channel *);
 
 #endif

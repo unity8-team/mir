@@ -10,6 +10,7 @@
 extern int  nouveau_dma_wait(struct nouveau_channel *chan, int size);
 extern void nouveau_dma_subc_bind(struct nouveau_grobj *);
 extern void nouveau_dma_channel_init(struct nouveau_channel *);
+extern void nouveau_dma_kickoff(struct nouveau_channel *);
 
 static inline void
 nouveau_dma_out(struct nouveau_channel *userchan, uint32_t data)
@@ -118,30 +119,6 @@ nouveau_dma_beginp(struct nouveau_channel *userchan,
 	chan->dma.push_free -= size;
 #endif
 	return segment;
-}
-
-static inline void
-nouveau_dma_kickoff(struct nouveau_channel *userchan)
-{
-	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
-
-#ifdef NOUVEAU_DMA_DEBUG
-	if (chan->dma.push_free) {
-		NOUVEAU_ERR("Packet incomplete: %d left\n", chan->dma.push_free);
-		return;
-	}
-#endif
-	if (chan->dma.cur != chan->dma.put) {
-		uint32_t put_offset = (chan->dma.cur << 2) + chan->dma.base;
-#ifdef NOUVEAU_DMA_TRACE
-		NOUVEAU_MSG("FIRE_RING %d/0x%08x\n", chan->drm.channel,
-						     put_offset);
-#endif
-		chan->dma.put  = chan->dma.cur;
-		NOUVEAU_DMA_BARRIER;
-		*chan->put     = put_offset;
-		NOUVEAU_DMA_BARRIER;
-	}
 }
 
 static inline void

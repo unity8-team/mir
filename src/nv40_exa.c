@@ -231,7 +231,7 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	static int next_hw_id_offset = 0;
 
 	if (!fp_mem) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
 				   0, 0x1000, &fp_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Couldn't alloc fragprog buffer!\n");
@@ -256,15 +256,15 @@ NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 			map[i] = data;
 		}
 
-		shader->hw_id  = fp_mem->offset;
-		shader->hw_id += next_hw_id_offset;
-
+		shader->hw_id = next_hw_id_offset;
 		next_hw_id_offset += (shader->size * sizeof(uint32_t));
 		next_hw_id_offset = (next_hw_id_offset + 63) & ~63;
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_FP_ADDRESS, 1);
-	OUT_RING  (shader->hw_id | NV40TCL_FP_ADDRESS_DMA0);
+	OUT_RELOC (fp_mem, shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
+		   NV40TCL_FP_ADDRESS_DMA0, NV40TCL_FP_ADDRESS_DMA1);
 	BEGIN_RING(Nv3D, NV40TCL_FP_CONTROL, 1);
 	OUT_RING  (shader->card_priv.NV30FP.num_regs <<
 		   NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
@@ -330,11 +330,12 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		return FALSE;
 
 	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
-	OUT_RING  (NVAccelGetPixmapOffset(pPix));
-	OUT_RING  (fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
-		   NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_DMA0 |
-		   NV40TCL_TEX_FORMAT_NO_BORDER | (0x8000) |
-		   (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT));
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+	OUT_PIXMAPd(pPix, fmt->card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
+		    NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_NO_BORDER |
+		    (0x8000) | (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
+		    NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD,
+		    NV40TCL_TEX_FORMAT_DMA0, NV40TCL_TEX_FORMAT_DMA1);
 	if (pPict->repeat && pPict->repeatType == RepeatNormal) {
 		OUT_RING  (NV40TCL_TEX_WRAP_S_REPEAT |
 			   NV40TCL_TEX_WRAP_T_REPEAT |
@@ -380,14 +381,12 @@ NV40_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PictFormatShort format)
 		return FALSE;
 	}
 
-        uint32_t pitch = (uint32_t)exaGetPixmapPitch(pPix);
-
 	BEGIN_RING(Nv3D, NV40TCL_RT_FORMAT, 3);
 	OUT_RING  (NV40TCL_RT_FORMAT_TYPE_LINEAR |
 		   NV40TCL_RT_FORMAT_ZETA_Z24S8 |
 		   fmt->card_fmt);
-	OUT_RING  (pitch);
-	OUT_RING  (NVAccelGetPixmapOffset(pPix));
+	OUT_RING  (exaGetPixmapPitch(pPix));
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	return TRUE;
 }

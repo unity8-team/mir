@@ -105,3 +105,58 @@ nouveau_dma_subc_bind(struct nouveau_grobj *grobj)
 }
 #endif
 
+void
+nouveau_dma_kickoff(struct nouveau_channel *userchan)
+{
+	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
+	uint32_t put_offset;
+	int i;
+
+	if (chan->dma.cur == chan->dma.put)
+		return;
+
+	if (chan->num_relocs) {
+		nouveau_bo_validate(userchan);
+		
+		for (i = 0; i < chan->num_relocs; i++) {
+			struct nouveau_bo_reloc *r = &chan->relocs[i];
+			uint32_t push;
+
+			if (r->flags & NOUVEAU_BO_LOW) {
+				push = r->bo->base.offset + r->data;
+			} else
+			if (r->flags & NOUVEAU_BO_HIGH) {
+				push = (r->bo->base.offset + r->data) >> 32;
+			} else {
+				push = r->data;
+			}
+
+			if (r->flags & NOUVEAU_BO_OR) {
+				if (r->flags & NOUVEAU_BO_VRAM)
+					push |= r->vor;
+				else
+					push |= r->tor;
+			}
+
+			*r->ptr = push;
+		}
+
+		chan->num_relocs = 0;
+	}
+
+#ifdef NOUVEAU_DMA_DEBUG
+	if (chan->dma.push_free) {
+		NOUVEAU_ERR("Packet incomplete: %d left\n", chan->dma.push_free);
+		return;
+	}
+#endif
+
+	put_offset = (chan->dma.cur << 2) + chan->dma.base;
+#ifdef NOUVEAU_DMA_TRACE
+	NOUVEAU_MSG("FIRE_RING %d/0x%08x\n", chan->drm.channel, put_offset);
+#endif
+	chan->dma.put  = chan->dma.cur;
+	NOUVEAU_DMA_BARRIER;
+	*chan->put     = put_offset;
+	NOUVEAU_DMA_BARRIER;
+}

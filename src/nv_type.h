@@ -361,7 +361,6 @@ typedef struct _NVRec {
     Bool                LockedUp;
 
     CARD32              currentRop;
-    int                 M2MFDirection;
 
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;

@@ -30,6 +30,8 @@ nouveau_channel_alloc(struct nouveau_device *userdev, uint32_t fb_ctxdma,
 		return ret;
 	}
 	chan->base.id = chan->drm.channel;
+	chan->base.vram_handle = chan->drm.fb_ctxdma_handle;
+	chan->base.gart_handle = chan->drm.tt_ctxdma_handle;
 
 	ret = drmMap(nv->fd, chan->drm.ctrl, chan->drm.ctrl_size,
 		     (void*)&chan->user);
@@ -55,6 +57,11 @@ nouveau_channel_alloc(struct nouveau_device *userdev, uint32_t fb_ctxdma,
 		return ret;
 	}
 
+	chan->max_relocs = chan->drm.cmdbuf_size / 4;
+	chan->num_relocs = 0;
+	chan->relocs =
+		malloc(sizeof(struct nouveau_bo_reloc) * chan->max_relocs);
+
 	nouveau_dma_channel_init(&chan->base);
 
 	*userchan = &chan->base;
@@ -76,6 +83,11 @@ nouveau_channel_free(struct nouveau_channel **userchan)
 
 		nv = nouveau_device((*userchan)->device);
 		*userchan = NULL;
+
+		FIRE_RING_CH(*userchan);
+
+		if (chan->relocs)
+			free(chan->relocs);
 
 		cf.channel = chan->drm.channel;
 		drmCommandWrite(nv->fd, DRM_NOUVEAU_CHANNEL_FREE,

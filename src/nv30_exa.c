@@ -364,9 +364,8 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	else
 		card_filter = 1;
 
-	BEGIN_RING(Nv3D,
-			NV34_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 8);
-	OUT_RING  (NVAccelGetPixmapOffset(pPix));
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_TX_OFFSET(unit), 8);
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
 	OUT_RING  ((2 << 4) /* 2D */ |
 			(fmt->card_fmt << 8) |
@@ -417,7 +416,7 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	OUT_RING  ((h<<16)|y);
 	OUT_RING  (fmt->card_fmt); /* format */
 	OUT_RING  (pitch << 16 | pitch);
-	OUT_RING  (NVAccelGetPixmapOffset(pPix));
+	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  ((w-1+x)<<16);
 	OUT_RING  ((h-1+y)<<16);

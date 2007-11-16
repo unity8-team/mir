@@ -6,6 +6,9 @@
 struct nouveau_channel {
 	struct nouveau_device *device;
 	int id;
+
+	uint32_t vram_handle;
+	uint32_t gart_handle;
 };
 
 #endif
