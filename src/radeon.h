@@ -543,7 +543,7 @@ typedef enum {
 	CARD_PCIE
 } RADEONCardType;
 
-typedef struct _atomBIOSHandle *atomBIOSHandlePtr;
+typedef struct _atomBiosHandle *atomBiosHandlePtr;
 
 typedef struct {
     EntityInfoPtr     pEnt;
@@ -919,8 +919,9 @@ typedef struct {
     RADEONMacModel    MacModel;
 #endif
 
-    atomBIOSHandlePtr atomBIOS;
+    atomBiosHandlePtr atomBIOS;
     unsigned long FbFreeStart, FbFreeSize;
+    unsigned char*      BIOSCopy;
 
     int cursor_width;
     int cursor_height;

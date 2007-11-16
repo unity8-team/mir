@@ -47,7 +47,7 @@ Revision History:
 	//    typedef __int64             int64_t;
 		typedef unsigned __int32    uint32_t;
 		typedef __int32             int32_t;
-#elif defined (linux) || defined (__NetBSD__)
+#elif defined (__linux__) || defined (__NetBSD__) || defined(__sun) || defined(__OpenBSD__) || defined (__FreeBSD__)
 		typedef unsigned int uint32_t;
 		typedef int int32_t;
 	#else
@@ -55,7 +55,11 @@ Revision History:
 		typedef signed long         int32_t;
 	#endif
 		typedef unsigned char       uint8_t;
+#if (defined(__sun) && defined(_CHAR_IS_SIGNED))
+		typedef char                int8_t;
+#else
 		typedef signed char         int8_t;
+#endif
 		typedef unsigned short      uint16_t;
 		typedef signed short        int16_t;
 	#endif

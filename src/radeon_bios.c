@@ -137,21 +137,20 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 
     if (info->IsAtomBios) {
 #if 1
-        AtomBIOSArg atomBiosArg;
+        AtomBiosArgRec atomBiosArg;
 
-	if (RHDAtomBIOSFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
+	if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
 	    info->atomBIOS = atomBiosArg.ptr;
 	}
 
         atomBiosArg.fb.start = info->FbFreeStart;
         atomBiosArg.fb.size = info->FbFreeSize;
-        if (RHDAtomBIOSFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
+        if (RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
 			    &atomBiosArg) == ATOM_SUCCESS) {
 
 	    info->FbFreeStart = atomBiosArg.fb.start;
 	    info->FbFreeSize = atomBiosArg.fb.size;
         }
-        //rhdTestAtomBIOS(info->atomBIOS);
 #endif
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }

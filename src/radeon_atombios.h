@@ -29,13 +29,19 @@
 
 #include "radeon.h"
 
-typedef enum {
+# ifdef ATOM_BIOS
+
+typedef enum _AtomBiosRequestID {
     ATOMBIOS_INIT,
     ATOMBIOS_TEARDOWN,
+# ifdef ATOM_BIOS_PARSER
     ATOMBIOS_EXEC,
+#endif
     ATOMBIOS_ALLOCATE_FB_SCRATCH,
-    ATOM_QUERY_FUNCS = 0x1000,
-    GET_DEFAULT_ENGINE_CLOCK = ATOM_QUERY_FUNCS,
+    ATOMBIOS_GET_CONNECTORS,
+    ATOMBIOS_GET_PANEL_MODE,
+    ATOMBIOS_GET_PANEL_EDID,
+    GET_DEFAULT_ENGINE_CLOCK,
     GET_DEFAULT_MEMORY_CLOCK,
     GET_MAX_PIXEL_CLOCK_PLL_OUTPUT,
     GET_MIN_PIXEL_CLOCK_PLL_OUTPUT,
@@ -43,58 +49,67 @@ typedef enum {
     GET_MIN_PIXEL_CLOCK_PLL_INPUT,
     GET_MAX_PIXEL_CLK,
     GET_REF_CLOCK,
-    ATOM_VRAM_QUERIES,
-    GET_FW_FB_START = ATOM_VRAM_QUERIES,
+    GET_FW_FB_START,
     GET_FW_FB_SIZE,
-    ATOM_TMDS_QUERIES,
-    ATOM_TMDS_FREQUENCY = ATOM_TMDS_QUERIES,
+    ATOM_TMDS_FREQUENCY,
     ATOM_TMDS_PLL_CHARGE_PUMP,
     ATOM_TMDS_PLL_DUTY_CYCLE,
     ATOM_TMDS_PLL_VCO_GAIN,
     ATOM_TMDS_PLL_VOLTAGE_SWING,
+    ATOM_LVDS_SUPPORTED_REFRESH_RATE,
+    ATOM_LVDS_OFF_DELAY,
+    ATOM_LVDS_SEQ_DIG_ONTO_DE,
+    ATOM_LVDS_SEQ_DE_TO_BL,
+    ATOM_LVDS_DITHER,
+    ATOM_LVDS_DUALLINK,
+    ATOM_LVDS_24BIT,
+    ATOM_LVDS_GREYLVL,
+    ATOM_LVDS_FPDI,
+    ATOM_GPIO_QUERIES,
+    ATOM_GPIO_I2C_CLK_MASK,
+    ATOM_DAC1_BG_ADJ,
+    ATOM_DAC1_DAC_ADJ,
+    ATOM_DAC1_FORCE,
+    ATOM_DAC2_CRTC2_BG_ADJ,
+    ATOM_DAC2_CRTC2_DAC_ADJ,
+    ATOM_DAC2_CRTC2_FORCE,
+    ATOM_DAC2_CRTC2_MUX_REG_IND,
+    ATOM_DAC2_CRTC2_MUX_REG_INFO,
     FUNC_END
-} AtomBiosFunc;
+} AtomBiosRequestID;
 
-typedef enum {
+typedef enum _AtomBiosResult {
     ATOM_SUCCESS,
     ATOM_FAILED,
     ATOM_NOT_IMPLEMENTED
 } AtomBiosResult;
 
-typedef struct {
+typedef struct AtomExec {
     int index;
     pointer pspace;
     pointer *dataSpace;
-} AtomExec, *AtomExecPtr;
+} AtomExecRec, *AtomExecPtr;
 
-typedef struct {
+typedef struct AtomFb {
     unsigned int start;
     unsigned int size;
-} AtomFb, *AtomFbPtr;
+} AtomFbRec, *AtomFbPtr;
 
-typedef union
+typedef union AtomBiosArg
 {
     CARD32 val;
-  
-    pointer ptr;
-    atomBIOSHandlePtr atomp;
-    AtomExec exec;
-    AtomFb fb;
-} AtomBIOSArg, *AtomBIOSArgPtr;
-
-
-extern void
-atombios_get_command_table_version(atomBIOSHandlePtr atomBIOS, int index, int *major, int *minor);
+    struct rhdConnectorInfo	*connectorInfo;
+    unsigned char*		EDIDBlock;
+    atomBiosHandlePtr		atomhandle;
+    DisplayModePtr		mode;
+    AtomExecRec			exec;
+    AtomFbRec			fb;
+} AtomBiosArgRec, *AtomBiosArgPtr;
 
 extern AtomBiosResult
-RHDAtomBIOSFunc(int scrnIndex, atomBIOSHandlePtr handle, AtomBiosFunc func,
-		    AtomBIOSArgPtr data);
+RHDAtomBiosFunc(int scrnIndex, atomBiosHandlePtr handle,
+		AtomBiosRequestID id, AtomBiosArgPtr data);
 
-/* only for testing */
-void rhdTestAtomBIOS(atomBIOSHandlePtr atomBIOS);
-
-#ifdef ATOM_BIOS
-//# include "rhd_atomwrapper.h"
 # include "xf86int10.h"
 # ifdef ATOM_BIOS_PARSER
 #  define INT8 INT8
@@ -102,7 +117,7 @@ void rhdTestAtomBIOS(atomBIOSHandlePtr atomBIOS);
 #  define INT32 INT32
 #  include "CD_Common_Types.h"
 # else
-#  ifndef ULONG 
+#  ifndef ULONG
 typedef unsigned int ULONG;
 #   define ULONG ULONG
 #  endif
@@ -110,14 +125,28 @@ typedef unsigned int ULONG;
 typedef unsigned char UCHAR;
 #   define UCHAR UCHAR
 #  endif
-#  ifndef USHORT 
+#  ifndef USHORT
 typedef unsigned short USHORT;
 #   define USHORT USHORT
 #  endif
 # endif
 
-#include "atombios.h"
+# include "atombios.h"
+# include "ObjectID.h"
 
+/*
+ * This works around a bug in atombios.h where
+ * ATOM_MAX_SUPPORTED_DEVICE_INFO is specified incorrectly.
+ */
+
+#define ATOM_MAX_SUPPORTED_DEVICE_INFO_HD (ATOM_DEVICE_RESERVEDF_INDEX+1)
+typedef struct _ATOM_SUPPORTED_DEVICES_INFO_HD
+{
+    ATOM_COMMON_TABLE_HEADER      sHeader;
+    USHORT                        usDeviceSupport;
+    ATOM_CONNECTOR_INFO_I2C       asConnInfo[ATOM_MAX_SUPPORTED_DEVICE_INFO_HD];
+    ATOM_CONNECTOR_INC_SRC_BITMAP asIntSrcInfo[ATOM_MAX_SUPPORTED_DEVICE_INFO_HD];
+} ATOM_SUPPORTED_DEVICES_INFO_HD;
 
 typedef struct _atomDataTables
 {
@@ -145,6 +174,7 @@ typedef struct _atomDataTables
         ATOM_SUPPORTED_DEVICES_INFO     *SupportedDevicesInfo;
         ATOM_SUPPORTED_DEVICES_INFO_2   *SupportedDevicesInfo_2;
         ATOM_SUPPORTED_DEVICES_INFO_2d1 *SupportedDevicesInfo_2d1;
+        ATOM_SUPPORTED_DEVICES_INFO_HD  *SupportedDevicesInfo_HD;
     } SupportedDevicesInfo;
     ATOM_GPIO_I2C_INFO                  *GPIO_I2C_Info;
     ATOM_VRAM_USAGE_BY_FIRMWARE         *VRAM_UsageByFirmware;
@@ -184,19 +214,20 @@ typedef struct _atomDataTables
     ATOM_POWER_SOURCE_INFO              *PowerSourceInfo;
 } atomDataTables, *atomDataTablesPtr;
 
-typedef struct _atomBIOSHandle {
+typedef struct _atomBiosHandle {
     int scrnIndex;
     unsigned char *BIOSBase;
     atomDataTablesPtr atomDataPtr;
     pointer *scratchBase;
     CARD32 fbBase;
-    int cmd_offset;
 #if XSERVER_LIBPCIACCESS
     struct pci_device *device;
 #else
     PCITAG PciTag;
 #endif
-} atomBIOSHandle;
+    unsigned int BIOSImageSize;
+} atomBiosHandleRec;
 
-#endif
+# endif
+
 #endif /*  RHD_ATOMBIOS_H_ */
