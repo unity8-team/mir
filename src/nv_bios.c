@@ -1344,7 +1344,7 @@ static Bool init_macro(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	return TRUE;
 }
 
-static Bool init_done(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_done(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_DONE   opcode: 0x71 ('q')
 	 *
@@ -1702,10 +1702,10 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	/* PINS version 0x5.0x11 BIOSen have version 1 like tables, but no version field,
 	 * and miss one of the spread spectrum/PWM bytes.
 	 * This could affect early GF2Go parts (not seen any appropriate ROMs though).
-	 * Here we assume that a version of 0x00 matches this case (combining with a
+	 * Here we assume that a version of 0x05 matches this case (combining with a
 	 * PINS version check would be better), as the common case for the panel type
 	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
-	case 0x00:	/* some NV11, 15, 16 */
+	case 0x05:	/* some NV10, 11, 15, 16 */
 		/* note that in this version the lvdsmanufacturertable is not defined */
 		ofs = 6;
 		recordlen = 42;
@@ -2075,13 +2075,10 @@ read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_version, uint16_
 	}
 }
 
-#define G5_NV43_FIXED_LOC 0xe31b
-
 static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t dcbptr, i2ctabptr = 0;
-	Bool is_g5_nv43 = FALSE;
 	uint8_t *dcbtable;
 	uint8_t dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	Bool configblock = TRUE;
@@ -2094,14 +2091,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
 
 	if (dcbptr == 0x0) {
-		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV43) {
-			dcbptr = G5_NV43_FIXED_LOC;
-			is_g5_nv43 = TRUE;
-		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "No Display Configuration Block pointer found\n");
-			return 0;
-		}
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "No Display Configuration Block pointer found\n");
+		return 0;
 	}
 
 	dcbtable = &bios->data[dcbptr];
@@ -2171,12 +2163,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (configblock)
 			config = le32_to_cpu(*(uint32_t *)&dcbtable[headerlen + confofs + recordlength * i]);
 
-		/* I think this is a good descriminator, but I don't understand
-		 * pre v2.0 DCBs so well, so maybe those need testing against
-		 * 0xffffffff */
 		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables
 		 * can be discontinuous */
-		if ((connection & 0x0f000000) == 0x0f000000) /* end of records */
+		if ((connection & 0x0000000f) == 0x0000000f) /* end of records */
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x\n", i, connection);
@@ -2184,10 +2173,6 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 	}
 	pNv->dcb_table.entries = i;
-
-	/* the G5 6600 uses a relative address */
-	if (is_g5_nv43)
-		i2ctabptr += G5_NV43_FIXED_LOC;
 
 	read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
 
