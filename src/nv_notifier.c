@@ -20,6 +20,7 @@ struct drm_nouveau_notifierobj_alloc *
 NVNotifierAlloc(ScrnInfoPtr pScrn, uint32_t handle)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
 	struct drm_nouveau_notifierobj_alloc *notifier;
 	int ret;
 
@@ -32,7 +33,7 @@ NVNotifierAlloc(ScrnInfoPtr pScrn, uint32_t handle)
 	notifier->channel = pNv->fifo.channel;
 	notifier->handle  = handle;
 	notifier->count   = 1;
-	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_NOTIFIEROBJ_ALLOC,
+	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_NOTIFIEROBJ_ALLOC,
 				  notifier, sizeof(*notifier));
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

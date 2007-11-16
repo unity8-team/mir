@@ -24,6 +24,7 @@
 
 NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 {
+	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
 	struct drm_nouveau_mem_alloc memalloc;
 	NVAllocRec *mem;
 
@@ -34,7 +35,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	memalloc.flags         = type | NOUVEAU_MEM_MAPPED;
 	memalloc.size          = size;
 	memalloc.alignment     = 0;
-	if (drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
+	if (drmCommandWriteRead(nv->fd, DRM_NOUVEAU_MEM_ALLOC, &memalloc,
 				sizeof(memalloc))) {
 		ErrorF("NOUVEAU_MEM_ALLOC failed.  "
 			"flags=0x%08x, size=%lld (%d)\n",
@@ -46,7 +47,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 	mem->size   = memalloc.size;
 	mem->offset = memalloc.offset;
 
-	if (drmMap(pNv->drm_fd, memalloc.map_handle, mem->size, &mem->map)) {
+	if (drmMap(nv->fd, memalloc.map_handle, mem->size, &mem->map)) {
 		ErrorF("drmMap() failed. handle=0x%x, size=%lld (%d)\n",
 		       memalloc.map_handle, (long long)mem->size, errno);
 		mem->map  = NULL;
@@ -59,6 +60,7 @@ NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size)
 
 void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
 {
+	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
 	struct drm_nouveau_mem_free memfree;
 
 	if (mem) {
@@ -72,7 +74,7 @@ void NVFreeMemory(NVPtr pNv, NVAllocRec *mem)
 		memfree.flags = mem->type;
 		memfree.offset = mem->offset;
 
-		if (drmCommandWriteRead(pNv->drm_fd,
+		if (drmCommandWriteRead(nv->fd,
 					DRM_NOUVEAU_MEM_FREE, &memfree,
 					sizeof(memfree))) {
 			ErrorF("NOUVEAU_MEM_FREE failed.  "

@@ -33,8 +33,6 @@ Bool NVNotifierWaitStatus(ScrnInfoPtr, struct drm_nouveau_notifierobj_alloc *,
 			  uint32_t status, uint32_t timeout);
 
 /* in nv_dri.c */
-unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param);
-Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value);
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];

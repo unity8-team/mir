@@ -208,14 +208,15 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 
 Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class)
 {
+	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
 	struct drm_nouveau_grobj_alloc cto;
 	int ret;
 
 	cto.channel = pNv->fifo.channel;
 	cto.handle  = handle;
 	cto.class   = class;
-	ret = drmCommandWrite(pNv->drm_fd, DRM_NOUVEAU_GROBJ_ALLOC,
-					   &cto, sizeof(cto));
+	ret = drmCommandWrite(nv->fd, DRM_NOUVEAU_GROBJ_ALLOC,
+			      &cto, sizeof(cto));
 	return ret == 0;
 }
 
@@ -245,16 +246,19 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 		else
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid value \"%s\" for CBLocation\n", s);
 	}
-	NVDRMSetParam(pNv, NOUVEAU_SETPARAM_CMDBUF_LOCATION, cb_location);
+	nouveau_device_set_param(pNv->dev, NOUVEAU_SETPARAM_CMDBUF_LOCATION,
+				 cb_location);
 
 	/* CBSize == size of space reserved for *all* FIFOs in MiB */
 	if (xf86GetOptValInteger(pNv->Options, OPTION_CMDBUF_SIZE, &cb_size))
-		NVDRMSetParam(pNv, NOUVEAU_SETPARAM_CMDBUF_SIZE, (cb_size<<20));
+		nouveau_device_set_param(pNv->dev, NOUVEAU_SETPARAM_CMDBUF_SIZE,
+					 (cb_size << 20));
 }
 
 Bool NVInitDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
 	int i, ret;
 
 	NVInitDmaCB(pScrn);
@@ -264,7 +268,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 
 	pNv->fifo.fb_ctxdma_handle = NvDmaFB;
 	pNv->fifo.tt_ctxdma_handle = NvDmaTT;
-	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_CHANNEL_ALLOC,
+	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_CHANNEL_ALLOC,
 				  &pNv->fifo, sizeof(pNv->fifo));
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -272,7 +276,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	ret = drmMap(pNv->drm_fd, pNv->fifo.cmdbuf, pNv->fifo.cmdbuf_size,
+	ret = drmMap(nv->fd, pNv->fifo.cmdbuf, pNv->fifo.cmdbuf_size,
 		     (void *)&pNv->dmaBase);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -280,7 +284,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	ret = drmMap(pNv->drm_fd, pNv->fifo.ctrl, pNv->fifo.ctrl_size,
+	ret = drmMap(nv->fd, pNv->fifo.ctrl, pNv->fifo.ctrl_size,
 		     (void *)&pNv->FIFO);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -288,7 +292,7 @@ Bool NVInitDma(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	ret = drmMap(pNv->drm_fd, pNv->fifo.notifier, pNv->fifo.notifier_size,
+	ret = drmMap(nv->fd, pNv->fifo.notifier, pNv->fifo.notifier_size,
 		     (drmAddressPtr)&pNv->NotifierBlock);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

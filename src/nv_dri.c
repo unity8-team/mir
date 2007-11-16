@@ -9,30 +9,6 @@
 #include "nv_dripriv.h"
 #include "nv_dri.h"
 
-Bool NVDRMSetParam(NVPtr pNv, unsigned int param, unsigned int value)
-{
-	struct drm_nouveau_setparam setparam;
-	int ret;
-
-	setparam.param = param;
-	setparam.value = value;
-	ret = drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_SETPARAM, &setparam,
-			sizeof(setparam));
-	if (ret)
-		return FALSE;
-	return TRUE;
-}
-
-unsigned int NVDRMGetParam(NVPtr pNv, unsigned int param)
-{
-	struct drm_nouveau_getparam getparam;
-
-	getparam.param = param;
-	drmCommandWriteRead(pNv->drm_fd, DRM_NOUVEAU_GETPARAM, &getparam, sizeof(getparam));
-
-	return getparam.value;
-}
-
 static Bool NVCreateContext(ScreenPtr pScreen, VisualPtr visual,
 		drm_context_t hwContext, void *pVisualConfigPriv,
 		DRIContextType contextStore)
@@ -277,6 +253,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	ScreenPtr pScreen;
 	pScreen = screenInfo.screens[pScrn->scrnIndex];
 	int drm_page_size;
+	int drm_fd;
 
 	if (!NVDRICheckModules(pScrn))
 		return FALSE;
@@ -332,7 +309,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->createDummyCtx     = FALSE;
 	pDRIInfo->createDummyCtxPriv = FALSE;
 
-	if (!DRIScreenInit(pScreen, pDRIInfo, &pNv->drm_fd)) {
+	if (!DRIScreenInit(pScreen, pDRIInfo, &drm_fd)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] DRIScreenInit failed.  Disabling DRI.\n");
 		xfree(pDRIInfo->devPrivate);
@@ -341,9 +318,19 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 		pDRIInfo = NULL;
 		return FALSE;
 	}
+
 	if (!NVDRIInitVisualConfigs(pScreen)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] NVDRIInitVisualConfigs failed.  Disabling DRI.\n");
+		xfree(pDRIInfo->devPrivate);
+		pDRIInfo->devPrivate = NULL;
+		DRIDestroyInfoRec(pDRIInfo);
+		pDRIInfo = NULL;
+		return FALSE;
+	}
+
+	if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
+		xf86DrvMsg(pScreen->myNum, X_ERROR, "Error creating device\n");
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);

@@ -78,4 +78,6 @@
 #include "nv50_output.h"
 #include "nv50_type.h"
 
+#include "nouveau_device.h"
+#include "nouveau_drmif.h"
 #endif /* __NV_INCLUDE_H__ */

@@ -275,12 +275,9 @@ typedef struct _NVRec {
     unsigned long	VRAMPhysicalSize;
     /* Accesible VRAM size (by the GPU) */
     unsigned long	VRAMSize;
-    /* AGP physical address */
-    unsigned long	AGPPhysical;
     /* Accessible AGP size */
     unsigned long	AGPSize;
     /* PCI buffer virtual address */
-    unsigned long 	SGPhysical;
 
     uint32_t *		VBIOS;
     NVAllocRec *        FB;
@@ -298,7 +295,6 @@ typedef struct _NVRec {
     CARD32              MaxVClockFreqKHz;
     CARD32              CrystalFreqKHz;
     CARD32              RamAmountKBytes;
-    int drm_fd;
 
     volatile CARD32 *REGS;
     volatile CARD32 *PCRTC0;
@@ -423,6 +419,9 @@ typedef struct _NVRec {
 		Bool  present;
 		ORNum or;
 	} lvds;
+
+	/* DRM interface */
+	struct nouveau_device *dev;
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {

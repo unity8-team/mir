@@ -1705,16 +1705,12 @@ NVMapMem(ScrnInfoPtr pScrn)
 		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
 		   (unsigned int)(pNv->FB->size >> 20));
 
-	/*XXX: have to get these after we've allocated something, otherwise
-	 *     they're uninitialised in the DRM!
-	 */
-	pNv->VRAMSize     = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_FB_SIZE);
-	pNv->VRAMPhysical = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_FB_PHYSICAL);
-	pNv->AGPSize      = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_AGP_SIZE);
-	pNv->AGPPhysical  = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_AGP_PHYSICAL);
-	if ( ! pNv->AGPSize ) /*if no AGP*/
-		/*use PCI*/
-		pNv->SGPhysical  = NVDRMGetParam(pNv, NOUVEAU_GETPARAM_PCI_PHYSICAL);
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE,
+				 &pNv->VRAMSize);
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_PHYSICAL,
+				 &pNv->VRAMPhysical);
+	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE,
+				 &pNv->AGPSize);
 
 	int gart_scratch_size;
 
@@ -2147,14 +2143,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     /* First init DRI/DRM */
     if (!NVDRIScreenInit(pScrn))
 	return FALSE;
-    
-    ret = drmCommandNone(pNv->drm_fd, DRM_NOUVEAU_CARD_INIT);
-    if (ret) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Error initialising the nouveau kernel module: %d\n",
-		   ret);
-	return FALSE;
-    }
     
     /* Allocate and map memory areas we need */
     if (!NVMapMem(pScrn))
