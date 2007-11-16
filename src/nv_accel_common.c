@@ -58,13 +58,11 @@ static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static int have_object = FALSE;
 
-	if (!have_object) {
-		pNv->Notifier0 = NVNotifierAlloc(pScrn, NvDmaNotifier0);
-		if (!pNv->Notifier0)
+	if (!pNv->notify0) {
+		if (nouveau_notifier_alloc(pNv->chan, NvDmaNotifier0, 1,
+					   &pNv->notify0))
 			return FALSE;
-		have_object = TRUE;
 	}
 
 	return TRUE;

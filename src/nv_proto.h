@@ -19,19 +19,6 @@ Bool   NVI2CInit(ScrnInfoPtr pScrn);
 NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size);
 void        NVFreeMemory(NVPtr pNv, NVAllocRec *mem);
 
-/* in nv_notifier.c */
-struct drm_nouveau_notifierobj_alloc *
-NVNotifierAlloc(ScrnInfoPtr, uint32_t handle);
-void NVNotifierDestroy(ScrnInfoPtr, struct drm_nouveau_notifierobj_alloc *);
-void NVNotifierReset(ScrnInfoPtr, struct drm_nouveau_notifierobj_alloc *);
-uint32_t NVNotifierStatus(ScrnInfoPtr, struct drm_nouveau_notifierobj_alloc *);
-uint32_t NVNotifierErrorCode(ScrnInfoPtr,
-			     struct drm_nouveau_notifierobj_alloc *);
-uint32_t NVNotifierReturnVal(ScrnInfoPtr,
-			     struct drm_nouveau_notifierobj_alloc *);
-Bool NVNotifierWaitStatus(ScrnInfoPtr, struct drm_nouveau_notifierobj_alloc *,
-			  uint32_t status, uint32_t timeout);
-
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);

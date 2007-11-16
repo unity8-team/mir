@@ -393,13 +393,14 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		OUT_RING  ((1<<8)|1);
 		OUT_RING  (0);
 
-		NVNotifierReset(pScrn, pNv->Notifier0);
+		nouveau_notifier_reset(pNv->notify0, 0);
 		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		OUT_RING  (0);
 		BEGIN_RING(NvMemFormat, 0x100, 1);
 		OUT_RING  (0);
 		FIRE_RING();
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
+		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0,
+						 2000))
 			return FALSE;
 
 		if (dst_pitch == line_len) {
@@ -580,13 +581,13 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		OUT_RING  ((1<<8)|1);
 		OUT_RING  (0);
 
-		NVNotifierReset(pScrn, pNv->Notifier0);
+		nouveau_notifier_reset(pNv->notify0, 0);
 		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		OUT_RING  (0);
 		BEGIN_RING(NvMemFormat, 0x100, 1);
 		OUT_RING  (0);
 		FIRE_RING();
-		if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 2000))
+		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2000))
 			return FALSE;
 
 		dst_offset += lc * dst_pitch;

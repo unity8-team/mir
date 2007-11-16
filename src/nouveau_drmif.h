@@ -8,6 +8,7 @@
 #include "nouveau_device.h"
 #include "nouveau_channel.h"
 #include "nouveau_grobj.h"
+#include "nouveau_notifier.h"
 
 struct nouveau_device_priv {
 	struct nouveau_device base;
@@ -83,15 +84,23 @@ extern int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
 			       int class, struct nouveau_grobj **);
 extern void nouveau_grobj_free(struct nouveau_grobj **);
 
-#if 0
+
+struct nouveau_notifier_priv {
+	struct nouveau_notifier base;
+
+	struct drm_nouveau_notifierobj_alloc drm;
+	volatile void *map;
+};
+#define nouveau_notifier(n) \
+	((n) ? (struct nouveau_notifier_priv *)(n) : NULL)
+
 extern int nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
-				  int count, struct nouveau_grobj **);
-extern void nouveau_notifier_free(struct nouveau_grobj **);
-extern void nouveau_notifier_reset(struct nouveau_grobj *, int id);
-extern uint32_t nouveau_notifier_status(struct nouveau_grobj *, int id);
-extern uint32_t nouveau_notifier_return_val(struct nouveau_grobj *, int id);
-extern int nouveau_notifier_wait_status(struct nouveau_grobj *, int id,
+				  int count, struct nouveau_notifier **);
+extern void nouveau_notifier_free(struct nouveau_notifier **);
+extern void nouveau_notifier_reset(struct nouveau_notifier *, int id);
+extern uint32_t nouveau_notifier_status(struct nouveau_notifier *, int id);
+extern uint32_t nouveau_notifier_return_val(struct nouveau_notifier *, int id);
+extern int nouveau_notifier_wait_status(struct nouveau_notifier *, int id,
 					int status, int timeout);
-#endif
 
 #endif

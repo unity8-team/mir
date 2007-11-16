@@ -173,13 +173,15 @@ void NVSync(ScrnInfoPtr pScrn)
 	}
 
 	/* Wait for channel to go completely idle */
-	NVNotifierReset(pScrn, pNv->Notifier0);
+	nouveau_notifier_reset(pNv->notify0, 0);
 	BEGIN_RING(grobj, 0x104, 1);
 	OUT_RING  (0);
 	BEGIN_RING(grobj, 0x100, 1);
 	OUT_RING  (0);
 	FIRE_RING();
-	if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, timeout))
+	if (nouveau_notifier_wait_status(pNv->notify0, 0,
+					 NV_NOTIFY_STATE_STATUS_COMPLETED,
+					 timeout))
 		NVLockedUp(pScrn);
 }
 

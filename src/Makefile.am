@@ -32,6 +32,8 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_device.c nouveau_device.h nouveau_drmif.h \
 			 nouveau_channel.c nouveau_channel.h \
 			 nouveau_grobj.c nouveau_grobj.h \
+			 nouveau_notifier.c nouveau_notifier.h \
+			 nouveau_class.h \
 			 nv_accel_common.c \
 			 nv_bios.c \
 			 nv_const.h \
@@ -45,11 +47,9 @@ nouveau_drv_la_SOURCES = \
 			 nv_driver.c \
 			 nv_hw.c \
 			 nv_include.h \
-			 nouveau_class.h \
 			 nv_dripriv.h \
 			 nv_local.h \
 			 nv_mem.c \
-			 nv_notifier.c \
 			 nv_proto.h \
 			 nvreg.h \
 			 nv_setup.c \

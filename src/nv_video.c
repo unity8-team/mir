@@ -83,7 +83,7 @@ typedef struct _NVPortPrivRec {
 	int		offset;
 	NVAllocRec * 	TT_mem_chunk[2];
 	int		currentHostBuffer;
-	struct drm_nouveau_notifierobj_alloc *DMANotifier[2];
+	struct nouveau_notifier *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
 
 
@@ -98,7 +98,7 @@ XV_DMA_NOTIFIER_FREE=2, //notifier allocated, ready for use
 /* We have six notifiers available, they are not allocated at startup */
 int XvDMANotifierStatus[6]= { XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC ,
 					XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC , XV_DMA_NOTIFIER_NOALLOC };
-struct drm_nouveau_notifierobj_alloc * XvDMANotifiers[6];
+struct nouveau_notifier *XvDMANotifiers[6];
 
 /* NVPutImage action flags */
 enum {
@@ -298,33 +298,32 @@ NVStopOverlay (ScrnInfoPtr pScrn)
  *
  * @return a notifier instance or NULL on error
  */
-static struct drm_nouveau_notifierobj_alloc * NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
+static struct nouveau_notifier *
+NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
 {
-int i;
-for ( i = 0; i < 6; i ++ )
-	{
-	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_INUSE ) 
-		continue;
-	
-	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_FREE )
-		{
-		XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
-		return XvDMANotifiers[i];
-		}
-	
-	if ( XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_NOALLOC )
-		{
-		XvDMANotifiers[i] = NVNotifierAlloc(pScrn, NvDmaXvNotifier0 + i);
-		if (XvDMANotifiers[i]) 
-			{
+	NVPtr pNv = NVPTR(pScrn);
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_INUSE) 
+			continue;
+
+		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_FREE) {
 			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
 			return XvDMANotifiers[i];
-			}
-		else return NULL;
+		}
+
+		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_NOALLOC) {
+			if (nouveau_notifier_alloc(pNv->chan,
+						   NvDmaXvNotifier0 + i,
+						   1, &XvDMANotifiers[i]))
+				return NULL;
+			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
+			return XvDMANotifiers[i];
 		}
 	}
-	
-return NULL;
+
+	return NULL;
 }
 
 /**
@@ -333,7 +332,8 @@ return NULL;
  *
  * 
  */
-static void NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct drm_nouveau_notifierobj_alloc * target)
+static void
+NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier *target)
 {
 int i;
 for ( i = 0; i < 6; i ++ )
@@ -412,12 +412,12 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	
 	if ( pPriv->TT_mem_chunk[ 0 ] && pPriv->DMANotifier [ 0 ] )
 		{
-		NVNotifierWaitStatus(pScrn, pPriv->DMANotifier [ 0 ] ,  0, 1000);
+		nouveau_notifier_wait_status(pPriv->DMANotifier[0], 0, 0, 1000);
 		}
 	
 	if ( pPriv->TT_mem_chunk[ 1 ] && pPriv->DMANotifier [ 1 ] )
 		{
-		NVNotifierWaitStatus(pScrn, pPriv->DMANotifier [ 1 ] , 0, 1000);
+		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1000);
 		} 		
 		
 	if(pPriv->TT_mem_chunk[0]) {
@@ -1610,7 +1610,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		if ( pPriv->DMANotifier [ pPriv->currentHostBuffer ] )
 			{
 			//xf86DrvMsg(0, X_INFO, "Waiting for notifier %p (%d)\n", pPriv->DMANotifier[pPriv->currentHostBuffer], pPriv->currentHostBuffer);
-			if (!NVNotifierWaitStatus(pScrn, pPriv->DMANotifier[pPriv->currentHostBuffer], 0, 0))
+			if (nouveau_notifier_wait_status(pPriv->DMANotifier[pPriv->currentHostBuffer], 0, 0, 0))
 				return FALSE;
 			}
 		else 
@@ -1717,10 +1717,10 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			
 		if ( destination_buffer == pNv->GARTScratch ) 
 			{
-			NVNotifierReset(pScrn, pNv->Notifier0);
+			nouveau_notifier_reset(pNv->notify0, 0);
 			}
 		else {
-			NVNotifierReset(pScrn, pPriv->DMANotifier[pPriv->currentHostBuffer]);
+			nouveau_notifier_reset(pPriv->DMANotifier[pPriv->currentHostBuffer], 0);
 			BEGIN_RING(NvMemFormat,
 				   NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 			OUT_RING  (pPriv->DMANotifier[pPriv->currentHostBuffer]->handle);
@@ -1741,7 +1741,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		FIRE_RING();			
 
 		if ( destination_buffer == pNv->GARTScratch ) 
-			if (!NVNotifierWaitStatus(pScrn, pNv->Notifier0, 0, 0))
+			if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 0))
 				return FALSE;
 		}
 	else { //GART is too small, we fallback on CPU copy
