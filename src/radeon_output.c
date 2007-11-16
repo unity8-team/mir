@@ -1039,11 +1039,12 @@ static void RADEONInitDACRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->dac_macro_cntl = info->SavedReg.dac_macro_cntl;
 }
 
-/* XXX: fix me */
 static void
-RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
+RADEONInitTvDacCntl(xf86OutputPtr output, RADEONSavePtr save)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (info->ChipFamily == CHIP_FAMILY_R420 ||
 	info->ChipFamily == CHIP_FAMILY_RV410) {
@@ -1064,10 +1065,11 @@ RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
 			       RADEON_TV_DAC_GDACPD |
 			       RADEON_TV_DAC_GDACPD);
     }
-    /* FIXME: doesn't make sense, this just replaces the previous value... */
+
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
-			 RADEON_TV_DAC_NHOLD |
-			  RADEON_TV_DAC_STD_PS2);
+			  RADEON_TV_DAC_NHOLD |
+			  RADEON_TV_DAC_STD_PS2 |
+			  radeon_output->tv_dac_adj);
 
 }
 
@@ -1078,7 +1080,7 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
     /*0x0028023;*/
-    RADEONInitTvDacCntl(pScrn, save);
+    RADEONInitTvDacCntl(output, save);
 
     if (IS_R300_VARIANT)
 	save->gpiopad_a = info->SavedReg.gpiopad_a | 1;
@@ -2627,6 +2629,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (radeon_output->type == OUTPUT_STV ||
 	radeon_output->type == OUTPUT_CTV) {
 	RADEONGetTVInfo(output);
+	RADEONGetTVDacAdjInfo(output);
     }
 
     if (radeon_output->DACType == DAC_TVDAC) {
