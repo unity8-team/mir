@@ -1618,8 +1618,6 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     uniDRIDestroyContext(display, screen, pI915XvMC->id);
     XUnlockDisplay(display);
 
-    intelDestroyBatchBuffer();
-
     drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
 
     if (xvmc_driver->fd >= 0)

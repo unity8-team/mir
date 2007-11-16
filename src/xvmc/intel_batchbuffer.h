@@ -37,7 +37,6 @@ extern int VERBOSE;
 extern void intelFlushBatch(Bool);
 extern void intelBatchbufferData(const void *, unsigned, unsigned);
 extern Bool intelInitBatchBuffer(void);
-extern Bool intelFnitBatchBuffer(void);
-extern void intelDestroyBatchBuffer(void);
+extern void intelFiniBatchBuffer(void);
 extern void intelCmdIoctl(char *, unsigned);
 #endif /* _INTEL_BATCHBUFFER_H */

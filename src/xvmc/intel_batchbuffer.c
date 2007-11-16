@@ -82,7 +82,7 @@ void intelWaitIrq(int seq)
    }
 }
 
-void intelDestroyBatchBuffer(void)
+static void intelDestroyBatchBuffer(void)
 {
    if (xvmc_driver->alloc.offset) {
        xvmc_driver->alloc.ptr = NULL;
@@ -122,12 +122,11 @@ Bool intelInitBatchBuffer(void)
 
 void intelFiniBatchBuffer(void)
 {
-    intelFlushBatch(TRUE);
-
     if (xvmc_driver->batchbuffer.map) {
         drmUnmap(xvmc_driver->batchbuffer.map, xvmc_driver->batchbuffer.size);
         xvmc_driver->batchbuffer.map = NULL;
     }
+    intelDestroyBatchBuffer();
 }
 
 void intelBatchbufferRequireSpace(unsigned int sz)
