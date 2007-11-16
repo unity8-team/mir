@@ -1671,9 +1671,13 @@ radeon_detect(xf86OutputPtr output)
 	   * so we can get something on the screen
 	   */
 	  if (((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI) &&
-	       radeon_output->DACType == DAC_TVDAC) ||
-	      (info->IsIGP && radeon_output->type == OUTPUT_DVI))
+	       radeon_output->DACType == DAC_TVDAC)) {
+	      radeon_output->MonType = MT_CRT;
 	      return XF86OutputStatusUnknown;
+	  } else if  (info->IsIGP && radeon_output->type == OUTPUT_DVI) {
+	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
+	      return XF86OutputStatusUnknown;
+	  }
       }
 
       if (connected)
