@@ -122,7 +122,7 @@ nouveau_dma_subc_bind(struct nouveau_grobj *grobj)
 	grobj->subc  = subc;
 	grobj->bound = NOUVEAU_GROBJ_BOUND;
 
-	nouveau_dma_begin(grobj->channel, grobj, 0, 1);
+	BEGIN_RING_CH(grobj->channel, grobj, 0, 1);
 	nouveau_dma_out  (grobj->channel, grobj->handle);
 }
 #endif
