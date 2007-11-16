@@ -142,8 +142,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     }
 
     comm = (struct _intel_xvmc_common *)priv_data;
-    XVMC_INFO("hw xvmc type %d", comm->type);
-    //XXX: how to handle different driver types
+
     if (xvmc_driver == NULL || xvmc_driver->type != comm->type) {
 	switch (comm->type) {
 	    case XVMC_I915_MPEG2_MC:
@@ -158,17 +157,15 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 		priv_data = NULL;
 		return BadValue;
 	}
-    } else {
-	XVMC_ERR("wrong hw xvmc type returned\n");
-	free(priv_data);
-	priv_data = NULL;
-	return BadValue;
     }
 
     if (xvmc_driver == NULL || xvmc_driver->type != comm->type) {
 	XVMC_ERR("fail to load xvmc driver for type %d\n", comm->type);
 	return BadValue;
     }
+
+    XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
+
     xvmc_driver->sarea_size = comm->sarea_size;
     xvmc_driver->batchbuffer.handle = comm->batchbuffer.handle;
     xvmc_driver->batchbuffer.offset = comm->batchbuffer.offset;

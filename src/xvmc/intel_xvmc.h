@@ -60,18 +60,18 @@
 
 #define XVMC_ERR(s, arg...)					\
     do {							\
-	fprintf(stderr, "intel_xvmc err: " s "\n", ##arg);	\
+	fprintf(stderr, "[intel_xvmc] err: " s "\n", ##arg);	\
     } while (0)
 
 #define XVMC_INFO(s, arg...)					\
     do {							\
-	fprintf(stderr, "intel_xvmc info: " s "\n", ##arg);	\
+	fprintf(stderr, "[intel_xvmc] info: " s "\n", ##arg);	\
     } while (0)
 
 #define XVMC_DBG(s, arg...)						\
     do {								\
 	if (DEBUG)							\
-	    fprintf(stderr, "intel_xvmc debug: " s "\n", ##arg);	\
+	    fprintf(stderr, "[intel_xvmc] debug: " s "\n", ##arg);	\
     } while (0)
 
 /* Subpicture fourcc */
@@ -213,4 +213,20 @@ extern struct _intel_xvmc_driver *xvmc_driver;
 
 extern void LOCK_HARDWARE(drm_context_t);
 extern void UNLOCK_HARDWARE(drm_context_t);
+
+static inline const char* intel_xvmc_decoder_string(int flag)
+{
+    switch (flag) {
+	case XVMC_I915_MPEG2_MC:
+	    return "i915/945 MPEG2 MC decoder";
+	case XVMC_I965_MPEG2_MC:
+	    return "i965 MPEG2 MC decoder";
+	case XVMC_I945_MPEG2_VLD:
+	    return "i945 MPEG2 VLD decoder";
+	case XVMC_I965_MPEG2_VLD:
+	    return "i965 MPEG2 VLD decoder";
+	default:
+	    return "Unknown decoder";
+    }
+}
 #endif
