@@ -44,17 +44,6 @@
 #define PCI_CHIP_Q33_G                  0x29D2
 
 /*
- * i915XvMCDrmMap: Holds the data about the DRM maps
- */
-typedef struct _i915XvMCDrmMap {
-    drm_handle_t handle;
-    unsigned long offset;
-    unsigned long size;
-    unsigned long bus_addr;
-    drmAddress map;
-} i915XvMCDrmMap, *i915XvMCDrmMapPtr;
-
-/*
  * i915XvMCContext:
  *	Private Context data referenced via the privData
  *      pointer in the XvMCContext structure.
@@ -82,12 +71,12 @@ typedef struct _i915XvMCContext {
     void *drawHash;
     int deviceID;
 
-    i915XvMCDrmMap sis;
-    i915XvMCDrmMap msb;
-    i915XvMCDrmMap ssb;
-    i915XvMCDrmMap psp;
-    i915XvMCDrmMap psc;
-    i915XvMCDrmMap corrdata;
+    intel_xvmc_drm_map_t sis;
+    intel_xvmc_drm_map_t msb;
+    intel_xvmc_drm_map_t ssb;
+    intel_xvmc_drm_map_t psp;
+    intel_xvmc_drm_map_t psc;
+    intel_xvmc_drm_map_t corrdata;
 } i915XvMCContext;
 
 /*
@@ -102,7 +91,7 @@ typedef struct _i915XvMCSubpicture {
     unsigned int last_flip;
     unsigned int pitch;
     unsigned char palette[3][16];
-    i915XvMCDrmMap srf;
+    intel_xvmc_drm_map_t srf;
     i915XvMCContext *privContext;
 } i915XvMCSubpicture;
 
@@ -122,7 +111,7 @@ typedef struct _i915XvMCSurface {
     unsigned int uvStride;
     unsigned int width;                    /* Dimensions */
     unsigned int height;
-    i915XvMCDrmMap srf;
+    intel_xvmc_drm_map_t srf;
     i915XvMCContext *privContext;
     i915XvMCSubpicture *privSubPic;     /* Subpicture to be blended when
                                          * displaying. NULL if none. */
