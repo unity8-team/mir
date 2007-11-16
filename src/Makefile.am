@@ -34,6 +34,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_grobj.c nouveau_grobj.h \
 			 nouveau_notifier.c nouveau_notifier.h \
 			 nouveau_dma.c nouveau_dma.h \
+			 nouveau_bo.c nouveau_bo.h \
 			 nouveau_class.h \
 			 nv_accel_common.c \
 			 nv_bios.c \
@@ -50,7 +51,6 @@ nouveau_drv_la_SOURCES = \
 			 nv_include.h \
 			 nv_dripriv.h \
 			 nv_local.h \
-			 nv_mem.c \
 			 nv_proto.h \
 			 nvreg.h \
 			 nv_setup.c \

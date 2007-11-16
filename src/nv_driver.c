@@ -1694,15 +1694,7 @@ static Bool
 NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-
-	pNv->FB = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, pNv->VRAMPhysicalSize/2);
-	if (!pNv->FB) {
-		ErrorF("Failed to allocate memory for framebuffer!\n");
-		return FALSE;
-	}
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
-		   (unsigned int)(pNv->FB->size >> 20));
+	int gart_scratch_size;
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE,
 				 &pNv->VRAMSize);
@@ -1711,63 +1703,67 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE,
 				 &pNv->AGPSize);
 
-	int gart_scratch_size;
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			   0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
+		ErrorF("Failed to allocate memory for framebuffer!\n");
+		return FALSE;
+	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+		   (unsigned int)(pNv->FB->size >> 20));
+
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "AGPGART: %dMiB available\n",
 			   (unsigned int)(pNv->AGPSize >> 20));
-
 		if (pNv->AGPSize > (16*1024*1024))
 			gart_scratch_size = 16*1024*1024;
 		else
 			gart_scratch_size = pNv->AGPSize;
-
-		}
-	else {
-
+	} else {
 		gart_scratch_size = (4 << 20) - (1 << 18) ;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "GART: PCI DMA - using %dKiB\n", gart_scratch_size >> 10);
-		
+			   "GART: PCI DMA - using %dKiB\n",
+			   gart_scratch_size >> 10);
 	}
 
 #ifndef __powerpc__
-	/*The DRM allocates AGP memory, PCI as a fallback */
-	pNv->GARTScratch = NVAllocateMemory(pNv, NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE,
-							gart_scratch_size);
-#endif
-	if (!pNv->GARTScratch) {
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
+			   gart_scratch_size, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
-	} else {
+	}
+#endif
+	if (pNv->GART) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "GART: mapped %dMiB at %p\n",
-			   (unsigned int)(pNv->GARTScratch->size >> 20),
-			   pNv->GARTScratch->map);
+			   "GART: Allocated %dMiB as a scratch buffer\n",
+			   (unsigned int)(pNv->GART->size >> 20));
 	}
 
-
-	pNv->Cursor = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 64*1024);
-	if (!pNv->Cursor) {
-		ErrorF("Failed to allocate memory for hardware cursor\n");
-		return FALSE;
-	}
-
-	pNv->ScratchBuffer = NVAllocateMemory(pNv, NOUVEAU_MEM_FB,
-			pNv->Architecture <NV_ARCH_10 ? 8192 : 16384);
-	if (!pNv->ScratchBuffer) {
-		ErrorF("Failed to allocate memory for scratch buffer\n");
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
+			   64 * 1024, &pNv->Cursor)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate memory for hardware cursor\n");
 		return FALSE;
 	}
 
 	if (pNv->Architecture >= NV_ARCH_50) {
-		pNv->CLUT = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 0x1000);
-		if (!pNv->CLUT) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+				   0, 0x1000, &pNv->CLUT)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Failed to allocate memory for CLUT\n");
 			return FALSE;
 		}
+	}
+
+	if (nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR) ||
+	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
+	    (pNv->CLUT && nouveau_bo_map(pNv->CLUT, NOUVEAU_BO_RDWR)) ||
+	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to map pinned buffers\n");
+		return FALSE;
 	}
 
 	return TRUE;
@@ -1782,11 +1778,12 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVFreeMemory(pNv, pNv->FB);
-	NVFreeMemory(pNv, pNv->ScratchBuffer);
-	NVFreeMemory(pNv, pNv->Cursor);
+	nouveau_bo_del(&pNv->FB);
+	nouveau_bo_del(&pNv->GART);
+	nouveau_bo_del(&pNv->Cursor);
+	nouveau_bo_del(&pNv->CLUT);
 
-    return TRUE;
+	return TRUE;
 }
 
 

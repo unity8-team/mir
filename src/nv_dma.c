@@ -113,7 +113,7 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 	 * on defaults if anything's wrong (ie. out of AGP, invalid sizes)
 	 */
 #ifndef __powerpc__
-	if (pNv->GARTScratch)
+	if (pNv->GART)
 		cb_location = NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE;
 	else
 #endif

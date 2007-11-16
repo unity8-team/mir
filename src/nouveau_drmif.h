@@ -9,6 +9,7 @@
 #include "nouveau_channel.h"
 #include "nouveau_grobj.h"
 #include "nouveau_notifier.h"
+#include "nouveau_bo.h"
 
 struct nouveau_device_priv {
 	struct nouveau_device base;
@@ -90,13 +91,48 @@ struct nouveau_notifier_priv {
 };
 #define nouveau_notifier(n) ((struct nouveau_notifier_priv *)(n))
 
-extern int nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
-				  int count, struct nouveau_notifier **);
-extern void nouveau_notifier_free(struct nouveau_notifier **);
-extern void nouveau_notifier_reset(struct nouveau_notifier *, int id);
-extern uint32_t nouveau_notifier_status(struct nouveau_notifier *, int id);
-extern uint32_t nouveau_notifier_return_val(struct nouveau_notifier *, int id);
-extern int nouveau_notifier_wait_status(struct nouveau_notifier *, int id,
-					int status, int timeout);
+extern int
+nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle, int count,
+		       struct nouveau_notifier **);
+
+extern void
+nouveau_notifier_free(struct nouveau_notifier **);
+
+extern void
+nouveau_notifier_reset(struct nouveau_notifier *, int id);
+
+extern uint32_t
+nouveau_notifier_status(struct nouveau_notifier *, int id);
+
+extern uint32_t
+nouveau_notifier_return_val(struct nouveau_notifier *, int id);
+
+extern int
+nouveau_notifier_wait_status(struct nouveau_notifier *, int id, int status,
+			     int timeout);
+
+struct nouveau_bo_priv {
+	struct nouveau_bo base;
+
+	struct drm_nouveau_mem_alloc drm;
+	void *map;
+};
+#define nouveau_bo(n) ((struct nouveau_bo_priv *)(n))
+
+extern int
+nouveau_bo_new(struct nouveau_device *, uint32_t flags, int align, int size,
+	       struct nouveau_bo **);
+
+extern int
+nouveau_bo_ref(struct nouveau_device *, uint32_t handle, struct nouveau_bo **);
+
+extern void
+nouveau_bo_del(struct nouveau_bo **);
+
+extern int
+nouveau_bo_map(struct nouveau_bo *, uint32_t flags);
+
+extern void
+nouveau_bo_unmap(struct nouveau_bo *);
 
 #endif

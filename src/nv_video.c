@@ -78,10 +78,10 @@ typedef struct _NVPortPrivRec {
 	Bool		iturbt_709;
 	Bool		blitter;
 	Bool		SyncToVBlank;
-	NVAllocRec *	video_mem;
+	struct nouveau_bo *video_mem;
 	int		pitch;
 	int		offset;
-	NVAllocRec * 	TT_mem_chunk[2];
+	struct nouveau_bo *TT_mem_chunk[2];
 	int		currentHostBuffer;
 	struct nouveau_notifier *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
@@ -353,19 +353,28 @@ XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_FREE;
  * @param size size of requested memory segment
  * @return pointer to the allocated memory
  */
-static NVAllocRec *
-NVAllocateVideoMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
+static struct nouveau_bo *
+NVAllocateVideoMemory(ScrnInfoPtr pScrn, struct nouveau_bo *mem, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo = NULL;
 
-
-	if(mem) {
+	if (mem) {
 		if(mem->size >= size)
 			return mem;
-		NVFreeMemory(pNv, mem);
+		nouveau_bo_del(&mem);
 	}
 
-	return NVAllocateMemory(pNv, NOUVEAU_MEM_FB, size); /* align 32? */
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
+			   size, &bo))
+		return NULL;
+
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR)) {
+		nouveau_bo_del(&bo);
+		return NULL;
+	}
+
+	return bo;
 }
 
 /**
@@ -377,18 +386,28 @@ NVAllocateVideoMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
  * @param size size of requested memory segment
  * @return pointer to the allocated memory
  */
-static NVAllocRec *
-NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
+static struct nouveau_bo *
+NVAllocateTTMemory(ScrnInfoPtr pScrn, struct nouveau_bo *mem, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
-
+	struct nouveau_bo *bo = NULL;
 
 	if(mem) {
 		if(mem->size >= size)
 			return mem;
-		NVFreeMemory(pNv, mem);
+		nouveau_bo_del(&mem);
 	}
-	return NVAllocateMemory(pNv, NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE, size); /* align 32? */
+
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
+			   size, &bo))
+		return NULL;
+
+	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR)) {
+		nouveau_bo_del(&bo);
+		return NULL;
+	}
+
+	return bo;
 }
 
 /**
@@ -401,12 +420,10 @@ NVAllocateTTMemory(ScrnInfoPtr pScrn, NVAllocRec *mem, int size)
 static void
 NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
-	NVPtr         pNv   = NVPTR(pScrn);
-
 	//xf86DrvMsg(0, X_INFO, "Freeing port memory - TTmem chunks %p %p, notifiers %p %p\n", pPriv->TT_mem_chunk[0], pPriv->TT_mem_chunk[1], pPriv->DMANotifier[0], pPriv->DMANotifier[1]);
 	
 	if(pPriv->video_mem) {
-		NVFreeMemory(pNv, pPriv->video_mem);
+		nouveau_bo_del(&pPriv->video_mem);
 		pPriv->video_mem = NULL;
 	}
 	
@@ -421,12 +438,12 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 		} 		
 		
 	if(pPriv->TT_mem_chunk[0]) {
-		NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+		nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
 		pPriv->TT_mem_chunk[0] = NULL;
 	}
 	
 	if(pPriv->TT_mem_chunk[1]) {
-		NVFreeMemory(pNv, pPriv->TT_mem_chunk[1]);
+		nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
 		pPriv->TT_mem_chunk[1] = NULL;
 	}
 	
@@ -1486,7 +1503,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	int line_len = 0; //length of a line, like npixels, but in bytes 
 	int DMAoffset = 0; //additional VRAM offset to start the DMA copy to
 	int UVDMAoffset = 0;
-	NVAllocRec * destination_buffer = NULL;
+	struct nouveau_bo *destination_buffer = NULL;
 	unsigned char * video_mem_destination = NULL;  
 	int action_flags; //what shall we do?
 	
@@ -1585,7 +1602,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			
 			if ( ! pPriv->TT_mem_chunk[1] )
 				{
-				NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+				nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
 				pPriv->TT_mem_chunk[0] = NULL;
 				pPriv -> currentHostBuffer = NO_PRIV_HOST_BUFFER_AVAILABLE;
 				//xf86DrvMsg(0, X_INFO, "Alloc 1 failed\n");
@@ -1621,9 +1638,9 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				{ /* In case we are out of notifiers (then our guy is watching 3 movies at a time!!), we fallback on global GART, and free the private buffers.
 					I know that's a lot of code but I believe it's necessary to properly handle all the cases*/
 				xf86DrvMsg(0, X_ERROR, "Ran out of Xv notifiers!\n");
-				NVFreeMemory(pNv, pPriv->TT_mem_chunk[0]);
+				nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
 				pPriv->TT_mem_chunk[0] = NULL;
-				NVFreeMemory(pNv, pPriv->TT_mem_chunk[1]);
+				nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
 				pPriv->TT_mem_chunk[1] = NULL;
 				pPriv -> currentHostBuffer = NO_PRIV_HOST_BUFFER_AVAILABLE;
 				}
@@ -1633,7 +1650,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 	
 	if ( pPriv -> currentHostBuffer == NO_PRIV_HOST_BUFFER_AVAILABLE )
 		{ //otherwise we fall back on DDX's GARTScratch
-		destination_buffer = pNv->GARTScratch;
+		destination_buffer = pNv->GART;
 		//xf86DrvMsg(0, X_INFO, "Using global GART memory chunk\n");
 		}
 
@@ -1715,7 +1732,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		OUT_RING  ((1<<8)|1);
 		OUT_RING  (0);
 			
-		if ( destination_buffer == pNv->GARTScratch ) 
+		if ( destination_buffer == pNv->GART ) 
 			{
 			nouveau_notifier_reset(pNv->notify0, 0);
 			}
@@ -1740,7 +1757,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 		FIRE_RING();			
 
-		if ( destination_buffer == pNv->GARTScratch ) 
+		if ( destination_buffer == pNv->GART ) 
 			if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 0))
 				return FALSE;
 		}

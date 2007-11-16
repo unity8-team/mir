@@ -252,15 +252,20 @@ static void
 NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static NVAllocRec *fp_mem = NULL;
+	static struct nouveau_bo *fp_mem = NULL;
 	static int next_hw_id_offset = 0;
 
 	if (!fp_mem) {
-		fp_mem = NVAllocateMemory(pNv, NOUVEAU_MEM_FB, 0x1000);
-		if (!fp_mem) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+				   0, 0x1000, &fp_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 					"Couldn't alloc fragprog buffer!\n");
 			return;
+		}
+
+		if (nouveau_bo_map(fp_mem, NOUVEAU_BO_RDWR)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't map fragprog buffer!\n");
 		}
 	}
 

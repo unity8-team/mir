@@ -354,13 +354,13 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 	setM2MFDirection(pScrn, 0);
 
 	while (line_count) {
-		char *src = pNv->GARTScratch->map;
+		char *src = pNv->GART->map;
 		int lc, i;
 
-		if (line_count * line_len <= pNv->GARTScratch->size) {
+		if (line_count * line_len <= pNv->GART->size) {
 			lc = line_count;
 		} else {
-			lc = pNv->GARTScratch->size / line_len;
+			lc = pNv->GART->size / line_len;
 			if (lc > line_count)
 				lc = line_count;
 		}
@@ -383,7 +383,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, uint64_t src_offset,
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		OUT_RING  ((uint32_t)src_offset);
-		OUT_RING  ((uint32_t)pNv->GARTScratch->offset);
+		OUT_RING  ((uint32_t)pNv->GART->offset);
 		OUT_RING  (src_pitch);
 		OUT_RING  (line_len);
 		OUT_RING  (line_len);
@@ -445,7 +445,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	cpp = pSrc->drawable.bitsPerPixel >> 3;
 	offset = (y * src_pitch) + (x * cpp);
 
-	if (pNv->GARTScratch) {
+	if (pNv->GART) {
 		if (NVAccelDownloadM2MF(pScrn, dst,
 					src_offset + offset,
 					dst_pitch, src_pitch, w * cpp, h))
@@ -525,14 +525,14 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 	setM2MFDirection(pScrn, 1);
 
 	while (line_count) {
-		char *dst = pNv->GARTScratch->map;
+		char *dst = pNv->GART->map;
 		int lc, i;
 
 		/* Determine max amount of data we can DMA at once */
-		if (line_count * line_len <= pNv->GARTScratch->size) {
+		if (line_count * line_len <= pNv->GART->size) {
 			lc = line_count;
 		} else {
-			lc = pNv->GARTScratch->size / line_len;
+			lc = pNv->GART->size / line_len;
 			if (lc > line_count)
 				lc = line_count;
 		}
@@ -567,7 +567,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, uint64_t dst_offset, const char *src,
 		/* DMA to VRAM */
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING  ((uint32_t)pNv->GARTScratch->offset);
+		OUT_RING  ((uint32_t)pNv->GART->offset);
 		OUT_RING  ((uint32_t)dst_offset);
 		OUT_RING  (line_len);
 		OUT_RING  (dst_pitch);
@@ -620,7 +620,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	}
 
 	/* try gart-based transfer */
-	if (pNv->GARTScratch) {
+	if (pNv->GART) {
 		dst_offset += (y * dst_pitch) + (x * cpp);
 		if (NVAccelUploadM2MF(pScrn, dst_offset, src, dst_pitch,
 					src_pitch, w * cpp, h))

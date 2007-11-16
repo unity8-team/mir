@@ -15,10 +15,6 @@ Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
 void   NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
 
-/* in nv_mem.c */
-NVAllocRec *NVAllocateMemory(NVPtr pNv, int type, int size);
-void        NVFreeMemory(NVPtr pNv, NVAllocRec *mem);
-
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);

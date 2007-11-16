@@ -196,13 +196,6 @@ typedef struct _nv50_hw_state
 	NV50CrtcRegRec crtc_reg[2];
 } NV50_HW_STATE, *NV50RegPtr;
 
-typedef struct {
-	int type;
-	uint64_t size;
-	uint64_t offset;
-	void *map;
-} NVAllocRec;
-
 typedef enum {
 	RAMDAC_0 = (1 << 0),
 	RAMDAC_1 = (1 << 1)
@@ -277,14 +270,14 @@ typedef struct _NVRec {
     unsigned long	VRAMSize;
     /* Accessible AGP size */
     unsigned long	AGPSize;
-    /* PCI buffer virtual address */
+
+    /* Various pinned memory regions */
+    struct nouveau_bo * FB;
+    struct nouveau_bo * Cursor;
+    struct nouveau_bo * CLUT;	/* NV50 only */
+    struct nouveau_bo * GART;
 
     uint32_t *		VBIOS;
-    NVAllocRec *        FB;
-    NVAllocRec *        Cursor;
-    NVAllocRec *        CLUT;	/* NV50 only */
-    NVAllocRec *        ScratchBuffer;
-    NVAllocRec *        GARTScratch;
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;
