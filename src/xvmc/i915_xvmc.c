@@ -1612,21 +1612,8 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     driDestroyHashContents(pI915XvMC->drawHash);
     drmHashDestroy(pI915XvMC->drawHash);
 
-    pthread_mutex_destroy(&xvmc_driver->ctxmutex);
-
     XLockDisplay(display);
     uniDRIDestroyContext(display, screen, pI915XvMC->id);
-    XUnlockDisplay(display);
-
-    drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
-
-    if (xvmc_driver->fd >= 0)
-        drmClose(xvmc_driver->fd);
-    xvmc_driver->fd = -1;
-
-    XLockDisplay(display);
-    uniDRICloseConnection(display, screen);
-    _xvmc_destroy_context(display, context);
     XUnlockDisplay(display);
 
     free(pI915XvMC);

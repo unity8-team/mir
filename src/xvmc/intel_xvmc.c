@@ -256,6 +256,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 Status XvMCDestroyContext(Display *display, XvMCContext *context)
 {
     Status ret;
+    int screen = DefaultScreen(display);
 
     if (!display || !context)
         return XvMCBadContext;
@@ -266,9 +267,21 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 	return ret;
     }
 
-    /* Pass Control to the X server to destroy the drm_context_t */
-    //XXX move generic destroy method here
-    //i915_release_resource(display,context);
+    ret = _xvmc_destroy_context(display, context);
+    if (ret != Success) {
+	XVMC_ERR("_xvmc_destroy_context fail\n");
+	return ret;
+    }
+    uniDRICloseConnection(display, screen);
+
+    pthread_mutex_destroy(&xvmc_driver->ctxmutex);
+
+    drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
+
+    if (xvmc_driver->fd >= 0)
+        drmClose(xvmc_driver->fd);
+    xvmc_driver->fd = -1;
+
     intelFiniBatchBuffer();
     return Success;
 }
