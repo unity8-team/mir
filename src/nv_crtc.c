@@ -770,6 +770,7 @@ void nv_crtc_calc_state_ext(
 
 		/* Vclk ratio DB1 is used whenever reg580 is modified for vpll activity */
 		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
+			ErrorF("We are a lover of the DB1 VCLK ratio\n");
 			if (nv_crtc->head == 1 && vpll2_ok) {
 				state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
 			} else if (nv_crtc->head == 0 && vpll1_ok) {
@@ -1183,8 +1184,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	int horizStart		= (mode->CrtcHSyncStart >> 3) 	- 1;
 	int horizEnd		= (mode->CrtcHSyncEnd >> 3) 	- 1;
 	int horizTotal		= (mode->CrtcHTotal >> 3)		- 5;
-	int horizBlankStart	= (mode->CrtcHDisplay/8)		- 1;
-	int horizBlankEnd	= (mode->CrtcHTotal/8)			- 1;
+	int horizBlankStart	= (mode->CrtcHDisplay >> 3)		- 1;
+	int horizBlankEnd	= (mode->CrtcHTotal >> 3)		- 1;
 	int vertDisplay		= mode->CrtcVDisplay			- 1;
 	int vertStart		= mode->CrtcVSyncStart 		- 1;
 	int vertEnd		= mode->CrtcVSyncEnd			- 1;
