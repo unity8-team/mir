@@ -260,21 +260,18 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-    double c;
-    int div1, div2, clock;
-    int sclock;
-    uint16_t ref_div, fb_div;
-    uint8_t post_div;
-    int mul;
+    int sclock = mode->Clock;
+    uint16_t ref_div = 0, fb_div = 0;
+    uint8_t post_div = 0;
     int major, minor;
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     void *ptr;
     AtomBIOSArg data;
     unsigned char *space;    
     RADEONSavePtr save = &info->ModeReg;
-
+    
+    sclock = mode->Clock;
     if (IS_AVIVO_VARIANT) {
 	PLLCalculate(mode->Clock, &ref_div, &fb_div, &post_div);
     } else {
@@ -339,7 +336,6 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     AtomBIOSArg data;
     unsigned char *space;
     SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
@@ -412,9 +408,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
-    int regval;
-    AtomBiosResult atom_res;
-    RADEONSavePtr restore = &info->ModeReg;
     Bool           tilingOld   = info->tilingEnabled;
 
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;

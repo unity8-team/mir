@@ -48,7 +48,6 @@ atom_bios_display_device_control(atomBIOSHandlePtr atomBIOS, int device, Bool st
     DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
     AtomBIOSArg data;
     unsigned char *space;
-    AtomBiosResult ret;
 
     disp_data.ucAction = state;
     data.exec.index = device;
@@ -84,7 +83,6 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBIOSArg data;
     unsigned char *space;
-    AtomBiosResult ret;
 
     disp_data.ucAction = 1;
     disp_data.ucDacStandard = 1;
@@ -115,12 +113,10 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
 int
 atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION disp_data;
     AtomBIOSArg data;
     unsigned char *space;
-    AtomBiosResult ret;
 
     disp_data.sXTmdsEncoder.ucEnable = 1;
 
@@ -141,21 +137,17 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("External TMDS enable failed\n", radeon_output->DACType);
+    ErrorF("External TMDS enable failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
 static int
 atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int tmp;
     TMDS1_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBIOSArg data;
     unsigned char *space;
-    AtomBiosResult ret;
 
     disp_data.ucAction = 1;
     if (mode->Clock > 165000)
@@ -183,16 +175,13 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
 #endif
 }
 
-static void
+static int
 atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned int tmp;
     TMDS2_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBIOSArg data;
     unsigned char *space;
-    AtomBiosResult ret;
 
     disp_data.ucAction = 1;
     if (mode->Clock > 165000)
@@ -234,7 +223,6 @@ atombios_output_dac_dpms(xf86OutputPtr output, int mode)
 static void
 atombios_output_tmds1_dpms(xf86OutputPtr output, int mode)
 {
-    RADEONOutputPrivatePtr avivo_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
 
     switch(mode) {
@@ -255,9 +243,7 @@ atombios_output_tmds1_dpms(xf86OutputPtr output, int mode)
 static void
 atombios_output_tmds2_dpms(xf86OutputPtr output, int mode)
 {
-    RADEONOutputPrivatePtr avivo_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
 
     switch(mode) {
     case DPMSModeOn:
@@ -331,8 +317,6 @@ atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr mode,
 			 DisplayModePtr adjusted_mode)
 {
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (radeon_output->MonType == MT_CRT) {
@@ -384,7 +368,7 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     ret = atom_bios_dac_load_detect(info->atomBIOS, radeon_output->DACType);
     if (ret == ATOM_SUCCESS) {
-	ErrorF("DAC connect %08X\n", INREG(0x10));
+      ErrorF("DAC connect %08X\n", (unsigned int)INREG(0x10));
 	bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
 	
 	if (radeon_output->DACType == DAC_PRIMARY) {
