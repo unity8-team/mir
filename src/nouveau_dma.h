@@ -101,7 +101,7 @@ nouveau_dma_begin(struct nouveau_channel *userchan, struct nouveau_grobj *grobj,
 		    grobj->handle, grobj->subc, method, size);
 #endif
 
-#ifdef NOUVEAU_DMA_DEUBG
+#ifdef NOUVEAU_DMA_DEBUG
 	if (chan->dma.push_free) {
 		NOUVEAU_ERR("Previous packet incomplete: %d left\n",
 			    chan->dma.push_free);
