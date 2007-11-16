@@ -265,35 +265,35 @@ static void NVVgaSeqReset(xf86CrtcPtr crtc, Bool start)
 }
 static void NVVgaProtect(xf86CrtcPtr crtc, Bool on)
 {
-  CARD8 tmp;
+	CARD8 tmp;
 
-  if (on) {
-    tmp = NVReadVgaSeq(crtc, 0x1);
-    NVVgaSeqReset(crtc, TRUE);
-    NVWriteVgaSeq(crtc, 0x01, tmp | 0x20);
+	if (on) {
+		tmp = NVReadVgaSeq(crtc, 0x1);
+		NVVgaSeqReset(crtc, TRUE);
+		NVWriteVgaSeq(crtc, 0x01, tmp | 0x20);
 
-    NVEnablePalette(crtc);
-  } else {
-    /*
-     * Reenable sequencer, then turn on screen.
-     */
-    tmp = NVReadVgaSeq(crtc, 0x1);
-    NVWriteVgaSeq(crtc, 0x01, tmp & ~0x20);	/* reenable display */
-    NVVgaSeqReset(crtc, FALSE);
+		NVEnablePalette(crtc);
+	} else {
+		/*
+		 * Reenable sequencer, then turn on screen.
+		 */
+		tmp = NVReadVgaSeq(crtc, 0x1);
+		NVWriteVgaSeq(crtc, 0x01, tmp & ~0x20);	/* reenable display */
+		NVVgaSeqReset(crtc, FALSE);
 
-    NVDisablePalette(crtc);
-  }
+		NVDisablePalette(crtc);
+	}
 }
 
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
 {
-  CARD8 cr11;
+	CARD8 cr11;
 
-  NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57);
-  cr11 = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE);
-  if (Lock) cr11 |= 0x80;
-  else cr11 &= ~0x80;
-  NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE, cr11);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57);
+	cr11 = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE);
+	if (Lock) cr11 |= 0x80;
+	else cr11 &= ~0x80;
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE, cr11);
 }
 
 xf86OutputPtr 
@@ -1075,6 +1075,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	unsigned int i;
 	uint32_t clock = adjusted_mode->Clock;
 
+#if 0
 	/* Happily borrowed from haiku driver, as an extra safety */
 
 	/* Make it multiples of 8 */
@@ -1151,21 +1152,20 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* We've only got 4 bits to store the sync stuff */
 	if (mode->CrtcVSyncEnd > mode->CrtcVSyncStart + (0x0f << 0))
 		mode->CrtcVSyncEnd = mode->CrtcVSyncStart + (0x0f << 0);
+#endif
 
-	int horizDisplay	= (mode->CrtcHDisplay >> 3) - 1;
-	int horizStart		= (mode->CrtcHSyncStart >> 3);
-	/* The reason for this offset is completelt unknown, but important to keep analog screen alligned */
-	int horizEnd		= (mode->CrtcHSyncEnd >> 3) + 4;
-	int horizTotal		= (mode->CrtcHTotal >> 3) - 5;
-	int horizBlankStart	= horizDisplay;
-	int horizBlankEnd	= horizTotal + 4;
-	int vertDisplay		= mode->CrtcVDisplay - 1;
-	int vertStart		= mode->CrtcVSyncStart;
-	int vertEnd		= mode->CrtcVSyncEnd;
-	int vertTotal		= mode->CrtcVTotal - 2;
-	int vertBlankStart	= vertDisplay;
-	int vertBlankEnd	= vertTotal + 1;
-	int lineComp		= mode->CrtcVDisplay;
+	int horizDisplay	= (mode->CrtcHDisplay >> 3) 	- 1;
+	int horizStart		= (mode->CrtcHSyncStart >> 3) 	- 1;
+	int horizEnd		= (mode->CrtcHSyncEnd >> 3) 	- 1;
+	int horizTotal		= (mode->CrtcHTotal >> 3)		- 5;
+	int horizBlankStart	= (mode->CrtcHDisplay/8)		- 1;
+	int horizBlankEnd	= (mode->CrtcHTotal/8)			- 1;
+	int vertDisplay		= mode->CrtcVDisplay			- 1;
+	int vertStart		= mode->CrtcVSyncStart 		- 1;
+	int vertEnd		= mode->CrtcVSyncEnd			- 1;
+	int vertTotal		= mode->CrtcVTotal 			- 2;
+	int vertBlankStart	= mode->CrtcVDisplay 			- 1;
+	int vertBlankEnd	= mode->CrtcVTotal			- 1;
 
 	Bool is_fp = FALSE;
 
@@ -1235,12 +1235,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 				| SetBitField(vertDisplay,8:8,1:1)
 				| SetBitField(vertStart,8:8,2:2)
 				| SetBitField(vertBlankStart,8:8,3:3)
-				| SetBitField(lineComp,8:8,4:4)
+				| SetBit(4)
 				| SetBitField(vertTotal,9:9,5:5)
 				| SetBitField(vertDisplay,9:9,6:6)
 				| SetBitField(vertStart,9:9,7:7);
 	regp->CRTC[NV_VGA_CRTCX_MAXSCLIN]  = SetBitField(vertBlankStart,9:9,5:5)
-				| SetBitField(lineComp,9:9,6:6)
+				| SetBit(6)
 				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
 	regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
 	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
@@ -1249,7 +1249,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 	/* Not an extended register */
-	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = lineComp & 0xff;
+	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = 0xff;
 
 	regp->Attribute[0x10] = 0x01;
 	/* Blob sets this for normal monitors as well */
@@ -1345,7 +1345,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* What is the meaning of this register? */
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
-	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1];
+	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
 
 	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
 	/* But what are those special conditions? */
@@ -1461,63 +1461,76 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->crtc);
 
-    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->crtc);
-    xf86PrintModeline(pScrn->scrnIndex, mode);
-    NVCrtcSetOwner(crtc);
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->crtc);
+	xf86PrintModeline(pScrn->scrnIndex, mode);
+	NVCrtcSetOwner(crtc);
 
-    nv_crtc_mode_set_vga(crtc, mode);
-    nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
+	nv_crtc_mode_set_vga(crtc, mode);
+	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
 
-    NVVgaProtect(crtc, TRUE);
-    nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
-    nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
-    nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
+	/* Just in case */
+	NVCrtcLockUnlock(crtc, FALSE);
 
-    NVVgaProtect(crtc, FALSE);
-    //    NVCrtcLockUnlock(crtc, 1);
+	NVVgaProtect(crtc, TRUE);
+	nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
+	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 
-    NVCrtcSetBase(crtc, x, y);
+	NVVgaProtect(crtc, FALSE);
+
+	NVCrtcSetBase(crtc, x, y);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* turn on LFB swapping */
-    {
-	unsigned char tmp;
+	/* turn on LFB swapping */
+	{
+		unsigned char tmp;
 
-	tmp = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_SWAPPING);
-	tmp |= (1 << 7);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_SWAPPING, tmp);
-    }
+		tmp = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_SWAPPING);
+		tmp |= (1 << 7);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_SWAPPING, tmp);
+	}
 #endif
-
 }
 
 void nv_crtc_save(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
 	ErrorF("nv_crtc_save is called for CRTC %d\n", nv_crtc->crtc);
 
-    NVCrtcSetOwner(crtc);
-    nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
-    nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
-    nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
+	/* We just came back from terminal, so unlock */
+	NVCrtcLockUnlock(crtc, FALSE);
+
+	NVCrtcSetOwner(crtc);
+	nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
+	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
+	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 }
 
 void nv_crtc_restore(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 
 	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->crtc);
 
-    NVCrtcSetOwner(crtc);    
-    nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
-    nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
-    nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
-    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+	NVCrtcSetOwner(crtc);
+
+	/* Just to be safe */
+	NVCrtcLockUnlock(crtc, FALSE);
+
+	NVVgaProtect(crtc, TRUE);
+	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
+	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
+	nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
+	nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+	NVVgaProtect(crtc, FALSE);
+
+	/* We must lock the door if we leave ;-) */
+	NVCrtcLockUnlock(crtc, TRUE);
 }
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
@@ -1622,7 +1635,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtc->driver_private = nv_crtc;
 
-	NVCrtcLockUnlock(crtc, 0);
+	NVCrtcLockUnlock(crtc, FALSE);
 }
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1687,7 +1700,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
         nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
         nvWriteMC(pNv, 0x1588, 0);
 
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, 0xff);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, regp->CRTC[NV_VGA_CRTCX_BUFFER]);
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO, regp->gpio);
@@ -1695,7 +1707,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
         nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
-	
+
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
 
@@ -1925,20 +1937,20 @@ void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
 {
-    unsigned char scrn;
+	unsigned char scrn;
 
-    NVCrtcSetOwner(crtc);
+	NVCrtcSetOwner(crtc);
 
-    scrn = NVReadVgaSeq(crtc, 0x01);
-    if (on) {
-	scrn &= ~0x20;
-    } else {
-	scrn |= 0x20;
-    }
+	scrn = NVReadVgaSeq(crtc, 0x01);
+	if (on) {
+		scrn &= ~0x20;
+	} else {
+		scrn |= 0x20;
+	}
 
-    NVVgaSeqReset(crtc, TRUE);
-    NVWriteVgaSeq(crtc, 0x01, scrn);
-    NVVgaSeqReset(crtc, FALSE);
+	NVVgaSeqReset(crtc, TRUE);
+	NVWriteVgaSeq(crtc, 0x01, scrn);
+	NVVgaSeqReset(crtc, FALSE);
 }
 
 /*************************************************************************** \

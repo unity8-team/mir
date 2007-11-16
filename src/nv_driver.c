@@ -1856,7 +1856,6 @@ NVRestore(ScrnInfoPtr pScrn)
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
-		int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
@@ -1870,12 +1869,6 @@ NVRestore(ScrnInfoPtr pScrn)
 			xf86_config->output[i]->funcs->restore(xf86_config->
 							       output[i]);
 		}
-
-#ifndef __powerpc__
-		vgaflags |= VGA_SR_FONTS;
-#endif
-		vgaHWRestore(pScrn, vgaReg, vgaflags);
-		vgaHWLock(hwp);
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			NVCrtcLockUnlock(xf86_config->crtc[i], 1);
