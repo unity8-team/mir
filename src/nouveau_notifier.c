@@ -2,6 +2,7 @@
 #include <errno.h>
 
 #include "nouveau_drmif.h"
+#include "nouveau_local.h"
 
 #define NOTIFIER(__v)                                                          \
 	struct nouveau_notifier_priv *notifier = nouveau_notifier(user);       \
@@ -99,7 +100,7 @@ nouveau_notifier_wait_status(struct nouveau_notifier *user, int id,
 			     int status, int timeout)
 {
 	NOTIFIER(n);
-	int time = 0; timeout = 0;
+	uint32_t time = 0, t_start = NOUVEAU_TIME_MSEC();
 
 	while (time <= timeout) {
 		uint32_t v;
@@ -107,6 +108,9 @@ nouveau_notifier_wait_status(struct nouveau_notifier *user, int id,
 		v = n[NV_NOTIFY_STATE/4] >> NV_NOTIFY_STATE_STATUS_SHIFT;
 		if (v == status)
 			return 0;
+
+		if (timeout)
+			time = NOUVEAU_TIME_MSEC() - t_start;
 	}
 
 	return -EBUSY;

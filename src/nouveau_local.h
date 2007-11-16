@@ -9,11 +9,14 @@
 #define NOUVEAU_ERR(fmt,args...) \
 	ErrorF("%s:%d - "fmt, __func__, __LINE__, ##args)
 
+#define NOUVEAU_TIME_MSEC() GetTimeInMillis()
+
 /* User FIFO control */
 //#define NOUVEAU_DMA_TRACE
 //#define NOUVEAU_DMA_DEBUG
 #define NOUVEAU_DMA_SUBCHAN_LRU
 #define NOUVEAU_DMA_BARRIER mem_barrier();
+#define NOUVEAU_DMA_TIMEOUT 2000
 
 /* Push buffer access macros */
 #define BEGIN_RING(obj,mthd,size) do {                                         \

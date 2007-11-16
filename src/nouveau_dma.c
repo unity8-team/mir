@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "nouveau_drmif.h"
 #include "nouveau_dma.h"
@@ -25,14 +26,20 @@ nouveau_dma_channel_init(struct nouveau_channel *userchan)
 		chan->pushbuf[i] = 0x00000000;
 }
 
+#define CHECK_TIMEOUT() do {                                                   \
+	if ((NOUVEAU_TIME_MSEC() - t_start) > NOUVEAU_DMA_TIMEOUT)             \
+		return - EBUSY;                                                \
+} while(0)
+
 int
 nouveau_dma_wait(struct nouveau_channel *userchan, int size)
 {
 	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
-	uint32_t get;
+	uint32_t get, t_start;
 
 	FIRE_RING_CH(userchan);
 
+	t_start = NOUVEAU_TIME_MSEC();
 	while (chan->dma.free < size) {
 		get = READ_GET(chan);
 
@@ -51,6 +58,7 @@ nouveau_dma_wait(struct nouveau_channel *userchan, int size)
 						WRITE_PUT(chan, RING_SKIPS + 1);
 
 					do {
+						CHECK_TIMEOUT();
 						get = READ_GET(chan);
 					} while (get <= RING_SKIPS);
 				}
@@ -62,6 +70,8 @@ nouveau_dma_wait(struct nouveau_channel *userchan, int size)
 		} else {
 			chan->dma.free = get - chan->dma.cur - 1;
 		}
+
+		CHECK_TIMEOUT();
 	}
 
 	return 0;
