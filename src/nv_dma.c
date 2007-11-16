@@ -89,6 +89,7 @@ void NVDmaStartNNN(NVPtr pNv, uint32_t object, uint32_t tag, int size)
 void NVDmaWaitNNN(ScrnInfoPtr pScrn, int size)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);
 	int t_start;
 	int dmaGet;
 
@@ -101,7 +102,7 @@ void NVDmaWaitNNN(ScrnInfoPtr pScrn, int size)
 		if(pNv->dmaPut >= dmaGet) {
 			pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 			if(pNv->dmaFree < size) {
-				OUT_RING  ((0x20000000|pNv->fifo.put_base));
+				OUT_RING  ((0x20000000|chan->drm.put_base));
 				if(dmaGet <= SKIPS) {
 					if(pNv->dmaPut <= SKIPS) /* corner case - will be idle */
 						WRITE_PUT(pNv, SKIPS + 1);
@@ -188,7 +189,7 @@ void NVResetGraphics(ScrnInfoPtr pScrn)
 	int i;
 
 	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
-	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 2;
+	pNv->dmaMax = (nouveau_channel(pNv->chan)->drm.cmdbuf_size >> 2) - 2;
 	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
 
 	/* assert there's enough room for the skips */
@@ -212,7 +213,7 @@ Bool NVDmaCreateContextObject(NVPtr pNv, int handle, int class)
 	struct drm_nouveau_grobj_alloc cto;
 	int ret;
 
-	cto.channel = pNv->fifo.channel;
+	cto.channel = pNv->chan->id;
 	cto.handle  = handle;
 	cto.class   = class;
 	ret = drmCommandWrite(nv->fd, DRM_NOUVEAU_GROBJ_ALLOC,
@@ -255,72 +256,38 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 					 (cb_size << 20));
 }
 
-Bool NVInitDma(ScrnInfoPtr pScrn)
+Bool
+NVInitDma(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)pNv->dev;
-	int i, ret;
+	int ret;
 
 	NVInitDmaCB(pScrn);
 
-	if (pNv->NoAccel)
-		return TRUE;
-
-	pNv->fifo.fb_ctxdma_handle = NvDmaFB;
-	pNv->fifo.tt_ctxdma_handle = NvDmaTT;
-	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_CHANNEL_ALLOC,
-				  &pNv->fifo, sizeof(pNv->fifo));
+	ret = nouveau_channel_alloc(pNv->dev, NvDmaFB, NvDmaTT, &pNv->chan);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Could not allocate GPU channel: %d\n", ret);
+			   "Error creating GPU channel: %d\n", ret);
 		return FALSE;
 	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Opened GPU channel %d\n", pNv->chan->id);
 
-	ret = drmMap(nv->fd, pNv->fifo.cmdbuf, pNv->fifo.cmdbuf_size,
-		     (void *)&pNv->dmaBase);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to map DMA push buffer: %d\n", ret);
-		return FALSE;
+	{
+		struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);
+		int i;
+
+		pNv->dmaBase = chan->pushbuf;
+		pNv->FIFO = chan->user;
+		pNv->NotifierBlock = chan->notifier_block;
+		pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
+		pNv->dmaMax = (chan->drm.cmdbuf_size >> 2) - 2;
+		pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
+
+		for (i=0; i<SKIPS; i++)
+			OUT_RING(0);
+		pNv->dmaFree -= SKIPS;
 	}
-
-	ret = drmMap(nv->fd, pNv->fifo.ctrl, pNv->fifo.ctrl_size,
-		     (void *)&pNv->FIFO);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to map FIFO control regs: %d\n", ret);
-		return FALSE;
-	}
-
-	ret = drmMap(nv->fd, pNv->fifo.notifier, pNv->fifo.notifier_size,
-		     (drmAddressPtr)&pNv->NotifierBlock);
-	if (ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to map notifier block: %d\n", ret);
-		return FALSE;
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Using FIFO channel %d\n", pNv->fifo.channel);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "  Control registers : %p (0x%08x)\n",
-		   pNv->FIFO, pNv->fifo.ctrl);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "  DMA command buffer: %p (0x%08x)\n",
-		   pNv->dmaBase, pNv->fifo.cmdbuf);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "  DMA cmdbuf length : %d KiB\n",
-		   pNv->fifo.cmdbuf_size / 1024);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "  DMA base PUT      : 0x%08x\n", pNv->fifo.put_base);
-
-	pNv->dmaPut = pNv->dmaCurrent = READ_GET(pNv);
-	pNv->dmaMax = (pNv->fifo.cmdbuf_size >> 2) - 2;
-	pNv->dmaFree = pNv->dmaMax - pNv->dmaCurrent;
-
-	for (i=0; i<SKIPS; i++)
-		OUT_RING(0);
-	pNv->dmaFree -= SKIPS;
 
 	return TRUE;
 }

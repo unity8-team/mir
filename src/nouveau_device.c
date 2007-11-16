@@ -39,12 +39,14 @@ nouveau_device_open(struct nouveau_device **userdev, const char *busid)
 	if (fd < 0)
 		return -EINVAL;
 
-	if ((ret = drmCreateContext(fd, &ctx))) {
+	ret = drmCreateContext(fd, &ctx);
+	if (ret) {
 		drmClose(fd);
 		return ret;
 	}
 
-	if ((ret = nouveau_device_open_existing(userdev, 1, fd, ctx))) {
+	ret = nouveau_device_open_existing(userdev, 1, fd, ctx);
+	if (ret) {
 	    drmDestroyContext(fd, ctx);
 	    drmClose(fd);
 	    return ret;
@@ -75,18 +77,18 @@ nouveau_device_get_param(struct nouveau_device *userdev,
 			 uint64_t param, uint64_t *value)
 {
 	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)userdev;
-	struct drm_nouveau_getparam getp;
+	struct drm_nouveau_getparam g;
 	int ret;
 
 	if (!nv || !value)
 		return -EINVAL;
 
-	getp.param = param;
-	if ((ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_GETPARAM,
-				       &getp, sizeof(getp))))
+	g.param = param;
+	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_GETPARAM, &g, sizeof(g));
+	if (ret)
 		return ret;
 
-	*value = getp.value;
+	*value = g.value;
 	return 0;
 }
 
@@ -95,16 +97,16 @@ nouveau_device_set_param(struct nouveau_device *userdev,
 			 uint64_t param, uint64_t value)
 {
 	struct nouveau_device_priv *nv = (struct nouveau_device_priv *)userdev;
-	struct drm_nouveau_setparam setp;
+	struct drm_nouveau_setparam s;
 	int ret;
 
 	if (!nv)
 		return -EINVAL;
 
-	setp.param = param;
-	setp.value = value;
-	if ((ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_SETPARAM,
-				       &setp, sizeof(setp))))
+	s.param = param;
+	s.value = value;
+	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_SETPARAM, &s, sizeof(s));
+	if (ret)
 		return ret;
 
 	return 0;

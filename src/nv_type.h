@@ -372,7 +372,6 @@ typedef struct _NVRec {
     volatile void *     NotifierBlock;
     struct drm_nouveau_notifierobj_alloc *Notifier0;
 
-    struct drm_nouveau_channel_alloc fifo;
     CARD32              dmaPut;
     CARD32              dmaCurrent;
     CARD32              dmaFree;
@@ -422,6 +421,9 @@ typedef struct _NVRec {
 
 	/* DRM interface */
 	struct nouveau_device *dev;
+
+	/* GPU context */
+	struct nouveau_channel *chan;
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {

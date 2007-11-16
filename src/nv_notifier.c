@@ -30,7 +30,7 @@ NVNotifierAlloc(ScrnInfoPtr pScrn, uint32_t handle)
 		return NULL;
 	}
 
-	notifier->channel = pNv->fifo.channel;
+	notifier->channel = pNv->chan->id;
 	notifier->handle  = handle;
 	notifier->count   = 1;
 	ret = drmCommandWriteRead(nv->fd, DRM_NOUVEAU_NOTIFIEROBJ_ALLOC,

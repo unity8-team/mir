@@ -70,22 +70,25 @@
 #endif
 
 
-#define READ_GET(pNv) (((pNv)->FIFO[0x0011] - pNv->fifo.put_base) >> 2)
+#define READ_GET(pNv) (((pNv)->FIFO[0x0011] - \
+			nouveau_channel(pNv->chan)->drm.put_base) >> 2)
 #if NV_DMA_DEBUG == 1
 #define WRITE_PUT(pNv, data) {       \
+  struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan); \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
   scratch = ((char*)(pNv)->FB->map)[0];       \
-  (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
-	xf86DrvMsg(0, X_INFO, "WRITE_PUT: 0x%08x\n", ((data) << 2) + pNv->fifo.put_base); \
+  (pNv)->FIFO[0x0010] = ((data) << 2) + chan->drm.put_base; \
+	xf86DrvMsg(0, X_INFO, "WRITE_PUT: 0x%08x\n", ((data) << 2) + chan->drm.put_base); \
   mem_barrier();                     \
 }
 #else
 #define WRITE_PUT(pNv, data) {       \
+  struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan); \
   volatile CARD8 scratch;            \
   _NV_FENCE()                        \
   scratch = ((char*)(pNv)->FB->map)[0];       \
-  (pNv)->FIFO[0x0010] = ((data) << 2) + pNv->fifo.put_base; \
+  (pNv)->FIFO[0x0010] = ((data) << 2) + chan->drm.put_base; \
   mem_barrier();                     \
 }
 #endif
