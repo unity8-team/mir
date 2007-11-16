@@ -551,6 +551,17 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 			/* Wait for the situation to stabilise */
 			usleep(5000);
+
+			/* A last minute attempt to switch to DB2 ratio */
+			if (!(nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2)) {
+				uint32_t pllsel = state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
+				nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel | NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2);
+				if (nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2) {
+					state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+					pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+				}
+				nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel);
+			}
 		}
 	}
 
@@ -591,6 +602,17 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
+
+		/* A last minute attempt to switch to DB2 ratio */
+		if (!(nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
+			uint32_t pllsel = state->pllsel;
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel | NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2);
+			if (nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
+				state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+				pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+			}
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel);
+		}
 	}
 }
 
@@ -720,9 +742,11 @@ void nv_crtc_calc_state_ext(
 		if (!state->reg580) 
 			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 
-		Bool vpll1_ok = TRUE;
-		Bool vpll2_ok = TRUE;
+		/* For the moment changing the reg580 value causes probems, disable until i really know what's happening */
+		Bool vpll1_ok = FALSE;
+		Bool vpll2_ok = FALSE;
 
+#if 0
 		/* For lack of a better name */
 		int magic_factor = (pNv->misc_info.sel_clk & (0xf << 8)) >> 8;
 
@@ -742,6 +766,7 @@ void nv_crtc_calc_state_ext(
 					break;
 			}
 		}
+#endif
 
 		/* Vclk ratio DB1 is used whenever reg580 is modified for vpll activity */
 		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
