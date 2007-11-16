@@ -154,7 +154,7 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state);
+static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio);
 
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
@@ -283,9 +283,9 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONDDCType DDCType = radeon_output->DDCType;
 
     if (radeon_output->pI2CBus) {
-	AVIVOI2CDoLock(output->scrn, 1);
+	AVIVOI2CDoLock(output->scrn, 1, radeon_output->gpio);
 	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	AVIVOI2CDoLock(output->scrn, 0);
+	AVIVOI2CDoLock(output->scrn, 0, radeon_output->gpio);
     }
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
@@ -2307,11 +2307,25 @@ Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
 }
 
 static
-Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state)
+Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 temp;
+
+    temp = INREG(gpio_reg + 4);
+    if (gpio_reg == AVIVO_GPIO_0) {
+	if (lock_state == 0)
+	    temp |= (1 << 19) | (1 << 18);
+	else
+	    temp &= ~((1 << 19) | (1 << 18));
+    } else {
+	if (lock_state == 0)
+	    temp |= (1 << 0) | (1 << 8);
+	else
+	    temp &= ~((1 << 0) | (1 << 8));
+    }
+    OUTREG(gpio_reg + 4, temp);
 
     switch(lock_state) {
     case 0:
