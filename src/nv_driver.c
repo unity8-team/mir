@@ -2405,12 +2405,12 @@ static Bool
 NVSaveScreen(ScreenPtr pScreen, int mode)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     NVPtr pNv = NVPTR(pScrn);
     int i;
     Bool on = xf86IsUnblank(mode);
     
     if (pNv->randr12_enable) {
+    	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	if (pScrn->vtSema && pNv->Architecture < NV_ARCH_50) {
 	    for (i = 0; i < xf86_config->num_crtc; i++) {
 		
