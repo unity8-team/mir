@@ -30,7 +30,11 @@
 
 #define READ_GET(ch) ((*(ch)->get - (ch)->dma.base) >> 2)
 #define WRITE_PUT(ch, val) do {                       \
+	volatile int dum;                             \
+	NOUVEAU_DMA_BARRIER;	                      \
+	dum=READ_GET(ch);                             \
 	*(ch)->put = (((val) << 2) + (ch)->dma.base); \
+	NOUVEAU_DMA_BARRIER;	                      \
 } while(0)
 
 void
