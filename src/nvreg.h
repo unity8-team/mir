@@ -361,6 +361,12 @@
 #	define NV_PVIDEO_FORMAT_MATRIX_ITURBT709         (1 << 24)
 #define NV_PVIDEO_COLOR_KEY          0xB00
 
+/* These are the real registers, not the redirected ones */
+#define NV40_VCLK1_A			0x4010
+#define NV40_VCLK1_B			0x4014
+#define NV40_VCLK2_A			0x4018
+#define NV40_VCLK2_B			0x401c
+
 #endif
 
 

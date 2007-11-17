@@ -165,9 +165,14 @@ typedef struct _riva_hw_state
     CARD32 vpllB;
     CARD32 vpll2B;
     CARD32 pllsel;
-	CARD32 reg580;
 	CARD32 sel_clk;
 	Bool crosswired;
+	Bool db1_ratio[2];
+	/* These vpll values are only for nv4x hardware */
+	uint32_t vpll1_a;
+	uint32_t vpll1_b;
+	uint32_t vpll2_a;
+	uint32_t vpll2_b;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;
