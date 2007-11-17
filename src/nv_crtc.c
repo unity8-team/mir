@@ -495,8 +495,9 @@ static void CalcVClock2Stage (
  *     bit24-31: n-multiplier (b)
  */
 
-/* Modifying the vpll's on the 0x4000 regs requires:
+/* Modifying the gpu pll for example requires:
  * - Disable value 0x333 (inverse AND mask) on the 0xc040 register.
+ * This is not needed for the vpll's which have their own bits.
  */
 
 static void
@@ -613,13 +614,13 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		nvWriteMC(pNv, NV40_VCLK2_A, state->vpll2_a);
 		nvWriteMC(pNv, NV40_VCLK2_B, state->vpll2_b);
 
-		ErrorF("writing pllsel %08X\n", state->pllsel);
-		/* Let's keep the primary vpll off */
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
-
 		/* We need to wait a while */
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+
+		ErrorF("writing pllsel %08X\n", state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
+		/* Let's keep the primary vpll off */
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
 
 		nvWriteRAMDAC(pNv, index[1], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[1]]);
 
@@ -645,18 +646,21 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		nvWriteMC(pNv, NV40_VCLK1_A, state->vpll1_a);
 		nvWriteMC(pNv, NV40_VCLK1_B, state->vpll1_b);
 
-		ErrorF("writing pllsel %08X\n", state->pllsel);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
-
 		/* We need to wait a while */
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+
+		ErrorF("writing pllsel %08X\n", state->pllsel);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 		nvWriteRAMDAC(pNv, index[0], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[0]]);
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
 	}
+
+	ErrorF("writing sel_clk %08X\n", state->sel_clk);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 }
 
 static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
@@ -702,6 +706,9 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		ErrorF("writing pllsel %08X\n", state->pllsel);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 	}
+
+	ErrorF("writing sel_clk %08X\n", state->sel_clk);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 }
 
 /*
