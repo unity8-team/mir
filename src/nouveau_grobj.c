@@ -57,6 +57,26 @@ nouveau_grobj_alloc(struct nouveau_channel *userchan, uint32_t handle,
 	return 0;
 }
 
+int
+nouveau_grobj_ref(struct nouveau_channel *userchan, uint32_t handle,
+		  struct nouveau_grobj **usergr)
+{
+	struct nouveau_grobj_priv *gr;
+
+	if (!userchan || !usergr || *usergr)
+		return -EINVAL;
+
+	gr = calloc(1, sizeof(*gr));
+	if (!gr)
+		return -ENOMEM;
+	gr->base.channel = userchan;
+	gr->base.handle = handle;
+	gr->base.grclass = 0;
+
+	*usergr = &gr->base;
+	return 0;
+}
+
 void
 nouveau_grobj_free(struct nouveau_grobj **usergrobj)
 {
@@ -75,9 +95,12 @@ nouveau_grobj_free(struct nouveau_grobj **usergrobj)
 		chan = nouveau_channel(gr->base.channel);
 		nv   = nouveau_device(chan->base.device);
 
-		f.channel = chan->drm.channel;
-		f.handle  = gr->base.handle;
-		drmCommandWrite(nv->fd, DRM_NOUVEAU_GPUOBJ_FREE, &f, sizeof(f));		
+		if (gr->base.grclass) {
+			f.channel = chan->drm.channel;
+			f.handle  = gr->base.handle;
+			drmCommandWrite(nv->fd, DRM_NOUVEAU_GPUOBJ_FREE,
+					&f, sizeof(f));	
+		}
 		free(gr);
 	}
 }

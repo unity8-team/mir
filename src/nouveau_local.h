@@ -85,7 +85,7 @@
 /* FB/TT object handle */
 #define OUT_RELOCo(bo,flags) do {                                              \
 	OUT_RELOC((bo), 0, (flags) | NOUVEAU_BO_OR,                            \
-		  pNv->chan->vram_handle, pNv->chan->gart_handle);             \
+		  pNv->chan->vram->handle, pNv->chan->gart->handle);           \
 } while(0)
 #define OUT_PIXMAPo(pm,flags) do {                                             \
 	OUT_RELOCo(pNv->FB, (flags));                                          \

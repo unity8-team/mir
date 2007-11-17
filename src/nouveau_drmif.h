@@ -106,6 +106,8 @@ struct nouveau_grobj_priv {
 
 extern int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
 			       int class, struct nouveau_grobj **);
+extern int nouveau_grobj_ref(struct nouveau_channel *, uint32_t handle,
+			     struct nouveau_grobj **);
 extern void nouveau_grobj_free(struct nouveau_grobj **);
 
 
