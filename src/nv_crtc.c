@@ -748,13 +748,15 @@ void nv_crtc_calc_state_ext(
 		 * vpll2: 0x4018 + 0x401c
 		 * unknown pll: 0x4020 + 0x4024
 		 * unknown pll: 0x4038 + 0x403c
-		 * Both vpll's consist of two parts, called a and b.
-		 * 1) bit 0-7: redirected from bit 0-7 PLL_SETUP_CONTROL (ramdac 0), purpose?
-		 *     bit16-19: p-divider (a)
-		 *     bit20-23: p-divider (b) (guess)
-		 * 2) bit0-7: m-divider (a)
+		 * Some of the unknown's are probably memory pll's.
+		 * The vpll's use two set's of multipliers and dividers. I refer to them as a and b.
+		 * 1 and 2 refer to the registers of each pair. There is only one post divider.
+		 * Logic: clock = reference_clock * ((m(a) * m(b))/(n(a) * n(b))) >> p
+		 * 1) bit 0-7: familiar values, but redirected from were? (similar to PLL_SETUP_CONTROL)
+		 *     bit16-19: p-divider
+		 * 2) bit0-7: m-multiplier (a)
 		 *     bit8-15: n-divider (a)
-		 *     bit16-23: m-divider (b)
+		 *     bit16-23: m-multiplier (b)
 		 *     bit24-31: n-divider (b)
 		 */
 
