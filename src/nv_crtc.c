@@ -720,6 +720,11 @@ void nv_crtc_calc_state_ext(
 			state->crosswired = FALSE;
 		}
 
+		/* Some cards want this register zero, so let's hope we can catch them all */
+		if (pNv->sel_clk_override) {
+			state->sel_clk = pNv->misc_info.sel_clk;
+		}
+
 		/* Another attempt to properly do this */
 		Bool vpll_ok[2] = {FALSE, FALSE};
 
@@ -730,14 +735,16 @@ void nv_crtc_calc_state_ext(
 				~(NV_RAMDAC_580_VPLL2_ACTIVE | NV_RAMDAC_580_VPLL1_ACTIVE);
 
 		/* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
-		/* unknown pll: 0x4000 + 0x4004
+		/* They are only valid for NV4x, appearantly reordered for NV5x */
+		/* gpu pll: 0x4000 + 0x4004
 		 * unknown pll: 0x4008 + 0x400c
 		 * vpll1: 0x4010 + 0x4014
 		 * vpll2: 0x4018 + 0x401c
 		 * unknown pll: 0x4020 + 0x4024
 		 * unknown pll: 0x4038 + 0x403c
 		 * Both vpll's consist of two parts, called a and b.
-		 * 1) bit16-19: p-divider (a) (probably)
+		 * 1) bit 0-7: redirected from bit 0-7 PLL_SETUP_CONTROL (ramdac 0), purpose?
+		 *     bit16-19: p-divider (a)
 		 *     bit20-23: p-divider (b) (guess)
 		 * 2) bit0-7: m-divider (a)
 		 *     bit8-15: n-divider (a)
@@ -746,7 +753,7 @@ void nv_crtc_calc_state_ext(
 		 */
 
 		/* Modifying the vpll's on the 0x4000 regs requires:
-		 * - Disable the 0x333 value on the 0xc040 register
+		 * - Disable value 0x333 (inverse AND mask) on the 0xc040 register.
 		 */
 
 		if (state->vpll2) {

@@ -391,6 +391,8 @@ typedef struct _NVRec {
 
 	DisplayModePtr fp_native_mode;
 
+	Bool sel_clk_override;
+
 	struct {
 		ORNum dac;
 		ORNum sor;

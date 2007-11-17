@@ -1439,12 +1439,15 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	int i;
 	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
 
+	Bool sel_clk_override = TRUE;
+
 	/* check how many TMDS ports there are */
 	if (pNv->dcb_table.entries) {
 		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 			type = pNv->dcb_table.entry[i].type;
 			old_i2c_index = i2c_index;
 			i2c_index = pNv->dcb_table.entry[i].i2c_index;
+			or = ffs(pNv->dcb_table.entry[i].or);
 
 			dvi_pair[i] = FALSE;
 
@@ -1457,32 +1460,15 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 					dvi_pair[i ] = TRUE;
 				}
 			}
+
+			/* A normal card has at least one output valid on both ramdac's */
+			if (i2c_index != 0xf && type < 4 && type != OUTPUT_TV && or == 3) {
+				sel_clk_override = FALSE;
+			}
 		}
 	}
 
-	/* It's time to gather some information */
-
-	/* Being slaved indicates we're a flatpanel (or tv-out) */
-	if (NVReadVGA0(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
-		pNv->output_info |= OUTPUT_0_SLAVED;
-	}
-	if (NVReadVGA1(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
-		pNv->output_info |= OUTPUT_1_SLAVED;
-	}
-	/* This is an educated guess */
-	if (NVReadTMDS(pNv, 0, 0x4) & (1 << 3)) {
-		pNv->output_info |= OUTPUT_0_CROSSWIRED_TMDS;
-	}
-	if (NVReadTMDS(pNv, 1, 0x4) & (1 << 3)) {
-		pNv->output_info |= OUTPUT_1_CROSSWIRED_TMDS;
-	}
-	/* Are we LVDS? */
-	if (NVReadTMDS(pNv, 0, 0x4) & (1 << 0)) {
-		pNv->output_info |= OUTPUT_0_LVDS;
-	}
-	if (NVReadTMDS(pNv, 1, 0x4) & (1 << 0)) {
-		pNv->output_info |= OUTPUT_1_LVDS;
-	}
+	pNv->sel_clk_override = sel_clk_override;
 
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
