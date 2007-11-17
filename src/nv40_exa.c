@@ -630,12 +630,13 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_DMA_NOTIFY, 1);
-	OUT_RING  (NvDmaNotifier0);
-	BEGIN_RING(Nv3D, NV40TCL_DMA_TEXTURE0, 1);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->notify0->handle);
+	BEGIN_RING(Nv3D, NV40TCL_DMA_TEXTURE0, 2);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->gart->handle);
 	BEGIN_RING(Nv3D, NV40TCL_DMA_COLOR0, 2);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->vram->handle);
 
 	/* voodoo */
 	BEGIN_RING(Nv3D, 0x1ea4, 3);

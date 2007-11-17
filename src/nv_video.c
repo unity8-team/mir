@@ -1705,8 +1705,8 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
-		OUT_RING  (NvDmaTT);
-		OUT_RING  (NvDmaFB);
+		OUT_RING  (pNv->chan->gart->handle);
+		OUT_RING  (pNv->chan->vram->handle);
 		
 		/* DMA to VRAM */
 		if ( action_flags & IS_YV12 && ! (action_flags & CONVERT_TO_YUY2) )
@@ -1756,7 +1756,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		//Put back NvDmaNotifier0 for EXA
 		BEGIN_RING(NvMemFormat,
 			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-		OUT_RING  (NvDmaNotifier0);
+		OUT_RING  (pNv->notify0->handle);
 		
 		FIRE_RING();			
 

@@ -67,11 +67,11 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_DMA_NOTIFY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvContextSurfaces,
 		   NV04_CONTEXT_SURFACES_2D_DMA_IMAGE_SOURCE, 2);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->vram->handle);
 
 	return TRUE;
 }
@@ -178,7 +178,7 @@ NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvImagePattern, NV04_IMAGE_PATTERN_DMA_NOTIFY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvImagePattern, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT, 3);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	OUT_RING  (NV04_IMAGE_PATTERN_MONOCHROME_FORMAT_LE);
@@ -206,7 +206,7 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvRop, NV03_CONTEXT_ROP_DMA_NOTIFY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 
 	pNv->currentRop = ~0;
 	return TRUE;
@@ -227,15 +227,15 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_DMA_NOTIFY, 1);
-	OUT_RING  (NvDmaNotifier0);
+	OUT_RING  (pNv->notify0->handle);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_DMA_FONTS, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
-	OUT_RING  (NvContextSurfaces);
+	OUT_RING  (pNv->NvContextSurfaces->handle);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_ROP, 1);
-	OUT_RING  (NvRop);
+	OUT_RING  (pNv->NvRop->handle);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_PATTERN, 1);
-	OUT_RING  (NvImagePattern);
+	OUT_RING  (pNv->NvImagePattern->handle);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_OPERATION, 1);
 	OUT_RING  (NV04_GDI_RECTANGLE_TEXT_OPERATION_ROP_AND);
 	BEGIN_RING(NvRectangle, NV04_GDI_RECTANGLE_TEXT_MONOCHROME_FORMAT, 1);
@@ -264,15 +264,15 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
-	OUT_RING  (NvDmaNotifier0);
+	OUT_RING  (pNv->notify0->handle);
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_COLOR_KEY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_SURFACE, 1);
-	OUT_RING  (NvContextSurfaces);
+	OUT_RING  (pNv->NvContextSurfaces->handle);
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_CLIP_RECTANGLE, 3);
-	OUT_RING  (NvNullObject);
-	OUT_RING  (NvImagePattern);
-	OUT_RING  (NvRop);
+	OUT_RING  (pNv->NvNull->handle);
+	OUT_RING  (pNv->NvImagePattern->handle);
+	OUT_RING  (pNv->NvRop->handle);
 	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
 	OUT_RING  (NV_IMAGE_BLIT_OPERATION_ROP_AND);
 
@@ -315,13 +315,13 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 
 	BEGIN_RING(NvScaledImage,
 			NV04_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 7);
-	OUT_RING  (NvDmaNotifier0);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvNullObject);
-	OUT_RING  (NvNullObject);
-	OUT_RING  (NvContextBeta1);
-	OUT_RING  (NvContextBeta4);
-	OUT_RING  (NvContextSurfaces);
+	OUT_RING  (pNv->notify0->handle);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->NvNull->handle);
+	OUT_RING  (pNv->NvNull->handle);
+	OUT_RING  (pNv->NvContextBeta1->handle);
+	OUT_RING  (pNv->NvContextBeta4->handle);
+	OUT_RING  (pNv->NvContextSurfaces->handle);
 	if (pNv->Architecture>=NV_ARCH_10) {
 	BEGIN_RING(NvScaledImage,
 		   NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_CONVERSION, 1);
@@ -346,7 +346,7 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvClipRectangle, NV01_CONTEXT_CLIP_RECTANGLE_DMA_NOTIFY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 
 	return TRUE;
 }
@@ -370,10 +370,10 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-	OUT_RING  (NvDmaNotifier0);
+	OUT_RING  (pNv->notify0->handle);
 	BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->vram->handle);
 
 	return TRUE;
 }
@@ -404,22 +404,22 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_DMA_NOTIFY, 1);
-	OUT_RING  (NvDmaNotifier0);
+	OUT_RING  (pNv->notify0->handle);
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_CLIP_RECTANGLE, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_PATTERN, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_ROP, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 	if (pNv->Architecture >= NV_ARCH_10)
 	{
 		BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_BETA1, 1);
-		OUT_RING  (NvNullObject);
+		OUT_RING  (pNv->NvNull->handle);
 		BEGIN_RING(NvImageFromCpu, NV05_IMAGE_FROM_CPU_BETA4, 1);
-		OUT_RING  (NvNullObject);
+		OUT_RING  (pNv->NvNull->handle);
 	}
 	BEGIN_RING(NvImageFromCpu, NV05_IMAGE_FROM_CPU_SURFACE, 1);
-	OUT_RING  (NvContextSurfaces);
+	OUT_RING  (pNv->NvContextSurfaces->handle);
 	BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_OPERATION, 1);
 	OUT_RING  (NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
 	return TRUE;
@@ -437,9 +437,9 @@ NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(Nv2D, 0x180, 3);
-	OUT_RING  (NvDmaNotifier0);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->notify0->handle);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->vram->handle);
 
 	/* Magics from nv, no clue what they do, but at least some
 	 * of them are needed to avoid crashes.

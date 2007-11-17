@@ -872,15 +872,15 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	}
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_NOTIFY, 1);
-	OUT_RING  (NvNullObject);
+	OUT_RING  (pNv->NvNull->handle);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY0, 2);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaTT);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->gart->handle);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_DMA_IN_MEMORY2, 2);
-	OUT_RING  (NvDmaFB);
-	OUT_RING  (NvDmaFB);
+	OUT_RING  (pNv->chan->vram->handle);
+	OUT_RING  (pNv->chan->vram->handle);
 
 	BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_NOP, 1);
 	OUT_RING  (0);
