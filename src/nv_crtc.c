@@ -380,7 +380,7 @@ static void CalcVClock (
 			break;
 	}
 
-	for (P = 0; P <= highP; P++) {
+	for (P = 1; P <= highP; P++) {
 		Freq = VClk << P;
 		if ((Freq >= 128000) && (Freq <= 350000)) {
 			for (M = lowM; M <= highM; M++) {
@@ -439,14 +439,8 @@ static void CalcVClock2Stage (
 			break;
 		default:
 			lowM = 1;
-			highP = 16;
-			if (VClk > 340000) {
-				highM = 2;
-			} else if (VClk > 250000) {
-				highM = 6;
-			} else {
-				highM = 14;
-			}
+			highP = 15;
+			highM = 255;
 			break;
 	}
 
@@ -551,17 +545,6 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 			/* Wait for the situation to stabilise */
 			usleep(5000);
-
-			/* A last minute attempt to switch to DB2 ratio */
-			if (!(nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2)) {
-				uint32_t pllsel = state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-				nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel | NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2);
-				if (nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2) {
-					state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-					pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-				}
-				nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel);
-			}
 		}
 	}
 
@@ -602,17 +585,6 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
-
-		/* A last minute attempt to switch to DB2 ratio */
-		if (!(nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
-			uint32_t pllsel = state->pllsel;
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel | NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2);
-			if (nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
-				state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-				pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-			}
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, pllsel);
-		}
 	}
 }
 
@@ -723,6 +695,17 @@ void nv_crtc_calc_state_ext(
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
 
+	Bool DB1_ratio[2] = {FALSE, FALSE};
+
+	/* We need this before the next code */
+	if (nv_crtc->crtc == 1) {
+		state->vpll2 = state->pll;
+		state->vpll2B = state->pllB;
+	} else {
+		state->vpll = state->pll;
+		state->vpllB = state->pllB;
+	}
+
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
@@ -737,66 +720,128 @@ void nv_crtc_calc_state_ext(
 			state->crosswired = FALSE;
 		}
 
-		/* Do not remove any present VPLL related bits, that can cause problems */
+		/* Another attempt to properly do this */
+		Bool vpll_ok[2] = {FALSE, FALSE};
+
 		/* The meaning of this register is debatable */
+		/* Those 2 bits could represent some kind of p-divider switch */
 		if (!state->reg580) 
-			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
+			state->reg580 = pNv->misc_info.ramdac_0_reg_580 & 
+				~(NV_RAMDAC_580_VPLL2_ACTIVE | NV_RAMDAC_580_VPLL1_ACTIVE);
 
-		/* For the moment changing the reg580 value causes probems, disable until i really know what's happening */
-		Bool vpll1_ok = FALSE;
-		Bool vpll2_ok = FALSE;
+		/* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
+		/* unknown pll: 0x4000 + 0x4004
+		 * unknown pll: 0x4008 + 0x400c
+		 * vpll1: 0x4010 + 0x4014
+		 * vpll2: 0x4018 + 0x401c
+		 * unknown pll: 0x4020 + 0x4024
+		 * unknown pll: 0x4038 + 0x403c
+		 * Both vpll's consist of two parts, called a and b.
+		 * 1) bit16-19: p-divider (a) (probably)
+		 *     bit20-23: p-divider (b) (guess)
+		 * 2) bit0-7: m-divider (a)
+		 *     bit8-15: n-divider (a)
+		 *     bit16-23: m-divider (b)
+		 *     bit24-31: n-divider (b)
+		 */
 
-#if 0
-		/* For lack of a better name */
-		int magic_factor = (pNv->misc_info.sel_clk & (0xf << 8)) >> 8;
+		/* Modifying the vpll's on the 0x4000 regs requires:
+		 * - Disable the 0x333 value on the 0xc040 register
+		 */
 
-		/* A common situation on G70 cards, many seem to prefer DB1 vclk ratio */
-		if ((state->reg580 & 0xff) == 0x3d) {
-			switch(magic_factor) {
-				case 1:
-				case 2:
-					vpll1_ok = FALSE;
-					break;
-				case 4:
-					vpll1_ok = FALSE;
-					vpll2_ok = FALSE;
-					break;
-				case 0:
-				default:
-					break;
+		if (state->vpll2) {
+			uint8_t m_div = state->vpll2 & 0xff;
+			uint8_t n_div = (state->vpll2 & 0xff00) >> 8;
+			uint8_t p_div = (state->vpll2 & 0xf0000) >> 16;
+
+			ErrorF("vpll2: m_div %d n_div %d p_div %d\n", m_div, n_div, p_div);
+
+			/* All these things are emperical values */
+			if (n_div > 4*m_div) {
+				DB1_ratio[1] = TRUE;
+			}
+
+			/* Maybe we need wider coverage? */
+			/* This is not working yet */
+			//if (p_div == 1) {
+			//	vpll_ok[1] = TRUE;
+			//	DB1_ratio[1] = TRUE;
+			//}
+
+			if (DB1_ratio[1]) {
+				/* Here even bigger guess work starts */
+				if ((n_div/m_div) > 5 * p_div) {
+					state->vpll2 |= (1 << 30);
+				} else if (p_div >= m_div) {
+					state->vpll2 |= (1 << 30);
+					state->vpll2 |= (1 << 31);
+				}
 			}
 		}
-#endif
 
-		/* Vclk ratio DB1 is used whenever reg580 is modified for vpll activity */
-		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
-			ErrorF("We are a lover of the DB1 VCLK ratio\n");
-			if (nv_crtc->head == 1 && vpll2_ok) {
-				state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
-			} else if (nv_crtc->head == 0 && vpll1_ok) {
-				state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+		if (state->vpll) {
+			uint8_t m_div = state->vpll & 0xff;
+			uint8_t n_div = (state->vpll & 0xff00) >> 8;
+			uint8_t p_div = (state->vpll & 0xf0000) >> 16;
+
+			ErrorF("vpll1: m_div %d n_div %d p_div %d\n", m_div, n_div, p_div);
+
+			/* All these things are emperical values */
+			if (n_div > 4*m_div) {
+				DB1_ratio[0] = TRUE;
 			}
+
+			/* Maybe we need wider coverage? */
+			/* This is not working yet */
+			//if (p_div == 1) {
+			//	vpll_ok[0] = TRUE;
+			//	DB1_ratio[0] = TRUE;
+			//}
+
+			if (DB1_ratio[0]) {
+				/* Here even bigger guess work starts */
+				if ((n_div/m_div) > 5 * p_div) {
+					state->vpll |= (1 << 30);
+				} else if (p_div >= m_div) {
+					state->vpll |= (1 << 30);
+					state->vpll |= (1 << 31);
+				}
+			}
+		}
+
+		if (nv_crtc->head == 1) {
+			if (vpll_ok[1]) {
+				state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
+			} else {
+				state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
+			}
+			if (DB1_ratio[1])
+				ErrorF("We are a lover of the DB1 VCLK ratio\n");
+		} else if (nv_crtc->head == 0) {
+			if (vpll_ok[0]) {
+				state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+			} else {
+				state->reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
+			}
+			if (DB1_ratio[0])
+				ErrorF("We are a lover of the DB1 VCLK ratio\n");
 		}
 	}
 
 	/* We've bound crtc's and ramdac's together */
-	if (nv_crtc->crtc == 1) {
-		state->vpll2 = state->pll;
-		state->vpll2B = state->pllB;
-		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2) {
+	if (nv_crtc->head == 1) {
+		if (!DB1_ratio[1]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		}
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
-		state->vpll = state->pll;
-		state->vpllB = state->pllB;
 		if (pNv->Architecture < NV_ARCH_40)
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
 		else
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
-		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2) {
+		if (!DB1_ratio[0]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
