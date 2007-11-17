@@ -113,15 +113,12 @@ nouveau_dma_begin(struct nouveau_channel *userchan, struct nouveau_grobj *grobj,
 	}
 	sprintf(faulty,"%s:%d",file,line);
 #endif
+
 	if (chan->dma.free < push_size) {
-#ifdef NOUVEAU_DMA_DEBUG
-		if (nouveau_dma_wait(userchan, push_size)) {
-			NOUVEAU_ERR("FIFO timeout\n");
-			return;
+		if (nouveau_dma_wait(userchan, push_size) &&
+		    userchan->hang_notify) {
+			userchan->hang_notify(userchan);
 		}
-#else
-		nouveau_dma_wait(userchan, push_size);
-#endif
 	}
 	chan->dma.free -= push_size;
 #ifdef NOUVEAU_DMA_DEBUG

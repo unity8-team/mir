@@ -29,6 +29,9 @@ struct nouveau_channel {
 
 	struct nouveau_grobj *vram;
 	struct nouveau_grobj *gart;
+
+	void *user_private;
+	void (*hang_notify)(struct nouveau_channel *);
 };
 
 #endif

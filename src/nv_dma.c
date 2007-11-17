@@ -59,6 +59,13 @@ NVLockedUp(ScrnInfoPtr pScrn)
 		   pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
 }
 
+static void
+NVChannelHangNotify(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVLockedUp(pScrn);
+}
+
 void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -151,6 +158,9 @@ NVInitDma(ScrnInfoPtr pScrn)
 			   "Error creating GPU channel: %d\n", ret);
 		return FALSE;
 	}
+	pNv->chan->user_private = pScrn;
+	pNv->chan->hang_notify = NVChannelHangNotify;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Opened GPU channel %d\n", pNv->chan->id);
 
