@@ -139,9 +139,10 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 #if 1
         AtomBiosArgRec atomBiosArg;
 
-	if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg) == ATOM_SUCCESS) {
-	    info->atomBIOS = atomBiosArg.ptr;
-	}
+        if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg)
+            == ATOM_SUCCESS) {
+            info->atomBIOS = atomBiosArg.atomhandle;
+        }
 
         atomBiosArg.fb.start = info->FbFreeStart;
         atomBiosArg.fb.size = info->FbFreeSize;
@@ -151,6 +152,24 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    info->FbFreeStart = atomBiosArg.fb.start;
 	    info->FbFreeSize = atomBiosArg.fb.size;
         }
+
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_ENGINE_CLOCK,
+                        &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_MEMORY_CLOCK,
+                        &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MAX_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MIN_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MAX_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MIN_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MAX_PIXEL_CLK, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_REF_CLOCK, &atomBiosArg);
+
 #endif
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }

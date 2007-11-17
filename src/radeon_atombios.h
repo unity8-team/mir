@@ -27,7 +27,7 @@
 #ifndef RHD_ATOMBIOS_H_
 # define RHD_ATOMBIOS_H_
 
-#include "radeon.h"
+//#include "radeon.h"
 
 # ifdef ATOM_BIOS
 

@@ -28,11 +28,8 @@
 #endif
 #include "xf86.h"
 #include "xf86_OSproc.h"
-#include "xf86_ansic.h"
-#include "xf86Pci.h"
+//#include "xf86_ansic.h"
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
 #include "radeon.h"
 #include "radeon_atombios.h"
 #include "radeon_macros.h"
@@ -710,8 +707,8 @@ rhdAtomLvdsTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
     mode->VRefresh = (1000.0 * ((float) mode->Clock))
 	/ ((float)(((float)mode->HTotal) * ((float)mode->VTotal)));
 
-    xf86snprintf(name, NAME_LEN, "%dx%d",
-		 mode->HDisplay, mode->VDisplay);
+    snprintf(name, NAME_LEN, "%dx%d",
+	     mode->HDisplay, mode->VDisplay);
     mode->name = xstrdup(name);
 
     RHDDebug(handle->scrnIndex,"%s: LVDS Modeline: %s  "
@@ -2061,7 +2058,7 @@ CailReadATIRegister(VOID* CAIL, UINT32 idx)
 VOID
 CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CAILFUNC(CAIL);
@@ -2073,7 +2070,7 @@ CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
 UINT32
 CailReadFBData(VOID* CAIL, UINT32 idx)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     UINT32 ret;
 
@@ -2081,7 +2078,7 @@ CailReadFBData(VOID* CAIL, UINT32 idx)
 
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
 	CARD8 *FBBase = (CARD8*)info->FB;
-	ret =  *((CARD32*)(FBBase + (((atomBIOSHandlePtr)CAIL)->fbBase) + idx));
+	ret =  *((CARD32*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx));
 	DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));
     } else if (((atomBiosHandlePtr)CAIL)->scratchBase) {
 	ret = *(CARD32*)((CARD8*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx);
@@ -2097,15 +2094,15 @@ CailReadFBData(VOID* CAIL, UINT32 idx)
 VOID
 CailWriteFBData(VOID *CAIL, UINT32 idx, UINT32 data)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     CAILFUNC(CAIL);
 
     DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,data));
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
 	CARD8 *FBBase = (CARD8*)
-	    RADEONPTR(xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex])->FB;
-	*((CARD32*)(FBBase + (((atomBIOSHandlePtr)CAIL)->fbBase) + idx)) = data;
+	    RADEONPTR(xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex])->FB;
+	*((CARD32*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx)) = data;
     } else if (((atomBiosHandlePtr)CAIL)->scratchBase) {
 	*(CARD32*)((CARD8*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx) = data;
     } else
@@ -2116,7 +2113,7 @@ CailWriteFBData(VOID *CAIL, UINT32 idx, UINT32 data)
 ULONG
 CailReadMC(VOID *CAIL, ULONG Address)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     ULONG ret;
 
     CAILFUNC(CAIL);
@@ -2129,7 +2126,7 @@ CailReadMC(VOID *CAIL, ULONG Address)
 VOID
 CailWriteMC(VOID *CAIL, ULONG Address, ULONG data)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
 
     CAILFUNC(CAIL);
     DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,data));
@@ -2141,14 +2138,14 @@ CailWriteMC(VOID *CAIL, ULONG Address, ULONG data)
 VOID
 CailReadPCIConfigData(VOID*CAIL, VOID* ret, UINT32 idx,UINT16 size)
 {
-    pci_device_cfg_read(RADEONPTR(xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex])->PciInfo,
+    pci_device_cfg_read(RADEONPTR(xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex])->PciInfo,
 				ret,idx << 2 , size >> 3, NULL);
 }
 
 VOID
 CailWritePCIConfigData(VOID*CAIL,VOID*src,UINT32 idx,UINT16 size)
 {
-    pci_device_cfg_write(RADEONPTR(xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex])->PciInfo,
+    pci_device_cfg_write(RADEONPTR(xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex])->PciInfo,
 			 src, idx << 2, size >> 3, NULL);
 }
 
@@ -2210,7 +2207,7 @@ CailWritePCIConfigData(VOID*CAIL,VOID*src,UINT32 idx,UINT16 size)
 ULONG
 CailReadPLL(VOID *CAIL, ULONG Address)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     ULONG ret;
 
     CAILFUNC(CAIL);
@@ -2223,7 +2220,7 @@ CailReadPLL(VOID *CAIL, ULONG Address)
 VOID
 CailWritePLL(VOID *CAIL, ULONG Address,ULONG Data)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBIOSHandlePtr)CAIL)->scrnIndex];
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CAILFUNC(CAIL);
