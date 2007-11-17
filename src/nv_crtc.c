@@ -440,7 +440,13 @@ static void CalcVClock2Stage (
 		default:
 			lowM = 1;
 			highP = 15;
-			highM = 255;
+			if (VClk > 340000) {
+				highM = 2;
+			} else if (VClk > 250000) {
+				highM = 6;
+			} else {
+				highM = 14;
+			}
 			break;
 	}
 
