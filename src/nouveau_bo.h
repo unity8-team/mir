@@ -37,6 +37,7 @@
 
 struct nouveau_bo {
 	struct nouveau_device *device;
+	uint64_t handle;
 
 	uint64_t size;
 	void *map;

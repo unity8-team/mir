@@ -640,6 +640,127 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	return FALSE;
 }
 
+#ifdef NOUVEAU_EXA_PIXMAPS
+static Bool
+NVExaPrepareAccess(PixmapPtr pPix, int index)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+	(void)pNv;
+
+	nvpix = exaGetPixmapDriverPrivate(pPix);
+	if (!nvpix || !nvpix->bo)
+		return FALSE;
+
+	/*XXX: ho hum.. sync if needed */
+
+	if (nvpix->mapped)
+		return TRUE;
+
+	if (nouveau_bo_map(nvpix->bo, NOUVEAU_BO_RDWR))
+		return FALSE;
+	pPix->devPrivate.ptr = nvpix->bo->map;
+	nvpix->mapped = TRUE;
+	return TRUE;
+}
+
+static void
+NVExaFinishAccess(PixmapPtr pPix, int index)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+	(void)pNv;
+
+	nvpix = exaGetPixmapDriverPrivate(pPix);
+	if (!nvpix || !nvpix->bo || !nvpix->mapped)
+		return;
+
+	nouveau_bo_unmap(nvpix->bo);
+	pPix->devPrivate.ptr = NULL;
+	nvpix->mapped = FALSE;
+}
+
+static Bool
+NVExaPixmapIsOffscreen(PixmapPtr pPix)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+	(void)pNv;
+
+	nvpix = exaGetPixmapDriverPrivate(pPix);
+	if (!nvpix || !nvpix->bo)
+		return FALSE;
+
+	return TRUE;
+}
+
+static void *
+NVExaCreatePixmap(ScreenPtr pScreen, int size, int align)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+
+	nvpix = xcalloc(1, sizeof(struct nouveau_pixmap));
+	if (!nvpix)
+		return NULL;
+
+	if (size) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, size,
+				   &nvpix->bo)) {
+			xfree(nvpix);
+			return NULL;
+		}
+	}
+
+	return nvpix;
+}
+
+static void
+NVExaDestroyPixmap(ScreenPtr pScreen, void *driverPriv)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix = driverPriv;
+
+	if (!driverPriv)
+		return;
+
+	/*XXX: only if pending relocs reference this buffer..*/
+	FIRE_RING();
+
+	nouveau_bo_del(&nvpix->bo);
+	xfree(nvpix);
+}
+
+static Bool
+NVExaModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
+			int bitsPerPixel, int devKind, pointer pPixData)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+
+	if (pPixData == pNv->FB->map) {
+		nvpix = exaGetPixmapDriverPrivate(pPixmap);
+		if (!nvpix)
+			return FALSE;
+
+		if (nouveau_bo_ref(pNv->dev, pNv->FB->handle, &nvpix->bo))
+			return FALSE;
+
+		miModifyPixmapHeader(pPixmap, width, height, depth,
+				     bitsPerPixel, devKind, NULL);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+#endif
+
 Bool
 NVExaInit(ScreenPtr pScreen) 
 {
@@ -654,13 +775,28 @@ NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
 	pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
-	pNv->EXADriverPtr->memoryBase		= pNv->FB->map;
-	pNv->EXADriverPtr->offScreenBase	=
-		pScrn->virtualX * pScrn->virtualY*(pScrn->bitsPerPixel/8); 
-	pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
+#ifdef NOUVEAU_EXA_PIXMAPS
+	if (NOUVEAU_EXA_PIXMAPS) {
+		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS |
+					   EXA_HANDLES_PIXMAPS;
+		pNv->EXADriverPtr->PrepareAccess = NVExaPrepareAccess;
+		pNv->EXADriverPtr->FinishAccess = NVExaFinishAccess;
+		pNv->EXADriverPtr->PixmapIsOffscreen = NVExaPixmapIsOffscreen;
+		pNv->EXADriverPtr->CreatePixmap = NVExaCreatePixmap;
+		pNv->EXADriverPtr->DestroyPixmap = NVExaDestroyPixmap;
+		pNv->EXADriverPtr->ModifyPixmapHeader = NVExaModifyPixmapHeader;
+	} else
+#endif
+	{
+		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
+		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
+		pNv->EXADriverPtr->offScreenBase =
+			pScrn->virtualX * pScrn->virtualY * 
+			(pScrn->bitsPerPixel / 8); 
+		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
+	}
 	pNv->EXADriverPtr->pixmapOffsetAlign	= 256; 
 	pNv->EXADriverPtr->pixmapPitchAlign	= 64; 
-	pNv->EXADriverPtr->flags		= EXA_OFFSCREEN_PIXMAPS;
 	pNv->EXADriverPtr->maxX			= 32768;
 	pNv->EXADriverPtr->maxY			= 32768;
 

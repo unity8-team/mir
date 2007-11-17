@@ -26,6 +26,14 @@
 #include "compiler.h"
 #include "xf86_OSproc.h"
 
+#if EXA_VERSION_MINOR >= 4
+#define NOUVEAU_EXA_PIXMAPS 0
+struct nouveau_pixmap {
+	struct nouveau_bo *bo;
+	int mapped;
+};
+#endif
+
 /* Debug output */
 #define NOUVEAU_MSG(fmt,args...) ErrorF(fmt, ##args)
 #define NOUVEAU_ERR(fmt,args...) \
@@ -78,33 +86,59 @@
 #define OUT_RELOCd(bo,data,flags,vor,tor) do {                                 \
 	OUT_RELOC((bo), (data), (flags) | NOUVEAU_BO_OR, (vor), (tor));        \
 } while(0)
-#define OUT_PIXMAPd(bo,data,flags,vor,tor) do {                                \
-	OUT_RELOCd(pNv->FB, (data), (flags), (vor), (tor));                    \
-} while(0)
 
 /* FB/TT object handle */
 #define OUT_RELOCo(bo,flags) do {                                              \
 	OUT_RELOC((bo), 0, (flags) | NOUVEAU_BO_OR,                            \
 		  pNv->chan->vram->handle, pNv->chan->gart->handle);           \
 } while(0)
-#define OUT_PIXMAPo(pm,flags) do {                                             \
-	OUT_RELOCo(pNv->FB, (flags));                                          \
-} while(0)
 
 /* Low 32-bits of offset */
 #define OUT_RELOCl(bo,delta,flags) do {                                        \
 	OUT_RELOC((bo), (delta), (flags) | NOUVEAU_BO_LOW, 0, 0);              \
-} while(0)
-#define OUT_PIXMAPl(pm,delta,flags) do {                                       \
-	OUT_RELOCl(pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));        \
 } while(0)
 
 /* High 32-bits of offset */
 #define OUT_RELOCh(bo,delta,flags) do {                                        \
 	OUT_RELOC((bo), (delta), (flags) | NOUVEAU_BO_HIGH, 0, 0);             \
 } while(0)
+
+
+/* Alternate versions of OUT_RELOCx above, takes pixmaps instead of BOs */
+#if NOUVEAU_EXA_PIXMAPS
+#define OUT_PIXMAPd(pm,data,flags,vor,tor) do {                                \
+	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
+	struct nouveau_bo *pmo = nvpix->bo;                                    \
+	OUT_RELOCd(pmo, (data), (flags), (vor), (tor));                        \
+} while(0)
+#define OUT_PIXMAPo(pm,flags) do {                                             \
+	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
+	struct nouveau_bo *pmo = nvpix->bo;                                    \
+	OUT_RELOCo(pmo, (flags));                                              \
+} while(0)
+#define OUT_PIXMAPl(pm,delta,flags) do {                                       \
+	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
+	struct nouveau_bo *pmo = nvpix->bo;                                    \
+	OUT_RELOCl(pmo, (delta), (flags));                                     \
+} while(0)
+#define OUT_PIXMAPh(pm,delta,flags) do {                                       \
+	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
+	struct nouveau_bo *pmo = nvpix->bo;                                    \
+	OUT_RELOCh(pmo, (delta), (flags));                                     \
+} while(0)
+#else
+#define OUT_PIXMAPd(pm,data,flags,vor,tor) do {                                \
+	OUT_RELOCd(pNv->FB, (data), (flags), (vor), (tor));                    \
+} while(0)
+#define OUT_PIXMAPo(pm,flags) do {                                             \
+	OUT_RELOCo(pNv->FB, (flags));                                          \
+} while(0)
+#define OUT_PIXMAPl(pm,delta,flags) do {                                       \
+	OUT_RELOCl(pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));        \
+} while(0)
 #define OUT_PIXMAPh(pm,delta,flags) do {                                       \
 	OUT_RELOCh(pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));        \
 } while(0)
+#endif
 
 #endif

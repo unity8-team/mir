@@ -1704,6 +1704,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
+#if !NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 			   0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
 		ErrorF("Failed to allocate memory for framebuffer!\n");
@@ -1712,6 +1713,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
 		   (unsigned int)(pNv->FB->size >> 20));
+#endif
 
 
 	if (pNv->AGPSize) {
@@ -1758,7 +1760,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 		}
 	}
 
-	if (nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR) ||
+	if ((pNv->FB && nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR)) ||
 	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
 	    (pNv->CLUT && nouveau_bo_map(pNv->CLUT, NOUVEAU_BO_RDWR)) ||
 	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR)) {
@@ -2147,7 +2149,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!NVAccelCommonInit(pScrn))
 	    return FALSE;
     }
-    
+   
+#if NOUVEAU_EXA_PIXMAPS
+    if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+		       0, pScrn->virtualX * pScrn->virtualY *
+		       (pScrn->bitsPerPixel >> 3), &pNv->FB)) {
+	    ErrorF("Failed to allocate memory for screen pixmap.\n");
+	    return FALSE;
+    }
+#endif
+
     if (!pNv->randr12_enable) {
 	/* Save the current state */
 	NVSave(pScrn);
@@ -2212,7 +2223,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     width = pScrn->virtualX;
     height = pScrn->virtualY;
     displayWidth = pScrn->displayWidth;
-
 
     if(pNv->Rotate) {
 	height = pScrn->virtualX;

@@ -144,6 +144,8 @@ struct nouveau_bo_priv {
 
 	struct drm_nouveau_mem_alloc drm;
 	void *map;
+
+	int refcount;
 };
 
 struct nouveau_bo_reloc {
@@ -160,7 +162,7 @@ nouveau_bo_new(struct nouveau_device *, uint32_t flags, int align, int size,
 	       struct nouveau_bo **);
 
 extern int
-nouveau_bo_ref(struct nouveau_device *, uint32_t handle, struct nouveau_bo **);
+nouveau_bo_ref(struct nouveau_device *, uint64_t handle, struct nouveau_bo **);
 
 extern void
 nouveau_bo_del(struct nouveau_bo **);

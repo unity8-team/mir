@@ -68,15 +68,24 @@ nouveau_bo_new(struct nouveau_device *userdev, uint32_t flags, int align,
 
 	bo->base.size = bo->drm.size;
 	bo->base.offset = bo->drm.offset;
+	bo->base.handle = (unsigned long)bo;
+	bo->refcount = 1;
 	*userbo = &bo->base;
 	return 0;
 }
 
 int
-nouveau_bo_ref(struct nouveau_device *userdev, uint32_t handle,
+nouveau_bo_ref(struct nouveau_device *userdev, uint64_t handle,
 	       struct nouveau_bo **userbo)
 {
-	return -EINVAL;
+	struct nouveau_bo_priv *bo = (void *)(unsigned long)handle;
+
+	if (!bo || !userbo || *userbo)
+		return -EINVAL;
+
+	bo->refcount++;
+	*userbo = &bo->base;
+	return 0;
 }
 
 void
@@ -89,6 +98,9 @@ nouveau_bo_del(struct nouveau_bo **userbo)
 		return;
 	bo = nouveau_bo(*userbo);
 	*userbo = NULL;
+
+	if (--bo->refcount)
+		return;
 
 	if (bo->map) {
 		drmUnmap(bo->map, bo->drm.size);
@@ -108,7 +120,7 @@ nouveau_bo_map(struct nouveau_bo *userbo, uint32_t flags)
 {
 	struct nouveau_bo_priv *bo = nouveau_bo(userbo);
 
-	if (!bo || userbo->map)
+	if (!bo)
 		return -EINVAL;
 	userbo->map = bo->map;
 	return 0;
