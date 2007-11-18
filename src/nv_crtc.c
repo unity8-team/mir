@@ -562,6 +562,7 @@ CalculateVClkNV4x(
 
 	ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d\n", n1_best, n2_best, m1_best, m2_best, p_best);
 
+	/* This is emperical */
 	if (n1_best > 4*m1_best) {
 		*db1_ratio = TRUE;
 	} else {
@@ -1202,7 +1203,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
-	uint32_t clock = adjusted_mode->Clock;
 
 #if 0
 	/* Happily borrowed from haiku driver, as an extra safety */
@@ -1314,7 +1314,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		}
 	}
 
-	ErrorF("Mode clock: %d\n", clock);
+	ErrorF("Mode clock: %d\n", mode->Clock);
+	ErrorF("Adjusted mode clock: %d\n", adjusted_mode->Clock);
 
 	ErrorF("crtc: Pre-sync workaround\n");
 	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
@@ -1464,7 +1465,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 				pScrn->displayWidth,
 				mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
-				clock,
+				adjusted_mode->Clock,
 				mode->Flags);
 
 	/* Enable slaved mode */

@@ -290,7 +290,8 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 /* Some registers are not set, because they are zero. */
 /* This sequence matters, this is how the blob does it */
-int tmds_regs[] = { 0x2f, 0x2e, 0x33, 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x04, 0x3a, 0x33, 0x04 };
+/* I made an educated guess were to put some of the lvds specific regs */
+int tmds_regs[] = { 0x2f, 0x2e, 0x33, 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x00, 0x01, 0x02, 0x40, 0x43, 0x2e, 0x2f, 0x04, 0x3a, 0x33, 0x04 };
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
@@ -562,6 +563,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	RIVA_HW_STATE *state, *sv_state;
 	Bool is_fp = FALSE;
+	Bool is_lvds = FALSE;
 	NVOutputRegPtr regp, regp2, savep;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 	float aspect_ratio, panel_ratio;
@@ -578,6 +580,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
+
+		if (nv_output->type == OUTPUT_LVDS)
+			is_lvds = TRUE;
 
 		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
 		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
@@ -743,6 +748,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
+
+		if (is_lvds) {
+			regp->TMDS[0x4] |= (1 << 0);
+		}
 	}
 
 	/* The TMDS game begins */
@@ -757,16 +766,24 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		uint32_t pll_setup_control = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SETUP_CONTROL);
 		regp->TMDS[0x2b] = 0x7d;
 		regp->TMDS[0x2c] = 0x0;
-		if (nv_crtc->head == 1) {
-			regp->TMDS[0x2e] = 0x81;
+		/* Various combinations exist for lvds, 0x08, 0x48, 0xc8, 0x88 */
+		/* 0x88 seems most popular and (maybe) the end setting */
+		if (is_lvds) {
+			regp->TMDS[0x2e] = 0x88;
 		} else {
-			regp->TMDS[0x2e] = 0x85;
+			if (nv_crtc->head == 1) {
+				regp->TMDS[0x2e] = 0x81;
+			} else {
+				regp->TMDS[0x2e] = 0x85;
+			}
 		}
+		/* 0x08 is also seen for lvds */
 		regp->TMDS[0x2f] = 0x21;
 		regp->TMDS[0x30] = 0x0;
 		regp->TMDS[0x31] = 0x0;
 		regp->TMDS[0x32] = 0x0;
 		regp->TMDS[0x33] = 0xf0;
+		/* 0x00 is also seen for lvds */
 		regp->TMDS[0x3a] = 0x80;
 
 		/* Here starts the registers that may cause problems for some */
@@ -777,13 +794,17 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			regp->TMDS[0x5] = 0x6e;
 		}
 
-		/* This seems to be related to PLL_SETUP_CONTROL */
-		/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xc1 */
-		/* Otherwise 0xf1 */
-		if ((pll_setup_control & 0xff) == 0x1c) {
-			regp->TMDS[0x0] = 0xc1;
+		if (is_lvds) {
+			regp->TMDS[0x0] = 0x61;
 		} else {
-			regp->TMDS[0x0] = 0xf1;
+			/* This seems to be related to PLL_SETUP_CONTROL */
+			/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xc1 */
+			/* Otherwise 0xf1 */
+			if ((pll_setup_control & 0xff) == 0x1c) {
+				regp->TMDS[0x0] = 0xc1;
+			} else {
+				regp->TMDS[0x0] = 0xf1;
+			}
 		}
 
 		/* This is also related to PLL_SETUP_CONTROL, exactly how is unknown */
@@ -797,16 +818,27 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 		}
 
-		if (pll_setup_control == 0x0) {
-			regp->TMDS[0x2] = 0x90;
+		if (is_lvds) {
+			regp->TMDS[0x2] = 0x0;
 		} else {
-			regp->TMDS[0x2] = 0x89;
+			if (pll_setup_control == 0x0) {
+				regp->TMDS[0x2] = 0x90;
+			} else {
+				regp->TMDS[0x2] = 0x89;
+			}
 		}
 		/* This test is not needed for me although the blob sets this value */
 		/* It may be wrong, but i'm leaving it for historical reference */
 		/*if (pNv->misc_info.reg_c040 == 0x3c0bc003 || pNv->misc_info.reg_c040 == 0x3c0bc333) {
 			regp->TMDS[0x2] = 0xa9;
 		}*/
+
+		/* I assume they are zero for !is_lvds */
+		if (is_lvds) {
+			/* Observed values are 0x11 and 0x14, TODO: this needs refinement */
+			regp->TMDS[0x40] = 0x14;
+			regp->TMDS[0x43] = 0xb0;
+		}
 	}
 
 	/* Flatpanel support needs at least a NV10 */
