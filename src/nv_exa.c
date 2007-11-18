@@ -479,7 +479,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		return FALSE;
 	}
 
-	if (NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &surf_fmt))
+	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &surf_fmt))
 		return FALSE;
 
 	BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
