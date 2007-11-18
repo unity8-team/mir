@@ -53,10 +53,10 @@
 #endif
 
 AtomBiosResult
-atombios_enable_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
+atombios_enable_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
 {
     ENABLE_CRTC_PS_ALLOCATION crtc_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     crtc_data.ucCRTC = crtc;
@@ -66,7 +66,7 @@ atombios_enable_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_data;
     
-    if (RHDAtomBIOSFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("%s CRTC %d success\n", state? "Enable":"Disable", crtc);
 	return ATOM_SUCCESS ;
     }
@@ -76,11 +76,11 @@ atombios_enable_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
 }
 
 AtomBiosResult
-atombios_blank_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
+atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
 {
     BLANK_CRTC_PS_ALLOCATION crtc_data;
     unsigned char *space;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
 
     memset(&crtc_data, 0, sizeof(crtc_data));
     crtc_data.ucCRTC = crtc;
@@ -90,7 +90,7 @@ atombios_blank_crtc(atomBIOSHandlePtr atomBIOS, int crtc, int state)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_data;
     
-    if (RHDAtomBIOSFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("%s CRTC %d success\n", state? "Blank":"Unblank", crtc);
 	return ATOM_SUCCESS ;
     }
@@ -130,16 +130,16 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 static AtomBiosResult
-atombios_set_crtc_timing(atomBIOSHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_param)
+atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_param)
 {
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_Timing);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = crtc_param;
     
-    if (RHDAtomBIOSFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC Timing success\n");
 	return ATOM_SUCCESS ;
     }
@@ -267,7 +267,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     int major, minor;
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     void *ptr;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;    
     RADEONSavePtr save = &info->ModeReg;
     
@@ -320,7 +320,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = ptr;
 
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC PLL success\n");
 	return;
     }
@@ -336,7 +336,7 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
     SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
     int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
@@ -388,7 +388,7 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_src_param;
     
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC Source success\n");
 	return;
     }

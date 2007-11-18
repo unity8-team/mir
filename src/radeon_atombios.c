@@ -28,10 +28,11 @@
 #endif
 #include "xf86.h"
 #include "xf86_OSproc.h"
-//#include "xf86_ansic.h"
 
 #include "radeon.h"
 #include "radeon_atombios.h"
+#include "radeon_atomwrapper.h"
+#include "radeon_probe.h"
 #include "radeon_macros.h"
 
 #include "xorg-server.h"
@@ -178,9 +179,32 @@ enum {
     legacyBIOSMax = 0x10000
 };
 
+#define DEBUGP(x) {x;}
+#define LOG_DEBUG 7
+
 #  ifdef ATOM_BIOS_PARSER
 
 #   define LOG_CAIL LOG_DEBUG + 1
+
+static void
+RHDDebug(int scrnIndex, const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+    xf86VDrvMsgVerb(scrnIndex, X_INFO, LOG_DEBUG, format, ap);
+    va_end(ap);
+}
+
+static void
+RHDDebugCont(const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+    xf86VDrvMsgVerb(-1, X_NONE, LOG_DEBUG, format, ap);
+    va_end(ap);
+}
 
 static void
 CailDebug(int scrnIndex, const char *format, ...)
@@ -207,8 +231,9 @@ rhdAtomAnalyzeCommonHdr(ATOM_COMMON_TABLE_HEADER *hdr)
 
 static int
 rhdAtomAnalyzeRomHdr(unsigned char *rombase,
-              ATOM_ROM_HEADER *hdr,
-              unsigned int *data_offset)
+		     ATOM_ROM_HEADER *hdr,
+		     unsigned int *data_offset, 
+		     unsigned int *command_offset)
 {
     if (!rhdAtomAnalyzeCommonHdr(&hdr->sHeader)) {
         return FALSE;
@@ -221,6 +246,7 @@ rhdAtomAnalyzeRomHdr(unsigned char *rombase,
 		   rombase + hdr->usBIOS_BootupMessageOffset);
 
     *data_offset = hdr->usMasterDataTableOffset;
+    *command_offset = hdr->usMasterCommandTableOffset;
 
     return TRUE;
 }
@@ -242,7 +268,7 @@ rhdAtomAnalyzeRomDataTable(unsigned char *base, int offset,
    return TRUE;
 }
 
-static Bool
+Bool
 rhdAtomGetTableRevisionAndSize(ATOM_COMMON_TABLE_HEADER *hdr,
 			       CARD8 *contentRev,
 			       CARD8 *formatRev,
@@ -320,10 +346,13 @@ rhdAtomAnalyzeMasterDataTable(unsigned char *base,
 }
 
 static Bool
-rhdAtomGetDataTable(int scrnIndex, unsigned char *base,
-		    atomDataTables *atomDataPtr, unsigned int BIOSImageSize)
+rhdAtomGetDataTable(int scrnIndex,
+		    unsigned char *base,
+		    atomDataTables *atomDataPtr,
+		    unsigned int *cmd_offset,
+		    unsigned int BIOSImageSize)
 {
-    unsigned int  data_offset;
+    unsigned int data_offset;
     unsigned int atom_romhdr_off =  *(unsigned short*)
         (base + OFFSET_TO_POINTER_TO_ATOM_ROM_HEADER);
     ATOM_ROM_HEADER *atom_rom_hdr =
@@ -343,13 +372,18 @@ rhdAtomGetDataTable(int scrnIndex, unsigned char *base,
         return FALSE;
     }
     xf86DrvMsg(scrnIndex, X_INFO, "ATOM BIOS Rom: \n");
-    if (!rhdAtomAnalyzeRomHdr(base, atom_rom_hdr, &data_offset)) {
+    if (!rhdAtomAnalyzeRomHdr(base, atom_rom_hdr, &data_offset, cmd_offset)) {
         xf86DrvMsg(scrnIndex, X_ERROR, "RomHeader invalid\n");
         return FALSE;
     }
 
     if (data_offset + sizeof (ATOM_MASTER_DATA_TABLE) > BIOSImageSize) {
 	xf86DrvMsg(scrnIndex,X_ERROR,"%s: Atom data table outside of BIOS\n",
+		   __func__);
+    }
+
+    if (cmd_offset + sizeof (ATOM_MASTER_COMMAND_TABLE) > BIOSImageSize) {
+	xf86DrvMsg(scrnIndex,X_ERROR,"%s: Atom command table outside of BIOS\n",
 		   __func__);
     }
 
@@ -509,6 +543,7 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
     RADEONInfoPtr  info   = RADEONPTR(xf86Screens[scrnIndex]);
     unsigned char *ptr;
     atomDataTablesPtr atomDataPtr;
+    unsigned int cmd_offset;
     atomBiosHandlePtr handle = NULL;
     unsigned int BIOSImageSize = 0;
     data->atomhandle = NULL;
@@ -562,7 +597,7 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
 		   "ATOM BIOS data tabes\n");
 	goto error;
     }
-    if (!rhdAtomGetDataTable(scrnIndex, ptr, atomDataPtr,BIOSImageSize))
+    if (!rhdAtomGetDataTable(scrnIndex, ptr, atomDataPtr, &cmd_offset, BIOSImageSize))
 	goto error1;
     if (!(handle = xcalloc(1, sizeof(atomBiosHandleRec)))) {
 	xf86DrvMsg(scrnIndex,X_ERROR,"Cannot allocate memory\n");
@@ -570,6 +605,7 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
     }
     handle->BIOSBase = ptr;
     handle->atomDataPtr = atomDataPtr;
+    handle->cmd_offset = cmd_offset;
     handle->scrnIndex = scrnIndex;
 #if XSERVER_LIBPCIACCESS
     handle->device = info->PciInfo;
@@ -1234,6 +1270,10 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
     return ATOM_SUCCESS;
 }
 
+#if 0
+#define RHD_CONNECTORS_MAX 4
+#define MAX_OUTPUTS_PER_CONNECTOR 2
+
 #define Limit(n,max,name) ((n >= max) ? ( \
      xf86DrvMsg(handle->scrnIndex,X_ERROR,"%s: %s %i exceeds maximum %i\n", \
 		__func__,name,n,max), TRUE) : FALSE)
@@ -1241,116 +1281,118 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 static const struct _rhd_connector_objs
 {
     char *name;
-    rhdConnectorType con;
+    RADEONConnectorTypeATOM con;
 } rhd_connector_objs[] = {
-    { "NONE", RHD_CONNECTOR_NONE },
-    { "SINGLE_LINK_DVI_I", RHD_CONNECTOR_DVI },
-    { "DUAL_LINK_DVI_I", RHD_CONNECTOR_DVI_DUAL },
-    { "SINGLE_LINK_DVI_D", RHD_CONNECTOR_DVI },
-    { "DUAL_LINK_DVI_D", RHD_CONNECTOR_DVI_DUAL },
-    { "VGA", RHD_CONNECTOR_VGA },
-    { "COMPOSITE", RHD_CONNECTOR_TV },
-    { "SVIDEO", RHD_CONNECTOR_TV, },
-    { "D_CONNECTOR", RHD_CONNECTOR_NONE, },
-    { "9PIN_DIN", RHD_CONNECTOR_NONE },
-    { "SCART", RHD_CONNECTOR_TV },
-    { "HDMI_TYPE_A", RHD_CONNECTOR_NONE },
-    { "HDMI_TYPE_B", RHD_CONNECTOR_NONE },
-    { "HDMI_TYPE_B", RHD_CONNECTOR_NONE },
-    { "LVDS", RHD_CONNECTOR_PANEL },
-    { "7PIN_DIN", RHD_CONNECTOR_TV },
-    { "PCIE_CONNECTOR", RHD_CONNECTOR_NONE },
-    { "CROSSFIRE", RHD_CONNECTOR_NONE },
-    { "HARDCODE_DVI", RHD_CONNECTOR_NONE },
-    { "DISPLAYPORT", RHD_CONNECTOR_NONE}
+    { "NONE", CONNECTOR_NONE_ATOM },
+    { "SINGLE_LINK_DVI_I", CONNECTOR_DVI_I_ATOM },
+    { "DUAL_LINK_DVI_I", CONNECTOR_DVI_I_ATOM },
+    { "SINGLE_LINK_DVI_D", CONNECTOR_DVI_D_ATOM },
+    { "DUAL_LINK_DVI_D", CONNECTOR_DVI_D_ATOM },
+    { "VGA", CONNECTOR_VGA_ATOM },
+    { "COMPOSITE", CONNECTOR_CTV_ATOM },
+    { "SVIDEO", CONNECTOR_STV_ATOM },
+    { "D_CONNECTOR", CONNECTOR_NONE_ATOM },
+    { "9PIN_DIN", CONNECTOR_NONE_ATOM },
+    { "SCART", CONNECTOR_SCART_ATOM },
+    { "HDMI_TYPE_A", CONNECTOR_HDMI_TYPE_A_ATOM },
+    { "HDMI_TYPE_B", CONNECTOR_HDMI_TYPE_B_ATOM },
+    { "HDMI_TYPE_B", CONNECTOR_HDMI_TYPE_B_ATOM },
+    { "LVDS", CONNECTOR_LVDS_ATOM },
+    { "7PIN_DIN", CONNECTOR_STV_ATOM },
+    { "PCIE_CONNECTOR", CONNECTOR_NONE_ATOM },
+    { "CROSSFIRE", CONNECTOR_NONE_ATOM },
+    { "HARDCODE_DVI", CONNECTOR_NONE_ATOM },
+    { "DISPLAYPORT", CONNECTOR_DISPLAY_PORT_ATOM }
 };
 static const int n_rhd_connector_objs = sizeof (rhd_connector_objs) / sizeof(struct _rhd_connector_objs);
 
 static const struct _rhd_encoders
 {
     char *name;
-    rhdOutputType ot;
+    RADEONOutputTypeATOM ot;
 } rhd_encoders[] = {
-    { "NONE", RHD_OUTPUT_NONE },
-    { "INTERNAL_LVDS", RHD_OUTPUT_LVDS },
-    { "INTERNAL_TMDS1", RHD_OUTPUT_TMDSA },
-    { "INTERNAL_TMDS2", RHD_OUTPUT_TMDSB },
-    { "INTERNAL_DAC1", RHD_OUTPUT_DACA },
-    { "INTERNAL_DAC2", RHD_OUTPUT_DACB },
-    { "INTERNAL_SDVOA", RHD_OUTPUT_NONE },
-    { "INTERNAL_SDVOB", RHD_OUTPUT_NONE },
-    { "SI170B", RHD_OUTPUT_NONE },
-    { "CH7303", RHD_OUTPUT_NONE },
-    { "CH7301", RHD_OUTPUT_NONE },
-    { "INTERNAL_DVO1", RHD_OUTPUT_NONE },
-    { "EXTERNAL_SDVOA", RHD_OUTPUT_NONE },
-    { "EXTERNAL_SDVOB", RHD_OUTPUT_NONE },
-    { "TITFP513", RHD_OUTPUT_NONE },
-    { "INTERNAL_LVTM1", RHD_OUTPUT_LVTMA },
-    { "VT1623", RHD_OUTPUT_NONE },
-    { "HDMI_SI1930", RHD_OUTPUT_NONE },
-    { "HDMI_INTERNAL", RHD_OUTPUT_NONE },
-    { "INTERNAL_KLDSCP_TMDS1", RHD_OUTPUT_TMDSA },
-    { "INTERNAL_KLSCP_DVO1", RHD_OUTPUT_NONE },
-    { "INTERNAL_KLDSCP_DAC1", RHD_OUTPUT_DACA },
-    { "INTERNAL_KLDSCP_DAC2", RHD_OUTPUT_DACB },
-    { "SI178", RHD_OUTPUT_NONE },
-    { "MVPU_FPGA", RHD_OUTPUT_NONE },
-    { "INTERNAL_DDI", RHD_OUTPUT_NONE },
-    { "VT1625", RHD_OUTPUT_NONE },
-    { "HDMI_SI1932", RHD_OUTPUT_NONE },
-    { "AN9801", RHD_OUTPUT_NONE },
-    { "DP501",  RHD_OUTPUT_NONE },
+    { "NONE", OUTPUT_NONE_ATOM },
+    { "INTERNAL_LVDS", OUTPUT_LVDS_ATOM },
+    { "INTERNAL_TMDS1", OUTPUT_TMDSA_ATOM },
+    { "INTERNAL_TMDS2", OUTPUT_TMDSB_ATOM },
+    { "INTERNAL_DAC1", OUTPUT_DACA_ATOM },
+    { "INTERNAL_DAC2", OUTPUT_DACB_ATOM },
+    { "INTERNAL_SDVOA", OUTPUT_NONE_ATOM },
+    { "INTERNAL_SDVOB", OUTPUT_NONE_ATOM },
+    { "SI170B", OUTPUT_NONE_ATOM },
+    { "CH7303", OUTPUT_NONE_ATOM },
+    { "CH7301", OUTPUT_NONE_ATOM },
+    { "INTERNAL_DVO1", OUTPUT_NONE_ATOM },
+    { "EXTERNAL_SDVOA", OUTPUT_NONE_ATOM },
+    { "EXTERNAL_SDVOB", OUTPUT_NONE_ATOM },
+    { "TITFP513", OUTPUT_NONE_ATOM },
+    { "INTERNAL_LVTM1", OUTPUT_LVTMA_ATOM },
+    { "VT1623", OUTPUT_NONE_ATOM },
+    { "HDMI_SI1930", OUTPUT_NONE_ATOM },
+    { "HDMI_INTERNAL", OUTPUT_NONE_ATOM },
+    { "INTERNAL_KLDSCP_TMDS1", OUTPUT_TMDSA_ATOM },
+    { "INTERNAL_KLSCP_DVO1", OUTPUT_NONE_ATOM },
+    { "INTERNAL_KLDSCP_DAC1", OUTPUT_DACA_ATOM },
+    { "INTERNAL_KLDSCP_DAC2", OUTPUT_DACB_ATOM },
+    { "SI178", OUTPUT_NONE_ATOM },
+    { "MVPU_FPGA", OUTPUT_NONE_ATOM },
+    { "INTERNAL_DDI", OUTPUT_NONE_ATOM },
+    { "VT1625", OUTPUT_NONE_ATOM },
+    { "HDMI_SI1932", OUTPUT_NONE_ATOM },
+    { "AN9801", OUTPUT_NONE_ATOM },
+    { "DP501",  OUTPUT_NONE_ATOM },
 };
 static const int n_rhd_encoders = sizeof (rhd_encoders) / sizeof(struct _rhd_encoders);
 
 static const struct _rhd_connectors
 {
     char *name;
-    rhdConnectorType con;
+    RADEONConnectorTypeATOM con;
     Bool dual;
 } rhd_connectors[] = {
-    {"NONE", RHD_CONNECTOR_NONE, FALSE },
-    {"VGA", RHD_CONNECTOR_VGA, FALSE },
-    {"DVI-I", RHD_CONNECTOR_DVI, TRUE },
-    {"DVI-D", RHD_CONNECTOR_DVI, FALSE },
-    {"DVI-A", RHD_CONNECTOR_DVI, FALSE },
-    {"SVIDEO", RHD_CONNECTOR_TV, FALSE },
-    {"COMPOSITE", RHD_CONNECTOR_TV, FALSE },
-    {"PANEL", RHD_CONNECTOR_PANEL, FALSE },
-    {"DIGITAL_LINK", RHD_CONNECTOR_NONE, FALSE },
-    {"SCART", RHD_CONNECTOR_TV, FALSE },
-    {"HDMI Type A", RHD_CONNECTOR_NONE, FALSE },
-    {"HDMI Type B", RHD_CONNECTOR_NONE, FALSE },
-    {"UNKNOWN", RHD_CONNECTOR_NONE, FALSE },
-    {"UNKNOWN", RHD_CONNECTOR_NONE, FALSE },
-    {"DVI+DIN", RHD_CONNECTOR_NONE, FALSE }
+    {"NONE", CONNECTOR_NONE_ATOM, FALSE },
+    {"VGA", CONNECTOR_VGA_ATOM, FALSE },
+    {"DVI-I", CONNECTOR_DVI_I_ATOM, TRUE },
+    {"DVI-D", CONNECTOR_DVI_D_ATOM, FALSE },
+    {"DVI-A", CONNECTOR_DVI_A_ATOM, FALSE },
+    {"SVIDEO", CONNECTOR_STV_ATOM, FALSE },
+    {"COMPOSITE", CONNECTOR_CTV_ATOM, FALSE },
+    {"PANEL", CONNECTOR_LVDS_ATOM, FALSE },
+    {"DIGITAL_LINK", CONNECTOR_DIGITAL_ATOM, FALSE },
+    {"SCART", CONNECTOR_SCART_ATOM, FALSE },
+    {"HDMI Type A", CONNECTOR_HDMI_TYPE_A_ATOM, FALSE },
+    {"HDMI Type B", CONNECTOR_HDMI_TYPE_B_ATOM, FALSE },
+    {"UNKNOWN", CONNECTOR_NONE_ATOM, FALSE },
+    {"UNKNOWN", CONNECTOR_NONE_ATOM, FALSE },
+    {"DVI+DIN", CONNECTOR_NONE_ATOM, FALSE }
 };
 static const int n_rhd_connectors = sizeof(rhd_connectors) / sizeof(struct _rhd_connectors);
 
 static const struct _rhd_devices
 {
     char *name;
-    rhdOutputType ot;
+    RADEONOutputTypeATOM ot;
 } rhd_devices[] = {
-    {" CRT1", RHD_OUTPUT_NONE },
-    {" LCD1", RHD_OUTPUT_LVTMA },
-    {" TV1", RHD_OUTPUT_NONE },
-    {" DFP1", RHD_OUTPUT_TMDSA },
-    {" CRT2", RHD_OUTPUT_NONE },
-    {" LCD2", RHD_OUTPUT_LVTMA },
-    {" TV2", RHD_OUTPUT_NONE },
-    {" DFP2", RHD_OUTPUT_LVTMA },
-    {" CV", RHD_OUTPUT_NONE },
-    {" DFP3", RHD_OUTPUT_LVTMA }
+    {" CRT1", OUTPUT_NONE_ATOM },
+    {" LCD1", OUTPUT_LVTMA_ATOM },
+    {" TV1", OUTPUT_NONE_ATOM },
+    {" DFP1", OUTPUT_TMDSA_ATOM },
+    {" CRT2", OUTPUT_NONE_ATOM },
+    {" LCD2", OUTPUT_LVTMA_ATOM },
+    {" TV2", OUTPUT_NONE_ATOM },
+    {" DFP2", OUTPUT_LVTMA_ATOM },
+    {" CV", OUTPUT_NONE_ATOM },
+    {" DFP3", OUTPUT_LVTMA_ATOM }
 };
 static const int n_rhd_devices = sizeof(rhd_devices) / sizeof(struct _rhd_devices);
 
 static const rhdDDC hwddc[] = { RHD_DDC_0, RHD_DDC_1, RHD_DDC_2, RHD_DDC_3 };
 static const int n_hwddc = sizeof(hwddc) / sizeof(rhdDDC);
 
-static const rhdOutputType acc_dac[] = { RHD_OUTPUT_NONE, RHD_OUTPUT_DACA,
-				  RHD_OUTPUT_DACB, RHD_OUTPUT_DAC_EXTERNAL };
+static const rhdOutputType acc_dac[] = { OUTPUT_NONE_ATOM,
+					 OUTPUT_DACA_ATOM,
+					 OUTPUT_DACB_ATOM,
+					 OUTPUT_DAC_EXTERNAL_ATOM };
 static const int n_acc_dac = sizeof(acc_dac) / sizeof (rhdOutputType);
 
 /*
@@ -1743,7 +1785,7 @@ rhdAtomConnectorInfoFromSupportedDevices(atomBiosHandlePtr handle,
 	ATOM_CONNECTOR_INFO_I2C ci
 	    = atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->asConnInfo[n];
 
-	devices[n].ot = RHD_OUTPUT_NONE;
+	devices[n].ot = OUTPUT_NONE_ATOM;
 
 	if (!(atomDataPtr->SupportedDevicesInfo
 	      .SupportedDevicesInfo->usDeviceSupport & (1 << n)))
@@ -1774,11 +1816,11 @@ rhdAtomConnectorInfoFromSupportedDevices(atomBiosHandlePtr handle,
 		   n_acc_dac, "bfAssociatedDAC")) {
 	    if ((devices[n].ot
 		 = acc_dac[ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC])
-		== RHD_OUTPUT_NONE) {
+		== OUTPUT_NONE_ATOM) {
 		devices[n].ot = rhd_devices[n].ot;
 	    }
 	} else
-	    devices[n].ot = RHD_OUTPUT_NONE;
+	    devices[n].ot = OUTPUT_NONE_ATOM;
 
 	RHDDebugCont("Output: %x ",devices[n].ot);
 
@@ -1834,15 +1876,15 @@ rhdAtomConnectorInfoFromSupportedDevices(atomBiosHandlePtr handle,
     for (n = 0; n < ATOM_MAX_SUPPORTED_DEVICE; n++) {
 	int i;
 
-	if (devices[n].ot == RHD_OUTPUT_NONE)
+	if (devices[n].ot == OUTPUT_NONE_ATOM)
 	    continue;
-	if (devices[n].con == RHD_CONNECTOR_NONE)
+	if (devices[n].con == CONNECTOR_NONE_ATOM)
 	    continue;
 
 	cp[ncon].DDC = devices[n].ddc;
 	cp[ncon].HPD = devices[n].hpd;
 	cp[ncon].Output[0] = devices[n].ot;
-	cp[ncon].Output[1] = RHD_OUTPUT_NONE;
+	cp[ncon].Output[1] = OUTPUT_NONE_ATOM;
 	cp[ncon].Type = devices[n].con;
 	cp[ncon].Name = xf86strdup(devices[n].name);
 	cp[ncon].Name = RhdAppendString(cp[ncon].Name, devices[n].outputName);
@@ -1861,14 +1903,14 @@ rhdAtomConnectorInfoFromSupportedDevices(atomBiosHandlePtr handle,
 		    if (devices[n].ddc != devices[i].ddc)
 			continue;
 
-		    if (((devices[n].ot == RHD_OUTPUT_DACA
-			  || devices[n].ot == RHD_OUTPUT_DACB)
-			 && (devices[i].ot == RHD_OUTPUT_LVTMA
-			     || devices[i].ot == RHD_OUTPUT_TMDSA))
-			|| ((devices[i].ot == RHD_OUTPUT_DACA
-			     || devices[i].ot == RHD_OUTPUT_DACB)
-			    && (devices[n].ot == RHD_OUTPUT_LVTMA
-				|| devices[n].ot == RHD_OUTPUT_TMDSA))) {
+		    if (((devices[n].ot == OUTPUT_DACA_ATOM
+			  || devices[n].ot == OUTPUT_DACB_ATOM)
+			 && (devices[i].ot == OUTPUT_LVTMA_ATOM
+			     || devices[i].ot == OUTPUT_TMDSA_ATOM))
+			|| ((devices[i].ot == OUTPUT_DACA_ATOM
+			     || devices[i].ot == OUTPUT_DACB_ATOM)
+			    && (devices[n].ot == OUTPUT_LVTMA_ATOM
+				|| devices[n].ot == OUTPUT_TMDSA_ATOM))) {
 
 			cp[ncon].Output[1] = devices[i].ot;
 
@@ -1877,7 +1919,7 @@ rhdAtomConnectorInfoFromSupportedDevices(atomBiosHandlePtr handle,
 
 			cp[ncon].Name = RhdAppendString(cp[ncon].Name,
 							devices[i].outputName);
-			devices[i].ot = RHD_OUTPUT_NONE; /* zero the device */
+			devices[i].ot = OUTPUT_NONE_ATOM; /* zero the device */
 		    }
 		}
 	    }
@@ -1909,6 +1951,7 @@ rhdAtomConnectorInfo(atomBiosHandlePtr handle,
 	return rhdAtomConnectorInfoFromSupportedDevices(handle,
 							&data->connectorInfo);
 }
+#endif
 
 # ifdef ATOM_BIOS_PARSER
 static AtomBiosResult
@@ -2047,6 +2090,9 @@ CailDelayMicroSeconds(VOID *CAIL, UINT32 delay)
 UINT32
 CailReadATIRegister(VOID* CAIL, UINT32 idx)
 {
+    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
     UINT32 ret;
     CAILFUNC(CAIL);
 
@@ -2094,8 +2140,6 @@ CailReadFBData(VOID* CAIL, UINT32 idx)
 VOID
 CailWriteFBData(VOID *CAIL, UINT32 idx, UINT32 data)
 {
-    ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
-    RADEONInfoPtr  info   = RADEONPTR(pScrn);
     CAILFUNC(CAIL);
 
     DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,data));
@@ -2221,14 +2265,31 @@ VOID
 CailWritePLL(VOID *CAIL, ULONG Address,ULONG Data)
 {
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     CAILFUNC(CAIL);
 
     DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,Data));
     RADEONOUTPLL(pScrn, Address, Data);
 }
 
-# endif
+void
+atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *major, int *minor)
+{
+    ATOM_MASTER_COMMAND_TABLE *cmd_table = atomBIOS->BIOSBase + atomBIOS->cmd_offset;
+    ATOM_MASTER_LIST_OF_COMMAND_TABLES *table_start;
+    ATOM_COMMON_ROM_COMMAND_TABLE_HEADER *table_hdr;
+
+    unsigned short *ptr;
+    unsigned short offset;
+
+    table_start = &cmd_table->ListOfCommandTables;
+
+    offset  = *(((unsigned short *)table_start) + index);
+
+    table_hdr = atomBIOS->BIOSBase + offset;
+
+    *major = table_hdr->CommonHeader.ucTableFormatRevision;
+    *minor = table_hdr->CommonHeader.ucTableContentRevision;
+}
+
 
 #endif /* ATOM_BIOS */

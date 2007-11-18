@@ -32,10 +32,11 @@ R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
-RADEON_ATOMBIOS_SOURCES = AtomBios/CD_Operations.c\
-			  AtomBios/Decoder.c\
-			  AtomBios/hwserv_drv.c \
-			         AtomBios/includes/atombios.h \
+RADEON_ATOMBIOS_SOURCES = \
+	AtomBios/CD_Operations.c \
+	AtomBios/Decoder.c \
+	AtomBios/hwserv_drv.c \
+	AtomBios/includes/atombios.h \
         AtomBios/includes/CD_binding.h \
         AtomBios/includes/CD_Common_Types.h \
         AtomBios/includes/CD_Definitions.h \
@@ -43,6 +44,7 @@ RADEON_ATOMBIOS_SOURCES = AtomBios/CD_Operations.c\
         AtomBios/includes/CD_Opcodes.h \
         AtomBios/includes/CD_Structs.h \
         AtomBios/includes/Decoder.h \
+        AtomBios/includes/ObjectID.h \
         AtomBios/includes/regsdef.h
 
 
@@ -202,6 +204,7 @@ EXTRA_DIST = \
 	radeon_version.h \
 	radeon_video.h \
 	radeon_tv.h \
+        radeon_atomwrapper.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \

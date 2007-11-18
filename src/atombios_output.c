@@ -43,10 +43,10 @@
 #include "radeon_atombios.h"
 
 static AtomBiosResult
-atom_bios_display_device_control(atomBIOSHandlePtr atomBIOS, int device, Bool state)
+atom_bios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
     DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = state;
@@ -54,7 +54,7 @@ atom_bios_display_device_control(atomBIOSHandlePtr atomBIOS, int device, Bool st
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
-    if (RHDAtomBIOSFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output %d enable success\n", device);
 	return ATOM_SUCCESS;
     }
@@ -64,7 +64,7 @@ atom_bios_display_device_control(atomBIOSHandlePtr atomBIOS, int device, Bool st
 }
 
 static void
-atom_bios_enable_crt(atomBIOSHandlePtr atomBIOS, int dac, Bool state)
+atom_bios_enable_crt(atomBiosHandlePtr atomBIOS, int dac, Bool state)
 {
     int output;
     if (dac == DAC_PRIMARY)
@@ -81,7 +81,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = 1;
@@ -94,7 +94,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output DAC %d enable success\n", radeon_output->DACType);
 	return ATOM_SUCCESS;
     }
@@ -115,7 +115,7 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION disp_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.sXTmdsEncoder.ucEnable = 1;
@@ -132,7 +132,7 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("External TMDS enable success\n");
 	return ATOM_SUCCESS;
     }
@@ -146,7 +146,7 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     TMDS1_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = 1;
@@ -159,7 +159,7 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output TMDS1 enable success\n");
 	return ATOM_SUCCESS;
     }
@@ -180,7 +180,7 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     TMDS2_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBIOSArg data;
+    AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = 1;
@@ -193,7 +193,7 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
-    if (RHDAtomBIOSFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output TMDS2 enable success\n");
 	return ATOM_SUCCESS;
     }
@@ -332,10 +332,10 @@ atombios_output_mode_set(xf86OutputPtr output,
 }
 
 static AtomBiosResult
-atom_bios_dac_load_detect(atomBIOSHandlePtr atomBIOS, int dac)
+atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, int dac)
 {
   DAC_LOAD_DETECTION_PS_ALLOCATION dac_data;
-  AtomBIOSArg data;
+  AtomBiosArgRec data;
   unsigned char *space;
 
   dac_data.sDacload.usDeviceID = 0;
@@ -346,7 +346,7 @@ atom_bios_dac_load_detect(atomBIOSHandlePtr atomBIOS, int dac)
   data.exec.dataSpace = (void *)&space;
   data.exec.pspace = &dac_data;
   
-  if (RHDAtomBIOSFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+  if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 
     ErrorF("Dac detection success\n");
     return ATOM_SUCCESS ;

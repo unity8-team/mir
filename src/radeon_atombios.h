@@ -134,6 +134,7 @@ typedef unsigned short USHORT;
 # include "atombios.h"
 # include "ObjectID.h"
 
+
 /*
  * This works around a bug in atombios.h where
  * ATOM_MAX_SUPPORTED_DEVICE_INFO is specified incorrectly.
@@ -218,6 +219,7 @@ typedef struct _atomBiosHandle {
     int scrnIndex;
     unsigned char *BIOSBase;
     atomDataTablesPtr atomDataPtr;
+    unsigned int cmd_offset;
     pointer *scratchBase;
     CARD32 fbBase;
 #if XSERVER_LIBPCIACCESS
