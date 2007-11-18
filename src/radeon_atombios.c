@@ -65,8 +65,8 @@ static AtomBiosResult rhdAtomGPIOI2CInfoQuery(atomBiosHandlePtr handle,
 						  AtomBiosRequestID func, AtomBiosArgPtr data);
 static AtomBiosResult rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 						   AtomBiosRequestID func, AtomBiosArgPtr data);
-static AtomBiosResult rhdAtomConnectorInfo(atomBiosHandlePtr handle,
-					   AtomBiosRequestID unused, AtomBiosArgPtr data);
+/*static AtomBiosResult rhdAtomConnectorInfo(atomBiosHandlePtr handle,
+  AtomBiosRequestID unused, AtomBiosArgPtr data);*/
 # ifdef ATOM_BIOS_PARSER
 static AtomBiosResult rhdAtomExec(atomBiosHandlePtr handle,
 				   AtomBiosRequestID unused, AtomBiosArgPtr data);
@@ -98,8 +98,8 @@ struct atomBIOSRequests {
 #endif
     {ATOMBIOS_ALLOCATE_FB_SCRATCH,	rhdAtomAllocateFbScratch,
      "AtomBIOS Set FB Space",			MSG_FORMAT_NONE},
-    {ATOMBIOS_GET_CONNECTORS,		rhdAtomConnectorInfo,
-     "AtomBIOS Get Connectors",			MSG_FORMAT_NONE},
+    /*{ATOMBIOS_GET_CONNECTORS,		rhdAtomConnectorInfo,
+      "AtomBIOS Get Connectors",			MSG_FORMAT_NONE},*/
     {ATOMBIOS_GET_PANEL_MODE,		rhdAtomLvdsGetTimings,
      "AtomBIOS Get Panel Mode",			MSG_FORMAT_NONE},
     {ATOMBIOS_GET_PANEL_EDID,		rhdAtomLvdsGetTimings,
@@ -382,7 +382,7 @@ rhdAtomGetDataTable(int scrnIndex,
 		   __func__);
     }
 
-    if (cmd_offset + sizeof (ATOM_MASTER_COMMAND_TABLE) > BIOSImageSize) {
+    if (*cmd_offset + sizeof (ATOM_MASTER_COMMAND_TABLE) > BIOSImageSize) {
 	xf86DrvMsg(scrnIndex,X_ERROR,"%s: Atom command table outside of BIOS\n",
 		   __func__);
     }
@@ -2278,7 +2278,7 @@ atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *m
     ATOM_MASTER_LIST_OF_COMMAND_TABLES *table_start;
     ATOM_COMMON_ROM_COMMAND_TABLE_HEADER *table_hdr;
 
-    unsigned short *ptr;
+    //unsigned short *ptr;
     unsigned short offset;
 
     table_start = &cmd_table->ListOfCommandTables;
