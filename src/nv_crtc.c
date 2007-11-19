@@ -486,7 +486,7 @@ static void CalcVClock2Stage (
  * 1 and 2 refer to the registers of each pair. There is only one post divider.
  * Logic: clock = reference_clock * ((n(a) * n(b))/(m(a) * m(b))) >> p
  * 1) bit 0-7: familiar values, but redirected from were? (similar to PLL_SETUP_CONTROL)
- *     bit8: Some kind of switch, probably the same as in ramdac 0x580 register
+ *     bit8: A switch that turns of the second divider and multiplier off.
  *     bit12: Also a switch, i haven't seen it yet.
  *     bit16-19: p-divider
  * 2) bit0-7: m-divider (a)
@@ -520,13 +520,22 @@ CalculateVClkNV4x(
 	DeltaOld = 0xFFFFFFFF;
 
 	/* Only unset the needed stuff */
-	*pll_a &= ~((0xf << 16) | SetBit(8) | SetBit(12));
+	*pll_a &= ~((0xf << 16) | (1 << 8) | (1 << 12));
 	/* This only contains the m multipliers and n dividers */
 	*pll_b = 0;
 
-	/* Fixed at x4 for the moment */
-	n2 = 4;
-	m2 = 1;
+	if (pNv->misc_info.prefer_db1) {
+		*db1_ratio = TRUE;
+		*pll_a |= (1 << 8);
+		/* Neutral settings */
+		n2 = 1;
+		m2 = 1;
+	} else {
+		*db1_ratio = FALSE;
+		/* Fixed at x4 for the moment */
+		n2 = 4;
+		m2 = 1;
+	}
 
 	n2_best = n2;
 	m2_best = m2;
@@ -557,17 +566,16 @@ CalculateVClkNV4x(
 		}
 	}
 
+	if (pNv->misc_info.prefer_db1) {
+		/* Bogus data, the same nvidia uses */
+		n2_best = 1;
+		m2_best = 31;
+	}
+
 	*pll_a |= (p_best << 16);
 	*pll_b |= ((n2_best << 24) | (m2_best << 16) | (n1_best << 8) | (m1_best << 0));
 
-	ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d\n", n1_best, n2_best, m1_best, m2_best, p_best);
-
-	/* This is emperical */
-	if (n1_best > 4*m1_best) {
-		*db1_ratio = TRUE;
-	} else {
-		*db1_ratio = FALSE;
-	}
+	ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", n1_best, n2_best, m1_best, m2_best, p_best, *db1_ratio);
 }
 
 static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
