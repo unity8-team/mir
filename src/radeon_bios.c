@@ -214,7 +214,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if (tmp & (1 << i)) {
 
-		if (i == 8) {
+		if (i == DEVICE_CV) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
 		    info->BiosConnector[i].valid = FALSE;
 		    continue;
@@ -228,17 +228,17 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
 		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
 		/* don't assign a gpio for tv */
-		if ((i == 2) && (i == 6) && (i == 8))
+		if ((i == DEVICE_TV1) || (i == DEVICE_TV2) || (i == DEVICE_CV))
 		    info->BiosConnector[i].ddc_line = 0;
 		else
 		    info->BiosConnector[i].ddc_line = gpio;
 		info->BiosConnector[i].output_id = id;
 
-		if (i == 3)
+		if (i == DEVICE_DFP1)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
-		else if (i == 7)
+		else if (i == DEVICE_DFP2)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
-		else if (i == 9)
+		else if (i == DEVICE_DFP3)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		else
 		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
@@ -258,12 +258,12 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
-			if (((i == 3) || (i == 7) || (i == 9)) &&
-			    ((j == 0) || (j == 4))) {
+			if (((i == DEVICE_DFP1) || (i == DEVICE_DFP2) || (i == DEVICE_DFP3)) &&
+			    ((j == DEVICE_CRT1) || (j == DEVICE_CRT2))) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			    info->BiosConnector[j].valid = FALSE;
-			} else if (((j == 3) || (j == 7) || (j == 9)) &&
-				   ((i == 0) || (i == 4))) {
+			} else if (((j == DEVICE_DFP1) || (j == DEVICE_DFP2) || (j == DEVICE_DFP3)) &&
+				   ((i == DEVICE_CRT1) || (i == DEVICE_CRT2))) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[i].valid = FALSE;
 			}

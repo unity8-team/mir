@@ -66,6 +66,21 @@ typedef enum
     MT_DP      = 8
 } RADEONMonitorType;
 
+/* ATOM bios output devices table */
+typedef enum
+{
+    DEVICE_CRT1 = 0,
+    DEVICE_LCD1 = 1,
+    DEVICE_TV1 = 2,
+    DEVICE_DFP1 = 3,
+    DEVICE_CRT2 = 4,
+    DEVICE_LCD2 = 5,
+    DEVICE_TV2 = 6,
+    DEVICE_DFP2 = 7,
+    DEVICE_CV = 8,
+    DEVICE_DFP3 = 9
+} RADEONDeviceType;
+
 typedef enum
 {
     CONNECTOR_NONE,
