@@ -248,15 +248,18 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
+    /* CRTs/DFPs may share a port */
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
-			if ((i == 3) || (i == 7) || (i == 9)) {
+			if (((i == 3) || (i == 7) || (i == 9)) &&
+			    ((j == 0) || (j == 4))) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			    info->BiosConnector[j].valid = FALSE;
-			} else if ((j == 3) || (j == 7) || (j == 9)) {
+			} else if (((j == 3) || (j == 7) || (j == 9)) &&
+				   ((i == 0) || (i == 4))) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[i].valid = FALSE;
 			}
