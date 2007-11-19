@@ -1894,71 +1894,67 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 }
 
-
-#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
-#define MAKE_INDEX(in, w) (DEPTH_SHIFT(in, w) * 3)
-
 static void
 NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	      LOCO * colors, VisualPtr pVisual)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int c;
-	NVPtr pNv = NVPTR(pScrn);
-	int i, index;
+	int i, j, index;
+	CARD16 lut_r[256], lut_g[256], lut_b[256];
 
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[c];
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		NVCrtcRegPtr regp;
-
-		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 		if (crtc->enabled == 0)
 			continue;
 
-		switch (pNv->CurrentLayout.depth) {
+		/* code borrowed from intel driver */
+		switch (pScrn->depth) {
 		case 15:
 			for (i = 0; i < numColors; i++) {
 				index = indices[i];
-				regp->DAC[MAKE_INDEX(index, 5) + 0] =
-				    colors[index].red;
-				regp->DAC[MAKE_INDEX(index, 5) + 1] =
-				    colors[index].green;
-				regp->DAC[MAKE_INDEX(index, 5) + 2] =
-				    colors[index].blue;
+				for (j = 0; j < 8; j++) {
+					lut_r[index * 8 + j] = colors[index].red << 8;
+					lut_g[index * 8 + j] = colors[index].green << 8;
+					lut_b[index * 8 + j] = colors[index].blue << 8;
+				}
 			}
-			break;
 		case 16:
 			for (i = 0; i < numColors; i++) {
 				index = indices[i];
-				regp->DAC[MAKE_INDEX(index, 6) + 1] =
-				    colors[index].green;
-				if (index < 32) {
-					regp->DAC[MAKE_INDEX(index, 5) +
-						  0] = colors[index].red;
-					regp->DAC[MAKE_INDEX(index, 5) +
-						  2] = colors[index].blue;
+
+				if (i <= 31) {
+					for (j = 0; j < 8; j++) {
+						lut_r[index * 8 + j] = colors[index].red << 8;
+						lut_b[index * 8 + j] = colors[index].blue << 8;
+					}
+				}
+
+				for (j = 0; j < 4; j++) {
+					lut_g[index * 4 + j] = colors[index].green << 8;
 				}
 			}
-			break;
 		default:
 			for (i = 0; i < numColors; i++) {
 				index = indices[i];
-				regp->DAC[index * 3] = colors[index].red;
-				regp->DAC[(index * 3) + 1] =
-				    colors[index].green;
-				regp->DAC[(index * 3) + 2] =
-				    colors[index].blue;
+				lut_r[index] = colors[index].red << 8;
+				lut_g[index] = colors[index].green << 8;
+				lut_b[index] = colors[index].blue << 8;
 			}
 			break;
 		}
 
-		NVCrtcLoadPalette(crtc);
+		/* Make the change through RandR */
+#ifdef RANDR_12_INTERFACE
+		RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+#else
+		crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
+#endif
 	}
 }
 
-//#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
+#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
 #define COLOR(c) (unsigned int)(0x3fff * ((c)/255.0))
 static void
 NV50LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
@@ -2318,6 +2314,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
     }
 
+	if (pNv->randr12_enable) {
+		xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+
+		if (!xf86CrtcScreenInit(pScreen))
+			return FALSE;
+
+		pNv->PointerMoved = pScrn->PointerMoved;
+		pScrn->PointerMoved = NVPointerMoved;
+	}
+
     /* Initialise default colourmap */
     if (!miCreateDefColormap(pScreen))
 	return FALSE;
@@ -2340,16 +2346,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				     NULL, CMAP_PALETTED_TRUECOLOR))
 		return FALSE;
 	}
-    }
-
-    if (pNv->randr12_enable) {
-	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
-	
-	if (!xf86CrtcScreenInit(pScreen))
-	    return FALSE;
-
-	pNv->PointerMoved = pScrn->PointerMoved;
-	pScrn->PointerMoved = NVPointerMoved;
     }
 
     if(pNv->ShadowFB) {

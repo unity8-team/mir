@@ -1716,6 +1716,59 @@ static void nv_crtc_unlock(xf86CrtcPtr crtc)
 	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->crtc);
 }
 
+static void
+nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
+					int size)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	int i, j;
+
+	NVCrtcRegPtr regp;
+	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+
+	switch (pNv->CurrentLayout.depth) {
+	case 15:
+		/* R5G5B5 */
+		/* We've got 5 bit (32 values) colors and 256 registers for each color */
+		for (i = 0; i < 32; i++) {
+			for (j = 0; j < 8; j++) {
+				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
+				regp->DAC[(i*8 + j) * 3 + 1] = green[i] >> 8;
+				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
+			}
+		}
+		break;
+	case 16:
+		/* R5G6B5 */
+		/* First deal with the 5 bit colors */
+		for (i = 0; i < 32; i++) {
+			for (j = 0; j < 8; j++) {
+				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
+				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
+			}
+		}
+		/* Now deal with the 6 bit color */
+		for (i = 0; i < 64; i++) {
+			for (j = 0; j < 4; j++) {
+				regp->DAC[(i*4 + j) * 3 + 1] = green[i] >> 8;
+			}
+		}
+		break;
+	default:
+		/* R8G8B8 */
+		for (i = 0; i < 256; i++) {
+			regp->DAC[i * 3] = red[i] >> 8;
+			regp->DAC[(i * 3) + 1] = green[i] >> 8;
+			regp->DAC[(i * 3) + 2] = blue[i] >> 8;
+		}
+		break;
+	}
+
+	NVCrtcLoadPalette(crtc);
+}
+
 /* NV04-NV10 doesn't support alpha cursors */
 static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.dpms = nv_crtc_dpms,
@@ -1733,6 +1786,7 @@ static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.show_cursor = nv_crtc_show_cursor,
 	.hide_cursor = nv_crtc_hide_cursor,
 	.load_cursor_image = nv_crtc_load_cursor_image,
+	.gamma_set = nv_crtc_gamma_set,
 };
 
 /* NV11 and up has support for alpha cursors. */ 
@@ -1753,6 +1807,7 @@ static const xf86CrtcFuncsRec nv11_crtc_funcs = {
 	.show_cursor = nv_crtc_show_cursor,
 	.hide_cursor = nv_crtc_hide_cursor,
 	.load_cursor_argb = nv_crtc_load_cursor_argb,
+	.gamma_set = nv_crtc_gamma_set,
 };
 
 
@@ -2059,22 +2114,22 @@ static CARD8 NVCrtcReadDacData(xf86CrtcPtr crtc, CARD8 value)
 
 void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 {
-  int i;
-  NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-  NVCrtcRegPtr regp;
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVPtr pNv = NVPTR(pScrn);
-    
-  regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	int i;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVCrtcRegPtr regp;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 
-  NVCrtcSetOwner(crtc);
-  NVCrtcWriteDacMask(crtc, 0xff);
-  NVCrtcWriteDacWriteAddr(crtc, 0x00);
+	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
-  for (i = 0; i<768; i++) {
-    NVCrtcWriteDacData(crtc, regp->DAC[i]);
-  }
-  NVDisablePalette(crtc);
+	NVCrtcSetOwner(crtc);
+	NVCrtcWriteDacMask(crtc, 0xff);
+	NVCrtcWriteDacWriteAddr(crtc, 0x00);
+
+	for (i = 0; i<768; i++) {
+		NVCrtcWriteDacData(crtc, regp->DAC[i]);
+	}
+	NVDisablePalette(crtc);
 }
 
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)

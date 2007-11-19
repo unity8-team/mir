@@ -40,6 +40,8 @@
 
 #include "xf86RAC.h"
 
+#include "xf86RandR12.h"
+
 #include "nv_const.h"
 
 #include "dixstruct.h"
