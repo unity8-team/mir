@@ -42,6 +42,29 @@
 #include "radeon_atombios.h"
 #include "vbe.h"
 
+typedef enum
+{
+    DDC_NONE_DETECTED,
+    DDC_MONID,
+    DDC_DVI,
+    DDC_VGA,
+    DDC_CRT2,
+    DDC_LCD,
+    DDC_GPIO,
+} RADEONLegacyDDCType;
+
+typedef enum
+{
+    CONNECTOR_NONE_LEGACY,
+    CONNECTOR_PROPRIETARY_LEGACY,
+    CONNECTOR_CRT_LEGACY,
+    CONNECTOR_DVI_I_LEGACY,
+    CONNECTOR_DVI_D_LEGACY,
+    CONNECTOR_CTV_LEGACY,
+    CONNECTOR_STV_LEGACY,
+    CONNECTOR_UNSUPPORTED_LEGACY
+} RADEONLegacyConnectorType;
+
 /* Read the Video BIOS block and the FP registers (if applicable). */
 Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
@@ -260,7 +283,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int offset, i, entry, tmp, tmp0, tmp1;
-    RADEONDDCType DDCType;
+    RADEONLegacyDDCType DDCType;
+    RADEONLegacyConnectorType ConnectorType;
 
     if (!info->VBIOS) return FALSE;
 
@@ -275,6 +299,31 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].valid = TRUE;
 	    tmp = RADEON_BIOS16(entry);
 	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
+	    ConnectorType = (tmp >> 12) & 0xf;
+	    switch (ConnectorType) {
+	    case CONNECTOR_PROPRIETARY_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_LVDS;
+		break;
+	    case CONNECTOR_CRT_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
+		break;
+	    case CONNECTOR_DVI_I_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_I;
+		break;
+	    case CONNECTOR_DVI_D_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
+		break;
+	    case CONNECTOR_CTV_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_CTV;
+		break;
+	    case CONNECTOR_STV_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_STV;
+		break;
+	    default:
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown Connector Type: %d\n", ConnectorType);
+		info->BiosConnector[i].valid = FALSE;
+		break;
+	    }
 	    DDCType = (tmp >> 8) & 0xf;
 	    switch (DDCType) {
 	    case DDC_MONID:
@@ -308,7 +357,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	     * lets see what happens with that.
 	     */
 	    if (info->ChipFamily == CHIP_FAMILY_RS400 &&
-		info->BiosConnector[i].ConnectorType == CONNECTOR_CRT &&
+		info->BiosConnector[i].ConnectorType == CONNECTOR_VGA &&
 		info->BiosConnector[i].ddc_line == RADEON_GPIO_CRT2_DDC) {
 		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
 	    }
@@ -317,20 +366,13 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	     * DVI-D, try and do the right thing here.
 	    */
 	    if ((!info->IsMobility) &&
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_PROPRIETARY)) {
+		(info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Proprietary connector found, assuming DVI-D\n");
 		info->BiosConnector[i].DACType = DAC_NONE;
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
 	    }
-
-	    if (info->BiosConnector[i].ConnectorType >= CONNECTOR_UNSUPPORTED) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown connector type: %d!\n",
-			   info->BiosConnector[i].ConnectorType);
-		info->BiosConnector[i].valid = FALSE;
-	    }
-
 	}
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Connector Info Table found!\n");
@@ -342,7 +384,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
 	if (offset) {
 	    info->BiosConnector[4].valid = TRUE;
-	    info->BiosConnector[4].ConnectorType = CONNECTOR_PROPRIETARY;
+	    info->BiosConnector[4].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[4].DACType = DAC_NONE;
 	    info->BiosConnector[4].TMDSType = TMDS_NONE;
 
