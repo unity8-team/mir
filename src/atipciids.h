@@ -288,7 +288,7 @@
 
 #define PCI_CHIP_RV515_7142             0x7142
 #define PCI_CHIP_RV515_7183             0x7183
-
+#define PCI_CHIP_R580_7249		0x7249
 
 /* Misc */
 #define PCI_CHIP_AMD761			0x700E
