@@ -1346,6 +1346,9 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
      */
     info->mc_agp_location = 0xffffffc0;
 
+    if (IS_AVIVO_VARIANT) {
+        OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
+    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONInitMemoryMap() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1838,6 +1841,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     case PCI_CHIP_RV515_7142:
     case PCI_CHIP_RV515_7183:
 	info->ChipFamily = CHIP_FAMILY_RV515;
+	break;
+
+    case PCI_CHIP_R580_7249:
+	info->ChipFamily = CHIP_FAMILY_R580;
 	break;
 
     default:
@@ -4132,7 +4139,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
 	    fb = INMC(pScrn, R520_MC_FB_LOCATION);
-	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
+	    agp = INMC(pScrn, R520_MC_AGP_LOCATION);
 	}
 	fb_loc_changed = (fb != info->mc_fb_location);
 
@@ -5793,6 +5800,7 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
     OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
 
+	RADEONRestoreMemMapRegisters(pScrn, restore);
 }
 
 /* Save everything needed to restore the original VC state */

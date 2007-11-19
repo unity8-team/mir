@@ -139,6 +139,7 @@ static SymTabRec RADEONChipsets[] = {
     { PCI_CHIP_R481_4B4C, "ATI Radeon X850 XT PE (R480) (AGP)" },
     { PCI_CHIP_RV515_7142, "ATI AVIVO X1300 (PCIE)"},
     { PCI_CHIP_RV515_7183, "ATI AVIVO X1550PRO (PCI/PCIE)"},
+    { PCI_CHIP_R580_7249, "ATI Radeon X1900 XT"},
 
     { -1,                 NULL }
 };
