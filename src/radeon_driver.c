@@ -6428,7 +6428,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 #endif /* USE_XAA */
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Disposing cusor info\n");
+		   "Disposing cursor info\n");
     if (info->cursor) xf86DestroyCursorInfoRec(info->cursor);
     info->cursor = NULL;
 

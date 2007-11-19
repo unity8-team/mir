@@ -702,8 +702,6 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType MonType = MT_NONE;
 
@@ -711,7 +709,11 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 #if defined(__powerpc__)
 	/* not sure on ppc, OF? */
 #else
+	RADEONInfoPtr info       = RADEONPTR(pScrn);
+
 	if (!info->IsAtomBios) {
+	    unsigned char *RADEONMMIO = info->MMIO;
+
 	    /* see if the lid is closed -- only works at boot */
 	    if (INREG(RADEON_BIOS_6_SCRATCH) & 0x10)
 		MonType = MT_NONE;
@@ -720,7 +722,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 	} else
 #endif
 	    MonType = MT_LCD;
-    } else if (OUTPUT_IS_DVI) {
+    } /*else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
 		MonType = MT_DFP;
@@ -728,7 +730,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 	    if (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_DETECT_SENSE)
 		MonType = MT_DFP;
 	}
-    }
+	}*/
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Detected non-DDC Monitor Type: %d\n", MonType);
@@ -1078,11 +1080,12 @@ static void RADEONInitDACRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->dac_macro_cntl = info->SavedReg.dac_macro_cntl;
 }
 
-/* XXX: fix me */
 static void
-RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
+RADEONInitTvDacCntl(xf86OutputPtr output, RADEONSavePtr save)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (info->ChipFamily == CHIP_FAMILY_R420 ||
 	info->ChipFamily == CHIP_FAMILY_RV410) {
@@ -1103,10 +1106,11 @@ RADEONInitTvDacCntl(ScrnInfoPtr pScrn, RADEONSavePtr save)
 			       RADEON_TV_DAC_GDACPD |
 			       RADEON_TV_DAC_GDACPD);
     }
-    /* FIXME: doesn't make sense, this just replaces the previous value... */
+
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
-			 RADEON_TV_DAC_NHOLD |
-			  RADEON_TV_DAC_STD_PS2);
+			  RADEON_TV_DAC_NHOLD |
+			  RADEON_TV_DAC_STD_PS2 |
+			  radeon_output->tv_dac_adj);
 
 }
 
@@ -1117,7 +1121,7 @@ static void RADEONInitDAC2Registers(xf86OutputPtr output, RADEONSavePtr save,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
     /*0x0028023;*/
-    RADEONInitTvDacCntl(pScrn, save);
+    RADEONInitTvDacCntl(output, save);
 
     if (IS_R300_VARIANT)
 	save->gpiopad_a = info->SavedReg.gpiopad_a | 1;
@@ -1727,7 +1731,12 @@ radeon_detect(xf86OutputPtr output)
 	  if (((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI_I) &&
 	       radeon_output->DACType == DAC_TVDAC) ||
 	      (info->IsIGP && radeon_output->type == OUTPUT_DVI_D))
+	      radeon_output->MonType = MT_CRT;
 	      return XF86OutputStatusUnknown;
+	  } else if  (info->IsIGP && radeon_output->type == OUTPUT_DVI) {
+	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
+	      return XF86OutputStatusUnknown;
+	  }
       }
 
       if (connected)
@@ -2739,6 +2748,7 @@ void RADEONInitConnector(xf86OutputPtr output)
 
     if (OUTPUT_IS_TV) {
 	RADEONGetTVInfo(output);
+	RADEONGetTVDacAdjInfo(output);
     }
 
     if (radeon_output->DACType == DAC_TVDAC) {

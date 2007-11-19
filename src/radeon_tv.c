@@ -434,7 +434,7 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->tv_vscaler_cntl2 = ((save->tv_vscaler_cntl2 & 0x00fffff0)
 			      | (0x10 << 24)
-			      | RADEON_DITHER_MODE 
+			      | RADEON_DITHER_MODE
 			      | RADEON_Y_OUTPUT_DITHER_EN
 			      | RADEON_UV_OUTPUT_DITHER_EN
 			      | RADEON_UV_TO_BUF_DITHER_EN);
@@ -444,10 +444,12 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     tmp = (tmp << RADEON_UV_OUTPUT_POST_SCALE_SHIFT) | 0x000b0000;
     save->tv_timing_cntl = tmp;
 
-    save->tv_dac_cntl = RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD | (8 << 16) | (6 << 20);
+    save->tv_dac_cntl = (RADEON_TV_DAC_NBLANK |
+			 RADEON_TV_DAC_NHOLD |
+			 radeon_output->tv_dac_adj /*(8 << 16) | (6 << 20)*/);
 
     if (radeon_output->tvStd == TV_STD_NTSC ||
-        radeon_output->tvStd == TV_STD_NTSC_J)
+	radeon_output->tvStd == TV_STD_NTSC_J)
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_NTSC;
     else
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_PAL;
