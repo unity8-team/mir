@@ -3647,7 +3647,6 @@
 #define AVIVO_GPIO_3                        0x7e60
 
 #define AVIVO_DC_GPIO_HPD_Y                 0x7e9c
-#define R520_PCLK_HDCP_CNTL  0x494
 
 #define AVIVO_I2C_STATUS					0x7d30
 #	define AVIVO_I2C_STATUS_DONE				(1 << 0)

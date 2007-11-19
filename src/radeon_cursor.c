@@ -154,6 +154,7 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
 	       & ~(AVIVO_D1CURSOR_EN));
 	avivo_setup_cursor(crtc, FALSE);
     } else {
+	switch(crtc_id) {
     	case 0:
             OUTREG(RADEON_MM_INDEX, RADEON_CRTC_GEN_CNTL);
             break;

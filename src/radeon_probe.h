@@ -36,6 +36,7 @@
 #ifndef _RADEON_PROBE_H_
 #define _RADEON_PROBE_H_ 1
 
+#include <stdint.h>
 #include "xf86str.h"
 #include "xf86DDC.h"
 #include "randrstr.h"
