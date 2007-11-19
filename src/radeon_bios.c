@@ -227,7 +227,11 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		id = (portinfo >> 8) & 0xf;
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
 		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
-		info->BiosConnector[i].ddc_line = gpio;
+		/* don't assign a gpio for tv */
+		if ((i == 2) && (i == 6) && (i == 8))
+		    info->BiosConnector[i].ddc_line = 0;
+		else
+		    info->BiosConnector[i].ddc_line = gpio;
 		info->BiosConnector[i].output_id = id;
 
 		if (i == 3)
