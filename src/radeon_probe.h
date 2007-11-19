@@ -72,7 +72,9 @@ typedef enum
     MT_DFP     = 3,
     MT_CTV     = 4,
     MT_STV     = 5,
-    MT_CV      = 6
+    MT_CV      = 6,
+    MT_HDMI    = 7,
+    MT_DP      = 8
 } RADEONMonitorType;
 
 typedef enum
@@ -158,11 +160,22 @@ typedef enum
 {
     OUTPUT_NONE,
     OUTPUT_VGA,
-    OUTPUT_DVI,
+    OUTPUT_DVI_I,
+    OUTPUT_DVI_D,
+    OUTPUT_DVI_A,
     OUTPUT_LVDS,
     OUTPUT_STV,
     OUTPUT_CTV,
+    OUTPUT_CV,
+    OUTPUT_HDMI,
+    OUTPUT_DP
 } RADEONOutputType;
+
+#define OUTPUT_IS_DVI ((radeon_output->type == OUTPUT_DVI_D || \
+                        radeon_output->type == OUTPUT_DVI_I || \
+                        radeon_output->type == OUTPUT_DVI_A))
+#define OUTPUT_IS_TV ((radeon_output->type == OUTPUT_STV || \
+                       radeon_output->type == OUTPUT_CTV))
 
 /* standards */
 typedef enum

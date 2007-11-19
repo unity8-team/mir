@@ -214,7 +214,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
-	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
+	if (OUTPUT_IS_TV) {
 	    modes = RADEONTVModes(output);
 	} else {
 	    if (output->MonInfo)
