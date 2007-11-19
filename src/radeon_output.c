@@ -2243,7 +2243,7 @@ Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 temp;
 
-    temp = INREG(gpio_reg + 4);
+    temp = INREG(gpio_reg);
     if (gpio_reg == AVIVO_GPIO_0) {
 	if (lock_state == 0)
 	    temp |= (1 << 19) | (1 << 18);
@@ -2255,8 +2255,8 @@ Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
 	else
 	    temp &= ~((1 << 0) | (1 << 8));
     }
-    OUTREG(gpio_reg + 4, temp);
-    temp = INREG(gpio_reg + 4);
+    OUTREG(gpio_reg, temp);
+    temp = INREG(gpio_reg);
 
     return TRUE;
 }
