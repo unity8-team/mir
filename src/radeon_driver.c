@@ -4136,7 +4136,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
 	    fb = INMC(pScrn, R520_MC_FB_LOCATION);
-	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
+	    agp = INMC(pScrn, R520_MC_AGP_LOCATION);
 	}
 	fb_loc_changed = (fb != info->mc_fb_location);
 
