@@ -1851,6 +1851,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	info->ChipFamily = CHIP_FAMILY_R580;
 	break;
 
+    case PCI_CHIP_RV570_7280:
+	info->ChipFamily = CHIP_FAMILY_RV570;
+	break;
+
     default:
 	/* Original Radeon/7200 */
 	info->ChipFamily = CHIP_FAMILY_RADEON;

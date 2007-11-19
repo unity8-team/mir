@@ -497,6 +497,7 @@ typedef enum {
     CHIP_FAMILY_RV515,    /* rv515 */
     CHIP_FAMILY_R520,    /* r520 */
     CHIP_FAMILY_R580,    /* r580 */
+    CHIP_FAMILY_RV570,   /* rv570 */
     CHIP_FAMILY_R600,    /* r60 */
     CHIP_FAMILY_LAST
 } RADEONChipFamily;
