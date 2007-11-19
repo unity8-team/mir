@@ -644,12 +644,16 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->MonType == MT_UNKNOWN) {
 	if (IS_AVIVO_VARIANT) {
-	    radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
-	    if (!radeon_output->MonType) {
-		if (radeon_output->type == OUTPUT_LVDS)
-		    radeon_output->MonType = MT_LCD;
-		if (!radeon_output->MonType)
-		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
+	    if (OUTPUT_IS_TV)
+		radeon_output->MonType = MT_NONE;
+	    else {
+		radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
+		if (!radeon_output->MonType) {
+		    if (radeon_output->type == OUTPUT_LVDS)
+			radeon_output->MonType = MT_LCD;
+		    else
+			radeon_output->MonType = atombios_dac_detect(pScrn, output);
+		}
 	    }
 	} else {
 	    if (OUTPUT_IS_TV) {
