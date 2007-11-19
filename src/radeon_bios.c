@@ -204,32 +204,8 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		id = (portinfo >> 8) & 0xf;
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
 		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
-		info->BiosConnector[i].gpio = gpio;
+		info->BiosConnector[i].ddc_line = gpio;
 		info->BiosConnector[i].output_id = id;
-
-		switch(gpio) {
-		case RADEON_GPIO_MONID:
-		    info->BiosConnector[i].DDCType = DDC_MONID;
-		    break;
-		case RADEON_GPIO_DVI_DDC:
-		    info->BiosConnector[i].DDCType = DDC_DVI;
-		    break;
-		case RADEON_GPIO_VGA_DDC:
-		    info->BiosConnector[i].DDCType = DDC_VGA;
-		    break;
-		case RADEON_GPIO_CRT2_DDC:
-		    info->BiosConnector[i].DDCType = DDC_CRT2;
-		    break;
-		case RADEON_LCD_GPIO_MASK:
-		    info->BiosConnector[i].DDCType = DDC_LCD;
-		    break;
-		case RADEON_MDGPIO_EN_REG:
-		    info->BiosConnector[i].DDCType = DDC_GPIO;
-		    break;
-		default:
-		    info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
-		    break;
-		}
 
 		if (i == 3)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
@@ -271,8 +247,8 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }
@@ -284,6 +260,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int offset, i, entry, tmp, tmp0, tmp1;
+    RADEONDDCType DDCType;
 
     if (!info->VBIOS) return FALSE;
 
@@ -298,7 +275,30 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].valid = TRUE;
 	    tmp = RADEON_BIOS16(entry);
 	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
-	    info->BiosConnector[i].DDCType = (tmp >> 8) & 0xf;
+	    DDCType = (tmp >> 8) & 0xf;
+	    switch (DDCType) {
+	    case DDC_MONID:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
+		break;
+	    case DDC_DVI:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_DVI_DDC;
+		break;
+	    case DDC_VGA:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_VGA_DDC;
+		break;
+	    case DDC_CRT2:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_CRT2_DDC;
+		break;
+	    case DDC_LCD:
+		info->BiosConnector[i].ddc_line = RADEON_LCD_GPIO_MASK;
+		break;
+	    case DDC_GPIO:
+		info->BiosConnector[i].ddc_line = RADEON_MDGPIO_EN_REG;
+		break;
+	    default:
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
+		break;
+	    }
 	    info->BiosConnector[i].DACType = tmp & 0x1;
 	    info->BiosConnector[i].TMDSType = (tmp >> 4) & 0x1;
 
@@ -309,8 +309,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	     */
 	    if (info->ChipFamily == CHIP_FAMILY_RS400 &&
 		info->BiosConnector[i].ConnectorType == CONNECTOR_CRT &&
-		info->BiosConnector[i].DDCType == DDC_CRT2) {
-		info->BiosConnector[i].DDCType = DDC_MONID;
+		info->BiosConnector[i].ddc_line == RADEON_GPIO_CRT2_DDC) {
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
 	    }
 
 	    /* XPRESS desktop chips seem to have a proprietary connector listed for
@@ -351,19 +351,36 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		tmp0 = RADEON_BIOS16(tmp + 0x15);
 		if (tmp0) {
 		    tmp1 = RADEON_BIOS8(tmp0+2) & 0x07;
-		    if (tmp1) {	    
-			info->BiosConnector[4].DDCType	= tmp1;      
-			if (info->BiosConnector[4].DDCType > DDC_GPIO) {
-			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				       "Unknown DDCType %d found\n",
-				       info->BiosConnector[4].DDCType);
-			    info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+		    if (tmp1) {
+			DDCType	= tmp1;
+			switch (DDCType) {
+			case DDC_MONID:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_MONID;
+			    break;
+			case DDC_DVI:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_DVI_DDC;
+			    break;
+			case DDC_VGA:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_VGA_DDC;
+			    break;
+			case DDC_CRT2:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_CRT2_DDC;
+			    break;
+			case DDC_LCD:
+			    info->BiosConnector[4].ddc_line = RADEON_LCD_GPIO_MASK;
+			    break;
+			case DDC_GPIO:
+			    info->BiosConnector[4].ddc_line = RADEON_MDGPIO_EN_REG;
+			    break;
+			default:
+			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
+			    break;
 			}
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
 		    }
 		}
 	    } else {
-		info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+		info->BiosConnector[4].ddc_line = 0;
 	    }
 	}
     }
@@ -378,7 +395,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
 		info->BiosConnector[5].DACType = DAC_TVDAC;
 		info->BiosConnector[5].TMDSType = TMDS_NONE;
-		info->BiosConnector[5].DDCType = DDC_NONE_DETECTED;
+		info->BiosConnector[5].ddc_line = 0;
 	    }
 	}
     }
@@ -386,8 +403,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }

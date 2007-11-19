@@ -211,12 +211,11 @@ typedef struct _RADEONCrtcPrivateRec {
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {
-    RADEONDDCType DDCType;
+    CARD32 ddc_line;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     Bool valid;
-    int gpio;
     int output_id;
 } RADEONBIOSConnector;
 
@@ -224,7 +223,7 @@ typedef struct _RADEONOutputPrivateRec {
     int num;
     RADEONOutputType type;
     void *dev_priv;
-    RADEONDDCType DDCType;
+    CARD32 ddc_line;
     RADEONDacType DACType;
     RADEONDviType DVIType;
     RADEONTmdsType TMDSType;
@@ -264,7 +263,6 @@ typedef struct _RADEONOutputPrivateRec {
     Bool              tv_on;
     int               load_detection;
 
-    unsigned long     gpio;
     char              *name;
     int               output_id;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
