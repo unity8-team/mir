@@ -1346,6 +1346,9 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
      */
     info->mc_agp_location = 0xffffffc0;
 
+    if (IS_AVIVO_VARIANT) {
+        OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
+    }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONInitMemoryMap() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -5797,6 +5800,7 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
     OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
 
+	RADEONRestoreMemMapRegisters(pScrn, restore);
 }
 
 /* Save everything needed to restore the original VC state */
