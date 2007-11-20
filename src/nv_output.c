@@ -894,13 +894,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	}
 
 	/* This is a similar register to test control */
-	/* Common values are 0xf0000000, 0xf0100000 and 0xf0010000, also without the f */
 	/* This is an educated guess */
 	/* The blob doesn't set this on ramdac 1, so maybe the primary one counts for both? */
 	if (pNv->NVArch < 0x44) {
 		regp->unk_670 = 0xf0010000;
 	} else {
-		regp->unk_670 = 0xf0100000;
+		/* This seems to be a safer guess */
+		regp->unk_670 = 0xf0110000;
 	}
 
 	/* This may be causing problems */
