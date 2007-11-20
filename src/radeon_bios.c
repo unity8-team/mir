@@ -214,7 +214,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if (tmp & (1 << i)) {
 
-		if (i == DEVICE_CV) {
+		if (i == ATOM_DEVICE_CV_INDEX) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
 		    info->BiosConnector[i].valid = FALSE;
 		    continue;
@@ -228,17 +228,20 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
 		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
 		/* don't assign a gpio for tv */
-		if ((i == DEVICE_TV1) || (i == DEVICE_TV2) || (i == DEVICE_CV))
+		if ((i == ATOM_DEVICE_TV1_INDEX) ||
+		    (i == ATOM_DEVICE_TV2_INDEX) ||
+		    (i == ATOM_DEVICE_CV_INDEX))
 		    info->BiosConnector[i].ddc_line = 0;
 		else
 		    info->BiosConnector[i].ddc_line = gpio;
+
 		info->BiosConnector[i].output_id = id;
 
-		if (i == DEVICE_DFP1)
+		if (i == ATOM_DEVICE_DFP1_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
-		else if (i == DEVICE_DFP2)
+		else if (i == ATOM_DEVICE_DFP2_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
-		else if (i == DEVICE_DFP3)
+		else if (i == ATOM_DEVICE_DFP3_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		else
 		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
@@ -258,12 +261,16 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
-			if (((i == DEVICE_DFP1) || (i == DEVICE_DFP2) || (i == DEVICE_DFP3)) &&
-			    ((j == DEVICE_CRT1) || (j == DEVICE_CRT2))) {
+			if (((i == ATOM_DEVICE_DFP1_INDEX) ||
+			     (i == ATOM_DEVICE_DFP2_INDEX) ||
+			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			    info->BiosConnector[j].valid = FALSE;
-			} else if (((j == DEVICE_DFP1) || (j == DEVICE_DFP2) || (j == DEVICE_DFP3)) &&
-				   ((i == DEVICE_CRT1) || (i == DEVICE_CRT2))) {
+			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
+			     (j == ATOM_DEVICE_DFP2_INDEX) ||
+			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[i].valid = FALSE;
 			}
