@@ -138,8 +138,10 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	int lo_n, lo_m, hi_n, hi_m, p, i;
-	CARD32 lo = NV50CrtcRead(crtc, 0x4104);
-	CARD32 hi = NV50CrtcRead(crtc, 0x4108);
+	/* These clocks are probably rerouted from the 0x4000 range to the 0x610000 range */
+	/* NV50CrtcRead does the offset to VPLL2 if needed */
+	CARD32 lo = NV50CrtcRead(crtc, NV50_DISPLAY_VPLL1_A);
+	CARD32 hi = NV50CrtcRead(crtc, NV50_DISPLAY_VPLL1_B);
 
 	NV50CrtcWrite(crtc, 0x4100, 0x10000610);
 	lo &= 0xff00ff00;
@@ -149,8 +151,8 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 
 	lo |= (lo_m << 16) | lo_n;
 	hi |= (p << 28) | (hi_m << 16) | hi_n;
-	NV50CrtcWrite(crtc, 0x4104, lo);
-	NV50CrtcWrite(crtc, 0x4108, hi);
+	NV50CrtcWrite(crtc, NV50_DISPLAY_VPLL1_A, lo);
+	NV50CrtcWrite(crtc, NV50_DISPLAY_VPLL1_B, hi);
 	NV50CrtcWrite(crtc, 0x4200, 0);
 
 	for(i = 0; i < xf86_config->num_output; i++) {
@@ -304,29 +306,39 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 	nv_crtc->pclk = adjusted_mode->Clock;
 
 	/* NV50CrtcCommand includes head offset */
-	NV50CrtcCommand(crtc, 0x804, adjusted_mode->Clock | 0x800000);
-	NV50CrtcCommand(crtc, 0x808, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
+	NV50CrtcCommand(crtc, NV50_CRTC0_CLOCK, adjusted_mode->Clock | 0x800000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_INTERLACE, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
 	NV50CrtcCommand(crtc, 0x810, 0);
 	NV50CrtcCommand(crtc, 0x82c, 0);
-	NV50CrtcCommand(crtc, 0x814, adjusted_mode->CrtcHBlankStart);
-	NV50CrtcCommand(crtc, 0x818, adjusted_mode->CrtcHSyncEnd);
-	NV50CrtcCommand(crtc, 0x81c, adjusted_mode->CrtcHBlankEnd);
-	NV50CrtcCommand(crtc, 0x820, adjusted_mode->CrtcHTotal);
+	/* This confirms my suspicion that recent nvidia hardware does no vertical programming */
+	/* NV40 still has it as a legacy mode, and i don't know how to do the "new" way, but it definately exists */
+	NV50CrtcCommand(crtc, NV50_CRTC0_HBLANK_START, adjusted_mode->CrtcHBlankStart);
+	NV50CrtcCommand(crtc, NV50_CRTC0_HSYNC_END, adjusted_mode->CrtcHSyncEnd);
+	NV50CrtcCommand(crtc, NV50_CRTC0_HBLANK_END, adjusted_mode->CrtcHBlankEnd);
+	NV50CrtcCommand(crtc, NV50_CRTC0_HTOTAL, adjusted_mode->CrtcHTotal);
 	if(adjusted_mode->Flags & V_INTERLACE) {
 		NV50CrtcCommand(crtc, 0x824, adjusted_mode->CrtcHSkew);
 	}
-	NV50CrtcCommand(crtc, 0x868, pScrn->virtualY << 16 | pScrn->virtualX);
-	NV50CrtcCommand(crtc, 0x86c, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_FB_SIZE, pScrn->virtualY << 16 | pScrn->virtualX);
+	NV50CrtcCommand(crtc, NV50_CRTC0_PITCH, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
 	switch(pScrn->depth) {
-		case 8: NV50CrtcCommand(crtc, 0x870, 0x1e00); break;
-		case 15: NV50CrtcCommand(crtc, 0x870, 0xe900); break;
-		case 16: NV50CrtcCommand(crtc, 0x870, 0xe800); break;
-		case 24: NV50CrtcCommand(crtc, 0x870, 0xcf00); break;
+		case 8:
+			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_8BPP); 
+			break;
+		case 15:
+			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_15BPP);
+			break;
+		case 16:
+			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_16BPP);
+			break;
+		case 24:
+			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_24BPP); 
+			break;
 	}
 	NV50CrtcSetDither(crtc, nv_crtc->dither, FALSE);
 	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
-	NV50CrtcCommand(crtc, 0x8c0, y << 16 | x);
-	NV50CrtcCommand(crtc, 0x8c8, VDisplay << 16 | HDisplay);
+	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, VDisplay << 16 | HDisplay);
 	NV50CrtcCommand(crtc, 0x8d4, 0);
 
 	NV50CrtcBlankScreen(crtc, FALSE);
@@ -342,30 +354,31 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 	if(blank) {
 		NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
 
-		NV50CrtcCommand(crtc, 0x840, 0);
-		NV50CrtcCommand(crtc, 0x844, 0);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, NV50_CRTC0_CLUT_MODE_BLANK);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, 0);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, 0x85c, 0);
 		NV50CrtcCommand(crtc, 0x874, 0);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, 0x89c, 0);
 	} else {
-		NV50CrtcCommand(crtc, 0x860, pNv->FB->offset >> 8);
+		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, pNv->FB->offset >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
 		NV50DisplayWrite(pScrn, 0x380, 0);
 		/*XXX: in "nv" this is total vram size.  our RamAmountKBytes is clamped
 		*     to 256MiB.
 		*/
-		NV50DisplayWrite(pScrn, 0x384, pNv->RamAmountKBytes * 1024 - 1);
+		NV50DisplayWrite(pScrn, NV50_CRTC0_RAM_AMOUNT, pNv->RamAmountKBytes * 1024 - 1);
 		NV50DisplayWrite(pScrn, 0x388, 0x150000);
 		NV50DisplayWrite(pScrn, 0x38C, 0);
-		NV50CrtcCommand(crtc, 0x884, pNv->Cursor->offset >> 8);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor->offset >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, 0x89c, 1);
 		if(nv_crtc->cursorVisible)
 			NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
-		NV50CrtcCommand(crtc, 0x840, pScrn->depth == 8 ? 0x80000000 : 0xc0000000);
-		NV50CrtcCommand(crtc, 0x844, pNv->CLUT->offset >> 8);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, 
+			pScrn->depth == 8 ? NV50_CRTC0_CLUT_MODE_OFF : NV50_CRTC0_CLUT_MODE_ON);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT->offset >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, 0x85c, 1);
 		NV50CrtcCommand(crtc, 0x874, 1);
@@ -377,7 +390,8 @@ static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
 	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
 
-	NV50CrtcCommand(crtc, 0x880, show ? 0x85000000 : 0x5000000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR0, 
+		show ? NV50_CRTC0_CURSOR0_SHOW : NV50_CRTC0_CURSOR0_HIDE);
 	if(update) {
 		nv_crtc->cursorVisible = show;
 		NV50CrtcCommand(crtc, 0x80, 0);

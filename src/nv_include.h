@@ -79,6 +79,7 @@
 #include "nv50_cursor.h"
 #include "nv50_output.h"
 #include "nv50_type.h"
+#include "nv50reg.h"
 
 #include "nouveau_device.h"
 #include "nouveau_drmif.h"

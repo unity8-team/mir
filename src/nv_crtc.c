@@ -874,18 +874,6 @@ void nv_crtc_calc_state_ext(
 			state->sel_clk = pNv->misc_info.sel_clk;
 		}
 
-#if 0
-			if (DB1_ratio[1]) {
-				/* Here even bigger guess work starts */
-				if ((n_div/m_div) > 5 * p_div) {
-					state->vpll2 |= (1 << 30);
-				} else if (p_div >= m_div) {
-					state->vpll2 |= (1 << 30);
-					state->vpll2 |= (1 << 31);
-				}
-			}
-#endif
-
 		if (nv_crtc->head == 1) {
 			if (state->db1_ratio[1])
 				ErrorF("We are a lover of the DB1 VCLK ratio\n");
@@ -893,6 +881,10 @@ void nv_crtc_calc_state_ext(
 			if (state->db1_ratio[0])
 				ErrorF("We are a lover of the DB1 VCLK ratio\n");
 		}
+	} else {
+		/* This seems true for nv34 */
+		state->sel_clk = 0x0;
+		state->crosswired = FALSE;
 	}
 
 	/* We've bound crtc's and ramdac's together */
