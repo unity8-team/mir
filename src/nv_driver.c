@@ -2184,12 +2184,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 	pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 
+	pNv->misc_info.prefer_db1 = FALSE;
+
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* bit8 is a special bit disabling the second divider and multiplier */
 		if (nvReadMC(pNv, NV40_VCLK1_A) & (1 << 8)) {
 			pNv->misc_info.prefer_db1 = TRUE;
-		} else {
-			pNv->misc_info.prefer_db1 = FALSE;
+		}
+		/* Some have DB1 vclk ratio without the special bit */
+		if (!(pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2)) {
+			pNv->misc_info.prefer_db1 = TRUE;
 		}
 	}
 
