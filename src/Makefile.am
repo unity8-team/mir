@@ -215,4 +215,5 @@ EXTRA_DIST = \
 	radeon_chipset_gen.h \
 	radeon_pci_chipset_gen.h \
 	pcidb/ati_pciids.csv \
-	pcidb/parse_pci_ids.pl
+	pcidb/parse_pci_ids.pl \
+	radeon_atombios.h
