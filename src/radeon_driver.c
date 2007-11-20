@@ -774,7 +774,10 @@ Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-    if (info->ChipFamily == CHIP_FAMILY_RV515) {
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	/* no idea where this is on r600 yet */
+	return TRUE;
+    } else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	if (INMC(pScrn, RV515_MC_STATUS) & RV515_MC_STATUS_IDLE)
 	    return TRUE;
 	else
@@ -1272,18 +1275,11 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     CARD32 mem_size;
     CARD32 aper_size;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-      mem_size = INREG(RADEON_CONFIG_MEMSIZE);
-      aper_size = INREG(RADEON_CONFIG_APER_SIZE);
-      info->mc_fb_location = 0xcfffc000;
-      info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
-      info->mc_agp_location = 0xffffffc0;
-      return;
-    }
-
     if (IS_AVIVO_VARIANT) {
-      
-        if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    info->mc_fb_location = INREG(R600_MC_FB_LOCATION);
+	    info->mc_agp_location = 0xffffffc0;
+	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
             info->mc_fb_location = INMC(pScrn, RV515_MC_FB_LOCATION);
             info->mc_agp_location = INMC(pScrn, RV515_MC_AGP_LOCATION);
         } else {
@@ -1299,8 +1295,16 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     /* We shouldn't use info->videoRam here which might have been clipped
      * but the real video RAM instead
      */
-    mem_size = INREG(RADEON_CONFIG_MEMSIZE);
-    aper_size = INREG(RADEON_CONFIG_APER_SIZE);
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	mem_size = INREG(R600_CONFIG_MEMSIZE);
+    else
+	mem_size = INREG(RADEON_CONFIG_MEMSIZE);
+    
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	aper_size = INREG(R600_CONFIG_APER_SIZE);
+    else
+	aper_size = INREG(RADEON_CONFIG_APER_SIZE);
+
     if (mem_size == 0)
 	    mem_size = 0x800000;
 
@@ -1329,7 +1333,13 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	else
 #endif
 	{
-	    CARD32 aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
+	    CARD32 aper0_base;
+
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		aper0_base = INREG(R600_CONFIG_F0_BASE);
+	    } else {
+		aper0_base = INREG(RADEON_CONFIG_APER_0_BASE);
+	    }
 
 	    /* Recent chips have an "issue" with the memory controller, the
 	     * location must be aligned to the size. We just align it down,
@@ -1346,12 +1356,21 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 		info->ChipFamily == CHIP_FAMILY_RV410)
 		    aper0_base &= ~(mem_size - 1);
 
-	    info->mc_fb_location = (aper0_base >> 16) |
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		info->mc_fb_location = (aper0_base >> 24) |
+		    (((aper0_base + mem_size - 1) & 0xff000000U) >> 8);
+		ErrorF("mc fb loc is %08x\n", info->mc_fb_location);
+	    } else {
+		info->mc_fb_location = (aper0_base >> 16) |
 		    ((aper0_base + mem_size - 1) & 0xffff0000U);
+	    }
 	}
     }
-    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
-   
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	info->fbLocation = (info->mc_fb_location & 0xffff) << 24;
+    } else {
+   	info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+    }
     /* Just disable the damn AGP apertures for now, it may be
      * re-enabled later by the DRM
      */
@@ -3736,21 +3755,21 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
     int timeout;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-      return;
-
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONRestoreMemMapRegisters() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "  MC_FB_LOCATION   : 0x%08x\n",
-	       (unsigned)restore->mc_fb_location);
+	       (unsigned)info->mc_fb_location);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "  MC_AGP_LOCATION  : 0x%08x\n",
 	       (unsigned)restore->mc_agp_location);
 
     if (IS_AVIVO_VARIANT) {
 	CARD32 mc_fb_loc, mc_agp_loc;
-	if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    mc_fb_loc = INREG(R600_MC_FB_LOCATION);
+	    mc_agp_loc = 0xffffffc0;
+	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	    mc_fb_loc = INMC(pScrn, RV515_MC_FB_LOCATION);
 	    mc_agp_loc = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
@@ -3795,16 +3814,20 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 		usleep(10);
 	    }
 
-	    if (info->ChipFamily == CHIP_FAMILY_RV515) {
-		OUTMC(pScrn, RV515_MC_FB_LOCATION, info->mc_fb_location);
-		OUTMC(pScrn, RV515_MC_AGP_LOCATION, 0x003f0000);
-		(void)INMC(pScrn, RV515_MC_AGP_LOCATION);
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		OUTREG(R600_MC_FB_LOCATION, info->mc_fb_location);
 	    } else {
-		OUTMC(pScrn, R520_MC_FB_LOCATION, info->mc_fb_location);
-		OUTMC(pScrn, R520_MC_AGP_LOCATION, 0x003f0000);
-		(void)INMC(pScrn, R520_MC_FB_LOCATION);
+		if (info->ChipFamily == CHIP_FAMILY_RV515) {
+		    OUTMC(pScrn, RV515_MC_FB_LOCATION, info->mc_fb_location);
+		    OUTMC(pScrn, RV515_MC_AGP_LOCATION, 0x003f0000);
+		    (void)INMC(pScrn, RV515_MC_AGP_LOCATION);
+		} else {
+		    OUTMC(pScrn, R520_MC_FB_LOCATION, info->mc_fb_location);
+		    OUTMC(pScrn, R520_MC_AGP_LOCATION, 0x003f0000);
+		    (void)INMC(pScrn, R520_MC_FB_LOCATION);
+		}
+		OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
 	    }
-	    OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
 	    
 	    /* Reset the engine and HDP */
 	    RADEONEngineReset(pScrn);
@@ -3958,7 +3981,10 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     int fb_loc_changed;
 
     if (IS_AVIVO_VARIANT) {
-	if (info->ChipFamily == CHIP_FAMILY_RV515) {
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    fb = INREG(R600_MC_FB_LOCATION);
+	    agp = 0xffffffc0;
+	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	    fb = INMC(pScrn, RV515_MC_FB_LOCATION);
 	    agp = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	} else {
@@ -3978,7 +4004,11 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 		       info->mc_agp_location, agp);
 	    info->mc_fb_location = fb;
 	    info->mc_agp_location = agp;
-	    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+	    if (info->ChipFamily >= CHIP_FAMILY_R600)
+		info->fbLocation = (info->mc_fb_location & 0xffff) << 24;
+	    else
+		info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+
 	    info->dst_pitch_offset =
 		(((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
 		  << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
