@@ -489,6 +489,7 @@ static void CalcVClock2Stage (
  *     bit8: A switch that turns of the second divider and multiplier off.
  *     bit12: Also a switch, i haven't seen it yet.
  *     bit16-19: p-divider
+ *     but 28-31: Something related to the mode that is used (see bit8).
  * 2) bit0-7: m-divider (a)
  *     bit8-15: n-multiplier (a)
  *     bit16-23: m-divider (b)
@@ -520,18 +521,21 @@ CalculateVClkNV4x(
 	DeltaOld = 0xFFFFFFFF;
 
 	/* Only unset the needed stuff */
-	*pll_a &= ~((0xf << 16) | (1 << 8) | (1 << 12));
+	*pll_a &= ~((0xf << 28) | (0xf << 16) | (1 << 8) | (1 << 12));
 	/* This only contains the m multipliers and n dividers */
 	*pll_b = 0;
 
 	if (pNv->misc_info.prefer_db1) {
 		*db1_ratio = TRUE;
+		/* Turn the second set of divider and multiplier off */
 		*pll_a |= (1 << 8);
+		*pll_a |= (0x8 << 28);
 		/* Neutral settings */
 		n2 = 1;
 		m2 = 1;
 	} else {
 		*db1_ratio = FALSE;
+		*pll_a |= (0xc << 28);
 		/* Fixed at x4 for the moment */
 		n2 = 4;
 		m2 = 1;
