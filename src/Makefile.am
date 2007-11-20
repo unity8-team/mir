@@ -171,7 +171,6 @@ EXTRA_DIST = \
 	r128_reg.h \
 	r128_sarea.h \
 	r128_version.h \
-	radeon_chipset.h \
 	radeon_common.h \
 	radeon_commonfuncs.c \
 	radeon_dri.h \
@@ -191,4 +190,10 @@ EXTRA_DIST = \
 	theatre.h \
 	theatre_reg.h \
 	atipciids.h \
-	atipcirename.h
+	atipcirename.h \
+	ati_pciids_gen.h \
+	radeon_chipinfo_gen.h \
+	radeon_chipset_gen.h \
+	radeon_pci_chipset_gen.h \
+	pcidb/ati_pciids.csv \
+	pcidb/parse_pci_ids.pl

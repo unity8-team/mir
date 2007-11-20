@@ -444,6 +444,16 @@ typedef enum {
 } RADEONCardType;
 
 typedef struct {
+    CARD32 pci_device_id;
+    RADEONChipFamily chip_family;
+    int mobility;
+    int igp;
+    int nocrtc2;
+    int nointtvout;
+    int singledac;
+} RADEONCardInfo;
+
+typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
     PCITAG            PciTag;
