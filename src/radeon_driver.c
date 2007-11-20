@@ -1277,7 +1277,7 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 
     if (IS_AVIVO_VARIANT) {
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    info->mc_fb_location = INREG(R600_MC_FB_LOCATION);
+	    info->mc_fb_location = INREG(R600_MC_VM_FB_LOCATION);
 	    info->mc_agp_location = 0xffffffc0;
 	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
             info->mc_fb_location = INMC(pScrn, RV515_MC_FB_LOCATION);
@@ -1440,8 +1440,13 @@ static CARD32 RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32	   aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
+    CARD32	   aper_size;
     unsigned char  byte;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	aper_size = INREG(R600_CONFIG_APER_SIZE) / 1024;
+    else
+	aper_size = INREG(RADEON_CONFIG_APER_SIZE) / 1024;
 
 #ifdef XF86DRI
     /* If we use the DRI, we need to check if it's a version that has the
@@ -3765,10 +3770,11 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	       (unsigned)restore->mc_agp_location);
 
     if (IS_AVIVO_VARIANT) {
-	CARD32 mc_fb_loc, mc_agp_loc;
+	CARD32 mc_fb_loc, mc_agp_loc, mc_agp_loc_hi = 0;
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    mc_fb_loc = INREG(R600_MC_FB_LOCATION);
-	    mc_agp_loc = 0xffffffc0;
+	    mc_fb_loc = INREG(R600_MC_VM_FB_LOCATION);
+	    mc_agp_loc_hi = INREG(R600_MC_VM_AGP_TOP);
+	    mc_agp_loc = INREG(R600_MC_VM_AGP_BOT);
 	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	    mc_fb_loc = INMC(pScrn, RV515_MC_FB_LOCATION);
 	    mc_agp_loc = INMC(pScrn, RV515_MC_AGP_LOCATION);
@@ -3815,7 +3821,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    }
 
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		OUTREG(R600_MC_FB_LOCATION, info->mc_fb_location);
+		OUTREG(R600_MC_VM_FB_LOCATION, info->mc_fb_location);
 	    } else {
 		if (info->ChipFamily == CHIP_FAMILY_RV515) {
 		    OUTMC(pScrn, RV515_MC_FB_LOCATION, info->mc_fb_location);
@@ -3982,7 +3988,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     if (IS_AVIVO_VARIANT) {
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    fb = INREG(R600_MC_FB_LOCATION);
+	    fb = INREG(R600_MC_VM_FB_LOCATION);
 	    agp = 0xffffffc0;
 	} else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	    fb = INMC(pScrn, RV515_MC_FB_LOCATION);
