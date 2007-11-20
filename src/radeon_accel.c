@@ -853,6 +853,9 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return FALSE;
+
 #ifdef USE_EXA
     if (info->useEXA) {
 # ifdef XF86DRI

@@ -1643,7 +1643,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "R600 support is mostly incomplete and very experimental\n");
+                   "R600 support is mostly incomplete and very experimental\n");		return FALSE;
     }
 
     if ((info->ChipFamily >= CHIP_FAMILY_RV515) && (info->ChipFamily < CHIP_FAMILY_R600)) {
@@ -1865,6 +1865,12 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
     info->useEXA = FALSE;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
+	    "No acceleration support available on R600 yet.\n");
+	return TRUE;
+    }
+
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	int errmaj = 0, errmin = 0;
 
@@ -1981,15 +1987,16 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->Chipset == PCI_CHIP_RN50_5969 ||
 	info->Chipset == PCI_CHIP_RC410_5A61 ||
 	info->Chipset == PCI_CHIP_RC410_5A62 ||
-	info->Chipset == PCI_CHIP_RS485_5975) {
+	info->Chipset == PCI_CHIP_RS485_5975 ||
+	info->ChipFamily >= CHIP_FAMILY_R600) {
     	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50/RC410/RS485 forced on -- "
+		"Direct rendering for RN50/RC410/RS485/R600 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
     	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Direct rendering not officially supported on RN50/RC410\n");
+		"Direct rendering not officially supported on RN50/RC410/R600\n");
 	    return FALSE;
 	}
     }
