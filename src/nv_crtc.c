@@ -551,7 +551,7 @@ CalculateVClkNV4x(
 		if (freq > 400000 && freq < 1000000) {
 			/* We have 8 bits for each multiplier */
 			for (m1 = 1; m1 < 14; m1++) {
-				n1 = (freq * m1 * m2)/(pNv->CrystalFreqKHz * n2);
+				n1 = ((requested_clock << p) * m1 * m2)/(pNv->CrystalFreqKHz * n2);
 				if (n1 > 5 && n1 < 255) {
 					freq = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
 					if (freq > requested_clock) {
