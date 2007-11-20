@@ -107,9 +107,10 @@
 #include <X11/extensions/dpms.h>
 
 #include "atipciids.h"
-#include "radeon_chipset.h"
+#include "radeon_chipset_gen.h"
 
 
+#include "radeon_chipinfo_gen.h"
 
 				/* Forward definitions for driver functions */
 static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen);
@@ -1561,6 +1562,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     GDevPtr        dev    = pEnt->device;
     unsigned char *RADEONMMIO = info->MMIO;
     MessageType    from = X_PROBED;
+    int i;
 #ifdef XF86DRI
     const char *s;
     uint32_t cmd_stat;
@@ -1600,20 +1602,25 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     info->IsDellServer = FALSE;
     info->HasSingleDAC = FALSE;
     info->InternalTVOut = TRUE;
-    switch (info->Chipset) {
-    case PCI_CHIP_RADEON_LY:
-    case PCI_CHIP_RADEON_LZ:
-	info->IsMobility = TRUE;
-	info->ChipFamily = CHIP_FAMILY_RV100;
-	break;
 
+    for (i = 0; i < sizeof(RADEONCards) / sizeof(RADEONCardInfo); i++) {
+	if (info->Chipset == RADEONCards[i].pci_device_id) {
+	    RADEONCardInfo *card = &RADEONCards[i];
+	    info->ChipFamily = card->chip_family;
+	    info->IsMobility = card->mobility;
+	    info->IsIGP = card->igp;
+	    pRADEONEnt->HasCRTC2 = !card->nocrtc2;
+	    info->HasSingleDAC = card->singledac;
+	    info->InternalTVOut = card->nointtvout;
+	    break;
+	}
+    }
+	    
+    switch (info->Chipset) {
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
-        pRADEONEnt->HasCRTC2 = FALSE;
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
-	info->ChipFamily = CHIP_FAMILY_RV100;
-
 	/* DELL triple-head configuration. */
 	if ((PCI_SUB_VENDOR_ID(info->PciInfo) == PCI_VENDOR_DELL) &&
 	    ((PCI_SUB_DEVICE_ID(info->PciInfo) == 0x016c) ||
@@ -1629,242 +1636,9 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	    info->IsDellServer = TRUE;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DELL server detected, force to special setup\n");
 	}
-
 	break;
-
-    case PCI_CHIP_RS100_4336:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RS100_4136:
-	info->ChipFamily = CHIP_FAMILY_RS100;
-	info->IsIGP = TRUE;
-	break;
-
-    case PCI_CHIP_RS200_4337:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RS200_4137:
-	info->ChipFamily = CHIP_FAMILY_RS200;
-	info->IsIGP = TRUE;
-	break;
-
-    case PCI_CHIP_RS250_4437:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RS250_4237:
-	info->ChipFamily = CHIP_FAMILY_RS200;
-	info->IsIGP = TRUE;
-	break;
-
-    case PCI_CHIP_R200_BB:
-    case PCI_CHIP_R200_BC:
-    case PCI_CHIP_R200_QH:
-    case PCI_CHIP_R200_QL:
-    case PCI_CHIP_R200_QM:
-	info->ChipFamily = CHIP_FAMILY_R200;
-	info->InternalTVOut = FALSE;
-	break;
-
-    case PCI_CHIP_RADEON_LW:
-    case PCI_CHIP_RADEON_LX:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RV200_QW: /* RV200 desktop */
-    case PCI_CHIP_RV200_QX:
-	info->ChipFamily = CHIP_FAMILY_RV200;
-	break;
-
-    case PCI_CHIP_RV250_Ld:
-    case PCI_CHIP_RV250_Lf:
-    case PCI_CHIP_RV250_Lg:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RV250_If:
-    case PCI_CHIP_RV250_Ig:
-	info->ChipFamily = CHIP_FAMILY_RV250;
-	break;
-
-    case PCI_CHIP_RS300_5835:
-    case PCI_CHIP_RS350_7835:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RS300_5834:
-    case PCI_CHIP_RS350_7834:
-	info->ChipFamily = CHIP_FAMILY_RS300;
-	info->IsIGP = TRUE;
-	info->HasSingleDAC = TRUE;
-	break;
-
-    case PCI_CHIP_RV280_5C61:
-    case PCI_CHIP_RV280_5C63:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RV280_5960:
-    case PCI_CHIP_RV280_5961:
-    case PCI_CHIP_RV280_5962:
-    case PCI_CHIP_RV280_5964:
-    case PCI_CHIP_RV280_5965:
-	info->ChipFamily = CHIP_FAMILY_RV280;
-	break;
-
-    case PCI_CHIP_R300_AD:
-    case PCI_CHIP_R300_AE:
-    case PCI_CHIP_R300_AF:
-    case PCI_CHIP_R300_AG:
-    case PCI_CHIP_R300_ND:
-    case PCI_CHIP_R300_NE:
-    case PCI_CHIP_R300_NF:
-    case PCI_CHIP_R300_NG:
-	info->ChipFamily = CHIP_FAMILY_R300;
-        break;
-
-    case PCI_CHIP_RV350_NP:
-    case PCI_CHIP_RV350_NQ:
-    case PCI_CHIP_RV350_NR:
-    case PCI_CHIP_RV350_NS:
-    case PCI_CHIP_RV350_NT:
-    case PCI_CHIP_RV350_NV:
-	info->IsMobility = TRUE;
-    case PCI_CHIP_RV350_AP:
-    case PCI_CHIP_RV350_AQ:
-    case PCI_CHIP_RV360_AR:
-    case PCI_CHIP_RV350_AS:
-    case PCI_CHIP_RV350_AT:
-    case PCI_CHIP_RV350_AV:
-    case PCI_CHIP_RV350_4155:
-	info->ChipFamily = CHIP_FAMILY_RV350;
-        break;
-
-    case PCI_CHIP_R350_AH:
-    case PCI_CHIP_R350_AI:
-    case PCI_CHIP_R350_AJ:
-    case PCI_CHIP_R350_AK:
-    case PCI_CHIP_R350_NH:
-    case PCI_CHIP_R350_NI:
-    case PCI_CHIP_R350_NK:
-    case PCI_CHIP_R360_NJ:
-	info->ChipFamily = CHIP_FAMILY_R350;
-        break;
-
-    case PCI_CHIP_RV380_3150:
-    case PCI_CHIP_RV380_3152:
-    case PCI_CHIP_RV380_3154:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_RV380_3E50:
-    case PCI_CHIP_RV380_3E54:
-        info->ChipFamily = CHIP_FAMILY_RV380;
-        break;
-
-    case PCI_CHIP_RV370_5460:
-    case PCI_CHIP_RV370_5462:
-    case PCI_CHIP_RV370_5464:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_RV370_5B60:
-    case PCI_CHIP_RV370_5B62:
-    case PCI_CHIP_RV370_5B63:
-    case PCI_CHIP_RV370_5B64:
-    case PCI_CHIP_RV370_5B65:
-        info->ChipFamily = CHIP_FAMILY_RV380;
-        break;
-
-    case PCI_CHIP_RS400_5A42:
-    case PCI_CHIP_RC410_5A62:
-    case PCI_CHIP_RS480_5955:
-    case PCI_CHIP_RS485_5975:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_RS400_5A41:
-    case PCI_CHIP_RC410_5A61:
-    case PCI_CHIP_RS480_5954:
-    case PCI_CHIP_RS482_5974:
-	info->ChipFamily = CHIP_FAMILY_RS400;
-	info->IsIGP = TRUE;
-	info->HasSingleDAC = TRUE;
-        break;
-
-    case PCI_CHIP_RV410_564A:
-    case PCI_CHIP_RV410_564B:
-    case PCI_CHIP_RV410_564F:
-    case PCI_CHIP_RV410_5652:
-    case PCI_CHIP_RV410_5653:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_RV410_5E48:
-    case PCI_CHIP_RV410_5E4B:
-    case PCI_CHIP_RV410_5E4A:
-    case PCI_CHIP_RV410_5E4D:
-    case PCI_CHIP_RV410_5E4C:
-    case PCI_CHIP_RV410_5E4F:
-        info->ChipFamily = CHIP_FAMILY_RV410;
-        break;
-
-    case PCI_CHIP_R420_JN:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_R420_JH:
-    case PCI_CHIP_R420_JI:
-    case PCI_CHIP_R420_JJ:
-    case PCI_CHIP_R420_JK:
-    case PCI_CHIP_R420_JL:
-    case PCI_CHIP_R420_JM:
-    case PCI_CHIP_R420_JP:
-    case PCI_CHIP_R420_4A4F:
-        info->ChipFamily = CHIP_FAMILY_R420;
-        break;
-
-    case PCI_CHIP_R423_UH:
-    case PCI_CHIP_R423_UI:
-    case PCI_CHIP_R423_UJ:
-    case PCI_CHIP_R423_UK:
-    case PCI_CHIP_R423_UQ:
-    case PCI_CHIP_R423_UR:
-    case PCI_CHIP_R423_UT:
-    case PCI_CHIP_R423_5D57:
-    case PCI_CHIP_R423_5550:
-        info->ChipFamily = CHIP_FAMILY_R420;
-        break;
-
-    case PCI_CHIP_R430_5D49:
-    case PCI_CHIP_R430_5D4A:
-    case PCI_CHIP_R430_5D48:
-        info->IsMobility = TRUE;
-    case PCI_CHIP_R430_554F:
-    case PCI_CHIP_R430_554D:
-    case PCI_CHIP_R430_554E:
-    case PCI_CHIP_R430_554C:
-        info->ChipFamily = CHIP_FAMILY_R420; /*CHIP_FAMILY_R430*/
-        break;
-
-    case PCI_CHIP_R480_5D4C:
-    case PCI_CHIP_R480_5D50:
-    case PCI_CHIP_R480_5D4E:
-    case PCI_CHIP_R480_5D4F:
-    case PCI_CHIP_R480_5D52:
-    case PCI_CHIP_R480_5D4D:
-    case PCI_CHIP_R481_4B4B:
-    case PCI_CHIP_R481_4B4A:
-    case PCI_CHIP_R481_4B49:
-    case PCI_CHIP_R481_4B4C:
-        info->ChipFamily = CHIP_FAMILY_R420; /*CHIP_FAMILY_R480*/
-        break;
-
-    case PCI_CHIP_RV515_7142:
-    case PCI_CHIP_RV515_7183:
-	info->ChipFamily = CHIP_FAMILY_RV515;
-	break;
-
-    case PCI_CHIP_R520_7104:
-	info->ChipFamily = CHIP_FAMILY_R520;
-	break;
-
-    case PCI_CHIP_RV530_71C5:
-	info->ChipFamily = CHIP_FAMILY_RV570;
-        info->IsMobility = TRUE;	
-	break;
-
-    case PCI_CHIP_R580_7249:
-	info->ChipFamily = CHIP_FAMILY_R580;
-	break;
-
-    case PCI_CHIP_RV570_7280:
-	info->ChipFamily = CHIP_FAMILY_RV570;
-	break;
-
     default:
-	/* Original Radeon/7200 */
-	info->ChipFamily = CHIP_FAMILY_RADEON;
-	pRADEONEnt->HasCRTC2 = FALSE;
-	info->InternalTVOut = FALSE;
+	break;
     }
 
 
