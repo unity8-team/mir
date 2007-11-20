@@ -1272,7 +1272,17 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     CARD32 mem_size;
     CARD32 aper_size;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+      mem_size = INREG(RADEON_CONFIG_MEMSIZE);
+      aper_size = INREG(RADEON_CONFIG_APER_SIZE);
+      info->mc_fb_location = 0xcfffc000;
+      info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+      info->mc_agp_location = 0xffffffc0;
+      return;
+    }
+
     if (IS_AVIVO_VARIANT) {
+      
         if (info->ChipFamily == CHIP_FAMILY_RV515) {
             info->mc_fb_location = INMC(pScrn, RV515_MC_FB_LOCATION);
             info->mc_agp_location = INMC(pScrn, RV515_MC_AGP_LOCATION);
@@ -1489,13 +1499,18 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
 
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
-	/* Read VRAM size from card */
-        pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
-
-	/* Some production boards of m6 will return 0 if it's 8 MB */
-	if (pScrn->videoRam == 0) {
-	    pScrn->videoRam = 8192;
-	    OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
+	
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    pScrn->videoRam = INREG(R600_CONFIG_MEMSIZE) / 1024;
+	else {
+	    /* Read VRAM size from card */
+	    pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
+	    
+	    /* Some production boards of m6 will return 0 if it's 8 MB */
+	    if (pScrn->videoRam == 0) {
+		pScrn->videoRam = 8192;
+		OUTREG(RADEON_CONFIG_MEMSIZE, 0x800000);
+	    }
 	}
     }
 
@@ -1643,7 +1658,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                   "R600 support is mostly incomplete and very experimental\n");		return FALSE;
+                   "R600 support is mostly incomplete and very experimental\n");
     }
 
     if ((info->ChipFamily >= CHIP_FAMILY_RV515) && (info->ChipFamily < CHIP_FAMILY_R600)) {
@@ -2193,6 +2208,9 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
 
     if (!info->allowColorTiling)
 	return;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	info->allowColorTiling = FALSE;
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled &&
@@ -3717,6 +3735,9 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int timeout;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+      return;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONRestoreMemMapRegisters() : \n");

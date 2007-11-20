@@ -3689,4 +3689,8 @@
 #	define AVIVO_I2C_EN							(1 << 0)
 #	define AVIVO_I2C_RESET						(1 << 8)
 
+#define R600_BUS_CNTL                                           0x5420
+#define R600_CONFIG_CNTL                                        0x5424
+#define R600_CONFIG_MEMSIZE                                     0x5428
+#define R600_CONFIG_APER_SIZE                                   0x5430
 #endif
