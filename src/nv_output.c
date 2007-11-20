@@ -890,8 +890,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	if (pNv->NVArch < 0x44) {
 		regp->test_control = 0xf0000000;
 	} else {
-		/* Bit 16 i got from nv_hw.c */
-		regp->test_control = 0xf0110000;
+		regp->test_control = 0xf0100000;
 	}
 
 	/* This is a similar register to test control */
