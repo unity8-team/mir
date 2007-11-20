@@ -299,7 +299,10 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
        atombios_output_tmds2_dpms(output, mode);
    } else if (radeon_output->MonType == MT_DFP) {
        ErrorF("AGD: tmds dpms\n");
-       atombios_output_tmds1_dpms(output, mode);
+       if (radeon_output->TMDSType == TMDS_INT)
+	   atombios_output_tmds1_dpms(output, mode);
+       else
+	   atombios_output_tmds2_dpms(output, mode);
    } else if (radeon_output->MonType == MT_CRT) {
        ErrorF("AGD: dac dpms\n");
        atombios_output_dac_dpms(output, mode);
