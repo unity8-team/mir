@@ -246,6 +246,17 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		else
 		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
 
+		/* Always set the connector type to VGA for CRT1/CRT2. if they are
+		 * shared with a DVI port, we'll pick up the DVI connector below when we
+		 * merge the outputs
+		 */
+		if ((i == ATOM_DEVICE_CRT1_INDEX || i == ATOM_DEVICE_CRT2_INDEX) &&
+		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I ||
+		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D ||
+		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
+		    info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
+		}
+
 	    } else {
 		info->BiosConnector[i].valid = FALSE;
 	    }
