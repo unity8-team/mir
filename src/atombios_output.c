@@ -202,6 +202,33 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 }
 
+static int
+atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    LVDS_ENCODER_CONTROL_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    disp_data.ucAction = 1;
+    if (mode->Clock > 165000)
+	disp_data.ucMisc = 1;
+    else
+	disp_data.ucMisc = 0;
+    disp_data.usPixelClock = mode->Clock / 10;
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+    
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Output LVDS enable success\n");
+	return ATOM_SUCCESS;
+    }
+    
+    ErrorF("Output LVDS enable failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+}
+
 static void
 atombios_output_dac_dpms(xf86OutputPtr output, int mode)
 {
@@ -262,7 +289,19 @@ atombios_output_tmds2_dpms(xf86OutputPtr output, int mode)
 static void
 atombios_output_lvds_dpms(xf86OutputPtr output, int mode)
 {
-    atombios_output_tmds2_dpms(output, mode);
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+
+    switch(mode) {
+    case DPMSModeOn:
+	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_ENABLE);
+    
+        break;
+    case DPMSModeStandby:
+    case DPMSModeSuspend:
+    case DPMSModeOff:
+	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_DISABLE);
+        break;
+    }
 }
 
 void
@@ -296,7 +335,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     ErrorF("AGD: output dpms\n");
 
    if (radeon_output->MonType == MT_LCD) {
-       atombios_output_tmds2_dpms(output, mode);
+       atombios_output_lvds_dpms(output, mode);
    } else if (radeon_output->MonType == MT_DFP) {
        ErrorF("AGD: tmds dpms\n");
        if (radeon_output->TMDSType == TMDS_INT)
@@ -330,7 +369,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 	else
 	    atombios_output_tmds2_setup(output, adjusted_mode);
     } else if (radeon_output->MonType == MT_LCD) {
-	atombios_output_tmds2_setup(output, adjusted_mode);
+	atombios_output_lvds_setup(output, adjusted_mode);
     }
 }
 
