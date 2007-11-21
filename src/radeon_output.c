@@ -3134,7 +3134,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->MonType = MT_UNKNOWN;
 	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
 	    radeon_output->ddc_line = info->BiosConnector[i].ddc_line;
+	    radeon_output->devices = info->BiosConnector[i].devices;
 	    radeon_output->output_id = info->BiosConnector[i].output_id;
+
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
 	    else

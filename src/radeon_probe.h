@@ -195,6 +195,7 @@ typedef struct {
     RADEONConnectorType ConnectorType;
     Bool valid;
     int output_id;
+    int devices;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -243,6 +244,7 @@ typedef struct _RADEONOutputPrivateRec {
 
     char              *name;
     int               output_id;
+    int               devices;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 #define RADEON_MAX_CRTC 2

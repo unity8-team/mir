@@ -236,6 +236,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    info->BiosConnector[i].ddc_line = gpio;
 
 		info->BiosConnector[i].output_id = id;
+		info->BiosConnector[i].devices = (1 << i);
 
 		if (i == ATOM_DEVICE_DFP1_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
@@ -277,12 +278,14 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
 			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
+			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
 			    info->BiosConnector[j].valid = FALSE;
 			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
 			     (j == ATOM_DEVICE_DFP2_INDEX) ||
 			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
 			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
+			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
 			    info->BiosConnector[i].valid = FALSE;
 			}
 			/* other possible combos?  */
