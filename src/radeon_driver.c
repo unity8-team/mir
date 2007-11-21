@@ -1683,11 +1683,21 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                    "R600 support is mostly incomplete and very experimental\n");
+	if (info->IsMobility) {
+	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		     "R600 mobility support is incomplete. You need to force enable it in the code for testing until developers are sure about it.\n");
+	  return FALSE;
+	}
     }
 
     if ((info->ChipFamily >= CHIP_FAMILY_RV515) && (info->ChipFamily < CHIP_FAMILY_R600)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                    "R500 support is under development. Please report any issues to xorg-driver-ati@lists.x.org\n");
+	if (info->IsMobility) {
+	  	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "R500 mobility support is incomplete. You need to force enable it in the code for testing until developers are sure about it.\n");
+		return FALSE;
+	}
     }
 
     from               = X_PROBED;
