@@ -747,52 +747,52 @@ Bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	/* INIT_INDEX_ADDRESS_LATCHED   opcode: 0x49 ('I')
 	 *
 	 * offset      (8  bit): opcode
-	 * offset + 1  (32 bit): register
-	 * offset + 5  (32 bit): register
-	 * offset + 9  (FIXME bit): FIXME
-	 * offset + 17  (8 bit): count
-	 * offset + 18 (8 bit): configuration 1
-	 * offset + 19 (8 bit): configuration 1
+	 * offset + 1  (32 bit): control register
+	 * offset + 5  (32 bit): data register
+	 * offset + 9  (32 bit): mask
+	 * offset + 13 (32 bit): data
+	 * offset + 17 (8  bit): count
+	 * offset + 18 (8  bit): address 1
+	 * offset + 19 (8  bit): data 1
 	 * ...
 	 *
-	 * FIXME
+	 * For each of "count" address and data pairs, write "data n" to "data register",
+	 * read the current value of "control register", and write it back once ANDed
+	 * with "mask", ORed with "data", and ORed with "address n"
 	 */
 
-	uint32_t rega = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
-	uint32_t regb = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+	uint32_t controlreg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t datareg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 9])));
+	uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 13])));
 	uint8_t count = *((uint8_t *)(&bios->data[offset + 17]));
+	uint32_t value;
 	int i;
 
 	if (!iexec->execute)
 		return TRUE;
 
-xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: ControlReg: 0x%08X, DataReg: 0x%08X, Mask: 0x%08X, Data: 0x%08X, Count: 0x%02X\n",
+			   offset, controlreg, datareg, mask, data, count);
 
-#if 0
 	for (i = 0; i < count; i++) {
-		nv_set_crtc_index(pScrn, crtcindex);
+		uint8_t instaddress = *((uint8_t *)(&bios->data[offset + 18 + i * 2]));
+		uint8_t instdata = *((uint8_t *)(&bios->data[offset + 19 + i * 2]));
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: CRTC INDEX: %02X    DATA: %02X\n", offset,
-				crtcindex, initial_index + i);
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Address: 0x%02X, Data: 0x%02X\n", offset, instaddress, instdata);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset,
-				nv_rd_crtc_data(pScrn));
+		nv32_wr(pScrn, datareg, instdata);
 
-		nv_wr_crtc_data(pScrn, initial_index + i);
+		nv32_rd(pScrn, controlreg, &value);
+		value = (value & mask) | data | instaddress;
 
-		nv_set_crtc_index(pScrn, crtcdata);
-
-		data = *((CARD8 *)(&bios->data[offset + 5 + i]));
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: CRTC INDEX: %02X    DATA: %02X\n", offset,
-				crtcdata, data);
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset,
-				nv_rd_crtc_data(pScrn));
-
-		nv_wr_crtc_data(pScrn, data);
+		nv32_wr(pScrn, controlreg, value);
 	}
-#endif
+
 	return TRUE;
 }
 
