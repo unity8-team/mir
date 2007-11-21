@@ -389,7 +389,7 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
     data.exec.pspace = &crtc_src_param;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Set CRTC Source success\n");
+	ErrorF("Set CRTC %d Source success\n", radeon_crtc->crtc_id);
 	return;
     }
   

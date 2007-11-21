@@ -58,11 +58,11 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC1 enable success\n");
+	ErrorF("Output DAC1 setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output DAC1 enable failed\n");
+    ErrorF("Output DAC1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -83,11 +83,11 @@ atombios_output_dac2_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC2 enable success\n");
+	ErrorF("Output DAC2 setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output DAC2 enable failed\n");
+    ErrorF("Output DAC2 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -115,11 +115,11 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("External TMDS enable success\n");
+	ErrorF("External TMDS setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("External TMDS enable failed\n");
+    ErrorF("External TMDS setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
@@ -142,11 +142,11 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output TMDS1 enable success\n");
+	ErrorF("Output TMDS1 setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output TMDS1 enable failed\n");
+    ErrorF("Output TMDS1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -170,11 +170,11 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output TMDS2 enable success\n");
+	ErrorF("Output TMDS2 setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output TMDS2 enable failed\n");
+    ErrorF("Output TMDS2 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
@@ -197,11 +197,11 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output LVDS enable success\n");
+	ErrorF("Output LVDS setup success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output LVDS enable failed\n");
+    ErrorF("Output LVDS setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
@@ -218,11 +218,11 @@ atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool sta
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output %d enable success\n", device);
+	ErrorF("Output %d %s success\n", device, state? "enable":"disable");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output %d enable failed\n", device);
+    ErrorF("Output %d %s failed\n", device, state? "enable":"disable");
     return ATOM_NOT_IMPLEMENTED;
 }
 
