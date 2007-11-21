@@ -43,7 +43,7 @@
 #include "radeon_atombios.h"
 
 static AtomBiosResult
-atom_bios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
+atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
     DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
@@ -64,7 +64,7 @@ atom_bios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool st
 }
 
 static void
-atom_bios_enable_crt(atomBiosHandlePtr atomBIOS, int dac, Bool state)
+atombios_enable_crt(atomBiosHandlePtr atomBIOS, int dac, Bool state)
 {
     int output;
     if (dac == DAC_PRIMARY)
@@ -72,7 +72,7 @@ atom_bios_enable_crt(atomBiosHandlePtr atomBIOS, int dac, Bool state)
     else
 	output = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
 
-    atom_bios_display_device_control(atomBIOS, output, state);
+    atombios_display_device_control(atomBIOS, output, state);
 }
 
 static int
@@ -102,12 +102,6 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     ErrorF("Output DAC %d enable failed\n", radeon_output->DACType);
     return ATOM_NOT_IMPLEMENTED;
 
-#if 0
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, CRT1OutputControl), ATOM_TRANSMITTER_ACTION_INIT);
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, CRT1OutputControl), ATOM_TRANSMITTER_ACTION_SETUP);
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, CRT1OutputControl), ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT);
-    return ATOM_SUCCESS;
-#endif
 }
 
 int
@@ -167,12 +161,6 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
     ErrorF("Output TMDS1 enable failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
-#if 0
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, DFP1OutputControl), ATOM_TRANSMITTER_ACTION_INIT);
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, DFP1OutputControl), ATOM_TRANSMITTER_ACTION_SETUP);
-    atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, DFP1OutputControl), ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT);
-    return ATOM_SUCCESS;
-#endif
 }
 
 static int
@@ -237,12 +225,12 @@ atombios_output_dac_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
-	atom_bios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_ENABLE);
+	atombios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_ENABLE);
         break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	atom_bios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_DISABLE);
+	atombios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_DISABLE);
 	break;
     }
 }
@@ -255,14 +243,14 @@ atombios_output_tmds1_dpms(xf86OutputPtr output, int mode)
     switch(mode) {
     case DPMSModeOn:
 	/* TODO */
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_ENABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_ENABLE);
     
         break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
 	/* TODO */
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_DISABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_DISABLE);
         break;
     }
 }
@@ -274,13 +262,13 @@ atombios_output_tmds2_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_ENABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_ENABLE);
 	/* TODO */
         break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_DISABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_DISABLE);
 	/* TODO */
         break;
     }
@@ -293,13 +281,13 @@ atombios_output_lvds_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_ENABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_ENABLE);
     
         break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	atom_bios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_DISABLE);
+	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_DISABLE);
         break;
     }
 }
