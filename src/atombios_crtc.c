@@ -504,11 +504,11 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
     }
 
-    atombios_set_crtc_source(crtc);
+    atombios_crtc_set_pll(crtc, adjusted_mode);
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
-    atombios_crtc_set_pll(crtc, adjusted_mode);
+    atombios_set_crtc_source(crtc);
 
     if (info->tilingEnabled != tilingOld) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
