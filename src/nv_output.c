@@ -1508,7 +1508,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 		or = ffs(pNv->dcb_table.entry[i].or);
 
 		if (type < 4) {
-			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, or: %d\n", i, type, i2c_index, or);
+			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, head: %d, or: %d\n", i, type, i2c_index, pNv->dcb_table.entry[i].head, or);
 
 			switch(type) {
 			case OUTPUT_ANALOG:

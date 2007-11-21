@@ -2009,21 +2009,24 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->bus = (conn >> 16) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
 	} else if (dcb_version >= 0x14 ) {
-		// 1.4 needs more loving
+		if (conn != 0xf0003f00) {
+			ErrorF("Unknown DCB 1.4 entry, please report\n");
+			return FALSE;
+		}
+		/* safe defaults for a crt */
 		entry->type = 0;
 		entry->i2c_index = 0;
-		entry->head = 0;
+		entry->head = 1;
 		entry->bus = 0;
-		entry->or = 0;
-		return FALSE;
+		entry->or = 1;
 	} else {
 		// 1.2 needs more loving
+		return FALSE;
 		entry->type = 0;
 		entry->i2c_index = 0;
 		entry->head = 0;
 		entry->bus = 0;
 		entry->or = 0;
-		return FALSE;
 	}
 
 	return TRUE;
@@ -2168,7 +2171,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if ((connection & 0x0000000f) == 0x0000000f) /* end of records */
 			break;
 
-		ErrorF("Raw DCB entry %d: %08x\n", i, connection);
+		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
 		if (!parse_dcb_entry(dcb_version, connection, config, &pNv->dcb_table.entry[i]))
 			break;
 	}
