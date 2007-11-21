@@ -353,6 +353,7 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
         xf86OutputPtr output = xf86_config->output[i];
         RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
+	/* doesn't seem to support cloning via atom */
 	if (output->crtc == crtc) {
 	    switch(major) {
 	    case 1: {
@@ -360,7 +361,22 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
 		case 0:
 		case 1:
 		default:
-		    crtc_src_param.ucDevice = radeon_output->output_id;
+		    if (radeon_output->MonType == MT_CRT) {
+                        if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_CRT1_INDEX;
+                        else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_CRT2_INDEX;
+                    } else if (radeon_output->MonType == MT_DFP) {
+                        if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP1_INDEX;
+                        else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP2_INDEX;
+                        else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP3_INDEX;
+                    } else if (radeon_output->MonType == MT_LCD) {
+                        if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+                            crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
+                    }
 		    break;
 		}
 		break;
@@ -371,7 +387,7 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
 	}
     }
 
-    ErrorF("devices sourced: 0x%x\n", crtc_src_param.ucDevice);
+    ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);
 
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
