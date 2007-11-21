@@ -42,43 +42,9 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
-static AtomBiosResult
-atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
-{
-    DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = state;
-    data.exec.index = device;
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-    
-    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output %d enable success\n", device);
-	return ATOM_SUCCESS;
-    }
-    
-    ErrorF("Output %d enable failed\n", device);
-    return ATOM_NOT_IMPLEMENTED;
-}
-
-static void
-atombios_enable_crt(atomBiosHandlePtr atomBIOS, int dac, Bool state)
-{
-    int output;
-    if (dac == DAC_PRIMARY)
-	output = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
-    else
-	output = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
-
-    atombios_display_device_control(atomBIOS, output, state);
-}
-
 static int
-atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
@@ -87,19 +53,41 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     disp_data.ucAction = 1;
     disp_data.ucDacStandard = 1;
     disp_data.usPixelClock = mode->Clock / 10;
-    if (radeon_output->DACType == DAC_PRIMARY)
-	data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
-    else
-	data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC %d enable success\n", radeon_output->DACType);
+	ErrorF("Output DAC1 enable success\n");
 	return ATOM_SUCCESS;
     }
     
-    ErrorF("Output DAC %d enable failed\n", radeon_output->DACType);
+    ErrorF("Output DAC1 enable failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+
+}
+
+static int
+atombios_output_dac2_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    disp_data.ucAction = 1;
+    disp_data.ucDacStandard = 1;
+    disp_data.usPixelClock = mode->Clock / 10;
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+    
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Output DAC2 enable success\n");
+	return ATOM_SUCCESS;
+    }
+    
+    ErrorF("Output DAC2 enable failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -122,7 +110,7 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     if (!info->dac6bits)
 	disp_data.sXTmdsEncoder.ucMisc |= (1 << 1);
 
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableExternalTMDS_Encoder);
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
     
@@ -217,77 +205,64 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 }
 
-static void
-atombios_output_dac_dpms(xf86OutputPtr output, int mode)
+static AtomBiosResult
+atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
 
-    switch(mode) {
-    case DPMSModeOn:
-	atombios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_ENABLE);
-        break;
-    case DPMSModeStandby:
-    case DPMSModeSuspend:
-    case DPMSModeOff:
-	atombios_enable_crt(info->atomBIOS, radeon_output->DACType, ATOM_DISABLE);
+    disp_data.ucAction = state;
+    data.exec.index = device;
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+    
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Output %d enable success\n", device);
+	return ATOM_SUCCESS;
+    }
+    
+    ErrorF("Output %d enable failed\n", device);
+    return ATOM_NOT_IMPLEMENTED;
+}
+
+static void
+atombios_device_dpms(xf86OutputPtr output, int device, int mode)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    int index;
+
+    switch (device) {
+    case ATOM_DEVICE_CRT1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
 	break;
+    case ATOM_DEVICE_CRT2_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
+	break;
+    case ATOM_DEVICE_DFP1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl);
+	break;
+    case ATOM_DEVICE_DFP2_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
+	break;
+    case ATOM_DEVICE_DFP3_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl);
+	break;
+    case ATOM_DEVICE_LCD1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
+	break;
+    default:
+	return;
     }
-}
 
-static void
-atombios_output_tmds1_dpms(xf86OutputPtr output, int mode)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-
-    switch(mode) {
+    switch (mode) {
     case DPMSModeOn:
-	/* TODO */
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_ENABLE);
-    
+	atombios_display_device_control(info->atomBIOS, index, ATOM_ENABLE);
         break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	/* TODO */
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl), ATOM_DISABLE);
-        break;
-    }
-}
-
-static void
-atombios_output_tmds2_dpms(xf86OutputPtr output, int mode)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-
-    switch(mode) {
-    case DPMSModeOn:
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_ENABLE);
-	/* TODO */
-        break;
-    case DPMSModeStandby:
-    case DPMSModeSuspend:
-    case DPMSModeOff:
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl), ATOM_DISABLE);
-	/* TODO */
-        break;
-    }
-}
-
-static void
-atombios_output_lvds_dpms(xf86OutputPtr output, int mode)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-
-    switch(mode) {
-    case DPMSModeOn:
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_ENABLE);
-    
-        break;
-    case DPMSModeStandby:
-    case DPMSModeSuspend:
-    case DPMSModeOff:
-	atombios_display_device_control(info->atomBIOS, GetIndexIntoMasterTable(COMMAND, LCD1OutputControl), ATOM_DISABLE);
+	atombios_display_device_control(info->atomBIOS, index, ATOM_DISABLE);
         break;
     }
 }
@@ -323,16 +298,22 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     ErrorF("AGD: output dpms\n");
 
    if (radeon_output->MonType == MT_LCD) {
-       atombios_output_lvds_dpms(output, mode);
+       if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_LCD1_SUPPORT, mode);
    } else if (radeon_output->MonType == MT_DFP) {
        ErrorF("AGD: tmds dpms\n");
-       if (radeon_output->TMDSType == TMDS_INT)
-	   atombios_output_tmds1_dpms(output, mode);
-       else
-	   atombios_output_tmds2_dpms(output, mode);
+       if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_DFP1_SUPPORT, mode);
+       else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_DFP2_SUPPORT, mode);
+       else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_DFP3_SUPPORT, mode);
    } else if (radeon_output->MonType == MT_CRT) {
        ErrorF("AGD: dac dpms\n");
-       atombios_output_dac_dpms(output, mode);
+       if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_CRT1_SUPPORT, mode);
+       else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_CRT2_SUPPORT, mode);
    }
 
 #if 1
@@ -350,14 +331,20 @@ atombios_output_mode_set(xf86OutputPtr output,
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (radeon_output->MonType == MT_CRT) {
-	atombios_output_dac_setup(output, adjusted_mode);
+       if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+	   atombios_output_dac1_setup(output, adjusted_mode);
+       else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+	   atombios_output_dac2_setup(output, adjusted_mode);
     } else if (radeon_output->MonType == MT_DFP) {
-	if (radeon_output->TMDSType == TMDS_INT) 
-	    atombios_output_tmds1_setup(output, adjusted_mode);
-	else
-	    atombios_output_tmds2_setup(output, adjusted_mode);
+       if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+	   atombios_output_tmds1_setup(output, adjusted_mode);
+       else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+	   atombios_external_tmds_setup(output, adjusted_mode);
+       else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+	   atombios_output_tmds2_setup(output, adjusted_mode);
     } else if (radeon_output->MonType == MT_LCD) {
-	atombios_output_lvds_setup(output, adjusted_mode);
+       if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	   atombios_output_lvds_setup(output, adjusted_mode);
     }
 }
 
@@ -398,13 +385,13 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     ret = atom_bios_dac_load_detect(info->atomBIOS, radeon_output->DACType);
     if (ret == ATOM_SUCCESS) {
-      ErrorF("DAC connect %08X\n", (unsigned int)INREG(0x10));
+      ErrorF("DAC connect %08X\n", (unsigned int)INREG(RADEON_BIOS_0_SCRATCH));
 	bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
 	
-	if (radeon_output->DACType == DAC_PRIMARY) {
+	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 	    if (bios_0_scratch & ATOM_S0_CRT1_COLOR)
 		MonType = MT_CRT;
-	} else {
+	} else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
 	    if (bios_0_scratch & ATOM_S0_CRT2_COLOR)
 		MonType = MT_CRT;
 	}
