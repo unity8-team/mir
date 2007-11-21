@@ -353,36 +353,25 @@ atombios_set_crtc_source(xf86CrtcPtr crtc)
         xf86OutputPtr output = xf86_config->output[i];
         RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-	switch(major) {
-	case 1: {
-	    switch(minor) {
-	    case 0:
-	    case 1:
-	    default:
-		if (radeon_output->MonType == MT_CRT) {
-		    if (radeon_output->DACType == DAC_PRIMARY)
-			crtc_src_param.ucDevice |= ATOM_DEVICE_CRT1_SUPPORT;
-		    else
-			crtc_src_param.ucDevice |= ATOM_DEVICE_CRT2_SUPPORT;
-		} else if (radeon_output->MonType == MT_DFP) {
-		    if (radeon_output->TMDSType == TMDS_INT)
-			crtc_src_param.ucDevice |= ATOM_DEVICE_DFP1_SUPPORT;
-		    else
-			crtc_src_param.ucDevice |= ATOM_DEVICE_DFP2_SUPPORT;
-		} else if (radeon_output->MonType == MT_LCD)
-		    crtc_src_param.ucDevice |= ATOM_DEVICE_LCD1_SUPPORT;
-		else if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV)
-		    crtc_src_param.ucDevice |= ATOM_DEVICE_TV1_SUPPORT;
-		else if (radeon_output->MonType == MT_CV)
-		    crtc_src_param.ucDevice |= ATOM_DEVICE_CV_SUPPORT;
+	if (output->crtc == crtc) {
+	    switch(major) {
+	    case 1: {
+		switch(minor) {
+		case 0:
+		case 1:
+		default:
+		    crtc_src_param.ucDevice = radeon_output->output_id;
+		    break;
+		}
 		break;
 	    }
-	    break;
-	}
-	default:
-	    break;
+	    default:
+		break;
+	    }
 	}
     }
+
+    ErrorF("devices sourced: 0x%x\n", crtc_src_param.ucDevice);
 
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
