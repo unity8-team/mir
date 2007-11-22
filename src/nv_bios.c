@@ -31,6 +31,8 @@
  *       * PLL algorithms.
  */
 
+static int crtchead = 0;
+
 typedef struct {
 	Bool execute;
 	Bool repeat;
@@ -277,10 +279,10 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	return 1;
 }
 
-static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data, int head)
+static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *ptr = head ? pNv->PCIO1 : pNv->PCIO0;
+	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
 	VGA_WR08(ptr, port, index);
 	*data = VGA_RD08(ptr, port + 1);
@@ -288,27 +290,34 @@ static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
-			   port, index, head, *data);
+			   port, index, crtchead, *data);
 }
 
-static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data, int head)
+static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *ptr = head ? pNv->PCIO1 : pNv->PCIO0;
+	volatile uint8_t *ptr;
+
+	if (port == 0x3d4 && index == 0x44 && data != 0x03)
+		crtchead = 0;
+	ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
 	if (DEBUGLEVEL >= 8) {
 		uint8_t tmp;
-		nv_port_rd(pScrn, port, index, &tmp, head);
+		nv_port_rd(pScrn, port, index, &tmp);
 	}
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
-			   port, index, head, data);
+			   port, index, crtchead, data);
+
 #ifdef PERFORM_WRITE
 	still_alive();
 	VGA_WR08(ptr, port, index);
 	VGA_WR08(ptr, port + 1, data);
 #endif
+	if (port == 0x3d4 && index == 0x44 && data == 0x03)
+		crtchead = 1;
 }
 
 static void nv_set_crtc_index(ScrnInfoPtr pScrn, CARD8 index)
@@ -433,8 +442,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, count, reg);
 
-	/* FIXME how to choose head?? */
-	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
+	nv_port_rd(pScrn, crtcport, crtcindex, &config);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -523,10 +531,9 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	data &= srcmask;
 
-	/* FIXME how to choose head?? */
-	nv_port_rd(pScrn, crtcport, crtcindex, &crtcdata, 0);
+	nv_port_rd(pScrn, crtcport, crtcindex, &crtcdata);
 	crtcdata = (crtcdata & mask) | (uint8_t)data;
-	nv_port_wr(pScrn, crtcport, crtcindex, crtcdata, 0);
+	nv_port_wr(pScrn, crtcport, crtcindex, crtcdata);
 
 	return TRUE;
 }
@@ -576,8 +583,7 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
 
-	/* FIXME how to choose head?? */
-	nv_port_rd(pScrn, crtcport, crtcindex, &data, 0);
+	nv_port_rd(pScrn, crtcport, crtcindex, &data);
 
 	data = *((uint8_t *)(&bios->data[flagarray + ((data & mask) >> shift)]));
 	data &= flagarraymask;
@@ -664,8 +670,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
 
-	/* FIXME how to choose head?? */
-	nv_port_rd(pScrn, crtcport, crtcindex, &config, 0);
+	nv_port_rd(pScrn, crtcport, crtcindex, &config);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1077,8 +1082,7 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	if (!iexec->execute)
 		return TRUE;
 
-	/* FIXME how to choose head?? */
-	nv_port_wr(pScrn, crtcport, crtcindex, data, 0);
+	nv_port_wr(pScrn, crtcport, crtcindex, data);
 
 	return TRUE;
 }
@@ -1192,8 +1196,7 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	/* FIXME how to choose head?? */
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+	volatile CARD8 *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 	CARD16 reg = le16_to_cpu(*((CARD16 *)(&bios->data[offset + 1])));
 	CARD8 and  = *((CARD8 *)(&bios->data[offset + 3]));
 	CARD8 or = *((CARD8 *)(&bios->data[offset + 4]));
@@ -1513,13 +1516,12 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, data);
 
-	/* FIXME how to choose head?? */
-	nv_port_rd(pScrn, crtcport, crtcindex, &value, 0);
+	nv_port_rd(pScrn, crtcport, crtcindex, &value);
 	value = (value & mask) | data;
-	nv_port_wr(pScrn, crtcport, crtcindex, value, 0);
+	nv_port_wr(pScrn, crtcport, crtcindex, value);
 
 	return TRUE;
 }
@@ -2007,7 +2009,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->i2c_index = (conn >> 4) & 0xf;
 		entry->head = (conn >> 8) & 0xf;
 		entry->bus = (conn >> 16) & 0xf;
-		entry->or = (conn >> 24) & 0xf;
+		entry->or = (conn >> 24) & 0x7;
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00) {
 			ErrorF("Unknown DCB 1.4 entry, please report\n");
