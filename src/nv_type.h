@@ -173,6 +173,7 @@ typedef struct _riva_hw_state
 	uint32_t vpll1_b;
 	uint32_t vpll2_a;
 	uint32_t vpll2_b;
+	uint32_t reg580;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;

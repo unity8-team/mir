@@ -473,6 +473,8 @@ static void CalcVClock2Stage (
 	}
 }
 
+/* BIG NOTE: modifying vpll1 and vpll2 does not work, what bit is the switch to allow it? */
+
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
 /* gpu pll: 0x4000 + 0x4004
@@ -508,34 +510,29 @@ CalculateVClkNV4x(
 	uint32_t *given_clock,
 	uint32_t *pll_a,
 	uint32_t *pll_b,
-	Bool	*db1_ratio
+	uint32_t *reg580,
+	Bool	*db1_ratio,
+	Bool primary
 )
 {
 	uint32_t DeltaOld, DeltaNew;
-	uint32_t freq;
+	uint32_t freq, temp;
 	/* We have 2 mulitpliers, 2 dividers and one post divider */
 	/* Note that p is only 4 bits */
-	uint8_t m1, m2, n1, n2, p;
-	uint8_t m1_best = 0, m2_best = 0, n1_best = 0, n2_best = 0, p_best = 0;
+	uint32_t m1, m2, n1, n2, p;
+	uint32_t m1_best = 0, m2_best = 0, n1_best = 0, n2_best = 0, p_best = 0;
 
 	DeltaOld = 0xFFFFFFFF;
 
-	/* Only unset the needed stuff */
-	*pll_a &= ~((0xf << 28) | (0xf << 16) | (1 << 8) | (1 << 12));
-	/* This only contains the m multipliers and n dividers */
-	*pll_b = 0;
-
-	if (pNv->misc_info.prefer_db1) {
+	/* This is no solid limit, but a reasonable boundary */
+	if (requested_clock < 120000) {
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
-		*pll_a |= (1 << 8);
-		*pll_a |= (0x8 << 28);
 		/* Neutral settings */
 		n2 = 1;
 		m2 = 1;
 	} else {
 		*db1_ratio = FALSE;
-		*pll_a |= (0xc << 28);
 		/* Fixed at x4 for the moment */
 		n2 = 4;
 		m2 = 1;
@@ -544,52 +541,106 @@ CalculateVClkNV4x(
 	n2_best = n2;
 	m2_best = m2;
 
-	/* Sticking to the limits of nv, maybe convert the other functions back as well? */
-	for (p = 0; p < 6; p++) {
-		freq = requested_clock << p;
-		/* We must restrict the frequency before the post divider somewhat */
-		if (freq > 400000 && freq < 1000000) {
-			/* We have 8 bits for each multiplier */
-			for (m1 = 1; m1 < 14; m1++) {
-				n1 = ((requested_clock << p) * m1 * m2)/(pNv->CrystalFreqKHz * n2);
-				if (n1 > 5 && n1 < 255) {
-					freq = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
-					if (freq > requested_clock) {
-						DeltaNew = freq - requested_clock;
-					} else {
-						DeltaNew = requested_clock - freq;
-					}
-					if (DeltaNew < DeltaOld) {
-						m1_best = m1;
-						n1_best = n1;
-						p_best = p;
-						DeltaOld = DeltaNew;
+	/* Single pll */
+	if (*db1_ratio) {
+		temp = 0.4975 * 250000;
+		p = 0;
+
+		while (requested_clock <= temp) {
+			temp /= 2;
+			p++;
+		}
+
+		/* The minimum clock after m1 is 3 Mhz, and the clock is 27 Mhz, so m_max = 9 */
+		/* The maximum clock is 25 Mhz */
+		for (m1 = 2; m1 <= 9; m1++) {
+			n1 = ((requested_clock << p) * m1)/(pNv->CrystalFreqKHz);
+			//if (n1/m1 < 4 || n1/m1 > 10)
+			//	continue;
+			if (n1 > 0 && n1 <= 255) {
+				freq = ((pNv->CrystalFreqKHz * n1)/m1) >> p;
+				if (freq > requested_clock) {
+					DeltaNew = freq - requested_clock;
+				} else {
+					DeltaNew = requested_clock - freq;
+				}
+				if (DeltaNew < DeltaOld) {
+					m1_best = m1;
+					n1_best = n1;
+					p_best = p;
+					DeltaOld = DeltaNew;
+				}
+			}
+		}
+	/* Dual pll */
+	} else {
+		for (p = 0; p <= 6; p++) {
+			/* Assuming a fixed 2nd stage */
+			freq = requested_clock << p;
+			/* The maximum output frequency of stage 2 is allowed to be between 400 Mhz and 1 GHz */
+			if (freq > 400000 && freq < 1000000) {
+				/* The minimum clock after m1 is 3 Mhz, and the clock is 27 Mhz, so m_max = 9 */
+				/* The maximum clock is 25 Mhz */
+				for (m1 = 2; m1 <= 9; m1++) {
+					n1 = ((requested_clock << p) * m1 * m2)/(pNv->CrystalFreqKHz * n2);
+					if (n1 >= 5 && n1 <= 255) {
+						freq = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
+						if (freq > requested_clock) {
+							DeltaNew = freq - requested_clock;
+						} else {
+							DeltaNew = requested_clock - freq;
+						}
+						if (DeltaNew < DeltaOld) {
+							m1_best = m1;
+							n1_best = n1;
+							p_best = p;
+							DeltaOld = DeltaNew;
+						}
 					}
 				}
 			}
 		}
 	}
 
-	if (pNv->misc_info.prefer_db1) {
+	if (*db1_ratio) {
 		/* Bogus data, the same nvidia uses */
 		n2_best = 1;
 		m2_best = 31;
 	}
 
-	*pll_a |= (p_best << 16);
-	*pll_b |= ((n2_best << 24) | (m2_best << 16) | (n1_best << 8) | (m1_best << 0));
+	*pll_a = (p_best << 16) | (n1_best << 8) | (m1_best << 0);
+	*pll_b = (1 << 31) | (n2_best << 8) | (m2_best << 0);
 
-	ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", n1_best, n2_best, m1_best, m2_best, p_best, *db1_ratio);
+	if (*db1_ratio) {
+		if (primary) {
+			*reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+		} else {
+			*reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
+		}
+	} else {
+		if (primary) {
+			*reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
+		} else {
+			*reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
+		}
+	}
+
+	if (*db1_ratio) {
+		ErrorF("vpll: n1 %d m1 %d p %d db1_ratio %d\n", n1_best, m1_best, p_best, *db1_ratio);
+	} else {
+		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", n1_best, n2_best, m1_best, m2_best, p_best, *db1_ratio);
+	}
 }
 
 static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
-	state->vpll1_a = nvReadMC(pNv, NV40_VCLK1_A);
-	state->vpll1_b = nvReadMC(pNv, NV40_VCLK1_B);
-	state->vpll2_a = nvReadMC(pNv, NV40_VCLK2_A);
-	state->vpll2_b = nvReadMC(pNv, NV40_VCLK2_B);
+	state->vpll1_a = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
+	state->vpll1_b = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
+	state->vpll2_a = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
+	state->vpll2_b = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
 	state->sel_clk = nvReadRAMDAC0(pNv, NV_RAMDAC_SEL_CLK);
+	state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
 }
 
 static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
@@ -624,16 +675,19 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
 		ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
 
-		nvWriteMC(pNv, NV40_VCLK2_A, state->vpll2_a);
-		nvWriteMC(pNv, NV40_VCLK2_B, state->vpll2_b);
-
-		/* We need to wait a while */
-		usleep(5000);
-		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2_a);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 
 		ErrorF("writing pllsel %08X\n", state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
 		/* Let's keep the primary vpll off */
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
+
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		ErrorF("writing reg580 %08X\n", state->reg580);
+
+		/* We need to wait a while */
+		usleep(5000);
+		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
 
 		nvWriteRAMDAC(pNv, index[1], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[1]]);
 
@@ -656,15 +710,18 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
 		ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
 
-		nvWriteMC(pNv, NV40_VCLK1_A, state->vpll1_a);
-		nvWriteMC(pNv, NV40_VCLK1_B, state->vpll1_b);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll1_a);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll1_b);
+
+		ErrorF("writing pllsel %08X\n", state->pllsel);
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+
+		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		ErrorF("writing reg580 %08X\n", state->reg580);
 
 		/* We need to wait a while */
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
-
-		ErrorF("writing pllsel %08X\n", state->pllsel);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 		nvWriteRAMDAC(pNv, index[0], NV_RAMDAC_FP_DEBUG_0, fp_debug_0[index[0]]);
 
@@ -760,20 +817,14 @@ void nv_crtc_calc_state_ext(
 	 */
 	pixelDepth = (bpp + 1)/8;
 	if (pNv->Architecture == NV_ARCH_40) {
+		/* Does register 0x580 already have a value? */
+		if (!state->reg580) {
+			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
+		}
 		if (nv_crtc->head == 1) {
-			/* Read our clocks if haven't got any yet */
-			if (!state->vpll2_b) {
-				state->vpll2_a = nvReadMC(pNv, NV40_VCLK2_A);
-				state->vpll2_b = nvReadMC(pNv, NV40_VCLK2_B);
-			}
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->db1_ratio[1]);
+			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
 		} else {
-			/* Read our clocks if haven't got any yet */
-			if (!state->vpll1_b) {
-				state->vpll1_a = nvReadMC(pNv, NV40_VCLK1_A);
-				state->vpll1_b = nvReadMC(pNv, NV40_VCLK1_B);
-			}
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->db1_ratio[0]);
+			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
 		}
 	} else if (pNv->twoStagePLL) {
 		CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
@@ -912,8 +963,8 @@ void nv_crtc_calc_state_ext(
 	}
 
 	/* The purpose is unknown */
-	if (pNv->Architecture == NV_ARCH_40)
-		state->pllsel |= (1 << 2);
+	//if (pNv->Architecture == NV_ARCH_40)
+	//	state->pllsel |= (1 << 2);
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
 	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;
@@ -1606,13 +1657,13 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
+	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(pNv, &pNv->ModeReg);
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
 	}
-	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 
 	NVVgaProtect(crtc, FALSE);
 
@@ -1642,13 +1693,13 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVCrtcSetOwner(crtc);
+	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
+	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_save_state_pll(pNv, &pNv->SavedReg);
 	} else {
 		nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
 	}
-	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
-	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 }
 
 void nv_crtc_restore(xf86CrtcPtr crtc)
