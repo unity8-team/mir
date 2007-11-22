@@ -260,6 +260,7 @@ struct avivo_dig_state {
     CARD32 data_sync;
     CARD32 transmitter_enable;
     CARD32 transmitter_cntl;
+    CARD32 source_select;
 };
 
 struct avivo_state

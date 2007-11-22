@@ -5500,16 +5500,24 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->dacb.powerdown = INREG(AVIVO_DACB_POWERDOWN);
 
     state->tmds1.cntl = INREG(AVIVO_TMDSA_CNTL);
+    state->tmds1.source_select = INREG(AVIVO_TMDSA_SOURCE_SELECT);
     state->tmds1.bit_depth_cntl = INREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL);
     state->tmds1.data_sync = INREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION);
     state->tmds1.transmitter_enable = INREG(AVIVO_TMDSA_TRANSMITTER_ENABLE);
     state->tmds1.transmitter_cntl = INREG(AVIVO_TMDSA_TRANSMITTER_CONTROL);
 
     state->tmds2.cntl = INREG(AVIVO_LVTMA_CNTL);
+    state->tmds2.source_select = INREG(AVIVO_LVTMA_SOURCE_SELECT);
     state->tmds2.bit_depth_cntl = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
     state->tmds2.data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
     state->tmds2.transmitter_enable = INREG(AVIVO_LVTMA_TRANSMITTER_ENABLE);
     state->tmds2.transmitter_cntl = INREG(AVIVO_LVTMA_TRANSMITTER_CONTROL);
+
+    if (state->crtc1.control & AVIVO_CRTC_EN)
+	info->crtc_on = TRUE;
+    
+    if (state->crtc2.control & AVIVO_CRTC_EN)
+	info->crtc2_on = TRUE;
 
 }
 
@@ -5523,8 +5531,6 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     //    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
     //    OUTREG(AVIVO_VGA_FB_START, state->vga_fb_start);
 
-    OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
-    OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 
     OUTREG(AVIVO_DC_CRTC_MASTER_EN, state->crtc_master_en);
     OUTREG(AVIVO_DC_CRTC_TV_CONTROL, state->crtc_tv_control);
@@ -5558,15 +5564,7 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(AVIVO_D1CRTC_V_TOTAL, state->crtc1.v_total);
     OUTREG(AVIVO_D1CRTC_V_BLANK_START_END, state->crtc1.v_blank_start_end);
-    /*
-     * Weird we shouldn't restore sync width when going back to text
-     * mode, it must not be a 0 value, i guess a deeper look in cold
-     * text mode register value would help to understand what is
-     * truely needed to do.
-     */
-#if 0
-    OUTREG(AVIVO_D1CRTC_V_SYNC_A, state->crtc1_v_sync_a);
-#endif
+    OUTREG(AVIVO_D1CRTC_V_SYNC_A, state->crtc1.v_sync_a);
     OUTREG(AVIVO_D1CRTC_V_SYNC_A_CNTL, state->crtc1.v_sync_a_cntl);
     OUTREG(AVIVO_D1CRTC_V_SYNC_B, state->crtc1.v_sync_b);
     OUTREG(AVIVO_D1CRTC_V_SYNC_B_CNTL, state->crtc1.v_sync_b_cntl);
@@ -5603,15 +5601,7 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(AVIVO_D2CRTC_V_TOTAL, state->crtc2.v_total);
     OUTREG(AVIVO_D2CRTC_V_BLANK_START_END, state->crtc2.v_blank_start_end);
-    /*
-     * Weird we shouldn't restore sync width when going back to text
-     * mode, it must not be a 0 value, i guess a deeper look in cold
-     * text mode register value would help to understand what is
-     * truely needed to do.
-     */
-#if 0
-    OUTREG(AVIVO_D2CRTC_V_SYNC_A, state->crtc2_v_sync_a);
-#endif
+    OUTREG(AVIVO_D2CRTC_V_SYNC_A, state->crtc2.v_sync_a);
     OUTREG(AVIVO_D2CRTC_V_SYNC_A_CNTL, state->crtc2.v_sync_a_cntl);
     OUTREG(AVIVO_D2CRTC_V_SYNC_B, state->crtc2.v_sync_b);
     OUTREG(AVIVO_D2CRTC_V_SYNC_B_CNTL, state->crtc2.v_sync_b_cntl);
@@ -5648,6 +5638,7 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION, state->tmds1.data_sync);
     OUTREG(AVIVO_TMDSA_TRANSMITTER_ENABLE, state->tmds1.transmitter_enable);
     OUTREG(AVIVO_TMDSA_TRANSMITTER_CONTROL, state->tmds1.transmitter_cntl);
+    OUTREG(AVIVO_TMDSA_SOURCE_SELECT, state->tmds1.source_select);
 
     OUTREG(AVIVO_DACB_ENABLE, state->dacb.enable);
     OUTREG(AVIVO_DACB_SOURCE_SELECT, state->dacb.source_select);
@@ -5659,8 +5650,21 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION, state->tmds2.data_sync);
     OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
     OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
+    OUTREG(AVIVO_LVTMA_SOURCE_SELECT, state->tmds2.source_select);
 
+    OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
+    OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 	RADEONRestoreMemMapRegisters(pScrn, restore);
+}
+
+void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{    
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    struct avivo_state *state = &restore->avivo;
+
+    OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
+    OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 }
 
 /* Save everything needed to restore the original VC state */
@@ -5813,6 +5817,8 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     /* to restore console mode, DAC registers should be set after every other registers are set,
      * otherwise,we may get blank screen 
      */
+    if (IS_AVIVO_VARIANT)
+	avivo_restore_vga_regs(pScrn, restore);
     RADEONRestoreDACRegisters(pScrn, restore);
 
 #if 0

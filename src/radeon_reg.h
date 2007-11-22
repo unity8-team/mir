@@ -3499,7 +3499,7 @@
 #   define AVIVO_TMDSA_CNTL_PIXEL_ENCODING       (1 << 16)
 #   define AVIVO_TMDSA_CNTL_DUAL_LINK_ENABLE     (1 << 24)
 #   define AVIVO_TMDSA_CNTL_SWAP                 (1 << 28)
-#define AVIVO_TMDSA_CRTC_SOURCE				0x7884
+#define AVIVO_TMDSA_SOURCE_SELECT				0x7884
 /* 78a8 appears to be some kind of (reasonably tolerant) clock?
  * 78d0 definitely hits the transmitter, definitely clock. */
 /* MYSTERY1 This appears to control dithering? */

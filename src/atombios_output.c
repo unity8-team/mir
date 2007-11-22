@@ -295,7 +295,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     OUTREG(0x0028, tmp | 0x100);
 #endif
 
-    ErrorF("AGD: output dpms\n");
+    ErrorF("AGD: output dpms %d\n", mode);
 
    if (radeon_output->MonType == MT_LCD) {
        if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
