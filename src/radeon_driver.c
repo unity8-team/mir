@@ -4700,9 +4700,9 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
 	    &drmsurffree, sizeof(drmsurffree));
 
-	if ((info->ChipFamily != CHIP_FAMILY_RV100) || 
-	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
-	    (info->ChipFamily != CHIP_FAMILY_RS200)) {
+	if (!((info->ChipFamily == CHIP_FAMILY_RV100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS200))) {
 	    drmsurffree.address = info->depthOffset;
 	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
 		&drmsurffree, sizeof(drmsurffree));
@@ -4757,9 +4757,10 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	}
 
 	/* rv100 and probably the derivative igps don't have depth tiling on all the time? */
-	if (info->have3DWindows && ((info->ChipFamily != CHIP_FAMILY_RV100) || 
-	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
-	    (info->ChipFamily != CHIP_FAMILY_RS200))) {
+	if (info->have3DWindows &&
+	    (!((info->ChipFamily == CHIP_FAMILY_RV100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS200)))) {
 	    drmRadeonSurfaceAlloc drmsurfalloc;
 	    drmsurfalloc.size = depthBufferSize;
 	    drmsurfalloc.address = info->depthOffset;
