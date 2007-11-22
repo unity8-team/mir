@@ -5390,7 +5390,7 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     //    state->vga_memory_base = INREG(AVIVO_VGA_MEMORY_BASE);
     //    state->vga_fb_start = INREG(AVIVO_VGA_FB_START);
     state->vga1_cntl = INREG(AVIVO_D1VGA_CONTROL);
-    state->vga2_cntl = INREG(AVIVO_D1VGA_CONTROL);
+    state->vga2_cntl = INREG(AVIVO_D2VGA_CONTROL);
 
     state->crtc_master_en = INREG(AVIVO_DC_CRTC_MASTER_EN);
     state->crtc_tv_control = INREG(AVIVO_DC_CRTC_TV_CONTROL);
