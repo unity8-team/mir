@@ -392,7 +392,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
 #endif
     ACCEL_PREAMBLE();
 
-    if ((width > 2048) || (height > 2048))
+    if ((width > 2047) || (height > 2047))
 	return FALSE;
 
     txformat = RadeonGetTextureFormat(format);
@@ -424,7 +424,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
 	txformat |= ATILog2(width) << RADEON_TXFORMAT_WIDTH_SHIFT;
 	txformat |= ATILog2(height) << RADEON_TXFORMAT_HEIGHT_SHIFT;
     } else {
-	tex_size = ((height - 1) << 16) | (width - 1);
+	tex_size = (height << 16) | width;
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
     }
 
