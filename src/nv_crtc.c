@@ -610,7 +610,8 @@ CalculateVClkNV4x(
 		m2_best = 31;
 	}
 
-	*pll_a = (p_best << 16) | (n1_best << 8) | (m1_best << 0);
+	/* What exactly are the purpose of bit30 (a) and bit31(b)? */
+	*pll_a = (1 << 30) | (p_best << 16) | (n1_best << 8) | (m1_best << 0);
 	*pll_b = (1 << 31) | (n2_best << 8) | (m2_best << 0);
 
 	if (*db1_ratio) {
