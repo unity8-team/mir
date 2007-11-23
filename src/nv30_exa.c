@@ -692,10 +692,11 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DMA_IN_MEMORY8, 1);
 	OUT_RING  (pNv->chan->vram->handle);
 
-	for(i = 0x2c8; i <= 0x2fc; i += 4)
-	{
-		BEGIN_RING(Nv3D, i, 1);
-		OUT_RING  (0x0);
+	for (i=1; i<8; i++) {
+		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(i), 1);
+		OUT_RING  (0);
+		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(i), 1);
+		OUT_RING  (0);
 	}
 
 	BEGIN_RING(Nv3D, 0x220, 1);
