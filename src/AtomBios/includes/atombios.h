@@ -1557,7 +1557,7 @@ ulCPUCapInfo: TBD
 #define ATOM_DEVICE_TV2_INDEX                             0x00000006
 #define ATOM_DEVICE_DFP2_INDEX                            0x00000007
 #define ATOM_DEVICE_CV_INDEX                              0x00000008
-#define ATOM_DEVICE_DFP3_INDEX														0x00000009
+#define ATOM_DEVICE_DFP3_INDEX				  0x00000009
 #define ATOM_DEVICE_RESERVEDA_INDEX                       0x0000000A
 #define ATOM_DEVICE_RESERVEDB_INDEX                       0x0000000B
 #define ATOM_DEVICE_RESERVEDC_INDEX                       0x0000000C
