@@ -823,7 +823,7 @@ void nv_crtc_calc_state_ext(
 		if (!state->reg580) {
 			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 		}
-		if (nv_crtc->head == 1) {
+		if (nv_output->ramdac == 1) {
 			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
 		} else {
 			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
@@ -959,8 +959,7 @@ void nv_crtc_calc_state_ext(
 		state->crosswired = FALSE;
 	}
 
-	/* We've bound crtc's and ramdac's together */
-	if (nv_crtc->head == 1) {
+	if (nv_output->ramdac == 1) {
 		if (!state->db1_ratio[1]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		} else {
@@ -1058,7 +1057,29 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
+
+	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	/* For internal panels and gpu scaling on DVI we need the native mode */
+	if ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
+		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
+		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
+		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
+		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
+		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
+		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
+		adjusted_mode->VScan = nv_output->native_mode->VScan;
+		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
+		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
+		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
+		adjusted_mode->Clock = nv_output->native_mode->Clock;
+
+		xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+	}
 
 	return TRUE;
 }

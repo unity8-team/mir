@@ -313,7 +313,8 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	//regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
 
-	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
+	/* This exists purely for proper text mode restore */
+	if (override) regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
 	/* Also write on VT restore */
@@ -331,7 +332,8 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
+	/* This exists purely for proper text mode restore */
+	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
 
 	//NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
 
@@ -425,28 +427,7 @@ static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
 	ErrorF("nv_output_mode_fixup is called\n");
-
-	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
-		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
-		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
-		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
-		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
-		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
-		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
-		adjusted_mode->VScan = nv_output->native_mode->VScan;
-		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
-		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
-		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
-		adjusted_mode->Clock = nv_output->native_mode->Clock;
-
-		xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
-	}
 
 	return TRUE;
 }
@@ -463,6 +444,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	NVOutputRegPtr regp, regp2, savep;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
+
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	state = &pNv->ModeReg;
 	regp = &state->dac_reg[nv_output->ramdac];
@@ -487,7 +471,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		/* As far as i know, this may never be set on ramdac 0 tmds registers (ramdac 1 -> crosswired -> ramdac 0 tmds regs) */
 		/* This will upset the monitor, trust me, i know it :-( */
 		/* Now allowed for non-bios inited systems */
-		if ((nv_output->ramdac == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
+		if ((nv_crtc->head == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
 
@@ -625,20 +609,55 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 		}
 
-		if (is_fp == TRUE) {
-			regp->output = 0x0;
-		} else { 
-			regp->output = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		}
-
-		if (nv_crtc->head == 1) {
-			regp->output |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
-		} else {
-			regp->output &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
-		}
-
-		ErrorF("%d: crtc %d output%d: %04X: twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, regp->output, two_crt, two_mon);
+		ErrorF("%d: crtc %d ramdac %d twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->ramdac, two_crt, two_mon);
 	}
+}
+
+static void
+nv_output_mode_set_routing(xf86OutputPtr output)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	Bool is_fp = FALSE;
+	int other_ramdac = 0;
+
+	uint32_t output_reg = nvReadRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_OUTPUT);
+
+	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
+		is_fp = TRUE;
+	}
+
+	if (is_fp) {
+		output_reg = 0x0;
+	} else { 
+		output_reg = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+	}
+
+	if (nv_crtc->head == 1) {
+		output_reg |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+	} else {
+		output_reg &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+	}
+
+	if (nv_output->ramdac == 1) {
+		other_ramdac = 0;
+	} else {
+		other_ramdac = 1;
+	}
+
+	uint32_t output2_reg = nvReadRAMDAC(pNv, other_ramdac, NV_RAMDAC_OUTPUT);
+	
+	if (nv_crtc->head == 1) {
+		output2_reg &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+	} else {
+		output2_reg |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+	}
+
+	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_OUTPUT, output_reg);
+	nvWriteRAMDAC(pNv, other_ramdac, NV_RAMDAC_OUTPUT, output2_reg);
 }
 
 static void
@@ -655,6 +674,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     nv_output_mode_set_regs(output, mode, adjusted_mode);
     nv_output_load_state_ext(output, state, FALSE);
+	nv_output_mode_set_routing(output);
 }
 
 static xf86MonPtr
@@ -864,8 +884,8 @@ nv_output_prepare(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	Bool stole_ramdac = FALSE;
+	xf86OutputPtr output2 = NULL;
 
 	output->funcs->dpms(output, DPMSModeOff);
 
@@ -879,7 +899,6 @@ nv_output_prepare(xf86OutputPtr output)
 		ErrorF("Stealing ramdac0 ;-)\n");
 		int i;
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		xf86OutputPtr output2;
 		NVOutputPrivatePtr nv_output2;
 		for (i = 0; i < xf86_config->num_output; i++) {
 			output2 = xf86_config->output[i];
@@ -891,14 +910,17 @@ nv_output_prepare(xf86OutputPtr output)
 			}
 		}
 		pNv->ramdac_active[0] = FALSE;
+		stole_ramdac = TRUE;
 	}
 
-	/* I sometimes get the strange feeling that ramdac's like to be paired with their matching crtc */
-	if ((nv_output->valid_ramdac & RAMDAC_0) && !(pNv->ramdac_active[0]) && nv_crtc->head == 0) {
+	/* TODO: figure out what ramdac 2 is on how it is identified */
+
+	/* At this point we already stole ramdac 0 if we need it */
+	if (!pNv->ramdac_active[0]) {
 		ErrorF("Activating ramdac %d\n", 0);
 		pNv->ramdac_active[0] = TRUE;
 		nv_output->ramdac = 0;
-	} else if ((nv_output->valid_ramdac & RAMDAC_1) && !(pNv->ramdac_active[1]) && nv_crtc->head == 1) {
+	} else {
 		ErrorF("Activating ramdac %d\n", 1);
 		pNv->ramdac_active[1] = TRUE;
 		nv_output->ramdac = 1;
@@ -907,6 +929,12 @@ nv_output_prepare(xf86OutputPtr output)
 	if (nv_output->ramdac != -1) {
 		nv_output->ramdac_assigned = TRUE;
 		nv_clear_ramdac_from_outputs(output, nv_output->ramdac);
+	}
+
+	if (stole_ramdac) {
+		ErrorF("Resetting the stolen ramdac\n");
+		output2->funcs->prepare(output2);
+		output2->funcs->mode_set(output2, &(output2->crtc->desiredMode), &(output2->crtc->desiredMode));
 	}
 }
 
@@ -1021,13 +1049,12 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.commit = nv_output_commit,
 };
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = 0;
 	Bool create_output = TRUE;
 
 	/* DVI have an analog connector and a digital one, differentiate between that and a normal vga */
@@ -1053,16 +1080,11 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 	 * bit0: RAMDAC_0 valid
 	 * bit1: RAMDAC_1 valid
 	 * So lowest order has highest priority.
+	 * Below is guesswork:
+	 * bit2: All ramdac's valid?
+	 * FIXME: this probably wrong
 	 */
 	nv_output->valid_ramdac = order;
-
-	/* Some early nvidia cards have outputs only valid on secondary */
-	if (nv_output->valid_ramdac & RAMDAC_0) 
-		crtc_mask |= (1<<0);
-
-	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
-	if (nv_output->valid_ramdac & RAMDAC_1) 
-		crtc_mask |= (1<<1);
 
 	if (!create_output) {
 		xfree(nv_output);
@@ -1080,17 +1102,16 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int order, int i2c_index, Bo
 
 	nv_output->ramdac = -1;
 
-	output->possible_crtcs = crtc_mask;
+	output->possible_crtcs = heads;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int i2c_index, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
-	int crtc_mask = 0;
 	Bool create_output = TRUE;
 
 	if (lvds) {
@@ -1116,16 +1137,11 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, i
 	 * bit0: RAMDAC_0 valid
 	 * bit1: RAMDAC_1 valid
 	 * So lowest order has highest priority.
+	 * Below is guesswork:
+	 * bit2: All ramdac's valid?
+	 * FIXME: this probably wrong
 	 */
 	nv_output->valid_ramdac = order;
-
-	/* Some early nvidia cards have outputs only valid on secondary */
-	if (nv_output->valid_ramdac & RAMDAC_0) 
-		crtc_mask |= (1<<0);
-
-	/* Restricting this will cause a full mode set when trying to squeeze in the primary mode */
-	if (nv_output->valid_ramdac & RAMDAC_1) 
-		crtc_mask |= (1<<1);
 
 	if (lvds) {
 		nv_output->type = OUTPUT_LVDS;
@@ -1156,13 +1172,13 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int order, int i2c_index, i
 
 	nv_output->ramdac = -1;
 
-	output->possible_crtcs = crtc_mask;
+	output->possible_crtcs = heads;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, i2c_index = 0xf, old_i2c_index, or;
+	unsigned char type, i2c_index = 0xf, old_i2c_index, or, heads;
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
@@ -1176,7 +1192,6 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			old_i2c_index = i2c_index;
 			i2c_index = pNv->dcb_table.entry[i].i2c_index;
 			or = ffs(pNv->dcb_table.entry[i].or);
-
 			dvi_pair[i] = FALSE;
 
 			/* Are we on the same i2c index? */
@@ -1203,19 +1218,20 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 		type = pNv->dcb_table.entry[i].type;
 		i2c_index = pNv->dcb_table.entry[i].i2c_index;
 		or = ffs(pNv->dcb_table.entry[i].or);
+		heads = pNv->dcb_table.entry[i].head;
 
 		if (type < 4) {
 			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, head: %d, or: %d\n", i, type, i2c_index, pNv->dcb_table.entry[i].head, or);
 
 			switch(type) {
 			case OUTPUT_ANALOG:
-				nv_add_analog_output(pScrn, or, i2c_index, dvi_pair[i]);
+				nv_add_analog_output(pScrn, heads, or, i2c_index, dvi_pair[i]);
 				break;
 			case OUTPUT_TMDS:
-				nv_add_digital_output(pScrn, or, i2c_index, 0);
+				nv_add_digital_output(pScrn, heads, or, i2c_index, 0);
 				break;
 			case OUTPUT_LVDS:
-				nv_add_digital_output(pScrn, or, i2c_index, 1);
+				nv_add_digital_output(pScrn, heads, or, i2c_index, 1);
 				break;
 			default:
 				break;

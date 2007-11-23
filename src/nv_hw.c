@@ -86,14 +86,14 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 
 CARD32 nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg)
 {
-  volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
-  return MMIO_IN32(ptr, ramdac_reg);
+	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	return MMIO_IN32(ptr, ramdac_reg);
 }
 
 void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val)
 {
-  volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
-  MMIO_OUT32(ptr, ramdac_reg, val);
+	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	MMIO_OUT32(ptr, ramdac_reg, val);
 }
 
 CARD32 nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
