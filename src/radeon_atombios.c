@@ -565,7 +565,7 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
 	    if (!(BIOSImageSize = RHDReadPCIBios(info, &ptr)))
 		return ATOM_FAILED;
 	} else*/ {
-	    int read_len;
+	     int read_len;
 	    unsigned char tmp[32];
 	    xf86DrvMsg(scrnIndex,X_INFO,"Getting BIOS copy from legacy VBIOS location\n");
 	    if (xf86ReadBIOS(legacyBIOSLocation, 0, tmp, 32) < 0) {
@@ -1268,6 +1268,158 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 	    return ATOM_NOT_IMPLEMENTED;
     }
     return ATOM_SUCCESS;
+}
+
+const int object_connector_convert[] =
+    { CONNECTOR_NONE,
+      CONNECTOR_DVI_I,
+      CONNECTOR_DVI_I,
+      CONNECTOR_DVI_D,
+      CONNECTOR_DVI_D,
+      CONNECTOR_VGA,
+      CONNECTOR_CTV,
+      CONNECTOR_STV,
+      CONNECTOR_NONE,
+      CONNECTOR_DIN,
+      CONNECTOR_SCART,
+      CONNECTOR_HDMI_TYPE_A,
+      CONNECTOR_HDMI_TYPE_B,
+      CONNECTOR_HDMI_TYPE_B,
+      CONNECTOR_LVDS,
+      CONNECTOR_DIN,
+      CONNECTOR_NONE,
+      CONNECTOR_NONE,
+      CONNECTOR_NONE,
+      CONNECTOR_NONE,
+    };
+     
+static void
+rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
+			ATOM_I2C_RECORD *Record, CARD32 *ddc_line)
+{
+    ErrorF(" %s:  I2C Record: %s[%x] EngineID: %x I2CAddr: %x\n",
+	     __func__,
+	     Record->sucI2cId.bfHW_Capable ? "HW_Line" : "GPIO_ID",
+	     Record->sucI2cId.bfI2C_LineMux,
+	     Record->sucI2cId.bfHW_EngineID,
+	     Record->ucI2CAddr);
+
+    if (!*(unsigned char *)&(Record->sucI2cId))
+	*ddc_line = 0;
+    else {
+
+	if (Record->ucI2CAddr != 0)
+	    return;
+
+	if (Record->sucI2cId.bfHW_Capable) {
+	    switch(Record->sucI2cId.bfI2C_LineMux) {
+	    case 0: *ddc_line = 0x7e40; break;
+	    case 1: *ddc_line = 0x7e50; break;
+	    case 2: *ddc_line = 0x7e30; break;
+	    default: break;
+	    }
+	    return;
+	
+	} else {
+	    /* add GPIO pin parsing */
+	}
+    }
+}
+
+Bool RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    int ret;
+    CARD8 crev, frev;
+    unsigned short size;
+    atomDataTablesPtr atomDataPtr;
+    ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
+    int i, j;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+    if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
+	return FALSE;
+
+    if (crev < 2)
+	return FALSE;
+    
+    con_obj = (ATOM_CONNECTOR_OBJECT_TABLE *)
+	((char *)&atomDataPtr->Object_Header->sHeader +
+	 atomDataPtr->Object_Header->usConnectorObjectTableOffset);
+
+    for (i = 0; i < con_obj->ucNumberOfObjects; i++) {
+	ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *SrcDstTable;
+	ATOM_COMMON_RECORD_HEADER *Record;
+	CARD8 obj_id, num, obj_type;
+	int record_base;
+
+	obj_id = (con_obj->asObjects[i].usObjectID & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	num = (con_obj->asObjects[i].usObjectID & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
+	obj_type = (con_obj->asObjects[i].usObjectID & OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
+	if (obj_type != GRAPH_OBJECT_TYPE_CONNECTOR)
+	    continue;
+
+	SrcDstTable = (ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *)
+	    ((char *)&atomDataPtr->Object_Header->sHeader
+	     + con_obj->asObjects[i].usSrcDstTableOffset);
+	
+	ErrorF("object id %04x %02x\n", obj_id, SrcDstTable->ucNumberOfSrc);
+	info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
+	info->BiosConnector[i].valid = TRUE;
+
+	for (j = 0; j < SrcDstTable->ucNumberOfSrc; j++) {
+	    CARD8 sobj_id;
+
+	    sobj_id = (SrcDstTable->usSrcObjectID[j] & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	    ErrorF("src object id %04x %d\n", SrcDstTable->usSrcObjectID[j], sobj_id);
+	    
+	    switch(sobj_id) {
+	    case 2:
+		info->BiosConnector[i].TMDSType = TMDS_INT;
+		break;
+	    case 3:
+	    case 15:
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+		break;
+	    case 4:
+	    case 21:
+		info->BiosConnector[i].DACType = DAC_PRIMARY;
+		break;
+	    case 5:
+	    case 22:
+		info->BiosConnector[i].DACType = DAC_TVDAC;
+		break;
+	    }
+
+	}
+
+	Record = (ATOM_COMMON_RECORD_HEADER *)
+	    ((char *)&atomDataPtr->Object_Header->sHeader
+	     + con_obj->asObjects[i].usRecordOffset);
+
+	record_base = con_obj->asObjects[i].usRecordOffset;
+
+	while (Record->ucRecordType > 0
+	       && Record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER ) {
+
+	    ErrorF("record type %d\n", Record->ucRecordType);
+	    switch (Record->ucRecordType) {
+		case ATOM_I2C_RECORD_TYPE:
+		    rhdAtomParseI2CRecord(&info->atomBIOS, 
+					  (ATOM_I2C_RECORD *)Record,
+					  &info->BiosConnector[i].ddc_line);
+		    break;
+		case ATOM_HPD_INT_RECORD_TYPE:
+		    break;
+		case ATOM_CONNECTOR_DEVICE_TAG_RECORD_TYPE:
+		    break;
+	    }
+
+	    Record = (ATOM_COMMON_RECORD_HEADER*)
+		((char *)Record + Record->ucRecordSize);
+	}
+    }
+    return TRUE;
 }
 
 #if 0

@@ -206,6 +206,9 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     int offset, i, j, tmp, tmp0, id, portinfo, gpio;
 
     if (!info->VBIOS) return FALSE;
+    
+    if (RADEONGetATOMConnectorInfoFromBIOSObject(pScrn))
+	return TRUE;
 
     offset = RADEON_BIOS16(info->MasterDataStart + 22);
 
