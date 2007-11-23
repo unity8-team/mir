@@ -315,6 +315,7 @@ typedef struct {
     CARD32            surface_cntl;
     CARD32            surfaces[8][3];
     CARD32            mc_agp_location;
+    CARD32            mc_agp_location_hi;
     CARD32            mc_fb_location;
     CARD32            display_base_addr;
     CARD32            display2_base_addr;
