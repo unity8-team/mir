@@ -1366,6 +1366,7 @@ Bool RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	ErrorF("object id %04x %02x\n", obj_id, SrcDstTable->ucNumberOfSrc);
 	info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
 	info->BiosConnector[i].valid = TRUE;
+	info->BiosConnector[i].devices = 0;
 
 	for (j = 0; j < SrcDstTable->ucNumberOfSrc; j++) {
 	    CARD8 sobj_id;
@@ -1374,23 +1375,32 @@ Bool RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    ErrorF("src object id %04x %d\n", SrcDstTable->usSrcObjectID[j], sobj_id);
 	    
 	    switch(sobj_id) {
-	    case 2:
+	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_INT;
 		break;
-	    case 3:
-	    case 15:
+	    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP2_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 		break;
-	    case 4:
-	    case 21:
+	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP3_INDEX);
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT1_INDEX);
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
 		break;
-	    case 5:
-	    case 22:
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
 		break;
 	    }
-
 	}
 
 	Record = (ATOM_COMMON_RECORD_HEADER *)
