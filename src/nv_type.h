@@ -111,24 +111,12 @@ typedef struct _nv_crtc_reg
 	CARD32 unk850;
 	CARD32 unk81c;
 	CARD32 head;
-} NVCrtcRegRec, *NVCrtcRegPtr;
 
-typedef struct _nv_output_reg
-{
-	CARD32 fp_control;
-	CARD32 crtcSync;
-	CARD32 dither;
+	/* These are former output regs, but are believed to be crtc related */
 	CARD32 general;
-	CARD32 test_control;
-	CARD32 unk_670;
-	CARD32 unk_900;
-	CARD32 bpp;
-	CARD32 nv10_cursync;
-	CARD32 output;
 	CARD32 debug_0;
 	CARD32 debug_1;
 	CARD32 debug_2;
-	CARD32 sel_clk;
 	CARD32 unk_a20;
 	CARD32 unk_a24;
 	CARD32 unk_a34;
@@ -138,6 +126,20 @@ typedef struct _nv_output_reg
 	CARD32 fp_hvalid_end;
 	CARD32 fp_vvalid_start;
 	CARD32 fp_vvalid_end;
+	CARD32 bpp;
+	CARD32 nv10_cursync;
+	CARD32 fp_control;
+	CARD32 crtcSync;
+	CARD32 dither;
+} NVCrtcRegRec, *NVCrtcRegPtr;
+
+typedef struct _nv_output_reg
+{
+	CARD32 test_control;
+	CARD32 unk_670;
+	CARD32 unk_900;
+
+	CARD32 output;
 	CARD8 TMDS[128];
 } NVOutputRegRec, *NVOutputRegPtr;
 

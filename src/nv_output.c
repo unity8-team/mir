@@ -307,29 +307,13 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
-	regp->general       = NVOutputReadRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL);
 	regp->test_control	= NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
 	regp->unk_670 	= NVOutputReadRAMDAC(output, NV_RAMDAC_670);
-	regp->fp_control	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL);
-	regp->debug_0	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_0);
-	regp->debug_1	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_1);
-	regp->debug_2	= NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DEBUG_2);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
 	//regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
 
-	regp->unk_a20 = NVOutputReadRAMDAC(output, NV_RAMDAC_A20);
-	regp->unk_a24 = NVOutputReadRAMDAC(output, NV_RAMDAC_A24);
-	regp->unk_a34 = NVOutputReadRAMDAC(output, NV_RAMDAC_A34);
-
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
-
-	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-		regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_DITHER_NV11);
-	} else if (pNv->twoHeads) {
-		regp->dither = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_DITHER);
-	}
-	regp->nv10_cursync = NVOutputReadRAMDAC(output, NV_RAMDAC_NV10_CURSYNC);
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
 	/* Also write on VT restore */
@@ -337,64 +321,22 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
 		}
-
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-		regp->fp_horiz_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-		regp->fp_vert_regs[i] = NVOutputReadRAMDAC(output, ramdac_reg);
-	}
-
-	regp->fp_hvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_START);
-	regp->fp_hvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HVALID_END);
-	regp->fp_vvalid_start = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_START);
-	regp->fp_vvalid_end = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VVALID_END);
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	NVOutputRegPtr regp;
 	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
-	if (nv_output->type == OUTPUT_LVDS) {
-		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_0\n", regp->debug_0);
-		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_1\n", regp->debug_1);
-		ErrorF("Writing %08X to RAMDAC_FP_DEBUG_2\n", regp->debug_2);
-		ErrorF("Writing %08X to RAMDAC_OUTPUT\n", regp->output);
-		ErrorF("Writing %08X to RAMDAC_FP_CONTROL\n", regp->fp_control);
-	}
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_CONTROL, regp->fp_control);
-
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_A20, regp->unk_a20);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_A24, regp->unk_a24);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_A34, regp->unk_a34);
 
 	//NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
 
-	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_DITHER_NV11, regp->dither);
-	} else if (pNv->twoHeads) {
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_DITHER, regp->dither);
-	}
-
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_670, regp->unk_670);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
 	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
 	/* Also write on VT restore */
@@ -402,23 +344,6 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
 			NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
 		}
-
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_HDISP_END + (i * 4);
-		NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_horiz_regs[i]);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
-		NVOutputWriteRAMDAC(output, ramdac_reg, regp->fp_vert_regs[i]);
-	}
-
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -526,53 +451,17 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	return TRUE;
 }
 
-static int
-nv_output_tweak_panel(xf86OutputPtr output, NVRegPtr state)
-{
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    NVOutputRegPtr regp;
-    int tweak = 0;
-  
-    regp = &state->dac_reg[nv_output->ramdac];
-    if (pNv->usePanelTweak) {
-	tweak = pNv->PanelTweak;
-    } else {
-	/* begin flat panel hacks */
-	/* This is unfortunate, but some chips need this register
-	   tweaked or else you get artifacts where adjacent pixels are
-	   swapped.  There are no hard rules for what to set here so all
-	   we can do is experiment and apply hacks. */
-    
-	if(((pNv->Chipset & 0xffff) == 0x0328) && (regp->bpp == 32)) {
-	    /* At least one NV34 laptop needs this workaround. */
-	    tweak = -1;
-	}
-		
-	if((pNv->Chipset & 0xfff0) == CHIPSET_NV31) {
-	    tweak = 1;
-	}
-	/* end flat panel hacks */
-    }
-    return tweak;
-}
-
 static void
 nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	int bpp;
 	NVPtr pNv = NVPTR(pScrn);
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	RIVA_HW_STATE *state, *sv_state;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
 	NVOutputRegPtr regp, regp2, savep;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
-	float aspect_ratio, panel_ratio;
-	uint32_t h_scale, v_scale;
 	int i;
 
 	state = &pNv->ModeReg;
@@ -585,162 +474,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
-
-		if (nv_output->type == OUTPUT_LVDS)
+		if (nv_output->type == OUTPUT_LVDS) {
 			is_lvds = TRUE;
-
-		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
-		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
-		regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
-		regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
-		regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
-		regp->fp_horiz_regs[REG_DISP_VALID_END] = adjusted_mode->HDisplay - 1;
-
-		regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
-		regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
-		regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VDisplay;
-		regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
-		regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
-		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-		regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
-
-		ErrorF("Horizontal:\n");
-		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
-		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
-		ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_horiz_regs[REG_DISP_CRTC]);
-		ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_START]);
-		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_END]);
-		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_START]);
-		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_END]);
-
-		ErrorF("Vertical:\n");
-		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_END]);
-		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_vert_regs[REG_DISP_TOTAL]);
-		ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_vert_regs[REG_DISP_CRTC]);
-		ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_START]);
-		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
-		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
-		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
-	}
-
-	/*
-	* bit0: positive vsync
-	* bit4: positive hsync
-	* bit8: enable panel scaling 
-	* bit26: a bit sometimes seen on some g70 cards
-	* bit31: sometimes seen on LVDS panels
-	* This must also be set for non-flatpanels
-	* Some bits seem shifted for vga monitors
-	*/
-
-	if (is_fp) {
-		regp->fp_control = 0x11100000;
-	} else {
-		regp->fp_control = 0x21100000;
-	}
-	if (nv_output->type == OUTPUT_LVDS) {
-		/* Let's assume LVDS to be on ramdac0, remember that in the ramdac routing is somewhat random (compared to bios setup), so don't trust it */
-		regp->fp_control = nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
-	} else {
-		/* If the special bit exists, it exists on both ramdac's */
-		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
-	}
-
-	/* Deal with vsync/hsync polarity */
-	/* These analog monitor offsets are guesswork */
-	if (adjusted_mode->Flags & V_PVSYNC) {
-		regp->fp_control |= (1 << (0 + !is_fp));
-	}
-
-	if (adjusted_mode->Flags & V_PHSYNC) {
-		regp->fp_control |= (1 << (4 + !is_fp));
-	}
-
-	if (is_fp) {
-		ErrorF("Pre-panel scaling\n");
-		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
-		panel_ratio = (nv_output->fpWidth)/(float)(nv_output->fpHeight);
-		ErrorF("panel_ratio=%f\n", panel_ratio);
-		aspect_ratio = (mode->HDisplay)/(float)(mode->VDisplay);
-		ErrorF("aspect_ratio=%f\n", aspect_ratio);
-		/* Scale factors is the so called 20.12 format, taken from Haiku */
-		h_scale = ((1 << 12) * mode->HDisplay)/nv_output->fpWidth;
-		v_scale = ((1 << 12) * mode->VDisplay)/nv_output->fpHeight;
-		ErrorF("h_scale=%d\n", h_scale);
-		ErrorF("v_scale=%d\n", v_scale);
-
-		/* Don't limit last fetched line */
-		regp->debug_2 = 0;
-
-		/* We want automatic scaling */
-		regp->debug_1 = 0;
-
-		regp->fp_hvalid_start = 0;
-		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
-
-		regp->fp_vvalid_start = 0;
-		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
-
-		if (!pNv->fpScaler) {
-			ErrorF("Flat panel is doing the scaling.\n");
-			regp->fp_control |= (1 << 8);
-		} else {
-			ErrorF("GPU is doing the scaling.\n");
-			/* GPU scaling happens automaticly at a ratio of 1.33 */
-			/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
-			if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
-				uint32_t diff;
-
-				ErrorF("Scaling resolution on a widescreen panel\n");
-
-				/* Scaling in both directions needs to the same */
-				h_scale = v_scale;
-
-				/* Set a new horizontal scale factor and enable testmode (bit12) */
-				regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
-
-				diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
-				regp->fp_hvalid_start = diff/2;
-				regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
-			}
-
-			/* Same scaling, just for panels with aspect ratio's smaller than 1 */
-			if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
-				uint32_t diff;
-
-				ErrorF("Scaling resolution on a portrait panel\n");
-
-				/* Scaling in both directions needs to the same */
-				v_scale = h_scale;
-
-				/* Set a new vertical scale factor and enable testmode (bit28) */
-				regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
-
-				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
-				regp->fp_vvalid_start = diff/2;
-				regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
-			}
 		}
-
-		ErrorF("Post-panel scaling\n");
 	}
-
-	if (pNv->Architecture >= NV_ARCH_10) {
-		/* Bios and blob don't seem to do anything (else) */
-		regp->nv10_cursync = (1<<25);
-	}
-
-	/* These are the common blob values, minus a few fp specific bit's */
-	/* Let's keep the TMDS pll and fpclock running in all situations */
-	regp->debug_0 = 0x1101111;
-
-	if(is_fp) {
-		/* I am not completely certain, but seems to be set only for dfp's */
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
-	}
-
-	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
 
 	/* This is just a guess, there are probably more registers which need setting */
 	/* But we must start somewhere ;-) */
@@ -845,51 +582,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			regp->TMDS[0x43] = 0xb0;
 		}
 	}
-
-	/* Flatpanel support needs at least a NV10 */
-	if(pNv->twoHeads) {
-		/* Instead of 1, several other values are also used: 2, 7, 9 */
-		/* The purpose is unknown */
-		if(pNv->FPDither) {
-			regp->dither = 0x00010000;
-		}
-	}
-
-	if(pLayout->depth < 24) {
-		bpp = pLayout->depth;
-	} else {
-		bpp = 32;
-	}
-
-	/* Kindly borrowed from haiku driver */
-	/* bit4 and bit5 activate indirect mode trough color palette */
-	switch (pLayout->depth) {
-		case 32:
-		case 16:
-			regp->general = 0x00101130;
-			break;
-		case 24:
-		case 15:
-			regp->general = 0x00100130;
-			break;
-		case 8:
-		default:
-			regp->general = 0x00101100;
-			break;
-	}
-
-	if (pNv->alphaCursor) {
-		regp->general |= (1<<29);
-	}
-
-	regp->bpp = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
-
-	/* Some values the blob sets */
-	/* This may apply to the real ramdac that is being used (for crosswired situations) */
-	/* Nevertheless, it's unlikely to cause many problems, since the values are equal for both */
-	regp->unk_a20 = 0x0;
-	regp->unk_a24 = 0xfffff;
-	regp->unk_a34 = 0x1;
 
 	/* Put test control into what seems to be the neutral position */
 	if (pNv->NVArch < 0x44) {
