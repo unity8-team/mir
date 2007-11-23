@@ -454,8 +454,10 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
 
+    RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
+    RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
+
     if (IS_AVIVO_VARIANT) {
-        RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
 	radeon_crtc->fb_width = adjusted_mode->CrtcHDisplay;
 	radeon_crtc->fb_height = pScrn->virtualY;
 	radeon_crtc->fb_pitch = adjusted_mode->CrtcHDisplay;
@@ -481,7 +483,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	if (radeon_crtc->crtc_id == 0)
 	    OUTREG(AVIVO_D1VGA_CONTROL, 0);
 	else
-	    OUTREG(AVIVO_D1VGA_CONTROL, 0);
+	    OUTREG(AVIVO_D2VGA_CONTROL, 0);
 
 	/* setup fb format and location
 	 */
@@ -502,6 +504,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	       crtc->scrn->displayWidth);
 
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
+
     }
 
     atombios_crtc_set_pll(crtc, adjusted_mode);
