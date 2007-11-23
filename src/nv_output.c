@@ -724,50 +724,56 @@ nv_crt_load_detect(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 reg_output, reg_test_ctrl, temp;
-	Bool present[2];
-	present[0] = FALSE;
-	present[1] = FALSE;
+	Bool present = FALSE;
 	int ramdac;
 
-	/* Restrict to primary ramdac for now, because i get false positives on the secondary */
-	for (ramdac = 0; ramdac < 1; ramdac++) {
-		reg_output = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT);
-		reg_test_ctrl = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL);
-
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, (reg_test_ctrl & ~0x00010000));
-
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, (reg_output & 0x0000FEEE));
-		usleep(1000);
-
-		temp = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT);
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, temp | 1);
-
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_DATA, 0x94050140);
-		temp = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL);
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
-
-		usleep(1000);
-
-		present[ramdac] = (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
-
-		temp = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
-
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, reg_output);
-		nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, reg_test_ctrl);
+	/* Usually these outputs are native to ramdac 1 */
+	if (nv_output->valid_ramdac & RAMDAC_0 && nv_output->valid_ramdac & RAMDAC_1) {
+		ramdac = 1;
+	} else if (nv_output->valid_ramdac & RAMDAC_1) {
+		ramdac = 1;
+	} else if (nv_output->valid_ramdac & RAMDAC_0) {
+		ramdac = 0;
+	} else {
+		return FALSE;
 	}
 
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "CRT detect returned %d for ramdac0\n", present[0]);
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "CRT detect returned %d for ramdac1\n", present[1]);
+	if (nv_output->pDDCBus != NULL) {
+		xf86MonPtr ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+		/* Is there a digital flatpanel on this channel? */
+		if (ddc_mon && ddc_mon->features.input_type) {
+			return FALSE;
+		}
+	}
 
-	/* Can we only be ramdac0 ?*/
-	if (!(nv_output->valid_ramdac & RAMDAC_1)) {
-		if (present[0]) 
-			return TRUE;
-	} else {
-		if (present[1])
-			return TRUE;
-		/* What do with a secondary output running of the primary ramdac? */
+	reg_output = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT);
+	reg_test_ctrl = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL);
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, (reg_test_ctrl & ~0x00010000));
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, (reg_output & 0x0000FEEE));
+	usleep(1000);
+
+	temp = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT);
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, temp | 1);
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_DATA, 0x94050140);
+	temp = nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL);
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+
+	usleep(1000);
+
+	present = (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
+
+	temp = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_OUTPUT, reg_output);
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_TEST_CONTROL, reg_test_ctrl);
+
+	if (present) {
+		ErrorF("A crt was detected on ramdac %d with no ddc support\n", ramdac);
+		return TRUE;
 	}
 
 	return FALSE;
@@ -793,10 +799,8 @@ nv_analog_output_detect(xf86OutputPtr output)
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
-	/* This may not work in all cases, but it's the best that can be done */
-	/* Example: Secondary output running of primary ramdac, what to do? */
-	//if (nv_crt_load_detect(output))
-	//	return XF86OutputStatusConnected;
+	if (nv_crt_load_detect(output))
+		return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
 }
