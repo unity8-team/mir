@@ -913,7 +913,7 @@ nv_output_prepare(xf86OutputPtr output)
 		stole_ramdac = TRUE;
 	}
 
-	/* TODO: figure out what ramdac 2 is on how it is identified */
+	/* TODO: figure out what ramdac 2 is and how it is identified */
 
 	/* At this point we already stole ramdac 0 if we need it */
 	if (!pNv->ramdac_active[0]) {
