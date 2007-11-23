@@ -689,6 +689,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DMA_IN_MEMORY3, 2);
 	OUT_RING  (pNv->chan->vram->handle);
 	OUT_RING  (pNv->chan->vram->handle);
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DMA_IN_MEMORY5, 1);
+	OUT_RING  (pNv->chan->vram->handle);
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DMA_IN_MEMORY8, 1);
 	OUT_RING  (pNv->chan->vram->handle);
 
