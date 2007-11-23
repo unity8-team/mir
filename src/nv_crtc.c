@@ -915,18 +915,33 @@ void nv_crtc_calc_state_ext(
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
 		/* Assumption CRTC1 will overwrite the CRTC0 value */
 		/* Also make sure we don't set both bits */
-		state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 18);
+
+		if (!state->sel_clk)
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
+
+		if (nv_output->type == OUTPUT_TMDS) {
+			/* Clean out all the bits and enable another mode */
+			if (nv_crtc->head == 1) {
+				state->sel_clk &= ~(0xf << 16);
+				state->sel_clk |= (1 << 18);
+			} else {
+				state->sel_clk &= ~(0xf << 16);
+				state->sel_clk |= (1 << 16);
+			}
+		} else {
+			/* Only unset the specific bits that would have been set if we were a TMDS */
+			if (nv_crtc->head == 1) {
+				state->sel_clk &= ~(0x4 << 16);
+			} else {
+				state->sel_clk &= ~(0x1 << 16);
+			}
+		}
+
 		/* Are we a TMDS running on head 0(=ramdac 0), but native to ramdac 1? */
 		if (nv_crtc->head == 0 && nv_output->type == OUTPUT_TMDS && nv_output->valid_ramdac & RAMDAC_1) {
-			state->sel_clk = (pNv->misc_info.sel_clk & ~(0xf << 16)) | (1 << 16);
 			state->crosswired = TRUE;
 		} else if (nv_crtc->head == 0) {
 			state->crosswired = FALSE;
-		}
-
-		/* Some cards want this register zero, so let's hope we can catch them all */
-		if (pNv->sel_clk_override) {
-			state->sel_clk = pNv->misc_info.sel_clk;
 		}
 
 		if (nv_crtc->head == 1) {
