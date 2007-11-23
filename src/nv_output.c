@@ -1183,8 +1183,6 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	int i;
 	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
 
-	Bool sel_clk_override = TRUE;
-
 	/* check how many TMDS ports there are */
 	if (pNv->dcb_table.entries) {
 		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
@@ -1200,18 +1198,11 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 				if (type == OUTPUT_TMDS) {
 					dvi_pair[i - 1] = TRUE;
 				} else if (type == OUTPUT_ANALOG) {
-					dvi_pair[i ] = TRUE;
+					dvi_pair[i] = TRUE;
 				}
-			}
-
-			/* A normal card has at least one output valid on both ramdac's */
-			if (i2c_index != 0xf && type < 4 && type != OUTPUT_TV && or == 3) {
-				sel_clk_override = FALSE;
 			}
 		}
 	}
-
-	pNv->sel_clk_override = sel_clk_override;
 
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
