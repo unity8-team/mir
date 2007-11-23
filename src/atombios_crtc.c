@@ -151,6 +151,8 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
 /*
  * Calculate the PLL parameters for a given dotclock.
  */
+#define RADEON_PLL_DEFAULT_PLLOUT_MIN  64800 /* experimental. - taken from rhd divided by 10 */
+
 static Bool
 PLLCalculate(ScrnInfoPtr pScrn, CARD32 PixelClock,
 	     CARD16 *RefDivider, CARD16 *FBDivider, CARD8 *PostDivider)
@@ -166,6 +168,8 @@ PLLCalculate(ScrnInfoPtr pScrn, CARD32 PixelClock,
 
     Ratio = ((float) PixelClock) / ((float) pll->reference_freq * 10);
 
+    if (pll->min_pll_freq == 0)
+      pll->min_pll_freq = RADEON_PLL_DEFAULT_PLLOUT_MIN;
     for (PostDiv = 2; PostDiv < POST_DIV_LIMIT; PostDiv++) {
 	CARD32 VCOOut = PixelClock * PostDiv;
 
