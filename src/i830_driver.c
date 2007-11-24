@@ -194,7 +194,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "vbe.h"
 #include "shadow.h"
 #include "i830.h"
-#include "i830_reg.h"
 #include "i830_display.h"
 #include "i830_debug.h"
 #include "i830_bios.h"
@@ -1430,17 +1429,17 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * If either XAA or EXA (exclusive) is compiled in, default to it.
     * 
     * If both are compiled in, and the user didn't specify noAccel, use the
-    * config option AccelMethod to determine which to use, defaulting to XAA
+    * config option AccelMethod to determine which to use, defaulting to EXA
     * if none is specified, or if the string was unrecognized.
     *
     * All this *could* go away if we removed XAA support from this driver,
     * for example. :)
     */
    if (!pI830->noAccel) {
-#if (defined(I830_USE_EXA) && defined(I830_USE_XAA)) || !defined(I830_USE_EXA)
-       pI830->useEXA = FALSE;
-#else
+#ifdef I830_USE_EXA
        pI830->useEXA = TRUE;
+#else
+       pI830->useEXA = FALSE;
 #endif
 #if defined(I830_USE_XAA) && defined(I830_USE_EXA)
        int from = X_DEFAULT;
@@ -1730,7 +1729,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
  * whoever gets control next should do.
  */
 static void
-ResetState(ScrnInfoPtr pScrn, Bool flush)
+i830_stop_ring(ScrnInfoPtr pScrn, Bool flush)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    unsigned long temp;
@@ -1743,34 +1742,23 @@ ResetState(ScrnInfoPtr pScrn, Bool flush)
       pI830->entityPrivate->RingRunning = 0;
 
    /* Flush the ring buffer (if enabled), then disable it. */
-   /* God this is ugly */
-#define flush_ring() do { \
-      temp = INREG(LP_RING + RING_LEN); \
-      if (temp & RING_VALID) { \
-	 I830RefreshRing(pScrn); \
-	 I830Sync(pScrn); \
-	 DO_RING_IDLE(); \
-      } \
-   } while(0)
-#ifdef I830_USE_XAA
-   if (!pI830->useEXA && flush && pI830->AccelInfoRec)
-       flush_ring();
-#endif
-#ifdef I830_USE_EXA
-   if (pI830->useEXA && flush && pI830->EXADriverPtr)
-       flush_ring();
-#endif
+   if (!pI830->noAccel) {
+      temp = INREG(LP_RING + RING_LEN);
+      if (temp & RING_VALID) {
+	 i830_refresh_ring(pScrn);
+	 I830Sync(pScrn);
+	 DO_RING_IDLE();
+      }
 
-   OUTREG(LP_RING + RING_LEN, 0);
-   OUTREG(LP_RING + RING_HEAD, 0);
-   OUTREG(LP_RING + RING_TAIL, 0);
-   OUTREG(LP_RING + RING_START, 0);
-
-   xf86_hide_cursors (pScrn);
+      OUTREG(LP_RING + RING_LEN, 0);
+      OUTREG(LP_RING + RING_HEAD, 0);
+      OUTREG(LP_RING + RING_TAIL, 0);
+      OUTREG(LP_RING + RING_START, 0);
+   }
 }
 
 static void
-SetRingRegs(ScrnInfoPtr pScrn)
+i830_start_ring(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    unsigned int itemp;
@@ -1807,7 +1795,26 @@ SetRingRegs(ScrnInfoPtr pScrn)
    itemp = (pI830->LpRing->mem->size - 4096) & I830_RING_NR_PAGES;
    itemp |= (RING_NO_REPORT | RING_VALID);
    OUTREG(LP_RING + RING_LEN, itemp);
-   I830RefreshRing(pScrn);
+   i830_refresh_ring(pScrn);
+}
+
+void
+i830_refresh_ring(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   /* If we're reaching RefreshRing as a result of grabbing the DRI lock
+    * before we've set up the ringbuffer, don't bother.
+    */
+   if (pI830->LpRing->mem == NULL)
+       return;
+
+   pI830->LpRing->head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;
+   pI830->LpRing->tail = INREG(LP_RING + RING_TAIL);
+   pI830->LpRing->space = pI830->LpRing->head - (pI830->LpRing->tail + 8);
+   if (pI830->LpRing->space < 0)
+      pI830->LpRing->space += pI830->LpRing->mem->size;
+   i830MarkSync(pScrn);
 }
 
 /*
@@ -1834,8 +1841,7 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
       OUTREG(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
    }
 
-   if (!pI830->noAccel)
-      SetRingRegs(pScrn);
+   i830_start_ring(pScrn);
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
 }
@@ -2056,8 +2062,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
     * Make sure the DPLL is active and not in VGA mode or the
     * write of PIPEnCONF may cause a crash
     */
-   if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
-       (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
+   if ((pI830->saveDPLL_A & DPLL_VCO_ENABLE) &&
+       (pI830->saveDPLL_A & DPLL_VGA_MODE_DIS))
 	   OUTREG(PIPEACONF, pI830->savePIPEACONF);
    i830WaitForVblank(pScrn);
    OUTREG(DSPACNTR, pI830->saveDSPACNTR);
@@ -2442,7 +2448,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    /* Enable FB compression if possible */
-   if (i830_fb_compression_supported(pI830))
+   if (i830_fb_compression_supported(pI830) && !IS_I965GM(pI830))
        pI830->fb_compression = TRUE;
    else
        pI830->fb_compression = FALSE;
@@ -2554,6 +2560,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			  "Couldn't allocate tiled memory, page flipping "
 			  "disabled\n");
 	    pI830->allowPageFlip = FALSE;
+	    if (pI830->fb_compression)
+	       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			  "Couldn't allocate tiled memory, fb compression "
+			  "disabled\n");
+	    pI830->fb_compression = FALSE;
 	 }
 
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2602,8 +2613,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pI830->tiling = FALSE;
       pI830->directRenderingEnabled = FALSE;
    }
-
-   pScrn->displayWidth = pScrn->displayWidth;
 
 #ifdef HAS_MTRR_SUPPORT
    {
@@ -2999,9 +3008,9 @@ I830LeaveVT(int scrnIndex, int flags)
 
    xf86_hide_cursors (pScrn);
 
-   ResetState(pScrn, TRUE);
-
    RestoreHWState(pScrn);
+
+   i830_stop_ring(pScrn, TRUE);
 
    if (pI830->debug_modes) {
       i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
@@ -3075,7 +3084,7 @@ I830EnterVT(int scrnIndex, int flags)
 		 "Existing errors found in hardware state.\n");
    }
 
-   ResetState(pScrn, FALSE);
+   i830_stop_ring(pScrn, FALSE);
    SetHWOperatingState(pScrn);
 
    /* Clear the framebuffer */
@@ -3096,7 +3105,7 @@ I830EnterVT(int scrnIndex, int flags)
    }
    i830DescribeOutputConfiguration(pScrn);
 
-   ResetState(pScrn, TRUE);
+   i830_stop_ring(pScrn, TRUE);
    SetHWOperatingState(pScrn);
 
 #ifdef XF86DRI
@@ -3116,7 +3125,7 @@ I830EnterVT(int scrnIndex, int flags)
 
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
       
-	 I830RefreshRing(pScrn);
+	 i830_refresh_ring(pScrn);
 	 I830Sync(pScrn);
 	 DO_RING_IDLE();
 

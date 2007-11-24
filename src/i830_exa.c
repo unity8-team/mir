@@ -35,7 +35,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
-#include "i830_reg.h"
 #include <string.h>
 
 #ifdef I830DEBUG

@@ -29,6 +29,15 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "xf86.h"
 #include "i830.h"
 #include "i830_bios.h"
@@ -44,67 +53,113 @@ struct i830_lvds_priv {
 
     /* restore backlight to this value */
     int		    backlight_duty_cycle;
+
+    void (*set_backlight)(xf86OutputPtr output, int level);
+    int (*get_backlight)(xf86OutputPtr output);
+    int backlight_max;
 };
 
-/**
- * Use legacy backlight controls?
- *
- * \param pI830 device in question
- *
- * Returns TRUE if legacy backlight should be used, false otherwise.
- */
-static int
-i830_lvds_backlight_legacy(I830Ptr pI830)
-{
-    CARD32 blc_pwm_ctl, blc_pwm_ctl2;
+#define BACKLIGHT_CLASS "/sys/class/backlight"
 
-    /* 965GM+ change the location of the legacy control bit */
-    if (IS_I965GM(pI830)) {
+/*
+ * List of available kernel interfaces in priority order
+ */
+static char *backlight_interfaces[] = {
+    "thinkpad_screen",
+    "acpi_video1",
+    "acpi_video0",
+    NULL,
+};
+
+/*
+ * Must be long enough for BACKLIGHT_CLASS + '/' + longest in above table +
+ * '/' + "max_backlight"
+ */
+#define BACKLIGHT_PATH_LEN 80
+/* Enough for 8 digits of backlight + '\n' + '\0' */
+#define BACKLIGHT_VALUE_LEN 10
+
+static int backlight_index;
+
+static Bool
+i830_kernel_backlight_available(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    struct stat buf;
+    char path[BACKLIGHT_PATH_LEN];
+    int i;
+
+    for (i = 0; backlight_interfaces[i] != NULL; i++) {
+	sprintf(path, "%s/%s", BACKLIGHT_CLASS, backlight_interfaces[i]);
+	if (!stat(path, &buf)) {
+	    backlight_index = i;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "found backlight control "
+		       "method %s\n", path);
+	    return 1;
+	}
+    }
+
+    return 0;
+}
+
+/* Try to figure out which backlight control method to use */
+static void
+i830_set_lvds_backlight_method(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 blc_pwm_ctl, blc_pwm_ctl2;
+    enum backlight_control method = NATIVE; /* Default to native */
+
+    if (i830_kernel_backlight_available(output)) {
+	    method = KERNEL;
+    } else if (IS_I965GM(pI830)) {
 	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
 	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
-	    return TRUE;
+	    method = COMBO;
     } else {
 	blc_pwm_ctl = INREG(BLC_PWM_CTL);
 	if (blc_pwm_ctl & BLM_LEGACY_MODE)
-	    return TRUE;
+	    method = COMBO;
     }
-    return FALSE;
+
+    pI830->backlight_control_method = method;
 }
 
-/**
- * Sets the backlight level.
- *
- * \param level backlight level, from 0 to i830_lvds_get_max_backlight().
+/*
+ * Native methods
  */
 static void
-i830_lvds_set_backlight(xf86OutputPtr output, int level)
+i830_lvds_set_backlight_native(xf86OutputPtr output, int level)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 blc_pwm_ctl;
-
-    if (i830_lvds_backlight_legacy(pI830))
-#if XSERVER_LIBPCIACCESS
-	pci_device_cfg_write_u8 (pI830->PciInfo, 0xfe, LEGACY_BACKLIGHT_BRIGHTNESS);
-#else
-	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 0xfe);
-#endif
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
     OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 }
 
-/**
- * Returns the maximum level of the backlight duty cycle field.
- */
-static CARD32
-i830_lvds_get_max_backlight(xf86OutputPtr output)
+static int
+i830_lvds_get_backlight_native(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    I830Ptr	pI830 = I830PTR(pScrn);
-    CARD32	pwm_ctl = INREG(BLC_PWM_CTL);
-    CARD32	val;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 blc_pwm_ctl;
+
+    blc_pwm_ctl = INREG(BLC_PWM_CTL);
+    blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
+    return blc_pwm_ctl;
+}
+
+static int
+i830_lvds_get_backlight_max_native(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 pwm_ctl = INREG(BLC_PWM_CTL);
+    int val;
 
     if (IS_I965GM(pI830)) {
 	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK2) >>
@@ -113,15 +168,179 @@ i830_lvds_get_max_backlight(xf86OutputPtr output)
 	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >>
 	       BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
     }
-    
-    /*
-     * In legacy control mode, backlight value is calculated:
-     * if (LBB[7:0] != 0xff)
-     *     backlight = BLC_PWM_CTL[15:0] *  BPC[7:0]
-     * else
-     *     backlight = BLC_PWM_CTL[15:0]
-     */
+
     return val;
+}
+
+/*
+ * Legacy methods
+ */
+static void
+i830_lvds_set_backlight_legacy(xf86OutputPtr output, int level)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+#if XSERVER_LIBPCIACCESS
+    pci_device_cfg_write_u8(pI830->PciInfo, level,
+			    LEGACY_BACKLIGHT_BRIGHTNESS);
+#else
+    pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, level);
+#endif
+}
+
+static int
+i830_lvds_get_backlight_legacy(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD8 lbb;
+
+#if XSERVER_LIBPCIACCESS
+    pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
+#else
+    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
+#endif
+
+    return lbb;
+}
+
+/*
+ * Combo methods
+ */
+static void
+i830_lvds_set_backlight_combo(xf86OutputPtr output, int level)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 blc_pwm_ctl;
+    CARD8 lbb;
+
+#if XSERVER_LIBPCIACCESS
+    pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
+#else
+    lbb = pciReadByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS);
+#endif
+    /*
+     * If LBB is zero and we're shooting for a non-zero brightness level,
+     * we have to increase LBB by at least 1.
+     */
+    if (!lbb && level) {
+#if XSERVER_LIBPCIACCESS
+	pci_device_cfg_write_u8(pI830->PciInfo, 1,
+				LEGACY_BACKLIGHT_BRIGHTNESS);
+#else
+	pciWriteByte(pI830->PciTag, LEGACY_BACKLIGHT_BRIGHTNESS, 1);
+#endif
+    }
+
+    blc_pwm_ctl = INREG(BLC_PWM_CTL);
+    blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
+    OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
+}
+
+static int
+i830_lvds_get_backlight_combo(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    CARD32 blc_pwm_ctl;
+
+    blc_pwm_ctl = INREG(BLC_PWM_CTL);
+    blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
+    return blc_pwm_ctl;
+}
+
+/*
+ * Kernel methods
+ */
+static void
+i830_lvds_set_backlight_kernel(xf86OutputPtr output, int level)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd, len, ret;
+
+    len = snprintf(val, BACKLIGHT_VALUE_LEN, "%d\n", level);
+    if (len > BACKLIGHT_VALUE_LEN) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "backlight value too large: %d\n",
+		   level);
+	return;
+    }
+
+    sprintf(path, "%s/%s/brightness", BACKLIGHT_CLASS,
+	    backlight_interfaces[backlight_index]);
+    fd = open(path, O_RDWR);
+    if (fd == -1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "failed to open %s for backlight "
+		   "control: %s\n", path, strerror(errno));
+	return;
+    }
+
+    ret = write(fd, val, len);
+    if (ret == -1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "write to %s for backlight "
+		   "control failed: %s\n", path, strerror(errno));
+    }
+
+    close(fd);
+}
+
+static int
+i830_lvds_get_backlight_kernel(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd;
+
+    sprintf(path, "%s/%s/actual_brightness", BACKLIGHT_CLASS,
+	    backlight_interfaces[backlight_index]);
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "failed to open %s for backlight "
+		   "control: %s\n", path, strerror(errno));
+	return 0;
+    }
+
+    if (read(fd, val, BACKLIGHT_VALUE_LEN) == -1)
+	goto out_err;
+
+    close(fd);
+    return atoi(val);
+
+out_err:
+    close(fd);
+    return 0;
+}
+
+static int
+i830_lvds_get_backlight_max_kernel(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    char path[BACKLIGHT_PATH_LEN], val[BACKLIGHT_VALUE_LEN];
+    int fd, max = 0;
+
+    sprintf(path, "%s/%s/max_brightness", BACKLIGHT_CLASS,
+	    backlight_interfaces[backlight_index]);
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "failed to open %s for backlight "
+		   "control: %s\n", path, strerror(errno));
+	return 0;
+    }
+
+    if (read(fd, val, BACKLIGHT_VALUE_LEN) == -1)
+	goto out_err;
+
+    close(fd);
+
+    max = atoi(val);
+    
+    return max;
+
+out_err:
+    close(fd);
+    return 0;
 }
 
 /**
@@ -142,9 +361,9 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
 	    pp_status = INREG(PP_STATUS);
 	} while ((pp_status & PP_ON) == 0);
 
-	i830_lvds_set_backlight(output, dev_priv->backlight_duty_cycle);
+	dev_priv->set_backlight(output, dev_priv->backlight_duty_cycle);
     } else {
-	i830_lvds_set_backlight(output, 0);
+	dev_priv->set_backlight(output, 0);
 
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
 	do {
@@ -179,14 +398,13 @@ i830_lvds_save (xf86OutputPtr output)
     pI830->savePP_CONTROL = INREG(PP_CONTROL);
     pI830->savePP_CYCLE = INREG(PP_CYCLE);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
-    dev_priv->backlight_duty_cycle = (pI830->saveBLC_PWM_CTL &
-				      BACKLIGHT_DUTY_CYCLE_MASK);
+    dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
 
     /*
      * If the light is off at server startup, just make it full brightness
      */
     if (dev_priv->backlight_duty_cycle == 0)
-	dev_priv->backlight_duty_cycle = i830_lvds_get_max_backlight(output);
+	dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 }
 
 static void
@@ -390,31 +608,105 @@ i830_lvds_destroy (xf86OutputPtr output)
 #ifdef RANDR_12_INTERFACE
 #define BACKLIGHT_NAME	"BACKLIGHT"
 static Atom backlight_atom;
+
+/*
+ * Backlight control lets the user select how the driver should manage
+ * backlight changes:  using the legacy interface, the native interface,
+ * or not at all.
+ */
+#define BACKLIGHT_CONTROL_NAME "BACKLIGHT_CONTROL"
+#define NUM_BACKLIGHT_CONTROL_METHODS 4
+static char *backlight_control_names[] = {
+    "native",
+    "legacy",
+    "combination",
+    "kernel",
+};
+static Atom backlight_control_atom;
+static Atom backlight_control_name_atoms[NUM_BACKLIGHT_CONTROL_METHODS];
+
+static int
+i830_backlight_control_lookup(char *name)
+{
+    int i;
+
+    for (i = 0; i < NUM_BACKLIGHT_CONTROL_METHODS; i++)
+	if (!strcmp(name, backlight_control_names[i]))
+	    return i;
+
+    return -1;
+}
+
+static Bool
+i830_lvds_set_backlight_control(xf86OutputPtr output)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
+
+    switch (pI830->backlight_control_method) {
+    case NATIVE:
+	dev_priv->set_backlight = i830_lvds_set_backlight_native;
+	dev_priv->get_backlight = i830_lvds_get_backlight_native;
+	dev_priv->backlight_max =
+	    i830_lvds_get_backlight_max_native(output);
+	break;
+    case LEGACY:
+	dev_priv->set_backlight = i830_lvds_set_backlight_legacy;
+	dev_priv->get_backlight = i830_lvds_get_backlight_legacy;
+	dev_priv->backlight_max = 0xff;
+	break;
+    case COMBO:
+	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
+	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
+	dev_priv->backlight_max =
+	    i830_lvds_get_backlight_max_native(output);
+	break;
+    case KERNEL:
+	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
+	dev_priv->get_backlight = i830_lvds_get_backlight_kernel;
+	dev_priv->backlight_max =
+	    i830_lvds_get_backlight_max_kernel(output);
+	break;
+    default:
+	/*
+	 * Should be impossible to get here unless the caller set a bogus
+	 * backlight_control_method
+	 */
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "error: bad backlight control "
+		   "method\n");
+	break;
+    }
+
+    return Success;
+}
 #endif /* RANDR_12_INTERFACE */
 
 static void
 i830_lvds_create_resources(xf86OutputPtr output)
 {
 #ifdef RANDR_12_INTERFACE
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
-    ScrnInfoPtr		    pScrn = output->scrn;
-    INT32		    range[2];
-    int			    data, err;
+    INT32		    backlight_range[2];
+    int			    data, err, i;
 
     /* Set up the backlight property, which takes effect immediately
-     * and accepts values only within the range.
+     * and accepts values only within the backlight_range.
      *
      * XXX: Currently, RandR doesn't verify that properties set are
-     * within the range.
+     * within the backlight_range.
      */
     backlight_atom = MakeAtom(BACKLIGHT_NAME, sizeof(BACKLIGHT_NAME) - 1,
 	TRUE);
 
-    range[0] = 0;
-    range[1] = i830_lvds_get_max_backlight(output);
+    backlight_range[0] = 0;
+    backlight_range[1] = dev_priv->backlight_max;
     err = RRConfigureOutputProperty(output->randr_output, backlight_atom,
-				    FALSE, TRUE, FALSE, 2, range);
+				    FALSE, TRUE, FALSE, 2, backlight_range);
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RRConfigureOutputProperty error, %d\n", err);
@@ -429,6 +721,32 @@ i830_lvds_create_resources(xf86OutputPtr output)
 		   "RRChangeOutputProperty error, %d\n", err);
     }
 
+    /*
+     * Now setup the control selection property
+     */
+    backlight_control_atom = MakeAtom(BACKLIGHT_CONTROL_NAME,
+				      sizeof(BACKLIGHT_CONTROL_NAME) - 1, TRUE);
+    for (i = 0; i < NUM_BACKLIGHT_CONTROL_METHODS; i++) {
+	backlight_control_name_atoms[i] =
+	    MakeAtom(backlight_control_names[i],
+		     strlen(backlight_control_names[i]), TRUE);
+    }
+    err = RRConfigureOutputProperty(output->randr_output,
+				    backlight_control_atom, TRUE, FALSE, FALSE,
+				    NUM_BACKLIGHT_CONTROL_METHODS,
+				    (INT32 *)backlight_control_name_atoms);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "RRConfigureOutputProperty error, %d\n", err);
+    }
+    err = RRChangeOutputProperty(output->randr_output, backlight_control_atom,
+				 XA_ATOM, 32, PropModeReplace, 1,
+				 &backlight_control_name_atoms[pI830->backlight_control_method],
+				 FALSE, TRUE);
+    if (err != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "failed to set backlight control, %d\n", err);
+    }
 #endif /* RANDR_12_INTERFACE */
 }
 
@@ -437,6 +755,8 @@ static Bool
 i830_lvds_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
 {
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
     
@@ -450,13 +770,52 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	}
 
 	val = *(INT32 *)value->data;
-	if (val < 0 || val > i830_lvds_get_max_backlight(output))
+	if (val < 0 || val > dev_priv->backlight_max)
 	    return FALSE;
 
-	if (val != dev_priv->backlight_duty_cycle)
-	{
-	    i830_lvds_set_backlight(output, val);
+	if (val != dev_priv->backlight_duty_cycle) {
+	    dev_priv->set_backlight(output, val);
 	    dev_priv->backlight_duty_cycle = val;
+	}
+	return TRUE;
+    } else if (property == backlight_control_atom) {
+	INT32		    	backlight_range[2];
+	Atom			atom;
+	char			*name;
+	int			ret, data;
+
+	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
+	    return FALSE;
+
+	memcpy(&atom, value->data, 4);
+	name = NameForAtom(atom);
+	
+	ret = i830_backlight_control_lookup(name);
+	if (ret < 0)
+	    return FALSE;
+
+	pI830->backlight_control_method = ret;
+	i830_lvds_set_backlight_control(output);
+
+	/*
+	 * Update the backlight atom since the range and value may have changed
+	 */
+	backlight_range[0] = 0;
+	backlight_range[1] = dev_priv->backlight_max;
+	ret = RRConfigureOutputProperty(output->randr_output, backlight_atom,
+					FALSE, TRUE, FALSE, 2, backlight_range);
+	if (ret != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", ret);
+	}
+	/* Set the current value of the backlight property */
+	data = dev_priv->get_backlight(output);
+	ret = RRChangeOutputProperty(output->randr_output, backlight_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (ret != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", ret);
 	}
 	return TRUE;
     }
@@ -627,6 +986,36 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	    goto disable_exit;
 	}
     }
+
+    i830_set_lvds_backlight_method(output);
+
+    switch (pI830->backlight_control_method) {
+    case NATIVE:
+	dev_priv->set_backlight = i830_lvds_set_backlight_native;
+	dev_priv->get_backlight = i830_lvds_get_backlight_native;
+	dev_priv->backlight_max = i830_lvds_get_backlight_max_native(output);
+	break;
+    case LEGACY:
+	dev_priv->set_backlight = i830_lvds_set_backlight_legacy;
+	dev_priv->get_backlight = i830_lvds_get_backlight_legacy;
+	dev_priv->backlight_max = 0xff;
+	break;
+    case COMBO:
+	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
+	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
+	dev_priv->backlight_max = i830_lvds_get_backlight_max_native(output);
+	break;
+    case KERNEL:
+	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
+	dev_priv->get_backlight = i830_lvds_get_backlight_kernel;
+	dev_priv->backlight_max = i830_lvds_get_backlight_max_kernel(output);
+	break;
+    default:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "bad backlight control method\n");
+	break;
+    }
+
+    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 
     return;
 
