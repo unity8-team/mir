@@ -24,6 +24,12 @@
 #include "nv_include.h"
 #include "nvreg.h"
 #include <byteswap.h>
+
+/* FIXME: put these somewhere */
+#define CRTC_INDEX 0x3d4
+#define NV_VGA_CRTCX_OWNER_HEADA 0x0
+#define NV_VGA_CRTCX_OWNER_HEADB 0x3
+
 #define DEBUGLEVEL 6
 /*#define PERFORM_WRITE*/
 
@@ -298,7 +304,7 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr;
 
-	if (port == 0x3d4 && index == 0x44 && data != 0x03)
+	if (port == CRTC_INDEX && index == NV_VGA_CRTCX_OWNER && data != NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 0;
 	ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
@@ -316,37 +322,8 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 	VGA_WR08(ptr, port, index);
 	VGA_WR08(ptr, port + 1, data);
 #endif
-	if (port == 0x3d4 && index == 0x44 && data == 0x03)
+	if (port == CRTC_INDEX && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 1;
-}
-
-static void nv_set_crtc_index(ScrnInfoPtr pScrn, CARD8 index)
-{
-#ifdef PERFORM_WRITE
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_set_crtc_index index 0x%X\n",index);
-	still_alive();
-	NVPtr pNv = NVPTR(pScrn);
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
-	VGA_WR08(ptr, 0x3D4, index);
-#endif
-}
-
-static CARD8 nv_rd_crtc_data(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
-	return VGA_RD08(ptr, 0x3D5);
-}
-
-static void nv_wr_crtc_data(ScrnInfoPtr pScrn, CARD8 val)
-{
-#ifdef PERFORM_WRITE
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "nv_wr_crtc_data value 0x%X\n",val);
-	still_alive();
-	NVPtr pNv = NVPTR(pScrn);
-	volatile CARD8 *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
-	VGA_WR08(ptr, 0x3D5, val);
-#endif
 }
 
 static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
@@ -462,27 +439,56 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	return TRUE;
 }
 
-static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_repeat(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	CARD8 repeats = *((CARD8 *) (&bios->data[offset + 1]));
-	CARD8 i;
+	/* INIT_REPEAT   opcode: 0x33 ('3')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): count
+	 *
+	 * Execute script following this opcode up to INIT_REPEAT_END
+	 * "count" times
+	 */
 
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REPEATING FOLLOWING SEGMENT %d TIMES.\n", 
-				offset, repeats);
+	uint8_t count = bios->data[offset + 1];
+	uint8_t i;
 
-		iexec->repeat = TRUE;
+	/* no iexec->execute check by design */
 
-		for (i = 0; i < repeats - 1; i++)
-			parse_init_table(pScrn, bios, offset + 2, iexec);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "0x%04X: REPEATING FOLLOWING SEGMENT %d TIMES.\n",
+		   offset, count);
 
-		iexec->repeat = FALSE;
-	}
+	iexec->repeat = TRUE;
+
+	/* count - 1, as the script block will execute once when we leave this
+	 * opcode -- this is compatible with bios behaviour as:
+	 * a) the block is always executed at least once, even if count == 0
+	 * b) the bios interpreter skips to the op following INIT_END_REPEAT,
+	 * while we don't
+	 */
+	for (i = 0; i < count - 1; i++)
+		parse_init_table(pScrn, bios, offset + 2, iexec);
+
+	iexec->repeat = FALSE;
+
 	return TRUE;
 }
 
-static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_end_repeat(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
+	/* INIT_END_REPEAT   opcode: 0x36 ('6')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * Marks the end of the block for INIT_REPEAT to repeat
+	 */
+
+	/* no iexec->execute check by design */
+
+	/* iexec->repeat flag necessary to go past INIT_END_REPEAT opcode when
+	 * we're not in repeat mode
+	 */
 	if (iexec->repeat)
 		return FALSE;
 
@@ -711,6 +717,94 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	return TRUE;
 }
 
+static Bool init_io_restrict_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_IO_RESTRICT_PLL2   opcode: 0x4A ('J')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): CRTC port
+	 * offset + 3  (8  bit): CRTC index
+	 * offset + 4  (8  bit): mask
+	 * offset + 5  (8  bit): shift
+	 * offset + 6  (8  bit): count
+	 * offset + 7  (32 bit): register
+	 * offset + 11 (32 bit): frequency 1
+	 * ...
+	 *
+	 * Starting at offset + 11 there are "count" 32 bit frequencies (kHz).
+	 * Set PLL register "register" to coefficients for frequency n,
+	 * selected by reading index "CRTC index" of "CRTC port" ANDed with
+	 * "mask" and shifted right by "shift".
+	 */
+
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
+	uint8_t crtcindex = bios->data[offset + 3];
+	uint8_t mask = bios->data[offset + 4];
+	uint8_t shift = bios->data[offset + 5];
+	uint8_t count = bios->data[offset + 6];
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 7])));
+	uint8_t config;
+	uint32_t freq;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
+			   offset, crtcport, crtcindex, mask, shift, count, reg);
+
+	if (!reg)
+		return TRUE;
+
+	nv_port_rd(pScrn, crtcport, crtcindex, &config);
+	config = (config & mask) >> shift;
+	if (config > count) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
+			   offset, config, count);
+		return FALSE;
+	}
+
+	freq = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 11 + config * 4])));
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %dkHz\n",
+			   offset, reg, config, freq);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+
+	return TRUE;
+}
+
+static Bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_PLL2   opcode: 0x4B ('K')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (32 bit): register
+	 * offset + 5  (32 bit): freq
+	 *
+	 * Set PLL register "register" to coefficients for frequency "freq"
+	 */
+
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t freq = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Reg: 0x%04X, Freq: %dkHz\n",
+			   offset, reg, freq);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+
+	return TRUE;
+}
+
 static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_PLL   opcode: 0x79 ('y')
@@ -732,8 +826,6 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Reg: 0x%04X, Freq: %d0kHz\n",
 			   offset, reg, freq);
-
-	/* FIXMElots */
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
 
@@ -801,129 +893,130 @@ Bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	return TRUE;
 }
 
-Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	CARD8 crtcindex = *((CARD8 *) (&bios->data[offset + 1]));
-	CARD8 crtcdata = *((CARD8 *) (&bios->data[offset + 2]));
-	CARD8 initial_index = *((CARD8 *) (&bios->data[offset + 3]));
-	CARD8 entries = *((CARD8 *) (&bios->data[offset + 4]));
-	CARD8 data;
+	/* INIT_CR_INDEX_ADDRESS_LATCHED   opcode: 0x51 ('Q')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): CRTC index1
+	 * offset + 2  (8 bit): CRTC index2
+	 * offset + 3  (8 bit): baseaddr
+	 * offset + 4  (8 bit): count
+	 * offset + 5  (8 bit): data 1
+	 * ...
+	 *
+	 * For each of "count" address and data pairs, write "baseaddr + n" to
+	 * "CRTC index1" and "data n" to "CRTC index2"
+	 * Once complete, restore initial value read from "CRTC index1"
+	 */
+	uint8_t crtcindex1 = bios->data[offset + 1];
+	uint8_t crtcindex2 = bios->data[offset + 2];
+	uint8_t baseaddr = bios->data[offset + 3];
+	uint8_t count = bios->data[offset + 4];
+	uint8_t oldaddr, data;
 	int i;
 
-	if (iexec->execute) {
-		for (i = 0; i < entries; i++) {
-			nv_set_crtc_index(pScrn, crtcindex);
+	if (!iexec->execute)
+		return TRUE;
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: %02X    DATA: %02X\n", offset,
-					crtcindex, initial_index + i);
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Index1: 0x%02X, Index2: 0x%02X, BaseAddr: 0x%02X, Count: 0x%02X\n",
+			   offset, crtcindex1, crtcindex2, baseaddr, count);
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-					nv_rd_crtc_data(pScrn));
+	nv_port_rd(pScrn, CRTC_INDEX, crtcindex1, &oldaddr);
 
-			nv_wr_crtc_data(pScrn, initial_index + i);
+	for (i = 0; i < count; i++) {
+		nv_port_wr(pScrn, CRTC_INDEX, crtcindex1, baseaddr + i);
 
-			nv_set_crtc_index(pScrn, crtcdata);
-
-			data = *((CARD8 *) (&bios->data[offset + 5 + i]));
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: %02X    DATA: %02X\n", offset,
-					crtcdata, data);
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-					nv_rd_crtc_data(pScrn));
-
-			nv_wr_crtc_data(pScrn, data);
-		}
+		data = bios->data[offset + 5 + i];
+		nv_port_wr(pScrn, CRTC_INDEX, crtcindex2, data);
 	}
+
+	nv_port_wr(pScrn, CRTC_INDEX, crtcindex1, oldaddr);
+
 	return TRUE;
 }
 
-Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* XXX: IS THIS CORRECT? check the typecast .. probably wrong */
-
-	NVPtr pNv = NVPTR(pScrn);
-	CARD8 index = *((CARD32 *) (&bios->data[offset + 1])); 
-	CARD8 and = *((CARD8 *) (&bios->data[offset + 2]));
-	CARD8 or = *((CARD8 *) (&bios->data[offset + 3]));
-	CARD8 data;
-
-	if (iexec->execute) {
-		nv_set_crtc_index(pScrn, index);
-		data = (nv_rd_crtc_data(pScrn) & and) | or;
-		/*printf("and: 0x%02x    or: 0x%02x\n", and, or);*/
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: 0x%02X, VALUE: 0x%02X\n", offset, 
-				index, data);
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				nv_rd_crtc_data(pScrn));
-
-		nv_wr_crtc_data(pScrn, data);
-	}
-	return TRUE;
-}
-
-static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
-{
-	/* INIT_ZM_CR   opcode: 0x53
-	 * 
+	/* INIT_CR   opcode: 0x52 ('R')
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (8  bit): CRTC index
-	 * offset + 2  (8  bit): value
-	 * 
+	 * offset + 2  (8  bit): mask
+	 * offset + 3  (8  bit): data
+	 *
+	 * Assign the value of at "CRTC index" ANDed with mask and ORed with data
+	 * back to "CRTC index"
+	 */
+
+	uint8_t crtcindex = bios->data[offset + 1];
+	uint8_t mask = bios->data[offset + 2];
+	uint8_t data = bios->data[offset + 3];
+	uint8_t value;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
+			   offset, crtcindex, mask, data);
+
+	nv_port_rd(pScrn, CRTC_INDEX, crtcindex, &value);
+
+	value = (value & mask) | data;
+
+	nv_port_wr(pScrn, CRTC_INDEX, crtcindex, value);
+
+	return TRUE;
+}
+
+static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_ZM_CR   opcode: 0x53 ('S')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): CRTC index
+	 * offset + 2  (8 bit): value
+	 *
 	 * Assign "value" to CRTC register with index "CRTC index".
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	CARD8 index = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD8 value = *((CARD8 *) (&bios->data[offset + 2]));
+	uint8_t crtcindex = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint8_t data = bios->data[offset + 2];
 
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: 0x%02X, VALUE: 0x%02X\n", offset, 
-				index, value);
+	if (!iexec->execute)
+		return TRUE;
 
-		nv_set_crtc_index(pScrn, index);
+	nv_port_wr(pScrn, CRTC_INDEX, crtcindex, data);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				nv_rd_crtc_data(pScrn));
-
-		nv_wr_crtc_data(pScrn, value);
-	}
 	return TRUE;
 }
 
-static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_ZM_CR   opcode: 0x54
+	/* INIT_ZM_CR   opcode: 0x54 ('T')
 	 * 
-	 * offset      (8  bit): opcode
-	 * offset + 1  (8  bit): number of groups (index, value)
-	 * offset + 2  (8  bit): index 1
-	 * offset + 3  (8  bit): value 1
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): count
+	 * offset + 2  (8 bit): CRTC index 1
+	 * offset + 3  (8 bit): value 1
 	 * ...
 	 * 
-	 * Assign "value n" to CRTC register with index "index n".
+	 * For "count", assign "value n" to CRTC register with index "CRTC index n".
 	 */
     
-	CARD8 nr = *((CARD8 *) (&bios->data[offset + 1]));
-	CARD8 index, value;
+	uint8_t count = bios->data[offset + 1];
 	int i;
 	
-	if (iexec->execute) {
-		for (i = 0; i < nr; i++) {
-			index = *((CARD8 *) (&bios->data[offset + 2 + 2 * i]));
-			value = *((CARD8 *) (&bios->data[offset + 2 + 2 * i + 1]));
+	if (!iexec->execute)
+		return TRUE;
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CRTC INDEX: 0x%02X, VALUE: 0x%02X\n", offset,
-					index, value);
+	for (i = 0; i < count; i++)
+		init_zm_cr(pScrn, bios, offset + 2 + 2 * i - 1, iexec);
 
-			nv_set_crtc_index(pScrn, index);
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset,
-					nv_rd_crtc_data(pScrn));
-			nv_wr_crtc_data(pScrn, value);
-		}
-	}
 	return TRUE;
 }
 
@@ -935,38 +1028,46 @@ static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, 
 	return FALSE;
 }
 
-static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_ZM_REG_SEQUENCE   opcode: 0x58
+	/* INIT_ZM_REG_SEQUENCE   opcode: 0x58 ('X')
 	 * 
 	 * offset      (8  bit): opcode
-	 * offset + 1  (32 bit): register base
-	 * offset + 5  (8  bit): nr
-	 * offset + 6  (32 bit): value to assign "register base" + 4
+	 * offset + 1  (32 bit): base register
+	 * offset + 5  (8  bit): count
+	 * offset + 6  (32 bit): value 1
 	 * ...
 	 * 
-	 * Initialzies a sequence of "nr" registers starting at "register base".
+	 * Starting at offset + 6 there are "count" 32 bit values.
+	 * For "count" iterations set "base register" + 4 * current_iteration
+	 * to "value current_iteration"
 	 */
 
-	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD32 nr = *((CARD8 *) (&bios->data[offset + 5]));
-	CARD32 data;
-	CARD32 tmp;
+	uint32_t basereg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t count = bios->data[offset + 5];
 	int i;
 
-	if (iexec->execute) {
-		for (i = 0; i < nr; i++) {
-			data = *((CARD32 *) (&bios->data[offset + 6 + i * 4]));
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset,
-					reg + i * 4, data);
+	if (!iexec->execute)
+		return TRUE;
 
-			nv32_rd(pScrn, reg + i * 4, &tmp);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
-				offset, tmp);
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: BaseReg: 0x%08X, Count: 0x%02X\n",
+			   offset, basereg, count);
 
-			nv32_wr(pScrn, reg + i * 4, data);
-		}
+	for (i = 0; i < count; i++) {
+		uint32_t reg = basereg + i * 4;
+
+		if ((reg & 0xffc) == 0x3c0)
+			ErrorF("special case: FIXME\n");
+		if ((reg & 0xffc) == 0x3cc)
+			ErrorF("special case: FIXME\n");
+
+		uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 6 + i * 4])));
+
+		nv32_wr(pScrn, reg, data);
 	}
+
 	return TRUE;
 }
 
@@ -1001,9 +1102,9 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 	return TRUE;
 }
 
-static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_SUB_DIRECT   opcode: 0x5B
+	/* INIT_SUB_DIRECT   opcode: 0x5B ('[')
 	 * 
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): subroutine offset (in bios)
@@ -1012,16 +1113,19 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init
 	 * is found. 
 	 */
 
-	CARD16 sub_offset = le16_to_cpu(*((CARD16 *) (&bios->data[offset + 1])));
+	uint16_t sub_offset = le16_to_cpu(*((uint16_t *) (&bios->data[offset + 1])));
 
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-ROUTINE AT: 0x%04X\n", 
-				offset, sub_offset);
+	if (!iexec->execute)
+		return TRUE;
 
-		parse_init_table(pScrn, bios, sub_offset, iexec);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-ROUTINE AT 0x%04X\n",
+			offset, sub_offset);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-ROUTINE\n", offset);
-	}
+	parse_init_table(pScrn, bios, sub_offset, iexec);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-ROUTINE AT 0x%04X\n",
+			offset, sub_offset);
+
 	return TRUE;
 }
 
@@ -1220,19 +1324,31 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	return TRUE;
 }
 
-static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	CARD8 sub = *((CARD8 *) (&bios->data[offset + 1]));
+	/* INIT_SUB   opcode: 0x6B ('k')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): script number
+	 *
+	 * Execute script number "script number", as a subroutine
+	 */
 
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: EXECUTING SUB-SCRIPT: %d\n", offset, sub);
+	uint8_t sub = bios->data[offset + 1];
 
-		parse_init_table(pScrn, bios, 
-				le16_to_cpu(*((CARD16 *) (&bios->data[bios->init_script_tbls_ptr + sub * 2]))),
-				iexec);
+	if (!iexec->execute)
+		return TRUE;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: END OF SUB-SCRIPT\n", offset);
-	}
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "0x%04X: EXECUTING SUB-SCRIPT %d\n", offset, sub);
+
+	parse_init_table(pScrn, bios,
+			 le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2]))),
+			 iexec);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "0x%04X: END OF SUB-SCRIPT %d\n", offset, sub);
+
 	return TRUE;
 }
 
@@ -1559,8 +1675,8 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_NOT"                          , 0x38, 1       , 0       , 0       , init_not                        },
 	{ "INIT_IO_FLAG_CONDITION"            , 0x39, 2       , 0       , 0       , init_io_flag_condition          },
 	{ "INIT_INDEX_ADDRESS_LATCHED"        , 0x49, 18      , 17      , 2       , init_idx_addr_latched           },
-/*	{ "INIT_IO_RESTRICT_PLL"              , 0x4A, 43      , 0       , 0       , init_io_restrict_pll            }, */
-/*	{ "INIT_PLL"                          , 0x4B, 9       , 0       , 0       , init_pll                        }, */
+	{ "INIT_IO_RESTRICT_PLL2"             , 0x4A, 11      , 6       , 4       , init_io_restrict_pll2           },
+	{ "INIT_PLL2"                         , 0x4B, 9       , 0       , 0       , init_pll2                       },
 /*	{ "INIT_I2C_BYTE"                     , 0x4C, x       , x       , x       , init_i2c_byte                   }, */
 /*	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, x       , x       , x       , init_zm_i2c_byte                }, */
 /*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
