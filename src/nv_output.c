@@ -569,20 +569,13 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 
 	/* Put test control into what seems to be the neutral position */
 	if (pNv->NVArch < 0x44) {
-		regp->test_control = 0xf0000000;
+		regp->test_control = 0x00000000;
 	} else {
-		regp->test_control = 0xf0100000;
+		regp->test_control = 0x00100000;
 	}
 
 	/* This is a similar register to test control */
-	/* This is an educated guess */
-	/* The blob doesn't set this on ramdac 1, so maybe the primary one counts for both? */
-	if (pNv->NVArch < 0x44) {
-		regp->unk_670 = 0xf0010000;
-	} else {
-		/* This seems to be a safer guess */
-		regp->unk_670 = 0xf0110000;
-	}
+	regp->unk_670 = regp->test_control;
 
 	/* This may be causing problems */
 	//regp->unk_900 = 0x10000;
@@ -735,6 +728,11 @@ nv_crt_load_detect(xf86OutputPtr output)
 	} else if (nv_output->valid_ramdac & RAMDAC_0) {
 		ramdac = 0;
 	} else {
+		return FALSE;
+	}
+
+	/* For some reason we get false positives on ramdac 1, maybe due tv-out? */
+	if (ramdac == 1) {
 		return FALSE;
 	}
 
