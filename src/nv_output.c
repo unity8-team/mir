@@ -1215,31 +1215,13 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int i
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, i2c_index = 0xf, old_i2c_index, or, heads;
+	unsigned char type, i2c_index, or, heads, bus;
 	NVPtr pNv = NVPTR(pScrn);
-	int i;
-	Bool dvi_pair[MAX_NUM_DCB_ENTRIES];
+	int i, bus_count[0xf];
 
-	/* check how many TMDS ports there are */
-	if (pNv->dcb_table.entries) {
-		for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-			type = pNv->dcb_table.entry[i].type;
-			old_i2c_index = i2c_index;
-			i2c_index = pNv->dcb_table.entry[i].i2c_index;
-			or = ffs(pNv->dcb_table.entry[i].or);
-			dvi_pair[i] = FALSE;
-
-			/* Are we on the same i2c index? */
-			if (i2c_index != 0xf && i2c_index == old_i2c_index) {
-				/* Have we passed the analog connector or not? */
-				if (type == OUTPUT_TMDS) {
-					dvi_pair[i - 1] = TRUE;
-				} else if (type == OUTPUT_ANALOG) {
-					dvi_pair[i] = TRUE;
-				}
-			}
-		}
-	}
+	memset(bus_count, 0, sizeof(bus_count));
+	for (i = 0 ; i < pNv->dcb_table.entries; i++)
+		bus_count[pNv->dcb_table.entry[i].bus]++;
 
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
@@ -1247,23 +1229,27 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 		i2c_index = pNv->dcb_table.entry[i].i2c_index;
 		or = ffs(pNv->dcb_table.entry[i].or);
 		heads = pNv->dcb_table.entry[i].head;
+		bus = pNv->dcb_table.entry[i].bus;
 
-		if (type < 4) {
-			xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, head: %d, or: %d\n", i, type, i2c_index, pNv->dcb_table.entry[i].head, or);
+		if (type > 3) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
+			continue;
+		}
 
-			switch(type) {
-			case OUTPUT_ANALOG:
-				nv_add_analog_output(pScrn, heads, or, i2c_index, dvi_pair[i]);
-				break;
-			case OUTPUT_TMDS:
-				nv_add_digital_output(pScrn, heads, or, i2c_index, 0);
-				break;
-			case OUTPUT_LVDS:
-				nv_add_digital_output(pScrn, heads, or, i2c_index, 1);
-				break;
-			default:
-				break;
-			}
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, head: %d, bus: %d, or: %d\n", i, type, i2c_index, heads, bus, or);
+
+		switch(type) {
+		case OUTPUT_ANALOG:
+			nv_add_analog_output(pScrn, heads, or, i2c_index, (bus_count[bus] > 1));
+			break;
+		case OUTPUT_TMDS:
+			nv_add_digital_output(pScrn, heads, or, i2c_index, 0);
+			break;
+		case OUTPUT_LVDS:
+			nv_add_digital_output(pScrn, heads, or, i2c_index, 1);
+			break;
+		default:
+			break;
 		}
 	}
 }
