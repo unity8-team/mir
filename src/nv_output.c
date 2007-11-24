@@ -895,7 +895,7 @@ nv_output_prepare(xf86OutputPtr output)
 		return;
 	}
 
-	/* We need this ramdac, so let's steal it */
+	/* We need ramdac 0, so let's steal it */
 	if (!(nv_output->valid_ramdac & RAMDAC_1) && pNv->ramdac_active[0]) {
 		ErrorF("Stealing ramdac0 ;-)\n");
 		int i;
@@ -914,10 +914,29 @@ nv_output_prepare(xf86OutputPtr output)
 		stole_ramdac = TRUE;
 	}
 
+	/* We need ramdac 1, so let's steal it */
+	if (!(nv_output->valid_ramdac & RAMDAC_0) && pNv->ramdac_active[1]) {
+		ErrorF("Stealing ramdac1 ;-)\n");
+		int i;
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		NVOutputPrivatePtr nv_output2;
+		for (i = 0; i < xf86_config->num_output; i++) {
+			output2 = xf86_config->output[i];
+			nv_output2 = output2->driver_private;
+			if (nv_output2->ramdac == 1 && output != output2) {
+				nv_output2->ramdac = -1;
+				nv_output2->ramdac_assigned = FALSE;
+				break;
+			}
+		}
+		pNv->ramdac_active[1] = FALSE;
+		stole_ramdac = TRUE;
+	}
+
 	/* TODO: figure out what ramdac 2 is and how it is identified */
 
-	/* At this point we already stole ramdac 0 if we need it */
-	if (!pNv->ramdac_active[0]) {
+	/* At this point we already stole ramdac 0 or 1 if we need it */
+	if (!pNv->ramdac_active[0] && (nv_output->valid_ramdac & RAMDAC_0)) {
 		ErrorF("Activating ramdac %d\n", 0);
 		pNv->ramdac_active[0] = TRUE;
 		nv_output->ramdac = 0;
