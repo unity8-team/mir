@@ -1,3 +1,49 @@
+xserver-xorg-video-intel (2:2.2.0-1ubuntu1) hardy; urgency=low
+
+  * Merge from debian unstable, remaining changes:
+    - debian/patches
+      + 01_fix_compiz_video.diff:
+        use xf86XVFillKeyHelperDrawable() to fix video playback with
+        compositing enabled
+      + 05_fix_xv_reset.diff
+        Playing Xv video after switching modes once the Xv driver is
+        initialised causes a lockup, as the overlay regisers need
+        re-programming. Ensure such a reset happens after a mode-switch.
+    - debian/control
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+    - Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to coexist
+      until -intel is able to replace it completely.
+      debian/control:
+      + Nuke Conflicts and Replaces related to -i810.
+      debian/rules:
+      + Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
+      + Nuke /usr/share/man/man4/i810.4 conflict
+    - These patches have been disabled for now, since they don't apply 
+      fully and need closer investigation:
+      + 03_fix_brightness_control.diff:
+        add code from upstream to avoid confusing the platform firmware
+        brightness control
+      + 04_fix_hw_restore.diff
+        Only restore PIPE[AB]CONF if the DPLL for that PIPE is running
+        and not in VGA pipeline mode.
+      + 07_fix_startup_blink.diff
+        Alter startup sequence to avoid blinking the display whilst
+        initialising the graphics chip.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Sat, 24 Nov 2007 19:35:11 +0200
+
+xserver-xorg-video-intel (2:2.2.0-1) unstable; urgency=low
+
+  * New upstream release.
+    + Also pull bugfix commit 4a2b0f340357c4ca58dc9586fad1337b83966362.
+    + Fix backlight problems on various chipsets,
+      closes: #443111, #438969, #439744.
+    + Fix some issues with high resolution, closes: #420840.
+  * Add myself to Uploaders and remove Branden with his permission.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 16 Nov 2007 09:30:26 +0100
+
 xserver-xorg-video-intel (2:2.1.99-1ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable, remaining changes:
@@ -437,3 +483,4 @@ xserver-xorg-driver-i810 (1:1.4.0-1) breezy; urgency=low
   * First xserver-xorg-driver-i810 release.
 
  -- Daniel Stone <daniel.stone@ubuntu.com>  Wed,  6 Jul 2005 15:48:17 +1000
+

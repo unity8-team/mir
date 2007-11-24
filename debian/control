@@ -3,7 +3,7 @@ Section: x11
 Priority: optional
 Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
-Uploaders: David Nusinow <dnusinow@debian.org>, Branden Robinson <branden@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>
+Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>, Brice Goglin <bgoglin@debian.org>
 Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>= 2:1.4), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev
 Standards-Version: 3.7.2
 XS-Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel

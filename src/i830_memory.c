@@ -106,7 +106,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i830.h"
 #include "i810_reg.h"
-#include "i830_reg.h"
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
@@ -389,7 +388,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
-    int ret;
 #ifdef XF86DRI_MM
     int dri_major, dri_minor, dri_patch;
 #endif
@@ -477,6 +475,8 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 				   ALIGN_BOTH_ENDS | NEED_NON_STOLEN);
 
 	if (pI830->memory_manager != NULL) {
+	    int ret;
+
 	    /* Tell the kernel to manage it */
 	    ret = drmMMInit(pI830->drmSubFD,
 			    pI830->memory_manager->offset / GTT_PAGE_SIZE,
@@ -824,10 +824,11 @@ i830_memory *
 i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 		     unsigned long size, unsigned long alignment, int flags)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
 
 #ifdef XF86DRI_MM
+    I830Ptr pI830 = I830PTR(pScrn);
+
     if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
 	!(flags & NEED_LIFETIME_FIXED))
     {

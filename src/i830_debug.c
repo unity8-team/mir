@@ -403,6 +403,15 @@ static struct i830SnapshotRec {
     DEFINEREG2(PIPEACONF, i830_debug_pipeconf),
     DEFINEREG2(PIPEASRC, i830_debug_yxminus1),
 
+    DEFINEREG(FBC_CFB_BASE),
+    DEFINEREG(FBC_LL_BASE),
+    DEFINEREG(FBC_CONTROL),
+    DEFINEREG(FBC_COMMAND),
+    DEFINEREG(FBC_STATUS),
+    DEFINEREG(FBC_CONTROL2),
+    DEFINEREG(FBC_FENCE_OFF),
+    DEFINEREG(FBC_MOD_NUM),
+
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
     DEFINEREG2(DPLL_A, i830_debug_dpll),
@@ -564,7 +573,7 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int i;
-    uint16_t st01, palette_enable = 0;
+    uint16_t st01;
     unsigned char orig_arx, msr;
 
     msr = INREG8(0x3cc);

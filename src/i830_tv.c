@@ -1178,7 +1178,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    (i830_float_to_csc(color_conversion->bv) << 16) |
 	    (i830_float_to_luma(color_conversion->av)));
 
-    OUTREG(TV_CLR_KNOBS, 0x10606000);
+    OUTREG(TV_CLR_KNOBS, 0x00606000);
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 		(video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     {
@@ -1398,6 +1398,7 @@ static struct input_res {
 	{"1280x1024", 1280, 1024},
 	{"848x480", 848, 480},
 	{"1280x720", 1280, 720},
+	{"1920x1080", 1920, 1080},
 };
 
 /**
