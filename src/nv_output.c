@@ -468,10 +468,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	if (is_fp) {
 		regp->TMDS[0x4] = 0x80;
 		/* Enable crosswired mode */
-		/* As far as i know, this may never be set on ramdac 0 tmds registers (ramdac 1 -> crosswired -> ramdac 0 tmds regs) */
 		/* This will upset the monitor, trust me, i know it :-( */
 		/* Now allowed for non-bios inited systems */
-		if ((nv_crtc->head == 0) && (nv_output->valid_ramdac & RAMDAC_1)) {
+		if (nv_crtc->head != nv_output->preferred_crtc) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
 
@@ -1104,6 +1103,14 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int i2
 
 	nv_output->ramdac = -1;
 
+	/* This is only to facilitate proper output routing for dvi */
+	/* See sel_clk assignment in nv_crtc.c */
+	if (order & RAMDAC_1) {
+		nv_output->preferred_crtc = 1;
+	} else {
+		nv_output->preferred_crtc = 0;
+	}
+
 	output->possible_crtcs = heads;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
@@ -1173,6 +1180,15 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int i
 	output->driver_private = nv_output;
 
 	nv_output->ramdac = -1;
+
+	/* This is a theory: */
+	/* DVI outputs are in no way bound to ramdac's, but exist purely on a crtc level */
+	/* Don't ask why this relation seems valid, ask those weirdos at nvidia */
+	if (order & RAMDAC_1) {
+		nv_output->preferred_crtc = 1;
+	} else {
+		nv_output->preferred_crtc = 0;
+	}
 
 	output->possible_crtcs = heads;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);

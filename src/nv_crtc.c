@@ -922,9 +922,16 @@ void nv_crtc_calc_state_ext(
 		if (!state->sel_clk)
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
-		if (nv_output->type == OUTPUT_TMDS) {
+		/* The rough idea is this:
+		 * 0x40000: Normal wiring for dvi panels.
+		 * 0x10000: Cross wiring for dvi panels (not a 100% sure if this is also true for dual-crosswire).
+		 * 0x00000: No dvi panels present.
+		 * Other bits also exist, but we leave those intact.
+		 */
+
+		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 			/* Clean out all the bits and enable another mode */
-			if (nv_crtc->head == 1) {
+			if (nv_crtc->head == nv_output->preferred_crtc) {
 				state->sel_clk &= ~(0xf << 16);
 				state->sel_clk |= (1 << 18);
 			} else {
@@ -932,18 +939,35 @@ void nv_crtc_calc_state_ext(
 				state->sel_clk |= (1 << 16);
 			}
 		} else {
-			/* Only unset the specific bits that would have been set if we were a TMDS */
-			if (nv_crtc->head == 1) {
-				state->sel_clk &= ~(0x4 << 16);
+			int other_index = (~nv_crtc->head) & 1;
+			xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, other_index);
+			if (crtc2->enabled) {
+				xf86OutputPtr output2 = NVGetOutputFromCRTC(crtc2);
+				NVOutputPrivatePtr nv_output2 = output2->driver_private;
+				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
+					/* Clean out all the bits and enable another mode */
+					if (other_index == nv_output2->preferred_crtc) {
+						state->sel_clk &= ~(0xf << 16);
+						state->sel_clk |= (1 << 18);
+					} else {
+						state->sel_clk &= ~(0xf << 16);
+						state->sel_clk |= (1 << 16);
+					}
+				} else {
+					/* Destroy all tmds traces */
+					state->sel_clk &= ~(0xf << 16);
+				}
 			} else {
-				state->sel_clk &= ~(0x1 << 16);
+				/* Destroy all tmds traces */
+				state->sel_clk &= ~(0xf << 16);
 			}
 		}
 
-		/* Are we a TMDS running on head 0(=ramdac 0), but native to ramdac 1? */
-		if (nv_crtc->head == 0 && nv_output->type == OUTPUT_TMDS && nv_output->valid_ramdac & RAMDAC_1) {
+		/* Are we crosswired? */
+		if (nv_crtc->head != nv_output->preferred_crtc && 
+			(nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			state->crosswired = TRUE;
-		} else if (nv_crtc->head == 0) {
+		} else if (nv_crtc->head != nv_output->preferred_crtc) {
 			state->crosswired = FALSE;
 		}
 
