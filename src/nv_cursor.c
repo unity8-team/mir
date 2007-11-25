@@ -75,7 +75,7 @@
 /* Limit non-alpha cursors to 32x32 (x2 bytes) */
 #define MAX_CURSOR_SIZE 32
 
-/* Limit alpha cursors to 32x32 (x4 bytes) */
+/* Limit alpha cursors to 64x64 (x4 bytes) */
 #define MAX_CURSOR_SIZE_ALPHA (MAX_CURSOR_SIZE * 2)
 
 static void 
@@ -412,25 +412,14 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 fore, back;
 
-	if(pNv->alphaCursor) {
-		fore = ConvertToRGB888(fg);
-		back = ConvertToRGB888(bg);
+	fore = ConvertToRGB555(fg);
+	back = ConvertToRGB555(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-		if(pNv->NVArch == 0x11) {
-			fore = BYTE_SWAP_32(fore);
-			back = BYTE_SWAP_32(back);
-		}
-#endif
-	} else {
-		fore = ConvertToRGB555(fg);
-		back = ConvertToRGB555(bg);
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		if(pNv->NVArch == 0x11) {
-			fore = ((fore & 0xff) << 8) | (fore >> 8);
-			back = ((back & 0xff) << 8) | (back >> 8);
-		}
-#endif
+	if(pNv->NVArch == 0x11) {
+		fore = ((fore & 0xff) << 8) | (fore >> 8);
+		back = ((back & 0xff) << 8) | (back >> 8);
 	}
+#endif
 
 	/* Eventually this must be replaced as well */
 	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
