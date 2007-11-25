@@ -289,7 +289,30 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 }
 
 /* This sequence is an optimized/shortened version of what the blob does */
-int tmds_regs[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a };
+uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x43, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a };
+uint32_t tmds_regs_nv30[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x29, 0x2a, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a };
+
+#define TMDS_REGS(index) ( tmds_regs(pNv, index) )
+
+uint32_t tmds_regs(NVPtr pNv, int i)
+{
+	if (pNv->Architecture == NV_ARCH_40) {
+		return tmds_regs_nv40[i];
+	} else {
+		return tmds_regs_nv30[i];
+	}
+}
+
+#define TMDS_SIZE ( tmds_size(pNv) )
+
+uint32_t tmds_size(NVPtr pNv)
+{
+	if (pNv->Architecture == NV_ARCH_40) {
+		return(sizeof(tmds_regs_nv40)/sizeof(tmds_regs_nv40[0]));
+	} else {
+		return(sizeof(tmds_regs_nv30)/sizeof(tmds_regs_nv30[0]));
+	}
+}
 
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
@@ -309,18 +332,17 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	/* This exists purely for proper text mode restore */
 	if (override) regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
-	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
-	/* Also write on VT restore */
-	if (nv_output->type != OUTPUT_LVDS || override )
-		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-			regp->TMDS[tmds_regs[i]] = NVOutputReadTMDS(output, tmds_regs[i]);
-		}
+	for (i = 0; i < TMDS_SIZE; i++) {
+		regp->TMDS[TMDS_REGS(i)] = NVOutputReadTMDS(output, TMDS_REGS(i));
+	}
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVOutputRegPtr regp;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
@@ -333,12 +355,9 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
 	NVOutputWriteRAMDAC(output, NV_RAMDAC_670, regp->unk_670);
 
-	/* I want to be able reset TMDS registers for DVI-D/DVI-A pairs for example */
-	/* Also write on VT restore */
-	if (nv_output->type != OUTPUT_LVDS || override )
-		for (i = 0; i < sizeof(tmds_regs)/sizeof(tmds_regs[0]); i++) {
-			NVOutputWriteTMDS(output, tmds_regs[i], regp->TMDS[tmds_regs[i]]);
-		}
+	for (i = 0; i < TMDS_SIZE; i++) {
+		NVOutputWriteTMDS(output, TMDS_REGS(i), regp->TMDS[TMDS_REGS(i)]);
+	}
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -487,7 +506,12 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		/* Various combinations exist for lvds, 0x08, 0x48, 0xc8, 0x88 */
 		/* 0x88 seems most popular and (maybe) the end setting */
 		if (is_lvds) {
-			regp->TMDS[0x2e] = 0x88;
+			if (pNv->Architecture == NV_ARCH_40) {
+				regp->TMDS[0x2e] = 0x88;
+			} else {
+				/* observed on nv31m */
+				regp->TMDS[0x2e] = 0x0;
+			}
 		} else {
 			if (nv_crtc->head == 1) {
 				regp->TMDS[0x2e] = 0x81;
@@ -506,14 +530,19 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 
 		/* Here starts the registers that may cause problems for some */
 		/* This an educated guess */
-		if (pNv->misc_info.reg_c040 & (1 << 10)) {
+		if (pNv->Architecture == NV_ARCH_40 && pNv->misc_info.reg_c040 & (1 << 10)) {
 			regp->TMDS[0x5] = 0x68;
 		} else {
 			regp->TMDS[0x5] = 0x6e;
 		}
 
 		if (is_lvds) {
-			regp->TMDS[0x0] = 0x61;
+			if (pNv->Architecture == NV_ARCH_40) {
+				regp->TMDS[0x0] = 0x61;
+			} else {
+				/* observed on a nv31m */
+				regp->TMDS[0x0] = 0x71;
+			}
 		} else {
 			/* This seems to be related to PLL_SETUP_CONTROL */
 			/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xc1 */
@@ -545,14 +574,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 				regp->TMDS[0x2] = 0x89;
 			}
 		}
-		/* This test is not needed for me although the blob sets this value */
-		/* It may be wrong, but i'm leaving it for historical reference */
-		/*if (pNv->misc_info.reg_c040 == 0x3c0bc003 || pNv->misc_info.reg_c040 == 0x3c0bc333) {
-			regp->TMDS[0x2] = 0xa9;
-		}*/
 
 		/* I assume they are zero for !is_lvds */
-		if (is_lvds) {
+		if (is_lvds && pNv->Architecture == NV_ARCH_40) {
 			/* Observed values are 0x11 and 0x14, TODO: this needs refinement */
 			regp->TMDS[0x40] = 0x14;
 			regp->TMDS[0x43] = 0xb0;
