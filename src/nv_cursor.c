@@ -446,8 +446,33 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t *dst = (uint32_t*)pNv->CURSOR;
+	uint32_t *src = image;
 
-	/* Copy the cursor straight into the right registers */
-	memcpy(CURSOR_PTR, image, 16384);
+	/* It seems we get premultiplied alpha and the hardware takes non-premultiplied? */
+	/* This is needed, because without bit28 of cursorControl, we use what ever ROP is set currently */
+	/* This causes artifacts (on nv4x at least) */
+	int x, y;
+	uint32_t alpha, value;
+
+	for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
+		for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
+			alpha = *src >> 24;
+			if (alpha == 0x0 || alpha == 0xff) {
+				value = *src;
+			} else {
+				value = 	((((*src & 0xff) * 0xff) / alpha) 		& 0x000000ff)	|
+						((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00)	|
+						((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000)	|
+						((alpha << 24)				& 0xff000000);
+			}
+			src++;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+			*dst++ = BYTE_SWAP_32(value);
+#else
+			*dst++ = value;
+#endif
+		}
+	}
 }
 
