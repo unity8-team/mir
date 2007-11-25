@@ -1541,15 +1541,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->head |= NV_CRTC_FSEL_I2C;
 	}
 
-	regp->cursorConfig = 0x00000100;
+	/* This is not what nv does, but it is what the blob does (for nv4x at least) */
+	/* This fixes my cursor corruption issue */
+	regp->cursorConfig = 0x0;
 	if(mode->Flags & V_DBLSCAN)
 		regp->cursorConfig |= (1 << 4);
-	if(pNv->alphaCursor) {
-		if((pNv->Chipset & 0x0ff0) != CHIPSET_NV11) {
-			regp->cursorConfig |= 0x04011000;
-		} else {
-			regp->cursorConfig |= 0x14011000;
-		}
+	if (pNv->alphaCursor) {
+		regp->cursorConfig |= 0x14011000;
 	} else {
 		regp->cursorConfig |= 0x02000000;
 	}
