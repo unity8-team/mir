@@ -81,87 +81,87 @@
 static void 
 ConvertCursor1555(NVPtr pNv, CARD32 *src, CARD16 *dst)
 {
-    CARD32 b, m;
-    int i, j;
-    
-    for ( i = 0; i < MAX_CURSOR_SIZE; i++ ) {
-        b = *src++;
-        m = *src++;
-        for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
+	CARD32 b, m;
+	int i, j;
+
+	for ( i = 0; i < MAX_CURSOR_SIZE; i++ ) {
+		b = *src++;
+		m = *src++;
+		for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-            if ( m & 0x80000000)
-                *dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
-            else
-                *dst = TRANSPARENT_PIXEL;
-            b <<= 1;
-            m <<= 1;
+			if ( m & 0x80000000)
+				*dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
+			else
+				*dst = TRANSPARENT_PIXEL;
+			b <<= 1;
+			m <<= 1;
 #else
-            if ( m & 1 )
-                *dst = ( b & 1) ? pNv->curFg : pNv->curBg;
-            else
-                *dst = TRANSPARENT_PIXEL;
-            b >>= 1;
-            m >>= 1;
+			if ( m & 1 )
+				*dst = ( b & 1) ? pNv->curFg : pNv->curBg;
+			else
+				*dst = TRANSPARENT_PIXEL;
+			b >>= 1;
+			m >>= 1;
 #endif
-            dst++;
-        }
-    }
+			dst++;
+		}
+	}
 }
 
 
 static void
 ConvertCursor8888(NVPtr pNv, CARD32 *src, CARD32 *dst)
 {
-    CARD32 b, m;
-    int i, j;
-   
-    /* Iterate over each byte in the cursor. */
-    for ( i = 0; i < MAX_CURSOR_SIZE * 4; i++ ) {
-        b = *src++;
-        m = *src++;
-        for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
+	CARD32 b, m;
+	int i, j;
+
+	/* Iterate over each byte in the cursor. */
+	for ( i = 0; i < MAX_CURSOR_SIZE * 4; i++ ) {
+		b = *src++;
+		m = *src++;
+		for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-            if ( m & 0x80000000)
-                *dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
-            else
-                *dst = TRANSPARENT_PIXEL;
-            b <<= 1;
-            m <<= 1;
+			if ( m & 0x80000000)
+				*dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
+			else
+				*dst = TRANSPARENT_PIXEL;
+			b <<= 1;
+			m <<= 1;
 #else
-            if ( m & 1 )
-                *dst = ( b & 1) ? pNv->curFg : pNv->curBg;
-            else
-                *dst = TRANSPARENT_PIXEL;
-            b >>= 1;
-            m >>= 1;
+			if ( m & 1 )
+				*dst = ( b & 1) ? pNv->curFg : pNv->curBg;
+			else
+				*dst = TRANSPARENT_PIXEL;
+			b >>= 1;
+			m >>= 1;
 #endif
-            dst++;
-        }
-    }
+			dst++;
+		}
+	}
 }
 
 
 static void
 TransformCursor (NVPtr pNv)
 {
-    CARD32 *tmp;
-    int i, dwords;
+	CARD32 *tmp;
+	int i, dwords;
 
-    /* convert to color cursor */
-    if(pNv->alphaCursor) {
-       dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
-       if(!(tmp = xalloc(dwords * 4))) return;
-       ConvertCursor8888(pNv, pNv->curImage, tmp);
-    } else {
-       dwords = (MAX_CURSOR_SIZE * MAX_CURSOR_SIZE) >> 1;
-       if(!(tmp = xalloc(dwords * 4))) return;
-       ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
-    }
+	/* convert to color cursor */
+	if(pNv->alphaCursor) {
+		dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
+		if(!(tmp = xalloc(dwords * 4))) return;
+		ConvertCursor8888(pNv, pNv->curImage, tmp);
+	} else {
+		dwords = (MAX_CURSOR_SIZE * MAX_CURSOR_SIZE) >> 1;
+		if(!(tmp = xalloc(dwords * 4))) return;
+		ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
+	}
 
-    for(i = 0; i < dwords; i++)
-        pNv->CURSOR[i] = tmp[i];
+	for(i = 0; i < dwords; i++)
+		pNv->CURSOR[i] = tmp[i];
 
-    xfree(tmp);
+	xfree(tmp);
 }
 
 static void
