@@ -75,7 +75,6 @@
 #define SetBit(n) (1<<(n))
 #define Set8Bits(value) ((value)&0xff)
 
-
 #define MAX_NUM_DCB_ENTRIES 16
 
 typedef enum /* matches DCB types */

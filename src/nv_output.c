@@ -970,8 +970,17 @@ nv_output_prepare(xf86OutputPtr output)
 
 	if (stole_ramdac) {
 		ErrorF("Resetting the stolen ramdac\n");
+		DisplayModePtr adjusted_mode = xf86DuplicateMode(&(output2->crtc->desiredMode));
+		xf86CrtcPtr crtc2 = output2->crtc;
+		/* Assign a ramdac */
 		output2->funcs->prepare(output2);
-		output2->funcs->mode_set(output2, &(output2->crtc->desiredMode), &(output2->crtc->desiredMode));
+		/* We must set the vpll's to ensure they are properly set */
+		crtc2->funcs->mode_fixup(crtc2, &(crtc2->desiredMode), adjusted_mode);
+		crtc2->funcs->mode_set(crtc2, &(crtc2->desiredMode), adjusted_mode, crtc2->x, crtc2->y);
+		output2->funcs->mode_set(output2, &(crtc2->desiredMode), adjusted_mode);
+		/* Anyone know were this mode is stored, so we don't accidentally wake up a screen that is DPMSModeOff? */
+		crtc2->funcs->dpms(crtc2, DPMSModeOn);
+		xfree(adjusted_mode);
 	}
 }
 
