@@ -214,6 +214,7 @@ typedef struct _NVOutputPrivateRec {
 	Bool ramdac_assigned;
 	uint8_t valid_ramdac;
 	uint8_t preferred_crtc;
+	uint8_t preferred_ramdac;
         I2CBusPtr		    pDDCBus;
         NVOutputType type;
         CARD32 fpSyncs;

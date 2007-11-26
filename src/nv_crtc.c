@@ -922,15 +922,16 @@ void nv_crtc_calc_state_ext(
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
 		/* The rough idea is this:
-		 * 0x40000: Normal wiring for dvi panels.
-		 * 0x10000: Cross wiring for dvi panels (not a 100% sure if this is also true for dual-crosswire).
+		 * 0x40000: One or both dvi outputs is/are on their preferred ramdac (=clock)
+		 * 0x10000: One dvi output is on not on it's preferred ramdac (=clock).
 		 * 0x00000: No dvi panels present.
 		 * Other bits also exist, but we leave those intact.
+		 * One dvi panel must always be on it's preferred ramdac, due to "or" restrictions.
 		 */
 
 		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 			/* Clean out all the bits and enable another mode */
-			if (nv_crtc->head == nv_output->preferred_crtc) {
+			if (nv_output->ramdac == nv_output->preferred_ramdac) {
 				state->sel_clk &= ~(0xf << 16);
 				state->sel_clk |= (1 << 18);
 			} else {
@@ -945,7 +946,7 @@ void nv_crtc_calc_state_ext(
 				NVOutputPrivatePtr nv_output2 = output2->driver_private;
 				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
 					/* Clean out all the bits and enable another mode */
-					if (other_index == nv_output2->preferred_crtc) {
+					if (nv_output2->ramdac == nv_output2->preferred_ramdac) {
 						state->sel_clk &= ~(0xf << 16);
 						state->sel_clk |= (1 << 18);
 					} else {

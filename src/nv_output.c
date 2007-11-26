@@ -1086,7 +1086,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.commit = nv_output_commit,
 };
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bus, int i2c_index, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1139,19 +1139,21 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int i2
 
 	nv_output->ramdac = -1;
 
+	nv_output->preferred_crtc = bus;
+
 	/* This is only to facilitate proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
 	if (order & RAMDAC_1) {
-		nv_output->preferred_crtc = 1;
+		nv_output->preferred_ramdac = 1;
 	} else {
-		nv_output->preferred_crtc = 0;
+		nv_output->preferred_ramdac = 0;
 	}
 
 	output->possible_crtcs = heads;
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int i2c_index, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int bus, int i2c_index, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
@@ -1217,13 +1219,14 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int i
 
 	nv_output->ramdac = -1;
 
-	/* This is a theory: */
-	/* DVI outputs are in no way bound to ramdac's, but exist purely on a crtc level */
-	/* Don't ask why this relation seems valid, ask those weirdos at nvidia */
+	nv_output->preferred_crtc = bus;
+
+	/* This is only to facilitate proper output routing for dvi */
+	/* See sel_clk assignment in nv_crtc.c */
 	if (order & RAMDAC_1) {
-		nv_output->preferred_crtc = 1;
+		nv_output->preferred_ramdac = 1;
 	} else {
-		nv_output->preferred_crtc = 0;
+		nv_output->preferred_ramdac = 0;
 	}
 
 	output->possible_crtcs = heads;
@@ -1257,13 +1260,13 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 		switch(type) {
 		case OUTPUT_ANALOG:
-			nv_add_analog_output(pScrn, heads, or, i2c_index, (bus_count[bus] > 1));
+			nv_add_analog_output(pScrn, heads, or, bus, i2c_index, (bus_count[bus] > 1));
 			break;
 		case OUTPUT_TMDS:
-			nv_add_digital_output(pScrn, heads, or, i2c_index, 0);
+			nv_add_digital_output(pScrn, heads, or, bus, i2c_index, 0);
 			break;
 		case OUTPUT_LVDS:
-			nv_add_digital_output(pScrn, heads, or, i2c_index, 1);
+			nv_add_digital_output(pScrn, heads, or, bus, i2c_index, 1);
 			break;
 		default:
 			break;
