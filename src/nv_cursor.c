@@ -361,23 +361,9 @@ void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 	/* Enable on this crtc */
 	NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, current | 1);
 
-	if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		xf86OutputPtr output = NULL;
-		int i;
-
-		/* We need our output, so we know our ramdac */
-		for (i = 0; i < xf86_config->num_output; i++) {
-			output = xf86_config->output[i];
-
-			if (output->crtc == crtc) {
-				/* TODO: Add a check if an output was found? */
-				break;
-			}
-		}
-
-		volatile CARD32 curpos = NVOutputReadRAMDAC(output, NV_RAMDAC_CURSOR_POS);
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_CURSOR_POS, curpos);
+	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+		volatile CARD32 curpos = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, curpos);
 	}
 }
 
@@ -391,7 +377,7 @@ void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 	/* Disable on this crtc */
 	NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, current & ~1);
 
-	if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
 		volatile CARD32 curpos = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS);
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, curpos);
 	}

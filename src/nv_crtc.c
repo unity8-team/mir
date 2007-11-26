@@ -2061,15 +2061,15 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 static void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
 {
-  /* TODO - implement this properly */
-  ScrnInfoPtr pScrn = crtc->scrn;
-  NVPtr pNv = NVPTR(pScrn);
-   
-  if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-    volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
-    nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, curpos);
-  }
+	/* TODO - implement this properly */
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 
+	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
+		volatile CARD32 curpos = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, curpos);
+	}
 }
 static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
