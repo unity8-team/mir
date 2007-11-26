@@ -46,7 +46,7 @@
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "radeon_tv.h"
-
+#include "radeon_atombios.h"
 
 const char *MonTypeName[7] = {
   "AUTO",
@@ -2856,92 +2856,130 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	return;
     }
 
-    if (info->IsMobility) {
-	/* Below is the most common setting, but may not be true */
-	if (info->IsIGP) {
-	    info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
-	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
-	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+    if (IS_AVIVO_VARIANT) {
+	if (info->IsMobility) {
+	    info->BiosConnector[0].ddc_line = 0x7e60;
+	    info->BiosConnector[0].DACType = DAC_NONE;
+	    info->BiosConnector[0].TMDSType = TMDS_NONE;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
+	    info->BiosConnector[0].devices = ATOM_DEVICE_LCD1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    /* IGP only has TVDAC */
-	    if (info->ChipFamily == CHIP_FAMILY_RS400)
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_CRT2_DDC;
-	    else
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
-	    info->BiosConnector[1].DACType = DAC_TVDAC;
-	    info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
-	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
-	    info->BiosConnector[1].valid = TRUE;
-	} else {
-#if defined(__powerpc__)
-	    info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
-#else
-	    info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
-#endif
-	    info->BiosConnector[0].DACType = DAC_UNKNOWN;
-	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
-	    info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
-	    info->BiosConnector[0].valid = TRUE;
-
-	    info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	    info->BiosConnector[1].ddc_line = 0x7e40;
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
-	    info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
-	    info->BiosConnector[1].valid = TRUE;
-	}
-    } else {
-	/* Below is the most common setting, but may not be true */
-	if (info->IsIGP) {
-	    if (info->ChipFamily == CHIP_FAMILY_RS400)
-		info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
-	    else
-		info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
-	    info->BiosConnector[0].DACType = DAC_TVDAC;
-	    info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
-	    info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
-	    info->BiosConnector[0].valid = TRUE;
-
-	    /* not sure what a good default DDCType for DVI on 
-	     * IGP desktop chips is
-	     */
-	    info->BiosConnector[1].ddc_line = RADEON_GPIO_MONID; /* DDC_DVI? */
-	    info->BiosConnector[1].DACType = DAC_UNKNOWN;
-	    info->BiosConnector[1].TMDSType = TMDS_EXT;
-	    info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_D;
+	    info->BiosConnector[1].devices = ATOM_DEVICE_CRT1_SUPPORT;
 	    info->BiosConnector[1].valid = TRUE;
 	} else {
-	    info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	    info->BiosConnector[0].ddc_line = 0x7e50;
 	    info->BiosConnector[0].DACType = DAC_TVDAC;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	    info->BiosConnector[0].devices = ATOM_DEVICE_CRT2_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	    info->BiosConnector[1].ddc_line = 0x7e40;
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
-	    info->BiosConnector[1].TMDSType = TMDS_EXT;
+	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
+	    info->BiosConnector[1].devices = ATOM_DEVICE_CRT1_SUPPORT;
 	    info->BiosConnector[1].valid = TRUE;
 	}
-    }
 
-    if (info->InternalTVOut) {
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
 	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].devices = ATOM_DEVICE_TV1_SUPPORT;
 	info->BiosConnector[2].valid = TRUE;
-    }
+    } else {
+	if (info->IsMobility) {
+	    /* Below is the most common setting, but may not be true */
+	    if (info->IsIGP) {
+		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
+		info->BiosConnector[0].DACType = DAC_UNKNOWN;
+		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
+		info->BiosConnector[0].valid = TRUE;
 
-    /* Some cards have the DDC lines swapped and we have no way to
-     * detect it yet (Mac cards)
-     */
-    if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_DVI_DDC;
-    }
+		/* IGP only has TVDAC */
+		if (info->ChipFamily == CHIP_FAMILY_RS400)
+		    info->BiosConnector[1].ddc_line = RADEON_GPIO_CRT2_DDC;
+		else
+		    info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].DACType = DAC_TVDAC;
+		info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
+		info->BiosConnector[1].valid = TRUE;
+	    } else {
+#if defined(__powerpc__)
+		info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+#else
+		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
+#endif
+		info->BiosConnector[0].DACType = DAC_UNKNOWN;
+		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
+		info->BiosConnector[0].valid = TRUE;
 
+		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].DACType = DAC_PRIMARY;
+		info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
+		info->BiosConnector[1].valid = TRUE;
+	    }
+	} else {
+	    /* Below is the most common setting, but may not be true */
+	    if (info->IsIGP) {
+		if (info->ChipFamily == CHIP_FAMILY_RS400)
+		    info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
+		else
+		    info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[0].DACType = DAC_TVDAC;
+		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
+		info->BiosConnector[0].valid = TRUE;
+
+		/* not sure what a good default DDCType for DVI on
+		 * IGP desktop chips is
+		 */
+		info->BiosConnector[1].ddc_line = RADEON_GPIO_MONID; /* DDC_DVI? */
+		info->BiosConnector[1].DACType = DAC_UNKNOWN;
+		info->BiosConnector[1].TMDSType = TMDS_EXT;
+		info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_D;
+		info->BiosConnector[1].valid = TRUE;
+	    } else {
+		info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+		info->BiosConnector[0].DACType = DAC_TVDAC;
+		info->BiosConnector[0].TMDSType = TMDS_INT;
+		info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+		info->BiosConnector[0].valid = TRUE;
+
+		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].DACType = DAC_PRIMARY;
+		info->BiosConnector[1].TMDSType = TMDS_EXT;
+		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
+		info->BiosConnector[1].valid = TRUE;
+	    }
+	}
+
+	if (info->InternalTVOut) {
+	    info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	    info->BiosConnector[2].DACType = DAC_TVDAC;
+	    info->BiosConnector[2].TMDSType = TMDS_NONE;
+	    info->BiosConnector[2].ddc_line = 0;
+	    info->BiosConnector[2].valid = TRUE;
+	}
+
+	/* Some cards have the DDC lines swapped and we have no way to
+	 * detect it yet (Mac cards)
+	 */
+	if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
+	    info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
+	    info->BiosConnector[1].ddc_line = RADEON_GPIO_DVI_DDC;
+	}
+    }
 }
 
 #if defined(__powerpc__)
