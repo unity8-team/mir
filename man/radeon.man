@@ -383,14 +383,14 @@ case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
 .TP
-.BI "Option \*TVDACLoadDetect\*q \*q" boolean \*q
+.BI "Option \*qTVDACLoadDetect\*q \*q" boolean \*q
 Enable load detection on the TV DAC.  The TV DAC is used to drive both 
 TV-OUT and analog monitors. Load detection is often unreliable in the 
 TV DAC so it is disabled by default.
 The default is
 .B off.
 .TP
-.BI "Option \*DefaultTMDSPLL\*q \*q" boolean \*q
+.BI "Option \*qDefaultTMDSPLL\*q \*q" boolean \*q
 Use the default driver provided TMDS PLL values rather than the ones
 provided by the bios. This option has no effect on Mac cards.  Enable 
 this option if you are having problems with a DVI monitor using the 
