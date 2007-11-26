@@ -323,12 +323,78 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 #endif
 }
 
+static void
+atombios_set_output_crtc_source(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    AtomBiosArgRec data;
+    unsigned char *space;
+    SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
+    int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
+    int major, minor;
+    
+    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
+    
+    ErrorF("select crtc source table is %d %d\n", major, minor);
+
+    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+    crtc_src_param.ucDevice = 0;
+
+    switch(major) {
+    case 1: {
+	switch(minor) {
+	case 0:
+	case 1:
+	default:
+	    if (radeon_output->MonType == MT_CRT) {
+		if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT1_INDEX;
+		else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT2_INDEX;
+	    } else if (radeon_output->MonType == MT_DFP) {
+		if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_DFP1_INDEX;
+		else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_DFP2_INDEX;
+		else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_DFP3_INDEX;
+	    } else if (radeon_output->MonType == MT_LCD) {
+		if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
+	    }
+	    break;
+	}
+	break;
+    }
+    default:
+	break;
+    }
+
+    ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);
+
+    data.exec.index = index;
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &crtc_src_param;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Set CRTC %d Source success\n", radeon_crtc->crtc_id);
+	return;
+    }
+
+    ErrorF("Set CRTC Source failed\n");
+    return;
+}
+
 void
 atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr mode,
 			 DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    atombios_set_output_crtc_source(output);
 
     if (radeon_output->MonType == MT_CRT) {
        if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)

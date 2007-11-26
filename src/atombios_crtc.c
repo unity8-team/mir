@@ -298,79 +298,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     return;
 }
 
-static void
-atombios_set_crtc_source(xf86CrtcPtr crtc)
-{
-    ScrnInfoPtr pScrn = crtc->scrn;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    AtomBiosArgRec data;
-    unsigned char *space;
-    SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
-    int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
-    int major, minor, i;
-    
-    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
-    
-    ErrorF("select crtc source table is %d %d\n", major, minor);
-
-    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
-    crtc_src_param.ucDevice = 0;
-
-    for (i = 0; i < xf86_config->num_output; i++) {
-        xf86OutputPtr output = xf86_config->output[i];
-        RADEONOutputPrivatePtr radeon_output = output->driver_private;
-
-	/* doesn't seem to support cloning via atom */
-	if (output->crtc == crtc) {
-	    switch(major) {
-	    case 1: {
-		switch(minor) {
-		case 0:
-		case 1:
-		default:
-		    if (radeon_output->MonType == MT_CRT) {
-                        if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_CRT1_INDEX;
-                        else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_CRT2_INDEX;
-                    } else if (radeon_output->MonType == MT_DFP) {
-                        if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP1_INDEX;
-                        else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP2_INDEX;
-                        else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_DFP3_INDEX;
-                    } else if (radeon_output->MonType == MT_LCD) {
-                        if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
-                            crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
-                    }
-		    break;
-		}
-		break;
-	    }
-	    default:
-		break;
-	    }
-	}
-    }
-
-    ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);
-
-    data.exec.index = index;
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &crtc_src_param;
-    
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Set CRTC %d Source success\n", radeon_crtc->crtc_id);
-	return;
-    }
-  
-    ErrorF("Set CRTC Source failed\n");
-    return;
-}
-
 void
 atombios_crtc_mode_set(xf86CrtcPtr crtc,
 		       DisplayModePtr mode,
@@ -479,8 +406,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     atombios_crtc_set_pll(crtc, adjusted_mode);
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
-
-    atombios_set_crtc_source(crtc);
 
     if (info->tilingEnabled != tilingOld) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
