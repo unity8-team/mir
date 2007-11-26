@@ -2187,6 +2187,12 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	} else if (value->size == strlen("scart-pal") && !strncmp("scart-pal", s, strlen("scart-pal"))) {
 	    radeon_output->tvStd = TV_STD_SCART_PAL;
 	    return TRUE;
+	} else if (value->size == strlen("pal-cn") && !strncmp("pal-cn", s, strlen("pal-cn"))) {
+	    radeon_output->tvStd = TV_STD_PAL_CN;
+	    return TRUE;
+	} else if (value->size == strlen("secam") && !strncmp("secam", s, strlen("secam"))) {
+	    radeon_output->tvStd = TV_STD_SECAM;
+	    return TRUE;
 	}
 	return FALSE;
     }

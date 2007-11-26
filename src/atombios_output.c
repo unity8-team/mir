@@ -23,6 +23,7 @@
  *
  * Authors:
  *    Dave Airlie <airlied@redhat.com>
+ *    Alex Deucher <alexdeucher@gmail.com>
  *
  */
 
@@ -45,23 +46,48 @@
 static int
 atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = 1;
-    disp_data.ucDacStandard = 1;
+
+    if (radeon_output->MonType == MT_CRT)
+	disp_data.ucDacStandard = ATOM_DAC1_PS2;
+    else if (radeon_output->MonType == MT_CV)
+	disp_data.ucDacStandard = ATOM_DAC1_CV;
+    else if (OUTPUT_IS_TV) {
+	switch (radeon_output->tvStd) {
+	case TV_STD_NTSC:
+	case TV_STD_NTSC_J:
+	case TV_STD_PAL_60:
+	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
+	    break;
+	case TV_STD_PAL:
+	case TV_STD_PAL_M:
+	case TV_STD_SCART_PAL:
+	case TV_STD_SECAM:
+	case TV_STD_PAL_CN:
+	    disp_data.ucDacStandard = ATOM_DAC1_PAL;
+	    break;
+	default:
+	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
+	    break;
+	}
+    }
+
     disp_data.usPixelClock = mode->Clock / 10;
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output DAC1 setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output DAC1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
@@ -70,24 +96,109 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 static int
 atombios_output_dac2_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = 1;
-    disp_data.ucDacStandard = 1;
+
+    if (radeon_output->MonType == MT_CRT)
+	disp_data.ucDacStandard = ATOM_DAC2_PS2;
+    else if (radeon_output->MonType == MT_CV)
+	disp_data.ucDacStandard = ATOM_DAC2_CV;
+    else if (OUTPUT_IS_TV) {
+	switch (radeon_output->tvStd) {
+	case TV_STD_NTSC:
+	case TV_STD_NTSC_J:
+	case TV_STD_PAL_60:
+	    disp_data.ucDacStandard = ATOM_DAC2_NTSC;
+	    break;
+	case TV_STD_PAL:
+	case TV_STD_PAL_M:
+	case TV_STD_SCART_PAL:
+	case TV_STD_SECAM:
+	case TV_STD_PAL_CN:
+	    disp_data.ucDacStandard = ATOM_DAC2_PAL;
+	    break;
+	default:
+	    disp_data.ucDacStandard = ATOM_DAC2_NTSC;
+	    break;
+	}
+    }
+
     disp_data.usPixelClock = mode->Clock / 10;
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output DAC2 setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output DAC2 setup failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+
+}
+
+static int
+atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    TV_ENCODER_CONTROL_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    disp_data.sTVEncoder.ucAction = 1;
+
+    if (radeon_output->MonType == MT_CV)
+	disp_data.sTVEncoder.ucTvStandard = ATOM_TV_CV;
+    else {
+	switch (radeon_output->tvStd) {
+	case TV_STD_NTSC:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_NTSC;
+	    break;
+	case TV_STD_PAL:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_PAL;
+	    break;
+	case TV_STD_PAL_M:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_PALM;
+	    break;
+	case TV_STD_PAL_60:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_PAL60;
+	    break;
+	case TV_STD_NTSC_J:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_NTSCJ;
+	    break;
+	case TV_STD_SCART_PAL:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_PAL; /* ??? */
+	    break;
+	case TV_STD_SECAM:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_SECAM;
+	    break;
+	case TV_STD_PAL_CN:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_PALCN;
+	    break;
+	default:
+	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_NTSC;
+	    break;
+	}
+    }
+
+    disp_data.sTVEncoder.usPixelClock = mode->Clock / 10;
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, TVEncoderControl);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+    
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Output TV1 setup success\n");
+	return ATOM_SUCCESS;
+    }
+    
+    ErrorF("Output TV1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -251,6 +362,12 @@ atombios_device_dpms(xf86OutputPtr output, int device, int mode)
     case ATOM_DEVICE_LCD1_SUPPORT:
 	index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
 	break;
+    case ATOM_DEVICE_TV1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
+	break;
+    case ATOM_DEVICE_CV_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
+	break;
     default:
 	return;
     }
@@ -411,31 +528,51 @@ atombios_output_mode_set(xf86OutputPtr output,
     } else if (radeon_output->MonType == MT_LCD) {
        if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
 	   atombios_output_lvds_setup(output, adjusted_mode);
+    } else if (OUTPUT_IS_TV || (radeon_output->MonType == MT_CV)) {
+	atombios_output_dac2_setup(output, adjusted_mode);
+	atombios_output_tv1_setup(output, adjusted_mode);
     }
+
 }
 
 static AtomBiosResult
-atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, int dac)
+atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
 {
-  DAC_LOAD_DETECTION_PS_ALLOCATION dac_data;
-  AtomBiosArgRec data;
-  unsigned char *space;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    DAC_LOAD_DETECTION_PS_ALLOCATION dac_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
 
-  dac_data.sDacload.usDeviceID = 0;
-  dac_data.sDacload.ucDacType = 0;
-  dac_data.sDacload.ucMisc = 0;
+    if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
+	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CRT1_SUPPORT;
+	dac_data.sDacload.ucDacType = ATOM_DAC_A;
+    } else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
+	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CRT2_SUPPORT;
+	dac_data.sDacload.ucDacType = ATOM_DAC_B;
+    } else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
+	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CV_SUPPORT;
+	dac_data.sDacload.ucDacType = ATOM_DAC_B;
+    } else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
+	dac_data.sDacload.usDeviceID = ATOM_DEVICE_TV1_SUPPORT;
+	dac_data.sDacload.ucDacType = ATOM_DAC_B;
+    } else {
+	ErrorF("invalid output device for dac detection\n");
+	return ATOM_NOT_IMPLEMENTED;
+    }
 
-  data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC_LoadDetection);
-  data.exec.dataSpace = (void *)&space;
-  data.exec.pspace = &dac_data;
-  
-  if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+    dac_data.sDacload.ucMisc = 0;
 
-    ErrorF("Dac detection success\n");
-    return ATOM_SUCCESS ;
-  }
-  
-  ErrorF("DAC detection failed\n");
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC_LoadDetection);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &dac_data;
+
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+
+	ErrorF("Dac detection success\n");
+	return ATOM_SUCCESS ;
+    }
+
+    ErrorF("DAC detection failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
@@ -449,19 +586,28 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     AtomBiosResult ret;
     uint32_t bios_0_scratch;
 
-    ret = atom_bios_dac_load_detect(info->atomBIOS, radeon_output->DACType);
+    ret = atom_bios_dac_load_detect(info->atomBIOS, output);
     if (ret == ATOM_SUCCESS) {
-      ErrorF("DAC connect %08X\n", (unsigned int)INREG(RADEON_BIOS_0_SCRATCH));
 	bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
-	
+	ErrorF("DAC connect %08X\n", (unsigned int)bios_0_scratch);
+
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
-	    if (bios_0_scratch & ATOM_S0_CRT1_COLOR)
+	    if (bios_0_scratch & ATOM_S0_CRT1_MASK)
 		MonType = MT_CRT;
 	} else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
-	    if (bios_0_scratch & ATOM_S0_CRT2_COLOR)
+	    if (bios_0_scratch & ATOM_S0_CRT2_MASK)
 		MonType = MT_CRT;
+	} else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
+	    if (bios_0_scratch & (ATOM_S0_CV_MASK | ATOM_S0_CV_MASK_A))
+		MonType = MT_CV;
+	} else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
+	    if (bios_0_scratch & (ATOM_S0_TV1_COMPOSITE | ATOM_S0_TV1_COMPOSITE_A))
+		MonType = MT_CTV;
+	    else if (bios_0_scratch & (ATOM_S0_TV1_SVIDEO | ATOM_S0_TV1_SVIDEO_A))
+		MonType = MT_STV;
 	}
     }
+
     return MonType;
 }
 

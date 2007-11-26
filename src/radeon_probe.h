@@ -164,6 +164,8 @@ typedef enum
     TV_STD_PAL_60    = 8,
     TV_STD_NTSC_J    = 16,
     TV_STD_SCART_PAL = 32,
+    TV_STD_SECAM     = 64,
+    TV_STD_PAL_CN    = 128,
 } TVStd;
 
 typedef struct _RADEONCrtcPrivateRec {
