@@ -1672,11 +1672,13 @@ radeon_detect(xf86OutputPtr output)
 	  /* default to unknown for flaky chips/connectors
 	   * so we can get something on the screen
 	   */
-	  if (((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI) &&
-	       radeon_output->DACType == DAC_TVDAC)) {
+	  if ((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI) &&
+	      (radeon_output->DACType == DAC_TVDAC) &&
+	      (info->ChipFamily == CHIP_FAMILY_RS400)) {
 	      radeon_output->MonType = MT_CRT;
 	      return XF86OutputStatusUnknown;
-	  } else if  (info->IsIGP && radeon_output->type == OUTPUT_DVI) {
+	  } else if  ((info->ChipFamily == CHIP_FAMILY_RS400) &&
+		      radeon_output->type == OUTPUT_DVI) {
 	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
 	      return XF86OutputStatusUnknown;
 	  }
