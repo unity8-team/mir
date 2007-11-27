@@ -817,8 +817,10 @@ void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 fb_loc,
 	    OUTMC(pScrn, R520_MC_AGP_LOCATION, agp_loc);
 	(void)INMC(pScrn, R520_MC_FB_LOCATION);
     } else {
-	  OUTREG(RADEON_MC_FB_LOCATION, fb_loc);
-	  OUTREG(RADEON_MC_AGP_LOCATION, agp_loc);
+	if (mask & LOC_FB)
+	    OUTREG(RADEON_MC_FB_LOCATION, fb_loc);
+	if (mask & LOC_AGP)
+	    OUTREG(RADEON_MC_AGP_LOCATION, agp_loc);
     }
 }
 
@@ -849,8 +851,10 @@ void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 *fb_loc,
 	    *agp_loc_hi = 0;
 	}
     } else {
-	*fb_loc = INREG(RADEON_MC_FB_LOCATION);
-	*agp_loc = INREG(RADEON_MC_AGP_LOCATION);
+	if (mask & LOC_FB)
+	    *fb_loc = INREG(RADEON_MC_FB_LOCATION);
+	if (mask & LOC_AGP)
+	    *agp_loc = INREG(RADEON_MC_AGP_LOCATION);
     }
 }
 
