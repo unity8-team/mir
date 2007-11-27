@@ -678,33 +678,25 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->MonType == MT_UNKNOWN) {
 	if (IS_AVIVO_VARIANT) {
-	    if (OUTPUT_IS_TV)
-		radeon_output->MonType = MT_NONE;
-	    else {
-		radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
-		if (!radeon_output->MonType) {
-		    if (radeon_output->type == OUTPUT_LVDS)
-			radeon_output->MonType = MT_LCD;
-		    else
-			radeon_output->MonType = atombios_dac_detect(pScrn, output);
-		}
+	    radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
+	    if (!radeon_output->MonType) {
+		if (radeon_output->type == OUTPUT_LVDS)
+		    radeon_output->MonType = MT_LCD;
+		else if (OUTPUT_IS_TV)
+		    radeon_output->MonType = MT_NONE;
+		else
+		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
 	    }
 	} else {
-	    if (OUTPUT_IS_TV) {
-		if (info->InternalTVOut) {
-		    if (radeon_output->load_detection)
-			radeon_output->MonType = legacy_dac_detect(pScrn, output);
-		    else
-			radeon_output->MonType = MT_NONE;
-		}
-	    } else {
-		radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
+	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
+	    if (!radeon_output->MonType) {
+		if (radeon_output->type == OUTPUT_LVDS || OUTPUT_IS_DVI)
+		    radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
 		if (!radeon_output->MonType) {
-		    if (radeon_output->type == OUTPUT_LVDS || OUTPUT_IS_DVI)
-			radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
-		    if (!radeon_output->MonType) {
+		    if (info->IsAtomBios)
+			radeon_output->MonType = atombios_dac_detect(pScrn, output);
+		    else
 			radeon_output->MonType = legacy_dac_detect(pScrn, output);
-		    }
 		}
 	    }
 	}
