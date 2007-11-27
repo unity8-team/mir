@@ -636,6 +636,38 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 }
 #endif
 
+static RADEONMonitorType
+legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONInfoPtr info      = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONMonitorType found = MT_NONE;
+
+    if (OUTPUT_IS_TV) {
+	if (info->InternalTVOut) {
+	    if (radeon_output->load_detection)
+		found = radeon_detect_tv(pScrn);
+	    else
+		found = MT_NONE;
+	}
+    } else {
+	if (radeon_output->DACType == DAC_PRIMARY) {
+	    if (radeon_output->load_detection)
+		found = radeon_detect_primary_dac(pScrn, TRUE);
+	} else if (radeon_output->DACType == DAC_TVDAC) {
+	    if (radeon_output->load_detection) {
+		if (info->ChipFamily == CHIP_FAMILY_R200)
+		    found = radeon_detect_ext_dac(pScrn);
+		else
+		    found = radeon_detect_tv_dac(pScrn, TRUE);
+	    } else
+		found = MT_NONE;
+	}
+    }
+
+    return found;
+}
+
 /* Primary Head (DVI or Laptop Int. panel)*/
 /* A ddc capable display connected on DVI port */
 /* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
@@ -661,7 +693,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    if (OUTPUT_IS_TV) {
 		if (info->InternalTVOut) {
 		    if (radeon_output->load_detection)
-			radeon_output->MonType = radeon_detect_tv(pScrn);
+			radeon_output->MonType = legacy_dac_detect(pScrn, output);
 		    else
 			radeon_output->MonType = MT_NONE;
 		}
@@ -671,18 +703,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 		    if (radeon_output->type == OUTPUT_LVDS || OUTPUT_IS_DVI)
 			radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
 		    if (!radeon_output->MonType) {
-			if (radeon_output->DACType == DAC_PRIMARY) {
-			    if (radeon_output->load_detection)
-				radeon_output->MonType = radeon_detect_primary_dac(pScrn, TRUE);
-			} else if (radeon_output->DACType == DAC_TVDAC) {
-			    if (radeon_output->load_detection) {
-				if (info->ChipFamily == CHIP_FAMILY_R200)
-				    radeon_output->MonType = radeon_detect_ext_dac(pScrn);
-				else
-				    radeon_output->MonType = radeon_detect_tv_dac(pScrn, TRUE);
-			    } else
-				radeon_output->MonType = MT_NONE;
-			}
+			radeon_output->MonType = legacy_dac_detect(pScrn, output);
 		    }
 		}
 	    }
@@ -1216,7 +1237,7 @@ legacy_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    ErrorF("restore FP2\n");
 	    if (info->IsAtomBios)
 		atombios_external_tmds_setup(output, mode);
-	    else 
+	    else
 		RADEONRestoreDVOChip(pScrn, output);
 	    RADEONRestoreFP2Registers(pScrn, &info->ModeReg);
 	}
