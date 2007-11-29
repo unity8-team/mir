@@ -2718,6 +2718,19 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[1].DDCType = DDC_NONE_DETECTED;
 	info->BiosConnector[1].valid = TRUE;
 	return TRUE;
+    case RADEON_MAC_MINI_INTERNAL:
+	info->BiosConnector[0].DDCType = DDC_CRT2;
+	info->BiosConnector[0].DACType = DAC_TVDAC;
+	info->BiosConnector[0].TMDSType = TMDS_INT;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[1].valid = TRUE;
+	return TRUE;
     default:
 	return FALSE;
     }
@@ -2840,6 +2853,11 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
     char cpuline[50];  /* 50 should be sufficient for our purposes */
     FILE *f = fopen ("/proc/cpuinfo", "r");
 
+    /* Some macs (minis and powerbooks) use internal tmds, others use external tmds
+     * and not just for dual-link TMDS, it shows up with single-link as well.
+     * Unforunately, there doesn't seem to be any good way to figure it out.
+     */
+
     if (f != NULL) {
 	while (fgets(cpuline, sizeof cpuline, f)) {
 	    if (!strncmp(cpuline, "machine", strlen ("machine"))) {
@@ -2851,8 +2869,11 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 		    break;
 		}
 
-		if (strstr(cpuline, "PowerMac10,1") ||
-		    strstr(cpuline, "PowerMac10,2")) {
+		if (strstr(cpuline, "PowerMac10,1")) {
+		    ret = RADEON_MAC_MINI_INTERNAL;
+		    break;
+		}
+		if (strstr(cpuline, "PowerMac10,2")) {
 		    ret = RADEON_MAC_MINI;
 		    break;
 		}
@@ -2880,8 +2901,8 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 
     if (ret) {
 	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT, "Detected %s.\n",
-		   ret == RADEON_MAC_POWERBOOK_DL ? "PowerBook with dual link DVI" :
-		   ret == RADEON_MAC_POWERBOOK ? "PowerBook with single link DVI" :
+		   ret == RADEON_MAC_POWERBOOK_DL ? "PowerBook with external DVI" :
+		   ret == RADEON_MAC_POWERBOOK ? "PowerBook with integrated DVI" :
 		   ret == RADEON_MAC_IBOOK ? "iBook" :
 		   "Mac Mini");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2934,6 +2955,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->MacModel = RADEON_MAC_POWERBOOK_DL;
 	else if (!strncmp("powerbook", optstr, strlen("powerbook")))
 	    info->MacModel = RADEON_MAC_POWERBOOK;
+	else if (!strncmp("mini-internal", optstr, strlen("mini-internal")))
+	    info->MacModel = RADEON_MAC_MINI_INTERNAL;
 	else if (!strncmp("mini", optstr, strlen("mini")))
 	    info->MacModel = RADEON_MAC_MINI;
 	else {
