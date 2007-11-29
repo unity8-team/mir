@@ -52,6 +52,9 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ret = FALSE;
 
+    if (!pI830->XvMCEnabled)
+	return FALSE;
+
     if (IS_I9XX(pI830)) {
 	if (!IS_I965G(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
@@ -101,7 +104,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"[XvMC] %s driver initialized.\n",
 		xvmc_driver->name);
-	pI830->XvMCEnabled = TRUE;
     } else {
 	intel_xvmc_finish(pScrn);
 	pI830->XvMCEnabled = FALSE;
