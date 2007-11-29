@@ -945,12 +945,6 @@ typedef struct {
     unsigned long FbFreeStart, FbFreeSize;
     unsigned char*      BIOSCopy;
 
-    int cursor_width;
-    int cursor_height;
-    int cursor_format;
-    int cursor_x;
-    int cursor_y;
-
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;

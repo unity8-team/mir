@@ -3400,6 +3400,7 @@
 #define AVIVO_D1CUR_SURFACE_ADDRESS             0x6408
 #define AVIVO_D1CUR_SIZE                        0x6410
 #define AVIVO_D1CUR_POSITION                    0x6414
+#define AVIVO_D1CUR_HOT_SPOT                    0x6418
 
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580
 #define AVIVO_D1MODE_VIEWPORT_SIZE              0x6584

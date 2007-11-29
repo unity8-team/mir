@@ -102,7 +102,7 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
 	OUTREG(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
 	       info->fbLocation + info->cursor_offset);
 	OUTREG(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset,
-	       ((info->cursor_width -1) << 16) | (info->cursor_height-1));
+	       ((CURSOR_WIDTH - 1) << 16) | (CURSOR_HEIGHT - 1));
 	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
 	       AVIVO_D1CURSOR_EN | (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
     }
@@ -192,17 +192,12 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	y *= 2;
 
     if (IS_AVIVO_VARIANT) {
-	if (x < 0)
-	    x = 0;
-	if (y < 0)
-	    y = 0;
-
 	/* avivo cursor spans the full fb width */
 	x += crtc->x;
 	y += crtc->y;
-	OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, (x << 16) | y);
-	radeon_crtc->cursor_x = x;
-	radeon_crtc->cursor_y = y;
+	OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, ((xorigin ? 0 : x) << 16)
+	       | (yorigin ? 0 : y));
+	OUTREG(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
     } else {
 	if (crtc_id == 0) {
 	    OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK
