@@ -980,7 +980,24 @@ void radeon_crtc_load_lut(xf86CrtcPtr crtc)
     if (!crtc->enabled)
 	return;
 
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
+
+	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_DC_LUTA_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
+
+	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0x0000ffff);
+	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0x0000ffff);
+	OUTREG(AVIVO_DC_LUTA_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0x0000ffff);
+    }
+
     PAL_SELECT(radeon_crtc->crtc_id);
+
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_DC_LUT_RW_MODE, 0);
+	OUTREG(AVIVO_DC_LUT_WRITE_EN_MASK, 0x0000003f);
+    }
 
     for (i = 0; i < 256; i++) {
 	OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
@@ -995,12 +1012,7 @@ radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     ScrnInfoPtr		pScrn = crtc->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     int i, j;
-
-    // fix me
-    if (IS_AVIVO_VARIANT)
-	return;
 
     if (pScrn->depth == 16) {
 	for (i = 0; i < 64; i++) {

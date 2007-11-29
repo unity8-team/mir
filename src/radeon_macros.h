@@ -92,12 +92,20 @@ do {									\
 
 #define OUTPAL_START(idx)						\
 do {									\
-    OUTREG8(RADEON_PALETTE_INDEX, (idx));				\
+    if (IS_AVIVO_VARIANT) {                                             \
+        OUTREG8(AVIVO_DC_LUT_RW_INDEX, (idx));				\
+    } else {                                                            \
+        OUTREG8(RADEON_PALETTE_INDEX, (idx));				\
+    }								        \
 } while (0)
 
 #define OUTPAL_NEXT(r, g, b)						\
 do {									\
-    OUTREG(RADEON_PALETTE_DATA, ((r) << 16) | ((g) << 8) | (b));	\
+    if (IS_AVIVO_VARIANT) {                                             \
+        OUTREG(AVIVO_DC_LUT_30_COLOR, ((r) << 22) | ((g) << 12) | ((b) << 2));	\
+    } else {                                                               \
+        OUTREG(RADEON_PALETTE_DATA, ((r) << 16) | ((g) << 8) | (b));	\
+    }								        \
 } while (0)
 
 #define OUTPAL_NEXT_CARD32(v)						\
@@ -113,20 +121,39 @@ do {									\
 
 #define INPAL_START(idx)						\
 do {									\
-    OUTREG(RADEON_PALETTE_INDEX, (idx) << 16);				\
+    if (IS_AVIVO_VARIANT) {                                             \
+        OUTREG8(AVIVO_DC_LUT_RW_INDEX, (idx));				\
+    } else {                                                            \
+        OUTREG(RADEON_PALETTE_INDEX, (idx) << 16);			\
+    }								        \
 } while (0)
 
-#define INPAL_NEXT() INREG(RADEON_PALETTE_DATA)
+#define INPAL_NEXT()                                                    \
+do {									\
+    if (IS_AVIVO_VARIANT) {                                             \
+        INREG(AVIVO_DC_LUT_30_COLOR);                                   \
+    } else {                                                            \
+        INREG(RADEON_PALETTE_DATA);                                     \
+    }								        \
+} while (0)
 
 #define PAL_SELECT(idx)							\
 do {									\
-    if (!idx) {								\
-	OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) &		\
-	       (CARD32)~RADEON_DAC2_PALETTE_ACC_CTL);			\
-    } else {								\
-	OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) |		\
-	       RADEON_DAC2_PALETTE_ACC_CTL);				\
-    }									\
+    if (IS_AVIVO_VARIANT) {                                             \
+        if (!idx) {							\
+	    OUTREG(AVIVO_DC_LUT_RW_SELECT, 0);                          \
+        } else {						        \
+	    OUTREG(AVIVO_DC_LUT_RW_SELECT, 1);                          \
+        }								\
+    } else {                                                            \
+        if (!idx) {							\
+	    OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) &		\
+	           (CARD32)~RADEON_DAC2_PALETTE_ACC_CTL);		\
+        } else {							\
+	    OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) |		\
+	           RADEON_DAC2_PALETTE_ACC_CTL);			\
+        }								\
+    }								        \
 } while (0)
 
 #define INMC(pScrn, addr) RADEONINMC(pScrn, addr)
