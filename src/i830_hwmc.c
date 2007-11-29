@@ -116,3 +116,38 @@ int intel_xvmc_put_image_size(ScrnInfoPtr pScrn)
 {
     return (*xvmc_driver->put_image_size)(pScrn);
 }
+
+
+Bool intel_xvmc_init_batch(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC] batch buffer",
+                                   &(xvmc_driver->batch), 8 * 1024,
+                                   ALIGN_BOTH_ENDS))
+        return FALSE;
+
+    if (drmAddMap(pI830->drmSubFD,
+                  (drm_handle_t)(xvmc_driver->batch->offset+pI830->LinearAddr),
+                  xvmc_driver->batch->size, DRM_AGP, 0,
+                  &xvmc_driver->batch_handle) < 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "[drm] drmAddMap(batchbuffer_handle) failed!\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+
+void intel_xvmc_fini_batch(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (xvmc_driver->batch_handle) {
+        drmRmMap(pI830->drmSubFD, xvmc_driver->batch_handle);
+        xvmc_driver->batch_handle = 0;
+    }
+    if (xvmc_driver->batch) {
+        i830_free_memory(pScrn, xvmc_driver->batch);
+        xvmc_driver->batch = NULL;
+    }
+}

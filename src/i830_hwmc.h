@@ -84,6 +84,8 @@ extern Bool intel_xvmc_driver_init(ScreenPtr, XF86VideoAdaptorPtr);
 extern Bool intel_xvmc_screen_init(ScreenPtr);
 extern void intel_xvmc_finish(ScrnInfoPtr);
 extern int  intel_xvmc_put_image_size(ScrnInfoPtr);
+extern Bool intel_xvmc_init_batch(ScrnInfoPtr);
+extern void intel_xvmc_fini_batch(ScrnInfoPtr);
 #endif
 
 #endif
