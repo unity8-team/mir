@@ -5520,6 +5520,9 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->tmds2.transmitter_enable = INREG(AVIVO_LVTMA_TRANSMITTER_ENABLE);
     state->tmds2.transmitter_cntl = INREG(AVIVO_LVTMA_TRANSMITTER_CONTROL);
 
+    state->lvtma_pwrseq_cntl = INREG(AVIVO_LVTMA_PWRSEQ_CNTL);
+    state->lvtma_pwrseq_state = INREG(AVIVO_LVTMA_PWRSEQ_STATE);
+
     if (state->crtc1.control & AVIVO_CRTC_EN)
 	info->crtc_on = TRUE;
     
@@ -5658,6 +5661,9 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
     OUTREG(AVIVO_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
     OUTREG(AVIVO_LVTMA_SOURCE_SELECT, state->tmds2.source_select);
+    
+    OUTREG(AVIVO_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
+    OUTREG(AVIVO_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state); 
 
     OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
