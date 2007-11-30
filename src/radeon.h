@@ -276,6 +276,9 @@ struct avivo_state
     CARD32 crtc_master_en;
     CARD32 crtc_tv_control;
 
+    CARD32 lvtma_pwrseq_cntl;
+    CARD32 lvtma_pwrseq_state;
+
     struct avivo_pll_state pll1;
     struct avivo_pll_state pll2;
 
