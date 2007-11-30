@@ -475,7 +475,7 @@ static void CalcVClock2Stage (
 	}
 }
 
-/* BIG NOTE: modifying vpll1 and vpll2 does not work, what bit is the switch to allow it? */
+/* BIG NOTE: modifying vpll1 and vpll2vpll2 does not work, what bit is the switch to allow it? */
 
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
@@ -608,8 +608,8 @@ CalculateVClkNV4x(
 		m2_best = 31;
 	}
 
-	/* What exactly are the purpose of bit30 (a) and bit31(b)? */
-	*pll_a = (1 << 30) | (p_best << 16) | (n1_best << 8) | (m1_best << 0);
+	/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
+	*pll_a = (p_best << 16) | (n1_best << 8) | (m1_best << 0);
 	*pll_b = (1 << 31) | (n2_best << 8) | (m2_best << 0);
 
 	if (*db1_ratio) {
@@ -642,6 +642,7 @@ static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	state->pllsel = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
 	state->sel_clk = nvReadRAMDAC0(pNv, NV_RAMDAC_SEL_CLK);
 	state->reg580 = nvReadRAMDAC0(pNv, NV_RAMDAC_580);
+	state->reg594 = nvReadRAMDAC0(pNv, NV_RAMDAC_594);
 }
 
 static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
@@ -732,6 +733,9 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+
+	ErrorF("writing reg594 %08X\n", state->reg594);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_594, state->reg594);
 }
 
 static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
@@ -812,7 +816,10 @@ void nv_crtc_calc_state_ext(
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = NULL;
+	if (output) {
+		nv_output = output->driver_private;
+	}
 
 	/*
 	 * Extended RIVA registers.
@@ -823,7 +830,7 @@ void nv_crtc_calc_state_ext(
 		if (!state->reg580) {
 			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 		}
-		if (nv_output->ramdac == 1) {
+		if (nv_crtc->head == 1) {
 			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
 		} else {
 			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
@@ -903,7 +910,7 @@ void nv_crtc_calc_state_ext(
 
 	if (pNv->Architecture < NV_ARCH_40) {
 		/* We need this before the next code */
-		if (nv_crtc->crtc == 1) {
+		if (nv_crtc->head == 1) {
 			state->vpll2 = state->pll;
 			state->vpll2B = state->pllB;
 		} else {
@@ -919,7 +926,7 @@ void nv_crtc_calc_state_ext(
 		/* Also make sure we don't set both bits */
 
 		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfff << 8);
 
 		/* The rough idea is this:
 		 * 0x40000: One or both dvi outputs is/are on their preferred ramdac (=clock)
@@ -929,9 +936,9 @@ void nv_crtc_calc_state_ext(
 		 * One dvi panel must always be on it's preferred ramdac, due to "or" restrictions.
 		 */
 
-		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			/* Clean out all the bits and enable another mode */
-			if (nv_output->ramdac == nv_output->preferred_ramdac) {
+			if (nv_crtc->head == nv_output->preferred_crtc) {
 				state->sel_clk &= ~(0xf << 16);
 				state->sel_clk |= (1 << 18);
 			} else {
@@ -941,12 +948,16 @@ void nv_crtc_calc_state_ext(
 		} else {
 			int other_index = (~nv_crtc->head) & 1;
 			xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, other_index);
+			NVCrtcPrivatePtr nv_crtc2 = crtc2->driver_private;
 			if (crtc2->enabled) {
 				xf86OutputPtr output2 = NVGetOutputFromCRTC(crtc2);
-				NVOutputPrivatePtr nv_output2 = output2->driver_private;
-				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
+				NVOutputPrivatePtr nv_output2 = NULL;
+				if (output2) {
+					nv_output2 = output2->driver_private;
+				}
+				if (output2 && (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS)) {
 					/* Clean out all the bits and enable another mode */
-					if (nv_output2->ramdac == nv_output2->preferred_ramdac) {
+					if (nv_crtc2->head == nv_output2->preferred_crtc) {
 						state->sel_clk &= ~(0xf << 16);
 						state->sel_clk |= (1 << 18);
 					} else {
@@ -964,10 +975,12 @@ void nv_crtc_calc_state_ext(
 		}
 
 		/* Are we crosswired? */
-		if (nv_crtc->head != nv_output->preferred_crtc && 
+		if (output && nv_crtc->head != nv_output->preferred_crtc && 
 			(nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			state->crosswired = TRUE;
-		} else if (nv_crtc->head != nv_output->preferred_crtc) {
+		} else if (output && nv_crtc->head != nv_output->preferred_crtc) {
+			state->crosswired = FALSE;
+		} else {
 			state->crosswired = FALSE;
 		}
 
@@ -984,7 +997,7 @@ void nv_crtc_calc_state_ext(
 		state->crosswired = FALSE;
 	}
 
-	if (nv_output->ramdac == 1) {
+	if (nv_crtc->head == 1) {
 		if (!state->db1_ratio[1]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		} else {
@@ -1000,6 +1013,24 @@ void nv_crtc_calc_state_ext(
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		}
+	}
+
+	if (pNv->Architecture == NV_ARCH_40 && state->vpll2_b) {
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
+	}
+
+	/* The primary output doesn't seem to care */
+	if (nv_output->preferred_crtc == 1) { /* This is the bus */
+		/* non-zero values are for analog, don't know about tv-out and the likes */
+		if (output && nv_output->type != OUTPUT_ANALOG) {
+			state->reg594 = 0x0;
+		} else {
+			if (nv_crtc->head == 1) {
+				state->reg594 = 0x101;
+			} else {
+				state->reg594 = 0x1;
+			}
 		}
 	}
 
@@ -1083,10 +1114,13 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = NULL;
+	if (output) {
+		nv_output = output->driver_private;
+	}
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS))) {
+	if (output && ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS)))) {
 		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
 		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
 		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
@@ -1134,10 +1168,13 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	Bool is_fp = FALSE;
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = NULL;
+	if (output) {
+		nv_output = output->driver_private;
 
-	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
-		is_fp = TRUE;
+		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
+			is_fp = TRUE;
+	}
 
 	ErrorF("Mode clock: %d\n", mode->Clock);
 	ErrorF("Adjusted mode clock: %d\n", adjusted_mode->Clock);
@@ -1376,10 +1413,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = NULL;
+	if (output) {
+		nv_output = output->driver_private;
 
-	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
-		is_fp = TRUE;
+		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
+			is_fp = TRUE;
+	}
 
 	/* Registers not directly related to the (s)vga mode */
 
@@ -1401,11 +1441,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD];
 	}
 
-	/* I'm trusting haiku driver on this one, they say it enables an external TDMS clock */
-	if (is_fp) {
-		regp->CRTC[NV_VGA_CRTCX_59] = 0x1;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_59] = 0x0;
+	/* Sometimes 0x10 is used, what is this? */
+	regp->CRTC[NV_VGA_CRTCX_59] = 0x0;
+	/* Some kind of tmds switch for older cards */
+	if (pNv->Architecture < NV_ARCH_40) {
+		regp->CRTC[NV_VGA_CRTCX_59] |= 0x1;
 	}
 
 	/*
@@ -1449,7 +1489,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		}
 	} else {
 		/* This is observed on some g70 cards, non-flatpanel's too */
-		if (nv_crtc->head == 1) {
+		if (nv_crtc->head == 1 && pNv->NVArch > 0x44) {
 			regp->head |= NV_CRTC_FSEL_FPP2;
 		}
 	}
@@ -1478,28 +1518,49 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
-	/* 0x20 seems to be enabled and 0x14 disabled */
-	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
+	/* What is the purpose of this register? */
+	if (nv_crtc->head == 1) {
+		regp->CRTC[NV_VGA_CRTCX_26] = 0x14;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
+	}
 
 	/* 0x00 is disabled, 0x22 crt and 0x88 dfp */
 	/* 0x11 is LVDS? */
 	if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
+		/* 0x20 is also seen sometimes, why? */
+		if (nv_crtc->head == 1) {
+			regp->CRTC[NV_VGA_CRTCX_3B] = 0x24;
+		} else {
+			regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
+		}
 	}
 
 	/* These values seem to vary */
-	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
+	if (nv_crtc->head == 1) {
+		regp->CRTC[NV_VGA_CRTCX_3C] = 0x0;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_3C] = 0x70;
+	}
 
 	/* 0x80 seems to be used very often, if not always */
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
+
+	if (nv_crtc->head == 1) {
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
+	}
+
+	if (is_fp)
+		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	/* Are these(0x55 and 0x56) also timing related registers, since disabling them does nothing? */
 	regp->CRTC[NV_VGA_CRTCX_55] = 0x0;
 
 	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
-	//regp->CRTC[NV_VGA_CRTCX_56] = savep->CRTC[NV_VGA_CRTCX_56] & ~(1<<4);
 	regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
 
 	regp->CRTC[NV_VGA_CRTCX_57] = 0x0;
@@ -1529,6 +1590,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* Never ever modify gpio, unless you know very well what you're doing */
 	regp->gpio = nvReadCRTC(pNv, 0, NV_CRTC_GPIO);
+
+	/* Switch to non-vga mode (the so called HSYNC mode) */
+	regp->config = 0x2;
 
 	/*
 	 * Calculate the state that is common to all crtc's (stored in the state struct).
@@ -1564,14 +1628,18 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = NULL;
+	if (output) {
+		nv_output = output->driver_private;
 
-	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
-		is_fp = TRUE;
+		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
+			is_fp = TRUE;
 
 		if (nv_output->type == OUTPUT_LVDS)
 			is_lvds = TRUE;
+	}
 
+	if (is_fp) {
 		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
 		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
 		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
@@ -1622,7 +1690,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	} else {
 		regp->fp_control = 0x21100000;
 	}
-	if (nv_output->type == OUTPUT_LVDS) {
+	if (is_lvds) {
 		/* Let's assume LVDS to be on ramdac0, remember that in the ramdac routing is somewhat random (compared to bios setup), so don't trust it */
 		regp->fp_control = nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
 	} else {
@@ -1723,7 +1791,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
 
-	ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
+	if (output)
+		ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
@@ -1893,6 +1962,7 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->crtc);
 
 	crtc->funcs->dpms (crtc, DPMSModeOn);
+
 	if (crtc->scrn->pScreen != NULL)
 		xf86_reload_cursors (crtc->scrn->pScreen);
 }
@@ -2100,6 +2170,8 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
 
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, regp->config);
+
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
 
@@ -2107,6 +2179,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_57, regp->CRTC[NV_VGA_CRTCX_57]);
@@ -2199,6 +2272,8 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
     regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
 
+	regp->config = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG);
+
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
            regp->head     = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL);
@@ -2212,6 +2287,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
+	regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
 	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
 	regp->CRTC[NV_VGA_CRTCX_57] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_57);

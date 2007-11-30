@@ -91,23 +91,36 @@ CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg)
 	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
 }
 
+/* Two register sets exist, one (the one below) is barely used, so i'm lacking a good name */
+
+void NVWriteTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
+{
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2, val & 0xff);
+
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, tmds_reg & 0xff);
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
+}
+
+CARD8 NVReadTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg)
+{
+	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
+
+	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2) & 0xff);
+}
+
 void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	int ramdac;
 
-	/* Is TMDS programmed on a different output? */
-	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
-	/* Assumption: there is always once output that can only run of the primary ramdac */
-	if (nv_output->valid_ramdac & RAMDAC_1) {
-		ramdac = 1;
-	} else {
-		ramdac = 0;
-	}
-
-	NVWriteTMDS(pNv, ramdac, tmds_reg, val);
+	/* We must write to the "bus" of the output */
+	NVWriteTMDS(pNv, nv_output->preferred_crtc, tmds_reg, val);
 }
 
 CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
@@ -115,18 +128,29 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	int ramdac;
 
-	/* Is TMDS programmed on a different output? */
-	/* Always choose the prefered ramdac, since that one contains the tmds stuff */
-	/* Assumption: there is always once output that can only run of the primary ramdac */
-	if (nv_output->valid_ramdac & RAMDAC_1) {
-		ramdac = 1;
-	} else {
-		ramdac = 0;
-	}
+	/* We must read from the "bus" of the output */
+	return NVReadTMDS(pNv, nv_output->preferred_crtc, tmds_reg);
+}
 
-	return NVReadTMDS(pNv, ramdac, tmds_reg);
+void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* We must write to the "bus" of the output */
+	NVWriteTMDS2(pNv, nv_output->preferred_crtc, tmds_reg, val);
+}
+
+CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr	pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* We must read from the "bus" of the output */
+	return NVReadTMDS2(pNv, nv_output->preferred_crtc, tmds_reg);
 }
 
 void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
@@ -289,8 +313,8 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 }
 
 /* This sequence is an optimized/shortened version of what the blob does */
-uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x43, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a };
-uint32_t tmds_regs_nv30[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x29, 0x2a, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a };
+uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x43, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
+uint32_t tmds_regs_nv30[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x29, 0x2a, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
 
 #define TMDS_REGS(index) ( tmds_regs(pNv, index) )
 
@@ -314,6 +338,32 @@ uint32_t tmds_size(NVPtr pNv)
 	}
 }
 
+/* Does anyone know the precise purpose of this second register set? */
+uint32_t tmds2_regs_nv40[] = { 0x2b };
+uint32_t tmds2_regs_nv30[] = { 0x2b };
+
+#define TMDS2_REGS(index) ( tmds2_regs(pNv, index) )
+
+uint32_t tmds2_regs(NVPtr pNv, int i)
+{
+	if (pNv->Architecture == NV_ARCH_40) {
+		return tmds2_regs_nv40[i];
+	} else {
+		return tmds2_regs_nv30[i];
+	}
+}
+
+#define TMDS2_SIZE ( tmds2_size(pNv) )
+
+uint32_t tmds2_size(NVPtr pNv)
+{
+	if (pNv->Architecture == NV_ARCH_40) {
+		return(sizeof(tmds2_regs_nv40)/sizeof(tmds2_regs_nv40[0]));
+	} else {
+		return(sizeof(tmds2_regs_nv30)/sizeof(tmds2_regs_nv30[0]));
+	}
+}
+
 void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -323,17 +373,18 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
-	regp->test_control	= NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
-	regp->unk_670 	= NVOutputReadRAMDAC(output, NV_RAMDAC_670);
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
-
-	//regp->unk_900 	= NVOutputReadRAMDAC(output, NV_RAMDAC_900);
 
 	/* This exists purely for proper text mode restore */
 	if (override) regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
 	for (i = 0; i < TMDS_SIZE; i++) {
 		regp->TMDS[TMDS_REGS(i)] = NVOutputReadTMDS(output, TMDS_REGS(i));
+	}
+
+	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
+	for (i = 0; i < TMDS2_SIZE; i++) {
+		regp->TMDS[TMDS2_REGS(i)] = NVOutputReadTMDS2(output, TMDS2_REGS(i));
 	}
 }
 
@@ -350,13 +401,13 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	/* This exists purely for proper text mode restore */
 	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
 
-	//NVOutputWriteRAMDAC(output, NV_RAMDAC_900, regp->unk_900);
-
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_TEST_CONTROL, regp->test_control);
-	NVOutputWriteRAMDAC(output, NV_RAMDAC_670, regp->unk_670);
-
 	for (i = 0; i < TMDS_SIZE; i++) {
 		NVOutputWriteTMDS(output, TMDS_REGS(i), regp->TMDS[TMDS_REGS(i)]);
+	}
+
+	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
+	for (i = 0; i < TMDS2_SIZE; i++) {
+		NVOutputWriteTMDS(output, TMDS2_REGS(i), regp->TMDS[TMDS2_REGS(i)]);
 	}
 }
 
@@ -482,6 +533,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		/* Enable crosswired mode */
 		/* This will upset the monitor, trust me, i know it :-( */
 		/* Now allowed for non-bios inited systems */
+		//if (nv_output->ramdac != nv_output->preferred_ramdac) {
 		if (nv_crtc->head != nv_output->preferred_crtc) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
@@ -495,9 +547,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	/* A few registers are also programmed on non-tmds monitors */
 	/* At the moment i can't give rationale for these values */
 	if (!is_fp) {
-		regp->TMDS[0x2e] = 0x80;
-		regp->TMDS[0x2f] = 0xff;
-		regp->TMDS[0x33] = 0xfe;
+		regp->TMDS[0x2b] = 0x7d;
 	} else {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
 		uint32_t pll_setup_control = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SETUP_CONTROL);
@@ -513,7 +563,9 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 				regp->TMDS[0x2e] = 0x0;
 			}
 		} else {
-			if (nv_crtc->head == 1) {
+			/* Which is it? */
+			//if (nv_output->ramdac == nv_output->preferred_ramdac) {
+			if (nv_crtc->head == nv_output->preferred_crtc) {
 				regp->TMDS[0x2e] = 0x81;
 			} else {
 				regp->TMDS[0x2e] = 0x85;
@@ -525,51 +577,48 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		regp->TMDS[0x31] = 0x0;
 		regp->TMDS[0x32] = 0x0;
 		regp->TMDS[0x33] = 0xf0;
-		/* 0x00 is also seen for lvds */
-		regp->TMDS[0x3a] = 0x80;
+		regp->TMDS[0x3a] = 0x0;
 
-		/* Here starts the registers that may cause problems for some */
-		/* This an educated guess */
-		if (pNv->Architecture == NV_ARCH_40 && pNv->misc_info.reg_c040 & (1 << 10)) {
-			regp->TMDS[0x5] = 0x68;
-		} else {
-			regp->TMDS[0x5] = 0x6e;
-		}
+		/* Rarely the value 0x68 is used */
+		regp->TMDS[0x5] = 0x6e;
 
 		if (is_lvds) {
 			if (pNv->Architecture == NV_ARCH_40) {
-				regp->TMDS[0x0] = 0x61;
+				regp->TMDS[0x0] = 0x60;
 			} else {
 				/* observed on a nv31m */
-				regp->TMDS[0x0] = 0x71;
+				regp->TMDS[0x0] = 0x70;
 			}
 		} else {
 			/* This seems to be related to PLL_SETUP_CONTROL */
-			/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xc1 */
-			/* Otherwise 0xf1 */
+			/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xcX */
+			/* Otherwise 0xfX */
 			if ((pll_setup_control & 0xff) == 0x1c) {
-				regp->TMDS[0x0] = 0xc1;
+				regp->TMDS[0x0] = 0xc0;
 			} else {
-				regp->TMDS[0x0] = 0xf1;
+				regp->TMDS[0x0] = 0xf0;
 			}
 		}
 
-		/* This is also related to PLL_SETUP_CONTROL, exactly how is unknown */
-		if (pll_setup_control == 0) {
-			regp->TMDS[0x1] = 0x0;
+		/* Not a 100% sure if this is not crtc determined */
+		if (nv_output->preferred_ramdac != nv_output->ramdac) {
+			regp->TMDS[0x0] |= 0xa;
 		} else {
-			if (nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & (1<<12)) {
-				regp->TMDS[0x1] = 0x41;
-			} else {
-				regp->TMDS[0x1] = 0x42;
-			}
+			regp->TMDS[0x0] |= 0x1;
+		}
+
+		/* Also seen: 0x47, what does this register do? */
+		if (nv_output->ramdac != nv_output->preferred_ramdac) {
+			regp->TMDS[0x1] = 0x42;
+		} else {
+			regp->TMDS[0x1] = 0x41;
 		}
 
 		if (is_lvds) {
 			regp->TMDS[0x2] = 0x0;
 		} else {
-			if (pll_setup_control == 0x0) {
-				regp->TMDS[0x2] = 0x90;
+			if (nv_output->preferred_crtc == 1) { /* bus */
+				regp->TMDS[0x2] = 0xa9;
 			} else {
 				regp->TMDS[0x2] = 0x89;
 			}
@@ -582,19 +631,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			regp->TMDS[0x43] = 0xb0;
 		}
 	}
-
-	/* Put test control into what seems to be the neutral position */
-	if (pNv->NVArch < 0x44) {
-		regp->test_control = 0x00000000;
-	} else {
-		regp->test_control = 0x00100000;
-	}
-
-	/* This is a similar register to test control */
-	regp->unk_670 = regp->test_control;
-
-	/* This may be causing problems */
-	//regp->unk_900 = 0x10000;
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
@@ -631,9 +667,9 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	Bool is_fp = FALSE;
-	int other_ramdac = 0;
+	int other= 0;
 
-	uint32_t output_reg = nvReadRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_OUTPUT);
+	uint32_t output_reg = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT);
 
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
@@ -646,27 +682,38 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	}
 
 	if (nv_crtc->head == 1) {
-		output_reg |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+		output_reg |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	} else {
-		output_reg &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+		output_reg &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
 
-	if (nv_output->ramdac == 1) {
-		other_ramdac = 0;
+	if (nv_output->preferred_ramdac == 1) {
+		other = 0;
 	} else {
-		other_ramdac = 1;
+		other = 1;
 	}
 
-	uint32_t output2_reg = nvReadRAMDAC(pNv, other_ramdac, NV_RAMDAC_OUTPUT);
-	
+	uint32_t output2_reg = nvReadRAMDAC(pNv, other, NV_RAMDAC_OUTPUT);
+
 	if (nv_crtc->head == 1) {
-		output2_reg &= ~NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+		output2_reg &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	} else {
-		output2_reg |= NV_RAMDAC_OUTPUT_SELECT_VPLL2;
+		output2_reg |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
 
-	nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_OUTPUT, output_reg);
-	nvWriteRAMDAC(pNv, other_ramdac, NV_RAMDAC_OUTPUT, output2_reg);
+	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, output_reg);
+	nvWriteRAMDAC(pNv, other, NV_RAMDAC_OUTPUT, output2_reg);
+
+	/* This could use refinement for flatpanels, but it should work this way */
+	if (pNv->NVArch < 0x44) {
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
+	} else {
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
+	}
 }
 
 static void

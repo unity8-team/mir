@@ -125,6 +125,7 @@
 #define NV_VGA_CRTCX_45			0x45
 #define NV_VGA_CRTCX_SWAPPING		0x46
 #define NV_VGA_CRTCX_FIFO_LWM_NV30	0x47
+#define NV_VGA_CRTCX_4B			0x4b
 #define NV_VGA_CRTCX_FP_HTIMING		0x53
 #define NV_VGA_CRTCX_FP_VTIMING		0x54
 #define NV_VGA_CRTCX_52			0x52
@@ -155,6 +156,10 @@
 
 #define NV_RAMDAC_VPLL              0x508
 #define NV_RAMDAC_PLL_SELECT        0x50c
+/* Without this it will use vpll1 */
+/* Maybe only for nv4x */
+#define NV_RAMDAC_PLL_SELECT_USE_VPLL2_FALSE	(0<<2)
+#define NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE		(1<<2)
 #define NV_RAMDAC_PLL_SELECT_DLL_BYPASS 	(1<<4)
 #define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_DEFAULT 	(0<<8)
 #define NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL 		(1<<8)
@@ -190,7 +195,7 @@
 #define NV_RAMDAC_DITHER_NV11       0x528
 #define NV_RAMDAC_OUTPUT            0x52c
 #define NV_RAMDAC_OUTPUT_DAC_ENABLE                     (1<<0)
-#define NV_RAMDAC_OUTPUT_SELECT_VPLL2                   (1<<8)
+#define NV_RAMDAC_OUTPUT_SELECT_CRTC1                   (1<<8)
 
 #define NV_RAMDAC_NVPLL_B           0x570
 #define NV_RAMDAC_MPLL_B            0x574
@@ -201,6 +206,8 @@
 /* This is not always activated, but only when VCLK_RATIO_DB1 is used */
 #define NV_RAMDAC_580_VPLL1_ACTIVE			(1<<8)
 #define NV_RAMDAC_580_VPLL2_ACTIVE			(1<<28)
+
+#define NV_RAMDAC_594			0x594
 
 #define NV_RAMDAC_GENERAL_CONTROL   0x600
 #define NV_RAMDAC_TEST_CONTROL      0x608
@@ -269,6 +276,13 @@
 #define NV_RAMDAC_FP_TMDS_DATA      0x8b4
 /* 0xff - data mask */
 
+/* What is the purpose of this second set? */
+#define NV_RAMDAC_FP_TMDS_CONTROL_2   0x8b8
+/* 0xff - address mask */
+#define NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE (1<<16)
+#define NV_RAMDAC_FP_TMDS_DATA_2      0x8bc
+/* 0xff - data mask */
+
 /* Some kind of switch */
 #define NV_RAMDAC_900			0x900
 
@@ -280,6 +294,7 @@
 #	define NV_CRTC_INTR_VBLANK           1
 #define NV_CRTC_INTR_EN_0           0x140
 #define NV_CRTC_START               0x800
+#define NV_CRTC_CONFIG               0x804
 #define NV_CRTC_CURSOR_CONFIG       0x810
 #define NV_CRTC_GPIO			0x818
 #define NV_CRTC_081C                0x81c

@@ -110,6 +110,7 @@ typedef struct _nv_crtc_reg
 	CARD32 unk850;
 	CARD32 unk81c;
 	CARD32 head;
+	uint32_t config;
 
 	/* These are former output regs, but are believed to be crtc related */
 	CARD32 general;
@@ -175,6 +176,7 @@ typedef struct _riva_hw_state
 	uint32_t vpll2_a;
 	uint32_t vpll2_b;
 	uint32_t reg580;
+	uint32_t reg594;
     CARD32 general;
     CARD32 crtcOwner;
     CARD32 head;
@@ -436,6 +438,7 @@ typedef struct _NVCrtcPrivateRec {
 	int crtc;
 	int head;
 	Bool paletteEnabled;
+	Bool deactivate;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef struct _NV50CrtcPrivRec {
