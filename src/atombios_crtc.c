@@ -240,10 +240,10 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     unsigned char *space;    
     RADEONSavePtr save = &info->ModeReg;
     
-    sclock = mode->Clock;
     if (IS_AVIVO_VARIANT) {
-        PLLCalculate(crtc->scrn, mode->Clock, &ref_div, &fb_div, &post_div);
+        PLLCalculate(crtc->scrn, sclock, &ref_div, &fb_div, &post_div);
     } else {
+	sclock = save->dot_clock_freq * 10;
 	fb_div = save->feedback_div;
 	post_div = save->post_div;
 	ref_div = save->ppll_ref_div;
