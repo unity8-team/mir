@@ -428,13 +428,19 @@ typedef enum {
        CHIP_ERRATA_PLL_DELAY           = 0x00000004
 } RADEONErrata;
 
+typedef enum {
+    RADEON_SIL_164  = 0x00000001,
+    RADEON_SIL_1178 = 0x00000002
+} RADEONExtTMDSChip;
+
 #if defined(__powerpc__)
 typedef enum {
-       RADEON_MAC_IBOOK             = 0x00000001,
-       RADEON_MAC_POWERBOOK_DL      = 0x00000002,
-       RADEON_MAC_POWERBOOK         = 0x00000004,
-       RADEON_MAC_MINI              = 0x00000008,
-       RADEON_MAC_MINI_INTERNAL     = 0x00000016
+       RADEON_MAC_IBOOK              = 0x00000001,
+       RADEON_MAC_POWERBOOK_EXTERNAL = 0x00000002,
+       RADEON_MAC_POWERBOOK_INTERNAL = 0x00000004,
+       RADEON_MAC_POWERBOOK_VGA      = 0x00000008,
+       RADEON_MAC_MINI_EXTERNAL      = 0x00000016,
+       RADEON_MAC_MINI_INTERNAL      = 0x00000032
 } RADEONMacModel;
 #endif
 
@@ -827,6 +833,7 @@ typedef struct {
 #if defined(__powerpc__)
     RADEONMacModel    MacModel;
 #endif
+    RADEONExtTMDSChip ext_tmds_chip;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
