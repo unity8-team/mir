@@ -229,6 +229,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
+    unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
     int sclock = mode->Clock;
     uint16_t ref_div = 0, fb_div = 0;
@@ -241,7 +242,17 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     RADEONSavePtr save = &info->ModeReg;
     
     if (IS_AVIVO_VARIANT) {
+        CARD32 temp;
         PLLCalculate(crtc->scrn, sclock, &ref_div, &fb_div, &post_div);
+
+	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
+	if (radeon_crtc->crtc_id == 0) {
+            temp = INREG(AVIVO_P1PLL_INT_SS_CNTL);
+            OUTREG(AVIVO_P1PLL_INT_SS_CNTL, temp & ~1);
+        } else {
+            temp = INREG(AVIVO_P2PLL_INT_SS_CNTL);
+            OUTREG(AVIVO_P2PLL_INT_SS_CNTL, temp & ~1);
+        }
     } else {
 	sclock = save->dot_clock_freq * 10;
 	fb_div = save->feedback_div;
