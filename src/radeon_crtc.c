@@ -907,18 +907,18 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ErrorF("restore crtc1\n");
 	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
 	ErrorF("restore pll1\n");
-	if (info->IsAtomBios)
+	/*if (info->IsAtomBios)
 	    atombios_crtc_set_pll(crtc, adjusted_mode);
-	else
+	else*/
 	    RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
 	break;
     case 1:
 	ErrorF("restore crtc2\n");
 	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
 	ErrorF("restore pll2\n");
-	if (info->IsAtomBios)
+	/*if (info->IsAtomBios)
 	    atombios_crtc_set_pll(crtc, adjusted_mode);
-	else
+	else*/
 	    RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
 	break;
     }
