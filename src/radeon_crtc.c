@@ -783,8 +783,8 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info      = RADEONPTR(pScrn);
 
     /* tell the bios not to muck with the hardware on events */
-    save->bios_4_scratch = 0;
-    save->bios_5_scratch = 0xff00;
+    save->bios_4_scratch = 0x4; /* 0x4 needed for backlight */
+    save->bios_5_scratch = (info->SavedReg.bios_5_scratch & 0xff) | 0xff00; /* bits 0-3 keep backlight level */
     save->bios_6_scratch = info->SavedReg.bios_6_scratch | 0x40000000;
 
 }

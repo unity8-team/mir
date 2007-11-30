@@ -217,22 +217,33 @@ RADEONRestoreDVOChip(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
     if (!RADEONInitExtTMDSInfoFromBIOS(output)) {
-	/* do mac stuff here */
-#if defined(__powerpc__)
 	if (radeon_output->DVOChip) {
-	    switch(info->MacModel) {
-	    case RADEON_MAC_POWERBOOK_DL:
+	    switch(info->ext_tmds_chip) {
+	    case RADEON_SIL_164:
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x30);
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x09, 0x00);
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0a, 0x90);
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0c, 0x89);
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x3b);
 		break;
+#if 0
+		/* needs work see bug 10418 */
+	    case RADEON_SIL_1178:
+		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0f, 0x44);
+		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0f, 0x4c);
+		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0e, 0x01);
+		RADEONDVOWriteByte(radeon_output->DVOChip, 0x0a, 0x80);
+                RADEONDVOWriteByte(radeon_output->DVOChip, 0x09, 0x30);
+                RADEONDVOWriteByte(radeon_output->DVOChip, 0x0c, 0xc9);
+                RADEONDVOWriteByte(radeon_output->DVOChip, 0x0d, 0x70);
+                RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x32);
+                RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x33);
+		break;
+#endif
 	    default:
 		break;
 	    }
 	}
-#endif
     }
 }
 
@@ -1741,11 +1752,13 @@ radeon_detect(xf86OutputPtr output)
 	  /* default to unknown for flaky chips/connectors
 	   * so we can get something on the screen
 	   */
-	  if (((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI_I) &&
-	       radeon_output->DACType == DAC_TVDAC)) {
+	  if ((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI_I) &&
+	      (radeon_output->DACType == DAC_TVDAC) &&
+	      (info->ChipFamily == CHIP_FAMILY_RS400)) {
 	      radeon_output->MonType = MT_CRT;
 	      return XF86OutputStatusUnknown;
-	  } else if  (info->IsIGP && radeon_output->type == OUTPUT_DVI_D) {
+	  } else if  ((info->ChipFamily == CHIP_FAMILY_RS400) &&
+		      radeon_output->type == OUTPUT_DVI_D) {
 	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
 	      return XF86OutputStatusUnknown;
 	  }
@@ -2802,7 +2815,7 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ddc_line = 0;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
-    case RADEON_MAC_POWERBOOK_DL:
+    case RADEON_MAC_POWERBOOK_EXTERNAL:
 	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
@@ -2821,7 +2834,8 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ddc_line = 0;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
-    case RADEON_MAC_POWERBOOK:
+
+    case RADEON_MAC_POWERBOOK_INTERNAL:
 	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
@@ -2840,10 +2854,42 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ddc_line = 0;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
-    case RADEON_MAC_MINI:
+    case RADEON_MAC_POWERBOOK_VGA:
+	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[0].DACType = DAC_NONE;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[1].DACType = DAC_PRIMARY;
+	info->BiosConnector[1].TMDSType = TMDS_INT;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
+    case RADEON_MAC_MINI_EXTERNAL:
 	info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
 	info->BiosConnector[0].DACType = DAC_TVDAC;
 	info->BiosConnector[0].TMDSType = TMDS_EXT;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].ddc_line = 0;
+	info->BiosConnector[1].valid = TRUE;
+	return TRUE;
+    case RADEON_MAC_MINI_INTERNAL:
+	info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
+	info->BiosConnector[0].DACType = DAC_TVDAC;
+	info->BiosConnector[0].TMDSType = TMDS_INT;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	info->BiosConnector[0].valid = TRUE;
 
@@ -2975,11 +3021,19 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 		info->BiosConnector[0].valid = TRUE;
 
+#if defined(__powerpc__)
+		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].DACType = DAC_PRIMARY;
+		info->BiosConnector[1].TMDSType = TMDS_EXT;
+		info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
+		info->BiosConnector[1].valid = TRUE;
+#else
 		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
 		info->BiosConnector[1].DACType = DAC_PRIMARY;
 		info->BiosConnector[1].TMDSType = TMDS_EXT;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 		info->BiosConnector[1].valid = TRUE;
+#endif
 	    }
 	}
 
@@ -3008,25 +3062,63 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
  * in /proc/cpuinfo (on Linux) */
 static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONMacModel ret = 0;
 #ifdef __linux__
     char cpuline[50];  /* 50 should be sufficient for our purposes */
     FILE *f = fopen ("/proc/cpuinfo", "r");
 
+    /* Some macs (minis and powerbooks) use internal tmds, others use external tmds
+     * and not just for dual-link TMDS, it shows up with single-link as well.
+     * Unforunately, there doesn't seem to be any good way to figure it out.
+     */
+
+    /* 
+     * PowerBook5,[1-5]: external tmds, single-link
+     * PowerBook5,[789]: external tmds, dual-link
+     * PowerBook5,6:     external tmds, single-link or dual-link
+     * need to add another option to specify the external tmds chip
+     * or find out what's used and add it.
+     */
+
+
     if (f != NULL) {
 	while (fgets(cpuline, sizeof cpuline, f)) {
 	    if (!strncmp(cpuline, "machine", strlen ("machine"))) {
-		if (strstr(cpuline, "PowerBook5,6") ||
-		    strstr(cpuline, "PowerBook5,7") ||
-		    strstr(cpuline, "PowerBook5,8") ||
-		    strstr(cpuline, "PowerBook5,9")) {
-		    ret = RADEON_MAC_POWERBOOK_DL;
+		if (strstr(cpuline, "PowerBook5,1") ||
+		    strstr(cpuline, "PowerBook5,2") ||
+		    strstr(cpuline, "PowerBook5,3") ||
+		    strstr(cpuline, "PowerBook5,4") ||
+		    strstr(cpuline, "PowerBook5,5")) {
+		    ret = RADEON_MAC_POWERBOOK_EXTERNAL; /* single link */
+		    info->ext_tmds_chip = RADEON_SIL_164; /* works on 5,2 */
 		    break;
 		}
 
-		if (strstr(cpuline, "PowerMac10,1") ||
-		    strstr(cpuline, "PowerMac10,2")) {
-		    ret = RADEON_MAC_MINI;
+		if (strstr(cpuline, "PowerBook5,6")) {
+		    ret = RADEON_MAC_POWERBOOK_EXTERNAL; /* dual or single link */
+		    break;
+		}
+
+		if (strstr(cpuline, "PowerBook5,7") ||
+		    strstr(cpuline, "PowerBook5,8") ||
+		    strstr(cpuline, "PowerBook5,9")) {
+		    ret = RADEON_MAC_POWERBOOK_EXTERNAL; /* dual link */
+		    info->ext_tmds_chip = RADEON_SIL_1178; /* guess */
+		    break;
+		}
+
+		if (strstr(cpuline, "PowerBook3,3")) {
+		    ret = RADEON_MAC_POWERBOOK_VGA; /* vga rather than dvi */
+		    break;
+		}
+
+		if (strstr(cpuline, "PowerMac10,1")) {
+		    ret = RADEON_MAC_MINI_INTERNAL; /* internal tmds */
+		    break;
+		}
+		if (strstr(cpuline, "PowerMac10,2")) {
+		    ret = RADEON_MAC_MINI_EXTERNAL; /* external tmds */
 		    break;
 		}
 	    } else if (!strncmp(cpuline, "detected as", strlen("detected as"))) {
@@ -3034,7 +3126,7 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
                     ret = RADEON_MAC_IBOOK;
 		    break;
 		} else if (strstr(cpuline, "PowerBook")) {
-		    ret = RADEON_MAC_POWERBOOK_DL;
+		    ret = RADEON_MAC_POWERBOOK_INTERNAL; /* internal tmds */
 		    break;
                 }
 
@@ -3053,10 +3145,12 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 
     if (ret) {
 	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT, "Detected %s.\n",
-		   ret == RADEON_MAC_POWERBOOK_DL ? "PowerBook with dual link DVI" :
-		   ret == RADEON_MAC_POWERBOOK ? "PowerBook with single link DVI" :
+		   ret == RADEON_MAC_POWERBOOK_EXTERNAL ? "PowerBook with external DVI" :
+		   ret == RADEON_MAC_POWERBOOK_INTERNAL ? "PowerBook with integrated DVI" :
+		   ret == RADEON_MAC_POWERBOOK_VGA ? "PowerBook with VGA" :
 		   ret == RADEON_MAC_IBOOK ? "iBook" :
-		   "Mac Mini");
+		   ret == RADEON_MAC_MINI_EXTERNAL ? "Mac Mini with external DVI" :
+		   "Mac Mini with integrated DVI");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "If this is not correct, try Option \"MacModel\" and "
 		   "consider reporting to the\n");
@@ -3103,12 +3197,22 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     if (optstr) {
 	if (!strncmp("ibook", optstr, strlen("ibook")))
 	    info->MacModel = RADEON_MAC_IBOOK;
-	else if (!strncmp("powerbook-duallink", optstr, strlen("powerbook-duallink")))
-	    info->MacModel = RADEON_MAC_POWERBOOK_DL;
-	else if (!strncmp("powerbook", optstr, strlen("powerbook")))
-	    info->MacModel = RADEON_MAC_POWERBOOK;
-	else if (!strncmp("mini", optstr, strlen("mini")))
-	    info->MacModel = RADEON_MAC_MINI;
+	else if (!strncmp("powerbook-duallink", optstr, strlen("powerbook-duallink"))) /* alias */
+	    info->MacModel = RADEON_MAC_POWERBOOK_EXTERNAL;
+	else if (!strncmp("powerbook-external", optstr, strlen("powerbook-external")))
+	    info->MacModel = RADEON_MAC_POWERBOOK_EXTERNAL;
+	else if (!strncmp("powerbook-internal", optstr, strlen("powerbook-internal")))
+	    info->MacModel = RADEON_MAC_POWERBOOK_INTERNAL;
+	else if (!strncmp("powerbook-vga", optstr, strlen("powerbook-vga")))
+	    info->MacModel = RADEON_MAC_POWERBOOK_VGA;
+	else if (!strncmp("powerbook", optstr, strlen("powerbook"))) /* alias */
+	    info->MacModel = RADEON_MAC_POWERBOOK_INTERNAL;
+	else if (!strncmp("mini-internal", optstr, strlen("mini-internal")))
+	    info->MacModel = RADEON_MAC_MINI_INTERNAL;
+	else if (!strncmp("mini-external", optstr, strlen("mini-external")))
+	    info->MacModel = RADEON_MAC_MINI_EXTERNAL;
+	else if (!strncmp("mini", optstr, strlen("mini"))) /* alias */
+	    info->MacModel = RADEON_MAC_MINI_EXTERNAL;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
 	}

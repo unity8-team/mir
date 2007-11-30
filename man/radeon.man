@@ -383,14 +383,14 @@ case.  This is only useful for LVDS panels (laptop internal panels).
 The default is
 .B on.
 .TP
-.BI "Option \*TVDACLoadDetect\*q \*q" boolean \*q
+.BI "Option \*qTVDACLoadDetect\*q \*q" boolean \*q
 Enable load detection on the TV DAC.  The TV DAC is used to drive both 
 TV-OUT and analog monitors. Load detection is often unreliable in the 
 TV DAC so it is disabled by default.
 The default is
 .B off.
 .TP
-.BI "Option \*DefaultTMDSPLL\*q \*q" boolean \*q
+.BI "Option \*qDefaultTMDSPLL\*q \*q" boolean \*q
 Use the default driver provided TMDS PLL values rather than the ones
 provided by the bios. This option has no effect on Mac cards.  Enable 
 this option if you are having problems with a DVI monitor using the 
@@ -414,16 +414,28 @@ The default is
 .TP
 .BI "Option \*qMacModel\*q \*q" string \*q
 .br
-Used to specify Mac models for connector tables and quirks.  Only valid
- on PowerPC.
+Used to specify Mac models for connector tables and quirks.  If you have
+a powerbook or mini with DVI that does not work properly, try the alternate
+ options as Apple does not seem to provide a good way of knowing whether
+ they use internal or external TMDS for DVI.  Only valid on PowerPC.
 .br
 ibook                \-\- ibooks
 .br
-powerbook-duallink   \-\- Powerbooks with external DVI
+powerbook-external   \-\- Powerbooks with external DVI
 .br
-powerbook            \-\- Powerbooks with integrated DVI
+powerbook-internal   \-\- Powerbooks with integrated DVI
 .br
-mini                 \-\- Mac Mini
+powerbook-vga        \-\- Powerbooks with VGA rather than DVI
+.br
+powerbook-duallink   \-\- powerbook-external alias
+.br
+powerbook            \-\- powerbook-internal alias
+.br
+mini-external        \-\- Mac Mini with external DVI
+.br
+mini-internal        \-\- Mac Mini with integrated DVI
+.br
+mini                 \-\- mini-external alias
 .br
 The default value is
 .B undefined.

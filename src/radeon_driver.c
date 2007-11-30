@@ -4309,10 +4309,13 @@ void RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 bios_5_scratch = INREG(RADEON_BIOS_5_SCRATCH);
     CARD32 bios_6_scratch = INREG(RADEON_BIOS_6_SCRATCH);
 
     OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
-    OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
+    bios_5_scratch &= 0xF;
+    bios_5_scratch |= (restore->bios_5_scratch & ~0xF);
+    OUTREG(RADEON_BIOS_5_SCRATCH, bios_5_scratch);
     if (restore->bios_6_scratch & 0x40000000)
 	bios_6_scratch |= 0x40000000;
     else
@@ -4968,9 +4971,9 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
 	    &drmsurffree, sizeof(drmsurffree));
 
-	if ((info->ChipFamily != CHIP_FAMILY_RV100) || 
-	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
-	    (info->ChipFamily != CHIP_FAMILY_RS200)) {
+	if (!((info->ChipFamily == CHIP_FAMILY_RV100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS200))) {
 	    drmsurffree.address = info->depthOffset;
 	    retvalue = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
 		&drmsurffree, sizeof(drmsurffree));
@@ -5025,9 +5028,10 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	}
 
 	/* rv100 and probably the derivative igps don't have depth tiling on all the time? */
-	if (info->have3DWindows && ((info->ChipFamily != CHIP_FAMILY_RV100) || 
-	    (info->ChipFamily != CHIP_FAMILY_RS100) ||
-	    (info->ChipFamily != CHIP_FAMILY_RS200))) {
+	if (info->have3DWindows &&
+	    (!((info->ChipFamily == CHIP_FAMILY_RV100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS100) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS200)))) {
 	    drmRadeonSurfaceAlloc drmsurfalloc;
 	    drmsurfalloc.size = depthBufferSize;
 	    drmsurfalloc.address = info->depthOffset;
