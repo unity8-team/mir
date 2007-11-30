@@ -926,7 +926,7 @@ void nv_crtc_calc_state_ext(
 		/* Also make sure we don't set both bits */
 
 		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfff << 8);
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
 		/* The rough idea is this:
 		 * 0x40000: One or both dvi outputs is/are on their preferred ramdac (=clock)
