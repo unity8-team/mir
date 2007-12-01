@@ -634,11 +634,18 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->MonType == MT_UNKNOWN) {
 	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
-	    if (info->InternalTVOut) {
-		if (radeon_output->load_detection)
-		    radeon_output->MonType = radeon_detect_tv(pScrn);
+	    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
+		if (radeon_output->type == OUTPUT_STV)
+		    radeon_output->MonType = MT_STV;
 		else
-		    radeon_output->MonType = MT_NONE;
+		    radeon_output->MonType = MT_CTV;
+	    } else {
+		if (info->InternalTVOut) {
+		    if (radeon_output->load_detection)
+			radeon_output->MonType = radeon_detect_tv(pScrn);
+		    else
+			radeon_output->MonType = MT_NONE;
+		}
 	    }
 	} else {
 	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
@@ -1759,6 +1766,7 @@ radeon_create_resources(xf86OutputPtr output)
     INT32 range[2];
     int data, err;
     const char *s;
+    char *optstr;
 
     /* backlight control */
     if (radeon_output->type == OUTPUT_LVDS) {
@@ -1994,6 +2002,26 @@ radeon_create_resources(xf86OutputPtr output)
 	    s = "ntsc";
 	    break;
 	}
+
+	optstr = (char *)xf86GetOptValString(info->Options, OPTION_TVSTD);
+	if (optstr) {
+	    if (!strncmp("ntsc", optstr, strlen("ntsc")))
+		radeon_output->tvStd = TV_STD_NTSC;
+	    else if (!strncmp("pal", optstr, strlen("pal")))
+		radeon_output->tvStd = TV_STD_PAL;
+	    else if (!strncmp("pal-m", optstr, strlen("pal-m")))
+		radeon_output->tvStd = TV_STD_PAL_M;
+	    else if (!strncmp("pal-60", optstr, strlen("pal-60")))
+		radeon_output->tvStd = TV_STD_PAL_60;
+	    else if (!strncmp("ntsc-j", optstr, strlen("ntsc-j")))
+		radeon_output->tvStd = TV_STD_NTSC_J;
+	    else if (!strncmp("scart-pal", optstr, strlen("scart-pal")))
+		radeon_output->tvStd = TV_STD_SCART_PAL;
+	    else {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid TV Standard: %s\n", optstr);
+	    }
+	}
+
 	err = RRChangeOutputProperty(output->randr_output, tv_std_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
