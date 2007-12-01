@@ -1445,16 +1445,16 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     atomDataPtr = info->atomBIOS->atomDataPtr;
 
     if (!rhdAtomGetTableRevisionAndSize(
-	    &(atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->sHeader),
+	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
 	    &crev,&frev,NULL)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
 	return FALSE;
     }
 
     if (!rhdAtomGetTableRevisionAndSize(
-	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
+	    &(atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->sHeader),
 	    &crev,&frev,NULL)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
 	return FALSE;
     }
 
