@@ -859,6 +859,71 @@ static Bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	return TRUE;
 }
 
+Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_50   opcode: 0x50 ('P')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): magic lookup value
+	 * offset + 2  (8 bit): count
+	 * offset + 3  (8 bit): addr 1
+	 * offset + 4  (8 bit): data 1
+	 * ...
+	 *
+	 * For each of "count" TMDS address and data pairs write "data n" to "addr n"
+	 * "magic lookup value" (mlv) determines which TMDS base address is used:
+	 * For mlv < 80, it is an index into a table of TMDS base addresses
+	 * For mlv == 80 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
+	 * to index a table of offsets to the basic 0x6808b0 address
+	 * For mlv == 81 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
+	 * to index a table of offsets to the basic 0x6808b0 address, and then flip the offset by 8
+	 */
+	NVPtr pNv = NVPTR(pScrn);
+	uint8_t mlv = bios->data[offset + 1];
+	uint8_t count = bios->data[offset + 2];
+	uint32_t reg;
+	int i;
+
+	int pramdac_offset[13] = {0, 0, 0x8, 0, 0x2000, 0, 0, 0, 0x2008, 0, 0, 0, 0x2000};
+	uint32_t pramdac_table[4] = {0x6808b0, 0x6808b8, 0x6828b0, 0x6828b8};
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: MagicLookupValue: 0x%02X, Count: 0x%02X\n",
+			   offset, mlv, count);
+	if (mlv >= 0x80) {
+		/* here we assume that the DCB table has already been parsed */
+		uint8_t dcb_entry;
+		int dacoffset;
+		nv_port_wr(pScrn, CRTC_INDEX, 0x57, 0);
+		nv_port_rd(pScrn, CRTC_INDEX, 0x58, &dcb_entry);
+		if (dcb_entry > pNv->dcb_table.entries) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: CR58 doesn't have a valid DCB entry currently (%02X)\n",
+				   offset, dcb_entry);
+			return FALSE;
+		}
+		dacoffset = pramdac_offset[pNv->dcb_table.entry[dcb_entry].or];
+		if (mlv == 81)
+			dacoffset ^= 8;
+		reg = 0x6808b0 + dacoffset;
+	} else
+		reg = pramdac_table[mlv];
+
+	for (i = 0; i < count; i++) {
+		uint8_t tmds_addr = bios->data[offset + 3 + i * 2];
+		uint8_t tmds_data = bios->data[offset + 4 + i * 2];
+
+		nv32_wr(pScrn, reg + 4, tmds_data);
+		nv32_wr(pScrn, reg, tmds_addr);
+	}
+
+	return TRUE;
+}
+	
 Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_CR_INDEX_ADDRESS_LATCHED   opcode: 0x51 ('Q')
@@ -1678,6 +1743,7 @@ static init_tbl_entry_t itbl_entry[] = {
 /*	{ "INIT_I2C_BYTE"                     , 0x4C, x       , x       , x       , init_i2c_byte                   }, */
 /*	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, x       , x       , x       , init_zm_i2c_byte                }, */
 /*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
+	{ "INIT_50"                           , 0x50, 3       , 2       , 2       , init_50                         },
 	{ "INIT_CR_INDEX_ADDRESS_LATCHED"     , 0x51, 5       , 4       , 1       , init_cr_idx_adr_latch           },
 	{ "INIT_CR"                           , 0x52, 4       , 0       , 0       , init_cr                         },
 	{ "INIT_ZM_CR"                        , 0x53, 3       , 0       , 0       , init_zm_cr                      },
