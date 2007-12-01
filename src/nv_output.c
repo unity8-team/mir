@@ -313,7 +313,8 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 }
 
 /* This sequence is an optimized/shortened version of what the blob does */
-uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x40, 0x43, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
+/* 0x40 and 0x43 are dual link dvi/lvds related, so don't touch them for now */
+uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, /* 0x40, 0x43,*/ 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
 uint32_t tmds_regs_nv30[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x29, 0x2a, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
 
 #define TMDS_REGS(index) ( tmds_regs(pNv, index) )
@@ -383,9 +384,10 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	}
 
 	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
-	for (i = 0; i < TMDS2_SIZE; i++) {
-		regp->TMDS[TMDS2_REGS(i)] = NVOutputReadTMDS2(output, TMDS2_REGS(i));
-	}
+	/* TMDS2 is related to dual link dvi/lvds, leave it untouched for the moment */
+	//for (i = 0; i < TMDS2_SIZE; i++) {
+	//	regp->TMDS[TMDS2_REGS(i)] = NVOutputReadTMDS2(output, TMDS2_REGS(i));
+	//}
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
@@ -406,9 +408,10 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	}
 
 	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
-	for (i = 0; i < TMDS2_SIZE; i++) {
-		NVOutputWriteTMDS(output, TMDS2_REGS(i), regp->TMDS[TMDS2_REGS(i)]);
-	}
+	/* TMDS2 is related to dual link dvi/lvds, leave it untouched for the moment */
+	//for (i = 0; i < TMDS2_SIZE; i++) {
+	//	NVOutputWriteTMDS(output, TMDS2_REGS(i), regp->TMDS[TMDS2_REGS(i)]);
+	//}
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -579,7 +582,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		regp->TMDS[0x33] = 0xf0;
 		regp->TMDS[0x3a] = 0x0;
 
-		/* Rarely the value 0x68 is used */
+		/* Sometimes 0x68 is also used */
 		regp->TMDS[0x5] = 0x6e;
 
 		if (is_lvds) {
@@ -607,15 +610,21 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			regp->TMDS[0x0] |= 0x1;
 		}
 
-		/* Also seen: 0x47, what does this register do? */
-		if (nv_output->ramdac != nv_output->preferred_ramdac) {
-			regp->TMDS[0x1] = 0x42;
+		if (pll_setup_control == 0) {
+			regp->TMDS[0x1] = 0x0;
 		} else {
-			regp->TMDS[0x1] = 0x41;
+			/* Also seen: 0x47, what does this register do? */
+			if (nv_output->ramdac != nv_output->preferred_ramdac) {
+				regp->TMDS[0x1] = 0x42;
+			} else {
+				regp->TMDS[0x1] = 0x41;
+			}
 		}
 
 		if (is_lvds) {
 			regp->TMDS[0x2] = 0x0;
+		} else if (pll_setup_control == 0) {
+			regp->TMDS[0x2] = 0x90;
 		} else {
 			if (nv_output->preferred_crtc == 1) { /* bus */
 				regp->TMDS[0x2] = 0xa9;
