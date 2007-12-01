@@ -5445,6 +5445,8 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->crtc1.interlace_control = INREG(AVIVO_D1CRTC_INTERLACE_CONTROL);
     state->crtc1.stereo_control = INREG(AVIVO_D1CRTC_STEREO_CONTROL);
 
+    state->crtc1.cursor_control = INREG(AVIVO_D1CUR_CONTROL);
+
     state->grph1.enable = INREG(AVIVO_D1GRPH_ENABLE);
     state->grph1.control = INREG(AVIVO_D1GRPH_CONTROL);
     state->grph1.control = INREG(AVIVO_D1GRPH_CONTROL);
@@ -5482,6 +5484,8 @@ void avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->crtc2.blank_control = INREG(AVIVO_D2CRTC_BLANK_CONTROL);
     state->crtc2.interlace_control = INREG(AVIVO_D2CRTC_INTERLACE_CONTROL);
     state->crtc2.stereo_control = INREG(AVIVO_D2CRTC_STEREO_CONTROL);
+
+    state->crtc2.cursor_control = INREG(AVIVO_D2CUR_CONTROL);
 
     state->grph2.enable = INREG(AVIVO_D2GRPH_ENABLE);
     state->grph2.control = INREG(AVIVO_D2GRPH_CONTROL);
@@ -5588,6 +5592,8 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D1CRTC_INTERLACE_CONTROL, state->crtc1.interlace_control);
     OUTREG(AVIVO_D1CRTC_STEREO_CONTROL, state->crtc1.stereo_control);
 
+    OUTREG(AVIVO_D1CUR_CONTROL, state->crtc1.cursor_control);
+
     OUTREG(AVIVO_D1GRPH_ENABLE, state->grph1.enable);
     OUTREG(AVIVO_D1GRPH_CONTROL, state->grph1.control);
     OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS, state->grph1.prim_surf_addr);
@@ -5624,6 +5630,8 @@ void avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2CRTC_BLANK_CONTROL, state->crtc2.blank_control);
     OUTREG(AVIVO_D2CRTC_INTERLACE_CONTROL, state->crtc2.interlace_control);
     OUTREG(AVIVO_D2CRTC_STEREO_CONTROL, state->crtc2.stereo_control);
+
+    OUTREG(AVIVO_D2CUR_CONTROL, state->crtc2.cursor_control);
 
     OUTREG(AVIVO_D2GRPH_ENABLE, state->grph2.enable);
     OUTREG(AVIVO_D2GRPH_CONTROL, state->grph2.control);

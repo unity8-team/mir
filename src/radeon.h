@@ -227,6 +227,7 @@ struct avivo_crtc_state {
     CARD32 blank_control;
     CARD32 interlace_control;
     CARD32 stereo_control;
+    CARD32 cursor_control;
 };
 
 struct avivo_grph_state {
