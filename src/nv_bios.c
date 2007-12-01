@@ -2393,6 +2393,11 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (bios.length > NV_PROM_SIZE)
 		bios.length = NV_PROM_SIZE;
 
+	/* parse Display Configuration Block (DCB) table */
+	if (parse_dcb_table(pScrn, &bios))
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Found %d entries in DCB.\n", pNv->dcb_table.entries);
+
 	/* check for known signatures */
 	if ((bit_offset = findstr(&bios, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT signature found.\n");
@@ -2403,11 +2408,6 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "No known script signature found.\n");
-
-	/* parse Display Configuration Block (DCB) table */
-	if (parse_dcb_table(pScrn, &bios))
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found %d entries in DCB.\n", pNv->dcb_table.entries);
 
 	return 1;
 }
