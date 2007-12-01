@@ -1326,7 +1326,8 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
     }
 }
 
-Bool RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
+Bool
+RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int ret;
@@ -1429,6 +1430,161 @@ Bool RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		((char *)Record + Record->ucRecordSize);
 	}
     }
+    return TRUE;
+}
+
+
+Bool
+RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    atomDataTablesPtr atomDataPtr;
+    CARD8 crev, frev;
+    int i, j;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    &(atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->sHeader),
+	    &crev,&frev,NULL)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
+	return FALSE;
+    }
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
+	    &crev,&frev,NULL)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
+	return FALSE;
+    }
+
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	ATOM_CONNECTOR_INFO_I2C ci
+	    = atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->asConnInfo[i];
+
+	if (!(atomDataPtr->SupportedDevicesInfo
+	      .SupportedDevicesInfo->usDeviceSupport & (1 << i))) {
+	    info->BiosConnector[i].valid = FALSE;
+	    continue;
+	}
+
+	if (i == ATOM_DEVICE_CV_INDEX) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
+	    info->BiosConnector[i].valid = FALSE;
+	    continue;
+	}
+
+	info->BiosConnector[i].valid = TRUE;
+	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
+	info->BiosConnector[i].devices = (1 << i);
+	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
+	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC - 1;
+
+	if (ci.sucI2cId.sbfAccess.bfHW_Capable) {
+	    ATOM_GPIO_I2C_ASSIGMENT gpio
+		= atomDataPtr->GPIO_I2C_Info->asGPIO_Info[ci.sucI2cId.sbfAccess.bfI2C_LineMux];
+
+	    /* note clk and data regs can be different!
+	     * gpio.usClkMaskRegisterIndex and gpio.usDataMaskRegisterIndex
+	     */
+
+	    /* don't assign a gpio for tv */
+	    if ((i == ATOM_DEVICE_TV1_INDEX) ||
+		(i == ATOM_DEVICE_TV2_INDEX) ||
+		(i == ATOM_DEVICE_CV_INDEX))
+		info->BiosConnector[i].ddc_line = 0;
+	    else
+		info->BiosConnector[i].ddc_line = gpio.usClkMaskRegisterIndex * 4;
+	} else if (ci.sucI2cId.sbfAccess.bfI2C_LineMux) {
+	    ATOM_GPIO_I2C_ASSIGMENT gpio
+		= atomDataPtr->GPIO_I2C_Info->asGPIO_Info[ci.sucI2cId.sbfAccess.bfI2C_LineMux];
+
+	    /* add support for GPIO line */
+	    ErrorF("Unsupported SW GPIO - device %d: gpio line: 0x%x\n", i, gpio.usClkMaskRegisterIndex * 4);
+	    info->BiosConnector[i].ddc_line = 0;
+	} else {
+	    info->BiosConnector[i].ddc_line = 0;
+	}
+
+	if (i == ATOM_DEVICE_DFP1_INDEX)
+	    info->BiosConnector[i].TMDSType = TMDS_INT;
+	else if (i == ATOM_DEVICE_DFP2_INDEX)
+	    info->BiosConnector[i].TMDSType = TMDS_EXT;
+	else if (i == ATOM_DEVICE_DFP3_INDEX)
+	    info->BiosConnector[i].TMDSType = TMDS_EXT;
+	else
+	    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+
+	/* Always set the connector type to VGA for CRT1/CRT2. if they are
+	 * shared with a DVI port, we'll pick up the DVI connector below when we
+	 * merge the outputs
+	 */
+	if ((i == ATOM_DEVICE_CRT1_INDEX || i == ATOM_DEVICE_CRT2_INDEX) &&
+	    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I ||
+	     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D ||
+	     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
+	    info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
+	}
+
+	if (crev > 1) {
+	    ATOM_CONNECTOR_INC_SRC_BITMAP isb
+		= atomDataPtr->SupportedDevicesInfo
+		.SupportedDevicesInfo_HD->asIntSrcInfo[i];
+
+	    switch (isb.ucIntSrcBitmap) {
+		case 0x4:
+		    info->BiosConnector[i].hpd_mask = 0x00000001;
+		    break;
+		case 0xa:
+		    info->BiosConnector[i].hpd_mask = 0x00000100;
+		    break;
+		default:
+		    info->BiosConnector[i].hpd_mask = 0;
+		    break;
+	    }
+	} else {
+	    info->BiosConnector[i].hpd_mask = 0;
+	}
+    }
+
+    /* CRTs/DFPs may share a port */
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	if (info->BiosConnector[i].valid) {
+	    for (j = 0; j < ATOM_MAX_SUPPORTED_DEVICE; j++) {
+		if (info->BiosConnector[j].valid && (i != j) ) {
+		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
+			if (((i == ATOM_DEVICE_DFP1_INDEX) ||
+			     (i == ATOM_DEVICE_DFP2_INDEX) ||
+			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
+			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
+			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
+			    info->BiosConnector[j].valid = FALSE;
+			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
+			     (j == ATOM_DEVICE_DFP2_INDEX) ||
+			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
+			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
+			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
+			    info->BiosConnector[i].valid = FALSE;
+			}
+			/* other possible combos?  */
+		    }
+		}
+	    }
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	if (info->BiosConnector[i].valid) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d, hpd_mask-0x%x\n",
+		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
+		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType,
+		       info->BiosConnector[i].hpd_mask);
+	}
+    }
+
     return TRUE;
 }
 

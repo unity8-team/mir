@@ -186,6 +186,7 @@ typedef struct {
     Bool valid;
     int output_id;
     int devices;
+    int hpd_mask;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
