@@ -37,6 +37,10 @@
 	NOUVEAU_DMA_BARRIER;	                      \
 } while(0)
 
+#ifdef NOUVEAU_DMA_DEBUG
+char faulty[1024];
+#endif
+
 void
 nouveau_dma_channel_init(struct nouveau_channel *userchan)
 {

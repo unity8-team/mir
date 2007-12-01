@@ -35,7 +35,7 @@ extern void nouveau_dma_channel_init(struct nouveau_channel *);
 extern void nouveau_dma_kickoff(struct nouveau_channel *);
 
 #ifdef NOUVEAU_DMA_DEBUG
-static char faulty[1024];
+extern char faulty[1024];
 #endif
 
 static inline void
