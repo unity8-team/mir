@@ -2190,7 +2190,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->head = (conn >> 8) & 0xf;
 		entry->bus = (conn >> 16) & 0xf;
 		entry->location = (conn >> 20) & 0xf;
-		entry->or = (conn >> 24) & 0x7;
+		entry->or = (conn >> 24) & 0xf;
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00) {
 			ErrorF("Unknown DCB 1.4 entry, please report\n");
