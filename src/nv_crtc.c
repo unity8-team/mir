@@ -786,6 +786,8 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 }
 
+#define IS_NV44P (pNv->NVArch >= 0x44 ? 1 : 0)
+
 /*
  * Calculate extended mode parameters (SVGA) and save in a 
  * mode state structure.
@@ -922,55 +924,27 @@ void nv_crtc_calc_state_ext(
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
-		/* Assumption CRTC1 will overwrite the CRTC0 value */
-		/* Also make sure we don't set both bits */
 
 		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfff << 8);
 
-		/* The rough idea is this:
-		 * 0x40000: One or both dvi outputs is/are on their preferred ramdac (=clock)
-		 * 0x10000: One dvi output is on not on it's preferred ramdac (=clock).
-		 * 0x00000: No dvi panels present.
-		 * Other bits also exist, but we leave those intact.
-		 * One dvi panel must always be on it's preferred ramdac, due to "or" restrictions.
+		/* There are a few possibilities:
+		 * Early NV4x cards: 0x41000 for example
+		 * Later NV4x cards: 0x40100 for example
+		 * The lower entry is the first bus, the higher entry is the second bus
+		 * 0: No dvi present
+		 * 1: Primary clock
+		 * 2: Unknown, similar to 4?
+		 * 4: Secondary clock
 		 */
 
+		/* This won't work when tv-out's come into play */
+		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P)));
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			/* Clean out all the bits and enable another mode */
-			if (nv_crtc->head == nv_output->preferred_crtc) {
-				state->sel_clk &= ~(0xf << 16);
-				state->sel_clk |= (1 << 18);
+			if (nv_crtc->head == 1) { /* clock */
+				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P));
 			} else {
-				state->sel_clk &= ~(0xf << 16);
-				state->sel_clk |= (1 << 16);
-			}
-		} else {
-			int other_index = (~nv_crtc->head) & 1;
-			xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, other_index);
-			NVCrtcPrivatePtr nv_crtc2 = crtc2->driver_private;
-			if (crtc2->enabled) {
-				xf86OutputPtr output2 = NVGetOutputFromCRTC(crtc2);
-				NVOutputPrivatePtr nv_output2 = NULL;
-				if (output2) {
-					nv_output2 = output2->driver_private;
-				}
-				if (output2 && (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS)) {
-					/* Clean out all the bits and enable another mode */
-					if (nv_crtc2->head == nv_output2->preferred_crtc) {
-						state->sel_clk &= ~(0xf << 16);
-						state->sel_clk |= (1 << 18);
-					} else {
-						state->sel_clk &= ~(0xf << 16);
-						state->sel_clk |= (1 << 16);
-					}
-				} else {
-					/* Destroy all tmds traces */
-					state->sel_clk &= ~(0xf << 16);
-				}
-			} else {
-				/* Destroy all tmds traces */
-				state->sel_clk &= ~(0xf << 16);
+				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P));
 			}
 		}
 
