@@ -1972,6 +1972,30 @@ v1common:
 	pNv->fp_native_mode = mode;
 }
 
+static void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t ttableptr)
+{
+	uint8_t headerlen = 0;
+	uint16_t table;
+	init_exec_t iexec = {TRUE, FALSE};
+
+	if (ttableptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Pointer to T table invalid\n");
+		return;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found T table revision %d.%d\n",
+		   bios->data[ttableptr] >> 4, bios->data[ttableptr] & 0xf);
+
+	headerlen = bios->data[ttableptr + 1];
+	table = ttableptr + headerlen;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", table);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
+	parse_init_table(pScrn, bios, table, &iexec);
+}
+
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	uint16_t table;
@@ -2041,6 +2065,30 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	return 1;
 }
 
+static int parse_bit_t_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* Parses the pointer to the T table
+	 *
+	 * Starting at bitentry->offset:
+	 *
+	 * offset + 0  (16 bits): T table pointer
+	 */
+
+	uint16_t ttable;
+
+	if (bitentry->length != 2) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Do not understand BIT T table entry.\n");
+		return 0;
+	}
+
+	ttable = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+
+	parse_t_table(pScrn, bios, ttable);
+
+	return 1;
+}
+
 static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* Parse the pointers for useful tables in the BMP structure, starting at
@@ -2104,9 +2152,14 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found init table entry in BIT structure.\n", offset);
-
 			parse_bit_init_tbl_entry(pScrn, bios, bitentry);
 			break;
+		case 'T':
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Found T table entry in BIT structure.\n", offset);
+			parse_bit_t_tbl_entry(pScrn, bios, bitentry);
+			break;
+			
 			
 			/* TODO: What kind of information does the other BIT entrys point to?
 			 *       'P' entry is probably performance tables, but there are
