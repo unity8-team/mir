@@ -1326,11 +1326,38 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
     }
 }
 
+static CARD32
+RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    atomDataTablesPtr atomDataPtr;
+    ATOM_GPIO_I2C_ASSIGMENT gpio;
+    CARD32 ret = 0;
+    CARD8 crev, frev;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
+	    &crev,&frev,NULL)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
+	return ret;
+    }
+
+    /* note clk and data regs can be different!
+     * gpio.usClkMaskRegisterIndex and gpio.usDataMaskRegisterIndex
+     */
+
+    gpio = atomDataPtr->GPIO_I2C_Info->asGPIO_Info[id];
+    ret = gpio.usClkMaskRegisterIndex * 4;
+
+    return ret;
+}
+
 Bool
 RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    int ret;
     CARD8 crev, frev;
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
@@ -1445,13 +1472,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     atomDataPtr = info->atomBIOS->atomDataPtr;
 
     if (!rhdAtomGetTableRevisionAndSize(
-	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
-	    &crev,&frev,NULL)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
-	return FALSE;
-    }
-
-    if (!rhdAtomGetTableRevisionAndSize(
 	    &(atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->sHeader),
 	    &crev,&frev,NULL)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
@@ -1481,26 +1501,18 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC - 1;
 
 	if (ci.sucI2cId.sbfAccess.bfHW_Capable) {
-	    ATOM_GPIO_I2C_ASSIGMENT gpio
-		= atomDataPtr->GPIO_I2C_Info->asGPIO_Info[ci.sucI2cId.sbfAccess.bfI2C_LineMux];
-
-	    /* note clk and data regs can be different!
-	     * gpio.usClkMaskRegisterIndex and gpio.usDataMaskRegisterIndex
-	     */
-
 	    /* don't assign a gpio for tv */
 	    if ((i == ATOM_DEVICE_TV1_INDEX) ||
 		(i == ATOM_DEVICE_TV2_INDEX) ||
 		(i == ATOM_DEVICE_CV_INDEX))
 		info->BiosConnector[i].ddc_line = 0;
 	    else
-		info->BiosConnector[i].ddc_line = gpio.usClkMaskRegisterIndex * 4;
+		info->BiosConnector[i].ddc_line =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 	} else if (ci.sucI2cId.sbfAccess.bfI2C_LineMux) {
-	    ATOM_GPIO_I2C_ASSIGMENT gpio
-		= atomDataPtr->GPIO_I2C_Info->asGPIO_Info[ci.sucI2cId.sbfAccess.bfI2C_LineMux];
-
 	    /* add support for GPIO line */
-	    ErrorF("Unsupported SW GPIO - device %d: gpio line: 0x%x\n", i, gpio.usClkMaskRegisterIndex * 4);
+	    ErrorF("Unsupported SW GPIO - device %d: gpio line: 0x%x\n",
+		   i, RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux));
 	    info->BiosConnector[i].ddc_line = 0;
 	} else {
 	    info->BiosConnector[i].ddc_line = 0;
