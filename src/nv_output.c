@@ -1298,7 +1298,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.entry[i].type;
 		i2c_index = pNv->dcb_table.entry[i].i2c_index;
-		or = ffs(pNv->dcb_table.entry[i].or);
+		or = pNv->dcb_table.entry[i].or;
 		heads = pNv->dcb_table.entry[i].head;
 		bus = pNv->dcb_table.entry[i].bus;
 
@@ -1311,13 +1311,13 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 		switch(type) {
 		case OUTPUT_ANALOG:
-			nv_add_analog_output(pScrn, heads, or, bus, i2c_index, (bus_count[bus] > 1));
+			nv_add_analog_output(pScrn, heads, ffs(or), bus, i2c_index, (bus_count[bus] > 1));
 			break;
 		case OUTPUT_TMDS:
-			nv_add_digital_output(pScrn, heads, or, bus, i2c_index, 0);
+			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 0);
 			break;
 		case OUTPUT_LVDS:
-			nv_add_digital_output(pScrn, heads, or, bus, i2c_index, 1);
+			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 1);
 			break;
 		default:
 			break;
