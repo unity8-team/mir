@@ -2129,36 +2129,39 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 
 static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
 {
-	bit_entry_t *bitentry;
+	bit_entry_t bitentry;
 	char done = 0;
 
 	while (!done) {
-		bitentry = (bit_entry_t *) &bios->data[offset];
+		bitentry.id[0] = bios->data[offset];
+		bitentry.id[1] = bios->data[offset + 1];
+		bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
+		bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Found BIT command with id 0x%02X\n",
-			   offset, bitentry->id[0]);
+			   offset, bitentry.id[0]);
 
-		switch (bitentry->id[0]) {
+		switch (bitentry.id[0]) {
 		case 0:
 			/* id[0] = 0 and id[1] = 0 ==> end of BIT struture */
-			if (bitentry->id[1] == 0)
+			if (bitentry.id[1] == 0)
 				done = 1;
 			break;
 		case 'D':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found flat panel display table entry in BIT structure.\n", offset);
-			parse_bit_display_tbl_entry(pScrn, bios, bitentry);
+			parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found init table entry in BIT structure.\n", offset);
-			parse_bit_init_tbl_entry(pScrn, bios, bitentry);
+			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'T':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found T table entry in BIT structure.\n", offset);
-			parse_bit_t_tbl_entry(pScrn, bios, bitentry);
+			parse_bit_t_tbl_entry(pScrn, bios, &bitentry);
 			break;
 			
 			
