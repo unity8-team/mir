@@ -999,7 +999,8 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	if (pNv->Architecture == NV_ARCH_40 && state->vpll2_b) {
+	/* The blob uses this always, so let's do the same */
+	if (pNv->Architecture == NV_ARCH_40) {
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
 	}
 
