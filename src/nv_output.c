@@ -566,13 +566,8 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 				regp->TMDS[0x2e] = 0x0;
 			}
 		} else {
-			/* Which is it? */
-			//if (nv_output->ramdac == nv_output->preferred_ramdac) {
-			if (nv_crtc->head == nv_output->preferred_ramdac) {
-				regp->TMDS[0x2e] = 0x81;
-			} else {
-				regp->TMDS[0x2e] = 0x85;
-			}
+			/* 0x81 is also observed, but it's much rarer */
+			regp->TMDS[0x2e] = 0x85;
 		}
 		/* 0x08 is also seen for lvds */
 		regp->TMDS[0x2f] = 0x21;
