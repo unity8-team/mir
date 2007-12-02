@@ -120,7 +120,7 @@ void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must write to the "bus" of the output */
-	NVWriteTMDS(pNv, nv_output->preferred_crtc, tmds_reg, val);
+	NVWriteTMDS(pNv, nv_output->preferred_ramdac, tmds_reg, val);
 }
 
 CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
@@ -130,7 +130,7 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must read from the "bus" of the output */
-	return NVReadTMDS(pNv, nv_output->preferred_crtc, tmds_reg);
+	return NVReadTMDS(pNv, nv_output->preferred_ramdac, tmds_reg);
 }
 
 void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
@@ -140,7 +140,7 @@ void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must write to the "bus" of the output */
-	NVWriteTMDS2(pNv, nv_output->preferred_crtc, tmds_reg, val);
+	NVWriteTMDS2(pNv, nv_output->preferred_ramdac, tmds_reg, val);
 }
 
 CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
@@ -150,7 +150,7 @@ CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must read from the "bus" of the output */
-	return NVReadTMDS2(pNv, nv_output->preferred_crtc, tmds_reg);
+	return NVReadTMDS2(pNv, nv_output->preferred_ramdac, tmds_reg);
 }
 
 void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
@@ -537,7 +537,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		/* This will upset the monitor, trust me, i know it :-( */
 		/* Now allowed for non-bios inited systems */
 		//if (nv_output->ramdac != nv_output->preferred_ramdac) {
-		if (nv_crtc->head != nv_output->preferred_crtc) {
+		if (nv_crtc->head != nv_output->preferred_ramdac) {
 			regp->TMDS[0x4] |= (1 << 3);
 		}
 
@@ -568,7 +568,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		} else {
 			/* Which is it? */
 			//if (nv_output->ramdac == nv_output->preferred_ramdac) {
-			if (nv_crtc->head == nv_output->preferred_crtc) {
+			if (nv_crtc->head == nv_output->preferred_ramdac) {
 				regp->TMDS[0x2e] = 0x81;
 			} else {
 				regp->TMDS[0x2e] = 0x85;
@@ -626,7 +626,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		} else if (pll_setup_control == 0) {
 			regp->TMDS[0x2] = 0x90;
 		} else {
-			if (nv_output->preferred_crtc == 1) { /* bus */
+			if (nv_output->preferred_ramdac == 1) { /* bus */
 				regp->TMDS[0x2] = 0xa9;
 			} else {
 				regp->TMDS[0x2] = 0x89;
@@ -1199,8 +1199,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bu
 
 	nv_output->ramdac = -1;
 
-	nv_output->preferred_crtc = bus;
-
 	/* This is only to facilitate proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
 	if (order & RAMDAC_1) {
@@ -1278,8 +1276,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 	output->driver_private = nv_output;
 
 	nv_output->ramdac = -1;
-
-	nv_output->preferred_crtc = bus;
 
 	/* This is only to facilitate proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */

@@ -214,7 +214,6 @@ typedef struct _NVOutputPrivateRec {
 	int ramdac;
 	Bool ramdac_assigned;
 	uint8_t valid_ramdac;
-	uint8_t preferred_crtc;
 	uint8_t preferred_ramdac;
         I2CBusPtr		    pDDCBus;
         NVOutputType type;

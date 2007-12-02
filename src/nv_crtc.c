@@ -939,12 +939,12 @@ void nv_crtc_calc_state_ext(
 		 */
 
 		/* This won't work when tv-out's come into play */
-		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P)));
+		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P)));
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			if (nv_crtc->head == 1) { /* clock */
-				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P));
+				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P));
 			} else {
-				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_crtc * (1 + IS_NV44P));
+				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P));
 			}
 		}
 
@@ -958,10 +958,10 @@ void nv_crtc_calc_state_ext(
 		}
 
 		/* Are we crosswired? */
-		if (output && nv_crtc->head != nv_output->preferred_crtc && 
+		if (output && nv_crtc->head != nv_output->preferred_ramdac && 
 			(nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			state->crosswired = TRUE;
-		} else if (output && nv_crtc->head != nv_output->preferred_crtc) {
+		} else if (output && nv_crtc->head != nv_output->preferred_ramdac) {
 			state->crosswired = FALSE;
 		} else {
 			state->crosswired = FALSE;
@@ -1004,7 +1004,7 @@ void nv_crtc_calc_state_ext(
 	}
 
 	/* The primary output doesn't seem to care */
-	if (nv_output->preferred_crtc == 1) { /* This is the bus */
+	if (nv_output->preferred_ramdac == 1) { /* This is the bus */
 		/* non-zero values are for analog, don't know about tv-out and the likes */
 		if (output && nv_output->type != OUTPUT_ANALOG) {
 			state->reg594 = 0x0;
