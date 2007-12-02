@@ -248,6 +248,7 @@ struct dcb_entry {
 	uint8_t bus;
 	uint8_t location;
 	uint8_t or;
+	Bool duallink;
 };
 
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
