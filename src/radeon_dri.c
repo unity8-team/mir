@@ -559,12 +559,12 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
 	if (nbox > 1) {
 	    /* Keep ordering in each band, reverse order of bands */
-	    pboxNew1 = (BoxPtr)ALLOCATE_LOCAL(sizeof(BoxRec)*nbox);
+	    pboxNew1 = (BoxPtr)xalloc(sizeof(BoxRec)*nbox);
 	    if (!pboxNew1) return;
 
-	    pptNew1 = (DDXPointPtr)ALLOCATE_LOCAL(sizeof(DDXPointRec)*nbox);
+	    pptNew1 = (DDXPointPtr)xalloc(sizeof(DDXPointRec)*nbox);
 	    if (!pptNew1) {
-		DEALLOCATE_LOCAL(pboxNew1);
+		xfree(pboxNew1);
 		return;
 	    }
 
@@ -601,14 +601,14 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
 	if (nbox > 1) {
 	    /* reverse order of rects in each band */
-	    pboxNew2 = (BoxPtr)ALLOCATE_LOCAL(sizeof(BoxRec)*nbox);
-	    pptNew2  = (DDXPointPtr)ALLOCATE_LOCAL(sizeof(DDXPointRec)*nbox);
+	    pboxNew2 = (BoxPtr)xalloc(sizeof(BoxRec)*nbox);
+	    pptNew2  = (DDXPointPtr)xalloc(sizeof(DDXPointRec)*nbox);
 
 	    if (!pboxNew2 || !pptNew2) {
-		DEALLOCATE_LOCAL(pptNew2);
-		DEALLOCATE_LOCAL(pboxNew2);
-		DEALLOCATE_LOCAL(pptNew1);
-		DEALLOCATE_LOCAL(pboxNew1);
+		xfree(pptNew2);
+		xfree(pboxNew2);
+		xfree(pptNew1);
+		xfree(pboxNew1);
 		return;
 	    }
 
@@ -679,10 +679,10 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
     info->dst_pitch_offset = info->frontPitchOffset;;
 
-    DEALLOCATE_LOCAL(pptNew2);
-    DEALLOCATE_LOCAL(pboxNew2);
-    DEALLOCATE_LOCAL(pptNew1);
-    DEALLOCATE_LOCAL(pboxNew1);
+    xfree(pptNew2);
+    xfree(pboxNew2);
+    xfree(pptNew1);
+    xfree(pboxNew1);
 
     info->accel->NeedToSync = TRUE;
 #endif /* USE_XAA */
