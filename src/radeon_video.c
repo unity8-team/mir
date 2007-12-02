@@ -414,11 +414,11 @@ static XF86AttributeRec Attributes[NUM_DEC_ATTRIBUTES+1] =
 
 #define FOURCC_RGB24    0x00000000
 
-#define XVIMAGE_RGB24(byte_order)   \
+#define XVIMAGE_RGB24   \
         { \
                 FOURCC_RGB24, \
                 XvRGB, \
-                byte_order, \
+                LSBFirst, \
                 { 'R', 'G', 'B', 0, \
                   0x00,0x00,0x00,0x10,0x80,0x00,0x00,0xAA,0x00,0x38,0x9B,0x71}, \
                 24, \
@@ -473,15 +473,14 @@ static XF86ImageRec Images[NUM_IMAGES] =
 {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
         XVIMAGE_RGBA32(MSBFirst),
-        XVIMAGE_RGB24(MSBFirst),
         XVIMAGE_RGBT16(MSBFirst),
         XVIMAGE_RGB16(MSBFirst),
 #else
         XVIMAGE_RGBA32(LSBFirst),
-        XVIMAGE_RGB24(LSBFirst),
         XVIMAGE_RGBT16(LSBFirst),
         XVIMAGE_RGB16(LSBFirst),
 #endif
+        XVIMAGE_RGB24,
         XVIMAGE_YUY2,
         XVIMAGE_UYVY,
         XVIMAGE_YV12,
@@ -2210,8 +2209,6 @@ RADEONCopyRGB24Data(
 	int x, y;
 	unsigned int hpass;
 
-	/* XXX Fix endian flip on R300 */
-
 	RADEONHostDataParams( pScrn, dst, dstPitch, 4, &dstPitchOff, &x, &y );
 
 	while ( (dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitchOff,
@@ -2224,14 +2221,11 @@ RADEONCopyRGB24Data(
 
 		for ( i = 0 ; i < w; i++, sptr += 3 )
 		{
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		    *dptr++ = (sptr[0] << 16) | (sptr[1] << 8) | sptr[2];
-#else
-		    *dptr++ = (sptr[2] << 16) | (sptr[1] << 8) | sptr[0];
-#endif
+		    dptr[i] = (sptr[2] << 16) | (sptr[1] << 8) | sptr[0];
 		}
 
 		src += srcPitch;
+		dptr += bufPitch / 4;
 	    }
 	}
 
@@ -2249,17 +2243,12 @@ RADEONCopyRGB24Data(
 				  & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
 
-	for(j=0;j<h;j++){
-	    dptr=(CARD32 *)(dst+j*dstPitch);
-	    sptr=src+j*srcPitch;
+	for (j = 0; j < h; j++) {
+	    dptr = (CARD32 *)(dst + j * dstPitch);
+	    sptr = src + j * srcPitch;
 
-	    for(i=w;i>0;i--){
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	      *dptr++=((sptr[0])<<16)|((sptr[1])<<8)|(sptr[2]);
-#else
-	      *dptr++=((sptr[2])<<16)|((sptr[1])<<8)|(sptr[0]);
-#endif
-	      sptr+=3;
+	    for (i = 0; i < w; i++, sptr += 3) {
+		dptr[i] = (sptr[2] << 16) | (sptr[1] << 8) | sptr[0];
 	    }
 	}
 
@@ -2933,17 +2922,17 @@ RADEONPutImage(
 
    switch(id) {
    case FOURCC_RGB24:
-   	dstPitch=(width*4+0x0f)&(~0x0f);
-	srcPitch=width*3;
+	dstPitch = width * 4;
+	srcPitch = width * 3;
 	break;
    case FOURCC_RGBA32:
-   	dstPitch=(width*4+0x0f)&(~0x0f);
-	srcPitch=width*4;
+	dstPitch = width * 4;
+	srcPitch = width * 4;
 	break;
    case FOURCC_RGB16:
    case FOURCC_RGBT16:
-   	dstPitch=(width*2+0x0f)&(~0x0f);
-	srcPitch=(width*2+3)&(~0x03);
+	dstPitch = width * 2;
+	srcPitch = (width * 2 + 3) & ~3;
 	break;
    case FOURCC_YV12:
    case FOURCC_I420:
@@ -2956,10 +2945,19 @@ RADEONPutImage(
    case FOURCC_UYVY:
    case FOURCC_YUY2:
    default:
-	dstPitch = ((width << 1) + 63) & ~63;
-	srcPitch = (width << 1);
+	dstPitch = width * 2;
+	srcPitch = width * 2;
 	break;
    }
+
+#ifdef XF86DRI
+   if (info->directRenderingEnabled && info->DMAForXv) {
+       /* The upload blit only supports multiples of 64 bytes */
+       dstPitch = (dstPitch + 63) & ~63;
+   } else
+#endif
+       /* The overlay only supports multiples of 16 bytes */
+       dstPitch = (dstPitch + 15) & ~15;
 
    new_size = dstPitch * height;
    if (id == FOURCC_YV12 || id == FOURCC_I420) {
