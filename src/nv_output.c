@@ -682,6 +682,9 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		/* NV4x cards have strange ways of dealing with dualhead */
 		/* Also see reg594 in nv_crtc.c */
 		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+		/* So far only dual dvi cards(or lvds + dvi i think) seem to use (and need?) this */
+		if (pNv->dual_dvi)
+			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		/* Only one can be on crtc1 */
 		if (nv_crtc->head == 1) {
 			output_reg[nv_output->preferred_ramdac] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
@@ -697,7 +700,7 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	}
 
 	if (pNv->Architecture == NV_ARCH_40) {
-		/* The registers are really not seperate on nv40 */
+		/* The registers can't be considered seperately on nv40 */
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
 		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 	} else {
@@ -1288,7 +1291,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
 	unsigned char type, i2c_index, or, heads, bus;
 	NVPtr pNv = NVPTR(pScrn);
-	int i, bus_count[0xf];
+	int i, bus_count[0xf], digital_counter = 0;
 
 	memset(bus_count, 0, sizeof(bus_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1315,13 +1318,22 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			break;
 		case OUTPUT_TMDS:
 			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 0);
+			digital_counter++;
 			break;
 		case OUTPUT_LVDS:
 			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 1);
+			/* I'm assuming that lvds+dvi has the same effect as dual dvi */
+			digital_counter++;
 			break;
 		default:
 			break;
 		}
+	}
+
+	if (digital_counter > 1) {
+		pNv->dual_dvi = TRUE;
+	} else {
+		pNv->dual_dvi = FALSE;
 	}
 }
 
