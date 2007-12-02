@@ -97,13 +97,13 @@ static Bool nv_cksum(const uint8_t *data, unsigned int length)
 	return FALSE;
 }
 
-static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
+static int NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
 {
 	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "... BIOS signature not found\n");
-		return FALSE;
+		return 0;
 	}
 
 	if (nv_cksum(data, data[2] * 512)) {
@@ -111,10 +111,11 @@ static Bool NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
 			   "... BIOS checksum invalid\n");
 		/* probably ought to set a do_not_execute flag for table parsing here,
 		 * assuming most BIOSen are valid */
+		return 1;
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "... appears to be valid\n");
 
-	return TRUE;
+	return 2;
 }
 
 static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
@@ -171,7 +172,7 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
 {
 	NVShadowVBIOS_PROM(pScrn, (uint8_t *)data);
-	if (NVValidVBIOS(pScrn, (uint8_t *)data))
+	if (NVValidVBIOS(pScrn, (uint8_t *)data) == 2)
 		return TRUE;
 
 	NVShadowVBIOS_PRAMIN(pScrn, data);
