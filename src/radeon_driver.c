@@ -1349,15 +1349,13 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     /* We shouldn't use info->videoRam here which might have been clipped
      * but the real video RAM instead
      */
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	mem_size = INREG(R600_CONFIG_MEMSIZE);
-    else
-	mem_size = INREG(RADEON_CONFIG_MEMSIZE);
-    
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
 	aper_size = INREG(R600_CONFIG_APER_SIZE);
-    else
+    } else {
+	mem_size = INREG(RADEON_CONFIG_MEMSIZE);
 	aper_size = INREG(RADEON_CONFIG_APER_SIZE);
+    }
 
     if (mem_size == 0)
 	    mem_size = 0x800000;
