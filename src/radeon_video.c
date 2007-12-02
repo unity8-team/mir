@@ -2199,7 +2199,7 @@ RADEONCopyRGB24Data(
   unsigned int w
 ){
     CARD32 *dptr;
-    CARD8 *sptr = 0;
+    CARD8 *sptr;
     int i,j;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 #ifdef XF86DRI
@@ -2214,7 +2214,7 @@ RADEONCopyRGB24Data(
 
 	RADEONHostDataParams( pScrn, dst, dstPitch, 4, &dstPitchOff, &x, &y );
 
-	while ( (dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitch,
+	while ( (dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitchOff,
 						       &bufPitch, x, &y, &h,
 						       &hpass )) )
 	{
@@ -2224,11 +2224,14 @@ RADEONCopyRGB24Data(
 
 		for ( i = 0 ; i < w; i++, sptr += 3 )
 		{
-		    *dptr++ = (sptr[0] << 24) | (sptr[1] << 16) | sptr[2];
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		    *dptr++ = (sptr[0] << 16) | (sptr[1] << 8) | sptr[2];
+#else
+		    *dptr++ = (sptr[2] << 16) | (sptr[1] << 8) | sptr[0];
+#endif
 		}
 
-		src += hpass * srcPitch;
-		dptr += hpass * bufPitch;
+		src += srcPitch;
 	    }
 	}
 
@@ -2251,8 +2254,11 @@ RADEONCopyRGB24Data(
 	    sptr=src+j*srcPitch;
 
 	    for(i=w;i>0;i--){
-	      dptr[0]=((sptr[0])<<24)|((sptr[1])<<16)|(sptr[2]);
-	      dptr++;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	      *dptr++=((sptr[0])<<16)|((sptr[1])<<8)|(sptr[2]);
+#else
+	      *dptr++=((sptr[2])<<16)|((sptr[1])<<8)|(sptr[0]);
+#endif
 	      sptr+=3;
 	    }
 	}
