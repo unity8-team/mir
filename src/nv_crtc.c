@@ -1009,6 +1009,9 @@ void nv_crtc_calc_state_ext(
 		if (output && nv_output->type != OUTPUT_ANALOG) {
 			state->reg594 = 0x0;
 		} else {
+			/* More values exist, but they seem related to the 3rd dac (tv-out?) somehow */
+			/* bit 16-19 are bits that are set on some G70 cards */
+			/* Those bits are also set to the 3rd OUTPUT register */
 			if (nv_crtc->head == 1) {
 				state->reg594 = 0x101;
 			} else {

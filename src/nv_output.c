@@ -676,51 +676,46 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	ScrnInfoPtr	pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	Bool is_fp = FALSE;
-	int other= 0;
 
-	uint32_t output_reg = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT);
+	uint32_t output_reg[2];
 
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
 	}
 
-	if (is_fp) {
-		output_reg = 0x0;
-	} else { 
-		output_reg = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-	}
-
-	if (nv_crtc->head == 1) {
-		output_reg |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+	if (pNv->Architecture == NV_ARCH_40) {
+		/* NV4x cards have strange ways of dealing with dualhead */
+		/* Also see reg594 in nv_crtc.c */
+		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+		/* Only one can be on crtc1 */
+		if (nv_crtc->head == 1) {
+			output_reg[nv_output->preferred_ramdac] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		} else {
+			output_reg[(~nv_output->preferred_ramdac) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		}
 	} else {
-		output_reg &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		if (!is_fp) {
+			output_reg[nv_output->preferred_ramdac] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+		} else { 
+			output_reg[nv_output->preferred_ramdac] = 0x0;
+		}
 	}
 
-	if (nv_output->preferred_ramdac == 1) {
-		other = 0;
+	if (pNv->Architecture == NV_ARCH_40) {
+		/* The registers are really not seperate on nv40 */
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 	} else {
-		other = 1;
+		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, output_reg[nv_output->preferred_ramdac]);
 	}
-
-	uint32_t output2_reg = nvReadRAMDAC(pNv, other, NV_RAMDAC_OUTPUT);
-
-	if (nv_crtc->head == 1) {
-		output2_reg &= ~NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-	} else {
-		output2_reg |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-	}
-
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, output_reg);
-	nvWriteRAMDAC(pNv, other, NV_RAMDAC_OUTPUT, output2_reg);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
+		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		if (pNv->Architecture == NV_ARCH_40)
+			nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
 	} else {
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, 0x00100000);
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, 0x00100000);
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
 	}
 }
