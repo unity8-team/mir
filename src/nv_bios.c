@@ -2163,8 +2163,10 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 				   "0x%04X: Found T table entry in BIT structure.\n", offset);
 			parse_bit_t_tbl_entry(pScrn, bios, &bitentry);
 			break;
-			
-			
+		default:
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Found unknown entry in BIT structure with id %c.\n", offset, bitentry.id[0]);
+			break;
 			/* TODO: What kind of information does the other BIT entrys point to?
 			 *       'P' entry is probably performance tables, but there are
 			 *       quite a few others...

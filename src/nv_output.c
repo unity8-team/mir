@@ -91,7 +91,7 @@ CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg)
 	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
 }
 
-/* Two register sets exist, one (the one below) is barely used, so i'm lacking a good name */
+/* Two register sets exist, this one is only used for dual link dvi/lvds */
 
 void NVWriteTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
 {
