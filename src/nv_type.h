@@ -215,13 +215,14 @@ typedef struct _NVOutputPrivateRec {
 	Bool ramdac_assigned;
 	uint8_t valid_ramdac;
 	uint8_t preferred_ramdac;
-        I2CBusPtr		    pDDCBus;
-        NVOutputType type;
-        CARD32 fpSyncs;
-        CARD32 fpWidth;
-        CARD32 fpHeight;
+	I2CBusPtr	pDDCBus;
+	NVOutputType type;
+	CARD32 fpSyncs;
+	CARD32 fpWidth;
+	CARD32 fpHeight;
 	DisplayModePtr native_mode;
-        Bool fpdither;
+	Bool fpdither;
+	uint8_t scaling_mode;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
 typedef struct _MiscStartupInfo {

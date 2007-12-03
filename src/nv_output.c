@@ -41,6 +41,7 @@
 #include "windowstr.h"
 #include <randrstr.h>
 #include <X11/extensions/render.h>
+#include "X11/Xatom.h"
 
 #include "xf86Crtc.h"
 #include "nv_include.h"
@@ -552,7 +553,6 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	if (!is_fp) {
 		regp->TMDS[0x2b] = 0x7d;
 	} else {
-		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
 		uint32_t pll_setup_control = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SETUP_CONTROL);
 		regp->TMDS[0x2b] = 0x7d;
 		regp->TMDS[0x2c] = 0x0;
@@ -685,18 +685,19 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		/* So far only dual dvi cards(or lvds + dvi i think) seem to use (and need?) this */
 		if (pNv->dual_dvi)
 			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		/* Only one can be on crtc1 */
-		if (nv_crtc->head == 1) {
-			output_reg[nv_output->preferred_ramdac] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		} else {
-			output_reg[(~nv_output->preferred_ramdac) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		}
 	} else {
 		if (!is_fp) {
 			output_reg[nv_output->preferred_ramdac] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		} else { 
 			output_reg[nv_output->preferred_ramdac] = 0x0;
 		}
+	}
+
+	/* Only one can be on crtc1 */
+	if (nv_crtc->head == 1) {
+		output_reg[nv_output->preferred_ramdac] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+	} else {
+		output_reg[(~nv_output->preferred_ramdac) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
 
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -949,7 +950,7 @@ nv_output_prepare(xf86OutputPtr output)
 {
 	ErrorF("nv_output_prepare is called\n");
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
+	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	Bool stole_ramdac = FALSE;
 	xf86OutputPtr output2 = NULL;
@@ -1055,18 +1056,110 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .commit = nv_output_commit,
 };
 
+#ifdef RANDR_12_INTERFACE
+/*
+ * Two scaling modes exist, let the user choose.
+ */
+#define SCALING_MODE_NAME "SCALING_MODE"
+#define NUM_SCALING_METHODS 2
+static char *scaling_mode_names[] = {
+	"gpu",
+	"panel",
+};
+static Atom scaling_mode_atom;
+
+static int
+nv_scaling_mode_lookup(char *name, int size)
+{
+	int i;
+	const int len = strlen(name);
+
+	for (i = 0; i < NUM_SCALING_METHODS; i++)
+		if (size == len && !strncmp(name, scaling_mode_names[i], len))
+			return i;
+
+	return -1;
+}
+
+static void
+nv_tmds_create_resources(xf86OutputPtr output)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	int error;
+
+	/*
+	 * Setup scaling mode property.
+	 */
+	scaling_mode_atom = MakeAtom(SCALING_MODE_NAME, sizeof(SCALING_MODE_NAME) - 1, TRUE);
+
+	error = RRConfigureOutputProperty(output->randr_output,
+					scaling_mode_atom, TRUE, FALSE, FALSE,
+					/*NUM_SCALING_METHODS, (INT32 *) scaling_mode_names*/
+					0, NULL);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"RRConfigureOutputProperty error, %d\n", error);
+	}
+
+	error = RRChangeOutputProperty(output->randr_output, scaling_mode_atom,
+					XA_STRING, 8, PropModeReplace, 
+					strlen(scaling_mode_names[nv_output->scaling_mode]),
+					scaling_mode_names[nv_output->scaling_mode],
+					FALSE, TRUE);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Failed to set scaling mode, %d\n", error);
+	}
+}
+
+static Bool
+nv_tmds_set_property(xf86OutputPtr output, Atom property,
+				RRPropertyValuePtr value)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	if (property == scaling_mode_atom) {
+		int32_t ret;
+		char *name;
+
+		if (value->type != XA_STRING || value->format != 8)
+			return FALSE;
+
+		name = (char*) value->data;
+
+		/* Match a string to a scaling mode */
+		ret = nv_scaling_mode_lookup(name, value->size);
+		if (ret < 0)
+			return FALSE;
+
+		nv_output->scaling_mode = ret;
+		return TRUE;
+	}
+
+	return TRUE;
+}
+
+#endif /* RANDR_12_INTERFACE */
+
 static const xf86OutputFuncsRec nv_tmds_output_funcs = {
-    .dpms = nv_tmds_output_dpms,
-    .save = nv_output_save,
-    .restore = nv_output_restore,
-    .mode_valid = nv_output_mode_valid,
-    .mode_fixup = nv_output_mode_fixup,
-    .mode_set = nv_output_mode_set,
-    .detect = nv_tmds_output_detect,
-    .get_modes = nv_output_get_modes,
-    .destroy = nv_output_destroy,
-    .prepare = nv_output_prepare,
-    .commit = nv_output_commit,
+	.dpms = nv_tmds_output_dpms,
+	.save = nv_output_save,
+	.restore = nv_output_restore,
+	.mode_valid = nv_output_mode_valid,
+	.mode_fixup = nv_output_mode_fixup,
+	.mode_set = nv_output_mode_set,
+	.detect = nv_tmds_output_detect,
+	.get_modes = nv_output_get_modes,
+	.destroy = nv_output_destroy,
+	.prepare = nv_output_prepare,
+	.commit = nv_output_commit,
+#ifdef RANDR_12_INTERFACE
+	.create_resources = nv_tmds_create_resources,
+	.set_property = nv_tmds_set_property,
+#endif /* RANDR_12_INTERFACE */
 };
 
 static int nv_lvds_output_mode_valid
@@ -1281,6 +1374,14 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 		nv_output->preferred_ramdac = 1;
 	} else {
 		nv_output->preferred_ramdac = 0;
+	}
+
+	if (pNv->fpScaler) {
+		/* Aspect ratio */
+		nv_output->scaling_mode = 0;
+	} else {
+		/* "Panel mode" fully filled */
+		nv_output->scaling_mode = 1;
 	}
 
 	output->possible_crtcs = heads;

@@ -1096,8 +1096,6 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
@@ -1107,7 +1105,7 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if (output && ((nv_output->type == OUTPUT_LVDS) || (pNv->fpScaler && (nv_output->type == OUTPUT_TMDS)))) {
+	if (output && ((nv_output->type == OUTPUT_LVDS) || (nv_output->scaling_mode == 0 && (nv_output->type == OUTPUT_TMDS)))) {
 		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
 		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
 		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
@@ -1720,7 +1718,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_vvalid_start = 0;
 		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
-		if (!pNv->fpScaler) {
+		/* 0 = gpu scaling (aspect ratio), 1 = panel scaling */
+		if (nv_output->scaling_mode == 1) {
 			ErrorF("Flat panel is doing the scaling.\n");
 			regp->fp_control |= (1 << 8);
 		} else {
