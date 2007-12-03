@@ -1005,7 +1005,7 @@ void nv_crtc_calc_state_ext(
 	}
 
 	/* The primary output doesn't seem to care */
-	if (nv_output->preferred_ramdac == 1) { /* This is the bus */
+	if (nv_output->preferred_ramdac == 1) { /* This is the "output" */
 		/* non-zero values are for analog, don't know about tv-out and the likes */
 		if (output && nv_output->type != OUTPUT_ANALOG) {
 			state->reg594 = 0x0;

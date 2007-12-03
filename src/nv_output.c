@@ -621,7 +621,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 		} else if (pll_setup_control == 0) {
 			regp->TMDS[0x2] = 0x90;
 		} else {
-			if (nv_output->preferred_ramdac == 1) { /* bus */
+			if (nv_output->preferred_ramdac == 1) { /* This is the "output" */
 				regp->TMDS[0x2] = 0xa9;
 			} else {
 				regp->TMDS[0x2] = 0x89;
@@ -1095,7 +1095,6 @@ nv_tmds_create_resources(xf86OutputPtr output)
 
 	error = RRConfigureOutputProperty(output->randr_output,
 					scaling_mode_atom, TRUE, FALSE, FALSE,
-					/*NUM_SCALING_METHODS, (INT32 *) scaling_mode_names*/
 					0, NULL);
 
 	if (error != 0) {
