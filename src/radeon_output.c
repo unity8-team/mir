@@ -2789,6 +2789,25 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[1].DDCType = DDC_NONE_DETECTED;
 	info->BiosConnector[1].valid = TRUE;
 	return TRUE;
+    case RADEON_MAC_IMAC_G5_ISIGHT:
+	info->BiosConnector[0].DDCType = DDC_MONID;
+	info->BiosConnector[0].DACType = DAC_NONE;
+	info->BiosConnector[0].TMDSType = TMDS_INT;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_D;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].DDCType = DDC_DVI;
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
     default:
 	return FALSE;
     }
@@ -2974,18 +2993,21 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 		    break;
 		}
 	    } else if (!strncmp(cpuline, "detected as", strlen("detected as"))) {
-                if (strstr(cpuline, "iBook")) {
-                    ret = RADEON_MAC_IBOOK;
+		if (strstr(cpuline, "iBook")) {
+		    ret = RADEON_MAC_IBOOK;
 		    break;
 		} else if (strstr(cpuline, "PowerBook")) {
 		    ret = RADEON_MAC_POWERBOOK_INTERNAL; /* internal tmds */
 		    break;
-                }
+		} else if (strstr(cpuline, "iMac G5 (iSight)")) {
+		    ret = RADEON_MAC_IMAC_G5_ISIGHT;
+		    break;
+		}
 
-                /* No known PowerMac model detected */
-                break;
-            }
-        }
+		/* No known PowerMac model detected */
+		break;
+	    }
+	}
 
 	fclose (f);
     } else
@@ -3002,7 +3024,8 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 		   ret == RADEON_MAC_POWERBOOK_VGA ? "PowerBook with VGA" :
 		   ret == RADEON_MAC_IBOOK ? "iBook" :
 		   ret == RADEON_MAC_MINI_EXTERNAL ? "Mac Mini with external DVI" :
-		   "Mac Mini with integrated DVI");
+		   ret == RADEON_MAC_MINI_INTERNAL ? "Mac Mini with integrated DVI" :
+		   "iMac G5 iSight");
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "If this is not correct, try Option \"MacModel\" and "
 		   "consider reporting to the\n");
@@ -3065,6 +3088,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->MacModel = RADEON_MAC_MINI_EXTERNAL;
 	else if (!strncmp("mini", optstr, strlen("mini"))) /* alias */
 	    info->MacModel = RADEON_MAC_MINI_EXTERNAL;
+	else if (!strncmp("imac-g5-isight", optstr, strlen("imac-g5-isight")))
+	    info->MacModel = RADEON_MAC_IMAC_G5_ISIGHT;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
 	}
