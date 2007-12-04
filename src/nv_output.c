@@ -203,21 +203,25 @@ static void nv_output_backlight_enable(xf86OutputPtr output,  Bool on)
 		nvWriteMC(pNv, 0x130C, on ? 3 : 7);
 }
 
-static void dpms_update_output_ramdac(NVPtr pNv, int ramdac, int mode)
+static void dpms_update_output_ramdac(NVPtr pNv, NVOutputPrivatePtr nv_output, int mode)
 {
-	if (ramdac == -1)
+	if (nv_output->ramdac == -1)
 		return;
 
 	/* We may be going for modesetting, so we must reset the ramdacs */
 	if (mode == DPMSModeOff) {
-		pNv->ramdac_active[ramdac] = FALSE;
-		ErrorF("Deactivating ramdac %d\n", ramdac);
+		pNv->ramdac_active[nv_output->ramdac] = FALSE;
+		NVWriteVGACR5758(pNv, nv_output->ramdac, 0, 0x7f);
+		NVWriteVGACR5758(pNv, nv_output->ramdac, 2, 0);
+		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
 		return;
 	}
 
 	/* The previous call was not a modeset, but a normal dpms call */
-	pNv->ramdac_active[ramdac] = TRUE;
-	ErrorF("Activating ramdac %d\n", ramdac);
+	pNv->ramdac_active[nv_output->ramdac] = TRUE;
+	NVWriteVGACR5758(pNv, nv_output->ramdac, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+	NVWriteVGACR5758(pNv, nv_output->ramdac, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+	ErrorF("Activating ramdac %d\n", nv_output->ramdac);
 }
 
 static void
@@ -226,7 +230,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 
-	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
+	dpms_update_output_ramdac(pNv, nv_output, mode);
 
 	switch (mode) {
 	case DPMSModeStandby:
@@ -250,7 +254,7 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
-	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
+	dpms_update_output_ramdac(pNv, nv_output, mode);
 
 	if (crtc) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -268,7 +272,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
 
-	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
+	dpms_update_output_ramdac(pNv, nv_output, mode);
 
 	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc && nv_output->ramdac != -1) {
@@ -966,6 +970,8 @@ nv_output_prepare(xf86OutputPtr output)
 	ErrorF("Activating ramdac %d\n", ramdac);
 	pNv->ramdac_active[ramdac] = TRUE;
 	nv_output->ramdac = ramdac;
+	NVWriteVGACR5758(pNv, ramdac, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+	NVWriteVGACR5758(pNv, ramdac, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
 	if (!stole_ramdac)
 		nv_find_output_and_clear_ramdac_from_outputs(output, ramdac);
 
