@@ -253,6 +253,23 @@ struct dcb_entry {
 	Bool duallink;
 };
 
+typedef struct {
+	uint8_t *data;
+	unsigned int length;
+
+	uint16_t init_script_tbls_ptr;
+	uint16_t macro_index_tbl_ptr;
+	uint16_t macro_tbl_ptr;
+	uint16_t condition_tbl_ptr;
+	uint16_t io_condition_tbl_ptr;
+	uint16_t io_flag_condition_tbl_ptr;
+	uint16_t init_function_tbl_ptr;
+
+	DisplayModePtr fp_native_mode;
+
+	uint16_t t_table_ptr;
+} bios_t;
+
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
@@ -291,7 +308,7 @@ typedef struct _NVRec {
     struct nouveau_bo * CLUT;	/* NV50 only */
     struct nouveau_bo * GART;
 
-    uint32_t *		VBIOS;
+    bios_t		VBIOS;
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;
@@ -403,8 +420,6 @@ typedef struct _NVRec {
 
 	uint32_t output_info;
 	MiscStartupInfo misc_info;
-
-	DisplayModePtr fp_native_mode;
 
 	struct {
 		ORNum dac;

@@ -58,7 +58,7 @@ CARD32 NV50OutputRead(xf86OutputPtr output, CARD32 addr)
 
 static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
 {
-	 unsigned const char *VBIOS = (unsigned const char *)pNv->VBIOS;
+	 unsigned const char *VBIOS = (unsigned const char *)pNv->VBIOS.data;
 	 unsigned char *table2;
 	 unsigned char headerSize, entries;
 	 int i;

@@ -46,24 +46,6 @@ typedef struct {
 	Bool repeat;
 } init_exec_t;
 
-typedef struct {
-	uint8_t *data;
-	unsigned int length;
-
-	uint16_t init_script_tbls_ptr;
-	uint16_t macro_index_tbl_ptr;
-	uint16_t macro_tbl_ptr;
-	uint16_t condition_tbl_ptr;
-	uint16_t io_condition_tbl_ptr;
-	uint16_t io_flag_condition_tbl_ptr;
-	uint16_t init_function_tbl_ptr;
-
-	uint16_t fptablepointer;
-	uint16_t fpxlatetableptr;
-	uint16_t lvdsmanufacturerpointer;
-	uint16_t fpxlatemanufacturertableptr;
-} bios_t;
-
 static uint16_t le16_to_cpu(const uint16_t x)
 {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -169,14 +151,14 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 	}
 }
 
-static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint32_t *data)
+static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 {
-	NVShadowVBIOS_PROM(pScrn, (uint8_t *)data);
-	if (NVValidVBIOS(pScrn, (uint8_t *)data) == 2)
+	NVShadowVBIOS_PROM(pScrn, data);
+	if (NVValidVBIOS(pScrn, data) == 2)
 		return TRUE;
 
-	NVShadowVBIOS_PRAMIN(pScrn, data);
-	if (NVValidVBIOS(pScrn, (uint8_t *)data))
+	NVShadowVBIOS_PRAMIN(pScrn, (uint32_t *)data);
+	if (NVValidVBIOS(pScrn, data))
 		return TRUE;
 
 	return FALSE;
@@ -1854,7 +1836,14 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
+struct fppointers {
+	uint16_t fptablepointer;
+	uint16_t fpxlatetableptr;
+	uint16_t lvdsmanufacturerpointer;
+	uint16_t fpxlatemanufacturertableptr;
+};
+
+static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
@@ -1867,13 +1856,13 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 
 	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
 
-	if (bios->fptablepointer == 0x0) {
+	if (fpp->fptablepointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Pointer to flat panel table invalid\n");
 		return;
 	}
 
-	fptable = &bios->data[bios->fptablepointer];
+	fptable = &bios->data[fpp->fptablepointer];
 
 	fptable_ver = fptable[0];
 
@@ -1896,15 +1885,15 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	case 0x10:	/* some NV15/16, and NV11+ */
 		ofs = 7;
 v1common:
-		if (bios->fpxlatetableptr == 0x0) {
+		if (fpp->fpxlatetableptr == 0x0) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Pointer to flat panel translation table invalid\n");
 			return;
 		}
-		fpxlatetable = &bios->data[bios->fpxlatetableptr];
+		fpxlatetable = &bios->data[fpp->fpxlatetableptr];
 	/*	not yet used
-		lvdsmanufacturertable = &bios->data[bios->lvdsmanufacturerpointer];
-		fpxlatemanufacturertable = &bios->data[bios->fpxlatemanufacturertableptr];*/
+		lvdsmanufacturertable = &bios->data[fpp->lvdsmanufacturerpointer];
+		fpxlatemanufacturertable = &bios->data[fpp->fpxlatemanufacturertableptr];*/
 
 		fpindex = fpxlatetable[fpstrapping];
 	/*	not yet used
@@ -1970,7 +1959,7 @@ v1common:
 		xf86PrintModeline(pScrn->scrnIndex, mode);
 //	}
 
-	pNv->fp_native_mode = mode;
+	bios->fp_native_mode = mode;
 }
 
 static void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t ttableptr)
@@ -2007,6 +1996,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
+	struct fppointers fpp;
+
 	/* If it's not a laptop, you probably don't care about fptables */
 	/* FIXME: detect mobile BIOS? */
 
@@ -2022,9 +2013,9 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	}
 
 	table = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
-	bios->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
+	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
-	parse_fp_tables(pScrn, bios);
+	parse_fp_tables(pScrn, bios, &fpp);
 
 	return 1;
 }
@@ -2075,17 +2066,16 @@ static int parse_bit_t_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 * offset + 0  (16 bits): T table pointer
 	 */
 
-	uint16_t ttable;
-
 	if (bitentry->length != 2) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Do not understand BIT T table entry.\n");
 		return 0;
 	}
 
-	ttable = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	bios->t_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 
-	parse_t_table(pScrn, bios, ttable);
+	/* just for testing */
+	parse_t_table(pScrn, bios, bios->t_table_ptr);
 
 	return 1;
 }
@@ -2104,6 +2094,7 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
+	struct fppointers fpp;
 
 	if (!parse_bit_init_tbl_entry(pScrn, bios, bitentry))
 		return 0;
@@ -2114,15 +2105,15 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 		return 1;
 
 	if (bitentry->length > 33) {
-		bios->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
-		bios->fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
+		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
+		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
 	}
 	if (bitentry->length > 45) {
-		bios->lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
-		bios->fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
+		fpp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
+		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
 	}
 
-	parse_fp_tables(pScrn, bios);
+	parse_fp_tables(pScrn, bios, &fpp);
 
 	return 1;
 }
@@ -2435,41 +2426,37 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	unsigned int bit_offset;
-	bios_t bios;
-	bios.data=NULL;
-	bios.fptablepointer = 0;
 	uint8_t nv_signature[]={0xff,0x7f,'N','V',0x0};
 	uint8_t bit_signature[]={'B','I','T'};
 	NVPtr pNv;
 	pNv = NVPTR(pScrn);
 
 	pNv->dcb_table.entries = 0;
-	pNv->fp_native_mode = NULL;
 
-	pNv->VBIOS = xalloc(64 * 1024);
-	if (!NVShadowVBIOS(pScrn, pNv->VBIOS)) {
+	memset(&pNv->VBIOS, 0, sizeof(bios_t));
+	pNv->VBIOS.data = xalloc(64 * 1024);
+	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "No valid BIOS image found.\n");
-		xfree(pNv->VBIOS);
+		xfree(pNv->VBIOS.data);
 		return 0;
 	}
-	bios.data = (uint8_t *)pNv->VBIOS;
-	bios.length = bios.data[2] * 512;
-	if (bios.length > NV_PROM_SIZE)
-		bios.length = NV_PROM_SIZE;
+	pNv->VBIOS.length = pNv->VBIOS.data[2] * 512;
+	if (pNv->VBIOS.length > NV_PROM_SIZE)
+		pNv->VBIOS.length = NV_PROM_SIZE;
 
 	/* parse Display Configuration Block (DCB) table */
-	if (parse_dcb_table(pScrn, &bios))
+	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB.\n", pNv->dcb_table.entries);
 
 	/* check for known signatures */
-	if ((bit_offset = findstr(&bios, bit_signature, sizeof(bit_signature)))) {
+	if ((bit_offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT signature found.\n");
-		parse_bit_structure(pScrn, &bios, bit_offset + 4);
-	} else if ((bit_offset = findstr(&bios, nv_signature, sizeof(nv_signature)))) {
+		parse_bit_structure(pScrn, &pNv->VBIOS, bit_offset + 4);
+	} else if ((bit_offset = findstr(&pNv->VBIOS, nv_signature, sizeof(nv_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV signature found.\n");
-		parse_pins_structure(pScrn, &bios, bit_offset);
+		parse_pins_structure(pScrn, &pNv->VBIOS, bit_offset);
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "No known script signature found.\n");
