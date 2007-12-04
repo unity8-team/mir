@@ -117,6 +117,30 @@ CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index)
 	return NV_RD08(pCRTCReg, CRTC_DATA);
 }
 
+/* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
+ * I suspect they in fact do nothing, but are merely a way to carry useful
+ * per-head variables around
+ *
+ * Known uses:
+ * CR57		CR58
+ * 0x00		index to the appropriate dcb entry (or 7f for inactive)
+ * 0x02		dcb entry's "or" value (or 00 for inactive)
+ * 0x0f		laptop panel info -	high nibble for PEXTDEV_BOOT strap
+ * 					low nibble for xlat strap value
+ */
+
+void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	NVWriteVGA(pNv, head, 0x57, index);
+	NVWriteVGA(pNv, head, 0x58, value);
+}
+
+uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index)
+{
+	NVWriteVGA(pNv, head, 0x57, index);
+	return NVReadVGA(pNv, head, 0x58);
+}
+
 void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -1548,15 +1572,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
 	regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
 
-	regp->CRTC[NV_VGA_CRTCX_57] = 0x0;
-
-	/* bit0: Seems to be mostly used on crtc1 */
-	/* bit1: 1=crtc1, 0=crtc, but i'm unsure about this */
-	/* 0x7E (crtc0, only seen in one dump) and 0x7F (crtc1) seem to be some kind of disable setting */
-	/* This is likely to be incomplete */
-	/* This is a very strange register, changed very often by the blob */
-	regp->CRTC[NV_VGA_CRTCX_58] = 0x0;
-
 	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
 	if (nv_crtc->head == 1) {
 		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52;
@@ -2133,6 +2148,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVCrtcRegPtr regp;
+    int i;
     
     regp = &state->crtc_reg[nv_crtc->head];
 
@@ -2168,8 +2184,8 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_57, regp->CRTC[NV_VGA_CRTCX_57]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_58, regp->CRTC[NV_VGA_CRTCX_58]);
+	for (i = 0; i < 0x10; i++)
+		NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
     }
@@ -2231,6 +2247,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
     NVPtr pNv = NVPTR(pScrn);    
     NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
     NVCrtcRegPtr regp;
+    int i;
 
     regp = &state->crtc_reg[nv_crtc->head];
  
@@ -2276,8 +2293,8 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
 	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
 	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
-	regp->CRTC[NV_VGA_CRTCX_57] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_57);
-	regp->CRTC[NV_VGA_CRTCX_58] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_58);
+	for (i = 0; i < 0x10; i++)
+		regp->CR58[i] = NVReadVGACR5758(pNv, nv_crtc->head, i);
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);

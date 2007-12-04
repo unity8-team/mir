@@ -101,6 +101,8 @@ void NVWriteVGA(NVPtr pNv, int head, CARD8 index, CARD8 value);
 CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index);
 xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
+void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
