@@ -215,8 +215,9 @@ typedef struct _NVOutputPrivateRec {
 	int ramdac;
 	uint8_t valid_ramdac;
 	uint8_t preferred_ramdac;
-	I2CBusPtr	pDDCBus;
+	I2CBusPtr pDDCBus;
 	NVOutputType type;
+	int dcb_entry;
 	CARD32 fpSyncs;
 	CARD32 fpWidth;
 	CARD32 fpHeight;
@@ -245,7 +246,7 @@ typedef enum {
 struct dcb_entry {
 	uint8_t type;
 	uint8_t i2c_index;
-	uint8_t head;
+	uint8_t heads;
 	uint8_t bus;
 	uint8_t location;
 	uint8_t or;

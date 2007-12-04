@@ -1188,13 +1188,14 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.commit = nv_output_commit,
 };
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bus, int i2c_index, Bool dvi_pair)
+static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	Bool create_output = TRUE;
+	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
 
 	/* DVI have an analog connector and a digital one, differentiate between that and a normal vga */
 	if (dvi_pair) {
@@ -1210,6 +1211,8 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bu
 		return;
 	}
 
+	nv_output->dcb_entry = dcb_entry;
+
 	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
@@ -1223,7 +1226,7 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bu
 	 * bit2: All ramdac's valid?
 	 * FIXME: this probably wrong
 	 */
-	nv_output->valid_ramdac = order;
+	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
 
 	if (!create_output) {
 		xfree(nv_output);
@@ -1243,23 +1246,25 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int heads, int order, int bu
 
 	/* This is only to facilitate proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
-	if (order & RAMDAC_1) {
+	if (nv_output->valid_ramdac & RAMDAC_1) {
 		nv_output->preferred_ramdac = 1;
 	} else {
 		nv_output->preferred_ramdac = 0;
 	}
 
-	output->possible_crtcs = heads;
+	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int bus, int i2c_index, int lvds)
+static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr	    output;
 	NVOutputPrivatePtr    nv_output;
 	char outputname[20];
 	Bool create_output = TRUE;
+	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
 
 	if (lvds) {
 		sprintf(outputname, "LVDS-%d", pNv->lvds_count);
@@ -1275,6 +1280,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 		return;
 	}
 
+	nv_output->dcb_entry = dcb_entry;
+
 	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
@@ -1288,7 +1295,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 	 * bit2: All ramdac's valid?
 	 * FIXME: this probably wrong
 	 */
-	nv_output->valid_ramdac = order;
+	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
 
 	if (lvds) {
 		nv_output->type = OUTPUT_LVDS;
@@ -1321,7 +1328,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 
 	/* This is only to facilitate proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
-	if (order & RAMDAC_1) {
+	if (nv_output->valid_ramdac & RAMDAC_1) {
 		nv_output->preferred_ramdac = 1;
 	} else {
 		nv_output->preferred_ramdac = 0;
@@ -1335,15 +1342,15 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int heads, int order, int b
 		nv_output->scaling_mode = 1;
 	}
 
-	output->possible_crtcs = heads;
+	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
-	unsigned char type, i2c_index, or, heads, bus;
 	NVPtr pNv = NVPTR(pScrn);
-	int i, bus_count[0xf], digital_counter = 0;
+	int i, type, bus_count[0xf], digital_counter = 0;
 
 	memset(bus_count, 0, sizeof(bus_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1352,28 +1359,23 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.entry[i].type;
-		i2c_index = pNv->dcb_table.entry[i].i2c_index;
-		or = pNv->dcb_table.entry[i].or;
-		heads = pNv->dcb_table.entry[i].head;
-		bus = pNv->dcb_table.entry[i].bus;
-
 		if (type > 3) {
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
 			continue;
 		}
 
-		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, head: %d, bus: %d, or: %d\n", i, type, i2c_index, heads, bus, or);
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
 
 		switch(type) {
 		case OUTPUT_ANALOG:
-			nv_add_analog_output(pScrn, heads, ffs(or), bus, i2c_index, (bus_count[bus] > 1));
+			nv_add_analog_output(pScrn, i, (bus_count[pNv->dcb_table.entry[i].bus] > 1));
 			break;
 		case OUTPUT_TMDS:
-			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 0);
+			nv_add_digital_output(pScrn, i, 0);
 			digital_counter++;
 			break;
 		case OUTPUT_LVDS:
-			nv_add_digital_output(pScrn, heads, ffs(or), bus, i2c_index, 1);
+			nv_add_digital_output(pScrn, i, 1);
 			/* I'm assuming that lvds+dvi has the same effect as dual dvi */
 			digital_counter++;
 			break;

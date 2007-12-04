@@ -2246,7 +2246,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 	if (dcb_version >= 0x20) {
 		entry->type = conn & 0xf;
 		entry->i2c_index = (conn >> 4) & 0xf;
-		entry->head = (conn >> 8) & 0xf;
+		entry->heads = (conn >> 8) & 0xf;
 		entry->bus = (conn >> 16) & 0xf;
 		entry->location = (conn >> 20) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
@@ -2262,7 +2262,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		/* safe defaults for a crt */
 		entry->type = 0;
 		entry->i2c_index = 0;
-		entry->head = 1;
+		entry->heads = 1;
 		entry->bus = 0;
 		entry->location = 0;
 		entry->or = 1;
@@ -2272,7 +2272,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		return FALSE;
 		entry->type = 0;
 		entry->i2c_index = 0;
-		entry->head = 0;
+		entry->heads = 0;
 		entry->bus = 0;
 		entry->location = 0;
 		entry->or = 0;
