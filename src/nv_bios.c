@@ -33,7 +33,6 @@
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
 
 #define DEBUGLEVEL 6
-/*#define PERFORM_WRITE*/
 
 /* TODO: 
  *       * PLL algorithms.
@@ -248,6 +247,7 @@ static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
 
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	if (DEBUGLEVEL >= 8) {
 		uint32_t tmp;
 		nv32_rd(pScrn, reg, &tmp);
@@ -260,11 +260,13 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 			   "========= unknown reg 0x%08X ==========\n", reg);
 		return 0;
 	}
-#ifdef PERFORM_WRITE
-	still_alive();
-	NVPtr pNv = NVPTR(pScrn);
-	pNv->REGS[reg/4] = data;
-#endif
+
+	if (pNv->VBIOS.execute) {
+		still_alive();
+		NVPtr pNv = NVPTR(pScrn);
+		pNv->REGS[reg/4] = data;
+	}
+
 	return 1;
 }
 
@@ -300,11 +302,12 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 			   "	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
 			   port, index, crtchead, data);
 
-#ifdef PERFORM_WRITE
-	still_alive();
-	VGA_WR08(ptr, port, index);
-	VGA_WR08(ptr, port + 1, data);
-#endif
+	if (pNv->VBIOS.execute) {
+		still_alive();
+		VGA_WR08(ptr, port, index);
+		VGA_WR08(ptr, port + 1, data);
+	}
+
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 1;
 }
@@ -1712,7 +1715,7 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 
 static init_tbl_entry_t itbl_entry[] = {
 	/* command name                       , id  , length  , offset  , mult    , command handler                 */
-	{ "INIT_PROG"                         , 0x31, 15      , 10      , 4       , init_prog                       },
+//	{ "INIT_PROG"                         , 0x31, 15      , 10      , 4       , init_prog                       },
 	{ "INIT_IO_RESTRICT_PROG"             , 0x32, 11      , 6       , 4       , init_io_restrict_prog           },
 	{ "INIT_REPEAT"                       , 0x33, 2       , 0       , 0       , init_repeat                     },
 	{ "INIT_IO_RESTRICT_PLL"              , 0x34, 12      , 7       , 2       , init_io_restrict_pll            },
@@ -1731,25 +1734,25 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_CR"                           , 0x52, 4       , 0       , 0       , init_cr                         },
 	{ "INIT_ZM_CR"                        , 0x53, 3       , 0       , 0       , init_zm_cr                      },
 	{ "INIT_ZM_CR_GROUP"                  , 0x54, 2       , 1       , 2       , init_zm_cr_group                },
-	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
+//	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, 6       , 5       , 4       , init_zm_reg_sequence            },
-	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
+//	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
 	{ "INIT_SUB_DIRECT"                   , 0x5B, 3       , 0       , 0       , init_sub_direct                 },
-	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
+//	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, 5       , 0       , 0       , init_zm_index_io                },
 	{ "INIT_COMPUTE_MEM"                  , 0x63, 1       , 0       , 0       , init_compute_mem                },
 	{ "INIT_RESET"                        , 0x65, 13      , 0       , 0       , init_reset                      },
 /*	{ "INIT_NEXT"                         , 0x66, x       , x       , x       , init_next                       }, */	
 /*	{ "INIT_NEXT"                         , 0x67, x       , x       , x       , init_next                       }, */	
 /*	{ "INIT_NEXT"                         , 0x68, x       , x       , x       , init_next                       }, */	
-	{ "INIT_INDEX_IO8"                    , 0x69, 5       , 0       , 0       , init_index_io8                  },
+//	{ "INIT_INDEX_IO8"                    , 0x69, 5       , 0       , 0       , init_index_io8                  },
 	{ "INIT_SUB"                          , 0x6B, 2       , 0       , 0       , init_sub                        },
-	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
+//	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
 	{ "INIT_NV_REG"                       , 0x6E, 13      , 0       , 0       , init_nv_reg                     },
 	{ "INIT_MACRO"                        , 0x6F, 2       , 0       , 0       , init_macro                      },
 	{ "INIT_DONE"                         , 0x71, 1       , 0       , 0       , init_done                       },
 	{ "INIT_RESUME"                       , 0x72, 1       , 0       , 0       , init_resume                     },
-	{ "INIT_RAM_CONDITION2"               , 0x73, 9       , 0       , 0       , init_ram_condition2             },
+//	{ "INIT_RAM_CONDITION2"               , 0x73, 9       , 0       , 0       , init_ram_condition2             },
 	{ "INIT_TIME"                         , 0x74, 3       , 0       , 0       , init_time                       },
 	{ "INIT_CONDITION"                    , 0x75, 2       , 0       , 0       , init_condition                  },
 /*	{ "INIT_IO_CONDITION"                 , 0x76, x       , x       , x       , init_io_condition               }, */
@@ -1983,7 +1986,9 @@ static void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t ttableptr)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", table);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
+//	bios->execute = TRUE;
 	parse_init_table(pScrn, bios, table, &iexec);
+	bios->execute = FALSE;
 }
 
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -2434,6 +2439,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	pNv->dcb_table.entries = 0;
 
 	memset(&pNv->VBIOS, 0, sizeof(bios_t));
+	pNv->VBIOS.execute = FALSE;
 	pNv->VBIOS.data = xalloc(64 * 1024);
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

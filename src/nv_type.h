@@ -256,6 +256,7 @@ struct dcb_entry {
 typedef struct {
 	uint8_t *data;
 	unsigned int length;
+	Bool execute;
 
 	uint16_t init_script_tbls_ptr;
 	uint16_t macro_index_tbl_ptr;
