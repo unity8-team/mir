@@ -1019,10 +1019,11 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
  * Two scaling modes exist, let the user choose.
  */
 #define SCALING_MODE_NAME "SCALING_MODE"
-#define NUM_SCALING_METHODS 2
+#define NUM_SCALING_METHODS 3
 static char *scaling_mode_names[] = {
-	"gpu",
 	"panel",
+	"fullscreen",
+	"aspect",
 };
 static Atom scaling_mode_atom;
 
@@ -1030,11 +1031,11 @@ static int
 nv_scaling_mode_lookup(char *name, int size)
 {
 	int i;
-	const int len = strlen(name);
 
-	for (i = 0; i < NUM_SCALING_METHODS; i++)
-		if (size == len && !strncmp(name, scaling_mode_names[i], len))
+	for (i = 0; i < NUM_SCALING_METHODS; i++) {
+		if (!strncmp(name, scaling_mode_names[i], size))
 			return i;
+	}
 
 	return -1;
 }
@@ -1342,10 +1343,10 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 
 	if (pNv->fpScaler) {
 		/* Aspect ratio */
-		nv_output->scaling_mode = 0;
+		nv_output->scaling_mode = 2;
 	} else {
 		/* "Panel mode" fully filled */
-		nv_output->scaling_mode = 1;
+		nv_output->scaling_mode = 0;
 	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
