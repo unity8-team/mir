@@ -896,8 +896,14 @@ Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 		if (mlv == 81)
 			dacoffset ^= 8;
 		reg = 0x6808b0 + dacoffset;
-	} else
+	} else {
+		if (mlv > (sizeof(pramdac_table) / sizeof(uint32_t))) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Magic Lookup Value too big (%02X)\n", offset, mlv);
+			return FALSE;
+		}
 		reg = pramdac_table[mlv];
+	}
 
 	for (i = 0; i < count; i++) {
 		uint8_t tmds_addr = bios->data[offset + 3 + i * 2];
@@ -1965,29 +1971,90 @@ v1common:
 	bios->fp_native_mode = mode;
 }
 
-static void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint16_t ttableptr)
+void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint16_t pxclk)
 {
-	uint8_t headerlen = 0;
-	uint16_t table;
+	/* the dcb_entry parameter needs to be the index of the appropriate DCB entry
+	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
+	 *
+	 * This runs the TMDS regs setting code found on BIT bios cards
+	 *
+	 * The table here is typically found just before the DCB table, with a
+	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being length?)
+	 *
+	 * At offset +7 is a pointer to a script, which I don't know how to run yet
+	 * At offset +9 is a pointer to another script, likewise
+	 * Offset +11 has a pointer to a table where the first word is a pxclk frequency
+	 * and the second word a pointer to a script, which should be run if the
+	 * comparison pxclk frequency is less than the pxclk desired. This repeats for
+	 * decreasing comparison frequencies
+	 * Offset +13 has a pointer to a similar table
+	 * The selection of table (and possibly +7/+9 script) is dictated by "or" from the DCB.
+	 * For unffs(ffs(or)) == 0, use the first table, for unffs(ffs(or)) == 4, use the second.
+	 * unffs(ffs(or)) == 2 does not seem to occur for TMDS.
+	 */
+	NVPtr pNv = NVPTR(pScrn);
+	uint16_t ttableptr, script1, script2, clktable, tscript = 0;
+	int i = 0;
+	uint16_t compareclk;
 	init_exec_t iexec = {TRUE, FALSE};
 
+	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
+		return;
+
+	ttableptr = bios->t_table_ptr;
+
 	if (ttableptr == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Pointer to T table invalid\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to T table invalid\n");
 		return;
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found T table revision %d.%d\n",
 		   bios->data[ttableptr] >> 4, bios->data[ttableptr] & 0xf);
 
-	headerlen = bios->data[ttableptr + 1];
-	table = ttableptr + headerlen;
+	script1 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 7]));
+	script2 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 9]));
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", table);
+	if (bios->data[script1] != 'q' || bios->data[script2] != 'q') {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "T table script pointers not stubbed\n");
+		return;
+	}
+
+	switch ((ffs(pNv->dcb_table.entry[dcb_entry].or) - 1) * 2) {
+	case 0:
+		clktable = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 11]));
+		break;
+	case 4:
+		clktable = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 13]));
+		break;
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "(ffs(or) - 1) * 2 was not 0 or 4\n");
+		return;
+	}
+
+	if (!clktable) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pixel clock comparison table not found\n");
+		return;
+	}
+
+	do {
+		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 4 * i]));
+		if (pxclk >= compareclk) {
+			tscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + 4 * i]));
+			break;
+		}
+		i++;
+	} while (compareclk);
+
+	if (!tscript) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "T script not found\n");
+		return;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", tscript);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
+		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", tscript);
 //	bios->execute = TRUE;
-	parse_init_table(pScrn, bios, table, &iexec);
+	parse_init_table(pScrn, bios, tscript, &iexec);
 	bios->execute = FALSE;
 }
 
@@ -2079,8 +2146,8 @@ static int parse_bit_t_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 
 	bios->t_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 
-	/* just for testing */
-	parse_t_table(pScrn, bios, bios->t_table_ptr);
+	/* FIXME just for testing */
+//	parse_t_table(pScrn, bios, 0, 0x2a30);
 
 	return 1;
 }
@@ -2135,8 +2202,8 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Found BIT command with id 0x%02X\n",
-			   offset, bitentry.id[0]);
+			   "0x%04X: Found BIT command with id 0x%02X (%c)\n",
+			   offset, bitentry.id[0], bitentry.id[0]);
 
 		switch (bitentry.id[0]) {
 		case 0:
@@ -2159,10 +2226,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 				   "0x%04X: Found T table entry in BIT structure.\n", offset);
 			parse_bit_t_tbl_entry(pScrn, bios, &bitentry);
 			break;
-		default:
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found unknown entry in BIT structure with id %c.\n", offset, bitentry.id[0]);
-			break;
+
 			/* TODO: What kind of information does the other BIT entrys point to?
 			 *       'P' entry is probably performance tables, but there are
 			 *       quite a few others...
