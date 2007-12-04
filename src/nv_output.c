@@ -203,18 +203,30 @@ static void nv_output_backlight_enable(xf86OutputPtr output,  Bool on)
 		nvWriteMC(pNv, 0x130C, on ? 3 : 7);
 }
 
+static void dpms_update_output_ramdac(NVPtr pNv, int ramdac, int mode)
+{
+	if (ramdac == -1)
+		return;
+
+	/* We may be going for modesetting, so we must reset the ramdacs */
+	if (mode == DPMSModeOff) {
+		pNv->ramdac_active[ramdac] = FALSE;
+		ErrorF("Deactivating ramdac %d\n", ramdac);
+		return;
+	}
+
+	/* The previous call was not a modeset, but a normal dpms call */
+	pNv->ramdac_active[ramdac] = TRUE;
+	ErrorF("Activating ramdac %d\n", ramdac);
+}
+
 static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 
-	if (nv_output->ramdac != -1 && mode != DPMSModeOff) {
-		/* This was not a modeset, but a normal dpms call */
-		pNv->ramdac_active[nv_output->ramdac] = TRUE;
-		ErrorF("Activating ramdac %d\n", nv_output->ramdac);
-		nv_output->ramdac_assigned = TRUE;
-	}
+	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
 
 	switch (mode) {
 	case DPMSModeStandby:
@@ -227,13 +239,6 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	default:
 		break;
 	}
-
-	/* We may be going for modesetting, so we must reset the ramdacs */
-	if (nv_output->ramdac != -1 && mode == DPMSModeOff) {
-		pNv->ramdac_active[nv_output->ramdac] = FALSE;
-		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
-		nv_output->ramdac_assigned = FALSE;
-	}
 }
 
 static void
@@ -245,19 +250,7 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
-	if (nv_output->ramdac != -1) {
-		/* We may be going for modesetting, so we must reset the ramdacs */
-		if (mode == DPMSModeOff) {
-			pNv->ramdac_active[nv_output->ramdac] = FALSE;
-			ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
-			nv_output->ramdac_assigned = FALSE;
-			/* This was not a modeset, but a normal dpms call */
-		} else {
-			pNv->ramdac_active[nv_output->ramdac] = TRUE;
-			ErrorF("Activating ramdac %d\n", nv_output->ramdac);
-			nv_output->ramdac_assigned = TRUE;
-		}
-	}
+	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
 
 	if (crtc) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -275,13 +268,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
 
-	/* We just woke up again from an actual monitor dpms and not a modeset prepare */
-	/* Put here since we actually need our ramdac to wake up again ;-) */
-	if (nv_output->ramdac != -1 && mode != DPMSModeOff) {
-		pNv->ramdac_active[nv_output->ramdac] = TRUE;
-		nv_output->ramdac_assigned = TRUE;
-		ErrorF("Activating ramdac %d\n", nv_output->ramdac);
-	}
+	dpms_update_output_ramdac(pNv, nv_output->ramdac, mode);
 
 	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc && nv_output->ramdac != -1) {
@@ -303,13 +290,6 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 				break;
 		}
 		nvWriteRAMDAC(pNv, nv_output->ramdac, NV_RAMDAC_FP_CONTROL, fpcontrol);
-	}
-
-	/* We may be going for modesetting, so we must reset the ramdacs */
-	if (nv_output->ramdac != -1 && mode == DPMSModeOff) {
-		pNv->ramdac_active[nv_output->ramdac] = FALSE;
-		nv_output->ramdac_assigned = FALSE;
-		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
 	}
 }
 
@@ -926,23 +906,24 @@ nv_output_destroy (xf86OutputPtr output)
 		xfree (output->driver_private);
 }
 
-static void
-nv_clear_ramdac_from_outputs(xf86OutputPtr output, int ramdac)
+static xf86OutputPtr
+nv_find_output_and_clear_ramdac_from_outputs(xf86OutputPtr output, int ramdac)
 {
 	int i;
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	xf86OutputPtr output2;
+	xf86OutputPtr output2 = NULL;
 	NVOutputPrivatePtr nv_output2;
 	for (i = 0; i < xf86_config->num_output; i++) {
 		output2 = xf86_config->output[i];
 		nv_output2 = output2->driver_private;
 		if (nv_output2->ramdac == ramdac && output != output2) {
 			nv_output2->ramdac = -1;
-			nv_output2->ramdac_assigned = FALSE;
 			break;
 		}
 	}
+
+	return output2;
 }
 
 static void
@@ -954,29 +935,14 @@ nv_output_prepare(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	Bool stole_ramdac = FALSE;
 	xf86OutputPtr output2 = NULL;
+	int ramdac;
 
 	output->funcs->dpms(output, DPMSModeOff);
-
-	if (nv_output->ramdac_assigned) {
-		ErrorF("We already have a ramdac.\n");
-		return;
-	}
 
 	/* We need ramdac 0, so let's steal it */
 	if (!(nv_output->valid_ramdac & RAMDAC_1) && pNv->ramdac_active[0]) {
 		ErrorF("Stealing ramdac0 ;-)\n");
-		int i;
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		NVOutputPrivatePtr nv_output2;
-		for (i = 0; i < xf86_config->num_output; i++) {
-			output2 = xf86_config->output[i];
-			nv_output2 = output2->driver_private;
-			if (nv_output2->ramdac == 0 && output != output2) {
-				nv_output2->ramdac = -1;
-				nv_output2->ramdac_assigned = FALSE;
-				break;
-			}
-		}
+		output2 = nv_find_output_and_clear_ramdac_from_outputs(output, 0);
 		pNv->ramdac_active[0] = FALSE;
 		stole_ramdac = TRUE;
 	}
@@ -984,18 +950,7 @@ nv_output_prepare(xf86OutputPtr output)
 	/* We need ramdac 1, so let's steal it */
 	if (!(nv_output->valid_ramdac & RAMDAC_0) && pNv->ramdac_active[1]) {
 		ErrorF("Stealing ramdac1 ;-)\n");
-		int i;
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		NVOutputPrivatePtr nv_output2;
-		for (i = 0; i < xf86_config->num_output; i++) {
-			output2 = xf86_config->output[i];
-			nv_output2 = output2->driver_private;
-			if (nv_output2->ramdac == 1 && output != output2) {
-				nv_output2->ramdac = -1;
-				nv_output2->ramdac_assigned = FALSE;
-				break;
-			}
-		}
+		output2 = nv_find_output_and_clear_ramdac_from_outputs(output, 1);
 		pNv->ramdac_active[1] = FALSE;
 		stole_ramdac = TRUE;
 	}
@@ -1003,20 +958,16 @@ nv_output_prepare(xf86OutputPtr output)
 	/* TODO: figure out what ramdac 2 is and how it is identified */
 
 	/* At this point we already stole ramdac 0 or 1 if we need it */
-	if (!pNv->ramdac_active[0] && (nv_output->valid_ramdac & RAMDAC_0)) {
-		ErrorF("Activating ramdac %d\n", 0);
-		pNv->ramdac_active[0] = TRUE;
-		nv_output->ramdac = 0;
-	} else {
-		ErrorF("Activating ramdac %d\n", 1);
-		pNv->ramdac_active[1] = TRUE;
-		nv_output->ramdac = 1;
-	}
+	if (!pNv->ramdac_active[0] && (nv_output->valid_ramdac & RAMDAC_0))
+		ramdac = 0;
+	else
+		ramdac = 1;
 
-	if (nv_output->ramdac != -1) {
-		nv_output->ramdac_assigned = TRUE;
-		nv_clear_ramdac_from_outputs(output, nv_output->ramdac);
-	}
+	ErrorF("Activating ramdac %d\n", ramdac);
+	pNv->ramdac_active[ramdac] = TRUE;
+	nv_output->ramdac = ramdac;
+	if (!stole_ramdac)
+		nv_find_output_and_clear_ramdac_from_outputs(output, ramdac);
 
 	if (stole_ramdac) {
 		ErrorF("Resetting the stolen ramdac\n");
@@ -1030,6 +981,7 @@ nv_output_prepare(xf86OutputPtr output)
 		output2->funcs->mode_set(output2, &(crtc2->desiredMode), adjusted_mode);
 		/* Anyone know were this mode is stored, so we don't accidentally wake up a screen that is DPMSModeOff? */
 		crtc2->funcs->dpms(crtc2, DPMSModeOn);
+		output2->funcs->commit(output2);
 		xfree(adjusted_mode);
 	}
 }
