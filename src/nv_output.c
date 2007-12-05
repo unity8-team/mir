@@ -172,37 +172,6 @@ CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
     return nvReadRAMDAC(pNv, nv_output->ramdac, ramdac_reg);
 }
 
-static void nv_output_backlight_enable(xf86OutputPtr output,  Bool on)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	ErrorF("nv_output_backlight_enable is called for output %s to turn %s\n", output->name, on ? "on" : "off");
-
-	/* This is done differently on each laptop.  Here we
-	 * define the ones we know for sure. */
-
-#if defined(__powerpc__)
-	if ((pNv->Chipset == 0x10DE0179) ||
-	    (pNv->Chipset == 0x10DE0189) ||
-	    (pNv->Chipset == 0x10DE0329)) {
-		/* NV17,18,34 Apple iMac, iBook, PowerBook */
-		CARD32 tmp_pmc, tmp_pcrt;
-		tmp_pmc = nvReadMC(pNv, 0x10F0) & 0x7FFFFFFF;
-		tmp_pcrt = nvReadCRTC0(pNv, NV_CRTC_081C) & 0xFFFFFFFC;
-		if (on) {
-			tmp_pmc |= (1 << 31);
-			tmp_pcrt |= 0x1;
-		}
-		nvWriteMC(pNv, 0x10F0, tmp_pmc);
-		nvWriteCRTC0(pNv, NV_CRTC_081C, tmp_pcrt);
-	}
-#endif
-
-	if(pNv->twoHeads && ((pNv->Chipset & 0x0ff0) != CHIPSET_NV11))
-		nvWriteMC(pNv, 0x130C, on ? 3 : 7);
-}
-
 static void dpms_update_output_ramdac(NVPtr pNv, NVOutputPrivatePtr nv_output, int mode)
 {
 	if (nv_output->ramdac == -1)
@@ -229,17 +198,25 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
+	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+
+	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
 	dpms_update_output_ramdac(pNv, nv_output, mode);
+
+	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts)
+		return;
 
 	switch (mode) {
 	case DPMSModeStandby:
 	case DPMSModeSuspend:
+		call_lvds_script(output->scrn, nv_crtc->head, LVDS_BACKLIGHT_OFF);
+		break;
 	case DPMSModeOff:
-		nv_output_backlight_enable(output, 0);
+		call_lvds_script(output->scrn, nv_crtc->head, LVDS_PANEL_OFF);
 		break;
 	case DPMSModeOn:
-		nv_output_backlight_enable(output, 1);
+		call_lvds_script(output->scrn, nv_crtc->head, LVDS_PANEL_ON);
 	default:
 		break;
 	}

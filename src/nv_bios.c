@@ -1857,6 +1857,23 @@ struct fppointers {
 	uint16_t fpxlatemanufacturertableptr;
 };
 
+void call_lvds_script(ScrnInfoPtr pScrn, int head, enum LVDS_script script)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+	init_exec_t iexec = {TRUE, FALSE};
+
+	uint8_t sub = bios->data[bios->fp.script_table + script];
+	pNv->VBIOS.execute = TRUE;
+	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
+		   head ? NV_VGA_CRTCX_OWNER_HEADA : NV_VGA_CRTCX_OWNER_HEADB);
+	parse_init_table(pScrn, bios,
+			 le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2]))), &iexec);
+	pNv->VBIOS.execute = FALSE;
+	if (script == LVDS_PANEL_OFF)
+		usleep(bios->fp.off_on_delay * 1000);
+}
+
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
 	NVPtr pNv = NVPTR(pScrn);

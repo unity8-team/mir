@@ -285,6 +285,16 @@ typedef struct {
 	uint16_t t_table_ptr;
 } bios_t;
 
+enum LVDS_script {
+	/* Order *does* matter here */
+	LVDS_INIT = 1,
+	LVDS_RESET,
+	LVDS_BACKLIGHT_ON,
+	LVDS_BACKLIGHT_OFF,
+	LVDS_PANEL_ON,
+	LVDS_PANEL_OFF
+};
+
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
