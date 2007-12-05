@@ -1137,8 +1137,12 @@ nv_lvds_output_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	if (pNv->VBIOS.fp_native_mode || nv_ddc_detect(output))
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode &&
+	    pNv->VBIOS.fp_native_mode)
+		return XF86OutputStatusConnected;
+	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
@@ -1158,7 +1162,8 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	/* it is possible to set up a mode from what we can read from the
 	 * RAMDAC registers, but if we can't read the BIOS table correctly
 	 * we might as well give up */
-	if (pNv->VBIOS.fp_native_mode == NULL)
+	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
+	    (pNv->VBIOS.fp_native_mode == NULL))
 		return NULL;
 
 	nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;

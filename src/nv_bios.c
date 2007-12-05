@@ -2303,6 +2303,8 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 
 static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
+	memset(entry, 0, sizeof (struct dcb_entry));
+
 	if (dcb_version >= 0x20) {
 		entry->type = conn & 0xf;
 		entry->i2c_index = (conn >> 4) & 0xf;
@@ -2311,9 +2313,20 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->location = (conn >> 20) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
 		if ((1 << ffs(entry->or)) * 3 == entry->or)
-			entry->duallink = TRUE;
+			entry->duallink_possible = TRUE;
 		else
-			entry->duallink = FALSE;
+			entry->duallink_possible = FALSE;
+
+		switch (entry->type) {
+		case OUTPUT_LVDS:
+			if (conf & 0xfffffffa)
+				ErrorF("Unknown LVDS configuration bits, please report\n");
+			if (conf & 0x1)
+				entry->lvdsconf.use_straps_for_mode = TRUE;
+			if (conf & 0x4)
+				entry->lvdsconf.use_power_scripts = TRUE;
+			break;
+		}
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00) {
 			ErrorF("Unknown DCB 1.4 entry, please report\n");
@@ -2326,7 +2339,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->bus = 0;
 		entry->location = 0;
 		entry->or = 1;
-		entry->duallink = FALSE;
+		entry->duallink_possible = FALSE;
 	} else {
 		// 1.2 needs more loving
 		return FALSE;
@@ -2336,7 +2349,7 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->bus = 0;
 		entry->location = 0;
 		entry->or = 0;
-		entry->duallink = FALSE;
+		entry->duallink_possible = FALSE;
 	}
 
 	return TRUE;

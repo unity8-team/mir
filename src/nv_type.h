@@ -250,7 +250,13 @@ struct dcb_entry {
 	uint8_t bus;
 	uint8_t location;
 	uint8_t or;
-	Bool duallink;
+	Bool duallink_possible;
+	union {
+		struct {
+			Bool use_straps_for_mode;
+			Bool use_power_scripts;
+		} lvdsconf;
+	};
 };
 
 typedef struct {
