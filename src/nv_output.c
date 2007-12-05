@@ -407,7 +407,8 @@ uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	state = &pNv->SavedReg;
-	regp = &state->dac_reg[nv_output->ramdac];
+	/* Registers are stored by their preferred ramdac */
+	regp = &state->dac_reg[nv_output->preferred_ramdac];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
