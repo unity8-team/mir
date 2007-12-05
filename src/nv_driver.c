@@ -761,8 +761,8 @@ NVEnterVT(int scrnIndex, int flags)
 			/* But the bios reinits it to CRTC0 when going back to VT. */
 			/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
 			/* A legitimately crosswired output will get set properly during mode set */
-			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_ramdac, 0x4)) & (1 << 3)) {
-				NVWriteTMDS(pNv, nv_output->preferred_ramdac, 0x4, tmds_reg4 & ~(1 << 3));
+			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_output, 0x4)) & (1 << 3)) {
+				NVWriteTMDS(pNv, nv_output->preferred_output, 0x4, tmds_reg4 & ~(1 << 3));
 			}
 		}
 	}

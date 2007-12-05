@@ -121,7 +121,7 @@ void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must write to the "bus" of the output */
-	NVWriteTMDS(pNv, nv_output->preferred_ramdac, tmds_reg, val);
+	NVWriteTMDS(pNv, nv_output->preferred_output, tmds_reg, val);
 }
 
 CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
@@ -131,7 +131,7 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must read from the "bus" of the output */
-	return NVReadTMDS(pNv, nv_output->preferred_ramdac, tmds_reg);
+	return NVReadTMDS(pNv, nv_output->preferred_output, tmds_reg);
 }
 
 void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
@@ -141,7 +141,7 @@ void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must write to the "bus" of the output */
-	NVWriteTMDS2(pNv, nv_output->preferred_ramdac, tmds_reg, val);
+	NVWriteTMDS2(pNv, nv_output->preferred_output, tmds_reg, val);
 }
 
 CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
@@ -151,7 +151,7 @@ CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* We must read from the "bus" of the output */
-	return NVReadTMDS2(pNv, nv_output->preferred_ramdac, tmds_reg);
+	return NVReadTMDS2(pNv, nv_output->preferred_output, tmds_reg);
 }
 
 /* These functions now write into the output, instead of a specific ramdac */
@@ -162,7 +162,7 @@ void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
 
-    nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, ramdac_reg, val);
+    nvWriteRAMDAC(pNv, nv_output->preferred_output, ramdac_reg, val);
 }
 
 CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
@@ -171,7 +171,7 @@ CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
 
-    return nvReadRAMDAC(pNv, nv_output->preferred_ramdac, ramdac_reg);
+    return nvReadRAMDAC(pNv, nv_output->preferred_output, ramdac_reg);
 }
 
 static void dpms_update_output_ramdac(xf86OutputPtr output, int mode)
@@ -261,7 +261,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_FP_CONTROL);
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -274,7 +274,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 				fpcontrol &= ~0x20000022;
 				break;
 		}
-		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_FP_CONTROL, fpcontrol);
+		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 
@@ -337,7 +337,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputRegPtr regp;
 	int i;
 
-	regp = &state->dac_reg[nv_output->preferred_ramdac];
+	regp = &state->dac_reg[nv_output->preferred_output];
 
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
@@ -356,7 +356,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVOutputRegPtr regp;
 
-	regp = &state->dac_reg[nv_output->preferred_ramdac];
+	regp = &state->dac_reg[nv_output->preferred_output];
 
 	/* This exists purely for proper text mode restore */
 	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
@@ -389,7 +389,7 @@ uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 
 	state = &pNv->SavedReg;
 	/* Registers are stored by their preferred ramdac */
-	regp = &state->dac_reg[nv_output->preferred_ramdac];
+	regp = &state->dac_reg[nv_output->preferred_output];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
@@ -400,7 +400,7 @@ uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 			swapped_clock = TRUE;
 		}
 
-		uint8_t vpll_num = swapped_clock ^ nv_output->preferred_ramdac;
+		uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
 
 		uint32_t vplla = 0;
 		uint32_t vpllb = 0;
@@ -468,7 +468,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		/* Luckily we do know the values ;-) */
 		/* Bit 3 crosswires output and crtc */
 		/* For VT restore we must always restore the right thing */
-		if ((override && crosswired) || (!override && nv_crtc->head != nv_output->preferred_ramdac)) {
+		if ((override && crosswired) || (!override && nv_crtc->head != nv_output->preferred_output)) {
 			reg04 = 0x88;
 		} else {
 			reg04 = 0x80;
@@ -490,7 +490,7 @@ nv_output_restore (xf86OutputPtr output)
 	ErrorF("nv_output_restore is called\n");
 
 	state = &pNv->SavedReg;
-	regp = &state->dac_reg[nv_output->preferred_ramdac];
+	regp = &state->dac_reg[nv_output->preferred_output];
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
@@ -533,7 +533,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	/* It's getting quiet here, not removing function just yet, we may still need it */
 
 	//state = &pNv->ModeReg;
-	//regp = &state->dac_reg[nv_output->preferred_ramdac];
+	//regp = &state->dac_reg[nv_output->preferred_output];
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		is_fp = TRUE;
@@ -560,7 +560,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 		}
 
-		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->preferred_ramdac, two_crt, two_mon);
+		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->preferred_output, two_crt, two_mon);
 	}
 }
 
@@ -589,17 +589,17 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 	} else {
 		if (!is_fp) {
-			output_reg[nv_output->preferred_ramdac] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+			output_reg[nv_output->preferred_output] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		} else { 
-			output_reg[nv_output->preferred_ramdac] = 0x0;
+			output_reg[nv_output->preferred_output] = 0x0;
 		}
 	}
 
 	/* Only one can be on crtc1 */
 	if (nv_crtc->head == 1) {
-		output_reg[nv_output->preferred_ramdac] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	} else {
-		output_reg[(~nv_output->preferred_ramdac) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
 
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -607,16 +607,16 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
 		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 	} else {
-		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, output_reg[nv_output->preferred_ramdac]);
+		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, output_reg[nv_output->preferred_output]);
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
-		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
 		if (pNv->Architecture == NV_ARCH_40)
 			nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
 	} else {
-		nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, 0x00100000);
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
 	}
 }
@@ -689,7 +689,7 @@ nv_crt_load_detect(xf86OutputPtr output)
 	Bool present = FALSE;
 
 	/* For some reason we get false positives on output 1, maybe due tv-out? */
-	if (nv_output->preferred_ramdac == 1) {
+	if (nv_output->preferred_output == 1) {
 		return FALSE;
 	}
 
@@ -701,33 +701,33 @@ nv_crt_load_detect(xf86OutputPtr output)
 		}
 	}
 
-	reg_output = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT);
-	reg_test_ctrl = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL);
+	reg_output = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
+	reg_test_ctrl = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL);
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, (reg_test_ctrl & ~0x00010000));
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, (reg_test_ctrl & ~0x00010000));
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, (reg_output & 0x0000FEEE));
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, (reg_output & 0x0000FEEE));
 	usleep(1000);
 
-	temp = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT);
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, temp | 1);
+	temp = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, temp | 1);
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_DATA, 0x94050140);
-	temp = nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_DATA, 0x94050140);
+	temp = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
 
 	usleep(1000);
 
-	present = (nvReadRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
+	present = (nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
 
 	temp = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_OUTPUT, reg_output);
-	nvWriteRAMDAC(pNv, nv_output->preferred_ramdac, NV_RAMDAC_TEST_CONTROL, reg_test_ctrl);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, reg_output);
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, reg_test_ctrl);
 
 	if (present) {
-		ErrorF("A crt was detected on output %d with no ddc support\n", nv_output->preferred_ramdac);
+		ErrorF("A crt was detected on output %d with no ddc support\n", nv_output->preferred_output);
 		return TRUE;
 	}
 
@@ -1098,9 +1098,9 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 	/* This also facilitates proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
 	if (nv_output->valid_ramdac & OUTPUT_1) {
-		nv_output->preferred_ramdac = 1;
+		nv_output->preferred_output = 1;
 	} else {
-		nv_output->preferred_ramdac = 0;
+		nv_output->preferred_output = 0;
 	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
@@ -1177,9 +1177,9 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	/* This also facilitates proper output routing for dvi */
 	/* See sel_clk assignment in nv_crtc.c */
 	if (nv_output->valid_ramdac & OUTPUT_1) {
-		nv_output->preferred_ramdac = 1;
+		nv_output->preferred_output = 1;
 	} else {
-		nv_output->preferred_ramdac = 0;
+		nv_output->preferred_output = 0;
 	}
 
 	if (pNv->fpScaler) {

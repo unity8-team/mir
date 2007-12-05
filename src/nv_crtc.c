@@ -963,12 +963,12 @@ void nv_crtc_calc_state_ext(
 		 */
 
 		/* This won't work when tv-out's come into play */
-		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P)));
+		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P)));
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			if (nv_crtc->head == 1) { /* clock */
-				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P));
+				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P));
 			} else {
-				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_ramdac * (1 + IS_NV44P));
+				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P));
 			}
 		}
 
@@ -982,10 +982,10 @@ void nv_crtc_calc_state_ext(
 		}
 
 		/* Are we crosswired? */
-		if (output && nv_crtc->head != nv_output->preferred_ramdac && 
+		if (output && nv_crtc->head != nv_output->preferred_output && 
 			(nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			state->crosswired = TRUE;
-		} else if (output && nv_crtc->head != nv_output->preferred_ramdac) {
+		} else if (output && nv_crtc->head != nv_output->preferred_output) {
 			state->crosswired = FALSE;
 		} else {
 			state->crosswired = FALSE;
@@ -1029,7 +1029,7 @@ void nv_crtc_calc_state_ext(
 	}
 
 	/* The primary output doesn't seem to care */
-	if (nv_output->preferred_ramdac == 1) { /* This is the "output" */
+	if (nv_output->preferred_output == 1) { /* This is the "output" */
 		/* non-zero values are for analog, don't know about tv-out and the likes */
 		if (output && nv_output->type != OUTPUT_ANALOG) {
 			state->reg594 = 0x0;
@@ -1798,7 +1798,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (output)
-		ErrorF("output %d debug_0 %08X\n", nv_output->preferred_ramdac, regp->debug_0);
+		ErrorF("output %d debug_0 %08X\n", nv_output->preferred_output, regp->debug_0);
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
@@ -1936,7 +1936,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 		ErrorF("Restore all TMDS timings, before restoring anything else\n");
 		for (i = 0; i < config->num_output; i++) {
 			NVOutputPrivatePtr nv_output2 = config->output[i]->driver_private;
-			regp = &state->dac_reg[nv_output2->preferred_ramdac];
+			regp = &state->dac_reg[nv_output2->preferred_output];
 			/* Let's guess the bios state ;-) */
 			if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
 				uint32_t clock = nv_calc_clock_from_pll(config->output[i]);
