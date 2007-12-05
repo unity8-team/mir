@@ -584,8 +584,8 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		/* NV4x cards have strange ways of dealing with dualhead */
 		/* Also see reg594 in nv_crtc.c */
 		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		/* So far only dual dvi cards(or lvds + dvi i think) seem to use (and need?) this */
-		if (pNv->dual_dvi)
+		/* This seems to be restricted to dual link outputs */
+		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
 			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 	} else {
 		if (!is_fp) {

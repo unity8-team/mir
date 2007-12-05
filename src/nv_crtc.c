@@ -538,7 +538,8 @@ CalculateVClkNV4x(
 	uint32_t *pll_b,
 	uint32_t *reg580,
 	Bool	*db1_ratio,
-	Bool primary
+	Bool primary,
+	uint8_t special_bits
 )
 {
 	uint32_t DeltaOld, DeltaNew;
@@ -633,7 +634,8 @@ CalculateVClkNV4x(
 	}
 
 	/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
-	*pll_a = (p_best << 16) | (n1_best << 8) | (m1_best << 0);
+	/* Let's keep the special bits, if the bios already set them */
+	*pll_a = (special_bits << 30) | (p_best << 16) | (n1_best << 8) | (m1_best << 0);
 	*pll_b = (1 << 31) | (n2_best << 8) | (m2_best << 0);
 
 	if (*db1_ratio) {
@@ -834,10 +836,11 @@ void nv_crtc_calc_state_ext(
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVCrtcRegPtr regp;
 	NVPtr pNv = NVPTR(pScrn);    
-	RIVA_HW_STATE *state;
+	RIVA_HW_STATE *state, *sv_state;
 	int num_crtc_enabled, i;
 
 	state = &pNv->ModeReg;
+	sv_state = &pNv->SavedReg;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -857,9 +860,9 @@ void nv_crtc_calc_state_ext(
 			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 		}
 		if (nv_crtc->head == 1) {
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
+			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE, (sv_state->vpll2_a >> 30));
 		} else {
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
+			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE, (sv_state->vpll1_a >> 30));
 		}
 	} else if (pNv->twoStagePLL) {
 		CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
@@ -1497,9 +1500,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 			}
 		}
 	} else {
-		/* This is observed on some g70 cards, non-flatpanel's too */
+		/* Some G70 cards have either FPP1 or FPP2 set, copy this if it's already present */
 		if (nv_crtc->head == 1 && pNv->NVArch > 0x44) {
-			regp->head |= NV_CRTC_FSEL_FPP2;
+			regp->head |= savep->head & (NV_CRTC_FSEL_FPP1 | NV_CRTC_FSEL_FPP2);
 		}
 	}
 
@@ -1678,7 +1681,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/*
 	* bit0: positive vsync
 	* bit4: positive hsync
-	* bit8: enable panel scaling 
+	* bit8: enable panel scaling
+	* bit9: something related to dual link dvi?
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit31: set for dual link LVDS
 	* This must also be set for non-flatpanels
@@ -1697,6 +1701,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		/* If the special bit exists, it exists on both ramdac's */
 		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}
+
+	/* Does this turn something off, since it's also used in dpms? */
+	if (is_fp && !is_lvds && pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
+		regp->fp_control |= (1 << 9);
 
 	/* Deal with vsync/hsync polarity */
 	/* These analog monitor offsets are guesswork */
