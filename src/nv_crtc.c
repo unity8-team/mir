@@ -831,7 +831,7 @@ void nv_crtc_calc_state_ext(
 	uint32_t pixelDepth, VClk = 0;
 	CARD32 CursorStart;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVCrtcRegPtr regp;
 	NVPtr pNv = NVPTR(pScrn);    
 	RIVA_HW_STATE *state;
@@ -1921,6 +1921,30 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state;
+	NVOutputRegPtr regp;
+
+	state = &pNv->SavedReg;
+
+	/* Some aspects of an output needs to be restore before the crtc. */
+	/* In my case this has to do with the mode that i get at very low resolutions. */
+	/* If i do this at the end, it will not be restored properly */
+	/* Assumption: crtc0 is restored first. */
+	if (nv_crtc->head == 0) {
+		xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+		int i;
+		ErrorF("Restore all TMDS timings, before restoring anything else\n");
+		for (i = 0; i < config->num_output; i++) {
+			NVOutputPrivatePtr nv_output2 = config->output[i]->driver_private;
+			regp = &state->dac_reg[nv_output2->preferred_ramdac];
+			/* Let's guess the bios state ;-) */
+			if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
+				uint32_t clock = nv_calc_clock_from_pll(config->output[i]);
+				Bool crosswired = regp->TMDS[0x4] & (1 << 3);
+				nv_set_tmds_registers(config->output[i], clock, TRUE, crosswired);
+			}
+		}
+	}
 
 	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->crtc);
 

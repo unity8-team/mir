@@ -398,7 +398,7 @@ nv_output_save (xf86OutputPtr output)
 	nv_output->ramdac = ramdac_backup;
 }
 
-static uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
+uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -462,7 +462,7 @@ static uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 	return 0;
 }
 
-static void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
+void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
@@ -473,7 +473,7 @@ static void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool ove
 	 * Resetting all registers is a bad idea, it seems to work fine without it.
 	 */
 
-	if (nv_output->type != OUTPUT_ANALOG) {
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		ScrnInfoPtr pScrn = output->scrn;
 		NVPtr pNv = NVPTR(pScrn);
 		xf86CrtcPtr crtc = output->crtc;
@@ -517,13 +517,6 @@ nv_output_restore (xf86OutputPtr output)
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
 	nv_output_load_state_ext(output, state, TRUE);
-
-	/* Double "outputs" (for dvi) mean we may wipe essential registers, so only call it for outputs that have dvi/lvds */
-	if (nv_output->type != OUTPUT_ANALOG) {
-		uint32_t clock = nv_calc_clock_from_pll(output);
-		Bool crosswired = regp->TMDS[0x4] & (1 << 3);
-		nv_set_tmds_registers(output, clock, TRUE, crosswired);
-	}
 
 	/* restore previous state */
 	nv_output->ramdac = ramdac_backup;
