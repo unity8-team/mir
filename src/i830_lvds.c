@@ -363,6 +363,12 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
 
 	dev_priv->set_backlight(output, dev_priv->backlight_duty_cycle);
     } else {
+	/*
+	 * Only save the current backlight value if we're going from
+	 * on to off.
+	 */
+	if (INREG(PP_CONTROL) & POWER_TARGET_ON)
+	    dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
 	dev_priv->set_backlight(output, 0);
 
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) & ~POWER_TARGET_ON);
@@ -399,12 +405,6 @@ i830_lvds_save (xf86OutputPtr output)
     pI830->savePP_CYCLE = INREG(PP_CYCLE);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
     dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
-
-    /*
-     * If the light is off at server startup, just make it full brightness
-     */
-    if (dev_priv->backlight_duty_cycle == 0)
-	dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 }
 
 static void
@@ -1015,7 +1015,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	break;
     }
 
-    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
+    dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
 
     return;
 
