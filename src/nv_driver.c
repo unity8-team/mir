@@ -753,7 +753,7 @@ NVEnterVT(int scrnIndex, int flags)
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		NVOutputPrivatePtr nv_output = output->driver_private;
-		if (nv_output->ramdac != -1) {
+		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 			uint8_t tmds_reg4;
 
 			/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
@@ -761,8 +761,8 @@ NVEnterVT(int scrnIndex, int flags)
 			/* But the bios reinits it to CRTC0 when going back to VT. */
 			/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
 			/* A legitimately crosswired output will get set properly during mode set */
-			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->ramdac, 0x4)) & (1 << 3)) {
-				NVWriteTMDS(pNv, nv_output->ramdac, 0x4, tmds_reg4 & ~(1 << 3));
+			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_ramdac, 0x4)) & (1 << 3)) {
+				NVWriteTMDS(pNv, nv_output->preferred_ramdac, 0x4, tmds_reg4 & ~(1 << 3));
 			}
 		}
 	}

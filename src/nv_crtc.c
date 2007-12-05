@@ -1798,7 +1798,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (output)
-		ErrorF("output %d debug_0 %08X\n", nv_output->ramdac, regp->debug_0);
+		ErrorF("output %d debug_0 %08X\n", nv_output->preferred_ramdac, regp->debug_0);
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {

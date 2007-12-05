@@ -208,12 +208,11 @@ typedef struct _nv50_hw_state
 } NV50_HW_STATE, *NV50RegPtr;
 
 typedef enum {
-	RAMDAC_0 = (1 << 0),
-	RAMDAC_1 = (1 << 1)
+	OUTPUT_0 = (1 << 0),
+	OUTPUT_1 = (1 << 1)
 } ValidRamdac;
 
 typedef struct _NVOutputPrivateRec {
-	int ramdac;
 	uint8_t valid_ramdac;
 	uint8_t preferred_ramdac;
 	I2CBusPtr pDDCBus;
