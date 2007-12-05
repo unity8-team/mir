@@ -890,6 +890,7 @@ Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 		/* here we assume that the DCB table has already been parsed */
 		uint8_t dcb_entry;
 		int dacoffset;
+		/* This register needs to written for correct output */
 		nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
 		nv_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58, &dcb_entry);
 		if (dcb_entry > pNv->dcb_table.entries) {
@@ -2026,7 +2027,7 @@ static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struc
 	bios->fp.off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[lvdsofs + 7]);
 }
 
-void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint16_t pxclk)
+void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
 {
 	/* the dcb_entry parameter needs to be the index of the appropriate DCB entry
 	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
@@ -2062,6 +2063,10 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint16_t 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to T table invalid\n");
 		return;
 	}
+
+	Bool execute_backup = bios->execute;
+	/* This table has to be excecuted */
+	bios->execute = TRUE;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found T table revision %d.%d\n",
 		   bios->data[ttableptr] >> 4, bios->data[ttableptr] & 0xf);
@@ -2105,12 +2110,17 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint16_t 
 		return;
 	}
 
+	/* We must set the owner register appropriately */ 
+	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", tscript);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", tscript);
-//	bios->execute = TRUE;
+	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
+	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
 	parse_init_table(pScrn, bios, tscript, &iexec);
-	bios->execute = FALSE;
+	/* restore previous state */
+	bios->execute = execute_backup;
 }
 
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)

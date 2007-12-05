@@ -83,6 +83,7 @@ void NVPointerMoved(int index, int x, int y);
 /* in nv_bios.c */
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
 void call_lvds_script(ScrnInfoPtr pScrn, int head, enum LVDS_script script);
+void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk);
 
 void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,

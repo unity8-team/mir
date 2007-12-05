@@ -141,7 +141,8 @@ typedef struct _nv_output_reg
 	CARD32 unk_900;
 
 	CARD32 output;
-	CARD8 TMDS[128];
+	CARD8 TMDS[0xFF];
+	CARD8 TMDS2[0xFF];
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state

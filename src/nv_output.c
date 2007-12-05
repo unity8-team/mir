@@ -172,24 +172,36 @@ CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
     return nvReadRAMDAC(pNv, nv_output->ramdac, ramdac_reg);
 }
 
-static void dpms_update_output_ramdac(NVPtr pNv, NVOutputPrivatePtr nv_output, int mode)
+static void dpms_update_output_ramdac(xf86OutputPtr output, int mode)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
 	if (nv_output->ramdac == -1)
 		return;
+
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = NULL;
+	if (crtc) nv_crtc = crtc->driver_private;
 
 	/* We may be going for modesetting, so we must reset the ramdacs */
 	if (mode == DPMSModeOff) {
 		pNv->ramdac_active[nv_output->ramdac] = FALSE;
-		NVWriteVGACR5758(pNv, nv_output->ramdac, 0, 0x7f);
-		NVWriteVGACR5758(pNv, nv_output->ramdac, 2, 0);
+		if (crtc) {
+			NVWriteVGACR5758(pNv, nv_crtc->head, 0, 0x7f);
+			NVWriteVGACR5758(pNv, nv_crtc->head, 2, 0);
+		}
 		ErrorF("Deactivating ramdac %d\n", nv_output->ramdac);
 		return;
 	}
 
 	/* The previous call was not a modeset, but a normal dpms call */
 	pNv->ramdac_active[nv_output->ramdac] = TRUE;
-	NVWriteVGACR5758(pNv, nv_output->ramdac, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-	NVWriteVGACR5758(pNv, nv_output->ramdac, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+	if (crtc) {
+		NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+		NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+	}
 	ErrorF("Activating ramdac %d\n", nv_output->ramdac);
 }
 
@@ -202,7 +214,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
-	dpms_update_output_ramdac(pNv, nv_output, mode);
+	dpms_update_output_ramdac(output, mode);
 
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts)
 		return;
@@ -226,12 +238,10 @@ static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
 	xf86CrtcPtr crtc = output->crtc;
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVPtr pNv = NVPTR(output->scrn);
 
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
-	dpms_update_output_ramdac(pNv, nv_output, mode);
+	dpms_update_output_ramdac(output, mode);
 
 	if (crtc) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -249,7 +259,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
 
-	dpms_update_output_ramdac(pNv, nv_output, mode);
+	dpms_update_output_ramdac(output, mode);
 
 	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc && nv_output->ramdac != -1) {
@@ -327,7 +337,7 @@ uint32_t tmds2_size(NVPtr pNv)
 	}
 }
 
-void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
+void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
@@ -338,42 +348,27 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	regp = &state->dac_reg[nv_output->ramdac];
 	state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
-	/* This exists purely for proper text mode restore */
-	if (override) regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
+	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
-	for (i = 0; i < TMDS_SIZE; i++) {
-		regp->TMDS[TMDS_REGS(i)] = NVOutputReadTMDS(output, TMDS_REGS(i));
+	/* Store the registers in case we need them again for something (like data for VT restore) */
+	for (i = 0; i < 0xFF; i++) {
+		regp->TMDS[i] = NVOutputReadTMDS(output, i);
 	}
 
-	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
-	/* TMDS2 is related to dual link dvi/lvds, leave it untouched for the moment */
-	//for (i = 0; i < TMDS2_SIZE; i++) {
-	//	regp->TMDS[TMDS2_REGS(i)] = NVOutputReadTMDS2(output, TMDS2_REGS(i));
-	//}
+	for (i = 0; i < 0xFF; i++) {
+		regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
+	}
 }
 
 void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVOutputRegPtr regp;
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
 
 	regp = &state->dac_reg[nv_output->ramdac];
 
 	/* This exists purely for proper text mode restore */
 	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
-
-	for (i = 0; i < TMDS_SIZE; i++) {
-		NVOutputWriteTMDS(output, TMDS_REGS(i), regp->TMDS[TMDS_REGS(i)]);
-	}
-
-	/* If the data ever changes between TMDS and TMDS2, then regp data needs a new set */
-	/* TMDS2 is related to dual link dvi/lvds, leave it untouched for the moment */
-	//for (i = 0; i < TMDS2_SIZE; i++) {
-	//	NVOutputWriteTMDS(output, TMDS2_REGS(i), regp->TMDS[TMDS2_REGS(i)]);
-	//}
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -391,21 +386,115 @@ nv_output_save (xf86OutputPtr output)
 
 	/* This is early init and we have not yet been assigned a ramdac */
 	/* Always choose the prefered ramdac, for consistentcy */
-	/* Assumption: there is always once output that can only run of the primary ramdac */
-	if (nv_output->valid_ramdac & RAMDAC_1) {
-		nv_output->ramdac = 1;
-	} else {
-		nv_output->ramdac = 0;
-	}
+	nv_output->ramdac = nv_output->preferred_ramdac;
 
 	state = &pNv->SavedReg;
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force save all the registers */
-	nv_output_save_state_ext(output, state, TRUE);
+	nv_output_save_state_ext(output, state);
 
 	/* restore previous state */
 	nv_output->ramdac = ramdac_backup;
+}
+
+static uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state;
+	NVOutputRegPtr regp;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	state = &pNv->SavedReg;
+	regp = &state->dac_reg[nv_output->ramdac];
+
+	/* Only do it once for a dvi-d/dvi-a pair */
+	if (nv_output->type != OUTPUT_ANALOG) {
+		Bool swapped_clock = FALSE;
+		Bool vpllb_disabled = FALSE;
+		/* Bit3 swaps crtc (clocks are bound to crtc) and output */
+		if (regp->TMDS[0x4] & (1 << 3)) {
+			swapped_clock = TRUE;
+		}
+
+		uint8_t vpll_num = swapped_clock ^ nv_output->preferred_ramdac;
+
+		uint32_t vplla = 0;
+		uint32_t vpllb = 0;
+
+		/* For the moment the syntax is the same for NV40 and earlier */
+		if (pNv->Architecture == NV_ARCH_40) {
+			vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
+			vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
+		} else {
+			vplla = vpll_num ? state->vpll2 : state->vpll;
+			if (pNv->twoStagePLL)
+				vpllb = vpll_num ? state->vpll2B : state->vpllB;
+		}
+
+		if (!pNv->twoStagePLL)
+			vpllb_disabled = TRUE;
+
+		/* This is the dummy value nvidia sets when vpll is disabled */
+		if ((vpllb & 0xFFFF) == 0x11F) 
+			vpllb_disabled = TRUE;
+
+		uint8_t m1, m2, n1, n2, p;
+
+		m1 = vplla & 0xFF;
+		n1 = (vplla >> 8) & 0xFF;
+		p = (vplla >> 16) & 0x7;
+
+		if (vpllb_disabled) {
+			m2 = 1;
+			n2 = 1;
+		} else {
+			m2 = vpllb & 0xFF;
+			n2 = (vpllb >> 8) & 0xFF;
+		}
+
+		uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
+		ErrorF("The original bios clock seems to have been %d kHz\n", clock);
+		return clock;
+	}
+
+	return 0;
+}
+
+static void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	if (!clock)
+		return;
+
+	/*
+	 * Resetting all registers is a bad idea, it seems to work fine without it.
+	 */
+
+	if (nv_output->type != OUTPUT_ANALOG) {
+		ScrnInfoPtr pScrn = output->scrn;
+		NVPtr pNv = NVPTR(pScrn);
+		xf86CrtcPtr crtc = output->crtc;
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+		parse_t_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+
+		uint8_t reg04 = 0;
+		/* We don't know the right switch in the bios */
+		/* Luckily we do know the values ;-) */
+		/* Bit 3 crosswires output and crtc */
+		/* For VT restore we must always restore the right thing */
+		if ((override && crosswired) || (!override && nv_crtc->head != nv_output->preferred_ramdac)) {
+			reg04 = 0x88;
+		} else {
+			reg04 = 0x80;
+		}
+		if (nv_output->type == OUTPUT_LVDS)
+			reg04 |= 0x1;
+		NVOutputWriteTMDS(output, 0x4, reg04);
+	}
 }
 
 static void
@@ -416,23 +505,25 @@ nv_output_restore (xf86OutputPtr output)
 	RIVA_HW_STATE *state;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	int ramdac_backup = nv_output->ramdac;
-
+	NVOutputRegPtr regp;
 	ErrorF("nv_output_restore is called\n");
 
 	/* We want consistent mode restoring and the ramdac entry is variable */
-	/* Always choose the prefered ramdac, for consistentcy */
-	/* Assumption: there is always once output that can only run of the primary ramdac */
-	if (nv_output->valid_ramdac & RAMDAC_1) {
-		nv_output->ramdac = 1;
-	} else {
-		nv_output->ramdac = 0;
-	}
+	nv_output->ramdac = nv_output->preferred_ramdac;
 
 	state = &pNv->SavedReg;
+	regp = &state->dac_reg[nv_output->ramdac];
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
 	nv_output_load_state_ext(output, state, TRUE);
+
+	/* Double "outputs" (for dvi) mean we may wipe essential registers, so only call it for outputs that have dvi/lvds */
+	if (nv_output->type != OUTPUT_ANALOG) {
+		uint32_t clock = nv_calc_clock_from_pll(output);
+		Bool crosswired = regp->TMDS[0x4] & (1 << 3);
+		nv_set_tmds_registers(output, clock, TRUE, crosswired);
+	}
 
 	/* restore previous state */
 	nv_output->ramdac = ramdac_backup;
@@ -465,137 +556,19 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state, *sv_state;
+	//RIVA_HW_STATE *state;
+	//NVOutputRegPtr regp, savep;
 	Bool is_fp = FALSE;
-	Bool is_lvds = FALSE;
-	NVOutputRegPtr regp, regp2, savep;
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	/* It's getting quiet here, not removing function just yet, we may still need it */
 
-	state = &pNv->ModeReg;
-	regp = &state->dac_reg[nv_output->ramdac];
-	/* The other ramdac */
-	regp2 = &state->dac_reg[(~(nv_output->ramdac)) & 1];
+	//state = &pNv->ModeReg;
+	//regp = &state->dac_reg[nv_output->ramdac];
 
-	sv_state = &pNv->SavedReg;
-	savep = &sv_state->dac_reg[nv_output->ramdac];
-
-	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		is_fp = TRUE;
-		if (nv_output->type == OUTPUT_LVDS) {
-			is_lvds = TRUE;
-		}
-	}
-
-	/* This is just a guess, there are probably more registers which need setting */
-	/* But we must start somewhere ;-) */
-	if (is_fp) {
-		regp->TMDS[0x4] = 0x80;
-		/* Enable crosswired mode */
-		/* This will upset the monitor, trust me, i know it :-( */
-		/* Now allowed for non-bios inited systems */
-		//if (nv_output->ramdac != nv_output->preferred_ramdac) {
-		if (nv_crtc->head != nv_output->preferred_ramdac) {
-			regp->TMDS[0x4] |= (1 << 3);
-		}
-
-		if (is_lvds) {
-			regp->TMDS[0x4] |= (1 << 0);
-		}
-	}
-
-	/* The TMDS game begins */
-	/* A few registers are also programmed on non-tmds monitors */
-	/* At the moment i can't give rationale for these values */
-	if (!is_fp) {
-		regp->TMDS[0x2b] = 0x7d;
-	} else {
-		uint32_t pll_setup_control = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SETUP_CONTROL);
-		regp->TMDS[0x2b] = 0x7d;
-		regp->TMDS[0x2c] = 0x0;
-		/* Various combinations exist for lvds, 0x08, 0x48, 0xc8, 0x88 */
-		/* 0x88 seems most popular and (maybe) the end setting */
-		if (is_lvds) {
-			if (pNv->Architecture == NV_ARCH_40) {
-				regp->TMDS[0x2e] = 0x88;
-			} else {
-				/* observed on nv31m */
-				regp->TMDS[0x2e] = 0x0;
-			}
-		} else {
-			/* 0x81 is also observed, but it's much rarer */
-			regp->TMDS[0x2e] = 0x85;
-		}
-		/* 0x08 is also seen for lvds */
-		regp->TMDS[0x2f] = 0x21;
-		regp->TMDS[0x30] = 0x0;
-		regp->TMDS[0x31] = 0x0;
-		regp->TMDS[0x32] = 0x0;
-		regp->TMDS[0x33] = 0xf0;
-		regp->TMDS[0x3a] = 0x0;
-
-		/* Sometimes 0x68 is also used */
-		regp->TMDS[0x5] = 0x6e;
-
-		if (is_lvds) {
-			if (pNv->Architecture == NV_ARCH_40) {
-				regp->TMDS[0x0] = 0x60;
-			} else {
-				/* observed on a nv31m */
-				regp->TMDS[0x0] = 0x70;
-			}
-		} else {
-			/* This seems to be related to PLL_SETUP_CONTROL */
-			/* When PLL_SETUP_CONTROL ends with 0x1c, then this value is 0xcX */
-			/* Otherwise 0xfX */
-			if ((pll_setup_control & 0xff) == 0x1c) {
-				regp->TMDS[0x0] = 0xc0;
-			} else {
-				regp->TMDS[0x0] = 0xf0;
-			}
-		}
-
-		/* Not a 100% sure if this is not crtc determined */
-		if (nv_output->preferred_ramdac != nv_output->ramdac) {
-			regp->TMDS[0x0] |= 0xa;
-		} else {
-			regp->TMDS[0x0] |= 0x1;
-		}
-
-		if (pll_setup_control == 0) {
-			regp->TMDS[0x1] = 0x0;
-		} else {
-			/* Also seen: 0x47, what does this register do? */
-			if (nv_output->ramdac != nv_output->preferred_ramdac) {
-				regp->TMDS[0x1] = 0x42;
-			} else {
-				regp->TMDS[0x1] = 0x41;
-			}
-		}
-
-		if (is_lvds) {
-			regp->TMDS[0x2] = 0x0;
-		} else if (pll_setup_control == 0) {
-			regp->TMDS[0x2] = 0x90;
-		} else {
-			if (nv_output->preferred_ramdac == 1) { /* This is the "output" */
-				regp->TMDS[0x2] = 0xa9;
-			} else {
-				regp->TMDS[0x2] = 0x89;
-			}
-		}
-
-		/* I assume they are zero for !is_lvds */
-		if (is_lvds && pNv->Architecture == NV_ARCH_40) {
-			/* Observed values are 0x11 and 0x14, TODO: this needs refinement */
-			regp->TMDS[0x40] = 0x14;
-			regp->TMDS[0x43] = 0xb0;
-		}
-	}
 
 	if (output->crtc) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
@@ -694,6 +667,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     nv_output_mode_set_regs(output, mode, adjusted_mode);
     nv_output_load_state_ext(output, state, FALSE);
+	nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
 	nv_output_mode_set_routing(output);
 }
 
@@ -913,6 +887,8 @@ nv_output_prepare(xf86OutputPtr output)
 	ErrorF("nv_output_prepare is called\n");
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	Bool stole_ramdac = FALSE;
 	xf86OutputPtr output2 = NULL;
@@ -947,8 +923,8 @@ nv_output_prepare(xf86OutputPtr output)
 	ErrorF("Activating ramdac %d\n", ramdac);
 	pNv->ramdac_active[ramdac] = TRUE;
 	nv_output->ramdac = ramdac;
-	NVWriteVGACR5758(pNv, ramdac, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-	NVWriteVGACR5758(pNv, ramdac, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
 	if (!stole_ramdac)
 		nv_find_output_and_clear_ramdac_from_outputs(output, ramdac);
 

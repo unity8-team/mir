@@ -57,7 +57,7 @@
 #define OVERSCAN_VALUE 0x01
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
+static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool override);
 static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
@@ -1869,7 +1869,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
-	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(pNv, &pNv->ModeReg);
@@ -1930,7 +1930,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
-	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
+	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(pNv, &pNv->SavedReg);
@@ -2147,7 +2147,7 @@ static void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, curpos);
 	}
 }
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
+static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool override)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     NVPtr pNv = NVPTR(pScrn);    
@@ -2189,8 +2189,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
-	for (i = 0; i < 0x10; i++)
-		NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
+	if (override) {
+		for (i = 0; i < 0x10; i++)
+			NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
+	}
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
     }
