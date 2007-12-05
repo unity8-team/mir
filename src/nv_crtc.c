@@ -1702,7 +1702,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}
 
-	/* Does this turn something off, since it's also used in dpms? */
+	/* Does this turn something off, since it's similar to what is used in dpms (being a "2" bit)? */
 	if (is_fp && !is_lvds && pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
 		regp->fp_control |= (1 << 9);
 
