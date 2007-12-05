@@ -289,6 +289,12 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr;
 
+	/* The current head is maintained in a file scope variable crtchead.
+	 * We trap changes to CRTCX_OWNER and update the head variable
+	 * and hence the register set written.
+	 * As CRTCX_OWNER only exists on CRTC0, we update crtchead to head0
+	 * in advance of the write, and to head1 after the write
+	 */
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data != NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 0;
 	ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
@@ -1104,7 +1110,6 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 	 *
 	 * Lookup value at offset data in the bios and write it to reg
 	 */
-	NVPtr pNv = NVPTR(pScrn);
 	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
 	CARD16 data = le16_to_cpu(*((CARD16 *) (&bios->data[offset + 5])));
 	CARD32 data2 = bios->data[data];
@@ -1852,13 +1857,12 @@ struct fppointers {
 	uint16_t fpxlatemanufacturertableptr;
 };
 
-static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
+static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
 	uint8_t *fptable, *fpxlatetable;
-/*	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;*/
-	unsigned int fpindex;/* lvdsmanufacturerindex;*/
+	int fpindex;
 	uint8_t fptable_ver, headerlen = 0, recordlen = 44;
 	int ofs;
 	DisplayModePtr mode;
@@ -1887,27 +1891,14 @@ static void parse_fp_tables(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *
 	 * PINS version check would be better), as the common case for the panel type
 	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
 	case 0x05:	/* some NV10, 11, 15, 16 */
-		/* note that in this version the lvdsmanufacturertable is not defined */
 		ofs = 6;
 		recordlen = 42;
 		goto v1common;
 	case 0x10:	/* some NV15/16, and NV11+ */
 		ofs = 7;
 v1common:
-		if (fpp->fpxlatetableptr == 0x0) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Pointer to flat panel translation table invalid\n");
-			return;
-		}
 		fpxlatetable = &bios->data[fpp->fpxlatetableptr];
-	/*	not yet used
-		lvdsmanufacturertable = &bios->data[fpp->lvdsmanufacturerpointer];
-		fpxlatemanufacturertable = &bios->data[fpp->fpxlatemanufacturertableptr];*/
-
 		fpindex = fpxlatetable[fpstrapping];
-	/*	not yet used
-		lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping]; */
-
 		if (fpindex > 0xf) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Bad flat panel table index\n");
@@ -1968,7 +1959,54 @@ v1common:
 		xf86PrintModeline(pScrn->scrnIndex, mode);
 //	}
 
-	bios->fp_native_mode = mode;
+	bios->fp.native_mode = mode;
+}
+
+static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned int fpstrapping;
+	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;
+	int lvdsmanufacturerindex = 0;
+	uint8_t lvds_ver, headerlen, recordlen;
+
+	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+
+	if (fpp->lvdsmanufacturerpointer == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Pointer to LVDS manufacturer table invalid\n");
+		return;
+	}
+
+	lvdsmanufacturertable = &bios->data[fpp->lvdsmanufacturerpointer];
+	lvds_ver = lvdsmanufacturertable[0];
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Found LVDS manufacturer table revision %d\n",
+		   lvds_ver);
+
+	switch (lvds_ver) {
+	case 0x0a:	/* pre NV40 */
+		fpxlatemanufacturertable = &bios->data[fpp->fpxlatemanufacturertableptr];
+		lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping];
+
+		headerlen = 2;
+		recordlen = lvdsmanufacturertable[1];
+
+		break;
+//	case 0x:	/* NV40+ */
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "LVDS manufacturer table revision not currently supported\n");
+		return;
+	}
+
+	uint16_t lvdsofs = bios->fp.script_table = fpp->lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
+	bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
+	bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
+	bios->fp.dual_link = bios->data[lvdsofs] & 4;
+	bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
+	bios->fp.off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[lvdsofs + 7]);
 }
 
 void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint16_t pxclk)
@@ -2087,7 +2125,7 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	table = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
-	parse_fp_tables(pScrn, bios, &fpp);
+	parse_fp_mode_table(pScrn, bios, &fpp);
 
 	return 1;
 }
@@ -2176,16 +2214,17 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 	if (!pNv->Mobile)
 		return 1;
 
+	memset(&fpp, 0, sizeof(struct fppointers));
 	if (bitentry->length > 33) {
 		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
 		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
+		parse_fp_mode_table(pScrn, bios, &fpp);
 	}
 	if (bitentry->length > 45) {
 		fpp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
 		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
+		parse_lvds_manufacturer_table(pScrn, bios, &fpp);
 	}
-
-	parse_fp_tables(pScrn, bios, &fpp);
 
 	return 1;
 }

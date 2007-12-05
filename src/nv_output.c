@@ -1140,7 +1140,7 @@ nv_lvds_output_detect(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode &&
-	    pNv->VBIOS.fp_native_mode)
+	    pNv->VBIOS.fp.native_mode)
 		return XF86OutputStatusConnected;
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
@@ -1163,27 +1163,27 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	 * RAMDAC registers, but if we can't read the BIOS table correctly
 	 * we might as well give up */
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
-	    (pNv->VBIOS.fp_native_mode == NULL))
+	    (pNv->VBIOS.fp.native_mode == NULL))
 		return NULL;
 
 	nv_output->fpWidth = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_HDISP_END) + 1;
 	nv_output->fpHeight = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_VDISP_END) + 1;
 	nv_output->fpSyncs = NVOutputReadRAMDAC(output, NV_RAMDAC_FP_CONTROL) & 0x30000033;
 
-	if (pNv->VBIOS.fp_native_mode->HDisplay != nv_output->fpWidth ||
-		pNv->VBIOS.fp_native_mode->VDisplay != nv_output->fpHeight) {
+	if (pNv->VBIOS.fp.native_mode->HDisplay != nv_output->fpWidth ||
+		pNv->VBIOS.fp.native_mode->VDisplay != nv_output->fpHeight) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			"Panel size mismatch; ignoring RAMDAC\n");
-		nv_output->fpWidth = pNv->VBIOS.fp_native_mode->HDisplay;
-		nv_output->fpHeight = pNv->VBIOS.fp_native_mode->VDisplay;
+		nv_output->fpWidth = pNv->VBIOS.fp.native_mode->HDisplay;
+		nv_output->fpHeight = pNv->VBIOS.fp.native_mode->VDisplay;
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %u x %u\n",
 		nv_output->fpWidth, nv_output->fpHeight);
 
-	nv_output->native_mode = xf86DuplicateMode(pNv->VBIOS.fp_native_mode);
+	nv_output->native_mode = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
 
-	return xf86DuplicateMode(pNv->VBIOS.fp_native_mode);
+	return xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
 }
 
 static const xf86OutputFuncsRec nv_lvds_output_funcs = {

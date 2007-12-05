@@ -1680,7 +1680,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	* bit4: positive hsync
 	* bit8: enable panel scaling 
 	* bit26: a bit sometimes seen on some g70 cards
-	* bit31: sometimes seen on LVDS panels
+	* bit31: set for dual link LVDS
 	* This must also be set for non-flatpanels
 	* Some bits seem shifted for vga monitors
 	*/
@@ -1690,10 +1690,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	} else {
 		regp->fp_control = 0x21100000;
 	}
-	if (is_lvds) {
-		/* Let's assume LVDS to be on ramdac0, remember that in the ramdac routing is somewhat random (compared to bios setup), so don't trust it */
-		regp->fp_control = nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff00000;
-	} else {
+
+	if (is_lvds && pNv->VBIOS.fp.dual_link)
+		regp->fp_control |= 0x80000000;
+	else {
 		/* If the special bit exists, it exists on both ramdac's */
 		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}

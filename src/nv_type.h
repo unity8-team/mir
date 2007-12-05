@@ -272,7 +272,15 @@ typedef struct {
 	uint16_t io_flag_condition_tbl_ptr;
 	uint16_t init_function_tbl_ptr;
 
-	DisplayModePtr fp_native_mode;
+	struct {
+		DisplayModePtr native_mode;
+		uint16_t script_table;
+		Bool power_off_for_reset;
+		Bool reset_after_pclk_change;
+		Bool dual_link;
+		Bool if_is_24bit;
+		uint16_t off_on_delay;
+	} fp;
 
 	uint16_t t_table_ptr;
 } bios_t;
