@@ -410,7 +410,7 @@ uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 	regp = &state->dac_reg[nv_output->ramdac];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
-	if (nv_output->type != OUTPUT_ANALOG) {
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		Bool swapped_clock = FALSE;
 		Bool vpllb_disabled = FALSE;
 		/* Bit3 swaps crtc (clocks are bound to crtc) and output */
