@@ -109,18 +109,18 @@ i830_set_lvds_backlight_method(xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     CARD32 blc_pwm_ctl, blc_pwm_ctl2;
-    enum backlight_control method = NATIVE; /* Default to native */
+    enum backlight_control method = BCM_NATIVE; /* Default to native */
 
     if (i830_kernel_backlight_available(output)) {
-	    method = KERNEL;
+	    method = BCM_KERNEL;
     } else if (IS_I965GM(pI830)) {
 	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
 	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
-	    method = LEGACY;
+	    method = BCM_LEGACY;
     } else {
 	blc_pwm_ctl = INREG(BLC_PWM_CTL);
 	if (blc_pwm_ctl & BLM_LEGACY_MODE)
-	    method = LEGACY;
+	    method = BCM_LEGACY;
     }
 
     pI830->backlight_control_method = method;
@@ -646,24 +646,24 @@ i830_lvds_set_backlight_control(xf86OutputPtr output)
     struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
 
     switch (pI830->backlight_control_method) {
-    case NATIVE:
+    case BCM_NATIVE:
 	dev_priv->set_backlight = i830_lvds_set_backlight_native;
 	dev_priv->get_backlight = i830_lvds_get_backlight_native;
 	dev_priv->backlight_max =
 	    i830_lvds_get_backlight_max_native(output);
 	break;
-    case LEGACY:
+    case BCM_LEGACY:
 	dev_priv->set_backlight = i830_lvds_set_backlight_legacy;
 	dev_priv->get_backlight = i830_lvds_get_backlight_legacy;
 	dev_priv->backlight_max = 0xff;
 	break;
-    case COMBO:
+    case BCM_COMBO:
 	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
 	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
 	dev_priv->backlight_max =
 	    i830_lvds_get_backlight_max_native(output);
 	break;
-    case KERNEL:
+    case BCM_KERNEL:
 	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
 	dev_priv->get_backlight = i830_lvds_get_backlight_kernel;
 	dev_priv->backlight_max =
@@ -990,22 +990,22 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     i830_set_lvds_backlight_method(output);
 
     switch (pI830->backlight_control_method) {
-    case NATIVE:
+    case BCM_NATIVE:
 	dev_priv->set_backlight = i830_lvds_set_backlight_native;
 	dev_priv->get_backlight = i830_lvds_get_backlight_native;
 	dev_priv->backlight_max = i830_lvds_get_backlight_max_native(output);
 	break;
-    case LEGACY:
+    case BCM_LEGACY:
 	dev_priv->set_backlight = i830_lvds_set_backlight_legacy;
 	dev_priv->get_backlight = i830_lvds_get_backlight_legacy;
 	dev_priv->backlight_max = 0xff;
 	break;
-    case COMBO:
+    case BCM_COMBO:
 	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
 	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
 	dev_priv->backlight_max = i830_lvds_get_backlight_max_native(output);
 	break;
-    case KERNEL:
+    case BCM_KERNEL:
 	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
 	dev_priv->get_backlight = i830_lvds_get_backlight_kernel;
 	dev_priv->backlight_max = i830_lvds_get_backlight_max_kernel(output);
