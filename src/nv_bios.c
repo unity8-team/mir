@@ -1858,21 +1858,62 @@ struct fppointers {
 	uint16_t fpxlatemanufacturertableptr;
 };
 
-void call_lvds_script(ScrnInfoPtr pScrn, int head, enum LVDS_script script)
+static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
+{
+	/* The BIOS scripts don't do this for us, sadly */
+	/* Luckily we do know the values ;-) */
+
+	NVPtr pNv = NVPTR(pScrn);
+	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
+	uint8_t tmds04 = 0x80;
+	uint32_t tmds_ctrl, tmds_ctrl2;
+
+	/* Bit 3 crosswires output and crtc */
+	if (head != preferred_output)
+		tmds04 = 0x88;
+
+	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS)
+		tmds04 |= 0x01;
+
+	tmds_ctrl = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
+	tmds_ctrl2 = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL_2;
+
+	Bool oldexecute = pNv->VBIOS.execute;
+	pNv->VBIOS.execute = TRUE;
+	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
+	nv32_wr(pScrn, tmds_ctrl, 0x04);
+	nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
+	nv32_wr(pScrn, tmds_ctrl2, 0x04);
+	pNv->VBIOS.execute = oldexecute;
+}
+
+void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
 	init_exec_t iexec = {TRUE, FALSE};
 
 	uint8_t sub = bios->data[bios->fp.script_table + script];
+	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
+	if (!sub || !scriptofs)
+		return;
+
+	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
+		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET);
+	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
+		call_lvds_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 	pNv->VBIOS.execute = TRUE;
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
-		   head ? NV_VGA_CRTCX_OWNER_HEADA : NV_VGA_CRTCX_OWNER_HEADB);
-	parse_init_table(pScrn, bios,
-			 le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2]))), &iexec);
+		   head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
+	parse_init_table(pScrn, bios, scriptofs, &iexec);
 	pNv->VBIOS.execute = FALSE;
+
 	if (script == LVDS_PANEL_OFF)
 		usleep(bios->fp.off_on_delay * 1000);
+	if (script == LVDS_RESET)
+		link_head_and_output(pScrn, head, dcb_entry);
 }
 
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
@@ -2029,23 +2070,26 @@ static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struc
 
 void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
 {
-	/* the dcb_entry parameter needs to be the index of the appropriate DCB entry
+	/* the dcb_entry parameter is the index of the appropriate DCB entry
 	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
 	 *
 	 * This runs the TMDS regs setting code found on BIT bios cards
 	 *
 	 * The table here is typically found just before the DCB table, with a
-	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being length?)
+	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
+	 * length?)
 	 *
 	 * At offset +7 is a pointer to a script, which I don't know how to run yet
 	 * At offset +9 is a pointer to another script, likewise
-	 * Offset +11 has a pointer to a table where the first word is a pxclk frequency
-	 * and the second word a pointer to a script, which should be run if the
-	 * comparison pxclk frequency is less than the pxclk desired. This repeats for
-	 * decreasing comparison frequencies
+	 * Offset +11 has a pointer to a table where the first word is a pxclk
+	 * frequency and the second word a pointer to a script, which should be
+	 * run if the comparison pxclk frequency is less than the pxclk desired.
+	 * This repeats for decreasing comparison frequencies
 	 * Offset +13 has a pointer to a similar table
-	 * The selection of table (and possibly +7/+9 script) is dictated by "or" from the DCB.
-	 * For unffs(ffs(or)) == 0, use the first table, for unffs(ffs(or)) == 4, use the second.
+	 * The selection of table (and possibly +7/+9 script) is dictated by
+	 * "or" from the DCB.
+	 * For unffs(ffs(or)) == 0, use the first table, for
+	 * unffs(ffs(or)) == 4, use the second.
 	 * unffs(ffs(or)) == 2 does not seem to occur for TMDS.
 	 */
 	NVPtr pNv = NVPTR(pScrn);
@@ -2114,13 +2158,13 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", tscript);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", tscript);
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
 	parse_init_table(pScrn, bios, tscript, &iexec);
 	/* restore previous state */
 	bios->execute = execute_backup;
+
+	link_head_and_output(pScrn, head, dcb_entry);
 }
 
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)

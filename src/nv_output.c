@@ -216,13 +216,13 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	switch (mode) {
 	case DPMSModeStandby:
 	case DPMSModeSuspend:
-		call_lvds_script(output->scrn, nv_crtc->head, LVDS_BACKLIGHT_OFF);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF);
 		break;
 	case DPMSModeOff:
-		call_lvds_script(output->scrn, nv_crtc->head, LVDS_PANEL_OFF);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF);
 		break;
 	case DPMSModeOn:
-		call_lvds_script(output->scrn, nv_crtc->head, LVDS_PANEL_ON);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON);
 	default:
 		break;
 	}
@@ -379,7 +379,7 @@ nv_output_save (xf86OutputPtr output)
 	nv_output_save_state_ext(output, state);
 }
 
-uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
+uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -392,91 +392,66 @@ uint32_t nv_calc_clock_from_pll(xf86OutputPtr output)
 	regp = &state->dac_reg[nv_output->preferred_output];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		Bool swapped_clock = FALSE;
-		Bool vpllb_disabled = FALSE;
-		/* Bit3 swaps crtc (clocks are bound to crtc) and output */
-		if (regp->TMDS[0x4] & (1 << 3)) {
-			swapped_clock = TRUE;
-		}
-
-		uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
-
-		uint32_t vplla = 0;
-		uint32_t vpllb = 0;
-
-		/* For the moment the syntax is the same for NV40 and earlier */
-		if (pNv->Architecture == NV_ARCH_40) {
-			vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
-			vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
-		} else {
-			vplla = vpll_num ? state->vpll2 : state->vpll;
-			if (pNv->twoStagePLL)
-				vpllb = vpll_num ? state->vpll2B : state->vpllB;
-		}
-
-		if (!pNv->twoStagePLL)
-			vpllb_disabled = TRUE;
-
-		/* This is the dummy value nvidia sets when vpll is disabled */
-		if ((vpllb & 0xFFFF) == 0x11F) 
-			vpllb_disabled = TRUE;
-
-		uint8_t m1, m2, n1, n2, p;
-
-		m1 = vplla & 0xFF;
-		n1 = (vplla >> 8) & 0xFF;
-		p = (vplla >> 16) & 0x7;
-
-		if (vpllb_disabled) {
-			m2 = 1;
-			n2 = 1;
-		} else {
-			m2 = vpllb & 0xFF;
-			n2 = (vpllb >> 8) & 0xFF;
-		}
-
-		uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
-		ErrorF("The original bios clock seems to have been %d kHz\n", clock);
-		return clock;
+	Bool swapped_clock = FALSE;
+	Bool vpllb_disabled = FALSE;
+	/* Bit3 swaps crtc (clocks are bound to crtc) and output */
+	if (regp->TMDS[0x4] & (1 << 3)) {
+		swapped_clock = TRUE;
 	}
 
-	return 0;
+	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
+
+	uint32_t vplla = 0;
+	uint32_t vpllb = 0;
+
+	/* For the moment the syntax is the same for NV40 and earlier */
+	if (pNv->Architecture == NV_ARCH_40) {
+		vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
+		vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
+	} else {
+		vplla = vpll_num ? state->vpll2 : state->vpll;
+		if (pNv->twoStagePLL)
+			vpllb = vpll_num ? state->vpll2B : state->vpllB;
+	}
+
+	if (!pNv->twoStagePLL)
+		vpllb_disabled = TRUE;
+
+	/* This is the dummy value nvidia sets when vpll is disabled */
+	if ((vpllb & 0xFFFF) == 0x11F)
+		vpllb_disabled = TRUE;
+
+	uint8_t m1, m2, n1, n2, p;
+
+	m1 = vplla & 0xFF;
+	n1 = (vplla >> 8) & 0xFF;
+	p = (vplla >> 16) & 0x7;
+
+	if (vpllb_disabled) {
+		m2 = 1;
+		n2 = 1;
+	} else {
+		m2 = vpllb & 0xFF;
+		n2 = (vpllb >> 8) & 0xFF;
+	}
+
+	uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
+	ErrorF("The original bios clock seems to have been %d kHz\n", clock);
+	return clock;
 }
 
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if (!clock)
-		return;
 
 	/*
 	 * Resetting all registers is a bad idea, it seems to work fine without it.
 	 */
-
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		ScrnInfoPtr pScrn = output->scrn;
-		NVPtr pNv = NVPTR(pScrn);
-		xf86CrtcPtr crtc = output->crtc;
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-		parse_t_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
-
-		uint8_t reg04 = 0;
-		/* We don't know the right switch in the bios */
-		/* Luckily we do know the values ;-) */
-		/* Bit 3 crosswires output and crtc */
-		/* For VT restore we must always restore the right thing */
-		if ((override && crosswired) || (!override && nv_crtc->head != nv_output->preferred_output)) {
-			reg04 = 0x88;
-		} else {
-			reg04 = 0x80;
-		}
-		if (nv_output->type == OUTPUT_LVDS)
-			reg04 |= 0x1;
-		NVOutputWriteTMDS(output, 0x4, reg04);
-	}
+	parse_t_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
 }
 
 static void
@@ -625,17 +600,23 @@ static void
 nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		   DisplayModePtr adjusted_mode)
 {
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-    RIVA_HW_STATE *state;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	RIVA_HW_STATE *state;
 
 	ErrorF("nv_output_mode_set is called\n");
 
-    state = &pNv->ModeReg;
+	state = &pNv->ModeReg;
 
-    nv_output_mode_set_regs(output, mode, adjusted_mode);
-    nv_output_load_state_ext(output, state, FALSE);
-	nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
+	nv_output_mode_set_regs(output, mode, adjusted_mode);
+	nv_output_load_state_ext(output, state, FALSE);
+	if (nv_output->type == OUTPUT_TMDS)
+		nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
+	if (nv_output->type == OUTPUT_LVDS)
+		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET);
+
 	nv_output_mode_set_routing(output);
 }
 

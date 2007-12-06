@@ -82,7 +82,7 @@ void NVPointerMoved(int index, int x, int y);
 
 /* in nv_bios.c */
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
-void call_lvds_script(ScrnInfoPtr pScrn, int head, enum LVDS_script script);
+void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script);
 void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk);
 
 void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
@@ -112,7 +112,7 @@ void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val);
 CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg);
 void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val);
 CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg);
-uint32_t nv_calc_clock_from_pll(xf86OutputPtr output);
+uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
 
 /* nv_hw.c */

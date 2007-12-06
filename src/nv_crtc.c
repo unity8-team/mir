@@ -125,6 +125,7 @@ CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index)
  * CR57		CR58
  * 0x00		index to the appropriate dcb entry (or 7f for inactive)
  * 0x02		dcb entry's "or" value (or 00 for inactive)
+ * 0x03		bit0 set for dual link (LVDS, possibly elsewhere too)
  * 0x0f		laptop panel info -	high nibble for PEXTDEV_BOOT strap
  * 					low nibble for xlat strap value
  */
@@ -1946,8 +1947,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 			NVOutputPrivatePtr nv_output2 = config->output[i]->driver_private;
 			regp = &state->dac_reg[nv_output2->preferred_output];
 			/* Let's guess the bios state ;-) */
-			if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
-				uint32_t clock = nv_calc_clock_from_pll(config->output[i]);
+			if (nv_output2->type == OUTPUT_TMDS) {
+				uint32_t clock = nv_calc_tmds_clock_from_pll(config->output[i]);
 				Bool crosswired = regp->TMDS[0x4] & (1 << 3);
 				nv_set_tmds_registers(config->output[i], clock, TRUE, crosswired);
 			}
