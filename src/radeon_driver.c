@@ -192,6 +192,8 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_MAC_MODEL,      "MacModel",         OPTV_STRING,  {0}, FALSE },
 #endif
     { OPTION_TVDAC_LOAD_DETECT, "TVDACLoadDetect", OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_FORCE_TVOUT,    "ForceTVOut",         OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_TVSTD,          "TVStandard",         OPTV_STRING,  {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1703,7 +1705,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	    info->IsIGP = card->igp;
 	    pRADEONEnt->HasCRTC2 = !card->nocrtc2;
 	    info->HasSingleDAC = card->singledac;
-	    info->InternalTVOut = card->nointtvout;
+	    info->InternalTVOut = !card->nointtvout;
 	    break;
 	}
     }

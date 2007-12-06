@@ -437,8 +437,35 @@ mini-internal        \-\- Mac Mini with integrated DVI
 .br
 mini                 \-\- mini-external alias
 .br
+imac-g5-isight       \-\- iMac G5 iSight
+.br
 The default value is
 .B undefined.
+.TP
+.BI "Option \*qTVStandard\*q \*q" string \*q
+.br
+Used to specify the default TV standard if you want to use something other than
+the bios default. Valid options are:
+.br
+ntsc
+.br
+pal
+.br
+pal-m
+.br
+pal-60
+.br
+ntsc-j
+.br
+scart-pal
+.br
+The default value is
+.B undefined.
+.TP
+.BI "Option \*qForceTVOut\*q \*q" boolean \*q
+Enable this option to force TV Out to always be detected as attached.
+The default is
+.B off 
 .TP
 
 .SH SEE ALSO
