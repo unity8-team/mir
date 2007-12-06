@@ -1179,11 +1179,11 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int i, type, bus_count[0xf], digital_counter = 0;
+	int i, type, i2c_count[0xf], digital_counter = 0;
 
-	memset(bus_count, 0, sizeof(bus_count));
+	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
-		bus_count[pNv->dcb_table.entry[i].bus]++;
+		i2c_count[pNv->dcb_table.entry[i].i2c_index]++;
 
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
@@ -1197,7 +1197,7 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 		switch(type) {
 		case OUTPUT_ANALOG:
-			nv_add_analog_output(pScrn, i, (bus_count[pNv->dcb_table.entry[i].bus] > 1));
+			nv_add_analog_output(pScrn, i, (i2c_count[pNv->dcb_table.entry[i].i2c_index] > 1));
 			break;
 		case OUTPUT_TMDS:
 			nv_add_digital_output(pScrn, i, 0);
