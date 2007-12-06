@@ -2893,7 +2893,7 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
-	info->BiosConnector[0].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
 	info->BiosConnector[0].valid = TRUE;
 
 	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
@@ -2935,22 +2935,22 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[1].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_IMAC_G5_ISIGHT:
-	info->BiosConnector[0].DDCType = DDC_MONID;
+	info->BiosConnector[0].ddc_line = RADEON_GPIO_MONID;
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_INT;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_D;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].DDCType = DDC_DVI;
+	info->BiosConnector[1].ddc_line = RADEON_GPIO_DVI_DDC;
 	info->BiosConnector[1].DACType = DAC_TVDAC;
 	info->BiosConnector[1].TMDSType = TMDS_NONE;
-	info->BiosConnector[1].ConnectorType = CONNECTOR_CRT;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 	info->BiosConnector[1].valid = TRUE;
 
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].DDCType = DDC_NONE_DETECTED;
+	info->BiosConnector[2].ddc_line = 0;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
     default:
