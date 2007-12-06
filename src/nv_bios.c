@@ -1888,7 +1888,14 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	pNv->VBIOS.execute = TRUE;
 	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
 	nv32_wr(pScrn, tmds_ctrl, 0x04);
-	nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
+	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS) {
+		/* This is also set when clock is below the 165 MHz boundary. */
+		nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
+	} else {
+		/* I have encountered no dvi (dual-link or not) that sets to anything else. */
+		/* Does this change beyond the 165 MHz boundary? */
+		nv32_wr(pScrn, tmds_ctrl2 + 4, 0x0);
+	}
 	nv32_wr(pScrn, tmds_ctrl2, 0x04);
 	pNv->VBIOS.execute = oldexecute;
 }
