@@ -1858,10 +1858,14 @@ struct fppointers {
 	uint16_t fpxlatemanufacturertableptr;
 };
 
-static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
+void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overrideval)
 {
-	/* The BIOS scripts don't do this for us, sadly */
-	/* Luckily we do know the values ;-) */
+	/* The BIOS scripts don't do this for us, sadly
+	 * Luckily we do know the values ;-)
+	 *
+	 * head < 0 indicates we wish to force a setting with the overrideval
+	 * (for VT restore etc.)
+	 */
 
 	NVPtr pNv = NVPTR(pScrn);
 	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
@@ -1869,7 +1873,9 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	uint32_t tmds_ctrl, tmds_ctrl2;
 
 	/* Bit 3 crosswires output and crtc */
-	if (head != preferred_output)
+	if (head >= 0 && head != preferred_output)
+		tmds04 = 0x88;
+	if (head < 0 && overrideval)
 		tmds04 = 0x88;
 
 	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS)
@@ -1913,7 +1919,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	if (script == LVDS_PANEL_OFF)
 		usleep(bios->fp.off_on_delay * 1000);
 	if (script == LVDS_RESET)
-		link_head_and_output(pScrn, head, dcb_entry);
+		link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
@@ -2164,7 +2170,7 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	/* restore previous state */
 	bios->execute = execute_backup;
 
-	link_head_and_output(pScrn, head, dcb_entry);
+	link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
