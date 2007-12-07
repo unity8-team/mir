@@ -1197,7 +1197,7 @@ static void RADEONDRIIrqInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	    info->irq = 0;
 	} else {
 	    unsigned char *RADEONMMIO = info->MMIO;
-	    info->ModeReg.gen_int_cntl = INREG( RADEON_GEN_INT_CNTL );
+	    info->ModeReg->gen_int_cntl = INREG( RADEON_GEN_INT_CNTL );
 	}
     }
 
@@ -1774,7 +1774,7 @@ void RADEONDRICloseScreen(ScreenPtr pScreen)
 	RADEONDRISetVBlankInterrupt (pScrn, FALSE);
 	drmCtlUninstHandler(info->drmFD);
 	info->irq = 0;
-	info->ModeReg.gen_int_cntl = 0;
+	info->ModeReg->gen_int_cntl = 0;
     }
 
     /* De-allocate vertex buffers */

@@ -311,7 +311,7 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 	return FALSE;
     }
 
-    /*save->bios_4_scratch = info->SavedReg.bios_4_scratch;*/
+    /*save->bios_4_scratch = info->SavedReg->bios_4_scratch;*/
     save->crtc_gen_cntl = (RADEON_CRTC_EXT_DISP_EN
 			   | RADEON_CRTC_EN
 			   | (format << 8)
@@ -330,7 +330,7 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			    RADEON_CRTC_HSYNC_DIS |
 			    RADEON_CRTC_DISPLAY_DIS);
 
-    save->disp_merge_cntl = info->SavedReg.disp_merge_cntl;
+    save->disp_merge_cntl = info->SavedReg->disp_merge_cntl;
     save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
 
     save->crtc_more_cntl = 0;
@@ -380,10 +380,10 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
 
     if (info->IsDellServer) {
-	save->dac2_cntl = info->SavedReg.dac2_cntl;
-	save->tv_dac_cntl = info->SavedReg.tv_dac_cntl;
-	save->crtc2_gen_cntl = info->SavedReg.crtc2_gen_cntl;
-	save->disp_hw_debug = info->SavedReg.disp_hw_debug;
+	save->dac2_cntl = info->SavedReg->dac2_cntl;
+	save->tv_dac_cntl = info->SavedReg->tv_dac_cntl;
+	save->crtc2_gen_cntl = info->SavedReg->crtc2_gen_cntl;
+	save->disp_hw_debug = info->SavedReg->disp_hw_debug;
 
 	save->dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
 	save->dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
@@ -589,7 +589,7 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 				? RADEON_CRTC2_INTERLACE_EN
 				: 0));
 
-    save->disp2_merge_cntl = info->SavedReg.disp2_merge_cntl;
+    save->disp2_merge_cntl = info->SavedReg->disp2_merge_cntl;
     save->disp2_merge_cntl &= ~(RADEON_DISP2_RGB_OFFSET_EN);
 
     save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
@@ -687,7 +687,7 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONInfoPtr info,
 
     save->htotal_cntl    = 0;
 
-    save->vclk_ecp_cntl = (info->SavedReg.vclk_ecp_cntl &
+    save->vclk_ecp_cntl = (info->SavedReg->vclk_ecp_cntl &
 	    ~RADEON_VCLK_SRC_SEL_MASK) | RADEON_VCLK_SRC_SEL_PPLLCLK;
 
 }
@@ -757,7 +757,7 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			      (post_div->bitvalue << 16));
     save->htotal_cntl2     = 0;
 
-    save->pixclks_cntl = ((info->SavedReg.pixclks_cntl &
+    save->pixclks_cntl = ((info->SavedReg->pixclks_cntl &
 			   ~(RADEON_PIX2CLK_SRC_SEL_MASK)) |
 			  RADEON_PIX2CLK_SRC_SEL_P2PLLCLK);
 
@@ -770,8 +770,8 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     /* tell the bios not to muck with the hardware on events */
     save->bios_4_scratch = 0x4; /* 0x4 needed for backlight */
-    save->bios_5_scratch = (info->SavedReg.bios_5_scratch & 0xff) | 0xff00; /* bits 0-3 keep backlight level */
-    save->bios_6_scratch = info->SavedReg.bios_6_scratch | 0x40000000;
+    save->bios_5_scratch = (info->SavedReg->bios_5_scratch & 0xff) | 0xff00; /* bits 0-3 keep backlight level */
+    save->bios_6_scratch = info->SavedReg->bios_6_scratch | 0x40000000;
 
 }
 
@@ -823,38 +823,38 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
 
     if (info->IsMobility)
-	RADEONInitBIOSRegisters(pScrn, &info->ModeReg);
+	RADEONInitBIOSRegisters(pScrn, info->ModeReg);
 
     ErrorF("init memmap\n");
-    RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
+    RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
     ErrorF("init common\n");
-    RADEONInitCommonRegisters(&info->ModeReg, info);
+    RADEONInitCommonRegisters(info->ModeReg, info);
 
-    RADEONInitSurfaceCntl(crtc, &info->ModeReg);
+    RADEONInitSurfaceCntl(crtc, info->ModeReg);
 
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("init crtc1\n");
-	RADEONInitCrtcRegisters(crtc, &info->ModeReg, adjusted_mode);
-	RADEONInitCrtcBase(crtc, &info->ModeReg, x, y);
+	RADEONInitCrtcRegisters(crtc, info->ModeReg, adjusted_mode);
+	RADEONInitCrtcBase(crtc, info->ModeReg, x, y);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll1\n");
-	    RADEONInitPLLRegisters(pScrn, info, &info->ModeReg, &info->pll, dot_clock);
+	    RADEONInitPLLRegisters(pScrn, info, info->ModeReg, &info->pll, dot_clock);
         } else {
-            info->ModeReg.ppll_ref_div = info->SavedReg.ppll_ref_div;
-            info->ModeReg.ppll_div_3   = info->SavedReg.ppll_div_3;
-            info->ModeReg.htotal_cntl  = info->SavedReg.htotal_cntl;
+            info->ModeReg->ppll_ref_div = info->SavedReg->ppll_ref_div;
+            info->ModeReg->ppll_div_3   = info->SavedReg->ppll_div_3;
+            info->ModeReg->htotal_cntl  = info->SavedReg->htotal_cntl;
         }
 	break;
     case 1:
 	ErrorF("init crtc2\n");
-        RADEONInitCrtc2Registers(crtc, &info->ModeReg, adjusted_mode);
-	RADEONInitCrtc2Base(crtc, &info->ModeReg, x, y);
+        RADEONInitCrtc2Registers(crtc, info->ModeReg, adjusted_mode);
+	RADEONInitCrtc2Base(crtc, info->ModeReg, x, y);
         dot_clock = adjusted_mode->Clock / 1000.0;
         if (dot_clock) {
 	    ErrorF("init pll2\n");
-	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, dot_clock, no_odd_post_div);
+	    RADEONInitPLL2Registers(pScrn, info->ModeReg, &info->pll, dot_clock, no_odd_post_div);
         }
 	break;
     }
@@ -867,13 +867,13 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
 		switch (radeon_crtc->crtc_id) {
 		case 0:
-		    RADEONAdjustCrtcRegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
-		    RADEONAdjustPLLRegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+		    RADEONAdjustCrtcRegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);
+		    RADEONAdjustPLLRegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);
 		    update_tv_routing = TRUE;
 		    break;
 		case 1:
-		    RADEONAdjustCrtc2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
-		    RADEONAdjustPLL2RegistersForTV(pScrn, &info->ModeReg, adjusted_mode, output);
+		    RADEONAdjustCrtc2RegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);
+		    RADEONAdjustPLL2RegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);
 		    break;
 		}
 	    }
@@ -881,31 +881,31 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
 
     if (info->IsMobility)
-	RADEONRestoreBIOSRegisters(pScrn, &info->ModeReg);
+	RADEONRestoreBIOSRegisters(pScrn, info->ModeReg);
 
     ErrorF("restore memmap\n");
-    RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
+    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
     ErrorF("restore common\n");
-    RADEONRestoreCommonRegisters(pScrn, &info->ModeReg);
+    RADEONRestoreCommonRegisters(pScrn, info->ModeReg);
 
     switch (radeon_crtc->crtc_id) {
     case 0:
 	ErrorF("restore crtc1\n");
-	RADEONRestoreCrtcRegisters(pScrn, &info->ModeReg);
+	RADEONRestoreCrtcRegisters(pScrn, info->ModeReg);
 	ErrorF("restore pll1\n");
-	RADEONRestorePLLRegisters(pScrn, &info->ModeReg);
+	RADEONRestorePLLRegisters(pScrn, info->ModeReg);
 	break;
     case 1:
 	ErrorF("restore crtc2\n");
-	RADEONRestoreCrtc2Registers(pScrn, &info->ModeReg);
+	RADEONRestoreCrtc2Registers(pScrn, info->ModeReg);
 	ErrorF("restore pll2\n");
-	RADEONRestorePLL2Registers(pScrn, &info->ModeReg);
+	RADEONRestorePLL2Registers(pScrn, info->ModeReg);
 	break;
     }
 
     /* pixclks_cntl handles tv-out clock routing */
     if (update_tv_routing)
-	radeon_update_tv_routing(pScrn, &info->ModeReg);
+	radeon_update_tv_routing(pScrn, info->ModeReg);
 
     if (info->DispPriority)
         RADEONInitDispBandwidth(pScrn);

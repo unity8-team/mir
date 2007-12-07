@@ -689,7 +689,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 	critical_point = 0x10;
     }
 
-    temp = info->SavedReg.grph_buffer_cntl;
+    temp = info->SavedReg->grph_buffer_cntl;
     temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
     temp |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
     temp &= ~(RADEON_GRPH_START_REQ_MASK);
@@ -711,7 +711,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "GRPH_BUFFER_CNTL from %x to %x\n",
-		   (unsigned int)info->SavedReg.grph_buffer_cntl,
+		   (unsigned int)info->SavedReg->grph_buffer_cntl,
 		   INREG(RADEON_GRPH_BUFFER_CNTL));
 
     if (mode2) {
@@ -719,7 +719,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
 	if (stop_req > max_stop_req) stop_req = max_stop_req;
 
-	temp = info->SavedReg.grph2_buffer_cntl;
+	temp = info->SavedReg->grph2_buffer_cntl;
 	temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
 	temp |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
 	temp &= ~(RADEON_GRPH_START_REQ_MASK);
@@ -761,7 +761,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "GRPH2_BUFFER_CNTL from %x to %x\n",
-		       (unsigned int)info->SavedReg.grph2_buffer_cntl,
+		       (unsigned int)info->SavedReg->grph2_buffer_cntl,
 		       INREG(RADEON_GRPH2_BUFFER_CNTL));
     }
 }

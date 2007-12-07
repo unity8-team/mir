@@ -1430,7 +1430,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
      * 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
      * for higher clocks, sure makes life nicer
      */
-    dot_clock = info->ModeReg.dot_clock_freq;
+    dot_clock = info->ModeReg->dot_clock_freq;
 
     if (dot_clock < 17500)
         info->ecp_div = 0;
@@ -2552,9 +2552,9 @@ RADEONDisplayVideo(
 
     /* Figure out which head we are on for dot clock */
     if (radeon_crtc->crtc_id == 1)
-        dot_clock = info->ModeReg.dot_clock_freq_2;
+        dot_clock = info->ModeReg->dot_clock_freq_2;
     else
-        dot_clock = info->ModeReg.dot_clock_freq;
+        dot_clock = info->ModeReg->dot_clock_freq;
 
     if (dot_clock < 17500)
         ecp_div = 0;

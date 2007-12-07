@@ -3,11 +3,6 @@
  * Federico Ulivi <fulivi@lycos.com>
  */
 
-/*
- * Maximum length of horizontal/vertical code timing tables for state storage
- */
-#define MAX_H_CODE_TIMING_LEN 32
-#define MAX_V_CODE_TIMING_LEN 32
 
 /*
  * Limits of h/v positions (hPos & vPos)

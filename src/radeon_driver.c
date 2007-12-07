@@ -2370,6 +2370,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     void *int10_save = NULL;
     const char *s;
     int crtc_max_X, crtc_max_Y;
+    RADEONEntPtr pRADEONEnt;
+    DevUnion* pPriv;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit\n");
@@ -2382,6 +2384,13 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     if (info->pEnt->location.type != BUS_PCI) goto fail;
+
+    pPriv = xf86GetEntityPrivate(pScrn->entityList[0], 
+				 getRADEONEntityIndex());
+    pRADEONEnt = pPriv->ptr;
+
+    info->SavedReg = &pRADEONEnt->SavedReg;
+    info->ModeReg = &pRADEONEnt->ModeReg;
 
     info->PciInfo = xf86GetPciInfoForEntity(info->pEnt->index);
     info->PciTag  = pciTag(PCI_DEV_BUS(info->PciInfo),
@@ -3469,7 +3478,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	 * our local image to make sure we restore them properly on mode
 	 * changes or VT switches
 	 */
-	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
+	RADEONAdjustMemMapRegisters(pScrn, info->ModeReg);
 
 	if ((info->DispPriority == 1) && (info->cardType==CARD_AGP)) {
 	    /* we need to re-calculate bandwidth because of AGPMode difference. */ 
@@ -4801,7 +4810,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     }
 
     /* Update surface images */
-    RADEONSaveSurfaces(pScrn, &info->ModeReg);
+    RADEONSaveSurfaces(pScrn, info->ModeReg);
 }
 
 /* Read memory map */
@@ -5129,7 +5138,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONSavePtr  save       = &info->SavedReg;
+    RADEONSavePtr  save       = info->SavedReg;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONSave\n");
@@ -5181,7 +5190,7 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    RADEONSavePtr  restore    = &info->SavedReg;
+    RADEONSavePtr  restore    = info->SavedReg;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     xf86CrtcPtr crtc;
 
@@ -5585,7 +5594,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     }
 
-    RADEONRestoreSurfaces(pScrn, &info->ModeReg);
+    RADEONRestoreSurfaces(pScrn, info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
     	if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)
@@ -5597,7 +5606,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	/* get the DRI back into shape after resume */
 	RADEONDRISetVBlankInterrupt (pScrn, TRUE);
 	RADEONDRIResume(pScrn->pScreen);
-	RADEONAdjustMemMapRegisters(pScrn, &info->ModeReg);
+	RADEONAdjustMemMapRegisters(pScrn, info->ModeReg);
 
     }
 #endif

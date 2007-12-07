@@ -322,7 +322,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 #endif
 
     /* Restore SURFACE_CNTL */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 
     RADEONWaitForFifo(pScrn, 1);
     OUTREG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, (RADEON_DEFAULT_SC_RIGHT_MAX
