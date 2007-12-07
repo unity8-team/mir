@@ -451,7 +451,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 	/*
 	 * Resetting all registers is a bad idea, it seems to work fine without it.
 	 */
-	parse_t_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+	parse_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
 }
 
 static void

@@ -2087,7 +2087,7 @@ static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struc
 	bios->fp.off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[lvdsofs + 7]);
 }
 
-void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
+void parse_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
 {
 	/* the dcb_entry parameter is the index of the appropriate DCB entry
 	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
@@ -2112,7 +2112,7 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	 * unffs(ffs(or)) == 2 does not seem to occur for TMDS.
 	 */
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t ttableptr, script1, script2, clktable, tscript = 0;
+	uint16_t tmdstableptr, script1, script2, clktable, tmdsscript = 0;
 	int i = 0;
 	uint16_t compareclk;
 	init_exec_t iexec = {TRUE, FALSE};
@@ -2120,10 +2120,10 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
 		return;
 
-	ttableptr = bios->t_table_ptr;
+	tmdstableptr = bios->tmds_table_ptr;
 
-	if (ttableptr == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to T table invalid\n");
+	if (tmdstableptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to TMDS table invalid\n");
 		return;
 	}
 
@@ -2131,22 +2131,22 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	/* This table has to be excecuted */
 	bios->execute = TRUE;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found T table revision %d.%d\n",
-		   bios->data[ttableptr] >> 4, bios->data[ttableptr] & 0xf);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found TMDS table revision %d.%d\n",
+		   bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
 
-	script1 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 7]));
-	script2 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 9]));
+	script1 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 7]));
+	script2 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 9]));
 
 	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
 	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "T table script pointers not stubbed\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS table script pointers not stubbed\n");
 
 	switch ((ffs(pNv->dcb_table.entry[dcb_entry].or) - 1) * 2) {
 	case 0:
-		clktable = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 11]));
+		clktable = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 11]));
 		break;
 	case 4:
-		clktable = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 13]));
+		clktable = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 13]));
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "(ffs(or) - 1) * 2 was not 0 or 4\n");
@@ -2161,24 +2161,24 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	do {
 		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 4 * i]));
 		if (pxclk >= compareclk) {
-			tscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + 4 * i]));
+			tmdsscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + 4 * i]));
 			break;
 		}
 		i++;
 	} while (compareclk);
 
-	if (!tscript) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "T script not found\n");
+	if (!tmdsscript) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS script not found\n");
 		return;
 	}
 
 	/* We must set the owner register appropriately */ 
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing T table\n", tscript);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing TMDS table\n", tmdsscript);
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
-	parse_init_table(pScrn, bios, tscript, &iexec);
+	parse_init_table(pScrn, bios, tmdsscript, &iexec);
 	/* restore previous state */
 	bios->execute = execute_backup;
 
@@ -2256,25 +2256,22 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	return 1;
 }
 
-static int parse_bit_t_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
-	/* Parses the pointer to the T table
+	/* Parses the pointer to the TMDS table
 	 *
 	 * Starting at bitentry->offset:
 	 *
-	 * offset + 0  (16 bits): T table pointer
+	 * offset + 0  (16 bits): TMDS table pointer
 	 */
 
 	if (bitentry->length != 2) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Do not understand BIT T table entry.\n");
+			   "Do not understand BIT TMDS table entry.\n");
 		return 0;
 	}
 
-	bios->t_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
-
-	/* FIXME just for testing */
-//	parse_t_table(pScrn, bios, 0, 0x2a30);
+	bios->tmds_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 
 	return 1;
 }
@@ -2353,8 +2350,8 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			break;
 		case 'T':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found T table entry in BIT structure.\n", offset);
-			parse_bit_t_tbl_entry(pScrn, bios, &bitentry);
+				   "0x%04X: Found TMDS table entry in BIT structure.\n", offset);
+			parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
 			break;
 
 			/* TODO: What kind of information does the other BIT entrys point to?
