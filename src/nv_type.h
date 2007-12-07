@@ -282,7 +282,10 @@ typedef struct {
 		uint16_t off_on_delay;
 	} fp;
 
-	uint16_t tmds_table_ptr;
+	struct {
+		uint16_t output0_script_ptr;
+		uint16_t output1_script_ptr;
+	} tmds;
 } bios_t;
 
 enum LVDS_script {

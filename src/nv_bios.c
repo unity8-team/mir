@@ -2087,32 +2087,20 @@ static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struc
 	bios->fp.off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[lvdsofs + 7]);
 }
 
-void parse_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
+void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
 {
 	/* the dcb_entry parameter is the index of the appropriate DCB entry
 	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
 	 *
 	 * This runs the TMDS regs setting code found on BIT bios cards
 	 *
-	 * The table here is typically found just before the DCB table, with a
-	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
-	 * length?)
-	 *
-	 * At offset +7 is a pointer to a script, which I don't know how to run yet
-	 * At offset +9 is a pointer to another script, likewise
-	 * Offset +11 has a pointer to a table where the first word is a pxclk
-	 * frequency and the second word a pointer to a script, which should be
-	 * run if the comparison pxclk frequency is less than the pxclk desired.
-	 * This repeats for decreasing comparison frequencies
-	 * Offset +13 has a pointer to a similar table
-	 * The selection of table (and possibly +7/+9 script) is dictated by
-	 * "or" from the DCB.
 	 * For unffs(ffs(or)) == 0, use the first table, for
 	 * unffs(ffs(or)) == 4, use the second.
 	 * unffs(ffs(or)) == 2 does not seem to occur for TMDS.
 	 */
+
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t tmdstableptr, script1, script2, clktable, tmdsscript = 0;
+	uint16_t clktable, tmdsscript = 0;
 	int i = 0;
 	uint16_t compareclk;
 	init_exec_t iexec = {TRUE, FALSE};
@@ -2120,33 +2108,12 @@ void parse_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
 		return;
 
-	tmdstableptr = bios->tmds_table_ptr;
-
-	if (tmdstableptr == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to TMDS table invalid\n");
-		return;
-	}
-
-	Bool execute_backup = bios->execute;
-	/* This table has to be excecuted */
-	bios->execute = TRUE;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found TMDS table revision %d.%d\n",
-		   bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
-
-	script1 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 7]));
-	script2 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 9]));
-
-	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
-	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS table script pointers not stubbed\n");
-
 	switch ((ffs(pNv->dcb_table.entry[dcb_entry].or) - 1) * 2) {
 	case 0:
-		clktable = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 11]));
+		clktable = bios->tmds.output0_script_ptr;
 		break;
 	case 4:
-		clktable = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 13]));
+		clktable = bios->tmds.output1_script_ptr;
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "(ffs(or) - 1) * 2 was not 0 or 4\n");
@@ -2172,6 +2139,8 @@ void parse_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_
 		return;
 	}
 
+	/* This code has to be excecuted */
+	bios->execute = TRUE;
 	/* We must set the owner register appropriately */ 
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
 
@@ -2179,8 +2148,7 @@ void parse_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
 	parse_init_table(pScrn, bios, tmdsscript, &iexec);
-	/* restore previous state */
-	bios->execute = execute_backup;
+	bios->execute = FALSE;
 
 	link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
@@ -2263,7 +2231,23 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	 * Starting at bitentry->offset:
 	 *
 	 * offset + 0  (16 bits): TMDS table pointer
+	 *
+	 * This table here is typically found just before the DCB table, with a
+	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
+	 * length?)
+	 *
+	 * At offset +7 is a pointer to a script, which I don't know how to run yet
+	 * At offset +9 is a pointer to another script, likewise
+	 * Offset +11 has a pointer to a table where the first word is a pxclk
+	 * frequency and the second word a pointer to a script, which should be
+	 * run if the comparison pxclk frequency is less than the pxclk desired.
+	 * This repeats for decreasing comparison frequencies
+	 * Offset +13 has a pointer to a similar table
+	 * The selection of table (and possibly +7/+9 script) is dictated by
+	 * "or" from the DCB.
 	 */
+
+	uint16_t tmdstableptr, script1, script2;
 
 	if (bitentry->length != 2) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2271,7 +2255,24 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 		return 0;
 	}
 
-	bios->tmds_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	tmdstableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+
+	if (tmdstableptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to TMDS table invalid\n");
+		return 0;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found TMDS table revision %d.%d\n",
+		   bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+
+	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
+	script1 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 7]));
+	script2 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 9]));
+	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS table script pointers not stubbed\n");
+
+	bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 11]));
+	bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 13]));
 
 	return 1;
 }
