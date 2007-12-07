@@ -226,6 +226,9 @@ static int nv_valid_reg(uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PRAMIN_ROM_OFFSET,NV_PROM_SIZE))
 		return 1;
+	/* A new PBUS? */
+	if (WITHIN(reg,0x88000,0x1000))
+		return 1;
 	#undef WITHIN
 	return 0;
 }
