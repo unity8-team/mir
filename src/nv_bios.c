@@ -2137,10 +2137,9 @@ void parse_t_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t h
 	script1 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 7]));
 	script2 = le16_to_cpu(*((uint16_t *)&bios->data[ttableptr + 9]));
 
-	if (bios->data[script1] != 'q' || bios->data[script2] != 'q') {
+	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
+	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "T table script pointers not stubbed\n");
-		return;
-	}
 
 	switch ((ffs(pNv->dcb_table.entry[dcb_entry].or) - 1) * 2) {
 	case 0:
