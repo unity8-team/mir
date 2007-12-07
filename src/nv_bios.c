@@ -1370,7 +1370,7 @@ static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 		   "0x%04X: EXECUTING SUB-SCRIPT %d\n", offset, sub);
 
 	parse_init_table(pScrn, bios,
-			 le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2]))),
+			 le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2]))),
 			 iexec);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2094,30 +2094,33 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	 *
 	 * This runs the TMDS regs setting code found on BIT bios cards
 	 *
-	 * For unffs(ffs(or)) == 0, use the first table, for
-	 * unffs(ffs(or)) == 4, use the second.
-	 * unffs(ffs(or)) == 2 does not seem to occur for TMDS.
+	 * For ffs(or) == 1 use the first table, for ffs(or) == 2 and
+	 * ffs(or) == 3, use the second.
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t clktable, tmdsscript = 0;
+	uint16_t clktable = 0, tmdsscript = 0;
 	int i = 0;
 	uint16_t compareclk;
+	uint8_t compare_record_len, tmdssub;
 	init_exec_t iexec = {TRUE, FALSE};
 
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
 		return;
 
-	switch ((ffs(pNv->dcb_table.entry[dcb_entry].or) - 1) * 2) {
-	case 0:
+	if (bios->major_version < 5) /* pre BIT */
+		compare_record_len = 3;
+	else
+		compare_record_len = 4;
+
+	switch (ffs(pNv->dcb_table.entry[dcb_entry].or)) {
+	case 1:
 		clktable = bios->tmds.output0_script_ptr;
 		break;
-	case 4:
+	case 2:
+	case 3:
 		clktable = bios->tmds.output1_script_ptr;
 		break;
-	default:
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "(ffs(or) - 1) * 2 was not 0 or 4\n");
-		return;
 	}
 
 	if (!clktable) {
@@ -2126,9 +2129,13 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	}
 
 	do {
-		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 4 * i]));
+		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + compare_record_len * i]));
 		if (pxclk >= compareclk) {
-			tmdsscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + 4 * i]));
+			if (bios->major_version < 5) {
+				tmdssub = bios->data[clktable + 2 + compare_record_len * i];
+				tmdsscript = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + tmdssub * 2])));
+			} else
+				tmdsscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + compare_record_len * i]));
 			break;
 		}
 		i++;
@@ -2139,7 +2146,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 		return;
 	}
 
-	/* This code has to be excecuted */
+	/* This code has to be executed */
 	bios->execute = TRUE;
 	/* We must set the owner register appropriately */ 
 	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
@@ -2327,6 +2334,11 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 	/* FIXME: detect mobile BIOS? */
 	if (!pNv->Mobile)
 		return 1;
+
+	if (bitentry->length > 17) {
+		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bitentry->offset + 14]));
+		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bitentry->offset + 16]));
+	}
 
 	memset(&fpp, 0, sizeof(struct fppointers));
 	if (bitentry->length > 33) {
