@@ -2261,7 +2261,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
-static void parse_bios_version(bios_t *bios, uint16_t offset)
+static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 {
 	/* offset + 0  (8 bits): Micro version
 	 * offset + 1  (8 bits): Minor version
@@ -2270,6 +2270,9 @@ static void parse_bios_version(bios_t *bios, uint16_t offset)
 	 */
 
 	bios->major_version = bios->data[offset + 3];
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios version %02x.%02x.%02x.%02x\n",
+		   bios->data[offset+3], bios->data[offset+2],
+		   bios->data[offset+1], bios->data[offset]);
 }
 
 static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -2279,13 +2282,14 @@ static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 * There's a bunch of bits in this table other than the bios version
 	 * that we don't use - their use currently unknown
 	 */
-	if (bitentry->length != 0x18) {
+
+	if (bitentry->length < 0x4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Do not understand B table entry.\n");
 		return 0;
 	}
 
-	parse_bios_version(bios, bitentry->offset);
+	parse_bios_version(pScrn, bios, bitentry->offset);
 
 	return 1;
 }
@@ -2301,11 +2305,9 @@ static int parse_bit_m_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 
 	int i;
 
-	if (bitentry->length != 0xd) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Do not understand B table entry.\n");
-		return 0;
-	}
+	/* Older bios versions don't have a sufficiently long table for what we want */
+	if (bitentry->length < 0x5) 
+		return 1;
 
 	/* set up multiplier for INIT_RAM_RESTRICT_ZM_REG_GROUP */
 	for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != 0x8f); i++)
@@ -2596,7 +2598,7 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 			bitentry.length = 48; /* versions after 0x14 are longer,
 						 but extra contents unneeded ATM */
 
-		parse_bios_version(bios, offset + 10);
+		parse_bios_version(pScrn, bios, offset + 10);
 		bitentry.offset = offset + 75;
 		parse_bmp_table_pointers(pScrn, bios, &bitentry);
 	} else {
