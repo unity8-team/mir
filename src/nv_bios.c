@@ -1908,8 +1908,14 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 
 	uint8_t sub = bios->data[bios->fp.script_table + script];
 	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
+
 	if (!sub || !scriptofs)
 		return;
+
+	if (script == LVDS_INIT && bios->data[scriptofs] != 'q') {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS init script not stubbed\n");
+		return;
+	}
 
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET);
@@ -2308,6 +2314,8 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 		fpp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
 		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
 		parse_lvds_manufacturer_table(pScrn, bios, &fpp);
+		/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
+		call_lvds_script(pScrn, 0, 0, LVDS_INIT);
 	}
 
 	return 1;
