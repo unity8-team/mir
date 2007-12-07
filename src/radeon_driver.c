@@ -1064,7 +1064,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     }
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,
-		"PLL parameters: rf=%d rd=%d min=%d max=%d; xclk=%d\n",
+		"PLL parameters: rf=%u rd=%u min=%u max=%u; xclk=%u\n",
 		pll->reference_freq,
 		pll->reference_div,
 		(unsigned)pll->min_pll_freq, (unsigned)pll->max_pll_freq,
