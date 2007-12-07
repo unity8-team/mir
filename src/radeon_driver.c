@@ -2118,6 +2118,10 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
     if (!info->allowColorTiling)
 	return;
 
+    /* for zaphod disable tiling for now */
+    if (info->IsPrimary || info->IsSecondary)
+	info->allowColorTiling = FALSE;
+
 #ifdef XF86DRI
     if (info->directRenderingEnabled &&
 	info->pKernelDRMVersion->version_minor < 14) {
