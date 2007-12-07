@@ -318,7 +318,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    RADEONSavePtr save = &info->ModeReg;
+    RADEONSavePtr save = info->ModeReg;
     unsigned char * RADEONMMIO = info->MMIO;
     unsigned long tmp;
     RADEONOutputPrivatePtr radeon_output;
@@ -773,7 +773,10 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     DisplayModePtr mode1, mode2;
     int pixel_bytes2 = 0;
 
-    mode1 = info->CurrentLayout.mode;
+    if (info->IsPrimary || info->IsSecondary)
+	mode1 = &xf86_config->crtc[0]->mode;
+    else
+	mode1 = info->CurrentLayout.mode;
     mode2 = NULL;
     pixel_bytes2 = info->CurrentLayout.pixel_bytes;
 

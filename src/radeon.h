@@ -681,6 +681,10 @@ typedef struct {
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
+
+
+    Bool              IsSecondary;
+    Bool              IsPrimary;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -801,7 +805,7 @@ extern void        RADEONBlank(ScrnInfoPtr pScrn);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
-extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
+extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,

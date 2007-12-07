@@ -1203,40 +1203,45 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .destroy = NULL, /* XXX */
 };
 
-Bool RADEONAllocateControllers(ScrnInfoPtr pScrn)
+Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-    if (pRADEONEnt->Controller[0])
-      return TRUE;
+    if (mask & 1) {
+	if (pRADEONEnt->Controller[0])
+	    return TRUE;
+	
+	pRADEONEnt->pCrtc[0] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
+	if (!pRADEONEnt->pCrtc[0])
+	    return FALSE;
 
-    pRADEONEnt->pCrtc[0] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
-    if (!pRADEONEnt->pCrtc[0])
-      return FALSE;
+	pRADEONEnt->Controller[0] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
+	if (!pRADEONEnt->Controller[0])
+	    return FALSE;
 
-    pRADEONEnt->Controller[0] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
-    if (!pRADEONEnt->Controller[0])
-        return FALSE;
+	pRADEONEnt->pCrtc[0]->driver_private = pRADEONEnt->Controller[0];
+	pRADEONEnt->Controller[0]->crtc_id = 0;
 
-    pRADEONEnt->pCrtc[0]->driver_private = pRADEONEnt->Controller[0];
-    pRADEONEnt->Controller[0]->crtc_id = 0;
-
-    if (!pRADEONEnt->HasCRTC2)
-	return TRUE;
-
-    pRADEONEnt->pCrtc[1] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
-    if (!pRADEONEnt->pCrtc[1])
-      return FALSE;
-
-    pRADEONEnt->Controller[1] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
-    if (!pRADEONEnt->Controller[1])
-    {
-	xfree(pRADEONEnt->Controller[0]);
-	return FALSE;
     }
 
-    pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
-    pRADEONEnt->Controller[1]->crtc_id = 1;
+    if (mask & 2) {
+	if (!pRADEONEnt->HasCRTC2)
+	    return TRUE;
+	
+	pRADEONEnt->pCrtc[1] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
+	if (!pRADEONEnt->pCrtc[1])
+	    return FALSE;
+	
+	pRADEONEnt->Controller[1] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
+	if (!pRADEONEnt->Controller[1])
+	    {
+		xfree(pRADEONEnt->Controller[0]);
+		return FALSE;
+	    }
+
+	pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
+	pRADEONEnt->Controller[1]->crtc_id = 1;
+    }
     return TRUE;
 }
 

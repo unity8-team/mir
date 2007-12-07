@@ -413,6 +413,9 @@ typedef struct
     xf86CrtcPtr pCrtc[RADEON_MAX_CRTC];
     RADEONCrtcPrivatePtr Controller[RADEON_MAX_CRTC];
 
+    ScrnInfoPtr pSecondaryScrn;    
+    ScrnInfoPtr pPrimaryScrn;
+
     RADEONSaveRec     ModeReg;          /* Current mode                      */
     RADEONSaveRec     SavedReg;         /* Original (text) mode              */
 

@@ -1446,6 +1446,21 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "Mapped VideoRAM: %d kByte (%d bit %s SDRAM)\n", pScrn->videoRam, info->RamWidth, info->IsDDR?"DDR":"SDR");
 
+    if (info->IsPrimary) {
+	pScrn->videoRam /= 2;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Using %dk of videoram for primary head\n",
+		   pScrn->videoRam);
+    }
+    
+    if (info->IsSecondary) {
+	pScrn->videoRam /= 2;
+	info->LinearAddr += pScrn->videoRam * 1024;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Using %dk of videoram for secondary head\n",
+		   pScrn->videoRam);
+    }
+
     pScrn->videoRam  &= ~1023;
     info->FbMapSize  = pScrn->videoRam * 1024;
 
@@ -1881,6 +1896,18 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->pLibDRMVersion = NULL;
     info->pKernelDRMVersion = NULL;
 
+   if (xf86IsEntityShared(info->pEnt->index)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                   "Direct Rendering Disabled -- "
+                   "Dual-head configuration is not working with "
+                   "DRI at present.\n"
+                   "Please use the radeon MergedFB option if you "
+                   "want Dual-head with DRI.\n");
+        return FALSE;
+    }
+    if (info->IsSecondary)
+        return FALSE;
+
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969 ||
 	info->Chipset == PCI_CHIP_RC410_5A61 ||
@@ -2311,18 +2338,52 @@ static void RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 #endif
 }
 
-static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
+static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 {
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
 
-    if (!RADEONAllocateControllers(pScrn))
+    if (info->IsPrimary) {
+	while(config->num_output > 1) {
+	    xf86OutputDestroy(config->output[1]);
+	}
+    } else {
+	xf86OutputDestroy(config->output[0]);
+	while(config->num_output > 1) {
+	    xf86OutputDestroy(config->output[1]);
+	}
+    }
+}
+
+static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int i;
+    int mask;
+
+    if (!info->IsPrimary && !info->IsSecondary)
+	mask = 3;
+    else if (info->IsPrimary)
+	mask = 1;
+    else
+	mask = 2;
+	
+    if (!RADEONAllocateControllers(pScrn, mask))
 	return FALSE;
 
     RADEONGetClockInfo(pScrn);
 
     if (!RADEONSetupConnectors(pScrn)) {
 	return FALSE;
+    }
+
+    if (info->IsPrimary || info->IsSecondary) {
+	/* fixup outputs for zaphod */
+	RADEONFixZaphodOutputs(pScrn);
     }
       
     RADEONPrintPortMap(pScrn);
@@ -2382,6 +2443,9 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info               = RADEONPTR(pScrn);
     info->MMIO         = NULL;
 
+    info->IsSecondary  = FALSE;
+    info->IsPrimary = FALSE;
+
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     if (info->pEnt->location.type != BUS_PCI) goto fail;
 
@@ -2389,8 +2453,28 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 				 getRADEONEntityIndex());
     pRADEONEnt = pPriv->ptr;
 
-    info->SavedReg = &pRADEONEnt->SavedReg;
-    info->ModeReg = &pRADEONEnt->ModeReg;
+    if(xf86IsEntityShared(pScrn->entityList[0]))
+    {
+        if(xf86IsPrimInitDone(pScrn->entityList[0]))
+        {
+            info->IsSecondary = TRUE;
+            pRADEONEnt->pSecondaryScrn = pScrn;
+	    info->SavedReg = &pRADEONEnt->SavedReg;
+	    info->ModeReg = &pRADEONEnt->ModeReg;
+        }
+        else
+        {
+	    info->IsPrimary = TRUE;
+            xf86SetPrimInitDone(pScrn->entityList[0]);
+            pRADEONEnt->pPrimaryScrn = pScrn;
+            pRADEONEnt->HasSecondary = FALSE;
+	    info->SavedReg = &pRADEONEnt->SavedReg;
+	    info->ModeReg = &pRADEONEnt->ModeReg;
+        }
+    } else {
+	info->SavedReg = &pRADEONEnt->SavedReg;
+	info->ModeReg = &pRADEONEnt->ModeReg;
+    }
 
     info->PciInfo = xf86GetPciInfoForEntity(info->pEnt->index);
     info->PciTag  = pciTag(PCI_DEV_BUS(info->PciInfo),
@@ -2739,10 +2823,11 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 
 	      /* Make the change through RandR */
 #ifdef RANDR_12_INTERFACE
-      RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
-#else
-      crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
+	  if (crtc->randr_crtc)
+	      RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
+	  else
 #endif
+	      crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
       }
     }
 
@@ -3153,15 +3238,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     char*          s;
 #endif
 
-#ifdef XF86DRI
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "RADEONScreenInit %lx %ld %d\n",
-		   pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset);
-#else
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "RADEONScreenInit %lx %ld\n",
-		   pScrn->memPhysBase, pScrn->fbOffset);
-#endif
 
     info->accelOn      = FALSE;
 #ifdef USE_XAA
@@ -3171,6 +3247,16 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     pScrn->fbOffset    = info->frontOffset;
 #endif
 
+    if (info->IsSecondary) pScrn->fbOffset = pScrn->videoRam * 1024;
+#ifdef XF86DRI
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+		   "RADEONScreenInit %lx %ld %d\n",
+		   pScrn->memPhysBase, pScrn->fbOffset, info->frontOffset);
+#else
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "RADEONScreenInit %lx %ld\n",
+		   pScrn->memPhysBase, pScrn->fbOffset);
+#endif
     if (!RADEONMapMem(pScrn)) return FALSE;
 
 #ifdef XF86DRI
@@ -3621,6 +3707,8 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
     unsigned char *RADEONMMIO = info->MMIO;
     int timeout;
 
+    if (info->IsSecondary)
+      return;
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONRestoreMemMapRegisters() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -3774,6 +3862,9 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 fb, agp;
 
+    if (info->IsSecondary)
+      return;
+
     fb = INREG(RADEON_MC_FB_LOCATION);
     agp = INREG(RADEON_MC_AGP_LOCATION);
 
@@ -3831,6 +3922,9 @@ void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
+
+    if (info->IsSecondary)
+      return;
 
     OUTREG(RADEON_OVR_CLR,            restore->ovr_clr);
     OUTREG(RADEON_OVR_WID_LEFT_RIGHT, restore->ovr_wid_left_right);
@@ -5211,26 +5305,28 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     OUTREG(RADEON_GRPH_BUFFER_CNTL, restore->grph_buffer_cntl);
     OUTREG(RADEON_GRPH2_BUFFER_CNTL, restore->grph2_buffer_cntl);
 
-    RADEONRestoreMemMapRegisters(pScrn, restore);
-    RADEONRestoreCommonRegisters(pScrn, restore);
+    if (!info->IsSecondary) {
+	RADEONRestoreMemMapRegisters(pScrn, restore);
+	RADEONRestoreCommonRegisters(pScrn, restore);
 
-    if (pRADEONEnt->HasCRTC2) {
-	RADEONRestoreCrtc2Registers(pScrn, restore);
-	RADEONRestorePLL2Registers(pScrn, restore);
+	if (pRADEONEnt->HasCRTC2) {
+	    RADEONRestoreCrtc2Registers(pScrn, restore);
+	    RADEONRestorePLL2Registers(pScrn, restore);
+	}
+
+	RADEONRestoreBIOSRegisters(pScrn, restore);
+	RADEONRestoreCrtcRegisters(pScrn, restore);
+	RADEONRestorePLLRegisters(pScrn, restore);
+	RADEONRestoreRMXRegisters(pScrn, restore);
+	RADEONRestoreFPRegisters(pScrn, restore);
+	RADEONRestoreFP2Registers(pScrn, restore);
+	RADEONRestoreLVDSRegisters(pScrn, restore);
+
+	if (info->InternalTVOut)
+	    RADEONRestoreTVRegisters(pScrn, restore);
+
+	RADEONRestoreSurfaces(pScrn, restore);
     }
-
-    RADEONRestoreBIOSRegisters(pScrn, restore);
-    RADEONRestoreCrtcRegisters(pScrn, restore);
-    RADEONRestorePLLRegisters(pScrn, restore);
-    RADEONRestoreRMXRegisters(pScrn, restore);
-    RADEONRestoreFPRegisters(pScrn, restore);
-    RADEONRestoreFP2Registers(pScrn, restore);
-    RADEONRestoreLVDSRegisters(pScrn, restore);
-
-    if (info->InternalTVOut)
-	RADEONRestoreTVRegisters(pScrn, restore);
-
-    RADEONRestoreSurfaces(pScrn, restore);
 
 #if 1
     /* Temp fix to "solve" VT switch problems.  When switching VTs on
@@ -5258,8 +5354,8 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 #endif
 
     /* need to make sure we don't enable a crtc by accident or we may get a hang */
-    if (pRADEONEnt->HasCRTC2) {
-	if (info->crtc2_on) {
+    if (pRADEONEnt->HasCRTC2 && !info->IsSecondary) {
+	if (info->crtc2_on && xf86_config->num_crtc > 1) {
 	    crtc = xf86_config->crtc[1];
 	    crtc->funcs->dpms(crtc, DPMSModeOn);
 	}
