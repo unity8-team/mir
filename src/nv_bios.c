@@ -2172,7 +2172,9 @@ static void parse_bios_version(bios_t *bios, uint16_t offset)
 
 static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
-	/* There's a bunch of bits in this table other than the bios version
+	/* offset + 0  (32 bits): BIOS version dword
+	 *
+	 * There's a bunch of bits in this table other than the bios version
 	 * that we don't use - their use currently unknown
 	 */
 	if (bitentry->length != 0x18) {
@@ -2182,6 +2184,33 @@ static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	}
 
 	parse_bios_version(bios, bitentry->offset);
+
+	return 1;
+}
+
+static int parse_bit_m_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* offset + 2  (8  bits): number of options in an INIT_RAM_RESTRICT_ZM_REG_GROUP opcode option set
+	 * offset + 3  (16 bits): pointer to strap xlate table for RAM restrict option selection
+	 *
+	 * There's a bunch of bits in this table other than the RAM restrict
+	 * stuff that we don't use - their use currently unknown
+	 */
+
+	int i;
+
+	if (bitentry->length != 0xd) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Do not understand B table entry.\n");
+		return 0;
+	}
+
+	/* set up multiplier for INIT_RAM_RESTRICT_ZM_REG_GROUP */
+	for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != 0x8f); i++)
+		;
+	itbl_entry[i].length_multiplier = bios->data[bitentry->offset + 2] * 4;
+
+	bios->ram_restrict_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 3])));
 
 	return 1;
 }
@@ -2358,7 +2387,7 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 
 static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
 {
-	bit_entry_t bitentry;
+	bit_entry_t bitentry, storedinitentry = {{ 0 }};
 	char done = 0;
 
 	while (!done) {
@@ -2388,7 +2417,12 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found init table entry in BIT structure.\n", offset);
-			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
+			memcpy(&storedinitentry, &bitentry, sizeof(bit_entry_t));
+			break;
+		case 'M': /* memory? */
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Found M table entry in BIT structure.\n", offset);
+			parse_bit_m_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'T':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2403,6 +2437,13 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		}
 
 		offset += sizeof(bit_entry_t);
+	}
+
+	/* 'M' table has to be parsed before 'I' can run */
+	if (storedinitentry.id[0]) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Parsing previously deferred init table entry.\n");
+		parse_bit_init_tbl_entry(pScrn, bios, &storedinitentry);
 	}
 }
 

@@ -274,6 +274,8 @@ typedef struct {
 	uint16_t io_flag_condition_tbl_ptr;
 	uint16_t init_function_tbl_ptr;
 
+	uint16_t ram_restrict_tbl_ptr;
+
 	struct {
 		DisplayModePtr native_mode;
 		uint16_t script_table;
