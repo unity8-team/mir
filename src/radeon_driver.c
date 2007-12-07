@@ -3474,7 +3474,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		   "Initializing fb layer\n");
 
     /* Init fb layer */
-    if (!fbScreenInit(pScreen, info->FB + pScrn->fbOffset,
+    if (!fbScreenInit(pScreen, info->FB,
 		      pScrn->virtualX, pScrn->virtualY,
 		      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
 		      pScrn->bitsPerPixel))
