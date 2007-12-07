@@ -1688,7 +1688,7 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Reg: 0x%04X, Freq: %d0kHz\n",
+			   "0x%04X: Reg: 0x%08X, Freq: %d0kHz\n",
 			   offset, reg, freq);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
@@ -1721,6 +1721,104 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 		return TRUE;
 
 	nv32_wr(pScrn, reg, value);
+
+	return TRUE;
+}
+
+/* hack to avoid moving the itbl_entry array before this function */
+int init_ram_restrict_zm_reg_group_blocklen = 0;
+
+static Bool init_ram_restrict_zm_reg_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_RAM_RESTRICT_ZM_REG_GROUP   opcode: 0x8F ('')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (32 bit): reg
+	 * offset + 5  (8  bit): regincrement
+	 * offset + 6  (8  bit): count
+	 * offset + 7  (32 bit): value 1,1
+	 * ...
+	 *
+	 * Use the RAMCFG strap of PEXTDEV_BOOT as an index into the table at
+	 * ram_restrict_table_ptr. The value read from here is 'n', and
+	 * "value 1,n" gets written to "reg". This repeats "count" times and on
+	 * each iteration 'm', "reg" increases by "regincrement" and
+	 * "value m,n" is used. The extent of n is limited by a number read
+	 * from the 'M' BIT table, herein called "blocklen"
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint8_t regincrement = bios->data[offset + 5];
+	uint8_t count = bios->data[offset + 6];
+	uint32_t strap_ramcfg, data;
+	uint16_t blocklen;
+	uint8_t index;
+	int i;
+
+	/* previously set by 'M' BIT table */
+	blocklen = init_ram_restrict_zm_reg_group_blocklen;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (!blocklen) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Zero block length - has the M table been parsed?\n", offset);
+		return FALSE;
+	}
+
+	strap_ramcfg = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 2) & 0xf;
+	index = bios->data[bios->ram_restrict_tbl_ptr + strap_ramcfg];
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Reg: 0x%08X, RegIncrement: 0x%02X, Count: 0x%02X, StrapRamCfg: 0x%02X, Index: 0x%02X\n",
+			   offset, reg, regincrement, count, strap_ramcfg, index);
+
+	for (i = 0; i < count; i++) {
+		data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 7 + index * 4 + blocklen * i])));
+
+		nv32_wr(pScrn, reg, data);
+
+		reg += regincrement;
+	}
+
+	return TRUE;
+}
+
+static Bool init_copy_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_COPY_ZM_REG   opcode: 0x90 ('')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (32 bit): src reg
+	 * offset + 5  (32 bit): dst reg
+	 *
+	 * Put contents of "src reg" into "dst reg"
+	 */
+
+	uint32_t srcreg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint32_t dstreg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
+	uint32_t data;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	nv32_rd(pScrn, srcreg, &data);
+	nv32_wr(pScrn, dstreg, data);
+
+	return TRUE;
+}
+
+static Bool init_reserved(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_RESERVED   opcode: 0x92 ('')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * Seemingly does nothing
+	 */
 
 	return TRUE;
 }
@@ -1771,10 +1869,11 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_INDEX_IO"                     , 0x78, 6       , 0       , 0       , init_index_io                   },
 	{ "INIT_PLL"                          , 0x79, 7       , 0       , 0       , init_pll                        },
 	{ "INIT_ZM_REG"                       , 0x7A, 9       , 0       , 0       , init_zm_reg                     },
-/*	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, x       , x       , x       , init_ram_restrict_zm_reg_group  }, */
-/*	{ "INIT_COPY_ZM_REG"                  , 0x90, x       , x       , x       , init_copy_zm_reg                }, */
+	/* INIT_RAM_RESTRICT_ZM_REG_GROUP's mult is loaded by M table in BIT */
+	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, 7       , 6       , 0       , init_ram_restrict_zm_reg_group  },
+	{ "INIT_COPY_ZM_REG"                  , 0x90, 9       , 0       , 0       , init_copy_zm_reg                },
 /*	{ "INIT_ZM_REG_GROUP_ADDRESS_LATCHED" , 0x91, x       , x       , x       , init_zm_reg_group_addr_latched  }, */
-/*	{ "INIT_RESERVED"                     , 0x92, x       , x       , x       , init_reserved                   }, */
+	{ "INIT_RESERVED"                     , 0x92, 1       , 0       , 0       , init_reserved                   },
 	{ 0                                   , 0   , 0       , 0       , 0       , 0                               }
 };
 
@@ -2209,6 +2308,7 @@ static int parse_bit_m_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != 0x8f); i++)
 		;
 	itbl_entry[i].length_multiplier = bios->data[bitentry->offset + 2] * 4;
+	init_ram_restrict_zm_reg_group_blocklen = itbl_entry[i].length_multiplier;
 
 	bios->ram_restrict_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 3])));
 
