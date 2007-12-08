@@ -867,10 +867,10 @@ Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 	 *
 	 * For each of "count" TMDS address and data pairs write "data n" to "addr n"
 	 * "magic lookup value" (mlv) determines which TMDS base address is used:
-	 * For mlv < 80, it is an index into a table of TMDS base addresses
-	 * For mlv == 80 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
+	 * For mlv < 0x80, it is an index into a table of TMDS base addresses
+	 * For mlv == 0x80 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
 	 * to index a table of offsets to the basic 0x6808b0 address
-	 * For mlv == 81 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
+	 * For mlv == 0x81 use the "or" value of the dcb_entry indexed by CR58 for CR57 = 0
 	 * to index a table of offsets to the basic 0x6808b0 address, and then flip the offset by 8
 	 */
 	NVPtr pNv = NVPTR(pScrn);
@@ -903,7 +903,7 @@ Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 			return FALSE;
 		}
 		dacoffset = pramdac_offset[pNv->dcb_table.entry[dcb_entry].or];
-		if (mlv == 81)
+		if (mlv == 0x81)
 			dacoffset ^= 8;
 		reg = 0x6808b0 + dacoffset;
 	} else {
