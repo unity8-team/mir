@@ -457,7 +457,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 	} else {
 		/*
 		 * We have no crtc, but we do know what output we are and if we were crosswired.
-		 * We can determine or crtc from this.
+		 * We can determine our crtc from this.
 		 */
 		run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
 	}
