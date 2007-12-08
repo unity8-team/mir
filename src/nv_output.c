@@ -444,14 +444,23 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	/*
-	 * Resetting all registers is a bad idea, it seems to work fine without it.
-	 */
-	run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+	xf86CrtcPtr crtc = output->crtc;
+	/* We have no crtc, so what are we supposed to do now? */
+	/* This can only happen during VT restore */
+	if (crtc && !override) {
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		/*
+		 * Resetting all registers is a bad idea, it seems to work fine without it.
+		 */
+		run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+	} else {
+		/*
+		 * We have no crtc, but we do know what output we are and if we were crosswired.
+		 * We can determine or crtc from this.
+		 */
+		run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
+	}
 }
 
 static void
