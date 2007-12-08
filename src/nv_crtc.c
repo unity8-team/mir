@@ -978,7 +978,7 @@ void nv_crtc_calc_state_ext(
 
 		/* The hardware gets upset if for example 0x00100 is set instead of 0x40100 */
 		if ((state->sel_clk & (0xff << 8)) && !(state->sel_clk & (0xf << 16))) {
-			if ((state->sel_clk & (0xf << (12 -  4*IS_NV44P))) == (0x1 << 16)) {
+			if ((state->sel_clk & (0xf << (12 -  4*IS_NV44P))) == (0x1 << (12 -  4*IS_NV44P))) {
 				state->sel_clk |= (0x4 << 16);
 			} else {
 				state->sel_clk |= (0x1 << 16);

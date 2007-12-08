@@ -728,7 +728,8 @@ NVEnterVT(int scrnIndex, int flags)
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     NVPtr pNv = NVPTR(pScrn);
     
-    if (pNv->randr12_enable) { 
+    if (pNv->randr12_enable) {
+	ErrorF("NVEnterVT is called\n");
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 	pScrn->vtSema = TRUE;
@@ -797,6 +798,8 @@ NVLeaveVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     NVPtr pNv = NVPTR(pScrn);
+	if (pNv->randr12_enable)
+		ErrorF("NVLeaveVT is called\n");
 
     if (pNv->Architecture == NV_ARCH_50) {
 	NV50ReleaseDisplay(pScrn);
