@@ -814,6 +814,8 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 }
 
 #define IS_NV44P (pNv->NVArch >= 0x44 ? 1 : 0)
+#define SEL_CLK_OFFSET (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P))
+#define SEL_CLK_OFFSET_INV (16 - 4 * nv_output->preferred_output * (1 + IS_NV44P))
 
 /*
  * Calculate extended mode parameters (SVGA) and save in a 
@@ -967,12 +969,22 @@ void nv_crtc_calc_state_ext(
 		 */
 
 		/* This won't work when tv-out's come into play */
-		state->sel_clk &= ~(0xf << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P)));
+		state->sel_clk &= ~(0xf << SEL_CLK_OFFSET);
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			if (nv_crtc->head == 1) { /* clock */
-				state->sel_clk |= 0x4 << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P));
-			} else {
-				state->sel_clk |= 0x1 << (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P));
+			if (nv_crtc->head == 1) { /* secondary clock */
+				state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
+				/* Does the other output occupy the same clock? -> Switch it to primary clock */
+				if ((state->sel_clk & (0xf << SEL_CLK_OFFSET_INV)) == (0x4 << SEL_CLK_OFFSET_INV)) {
+					state->sel_clk &= ~(0xf << SEL_CLK_OFFSET_INV);
+					state->sel_clk |= (0x1 << SEL_CLK_OFFSET_INV);
+				}
+			} else { /* primary clock */
+				state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
+				/* Does the other output occupy the same clock? -> Switch it to secondary clock */
+				if ((state->sel_clk & (0xf << SEL_CLK_OFFSET_INV)) == (0x1 << SEL_CLK_OFFSET_INV)) {
+					state->sel_clk &= ~(0xf << SEL_CLK_OFFSET_INV);
+					state->sel_clk |= (0x4 << SEL_CLK_OFFSET_INV);
+				}
 			}
 		}
 
