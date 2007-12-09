@@ -29,7 +29,10 @@
 #define CRTC_INDEX_COLOR VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
-#define NV_PBUS_PCI_NV_19	0x0000184C
+#define NV_PBUS_PCI_NV_19 0x0000184C
+#define NV_PBUS_PCI_NV_20 0x00001850
+#define NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED 0x00000000
+#define NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED 0x00000001
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
 
 #define DEBUGLEVEL 6
@@ -108,7 +111,7 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 		   "Attempting to locate BIOS image in PROM\n");
 
 	/* enable ROM access */
-	nvWriteMC(pNv, 0x1850, 0x0);
+	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED);
 	for (i = 0; i < NV_PROM_SIZE; i++) {
 		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
 		data[i] = pNv->PROM[i];
@@ -118,7 +121,7 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 		data[i] = pNv->PROM[i];
 	}
 	/* disable ROM access */
-	nvWriteMC(pNv, 0x1850, 0x1);
+	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 }
 
 static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
@@ -251,6 +254,10 @@ static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	int specialcase = 0;
+	uint8_t saved1 = 0, saved2 = 0;
+	volatile uint8_t *crtcptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+
 	if (DEBUGLEVEL >= 8) {
 		uint32_t tmp;
 		nv32_rd(pScrn, reg, &tmp);
@@ -266,8 +273,30 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		NVPtr pNv = NVPTR(pScrn);
+
+		if ((reg & 0xffc) == 0x3c0) {
+			specialcase = 1;
+			saved1 = VGA_RD08(crtcptr, VGA_MISC_OUT_R);
+			saved2 = VGA_RD08(crtcptr, VGA_ENABLE);
+		}
+		if ((reg & 0xffc) == 0x3cc) {
+			specialcase = 2;
+			saved1 = VGA_RD08(crtcptr, VGA_GRAPH_INDEX);
+			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, 0x06);
+			saved2 = VGA_RD08(crtcptr, VGA_GRAPH_DATA);
+		}
+
 		pNv->REGS[reg/4] = data;
+
+		if (specialcase == 1) {
+			VGA_WR08(crtcptr, VGA_ENABLE, saved2);
+			VGA_WR08(crtcptr, VGA_MISC_OUT_W, saved1);
+		}
+		if (specialcase == 2) {
+			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, 0x06);
+			VGA_WR08(crtcptr, VGA_GRAPH_DATA, saved2);
+			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, saved1);
+		}
 	}
 
 	return 1;
@@ -1090,12 +1119,6 @@ static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 
 	for (i = 0; i < count; i++) {
 		uint32_t reg = basereg + i * 4;
-
-		if ((reg & 0xffc) == 0x3c0)
-			ErrorF("special case: FIXME\n");
-		if ((reg & 0xffc) == 0x3cc)
-			ErrorF("special case: FIXME\n");
-
 		uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 6 + i * 4])));
 
 		nv32_wr(pScrn, reg, data);
@@ -1289,30 +1312,22 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
 	uint32_t value1 = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
 	uint32_t value2 = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 9])));
-	uint32_t pci_nv_19;
+	uint32_t pci_nv_19, pci_nv_20;
 
-	if (!iexec->execute)
-		return TRUE;
+	/* no iexec->execute check by design */
 
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Reg: 0x%08X, Value1: 0x%08X, Value2: 0x%08X\n",
-			   offset, reg, value1, value2);
-
-	/* it's not clear from my .dmp file, but it seems we should zero out NV_PBUS_PCI_NV_19(0x0000184C) and then restore it */
 	nv32_rd(pScrn, NV_PBUS_PCI_NV_19, &pci_nv_19);
-#if 0
-	nv32_rd(pScrn, PCICFG(PCICFG_ROMSHADOW), &tmpval);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: PCICFG_ROMSHADOW: 0x%02X\n", offset, tmpval);
-#endif
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, 0);
 	nv32_wr(pScrn, reg, value1);
+
+	usleep(10);
+
 	nv32_wr(pScrn, reg, value2);
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, pci_nv_19);
 
-	/* PCI Config space init needs to be added here. */
-	/* if (nv32_rd(pScrn, PCICFG(PCICFG_ROMSHADOW), value1)) */
-	/*     nv32_wr(pScrn, PCICFG(PCICFG_ROMSHADOW), value1 & 0xfffffffe) */
+	nv32_rd(pScrn, NV_PBUS_PCI_NV_20, &pci_nv_20);
+	pci_nv_20 &= !NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED;	/* 0xfffffffe */
+	nv32_wr(pScrn, NV_PBUS_PCI_NV_20, pci_nv_20);
 
 	return TRUE;
 }
