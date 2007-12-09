@@ -1698,19 +1698,26 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	* bit9: enable native mode
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit31: set for dual link LVDS
-	* This must also be set for non-flatpanels
-	* Some bits seem shifted for vga monitors
+	* nv10reg contains a few more things, but i don't quite get what it all means.
 	*/
 
-	if (is_fp) {
-		regp->fp_control = 0x11100000;
+	if (pNv->Architecture >= NV_ARCH_30) {
+		regp->fp_control = 0x01100000;
 	} else {
-		regp->fp_control = 0x21100000;
+		regp->fp_control = 0x00000000;
 	}
 
-	if (is_lvds && pNv->VBIOS.fp.dual_link)
-		regp->fp_control |= 0x80000000;
-	else {
+	if (is_fp) {
+		regp->fp_control |= (1 << 28);
+	} else {
+		regp->fp_control |= (2 << 28);
+		if (pNv->Architecture < NV_ARCH_30)
+			regp->fp_control |= (1 << 24);
+	}
+
+	if (is_lvds && pNv->VBIOS.fp.dual_link) {
+		regp->fp_control |= (8 << 28);
+	} else {
 		/* If the special bit exists, it exists on both ramdac's */
 		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}
