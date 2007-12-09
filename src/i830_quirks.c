@@ -64,7 +64,7 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
     
     /* Dell Latitude X1 */
-    { PCI_CHIP_I945_GM, 0x1028, 0x01a3, quirk_ignore_tv },
+    { PCI_CHIP_I915_GM, 0x1028, 0x01a3, quirk_ignore_tv },
     /* Dell XPS 1330 */
     { PCI_CHIP_I965_GM, 0x1028, 0x0209, quirk_ignore_tv },
     
