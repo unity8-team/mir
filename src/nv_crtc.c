@@ -1716,10 +1716,11 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (is_fp) {
-		if (mode->Clock == adjusted_mode->Clock) { /* native mode */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
-		} else if (nv_output->scaling_mode == 0) { /* panel needs to scale */
+		if (nv_output->scaling_mode == 0) { /* panel needs to scale */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
+		/* This is also true for panel scaling, so we must put the panel scale check first */
+		} else if (mode->Clock == adjusted_mode->Clock) { /* native mode */
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
 		} else { /* gpu needs to scale */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
 		}
