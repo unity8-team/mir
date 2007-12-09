@@ -548,6 +548,23 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	}
 }
 
+static Bool 
+nv_have_duallink(ScrnInfoPtr	pScrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output = output->driver_private;
+		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
 static void
 nv_output_mode_set_routing(xf86OutputPtr output)
 {
@@ -569,30 +586,27 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		/* Also see reg594 in nv_crtc.c */
 		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 		/* This seems to be restricted to dual link outputs */
-		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
+		if (nv_have_duallink(pScrn))
 			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 	} else {
-		if (!is_fp) {
-			output_reg[nv_output->preferred_output] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		} else { 
-			output_reg[nv_output->preferred_output] = 0x0;
+		/* This is for simplicity */
+		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+		output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+	}
+
+	/* The analog outputs on NV2x seem fixed to a crtc */
+	if (pNv->Architecture >= NV_ARCH_30) {
+		/* Only one can be on crtc1 */
+		if (nv_crtc->head == 1) {
+			output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		} else {
+			output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		}
 	}
 
-	/* Only one can be on crtc1 */
-	if (nv_crtc->head == 1) {
-		output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-	} else {
-		output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-	}
-
-	if (pNv->Architecture == NV_ARCH_40) {
-		/* The registers can't be considered seperately on nv40 */
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
-	} else {
-		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, output_reg[nv_output->preferred_output]);
-	}
+	/* The registers can't be considered seperately on most cards */
+	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
+	nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
