@@ -1205,7 +1205,7 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int i, type, i2c_count[0xf], digital_counter = 0;
+	int i, type, i2c_count[0xf];
 
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1227,22 +1227,13 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 			break;
 		case OUTPUT_TMDS:
 			nv_add_digital_output(pScrn, i, 0);
-			digital_counter++;
 			break;
 		case OUTPUT_LVDS:
 			nv_add_digital_output(pScrn, i, 1);
-			/* I'm assuming that lvds+dvi has the same effect as dual dvi */
-			digital_counter++;
 			break;
 		default:
 			break;
 		}
-	}
-
-	if (digital_counter > 1) {
-		pNv->dual_dvi = TRUE;
-	} else {
-		pNv->dual_dvi = FALSE;
 	}
 }
 

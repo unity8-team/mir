@@ -441,7 +441,6 @@ typedef struct _NVRec {
 	int dvi_d_count;
 	int dvi_a_count;
 	int lvds_count;
-	Bool dual_dvi;
 
 	struct {
 		int entries;
