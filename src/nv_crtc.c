@@ -1859,10 +1859,14 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	/* Flatpanel support needs at least a NV10 */
 	if(pNv->twoHeads) {
-		/* Instead of 1, several other values are also used: 2, 7, 9 */
-		/* The purpose is unknown */
+		/* The blob does this differently. */
+		/* TODO: Find out what precisely and why. */
 		if(pNv->FPDither) {
-			regp->dither = 0x00010000;
+			if (pNv->NVArch == 0x11) {
+				regp->dither = 0x00010000;
+			} else {
+				regp->dither = 0x00000001;
+			}
 		}
 	}
 
