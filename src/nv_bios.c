@@ -2010,7 +2010,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	uint8_t sub = bios->data[bios->fp.script_table + script];
 	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 
-	if (!sub || !scriptofs)
+	if (!bios->fp.script_table || !sub || !scriptofs)
 		return;
 
 	if (script == LVDS_INIT && bios->data[scriptofs] != 'q') {
