@@ -253,19 +253,31 @@
 #define NV_RAMDAC_FP_HVALID_START   0x834
 #define NV_RAMDAC_FP_HVALID_END     0x838
 
-#define NV_RAMDAC_FP_DITHER         0x83c
-#define NV_RAMDAC_FP_CHECKSUM       0x840
-#define NV_RAMDAC_FP_TEST_CONTROL   0x844
-#define NV_RAMDAC_FP_CONTROL        0x848
-#define NV_RAMDAC_FP_CONTROL_ENABLE (1<<28) // toggling this bit turns things on/off
+#define NV_RAMDAC_FP_DITHER		0x83c
+#define NV_RAMDAC_FP_CHECKSUM		0x840
+#define NV_RAMDAC_FP_TEST_CONTROL	0x844
+#define NV_RAMDAC_FP_CONTROL		0x848
+#	define NV_RAMDAC_FP_CONTROL_VSYNC_NEG		(0 << 0)
+#	define NV_RAMDAC_FP_CONTROL_VSYNC_POS		(1 << 0)
+#	define NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE	(2 << 0)
+#	define NV_RAMDAC_FP_CONTROL_HSYNC_NEG		(0 << 4)
+#	define NV_RAMDAC_FP_CONTROL_HSYNC_POS		(1 << 4)
+#	define NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE	(2 << 4)
+#	define NV_RAMDAC_FP_CONTROL_MODE_SCALE	(0 << 8)
+#	define NV_RAMDAC_FP_CONTROL_MODE_CENTER	(1 << 8)
+#	define NV_RAMDAC_FP_CONTROL_MODE_NATIVE	(2 << 8)
 
-#define NV_RAMDAC_FP_DEBUG_0        0x880
-/* Not a 100% sure, but several mmio traces confirm this */
-/* This is one of the things needed to determine how the dvi transmitter(s) is/are wired */
-#define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED (1<<7)
-#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK (1<<28)
-#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL (2<<28)
-#define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH (3<<28)
+#	define NV_RAMDAC_FP_CONTROL_ENABLE 		(1<<28) // toggling this bit turns things on/off
+
+#define NV_RAMDAC_FP_DEBUG_0 		0x880
+#	define NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED			(1 << 0)
+#	define NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED			(1 << 4)
+/* This doesn't seem to be essential for tmds, but still often set */
+#	define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED			(1 << 7)
+#	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK			(1 << 28)
+#	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK			(1 << 28)
+#	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL		(2 << 28)
+#	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH			(3 << 28)
 #define NV_RAMDAC_FP_DEBUG_1        0x884
 #define NV_RAMDAC_FP_DEBUG_2        0x888
 #define NV_RAMDAC_FP_DEBUG_3        0x88C

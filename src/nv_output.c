@@ -851,21 +851,24 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
  * Several scaling modes exist, let the user choose.
  */
 #define SCALING_MODE_NAME "SCALING_MODE"
-#define NUM_SCALING_METHODS 3
+#define NUM_SCALING_METHODS 4
 static char *scaling_mode_names[] = {
 	"panel",
 	"fullscreen",
 	"aspect",
+	"noscale",
 };
 static Atom scaling_mode_atom;
 
 static int
 nv_scaling_mode_lookup(char *name, int size)
 {
-	int i;
+	int i, len;
 
 	for (i = 0; i < NUM_SCALING_METHODS; i++) {
-		if (!strncmp(name, scaling_mode_names[i], size))
+		/* We're getting non-terminated strings */
+		len = strlen(scaling_mode_names[i]);
+		if (len == size && !strncmp(name, scaling_mode_names[i], size))
 			return i;
 	}
 
@@ -913,12 +916,12 @@ nv_tmds_set_property(xf86OutputPtr output, Atom property,
 
 	if (property == scaling_mode_atom) {
 		int32_t ret;
-		char *name;
+		char *name = NULL;
 
 		if (value->type != XA_STRING || value->format != 8)
 			return FALSE;
 
-		name = (char*) value->data;
+		name = (char *) value->data;
 
 		/* Match a string to a scaling mode */
 		ret = nv_scaling_mode_lookup(name, value->size);

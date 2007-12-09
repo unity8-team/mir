@@ -1694,8 +1694,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/*
 	* bit0: positive vsync
 	* bit4: positive hsync
-	* bit8: enable panel scaling
-	* bit9: something related to dual link dvi?
+	* bit8: enable center mode
+	* bit9: enable native mode
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit31: set for dual link LVDS
 	* This must also be set for non-flatpanels
@@ -1715,18 +1715,29 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}
 
-	/* Does this turn something off, since it's similar to what is used in dpms (being a "2" bit)? */
-	if (is_fp && !is_lvds && pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
-		regp->fp_control |= (1 << 9);
-
-	/* Deal with vsync/hsync polarity */
-	/* These analog monitor offsets are guesswork */
-	if (adjusted_mode->Flags & V_PVSYNC) {
-		regp->fp_control |= (1 << (0 + !is_fp));
+	if (is_fp) {
+		if (mode->Clock == adjusted_mode->Clock) { /* native mode */
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
+		} else if (nv_output->scaling_mode == 0) { /* panel needs to scale */
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
+		} else { /* gpu needs to scale */
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
+		}
 	}
 
-	if (adjusted_mode->Flags & V_PHSYNC) {
-		regp->fp_control |= (1 << (4 + !is_fp));
+	/* Deal with vsync/hsync polarity */
+	if (is_fp) {
+		if (adjusted_mode->Flags & V_PVSYNC) {
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
+		}
+
+		if (adjusted_mode->Flags & V_PHSYNC) {
+			regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
+		}
+	} else {
+		/* The blob doesn't always do this, but often */
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
 	}
 
 	if (is_fp) {
@@ -1742,7 +1753,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		ErrorF("h_scale=%d\n", h_scale);
 		ErrorF("v_scale=%d\n", v_scale);
 
-		/* Don't limit last fetched line */
+		/* This can override HTOTAL and VTOTAL */
 		regp->debug_2 = 0;
 
 		/* We want automatic scaling */
@@ -1757,12 +1768,12 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		/* 0 = panel scaling */
 		if (nv_output->scaling_mode == 0) {
 			ErrorF("Flat panel is doing the scaling.\n");
-			regp->fp_control |= (1 << 8);
 		} else {
 			ErrorF("GPU is doing the scaling.\n");
 
 			/* 1 = fullscale gpu */
 			/* 2 = aspect ratio scaling */
+			/* 3 = no scaling */
 			if (nv_output->scaling_mode == 2) {
 				/* GPU scaling happens automaticly at a ratio of 1.33 */
 				/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
@@ -1811,9 +1822,26 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	/* These are the common blob values, minus a few fp specific bit's */
 	/* Let's keep the TMDS pll and fpclock running in all situations */
-	regp->debug_0 = 0x1101111;
+	regp->debug_0 = 0x1101100;
 
-	if(is_fp) {
+	if (is_fp && nv_output->scaling_mode != 3) { /* !no_scale mode */
+		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
+		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
+	} else if (is_fp) { /* no_scale mode, so we must center it */
+		uint32_t diff;
+
+		diff = nv_output->fpWidth - mode->HDisplay;
+		regp->fp_hvalid_start = diff/2;
+		regp->fp_hvalid_end = (nv_output->fpWidth - diff/2 - 1);
+
+		diff = nv_output->fpHeight - mode->VDisplay;
+		regp->fp_vvalid_start = diff/2;
+		regp->fp_vvalid_end = (nv_output->fpHeight - diff/2 - 1);
+	}
+
+	/* Is this crtc bound or output bound? */
+	/* Does the bios TMDS script try to change this sometimes? */
+	if (is_fp) {
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
@@ -1848,6 +1876,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (pNv->alphaCursor) {
+		/* PIPE_LONG mode, something to do with the size of the cursor? */
 		regp->general |= (1<<29);
 	}
 
