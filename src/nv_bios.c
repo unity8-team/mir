@@ -26,7 +26,7 @@
 #include <byteswap.h>
 
 /* FIXME: put these somewhere */
-#define CRTC_INDEX_COLOR 0x3d4
+#define CRTC_INDEX_COLOR VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
 #define NV_PBUS_PCI_NV_19	0x0000184C
@@ -273,7 +273,7 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	return 1;
 }
 
-static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data)
+static void nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
@@ -287,7 +287,7 @@ static void nv_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 			   port, index, crtchead, *data);
 }
 
-static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data)
+static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr;
@@ -304,7 +304,7 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t 
 
 	if (DEBUGLEVEL >= 8) {
 		uint8_t tmp;
-		nv_port_rd(pScrn, port, index, &tmp);
+		nv_idx_port_rd(pScrn, port, index, &tmp);
 	}
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -347,7 +347,7 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &data);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &data);
 
 	data = bios->data[flagarray + ((data & mask) >> shift)];
 	data &= flagarraymask;
@@ -456,7 +456,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, count, reg);
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &config);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -552,7 +552,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &config);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -655,9 +655,9 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	data &= srcmask;
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &crtcdata);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &crtcdata);
 	crtcdata = (crtcdata & mask) | (uint8_t)data;
-	nv_port_wr(pScrn, crtcport, crtcindex, crtcdata);
+	nv_idx_port_wr(pScrn, crtcport, crtcindex, crtcdata);
 
 	return TRUE;
 }
@@ -806,7 +806,7 @@ static Bool init_io_restrict_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	if (!reg)
 		return TRUE;
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &config);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
 	config = (config & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -894,8 +894,8 @@ Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 		uint8_t dcb_entry;
 		int dacoffset;
 		/* This register needs to written for correct output */
-		nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-		nv_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58, &dcb_entry);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
+		nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58, &dcb_entry);
 		if (dcb_entry > pNv->dcb_table.entries) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: CR58 doesn't have a valid DCB entry currently (%02X)\n",
@@ -957,16 +957,16 @@ Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 			   "0x%04X: Index1: 0x%02X, Index2: 0x%02X, BaseAddr: 0x%02X, Count: 0x%02X\n",
 			   offset, crtcindex1, crtcindex2, baseaddr, count);
 
-	nv_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex1, &oldaddr);
+	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex1, &oldaddr);
 
 	for (i = 0; i < count; i++) {
-		nv_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, baseaddr + i);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, baseaddr + i);
 
 		data = bios->data[offset + 5 + i];
-		nv_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex2, data);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex2, data);
 	}
 
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, oldaddr);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, oldaddr);
 
 	return TRUE;
 }
@@ -997,11 +997,11 @@ Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 			   "0x%04X: Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, crtcindex, mask, data);
 
-	nv_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex, &value);
+	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex, &value);
 
 	value = (value & mask) | data;
 
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, value);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, value);
 
 	return TRUE;
 }
@@ -1023,7 +1023,7 @@ static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	if (!iexec->execute)
 		return TRUE;
 
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, data);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, data);
 
 	return TRUE;
 }
@@ -1218,7 +1218,7 @@ static Bool init_zm_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	if (!iexec->execute)
 		return TRUE;
 
-	nv_port_wr(pScrn, crtcport, crtcindex, data);
+	nv_idx_port_wr(pScrn, crtcport, crtcindex, data);
 
 	return TRUE;
 }
@@ -1665,9 +1665,9 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, data);
 
-	nv_port_rd(pScrn, crtcport, crtcindex, &value);
+	nv_idx_port_rd(pScrn, crtcport, crtcindex, &value);
 	value = (value & mask) | data;
-	nv_port_wr(pScrn, crtcport, crtcindex, value);
+	nv_idx_port_wr(pScrn, crtcport, crtcindex, value);
 
 	return TRUE;
 }
@@ -2025,7 +2025,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 	pNv->VBIOS.execute = TRUE;
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 		   head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
 	parse_init_table(pScrn, bios, scriptofs, &iexec);
 	pNv->VBIOS.execute = FALSE;
@@ -2250,11 +2250,11 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	/* This code has to be executed */
 	bios->execute = TRUE;
 	/* We must set the owner register appropriately */ 
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing TMDS table\n", tmdsscript);
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-	nv_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
 	parse_init_table(pScrn, bios, tmdsscript, &iexec);
 	bios->execute = FALSE;
 
