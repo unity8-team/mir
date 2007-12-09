@@ -112,6 +112,10 @@ Supported only on GeForce4 and newer chips, this option
 tells to the driver to scale lower resolutions up to the flat panel's native
 resolution.  Default: on.
 .TP 
+.BI "Option \*qScalingMode\*q \*q" string \*q 
+Only for the randr-1.2 driver, this allows to set the DFP scaling mode.
+The options are "fullscreen", "aspect", "noscale" and "panel". Default: "aspect".
+.TP 
 .BI "Option \*qRotate\*q \*qCW\*q"
 .TP
 .BI "Option \*qRotate\*q \*qCCW\*q"

@@ -874,6 +874,8 @@ static char *scaling_mode_names[] = {
 };
 static Atom scaling_mode_atom;
 
+#define SCALING_MODE(_name) (nv_scaling_mode_lookup(_name, strlen(_name)))
+
 static int
 nv_scaling_mode_lookup(char *name, int size)
 {
@@ -1189,12 +1191,16 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 		nv_output->preferred_output = 0;
 	}
 
-	if (pNv->fpScaler) {
-		/* Aspect ratio */
-		nv_output->scaling_mode = 2;
-	} else {
-		/* "Panel mode" fully filled */
-		nv_output->scaling_mode = 0;
+	if (pNv->fpScaler || lvds) { /* GPU Scaling */
+		char *name = (char *)xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE);
+		/* lvds must always use gpu scaling */
+		if (name && (!lvds || (SCALING_MODE(name) != SCALING_MODE("panel")))) {
+			nv_output->scaling_mode = SCALING_MODE(name);
+		} else {
+			nv_output->scaling_mode = SCALING_MODE("aspect");
+		}
+	} else { /* Panel scaling */
+		nv_output->scaling_mode = SCALING_MODE("panel");
 	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
