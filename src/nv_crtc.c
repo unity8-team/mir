@@ -813,9 +813,53 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 }
 
+/* It is unknown if the bus has a similar meaning on pre-NV40 hardware. */
+
+static uint8_t
+nv_get_sel_clk_offset(uint8_t NVArch, uint8_t bus)
+{
+	switch(bus) {
+		case 0:
+			if (NVArch >= 0x44) {
+				return 8;
+			} else {
+				return 12;
+			}
+		case 1:
+			return 16;
+		/* bus 2 is often the tv-out */
+		case 3:
+			return 4;
+		default:
+			ErrorF("Unknown bus, bad things may happen\n");
+			return 16;
+	}
+}
+
+static void
+nv_wipe_other_clocks(uint32_t *sel_clk, uint8_t NVArch, uint8_t head, uint8_t bus)
+{
+	int i;
+	/* head0 = 1, head1 = 4 */
+	uint8_t our_clock = 1 + head*3;
+
+	if (!sel_clk)
+		return;
+
+	for (i = 0; i < 5; i++) {
+		int offset = i*4;
+		if (nv_get_sel_clk_offset(NVArch, bus) == offset) /* Let's keep our own clock */
+			continue;
+
+		if (((*sel_clk << offset) & 0xf) == (our_clock << offset)) /* Let's wipe other entries */
+			*sel_clk &= ~(0xf << offset);
+	}
+}
+
 #define IS_NV44P (pNv->NVArch >= 0x44 ? 1 : 0)
-#define SEL_CLK_OFFSET (16 - 4 * !nv_output->preferred_output * (1 + IS_NV44P))
-#define SEL_CLK_OFFSET_INV (16 - 4 * nv_output->preferred_output * (1 + IS_NV44P))
+#define SEL_CLK_OFFSET (nv_get_sel_clk_offset(pNv->NVArch, nv_output->bus))
+
+#define WIPE_OTHER_CLOCKS(_sel_clk, _head, _bus) (nv_wipe_other_clocks(_sel_clk, pNv->NVArch, _head, _bus))
 
 /*
  * Calculate extended mode parameters (SVGA) and save in a 
@@ -951,17 +995,18 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
+	/* This stuff also applies to NV3x to some extend, but the rules are different. */
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
 
 		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfff << 8);
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfffff << 0);
 
 		/* There are a few possibilities:
 		 * Early NV4x cards: 0x41000 for example
 		 * Later NV4x cards: 0x40100 for example
-		 * The lower entry is the first bus, the higher entry is the second bus
+		 * See nv_get_sel_clk_offset() for the meaning of the buses.
 		 * 0: No dvi present
 		 * 1: Primary clock
 		 * 2: Unknown, similar to 4?
@@ -973,36 +1018,33 @@ void nv_crtc_calc_state_ext(
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			if (nv_crtc->head == 1) { /* secondary clock */
 				state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
-				/* Does the other output occupy the same clock? -> Switch it to primary clock */
-				if ((state->sel_clk & (0xf << SEL_CLK_OFFSET_INV)) == (0x4 << SEL_CLK_OFFSET_INV)) {
-					state->sel_clk &= ~(0xf << SEL_CLK_OFFSET_INV);
-					state->sel_clk |= (0x1 << SEL_CLK_OFFSET_INV);
-				}
 			} else { /* primary clock */
 				state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
-				/* Does the other output occupy the same clock? -> Switch it to secondary clock */
-				if ((state->sel_clk & (0xf << SEL_CLK_OFFSET_INV)) == (0x1 << SEL_CLK_OFFSET_INV)) {
-					state->sel_clk &= ~(0xf << SEL_CLK_OFFSET_INV);
-					state->sel_clk |= (0x4 << SEL_CLK_OFFSET_INV);
-				}
 			}
+			WIPE_OTHER_CLOCKS(&state->sel_clk, nv_crtc->head, nv_output->bus);
 		}
 
 		/* The hardware gets upset if for example 0x00100 is set instead of 0x40100 */
-		if ((state->sel_clk & (0xff << 8)) && !(state->sel_clk & (0xf << 16))) {
-			if ((state->sel_clk & (0xf << (12 -  4*IS_NV44P))) == (0x1 << (12 -  4*IS_NV44P))) {
-				state->sel_clk |= (0x4 << 16);
-			} else {
-				state->sel_clk |= (0x1 << 16);
+		/* Does this need further refinement? */
+		if ((state->sel_clk & (0xffff << 0)) && !(state->sel_clk & (0xf << 16))) {
+			for (i = 0; i < 4; i++) {
+				int offset = i*4;
+				/* Let's assume all incorrect clocks are cleaned up */
+				if ((state->sel_clk & (0xf << offset)) == (0x4 << offset)) {
+					state->sel_clk |= (0x1 << 16);
+					break;
+				}
+
+				if ((state->sel_clk & (0xf << offset)) == (0x1 << offset)) {
+					state->sel_clk |= (0x4 << 16);
+					break;
+				}
 			}
 		}
 
 		/* Are we crosswired? */
-		if (output && nv_crtc->head != nv_output->preferred_output && 
-			(nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+		if (output && nv_crtc->head != nv_output->preferred_output) {
 			state->crosswired = TRUE;
-		} else if (output && nv_crtc->head != nv_output->preferred_output) {
-			state->crosswired = FALSE;
 		} else {
 			state->crosswired = FALSE;
 		}

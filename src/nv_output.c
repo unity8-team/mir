@@ -1090,6 +1090,8 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 	 */
 	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
 
+	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
+
 	if (!create_output) {
 		xfree(nv_output);
 		return;
@@ -1155,6 +1157,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	 * bit2: All outputs valid
 	 */
 	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
+
+	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
 
 	if (lvds) {
 		nv_output->type = OUTPUT_LVDS;
