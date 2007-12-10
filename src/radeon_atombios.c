@@ -1443,7 +1443,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    ErrorF("record type %d\n", Record->ucRecordType);
 	    switch (Record->ucRecordType) {
 		case ATOM_I2C_RECORD_TYPE:
-		    rhdAtomParseI2CRecord(&info->atomBIOS, 
+		    rhdAtomParseI2CRecord(info->atomBIOS, 
 					  (ATOM_I2C_RECORD *)Record,
 					  &info->BiosConnector[i].ddc_line);
 		    break;
@@ -2604,7 +2604,7 @@ CailWritePLL(VOID *CAIL, ULONG Address,ULONG Data)
 void
 atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *major, int *minor)
 {
-    ATOM_MASTER_COMMAND_TABLE *cmd_table = atomBIOS->BIOSBase + atomBIOS->cmd_offset;
+    ATOM_MASTER_COMMAND_TABLE *cmd_table = (void *)(atomBIOS->BIOSBase + atomBIOS->cmd_offset);
     ATOM_MASTER_LIST_OF_COMMAND_TABLES *table_start;
     ATOM_COMMON_ROM_COMMAND_TABLE_HEADER *table_hdr;
 
@@ -2615,7 +2615,7 @@ atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *m
 
     offset  = *(((unsigned short *)table_start) + index);
 
-    table_hdr = atomBIOS->BIOSBase + offset;
+    table_hdr = (ATOM_COMMON_ROM_COMMAND_TABLE_HEADER *)(atomBIOS->BIOSBase + offset);
 
     *major = table_hdr->CommonHeader.ucTableFormatRevision;
     *minor = table_hdr->CommonHeader.ucTableContentRevision;
