@@ -248,7 +248,6 @@ static void
 nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
 	xf86CrtcPtr crtc = output->crtc;
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
@@ -261,7 +260,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
 
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_CONTROL);
+		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -274,60 +273,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 				fpcontrol &= ~0x20000022;
 				break;
 		}
-		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_CONTROL, fpcontrol);
-	}
-}
-
-/* This sequence is an optimized/shortened version of what the blob does */
-/* 0x40 and 0x43 are dual link dvi/lvds related, so don't touch them for now */
-uint32_t tmds_regs_nv40[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, /* 0x40, 0x43,*/ 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
-uint32_t tmds_regs_nv30[] = { 0x04, 0x05, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x29, 0x2a, 0x00, 0x01, 0x02, 0x2e, 0x2f, 0x3a, 0x2b };
-
-#define TMDS_REGS(index) ( tmds_regs(pNv, index) )
-
-uint32_t tmds_regs(NVPtr pNv, int i)
-{
-	if (pNv->Architecture == NV_ARCH_40) {
-		return tmds_regs_nv40[i];
-	} else {
-		return tmds_regs_nv30[i];
-	}
-}
-
-#define TMDS_SIZE ( tmds_size(pNv) )
-
-uint32_t tmds_size(NVPtr pNv)
-{
-	if (pNv->Architecture == NV_ARCH_40) {
-		return(sizeof(tmds_regs_nv40)/sizeof(tmds_regs_nv40[0]));
-	} else {
-		return(sizeof(tmds_regs_nv30)/sizeof(tmds_regs_nv30[0]));
-	}
-}
-
-/* Does anyone know the precise purpose of this second register set? */
-uint32_t tmds2_regs_nv40[] = { 0x2b };
-uint32_t tmds2_regs_nv30[] = { 0x2b };
-
-#define TMDS2_REGS(index) ( tmds2_regs(pNv, index) )
-
-uint32_t tmds2_regs(NVPtr pNv, int i)
-{
-	if (pNv->Architecture == NV_ARCH_40) {
-		return tmds2_regs_nv40[i];
-	} else {
-		return tmds2_regs_nv30[i];
-	}
-}
-
-#define TMDS2_SIZE ( tmds2_size(pNv) )
-
-uint32_t tmds2_size(NVPtr pNv)
-{
-	if (pNv->Architecture == NV_ARCH_40) {
-		return(sizeof(tmds2_regs_nv40)/sizeof(tmds2_regs_nv40[0]));
-	} else {
-		return(sizeof(tmds2_regs_nv30)/sizeof(tmds2_regs_nv30[0]));
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 

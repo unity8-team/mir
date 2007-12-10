@@ -1985,12 +1985,56 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
+
+	Bool crosswired = FALSE;
+	uint8_t possible_outputs = ffs(pNv->dcb_table.entry[dcb_entry].or);
+	uint8_t bus = pNv->dcb_table.entry[dcb_entry].bus;
+
+	uint8_t output;
+
+	/* Choose an output. */
+	switch(possible_outputs) {
+		case (OUTPUT_0 | OUTPUT_1): /* full freedom */
+			output = head;
+			break;
+		case OUTPUT_1:
+			output = 1;
+			break;
+		case OUTPUT_0:
+		default:
+			output = 0;
+			break;
+	}
+
+	/* This is based on the mmio-traces of:
+	 * A strange 6800GT.
+	 * A 6600GO with DVI.
+	 */
+	if (bus != output) {
+		crosswired = TRUE;
+	}
+
+	/* Is this also valid on earlier cards? */
+
+	/* 6800GT: */
+	/* This card has it's dvi output on bus = 1 and or = 1.
+	 * On both crtc's it gets value 0x88.
+	 * Conclusion: Output 0 and bus 1 are always crosswired.
+	 */
+
+	/* 6600GO: */
+	/* This card has dvi output on bus = 3 and or = 3.
+	 * On crtc1 it gets value 0x88.
+	 * Conclusion: Output 1 and bus 3 are crosswired.
+	 */
+
+	uint8_t preferred_output = possible_outputs >> 1;
+
 	uint8_t tmds04 = 0x80;
 	uint32_t tmds_ctrl, tmds_ctrl2;
 
-	/* Bit 3 crosswires output and crtc */
-	if (head >= 0 && head != preferred_output)
+	/* Bit 3 crosswires output and bus. */
+	if (head >= 0 && crosswired)
 		tmds04 = 0x88;
 	if (head < 0 && overrideval)
 		tmds04 = 0x88;
