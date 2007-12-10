@@ -90,7 +90,6 @@
 
 				/* X and server generic header files */
 #include "xf86.h"
-#include "xf86_ansic.h"		/* For xf86getsecs() */
 #include "xf86_OSproc.h"
 #include "xf86RAC.h"
 #include "xf86RandR12.h"
@@ -945,8 +944,8 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     unsigned xclk, tmp, ref_div;
     int hTotal, vTotal, num, denom, m, n;
     float hz, prev_xtal, vclk, xtal, mpll, spll;
-    long start_secs, start_usecs, stop_secs, stop_usecs, total_usecs;
-    long to1_secs, to1_usecs, to2_secs, to2_usecs;
+    long total_usecs;
+    struct timeval start, stop, to1, to2;
     unsigned int f1, f2, f3;
     int tries = 0;
 
@@ -956,32 +955,32 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     if (++tries > 10)
            goto failed;
 
-    xf86getsecs(&to1_secs, &to1_usecs);
+    gettimeofday(&to1, NULL);
     f1 = INREG(RADEON_CRTC_CRNT_FRAME);
     for (;;) {
        f2 = INREG(RADEON_CRTC_CRNT_FRAME);
        if (f1 != f2)
 	    break;
-       xf86getsecs(&to2_secs, &to2_usecs);
-       if ((to2_secs - to1_secs) > 1) {
+       gettimeofday(&to2, NULL);
+       if ((to2.tv_sec - to1.tv_sec) > 1) {
            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Clock not counting...\n");
            goto failed;
        }
     }
-    xf86getsecs(&start_secs, &start_usecs);
+    gettimeofday(&start, NULL);
     for(;;) {
        f3 = INREG(RADEON_CRTC_CRNT_FRAME);
        if (f3 != f2)
 	    break;
-       xf86getsecs(&to2_secs, &to2_usecs);
-       if ((to2_secs - start_secs) > 1)
+       gettimeofday(&to2, NULL);
+       if ((to2.tv_sec - start.tv_sec) > 1)
            goto failed;
     }
-    xf86getsecs(&stop_secs, &stop_usecs);
+    gettimeofday(&stop, NULL);
 
-    if ((stop_secs - start_secs) != 0)
+    if ((stop.tv_sec - start.tv_sec) != 0)
            goto again;
-    total_usecs = abs(stop_usecs - start_usecs);
+    total_usecs = abs(stop.tv_usec - start.tv_usec);
     if (total_usecs == 0)
            goto again;
     hz = 1000000.0/(float)total_usecs;
@@ -1205,7 +1204,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     }
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,
-		"PLL parameters: rf=%d rd=%d min=%d max=%d; xclk=%d\n",
+		"PLL parameters: rf=%u rd=%u min=%u max=%u; xclk=%u\n",
 		pll->reference_freq,
 		pll->reference_div,
 		(unsigned)pll->min_pll_freq, (unsigned)pll->max_pll_freq,
