@@ -2010,22 +2010,27 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	 * A strange 6800GT.
 	 * A 6600GO with DVI.
 	 */
-	if (bus != output) {
-		crosswired = TRUE;
+	/* I need more dumps to get a good picture of the situation */
+	if (bus > 2) { /* usually mobile cards with dvi */
+		if (head == 1)
+			crosswired = TRUE;
+	} else {
+		if (head != output)
+			crosswired = TRUE;
 	}
 
 	/* Is this also valid on earlier cards? */
 
 	/* 6800GT: */
 	/* This card has it's dvi output on bus = 1 and or = 1.
-	 * On both crtc's it gets value 0x88.
-	 * Conclusion: Output 0 and bus 1 are always crosswired.
+	 * I was wrong, it gets 0x80 on crtc0 (i guess) and 0x88 on crtc1.
+	 * Conclusion: It behaves according to "or", despite earlier ideas.
 	 */
 
 	/* 6600GO: */
 	/* This card has dvi output on bus = 3 and or = 3.
 	 * On crtc1 it gets value 0x88.
-	 * Conclusion: Output 1 and bus 3 are crosswired.
+	 * Conclusion: It behaves as if it were on output 0?
 	 */
 
 	uint8_t preferred_output = possible_outputs >> 1;
