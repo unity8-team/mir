@@ -71,7 +71,7 @@ XORG_DRIVER_CHECK_EXT(XF86MISC, xf86miscproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
@@ -111,6 +111,26 @@ if test "$DRI" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
 fi
+
+CFLAGS="$XORG_CFLAGS"
+AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+CFLAGS="$save_CFLAGS"
+
+AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
+if test "x$XMODES" = xyes; then
+        AC_MSG_NOTICE([X server has new mode code])
+        AC_DEFINE(XMODES, 1,[X server has built-in mode code])
+        XMODES_CFLAGS=
+else
+        if test -f src/modes/xf86Modes.h -a -f src/parser/xf86Parser.h; then
+                AC_MSG_NOTICE([X server is missing new mode code, using local copy])
+        else
+                AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+        fi
+        XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
+fi
+
+AC_SUBST([XMODES_CFLAGS])
 
 # Note that this is sort of inverted from drivers/ati/Imakefile in
 # the monolith.  We test for foo, not for !foo (i.e. ATMISC_CPIO, not

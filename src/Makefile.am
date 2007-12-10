@@ -47,6 +47,22 @@ RADEON_ATOMBIOS_SOURCES = \
         AtomBios/includes/ObjectID.h \
         AtomBios/includes/regsdef.h
 
+XMODE_SRCS=\
+        local_xf86Rename.h \
+	parser/xf86Parser.h \
+        parser/xf86Optrec.h \
+        modes/xf86Modes.h \
+        modes/xf86Modes.c \
+        modes/xf86cvt.c \
+        modes/xf86Crtc.h \
+        modes/xf86Crtc.c \
+        modes/xf86Cursors.c \
+        modes/xf86EdidModes.c \
+        modes/xf86RandR12.c \
+        modes/xf86RandR12.h \
+        modes/xf86Rename.h \
+        modes/xf86Rotate.c \
+        modes/xf86DiDGA.c
 
 if ATIMISC_CPIO
 ATIMISC_CPIO_SOURCES = ativga.c ativgaio.c atibank.c atiwonder.c atiwonderio.c
@@ -61,7 +77,7 @@ ATIMISC_EXA_SOURCES = atimach64exa.c
 RADEON_EXA_SOURCES = radeon_exa.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER
 INCLUDES = -I$(srcdir)/AtomBios/includes
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
@@ -105,6 +121,11 @@ radeon_drv_la_SOURCES = \
 	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
 
+if XMODES
+radeon_drv_la_SOURCES += \
+	$(XMODE_SRCS)
+endif
+
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
 theatre_detect_drv_ladir = @moduledir@/multimedia
@@ -127,6 +148,7 @@ theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
 EXTRA_DIST = \
+	$(XMODE_SRCS) \
 	atimach64render.c \
 	radeon_render.c \
 	radeon_accelfuncs.c \
