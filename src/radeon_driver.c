@@ -2549,11 +2549,11 @@ static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
     int i;
 
     if (info->IsPrimary) {
+	xf86OutputDestroy(config->output[0]);
 	while(config->num_output > 1) {
 	    xf86OutputDestroy(config->output[1]);
 	}
     } else {
-	xf86OutputDestroy(config->output[0]);
 	while(config->num_output > 1) {
 	    xf86OutputDestroy(config->output[1]);
 	}
@@ -2597,6 +2597,10 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
       
       output->status = (*output->funcs->detect) (output);
       ErrorF("finished output detect: %d\n", i);
+      if (info->IsPrimary || info->IsSecondary) {
+             if (output->status != XF86OutputStatusConnected)
+	         return FALSE;
+      }
     }
     ErrorF("finished all detect\n");
     return TRUE;
