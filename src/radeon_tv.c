@@ -540,7 +540,7 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->dac_cntl &= ~RADEON_DAC_TVO_EN;
 
     if (IS_R300_VARIANT)
-        save->gpiopad_a = info->SavedReg.gpiopad_a & ~1;
+        save->gpiopad_a = info->SavedReg->gpiopad_a & ~1;
 
     if (IsPrimary) {
 	save->disp_output_cntl &= ~RADEON_DISP_TVDAC_SOURCE_MASK;
@@ -571,7 +571,7 @@ void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     Bool reloadTable;
-    RADEONSavePtr restore = &info->ModeReg;
+    RADEONSavePtr restore = info->ModeReg;
 
     reloadTable = RADEONInitTVRestarts(output, restore, mode);
 

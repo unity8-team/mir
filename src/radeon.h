@@ -200,271 +200,6 @@ typedef struct {
     CARD16 rr4_offset;
 } RADEONBIOSInitTable;
 
-struct avivo_pll_state {
-    CARD32 ref_div_src;
-    CARD32 ref_div;
-    CARD32 fb_div;
-    CARD32 post_div_src;
-    CARD32 post_div;
-    CARD32 ext_ppll_cntl;
-    CARD32 pll_cntl;
-    CARD32 int_ss_cntl;
-};
-
-struct avivo_crtc_state {
-    CARD32 pll_source;
-    CARD32 h_total;
-    CARD32 h_blank_start_end;
-    CARD32 h_sync_a;
-    CARD32 h_sync_a_cntl;
-    CARD32 h_sync_b;
-    CARD32 h_sync_b_cntl;
-    CARD32 v_total;
-    CARD32 v_blank_start_end;
-    CARD32 v_sync_a;
-    CARD32 v_sync_a_cntl;
-    CARD32 v_sync_b;
-    CARD32 v_sync_b_cntl;
-    CARD32 control;
-    CARD32 blank_control;
-    CARD32 interlace_control;
-    CARD32 stereo_control;
-    CARD32 cursor_control;
-};
-
-struct avivo_grph_state {
-    CARD32 enable;
-    CARD32 control;
-    CARD32 prim_surf_addr;
-    CARD32 sec_surf_addr;
-    CARD32 pitch;
-    CARD32 x_offset;
-    CARD32 y_offset;
-    CARD32 x_start;
-    CARD32 y_start;
-    CARD32 x_end;
-    CARD32 y_end;
-
-    CARD32 viewport_start;
-    CARD32 viewport_size;
-    CARD32 scl_enable;
-};
-
-struct avivo_dac_state {
-    CARD32 enable;
-    CARD32 source_select;
-    CARD32 force_output_cntl;
-    CARD32 powerdown;
-};
-
-struct avivo_dig_state {
-    CARD32 cntl;
-    CARD32 bit_depth_cntl;
-    CARD32 data_sync;
-    CARD32 transmitter_enable;
-    CARD32 transmitter_cntl;
-    CARD32 source_select;
-};
-
-struct avivo_state
-{
-    CARD32 hdp_fb_location;
-    CARD32 mc_memory_map;
-    CARD32 vga_memory_base;
-    CARD32 vga_fb_start;
-
-    CARD32 vga1_cntl;
-    CARD32 vga2_cntl;
-
-    CARD32 crtc_master_en;
-    CARD32 crtc_tv_control;
-
-    CARD32 lvtma_pwrseq_cntl;
-    CARD32 lvtma_pwrseq_state;
-
-    struct avivo_pll_state pll1;
-    struct avivo_pll_state pll2;
-
-    struct avivo_crtc_state crtc1;
-    struct avivo_crtc_state crtc2;
-
-    struct avivo_grph_state grph1;
-    struct avivo_grph_state grph2;
-
-    struct avivo_dac_state daca;
-    struct avivo_dac_state dacb;
-
-    struct avivo_dig_state tmds1;
-    struct avivo_dig_state tmds2;
-
-};
-
-typedef struct {
-    struct avivo_state avivo;
-				/* Common registers */
-    CARD32            ovr_clr;
-    CARD32            ovr_wid_left_right;
-    CARD32            ovr_wid_top_bottom;
-    CARD32            ov0_scale_cntl;
-    CARD32            mpp_tb_config;
-    CARD32            mpp_gp_config;
-    CARD32            subpic_cntl;
-    CARD32            viph_control;
-    CARD32            i2c_cntl_1;
-    CARD32            gen_int_cntl;
-    CARD32            cap0_trig_cntl;
-    CARD32            cap1_trig_cntl;
-    CARD32            bus_cntl;
-    CARD32            bios_4_scratch;
-    CARD32            bios_5_scratch;
-    CARD32            bios_6_scratch;
-    CARD32            surface_cntl;
-    CARD32            surfaces[8][3];
-    CARD32            mc_agp_location;
-    CARD32            mc_agp_location_hi;
-    CARD32            mc_fb_location;
-    CARD32            display_base_addr;
-    CARD32            display2_base_addr;
-    CARD32            ov0_base_addr;
-
-				/* Other registers to save for VT switches */
-    CARD32            dp_datatype;
-    CARD32            rbbm_soft_reset;
-    CARD32            clock_cntl_index;
-    CARD32            amcgpio_en_reg;
-    CARD32            amcgpio_mask;
-
-				/* CRTC registers */
-    CARD32            crtc_gen_cntl;
-    CARD32            crtc_ext_cntl;
-    CARD32            dac_cntl;
-    CARD32            crtc_h_total_disp;
-    CARD32            crtc_h_sync_strt_wid;
-    CARD32            crtc_v_total_disp;
-    CARD32            crtc_v_sync_strt_wid;
-    CARD32            crtc_offset;
-    CARD32            crtc_offset_cntl;
-    CARD32            crtc_pitch;
-    CARD32            disp_merge_cntl;
-    CARD32            grph_buffer_cntl;
-    CARD32            crtc_more_cntl;
-    CARD32            crtc_tile_x0_y0;
-
-				/* CRTC2 registers */
-    CARD32            crtc2_gen_cntl;
-    CARD32            dac_macro_cntl;
-    CARD32            dac2_cntl;
-    CARD32            disp_output_cntl;
-    CARD32            disp_tv_out_cntl;
-    CARD32            disp_hw_debug;
-    CARD32            disp2_merge_cntl;
-    CARD32            grph2_buffer_cntl;
-    CARD32            crtc2_h_total_disp;
-    CARD32            crtc2_h_sync_strt_wid;
-    CARD32            crtc2_v_total_disp;
-    CARD32            crtc2_v_sync_strt_wid;
-    CARD32            crtc2_offset;
-    CARD32            crtc2_offset_cntl;
-    CARD32            crtc2_pitch;
-    CARD32            crtc2_tile_x0_y0;
-
-				/* Flat panel registers */
-    CARD32            fp_crtc_h_total_disp;
-    CARD32            fp_crtc_v_total_disp;
-    CARD32            fp_gen_cntl;
-    CARD32            fp2_gen_cntl;
-    CARD32            fp_h_sync_strt_wid;
-    CARD32            fp_h2_sync_strt_wid;
-    CARD32            fp_horz_stretch;
-    CARD32            fp_panel_cntl;
-    CARD32            fp_v_sync_strt_wid;
-    CARD32            fp_v2_sync_strt_wid;
-    CARD32            fp_vert_stretch;
-    CARD32            lvds_gen_cntl;
-    CARD32            lvds_pll_cntl;
-    CARD32            tmds_pll_cntl;
-    CARD32            tmds_transmitter_cntl;
-
-				/* Computed values for PLL */
-    CARD32            dot_clock_freq;
-    CARD32            pll_output_freq;
-    int               feedback_div;
-    int               post_div;
-
-				/* PLL registers */
-    unsigned          ppll_ref_div;
-    unsigned          ppll_div_3;
-    CARD32            htotal_cntl;
-    CARD32            vclk_ecp_cntl;
-
-				/* Computed values for PLL2 */
-    CARD32            dot_clock_freq_2;
-    CARD32            pll_output_freq_2;
-    int               feedback_div_2;
-    int               post_div_2;
-
-				/* PLL2 registers */
-    CARD32            p2pll_ref_div;
-    CARD32            p2pll_div_0;
-    CARD32            htotal_cntl2;
-    CARD32            pixclks_cntl;
-
-				/* Pallet */
-    Bool              palette_valid;
-    CARD32            palette[256];
-    CARD32            palette2[256];
-
-    CARD32            rs480_unk_e30;
-    CARD32            rs480_unk_e34;
-    CARD32            rs480_unk_e38;
-    CARD32            rs480_unk_e3c;
-
-    /* TV out registers */
-    CARD32 	      tv_master_cntl;
-    CARD32 	      tv_htotal;
-    CARD32 	      tv_hsize;
-    CARD32 	      tv_hdisp;
-    CARD32 	      tv_hstart;
-    CARD32 	      tv_vtotal;
-    CARD32 	      tv_vdisp;
-    CARD32 	      tv_timing_cntl;
-    CARD32 	      tv_vscaler_cntl1;
-    CARD32 	      tv_vscaler_cntl2;
-    CARD32 	      tv_sync_size;
-    CARD32 	      tv_vrestart;
-    CARD32 	      tv_hrestart;
-    CARD32 	      tv_frestart;
-    CARD32 	      tv_ftotal;
-    CARD32 	      tv_clock_sel_cntl;
-    CARD32 	      tv_clkout_cntl;
-    CARD32 	      tv_data_delay_a;
-    CARD32 	      tv_data_delay_b;
-    CARD32 	      tv_dac_cntl;
-    CARD32 	      tv_pll_cntl;
-    CARD32 	      tv_pll_cntl1;
-    CARD32	      tv_pll_fine_cntl;
-    CARD32 	      tv_modulator_cntl1;
-    CARD32 	      tv_modulator_cntl2;
-    CARD32 	      tv_frame_lock_cntl;
-    CARD32 	      tv_pre_dac_mux_cntl;
-    CARD32 	      tv_rgb_cntl;
-    CARD32 	      tv_y_saw_tooth_cntl;
-    CARD32 	      tv_y_rise_cntl;
-    CARD32 	      tv_y_fall_cntl;
-    CARD32 	      tv_uv_adr;
-    CARD32	      tv_upsamp_and_gain_cntl;
-    CARD32	      tv_gain_limit_settings;
-    CARD32	      tv_linear_gain_settings;
-    CARD32	      tv_crc_cntl;
-    CARD32            tv_sync_cntl;
-    CARD32	      gpiopad_a;
-    CARD32            pll_test_cntl;
-
-    CARD16	      h_code_timing[MAX_H_CODE_TIMING_LEN];
-    CARD16	      v_code_timing[MAX_V_CODE_TIMING_LEN];
-
-} RADEONSaveRec, *RADEONSavePtr;
-
 typedef struct {
     CARD16            reference_freq;
     CARD16            reference_div;
@@ -640,8 +375,8 @@ typedef struct {
     Bool	      IsDDR;
     int               DispPriority;
 
-    RADEONSaveRec     SavedReg;         /* Original (text) mode              */
-    RADEONSaveRec     ModeReg;          /* Current mode                      */
+    RADEONSavePtr     SavedReg;         /* Original (text) mode              */
+    RADEONSavePtr     ModeReg;          /* Current mode                      */
     Bool              (*CloseScreen)(int, ScreenPtr);
 
     void              (*BlockHandler)(int, pointer, pointer, pointer);
@@ -965,6 +700,10 @@ typedef struct {
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
+
+
+    Bool              IsSecondary;
+    Bool              IsPrimary;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -1088,7 +827,7 @@ extern void        RADEONBlank(ScrnInfoPtr pScrn);
 extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
 						   int PowerManagementMode,
 						   int flags);
-extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn);
+extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
 extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
 extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,

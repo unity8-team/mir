@@ -239,7 +239,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     void *ptr;
     AtomBiosArgRec data;
     unsigned char *space;    
-    RADEONSavePtr save = &info->ModeReg;
+    RADEONSavePtr save = info->ModeReg;
     
     if (IS_AVIVO_VARIANT) {
         CARD32 temp;
@@ -361,8 +361,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
 
-    RADEONInitMemMapRegisters(pScrn, &info->ModeReg, info);
-    RADEONRestoreMemMapRegisters(pScrn, &info->ModeReg);
+    RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
+    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     if (IS_AVIVO_VARIANT) {
 	radeon_crtc->fb_width = adjusted_mode->CrtcHDisplay;
