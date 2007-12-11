@@ -1063,6 +1063,15 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
                                info->RamWidth / 16);
     }
 
+    /* card limits for computing PLLs */
+    pll->min_ref_div = 2;
+    pll->max_ref_div = 0x3ff;
+    pll->min_feedback_div = 4;
+    pll->max_feedback_div = 0x7ff;
+    pll->pll_in_min = 40;
+    pll->pll_in_max = 100;
+    pll->best_vco = 0;
+
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,
 		"PLL parameters: rf=%u rd=%u min=%u max=%u; xclk=%u\n",
 		pll->reference_freq,

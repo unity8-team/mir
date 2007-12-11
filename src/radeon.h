@@ -288,6 +288,7 @@ typedef struct {
     CARD32            dot_clock_freq;
     CARD32            pll_output_freq;
     int               feedback_div;
+    int               reference_div;
     int               post_div;
 
 				/* PLL registers */
@@ -300,6 +301,7 @@ typedef struct {
     CARD32            dot_clock_freq_2;
     CARD32            pll_output_freq_2;
     int               feedback_div_2;
+    int               reference_div_2;
     int               post_div_2;
 
 				/* PLL2 registers */
@@ -370,6 +372,14 @@ typedef struct {
     CARD32            min_pll_freq;
     CARD32            max_pll_freq;
     CARD16            xclk;
+
+    CARD32            min_ref_div;
+    CARD32            max_ref_div;
+    CARD32            min_feedback_div;
+    CARD32            max_feedback_div;
+    CARD32            pll_in_min;
+    CARD32            pll_in_max;
+    CARD32            best_vco;
 } RADEONPLLRec, *RADEONPLLPtr;
 
 typedef struct {
