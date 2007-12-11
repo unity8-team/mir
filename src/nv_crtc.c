@@ -815,6 +815,7 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 }
 
 /* It is unknown if the bus has a similar meaning on pre-NV40 hardware. */
+/* This code is currently used and pending removal should it turn out not be needed.*/
 
 static uint8_t
 nv_get_sel_clk_offset(uint8_t NVArch, uint8_t bus)
@@ -996,48 +997,29 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	/* This stuff also applies to NV3x to some extend, but the rules are different. */
+	/* This stuff also applies to NV3x to some extend, but the rules may be different. */
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
 
 		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xfffff << 0);
+			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
-		/* There are a few possibilities:
-		 * Early NV4x cards: 0x41000 for example
-		 * Later NV4x cards: 0x40100 for example
-		 * See nv_get_sel_clk_offset() for the meaning of the buses.
-		 * This is only valid for the first two outputs.
-		 * 0: No dvi present on bus
-		 * 1: crtc != preferred_output
-		 * 2: Unknown, similar to 4?
-		 * 4: crtc == preferred_output
+		/* Note: Lower bits also exist, but trying to mess with those is a bad idea.
+		 * The blob doesn't do it, so it's probably not needed.
+		 * I hope this solves the previous mess.
 		 */
 
-		/* This won't work when tv-out's come into play */
-		state->sel_clk &= ~(0xf << SEL_CLK_OFFSET);
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			if (nv_output->bus < 2) { /* these are the normal outputs */
-				if (nv_crtc->head == nv_output->preferred_output) {
-					state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
-				} else {
-					state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
-				}
-			} else { /* dvi on mobile cards */
-				if (nv_crtc->head == 0) {
-					state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
-				} else {
-					state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
-				}
+			/* Only wipe when are a relevant (digital) output. */
+			state->sel_clk &= ~(0xf << 16);
+			Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+			/* Even with two dvi, this should not conflict. */
+			if (crossed_clocks) {
+				state->sel_clk |= (0x1 << 16);
+			} else {
+				state->sel_clk |= (0x4 << 16);
 			}
-		}
-
-		/* The hardware gets upset if for example 0x00100 is set instead of 0x40100 */
-		/* Does this need further refinement? */
-		/* Let's hope this is enough */
-		if ((state->sel_clk & (0xffff << 0)) && !(state->sel_clk & (0xf << 16))) {
-			state->sel_clk |= (0x4 << 16);
 		}
 
 		/* Are we crosswired? */
