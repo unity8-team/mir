@@ -290,6 +290,8 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    MonType = MT_LCD;
 	else if (radeon_output->type == OUTPUT_DVI_D)
 	    MonType = MT_DFP;
+	else if (radeon_output->type == OUTPUT_HDMI)
+	    MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_DVI_I && (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
 	    MonType = MT_DFP;
 	else
@@ -387,6 +389,8 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	if (radeon_output->type == OUTPUT_LVDS)
 	    MonType = MT_LCD;
 	else if (radeon_output->type == OUTPUT_DVI_D)
+	    MonType = MT_DFP;
+	else if (radeon_output->type == OUTPUT_HDMI)
 	    MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_DVI_I && (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
 	    MonType = MT_DFP;
@@ -655,11 +659,18 @@ legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONMonitorType found = MT_NONE;
 
     if (OUTPUT_IS_TV) {
-	if (info->InternalTVOut) {
-	    if (radeon_output->load_detection)
-		found = radeon_detect_tv(pScrn);
+	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
+	    if (radeon_output->type == OUTPUT_STV)
+		radeon_output->MonType = MT_STV;
 	    else
-		found = MT_NONE;
+		radeon_output->MonType = MT_CTV;
+	} else {
+	    if (info->InternalTVOut) {
+		if (radeon_output->load_detection)
+		    radeon_output->MonType = radeon_detect_tv(pScrn);
+		else
+		    radeon_output->MonType = MT_NONE;
+	    }
 	}
     } else {
 	if (radeon_output->DACType == DAC_PRIMARY) {
@@ -693,24 +704,16 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    if (!radeon_output->MonType) {
 		if (radeon_output->type == OUTPUT_LVDS)
 		    radeon_output->MonType = MT_LCD;
-		else if (OUTPUT_IS_TV)
-		    radeon_output->MonType = MT_NONE;
-		else
-		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
-	}
-    } else if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
-            if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
-		if (radeon_output->type == OUTPUT_STV)
-		    radeon_output->MonType = MT_STV;
-		else
-		    radeon_output->MonType = MT_CTV;
-	    } else {
-		if (info->InternalTVOut) {
-		    if (radeon_output->load_detection)
-			radeon_output->MonType = radeon_detect_tv(pScrn);
-		    else
+		else if (OUTPUT_IS_TV) {
+		    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
+			if (radeon_output->type == OUTPUT_STV)
+			    radeon_output->MonType = MT_STV;
+			else
+			    radeon_output->MonType = MT_CTV;
+		    } else
 			radeon_output->MonType = MT_NONE;
-		}
+		} else
+		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
 	    }
 	} else {
 	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
@@ -1735,11 +1738,11 @@ radeon_detect(xf86OutputPtr output)
             radeon_output->MonType = MT_CV;
 	else if (radeon_output->type == OUTPUT_DVI_D)
 	    radeon_output->MonType = MT_DFP;
+	else if (radeon_output->type == OUTPUT_HDMI)
+	    radeon_output->MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_DVI_A)
 	    radeon_output->MonType = MT_CRT;
 	else if (radeon_output->type == OUTPUT_DVI_I) {
-	    if (radeon_output->MonType == MT_NONE)
-		connected = FALSE;
 	    if (radeon_output->DVIType == DVI_ANALOG)
 		radeon_output->MonType = MT_CRT;
 	    else if (radeon_output->DVIType == DVI_DIGITAL)
@@ -2296,6 +2299,9 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
 	output = OUTPUT_CTV; break;
     case CONNECTOR_LVDS:
 	output = OUTPUT_LVDS; break;
+    case CONNECTOR_HDMI_TYPE_A:
+    case CONNECTOR_HDMI_TYPE_B:
+	output = OUTPUT_HDMI; break;
     case CONNECTOR_DIGITAL:
     case CONNECTOR_NONE:
     case CONNECTOR_UNSUPPORTED:
@@ -3236,6 +3242,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     int i = 0;
     int num_vga = 0;
     int num_dvi = 0;
+    int num_hdmi = 0;
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
@@ -3342,6 +3349,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		num_dvi++;
 	    } else if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA) {
 		num_vga++;
+	    } else if ((info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+		       (info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+		num_hdmi++;
 	    }
 	}
     }
@@ -3384,6 +3394,14 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    num_vga--;
 		} else {
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
+		}
+	    } else if ((info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+		(info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+		if (num_hdmi > 1) {
+		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "HDMI-1");
+		    num_hdmi--;
+		} else {
+		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "HDMI-0");
 		}
 	    } else
 		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);

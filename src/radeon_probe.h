@@ -63,7 +63,7 @@ typedef enum
     MT_CTV     = 4,
     MT_STV     = 5,
     MT_CV      = 6,
-    MT_HDMI    = 7,
+    MT_HDMI    = 7, // this should really just be MT_DFP
     MT_DP      = 8
 } RADEONMonitorType;
 
