@@ -827,8 +827,8 @@ nv_get_sel_clk_offset(uint8_t NVArch, uint8_t bus)
 			}
 		case 1:
 			return 16;
-		/* bus 2 is often the tv-out */
-		case 3:
+		case 2: /* bus 2 or 3 are either dvi on mobile or tv-out */
+		case 3: /* don't use this for tv-out */
 			return 4;
 		default:
 			ErrorF("Unknown bus, bad things may happen\n");
@@ -1007,39 +1007,36 @@ void nv_crtc_calc_state_ext(
 		 * Early NV4x cards: 0x41000 for example
 		 * Later NV4x cards: 0x40100 for example
 		 * See nv_get_sel_clk_offset() for the meaning of the buses.
-		 * 0: No dvi present
-		 * 1: Primary clock
+		 * This is only valid for the first two outputs.
+		 * 0: No dvi present on bus
+		 * 1: crtc != preferred_output
 		 * 2: Unknown, similar to 4?
-		 * 4: Secondary clock
+		 * 4: crtc == preferred_output
 		 */
 
 		/* This won't work when tv-out's come into play */
 		state->sel_clk &= ~(0xf << SEL_CLK_OFFSET);
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			if (nv_crtc->head == 1) { /* secondary clock */
-				state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
-			} else { /* primary clock */
-				state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
+			if (nv_output->bus < 2) { /* these are the normal outputs */
+				if (nv_crtc->head == nv_output->preferred_output) {
+					state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
+				} else {
+					state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
+				}
+			} else { /* dvi on mobile cards */
+				if (nv_crtc->head == 0) {
+					state->sel_clk |= (0x4 << SEL_CLK_OFFSET);
+				} else {
+					state->sel_clk |= (0x1 << SEL_CLK_OFFSET);
+				}
 			}
-			WIPE_OTHER_CLOCKS(&state->sel_clk, nv_crtc->head, nv_output->bus);
 		}
 
 		/* The hardware gets upset if for example 0x00100 is set instead of 0x40100 */
 		/* Does this need further refinement? */
+		/* Let's hope this is enough */
 		if ((state->sel_clk & (0xffff << 0)) && !(state->sel_clk & (0xf << 16))) {
-			for (i = 0; i < 4; i++) {
-				int offset = i*4;
-				/* Let's assume all incorrect clocks are cleaned up */
-				if ((state->sel_clk & (0xf << offset)) == (0x4 << offset)) {
-					state->sel_clk |= (0x1 << 16);
-					break;
-				}
-
-				if ((state->sel_clk & (0xf << offset)) == (0x1 << offset)) {
-					state->sel_clk |= (0x4 << 16);
-					break;
-				}
-			}
+			state->sel_clk |= (0x4 << 16);
 		}
 
 		/* Are we crosswired? */

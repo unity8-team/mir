@@ -1992,11 +1992,9 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 
 	uint8_t output;
 
-	/* Choose an output. */
+	/* We need to check if crosswiring is needed. */
 	switch(possible_outputs) {
-		case (OUTPUT_0 | OUTPUT_1): /* full freedom */
-			output = head;
-			break;
+		case (OUTPUT_0 | OUTPUT_1):
 		case OUTPUT_1:
 			output = 1;
 			break;
@@ -2011,7 +2009,7 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	 * A 6600GO with DVI.
 	 */
 	/* I need more dumps to get a good picture of the situation */
-	if (bus > 2) { /* usually mobile cards with dvi */
+	if (bus > 1) { /* usually mobile cards with dvi */
 		if (head == 1)
 			crosswired = TRUE;
 	} else {
