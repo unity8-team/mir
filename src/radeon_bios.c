@@ -618,15 +618,6 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    info->sclk = RADEON_BIOS32(pll_info_block + 8) / 100.0;
 	    info->mclk = RADEON_BIOS32(pll_info_block + 12) / 100.0;
-	    if (info->sclk == 0) info->sclk = 200;
-	    if (info->mclk == 0) info->mclk = 200;
-		
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
-		       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
-		       pll->reference_freq, (unsigned)pll->min_pll_freq,
-		       (unsigned)pll->max_pll_freq, pll->xclk, info->sclk,
-		       info->mclk);
-
 	} else {
 	    pll_info_block = RADEON_BIOS16 (info->ROMHeaderStart + 0x30);
 
@@ -639,7 +630,16 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->sclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
 	    info->mclk = RADEON_BIOS16(pll_info_block + 10) / 100.0;
 	}
+
+	if (info->sclk == 0) info->sclk = 200;
+	if (info->mclk == 0) info->mclk = 200;
     }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
+	       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
+	       pll->reference_freq, (unsigned)pll->min_pll_freq,
+	       (unsigned)pll->max_pll_freq, pll->xclk, info->sclk,
+	       info->mclk);
 
     return TRUE;
 }

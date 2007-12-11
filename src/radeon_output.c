@@ -861,7 +861,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     /* update timing for LVDS and DFP if RMX is active */
-    if ((radeon_output->MonType == MT_LCD) || (radeon_output->Flags & RADEON_USE_RMX)) {
+    if (radeon_output->Flags & RADEON_USE_RMX) {
 	/* set to the panel's native mode */
 	adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
 	adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;

@@ -435,6 +435,7 @@ typedef struct {
     CARD32            dot_clock_freq;
     CARD32            pll_output_freq;
     int               feedback_div;
+    int               reference_div;
     int               post_div;
 
 				/* PLL registers */
@@ -447,6 +448,7 @@ typedef struct {
     CARD32            dot_clock_freq_2;
     CARD32            pll_output_freq_2;
     int               feedback_div_2;
+    int               reference_div_2;
     int               post_div_2;
 
 				/* PLL2 registers */
