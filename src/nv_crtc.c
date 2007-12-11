@@ -500,7 +500,7 @@ static void CalcVClock2Stage (
 	}
 }
 
-/* BIG NOTE: modifying vpll1 and vpll2vpll2 does not work, what bit is the switch to allow it? */
+/* BIG NOTE: modifying vpll1 and vpll2 does not work, what bit is the switch to allow it? */
 
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
@@ -552,8 +552,9 @@ CalculateVClkNV4x(
 
 	DeltaOld = 0xFFFFFFFF;
 
-	/* This is no solid limit, but a reasonable boundary */
-	if (requested_clock < 120000) {
+	/* This is no solid limit, but a reasonable boundary. */
+	/* NV40 is a strange card, let's stay on the safe side .*/
+	if (requested_clock < 120000 && pNv->NVArch > 0x40) {
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Neutral settings */
@@ -1067,7 +1068,8 @@ void nv_crtc_calc_state_ext(
 		}
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
-		if (pNv->Architecture < NV_ARCH_40)
+		/* The NV40 seems to have more similarities to NV3x than other cards. */
+		if (pNv->NVArch < 0x41)
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
 		else
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
@@ -1583,11 +1585,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = 0;
 
 	/* What is the purpose of this register? */
-	if (nv_crtc->head == 1) {
-		regp->CRTC[NV_VGA_CRTCX_26] = 0x14;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
-	}
+	/* 0x14 may be disabled? */
+	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
 
 	/* 0x00 is disabled, 0x22 crt and 0x88 dfp */
 	/* 0x11 is LVDS? */
