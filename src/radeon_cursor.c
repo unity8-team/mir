@@ -166,9 +166,9 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 					   | ((xorigin ? 0 : x) << 16)
 					   | (yorigin ? 0 : y)));
 	RADEONCTRACE(("cursor_offset: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
-			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+			radeon_crtc->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
 	OUTREG(RADEON_CUR_OFFSET,
-		info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+		radeon_crtc->cursor_offset + pScrn->fbOffset + yorigin * stride);
     } else if (crtc_id == 1) {
 	OUTREG(RADEON_CUR2_HORZ_VERT_OFF,  (RADEON_CUR2_LOCK
 					    | (xorigin << 16)
@@ -177,9 +177,9 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 					   | ((xorigin ? 0 : x) << 16)
 					   | (yorigin ? 0 : y)));
 	RADEONCTRACE(("cursor_offset2: 0x%x, yorigin: %d, stride: %d, temp %08X\n",
-			info->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
+			radeon_crtc->cursor_offset + pScrn->fbOffset, yorigin, stride, temp));
 	OUTREG(RADEON_CUR2_OFFSET,
-		info->cursor_offset + pScrn->fbOffset + yorigin * stride);
+		radeon_crtc->cursor_offset + pScrn->fbOffset + yorigin * stride);
     }
 
 }
@@ -188,8 +188,9 @@ void
 radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
+    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset + pScrn->fbOffset);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
 
@@ -229,9 +230,10 @@ void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + info->cursor_offset + pScrn->fbOffset);
+    CARD32        *d          = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset + pScrn->fbOffset);
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
 
@@ -252,16 +254,18 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr        pScrn   = xf86Screens[pScreen->myNum];
     RADEONInfoPtr      info    = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int                width;
     int		       width_bytes;
     int                height;
     int                size_bytes;
-
+    CARD32             cursor_offset = 0;
+    int                c;
 
     size_bytes                = CURSOR_WIDTH * 4 * CURSOR_HEIGHT;
     width                     = pScrn->displayWidth;
     width_bytes		      = width * (pScrn->bitsPerPixel / 8);
-    height                    = (size_bytes + width_bytes - 1) / width_bytes;
+    height                    = ((size_bytes * xf86_config->num_crtc) + width_bytes - 1) / width_bytes;
 
 #ifdef USE_XAA
     if (!info->useEXA) {
@@ -271,19 +275,30 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 					   256, NULL, NULL, NULL);
 
 	if (!fbarea) {
-	    info->cursor_offset    = 0;
+	    cursor_offset    = 0;
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Hardware cursor disabled"
 		   " due to insufficient offscreen memory\n");
+	    return FALSE;
 	} else {
-	    info->cursor_offset  = RADEON_ALIGN((fbarea->box.x1 +
-						fbarea->box.y1 * width) *
-						info->CurrentLayout.pixel_bytes,
-						256);
-	    info->cursor_end = info->cursor_offset + size_bytes;
+	    cursor_offset  = RADEON_ALIGN((fbarea->box.x1 +
+					   fbarea->box.y1 * width) *
+					  info->CurrentLayout.pixel_bytes,
+					  256);
+
+	    for (c = 0; c < xf86_config->num_crtc; c++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[c];
+		RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+		radeon_crtc->cursor_offset = cursor_offset + (c * size_bytes);
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Using hardware cursor %d (scanline %u)\n", c,
+			   (unsigned)(radeon_crtc->cursor_offset / pScrn->displayWidth
+				      / info->CurrentLayout.pixel_bytes));
+	    }
+
 	}
-	RADEONCTRACE(("RADEONCursorInit (0x%08x-0x%08x)\n",
-		    info->cursor_offset, info->cursor_end));
     }
 #endif
 

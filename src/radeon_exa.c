@@ -374,6 +374,7 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->CurrentLayout.pixel_bytes;
     int screen_size;
     int byteStride = pScrn->displayWidth * cpp;
@@ -405,14 +406,23 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     /* Reserve static area for hardware cursor */
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	int cursor_size = 64 * 4 * 64;
+	int c;
 
-	info->cursor_offset = info->exa->offScreenBase;
+	for (c = 0; c < xf86_config->num_crtc; c++) {
+	    xf86CrtcPtr crtc = xf86_config->crtc[c];
+	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Will use %d kb for hardware cursor at offset 0x%08x\n",
-		   cursor_size / 1024, (unsigned int)info->cursor_offset);
+	    radeon_crtc->cursor_offset = info->exa->offScreenBase;
+	    info->exa->offScreenBase += cursor_size;
 
-	info->exa->offScreenBase += cursor_size;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Will use %d kb for hardware cursor %d at offset 0x%08x\n",
+		       (cursor_size * xf86_config->num_crtc) / 1024,
+		       c,
+		       (unsigned int)radeon_crtc->cursor_offset);
+	}
+
+
     }
 
 #if defined(XF86DRI)
