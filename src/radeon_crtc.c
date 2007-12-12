@@ -637,7 +637,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
     CARD32 best_error = 0xffffffff;
     CARD32 best_vco_diff = 1;
 
-    ErrorF("freq: %d\n", freq);
+    ErrorF("freq: %lu\n", freq);
 
     for (i = 0; post_divs[i]; i++) {
 	int post_div = post_divs[i];
