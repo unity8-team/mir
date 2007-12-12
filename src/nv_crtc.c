@@ -1005,7 +1005,7 @@ void nv_crtc_calc_state_ext(
 		if (!state->sel_clk)
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
-		/* Note: Lower bits also exist, but trying to mess with those is a bad idea.
+		/* Note: Lower bits also exist, but trying to mess with those (in advance) is a bad idea.
 		 * The blob doesn't do it, so it's probably not needed.
 		 * I hope this solves the previous mess.
 		 */
@@ -1019,6 +1019,26 @@ void nv_crtc_calc_state_ext(
 				state->sel_clk |= (0x1 << 16);
 			} else {
 				state->sel_clk |= (0x4 << 16);
+			}
+		}
+
+		/* Some cards, specifically dual dvi/lvds cards set another bitrange.
+		 * I suspect inverse beheaviour to the normal bitrange, but i am not a 100% certain about this.
+		 * This is all based on default settings found in mmio-traces.
+		 * The blob never changes these, as it doesn't run unusual output configurations.
+		 * It seems to prefer situations that avoid changing these bits (for a good reason?).
+		 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
+		 */
+		for (i = 0; i < 4; i++) {
+			if (state->sel_clk & (0xf << 4*i)) {
+				state->sel_clk &= ~(0xf << 4*i);
+				Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+				if (crossed_clocks) {
+					state->sel_clk |= (0x4 << 4*i);
+				} else {
+					state->sel_clk |= (0x1 << 4*i);
+				}
+				break; /* This should only occur once. */
 			}
 		}
 
