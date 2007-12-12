@@ -747,13 +747,33 @@ nv_output_get_modes(xf86OutputPtr output)
 		/* Reduced blanking should be fine on DVI monitor */
 		nv_output->native_mode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
 		nv_output->native_mode->type = M_T_DRIVER | M_T_PREFERRED;
-		/* We want the new mode to be preferred */
-		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-			if (mode->type & M_T_PREFERRED) {
-				mode->type &= ~M_T_PREFERRED;
+
+		if (output->funcs->mode_valid(output, nv_output->native_mode) == MODE_OK) {
+			/* We want the new mode to be preferred */
+			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+				if (mode->type & M_T_PREFERRED) {
+					mode->type &= ~M_T_PREFERRED;
+				}
+			}
+			ddc_modes = xf86ModesAdd(ddc_modes, nv_output->native_mode);
+		} else { /* invalid mode */
+			nv_output->native_mode = NULL;
+			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+				if (mode->HDisplay == nv_output->fpWidth &&
+					mode->VDisplay == nv_output->fpHeight) {
+
+					nv_output->native_mode = mode;
+					break;
+				}
+			}
+			if (!nv_output->native_mode) {
+				ErrorF("Really bad stuff happening, CVT mode bad and no other native mode can be found.\n");
+				ErrorF("Bailing out\n");
+				return NULL;
+			} else {
+				ErrorF("CVT mode was invalid(=bad), but another mode was found\n");
 			}
 		}
-		ddc_modes = xf86ModesAdd(ddc_modes, nv_output->native_mode);
 	}
 
 	return ddc_modes;
@@ -899,11 +919,23 @@ nv_tmds_set_property(xf86OutputPtr output, Atom property,
 
 #endif /* RANDR_12_INTERFACE */
 
+static int 
+nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	/* We can't exceed the native mode.*/
+	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
+		return MODE_PANEL;
+
+	return nv_output_mode_valid(output, pMode);
+}
+
 static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.dpms = nv_tmds_output_dpms,
 	.save = nv_output_save,
 	.restore = nv_output_restore,
-	.mode_valid = nv_output_mode_valid,
+	.mode_valid = nv_tmds_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_tmds_output_detect,
