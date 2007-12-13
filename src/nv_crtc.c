@@ -1902,7 +1902,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	if(pNv->twoHeads) {
 		/* The blob does this differently. */
 		/* TODO: Find out what precisely and why. */
-		if(pNv->FPDither || (is_lvds && !pNv->VBIOS.fp.if_is_24bit)) {
+		if(pNv->FPDither || (is_lvds && pNv->VBIOS.fp.if_is_18bit)) {
 			if (pNv->NVArch == 0x11) {
 				regp->dither = 0x00010000;
 			} else {

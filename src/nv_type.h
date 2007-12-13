@@ -281,7 +281,7 @@ typedef struct {
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t xlated_entry;
 		Bool dual_link;
-		Bool if_is_24bit;
+		Bool if_is_18bit;
 		Bool BITbit1;
 	} fp;
 

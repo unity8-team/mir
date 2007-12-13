@@ -2482,7 +2482,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	switch (lvds_ver) {
 	case 0x0a:
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
-		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
+		bios->fp.if_is_18bit = !(bios->data[lvdsofs] & 16);
 		break;
 	case 0x30:
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
