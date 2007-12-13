@@ -1132,12 +1132,59 @@ static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	return TRUE;
 }
 
-static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* My BIOS does not use this command. */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	/* INIT_CONDITION_TIME   opcode: 0x56 ('V')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): condition number
+	 *
+	 * Check condition "condition number" in the condition table.
+	 * The condition table entry has 4 bytes for the address of the
+	 * register to check, 4 bytes for a mask and 4 for a test value.
+	 * If condition not met sleep for 2ms
+	 */
 
-	return FALSE;
+	// this opcode makes no sense. it seems to do some competely useless things
+	uint8_t cond = bios->data[offset + 1];
+//	uint16_t b = bios->data[offset + 2];	// this needs printing
+	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
+	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
+	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
+	uint32_t data;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
+			   offset, cond, reg, mask, cmpval);
+
+//	b *= 50;
+	reg &= 0xfffffffc;	// FIXME: this not in init_condition() - should it be?
+
+	nv32_rd(pScrn, reg, &data);
+	data &= mask;
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Checking if 0x%08X equals 0x%08X\n",
+			   offset, data, cmpval);
+
+	if (data != cmpval) {
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Condition not met, sleeping for 2ms\n", offset);
+//		reg--;
+		usleep(2000);
+	} else
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Condition met, continuing\n", offset);
+
+	return TRUE;
 }
 
 static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
@@ -1913,7 +1960,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_CR"                           , 0x52, 4       , 0       , 0       , init_cr                         },
 	{ "INIT_ZM_CR"                        , 0x53, 3       , 0       , 0       , init_zm_cr                      },
 	{ "INIT_ZM_CR_GROUP"                  , 0x54, 2       , 1       , 2       , init_zm_cr_group                },
-//	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
+	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, 6       , 5       , 4       , init_zm_reg_sequence            },
 //	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
 	{ "INIT_SUB_DIRECT"                   , 0x5B, 3       , 0       , 0       , init_sub_direct                 },
