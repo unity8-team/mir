@@ -1968,13 +1968,6 @@ void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-struct fppointers {
-	uint16_t fptablepointer;
-	uint16_t fpxlatetableptr;
-	uint16_t lvdsmanufacturerpointer;
-	uint16_t fpxlatemanufacturertableptr;
-};
-
 void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overrideval)
 {
 	/* The BIOS scripts don't do this for us, sadly
@@ -2098,21 +2091,28 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 		link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
+struct fppointers {
+	uint16_t fptablepointer;
+	uint16_t fpxlatetableptr;
+	uint16_t lvdsmanufacturerpointer;
+	uint16_t fpxlatemanufacturertableptr;
+	int xlatwidth;
+};
+
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
-	uint8_t *fptable, *fpxlatetable;
-	int fpindex;
-	uint8_t fptable_ver, headerlen = 0, recordlen = 44;
+	uint8_t *fptable;
+	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ofs;
 	DisplayModePtr mode;
 
 	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
 
-	if (fpp->fptablepointer == 0x0) {
+	if (fpp->fptablepointer == 0x0 || fpp->fpxlatetableptr == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Pointer to flat panel table invalid\n");
+			   "Pointers to flat panel table invalid\n");
 		return;
 	}
 
@@ -2132,35 +2132,29 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	 * PINS version check would be better), as the common case for the panel type
 	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
 	case 0x05:	/* some NV10, 11, 15, 16 */
-		ofs = 6;
 		recordlen = 42;
-		goto v1common;
+		ofs = 6;
+		break;
 	case 0x10:	/* some NV15/16, and NV11+ */
+		recordlen = 44;
 		ofs = 7;
-v1common:
-		fpxlatetable = &bios->data[fpp->fpxlatetableptr];
-		fpindex = fpxlatetable[fpstrapping];
-		if (fpindex > 0xf) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Bad flat panel table index\n");
-			return;
-		}
 		break;
 	case 0x20:	/* NV40+ */
 		headerlen = fptable[1];
-		recordlen = fptable[2];	// check this, or hardcode as 0x20
-/*		may be the wrong test, if there's a translation table
-		if (fpstrapping > fptable[3]) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Flat panel strapping number too high\n");
-			return;
-		}*/
+		recordlen = fptable[2];
+		fpentries = fptable[3];
 		ofs = 0;
-/*		I don't know where the index for the table comes from in v2.0, so bail
-		break;*/
+		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "FP Table revision not currently supported\n");
+		return;
+	}
+
+	fpindex = bios->data[fpp->fpxlatetableptr + fpstrapping * fpp->xlatwidth];
+	if (fpindex > fpentries) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Bad flat panel table index\n");
 		return;
 	}
 
@@ -2356,35 +2350,8 @@ static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	return 1;
 }
 
-static int parse_bit_m_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
 {
-	/* offset + 2  (8  bits): number of options in an INIT_RAM_RESTRICT_ZM_REG_GROUP opcode option set
-	 * offset + 3  (16 bits): pointer to strap xlate table for RAM restrict option selection
-	 *
-	 * There's a bunch of bits in this table other than the RAM restrict
-	 * stuff that we don't use - their use currently unknown
-	 */
-
-	int i;
-
-	/* Older bios versions don't have a sufficiently long table for what we want */
-	if (bitentry->length < 0x5) 
-		return 1;
-
-	/* set up multiplier for INIT_RAM_RESTRICT_ZM_REG_GROUP */
-	for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != 0x8f); i++)
-		;
-	itbl_entry[i].length_multiplier = bios->data[bitentry->offset + 2] * 4;
-	init_ram_restrict_zm_reg_group_blocklen = itbl_entry[i].length_multiplier;
-
-	bios->ram_restrict_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 3])));
-
-	return 1;
-}
-
-static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
-{
-	uint16_t table;
 	/* Parses the flat panel table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
 	 *
@@ -2392,26 +2359,13 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
-	struct fppointers fpp;
-
-	/* If it's not a laptop, you probably don't care about fptables */
-	/* FIXME: detect mobile BIOS? */
-
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (!pNv->Mobile)
-		return 1;
-
 	if (bitentry->length != 4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Do not understand BIT display table entry.\n");
 		return 0;
 	}
 
-	table = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
-	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
-
-	parse_fp_mode_table(pScrn, bios, &fpp);
+	fpp->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
 	return 1;
 }
@@ -2453,6 +2407,83 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	return 1;
 }
 
+static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
+{
+	/* Parses the LVDS table segment that the bit entry points to.
+	 * Starting at bitentry->offset:
+	 *
+	 * offset + 0  (16 bits): LVDS strap xlate table pointer
+	 *
+	 * The LVDS table has the typical BIT table header: version byte,
+	 * header length byte, record length byte, a byte for the maximum
+	 * number of records that can be held in the table, and then some
+	 * other things.
+	 *
+	 * The table serves as a glorified xlat table: the records in the table
+	 * are indexed by the FP strap nibble in EXTDEV_BOOT, and each record
+	 * has two bytes - the first for FIXME, the second for indexing the fp
+	 * mode table pointed to by the BIT 'D' table
+	 */
+
+	uint16_t lvdstbl_ptr;
+	uint8_t lvdstbl_ver, lvdstbl_headerlen, lvdstbl_entrywidth;
+
+	if (bitentry->length != 2) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Do not understand BIT LVDS table entry.\n");
+		return 0;
+	}
+
+	lvdstbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+
+	if (lvdstbl_ptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to LVDS table invalid\n");
+		return 0;
+	}
+
+	lvdstbl_ver = bios->data[lvdstbl_ptr];
+	lvdstbl_headerlen = bios->data[lvdstbl_ptr + 1];
+	lvdstbl_entrywidth = bios->data[lvdstbl_ptr + 2];
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found LVDS table revision %d.%d\n",
+		   lvdstbl_ver >> 4, lvdstbl_ver & 0xf);
+	if (lvdstbl_ver != 0x30 || lvdstbl_entrywidth != 0x2) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Do not understand BIT LVDS table.\n");
+		return 0;
+	}
+
+	fpp->xlatwidth = lvdstbl_entrywidth;
+	fpp->fpxlatetableptr = lvdstbl_ptr + lvdstbl_headerlen + 1;
+
+	return 1;
+}
+
+static int parse_bit_m_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* offset + 2  (8  bits): number of options in an INIT_RAM_RESTRICT_ZM_REG_GROUP opcode option set
+	 * offset + 3  (16 bits): pointer to strap xlate table for RAM restrict option selection
+	 *
+	 * There's a bunch of bits in this table other than the RAM restrict
+	 * stuff that we don't use - their use currently unknown
+	 */
+
+	int i;
+
+	/* Older bios versions don't have a sufficiently long table for what we want */
+	if (bitentry->length < 0x5)
+		return 1;
+
+	/* set up multiplier for INIT_RAM_RESTRICT_ZM_REG_GROUP */
+	for (i = 0; itbl_entry[i].name && (itbl_entry[i].id != 0x8f); i++)
+		;
+	itbl_entry[i].length_multiplier = bios->data[bitentry->offset + 2] * 4;
+	init_ram_restrict_zm_reg_group_blocklen = itbl_entry[i].length_multiplier;
+
+	bios->ram_restrict_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 3])));
+
+	return 1;
+}
+
 static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* Parses the pointer to the TMDS table
@@ -2461,7 +2492,7 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	 *
 	 * offset + 0  (16 bits): TMDS table pointer
 	 *
-	 * This table here is typically found just before the DCB table, with a
+	 * The TMDS table is typically found just before the DCB table, with a
 	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
 	 * length?)
 	 *
@@ -2538,6 +2569,7 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 	memset(&fpp, 0, sizeof(struct fppointers));
 	if (bitentry->length > 33) {
 		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
+		fpp.xlatwidth = 1;
 		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
 		parse_fp_mode_table(pScrn, bios, &fpp);
 	}
@@ -2556,6 +2588,10 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 {
 	bit_entry_t bitentry, storedinitentry = {{ 0 }};
 	char done = 0;
+	struct fppointers fpp;
+	NVPtr pNv = NVPTR(pScrn);
+
+	memset(&fpp, 0, sizeof(struct fppointers));
 
 	while (!done) {
 		bitentry.id[0] = bios->data[offset];
@@ -2579,12 +2615,15 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		case 'D':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found flat panel display table entry in BIT structure.\n", offset);
-			parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
+			parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found init table entry in BIT structure.\n", offset);
 			memcpy(&storedinitentry, &bitentry, sizeof(bit_entry_t));
+			break;
+		case 'L':
+			parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'M': /* memory? */
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2592,8 +2631,6 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			parse_bit_m_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'T':
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found TMDS table entry in BIT structure.\n", offset);
 			parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
 			break;
 
@@ -2612,6 +2649,15 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			   "Parsing previously deferred init table entry.\n");
 		parse_bit_init_tbl_entry(pScrn, bios, &storedinitentry);
 	}
+
+	/* If it's not a laptop, you probably don't care about LVDS */
+	/* FIXME: detect mobile BIOS? */
+	if (!pNv->Mobile)
+		return;
+
+	/* Need D and L tables parsed before doing this */
+	parse_fp_mode_table(pScrn, bios, &fpp);
+
 }
 
 static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
