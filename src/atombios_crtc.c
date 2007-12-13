@@ -238,7 +238,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     void *ptr;
     AtomBiosArgRec data;
-    unsigned char *space;    
+    unsigned char *space;
     RADEONSavePtr save = info->ModeReg;
     
     if (IS_AVIVO_VARIANT) {
@@ -383,7 +383,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	default:
 	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
 	}
-	if (info->tilingEnabled) {
+
+	if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
 	    radeon_crtc->fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 	}
 
@@ -394,23 +395,46 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 	/* setup fb format and location
 	 */
-	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
-	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (mode->HDisplay << 16) | mode->VDisplay);
+	if (crtc->rotatedData != NULL) {
+	    /* x/y offset is already included */
+	    x = 0;
+	    y = 0;
+	    fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
+	}
+
+	/* lock the grph regs */
+	OUTREG(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, AVIVO_D1GRPH_UPDATE_LOCK);
 
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset,
 	       radeon_crtc->fb_format);
 
+	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset,
 	       crtc->scrn->virtualX);
 	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset,
 	       crtc->scrn->virtualY);
 	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
-
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
+
+	/* unlock the grph regs */
+	OUTREG(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, 0);
+
+	/* lock the mode regs */
+	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, AVIVO_D1SCL_UPDATE_LOCK);
+
+	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+	       crtc->scrn->virtualY);
+	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
+	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
+	       (mode->HDisplay << 16) | mode->VDisplay);
+	/* unlock the mode regs */
+	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, 0);
 
     }
 

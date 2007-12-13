@@ -1268,7 +1268,7 @@ radeon_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 
     if (!data)
 	data = radeon_crtc_shadow_allocate(crtc, width, height);
-    
+
     rotate_pitch = pScrn->displayWidth * cpp;
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
