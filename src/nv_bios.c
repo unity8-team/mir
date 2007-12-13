@@ -2045,7 +2045,7 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 	}
 }
 
-void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
+static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	/* Loops and calls parse_init_table() for each present table. */
 
@@ -2154,16 +2154,18 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	pNv->VBIOS.execute = oldexecute;
 }
 
-void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
+static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
 	init_exec_t iexec = {TRUE, FALSE};
 
-	uint8_t sub = bios->data[bios->fp.script_table + script];
+	uint8_t sub = bios->data[bios->fp.xlated_entry + script];
 	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
+	Bool power_off_for_reset, reset_after_pclk_change;
+	uint16_t off_on_delay;
 
-	if (!bios->fp.script_table || !sub || !scriptofs)
+	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return;
 
 	if (script == LVDS_INIT && bios->data[scriptofs] != 'q') {
@@ -2171,10 +2173,14 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 		return;
 	}
 
-	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
-		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET);
-	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
-		call_lvds_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
+	power_off_for_reset = bios->data[bios->fp.xlated_entry] & 1;
+	reset_after_pclk_change = bios->data[bios->fp.xlated_entry] & 2;
+	off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]);
+
+	if (script == LVDS_PANEL_ON && reset_after_pclk_change)
+		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_RESET);
+	if (script == LVDS_RESET && power_off_for_reset)
+		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 	pNv->VBIOS.execute = TRUE;
@@ -2184,15 +2190,146 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	pNv->VBIOS.execute = FALSE;
 
 	if (script == LVDS_PANEL_OFF)
-		usleep(bios->fp.off_on_delay * 1000);
+		usleep(off_on_delay * 1000);
 	if (script == LVDS_RESET)
 		link_head_and_output(pScrn, head, dcb_entry, FALSE);
+}
+
+static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, uint16_t pxclk)
+{
+	int compare_record_len, i = 0;
+	uint16_t compareclk, scriptptr = 0;
+
+	if (bios->major_version < 5) /* pre BIT */
+		compare_record_len = 3;
+	else
+		compare_record_len = 4;
+
+	do {
+		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + compare_record_len * i]));
+		if (pxclk >= compareclk) {
+			if (bios->major_version < 5) {
+				uint8_t tmdssub = bios->data[clktable + 2 + compare_record_len * i];
+				scriptptr = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + tmdssub * 2])));
+			} else
+				scriptptr = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + compare_record_len * i]));
+			break;
+		}
+		i++;
+	} while (compareclk);
+
+	return scriptptr;
+}
+
+static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head, int dcb_entry)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+	init_exec_t iexec = {TRUE, FALSE};
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
+	bios->execute = TRUE;
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
+			head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
+	parse_init_table(pScrn, bios, scriptptr, &iexec);
+	bios->execute = FALSE;
+
+	link_head_and_output(pScrn, head, dcb_entry, FALSE);
+}
+
+static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk)
+{
+	/* The BIT LVDS table's header has the information to setup the
+	 * necessary registers. Following the standard 4 byte header are:
+	 * A bitmask byte and a dual-link transition pxclk valur for use in
+	 * selecting the init script when not using straps; 4 script pointers
+	 * for panel power, selected by output and on/off; and 8 table pointers
+	 * for panel init, the needed one determined by output, and bits in the
+	 * conf byte. These tables are similar to the TMDS tables, consisting
+	 * of a list of pxclks and script pointers.
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+	int fpstrapping, outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
+	uint16_t scriptptr = 0, clktable;
+	uint8_t clktableptr = 0;
+
+	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+
+	/* for now we assume version 3.0 table - g80 support will need some changes */
+
+	switch (script) {
+	case LVDS_INIT:
+		return;
+	case LVDS_BACKLIGHT_ON:	// check applicability of the script for this
+	case LVDS_PANEL_ON:
+		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 7 + outputset * 2]);
+		break;
+	case LVDS_BACKLIGHT_OFF:	// check applicability of the script for this
+	case LVDS_PANEL_OFF:
+		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
+		break;
+	case LVDS_RESET:
+		if (pNv->dcb_table.entry[dcb_entry].lvdsconf.use_straps_for_mode ||
+			(fpstrapping != 0x0f && bios->data[bios->fp.xlated_entry + 1] != 0x0f)) {
+			if (bios->fp.dual_link)
+				clktableptr += 2;
+			if (bios->fp.BITbit1)
+				clktableptr++;
+		} else {
+			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
+			int fallbackcmpval = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 4 : 1;
+			uint8_t dltransitionclk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]);
+			if (pxclk > dltransitionclk) {	// dual-link
+				clktableptr += 2;
+				fallbackcmpval *= 2;
+			}
+			if (fallbackcmpval & fallback)
+				clktableptr++;
+		}
+
+		/* adding outputset * 8 may not be correct */
+		clktable = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 15 + clktableptr * 2 + outputset * 8]);
+		if (!clktable) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pixel clock comparison table not found\n");
+			return;
+		}
+		scriptptr = clkcmptable(bios, clktable, pxclk);
+	}
+
+	if (!scriptptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS output init script not found\n");
+		return;
+	}
+	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
+}
+
+void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk)
+{
+	/* LVDS operations are multiplexed in an effort to present a single API
+	 * which works with two vastly differing underlying structures.
+	 * This acts as the demux
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
+
+	if (!lvds_ver)
+		return;
+
+	if (lvds_ver < 0x30)
+		call_lvds_manufacturer_script(pScrn, head, dcb_entry, script);
+	else
+		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
 }
 
 struct fppointers {
 	uint16_t fptablepointer;
 	uint16_t fpxlatetableptr;
-	uint16_t lvdsmanufacturerpointer;
 	uint16_t fpxlatemanufacturertableptr;
 	int xlatwidth;
 };
@@ -2295,51 +2432,83 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	bios->fp.native_mode = mode;
 }
 
-static void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
+static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
+	/* The LVDS table changed considerably with BIT bioses. Previously
+	 * there was a header of version and record length, followed by several
+	 * records, indexed by a seperate xlat table, indexed in turn by the fp
+	 * strap in EXTDEV_BOOT. Each record had a config byte, followed by 6
+	 * script numbers for use by INIT_SUB which controlled panel init and
+	 * power, and finally a dword of ms to sleep between power off and on
+	 * operations.
+	 *
+	 * The BIT LVDS table has the typical BIT table header: version byte,
+	 * header length byte, record length byte, and a byte for the maximum
+	 * number of records that can be held in the table.
+	 *
+	 * The table following the header serves as an integrated config and
+	 * xlat table: the records in the table are indexed by the FP strap
+	 * nibble in EXTDEV_BOOT, and each record has two bytes - the first as
+	 * a config byte, the second for indexing the fp mode table pointed to
+	 * by the BIT 'D' table
+	 */
+
 	NVPtr pNv = NVPTR(pScrn);
-	unsigned int fpstrapping;
-	uint8_t *lvdsmanufacturertable, *fpxlatemanufacturertable;
-	int lvdsmanufacturerindex = 0;
+	unsigned int fpstrapping, lvdsmanufacturerindex = 0;
 	uint8_t lvds_ver, headerlen, recordlen;
 
 	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
 
-	if (fpp->lvdsmanufacturerpointer == 0x0) {
+	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Pointer to LVDS manufacturer table invalid\n");
 		return;
 	}
 
-	lvdsmanufacturertable = &bios->data[fpp->lvdsmanufacturerpointer];
-	lvds_ver = lvdsmanufacturertable[0];
+	lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Found LVDS manufacturer table revision %d\n",
-		   lvds_ver);
+		   "Found LVDS manufacturer table revision %d.%d\n",
+		   lvds_ver >> 4, lvds_ver & 0xf);
 
 	switch (lvds_ver) {
 	case 0x0a:	/* pre NV40 */
-		fpxlatemanufacturertable = &bios->data[fpp->fpxlatemanufacturertableptr];
-		lvdsmanufacturerindex = fpxlatemanufacturertable[fpstrapping];
+		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + fpstrapping];
 
 		headerlen = 2;
-		recordlen = lvdsmanufacturertable[1];
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 
 		break;
-//	case 0x:	/* NV40+ */
+	case 0x30:	/* NV4x */
+		lvdsmanufacturerindex = fpstrapping;
+		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
+		if (headerlen < 0x1f) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "LVDS table header not understood\n");
+			return;
+		}
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
+		break;
+	case 0x40:	/* It changed again with gf8 :o( */
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "LVDS manufacturer table revision not currently supported\n");
+			   "LVDS table revision not currently supported\n");
 		return;
 	}
 
-	uint16_t lvdsofs = bios->fp.script_table = fpp->lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
-	bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
-	bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
-	bios->fp.dual_link = bios->data[lvdsofs] & 4;
-	bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
-	bios->fp.off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[lvdsofs + 7]);
+	uint16_t lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
+	switch (lvds_ver) {
+	case 0x0a:
+		bios->fp.dual_link = bios->data[lvdsofs] & 4;
+		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
+		break;
+	case 0x30:
+		bios->fp.dual_link = bios->data[lvdsofs] & 1;
+		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
+		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
+		fpp->xlatwidth = recordlen;
+		break;
+	}
 }
 
 void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
@@ -2354,19 +2523,10 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t clktable = 0, tmdsscript = 0;
-	int i = 0;
-	uint16_t compareclk;
-	uint8_t compare_record_len, tmdssub;
-	init_exec_t iexec = {TRUE, FALSE};
+	uint16_t clktable = 0, scriptptr;
 
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
 		return;
-
-	if (bios->major_version < 5) /* pre BIT */
-		compare_record_len = 3;
-	else
-		compare_record_len = 4;
 
 	switch (ffs(pNv->dcb_table.entry[dcb_entry].or)) {
 	case 1:
@@ -2383,36 +2543,14 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 		return;
 	}
 
-	do {
-		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + compare_record_len * i]));
-		if (pxclk >= compareclk) {
-			if (bios->major_version < 5) {
-				tmdssub = bios->data[clktable + 2 + compare_record_len * i];
-				tmdsscript = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + tmdssub * 2])));
-			} else
-				tmdsscript = le16_to_cpu(*((uint16_t *)&bios->data[clktable + 2 + compare_record_len * i]));
-			break;
-		}
-		i++;
-	} while (compareclk);
+	scriptptr = clkcmptable(bios, clktable, pxclk);
 
-	if (!tmdsscript) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS script not found\n");
+	if (!scriptptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TMDS output init script not found\n");
 		return;
 	}
 
-	/* This code has to be executed */
-	bios->execute = TRUE;
-	/* We must set the owner register appropriately */ 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, head * 3);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing TMDS table\n", tmdsscript);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
-	parse_init_table(pScrn, bios, tmdsscript, &iexec);
-	bios->execute = FALSE;
-
-	link_head_and_output(pScrn, head, dcb_entry, FALSE);
+	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
 }
 
 static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
@@ -2511,20 +2649,7 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	 * Starting at bitentry->offset:
 	 *
 	 * offset + 0  (16 bits): LVDS strap xlate table pointer
-	 *
-	 * The LVDS table has the typical BIT table header: version byte,
-	 * header length byte, record length byte, a byte for the maximum
-	 * number of records that can be held in the table, and then some
-	 * other things.
-	 *
-	 * The table serves as a glorified xlat table: the records in the table
-	 * are indexed by the FP strap nibble in EXTDEV_BOOT, and each record
-	 * has two bytes - the first for FIXME, the second for indexing the fp
-	 * mode table pointed to by the BIT 'D' table
 	 */
-
-	uint16_t lvdstbl_ptr;
-	uint8_t lvdstbl_ver, lvdstbl_headerlen, lvdstbl_entrywidth;
 
 	if (bitentry->length != 2) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2532,26 +2657,10 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 		return 0;
 	}
 
-	lvdstbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	/* no idea if it's still called the LVDS manufacturer table, but the concept's close enough */
+	bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 
-	if (lvdstbl_ptr == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to LVDS table invalid\n");
-		return 0;
-	}
-
-	lvdstbl_ver = bios->data[lvdstbl_ptr];
-	lvdstbl_headerlen = bios->data[lvdstbl_ptr + 1];
-	lvdstbl_entrywidth = bios->data[lvdstbl_ptr + 2];
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found LVDS table revision %d.%d\n",
-		   lvdstbl_ver >> 4, lvdstbl_ver & 0xf);
-	if (lvdstbl_ver != 0x30 || lvdstbl_entrywidth != 0x2) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Do not understand BIT LVDS table.\n");
-		return 0;
-	}
-
-	fpp->xlatwidth = lvdstbl_entrywidth;
-	fpp->fpxlatetableptr = lvdstbl_ptr + lvdstbl_headerlen + 1;
+	parse_lvds_manufacturer_table_init(pScrn, bios, fpp);
 
 	return 1;
 }
@@ -2667,16 +2776,16 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bi
 	memset(&fpp, 0, sizeof(struct fppointers));
 	if (bitentry->length > 33) {
 		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
-		fpp.xlatwidth = 1;
 		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
+		fpp.xlatwidth = 1;
 		parse_fp_mode_table(pScrn, bios, &fpp);
 	}
 	if (bitentry->length > 45) {
-		fpp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
+		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
 		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
-		parse_lvds_manufacturer_table(pScrn, bios, &fpp);
+		parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
 		/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
-		call_lvds_script(pScrn, 0, 0, LVDS_INIT);
+		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 	}
 
 	return 1;

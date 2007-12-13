@@ -279,12 +279,11 @@ typedef struct {
 
 	struct {
 		DisplayModePtr native_mode;
-		uint16_t script_table;
-		Bool power_off_for_reset;
-		Bool reset_after_pclk_change;
+		uint16_t lvdsmanufacturerpointer;
+		uint16_t xlated_entry;
 		Bool dual_link;
 		Bool if_is_24bit;
-		uint16_t off_on_delay;
+		Bool BITbit1;
 	} fp;
 
 	struct {

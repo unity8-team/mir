@@ -216,13 +216,13 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	switch (mode) {
 	case DPMSModeStandby:
 	case DPMSModeSuspend:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, 0);
 		break;
 	case DPMSModeOff:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, 0);
 		break;
 	case DPMSModeOn:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, 0);
 	default:
 		break;
 	}
@@ -399,13 +399,19 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		/*
 		 * Resetting all registers is a bad idea, it seems to work fine without it.
 		 */
-		run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+		if (nv_output->type == OUTPUT_TMDS)
+			run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+		else
+			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 	} else {
 		/*
 		 * We have no crtc, but we do know what output we are and if we were crosswired.
 		 * We can determine our crtc from this.
 		 */
-		run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
+		if (nv_output->type == OUTPUT_TMDS)
+			run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
+		else
+			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 	}
 }
 
@@ -571,7 +577,6 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	RIVA_HW_STATE *state;
 
@@ -581,10 +586,8 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
 	nv_output_mode_set_regs(output, mode, adjusted_mode);
 	nv_output_load_state_ext(output, state, FALSE);
-	if (nv_output->type == OUTPUT_TMDS)
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
-	if (nv_output->type == OUTPUT_LVDS)
-		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET);
 
 	nv_output_mode_set_routing(output);
 }
