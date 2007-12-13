@@ -1069,7 +1069,13 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 	 * Below is guesswork:
 	 * bit2: All outputs valid
 	 */
-	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
+	/* This also facilitates proper output routing for dvi */
+	/* See sel_clk assignment in nv_crtc.c */
+	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
+		nv_output->preferred_output = 1;
+	} else {
+		nv_output->preferred_output = 0;
+	}
 
 	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
 
@@ -1086,14 +1092,6 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 	output->driver_private = nv_output;
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-
-	/* This also facilitates proper output routing for dvi */
-	/* See sel_clk assignment in nv_crtc.c */
-	if (nv_output->valid_ramdac & OUTPUT_1) {
-		nv_output->preferred_output = 1;
-	} else {
-		nv_output->preferred_output = 0;
-	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
 
@@ -1137,7 +1135,13 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	 * Below is guesswork:
 	 * bit2: All outputs valid
 	 */
-	nv_output->valid_ramdac = ffs(pNv->dcb_table.entry[dcb_entry].or);
+	/* This also facilitates proper output routing for dvi */
+	/* See sel_clk assignment in nv_crtc.c */
+	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
+		nv_output->preferred_output = 1;
+	} else {
+		nv_output->preferred_output = 0;
+	}
 
 	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
 
@@ -1167,14 +1171,6 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 		return;
 
 	output->driver_private = nv_output;
-
-	/* This also facilitates proper output routing for dvi */
-	/* See sel_clk assignment in nv_crtc.c */
-	if (nv_output->valid_ramdac & OUTPUT_1) {
-		nv_output->preferred_output = 1;
-	} else {
-		nv_output->preferred_output = 0;
-	}
 
 	if (pNv->fpScaler || lvds) { /* GPU Scaling */
 		char *name = (char *)xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE);

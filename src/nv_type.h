@@ -213,7 +213,6 @@ typedef enum {
 } ValidRamdac;
 
 typedef struct _NVOutputPrivateRec {
-	uint8_t valid_ramdac;
 	uint8_t preferred_output;
 	uint8_t bus;
 	I2CBusPtr pDDCBus;

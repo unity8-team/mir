@@ -2076,24 +2076,11 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-
-	Bool crosswired = FALSE;
-	uint8_t possible_outputs = ffs(pNv->dcb_table.entry[dcb_entry].or);
+	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
 	uint8_t bus = pNv->dcb_table.entry[dcb_entry].bus;
-
-	uint8_t output;
-
-	/* We need to check if crosswiring is needed. */
-	switch(possible_outputs) {
-		case (OUTPUT_0 | OUTPUT_1):
-		case OUTPUT_1:
-			output = 1;
-			break;
-		case OUTPUT_0:
-		default:
-			output = 0;
-			break;
-	}
+	Bool crosswired = FALSE;
+	uint8_t tmds04 = 0x80;
+	uint32_t tmds_ctrl, tmds_ctrl2;
 
 	/* This is based on the mmio-traces of:
 	 * A strange 6800GT.
@@ -2104,7 +2091,7 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 		if (head == 1)
 			crosswired = TRUE;
 	} else {
-		if (head != output)
+		if (head != preferred_output)
 			crosswired = TRUE;
 	}
 
@@ -2121,11 +2108,6 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 	 * On crtc1 it gets value 0x88.
 	 * Conclusion: It behaves as if it were on output 0?
 	 */
-
-	uint8_t preferred_output = possible_outputs >> 1;
-
-	uint8_t tmds04 = 0x80;
-	uint32_t tmds_ctrl, tmds_ctrl2;
 
 	/* Bit 3 crosswires output and bus. */
 	if (head >= 0 && crosswired)
