@@ -72,13 +72,12 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     int tmp;
     unsigned short dptr;
 
-    if (!(info->VBIOS = xalloc(
 #ifdef XSERVER_LIBPCIACCESS
-			       info->PciInfo->rom_size
+    info->VBIOS = xalloc(info->PciInfo->rom_size);
 #else
-			       RADEON_VBIOS_SIZE
+    info->VBIOS = xalloc(RADEON_VBIOS_SIZE);
 #endif
-			       ))) {
+    if (!info->VBIOS) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Cannot allocate space for hold Video BIOS!\n");
 	return FALSE;

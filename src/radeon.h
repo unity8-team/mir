@@ -408,10 +408,6 @@ typedef struct {
 #endif
     Bool              accelOn;
     xf86CursorInfoPtr cursor;
-    CARD32            cursor_offset;
-#ifdef USE_XAA
-    unsigned long     cursor_end;
-#endif
     Bool              allowColorTiling;
     Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
 #ifdef ARGB_CURSOR

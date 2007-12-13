@@ -193,7 +193,7 @@ R128Probe(DriverPtr drv, int flags)
  
         pScrn    = NULL;
         if((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
-             R128PciChipsets, 0, 0, 0, 0, 0)))
+             R128PciChipsets, NULL, NULL, NULL, NULL, NULL)))
 	{
 	    pScrn->driverVersion = R128_VERSION_CURRENT;
 	    pScrn->driverName    = R128_DRIVER_NAME;

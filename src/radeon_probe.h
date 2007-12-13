@@ -165,6 +165,7 @@ typedef struct _RADEONCrtcPrivateRec {
 #endif
     int crtc_id;
     int binding;
+    CARD32 cursor_offset;
     /* Lookup table values to be set when the CRTC is enabled */
     CARD8 lut_r[256], lut_g[256], lut_b[256];
 
@@ -175,7 +176,6 @@ typedef struct _RADEONCrtcPrivateRec {
     int               fb_pitch, fb_width, fb_height;
     INT16             cursor_x;
     INT16             cursor_y;
-    unsigned long     cursor_offset;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {

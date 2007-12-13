@@ -3846,10 +3846,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    if (!info->useEXA) {
 		int  width, height;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Using hardware cursor (scanline %u)\n",
-			   (unsigned)(info->cursor_offset / pScrn->displayWidth
-				      / info->CurrentLayout.pixel_bytes));
 		if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
 					      0, 0, 0)) {
 		    xf86DrvMsg(scrnIndex, X_INFO,
@@ -3864,7 +3860,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	    xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
 	}
     } else {
-	info->cursor_offset = 0;
 	xf86DrvMsg(scrnIndex, X_INFO, "Using software cursor\n");
     }
 

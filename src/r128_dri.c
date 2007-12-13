@@ -80,9 +80,9 @@ static Bool R128InitVisualConfigs(ScreenPtr pScreen)
     ScrnInfoPtr       pScrn            = xf86Screens[pScreen->myNum];
     R128InfoPtr       info             = R128PTR(pScrn);
     int               numConfigs       = 0;
-    __GLXvisualConfig *pConfigs        = 0;
-    R128ConfigPrivPtr pR128Configs     = 0;
-    R128ConfigPrivPtr *pR128ConfigPtrs = 0;
+    __GLXvisualConfig *pConfigs        = NULL;
+    R128ConfigPrivPtr pR128Configs     = NULL;
+    R128ConfigPrivPtr *pR128ConfigPtrs = NULL;
     int               i, accum, stencil, db;
 
     switch (info->CurrentLayout.pixel_code) {
