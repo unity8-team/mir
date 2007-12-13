@@ -922,9 +922,9 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 	}
 }
 
-static Bool init_4f(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+static Bool init_tmds(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_4F   opcode: 0x4F ('O')
+	/* INIT_TMDS   opcode: 0x4F ('O')	(non-canon name)
 	 *
 	 * offset      (8 bit): opcode
 	 * offset + 1  (8 bit): magic lookup value
@@ -963,9 +963,9 @@ static Bool init_4f(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_
 	return TRUE;
 }
 
-Bool init_50(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+Bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_50   opcode: 0x50 ('P')
+	/* INIT_ZM_TMDS_GROUP   opcode: 0x50 ('P')	(non-canon name)
 	 *
 	 * offset      (8 bit): opcode
 	 * offset + 1  (8 bit): magic lookup value
@@ -1954,8 +1954,8 @@ static init_tbl_entry_t itbl_entry[] = {
 /*	{ "INIT_I2C_BYTE"                     , 0x4C, x       , x       , x       , init_i2c_byte                   }, */
 /*	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, x       , x       , x       , init_zm_i2c_byte                }, */
 /*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
-	{ "INIT_4F"                           , 0x4F, 5       , 0       , 0       , init_4f                         },
-	{ "INIT_50"                           , 0x50, 3       , 2       , 2       , init_50                         },
+	{ "INIT_TMDS"                         , 0x4F, 5       , 0       , 0       , init_tmds                       },
+	{ "INIT_ZM_TMDS_GROUP"                , 0x50, 3       , 2       , 2       , init_zm_tmds_group              },
 	{ "INIT_CR_INDEX_ADDRESS_LATCHED"     , 0x51, 5       , 4       , 1       , init_cr_idx_adr_latch           },
 	{ "INIT_CR"                           , 0x52, 4       , 0       , 0       , init_cr                         },
 	{ "INIT_ZM_CR"                        , 0x53, 3       , 0       , 0       , init_zm_cr                      },
