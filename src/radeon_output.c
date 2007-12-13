@@ -684,6 +684,45 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
+static RADEONMonitorType
+RADEONDetectLidStatus(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONMonitorType MonType = MT_NONE;
+#ifdef __linux__
+    char lidline[50];  /* 50 should be sufficient for our purposes */
+    FILE *f = fopen ("/proc/acpi/button/lid/LID/state", "r");
+
+    if (f != NULL) {
+	while (fgets(lidline, sizeof lidline, f)) {
+	    if (!strncmp(lidline, "state:", strlen ("state:"))) {
+		if (strstr(lidline, "open")) {
+		    ErrorF("proc lid open\n");
+		    return MT_LCD;
+		}
+		else if (strstr(lidline, "closed")) {
+		    ErrorF("proc lid closed\n");
+		    return MT_NONE;
+		}
+	    }
+	}
+    }
+#endif
+
+    if (!info->IsAtomBios) {
+	unsigned char *RADEONMMIO = info->MMIO;
+
+	/* see if the lid is closed -- only works at boot */
+	if (INREG(RADEON_BIOS_6_SCRATCH) & 0x10)
+	    MonType = MT_NONE;
+	else
+	    MonType = MT_LCD;
+    } else
+	MonType = MT_LCD;
+
+    return MonType;
+}
+
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -691,21 +730,10 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
 
     if (radeon_output->type == OUTPUT_LVDS) {
 #if defined(__powerpc__)
-	/* not sure on ppc, OF? */
+	MonType = MT_LCD;
 #else
-	RADEONInfoPtr info       = RADEONPTR(pScrn);
-
-	if (!info->IsAtomBios) {
-	    unsigned char *RADEONMMIO = info->MMIO;
-
-	    /* see if the lid is closed -- only works at boot */
-	    if (INREG(RADEON_BIOS_6_SCRATCH) & 0x10)
-		MonType = MT_NONE;
-	    else
-		MonType = MT_LCD;
-	} else
+	MonType = RADEONDetectLidStatus(pScrn);
 #endif
-	    MonType = MT_LCD;
     } /*else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {
 	    if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
