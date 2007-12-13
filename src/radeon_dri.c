@@ -1361,6 +1361,9 @@ Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int value = 0;
 
+    if (!info->want_vblank_interrupts)
+        on = FALSE;
+
     if (info->directRenderingEnabled && info->pKernelDRMVersion->version_minor >= 28) {
         if (on) {
   	    if (xf86_config->num_crtc > 1 && xf86_config->crtc[1]->enabled)
