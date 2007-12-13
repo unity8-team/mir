@@ -1109,7 +1109,7 @@ static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 
 static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_ZM_CR   opcode: 0x54 ('T')
+	/* INIT_ZM_CR_GROUP   opcode: 0x54 ('T')
 	 * 
 	 * offset      (8 bit): opcode
 	 * offset + 1  (8 bit): count
@@ -2493,7 +2493,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	}
 }
 
-void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk)
+void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, uint16_t pxclk)
 {
 	/* the dcb_entry parameter is the index of the appropriate DCB entry
 	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
@@ -2505,6 +2505,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t 
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
 	uint16_t clktable = 0, scriptptr;
 
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */

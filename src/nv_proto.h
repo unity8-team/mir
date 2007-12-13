@@ -84,7 +84,7 @@ void NVPointerMoved(int index, int x, int y);
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
 void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overrideval);
 void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk);
-void run_tmds_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_entry, uint8_t head, uint16_t pxclk);
+void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, uint16_t pxclk);
 
 void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,

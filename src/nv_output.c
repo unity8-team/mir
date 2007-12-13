@@ -389,7 +389,6 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
 	/* We have no crtc, so what are we supposed to do now? */
@@ -400,7 +399,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		 * Resetting all registers is a bad idea, it seems to work fine without it.
 		 */
 		if (nv_output->type == OUTPUT_TMDS)
-			run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_crtc->head, clock/10);
+			run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, clock/10);
 		else
 			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 	} else {
@@ -409,7 +408,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		 * We can determine our crtc from this.
 		 */
 		if (nv_output->type == OUTPUT_TMDS)
-			run_tmds_table(pScrn, &pNv->VBIOS, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
+			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
 		else
 			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 	}
