@@ -631,7 +631,7 @@ static CARD32 RADEONDiv64(CARD64 n, CARD32 d)
     return (n + (d / 2)) / d;
 }
 
-static void
+void
 RADEONComputePLL(RADEONPLLPtr pll,
 		 unsigned long freq,
 		 CARD32 *chosen_dot_clock_freq,
@@ -639,10 +639,6 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		 CARD32 *chosen_reference_div,
 		 CARD32 *chosen_post_div)
 {
-    int post_divs[] = {1, 2, 4, 8, 3, 6, 12, 0};
-
-    int i;
-
     CARD32 best_vco = pll->best_vco;
     CARD32 best_post_div = 1;
     CARD32 best_ref_div = 1;
@@ -650,15 +646,15 @@ RADEONComputePLL(RADEONPLLPtr pll,
     CARD32 best_freq = 1;
     CARD32 best_error = 0xffffffff;
     CARD32 best_vco_diff = 1;
+    CARD32 post_div;
 
     ErrorF("freq: %lu\n", freq);
 
-    for (i = 0; post_divs[i]; i++) {
-	int post_div = post_divs[i];
+    for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
 	CARD32 ref_div;
 	CARD32 vco = (freq / 10000) * post_div;
 
-	if (vco < pll->min_pll_freq || vco > pll->max_pll_freq)
+	if (vco < pll->pll_out_min || vco > pll->pll_out_max)
 	    continue;
 
 	for (ref_div = pll->min_ref_div; ref_div <= pll->max_ref_div; ++ref_div) {

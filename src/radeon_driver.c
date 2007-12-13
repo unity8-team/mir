@@ -1162,22 +1162,25 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 
 	    if (pll->reference_div < 2) pll->reference_div = 12;
 	}
-	
     } else {
 	xf86DrvMsg (pScrn->scrnIndex, X_WARNING,
 		    "Video BIOS not detected, using default clock settings!\n");
 
        /* Default min/max PLL values */
        if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) {
-           pll->min_pll_freq = 20000;
-           pll->max_pll_freq = 50000;
+	   pll->pll_in_min = 100;
+	   pll->pll_in_max = 1350;
+	   pll->pll_out_min = 20000;
+	   pll->pll_out_max = 50000;
        } else {
-           pll->min_pll_freq = 12500;
-           pll->max_pll_freq = 35000;
+	   pll->pll_in_min = 40;
+	   pll->pll_in_max = 100;
+	   pll->pll_out_min = 12500;
+	   pll->pll_out_max = 35000;
        }
 
        if (RADEONProbePLLParameters(pScrn))
-            return;
+	   return;
 
 	if (info->IsIGP)
 	    pll->reference_freq = 1432;
@@ -1198,25 +1201,30 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	 * Empirical value changed to 24 to raise pixel clock limit and
 	 * allow higher resolution modes on capable monitors
 	 */
-        pll->max_pll_freq = min(pll->max_pll_freq,
+        pll->pll_out_max = min(pll->pll_out_max,
                                24 * info->mclk * 100 / pScrn->bitsPerPixel *
                                info->RamWidth / 16);
     }
 
     /* card limits for computing PLLs */
+    if (IS_AVIVO_VARIANT) {
+	pll->min_post_div = 2;
+	pll->max_post_div = 0x7f;
+    } else {
+	pll->min_post_div = 2;
+	pll->max_post_div = 12; //16 on crtc0
+    }
     pll->min_ref_div = 2;
     pll->max_ref_div = 0x3ff;
     pll->min_feedback_div = 4;
     pll->max_feedback_div = 0x7ff;
-    pll->pll_in_min = 40;
-    pll->pll_in_max = 100;
     pll->best_vco = 0;
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,
 		"PLL parameters: rf=%u rd=%u min=%u max=%u; xclk=%u\n",
 		pll->reference_freq,
 		pll->reference_div,
-		(unsigned)pll->min_pll_freq, (unsigned)pll->max_pll_freq,
+		(unsigned)pll->pll_out_min, (unsigned)pll->pll_out_max,
 		pll->xclk);
 
     /* (Some?) Radeon BIOSes seem too lie about their minimum dot
@@ -1225,7 +1233,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
      */
     if (xf86GetOptValFreq(info->Options, OPTION_MIN_DOTCLOCK,
 			  OPTUNITS_MHZ, &min_dotclock)) {
-	if (min_dotclock < 12 || min_dotclock*100 >= pll->max_pll_freq) {
+	if (min_dotclock < 12 || min_dotclock*100 >= pll->pll_out_max) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Illegal minimum dotclock specified %.2f MHz "
 		       "(option ignored)\n",
@@ -1234,8 +1242,8 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Forced minimum dotclock to %.2f MHz "
 		       "(instead of detected %.2f MHz)\n",
-		       min_dotclock, ((double)pll->min_pll_freq/1000));
-	    pll->min_pll_freq = min_dotclock * 1000;
+		       min_dotclock, ((double)pll->pll_out_min/1000));
+	    pll->pll_out_min = min_dotclock * 1000;
 	}
     }
 }

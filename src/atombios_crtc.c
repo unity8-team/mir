@@ -148,82 +148,6 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
     return ATOM_NOT_IMPLEMENTED;
 }
 
-/*
- * Calculate the PLL parameters for a given dotclock.
- */
-#define RADEON_PLL_DEFAULT_PLLOUT_MIN  64800 /* experimental. - taken from rhd divided by 10 */
-
-static Bool
-PLLCalculate(ScrnInfoPtr pScrn, CARD32 PixelClock,
-	     CARD16 *RefDivider, CARD16 *FBDivider, CARD8 *PostDivider)
-{
-/* limited by the number of bits available */
-#define FB_DIV_LIMIT 1024 /* rv6x0 doesn't like 2048 */
-#define REF_DIV_LIMIT 1024
-#define POST_DIV_LIMIT 128
-    RADEONInfoPtr info = RADEONPTR (pScrn);
-    RADEONPLLPtr pll = &info->pll;
-    CARD32 FBDiv, RefDiv, PostDiv, BestDiff = 0xFFFFFFFF;
-    float Ratio;
-
-    Ratio = ((float) PixelClock) / ((float) pll->reference_freq * 10);
-
-    if (pll->min_pll_freq == 0)
-      pll->min_pll_freq = RADEON_PLL_DEFAULT_PLLOUT_MIN;
-    for (PostDiv = 2; PostDiv < POST_DIV_LIMIT; PostDiv++) {
-	CARD32 VCOOut = PixelClock * PostDiv;
-
-	/* we are conservative and avoid the limits */
-	if (VCOOut <= pll->min_pll_freq * 10)
-	    continue;
-	if (VCOOut >= pll->max_pll_freq * 10)
-	    break;
-
-        for (RefDiv = 1; RefDiv <= REF_DIV_LIMIT; RefDiv++)
-	{
-	    CARD32 Diff;
-
-	    FBDiv = (CARD32) ((Ratio * PostDiv * RefDiv) + 0.5);
-
-	    if (FBDiv >= FB_DIV_LIMIT)
-	      break;
-
-	    if (FBDiv > (500 + (13 * RefDiv))) /* rv6x0 limit */
-		break;
-
-	    Diff = abs( PixelClock - (FBDiv * pll->reference_freq * 10) / (PostDiv * RefDiv) );
-
-	    if (Diff < BestDiff) {
-		*FBDivider = FBDiv;
-		*RefDivider = RefDiv;
-		*PostDivider = PostDiv;
-		BestDiff = Diff;
-	    }
-
-	    if (BestDiff == 0)
-		break;
-	}
-	if (BestDiff == 0)
-	    break;
-    }
-
-    if (BestDiff != 0xFFFFFFFF) {
-	ErrorF("PLL Calculation: %dkHz = "
-		   "(((0x%X / 0x%X) * 0x%X) / 0x%X) (%dkHz off)\n",
-		   (int) PixelClock, (unsigned int) pll->reference_freq * 10, *RefDivider,
-		   *FBDivider, *PostDivider, (int) BestDiff);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PLL for %dkHz uses %dkHz internally.\n",
-		   (int) PixelClock,
-		   (int) (pll->reference_freq * 10 * *FBDivider) / *RefDivider);
-	return TRUE;
-    } else { /* Should never happen */
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "%s: Failed to get a valid PLL setting for %dkHz\n",
-		   __func__, (int) PixelClock);
-	return FALSE;
-    }
-}
-
 void
 atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
@@ -231,7 +155,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-    int sclock = mode->Clock;
+    CARD32 sclock = mode->Clock;
     uint16_t ref_div = 0, fb_div = 0;
     uint8_t post_div = 0;
     int major, minor;
@@ -240,10 +164,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
     RADEONSavePtr save = info->ModeReg;
-    
+
     if (IS_AVIVO_VARIANT) {
-        CARD32 temp;
-        PLLCalculate(crtc->scrn, sclock, &ref_div, &fb_div, &post_div);
+	CARD32 temp;
+	RADEONComputePLL(&info->pll, mode->Clock * 1000, &sclock, &fb_div, &ref_div, &post_div);
+	sclock /= 1000;
 
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (radeon_crtc->crtc_id == 0) {
@@ -268,7 +193,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	       radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
-    
+
     ErrorF("table is %d %d\n", major, minor);
     switch(major) {
     case 1:
@@ -304,7 +229,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	ErrorF("Set CRTC PLL success\n");
 	return;
     }
-  
+
     ErrorF("Set CRTC PLL failed\n");
     return;
 }

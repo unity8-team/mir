@@ -203,16 +203,18 @@ typedef struct {
 typedef struct {
     CARD16            reference_freq;
     CARD16            reference_div;
-    CARD32            min_pll_freq;
-    CARD32            max_pll_freq;
+    CARD32            pll_in_min;
+    CARD32            pll_in_max;
+    CARD32            pll_out_min;
+    CARD32            pll_out_max;
     CARD16            xclk;
 
     CARD32            min_ref_div;
     CARD32            max_ref_div;
+    CARD32            min_post_div;
+    CARD32            max_post_div;
     CARD32            min_feedback_div;
     CARD32            max_feedback_div;
-    CARD32            pll_in_min;
-    CARD32            pll_in_max;
     CARD32            best_vco;
 } RADEONPLLRec, *RADEONPLLPtr;
 

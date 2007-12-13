@@ -611,8 +611,19 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 					or use a new algorithm to calculate
 					from min_input and max_input
 				     */
-	    pll->min_pll_freq = RADEON_BIOS16 (pll_info_block + 78);
-	    pll->max_pll_freq = RADEON_BIOS32 (pll_info_block + 32);
+	    pll->pll_out_min = RADEON_BIOS16 (pll_info_block + 78);
+	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 32);
+
+	    if (pll->pll_out_min == 0) {
+		if (IS_AVIVO_VARIANT)
+		    pll->pll_out_min = 64800;
+		else
+		    pll->pll_out_min = 20000;
+	    }
+
+	    pll->pll_in_min = RADEON_BIOS16 (pll_info_block + 74);
+	    pll->pll_in_max = RADEON_BIOS16 (pll_info_block + 76);
+
 	    pll->xclk = RADEON_BIOS16 (pll_info_block + 72);
 
 	    info->sclk = RADEON_BIOS32(pll_info_block + 8) / 100.0;
@@ -622,8 +633,13 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    pll->reference_freq = RADEON_BIOS16 (pll_info_block + 0x0e);
 	    pll->reference_div = RADEON_BIOS16 (pll_info_block + 0x10);
-	    pll->min_pll_freq = RADEON_BIOS32 (pll_info_block + 0x12);
-	    pll->max_pll_freq = RADEON_BIOS32 (pll_info_block + 0x16);
+	    pll->pll_out_min = RADEON_BIOS32 (pll_info_block + 0x12);
+	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 0x16);
+
+	    /* not available in the bios */
+	    pll->pll_in_min = 40;
+	    pll->pll_in_max = 100;
+
 	    pll->xclk = RADEON_BIOS16 (pll_info_block + 0x08);
 
 	    info->sclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
@@ -636,8 +652,8 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
 	       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
-	       pll->reference_freq, (unsigned)pll->min_pll_freq,
-	       (unsigned)pll->max_pll_freq, pll->xclk, info->sclk,
+	       pll->reference_freq, (unsigned)pll->pll_out_min,
+	       (unsigned)pll->pll_out_max, pll->xclk, info->sclk,
 	       info->mclk);
 
     return TRUE;
