@@ -451,7 +451,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_IO_RESTRICT_PROG   opcode: 0x32 ('2')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): CRTC port
 	 * offset + 3  (8  bit): CRTC index
@@ -461,7 +461,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	 * offset + 7  (32 bit): register
 	 * offset + 11 (32 bit): configuration 1
 	 * ...
-	 * 
+	 *
 	 * Starting at offset + 11 there are "count" 32 bit values.
 	 * To find out which value to use read index "CRTC index" on "CRTC port",
 	 * AND this value with "mask" and then bit shift right "shift" bits.
@@ -1004,7 +1004,7 @@ Bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 
 	return TRUE;
 }
-	
+
 Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_CR_INDEX_ADDRESS_LATCHED   opcode: 0x51 ('Q')
@@ -1110,19 +1110,19 @@ static Bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 static Bool init_zm_cr_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_ZM_CR_GROUP   opcode: 0x54 ('T')
-	 * 
+	 *
 	 * offset      (8 bit): opcode
 	 * offset + 1  (8 bit): count
 	 * offset + 2  (8 bit): CRTC index 1
 	 * offset + 3  (8 bit): value 1
 	 * ...
-	 * 
+	 *
 	 * For "count", assign "value n" to CRTC register with index "CRTC index n".
 	 */
     
 	uint8_t count = bios->data[offset + 1];
 	int i;
-	
+
 	if (!iexec->execute)
 		return TRUE;
 
@@ -1190,13 +1190,13 @@ static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_ZM_REG_SEQUENCE   opcode: 0x58 ('X')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (32 bit): base register
 	 * offset + 5  (8  bit): count
 	 * offset + 6  (32 bit): value 1
 	 * ...
-	 * 
+	 *
 	 * Starting at offset + 6 there are "count" 32 bit values.
 	 * For "count" iterations set "base register" + 4 * current_iteration
 	 * to "value current_iteration"
@@ -1227,7 +1227,7 @@ static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_INDIRECT_REG opcode: 0x5A
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (32 bit): register
 	 * offset + 5  (16 bit): adress offset (in bios)
@@ -1257,7 +1257,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_SUB_DIRECT   opcode: 0x5B ('[')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): subroutine offset (in bios)
 	 *
@@ -1265,7 +1265,7 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, in
 	 * is found. 
 	 */
 
-	uint16_t sub_offset = le16_to_cpu(*((uint16_t *) (&bios->data[offset + 1])));
+	uint16_t sub_offset = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
 
 	if (!iexec->execute)
 		return TRUE;
@@ -1281,42 +1281,53 @@ static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, in
 	return TRUE;
 }
 
-static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
-{   
- 	CARD32 srcreg = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD8 shift = *((CARD8 *) (&bios->data[offset + 5]));
-	CARD32 and1 = *((CARD32 *) (&bios->data[offset + 6]));
-	CARD32 xor = *((CARD32 *) (&bios->data[offset + 10]));
-	CARD32 dstreg = *((CARD32 *) (&bios->data[offset + 14]));
-	CARD32 and2 = *((CARD32 *) (&bios->data[offset + 18]));
-	CARD32 srcdata;
-	CARD32 dstdata;
-	
-	if (iexec->execute) {
-		nv32_rd(pScrn, srcreg, &srcdata);
-		
-		if (shift > 0)
-			srcdata >>= shift;
-		else
-			srcdata <<= shift;
+static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_COPY_NV_REG   opcode: 0x5F ('_')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (32 bit): src reg
+	 * offset + 5  (8  bit): shift
+	 * offset + 6  (32 bit): src mask
+	 * offset + 10 (32 bit): xor
+	 * offset + 14 (32 bit): dst reg
+	 * offset + 18 (32 bit): dst mask
+	 *
+	 * Shift REGVAL("src reg") right by (signed) "shift", AND result with
+	 * "src mask", then XOR with "xor". Write this OR'd with
+	 * (REGVAL("dst reg") AND'd with "dst mask") to "dst reg"
+	 */
 
-		srcdata = (srcdata & and1) ^ xor;
+	uint32_t srcreg = *((uint32_t *)(&bios->data[offset + 1]));
+	uint8_t shift = bios->data[offset + 5];
+	uint32_t srcmask = *((uint32_t *)(&bios->data[offset + 6]));
+	uint32_t xor = *((uint32_t *)(&bios->data[offset + 10]));
+	uint32_t dstreg = *((uint32_t *)(&bios->data[offset + 14]));
+	uint32_t dstmask = *((uint32_t *)(&bios->data[offset + 18]));
+	uint32_t srcvalue, dstvalue;
 
-		nv32_rd(pScrn, dstreg, &dstdata);
-		dstdata &= and2;
+	if (!iexec->execute)
+		return TRUE;
 
-		dstdata |= srcdata;
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: SrcReg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%08X, Xor: 0x%08X, DstReg: 0x%08X, DstMask: 0x%08X\n",
+			   offset, srcreg, shift, srcmask, xor, dstreg, dstmask);
 
-		CARD32 tmp;		
-		nv32_rd(pScrn, dstreg, &tmp);
+	nv32_rd(pScrn, srcreg, &srcvalue);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, dstreg, 
-				dstdata);
+	if (shift < 0x80)
+		srcvalue >>= shift;
+	else
+		srcvalue <<= (0x100 - shift);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmp);
+	srcvalue = (srcvalue & srcmask) ^ xor;
 
-		nv32_wr(pScrn, dstreg, dstdata);
-	}
+	nv32_rd(pScrn, dstreg, &dstvalue);
+	dstvalue &= dstmask;
+
+	nv32_wr(pScrn, dstreg, dstvalue | srcvalue);
+
 	return TRUE;
 }
 
@@ -1533,7 +1544,7 @@ static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, i
 static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_NV_REG   opcode: 0x6E ('n')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (32 bit): register
 	 * offset + 5  (32 bit): mask
@@ -1676,10 +1687,10 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, 
 static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_TIME   opcode: 0x74 ('t')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): time
-	 * 
+	 *
 	 * Sleep for "time" microseconds.
 	 */
 
@@ -1753,13 +1764,13 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_INDEX_IO   opcode: 0x78 ('x')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (16 bit): CRTC port
 	 * offset + 3  (8  bit): CRTC index
 	 * offset + 4  (8  bit): mask
 	 * offset + 5  (8  bit): data
-	 * 
+	 *
 	 * Read value at index "CRTC index" on "CRTC port", AND with "mask", OR with "data", write-back
 	 */
 
@@ -1768,7 +1779,7 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 	uint8_t mask = bios->data[offset + 4];
 	uint8_t data = bios->data[offset + 5];
 	uint8_t value;
-	
+
 	if (!iexec->execute)
 		return TRUE;
 
@@ -1821,11 +1832,11 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_ZM_REG   opcode: 0x7A ('z')
-	 * 
+	 *
 	 * offset      (8  bit): opcode
 	 * offset + 1  (32 bit): register
 	 * offset + 5  (32 bit): value
-	 * 
+	 *
 	 * Assign "value" to "register"
 	 */
 
@@ -1926,6 +1937,34 @@ static Bool init_copy_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	return TRUE;
 }
 
+static Bool init_zm_reg_group_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_ZM_REG_GROUP_ADDRESS_LATCHED   opcode: 0x91 ('')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (32 bit): src reg
+	 * offset + 5  (8  bit): count
+	 * offset + 6  (32 bit): data 1
+	 * ...
+	 *
+	 * For each of "count" values write "data n" to "src reg"
+	 */
+
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
+	uint8_t count = bios->data[offset + 5];
+	int i;
+
+	if (!iexec->execute)
+		return TRUE;
+
+	for (i = 0; i < count; i++) {
+		uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 6 + 4 * i])));
+		nv32_wr(pScrn, reg, data);
+	}
+
+	return TRUE;
+}
+
 static Bool init_reserved(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_RESERVED   opcode: 0x92 ('')
@@ -1964,7 +2003,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, 6       , 5       , 4       , init_zm_reg_sequence            },
 //	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
 	{ "INIT_SUB_DIRECT"                   , 0x5B, 3       , 0       , 0       , init_sub_direct                 },
-//	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
+	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, 5       , 0       , 0       , init_zm_index_io                },
 	{ "INIT_COMPUTE_MEM"                  , 0x63, 1       , 0       , 0       , init_compute_mem                },
 	{ "INIT_RESET"                        , 0x65, 13      , 0       , 0       , init_reset                      },
@@ -1988,7 +2027,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	/* INIT_RAM_RESTRICT_ZM_REG_GROUP's mult is loaded by M table in BIT */
 	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, 7       , 6       , 0       , init_ram_restrict_zm_reg_group  },
 	{ "INIT_COPY_ZM_REG"                  , 0x90, 9       , 0       , 0       , init_copy_zm_reg                },
-/*	{ "INIT_ZM_REG_GROUP_ADDRESS_LATCHED" , 0x91, x       , x       , x       , init_zm_reg_group_addr_latched  }, */
+	{ "INIT_ZM_REG_GROUP_ADDRESS_LATCHED" , 0x91, 6       , 5       , 4       , init_zm_reg_group_addr_latched  },
 	{ "INIT_RESERVED"                     , 0x92, 1       , 0       , 0       , init_reserved                   },
 	{ 0                                   , 0   , 0       , 0       , 0       , 0                               }
 };
@@ -2880,7 +2919,7 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 		default:
 			return;
 	}
-	
+
 	if ((pins_version_major==5)&&(pins_version_minor>=6)) {
 		/* VCO range info */
 	}

@@ -127,8 +127,8 @@ CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index)
  * 0x02		dcb entry's "or" value (or 00 for inactive)
  * 0x03		bit0 set for dual link (LVDS, possibly elsewhere too)
  * 0x08 or 0x09	pxclk in MHz
- * 0x0f		laptop panel info -	high nibble for PEXTDEV_BOOT strap
- * 					low nibble for xlat strap value
+ * 0x0f		laptop panel info -	low nibble for PEXTDEV_BOOT strap
+ * 					high nibble for xlat strap value
  */
 
 void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
