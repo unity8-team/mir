@@ -695,7 +695,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 /* Define PLL registers for requested video mode */
 static void
 RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
-		       RADEONPLLPtr pll, DisplayModePtr mode)
+		       RADEONPLLPtr pll, DisplayModePtr mode,
+		       Bool UseBiosDividers)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     CARD32 feedback_div = 0;
@@ -723,16 +724,15 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	{  0, 0 }
     };
 
-    RADEONComputePLL(pll, mode->Clock * 1000, &freq, &feedback_div, &reference_div, &post_divider);
 
-#if 0
-    if (info->UseBiosDividers) {
+    if (UseBiosDividers && info->UseBiosDividers) {
        save->ppll_ref_div = info->RefDivider;
        save->ppll_div_3   = info->FeedbackDivider | (info->PostDivider << 16);
        save->htotal_cntl  = 0;
        return;
     }
-#endif
+
+    RADEONComputePLL(pll, mode->Clock * 1000, &freq, &feedback_div, &reference_div, &post_divider);
 
     for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 	if (post_div->divider == post_divider)
@@ -777,7 +777,8 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 /* Define PLL2 registers for requested video mode */
 static void
 RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
-			RADEONPLLPtr pll, DisplayModePtr mode)
+			RADEONPLLPtr pll, DisplayModePtr mode,
+			Bool UseBiosDividers)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     CARD32 feedback_div = 0;
@@ -803,6 +804,13 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	{ 12, 7 },              /* VCLK_SRC/12              */
 	{  0, 0 }
     };
+
+    if (UseBiosDividers && info->UseBiosDividers) {
+       save->p2pll_ref_div = info->RefDivider;
+       save->p2pll_div_0   = info->FeedbackDivider | (info->PostDivider << 16);
+       save->htotal_cntl2  = 0;
+       return;
+    }
 
     RADEONComputePLL(pll, mode->Clock * 1000, &freq, &feedback_div, &reference_div, &post_divider);
 
@@ -873,6 +881,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int i = 0;
     double         dot_clock = 0;
     Bool no_odd_post_div = FALSE;
+    Bool use_bios_dividers = FALSE;
     Bool update_tv_routing = FALSE;
 
 
@@ -898,6 +907,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (output->crtc == crtc) {
 	    if (radeon_output->MonType != MT_CRT)
 		no_odd_post_div = TRUE;
+	    if (radeon_output->MonType == MT_LCD)
+		use_bios_dividers = TRUE;
 	}
     }
 
@@ -919,7 +930,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll1\n");
-	    RADEONInitPLLRegisters(pScrn, &info->ModeReg, &info->pll, adjusted_mode);
+	    RADEONInitPLLRegisters(pScrn, &info->ModeReg, &info->pll, adjusted_mode, use_bios_dividers);
 	} else {
 	    info->ModeReg.ppll_ref_div = info->SavedReg.ppll_ref_div;
 	    info->ModeReg.ppll_div_3   = info->SavedReg.ppll_div_3;
@@ -933,7 +944,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll2\n");
-	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, adjusted_mode);
+	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, adjusted_mode, use_bios_dividers);
 	}
 	break;
     }
