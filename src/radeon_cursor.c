@@ -326,7 +326,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 	    cursor_offset  = RADEON_ALIGN((fbarea->box.x1 +
 					   fbarea->box.y1 * width) *
 					  info->CurrentLayout.pixel_bytes,
-					  256);
+					  align);
 
 	    for (c = 0; c < xf86_config->num_crtc; c++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[c];
