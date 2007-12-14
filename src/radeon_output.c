@@ -684,6 +684,8 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
+#ifndef __powerpc__
+
 static RADEONMonitorType
 RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 {
@@ -722,6 +724,8 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 
     return MonType;
 }
+
+#endif /* __powerpc__ */
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {

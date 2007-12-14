@@ -606,12 +606,6 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 
-/* Compute n/d with rounding */
-static int RADEONDiv(int n, int d)
-{
-    return (n + (d / 2)) / d;
-}
-
 static CARD32 RADEONDiv64(CARD64 n, CARD32 d)
 {
     return (n + (d / 2)) / d;
@@ -680,10 +674,10 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	}
     }
 
-    ErrorF("best_freq: %d\n", best_freq);
-    ErrorF("best_feedback_div: %d\n", best_feedback_div);
-    ErrorF("best_ref_div: %d\n", best_ref_div);
-    ErrorF("best_post_div: %d\n", best_post_div);
+    ErrorF("best_freq: %u\n", (unsigned)best_freq);
+    ErrorF("best_feedback_div: %u\n", (unsigned)best_feedback_div);
+    ErrorF("best_ref_div: %u\n", (unsigned)best_ref_div);
+    ErrorF("best_post_div: %u\n", (unsigned)best_post_div);
 
     *chosen_dot_clock_freq = best_freq;
     *chosen_feedback_div = best_feedback_div;
