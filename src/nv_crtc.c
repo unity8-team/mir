@@ -2197,7 +2197,9 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	unsigned long rotate_pitch;
 	PixmapPtr rotate_pixmap;
+#ifdef NOUVEAU_EXA_PIXMAPS
 	struct nouveau_pixmap *nvpix;
+#endif /* NOUVEAU_EXA_PIXMAPS */
 
 	if (!data)
 		data = crtc->funcs->shadow_allocate (crtc, width, height);
@@ -2208,14 +2210,19 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	rotate_pixmap = pScreen->CreatePixmap(pScreen, 
 								0, /* width */
 								0, /* height */
+#ifdef CREATE_PIXMAP_USAGE_SCRATCH /* there seems to have been no api bump */
 								pScrn->depth,
 								0);
+#else
+								pScrn->depth);
+#endif /* CREATE_PIXMAP_USAGE_SCRATCH */
 
 	if (rotate_pixmap == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Couldn't allocate shadow pixmap for rotated CRTC\n");
 	}
 
+#ifdef NOUVEAU_EXA_PIXMAPS
 	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
 	if (!nvpix) {
 		ErrorF("No shadow private, stage 1\n");
@@ -2223,6 +2230,7 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		nvpix->bo = nv_crtc->shadow;
 		nvpix->mapped = TRUE;
 	}
+#endif /* NOUVEAU_EXA_PIXMAPS */
 
 	/* Modify the pixmap to actually be the one we need. */
 	pScreen->ModifyPixmapHeader(rotate_pixmap,
@@ -2233,9 +2241,11 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 					rotate_pitch,
 					data);
 
+#ifdef NOUVEAU_EXA_PIXMAPS
 	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
 	if (!nvpix || !nvpix->bo)
 		ErrorF("No shadow private, stage 2\n");
+#endif /* NOUVEAU_EXA_PIXMAPS */
 
 	return rotate_pixmap;
 }
