@@ -513,23 +513,15 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 #define xFixedToFloat(v) \
 	((float)xFixedToInt((v)) + ((float)xFixedFrac(v) / 65536.0))
 
-static void
-NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
-					  float *x_ret, float *y_ret)
+static inline void transformPoint(PictTransform *transform, xPointFixed *point)
 {
 	PictVector v;
-
-	if (t) {
-		v.vector[0] = IntToxFixed(x);
-		v.vector[1] = IntToxFixed(y);
-		v.vector[2] = xFixed1;
-		PictureTransformPoint(t, &v);
-		*x_ret = xFixedToFloat(v.vector[0]) / sx;
-		*y_ret = xFixedToFloat(v.vector[1]) / sy;
-	} else {
-		*x_ret = (float)x / sx;
-		*y_ret = (float)y / sy;
-	}
+	v.vector[0] = point->x;
+	v.vector[1] = point->y;
+	v.vector[2] = xFixed1;
+	PictureTransformPoint(transform, &v);
+	point->x = v.vector[0];
+	point->y = v.vector[1];
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
@@ -546,6 +538,8 @@ NV40EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
+/* Coordinate code kindly borrowed from radeon. */
+
 void
 NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 				  int maskX, int maskY,
@@ -554,35 +548,66 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	float sX0, sX1, sY0, sY1;
-	float mX0, mX1, mY0, mY1;
 	NV40EXA_STATE;
+	xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
+	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
-	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX0, &sY0);
-	NV40EXATransformCoord(state->unit[0].transform,
-			      srcX + width, srcY + height,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX1, &sY1);
+	srcTopLeft.x = IntToxFixed(srcX);
+	srcTopLeft.y = IntToxFixed(srcY);
+	srcTopRight.x = IntToxFixed(srcX + width);
+	srcTopRight.y = IntToxFixed(srcY);
+	srcBottomLeft.x = IntToxFixed(srcX);
+	srcBottomLeft.y = IntToxFixed(srcY + height);
+	srcBottomRight.x = IntToxFixed(srcX + width);
+	srcBottomRight.y = IntToxFixed(srcY + height);
+
+	if (state->unit[0].transform) {
+		transformPoint(state->unit[0].transform, &srcTopLeft);
+		transformPoint(state->unit[0].transform, &srcTopRight);
+		transformPoint(state->unit[0].transform, &srcBottomLeft);
+		transformPoint(state->unit[0].transform, &srcBottomRight);
+	}
 
 	if (state->have_mask) {
-		NV40EXATransformCoord(state->unit[1].transform, maskX, maskY,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX0, &mY0);
-		NV40EXATransformCoord(state->unit[1].transform,
-				      maskX + width, maskY + height,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX1, &mY1);
-		CV_OUTm(sX0 , sY0 , mX0, mY0, dstX        ,          dstY);
-		CV_OUTm(sX1 , sY0 , mX1, mY0, dstX + width,          dstY);
-		CV_OUTm(sX1 , sY1 , mX1, mY1, dstX + width, dstY + height);
-		CV_OUTm(sX0 , sY1 , mX0, mY1, dstX        , dstY + height);
+		maskTopLeft.x = IntToxFixed(maskX);
+		maskTopLeft.y = IntToxFixed(maskY);
+		maskTopRight.x = IntToxFixed(maskX + width);
+		maskTopRight.y = IntToxFixed(maskY);
+		maskBottomLeft.x = IntToxFixed(maskX);
+		maskBottomLeft.y = IntToxFixed(maskY + height);
+		maskBottomRight.x = IntToxFixed(maskX + width);
+		maskBottomRight.y = IntToxFixed(maskY + height);
+
+		if (state->unit[1].transform) {
+			transformPoint(state->unit[1].transform, &maskTopLeft);
+			transformPoint(state->unit[1].transform, &maskTopRight);
+			transformPoint(state->unit[1].transform, &maskBottomLeft);
+			transformPoint(state->unit[1].transform, &maskBottomRight);
+		}
+	}
+
+	if (state->have_mask) {
+		CV_OUTm(xFixedToFloat(srcTopLeft.x)/state->unit[0].width, xFixedToFloat(srcTopLeft.y)/state->unit[0].height,
+				xFixedToFloat(maskTopLeft.x)/state->unit[1].width, xFixedToFloat(maskTopLeft.y)/state->unit[1].height,
+				dstX ,					dstY);
+		CV_OUTm(xFixedToFloat(srcTopRight.x)/state->unit[0].width, xFixedToFloat(srcTopRight.y)/state->unit[0].height,
+				xFixedToFloat(maskTopRight.x)/state->unit[1].width, xFixedToFloat(maskTopRight.y)/state->unit[1].height,
+				dstX + width,				dstY);
+		CV_OUTm(xFixedToFloat(srcBottomRight.x)/state->unit[0].width, xFixedToFloat(srcBottomRight.y)/state->unit[0].height,
+				xFixedToFloat(maskBottomRight.x)/state->unit[1].width, xFixedToFloat(maskBottomRight.y)/state->unit[1].height,
+				dstX + width,		  dstY + height);
+		CV_OUTm(xFixedToFloat(srcBottomLeft.x)/state->unit[0].width, xFixedToFloat(srcBottomLeft.y)/state->unit[0].height,
+				xFixedToFloat(maskBottomLeft.x)/state->unit[1].width, xFixedToFloat(maskBottomLeft.y)/state->unit[1].height,
+				dstX,			  dstY + height);
 	} else {
-		CV_OUT(sX0 , sY0 , dstX        ,          dstY);
-		CV_OUT(sX1 , sY0 , dstX + width,          dstY);
-		CV_OUT(sX1 , sY1 , dstX + width, dstY + height);
-		CV_OUT(sX0 , sY1 , dstX        , dstY + height);
+		CV_OUT(xFixedToFloat(srcTopLeft.x)/state->unit[0].width, xFixedToFloat(srcTopLeft.y)/state->unit[0].height,
+				dstX ,					dstY);
+		CV_OUT(xFixedToFloat(srcTopRight.x)/state->unit[0].width, xFixedToFloat(srcTopRight.y)/state->unit[0].height,
+				dstX + width,				dstY);
+		CV_OUT(xFixedToFloat(srcBottomRight.x)/state->unit[0].width, xFixedToFloat(srcBottomRight.y)/state->unit[0].height,
+				dstX + width,		  dstY + height);
+		CV_OUT(xFixedToFloat(srcBottomLeft.x)/state->unit[0].width, xFixedToFloat(srcBottomLeft.y)/state->unit[0].height,
+				dstX,			  dstY + height);
 	}
 
 	FIRE_RING();
