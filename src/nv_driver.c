@@ -856,6 +856,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	if (pNv->Architecture == NV_ARCH_50) {
 	    NV50ReleaseDisplay(pScrn);
 	} else {
+		if (pNv->randr12_enable)
+			ErrorF("NVCloseScreen is called\n");
 	    NVSync(pScrn);
 	    NVRestore(pScrn);
 	    if (!pNv->randr12_enable)

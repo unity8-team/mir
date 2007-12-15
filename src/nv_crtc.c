@@ -317,6 +317,8 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
 {
 	CARD8 cr11;
 
+	NVCrtcSetOwner(crtc);
+
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57);
 	cr11 = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE);
 	if (Lock) cr11 |= 0x80;
@@ -1542,10 +1544,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		i = 32;
 	}
 
-	if(pNv->Architecture >= NV_ARCH_10) {
-		pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
-	}
-
 	/* What is the meaning of this register? */
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
@@ -2050,9 +2048,6 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	}
 	nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 	NVVgaProtect(crtc, FALSE);
-
-	/* The blob doesn't lock when leaving. */
-	//NVCrtcLockUnlock(crtc, TRUE);
 }
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
