@@ -2258,8 +2258,13 @@ nv_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScreenPtr pScreen = pScrn->pScreen;
 
-	if (rotate_pixmap) /* This should also unmap the memory */
+	if (rotate_pixmap) { /* This should also unmap the memory */
 		pScreen->DestroyPixmap(rotate_pixmap);
+#if !NOUVEAU_EXA_PIXMAPS /* But not for the older code */
+		nouveau_bo_unmap(nv_crtc->shadow);
+		nouveau_bo_del(&nv_crtc->shadow);
+#endif
+	}
 
 	nv_crtc->shadow = NULL;
 }
