@@ -2,6 +2,7 @@
  * Copyright 2007 Ben Skeggs
  * Copyright 2007 Stephane Marchesin
  * Copyright 2007 Jeremy Kolb
+ * Copyright 2007 Patrice Mandin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -420,6 +421,8 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  ((w-1+x)<<16);
 	OUT_RING  ((h-1+y)<<16);
+	BEGIN_RING(Nv3D, 0x02b8, 1);
+	OUT_RING((y<<16)|x);
 
 	return TRUE;
 }
@@ -695,9 +698,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (pNv->chan->vram->handle);
 
 	for (i=1; i<8; i++) {
-		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(i), 1);
+		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(i), 2);
 		OUT_RING  (0);
-		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(i), 1);
 		OUT_RING  (0);
 	}
 
@@ -814,9 +816,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
         BEGIN_RING(Nv3D, 0x0a00, 2);
         OUT_RING  ((w<<16) | 0);
         OUT_RING  ((h<<16) | 0);
-	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 1);
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  ((w-1)<<16);
-	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_VIEWPORT_CLIP_VERT(0), 1);
 	OUT_RING  ((h-1)<<16);
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_SCISSOR_HORIZ, 2);
 	OUT_RING  (w<<16);
