@@ -1976,6 +1976,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
+	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -1983,7 +1984,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
 	}
-	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 
 	NVVgaProtect(crtc, FALSE);
 
@@ -2013,6 +2013,7 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVCrtcSetOwner(crtc);
+	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -2020,7 +2021,6 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	} else {
 		nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
 	}
-	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 }
 
 void nv_crtc_restore(xf86CrtcPtr crtc)
@@ -2040,6 +2040,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
+	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -2047,12 +2048,11 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
 	}
-	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
 	nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 	NVVgaProtect(crtc, FALSE);
 
-	/* We must lock the door if we leave ;-) */
-	NVCrtcLockUnlock(crtc, TRUE);
+	/* The blob doesn't lock when leaving. */
+	//NVCrtcLockUnlock(crtc, TRUE);
 }
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
