@@ -1707,7 +1707,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
-#ifdef NOUVEAU_EXA_PIXMAPS
+#if !NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
 			ErrorF("Failed to allocate memory for framebuffer!\n");
