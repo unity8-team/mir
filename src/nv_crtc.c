@@ -963,7 +963,11 @@ void nv_crtc_calc_state_ext(
 						&(state->arbitration1));
 		}
 
-		CursorStart = pNv->Cursor->offset;
+		if (nv_crtc->head == 1) {
+			CursorStart = pNv->Cursor2->offset;
+		} else {
+			CursorStart = pNv->Cursor->offset;
+		}
 
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
 		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
@@ -2146,6 +2150,110 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	NVCrtcLoadPalette(crtc);
 }
 
+/**
+ * Allocates memory for a locked-in-framebuffer shadow of the given
+ * width and height for this CRTC's rotated shadow framebuffer.
+ */
+ 
+static void *
+nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
+{
+	ErrorF("nv_crtc_shadow_allocate is called\n");
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+
+	unsigned long rotate_pitch;
+	int size, align = 64;
+
+	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
+	size = rotate_pitch * height;
+
+	assert(nv_crtc->shadow == NULL);
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			align, size, &nv_crtc->shadow)) {
+		ErrorF("Failed to allocate memory for shadow buffer!\n");
+		return NULL;
+	}
+
+	if (nv_crtc->shadow && nouveau_bo_map(nv_crtc->shadow, NOUVEAU_BO_RDWR)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Failed to map shadow buffer.\n");
+		return NULL;
+	}
+
+	return nv_crtc->shadow->map;
+}
+
+/**
+ * Creates a pixmap for this CRTC's rotated shadow framebuffer.
+ */
+static PixmapPtr
+nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
+{
+	ErrorF("nv_crtc_shadow_create is called\n");
+	ScrnInfoPtr pScrn = crtc->scrn;
+	ScreenPtr pScreen = pScrn->pScreen;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	unsigned long rotate_pitch;
+	PixmapPtr rotate_pixmap;
+	struct nouveau_pixmap *nvpix;
+
+	if (!data)
+		data = crtc->funcs->shadow_allocate (crtc, width, height);
+
+	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
+
+	/* Create a dummy pixmap, to get a private that will be accepted by the system.*/
+	rotate_pixmap = pScreen->CreatePixmap(pScreen, 
+								0, /* width */
+								0, /* height */
+								pScrn->depth,
+								0);
+
+	if (rotate_pixmap == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Couldn't allocate shadow pixmap for rotated CRTC\n");
+	}
+
+	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
+	if (!nvpix) {
+		ErrorF("No shadow private, stage 1\n");
+	} else {
+		nvpix->bo = nv_crtc->shadow;
+		nvpix->mapped = TRUE;
+	}
+
+	/* Modify the pixmap to actually be the one we need. */
+	pScreen->ModifyPixmapHeader(rotate_pixmap,
+					width,
+					height,
+					pScrn->depth,
+					pScrn->bitsPerPixel,
+					rotate_pitch,
+					data);
+
+	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
+	if (!nvpix || !nvpix->bo)
+		ErrorF("No shadow private, stage 2\n");
+
+	return rotate_pixmap;
+}
+
+static void
+nv_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
+{
+	ErrorF("nv_crtc_shadow_destroy is called\n");
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScreenPtr pScreen = pScrn->pScreen;
+
+	if (rotate_pixmap) /* This should also unmap the memory */
+		pScreen->DestroyPixmap(rotate_pixmap);
+
+	nv_crtc->shadow = NULL;
+}
+
 /* NV04-NV10 doesn't support alpha cursors */
 static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.dpms = nv_crtc_dpms,
@@ -2164,6 +2272,9 @@ static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.hide_cursor = nv_crtc_hide_cursor,
 	.load_cursor_image = nv_crtc_load_cursor_image,
 	.gamma_set = nv_crtc_gamma_set,
+	.shadow_create = nv_crtc_shadow_create,
+	.shadow_allocate = nv_crtc_shadow_allocate,
+	.shadow_destroy = nv_crtc_shadow_destroy,
 };
 
 /* NV11 and up has support for alpha cursors. */ 
@@ -2185,6 +2296,9 @@ static const xf86CrtcFuncsRec nv11_crtc_funcs = {
 	.hide_cursor = nv_crtc_hide_cursor,
 	.load_cursor_argb = nv_crtc_load_cursor_argb,
 	.gamma_set = nv_crtc_gamma_set,
+	.shadow_create = nv_crtc_shadow_create,
+	.shadow_allocate = nv_crtc_shadow_allocate,
+	.shadow_destroy = nv_crtc_shadow_destroy,
 };
 
 
@@ -2519,7 +2633,11 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
 	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
 
 	start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
-	start += pNv->FB->offset;
+	if (crtc->rotatedData != NULL) { /* we do not exist on the real framebuffer */
+		start = nv_crtc->shadow->offset;
+	} else {
+		start += pNv->FB->offset;
+	}
 
 	/* 30 bits addresses in 32 bits according to haiku */
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, start & 0xfffffffc);

@@ -419,10 +419,18 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* save copy of image for color changes */
 	memcpy(pNv->curImage, image, 256);
+
+	/* Due to legacy code */
+	if (nv_crtc->head == 1) {
+		pNv->CURSOR = (CARD32 *) pNv->Cursor2->map;
+	} else {
+		pNv->CURSOR = (CARD32 *) pNv->Cursor->map;
+	}
 
 	/* Eventually this has to be replaced as well */
 	TransformCursor(pNv);
@@ -431,9 +439,16 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t *dst = (uint32_t*)pNv->CURSOR;
+	uint32_t *dst = NULL;
 	uint32_t *src = image;
+
+	if (nv_crtc->head == 1) {
+		dst = (uint32_t *) pNv->Cursor2->map;
+	} else {
+		dst = (uint32_t *) pNv->Cursor->map;
+	}
 
 	/* It seems we get premultiplied alpha and the hardware takes non-premultiplied? */
 	/* This is needed, because without bit28 of cursorControl, we use what ever ROP is set currently */

@@ -1707,17 +1707,16 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
-#if !NOUVEAU_EXA_PIXMAPS
+#ifdef NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			   0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
-		ErrorF("Failed to allocate memory for framebuffer!\n");
-		return FALSE;
+		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
+			ErrorF("Failed to allocate memory for framebuffer!\n");
+			return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
-		   (unsigned int)(pNv->FB->size >> 20));
+		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
+		(unsigned int)(pNv->FB->size >> 20));
 #endif
-
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1754,6 +1753,15 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
+	if (pNv->randr12_enable) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
+			64 * 1024, &pNv->Cursor2)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Failed to allocate memory for hardware cursor\n");
+			return FALSE;
+		}
+	}
+
 	if (pNv->Architecture >= NV_ARCH_50) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 				   0, 0x1000, &pNv->CLUT)) {
@@ -1766,7 +1774,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 	if ((pNv->FB && nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR)) ||
 	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
 	    (pNv->CLUT && nouveau_bo_map(pNv->CLUT, NOUVEAU_BO_RDWR)) ||
-	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR)) {
+	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR) ||
+	    (pNv->randr12_enable && nouveau_bo_map(pNv->Cursor2, NOUVEAU_BO_RDWR))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to map pinned buffers\n");
 		return FALSE;
@@ -1787,6 +1796,9 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	nouveau_bo_del(&pNv->FB);
 	nouveau_bo_del(&pNv->GART);
 	nouveau_bo_del(&pNv->Cursor);
+	if (pNv->randr12_enable) {
+		nouveau_bo_del(&pNv->Cursor2);
+	}
 	nouveau_bo_del(&pNv->CLUT);
 
 	return TRUE;
@@ -2168,12 +2180,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     }
    
 #if NOUVEAU_EXA_PIXMAPS
-    if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-		       0, pScrn->virtualX * pScrn->virtualY *
-		       (pScrn->bitsPerPixel >> 3), &pNv->FB)) {
-	    ErrorF("Failed to allocate memory for screen pixmap.\n");
-	    return FALSE;
-    }
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			0, pScrn->virtualX * pScrn->virtualY *
+			(pScrn->bitsPerPixel >> 3), &pNv->FB)) {
+		ErrorF("Failed to allocate memory for screen pixmap.\n");
+		return FALSE;
+	}
 #endif
 
     if (!pNv->randr12_enable) {
@@ -2426,6 +2438,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     if (serverGeneration == 1) {
 	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
     }
+
     return TRUE;
 }
 

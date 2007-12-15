@@ -336,6 +336,7 @@ typedef struct _NVRec {
     /* Various pinned memory regions */
     struct nouveau_bo * FB;
     struct nouveau_bo * Cursor;
+    struct nouveau_bo * Cursor2;
     struct nouveau_bo * CLUT;	/* NV50 only */
     struct nouveau_bo * GART;
 
@@ -488,6 +489,7 @@ typedef struct _NVCrtcPrivateRec {
 	int head;
 	Bool paletteEnabled;
 	Bool deactivate;
+	struct nouveau_bo *shadow;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef struct _NV50CrtcPrivRec {
