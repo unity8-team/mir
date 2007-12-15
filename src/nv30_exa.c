@@ -780,14 +780,12 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x1b02 /*GL_FILL*/);
 	/* - Disable texture units
 	 * - Set fragprog to MOVR result.color, fragment.color */
-	for (i=0;i<16;i++) {
-		BEGIN_RING(Nv3D,
-				NV34_TCL_PRIMITIVE_3D_TX_ENABLE(i), 1);
+	for (i=0;i<4;i++) {
+		BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_TX_ENABLE(i), 1);
 		OUT_RING  (0);
 	}
 	/* Polygon stipple */
-	BEGIN_RING(Nv3D,
-			NV34_TCL_PRIMITIVE_3D_POLYGON_STIPPLE_PATTERN(0), 0x20);
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_POLYGON_STIPPLE_PATTERN(0), 0x20);
 	for (i=0;i<0x20;i++)
 		OUT_RING  (0xFFFFFFFF);
 
