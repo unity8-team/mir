@@ -789,6 +789,10 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	for (i=0;i<0x20;i++)
 		OUT_RING  (0xFFFFFFFF);
 
+	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_DEPTH_RANGE_NEAR, 2);
+	OUT_RINGf  (0.0);
+	OUT_RINGf  (1.0);
+
 	/* Ok.  If you start X with the nvidia driver, kill it, and then
 	 * start X with nouveau you will get black rendering instead of
 	 * what you'd expect.  This fixes the problem, and it seems that
