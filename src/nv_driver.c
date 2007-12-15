@@ -1870,18 +1870,19 @@ NVRestore(ScrnInfoPtr pScrn)
 		/* Some aspects of an output needs to be restore before the crtc. */
 		/* In my case this has to do with the mode that i get at very low resolutions. */
 		/* If i do this at the end, it will not be restored properly */
-		ErrorF("Restore all TMDS timings, before restoring anything else\n");
 		for (i = 0; i < xf86_config->num_output; i++) {
 			NVOutputPrivatePtr nv_output2 = xf86_config->output[i]->driver_private;
 			NVOutputRegPtr regp = &nvReg->dac_reg[nv_output2->preferred_output];
 			Bool crosswired = regp->TMDS[0x4] & (1 << 3);
 			/* Let's guess the bios state ;-) */
-			if (nv_output2->type == OUTPUT_TMDS) {
+			if (nv_output2->type == OUTPUT_TMDS)
+				ErrorF("Restoring TMDS timings, before restoring anything else\n");
+			if (nv_output2->type == OUTPUT_LVDS)
+				ErrorF("Restoring LVDS timings, before restoring anything else\n");
+			if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
 				uint32_t clock = nv_calc_tmds_clock_from_pll(xf86_config->output[i]);
 				nv_set_tmds_registers(xf86_config->output[i], clock, TRUE, crosswired);
 			}
-			if (nv_output2->type == OUTPUT_LVDS)
-				link_head_and_output(pScrn, -1, nv_output2->dcb_entry, crosswired);
 		}
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
