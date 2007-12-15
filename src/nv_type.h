@@ -22,6 +22,8 @@
 #include "nv50_type.h"
 #include "nv_pcicompat.h"
 
+#include "nouveau_local.h" /* needed for NOUVEAU_EXA_PIXMAPS */
+
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
@@ -489,7 +491,11 @@ typedef struct _NVCrtcPrivateRec {
 	int head;
 	Bool paletteEnabled;
 	Bool deactivate;
+#if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_bo *shadow;
+#else
+	ExaOffscreenArea *shadow;
+#endif /* NOUVEAU_EXA_PIXMAPS */
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef struct _NV50CrtcPrivRec {
