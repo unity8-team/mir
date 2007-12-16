@@ -186,7 +186,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) Clock: mode %d, PLL %u\n",
-	       radeon_crtc->crtc_id, mode->Clock, sclock);
+	       radeon_crtc->crtc_id, mode->Clock, sclock * 10);
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), pdiv %u\n",
 	       radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
