@@ -1488,7 +1488,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * here.
 	 */
 
-	if (!pNv->randr12_enable) {
+	{
 		Gamma zeros = {0.0, 0.0, 0.0};
 
 		if (!xf86SetGamma(pScrn, zeros)) {
