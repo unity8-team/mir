@@ -1648,6 +1648,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Switch to non-vga mode (the so called HSYNC mode) */
 	regp->config = 0x2;
 
+	/* Some misc regs */
+	regp->CRTC[NV_VGA_CRTCX_43] = 0x1;
+	regp->CRTC[NV_VGA_CRTCX_85] = 0xFF;
+	regp->CRTC[NV_VGA_CRTCX_86] = 0x1;
+
 	/*
 	 * Calculate the state that is common to all crtc's (stored in the state struct).
 	 */
@@ -2450,6 +2455,12 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, regp->config);
+	uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
+	if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
+	} else {
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+	}
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
@@ -2481,6 +2492,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
     if(pNv->Architecture >= NV_ARCH_30) {
       NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM_NV30, regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30]);
     }
+
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_85, regp->CRTC[NV_VGA_CRTCX_85]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_86, regp->CRTC[NV_VGA_CRTCX_86]);
 
     NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL0, regp->CRTC[NV_VGA_CRTCX_CURCTL0]);
     NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, regp->CRTC[NV_VGA_CRTCX_CURCTL1]);
@@ -2578,6 +2593,10 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING);
 	regp->CRTC[NV_VGA_CRTCX_FP_VTIMING] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FP_VTIMING);
+
+	regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_43);
+	regp->CRTC[NV_VGA_CRTCX_85] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_85);
+	regp->CRTC[NV_VGA_CRTCX_86] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_86);
     }
 }
 

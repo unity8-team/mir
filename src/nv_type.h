@@ -140,7 +140,6 @@ typedef struct _nv_output_reg
 {
 	CARD32 test_control;
 	CARD32 unk_670;
-	CARD32 unk_900;
 
 	CARD32 output;
 	CARD8 TMDS[0xFF];

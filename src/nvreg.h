@@ -121,6 +121,7 @@
 #define NV_VGA_CRTCX_3B		0x3b
 #define NV_VGA_CRTCX_3C		0x3c
 #define NV_VGA_CRTCX_EXTRA		0x41
+#define NV_VGA_CRTCX_43			0x43
 #define NV_VGA_CRTCX_OWNER		0x44
 #define NV_VGA_CRTCX_45			0x45
 #define NV_VGA_CRTCX_SWAPPING		0x46
@@ -134,6 +135,9 @@
 #define NV_VGA_CRTCX_57			0x57
 #define NV_VGA_CRTCX_58			0x58
 #define NV_VGA_CRTCX_59			0x59
+#define NV_VGA_CRTCX_85			0x85
+#define NV_VGA_CRTCX_86			0x86
+
 
 #define NV_PGRAPH_STATUS            (0x00000700)
 #define NV_PFIFO_RAMHT              (0x00000210)
