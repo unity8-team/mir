@@ -41,6 +41,8 @@ struct nouveau_pixmap {
 
 #define NOUVEAU_TIME_MSEC() GetTimeInMillis()
 
+#define NOUVEAU_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
+
 /* User FIFO control */
 //#define NOUVEAU_DMA_TRACE
 //#define NOUVEAU_DMA_DEBUG

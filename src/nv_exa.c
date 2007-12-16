@@ -708,6 +708,7 @@ NVExaCreatePixmap(ScreenPtr pScreen, int size, int align)
 	if (!nvpix)
 		return NULL;
 
+	// FIXME : for the front buffer, we need to align height
 	if (size) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, size,
 				   &nvpix->bo)) {
@@ -791,7 +792,7 @@ NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
 		pNv->EXADriverPtr->offScreenBase =
-			pScrn->virtualX * pScrn->virtualY * 
+			pScrn->virtualX * NOUVEAU_ALIGN(pScrn->virtualY,32) * 
 			(pScrn->bitsPerPixel / 8); 
 		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
 	}

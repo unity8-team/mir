@@ -2183,7 +2183,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    
 #if NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			0, pScrn->virtualX * pScrn->virtualY *
+			0, pScrn->virtualX * NOUVEAU_ALIGN(pScrn->virtualY,32) *
 			(pScrn->bitsPerPixel >> 3), &pNv->FB)) {
 		ErrorF("Failed to allocate memory for screen pixmap.\n");
 		return FALSE;
