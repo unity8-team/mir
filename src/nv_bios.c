@@ -2116,7 +2116,6 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 
 	NVPtr pNv = NVPTR(pScrn);
 	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
-	uint8_t bus = pNv->dcb_table.entry[dcb_entry].bus;
 	Bool crosswired = FALSE;
 	uint8_t tmds04 = 0x80;
 	uint32_t tmds_ctrl, tmds_ctrl2;

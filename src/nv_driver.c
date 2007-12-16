@@ -652,23 +652,23 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 void 
 NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 {
-    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-    int startAddr;
-    NVPtr pNv = NVPTR(pScrn);
-    NVFBLayout *pLayout = &pNv->CurrentLayout;
+	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
 
-    if (pNv->randr12_enable) {
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
-	xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
-	
-	if (crtc && crtc->enabled) {
-	    NVCrtcSetBase(crtc, x, y);
+	if (pNv->randr12_enable) {
+		xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
+
+		if (crtc && crtc->enabled) {
+			NVCrtcSetBase(crtc, x, y);
+		}
+	} else {
+		int startAddr;
+		NVFBLayout *pLayout = &pNv->CurrentLayout;
+		startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
+		startAddr += pNv->FB->offset;
+		NVSetStartAddress(pNv, startAddr);
 	}
-    } else {
-	startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
-	startAddr += pNv->FB->offset;
-	NVSetStartAddress(pNv, startAddr);
-    }
 }
 
 static Bool
@@ -750,8 +750,9 @@ NVEnterVT(int scrnIndex, int flags)
 	} else {
 		if (!NVModeInit(pScrn, pScrn->currentMode))
 			return FALSE;
+
+		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	}
-	NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	if(pNv->overlayAdaptor)
 		NVResetVideo(pScrn);
 	return TRUE;
@@ -768,19 +769,19 @@ NVEnterVT(int scrnIndex, int flags)
 static void
 NVLeaveVT(int scrnIndex, int flags)
 {
-    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
 	if (pNv->randr12_enable)
 		ErrorF("NVLeaveVT is called\n");
 
-    if (pNv->Architecture == NV_ARCH_50) {
-	NV50ReleaseDisplay(pScrn);
-	return;
-    }
-    NVSync(pScrn);
-    NVRestore(pScrn);
-    if (!pNv->randr12_enable)
-	NVLockUnlock(pNv, 1);
+	if (pNv->Architecture == NV_ARCH_50) {
+		NV50ReleaseDisplay(pScrn);
+		return;
+	}
+	NVSync(pScrn);
+	NVRestore(pScrn);
+	if (!pNv->randr12_enable)
+		NVLockUnlock(pNv, 1);
 }
 
 
@@ -820,38 +821,38 @@ NVBlockHandler (
 static Bool
 NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 {
-    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-    NVPtr pNv = NVPTR(pScrn);
+	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
 
-    if (pScrn->vtSema) {
-        pScrn->vtSema = FALSE;
-	if (pNv->Architecture == NV_ARCH_50) {
-	    NV50ReleaseDisplay(pScrn);
-	} else {
-		if (pNv->randr12_enable)
-			ErrorF("NVCloseScreen is called\n");
-	    NVSync(pScrn);
-	    NVRestore(pScrn);
-	    if (!pNv->randr12_enable)
-		NVLockUnlock(pNv, 1);
+	if (pScrn->vtSema) {
+		pScrn->vtSema = FALSE;
+		if (pNv->Architecture == NV_ARCH_50) {
+			NV50ReleaseDisplay(pScrn);
+		} else {
+			if (pNv->randr12_enable)
+				ErrorF("NVCloseScreen is called\n");
+			NVSync(pScrn);
+			NVRestore(pScrn);
+			if (!pNv->randr12_enable)
+				NVLockUnlock(pNv, 1);
+		}
 	}
-    }
 
-    NVUnmapMem(pScrn);
-    vgaHWUnmapMem(pScrn);
-    if (pNv->CursorInfoRec)
-        xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
-    if (pNv->ShadowPtr)
-        xfree(pNv->ShadowPtr);
-    if (pNv->overlayAdaptor)
-	xfree(pNv->overlayAdaptor);
-    if (pNv->blitAdaptor)
-        xfree(pNv->blitAdaptor);
+	NVUnmapMem(pScrn);
+	vgaHWUnmapMem(pScrn);
+	if (pNv->CursorInfoRec)
+		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
+	if (pNv->ShadowPtr)
+		xfree(pNv->ShadowPtr);
+	if (pNv->overlayAdaptor)
+		xfree(pNv->overlayAdaptor);
+	if (pNv->blitAdaptor)
+		xfree(pNv->blitAdaptor);
 
-    pScrn->vtSema = FALSE;
-    pScreen->CloseScreen = pNv->CloseScreen;
-    pScreen->BlockHandler = pNv->BlockHandler;
-    return (*pScreen->CloseScreen)(scrnIndex, pScreen);
+	pScrn->vtSema = FALSE;
+	pScreen->CloseScreen = pNv->CloseScreen;
+	pScreen->BlockHandler = pNv->BlockHandler;
+	return (*pScreen->CloseScreen)(scrnIndex, pScreen);
 }
 
 /* Free up any persistent data structures */
