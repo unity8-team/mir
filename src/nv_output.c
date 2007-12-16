@@ -547,11 +547,11 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 
 	/* The analog outputs on NV2x seem fixed to a crtc */
 	if (pNv->Architecture >= NV_ARCH_30) {
-		/* Only one can be on crtc1 */
-		if (nv_crtc->head == 1) {
-			output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		} else {
-			output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		/* Does this have something to do with outputs that have ffs(or) == 1? */
+		/* I suspect this bit represents more than just a crtc switch. */
+		if (nv_crtc->head != nv_output->preferred_output) {
+			output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		}
 	}
 
