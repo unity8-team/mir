@@ -1183,7 +1183,14 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 		nv_output->scaling_mode = SCALING_MODE("panel");
 	}
 
-	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
+	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
+	/* Anyone know what the solution for this is? */
+	if (nv_output->preferred_output == 0) {
+		output->possible_crtcs = (1 << 0);
+	} else {
+		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }

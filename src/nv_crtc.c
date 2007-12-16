@@ -1598,12 +1598,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
-		/* 0x20 is also seen sometimes, why? */
-		if (nv_crtc->head == 1) {
-			regp->CRTC[NV_VGA_CRTCX_3B] = 0x24;
-		} else {
-			regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
-		}
+		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
 	}
 
 	/* These values seem to vary */
@@ -2050,6 +2045,25 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVVgaProtect(crtc, FALSE);
 }
 
+void
+NVResetCrtcConfig(xf86CrtcPtr crtc, Bool set)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	CARD32 val = 0;
+
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	if (set) {
+		NVCrtcRegPtr regp;
+
+		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+		val = regp->head;
+	}
+
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, val);
+}
+
 void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -2057,6 +2071,8 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
+
+	NVResetCrtcConfig(crtc, FALSE);
 
 	crtc->funcs->dpms(crtc, DPMSModeOff);
 
@@ -2076,6 +2092,8 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 
 	if (crtc->scrn->pScreen != NULL)
 		xf86_reload_cursors (crtc->scrn->pScreen);
+
+	NVResetCrtcConfig(crtc, TRUE);
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
@@ -2415,9 +2433,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
     regp = &state->crtc_reg[nv_crtc->head];
 
     if(pNv->Architecture >= NV_ARCH_10) {
-        if(pNv->twoHeads) {
-           nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, regp->head);
-        }
         nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
         nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
         nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);

@@ -671,29 +671,6 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
     }
 }
 
-void
-NVResetCrtcConfig(ScrnInfoPtr pScrn, int set)
-{
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
-	CARD32 val = 0;
-
-	for (i = 0; i < config->num_crtc; i++) {
-		xf86CrtcPtr crtc = config->crtc[i];
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-		if (set) {
-			NVCrtcRegPtr regp;
-
-			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-			val = regp->head;
-		}
-
-		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, val);
-	}
-}
-
 static Bool
 NV50AcquireDisplay(ScrnInfoPtr pScrn)
 {
@@ -725,64 +702,59 @@ NV50ReleaseDisplay(ScrnInfoPtr pScrn)
 static Bool
 NVEnterVT(int scrnIndex, int flags)
 {
-    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
-    NVPtr pNv = NVPTR(pScrn);
-    
-    if (pNv->randr12_enable) {
-	ErrorF("NVEnterVT is called\n");
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-	pScrn->vtSema = TRUE;
+	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->Architecture == NV_ARCH_50) {
-		if (!NV50AcquireDisplay(pScrn))
-			return FALSE;
-		return TRUE;
-	}
+	if (pNv->randr12_enable) {
+		ErrorF("NVEnterVT is called\n");
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		int i;
+		pScrn->vtSema = TRUE;
 
-	/* Save the current state */
-	if (pNv->SaveGeneration != serverGeneration) {
-		pNv->SaveGeneration = serverGeneration;
-		NVSave(pScrn);
-	}
+		if (pNv->Architecture == NV_ARCH_50) {
+			if (!NV50AcquireDisplay(pScrn))
+				return FALSE;
+			return TRUE;
+		}
 
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-	}
+		/* Save the current state */
+		if (pNv->SaveGeneration != serverGeneration) {
+			pNv->SaveGeneration = serverGeneration;
+			NVSave(pScrn);
+		}
 
-	/* Reassign outputs so disabled outputs don't get stuck on the wrong crtc */
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-		NVOutputPrivatePtr nv_output = output->driver_private;
-		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-			uint8_t tmds_reg4;
+		for (i = 0; i < xf86_config->num_crtc; i++) {
+			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
+		}
 
-			/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
-			/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled. */
-			/* But the bios reinits it to CRTC0 when going back to VT. */
-			/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
-			/* A legitimately crosswired output will get set properly during mode set */
-			if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_output, 0x4)) & (1 << 3)) {
-				NVWriteTMDS(pNv, nv_output->preferred_output, 0x4, tmds_reg4 & ~(1 << 3));
+		/* Reassign outputs so disabled outputs don't get stuck on the wrong crtc */
+		for (i = 0; i < xf86_config->num_output; i++) {
+			xf86OutputPtr output = xf86_config->output[i];
+			NVOutputPrivatePtr nv_output = output->driver_private;
+			if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+				uint8_t tmds_reg4;
+
+				/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
+				/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled. */
+				/* But the bios reinits it to CRTC0 when going back to VT. */
+				/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
+				/* A legitimately crosswired output will get set properly during mode set */
+				if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_output, 0x4)) & (1 << 3)) {
+					NVWriteTMDS(pNv, nv_output->preferred_output, 0x4, tmds_reg4 & ~(1 << 3));
+				}
 			}
 		}
+
+		if (!xf86SetDesiredModes(pScrn))
+			return FALSE;
+	} else {
+		if (!NVModeInit(pScrn, pScrn->currentMode))
+			return FALSE;
 	}
-
-	NVResetCrtcConfig(pScrn, 0);
-	if (!xf86SetDesiredModes(pScrn))
-		return FALSE;
-	NVResetCrtcConfig(pScrn, 1);
-
-    } else {
-	if (!NVModeInit(pScrn, pScrn->currentMode))
-	    return FALSE;
-
-    }
-    NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-    if(pNv->overlayAdaptor)
-	NVResetVideo(pScrn);
-    return TRUE;
-    
+	NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	if(pNv->overlayAdaptor)
+		NVResetVideo(pScrn);
+	return TRUE;
 }
 
 /*
