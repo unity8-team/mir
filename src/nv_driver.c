@@ -2103,47 +2103,47 @@ NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
 static Bool
 NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
-    ScrnInfoPtr pScrn;
-    vgaHWPtr hwp;
-    NVPtr pNv;
-    int ret;
-    VisualPtr visual;
-    unsigned char *FBStart;
-    int width, height, displayWidth, shadowHeight;
+	ScrnInfoPtr pScrn;
+	vgaHWPtr hwp;
+	NVPtr pNv;
+	int ret;
+	VisualPtr visual;
+	unsigned char *FBStart;
+	int width, height, displayWidth, shadowHeight;
 
-    /* 
-     * First get the ScrnInfoRec
-     */
-    pScrn = xf86Screens[pScreen->myNum];
+	/* 
+	 * First get the ScrnInfoRec
+	 */
+	pScrn = xf86Screens[pScreen->myNum];
 
-    hwp = VGAHWPTR(pScrn);
-    pNv = NVPTR(pScrn);
+	hwp = VGAHWPTR(pScrn);
+	pNv = NVPTR(pScrn);
 
-    /* Map the VGA memory when the primary video */
-    if (pNv->Primary) {
-	hwp->MapSize = 0x10000;
-	if (!vgaHWMapMem(pScrn))
-	    return FALSE;
-    }
-    
-    /* First init DRI/DRM */
-    if (!NVDRIScreenInit(pScrn))
-	return FALSE;
-    
-    /* Allocate and map memory areas we need */
-    if (!NVMapMem(pScrn))
-	return FALSE;
-    
-    if (!pNv->NoAccel) {
-	/* Init DRM - Alloc FIFO */
-	if (!NVInitDma(pScrn))
-	    return FALSE;
-	
-	/* setup graphics objects */
-	if (!NVAccelCommonInit(pScrn))
-	    return FALSE;
-    }
-   
+	/* Map the VGA memory when the primary video */
+	if (pNv->Primary) {
+		hwp->MapSize = 0x10000;
+		if (!vgaHWMapMem(pScrn))
+			return FALSE;
+	}
+
+	/* First init DRI/DRM */
+	if (!NVDRIScreenInit(pScrn))
+		return FALSE;
+
+	/* Allocate and map memory areas we need */
+	if (!NVMapMem(pScrn))
+		return FALSE;
+
+	if (!pNv->NoAccel) {
+		/* Init DRM - Alloc FIFO */
+		if (!NVInitDma(pScrn))
+			return FALSE;
+
+		/* setup graphics objects */
+		if (!NVAccelCommonInit(pScrn))
+			return FALSE;
+	}
+
 #if NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 			0, pScrn->virtualX * NOUVEAU_ALIGN(pScrn->virtualY,32) *
@@ -2153,164 +2153,168 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 #endif
 
-    if (!pNv->randr12_enable) {
-	/* Save the current state */
-	NVSave(pScrn);
-	/* Initialise the first mode */
-	if (!NVModeInit(pScrn, pScrn->currentMode))
-	    return FALSE;
+	if (!pNv->randr12_enable) {
+		/* Save the current state */
+		NVSave(pScrn);
+		/* Initialise the first mode */
+		if (!NVModeInit(pScrn, pScrn->currentMode))
+			return FALSE;
 
-	/* Darken the screen for aesthetic reasons and set the viewport */
-	
-	NVSaveScreen(pScreen, SCREEN_SAVER_ON);
-	pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-	
-    } else {
-	pScrn->memPhysBase = pNv->VRAMPhysical;
-	pScrn->fbOffset = 0;
+		/* Darken the screen for aesthetic reasons and set the viewport */
+		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
+		pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	} else {
+		pScrn->memPhysBase = pNv->VRAMPhysical;
+		pScrn->fbOffset = 0;
 
-	/* Gather some misc info before the randr stuff kicks in */
-	pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
-	if (pNv->Architecture == NV_ARCH_40) {
-		pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
-		pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
+		/* Gather some misc info before the randr stuff kicks in */
+		pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+		if (pNv->Architecture == NV_ARCH_40) {
+			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
+			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
+		}
+		pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
+		pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
+
+		if (!NVEnterVT(scrnIndex, 0))
+			return FALSE;
+		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
 	}
-	pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-	pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
-
-	if (!NVEnterVT(scrnIndex, 0))
-	    return FALSE;
-	NVSaveScreen(pScreen, SCREEN_SAVER_ON);
-    }
 
 
-    /*
-     * The next step is to setup the screen's visuals, and initialise the
-     * framebuffer code.  In cases where the framebuffer's default
-     * choices for things like visual layouts and bits per RGB are OK,
-     * this may be as simple as calling the framebuffer's ScreenInit()
-     * function.  If not, the visuals will need to be setup before calling
-     * a fb ScreenInit() function and fixed up after.
-     *
-     * For most PC hardware at depths >= 8, the defaults that fb uses
-     * are not appropriate.  In this driver, we fixup the visuals after.
-     */
+	/*
+	 * The next step is to setup the screen's visuals, and initialise the
+	 * framebuffer code.  In cases where the framebuffer's default
+	 * choices for things like visual layouts and bits per RGB are OK,
+	 * this may be as simple as calling the framebuffer's ScreenInit()
+	 * function.  If not, the visuals will need to be setup before calling
+	 * a fb ScreenInit() function and fixed up after.
+	 *
+	 * For most PC hardware at depths >= 8, the defaults that fb uses
+	 * are not appropriate.  In this driver, we fixup the visuals after.
+	 */
 
-    /*
-     * Reset the visual list.
-     */
-    miClearVisualTypes();
+	/*
+	 * Reset the visual list.
+	 */
+	miClearVisualTypes();
 
-    /* Setup the visuals we support. */
+	/* Setup the visuals we support. */
 
-    if (!miSetVisualTypes(pScrn->depth, 
-                          miGetDefaultVisualMask(pScrn->depth), 8,
-                          pScrn->defaultVisual))
-	  return FALSE;
-    if (!miSetPixmapDepths ()) return FALSE;
+	if (!miSetVisualTypes(pScrn->depth, 
+				miGetDefaultVisualMask(pScrn->depth), 8,
+				pScrn->defaultVisual))
+		return FALSE;
+	if (!miSetPixmapDepths ())
+		return FALSE;
 
-    /*
-     * Call the framebuffer layer's ScreenInit function, and fill in other
-     * pScreen fields.
-     */
+	/*
+	 * Call the framebuffer layer's ScreenInit function, and fill in other
+	 * pScreen fields.
+	 */
 
-    width = pScrn->virtualX;
-    height = pScrn->virtualY;
-    displayWidth = pScrn->displayWidth;
+	width = pScrn->virtualX;
+	height = pScrn->virtualY;
+	displayWidth = pScrn->displayWidth;
 
-    if(pNv->Rotate) {
-	height = pScrn->virtualX;
-	width = pScrn->virtualY;
-    }
-
-    /* If RandR rotation is enabled, leave enough space in the
-     * framebuffer for us to rotate the screen dimensions without
-     * changing the pitch.
-     */
-    if(pNv->RandRRotation)
-        shadowHeight = max(width, height);
-    else
-        shadowHeight = height;
-
-    if(pNv->ShadowFB) {
- 	pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * width);
-        pNv->ShadowPtr = xalloc(pNv->ShadowPitch * shadowHeight);
-	displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
-        FBStart = pNv->ShadowPtr;
-    } else {
-	pNv->ShadowPtr = NULL;
-	FBStart = pNv->FB->map;
-    }
-
-    switch (pScrn->bitsPerPixel) {
-        case 8:
-        case 16:
-        case 32:
-            ret = fbScreenInit(pScreen, FBStart, width, height,
-                               pScrn->xDpi, pScrn->yDpi,
-                               displayWidth, pScrn->bitsPerPixel);
-            break;
-        default:
-            xf86DrvMsg(scrnIndex, X_ERROR,
-                       "Internal error: invalid bpp (%d) in NVScreenInit\n",
-                       pScrn->bitsPerPixel);
-            ret = FALSE;
-            break;
-    }
-    if (!ret)
-	return FALSE;
-
-    if (pScrn->bitsPerPixel > 8) {
-        /* Fixup RGB ordering */
-        visual = pScreen->visuals + pScreen->numVisuals;
-        while (--visual >= pScreen->visuals) {
-	    if ((visual->class | DynamicClass) == DirectColor) {
-		visual->offsetRed = pScrn->offset.red;
-		visual->offsetGreen = pScrn->offset.green;
-		visual->offsetBlue = pScrn->offset.blue;
-		visual->redMask = pScrn->mask.red;
-		visual->greenMask = pScrn->mask.green;
-		visual->blueMask = pScrn->mask.blue;
-	    }
+	if(pNv->Rotate) {
+		height = pScrn->virtualX;
+		width = pScrn->virtualY;
 	}
-    }
 
-    fbPictureInit (pScreen, 0, 0);
-    
-    xf86SetBlackWhitePixels(pScreen);
-
-    if (!pNv->NoAccel) {
-	    NVExaInit(pScreen);
-	    NVResetGraphics(pScrn);
-    }
-    
-    miInitializeBackingStore(pScreen);
-    xf86SetBackingStore(pScreen);
-    xf86SetSilkenMouse(pScreen);
-
-    /* Finish DRI init */
-    NVDRIFinishScreenInit(pScrn);
-
-    /* Initialize software cursor.  
-	Must precede creation of the default colormap */
-    miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
-
-    /* Initialize HW cursor layer. 
-	Must follow software cursor initialization*/
-    if (pNv->HWCursor) { 
-	if (pNv->Architecture < NV_ARCH_50 && !pNv->randr12_enable)
-		ret = NVCursorInit(pScreen);
-	else if (pNv->Architecture < NV_ARCH_50 && pNv->randr12_enable)
-		ret = NVCursorInitRandr12(pScreen);
-	else
-		ret = NV50CursorInit(pScreen);
-
-	if (ret != TRUE) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
-		"Hardware cursor initialization failed\n");
-	    pNv->HWCursor = FALSE;
+	/* If RandR rotation is enabled, leave enough space in the
+	 * framebuffer for us to rotate the screen dimensions without
+	 * changing the pitch.
+	 */
+	if(pNv->RandRRotation) {
+		shadowHeight = max(width, height);
+	} else {
+		shadowHeight = height;
 	}
-    }
+
+	if (pNv->ShadowFB) {
+		pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * width);
+		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * shadowHeight);
+		displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
+		FBStart = pNv->ShadowPtr;
+	} else {
+		pNv->ShadowPtr = NULL;
+		FBStart = pNv->FB->map;
+	}
+
+	switch (pScrn->bitsPerPixel) {
+		case 8:
+		case 16:
+		case 32:
+			ret = fbScreenInit(pScreen, FBStart, width, height,
+				pScrn->xDpi, pScrn->yDpi,
+				displayWidth, pScrn->bitsPerPixel);
+			break;
+		default:
+			xf86DrvMsg(scrnIndex, X_ERROR,
+				"Internal error: invalid bpp (%d) in NVScreenInit\n",
+				pScrn->bitsPerPixel);
+			ret = FALSE;
+			break;
+	}
+	if (!ret)
+		return FALSE;
+
+	if (pScrn->bitsPerPixel > 8) {
+		/* Fixup RGB ordering */
+		visual = pScreen->visuals + pScreen->numVisuals;
+		while (--visual >= pScreen->visuals) {
+			if ((visual->class | DynamicClass) == DirectColor) {
+				visual->offsetRed = pScrn->offset.red;
+				visual->offsetGreen = pScrn->offset.green;
+				visual->offsetBlue = pScrn->offset.blue;
+				visual->redMask = pScrn->mask.red;
+				visual->greenMask = pScrn->mask.green;
+				visual->blueMask = pScrn->mask.blue;
+			}
+		}
+	}
+
+	fbPictureInit (pScreen, 0, 0);
+
+	xf86SetBlackWhitePixels(pScreen);
+
+	if (!pNv->NoAccel) {
+		NVExaInit(pScreen);
+		NVResetGraphics(pScrn);
+	}
+
+	miInitializeBackingStore(pScreen);
+	xf86SetBackingStore(pScreen);
+	xf86SetSilkenMouse(pScreen);
+
+	/* Finish DRI init */
+	NVDRIFinishScreenInit(pScrn);
+
+	/* 
+	 * Initialize software cursor.
+	 * Must precede creation of the default colormap.
+	 */
+	miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
+
+	/*
+	 * Initialize HW cursor layer. 
+	 * Must follow software cursor initialization.
+	 */
+	if (pNv->HWCursor) { 
+		if (pNv->Architecture < NV_ARCH_50 && !pNv->randr12_enable)
+			ret = NVCursorInit(pScreen);
+		else if (pNv->Architecture < NV_ARCH_50 && pNv->randr12_enable)
+			ret = NVCursorInitRandr12(pScreen);
+		else
+			ret = NV50CursorInit(pScreen);
+
+		if (ret != TRUE) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, 
+				"Hardware cursor initialization failed\n");
+			pNv->HWCursor = FALSE;
+		}
+	}
 
 	if (pNv->randr12_enable) {
 		xf86DPMSInit(pScreen, xf86DPMSSet, 0);
@@ -2322,89 +2326,93 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pScrn->PointerMoved = NVPointerMoved;
 	}
 
-    /* Initialise default colourmap */
-    if (!miCreateDefColormap(pScreen))
-	return FALSE;
+	/* Initialise default colourmap */
+	if (!miCreateDefColormap(pScreen))
+		return FALSE;
 
-    /* Initialize colormap layer.  
-       Must follow initialization of the default colormap */
-    if (!pNv->randr12_enable) {
-	if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
+	/*
+	 * Initialize colormap layer.
+	 * Must follow initialization of the default colormap 
+	 */
+	if (!pNv->randr12_enable) {
+		if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
 				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
-	    return FALSE;
-    } else {
-	if (pNv->Architecture < NV_ARCH_50) {
-	    if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-				     NULL,
-				     CMAP_RELOAD_ON_MODE_SWITCH |
-				     CMAP_PALETTED_TRUECOLOR))
 		return FALSE;
 	} else {
-	    if (!xf86HandleColormaps(pScreen, 256, 8, NV50LoadPalette,
-				     NULL, CMAP_PALETTED_TRUECOLOR))
-		return FALSE;
-	}
-    }
-
-    if(pNv->ShadowFB) {
-	RefreshAreaFuncPtr refreshArea = NVRefreshArea;
-
-	if(pNv->Rotate || pNv->RandRRotation) {
-	   pNv->PointerMoved = pScrn->PointerMoved;
-	   if(pNv->Rotate)
-	       pScrn->PointerMoved = NVPointerMoved;
-
-	   switch(pScrn->bitsPerPixel) {
-               case 8:	refreshArea = NVRefreshArea8;	break;
-               case 16:	refreshArea = NVRefreshArea16;	break;
-               case 32:	refreshArea = NVRefreshArea32;	break;
-	   }
-           if(!pNv->RandRRotation) {
-               xf86DisableRandR();
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                          "Driver rotation enabled, RandR disabled\n");
-           }
+		if (pNv->Architecture < NV_ARCH_50) {
+			if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+						NULL,
+						CMAP_RELOAD_ON_MODE_SWITCH |
+						CMAP_PALETTED_TRUECOLOR))
+			return FALSE;
+		} else {
+			if (!xf86HandleColormaps(pScreen, 256, 8, NV50LoadPalette,
+						NULL, CMAP_PALETTED_TRUECOLOR))
+			return FALSE;
+		}
 	}
 
-	ShadowFBInit(pScreen, refreshArea);
-    }
+	if(pNv->ShadowFB) {
+		RefreshAreaFuncPtr refreshArea = NVRefreshArea;
 
-    if (!pNv->randr12_enable) {
-	if(pNv->FlatPanel)
-	    xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
-	else
-	    xf86DPMSInit(pScreen, NVDPMSSet, 0);
-    }
+		if (pNv->Rotate || pNv->RandRRotation) {
+			pNv->PointerMoved = pScrn->PointerMoved;
+			if (pNv->Rotate)
+				pScrn->PointerMoved = NVPointerMoved;
 
-    pScrn->memPhysBase = pNv->VRAMPhysical;
-    pScrn->fbOffset = 0;
+			switch(pScrn->bitsPerPixel) {
+				case 8:	refreshArea = NVRefreshArea8;	break;
+				case 16:	refreshArea = NVRefreshArea16;	break;
+				case 32:	refreshArea = NVRefreshArea32;	break;
+			}
+			if(!pNv->RandRRotation) {
+				xf86DisableRandR();
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					"Driver rotation enabled, RandR disabled\n");
+			}
+		}
 
-    if(pNv->Rotate == 0 && !pNv->RandRRotation)
-       NVInitVideo(pScreen);
+		ShadowFBInit(pScreen, refreshArea);
+	}
 
-    pScreen->SaveScreen = NVSaveScreen;
+	if (!pNv->randr12_enable) {
+		if(pNv->FlatPanel) {
+			xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
+		} else {
+			xf86DPMSInit(pScreen, NVDPMSSet, 0);
+		}
+	}
 
-    /* Wrap the current CloseScreen function */
-    pNv->CloseScreen = pScreen->CloseScreen;
-    pScreen->CloseScreen = NVCloseScreen;
+	pScrn->memPhysBase = pNv->VRAMPhysical;
+	pScrn->fbOffset = 0;
 
-    pNv->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = NVBlockHandler;
+	if (pNv->Rotate == 0 && !pNv->RandRRotation)
+		NVInitVideo(pScreen);
+
+	pScreen->SaveScreen = NVSaveScreen;
+
+	/* Wrap the current CloseScreen function */
+	pNv->CloseScreen = pScreen->CloseScreen;
+	pScreen->CloseScreen = NVCloseScreen;
+
+	pNv->BlockHandler = pScreen->BlockHandler;
+	pScreen->BlockHandler = NVBlockHandler;
 
 #ifdef RANDR
-    /* Install our DriverFunc.  We have to do it this way instead of using the
-     * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
-     * pScrn->DriverFunc */
-    if (!pNv->randr12_enable)
-	pScrn->DriverFunc = NVDriverFunc;
+	/* Install our DriverFunc.  We have to do it this way instead of using the
+	 * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
+	 * pScrn->DriverFunc 
+	 */
+	if (!pNv->randr12_enable)
+		pScrn->DriverFunc = NVDriverFunc;
 #endif
 
-    /* Report any unused options (only for the first generation) */
-    if (serverGeneration == 1) {
-	xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
-    }
+	/* Report any unused options (only for the first generation) */
+	if (serverGeneration == 1) {
+		xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
+	}
 
-    return TRUE;
+	return TRUE;
 }
 
 static Bool
