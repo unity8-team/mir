@@ -156,8 +156,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
     CARD32 sclock = mode->Clock;
-    uint16_t ref_div = 0, fb_div = 0;
-    uint8_t post_div = 0;
+    CARD32 ref_div = 0, fb_div = 0, post_div = 0;
     int major, minor;
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     void *ptr;
@@ -167,29 +166,29 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     if (IS_AVIVO_VARIANT) {
 	CARD32 temp;
-	RADEONComputePLL(&info->pll, mode->Clock * 1000, &sclock, &fb_div, &ref_div, &post_div);
-	sclock /= 1000;
+	RADEONComputePLL(&info->pll, mode->Clock * 1000, &temp, &fb_div, &ref_div, &post_div);
+	sclock = temp / 10000;
 
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (radeon_crtc->crtc_id == 0) {
-            temp = INREG(AVIVO_P1PLL_INT_SS_CNTL);
-            OUTREG(AVIVO_P1PLL_INT_SS_CNTL, temp & ~1);
-        } else {
-            temp = INREG(AVIVO_P2PLL_INT_SS_CNTL);
-            OUTREG(AVIVO_P2PLL_INT_SS_CNTL, temp & ~1);
-        }
+	    temp = INREG(AVIVO_P1PLL_INT_SS_CNTL);
+	    OUTREG(AVIVO_P1PLL_INT_SS_CNTL, temp & ~1);
+	} else {
+	    temp = INREG(AVIVO_P2PLL_INT_SS_CNTL);
+	    OUTREG(AVIVO_P2PLL_INT_SS_CNTL, temp & ~1);
+	}
     } else {
-	sclock = save->dot_clock_freq * 10;
+	sclock = save->dot_clock_freq;
 	fb_div = save->feedback_div;
 	post_div = save->post_div;
 	ref_div = save->ppll_ref_div;
     }
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-	       "crtc(%d) Clock: mode %d, PLL %d\n",
+	       "crtc(%d) Clock: mode %d, PLL %u\n",
 	       radeon_crtc->crtc_id, mode->Clock, sclock);
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-	       "crtc(%d) PLL  : refdiv %d, fbdiv 0x%X(%d), pdiv %d\n",
+	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), pdiv %u\n",
 	       radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
@@ -200,7 +199,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	switch(minor) {
 	case 1:
 	case 2: {
-	    spc_param.sPCLKInput.usPixelClock = sclock / 10;
+	    spc_param.sPCLKInput.usPixelClock = sclock;
 	    spc_param.sPCLKInput.usRefDiv = ref_div;
 	    spc_param.sPCLKInput.usFbDiv = fb_div;
 	    spc_param.sPCLKInput.ucPostDiv = post_div;

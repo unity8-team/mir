@@ -690,10 +690,10 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	}
     }
 
-    ErrorF("best_freq: %d\n", best_freq);
-    ErrorF("best_feedback_div: %d\n", best_feedback_div);
-    ErrorF("best_ref_div: %d\n", best_ref_div);
-    ErrorF("best_post_div: %d\n", best_post_div);
+    ErrorF("best_freq: %u\n", best_freq);
+    ErrorF("best_feedback_div: %u\n", best_feedback_div);
+    ErrorF("best_ref_div: %u\n", best_ref_div);
+    ErrorF("best_post_div: %u\n", best_post_div);
 
     *chosen_dot_clock_freq = best_freq;
     *chosen_feedback_div = best_feedback_div;
