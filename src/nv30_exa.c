@@ -282,15 +282,15 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 			map[i] = data;
 		}
 
-		shader->hw_id  = fp_mem->offset;
 		shader->hw_id += next_hw_id_offset;
-
 		next_hw_id_offset += (shader->size * sizeof(uint32_t));
 		next_hw_id_offset = (next_hw_id_offset + 63) & ~63;
 	}
 
 	BEGIN_RING(Nv3D, NV34_TCL_PRIMITIVE_3D_FP_ACTIVE_PROGRAM, 1);
-	OUT_RING  (shader->hw_id|1);
+	OUT_RELOC (fp_mem, shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
+		   1 /*NV30TCL_FP_ADDRESS_DMA0*/, 2 /*NV30TCL_FP_ADDRESS_DMA1*/);
 
 	BEGIN_RING(Nv3D, 0x1d60, 1);
 	OUT_RING  (0); /* USES_KIL (1<<7) == 0 */
