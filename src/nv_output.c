@@ -526,7 +526,7 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	Bool is_fp = FALSE;
 
-	uint32_t output_reg[2];
+	uint32_t output_reg[2] = {0, 0};
 
 	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 		is_fp = TRUE;
