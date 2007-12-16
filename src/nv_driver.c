@@ -753,7 +753,8 @@ NVEnterVT(int scrnIndex, int flags)
 
 		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	}
-	if(pNv->overlayAdaptor)
+
+	if (pNv->overlayAdaptor)
 		NVResetVideo(pScrn);
 	return TRUE;
 }
@@ -897,7 +898,6 @@ nvProbeDDC(ScrnInfoPtr pScrn, int index)
 	vbeFree(pVbe);
     }
 }
-
 
 Bool NVI2CInit(ScrnInfoPtr pScrn)
 {
@@ -2444,39 +2444,39 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 static void
 NVSave(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    NVRegPtr nvReg = &pNv->SavedReg;
-    vgaHWPtr pVga = VGAHWPTR(pScrn);
-    vgaRegPtr vgaReg = &pVga->SavedReg;
- 
-    if (pNv->randr12_enable) {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
-        int i;
+	NVPtr pNv = NVPTR(pScrn);
+	NVRegPtr nvReg = &pNv->SavedReg;
+	vgaHWPtr pVga = VGAHWPTR(pScrn);
+	vgaRegPtr vgaReg = &pVga->SavedReg;
 
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
+	if (pNv->randr12_enable) {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
+		int i;
+
+		for (i = 0; i < xf86_config->num_crtc; i++) {
+			xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
+		}
+
+		for (i = 0; i < xf86_config->num_output; i++) {
+			xf86_config->output[i]->funcs->save(xf86_config->
+							    output[i]);
+		}
+
+		vgaHWUnlock(pVga);
+	#ifndef __powerpc__
+		vgaflags |= VGA_SR_FONTS;
+	#endif
+		vgaHWSave(pScrn, vgaReg, vgaflags);
+	} else {
+		NVLockUnlock(pNv, 0);
+		if(pNv->twoHeads) {
+			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
+			NVLockUnlock(pNv, 0);
+		}
+
+		NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 	}
-
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86_config->output[i]->funcs->save(xf86_config->
-						    output[i]);
-	}
-
-	vgaHWUnlock(pVga);
-#ifndef __powerpc__
-	vgaflags |= VGA_SR_FONTS;
-#endif
-	vgaHWSave(pScrn, vgaReg, vgaflags);
-    } else {
-	NVLockUnlock(pNv, 0);
-	if(pNv->twoHeads) {
-	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
-	    NVLockUnlock(pNv, 0);
-	}
-
-	NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
-    }
 }
 
 #ifdef RANDR
