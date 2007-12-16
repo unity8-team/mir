@@ -708,7 +708,6 @@ NVExaCreatePixmap(ScreenPtr pScreen, int size, int align)
 	if (!nvpix)
 		return NULL;
 
-	// FIXME : for the front buffer, we need to align height
 	if (size) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, size,
 				   &nvpix->bo)) {
