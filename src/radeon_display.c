@@ -304,7 +304,7 @@ void RADEONDisableDisplays(ScrnInfoPtr pScrn) {
 	}
 	tmp = INREG(RADEON_LVDS_GEN_CNTL);
 	tmp |= RADEON_LVDS_DISPLAY_DIS;
-	tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+	tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
 	OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
 	if (info->IsMobility || info->IsIGP) {
 	    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
@@ -364,11 +364,11 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
            }
         } else if (radeon_output->MonType == MT_LCD) {
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
-            tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
             tmp &= ~(RADEON_LVDS_DISPLAY_DIS);
 	    usleep (radeon_output->PanelPwrDly * 1000);
             OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
-            save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            save->lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
             save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
         } else if (radeon_output->MonType == MT_STV ||
 		   radeon_output->MonType == MT_CTV) {
@@ -425,10 +425,10 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
             tmp = INREG(RADEON_LVDS_GEN_CNTL);
             tmp |= RADEON_LVDS_DISPLAY_DIS;
-            tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
             OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
             save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-            save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+            save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
 	    if (info->IsMobility || info->IsIGP) {
 		OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
 	    }

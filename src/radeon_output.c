@@ -987,7 +987,10 @@ static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->lvds_gen_cntl = info->SavedReg.lvds_gen_cntl;
     save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON |
+			     RADEON_LVDS_BLON |
+			     RADEON_LVDS_EN |
+			     RADEON_LVDS_RST_FM);
 
     if (IS_R300_VARIANT)
 	save->lvds_pll_cntl &= ~(R300_LVDS_SRC_SEL_MASK);
