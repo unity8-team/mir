@@ -1423,13 +1423,20 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	pNv->alphaCursor = (pNv->NVArch >= 0x11);
 
+	if(pNv->Architecture < NV_ARCH_10) {
+		max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;
+		max_height = 2048;
+	} else {
+		max_width = (pScrn->bitsPerPixel > 16) ? 4080 : 4096;
+		max_height = 4096;
+	}
+
 	if (pNv->randr12_enable) {
 		/* Allocate an xf86CrtcConfig */
 		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
 		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
-		max_width = 16384;
-		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, 2048);
+		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
 	}
 
 	if (NVPreInitDRI(pScrn) == FALSE) {
@@ -1513,14 +1520,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if(pNv->FlatPanel == 1) {
 		clockRanges->interlaceAllowed = FALSE;
 		clockRanges->doubleScanAllowed = FALSE;
-	}
-
-	if(pNv->Architecture < NV_ARCH_10) {
-		max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;
-		max_height = 2048;
-	} else {
-		max_width = (pScrn->bitsPerPixel > 16) ? 4080 : 4096;
-		max_height = 4096;
 	}
 
 #ifdef M_T_DRIVER
