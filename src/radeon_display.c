@@ -405,6 +405,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		}
 	    } else if (radeon_output->DACType == DAC_TVDAC) {
 		info->output_crt2 &= ~(1 << o);
+		tv_dac_change = 1;
 		if (!info->output_crt2) {
 		    if (info->ChipFamily == CHIP_FAMILY_R200) {
 			tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -416,7 +417,6 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 			tmp &= ~RADEON_CRTC2_CRT2_ON;
 			OUTREG(RADEON_CRTC2_GEN_CNTL, tmp);
 			save->crtc2_gen_cntl &= ~RADEON_CRTC2_CRT2_ON;
-			tv_dac_change = 1;
 		    }
 		}
 	    }
@@ -462,11 +462,11 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	} else if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
 	    info->output_tv1 &= ~(1 << o);
+	    tv_dac_change = 2;
 	    if (!info->output_tv1) {
 		tmp = INREG(RADEON_TV_MASTER_CNTL);
 		tmp &= ~RADEON_TV_ON;
 		OUTREG(RADEON_TV_MASTER_CNTL, tmp);
-		tv_dac_change = 2;
 		radeon_output->tv_on = FALSE;
 	    }
 	}
