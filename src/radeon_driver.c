@@ -97,6 +97,7 @@
 #include "xf86cmap.h"
 #include "vbe.h"
 
+#include "shadow.h"
 				/* vgaHW definitions */
 #ifdef WITH_VGAHW
 #include "vgaHW.h"
@@ -347,6 +348,15 @@ static const char *i2cSymbols[] = {
     NULL
 };
 
+static const char *shadowSymbols[] = {
+    "shadowAdd",
+    "shadowInit",
+    "shadowSetup",
+    "shadowUpdatePacked",
+    "shadowUpdatePackedWeak",
+    NULL
+};
+
 void RADEONLoaderRefSymLists(void)
 {
     /*
@@ -405,23 +415,41 @@ struct RADEONInt10Save {
 static Bool RADEONMapMMIO(ScrnInfoPtr pScrn);
 static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn);
 
-#if 0
+static void *
+radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
+		   CARD32 *size, void *closure)
+{
+    ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    int stride;
+
+    stride = (pScrn->displayWidth * pScrn->bitsPerPixel) / 8;
+    *size = stride;
+
+    return ((CARD8 *)info->FB + pScrn->fbOffset +
+            row * stride + offset);
+}
 static Bool
 RADEONCreateScreenResources (ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+   PixmapPtr pixmap;
 
    pScreen->CreateScreenResources = info->CreateScreenResources;
    if (!(*pScreen->CreateScreenResources)(pScreen))
       return FALSE;
+   pScreen->CreateScreenResources = RADEONCreateScreenResources;
 
-   if (!xf86RandR12CreateScreenResources(pScreen))
-      return FALSE;
+   if (info->r600_shadow_fb) {
+       pixmap = pScreen->GetScreenPixmap(pScreen);
 
-  return TRUE;
+       if (!shadowAdd(pScreen, pixmap, shadowUpdatePackedWeak(),
+		      radeonShadowWindow, 0, NULL))
+	   return FALSE;
+   }
+   return TRUE;
 }
-#endif
 
 RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn)
 {
@@ -1930,6 +1958,14 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 					     info->Chipset != PCI_CHIP_RN50_5969);
 #endif
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+        info->r600_shadow_fb = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                   "using shadow framebuffer\n");
+        if (!xf86LoadSubModule(pScrn, "shadow"))
+            return FALSE;
+        xf86LoaderReqSymLists(shadowSymbols, NULL);
+    }
     return TRUE;
 }
 
@@ -3697,13 +3733,32 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Initializing fb layer\n");
+    
+    if (info->r600_shadow_fb) {
+	info->fb_shadow = xcalloc(1,
+				  pScrn->displayWidth * pScrn->virtualY *
+				  ((pScrn->bitsPerPixel + 7) >> 3));
+	if (info->fb_shadow == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "Failed to allocate shadow framebuffer\n");
+	    info->r600_shadow_fb = FALSE;
+	} else {
+	    if (!fbScreenInit(pScreen, info->fb_shadow,
+			      pScrn->virtualX, pScrn->virtualY,
+			      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
+			      pScrn->bitsPerPixel))
+		return FALSE;
+	}
+    }
 
-    /* Init fb layer */
-    if (!fbScreenInit(pScreen, info->FB,
-		      pScrn->virtualX, pScrn->virtualY,
-		      pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
-		      pScrn->bitsPerPixel))
-	return FALSE;
+    if (info->r600_shadow_fb == FALSE) {
+	/* Init fb layer */
+	if (!fbScreenInit(pScreen, info->FB,
+			  pScrn->virtualX, pScrn->virtualY,
+			  pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
+			  pScrn->bitsPerPixel))
+	    return FALSE;
+    }
 
     xf86SetBlackWhitePixels(pScreen);
 
@@ -3815,6 +3870,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONChangeSurfaces(pScrn);
 
+
     /* Enable aceleration */
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -3883,6 +3939,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	RADEONInitVideo(pScreen);
     }
 
+    if (!shadowSetup(pScreen)) {
+	return FALSE;
+    }
+
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
     info->CloseScreen    = pScreen->CloseScreen;
@@ -3890,6 +3950,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     pScreen->SaveScreen  = RADEONSaveScreen;
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler;
+    info->CreateScreenResources = pScreen->CreateScreenResources;
+    pScreen->CreateScreenResources = RADEONCreateScreenResources;
 
    if (!xf86CrtcScreenInit (pScreen))
        return FALSE;

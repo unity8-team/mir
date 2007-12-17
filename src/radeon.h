@@ -710,6 +710,9 @@ typedef struct {
 
     Bool              IsSecondary;
     Bool              IsPrimary;
+
+    Bool              r600_shadow_fb;
+    void *fb_shadow;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
