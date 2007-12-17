@@ -1069,7 +1069,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     pll->min_feedback_div = 4;
     pll->max_feedback_div = 0x7ff;
     pll->pll_in_min = 40;
-    pll->pll_in_max = 100;
+    pll->pll_in_max = 500;
     pll->best_vco = 0;
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO,

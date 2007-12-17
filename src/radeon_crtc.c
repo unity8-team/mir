@@ -606,7 +606,7 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 
-static CARD32 RADEONDiv64(CARD64 n, CARD32 d)
+static int RADEONDiv(int n, int d)
 {
     return (n + (d / 2)) / d;
 }
@@ -617,12 +617,15 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		 CARD32 *chosen_dot_clock_freq,
 		 CARD32 *chosen_feedback_div,
 		 CARD32 *chosen_reference_div,
-		 CARD32 *chosen_post_div)
+		 CARD32 *chosen_post_div,
+		 int flags)
 {
     int post_divs[] = {1, 2, 4, 8, 3, 6, 12, 0};
 
     int i;
 
+    CARD32 min_ref_div = pll->min_ref_div;
+    CARD32 max_ref_div = pll->max_ref_div;
     CARD32 best_vco = pll->best_vco;
     CARD32 best_post_div = 1;
     CARD32 best_ref_div = 1;
@@ -631,38 +634,46 @@ RADEONComputePLL(RADEONPLLPtr pll,
     CARD32 best_error = 0xffffffff;
     CARD32 best_vco_diff = 1;
 
+    freq = freq / 10;
+
     ErrorF("freq: %lu\n", freq);
+
+    if (flags & RADEON_PLL_USE_REF_DIV)
+	min_ref_div = max_ref_div = pll->reference_div;
 
     for (i = 0; post_divs[i]; i++) {
 	int post_div = post_divs[i];
 	CARD32 ref_div;
-	CARD32 vco = (freq / 10000) * post_div;
+	CARD32 vco = freq * post_div;
+
+	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
+	    continue;
 
 	if (vco < pll->min_pll_freq || vco > pll->max_pll_freq)
 	    continue;
 
-	for (ref_div = pll->min_ref_div; ref_div <= pll->max_ref_div; ++ref_div) {
+	for (ref_div = min_ref_div; ref_div <= max_ref_div; ++ref_div) {
 	    CARD32 feedback_div, current_freq, error, vco_diff;
 	    CARD32 pll_in = pll->reference_freq / ref_div;
 
 	    if (pll_in < pll->pll_in_min || pll_in > pll->pll_in_max)
 		continue;
 
-	    feedback_div = RADEONDiv64((CARD64)freq * ref_div * post_div,
-				       pll->reference_freq * 10000);
+	    feedback_div = RADEONDiv(freq * ref_div * post_div,
+				     pll->reference_freq);
 
 	    if (feedback_div < pll->min_feedback_div || feedback_div > pll->max_feedback_div)
 		continue;
 
-	    current_freq = RADEONDiv64((CARD64)pll->reference_freq * 10000 * feedback_div, 
-				       ref_div * post_div);
+	    current_freq = RADEONDiv(pll->reference_freq * feedback_div, 
+				     ref_div * post_div);
 
 	    error = abs(current_freq - freq);
 	    vco_diff = abs(vco - best_vco);
 
 	    if ((best_vco == 0 && error < best_error) ||
 		(best_vco != 0 &&
-		 (error < best_error - 100 ||
+		 (error < best_error - 1000 ||
 		  (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
 		best_post_div = post_div;
 		best_ref_div = ref_div;
@@ -690,7 +701,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 static void
 RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 		       RADEONPLLPtr pll, DisplayModePtr mode,
-		       Bool UseBiosDividers)
+		       int flags)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     CARD32 feedback_div = 0;
@@ -719,14 +730,14 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
     };
 
 
-    if (UseBiosDividers && info->UseBiosDividers) {
+    if ((flags & RADEON_PLL_USE_BIOS_DIVS) && info->UseBiosDividers) {
        save->ppll_ref_div = info->RefDivider;
        save->ppll_div_3   = info->FeedbackDivider | (info->PostDivider << 16);
        save->htotal_cntl  = 0;
        return;
     }
 
-    RADEONComputePLL(pll, mode->Clock * 1000, &freq, &feedback_div, &reference_div, &post_divider);
+    RADEONComputePLL(pll, mode->Clock, &freq, &feedback_div, &reference_div, &post_divider, flags);
 
     for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 	if (post_div->divider == post_divider)
@@ -738,7 +749,7 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	post_div = &post_divs[0];
     }
 
-    save->dot_clock_freq = freq / 10000;
+    save->dot_clock_freq = freq;
     save->feedback_div   = feedback_div;
     save->reference_div  = reference_div;
     save->post_div       = post_divider;
@@ -772,7 +783,7 @@ RADEONInitPLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 static void
 RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 			RADEONPLLPtr pll, DisplayModePtr mode,
-			Bool UseBiosDividers)
+			int flags)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     CARD32 feedback_div = 0;
@@ -799,14 +810,14 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	{  0, 0 }
     };
 
-    if (UseBiosDividers && info->UseBiosDividers) {
+    if ((flags & RADEON_PLL_USE_BIOS_DIVS) && info->UseBiosDividers) {
        save->p2pll_ref_div = info->RefDivider;
        save->p2pll_div_0   = info->FeedbackDivider | (info->PostDivider << 16);
        save->htotal_cntl2  = 0;
        return;
     }
 
-    RADEONComputePLL(pll, mode->Clock * 1000, &freq, &feedback_div, &reference_div, &post_divider);
+    RADEONComputePLL(pll, mode->Clock, &freq, &feedback_div, &reference_div, &post_divider, flags);
 
     for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 	if (post_div->divider == post_divider)
@@ -818,7 +829,7 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 	post_div = &post_divs[0];
     }
 
-    save->dot_clock_freq_2 = freq / 10000;
+    save->dot_clock_freq_2 = freq;
     save->feedback_div_2   = feedback_div;
     save->reference_div_2  = reference_div;
     save->post_div_2       = post_divider;
@@ -873,9 +884,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     Bool           tilingOld   = info->tilingEnabled;
     int i = 0;
-    double         dot_clock = 0;
-    Bool no_odd_post_div = FALSE;
-    Bool use_bios_dividers = FALSE;
+    double dot_clock = 0;
+    int pll_flags = 0;
     Bool update_tv_routing = FALSE;
 
 
@@ -900,9 +910,9 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	if (output->crtc == crtc) {
 	    if (radeon_output->MonType != MT_CRT)
-		no_odd_post_div = TRUE;
+		pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
 	    if (radeon_output->MonType == MT_LCD)
-		use_bios_dividers = TRUE;
+		pll_flags |= (RADEON_PLL_USE_BIOS_DIVS | RADEON_PLL_USE_REF_DIV);
 	}
     }
 
@@ -924,7 +934,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll1\n");
-	    RADEONInitPLLRegisters(pScrn, &info->ModeReg, &info->pll, adjusted_mode, use_bios_dividers);
+	    RADEONInitPLLRegisters(pScrn, &info->ModeReg, &info->pll, adjusted_mode, pll_flags);
 	} else {
 	    info->ModeReg.ppll_ref_div = info->SavedReg.ppll_ref_div;
 	    info->ModeReg.ppll_div_3   = info->SavedReg.ppll_div_3;
@@ -938,7 +948,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll2\n");
-	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, adjusted_mode, use_bios_dividers);
+	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, adjusted_mode, pll_flags);
 	}
 	break;
     }
