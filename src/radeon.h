@@ -850,6 +850,14 @@ typedef struct {
 #endif
     RADEONExtTMDSChip ext_tmds_chip;
 
+    /* output enable masks for outputs shared across connectors */
+    int output_crt1;
+    int output_crt2;
+    int output_dfp1;
+    int output_dfp2;
+    int output_lcd1;
+    int output_tv1;
+
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
