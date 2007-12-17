@@ -2584,6 +2584,115 @@ static int parse_bit_b_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	return 1;
 }
 
+static void parse_pll_limits(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
+{
+	/*
+	 * Version 0x20: Exists on (some?) Geforce 6 cards.
+	 * Version 0x21: Exists on (some?) Geforce 7 cards.
+	 *			 This version is longer(35 vs 31), but we do nothing with that.
+	 */
+	bios->pll.version = bios->data[offset + 0];
+	bios->pll.start = bios->data[offset + 1];
+	bios->pll.entry_size = bios->data[offset + 2];
+	bios->pll.num_entries = bios->data[offset + 3];
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Found pll table version 0x%X.\n", bios->pll.version);
+
+	if (bios->pll.version != 0x20 && bios->pll.version != 0x21) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Unknown pll table version.\n");
+		return;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Found pll table entry size %d.\n", bios->pll.entry_size);
+
+	uint16_t new_offs = offset + bios->pll.start;
+	Bool generic_pll = TRUE;
+	uint8_t index = 0;
+	int i;
+	for (i = 0; i < bios->pll.num_entries; i++) {
+		uint32_t reg = *((uint32_t *)(&bios->data[new_offs]));
+		if (reg == 0x4010 || reg == 0x4018) { /* primary and secondary vpll */
+			generic_pll = FALSE;
+			index = i;
+			break;
+		}
+
+		if (reg == 0x0000) { /* generic pll settings */
+			index = i;
+		}
+		new_offs += bios->pll.entry_size;
+	}
+
+	/* We're only interrested in the vpll, not the other pll's. */
+	new_offs = offset + bios->pll.start + bios->pll.entry_size * index;
+
+	/* What is output frequencies can each VCO generate? */
+	bios->pll.vco1.minfreq = *((uint16_t *)(&bios->data[new_offs + 4]));
+	bios->pll.vco1.maxfreq = *((uint16_t *)(&bios->data[new_offs + 6]));
+	bios->pll.vco2.minfreq = *((uint16_t *)(&bios->data[new_offs + 8]));
+	bios->pll.vco2.maxfreq = *((uint16_t *)(&bios->data[new_offs + 10]));
+
+	/* What input frequencies do they accept (past the m-divider)? */
+	bios->pll.vco1.min_inputfreq = *((uint16_t *)(&bios->data[new_offs + 12]));
+	bios->pll.vco1.max_inputfreq = *((uint16_t *)(&bios->data[new_offs + 14]));
+	bios->pll.vco2.min_inputfreq = *((uint16_t *)(&bios->data[new_offs + 16]));
+	bios->pll.vco2.max_inputfreq = *((uint16_t *)(&bios->data[new_offs + 18]));
+
+	/* What values are accepted as multiplier and divider? */
+	bios->pll.vco1.min_n = bios->data[new_offs + 20];
+	bios->pll.vco1.max_n = bios->data[new_offs + 21];
+	bios->pll.vco1.min_m = bios->data[new_offs + 22];
+	bios->pll.vco1.max_m = bios->data[new_offs + 23];
+	bios->pll.vco2.min_n = bios->data[new_offs + 24];
+	bios->pll.vco2.max_n = bios->data[new_offs + 25];
+	bios->pll.vco2.min_m = bios->data[new_offs + 26];
+	bios->pll.vco2.max_m = bios->data[new_offs + 27];
+
+	bios->pll.unk1c = bios->data[new_offs + 28];
+	bios->pll.unk1d = bios->data[new_offs + 29];
+	bios->pll.unk1e = bios->data[new_offs + 30];
+
+#if 1 /* for easy debugging */
+	ErrorF("pll.vco1.minfreq: %d\n", bios->pll.vco1.minfreq);
+	ErrorF("pll.vco1.maxfreq: %d\n", bios->pll.vco1.maxfreq);
+	ErrorF("pll.vco2.minfreq: %d\n", bios->pll.vco2.minfreq);
+	ErrorF("pll.vco2.maxfreq: %d\n", bios->pll.vco2.maxfreq);
+
+	ErrorF("pll.vco1.min_inputfreq: %d\n", bios->pll.vco1.min_inputfreq);
+	ErrorF("pll.vco1.max_inputfreq: %d\n", bios->pll.vco1.max_inputfreq);
+	ErrorF("pll.vco2.min_inputfreq: %d\n", bios->pll.vco2.min_inputfreq);
+	ErrorF("pll.vco2.max_inputfreq: %d\n", bios->pll.vco2.max_inputfreq);
+
+	ErrorF("pll.vco1.min_n: %d\n", bios->pll.vco1.min_n);
+	ErrorF("pll.vco1.max_n: %d\n", bios->pll.vco1.max_n);
+	ErrorF("pll.vco1.min_m: %d\n", bios->pll.vco1.min_m);
+	ErrorF("pll.vco1.max_m: %d\n", bios->pll.vco1.max_m);
+	ErrorF("pll.vco2.min_n: %d\n", bios->pll.vco2.min_n);
+	ErrorF("pll.vco2.max_n: %d\n", bios->pll.vco2.max_n);
+	ErrorF("pll.vco2.min_m: %d\n", bios->pll.vco2.min_m);
+	ErrorF("pll.vco2.max_m: %d\n", bios->pll.vco2.max_m);
+
+	ErrorF("pll.unk1c: %d\n", bios->pll.unk1c);
+	ErrorF("pll.unk1d: %d\n", bios->pll.unk1d);
+	ErrorF("pll.unk1e: %d\n", bios->pll.unk1e);
+#endif
+}
+
+static int parse_bit_c_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* offset + 8 (16 bits): PLL limits for NV4x cards (what about other cards?).
+	 *
+	 * There's more in here, but that's unknown.
+	 */
+
+	parse_pll_limits(pScrn, bios, le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 8]))));
+
+	return 1;
+}
+
 static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
 {
 	/* Parses the flat panel table segment that the bit entry points to.
@@ -2816,6 +2925,11 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			break;
 		case 'B':
 			parse_bit_b_tbl_entry(pScrn, bios, &bitentry);
+			break;
+		case 'C':
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Found C table entry in BIT structure.\n", offset);
+			parse_bit_c_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'D':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,

@@ -290,6 +290,29 @@ typedef struct {
 		uint16_t output0_script_ptr;
 		uint16_t output1_script_ptr;
 	} tmds;
+
+	struct {
+		uint8_t version;
+		uint8_t start;
+		uint8_t entry_size;
+		uint8_t num_entries;
+
+		struct {
+			uint16_t minfreq;
+			uint16_t maxfreq;
+			uint16_t min_inputfreq;
+			uint16_t max_inputfreq;
+
+			uint8_t min_m;
+			uint8_t max_m;
+			uint8_t min_n;
+			uint8_t max_n;
+		} vco1, vco2;
+
+		uint8_t unk1c;
+		uint8_t unk1d;
+		uint8_t unk1e;
+	} pll;
 } bios_t;
 
 enum LVDS_script {
