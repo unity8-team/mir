@@ -620,7 +620,7 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 
-static int RADEONDiv(int n, int d)
+static CARD32 RADEONDiv(CARD64 n, CARD32 d)
 {
     return (n + (d / 2)) / d;
 }
@@ -645,7 +645,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
     CARD32 best_vco_diff = 1;
     CARD32 post_div;
 
-    freq = freq / 10;
+    freq = freq * 1000;
 
     ErrorF("freq: %lu\n", freq);
 
@@ -654,7 +654,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
     for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
 	CARD32 ref_div;
-	CARD32 vco = freq * post_div;
+	CARD32 vco = (freq / 10000) * post_div;
 
 	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 	    continue;
@@ -679,21 +679,22 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	    if (pll_in < pll->pll_in_min || pll_in > pll->pll_in_max)
 		continue;
 
-	    feedback_div = RADEONDiv(freq * ref_div * post_div,
-				     pll->reference_freq);
+	    feedback_div = RADEONDiv((CARD64)freq * ref_div * post_div,
+				     pll->reference_freq * 10000);
 
 	    if (feedback_div < pll->min_feedback_div || feedback_div > pll->max_feedback_div)
 		continue;
 
-	    current_freq = RADEONDiv(pll->reference_freq * feedback_div,
+	    current_freq = RADEONDiv((CARD64)pll->reference_freq * 10000 * feedback_div,
 				     ref_div * post_div);
 
 	    error = abs(current_freq - freq);
 	    vco_diff = abs(vco - best_vco);
 
 	    if ((best_vco == 0 && error < best_error) ||
+		(ref_div == pll->reference_div) ||
 		(best_vco != 0 &&
-		 (error < best_error - 1000 ||
+		 (error < best_error - 100 ||
 		  (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
 		best_post_div = post_div;
 		best_ref_div = ref_div;
@@ -710,7 +711,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
     ErrorF("best_ref_div: %u\n", best_ref_div);
     ErrorF("best_post_div: %u\n", best_post_div);
 
-    *chosen_dot_clock_freq = best_freq;
+    *chosen_dot_clock_freq = best_freq / 10000;
     *chosen_feedback_div = best_feedback_div;
     *chosen_reference_div = best_ref_div;
     *chosen_post_div = best_post_div;
