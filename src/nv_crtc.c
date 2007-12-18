@@ -686,12 +686,17 @@ static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	state->reg594 = nvReadRAMDAC0(pNv, NV_RAMDAC_594);
 }
 
-static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
+static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 	CARD32 fp_debug_0[2];
 	uint32_t index[2];
 	fp_debug_0[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
 	fp_debug_0[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
+
+	uint32_t reg_c040_old = nvReadMC(pNv, 0xc040);
 
 	/* The TMDS_PLL switch is on the actual ramdac */
 	if (state->crosswired) {
@@ -770,6 +775,14 @@ static void nv40_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
+	}
+
+	/* Let's be sure not to wake up any crtc's from dpms. */
+	/* But we do want to keep our newly set crtc awake. */
+	if (nv_crtc->head == 1) {
+		nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << 18)));
+	} else {
+		nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << 16)));
 	}
 
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
@@ -1181,6 +1194,16 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	NVVgaSeqReset(crtc, FALSE);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
+
+	/* We can completely disable a vpll if the crtc is off. */
+	if (pNv->Architecture == NV_ARCH_40) {
+		uint32_t reg_c040_old = nvReadMC(pNv, 0xc040);
+		if (mode == DPMSModeOn) {
+			nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << (16 + 2*nv_crtc->head))));
+		} else {
+			nvWriteMC(pNv, 0xc040, reg_c040_old & ~(pNv->misc_info.reg_c040 & (0x3 << (16 + 2*nv_crtc->head))));
+		}
+	}
 
 	/* I hope this is the right place */
 	if (crtc->enabled && mode == DPMSModeOn) {
@@ -1989,7 +2012,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
-		nv40_crtc_load_state_pll(pNv, &pNv->ModeReg);
+		nv40_crtc_load_state_pll(crtc, &pNv->ModeReg);
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
 	}
@@ -2053,7 +2076,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
-		nv40_crtc_load_state_pll(pNv, &pNv->SavedReg);
+		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
 	}
@@ -2097,6 +2120,17 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 		exaMarkSync(pScrn->pScreen);
 		exaWaitSync(pScrn->pScreen);
 	}
+
+	NVCrtcBlankScreen(crtc, FALSE); /* Blank screen */
+
+	/* Some more preperation. */
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, 0x1); /* Go to non-vga mode/out of enhanced mode */
+	uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
+	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+	/* Set FP_CONTROL to a neutral mode, (almost) off i believe. */
+	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, 0x21100222);
+
+	usleep(5000); /* Give it some time to settle */
 }
 
 void nv_crtc_commit(xf86CrtcPtr crtc)
@@ -2513,6 +2547,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL2, regp->CRTC[NV_VGA_CRTCX_CURCTL2]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_INTERLACE, regp->CRTC[NV_VGA_CRTCX_INTERLACE]);
 
+	/* Setting 1 on this value gives you interrupts for every vblank period. */
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_INTR_EN_0, 0);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
 
@@ -2812,6 +2847,7 @@ void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 	NVDisablePalette(crtc);
 }
 
+/* on = unblank */
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
 {
 	unsigned char scrn;

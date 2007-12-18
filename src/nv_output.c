@@ -801,6 +801,11 @@ nv_output_prepare(xf86OutputPtr output)
 
 	output->funcs->dpms(output, DPMSModeOff);
 
+	/* Shut down the tmds pll, a short sleep period will happen at crtc prepare. */
+	uint32_t debug0 = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_DEBUG_0) | 
+						NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL;
+	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_FP_DEBUG_0, debug0);
+
 	/* Set our output type and output routing possibilities to the right registers */
 	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
 	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
