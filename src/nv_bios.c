@@ -2613,7 +2613,7 @@ static void parse_pll_limits(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 	uint8_t index = 0;
 	int i;
 	for (i = 0; i < bios->pll.num_entries; i++) {
-		uint32_t reg = *((uint32_t *)(&bios->data[new_offs]));
+		uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[new_offs])));
 		if (reg == 0x4010 || reg == 0x4018) { /* primary and secondary vpll */
 			generic_pll = FALSE;
 			index = i;
@@ -2630,16 +2630,16 @@ static void parse_pll_limits(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 	new_offs = offset + bios->pll.start + bios->pll.entry_size * index;
 
 	/* What is output frequencies can each VCO generate? */
-	bios->pll.vco1.minfreq = *((uint16_t *)(&bios->data[new_offs + 4]));
-	bios->pll.vco1.maxfreq = *((uint16_t *)(&bios->data[new_offs + 6]));
-	bios->pll.vco2.minfreq = *((uint16_t *)(&bios->data[new_offs + 8]));
-	bios->pll.vco2.maxfreq = *((uint16_t *)(&bios->data[new_offs + 10]));
+	bios->pll.vco1.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 4])));
+	bios->pll.vco1.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 6])));
+	bios->pll.vco2.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 8])));
+	bios->pll.vco2.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 10])));
 
 	/* What input frequencies do they accept (past the m-divider)? */
-	bios->pll.vco1.min_inputfreq = *((uint16_t *)(&bios->data[new_offs + 12]));
-	bios->pll.vco1.max_inputfreq = *((uint16_t *)(&bios->data[new_offs + 14]));
-	bios->pll.vco2.min_inputfreq = *((uint16_t *)(&bios->data[new_offs + 16]));
-	bios->pll.vco2.max_inputfreq = *((uint16_t *)(&bios->data[new_offs + 18]));
+	bios->pll.vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 12])));
+	bios->pll.vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 14])));
+	bios->pll.vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 16])));
+	bios->pll.vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[new_offs + 18])));
 
 	/* What values are accepted as multiplier and divider? */
 	bios->pll.vco1.min_n = bios->data[new_offs + 20];
