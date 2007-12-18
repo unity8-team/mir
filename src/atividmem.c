@@ -103,14 +103,12 @@ ATIUnmapLinear
     ATIPtr pATI
 )
 {
-    pciVideoPtr pVideo = pATI->PCIInfo;
-
     if (pATI->pMemory)
     {
 #ifndef XSERVER_LIBPCIACCESS
         xf86UnMapVidMem(iScreen, pATI->pMemory, pATI->LinearSize);
 #else
-        pci_device_unmap_range(pVideo, pATI->pMemory, pATI->LinearSize);
+        pci_device_unmap_range(pATI->PCIInfo, pATI->pMemory, pATI->LinearSize);
 #endif
 
 #if X_BYTE_ORDER != X_LITTLE_ENDIAN
@@ -120,7 +118,7 @@ ATIUnmapLinear
 #ifndef XSERVER_LIBPCIACCESS
             xf86UnMapVidMem(iScreen, pATI->pMemoryLE, pATI->LinearSize);
 #else
-            pci_device_unmap_range(pVideo, pATI->pMemoryLE, pATI->LinearSize);
+            pci_device_unmap_range(pATI->PCIInfo, pATI->pMemoryLE, pATI->LinearSize);
 #endif
         }
 
@@ -143,14 +141,12 @@ ATIUnmapMMIO
     ATIPtr pATI
 )
 {
-    pciVideoPtr pVideo = pATI->PCIInfo;
-
     if (pATI->pMMIO)
     {
 #ifndef XSERVER_LIBPCIACCESS
         xf86UnMapVidMem(iScreen, pATI->pMMIO, getpagesize());
 #else
-        pci_device_unmap_range(pVideo, pATI->pMMIO, getpagesize());
+        pci_device_unmap_range(pATI->PCIInfo, pATI->pMMIO, getpagesize());
 #endif
     }
 
@@ -169,14 +165,12 @@ ATIUnmapCursor
     ATIPtr pATI
 )
 {
-    pciVideoPtr pVideo = pATI->PCIInfo;
-
     if (pATI->pCursorPage)
     {
 #ifndef XSERVER_LIBPCIACCESS
         xf86UnMapVidMem(iScreen, pATI->pCursorPage, getpagesize());
 #else
-        pci_device_unmap_range(pVideo, pATI->pCursorPage, getpagesize());
+        pci_device_unmap_range(pATI->PCIInfo, pATI->pCursorPage, getpagesize());
 #endif
     }
 
