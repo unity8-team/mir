@@ -953,7 +953,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll1\n");
-	    RADEONInitPLLRegisters(pScrn, &info->ModeReg, &info->pll, adjusted_mode, pll_flags);
+	    RADEONInitPLLRegisters(pScrn, info->ModeReg, &info->pll, adjusted_mode, pll_flags);
 	} else {
 	    info->ModeReg->ppll_ref_div = info->SavedReg->ppll_ref_div;
 	    info->ModeReg->ppll_div_3   = info->SavedReg->ppll_div_3;
@@ -967,7 +967,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	dot_clock = adjusted_mode->Clock / 1000.0;
 	if (dot_clock) {
 	    ErrorF("init pll2\n");
-	    RADEONInitPLL2Registers(pScrn, &info->ModeReg, &info->pll, adjusted_mode, pll_flags);
+	    RADEONInitPLL2Registers(pScrn, info->ModeReg, &info->pll, adjusted_mode, pll_flags);
 	}
 	break;
     }
