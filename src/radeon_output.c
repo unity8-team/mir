@@ -699,15 +699,18 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 	while (fgets(lidline, sizeof lidline, f)) {
 	    if (!strncmp(lidline, "state:", strlen ("state:"))) {
 		if (strstr(lidline, "open")) {
+		    fclose(f);
 		    ErrorF("proc lid open\n");
 		    return MT_LCD;
 		}
 		else if (strstr(lidline, "closed")) {
+		    fclose(f);
 		    ErrorF("proc lid closed\n");
 		    return MT_NONE;
 		}
 	    }
 	}
+	fclose(f);
     }
 #endif
 
