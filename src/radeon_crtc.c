@@ -625,7 +625,7 @@ static int RADEONDiv(int n, int d)
     return (n + (d / 2)) / d;
 }
 
-static void
+void
 RADEONComputePLL(RADEONPLLPtr pll,
 		 unsigned long freq,
 		 CARD32 *chosen_dot_clock_freq,
