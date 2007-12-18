@@ -136,8 +136,8 @@ void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
 	}
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "FIFO timed out: %u entries, stat=0x%08x\n",
-		       INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-		       INREG(RADEON_RBBM_STATUS));
+		       (unsigned int)INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
+		       (unsigned int)INREG(RADEON_RBBM_STATUS));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "FIFO timed out, resetting engine...\n");
 	RADEONEngineReset(pScrn);
@@ -168,7 +168,7 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
     if (i == RADEON_TIMEOUT) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "DC flush timeout: %x\n",
-		       INREG(RADEON_RB3D_DSTCACHE_CTLSTAT));
+		       (unsigned int)INREG(RADEON_RB3D_DSTCACHE_CTLSTAT));
     }
 }
 

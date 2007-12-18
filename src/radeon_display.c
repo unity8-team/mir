@@ -743,7 +743,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "GRPH_BUFFER_CNTL from %x to %x\n",
 		   (unsigned int)info->SavedReg.grph_buffer_cntl,
-		   INREG(RADEON_GRPH_BUFFER_CNTL));
+		   (unsigned int)INREG(RADEON_GRPH_BUFFER_CNTL));
 
     if (mode2) {
 	stop_req = mode2->HDisplay * pixel_bytes2 / 16;
@@ -793,7 +793,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "GRPH2_BUFFER_CNTL from %x to %x\n",
 		       (unsigned int)info->SavedReg.grph2_buffer_cntl,
-		       INREG(RADEON_GRPH2_BUFFER_CNTL));
+		       (unsigned int)INREG(RADEON_GRPH2_BUFFER_CNTL));
     }
 }
 

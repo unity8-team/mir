@@ -58,7 +58,7 @@ AC_ARG_ENABLE(dri, AC_HELP_STRING([--disable-dri],
 
 AC_ARG_ENABLE(exa,
               AC_HELP_STRING([--disable-exa],
-                             [Disable EXA support [[default enabled]]]),
+                             [Disable EXA support [[default=enabled]]]),
               [EXA="$enableval"],
               [EXA=yes])
 
