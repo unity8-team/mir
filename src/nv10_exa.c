@@ -703,16 +703,24 @@ void NV10Composite(PixmapPtr pDst,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	float sX0, sX1, sY0, sY1;
-	float mX0, mX1, mY0, mY1;
-		
+	float sX0, sX1, sX2, sY0, sY1, sY2, sX3, sY3;
+	float mX0, mX1, mX2, mY0, mY1, mY2, mX3, mY3;
+
 	NV10EXATransformCoord(state.unit[0].transform, srcX, srcY,
 			      state.unit[0].width,
 			      state.unit[0].height, &sX0, &sY0);
 	NV10EXATransformCoord(state.unit[0].transform,
-			      srcX + width, srcY + height,
+			      srcX + width, srcY,
 			      state.unit[0].width,
 			      state.unit[0].height, &sX1, &sY1);
+	NV10EXATransformCoord(state.unit[0].transform,
+			      srcX + width, srcY + height,
+			      state.unit[0].width,
+			      state.unit[0].height, &sX2, &sY2);
+	NV10EXATransformCoord(state.unit[0].transform,
+			      srcX, srcY + height,
+			      state.unit[0].width,
+			      state.unit[0].height, &sX3, &sY3);
 
 	if ( state.is_a8_plus_a8 )
 		{
@@ -810,24 +818,32 @@ void NV10Composite(PixmapPtr pDst,
 			
 			}
 		}
-		
+
 	if (state.have_mask) {
 		NV10EXATransformCoord(state.unit[1].transform, maskX, maskY,
 				      state.unit[1].width,
 				      state.unit[1].height, &mX0, &mY0);
 		NV10EXATransformCoord(state.unit[1].transform,
-				      maskX + width, maskY + height,
+				      maskX + width, maskY,
 				      state.unit[1].width,
 				      state.unit[1].height, &mX1, &mY1);
+		NV10EXATransformCoord(state.unit[1].transform,
+				      maskX + width, maskY + height,
+				      state.unit[1].width,
+				      state.unit[1].height, &mX2, &mY2);
+		NV10EXATransformCoord(state.unit[1].transform,
+				      maskX, maskY + height,
+				      state.unit[1].width,
+				      state.unit[1].height, &mX3, &mY3);
 		NV10MVertex(pNv , dstX         ,          dstY,sX0 , sY0 , mX0 , mY0);
-		NV10MVertex(pNv , dstX + width ,          dstY,sX1 , sY0 , mX1 , mY0);
-		NV10MVertex(pNv , dstX + width , dstY + height,sX1 , sY1 , mX1 , mY1);
-		NV10MVertex(pNv , dstX         , dstY + height,sX0 , sY1 , mX0 , mY1);
+		NV10MVertex(pNv , dstX + width ,          dstY,sX1 , sY1 , mX1 , mY1);
+		NV10MVertex(pNv , dstX + width , dstY + height,sX2 , sY2 , mX2 , mY2);
+		NV10MVertex(pNv , dstX         , dstY + height,sX3 , sY3 , mX3 , mY3);
 	} else {
 		NV10Vertex(pNv , dstX         ,          dstY , sX0 , sY0);
-		NV10Vertex(pNv , dstX + width ,          dstY , sX1 , sY0);
-		NV10Vertex(pNv , dstX + width , dstY + height , sX1 , sY1);
-		NV10Vertex(pNv , dstX         , dstY + height , sX0 , sY1);
+		NV10Vertex(pNv , dstX + width ,          dstY , sX1 , sY1);
+		NV10Vertex(pNv , dstX + width , dstY + height , sX2 , sY2);
+		NV10Vertex(pNv , dstX         , dstY + height , sX3 , sY3);
 	}
 
 	FIRE_RING();
