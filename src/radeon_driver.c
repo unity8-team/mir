@@ -3939,8 +3939,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	RADEONInitVideo(pScreen);
     }
 
-    if (!shadowSetup(pScreen)) {
-	return FALSE;
+    if (info->r600_shadow_fb == TRUE) {
+        if (!shadowSetup(pScreen)) {
+            return FALSE;
+        }
     }
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
