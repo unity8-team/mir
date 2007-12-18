@@ -1239,7 +1239,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	pll->min_post_div = 2;
 	pll->max_post_div = 0x7f;
     } else {
-	pll->min_post_div = 2;
+	pll->min_post_div = 1;
 	pll->max_post_div = 12; //16 on crtc0
     }
     pll->min_ref_div = 2;

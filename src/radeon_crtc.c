@@ -659,6 +659,16 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 	    continue;
 
+	/* legacy radeons only have a few post_divs */
+	if (flags & RADEON_PLL_LEGACY) {
+	    if ((post_div == 5) ||
+		(post_div == 7) ||
+		(post_div == 9) ||
+		(post_div == 10) ||
+		(post_div == 11))
+		continue;
+	}
+
 	if (vco < pll->pll_out_min || vco > pll->pll_out_max)
 	    continue;
 
@@ -893,7 +903,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     Bool           tilingOld   = info->tilingEnabled;
     int i = 0;
     double dot_clock = 0;
-    int pll_flags = 0;
+    int pll_flags = RADEON_PLL_LEGACY;
     Bool update_tv_routing = FALSE;
 
 
