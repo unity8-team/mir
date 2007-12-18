@@ -741,6 +741,8 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     }
 }
 
+#ifndef __powerpc__
+
 static RADEONMonitorType
 RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 {
@@ -779,6 +781,8 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 
     return MonType;
 }
+
+#endif /* __powerpc__ */
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
@@ -1047,7 +1051,10 @@ static void RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->lvds_gen_cntl = info->SavedReg->lvds_gen_cntl;
     save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON);
+    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON |
+			     RADEON_LVDS_BLON |
+			     RADEON_LVDS_EN |
+			     RADEON_LVDS_RST_FM);
 
     if (IS_R300_VARIANT)
 	save->lvds_pll_cntl &= ~(R300_LVDS_SRC_SEL_MASK);
@@ -3383,6 +3390,14 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    }
 	}
     }
+
+    /* clear the enable masks */
+    info->output_crt1 = 0;
+    info->output_crt2 = 0;
+    info->output_dfp1 = 0;
+    info->output_dfp2 = 0;
+    info->output_lcd1 = 0;
+    info->output_tv1 = 0;
 
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {

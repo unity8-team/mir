@@ -736,6 +736,21 @@ do {								\
 
 #endif /* !ACCEL_CP */
 
+#ifdef ONLY_ONCE
+static inline void transformPoint(PictTransform *transform, xPointFixed *point)
+{
+    PictVector v;
+    v.vector[0] = point->x;
+    v.vector[1] = point->y;
+    v.vector[2] = xFixed1;
+    PictureTransformPoint(transform, &v);
+    point->x = v.vector[0];
+    point->y = v.vector[1];
+}
+#endif
+
+#define xFixedToFloat(f) (((float) (f)) / 65536)
+
 static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 				     int srcX, int srcY,
 				     int maskX, int maskY,
@@ -744,7 +759,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     int srcXend, srcYend, maskXend, maskYend;
-    PictVector v;
+    xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
+    xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
     ACCEL_PREAMBLE();
 
     ENTER_DRAW(0);
@@ -756,33 +772,36 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     srcYend = srcY + h;
     maskXend = maskX + w;
     maskYend = maskY + h;
+
+    srcTopLeft.x     = IntToxFixed(srcX);
+    srcTopLeft.y     = IntToxFixed(srcY);
+    srcTopRight.x    = IntToxFixed(srcX + w);
+    srcTopRight.y    = IntToxFixed(srcY);
+    srcBottomLeft.x  = IntToxFixed(srcX);
+    srcBottomLeft.y  = IntToxFixed(srcY + h);
+    srcBottomRight.x = IntToxFixed(srcX + w);
+    srcBottomRight.y = IntToxFixed(srcY + h);
+
+    maskTopLeft.x     = IntToxFixed(maskX);
+    maskTopLeft.y     = IntToxFixed(maskY);
+    maskTopRight.x    = IntToxFixed(maskX + w);
+    maskTopRight.y    = IntToxFixed(maskY);
+    maskBottomLeft.x  = IntToxFixed(maskX);
+    maskBottomLeft.y  = IntToxFixed(maskY + h);
+    maskBottomRight.x = IntToxFixed(maskX + w);
+    maskBottomRight.y = IntToxFixed(maskY + h);
+
     if (is_transform[0]) {
-	v.vector[0] = IntToxFixed(srcX);
-	v.vector[1] = IntToxFixed(srcY);
-	v.vector[2] = xFixed1;
-	PictureTransformPoint(transform[0], &v);
-	srcX = xFixedToInt(v.vector[0]);
-	srcY = xFixedToInt(v.vector[1]);
-	v.vector[0] = IntToxFixed(srcXend);
-	v.vector[1] = IntToxFixed(srcYend);
-	v.vector[2] = xFixed1;
-	PictureTransformPoint(transform[0], &v);
-	srcXend = xFixedToInt(v.vector[0]);
-	srcYend = xFixedToInt(v.vector[1]);
+	transformPoint(transform[0], &srcTopLeft);
+	transformPoint(transform[0], &srcTopRight);
+	transformPoint(transform[0], &srcBottomLeft);
+	transformPoint(transform[0], &srcBottomRight);
     }
     if (is_transform[1]) {
-	v.vector[0] = IntToxFixed(maskX);
-	v.vector[1] = IntToxFixed(maskY);
-	v.vector[2] = xFixed1;
-	PictureTransformPoint(transform[1], &v);
-	maskX = xFixedToInt(v.vector[0]);
-	maskY = xFixedToInt(v.vector[1]);
-	v.vector[0] = IntToxFixed(maskXend);
-	v.vector[1] = IntToxFixed(maskYend);
-	v.vector[2] = xFixed1;
-	PictureTransformPoint(transform[1], &v);
-	maskXend = xFixedToInt(v.vector[0]);
-	maskYend = xFixedToInt(v.vector[1]);
+	transformPoint(transform[1], &maskTopLeft);
+	transformPoint(transform[1], &maskTopRight);
+	transformPoint(transform[1], &maskBottomLeft);
+	transformPoint(transform[1], &maskBottomRight);
     }
 
 #ifdef ACCEL_CP
@@ -828,18 +847,18 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	VTX_OUT(dstX + w, dstY + h,   srcXend,  srcYend,  maskXend, maskYend);
 	VTX_OUT(dstX + w, dstY,	      srcXend,  srcY,     maskXend, maskY);
     } else {
-    VTX_OUT((float)dstX,     (float)dstY,
-	    (float)srcX / info->texW[0],     (float)srcY / info->texH[0],
-	    (float)maskX / info->texW[1],    (float)maskY / info->texH[1]);
-    VTX_OUT((float)dstX,     (float)(dstY + h),
-	    (float)srcX / info->texW[0],     (float)srcYend / info->texH[0],
-	    (float)maskX / info->texW[1],    (float)maskYend / info->texH[1]);
-    VTX_OUT((float)(dstX + w), (float)(dstY + h),
-	    (float)srcXend / info->texW[0],  (float)srcYend / info->texH[0],
-	    (float)maskXend / info->texW[1], (float)maskYend / info->texH[1]);
-    VTX_OUT((float)(dstX + w), (float)dstY,
-	    (float)srcXend / info->texW[0],  (float)srcY / info->texH[0],
-	    (float)maskXend / info->texW[1], (float)maskY / info->texH[1]);
+	VTX_OUT((float)dstX,                                      (float)dstY,
+	        xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
+	        xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
+	VTX_OUT((float)dstX,                                      (float)(dstY + h),
+	        xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
+	        xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
+	VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
+	        xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
+	        xFixedToFloat(maskBottomRight.x) / info->texW[1], xFixedToFloat(maskBottomRight.y) / info->texH[1]);
+	VTX_OUT((float)(dstX + w),                                (float)dstY,
+	        xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
+	        xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
     }
 
 #ifdef ACCEL_CP

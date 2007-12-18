@@ -638,7 +638,7 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    /* not available in the bios */
 	    pll->pll_in_min = 40;
-	    pll->pll_in_max = 100;
+	    pll->pll_in_max = 500;
 
 	    pll->xclk = RADEON_BIOS16 (pll_info_block + 0x08);
 

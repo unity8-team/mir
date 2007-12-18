@@ -1202,7 +1202,7 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	   pll->pll_out_max = 50000;
        } else {
 	   pll->pll_in_min = 40;
-	   pll->pll_in_max = 100;
+	   pll->pll_in_max = 500;
 	   pll->pll_out_min = 12500;
 	   pll->pll_out_max = 35000;
        }
@@ -4485,6 +4485,10 @@ void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     if (info->IsMobility) {
 	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
 	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);
+
+	if (info->ChipFamily == CHIP_FAMILY_RV410) {
+	    OUTREG(RADEON_CLOCK_CNTL_INDEX, 0);
+	}
     }
 
 }

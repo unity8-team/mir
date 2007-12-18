@@ -166,8 +166,8 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     if (IS_AVIVO_VARIANT) {
 	CARD32 temp;
-	RADEONComputePLL(&info->pll, mode->Clock * 1000, &temp, &fb_div, &ref_div, &post_div);
-	sclock = temp / 10000;
+	RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, 0);
+	sclock = temp;
 
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (radeon_crtc->crtc_id == 0) {

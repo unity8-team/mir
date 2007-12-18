@@ -200,6 +200,10 @@ typedef struct {
     CARD16 rr4_offset;
 } RADEONBIOSInitTable;
 
+#define RADEON_PLL_USE_BIOS_DIVS   (1 << 0)
+#define RADEON_PLL_NO_ODD_POST_DIV (1 << 1)
+#define RADEON_PLL_USE_REF_DIV     (1 << 2)
+
 typedef struct {
     CARD16            reference_freq;
     CARD16            reference_div;
@@ -702,6 +706,14 @@ typedef struct {
     atomBiosHandlePtr atomBIOS;
     unsigned long FbFreeStart, FbFreeSize;
     unsigned char*      BIOSCopy;
+
+    /* output enable masks for outputs shared across connectors */
+    int output_crt1;
+    int output_crt2;
+    int output_dfp1;
+    int output_dfp2;
+    int output_lcd1;
+    int output_tv1;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
