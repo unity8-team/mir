@@ -180,23 +180,20 @@ static void dpms_update_output_ramdac(xf86OutputPtr output, int mode)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = NULL;
-	if (crtc) nv_crtc = crtc->driver_private;
+	if (!crtc)	/* we need nv_crtc, so give up */
+		return;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	/* We may be going for modesetting, so we must reset our output binding */
 	if (mode == DPMSModeOff) {
-		if (crtc) {
-			NVWriteVGACR5758(pNv, nv_crtc->head, 0, 0x7f);
-			NVWriteVGACR5758(pNv, nv_crtc->head, 2, 0);
-		}
+		NVWriteVGACR5758(pNv, nv_crtc->head, 0, 0x7f);
+		NVWriteVGACR5758(pNv, nv_crtc->head, 2, 0);
 		return;
 	}
 
 	/* The previous call was not a modeset, but a normal dpms call */
-	if (crtc) {
-		NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-		NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
-	}
+	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
 }
 
 static void
@@ -204,7 +201,10 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	xf86CrtcPtr crtc = output->crtc;
+	if (!crtc)	/* we need nv_crtc, so give up */
+		return;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
