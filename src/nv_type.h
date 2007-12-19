@@ -466,6 +466,9 @@ typedef struct _NVRec {
 	int dvi_a_count;
 	int lvds_count;
 
+	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
+	Bool restricted_mode;
+
 	struct {
 		int entries;
 		struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];

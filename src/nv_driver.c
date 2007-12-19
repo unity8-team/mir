@@ -1437,6 +1437,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
+
+		/* Set this in case no output ever does. */
+		pNv->restricted_mode = FALSE;
 	}
 
 	if (NVPreInitDRI(pScrn) == FALSE) {
