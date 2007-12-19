@@ -2628,6 +2628,7 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 		 */
 		I830Sync(pScrn);
 		i830_free_memory(pScrn, pPriv->buf);
+		pPriv->buf = NULL;
 		pPriv->videoStatus = 0;
 	    }
 	}
@@ -2740,6 +2741,7 @@ I830FreeSurface(XF86SurfacePtr surface)
     /* Sync before freeing the buffer, because the pages will be unbound. */
     I830Sync(pScrn);
     i830_free_memory(surface->pScrn, pPriv->buf);
+    pPriv->buf = NULL;
     xfree(surface->pitches);
     xfree(surface->offsets);
     xfree(surface->devPrivate.ptr);

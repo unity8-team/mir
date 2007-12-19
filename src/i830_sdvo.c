@@ -900,10 +900,10 @@ i830_sdvo_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	return MODE_NO_DBLESCAN;
 
     if (dev_priv->pixel_clock_min > pMode->Clock)
-	return MODE_CLOCK_HIGH;
+	return MODE_CLOCK_LOW;
 
     if (dev_priv->pixel_clock_max < pMode->Clock)
-	return MODE_CLOCK_LOW;
+	return MODE_CLOCK_HIGH;
 
     return MODE_OK;
 }
