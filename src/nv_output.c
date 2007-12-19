@@ -409,8 +409,10 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		 */
 		if (nv_output->type == OUTPUT_TMDS)
 			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
-		else
+		else {
 			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
+			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_PANEL_ON, 0);
+		}
 	}
 }
 
