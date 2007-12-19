@@ -99,7 +99,7 @@ typedef struct {
 typedef struct _nv_crtc_reg 
 {
 	unsigned char MiscOutReg;     /* */
-	CARD8 CRTC[90];
+	CARD8 CRTC[0xff];
 	CARD8 CR58[0x10];
 	CARD8 Sequencer[5];
 	CARD8 Graphics[9];
