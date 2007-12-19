@@ -3217,6 +3217,10 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
+
+	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE)
+		continue;
+
 	    RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
 	    if (!radeon_output) {
 		return FALSE;
