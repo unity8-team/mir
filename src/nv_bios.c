@@ -2116,16 +2116,11 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overr
 
 	NVPtr pNv = NVPTR(pScrn);
 	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
-	Bool crosswired = FALSE;
 	uint8_t tmds04 = 0x80;
 	uint32_t tmds_ctrl, tmds_ctrl2;
 
-	if (head != preferred_output) {
-		crosswired = TRUE;
-	}
-
 	/* Bit 3 crosswires output and bus. */
-	if (head >= 0 && crosswired)
+	if (head >= 0 && head != preferred_output)
 		tmds04 = 0x88;
 	if (head < 0 && overrideval)
 		tmds04 = 0x88;
