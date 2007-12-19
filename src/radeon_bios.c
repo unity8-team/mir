@@ -277,7 +277,21 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	}
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Connector Info Table found!\n");
-	return FALSE;
+
+	/* old radeons and r128 didn't use connector tables you just check
+	 * for LVDS, DVI, TV, etc. tables
+	 */
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x34);
+	if (offset) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Found DFP table, assuming DVI connector\n");
+	    info->BiosConnector[0].valid = TRUE;
+	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
+	    info->BiosConnector[0].DACType = DAC_PRIMARY;
+	    info->BiosConnector[0].TMDSType = TMDS_INT;
+	    info->BiosConnector[0].DDCType = DDC_DVI;
+	} else
+	    return FALSE;
     }
 
     /* check LVDS table */
