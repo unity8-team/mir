@@ -174,8 +174,8 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 	}
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Idle timed out: %u entries, stat=0x%08x\n",
-		       INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-		       INREG(RADEON_RBBM_STATUS));
+		       (unsigned int)INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
+		       (unsigned int)INREG(RADEON_RBBM_STATUS));
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Idle timed out, resetting engine...\n");
 	RADEONEngineReset(pScrn);

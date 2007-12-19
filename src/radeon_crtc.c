@@ -145,15 +145,13 @@ RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 static void
 RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-
     save->surface_cntl = 0;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     /* We must set both apertures as they can be both used to map the entire
      * video memory. -BenH.
      */
-    switch (pScrn->bitsPerPixel) {
+    switch (crtc->scrn->bitsPerPixel) {
     case 16:
 	save->surface_cntl |= RADEON_NONSURF_AP0_SWP_16BPP;
 	save->surface_cntl |= RADEON_NONSURF_AP1_SWP_16BPP;
