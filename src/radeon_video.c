@@ -119,6 +119,7 @@ static Atom xvOvAlpha, xvGrAlpha, xvAlphaMode;
 #define GET_PORT_PRIVATE(pScrn) \
    (RADEONPortPrivPtr)((RADEONPTR(pScrn))->adaptor->pPortPrivates[0].ptr)
 
+#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
 static void
 radeon_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 {
@@ -185,17 +186,17 @@ radeon_covering_crtc(ScrnInfoPtr pScrn,
 }
 
 static Bool
-radeon_clip_video_helper(ScrnInfoPtr pScrn,
-			 xf86CrtcPtr *crtc_ret,
-			 xf86CrtcPtr desired_crtc,
-			 BoxPtr      dst,
-			 INT32	    *xa,
-			 INT32	    *xb,
-			 INT32	    *ya,
-			 INT32	    *yb,
-			 RegionPtr   reg,
-			 INT32	    width,
-			 INT32	    height)
+radeon_crtc_clip_video_helper(ScrnInfoPtr pScrn,
+			      xf86CrtcPtr *crtc_ret,
+			      xf86CrtcPtr desired_crtc,
+			      BoxPtr      dst,
+			      INT32	  *xa,
+			      INT32	  *xb,
+			      INT32	  *ya,
+			      INT32	  *yb,
+			      RegionPtr   reg,
+			      INT32	  width,
+			      INT32	  height)
 {
     Bool	ret;
     RegionRec	crtc_region_local;
@@ -226,6 +227,31 @@ radeon_clip_video_helper(ScrnInfoPtr pScrn,
 	REGION_UNINIT (pScreen, &crtc_region_local);
 
     return ret;
+}
+#endif
+
+static Bool
+radeon_crtc_clip_video(ScrnInfoPtr pScrn,
+		       xf86CrtcPtr *crtc_ret,
+		       xf86CrtcPtr desired_crtc,
+		       BoxPtr      dst,
+		       INT32       *xa,
+		       INT32       *xb,
+		       INT32       *ya,
+		       INT32       *yb,
+		       RegionPtr   reg,
+		       INT32       width,
+		       INT32       height)
+{
+#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
+    return radeon_crtc_clip_video_helper(pScrn, crtc_ret, desired_crtc,
+				       dst, xa, xb, ya, yb,
+				       reg, width, height);
+#else
+    return xf86_crtc_clip_video_helper(pScrn, crtc_ret, desired_crtc,
+				       dst, xa, xb, ya, yb,
+				       reg, width, height);
+#endif
 }
 
 #ifdef USE_EXA
@@ -2899,9 +2925,9 @@ RADEONPutImage(
    dstBox.y1 = drw_y;
    dstBox.y2 = drw_y + drw_h;
 
-   if (!radeon_clip_video_helper(pScrn, &crtc, pPriv->desired_crtc,
-				 &dstBox, &xa, &xb, &ya, &yb,
-				 clipBoxes, width, height))
+   if (!radeon_crtc_clip_video(pScrn, &crtc, pPriv->desired_crtc,
+			       &dstBox, &xa, &xb, &ya, &yb,
+			       clipBoxes, width, height))
        return Success;
 
    if (!crtc) {
@@ -3295,9 +3321,9 @@ RADEONDisplaySurface(
     dstBox.y1 = drw_y;
     dstBox.y2 = drw_y + drw_h;
 
-    if (!radeon_clip_video_helper(pScrn, &crtc, portPriv->desired_crtc,
-				  &dstBox, &xa, &xb, &ya, &yb, clipBoxes,
-				  surface->width, surface->height))
+    if (!radeon_crtc_clip_video(pScrn, &crtc, portPriv->desired_crtc,
+				&dstBox, &xa, &xb, &ya, &yb, clipBoxes,
+				surface->width, surface->height))
         return Success;
 
    if (!crtc) {
@@ -3438,9 +3464,9 @@ RADEONPutVideo(
    else
        vbi_line_width = 2000; /* might need adjustment */
 
-   if (!radeon_clip_video_helper(pScrn, &crtc, pPriv->desired_crtc,
-				 &dstBox, &xa, &xb, &ya, &yb,
-				 clipBoxes, width, height))
+   if (!radeon_crtc_clip_video(pScrn, &crtc, pPriv->desired_crtc,
+			       &dstBox, &xa, &xb, &ya, &yb,
+			       clipBoxes, width, height))
        return Success;
 
    if (!crtc) {

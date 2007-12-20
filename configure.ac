@@ -209,6 +209,11 @@ AC_CHECK_DECL(xf86ModeBandwidth,
 	      [],
 	      [#include "xf86Modes.h"])
 
+AC_CHECK_DECL(xf86_crtc_clip_video_helper,
+	      [AC_DEFINE(HAVE_XF86CRTCCLIPVIDEOHELPER, 1, [Have xf86_crtc_clip_video_helper prototype])],
+	      [],
+	      [#include "xf86Crtc.h"])
+
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])
