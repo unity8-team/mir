@@ -548,8 +548,8 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 	}
 
-	/* The analog outputs on NV2x seem fixed to a crtc */
-	if (pNv->Architecture >= NV_ARCH_30) {
+	/* Some pre-NV30 cards have switchable crtc's. */
+	if (pNv->switchable_crtc) {
 		if (pNv->restricted_mode) { /* some NV4A for example */
 			if (nv_output->preferred_output != nv_crtc->head) {
 				output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
@@ -1229,6 +1229,8 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int i, type, i2c_count[0xf];
 
+	pNv->switchable_crtc = FALSE;
+
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		i2c_count[pNv->dcb_table.entry[i].i2c_index]++;
@@ -1245,6 +1247,8 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 		switch(type) {
 		case OUTPUT_ANALOG:
+			if (pNv->dcb_table.entry[i].heads == 0x3) /* analog is the best criteria */
+				pNv->switchable_crtc = TRUE;
 			nv_add_analog_output(pScrn, i, (i2c_count[pNv->dcb_table.entry[i].i2c_index] > 1));
 			break;
 		case OUTPUT_TMDS:

@@ -468,6 +468,7 @@ typedef struct _NVRec {
 
 	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
 	Bool restricted_mode;
+	Bool switchable_crtc;
 
 	struct {
 		int entries;
