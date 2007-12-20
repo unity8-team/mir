@@ -74,7 +74,7 @@
 #include "dixstruct.h"
 #include "fourcc.h"
 
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #include "i915_hwmc.h"
@@ -265,6 +265,7 @@ static XF86ImageRec Images[NUM_IMAGES] = {
     XVIMAGE_YV12,
     XVIMAGE_I420,
     XVIMAGE_UYVY,
+#ifdef INTEL_XVMC
     {
         /*
          * Below, a dummy picture type that is used in XvPutImage only to do
@@ -289,6 +290,7 @@ static XF86ImageRec Images[NUM_IMAGES] = {
          0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
         XvTopToBottom
     },
+#endif
 };
 
 typedef struct {
@@ -559,7 +561,6 @@ I830InitVideo(ScreenPtr pScreen)
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
-    Bool ret = FALSE;
 
 #if 0
     {
@@ -622,7 +623,8 @@ I830InitVideo(ScreenPtr pScreen)
 	}
 	I830InitOffscreenImages(pScreen);
     }
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
+    Bool ret = FALSE;
     if (intel_xvmc_probe(pScrn)) {
 	if (texturedAdaptor)
 	    ret = intel_xvmc_driver_init(pScreen, texturedAdaptor);
@@ -632,7 +634,7 @@ I830InitVideo(ScreenPtr pScreen)
     if (num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
     if (ret)
 	intel_xvmc_screen_init(pScreen);
 #endif
@@ -2285,15 +2287,14 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	//XXX
+	srcPitch = (width + 0x3) & ~0x3;
+	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
+#ifdef INTEL_XVMC
         if (pI830->IsXvMCSurface) {
             srcPitch = (width + 0x3ff) & ~0x3ff;
             srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
-        } else {
-            srcPitch = (width + 0x3) & ~0x3;
-            srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
         }
-
+#endif
 	if (pPriv->textured && IS_I965G(pI830))
 	    destId = FOURCC_YUY2;
 	break;
@@ -2548,12 +2549,14 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	    ErrorF("size is %d\n", size);
 #endif
 	break;
+#ifdef INTEL_XVMC
     case FOURCC_XVMC:
         *h = (*h + 1) & ~1;
         size = intel_xvmc_put_image_size(pScrn);
         if (pitches)
             pitches[0] = size;
         break;
+#endif
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:

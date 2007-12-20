@@ -1,4 +1,4 @@
-if DRI
+if XVMC
 lib_LTLIBRARIES=libI810XvMC.la libIntelXvMC.la
 
 libI810XvMC_la_SOURCES = I810XvMC.c \

@@ -59,11 +59,14 @@ INTEL_DRI_SRCS = \
          i810_dri.h \
          i830_dri.c \
          i810_hwmc.c \
+         i830_dri.h
+
+INTEL_XVMC_SRCS = \
 	 i830_hwmc.h \
 	 i830_hwmc.c \
          i915_hwmc.c \
-         i915_hwmc.h \
-         i830_dri.h
+         i915_hwmc.h
+
 
 intel_drv_la_SOURCES = \
          brw_defines.h \
@@ -149,7 +152,8 @@ EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_G4A)	\
 	$(INTEL_G4H)	\
-	$(INTEL_DRI_SRCS)
+	$(INTEL_DRI_SRCS) \
+	$(INTEL_XVMC_SRCS)
 
 if HAVE_GEN4ASM
 
@@ -193,6 +197,11 @@ endif
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
+endif
+
+if XVMC
+intel_drv_la_SOURCES += \
+	$(INTEL_XVMC_SRCS)
 endif
 
 install-data-local: install-intel_drv_laLTLIBRARIES

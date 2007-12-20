@@ -66,6 +66,10 @@ AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE]
 			   [ XSERVER_SOURCE="$withval" ],
 			   [ XSERVER_SOURCE="" ])
 
+AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+                                  [Disable XvMC support [[default=yes]]]),
+              [XVMC="$enableval"],
+              [XVMC=yes])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -207,6 +211,14 @@ AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
 if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
 fi
+
+AC_MSG_CHECKING([whether to include XvMC support])
+AC_MSG_RESULT([$XVMC])
+AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
+if test "$XVMC" = yes; then
+	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
+fi
+
 
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])

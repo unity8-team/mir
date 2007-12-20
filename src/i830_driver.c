@@ -199,7 +199,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_bios.h"
 #include "i830_video.h"
 
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
 #include "i830_hwmc.h"
 #endif
@@ -301,7 +301,7 @@ typedef enum {
    OPTION_INTELTEXPOOL,
 #endif
    OPTION_TRIPLEBUFFER,
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
 } I830Opts;
@@ -326,7 +326,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
 #endif
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	FALSE},
 #endif
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
@@ -1594,7 +1594,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      pI830->TripleBuffer ? "en" : "dis");
 #endif
 
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
    pI830->XvMCEnabled = xf86ReturnOptValBool(pI830->Options, OPTION_XVMC, FALSE);
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Intel XvMC decoder %sabled\n",
 	   pI830->XvMCEnabled ? "en" : "dis");
@@ -3027,7 +3027,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void
 I830FreeScreen(int scrnIndex, int flags)
 {
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
     if (pI830->XvMCEnabled)

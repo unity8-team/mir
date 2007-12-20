@@ -116,6 +116,12 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define I830_KERNEL_TEX (1 << 1) /* Allocate texture memory pool */
 #endif
 
+#ifdef XvMCExtension
+#ifdef ENABLE_XVMC
+#define INTEL_XVMC 1
+#endif
+#endif
+
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -396,7 +402,7 @@ typedef struct _I830Rec {
    /* For Xvideo */
    i830_memory *overlay_regs;
 #endif
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
    /* For XvMC */
    Bool XvMCEnabled;
    Bool IsXvMCSurface;
@@ -737,7 +743,7 @@ extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
-#ifdef XvMCExtension
+#ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
 #endif
