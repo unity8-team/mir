@@ -421,7 +421,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	    info->BiosConnector[0].DACType = DAC_PRIMARY;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
-	    info->BiosConnector[0].DDCType = DDC_DVI;
+	    info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
 	} else
 	    return FALSE;
     }
