@@ -1051,18 +1051,6 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
         info->mclk = 200.00;
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
-        /* Avoid RN50 corruption due to memory bandwidth starvation.
-         * 18 is an empirical value based on the databook and Windows driver.
-         *
-	 * Empirical value changed to 24 to raise pixel clock limit and
-	 * allow higher resolution modes on capable monitors
-	 */
-        pll->max_pll_freq = min(pll->max_pll_freq,
-                               24 * info->mclk * 100 / pScrn->bitsPerPixel *
-                               info->RamWidth / 16);
-    }
-
     /* card limits for computing PLLs */
     pll->min_ref_div = 2;
     pll->max_ref_div = 0x3ff;
@@ -5380,10 +5368,44 @@ Bool RADEONHandleMessage(int scrnIndex, const char* msgtype,
 }
 #endif
 
+#ifndef HAVE_XF86MODEBANDWIDTH
+/** Calculates the memory bandwidth (in MiB/sec) of a mode. */
+_X_HIDDEN unsigned int
+xf86ModeBandwidth(DisplayModePtr mode, int depth)
+{
+    float a_active, a_total, active_percent, pixels_per_second;
+    int bytes_per_pixel = (depth + 7) / 8;
+
+    if (!mode->HTotal || !mode->VTotal || !mode->Clock)
+	return 0;
+
+    a_active = mode->HDisplay * mode->VDisplay;
+    a_total = mode->HTotal * mode->VTotal;
+    active_percent = a_active / a_total;
+    pixels_per_second = active_percent * mode->Clock * 1000.0;
+
+    return (unsigned int)(pixels_per_second * bytes_per_pixel / (1024 * 1024));
+}
+#endif
+
 /* Used to disallow modes that are not supported by the hardware */
 ModeStatus RADEONValidMode(int scrnIndex, DisplayModePtr mode,
                                      Bool verbose, int flag)
 {
+    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    /*
+     * RN50 has effective maximum mode bandwidth of about 300MiB/s.
+     * XXX should really do this for all chips by properly computing
+     * memory bandwidth and an overhead factor.
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
+	if (xf86ModeBandwidth(mode, pScrn->bitsPerPixel) > 300)
+	    return MODE_BANDWIDTH;
+    }
+
     /* There are problems with double scan mode at high clocks
      * They're likely related PLL and display buffer settings.
      * Disable these modes for now.

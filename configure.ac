@@ -204,6 +204,11 @@ AC_CHECK_DECL(xf86XVFillKeyHelperDrawable,
 	      [],
 	      [#include <xf86xv.h>])
 
+AC_CHECK_DECL(xf86ModeBandwidth,
+	      [AC_DEFINE(HAVE_XF86MODEBANDWIDTH, 1, [Have xf86ModeBandwidth prototype])],
+	      [],
+	      [#include "xf86Modes.h"])
+
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])

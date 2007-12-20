@@ -789,6 +789,19 @@ static int
 radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    /*
+     * RN50 has effective maximum mode bandwidth of about 300MiB/s.
+     * XXX should really do this for all chips by properly computing
+     * memory bandwidth and an overhead factor.
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
+	if (xf86ModeBandwidth(pMode, pScrn->bitsPerPixel) > 300)
+	    return MODE_BANDWIDTH;
+    }
 
     if (radeon_output->type == OUTPUT_STV ||
 	radeon_output->type == OUTPUT_CTV) {

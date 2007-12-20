@@ -41,6 +41,7 @@
 #include <unistd.h>		/* For usleep() */
 #include <sys/time.h>		/* For gettimeofday() */
 
+#include "config.h"
 #include "xf86str.h"
 #include "compiler.h"
 #include "xf86fbman.h"
@@ -95,6 +96,11 @@
 #endif
 #ifndef MIN
 #define MIN(a,b) ((a)>(b)?(b):(a))
+#endif
+
+#ifndef HAVE_XF86MODEBANDWIDTH
+extern unsigned int xf86ModeBandwidth(DisplayModePtr mode, int depth);
+#define MODE_BANDWIDTH MODE_BAD
 #endif
 
 typedef enum {
