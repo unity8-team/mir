@@ -1383,7 +1383,7 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if (output && ((nv_output->type == OUTPUT_LVDS) || (nv_output->scaling_mode > 0 && (nv_output->type == OUTPUT_TMDS)))) {
+	if (output && (nv_output->type == OUTPUT_LVDS || (nv_output->type == OUTPUT_TMDS && nv_output->scaling_mode != SCALE_PANEL))) {
 		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
 		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
 		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
@@ -1956,7 +1956,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (is_fp) {
-		if (nv_output->scaling_mode == 0) { /* panel needs to scale */
+		if (nv_output->scaling_mode == SCALE_PANEL) { /* panel needs to scale */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 		/* This is also true for panel scaling, so we must put the panel scale check first */
 		} else if (mode->Clock == adjusted_mode->Clock) { /* native mode */
@@ -2007,15 +2007,12 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
 		/* 0 = panel scaling */
-		if (nv_output->scaling_mode == 0) {
+		if (nv_output->scaling_mode == SCALE_PANEL) {
 			ErrorF("Flat panel is doing the scaling.\n");
 		} else {
 			ErrorF("GPU is doing the scaling.\n");
 
-			/* 1 = fullscale gpu */
-			/* 2 = aspect ratio scaling */
-			/* 3 = no scaling */
-			if (nv_output->scaling_mode == 2) {
+			if (nv_output->scaling_mode == SCALE_ASPECT) {
 				/* GPU scaling happens automaticly at a ratio of 1.33 */
 				/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
 				if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
@@ -2065,7 +2062,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* Let's keep the TMDS pll and fpclock running in all situations */
 	regp->debug_0 = 0x1101100;
 
-	if (is_fp && nv_output->scaling_mode != 3) { /* !no_scale mode */
+	if (is_fp && nv_output->scaling_mode != SCALE_NOSCALE) {
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
 	} else if (is_fp) { /* no_scale mode, so we must center it */

@@ -531,6 +531,14 @@ typedef struct _NV50CrtcPrivRec {
 	Bool dither;
 } NV50CrtcPrivRec, *NV50CrtcPrivPtr;
 
+enum scaling_modes {
+	SCALE_PANEL,
+	SCALE_FULLSCREEN,
+	SCALE_ASPECT,
+	SCALE_NOSCALE,
+	SCALE_INVALID
+};
+
 #define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

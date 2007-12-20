@@ -849,38 +849,42 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
  * Several scaling modes exist, let the user choose.
  */
 #define SCALING_MODE_NAME "SCALING_MODE"
-#define NUM_SCALING_METHODS 4
-static char *scaling_mode_names[] = {
-	"panel",
-	"fullscreen",
-	"aspect",
-	"noscale",
+static const struct {
+	char *name;
+	enum scaling_modes mode;
+} scaling_mode[] = {
+	{ "panel", SCALE_PANEL },
+	{ "fullscreen", SCALE_FULLSCREEN },
+	{ "aspect", SCALE_ASPECT },
+	{ "noscale", SCALE_NOSCALE },
+	{ NULL, SCALE_INVALID}
 };
 static Atom scaling_mode_atom;
-
-#define SCALING_MODE(_name) (nv_scaling_mode_lookup(_name, strlen(_name)))
 
 static int
 nv_scaling_mode_lookup(char *name, int size)
 {
-	int i, len;
+	int i;
 
-	for (i = 0; i < NUM_SCALING_METHODS; i++) {
+	/* for when name is zero terminated */
+	if (size < 0)
+		size = strlen(name);
+
+	for (i = 0; scaling_mode[i].name; i++)
 		/* We're getting non-terminated strings */
-		len = strlen(scaling_mode_names[i]);
-		if (len == size && !strncmp(name, scaling_mode_names[i], size))
-			return i;
-	}
+		if (strlen(scaling_mode[i].name) >= size &&
+				!strncasecmp(name, scaling_mode[i].name, size))
+			break;
 
-	return -1;
+	return scaling_mode[i].mode;
 }
 
 static void
-nv_tmds_create_resources(xf86OutputPtr output)
+nv_digital_output_create_resources(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	int error;
+	int error, i;
 
 	/*
 	 * Setup scaling mode property.
@@ -896,11 +900,15 @@ nv_tmds_create_resources(xf86OutputPtr output)
 			"RRConfigureOutputProperty error, %d\n", error);
 	}
 
+	char *existing_scale_name = NULL;
+	for (i = 0; scaling_mode[i].name; i++)
+		if (scaling_mode[i].mode == nv_output->scaling_mode)
+			existing_scale_name = scaling_mode[i].name;
+
 	error = RRChangeOutputProperty(output->randr_output, scaling_mode_atom,
 					XA_STRING, 8, PropModeReplace, 
-					strlen(scaling_mode_names[nv_output->scaling_mode]),
-					scaling_mode_names[nv_output->scaling_mode],
-					FALSE, TRUE);
+					strlen(existing_scale_name),
+					existing_scale_name, FALSE, TRUE);
 
 	if (error != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -909,7 +917,7 @@ nv_tmds_create_resources(xf86OutputPtr output)
 }
 
 static Bool
-nv_tmds_set_property(xf86OutputPtr output, Atom property,
+nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -925,7 +933,7 @@ nv_tmds_set_property(xf86OutputPtr output, Atom property,
 
 		/* Match a string to a scaling mode */
 		ret = nv_scaling_mode_lookup(name, value->size);
-		if (ret < 0)
+		if (ret == SCALE_INVALID)
 			return FALSE;
 
 		nv_output->scaling_mode = ret;
@@ -962,8 +970,8 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
 #ifdef RANDR_12_INTERFACE
-	.create_resources = nv_tmds_create_resources,
-	.set_property = nv_tmds_set_property,
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
 #endif /* RANDR_12_INTERFACE */
 };
 
@@ -1045,6 +1053,10 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
+#ifdef RANDR_12_INTERFACE
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
+#endif /* RANDR_12_INTERFACE */
 };
 
 static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair)
@@ -1187,17 +1199,18 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 
 	output->driver_private = nv_output;
 
-	if (pNv->fpScaler || lvds) { /* GPU Scaling */
-		char *name = (char *)xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE);
-		/* lvds must always use gpu scaling */
-		if (name && (!lvds || (SCALING_MODE(name) != SCALING_MODE("panel")))) {
-			nv_output->scaling_mode = SCALING_MODE(name);
-		} else {
-			nv_output->scaling_mode = SCALING_MODE("aspect");
-		}
-	} else { /* Panel scaling */
-		nv_output->scaling_mode = SCALING_MODE("panel");
+	if (pNv->fpScaler) /* GPU Scaling */
+		nv_output->scaling_mode = SCALE_ASPECT;
+	else /* Panel scaling */
+		nv_output->scaling_mode = SCALE_PANEL;
+
+#ifdef RANDR_12_INTERFACE
+	if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+		nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+		if (nv_output->scaling_mode == SCALE_INVALID)
+			nv_output->scaling_mode = SCALE_ASPECT; /* default */
 	}
+#endif /* RANDR_12_INTERFACE */
 
 	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
 	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
