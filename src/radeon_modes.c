@@ -59,20 +59,22 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 {
     int  dummy = pScrn->virtualX;
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    int pitch_mask = 0;
+    int align_large;
+
+    align_large = info->allowColorTiling || IS_AVIVO_VARIANT;
 
     /* FIXME: May need to validate line pitch here */
     switch (pScrn->depth / 8) {
-    case 1: if (info->allowColorTiling) dummy = (pScrn->virtualX + 255) & ~255;
-	else dummy = (pScrn->virtualX + 127) & ~127;
+    case 1: pitch_mask = align_large ? 255 : 127;
 	break;
-    case 2: if (info->allowColorTiling) dummy = (pScrn->virtualX + 127) & ~127;
-	else dummy = (pScrn->virtualX + 31) & ~31;
+    case 2: pitch_mask = align_large ? 127 : 31;
 	break;
     case 3:
-    case 4: if (info->allowColorTiling) dummy = (pScrn->virtualX + 63) & ~63;
-	else dummy = (pScrn->virtualX + 15) & ~15;
+    case 4: pitch_mask = align_large ? 63 : 15;
 	break;
     }
+    dummy = (pScrn->virtualX + pitch_mask) & ~pitch_mask;
     pScrn->displayWidth = dummy;
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
 
@@ -214,7 +216,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
-	if (radeon_output->type == OUTPUT_STV || radeon_output->type == OUTPUT_CTV) {
+	if (OUTPUT_IS_TV) {
 	    modes = RADEONTVModes(output);
 	} else {
 	    if (output->MonInfo)

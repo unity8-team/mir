@@ -317,7 +317,7 @@ static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 swapper = info->ModeReg.surface_cntl;
+    CARD32 swapper = info->ModeReg->surface_cntl;
 
     swapper &= ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP |
 		 RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP);
@@ -345,7 +345,7 @@ static void RADEONRestoreByteswap(RADEONInfoPtr info)
 {
     unsigned char *RADEONMMIO = info->MMIO;
 
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 }
 #endif	/* X_BYTE_ORDER == X_BIG_ENDIAN */
 

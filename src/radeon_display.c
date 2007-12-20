@@ -318,7 +318,7 @@ void RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    RADEONSavePtr save = &info->ModeReg;
+    RADEONSavePtr save = info->ModeReg;
     unsigned char * RADEONMMIO = info->MMIO;
     unsigned long tmp;
     RADEONOutputPrivatePtr radeon_output;
@@ -720,7 +720,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 	critical_point = 0x10;
     }
 
-    temp = info->SavedReg.grph_buffer_cntl;
+    temp = info->SavedReg->grph_buffer_cntl;
     temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
     temp |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
     temp &= ~(RADEON_GRPH_START_REQ_MASK);
@@ -742,7 +742,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "GRPH_BUFFER_CNTL from %x to %x\n",
-		   (unsigned int)info->SavedReg.grph_buffer_cntl,
+		   (unsigned int)info->SavedReg->grph_buffer_cntl,
 		   (unsigned int)INREG(RADEON_GRPH_BUFFER_CNTL));
 
     if (mode2) {
@@ -750,7 +750,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
 	if (stop_req > max_stop_req) stop_req = max_stop_req;
 
-	temp = info->SavedReg.grph2_buffer_cntl;
+	temp = info->SavedReg->grph2_buffer_cntl;
 	temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
 	temp |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
 	temp &= ~(RADEON_GRPH_START_REQ_MASK);
@@ -792,7 +792,7 @@ void RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_b
 
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "GRPH2_BUFFER_CNTL from %x to %x\n",
-		       (unsigned int)info->SavedReg.grph2_buffer_cntl,
+		       (unsigned int)info->SavedReg->grph2_buffer_cntl,
 		       (unsigned int)INREG(RADEON_GRPH2_BUFFER_CNTL));
     }
 }
@@ -804,7 +804,10 @@ void RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
     DisplayModePtr mode1, mode2;
     int pixel_bytes2 = 0;
 
-    mode1 = info->CurrentLayout.mode;
+    if (info->IsPrimary || info->IsSecondary)
+	mode1 = &xf86_config->crtc[0]->mode;
+    else
+	mode1 = info->CurrentLayout.mode;
     mode2 = NULL;
     pixel_bytes2 = info->CurrentLayout.pixel_bytes;
 

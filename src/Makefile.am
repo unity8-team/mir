@@ -32,6 +32,38 @@ R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
+RADEON_ATOMBIOS_SOURCES = \
+	AtomBios/CD_Operations.c \
+	AtomBios/Decoder.c \
+	AtomBios/hwserv_drv.c \
+	AtomBios/includes/atombios.h \
+        AtomBios/includes/CD_binding.h \
+        AtomBios/includes/CD_Common_Types.h \
+        AtomBios/includes/CD_Definitions.h \
+        AtomBios/includes/CD_hw_services.h \
+        AtomBios/includes/CD_Opcodes.h \
+        AtomBios/includes/CD_Structs.h \
+        AtomBios/includes/Decoder.h \
+        AtomBios/includes/ObjectID.h \
+        AtomBios/includes/regsdef.h
+
+XMODE_SRCS=\
+        local_xf86Rename.h \
+	parser/xf86Parser.h \
+        parser/xf86Optrec.h \
+        modes/xf86Modes.h \
+        modes/xf86Modes.c \
+        modes/xf86cvt.c \
+        modes/xf86Crtc.h \
+        modes/xf86Crtc.c \
+        modes/xf86Cursors.c \
+        modes/xf86EdidModes.c \
+        modes/xf86RandR12.c \
+        modes/xf86RandR12.h \
+        modes/xf86Rename.h \
+        modes/xf86Rotate.c \
+        modes/xf86DiDGA.c
+
 if ATIMISC_CPIO
 ATIMISC_CPIO_SOURCES = ativga.c ativgaio.c atibank.c atiwonder.c atiwonderio.c
 endif
@@ -45,7 +77,8 @@ ATIMISC_EXA_SOURCES = atimach64exa.c
 RADEON_EXA_SOURCES = radeon_exa.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER
+INCLUDES = -I$(srcdir)/AtomBios/includes
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
@@ -85,7 +118,13 @@ radeon_drv_la_SOURCES = \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c radeon_display.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
-	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES)
+	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c \
+	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
+
+if XMODES
+radeon_drv_la_SOURCES += \
+	$(XMODE_SRCS)
+endif
 
 theatre_detect_drv_la_LTLIBRARIES = theatre_detect_drv.la
 theatre_detect_drv_la_LDFLAGS = -module -avoid-version
@@ -109,6 +148,7 @@ theatre200_drv_la_SOURCES = \
 	theatre200.c theatre200_module.c
 
 EXTRA_DIST = \
+	$(XMODE_SRCS) \
 	atimach64render.c \
 	radeon_render.c \
 	radeon_accelfuncs.c \
@@ -185,6 +225,7 @@ EXTRA_DIST = \
 	radeon_version.h \
 	radeon_video.h \
 	radeon_tv.h \
+        radeon_atomwrapper.h \
 	theatre200.h \
 	theatre_detect.h \
 	theatre.h \
@@ -196,4 +237,5 @@ EXTRA_DIST = \
 	radeon_chipset_gen.h \
 	radeon_pci_chipset_gen.h \
 	pcidb/ati_pciids.csv \
-	pcidb/parse_pci_ids.pl
+	pcidb/parse_pci_ids.pl \
+	radeon_atombios.h

@@ -62,6 +62,11 @@ AC_ARG_ENABLE(exa,
               [EXA="$enableval"],
               [EXA=yes])
 
+AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
+                                          [Path to X server source tree]),
+                           [ XSERVER_SOURCE="$withval" ],
+                           [ XSERVER_SOURCE="" ])
+
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -71,7 +76,7 @@ XORG_DRIVER_CHECK_EXT(XF86MISC, xf86miscproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3 xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.
@@ -111,6 +116,10 @@ if test "$DRI" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
 fi
+
+CFLAGS="$XORG_CFLAGS"
+AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
+CFLAGS="$save_CFLAGS"
 
 # Note that this is sort of inverted from drivers/ati/Imakefile in
 # the monolith.  We test for foo, not for !foo (i.e. ATMISC_CPIO, not
@@ -217,6 +226,48 @@ AC_CHECK_DECL(xf86_crtc_clip_video_helper,
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])
+
+AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
+
+if test "x$XSERVER_SOURCE" = x; then
+        if test -d ../../xserver; then
+                XSERVER_SOURCE="`cd ../../xserver && pwd`"
+        fi
+fi
+
+if test -d "$XSERVER_SOURCE"; then
+        case "$XSERVER_SOURCE" in
+        /*)
+                ;;
+        *)
+                XSERVER_SOURCE="`cd $XSERVER_SOURCE && pwd`"
+        esac
+        if test -f src/modes/xf86Modes.h; then
+                :
+        else
+                ln -sf $XSERVER_SOURCE/hw/xfree86/modes src/modes
+        fi
+
+        if test -f src/parser/xf86Parser.h; then
+                :
+        else
+                ln -sf $XSERVER_SOURCE/hw/xfree86/parser src/parser
+        fi
+fi
+if test "x$XMODES" = xyes; then
+        AC_MSG_NOTICE([X server has new mode code])
+        AC_DEFINE(XMODES, 1,[X server has built-in mode code])
+        XMODES_CFLAGS=
+else
+        if test -f src/modes/xf86Modes.h -a -f src/parser/xf86Parser.h; then
+                AC_MSG_NOTICE([X server is missing new mode code, using local copy])
+        else
+                AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
+        fi
+        XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
+fi
+
+AC_SUBST([XMODES_CFLAGS])
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 

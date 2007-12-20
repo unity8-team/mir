@@ -39,7 +39,31 @@
 #include "radeon_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
+#include "radeon_atombios.h"
 #include "vbe.h"
+
+typedef enum
+{
+    DDC_NONE_DETECTED,
+    DDC_MONID,
+    DDC_DVI,
+    DDC_VGA,
+    DDC_CRT2,
+    DDC_LCD,
+    DDC_GPIO,
+} RADEONLegacyDDCType;
+
+typedef enum
+{
+    CONNECTOR_NONE_LEGACY,
+    CONNECTOR_PROPRIETARY_LEGACY,
+    CONNECTOR_CRT_LEGACY,
+    CONNECTOR_DVI_I_LEGACY,
+    CONNECTOR_DVI_D_LEGACY,
+    CONNECTOR_CTV_LEGACY,
+    CONNECTOR_STV_LEGACY,
+    CONNECTOR_UNSUPPORTED_LEGACY
+} RADEONLegacyConnectorType;
 
 /* Read the Video BIOS block and the FP registers (if applicable). */
 Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
@@ -130,11 +154,47 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     else
 	info->IsAtomBios = FALSE;
 
-    if (info->IsAtomBios) 
-	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
-
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s BIOS detected\n",
 	       info->IsAtomBios ? "ATOM":"Legacy");
+
+    if (info->IsAtomBios) {
+#if 1
+        AtomBiosArgRec atomBiosArg;
+
+        if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg)
+            == ATOM_SUCCESS) {
+            info->atomBIOS = atomBiosArg.atomhandle;
+        }
+
+        atomBiosArg.fb.start = info->FbFreeStart;
+        atomBiosArg.fb.size = info->FbFreeSize;
+        if (RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
+			    &atomBiosArg) == ATOM_SUCCESS) {
+
+	    info->FbFreeStart = atomBiosArg.fb.start;
+	    info->FbFreeSize = atomBiosArg.fb.size;
+        }
+
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_ENGINE_CLOCK,
+                        &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_MEMORY_CLOCK,
+                        &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MAX_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MIN_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_MAX_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MIN_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MAX_PIXEL_CLK, &atomBiosArg);
+        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+                        GET_REF_CLOCK, &atomBiosArg);
+
+#endif
+	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
+    }
 
     return TRUE;
 }
@@ -142,53 +202,66 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    int offset, i, tmp, tmp0, crtc, portinfo, gpio;
+    int offset, i, j, tmp, tmp0, id, portinfo, gpio;
 
     if (!info->VBIOS) return FALSE;
+    
+    if (RADEONGetATOMConnectorInfoFromBIOSObject(pScrn))
+	return TRUE;
+
+    if (RADEONGetATOMConnectorInfoFromBIOSConnectorTable(pScrn))
+	return TRUE;
 
     offset = RADEON_BIOS16(info->MasterDataStart + 22);
 
     if (offset) {
 	tmp = RADEON_BIOS16(offset + 4);
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if (tmp & (1 << i)) {
+
+		if (i == ATOM_DEVICE_CV_INDEX) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
+		    info->BiosConnector[i].valid = FALSE;
+		    continue;
+		}
+
 		info->BiosConnector[i].valid = TRUE;
 		portinfo = RADEON_BIOS16(offset + 6 + i * 2);
 		info->BiosConnector[i].DACType = (portinfo & 0xf) - 1;
 		info->BiosConnector[i].ConnectorType = (portinfo >> 4) & 0xf;
-		crtc = (portinfo >> 8) & 0xf;
+		id = (portinfo >> 8) & 0xf;
 		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
-		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * crtc) * 4;
-		switch(gpio) {
-		case RADEON_GPIO_MONID:
-		    info->BiosConnector[i].DDCType = DDC_MONID;
-		    break;
-		case RADEON_GPIO_DVI_DDC:
-		    info->BiosConnector[i].DDCType = DDC_DVI;
-		    break;
-		case RADEON_GPIO_VGA_DDC:
-		    info->BiosConnector[i].DDCType = DDC_VGA;
-		    break;
-		case RADEON_GPIO_CRT2_DDC:
-		    info->BiosConnector[i].DDCType = DDC_CRT2;
-		    break;
-		case RADEON_LCD_GPIO_MASK:
-		    info->BiosConnector[i].DDCType = DDC_LCD;
-		    break;
-		case RADEON_MDGPIO_EN_REG:
-		    info->BiosConnector[i].DDCType = DDC_GPIO;
-		    break;
-		default:
-		    info->BiosConnector[i].DDCType = DDC_NONE_DETECTED;
-		    break;
-		}
+		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
+		/* don't assign a gpio for tv */
+		if ((i == ATOM_DEVICE_TV1_INDEX) ||
+		    (i == ATOM_DEVICE_TV2_INDEX) ||
+		    (i == ATOM_DEVICE_CV_INDEX))
+		    info->BiosConnector[i].ddc_line = 0;
+		else
+		    info->BiosConnector[i].ddc_line = gpio;
 
-		if (i == 3)
+		info->BiosConnector[i].output_id = id;
+		info->BiosConnector[i].devices = (1 << i);
+
+		if (i == ATOM_DEVICE_DFP1_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_INT;
-		else if (i == 7)
+		else if (i == ATOM_DEVICE_DFP2_INDEX)
+		    info->BiosConnector[i].TMDSType = TMDS_EXT;
+		else if (i == ATOM_DEVICE_DFP3_INDEX)
 		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		else
 		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+
+		/* Always set the connector type to VGA for CRT1/CRT2. if they are
+		 * shared with a DVI port, we'll pick up the DVI connector below when we
+		 * merge the outputs
+		 */
+		if ((i == ATOM_DEVICE_CRT1_INDEX || i == ATOM_DEVICE_CRT2_INDEX) &&
+		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I ||
+		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D ||
+		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
+		    info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
+		}
 
 	    } else {
 		info->BiosConnector[i].valid = FALSE;
@@ -199,23 +272,39 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    /* DVI-I ports have 2 entries: one for analog, one for digital.  combine them */
-    if (info->BiosConnector[0].valid && info->BiosConnector[7].valid) {
-	info->BiosConnector[7].DACType = info->BiosConnector[0].DACType;
-	info->BiosConnector[0].valid = FALSE;
+    /* CRTs/DFPs may share a port */
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	if (info->BiosConnector[i].valid) {
+	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++) {
+		if (info->BiosConnector[j].valid && (i != j) ) {
+		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
+			if (((i == ATOM_DEVICE_DFP1_INDEX) ||
+			     (i == ATOM_DEVICE_DFP2_INDEX) ||
+			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
+			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
+			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
+			    info->BiosConnector[j].valid = FALSE;
+			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
+			     (j == ATOM_DEVICE_DFP2_INDEX) ||
+			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
+			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
+			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
+			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
+			    info->BiosConnector[i].valid = FALSE;
+			}
+			/* other possible combos?  */
+		    }
+		}
+	    }
+	}
     }
-
-    if (info->BiosConnector[4].valid && info->BiosConnector[3].valid) {
-	info->BiosConnector[3].DACType = info->BiosConnector[4].DACType;
-	info->BiosConnector[4].valid = FALSE;
-    }
-
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }
@@ -227,6 +316,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     int offset, i, entry, tmp, tmp0, tmp1;
+    RADEONLegacyDDCType DDCType;
+    RADEONLegacyConnectorType ConnectorType;
 
     if (!info->VBIOS) return FALSE;
 
@@ -241,7 +332,55 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].valid = TRUE;
 	    tmp = RADEON_BIOS16(entry);
 	    info->BiosConnector[i].ConnectorType = (tmp >> 12) & 0xf;
-	    info->BiosConnector[i].DDCType = (tmp >> 8) & 0xf;
+	    ConnectorType = (tmp >> 12) & 0xf;
+	    switch (ConnectorType) {
+	    case CONNECTOR_PROPRIETARY_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_LVDS;
+		break;
+	    case CONNECTOR_CRT_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
+		break;
+	    case CONNECTOR_DVI_I_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_I;
+		break;
+	    case CONNECTOR_DVI_D_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
+		break;
+	    case CONNECTOR_CTV_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_CTV;
+		break;
+	    case CONNECTOR_STV_LEGACY:
+		info->BiosConnector[i].ConnectorType = CONNECTOR_STV;
+		break;
+	    default:
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown Connector Type: %d\n", ConnectorType);
+		info->BiosConnector[i].valid = FALSE;
+		break;
+	    }
+	    DDCType = (tmp >> 8) & 0xf;
+	    switch (DDCType) {
+	    case DDC_MONID:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
+		break;
+	    case DDC_DVI:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_DVI_DDC;
+		break;
+	    case DDC_VGA:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_VGA_DDC;
+		break;
+	    case DDC_CRT2:
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_CRT2_DDC;
+		break;
+	    case DDC_LCD:
+		info->BiosConnector[i].ddc_line = RADEON_LCD_GPIO_MASK;
+		break;
+	    case DDC_GPIO:
+		info->BiosConnector[i].ddc_line = RADEON_MDGPIO_EN_REG;
+		break;
+	    default:
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
+		break;
+	    }
 	    info->BiosConnector[i].DACType = tmp & 0x1;
 	    info->BiosConnector[i].TMDSType = (tmp >> 4) & 0x1;
 
@@ -251,29 +390,22 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	     * lets see what happens with that.
 	     */
 	    if (info->ChipFamily == CHIP_FAMILY_RS400 &&
-		info->BiosConnector[i].ConnectorType == CONNECTOR_CRT &&
-		info->BiosConnector[i].DDCType == DDC_CRT2) {
-		info->BiosConnector[i].DDCType = DDC_MONID;
+		info->BiosConnector[i].ConnectorType == CONNECTOR_VGA &&
+		info->BiosConnector[i].ddc_line == RADEON_GPIO_CRT2_DDC) {
+		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
 	    }
 
 	    /* XPRESS desktop chips seem to have a proprietary connector listed for
 	     * DVI-D, try and do the right thing here.
 	    */
 	    if ((!info->IsMobility) &&
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_PROPRIETARY)) {
+		(info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Proprietary connector found, assuming DVI-D\n");
 		info->BiosConnector[i].DACType = DAC_NONE;
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
 	    }
-
-	    if (info->BiosConnector[i].ConnectorType >= CONNECTOR_UNSUPPORTED) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown connector type: %d!\n",
-			   info->BiosConnector[i].ConnectorType);
-		info->BiosConnector[i].valid = FALSE;
-	    }
-
 	}
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Connector Info Table found!\n");
@@ -299,7 +431,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
 	if (offset) {
 	    info->BiosConnector[4].valid = TRUE;
-	    info->BiosConnector[4].ConnectorType = CONNECTOR_PROPRIETARY;
+	    info->BiosConnector[4].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[4].DACType = DAC_NONE;
 	    info->BiosConnector[4].TMDSType = TMDS_NONE;
 
@@ -308,19 +440,36 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		tmp0 = RADEON_BIOS16(tmp + 0x15);
 		if (tmp0) {
 		    tmp1 = RADEON_BIOS8(tmp0+2) & 0x07;
-		    if (tmp1) {	    
-			info->BiosConnector[4].DDCType	= tmp1;      
-			if (info->BiosConnector[4].DDCType > DDC_GPIO) {
-			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				       "Unknown DDCType %d found\n",
-				       info->BiosConnector[4].DDCType);
-			    info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+		    if (tmp1) {
+			DDCType	= tmp1;
+			switch (DDCType) {
+			case DDC_MONID:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_MONID;
+			    break;
+			case DDC_DVI:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_DVI_DDC;
+			    break;
+			case DDC_VGA:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_VGA_DDC;
+			    break;
+			case DDC_CRT2:
+			    info->BiosConnector[4].ddc_line = RADEON_GPIO_CRT2_DDC;
+			    break;
+			case DDC_LCD:
+			    info->BiosConnector[4].ddc_line = RADEON_LCD_GPIO_MASK;
+			    break;
+			case DDC_GPIO:
+			    info->BiosConnector[4].ddc_line = RADEON_MDGPIO_EN_REG;
+			    break;
+			default:
+			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
+			    break;
 			}
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
 		    }
 		}
 	    } else {
-		info->BiosConnector[4].DDCType = DDC_NONE_DETECTED;
+		info->BiosConnector[4].ddc_line = 0;
 	    }
 	}
     }
@@ -335,7 +484,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
 		info->BiosConnector[5].DACType = DAC_TVDAC;
 		info->BiosConnector[5].TMDSType = TMDS_NONE;
-		info->BiosConnector[5].DDCType = DDC_NONE_DETECTED;
+		info->BiosConnector[5].ddc_line = 0;
 	    }
 	}
     }
@@ -343,8 +492,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-%d, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, info->BiosConnector[i].DDCType, info->BiosConnector[i].DACType,
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
+		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }
@@ -476,8 +625,19 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 					or use a new algorithm to calculate
 					from min_input and max_input
 				     */
-	    pll->min_pll_freq = RADEON_BIOS16 (pll_info_block + 78);
-	    pll->max_pll_freq = RADEON_BIOS32 (pll_info_block + 32);
+	    pll->pll_out_min = RADEON_BIOS16 (pll_info_block + 78);
+	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 32);
+
+	    if (pll->pll_out_min == 0) {
+		if (IS_AVIVO_VARIANT)
+		    pll->pll_out_min = 64800;
+		else
+		    pll->pll_out_min = 20000;
+	    }
+
+	    pll->pll_in_min = RADEON_BIOS16 (pll_info_block + 74);
+	    pll->pll_in_max = RADEON_BIOS16 (pll_info_block + 76);
+
 	    pll->xclk = RADEON_BIOS16 (pll_info_block + 72);
 
 	    info->sclk = RADEON_BIOS32(pll_info_block + 8) / 100.0;
@@ -487,8 +647,13 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    pll->reference_freq = RADEON_BIOS16 (pll_info_block + 0x0e);
 	    pll->reference_div = RADEON_BIOS16 (pll_info_block + 0x10);
-	    pll->min_pll_freq = RADEON_BIOS32 (pll_info_block + 0x12);
-	    pll->max_pll_freq = RADEON_BIOS32 (pll_info_block + 0x16);
+	    pll->pll_out_min = RADEON_BIOS32 (pll_info_block + 0x12);
+	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 0x16);
+
+	    /* not available in the bios */
+	    pll->pll_in_min = 40;
+	    pll->pll_in_max = 500;
+
 	    pll->xclk = RADEON_BIOS16 (pll_info_block + 0x08);
 
 	    info->sclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
@@ -501,8 +666,8 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
 	       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
-	       pll->reference_freq, (unsigned)pll->min_pll_freq,
-	       (unsigned)pll->max_pll_freq, pll->xclk, info->sclk,
+	       pll->reference_freq, (unsigned)pll->pll_out_min,
+	       (unsigned)pll->pll_out_max, pll->xclk, info->sclk,
 	       info->mclk);
 
     return TRUE;

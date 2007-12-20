@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2003 by The XFree86 Project, Inc.
+ * Copyright 2006-2007 Advanced Micro Devices, Inc.  
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,36 +18,32 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Except as contained in this notice, the name of the copyright holder(s)
- * and author(s) shall not be used in advertising or otherwise to promote
- * the sale, use or other dealings in this Software without prior written
- * authorization from the copyright holder(s) and author(s).
  */
 
-/*
- * This file is a replacement for xf86PciInfo.h moving ATI related PCI IDs
- * locally to the driver module
- */
+/*++
 
-#ifndef _ATIPCIIDS_H
-#define _ATIPCIIDS_H
+Module Name:
 
-/* PCI Vendor */
-#define PCI_VENDOR_ATI			0x1002
-#define PCI_VENDOR_AMD			0x1022
-#define PCI_VENDOR_DELL			0x1028
+CD_Definitions.h
 
-#include "ati_pciids_gen.h"
+Abstract:
 
-#define PCI_CHIP_R520_7104		0x7104
-#define PCI_CHIP_RV515_7142             0x7142
-#define PCI_CHIP_RV515_7183             0x7183
-#define PCI_CHIP_RV530_71C5             0x71C5
-#define PCI_CHIP_R580_7249		0x7249
-#define PCI_CHIP_RV570_7280             0x7280
+Defines Script Language commands
 
-/* Misc */
-#define PCI_CHIP_AMD761			0x700E
+Revision History:
 
-#endif /* _ATIPCIIDS_H */
+NEG:27.08.2002	Initiated.
+--*/
+
+#include "CD_Structs.h"
+#ifndef _CD_DEFINITIONS_H
+#define _CD_DEFINITIONS_H_
+#ifdef DRIVER_PARSER
+VOID *AllocateMemory(VOID *, UINT16);
+VOID ReleaseMemory(DEVICE_DATA * , WORKING_TABLE_DATA* );
+#endif
+CD_STATUS ParseTable(DEVICE_DATA* pDeviceData, UINT8 IndexInMasterTable);
+//CD_STATUS CD_MainLoop(PARSER_TEMP_DATA_POINTER pParserTempData);
+CD_STATUS Main_Loop(DEVICE_DATA* pDeviceData,UINT16 *MasterTableOffset,UINT8 IndexInMasterTable);
+UINT16* GetCommandMasterTablePointer(DEVICE_DATA*  pDeviceData);
+#endif //CD_DEFINITIONS

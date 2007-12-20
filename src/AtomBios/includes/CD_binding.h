@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2003 by The XFree86 Project, Inc.
+ * Copyright 2006-2007 Advanced Micro Devices, Inc.  
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,36 +18,29 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Except as contained in this notice, the name of the copyright holder(s)
- * and author(s) shall not be used in advertising or otherwise to promote
- * the sale, use or other dealings in this Software without prior written
- * authorization from the copyright holder(s) and author(s).
  */
 
-/*
- * This file is a replacement for xf86PciInfo.h moving ATI related PCI IDs
- * locally to the driver module
- */
+#ifdef NT_BUILD
+#ifdef LH_BUILD
+#include <ntddk.h>
+#else
+#include <miniport.h>
+#endif // LH_BUILD
+#endif // NT_BUILD
 
-#ifndef _ATIPCIIDS_H
-#define _ATIPCIIDS_H
 
-/* PCI Vendor */
-#define PCI_VENDOR_ATI			0x1002
-#define PCI_VENDOR_AMD			0x1022
-#define PCI_VENDOR_DELL			0x1028
+#if ((defined DBG) || (defined DEBUG))
+#define DEBUG_PARSER				1   // enable parser debug output
+#endif
 
-#include "ati_pciids_gen.h"
+#define USE_SWITCH_COMMAND			1
+#define	DRIVER_TYPE_PARSER		0x48
 
-#define PCI_CHIP_R520_7104		0x7104
-#define PCI_CHIP_RV515_7142             0x7142
-#define PCI_CHIP_RV515_7183             0x7183
-#define PCI_CHIP_RV530_71C5             0x71C5
-#define PCI_CHIP_R580_7249		0x7249
-#define PCI_CHIP_RV570_7280             0x7280
+#define PARSER_TYPE DRIVER_TYPE_PARSER
 
-/* Misc */
-#define PCI_CHIP_AMD761			0x700E
+#define AllocateWorkSpace(x,y)      AllocateMemory(pDeviceData,y)
+#define FreeWorkSpace(x,y)          ReleaseMemory(x,y)
 
-#endif /* _ATIPCIIDS_H */
+#define RELATIVE_TO_BIOS_IMAGE( x ) ((ULONG_PTR)x + (ULONG_PTR)((DEVICE_DATA*)pParserTempData->pDeviceData->pBIOS_Image))
+#define RELATIVE_TO_TABLE( x )      (x + (UCHAR *)(pParserTempData->pWorkingTableData->pTableHead))
+

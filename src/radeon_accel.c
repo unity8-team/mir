@@ -250,7 +250,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     host_path_cntl = INREG(RADEON_HOST_PATH_CNTL);
     rbbm_soft_reset = INREG(RADEON_RBBM_SOFT_RESET);
 
-    if (IS_R300_VARIANT) {
+    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	CARD32 tmp;
 
 	OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset |
@@ -284,7 +284,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     INREG(RADEON_HOST_PATH_CNTL);
     OUTREG(RADEON_HOST_PATH_CNTL, host_path_cntl);
 
-    if (!IS_R300_VARIANT)
+    if (!IS_R300_VARIANT && !IS_AVIVO_VARIANT)
 	OUTREG(RADEON_RBBM_SOFT_RESET, rbbm_soft_reset);
 
     OUTREG(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
@@ -322,7 +322,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 #endif
 
     /* Restore SURFACE_CNTL */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 
     RADEONWaitForFifo(pScrn, 1);
     OUTREG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, (RADEON_DEFAULT_SC_RIGHT_MAX
@@ -852,6 +852,9 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return FALSE;
 
 #ifdef USE_EXA
     if (info->useEXA) {

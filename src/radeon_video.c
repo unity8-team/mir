@@ -1456,7 +1456,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
      * 0 for PIXCLK < 175Mhz, and 1 (divide by 2)
      * for higher clocks, sure makes life nicer
      */
-    dot_clock = info->ModeReg.dot_clock_freq;
+    dot_clock = info->ModeReg->dot_clock_freq;
 
     if (dot_clock < 17500)
         info->ecp_div = 0;
@@ -2182,7 +2182,7 @@ RADEONCopyData(
     {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	unsigned char *RADEONMMIO = info->MMIO;
-	unsigned int swapper = info->ModeReg.surface_cntl &
+	unsigned int swapper = info->ModeReg->surface_cntl &
 		~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
 		  RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
 
@@ -2208,7 +2208,7 @@ RADEONCopyData(
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 #endif
     }
 }
@@ -2264,7 +2264,7 @@ RADEONCopyRGB24Data(
     {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	unsigned char *RADEONMMIO = info->MMIO;
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg->surface_cntl
 				   | RADEON_NONSURF_AP0_SWP_32BPP)
 				  & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
@@ -2280,7 +2280,7 @@ RADEONCopyRGB24Data(
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 #endif
     }
 }
@@ -2359,7 +2359,7 @@ RADEONCopyMungedData(
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	unsigned char *RADEONMMIO = info->MMIO;
-	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg.surface_cntl
+	OUTREG(RADEON_SURFACE_CNTL, (info->ModeReg->surface_cntl
 				   | RADEON_NONSURF_AP0_SWP_32BPP)
 				  & ~RADEON_NONSURF_AP0_SWP_16BPP);
 #endif
@@ -2397,7 +2397,7 @@ RADEONCopyMungedData(
 	}
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* restore byte swapping */
-	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg.surface_cntl);
+	OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
 #endif
     }
 }
@@ -2578,9 +2578,9 @@ RADEONDisplayVideo(
 
     /* Figure out which head we are on for dot clock */
     if (radeon_crtc->crtc_id == 1)
-        dot_clock = info->ModeReg.dot_clock_freq_2;
+        dot_clock = info->ModeReg->dot_clock_freq_2;
     else
-        dot_clock = info->ModeReg.dot_clock_freq;
+        dot_clock = info->ModeReg->dot_clock_freq;
 
     if (dot_clock < 17500)
         ecp_div = 0;
