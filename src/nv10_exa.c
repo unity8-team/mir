@@ -796,8 +796,8 @@ void NV10Composite(PixmapPtr pDst,
 					
 			NV10MVertex(pNv , part_pos_dX	, dstY              , part_pos_sX, sY0, part_pos_sX + 1, sY0);
 			NV10MVertex(pNv , part_pos_dX + 1, dstY              , part_pos_sX, sY0, part_pos_sX + 1, sY0);
-			NV10MVertex(pNv , part_pos_dX + 1, dstY + height, part_pos_sX,  sY1, part_pos_sX + 1, sY1);
-			NV10MVertex(pNv , part_pos_dX	, dstY + height, part_pos_sX, sY1, part_pos_sX + 1, sY1);
+			NV10MVertex(pNv , part_pos_dX + 1, dstY + height, part_pos_sX,  sY2, part_pos_sX + 1, sY2);
+			NV10MVertex(pNv , part_pos_dX	, dstY + height, part_pos_sX, sY2, part_pos_sX + 1, sY2);
 			
 			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
@@ -810,8 +810,8 @@ void NV10Composite(PixmapPtr pDst,
 					
 			NV10MVertex(pNv , part_pos_dX, dstY              , part_pos_sX + 2, sY0, part_pos_sX + 3, sY0);
 			NV10MVertex(pNv , part_pos_dX + 1 , dstY              , part_pos_sX + 2, sY0, part_pos_sX + 3, sY0);
-			NV10MVertex(pNv , part_pos_dX + 1 , dstY + height, part_pos_sX + 2, sY1, part_pos_sX + 3, sY1);
-			NV10MVertex(pNv , part_pos_dX, dstY + height, part_pos_sX + 2, sY1, part_pos_sX + 3, sY1);
+			NV10MVertex(pNv , part_pos_dX + 1 , dstY + height, part_pos_sX + 2, sY2, part_pos_sX + 3, sY2);
+			NV10MVertex(pNv , part_pos_dX, dstY + height, part_pos_sX + 2, sY2, part_pos_sX + 3, sY2);
 
 			BEGIN_RING(Nv3D, NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END, 1);
 			OUT_RING  (NV10_TCL_PRIMITIVE_3D_VERTEX_BEGIN_END_STOP);
