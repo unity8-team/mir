@@ -1728,17 +1728,13 @@ static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
 }
 
 static Status i915_xvmc_mc_create_surface(Display *display,
-	XvMCContext *context, XvMCSurface *surface)
+	XvMCContext *context, XvMCSurface *surface, int priv_count,
+	CARD32 *priv_data)
 {
     Status ret;
     i915XvMCContext *pI915XvMC;
     i915XvMCSurface *pI915Surface;
     I915XvMCCreateSurfaceRec *tmpComm = NULL;
-    int priv_count;
-    uint *priv_data;
-
-    if (!display || !context)
-        return BadValue;
 
     if (!(pI915XvMC = context->privData))
         return (error_base + XvMCBadContext);
@@ -1764,19 +1760,6 @@ static Status i915_xvmc_mc_create_surface(Display *display,
     pI915Surface->privContext = pI915XvMC;
     pI915Surface->privSubPic = NULL;
     pI915Surface->srf.map = NULL;
-    XLockDisplay(display);
-
-    if ((ret = _xvmc_create_surface(display, context, surface,
-                                    &priv_count, &priv_data))) {
-        XUnlockDisplay(display);
-        XVMC_ERR("Unable to create XvMCSurface.");
-        free(pI915Surface);
-        surface->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK();
-        return ret;
-    }
-
-    XUnlockDisplay(display);
 
     if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
         XVMC_ERR("_xvmc_create_surface() returned incorrect data size!");
@@ -1835,10 +1818,6 @@ static int i915_xvmc_mc_destroy_surface(Display *display, XvMCSurface *surface)
 
     if (pI915Surface->srf.map)
         drmUnmap(pI915Surface->srf.map, pI915Surface->srf.size);
-
-    XLockDisplay(display);
-    _xvmc_destroy_surface(display, surface);
-    XUnlockDisplay(display);
 
     free(pI915Surface);
     surface->privData = NULL;

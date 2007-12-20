@@ -164,7 +164,7 @@ typedef struct _intel_xvmc_driver {
     Status (*destroy_context)(Display* display, XvMCContext *context);
 
     Status (*create_surface)(Display* display, XvMCContext *context,
-	    XvMCSurface *surface);
+	    XvMCSurface *surface, int priv_count, CARD32 *priv_data);
 
     Status (*destroy_surface)(Display* display, XvMCSurface *surface);
 

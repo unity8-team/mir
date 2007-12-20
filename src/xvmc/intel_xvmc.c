@@ -366,6 +366,8 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *surface)
 {
     Status ret;
+    int priv_count;
+    CARD32 *priv_data;
 
     if (!display || !context)
         return XvMCBadContext;
@@ -373,7 +375,14 @@ Status XvMCCreateSurface(Display *display, XvMCContext *context, XvMCSurface *su
     if (!surface)
 	return XvMCBadSurface;
 
-    ret = (xvmc_driver->create_surface)(display, context, surface);
+    if ((ret = _xvmc_create_surface(display, context, surface,
+                                    &priv_count, &priv_data))) {
+        XVMC_ERR("Unable to create XvMCSurface.");
+        return ret;
+    }
+
+    ret = (xvmc_driver->create_surface)(display, context, surface, priv_count,
+	    priv_data);
     if (ret) {
 	XVMC_ERR("create surface failed\n");
 	return ret;
@@ -392,6 +401,8 @@ Status XvMCDestroySurface(Display *display, XvMCSurface *surface)
         return XvMCBadSurface;
 
     (xvmc_driver->destroy_surface)(display, surface);
+
+    _xvmc_destroy_surface(display, surface);
 
     return Success;
 }
