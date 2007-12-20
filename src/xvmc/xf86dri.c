@@ -332,7 +332,7 @@ uniDRICreateContextWithConfig(dpy, screen, configID, context, hHWContext)
     Display *dpy;
     int screen;
     int configID;
-    XID *context;
+    XID context;
     drm_context_t *hHWContext;
 {
     XExtDisplayInfo *info = find_display(dpy);
@@ -348,8 +348,7 @@ uniDRICreateContextWithConfig(dpy, screen, configID, context, hHWContext)
     req->driReqType = X_XF86DRICreateContext;
     req->visual = configID;
     req->screen = screen;
-    *context = XAllocID(dpy);
-    req->context = *context;
+    req->context = context;
     if (!_XReply(dpy, (xReply *) & rep, 0, xFalse)) {
 	UnlockDisplay(dpy);
 	SyncHandle();
@@ -368,10 +367,11 @@ uniDRICreateContext(dpy, screen, visual, context, hHWContext)
     Display *dpy;
     int screen;
     Visual *visual;
-    XID *context;
+    XID context;
     drm_context_t *hHWContext;
 {
-    return uniDRICreateContextWithConfig(dpy, screen, visual->visualid,
+    return uniDRICreateContextWithConfig(dpy, screen,
+	   visual ? visual->visualid : 0,
 	context, hHWContext);
 }
 

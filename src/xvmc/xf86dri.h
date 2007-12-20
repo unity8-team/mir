@@ -86,11 +86,13 @@ Bool uniDRIGetClientDriverName(Display * dpy, int screen,
     int *ddxDriverMajorVersion, int *ddxDriverMinorVersion,
     int *ddxDriverPatchVersion, char **clientDriverName);
 
+/* XvMC context XID is alloced in _xvmc_create_context, so
+ * don't recreate here */
 Bool uniDRICreateContext(Display * dpy, int screen, Visual * visual,
-    XID * ptr_to_returned_context_id, drm_context_t * hHWContext);
+    XID context_id, drm_context_t * hHWContext);
 
 Bool uniDRICreateContextWithConfig(Display * dpy, int screen, int configID,
-    XID * ptr_to_returned_context_id, drm_context_t * hHWContext);
+    XID context_id, drm_context_t * hHWContext);
 
 extern Bool uniDRIDestroyContext(Display * dpy, int screen, XID context_id);
 

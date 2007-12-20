@@ -99,6 +99,12 @@ extern Status  _xvmc_create_subpicture(Display *dpy, XvMCContext *context,
 extern Status   _xvmc_destroy_subpicture(Display *dpy,
 					 XvMCSubpicture *subpicture);
 
+typedef struct _intel_xvmc_context {
+    XID	id;	/* context id to X system */
+    drm_context_t hw_context;	/* context id to kernel drm */
+    struct _intel_xvmc_context *next;
+} intel_xvmc_context_t, *intel_xvmc_context_ptr;
+
 typedef struct _intel_xvmc_drm_map {
     drm_handle_t handle;
     unsigned long offset;
@@ -141,6 +147,9 @@ typedef struct _intel_xvmc_driver {
     int lock;   /* Lightweight lock to avoid locking twice */
     int locked;
     drmLock *driHwLock;
+
+    int num_ctx;
+    intel_xvmc_context_ptr ctx_list;
 
     void *private;
 
@@ -229,4 +238,7 @@ static inline const char* intel_xvmc_decoder_string(int flag)
 	    return "Unknown decoder";
     }
 }
+
+extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
+
 #endif

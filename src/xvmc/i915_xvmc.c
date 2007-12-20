@@ -1612,10 +1612,6 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     driDestroyHashContents(pI915XvMC->drawHash);
     drmHashDestroy(pI915XvMC->drawHash);
 
-    XLockDisplay(display);
-    uniDRIDestroyContext(display, screen, pI915XvMC->id);
-    XUnlockDisplay(display);
-
     free(pI915XvMC);
     context->privData = NULL;
 }
@@ -1632,6 +1628,8 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     int major, minor;
     int isCapable;
     int screen = DefaultScreen(display);
+
+    XVMC_DBG("i915_xvmc_mc_create_context\n");
 
     if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
         XVMC_ERR("_xvmc_create_context() returned incorrect data size!");
@@ -1684,7 +1682,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->corrdata.offset = tmpComm->corrdata.offset;
     pI915XvMC->corrdata.size = tmpComm->corrdata.size;
     pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
-    pI915XvMC->depth = tmpComm->depth;
 
     /* Must free the private data we were passed from X */
     free(priv_data);
@@ -1692,27 +1689,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
-    ret = XMatchVisualInfo(display, screen,
-                           (pI915XvMC->depth == 32) ? 24 : pI915XvMC->depth, TrueColor,
-                           &pI915XvMC->visualInfo);
-
-    if (!ret) {
-	XVMC_ERR("Could not find a matching TrueColor visual.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
-        return BadAlloc;
-    }
-
-    if (!uniDRICreateContext(display, screen,
-                             pI915XvMC->visualInfo.visual, &pI915XvMC->id,
-                             &pI915XvMC->hHWContext)) {
-        XVMC_ERR("Could not create DRI context.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
-        return BadAlloc;
-    }
 
     if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
 	XVMC_ERR("Could not allocate drawable hash table.");
@@ -1761,11 +1737,14 @@ static Status i915_xvmc_mc_create_surface(Display *display,
     int priv_count;
     uint *priv_data;
 
-    if (!display || !context || !display)
+    if (!display || !context)
         return BadValue;
 
     if (!(pI915XvMC = context->privData))
         return (error_base + XvMCBadContext);
+
+    XVMC_DBG("%s\n", __FUNCTION__);
+
 
     PPTHREAD_MUTEX_LOCK();
     surface->privData = (i915XvMCSurface *)malloc(sizeof(i915XvMCSurface));
@@ -1823,6 +1802,7 @@ static Status i915_xvmc_mc_create_surface(Display *display,
                pI915Surface->srf.handle,
                pI915Surface->srf.size,
                (drmAddress *)&pI915Surface->srf.map) != 0) {
+	XVMC_ERR("mapping surface memory failed!\n");
         _xvmc_destroy_surface(display, surface);
         free(pI915Surface);
         surface->privData = NULL;
@@ -1890,10 +1870,14 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     /* Current Macroblock Pointer */
     XvMCMacroBlock *mb;
 
+    intel_xvmc_context_ptr intel_ctx;
+
     i915XvMCSurface *privTarget = NULL;
     i915XvMCSurface *privFuture = NULL;
     i915XvMCSurface *privPast = NULL;
     i915XvMCContext *pI915XvMC = NULL;
+
+    XVMC_DBG("%s\n", __FUNCTION__);
 
     /* Check Parameters for validity */
     if (!display || !context || !target_surface) {
@@ -1926,6 +1910,13 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         return BadValue;
     }
 
+    intel_ctx = intel_xvmc_find_context(context->context_id);
+    if (!intel_ctx) {
+	XVMC_ERR("Can't find intel xvmc context\n");
+	return BadValue;
+    }
+    XVMC_DBG("intel ctx found\n");
+
     /* P Frame Test */
     if (!past_surface) {
         /* Just to avoid some ifs later. */
@@ -1955,7 +1946,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
         picture_coding_type = MPEG_B_PICTURE;
     }
 
-    LOCK_HARDWARE(pI915XvMC->hHWContext);
+    LOCK_HARDWARE(intel_ctx->hw_context);
     corrdata_ptr = pI915XvMC->corrdata.map;
     corrdata_size = 0;
 
@@ -2064,7 +2055,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     xvmc_driver->last_render = xvmc_driver->alloc.irq_emitted;
     privTarget->last_render = xvmc_driver->last_render;
 
-    UNLOCK_HARDWARE(pI915XvMC->hHWContext);
+    UNLOCK_HARDWARE(intel_ctx->hw_context);
     return 0;
 }
 
@@ -2093,14 +2084,7 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
         return (error_base + XvMCBadSurface);
 
     PPTHREAD_MUTEX_LOCK();
-    /*
-    if (getDRIDrawableInfoLocked(pI915XvMC->drawHash, display,
-                                 pI915XvMC->screen, draw, 0, pI915XvMC->fd, pI915XvMC->hHWContext,
-                                 pI915XvMC->sarea_address, FALSE, &drawInfo, sizeof(*drawInfo))) {
-        PPTHREAD_MUTEX_UNLOCK();
-        return BadAccess;
-    }
-    */
+
     if (!pI915XvMC->haveXv) {
         pI915XvMC->xvImage =
             XvCreateImage(display, pI915XvMC->port, FOURCC_XVMC,
@@ -2154,7 +2138,6 @@ static int i915_xvmc_mc_get_surface_status(Display *display,
     if (!(pI915XvMC = pI915Surface->privContext))
         return (error_base + XvMCBadSurface);
 
-    // LOCK_HARDWARE(pI915XvMC->hHWContext);
     PPTHREAD_MUTEX_LOCK();
     if (pI915Surface->last_flip) {
         /* This can not happen */
@@ -2184,7 +2167,6 @@ static int i915_xvmc_mc_get_surface_status(Display *display,
         *stat |= XVMC_RENDERING;
     }
 
-    // UNLOCK_HARDWARE(pI915XvMC->hHWContext);
     PPTHREAD_MUTEX_UNLOCK();
     return 0;
 }
@@ -2594,7 +2576,6 @@ Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture
     if (!(pI915XvMC = pI915Subpicture->privContext))
         return (error_base + XvMCBadSubpicture);
 
-    // LOCK_HARDWARE(pI915XvMC->hHWContext);
     PPTHREAD_MUTEX_LOCK();
     /* FIXME: */
     if (pI915Subpicture->last_render &&
@@ -2602,7 +2583,6 @@ Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture
         *stat |= XVMC_RENDERING;
     }
 
-    // UNLOCK_HARDWARE(pI915XvMC->hHWContext);
     PPTHREAD_MUTEX_UNLOCK();
     return Success;
 }
@@ -2610,14 +2590,16 @@ Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture
 #endif
 
 struct _intel_xvmc_driver i915_xvmc_mc_driver = {
-    .type = XVMC_I915_MPEG2_MC,
-    .init = i915_xvmc_mc_init,
-    .fini = i915_xvmc_mc_fini,
-    .create_context = i915_xvmc_mc_create_context,
-    .destroy_context = i915_xvmc_mc_destroy_context,
-    .create_surface = i915_xvmc_mc_create_surface,
-    .destroy_surface = i915_xvmc_mc_destroy_surface,
-    .render_surface = i915_xvmc_mc_render_surface,
-    .put_surface = i915_xvmc_mc_put_surface,
-    .get_surface_status = i915_xvmc_mc_get_surface_status,
+    .type		= XVMC_I915_MPEG2_MC,
+    .num_ctx		= 0,
+    .ctx_list		= NULL,
+    .init		= i915_xvmc_mc_init,
+    .fini		= i915_xvmc_mc_fini,
+    .create_context	= i915_xvmc_mc_create_context,
+    .destroy_context	= i915_xvmc_mc_destroy_context,
+    .create_surface	= i915_xvmc_mc_create_surface,
+    .destroy_surface	= i915_xvmc_mc_destroy_surface,
+    .render_surface	= i915_xvmc_mc_render_surface,
+    .put_surface	= i915_xvmc_mc_put_surface,
+    .get_surface_status	= i915_xvmc_mc_get_surface_status,
 };

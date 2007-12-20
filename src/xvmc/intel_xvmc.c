@@ -59,6 +59,59 @@ void UNLOCK_HARDWARE(drm_context_t ctx)
     PPTHREAD_MUTEX_UNLOCK();
 }
 
+static intel_xvmc_context_ptr intel_xvmc_new_context(Display *dpy)
+{
+    intel_xvmc_context_ptr ret;
+
+    ret = (intel_xvmc_context_ptr)calloc(1, sizeof(intel_xvmc_context_t));
+    if (!ret)
+	return NULL;
+
+    if (!xvmc_driver->ctx_list)
+	ret->next = NULL;
+    else
+	ret->next = xvmc_driver->ctx_list;
+    xvmc_driver->ctx_list = ret;
+    xvmc_driver->num_ctx++;
+
+    return ret;
+
+}
+
+static void intel_xvmc_free_context(XID id)
+{
+    intel_xvmc_context_ptr p = xvmc_driver->ctx_list;
+    intel_xvmc_context_ptr pre = p;
+
+    while(p) {
+	if (p->id == id) {
+	    if (p == xvmc_driver->ctx_list)
+		xvmc_driver->ctx_list = p->next;
+	    else
+		pre->next = p->next;
+	    break;
+	}
+	pre = p;
+	p = p->next;
+    }
+
+    if (p)
+	free(p);
+    xvmc_driver->num_ctx--;
+}
+
+intel_xvmc_context_ptr intel_xvmc_find_context(XID id)
+{
+    intel_xvmc_context_ptr p = xvmc_driver->ctx_list;
+
+    while(p) {
+	if (p->id == id)
+	    return p;
+	p = p->next;
+    }
+    return NULL;
+}
+
 /*
 * Function: XvMCCreateContext
 * Description: Create a XvMC context for the given surface parameters.
@@ -89,6 +142,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     int priv_count;
     int isCapable;
     int screen = DefaultScreen(display);
+    intel_xvmc_context_ptr intel_ctx;
 
     /* Verify Obvious things first */
     if (!display || !context)
@@ -171,6 +225,15 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     xvmc_driver->batchbuffer.offset = comm->batchbuffer.offset;
     xvmc_driver->batchbuffer.size = comm->batchbuffer.size;
 
+    /* assign local ctx info */
+    intel_ctx = intel_xvmc_new_context(display);
+    if (!intel_ctx) {
+	XVMC_ERR("Intel XvMC context create fail\n");
+	return BadAlloc;
+    }
+    /* context_id is alloc in _xvmc_create_context */
+    intel_ctx->id = context->context_id;
+
     ret = uniDRIQueryDirectRenderingCapable(display, screen,
                                             &isCapable);
     if (!ret || !isCapable) {
@@ -205,7 +268,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     if (!uniDRIAuthConnection(display, screen, magic)) {
 	XVMC_ERR("[XvMC]: X server did not allow DRI. Check permissions.");
-	//(xvmc_driver->fini)();
 	xvmc_driver = NULL;
 	free(priv_data);
         return BadAlloc;
@@ -217,7 +279,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     if (drmMap(xvmc_driver->fd, xvmc_driver->hsarea,
                xvmc_driver->sarea_size, &xvmc_driver->sarea_address) < 0) {
         XVMC_ERR("Unable to map DRI SAREA.\n");
-	//(xvmc_driver->fini)();
 	xvmc_driver = NULL;
 	free(priv_data);
         return BadAlloc;
@@ -225,6 +286,16 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     xvmc_driver->driHwLock = (drmLock *)&pSAREA->lock;
     pthread_mutex_init(&xvmc_driver->ctxmutex, NULL);
+
+    if (!uniDRICreateContext(display, screen, NULL,
+			     context->context_id,
+                             &intel_ctx->hw_context)) {
+        XVMC_ERR("Could not create DRI context.");
+	free(priv_data);
+        context->privData = NULL;
+        drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
+        return BadAlloc;
+    }
 
     /* call driver hook.
      * driver hook should free priv_data after return if success.*/
@@ -264,22 +335,28 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 	return ret;
     }
 
+    uniDRIDestroyContext(display, screen, context->context_id);
+    intel_xvmc_free_context(context->context_id);
+
     ret = _xvmc_destroy_context(display, context);
     if (ret != Success) {
 	XVMC_ERR("_xvmc_destroy_context fail\n");
 	return ret;
     }
-    uniDRICloseConnection(display, screen);
 
-    pthread_mutex_destroy(&xvmc_driver->ctxmutex);
+    if (xvmc_driver->num_ctx == 0) {
+	uniDRICloseConnection(display, screen);
 
-    drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
+	pthread_mutex_destroy(&xvmc_driver->ctxmutex);
 
-    if (xvmc_driver->fd >= 0)
-        drmClose(xvmc_driver->fd);
-    xvmc_driver->fd = -1;
+	drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);
 
-    intelFiniBatchBuffer();
+	if (xvmc_driver->fd >= 0)
+	    drmClose(xvmc_driver->fd);
+	xvmc_driver->fd = -1;
+
+	intelFiniBatchBuffer();
+    }
     return Success;
 }
 

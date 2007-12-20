@@ -56,7 +56,6 @@ typedef struct _i915XvMCContext {
     unsigned int uvStride;
     unsigned short ref;
     volatile drmI830Sarea *sarea;
-    drm_context_t hHWContext; /* drmcontext; */
     unsigned int sarea_priv_offset;	        /* Offset in sarea to private part */
     unsigned int depth;
     XvPortID port;		       /* Xv Port ID when displaying */
@@ -66,8 +65,6 @@ typedef struct _i915XvMCContext {
                                         * buffer transport to the X server */
     GC  gc;                            /* X GC needed for displaying */
     Drawable draw;                     /* Drawable to undisplay from */
-    XID id;
-    XVisualInfo visualInfo;
     void *drawHash;
     int deviceID;
 

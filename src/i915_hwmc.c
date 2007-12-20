@@ -501,7 +501,6 @@ static int i915_xvmc_create_context (ScrnInfoPtr pScrn, XvMCContextPtr pContext,
     contextRec->corrdata.offset = ctxpriv->mcCorrdata->offset;
     contextRec->corrdata.size = ctxpriv->mcCorrdata->size;
     contextRec->sarea_priv_offset = sizeof(XF86DRISAREARec);
-    contextRec->depth = pScrn->bitsPerPixel;
     contextRec->deviceID = pI830DRI->deviceID;
 
     pXvMC->ncontexts++;
