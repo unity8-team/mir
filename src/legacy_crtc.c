@@ -53,6 +53,585 @@
 #include "sarea.h"
 #endif
 
+/* Write common registers */
+void
+RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
+			     RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (info->IsSecondary)
+      return;
+
+    OUTREG(RADEON_OVR_CLR,            restore->ovr_clr);
+    OUTREG(RADEON_OVR_WID_LEFT_RIGHT, restore->ovr_wid_left_right);
+    OUTREG(RADEON_OVR_WID_TOP_BOTTOM, restore->ovr_wid_top_bottom);
+    OUTREG(RADEON_OV0_SCALE_CNTL,     restore->ov0_scale_cntl);
+    OUTREG(RADEON_SUBPIC_CNTL,        restore->subpic_cntl);
+    OUTREG(RADEON_VIPH_CONTROL,       restore->viph_control);
+    OUTREG(RADEON_I2C_CNTL_1,         restore->i2c_cntl_1);
+    OUTREG(RADEON_GEN_INT_CNTL,       restore->gen_int_cntl);
+    OUTREG(RADEON_CAP0_TRIG_CNTL,     restore->cap0_trig_cntl);
+    OUTREG(RADEON_CAP1_TRIG_CNTL,     restore->cap1_trig_cntl);
+    OUTREG(RADEON_BUS_CNTL,           restore->bus_cntl);
+    OUTREG(RADEON_SURFACE_CNTL,       restore->surface_cntl);
+
+    /* Workaround for the VT switching problem in dual-head mode.  This
+     * problem only occurs on RV style chips, typically when a FP and
+     * CRT are connected.
+     */
+    if (pRADEONEnt->HasCRTC2 &&
+	info->ChipFamily != CHIP_FAMILY_R200 &&
+	!IS_R300_VARIANT) {
+	CARD32        tmp;
+
+	tmp = INREG(RADEON_DAC_CNTL2);
+	OUTREG(RADEON_DAC_CNTL2, tmp & ~RADEON_DAC2_DAC_CLK_SEL);
+	usleep(100000);
+    }
+}
+
+
+/* Write CRTC registers */
+void
+RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
+			   RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Programming CRTC1, offset: 0x%08x\n",
+		   (unsigned)restore->crtc_offset);
+
+    /* We prevent the CRTC from hitting the memory controller until
+     * fully programmed
+     */
+    OUTREG(RADEON_CRTC_GEN_CNTL, restore->crtc_gen_cntl |
+	   RADEON_CRTC_DISP_REQ_EN_B);
+
+    OUTREGP(RADEON_CRTC_EXT_CNTL,
+	    restore->crtc_ext_cntl,
+	    RADEON_CRTC_VSYNC_DIS |
+	    RADEON_CRTC_HSYNC_DIS |
+	    RADEON_CRTC_DISPLAY_DIS);
+
+    OUTREG(RADEON_CRTC_H_TOTAL_DISP,    restore->crtc_h_total_disp);
+    OUTREG(RADEON_CRTC_H_SYNC_STRT_WID, restore->crtc_h_sync_strt_wid);
+    OUTREG(RADEON_CRTC_V_TOTAL_DISP,    restore->crtc_v_total_disp);
+    OUTREG(RADEON_CRTC_V_SYNC_STRT_WID, restore->crtc_v_sync_strt_wid);
+
+    OUTREG(RADEON_FP_H_SYNC_STRT_WID,   restore->fp_h_sync_strt_wid);
+    OUTREG(RADEON_FP_V_SYNC_STRT_WID,   restore->fp_v_sync_strt_wid);
+    OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
+    OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
+
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC_TILE_X0_Y0, restore->crtc_tile_x0_y0);
+    OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
+    OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
+
+    OUTREG(RADEON_CRTC_PITCH,           restore->crtc_pitch);
+    OUTREG(RADEON_DISP_MERGE_CNTL,      restore->disp_merge_cntl);
+    OUTREG(RADEON_CRTC_MORE_CNTL,       restore->crtc_more_cntl);
+
+    if (info->IsDellServer) {
+	OUTREG(RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
+	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
+	OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
+	OUTREG(RADEON_CRTC2_GEN_CNTL, restore->crtc2_gen_cntl);
+    }
+
+    OUTREG(RADEON_CRTC_GEN_CNTL, restore->crtc_gen_cntl);
+}
+
+/* Write CRTC2 registers */
+void
+RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
+			    RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    /*    CARD32	   crtc2_gen_cntl;*/
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Programming CRTC2, offset: 0x%08x\n",
+		   (unsigned)restore->crtc2_offset);
+
+    /* We prevent the CRTC from hitting the memory controller until
+     * fully programmed
+     */
+    OUTREG(RADEON_CRTC2_GEN_CNTL,
+	   restore->crtc2_gen_cntl | RADEON_CRTC2_VSYNC_DIS |
+	   RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_DIS |
+	   RADEON_CRTC2_DISP_REQ_EN_B);
+
+    OUTREG(RADEON_CRTC2_H_TOTAL_DISP,    restore->crtc2_h_total_disp);
+    OUTREG(RADEON_CRTC2_H_SYNC_STRT_WID, restore->crtc2_h_sync_strt_wid);
+    OUTREG(RADEON_CRTC2_V_TOTAL_DISP,    restore->crtc2_v_total_disp);
+    OUTREG(RADEON_CRTC2_V_SYNC_STRT_WID, restore->crtc2_v_sync_strt_wid);
+
+    OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
+    OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
+
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC2_TILE_X0_Y0, restore->crtc2_tile_x0_y0);
+    OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
+    OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
+
+    OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
+    OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	OUTREG(RADEON_RS480_UNK_e30, restore->rs480_unk_e30);
+	OUTREG(RADEON_RS480_UNK_e34, restore->rs480_unk_e34);
+	OUTREG(RADEON_RS480_UNK_e38, restore->rs480_unk_e38);
+	OUTREG(RADEON_RS480_UNK_e3c, restore->rs480_unk_e3c);
+    }
+    OUTREG(RADEON_CRTC2_GEN_CNTL, restore->crtc2_gen_cntl);
+
+}
+
+static void
+RADEONPLLWaitForReadUpdateComplete(ScrnInfoPtr pScrn)
+{
+    int i = 0;
+
+    /* FIXME: Certain revisions of R300 can't recover here.  Not sure of
+       the cause yet, but this workaround will mask the problem for now.
+       Other chips usually will pass at the very first test, so the
+       workaround shouldn't have any effect on them. */
+    for (i = 0;
+	 (i < 10000 &&
+	  INPLL(pScrn, RADEON_PPLL_REF_DIV) & RADEON_PPLL_ATOMIC_UPDATE_R);
+	 i++);
+}
+
+static void
+RADEONPLLWriteUpdate(ScrnInfoPtr pScrn)
+{
+    while (INPLL(pScrn, RADEON_PPLL_REF_DIV) & RADEON_PPLL_ATOMIC_UPDATE_R);
+
+    OUTPLLP(pScrn, RADEON_PPLL_REF_DIV,
+	    RADEON_PPLL_ATOMIC_UPDATE_W,
+	    ~(RADEON_PPLL_ATOMIC_UPDATE_W));
+}
+
+static void
+RADEONPLL2WaitForReadUpdateComplete(ScrnInfoPtr pScrn)
+{
+    int i = 0;
+
+    /* FIXME: Certain revisions of R300 can't recover here.  Not sure of
+       the cause yet, but this workaround will mask the problem for now.
+       Other chips usually will pass at the very first test, so the
+       workaround shouldn't have any effect on them. */
+    for (i = 0;
+	 (i < 10000 &&
+	  INPLL(pScrn, RADEON_P2PLL_REF_DIV) & RADEON_P2PLL_ATOMIC_UPDATE_R);
+	 i++);
+}
+
+static void
+RADEONPLL2WriteUpdate(ScrnInfoPtr pScrn)
+{
+    while (INPLL(pScrn, RADEON_P2PLL_REF_DIV) & RADEON_P2PLL_ATOMIC_UPDATE_R);
+
+    OUTPLLP(pScrn, RADEON_P2PLL_REF_DIV,
+	    RADEON_P2PLL_ATOMIC_UPDATE_W,
+	    ~(RADEON_P2PLL_ATOMIC_UPDATE_W));
+}
+
+static CARD8
+RADEONComputePLLGain(CARD16 reference_freq, CARD16 ref_div,
+		     CARD16 fb_div)
+{
+    unsigned vcoFreq;
+
+    if (!ref_div)
+	return 1;
+
+    vcoFreq = ((unsigned)reference_freq * fb_div) / ref_div;
+
+    /*
+     * This is horribly crude: the VCO frequency range is divided into
+     * 3 parts, each part having a fixed PLL gain value.
+     */
+    if (vcoFreq >= 30000)
+	/*
+	 * [300..max] MHz : 7
+	 */
+	return 7;
+    else if (vcoFreq >= 18000)
+	/*
+	 * [180..300) MHz : 4
+	 */
+        return 4;
+    else
+	/*
+	 * [0..180) MHz : 1
+	 */
+        return 1;
+}
+
+/* Write PLL registers */
+void
+RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
+			  RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD8 pllGain;
+
+#if defined(__powerpc__)
+    /* apparently restoring the pll causes a hang??? */
+    if (info->MacModel == RADEON_MAC_IBOOK)
+	return;
+#endif
+
+    pllGain = RADEONComputePLLGain(info->pll.reference_freq,
+				   restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+				   restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK);
+
+    if (info->IsMobility) {
+        /* A temporal workaround for the occational blanking on certain laptop panels.
+           This appears to related to the PLL divider registers (fail to lock?).
+	   It occurs even when all dividers are the same with their old settings.
+           In this case we really don't need to fiddle with PLL registers.
+           By doing this we can avoid the blanking problem with some panels.
+        */
+        if ((restore->ppll_ref_div == (INPLL(pScrn, RADEON_PPLL_REF_DIV) & RADEON_PPLL_REF_DIV_MASK)) &&
+	    (restore->ppll_div_3 == (INPLL(pScrn, RADEON_PPLL_DIV_3) & 
+				     (RADEON_PPLL_POST3_DIV_MASK | RADEON_PPLL_FB3_DIV_MASK)))) {
+	    OUTREGP(RADEON_CLOCK_CNTL_INDEX,
+		    RADEON_PLL_DIV_SEL,
+		    ~(RADEON_PLL_DIV_SEL));
+	    RADEONPllErrataAfterIndex(info);
+	    return;
+	}
+    }
+
+    OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL,
+	    RADEON_VCLK_SRC_SEL_CPUCLK,
+	    ~(RADEON_VCLK_SRC_SEL_MASK));
+
+    OUTPLLP(pScrn,
+	    RADEON_PPLL_CNTL,
+	    RADEON_PPLL_RESET
+	    | RADEON_PPLL_ATOMIC_UPDATE_EN
+	    | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN
+	    | ((CARD32)pllGain << RADEON_PPLL_PVG_SHIFT),
+	    ~(RADEON_PPLL_RESET
+	      | RADEON_PPLL_ATOMIC_UPDATE_EN
+	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN
+	      | RADEON_PPLL_PVG_MASK));
+
+    OUTREGP(RADEON_CLOCK_CNTL_INDEX,
+	    RADEON_PLL_DIV_SEL,
+	    ~(RADEON_PLL_DIV_SEL));
+    RADEONPllErrataAfterIndex(info);
+
+    if (IS_R300_VARIANT ||
+	(info->ChipFamily == CHIP_FAMILY_RS300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400)) {
+	if (restore->ppll_ref_div & R300_PPLL_REF_DIV_ACC_MASK) {
+	    /* When restoring console mode, use saved PPLL_REF_DIV
+	     * setting.
+	     */
+	    OUTPLLP(pScrn, RADEON_PPLL_REF_DIV,
+		    restore->ppll_ref_div,
+		    0);
+	} else {
+	    /* R300 uses ref_div_acc field as real ref divider */
+	    OUTPLLP(pScrn, RADEON_PPLL_REF_DIV,
+		    (restore->ppll_ref_div << R300_PPLL_REF_DIV_ACC_SHIFT),
+		    ~R300_PPLL_REF_DIV_ACC_MASK);
+	}
+    } else {
+	OUTPLLP(pScrn, RADEON_PPLL_REF_DIV,
+		restore->ppll_ref_div,
+		~RADEON_PPLL_REF_DIV_MASK);
+    }
+
+    OUTPLLP(pScrn, RADEON_PPLL_DIV_3,
+	    restore->ppll_div_3,
+	    ~RADEON_PPLL_FB3_DIV_MASK);
+
+    OUTPLLP(pScrn, RADEON_PPLL_DIV_3,
+	    restore->ppll_div_3,
+	    ~RADEON_PPLL_POST3_DIV_MASK);
+
+    RADEONPLLWriteUpdate(pScrn);
+    RADEONPLLWaitForReadUpdateComplete(pScrn);
+
+    OUTPLL(pScrn, RADEON_HTOTAL_CNTL, restore->htotal_cntl);
+
+    OUTPLLP(pScrn, RADEON_PPLL_CNTL,
+	    0,
+	    ~(RADEON_PPLL_RESET
+	      | RADEON_PPLL_SLEEP
+	      | RADEON_PPLL_ATOMIC_UPDATE_EN
+	      | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		   restore->ppll_ref_div,
+		   restore->ppll_div_3,
+		   (unsigned)restore->htotal_cntl,
+		   INPLL(pScrn, RADEON_PPLL_CNTL));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote: rd=%d, fd=%d, pd=%d\n",
+		   restore->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+		   restore->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
+		   (restore->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16);
+
+    usleep(50000); /* Let the clock to lock */
+
+    OUTPLLP(pScrn, RADEON_VCLK_ECP_CNTL,
+	    RADEON_VCLK_SRC_SEL_PPLLCLK,
+	    ~(RADEON_VCLK_SRC_SEL_MASK));
+
+    /*OUTPLL(pScrn, RADEON_VCLK_ECP_CNTL, restore->vclk_ecp_cntl);*/
+
+    ErrorF("finished PLL1\n");
+
+}
+
+/* Write PLL2 registers */
+void
+RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
+			   RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    CARD8 pllGain;
+
+    pllGain = RADEONComputePLLGain(info->pll.reference_freq,
+                                   restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
+                                   restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK);
+
+
+    OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
+	    RADEON_PIX2CLK_SRC_SEL_CPUCLK,
+	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
+
+    OUTPLLP(pScrn,
+	    RADEON_P2PLL_CNTL,
+	    RADEON_P2PLL_RESET
+	    | RADEON_P2PLL_ATOMIC_UPDATE_EN
+	    | ((CARD32)pllGain << RADEON_P2PLL_PVG_SHIFT),
+	    ~(RADEON_P2PLL_RESET
+	      | RADEON_P2PLL_ATOMIC_UPDATE_EN
+	      | RADEON_P2PLL_PVG_MASK));
+
+
+    OUTPLLP(pScrn, RADEON_P2PLL_REF_DIV,
+	    restore->p2pll_ref_div,
+	    ~RADEON_P2PLL_REF_DIV_MASK);
+
+    OUTPLLP(pScrn, RADEON_P2PLL_DIV_0,
+	    restore->p2pll_div_0,
+	    ~RADEON_P2PLL_FB0_DIV_MASK);
+
+    OUTPLLP(pScrn, RADEON_P2PLL_DIV_0,
+	    restore->p2pll_div_0,
+	    ~RADEON_P2PLL_POST0_DIV_MASK);
+
+    RADEONPLL2WriteUpdate(pScrn);
+    RADEONPLL2WaitForReadUpdateComplete(pScrn);
+
+    OUTPLL(pScrn, RADEON_HTOTAL2_CNTL, restore->htotal_cntl2);
+
+    OUTPLLP(pScrn, RADEON_P2PLL_CNTL,
+	    0,
+	    ~(RADEON_P2PLL_RESET
+	      | RADEON_P2PLL_SLEEP
+	      | RADEON_P2PLL_ATOMIC_UPDATE_EN));
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		   (unsigned)restore->p2pll_ref_div,
+		   (unsigned)restore->p2pll_div_0,
+		   (unsigned)restore->htotal_cntl2,
+		   INPLL(pScrn, RADEON_P2PLL_CNTL));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Wrote2: rd=%u, fd=%u, pd=%u\n",
+		   (unsigned)restore->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
+		   (unsigned)restore->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK,
+		   (unsigned)((restore->p2pll_div_0 &
+			       RADEON_P2PLL_POST0_DIV_MASK) >>16));
+
+    usleep(5000); /* Let the clock to lock */
+
+    OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL,
+	    RADEON_PIX2CLK_SRC_SEL_P2PLLCLK,
+	    ~(RADEON_PIX2CLK_SRC_SEL_MASK));
+
+    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, restore->pixclks_cntl);
+
+    ErrorF("finished PLL2\n");
+
+}
+
+/* Read common registers */
+void
+RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->ovr_clr            = INREG(RADEON_OVR_CLR);
+    save->ovr_wid_left_right = INREG(RADEON_OVR_WID_LEFT_RIGHT);
+    save->ovr_wid_top_bottom = INREG(RADEON_OVR_WID_TOP_BOTTOM);
+    save->ov0_scale_cntl     = INREG(RADEON_OV0_SCALE_CNTL);
+    save->subpic_cntl        = INREG(RADEON_SUBPIC_CNTL);
+    save->viph_control       = INREG(RADEON_VIPH_CONTROL);
+    save->i2c_cntl_1         = INREG(RADEON_I2C_CNTL_1);
+    save->gen_int_cntl       = INREG(RADEON_GEN_INT_CNTL);
+    save->cap0_trig_cntl     = INREG(RADEON_CAP0_TRIG_CNTL);
+    save->cap1_trig_cntl     = INREG(RADEON_CAP1_TRIG_CNTL);
+    save->bus_cntl           = INREG(RADEON_BUS_CNTL);
+    save->surface_cntl	     = INREG(RADEON_SURFACE_CNTL);
+    save->grph_buffer_cntl   = INREG(RADEON_GRPH_BUFFER_CNTL);
+    save->grph2_buffer_cntl  = INREG(RADEON_GRPH2_BUFFER_CNTL);
+}
+
+void
+RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
+    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
+    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
+}
+
+/* Read CRTC registers */
+void
+RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->crtc_gen_cntl        = INREG(RADEON_CRTC_GEN_CNTL);
+    save->crtc_ext_cntl        = INREG(RADEON_CRTC_EXT_CNTL);
+    save->crtc_h_total_disp    = INREG(RADEON_CRTC_H_TOTAL_DISP);
+    save->crtc_h_sync_strt_wid = INREG(RADEON_CRTC_H_SYNC_STRT_WID);
+    save->crtc_v_total_disp    = INREG(RADEON_CRTC_V_TOTAL_DISP);
+    save->crtc_v_sync_strt_wid = INREG(RADEON_CRTC_V_SYNC_STRT_WID);
+
+    save->fp_h_sync_strt_wid   = INREG(RADEON_FP_H_SYNC_STRT_WID);
+    save->fp_v_sync_strt_wid   = INREG(RADEON_FP_V_SYNC_STRT_WID);
+    save->fp_crtc_h_total_disp = INREG(RADEON_FP_CRTC_H_TOTAL_DISP);
+    save->fp_crtc_v_total_disp = INREG(RADEON_FP_CRTC_V_TOTAL_DISP);
+
+    save->crtc_offset          = INREG(RADEON_CRTC_OFFSET);
+    save->crtc_offset_cntl     = INREG(RADEON_CRTC_OFFSET_CNTL);
+    save->crtc_pitch           = INREG(RADEON_CRTC_PITCH);
+    save->disp_merge_cntl      = INREG(RADEON_DISP_MERGE_CNTL);
+    save->crtc_more_cntl       = INREG(RADEON_CRTC_MORE_CNTL);
+
+    if (IS_R300_VARIANT)
+	save->crtc_tile_x0_y0 =  INREG(R300_CRTC_TILE_X0_Y0);
+
+    if (info->IsDellServer) {
+	save->tv_dac_cntl      = INREG(RADEON_TV_DAC_CNTL);
+	save->dac2_cntl        = INREG(RADEON_DAC_CNTL2);
+	save->disp_hw_debug    = INREG (RADEON_DISP_HW_DEBUG);
+	save->crtc2_gen_cntl   = INREG(RADEON_CRTC2_GEN_CNTL);
+    }
+
+    /* track if the crtc is enabled for text restore */
+    if (save->crtc_ext_cntl & RADEON_CRTC_DISPLAY_DIS)
+	info->crtc_on = FALSE;
+    else
+	info->crtc_on = TRUE;
+
+}
+
+/* Read CRTC2 registers */
+void
+RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->crtc2_gen_cntl        = INREG(RADEON_CRTC2_GEN_CNTL);
+    save->crtc2_h_total_disp    = INREG(RADEON_CRTC2_H_TOTAL_DISP);
+    save->crtc2_h_sync_strt_wid = INREG(RADEON_CRTC2_H_SYNC_STRT_WID);
+    save->crtc2_v_total_disp    = INREG(RADEON_CRTC2_V_TOTAL_DISP);
+    save->crtc2_v_sync_strt_wid = INREG(RADEON_CRTC2_V_SYNC_STRT_WID);
+    save->crtc2_offset          = INREG(RADEON_CRTC2_OFFSET);
+    save->crtc2_offset_cntl     = INREG(RADEON_CRTC2_OFFSET_CNTL);
+    save->crtc2_pitch           = INREG(RADEON_CRTC2_PITCH);
+
+    if (IS_R300_VARIANT)
+	save->crtc2_tile_x0_y0 =  INREG(R300_CRTC2_TILE_X0_Y0);
+
+    save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
+    save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->rs480_unk_e30 = INREG(RADEON_RS480_UNK_e30);
+	save->rs480_unk_e34 = INREG(RADEON_RS480_UNK_e34);
+	save->rs480_unk_e38 = INREG(RADEON_RS480_UNK_e38);
+	save->rs480_unk_e3c = INREG(RADEON_RS480_UNK_e3c);
+    }
+    
+    save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
+
+    /* track if the crtc is enabled for text restore */
+    if (save->crtc2_gen_cntl & RADEON_CRTC2_DISP_DIS)
+	info->crtc2_on = FALSE;
+    else
+	info->crtc2_on = TRUE;
+
+}
+
+/* Read PLL registers */
+void
+RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    save->ppll_ref_div = INPLL(pScrn, RADEON_PPLL_REF_DIV);
+    save->ppll_div_3   = INPLL(pScrn, RADEON_PPLL_DIV_3);
+    save->htotal_cntl  = INPLL(pScrn, RADEON_HTOTAL_CNTL);
+    save->vclk_ecp_cntl = INPLL(pScrn, RADEON_VCLK_ECP_CNTL);
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: 0x%08x 0x%08x 0x%08x\n",
+		   save->ppll_ref_div,
+		   save->ppll_div_3,
+		   (unsigned)save->htotal_cntl);
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: rd=%d, fd=%d, pd=%d\n",
+		   save->ppll_ref_div & RADEON_PPLL_REF_DIV_MASK,
+		   save->ppll_div_3 & RADEON_PPLL_FB3_DIV_MASK,
+		   (save->ppll_div_3 & RADEON_PPLL_POST3_DIV_MASK) >> 16);
+}
+
+/* Read PLL registers */
+void
+RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    save->p2pll_ref_div = INPLL(pScrn, RADEON_P2PLL_REF_DIV);
+    save->p2pll_div_0   = INPLL(pScrn, RADEON_P2PLL_DIV_0);
+    save->htotal_cntl2  = INPLL(pScrn, RADEON_HTOTAL2_CNTL);
+    save->pixclks_cntl  = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: 0x%08x 0x%08x 0x%08x\n",
+		   (unsigned)save->p2pll_ref_div,
+		   (unsigned)save->p2pll_div_0,
+		   (unsigned)save->htotal_cntl2);
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Read: rd=%u, fd=%u, pd=%u\n",
+		   (unsigned)(save->p2pll_ref_div & RADEON_P2PLL_REF_DIV_MASK),
+		   (unsigned)(save->p2pll_div_0 & RADEON_P2PLL_FB0_DIV_MASK),
+		   (unsigned)((save->p2pll_div_0 & RADEON_P2PLL_POST0_DIV_MASK)
+			      >> 16));
+}
 
 void
 legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)

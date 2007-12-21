@@ -53,6 +53,165 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 
+void
+RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
+			  RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (IS_R300_VARIANT)
+	OUTREGP(RADEON_GPIOPAD_A, restore->gpiopad_a, ~1);
+
+    OUTREGP(RADEON_DAC_CNTL,
+	    restore->dac_cntl,
+	    RADEON_DAC_RANGE_CNTL |
+	    RADEON_DAC_BLANKING);
+
+    OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
+
+    if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
+    	(info->ChipFamily != CHIP_FAMILY_R200)) 
+    OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
+
+    OUTREG(RADEON_DISP_OUTPUT_CNTL, restore->disp_output_cntl);
+
+    if ((info->ChipFamily == CHIP_FAMILY_R200) ||
+	IS_R300_VARIANT) {
+	OUTREG(RADEON_DISP_TV_OUT_CNTL, restore->disp_tv_out_cntl);
+    } else {
+	OUTREG(RADEON_DISP_HW_DEBUG, restore->disp_hw_debug);
+    }
+
+    OUTREG(RADEON_DAC_MACRO_CNTL, restore->dac_macro_cntl);
+
+    /* R200 DAC connected via DVO */
+    if (info->ChipFamily == CHIP_FAMILY_R200)
+	OUTREG(RADEON_FP2_GEN_CNTL, restore->fp2_gen_cntl);
+}
+
+
+/* Write TMDS registers */
+void
+RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_TMDS_PLL_CNTL,        restore->tmds_pll_cntl);
+    OUTREG(RADEON_TMDS_TRANSMITTER_CNTL,restore->tmds_transmitter_cntl);
+    OUTREG(RADEON_FP_GEN_CNTL,          restore->fp_gen_cntl);
+
+    /* old AIW Radeon has some BIOS initialization problem
+     * with display buffer underflow, only occurs to DFP
+     */
+    if (!pRADEONEnt->HasCRTC2)
+	OUTREG(RADEON_GRPH_BUFFER_CNTL,
+	       INREG(RADEON_GRPH_BUFFER_CNTL) & ~0x7f0000);
+
+}
+
+/* Write FP2 registers */
+void
+RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
+
+}
+
+/* Write RMX registers */
+void
+RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
+    OUTREG(RADEON_FP_VERT_STRETCH,      restore->fp_vert_stretch);
+
+}
+
+/* Write LVDS registers */
+void
+RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (info->IsMobility) {
+	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
+	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);
+
+	if (info->ChipFamily == CHIP_FAMILY_RV410) {
+	    OUTREG(RADEON_CLOCK_CNTL_INDEX, 0);
+	}
+    }
+
+}
+
+void
+RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32 bios_5_scratch = INREG(RADEON_BIOS_5_SCRATCH);
+    CARD32 bios_6_scratch = INREG(RADEON_BIOS_6_SCRATCH);
+
+    OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+    bios_5_scratch &= 0xF;
+    bios_5_scratch |= (restore->bios_5_scratch & ~0xF);
+    OUTREG(RADEON_BIOS_5_SCRATCH, bios_5_scratch);
+    if (restore->bios_6_scratch & 0x40000000)
+	bios_6_scratch |= 0x40000000;
+    else
+	bios_6_scratch &= ~0x40000000;
+    OUTREG(RADEON_BIOS_6_SCRATCH, bios_6_scratch);
+
+}
+
+void
+RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->dac_cntl              = INREG(RADEON_DAC_CNTL);
+    save->dac2_cntl             = INREG(RADEON_DAC_CNTL2);
+    save->tv_dac_cntl           = INREG(RADEON_TV_DAC_CNTL);
+    save->disp_output_cntl      = INREG(RADEON_DISP_OUTPUT_CNTL);
+    save->disp_tv_out_cntl      = INREG(RADEON_DISP_TV_OUT_CNTL);
+    save->disp_hw_debug         = INREG(RADEON_DISP_HW_DEBUG);
+    save->dac_macro_cntl        = INREG(RADEON_DAC_MACRO_CNTL);
+    save->gpiopad_a             = INREG(RADEON_GPIOPAD_A);
+
+}
+
+/* Read flat panel registers */
+void
+RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->fp_gen_cntl          = INREG(RADEON_FP_GEN_CNTL);
+    save->fp2_gen_cntl          = INREG (RADEON_FP2_GEN_CNTL);
+    save->fp_horz_stretch      = INREG(RADEON_FP_HORZ_STRETCH);
+    save->fp_vert_stretch      = INREG(RADEON_FP_VERT_STRETCH);
+    save->lvds_gen_cntl        = INREG(RADEON_LVDS_GEN_CNTL);
+    save->lvds_pll_cntl        = INREG(RADEON_LVDS_PLL_CNTL);
+    save->tmds_pll_cntl        = INREG(RADEON_TMDS_PLL_CNTL);
+    save->tmds_transmitter_cntl= INREG(RADEON_TMDS_TRANSMITTER_CNTL);
+
+    if (info->ChipFamily == CHIP_FAMILY_RV280) {
+	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
+	save->tmds_pll_cntl ^= (1 << 22);
+    }
+}
+
 
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
