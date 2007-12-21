@@ -198,7 +198,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 		   ConnectorTypeName[radeon_output->ConnectorType],
 		   DACTypeName[radeon_output->DACType+1],
 		   TMDSTypeName[radeon_output->TMDSType+1],
-		   radeon_output->ddc_line);
+		   (unsigned int)radeon_output->ddc_line);
     }
 
 }
@@ -232,7 +232,7 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     } else MonType = MT_NONE;
     
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", radeon_output->ddc_line, MonType);
+	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", (unsigned int)radeon_output->ddc_line, MonType);
 
     return MonType;
 }
@@ -332,7 +332,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     } else MonType = MT_NONE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", radeon_output->ddc_line, MonType);
+	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", (unsigned int)radeon_output->ddc_line, MonType);
 
     return MonType;
 }
@@ -1196,6 +1196,7 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
     radeon_output->type = output;
 }
 
+#if 0
 static
 Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
 {
@@ -1207,6 +1208,7 @@ Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
   OUTREG(AVIVO_I2C_STOP, 0x0);
   return TRUE;
 }
+#endif
 
 static
 Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
@@ -1669,7 +1671,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     char stmp[16];
     char *name;
-    sprintf(stmp, "DDC_0x%x", radeon_output->ddc_line);
+    sprintf(stmp, "DDC_0x%x", (unsigned int)radeon_output->ddc_line);
     name = xnfalloc(strlen(stmp) + 1);
     strcpy(name, stmp);
 
@@ -2224,11 +2226,11 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[0].valid = TRUE;
 	info->BiosConnector[1].valid = TRUE;
 	if (sscanf(optstr, "%u,%d,%d,%u,%u,%d,%d,%u",
-		   &info->BiosConnector[0].ddc_line,
+		   (unsigned int *)&info->BiosConnector[0].ddc_line,
 		   &info->BiosConnector[0].DACType,
 		   &info->BiosConnector[0].TMDSType,
 		   &info->BiosConnector[0].ConnectorType,
-		   &info->BiosConnector[1].ddc_line,
+		   (unsigned int *)&info->BiosConnector[1].ddc_line,
 		   &info->BiosConnector[1].DACType,
 		   &info->BiosConnector[1].TMDSType,
 		   &info->BiosConnector[1].ConnectorType) != 8) {

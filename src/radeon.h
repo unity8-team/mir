@@ -880,6 +880,8 @@ extern void
 radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
 extern void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
+extern void
+radeon_crtc_load_lut(xf86CrtcPtr crtc);
 
 extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 					   DisplayModePtr mode, xf86OutputPtr output);
@@ -893,6 +895,10 @@ extern void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
                                   DisplayModePtr mode, BOOL IsPrimary);
 
 extern void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+
+extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq, CARD32 *chosen_dot_clock_freq,
+		CARD32 *chosen_feedback_div, CARD32 *chosen_reference_div,
+		CARD32 *chosen_post_div, int flags);
 
 #ifdef XF86DRI
 #ifdef USE_XAA

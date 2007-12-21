@@ -847,9 +847,6 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 void
 legacy_output_dpms(xf86OutputPtr output, int mode)
 {
-    ScrnInfoPtr pScrn  = output->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
     switch(mode) {
     case DPMSModeOn:
 	RADEONEnableDisplay(output, TRUE);

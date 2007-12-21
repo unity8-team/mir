@@ -1512,7 +1512,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	} else if (ci.sucI2cId.sbfAccess.bfI2C_LineMux) {
 	    /* add support for GPIO line */
 	    ErrorF("Unsupported SW GPIO - device %d: gpio line: 0x%x\n",
-		   i, RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux));
+		   i, (unsigned int)RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux));
 	    info->BiosConnector[i].ddc_line = 0;
 	} else {
 	    info->BiosConnector[i].ddc_line = 0;
@@ -1591,7 +1591,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
 	if (info->BiosConnector[i].valid) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d, hpd_mask-0x%x\n",
-		       i, info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
+		       i, (unsigned int)info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType,
 		       info->BiosConnector[i].hpd_mask);
 	}

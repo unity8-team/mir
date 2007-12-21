@@ -144,6 +144,8 @@ extern void
 RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void
 RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
 #ifdef USE_XAA
 #ifdef XF86DRI
@@ -1191,7 +1193,6 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
 static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONPLLPtr pll = &info->pll;
     double min_dotclock;
 
@@ -1468,7 +1469,7 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		info->mc_fb_location = (aper0_base >> 24) |
 		    (((aper0_base + mem_size - 1) & 0xff000000U) >> 8);
-		ErrorF("mc fb loc is %08x\n", info->mc_fb_location);
+		ErrorF("mc fb loc is %08x\n", (unsigned int)info->mc_fb_location);
 	    } else {
 		info->mc_fb_location = (aper0_base >> 16) |
 		    ((aper0_base + mem_size - 1) & 0xffff0000U);
@@ -2607,10 +2608,8 @@ static void RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 
 static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 {
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
 
     if (info->IsPrimary) {
 	xf86OutputDestroy(config->output[0]);
@@ -2627,7 +2626,6 @@ static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
 static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int i;
     int mask;
@@ -3672,7 +3670,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	       "RADEONRestoreMemMapRegisters() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "  MC_FB_LOCATION   : 0x%08x 0x%08x\n",
-	       (unsigned)restore->mc_fb_location, mc_fb_loc);
+	       (unsigned)restore->mc_fb_location, (unsigned int)mc_fb_loc);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "  MC_AGP_LOCATION  : 0x%08x\n",
 	       (unsigned)restore->mc_agp_location);
@@ -3789,7 +3787,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 			       "Timeout trying to update memory controller settings !\n");
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			       "MC_STATUS = 0x%08x (on entry = 0x%08x)\n",
-			       INREG(RADEON_MC_STATUS), (unsigned int)old_mc_status);
+			       (unsigned int)INREG(RADEON_MC_STATUS), (unsigned int)old_mc_status);
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			       "You will probably crash now ... \n");
 		    /* Nothing we can do except maybe try to kill the server,
@@ -3891,10 +3889,10 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 		   "DRI init changed memory map, adjusting ...\n");
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "  MC_FB_LOCATION  was: 0x%08lx is: 0x%08lx\n",
-		   info->mc_fb_location, fb);
+		   (long unsigned int)info->mc_fb_location, (long unsigned int)fb);
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "  MC_AGP_LOCATION was: 0x%08lx is: 0x%08lx\n",
-		   info->mc_agp_location, agp);
+		   (long unsigned int)info->mc_agp_location, (long unsigned int)agp);
 	info->mc_fb_location = fb;
 	info->mc_agp_location = agp;
 	if (info->ChipFamily >= CHIP_FAMILY_R600)

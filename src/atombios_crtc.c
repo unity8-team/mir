@@ -99,6 +99,7 @@ atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     return ATOM_NOT_IMPLEMENTED;
 }
 
+#if 0
 static void
 atombios_crtc_enable(xf86CrtcPtr crtc, int enable)
 {
@@ -109,6 +110,7 @@ atombios_crtc_enable(xf86CrtcPtr crtc, int enable)
     
     //TODOavivo_wait_idle(avivo);
 }
+#endif
 
 void
 atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
@@ -185,11 +187,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     }
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-	       "crtc(%d) Clock: mode %d, PLL %u\n",
-	       radeon_crtc->crtc_id, mode->Clock, sclock * 10);
+	       "crtc(%d) Clock: mode %d, PLL %lu\n",
+	       radeon_crtc->crtc_id, mode->Clock, (long unsigned int)sclock * 10);
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), pdiv %u\n",
-	       radeon_crtc->crtc_id, ref_div, fb_div, fb_div, post_div);
+	       radeon_crtc->crtc_id, (unsigned int)ref_div, (unsigned int)fb_div, (unsigned int)fb_div, (unsigned int)post_div);
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 

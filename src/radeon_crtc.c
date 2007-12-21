@@ -86,9 +86,6 @@ radeon_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
     radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
@@ -178,10 +175,10 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	}
     }
 
-    ErrorF("best_freq: %u\n", best_freq);
-    ErrorF("best_feedback_div: %u\n", best_feedback_div);
-    ErrorF("best_ref_div: %u\n", best_ref_div);
-    ErrorF("best_post_div: %u\n", best_post_div);
+    ErrorF("best_freq: %u\n", (unsigned int)best_freq);
+    ErrorF("best_feedback_div: %u\n", (unsigned int)best_feedback_div);
+    ErrorF("best_ref_div: %u\n", (unsigned int)best_ref_div);
+    ErrorF("best_post_div: %u\n", (unsigned int)best_post_div);
 
     *chosen_dot_clock_freq = best_freq / 10000;
     *chosen_feedback_div = best_feedback_div;
@@ -207,9 +204,6 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr pScrn = crtc->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
     radeon_crtc_dpms(crtc, DPMSModeOn);
 }
 
