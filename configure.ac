@@ -40,7 +40,7 @@ AC_PROG_LIBTOOL
 AC_PROG_CC
 
 if test "x$GCC" = "xyes"; then
-	CFLAGS="$CFLAGS -Wall"
+	CPPFLAGS="$CPPFLAGS -Wall"
 fi
 
 AH_TOP([#include "xorg-server.h"])
@@ -117,6 +117,7 @@ if test "$DRI" = yes; then
 	fi
 fi
 
+save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 CFLAGS="$save_CFLAGS"
