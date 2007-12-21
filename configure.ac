@@ -216,7 +216,8 @@ AC_CHECK_DECL(xf86XVFillKeyHelperDrawable,
 AC_CHECK_DECL(xf86ModeBandwidth,
 	      [AC_DEFINE(HAVE_XF86MODEBANDWIDTH, 1, [Have xf86ModeBandwidth prototype])],
 	      [],
-	      [#include "xf86Modes.h"])
+	      [#include "xorg-server.h"
+	       #include "xf86Modes.h"])
 
 AC_CHECK_DECL(xf86_crtc_clip_video_helper,
 	      [AC_DEFINE(HAVE_XF86CRTCCLIPVIDEOHELPER, 1, [Have xf86_crtc_clip_video_helper prototype])],
