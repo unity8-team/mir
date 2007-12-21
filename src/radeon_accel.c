@@ -915,3 +915,340 @@ void RADEONInit3DEngine(ScrnInfoPtr pScrn)
     info->XInited3D = TRUE;
 }
 
+#ifdef USE_XAA
+#ifdef XF86DRI
+Bool
+RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    int            cpp = info->CurrentLayout.pixel_bytes;
+    int            depthCpp = (info->depthBits - 8) / 4;
+    int            width_bytes = pScrn->displayWidth * cpp;
+    int            bufferSize;
+    int            depthSize;
+    int            l;
+    int            scanlines;
+    int            texsizerequest;
+    BoxRec         MemBox;
+    FBAreaPtr      fbarea;
+
+    info->frontOffset = 0;
+    info->frontPitch = pScrn->displayWidth;
+    info->backPitch = pScrn->displayWidth;
+
+    /* make sure we use 16 line alignment for tiling (8 might be enough).
+     * Might need that for non-XF86DRI too?
+     */
+    if (info->allowColorTiling) {
+	bufferSize = (((pScrn->virtualY + 15) & ~15) * width_bytes
+		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+    } else {
+        bufferSize = (pScrn->virtualY * width_bytes
+		      + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN;
+    }
+
+    /* Due to tiling, the Z buffer pitch must be a multiple of 32 pixels,
+     * which is always the case if color tiling is used due to color pitch
+     * but not necessarily otherwise, and its height a multiple of 16 lines.
+     */
+    info->depthPitch = (pScrn->displayWidth + 31) & ~31;
+    depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
+		  * depthCpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
+
+    switch (info->CPMode) {
+    case RADEON_DEFAULT_CP_PIO_MODE:
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in PIO mode\n");
+	break;
+    case RADEON_DEFAULT_CP_BM_MODE:
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in BM mode\n");
+	break;
+    default:
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in UNKNOWN mode\n");
+	break;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB GART aperture\n", info->gartSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for the ring buffer\n", info->ringSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for vertex/indirect buffers\n", info->bufSize);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Using %d MB for GART textures\n", info->gartTexSize);
+
+    /* Try for front, back, depth, and three framebuffers worth of
+     * pixmap cache.  Should be enough for a fullscreen background
+     * image plus some leftovers.
+     * If the FBTexPercent option was used, try to achieve that percentage instead,
+     * but still have at least one pixmap buffer (get problems with xvideo/render
+     * otherwise probably), and never reserve more than 3 offscreen buffers as it's
+     * probably useless for XAA.
+     */
+    if (info->textureSize >= 0) {
+	texsizerequest = ((int)info->FbMapSize - 2 * bufferSize - depthSize
+			 - 2 * width_bytes - 16384 - info->FbSecureSize)
+	/* first divide, then multiply or we'll get an overflow (been there...) */
+			 / 100 * info->textureSize;
+    }
+    else {
+	texsizerequest = (int)info->FbMapSize / 2;
+    }
+    info->textureSize = info->FbMapSize - info->FbSecureSize - 5 * bufferSize - depthSize;
+
+    /* If that gives us less than the requested memory, let's
+     * be greedy and grab some more.  Sorry, I care more about 3D
+     * performance than playing nicely, and you'll get around a full
+     * framebuffer's worth of pixmap cache anyway.
+     */
+    if (info->textureSize < texsizerequest) {
+        info->textureSize = info->FbMapSize - 4 * bufferSize - depthSize;
+    }
+    if (info->textureSize < texsizerequest) {
+        info->textureSize = info->FbMapSize - 3 * bufferSize - depthSize;
+    }
+
+    /* If there's still no space for textures, try without pixmap cache, but
+     * never use the reserved space, the space hw cursor and PCIGART table might
+     * use.
+     */
+    if (info->textureSize < 0) {
+	info->textureSize = info->FbMapSize - 2 * bufferSize - depthSize
+	                    - 2 * width_bytes - 16384 - info->FbSecureSize;
+    }
+
+    /* Check to see if there is more room available after the 8192nd
+     * scanline for textures
+     */
+    /* FIXME: what's this good for? condition is pretty much impossible to meet */
+    if ((int)info->FbMapSize - 8192*width_bytes - bufferSize - depthSize
+	> info->textureSize) {
+	info->textureSize =
+		info->FbMapSize - 8192*width_bytes - bufferSize - depthSize;
+    }
+
+    /* If backbuffer is disabled, don't allocate memory for it */
+    if (info->noBackBuffer) {
+	info->textureSize += bufferSize;
+    }
+
+    /* RADEON_BUFFER_ALIGN is not sufficient for backbuffer!
+       At least for pageflip + color tiling, need to make sure it's 16 scanlines aligned,
+       otherwise the copy-from-front-to-back will fail (width_bytes * 16 will also guarantee
+       it's still 4kb aligned for tiled case). Need to round up offset (might get into cursor
+       area otherwise).
+       This might cause some space at the end of the video memory to be unused, since it
+       can't be used (?) due to that log_tex_granularity thing???
+       Could use different copyscreentoscreen function for the pageflip copies
+       (which would use different src and dst offsets) to avoid this. */   
+    if (info->allowColorTiling && !info->noBackBuffer) {
+	info->textureSize = info->FbMapSize - ((info->FbMapSize - info->textureSize +
+			  width_bytes * 16 - 1) / (width_bytes * 16)) * (width_bytes * 16);
+    }
+    if (info->textureSize > 0) {
+	l = RADEONMinBits((info->textureSize-1) / RADEON_NR_TEX_REGIONS);
+	if (l < RADEON_LOG_TEX_GRANULARITY)
+	    l = RADEON_LOG_TEX_GRANULARITY;
+	/* Round the texture size up to the nearest whole number of
+	 * texture regions.  Again, be greedy about this, don't
+	 * round down.
+	 */
+	info->log2TexGran = l;
+	info->textureSize = (info->textureSize >> l) << l;
+    } else {
+	info->textureSize = 0;
+    }
+
+    /* Set a minimum usable local texture heap size.  This will fit
+     * two 256x256x32bpp textures.
+     */
+    if (info->textureSize < 512 * 1024) {
+	info->textureOffset = 0;
+	info->textureSize = 0;
+    }
+
+    if (info->allowColorTiling && !info->noBackBuffer) {
+	info->textureOffset = ((info->FbMapSize - info->textureSize) /
+			       (width_bytes * 16)) * (width_bytes * 16);
+    }
+    else {
+	/* Reserve space for textures */
+	info->textureOffset = ((info->FbMapSize - info->textureSize +
+				RADEON_BUFFER_ALIGN) &
+			       ~(CARD32)RADEON_BUFFER_ALIGN);
+    }
+
+    /* Reserve space for the shared depth
+     * buffer.
+     */
+    info->depthOffset = ((info->textureOffset - depthSize +
+			  RADEON_BUFFER_ALIGN) &
+			 ~(CARD32)RADEON_BUFFER_ALIGN);
+
+    /* Reserve space for the shared back buffer */
+    if (info->noBackBuffer) {
+       info->backOffset = info->depthOffset;
+    } else {
+       info->backOffset = ((info->depthOffset - bufferSize +
+			    RADEON_BUFFER_ALIGN) &
+			   ~(CARD32)RADEON_BUFFER_ALIGN);
+    }
+
+    info->backY = info->backOffset / width_bytes;
+    info->backX = (info->backOffset - (info->backY * width_bytes)) / cpp;
+
+    scanlines = (info->FbMapSize-info->FbSecureSize) / width_bytes;
+    if (scanlines > 8191)
+	scanlines = 8191;
+
+    MemBox.x1 = 0;
+    MemBox.y1 = 0;
+    MemBox.x2 = pScrn->displayWidth;
+    MemBox.y2 = scanlines;
+
+    if (!xf86InitFBManager(pScreen, &MemBox)) {
+        xf86DrvMsg(scrnIndex, X_ERROR,
+		   "Memory manager initialization to "
+		   "(%d,%d) (%d,%d) failed\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	return FALSE;
+    } else {
+	int  width, height;
+
+	xf86DrvMsg(scrnIndex, X_INFO,
+		   "Memory manager initialized to (%d,%d) (%d,%d)\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	/* why oh why can't we just request modes which are guaranteed to be 16 lines
+	   aligned... sigh */
+	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
+						pScrn->displayWidth,
+						info->allowColorTiling ? 
+						((pScrn->virtualY + 15) & ~15)
+						- pScrn->virtualY + 2 : 2,
+						0, NULL, NULL,
+						NULL))) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Reserved area from (%d,%d) to (%d,%d)\n",
+		       fbarea->box.x1, fbarea->box.y1,
+		       fbarea->box.x2, fbarea->box.y2);
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
+	}
+
+	RADEONDRIAllocatePCIGARTTable(pScreen);
+
+	if (xf86QueryLargestOffscreenArea(pScreen, &width,
+					  &height, 0, 0, 0)) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Largest offscreen area available: %d x %d\n",
+		       width, height);
+
+	    /* Lines in offscreen area needed for depth buffer and
+	     * textures
+	     */
+	    info->depthTexLines = (scanlines
+				   - info->depthOffset / width_bytes);
+	    info->backLines	    = (scanlines
+				       - info->backOffset / width_bytes
+				       - info->depthTexLines);
+	    info->backArea	    = NULL;
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR,
+		       "Unable to determine largest offscreen area "
+		       "available\n");
+	    return FALSE;
+	}
+    }
+
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use front buffer at offset 0x%x\n",
+	       info->frontOffset);
+
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use back buffer at offset 0x%x\n",
+	       info->backOffset);
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use depth buffer at offset 0x%x\n",
+	       info->depthOffset);
+    if (info->cardType==CARD_PCIE)
+    	xf86DrvMsg(scrnIndex, X_INFO,
+	           "Will use %d kb for PCI GART table at offset 0x%x\n",
+		   info->pciGartSize/1024, (unsigned)info->pciGartOffset);
+    xf86DrvMsg(scrnIndex, X_INFO,
+	       "Will use %d kb for textures at offset 0x%x\n",
+	       info->textureSize/1024, info->textureOffset);
+
+    info->frontPitchOffset = (((info->frontPitch * cpp / 64) << 22) |
+			      ((info->frontOffset + info->fbLocation) >> 10));
+
+    info->backPitchOffset = (((info->backPitch * cpp / 64) << 22) |
+			     ((info->backOffset + info->fbLocation) >> 10));
+
+    info->depthPitchOffset = (((info->depthPitch * depthCpp / 64) << 22) |
+			      ((info->depthOffset + info->fbLocation) >> 10));
+    return TRUE;
+}
+#endif /* XF86DRI */
+
+Bool
+RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen)
+{
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    BoxRec         MemBox;
+    int            y2;
+
+    int width_bytes = pScrn->displayWidth * info->CurrentLayout.pixel_bytes;
+
+    MemBox.x1 = 0;
+    MemBox.y1 = 0;
+    MemBox.x2 = pScrn->displayWidth;
+    y2 = info->FbMapSize / width_bytes;
+    if (y2 >= 32768)
+	y2 = 32767; /* because MemBox.y2 is signed short */
+    MemBox.y2 = y2;
+    
+    /* The acceleration engine uses 14 bit
+     * signed coordinates, so we can't have any
+     * drawable caches beyond this region.
+     */
+    if (MemBox.y2 > 8191)
+	MemBox.y2 = 8191;
+
+    if (!xf86InitFBManager(pScreen, &MemBox)) {
+	xf86DrvMsg(scrnIndex, X_ERROR,
+		   "Memory manager initialization to "
+		   "(%d,%d) (%d,%d) failed\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	return FALSE;
+    } else {
+	int       width, height;
+	FBAreaPtr fbarea;
+
+	xf86DrvMsg(scrnIndex, X_INFO,
+		   "Memory manager initialized to (%d,%d) (%d,%d)\n",
+		   MemBox.x1, MemBox.y1, MemBox.x2, MemBox.y2);
+	if ((fbarea = xf86AllocateOffscreenArea(pScreen,
+						pScrn->displayWidth,
+						info->allowColorTiling ? 
+						((pScrn->virtualY + 15) & ~15)
+						- pScrn->virtualY + 2 : 2,
+						0, NULL, NULL,
+						NULL))) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Reserved area from (%d,%d) to (%d,%d)\n",
+		       fbarea->box.x1, fbarea->box.y1,
+		       fbarea->box.x2, fbarea->box.y2);
+	} else {
+	    xf86DrvMsg(scrnIndex, X_ERROR, "Unable to reserve area\n");
+	}
+	if (xf86QueryLargestOffscreenArea(pScreen, &width, &height,
+					      0, 0, 0)) {
+	    xf86DrvMsg(scrnIndex, X_INFO,
+		       "Largest offscreen area available: %d x %d\n",
+		       width, height);
+	}
+	return TRUE;
+    }    
+}
+#endif /* USE_XAA */
