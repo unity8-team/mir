@@ -849,22 +849,15 @@ extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONBlank(ScrnInfoPtr pScrn);
-extern void        RADEONDisplayPowerManagementSet(ScrnInfoPtr pScrn,
-						   int PowerManagementMode,
-						   int flags);
+
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
-extern int RADEONValidateMergeModes(ScrnInfoPtr pScrn);
-extern int RADEONValidateDDCModes(ScrnInfoPtr pScrn1, char **ppModeName,
-				  RADEONMonitorType DisplayType, int crtc2);
+
 extern void RADEONSetPitch (ScrnInfoPtr pScrn);
 extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 
-DisplayModePtr
+extern DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output);
-extern Bool RADEONInit2(ScrnInfoPtr pScrn, DisplayModePtr crtc1,
-			DisplayModePtr crtc2, int crtc_mask,
-			RADEONSavePtr save, RADEONMonitorType montype);
 
 extern Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch);
@@ -875,20 +868,18 @@ RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool
 RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
 
-void
+extern void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
-void
+extern void
 radeon_crtc_show_cursor (xf86CrtcPtr crtc);
-void
+extern void
 radeon_crtc_hide_cursor (xf86CrtcPtr crtc);
-void
+extern void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
-void
+extern void
 radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
-void
+extern void
 radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
-void
-RADEONEnableOutputs(ScrnInfoPtr pScrn, int crtc_num);
 
 extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 					   DisplayModePtr mode, xf86OutputPtr output);

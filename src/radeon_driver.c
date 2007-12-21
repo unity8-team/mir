@@ -128,6 +128,31 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern DisplayModePtr
 RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 
+extern void
+RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void
+RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
+#ifdef USE_XAA
+#ifdef XF86DRI
+extern Bool
+RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen);
+#endif /* XF86DRI */
+extern Bool
+RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
+#endif /* USE_XAA */
 
 static const OptionInfoRec RADEONOptions[] = {
     { OPTION_NOACCEL,        "NoAccel",          OPTV_BOOLEAN, {0}, FALSE },

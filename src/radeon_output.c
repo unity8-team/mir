@@ -177,6 +177,7 @@ extern void legacy_output_dpms(xf86OutputPtr output, int mode);
 extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
+extern I2CDevPtr RADEONDVODeviceInit(I2CBusPtr b, I2CSlaveAddr addr);
 
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)

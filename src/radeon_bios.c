@@ -65,6 +65,7 @@ typedef enum
     CONNECTOR_UNSUPPORTED_LEGACY
 } RADEONLegacyConnectorType;
 
+
 /* Read the Video BIOS block and the FP registers (if applicable). */
 Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {

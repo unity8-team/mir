@@ -212,7 +212,6 @@ RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
 }
 
-
 Bool
 RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
 {
