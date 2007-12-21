@@ -1222,18 +1222,6 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
         info->mclk = 200.00;
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RV100 && !pRADEONEnt->HasCRTC2) {
-        /* Avoid RN50 corruption due to memory bandwidth starvation.
-         * 18 is an empirical value based on the databook and Windows driver.
-         *
-	 * Empirical value changed to 24 to raise pixel clock limit and
-	 * allow higher resolution modes on capable monitors
-	 */
-        pll->pll_out_max = min(pll->pll_out_max,
-                               24 * info->mclk * 100 / pScrn->bitsPerPixel *
-                               info->RamWidth / 16);
-    }
-
     /* card limits for computing PLLs */
     if (IS_AVIVO_VARIANT) {
 	pll->min_post_div = 2;
