@@ -1120,7 +1120,11 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 
-	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	if (pNv->switchable_crtc) {
+		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	} else {
+		output->possible_crtcs = (1 << nv_output->preferred_output);
+	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
@@ -1218,7 +1222,11 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	if (nv_output->preferred_output == 0) {
 		output->possible_crtcs = (1 << 0);
 	} else {
-		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+		if (pNv->switchable_crtc) {
+			output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+		} else {
+			output->possible_crtcs = (1 << nv_output->preferred_output);
+		}
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
@@ -1229,7 +1237,10 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int i, type, i2c_count[0xf];
 
+	/* Some NV1x and NV2x claim they can switch, but we do not know how. */
 	pNv->switchable_crtc = FALSE;
+	if (pNv->Architecture >= NV_ARCH_30)
+		pNv->switchable_crtc = TRUE;
 
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1247,8 +1258,6 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 
 		switch(type) {
 		case OUTPUT_ANALOG:
-			if (pNv->dcb_table.entry[i].heads == 0x3) /* analog is the best criteria */
-				pNv->switchable_crtc = TRUE;
 			nv_add_analog_output(pScrn, i, (i2c_count[pNv->dcb_table.entry[i].i2c_index] > 1));
 			break;
 		case OUTPUT_TMDS:
