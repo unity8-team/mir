@@ -506,7 +506,7 @@ static void CalcVClock2Stage (
 /* Code taken from NVClock, with permission of the author (being a GPL->MIT code transfer). */
 
 static void
-CalculateVClkNV4x_SingleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t *n1_best, uint32_t *m1_best, uint32_t *p_best)
+CalculateVClkNV4x_SingleVCO(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clockIn, uint32_t *n1_best, uint32_t *m1_best, uint32_t *p_best)
 {
 	uint32_t clock, M, N, P;
 	uint32_t delta, bestDelta, minM, maxM, minN, maxN, maxP;
@@ -516,13 +516,13 @@ CalculateVClkNV4x_SingleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t 
 	bestDelta = clockIn;
 
 	/* bios clocks are in MHz, we use KHz */
-	minVCOInputFreq = bios->pll.vco1.min_inputfreq*1000;
-	minVCOFreq = bios->pll.vco1.minfreq*1000;
-	maxVCOFreq = bios->pll.vco1.maxfreq*1000;
-	minM = bios->pll.vco1.min_m;
-	maxM = bios->pll.vco1.max_m;
-	minN = bios->pll.vco1.min_n;
-	maxN = bios->pll.vco1.max_n;
+	minVCOInputFreq = pll_lim->vco1.min_inputfreq*1000;
+	minVCOFreq = pll_lim->vco1.minfreq*1000;
+	maxVCOFreq = pll_lim->vco1.maxfreq*1000;
+	minM = pll_lim->vco1.min_m;
+	maxM = pll_lim->vco1.max_m;
+	minN = pll_lim->vco1.min_n;
+	maxN = pll_lim->vco1.max_n;
 
 	maxP = 6;
 
@@ -582,7 +582,7 @@ CalculateVClkNV4x_SingleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t 
 }
 
 static void
-CalculateVClkNV4x_DoubleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t *n1_best, uint32_t *n2_best, uint32_t *m1_best, uint32_t *m2_best, uint32_t *p_best)
+CalculateVClkNV4x_DoubleVCO(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clockIn, uint32_t *n1_best, uint32_t *n2_best, uint32_t *m1_best, uint32_t *m2_best, uint32_t *p_best)
 {
 	uint32_t clock1, clock2, M, M2, N, N2, P;
 	uint32_t delta, bestDelta, minM, minM2, maxM, maxM2, minN, minN2, maxN, maxN2, maxP;
@@ -592,22 +592,22 @@ CalculateVClkNV4x_DoubleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t 
 	bestDelta = clockIn;
 
 	/* bios clocks are in MHz, we use KHz */
-	minVCOInputFreq = bios->pll.vco1.min_inputfreq*1000;
-	minVCOFreq = bios->pll.vco1.minfreq*1000;
-	maxVCOFreq = bios->pll.vco1.maxfreq*1000;
-	minM = bios->pll.vco1.min_m;
-	maxM = bios->pll.vco1.max_m;
-	minN = bios->pll.vco1.min_n;
-	maxN = bios->pll.vco1.max_n;
+	minVCOInputFreq = pll_lim->vco1.min_inputfreq*1000;
+	minVCOFreq = pll_lim->vco1.minfreq*1000;
+	maxVCOFreq = pll_lim->vco1.maxfreq*1000;
+	minM = pll_lim->vco1.min_m;
+	maxM = pll_lim->vco1.max_m;
+	minN = pll_lim->vco1.min_n;
+	maxN = pll_lim->vco1.max_n;
 
-	minVCO2InputFreq = bios->pll.vco2.min_inputfreq*1000;
-	maxVCO2InputFreq = bios->pll.vco2.max_inputfreq*1000;
-	minVCO2Freq = bios->pll.vco2.minfreq*1000;
-	maxVCO2Freq = bios->pll.vco2.maxfreq*1000;
-	minM2 = bios->pll.vco2.min_m;
-	maxM2 = bios->pll.vco2.max_m;
-	minN2 = bios->pll.vco2.min_n;
-	maxN2 = bios->pll.vco2.max_n;
+	minVCO2InputFreq = pll_lim->vco2.min_inputfreq*1000;
+	maxVCO2InputFreq = pll_lim->vco2.max_inputfreq*1000;
+	minVCO2Freq = pll_lim->vco2.minfreq*1000;
+	maxVCO2Freq = pll_lim->vco2.maxfreq*1000;
+	minM2 = pll_lim->vco2.min_m;
+	maxM2 = pll_lim->vco2.max_m;
+	minN2 = pll_lim->vco2.min_n;
+	maxN2 = pll_lim->vco2.max_n;
 
 	maxP = 6;
 
@@ -735,7 +735,7 @@ CalculateVClkNV4x_DoubleVCO(NVPtr pNv, bios_t *bios, uint32_t clockIn, uint32_t 
 
 static void
 CalculateVClkNV4x(
-	NVPtr pNv,
+	ScrnInfoPtr pScrn,
 	uint32_t requested_clock,
 	uint32_t *given_clock,
 	uint32_t *pll_a,
@@ -745,46 +745,30 @@ CalculateVClkNV4x(
 	Bool primary
 )
 {
+	NVPtr pNv = NVPTR(pScrn);
+	struct pll_lims pll_lim;
 	/* We have 2 mulitpliers, 2 dividers and one post divider */
 	/* Note that p is only 3 bits */
 	uint32_t m1_best = 0, m2_best = 0, n1_best = 0, n2_best = 0, p_best = 0;
 	uint32_t special_bits = 0;
 
-	bios_t *bios = &pNv->VBIOS;
+	if (primary) {
+		if (!get_bit_pll_limits(pScrn, VPLL1, &pll_lim))
+			return;
+	} else
+		if (!get_bit_pll_limits(pScrn, VPLL2, &pll_lim))
+			return;
 
-	if (!bios->pll.version) { /* load some reasonable defaults */
-		bios->pll.vco1.minfreq = 100;
-		bios->pll.vco1.maxfreq = 410;
-		bios->pll.vco2.minfreq = 400;
-		bios->pll.vco2.maxfreq = 1000;
-
-		/* What input frequencies do they accept (past the m-divider)? */
-		bios->pll.vco1.min_inputfreq = 3;
-		bios->pll.vco1.max_inputfreq = 25;
-		bios->pll.vco2.min_inputfreq = 35;
-		bios->pll.vco2.max_inputfreq = 100;
-
-		/* What values are accepted as multiplier and divider? */
-		bios->pll.vco1.min_n = 1;
-		bios->pll.vco1.max_n = 255;
-		bios->pll.vco1.min_m = 1;
-		bios->pll.vco1.max_m = 255;
-		bios->pll.vco2.min_n = 1;
-		bios->pll.vco2.max_n = 31;
-		bios->pll.vco2.min_m = 1;
-		bios->pll.vco2.max_m = 31;
-	}
-
-	if (requested_clock < bios->pll.vco1.maxfreq*1000) { /* single VCO */
+	if (requested_clock < pll_lim.vco1.maxfreq*1000) { /* single VCO */
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Bogus data, the same nvidia uses */
 		n2_best = 1;
 		m2_best = 31;
-		CalculateVClkNV4x_SingleVCO(pNv, bios, requested_clock, &n1_best, &m1_best, &p_best);
+		CalculateVClkNV4x_SingleVCO(pNv, &pll_lim, requested_clock, &n1_best, &m1_best, &p_best);
 	} else { /* dual VCO */
 		*db1_ratio = FALSE;
-		CalculateVClkNV4x_DoubleVCO(pNv, bios, requested_clock, &n1_best, &n2_best, &m1_best, &m2_best, &p_best);
+		CalculateVClkNV4x_DoubleVCO(pNv, &pll_lim, requested_clock, &n1_best, &n2_best, &m1_best, &m2_best, &p_best);
 	}
 
 	/* Are this all (relevant) G70 cards? */
@@ -1083,9 +1067,9 @@ void nv_crtc_calc_state_ext(
 			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 		}
 		if (nv_crtc->head == 1) {
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
+			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
 		} else {
-			CalculateVClkNV4x(pNv, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
+			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
 		}
 	} else if (pNv->twoStagePLL) {
 		CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
