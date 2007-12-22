@@ -290,6 +290,8 @@ typedef struct {
 
 	uint8_t major_version;
 
+	uint32_t fmaxvco, fminvco;
+
 	uint16_t init_script_tbls_ptr;
 	uint16_t macro_index_tbl_ptr;
 	uint16_t macro_tbl_ptr;

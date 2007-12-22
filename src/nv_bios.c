@@ -2415,7 +2415,7 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	mode->type = M_T_DRIVER | M_T_PREFERRED;
 	xf86SetModeDefaultName(mode);
 
-//	if (pNv->debug_modes) { this should exist
+//	if (XF86_CRTC_CONFIG_PTR(pScrn)->debug_modes) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found flat panel mode in BIOS tables:\n");
 		xf86PrintModeline(pScrn->scrnIndex, mode);
@@ -2865,45 +2865,59 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	return 1;
 }
 
-static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, uint16_t bmpoffset, uint16_t bmplength)
 {
-	/* Parse the pointers for useful tables in the BMP structure, starting at
-	 * offset 75 from the ..NV. signature.
+	/* Parse the BMP structure for useful things
 	 *
-	 * First 7 pointers as for parse_bit_init_tbl_entry
+	 * offset +  10: BCD encoded BIOS version
 	 *
-	 * offset + 30: flat panel timings table pointer
-	 * offset + 32: flat panel strapping translation table pointer
-	 * offset + 42: LVDS manufacturer panel config table pointer
-	 * offset + 44: LVDS manufacturer strapping translation table pointer
+	 * offset +  67: maximum internal PLL frequency
+	 * offset +  71: minimum internal PLL frequency
+	 *
+	 * offset +  75: script table pointers, as for parse_bit_init_tbl_entry
+	 *
+	 * offset +  89: TMDS single link output A table pointer
+	 * offset +  91: TMDS single link output B table pointer
+	 * offset + 105: flat panel timings table pointer
+	 * offset + 107: flat panel strapping translation table pointer
+	 * offset + 117: LVDS manufacturer panel config table pointer
+	 * offset + 119: LVDS manufacturer strapping translation table pointer
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
 	struct fppointers fpp;
 
-	if (!parse_bit_init_tbl_entry(pScrn, bios, bitentry))
+	parse_bios_version(pScrn, bios, bmpoffset + 10);
+
+	bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[bmpoffset + 67]));
+	bios->fminvco = le32_to_cpu(*((uint32_t *)&bios->data[bmpoffset + 71]));
+
+	bit_entry_t initbitentry;
+	initbitentry.length = bmplength - 75;
+	initbitentry.offset = bmpoffset + 75;
+	if (!parse_bit_init_tbl_entry(pScrn, bios, &initbitentry))
 		return 0;
+
+	if (bmplength > 92) {
+		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bmpoffset + 89]));
+		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bmpoffset + 91]));
+	}
 
 	/* If it's not a laptop, you probably don't care about fptables */
 	/* FIXME: detect mobile BIOS? */
 	if (!pNv->Mobile)
 		return 1;
 
-	if (bitentry->length > 17) {
-		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bitentry->offset + 14]));
-		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bitentry->offset + 16]));
-	}
-
 	memset(&fpp, 0, sizeof(struct fppointers));
-	if (bitentry->length > 33) {
-		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 30])));
-		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 32])));
+	if (bmplength > 108) {
+		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 105])));
+		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 107])));
 		fpp.xlatwidth = 1;
 		parse_fp_mode_table(pScrn, bios, &fpp);
 	}
-	if (bitentry->length > 45) {
-		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 42])));
-		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 44])));
+	if (bmplength > 120) {
+		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 117])));
+		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 119])));
 		parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
 		/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
 		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
@@ -3027,19 +3041,17 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 	}
 
 	if ((pins_version_major==5)&&(pins_version_minor>=16)) {
-		bit_entry_t bitentry;
+		uint16_t bmplength;
 
 		if (pins_version_minor == 0x10)
-			bitentry.length = 12; /* I've not seen this version, so be "long enough" */
+			bmplength = 87; /* I've not seen this version, so be "long enough" */
 		else if (pins_version_minor < 0x14)
-			bitentry.length = 34;
+			bmplength = 109;
 		else
-			bitentry.length = 48; /* versions after 0x14 are longer,
+			bmplength = 123; /* versions after 0x14 are longer,
 						 but extra contents unneeded ATM */
 
-		parse_bios_version(pScrn, bios, offset + 10);
-		bitentry.offset = offset + 75;
-		parse_bmp_table_pointers(pScrn, bios, &bitentry);
+		parse_bmp_table_pointers(pScrn, bios, offset, bmplength);
 	} else {
 		/* TODO type1 script */
 	}
