@@ -1238,11 +1238,9 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	int i, type, i2c_count[0xf];
 
 	pNv->switchable_crtc = FALSE;
-	/* Some NV1x and NV2x cards have switchable crtc's, some don't. */
-	/* We need more mmio-trace to get insight how to let it work reliably on crtc1. */
-	for (i = 0 ; i < pNv->dcb_table.entries; i++)
-		if (pNv->dcb_table.entry[i].type == OUTPUT_ANALOG && pNv->dcb_table.entry[i].heads == 3)
-			pNv->switchable_crtc = TRUE;
+	/* I was wrong, again. */
+	if (pNv->NVArch > 0x11 && pNv->twoHeads)
+		pNv->switchable_crtc = TRUE;
 
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
