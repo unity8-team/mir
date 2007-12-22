@@ -942,6 +942,9 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
+	ErrorF("writing sel_clk %08X\n", state->sel_clk);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+
 	if (state->vpll2) {
 		if(pNv->twoHeads) {
 			ErrorF("writing vpll2 %08X\n", state->vpll2);
@@ -951,10 +954,6 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 			ErrorF("writing vpll2B %08X\n", state->vpll2B);
 			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
 		}
-
-		ErrorF("writing pllsel %08X\n", state->pllsel);
-		/* Let's keep the primary vpll off */
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel & ~NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL);
 	}
 
 	if (state->vpll) {
@@ -964,13 +963,10 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 			ErrorF("writing vpllB %08X\n", state->vpllB);
 			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
 		}
-
-		ErrorF("writing pllsel %08X\n", state->pllsel);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 	}
 
-	ErrorF("writing sel_clk %08X\n", state->sel_clk);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	ErrorF("writing pllsel %08X\n", state->pllsel);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 }
 
 /* It is unknown if the bus has a similar meaning on pre-NV40 hardware. */
