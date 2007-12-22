@@ -1220,6 +1220,12 @@ void nv_crtc_calc_state_ext(
 		state->crosswired = FALSE;
 	}
 
+	/* The NV40 seems to have more similarities to NV3x than other cards. */
+	if (pNv->NVArch < 0x41) {
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL;
+	}
+
 	if (nv_crtc->head == 1) {
 		if (!state->db1_ratio[1]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
@@ -1228,16 +1234,12 @@ void nv_crtc_calc_state_ext(
 		}
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
-		/* The NV40 seems to have more similarities to NV3x than other cards. */
-		if (pNv->NVArch < 0x41)
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL;
-		else
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 		if (!state->db1_ratio[0]) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		}
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 	}
 
 	/* The blob uses this always, so let's do the same */
