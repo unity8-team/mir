@@ -2157,9 +2157,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
 	nv_crtc_mode_set_ramdac_regs(crtc, mode, adjusted_mode);
 
-	/* Just in case */
-	NVCrtcLockUnlock(crtc, FALSE);
-
 	NVVgaProtect(crtc, TRUE);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
@@ -2263,6 +2260,9 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
+
+	/* Just in case */
+	NVCrtcLockUnlock(crtc, 0);
 
 	NVResetCrtcConfig(crtc, FALSE);
 

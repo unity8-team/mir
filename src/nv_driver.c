@@ -1841,7 +1841,21 @@ NVRestore(ScrnInfoPtr pScrn)
 
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		RIVA_HW_STATE *state = &pNv->ModeReg;
 		int i;
+
+		/* Let's wipe some state regs */
+		state->vpll1_a = 0;
+		state->vpll1_b = 0;
+		state->vpll2_a = 0;
+		state->vpll2_b = 0;
+		state->reg594 = 0;
+		state->reg580 = 0;
+		state->pllsel = 0;
+		state->vpll = 0;
+		state->vpllB = 0;
+		state->vpll2 = 0;
+		state->vpll2B = 0;
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
