@@ -134,12 +134,15 @@ it's ARGB. For now we support PictOpAdd which is the only important op for this 
 and without transformation or funny things.*/
 static Bool NV10Check_A8plusA8_Feasability(PicturePtr src, PicturePtr msk, PicturePtr dst, int op)  
 {
-	if ((!msk) && 	(src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) && 
-									(op == PictOpAdd) && (src->repeat == RepeatNone))
-		{
-		return TRUE;
-		}
-	return FALSE;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+    return FALSE;
+#endif
+    if ((!msk) && 	(src->format == PICT_a8) && (dst->format == PICT_a8) && (!src->transform) && 
+	    (op == PictOpAdd) && (src->repeat == RepeatNone))
+	{
+	return TRUE;
+	}
+    return FALSE;
 }
 
 #if 0
