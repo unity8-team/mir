@@ -551,10 +551,10 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	/* Some pre-NV30 cards have switchable crtc's. */
 	if (pNv->switchable_crtc) {
 		if (pNv->restricted_mode) { /* some NV4A for example */
-			if (nv_output->preferred_output != nv_crtc->head) {
-				output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			if (nv_crtc->head == 1) {
+				output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 			} else {
-				output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+				output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 			}
 		} else {
 			output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
