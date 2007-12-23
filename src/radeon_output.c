@@ -437,14 +437,18 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 
 static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType MonType = MT_NONE;
 
     if (radeon_output->type == OUTPUT_LVDS) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, FALSE))
+	    MonType = MT_LCD;
+	else
 #if defined(__powerpc__)
-	MonType = MT_LCD;
+	    MonType = MT_LCD;
 #else
-	MonType = RADEONDetectLidStatus(pScrn);
+	    MonType = RADEONDetectLidStatus(pScrn);
 #endif
     } /*else if (radeon_output->type == OUTPUT_DVI) {
 	if (radeon_output->TMDSType == TMDS_INT) {

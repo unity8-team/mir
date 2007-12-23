@@ -467,6 +467,12 @@ Enable this option to force TV Out to always be detected as attached.
 The default is
 .B off 
 .TP
+.BI "Option \*qIgnoreLidStatus\*q \*q" boolean \*q
+Enable this option to ignore lid status on laptops and always detect
+LVDS as attached.
+The default is
+.B off 
+.TP
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
