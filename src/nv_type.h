@@ -434,7 +434,6 @@ typedef struct _NVRec {
     Bool                Television;
 	int         vtOWNER;
 	Bool		crtc_active[2];
-	Bool		ramdac_active[2];
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;
