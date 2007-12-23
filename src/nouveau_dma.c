@@ -119,7 +119,8 @@ nouveau_dma_subc_bind(struct nouveau_grobj *grobj)
 		    chan->subchannel[i].grobj->bound == 
 		    NOUVEAU_GROBJ_EXPLICIT_BIND)
 			continue;
-		if (chan->subchannel[i].seq < chan->subchannel[subc].seq)
+		/* Reading into the -1 index gives undefined results, so pick straight away. */
+		if (subc == -1 || chan->subchannel[i].seq < chan->subchannel[subc].seq)
 			subc = i;
 	}
 	assert(subc >= 0);
