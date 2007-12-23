@@ -240,7 +240,7 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 	if (crtc) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 	}
 }
 
@@ -258,7 +258,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	if (crtc) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
 		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
@@ -497,7 +497,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 		}
 
-		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->crtc, nv_output->preferred_output, two_crt, two_mon);
+		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->head, nv_output->preferred_output, two_crt, two_mon);
 	}
 }
 

@@ -238,7 +238,7 @@ void NVCrtcSetOwner(xf86CrtcPtr crtc)
 		if (pNv->NVArch == 0x11) {
 			NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, 0xff);
 		}
-		NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, nv_crtc->crtc * 0x3);
+		NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, nv_crtc->head * 0x3);
 		owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
 		ErrorF("post-Owner: 0x%X\n", owner);
 	} else {
@@ -352,7 +352,7 @@ nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		if (nv_crtc->crtc == index)
+		if (nv_crtc->head == index)
 			return crtc;
 	}
 
@@ -1257,7 +1257,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->crtc, mode);
+	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
 	NVCrtcSetOwner(crtc);
 
@@ -1323,7 +1323,7 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->head);
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
 	NVOutputPrivatePtr nv_output = NULL;
@@ -1795,7 +1795,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/*
 	 * Calculate the state that is common to all crtc's (stored in the state struct).
 	 */
-	ErrorF("crtc %d %d %d\n", nv_crtc->crtc, mode->CrtcHDisplay, pScrn->displayWidth);
+	ErrorF("crtc %d %d %d\n", nv_crtc->head, mode->CrtcHDisplay, pScrn->displayWidth);
 	nv_crtc_calc_state_ext(crtc,
 				i,
 				pScrn->displayWidth,
@@ -2096,9 +2096,9 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->head);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->crtc);
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
 	NVCrtcSetOwner(crtc);
 
@@ -2139,7 +2139,7 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	ErrorF("nv_crtc_save is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_save is called for CRTC %d\n", nv_crtc->head);
 
 	/* We just came back from terminal, so unlock */
 	NVCrtcLockUnlock(crtc, FALSE);
@@ -2164,7 +2164,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 
 	state = &pNv->SavedReg;
 
-	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->head);
 
 	NVCrtcSetOwner(crtc);
 
@@ -2209,7 +2209,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->head);
 
 	/* Just in case */
 	NVCrtcLockUnlock(crtc, 0);
@@ -2239,7 +2239,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 void nv_crtc_commit(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->head);
 
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 
@@ -2252,7 +2252,7 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_lock is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_lock is called for CRTC %d\n", nv_crtc->head);
 
 	return FALSE;
 }
@@ -2260,7 +2260,7 @@ static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->crtc);
+	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->head);
 }
 
 static void
@@ -2526,7 +2526,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 		return;
 
 	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
-	nv_crtc->crtc = crtc_num;
 	nv_crtc->head = crtc_num;
 
 	crtc->driver_private = nv_crtc;

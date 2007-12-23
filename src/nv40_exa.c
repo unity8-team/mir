@@ -336,14 +336,25 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		    (0x8000) | (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
 		    NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_RD,
 		    NV40TCL_TEX_FORMAT_DMA0, NV40TCL_TEX_FORMAT_DMA1);
-	if (pPict->repeat && pPict->repeatType == RepeatNormal) {
-		OUT_RING  (NV40TCL_TEX_WRAP_S_REPEAT |
-			   NV40TCL_TEX_WRAP_T_REPEAT |
-			   NV40TCL_TEX_WRAP_R_REPEAT);
+	if (pPict->repeat) {
+		switch(pPict->repeatType) {
+			/* At the moment i do not know if we can support RepeatPad. */
+			case RepeatReflect:
+				OUT_RING  (NV40TCL_TEX_WRAP_S_MIRRORED_REPEAT |
+				NV40TCL_TEX_WRAP_T_MIRRORED_REPEAT |
+				NV40TCL_TEX_WRAP_R_MIRRORED_REPEAT);
+				break;
+			case RepeatNormal:
+			default:
+				OUT_RING  (NV40TCL_TEX_WRAP_S_REPEAT |
+				NV40TCL_TEX_WRAP_T_REPEAT |
+				NV40TCL_TEX_WRAP_R_REPEAT);
+				break;
+		}
 	} else {
 		OUT_RING  (NV40TCL_TEX_WRAP_S_CLAMP_TO_BORDER |
-			   NV40TCL_TEX_WRAP_T_CLAMP_TO_BORDER |
-			   NV40TCL_TEX_WRAP_R_CLAMP_TO_BORDER);
+				NV40TCL_TEX_WRAP_T_CLAMP_TO_BORDER |
+				NV40TCL_TEX_WRAP_R_CLAMP_TO_BORDER);
 	}
 	OUT_RING  (NV40TCL_TEX_ENABLE_ENABLE);
 	OUT_RING  (fmt->card_swz);
@@ -410,8 +421,7 @@ NV40EXACheckCompositeTexture(PicturePtr pPict)
 	    pPict->filter != PictFilterBilinear)
 		FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
-	if (pPict->repeat &&
-	    (pPict->repeat != RepeatNormal && pPict->repeatType != RepeatNone))
+	if (pPict->repeat && pPict->repeatType == RepeatPad)
 		FALLBACK("repeat 0x%x not supported\n", pPict->repeatType);
 
 	return TRUE;

@@ -515,7 +515,6 @@ typedef struct _NVRec {
 } NVRec;
 
 typedef struct _NVCrtcPrivateRec {
-	int crtc;
 	int head;
 	Bool paletteEnabled;
 	Bool deactivate;
