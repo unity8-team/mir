@@ -74,6 +74,7 @@ typedef struct _NVPortPrivRec {
 	CARD32		videoStatus;
 	int		currentBuffer;
 	Time		videoTime;
+	int		overlayCRTC;
 	Bool		grabbedByV4L;
 	Bool		iturbt_709;
 	Bool		blitter;
@@ -120,7 +121,7 @@ enum {
 
 static Atom xvBrightness, xvContrast, xvColorKey, xvSaturation, 
             xvHue, xvAutopaintColorKey, xvSetDefaults, xvDoubleBuffer,
-            xvITURBT709, xvSyncToVBlank;
+            xvITURBT709, xvSyncToVBlank, xvOnCRTCNb;
 
 /* client libraries expect an encoding */
 static XF86VideoEncodingRec DummyEncoding =
@@ -146,7 +147,7 @@ XF86AttributeRec NV04OverlayAttributes[NUM_NV04_OVERLAY_ATTRIBUTES] =
 };
 
 
-#define NUM_OVERLAY_ATTRIBUTES 9
+#define NUM_OVERLAY_ATTRIBUTES 10
 XF86AttributeRec NVOverlayAttributes[NUM_OVERLAY_ATTRIBUTES] =
 {
 	{XvSettable | XvGettable, 0, 1, "XV_DOUBLE_BUFFER"},
@@ -157,7 +158,8 @@ XF86AttributeRec NVOverlayAttributes[NUM_OVERLAY_ATTRIBUTES] =
 	{XvSettable | XvGettable, 0, 8191, "XV_CONTRAST"},
 	{XvSettable | XvGettable, 0, 8191, "XV_SATURATION"},
 	{XvSettable | XvGettable, 0, 360, "XV_HUE"},
-	{XvSettable | XvGettable, 0, 1, "XV_ITURBT_709"}
+	{XvSettable | XvGettable, 0, 1, "XV_ITURBT_709"},
+	{XvSettable | XvGettable, 0, 1, "XV_ON_CRTC_NB"},
 };
 
 #define NUM_BLIT_ATTRIBUTES 2
@@ -950,7 +952,8 @@ NVSetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 			  INT32 value, pointer data)
 {
 	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
-
+	NVPtr         pNv   = NVPTR(pScrn);
+	
 	if (attribute == xvBrightness) {
 		if ((value < -512) || (value > 512))
 			return BadValue;
@@ -994,6 +997,13 @@ NVSetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 	if (attribute == xvSetDefaults) {
 		NVSetPortDefaults(pScrn, pPriv);
 	} else
+	if ( attribute == xvOnCRTCNb) {
+		if ((value < 0) || (value > 1))
+			return BadValue;
+		pPriv->overlayCRTC = value;
+		nvWriteCRTC(pNv, value, NV_CRTC_FSEL, nvReadCRTC(pNv, value, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
+		nvWriteCRTC(pNv, !value, NV_CRTC_FSEL, nvReadCRTC(pNv, !value, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+	} else
 		return BadMatch;
 
 	NVResetVideo(pScrn);
@@ -1031,6 +1041,8 @@ NVGetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 	  	*value = (pPriv->autopaintColorKey) ? 1 : 0;
 	else if (attribute == xvITURBT709)
 		*value = (pPriv->iturbt_709) ? 1 : 0;
+	else if (attribute == xvOnCRTCNb)
+		*value = (pPriv->overlayCRTC) ? 1 : 0;
 	else
 		return BadMatch;
 
@@ -2245,6 +2257,7 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 		xvAutopaintColorKey	= MAKE_ATOM("XV_AUTOPAINT_COLORKEY");
 		xvSetDefaults		= MAKE_ATOM("XV_SET_DEFAULTS");
 		xvITURBT709		= MAKE_ATOM("XV_ITURBT_709");
+		xvOnCRTCNb		= MAKE_ATOM("XV_ON_CRTC_NB");
 		}
 
 	NVResetVideo(pScrn);
