@@ -969,50 +969,6 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
 }
 
-/* It is unknown if the bus has a similar meaning on pre-NV40 hardware. */
-/* This code is currently used and pending removal should it turn out not be needed.*/
-
-static uint8_t
-nv_get_sel_clk_offset(uint8_t NVArch, uint8_t bus)
-{
-	switch(bus) {
-		case 0:
-			if (NVArch >= 0x44) {
-				return 8;
-			} else {
-				return 12;
-			}
-		case 1:
-			return 16;
-		case 2: /* bus 2 or 3 are either dvi on mobile or tv-out */
-		case 3: /* don't use this for tv-out */
-			return 4;
-		default:
-			ErrorF("Unknown bus, bad things may happen\n");
-			return 16;
-	}
-}
-
-static void
-nv_wipe_other_clocks(uint32_t *sel_clk, uint8_t NVArch, uint8_t head, uint8_t bus)
-{
-	int i;
-	/* head0 = 1, head1 = 4 */
-	uint8_t our_clock = 1 + head*3;
-
-	if (!sel_clk)
-		return;
-
-	for (i = 0; i < 5; i++) {
-		int offset = i*4;
-		if (nv_get_sel_clk_offset(NVArch, bus) == offset) /* Let's keep our own clock */
-			continue;
-
-		if (((*sel_clk << offset) & 0xf) == (our_clock << offset)) /* Let's wipe other entries */
-			*sel_clk &= ~(0xf << offset);
-	}
-}
-
 #define IS_NV44P (pNv->NVArch >= 0x44 ? 1 : 0)
 #define SEL_CLK_OFFSET (nv_get_sel_clk_offset(pNv->NVArch, nv_output->bus))
 
@@ -1155,18 +1111,13 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	/* This stuff also applies to NV3x to some extend, but the rules may be different. */
-	if (pNv->Architecture == NV_ARCH_40) {
+	/* The main stuff seems to be valid for NV3x also. */
+	if (pNv->Architecture >= NV_ARCH_30) {
 		/* This register is only used on the primary ramdac */
 		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
 
 		if (!state->sel_clk)
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
-
-		/* Note: Lower bits also exist, but trying to mess with those (in advance) is a bad idea.
-		 * The blob doesn't do it, so it's probably not needed.
-		 * I hope this solves the previous mess.
-		 */
 
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
 			/* Only wipe when are a relevant (digital) output. */
@@ -1187,16 +1138,32 @@ void nv_crtc_calc_state_ext(
 		 * It seems to prefer situations that avoid changing these bits (for a good reason?).
 		 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
 		 */
-		for (i = 0; i < 4; i++) {
-			if (state->sel_clk & (0xf << 4*i)) {
-				state->sel_clk &= ~(0xf << 4*i);
-				Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-				if (crossed_clocks) {
-					state->sel_clk |= (0x4 << 4*i);
-				} else {
-					state->sel_clk |= (0x1 << 4*i);
+
+		/* Some extra info:
+		 * nv30:
+		 *	bit 0		NVClk spread spectrum on/off
+		 *	bit 2		MemClk spread spectrum on/off
+		 *	bit 4		PixClk1 spread spectrum on/off
+		 *	bit 6		PixClk2 spread spectrum on/off
+
+		 *	nv40:
+		 *	what causes setting of bits not obvious but:
+		 *	bits 4&5		relate to headA
+		 *	bits 6&7		relate to headB
+		*/
+		if (pNv->Architecture == NV_ARCH_40) {
+			for (i = 0; i < 4; i++) {
+				uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+				if (var == 0x1 || var == 0x4) {
+					state->sel_clk &= ~(0xf << 4*i);
+					Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+					if (crossed_clocks) {
+						state->sel_clk |= (0x4 << 4*i);
+					} else {
+						state->sel_clk |= (0x1 << 4*i);
+					}
+					break; /* This should only occur once. */
 				}
-				break; /* This should only occur once. */
 			}
 		}
 
@@ -1215,7 +1182,7 @@ void nv_crtc_calc_state_ext(
 				ErrorF("We are a lover of the DB1 VCLK ratio\n");
 		}
 	} else {
-		/* This seems true for nv34 */
+		/* Do NV1x/NV2x cards need anything in sel_clk? */
 		state->sel_clk = 0x0;
 		state->crosswired = FALSE;
 	}
