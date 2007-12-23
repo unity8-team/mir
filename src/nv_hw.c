@@ -80,6 +80,9 @@ uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 {
   volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
+#ifdef NOUVEAU_MODESET_TRACE
+  ErrorF("nvWriteVGA: idx %d data 0x%x\n", index, data);
+#endif
   VGA_WR08(ptr, 0x03D4, index);
   VGA_WR08(ptr, 0x03D5, data);
 }
@@ -92,6 +95,9 @@ CARD32 nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg)
 
 void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val)
 {
+#ifdef NOUVEAU_MODESET_TRACE
+    ErrorF("nvWriteRAMDAC, head %x, reg 0x%x val %#x\n", head, ramdac_reg, val);
+#endif
 	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
 	MMIO_OUT32(ptr, ramdac_reg, val);
 }
@@ -104,6 +110,9 @@ CARD32 nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 
 void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, CARD32 val)
 {
+#ifdef NOUVEAU_MODESET_TRACE
+  ErrorF("nvWriteCRTC head %d, reg 0x%x val %#x\n", head, reg, val);
+#endif
   volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
   MMIO_OUT32(ptr, reg, val);
 }
