@@ -534,35 +534,16 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		is_fp = TRUE;
 	}
 
-	if (pNv->Architecture == NV_ARCH_40) {
-		/* NV4x cards have strange ways of dealing with dualhead */
-		/* Also see reg594 in nv_crtc.c */
-		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		/* This seems to be restricted to dual link outputs. */
-		/* Some cards have secondary outputs with ffs(or) != 3. */
-		if (nv_have_duallink(pScrn) || pNv->restricted_mode)
-			output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-	} else {
-		/* This is for simplicity */
-		output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-		output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-	}
+	/* This is for simplicity */
+	output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+	output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 
-	/* Some pre-NV30 cards have switchable crtc's. */
+	/* Some (most?) pre-NV30 cards have switchable crtc's. */
 	if (pNv->switchable_crtc) {
-		if (pNv->restricted_mode) { /* some NV4A for example */
-			if (nv_crtc->head == 1) {
-				output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			} else {
-				output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			}
+		if (nv_crtc->head == 1) {
+			output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		} else {
-			output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			/* Does this have something to do with outputs that have ffs(or) == 1? */
-			/* I suspect this bit represents more than just a crtc switch. */
-			if (nv_crtc->head != nv_output->preferred_output) {
-				output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			}
+			output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		}
 	}
 
