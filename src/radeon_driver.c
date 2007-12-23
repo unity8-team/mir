@@ -1231,19 +1231,18 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	   pll->pll_out_max = 35000;
        }
 
-       if (RADEONProbePLLParameters(pScrn))
-	   return;
+       if (!RADEONProbePLLParameters(pScrn)) {
+	   if (info->IsIGP)
+	       pll->reference_freq = 1432;
+	   else
+	       pll->reference_freq = 2700;
 
-	if (info->IsIGP)
-	    pll->reference_freq = 1432;
-	else
-	    pll->reference_freq = 2700;
+	   pll->reference_div = 12;
+	   pll->xclk = 10300;
 
-	pll->reference_div = 12;
-	pll->xclk = 10300;
-
-        info->sclk = 200.00;
-        info->mclk = 200.00;
+	   info->sclk = 200.00;
+	   info->mclk = 200.00;
+       }
     }
 
     /* card limits for computing PLLs */
