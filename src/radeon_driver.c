@@ -4590,6 +4590,18 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     usleep(100000);
 #endif
 
+    /* need to make sure we don't enable a crtc by accident or we may get a hang */
+    if (pRADEONEnt->HasCRTC2 && !info->IsSecondary) {
+	if (info->crtc2_on && xf86_config->num_crtc > 1) {
+	    crtc = xf86_config->crtc[1];
+	    crtc->funcs->dpms(crtc, DPMSModeOn);
+	}
+    }
+    if (info->crtc_on) {
+	crtc = xf86_config->crtc[0];
+	crtc->funcs->dpms(crtc, DPMSModeOn);
+    }
+
 #ifdef WITH_VGAHW
     if (info->VGAAccess) {
        vgaHWPtr hwp = VGAHWPTR(pScrn);
@@ -4606,17 +4618,6 @@ void RADEONRestore(ScrnInfoPtr pScrn)
     }
 #endif
 
-    /* need to make sure we don't enable a crtc by accident or we may get a hang */
-    if (pRADEONEnt->HasCRTC2 && !info->IsSecondary) {
-	if (info->crtc2_on && xf86_config->num_crtc > 1) {
-	    crtc = xf86_config->crtc[1];
-	    crtc->funcs->dpms(crtc, DPMSModeOn);
-	}
-    }
-    if (info->crtc_on) {
-	crtc = xf86_config->crtc[0];
-	crtc->funcs->dpms(crtc, DPMSModeOn);
-    }
     /* to restore console mode, DAC registers should be set after every other registers are set,
      * otherwise,we may get blank screen 
      */
