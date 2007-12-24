@@ -100,7 +100,7 @@ extern Status   _xvmc_destroy_subpicture(Display *dpy,
 					 XvMCSubpicture *subpicture);
 
 typedef struct _intel_xvmc_context {
-    XID	id;	/* context id to X system */
+    XvMCContext *context;
     drm_context_t hw_context;	/* context id to kernel drm */
     struct _intel_xvmc_context *next;
 } intel_xvmc_context_t, *intel_xvmc_context_ptr;

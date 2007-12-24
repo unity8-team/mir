@@ -84,7 +84,7 @@ static void intel_xvmc_free_context(XID id)
     intel_xvmc_context_ptr pre = p;
 
     while(p) {
-	if (p->id == id) {
+	if (p->context->context_id == id) {
 	    if (p == xvmc_driver->ctx_list)
 		xvmc_driver->ctx_list = p->next;
 	    else
@@ -105,7 +105,7 @@ intel_xvmc_context_ptr intel_xvmc_find_context(XID id)
     intel_xvmc_context_ptr p = xvmc_driver->ctx_list;
 
     while(p) {
-	if (p->id == id)
+	if (p->context->context_id == id)
 	    return p;
 	p = p->next;
     }
@@ -231,8 +231,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	XVMC_ERR("Intel XvMC context create fail\n");
 	return BadAlloc;
     }
-    /* context_id is alloc in _xvmc_create_context */
-    intel_ctx->id = context->context_id;
 
     ret = uniDRIQueryDirectRenderingCapable(display, screen,
                                             &isCapable);
@@ -287,6 +285,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     xvmc_driver->driHwLock = (drmLock *)&pSAREA->lock;
     pthread_mutex_init(&xvmc_driver->ctxmutex, NULL);
 
+    /* context_id is alloc in _xvmc_create_context */
     if (!uniDRICreateContext(display, screen, NULL,
 			     context->context_id,
                              &intel_ctx->hw_context)) {
