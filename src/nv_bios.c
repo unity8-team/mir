@@ -394,13 +394,20 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 
 void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN, int *bestP)
 {
-	/* clk in kHz */
-	/* nv_hw.c in nv driver uses 7 and 8 for minM */
-	int minM = 1, maxM, M;
-	int N;
+	/* Find M, N and P for a single stage PLL
+	 *
+	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP values,
+	 * but we're too lazy to use those atm
+	 *
+	 * "clk" parameter in kHz
+	 */
+
+	int maxM = 0, M, N;
 	int maxlog2P, log2P, P;
-	int crystal;
-	int clkP, clkMP;
+	int crystal = 0;
+	uint32_t minvco = bios->fminvco;
+	uint32_t maxvco = bios->fmaxvco;
+	int clkP;
 	int calcclk, delta;
 	unsigned int bestdelta = UINT_MAX;
 
@@ -422,7 +429,7 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN
 
 	/* this division verified for nv20, nv28 (Haiku), nv34 -- nv17 is guessed */
 	/* possibly correlated with introduction of 27MHz crystal */
-	if (pNv->NVArch <= 0x16 || pNv->NVArch == 0x20) {
+	if (bios->chip_version <= 0x16 || bios->chip_version == 0x20) {
 		if (clk > 250000)
 			maxM = 6;
 		if (clk > 340000)
@@ -438,23 +445,24 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN
 		maxlog2P = 5;
 	}
 
-	if ((clk << maxlog2P) < bios->fminvco) {
-		bios->fminvco = clk << maxlog2P;
-		bios->fmaxvco = bios->fminvco * 2;
+	if ((clk << maxlog2P) < minvco) {
+		minvco = clk << maxlog2P;
+		maxvco = minvco * 2;
 	}
-	if (clk + clk/200 > bios->fmaxvco)	/* +0.5% */
-		bios->fmaxvco = clk + clk/200;
+	if (clk + clk/200 > maxvco)	/* +0.5% */
+		maxvco = clk + clk/200;
 
 	/* NV34 goes maxlog2P->0, NV20 goes 0->maxlog2P */
 	for (log2P = 0; log2P <= maxlog2P; log2P++) {
 		P = 1 << log2P;
 		clkP = clk * P;
-		if (clkP < bios->fminvco)
+		if (clkP < minvco)
 			continue;
-		if (clkP > bios->fmaxvco)
+		if (clkP > maxvco)
 			return;
 
-		for (M = minM; M <= maxM; M++) {
+		/* nv_hw.c in nv driver uses 7 and 8 for minM */
+		for (M = 1; M <= maxM; M++) {
 			/* add crystal/2 to round better */
 			N = (clkP * M + crystal/2) / crystal;
 			if (N > 256)	/* we lost */
@@ -471,12 +479,126 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN
 				*bestM = M;
 				*bestN = N;
 				*bestP = P;
+				if (delta == 0)	/* except this one */
+					return;
 			}
-			if (delta == 0)	/* except this one */
-				return;
 		}
 nextP:
 		continue;
+	}
+}
+
+void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t clk, int *bestM1, int *bestN1, int *bestM2, int *bestN2, int *bestlog2P)
+{
+	/* Find M, N and P for a two stage PLL
+	 *
+	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP values,
+	 * but we're too lazy to use those atm
+	 *
+	 * "clk" parameter in kHz
+	 */
+
+	int closestclk = 0; //needed??
+	int crystal = 0;
+	uint32_t minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
+	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq, vco2;
+	int maxM1 = 13, M1, N1;
+	int maxM2 = 4, M2, N2;
+	uint32_t minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
+	int log2P;
+	int clkP;
+	int calcclk1, calcclk2, calcclkout, delta;
+	unsigned int bestdelta = UINT_MAX;
+
+	/* some defaults */
+	*bestM1 = 13;
+	*bestN1 = 0xff;
+	*bestM2 = 5;
+	*bestN2 = 0xff;
+	*bestlog2P = 6;
+
+	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
+	case 0:
+		crystal = 13500;
+		break;
+	case (1 << 6):
+		crystal = 14318;
+		break;
+	case (1 << 22):
+	case (1 << 22 | 1 << 6):
+		crystal = 27000;
+		break;
+	}
+
+	if (maxvco2 < clk + clk/200)	/* +0.5% */
+		maxvco2 = clk + clk/200;
+	vco2 = (maxvco2 - maxvco2/200) / 2;
+
+	for (log2P = 0; log2P < 6 && clk <= (vco2 >> log2P); log2P++) /* log2P is maximum of 6 */
+		;
+	clkP = clk << log2P;
+
+	for (M1 = 1; M1 <= maxM1; M1++) {
+		if (crystal/M1 < minU1)
+			return;
+
+		for (N1 = 1; N1 <= 0xff; N1++) {
+			calcclk1 = crystal * N1 / M1;
+			if (calcclk1 < minvco1)
+				continue;
+			if (calcclk1 > maxvco1)
+				break;
+
+			for (M2 = 1; M2 <= maxM2; M2++) {
+				if (calcclk1/M2 < minU2)
+					break;
+
+				/* add calcclk1/2 to round better */
+				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
+				if (N2 < 4 || N2 > 0x46 || N2 > maxM2)
+					continue;
+				if (N2/M2 < 4 || N2/M2 > 10)
+					continue;
+
+				calcclk2 = calcclk1 * N2 / M2;
+				if (calcclk2 < minvco2 || calcclk2 > maxvco2)
+					continue;
+
+				calcclkout = calcclk2 >> log2P;
+				delta = abs(calcclkout - clk);
+				/* we do an exhaustive search rather than terminating
+				 * on an optimality condition...
+				 */
+				if (delta < bestdelta) {
+					*bestlog2P = log2P;
+					*bestM1 = M1;
+					*bestN1 = N1;
+					*bestM2 = M2;
+					*bestN2 = N2;
+					closestclk = calcclkout;
+					bestdelta = delta;
+					if (delta == 0)	/* except this one */
+						return;
+				}
+			}
+		}
+	}
+}
+
+void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int bestM1, bestN1, bestM2, bestN2, bestP;
+
+	// FIXME: both getMNP versions will need some alterations for nv40 type stuff
+	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
+		struct pll_lims pll_lim;
+		// for NV40, pll_type will need setting
+		get_pll_limits(pScrn, 0, &pll_lim);
+		// this is returning log2P
+		getMNP_double(pNv, bios, &pll_lim, clk, &bestM1, &bestN1, &bestM2, &bestN2, &bestP);
+	} else {
+		getMNP_single(pNv, bios, clk, &bestM1, &bestN1, &bestP);
 	}
 }
 
@@ -2643,15 +2765,20 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 	 */
 
 	bios->major_version = bios->data[offset + 3];
+	bios->chip_version = bios->data[offset + 2];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios version %02x.%02x.%02x.%02x\n",
-		   bios->data[offset+3], bios->data[offset+2],
-		   bios->data[offset+1], bios->data[offset]);
+		   bios->data[offset + 3], bios->data[offset + 2],
+		   bios->data[offset + 1], bios->data[offset]);
 }
 
-Bool get_bit_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim)
+Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim)
 {
-	/* BIT PLL limits table
+	/* PLL limits table
 	 *
+	 * Version 0x10: NV31
+	 * One byte header (version), one record of 24 bytes
+	 * Version 0x11: NV36 - Not implemented
+	 * Seems to have same record style as 0x10, but 3 records rather than 1
 	 * Version 0x20: Found on Geforce 6 cards
 	 * Trivial 4 byte BIT header. 31 (0x1f) byte record length
 	 * Version 0x21: Found on Geforce 7, 8 and some Geforce 6 cards
@@ -2661,7 +2788,7 @@ Bool get_bit_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_li
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
 	uint8_t pll_lim_ver, headerlen, recordlen, entries;
-	int i;
+	int pllindex = 0, i;
 
 	if (!bios->pll_limit_tbl_ptr) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to PLL limits table invalid\n");
@@ -2669,67 +2796,92 @@ Bool get_bit_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_li
 	}
 
 	pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr + 0];
-	headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
-	recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
-	entries = bios->data[bios->pll_limit_tbl_ptr + 3];
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found BIT PLL limits table version 0x%X\n", pll_lim_ver);
 
-	if (pll_lim_ver != 0x20 && pll_lim_ver != 0x21) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Unknown PLL limits table version\n");
+	switch (pll_lim_ver) {
+	case 0x10:
+		headerlen = 1;
+		recordlen = 0x18;
+		entries = 1;
+		pllindex = 0;
+		break;
+	case 0x20:
+	case 0x21:
+		headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
+		recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
+		entries = bios->data[bios->pll_limit_tbl_ptr + 3];
+		break;
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "PLL limits table revision not currently supported\n");
 		return FALSE;
 	}
 
-	uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
-	int index = 0;
-	for (i = 0; i < entries; i++) {
-		uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
+	/* initialize all members to zero */
+	memset (pll_lim, 0, sizeof(struct pll_lims));
 
-		if (plltype == VPLL1 && (reg == 0x680508 || reg == 0x4010)) {
-			index = i;
-			break;
+	if (pll_lim_ver == 0x10) {
+		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex;
+
+		pll_lim->vco1.minfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs])));
+		pll_lim->vco1.maxfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 4])));
+		pll_lim->vco2.minfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 8])));
+		pll_lim->vco2.maxfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 12])));
+		pll_lim->vco1.min_inputfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 16])));
+		pll_lim->vco2.min_inputfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 20])));
+	} else {	/* ver 0x20, 0x21 */
+		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
+
+		for (i = 0; i < entries; i++) {
+			uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
+
+			if (plltype == VPLL1 && (reg == 0x680508 || reg == 0x4010)) {
+				pllindex = i;
+				break;
+			}
+			if (plltype == VPLL2 && (reg == 0x680520 || reg == 0x4018)) {
+				pllindex = i;
+				break;
+			}
+			if (reg == 0x0000) /* generic pll settings */
+				pllindex = i;
 		}
-		if (plltype == VPLL2 && (reg == 0x680520 || reg == 0x4018)) {
-			index = i;
-			break;
-		}
-		if (reg == 0x0000) /* generic pll settings */
-			index = i;
+
+		plloffs += recordlen * pllindex;
+
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading PLL limits for reg 0x%08x\n",
+				   le32_to_cpu(*((uint32_t *)(&bios->data[plloffs]))));
+
+		/* What output frequencies can each VCO generate? */
+		pll_lim->vco1.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 4])));
+		pll_lim->vco1.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 6])));
+		pll_lim->vco2.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 8])));
+		pll_lim->vco2.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 10])));
+
+		/* What input frequencies do they accept (past the m-divider)? */
+		pll_lim->vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 12])));
+		pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14])));
+		pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16])));
+		pll_lim->vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 18])));
+
+		/* What values are accepted as multiplier and divider? */
+		pll_lim->vco1.min_n = bios->data[plloffs + 20];
+		pll_lim->vco1.max_n = bios->data[plloffs + 21];
+		pll_lim->vco1.min_m = bios->data[plloffs + 22];
+		pll_lim->vco1.max_m = bios->data[plloffs + 23];
+		pll_lim->vco2.min_n = bios->data[plloffs + 24];
+		pll_lim->vco2.max_n = bios->data[plloffs + 25];
+		pll_lim->vco2.min_m = bios->data[plloffs + 26];
+		pll_lim->vco2.max_m = bios->data[plloffs + 27];
+
+		pll_lim->unk1c = bios->data[plloffs + 28];
+		pll_lim->unk1d = bios->data[plloffs + 29];
+		pll_lim->unk1e = bios->data[plloffs + 30];
 	}
-
-	plloffs += recordlen * index;
-
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading PLL limits for reg 0x%08x\n",
-			   le32_to_cpu(*((uint32_t *)(&bios->data[plloffs]))));
-
-	/* What is output frequencies can each VCO generate? */
-	pll_lim->vco1.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 4])));
-	pll_lim->vco1.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 6])));
-	pll_lim->vco2.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 8])));
-	pll_lim->vco2.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 10])));
-
-	/* What input frequencies do they accept (past the m-divider)? */
-	pll_lim->vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 12])));
-	pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14])));
-	pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16])));
-	pll_lim->vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 18])));
-
-	/* What values are accepted as multiplier and divider? */
-	pll_lim->vco1.min_n = bios->data[plloffs + 20];
-	pll_lim->vco1.max_n = bios->data[plloffs + 21];
-	pll_lim->vco1.min_m = bios->data[plloffs + 22];
-	pll_lim->vco1.max_m = bios->data[plloffs + 23];
-	pll_lim->vco2.min_n = bios->data[plloffs + 24];
-	pll_lim->vco2.max_n = bios->data[plloffs + 25];
-	pll_lim->vco2.min_m = bios->data[plloffs + 26];
-	pll_lim->vco2.max_m = bios->data[plloffs + 27];
-
-	pll_lim->unk1c = bios->data[plloffs + 28];
-	pll_lim->unk1d = bios->data[plloffs + 29];
-	pll_lim->unk1e = bios->data[plloffs + 30];
 
 #if 1 /* for easy debugging */
 	ErrorF("pll.vco1.minfreq: %d\n", pll_lim->vco1.minfreq);
@@ -3010,6 +3162,8 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, ui
 		/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
 		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 	}
+	if (bmplength > 143)
+		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 142])));
 
 	return 1;
 }

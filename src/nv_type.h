@@ -267,9 +267,10 @@ enum pll_types {
 
 struct pll_lims {
 	struct {
-		uint16_t minfreq;
-		uint16_t maxfreq;
-		uint16_t min_inputfreq;
+		/* nv3x needs 32 bit values */
+		uint32_t minfreq;
+		uint32_t maxfreq;
+		uint32_t min_inputfreq;
 		uint16_t max_inputfreq;
 
 		uint8_t min_m;
@@ -288,7 +289,7 @@ typedef struct {
 	unsigned int length;
 	Bool execute;
 
-	uint8_t major_version;
+	uint8_t major_version, chip_version;
 
 	uint32_t fmaxvco, fminvco;
 
