@@ -471,7 +471,7 @@ The default is
 Enable this option to ignore lid status on laptops and always detect
 LVDS as attached.
 The default is
-.B off 
+.B on. 
 .TP
 
 .SH SEE ALSO

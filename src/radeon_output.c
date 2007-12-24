@@ -442,7 +442,7 @@ static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr 
     RADEONMonitorType MonType = MT_NONE;
 
     if (radeon_output->type == OUTPUT_LVDS) {
-	if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, FALSE))
+	if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
 	    MonType = MT_LCD;
 	else
 #if defined(__powerpc__)
