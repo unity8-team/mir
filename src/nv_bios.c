@@ -3363,13 +3363,13 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	uint16_t ddrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
 #endif
 
-	uint8_t crt_i2cindex = bios->data[offset + 54];
-	uint8_t tv_i2cindex = bios->data[offset + 55];
-	uint8_t panel_i2cindex = bios->data[offset + 56];
-	uint8_t i2cindex0_crtcport_w = bios->data[offset + 58];
-	uint8_t i2cindex0_crtcport_r = bios->data[offset + 59];
-	uint8_t i2cindex1_crtcport_w = bios->data[offset + 60];
-	uint8_t i2cindex1_crtcport_r = bios->data[offset + 61];
+	bios->legacy_i2c_indices.crt = bios->data[offset + 54];
+	bios->legacy_i2c_indices.tv = bios->data[offset + 55];
+	bios->legacy_i2c_indices.panel = bios->data[offset + 56];
+	pNv->dcb_table.i2c_write[0] = bios->data[offset + 58];
+	pNv->dcb_table.i2c_read[0] = bios->data[offset + 59];
+	pNv->dcb_table.i2c_write[1] = bios->data[offset + 60];
+	pNv->dcb_table.i2c_read[1] = bios->data[offset + 61];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
@@ -3418,7 +3418,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 }
 
-static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
+static unsigned int findstr(bios_t *bios, unsigned char *str, int len)
 {
 	int i;
 
@@ -3429,9 +3429,18 @@ static unsigned int findstr(bios_t* bios, unsigned char *str, int len)
 	return 0;
 }
 
-static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+static Bool parse_dcb_entry(bios_t *bios, uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
 	memset(entry, 0, sizeof (struct dcb_entry));
+
+	/* safe defaults for a crt */
+	entry->type = 0;
+	entry->i2c_index = 0;
+	entry->heads = 1;
+	entry->bus = 0;
+	entry->location = 0;
+	entry->or = 1;
+	entry->duallink_possible = FALSE;
 
 	if (dcb_version >= 0x20) {
 		entry->type = conn & 0xf;
@@ -3442,8 +3451,6 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 		entry->or = (conn >> 24) & 0xf;
 		if ((1 << ffs(entry->or)) * 3 == entry->or)
 			entry->duallink_possible = TRUE;
-		else
-			entry->duallink_possible = FALSE;
 
 		switch (entry->type) {
 		case OUTPUT_LVDS:
@@ -3460,25 +3467,17 @@ static Bool parse_dcb_entry(uint8_t dcb_version, uint32_t conn, uint32_t conf, s
 			ErrorF("Unknown DCB 1.4 entry, please report\n");
 			return FALSE;
 		}
+		/* use the safe defaults for a crt */
+		entry->type = conn & 0xf;
+	} else if (dcb_version >= 0x12) {
+		/* use the defaults for a crt
+		 * v1.2 tables often have other entries though - need a trace
+		 */
+		entry->type = conn & 0xf;	// this is valid, but will probably confuse the randr stuff
+		entry->type = 0;
+	} else /* v1.1 */
 		/* safe defaults for a crt */
-		entry->type = 0;
-		entry->i2c_index = 0;
-		entry->heads = 1;
-		entry->bus = 0;
-		entry->location = 0;
-		entry->or = 1;
-		entry->duallink_possible = FALSE;
-	} else {
-		// 1.2 needs more loving
-		return FALSE;
-		entry->type = 0;
-		entry->i2c_index = 0;
-		entry->heads = 0;
-		entry->bus = 0;
-		entry->location = 0;
-		entry->or = 0;
-		entry->duallink_possible = FALSE;
-	}
+		entry->i2c_index = bios->legacy_i2c_indices.crt;
 
 	return TRUE;
 }
@@ -3514,19 +3513,20 @@ read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_version, uint16_
 			return;
 		}
 	}
-	/* it's your own fault if you call this function on a DCB 1.1 BIOS */
+	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
+	 * the below assumes DCB 1.2
+	 */
 	if (dcb_version < 0x14) {
 		recordoffset = 2;
 		rdofs = 0;
 		wrofs = 1;
 	}
 
-	for (i = 0; i < i2c_entries; i++) {
+	for (i = 0; i < i2c_entries; i++)
 		if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
 			pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + rdofs + 4 * i];
 			pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + wrofs + 4 * i];
 		}
-	}
 }
 
 static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
@@ -3602,9 +3602,10 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		configblock = FALSE;
 	} else {	/* NV5+, maybe NV4 */
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Structure of Display Configuration Blocks prior to version 1.2 unknown\n");
-		return 0;
+		/* DCB 1.1 seems to be quite unhelpful - we'll just add 1 safe entry for a CRT */
+		pNv->dcb_table.entries = 1;
+		parse_dcb_entry(bios, dcb_version, 0, 0, &pNv->dcb_table.entry[0]);
+		return 1;
 	}
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
@@ -3623,7 +3624,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
-		if (!parse_dcb_entry(dcb_version, connection, config, &pNv->dcb_table.entry[i]))
+		if (!parse_dcb_entry(bios, dcb_version, connection, config, &pNv->dcb_table.entry[i]))
 			break;
 	}
 	pNv->dcb_table.entries = i;

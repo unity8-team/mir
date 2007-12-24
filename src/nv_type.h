@@ -318,6 +318,10 @@ typedef struct {
 		uint16_t output0_script_ptr;
 		uint16_t output1_script_ptr;
 	} tmds;
+
+	struct {
+		uint8_t crt, tv, panel;
+	} legacy_i2c_indices;
 } bios_t;
 
 enum LVDS_script {
