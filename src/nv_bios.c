@@ -392,6 +392,94 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	return FALSE;
 }
 
+void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN, int *bestP)
+{
+	/* clk in kHz */
+	/* nv_hw.c in nv driver uses 7 and 8 for minM */
+	int minM = 1, maxM, M;
+	int N;
+	int maxlog2P, log2P, P;
+	int crystal;
+	int clkP, clkMP;
+	int calcclk, delta;
+	unsigned int bestdelta = UINT_MAX;
+
+	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
+	case 0:
+		maxM = 13;
+		crystal = 13500;
+		break;
+	case (1 << 6):
+		maxM = 14;
+		crystal = 14318;
+		break;
+	case (1 << 22):
+	case (1 << 22 | 1 << 6):
+		maxM = 14;
+		crystal = 27000;
+		break;
+	}
+
+	/* this division verified for nv20, nv28 (Haiku), nv34 -- nv17 is guessed */
+	/* possibly correlated with introduction of 27MHz crystal */
+	if (pNv->NVArch <= 0x16 || pNv->NVArch == 0x20) {
+		if (clk > 250000)
+			maxM = 6;
+		if (clk > 340000)
+			maxM = 2;
+		maxlog2P = 4;
+	} else {
+		if (clk > 150000)
+			maxM = 6;
+		if (clk > 200000)
+			maxM = 4;
+		if (clk > 340000)
+			maxM = 2;
+		maxlog2P = 5;
+	}
+
+	if ((clk << maxlog2P) < bios->fminvco) {
+		bios->fminvco = clk << maxlog2P;
+		bios->fmaxvco = bios->fminvco * 2;
+	}
+	if (clk + clk/200 > bios->fmaxvco)	/* +0.5% */
+		bios->fmaxvco = clk + clk/200;
+
+	/* NV34 goes maxlog2P->0, NV20 goes 0->maxlog2P */
+	for (log2P = 0; log2P <= maxlog2P; log2P++) {
+		P = 1 << log2P;
+		clkP = clk * P;
+		if (clkP < bios->fminvco)
+			continue;
+		if (clkP > bios->fmaxvco)
+			return;
+
+		for (M = minM; M <= maxM; M++) {
+			/* add crystal/2 to round better */
+			N = (clkP * M + crystal/2) / crystal;
+			if (N > 256)	/* we lost */
+				goto nextP;
+
+			/* more rounding additions */
+			calcclk = ((N * crystal + P/2) / P + M/2) / M;
+			delta = abs(calcclk - clk);
+			/* we do an exhaustive search rather than terminating
+			 * on an optimality condition...
+			 */
+			if (delta < bestdelta) {
+				bestdelta = delta;
+				*bestM = M;
+				*bestN = N;
+				*bestP = P;
+			}
+			if (delta == 0)	/* except this one */
+				return;
+		}
+nextP:
+		continue;
+	}
+}
+
 static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_PROG   opcode: 0x31
