@@ -392,7 +392,7 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	return FALSE;
 }
 
-void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN, int *bestP)
+void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *bestlog2P)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
@@ -476,9 +476,8 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestM, int *bestN
 			 */
 			if (delta < bestdelta) {
 				bestdelta = delta;
-				*bestM = M;
-				*bestN = N;
-				*bestP = P;
+				*bestNM = N << 8 | M;
+				*bestlog2P = log2P;
 				if (delta == 0)	/* except this one */
 					return;
 			}
@@ -488,7 +487,7 @@ nextP:
 	}
 }
 
-void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t clk, int *bestM1, int *bestN1, int *bestM2, int *bestN2, int *bestlog2P)
+void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -498,7 +497,6 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 	 * "clk" parameter in kHz
 	 */
 
-	int closestclk = 0; //needed??
 	int crystal = 0;
 	uint32_t minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
 	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq, vco2;
@@ -511,10 +509,8 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 	unsigned int bestdelta = UINT_MAX;
 
 	/* some defaults */
-	*bestM1 = 13;
-	*bestN1 = 0xff;
-	*bestM2 = 5;
-	*bestN2 = 0xff;
+	*bestNM1 = 0xff << 8 | 13;
+	*bestNM2 = 0xff << 8 | 5;
 	*bestlog2P = 6;
 
 	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
@@ -555,6 +551,7 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 
 				/* add calcclk1/2 to round better */
 				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
+				/* this N2 > maxM2 test is a bit weird, but it's correct for nv31 */
 				if (N2 < 4 || N2 > 0x46 || N2 > maxM2)
 					continue;
 				if (N2/M2 < 4 || N2/M2 > 10)
@@ -570,12 +567,9 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 				 * on an optimality condition...
 				 */
 				if (delta < bestdelta) {
+					*bestNM1 = N1 << 8 | M1;
+					*bestNM2 = N2 << 8 | M2;
 					*bestlog2P = log2P;
-					*bestM1 = M1;
-					*bestN1 = N1;
-					*bestM2 = M2;
-					*bestN2 = N2;
-					closestclk = calcclkout;
 					bestdelta = delta;
 					if (delta == 0)	/* except this one */
 						return;
@@ -585,20 +579,124 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 	}
 }
 
+void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
+{
+	uint32_t pll;
+
+	nv32_rd(pScrn, reg, &pll);
+	if (pll == (log2P << 16 | NM))
+		return;	/* already set */
+
+#if 0
+	//this stuff is present on my nv34 and something similar on the nv31
+	//it is not on nv20, and I don't know how useful or necessary it is
+
+	uint32_t saved_1584, 1584shift;
+	Bool frob1584 = FALSE;
+	switch (reg) {
+	case 0x680500:
+		1584shift = 0;
+		frob1584 = TRUE;
+		break;
+	case 0x680504:
+		1584shift = 4;
+		frob1584 = TRUE;
+		break;
+	case 0x680508:
+		1584shift = 8;
+		frob1584 = TRUE;
+		break;
+	case 0x680520:
+		1584shift = 12;
+		frob1584 = TRUE;
+		break;
+	}
+
+	if (frob1584) {
+		nv32_rd(pScrn, 0x00001584, &saved_1584);
+		nv32_wr(pScrn, 0x00001584, saved_1584 & ~(0xf << 1584shift) | 1 << 1584shift);
+	}
+#endif
+
+	/* write NM first */
+	nv32_wr(pScrn, reg, (pll & 0xffff0000) | NM);
+
+	/* wait a bit */
+	usleep(64000);
+	nv32_rd(pScrn, reg, &pll);
+
+	/* then write P as well */
+	nv32_wr(pScrn, reg, (pll & 0xfff8ffff) | log2P << 16);
+
+#if 0
+	if (frob1584)
+		nv32_wr(pScrn, 0x00001584, saved_1584);
+#endif
+}
+
+void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+{
+	uint32_t reg2, pll1, pll2;
+
+	reg2 = reg1 + 0x70;
+	if (reg2 == 0x680590)
+		reg2 = NV_RAMDAC_VPLL2_B;
+
+	nv32_rd(pScrn, reg1, &pll1);
+	nv32_rd(pScrn, reg2, &pll2);
+	if (pll1 == (log2P << 16 | NM1) && pll2 == (1 << 31 | NM2))
+		return;	/* already set */
+
+#if 0
+	//this stuff is present on my nv31
+	//I don't know how useful or necessary it is
+
+	uint32_t saved_1584, 1584shift;
+	Bool frob1584 = FALSE;
+	switch (reg) {
+	case 0x680500:
+		1584shift = 0;
+		frob1584 = TRUE;
+		break;
+	case 0x680504:
+		1584shift = 4;
+		frob1584 = TRUE;
+		break;
+	}
+
+	if (frob1584) {
+		nv32_rd(pScrn, 0x00001584, &saved_1584);
+		nv32_wr(pScrn, 0x00001584, saved_1584 & ~(0xf << 1584shift) | 1 << 1584shift);
+	}
+#endif
+
+	nv32_wr(pScrn, reg2, (pll2 & 0x7fff0000) | NM2);
+	nv32_wr(pScrn, reg1, (pll1 & 0xfff80000) | log2P << 16 | NM1);
+
+#if 0
+	if (frob1584)
+		nv32_wr(pScrn, 0x00001584, saved_1584);
+#endif
+}
+
+Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
+
 void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
+	/* clk in kHz */
 	NVPtr pNv = NVPTR(pScrn);
-	int bestM1, bestN1, bestM2, bestN2, bestP;
+	int NM1, NM2, log2P;
 
 	// FIXME: both getMNP versions will need some alterations for nv40 type stuff
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
 		struct pll_lims pll_lim;
 		// for NV40, pll_type will need setting
 		get_pll_limits(pScrn, 0, &pll_lim);
-		// this is returning log2P
-		getMNP_double(pNv, bios, &pll_lim, clk, &bestM1, &bestN1, &bestM2, &bestN2, &bestP);
+		getMNP_double(pNv, bios, &pll_lim, clk, &NM1, &NM2, &log2P);
+		setPLL_double(pScrn, reg, NM1, NM2, log2P);
 	} else {
-		getMNP_single(pNv, bios, clk, &bestM1, &bestN1, &bestP);
+		getMNP_single(pNv, bios, clk, &NM1, &log2P);
+		setPLL_single(pScrn, reg, NM1, log2P);
 	}
 }
 
@@ -817,18 +915,8 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 			   "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %d0kHz\n",
 			   offset, reg, config, freq);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	setPLL(pScrn, bios, reg, freq * 10);
 
-#if 0
-	switch (reg) {
-	case 0x00004004:
-		configval = 0x01014E07;
-		break;
-	case 0x00004024:
-		configval = 0x13030E02;
-		break;
-	}
-#endif
 	return TRUE;
 }
 
@@ -2027,15 +2115,8 @@ static Bool init_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 			   "0x%04X: Reg: 0x%08X, Freq: %d0kHz\n",
 			   offset, reg, freq);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	setPLL(pScrn, bios, reg, freq * 10);
 
-#if 0
-	switch (reg) {
-		case 0x00680508:
-		configval = 0x00011F05;
-		break;
-	}
-#endif
 	return TRUE;
 }
 
@@ -2999,8 +3080,6 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	bios->io_flag_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 10])));
 	bios->init_function_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 12])));
 
-	parse_init_tables(pScrn, bios);
-
 	return 1;
 }
 
@@ -3111,8 +3190,8 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, ui
 	 *
 	 * offset +  10: BCD encoded BIOS version
 	 *
-	 * offset +  67: maximum internal PLL frequency
-	 * offset +  71: minimum internal PLL frequency
+	 * offset +  67: maximum internal PLL frequency (single stage PLL)
+	 * offset +  71: minimum internal PLL frequency (single stage PLL)
 	 *
 	 * offset +  75: script table pointers, as for parse_bit_init_tbl_entry
 	 *
@@ -3126,6 +3205,7 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, ui
 
 	NVPtr pNv = NVPTR(pScrn);
 	struct fppointers fpp;
+	memset(&fpp, 0, sizeof(struct fppointers));
 
 	parse_bios_version(pScrn, bios, bmpoffset + 10);
 
@@ -3135,42 +3215,46 @@ static unsigned int parse_bmp_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, ui
 	bit_entry_t initbitentry;
 	initbitentry.length = bmplength - 75;
 	initbitentry.offset = bmpoffset + 75;
-	if (!parse_bit_init_tbl_entry(pScrn, bios, &initbitentry))
-		return 0;
+	parse_bit_init_tbl_entry(pScrn, bios, &initbitentry);
 
 	if (bmplength > 92) {
 		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bmpoffset + 89]));
 		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[bmpoffset + 91]));
 	}
 
+	if (bmplength > 108) {
+		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 105])));
+		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 107])));
+		fpp.xlatwidth = 1;
+	}
+	if (bmplength > 120) {
+		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 117])));
+		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 119])));
+	}
+	if (bmplength > 143)
+		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 142])));
+
+	/* want pll_limit_tbl_ptr set before init is run */
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Parsing previously deferred init tables\n");
+	parse_init_tables(pScrn, bios);
+
 	/* If it's not a laptop, you probably don't care about fptables */
 	/* FIXME: detect mobile BIOS? */
 	if (!pNv->Mobile)
 		return 1;
 
-	memset(&fpp, 0, sizeof(struct fppointers));
-	if (bmplength > 108) {
-		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 105])));
-		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 107])));
-		fpp.xlatwidth = 1;
-		parse_fp_mode_table(pScrn, bios, &fpp);
-	}
-	if (bmplength > 120) {
-		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 117])));
-		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 119])));
-		parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
-		/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
-		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
-	}
-	if (bmplength > 143)
-		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bmpoffset + 142])));
+	parse_fp_mode_table(pScrn, bios, &fpp);
+	parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
+	/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
+	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 
 	return 1;
 }
 
 static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
 {
-	bit_entry_t bitentry, storedinitentry = {{ 0 }};
+	bit_entry_t bitentry;
 	char done = 0;
 	struct fppointers fpp;
 	NVPtr pNv = NVPTR(pScrn);
@@ -3207,7 +3291,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		case 'I':
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "0x%04X: Found init table entry in BIT structure\n", offset);
-			memcpy(&storedinitentry, &bitentry, sizeof(bit_entry_t));
+			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'L':
 			parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
@@ -3230,12 +3314,10 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		offset += sizeof(bit_entry_t);
 	}
 
-	/* 'M' table has to be parsed before 'I' can run */
-	if (storedinitentry.id[0]) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Parsing previously deferred init table entry\n");
-		parse_bit_init_tbl_entry(pScrn, bios, &storedinitentry);
-	}
+	/* C and M tables have to be parsed before init can run */
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Parsing previously deferred init table entry\n");
+	parse_init_tables(pScrn, bios);
 
 	/* If it's not a laptop, you probably don't care about LVDS */
 	/* FIXME: detect mobile BIOS? */
@@ -3244,7 +3326,6 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	/* Need D and L tables parsed before doing this */
 	parse_fp_mode_table(pScrn, bios, &fpp);
-
 }
 
 static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
@@ -3289,9 +3370,13 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 			bmplength = 87; /* I've not seen this version, so be "long enough" */
 		else if (pins_version_minor < 0x14)
 			bmplength = 109;
+		else if (pins_version_minor < 0x24) /* not sure of version where pll limits came in;
+						       certainly exist by 0x24 though */
+			/* length not exact: this is long enough to get lvds members */
+			bmplength = 123;
 		else
-			bmplength = 123; /* versions after 0x14 are longer,
-						 but extra contents unneeded ATM */
+			/* length not exact: this is long enough to get pll limit member */
+			bmplength = 144;
 
 		parse_bmp_table_pointers(pScrn, bios, offset, bmplength);
 	} else {
