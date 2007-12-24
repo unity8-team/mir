@@ -3275,7 +3275,24 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 {
 	/* Parse the BMP structure for useful things
 	 *
+	 * offset +   5: BMP major version
+	 * offset +   6: BMP minor version
 	 * offset +  10: BCD encoded BIOS version
+	 *
+	 * offset +  18: init script table pointer (for bios versions < 5.10h)
+	 * offset +  20: extra init script table pointer (for bios versions < 5.10h)
+	 *
+	 * offset +  24: FIXME
+	 * offset +  26: FIXME
+	 * offset +  28: FIXME
+	 *
+	 * offset +  54: index of I2C CRTC pair to use for CRT output
+	 * offset +  55: index of I2C CRTC pair to use for TV output
+	 * offset +  56: index of I2C CRTC pair to use for flat panel output
+	 * offset +  58: write CRTC index for I2C pair 0
+	 * offset +  59: read CRTC index for I2C pair 0
+	 * offset +  60: write CRTC index for I2C pair 1
+	 * offset +  61: read CRTC index for I2C pair 1
 	 *
 	 * offset +  67: maximum internal PLL frequency (single stage PLL)
 	 * offset +  71: minimum internal PLL frequency (single stage PLL)
@@ -3288,6 +3305,8 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	 * offset + 107: flat panel strapping translation table pointer
 	 * offset + 117: LVDS manufacturer panel config table pointer
 	 * offset + 119: LVDS manufacturer strapping translation table pointer
+	 *
+	 * offset + 142: PLL limits table pointer
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
@@ -3334,26 +3353,29 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	parse_bios_version(pScrn, bios, offset + 10);
 
-	uint16_t inittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 18]);
-	uint16_t extrainittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 20]);
-	uint16_t inittbl_size = le16_to_cpu(*(uint16_t *)&bios->data[offset + 22]);
+	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 18]);
+	bios->extra_init_script_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 20]);
+
+#if 0
+	// FIXME needed for pre v16? - haiku uses this in its COMPUTE_MEM on early biosen
 	uint16_t meminittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
 	uint16_t sdrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 26]);
 	uint16_t ddrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
+#endif
 
-	uint8_t crt_i2cport = bios->data[offset + 54];
-	uint8_t tv_i2cport = bios->data[offset + 55];
-	uint8_t panel_i2cport = bios->data[offset + 56];
-	uint8_t i2cport0_crtcport_w = bios->data[offset + 58];
-	uint8_t i2cport0_crtcport_r = bios->data[offset + 59];
-	uint8_t i2cport1_crtcport_w = bios->data[offset + 60];
-	uint8_t i2cport1_crtcport_r = bios->data[offset + 61];
+	uint8_t crt_i2cindex = bios->data[offset + 54];
+	uint8_t tv_i2cindex = bios->data[offset + 55];
+	uint8_t panel_i2cindex = bios->data[offset + 56];
+	uint8_t i2cindex0_crtcport_w = bios->data[offset + 58];
+	uint8_t i2cindex0_crtcport_r = bios->data[offset + 59];
+	uint8_t i2cindex1_crtcport_w = bios->data[offset + 60];
+	uint8_t i2cindex1_crtcport_r = bios->data[offset + 61];
 
-	if (bmplength > 73) {
+	if (bmplength > 74) {
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
 		bios->fminvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 71]));
 	}
-	if (bmplength > 75) {
+	if (bmplength > 88) {
 		bit_entry_t initbitentry;
 		initbitentry.length = bmplength - 75;
 		initbitentry.offset = offset + 75;
@@ -3379,7 +3401,9 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Parsing previously deferred init tables\n");
 	if (bmp_version_minor < 0x10) {
-		/* TODO type1 script */
+		init_exec_t iexec = {TRUE, FALSE};
+		parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
+		parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
 	} else
 		parse_init_tables(pScrn, bios);
 

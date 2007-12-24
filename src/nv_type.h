@@ -294,6 +294,7 @@ typedef struct {
 	uint32_t fmaxvco, fminvco;
 
 	uint16_t init_script_tbls_ptr;
+	uint16_t extra_init_script_tbl_ptr;
 	uint16_t macro_index_tbl_ptr;
 	uint16_t macro_tbl_ptr;
 	uint16_t condition_tbl_ptr;
