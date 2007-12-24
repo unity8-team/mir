@@ -3378,7 +3378,7 @@ static void parse_pins_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int o
 		uint16_t bmplength;
 
 		if (pins_version_minor == 0x10)
-			bmplength = 87; /* I've not seen this version, so be "long enough" */
+			bmplength = 89; /* exact for 5.10h */
 		else if (pins_version_minor < 0x14)
 			bmplength = 109;
 		else if (pins_version_minor < 0x24) /* not sure of version where pll limits came in;
