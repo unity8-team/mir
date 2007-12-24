@@ -85,7 +85,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn);
 void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overrideval);
 void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk);
 void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, uint16_t pxclk);
-Bool get_bit_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
+Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
+uint32_t getMNP_single(NVPtr pNv, uint32_t clk, int *NM, int *log2P);
+uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *NM1, int *NM2, int *log2P);
 
 void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,

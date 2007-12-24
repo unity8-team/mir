@@ -392,7 +392,7 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	return FALSE;
 }
 
-void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *bestlog2P)
+uint32_t getMNP_single(NVPtr pNv, uint32_t clk, int *bestNM, int *bestlog2P)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
@@ -400,8 +400,10 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *best
 	 * but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz
+	 * returns calculated clock
 	 */
 
+	bios_t *bios = &pNv->VBIOS;
 	int maxM = 0, M, N;
 	int maxlog2P, log2P, P;
 	int crystal = 0;
@@ -410,6 +412,7 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *best
 	int clkP;
 	int calcclk, delta;
 	unsigned int bestdelta = UINT_MAX;
+	uint32_t bestclk = 0;
 
 	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
 	case 0:
@@ -459,7 +462,7 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *best
 		if (clkP < minvco)
 			continue;
 		if (clkP > maxvco)
-			return;
+			return bestclk;
 
 		/* nv_hw.c in nv driver uses 7 and 8 for minM */
 		for (M = 1; M <= maxM; M++) {
@@ -476,18 +479,21 @@ void getMNP_single(NVPtr pNv, bios_t *bios, uint32_t clk, int *bestNM, int *best
 			 */
 			if (delta < bestdelta) {
 				bestdelta = delta;
+				bestclk = calcclk;
 				*bestNM = N << 8 | M;
 				*bestlog2P = log2P;
 				if (delta == 0)	/* except this one */
-					return;
+					return bestclk;
 			}
 		}
 nextP:
 		continue;
 	}
+
+	return bestclk;
 }
 
-void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
+uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -495,6 +501,7 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 	 * but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz
+	 * returns calculated clock
 	 */
 
 	int crystal = 0;
@@ -507,6 +514,7 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 	int clkP;
 	int calcclk1, calcclk2, calcclkout, delta;
 	unsigned int bestdelta = UINT_MAX;
+	uint32_t bestclk = 0;
 
 	/* some defaults */
 	*bestNM1 = 0xff << 8 | 13;
@@ -536,7 +544,7 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 
 	for (M1 = 1; M1 <= maxM1; M1++) {
 		if (crystal/M1 < minU1)
-			return;
+			return bestclk;
 
 		for (N1 = 1; N1 <= 0xff; N1++) {
 			calcclk1 = crystal * N1 / M1;
@@ -567,19 +575,22 @@ void getMNP_double(NVPtr pNv, bios_t *bios, struct pll_lims *pll_lim, uint32_t c
 				 * on an optimality condition...
 				 */
 				if (delta < bestdelta) {
+					bestdelta = delta;
+					bestclk = calcclkout;
 					*bestNM1 = N1 << 8 | M1;
 					*bestNM2 = N2 << 8 | M2;
 					*bestlog2P = log2P;
-					bestdelta = delta;
 					if (delta == 0)	/* except this one */
-						return;
+						return bestclk;
 				}
 			}
 		}
 	}
+
+	return bestclk;
 }
 
-void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
+static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
 	uint32_t pll;
 
@@ -634,7 +645,7 @@ void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 #endif
 }
 
-void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
 	uint32_t reg2, pll1, pll2;
 
@@ -681,7 +692,7 @@ void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P
 
 Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
 
-void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
+static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
 	NVPtr pNv = NVPTR(pScrn);
@@ -692,10 +703,10 @@ void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 		struct pll_lims pll_lim;
 		// for NV40, pll_type will need setting
 		get_pll_limits(pScrn, 0, &pll_lim);
-		getMNP_double(pNv, bios, &pll_lim, clk, &NM1, &NM2, &log2P);
+		getMNP_double(pNv, &pll_lim, clk, &NM1, &NM2, &log2P);
 		setPLL_double(pScrn, reg, NM1, NM2, log2P);
 	} else {
-		getMNP_single(pNv, bios, clk, &NM1, &log2P);
+		getMNP_single(pNv, clk, &NM1, &log2P);
 		setPLL_single(pScrn, reg, NM1, log2P);
 	}
 }

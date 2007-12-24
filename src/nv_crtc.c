@@ -362,147 +362,6 @@ nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
 /*
  * Calculate the Video Clock parameters for the PLL.
  */
-static void CalcVClock (
-	uint32_t		clockIn,
-	uint32_t		*clockOut,
-	CARD32		*pllOut,
-	NVPtr		pNv
-)
-{
-	unsigned lowM, highM, highP;
-	unsigned DeltaNew, DeltaOld;
-	unsigned VClk, Freq;
-	unsigned M, N, P;
-
-	/* M: PLL reference frequency postscaler divider */
-	/* P: PLL VCO output postscaler divider */
-	/* N: PLL VCO postscaler setting */
-
-	DeltaOld = 0xFFFFFFFF;
-
-	VClk = (unsigned)clockIn;
-
-	/* Taken from Haiku, after someone with an NV28 had an issue */
-	switch(pNv->NVArch) {
-		case 0x28:
-			lowM = 1;
-			highP = 32;
-			if (VClk > 340000) {
-				highM = 2;
-			} else if (VClk > 200000) {
-				highM = 4;
-			} else if (VClk > 150000) {
-				highM = 6;
-			} else {
-				highM = 14;
-			}
-			break;
-		default:
-			lowM = 1;
-			highP = 16;
-			if (VClk > 340000) {
-				highM = 2;
-			} else if (VClk > 250000) {
-				highM = 6;
-			} else {
-				highM = 14;
-			}
-			break;
-	}
-
-	for (P = 1; P <= highP; P++) {
-		Freq = VClk << P;
-		if ((Freq >= 128000) && (Freq <= 350000)) {
-			for (M = lowM; M <= highM; M++) {
-				N = ((VClk << P) * M) / pNv->CrystalFreqKHz;
-				if (N <= 255) {
-					Freq = ((pNv->CrystalFreqKHz * N) / M) >> P;
-					if (Freq > VClk) {
-						DeltaNew = Freq - VClk;
-					} else {
-						DeltaNew = VClk - Freq;
-					}
-					if (DeltaNew < DeltaOld) {
-						*pllOut   = (P << 16) | (N << 8) | M;
-						*clockOut = Freq;
-						DeltaOld  = DeltaNew;
-					}
-				}
-			}
-		}
-	}
-}
-
-static void CalcVClock2Stage (
-	uint32_t		clockIn,
-	uint32_t		*clockOut,
-	CARD32		*pllOut,
-	CARD32		*pllBOut,
-	NVPtr		pNv
-)
-{
-	unsigned DeltaNew, DeltaOld;
-	unsigned VClk, Freq;
-	unsigned M, N, P;
-	unsigned lowM, highM, highP;
-
-	DeltaOld = 0xFFFFFFFF;
-
-	*pllBOut = 0x80000401;  /* fixed at x4 for now */
-
-	VClk = (unsigned)clockIn;
-
-	/* Taken from Haiku, after someone with an NV28 had an issue */
-	switch(pNv->NVArch) {
-		case 0x28:
-			lowM = 1;
-			highP = 32;
-			if (VClk > 340000) {
-				highM = 2;
-			} else if (VClk > 200000) {
-				highM = 4;
-			} else if (VClk > 150000) {
-				highM = 6;
-			} else {
-				highM = 14;
-			}
-			break;
-		default:
-			lowM = 1;
-			highP = 15;
-			if (VClk > 340000) {
-				highM = 2;
-			} else if (VClk > 250000) {
-				highM = 6;
-			} else {
-				highM = 14;
-			}
-			break;
-	}
-
-	for (P = 0; P <= highP; P++) {
-		Freq = VClk << P;
-		if ((Freq >= 400000) && (Freq <= 1000000)) {
-			for (M = lowM; M <= highM; M++) {
-				N = ((VClk << P) * M) / (pNv->CrystalFreqKHz << 2);
-				if ((N >= 5) && (N <= 255)) {
-					Freq = (((pNv->CrystalFreqKHz << 2) * N) / M) >> P;
-					if (Freq > VClk) {
-						DeltaNew = Freq - VClk;
-					} else {
-						DeltaNew = VClk - Freq;
-					}
-					if (DeltaNew < DeltaOld) {
-						*pllOut   = (P << 16) | (N << 8) | M;
-						*clockOut = Freq;
-						DeltaOld  = DeltaNew;
-					}
-				}
-			}
-		}
-	}
-}
-
 /* Code taken from NVClock, with permission of the author (being a GPL->MIT code transfer). */
 
 static void
@@ -753,10 +612,10 @@ CalculateVClkNV4x(
 	uint32_t special_bits = 0;
 
 	if (primary) {
-		if (!get_bit_pll_limits(pScrn, VPLL1, &pll_lim))
+		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
 			return;
 	} else
-		if (!get_bit_pll_limits(pScrn, VPLL2, &pll_lim))
+		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
 
 	if (requested_clock < pll_lim.vco1.maxfreq*1000) { /* single VCO */
@@ -1024,9 +883,16 @@ void nv_crtc_calc_state_ext(
 			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
 		}
 	} else if (pNv->twoStagePLL) {
-		CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
+		struct pll_lims pll_lim;
+		int NM1, NM2, log2P;
+		get_pll_limits(pScrn, 0, &pll_lim);
+		VClk = getMNP_double(pNv, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+		state->pll = log2P << 16 | NM1;
+		state->pllB = 1 << 31 | NM2;
 	} else {
-		CalcVClock(dotClock, &VClk, &state->pll, pNv);
+		int NM, log2P;
+		VClk = getMNP_single(pNv, dotClock, &NM, &log2P);
+		state->pll = log2P << 16 | NM;
 	}
 
 	switch (pNv->Architecture) {
