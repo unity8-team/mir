@@ -414,7 +414,12 @@ uint32_t getMNP_single(NVPtr pNv, uint32_t clk, int *bestNM, int *bestlog2P)
 	unsigned int bestdelta = UINT_MAX;
 	uint32_t bestclk = 0;
 
-	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
+	int crystal_strap_mask = 1 << 6;
+	/* open coded pNv->twoHeads test */
+	if (bios->chip_version > 0x10 && bios->chip_version != 0x15 &&
+	    bios->chip_version != 0x1a && bios->chip_version != 0x20)
+		crystal_strap_mask |= 1 << 22;
+	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & crystal_strap_mask) {
 	case 0:
 		maxM = 13;
 		crystal = 13500;
