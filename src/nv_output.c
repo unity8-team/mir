@@ -287,13 +287,16 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
-	/* Store the registers in case we need them again for something (like data for VT restore) */
-	for (i = 0; i < 0xFF; i++) {
-		regp->TMDS[i] = NVOutputReadTMDS(output, i);
-	}
+	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		/* Store the registers in case we need them again for something (like data for VT restore) */
+		for (i = 0; i < 0xFF; i++) {
+			regp->TMDS[i] = NVOutputReadTMDS(output, i);
+		}
 
-	for (i = 0; i < 0xFF; i++) {
-		regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
+		for (i = 0; i < 0xFF; i++) {
+			regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
+		}
 	}
 }
 

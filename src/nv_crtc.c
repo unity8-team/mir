@@ -801,6 +801,8 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 
 static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
+	/* This sequence is important, the NV28 is very sensitive in this area. */
+	/* Keep pllsel last and sel_clk first. */
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
