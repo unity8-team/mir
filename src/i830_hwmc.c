@@ -114,12 +114,6 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
     return TRUE;
 }
 
-int intel_xvmc_put_image_size(ScrnInfoPtr pScrn)
-{
-    return (*xvmc_driver->put_image_size)(pScrn);
-}
-
-
 Bool intel_xvmc_init_batch(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);

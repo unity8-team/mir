@@ -1636,7 +1636,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
         XVMC_INFO("\tExpected %d, got %d",
                (int)(sizeof(I915XvMCCreateContextRec) >> 2),priv_count);
         _xvmc_destroy_context(display, context);
-        free(priv_data);
+        XFree(priv_data);
         context->privData = NULL;
         return BadValue;
     }
@@ -1684,7 +1684,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->sarea_priv_offset = tmpComm->sarea_priv_offset;
 
     /* Must free the private data we were passed from X */
-    free(priv_data);
+    XFree(priv_data);
     priv_data = NULL;
 
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
@@ -1741,6 +1741,14 @@ static Status i915_xvmc_mc_create_surface(Display *display,
 
     XVMC_DBG("%s\n", __FUNCTION__);
 
+    if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
+        XVMC_ERR("_xvmc_create_surface() returned incorrect data size!");
+        XVMC_INFO("\tExpected %d, got %d",
+               (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2), priv_count);
+        _xvmc_destroy_surface(display, surface);
+        XFree(priv_data);
+        return BadAlloc;
+    }
 
     PPTHREAD_MUTEX_LOCK();
     surface->privData = (i915XvMCSurface *)malloc(sizeof(i915XvMCSurface));
@@ -1761,25 +1769,14 @@ static Status i915_xvmc_mc_create_surface(Display *display,
     pI915Surface->privSubPic = NULL;
     pI915Surface->srf.map = NULL;
 
-    if (priv_count != (sizeof(I915XvMCCreateSurfaceRec) >> 2)) {
-        XVMC_ERR("_xvmc_create_surface() returned incorrect data size!");
-        XVMC_INFO("\tExpected %d, got %d",
-               (int)(sizeof(I915XvMCCreateSurfaceRec) >> 2), priv_count);
-        _xvmc_destroy_surface(display, surface);
-        free(priv_data);
-        free(pI915Surface);
-        surface->privData = NULL;
-        PPTHREAD_MUTEX_UNLOCK();
-        return BadAlloc;
-    }
-
     tmpComm = (I915XvMCCreateSurfaceRec *)priv_data;
 
     pI915Surface->srfNo = tmpComm->srfno;
     pI915Surface->srf.handle = tmpComm->srf.handle;
     pI915Surface->srf.offset = tmpComm->srf.offset;
     pI915Surface->srf.size = tmpComm->srf.size;
-    free(priv_data);
+
+    XFree(priv_data);
 
     if (drmMap(xvmc_driver->fd,
                pI915Surface->srf.handle,
@@ -1894,7 +1891,6 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 	XVMC_ERR("Can't find intel xvmc context\n");
 	return BadValue;
     }
-    XVMC_DBG("intel ctx found\n");
 
     /* P Frame Test */
     if (!past_surface) {
@@ -2043,18 +2039,11 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
                       unsigned short srcw, unsigned short srch,
                       short destx, short desty,
                       unsigned short destw, unsigned short desth,
-                      int flags)
+                      int flags, struct intel_xvmc_command *data)
 {
     i915XvMCContext *pI915XvMC;
     i915XvMCSurface *pI915Surface;
     i915XvMCSubpicture *pI915SubPic;
-    I915XvMCCommandBuffer buf;
-
-    // drawableInfo *drawInfo;
-    Status ret;
-
-    if (!display || !surface)
-        return BadValue;
 
     if (!(pI915Surface = surface->privData))
         return (error_base + XvMCBadSurface);
@@ -2064,37 +2053,14 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
 
     PPTHREAD_MUTEX_LOCK();
 
-    if (!pI915XvMC->haveXv) {
-        pI915XvMC->xvImage =
-            XvCreateImage(display, pI915XvMC->port, FOURCC_XVMC,
-                          (char *)&buf, pI915Surface->width, pI915Surface->height);
-        pI915XvMC->gc = XCreateGC(display, draw, 0, 0);
-        pI915XvMC->haveXv = 1;
-    }
-
-    pI915XvMC->draw = draw;
-    pI915XvMC->xvImage->data = (char *)&buf;
-
-    buf.command = INTEL_XVMC_COMMAND_DISPLAY;
-    buf.ctxNo = pI915XvMC->ctxno;
-    buf.srfNo = pI915Surface->srfNo;
+    data->command = INTEL_XVMC_COMMAND_DISPLAY;
+    data->ctxNo = pI915XvMC->ctxno;
+    data->srfNo = pI915Surface->srfNo;
     pI915SubPic = pI915Surface->privSubPic;
-    buf.subPicNo = (!pI915SubPic ? 0 : pI915SubPic->srfNo);
-    buf.real_id = FOURCC_YV12;
+    data->subPicNo = (!pI915SubPic ? 0 : pI915SubPic->srfNo);
+    data->real_id = FOURCC_YV12;
+    data->flags = flags;
 
-    XLockDisplay(display);
-
-    if ((ret = XvPutImage(display, pI915XvMC->port, draw, pI915XvMC->gc,
-                          pI915XvMC->xvImage, srcx, srcy, srcw, srch,
-                          destx, desty, destw, desth))) {
-        XUnlockDisplay(display);
-        PPTHREAD_MUTEX_UNLOCK();
-
-        return ret;
-    }
-
-    XSync(display, 0);
-    XUnlockDisplay(display);
     PPTHREAD_MUTEX_UNLOCK();
 
     return 0;
@@ -2236,7 +2202,7 @@ Status i915_xvmc_create_subpict(Display *display, XvMCContext *context,
         XLockDisplay(display);
         _xvmc_destroy_subpicture(display, subpicture);
         XUnlockDisplay(display);
-        free(priv_data);
+        XFree(priv_data);
         free(pI915Subpicture);
         subpicture->privData = NULL;
         PPTHREAD_MUTEX_UNLOCK();
@@ -2248,7 +2214,7 @@ Status i915_xvmc_create_subpict(Display *display, XvMCContext *context,
     pI915Subpicture->srf.handle = tmpComm->srf.handle;
     pI915Subpicture->srf.offset = tmpComm->srf.offset;
     pI915Subpicture->srf.size = tmpComm->srf.size;
-    free(priv_data);
+    XFree(priv_data);
 
     if (drmMap(pI915XvMC->fd,
                pI915Subpicture->srf.handle,

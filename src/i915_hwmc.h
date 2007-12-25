@@ -40,16 +40,6 @@
 
 typedef struct
 {
-    unsigned int command;
-    unsigned int ctxNo;
-    unsigned int srfNo;
-    unsigned int subPicNo;
-    int real_id;
-} I915XvMCCommandBuffer;
-
-
-typedef struct
-{
     struct _intel_xvmc_common comm;
     unsigned int ctxno; /* XvMC private context reference number */
     struct hwmc_buffer sis;

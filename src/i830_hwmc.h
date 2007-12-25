@@ -57,6 +57,17 @@ struct _intel_xvmc_common {
     struct hwmc_buffer batchbuffer;
 };
 
+/* Intel private XvMC command to DDX driver */
+struct intel_xvmc_command {
+    unsigned int command;
+    unsigned int ctxNo;
+    unsigned int srfNo;
+    unsigned int subPicNo;
+    unsigned int flags;
+    unsigned int real_id;
+    unsigned int pad[6];
+};
+
 #ifdef _INTEL_XVMC_SERVER_
 #include <xf86xvmc.h>
 
@@ -70,7 +81,6 @@ struct intel_xvmc_driver {
     /* more items for xvmv surface manage? */
     Bool (*init)(ScrnInfoPtr, XF86VideoAdaptorPtr);
     void (*fini)(ScrnInfoPtr);
-    int (*put_image_size)(ScrnInfoPtr);
     void* devPrivate;
 };
 

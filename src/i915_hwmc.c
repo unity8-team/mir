@@ -766,24 +766,24 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
-    I915XvMCCommandBuffer *i915XvMCData = (I915XvMCCommandBuffer *)buf;
+    struct intel_xvmc_command *xvmc_cmd = (struct intel_xvmc_command *)buf;
     int ret;
 
     if (pI830->XvMCEnabled) {
         if (FOURCC_XVMC == id) {
-            switch (i915XvMCData->command) {
+            switch (xvmc_cmd->command) {
             case INTEL_XVMC_COMMAND_DISPLAY:
-		if ((i915XvMCData->srfNo >= I915_XVMC_MAX_SURFACES) ||
-			!pXvMC->surfaces[i915XvMCData->srfNo] ||
-			!pXvMC->sfprivs[i915XvMCData->srfNo]) {
+		if ((xvmc_cmd->srfNo >= I915_XVMC_MAX_SURFACES) ||
+			!pXvMC->surfaces[xvmc_cmd->srfNo] ||
+			!pXvMC->sfprivs[xvmc_cmd->srfNo]) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			    "[XvMC] i915 put image: Invalid parameters!\n");
 		    return 1;
 		}
 
 		buf = pI830->FbBase +
-		    pXvMC->sfprivs[i915XvMCData->srfNo]->surface->offset;
-		id = i915XvMCData->real_id;
+		    pXvMC->sfprivs[xvmc_cmd->srfNo]->surface->offset;
+		id = xvmc_cmd->real_id;
 		pI830->IsXvMCSurface = 1;
 		break;
             default:
@@ -798,12 +798,6 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
     pI830->IsXvMCSurface = 0;
     return ret;
 }
-
-static int i915_xvmc_put_image_size(ScrnInfoPtr pScrn)
-{
-    return sizeof(I915XvMCCommandBuffer);
-}
-
 
 static Bool i915_xvmc_init(ScrnInfoPtr pScrn, XF86VideoAdaptorPtr XvAdapt)
 {
@@ -872,5 +866,4 @@ struct intel_xvmc_driver i915_xvmc_driver = {
     .flag		= XVMC_I915_MPEG2_MC,
     .init		= i915_xvmc_init,
     .fini		= i915_xvmc_fini,
-    .put_image_size	= i915_xvmc_put_image_size,
 };

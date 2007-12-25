@@ -88,7 +88,7 @@ extern Status _xvmc_destroy_context(Display *dpy, XvMCContext *context);
 
 extern Status _xvmc_create_surface(Display *dpy, XvMCContext *context,
 				   XvMCSurface *surface, int *priv_count,
-				   uint **priv_data);
+				   CARD32 **priv_data);
 
 extern Status _xvmc_destroy_surface(Display *dpy, XvMCSurface *surface);
 
@@ -104,6 +104,16 @@ typedef struct _intel_xvmc_context {
     drm_context_t hw_context;	/* context id to kernel drm */
     struct _intel_xvmc_context *next;
 } intel_xvmc_context_t, *intel_xvmc_context_ptr;
+
+typedef struct _intel_xvmc_surface {
+    XvMCSurface *surface;
+    XvImage *image;
+    GC gc;
+    Bool gc_init;
+    Drawable last_draw;
+    struct intel_xvmc_command data;
+    struct _intel_xvmc_surface *next;
+} intel_xvmc_surface_t, *intel_xvmc_surface_ptr;
 
 typedef struct _intel_xvmc_drm_map {
     drm_handle_t handle;
@@ -150,6 +160,8 @@ typedef struct _intel_xvmc_driver {
 
     int num_ctx;
     intel_xvmc_context_ptr ctx_list;
+    int num_surf;
+    intel_xvmc_surface_ptr surf_list;
 
     void *private;
 
@@ -185,7 +197,7 @@ typedef struct _intel_xvmc_driver {
 	    unsigned short srcw, unsigned short srch,
 	    short destx, short desty,
 	    unsigned short destw, unsigned short desth,
-	    int flags);
+	    int flags, struct intel_xvmc_command *data);
 
     Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
 
@@ -240,5 +252,6 @@ static inline const char* intel_xvmc_decoder_string(int flag)
 }
 
 extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
+extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
 
 #endif
