@@ -1530,13 +1530,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/*
 	* Initialize DAC palette.
+	* Not needed for 8 bits, but it shouldn't hurt either.
 	*/
-	if(pLayout->bitsPerPixel != 8 ) {
-		for (i = 0; i < 256; i++) {
-			regp->DAC[i*3]     = i;
-			regp->DAC[(i*3)+1] = i;
-			regp->DAC[(i*3)+2] = i;
-		}
+	for (i = 0; i < 256; i++) {
+		regp->DAC[i*3] = i;
+		regp->DAC[(i*3)+1] = i;
+		regp->DAC[(i*3)+2] = i;
 	}
 
 	/*
@@ -2001,6 +2000,21 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
 }
 
+/* This functions generates data that is not saved, but still is needed. */
+void nv_crtc_restore_generate(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	int i;
+	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+
+	/* It's a good idea to also save a default palette on shutdown. */
+	for (i = 0; i < 256; i++) {
+		regp->DAC[i*3] = i;
+		regp->DAC[(i*3)+1] = i;
+		regp->DAC[(i*3)+2] = i;
+	}
+}
+
 void nv_crtc_save(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -2013,6 +2027,7 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVCrtcSetOwner(crtc);
+	nv_crtc_restore_generate(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
@@ -2042,6 +2057,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVVgaProtect(crtc, TRUE);
 	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
+	NVCrtcLoadPalette(crtc);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
@@ -2466,15 +2482,19 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO, regp->gpio);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0830, regp->unk830);
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
+	if (pNv->Architecture == NV_ARCH_40) {
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
+	}
 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, regp->config);
 	uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
-	if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
-	} else {
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+	if (pNv->Architecture == NV_ARCH_40) {
+		if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
+			nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
+		} else {
+			nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+		}
 	}
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
@@ -2582,8 +2602,10 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->gpio = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO);
 	regp->unk830 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0830);
 	regp->unk834 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0834);
-	regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
-	regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
+	if (pNv->Architecture == NV_ARCH_40) {
+		regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
+		regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
+	}
 
 	regp->config = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG);
 
