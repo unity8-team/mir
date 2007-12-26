@@ -737,7 +737,8 @@ nv_output_get_modes(xf86OutputPtr output)
 
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+	/* LVDS handle native modes seperately. */
+	if (nv_output->type == OUTPUT_TMDS) {
 		int i;
 		DisplayModePtr mode;
 
@@ -944,11 +945,21 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 static int 
 nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	/* We can't exceed the native mode.*/
 	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
 		return MODE_PANEL;
+
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
+		if (pMode->Clock > 330000) /* 2x165 MHz */
+			return MODE_CLOCK_RANGE;
+	} else {
+		if (pMode->Clock > 165000) /* 165 MHz */
+			return MODE_CLOCK_RANGE;
+	}
 
 	return nv_output_mode_valid(output, pMode);
 }
