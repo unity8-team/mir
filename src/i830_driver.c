@@ -327,7 +327,7 @@ static OptionInfoRec I830Options[] = {
 #endif
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef INTEL_XVMC
-   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
@@ -1595,7 +1595,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
 
 #ifdef INTEL_XVMC
-   pI830->XvMCEnabled = xf86ReturnOptValBool(pI830->Options, OPTION_XVMC, FALSE);
+   pI830->XvMCEnabled = xf86ReturnOptValBool(pI830->Options, OPTION_XVMC, TRUE);
    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Intel XvMC decoder %sabled\n",
 	   pI830->XvMCEnabled ? "en" : "dis");
 #endif
