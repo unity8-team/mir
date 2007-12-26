@@ -175,6 +175,11 @@ Default: "EXA".
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
+.TP
+.BI "Option \*qXvMC\*q \*q" boolean \*q
+Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
+User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
+Default: Enabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of
