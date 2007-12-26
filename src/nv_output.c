@@ -504,8 +504,10 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	}
 }
 
+/* Only return if output is active (=have a crtc). */
+
 static Bool 
-nv_have_duallink(ScrnInfoPtr	pScrn)
+nv_have_duallink(ScrnInfoPtr pScrn)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVPtr pNv = NVPTR(pScrn);
@@ -514,8 +516,13 @@ nv_have_duallink(ScrnInfoPtr	pScrn)
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		NVOutputPrivatePtr nv_output = output->driver_private;
-		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible)
+		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible && 
+			(pNv->dcb_table.entry[nv_output->dcb_entry].type == OUTPUT_LVDS || 
+			pNv->dcb_table.entry[nv_output->dcb_entry].type == OUTPUT_TMDS) &&
+			output->crtc) {
+
 			return TRUE;
+		}
 	}
 
 	return FALSE;
@@ -527,15 +534,10 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
+	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	Bool is_fp = FALSE;
 
 	uint32_t output_reg[2] = {0, 0};
-
-	if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
-		is_fp = TRUE;
-	}
 
 	/* This is for simplicity */
 	output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
@@ -543,10 +545,20 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 
 	/* Some (most?) pre-NV30 cards have switchable crtc's. */
 	if (pNv->switchable_crtc) {
-		if (nv_crtc->head == 1) {
-			output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		} else {
-			output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		if (!nv_have_duallink(pScrn)) { /* normal */
+			if (nv_crtc->head == 1) {
+				output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			} else {
+				output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			}
+		} else { /* some dual-link stuff is strange */
+			output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+			output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+
+			/* There are some odd bits that we want to keep. */
+			/* bit 17 and 18 for example. */
+			output_reg[0] |= (pNv->misc_info.output[0] & (~0 << 9));
+			output_reg[1] |= (pNv->misc_info.output[1] & (~0 << 9));
 		}
 	}
 

@@ -631,7 +631,7 @@ CalculateVClkNV4x(
 	}
 
 	/* Are this all (relevant) G70 cards? */
-	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
+	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x46 || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
 		/* This is a big guess, but should be reasonable until we can narrow it down. */
 		if (*db1_ratio) {
 			special_bits = 0x1;

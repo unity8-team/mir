@@ -233,6 +233,7 @@ typedef struct _MiscStartupInfo {
 	CARD32 ramdac_0_pllsel;
 	CARD32 reg_c040;
 	CARD32 sel_clk;
+	uint32_t output[2];
 } MiscStartupInfo;
 
 typedef enum {
