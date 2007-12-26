@@ -2111,7 +2111,7 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 {
-#if !defined(__powerpc__)
+#if !defined(__powerpc__) && !defined(__sparc__)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 fp2_gen_ctl_save   = 0;
@@ -2826,8 +2826,8 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     memcpy(info->Options, RADEONOptions, sizeof(RADEONOptions));
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
 
-    /* By default, don't do VGA IOs on ppc */
-#if defined(__powerpc__) || !defined(WITH_VGAHW)
+    /* By default, don't do VGA IOs on ppc/sparc */
+#if defined(__powerpc__) || defined(__sparc__) || !defined(WITH_VGAHW)
     info->VGAAccess = FALSE;
 #else
     info->VGAAccess = TRUE;
