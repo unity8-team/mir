@@ -607,30 +607,30 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	//this stuff is present on my nv34 and something similar on the nv31
 	//it is not on nv20, and I don't know how useful or necessary it is
 
-	uint32_t saved_1584, 1584shift;
+	uint32_t saved_1584, shift_1584;
 	Bool frob1584 = FALSE;
 	switch (reg) {
 	case 0x680500:
-		1584shift = 0;
+		shift_1584 = 0;
 		frob1584 = TRUE;
 		break;
 	case 0x680504:
-		1584shift = 4;
+		shift_1584 = 4;
 		frob1584 = TRUE;
 		break;
 	case 0x680508:
-		1584shift = 8;
+		shift_1584 = 8;
 		frob1584 = TRUE;
 		break;
 	case 0x680520:
-		1584shift = 12;
+		shift_1584 = 12;
 		frob1584 = TRUE;
 		break;
 	}
 
 	if (frob1584) {
 		nv32_rd(pScrn, 0x00001584, &saved_1584);
-		nv32_wr(pScrn, 0x00001584, saved_1584 & ~(0xf << 1584shift) | 1 << 1584shift);
+		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
 	}
 #endif
 
@@ -667,22 +667,22 @@ static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, in
 	//this stuff is present on my nv31
 	//I don't know how useful or necessary it is
 
-	uint32_t saved_1584, 1584shift;
+	uint32_t saved_1584, shift_1584;
 	Bool frob1584 = FALSE;
-	switch (reg) {
+	switch (reg1) {
 	case 0x680500:
-		1584shift = 0;
+		shift_1584 = 0;
 		frob1584 = TRUE;
 		break;
 	case 0x680504:
-		1584shift = 4;
+		shift_1584 = 4;
 		frob1584 = TRUE;
 		break;
 	}
 
 	if (frob1584) {
 		nv32_rd(pScrn, 0x00001584, &saved_1584);
-		nv32_wr(pScrn, 0x00001584, saved_1584 & ~(0xf << 1584shift) | 1 << 1584shift);
+		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
 	}
 #endif
 
