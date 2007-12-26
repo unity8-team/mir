@@ -737,8 +737,7 @@ nv_output_get_modes(xf86OutputPtr output)
 
 	ddc_modes = xf86OutputGetEDIDModes (output);
 
-	/* LVDS handle native modes seperately. */
-	if (nv_output->type == OUTPUT_TMDS) {
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		int i;
 		DisplayModePtr mode;
 
@@ -753,37 +752,39 @@ nv_output_get_modes(xf86OutputPtr output)
 			}
 		}
 
-		/* Add a native resolution mode that is preferred */
-		/* Reduced blanking should be fine on DVI monitor */
-		nv_output->native_mode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
-		nv_output->native_mode->type = M_T_DRIVER | M_T_PREFERRED;
+		nv_output->native_mode = NULL;
+		if (nv_output->type == OUTPUT_TMDS) {
+			DisplayModePtr cvtmode;
+			/* Add a native resolution mode that is preferred */
+			/* Reduced blanking should be fine on DVI monitor */
+			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
+			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
 
-		if (output->funcs->mode_valid(output, nv_output->native_mode) == MODE_OK) {
-			/* We want the new mode to be preferred */
-			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-				if (mode->type & M_T_PREFERRED) {
-					mode->type &= ~M_T_PREFERRED;
-				}
-			}
-			ddc_modes = xf86ModesAdd(ddc_modes, nv_output->native_mode);
-		} else { /* invalid mode */
-			nv_output->native_mode = NULL;
-			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+			/* can xf86CVTMode generate invalid modes? */
+			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
+				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
+				nv_output->native_mode = cvtmode;
+			} else
+				xf86DeleteMode(&cvtmode, cvtmode);
+		}
+
+		if (!nv_output->native_mode)
+			for (mode = ddc_modes; mode != NULL; mode = mode->next)
 				if (mode->HDisplay == nv_output->fpWidth &&
-					mode->VDisplay == nv_output->fpHeight) {
-
+				    mode->VDisplay == nv_output->fpHeight) {
 					nv_output->native_mode = mode;
 					break;
 				}
-			}
-			if (!nv_output->native_mode) {
-				ErrorF("Really bad stuff happening, CVT mode bad and no other native mode can be found.\n");
-				ErrorF("Bailing out\n");
-				return NULL;
-			} else {
-				ErrorF("CVT mode was invalid(=bad), but another mode was found\n");
-			}
+		if (!nv_output->native_mode) {
+			ErrorF("Really bad stuff happening, CVT mode bad and no other native mode can be found.\n");
+			ErrorF("Bailing out\n");
+			return NULL;
 		}
+
+		/* We want the new mode to be the only preferred one */
+		for (mode = ddc_modes; mode != NULL; mode = mode->next)
+			if (mode->type & M_T_PREFERRED && mode != nv_output->native_mode)
+				mode->type &= ~M_T_PREFERRED;
 	}
 
 	return ddc_modes;
