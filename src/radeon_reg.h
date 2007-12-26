@@ -3244,9 +3244,9 @@
 #define RADEON_TV_PLL_FINE_CNTL			     0x0020	/* PLL */
 #define RADEON_TV_PLL_CNTL                           0x0021	/* PLL */
 #       define RADEON_TV_M0LO_MASK               0xff
-#       define RADEON_TV_M0HI_MASK               0x3
+#       define RADEON_TV_M0HI_MASK               0x7
 #       define RADEON_TV_M0HI_SHIFT              18
-#       define RADEON_TV_N0LO_MASK               0xff
+#       define RADEON_TV_N0LO_MASK               0x1ff
 #       define RADEON_TV_N0LO_SHIFT              8
 #       define RADEON_TV_N0HI_MASK               0x3
 #       define RADEON_TV_N0HI_SHIFT              21
