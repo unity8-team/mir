@@ -562,15 +562,15 @@ legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     if (OUTPUT_IS_TV) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
 	    if (radeon_output->type == OUTPUT_STV)
-		radeon_output->MonType = MT_STV;
+		found = MT_STV;
 	    else
-		radeon_output->MonType = MT_CTV;
+		found = MT_CTV;
 	} else {
 	    if (info->InternalTVOut) {
 		if (radeon_output->load_detection)
-		    radeon_output->MonType = radeon_detect_tv(pScrn);
+		    found = radeon_detect_tv(pScrn);
 		else
-		    radeon_output->MonType = MT_NONE;
+		    found = MT_NONE;
 	    }
 	}
     } else {
