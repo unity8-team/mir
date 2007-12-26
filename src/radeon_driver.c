@@ -1173,7 +1173,7 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     case 2: info->sclk = spll / 2.0; break;
     case 3: info->sclk = spll / 4.0; break;
     case 4: info->sclk = spll / 8.0; break;
-    case 7: info->sclk = mpll;
+    case 7: info->sclk = mpll; break;
     default:
            info->sclk = 200.00;
            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unsupported SCLK source"
