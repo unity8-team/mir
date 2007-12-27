@@ -1612,11 +1612,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* 0x80 seems to be used very often, if not always */
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
-	if (nv_crtc->head == 1) {
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
-	}
+	/* Some cards have 0x41 instead of 0x1 (for crtc 0), it doesn't hurt to just use the old value. */
+	regp->CRTC[NV_VGA_CRTCX_4B] = savep->CRTC[NV_VGA_CRTCX_4B] ;
 
 	if (is_fp)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
