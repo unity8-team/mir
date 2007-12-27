@@ -929,6 +929,10 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 		if (ret == SCALE_INVALID)
 			return FALSE;
 
+		/* LVDS must always use gpu scaling. */
+		if (ret == SCALE_PANEL && nv_output->type == OUTPUT_LVDS)
+			return FALSE;
+
 		nv_output->scaling_mode = ret;
 		return TRUE;
 	}

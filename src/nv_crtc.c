@@ -1689,6 +1689,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	Bool is_lvds = FALSE;
 	float aspect_ratio, panel_ratio;
 	uint32_t h_scale, v_scale;
+	Bool magic_factor = TRUE;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -1764,7 +1765,12 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			regp->fp_control |= (1 << 24);
 	}
 
-	if (is_lvds && pNv->VBIOS.fp.dual_link) {
+	/* This has only been observerved on a 7300GO so far. */
+	/* 0xc040: 0x340bd000. */
+	if (is_lvds && pNv->Architecture == NV_ARCH_40 && !(pNv->misc_info.reg_c040 & 0xFFF))
+		magic_factor = FALSE;
+
+	if (is_lvds && pNv->VBIOS.fp.dual_link && magic_factor) {
 		regp->fp_control |= (8 << 28);
 	} else {
 		/* If the special bit exists, it exists on both ramdac's */
@@ -1783,7 +1789,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	/* Deal with vsync/hsync polarity */
-	if (is_fp) {
+	/* LVDS screens don't set this. */
+	if (is_fp && !is_lvds) {
 		if (adjusted_mode->Flags & V_PVSYNC) {
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
 		}
@@ -1791,7 +1798,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		if (adjusted_mode->Flags & V_PHSYNC) {
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
 		}
-	} else {
+	} else if (!is_lvds) {
 		/* The blob doesn't always do this, but often */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
