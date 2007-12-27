@@ -1689,7 +1689,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	Bool is_lvds = FALSE;
 	float aspect_ratio, panel_ratio;
 	uint32_t h_scale, v_scale;
-	Bool magic_factor = TRUE;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -1765,12 +1764,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			regp->fp_control |= (1 << 24);
 	}
 
-	/* This has only been observerved on a 7300GO so far. */
-	/* 0xc040: 0x340bd000. */
-	if (is_lvds && pNv->Architecture == NV_ARCH_40 && !(pNv->misc_info.reg_c040 & 0xFFF))
-		magic_factor = FALSE;
-
-	if (is_lvds && pNv->VBIOS.fp.dual_link && magic_factor) {
+	if (is_lvds && pNv->VBIOS.fp.dual_link) {
 		regp->fp_control |= (8 << 28);
 	} else {
 		/* If the special bit exists, it exists on both ramdac's */
