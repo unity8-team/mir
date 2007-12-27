@@ -1488,6 +1488,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVCrtcRegPtr regp, savep;
 	unsigned int i;
 	Bool is_fp = FALSE;
+	Bool is_lvds = FALSE;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];    
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
@@ -1499,6 +1500,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
 			is_fp = TRUE;
+
+		if (nv_output->type == OUTPUT_LVDS)
+			is_lvds = TRUE;
 	}
 
 	/* Registers not directly related to the (s)vga mode */
@@ -1597,9 +1601,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* 0x14 may be disabled? */
 	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
 
-	/* 0x00 is disabled, 0x22 crt and 0x88 dfp */
-	/* 0x11 is LVDS? */
-	if (is_fp) {
+	/* 0x00 is disabled, 0x11 is lvds, 0x22 crt and 0x88 tmds */
+	if (is_lvds) {
+		regp->CRTC[NV_VGA_CRTCX_3B] = 0x11;
+	} else if (is_fp) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
