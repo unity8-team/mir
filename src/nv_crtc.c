@@ -1606,11 +1606,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	}
 
 	/* These values seem to vary */
-	if (nv_crtc->head == 1) {
-		regp->CRTC[NV_VGA_CRTCX_3C] = 0x0;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_3C] = 0x70;
-	}
+	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
+	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
 	/* 0x80 seems to be used very often, if not always */
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
