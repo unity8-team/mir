@@ -3440,8 +3440,10 @@ static unsigned int findstr(bios_t *bios, unsigned char *str, int len)
 	return 0;
 }
 
-static Bool parse_dcb_entry(bios_t *bios, uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	memset(entry, 0, sizeof (struct dcb_entry));
 
 	/* safe defaults for a crt */
@@ -3476,6 +3478,8 @@ static Bool parse_dcb_entry(bios_t *bios, uint8_t dcb_version, uint32_t conn, ui
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00) {
 			ErrorF("Unknown DCB 1.4 entry, please report\n");
+			/* cause output setting to fail, so message is seen */
+			pNv->dcb_table.entries = 0;
 			return FALSE;
 		}
 		/* use the safe defaults for a crt */
@@ -3486,9 +3490,13 @@ static Bool parse_dcb_entry(bios_t *bios, uint8_t dcb_version, uint32_t conn, ui
 		 */
 		entry->type = conn & 0xf;	// this is valid, but will probably confuse the randr stuff
 		entry->type = 0;
-	} else /* v1.1 */
-		/* safe defaults for a crt */
-		entry->i2c_index = bios->legacy_i2c_indices.crt;
+	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "No information in BIOS output table; assuming a CRT output exists\n");
+		entry->i2c_index = pNv->VBIOS.legacy_i2c_indices.crt;
+	}
+
+	pNv->dcb_table.entries++;
 
 	return TRUE;
 }
@@ -3558,7 +3566,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	if (dcbptr == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "No Display Configuration Block pointer found\n");
-		return 0;
+		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
+		parse_dcb_entry(pScrn, 0, 0, 0, &pNv->dcb_table.entry[0]);
+		return 1;
 	}
 
 	dcbtable = &bios->data[dcbptr];
@@ -3613,9 +3623,8 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		configblock = FALSE;
 	} else {	/* NV5+, maybe NV4 */
-		/* DCB 1.1 seems to be quite unhelpful - we'll just add 1 safe entry for a CRT */
-		pNv->dcb_table.entries = 1;
-		parse_dcb_entry(bios, dcb_version, 0, 0, &pNv->dcb_table.entry[0]);
+		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
+		parse_dcb_entry(pScrn, dcb_version, 0, 0, &pNv->dcb_table.entry[0]);
 		return 1;
 	}
 
@@ -3635,10 +3644,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
-		if (!parse_dcb_entry(bios, dcb_version, connection, config, &pNv->dcb_table.entry[i]))
+		if (!parse_dcb_entry(pScrn, dcb_version, connection, config, &pNv->dcb_table.entry[i]))
 			break;
 	}
-	pNv->dcb_table.entries = i;
 
 	read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
 
@@ -3710,11 +3718,6 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (pNv->VBIOS.length > NV_PROM_SIZE)
 		pNv->VBIOS.length = NV_PROM_SIZE;
 
-	/* parse Display Configuration Block (DCB) table */
-	if (parse_dcb_table(pScrn, &pNv->VBIOS))
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
-
 	/* check for known signatures */
 	if ((bit_offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT signature found\n");
@@ -3725,6 +3728,11 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "No known script signature found\n");
+
+	/* parse Display Configuration Block (DCB) table */
+	if (parse_dcb_table(pScrn, &pNv->VBIOS))
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
 
 	return 1;
 }
