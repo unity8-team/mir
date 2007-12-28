@@ -386,7 +386,7 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV05_IMAGE_FROM_CPU;
+		class = NV_IMAGE_FROM_CPU;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
