@@ -26,7 +26,7 @@
 #include <byteswap.h>
 
 /* FIXME: put these somewhere */
-#define CRTC_INDEX_COLOR VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET
+#define CRTC_INDEX_COLOR (VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET)
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
 #define NV_PBUS_PCI_NV_19 0x0000184C
@@ -350,6 +350,26 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 		crtchead = 1;
 }
 
+#define ACCESS_UNLOCK 0
+#define ACCESS_LOCK 1
+static void crtc_access(ScrnInfoPtr pScrn, Bool lock)
+{
+	int savedhead = crtchead;
+	uint8_t cr11;
+
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADA);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, &cr11);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
+
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADB);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, &cr11);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
+
+	crtchead = savedhead;
+}
+
 static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
 {
 	/* The IO flag condition entry has 2 bytes for the CRTC port; 1 byte
@@ -597,7 +617,7 @@ uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *b
 
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
-	uint32_t pll;
+	uint32_t pll, scratch;
 
 	nv32_rd(pScrn, reg, &pll);
 	if (pll == (log2P << 16 | NM))
@@ -635,11 +655,12 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 #endif
 
 	/* write NM first */
-	nv32_wr(pScrn, reg, (pll & 0xffff0000) | NM);
+	pll = (pll & 0xffff0000) | NM;
+	nv32_wr(pScrn, reg, pll);
 
 	/* wait a bit */
 	usleep(64000);
-	nv32_rd(pScrn, reg, &pll);
+	nv32_rd(pScrn, reg, &scratch);
 
 	/* then write P as well */
 	nv32_wr(pScrn, reg, (pll & 0xfff8ffff) | log2P << 16);
@@ -3718,6 +3739,8 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (pNv->VBIOS.length > NV_PROM_SIZE)
 		pNv->VBIOS.length = NV_PROM_SIZE;
 
+	crtc_access(pScrn, ACCESS_UNLOCK);
+
 	/* check for known signatures */
 	if ((bit_offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT signature found\n");
@@ -3733,6 +3756,8 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
+
+	crtc_access(pScrn, ACCESS_LOCK);
 
 	return 1;
 }
