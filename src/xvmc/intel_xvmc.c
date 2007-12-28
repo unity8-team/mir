@@ -200,6 +200,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     int isCapable;
     int screen = DefaultScreen(display);
     intel_xvmc_context_ptr intel_ctx;
+    int fd;
 
     /* Verify Obvious things first */
     if (!display || !context)
@@ -210,14 +211,12 @@ Status XvMCCreateContext(Display *display, XvPortID port,
         return BadValue;
     }
 
-    /* Limit use to root for now */
-    /* FIXME: remove it ??? */
-/*
-    if (geteuid()) {
-        printf("Use of XvMC on i915 is currently limited to root\n");
-        return BadAccess;
+    /* Open DRI Device */
+    if((fd = drmOpen("i915", NULL)) < 0) {
+        XVMC_ERR("DRM Device could not be opened.");
+        return BadValue;
     }
-*/
+
     /*
        Width, Height, and flags are checked against surface_type_id
        and port for validity inside the X server, no need to check
@@ -275,6 +274,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 	return BadValue;
     }
 
+    xvmc_driver->fd = fd;
+
     XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
 
     xvmc_driver->sarea_size = comm->sarea_size;
@@ -308,15 +309,6 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     strncpy(xvmc_driver->busID, curBusID, 20);
     xvmc_driver->busID[20] = '\0';
     XFree(curBusID);
-
-    /* Open DRI Device */
-    if((xvmc_driver->fd = drmOpen("i915", NULL)) < 0) {
-        XVMC_ERR("DRM Device could not be opened.");
-	//(xvmc_driver->fini)();
-	xvmc_driver = NULL;
-	XFree(priv_data);
-        return BadValue;
-    }
 
     /* Get magic number */
     drmGetMagic(xvmc_driver->fd, &magic);
