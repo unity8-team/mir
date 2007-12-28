@@ -3315,30 +3315,33 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t bmplength = 67;
+	uint16_t bmplength;
 	struct fppointers fpp;
 	memset(&fpp, 0, sizeof(struct fppointers));
 
-	uint8_t bmp_version_major=bios->data[offset + 5];
-	uint8_t bmp_version_minor=bios->data[offset + 6];
+	uint8_t bmp_version_major = bios->data[offset + 5];
+	uint8_t bmp_version_minor = bios->data[offset + 6];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP version %d.%d\n",
 		   bmp_version_major, bmp_version_minor);
 
-	if (bmp_version_major < 5) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP versions prior to 5.0 not supported\n");
+	/* version 6 could theoretically exist, but I suspect BIT happened instead */
+	if (bmp_version_major < 2 || bmp_version_major > 5) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "You have an unsupported BMP version. Please send in your bios\n");
 		return;
 	}
 
-	/* don't know if 5.0 exists... if it does, adding support ought to be fairly easy */
-	if (bmp_version_minor < 0x1) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP versions prior to 5.01 not yet supported\n");
-		return;
-	}
-
-	if (bmp_version_minor < 0x10)
+	if (bmp_version_major == 2)
+		bmplength = 48; /* exact for 2.01 - not sure if minor version used in versions < 5 */
+	else if (bmp_version_major == 3)
+		bmplength = 54; /* guessed - mem init tables added in this version */
+	else if (bmp_version_major == 4 || bmp_version_minor < 0x1) /* don't know if 5.0 exists... */
+		bmplength = 62; /* guessed - BMP I2C indices added in version 4*/
+	else if (bmp_version_minor < 0x6)
 		bmplength = 67; /* exact for 5.01 */
-	else if (bmp_version_minor < 0x11)
+	else if (bmp_version_minor < 0x10)
+		bmplength = 75; /* exact for 5.06 */
+	else if (bmp_version_minor == 0x10)
 		bmplength = 89; /* exact for 5.10h */
 	else if (bmp_version_minor < 0x14)
 		bmplength = 118; /* exact for 5.11h */
@@ -3363,18 +3366,23 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 #if 0
 	// FIXME needed for pre v16? - haiku uses this in its COMPUTE_MEM on early biosen
-	uint16_t meminittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
-	uint16_t sdrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 26]);
-	uint16_t ddrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
+	if (bmp_version_major > 2) {
+		uint16_t meminittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
+		uint16_t sdrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 26]);
+		uint16_t ddrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
+	}
 #endif
 
-	bios->legacy_i2c_indices.crt = bios->data[offset + 54];
-	bios->legacy_i2c_indices.tv = bios->data[offset + 55];
-	bios->legacy_i2c_indices.panel = bios->data[offset + 56];
-	pNv->dcb_table.i2c_write[0] = bios->data[offset + 58];
-	pNv->dcb_table.i2c_read[0] = bios->data[offset + 59];
-	pNv->dcb_table.i2c_write[1] = bios->data[offset + 60];
-	pNv->dcb_table.i2c_read[1] = bios->data[offset + 61];
+	uint16_t legacy_i2c_offset = 0x48;	/* BMP version 2 & 3 */
+	if (bmplength > 61)
+		legacy_i2c_offset = offset + 54;
+	bios->legacy_i2c_indices.crt = bios->data[legacy_i2c_offset];
+	bios->legacy_i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
+	bios->legacy_i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
+	pNv->dcb_table.i2c_write[0] = bios->data[legacy_i2c_offset + 4];
+	pNv->dcb_table.i2c_read[0] = bios->data[legacy_i2c_offset + 5];
+	pNv->dcb_table.i2c_write[1] = bios->data[legacy_i2c_offset + 6];
+	pNv->dcb_table.i2c_read[1] = bios->data[legacy_i2c_offset + 7];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
@@ -3403,9 +3411,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 142])));
 
 	/* want pll_limit_tbl_ptr set (if available) before init is run */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Parsing previously deferred init tables\n");
-	if (bmp_version_minor < 0x10) {
+	if (bmp_version_major < 5 || bmp_version_minor < 0x10) {
 		init_exec_t iexec = {TRUE, FALSE};
 		parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
 		parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
