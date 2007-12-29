@@ -1623,12 +1623,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	if (is_fp)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
-	/* Are these(0x55 and 0x56) also timing related registers, since disabling them does nothing? */
-	regp->CRTC[NV_VGA_CRTCX_55] = 0x0;
-
-	/* Common values like 0x14 and 0x04 are converted to 0x10 and 0x00 */
-	regp->CRTC[NV_VGA_CRTCX_56] = 0x0;
-
 	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
 	if (nv_crtc->head == 1) {
 		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52;
@@ -2510,7 +2504,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_56, regp->CRTC[NV_VGA_CRTCX_56]);
 	if (override) {
 		for (i = 0; i < 0x10; i++)
 			NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
@@ -2625,7 +2618,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
 	regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
 	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
-	regp->CRTC[NV_VGA_CRTCX_56] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_56);
 	for (i = 0; i < 0x10; i++)
 		regp->CR58[i] = NVReadVGACR5758(pNv, nv_crtc->head, i);
 
