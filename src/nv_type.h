@@ -434,6 +434,7 @@ typedef struct _NVRec {
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
+    XF86VideoAdaptorPtr	textureAdaptor;
     int			videoKey;
     int			FlatPanel;
     Bool                FPDither;

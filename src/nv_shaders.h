@@ -18,6 +18,83 @@ typedef struct nv_shader {
 	uint32_t data[NV_SHADER_MAX_PROGRAM_LENGTH];
 } nv_shader_t;
 
+static void
+NV40_LoadVtxProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static int next_hw_id = 0;
+	int i;
+
+	if (!shader->hw_id) {
+		shader->hw_id = next_hw_id;
+
+		BEGIN_RING(Nv3D, NV40TCL_VP_UPLOAD_FROM_ID, 1);
+		OUT_RING  ((shader->hw_id));
+		for (i=0; i<shader->size; i+=4) {
+			BEGIN_RING(Nv3D, NV40TCL_VP_UPLOAD_INST(0), 4);
+			OUT_RING  (shader->data[i + 0]);
+			OUT_RING  (shader->data[i + 1]);
+			OUT_RING  (shader->data[i + 2]);
+			OUT_RING  (shader->data[i + 3]);
+			next_hw_id++;
+		}
+	}
+
+	BEGIN_RING(Nv3D, NV40TCL_VP_START_FROM_ID, 1);
+	OUT_RING  ((shader->hw_id));
+
+	BEGIN_RING(Nv3D, NV40TCL_VP_ATTRIB_EN, 2);
+	OUT_RING  (shader->card_priv.NV30VP.vp_in_reg);
+	OUT_RING  (shader->card_priv.NV30VP.vp_out_reg);
+}
+
+static void
+NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	static struct nouveau_bo *fp_mem = NULL;
+	static int next_hw_id_offset = 0;
+
+	if (!fp_mem) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
+				0, 0x1000, &fp_mem)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Couldn't alloc fragprog buffer!\n");
+			return;
+		}
+
+		if (nouveau_bo_map(fp_mem, NOUVEAU_BO_RDWR)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't map fragprog buffer!\n");
+		}
+	}
+
+	if (!shader->hw_id) {
+		uint32_t *map = fp_mem->map + next_hw_id_offset;
+		int i;
+
+		for (i = 0; i < shader->size; i++) {
+			uint32_t data = shader->data[i];
+#if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
+			data = ((data >> 16) | ((data & 0xffff) << 16));
+#endif
+			map[i] = data;
+		}
+
+		shader->hw_id = next_hw_id_offset;
+		next_hw_id_offset += (shader->size * sizeof(uint32_t));
+		next_hw_id_offset = (next_hw_id_offset + 63) & ~63;
+	}
+
+	BEGIN_RING(Nv3D, NV40TCL_FP_ADDRESS, 1);
+	OUT_RELOC (fp_mem, shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
+		   NV40TCL_FP_ADDRESS_DMA0, NV40TCL_FP_ADDRESS_DMA1);
+	BEGIN_RING(Nv3D, NV40TCL_FP_CONTROL, 1);
+	OUT_RING  (shader->card_priv.NV30FP.num_regs <<
+		   NV40TCL_FP_CONTROL_TEMP_COUNT_SHIFT);
+}
+
 /*******************************************************************************
  * NV40/G70 vertex shaders
  */

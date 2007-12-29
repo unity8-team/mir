@@ -78,6 +78,7 @@ typedef struct _NVPortPrivRec {
 	Bool		grabbedByV4L;
 	Bool		iturbt_709;
 	Bool		blitter;
+	Bool		texture;
 	Bool		SyncToVBlank;
 	struct nouveau_bo *video_mem;
 	int		pitch;
@@ -107,8 +108,9 @@ enum {
 		IS_YUY2 = 2,
 		CONVERT_TO_YUY2=4,
 		USE_OVERLAY=8,
-		SWAP_UV=16,
-		IS_RGB=32, //I am not sure how long we will support it
+		USE_TEXTURE=16,
+		SWAP_UV=32,
+		IS_RGB=64, //I am not sure how long we will support it
 	};
 	
 #define GET_OVERLAY_PRIVATE(pNv) \
@@ -1353,7 +1355,7 @@ static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, i
 		*s2offset = *srcPitch * height;
 		*srcPitch2 = ((width >> 1) + 3) & ~3; /*of chroma*/
 		*s3offset = (*srcPitch2 * (height >> 1)) + *s2offset;
-		*dstPitch = (npixels + 63) &~ 63; /*luma and chroma pitch*/
+		*dstPitch = (npixels + 63) & ~63; /*luma and chroma pitch*/
 		*line_len = npixels;
 		*newFBSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
 		*newTTSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
@@ -1419,9 +1421,12 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 	if ( id == FOURCC_I420 ) /*I420 is YV12 with swapped UV*/
 		*action_flags |= SWAP_UV;
 	
-	if ( !pPriv -> blitter )
+	if ( !pPriv -> blitter && !pPriv -> texture )
 		*action_flags |= USE_OVERLAY;
-	
+
+	if ( !pPriv -> blitter && pPriv->texture )
+		*action_flags |= USE_TEXTURE;
+
 	#ifdef COMPOSITE
 	WindowPtr pWin = NULL;
 		
@@ -1436,7 +1441,7 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 				
 	#endif
 		
-	if ( ! ( *action_flags & USE_OVERLAY) )
+	if ( !(*action_flags & USE_OVERLAY) && !(*action_flags & USE_TEXTURE) )
 		{
 		if ( id == FOURCC_YV12 || id == FOURCC_I420 )
 			{ /*The blitter does not handle YV12 natively*/
@@ -1582,7 +1587,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		return BadAlloc;
 
 	offset = pPriv->video_mem->offset;
-	
+
 	/*The overlay supports hardware double buffering. We handle this here*/
 	if (pPriv->doubleBuffer) {
 		int mask = 1 << (pPriv->currentBuffer << 2);
@@ -1720,7 +1725,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		OUT_RING  (pNv->chan->vram->handle);
 		
 		/* DMA to VRAM */
-		if ( action_flags & IS_YV12 && ! (action_flags & CONVERT_TO_YUY2) )
+		if (action_flags & IS_YV12 && ! (action_flags & CONVERT_TO_YUY2) )
 			{ /*we start the color plane transfer separately*/
 			BEGIN_RING(NvMemFormat,
 				   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
@@ -1877,13 +1882,22 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 
 			}
 		else 
-			{ //Blitter
-			NVPutBlitImage(pScrn, offset, id,
-				       dstPitch, &dstBox,
-				       0, 0, xb, yb,
-				       npixels, nlines,
-				       src_w, src_h, drw_w, drw_h,
-				       clipBoxes, pDraw);
+			{
+				if (action_flags & USE_TEXTURE) { /* Texture adapter */
+					NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
+							dstPitch, &dstBox,
+							0, 0, xb, yb,
+							npixels, nlines,
+							src_w, src_h, drw_w, drw_h,
+							clipBoxes, pDraw);
+				} else { /* Blit adapter */
+					NVPutBlitImage(pScrn, offset, id,
+						       dstPitch, &dstBox,
+						       0, 0, xb, yb,
+						       npixels, nlines,
+						       src_w, src_h, drw_w, drw_h,
+						       clipBoxes, pDraw);
+				}
 			}
 		}
 	return Success;
@@ -2173,6 +2187,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	pPriv->videoStatus		= 0;
 	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= TRUE;
+	pPriv->texture			= FALSE;
 	pPriv->doubleBuffer		= FALSE;
 	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
 
@@ -2235,6 +2250,7 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	pPriv->currentBuffer		= 0;
 	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= FALSE;
+	pPriv->texture			= FALSE;
 	if ( pNv->Architecture == NV_ARCH_04 )
 		pPriv->doubleBuffer		= 0;
 	
@@ -2365,6 +2381,131 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 }
 
 /**
+ * NV40 texture adapter.
+ */
+
+#define NUM_TEXTURE_PORTS 32
+
+#define NUM_FORMAT_TEXTURED 2
+
+static XF86ImageRec NV40TexturedImages[NUM_FORMAT_TEXTURED] =
+{
+	XVIMAGE_YV12,
+	XVIMAGE_I420,
+};
+
+/**
+ * NV40StopTexturedVideo
+ */
+static void
+NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
+{
+}
+
+/**
+ * NVSetTexturePortAttribute
+ * sets the attribute "attribute" of port "data" to value "value"
+ * supported attributes:
+ * None.
+ * 
+ * @param pScrenInfo
+ * @param attribute attribute to set
+ * @param value value to which attribute is to be set
+ * @param data port from which the attribute is to be set
+ * 
+ * @return Success, if setting is successful
+ * BadValue/BadMatch, if value/attribute are invalid
+ */
+static int
+NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+		       INT32 value, pointer data)
+{
+	return Success;
+}
+
+/**
+ * NVGetTexturePortAttribute
+ * reads the value of attribute "attribute" from port "data" into INT32 "*value"
+ * currently no attriutes are supported.
+ * 
+ * @param pScrn unused
+ * @param attribute attribute to be read
+ * @param value value of attribute will be stored here
+ * @param data port from which attribute will be read
+ * @return Success, if queried attribute exists
+ */
+static int
+NVGetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+		       INT32 *value, pointer data)
+{
+	return Success;
+}
+
+
+/**
+ * NV40SetupTexturedVideo
+ * this function does all the work setting up a blit port
+ * 
+ * @return texture port
+ */
+static XF86VideoAdaptorPtr
+NV40SetupTexturedVideo (ScreenPtr pScreen)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	XF86VideoAdaptorPtr adapt;
+	NVPortPrivPtr pPriv;
+	int i;
+
+	if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
+					sizeof(NVPortPrivRec) +
+					(sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
+		return NULL;
+	}
+
+	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
+	adapt->flags		= 0;
+	adapt->name		= "NV40 Texture adapter";
+	adapt->nEncodings	= 1;
+	adapt->pEncodings	= &DummyEncoding;
+	adapt->nFormats		= NUM_FORMATS_ALL;
+	adapt->pFormats		= NVFormats;
+	adapt->nPorts		= NUM_TEXTURE_PORTS;
+	adapt->pPortPrivates	= (DevUnion*)(&adapt[1]);
+
+	pPriv = (NVPortPrivPtr)(&adapt->pPortPrivates[NUM_TEXTURE_PORTS]);
+	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
+		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
+
+	adapt->pAttributes = NULL;
+	adapt->nAttributes = 0;
+
+	adapt->pImages			= NV40TexturedImages;
+	adapt->nImages			= NUM_FORMAT_TEXTURED;
+	adapt->PutVideo			= NULL;
+	adapt->PutStill			= NULL;
+	adapt->GetVideo			= NULL;
+	adapt->GetStill			= NULL;
+	adapt->StopVideo		= NV40StopTexturedVideo;
+	adapt->SetPortAttribute		= NVSetTexturePortAttribute;
+	adapt->GetPortAttribute		= NVGetTexturePortAttribute;
+	adapt->QueryBestSize		= NVQueryBestSize;
+	adapt->PutImage			= NVPutImage;
+	adapt->QueryImageAttributes	= NVQueryImageAttributes;
+
+	pPriv->videoStatus		= 0;
+	pPriv->grabbedByV4L	= FALSE;
+	pPriv->blitter			= FALSE;
+	pPriv->texture			= TRUE;
+	pPriv->doubleBuffer		= FALSE;
+	pPriv->SyncToVBlank	= FALSE;
+
+	pNv->textureAdaptor	= adapt;
+
+	return adapt;
+}
+
+/**
  * NVInitVideo
  * tries to initialize one new overlay port and one new blit port
  * and add them to the list of ports on screen "pScreen".
@@ -2380,6 +2521,7 @@ void NVInitVideo (ScreenPtr pScreen)
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	XF86VideoAdaptorPtr  blitAdaptor = NULL;
+	XF86VideoAdaptorPtr  textureAdaptor = NULL;
 	int                  num_adaptors;
 
 	/*
@@ -2391,6 +2533,8 @@ void NVInitVideo (ScreenPtr pScreen)
 	if (pScrn->bitsPerPixel != 8 && pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
 		overlayAdaptor = NVSetupOverlayVideo(pScreen);
 		blitAdaptor    = NVSetupBlitVideo(pScreen);
+		if (pNv->Architecture == NV_ARCH_40)
+			textureAdaptor = NV40SetupTexturedVideo(pScreen);
 	}
 
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
@@ -2409,6 +2553,11 @@ void NVInitVideo (ScreenPtr pScreen)
 
 			if(overlayAdaptor) {
 				newAdaptors[num_adaptors] = overlayAdaptor;
+				num_adaptors++;
+			}
+
+			if (textureAdaptor) {
+				newAdaptors[num_adaptors] = textureAdaptor;
 				num_adaptors++;
 			}
 

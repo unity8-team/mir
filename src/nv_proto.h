@@ -167,6 +167,17 @@ Bool NV40EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 void NV40EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV40EXADoneComposite(PixmapPtr);
 
+/* in nv40_video_texture.c */
+void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
+		int src_offset2, int id,
+		int src_pitch, BoxPtr dstBox,
+		int x1, int y1, int x2, int y2,
+		uint16_t width, uint16_t height,
+		uint16_t src_w, uint16_t src_h,
+		uint16_t drw_w, uint16_t drw_h,
+		RegionPtr clipBoxes,
+		DrawablePtr pDraw);
+
 /* in nv50_exa.c */
 Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
 void NV50EXASolid(PixmapPtr, int, int, int, int);
