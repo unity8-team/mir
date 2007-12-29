@@ -1618,7 +1618,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
 	/* Some cards have 0x41 instead of 0x1 (for crtc 0), it doesn't hurt to just use the old value. */
-	regp->CRTC[NV_VGA_CRTCX_4B] = savep->CRTC[NV_VGA_CRTCX_4B] ;
+	regp->CRTC[NV_VGA_CRTCX_4B] = savep->CRTC[NV_VGA_CRTCX_4B];
 
 	if (is_fp)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
@@ -1905,7 +1905,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		ErrorF("output %d debug_0 %08X\n", nv_output->preferred_output, regp->debug_0);
 
 	/* Flatpanel support needs at least a NV10 */
-	if(pNv->twoHeads) {
+	if (pNv->twoHeads) {
 		/* The blob does this differently. */
 		/* TODO: Find out what precisely and why. */
 		/* Let's not destroy any bits that were already present. */
