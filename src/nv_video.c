@@ -1455,8 +1455,7 @@ static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw,
 			case CHIPSET_NV10:
 			case CHIPSET_NV11:
 			case CHIPSET_NV15:
-			case CHIPSET_NFORCE: /*XXX: unsure about nforce and nforce2*/
-			case CHIPSET_NFORCE2:
+			case CHIPSET_NFORCE: /*XXX: unsure about nforce*/
 			case CHIPSET_NV20: /*reported by pq - in fact all cards older than geforce4 ti probably don't have YV12 overlay*/
 					*action_flags |= CONVERT_TO_YUY2; break;
 			
