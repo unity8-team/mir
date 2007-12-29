@@ -3483,7 +3483,8 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 		entry->bus = (conn >> 16) & 0xf;
 		entry->location = (conn >> 20) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
-		if ((1 << ffs(entry->or)) * 3 == entry->or)
+		/* Normal entries consist of a single bit. */
+		if ((1 << (ffs(entry->or) - 1)) != entry->or)
 			entry->duallink_possible = TRUE;
 
 		switch (entry->type) {
