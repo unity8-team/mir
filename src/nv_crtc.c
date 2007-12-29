@@ -1681,7 +1681,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVCrtcRegPtr regp;
+	NVCrtcRegPtr regp, savep;
 	NVPtr pNv = NVPTR(pScrn);
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	Bool is_fp = FALSE;
@@ -1690,6 +1690,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	uint32_t h_scale, v_scale;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
 	NVOutputPrivatePtr nv_output = NULL;
@@ -1907,12 +1908,15 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	if(pNv->twoHeads) {
 		/* The blob does this differently. */
 		/* TODO: Find out what precisely and why. */
-		if(pNv->FPDither || (is_lvds && pNv->VBIOS.fp.if_is_18bit)) {
+		/* Let's not destroy any bits that were already present. */
+		if (pNv->FPDither || (is_lvds && pNv->VBIOS.fp.if_is_18bit)) {
 			if (pNv->NVArch == 0x11) {
-				regp->dither = 0x00010000;
+				regp->dither = savep->dither | 0x00010000;
 			} else {
-				regp->dither = 0x00000001;
+				regp->dither = savep->dither | 0x00000001;
 			}
+		} else {
+			regp->dither = savep->dither;
 		}
 	}
 
