@@ -47,6 +47,9 @@
 #define IMAGE_MAX_W 2046
 #define IMAGE_MAX_H 2046
 
+#define TEX_IMAGE_MAX_W 4096
+#define TEX_IMAGE_MAX_H 4096
+
 #define OFF_DELAY 	500  /* milliseconds */
 #define FREE_DELAY 	5000
 
@@ -131,6 +134,14 @@ static XF86VideoEncodingRec DummyEncoding =
 	0,
 	"XV_IMAGE",
 	IMAGE_MAX_W, IMAGE_MAX_H,
+	{1, 1}
+};
+
+static XF86VideoEncodingRec DummyEncodingTex =
+{ 
+	0,
+	"XV_IMAGE",
+	TEX_IMAGE_MAX_W, TEX_IMAGE_MAX_H,
 	{1, 1}
 };
 
@@ -1884,12 +1895,14 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		else 
 			{
 				if (action_flags & USE_TEXTURE) { /* Texture adapter */
-					NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
+					int rval = NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
 							dstPitch, &dstBox,
 							0, 0, xb, yb,
 							npixels, nlines,
 							src_w, src_h, drw_w, drw_h,
 							clipBoxes, pDraw);
+					if (rval != Success)
+						return rval;
 				} else { /* Blit adapter */
 					NVPutBlitImage(pScrn, offset, id,
 						       dstPitch, &dstBox,
@@ -2467,7 +2480,7 @@ NV40SetupTexturedVideo (ScreenPtr pScreen)
 	adapt->flags		= 0;
 	adapt->name		= "NV40 Texture adapter";
 	adapt->nEncodings	= 1;
-	adapt->pEncodings	= &DummyEncoding;
+	adapt->pEncodings	= &DummyEncodingTex;
 	adapt->nFormats		= NUM_FORMATS_ALL;
 	adapt->pFormats		= NVFormats;
 	adapt->nPorts		= NUM_TEXTURE_PORTS;

@@ -168,7 +168,7 @@ void NV40EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV40EXADoneComposite(PixmapPtr);
 
 /* in nv40_video_texture.c */
-void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
+int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		int src_offset2, int id,
 		int src_pitch, BoxPtr dstBox,
 		int x1, int y1, int x2, int y2,

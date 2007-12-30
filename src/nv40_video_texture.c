@@ -209,7 +209,7 @@ extern void exaMoveInPixmap(PixmapPtr pPixmap);
 	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
-void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
+int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		int src_offset2, int id,
 		int src_pitch, BoxPtr dstBox,
 		int x1, int y1, int x2, int y2,
@@ -228,11 +228,16 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	(void)nv30_fp_composite_mask_sa_ca;
 	(void)nv30_fp_composite_mask_ca;
 
+	if (drw_w > 4096 || drw_h > 4096) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"XV: Draw size too large.\n");
+		return BadAlloc;
+	}
+
 	NVPtr pNv = NVPTR(pScrn);
 	float X1, X2, Y1, Y2;
 	float scaleX1, scaleX2, scaleY1, scaleY2;
 	float scaleX, scaleY;
-	ScreenPtr pScreen = pScrn->pScreen;
 	PixmapPtr pPix = exaGetDrawablePixmap(pDraw);
 	BoxPtr pbox;
 	int nbox;
@@ -247,14 +252,11 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		ExaOffscreenMarkUsed(pPix);
 	}
 
-	/* If we failed, draw directly onto the screen pixmap.
-	 * Not sure if this is the best approach, maybe failing
-	 * with BadAlloc would be better?
-	 */
+	/* Fail if we can't move the pixmap into memory. */
 	if (!exaPixmapIsOffscreen(pPix)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"XV: couldn't move dst surface into vram\n");
-		pPix = pScreen->GetScreenPixmap(pScreen);
+			"XV: couldn't move dst surface into vram.\n");
+		return BadAlloc;
 	}
 
 #ifdef COMPOSITE
@@ -344,4 +346,6 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	}
 
 	FIRE_RING();
+
+	return Success;
 }
