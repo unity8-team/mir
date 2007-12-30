@@ -269,7 +269,7 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		dstBox->y2 -= pPix->screen_y;
 	}
 
-	DamageDamageRegion(pDraw, clipBoxes);
+	DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
 #endif
 
 	pbox = REGION_RECTS(clipBoxes);
@@ -316,7 +316,7 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	/* The corrections here are emperical, i tried to explain them as best as possible. */
 
 	/* This correction is need for when the image clips the screen at the right or bottom. */
-	/* In this case x2 and/or y2 is adjusted for the clipping. */
+	/* In this case x2 and/or y2 is adjusted for the clipping, otherwise not. */
 	/* Otherwise the lower right coordinate stretches in the clipping direction. */
 	scaleX = (float)src_w/(float)(x2 - x1);
 	scaleY = (float)src_h/(float)(y2 - y1);
@@ -326,9 +326,6 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		OUT_RING  (NV40TCL_BEGIN_END_QUADS);
 
 		/* The src coordinates needs to be scaled to the draw size. */
-		/* This happens when clipping the screen at the top and left. */
-		/* In this case x1, x2, y1 and y2 are not adjusted for the clipping. */
-		/* Otherwise the image stretches (in both directions tangential to the clipping). */
 		scaleX1 = (float)(pbox->x1 - dstBox->x1)/(float)drw_w;
 		scaleX2 = (float)(pbox->x2 - dstBox->x1)/(float)drw_w;
 		scaleY1 = (float)(pbox->y1 - dstBox->y1)/(float)drw_h;
