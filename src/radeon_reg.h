@@ -3272,6 +3272,15 @@
 #define RADEON_RS480_UNK_e38			0xe38
 #define RADEON_RS480_UNK_e3c			0xe3c
 
+#define RS690_MC_INDEX				0x78
+#	define RS690_MC_INDEX_MASK		0x1ff
+#	define RS690_MC_INDEX_WR_EN		(1 << 9)
+#	define RS690_MC_INDEX_WR_ACK		0x7f
+#define RS690_MC_DATA				0x7c
+
+#define RS690_MC_FB_LOCATION			0x100
+#define RS690_MC_AGP_LOCATION			0x101
+#define RS690_MC_AGP_BASE			0x102
 
 #define AVIVO_MC_INDEX						0x0070
 #define R520_MC_STATUS 0x00
