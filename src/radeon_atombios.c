@@ -1531,6 +1531,38 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
 }
 
 Bool
+RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, uint32_t *pixel_clock)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    ATOM_ANALOG_TV_INFO *tv_info;
+
+    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;    
+
+    if (index > MAX_SUPPORTED_TV_TIMING)
+	return FALSE;
+
+    crtc_timing->usH_Total = tv_info->aModeTimings[index].usCRTC_H_Total;
+    crtc_timing->usH_Disp = tv_info->aModeTimings[index].usCRTC_H_Disp;
+    crtc_timing->usH_SyncStart = tv_info->aModeTimings[index].usCRTC_H_SyncStart;
+    crtc_timing->usH_SyncWidth = tv_info->aModeTimings[index].usCRTC_H_SyncWidth;
+
+    crtc_timing->usV_Total = tv_info->aModeTimings[index].usCRTC_V_Total;
+    crtc_timing->usV_Disp = tv_info->aModeTimings[index].usCRTC_V_Disp;
+    crtc_timing->usV_SyncStart = tv_info->aModeTimings[index].usCRTC_V_SyncStart;
+    crtc_timing->usV_SyncWidth = tv_info->aModeTimings[index].usCRTC_V_SyncWidth;
+
+    crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
+
+    crtc_timing->ucOverscanRight = tv_info->aModeTimings[index].usCRTC_OverscanRight;
+    crtc_timing->ucOverscanLeft = tv_info->aModeTimings[index].usCRTC_OverscanLeft;
+    crtc_timing->ucOverscanBottom = tv_info->aModeTimings[index].usCRTC_OverscanBottom;
+    crtc_timing->ucOverscanTop = tv_info->aModeTimings[index].usCRTC_OverscanTop;
+    *pixel_clock = tv_info->aModeTimings[index].usPixelClock * 10;
+
+    return TRUE;
+}
+
+Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);

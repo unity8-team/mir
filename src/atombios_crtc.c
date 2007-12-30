@@ -244,10 +244,12 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
     Bool           tilingOld   = info->tilingEnabled;
-
+    int need_tv_timings = 0;
+    int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
 
     memset(&crtc_timing, 0, sizeof(crtc_timing));
@@ -267,22 +269,51 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 #endif
     }
 
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+	RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+	if (output->crtc == crtc) {
+	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
+		if (radeon_output->tvStd == TV_STD_NTSC ||
+		    radeon_output->tvStd == TV_STD_NTSC_J ||
+		    radeon_output->tvStd == TV_STD_PAL_M)
+		    need_tv_timings = 1;
+		else
+		    need_tv_timings = 2;
+
+	    }
+	}
+    }
+
     crtc_timing.ucCRTC = radeon_crtc->crtc_id;
-    crtc_timing.usH_Total = adjusted_mode->CrtcHTotal;
-    crtc_timing.usH_Disp = adjusted_mode->CrtcHDisplay;
-    crtc_timing.usH_SyncStart = adjusted_mode->CrtcHSyncStart;
-    crtc_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
-
-    crtc_timing.usV_Total = adjusted_mode->CrtcVTotal;
-    crtc_timing.usV_Disp = adjusted_mode->CrtcVDisplay;
-    crtc_timing.usV_SyncStart = adjusted_mode->CrtcVSyncStart;
-    crtc_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
-
-    if (adjusted_mode->Flags & V_NVSYNC)
-      crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
-
-    if (adjusted_mode->Flags & V_NHSYNC)
-      crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
+    if (need_tv_timings) {
+      ret = RADEONATOMGetTVTimings(pScrn, need_tv_timings - 1, &crtc_timing, &adjusted_mode->Clock);
+      if (ret == FALSE) {
+	  need_tv_timings = 0;
+      } else {
+	  adjusted_mode->CrtcHDisplay = crtc_timing.usH_Disp;
+      }
+    }
+	    
+    if (!need_tv_timings) {
+	crtc_timing.usH_Total = adjusted_mode->CrtcHTotal;
+	crtc_timing.usH_Disp = adjusted_mode->CrtcHDisplay;
+	crtc_timing.usH_SyncStart = adjusted_mode->CrtcHSyncStart;
+	crtc_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
+	
+	crtc_timing.usV_Total = adjusted_mode->CrtcVTotal;
+	crtc_timing.usV_Disp = adjusted_mode->CrtcVDisplay;
+	crtc_timing.usV_SyncStart = adjusted_mode->CrtcVSyncStart;
+	crtc_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
+	
+	if (adjusted_mode->Flags & V_NVSYNC)
+	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
+	
+	if (adjusted_mode->Flags & V_NHSYNC)
+	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
+	
+    }
 
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
