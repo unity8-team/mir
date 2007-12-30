@@ -229,9 +229,13 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	(void)nv30_fp_composite_mask_ca;
 
 	NVPtr pNv = NVPTR(pScrn);
-	float X1, X2, X3, X4, Y1, Y2, Y3, Y4;
+	float X1, X2, Y1, Y2;
+	float scaleX1, scaleX2, scaleY1, scaleY2;
+	float scaleX, scaleY;
 	ScreenPtr pScreen = pScrn->pScreen;
 	PixmapPtr pPix = exaGetDrawablePixmap(pDraw);
+	BoxPtr pbox;
+	int nbox;
 	int dst_format = 0;
 	if (!NV40GetSurfaceFormat(pPix, &dst_format)) {
 		ErrorF("No surface format, bad.\n");
@@ -265,8 +269,11 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		dstBox->y2 -= pPix->screen_y;
 	}
 
-	DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
+	DamageDamageRegion(pDraw, clipBoxes);
 #endif
+
+	pbox = REGION_RECTS(clipBoxes);
+	nbox = REGION_NUM_RECTS(clipBoxes);
 
 	/* Disable blending */
 	BEGIN_RING(Nv3D, NV40TCL_BLEND_ENABLE, 1);
@@ -280,9 +287,9 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	OUT_RING  (exaGetPixmapPitch(pPix));
 	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
-	NV40VideoTexture(pScrn, src_offset, width, height, src_pitch, 0);
+	NV40VideoTexture(pScrn, src_offset, src_w, src_h, src_pitch, 0);
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
-	NV40VideoTexture(pScrn, src_offset2, width/2, height/2, src_pitch, 1);
+	NV40VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 1);
 
 	NV40_LoadVtxProg(pScrn, &nv40_video);
 	NV40_LoadFragProg(pScrn, &nv40_yv12);
@@ -295,9 +302,6 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	BEGIN_RING(Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
 	OUT_RING  (1);
 
-	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
-
 	/* These are fixed point values in the 16.16 format. */
 	x1 >>= 16;
 	x2 >>= 16;
@@ -307,21 +311,40 @@ void NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	X1 = (float)x1/(float)src_w;
 	Y1 = (float)y1/(float)src_h;
 	X2 = (float)x2/(float)src_w;
-	Y2 = (float)y1/(float)src_h;
-	X3 = (float)x2/(float)src_w;
-	Y3 = (float)y2/(float)src_h;
-	X4 = (float)x1/(float)src_w;
-	Y4 = (float)y2/(float)src_h;
+	Y2 = (float)y2/(float)src_h;
 
-	/* Submit the appropriate vertices. */
-	/* This submits the same vertices for the Y and the UV texture. */
-	VERTEX_OUT(X1, Y1, dstBox->x1, dstBox->y1);
-	VERTEX_OUT(X2, Y2, dstBox->x2, dstBox->y1);
-	VERTEX_OUT(X3, Y3, dstBox->x2, dstBox->y2);
-	VERTEX_OUT(X4, Y4, dstBox->x1, dstBox->y2);
+	/* The corrections here are emperical, i tried to explain them as best as possible. */
+
+	/* This correction is need for when the image clips the screen at the right or bottom. */
+	/* In this case x2 and/or y2 is adjusted for the clipping. */
+	/* Otherwise the lower right coordinate stretches in the clipping direction. */
+	scaleX = (float)src_w/(float)(x2 - x1);
+	scaleY = (float)src_h/(float)(y2 - y1);
+
+	while(nbox--) {
+		BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+		OUT_RING  (NV40TCL_BEGIN_END_QUADS);
+
+		/* The src coordinates needs to be scaled to the draw size. */
+		/* This happens when clipping the screen at the top and left. */
+		/* In this case x1, x2, y1 and y2 are not adjusted for the clipping. */
+		/* Otherwise the image stretches (in both directions tangential to the clipping). */
+		scaleX1 = (float)(pbox->x1 - dstBox->x1)/(float)drw_w;
+		scaleX2 = (float)(pbox->x2 - dstBox->x1)/(float)drw_w;
+		scaleY1 = (float)(pbox->y1 - dstBox->y1)/(float)drw_h;
+		scaleY2 = (float)(pbox->y2 - dstBox->y1)/(float)drw_h;
+
+		/* Submit the appropriate vertices. */
+		/* This submits the same vertices for the Y and the UV texture. */
+		VERTEX_OUT(X1 + (X2 - X1) * scaleX1 * scaleX, Y1 + (Y2 - Y1) * scaleY1 * scaleY, pbox->x1, pbox->y1);
+		VERTEX_OUT(X1 + (X2 - X1) * scaleX2 * scaleX, Y1 + (Y2 - Y1) * scaleY1 * scaleY, pbox->x2, pbox->y1);
+		VERTEX_OUT(X1 + (X2 - X1) * scaleX2 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x2, pbox->y2);
+		VERTEX_OUT(X1 + (X2 - X1) * scaleX1 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x1, pbox->y2);
+
+		BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+		OUT_RING  (NV40TCL_BEGIN_END_STOP);
+		pbox++;
+	}
 
 	FIRE_RING();
-
-	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_STOP);
 }
