@@ -1758,7 +1758,9 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			regp->fp_control |= (1 << 24);
 	}
 
-	if (is_lvds && pNv->VBIOS.fp.dual_link) {
+	/* Some 7300GO cards get a quad view if this bit is set, even though they are duallink. */
+	/* This was seen on 2 cards. */
+	if (is_lvds && pNv->VBIOS.fp.dual_link && pNv->NVArch != 0x46) {
 		regp->fp_control |= (8 << 28);
 	} else {
 		/* If the special bit exists, it exists on both ramdac's */
