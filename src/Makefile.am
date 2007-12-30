@@ -36,6 +36,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_dma.c nouveau_dma.h \
 			 nouveau_bo.c nouveau_bo.h \
 			 nouveau_class.h \
+			 nouveau_local.h \
 			 nv_accel_common.c \
 			 nv_bios.c \
 			 nv_const.h \
@@ -75,6 +76,7 @@ nouveau_drv_la_SOURCES = \
 			 nv50_display.h \
 			 nv50_cursor.h \
 			 nv50_output.h \
+			 nv50reg.h \
 			 nv_shaders.h \
 			 nv_pcicompat.h
 
