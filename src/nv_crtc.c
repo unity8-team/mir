@@ -1534,7 +1534,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/*
 	* Initialize DAC palette.
-	* Not needed for 8 bits, but it shouldn't hurt either.
+	* Will only be written when depth != 8.
 	*/
 	for (i = 0; i < 256; i++) {
 		regp->DAC[i*3] = i;
@@ -1960,6 +1960,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
+	NVFBLayout *pLayout = &pNv->CurrentLayout;
 
 	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->head);
 
@@ -1974,7 +1975,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVVgaProtect(crtc, TRUE);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
-	NVCrtcLoadPalette(crtc);
+	if (pLayout->depth != 8)
+		NVCrtcLoadPalette(crtc);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(crtc, &pNv->ModeReg);
@@ -2042,8 +2044,10 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	RIVA_HW_STATE *state;
+	NVCrtcRegPtr savep;
 
 	state = &pNv->SavedReg;
+	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 
 	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->head);
 
@@ -2055,7 +2059,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVVgaProtect(crtc, TRUE);
 	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
-	NVCrtcLoadPalette(crtc);
+	if (savep->general & 0x30) /* Palette mode */
+		NVCrtcLoadPalette(crtc);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
