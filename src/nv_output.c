@@ -521,9 +521,7 @@ nv_have_duallink(ScrnInfoPtr pScrn)
 			pNv->dcb_table.entry[nv_output->dcb_entry].type == OUTPUT_TMDS) &&
 			output->crtc) {
 
-			/* Again the strange 7300GO cards that claim to be duallink, but behave otherwise. */
-			if (!((pNv->NVArch == 0x46) && (pNv->dcb_table.entry[nv_output->dcb_entry].type == OUTPUT_LVDS)))
-				return TRUE;
+			return TRUE;
 		}
 	}
 
