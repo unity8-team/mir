@@ -115,6 +115,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn);
 extern Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn);
 
+extern Bool
+RADEONGetATOMTVInfo(xf86OutputPtr output);
+
 extern int
 atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 

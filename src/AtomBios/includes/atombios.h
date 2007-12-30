@@ -2009,7 +2009,7 @@ typedef struct _ATOM_SPREAD_SPECTRUM_INFO
 typedef struct _ATOM_ANALOG_TV_INFO
 {
   ATOM_COMMON_TABLE_HEADER sHeader;  
-  UCHAR                    ucTV_SuppportedStandard;
+  UCHAR                    ucTV_SupportedStandard;
   UCHAR                    ucTV_BootUpDefaultStandard; 
   UCHAR                    ucExt_TV_ASIC_ID;
   UCHAR                    ucExt_TV_ASIC_SlaveAddr;

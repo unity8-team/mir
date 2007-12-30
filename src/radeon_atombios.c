@@ -1460,6 +1460,75 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+Bool
+RADEONGetATOMTVInfo(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    ATOM_ANALOG_TV_INFO *tv_info;
+
+    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;
+
+    if (!tv_info)
+	return FALSE;
+
+    switch(tv_info->ucTV_BootUpDefaultStandard) {
+    case NTSC_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_NTSC;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
+	break;
+    case NTSCJ_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_NTSC_J;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC-J\n");
+	break;
+    case PAL_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_PAL;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL\n");
+	break;
+    case PALM_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_PAL_M;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-M\n");
+	break;
+    case PAL60_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_PAL_60;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-60\n");
+	break;
+    }
+
+    radeon_output->tvStd = radeon_output->default_tvStd;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TV standards supported by chip: ");
+    radeon_output->SupportedTVStds = radeon_output->default_tvStd;
+    if (tv_info->ucTV_SupportedStandard & NTSC_SUPPORT) {
+	ErrorF("NTSC ");
+	radeon_output->SupportedTVStds |= TV_STD_NTSC;
+    }
+    if (tv_info->ucTV_SupportedStandard & NTSCJ_SUPPORT) {
+	ErrorF("NTSC-J ");
+	radeon_output->SupportedTVStds |= TV_STD_NTSC_J;
+    }
+    if (tv_info->ucTV_SupportedStandard & PAL_SUPPORT) {
+	ErrorF("PAL ");
+	radeon_output->SupportedTVStds |= TV_STD_PAL;
+    }
+    if (tv_info->ucTV_SupportedStandard & PALM_SUPPORT) {
+	ErrorF("PAL-M ");
+	radeon_output->SupportedTVStds |= TV_STD_PAL_M;
+    }
+    if (tv_info->ucTV_SupportedStandard & PAL60_SUPPORT) {
+	ErrorF("PAL-60 ");
+	radeon_output->SupportedTVStds |= TV_STD_PAL_60;
+    }
+    ErrorF("\n");
+
+    if (tv_info->ucExt_TV_ASIC_ID) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unknown external TV ASIC\n");
+	return FALSE;
+    }
+
+    return TRUE;
+}
 
 Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
