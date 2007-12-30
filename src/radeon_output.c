@@ -359,7 +359,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 			else
 			    radeon_output->MonType = MT_CTV;
 		    } else
-			radeon_output->MonType = MT_NONE;
+		        radeon_output->MonType = atombios_dac_detect(pScrn, output);
 		} else
 		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
 	    }

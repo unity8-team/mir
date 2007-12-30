@@ -480,6 +480,9 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    } else if (radeon_output->MonType == MT_LCD) {
 		if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
 		    crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
+	    } else if (OUTPUT_IS_TV || (radeon_output->MonType == MT_CV)) {
+		if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
 	    }
 	    break;
 	}
