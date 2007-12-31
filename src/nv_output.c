@@ -769,6 +769,8 @@ nv_output_get_modes(xf86OutputPtr output)
 			}
 		}
 
+		if (nv_output->native_mode)
+			xfree(nv_output->native_mode);
 		nv_output->native_mode = NULL;
 		if (nv_output->type == OUTPUT_TMDS) {
 			DisplayModePtr cvtmode;
@@ -780,16 +782,18 @@ nv_output_get_modes(xf86OutputPtr output)
 			/* can xf86CVTMode generate invalid modes? */
 			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
 				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
-				nv_output->native_mode = cvtmode;
-			} else
-				xf86DeleteMode(&cvtmode, cvtmode);
+				nv_output->native_mode = xf86DuplicateMode(cvtmode);
+			}
+
+			/* Always clean this mode. */
+			xf86DeleteMode(&cvtmode, cvtmode);
 		}
 
 		if (!nv_output->native_mode)
 			for (mode = ddc_modes; mode != NULL; mode = mode->next)
 				if (mode->HDisplay == nv_output->fpWidth &&
 				    mode->VDisplay == nv_output->fpHeight) {
-					nv_output->native_mode = mode;
+					nv_output->native_mode = xf86DuplicateMode(mode);
 					break;
 				}
 		if (!nv_output->native_mode) {
@@ -811,8 +815,13 @@ static void
 nv_output_destroy (xf86OutputPtr output)
 {
 	ErrorF("nv_output_destroy is called\n");
-	if (output->driver_private)
-		xfree (output->driver_private);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	if (nv_output) {
+		if (nv_output->native_mode)
+			xfree(nv_output->native_mode);
+		xfree(output->driver_private);
+	}
 }
 
 static void
@@ -1052,6 +1061,7 @@ static int nv_lvds_output_mode_valid
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
 {
+	ErrorF("nv_lvds_output_detect is called\n");
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -1068,6 +1078,7 @@ nv_lvds_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 nv_lvds_output_get_modes(xf86OutputPtr output)
 {
+	ErrorF("nv_lvds_output_get_modes is called\n");
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
