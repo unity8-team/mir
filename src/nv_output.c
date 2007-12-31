@@ -783,10 +783,9 @@ nv_output_get_modes(xf86OutputPtr output)
 			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
 				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
 				nv_output->native_mode = xf86DuplicateMode(cvtmode);
+			} else {
+				xf86DeleteMode(&cvtmode, cvtmode);
 			}
-
-			/* Always clean this mode. */
-			xf86DeleteMode(&cvtmode, cvtmode);
 		}
 
 		if (!nv_output->native_mode)
@@ -804,7 +803,7 @@ nv_output_get_modes(xf86OutputPtr output)
 
 		/* We want the new mode to be the only preferred one */
 		for (mode = ddc_modes; mode != NULL; mode = mode->next)
-			if (mode->type & M_T_PREFERRED && mode != nv_output->native_mode)
+			if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
 				mode->type &= ~M_T_PREFERRED;
 	}
 
