@@ -1193,29 +1193,6 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->head);
 
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = NULL;
-	if (output) {
-		nv_output = output->driver_private;
-	}
-
-	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if (output && (nv_output->type == OUTPUT_LVDS || (nv_output->type == OUTPUT_TMDS && nv_output->scaling_mode != SCALE_PANEL))) {
-		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
-		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
-		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
-		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
-		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
-		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
-		adjusted_mode->VScan = nv_output->native_mode->VScan;
-		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
-		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
-		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
-		adjusted_mode->Clock = nv_output->native_mode->Clock;
-
-		xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
-	}
-
 	return TRUE;
 }
 
