@@ -713,8 +713,8 @@ nv_analog_output_detect(xf86OutputPtr output)
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
-	if (nv_crt_load_detect(output))
-		return XF86OutputStatusConnected;
+	//if (nv_crt_load_detect(output))
+	//	return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
 }
