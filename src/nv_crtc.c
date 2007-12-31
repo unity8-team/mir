@@ -1692,6 +1692,21 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
 		regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
 
+		/* Quirks, maybe move them somewere else? */
+		if (is_lvds) {
+			switch(pNv->NVArch) {
+				case 0x46: /* 7300GO */
+					/* Only native mode needed, is there some logic to this? */
+					if (mode->HDisplay == 1280 && mode->VDisplay == 800) {
+						regp->fp_horiz_regs[REG_DISP_CRTC] = 0x4c6;
+						regp->fp_vert_regs[REG_DISP_CRTC] = regp->fp_vert_regs[REG_DISP_SYNC_END] + 3;
+					}
+					break;
+				default:
+					break;
+			}
+		}
+
 		ErrorF("Horizontal:\n");
 		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
 		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
