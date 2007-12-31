@@ -1082,12 +1082,12 @@ void nv_crtc_calc_state_ext(
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
 	}
 
-	/* The primary output doesn't seem to care */
-	if (nv_output->preferred_output == 1) { /* This is the "output" */
+	/* The primary output resource doesn't seem to care */
+	if (output && pNv->Architecture == NV_ARCH_40 && nv_output->output_resource == 1) { /* This is the "output" */
 		/* non-zero values are for analog, don't know about tv-out and the likes */
 		if (output && nv_output->type != OUTPUT_ANALOG) {
 			state->reg594 = 0x0;
-		} else {
+		} else if (output) {
 			/* Are we a flexible output? */
 			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_0) {
 				state->reg594 = 0x1;
@@ -1567,9 +1567,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 			}
 		}
 	} else {
-		/* Some G70 cards have either FPP1 or FPP2 set, copy this if it's already present */
+		/* Most G70 cards have FPP2 set on the secondary CRTC. */
 		if (nv_crtc->head == 1 && pNv->NVArch > 0x44) {
-			regp->head |= savep->head & (NV_CRTC_FSEL_FPP1 | NV_CRTC_FSEL_FPP2);
+			regp->head |= NV_CRTC_FSEL_FPP2;
 		}
 	}
 
@@ -1898,7 +1898,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (output)
-		ErrorF("output %d debug_0 %08X\n", nv_output->preferred_output, regp->debug_0);
+		ErrorF("output %d debug_0 %08X\n", nv_output->output_resource, regp->debug_0);
 
 	/* Flatpanel support needs at least a NV10 */
 	if (pNv->twoHeads) {

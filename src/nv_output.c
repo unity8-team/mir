@@ -283,7 +283,7 @@ void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
 	NVOutputRegPtr regp;
 	int i;
 
-	regp = &state->dac_reg[nv_output->preferred_output];
+	regp = &state->dac_reg[nv_output->output_resource];
 
 	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
@@ -305,7 +305,7 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVOutputRegPtr regp;
 
-	regp = &state->dac_reg[nv_output->preferred_output];
+	regp = &state->dac_reg[nv_output->output_resource];
 
 	/* This exists purely for proper text mode restore */
 	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
@@ -338,7 +338,7 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 
 	state = &pNv->SavedReg;
 	/* Registers are stored by their preferred ramdac */
-	regp = &state->dac_reg[nv_output->preferred_output];
+	regp = &state->dac_reg[nv_output->output_resource];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
 	Bool swapped_clock = FALSE;
@@ -426,11 +426,15 @@ nv_output_restore (xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	RIVA_HW_STATE *state;
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVOutputRegPtr regp;
 	ErrorF("nv_output_restore is called\n");
 
 	state = &pNv->SavedReg;
-	regp = &state->dac_reg[nv_output->preferred_output];
+	/* Select the default output resource for consistent restore. */
+	if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_1) {
+		nv_output->output_resource = 1;
+	} else {
+		nv_output->output_resource = 0;
+	}
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
@@ -473,7 +477,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 	/* It's getting quiet here, not removing function just yet, we may still need it */
 
 	//state = &pNv->ModeReg;
-	//regp = &state->dac_reg[nv_output->preferred_output];
+	//regp = &state->dac_reg[nv_output->output_resource];
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		is_fp = TRUE;
@@ -500,7 +504,7 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 			}
 		}
 
-		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->head, nv_output->preferred_output, two_crt, two_mon);
+		ErrorF("%d: crtc %d output %d twocrt %d twomon %d\n", is_fp, nv_crtc->head, nv_output->output_resource, two_crt, two_mon);
 	}
 }
 
@@ -547,18 +551,13 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	if (pNv->switchable_crtc) {
 		if (!nv_have_duallink(pScrn)) { /* normal */
 			if (nv_crtc->head == 1) {
-				output_reg[nv_output->preferred_output] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+				output_reg[nv_output->output_resource] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 			} else {
-				output_reg[(~nv_output->preferred_output) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+				output_reg[(~nv_output->output_resource) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 			}
 		} else { /* some dual-link stuff is strange */
 			output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 			output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-
-			/* There are some odd bits that we want to keep. */
-			/* bit 17 and 18 for example. */
-			output_reg[0] |= (pNv->misc_info.output[0] & (~0 << 9));
-			output_reg[1] |= (pNv->misc_info.output[1] & (~0 << 9));
 		}
 	}
 
@@ -568,11 +567,11 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
-		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
 		if (pNv->Architecture == NV_ARCH_40)
 			nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
 	} else {
-		nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0x00100000);
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
 	}
 }
@@ -807,12 +806,50 @@ nv_output_prepare(xf86OutputPtr output)
 	xf86CrtcPtr crtc = output->crtc;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
 
 	output->funcs->dpms(output, DPMSModeOff);
 
 	/* Set our output type and output routing possibilities to the right registers */
 	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
 	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+
+	/*
+	 * Here we detect output resource conflicts.
+	 * We do this based on connected monitors, since we need to catch this before something important happens.
+	 */
+
+	uint8_t output_resource_mask = 0;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output2 = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output2 = output2->driver_private;
+
+		/* I don't know how well this will deal with triple connected output situations. */
+		if (output2 != output && output2->status == XF86OutputStatusConnected) {
+			output_resource_mask |= nv_output2->output_resource;
+		}
+	}
+
+	uint8_t or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
+	/* Do we have a output resource conflict? */
+	if (output_resource_mask & nv_output->output_resource) {
+		if (or == ffs(or)) { /* we need this output resource */
+			for (i = 0; i < xf86_config->num_output; i++) { /* let's find the other */
+				xf86OutputPtr output2 = xf86_config->output[i];
+				NVOutputPrivatePtr nv_output2 = output2->driver_private;
+
+				if (output2 != output && output2->status == XF86OutputStatusConnected) {
+					if (nv_output->output_resource == nv_output2->output_resource) {
+						nv_output2->output_resource ^= 1;
+						break; /* We don't deal with triple outputs yet */
+					}
+				}
+			}
+		} else { /* we have alternatives */
+			nv_output->output_resource ^= 1;
+		}
+	}
 }
 
 static void
@@ -1103,12 +1140,13 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 	 * Below is guesswork:
 	 * bit2: All outputs valid
 	 */
-	/* This also facilitates proper output routing for dvi */
-	/* See sel_clk assignment in nv_crtc.c */
+	/* We choose the preferred output resource initially. */
 	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
 		nv_output->preferred_output = 1;
+		nv_output->output_resource = 1;
 	} else {
 		nv_output->preferred_output = 0;
+		nv_output->output_resource = 0;
 	}
 
 	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
@@ -1173,12 +1211,13 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	 * Below is guesswork:
 	 * bit2: All outputs valid
 	 */
-	/* This also facilitates proper output routing for dvi */
-	/* See sel_clk assignment in nv_crtc.c */
+	/* We choose the preferred output resource initially. */
 	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
 		nv_output->preferred_output = 1;
+		nv_output->output_resource = 1;
 	} else {
 		nv_output->preferred_output = 0;
+		nv_output->output_resource = 0;
 	}
 
 	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;

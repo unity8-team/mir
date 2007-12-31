@@ -211,10 +211,11 @@ typedef struct _nv50_hw_state
 typedef enum {
 	OUTPUT_0 = (1 << 0),
 	OUTPUT_1 = (1 << 1)
-} ValidRamdac;
+} ValidOutputResource;
 
 typedef struct _NVOutputPrivateRec {
 	uint8_t preferred_output;
+	uint8_t output_resource;
 	uint8_t bus;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
