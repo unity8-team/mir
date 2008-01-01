@@ -1242,9 +1242,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 		vertEnd = vertTotal - 2;
 		vertBlankStart = vertStart;
 		horizStart = horizTotal - 5;
-		horizEnd = horizTotal - 2;   
-		horizBlankEnd = horizTotal + 4;   
-		if (pNv->overlayAdaptor) { 
+		horizEnd = horizTotal - 2;
+		horizBlankEnd = horizTotal + 4;
+		if (pNv->overlayAdaptor) {
 			/* This reportedly works around Xv some overlay bandwidth problems*/
 			horizTotal += 2;
 		}
