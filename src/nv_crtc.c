@@ -1755,10 +1755,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* This was seen on 2 cards. */
 	if (is_lvds && pNv->VBIOS.fp.dual_link && pNv->NVArch != 0x46) {
 		regp->fp_control |= (8 << 28);
-	} else {
-		/* If the special bit exists, it exists on both ramdac's */
-		regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 	}
+
+	/* If the special bit exists, it exists on both ramdac's */
+	regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 
 	if (is_fp) {
 		if (nv_output->scaling_mode == SCALE_PANEL || is_lvds) { /* panel needs to scale */
