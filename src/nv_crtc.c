@@ -1019,18 +1019,21 @@ void nv_crtc_calc_state_ext(
 		 *	bits 4&5		relate to headA
 		 *	bits 6&7		relate to headB
 		*/
-		if (pNv->Architecture == NV_ARCH_40) {
-			for (i = 0; i < 4; i++) {
-				uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
-				if (var == 0x1 || var == 0x4) {
-					state->sel_clk &= ~(0xf << 4*i);
-					Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-					if (crossed_clocks) {
-						state->sel_clk |= (0x4 << 4*i);
-					} else {
-						state->sel_clk |= (0x1 << 4*i);
+		/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
+		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+			if (pNv->Architecture == NV_ARCH_40) {
+				for (i = 0; i < 4; i++) {
+					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+					if (var == 0x1 || var == 0x4) {
+						state->sel_clk &= ~(0xf << 4*i);
+						Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+						if (crossed_clocks) {
+							state->sel_clk |= (0x4 << 4*i);
+						} else {
+							state->sel_clk |= (0x1 << 4*i);
+						}
+						break; /* This should only occur once. */
 					}
-					break; /* This should only occur once. */
 				}
 			}
 		}
