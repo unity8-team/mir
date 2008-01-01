@@ -558,20 +558,31 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	Bool strange_mode = FALSE;
+	int i;
 
 	uint32_t output_reg[2] = {0, 0};
 
-	/* This is for simplicity */
-	output_reg[0] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-	output_reg[1] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output2 = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output2 = output2->driver_private;
+		if (output2->crtc) { /* enabled? */
+			uint8_t ors = nv_output2->output_resource;
+			if (nv_output2->type == OUTPUT_ANALOG)
+				output_reg[ors] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+			if (ors != nv_output2->preferred_output)
+				strange_mode = TRUE;
+		}
+	}
 
 	/* Some (most?) pre-NV30 cards have switchable crtc's. */
 	if (pNv->switchable_crtc) {
-		if (nv_crtc->head == 1) {
-			output_reg[nv_output->output_resource] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		} else {
-			output_reg[(~nv_output->output_resource) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		}
+		uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
+		output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+
+		if (strange_mode)
+			output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
 
 	/* The registers can't be considered seperately on most cards */
