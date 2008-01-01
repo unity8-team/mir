@@ -848,13 +848,13 @@ nv_output_prepare(xf86OutputPtr output)
 
 		/* I don't know how well this will deal with triple connected output situations. */
 		if (output2 != output && output2->crtc) { /* output in use? */
-			output_resource_mask |= nv_output2->output_resource;
+			output_resource_mask |= (nv_output2->output_resource + 1); /* +1 to actually get a non-zero value */
 		}
 	}
 
 	uint8_t or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
 	/* Do we have a output resource conflict? */
-	if (output_resource_mask & nv_output->output_resource) {
+	if (output_resource_mask & (nv_output->output_resource + 1)) {
 		if (or == ffs(or)) { /* we need this output resource */
 			for (i = 0; i < xf86_config->num_output; i++) { /* let's find the other */
 				xf86OutputPtr output2 = xf86_config->output[i];
