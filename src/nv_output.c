@@ -567,15 +567,10 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 
 	/* Some (most?) pre-NV30 cards have switchable crtc's. */
 	if (pNv->switchable_crtc) {
-		if (!nv_have_duallink(pScrn)) { /* normal */
-			if (nv_crtc->head == 1) {
-				output_reg[nv_output->output_resource] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			} else {
-				output_reg[(~nv_output->output_resource) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			}
-		} else { /* some dual-link stuff is strange */
-			output_reg[0] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-			output_reg[1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		if (nv_crtc->head == 1) {
+			output_reg[nv_output->output_resource] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		} else {
+			output_reg[(~nv_output->output_resource) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		}
 	}
 
