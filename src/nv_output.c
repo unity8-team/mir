@@ -847,7 +847,7 @@ nv_output_prepare(xf86OutputPtr output)
 		NVOutputPrivatePtr nv_output2 = output2->driver_private;
 
 		/* I don't know how well this will deal with triple connected output situations. */
-		if (output2 != output && output2->status == XF86OutputStatusConnected) {
+		if (output2 != output && output2->crtc) { /* output in use? */
 			output_resource_mask |= nv_output2->output_resource;
 		}
 	}
