@@ -1678,7 +1678,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	if (is_fp) {
 		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
 		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
+		/* This is what the blob does. */
+		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - 75 - 1;
 		regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
 		regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
 		regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
@@ -1686,7 +1687,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 		regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
 		regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
-		regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VDisplay;
+		/* This is what the blob does. */
+		regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VTotal - 5 - 1;
 		regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
 		regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
 		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
@@ -1699,7 +1701,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 					/* Only native mode needed, is there some logic to this? */
 					if (mode->HDisplay == 1280 && mode->VDisplay == 800) {
 						regp->fp_horiz_regs[REG_DISP_CRTC] = 0x4c6;
-						regp->fp_vert_regs[REG_DISP_CRTC] = regp->fp_vert_regs[REG_DISP_SYNC_END] + 3;
 					}
 					break;
 				default:
