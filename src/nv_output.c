@@ -72,7 +72,7 @@ const char *MonTypeName[7] = {
  * Writing: Write adress (+write protect bit), write value, write adress again and write it again (+write protect bit).
  */
 
-void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
+void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
 {
 	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
@@ -84,7 +84,7 @@ void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 }
 
-CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg)
+uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 {
 	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
@@ -94,7 +94,7 @@ CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg)
 
 /* Two register sets exist, this one is only used for dual link dvi/lvds */
 
-void NVWriteTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
+void NVWriteTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
 {
 	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
@@ -106,7 +106,7 @@ void NVWriteTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val)
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
 }
 
-CARD8 NVReadTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg)
+uint8_t NVReadTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 {
 	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
@@ -114,7 +114,7 @@ CARD8 NVReadTMDS2(NVPtr pNv, int ramdac, CARD32 tmds_reg)
 	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2) & 0xff);
 }
 
-void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
+void NVOutputWriteTMDS(xf86OutputPtr output, uint32_t tmds_reg, uint32_t val)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
@@ -124,7 +124,7 @@ void NVOutputWriteTMDS(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVWriteTMDS(pNv, nv_output->preferred_output, tmds_reg, val);
 }
 
-CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
+uint8_t NVOutputReadTMDS(xf86OutputPtr output, uint32_t tmds_reg)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
@@ -134,7 +134,7 @@ CARD8 NVOutputReadTMDS(xf86OutputPtr output, CARD32 tmds_reg)
 	return NVReadTMDS(pNv, nv_output->preferred_output, tmds_reg);
 }
 
-void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
+void NVOutputWriteTMDS2(xf86OutputPtr output, uint32_t tmds_reg, uint32_t val)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
@@ -144,7 +144,7 @@ void NVOutputWriteTMDS2(xf86OutputPtr output, CARD32 tmds_reg, CARD32 val)
 	NVWriteTMDS2(pNv, nv_output->preferred_output, tmds_reg, val);
 }
 
-CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
+uint8_t NVOutputReadTMDS2(xf86OutputPtr output, uint32_t tmds_reg)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr	pScrn = output->scrn;
@@ -156,7 +156,7 @@ CARD8 NVOutputReadTMDS2(xf86OutputPtr output, CARD32 tmds_reg)
 
 /* These functions now write into the output, instead of a specific ramdac */
 
-void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
+void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val)
 {
     NVOutputPrivatePtr nv_output = output->driver_private;
     ScrnInfoPtr	pScrn = output->scrn;
@@ -165,7 +165,7 @@ void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val)
     nvWriteRAMDAC(pNv, nv_output->preferred_output, ramdac_reg, val);
 }
 
-CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg)
+uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
 {
     NVOutputPrivatePtr nv_output = output->driver_private;
     ScrnInfoPtr	pScrn = output->scrn;
@@ -260,7 +260,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
-		CARD32 fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
+		uint32_t fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 		switch(mode) {
 			case DPMSModeStandby:
 			case DPMSModeSuspend:
@@ -667,7 +667,7 @@ nv_crt_load_detect(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	CARD32 reg_output, reg_test_ctrl, temp;
+	uint32_t reg_output, reg_test_ctrl, temp;
 	Bool present = FALSE;
 
 	/* For some reason we get false positives on output 1, maybe due tv-out? */

@@ -99,51 +99,51 @@ typedef struct {
 typedef struct _nv_crtc_reg 
 {
 	unsigned char MiscOutReg;     /* */
-	CARD8 CRTC[0xff];
-	CARD8 CR58[0x10];
-	CARD8 Sequencer[5];
-	CARD8 Graphics[9];
-	CARD8 Attribute[21];
+	uint8_t CRTC[0xff];
+	uint8_t CR58[0x10];
+	uint8_t Sequencer[5];
+	uint8_t Graphics[9];
+	uint8_t Attribute[21];
 	unsigned char DAC[768];       /* Internal Colorlookuptable */
-	CARD32 cursorConfig;
-	CARD32 crtcOwner;
-	CARD32 gpio;
-	CARD32 unk830;
-	CARD32 unk834;
-	CARD32 unk850;
-	CARD32 unk81c;
-	CARD32 head;
+	uint32_t cursorConfig;
+	uint32_t crtcOwner;
+	uint32_t gpio;
+	uint32_t unk830;
+	uint32_t unk834;
+	uint32_t unk850;
+	uint32_t unk81c;
+	uint32_t head;
 	uint32_t config;
 
 	/* These are former output regs, but are believed to be crtc related */
-	CARD32 general;
-	CARD32 debug_0;
-	CARD32 debug_1;
-	CARD32 debug_2;
-	CARD32 unk_a20;
-	CARD32 unk_a24;
-	CARD32 unk_a34;
-	CARD32 fp_horiz_regs[7];
-	CARD32 fp_vert_regs[7];
-	CARD32 fp_hvalid_start;
-	CARD32 fp_hvalid_end;
-	CARD32 fp_vvalid_start;
-	CARD32 fp_vvalid_end;
-	CARD32 bpp;
-	CARD32 nv10_cursync;
-	CARD32 fp_control;
-	CARD32 crtcSync;
-	CARD32 dither;
+	uint32_t general;
+	uint32_t debug_0;
+	uint32_t debug_1;
+	uint32_t debug_2;
+	uint32_t unk_a20;
+	uint32_t unk_a24;
+	uint32_t unk_a34;
+	uint32_t fp_horiz_regs[7];
+	uint32_t fp_vert_regs[7];
+	uint32_t fp_hvalid_start;
+	uint32_t fp_hvalid_end;
+	uint32_t fp_vvalid_start;
+	uint32_t fp_vvalid_end;
+	uint32_t bpp;
+	uint32_t nv10_cursync;
+	uint32_t fp_control;
+	uint32_t crtcSync;
+	uint32_t dither;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
 typedef struct _nv_output_reg
 {
-	CARD32 test_control;
-	CARD32 unk_670;
+	uint32_t test_control;
+	uint32_t unk_670;
 
-	CARD32 output;
-	CARD8 TMDS[0xFF];
-	CARD8 TMDS2[0xFF];
+	uint32_t output;
+	uint8_t TMDS[0xFF];
+	uint8_t TMDS2[0xFF];
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state
@@ -220,20 +220,20 @@ typedef struct _NVOutputPrivateRec {
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	int dcb_entry;
-	CARD32 fpSyncs;
-	CARD32 fpWidth;
-	CARD32 fpHeight;
+	uint32_t fpSyncs;
+	uint32_t fpWidth;
+	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	Bool fpdither;
 	uint8_t scaling_mode;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
 typedef struct _MiscStartupInfo {
-	CARD8 crtc_0_reg_52;
-	CARD32 ramdac_0_reg_580;
-	CARD32 ramdac_0_pllsel;
-	CARD32 reg_c040;
-	CARD32 sel_clk;
+	uint8_t crtc_0_reg_52;
+	uint32_t ramdac_0_reg_580;
+	uint32_t ramdac_0_pllsel;
+	uint32_t reg_c040;
+	uint32_t sel_clk;
 	uint32_t output[2];
 } MiscStartupInfo;
 
@@ -345,7 +345,7 @@ typedef struct _NVRec {
     RIVA_HW_STATE       *CurrentState;
 	NV50_HW_STATE	NV50SavedReg;
 	NV50_HW_STATE	NV50ModeReg;
-    CARD32              Architecture;
+    uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 #ifndef XSERVER_LIBPCIACCESS
 	pciVideoPtr	PciInfo;

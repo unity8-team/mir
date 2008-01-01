@@ -442,7 +442,7 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t *dst = NULL;
-	uint32_t *src = image;
+	uint32_t *src = (uint32_t *)image;
 
 	if (nv_crtc->head == 1) {
 		dst = (uint32_t *) pNv->Cursor2->map;
