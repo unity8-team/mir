@@ -88,7 +88,7 @@ const char *DACTypeName[4] = {
   "None"
 };
 
-const char *ConnectorTypeName[16] = {
+const char *ConnectorTypeName[17] = {
   "None",
   "VGA",
   "DVI-I",
@@ -543,6 +543,7 @@ static Bool
 radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		    DisplayModePtr adjusted_mode)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     radeon_output->Flags &= ~RADEON_USE_RMX;
@@ -553,7 +554,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	xf86CrtcPtr crtc = output->crtc;
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	if (radeon_crtc->crtc_id == 0) {
+	if (IS_AVIVO_VARIANT || radeon_crtc->crtc_id == 0) {
 	    if (mode->HDisplay < radeon_output->PanelXRes ||
 		mode->VDisplay < radeon_output->PanelYRes)
 		radeon_output->Flags |= RADEON_USE_RMX;

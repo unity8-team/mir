@@ -316,6 +316,44 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 }
 
+static int
+atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    ENABLE_SCALER_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    disp_data.ucScaler = radeon_crtc->crtc_id;
+
+    if (mode->Flags & RADEON_USE_RMX) {
+	ErrorF("Using RMX\n");
+	if (radeon_output->rmx_type == RMX_FULL ||
+	    radeon_output->rmx_type == RMX_ASPECT)
+	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
+	else if (radeon_output->rmx_type == RMX_CENTER)
+	    disp_data.ucEnable = ATOM_SCALER_CENTER;
+    } else {
+	ErrorF("Not using RMX\n");
+	disp_data.ucEnable = ATOM_SCALER_DISABLE;
+    }
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("scaler %d setup success\n", radeon_crtc->crtc_id);
+	return ATOM_SUCCESS;
+    }
+
+    ErrorF("scaler %d setup failed\n", radeon_crtc->crtc_id);
+    return ATOM_NOT_IMPLEMENTED;
+
+}
+
 static AtomBiosResult
 atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
@@ -525,6 +563,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
+    //atombios_output_scaler_setup(output, mode);
     atombios_set_output_crtc_source(output);
 
     if (radeon_output->MonType == MT_CRT) {
