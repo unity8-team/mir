@@ -96,6 +96,7 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
 
     if (!xvmc_driver)
 	return FALSE;
@@ -111,6 +112,10 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 		"[XvMC] Failed to initialize XvMC.\n");
 	return FALSE;
     }
+
+    xf86XvMCRegisterDRInfo(pScreen, INTEL_XVMC_LIBNAME,
+		    pDRIInfo->busIdString,
+		    INTEL_XVMC_MAJOR, INTEL_XVMC_MINOR, INTEL_XVMC_PATCHLEVEL);
     return TRUE;
 }
 

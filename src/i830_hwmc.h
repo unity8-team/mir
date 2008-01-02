@@ -27,6 +27,11 @@
 #ifndef I830_HWMC_H
 #define I830_HWMC_H
 
+#define INTEL_XVMC_LIBNAME	"IntelXvMC"
+#define INTEL_XVMC_MAJOR	0
+#define INTEL_XVMC_MINOR	1
+#define INTEL_XVMC_PATCHLEVEL	0
+
 #define FOURCC_XVMC     (('C' << 24) + ('M' << 16) + ('V' << 8) + 'X')
 
 /*
