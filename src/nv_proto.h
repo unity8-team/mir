@@ -101,10 +101,10 @@ void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock);
-void NVWriteVgaCrtc(xf86CrtcPtr crtc, CARD8 index, CARD8 value);
-CARD8 NVReadVgaCrtc(xf86CrtcPtr crtc, CARD8 index);
-void NVWriteVGA(NVPtr pNv, int head, CARD8 index, CARD8 value);
-CARD8 NVReadVGA(NVPtr pNv, int head, CARD8 index);
+void NVWriteVgaCrtc(xf86CrtcPtr crtc, uint8_t index, uint8_t value);
+uint8_t NVReadVgaCrtc(xf86CrtcPtr crtc, uint8_t index);
+void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index);
 xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
 void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
@@ -112,10 +112,10 @@ uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
-void NVOutputWriteRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg, CARD32 val);
-CARD32 NVOutputReadRAMDAC(xf86OutputPtr output, CARD32 ramdac_reg);
-void NVWriteTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg, CARD32 val);
-CARD8 NVReadTMDS(NVPtr pNv, int ramdac, CARD32 tmds_reg);
+void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val);
+uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg);
+void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val);
+uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg);
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
 
