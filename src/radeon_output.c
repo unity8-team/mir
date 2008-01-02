@@ -48,17 +48,20 @@
 #include "radeon_tv.h"
 #include "radeon_atombios.h"
 
-const char *MonTypeName[7] = {
+const char *MonTypeName[10] = {
   "AUTO",
   "NONE",
   "CRT",
   "LVDS",
   "TMDS",
   "CTV",
-  "STV"
+  "STV",
+  "CV",
+  "HDMI",
+  "DP"
 };
 
-const RADEONMonitorType MonTypeID[7] = {
+const RADEONMonitorType MonTypeID[10] = {
   MT_UNKNOWN, /* this is just a dummy value for AUTO DETECTION */
   MT_NONE,    /* NONE -> NONE */
   MT_CRT,     /* CRT -> CRT */
@@ -66,6 +69,9 @@ const RADEONMonitorType MonTypeID[7] = {
   MT_DFP,     /* DFPs are driven via TMDS */
   MT_CTV,     /* CTV -> CTV */
   MT_STV,     /* STV -> STV */
+  MT_CV,
+  MT_HDMI,
+  MT_DP
 };
 
 const char *TMDSTypeName[4] = {
@@ -82,7 +88,7 @@ const char *DACTypeName[4] = {
   "None"
 };
 
-const char *ConnectorTypeName[15] = {
+const char *ConnectorTypeName[16] = {
   "None",
   "VGA",
   "DVI-I",
@@ -95,6 +101,8 @@ const char *ConnectorTypeName[15] = {
   "SCART",
   "HDMI-A",
   "HDMI-B",
+  "Unsupported",
+  "Unsupported",
   "DIN",
   "DisplayPort",
   "Unsupported"
@@ -1183,6 +1191,11 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
     case CONNECTOR_DVI_A:
 	output = OUTPUT_DVI_A; break;
     case CONNECTOR_DIN:
+	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+	    output = OUTPUT_CV;
+	else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+	    output = OUTPUT_STV;
+	break;
     case CONNECTOR_STV:
 	output = OUTPUT_STV; break;
     case CONNECTOR_CTV:
@@ -1704,7 +1717,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (OUTPUT_IS_DVI) {
 	I2CBusPtr pDVOBus;
 	radeon_output->rmx_type = RMX_OFF;
-	if (radeon_output->TMDSType == TMDS_EXT) {
+	if ((!IS_AVIVO_VARIANT) && radeon_output->TMDSType == TMDS_EXT) {
 #if defined(__powerpc__)
 	    radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
 	    radeon_output->dvo_i2c_slave_addr = 0x70;

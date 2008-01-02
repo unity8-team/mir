@@ -59,6 +59,8 @@ static AtomBiosResult rhdAtomAllocateFbScratch(atomBiosHandlePtr handle,
 						   AtomBiosRequestID func, AtomBiosArgPtr data);
 static AtomBiosResult rhdAtomLvdsGetTimings(atomBiosHandlePtr handle,
 					AtomBiosRequestID unused, AtomBiosArgPtr data);
+static AtomBiosResult rhdAtomCVGetTimings(atomBiosHandlePtr handle,
+					  AtomBiosRequestID unused, AtomBiosArgPtr data);
 static AtomBiosResult rhdAtomLvdsInfoQuery(atomBiosHandlePtr handle,
 					       AtomBiosRequestID func,  AtomBiosArgPtr data);
 static AtomBiosResult rhdAtomGPIOI2CInfoQuery(atomBiosHandlePtr handle,
@@ -170,6 +172,8 @@ struct atomBIOSRequests {
      "DAC2_CRTC2 Mux Register Index",		MSG_FORMAT_HEX},
     {ATOM_DAC2_CRTC2_MUX_REG_INFO,rhdAtomCompassionateDataQuery,
      "DAC2_CRTC2 Mux Register Info",		MSG_FORMAT_HEX},
+    {ATOMBIOS_GET_CV_MODES,		rhdAtomCVGetTimings,
+     "AtomBIOS Get CV Mode",			MSG_FORMAT_NONE},
     {FUNC_END,					NULL,
      NULL,					MSG_FORMAT_NONE}
 };
@@ -713,13 +717,16 @@ rhdAtomTmdsInfoQuery(atomBiosHandlePtr handle,
 }
 
 static DisplayModePtr
-rhdAtomLvdsTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
+rhdAtomDTDTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
 {
     DisplayModePtr mode;
 #define NAME_LEN 16
     char name[NAME_LEN];
 
     //RHDFUNC(handle);
+
+    if (!dtd->usHActive || !dtd->usVActive)
+	return NULL;
 
     if (!(mode = (DisplayModePtr)xcalloc(1,sizeof(DisplayModeRec))))
 	return NULL;
@@ -737,23 +744,34 @@ rhdAtomLvdsTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
     mode->CrtcVSyncStart = mode->VSyncStart = dtd->usVActive + dtd->usVSyncOffset;
     mode->CrtcVSyncEnd = mode->VSyncEnd = mode->VSyncStart + dtd->usVSyncWidth;
 
-    mode->SynthClock = mode->Clock  = dtd->usPixClk * 10;
+    mode->SynthClock = mode->Clock = dtd->usPixClk * 10;
 
     mode->HSync = ((float) mode->Clock) / ((float)mode->HTotal);
     mode->VRefresh = (1000.0 * ((float) mode->Clock))
 	/ ((float)(((float)mode->HTotal) * ((float)mode->VTotal)));
 
+    if (dtd->susModeMiscInfo.sbfAccess.CompositeSync)
+	mode->Flags |= V_CSYNC;
+    if (dtd->susModeMiscInfo.sbfAccess.Interlace)
+	mode->Flags |= V_INTERLACE;
+    if (dtd->susModeMiscInfo.sbfAccess.DoubleClock)
+	mode->Flags |= V_DBLSCAN;
+    if (dtd->susModeMiscInfo.sbfAccess.VSyncPolarity)
+	mode->Flags |= V_NVSYNC;
+    if (dtd->susModeMiscInfo.sbfAccess.HSyncPolarity)
+	mode->Flags |= V_NHSYNC;
+
     snprintf(name, NAME_LEN, "%dx%d",
 	     mode->HDisplay, mode->VDisplay);
     mode->name = xstrdup(name);
 
-    RHDDebug(handle->scrnIndex,"%s: LVDS Modeline: %s  "
-	     "%2.d  %i (%i) %i %i (%i) %i  %i (%i) %i %i (%i) %i\n",
-	     __func__, mode->name, mode->Clock,
-	     mode->HDisplay, mode->CrtcHBlankStart, mode->HSyncStart, mode->CrtcHSyncEnd,
-	     mode->CrtcHBlankEnd, mode->HTotal,
-	     mode->VDisplay, mode->CrtcVBlankStart, mode->VSyncStart, mode->VSyncEnd,
-	     mode->CrtcVBlankEnd, mode->VTotal);
+    ErrorF("DTD Modeline: %s  "
+	   "%2.d  %i (%i) %i %i (%i) %i  %i (%i) %i %i (%i) %i flags: 0x%x\n",
+	   mode->name, mode->Clock,
+	   mode->HDisplay, mode->CrtcHBlankStart, mode->HSyncStart, mode->CrtcHSyncEnd,
+	   mode->CrtcHBlankEnd, mode->HTotal,
+	   mode->VDisplay, mode->CrtcVBlankStart, mode->VSyncStart, mode->VSyncEnd,
+	   mode->CrtcVBlankEnd, mode->VTotal, mode->Flags);
 
     return mode;
 }
@@ -825,8 +843,98 @@ rhdAtomLvdsDDC(atomBiosHandlePtr handle, CARD32 offset, unsigned char *record)
 }
 
 static AtomBiosResult
+rhdAtomCVGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
+		    AtomBiosArgPtr data)
+{
+    atomDataTablesPtr atomDataPtr;
+    CARD8 crev, frev;
+    DisplayModePtr  last       = NULL;
+    DisplayModePtr  new        = NULL;
+    DisplayModePtr  first      = NULL;
+    int i;
+
+    data->modes = NULL;
+
+    atomDataPtr = handle->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->ComponentVideoInfo.base),
+	    &frev,&crev,NULL)) {
+	return ATOM_FAILED;
+    }
+
+    switch (frev) {
+
+	case 1:
+	    switch (func) {
+		case ATOMBIOS_GET_CV_MODES:
+		    for (i = 0; i < MAX_SUPPORTED_CV_STANDARDS; i++) {
+			new = rhdAtomDTDTimings(handle,
+						&atomDataPtr->ComponentVideoInfo
+						.ComponentVideoInfo->aModeTimings[i]);
+
+			if (!new)
+			    continue;
+
+			new->type      |= M_T_DRIVER;
+			new->next       = NULL;
+			new->prev       = last;
+
+			if (last) last->next = new;
+			last = new;
+			if (!first) first = new;
+		    }
+		    if (last) {
+			last->next   = NULL; //first;
+			first->prev  = NULL; //last;
+			data->modes = first;
+		    }
+		    if (data->modes)
+			return ATOM_SUCCESS;
+		default:
+		    return ATOM_FAILED;
+	    }
+	case 2:
+	    switch (func) {
+		case ATOMBIOS_GET_CV_MODES:
+		    for (i = 0; i < MAX_SUPPORTED_CV_STANDARDS; i++) {
+			new = rhdAtomDTDTimings(handle,
+						&atomDataPtr->ComponentVideoInfo
+						.ComponentVideoInfo_v21->aModeTimings[i]);
+
+			if (!new)
+			    continue;
+
+			new->type      |= M_T_DRIVER;
+			new->next       = NULL;
+			new->prev       = last;
+
+			if (last) last->next = new;
+			last = new;
+			if (!first) first = new;
+
+		    }
+		    if (last) {
+			last->next   = NULL; //first;
+			first->prev  = NULL; //last;
+			data->modes = first;
+		    }
+		    if (data->modes)
+			return ATOM_SUCCESS;
+		    return ATOM_FAILED;
+
+		default:
+		    return ATOM_FAILED;
+	    }
+	default:
+	    return ATOM_NOT_IMPLEMENTED;
+    }
+/*NOTREACHED*/
+}
+
+static AtomBiosResult
 rhdAtomLvdsGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
-		  AtomBiosArgPtr data)
+		    AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
     CARD8 crev, frev;
@@ -847,10 +955,10 @@ rhdAtomLvdsGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 	case 1:
 	    switch (func) {
 		case ATOMBIOS_GET_PANEL_MODE:
-		    data->mode = rhdAtomLvdsTimings(handle,
-						    &atomDataPtr->LVDS_Info
-						    .LVDS_Info->sLCDTiming);
-		    if (data->mode)
+		    data->modes = rhdAtomDTDTimings(handle,
+						   &atomDataPtr->LVDS_Info
+						   .LVDS_Info->sLCDTiming);
+		    if (data->modes)
 			return ATOM_SUCCESS;
 		default:
 		    return ATOM_FAILED;
@@ -858,10 +966,10 @@ rhdAtomLvdsGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 	case 2:
 	    switch (func) {
 		case ATOMBIOS_GET_PANEL_MODE:
-		    data->mode = rhdAtomLvdsTimings(handle,
-						    &atomDataPtr->LVDS_Info
-						    .LVDS_Info_v12->sLCDTiming);
-		    if (data->mode)
+		    data->modes = rhdAtomDTDTimings(handle,
+						   &atomDataPtr->LVDS_Info
+						   .LVDS_Info_v12->sLCDTiming);
+		    if (data->modes)
 			return ATOM_SUCCESS;
 		    return ATOM_FAILED;
 
@@ -1589,11 +1697,13 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 
+#if 1
 	if (i == ATOM_DEVICE_CV_INDEX) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
 	    info->BiosConnector[i].valid = FALSE;
 	    continue;
 	}
+#endif
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;

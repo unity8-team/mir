@@ -47,8 +47,8 @@
 #include "radeon.h"
 #include "radeon_reg.h"
 #include "radeon_macros.h"
-
 #include "radeon_version.h"
+#include "radeon_atombios.h"
 
 #include "xf86Modes.h"
 				/* DDC support */
@@ -211,13 +211,23 @@ DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     DisplayModePtr	    modes = NULL;
+    AtomBiosArgRec atomBiosArg;
+    AtomBiosResult atomBiosResult;
 
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
 	if (OUTPUT_IS_TV) {
 	    modes = RADEONTVModes(output);
+	} else if (radeon_output->type == OUTPUT_CV) {
+	    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+					     ATOMBIOS_GET_CV_MODES, &atomBiosArg);
+	    if (atomBiosResult == ATOM_SUCCESS) {
+		modes = atomBiosArg.modes;
+	    }
 	} else {
 	    if (output->MonInfo)
 		modes = xf86OutputGetEDIDModes (output);

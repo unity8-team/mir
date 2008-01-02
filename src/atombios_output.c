@@ -431,6 +431,14 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	   atombios_device_dpms(output, ATOM_DEVICE_CRT1_SUPPORT, mode);
        else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_CRT2_SUPPORT, mode);
+   } else if (radeon_output->MonType == MT_CV) {
+       ErrorF("AGD: cv dpms\n");
+       if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
+   } else if (OUTPUT_IS_TV) {
+       ErrorF("AGD: tv dpms\n");
+       if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
    }
 
 #if 1
@@ -480,9 +488,12 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    } else if (radeon_output->MonType == MT_LCD) {
 		if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
 		    crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
-	    } else if (OUTPUT_IS_TV || (radeon_output->MonType == MT_CV)) {
+	    } else if (OUTPUT_IS_TV) {
 		if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
+	    } else if (radeon_output->MonType == MT_CV) {
+		if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
 	    }
 	    break;
 	}

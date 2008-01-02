@@ -75,6 +75,7 @@ typedef enum _AtomBiosRequestID {
     ATOM_DAC2_CRTC2_FORCE,
     ATOM_DAC2_CRTC2_MUX_REG_IND,
     ATOM_DAC2_CRTC2_MUX_REG_INFO,
+    ATOMBIOS_GET_CV_MODES,
     FUNC_END
 } AtomBiosRequestID;
 
@@ -101,7 +102,7 @@ typedef union AtomBiosArg
     struct rhdConnectorInfo	*connectorInfo;
     unsigned char*		EDIDBlock;
     atomBiosHandlePtr		atomhandle;
-    DisplayModePtr		mode;
+    DisplayModePtr		modes;
     AtomExecRec			exec;
     AtomFbRec			fb;
 } AtomBiosArgRec, *AtomBiosArgPtr;
