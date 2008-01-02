@@ -84,9 +84,9 @@ XEXT_GENERATE_FIND_DISPLAY(find_display, xf86dri_info,
  *****************************************************************************/
 #if 0
 #include <stdio.h>
-#define TRACE(msg)  fprintf(stderr,"uniDRI%s\n", msg);
+#define TRACE(msg, arg...)  fprintf(stderr,"uniDRI" msg "\n", ##arg);
 #else
-#define TRACE(msg)
+#define TRACE(msg, arg...)
 #endif
     Bool uniDRIQueryExtension(dpy, event_basep, error_basep)
     Display *dpy;
@@ -135,7 +135,8 @@ uniDRIQueryVersion(dpy, majorVersion, minorVersion, patchVersion)
     *patchVersion = rep.patchVersion;
     UnlockDisplay(dpy);
     SyncHandle();
-    TRACE("QueryVersion... return True");
+    TRACE("QueryVersion... %d.%d.%d return True", rep.majorVersion,
+		    rep.minorVersion, rep.patchVersion);
     return True;
 }
 
@@ -166,7 +167,8 @@ uniDRIQueryDirectRenderingCapable(dpy, screen, isCapable)
     *isCapable = rep.isCapable;
     UnlockDisplay(dpy);
     SyncHandle();
-    TRACE("QueryDirectRenderingCapable... return True");
+    TRACE("QueryDirectRenderingCapable... %s return True",
+		    rep.isCapable ? "true" : "false");
     return True;
 }
 
@@ -216,7 +218,8 @@ uniDRIOpenConnection(dpy, screen, hSAREA, busIdString)
     }
     UnlockDisplay(dpy);
     SyncHandle();
-    TRACE("OpenConnection... return True");
+    TRACE("OpenConnection... busid %s return True",
+		   *busIdString ? *busIdString : "null");
     return True;
 }
 
@@ -339,7 +342,7 @@ uniDRICreateContextWithConfig(dpy, screen, configID, context, hHWContext)
     xXF86DRICreateContextReply rep;
     xXF86DRICreateContextReq *req;
 
-    TRACE("CreateContext...");
+    TRACE("CreateContext... id %d", context);
     uniDRICheckExtension(dpy, info, False);
 
     LockDisplay(dpy);
@@ -382,7 +385,7 @@ uniDRIDestroyContext(Display * ndpy, int screen, XID context)
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIDestroyContextReq *req;
 
-    TRACE("DestroyContext...");
+    TRACE("DestroyContext... id %d", context);
     uniDRICheckExtension(dpy, info, False);
 
     LockDisplay(dpy);

@@ -1629,7 +1629,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     int isCapable;
     int screen = DefaultScreen(display);
 
-    XVMC_DBG("i915_xvmc_mc_create_context\n");
+    XVMC_DBG("%s\n", __FUNCTION__);
 
     if (priv_count != (sizeof(I915XvMCCreateContextRec) >> 2)) {
         XVMC_ERR("_xvmc_create_context() returned incorrect data size!");
