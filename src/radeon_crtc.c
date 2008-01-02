@@ -173,6 +173,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		best_vco_diff = vco_diff;
 	    }
 	}
+	if (best_freq == freq)
+		break;
     }
 
     ErrorF("best_freq: %u\n", (unsigned int)best_freq);
