@@ -84,18 +84,18 @@ static nv_shader_t nv40_yv12 = {
 		0x03001e06, 0x1c9dc80c, 0x0001c802, 0x0001c801,
 		/* const */
 		0x00000000, 0xBF000000, 0xBF000000, 0x00000000,
-		/* INST 6.0, DP3R R0.x (TR0.xyzw), R3, { 1.00, 0.00, 1.4022, 0.00 } */
+		/* INST 6.0, DP3R R0.x (TR0.xyzw), R3, { 1.1678, 0.00, 1.6007, 0.00 } */
 		0x05000280, 0x1c9dc80c, 0x0001c802, 0x0001c801,
 		/* const */
-		0x3f800000, 0x00000000, 0x3FB37B4A, 0x00000000,
-		/* INST 7.0, DP3R R0.y (TR0.xyzw), R3, { 1.00, -0.3457, -0.7145, 0.00 } */
+		0x3F957A78, 0x00000000, 0x3FCCE3BD, 0x00000000,
+		/* INST 7.0, DP3R R0.y (TR0.xyzw), R3, { 1.1678, -0.3929, -0.8154, 0.00 } */
 		0x05000480, 0x1c9dc80c, 0x0001c802, 0x0001c801,
 		/* const */
-		0x3f800000, 0xBEB0FF97, 0xBF36E979, 0x00000000,
-		/* INST 8.0, DP3R R0.z (TR0.xyzw), R3, { 1.00, 1.7710, 0.00, 0.00 } */
+		0x3F957A78, 0xBEC92A30, 0xBF50BE0E, 0x00000000,
+		/* INST 8.0, DP3R R0.z (TR0.xyzw), R3, { 1.1678, 2.0232, 0.00, 0.00 } */
 		0x05000880, 0x1c9dc80c, 0x0001c802, 0x0001c801,
 		/* const */
-		0x3f800000, 0x3FE2B021, 0x00000000, 0x00000000,
+		0x3F957A78, 0x40017C1C, 0x00000000, 0x00000000,
 		/* INST 9.0, MOVR R0.w (TR0.xyzw), R3.wwww + END */
 		0x01001081, 0x1c9dfe0c, 0x0001c801, 0x0001c801,
 	}
@@ -223,7 +223,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		DrawablePtr pDraw)
 {
 	NVPtr          pNv   = NVPTR(pScrn);
-	NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
+	//NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
 
 	/* Remove some warnings. */
 	/* This has to be done better at some point. */
@@ -327,11 +327,6 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	/* Otherwise the lower right coordinate stretches in the clipping direction. */
 	scaleX = (float)src_w/(float)(x2 - x1);
 	scaleY = (float)src_h/(float)(y2 - y1);
-
-	if(pPriv->SyncToVBlank) {
-		FIRE_RING();
-		NVWaitVSync(pScrn);
-	}
 
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
