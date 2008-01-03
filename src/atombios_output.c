@@ -639,6 +639,15 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     AtomBiosResult ret;
     uint32_t bios_0_scratch;
 
+    if (OUTPUT_IS_TV) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
+	    if (radeon_output->type == OUTPUT_STV)
+		return MT_STV;
+	    else
+		return MT_CTV;
+	}
+    }
+
     ret = atom_bios_dac_load_detect(info->atomBIOS, output);
     if (ret == ATOM_SUCCESS) {
 	bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);

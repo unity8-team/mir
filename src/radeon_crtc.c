@@ -174,7 +174,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	    }
 	}
 	if (best_freq == freq)
-		break;
+	    break;
     }
 
     ErrorF("best_freq: %u\n", (unsigned int)best_freq);

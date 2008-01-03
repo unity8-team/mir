@@ -360,15 +360,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    if (!radeon_output->MonType) {
 		if (radeon_output->type == OUTPUT_LVDS)
 		    radeon_output->MonType = MT_LCD;
-		else if (OUTPUT_IS_TV) {
-		    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
-			if (radeon_output->type == OUTPUT_STV)
-			    radeon_output->MonType = MT_STV;
-			else
-			    radeon_output->MonType = MT_CTV;
-		    } else
-		        radeon_output->MonType = atombios_dac_detect(pScrn, output);
-		} else
+		else
 		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
 	    }
 	} else {
@@ -519,10 +511,30 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 
     if (OUTPUT_IS_TV) {
 	/* FIXME: Update when more modes are added */
-	if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
-	    return MODE_OK;
-	else
-	    return MODE_CLOCK_RANGE;
+	if (IS_AVIVO_VARIANT) {
+	    int max_v;
+
+	    /* tv-scaler can scale horizontal width
+	     * but frame ends must match tv_pll
+	     * for now cap v size
+	     */
+	    if (radeon_output->tvStd == TV_STD_NTSC ||
+		radeon_output->tvStd == TV_STD_NTSC_J ||
+		radeon_output->tvStd == TV_STD_PAL_M)
+		max_v = 480;
+	    else
+		max_v = 600;
+
+	    if (pMode->VDisplay == max_v)
+		return MODE_OK;
+	    else
+		return MODE_CLOCK_RANGE;
+	} else {
+	    if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
+		return MODE_OK;
+	    else
+		return MODE_CLOCK_RANGE;
+	}
     }
 
     if (radeon_output->type == OUTPUT_LVDS) {
@@ -877,61 +889,63 @@ radeon_create_resources(xf86OutputPtr output)
     }
 
     if (OUTPUT_IS_TV) {
-	tv_hsize_atom = MAKE_ATOM("tv_horizontal_size");
+	if (!IS_AVIVO_VARIANT) {
+	    tv_hsize_atom = MAKE_ATOM("tv_horizontal_size");
 
-	range[0] = -MAX_H_SIZE;
-	range[1] = MAX_H_SIZE;
-	err = RRConfigureOutputProperty(output->randr_output, tv_hsize_atom,
-					FALSE, TRUE, FALSE, 2, range);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRConfigureOutputProperty error, %d\n", err);
-	}
-	data = 0;
-	err = RRChangeOutputProperty(output->randr_output, tv_hsize_atom,
-				     XA_INTEGER, 32, PropModeReplace, 1, &data,
-				     FALSE, TRUE);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRChangeOutputProperty error, %d\n", err);
-	}
+	    range[0] = -MAX_H_SIZE;
+	    range[1] = MAX_H_SIZE;
+	    err = RRConfigureOutputProperty(output->randr_output, tv_hsize_atom,
+					    FALSE, TRUE, FALSE, 2, range);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+	    }
+	    data = 0;
+	    err = RRChangeOutputProperty(output->randr_output, tv_hsize_atom,
+					 XA_INTEGER, 32, PropModeReplace, 1, &data,
+					 FALSE, TRUE);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+	    }
 
-	tv_hpos_atom = MAKE_ATOM("tv_horizontal_position");
+	    tv_hpos_atom = MAKE_ATOM("tv_horizontal_position");
 
-	range[0] = -MAX_H_POSITION;
-	range[1] = MAX_H_POSITION;
-	err = RRConfigureOutputProperty(output->randr_output, tv_hpos_atom,
-					FALSE, TRUE, FALSE, 2, range);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRConfigureOutputProperty error, %d\n", err);
-	}
-	data = 0;
-	err = RRChangeOutputProperty(output->randr_output, tv_hpos_atom,
-				     XA_INTEGER, 32, PropModeReplace, 1, &data,
-				     FALSE, TRUE);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRChangeOutputProperty error, %d\n", err);
-	}
+	    range[0] = -MAX_H_POSITION;
+	    range[1] = MAX_H_POSITION;
+	    err = RRConfigureOutputProperty(output->randr_output, tv_hpos_atom,
+					    FALSE, TRUE, FALSE, 2, range);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+	    }
+	    data = 0;
+	    err = RRChangeOutputProperty(output->randr_output, tv_hpos_atom,
+					 XA_INTEGER, 32, PropModeReplace, 1, &data,
+					 FALSE, TRUE);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+	    }
 
-	tv_vpos_atom = MAKE_ATOM("tv_vertical_position");
+	    tv_vpos_atom = MAKE_ATOM("tv_vertical_position");
 
-	range[0] = -MAX_V_POSITION;
-	range[1] = MAX_V_POSITION;
-	err = RRConfigureOutputProperty(output->randr_output, tv_vpos_atom,
-					FALSE, TRUE, FALSE, 2, range);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRConfigureOutputProperty error, %d\n", err);
-	}
-	data = 0;
-	err = RRChangeOutputProperty(output->randr_output, tv_vpos_atom,
-				     XA_INTEGER, 32, PropModeReplace, 1, &data,
-				     FALSE, TRUE);
-	if (err != 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "RRChangeOutputProperty error, %d\n", err);
+	    range[0] = -MAX_V_POSITION;
+	    range[1] = MAX_V_POSITION;
+	    err = RRConfigureOutputProperty(output->randr_output, tv_vpos_atom,
+					    FALSE, TRUE, FALSE, 2, range);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRConfigureOutputProperty error, %d\n", err);
+	    }
+	    data = 0;
+	    err = RRChangeOutputProperty(output->randr_output, tv_vpos_atom,
+					 XA_INTEGER, 32, PropModeReplace, 1, &data,
+					 FALSE, TRUE);
+	    if (err != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "RRChangeOutputProperty error, %d\n", err);
+	    }
 	}
 
 	tv_std_atom = MAKE_ATOM("tv_standard");
@@ -998,6 +1012,7 @@ static Bool
 radeon_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     INT32 val;
 
@@ -1093,7 +1108,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->hSize = val;
-	if (radeon_output->tv_on)
+	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_hpos_atom) {
@@ -1108,7 +1123,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->hPos = val;
-	if (radeon_output->tv_on)
+	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_vpos_atom) {
@@ -1123,7 +1138,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->vPos = val;
-	if (radeon_output->tv_on)
+	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 	return TRUE;
     } else if (property == tv_std_atom) {
@@ -1180,7 +1195,7 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
 
 void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output)
 {
-    RADEONOutputType output;
+    RADEONOutputType output = OUTPUT_NONE;
 
     switch(radeon_output->ConnectorType) {
     case CONNECTOR_VGA:

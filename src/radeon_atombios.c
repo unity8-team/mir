@@ -1644,7 +1644,7 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     ATOM_ANALOG_TV_INFO *tv_info;
 
-    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;    
+    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;
 
     if (index > MAX_SUPPORTED_TV_TIMING)
 	return FALSE;

@@ -80,7 +80,8 @@ void RADEONSetPitch (ScrnInfoPtr pScrn)
 
 }
 
-static DisplayModePtr RADEONTVModes(xf86OutputPtr output)
+static DisplayModePtr
+RADEONTVModes(xf86OutputPtr output)
 {
     DisplayModePtr new  = NULL;
 
@@ -89,6 +90,55 @@ static DisplayModePtr RADEONTVModes(xf86OutputPtr output)
     new->type = M_T_DRIVER | M_T_PREFERRED;
 
     return new;
+}
+
+static DisplayModePtr
+RADEONATOMTVModes(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    DisplayModePtr  last       = NULL;
+    DisplayModePtr  new        = NULL;
+    DisplayModePtr  first      = NULL;
+    int max_v, i;
+    /* Add some common sizes */
+    int widths[5] = {640, 720, 800, 848, 1024};
+
+    if (radeon_output->tvStd == TV_STD_NTSC ||
+	radeon_output->tvStd == TV_STD_NTSC_J ||
+	radeon_output->tvStd == TV_STD_PAL_M)
+	max_v = 480;
+    else
+	max_v = 600;
+
+    for (i = 0; i < 5; i++) {
+	new = xf86CVTMode(widths[i], max_v, 60.0, FALSE, FALSE);
+
+	new->type       = M_T_DRIVER;
+
+	if (radeon_output->tvStd == TV_STD_NTSC ||
+	    radeon_output->tvStd == TV_STD_NTSC_J ||
+	    radeon_output->tvStd == TV_STD_PAL_M) {
+	    if (widths[i] == 640)
+		new->type |= M_T_PREFERRED;
+	} else {
+	    if (widths[i] == 800)
+		new->type |= M_T_PREFERRED;
+	}
+
+	new->next       = NULL;
+	new->prev       = last;
+
+	if (last) last->next = new;
+	last = new;
+	if (!first) first = new;
+    }
+
+    if (last) {
+	last->next   = NULL; //first;
+	first->prev  = NULL; //last;
+    }
+
+    return first;
 }
 
 /* This is used only when no mode is specified for FP and no ddc is
@@ -221,7 +271,10 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 
     if (output->status == XF86OutputStatusConnected) {
 	if (OUTPUT_IS_TV) {
-	    modes = RADEONTVModes(output);
+	    if (IS_AVIVO_VARIANT)
+		modes = RADEONATOMTVModes(output);
+	    else
+		modes = RADEONTVModes(output);
 	} else if (radeon_output->type == OUTPUT_CV) {
 	    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
 					     ATOMBIOS_GET_CV_MODES, &atomBiosArg);

@@ -288,31 +288,43 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     crtc_timing.ucCRTC = radeon_crtc->crtc_id;
     if (need_tv_timings) {
-      ret = RADEONATOMGetTVTimings(pScrn, need_tv_timings - 1, &crtc_timing, &adjusted_mode->Clock);
-      if (ret == FALSE) {
-	  need_tv_timings = 0;
-      } else {
-	  adjusted_mode->CrtcHDisplay = crtc_timing.usH_Disp;
-      }
+	ret = RADEONATOMGetTVTimings(pScrn, need_tv_timings - 1, &crtc_timing, &adjusted_mode->Clock);
+	if (ret == FALSE) {
+	    need_tv_timings = 0;
+	} else {
+	    adjusted_mode->CrtcHDisplay = crtc_timing.usH_Disp;
+	    adjusted_mode->CrtcHTotal = crtc_timing.usH_Total;
+	    adjusted_mode->CrtcVDisplay = crtc_timing.usV_Disp;
+	    adjusted_mode->CrtcVTotal = crtc_timing.usV_Total;
+	}
     }
-	    
+
     if (!need_tv_timings) {
 	crtc_timing.usH_Total = adjusted_mode->CrtcHTotal;
 	crtc_timing.usH_Disp = adjusted_mode->CrtcHDisplay;
 	crtc_timing.usH_SyncStart = adjusted_mode->CrtcHSyncStart;
 	crtc_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
-	
+
 	crtc_timing.usV_Total = adjusted_mode->CrtcVTotal;
 	crtc_timing.usV_Disp = adjusted_mode->CrtcVDisplay;
 	crtc_timing.usV_SyncStart = adjusted_mode->CrtcVSyncStart;
 	crtc_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
-	
+
 	if (adjusted_mode->Flags & V_NVSYNC)
 	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
-	
+
 	if (adjusted_mode->Flags & V_NHSYNC)
 	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
-	
+
+	if (adjusted_mode->Flags & V_CSYNC)
+	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
+
+	if (adjusted_mode->Flags & V_INTERLACE)
+	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+
+	if (adjusted_mode->Flags & V_DBLSCAN)
+	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+
     }
 
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
