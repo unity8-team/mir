@@ -2400,7 +2400,7 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
  * NVSetTexturePortAttribute
  * sets the attribute "attribute" of port "data" to value "value"
  * supported attributes:
- * None.
+ * Sync to vblank.
  * 
  * @param pScrenInfo
  * @param attribute attribute to set
@@ -2414,13 +2414,26 @@ static int
 NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 		       INT32 value, pointer data)
 {
+	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+	NVPtr           pNv = NVPTR(pScrn);
+
+	if ((attribute == xvSyncToVBlank) && pNv->WaitVSyncPossible) {
+		if ((value < 0) || (value > 1))
+			return BadValue;
+		pPriv->SyncToVBlank = value;
+	} else
+	if (attribute == xvSetDefaults) {
+		pPriv->SyncToVBlank = pNv->WaitVSyncPossible;
+	} else
+		return BadMatch;
+
 	return Success;
 }
 
 /**
  * NVGetTexturePortAttribute
  * reads the value of attribute "attribute" from port "data" into INT32 "*value"
- * currently no attriutes are supported.
+ * Sync to vblank.
  * 
  * @param pScrn unused
  * @param attribute attribute to be read
@@ -2432,6 +2445,13 @@ static int
 NVGetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 		       INT32 *value, pointer data)
 {
+	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+
+	if(attribute == xvSyncToVBlank)
+		*value = (pPriv->SyncToVBlank) ? 1 : 0;
+	else
+		return BadMatch;
+
 	return Success;
 }
 
