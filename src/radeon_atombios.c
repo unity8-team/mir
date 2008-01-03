@@ -1533,7 +1533,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
+		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX) | (1<<ATOM_DEVICE_TV1_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
 		break;
 	    }
