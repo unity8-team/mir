@@ -208,32 +208,42 @@ typedef struct {
 
 static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 {
-    unsigned int pll, N, M, MB, NB, P;
+	unsigned int pll, N, M, MB, NB, P;
 
     if(pNv->Architecture >= NV_ARCH_40) {
+	Bool VCO2_off = FALSE;
        pll = nvReadMC(pNv, 0x4020);
        P = (pll >> 16) & 0x07;
+	if (pll & (1 << 8)) /* Is VCO2 off? */
+		VCO2_off = TRUE;
        pll = nvReadMC(pNv, 0x4024);
        M = pll & 0xFF;
        N = (pll >> 8) & 0xFF;
-       if(((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
-          ((pNv->Chipset & 0xfff0) == CHIPSET_G73))
-       {
-          MB = 1;
-          NB = 1;
-       } else {
-          MB = (pll >> 16) & 0xFF;
-          NB = (pll >> 24) & 0xFF;
-       }
+	if (VCO2_off) {
+		MB = 1;
+		NB = 1;
+	} else {
+		MB = (pll >> 16) & 0xFF;
+		NB = (pll >> 24) & 0xFF;
+	}
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
+	VCO2_off = FALSE; /* reset */
+
        pll = nvReadMC(pNv, 0x4000);
-       P = (pll >> 16) & 0x07;  
+       P = (pll >> 16) & 0x07;
+	if (pll & (1 << 8)) /* Is VCO2 off? */
+		VCO2_off = TRUE;
        pll = nvReadMC(pNv, 0x4004);
        M = pll & 0xFF;
        N = (pll >> 8) & 0xFF;
-       MB = (pll >> 16) & 0xFF;
-       NB = (pll >> 24) & 0xFF;
+	if (VCO2_off) {
+		MB = 1;
+		NB = 1;
+	} else {
+		MB = (pll >> 16) & 0xFF;
+		NB = (pll >> 24) & 0xFF;
+	}
 
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else
