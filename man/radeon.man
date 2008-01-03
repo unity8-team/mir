@@ -154,26 +154,28 @@ The default value is either 1536 (for most chips) or 1920.
 Set AGP data transfer rate.
 (used only when DRI is enabled)
 .br
-1      \-\- 1x (before AGPv3 only)
+1      \-\- 1x (before AGP v3 only)
 .br
-2      \-\- 2x (before AGPv3 only)
+2      \-\- 2x (before AGP v3 only)
 .br
 4      \-\- 4x
 .br
-8      \-\- 8x (AGPv3 only)
+8      \-\- 8x (AGP v3 only)
 .br
 others \-\- invalid
 .br
 The default is to
-.B leave it unchanged.
+.B leave it unchanged for AGP v3
+and
+.B 1x otherwise.
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
 Enable AGP fast writes.  Enabling this is frequently the cause of
 instability. Used only when the DRI is enabled. If you enable
 this option you will get *NO* support from developers.
 .br
-The default is to
-.B leave it unchanged.
+The default is
+.B off.
 .TP
 .BI "Option \*qBusType\*q \*q" string \*q
 Used to replace previous ForcePCIMode option.
