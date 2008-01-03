@@ -473,12 +473,11 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
        ErrorF("AGD: cv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-   } else if (OUTPUT_IS_TV) {
+   } else if (0 /*OUTPUT_IS_TV*/) {
        ErrorF("AGD: tv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
    }
-
 #if 1
     /* release card lock */
     tmp = INREG(0x0028);
