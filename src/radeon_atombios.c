@@ -36,9 +36,6 @@
 #include "radeon_macros.h"
 
 #include "xorg-server.h"
-#if XSERVER_LIBPCIACCESS
-#warning pciaccess defined
-#endif
 
 /* only for testing now */
 #include "xf86DDC.h"
@@ -190,6 +187,8 @@ enum {
 
 #   define LOG_CAIL LOG_DEBUG + 1
 
+#if 0
+
 static void
 RHDDebug(int scrnIndex, const char *format, ...)
 {
@@ -209,6 +208,8 @@ RHDDebugCont(const char *format, ...)
     xf86VDrvMsgVerb(-1, X_NONE, LOG_DEBUG, format, ap);
     va_end(ap);
 }
+
+#endif
 
 static void
 CailDebug(int scrnIndex, const char *format, ...)
@@ -1644,7 +1645,7 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
 }
 
 Bool
-RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, uint32_t *pixel_clock)
+RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, int32_t *pixel_clock)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     ATOM_ANALOG_TV_INFO *tv_info;

@@ -248,6 +248,6 @@ typedef struct _atomBiosHandle {
 # endif
 
 extern Bool
-RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, uint32_t *pixel_clock);
+RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing, int32_t *pixel_clock);
 
 #endif /*  RHD_ATOMBIOS_H_ */

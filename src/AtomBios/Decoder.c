@@ -46,7 +46,7 @@ Revision History:
 
 
 
-#define INDIRECT_IO_TABLE (((UINT16)&((ATOM_MASTER_LIST_OF_DATA_TABLES*)0)->IndirectIOAccess)/sizeof(TABLE_UNIT_TYPE) )
+#define INDIRECT_IO_TABLE (((UINT16)(ULONG_PTR)&((ATOM_MASTER_LIST_OF_DATA_TABLES*)0)->IndirectIOAccess)/sizeof(TABLE_UNIT_TYPE) )
 extern COMMANDS_PROPERTIES CallTable[];
 
 

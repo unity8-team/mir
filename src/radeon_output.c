@@ -2254,23 +2254,28 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     optstr = (char *)xf86GetOptValString(info->Options, OPTION_CONNECTORTABLE);
 
     if (optstr) {
+	unsigned int ddc_line[2];
+
 	for (i = 2; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    info->BiosConnector[i].valid = FALSE;
 	}
 	info->BiosConnector[0].valid = TRUE;
 	info->BiosConnector[1].valid = TRUE;
 	if (sscanf(optstr, "%u,%d,%d,%u,%u,%d,%d,%u",
-		   (unsigned int *)&info->BiosConnector[0].ddc_line,
+		   &ddc_line[0],
 		   &info->BiosConnector[0].DACType,
 		   &info->BiosConnector[0].TMDSType,
 		   &info->BiosConnector[0].ConnectorType,
-		   (unsigned int *)&info->BiosConnector[1].ddc_line,
+		   &ddc_line[1],
 		   &info->BiosConnector[1].DACType,
 		   &info->BiosConnector[1].TMDSType,
 		   &info->BiosConnector[1].ConnectorType) != 8) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid ConnectorTable option: %s\n", optstr);
 	    return FALSE;
 	}
+
+	info->BiosConnector[0].ddc_line = ddc_line[0];
+	info->BiosConnector[1].ddc_line = ddc_line[1];
     }
 
     info->tvdac_use_count = 0;

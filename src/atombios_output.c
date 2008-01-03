@@ -316,6 +316,8 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 }
 
+#if 0
+
 static int
 atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -353,6 +355,8 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 
 }
+
+#endif
 
 static AtomBiosResult
 atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
