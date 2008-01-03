@@ -40,6 +40,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I830DEBUG
 #endif
 
+#include <stdint.h>
+
 #ifndef REMAP_RESERVED
 #define REMAP_RESERVED 0
 #endif
