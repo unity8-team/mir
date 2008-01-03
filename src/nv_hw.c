@@ -226,6 +226,12 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 		MB = (pll >> 16) & 0xFF;
 		NB = (pll >> 24) & 0xFF;
 	}
+	if (!MB || !NB) {
+		ErrorF("Something wrong with MPLL VCO2 settings, ignoring VCO2.\n");
+		MB = 1;
+		NB = 1;
+	}
+
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
 	VCO2_off = FALSE; /* reset */
@@ -243,6 +249,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 	} else {
 		MB = (pll >> 16) & 0xFF;
 		NB = (pll >> 24) & 0xFF;
+	}
+	if (!MB || !NB) {
+		ErrorF("Something wrong with NVPLL VCO2 settings, ignoring VCO2\n");
+		MB = 1;
+		NB = 1;
 	}
 
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
