@@ -32,6 +32,7 @@ Bool   NVDACi2cInit(ScrnInfoPtr pScrn);
 /* in nv_video.c */
 void NVInitVideo(ScreenPtr);
 void NVResetVideo (ScrnInfoPtr pScrnInfo);
+void NVWaitVSync(ScrnInfoPtr pScrn);
 
 /* in nv_setup.c */
 void   RivaEnterLeave(ScrnInfoPtr pScrn, Bool enter);

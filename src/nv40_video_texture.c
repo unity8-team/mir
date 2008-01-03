@@ -209,6 +209,9 @@ extern void exaMoveInPixmap(PixmapPtr pPixmap);
 	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
+#define GET_TEXTURED_PRIVATE(pNv) \
+	(NVPortPrivPtr)((pNv)->blitAdaptor->pPortPrivates[0].ptr)
+
 int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		int src_offset2, int id,
 		int src_pitch, BoxPtr dstBox,
@@ -219,6 +222,9 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		RegionPtr clipBoxes,
 		DrawablePtr pDraw)
 {
+	NVPtr          pNv   = NVPTR(pScrn);
+	NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
+
 	/* Remove some warnings. */
 	/* This has to be done better at some point. */
 	(void)nv40_vp_exa_render;
@@ -234,7 +240,6 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		return BadAlloc;
 	}
 
-	NVPtr pNv = NVPTR(pScrn);
 	float X1, X2, Y1, Y2;
 	float scaleX1, scaleX2, scaleY1, scaleY2;
 	float scaleX, scaleY;
@@ -323,9 +328,15 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	scaleX = (float)src_w/(float)(x2 - x1);
 	scaleY = (float)src_h/(float)(y2 - y1);
 
+	if(pPriv->SyncToVBlank) {
+		FIRE_RING();
+		NVWaitVSync(pScrn);
+	}
+
+	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
+
 	while(nbox--) {
-		BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-		OUT_RING  (NV40TCL_BEGIN_END_QUADS);
 
 		/* The src coordinates needs to be scaled to the draw size. */
 		scaleX1 = (float)(pbox->x1 - dstBox->x1)/(float)drw_w;
@@ -340,10 +351,11 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		VERTEX_OUT(X1 + (X2 - X1) * scaleX2 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x2, pbox->y2);
 		VERTEX_OUT(X1 + (X2 - X1) * scaleX1 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x1, pbox->y2);
 
-		BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-		OUT_RING  (NV40TCL_BEGIN_END_STOP);
 		pbox++;
 	}
+
+	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (NV40TCL_BEGIN_END_STOP);
 
 	FIRE_RING();
 

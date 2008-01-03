@@ -584,4 +584,30 @@ enum scaling_modes {
 #define nvReadVIDEO(pNv, reg) MMIO_IN32(pNv->PVIDEO, reg)
 #define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->PVIDEO, reg, val)
 
+typedef struct _NVPortPrivRec {
+	short		brightness;
+	short		contrast;
+	short		saturation;
+	short		hue;
+	RegionRec	clip;
+	CARD32		colorKey;
+	Bool		autopaintColorKey;
+	Bool		doubleBuffer;
+	CARD32		videoStatus;
+	int		currentBuffer;
+	Time		videoTime;
+	int		overlayCRTC;
+	Bool		grabbedByV4L;
+	Bool		iturbt_709;
+	Bool		blitter;
+	Bool		texture;
+	Bool		SyncToVBlank;
+	struct nouveau_bo *video_mem;
+	int		pitch;
+	int		offset;
+	struct nouveau_bo *TT_mem_chunk[2];
+	int		currentHostBuffer;
+	struct nouveau_notifier *DMANotifier[2];
+} NVPortPrivRec, *NVPortPrivPtr;
+
 #endif /* __NV_STRUCT_H__ */

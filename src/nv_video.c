@@ -65,32 +65,6 @@
 and attempt no other allocation afterwards (performance reasons) */
 #define NO_PRIV_HOST_BUFFER_AVAILABLE 9999 
 
-typedef struct _NVPortPrivRec {
-	short		brightness;
-	short		contrast;
-	short		saturation;
-	short		hue;
-	RegionRec	clip;
-	CARD32		colorKey;
-	Bool		autopaintColorKey;
-	Bool		doubleBuffer;
-	CARD32		videoStatus;
-	int		currentBuffer;
-	Time		videoTime;
-	int		overlayCRTC;
-	Bool		grabbedByV4L;
-	Bool		iturbt_709;
-	Bool		blitter;
-	Bool		texture;
-	Bool		SyncToVBlank;
-	struct nouveau_bo *video_mem;
-	int		pitch;
-	int		offset;
-	struct nouveau_bo *TT_mem_chunk[2];
-	int		currentHostBuffer;
-	struct nouveau_notifier *DMANotifier[2];
-} NVPortPrivRec, *NVPortPrivPtr;
-
 
 /* Xv DMA notifiers status tracing */
 
@@ -182,6 +156,13 @@ XF86AttributeRec NVBlitAttributes[NUM_BLIT_ATTRIBUTES] =
 	{XvSettable | XvGettable, 0, 1, "XV_SYNC_TO_VBLANK"}
 };
 
+#define NUM_TEXTURED_ATTRIBUTES 2
+XF86AttributeRec NVTexturedAttributes[NUM_TEXTURED_ATTRIBUTES] =
+{
+	{XvSettable             , 0, 0, "XV_SET_DEFAULTS"},
+	{XvSettable | XvGettable, 0, 1, "XV_SYNC_TO_VBLANK"}
+};
+
 
 #define NUM_IMAGES_YUV 4
 #define NUM_IMAGES_ALL 5
@@ -215,7 +196,7 @@ static XF86ImageRec NVImages[NUM_IMAGES_ALL] =
 	XVIMAGE_RGB
 };
 
-static void
+void
 NVWaitVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -2490,8 +2471,13 @@ NV40SetupTexturedVideo (ScreenPtr pScreen)
 	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
 		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
 
-	adapt->pAttributes = NULL;
-	adapt->nAttributes = 0;
+	if(pNv->WaitVSyncPossible) {
+		adapt->pAttributes = NVTexturedAttributes;
+		adapt->nAttributes = NUM_TEXTURED_ATTRIBUTES;
+	} else {
+		adapt->pAttributes = NULL;
+		adapt->nAttributes = 0;
+	}
 
 	adapt->pImages			= NV40TexturedImages;
 	adapt->nImages			= NUM_FORMAT_TEXTURED;
