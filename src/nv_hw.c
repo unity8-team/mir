@@ -214,7 +214,10 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 	Bool VCO2_off = FALSE;
        pll = nvReadMC(pNv, 0x4020);
        P = (pll >> 16) & 0x07;
-	if (pll & (1 << 8)) /* Is VCO2 off? */
+	/* There seem to be 2 (redundant?) switches to turn VCO2 off. */
+	if (pll & (1 << 8))
+		VCO2_off = TRUE;
+	if (!(pll & (1 << 30))) 
 		VCO2_off = TRUE;
        pll = nvReadMC(pNv, 0x4024);
        M = pll & 0xFF;
@@ -238,7 +241,10 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 
        pll = nvReadMC(pNv, 0x4000);
        P = (pll >> 16) & 0x07;
-	if (pll & (1 << 8)) /* Is VCO2 off? */
+	/* There seem to be 2 (redundant?) switches to turn VCO2 off. */
+	if (pll & (1 << 8))
+		VCO2_off = TRUE;
+	if (!(pll & (1 << 30))) 
 		VCO2_off = TRUE;
        pll = nvReadMC(pNv, 0x4004);
        M = pll & 0xFF;
