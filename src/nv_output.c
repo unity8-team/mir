@@ -355,18 +355,8 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 
 	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
 
-	uint32_t vplla = 0;
-	uint32_t vpllb = 0;
-
-	/* For the moment the syntax is the same for NV40 and earlier */
-	if (pNv->Architecture == NV_ARCH_40) {
-		vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
-		vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
-	} else {
-		vplla = vpll_num ? state->vpll2 : state->vpll;
-		if (pNv->twoStagePLL)
-			vpllb = vpll_num ? state->vpll2B : state->vpllB;
-	}
+	uint32_t vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
+	uint32_t vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
 
 	if (!pNv->twoStagePLL)
 		vpllb_disabled = TRUE;
