@@ -2145,8 +2145,6 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
 	/* Set FP_CONTROL to a neutral mode, (almost) off i believe. */
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, 0x21100222);
-
-	usleep(5000); /* Give it some time to settle */
 }
 
 void nv_crtc_commit(xf86CrtcPtr crtc)
