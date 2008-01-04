@@ -1725,7 +1725,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	else
 	    info->BiosConnector[i].ddc_line =
 	        RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
-	}
 
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
