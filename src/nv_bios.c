@@ -34,6 +34,11 @@
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED 0x00000000
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED 0x00000001
 #define NV_PEXTDEV_BOOT_0 0x00101000
+/* undef, as we want the +0x00100000 version */
+#undef NV_PFB_CFG0
+#define NV_PFB_CFG0 0x00100200
+#define NV_PFB_REFCTRL 0x00100210
+#define NV_PFB_REFCTRL_VALID_1 0x80000000
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
 
 #define DEBUGLEVEL 6
@@ -43,6 +48,9 @@
  */
 
 static int crtchead = 0;
+
+/* this will need remembering across a suspend */
+static uint32_t saved_nv_pfb_cfg0;
 
 typedef struct {
 	Bool execute;
@@ -1684,47 +1692,50 @@ static Bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	 *
 	 * offset      (8 bit): opcode
 	 *
-	 * FIXME
+	 * This opcode is meant to set NV_PFB_CFG0 (0x100200) appropriately so
+	 * that the hardware can correctly calculate how much VRAM it has
+	 * (and subsequently report that value in 0x10020C)
+	 *
+	 * The implementation of this opcode in general consists of two parts:
+	 * 1) determination of the memory bus width
+	 * 2) determination of how many of the card's RAM pads have ICs attached
+	 *
+	 * 1) is done by a cunning combination of writes to offsets 0x1c and
+	 * 0x3c in the framebuffer, and seeing whether the written values are
+	 * read back correctly. This then affects bits 4-7 of NV_PFB_CFG0
+	 *
+	 * 2) is done by a cunning combination of writes to an offset slightly
+	 * less than the maximum memory reported by 0x10020C, then seeing if
+	 * the test pattern can be read back. This then affects bits 12-15 of
+	 * NV_PFB_CFG0
+	 *
+	 * In this context a "cunning combination" may include multiple reads
+	 * and writes to varying locations, often alternating the test pattern
+	 * and 0, doubtless to make sure buffers are filled, residual charges
+	 * on tracks are removed etc.
+	 *
+	 * Unfortunately, the "cunning combination"s mentioned above, and the
+	 * changes to the bits in NV_PFB_CFG0 differ with nearly every bios
+	 * trace I have.
+	 *
+	 * Therefore, we cheat and assume the value of NV_PFB_CFG0 with which
+	 * we started was correct, and use that instead
 	 */
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
-#if 0
-	uint16_t ramcfg = le16_to_cpu(*((uint16_t *)(&bios->data[bios->ram_table_offset])));
-	uint32_t pfb_debug;
-	uint32_t strapinfo;
-	uint32_t ramcfg2;
+	/* no iexec->execute check by design */
 
-	if (!iexec->execute)
-		return TRUE;
+	/* on every card I've seen, this step gets done for us earlier in the init scripts
+	uint8_t crdata = nv_idx_port_rd(pScrn, VGA_SEQ_INDEX, 0x01);
+	nv_idx_port_wr(pScrn, VGA_SEQ_INDEX, 0x01, crdata | 0x20);
+	*/
 
-	nv32_rd(pScrn, 0x00101000, &strapinfo);
-	nv32_rd(pScrn, 0x00100080, &pfb_debug);
+	/* this also has probably been done in the scripts, but an mmio trace of
+	 * s3 resume shows nvidia doing it anyway (unlike the VGA_SEQ_INDEX write)
+	 */
+	nv32_wr(pScrn, NV_PFB_REFCTRL, NV_PFB_REFCTRL_VALID_1);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "STRAPINFO: 0x%08X\n", strapinfo);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PFB_DEBUG: 0x%08X\n", pfb_debug);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RAM CFG: 0x%04X\n", ramcfg);
-
-	pfb_debug &= 0xffffffef;
-	strapinfo >>= 2;
-	strapinfo &= 0x0000000f;
-	ramcfg2 = le16_to_cpu(*((uint16_t *)
-			(&bios->data[bios->ram_table_offset + (2 * strapinfo)])));
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "AFTER MANIPULATION\n");
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "STRAPINFO: 0x%08X\n", strapinfo);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PFB_DEBUG: 0x%08X\n", pfb_debug);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "RAM CFG2: 0x%08X\n", ramcfg2);
-
-
-	uint32_t reg1;
-	uint32_t reg2;
-
-	nv32_rd(pScrn, 0x00100200, &reg1);
-	nv32_rd(pScrn, 0x0010020C, &reg2);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x00100200: 0x%08X\n", reg1);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x0010020C: 0x%08X\n", reg2);
-#endif
+	/* write back the saved configuration value */
+	nv32_wr(pScrn, NV_PFB_CFG0, saved_nv_pfb_cfg0);
 
 	return TRUE;
 }
@@ -3744,14 +3755,21 @@ Bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t saved_nv_pextdev_boot_0;
 
 	if (!NVInitVBIOS(pScrn))
 		return 0;
+
+	/* these will need remembering across a suspend */
+	saved_nv_pextdev_boot_0 = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
+	saved_nv_pfb_cfg0 = nv32_rd(pScrn, NV_PFB_CFG0);
 
 	pNv->VBIOS.execute = FALSE;
 
 	if (!NVRunVBIOSInit(pScrn))
 		return 0;
+
+	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
