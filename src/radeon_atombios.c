@@ -1717,7 +1717,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
 	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC - 1;
 
-	if (ci.sucI2cId.sbfAccess.bfHW_Capable) {
+	if (ci.sucI2cId.sbfAccess.bfI2C_LineMux) {
 	    /* don't assign a gpio for tv */
 	    if ((i == ATOM_DEVICE_TV1_INDEX) ||
 		(i == ATOM_DEVICE_TV2_INDEX) ||
@@ -1726,11 +1726,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    else
 		info->BiosConnector[i].ddc_line =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
-	} else if (ci.sucI2cId.sbfAccess.bfI2C_LineMux) {
-	    /* add support for GPIO line */
-	    ErrorF("Unsupported SW GPIO - device %d: gpio line: 0x%x\n",
-		   i, (unsigned int)RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux));
-	    info->BiosConnector[i].ddc_line = 0;
 	} else {
 	    info->BiosConnector[i].ddc_line = 0;
 	}
