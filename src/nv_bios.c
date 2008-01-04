@@ -3450,7 +3450,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 }
 
-static unsigned int findstr(bios_t *bios, unsigned char *str, int len)
+static unsigned int findstr(bios_t *bios, const unsigned char *str, int len)
 {
 	int i;
 
@@ -3717,48 +3717,72 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	return pNv->dcb_table.entries;
 }
 
-unsigned int NVParseBios(ScrnInfoPtr pScrn)
+Bool NVInitVBIOS(ScrnInfoPtr pScrn)
 {
-	unsigned int bit_offset;
-	uint8_t nv_signature[]={0xff,0x7f,'N','V',0x0};
-	uint8_t bit_signature[]={'B','I','T'};
-	NVPtr pNv;
-	pNv = NVPTR(pScrn);
-
-	pNv->dcb_table.entries = 0;
+	NVPtr pNv = NVPTR(pScrn);
 
 	memset(&pNv->VBIOS, 0, sizeof(bios_t));
-	pNv->VBIOS.execute = FALSE;
 	pNv->VBIOS.data = xalloc(64 * 1024);
+
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "No valid BIOS image found\n");
 		xfree(pNv->VBIOS.data);
-		return 0;
+		return FALSE;
 	}
+
 	pNv->VBIOS.length = pNv->VBIOS.data[2] * 512;
 	if (pNv->VBIOS.length > NV_PROM_SIZE)
 		pNv->VBIOS.length = NV_PROM_SIZE;
 
+	return TRUE;
+}
+
+Bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
+	const uint8_t bit_signature[] = { 'B', 'I', 'T' };
+	int offset, ret = 0;
+
 	crtc_access(pScrn, ACCESS_UNLOCK);
 
-	/* check for known signatures */
-	if ((bit_offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT signature found\n");
-		parse_bit_structure(pScrn, &pNv->VBIOS, bit_offset + 4);
-	} else if ((bit_offset = findstr(&pNv->VBIOS, nv_signature, sizeof(nv_signature)))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV signature found\n");
-		parse_bmp_structure(pScrn, &pNv->VBIOS, bit_offset);
-	} else
+	if ((offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
+		parse_bit_structure(pScrn, &pNv->VBIOS, offset + 4);
+	} else if ((offset = findstr(&pNv->VBIOS, bmp_signature, sizeof(bmp_signature)))) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
+		parse_bmp_structure(pScrn, &pNv->VBIOS, offset);
+	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "No known script signature found\n");
-
-	/* parse Display Configuration Block (DCB) table */
-	if (parse_dcb_table(pScrn, &pNv->VBIOS))
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
+			   "No known BIOS signature found\n");
+		ret = 1;
+	}
 
 	crtc_access(pScrn, ACCESS_LOCK);
+
+	if (ret)
+		return FALSE;
+
+	return TRUE;
+}
+
+unsigned int NVParseBios(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (!NVInitVBIOS(pScrn))
+		return 0;
+
+	pNv->VBIOS.execute = FALSE;
+
+	if (!NVRunVBIOSInit(pScrn))
+		return 0;
+
+	if (parse_dcb_table(pScrn, &pNv->VBIOS))
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Found %d entries in Display Configuration Block\n",
+			   pNv->dcb_table.entries);
 
 	return 1;
 }
