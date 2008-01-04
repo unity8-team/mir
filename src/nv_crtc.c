@@ -1764,7 +1764,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 
 	if (is_fp) {
-		if (nv_output->scaling_mode == SCALE_PANEL || is_lvds) { /* panel needs to scale */
+		if (nv_output->scaling_mode == SCALE_PANEL) { /* panel needs to scale */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 		/* This is also true for panel scaling, so we must put the panel scale check first */
 		} else if (mode->Clock == adjusted_mode->Clock) { /* native mode */
