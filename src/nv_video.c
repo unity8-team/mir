@@ -1161,6 +1161,9 @@ static inline void NVCopyData420(unsigned char *src1, unsigned char *src2,
 {
 	CARD32 *dst;
 	CARD8 *s1, *s2, *s3;
+#define su(X) (((j & 1) && j < (h-1)) ? ((unsigned)((signed int)s2[X] + (signed int)(s2 + srcPitch2)[X]) / 2) : (s2[X]))
+#define sv(X) (((j & 1) && j < (h-1)) ? ((unsigned)((signed int)s3[X] + (signed int)(s3 + srcPitch2)[X]) / 2) : (s3[X]))
+
 	int i, j;
 
 	w >>= 1;
@@ -1172,15 +1175,15 @@ static inline void NVCopyData420(unsigned char *src1, unsigned char *src2,
 
 		while (i > 4) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-		dst[0] = (s1[0] << 24) | (s1[1] << 8) | (s3[0] << 16) | s2[0];
-		dst[1] = (s1[2] << 24) | (s1[3] << 8) | (s3[1] << 16) | s2[1];
-		dst[2] = (s1[4] << 24) | (s1[5] << 8) | (s3[2] << 16) | s2[2];
-		dst[3] = (s1[6] << 24) | (s1[7] << 8) | (s3[3] << 16) | s2[3];
+		dst[0] = (s1[0] << 24) | (s1[1] << 8) | (sv(0) << 16) | su(0);
+		dst[1] = (s1[2] << 24) | (s1[3] << 8) | (sv(1) << 16) | su(1);
+		dst[2] = (s1[4] << 24) | (s1[5] << 8) | (sv(2) << 16) | su(2);
+		dst[3] = (s1[6] << 24) | (s1[7] << 8) | (sv(3) << 16) | su(3);
 #else
-		dst[0] = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
-		dst[1] = s1[2] | (s1[3] << 16) | (s3[1] << 8) | (s2[1] << 24);
-		dst[2] = s1[4] | (s1[5] << 16) | (s3[2] << 8) | (s2[2] << 24);
-		dst[3] = s1[6] | (s1[7] << 16) | (s3[3] << 8) | (s2[3] << 24);
+		dst[0] = s1[0] | (s1[1] << 16) | (sv(0) << 8) | (su(0) << 24);
+		dst[1] = s1[2] | (s1[3] << 16) | (sv(1) << 8) | (su(1) << 24);
+		dst[2] = s1[4] | (s1[5] << 16) | (sv(2) << 8) | (su(2) << 24);
+		dst[3] = s1[6] | (s1[7] << 16) | (sv(3) << 8) | (su(3) << 24);
 #endif
 		dst += 4; s2 += 4; s3 += 4; s1 += 8;
 		i -= 4;
@@ -1188,9 +1191,9 @@ static inline void NVCopyData420(unsigned char *src1, unsigned char *src2,
 
 		while (i--) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-		dst[0] = (s1[0] << 24) | (s1[1] << 8) | (s3[0] << 16) | s2[0];
+		dst[0] = (s1[0] << 24) | (s1[1] << 8) | (sv(0) << 16) | su(0);
 #else
-		dst[0] = s1[0] | (s1[1] << 16) | (s3[0] << 8) | (s2[0] << 24);
+		dst[0] = s1[0] | (s1[1] << 16) | (sv(0) << 8) | (su(0) << 24);
 #endif
 		dst++; s2++; s3++;
 		s1 += 2;
