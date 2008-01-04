@@ -234,6 +234,12 @@ i830_lvds_set_backlight_combo(xf86OutputPtr output, int level)
 #endif
     }
 
+    /*
+     * Don't set the lowest bit in combo configs since it can act as a flag for
+     * max brightness.
+     */
+    level <<= 1;
+
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
     OUTREG(BLC_PWM_CTL, blc_pwm_ctl | (level << BACKLIGHT_DUTY_CYCLE_SHIFT));
@@ -248,7 +254,17 @@ i830_lvds_get_backlight_combo(xf86OutputPtr output)
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
-    return blc_pwm_ctl;
+
+    /* Since we don't use the low bit when using combo, the value is halved */
+
+    return blc_pwm_ctl >> 1;
+}
+
+static int
+i830_lvds_get_backlight_max_combo(xf86OutputPtr output)
+{
+    /* Since we don't set the low bit when using combo, the range is halved */
+    return i830_lvds_get_backlight_max_native(output) >> 1;
 }
 
 /*
@@ -661,7 +677,7 @@ i830_lvds_set_backlight_control(xf86OutputPtr output)
 	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
 	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
 	dev_priv->backlight_max =
-	    i830_lvds_get_backlight_max_native(output);
+	    i830_lvds_get_backlight_max_combo(output);
 	break;
     case BCM_KERNEL:
 	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
@@ -1003,7 +1019,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     case BCM_COMBO:
 	dev_priv->set_backlight = i830_lvds_set_backlight_combo;
 	dev_priv->get_backlight = i830_lvds_get_backlight_combo;
-	dev_priv->backlight_max = i830_lvds_get_backlight_max_native(output);
+	dev_priv->backlight_max = i830_lvds_get_backlight_max_combo(output);
 	break;
     case BCM_KERNEL:
 	dev_priv->set_backlight = i830_lvds_set_backlight_kernel;
