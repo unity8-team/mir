@@ -3502,11 +3502,19 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			entry->type = OUTPUT_LVDS;
 		entry->i2c_index = (conn >> 14) & 0xf;
 		/* raw heads field is in range 0-1, so move to 1-2 */
-		entry->heads = ((conn >> 18) & 0x7) << 1;
+		entry->heads = ((conn >> 18) & 0x7) + 1;
 		entry->location = (conn >> 21) & 0xf;
 		entry->bus = (conn >> 25) & 0x7;
 		/* set or to be same as heads -- hopefully safe enough */
 		entry->or = entry->heads;
+
+		switch (entry->type) {
+		case OUTPUT_LVDS:
+			/* these are probably buried in conn's unknown bits */
+			entry->lvdsconf.use_straps_for_mode = TRUE;
+			entry->lvdsconf.use_power_scripts = TRUE;
+			break;
+		}
 	} else if (dcb_version >= 0x12) {
 		/* use the defaults for a crt
 		 * v1.2 tables often have other entries though - need a trace
