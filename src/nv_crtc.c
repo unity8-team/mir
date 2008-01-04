@@ -888,12 +888,12 @@ void nv_crtc_calc_state_ext(
 		struct pll_lims pll_lim;
 		int NM1, NM2, log2P;
 		get_pll_limits(pScrn, 0, &pll_lim);
-		VClk = getMNP_double(pNv, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+		VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
 		state->pll = log2P << 16 | NM1;
 		state->pllB = 1 << 31 | NM2;
 	} else {
 		int NM, log2P;
-		VClk = getMNP_single(pNv, dotClock, &NM, &log2P);
+		VClk = getMNP_single(pScrn, dotClock, &NM, &log2P);
 		state->pll = log2P << 16 | NM;
 	}
 

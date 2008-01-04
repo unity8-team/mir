@@ -33,6 +33,7 @@
 #define NV_PBUS_PCI_NV_20 0x00001850
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED 0x00000000
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED 0x00000001
+#define NV_PEXTDEV_BOOT_0 0x00101000
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
 
 #define DEBUGLEVEL 6
@@ -236,19 +237,22 @@ static int nv_valid_reg(uint32_t reg)
 	return 0;
 }
 
-static void nv32_rd(ScrnInfoPtr pScrn, uint32_t reg, uint32_t *data)
+static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t data;
 
 	if (!nv_valid_reg(reg)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "========= unknown reg 0x%08X ==========\n", reg);
-		return;
+		return 0;
 	}
-	*data = pNv->REGS[reg/4];
+	data = pNv->REGS[reg/4];
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, *data);
+			   "	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, data);
+
+	return data;
 }
 
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
@@ -258,10 +262,8 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	uint8_t saved1 = 0, saved2 = 0;
 	volatile uint8_t *crtcptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
-	if (DEBUGLEVEL >= 8) {
-		uint32_t tmp;
-		nv32_rd(pScrn, reg, &tmp);
-	}
+	if (DEBUGLEVEL >= 8)
+		nv32_rd(pScrn, reg);
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
@@ -302,18 +304,21 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	return 1;
 }
 
-static void nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t *data)
+static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	uint8_t data;
 
 	VGA_WR08(ptr, port, index);
-	*data = VGA_RD08(ptr, port + 1);
+	data = VGA_RD08(ptr, port + 1);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
-			   port, index, crtchead, *data);
+			   port, index, crtchead, data);
+
+	return data;
 }
 
 static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data)
@@ -331,10 +336,8 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 		crtchead = 0;
 	ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
-	if (DEBUGLEVEL >= 8) {
-		uint8_t tmp;
-		nv_idx_port_rd(pScrn, port, index, &tmp);
-	}
+	if (DEBUGLEVEL >= 8)
+		nv_idx_port_rd(pScrn, port, index);
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
@@ -359,12 +362,12 @@ static void crtc_access(ScrnInfoPtr pScrn, Bool lock)
 
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADA);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
-	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, &cr11);
+	cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
 
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADB);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
-	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, &cr11);
+	cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
 
 	crtchead = savedhead;
@@ -396,7 +399,7 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, FlagArray: 0x%04X, FAMask: 0x%02X, Cmpval: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, shift, flagarray, flagarraymask, cmpval);
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &data);
+	data = nv_idx_port_rd(pScrn, crtcport, crtcindex);
 
 	data = bios->data[flagarray + ((data & mask) >> shift)];
 	data &= flagarraymask;
@@ -412,18 +415,18 @@ static Bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	return FALSE;
 }
 
-uint32_t getMNP_single(NVPtr pNv, uint32_t clk, int *bestNM, int *bestlog2P)
+uint32_t getMNP_single(ScrnInfoPtr pScrn, uint32_t clk, int *bestNM, int *bestlog2P)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
-	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP values,
-	 * but we're too lazy to use those atm
+	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP
+	 * values, but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
 
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	int maxM = 0, M, N;
 	int maxlog2P, log2P, P;
 	int crystal = 0;
@@ -434,12 +437,12 @@ uint32_t getMNP_single(NVPtr pNv, uint32_t clk, int *bestNM, int *bestlog2P)
 	unsigned int bestdelta = UINT_MAX;
 	uint32_t bestclk = 0;
 
-	int crystal_strap_mask = 1 << 6;
+	unsigned int crystal_strap_mask = 1 << 6;
 	/* open coded pNv->twoHeads test */
 	if (bios->chip_version > 0x10 && bios->chip_version != 0x15 &&
 	    bios->chip_version != 0x1a && bios->chip_version != 0x20)
 		crystal_strap_mask |= 1 << 22;
-	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & crystal_strap_mask) {
+	switch (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & crystal_strap_mask) {
 	case 0:
 		maxM = 13;
 		crystal = 13500;
@@ -518,12 +521,12 @@ nextP:
 	return bestclk;
 }
 
-uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
+uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
-	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP values,
-	 * but we're too lazy to use those atm
+	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP
+	 * values, but we're too lazy to use those atm
 	 *
 	 * "clk" parameter in kHz
 	 * returns calculated clock
@@ -546,7 +549,7 @@ uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *b
 	*bestNM2 = 0xff << 8 | 5;
 	*bestlog2P = 6;
 
-	switch (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & (1 << 22 | 1 << 6)) {
+	switch (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & (1 << 22 | 1 << 6)) {
 	case 0:
 		crystal = 13500;
 		break;
@@ -617,9 +620,9 @@ uint32_t getMNP_double(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clk, int *b
 
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
-	uint32_t pll, scratch;
+	uint32_t pll;
 
-	nv32_rd(pScrn, reg, &pll);
+	pll = nv32_rd(pScrn, reg);
 	if (pll == (log2P << 16 | NM))
 		return;	/* already set */
 
@@ -649,7 +652,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	}
 
 	if (frob1584) {
-		nv32_rd(pScrn, 0x00001584, &saved_1584);
+		saved_1584 = nv32_rd(pScrn, 0x00001584);
 		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
 	}
 #endif
@@ -660,7 +663,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 
 	/* wait a bit */
 	usleep(64000);
-	nv32_rd(pScrn, reg, &scratch);
+	nv32_rd(pScrn, reg);
 
 	/* then write P as well */
 	nv32_wr(pScrn, reg, (pll & 0xfff8ffff) | log2P << 16);
@@ -679,8 +682,8 @@ static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, in
 	if (reg2 == 0x680590)
 		reg2 = NV_RAMDAC_VPLL2_B;
 
-	nv32_rd(pScrn, reg1, &pll1);
-	nv32_rd(pScrn, reg2, &pll2);
+	pll1 = nv32_rd(pScrn, reg1);
+	pll2 = nv32_rd(pScrn, reg2);
 	if (pll1 == (log2P << 16 | NM1) && pll2 == (1 << 31 | NM2))
 		return;	/* already set */
 
@@ -702,7 +705,7 @@ static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, in
 	}
 
 	if (frob1584) {
-		nv32_rd(pScrn, 0x00001584, &saved_1584);
+		saved_1584 = nv32_rd(pScrn, 0x00001584);
 		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
 	}
 #endif
@@ -721,7 +724,6 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
-	NVPtr pNv = NVPTR(pScrn);
 	int NM1, NM2, log2P;
 
 	// FIXME: both getMNP versions will need some alterations for nv40 type stuff
@@ -729,10 +731,10 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 		struct pll_lims pll_lim;
 		// for NV40, pll_type will need setting
 		get_pll_limits(pScrn, 0, &pll_lim);
-		getMNP_double(pNv, &pll_lim, clk, &NM1, &NM2, &log2P);
+		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
 		setPLL_double(pScrn, reg, NM1, NM2, log2P);
 	} else {
-		getMNP_single(pNv, clk, &NM1, &log2P);
+		getMNP_single(pScrn, clk, &NM1, &log2P);
 		setPLL_single(pScrn, reg, NM1, log2P);
 	}
 }
@@ -770,7 +772,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%04X\n", offset, 
 				reg);
 
-		nv32_rd(pScrn, reg, &tmp);
+		tmp = nv32_rd(pScrn, reg);
 		configuration = (tmp & and) >> shiftr;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONFIGURATION TO USE: 0x%02X\n", 
@@ -784,7 +786,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, 
 					reg2, configval);
 			
-			nv32_rd(pScrn, reg2, &tmp);
+			tmp = nv32_rd(pScrn, reg2);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
 				offset, tmp);
 			nv32_wr(pScrn, reg2, configval);
@@ -830,8 +832,7 @@ static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, count, reg);
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
-	config = (config & mask) >> shift;
+	config = (nv_idx_port_rd(pScrn, crtcport, crtcindex) & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
@@ -926,8 +927,7 @@ static Bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Shift: 0x%02X, IO Flag Condition: 0x%02X, Count: 0x%02X, Reg: 0x%08X\n",
 			   offset, crtcport, crtcindex, mask, shift, io_flag_condition_idx, count, reg);
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
-	config = (config & mask) >> shift;
+	config = (nv_idx_port_rd(pScrn, crtcport, crtcindex) & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
@@ -1010,7 +1010,7 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 			   "0x%04X: Reg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%02X, Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X\n",
 			   offset, reg, shift, srcmask, crtcport, crtcindex, mask);
 
-	nv32_rd(pScrn, reg, &data);
+	data = nv32_rd(pScrn, reg);
 
 	if (shift < 0x80)
 		data >>= shift;
@@ -1019,8 +1019,7 @@ static Bool init_copy(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	data &= srcmask;
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &crtcdata);
-	crtcdata = (crtcdata & mask) | (uint8_t)data;
+	crtcdata = (nv_idx_port_rd(pScrn, crtcport, crtcindex) & mask) | (uint8_t)data;
 	nv_idx_port_wr(pScrn, crtcport, crtcindex, crtcdata);
 
 	return TRUE;
@@ -1120,10 +1119,7 @@ Bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 				   "0x%04X: Address: 0x%02X, Data: 0x%02X\n", offset, instaddress, instdata);
 
 		nv32_wr(pScrn, datareg, instdata);
-
-		nv32_rd(pScrn, controlreg, &value);
-		value = (value & mask) | data | instaddress;
-
+		value = (nv32_rd(pScrn, controlreg) & mask) | data | instaddress;
 		nv32_wr(pScrn, controlreg, value);
 	}
 
@@ -1170,8 +1166,7 @@ static Bool init_io_restrict_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	if (!reg)
 		return TRUE;
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &config);
-	config = (config & mask) >> shift;
+	config = (nv_idx_port_rd(pScrn, crtcport, crtcindex) & mask) >> shift;
 	if (config > count) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
@@ -1237,7 +1232,7 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 		int dacoffset;
 		/* This register needs to be written to set index for reading CR58 */
 		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-		nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58, &dcb_entry);
+		dcb_entry = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58);
 		if (dcb_entry > pNv->dcb_table.entries) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "CR58 doesn't have a valid DCB entry currently (%02X)\n", dcb_entry);
@@ -1290,8 +1285,7 @@ static Bool init_tmds(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	reg = get_tmds_index_reg(pScrn, mlv);
 
 	nv32_wr(pScrn, reg, tmdsaddr | 0x10000);
-	nv32_rd(pScrn, reg + 4, &value);
-	value = (value & mask) | data;
+	value = (nv32_rd(pScrn, reg + 4) & mask) | data;
 	nv32_wr(pScrn, reg + 4, value);
 	nv32_wr(pScrn, reg, tmdsaddr);
 
@@ -1371,7 +1365,7 @@ Bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 			   "0x%04X: Index1: 0x%02X, Index2: 0x%02X, BaseAddr: 0x%02X, Count: 0x%02X\n",
 			   offset, crtcindex1, crtcindex2, baseaddr, count);
 
-	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex1, &oldaddr);
+	oldaddr = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex1);
 
 	for (i = 0; i < count; i++) {
 		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, baseaddr + i);
@@ -1411,10 +1405,7 @@ Bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexe
 			   "0x%04X: Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, crtcindex, mask, data);
 
-	nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex, &value);
-
-	value = (value & mask) | data;
-
+	value = (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex) & mask) | data;
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, value);
 
 	return TRUE;
@@ -1500,8 +1491,7 @@ static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 //	b *= 50;
 	reg &= 0xfffffffc;	// FIXME: this not in init_condition() - should it be?
 
-	nv32_rd(pScrn, reg, &data);
-	data &= mask;
+	data = nv32_rd(pScrn, reg) & mask;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1580,7 +1570,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 
 		if (DEBUGLEVEL >= 6) {
 			CARD32 tmpval;
-			nv32_rd(pScrn, reg, &tmpval);
+			tmpval = nv32_rd(pScrn, reg);
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmpval);
 		}
 
@@ -1649,7 +1639,7 @@ static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 			   "0x%04X: SrcReg: 0x%08X, Shift: 0x%02X, SrcMask: 0x%08X, Xor: 0x%08X, DstReg: 0x%08X, DstMask: 0x%08X\n",
 			   offset, srcreg, shift, srcmask, xor, dstreg, dstmask);
 
-	nv32_rd(pScrn, srcreg, &srcvalue);
+	srcvalue = nv32_rd(pScrn, srcreg);
 
 	if (shift < 0x80)
 		srcvalue >>= shift;
@@ -1658,8 +1648,7 @@ static Bool init_copy_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 
 	srcvalue = (srcvalue & srcmask) ^ xor;
 
-	nv32_rd(pScrn, dstreg, &dstvalue);
-	dstvalue &= dstmask;
+	dstvalue = nv32_rd(pScrn, dstreg) & dstmask;
 
 	nv32_wr(pScrn, dstreg, dstvalue | srcvalue);
 
@@ -1759,7 +1748,7 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 
 	/* no iexec->execute check by design */
 
-	nv32_rd(pScrn, NV_PBUS_PCI_NV_19, &pci_nv_19);
+	pci_nv_19 = nv32_rd(pScrn, NV_PBUS_PCI_NV_19);
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, 0);
 	nv32_wr(pScrn, reg, value1);
 
@@ -1768,8 +1757,8 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	nv32_wr(pScrn, reg, value2);
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, pci_nv_19);
 
-	nv32_rd(pScrn, NV_PBUS_PCI_NV_20, &pci_nv_20);
-	pci_nv_20 &= !NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED;	/* 0xfffffffe */
+	pci_nv_20 = nv32_rd(pScrn, NV_PBUS_PCI_NV_20);
+	pci_nv_20 &= ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED;	/* 0xfffffffe */
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_20, pci_nv_20);
 
 	return TRUE;
@@ -1891,7 +1880,6 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
 	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
 	uint32_t data = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 9])));
-	uint32_t value;
 
 	if (!iexec->execute)
 		return TRUE;
@@ -1901,11 +1889,7 @@ static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 			   "0x%04X: Reg: 0x%08X, Mask: 0x%08X, Data: 0x%08X\n",
 			   offset, reg, mask, data);
 
-	nv32_rd(pScrn, reg, &value);
-
-	value = (value & mask) | data;
-
-	nv32_wr(pScrn, reg, value);
+	nv32_wr(pScrn, reg, (nv32_rd(pScrn, reg) & mask) | data);
 
 	return TRUE;
 }
@@ -2072,8 +2056,7 @@ static Bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 			   "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
 			   offset, cond, reg, mask, cmpval);
 
-	nv32_rd(pScrn, reg, &data);
-	data &= mask;
+	data = nv32_rd(pScrn, reg) & mask;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2123,8 +2106,7 @@ static Bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 			   "0x%04X: Port: 0x%04X, Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, crtcport, crtcindex, mask, data);
 
-	nv_idx_port_rd(pScrn, crtcport, crtcindex, &value);
-	value = (value & mask) | data;
+	value = (nv_idx_port_rd(pScrn, crtcport, crtcindex) & mask) | data;
 	nv_idx_port_wr(pScrn, crtcport, crtcindex, value);
 
 	return TRUE;
@@ -2201,7 +2183,6 @@ static Bool init_ram_restrict_zm_reg_group(ScrnInfoPtr pScrn, bios_t *bios, uint
 	 * from the 'M' BIT table, herein called "blocklen"
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
 	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
 	uint8_t regincrement = bios->data[offset + 5];
 	uint8_t count = bios->data[offset + 6];
@@ -2222,7 +2203,7 @@ static Bool init_ram_restrict_zm_reg_group(ScrnInfoPtr pScrn, bios_t *bios, uint
 		return FALSE;
 	}
 
-	strap_ramcfg = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 2) & 0xf;
+	strap_ramcfg = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
 	index = bios->data[bios->ram_restrict_tbl_ptr + strap_ramcfg];
 
 	if (DEBUGLEVEL >= 6)
@@ -2254,13 +2235,11 @@ static Bool init_copy_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 
 	uint32_t srcreg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
 	uint32_t dstreg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 5])));
-	uint32_t data;
 
 	if (!iexec->execute)
 		return TRUE;
 
-	nv32_rd(pScrn, srcreg, &data);
-	nv32_wr(pScrn, dstreg, data);
+	nv32_wr(pScrn, dstreg, nv32_rd(pScrn, srcreg));
 
 	return TRUE;
 }
@@ -2543,8 +2522,7 @@ static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, uint16_t pxclk)
 
 static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head, int dcb_entry)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	init_exec_t iexec = {TRUE, FALSE};
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
@@ -2573,11 +2551,11 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
-	int fpstrapping, outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
+	unsigned int fpstrapping, outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
 
-	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	/* for now we assume version 3.0 table - g80 support will need some changes */
 
@@ -2634,8 +2612,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	 * This acts as the demux
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 
 	if (!lvds_ver)
@@ -2656,14 +2633,13 @@ struct fppointers {
 
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping;
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ofs;
 	DisplayModePtr mode;
 
-	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	if (fpp->fptablepointer == 0x0 || fpp->fpxlatetableptr == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2773,11 +2749,10 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	 * by the BIT 'D' table
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
 	unsigned int fpstrapping, lvdsmanufacturerindex = 0;
 	uint8_t lvds_ver, headerlen, recordlen;
 
-	fpstrapping = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) >> 16) & 0xf;
+	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2903,8 +2878,7 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 	 * 5 byte header, fifth byte of unknown purpose. 35 (0x23) byte record length
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t pll_lim_ver, headerlen, recordlen, entries;
 	int pllindex = 0, i;
 
