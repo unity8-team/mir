@@ -3483,14 +3483,23 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			break;
 		}
 	} else if (dcb_version >= 0x14 ) {
-		if (conn != 0xf0003f00) {
-			ErrorF("Unknown DCB 1.4 entry, please report\n");
+		if (conn != 0xf0003f00 && conn != 0xf2045f14 && conn != 0xf4204011) {
+			ErrorF("Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
 			pNv->dcb_table.entries = 0;
 			return FALSE;
 		}
-		/* use the safe defaults for a crt */
+		/* most of the below is a "best guess" atm */
 		entry->type = conn & 0xf;
+		if (entry->type == 4)
+			entry->type = OUTPUT_LVDS;
+		entry->i2c_index = (conn >> 14) & 0xf;
+		/* raw heads field is in range 0-1, so move to 1-2 */
+		entry->heads = ((conn >> 18) & 0x7) << 1;
+		entry->location = (conn >> 21) & 0xf;
+		entry->bus = (conn >> 25) & 0x7;
+		/* set or to be same as heads -- hopefully safe enough */
+		entry->or = entry->heads;
 	} else if (dcb_version >= 0x12) {
 		/* use the defaults for a crt
 		 * v1.2 tables often have other entries though - need a trace
@@ -3773,8 +3782,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found %d entries in Display Configuration Block\n",
-			   pNv->dcb_table.entries);
+			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
 
 	return 1;
 }
