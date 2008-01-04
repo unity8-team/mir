@@ -205,6 +205,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	if (!crtc)	/* we need nv_crtc, so give up */
 		return;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	int pclk = 0;
 
 	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
@@ -213,16 +214,20 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts)
 		return;
 
+	/* only need to pass in pclk for BIT bioses */
+	if (pNv->VBIOS.major_version > 4)
+		pclk = nv_calc_tmds_clock_from_pll(output);
+
 	switch (mode) {
 	case DPMSModeStandby:
 	case DPMSModeSuspend:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, 0);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, pclk);
 		break;
 	case DPMSModeOff:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, 0);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
 		break;
 	case DPMSModeOn:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, 0);
+		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
 	default:
 		break;
 	}
@@ -414,7 +419,7 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
 		else {
 			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
-			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_PANEL_ON, 0);
+			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_PANEL_ON, clock / 10);
 		}
 	}
 }

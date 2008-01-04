@@ -2568,6 +2568,13 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 
 	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
+	/* no sign of the "do reset on panel on" and "do panel off on reset" bits
+	 * but it seems that doing so is necessary anyway */
+	if (script == LVDS_PANEL_ON)
+		run_lvds_table(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
+	if (script == LVDS_RESET)
+		run_lvds_table(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
+
 	/* for now we assume version 3.0 table - g80 support will need some changes */
 
 	switch (script) {
