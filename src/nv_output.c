@@ -215,7 +215,8 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	int pclk = 0;
 
-	dpms_update_output_ramdac(output, mode);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
+		dpms_update_output_ramdac(output, mode);
 
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts)
 		return;
@@ -243,6 +244,8 @@ static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
@@ -251,7 +254,8 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 
 	nv_output->last_dpms = mode;
 
-	dpms_update_output_ramdac(output, mode);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
+		dpms_update_output_ramdac(output, mode);
 }
 
 static void
@@ -269,7 +273,8 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	xf86CrtcPtr crtc = output->crtc;
 	NVPtr pNv = NVPTR(output->scrn);
 
-	dpms_update_output_ramdac(output, mode);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
+		dpms_update_output_ramdac(output, mode);
 
 	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc) {

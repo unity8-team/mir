@@ -2550,8 +2550,9 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
 	if (override) {
-		for (i = 0; i < 0x10; i++)
-			NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
+		if (pNv->NVArch >= 0x17 && pNv->twoHeads) /* NV11 and NV20 don't have this. */
+			for (i = 0; i < 0x10; i++)
+				NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 	}
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
@@ -2663,8 +2664,9 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
 	regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
 	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
-	for (i = 0; i < 0x10; i++)
-		regp->CR58[i] = NVReadVGACR5758(pNv, nv_crtc->head, i);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads) /* NV11 and NV20 don't have this. */
+		for (i = 0; i < 0x10; i++)
+			regp->CR58[i] = NVReadVGACR5758(pNv, nv_crtc->head, i);
 
 	regp->CRTC[NV_VGA_CRTCX_59] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_59);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
