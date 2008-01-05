@@ -2991,6 +2991,12 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 		pll_lim->unk1c = bios->data[plloffs + 28];
 		pll_lim->unk1d = bios->data[plloffs + 29];
 		pll_lim->unk1e = bios->data[plloffs + 30];
+
+		if (bios->chip_version == 0x40) { /* quirk */
+			if (pll_lim->vco2.min_inputfreq > pll_lim->vco2.max_inputfreq) {
+				pll_lim->vco2.min_inputfreq = pll_lim->vco2.max_inputfreq/4;
+			}
+		}
 	}
 
 #if 1 /* for easy debugging */

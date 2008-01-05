@@ -618,7 +618,7 @@ CalculateVClkNV4x(
 		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
 
-	if (requested_clock < pll_lim.vco1.maxfreq*1000) { /* single VCO */
+	if (requested_clock < pll_lim.vco1.maxfreq*1000 && pNv->NVArch > 0x40) { /* single VCO */
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Bogus data, the same nvidia uses */
