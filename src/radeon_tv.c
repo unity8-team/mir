@@ -619,6 +619,8 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
 	radeon_output->tvStd == TV_STD_PAL_M) {
+	/* improve image centering */
+	hOffset -= 50;
 	p1 = hor_timing_NTSC[ H_TABLE_POS1 ];
 	p2 = hor_timing_NTSC[ H_TABLE_POS2 ];
     } else {
