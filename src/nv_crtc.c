@@ -826,7 +826,7 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll1_a);
 		if(pNv->twoStagePLL) {
 			ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll2_b);
+			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll1_b);
 		}
 	}
 
