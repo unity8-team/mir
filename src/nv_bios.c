@@ -3726,6 +3726,49 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	return pNv->dcb_table.entries;
 }
 
+static void load_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
+{
+	/* BMP based cards, from NV17, need a microcode loading to correctly
+	 * control the GPIO etc for LVDS panels
+	 *
+	 * The microcode entries are found by the "HWSQ" signature.
+	 * The header following has the number of entries, and the entry size
+	 *
+	 * An entry consists of a dword to write to the sequencer control reg
+	 * (0x00001304), followed by the ucode bytes, written sequentially,
+	 * starting at reg 0x00001400
+	 */
+
+	uint8_t bytes_to_write;
+	int i;
+
+	if (bios->data[hwsq_offset] <= entry) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Too few entries in HW sequencer table for requested entry\n");
+		return;
+	}
+
+	bytes_to_write = bios->data[hwsq_offset + 1];
+
+	if (bytes_to_write != 36) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown HW sequencer entry size\n");
+		return;
+	}
+
+	uint16_t hwsq_entry_offset = hwsq_offset + 2 + entry * bytes_to_write;
+
+	/* set sequencer control */
+	nv32_wr(pScrn, 0x00001304, le32_to_cpu(*(uint32_t *)&bios->data[hwsq_entry_offset]));
+	bytes_to_write -= 4;
+
+	/* write ucode */
+	for (i = 0; i < bytes_to_write; i += 4)
+		nv32_wr(pScrn, 0x00001400 + i, le32_to_cpu(*(uint32_t *)&bios->data[hwsq_entry_offset + i + 4]));
+
+	/* twiddle 0x1098 */
+	nv32_wr(pScrn, 0x00001098, nv32_rd(pScrn, 0x00001098) | 0x18);
+}
+
 Bool NVInitVBIOS(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -3760,6 +3803,14 @@ Bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
 		parse_bit_structure(pScrn, &pNv->VBIOS, offset + 4);
 	} else if ((offset = findstr(&pNv->VBIOS, bmp_signature, sizeof(bmp_signature)))) {
+		const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
+		int hwsq_offset;
+
+		// FIXME I bet this exists in BIT
+		if ((hwsq_offset = findstr(&pNv->VBIOS, hwsq_signature, sizeof(hwsq_signature))))
+			/* always use entry 0? */
+			load_hw_sequencer_ucode(pScrn, &pNv->VBIOS, hwsq_offset + sizeof(hwsq_signature), 0);
+
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
 		parse_bmp_structure(pScrn, &pNv->VBIOS, offset);
 	} else {
