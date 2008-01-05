@@ -218,6 +218,7 @@ typedef struct _NVOutputPrivateRec {
 	uint8_t preferred_output;
 	uint8_t output_resource;
 	uint8_t bus;
+	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	int dcb_entry;
@@ -526,8 +527,8 @@ typedef struct _NVRec {
 
 typedef struct _NVCrtcPrivateRec {
 	int head;
+	uint8_t last_dpms;
 	Bool paletteEnabled;
-	Bool deactivate;
 #if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_bo *shadow;
 #else

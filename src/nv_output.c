@@ -200,14 +200,20 @@ static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
+
+	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
+		return;
+
+	nv_output->last_dpms = mode;
+
 	NVPtr pNv = NVPTR(output->scrn);
 	xf86CrtcPtr crtc = output->crtc;
 	if (!crtc)	/* we need nv_crtc, so give up */
 		return;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	int pclk = 0;
-
-	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
 	dpms_update_output_ramdac(output, mode);
 
@@ -236,26 +242,32 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
-	xf86CrtcPtr crtc = output->crtc;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
+	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
+		return;
+
+	nv_output->last_dpms = mode;
+
 	dpms_update_output_ramdac(output, mode);
-
-	if (crtc) {
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-		ErrorF("nv_analog_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
-	}
 }
 
 static void
 nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
-	xf86CrtcPtr crtc = output->crtc;
-	NVPtr pNv = NVPTR(output->scrn);
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
+
+	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
+		return;
+
+	nv_output->last_dpms = mode;
+
+	xf86CrtcPtr crtc = output->crtc;
+	NVPtr pNv = NVPTR(output->scrn);
 
 	dpms_update_output_ramdac(output, mode);
 

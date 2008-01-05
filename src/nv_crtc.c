@@ -1146,12 +1146,18 @@ static void
 nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
+
+	if (nv_crtc->last_dpms == mode) /* Don't do unnecesary mode changes. */
+		return;
+
+	nv_crtc->last_dpms = mode;
+
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
-
-	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
 	NVCrtcSetOwner(crtc);
 
