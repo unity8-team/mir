@@ -794,12 +794,7 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 
-	if (radeon_output->DACType == DAC_PRIMARY)
-	    data = 1; /* primary dac, only drives vga */
-	/*else if (radeon_output->DACType == DAC_TVDAC &&
-		 info->tvdac_use_count < 2)
-		 data = 1;*/ /* only one output with tvdac */
-	else if (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
+	if (radeon_output->load_detection)
 	    data = 1; /* user forces on tv dac load detection */
 	else
 	    data = 0; /* shared tvdac between vga/dvi/tv */
@@ -1722,6 +1717,9 @@ void RADEONInitConnector(xf86OutputPtr output)
     /*else if (radeon_output->DACType == DAC_TVDAC &&
 	     info->tvdac_use_count < 2)
 	     radeon_output->load_detection = 1;*/ /* only one output with tvdac */
+    else if ((radeon_output->DACType == DAC_TVDAC) &&
+	     (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE)))
+	radeon_output->load_detection = 1; /* shared tvdac between vga/dvi/tv */
     else
 	radeon_output->load_detection = 0; /* shared tvdac between vga/dvi/tv */
 
