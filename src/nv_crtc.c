@@ -2153,10 +2153,10 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 	/* Some more preperation. */
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, 0x1); /* Go to non-vga mode/out of enhanced mode */
-	uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
-	/* Set FP_CONTROL to a neutral mode, (almost) off i believe. */
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, 0x21100222);
+	if (pNv->Architecture == NV_ARCH_40) {
+		uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+	}
 }
 
 void nv_crtc_commit(xf86CrtcPtr crtc)
@@ -2527,8 +2527,8 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	}
 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, regp->config);
-	uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
 	if (pNv->Architecture == NV_ARCH_40) {
+		uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
 		if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
 			nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
 		} else {
