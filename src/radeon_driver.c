@@ -3181,7 +3181,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int            hasDRI = 0;
+    int i;
 #ifdef RENDER
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
@@ -3481,6 +3483,34 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     pScrn->vtSema = TRUE;
 
+    /* xf86CrtcRotate() accesses pScrn->pScreen */
+    pScrn->pScreen = pScreen;
+
+#if 1
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+	/* Mark that we'll need to re-set the mode for sure */
+	memset(&crtc->mode, 0, sizeof(crtc->mode));
+	if (!crtc->desiredMode.CrtcHDisplay) {
+	    crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
+	    crtc->desiredRotation = RR_Rotate_0;
+	    crtc->desiredX = 0;
+	    crtc->desiredY = 0;
+	}
+
+	if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation, crtc->desiredX, crtc->desiredY))
+	    return FALSE;
+
+    }
+#else
+    /* seems to do the wrong thing on some cards??? */
+    if (!xf86SetDesiredModes (pScrn))
+	return FALSE;
+#endif
+
+    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
+
     /* Backing store setup */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Initializing backing store\n");
@@ -3623,6 +3653,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources;
 
+   if (!xf86CrtcScreenInit (pScreen))
+       return FALSE;
+
     /* Wrap pointer motion to flip touch screen around */
     info->PointerMoved = pScrn->PointerMoved;
     pScrn->PointerMoved = RADEONPointerMoved;
@@ -3638,16 +3671,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 			     | CMAP_LOAD_EVEN_IF_OFFSCREEN
 #endif
 			     | CMAP_RELOAD_ON_MODE_SWITCH)) return FALSE;
-
-#if 1
-    /* xf86CrtcRotate() accesses pScrn->pScreen */
-    pScrn->pScreen = pScreen;
-
-   if (!xf86CrtcScreenInit (pScreen))
-       return FALSE;
-   if (!xf86SetDesiredModes (pScrn))
-       return FALSE;
-#endif
 
     /* Note unused options */
     if (serverGeneration == 1)
