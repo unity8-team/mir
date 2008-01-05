@@ -105,6 +105,10 @@ void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
 	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
 
+#ifdef NOUVEAU_MODESET_TRACE
+	ErrorF("NVWriteVGA: idx %d data 0x%x head %d\n", index, value, head);
+#endif
+
 	NV_WR08(pCRTCReg, CRTC_INDEX, index);
 	NV_WR08(pCRTCReg, CRTC_DATA, value);
 }
