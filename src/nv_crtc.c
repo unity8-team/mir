@@ -2031,6 +2031,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 void nv_crtc_restore_generate(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 
@@ -2040,6 +2042,10 @@ void nv_crtc_restore_generate(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->DAC[(i*3)+1] = i;
 		regp->DAC[(i*3)+2] = i;
 	}
+
+	/* Noticed that reading this variable is problematic on one card. */
+	if (pNv->NVArch == 0x11)
+		state->sel_clk = 0x0;
 }
 
 void nv_crtc_save(xf86CrtcPtr crtc)
