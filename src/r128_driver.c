@@ -1376,7 +1376,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 
 static Bool R128PreInitDDC(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 {
-#if !defined(__powerpc__) && !defined(__alpha__)
+#if !defined(__powerpc__) && !defined(__alpha__) && !defined(__sparc__)
     R128InfoPtr   info = R128PTR(pScrn);
     vbeInfoPtr pVbe;
 #endif
@@ -1384,7 +1384,7 @@ static Bool R128PreInitDDC(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
     if (!xf86LoadSubModule(pScrn, "ddc")) return FALSE;
     xf86LoaderReqSymLists(ddcSymbols, NULL);
 
-#if defined(__powerpc__) || defined(__alpha__)
+#if defined(__powerpc__) || defined(__alpha__) || defined(__sparc__)
     /* Int10 is broken on PPC and some Alphas */
     return TRUE;
 #else
@@ -2127,7 +2127,7 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
 
     /* By default, don't do VGA IOs on ppc */
-#if defined(__powerpc__) || !defined(WITH_VGAHW)
+#if defined(__powerpc__) || defined(__sparc__) || !defined(WITH_VGAHW)
     info->VGAAccess = FALSE;
 #else
     info->VGAAccess = TRUE;
