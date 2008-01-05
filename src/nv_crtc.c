@@ -2060,7 +2060,6 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVCrtcSetOwner(crtc);
-	nv_crtc_restore_generate(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
@@ -2090,6 +2089,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	NVCrtcLockUnlock(crtc, FALSE);
 
 	NVVgaProtect(crtc, TRUE);
+	nv_crtc_restore_generate(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
 	if (savep->general & 0x30) /* Palette mode */
