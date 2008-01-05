@@ -523,7 +523,6 @@ Bool RADEONGetTVInfoFromBIOS (xf86OutputPtr output) {
     if (!info->VBIOS) return FALSE;
 
     if (info->IsAtomBios) {
-	/* no idea where TV table is on ATOM bios */
         return RADEONGetATOMTVInfo(output);
     } else {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x32);

@@ -951,8 +951,9 @@ radeon_create_resources(xf86OutputPtr output)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
+
 	/* Set the current value of the property */
-	switch (radeon_output->default_tvStd) {
+	switch (radeon_output->tvStd) {
 	case TV_STD_PAL:
 	    s = "pal";
 	    break;
@@ -972,25 +973,6 @@ radeon_create_resources(xf86OutputPtr output)
 	default:
 	    s = "ntsc";
 	    break;
-	}
-
-	optstr = (char *)xf86GetOptValString(info->Options, OPTION_TVSTD);
-	if (optstr) {
-	    if (!strncmp("ntsc", optstr, strlen("ntsc")))
-		radeon_output->tvStd = TV_STD_NTSC;
-	    else if (!strncmp("pal", optstr, strlen("pal")))
-		radeon_output->tvStd = TV_STD_PAL;
-	    else if (!strncmp("pal-m", optstr, strlen("pal-m")))
-		radeon_output->tvStd = TV_STD_PAL_M;
-	    else if (!strncmp("pal-60", optstr, strlen("pal-60")))
-		radeon_output->tvStd = TV_STD_PAL_60;
-	    else if (!strncmp("ntsc-j", optstr, strlen("ntsc-j")))
-		radeon_output->tvStd = TV_STD_NTSC_J;
-	    else if (!strncmp("scart-pal", optstr, strlen("scart-pal")))
-		radeon_output->tvStd = TV_STD_SCART_PAL;
-	    else {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid TV Standard: %s\n", optstr);
-	    }
 	}
 
 	err = RRChangeOutputProperty(output->randr_output, tv_std_atom,
@@ -1662,19 +1644,41 @@ RADEONGetTMDSInfo(xf86OutputPtr output)
 static void
 RADEONGetTVInfo(xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    char *optstr;
 
     radeon_output->hPos = 0;
     radeon_output->vPos = 0;
     radeon_output->hSize = 0;
 
-    if (RADEONGetTVInfoFromBIOS(output)) return;
+    if (!RADEONGetTVInfoFromBIOS(output)) {
+	/* set some reasonable defaults */
+	radeon_output->default_tvStd = TV_STD_NTSC;
+	radeon_output->tvStd = TV_STD_NTSC;
+	radeon_output->TVRefClk = 27.000000000;
+	radeon_output->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;
+    }
 
-    /* set some reasonable defaults */
-    radeon_output->default_tvStd = TV_STD_NTSC;
-    radeon_output->tvStd = TV_STD_NTSC;
-    radeon_output->TVRefClk = 27.000000000;
-    radeon_output->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;
+    optstr = (char *)xf86GetOptValString(info->Options, OPTION_TVSTD);
+    if (optstr) {
+	if (!strncmp("ntsc", optstr, strlen("ntsc")))
+	    radeon_output->tvStd = TV_STD_NTSC;
+	else if (!strncmp("pal", optstr, strlen("pal")))
+	    radeon_output->tvStd = TV_STD_PAL;
+	else if (!strncmp("pal-m", optstr, strlen("pal-m")))
+	    radeon_output->tvStd = TV_STD_PAL_M;
+	else if (!strncmp("pal-60", optstr, strlen("pal-60")))
+	    radeon_output->tvStd = TV_STD_PAL_60;
+	else if (!strncmp("ntsc-j", optstr, strlen("ntsc-j")))
+	    radeon_output->tvStd = TV_STD_NTSC_J;
+	else if (!strncmp("scart-pal", optstr, strlen("scart-pal")))
+	    radeon_output->tvStd = TV_STD_SCART_PAL;
+	else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid TV Standard: %s\n", optstr);
+	}
+    }
 
 }
 
