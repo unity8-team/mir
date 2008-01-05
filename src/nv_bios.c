@@ -3761,6 +3761,8 @@ static void load_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hw
 		return;
 	}
 
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading NV17 power sequencing microcode\n");
+
 	uint16_t hwsq_entry_offset = hwsq_offset + 2 + entry * bytes_to_write;
 
 	/* set sequencer control */
@@ -3847,10 +3849,10 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 
 	pNv->VBIOS.execute = FALSE;
 
+	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
+
 	if (!NVRunVBIOSInit(pScrn))
 		return 0;
-
-	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
