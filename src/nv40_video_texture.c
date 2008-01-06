@@ -124,7 +124,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 	} else {
 		/* Pretend we've got a normal 2x8 bits format. */
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8L8;
-		card_swz = SWIZZLE(S1, S1, S1, S1, Y, X, W, Z); /* x = V, y = U */
+		card_swz = SWIZZLE(S1, S1, S1, S1, W, Z, Y, X); /* x = V, y = U */
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
@@ -141,15 +141,9 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 			NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	OUT_RING(NV40TCL_TEX_ENABLE_ENABLE);
 	OUT_RING(card_swz);
-	if (unit == 0) {
-		OUT_RING(NV40TCL_TEX_FILTER_MIN_LINEAR |
-				NV40TCL_TEX_FILTER_MAG_LINEAR |
-				0x3fd6);
-	} else { /* UV texture cannot be linearly filtered, because it's just offsets. */
-		OUT_RING(NV40TCL_TEX_FILTER_MIN_NEAREST |
-				NV40TCL_TEX_FILTER_MAG_NEAREST |
-				0x3fd6);
-	}
+	OUT_RING(NV40TCL_TEX_FILTER_MIN_LINEAR |
+			NV40TCL_TEX_FILTER_MAG_LINEAR |
+			0x3fd6);
 	OUT_RING((width << 16) | height);
 	OUT_RING(0); /* border ARGB */
 	BEGIN_RING(Nv3D, NV40TCL_TEX_SIZE1(unit), 1);
