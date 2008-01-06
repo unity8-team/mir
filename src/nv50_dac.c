@@ -123,6 +123,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	NV50OutputPrivPtr nv_output = output->driver_private;
 	const int scrnIndex = pScrn->scrnIndex;
+	int sigstate;
 	CARD32 load, tmp, tmp2;
 
 	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
@@ -135,7 +136,9 @@ NV50DacLoadDetect(xf86OutputPtr output)
 	while(NV50OutputRead(output, 0xa004) & 0x80000000);
 	tmp = (pNv->NVArch == 0x50) ? 420 : 340;
 	NV50OutputWrite(output, 0xa00c, tmp | 0x100000);
-	usleep(4500);
+	sigstate = xf86BlockSIGIO();
+	usleep(45000);
+	xf86UnblockSIGIO(sigstate);
 	load = NV50OutputRead(output, 0xa00c);
 	NV50OutputWrite(output, 0xa00c, 0);
 	NV50OutputWrite(output, 0xa004, 0x80000000 | tmp2);
@@ -181,7 +184,7 @@ NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 	char orName[5];
 
 	if(!nv_output)
-		return FALSE;
+		return NULL;
 
 	snprintf(orName, 5, "VGA%i", or);
 	output = xf86OutputCreate(pScrn, &NV50DacOutputFuncs, orName);
