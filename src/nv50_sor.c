@@ -467,7 +467,7 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 	const xf86OutputFuncsRec *funcs;
 
 	if(!nv_output)
-		return FALSE;
+		return NULL;
 
 	if(panelType == LVDS) {
 		strcpy(orName, "LVDS");
@@ -479,7 +479,7 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				"Failed to find LVDS native mode\n");
 			xfree(nv_output);
-			return FALSE;
+			return NULL;
 		}
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s native size %dx%d\n",
