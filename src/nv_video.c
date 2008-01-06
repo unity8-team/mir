@@ -200,11 +200,25 @@ static unsigned int
 nv_window_belongs_to_crtc(ScrnInfoPtr pScrn, int x, int y, int w, int h)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcPtr crtc;
 	int i;
 	unsigned int mask;
 
 	mask = 0;
+
+	if (!pNv->randr12_enable) {
+		/*
+		 * Without RandR 1.2, we'll just return which CRTCs
+		 * are active.
+		 */
+		if (pNv->crtc_active[0])
+			mask |= 0x1;
+		if (pNv->crtc_active[1])
+			mask |= 0x2;
+
+		return mask;
+	}
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		crtc = xf86_config->crtc[i];
