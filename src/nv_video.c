@@ -1300,73 +1300,87 @@ static int NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 * xa, IN
 							RegionPtr clipBoxes, short width, short height
 							)
 {
-	
-	if ( action_flags & USE_OVERLAY ) 
-		{ /* overlay hardware scaler limitation - copied from nv, UNCHECKED*/
-		if (*src_w > (*drw_w << 3))
-			*drw_w = *src_w >> 3;
-		if (*src_h > (*drw_h << 3))
-			*drw_h = *src_h >> 3;
-		}
-	
+    NVPtr pNv = NVPTR(pScrn);
 
-	/* Clip */
-	*xa = *src_x;
-	*xb = *src_x + *src_w;
-	*ya = *src_y;
-	*yb = *src_y + *src_h;
 
-	dstBox->x1 = *drw_x;
-	dstBox->x2 = *drw_x + *drw_w;
-	dstBox->y1 = *drw_y;
-	dstBox->y2 = *drw_y + *drw_h;
+    if ( action_flags & USE_OVERLAY ) 
+	{ /* overlay hardware scaler limitation - copied from nv, UNCHECKED*/
+	if (*src_w > (*drw_w << 3))
+	    *drw_w = *src_w >> 3;
+	if (*src_h > (*drw_h << 3))
+	    *drw_h = *src_h >> 3;
+	}
 
-	if (!xf86XVClipVideoHelper(dstBox, xa, xb, ya, yb, clipBoxes,
-				   width, height))
-		return -1;
 
-	if ( action_flags & USE_OVERLAY )
-		{
-		dstBox->x1 -= pScrn->frameX0;
-		dstBox->x2 -= pScrn->frameX0;
-		dstBox->y1 -= pScrn->frameY0;
-		dstBox->y2 -= pScrn->frameY0;
-		}
-		
-	
-	
-	/* Convert fixed point to integer, as xf86XVClipVideoHelper probably turns its parameter into fixed point values */
-	*left = (*xa) >> 16;
-	if (*left < 0) *left = 0;
-	*top = (*ya) >> 16;
-	if (*top < 0) *top = 0;
-	*right = (*xb) >> 16;
-	if (*right > width) *right = width;
-	*bottom = (*yb) >> 16;
-	if (*bottom > height) *bottom = height;
-	
-	if ( action_flags & IS_YV12 )
-		{
-		*left &= ~1; //even "left", even "top", even number of pixels per line and even number of lines
-		*npixels = ((*right + 1) & ~1) - *left;
-		*top &= ~1;
-	        *nlines = ((*bottom + 1) & ~1) - *top;
-		}
-	else if ( action_flags & IS_YUY2 )
-		{
-		*left &= ~1; //even "left"
-		*npixels = ((*right + 1) & ~1) - *left; //even number of pixels per line
-		*nlines = *bottom - *top; 
-		*left <<= 1; //16bpp
-		}
-	else if (action_flags & IS_RGB )
-		{
-		*npixels = *right - *left;
-		*nlines = *bottom - *top;
-		*left <<= 2; //32bpp
-		}
-	
-	return 0;
+    /* Clip */
+    *xa = *src_x;
+    *xb = *src_x + *src_w;
+    *ya = *src_y;
+    *yb = *src_y + *src_h;
+
+    dstBox->x1 = *drw_x;
+    dstBox->x2 = *drw_x + *drw_w;
+    dstBox->y1 = *drw_y;
+    dstBox->y2 = *drw_y + *drw_h;
+
+    if (!xf86XVClipVideoHelper(dstBox, xa, xb, ya, yb, clipBoxes,
+		width, height))
+	return -1;
+
+    if ( action_flags & USE_OVERLAY )
+	{
+	if ( ! pNv->randr12_enable )
+	    {
+	    dstBox->x1 -= pScrn->frameX0;
+	    dstBox->x2 -= pScrn->frameX0;
+	    dstBox->y1 -= pScrn->frameY0;
+	    dstBox->y2 -= pScrn->frameY0;
+	    }
+	else
+	    {
+	    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	    NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+	    dstBox->x1 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
+	    dstBox->x2 -= xf86_config->crtc[pPriv->overlayCRTC]->x;
+	    dstBox->y1 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
+	    dstBox->y2 -= xf86_config->crtc[pPriv->overlayCRTC]->y;
+	    }
+	}
+
+
+
+    /* Convert fixed point to integer, as xf86XVClipVideoHelper probably turns its parameter into fixed point values */
+    *left = (*xa) >> 16;
+    if (*left < 0) *left = 0;
+    *top = (*ya) >> 16;
+    if (*top < 0) *top = 0;
+    *right = (*xb) >> 16;
+    if (*right > width) *right = width;
+    *bottom = (*yb) >> 16;
+    if (*bottom > height) *bottom = height;
+
+    if ( action_flags & IS_YV12 )
+	{
+	*left &= ~1; //even "left", even "top", even number of pixels per line and even number of lines
+	*npixels = ((*right + 1) & ~1) - *left;
+	*top &= ~1;
+	*nlines = ((*bottom + 1) & ~1) - *top;
+	}
+    else if ( action_flags & IS_YUY2 )
+	{
+	*left &= ~1; //even "left"
+	*npixels = ((*right + 1) & ~1) - *left; //even number of pixels per line
+	*nlines = *bottom - *top; 
+	*left <<= 1; //16bpp
+	}
+    else if (action_flags & IS_RGB )
+	{
+	*npixels = *right - *left;
+	*nlines = *bottom - *top;
+	*left <<= 2; //32bpp
+	}
+
+    return 0;
 }
 
 static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, int * srcPitch2, int * dstPitch, 
@@ -1433,68 +1447,110 @@ static int NV_calculate_pitches_and_mem_size(int action_flags, int * srcPitch, i
  * that is, it decides what NVPutImage and its helpers must do.
  * This eases readability by avoiding lots of switch-case statements in the core NVPutImage
  */
-static void NV_set_action_flags(NVPtr pNv, ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv, int id, int * action_flags)
+static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv, int id, 
+	short drw_x, short drw_y, short drw_w, short drw_h, int * action_flags)
 {
-	*action_flags = 0;
-	if ( id == FOURCC_YUY2 || id == FOURCC_UYVY )
-		*action_flags |= IS_YUY2;
+#define USING_OVERLAY (*action_flags & USE_OVERLAY)
+#define USING_TEXTURE (*action_flags & USE_TEXTURE)
+#define USING_BLITTER ((!(*action_flags & USE_OVERLAY)) && (!(*action_flags & USE_TEXTURE)))
+
+    NVPtr pNv = NVPTR(pScrn);
+
+    *action_flags = 0;
+
+    /* Pixel format-related bits */
+    if ( id == FOURCC_YUY2 || id == FOURCC_UYVY )
+	*action_flags |= IS_YUY2;
+
+    if ( id == FOURCC_YV12 || id == FOURCC_I420 )
+	*action_flags |= IS_YV12;
+
+    if ( id == FOURCC_RGB ) /*How long will we support it?*/
+	*action_flags |= IS_RGB; 
+
+    if ( id == FOURCC_I420 ) /*I420 is YV12 with swapped UV*/
+	*action_flags |= SWAP_UV;
+
+    /* Desired adapter */
+    if ( !pPriv -> blitter && !pPriv -> texture )
+	*action_flags |= USE_OVERLAY;
+
+    if ( !pPriv -> blitter && pPriv->texture )
+	*action_flags |= USE_TEXTURE;
+
+    /* Adapter fallbacks (when the desired one can't be used)*/
+#ifdef COMPOSITE
+    WindowPtr pWin = NULL;
+
+    if (!noCompositeExtension && WindowDrawable(pDraw->type)) 
+	{
+	pWin = (WindowPtr)pDraw;
+	}
+
+    if ( pWin )
+	if ( pWin->redirectDraw )
+	    *action_flags &= ~USE_OVERLAY;
+
+#endif
+
+    if ( USING_OVERLAY && pNv->randr12_enable )
+	{ /* We need to check the CRTC we're on */
+	char crtc = nv_window_belongs_to_crtc(pScrn, drw_x, drw_y, drw_w, drw_h);
 	
+	/* We're on CRTC 0, or 1, or both.. */
+	if ( ( crtc & (1 << 0)) && (crtc & (1 << 1)) )
+	    { /* The overlay cannot be used on two CRTCs at a time, so we need to fallback on the blitter */
+	    *action_flags &= ~USE_OVERLAY;
+	    }
+	else if ( (crtc & (1 << 0) ) )
+	    { /* We need to put the overlay on CRTC0 - if it's not already here */
+	    if ( pPriv->overlayCRTC == 1 )
+		{
+		nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, nvReadCRTC(pNv, 0, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
+		nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, nvReadCRTC(pNv, 1, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+		pPriv->overlayCRTC = 0;
+		}
+	    }
+	else if ( (crtc & (1 << 1) ) )
+	    {
+	    if ( pPriv->overlayCRTC == 0 )
+		{
+		nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, nvReadCRTC(pNv, 1, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
+		nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, nvReadCRTC(pNv, 0, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+		pPriv->overlayCRTC = 1;
+		}
+	    }
+	}
+
+    /* At this point the adapter we're going to use is _known_. You cannot change it now. */
+    /* Card/adapter format restrictions */
+    if ( USING_BLITTER )
+	{
 	if ( id == FOURCC_YV12 || id == FOURCC_I420 )
-		*action_flags |= IS_YV12;
-	
-	if ( id == FOURCC_RGB ) /*How long will we support it?*/
-		*action_flags |= IS_RGB; 
-	
-	if ( id == FOURCC_I420 ) /*I420 is YV12 with swapped UV*/
-		*action_flags |= SWAP_UV;
-	
-	if ( !pPriv -> blitter && !pPriv -> texture )
-		*action_flags |= USE_OVERLAY;
+	    { /*The blitter does not handle YV12 natively*/
+	    *action_flags |= CONVERT_TO_YUY2;
+	    }
+	}
 
-	if ( !pPriv -> blitter && pPriv->texture )
-		*action_flags |= USE_TEXTURE;
+    if ( USING_OVERLAY && (pNv->Architecture == NV_ARCH_04 ))
+	if ( * action_flags & IS_YV12 ) /*NV04-05 don't support native YV12, only YUY2 and ITU-R BT.601*/
+	    *action_flags |= CONVERT_TO_YUY2;
 
-	#ifdef COMPOSITE
-	WindowPtr pWin = NULL;
-		
-	if (!noCompositeExtension && WindowDrawable(pDraw->type)) 
-		{
-		pWin = (WindowPtr)pDraw;
-		}
-			
-	if ( pWin )
-		if ( pWin->redirectDraw )
-			*action_flags &= ~USE_OVERLAY;
-				
-	#endif
-		
-	if ( !(*action_flags & USE_OVERLAY) && !(*action_flags & USE_TEXTURE) )
-		{
-		if ( id == FOURCC_YV12 || id == FOURCC_I420 )
-			{ /*The blitter does not handle YV12 natively*/
-			*action_flags |= CONVERT_TO_YUY2;
-			}
-		}
+    if ( USING_OVERLAY && (pNv->Architecture == NV_ARCH_10 || pNv->Architecture == NV_ARCH_20 ))
+	{ /* No YV12 overlay on NV10, 11, 15, 20, NFORCE */
+	switch ( pNv->Chipset & 0xfff0 )
+	    {
+	    case CHIPSET_NV10:
+	    case CHIPSET_NV11:
+	    case CHIPSET_NV15:
+	    case CHIPSET_NFORCE: /*XXX: unsure about nforce*/
+	    case CHIPSET_NV20:
+		*action_flags |= CONVERT_TO_YUY2; break;
 
-	if ( pNv->Architecture == NV_ARCH_04 )
-		if ( * action_flags & IS_YV12 ) //NV04-05 don't support native YV12, only YUY2 and ITU-R BT.601)
-			*action_flags |= CONVERT_TO_YUY2;
-		
-	if ( pNv->Architecture == NV_ARCH_10 || pNv->Architecture == NV_ARCH_20 )
-		{
-		switch ( pNv->Chipset & 0xfff0 )
-			{
-			case CHIPSET_NV10:
-			case CHIPSET_NV11:
-			case CHIPSET_NV15:
-			case CHIPSET_NFORCE: /*XXX: unsure about nforce*/
-			case CHIPSET_NV20: /*reported by pq - in fact all cards older than geforce4 ti probably don't have YV12 overlay*/
-					*action_flags |= CONVERT_TO_YUY2; break;
-			
-			default : break;
-			}
-		}
-	
+	    default : break;
+	    }
+	}
+
 }
 
 
@@ -1559,7 +1615,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		return Success;
 
 	
-	NV_set_action_flags(pNv, pScrn, pDraw, pPriv, id, &action_flags);
+	NV_set_action_flags(pScrn, pDraw, pPriv, id, drw_x, drw_y, drw_w, drw_h, &action_flags);
 	
 	if ( NV_set_dimensions(pScrn, action_flags, &xa, &xb, &ya, &yb, 
 							&src_x,  &src_y, &src_w, &src_h,
