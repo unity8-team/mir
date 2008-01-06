@@ -1048,7 +1048,7 @@ void nv_crtc_calc_state_ext(
 		*/
 		/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
 		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			if (pNv->Architecture == NV_ARCH_40) {
+			if (pNv->Architecture >= NV_ARCH_30) {
 				for (i = 0; i < 4; i++) {
 					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
 					if (var == 0x1 || var == 0x4) {

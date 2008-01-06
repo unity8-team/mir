@@ -360,7 +360,8 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 
 	state = &pNv->SavedReg;
 	/* Registers are stored by their preferred ramdac */
-	regp = &state->dac_reg[nv_output->output_resource];
+	/* So or = 3 still means it uses the "ramdac0" regs. */
+	regp = &state->dac_reg[nv_output->preferred_output];
 
 	/* Only do it once for a dvi-d/dvi-a pair */
 	Bool swapped_clock = FALSE;
@@ -584,7 +585,8 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 			if (nv_output2->type == OUTPUT_ANALOG)
 				output_reg[ors] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
 			if (ors != nv_output2->preferred_output)
-				strange_mode = TRUE;
+				if (pNv->Architecture == NV_ARCH_40)
+					strange_mode = TRUE;
 		}
 	}
 
@@ -596,6 +598,8 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 		if (strange_mode)
 			output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 	}
+
+	ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
 
 	/* The registers can't be considered seperately on most cards */
 	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
@@ -1311,7 +1315,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
 	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
 	/* Anyone know what the solution for this is? */
-	if (nv_output->preferred_output == 0) {
+	/* This does not apply to NV31 LVDS with or == 3. */
+	if (nv_output->preferred_output == 0 && pNv->Architecture == NV_ARCH_40) {
 		output->possible_crtcs = (1 << 0);
 	} else {
 		if (pNv->switchable_crtc) {
