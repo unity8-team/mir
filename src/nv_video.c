@@ -876,7 +876,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 		FIRE_RING();
 		if (crtcs & 0x1)
 			NVWaitVSync(pScrn, 0);
-		if (crtcs & 0x2)
+		else if (crtcs & 0x2)
 			NVWaitVSync(pScrn, 1);
 	}
 
