@@ -212,11 +212,11 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	if (planemask != ~0 || alu != GXcopy) {
 		if (pDstPixmap->drawable.bitsPerPixel == 32)
 			return FALSE;
-		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+		BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_OPERATION, 1);
 		OUT_RING  (1); /* ROP_AND */
 		NVSetROP(pScrn, alu, planemask);
 	} else {
-		BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
+		BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_OPERATION, 1);
 		OUT_RING  (3); /* SRCCOPY */
 	}
 
@@ -312,7 +312,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 #endif /* 0 */
 
 	NVDEBUG("ExaCopy: Using default path\n");
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_POINT_IN, 3);
+	BEGIN_RING(NvImageBlit, NV01_IMAGE_BLIT_POINT_IN, 3);
 	OUT_RING  ((srcY << 16) | srcX);
 	OUT_RING  ((dstY << 16) | dstX);
 	OUT_RING  ((height  << 16) | width);
@@ -380,7 +380,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, PixmapPtr pspix,
 		}
 
 		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		OUT_PIXMAPl(pspix, src_offset, NOUVEAU_BO_GART |
 			    NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 		OUT_RELOCl(pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
@@ -392,7 +392,7 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, PixmapPtr pspix,
 		OUT_RING  (0);
 
 		nouveau_notifier_reset(pNv->notify0, 0);
-		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		OUT_RING  (0);
 		BEGIN_RING(NvMemFormat, 0x100, 1);
 		OUT_RING  (0);
@@ -575,7 +575,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, PixmapPtr pdpix, uint32_t dst_offset,
 
 		/* DMA to VRAM */
 		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		OUT_RELOCl(pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
 		OUT_PIXMAPl(pdpix, dst_offset, NOUVEAU_BO_VRAM |
 			    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
@@ -587,7 +587,7 @@ NVAccelUploadM2MF(ScrnInfoPtr pScrn, PixmapPtr pdpix, uint32_t dst_offset,
 		OUT_RING  (0);
 
 		nouveau_notifier_reset(pNv->notify0, 0);
-		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		OUT_RING  (0);
 		BEGIN_RING(NvMemFormat, 0x100, 1);
 		OUT_RING  (0);

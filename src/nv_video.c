@@ -1715,7 +1715,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		
 		
 		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
+			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 		OUT_RING  (pNv->chan->gart->handle);
 		OUT_RING  (pNv->chan->vram->handle);
 		
@@ -1723,7 +1723,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		if (action_flags & IS_YV12 && ! (action_flags & CONVERT_TO_YUY2) )
 			{ /*we start the color plane transfer separately*/
 			BEGIN_RING(NvMemFormat,
-				   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+				   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 			OUT_RING  ((uint32_t)destination_buffer->offset + line_len * nlines);
 			OUT_RING  ((uint32_t)offset + dstPitch * nlines);
 			OUT_RING  (line_len);
@@ -1736,7 +1736,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 			}
 				
 		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
+			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		OUT_RING  ((uint32_t)destination_buffer->offset);
 		OUT_RING  ((uint32_t)offset /*+ DMAoffset*/);
 		OUT_RING  (line_len);
@@ -1753,12 +1753,12 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		else {
 			nouveau_notifier_reset(pPriv->DMANotifier[pPriv->currentHostBuffer], 0);
 			BEGIN_RING(NvMemFormat,
-				   NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+				   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 			OUT_RING  (pPriv->DMANotifier[pPriv->currentHostBuffer]->handle);
 			}
 			
 			
-		BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
 		OUT_RING  (0);
 			
 		BEGIN_RING(NvMemFormat, 0x100, 1);
@@ -1766,7 +1766,7 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 				
 		//Put back NvDmaNotifier0 for EXA
 		BEGIN_RING(NvMemFormat,
-			   NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 		OUT_RING  (pNv->notify0->handle);
 		
 		FIRE_RING();			

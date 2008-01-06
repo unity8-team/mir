@@ -255,7 +255,7 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t   class;
 
-	class = (pNv->WaitVSyncPossible) ? NV12_IMAGE_BLIT : NV_IMAGE_BLIT;
+	class = (pNv->WaitVSyncPossible) ? NV12_IMAGE_BLIT : NV04_IMAGE_BLIT;
 
 	if (!pNv->NvImageBlit) {
 		if (nouveau_grobj_alloc(pNv->chan, NvImageBlit, class,
@@ -263,18 +263,18 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 			return FALSE;
 	}
 
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_DMA_NOTIFY, 1);
+	BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_DMA_NOTIFY, 1);
 	OUT_RING  (pNv->notify0->handle);
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_COLOR_KEY, 1);
+	BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_COLOR_KEY, 1);
 	OUT_RING  (pNv->NvNull->handle);
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_SURFACE, 1);
+	BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_SURFACE, 1);
 	OUT_RING  (pNv->NvContextSurfaces->handle);
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_CLIP_RECTANGLE, 3);
+	BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_CLIP_RECTANGLE, 3);
 	OUT_RING  (pNv->NvNull->handle);
 	OUT_RING  (pNv->NvImagePattern->handle);
 	OUT_RING  (pNv->NvRop->handle);
-	BEGIN_RING(NvImageBlit, NV_IMAGE_BLIT_OPERATION, 1);
-	OUT_RING  (NV_IMAGE_BLIT_OPERATION_ROP_AND);
+	BEGIN_RING(NvImageBlit, NV04_IMAGE_BLIT_OPERATION, 1);
+	OUT_RING  (NV04_IMAGE_BLIT_OPERATION_ROP_AND);
 
 	if (pNv->WaitVSyncPossible) {
 		BEGIN_RING(NvImageBlit, 0x0120, 3);
@@ -359,7 +359,7 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 	uint32_t   class;
 
 	if (pNv->Architecture < NV_ARCH_50)
-		class = NV_MEMORY_TO_MEMORY_FORMAT;
+		class = NV04_MEMORY_TO_MEMORY_FORMAT;
 	else
 		class = NV50_MEMORY_TO_MEMORY_FORMAT;
 
@@ -369,9 +369,9 @@ NVAccelInitMemFormat(ScrnInfoPtr pScrn)
 			return FALSE;
 	}
 
-	BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
+	BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	OUT_RING  (pNv->notify0->handle);
-	BEGIN_RING(NvMemFormat, NV_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
+	BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
 	OUT_RING  (pNv->chan->vram->handle);
 	OUT_RING  (pNv->chan->vram->handle);
 
@@ -386,7 +386,7 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
-		class = NV_IMAGE_FROM_CPU;
+		class = NV04_IMAGE_FROM_CPU;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
