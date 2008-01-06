@@ -196,17 +196,41 @@ static XF86ImageRec NVImages[NUM_IMAGES_ALL] =
 	XVIMAGE_RGB
 };
 
+static unsigned int
+nv_window_belongs_to_crtc(ScrnInfoPtr pScrn, int x, int y, int w, int h)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	xf86CrtcPtr crtc;
+	int i;
+	unsigned int mask;
+
+	mask = 0;
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		crtc = xf86_config->crtc[i];
+
+		if (!crtc->enabled)
+			continue;
+
+		if ((x < (crtc->x + crtc->mode.HDisplay)) &&
+		    (y < (crtc->y + crtc->mode.VDisplay)) &&
+		    ((x + w) > crtc->x) &&
+		    ((y + h) > crtc->y))
+		    mask |= 1 << i;
+	}
+
+	return mask;
+}
+
 void
-NVWaitVSync(ScrnInfoPtr pScrn)
+NVWaitVSync(ScrnInfoPtr pScrn, int crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
 	BEGIN_RING(NvImageBlit, 0x0000012C, 1);
 	OUT_RING  (0);
 	BEGIN_RING(NvImageBlit, 0x00000134, 1);
-	/* If crtc1 is active, this will produce one, otherwise zero */
-	/* The assumption is that at least one is active */
-	OUT_RING  (pNv->crtc_active[1]);
+	OUT_RING  (crtc);
 	BEGIN_RING(NvImageBlit, 0x00000100, 1);
 	OUT_RING  (0);
 	BEGIN_RING(NvImageBlit, 0x00000130, 1);
@@ -772,6 +796,8 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	CARD32         dst_size, dst_point;
 	CARD32         src_point, src_format;
 
+	unsigned int crtcs;
+
 	ScreenPtr pScreen = pScrn->pScreen;
 	PixmapPtr pPix    = exaGetDrawablePixmap(pDraw);
 	int dst_format;
@@ -844,8 +870,14 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
 	}
 
 	if(pPriv->SyncToVBlank) {
+		crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
+			dstBox->x2, dstBox->y2);
+
 		FIRE_RING();
-		NVWaitVSync(pScrn);
+		if (crtcs & 0x1)
+			NVWaitVSync(pScrn, 0);
+		if (crtcs & 0x2)
+			NVWaitVSync(pScrn, 1);
 	}
 
 	if(pNv->BlendingPossible) {
