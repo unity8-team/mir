@@ -608,6 +608,12 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, 0x1e94, 1);
 	OUT_RING  (0x00000001);
 
+	/* This removes the the stair shaped tearing that i get. */
+	/* Verified on one G70 card that it doesn't cause regressions for people without the problem. */
+	/* The blob sets this up by default for NV43. */
+	BEGIN_RING(Nv3D, 0x1450, 1);
+	OUT_RING  (0x0000000F);
+
 	BEGIN_RING(Nv3D, NV40TCL_VIEWPORT_TRANSLATE_X, 8);
 	OUT_RINGf (0.0);
 	OUT_RINGf (0.0);
