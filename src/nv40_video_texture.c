@@ -61,43 +61,22 @@ static nv_shader_t nv40_video = {
 };
 
 static nv_shader_t nv40_yv12 = {
-	.card_priv.NV30FP.num_regs = 4,
-	.size = (17*4),
+	.card_priv.NV30FP.num_regs = 2,
+	.size = (8*4),
 	.data = {
-		/* INST 0.0, TEX R1 (TR0.xyzw), attrib.texcoord[0] */
-		0x17009e02, 0x1c9dc811, 0x0001c801, 0x0001c801,
-		/* INST 1.0, TEX R2 (TR0.xyzw), attrib.texcoord[1] */
-		0x1702be04, 0x1c9dc815, 0x0001c801, 0x0001c801,
-		/* INST 2.0, DP4R R3.x (TR0.xyzw), R1, { 0.00, 0.00, 0.00, 1.00 } */
-		0x06000206, 0x1c9dc804, 0x0001c802, 0x0001c801,
-		/* const */
-		0x00000000, 0x00000000, 0x00000000, 0x3f800000,
-		/* INST 3.0, DP4R R3.y (TR0.xyzw), R2, { 0.00, 1.00, 0.00, 0.00 } */
-		0x06000406, 0x1c9dc808, 0x0001c802, 0x0001c801,
-		/* const */
-		0x00000000, 0x3f800000, 0x00000000, 0x00000000,
-		/* INST 4.0, DP4R R3.z (TR0.xyzw), R2, { 1.00, 0.00, 0.00, 0.00 } */
-		0x06000806, 0x1c9dc808, 0x0001c802, 0x0001c801,
-		/* const */
-		0x3f800000, 0x00000000, 0x00000000, 0x00000000,
-		/* INST 5.0, ADDR R3 (TR0.xyzw), R3, { 0.00, -0.50, -0.50, 0.00 } */
-		0x03001e06, 0x1c9dc80c, 0x0001c802, 0x0001c801,
-		/* const */
-		0x00000000, 0xBF000000, 0xBF000000, 0x00000000,
-		/* INST 6.0, DP3R R0.x (TR0.xyzw), R3, { 1.1678, 0.00, 1.6007, 0.00 } */
-		0x05000280, 0x1c9dc80c, 0x0001c802, 0x0001c801,
-		/* const */
-		0x3F957A78, 0x00000000, 0x3FCCE3BD, 0x00000000,
-		/* INST 7.0, DP3R R0.y (TR0.xyzw), R3, { 1.1678, -0.3929, -0.8154, 0.00 } */
-		0x05000480, 0x1c9dc80c, 0x0001c802, 0x0001c801,
-		/* const */
-		0x3F957A78, 0xBEC92A30, 0xBF50BE0E, 0x00000000,
-		/* INST 8.0, DP3R R0.z (TR0.xyzw), R3, { 1.1678, 2.0232, 0.00, 0.00 } */
-		0x05000880, 0x1c9dc80c, 0x0001c802, 0x0001c801,
-		/* const */
-		0x3F957A78, 0x40017C1C, 0x00000000, 0x00000000,
-		/* INST 9.0, MOVR R0.w (TR0.xyzw), R3.wwww + END */
-		0x01001081, 0x1c9dfe0c, 0x0001c801, 0x0001c801,
+		/* INST 0: TEXR R0.x (TR0.xyzw), attrib.texcoord[0], abs(texture[0]) */
+		0x17008200, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
+		/* INST 1: MADR R1.xyz (TR0.xyzw), R0.xxxx, { 1.16, -0.87, 0.53, -1.08 }.xxxx, { 1.16, -0.87, 0.53, -1.08 }.yzww */
+		0x04000e02, 0x1c9c0000, 0x00000002, 0x0001f202,
+		0x3f9507c8, 0xbf5ee393, 0x3f078fef, 0xbf8a6762,
+		/* INST 2: TEXR R0.yz (TR0.xyzw), attrib.texcoord[1], abs(texture[1]) */
+		0x1702ac80, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
+		/* INST 3: MADR R1.xyz (TR0.xyzw), R0.yyyy, { 0.00, -0.39, 2.02, 0.00 }, R1 */
+		0x04000e02, 0x1c9cab00, 0x0001c802, 0x0001c804,
+		0x00000000, 0xbec890d6, 0x40011687, 0x00000000,
+		/* INST 4: MADR R0.xyz (TR0.xyzw), R0.zzzz, { 1.60, -0.81, 0.00, 0.00 }, R1 + END */
+		0x04000e81, 0x1c9d5500, 0x0001c802, 0x0001c804,
+		0x3fcc432d, 0xbf501a37, 0x00000000, 0x00000000,
 	}
 };
 
@@ -120,7 +99,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 	if (unit == 0) {
 		/* Pretend we've got a normal 8 bits format. */
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_L8;
-		card_swz = SWIZZLE(ZERO, ZERO, ZERO, S1, X, X, X, X);
+		card_swz = SWIZZLE(S1, S1, S1, S1, X, X, X, X);
 	} else {
 		/* Pretend we've got a normal 2x8 bits format. */
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8L8;
