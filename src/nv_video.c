@@ -127,10 +127,11 @@ XF86VideoFormatRec NVFormats[NUM_FORMATS_ALL] =
 	{15, DirectColor}, {16, DirectColor}, {24, DirectColor}
 };
 
-#define NUM_NV04_OVERLAY_ATTRIBUTES 1
+#define NUM_NV04_OVERLAY_ATTRIBUTES 2
 XF86AttributeRec NV04OverlayAttributes[NUM_NV04_OVERLAY_ATTRIBUTES] =
 {
-	{XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
+	    {XvSettable | XvGettable, -512, 511, "XV_BRIGHTNESS"},
+	    {XvSettable | XvGettable, 0, (1 << 24) - 1, "XV_COLORKEY"},
 };
 
 
@@ -304,6 +305,7 @@ NVResetVideo (ScrnInfoPtr pScrn)
 	nvWriteVIDEO(pNv, NV_PVIDEO_CHROMINANCE(1), (satSine << 16) |
 						    (satCosine & 0xffff));
 	nvWriteVIDEO(pNv, NV_PVIDEO_COLOR_KEY, pPriv->colorKey);
+	
 }
 
 /**
@@ -505,6 +507,8 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 	NVPtr	pNv = NVPTR(pScrn);
 	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 	NVFreePortMemory(pScrn, pPriv);
+
+	/* "power cycle" the overlay */
 	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) & 0xEFFFFFFF));
 	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) | 0x10000000));
 }
@@ -728,9 +732,9 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
 	/* NV_PVIDEO_GREEN_CSC_OFFSET */
 	/* NV_PVIDEO_BLUE_CSC_OFFSET */
 	/* NV_PVIDEO_CSC_ADJUST */
-	nvWriteRAMDAC(pNv, 0, 0x280, 0x69);
-	nvWriteRAMDAC(pNv, 0, 0x284, 0x3e);
-	nvWriteRAMDAC(pNv, 0, 0x288, 0x89);
+	nvWriteRAMDAC(pNv, 0, 0x280, (0x69 - (pPriv->brightness * 62 / 512)));
+	nvWriteRAMDAC(pNv, 0, 0x284, (0x3e + (pPriv->brightness * 62 / 512)));
+	nvWriteRAMDAC(pNv, 0, 0x288, (0x89 - (pPriv->brightness * 62 / 512)));
 	nvWriteRAMDAC(pNv, 0, 0x28C, 0x0);
 
         /* NV_PVIDEO_CONTROL_Y (BLUR_ON, LINE_HALF) */
@@ -1047,6 +1051,7 @@ NVSetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 		return BadMatch;
 
 	NVResetVideo(pScrn);
+	
 	return Success;
 }
 
@@ -1187,7 +1192,9 @@ NVQueryBestSize(ScrnInfoPtr pScrn, Bool motion,
 
 /**
  * NVCopyData420
- * used to convert YV12 to YUY2 for the blitter
+ * used to convert YV12 to YUY2 for the blitter and NV04 overlay.
+ * The U and V samples generated are linearly interpolated on the vertical
+ * axis for better quality
  * 
  * @param src1 source buffer of luma
  * @param src2 source buffer of chroma1
@@ -2360,10 +2367,11 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 
 	pNv->overlayAdaptor	= adapt;
 
+	xvBrightness		= MAKE_ATOM("XV_BRIGHTNESS");
 	xvColorKey		= MAKE_ATOM("XV_COLORKEY");
+	
 	if ( pNv->Architecture != NV_ARCH_04 )
 		{
-		xvBrightness		= MAKE_ATOM("XV_BRIGHTNESS");
 		xvDoubleBuffer		= MAKE_ATOM("XV_DOUBLE_BUFFER");
 		xvContrast		= MAKE_ATOM("XV_CONTRAST");
 		xvSaturation		= MAKE_ATOM("XV_SATURATION");
@@ -2699,4 +2707,3 @@ void NVInitVideo (ScreenPtr pScreen)
 	if (newAdaptors)
 		xfree(newAdaptors);
 }
-
