@@ -615,12 +615,20 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	cpp = pDst->drawable.bitsPerPixel >> 3;
 
 	/* try hostdata transfer */
-	if (pNv->Architecture < NV_ARCH_50 && w*h*cpp<16*1024) /* heuristic */
+	if (w * h * cpp < 16*1024) /* heuristic */
 	{
-		if (NVAccelUploadIFC(pScrn, src, src_pitch, pDst,
-				     x, y, w, h, cpp)) {
-			exaMarkSync(pDst->drawable.pScreen);
-			return TRUE;
+		if (pNv->Architecture < NV_ARCH_50) {
+			if (NVAccelUploadIFC(pScrn, src, src_pitch, pDst,
+					     x, y, w, h, cpp)) {
+				exaMarkSync(pDst->drawable.pScreen);
+				return TRUE;
+			}
+		} else {
+			if (NV50EXAUploadSIFC(pScrn, src, src_pitch, pDst,
+					      x, y, w, h, cpp)) {
+				exaMarkSync(pDst->drawable.pScreen);
+				return TRUE;
+			}
 		}
 	}
 

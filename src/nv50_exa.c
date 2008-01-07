@@ -234,4 +234,53 @@ NV50EXADoneCopy(PixmapPtr pdPix)
 	NV50EXAReleaseSurfaces(pdPix);
 }
 
+Bool
+NV50EXAUploadSIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
+		  PixmapPtr pdPix, int x, int y, int w, int h, int cpp)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int line_dwords = (w * cpp + 3) / 4;
+	uint32_t sifc_fmt;
+
+	if (!NV50EXA2DSurfaceFormat(pdPix, &sifc_fmt))
+		return FALSE;
+	if (!NV50EXAAcquireSurface2D(pdPix, 0))
+		return FALSE;
+
+	BEGIN_RING(Nv2D, NV50_2D_OPERATION, 1);
+	OUT_RING (NV50_2D_OPERATION_SRCCOPY);
+	BEGIN_RING(Nv2D, NV50_2D_SIFC_UNK0800, 2);
+	OUT_RING (0);
+	OUT_RING (sifc_fmt);
+	BEGIN_RING(Nv2D, NV50_2D_SIFC_WIDTH, 10);
+	OUT_RING ((line_dwords * 4) / cpp);
+	OUT_RING (h);
+	OUT_RING (0);
+	OUT_RING (1);
+	OUT_RING (0);
+	OUT_RING (1);
+	OUT_RING (0);
+	OUT_RING (x);
+	OUT_RING (0);
+	OUT_RING (y);
+
+	while (h--) {
+		int count = line_dwords;
+		const char *p = src;
+
+		while(count) {
+			int size = count > 1792 ? 1792 : count;
+
+			BEGIN_RING(Nv2D, NV50_2D_SIFC_DATA | 0x40000000, size);
+			OUT_RINGp (p, size);
+
+			p += size * cpp;
+			count -= size;
+		}
+
+		src += src_pitch;
+	}
+
+	return TRUE;
+}
 
