@@ -106,7 +106,7 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 		OUT_RING  (NV50_2D_OPERATION_ROP_AND);
 	}
 
-	BEGIN_RING(Nv2D, NV50_2D_PATTERN_FORMAT, 1);
+	BEGIN_RING(Nv2D, NV50_2D_PATTERN_FORMAT, 2);
 	switch (pdPix->drawable.depth) {
 		case  8: OUT_RING  (3); break;
 		case 15: OUT_RING  (1); break;
@@ -117,6 +117,7 @@ NV50EXASetROP(PixmapPtr pdPix, int alu, Pixel planemask)
 			 OUT_RING  (2);
 			 break;
 	}
+	OUT_RING(1);
 
 	if(planemask != ~0) {
 		NV50EXASetPattern(pdPix, 0, planemask, ~0, ~0);
