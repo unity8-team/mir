@@ -115,7 +115,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	horizStart = horizTotal - 5;
 	horizEnd = horizTotal - 2;   
 	horizBlankEnd = horizTotal + 4;   
-	if ( pNv->Architecture == NV_ARCH_30 || pNv->Architecture == NV_ARCH_20 || pNv->Architecture == NV_ARCH_10 )	{ 
+	if ( ( pNv->Architecture == NV_ARCH_40 && ((pNv->Chipset & 0xfff0) == CHIPSET_NV40) ) || pNv->Architecture == NV_ARCH_30 || pNv->Architecture == NV_ARCH_20 || pNv->Architecture == NV_ARCH_10 )	{ 
 		/* This reportedly works around Xv some overlay bandwidth problems*/
 		horizTotal += 2;
 		}
