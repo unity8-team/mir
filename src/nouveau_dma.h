@@ -29,13 +29,13 @@
 
 #define RING_SKIPS 8
 
-extern int  nouveau_dma_wait(struct nouveau_channel *chan, int size);
-extern void nouveau_dma_subc_bind(struct nouveau_grobj *);
-extern void nouveau_dma_channel_init(struct nouveau_channel *);
-extern void nouveau_dma_kickoff(struct nouveau_channel *);
+NOUVEAU_PRIVATE int  nouveau_dma_wait(struct nouveau_channel *chan, int size);
+NOUVEAU_PRIVATE void nouveau_dma_subc_bind(struct nouveau_grobj *);
+NOUVEAU_PRIVATE void nouveau_dma_channel_init(struct nouveau_channel *);
+NOUVEAU_PRIVATE void nouveau_dma_kickoff(struct nouveau_channel *);
 
 #ifdef NOUVEAU_DMA_DEBUG
-extern char faulty[1024];
+NOUVEAU_PRIVATE char faulty[1024];
 #endif
 
 static inline void

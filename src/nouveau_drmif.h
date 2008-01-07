@@ -32,6 +32,7 @@
 #include "nouveau_grobj.h"
 #include "nouveau_notifier.h"
 #include "nouveau_bo.h"
+#include "nouveau_local.h"
 
 struct nouveau_device_priv {
 	struct nouveau_device base;
@@ -43,20 +44,20 @@ struct nouveau_device_priv {
 };
 #define nouveau_device(n) ((struct nouveau_device_priv *)(n))
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_device_open_existing(struct nouveau_device **, int close,
 			     int fd, drm_context_t ctx);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_device_open(struct nouveau_device **, const char *busid);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_device_close(struct nouveau_device **);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_device_get_param(struct nouveau_device *, uint64_t param, uint64_t *v);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_device_set_param(struct nouveau_device *, uint64_t param, uint64_t val);
 
 struct nouveau_channel_priv {
@@ -92,11 +93,11 @@ struct nouveau_channel_priv {
 };
 #define nouveau_channel(n) ((struct nouveau_channel_priv *)(n))
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_channel_alloc(struct nouveau_device *, uint32_t fb, uint32_t tt,
 		      struct nouveau_channel **);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_channel_free(struct nouveau_channel **);
 
 struct nouveau_grobj_priv {
@@ -104,11 +105,11 @@ struct nouveau_grobj_priv {
 };
 #define nouveau_grobj(n) ((struct nouveau_grobj_priv *)(n))
 
-extern int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
+NOUVEAU_PRIVATE int nouveau_grobj_alloc(struct nouveau_channel *, uint32_t handle,
 			       int class, struct nouveau_grobj **);
-extern int nouveau_grobj_ref(struct nouveau_channel *, uint32_t handle,
+NOUVEAU_PRIVATE int nouveau_grobj_ref(struct nouveau_channel *, uint32_t handle,
 			     struct nouveau_grobj **);
-extern void nouveau_grobj_free(struct nouveau_grobj **);
+NOUVEAU_PRIVATE void nouveau_grobj_free(struct nouveau_grobj **);
 
 
 struct nouveau_notifier_priv {
@@ -119,23 +120,23 @@ struct nouveau_notifier_priv {
 };
 #define nouveau_notifier(n) ((struct nouveau_notifier_priv *)(n))
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle, int count,
 		       struct nouveau_notifier **);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_notifier_free(struct nouveau_notifier **);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_notifier_reset(struct nouveau_notifier *, int id);
 
-extern uint32_t
+NOUVEAU_PRIVATE uint32_t
 nouveau_notifier_status(struct nouveau_notifier *, int id);
 
-extern uint32_t
+NOUVEAU_PRIVATE uint32_t
 nouveau_notifier_return_val(struct nouveau_notifier *, int id);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_notifier_wait_status(struct nouveau_notifier *, int id, int status,
 			     int timeout);
 
@@ -157,28 +158,28 @@ struct nouveau_bo_reloc {
 
 #define nouveau_bo(n) ((struct nouveau_bo_priv *)(n))
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_bo_new(struct nouveau_device *, uint32_t flags, int align, int size,
 	       struct nouveau_bo **);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_bo_ref(struct nouveau_device *, uint64_t handle, struct nouveau_bo **);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_bo_del(struct nouveau_bo **);
 
-extern int
+NOUVEAU_PRIVATE int
 nouveau_bo_map(struct nouveau_bo *, uint32_t flags);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_bo_unmap(struct nouveau_bo *);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_bo_emit_reloc(struct nouveau_channel *chan, void *ptr,
 		      struct nouveau_bo *, uint32_t data, uint32_t flags,
 		      uint32_t vor, uint32_t tor);
 
-extern void
+NOUVEAU_PRIVATE void
 nouveau_bo_validate(struct nouveau_channel *);
 
 #endif

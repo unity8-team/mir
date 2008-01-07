@@ -26,6 +26,9 @@
 #include "compiler.h"
 #include "xf86_OSproc.h"
 
+#define NOUVEAU_PRIVATE _X_HIDDEN
+#define NOUVEAU_PUBLIC _X_EXPORT
+
 #if EXA_VERSION_MINOR >= 4
 #define NOUVEAU_EXA_PIXMAPS 0
 struct nouveau_pixmap {
