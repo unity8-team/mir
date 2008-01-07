@@ -7,6 +7,8 @@
 #define NV_NAME "NOUVEAU"
 #define NV_DRIVER_NAME "nouveau"
 
+#define NV_DPMS_CLEARED 0x80
+
 typedef enum {
     OPTION_SW_CURSOR,
     OPTION_HW_CURSOR,

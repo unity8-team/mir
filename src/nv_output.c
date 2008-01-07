@@ -452,6 +452,8 @@ nv_output_restore (xf86OutputPtr output)
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
 	nv_output_load_state_ext(output, state, TRUE);
+
+	nv_output->last_dpms = NV_DPMS_CLEARED;
 }
 
 static int
@@ -1221,6 +1223,8 @@ static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair
 		output->possible_crtcs = (1 << nv_output->preferred_output);
 	}
 
+	nv_output->last_dpms = NV_DPMS_CLEARED;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }
 
@@ -1325,6 +1329,8 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 			output->possible_crtcs = (1 << nv_output->preferred_output);
 		}
 	}
+
+	nv_output->last_dpms = NV_DPMS_CLEARED;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
 }

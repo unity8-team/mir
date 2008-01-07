@@ -2111,6 +2111,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	}
 	nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 	NVVgaProtect(crtc, FALSE);
+
+	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 }
 
 void
@@ -2454,6 +2456,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
 	nv_crtc->head = crtc_num;
+	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 
 	crtc->driver_private = nv_crtc;
 
