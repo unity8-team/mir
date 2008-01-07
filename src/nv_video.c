@@ -25,15 +25,6 @@
 #include "config.h"
 #endif
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
-#include "xf86Resources.h"
-#include "compiler.h"
-#include "xf86PciInfo.h"
-#include "xf86Pci.h"
-#include "xf86fbman.h"
-#include "regionstr.h"
-
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 #include "exa.h"
