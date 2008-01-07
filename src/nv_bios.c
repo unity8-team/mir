@@ -540,6 +540,9 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 	 * returns calculated clock
 	 */
 
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+
 	int crystal = 0;
 	uint32_t minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
 	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq, vco2;
@@ -595,6 +598,8 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 
 				/* add calcclk1/2 to round better */
 				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
+				if (bios->chip_version == 0x30 && N2 > 0x1F) /* Only 5 bits available */
+					continue;
 				/* this N2 > maxM2 test is a bit weird, but it's correct for nv31 */
 				if (N2 < 4 || N2 > 0x46 || N2 > maxM2)
 					continue;

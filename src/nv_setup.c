@@ -428,6 +428,10 @@ NVCommonSetup(ScrnInfoPtr pScrn)
                        (implementation == CHIPSET_NV36) ||
                        (pNv->Architecture >= NV_ARCH_40);
 
+	/* Don't mess with pre-randr12 situations. */
+	if (pNv->NVArch == 0x30 && pNv->randr12_enable)
+		pNv->twoStagePLL = TRUE;
+
     pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
                              (implementation != CHIPSET_NV10);
 

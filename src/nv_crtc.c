@@ -911,8 +911,13 @@ void nv_crtc_calc_state_ext(
 		int NM1, NM2, log2P;
 		get_pll_limits(pScrn, 0, &pll_lim);
 		VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
-		state->pll = log2P << 16 | NM1;
-		state->pllB = 1 << 31 | NM2;
+		if (pNv->NVArch == 0x30) {
+			/* See nvregisters.xml for details. */
+			state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
+		} else {
+			state->pll = log2P << 16 | NM1;
+			state->pllB = 1 << 31 | NM2;
+		}
 	} else {
 		int NM, log2P;
 		VClk = getMNP_single(pScrn, dotClock, &NM, &log2P);
