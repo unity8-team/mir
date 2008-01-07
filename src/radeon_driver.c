@@ -2653,6 +2653,7 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int i;
     int mask;
+    int found = 0;
 
     if (!info->IsPrimary && !info->IsSecondary)
 	mask = 3;
@@ -2677,17 +2678,50 @@ static Bool RADEONPreInitControllers(ScrnInfoPtr pScrn)
       
     RADEONPrintPortMap(pScrn);
 
-    for (i = 0; i < config->num_output; i++) 
-    {
-      xf86OutputPtr	      output = config->output[i];
+    for (i = 0; i < config->num_output; i++) {
+	xf86OutputPtr	      output = config->output[i];
       
-      output->status = (*output->funcs->detect) (output);
-      ErrorF("finished output detect: %d\n", i);
-      if (info->IsPrimary || info->IsSecondary) {
-             if (output->status != XF86OutputStatusConnected)
-	         return FALSE;
-      }
+	output->status = (*output->funcs->detect) (output);
+	ErrorF("finished output detect: %d\n", i);
+	if (info->IsPrimary || info->IsSecondary) {
+	    if (output->status != XF86OutputStatusConnected)
+		return FALSE;
+	}
+	if (output->status != XF86OutputStatusDisconnected)
+	    found++;
     }
+
+    if (!found) {
+	/* nothing connected, light up some defaults so the server comes up */
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No connected devices found!\n");
+	for (i = 0; i < config->num_output; i++) {
+	    xf86OutputPtr output = config->output[i];
+	    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+	    if (info->IsMobility) {
+		if (radeon_output->type == OUTPUT_LVDS) {
+		    radeon_output->MonType = MT_LCD;
+		    output->status = XF86OutputStatusConnected;
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using LVDS default\n");
+		    break;
+		}
+	    } else {
+		if (radeon_output->type == OUTPUT_VGA ||
+		    radeon_output->type == OUTPUT_DVI_I) {
+		    radeon_output->MonType = MT_CRT;
+		    output->status = XF86OutputStatusUnknown;
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using VGA default\n");
+		    break;
+		} else if (radeon_output->type == OUTPUT_DVI_D) {
+		    radeon_output->MonType = MT_DFP;
+		    output->status = XF86OutputStatusUnknown;
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using DVI default\n");
+		    break;
+		}
+	    }
+	}
+    }
+
     ErrorF("finished all detect\n");
     return TRUE;
 }

@@ -626,7 +626,6 @@ static xf86OutputStatus
 radeon_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     Bool connected = TRUE;
 
@@ -675,6 +674,7 @@ radeon_detect(xf86OutputPtr output)
 	  break;
       }
 
+#if 0
       if (!connected) {
 	  /* default to unknown for flaky chips/connectors
 	   * so we can get something on the screen
@@ -690,6 +690,7 @@ radeon_detect(xf86OutputPtr output)
 	      return XF86OutputStatusUnknown;
 	  }
       }
+#endif
 
       if (connected)
 	  return XF86OutputStatusConnected;
@@ -755,7 +756,6 @@ radeon_create_resources(xf86OutputPtr output)
     INT32 range[2];
     int data, err;
     const char *s;
-    char *optstr;
 
     /* backlight control */
     if (radeon_output->type == OUTPUT_LVDS) {
