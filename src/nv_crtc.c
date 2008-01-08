@@ -645,9 +645,9 @@ CalculateVClkNV4x(
 	}
 
 	/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
-	/* Let's keep the special bits, if the bios already set them */
 	*pll_a = (special_bits << 30) | (p_best << 16) | (n1_best << 8) | (m1_best << 0);
-	*pll_b = (1 << 31) | (n2_best << 8) | (m2_best << 0);
+	/* This VCO2 bit is an educated guess, but it needs to stay on for NV4x. */
+	*pll_b = NV31_RAMDAC_ENABLE_VCO2 | (n2_best << 8) | (m2_best << 0);
 
 	if (*db1_ratio) {
 		if (primary) {
@@ -916,7 +916,7 @@ void nv_crtc_calc_state_ext(
 			state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
 		} else {
 			state->pll = log2P << 16 | NM1;
-			state->pllB = 1 << 31 | NM2;
+			state->pllB = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 		}
 	} else {
 		int NM, log2P;

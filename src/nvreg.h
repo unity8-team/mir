@@ -206,6 +206,8 @@
 #define NV_RAMDAC_MPLL_B            0x574
 #define NV_RAMDAC_VPLL_B            0x578
 #define NV_RAMDAC_VPLL2_B           0x57c
+/* Educated guess, should remain on for NV4x vpll's. */
+#define NV31_RAMDAC_ENABLE_VCO2		(1 << 31)
 
 #define NV_RAMDAC_580			0x580
 /* This is not always activated, but only when VCLK_RATIO_DB1 is used */

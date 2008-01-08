@@ -383,18 +383,35 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 	if ((vpllb & 0xFFFF) == 0x11F)
 		vpllb_disabled = TRUE;
 
+	if (!(vpllb & NV31_RAMDAC_ENABLE_VCO2) && pNv->NVArch != 0x30)
+		vpllb_disabled = TRUE;
+
+	if (!(vplla & NV30_RAMDAC_ENABLE_VCO2) && pNv->NVArch == 0x30)
+		vpllb_disabled = TRUE;
+
 	uint8_t m1, m2, n1, n2, p;
 
-	m1 = vplla & 0xFF;
-	n1 = (vplla >> 8) & 0xFF;
-	p = (vplla >> 16) & 0x7;
+	if (pNv->NVArch == 0x30) {
+		m1 = vplla & 0x7;
+		n1 = (vplla >> 8) & 0xFF;
+		p = (vplla >> 16) & 0x7;
+	} else {
+		m1 = vplla & 0xFF;
+		n1 = (vplla >> 8) & 0xFF;
+		p = (vplla >> 16) & 0x7;
+	}
 
 	if (vpllb_disabled) {
 		m2 = 1;
 		n2 = 1;
 	} else {
-		m2 = vpllb & 0xFF;
-		n2 = (vpllb >> 8) & 0xFF;
+		if (pNv->NVArch == 0x30) {
+			m2 = (vplla >> 4) & 0x7;
+			n2 = ((vplla >> 19) & 0x7) | (((vplla >> 24) & 0x3) << 3);
+		} else {
+			m2 = vpllb & 0xFF;
+			n2 = (vpllb >> 8) & 0xFF;
+		}
 	}
 
 	uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
