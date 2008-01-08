@@ -287,6 +287,11 @@
 #define NV_RAMDAC_FP_DEBUG_2        0x888
 #define NV_RAMDAC_FP_DEBUG_3        0x88C
 
+/* Some unknown regs, purely for NV30 it seems. */
+#define NV30_RAMDAC_890			0x890
+#define NV30_RAMDAC_894			0x894
+#define NV30_RAMDAC_89C			0x89C
+
 #define NV_RAMDAC_FP_TMDS_CONTROL   0x8b0
 /* 0xff - address mask */
 #define NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE (1<<16)

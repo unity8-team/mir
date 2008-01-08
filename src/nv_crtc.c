@@ -795,10 +795,10 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	state->vpll1_a = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
-	if(pNv->twoHeads) {
+	if (pNv->twoHeads) {
 		state->vpll2_a = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
 	}
-	if(pNv->twoStagePLL) {
+	if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 		state->vpll1_b = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
 		state->vpll2_b = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
 	}
@@ -815,11 +815,11 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
 	if (state->vpll2_a && state->vpll_changed[1]) {
-		if(pNv->twoHeads) {
+		if (pNv->twoHeads) {
 			ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
 			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2_a);
 		}
-		if(pNv->twoStagePLL) {
+		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 			ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
 			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 		}
@@ -828,7 +828,7 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	if (state->vpll1_a && state->vpll_changed[0]) {
 		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
 		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll1_a);
-		if(pNv->twoStagePLL) {
+		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 			ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
 			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll1_b);
 		}
@@ -2752,6 +2752,10 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
+	if (pNv->NVArch == 0x30) { /* For unknown purposes. */
+		uint32_t reg890 = nvReadRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_890);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_89C, reg890);
+	}
 
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A20, regp->unk_a20);
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A24, regp->unk_a24);
