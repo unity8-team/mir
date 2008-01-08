@@ -778,22 +778,16 @@ nv_analog_output_detect(xf86OutputPtr output)
 }
 
 static DisplayModePtr
-nv_output_get_modes(xf86OutputPtr output)
+nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	xf86MonPtr ddc_mon;
 	DisplayModePtr ddc_modes;
 
 	ErrorF("nv_output_get_modes is called\n");
 
-	ddc_mon = nv_get_edid(output);
+	xf86OutputSetEDID(output, mon);
 
-	xf86OutputSetEDID(output, ddc_mon);
-
-	if (ddc_mon == NULL)
-		return NULL;
-
-	ddc_modes = xf86OutputGetEDIDModes (output);
+	ddc_modes = xf86OutputGetEDIDModes(output);
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		int i;
@@ -801,12 +795,12 @@ nv_output_get_modes(xf86OutputPtr output)
 
 		for (i = 0; i < 4; i++) {
 			/* We only look at detailed timings atm */
-			if (ddc_mon->det_mon[i].type != DT)
+			if (mon->det_mon[i].type != DT)
 				continue;
 			/* Selecting only based on width ok? */
-			if (ddc_mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
-				nv_output->fpWidth = ddc_mon->det_mon[i].section.d_timings.h_active;
-				nv_output->fpHeight = ddc_mon->det_mon[i].section.d_timings.v_active;
+			if (mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
+				nv_output->fpWidth = mon->det_mon[i].section.d_timings.h_active;
+				nv_output->fpHeight = mon->det_mon[i].section.d_timings.v_active;
 			}
 		}
 
@@ -849,6 +843,21 @@ nv_output_get_modes(xf86OutputPtr output)
 	}
 
 	return ddc_modes;
+}
+
+static DisplayModePtr
+nv_output_get_ddc_modes(xf86OutputPtr output)
+{
+	xf86MonPtr ddc_mon;
+
+	ErrorF("nv_output_get_ddc_modes is called\n");
+
+	ddc_mon = nv_get_edid(output);
+
+	if (ddc_mon == NULL)
+		return NULL;
+
+	return nv_output_get_modes(output, ddc_mon);
 }
 
 static void
@@ -935,7 +944,7 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
     .detect = nv_analog_output_detect,
-    .get_modes = nv_output_get_modes,
+    .get_modes = nv_output_get_ddc_modes,
     .destroy = nv_output_destroy,
     .prepare = nv_output_prepare,
     .commit = nv_output_commit,
@@ -1076,7 +1085,7 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_tmds_output_detect,
-	.get_modes = nv_output_get_modes,
+	.get_modes = nv_output_get_ddc_modes,
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
@@ -1124,15 +1133,14 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr modes;
 
-	if ((modes = nv_output_get_modes(output)))
+	if ((modes = nv_output_get_ddc_modes(output)))
 		return modes;
 
-	/* it might be possible to set up a mode from what we can read from the
-	 * RAMDAC registers, but if we can't read the BIOS table correctly
-	 * we might as well give up */
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
-	    (pNv->VBIOS.fp.native_mode == NULL))
-		return NULL;
+	    (pNv->VBIOS.fp.native_mode == NULL)) {
+		xf86MonPtr edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
+		return nv_output_get_modes(output, edid_mon);
+	}
 
 	nv_output->fpWidth = pNv->VBIOS.fp.native_mode->HDisplay;
 	nv_output->fpHeight = pNv->VBIOS.fp.native_mode->VDisplay;
