@@ -1141,6 +1141,10 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
 	    (pNv->VBIOS.fp.native_mode == NULL)) {
+		if (!pNv->VBIOS.fp.edid)
+			return NULL;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using hardcoded BIOS FP EDID\n");
 		xf86MonPtr edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 		return nv_output_get_modes(output, edid_mon);
 	}
