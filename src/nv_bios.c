@@ -3739,10 +3739,12 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	return pNv->dcb_table.entries;
 }
 
-static void load_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
+static void load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
 {
 	/* BMP based cards, from NV17, need a microcode loading to correctly
 	 * control the GPIO etc for LVDS panels
+	 *
+	 * BIT based cards seem to do this directly in the init scripts
 	 *
 	 * The microcode entries are found by the "HWSQ" signature.
 	 * The header following has the number of entries, and the entry size
@@ -3821,10 +3823,9 @@ Bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
 		int hwsq_offset;
 
-		// FIXME I bet this exists in BIT
 		if ((hwsq_offset = findstr(&pNv->VBIOS, hwsq_signature, sizeof(hwsq_signature))))
 			/* always use entry 0? */
-			load_hw_sequencer_ucode(pScrn, &pNv->VBIOS, hwsq_offset + sizeof(hwsq_signature), 0);
+			load_nv17_hw_sequencer_ucode(pScrn, &pNv->VBIOS, hwsq_offset + sizeof(hwsq_signature), 0);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
 		parse_bmp_structure(pScrn, &pNv->VBIOS, offset);
