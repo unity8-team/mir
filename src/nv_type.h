@@ -310,6 +310,7 @@ typedef struct {
 
 	struct {
 		DisplayModePtr native_mode;
+		uint8_t *edid;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t xlated_entry;
 		Bool dual_link;

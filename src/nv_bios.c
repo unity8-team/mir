@@ -2712,6 +2712,12 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		return;
 	}
 
+	/* reserved values - means that ddc or hard coded edid should be used */
+	if (fpindex == 0xf && fpstrapping == 0xf) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Ignoring FP table\n");
+		return;
+	}
+
 	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
 		return;
 
@@ -3453,13 +3459,17 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 }
 
-static unsigned int findstr(bios_t *bios, const unsigned char *str, int len)
+static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 {
-	int i;
+	int i, j;
 
-	for (i = 2; i <= (bios->length - len); i++)
-		if (strncmp((char *)&bios->data[i], (char *)str, len) == 0)
+	for (i = 0; i <= (n - len); i++) {
+		for (j = 0; j < len; j++)
+			if (data[i + j] != str[j])
+				break;
+		if (j == len)
 			return i;
+	}
 
 	return 0;
 }
@@ -3786,6 +3796,31 @@ static void load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16
 	nv32_wr(pScrn, 0x00001098, nv32_rd(pScrn, 0x00001098) | 0x18);
 }
 
+static void read_bios_edid(ScrnInfoPtr pScrn)
+{
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	const uint8_t edid_sig[] = { 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
+	uint16_t offset = 0, newoffset;
+	int searchlen = NV_PROM_SIZE, i;
+
+	while (searchlen) {
+		if (!(newoffset = findstr(&bios->data[offset], searchlen, edid_sig, 8)))
+			return;
+		offset += newoffset;
+		if (!nv_cksum(&bios->data[offset], EDID1_LEN))
+			break;
+
+		searchlen -= offset;
+		offset++;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found EDID in BIOS\n");
+
+	bios->fp.edid = xalloc(EDID1_LEN);
+	for (i = 0; i < EDID1_LEN; i++)
+		bios->fp.edid[i] = bios->data[offset + i];
+}
+
 Bool NVInitVBIOS(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -3816,14 +3851,14 @@ Bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 
 	crtc_access(pScrn, ACCESS_UNLOCK);
 
-	if ((offset = findstr(&pNv->VBIOS, bit_signature, sizeof(bit_signature)))) {
+	if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
 		parse_bit_structure(pScrn, &pNv->VBIOS, offset + 4);
-	} else if ((offset = findstr(&pNv->VBIOS, bmp_signature, sizeof(bmp_signature)))) {
+	} else if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bmp_signature, sizeof(bmp_signature)))) {
 		const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
 		int hwsq_offset;
 
-		if ((hwsq_offset = findstr(&pNv->VBIOS, hwsq_signature, sizeof(hwsq_signature))))
+		if ((hwsq_offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, hwsq_signature, sizeof(hwsq_signature))))
 			/* always use entry 0? */
 			load_nv17_hw_sequencer_ucode(pScrn, &pNv->VBIOS, hwsq_offset + sizeof(hwsq_signature), 0);
 
@@ -3865,6 +3900,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
+
+	if (pNv->Mobile && !pNv->VBIOS.fp.native_mode)
+		read_bios_edid(pScrn);
 
 	return 1;
 }
