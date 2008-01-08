@@ -199,8 +199,8 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 
 void still_alive()
 {
-	sync();
-//	usleep(200000);
+//	sync();
+//	usleep(200);
 }
 
 static int nv_valid_reg(uint32_t reg)
@@ -3486,8 +3486,10 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 		entry->bus = (conn >> 16) & 0xf;
 		entry->location = (conn >> 20) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
-		/* Normal entries consist of a single bit. */
-		if ((1 << (ffs(entry->or) - 1)) != entry->or)
+		/* Normal entries consist of a single bit, but dual link has the
+		 * adjacent more significant bit set too
+		 */
+		if ((1 << (ffs(entry->or) - 1)) * 3 == entry->or)
 			entry->duallink_possible = TRUE;
 
 		switch (entry->type) {

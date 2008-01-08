@@ -222,7 +222,6 @@ typedef struct _NVOutputPrivateRec {
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	int dcb_entry;
-	uint32_t fpSyncs;
 	uint32_t fpWidth;
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
