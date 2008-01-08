@@ -580,7 +580,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	.name       = "576p",
 	.clock 	= 107520,	
-	.refresh	= 59.94,
+	.refresh	= 50.0,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
 

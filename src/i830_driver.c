@@ -236,7 +236,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
    {PCI_CHIP_I965_G,		"965G"},
-   {PCI_CHIP_I965_G_1,		"965G"},
+   {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
    {PCI_CHIP_I946_GZ,		"946GZ"},
    {PCI_CHIP_I965_GM,		"965GM"},
@@ -259,7 +259,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	RES_SHARED_VGA},
    {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
-   {PCI_CHIP_I965_G_1,		PCI_CHIP_I965_G_1,	RES_SHARED_VGA},
+   {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		RES_SHARED_VGA},
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
    {PCI_CHIP_I946_GZ,		PCI_CHIP_I946_GZ,	RES_SHARED_VGA},
    {PCI_CHIP_I965_GM,		PCI_CHIP_I965_GM,	RES_SHARED_VGA},
@@ -1237,8 +1237,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       chipname = "945GME";
       break;
    case PCI_CHIP_I965_G:
-   case PCI_CHIP_I965_G_1:
       chipname = "965G";
+      break;
+   case PCI_CHIP_G35_G:
+      chipname = "G35";
       break;
    case PCI_CHIP_I965_Q:
       chipname = "965Q";
@@ -1991,6 +1993,13 @@ SaveHWState(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
+/* Wait for the PLL to settle down after programming */
+static void
+i830_dpll_settle(void)
+{
+    usleep(10000); /* 10 ms *should* be plenty */
+}
+
 static Bool
 RestoreHWState(ScrnInfoPtr pScrn)
 {
@@ -2025,6 +2034,23 @@ RestoreHWState(ScrnInfoPtr pScrn)
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
+   /*
+    * Pipe regs
+    * To restore the saved state, we first need to program the PLL regs,
+    * followed by the pipe configuration and finally the display plane
+    * configuration.  The VGA registers can program one, both or neither
+    * of the PLL regs, depending on their VGA_MOD_DIS bit value.
+    */
+
+   /*
+    * Since either or both pipes may use the VGA clocks, make sure the
+    * regs are valid.
+    */
+   OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
+   OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
+   OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
+
+   /* If the pipe A PLL is active, we can restore the pipe & plane config */
    if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
    {
       OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
@@ -2033,13 +2059,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
-   usleep(150);
+   i830_dpll_settle();
    if (IS_I965G(pI830))
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
    else
       OUTREG(DPLL_A, pI830->saveDPLL_A);
-   usleep(150);
+   i830_dpll_settle();
 
+   /* Restore mode config */
    OUTREG(HTOTAL_A, pI830->saveHTOTAL_A);
    OUTREG(HBLANK_A, pI830->saveHBLANK_A);
    OUTREG(HSYNC_A, pI830->saveHSYNC_A);
@@ -2058,20 +2085,31 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DSPASURF, pI830->saveDSPASURF);
       OUTREG(DSPATILEOFF, pI830->saveDSPATILEOFF);
    }
+
+   OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   i830WaitForVblank(pScrn);
+
    /*
-    * Make sure the DPLL is active and not in VGA mode or the
-    * write of PIPEnCONF may cause a crash
+    * Program Pipe A's plane
+    * The corresponding display plane may be disabled, and should only be
+    * enabled if pipe A is actually on (otherwise we have a bug in the initial
+    * state).
     */
-   if ((pI830->saveDPLL_A & DPLL_VCO_ENABLE) &&
-       (pI830->saveDPLL_A & DPLL_VGA_MODE_DIS))
-	   OUTREG(PIPEACONF, pI830->savePIPEACONF);
-   i830WaitForVblank(pScrn);
-   OUTREG(DSPACNTR, pI830->saveDSPACNTR);
-   OUTREG(DSPABASE, INREG(DSPABASE));
-   i830WaitForVblank(pScrn);
-   
+   if (pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_A) {
+       OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+       OUTREG(DSPABASE, INREG(DSPABASE));
+       i830WaitForVblank(pScrn);
+   }
+   if (pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_A) {
+       OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+       OUTREG(DSPBBASE, INREG(DSPBBASE));
+       i830WaitForVblank(pScrn);
+   }
+
+   /* See note about pipe programming above */
    if(xf86_config->num_crtc == 2) 
    {
+      /* If the pipe B PLL is active, we can restore the pipe & plane config */
       if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
       {
 	 OUTREG(DPLL_B, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
@@ -2080,13 +2118,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
-      usleep(150);
+      i830_dpll_settle();
       if (IS_I965G(pI830))
 	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
       else
 	 OUTREG(DPLL_B, pI830->saveDPLL_B);
-      usleep(150);
+      i830_dpll_settle();
    
+      /* Restore mode config */
       OUTREG(HTOTAL_B, pI830->saveHTOTAL_B);
       OUTREG(HBLANK_B, pI830->saveHBLANK_B);
       OUTREG(HSYNC_B, pI830->saveHSYNC_B);
@@ -2105,17 +2144,27 @@ RestoreHWState(ScrnInfoPtr pScrn)
 	 OUTREG(DSPBTILEOFF, pI830->saveDSPBTILEOFF);
       }
 
+      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+      i830WaitForVblank(pScrn);
+
       /*
-       * See PIPEnCONF note above
+       * Program Pipe B's plane
+       * Note that pipe B may be disabled, and in that case, the plane
+       * should also be disabled or we must have had a bad initial state.
        */
-      if ((pI830->saveDPLL_B & DPLL_VCO_ENABLE) &&
-	  (pI830->saveDPLL_B & DPLL_VGA_MODE_DIS))
-	      OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
-      i830WaitForVblank(pScrn);
-      OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
-      OUTREG(DSPBBASE, INREG(DSPBBASE));
-      i830WaitForVblank(pScrn);
+      if (pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_B) {
+	  OUTREG(DSPACNTR, pI830->saveDSPACNTR);
+	  OUTREG(DSPABASE, INREG(DSPABASE));
+	  i830WaitForVblank(pScrn);
+      }
+      if (pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_B) {
+	  OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
+	  OUTREG(DSPBBASE, INREG(DSPBBASE));
+	  i830WaitForVblank(pScrn);
+      }
    }
+
+   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
 
    /* Restore outputs */
    for (i = 0; i < xf86_config->num_output; i++) {
@@ -2124,12 +2173,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
 	 output->funcs->restore(output);
    }
     
-   OUTREG(VGACNTRL, pI830->saveVGACNTRL);
-
-   OUTREG(VCLK_DIVISOR_VGA0, pI830->saveVCLK_DIVISOR_VGA0);
-   OUTREG(VCLK_DIVISOR_VGA1, pI830->saveVCLK_DIVISOR_VGA1);
-   OUTREG(VCLK_POST_DIV, pI830->saveVCLK_POST_DIV);
-
    i830_restore_palette(pI830, PIPE_A);
    i830_restore_palette(pI830, PIPE_B);
 

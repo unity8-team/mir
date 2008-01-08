@@ -14,7 +14,7 @@ Architecture: alpha amd64 arm armeb armel hppa hurd-i386 i386 ia64 kfreebsd-i386
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xserver:Depends}
 Provides: ${xviddriver:Provides}
 Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
-Conflicts: xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
+Conflicts: xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810, 915resolution
 Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package provides the driver for the Intel i8xx and i9xx family
  of chipsets, including i810, i815, i830, i845, i855, i865, i915, i945

@@ -21602,7 +21602,6 @@ echo "${ECHO_T}yes" >&6; }
 	have_libpciaccess=yes
 fi
 fi
-have_libpciaccess=no
  if test "x$XSERVER_LIBPCIACCESS" = xyes; then
   XSERVER_LIBPCIACCESS_TRUE=
   XSERVER_LIBPCIACCESS_FALSE='#'

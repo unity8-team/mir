@@ -121,7 +121,6 @@ else
 				       have_libpciaccess=yes,
 				       have_libpciaccess=no)
 fi
-have_libpciaccess=no
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 AM_CONDITIONAL(LIBPCIACCESS,
 	test "x$XSERVER_LIBPCIACCESS" = xyes -o "x$have_libpciaccess" = xyes)

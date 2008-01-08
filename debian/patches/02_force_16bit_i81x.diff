@@ -1,0 +1,11 @@
+--- a/src/i810_driver.c	2008-01-06 16:25:15.000000000 +0200
++++ b/src/i810_driver.c	2008-01-06 16:25:45.000000000 +0200
+@@ -950,7 +950,7 @@
+    pScrn->monitor = pScrn->confScreen->monitor;
+ 
+    flags24 = Support24bppFb | PreferConvert32to24 | SupportConvert32to24;
+-   if (!xf86SetDepthBpp(pScrn, 0, 0, 0, flags24)) {
++   if (!xf86SetDepthBpp(pScrn, 16, 0, 16, flags24)) {
+       return FALSE;
+    } else {
+       switch (pScrn->depth) {
