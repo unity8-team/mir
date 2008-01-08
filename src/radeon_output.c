@@ -626,11 +626,35 @@ static xf86OutputStatus
 radeon_detect(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     Bool connected = TRUE;
 
     radeon_output->MonType = MT_UNKNOWN;
     RADEONConnectorFindMonitor(pScrn, output);
+
+    /* nothing connected, light up some defaults so the server comes up */
+    if (radeon_output->MonType == MT_NONE &&
+	info->first_load_no_devices) {
+	if (info->IsMobility) {
+	    if (radeon_output->type == OUTPUT_LVDS) {
+		radeon_output->MonType = MT_LCD;
+		info->first_load_no_devices = FALSE;
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using LVDS default\n");
+	    }
+	} else {
+	    if (radeon_output->type == OUTPUT_VGA ||
+		radeon_output->type == OUTPUT_DVI_I) {
+		radeon_output->MonType = MT_CRT;
+		info->first_load_no_devices = FALSE;
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using VGA default\n");
+	    } else if (radeon_output->type == OUTPUT_DVI_D) {
+		radeon_output->MonType = MT_DFP;
+		info->first_load_no_devices = FALSE;
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using DVI default\n");
+	    }
+	}
+    }
 
     /* set montype so users can force outputs on even if detection fails */
     if (radeon_output->MonType == MT_NONE) {

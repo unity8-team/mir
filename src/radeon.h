@@ -727,6 +727,8 @@ typedef struct {
     void (*PointerMoved)(int, int, int);
     CreateScreenResourcesProcPtr CreateScreenResources;
 
+    /* if no devices are connected at server startup */
+    Bool              first_load_no_devices;
 
     Bool              IsSecondary;
     Bool              IsPrimary;
