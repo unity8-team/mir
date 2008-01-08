@@ -452,6 +452,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0187:
     case 0x018D:
     case 0x0228:
+    case 0x0244:
     case 0x0286:
     case 0x028C:
     case 0x0316:
