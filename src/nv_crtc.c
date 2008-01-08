@@ -1794,36 +1794,36 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	*/
 
 	if (pNv->Architecture >= NV_ARCH_30) {
-		regp->fp_control = 0x01100000;
+		regp->fp_control[nv_crtc->head] = 0x01100000;
 	} else {
-		regp->fp_control = 0x00000000;
+		regp->fp_control[nv_crtc->head] = 0x00000000;
 	}
 
 	if (is_fp) {
-		regp->fp_control |= (1 << 28);
+		regp->fp_control[nv_crtc->head] |= (1 << 28);
 	} else {
-		regp->fp_control |= (2 << 28);
+		regp->fp_control[nv_crtc->head] |= (2 << 28);
 		if (pNv->Architecture < NV_ARCH_30)
-			regp->fp_control |= (1 << 24);
+			regp->fp_control[nv_crtc->head] |= (1 << 24);
 	}
 
 	/* Some 7300GO cards get a quad view if this bit is set, even though they are duallink. */
 	/* This was seen on 2 cards. */
 	if (is_lvds && pNv->VBIOS.fp.dual_link && pNv->NVArch != 0x46) {
-		regp->fp_control |= (8 << 28);
+		regp->fp_control[nv_crtc->head] |= (8 << 28);
 	}
 
 	/* If the special bit exists, it exists on both ramdac's */
-	regp->fp_control |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
+	regp->fp_control[nv_crtc->head] |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 
 	if (is_fp) {
 		if (nv_output->scaling_mode == SCALE_PANEL) { /* panel needs to scale */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 		/* This is also true for panel scaling, so we must put the panel scale check first */
 		} else if (mode->Clock == adjusted_mode->Clock) { /* native mode */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
 		} else { /* gpu needs to scale */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
 		}
 	}
 
@@ -1831,16 +1831,16 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* LVDS screens don't set this. */
 	if (is_fp && !is_lvds) {
 		if (adjusted_mode->Flags & V_PVSYNC) {
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
 		}
 
 		if (adjusted_mode->Flags & V_PHSYNC) {
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
 		}
 	} else if (!is_lvds) {
 		/* The blob doesn't always do this, but often */
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
 	}
 
 	if (is_fp) {
@@ -1922,11 +1922,11 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	/* These are the common blob values, minus a few fp specific bit's */
 	/* Let's keep the TMDS pll and fpclock running in all situations */
-	regp->debug_0 = 0x1101100;
+	regp->debug_0[nv_crtc->head] = 0x1101100;
 
 	if (is_fp && nv_output->scaling_mode != SCALE_NOSCALE) {
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
+		regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
+		regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
 	} else if (is_fp) { /* no_scale mode, so we must center it */
 		uint32_t diff;
 
@@ -1943,7 +1943,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* Does the bios TMDS script try to change this sometimes? */
 	if (is_fp) {
 		/* I am not completely certain, but seems to be set only for dfp's */
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
+		regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
 
 	if (output)
@@ -1993,6 +1993,21 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	regp->unk_a20 = 0x0;
 	regp->unk_a24 = 0xfffff;
 	regp->unk_a34 = 0x1;
+
+	/* Do we also "own" the other register pair? */
+	/* If we own neither, they will just be ignored at load time. */
+	uint8_t other_head = (~nv_crtc->head) & 1;
+	if (pNv->fp_regs_owner[other_head] == nv_crtc->head) {
+		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+			regp->fp_control[other_head] = regp->fp_control[nv_crtc->head];
+			regp->debug_0[other_head] = regp->debug_0[nv_crtc->head];
+			/* Set TMDS_PLL and FPCLK, only seen for a NV31M so far. */
+			regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK;
+			regp->debug_0[other_head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL;
+		} else {
+			ErrorF("This is BAD, we own more than one fp reg set, but are not a LVDS or TMDS output.\n");
+		}
+	}
 }
 
 /**
@@ -2477,6 +2492,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
 	nv_crtc->head = crtc_num;
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
+	pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
 
 	crtc->driver_private = nv_crtc;
 
@@ -2717,8 +2733,10 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp->general = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL);
 
-	regp->fp_control	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
-	regp->debug_0	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_0);
+	regp->fp_control[0]	= nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL);
+	regp->fp_control[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL);
+	regp->debug_0[0]	= nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
+	regp->debug_0[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
 	regp->debug_1	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1);
 	regp->debug_2	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2);
 
@@ -2763,8 +2781,14 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control);
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
+	if (pNv->fp_regs_owner[0] == nv_crtc->head) {
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL, regp->fp_control[0]);
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[0]);
+	}
+	if (pNv->fp_regs_owner[1] == nv_crtc->head) {
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL, regp->fp_control[1]);
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[1]);
+	}
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
 	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
 	if (pNv->NVArch == 0x30) { /* For unknown purposes. */

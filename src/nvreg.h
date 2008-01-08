@@ -282,7 +282,6 @@
 /* This doesn't seem to be essential for tmds, but still often set */
 #	define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED			(1 << 7)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK			(1 << 28)
-#	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK			(1 << 28)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL		(2 << 28)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH			(3 << 28)
 #define NV_RAMDAC_FP_DEBUG_1        0x884

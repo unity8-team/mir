@@ -459,12 +459,6 @@ nv_output_restore (xf86OutputPtr output)
 	ErrorF("nv_output_restore is called\n");
 
 	state = &pNv->SavedReg;
-	/* Select the default output resource for consistent restore. */
-	if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_1) {
-		nv_output->output_resource = 1;
-	} else {
-		nv_output->output_resource = 0;
-	}
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force load all the registers */
@@ -924,6 +918,15 @@ nv_output_prepare(xf86OutputPtr output)
 			}
 		} else { /* we have alternatives */
 			nv_output->output_resource ^= 1;
+		}
+	}
+
+	if (nv_output->output_resource != nv_output->preferred_output) {
+		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+			/* Observed on a NV31M, some regs are claimed by one output/crtc. */
+			if (nv_crtc->head == 1) {
+				pNv->fp_regs_owner[0] = 1;
+			}
 		}
 	}
 }

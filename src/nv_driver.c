@@ -1879,6 +1879,23 @@ NVRestore(ScrnInfoPtr pScrn)
 			}
 		}
 
+		/* This needs to happen before the crtc restore happens. */
+		for (i = 0; i < xf86_config->num_output; i++) {
+			NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
+			/* Select the default output resource for consistent restore. */
+			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_1) {
+				nv_output->output_resource = 1;
+			} else {
+				nv_output->output_resource = 0;
+			}
+		}
+
+		for (i = 0; i < xf86_config->num_crtc; i++) {
+			NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+			/* Restore this, so it doesn't mess with restore. */
+			pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
+		}
+
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 		}
