@@ -905,7 +905,7 @@ nv_output_prepare(xf86OutputPtr output)
 	uint8_t or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
 	/* Do we have a output resource conflict? */
 	if (output_resource_mask & (nv_output->output_resource + 1)) {
-		if (or == ffs(or)) { /* we need this output resource */
+		if (or == (1 << (ffs(or) - 1))) { /* we need this output resource */
 			for (i = 0; i < xf86_config->num_output; i++) { /* let's find the other */
 				xf86OutputPtr output2 = xf86_config->output[i];
 				NVOutputPrivatePtr nv_output2 = output2->driver_private;
