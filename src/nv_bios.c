@@ -162,6 +162,20 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 	}
 }
 
+static void NVVBIOS_PCIROM(ScrnInfoPtr pScrn, uint8_t *data)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Attempting to use PCI ROM BIOS image\n");
+
+#if XSERVER_LIBPCIACCESS
+	pci_device_read_rom(pNv->PciInfo, data);
+#else
+	xf86ReadPciBIOS(0, pNv->PciTag, 0, data, NV_PROM_SIZE);
+#endif
+}
+
 static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 {
 	NVShadowVBIOS_PROM(pScrn, data);
@@ -171,6 +185,12 @@ static Bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 	NVShadowVBIOS_PRAMIN(pScrn, (uint32_t *)data);
 	if (NVValidVBIOS(pScrn, data))
 		return TRUE;
+
+#ifndef __powerpc__
+	NVVBIOS_PCIROM(pScrn, data);
+	if (NVValidVBIOS(pScrn, data))
+		return TRUE;
+#endif
 
 	return FALSE;
 }
@@ -3826,7 +3846,7 @@ Bool NVInitVBIOS(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	memset(&pNv->VBIOS, 0, sizeof(bios_t));
-	pNv->VBIOS.data = xalloc(64 * 1024);
+	pNv->VBIOS.data = xalloc(NV_PROM_SIZE);
 
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
