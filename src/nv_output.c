@@ -1123,6 +1123,8 @@ nv_lvds_output_detect(xf86OutputPtr output)
 		return XF86OutputStatusConnected;
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
+	if (pNv->VBIOS.fp.edid)
+		return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
 }
