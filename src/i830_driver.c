@@ -455,6 +455,15 @@ I830DetectMemory(ScrnInfoPtr pScrn)
       case PGETBL_SIZE_128KB:
 	 gtt_size = 128;
 	 break;
+      case PGETBL_SIZE_1MB:
+	 gtt_size = 1024;
+	 break;
+      case PGETBL_SIZE_2MB:
+	 gtt_size = 2048;
+	 break;
+      case PGETBL_SIZE_1_5MB:
+	 gtt_size = 1024 + 512;
+	 break;
       default:
 	 FatalError("Unknown GTT size value: %08x\n", (int)INREG(PGETBL_CTL));
       }
@@ -509,11 +518,11 @@ I830DetectMemory(ScrnInfoPtr pScrn)
 	    memsize = MB(64) - KB(range);
 	 break;
       case G33_GMCH_GMS_STOLEN_128M:
-	 if (IS_G33CLASS(pI830))
+	 if (IS_I9XX(pI830))
 	     memsize = MB(128) - KB(range);
 	 break;
       case G33_GMCH_GMS_STOLEN_256M:
-	 if (IS_G33CLASS(pI830))
+	 if (IS_I9XX(pI830))
 	     memsize = MB(256) - KB(range);
 	 break;
       }
@@ -599,8 +608,13 @@ I830MapMMIO(ScrnInfoPtr pScrn)
       
       if (IS_I965G(pI830)) 
       {
-	 gttaddr = pI830->MMIOAddr + (512 * 1024);
-	 pI830->GTTMapSize = 512 * 1024;
+	 if (IS_IGD_GM(pI830)) {
+	     gttaddr = pI830->MMIOAddr + MB(2);
+	     pI830->GTTMapSize = MB(2);
+	 } else {
+	     gttaddr = pI830->MMIOAddr + KB(512);
+	     pI830->GTTMapSize = KB(512);
+	 }
       }
       else
       {
