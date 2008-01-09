@@ -1230,11 +1230,24 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    RADEONRestoreFPRegisters(pScrn, info->ModeReg);
 	} else {
 	    ErrorF("restore FP2\n");
-	    RADEONRestoreFP2Registers(pScrn, info->ModeReg);
-	    if (info->IsAtomBios)
+	    if (info->IsAtomBios) {
+		unsigned char *RADEONMMIO = info->MMIO;
+		CARD32 fp2_gen_cntl;
+
 		atombios_external_tmds_setup(output, mode);
-	    else
+		/* r4xx atom seems to have hard coded crtc mappings in the atom code
+		 * Fix it up here.
+		 */
+		fp2_gen_cntl = INREG(RADEON_FP2_GEN_CNTL) & ~R200_FP2_SOURCE_SEL_MASK;
+		if (radeon_crtc->crtc_id == 1)
+		    fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
+		else
+		    fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
+		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
+	    } else {
 		RADEONRestoreDVOChip(pScrn, output);
+		RADEONRestoreFP2Registers(pScrn, info->ModeReg);
+	    }
 	}
 	break;
     case MT_STV:
