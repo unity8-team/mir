@@ -2135,9 +2135,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 		NVCrtcLoadPalette(crtc);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 
-	/* Force restoring pll's. */
-	state->vpll_changed[0] = TRUE;
-	state->vpll_changed[1] = TRUE;
+	/* Force restoring vpll. */
+	state->vpll_changed[nv_crtc->head] = TRUE;
 
 	if (pNv->Architecture == NV_ARCH_40) {
 		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
