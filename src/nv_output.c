@@ -877,6 +877,7 @@ nv_output_prepare(xf86OutputPtr output)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	Bool reset_other_crtc = FALSE;
 	int i;
 
 	output->funcs->dpms(output, DPMSModeOff);
@@ -912,12 +913,14 @@ nv_output_prepare(xf86OutputPtr output)
 				if (output2 != output && output2->status == XF86OutputStatusConnected) {
 					if (nv_output->output_resource == nv_output2->output_resource) {
 						nv_output2->output_resource ^= 1;
+						reset_other_crtc = TRUE;
 						break; /* We don't deal with triple outputs yet */
 					}
 				}
 			}
 		} else { /* we have alternatives */
 			nv_output->output_resource ^= 1;
+			reset_other_crtc = TRUE;
 		}
 	}
 
@@ -928,6 +931,15 @@ nv_output_prepare(xf86OutputPtr output)
 				pNv->fp_regs_owner[0] = 1;
 			}
 		}
+	}
+
+	/* Output resource changes require resetting the other crtc as well. */
+	if (reset_other_crtc) {
+		uint8_t other_crtc = (~nv_crtc->head) & 1;
+		xf86CrtcPtr crtc2 = nv_find_crtc_by_index(pScrn, other_crtc);
+		/* Only do this when the other crtc is in it's desired mode, when hotplugging something. */
+		if (crtc2 && xf86ModesEqual(&crtc2->mode, &crtc2->desiredMode))
+			NVCrtcModeFix(crtc2);
 	}
 }
 

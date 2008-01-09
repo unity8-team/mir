@@ -110,6 +110,7 @@ xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
 void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
+void NVCrtcModeFix(xf86CrtcPtr crtc);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);

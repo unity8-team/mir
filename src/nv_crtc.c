@@ -1947,7 +1947,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (output)
-		ErrorF("output %d debug_0 %08X\n", nv_output->output_resource, regp->debug_0);
+		ErrorF("output %d debug_0 %08X\n", nv_output->output_resource, regp->debug_0[nv_crtc->head]);
 
 	/* Flatpanel support needs at least a NV10 */
 	if (pNv->twoHeads) {
@@ -2953,6 +2953,36 @@ void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
 	NVVgaSeqReset(crtc, TRUE);
 	NVWriteVgaSeq(crtc, 0x01, scrn);
 	NVVgaSeqReset(crtc, FALSE);
+}
+
+/* Reset a mode after a drastic output resource change for example. */
+void NVCrtcModeFix(xf86CrtcPtr crtc)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	Bool need_unlock;
+
+	if (!crtc->enabled)
+		return;
+
+	if (!xf86ModesEqual(&crtc->mode, &crtc->desiredMode)) /* not currently in X */
+		return;
+
+	DisplayModePtr adjusted_mode = xf86DuplicateMode(&crtc->mode);
+	uint8_t dpms_mode = nv_crtc->last_dpms;
+
+	/* Set the crtc mode again. */
+	crtc->funcs->dpms(crtc, DPMSModeOff);
+	need_unlock = crtc->funcs->lock(crtc);
+	crtc->funcs->mode_fixup(crtc, &crtc->mode, adjusted_mode);
+	crtc->funcs->prepare(crtc);
+	crtc->funcs->mode_set(crtc, &crtc->mode, adjusted_mode, crtc->x, crtc->y);
+	crtc->funcs->commit(crtc);
+	if (need_unlock)
+		crtc->funcs->unlock(crtc);
+	crtc->funcs->dpms(crtc, dpms_mode);
+
+	/* Free mode. */
+	xfree(adjusted_mode);
 }
 
 /*************************************************************************** \
