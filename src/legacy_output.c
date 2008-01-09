@@ -1230,11 +1230,11 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    RADEONRestoreFPRegisters(pScrn, info->ModeReg);
 	} else {
 	    ErrorF("restore FP2\n");
+	    RADEONRestoreFP2Registers(pScrn, info->ModeReg);
 	    if (info->IsAtomBios)
 		atombios_external_tmds_setup(output, mode);
 	    else
 		RADEONRestoreDVOChip(pScrn, output);
-	    RADEONRestoreFP2Registers(pScrn, info->ModeReg);
 	}
 	break;
     case MT_STV:
