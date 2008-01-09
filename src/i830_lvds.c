@@ -113,7 +113,7 @@ i830_set_lvds_backlight_method(xf86OutputPtr output)
 
     if (i830_kernel_backlight_available(output)) {
 	    method = BCM_KERNEL;
-    } else if (IS_I965GM(pI830)) {
+    } else if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
 	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
 	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
 	    method = BCM_LEGACY;
@@ -161,7 +161,7 @@ i830_lvds_get_backlight_max_native(xf86OutputPtr output)
     CARD32 pwm_ctl = INREG(BLC_PWM_CTL);
     int val;
 
-    if (IS_I965GM(pI830)) {
+    if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
 	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK2) >>
 	       BACKLIGHT_MODULATION_FREQ_SHIFT2);
     } else {
@@ -413,7 +413,7 @@ i830_lvds_save (xf86OutputPtr output)
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
 
-    if (IS_I965GM(pI830))
+    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
 	pI830->saveBLC_PWM_CTL2 = INREG(BLC_PWM_CTL2);
     pI830->savePP_ON = INREG(LVDSPP_ON);
     pI830->savePP_OFF = INREG(LVDSPP_OFF);
@@ -429,7 +429,7 @@ i830_lvds_restore(xf86OutputPtr output)
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
 
-    if (IS_I965GM(pI830))
+    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
 	OUTREG(BLC_PWM_CTL2, pI830->saveBLC_PWM_CTL2);
     OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
     OUTREG(LVDSPP_ON, pI830->savePP_ON);

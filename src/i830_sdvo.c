@@ -727,7 +727,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     /* Set the SDVO control regs. */
-    if (IS_I965GM(pI830)) {
+    if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
 	sdvox = SDVO_BORDER_ENABLE;
     } else {
 	sdvox = INREG(dev_priv->output_device);
