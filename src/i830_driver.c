@@ -298,6 +298,7 @@ typedef enum {
    OPTION_INTELTEXPOOL,
 #endif
    OPTION_TRIPLEBUFFER,
+   OPTION_FORCEENABLEPIPEA
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -320,6 +321,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
 #endif
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -1192,6 +1194,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    } else {
       pI830->debug_modes = FALSE;
    }
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
+       pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
 
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);

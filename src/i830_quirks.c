@@ -39,6 +39,11 @@ typedef struct {
     void (*hook)(I830Ptr);
 } i830_quirk, *i830_quirk_ptr;
 
+static void quirk_pipea_force (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
+}
+
 static void quirk_ignore_tv (I830Ptr pI830)
 {
     pI830->quirk_flag |= QUIRK_IGNORE_TV;
@@ -86,6 +91,10 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Samsung Q35 has no TV output */
     { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
+
+    /* Dell Inspiron 510m needs pipe A force quirk */
+    { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
+
     { 0, 0, 0, NULL },
 };
 

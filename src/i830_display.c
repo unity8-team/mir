@@ -724,6 +724,10 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
+	/* May need to leave pipe A on */
+	if ((pipe == 0) && (pI830->quirk_flag & QUIRK_PIPEA_FORCE))
+	    return;
+
 	/* Disable the VGA plane that we never use */
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
 
@@ -1176,14 +1180,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	i830PrintPll("chosen", &clock);
     }
 
-    if (dpll & DPLL_VCO_ENABLE)
-    {
-	OUTREG(fp_reg, fp);
-	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-	POSTING_READ(dpll_reg);
-	usleep(150);
-    }
-
     /* The LVDS pin pair needs to be on before the DPLLs are enabled.
      * This is an exception to the general rule that mode_set doesn't turn
      * things on.
@@ -1191,6 +1187,14 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     if (is_lvds)
     {
 	CARD32 lvds = INREG(LVDS);
+
+	if (dpll & DPLL_VCO_ENABLE)
+	{
+	    OUTREG(fp_reg, fp);
+	    OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	    POSTING_READ(dpll_reg);
+	    usleep(150);
+	}
 
 	lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
