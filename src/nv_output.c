@@ -422,6 +422,7 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
 	/* We have no crtc, so what are we supposed to do now? */
@@ -433,7 +434,8 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		 */
 		if (nv_output->type == OUTPUT_TMDS)
 			run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, clock/10);
-		else
+		/* on panels where we do reset after pclk change, DPMS on will do this */
+		else if (!pNv->VBIOS.fp.reset_after_pclk_change)
 			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 	} else {
 		/*
@@ -443,7 +445,8 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 		if (nv_output->type == OUTPUT_TMDS)
 			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock/10);
 		else {
-			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
+			if (!pNv->VBIOS.fp.reset_after_pclk_change)
+				call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock / 10);
 			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_PANEL_ON, clock / 10);
 		}
 	}

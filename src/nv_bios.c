@@ -2497,7 +2497,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script];
 	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
-	Bool power_off_for_reset, reset_after_pclk_change;
+	Bool power_off_for_reset;
 	uint16_t off_on_delay;
 
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
@@ -2509,10 +2509,9 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	}
 
 	power_off_for_reset = bios->data[bios->fp.xlated_entry] & 1;
-	reset_after_pclk_change = bios->data[bios->fp.xlated_entry] & 2;
 	off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]);
 
-	if (script == LVDS_PANEL_ON && reset_after_pclk_change)
+	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_RESET);
 	if (script == LVDS_RESET && power_off_for_reset)
 		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
@@ -2593,10 +2592,9 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 
 	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
-	/* no sign of the "do reset on panel on" and "do panel off on reset" bits
-	 * but it seems that doing so is necessary anyway */
-	if (script == LVDS_PANEL_ON)
+	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		run_lvds_table(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
+	/* no sign of the "panel off for reset" bit, but it's safer to assume we should */
 	if (script == LVDS_RESET)
 		run_lvds_table(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
 
@@ -2843,10 +2841,13 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	uint16_t lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
 	switch (lvds_ver) {
 	case 0x0a:
+		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
 		bios->fp.if_is_18bit = !(bios->data[lvdsofs] & 16);
 		break;
 	case 0x30:
+		/* no sign of the "reset for panel on" bit, but it's safer to assume we should */
+		bios->fp.reset_after_pclk_change = TRUE;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;

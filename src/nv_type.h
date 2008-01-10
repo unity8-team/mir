@@ -313,6 +313,7 @@ typedef struct {
 		uint8_t *edid;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t xlated_entry;
+		Bool reset_after_pclk_change;
 		Bool dual_link;
 		Bool if_is_18bit;
 		Bool BITbit1;
