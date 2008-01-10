@@ -2503,7 +2503,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 		link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
-static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, uint16_t pxclk)
+static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
 {
 	int compare_record_len, i = 0;
 	uint16_t compareclk, scriptptr = 0;
@@ -2515,7 +2515,7 @@ static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, uint16_t pxclk)
 
 	do {
 		compareclk = le16_to_cpu(*((uint16_t *)&bios->data[clktable + compare_record_len * i]));
-		if (pxclk >= compareclk) {
+		if (pxclk >= compareclk * 10) {
 			if (bios->major_version < 5) {
 				uint8_t tmdssub = bios->data[clktable + 2 + compare_record_len * i];
 				scriptptr = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + tmdssub * 2])));
@@ -2546,7 +2546,7 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	link_head_and_output(pScrn, head, dcb_entry, FALSE);
 }
 
-static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk)
+static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
 {
 	/* The BIT LVDS table's header has the information to setup the
 	 * necessary registers. Following the standard 4 byte header are:
@@ -2620,7 +2620,7 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
 }
 
-void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, uint16_t pxclk)
+void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
 {
 	/* LVDS operations are multiplexed in an effort to present a single API
 	 * which works with two vastly differing underlying structures.
@@ -2839,10 +2839,10 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	}
 }
 
-void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, uint16_t pxclk)
+void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
 {
 	/* the dcb_entry parameter is the index of the appropriate DCB entry
-	 * the pxclk parameter is in 10s of kHz (eg. 108Mhz is 10800, or 0x2a30)
+	 * the pxclk parameter is in kHz
 	 *
 	 * This runs the TMDS regs setting code found on BIT bios cards
 	 *
