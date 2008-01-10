@@ -381,13 +381,6 @@ i830_crt_detect(xf86OutputPtr output)
 out:
     i830ReleaseLoadDetectPipe (output, dpms_mode);
 
-    /* Needed for some machines where the BIOS pokes at pipe A */
-    if (pI830->quirk_flag & QUIRK_PIPEA_FORCE) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Overriding VGA detection, "
-		   "forcing pipe A on.\n");
-	status = XF86OutputStatusConnected;
-    }
-
     return status;
 }
 
