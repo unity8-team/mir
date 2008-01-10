@@ -90,18 +90,18 @@ typedef enum
 
 typedef enum
 {
-    DAC_UNKNOWN = -1,
-    DAC_PRIMARY = 0,
-    DAC_TVDAC   = 1,
-    DAC_NONE    = 2
+    DAC_NONE    = 0,
+    DAC_PRIMARY = 1,
+    DAC_TVDAC   = 2,
+    DAC_EXT     = 3
 } RADEONDacType;
 
 typedef enum
 {
-    TMDS_UNKNOWN = -1,
-    TMDS_INT     = 0,
-    TMDS_EXT     = 1,
-    TMDS_NONE    = 2
+    TMDS_NONE    = 0,
+    TMDS_INT     = 1,
+    TMDS_EXT     = 2,
+    TMDS_LVTMA   = 3
 } RADEONTmdsType;
 
 typedef enum

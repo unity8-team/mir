@@ -75,17 +75,17 @@ const RADEONMonitorType MonTypeID[10] = {
 };
 
 const char *TMDSTypeName[4] = {
-  "Unknown",
+  "None",
   "Internal",
   "External",
-  "None"
+  "LVTMA",
 };
 
 const char *DACTypeName[4] = {
-  "Unknown",
+  "None",
   "Primary",
   "TVDAC/ExtDAC",
-  "None"
+  "ExtDac"
 };
 
 const char *ConnectorTypeName[17] = {
@@ -204,8 +204,8 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 		   o,
 		   MonTypeName[radeon_output->MonType+1],
 		   ConnectorTypeName[radeon_output->ConnectorType],
-		   DACTypeName[radeon_output->DACType+1],
-		   TMDSTypeName[radeon_output->TMDSType+1],
+		   DACTypeName[radeon_output->DACType],
+		   TMDSTypeName[radeon_output->TMDSType],
 		   (unsigned int)radeon_output->ddc_line);
     }
 
@@ -1985,8 +1985,8 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	    /* Below is the most common setting, but may not be true */
 	    if (info->IsIGP) {
 		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
-		info->BiosConnector[0].DACType = DAC_UNKNOWN;
-		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].DACType = DAC_NONE;
+		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 		info->BiosConnector[0].valid = TRUE;
 
@@ -1996,7 +1996,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		else
 		    info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
 		info->BiosConnector[1].DACType = DAC_TVDAC;
-		info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[1].TMDSType = TMDS_NONE;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 		info->BiosConnector[1].valid = TRUE;
 	    } else {
@@ -2005,14 +2005,14 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 #else
 		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
 #endif
-		info->BiosConnector[0].DACType = DAC_UNKNOWN;
-		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].DACType = DAC_NONE;
+		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 		info->BiosConnector[0].valid = TRUE;
 
 		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
 		info->BiosConnector[1].DACType = DAC_PRIMARY;
-		info->BiosConnector[1].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[1].TMDSType = TMDS_NONE;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 		info->BiosConnector[1].valid = TRUE;
 	    }
@@ -2024,7 +2024,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		else
 		    info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
 		info->BiosConnector[0].DACType = DAC_TVDAC;
-		info->BiosConnector[0].TMDSType = TMDS_UNKNOWN;
+		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
 		info->BiosConnector[0].valid = TRUE;
 
@@ -2032,7 +2032,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		 * IGP desktop chips is
 		 */
 		info->BiosConnector[1].ddc_line = RADEON_GPIO_MONID; /* DDC_DVI? */
-		info->BiosConnector[1].DACType = DAC_UNKNOWN;
+		info->BiosConnector[1].DACType = DAC_NONE;
 		info->BiosConnector[1].TMDSType = TMDS_EXT;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_D;
 		info->BiosConnector[1].valid = TRUE;
@@ -2213,8 +2213,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	info->BiosConnector[i].valid = FALSE;
 	info->BiosConnector[i].ddc_line = 0;
-	info->BiosConnector[i].DACType = DAC_UNKNOWN;
-	info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+	info->BiosConnector[i].DACType = DAC_NONE;
+	info->BiosConnector[i].TMDSType = TMDS_NONE;
 	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
     }
 
@@ -2263,13 +2263,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    RADEONSetupGenericConnectors(pScrn);
     }
 
-    if (info->HasSingleDAC) {
-        /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA)
-		info->BiosConnector[i].DACType = DAC_TVDAC;
-	}
-    } else if (!pRADEONEnt->HasCRTC2) {
+    if (!pRADEONEnt->HasCRTC2) {
 	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA)
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
@@ -2287,7 +2281,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
 	info->BiosConnector[0].valid = TRUE;
 	info->BiosConnector[1].valid = TRUE;
-	if (sscanf(optstr, "%u,%d,%d,%u,%u,%d,%d,%u",
+	if (sscanf(optstr, "%u,%u,%u,%u,%u,%u,%u,%u",
 		   &ddc_line[0],
 		   &info->BiosConnector[0].DACType,
 		   &info->BiosConnector[0].TMDSType,

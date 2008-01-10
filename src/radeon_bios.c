@@ -203,7 +203,6 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    int offset, i, j, tmp, tmp0, id, portinfo, gpio;
 
     if (!info->VBIOS) return FALSE;
     
@@ -213,104 +212,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     if (RADEONGetATOMConnectorInfoFromBIOSConnectorTable(pScrn))
 	return TRUE;
 
-    offset = RADEON_BIOS16(info->MasterDataStart + 22);
-
-    if (offset) {
-	tmp = RADEON_BIOS16(offset + 4);
-	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	    if (tmp & (1 << i)) {
-
-		if (i == ATOM_DEVICE_CV_INDEX) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
-		    info->BiosConnector[i].valid = FALSE;
-		    continue;
-		}
-
-		info->BiosConnector[i].valid = TRUE;
-		portinfo = RADEON_BIOS16(offset + 6 + i * 2);
-		info->BiosConnector[i].DACType = (portinfo & 0xf) - 1;
-		info->BiosConnector[i].ConnectorType = (portinfo >> 4) & 0xf;
-		id = (portinfo >> 8) & 0xf;
-		tmp0 = RADEON_BIOS16(info->MasterDataStart + 24);
-		gpio = RADEON_BIOS16(tmp0 + 4 + 27 * id) * 4;
-		/* don't assign a gpio for tv */
-		if ((i == ATOM_DEVICE_TV1_INDEX) ||
-		    (i == ATOM_DEVICE_TV2_INDEX) ||
-		    (i == ATOM_DEVICE_CV_INDEX))
-		    info->BiosConnector[i].ddc_line = 0;
-		else
-		    info->BiosConnector[i].ddc_line = gpio;
-
-		info->BiosConnector[i].output_id = id;
-		info->BiosConnector[i].devices = (1 << i);
-
-		if (i == ATOM_DEVICE_DFP1_INDEX)
-		    info->BiosConnector[i].TMDSType = TMDS_INT;
-		else if (i == ATOM_DEVICE_DFP2_INDEX)
-		    info->BiosConnector[i].TMDSType = TMDS_EXT;
-		else if (i == ATOM_DEVICE_DFP3_INDEX)
-		    info->BiosConnector[i].TMDSType = TMDS_EXT;
-		else
-		    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
-
-		/* Always set the connector type to VGA for CRT1/CRT2. if they are
-		 * shared with a DVI port, we'll pick up the DVI connector below when we
-		 * merge the outputs
-		 */
-		if ((i == ATOM_DEVICE_CRT1_INDEX || i == ATOM_DEVICE_CRT2_INDEX) &&
-		    (info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I ||
-		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D ||
-		     info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
-		    info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
-		}
-
-	    } else {
-		info->BiosConnector[i].valid = FALSE;
-	    }
-	}   
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No Device Info Table found!\n");
-	return FALSE;
-    }
-
-    /* CRTs/DFPs may share a port */
-    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	if (info->BiosConnector[i].valid) {
-	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++) {
-		if (info->BiosConnector[j].valid && (i != j) ) {
-		    if (info->BiosConnector[i].output_id == info->BiosConnector[j].output_id) {
-			if (((i == ATOM_DEVICE_DFP1_INDEX) ||
-			     (i == ATOM_DEVICE_DFP2_INDEX) ||
-			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
-			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
-			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
-			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
-			    info->BiosConnector[j].valid = FALSE;
-			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
-			     (j == ATOM_DEVICE_DFP2_INDEX) ||
-			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
-			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
-			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
-			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
-			    info->BiosConnector[i].valid = FALSE;
-			}
-			/* other possible combos?  */
-		    }
-		}
-	    }
-	}
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
-    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, (unsigned int)info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
-		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
-	}
-    }
-
-    return TRUE;
+    return FALSE;
 }
 
 static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
@@ -382,8 +284,19 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
 		break;
 	    }
-	    info->BiosConnector[i].DACType = tmp & 0x1;
-	    info->BiosConnector[i].TMDSType = (tmp >> 4) & 0x1;
+	    if (tmp & 0x1)
+		info->BiosConnector[i].DACType = DAC_TVDAC;
+	    else
+		info->BiosConnector[i].DACType = DAC_PRIMARY;
+
+	    /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
+	    if (info->IsIGP)
+		info->BiosConnector[i].DACType = DAC_TVDAC;
+
+	    if ((tmp >> 4) & 0x1)
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	    else
+		info->BiosConnector[i].TMDSType = TMDS_INT;
 
 	    /* most XPRESS chips seem to specify DDC_CRT2 for their 
 	     * VGA DDC port, however DDC never seems to work on that

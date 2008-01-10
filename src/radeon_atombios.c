@@ -1525,7 +1525,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP3_INDEX);
-		info->BiosConnector[i].TMDSType = TMDS_EXT;
+		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
@@ -1715,7 +1715,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
 	info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
-	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC - 1;
+	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
 
 	/* don't assign a gpio for tv */
 	if ((i == ATOM_DEVICE_TV1_INDEX) ||
@@ -1731,9 +1731,9 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	else if (i == ATOM_DEVICE_DFP2_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_EXT;
 	else if (i == ATOM_DEVICE_DFP3_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_EXT;
+	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 	else
-	    info->BiosConnector[i].TMDSType = TMDS_UNKNOWN;
+	    info->BiosConnector[i].TMDSType = TMDS_NONE;
 
 	/* Always set the connector type to VGA for CRT1/CRT2. if they are
 	 * shared with a DVI port, we'll pick up the DVI connector below when we
