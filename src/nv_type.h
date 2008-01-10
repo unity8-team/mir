@@ -217,7 +217,6 @@ typedef enum {
 typedef struct _NVOutputPrivateRec {
 	uint8_t preferred_output;
 	uint8_t output_resource;
-	uint8_t bus;
 	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
@@ -474,11 +473,6 @@ typedef struct _NVRec {
     CreateScreenResourcesProcPtr    CreateScreenResources;
 
     I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
-
-	int vga_count;
-	int dvi_d_count;
-	int dvi_a_count;
-	int lvds_count;
 
 	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
 	Bool restricted_mode;

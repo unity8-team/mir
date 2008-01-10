@@ -1188,109 +1188,29 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.set_property = nv_digital_output_set_property,
 };
 
-static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair)
+static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	xf86OutputPtr	    output;
-	NVOutputPrivatePtr    nv_output;
-	char outputname[20];
-	Bool create_output = TRUE;
+	xf86OutputPtr output;
+	NVOutputPrivatePtr nv_output;
+
 	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
-
-	/* DVI have an analog connector and a digital one, differentiate between that and a normal vga */
-	if (dvi_pair) {
-		sprintf(outputname, "DVI-A-%d", pNv->dvi_a_count);
-		pNv->dvi_a_count++;
-	} else {
-		sprintf(outputname, "VGA-%d", pNv->vga_count);
-		pNv->vga_count++;
-	}
-
-	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
-	if (!nv_output) {
-		return;
-	}
-
-	nv_output->dcb_entry = dcb_entry;
-
 	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
-	nv_output->type = OUTPUT_ANALOG;
-
-	/* output route:
-	 * bit0: OUTPUT_0 valid
-	 * bit1: OUTPUT_1 valid
-	 * So lowest order has highest priority.
-	 * Below is guesswork:
-	 * bit2: All outputs valid
-	 */
-	/* We choose the preferred output resource initially. */
-	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
-		nv_output->preferred_output = 1;
-		nv_output->output_resource = 1;
-	} else {
-		nv_output->preferred_output = 0;
-		nv_output->output_resource = 0;
-	}
-
-	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
-
-	if (!create_output) {
-		xfree(nv_output);
+	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
 		return;
-	}
 
-	/* Delay creation of output until we actually know we want it */
-	output = xf86OutputCreate (pScrn, &nv_analog_output_funcs, outputname);
-	if (!output)
+	if (!(nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1)))
 		return;
 
 	output->driver_private = nv_output;
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-
-	if (pNv->switchable_crtc) {
-		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
-	} else {
-		output->possible_crtcs = (1 << nv_output->preferred_output);
-	}
-
+	nv_output->dcb_entry = dcb_entry;
+	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
-}
-
-static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	xf86OutputPtr	    output;
-	NVOutputPrivatePtr    nv_output;
-	char outputname[20];
-	Bool create_output = TRUE;
-	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
-
-	if (lvds) {
-		sprintf(outputname, "LVDS-%d", pNv->lvds_count);
-		pNv->lvds_count++;
-	} else {
-		sprintf(outputname, "DVI-D-%d", pNv->dvi_d_count);
-		pNv->dvi_d_count++;
-	}
-
-	nv_output = xnfcalloc (sizeof (NVOutputPrivateRec), 1);
-
-	if (!nv_output) {
-		return;
-	}
-
-	nv_output->dcb_entry = dcb_entry;
-
-	if (pNv->dcb_table.i2c_read[i2c_index] && pNv->pI2CBus[i2c_index] == NULL)
-		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
-
-	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-
 	/* output route:
 	 * bit0: OUTPUT_0 valid
 	 * bit1: OUTPUT_1 valid
@@ -1307,72 +1227,45 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 		nv_output->output_resource = 0;
 	}
 
-	nv_output->bus = pNv->dcb_table.entry[dcb_entry].bus;
+	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
+		if (pNv->fpScaler) /* GPU Scaling */
+			nv_output->scaling_mode = SCALE_ASPECT;
+		else /* Panel scaling */
+			nv_output->scaling_mode = SCALE_PANEL;
 
-	if (lvds) {
-		nv_output->type = OUTPUT_LVDS;
-		/* comment below two lines to test LVDS under RandR12.
-		 * If your screen "blooms" or "bleeds" (i.e. has a developing
-		 * white / psychedelic pattern) then KILL X IMMEDIATELY
-		 * (ctrl+alt+backspace) & if the effect continues reset power */
-		ErrorF("Output refused because we don't accept LVDS at the moment.\n");
-		create_output = FALSE;
-	} else {
-		nv_output->type = OUTPUT_TMDS;
-	}
-
-	if (!create_output) {
-		xfree(nv_output);
-		return;
-	}
-
-	/* Delay creation of output until we are certain is desirable */
-	if (lvds)
-		output = xf86OutputCreate (pScrn, &nv_lvds_output_funcs, outputname);
-	else
-		output = xf86OutputCreate (pScrn, &nv_tmds_output_funcs, outputname);
-	if (!output)
-		return;
-
-	output->driver_private = nv_output;
-
-	if (pNv->fpScaler) /* GPU Scaling */
-		nv_output->scaling_mode = SCALE_ASPECT;
-	else /* Panel scaling */
-		nv_output->scaling_mode = SCALE_PANEL;
-
-	if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
-		nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
-		if (nv_output->scaling_mode == SCALE_INVALID)
-			nv_output->scaling_mode = SCALE_ASPECT; /* default */
+		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+			nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+			if (nv_output->scaling_mode == SCALE_INVALID)
+				nv_output->scaling_mode = SCALE_ASPECT; /* default */
+		}
 	}
 
 	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
 	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
 	/* Anyone know what the solution for this is? */
 	/* This does not apply to NV31 LVDS with or == 3. */
-	if (nv_output->preferred_output == 0 && pNv->Architecture == NV_ARCH_40) {
+	if ((nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) && nv_output->preferred_output == 0 && pNv->Architecture == NV_ARCH_40) {
 		output->possible_crtcs = (1 << 0);
 	} else {
-		if (pNv->switchable_crtc) {
+		if (pNv->switchable_crtc)
 			output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
-		} else {
+		else
 			output->possible_crtcs = (1 << nv_output->preferred_output);
-		}
 	}
 
-	nv_output->last_dpms = NV_DPMS_CLEARED;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Adding output %s\n", outputname);
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
 }
 
-void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
+void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int i, type, i2c_count[0xf];
+	char outputname[20];
+	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
+
+	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 
 	pNv->switchable_crtc = FALSE;
-	/* I was wrong, again. */
 	if (pNv->NVArch > 0x11 && pNv->twoHeads)
 		pNv->switchable_crtc = TRUE;
 
@@ -1383,37 +1276,34 @@ void NvDCBSetupOutputs(ScrnInfoPtr pScrn)
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.entry[i].type;
-		if (type > 3) {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
-			continue;
-		}
 
 		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
 
-		switch(type) {
+		switch (type) {
 		case OUTPUT_ANALOG:
-			nv_add_analog_output(pScrn, i, (i2c_count[pNv->dcb_table.entry[i].i2c_index] > 1));
+			if (i2c_count[pNv->dcb_table.entry[i].i2c_index] == 1)
+				sprintf(outputname, "VGA-%d", vga_count++);
+			else
+				sprintf(outputname, "DVI-A-%d", dvia_count++);
+			nv_add_output(pScrn, i, &nv_analog_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
-			nv_add_digital_output(pScrn, i, 0);
+			sprintf(outputname, "DVI-D-%d", dvid_count++);
+			nv_add_output(pScrn, i, &nv_tmds_output_funcs, outputname);
+			break;
+		case OUTPUT_TV:
+			sprintf(outputname, "TV-%d", tv_count++);
+//			nv_add_output(pScrn, i, &nv_tv_output_funcs, outputname);
 			break;
 		case OUTPUT_LVDS:
-			nv_add_digital_output(pScrn, i, 1);
+			sprintf(outputname, "LVDS-%d", lvds_count++);
+			nv_add_output(pScrn, i, &nv_lvds_output_funcs, outputname);
 			break;
 		default:
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
 			break;
 		}
 	}
-}
-
-void NvSetupOutputs(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	pNv->Television = FALSE;
-
-	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
-	NvDCBSetupOutputs(pScrn);
 }
 
 /*************************************************************************** \
