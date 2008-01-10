@@ -609,4 +609,21 @@ typedef struct _NVPortPrivRec {
 	struct nouveau_notifier *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
 
+#define GET_OVERLAY_PRIVATE(pNv) \
+            (NVPortPrivPtr)((pNv)->overlayAdaptor->pPortPrivates[0].ptr)
+
+#define GET_BLIT_PRIVATE(pNv) \
+            (NVPortPrivPtr)((pNv)->blitAdaptor->pPortPrivates[0].ptr)
+
+#define GET_TEXTURE_PRIVATE(pNv) \
+            (NVPortPrivPtr)((pNv)->textureAdaptor->pPortPrivates[0].ptr)
+
+#define OFF_TIMER       0x01
+#define FREE_TIMER      0x02
+#define CLIENT_VIDEO_ON 0x04
+#define OFF_DELAY       500  /* milliseconds */
+#define FREE_DELAY      5000
+
+#define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
+
 #endif /* __NV_STRUCT_H__ */

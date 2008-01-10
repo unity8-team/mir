@@ -752,8 +752,8 @@ NVEnterVT(int scrnIndex, int flags)
 		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	}
 
-	if (pNv->overlayAdaptor)
-		NVResetVideo(pScrn);
+	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
+		NV10WriteOverlayParameters(pScrn);
 	return TRUE;
 }
 

@@ -25,15 +25,6 @@
 #include "config.h"
 #endif
 
-#include "xf86.h"
-#include "xf86_OSproc.h"
-#include "xf86Resources.h"
-#include "compiler.h"
-#include "xf86PciInfo.h"
-#include "xf86Pci.h"
-#include "xf86fbman.h"
-#include "regionstr.h"
-
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
 #include "exa.h"
@@ -45,6 +36,8 @@
 #include "nv_dma.h"
 
 #include "nv_shaders.h"
+
+extern Atom xvSyncToVBlank, xvSetDefaults;
 
 static nv_shader_t nv40_video = {
 	.card_priv.NV30VP.vp_in_reg  = 0x00000309,
@@ -153,6 +146,11 @@ NV40GetSurfaceFormat(PixmapPtr pPix, int *fmt_ret)
 	}
 
 	return TRUE;
+}
+
+void
+NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
+{
 }
 
 #ifndef ExaOffscreenMarkUsed
@@ -329,3 +327,63 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 
 	return Success;
 }
+
+/**
+ * NVSetTexturePortAttribute
+ * sets the attribute "attribute" of port "data" to value "value"
+ * supported attributes:
+ * Sync to vblank.
+ * 
+ * @param pScrenInfo
+ * @param attribute attribute to set
+ * @param value value to which attribute is to be set
+ * @param data port from which the attribute is to be set
+ * 
+ * @return Success, if setting is successful
+ * BadValue/BadMatch, if value/attribute are invalid
+ */
+int
+NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+                       INT32 value, pointer data)
+{
+        NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+        NVPtr           pNv = NVPTR(pScrn);
+
+        if ((attribute == xvSyncToVBlank) && pNv->WaitVSyncPossible) {
+                if ((value < 0) || (value > 1))
+                        return BadValue;
+                pPriv->SyncToVBlank = value;
+        } else
+        if (attribute == xvSetDefaults) {
+                pPriv->SyncToVBlank = pNv->WaitVSyncPossible;
+        } else
+                return BadMatch;
+
+        return Success;
+}
+
+/**
+ * NVGetTexturePortAttribute
+ * reads the value of attribute "attribute" from port "data" into INT32 "*value"
+ * Sync to vblank.
+ * 
+ * @param pScrn unused
+ * @param attribute attribute to be read
+ * @param value value of attribute will be stored here
+ * @param data port from which attribute will be read
+ * @return Success, if queried attribute exists
+ */
+int
+NVGetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+                       INT32 *value, pointer data)
+{
+        NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
+
+        if(attribute == xvSyncToVBlank)
+                *value = (pPriv->SyncToVBlank) ? 1 : 0;
+        else
+                return BadMatch;
+
+        return Success;
+}
+

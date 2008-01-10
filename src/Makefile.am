@@ -58,7 +58,10 @@ nouveau_drv_la_SOURCES = \
 			 nv_shadow.c \
 			 nv_type.h \
 			 nv_video.c \
+			 nv04_video_overlay.c \
+			 nv04_video_blitter.c \
 			 nv10_exa.c \
+			 nv10_video_overlay.c \
 			 nv30_exa.c \
 			 nv40_exa.c \
 			 nv40_video_texture.c \
