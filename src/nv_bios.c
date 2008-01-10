@@ -2576,7 +2576,7 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 {
 	/* The BIT LVDS table's header has the information to setup the
 	 * necessary registers. Following the standard 4 byte header are:
-	 * A bitmask byte and a dual-link transition pxclk valur for use in
+	 * A bitmask byte and a dual-link transition pxclk value for use in
 	 * selecting the init script when not using straps; 4 script pointers
 	 * for panel power, selected by output and on/off; and 8 table pointers
 	 * for panel init, the needed one determined by output, and bits in the
@@ -2621,8 +2621,8 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 		} else {
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 			int fallbackcmpval = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 4 : 1;
-			uint8_t dltransitionclk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]);
-			if (pxclk > dltransitionclk) {	// dual-link
+
+			if (pxclk >= bios->fp.duallink_transition_clk) {
 				clktableptr += 2;
 				fallbackcmpval *= 2;
 			}
@@ -2791,7 +2791,10 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	 *
 	 * The BIT LVDS table has the typical BIT table header: version byte,
 	 * header length byte, record length byte, and a byte for the maximum
-	 * number of records that can be held in the table.
+	 * number of records that can be held in the table. At byte 5 in the
+	 * header is the dual-link transition pxclk - if straps are not being
+	 * used for the panel, this specifies the frequency at which modes
+	 * should be set up in the dual link style.
 	 *
 	 * The table following the header serves as an integrated config and
 	 * xlat table: the records in the table are indexed by the FP strap
@@ -2854,6 +2857,8 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.reset_after_pclk_change = TRUE;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
+		/* BMP likely has something like this, but I have no dump to point to where it is */
+		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]);
 		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
 		fpp->xlatwidth = recordlen;
 		break;

@@ -1834,11 +1834,9 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	else
 		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE;
 
-	/* Some 7300GO cards get a quad view if this bit is set, even though they are duallink. */
-	/* This was seen on 2 cards. */
-	if (is_lvds && pNv->VBIOS.fp.dual_link && pNv->NVArch != 0x46) {
+	Bool lvds_use_straps = pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode;
+	if (is_lvds && ((lvds_use_straps && pNv->VBIOS.fp.dual_link) || (!lvds_use_straps && adjusted_mode->Clock >= pNv->VBIOS.fp.duallink_transition_clk)))
 		regp->fp_control[nv_crtc->head] |= (8 << 28);
-	}
 
 	if (is_fp) {
 		ErrorF("Pre-panel scaling\n");
