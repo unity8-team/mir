@@ -2766,9 +2766,9 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	 * The BIT LVDS table has the typical BIT table header: version byte,
 	 * header length byte, record length byte, and a byte for the maximum
 	 * number of records that can be held in the table. At byte 5 in the
-	 * header is the dual-link transition pxclk - if straps are not being
-	 * used for the panel, this specifies the frequency at which modes
-	 * should be set up in the dual link style.
+	 * header is the dual-link transition pxclk (in 10s kHz) - if straps
+	 * are not being used for the panel, this specifies the frequency at
+	 * which modes should be set up in the dual link style.
 	 *
 	 * The table following the header serves as an integrated config and
 	 * xlat table: the records in the table are indexed by the FP strap
@@ -2832,7 +2832,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		/* BMP likely has something like this, but I have no dump to point to where it is */
-		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]);
+		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
 		fpp->xlatwidth = recordlen;
 		break;

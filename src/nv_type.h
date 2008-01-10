@@ -316,7 +316,7 @@ typedef struct {
 		Bool dual_link;
 		Bool if_is_18bit;
 		Bool BITbit1;
-		uint16_t duallink_transition_clk;
+		int duallink_transition_clk;
 	} fp;
 
 	struct {
