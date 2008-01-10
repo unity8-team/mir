@@ -237,7 +237,6 @@ NV50SorGetLVDSModes(xf86OutputPtr output)
 	return xf86DuplicateMode(nv_output->nativeMode);
 }
 
-#ifdef RANDR_12_INTERFACE
 #define MAKE_ATOM(a) MakeAtom((a), sizeof(a) - 1, TRUE);
 
 struct property {
@@ -381,7 +380,6 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 
 	return FALSE;
 }
-#endif // RANDR_12_INTERFACE
 
 static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.dpms = NV50SorDPMSSet,
@@ -394,10 +392,8 @@ static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.mode_set = NV50SorModeSet,
 	.detect = NV50SorDetect,
 	.get_modes = NV50OutputGetDDCModes,
-#ifdef RANDR_12_INTERFACE
 	.create_resources = NV50SorCreateResources,
 	.set_property = NV50SorSetProperty,
-#endif
 	.destroy = NV50SorDestroy,
 };
 
@@ -412,10 +408,8 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 	.mode_set = NV50SorModeSet,
 	.detect = NV50SorLVDSDetect,
 	.get_modes = NV50SorGetLVDSModes,
-#ifdef RANDR_12_INTERFACE
 	.create_resources = NV50SorCreateResources,
 	.set_property = NV50SorSetProperty,
-#endif
 	.destroy = NV50SorDestroy,
 };
 

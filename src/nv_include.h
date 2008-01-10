@@ -62,9 +62,7 @@
 
 #include "region.h"
 
-#ifdef RANDR
 #include <X11/extensions/randr.h>
-#endif
 
 #define NV_DMA_DEBUG 0
 

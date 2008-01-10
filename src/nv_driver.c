@@ -58,10 +58,8 @@ static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 static void    NVFreeScreen(int scrnIndex, int flags);
 static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
 			      Bool verbose, int flags);
-#ifdef RANDR
 static Bool    NVDriverFunc(ScrnInfoPtr pScrnInfo, xorgDriverFuncOp op,
 			      pointer data);
-#endif
 
 /* Internally used functions */
 
@@ -1328,19 +1326,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 				"Rotating screen counter clockwise - acceleration disabled\n");
 		} else if(!xf86NameCmp(s, "RandR")) {
-#ifdef RANDR
 			pNv->ShadowFB = TRUE;
 			pNv->NoAccel = TRUE;
 			pNv->HWCursor = FALSE;
 			pNv->RandRRotation = TRUE;
 			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 				"Using RandR rotation - acceleration disabled\n");
-#else
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				"This driver was not compiled with support for the Resize and "
-				"Rotate extension.  Cannot honor 'Option \"Rotate\" "
-				"\"RandR\"'.\n");
-#endif
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 				"\"%s\" is not a valid value for Option \"Rotate\"\n", s);
@@ -1978,11 +1969,7 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		}
 
 		/* Make the change through RandR */
-#ifdef RANDR_12_INTERFACE
 		RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
-#else
-		crtc->funcs->gamma_set(crtc, lut_r, lut_g, lut_b, 256);
-#endif
 	}
 }
 
@@ -2434,14 +2421,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pNv->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = NVBlockHandler;
 
-#ifdef RANDR
 	/* Install our DriverFunc.  We have to do it this way instead of using the
 	 * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
 	 * pScrn->DriverFunc 
 	 */
 	if (!pNv->randr12_enable)
 		pScrn->DriverFunc = NVDriverFunc;
-#endif
 
 	/* Report any unused options (only for the first generation) */
 	if (serverGeneration == 1) {
@@ -2515,7 +2500,6 @@ NVSave(ScrnInfoPtr pScrn)
 	}
 }
 
-#ifdef RANDR
 static Bool
 NVRandRGetInfo(ScrnInfoPtr pScrn, Rotation *rotations)
 {
@@ -2575,4 +2559,3 @@ NVDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer data)
 
     return FALSE;
 }
-#endif

@@ -968,7 +968,6 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .commit = nv_output_commit,
 };
 
-#ifdef RANDR_12_INTERFACE
 /*
  * Several scaling modes exist, let the user choose.
  */
@@ -1071,8 +1070,6 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
 }
 
-#endif /* RANDR_12_INTERFACE */
-
 static int 
 nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
@@ -1107,10 +1104,8 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-#ifdef RANDR_12_INTERFACE
 	.create_resources = nv_digital_output_create_resources,
 	.set_property = nv_digital_output_set_property,
-#endif /* RANDR_12_INTERFACE */
 };
 
 static int nv_lvds_output_mode_valid
@@ -1189,10 +1184,8 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-#ifdef RANDR_12_INTERFACE
 	.create_resources = nv_digital_output_create_resources,
 	.set_property = nv_digital_output_set_property,
-#endif /* RANDR_12_INTERFACE */
 };
 
 static void nv_add_analog_output(ScrnInfoPtr pScrn, int dcb_entry, Bool dvi_pair)
@@ -1348,13 +1341,11 @@ static void nv_add_digital_output(ScrnInfoPtr pScrn, int dcb_entry, int lvds)
 	else /* Panel scaling */
 		nv_output->scaling_mode = SCALE_PANEL;
 
-#ifdef RANDR_12_INTERFACE
 	if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
 		nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
 		if (nv_output->scaling_mode == SCALE_INVALID)
 			nv_output->scaling_mode = SCALE_ASPECT; /* default */
 	}
-#endif /* RANDR_12_INTERFACE */
 
 	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
 	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
