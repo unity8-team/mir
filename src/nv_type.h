@@ -339,6 +339,13 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
+typedef struct {
+	Bool vga_mode;
+	uint8_t depth;
+	uint16_t x_res;
+	uint16_t y_res;
+} NVConsoleMode;
+
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
@@ -490,6 +497,7 @@ typedef struct _NVRec {
 
 	uint32_t output_info;
 	MiscStartupInfo misc_info;
+	NVConsoleMode console_mode;
 
 	struct {
 		ORNum dac;

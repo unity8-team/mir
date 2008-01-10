@@ -1579,10 +1579,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	* Calculate the extended registers.
 	*/
 
-	if(pLayout->depth < 24) {
+	if (pLayout->depth < 24) {
 		i = pLayout->depth;
 	} else {
 		i = 32;
+	}
+
+	if (mode->PrivFlags & NV_MODE_CONSOLE) {
+		if (mode->PrivFlags & NV_MODE_VGA) {
+			i = 4;
+		} else {
+			i = pNv->console_mode.depth;
+		}
 	}
 
 	/* What is the meaning of this register? */
@@ -1619,7 +1627,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->cursorConfig = 0x0;
 	if(mode->Flags & V_DBLSCAN)
 		regp->cursorConfig |= (1 << 4);
-	if (pNv->alphaCursor) {
+	if (pNv->alphaCursor && !(mode->PrivFlags & NV_MODE_CONSOLE)) {
 		/* bit28 means we go into alpha blend mode and not rely on the current ROP */
 		regp->cursorConfig |= 0x14011000;
 	} else {

@@ -10,6 +10,11 @@
 #define NV_DPMS_CLEARED 0x80
 
 typedef enum {
+	NV_MODE_CONSOLE = (1 << 0),
+	NV_MODE_VGA = (1 << 1)
+} NVModePriv;
+
+typedef enum {
     OPTION_SW_CURSOR,
     OPTION_HW_CURSOR,
     OPTION_NOACCEL,
