@@ -286,9 +286,6 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int specialcase = 0;
-	uint8_t saved1 = 0, saved2 = 0;
-	volatile uint8_t *crtcptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
 	if (DEBUGLEVEL >= 8)
 		nv32_rd(pScrn, reg);
@@ -303,30 +300,7 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-
-		if ((reg & 0xffc) == 0x3c0) {
-			specialcase = 1;
-			saved1 = VGA_RD08(crtcptr, VGA_MISC_OUT_R);
-			saved2 = VGA_RD08(crtcptr, VGA_ENABLE);
-		}
-		if ((reg & 0xffc) == 0x3cc) {
-			specialcase = 2;
-			saved1 = VGA_RD08(crtcptr, VGA_GRAPH_INDEX);
-			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, 0x06);
-			saved2 = VGA_RD08(crtcptr, VGA_GRAPH_DATA);
-		}
-
 		pNv->REGS[reg/4] = data;
-
-		if (specialcase == 1) {
-			VGA_WR08(crtcptr, VGA_ENABLE, saved2);
-			VGA_WR08(crtcptr, VGA_MISC_OUT_W, saved1);
-		}
-		if (specialcase == 2) {
-			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, 0x06);
-			VGA_WR08(crtcptr, VGA_GRAPH_DATA, saved2);
-			VGA_WR08(crtcptr, VGA_GRAPH_INDEX, saved1);
-		}
 	}
 
 	return 1;
