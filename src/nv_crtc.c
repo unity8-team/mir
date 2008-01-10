@@ -1493,7 +1493,11 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->Attribute[14] = 0x0E;
 	regp->Attribute[15] = 0x0F;
 	/* These two below are non-vga */
-	regp->Attribute[16] = 0x01;
+	if (depth == 4) {
+		regp->Attribute[16] = 0x81; /* this is vga, but is it right? */
+	} else {
+		regp->Attribute[16] = 0x01;
+	}
 	regp->Attribute[17] = 0x00;
 	regp->Attribute[18] = 0x0F;
 	regp->Attribute[19] = 0x00;
@@ -1519,7 +1523,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp, savep;
-	unsigned int i;
+	uint32_t i, depth;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
 
@@ -1580,16 +1584,16 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	*/
 
 	if (pLayout->depth < 24) {
-		i = pLayout->depth;
+		depth = pLayout->depth;
 	} else {
-		i = 32;
+		depth = 32;
 	}
 
 	if (mode->PrivFlags & NV_MODE_CONSOLE) {
 		if (mode->PrivFlags & NV_MODE_VGA) {
-			i = 4;
+			depth = 4;
 		} else {
-			i = pNv->console_mode.depth;
+			depth = pNv->console_mode.depth;
 		}
 	}
 
@@ -1698,7 +1702,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	 */
 	ErrorF("crtc %d %d %d\n", nv_crtc->head, mode->CrtcHDisplay, pScrn->displayWidth);
 	nv_crtc_calc_state_ext(crtc,
-				i,
+				depth,
 				pScrn->displayWidth,
 				mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
@@ -2044,7 +2048,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVVgaProtect(crtc, TRUE);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
-	if (pLayout->depth != 8)
+	if (pLayout->depth > 8)
 		NVCrtcLoadPalette(crtc);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
