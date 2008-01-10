@@ -2715,6 +2715,10 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		headerlen = fptable[1];
 		recordlen = fptable[2];
 		fpentries = fptable[3];
+		/* fptable[4] is the minimum RAMDAC_FP_HCRTC->RAMDAC_FP_HSYNC_START gap.
+		 * Only seen 0x4b (=75) which is what is used in nv_crtc.c anyway,
+		 * so we're not using this table value for now
+		 */
 		ofs = 0;
 		break;
 	default:

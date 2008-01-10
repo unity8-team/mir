@@ -143,6 +143,7 @@
 #define NV_PFIFO_RAMHT              (0x00000210)
 #define NV_PFB_BOOT                 (0x00000000)
 #define NV_PEXTDEV_BOOT             (0x00000000)
+#define NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT (1 << 15)
 
 #define NV_RAMDAC_CURSOR_POS  0x300
 #define NV_RAMDAC_CURSOR_CTRL       0x320
@@ -273,8 +274,9 @@
 #	define NV_RAMDAC_FP_CONTROL_MODE_SCALE	(0 << 8)
 #	define NV_RAMDAC_FP_CONTROL_MODE_CENTER	(1 << 8)
 #	define NV_RAMDAC_FP_CONTROL_MODE_NATIVE	(2 << 8)
-
-#	define NV_RAMDAC_FP_CONTROL_ENABLE 		(1<<28) // toggling this bit turns things on/off
+#define NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12 (1 << 24)
+#define NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS (1 << 28)
+#define NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE (2 << 28)
 
 #define NV_RAMDAC_FP_DEBUG_0 		0x880
 #	define NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED			(1 << 0)

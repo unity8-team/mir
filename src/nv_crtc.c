@@ -1788,59 +1788,56 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	* bit4: positive hsync
 	* bit8: enable center mode
 	* bit9: enable native mode
+	* bit24: 12/24 bit interface (12bit=on, 24bit=off)
 	* bit26: a bit sometimes seen on some g70 cards
+	* bit28: fp display enable bit
 	* bit31: set for dual link LVDS
 	* nv10reg contains a few more things, but i don't quite get what it all means.
 	*/
 
-	if (pNv->Architecture >= NV_ARCH_30) {
-		regp->fp_control[nv_crtc->head] = 0x01100000;
-	} else {
+	if (pNv->Architecture >= NV_ARCH_30)
+		regp->fp_control[nv_crtc->head] = 0x00100000;
+	else
 		regp->fp_control[nv_crtc->head] = 0x00000000;
+
+	/* Deal with vsync/hsync polarity */
+	/* LVDS screens do set this, but modes with +ve syncs are very rare */
+	if (is_fp) {
+		if (adjusted_mode->Flags & V_PVSYNC)
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
+		if (adjusted_mode->Flags & V_PHSYNC)
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
+	} else {
+		/* The blob doesn't always do this, but often */
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
 	}
 
 	if (is_fp) {
-		regp->fp_control[nv_crtc->head] |= (1 << 28);
-	} else {
-		regp->fp_control[nv_crtc->head] |= (2 << 28);
-		if (pNv->Architecture < NV_ARCH_30)
-			regp->fp_control[nv_crtc->head] |= (1 << 24);
+		if (nv_output->scaling_mode == SCALE_PANEL) /* panel needs to scale */
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
+		/* This is also true for panel scaling, so we must put the panel scale check first */
+		else if (mode->Clock == adjusted_mode->Clock) /* native mode */
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
+		else /* gpu needs to scale */
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
 	}
+
+	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
+		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
+
+	/* If the special bit exists, it exists on both ramdacs */
+	regp->fp_control[nv_crtc->head] |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
+
+	if (is_fp)
+		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS;
+	else
+		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE;
 
 	/* Some 7300GO cards get a quad view if this bit is set, even though they are duallink. */
 	/* This was seen on 2 cards. */
 	if (is_lvds && pNv->VBIOS.fp.dual_link && pNv->NVArch != 0x46) {
 		regp->fp_control[nv_crtc->head] |= (8 << 28);
-	}
-
-	/* If the special bit exists, it exists on both ramdac's */
-	regp->fp_control[nv_crtc->head] |= nvReadRAMDAC0(pNv, NV_RAMDAC_FP_CONTROL) & (1 << 26);
-
-	if (is_fp) {
-		if (nv_output->scaling_mode == SCALE_PANEL) { /* panel needs to scale */
-			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
-		/* This is also true for panel scaling, so we must put the panel scale check first */
-		} else if (mode->Clock == adjusted_mode->Clock) { /* native mode */
-			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
-		} else { /* gpu needs to scale */
-			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-		}
-	}
-
-	/* Deal with vsync/hsync polarity */
-	/* LVDS screens don't set this. */
-	if (is_fp && !is_lvds) {
-		if (adjusted_mode->Flags & V_PVSYNC) {
-			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
-		}
-
-		if (adjusted_mode->Flags & V_PHSYNC) {
-			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
-		}
-	} else if (!is_lvds) {
-		/* The blob doesn't always do this, but often */
-		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
-		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
 	}
 
 	if (is_fp) {
