@@ -225,6 +225,11 @@ void still_alive()
 
 static int nv_valid_reg(uint32_t reg)
 {
+	if (reg & 0x3) {
+		ErrorF("========== misaligned reg 0x%08X ==========\n", reg);
+		return 0;
+	}
+
 	#define WITHIN(x,y,z) ((x>=y)&&(x<y+z))
 	if (WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
 		return 1;
@@ -258,10 +263,13 @@ static int nv_valid_reg(uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PRAMIN_ROM_OFFSET,NV_PROM_SIZE))
 		return 1;
-	/* A new PBUS? */
+	/* NV40+ PBUS */
 	if (WITHIN(reg,0x88000,0x1000))
 		return 1;
 	#undef WITHIN
+
+	ErrorF("========== unknown reg 0x%08X ==========\n", reg);
+
 	return 0;
 }
 
@@ -270,12 +278,11 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t data;
 
-	if (!nv_valid_reg(reg)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "========= unknown reg 0x%08X ==========\n", reg);
+	if (!nv_valid_reg(reg))
 		return 0;
-	}
+
 	data = pNv->REGS[reg/4];
+
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Read:  Reg: 0x%08X, Data: 0x%08X\n", reg, data);
@@ -292,11 +299,9 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
-	if (!nv_valid_reg(reg)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "========= unknown reg 0x%08X ==========\n", reg);
+
+	if (!nv_valid_reg(reg))
 		return 0;
-	}
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
@@ -1471,50 +1476,59 @@ static Bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 	 *
 	 * offset      (8 bit): opcode
 	 * offset + 1  (8 bit): condition number
+	 * offset + 2  (8 bit): retries / 50
 	 *
 	 * Check condition "condition number" in the condition table.
 	 * The condition table entry has 4 bytes for the address of the
 	 * register to check, 4 bytes for a mask and 4 for a test value.
-	 * If condition not met sleep for 2ms
+	 * If condition not met sleep for 2ms, and repeat upto "retries" times.
+	 * If still not met after retries, clear execution flag for this table.
 	 */
 
-	// this opcode makes no sense. it seems to do some competely useless things
 	uint8_t cond = bios->data[offset + 1];
-//	uint16_t b = bios->data[offset + 2];	// this needs printing
+	uint16_t retries = bios->data[offset + 2];
 	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
 	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
 	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
 	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
-	uint32_t data;
+	uint32_t data = 0;
 
 	if (!iexec->execute)
 		return TRUE;
 
-	if (DEBUGLEVEL >= 6)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
-			   offset, cond, reg, mask, cmpval);
-
-//	b *= 50;
-	reg &= 0xfffffffc;	// FIXME: this not in init_condition() - should it be?
-
-	data = nv32_rd(pScrn, reg) & mask;
+	retries *= 50;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Checking if 0x%08X equals 0x%08X\n",
-			   offset, data, cmpval);
+			   "0x%04X: Cond: 0x%02X, Retries: 0x%02X\n", offset, cond, retries);
+
+	for (; retries > 0; retries--) {
+		data = nv32_rd(pScrn, reg) & mask;
+
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Checking if 0x%08X equals 0x%08X\n",
+				   offset, data, cmpval);
+
+		if (data != cmpval) {
+			if (DEBUGLEVEL >= 6)
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					   "0x%04X: Condition not met, sleeping for 2ms\n", offset);
+			usleep(2000);
+		} else {
+			if (DEBUGLEVEL >= 6)
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					   "0x%04X: Condition met, continuing\n", offset);
+			break;
+		}
+	}
 
 	if (data != cmpval) {
 		if (DEBUGLEVEL >= 6)
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Condition not met, sleeping for 2ms\n", offset);
-//		reg--;
-		usleep(2000);
-	} else
-		if (DEBUGLEVEL >= 6)
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Condition met, continuing\n", offset);
+				   "0x%04X: Condition still not met, skiping following opcodes\n", offset);
+		iexec->execute = FALSE;
+	}
 
 	return TRUE;
 }
