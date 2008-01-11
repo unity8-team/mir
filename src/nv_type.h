@@ -479,10 +479,11 @@ typedef struct _NVRec {
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;
 
-    Bool randr12_enable;
-    CreateScreenResourcesProcPtr    CreateScreenResources;
+	Bool randr12_enable;
+	Bool new_restore;
+	CreateScreenResourcesProcPtr    CreateScreenResources;
 
-    I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
+	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
 	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
 	Bool restricted_mode;

@@ -687,7 +687,6 @@ static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t fp_debug_0[2];
 	uint32_t index[2];
@@ -1665,19 +1664,14 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
-		/* 0x80 seems to be used (almost?) always. */
-		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
+	/* 0x80 seems to be used (almost?) always. */
+	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
-		/* Some cards have 0x41 instead of 0x1 (for crtc 0), what is the meaning of that? */
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
+	/* Some cards have 0x41 instead of 0x1 (for crtc 0), what is the meaning of that? */
+	regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
 
-		if (is_fp)
-			regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
-	}
+	if (is_fp)
+		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
 	if (nv_crtc->head == 1) {
@@ -1690,13 +1684,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
 		regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
 
-	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
-		regp->unk830 = mode->CrtcVDisplay - 3;
-		regp->unk834 = mode->CrtcVDisplay - 1;
-	} else {
-		regp->unk830 = 0;
-		regp->unk834 = 0;
-	}
+	regp->unk830 = mode->CrtcVDisplay - 3;
+	regp->unk834 = mode->CrtcVDisplay - 1;
 
 	if (pNv->twoHeads)
 		/* This is what the blob does */
@@ -2031,15 +2020,9 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* Some values the blob sets */
 	/* This may apply to the real ramdac that is being used (for crosswired situations) */
 	/* Nevertheless, it's unlikely to cause many problems, since the values are equal for both */
-	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
-		regp->unk_a20 = 0x0;
-		regp->unk_a24 = 0xfffff;
-		regp->unk_a34 = 0x1;
-	} else {
-		regp->unk_a20 = 0x0;
-		regp->unk_a24 = 0x0;
-		regp->unk_a34 = 0x0;
-	}
+	regp->unk_a20 = 0x0;
+	regp->unk_a24 = 0xfffff;
+	regp->unk_a34 = 0x1;
 
 	if (pNv->twoHeads) {
 		/* Do we also "own" the other register pair? */
@@ -2102,7 +2085,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	NVVgaProtect(crtc, FALSE);
 
-	NVCrtcSetBase(crtc, x, y, (mode->PrivFlags & NV_MODE_CONSOLE) > 0);
+	NVCrtcSetBase(crtc, x, y, mode->PrivFlags & NV_MODE_CONSOLE);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* turn on LFB swapping */

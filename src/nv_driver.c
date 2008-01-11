@@ -1262,6 +1262,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	from = X_DEFAULT;
 
+	pNv->new_restore = FALSE;
+
 	if (pNv->Architecture == NV_ARCH_50) {
 		pNv->randr12_enable = TRUE;
 	} else {
@@ -1271,6 +1273,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		}
 	}
 	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
+
+	if (pNv->randr12_enable) {
+		if (xf86ReturnOptValBool(pNv->Options, OPTION_NEW_RESTORE, FALSE)) {
+			pNv->new_restore = TRUE;
+		}
+		xf86DrvMsg(pScrn->scrnIndex, from, "New (experimental) restore support %sabled\n", pNv->new_restore ? "en" : "dis");
+	}
 
 	pNv->HWCursor = TRUE;
 	/*
@@ -1826,8 +1835,6 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 static void
 NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
 	if (!output->crtc)
 		return;
 
@@ -1888,11 +1895,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		RIVA_HW_STATE *state = &pNv->ModeReg;
 		int i;
 
-		if (1) { /* new style restore. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-			}
-
+		if (pNv->new_restore) { /* new style restore. */
 			/* Restore outputs when enabled. */
 			for (i = 0; i < xf86_config->num_output; i++) {
 				xf86OutputPtr output = xf86_config->output[i];
@@ -1902,11 +1905,11 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVOutputPrivatePtr nv_output = output->driver_private;
 				DisplayModePtr mode = NULL;
 				NVConsoleMode *console = &pNv->console_mode[i];
-				DisplayModePtr modes = output->funcs->get_modes(output);
+				DisplayModePtr modes = output->probed_modes;
 				if (!modes) /* no modes means no restore */
 					continue;
 
-				if (console->vga_mode) { /* TODO: Also do non-60 Hz modes. */
+				if (console->vga_mode) {
 					for (mode = modes; mode != NULL; mode = mode->next) {
 						if (mode->HDisplay == 640 && mode->VDisplay == 480)
 							break;
@@ -1917,7 +1920,7 @@ NVRestore(ScrnInfoPtr pScrn)
 					for (mode = modes; mode != NULL; mode = mode->next) {
 						if (mode->HDisplay == console->x_res) {
 							/* We only have the first 8 bits of y_res - 1. */
-							//if (((mode->VDisplay - 1) & 0xFF) == (console->y_res - 1))
+							/* And it's sometimes bogus. */
 							break;
 						}
 					}
@@ -1948,6 +1951,7 @@ NVRestore(ScrnInfoPtr pScrn)
 
 			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 
+			/* Lock the crtc's. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
