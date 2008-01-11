@@ -43,12 +43,6 @@
 
 #include "vbe.h"
 
-static const char *vbeSymbols[] = {
-    "VBESetVBEMode",
-    "vbeFree",
-    NULL
-};
-
 #endif /* TV_OUT */
 
 #ifndef AVOID_CPIO
@@ -733,9 +727,6 @@ ATISetVBEMode
     ATIHWPtr    pATIHW
 )
 {
-
-    xf86LoaderRefSymLists(vbeSymbols, NULL);
-
     if (pATIHW->crtc == ATI_CRTC_MACH64) {
 	int vbemode, modekey;
 

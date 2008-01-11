@@ -63,7 +63,6 @@
 #include "atipcirename.h"
 
 #include "ati.h"
-#include "atimodule.h"
 #include "ativersion.h"
 #include "atimach64probe.h"
 
@@ -193,8 +192,6 @@ ATIProbe
             return FALSE;
         }
 
-        xf86LoaderReqSymLists(RADEONSymbols, NULL);
-
         RADEONIdentify(flags);
 
         if (RADEONProbe(pDriver, flags))
@@ -215,8 +212,6 @@ ATIProbe
             return FALSE;
         }
 
-        xf86LoaderReqSymLists(R128Symbols, NULL);
-
         R128Identify(flags);
 
         if (R128Probe(pDriver, flags))
@@ -236,8 +231,6 @@ ATIProbe
                 ATI_NAME ":  Failed to load \"atimisc\" module.\n");
             return FALSE;
         }
-
-        xf86LoaderReqSymLists(ATISymbols, NULL);
 
         Mach64Identify(flags);
 

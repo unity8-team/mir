@@ -18,52 +18,15 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- *
- * DRI support by:
- *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifndef ___ATILOAD_H___
 #define ___ATILOAD_H___ 1
 
-#ifdef XFree86LOADER
-
 #include "atipriv.h"
 
 #include "xf86str.h"
 
-extern const char *ATIint10Symbols[], *ATIddcSymbols[], *ATIvbeSymbols[],
-
-#ifdef XF86DRI_DEVEL
- 
-                  *ATIdrmSymbols[], *ATIdriSymbols[],
- 
-#endif /* XF86DRI_DEVEL */
-
-                  *ATIfbSymbols[], *ATIshadowfbSymbols[],
-
-#ifdef USE_EXA
- 
-                  *ATIexaSymbols[],
-
-#endif /* USE_EXA */
-
-#ifdef USE_XAA
- 
-                  *ATIxaaSymbols[],
-
-#endif /* USE_XAA */
-
-                  *ATIramdacSymbols[], *ATIi2cSymbols[];
-
-extern pointer ATILoadModule(ScrnInfoPtr, const char *, const char **);
 extern pointer ATILoadModules(ScrnInfoPtr, ATIPtr);
-
-#else /* XFree86LOADER */
-
-#define ATILoadModule(pScreenInfo, Module, SymboList) ((pointer)1)
-#define ATILoadModules(pScreenInfo, pATI)             ((pointer)1)
-
-#endif /* XFree86LOADER */
 
 #endif /* ___ATILOAD_H___ */

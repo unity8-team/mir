@@ -51,11 +51,6 @@
 #include "atioption.h"
 #include "vbe.h"
 
-static const char *vbeSymbols[] = {
-    "VBEGetVBEMode",
-    NULL
-};
-
 #endif /* TV_OUT */
 
 /*
@@ -130,8 +125,6 @@ ATIProbeAndSetActiveDisplays
     Bool tv_attached, crt_attached, lcd_attached;
     int disp_request;
     ATITVStandard tv_std, tv_std_request;
-
-    xf86LoaderRefSymLists(vbeSymbols, NULL);
 
     if (xf86GetVerbosity() > 3) {
 	xf86ErrorFVerb(4, "\n Before TV-Out queries\n\n");
@@ -538,8 +531,6 @@ ATIEnterGraphics
 
 #ifdef TV_OUT
     if (pATI->OptionTvOut) {
-
-	xf86LoaderRefSymLists(vbeSymbols, NULL);
 
 	if (pATI->pVBE) {
 	    if (VBEGetVBEMode(pATI->pVBE, &pATI->vbemode)) {
