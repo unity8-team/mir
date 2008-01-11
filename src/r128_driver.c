@@ -238,11 +238,26 @@ static Bool R128MapMMIO(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->MMIO = fbdevHWMapMMIO(pScrn);
     } else {
+#ifndef XSERVER_LIBPCIACCESS
 	info->MMIO = xf86MapPciMem(pScrn->scrnIndex,
 				   VIDMEM_MMIO | VIDMEM_READSIDEEFFECT,
 				   info->PciTag,
 				   info->MMIOAddr,
 				   R128_MMIOSIZE);
+#else
+	int err = pci_device_map_range(info->PciInfo,
+				       info->MMIOAddr,
+				       R128_MMIOSIZE,
+				       PCI_DEV_MAP_FLAG_WRITABLE,
+				       &info->MMIO);
+
+	if (err) {
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+                        "Unable to map MMIO aperture. %s (%d)\n",
+                        strerror (err), err);
+	    return FALSE;
+	}
+#endif
     }
 
     if (!info->MMIO) return FALSE;
@@ -258,7 +273,11 @@ static Bool R128UnmapMMIO(ScrnInfoPtr pScrn)
     if (info->FBDev)
 	fbdevHWUnmapMMIO(pScrn);
     else {
+#ifndef XSERVER_LIBPCIACCESS
 	xf86UnMapVidMem(pScrn->scrnIndex, info->MMIO, R128_MMIOSIZE);
+#else
+	pci_device_unmap_range(info->PciInfo, info->MMIO, R128_MMIOSIZE);
+#endif
     }
     info->MMIO = NULL;
     return TRUE;
@@ -272,11 +291,27 @@ static Bool R128MapFB(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->FB = fbdevHWMapVidmem(pScrn);
     } else {
+#ifndef XSERVER_LIBPCIACCESS
 	info->FB = xf86MapPciMem(pScrn->scrnIndex,
 				 VIDMEM_FRAMEBUFFER,
 				 info->PciTag,
 				 info->LinearAddr,
 				 info->FbMapSize);
+#else
+	int err = pci_device_map_range(info->PciInfo,
+				       info->LinearAddr,
+				       info->FbMapSize,
+				       PCI_DEV_MAP_FLAG_WRITABLE |
+				       PCI_DEV_MAP_FLAG_WRITE_COMBINE,
+				       &info->FB);
+
+	if (err) {
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+                        "Unable to map FB aperture. %s (%d)\n",
+                        strerror (err), err);
+	    return FALSE;
+	}
+#endif
     }
 
     if (!info->FB) return FALSE;
@@ -291,7 +326,11 @@ static Bool R128UnmapFB(ScrnInfoPtr pScrn)
     if (info->FBDev)
 	fbdevHWUnmapVidmem(pScrn);
     else
+#ifndef XSERVER_LIBPCIACCESS
 	xf86UnMapVidMem(pScrn->scrnIndex, info->FB, info->FbMapSize);
+#else
+	pci_device_unmap_range(info->PciInfo, info->FB, info->FbMapSize);
+#endif
     info->FB = NULL;
     return TRUE;
 }
@@ -452,7 +491,13 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			(info->VBIOS[(v) + 2] << 16) | \
 			(info->VBIOS[(v) + 3] << 24))
 
-    if (!(info->VBIOS = xalloc(R128_VBIOS_SIZE))) {
+#ifdef XSERVER_LIBPCIACCESS
+    info->VBIOS = xalloc(info->PciInfo->rom_size);
+#else
+    info->VBIOS = xalloc(R128_VBIOS_SIZE);
+#endif
+
+    if (!info->VBIOS) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Cannot allocate space for hold Video BIOS!\n");
 	return FALSE;
@@ -463,6 +508,12 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	(void)memcpy(info->VBIOS, xf86int10Addr(pInt10, info->BIOSAddr),
 		     R128_VBIOS_SIZE);
     } else {
+#ifdef XSERVER_LIBPCIACCESS
+	if (pci_device_read_rom(info->PciInfo, info->VBIOS)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to read PCI ROM!\n");
+	}
+#else
 	xf86ReadPciBIOS(0, info->PciTag, 0, info->VBIOS, R128_VBIOS_SIZE);
 	if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -472,6 +523,7 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	    info->BIOSAddr = 0x000c0000;
 	    xf86ReadDomainMemory(info->PciTag, info->BIOSAddr, R128_VBIOS_SIZE, info->VBIOS);
 	}
+#endif
     }
     if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 	info->BIOSAddr = 0x00000000;
@@ -810,7 +862,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 	info->Chipset  = dev->chipID;
 	from           = X_CONFIG;
     } else {
-	info->Chipset = info->PciInfo->chipType;
+	info->Chipset = PCI_DEV_DEVICE_ID(info->PciInfo);
     }
     pScrn->chipset = (char *)xf86TokenToString(R128Chipsets, info->Chipset);
 
@@ -834,7 +886,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 				/* Framebuffer */
 
     from             = X_PROBED;
-    info->LinearAddr = info->PciInfo->memBase[0] & 0xfc000000;
+    info->LinearAddr = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & 0xfc000000;
     pScrn->memPhysBase = info->LinearAddr;
     if (dev->MemBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -853,7 +905,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 
 				/* MMIO registers */
     from             = X_PROBED;
-    info->MMIOAddr   = info->PciInfo->memBase[2] & 0xffffff00;
+    info->MMIOAddr   = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & 0xffffff00;
     if (dev->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "MMIO address override, using 0x%08lx instead of 0x%08lx\n",
@@ -868,6 +920,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "MMIO registers at 0x%08lx\n", info->MMIOAddr);
 
+#ifndef XSERVER_LIBPCIACCESS
 				/* BIOS */
     from              = X_PROBED;
     info->BIOSAddr    = info->PciInfo->biosBase & 0xfffe0000;
@@ -883,6 +936,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, from,
 		   "BIOS at 0x%08lx\n", info->BIOSAddr);
     }
+#endif
 
 				/* Flat panel (part 1) */
     if (xf86GetOptValBool(info->Options, OPTION_PROG_FP_REGS,
@@ -1904,15 +1958,15 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     info->PciInfo      = xf86GetPciInfoForEntity(info->pEnt->index);
-    info->PciTag       = pciTag(info->PciInfo->bus,
-				info->PciInfo->device,
-				info->PciInfo->func);
+    info->PciTag       = pciTag(PCI_DEV_BUS(info->PciInfo),
+				PCI_DEV_DEV(info->PciInfo),
+				PCI_DEV_FUNC(info->PciInfo));
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "PCI bus %d card %d func %d\n",
-	       info->PciInfo->bus,
-	       info->PciInfo->device,
-	       info->PciInfo->func);
+	       PCI_DEV_BUS(info->PciInfo),
+	       PCI_DEV_DEV(info->PciInfo),
+	       PCI_DEV_FUNC(info->PciInfo));
 
     if (xf86RegisterResources(info->pEnt->index, 0, ResNone)) goto fail;
     if (xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr)) goto fail;

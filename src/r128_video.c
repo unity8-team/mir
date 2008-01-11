@@ -397,6 +397,7 @@ R128DMA(
 #define BUFSIZE (R128_BUFFER_SIZE - R128_HOSTDATA_BLIT_OFFSET)
 #define MAXPASSES (MAXHEIGHT/(BUFSIZE/(MAXWIDTH*2))+1)
 
+    unsigned char *fb = (CARD8*)info->FB;
     unsigned char *buf;
     int err=-1, i, idx, offset, hpass, passes, srcpassbytes, dstpassbytes;
     int sizes[MAXPASSES], list[MAXPASSES];
@@ -439,7 +440,7 @@ R128DMA(
     dstpassbytes = hpass*dstPitch;
     dstPitch /= 8;
 
-    for (i=0, offset=dst-info->FB; i<passes; i++, offset+=dstpassbytes) {
+    for (i=0, offset=dst-fb; i<passes; i++, offset+=dstpassbytes) {
         if (i == (passes-1) && (h % hpass) != 0) {
 	    hpass = h % hpass;
 	    srcpassbytes = w*hpass;
@@ -775,6 +776,7 @@ R128PutImage(
 ){
    R128InfoPtr info = R128PTR(pScrn);
    R128PortPrivPtr pPriv = (R128PortPrivPtr)data;
+   unsigned char *fb = (CARD8*)info->FB;
    INT32 xa, xb, ya, yb;
    int new_size, offset, s1offset, s2offset, s3offset;
    int srcPitch, srcPitch2, dstPitch;
@@ -899,7 +901,7 @@ R128PutImage(
 
 	nlines = ((((yb + 0xffff) >> 16) + 1) & ~1) - top;
 	R128CopyData420(info, buf + s1offset, buf + s2offset, buf + s3offset,
-			info->FB+d1offset, info->FB+d2offset, info->FB+d3offset,
+			fb + d1offset, fb + d2offset, fb + d3offset,
 			srcPitch, srcPitch2, dstPitch, nlines, npixels);
 	break;
     case FOURCC_UYVY:
@@ -914,7 +916,7 @@ R128PutImage(
 	d3offset = 0;
 	s1offset += (top * srcPitch) + left;
 	nlines = ((yb + 0xffff) >> 16) - top;
-	R128CopyData422(info, buf + s1offset, info->FB + d1offset,
+	R128CopyData422(info, buf + s1offset, fb + d1offset,
 			srcPitch, dstPitch, nlines, npixels);
 	break;
     }
