@@ -174,126 +174,106 @@ uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
     return nvReadRAMDAC(pNv, nv_output->preferred_output, ramdac_reg);
 }
 
-static void dpms_update_output_ramdac(xf86OutputPtr output, int mode)
+static Bool dpms_common(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcPtr crtc = output->crtc;
-	if (!crtc)	/* we need nv_crtc, so give up */
-		return;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-	/* We may be going for modesetting, so we must reset our output binding */
-	if (mode == DPMSModeOff) {
-		NVWriteVGACR5758(pNv, nv_crtc->head, 0, 0x7f);
-		NVWriteVGACR5758(pNv, nv_crtc->head, 2, 0);
-		return;
-	}
-
-	/* The previous call was not a modeset, but a normal dpms call */
-	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
-}
-
-static void
-nv_lvds_output_dpms(xf86OutputPtr output, int mode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
 	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
-		return;
+		return FALSE;
 
 	nv_output->last_dpms = mode;
 
 	NVPtr pNv = NVPTR(output->scrn);
 	xf86CrtcPtr crtc = output->crtc;
 	if (!crtc)	/* we need nv_crtc, so give up */
-		return;
+		return TRUE;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	int pclk = 0;
 
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
-		dpms_update_output_ramdac(output, mode);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
+		/* We may be going for modesetting, so we must reset our output binding */
+		if (mode == DPMSModeOff) {
+			NVWriteVGACR5758(pNv, nv_crtc->head, 0, 0x7f);
+			NVWriteVGACR5758(pNv, nv_crtc->head, 2, 0);
+		} else {
+			NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
+			NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+		}
+	}
 
-	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts)
+	return TRUE;
+}
+
+static void
+nv_lvds_output_dpms(xf86OutputPtr output, int mode)
+{
+	NVPtr pNv = NVPTR(output->scrn);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
+
+	if (!dpms_common(output, mode))
 		return;
 
-	/* only need to pass in pclk for BIT bioses */
-	if (pNv->VBIOS.major_version > 4)
-		pclk = nv_calc_tmds_clock_from_pll(output);
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
+		xf86CrtcPtr crtc = output->crtc;
+		if (!crtc)	/* we need nv_crtc, so give up */
+			return;
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		int pclk = nv_calc_tmds_clock_from_pll(output);
 
-	switch (mode) {
-	case DPMSModeStandby:
-	case DPMSModeSuspend:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, pclk);
-		break;
-	case DPMSModeOff:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
-		break;
-	case DPMSModeOn:
-		call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
-	default:
-		break;
+		switch (mode) {
+		case DPMSModeStandby:
+		case DPMSModeSuspend:
+			call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, pclk);
+			break;
+		case DPMSModeOff:
+			call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
+			break;
+		case DPMSModeOn:
+			call_lvds_script(output->scrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
+		default:
+			break;
+		}
 	}
 }
 
 static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
 	ErrorF("nv_analog_output_dpms is called with mode %d\n", mode);
 
-	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
-		return;
-
-	nv_output->last_dpms = mode;
-
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
-		dpms_update_output_ramdac(output, mode);
+	dpms_common(output, mode);
 }
 
 static void
 nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	xf86CrtcPtr crtc = output->crtc;
 
 	ErrorF("nv_tmds_output_dpms is called with mode %d\n", mode);
 
-	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
+	if (!dpms_common(output, mode))
 		return;
-
-	nv_output->last_dpms = mode;
-
-	xf86CrtcPtr crtc = output->crtc;
-	NVPtr pNv = NVPTR(output->scrn);
-
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
-		dpms_update_output_ramdac(output, mode);
 
 	/* Are we assigned a ramdac already?, else we will be activated during mode set */
 	if (crtc) {
+		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
 		uint32_t fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
-		switch(mode) {
-			case DPMSModeStandby:
-			case DPMSModeSuspend:
-			case DPMSModeOff:
-				/* cut the TMDS output */	    
-				fpcontrol |= 0x20000022;
-				break;
-			case DPMSModeOn:
-				/* disable cutting the TMDS output */
-				fpcontrol &= ~0x20000022;
-				break;
+		switch (mode) {
+		case DPMSModeStandby:
+		case DPMSModeSuspend:
+		case DPMSModeOff:
+			/* cut the TMDS output */	    
+			fpcontrol |= 0x20000022;
+			break;
+		case DPMSModeOn:
+			/* disable cutting the TMDS output */
+			fpcontrol &= ~0x20000022;
+			break;
 		}
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
@@ -884,10 +864,6 @@ nv_output_prepare(xf86OutputPtr output)
 	int i;
 
 	output->funcs->dpms(output, DPMSModeOff);
-
-	/* Set our output type and output routing possibilities to the right registers */
-	NVWriteVGACR5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-	NVWriteVGACR5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
 
 	/*
 	 * Here we detect output resource conflicts.
