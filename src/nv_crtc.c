@@ -222,7 +222,7 @@ static uint8_t NVReadVgaAttr(xf86CrtcPtr crtc, uint8_t index)
   return NV_RD08(pCRTCReg, VGA_ATTR_DATA_R);
 }
 
-void NVCrtcSetOwner(xf86CrtcPtr crtc)
+static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -319,9 +319,11 @@ static void NVVgaProtect(xf86CrtcPtr crtc, Bool on)
 
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
 {
+	NVPtr pNv = NVPTR(crtc->scrn);
 	uint8_t cr11;
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57);
 	cr11 = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE);
@@ -1183,7 +1185,8 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 
 	crtc1A = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1) & ~0xC0;
 	switch(mode) {
@@ -1675,14 +1678,16 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52 + 4;
 	}
 
-	/* The exact purpose of this register is unknown, but we copy value from crtc0 */
-	regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
+	if (pNv->twoHeads)
+		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
+		regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
 
-	/* This is what the blob does */
-	regp->unk850 = nvReadCRTC(pNv, 0, NV_CRTC_0850);
+	if (pNv->twoHeads)
+		/* This is what the blob does */
+		regp->unk850 = nvReadCRTC(pNv, 0, NV_CRTC_0850);
 
 	/* Never ever modify gpio, unless you know very well what you're doing */
 	regp->gpio = nvReadCRTC(pNv, 0, NV_CRTC_GPIO);
@@ -2001,18 +2006,20 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	regp->unk_a24 = 0xfffff;
 	regp->unk_a34 = 0x1;
 
-	/* Do we also "own" the other register pair? */
-	/* If we own neither, they will just be ignored at load time. */
-	uint8_t other_head = (~nv_crtc->head) & 1;
-	if (pNv->fp_regs_owner[other_head] == nv_crtc->head) {
-		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-			regp->fp_control[other_head] = regp->fp_control[nv_crtc->head];
-			regp->debug_0[other_head] = regp->debug_0[nv_crtc->head];
-			/* Set TMDS_PLL and FPCLK, only seen for a NV31M so far. */
-			regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK;
-			regp->debug_0[other_head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL;
-		} else {
-			ErrorF("This is BAD, we own more than one fp reg set, but are not a LVDS or TMDS output.\n");
+	if (pNv->twoHeads) {
+		/* Do we also "own" the other register pair? */
+		/* If we own neither, they will just be ignored at load time. */
+		uint8_t other_head = (~nv_crtc->head) & 1;
+		if (pNv->fp_regs_owner[other_head] == nv_crtc->head) {
+			if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+				regp->fp_control[other_head] = regp->fp_control[nv_crtc->head];
+				regp->debug_0[other_head] = regp->debug_0[nv_crtc->head];
+				/* Set TMDS_PLL and FPCLK, only seen for a NV31M so far. */
+				regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK;
+				regp->debug_0[other_head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL;
+			} else {
+				ErrorF("This is BAD, we own more than one fp reg set, but are not a LVDS or TMDS output.\n");
+			}
 		}
 	}
 }
@@ -2039,7 +2046,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 
 	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
 	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
@@ -2105,7 +2113,8 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	/* We just came back from terminal, so unlock */
 	NVCrtcLockUnlock(crtc, FALSE);
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
@@ -2129,7 +2138,8 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 
 	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->head);
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 
 	/* Just to be safe */
 	NVCrtcLockUnlock(crtc, FALSE);
@@ -2150,29 +2160,33 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
 	}
-	nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+	if (pNv->twoHeads)
+		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 	NVVgaProtect(crtc, FALSE);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 }
 
-void
+static void
 NVResetCrtcConfig(xf86CrtcPtr crtc, Bool set)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t val = 0;
 
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	if (pNv->twoHeads) {
+		uint32_t val = 0;
 
-	if (set) {
-		NVCrtcRegPtr regp;
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-		val = regp->head;
+		if (set) {
+			NVCrtcRegPtr regp;
+
+			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+			val = regp->head;
+		}
+
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, val);
 	}
-
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL, val);
 }
 
 void nv_crtc_prepare(xf86CrtcPtr crtc)
@@ -2556,34 +2570,36 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 	regp = &state->crtc_reg[nv_crtc->head];
 
-	/* If we ever get down to pre-nv10 cards, then we must reinstate some limits. */
-	nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
-	nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
-	nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);
-	nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(1), 0);
-	nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(0), pNv->VRAMPhysicalSize - 1);
-	nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
-	nvWriteMC(pNv, 0x1588, 0);
+	if (pNv->Architecture >= NV_ARCH_10) {
+		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
+		nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
+		nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);
+		nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(1), 0);
+		nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(0), pNv->VRAMPhysicalSize - 1);
+		nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
+		nvWriteMC(pNv, 0x1588, 0);
 
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, regp->CRTC[NV_VGA_CRTCX_BUFFER]);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO, regp->gpio);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0830, regp->unk830);
-	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
-	if (pNv->Architecture == NV_ARCH_40) {
-		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
-		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER, regp->CRTC[NV_VGA_CRTCX_BUFFER]);
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0830, regp->unk830);
+		nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0834, regp->unk834);
+		if (pNv->Architecture == NV_ARCH_40) {
+			nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_0850, regp->unk850);
+			nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_081C, regp->unk81c);
+		}
+
+		if (pNv->Architecture == NV_ARCH_40) {
+			uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
+			if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
+				nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
+			} else {
+				nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
+			}
+		}
 	}
 
 	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG, regp->config);
-	if (pNv->Architecture == NV_ARCH_40) {
-		uint32_t reg900 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900);
-		if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
-			nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 | 0x10000);
-		} else {
-			nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_900, reg900 & ~0x10000);
-		}
-	}
+	nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO, regp->gpio);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT0, regp->CRTC[NV_VGA_CRTCX_REPAINT0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, regp->CRTC[NV_VGA_CRTCX_REPAINT1]);
@@ -2594,9 +2610,8 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO1, regp->CRTC[NV_VGA_CRTCX_FIFO1]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO0, regp->CRTC[NV_VGA_CRTCX_FIFO0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM, regp->CRTC[NV_VGA_CRTCX_FIFO_LWM]);
-	if (pNv->Architecture >= NV_ARCH_30) {
+	if (pNv->Architecture >= NV_ARCH_30)
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM_NV30, regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30]);
-	}
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL0, regp->CRTC[NV_VGA_CRTCX_CURCTL0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, regp->CRTC[NV_VGA_CRTCX_CURCTL1]);
@@ -2607,11 +2622,13 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_26, regp->CRTC[NV_VGA_CRTCX_26]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
+	if (pNv->Architecture >= NV_ARCH_10) {
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
+	}
 	/* NV11 and NV20 stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
 		if (override)
@@ -2670,7 +2687,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp = &state->crtc_reg[nv_crtc->head];
 
-	/* If we ever get down to pre-nv10 cards, then we must reinstate some limits. */
 	regp->CRTC[NV_VGA_CRTCX_LCD] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_LCD);
 	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT0);
 	regp->CRTC[NV_VGA_CRTCX_REPAINT1] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1);
@@ -2682,37 +2698,38 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FIFO0);
 	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM);
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_BUFFER);
-	if (pNv->Architecture >= NV_ARCH_30) {
+	if (pNv->Architecture >= NV_ARCH_30)
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM_NV30);
-	}
 	regp->CRTC[NV_VGA_CRTCX_CURCTL0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL0);
 	regp->CRTC[NV_VGA_CRTCX_CURCTL1] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
 	regp->CRTC[NV_VGA_CRTCX_CURCTL2] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL2);
 	regp->CRTC[NV_VGA_CRTCX_INTERLACE] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_INTERLACE);
 
-	regp->gpio = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO);
-	regp->unk830 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0830);
-	regp->unk834 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0834);
-	if (pNv->Architecture == NV_ARCH_40) {
-		regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
-		regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
+	if (pNv->Architecture >= NV_ARCH_10) {
+		regp->unk830 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0830);
+		regp->unk834 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0834);
+		if (pNv->Architecture == NV_ARCH_40) {
+			regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
+			regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
+		}
+		regp->head = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL);
+		regp->crtcOwner = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_OWNER);
+		regp->cursorConfig = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG);
 	}
 
+	regp->gpio = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_GPIO);
 	regp->config = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CONFIG);
-
-	regp->head = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL);
-	regp->crtcOwner = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_OWNER);
-	regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA);
-
-	regp->cursorConfig = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG);
 
 	regp->CRTC[NV_VGA_CRTCX_26] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_26);
 	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
-	regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_43);
-	regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
-	regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
-	regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
+	if (pNv->Architecture >= NV_ARCH_10) {
+		regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA);
+		regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_43);
+		regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
+		regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
+		regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_52);
+	}
 	/* NV11 and NV20 don't have this, they stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
 		for (i = 0; i < 0x10; i++)
@@ -2743,19 +2760,22 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->fp_control[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL);
 	regp->debug_0[0]	= nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
 	regp->debug_0[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
-	regp->debug_1	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1);
-	regp->debug_2	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2);
+	if (pNv->twoHeads) {
+		regp->debug_1	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1);
+		regp->debug_2	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2);
 
-	regp->unk_a20 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A20);
-	regp->unk_a24 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A24);
-	regp->unk_a34 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A34);
+		regp->unk_a20 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A20);
+		regp->unk_a24 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A24);
+		regp->unk_a34 = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A34);
+	}
 
 	if (pNv->NVArch == 0x11) {
 		regp->dither = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_DITHER_NV11);
 	} else if (pNv->twoHeads) {
 		regp->dither = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DITHER);
 	}
-	regp->nv10_cursync = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_NV10_CURSYNC);
+	if (pNv->Architecture >= NV_ARCH_10)
+		regp->nv10_cursync = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_NV10_CURSYNC);
 
 	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
@@ -2795,23 +2815,26 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL, regp->fp_control[1]);
 		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[1]);
 	}
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
-	if (pNv->NVArch == 0x30) { /* For unknown purposes. */
-		uint32_t reg890 = nvReadRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_890);
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_89C, reg890);
-	}
+	if (pNv->twoHeads) {
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
+		if (pNv->NVArch == 0x30) { /* For unknown purposes. */
+			uint32_t reg890 = nvReadRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_890);
+			nvWriteRAMDAC(pNv, nv_crtc->head, NV30_RAMDAC_89C, reg890);
+		}
 
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A20, regp->unk_a20);
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A24, regp->unk_a24);
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A34, regp->unk_a34);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A20, regp->unk_a20);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A24, regp->unk_a24);
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_A34, regp->unk_a34);
+	}
 
 	if (pNv->NVArch == 0x11) {
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_DITHER_NV11, regp->dither);
 	} else if (pNv->twoHeads) {
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DITHER, regp->dither);
 	}
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
+	if (pNv->Architecture >= NV_ARCH_10)
+		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
 	/* The regs below are 0 for non-flatpanels, so you can load and save them */
 
@@ -2933,7 +2956,8 @@ void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 	NVCrtcWriteDacMask(crtc, 0xff);
 	NVCrtcWriteDacWriteAddr(crtc, 0x00);
 
@@ -2946,9 +2970,11 @@ void NVCrtcLoadPalette(xf86CrtcPtr crtc)
 /* on = unblank */
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on)
 {
+	NVPtr pNv = NVPTR(crtc->scrn);
 	unsigned char scrn;
 
-	NVCrtcSetOwner(crtc);
+	if (pNv->twoHeads)
+		NVCrtcSetOwner(crtc);
 
 	scrn = NVReadVgaSeq(crtc, 0x01);
 	if (on) {
