@@ -694,8 +694,6 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	fp_debug_0[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
 	fp_debug_0[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
 
-	uint32_t reg_c040_old = nvReadMC(pNv, 0xc040);
-
 	/* The TMDS_PLL switch is on the actual ramdac */
 	if (state->crosswired) {
 		index[0] = 1;
@@ -773,14 +771,6 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
-	}
-
-	/* Let's be sure not to wake up any crtc's from dpms. */
-	/* But we do want to keep our newly set crtc awake. */
-	if (nv_crtc->head == 1) {
-		nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << 18)));
-	} else {
-		nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << 16)));
 	}
 
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
@@ -992,9 +982,15 @@ void nv_crtc_calc_state_ext(
 			CursorStart = pNv->Cursor->offset;
 		}
 
-		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
-		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
+		if (!(PrivFlags & NV_MODE_CONSOLE)) {
+			regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
+			regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
+			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
+		} else {
+			regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x0;
+			regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0x0;
+			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x0;
+		}
 
 		if (flags & V_DBLSCAN) 
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
@@ -1088,9 +1084,6 @@ void nv_crtc_calc_state_ext(
 			}
 		}
 
-		if (PrivFlags & NV_MODE_CONSOLE) /* restore sel_clk value */
-			state->sel_clk = pNv->misc_info.sel_clk;
-
 		/* Are we crosswired? */
 		if (output && nv_crtc->head != nv_output->preferred_output) {
 			state->crosswired = TRUE;
@@ -1138,6 +1131,11 @@ void nv_crtc_calc_state_ext(
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
 	}
 
+	if (PrivFlags & NV_MODE_CONSOLE) {
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
+	}
+
 	/* The primary output resource doesn't seem to care */
 	if (output && pNv->Architecture == NV_ARCH_40 && nv_output->output_resource == 1) { /* This is the "output" */
 		/* non-zero values are for analog, don't know about tv-out and the likes */
@@ -1168,7 +1166,11 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
 	}
 
-	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((DisplayWidth/8) * pixelDepth) & 0x700) >> 3;
+	if (PrivFlags & NV_MODE_CONSOLE) {
+		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((CrtcHDisplay/8) * pixelDepth) & 0x700) >> 3;
+	} else { /* framebuffer can be larger than crtc scanout area. */
+		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((DisplayWidth/8) * pixelDepth) & 0x700) >> 3;
+	}
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
@@ -1230,16 +1232,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	NVVgaSeqReset(crtc, FALSE);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
-
-	/* We can completely disable a vpll if the crtc is off. */
-	if (pNv->Architecture == NV_ARCH_40) {
-		uint32_t reg_c040_old = nvReadMC(pNv, 0xc040);
-		if (mode == DPMSModeOn) {
-			nvWriteMC(pNv, 0xc040, reg_c040_old | (pNv->misc_info.reg_c040 & (0x3 << (16 + 2*nv_crtc->head))));
-		} else {
-			nvWriteMC(pNv, 0xc040, reg_c040_old & ~(pNv->misc_info.reg_c040 & (0x3 << (16 + 2*nv_crtc->head))));
-		}
-	}
 
 	/* I hope this is the right place */
 	if (crtc->enabled && mode == DPMSModeOn) {
@@ -1420,7 +1412,11 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
 	regp->CRTC[NV_VGA_CRTCX_VDISPE] = Set8Bits(vertDisplay);
 	regp->CRTC[0x14] = 0x00;
-	regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pLayout->bitsPerPixel/8));
+	if (mode->PrivFlags & NV_MODE_CONSOLE) {
+		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((mode->CrtcHDisplay/8)*(depth/8));
+	} else { /* framebuffer can be larger than crtc scanout area. */
+		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pLayout->bitsPerPixel/8));
+	}
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 	/* 0x80 enables the sequencer, we don't want that */
@@ -1669,14 +1665,19 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	/* 0x80 seems to be used very often, if not always */
-	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
+	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
+		/* 0x80 seems to be used (almost?) always. */
+		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
-	/* Some cards have 0x41 instead of 0x1 (for crtc 0), it doesn't hurt to just use the old value. */
-	regp->CRTC[NV_VGA_CRTCX_4B] = savep->CRTC[NV_VGA_CRTCX_4B];
+		/* Some cards have 0x41 instead of 0x1 (for crtc 0), what is the meaning of that? */
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
 
-	if (is_fp)
-		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
+		if (is_fp)
+			regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
+	} else {
+		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
+	}
 
 	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
 	if (nv_crtc->head == 1) {
@@ -1689,8 +1690,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
 		regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
 
-	regp->unk830 = mode->CrtcVDisplay - 3;
-	regp->unk834 = mode->CrtcVDisplay - 1;
+	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
+		regp->unk830 = mode->CrtcVDisplay - 3;
+		regp->unk834 = mode->CrtcVDisplay - 1;
+	} else {
+		regp->unk830 = 0;
+		regp->unk834 = 0;
+	}
 
 	if (pNv->twoHeads)
 		/* This is what the blob does */
@@ -1942,7 +1948,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	if (pNv->Architecture >= NV_ARCH_10) {
 		/* Bios and blob don't seem to do anything (else) */
-		regp->nv10_cursync = (1<<25);
+		if (!(mode->PrivFlags & NV_MODE_CONSOLE))
+			regp->nv10_cursync = (1<<25);
+		else
+			regp->nv10_cursync = 0;
 	}
 
 	/* These are the common blob values, minus a few fp specific bit's */
@@ -1997,24 +2006,24 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		depth = pLayout->depth;
 	}
 
-	/* Kindly borrowed from haiku driver */
-	/* bit4 and bit5 activate indirect mode trough color palette */
 	switch (depth) {
-		case 32:
-		case 16:
-			regp->general = 0x00101130;
-			break;
 		case 24:
 		case 15:
-			regp->general = 0x00100130;
+			regp->general = 0x00100100;
 			break;
+		case 32:
+		case 16:
 		case 8:
 		default:
 			regp->general = 0x00101100;
 			break;
 	}
 
-	if (pNv->alphaCursor) {
+	if (depth > 8 && !(mode->PrivFlags & NV_MODE_CONSOLE)) {
+		regp->general |= 0x30; /* enable palette mode */
+	}
+
+	if (pNv->alphaCursor && !(mode->PrivFlags & NV_MODE_CONSOLE)) {
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
 		regp->general |= (1<<29);
 	}
@@ -2022,9 +2031,15 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* Some values the blob sets */
 	/* This may apply to the real ramdac that is being used (for crosswired situations) */
 	/* Nevertheless, it's unlikely to cause many problems, since the values are equal for both */
-	regp->unk_a20 = 0x0;
-	regp->unk_a24 = 0xfffff;
-	regp->unk_a34 = 0x1;
+	if (!(mode->PrivFlags & NV_MODE_CONSOLE)) {
+		regp->unk_a20 = 0x0;
+		regp->unk_a24 = 0xfffff;
+		regp->unk_a34 = 0x1;
+	} else {
+		regp->unk_a20 = 0x0;
+		regp->unk_a24 = 0x0;
+		regp->unk_a34 = 0x0;
+	}
 
 	if (pNv->twoHeads) {
 		/* Do we also "own" the other register pair? */
@@ -2885,7 +2900,7 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 
 	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
 
-	if (0 && bios_restore) {
+	if (bios_restore) {
 		start = pNv->console_mode[nv_crtc->head].fb_start;
 	} else {
 		start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));

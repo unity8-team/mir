@@ -592,11 +592,6 @@ nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 				output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 		}
 
-		if (bios_restore) {
-			output_reg[0] = 0x1;
-			output_reg[1] = 0x101;
-		}
-
 		ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
 
 		/* The registers can't be considered seperately on most cards */
