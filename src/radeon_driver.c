@@ -2517,7 +2517,7 @@ static const xf86CrtcConfigFuncsRec RADEONCRTCResizeFuncs = {
     RADEONCRTCResize
 };
 
-_X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
+Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 {
     xf86CrtcConfigPtr   xf86_config;
     RADEONInfoPtr     info;
