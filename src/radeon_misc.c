@@ -24,8 +24,6 @@
 #include "config.h"
 #endif
 
-#ifdef XFree86LOADER
-
 #include "ativersion.h"
 
 #include "radeon_probe.h"
@@ -70,8 +68,6 @@ RADEONSetup
         if (!xf86ServerIsOnlyDetecting() && !LoaderSymbol(ATI_NAME))
             xf86LoadOneModule(ATI_DRIVER_NAME, Options);
 
-        RADEONLoaderRefSymLists();
-
         Inited = TRUE;
     }
 
@@ -85,5 +81,3 @@ _X_EXPORT XF86ModuleData radeonModuleData =
     RADEONSetup,
     NULL
 };
-
-#endif /* XFree86LOADER */

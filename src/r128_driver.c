@@ -194,186 +194,6 @@ R128RAMRec R128RAM[] = {        /* Memory Specifications
     { 4, 4, 3, 3, 2, 3, 1, 16, 12, "64-bit DDR SGRAM" },
 };
 
-#ifdef WITH_VGAHW
-static const char *vgahwSymbols[] = {
-    "vgaHWFreeHWRec",
-    "vgaHWGetHWRec",
-    "vgaHWGetIndex",
-    "vgaHWLock",
-    "vgaHWRestore",
-    "vgaHWSave",
-    "vgaHWUnlock",
-    NULL
-};
-#endif
-
-static const char *fbdevHWSymbols[] = {
-    "fbdevHWInit",
-    "fbdevHWUseBuildinMode",
-    "fbdevHWGetLineLength",
-    "fbdevHWGetVidmem",
-
-    "fbdevHWDPMSSet",
-    "fbdevHWDPMSSetWeak",
-
-    /* colormap */
-    "fbdevHWLoadPalette",
-    "fbdevHWLoadPaletteWeak",
-
-    /* ScrnInfo hooks */
-    "fbdevHWAdjustFrame",
-    "fbdevHWAdjustFrameWeak",
-    "fbdevHWEnterVT",
-    "fbdevHWLeaveVT",
-    "fbdevHWModeInit",
-    "fbdevHWRestore",
-    "fbdevHWSave",
-    "fbdevHWSwitchMode",
-    "fbdevHWSwitchModeWeak",
-    "fbdevHWValidModeWeak",
-
-    "fbdevHWMapMMIO",
-    "fbdevHWMapVidmem",
-    "fbdevHWUnmapMMIO",
-    "fbdevHWUnmapVidmem",
-
-    NULL
-};
-
-static const char *ddcSymbols[] = {
-    "xf86PrintEDID",
-    "xf86DoEDID_DDC1",
-    "xf86DoEDID_DDC2",
-    NULL
-};
-
-static const char *i2cSymbols[] = {
-    "xf86CreateI2CBusRec",
-    "xf86I2CBusInit",
-    NULL
-};
-
-static const char *fbSymbols[] = {
-    "fbPictureInit",
-    "fbScreenInit",
-    NULL
-};
-
-static const char *xaaSymbols[] = {
-    "XAACreateInfoRec",
-    "XAADestroyInfoRec",
-    "XAAInit",
-    NULL
-};
-
-static const char *ramdacSymbols[] = {
-    "xf86CreateCursorInfoRec",
-    "xf86DestroyCursorInfoRec",
-    "xf86InitCursor",
-    NULL
-};
-
-#ifdef XF86DRI
-static const char *drmSymbols[] = {
-    "drmAddBufs",
-    "drmAddMap",
-    "drmAgpAcquire",
-    "drmAgpAlloc",
-    "drmAgpBase",
-    "drmAgpBind",
-    "drmAgpDeviceId",
-    "drmAgpEnable",
-    "drmAgpFree",
-    "drmAgpGetMode",
-    "drmAgpRelease",
-    "drmAgpUnbind",
-    "drmAgpVendorId",
-    "drmAvailable",
-    "drmCommandNone",
-    "drmCommandRead",
-    "drmCommandWrite",
-    "drmCommandWriteRead",
-    "drmCtlInstHandler",
-    "drmCtlUninstHandler",
-    "drmFreeBufs",
-    "drmFreeVersion",
-    "drmGetInterruptFromBusID",
-    "drmGetLibVersion",
-    "drmGetVersion",
-    "drmMap",
-    "drmMapBufs",
-    "drmDMA",
-    "drmScatterGatherAlloc",
-    "drmScatterGatherFree",
-    "drmUnmap",
-    "drmUnmapBufs",
-    NULL
-};
-
-static const char *driSymbols[] = {
-    "DRICloseScreen",
-    "DRICreateInfoRec",
-    "DRIDestroyInfoRec",
-    "DRIFinishScreenInit",
-    "DRIGetDeviceInfo",
-    "DRIGetSAREAPrivate",
-    "DRILock",
-    "DRIQueryVersion",
-    "DRIScreenInit",
-    "DRIUnlock",
-    "GlxSetVisualConfigs",
-    "DRICreatePCIBusID",
-    NULL
-};
-
-static const char *driShadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-#endif
-
-static const char *vbeSymbols[] = {
-    "VBEInit",
-    "vbeDoEDID",
-    "vbeFree",
-    NULL
-};
-
-static const char *int10Symbols[] = {
-    "xf86InitInt10",
-    "xf86FreeInt10",
-    "xf86int10Addr",
-    NULL
-};
-
-void R128LoaderRefSymLists(void)
-{
-    /*
-     * Tell the loader about symbols from other modules that this module might
-     * refer to.
-     */
-    xf86LoaderRefSymLists(
-#ifdef WITH_VGAHW
-		      vgahwSymbols,
-#endif
-		      fbSymbols,
-		      xaaSymbols,
-		      ramdacSymbols,
-#ifdef XF86DRI
-		      drmSymbols,
-		      driSymbols,
-		      driShadowFBSymbols,
-#endif
-		      fbdevHWSymbols,
-		      int10Symbols,
-		      vbeSymbols,
-		      /* ddcsymbols, */
-		      i2cSymbols,
-		      /* shadowSymbols, */
-		      NULL);
-}
-
-#ifdef XFree86LOADER
 int getR128EntityIndex(void)
 {
     int *r128_entity_index = LoaderSymbol("gR128EntityIndex");
@@ -382,13 +202,6 @@ int getR128EntityIndex(void)
     else
         return *r128_entity_index;
 }
-#else
-extern int gR128EntityIndex;
-int getR128EntityIndex(void)
-{
-    return gR128EntityIndex;
-}
-#endif
 
 R128EntPtr R128EntPriv(ScrnInfoPtr pScrn)
 {
@@ -1382,14 +1195,12 @@ static Bool R128PreInitDDC(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 #endif
 
     if (!xf86LoadSubModule(pScrn, "ddc")) return FALSE;
-    xf86LoaderReqSymLists(ddcSymbols, NULL);
 
 #if defined(__powerpc__) || defined(__alpha__) || defined(__sparc__)
     /* Int10 is broken on PPC and some Alphas */
     return TRUE;
 #else
     if (xf86LoadSubModule(pScrn, "vbe")) {
-	xf86LoaderReqSymLists(vbeSymbols,NULL);
 	pVbe = VBEInit(pInt10,info->pEnt->index);
 	if (!pVbe) return FALSE;
         xf86SetDDCproperties(pScrn,xf86PrintEDID(vbeDoEDID(pVbe,NULL)));
@@ -1444,9 +1255,7 @@ static Bool
 R128I2cInit(ScrnInfoPtr pScrn)
 {
     R128InfoPtr info = R128PTR(pScrn);
-    if ( xf86LoadSubModule(pScrn, "i2c") )
-        xf86LoaderReqSymLists(i2cSymbols,NULL);
-	else{
+    if ( !xf86LoadSubModule(pScrn, "i2c") ) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
             "Failed to load i2c module\n");
 		return FALSE;
@@ -1866,7 +1675,6 @@ static Bool R128PreInitModes(ScrnInfoPtr pScrn)
 
 				/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
-    xf86LoaderReqSymLists(fbSymbols, NULL);
 
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
     info->CurrentLayout.mode = pScrn->currentMode;
@@ -1881,7 +1689,6 @@ static Bool R128PreInitCursor(ScrnInfoPtr pScrn)
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "ramdac")) return FALSE;
-	xf86LoaderReqSymLists(ramdacSymbols, NULL);
     }
     return TRUE;
 }
@@ -1893,7 +1700,6 @@ static Bool R128PreInitAccel(ScrnInfoPtr pScrn)
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "xaa")) return FALSE;
-	xf86LoaderReqSymLists(xaaSymbols, NULL);
     }
     return TRUE;
 }
@@ -1904,7 +1710,6 @@ static Bool R128PreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 #if 1 && !defined(__alpha__)
     /* int10 is broken on some Alphas */
     if (xf86LoadSubModule(pScrn, "int10")) {
-	xf86LoaderReqSymLists(int10Symbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"initializing int10\n");
 	*ppInt10 = xf86InitInt10(info->pEnt->index);
     }
@@ -2018,8 +1823,6 @@ static Bool R128PreInitDRI(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't load shadowfb module:\n");
     } else {
-	xf86LoaderReqSymLists(driShadowFBSymbols, NULL);
-
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP,
 						   FALSE);
@@ -2139,7 +1942,6 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
        if (!xf86LoadSubModule(pScrn, "vgahw"))
            info->VGAAccess = FALSE;
         else {
-           xf86LoaderReqSymLists(vgahwSymbols, NULL);
             if (!vgaHWGetHWRec(pScrn))
                info->VGAAccess = FALSE;
        }
@@ -2186,7 +1988,6 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     if (info->FBDev) {
 	/* check for linux framebuffer device */
 	if (!xf86LoadSubModule(pScrn, "fbdevhw")) return FALSE;
-	xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 	if (!fbdevHWInit(pScrn, info->PciInfo, NULL)) return FALSE;
 	pScrn->SwitchMode    = fbdevHWSwitchModeWeak();
 	pScrn->AdjustFrame   = fbdevHWAdjustFrameWeak();

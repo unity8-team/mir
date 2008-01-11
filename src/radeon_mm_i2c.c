@@ -410,14 +410,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
         pPriv->i2c = NULL;
         return;
     } 
-    xf86LoaderReqSymbols("xf86CreateI2CBusRec", 
-                          "xf86I2CBusInit",
-                          "xf86DestroyI2CBus",
-                          "xf86CreateI2CDevRec",
-                          "xf86DestroyI2CDevRec",
-                          "xf86I2CDevInit",
-                          "xf86I2CWriteRead",
-                          NULL);
     pPriv->i2c=CreateI2CBusRec();
     pPriv->i2c->scrnIndex=pScrn->scrnIndex;
     pPriv->i2c->BusName="Radeon multimedia bus";
@@ -483,7 +475,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
     else
     {
-    xf86LoaderReqSymbols(FI1236SymbolsList, NULL);
     if(pPriv->fi1236 == NULL)
     {
         pPriv->fi1236 = xf86_Detect_FI1236(pPriv->i2c, FI1236_ADDR_1);
@@ -512,7 +503,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
     else    
     {
-    xf86LoaderReqSymbols(TDA9885SymbolsList, NULL);
     if(pPriv->tda9885 == NULL)
     {
         pPriv->tda9885 = xf86_Detect_tda9885(pPriv->i2c, TDA9885_ADDR_1);
@@ -537,7 +527,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		}
 		else
 		{
-			xf86LoaderReqSymbols(TDA9885SymbolsList, NULL);
 			if(pPriv->tda9885 == NULL)
 			{
 				pPriv->tda9885 = xf86_Detect_tda9885(pPriv->i2c, TDA9885_ADDR_1);
@@ -560,7 +549,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	}
 	else    
 	{
-		xf86LoaderReqSymbols(UDA1380SymbolsList, NULL);
 		if(pPriv->uda1380 == NULL)
 		{
 			pPriv->uda1380 = xf86_Detect_uda1380(pPriv->i2c, UDA1380_ADDR_1);
@@ -582,7 +570,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     } 
     else 
     {
-    xf86LoaderReqSymbols(MSP3430SymbolsList, NULL);
     if(pPriv->msp3430 == NULL)
     {
        pPriv->msp3430 = xf86_DetectMSP3430(pPriv->i2c, MSP3430_ADDR_1);
@@ -616,7 +603,6 @@ void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     } 
     else 
     {
-    xf86LoaderReqSymbols(SAA7114SymbolsList, NULL);
     if(pPriv->saa7114 == NULL)
     {
        pPriv->saa7114 = xf86_DetectSAA7114(pPriv->i2c, SAA7114_ADDR_1);

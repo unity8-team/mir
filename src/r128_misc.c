@@ -24,8 +24,6 @@
 #include "config.h"
 #endif
 
-#ifdef XFree86LOADER
-
 #include "ativersion.h"
 
 #include "r128_probe.h"
@@ -71,8 +69,6 @@ R128Setup
         if (!xf86ServerIsOnlyDetecting() && !LoaderSymbol(ATI_NAME))
             xf86LoadOneModule(ATI_DRIVER_NAME, Options);
 
-        R128LoaderRefSymLists();
-
         Inited = TRUE;
     }
 
@@ -86,5 +82,3 @@ _X_EXPORT XF86ModuleData r128ModuleData =
     R128Setup,
     NULL
 };
-
-#endif /* XFree86LOADER */

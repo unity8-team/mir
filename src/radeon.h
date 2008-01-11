@@ -670,13 +670,11 @@ typedef struct {
     OptionInfoPtr     Options;
 
     Bool              useEXA;
-#ifdef XFree86LOADER
 #ifdef USE_EXA
     XF86ModReqInfo    exaReq;
 #endif
 #ifdef USE_XAA
     XF86ModReqInfo    xaaReq;
-#endif
 #endif
 
     /* X itself has the 3D context */

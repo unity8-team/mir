@@ -41,17 +41,6 @@
 TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b);
 
 
-#define TheatreDetectSymbolsList  \
-		"DetectTheatre"
-
-#ifdef XFree86LOADER
-
 #define xf86_DetectTheatre         ((TheatrePtr (*)(GENERIC_BUS_Ptr))LoaderSymbol("DetectTheatre"))
-
-#else
-
-#define xf86_DetectTheatre             DetectTheatre
-
-#endif		
 
 #endif
