@@ -751,6 +751,7 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	}
 }
 
+#if 0
 static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_PROG   opcode: 0x31
@@ -806,6 +807,7 @@ static Bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_
 	}
 	return TRUE;
 }
+#endif
 
 static Bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -1570,6 +1572,7 @@ static Bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	return TRUE;
 }
 
+#if 0
 static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_INDIRECT_REG opcode: 0x5A
@@ -1599,6 +1602,7 @@ static Bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, in
 	}
 	return TRUE;
 }
+#endif
 
 static Bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -1788,6 +1792,7 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	return TRUE;
 }
 
+#if 0
 static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_INDEX_IO8   opcode: 0x69
@@ -1824,6 +1829,7 @@ static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_
 	}
 	return TRUE;
 }
+#endif
 
 static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -1853,6 +1859,7 @@ static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 	return TRUE;
 }
 
+#if 0
 static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_RAM_CONDITION   opcode: 0x6D
@@ -1888,6 +1895,7 @@ static Bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, i
 	}
 	return TRUE;
 }
+#endif
 
 static Bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -1991,6 +1999,7 @@ static Bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	return TRUE;
 }
 
+#if 0
 static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
 {
 	/* INIT_RAM_CONDITION2   opcode: 0x73
@@ -2026,6 +2035,7 @@ static Bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, 
 	}
 	return TRUE;
 }
+#endif
 
 static Bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -2484,7 +2494,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	init_exec_t iexec = {TRUE, FALSE};
 
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script];
-	uint16_t scriptofs = le16_to_cpu(*((CARD16 *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
+	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 	Bool power_off_for_reset;
 	uint16_t off_on_delay;
 
@@ -3125,12 +3135,9 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	 * offset + 10 (16 bits): io flag condition table pointer
 	 * offset + 12 (16 bits): init function table pointer
 	 *
-	 * TODO:
-	 * * Are 'I' bit entries always of length 0xE?
-	 * 
 	 */
 
-	if (bitentry->length < 14) {
+	if (bitentry->length != 14) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Unable to recognize BIT init table entry\n");
 		return 0;
@@ -3300,11 +3307,6 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		case 'T':
 			parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
 			break;
-
-			/* TODO: What kind of information does the other BIT entrys point to?
-			 *       'P' entry is probably performance tables, but there are
-			 *       quite a few others...
-			 */
 		}
 
 		offset += sizeof(bit_entry_t);
