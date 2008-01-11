@@ -372,6 +372,17 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
     CARD32		    pp_status;
 
     if (on) {
+	/*
+	 * If we're going from off->on we may need to turn on the backlight.
+	 * We should use the saved value whenever possible, but on some
+	 * machines 0 is a valid backlight value (due to an external backlight
+	 * controller for example), so on them, when turning LVDS back on,
+	 * they'll always re-maximize the brightness.
+	 */
+	if (!(INREG(PP_CONTROL) & POWER_TARGET_ON) &&
+	    dev_priv->backlight_duty_cycle == 0)
+	    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
+
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
 	do {
 	    pp_status = INREG(PP_STATUS);
