@@ -3722,47 +3722,47 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 	read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
 
-	/* This is needed for DCB version 2.0 */
-	/* Otherwise you end up with multiple outputs that are trying to be activated */
-	for ( i = 0; i < pNv->dcb_table.entries; i ++) {
+	/* DCB v2.0, in particular, lists each output combination separately.
+	 * Here we merge compatible entries to have fewer outputs, with more options
+	 */
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		struct dcb_entry *ient = &pNv->dcb_table.entry[i];
 		int j;
-		int cur_i2c = pNv->dcb_table.entry[i].i2c_index;
-		int cur_type = pNv->dcb_table.entry[i].type;
-		for ( j = 0; j < pNv->dcb_table.entries; j ++ ) {
-			if ( i == j ) continue;
-			if ( pNv->dcb_table.entry[j].type == 100) continue; /* merged entry */
-			if (( pNv->dcb_table.entry[j].i2c_index == cur_i2c )  && ( pNv->dcb_table.entry[j].type == cur_type ))  {
-				/* We can only merge entries with the same allowed crtc's. */
-				/* This has not occured so far and needs some logic (to merge dual link properly). */ 
-				/* So this remains TODO for the moment. */
 
-				/* We also merge entries with the same allowed output routes */
-				if (pNv->dcb_table.entry[i].or == pNv->dcb_table.entry[j].or) {
-					xf86DrvMsg(0, X_INFO, "Merging DCB entries %d and %d!\n", i, j);
-					pNv->dcb_table.entry[i].heads |= pNv->dcb_table.entry[j].heads;
+		for (j = i + 1; j < pNv->dcb_table.entries; j++) {
+			struct dcb_entry *jent = &pNv->dcb_table.entry[j];
 
-					pNv->dcb_table.entry[j].type = 100; /* dummy value */
+			if (jent->type == 100) /* already merged entry */
+				continue;
+
+			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location) {
+				/* only merge heads field when output field is the same --
+				 * we could merge output field for same heads, but dual link,
+				 * the resultant need to make several merging passes, and lack
+				 * of applicable real life cases has deterred this so far
+				 */
+				if (jent->or == ient->or) {
+					xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+						   "Merging DCB entries %d and %d\n", i, j);
+					ient->heads |= jent->heads;
+					jent->type = 100; /* dummy value */
 				}
 			}
 		}
 	}
 
-	/* Remove "disabled" entries (merged) */
-	int valid_entries[pNv->dcb_table.entries];
-	int cent = 0;
-	for ( i = 0; i < pNv->dcb_table.entries; i ++) valid_entries[i] = -1;
-	for ( i = 0; i < pNv->dcb_table.entries; i ++)
-		if ( pNv->dcb_table.entry[i].type != 100 ) {
-			valid_entries[cent] = i;
-			cent++;
-		}
-	for ( i = 0; i < cent; i++) {
-		memmove(&pNv->dcb_table.entry[i], &pNv->dcb_table.entry[valid_entries[i]], sizeof(pNv->dcb_table.entry[i]));
-		memmove(&pNv->dcb_table.i2c_read[i], &pNv->dcb_table.i2c_read[valid_entries[i]], sizeof(pNv->dcb_table.i2c_read[i]));
-		memmove(&pNv->dcb_table.i2c_write[i], &pNv->dcb_table.i2c_write[valid_entries[i]], sizeof(pNv->dcb_table.i2c_write[i]));
+	/* Compact entries merged into others out of dcb_table */
+	int newentries = 0;
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		if ( pNv->dcb_table.entry[i].type == 100 )
+			continue;
+
+		if (newentries != i)
+			memcpy(&pNv->dcb_table.entry[newentries], &pNv->dcb_table.entry[i], sizeof(struct dcb_entry));
+		newentries++;
 	}
 
-	pNv->dcb_table.entries = cent;
+	pNv->dcb_table.entries = newentries;
 
 	return pNv->dcb_table.entries;
 }
