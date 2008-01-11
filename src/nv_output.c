@@ -310,20 +310,20 @@ nv_output_save (xf86OutputPtr output)
 	if (pNv->twoHeads)
 		regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
 
-#if 0
-	// disabled, as nothing manually uses the TMDS regs currently
 	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		int i;
 
-		/* Store the registers in case we need them again for something (like data for VT restore) */
+		/* Store the registers for helping with VT restore */
 		for (i = 0; i < 0xFF; i++)
 			regp->TMDS[i] = NVOutputReadTMDS(output, i);
 
+#if 0
+		// disabled, as nothing uses the TMDS2 regs currently
 		for (i = 0; i < 0xFF; i++)
 			regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
-	}
 #endif
+	}
 }
 
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
