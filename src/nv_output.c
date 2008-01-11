@@ -556,7 +556,7 @@ nv_have_duallink(ScrnInfoPtr pScrn)
 }
 
 static void
-nv_output_mode_set_routing(xf86OutputPtr output)
+nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 {
 	xf86CrtcPtr crtc = output->crtc;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -590,6 +590,11 @@ nv_output_mode_set_routing(xf86OutputPtr output)
 
 			if (strange_mode)
 				output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		}
+
+		if (bios_restore) {
+			output_reg[0] = 0x1;
+			output_reg[1] = 0x101;
 		}
 
 		ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
@@ -628,7 +633,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
 
-	nv_output_mode_set_routing(output);
+	nv_output_mode_set_routing(output, mode->PrivFlags & NV_MODE_CONSOLE);
 }
 
 static xf86MonPtr

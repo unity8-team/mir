@@ -106,7 +106,7 @@ void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
 	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
 
 #ifdef NOUVEAU_MODESET_TRACE
-	ErrorF("NVWriteVGA: idx %d data 0x%x head %d\n", index, value, head);
+	ErrorF("NVWriteVGA: idx 0x%X data 0x%x head %d\n", index, value, head);
 #endif
 
 	NV_WR08(pCRTCReg, CRTC_INDEX, index);
@@ -861,7 +861,8 @@ void nv_crtc_calc_state_ext(
 	int			CrtcHDisplay,
 	int			CrtcVDisplay,
 	int			dotClock,
-	int			flags 
+	int			flags,
+	int			PrivFlags
 )
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -1087,6 +1088,9 @@ void nv_crtc_calc_state_ext(
 			}
 		}
 
+		if (PrivFlags & NV_MODE_CONSOLE) /* restore sel_clk value */
+			state->sel_clk = pNv->misc_info.sel_clk;
+
 		/* Are we crosswired? */
 		if (output && nv_crtc->head != nv_output->preferred_output) {
 			state->crosswired = TRUE;
@@ -1264,6 +1268,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	NVPtr pNv = NVPTR(pScrn);
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	int depth = pScrn->depth;
+
+	if (mode->PrivFlags & NV_MODE_CONSOLE)
+		depth = pNv->console_mode[nv_crtc->head].depth;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -1596,7 +1603,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		if (mode->PrivFlags & NV_MODE_VGA) {
 			depth = 4;
 		} else {
-			depth = pNv->console_mode.depth;
+			depth = pNv->console_mode[nv_crtc->head].depth;
 		}
 	}
 
@@ -1692,8 +1699,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Never ever modify gpio, unless you know very well what you're doing */
 	regp->gpio = nvReadCRTC(pNv, 0, NV_CRTC_GPIO);
 
-	/* Switch to non-vga mode (the so called HSYNC mode) */
-	regp->config = 0x2;
+	if (mode->PrivFlags & NV_MODE_CONSOLE) {
+		regp->config = 0x0; /* VGA mode */
+	} else {
+		regp->config = 0x2; /* HSYNC mode */
+	}
 
 	/* Some misc regs */
 	regp->CRTC[NV_VGA_CRTCX_43] = 0x1;
@@ -1712,7 +1722,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 				mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
 				adjusted_mode->Clock,
-				mode->Flags);
+				mode->Flags,
+				mode->PrivFlags);
 
 	/* Enable slaved mode */
 	if (is_fp) {
@@ -1831,7 +1842,9 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (is_fp) {
-		if (nv_output->scaling_mode == SCALE_PANEL) /* panel needs to scale */
+		if (mode->PrivFlags & NV_MODE_CONSOLE) /* seems to be used almost always */
+			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
+		else if (nv_output->scaling_mode == SCALE_PANEL) /* panel needs to scale */
 			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 		/* This is also true for panel scaling, so we must put the panel scale check first */
 		else if (mode->Clock == adjusted_mode->Clock) /* native mode */
@@ -1977,9 +1990,16 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		}
 	}
 
+	uint8_t depth;
+	if (mode->PrivFlags & NV_MODE_CONSOLE) {
+		depth = pNv->console_mode[nv_crtc->head].depth;
+	} else {
+		depth = pLayout->depth;
+	}
+
 	/* Kindly borrowed from haiku driver */
 	/* bit4 and bit5 activate indirect mode trough color palette */
-	switch (pLayout->depth) {
+	switch (depth) {
 		case 32:
 		case 16:
 			regp->general = 0x00101130;
@@ -2067,7 +2087,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	NVVgaProtect(crtc, FALSE);
 
-	NVCrtcSetBase(crtc, x, y);
+	NVCrtcSetBase(crtc, x, y, (mode->PrivFlags & NV_MODE_CONSOLE) > 0);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* turn on LFB swapping */
@@ -2855,7 +2875,7 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 }
 
 void
-NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
+NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
@@ -2865,15 +2885,19 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y)
 
 	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
 
-	start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
-	if (crtc->rotatedData != NULL) { /* we do not exist on the real framebuffer */
-#if NOUVEAU_EXA_PIXMAPS
-		start = nv_crtc->shadow->offset;
-#else
-		start = pNv->FB->offset + nv_crtc->shadow->offset; /* We do exist relative to the framebuffer */
-#endif
+	if (0 && bios_restore) {
+		start = pNv->console_mode[nv_crtc->head].fb_start;
 	} else {
-		start += pNv->FB->offset;
+		start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
+		if (crtc->rotatedData != NULL) { /* we do not exist on the real framebuffer */
+#if NOUVEAU_EXA_PIXMAPS
+			start = nv_crtc->shadow->offset;
+#else
+			start = pNv->FB->offset + nv_crtc->shadow->offset; /* We do exist relative to the framebuffer */
+#endif
+		} else {
+			start += pNv->FB->offset;
+		}
 	}
 
 	/* 30 bits addresses in 32 bits according to haiku */

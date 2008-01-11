@@ -344,6 +344,8 @@ typedef struct {
 	uint8_t depth;
 	uint16_t x_res;
 	uint16_t y_res;
+	Bool bad_mode;
+	uint32_t fb_start;
 } NVConsoleMode;
 
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
@@ -497,7 +499,7 @@ typedef struct _NVRec {
 
 	uint32_t output_info;
 	MiscStartupInfo misc_info;
-	NVConsoleMode console_mode;
+	NVConsoleMode console_mode[2];
 
 	struct {
 		ORNum dac;

@@ -658,7 +658,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 		xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
 		if (crtc && crtc->enabled) {
-			NVCrtcSetBase(crtc, x, y);
+			NVCrtcSetBase(crtc, x, y, FALSE);
 		}
 	} else {
 		int startAddr;
@@ -1823,6 +1823,55 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     return TRUE;
 }
 
+static void
+NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	if (!output->crtc)
+		return;
+
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	Bool need_unlock;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state = &pNv->ModeReg;
+	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+	int i;
+
+	if (!crtc->enabled)
+		return;
+
+	xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
+	DisplayModePtr adjusted_mode = xf86DuplicateMode(mode);
+
+	/* Sequence mimics a normal modeset. */
+	output->funcs->dpms(output, DPMSModeOff);
+	crtc->funcs->dpms(crtc, DPMSModeOff);
+	need_unlock = crtc->funcs->lock(crtc);
+	output->funcs->mode_fixup(output, mode, adjusted_mode);
+	crtc->funcs->mode_fixup(crtc, mode, adjusted_mode);
+	output->funcs->prepare(output);
+	crtc->funcs->prepare(crtc);
+	/* Always use offset (0,0). */
+	crtc->funcs->mode_set(crtc, mode, adjusted_mode, 0, 0);
+	output->funcs->mode_set(output, mode, adjusted_mode);
+	crtc->funcs->commit(crtc);
+	output->funcs->commit(output);
+	if (need_unlock)
+		crtc->funcs->unlock(crtc);
+	/* Always turn on outputs afterwards. */
+	output->funcs->dpms(output, DPMSModeOn);
+	crtc->funcs->dpms(crtc, DPMSModeOn);
+
+	for (i = 0; i < 0x10; i++)
+		NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
+
+	/* Free mode. */
+	xfree(adjusted_mode);
+}
+
 /*
  * Restore the initial (text) mode.
  */
@@ -1839,65 +1888,130 @@ NVRestore(ScrnInfoPtr pScrn)
 		RIVA_HW_STATE *state = &pNv->ModeReg;
 		int i;
 
-		/* Let's wipe some state regs */
-		state->vpll1_a = 0;
-		state->vpll1_b = 0;
-		state->vpll2_a = 0;
-		state->vpll2_b = 0;
-		state->reg594 = 0;
-		state->reg580 = 0;
-		state->pllsel = 0;
-
-		for (i = 0; i < xf86_config->num_crtc; i++) {
-			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-		}
-
-		/* Some aspects of an output needs to be restore before the crtc. */
-		/* In my case this has to do with the mode that i get at very low resolutions. */
-		/* If i do this at the end, it will not be restored properly */
-		for (i = 0; i < xf86_config->num_output; i++) {
-			NVOutputPrivatePtr nv_output2 = xf86_config->output[i]->driver_private;
-			NVOutputRegPtr regp = &nvReg->dac_reg[nv_output2->preferred_output];
-			Bool crosswired = regp->TMDS[0x4] & (1 << 3);
-			/* Let's guess the bios state ;-) */
-			if (nv_output2->type == OUTPUT_TMDS)
-				ErrorF("Restoring TMDS timings, before restoring anything else\n");
-			if (nv_output2->type == OUTPUT_LVDS)
-				ErrorF("Restoring LVDS timings, before restoring anything else\n");
-			if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
-				uint32_t clock = nv_calc_tmds_clock_from_pll(xf86_config->output[i]);
-				nv_set_tmds_registers(xf86_config->output[i], clock, TRUE, crosswired);
+		if (1) { /* new style restore. */
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 			}
-		}
 
-		/* This needs to happen before the crtc restore happens. */
-		for (i = 0; i < xf86_config->num_output; i++) {
-			NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
-			/* Select the default output resource for consistent restore. */
-			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_1) {
-				nv_output->output_resource = 1;
-			} else {
-				nv_output->output_resource = 0;
+			/* Restore outputs when enabled. */
+			for (i = 0; i < xf86_config->num_output; i++) {
+				xf86OutputPtr output = xf86_config->output[i];
+				if (!xf86_config->output[i]->crtc) /* not enabled? */
+					continue;
+
+				NVOutputPrivatePtr nv_output = output->driver_private;
+				DisplayModePtr mode = NULL;
+				NVConsoleMode *console = &pNv->console_mode[i];
+				DisplayModePtr modes = output->funcs->get_modes(output);
+				if (!modes) /* no modes means no restore */
+					continue;
+
+				if (console->vga_mode) { /* TODO: Also do non-60 Hz modes. */
+					for (mode = modes; mode != NULL; mode = mode->next) {
+						if (mode->HDisplay == 640 && mode->VDisplay == 480)
+							break;
+					}
+					if (!mode) /* No suitable mode found. */
+						continue;
+				} else {
+					for (mode = modes; mode != NULL; mode = mode->next) {
+						if (mode->HDisplay == console->x_res) {
+							/* We only have the first 8 bits of y_res - 1. */
+							//if (((mode->VDisplay - 1) & 0xFF) == (console->y_res - 1))
+							break;
+						}
+					}
+					if (!mode) /* No suitable mode found. */
+						continue;
+				}
+
+				mode = xf86DuplicateMode(mode);
+
+				if (console->vga_mode)
+					mode->PrivFlags |= NV_MODE_VGA;
+
+				mode->PrivFlags |= NV_MODE_CONSOLE;
+
+				uint8_t scale_backup = nv_output->scaling_mode;
+				if (nv_output->type == OUTPUT_LVDS)
+					nv_output->scaling_mode = SCALE_FULLSCREEN; /* LVDS needs gpu scaling. */
+				else
+					nv_output->scaling_mode = SCALE_PANEL;
+
+				NVRestoreConsole(output, mode);
+
+				/* Restore value, so we reenter X properly. */
+				nv_output->scaling_mode = scale_backup;
+
+				xfree(mode);
 			}
-		}
 
-		for (i = 0; i < xf86_config->num_crtc; i++) {
-			NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
-			/* Restore this, so it doesn't mess with restore. */
-			pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
-		}
+			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 
-		for (i = 0; i < xf86_config->num_crtc; i++) {
-			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
-		}
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
+			}
+		} else {
+			/* Let's wipe some state regs */
+			state->vpll1_a = 0;
+			state->vpll1_b = 0;
+			state->vpll2_a = 0;
+			state->vpll2_b = 0;
+			state->reg594 = 0;
+			state->reg580 = 0;
+			state->pllsel = 0;
 
-		for (i = 0; i < xf86_config->num_output; i++) {
-			xf86_config->output[i]->funcs->restore(xf86_config->
-							       output[i]);
-		}
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
+			}
 
-		for (i = 0; i < xf86_config->num_crtc; i++) {
-			NVCrtcLockUnlock(xf86_config->crtc[i], 1);
+			/* Some aspects of an output needs to be restore before the crtc. */
+			/* In my case this has to do with the mode that i get at very low resolutions. */
+			/* If i do this at the end, it will not be restored properly */
+			for (i = 0; i < xf86_config->num_output; i++) {
+				NVOutputPrivatePtr nv_output2 = xf86_config->output[i]->driver_private;
+				NVOutputRegPtr regp = &nvReg->dac_reg[nv_output2->preferred_output];
+				Bool crosswired = regp->TMDS[0x4] & (1 << 3);
+				/* Let's guess the bios state ;-) */
+				if (nv_output2->type == OUTPUT_TMDS)
+					ErrorF("Restoring TMDS timings, before restoring anything else\n");
+				if (nv_output2->type == OUTPUT_LVDS)
+					ErrorF("Restoring LVDS timings, before restoring anything else\n");
+				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
+					uint32_t clock = nv_calc_tmds_clock_from_pll(xf86_config->output[i]);
+					nv_set_tmds_registers(xf86_config->output[i], clock, TRUE, crosswired);
+				}
+			}
+
+			/* This needs to happen before the crtc restore happens. */
+			for (i = 0; i < xf86_config->num_output; i++) {
+				NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
+				/* Select the default output resource for consistent restore. */
+				if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_1) {
+					nv_output->output_resource = 1;
+				} else {
+					nv_output->output_resource = 0;
+				}
+			}
+
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+				/* Restore this, so it doesn't mess with restore. */
+				pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
+			}
+
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
+			}
+
+			for (i = 0; i < xf86_config->num_output; i++) {
+				xf86_config->output[i]->funcs->restore(xf86_config->
+								       output[i]);
+			}
+
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
+			}
 		}
 	} else {
 		NVLockUnlock(pNv, 0);
@@ -2130,7 +2244,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	int ret;
 	VisualPtr visual;
 	unsigned char *FBStart;
-	int width, height, displayWidth, shadowHeight;
+	int width, height, displayWidth, shadowHeight, i;
 
 	/* 
 	 * First get the ScrnInfoRec
@@ -2198,6 +2312,24 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 		pNv->misc_info.output[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
 		pNv->misc_info.output[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
+
+		for (i = 0; i <= pNv->twoHeads; i++) {
+			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) {
+				pNv->console_mode[i].vga_mode = FALSE;
+				pNv->console_mode[i].depth = (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) * 8;
+			} else {
+				pNv->console_mode[i].vga_mode = TRUE;
+				pNv->console_mode[i].depth = 4;
+			}
+			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
+			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
+
+			pNv->console_mode[i].bad_mode = FALSE;
+
+			pNv->console_mode[i].fb_start = nvReadCRTC(pNv, i, NV_CRTC_START);
+
+			ErrorF("CRTC %d: Console mode: %dx%d\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res);
+		}
 
 		if (!NVEnterVT(scrnIndex, 0))
 			return FALSE;

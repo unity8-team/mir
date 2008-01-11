@@ -81,7 +81,7 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 {
   volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
 #ifdef NOUVEAU_MODESET_TRACE
-  ErrorF("nvWriteVGA: idx %d data 0x%x\n", index, data);
+  ErrorF("nvWriteVGA: idx 0x%X data 0x%x\n", index, data);
 #endif
   VGA_WR08(ptr, 0x03D4, index);
   VGA_WR08(ptr, 0x03D5, data);
