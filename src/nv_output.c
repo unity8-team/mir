@@ -279,38 +279,17 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
-void nv_output_save_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state)
+static void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVOutputRegPtr regp;
-	int i;
-
-	regp = &state->dac_reg[nv_output->output_resource];
-
-	regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
-
-	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		/* Store the registers in case we need them again for something (like data for VT restore) */
-		for (i = 0; i < 0xFF; i++) {
-			regp->TMDS[i] = NVOutputReadTMDS(output, i);
-		}
-
-		for (i = 0; i < 0xFF; i++) {
-			regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
-		}
-	}
-}
-
-void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVOutputRegPtr regp;
-
-	regp = &state->dac_reg[nv_output->output_resource];
+	NVPtr pNv = NVPTR(output->scrn);
 
 	/* This exists purely for proper text mode restore */
-	if (override) NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
+	if (override && pNv->twoHeads) {
+		NVOutputPrivatePtr nv_output = output->driver_private;
+		NVOutputRegPtr regp = &state->dac_reg[nv_output->output_resource];
+		
+		NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
+	}
 }
 
 /* NOTE: Don't rely on this data for anything other than restoring VT's */
@@ -318,16 +297,33 @@ void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool o
 static void
 nv_output_save (xf86OutputPtr output)
 {
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state;
+	NVPtr pNv = NVPTR(output->scrn);
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVOutputRegPtr regp;
 
 	ErrorF("nv_output_save is called\n");
-	state = &pNv->SavedReg;
 
 	/* Due to strange mapping of outputs we could have swapped analog and digital */
 	/* So we force save all the registers */
-	nv_output_save_state_ext(output, state);
+	regp = &pNv->SavedReg.dac_reg[nv_output->output_resource];
+
+	if (pNv->twoHeads)
+		regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
+
+#if 0
+	// disabled, as nothing manually uses the TMDS regs currently
+	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		int i;
+
+		/* Store the registers in case we need them again for something (like data for VT restore) */
+		for (i = 0; i < 0xFF; i++)
+			regp->TMDS[i] = NVOutputReadTMDS(output, i);
+
+		for (i = 0; i < 0xFF; i++)
+			regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
+	}
+#endif
 }
 
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
@@ -562,44 +558,46 @@ nv_have_duallink(ScrnInfoPtr pScrn)
 static void
 nv_output_mode_set_routing(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	Bool strange_mode = FALSE;
-	int i;
 
-	uint32_t output_reg[2] = {0, 0};
+	if (pNv->twoHeads) {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		NVOutputPrivatePtr nv_output = output->driver_private;
+		Bool strange_mode = FALSE;
+		uint32_t output_reg[2] = {0, 0};
+		int i;
 
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output2 = xf86_config->output[i];
-		NVOutputPrivatePtr nv_output2 = output2->driver_private;
-		if (output2->crtc) { /* enabled? */
-			uint8_t ors = nv_output2->output_resource;
-			if (nv_output2->type == OUTPUT_ANALOG)
-				output_reg[ors] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-			if (ors != nv_output2->preferred_output)
-				if (pNv->Architecture == NV_ARCH_40)
-					strange_mode = TRUE;
+		for (i = 0; i < xf86_config->num_output; i++) {
+			xf86OutputPtr output2 = xf86_config->output[i];
+			NVOutputPrivatePtr nv_output2 = output2->driver_private;
+			if (output2->crtc) { /* enabled? */
+				uint8_t ors = nv_output2->output_resource;
+				if (nv_output2->type == OUTPUT_ANALOG)
+					output_reg[ors] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
+				if (ors != nv_output2->preferred_output)
+					if (pNv->Architecture == NV_ARCH_40)
+						strange_mode = TRUE;
+			}
 		}
+
+		/* Some (most?) pre-NV30 cards have switchable crtc's. */
+		if (pNv->switchable_crtc) {
+			uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
+			output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+
+			if (strange_mode)
+				output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		}
+
+		ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
+
+		/* The registers can't be considered seperately on most cards */
+		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
+		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 	}
-
-	/* Some (most?) pre-NV30 cards have switchable crtc's. */
-	if (pNv->switchable_crtc) {
-		uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
-		output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-
-		if (strange_mode)
-			output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-	}
-
-	ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
-
-	/* The registers can't be considered seperately on most cards */
-	nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
-	nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
