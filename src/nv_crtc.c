@@ -2775,10 +2775,12 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->general = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL);
 
 	regp->fp_control[0]	= nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL);
-	regp->fp_control[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL);
 	regp->debug_0[0]	= nvReadRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0);
-	regp->debug_0[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
+
 	if (pNv->twoHeads) {
+		regp->fp_control[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL);
+		regp->debug_0[1]	= nvReadRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0);
+
 		regp->debug_1	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1);
 		regp->debug_2	= nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2);
 
@@ -2829,11 +2831,11 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL, regp->fp_control[0]);
 		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[0]);
 	}
-	if (pNv->fp_regs_owner[1] == nv_crtc->head) {
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL, regp->fp_control[1]);
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[1]);
-	}
 	if (pNv->twoHeads) {
+		if (pNv->fp_regs_owner[1] == nv_crtc->head) {
+			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_CONTROL, regp->fp_control[1]);
+			nvWriteRAMDAC(pNv, 1, NV_RAMDAC_FP_DEBUG_0, regp->debug_0[1]);
+		}
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
 		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_DEBUG_2, regp->debug_2);
 		if (pNv->NVArch == 0x30) { /* For unknown purposes. */

@@ -1872,8 +1872,9 @@ NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 	output->funcs->dpms(output, DPMSModeOn);
 	crtc->funcs->dpms(crtc, DPMSModeOn);
 
-	for (i = 0; i < 0x10; i++)
-		NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
+	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
+		for (i = 0; i < 0x10; i++)
+			NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 
 	/* Free mode. */
 	xfree(adjusted_mode);
@@ -2307,15 +2308,18 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pScrn->fbOffset = 0;
 
 		/* Gather some misc info before the randr stuff kicks in */
-		pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+		if (pNv->Architecture >= NV_ARCH_10)
+			pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
 		if (pNv->Architecture == NV_ARCH_40) {
 			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
 		}
 		pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 		pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
-		pNv->misc_info.output[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
-		pNv->misc_info.output[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
+		if (pNv->twoHeads) {
+			pNv->misc_info.output[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
+			pNv->misc_info.output[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
+		}
 
 		for (i = 0; i <= pNv->twoHeads; i++) {
 			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) {
