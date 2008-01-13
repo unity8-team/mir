@@ -2387,6 +2387,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				pNv->console_mode[i].vga_mode = TRUE;
 				pNv->console_mode[i].depth = 4;
 			}
+
+			/* For the moment assume a 24 bit mode is actually a 32 bit mode, are there framebuffers which do it differently? */
+			if (pNv->console_mode[i].depth == 24)
+				pNv->console_mode[i].depth = 32;
+
 			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
 			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
 
