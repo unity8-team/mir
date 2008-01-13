@@ -1931,6 +1931,10 @@ NVRestore(ScrnInfoPtr pScrn)
 				/* restore HDisplay and VDisplay */
 				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
 				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
+				/* restore CR52 */
+				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_52, pNv->misc_info.crtc_reg_52[nv_crtc->head]);
+				/* restore crtc base */
+				nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
 			}
 
 			/* Restore outputs when enabled. */
@@ -2360,8 +2364,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pScrn->fbOffset = 0;
 
 		/* Gather some misc info before the randr stuff kicks in */
-		if (pNv->Architecture >= NV_ARCH_10)
-			pNv->misc_info.crtc_0_reg_52 = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+		if (pNv->Architecture >= NV_ARCH_10) {
+			pNv->misc_info.crtc_reg_52[0] = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
+			pNv->misc_info.crtc_reg_52[1] = NVReadVGA1(pNv, NV_VGA_CRTCX_52);
+		}
 		if (pNv->Architecture == NV_ARCH_40) {
 			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);

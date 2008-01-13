@@ -229,7 +229,7 @@ typedef struct _NVOutputPrivateRec {
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
 typedef struct _MiscStartupInfo {
-	uint8_t crtc_0_reg_52;
+	uint8_t crtc_reg_52[2];
 	uint32_t ramdac_0_reg_580;
 	uint32_t ramdac_0_pllsel;
 	uint32_t reg_c040;

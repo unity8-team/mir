@@ -1724,11 +1724,15 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	if (is_fp && !(mode->PrivFlags & NV_MODE_VGA))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
-	/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1*/
-	if (nv_crtc->head == 1) {
-		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52;
+	if (mode->PrivFlags & NV_MODE_CONSOLE) { /* we need consistent restore. */
+		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[nv_crtc->head];
 	} else {
-		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_0_reg_52 + 4;
+		/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1.*/
+		if (nv_crtc->head == 1) {
+			regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[0];
+		} else {
+			regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[0] + 4;
+		}
 	}
 
 	if (pNv->twoHeads)
