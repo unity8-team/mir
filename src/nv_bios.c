@@ -3440,7 +3440,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	}
 	if (bmplength > 88) {
 		bit_entry_t initbitentry;
-		initbitentry.length = bmplength - 75;
+		initbitentry.length = 14;
 		initbitentry.offset = offset + 75;
 		parse_bit_init_tbl_entry(pScrn, bios, &initbitentry);
 	}
