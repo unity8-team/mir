@@ -3533,7 +3533,7 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			break;
 		}
 	} else if (dcb_version >= 0x14 ) {
-		if (conn != 0xf0003f00 && conn != 0xf2045f14 && conn != 0xf4204011) {
+		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf4204011) {
 			ErrorF("Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
 			pNv->dcb_table.entries = 0;
@@ -3541,8 +3541,16 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 		}
 		/* most of the below is a "best guess" atm */
 		entry->type = conn & 0xf;
-		if (entry->type == 4)
-			entry->type = OUTPUT_LVDS;
+		if (entry->type == 4) { /* digital */
+			if (conn & 0x10)
+				entry->type = OUTPUT_LVDS;
+			else
+				/* FIXME: do we need to add a DVI-A analogue output in this case,
+				 * assuming this connector is DVI-I, not pure DVI-D?
+				 */
+				entry->type = OUTPUT_TMDS;
+		}
+		/* what's in bits 5-13? could be some brooktree/chrontel/philips thing, in tv case */
 		entry->i2c_index = (conn >> 14) & 0xf;
 		/* raw heads field is in range 0-1, so move to 1-2 */
 		entry->heads = ((conn >> 18) & 0x7) + 1;
