@@ -1880,6 +1880,15 @@ NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 	xfree(adjusted_mode);
 }
 
+#define MODEPREFIX(name) NULL, NULL, name, 0,M_T_DRIVER
+#define MODESUFFIX   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,FALSE,FALSE,0,NULL,0,0.0,0.0
+
+/* hblankstart: 648, hblankend: 792, vblankstart: 407, vblankend: 442 for 640x400 */
+static DisplayModeRec VGAModes[2] = {
+	{ MODEPREFIX("640x400"),    28320, /*25175,*/ 640,  680,  776,  800, 0,  400,  412,  414,  449, 0, V_NHSYNC | V_PVSYNC, MODESUFFIX }, /* 640x400 */
+	{ MODEPREFIX("720x400"),    28320,  720,  738,  846,  900, 0,  400,  412,  414,  449, 0, V_NHSYNC | V_PVSYNC, MODESUFFIX }, /* 720x400@70Hz */
+};
+
 /*
  * Restore the initial (text) mode.
  */
@@ -1896,7 +1905,34 @@ NVRestore(ScrnInfoPtr pScrn)
 		RIVA_HW_STATE *state = &pNv->ModeReg;
 		int i;
 
+		/* Let's wipe some state regs */
+		state->vpll1_a = 0;
+		state->vpll1_b = 0;
+		state->vpll2_a = 0;
+		state->vpll2_b = 0;
+		state->reg594 = 0;
+		state->reg580 = 0;
+		state->pllsel = 0;
+
 		if (pNv->new_restore) { /* new style restore. */
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
+			}
+
+			/* Reset some values according to stored console value, to avoid confusion later on. */
+			/* Otherwise we end up with corrupted terminals. */
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+				uint8_t pixelDepth = pNv->console_mode[nv_crtc->head].depth/8;
+				/* restore PIXEL value */
+				uint32_t pixel = NVReadVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_PIXEL) & ~(0xF);
+				pixel |= (pixelDepth > 2) ? 3 : pixelDepth;
+				NVWriteVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_PIXEL, pixel);
+				/* restore HDisplay and VDisplay */
+				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
+				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
+			}
+
 			/* Restore outputs when enabled. */
 			for (i = 0; i < xf86_config->num_output; i++) {
 				xf86OutputPtr output = xf86_config->output[i];
@@ -1904,32 +1940,59 @@ NVRestore(ScrnInfoPtr pScrn)
 					continue;
 
 				NVOutputPrivatePtr nv_output = output->driver_private;
+				Bool is_fp = FALSE;
 				DisplayModePtr mode = NULL;
+				DisplayModePtr good_mode = NULL;
 				NVConsoleMode *console = &pNv->console_mode[i];
 				DisplayModePtr modes = output->probed_modes;
 				if (!modes) /* no modes means no restore */
 					continue;
 
+				if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
+					is_fp = TRUE;
+
 				if (console->vga_mode) {
-					for (mode = modes; mode != NULL; mode = mode->next) {
-						if (mode->HDisplay == 640 && mode->VDisplay == 480)
-							break;
-					}
-					if (!mode) /* No suitable mode found. */
+					/* We support 640x400 and 720x400 vga modes. */
+					if (console->x_res == 720)
+						good_mode = &VGAModes[1];
+					else
+						good_mode = &VGAModes[0];
+					if (!good_mode) /* No suitable mode found. */
 						continue;
 				} else {
+					NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+					uint32_t old_clock = nv_get_clock_from_crtc(pScrn, nv_crtc->head);
+					uint32_t clock_diff = 0xFFFFFFFF;
 					for (mode = modes; mode != NULL; mode = mode->next) {
-						if (mode->HDisplay == console->x_res) {
-							/* We only have the first 8 bits of y_res - 1. */
-							/* And it's sometimes bogus. */
-							break;
+						/* We only have the first 8 bits of y_res - 1. */
+						/* And it's sometimes bogus. */
+						if (is_fp || !console->enabled) { /* digital outputs are run at their native clock */
+							if (mode->HDisplay == console->x_res) {
+								if (!good_mode) /* Pick any match, in case we don't find a 60.0 Hz mode. */
+									good_mode = mode;
+								/* Pick a 60.0 Hz mode if there is one. */
+								if (mode->VRefresh > 59.95 && mode->VRefresh < 60.05) {
+									good_mode = mode;
+									break;
+								}
+							}
+						} else {
+							if (mode->HDisplay == console->x_res) {
+								int temp_diff = mode->Clock - old_clock;
+								if (temp_diff < 0)
+									temp_diff *= -1;
+								if (temp_diff < clock_diff) { /* converge on the closest mode */
+									clock_diff = temp_diff;
+									good_mode = mode;
+								}
+							}
 						}
 					}
-					if (!mode) /* No suitable mode found. */
+					if (!good_mode) /* No suitable mode found. */
 						continue;
 				}
 
-				mode = xf86DuplicateMode(mode);
+				mode = xf86DuplicateMode(good_mode);
 
 				if (console->vga_mode)
 					mode->PrivFlags |= NV_MODE_VGA;
@@ -1937,10 +2000,8 @@ NVRestore(ScrnInfoPtr pScrn)
 				mode->PrivFlags |= NV_MODE_CONSOLE;
 
 				uint8_t scale_backup = nv_output->scaling_mode;
-				if (nv_output->type == OUTPUT_LVDS)
-					nv_output->scaling_mode = SCALE_FULLSCREEN; /* LVDS needs gpu scaling. */
-				else
-					nv_output->scaling_mode = SCALE_PANEL;
+				if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
+					nv_output->scaling_mode = SCALE_FULLSCREEN;
 
 				NVRestoreConsole(output, mode);
 
@@ -1957,15 +2018,6 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
 		} else {
-			/* Let's wipe some state regs */
-			state->vpll1_a = 0;
-			state->vpll1_b = 0;
-			state->vpll2_a = 0;
-			state->vpll2_b = 0;
-			state->reg594 = 0;
-			state->reg580 = 0;
-			state->pllsel = 0;
-
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 			}
@@ -2332,11 +2384,22 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
 			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
 
-			pNv->console_mode[i].bad_mode = FALSE;
-
 			pNv->console_mode[i].fb_start = nvReadCRTC(pNv, i, NV_CRTC_START);
 
+			pNv->console_mode[i].enabled = FALSE;
+
 			ErrorF("CRTC %d: Console mode: %dx%d\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res);
+		}
+
+		/* Check if crtc's were enabled. */
+		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL) {
+			pNv->console_mode[0].enabled = TRUE;
+			ErrorF("CRTC 0 was enabled.\n");
+		}
+
+		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2) {
+			pNv->console_mode[1].enabled = TRUE;
+			ErrorF("CRTC 1 was enabled.\n");
 		}
 
 		if (!NVEnterVT(scrnIndex, 0))

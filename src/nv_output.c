@@ -326,31 +326,13 @@ nv_output_save (xf86OutputPtr output)
 	}
 }
 
-uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
+uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, uint8_t crtc)
 {
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state;
-	NVOutputRegPtr regp;
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	state = &pNv->SavedReg;
-	/* Registers are stored by their preferred ramdac */
-	/* So or = 3 still means it uses the "ramdac0" regs. */
-	regp = &state->dac_reg[nv_output->preferred_output];
-
-	/* Only do it once for a dvi-d/dvi-a pair */
-	Bool swapped_clock = FALSE;
+	RIVA_HW_STATE *state = &pNv->SavedReg;
 	Bool vpllb_disabled = FALSE;
-	/* Bit3 swaps crtc (clocks are bound to crtc) and output */
-	if (regp->TMDS[0x4] & (1 << 3)) {
-		swapped_clock = TRUE;
-	}
-
-	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
-
-	uint32_t vplla = vpll_num ? state->vpll2_a : state->vpll1_a;
-	uint32_t vpllb = vpll_num ? state->vpll2_b : state->vpll1_b;
+	uint32_t vplla = crtc ? state->vpll2_a : state->vpll1_a;
+	uint32_t vpllb = crtc ? state->vpll2_b : state->vpll1_b;
 
 	if (!pNv->twoStagePLL)
 		vpllb_disabled = TRUE;
@@ -393,6 +375,30 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 	uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
 	ErrorF("The original bios clock seems to have been %d kHz\n", clock);
 	return clock;
+}
+
+uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	RIVA_HW_STATE *state;
+	NVOutputRegPtr regp;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	state = &pNv->SavedReg;
+	/* Registers are stored by their preferred ramdac */
+	/* So or = 3 still means it uses the "ramdac0" regs. */
+	regp = &state->dac_reg[nv_output->preferred_output];
+
+	Bool swapped_clock = FALSE;
+	/* Bit3 swaps crtc (clocks are bound to crtc) and output */
+	if (regp->TMDS[0x4] & (1 << 3)) {
+		swapped_clock = TRUE;
+	}
+
+	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
+
+	return nv_get_clock_from_crtc(pScrn, vpll_num);
 }
 
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
@@ -782,21 +788,22 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		if (nv_output->native_mode)
 			xfree(nv_output->native_mode);
 		nv_output->native_mode = NULL;
-		if (nv_output->type == OUTPUT_TMDS) {
-			DisplayModePtr cvtmode;
+		/* Disabled for the moment, because it's not essential and caused problems with "newrestore". */
+		//if (nv_output->type == OUTPUT_TMDS) {
+		//	DisplayModePtr cvtmode;
 			/* Add a native resolution mode that is preferred */
 			/* Reduced blanking should be fine on DVI monitor */
-			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
-			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
+		//	cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
+		//	cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
 
 			/* can xf86CVTMode generate invalid modes? */
-			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
-				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
-				nv_output->native_mode = xf86DuplicateMode(cvtmode);
-			} else {
-				xf86DeleteMode(&cvtmode, cvtmode);
-			}
-		}
+		//	if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
+		//		ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
+		//		nv_output->native_mode = xf86DuplicateMode(cvtmode);
+		//	} else {
+		//		xf86DeleteMode(&cvtmode, cvtmode);
+		//	}
+		//}
 
 		if (!nv_output->native_mode)
 			for (mode = ddc_modes; mode != NULL; mode = mode->next)
@@ -812,9 +819,9 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		}
 
 		/* We want the new mode to be the only preferred one */
-		for (mode = ddc_modes; mode != NULL; mode = mode->next)
-			if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
-				mode->type &= ~M_T_PREFERRED;
+		//for (mode = ddc_modes; mode != NULL; mode = mode->next)
+		//	if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
+		//		mode->type &= ~M_T_PREFERRED;
 	}
 
 	return ddc_modes;

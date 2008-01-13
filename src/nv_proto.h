@@ -119,6 +119,7 @@ void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val
 uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg);
 void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val);
 uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg);
+uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, uint8_t crtc);
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
 

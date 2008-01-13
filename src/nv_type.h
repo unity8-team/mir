@@ -344,7 +344,7 @@ typedef struct {
 	uint8_t depth;
 	uint16_t x_res;
 	uint16_t y_res;
-	Bool bad_mode;
+	Bool enabled;
 	uint32_t fb_start;
 } NVConsoleMode;
 
