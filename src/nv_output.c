@@ -485,6 +485,7 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
 		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
 		adjusted_mode->Clock = nv_output->native_mode->Clock;
+		adjusted_mode->Flags = nv_output->native_mode->Flags;
 
 		xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
 	}
