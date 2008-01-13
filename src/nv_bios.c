@@ -3137,7 +3137,7 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	 *
 	 */
 
-	if (bitentry->length != 14) {
+	if (bitentry->length < 14) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Unable to recognize BIT init table entry\n");
 		return 0;
