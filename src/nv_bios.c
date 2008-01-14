@@ -223,9 +223,11 @@ void still_alive()
 //	usleep(200);
 }
 
-static int nv_valid_reg(uint32_t reg)
+static int nv_valid_reg(NVPtr pNv, uint32_t reg)
 {
-	if (reg & 0x3) {
+	/* C51 has misaligned regs on purpose. Marvellous */
+	if ((reg & 0x3 && pNv->VBIOS.chip_version != 0x51) ||
+			(reg & 0x2 && pNv->VBIOS.chip_version == 0x51)) {
 		ErrorF("========== misaligned reg 0x%08X ==========\n", reg);
 		return 0;
 	}
@@ -278,8 +280,21 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t data;
 
-	if (!nv_valid_reg(reg))
+	if (!nv_valid_reg(pNv, reg))
 		return 0;
+
+	/* C51 sometimes uses regs with bit0 set in the address. For these
+	 * cases there should exist a translation in a BIOS table to an IO
+	 * port address which the BIOS uses for accessing the reg
+	 *
+	 * These only seem to appear for the power control regs to a flat panel
+	 * and in C51 mmio traces the normal regs for 0x1308 and 0x1310 are
+	 * used - hence the mask below. An S3 suspend-resume mmio trace from a
+	 * C51 will be required to see if this is true for the power microcode
+	 * in 0x14.., or whether the direct IO port access method is needed
+	 */
+	if (reg & 0x1)
+		reg &= ~0x1;
 
 	data = pNv->REGS[reg/4];
 
@@ -294,14 +309,18 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (!nv_valid_reg(pNv, reg))
+		return 0;
+
+	/* see note in nv32_rd */
+	if (reg & 0x1)
+		reg &= 0xfffffffe;
+
 	if (DEBUGLEVEL >= 8)
 		nv32_rd(pScrn, reg);
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
-
-	if (!nv_valid_reg(reg))
-		return 0;
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
