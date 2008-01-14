@@ -316,8 +316,6 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     return ATOM_NOT_IMPLEMENTED;
 }
 
-#if 0
-
 static int
 atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -356,8 +354,6 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
 }
 
-#endif
-
 static AtomBiosResult
 atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
@@ -369,12 +365,12 @@ atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool sta
     data.exec.index = device;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output %d %s success\n", device, state? "enable":"disable");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output %d %s failed\n", device, state? "enable":"disable");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -419,12 +415,12 @@ atombios_device_dpms(xf86OutputPtr output, int device, int mode)
     switch (mode) {
     case DPMSModeOn:
 	atombios_display_device_control(info->atomBIOS, index, ATOM_ENABLE);
-        break;
+	break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
 	atombios_display_device_control(info->atomBIOS, index, ATOM_DISABLE);
-        break;
+	break;
     }
 }
 
@@ -502,9 +498,9 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
     SELECT_CRTC_SOURCE_PS_ALLOCATION crtc_src_param;
     int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
     int major, minor;
-    
+
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
-    
+
     ErrorF("select crtc source table is %d %d\n", major, minor);
 
     crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
@@ -568,7 +564,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    //atombios_output_scaler_setup(output, mode);
+    atombios_output_scaler_setup(output, mode);
     atombios_set_output_crtc_source(output);
 
     if (radeon_output->MonType == MT_CRT) {
