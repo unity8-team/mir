@@ -425,11 +425,12 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 	/* save copy of image for color changes */
 	memcpy(pNv->curImage, image, 256);
 
-	/* Due to legacy code */
-	if (nv_crtc->head == 1) {
-		pNv->CURSOR = (CARD32 *) pNv->Cursor2->map;
-	} else {
-		pNv->CURSOR = (CARD32 *) pNv->Cursor->map;
+	if (pNv->Architecture >= NV_ARCH_10) {
+		/* Due to legacy code */
+		if (nv_crtc->head == 1)
+			pNv->CURSOR = (CARD32 *) pNv->Cursor2->map;
+		else
+			pNv->CURSOR = (CARD32 *) pNv->Cursor->map;
 	}
 
 	/* Eventually this has to be replaced as well */
