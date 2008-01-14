@@ -863,7 +863,6 @@ void nv_crtc_calc_state_ext(
 	int			bpp,
 	int			DisplayWidth, /* Does this change after setting the mode? */
 	int			CrtcHDisplay,
-	int			AdjustedCrtcHDisplay,
 	int			CrtcVDisplay,
 	int			dotClock,
 	int			flags,
@@ -906,6 +905,7 @@ void nv_crtc_calc_state_ext(
 	/*
 	 * Extended RIVA registers.
 	 */
+	/* This is pitch related, not mode related. */
 	pixelDepth = (bpp + 1)/8;
 	if (pNv->Architecture == NV_ARCH_40) {
 		/* Does register 0x580 already have a value? */
@@ -1284,8 +1284,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	int depth = pScrn->depth;
 
+	/* This is pitch/memory size related. */
 	if (mode->PrivFlags & NV_MODE_CONSOLE)
-		depth = pNv->console_mode[nv_crtc->head].depth;
+		depth = pNv->console_mode[nv_crtc->head].bpp;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -1643,11 +1644,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	}
 
 	if (mode->PrivFlags & NV_MODE_CONSOLE) {
-		if (mode->PrivFlags & NV_MODE_VGA) {
-			depth = 4;
-		} else {
-			depth = pNv->console_mode[nv_crtc->head].depth;
-		}
+		/* bpp is pitch related. */
+		depth = pNv->console_mode[nv_crtc->head].bpp;
 	}
 
 	/* What is the meaning of this register? */
@@ -1775,7 +1773,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 				depth,
 				pScrn->displayWidth,
 				mode->CrtcHDisplay,
-				adjusted_mode->CrtcHDisplay,
 				mode->CrtcVDisplay,
 				adjusted_mode->Clock,
 				mode->Flags,
@@ -2054,6 +2051,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	uint8_t depth;
+	/* This is mode related, not pitch. */
 	if (mode->PrivFlags & NV_MODE_CONSOLE) {
 		depth = pNv->console_mode[nv_crtc->head].depth;
 	} else {

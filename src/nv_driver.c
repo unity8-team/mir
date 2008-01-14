@@ -1935,6 +1935,8 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_52, pNv->misc_info.crtc_reg_52[nv_crtc->head]);
 				/* restore crtc base */
 				nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
+				/* Restore general control */
+				nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL, pNv->misc_info.ramdac_general_control[nv_crtc->head]);
 			}
 
 			/* Restore outputs when enabled. */
@@ -2372,6 +2374,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
 		}
+		pNv->misc_info.ramdac_general_control[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_GENERAL_CONTROL);
+		pNv->misc_info.ramdac_general_control[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_GENERAL_CONTROL);
 		pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 		pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 		if (pNv->twoHeads) {
@@ -2380,17 +2384,40 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 
 		for (i = 0; i <= pNv->twoHeads; i++) {
-			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) {
+			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
 				pNv->console_mode[i].vga_mode = FALSE;
-				pNv->console_mode[i].depth = (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) * 8;
-			} else {
+				uint8_t var = NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf;
+				Bool filled = (nvReadRAMDAC(pNv, i, NV_RAMDAC_GENERAL_CONTROL) & 0x1000);
+				switch (var){
+					case 3:
+						if (filled)
+							pNv->console_mode[i].depth = 32;
+						else
+							pNv->console_mode[i].depth = 24;
+						/* This is pitch related. */
+						pNv->console_mode[i].bpp = 32;
+						break;
+					case 2:
+						if (filled)
+							pNv->console_mode[i].depth = 16;
+						else
+							pNv->console_mode[i].depth = 15;
+						/* This is pitch related. */
+						pNv->console_mode[i].bpp = 16;
+						break;
+					case 1:
+						/* 8bit mode is always filled? */
+						pNv->console_mode[i].depth = 8;
+						/* This is pitch related. */
+						pNv->console_mode[i].bpp = 8;
+					default:
+						break;
+				}
+			} else { /* vga mode */
 				pNv->console_mode[i].vga_mode = TRUE;
+				pNv->console_mode[i].bpp = 4;
 				pNv->console_mode[i].depth = 4;
 			}
-
-			/* For the moment assume a 24 bit mode is actually a 32 bit mode, are there framebuffers which do it differently? */
-			if (pNv->console_mode[i].depth == 24)
-				pNv->console_mode[i].depth = 32;
 
 			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
 			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
@@ -2399,7 +2426,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 			pNv->console_mode[i].enabled = FALSE;
 
-			ErrorF("CRTC %d: Console mode: %dx%d\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res);
+			ErrorF("CRTC %d: Console mode: %dx%d depth: %d bpp: %d\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp);
 		}
 
 		/* Check if crtc's were enabled. */

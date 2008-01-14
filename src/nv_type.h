@@ -232,6 +232,7 @@ typedef struct _MiscStartupInfo {
 	uint8_t crtc_reg_52[2];
 	uint32_t ramdac_0_reg_580;
 	uint32_t ramdac_0_pllsel;
+	uint32_t ramdac_general_control[2];
 	uint32_t reg_c040;
 	uint32_t sel_clk;
 	uint32_t output[2];
@@ -343,7 +344,8 @@ enum LVDS_script {
 
 typedef struct {
 	Bool vga_mode;
-	uint8_t depth;
+	uint8_t depth; /* mode related */
+	uint8_t bpp; /* pitch related */
 	uint16_t x_res;
 	uint16_t y_res;
 	Bool enabled;
