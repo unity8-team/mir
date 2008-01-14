@@ -29,6 +29,36 @@
 #include <X11/Xmd.h>
 
 /*
+ * Chip-related definitions.
+ */
+typedef enum
+{
+    ATI_CHIP_NONE = 0,
+    ATI_CHIP_88800GXC,          /* Mach64 */
+    ATI_CHIP_88800GXD,          /* Mach64 */
+    ATI_CHIP_88800GXE,          /* Mach64 */
+    ATI_CHIP_88800GXF,          /* Mach64 */
+    ATI_CHIP_88800GX,           /* Mach64 */
+    ATI_CHIP_88800CX,           /* Mach64 */
+    ATI_CHIP_264CT,             /* Mach64 */
+    ATI_CHIP_264ET,             /* Mach64 */
+    ATI_CHIP_264VT,             /* Mach64 */
+    ATI_CHIP_264GT,             /* Mach64 */
+    ATI_CHIP_264VTB,            /* Mach64 */
+    ATI_CHIP_264GTB,            /* Mach64 */
+    ATI_CHIP_264VT3,            /* Mach64 */
+    ATI_CHIP_264GTDVD,          /* Mach64 */
+    ATI_CHIP_264LT,             /* Mach64 */
+    ATI_CHIP_264VT4,            /* Mach64 */
+    ATI_CHIP_264GT2C,           /* Mach64 */
+    ATI_CHIP_264GTPRO,          /* Mach64 */
+    ATI_CHIP_264LTPRO,          /* Mach64 */
+    ATI_CHIP_264XL,             /* Mach64 */
+    ATI_CHIP_MOBILITY,          /* Mach64 */
+    ATI_CHIP_Mach64,            /* Last among Mach64's */
+} ATIChipType;
+
+/*
  * Foundry codes for 264xT's.
  */
 typedef enum

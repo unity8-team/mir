@@ -194,186 +194,6 @@ R128RAMRec R128RAM[] = {        /* Memory Specifications
     { 4, 4, 3, 3, 2, 3, 1, 16, 12, "64-bit DDR SGRAM" },
 };
 
-#ifdef WITH_VGAHW
-static const char *vgahwSymbols[] = {
-    "vgaHWFreeHWRec",
-    "vgaHWGetHWRec",
-    "vgaHWGetIndex",
-    "vgaHWLock",
-    "vgaHWRestore",
-    "vgaHWSave",
-    "vgaHWUnlock",
-    NULL
-};
-#endif
-
-static const char *fbdevHWSymbols[] = {
-    "fbdevHWInit",
-    "fbdevHWUseBuildinMode",
-    "fbdevHWGetLineLength",
-    "fbdevHWGetVidmem",
-
-    "fbdevHWDPMSSet",
-    "fbdevHWDPMSSetWeak",
-
-    /* colormap */
-    "fbdevHWLoadPalette",
-    "fbdevHWLoadPaletteWeak",
-
-    /* ScrnInfo hooks */
-    "fbdevHWAdjustFrame",
-    "fbdevHWAdjustFrameWeak",
-    "fbdevHWEnterVT",
-    "fbdevHWLeaveVT",
-    "fbdevHWModeInit",
-    "fbdevHWRestore",
-    "fbdevHWSave",
-    "fbdevHWSwitchMode",
-    "fbdevHWSwitchModeWeak",
-    "fbdevHWValidModeWeak",
-
-    "fbdevHWMapMMIO",
-    "fbdevHWMapVidmem",
-    "fbdevHWUnmapMMIO",
-    "fbdevHWUnmapVidmem",
-
-    NULL
-};
-
-static const char *ddcSymbols[] = {
-    "xf86PrintEDID",
-    "xf86DoEDID_DDC1",
-    "xf86DoEDID_DDC2",
-    NULL
-};
-
-static const char *i2cSymbols[] = {
-    "xf86CreateI2CBusRec",
-    "xf86I2CBusInit",
-    NULL
-};
-
-static const char *fbSymbols[] = {
-    "fbPictureInit",
-    "fbScreenInit",
-    NULL
-};
-
-static const char *xaaSymbols[] = {
-    "XAACreateInfoRec",
-    "XAADestroyInfoRec",
-    "XAAInit",
-    NULL
-};
-
-static const char *ramdacSymbols[] = {
-    "xf86CreateCursorInfoRec",
-    "xf86DestroyCursorInfoRec",
-    "xf86InitCursor",
-    NULL
-};
-
-#ifdef XF86DRI
-static const char *drmSymbols[] = {
-    "drmAddBufs",
-    "drmAddMap",
-    "drmAgpAcquire",
-    "drmAgpAlloc",
-    "drmAgpBase",
-    "drmAgpBind",
-    "drmAgpDeviceId",
-    "drmAgpEnable",
-    "drmAgpFree",
-    "drmAgpGetMode",
-    "drmAgpRelease",
-    "drmAgpUnbind",
-    "drmAgpVendorId",
-    "drmAvailable",
-    "drmCommandNone",
-    "drmCommandRead",
-    "drmCommandWrite",
-    "drmCommandWriteRead",
-    "drmCtlInstHandler",
-    "drmCtlUninstHandler",
-    "drmFreeBufs",
-    "drmFreeVersion",
-    "drmGetInterruptFromBusID",
-    "drmGetLibVersion",
-    "drmGetVersion",
-    "drmMap",
-    "drmMapBufs",
-    "drmDMA",
-    "drmScatterGatherAlloc",
-    "drmScatterGatherFree",
-    "drmUnmap",
-    "drmUnmapBufs",
-    NULL
-};
-
-static const char *driSymbols[] = {
-    "DRICloseScreen",
-    "DRICreateInfoRec",
-    "DRIDestroyInfoRec",
-    "DRIFinishScreenInit",
-    "DRIGetDeviceInfo",
-    "DRIGetSAREAPrivate",
-    "DRILock",
-    "DRIQueryVersion",
-    "DRIScreenInit",
-    "DRIUnlock",
-    "GlxSetVisualConfigs",
-    "DRICreatePCIBusID",
-    NULL
-};
-
-static const char *driShadowFBSymbols[] = {
-    "ShadowFBInit",
-    NULL
-};
-#endif
-
-static const char *vbeSymbols[] = {
-    "VBEInit",
-    "vbeDoEDID",
-    "vbeFree",
-    NULL
-};
-
-static const char *int10Symbols[] = {
-    "xf86InitInt10",
-    "xf86FreeInt10",
-    "xf86int10Addr",
-    NULL
-};
-
-void R128LoaderRefSymLists(void)
-{
-    /*
-     * Tell the loader about symbols from other modules that this module might
-     * refer to.
-     */
-    xf86LoaderRefSymLists(
-#ifdef WITH_VGAHW
-		      vgahwSymbols,
-#endif
-		      fbSymbols,
-		      xaaSymbols,
-		      ramdacSymbols,
-#ifdef XF86DRI
-		      drmSymbols,
-		      driSymbols,
-		      driShadowFBSymbols,
-#endif
-		      fbdevHWSymbols,
-		      int10Symbols,
-		      vbeSymbols,
-		      /* ddcsymbols, */
-		      i2cSymbols,
-		      /* shadowSymbols, */
-		      NULL);
-}
-
-#ifdef XFree86LOADER
 int getR128EntityIndex(void)
 {
     int *r128_entity_index = LoaderSymbol("gR128EntityIndex");
@@ -382,13 +202,6 @@ int getR128EntityIndex(void)
     else
         return *r128_entity_index;
 }
-#else
-extern int gR128EntityIndex;
-int getR128EntityIndex(void)
-{
-    return gR128EntityIndex;
-}
-#endif
 
 R128EntPtr R128EntPriv(ScrnInfoPtr pScrn)
 {
@@ -425,11 +238,26 @@ static Bool R128MapMMIO(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->MMIO = fbdevHWMapMMIO(pScrn);
     } else {
+#ifndef XSERVER_LIBPCIACCESS
 	info->MMIO = xf86MapPciMem(pScrn->scrnIndex,
 				   VIDMEM_MMIO | VIDMEM_READSIDEEFFECT,
 				   info->PciTag,
 				   info->MMIOAddr,
 				   R128_MMIOSIZE);
+#else
+	int err = pci_device_map_range(info->PciInfo,
+				       info->MMIOAddr,
+				       R128_MMIOSIZE,
+				       PCI_DEV_MAP_FLAG_WRITABLE,
+				       &info->MMIO);
+
+	if (err) {
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+                        "Unable to map MMIO aperture. %s (%d)\n",
+                        strerror (err), err);
+	    return FALSE;
+	}
+#endif
     }
 
     if (!info->MMIO) return FALSE;
@@ -445,7 +273,11 @@ static Bool R128UnmapMMIO(ScrnInfoPtr pScrn)
     if (info->FBDev)
 	fbdevHWUnmapMMIO(pScrn);
     else {
+#ifndef XSERVER_LIBPCIACCESS
 	xf86UnMapVidMem(pScrn->scrnIndex, info->MMIO, R128_MMIOSIZE);
+#else
+	pci_device_unmap_range(info->PciInfo, info->MMIO, R128_MMIOSIZE);
+#endif
     }
     info->MMIO = NULL;
     return TRUE;
@@ -459,11 +291,27 @@ static Bool R128MapFB(ScrnInfoPtr pScrn)
     if (info->FBDev) {
 	info->FB = fbdevHWMapVidmem(pScrn);
     } else {
+#ifndef XSERVER_LIBPCIACCESS
 	info->FB = xf86MapPciMem(pScrn->scrnIndex,
 				 VIDMEM_FRAMEBUFFER,
 				 info->PciTag,
 				 info->LinearAddr,
 				 info->FbMapSize);
+#else
+	int err = pci_device_map_range(info->PciInfo,
+				       info->LinearAddr,
+				       info->FbMapSize,
+				       PCI_DEV_MAP_FLAG_WRITABLE |
+				       PCI_DEV_MAP_FLAG_WRITE_COMBINE,
+				       &info->FB);
+
+	if (err) {
+	    xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+                        "Unable to map FB aperture. %s (%d)\n",
+                        strerror (err), err);
+	    return FALSE;
+	}
+#endif
     }
 
     if (!info->FB) return FALSE;
@@ -478,7 +326,11 @@ static Bool R128UnmapFB(ScrnInfoPtr pScrn)
     if (info->FBDev)
 	fbdevHWUnmapVidmem(pScrn);
     else
+#ifndef XSERVER_LIBPCIACCESS
 	xf86UnMapVidMem(pScrn->scrnIndex, info->FB, info->FbMapSize);
+#else
+	pci_device_unmap_range(info->PciInfo, info->FB, info->FbMapSize);
+#endif
     info->FB = NULL;
     return TRUE;
 }
@@ -639,7 +491,13 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 			(info->VBIOS[(v) + 2] << 16) | \
 			(info->VBIOS[(v) + 3] << 24))
 
-    if (!(info->VBIOS = xalloc(R128_VBIOS_SIZE))) {
+#ifdef XSERVER_LIBPCIACCESS
+    info->VBIOS = xalloc(info->PciInfo->rom_size);
+#else
+    info->VBIOS = xalloc(R128_VBIOS_SIZE);
+#endif
+
+    if (!info->VBIOS) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Cannot allocate space for hold Video BIOS!\n");
 	return FALSE;
@@ -650,6 +508,12 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	(void)memcpy(info->VBIOS, xf86int10Addr(pInt10, info->BIOSAddr),
 		     R128_VBIOS_SIZE);
     } else {
+#ifdef XSERVER_LIBPCIACCESS
+	if (pci_device_read_rom(info->PciInfo, info->VBIOS)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to read PCI ROM!\n");
+	}
+#else
 	xf86ReadPciBIOS(0, info->PciTag, 0, info->VBIOS, R128_VBIOS_SIZE);
 	if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -659,6 +523,7 @@ static Bool R128GetBIOSParameters(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 	    info->BIOSAddr = 0x000c0000;
 	    xf86ReadDomainMemory(info->PciTag, info->BIOSAddr, R128_VBIOS_SIZE, info->VBIOS);
 	}
+#endif
     }
     if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 	info->BIOSAddr = 0x00000000;
@@ -997,7 +862,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 	info->Chipset  = dev->chipID;
 	from           = X_CONFIG;
     } else {
-	info->Chipset = info->PciInfo->chipType;
+	info->Chipset = PCI_DEV_DEVICE_ID(info->PciInfo);
     }
     pScrn->chipset = (char *)xf86TokenToString(R128Chipsets, info->Chipset);
 
@@ -1021,7 +886,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 				/* Framebuffer */
 
     from             = X_PROBED;
-    info->LinearAddr = info->PciInfo->memBase[0] & 0xfc000000;
+    info->LinearAddr = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & 0xfc000000;
     pScrn->memPhysBase = info->LinearAddr;
     if (dev->MemBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1040,7 +905,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 
 				/* MMIO registers */
     from             = X_PROBED;
-    info->MMIOAddr   = info->PciInfo->memBase[2] & 0xffffff00;
+    info->MMIOAddr   = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & 0xffffff00;
     if (dev->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "MMIO address override, using 0x%08lx instead of 0x%08lx\n",
@@ -1055,6 +920,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from,
 	       "MMIO registers at 0x%08lx\n", info->MMIOAddr);
 
+#ifndef XSERVER_LIBPCIACCESS
 				/* BIOS */
     from              = X_PROBED;
     info->BIOSAddr    = info->PciInfo->biosBase & 0xfffe0000;
@@ -1070,6 +936,7 @@ static Bool R128PreInitConfig(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, from,
 		   "BIOS at 0x%08lx\n", info->BIOSAddr);
     }
+#endif
 
 				/* Flat panel (part 1) */
     if (xf86GetOptValBool(info->Options, OPTION_PROG_FP_REGS,
@@ -1382,14 +1249,12 @@ static Bool R128PreInitDDC(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10)
 #endif
 
     if (!xf86LoadSubModule(pScrn, "ddc")) return FALSE;
-    xf86LoaderReqSymLists(ddcSymbols, NULL);
 
 #if defined(__powerpc__) || defined(__alpha__) || defined(__sparc__)
     /* Int10 is broken on PPC and some Alphas */
     return TRUE;
 #else
     if (xf86LoadSubModule(pScrn, "vbe")) {
-	xf86LoaderReqSymLists(vbeSymbols,NULL);
 	pVbe = VBEInit(pInt10,info->pEnt->index);
 	if (!pVbe) return FALSE;
         xf86SetDDCproperties(pScrn,xf86PrintEDID(vbeDoEDID(pVbe,NULL)));
@@ -1444,9 +1309,7 @@ static Bool
 R128I2cInit(ScrnInfoPtr pScrn)
 {
     R128InfoPtr info = R128PTR(pScrn);
-    if ( xf86LoadSubModule(pScrn, "i2c") )
-        xf86LoaderReqSymLists(i2cSymbols,NULL);
-	else{
+    if ( !xf86LoadSubModule(pScrn, "i2c") ) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
             "Failed to load i2c module\n");
 		return FALSE;
@@ -1866,7 +1729,6 @@ static Bool R128PreInitModes(ScrnInfoPtr pScrn)
 
 				/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
-    xf86LoaderReqSymLists(fbSymbols, NULL);
 
     info->CurrentLayout.displayWidth = pScrn->displayWidth;
     info->CurrentLayout.mode = pScrn->currentMode;
@@ -1881,7 +1743,6 @@ static Bool R128PreInitCursor(ScrnInfoPtr pScrn)
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "ramdac")) return FALSE;
-	xf86LoaderReqSymLists(ramdacSymbols, NULL);
     }
     return TRUE;
 }
@@ -1893,7 +1754,6 @@ static Bool R128PreInitAccel(ScrnInfoPtr pScrn)
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "xaa")) return FALSE;
-	xf86LoaderReqSymLists(xaaSymbols, NULL);
     }
     return TRUE;
 }
@@ -1904,7 +1764,6 @@ static Bool R128PreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 #if 1 && !defined(__alpha__)
     /* int10 is broken on some Alphas */
     if (xf86LoadSubModule(pScrn, "int10")) {
-	xf86LoaderReqSymLists(int10Symbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"initializing int10\n");
 	*ppInt10 = xf86InitInt10(info->pEnt->index);
     }
@@ -2018,8 +1877,6 @@ static Bool R128PreInitDRI(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't load shadowfb module:\n");
     } else {
-	xf86LoaderReqSymLists(driShadowFBSymbols, NULL);
-
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP,
 						   FALSE);
@@ -2101,15 +1958,15 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     info->PciInfo      = xf86GetPciInfoForEntity(info->pEnt->index);
-    info->PciTag       = pciTag(info->PciInfo->bus,
-				info->PciInfo->device,
-				info->PciInfo->func);
+    info->PciTag       = pciTag(PCI_DEV_BUS(info->PciInfo),
+				PCI_DEV_DEV(info->PciInfo),
+				PCI_DEV_FUNC(info->PciInfo));
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "PCI bus %d card %d func %d\n",
-	       info->PciInfo->bus,
-	       info->PciInfo->device,
-	       info->PciInfo->func);
+	       PCI_DEV_BUS(info->PciInfo),
+	       PCI_DEV_DEV(info->PciInfo),
+	       PCI_DEV_FUNC(info->PciInfo));
 
     if (xf86RegisterResources(info->pEnt->index, 0, ResNone)) goto fail;
     if (xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr)) goto fail;
@@ -2139,7 +1996,6 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
        if (!xf86LoadSubModule(pScrn, "vgahw"))
            info->VGAAccess = FALSE;
         else {
-           xf86LoaderReqSymLists(vgahwSymbols, NULL);
             if (!vgaHWGetHWRec(pScrn))
                info->VGAAccess = FALSE;
        }
@@ -2186,7 +2042,6 @@ Bool R128PreInit(ScrnInfoPtr pScrn, int flags)
     if (info->FBDev) {
 	/* check for linux framebuffer device */
 	if (!xf86LoadSubModule(pScrn, "fbdevhw")) return FALSE;
-	xf86LoaderReqSymLists(fbdevHWSymbols, NULL);
 	if (!fbdevHWInit(pScrn, info->PciInfo, NULL)) return FALSE;
 	pScrn->SwitchMode    = fbdevHWSwitchModeWeak();
 	pScrn->AdjustFrame   = fbdevHWAdjustFrameWeak();

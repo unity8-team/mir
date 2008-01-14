@@ -24,37 +24,10 @@
 #include "config.h"
 #endif
 
-#ifdef XFree86LOADER
-
 #include "ati.h"
-#include "atimodule.h"
 #include "ativersion.h"
 
 /* Module loader interface */
-
-const char *ATISymbols[] =
-{
-    "Mach64Identify",
-    "Mach64Probe",
-    "Mach64AvailableOptions",
-    NULL
-};
-
-const char *R128Symbols[] =
-{
-    "R128Identify",
-    "R128Probe",
-    "R128AvailableOptions",
-    NULL
-};
-
-const char *RADEONSymbols[] =
-{
-    "RADEONIdentify",
-    "RADEONProbe",
-    "RADEONAvailableOptions",
-    NULL
-};
 
 static XF86ModuleVersionInfo ATIVersionRec =
 {
@@ -90,12 +63,6 @@ ATISetup
     {
         Inited = TRUE;
         xf86AddDriver(&ATI, Module, 0);
-
-        xf86LoaderRefSymLists(
-            ATISymbols,
-            R128Symbols,
-            RADEONSymbols,
-            NULL);
     }
 
     return (pointer)1;
@@ -108,5 +75,3 @@ _X_EXPORT XF86ModuleData atiModuleData =
     ATISetup,
     NULL
 };
-
-#endif /* XFree86LOADER */

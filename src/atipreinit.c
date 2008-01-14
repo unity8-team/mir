@@ -301,7 +301,7 @@ ATIPreInit
      * If there is an ix86-style BIOS, ensure its initialisation entry point
      * has been executed, and retrieve DDC and VBE information from it.
      */
-    if (!(pInt10Module = ATILoadModule(pScreenInfo, "int10", ATIint10Symbols)))
+    if (!(pInt10Module = xf86LoadSubModule(pScreenInfo, "int10")))
     {
         xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
             "Unable to load int10 module.\n");
@@ -313,13 +313,13 @@ ATIPreInit
     }
     else
     {
-        if (!(pDDCModule = ATILoadModule(pScreenInfo, "ddc", ATIddcSymbols)))
+        if (!(pDDCModule = xf86LoadSubModule(pScreenInfo, "ddc")))
         {
             xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
                 "Unable to load ddc module.\n");
         }
         else
-        if (!(pVBEModule = ATILoadModule(pScreenInfo, "vbe", ATIvbeSymbols)))
+        if (!(pVBEModule = xf86LoadSubModule(pScreenInfo, "vbe")))
         {
             xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
                 "Unable to load vbe module.\n");

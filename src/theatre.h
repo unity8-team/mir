@@ -57,25 +57,6 @@ void ResetTheatreRegsForTVout(TheatrePtr t);
 void ResetTheatreRegsForNoTVout(TheatrePtr t);
 
 
-#define TheatreSymbolsList  \
-		"InitTheatre" \
-		"RT_SetTint", \
-		"RT_SetSaturation", \
-		"RT_SetBrightness", \
-		"RT_SetSharpness", \
-		"RT_SetContrast", \
-		"RT_SetInterlace", \
-		"RT_SetStandard", \
-		"RT_SetCombFilter", \
-		"RT_SetOutputVideoSize", \
-		"RT_SetConnector", \
-		"ResetTheatreRegsForNoTVout", \
-		"ResetTheatreRegsForTVout", \
-		"DumpRageTheatreRegs", \
-		"ShutdownTheatre"
-
-#ifdef XFree86LOADER
-
 #define xf86_InitTheatre           ((void (*)(TheatrePtr t))LoaderSymbol("InitTheatre"))
 
 #define xf86_RT_SetTint            ((void (*)(TheatrePtr, int))LoaderSymbol("RT_SetTint"))
@@ -94,24 +75,5 @@ void ResetTheatreRegsForNoTVout(TheatrePtr t);
 #define xf86_ResetTheatreRegsForTVout       ((void (*)(TheatrePtr))LoaderSymbol("ResetTheatreRegsForTVout"))
 #define xf86_ResetTheatreRegsForNoTVout       ((void (*)(TheatrePtr))LoaderSymbol("ResetTheatreRegsForNoTVout"))
 #define xf86_RT_GetSignalStatus       ((void (*)(TheatrePtr))LoaderSymbol("xf86_RT_GetSignalStatus"))
-#else
-
-#define xf86_InitTheatre               InitTheatre
-
-#define xf86_RT_SetTint                RT_SetTint
-#define xf86_RT_SetSaturation          RT_SetSaturation
-#define xf86_RT_SetBrightness          RT_SetBrightness
-#define xf86_RT_SetSharpness           RT_SetSharpness
-#define xf86_RT_SetContrast            RT_SetContrast
-#define xf86_RT_SetInterlace           RT_SetInterlace
-#define xf86_RT_SetStandard            RT_SetStandard
-#define xf86_RT_SetOutputVideoSize     RT_SetOutputVideoSize
-#define xf86_RT_SetConnector           RT_SetConnector
-
-#define xf86_RageTheatreDebugGain      RageTheatreDebugGain
-#define xf86_ShutdownTheatre           ShutdownTheatre
-#define xf86_DumpRageTheatreRegs       DumpRageTheatreRegs 
-#define xf86_ResetTheatreRegsForNoTVout ResetTheatreRegsForNoTVout
-#endif		
 
 #endif

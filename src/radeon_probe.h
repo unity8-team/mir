@@ -550,7 +550,6 @@ extern Bool                 RADEONProbe(DriverPtr, int);
 extern PciChipsets          RADEONPciChipsets[];
 
 /* radeon_driver.c */
-extern void                 RADEONLoaderRefSymLists(void);
 extern Bool                 RADEONPreInit(ScrnInfoPtr, int);
 extern Bool                 RADEONScreenInit(int, ScreenPtr, int, char **);
 extern Bool                 RADEONSwitchMode(int, DisplayModePtr, int);

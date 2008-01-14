@@ -133,7 +133,7 @@ static void R128LoadCursorImage(ScrnInfoPtr pScrn, unsigned char *image)
     R128InfoPtr   info      = R128PTR(pScrn);
     unsigned char *R128MMIO = info->MMIO;
     CARD32        *s        = (pointer)image;
-    CARD32        *d        = (pointer)(info->FB + info->cursor_start);
+    CARD32        *d        = (pointer)((CARD8*)info->FB + info->cursor_start);
     int           y;
     CARD32        save;
 

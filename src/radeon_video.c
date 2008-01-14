@@ -1505,8 +1505,6 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex,X_ERROR,"Unable to load Rage Theatre detect module\n");
 		goto skip_theatre;
     }
-	xf86LoaderReqSymbols(TheatreDetectSymbolsList, NULL);
-
 	RADEONSetupTheatre(pScrn, pPriv);
 
 	/*
@@ -1546,7 +1544,6 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
 				goto skip_theatre;
 			}
 		}
-		xf86LoaderReqSymbols(TheatreSymbolsList, NULL);
 	}
     
 	if(pPriv->theatre!=NULL)

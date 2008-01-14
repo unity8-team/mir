@@ -25,7 +25,6 @@
 #endif
 
 #include "atii2c.h"
-#include "atiload.h"
 #include "atimach64i2c.h"
 #include "atistruct.h"
 
@@ -365,7 +364,7 @@ ATII2CPreInit
     ATIPtr      pATI
 )
 {
-            if (!ATILoadModule(pScreenInfo, "i2c", ATIi2cSymbols))
+            if (!xf86LoadSubModule(pScreenInfo, "i2c"))
                 return;
 
             ATIMach64I2CPreInit(pScreenInfo, pATI);

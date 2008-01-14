@@ -63,6 +63,8 @@
 #include "GL/glxint.h"
 #endif
 
+#include "atipcirename.h"
+
 #define R128_DEBUG          0   /* Turn off debugging output               */
 #define R128_IDLE_RETRY    32   /* Fall out of idle loops after this count */
 #define R128_TIMEOUT  2000000   /* Fall out of wait loops after this count */
@@ -234,8 +236,8 @@ typedef struct {
     unsigned long     MMIOAddr;     /* MMIO region physical address          */
     unsigned long     BIOSAddr;     /* BIOS physical address                 */
 
-    unsigned char     *MMIO;        /* Map of MMIO region                    */
-    unsigned char     *FB;          /* Map of frame buffer                   */
+    void              *MMIO;        /* Map of MMIO region                    */
+    void              *FB;          /* Map of frame buffer                   */
 
     CARD32            MemCntl;
     CARD32            BusCntl;

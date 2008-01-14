@@ -18,19 +18,13 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- *
- * DRI support by:
- *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef XFree86LOADER
-
 #include "ati.h"
-#include "atiload.h"
 #include "ativersion.h"
 
 /* Module loader interface for subsidiary driver module */
@@ -101,41 +95,6 @@ ATISetup
             } while (0);
         }
 
-        /*
-         * Tell loader about symbols from other modules that this module might
-         * refer to.
-         */
-        xf86LoaderRefSymLists(
-            ATIint10Symbols,
-            ATIddcSymbols,
-            ATIvbeSymbols,
-
-#ifdef XF86DRI_DEVEL
-
-            ATIdrmSymbols,
-            ATIdriSymbols,
-
-#endif /* XF86DRI_DEVEL */
-
-            ATIfbSymbols,
-            ATIshadowfbSymbols,
-
-#ifdef USE_EXA
-
-            ATIexaSymbols,
-
-#endif /* USE_EXA */
-
-#ifdef USE_XAA
-
-            ATIxaaSymbols,
-
-#endif /* USE_XAA */
-
-            ATIramdacSymbols,
-            ATIi2cSymbols,
-            NULL);
-
         Inited = TRUE;
     }
 
@@ -149,5 +108,3 @@ _X_EXPORT XF86ModuleData atimiscModuleData =
     ATISetup,
     NULL
 };
-
-#endif /* XFree86LOADER */

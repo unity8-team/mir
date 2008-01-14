@@ -1182,9 +1182,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
     a->SubsequentSolidHorVertLine
 	= FUNC_NAME(RADEONSubsequentSolidHorVertLine);
 
-#ifdef XFree86LOADER
     if (info->xaaReq.minorversion >= 1) {
-#endif
 
     /* RADEON only supports 14 bits for lines and clipping and only
      * draws lines that are completely on-screen correctly.  This will
@@ -1231,12 +1229,10 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	a->DashedLineLimits.y2 = pScrn->virtualY-1;
     }
 
-#ifdef XFree86LOADER
     } else {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "libxaa too old, can't accelerate TwoPoint lines\n");
     }
-#endif
 
     /* Clipping, note that without this, all line accelerations will
      * not be called
@@ -1296,11 +1292,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 #endif
 
 #ifdef RENDER
-    if (info->RenderAccel
-#ifdef XFree86LOADER
-	&& info->xaaReq.minorversion >= 2
-#endif
-	) {
+    if (info->RenderAccel && info->xaaReq.minorversion >= 2) {
 
 	a->CPUToScreenAlphaTextureFlags = XAA_RENDER_POWER_OF_2_TILE_ONLY;
 	a->CPUToScreenAlphaTextureFormats = RADEONTextureFormats;

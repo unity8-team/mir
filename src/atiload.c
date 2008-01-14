@@ -18,177 +18,16 @@
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
- *
- * DRI support by:
- *    Leif Delgass <ldelgass@retinalburn.net>
  */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef XFree86LOADER
-
 #include "ati.h"
 #include "aticursor.h"
 #include "atiload.h"
 #include "atistruct.h"
-
-/*
- * All symbol lists belong here.  They are externalised so that they can be
- * referenced elsewhere.  Note the naming convention for these things...
- */
-
-const char *ATIint10Symbols[] =
-{
-    "xf86FreeInt10",
-    "xf86InitInt10",
-    "xf86int10Addr",
-    NULL
-};
-
-const char *ATIddcSymbols[] =
-{
-    "xf86PrintEDID",
-    "xf86SetDDCproperties",
-    NULL
-};
-
-const char *ATIvbeSymbols[] =
-{
-    "VBEInit",
-    "vbeDoEDID",
-    "vbeFree",
-    NULL
-};
-
-#ifdef XF86DRI_DEVEL
-
-const char *ATIdrmSymbols[] = {
-    "drmAddBufs",
-    "drmAddMap",
-    "drmAgpAcquire",
-    "drmAgpAlloc",
-    "drmAgpBase",
-    "drmAgpBind",
-    "drmAgpDeviceId",
-    "drmAgpEnable",
-    "drmAgpFree",
-    "drmAgpGetMode",
-    "drmAgpRelease",
-    "drmAgpUnbind",
-    "drmAgpVendorId",
-    "drmAvailable",
-    "drmCommandNone",
-    "drmCommandRead",
-    "drmCommandWrite",
-    "drmCommandWriteRead",
-    "drmCtlInstHandler",
-    "drmCtlUninstHandler",
-    "drmFreeVersion",
-    "drmGetInterruptFromBusID",
-    "drmGetLibVersion",
-    "drmGetVersion",
-    "drmMap",
-    "drmMapBufs",
-    "drmDMA",
-    "drmUnmap",
-    "drmUnmapBufs",
-    NULL
-};
-
-const char *ATIdriSymbols[] = {
-    "DRICloseScreen",
-    "DRICreateInfoRec",
-    "DRIDestroyInfoRec",
-    "DRIFinishScreenInit",
-    "DRIGetSAREAPrivate",
-    "DRILock",
-    "DRIQueryVersion",
-    "DRIScreenInit",
-    "DRIUnlock",
-    "GlxSetVisualConfigs",
-    "DRICreatePCIBusID",
-    NULL
-};
-
-#endif /* XF86DRI_DEVEL */
-
-const char *ATIfbSymbols[] =
-{
-    "fbPictureInit",
-    "fbScreenInit",
-    NULL
-};
-
-const char *ATIshadowfbSymbols[] =
-{
-    "ShadowFBInit",
-    NULL
-};
-
-#ifdef USE_EXA
-const char *ATIexaSymbols[] =
-{
-    "exaDriverAlloc",
-    "exaDriverInit",
-    "exaDriverFini",
-    "exaOffscreenAlloc",
-    "exaOffscreenFree",
-    NULL
-};
-#endif
-
-#ifdef USE_XAA
-const char *ATIxaaSymbols[] =
-{
-    "XAACreateInfoRec",
-    "XAADestroyInfoRec",
-    "XAAInit",
-    NULL
-};
-#endif
-
-const char *ATIramdacSymbols[] =
-{
-    "xf86CreateCursorInfoRec",
-    "xf86DestroyCursorInfoRec",
-    "xf86InitCursor",
-    NULL
-};
-
-const char *ATIi2cSymbols[] =
-{
-    "xf86CreateI2CBusRec",
-    "xf86DestroyI2CBusRec",
-    "xf86I2CBusInit",
-    "xf86I2CDevInit",
-    "xf86I2CFindDev",
-    "xf86I2CGetScreenBuses",
-    NULL
-};
-
-/*
- * ATILoadModule --
- *
- * Load a specific module and register with the loader those of its entry
- * points that are referenced by this driver.
- */
-pointer
-ATILoadModule
-(
-    ScrnInfoPtr  pScreenInfo,
-    const char  *Module,
-    const char **SymbolList
-)
-{
-    pointer pModule = xf86LoadSubModule(pScreenInfo, Module);
-
-    if (pModule)
-        xf86LoaderReqSymLists(SymbolList, NULL);
-
-    return pModule;
-}
 
 /*
  * ATILoadModules --
@@ -206,7 +45,7 @@ ATILoadModules
 
     /* Load shadow frame buffer code if needed */
     if (pATI->OptionShadowFB &&
-        !ATILoadModule(pScreenInfo, "shadowfb", ATIshadowfbSymbols))
+        !xf86LoadSubModule(pScreenInfo, "shadowfb"))
         return NULL;
 
     /* Load depth-specific entry points */
@@ -216,7 +55,7 @@ ATILoadModules
         case 16:
         case 24:
         case 32:
-            fbPtr = ATILoadModule(pScreenInfo, "fb", ATIfbSymbols);
+            fbPtr = xf86LoadSubModule(pScreenInfo, "fb");
             break;
 
         default:
@@ -227,14 +66,13 @@ ATILoadModules
 
     /* Load ramdac module if needed */
     if ((pATI->Cursor > ATI_CURSOR_SOFTWARE) &&
-        !ATILoadModule(pScreenInfo, "ramdac", ATIramdacSymbols))
+        !xf86LoadSubModule(pScreenInfo, "ramdac"))
         return NULL;
 
 #ifdef USE_EXA
     /* Load EXA if needed */
     if (pATI->useEXA && pATI->OptionAccel)
     {
-        /* Cannot use ATILoadModule(), because of version checking */
         XF86ModReqInfo req;
         int errmaj, errmin;
 
@@ -247,17 +85,14 @@ ATILoadModules
             LoaderErrorMsg(NULL, "exa", errmaj, errmin);
             return NULL;
         }
-        xf86LoaderReqSymLists(ATIexaSymbols, NULL);
     }
 #endif
 #ifdef USE_XAA
     /* Load XAA if needed */
     if (!pATI->useEXA && pATI->OptionAccel &&
-        !ATILoadModule(pScreenInfo, "xaa", ATIxaaSymbols))
+        !xf86LoadSubModule(pScreenInfo, "xaa"))
         return NULL;
 #endif
 
     return fbPtr;
 }
-
-#endif /* XFree86LOADER */

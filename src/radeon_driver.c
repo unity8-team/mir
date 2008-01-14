@@ -225,197 +225,6 @@ static const OptionInfoRec RADEONOptions[] = {
 
 const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
-#ifdef WITH_VGAHW
-static const char *vgahwSymbols[] = {
-    "vgaHWFreeHWRec",
-    "vgaHWGetHWRec",
-    "vgaHWGetIndex",
-    "vgaHWLock",
-    "vgaHWRestore",
-    "vgaHWSave",
-    "vgaHWUnlock",
-    "vgaHWGetIOBase",
-    NULL
-};
-#endif
-
-static const char *ddcSymbols[] = {
-    "xf86PrintEDID",
-    "xf86DoEDID_DDC1",
-    "xf86DoEDID_DDC2",
-    NULL
-};
-
-static const char *fbSymbols[] = {
-    "fbScreenInit",
-    "fbPictureInit",
-    NULL
-};
-
-
-#ifdef USE_EXA
-static const char *exaSymbols[] = {
-    "exaDriverAlloc",
-    "exaDriverInit",
-    "exaDriverFini",
-    "exaOffscreenAlloc",
-    "exaOffscreenFree",
-    "exaGetPixmapOffset",
-    "exaGetPixmapPitch",
-    "exaGetPixmapSize",
-    "exaMarkSync",
-    "exaWaitSync",
-    NULL
-};
-#endif /* USE_EXA */
-
-#ifdef USE_XAA
-static const char *xaaSymbols[] = {
-    "XAACreateInfoRec",
-    "XAADestroyInfoRec",
-    "XAAInit",
-    NULL
-};
-#endif /* USE_XAA */
-
-#if 0
-static const char *xf8_32bppSymbols[] = {
-    "xf86Overlay8Plus32Init",
-    NULL
-};
-#endif
-
-static const char *ramdacSymbols[] = {
-    "xf86CreateCursorInfoRec",
-    "xf86DestroyCursorInfoRec",
-    "xf86ForceHWCursor",
-    "xf86InitCursor",
-    NULL
-};
-
-#ifdef XF86DRI
-static const char *drmSymbols[] = {
-    "drmGetInterruptFromBusID",
-    "drmCtlInstHandler",
-    "drmCtlUninstHandler",
-    "drmAddBufs",
-    "drmAddMap",
-    "drmAgpAcquire",
-    "drmAgpAlloc",
-    "drmAgpBase",
-    "drmAgpBind",
-    "drmAgpDeviceId",
-    "drmAgpEnable",
-    "drmAgpFree",
-    "drmAgpGetMode",
-    "drmAgpRelease",
-    "drmAgpUnbind",
-    "drmAgpVendorId",
-    "drmCommandNone",
-    "drmCommandRead",
-    "drmCommandWrite",
-    "drmCommandWriteRead",
-    "drmDMA",
-    "drmFreeVersion",
-    "drmGetLibVersion",
-    "drmGetVersion",
-    "drmMap",
-    "drmMapBufs",
-    "drmRadeonCleanupCP",
-    "drmRadeonClear",
-    "drmRadeonFlushIndirectBuffer",
-    "drmRadeonInitCP",
-    "drmRadeonResetCP",
-    "drmRadeonStartCP",
-    "drmRadeonStopCP",
-    "drmRadeonWaitForIdleCP",
-    "drmScatterGatherAlloc",
-    "drmScatterGatherFree",
-    "drmUnmap",
-    "drmUnmapBufs",
-    NULL
-};
-
-static const char *driSymbols[] = {
-    "DRICloseScreen",
-    "DRICreateInfoRec",
-    "DRIDestroyInfoRec",
-    "DRIFinishScreenInit",
-    "DRIGetContext",
-    "DRIGetDeviceInfo",
-    "DRIGetSAREAPrivate",
-    "DRILock",
-    "DRIQueryVersion",
-    "DRIScreenInit",
-    "DRIUnlock",
-    "GlxSetVisualConfigs",
-    "DRICreatePCIBusID",
-    NULL
-};
-#endif
-
-static const char *vbeSymbols[] = {
-    "VBEInit",
-    "vbeDoEDID",
-    NULL
-};
-
-static const char *int10Symbols[] = {
-    "xf86InitInt10",
-    "xf86FreeInt10",
-    "xf86int10Addr",
-    "xf86ExecX86int10",
-    NULL
-};
-
-static const char *i2cSymbols[] = {
-    "xf86CreateI2CBusRec",
-    "xf86I2CBusInit",
-    NULL
-};
-
-static const char *shadowSymbols[] = {
-    "shadowAdd",
-    "shadowInit",
-    "shadowSetup",
-    "shadowUpdatePacked",
-    "shadowUpdatePackedWeak",
-    NULL
-};
-
-void RADEONLoaderRefSymLists(void)
-{
-    /*
-     * Tell the loader about symbols from other modules that this module might
-     * refer to.
-     */
-    xf86LoaderRefSymLists(
-#ifdef WITH_VGAHW
-			  vgahwSymbols,
-#endif
-			  fbSymbols,
-#ifdef USE_EXA
-			  exaSymbols,
-#endif
-#ifdef USE_XAA
-			  xaaSymbols,
-#endif
-#if 0
-			  xf8_32bppSymbols,
-#endif
-			  ramdacSymbols,
-#ifdef XF86DRI
-			  drmSymbols,
-			  driSymbols,
-#endif
-			  vbeSymbols,
-			  int10Symbols,
-			  i2cSymbols,
-			  ddcSymbols,
-			  NULL);
-}
-
-#ifdef XFree86LOADER
 static int getRADEONEntityIndex(void)
 {
     int *radeon_entity_index = LoaderSymbol("gRADEONEntityIndex");
@@ -424,13 +233,6 @@ static int getRADEONEntityIndex(void)
     else
         return *radeon_entity_index;
 }
-#else
-extern int gRADEONEntityIndex;
-static int getRADEONEntityIndex(void)
-{
-    return gRADEONEntityIndex;
-}
-#endif
 
 struct RADEONInt10Save {
 	CARD32 MEM_CNTL;
@@ -2000,7 +1802,6 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
                    "using shadow framebuffer\n");
         if (!xf86LoadSubModule(pScrn, "shadow"))
             return FALSE;
-        xf86LoaderReqSymLists(shadowSymbols, NULL);
     }
     return TRUE;
 }
@@ -2016,16 +1817,13 @@ static void RADEONPreInitDDC(ScrnInfoPtr pScrn)
     if (!xf86LoadSubModule(pScrn, "ddc")) {
 	info->ddc2 = FALSE;
     } else {
-	xf86LoaderReqSymLists(ddcSymbols, NULL);
 	info->ddc2 = TRUE;
     }
 
     /* DDC can use I2C bus */
     /* Load I2C if we have the code to use it */
     if (info->ddc2) {
-	if (xf86LoadSubModule(pScrn, "i2c")) {
-	    xf86LoaderReqSymLists(i2cSymbols,NULL);
-	}
+	xf86LoadSubModule(pScrn, "i2c");
     }
 }
 
@@ -2045,7 +1843,6 @@ static Bool RADEONPreInitCursor(ScrnInfoPtr pScrn)
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	if (!xf86LoadSubModule(pScrn, "ramdac")) return FALSE;
-	xf86LoaderReqSymLists(ramdacSymbols, NULL);
     }
     return TRUE;
 }
@@ -2053,7 +1850,6 @@ static Bool RADEONPreInitCursor(ScrnInfoPtr pScrn)
 /* This is called by RADEONPreInit to initialize hardware acceleration */
 static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 {
-#ifdef XFree86LOADER
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     MessageType from;
 #if defined(USE_EXA) && defined(USE_XAA)
@@ -2101,7 +1897,6 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 		LoaderErrorMsg(NULL, "exa", errmaj, errmin);
 		return FALSE;
 	    }
-	    xf86LoaderReqSymLists(exaSymbols, NULL);
 	}
 #endif /* USE_EXA */
 #ifdef USE_XAA
@@ -2124,11 +1919,9 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 		    }
 		}
 	    }
-	    xf86LoaderReqSymLists(xaaSymbols, NULL);
 	}
 #endif /* USE_XAA */
     }
-#endif /* XFree86Loader */
 
     return TRUE;
 }
@@ -2141,8 +1934,6 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
     CARD32 fp2_gen_ctl_save   = 0;
 
     if (xf86LoadSubModule(pScrn, "int10")) {
-	xf86LoaderReqSymLists(int10Symbols, NULL);
-
 	/* The VGA BIOS on the RV100/QY cannot be read when the digital output
 	 * is enabled.  Clear and restore FP2_ON around int10 to avoid this.
 	 */
@@ -2726,7 +2517,7 @@ static const xf86CrtcConfigFuncsRec RADEONCRTCResizeFuncs = {
     RADEONCRTCResize
 };
 
-_X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
+Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 {
     xf86CrtcConfigPtr   xf86_config;
     RADEONInfoPtr     info;
@@ -2873,7 +2664,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
        if (!xf86LoadSubModule(pScrn, "vgahw"))
            info->VGAAccess = FALSE;
         else {
-           xf86LoaderReqSymLists(vgahwSymbols, NULL);
             if (!vgaHWGetHWRec(pScrn))
                info->VGAAccess = FALSE;
        }
@@ -2988,8 +2778,6 @@ _X_EXPORT Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
 	/* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb")) return FALSE;
-
-    xf86LoaderReqSymLists(fbSymbols, NULL);
 
     if (!RADEONPreInitGamma(pScrn))              goto fail;
 
