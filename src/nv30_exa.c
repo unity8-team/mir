@@ -421,8 +421,10 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_CLIP_HORIZ(0), 2);
 	OUT_RING  ((w-1+x)<<16);
 	OUT_RING  ((h-1+y)<<16);
-	BEGIN_RING(Nv3D, 0x02b8, 1);
-	OUT_RING((y<<16)|x);
+	if ((pNv->Chipset == CHIPSET_NV30) || (pNv->Chipset == CHIPSET_NV31)) {
+		BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_TX_ORIGIN, 1);
+		OUT_RING((y<<16)|x);
+	}
 
 	return TRUE;
 }
