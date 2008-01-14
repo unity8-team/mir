@@ -679,18 +679,14 @@ nv_ddc_detect(xf86OutputPtr output)
 }
 
 static Bool
-nv_crt_load_detect(xf86OutputPtr output)
+nv_load_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t reg_output, reg_test_ctrl, temp;
-	Bool present = FALSE;
-
-	/* For some reason we get false positives on output 1, maybe due tv-out? */
-	if (nv_output->preferred_output == 1) {
-		return FALSE;
-	}
+	uint32_t testval, regoffset = 0;
+	uint32_t saved1588 = 0, saved1590 = 0, saved_routput, saved_rtest_ctrl, temp;
+	int present = 0;
 
 	if (nv_output->pDDCBus != NULL) {
 		xf86MonPtr ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
@@ -700,33 +696,74 @@ nv_crt_load_detect(xf86OutputPtr output)
 		}
 	}
 
-	reg_output = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
-	reg_test_ctrl = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL);
+#define RGB_TEST_DATA(r,g,b) (r << 0 | g << 10 | b << 20)
+	testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
+	if (pNv->VBIOS.dactestval)
+		testval = pNv->VBIOS.dactestval;
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, (reg_test_ctrl & ~0x00010000));
+	/* something more clever than this, using output_resource, might be
+	 * required, as we might not be on the preferred output */
+	switch (pNv->dcb_table.entry[nv_output->dcb_entry].or) {
+	case 1:
+		regoffset = 0;
+		break;
+	case 2:
+		regoffset = 0x2000;
+		break;
+	case 4:
+		/* this gives rise to RAMDAC_670 and RAMDAC_594 */
+		regoffset = 0x68;
+		break;
+	}
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, (reg_output & 0x0000FEEE));
+	saved_rtest_ctrl = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);
+
+	if (pNv->NVArch >= 0x17) {
+		saved1588 = nvReadMC(pNv, 0x1588);
+
+		nvWriteMC(pNv, 0x1588, saved1588 & 0xd7ffffff);
+		if (regoffset == 0x68) {
+			saved1590 = nvReadMC(pNv, 0x1590);
+			nvWriteMC(pNv, 0x1590, saved1590 & 0xffffffcf);
+		}
+	}
+
+	usleep(4000);
+
+	saved_routput = nvReadRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset);
+	/* nv driver and nv31 use 0xfffffeee
+	 * nv34 and 6600 use 0xfffffece */
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, saved_routput & 0xfffffece);
 	usleep(1000);
 
-	temp = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, temp | 1);
+	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_DATA, 0x94050140);
-	temp = nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
-
+	/* no regoffset on purpose */
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
+	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
 	usleep(1000);
 
-	present = (nvReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
+	present = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset) & (1 << 28);
 
-	temp = NVOutputReadRAMDAC(output, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
+	/* no regoffset on purpose */
+	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_DATA, 0);
 
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, reg_output);
-	nvWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_TEST_CONTROL, reg_test_ctrl);
+	/* bios does something more complex for restoring, but I think this is good enough */
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, saved_routput);
+	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
+	if (pNv->NVArch >= 0x17) {
+		if (regoffset == 0x68)
+			nvWriteMC(pNv, 0x1590, saved1590);
+		nvWriteMC(pNv, 0x1588, saved1588);
+	}
 
 	if (present) {
-		ErrorF("A crt was detected on output %d with no ddc support\n", nv_output->preferred_output);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %d\n", nv_output->preferred_output);
 		return TRUE;
 	}
 
@@ -748,13 +785,19 @@ nv_tmds_output_detect(xf86OutputPtr output)
 static xf86OutputStatus
 nv_analog_output_detect(xf86OutputPtr output)
 {
+	NVPtr pNv = NVPTR(output->scrn);
+
 	ErrorF("nv_analog_output_detect is called\n");
+
+	/* assume a CRT connection on non dualhead cards */
+	if (!pNv->twoHeads)
+		return XF86OutputStatusConnected;
 
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
-	//if (nv_crt_load_detect(output))
-	//	return XF86OutputStatusConnected;
+	if (pNv->twoHeads && nv_load_detect(output))
+		return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
 }

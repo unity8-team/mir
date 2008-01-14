@@ -3154,6 +3154,50 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	return 1;
 }
 
+static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* offset + 13 (16 bits): pointer to table containing DAC load detection comparison values
+	 *
+	 * There's other things in this table, purpose unknown
+	 */
+
+	uint16_t offset;
+
+	if (bitentry->length < 15) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "BIT i table not long enough for DAC load detection comparison table\n");
+		return 0;
+	}
+
+	offset = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 13])));
+
+	/* doesn't exist on g80 */
+	if (!offset)
+		return 1;
+
+	/* The first value in the table, following the header, is the comparison value
+	 * Purpose of subsequent values unknown - TV load detection?
+	 */
+
+	uint8_t version = bios->data[offset];
+
+	if (version != 0x00 && version != 0x10) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "DAC load detection comparison table version %d.%d not known\n",
+			   version >> 4, version & 0xf);
+		return 0;
+	}
+
+	uint8_t headerlen = bios->data[offset + 1];
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "DAC load detection comparison table version %x found\n", version);
+
+	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[offset + headerlen])));
+
+	return 1;
+}
+
 static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
 {
 	/* Parses the LVDS table segment that the bit entry points to.
@@ -3287,21 +3331,18 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			parse_bit_C_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'D':
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found flat panel display table entry in BIT structure\n", offset);
 			parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'I':
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found init table entry in BIT structure\n", offset);
 			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
+			break;
+		case 'i':
+			parse_bit_i_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'L':
 			parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'M': /* memory? */
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "0x%04X: Found M table entry in BIT structure\n", offset);
 			parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'T':
