@@ -2023,6 +2023,15 @@ NVRestore(ScrnInfoPtr pScrn)
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
+
+			/* Let's clean our slate once again, so we always rewrite vpll's upon returning to X. */
+			state->vpll1_a = 0;
+			state->vpll1_b = 0;
+			state->vpll2_a = 0;
+			state->vpll2_b = 0;
+			state->reg594 = 0;
+			state->reg580 = 0;
+			state->pllsel = 0;
 		} else {
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
