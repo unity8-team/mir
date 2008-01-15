@@ -563,20 +563,24 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 	 * returns calculated clock
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	struct pll_lims pll_lim;
+
+	if (!get_pll_limits(pScrn, reg, &pll_lim))
+		return 0;
 
 	int crystal = 0;
-	uint32_t minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
-	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
-	int maxM1 = 13, M1, N1;
-	int maxM2 = 4, M2, N2;
-	uint32_t minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
-	int log2P;
-	int clkP;
-	int calcclk1, calcclk2, calcclkout, delta;
-	unsigned int bestdelta = UINT_MAX;
-	uint32_t bestclk = 0;
+	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
+	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
+	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
+	int maxU1 = pll_lim->vco1.max_inputfreq, maxU2 = pll_lim->vco2.max_inputfreq;
+	int minM1 = pll_lim->vco1.min_m, maxM1 = pll_lim->vco1.max_m;
+	int minN1 = pll_lim->vco1.min_n, maxN1 = pll_lim->vco1.max_n;
+	int minM2 = pll_lim->vco2.min_m, maxM2 = pll_lim->vco2.max_m;
+	int minN2 = pll_lim->vco2.min_n, maxN2 = pll_lim->vco2.max_n;
+	int M1, N1, M2, N2, log2P;
+	int clkP, calcclk1, calcclk2, calcclkout;
+	int delta, bestdelta = INT_MAX;
+	int bestclk = 0;
 
 	if (pll_lim->refclk)
 		crystal = pll_lim->refclk;
@@ -604,33 +608,39 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 	if (maxvco2 < clk + clk/200)	/* +0.5% */
 		maxvco2 = clk + clk/200;
 
-	for (M1 = 1; M1 <= maxM1; M1++) {
+	for (M1 = minM1; M1 <= maxM1; M1++) {
 		if (crystal/M1 < minU1)
 			return bestclk;
+		if (crystal/M1 > maxU1)
+			continue;
 
-		for (N1 = 1; N1 <= 0xff; N1++) {
+		for (N1 = minN1; N1 <= maxN1; N1++) {
 			calcclk1 = crystal * N1 / M1;
 			if (calcclk1 < minvco1)
 				continue;
 			if (calcclk1 > maxvco1)
 				break;
 
-			for (M2 = 1; M2 <= maxM2; M2++) {
+			for (M2 = minM2; M2 <= maxM2; M2++) {
 				if (calcclk1/M2 < minU2)
 					break;
+				if (calcclk1/M2 > maxU2)
+					continue;
 
 				/* add calcclk1/2 to round better */
 				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
-				if (bios->chip_version == 0x30 && N2 > 0x1F) /* Only 5 bits available */
+				if (N2 < minN2)
 					continue;
-				/* this N2 > maxM2 test is a bit weird, but it's correct for nv31 */
-				if (N2 < 4 || N2 > 0x46 || N2 > maxM2)
-					continue;
+				if (N2 > maxN2)
+					break;
+
 				if (N2/M2 < 4 || N2/M2 > 10)
 					continue;
 
 				calcclk2 = calcclk1 * N2 / M2;
-				if (calcclk2 < minvco2 || calcclk2 > maxvco2)
+				if (calcclk2 < minvco2)
+					break;
+				if (calcclk2 > maxvco2)
 					continue;
 
 				calcclkout = calcclk2 >> log2P;
@@ -3005,6 +3015,25 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 		pll_lim->vco2.maxfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 12])));
 		pll_lim->vco1.min_inputfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 16])));
 		pll_lim->vco2.min_inputfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 20])));
+		pll_lim->vco1.max_inputfreq = pll_lim->vco2.max_inputfreq = INT_MAX;
+
+		/* these values taken from nv31. nv30, nv36 might do better with different ones */
+		pll_lim->vco1.min_n = 0x1;
+		pll_lim->vco1.max_n = 0xff;
+		pll_lim->vco1.min_m = 0x1;
+		pll_lim->vco1.max_m = 0xd;
+		pll_lim->vco2.min_n = 0x4;
+		pll_lim->vco2.max_n = 0x46;
+		if (bios->chip_version == 0x30)
+		       /* only 5 bits available for N2 on nv30 */
+			pll_lim->vco2.max_n = 0x1f;
+		if (bios->chip_version == 0x31)
+			/* on nv31, N2 is compared to maxN2 (0x46) and maxM2 (0x4),
+			 * so set maxN2 to 0x4 and save a comparison
+			 */
+			pll_lim->vco2.max_n = 0x4;
+		pll_lim->vco2.min_m = 0x1;
+		pll_lim->vco2.max_m = 0x4;
 	} else {	/* ver 0x20, 0x21 */
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 
