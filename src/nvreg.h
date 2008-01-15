@@ -29,54 +29,71 @@
 //#define NV_IMAGE_PATTERN              0x18
 
 
-#define NV_PRAMIN_OFFSET            0x00710000
-#define NV_PRAMIN_SIZE              0x00100000
-
-#define NV_PCRTC0_OFFSET            0x00600000
-#define NV_PCRTC0_SIZE              0x00002000 /* empirical */
-
-#define NV50_PCRTC_OFFSET		0x00610000
-#define NV50_PCRTC_SIZE		0x00004000 /* Until a better guess comes along */
-
-#define NV_PRAMDAC0_OFFSET          0x00680000
-#define NV_PRAMDAC0_SIZE            0x00002000
-
-#define NV_PFB_OFFSET               0x00100000
-#define NV_PFB_SIZE                 0x00001000
-
-#define NV_PFIFO_OFFSET             0x00002000
-#define NV_PFIFO_SIZE               0x00010000
-
-#define NV_PGRAPH_OFFSET            0x00400000
-#define NV_PGRAPH_SIZE              0x00010000
-
-#define NV_PEXTDEV_OFFSET           0x00101000
-#define NV_PEXTDEV_SIZE             0x00001000
-
-#define NV_PTIMER_OFFSET            0x00009000
-#define NV_PTIMER_SIZE              0x00001000
-
-#define NV_PVIDEO_OFFSET            0x00008000
-#define NV_PVIDEO_SIZE              0x00001000
-
 /* TODO PMC size is 0x1000, but we need to get ride of abuses first */
 #define NV_PMC_OFFSET               0x00000000
 #define NV_PMC_SIZE                 0x0000f000
 
-#define NV_FIFO_OFFSET              0x00800000
-#define NV_FIFO_SIZE                0x00800000
+#define NV_PBUS_OFFSET              0x00001000
+#define NV_PBUS_SIZE                0x00001000
 
-#define NV_PCIO0_OFFSET             0x00601000
-#define NV_PCIO0_SIZE               0x00002000
+#define NV_PFIFO_OFFSET             0x00002000
+#define NV_PFIFO_SIZE               0x00010000
 
-#define NV_PDIO0_OFFSET             0x00681000
-#define NV_PDIO0_SIZE               0x00002000
+#define NV_HDIAG_OFFSET             0x00005000
+#define NV_HDIAG_SIZE               0x00001000
+
+#define NV_PRAM_OFFSET              0x00005000
+#define NV_PRAM_SIZE                0x00001000
+
+#define NV_PVIDEO_OFFSET            0x00008000
+#define NV_PVIDEO_SIZE              0x00001000
+
+#define NV_PTIMER_OFFSET            0x00009000
+#define NV_PTIMER_SIZE              0x00001000
+
+#define NV_PPM_OFFSET               0x0000A000
+#define NV_PPM_SIZE                 0x00001000
+
+#define NV_PVGA_OFFSET              0x000A0000
+#define NV_PVGA_SIZE                0x00020000
 
 #define NV_PVIO_OFFSET              0x000C0000
 #define NV_PVIO_SIZE                0x00008000
 
+#define NV_PFB_OFFSET               0x00100000
+#define NV_PFB_SIZE                 0x00001000
+
+#define NV_PEXTDEV_OFFSET           0x00101000
+#define NV_PEXTDEV_SIZE             0x00001000
+
 #define NV_PROM_OFFSET              0x00300000
 #define NV_PROM_SIZE                0x00010000
+
+#define NV_PGRAPH_OFFSET            0x00400000
+#define NV_PGRAPH_SIZE              0x00010000
+
+#define NV_PCRTC0_OFFSET            0x00600000
+#define NV_PCRTC0_SIZE              0x00002000 /* empirical */
+
+#define NV_PCIO0_OFFSET             0x00601000
+#define NV_PCIO0_SIZE               0x00002000
+
+#define NV50_PCRTC_OFFSET           0x00610000
+#define NV50_PCRTC_SIZE             0x00004000 /* Until a better guess comes along */
+
+#define NV_PRAMDAC0_OFFSET          0x00680000
+#define NV_PRAMDAC0_SIZE            0x00002000
+
+#define NV_PDIO0_OFFSET             0x00681000
+#define NV_PDIO0_SIZE               0x00002000
+
+#define NV_PRAMIN_OFFSET            0x00710000
+#define NV_PRAMIN_SIZE              0x00100000
+
+#define NV_FIFO_OFFSET              0x00800000
+#define NV_FIFO_SIZE                0x00800000
+
+
 
 /* Nvidia CRTC indexed registers */
 /* VGA standard registers: - from Haiku */
