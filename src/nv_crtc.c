@@ -945,11 +945,8 @@ void nv_crtc_calc_state_ext(
 		}
 	}
 
-	if (nv_crtc->head == 1) {
-		state->vpll_changed[1] = ((state->vpll2_a == old_clock_a) && (state->vpll2_b == old_clock_b)) ? FALSE : TRUE;
-	} else {
-		state->vpll_changed[0] = ((state->vpll1_a == old_clock_a) && (state->vpll1_b == old_clock_b)) ? FALSE : TRUE;
-	}
+	/* always reset vpll, just to be sure. */
+	state->vpll_changed[nv_crtc->head] = TRUE;
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
@@ -2606,8 +2603,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	NVCrtcRegPtr regp;
 
@@ -2615,7 +2610,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	NVWriteMiscOut(crtc, regp->MiscOutReg);
 
-	for (i = 0; i < 5; i++)
+	for (i = 1; i < 5; i++)
 		NVWriteVgaSeq(crtc, i, regp->Sequencer[i]);
 
 	/* Ensure CRTC registers 0-7 are unlocked by clearing bit 7 of CRTC[17] */
@@ -2632,12 +2627,6 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		NVWriteVgaAttr(crtc, i, regp->Attribute[i]);
 
 	NVDisablePalette(crtc);
-
-	/* Some extended regs. */
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LSR, regp->CRTC[NV_VGA_CRTCX_LSR]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_HEB, regp->CRTC[NV_VGA_CRTCX_HEB]);
-	if (pNv->Architecture >= NV_ARCH_10)
-		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
 }
 
 static void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
@@ -2695,8 +2684,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT0, regp->CRTC[NV_VGA_CRTCX_REPAINT0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, regp->CRTC[NV_VGA_CRTCX_REPAINT1]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LSR, regp->CRTC[NV_VGA_CRTCX_LSR]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_PIXEL, regp->CRTC[NV_VGA_CRTCX_PIXEL]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LCD, regp->CRTC[NV_VGA_CRTCX_LCD]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_HEB, regp->CRTC[NV_VGA_CRTCX_HEB]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO1, regp->CRTC[NV_VGA_CRTCX_FIFO1]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO0, regp->CRTC[NV_VGA_CRTCX_FIFO0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_FIFO_LWM, regp->CRTC[NV_VGA_CRTCX_FIFO_LWM]);
@@ -2713,6 +2704,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
 	if (pNv->Architecture >= NV_ARCH_10) {
+		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
@@ -2743,8 +2735,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 	int i;
 	NVCrtcRegPtr regp;
 
@@ -2763,14 +2753,8 @@ static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	for (i = 0; i < 9; i++)
 		regp->Graphics[i] = NVReadVgaGr(crtc, i);
 
-	for (i = 0; i < 5; i++)
+	for (i = 1; i < 5; i++)
 		regp->Sequencer[i] = NVReadVgaSeq(crtc, i);
-
-	/* Some extended regs. */
-	regp->CRTC[NV_VGA_CRTCX_LSR] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_LSR);
-	regp->CRTC[NV_VGA_CRTCX_HEB] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_HEB);
-	if (pNv->Architecture >= NV_ARCH_10)
-		regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA);
 }
 
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -2786,7 +2770,9 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_LCD] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_LCD);
 	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT0);
 	regp->CRTC[NV_VGA_CRTCX_REPAINT1] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1);
+	regp->CRTC[NV_VGA_CRTCX_LSR] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_LSR);
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_PIXEL);
+	regp->CRTC[NV_VGA_CRTCX_HEB] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_HEB);
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FIFO1);
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_FIFO0);
@@ -2818,6 +2804,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
 	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
 	if (pNv->Architecture >= NV_ARCH_10) {
+		regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA);
 		regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_43);
 		regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_45);
 		regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_4B);
