@@ -2792,8 +2792,10 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 			regp->unk850 = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_0850);
 			regp->unk81c = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_081C);
 		}
-		regp->head = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL);
-		regp->crtcOwner = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_OWNER);
+		if (pNv->twoHeads) {
+			regp->head = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_FSEL);
+			regp->crtcOwner = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_OWNER);
+		}
 		regp->cursorConfig = nvReadCRTC(pNv, nv_crtc->head, NV_CRTC_CURSOR_CONFIG);
 	}
 

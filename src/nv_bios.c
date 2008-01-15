@@ -383,18 +383,23 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 #define ACCESS_LOCK 1
 static void crtc_access(ScrnInfoPtr pScrn, Bool lock)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	int savedhead = crtchead;
 	uint8_t cr11;
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADA);
+	/* necessary external dependancy (twoHeads) */
+	if (pNv->twoHeads)
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADA);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
 	cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADB);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
-	cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
+	if (pNv->twoHeads) {
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADB);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+		cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
+	}
 
 	crtchead = savedhead;
 }
