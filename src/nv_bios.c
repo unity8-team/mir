@@ -568,7 +568,7 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 
 	int crystal = 0;
 	uint32_t minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
-	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq, vco2;
+	uint32_t minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
 	int maxM1 = 13, M1, N1;
 	int maxM2 = 4, M2, N2;
 	uint32_t minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
@@ -578,31 +578,31 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 	unsigned int bestdelta = UINT_MAX;
 	uint32_t bestclk = 0;
 
-	/* some defaults */
-	*bestNM1 = 0xff << 8 | 13;
-	*bestNM2 = 0xff << 8 | 5;
-	*bestlog2P = 6;
+	if (pll_lim->refclk)
+		crystal = pll_lim->refclk;
+	else
+		switch (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & (1 << 22 | 1 << 6)) {
+		case 0:
+			crystal = 13500;
+			break;
+		case (1 << 6):
+			crystal = 14318;
+			break;
+		case (1 << 22):
+			crystal = 27000;
+			break;
+		case (1 << 22 | 1 << 6):
+			crystal = 25000;
+			break;
+		}
 
-	switch (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & (1 << 22 | 1 << 6)) {
-	case 0:
-		crystal = 13500;
-		break;
-	case (1 << 6):
-		crystal = 14318;
-		break;
-	case (1 << 22):
-	case (1 << 22 | 1 << 6):
-		crystal = 27000;
-		break;
-	}
-
-	if (maxvco2 < clk + clk/200)	/* +0.5% */
-		maxvco2 = clk + clk/200;
-	vco2 = (maxvco2 - maxvco2/200) / 2;
-
+	int vco2 = (maxvco2 - maxvco2/200) / 2;
 	for (log2P = 0; log2P < 6 && clk <= (vco2 >> log2P); log2P++) /* log2P is maximum of 6 */
 		;
 	clkP = clk << log2P;
+
+	if (maxvco2 < clk + clk/200)	/* +0.5% */
+		maxvco2 = clk + clk/200;
 
 	for (M1 = 1; M1 <= maxM1; M1++) {
 		if (crystal/M1 < minU1)
@@ -3037,8 +3037,8 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 
 		/* What input frequencies do they accept (past the m-divider)? */
 		pll_lim->vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 12])));
-		pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14])));
-		pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16])));
+		pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14])));
+		pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16])));
 		pll_lim->vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 18])));
 
 		/* What values are accepted as multiplier and divider? */
@@ -3051,15 +3051,12 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 		pll_lim->vco2.min_m = bios->data[plloffs + 26];
 		pll_lim->vco2.max_m = bios->data[plloffs + 27];
 
-		pll_lim->unk1c = bios->data[plloffs + 28];
-		pll_lim->unk1d = bios->data[plloffs + 29];
+		pll_lim->unk1c = bios->data[plloffs + 28]; /* minP? */
+		pll_lim->unk1d = bios->data[plloffs + 29]; /* maxP? */
 		pll_lim->unk1e = bios->data[plloffs + 30];
 
-		if (bios->chip_version == 0x40) { /* quirk */
-			if (pll_lim->vco2.min_inputfreq > pll_lim->vco2.max_inputfreq) {
-				pll_lim->vco2.min_inputfreq = pll_lim->vco2.max_inputfreq/4;
-			}
-		}
+		if (recordlen > 0x22)
+			pll_lim->refclk = le32_to_cpu(*((uint32_t *)&bios->data[plloffs + 31]));
 	}
 
 #if 1 /* for easy debugging */

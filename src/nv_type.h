@@ -285,6 +285,7 @@ struct pll_lims {
 	uint8_t unk1c;
 	uint8_t unk1d;
 	uint8_t unk1e;
+	uint32_t refclk;
 };
 
 typedef struct {
