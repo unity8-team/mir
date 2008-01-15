@@ -395,10 +395,9 @@ CalculateVClkNV4x_SingleVCO(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clockI
 	uint32_t refClk = pNv->CrystalFreqKHz;
 	bestDelta = clockIn;
 
-	/* bios clocks are in MHz, we use KHz */
-	minVCOInputFreq = pll_lim->vco1.min_inputfreq*1000;
-	minVCOFreq = pll_lim->vco1.minfreq*1000;
-	maxVCOFreq = pll_lim->vco1.maxfreq*1000;
+	minVCOInputFreq = pll_lim->vco1.min_inputfreq;
+	minVCOFreq = pll_lim->vco1.minfreq;
+	maxVCOFreq = pll_lim->vco1.maxfreq;
 	minM = pll_lim->vco1.min_m;
 	maxM = pll_lim->vco1.max_m;
 	minN = pll_lim->vco1.min_n;
@@ -471,19 +470,18 @@ CalculateVClkNV4x_DoubleVCO(NVPtr pNv, struct pll_lims *pll_lim, uint32_t clockI
 	uint32_t refClk = pNv->CrystalFreqKHz;
 	bestDelta = clockIn;
 
-	/* bios clocks are in MHz, we use KHz */
-	minVCOInputFreq = pll_lim->vco1.min_inputfreq*1000;
-	minVCOFreq = pll_lim->vco1.minfreq*1000;
-	maxVCOFreq = pll_lim->vco1.maxfreq*1000;
+	minVCOInputFreq = pll_lim->vco1.min_inputfreq;
+	minVCOFreq = pll_lim->vco1.minfreq;
+	maxVCOFreq = pll_lim->vco1.maxfreq;
 	minM = pll_lim->vco1.min_m;
 	maxM = pll_lim->vco1.max_m;
 	minN = pll_lim->vco1.min_n;
 	maxN = pll_lim->vco1.max_n;
 
-	minVCO2InputFreq = pll_lim->vco2.min_inputfreq*1000;
-	maxVCO2InputFreq = pll_lim->vco2.max_inputfreq*1000;
-	minVCO2Freq = pll_lim->vco2.minfreq*1000;
-	maxVCO2Freq = pll_lim->vco2.maxfreq*1000;
+	minVCO2InputFreq = pll_lim->vco2.min_inputfreq;
+	maxVCO2InputFreq = pll_lim->vco2.max_inputfreq;
+	minVCO2Freq = pll_lim->vco2.minfreq;
+	maxVCO2Freq = pll_lim->vco2.maxfreq;
 	minM2 = pll_lim->vco2.min_m;
 	maxM2 = pll_lim->vco2.max_m;
 	minN2 = pll_lim->vco2.min_n;
@@ -639,7 +637,7 @@ CalculateVClkNV4x(
 		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
 
-	if (requested_clock < pll_lim.vco1.maxfreq*1000 && pNv->NVArch > 0x40) { /* single VCO */
+	if (requested_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* single VCO */
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Bogus data, the same nvidia uses */

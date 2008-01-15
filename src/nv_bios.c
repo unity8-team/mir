@@ -3029,17 +3029,19 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading PLL limits for reg 0x%08x\n",
 				   le32_to_cpu(*((uint32_t *)(&bios->data[plloffs]))));
 
+		/* frequencies are stored in tables in MHz, kHz are more useful, so we convert */
+
 		/* What output frequencies can each VCO generate? */
-		pll_lim->vco1.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 4])));
-		pll_lim->vco1.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 6])));
-		pll_lim->vco2.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 8])));
-		pll_lim->vco2.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 10])));
+		pll_lim->vco1.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 4]))) * 1000;
+		pll_lim->vco1.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 6]))) * 1000;
+		pll_lim->vco2.minfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 8]))) * 1000;
+		pll_lim->vco2.maxfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 10]))) * 1000;
 
 		/* What input frequencies do they accept (past the m-divider)? */
-		pll_lim->vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 12])));
-		pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14])));
-		pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16])));
-		pll_lim->vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 18])));
+		pll_lim->vco1.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 12]))) * 1000;
+		pll_lim->vco2.min_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 14]))) * 1000;
+		pll_lim->vco1.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 16]))) * 1000;
+		pll_lim->vco2.max_inputfreq = le16_to_cpu(*((uint16_t *)(&bios->data[plloffs + 18]))) * 1000;
 
 		/* What values are accepted as multiplier and divider? */
 		pll_lim->vco1.min_n = bios->data[plloffs + 20];
