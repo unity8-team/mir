@@ -833,21 +833,21 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			xfree(nv_output->native_mode);
 		nv_output->native_mode = NULL;
 		/* Disabled for the moment, because it's not essential and caused problems with "newrestore". */
-		//if (nv_output->type == OUTPUT_TMDS) {
-		//	DisplayModePtr cvtmode;
+		if (nv_output->type == OUTPUT_TMDS) {
+			DisplayModePtr cvtmode;
 			/* Add a native resolution mode that is preferred */
 			/* Reduced blanking should be fine on DVI monitor */
-		//	cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
-		//	cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
+			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
+			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
 
 			/* can xf86CVTMode generate invalid modes? */
-		//	if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
-		//		ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
-		//		nv_output->native_mode = xf86DuplicateMode(cvtmode);
-		//	} else {
-		//		xf86DeleteMode(&cvtmode, cvtmode);
-		//	}
-		//}
+			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
+				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
+				nv_output->native_mode = xf86DuplicateMode(cvtmode);
+			} else {
+				xf86DeleteMode(&cvtmode, cvtmode);
+			}
+		}
 
 		if (!nv_output->native_mode)
 			for (mode = ddc_modes; mode != NULL; mode = mode->next)
@@ -863,9 +863,9 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		}
 
 		/* We want the new mode to be the only preferred one */
-		//for (mode = ddc_modes; mode != NULL; mode = mode->next)
-		//	if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
-		//		mode->type &= ~M_T_PREFERRED;
+		for (mode = ddc_modes; mode != NULL; mode = mode->next)
+			if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
+				mode->type &= ~M_T_PREFERRED;
 	}
 
 	return ddc_modes;
