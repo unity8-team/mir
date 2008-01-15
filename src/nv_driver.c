@@ -1832,6 +1832,29 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     return TRUE;
 }
 
+/* 
+ * Match a private mode flag in a special function.
+ * I don't want ugly casting all over the code.
+ */
+Bool
+NVMatchModePrivate(DisplayModePtr mode, uint32_t flags)
+{
+	if (!mode)
+		return FALSE;
+	if (!mode->Private)
+		return FALSE;
+
+	/* It's a stupid INT32 pointer. */
+	NVModePrivatePtr nv_mode = (NVModePrivatePtr)mode->Private;
+
+	if (!nv_mode->Flags)
+		return FALSE;
+	if (nv_mode->Flags & flags)
+		return TRUE;
+
+	return FALSE;
+}
+
 static void
 NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -2000,10 +2023,15 @@ NVRestore(ScrnInfoPtr pScrn)
 
 				mode = xf86DuplicateMode(good_mode);
 
-				if (console->vga_mode)
-					mode->PrivFlags |= NV_MODE_VGA;
+				NVModePrivatePtr nv_mode = xnfcalloc(sizeof(NVModePrivateRec), 1);
 
-				mode->PrivFlags |= NV_MODE_CONSOLE;
+				if (console->vga_mode)
+					nv_mode->Flags |= NV_MODE_VGA;
+
+				nv_mode->Flags |= NV_MODE_CONSOLE;
+
+				/* Don't ask me why on earth it's a INT32 pointer. */
+				mode->Private = (INT32 *) nv_mode;
 
 				uint8_t scale_backup = nv_output->scaling_mode;
 				if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
@@ -2014,6 +2042,7 @@ NVRestore(ScrnInfoPtr pScrn)
 				/* Restore value, so we reenter X properly. */
 				nv_output->scaling_mode = scale_backup;
 
+				xfree(mode->Private);
 				xfree(mode);
 			}
 

@@ -635,7 +635,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
 
-	nv_output_mode_set_routing(output, mode->PrivFlags & NV_MODE_CONSOLE);
+	nv_output_mode_set_routing(output, NVMatchModePrivate(mode, NV_MODE_CONSOLE));
 }
 
 static xf86MonPtr

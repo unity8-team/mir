@@ -12,6 +12,7 @@ Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
 void   NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
+Bool NVMatchModePrivate(DisplayModePtr mode, uint32_t flags);
 
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
