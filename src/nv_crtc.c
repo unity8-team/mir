@@ -631,10 +631,10 @@ CalculateVClkNV4x(
 	uint32_t special_bits = 0;
 
 	if (primary) {
-		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
+		if (!get_pll_limits_plltype(pScrn, VPLL1, &pll_lim))
 			return;
 	} else
-		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
+		if (!get_pll_limits_plltype(pScrn, VPLL2, &pll_lim))
 			return;
 
 	if (requested_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* single VCO */
@@ -916,10 +916,8 @@ void nv_crtc_calc_state_ext(
 			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
 		}
 	} else if (pNv->twoStagePLL) {
-		struct pll_lims pll_lim;
 		int NM1, NM2, log2P;
-		get_pll_limits(pScrn, 0, &pll_lim);
-		VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+		VClk = getMNP_double(pScrn, 0, dotClock, &NM1, &NM2, &log2P);
 		if (pNv->NVArch == 0x30) {
 			/* See nvregisters.xml for details. */
 			state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;

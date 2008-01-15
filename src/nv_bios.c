@@ -552,7 +552,9 @@ nextP:
 	return bestclk;
 }
 
-uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk, int *bestNM1, int *bestNM2, int *bestlog2P)
+Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim);
+
+int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -568,22 +570,22 @@ uint32_t getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, uint32_t clk
 	if (!get_pll_limits(pScrn, reg, &pll_lim))
 		return 0;
 
+	int minvco1 = pll_lim.vco1.minfreq, maxvco1 = pll_lim.vco1.maxfreq;
+	int minvco2 = pll_lim.vco2.minfreq, maxvco2 = pll_lim.vco2.maxfreq;
+	int minU1 = pll_lim.vco1.min_inputfreq, minU2 = pll_lim.vco2.min_inputfreq;
+	int maxU1 = pll_lim.vco1.max_inputfreq, maxU2 = pll_lim.vco2.max_inputfreq;
+	int minM1 = pll_lim.vco1.min_m, maxM1 = pll_lim.vco1.max_m;
+	int minN1 = pll_lim.vco1.min_n, maxN1 = pll_lim.vco1.max_n;
+	int minM2 = pll_lim.vco2.min_m, maxM2 = pll_lim.vco2.max_m;
+	int minN2 = pll_lim.vco2.min_n, maxN2 = pll_lim.vco2.max_n;
 	int crystal = 0;
-	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
-	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
-	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
-	int maxU1 = pll_lim->vco1.max_inputfreq, maxU2 = pll_lim->vco2.max_inputfreq;
-	int minM1 = pll_lim->vco1.min_m, maxM1 = pll_lim->vco1.max_m;
-	int minN1 = pll_lim->vco1.min_n, maxN1 = pll_lim->vco1.max_n;
-	int minM2 = pll_lim->vco2.min_m, maxM2 = pll_lim->vco2.max_m;
-	int minN2 = pll_lim->vco2.min_n, maxN2 = pll_lim->vco2.max_n;
 	int M1, N1, M2, N2, log2P;
 	int clkP, calcclk1, calcclk2, calcclkout;
 	int delta, bestdelta = INT_MAX;
 	int bestclk = 0;
 
-	if (pll_lim->refclk)
-		crystal = pll_lim->refclk;
+	if (pll_lim.refclk)
+		crystal = pll_lim.refclk;
 	else
 		switch (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & (1 << 22 | 1 << 6)) {
 		case 0:
@@ -765,8 +767,6 @@ static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, in
 #endif
 }
 
-Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
-
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
@@ -774,10 +774,7 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 
 	// FIXME: both getMNP versions will need some alterations for nv40 type stuff
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
-		struct pll_lims pll_lim;
-		// for NV40, pll_type will need setting
-		get_pll_limits(pScrn, 0, &pll_lim);
-		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
+		getMNP_double(pScrn, reg, clk, &NM1, &NM2, &log2P);
 		setPLL_double(pScrn, reg, NM1, NM2, log2P);
 	} else {
 		getMNP_single(pScrn, clk, &NM1, &log2P);
@@ -2955,7 +2952,63 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 		   bios->data[offset + 1], bios->data[offset]);
 }
 
-Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim)
+//int getMNP_double_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, int clk, int *NM1, int *NM2, int *log2P)
+int get_pll_limits_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim)
+{
+	/*
+	 * Here we just try to find a register matching plltype in the PLL
+	 * limits table. The table is better explained in get_pll_limits below.
+	 */
+
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	int regdelta = 0;
+
+	if (!bios->pll_limit_tbl_ptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to PLL limits table invalid\n");
+		return 0;
+	}
+
+	switch (bios->data[bios->pll_limit_tbl_ptr]) {
+	case 0x10:
+		return get_pll_limits(pScrn, 0, pll_lim);
+//		return getMNP_double(pScrn, 0, clk, NM1, NM2, log2P);
+	case 0x21:
+		regdelta = 4;
+	case 0x20:
+		{
+		uint8_t headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
+		uint8_t recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
+		uint8_t entries = bios->data[bios->pll_limit_tbl_ptr + 3];
+		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
+		int i;
+		uint32_t reg = 0;
+
+		for (i = 1; i < entries; i++) {
+			uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
+			/* version 0x21 compares (the_desired_reg - 4) with the reg field */
+			cmpreg += regdelta;
+
+			if (plltype == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010)) {
+				reg = cmpreg - regdelta;
+				break;
+			}
+			if (plltype == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018)) {
+				reg = cmpreg - regdelta;
+				break;
+			}
+		}
+
+		return get_pll_limits(pScrn, reg, pll_lim);
+//		return getMNP_double(pScrn, reg, clk, NM1, NM2, log2P);
+		}
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "PLL limits table revision not currently supported\n");
+		return 0;
+	}
+}
+
+Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 {
 	/* PLL limits table
 	 *
@@ -2978,11 +3031,11 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 		return FALSE;
 	}
 
-	pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr + 0];
+	pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found BIT PLL limits table version 0x%X\n", pll_lim_ver);
+			   "Found PLL limits table version 0x%X\n", pll_lim_ver);
 
 	switch (pll_lim_ver) {
 	case 0x10:
@@ -2991,8 +3044,10 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 		entries = 1;
 		pllindex = 0;
 		break;
-	case 0x20:
 	case 0x21:
+		/* version 0x21 compares (the_desired_reg - 4) with the reg field */
+		reg -= 4;
+	case 0x20:
 		headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
 		recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
 		entries = bios->data[bios->pll_limit_tbl_ptr + 3];
@@ -3037,26 +3092,21 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *
 	} else {	/* ver 0x20, 0x21 */
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 
-		for (i = 0; i < entries; i++) {
-			uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
+		/* first entry is default match, if nothing better. warn if reg field nonzero */
+		if (le32_to_cpu(*((uint32_t *)&bios->data[plloffs + recordlen])))
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "Default PLL limit entry has non-zero register field\n");
 
-			if (plltype == VPLL1 && (reg == 0x680508 || reg == 0x4010)) {
+		for (i = 1; i < entries; i++)
+			if (le32_to_cpu(*((uint32_t *)&bios->data[plloffs + recordlen * i])) == reg) {
 				pllindex = i;
 				break;
 			}
-			if (plltype == VPLL2 && (reg == 0x680520 || reg == 0x4018)) {
-				pllindex = i;
-				break;
-			}
-			if (reg == 0x0000) /* generic pll settings */
-				pllindex = i;
-		}
 
 		plloffs += recordlen * pllindex;
 
 		if (DEBUGLEVEL >= 6)
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading PLL limits for reg 0x%08x\n",
-				   le32_to_cpu(*((uint32_t *)(&bios->data[plloffs]))));
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading PLL limits for reg 0x%08x\n", reg);
 
 		/* frequencies are stored in tables in MHz, kHz are more useful, so we convert */
 
