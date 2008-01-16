@@ -28,7 +28,7 @@
 #include "atibus.h"
 #include "atichip.h"
 #include "atimach64io.h"
-#include "ativersion.h"
+#include "atimach64version.h"
 
 const char *ATIFoundryNames[] =
     { "SGS", "NEC", "KCS", "UMC", "TSMC", "5", "6", "UMC" };
@@ -114,7 +114,7 @@ ATIMach64ChipID
                     pATI->Chip = ATI_CHIP_264GT;
                 else
                     xf86Msg(X_WARNING,
-                            ATI_NAME ":  Mach64 chip type probe discrepancy"
+                            MACH64_NAME ":  Mach64 chip type probe discrepancy"
                             " detected:  PCI=0x%04X;  CHIP_ID=0x%04X.\n",
                             ExpectedChipType, pATI->ChipType);
             }

@@ -32,8 +32,8 @@
 #include "atibus.h"
 #include "atichip.h"
 #include "atimach64io.h"
+#include "atimach64version.h"
 #include "atiprobe.h"
-#include "ativersion.h"
 #include "atividmem.h"
 #include "atiwonderio.h"
 
@@ -58,7 +58,7 @@ ATIVGAWonderProbe
             if (!pATI->OptionProbeSparse)
             {
                 xf86Msg(X_WARNING,
-                    ATI_NAME ":  Expected VGA Wonder capability at I/O port"
+                    MACH64_NAME ":  Expected VGA Wonder capability at I/O port"
                     " 0x%04lX will not be probed\n"
                     "set option \"probe_sparse\" to force probing.\n",
                     pATI->CPIO_VGAWonder);
@@ -96,13 +96,13 @@ ATIVGAWonderProbe
                 (IOValue6 == 0))
             {
                 xf86MsgVerb(X_INFO, 3,
-                    ATI_NAME ":  VGA Wonder at I/O port 0x%04lX detected.\n",
+                    MACH64_NAME ":  VGA Wonder at I/O port 0x%04lX detected.\n",
                     pATI->CPIO_VGAWonder);
             }
             else
             {
                 xf86Msg(X_WARNING,
-                    ATI_NAME ":  Expected VGA Wonder capability at I/O port"
+                    MACH64_NAME ":  Expected VGA Wonder capability at I/O port"
                     " 0x%04lX was not detected.\n", pATI->CPIO_VGAWonder);
                 pATI->CPIO_VGAWonder = 0;
             }
@@ -398,7 +398,7 @@ ATIMach64ProbeIO
 
         if (j == 0x03U)
         {
-            xf86Msg(X_WARNING, ATI_NAME ": "
+            xf86Msg(X_WARNING, MACH64_NAME ": "
                 "PCI Mach64 in slot %d:%d:%d cannot be enabled\n"
                 "because it has neither a block, nor a sparse, I/O base.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
@@ -418,7 +418,7 @@ ATIMach64ProbeIO
          */
         if (!pATI->OptionProbeSparse)
         {
-            xf86Msg(X_WARNING, ATI_NAME ": "
+            xf86Msg(X_WARNING, MACH64_NAME ": "
                 "PCI Mach64 in slot %d:%d:%d will not be probed\n"
                 "set option \"probe_sparse\" to force sparse I/O probing.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
@@ -439,14 +439,14 @@ ATIMach64ProbeIO
 
         if (!ATIMach64Probe(pATI, pVideo, pATI->Chip))
         {
-            xf86Msg(X_WARNING, ATI_NAME ": "
+            xf86Msg(X_WARNING, MACH64_NAME ": "
                 "PCI Mach64 in slot %d:%d:%d could not be detected!\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
         }
         else
         {
             ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, ATI_NAME ": "
+            xf86Msg(X_INFO, MACH64_NAME ": "
                 "Shared PCI Mach64 in slot %d:%d:%d with sparse PIO base"
                 " 0x%04lX detected.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo),
@@ -471,7 +471,7 @@ SkipSparse:
         if (ATIMach64Probe(pATI, pVideo, pATI->Chip))
         {
             ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, ATI_NAME ": "
+            xf86Msg(X_INFO, MACH64_NAME ": "
                 "Shared PCI Mach64 in slot %d:%d:%d with Block 0 base"
                 " 0x%08lX detected.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo),
@@ -479,7 +479,7 @@ SkipSparse:
         }
         else
         {
-            xf86Msg(X_WARNING, ATI_NAME ": "
+            xf86Msg(X_WARNING, MACH64_NAME ": "
                 "PCI Mach64 in slot %d:%d:%d could not be detected!\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
         }
@@ -497,7 +497,7 @@ SkipSparse:
         if (ATIMach64Probe(pATI, pVideo, pATI->Chip))
         {
             ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, ATI_NAME ": "
+            xf86Msg(X_INFO, MACH64_NAME ": "
                 "Shared PCI/AGP Mach64 in slot %d:%d:%d detected.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
 
@@ -511,7 +511,7 @@ SkipSparse:
         }
         else
         {
-            xf86Msg(X_WARNING, ATI_NAME ": "
+            xf86Msg(X_WARNING, MACH64_NAME ": "
                 "PCI/AGP Mach64 in slot %d:%d:%d could not be detected!\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
         }

@@ -20,63 +20,40 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
+#ifndef _MACH64_VERSION_H_
+#define _MACH64_VERSION_H_ 1
+
+#undef  MACH64_NAME
+#undef  MACH64_DRIVER_NAME
+#undef  MACH64_VERSION_MAJOR
+#undef  MACH64_VERSION_MINOR
+#undef  MACH64_VERSION_PATCH
+#undef  MACH64_VERSION_CURRENT
+#undef  MACH64_VERSION_EVALUATE
+#undef  MACH64_VERSION_STRINGIFY
+#undef  MACH64_VERSION_NAME
+
+#define MACH64_NAME          "MACH64"
+#define MACH64_DRIVER_NAME   "mach64"
+
+#define MACH64_VERSION_MAJOR 6
+#define MACH64_VERSION_MINOR 7
+#define MACH64_VERSION_PATCH 0
+
+#ifndef MACH64_VERSION_EXTRA
+#define MACH64_VERSION_EXTRA ""
 #endif
 
-#include "ati.h"
-#include "ativersion.h"
+#define MACH64_VERSION_CURRENT \
+    ((MACH64_VERSION_MAJOR << 20) | \
+     (MACH64_VERSION_MINOR << 10) | \
+     (MACH64_VERSION_PATCH))
 
-#include "atimach64version.h"
+#define MACH64_VERSION_EVALUATE(__x) #__x
+#define MACH64_VERSION_STRINGIFY(_x) MACH64_VERSION_EVALUATE(_x)
+#define MACH64_VERSION_NAME                                             \
+    MACH64_VERSION_STRINGIFY(MACH64_VERSION_MAJOR) "."                  \
+    MACH64_VERSION_STRINGIFY(MACH64_VERSION_MINOR) "."                  \
+    MACH64_VERSION_STRINGIFY(MACH64_VERSION_MINOR) MACH64_VERSION_EXTRA
 
-/* Module loader interface for subsidiary driver module */
-
-static XF86ModuleVersionInfo ATIVersionRec =
-{
-    "mach64",
-    MODULEVENDORSTRING,
-    MODINFOSTRING1,
-    MODINFOSTRING2,
-    XORG_VERSION_CURRENT,
-    MACH64_VERSION_MAJOR, MACH64_VERSION_MINOR, MACH64_VERSION_PATCH,
-    ABI_CLASS_VIDEODRV,
-    ABI_VIDEODRV_VERSION,
-    MOD_CLASS_VIDEODRV,
-    {0, 0, 0, 0}
-};
-
-/*
- * ATISetup --
- *
- * This function is called every time the module is loaded.
- */
-static pointer
-ATISetup
-(
-    pointer Module,
-    pointer Options,
-    int     *ErrorMajor,
-    int     *ErrorMinor
-)
-{
-    static Bool Inited = FALSE;
-
-    if (!Inited)
-    {
-        /* Ensure main driver module is loaded, but not as a submodule */
-        if (!xf86ServerIsOnlyDetecting() && !LoaderSymbol(ATI_NAME))
-            xf86LoadOneModule(ATI_DRIVER_NAME, Options);
-
-        Inited = TRUE;
-    }
-
-    return (pointer)TRUE;
-}
-
-/* The following record must be called mach64ModuleData */
-_X_EXPORT XF86ModuleData mach64ModuleData =
-{
-    &ATIVersionRec,
-    ATISetup,
-    NULL
-};
+#endif /* _MACH64_VERSION_H_ */

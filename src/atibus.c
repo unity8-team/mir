@@ -31,7 +31,6 @@
 #include "atichip.h"
 #include "atimach64io.h"
 #include "atistruct.h"
-#include "ativersion.h"
 
 /*
  * Definitions related to an adapter's system bus interface.

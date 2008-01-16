@@ -28,6 +28,7 @@
 #include "atichip.h"
 #include "atimach64io.h"
 #include "atimach64probe.h"
+#include "atimach64version.h"
 #include "atioption.h"
 #include "ativersion.h"
 
@@ -127,7 +128,7 @@ Mach64Identify
     int flags
 )
 {
-    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
+    xf86Msg(X_INFO, "%s: %s\n", MACH64_NAME,
             "Driver for ATI Mach64 chipsets");
 }
 
@@ -154,7 +155,7 @@ Mach64Probe(DriverPtr pDriver, int flags)
     if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
         return FALSE;
 
-    numUsed = xf86MatchPciInstances(ATI_DRIVER_NAME, PCI_VENDOR_ATI,
+    numUsed = xf86MatchPciInstances(MACH64_NAME, PCI_VENDOR_ATI,
                                     Mach64Chipsets, Mach64PciChipsets,
                                     devSections, numDevSections,
                                     pDriver, &usedChips);
@@ -177,9 +178,9 @@ Mach64Probe(DriverPtr pDriver, int flags)
             if (!pScrn)
                 continue;
 
-            pScrn->driverVersion = ATI_VERSION_CURRENT;
-            pScrn->driverName    = ATI_DRIVER_NAME;
-            pScrn->name          = ATI_NAME;
+            pScrn->driverVersion = MACH64_VERSION_CURRENT;
+            pScrn->driverName    = MACH64_DRIVER_NAME;
+            pScrn->name          = MACH64_NAME;
             pScrn->Probe         = Mach64Probe;
             pScrn->PreInit       = ATIPreInit;
             pScrn->ScreenInit    = ATIScreenInit;

@@ -41,9 +41,9 @@
 #include "atidri.h"
 #include "atiregs.h"
 #include "atistruct.h"
-#include "ativersion.h"
 
 #include "atimach64io.h"
+#include "atimach64version.h"
 #include "mach64_dri.h"
 #include "mach64_common.h"
 #include "mach64_sarea.h"
@@ -1244,9 +1244,9 @@ Bool ATIDRIScreenInit( ScreenPtr pScreen )
 	       PCI_DEV_DEV(pATI->PCIInfo),
 	       PCI_DEV_FUNC(pATI->PCIInfo) );
    }
-   pDRIInfo->ddxDriverMajorVersion = ATI_VERSION_MAJOR;
-   pDRIInfo->ddxDriverMinorVersion = ATI_VERSION_MINOR;
-   pDRIInfo->ddxDriverPatchVersion = ATI_VERSION_PATCH;
+   pDRIInfo->ddxDriverMajorVersion = MACH64_VERSION_MAJOR;
+   pDRIInfo->ddxDriverMinorVersion = MACH64_VERSION_MINOR;
+   pDRIInfo->ddxDriverPatchVersion = MACH64_VERSION_PATCH;
    pDRIInfo->frameBufferPhysicalAddress = (void *)pATI->LinearBase;
    pDRIInfo->frameBufferSize = pATI->LinearSize;
    pDRIInfo->frameBufferStride = (pScreenInfo->displayWidth *
