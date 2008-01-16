@@ -1832,6 +1832,9 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     return TRUE;
 }
 
+#define NV_MODE_PRIVATE_ID 0x4F37ED65
+#define NV_MODE_PRIVATE_SIZE 2
+
 /* 
  * Match a private mode flag in a special function.
  * I don't want ugly casting all over the code.
@@ -1843,13 +1846,12 @@ NVMatchModePrivate(DisplayModePtr mode, uint32_t flags)
 		return FALSE;
 	if (!mode->Private)
 		return FALSE;
-
-	/* It's a stupid INT32 pointer. */
-	NVModePrivatePtr nv_mode = (NVModePrivatePtr)mode->Private;
-
-	if (!nv_mode->Flags)
+	if (mode->PrivSize != NV_MODE_PRIVATE_SIZE)
 		return FALSE;
-	if (nv_mode->Flags & flags)
+	if (mode->Private[0] != NV_MODE_PRIVATE_ID)
+		return FALSE;
+
+	if (mode->Private[1] & flags)
 		return TRUE;
 
 	return FALSE;
@@ -2023,15 +2025,18 @@ NVRestore(ScrnInfoPtr pScrn)
 
 				mode = xf86DuplicateMode(good_mode);
 
-				NVModePrivatePtr nv_mode = xnfcalloc(sizeof(NVModePrivateRec), 1);
+				INT32 *nv_mode = xnfcalloc(sizeof(INT32)*NV_MODE_PRIVATE_SIZE, 1);
+
+				/* A semi-unique identifier to avoid using other privates. */
+				nv_mode[0] = NV_MODE_PRIVATE_ID;
 
 				if (console->vga_mode)
-					nv_mode->Flags |= NV_MODE_VGA;
+					nv_mode[1] |= NV_MODE_VGA;
 
-				nv_mode->Flags |= NV_MODE_CONSOLE;
+				nv_mode[1] |= NV_MODE_CONSOLE;
 
-				/* Don't ask me why on earth it's a INT32 pointer. */
-				mode->Private = (INT32 *) nv_mode;
+				mode->Private = nv_mode;
+				mode->PrivSize = NV_MODE_PRIVATE_SIZE;
 
 				uint8_t scale_backup = nv_output->scaling_mode;
 				if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
