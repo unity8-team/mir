@@ -42,7 +42,7 @@
 #define NV_HDIAG_OFFSET             0x00005000
 #define NV_HDIAG_SIZE               0x00001000
 
-#define NV_PRAM_OFFSET              0x00005000
+#define NV_PRAM_OFFSET              0x00006000
 #define NV_PRAM_SIZE                0x00001000
 
 #define NV_PVIDEO_OFFSET            0x00008000
