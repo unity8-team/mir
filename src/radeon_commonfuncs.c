@@ -57,7 +57,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R300) {
+    if (IS_R300_VARIANT) {
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, 0xA);
 	OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, 0x3);
