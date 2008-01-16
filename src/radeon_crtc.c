@@ -356,7 +356,7 @@ radeon_xf86AllocateOffscreenLinear(ScreenPtr pScreen, int length,
  * Allocates memory for a locked-in-framebuffer shadow of the given
  * width and height for this CRTC's rotated shadow framebuffer.
  */
- 
+
 static void *
 radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 {

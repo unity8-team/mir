@@ -105,6 +105,23 @@ RADEONLog2(int val)
 	return bits - 1;
 }
 
+static __inline__ int
+RADEONPow2(int num)
+{
+    int pot = 2;
+
+    if (num <= 2)
+	return num;
+
+    while (pot < num) {
+	pot *= 2;
+    }
+
+    return pot;
+}
+
+
+
 static __inline__ CARD32 F_TO_DW(float val)
 {
     union {

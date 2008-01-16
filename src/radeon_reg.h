@@ -3741,4 +3741,207 @@
 #define R600_CONFIG_MEMSIZE                                     0x5428
 #define R600_CONFIG_F0_BASE                                     0x542C
 #define R600_CONFIG_APER_SIZE                                   0x5430
+
+#define R300_GB_TILE_CONFIG				0x4018
+#define R300_GB_SELECT				        0x401c
+#define R300_GB_ENABLE				        0x4008
+#define R300_GB_AA_CONFIG				0x4020
+#define R300_GB_MSPOS0				        0x4010
+#define R300_GB_MSPOS1				        0x4014
+
+#define R300_GA_POLY_MODE				0x4288
+#define R300_GA_ROUND_MODE				0x428c
+#define R300_GA_COLOR_CONTROL			        0x4278
+#define R300_GA_OFFSET				        0x4290
+
+#define R300_VAP_CNTL_STATUS				0x2140
+#define R300_VAP_PVS_STATE_FLUSH_REG		        0x2284
+#define R300_VAP_CNTL				        0x2080
+#define R300_VAP_VTE_CNTL				0x20B0
+#define R300_VAP_PSC_SGN_NORM_CNTL		        0x21DC
+#define R300_VAP_PROG_STREAM_CNTL_0		        0x2150
+#define R300_VAP_PROG_STREAM_CNTL_EXT_0	                0x21e0
+#define R300_VAP_PVS_CODE_CNTL_0			0x22D0
+#define R300_VAP_PVS_CODE_CNTL_1			0x22D8
+#define R300_VAP_PVS_VECTOR_INDX_REG		        0x2200
+#define R300_VAP_PVS_VECTOR_DATA_REG		        0x2204
+#define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22DC
+#define R300_VAP_OUT_VTX_FMT_0			        0x2090
+#define R300_VAP_OUT_VTX_FMT_1			        0x2094
+#define R300_VAP_VTX_SIZE				0x20b4
+#define R300_VAP_GB_VERT_CLIP_ADJ		        0x2220
+#define R300_VAP_GB_VERT_DISC_ADJ		        0x2224
+#define R300_VAP_GB_HORZ_CLIP_ADJ		        0x2228
+#define R300_VAP_GB_HORZ_DISC_ADJ		        0x222c
+#define R300_VAP_CLIP_CNTL				0x221c
+
+#define R300_SU_TEX_WRAP				0x42a0
+#define R300_SU_POLY_OFFSET_ENABLE		        0x42b4
+#define R300_SU_CULL_MODE				0x42b8
+#define R300_SU_DEPTH_SCALE				0x42c0
+#define R300_SU_DEPTH_OFFSET			        0x42c4
+
+#define R300_RS_COUNT				        0x4300
+#define R300_RS_IP_0				        0x4310
+#define R300_RS_INST_COUNT				0x4304
+#define R300_RS_INST_0				        0x4330
+
+#define R300_TX_INVALTAGS				0x4100
+#define R300_TX_FILTER0_0				0x4400
+#       define R300_TX_MAG_FILTER_NEAREST               (1 << 9)
+#       define R300_TX_MIN_FILTER_NEAREST               (1 << 11)
+#       define R300_TX_MAG_FILTER_LINEAR                (2 << 9)
+#       define R300_TX_MIN_FILTER_LINEAR                (2 << 11)
+#define R300_TX_FILTER1_0				0x4440
+#define R300_TX_FORMAT0_0				0x4480
+#       define R300_TXWIDTH_SHIFT                       0
+#       define R300_TXHEIGHT_SHIFT                      11
+#       define R300_NUM_LEVELS_SHIFT                    26
+#       define R300_NUM_LEVELS_MASK                     0x
+#       define R300_TXPROJECTED                         (1 << 30)
+#       define R300_TXPITCH_EN                          (1 << 31)
+#define R300_TX_FORMAT1_0				0x44c0
+#	define R300_TX_FORMAT_X8		    0x0
+#	define R300_TX_FORMAT_X16		    0x1
+#	define R300_TX_FORMAT_Y4X4		    0x2
+#	define R300_TX_FORMAT_Y8X8		    0x3
+#	define R300_TX_FORMAT_Y16X16		    0x4
+#	define R300_TX_FORMAT_Z3Y3X2		    0x5
+#	define R300_TX_FORMAT_Z5Y6X5		    0x6
+#	define R300_TX_FORMAT_Z6Y5X5		    0x7
+#	define R300_TX_FORMAT_Z11Y11X10		    0x8
+#	define R300_TX_FORMAT_Z10Y11X11		    0x9
+#	define R300_TX_FORMAT_W4Z4Y4X4		    0xA
+#	define R300_TX_FORMAT_W1Z5Y5X5		    0xB
+#	define R300_TX_FORMAT_W8Z8Y8X8		    0xC
+#	define R300_TX_FORMAT_W2Z10Y10X10	    0xD
+#	define R300_TX_FORMAT_W16Z16Y16X16	    0xE
+#	define R300_TX_FORMAT_DXT1	    	    0xF
+#	define R300_TX_FORMAT_DXT3	    	    0x10
+#	define R300_TX_FORMAT_DXT5	    	    0x11
+#	define R300_TX_FORMAT_D3DMFT_CxV8U8	    0x12     /* no swizzle */
+#	define R300_TX_FORMAT_A8R8G8B8	    	    0x13     /* no swizzle */
+#	define R300_TX_FORMAT_B8G8_B8G8	    	    0x14     /* no swizzle */
+#	define R300_TX_FORMAT_G8R8_G8B8	    	    0x15     /* no swizzle */
+#	define R300_TX_FORMAT_X24_Y8	    	    0x1e
+#	define R300_TX_FORMAT_X32	    	    0x1e
+	/* Floating point formats */
+	/* Note - hardware supports both 16 and 32 bit floating point */
+#	define R300_TX_FORMAT_FL_I16	    	    0x18
+#	define R300_TX_FORMAT_FL_I16A16	    	    0x19
+#	define R300_TX_FORMAT_FL_R16G16B16A16	    0x1A
+#	define R300_TX_FORMAT_FL_I32	    	    0x1B
+#	define R300_TX_FORMAT_FL_I32A32	    	    0x1C
+#	define R300_TX_FORMAT_FL_R32G32B32A32	    0x1D
+	/* alpha modes, convenience mostly */
+	/* if you have alpha, pick constant appropriate to the
+	   number of channels (1 for I8, 2 for I8A8, 4 for R8G8B8A8, etc */
+# 	define R300_TX_FORMAT_ALPHA_1CH		    0x000
+# 	define R300_TX_FORMAT_ALPHA_2CH		    0x200
+# 	define R300_TX_FORMAT_ALPHA_4CH		    0x600
+# 	define R300_TX_FORMAT_ALPHA_NONE	    0xA00
+	/* Swizzling */
+	/* constants */
+#	define R300_TX_FORMAT_X		0
+#	define R300_TX_FORMAT_Y		1
+#	define R300_TX_FORMAT_Z		2
+#	define R300_TX_FORMAT_W		3
+#	define R300_TX_FORMAT_ZERO	4
+#	define R300_TX_FORMAT_ONE	5
+	/* 2.0*Z, everything above 1.0 is set to 0.0 */
+#	define R300_TX_FORMAT_CUT_Z	6
+	/* 2.0*W, everything above 1.0 is set to 0.0 */
+#	define R300_TX_FORMAT_CUT_W	7
+
+#	define R300_TX_FORMAT_B_SHIFT	18
+#	define R300_TX_FORMAT_G_SHIFT	15
+#	define R300_TX_FORMAT_R_SHIFT	12
+#	define R300_TX_FORMAT_A_SHIFT	9
+
+	/* Convenience macro to take care of layout and swizzling */
+#	define R300_EASY_TX_FORMAT(B, G, R, A, FMT)	(		\
+		((R300_TX_FORMAT_##B)<<R300_TX_FORMAT_B_SHIFT)		\
+		| ((R300_TX_FORMAT_##G)<<R300_TX_FORMAT_G_SHIFT)	\
+		| ((R300_TX_FORMAT_##R)<<R300_TX_FORMAT_R_SHIFT)	\
+		| ((R300_TX_FORMAT_##A)<<R300_TX_FORMAT_A_SHIFT)	\
+		| (R300_TX_FORMAT_##FMT)				\
+		)
+
+#define R300_TX_FORMAT2_0				0x4500
+#define R300_TX_OFFSET_0				0x4540
+#       define R300_ENDIAN_SWAP_16_BIT                  (1 << 0)
+#       define R300_ENDIAN_SWAP_32_BIT                  (2 << 0)
+#       define R300_ENDIAN_SWAP_HALF_DWORD              (3 << 0)
+#       define R300_MACRO_TILE                          (1 << 2);
+
+#define R300_TX_ENABLE				        0x4104
+#       define R300_TEX_0_ENABLE                        (1 << 0)
+#       define R300_TEX_1_ENABLE                        (1 << 1)
+
+#define R300_US_W_FMT				        0x46b4
+#define R300_US_OUT_FMT_1				0x46a8
+#define R300_US_OUT_FMT_2				0x46ac
+#define R300_US_OUT_FMT_3				0x46b0
+#define R300_US_OUT_FMT_0				0x46a4
+#define R300_US_CONFIG				        0x4600
+#define R300_US_PIXSIZE				        0x4604
+#define R300_US_CODE_OFFSET				0x4608
+#define R300_US_CODE_ADDR_0				0x4610
+#define R300_US_CODE_ADDR_1				0x4614
+#define R300_US_CODE_ADDR_2				0x4618
+#define R300_US_CODE_ADDR_3				0x461c
+#define R300_US_TEX_INST_0				0x4620
+#define R300_US_ALU_RGB_ADDR_0			        0x46c0
+#define R300_US_ALU_RGB_INST_0			        0x48c0
+#define R300_US_ALU_ALPHA_ADDR_0		        0x47c0
+#define R300_US_ALU_ALPHA_INST_0		        0x49c0
+
+#define R300_FG_DEPTH_SRC				0x4bd8
+#define R300_FG_FOG_BLEND				0x4bc0
+#define R300_FG_ALPHA_FUNC				0x4bd4
+
+#define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
+#define R300_RB3D_ZCACHE_CTLSTAT			0x4f18
+#define R300_WAIT_UNTIL				        0x1720
+#define R300_RB3D_ZSTENCILCNTL			        0x4f04
+#define R300_RB3D_ZCACHE_CTLSTAT		        0x4f18
+#define R300_RB3D_BW_CNTL				0x4f1c
+#define R300_RB3D_ZCNTL				        0x4f00
+#define R300_RB3D_ZTOP				        0x4f14
+#define R300_RB3D_ROPCNTL				0x4e18
+#define R300_RB3D_BLENDCNTL				0x4e04
+#define R300_RB3D_ABLENDCNTL			        0x4e08
+#define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
+#define R300_RB3D_COLOROFFSET0			        0x4e28
+#define R300_RB3D_COLORPITCH0			        0x4e38
+#       define R300_COLORTILE                           (1 << 16)
+#       define R300_COLORENDIAN_WORD                    (1 << 19)
+#       define R300_COLORENDIAN_DWORD                   (2 << 19)
+#       define R300_COLORENDIAN_HALF_DWORD              (3 << 19)
+#       define R300_COLORFORMAT_ARGB1555                (3 << 21)
+#       define R300_COLORFORMAT_RGB565                  (4 << 21)
+#       define R300_COLORFORMAT_ARGB8888                (6 << 21)
+#       define R300_COLORFORMAT_ARGB32323232            (7 << 21)
+#       define R300_COLORFORMAT_I8                      (9 << 21)
+#       define R300_COLORFORMAT_ARGB16161616            (10 << 21)
+#       define R300_COLORFORMAT_VYUY                    (11 << 21)
+#       define R300_COLORFORMAT_YVYU                    (12 << 21)
+#       define R300_COLORFORMAT_UV88                    (13 << 21)
+#       define R300_COLORFORMAT_ARGB4444                (15 << 21)
+
+#define R300_RB3D_AARESOLVE_CTL			        0x4e88
+#define R300_RB3D_COLOR_CHANNEL_MASK	                0x4e0c
+#define R300_RB3D_COLOR_CLEAR_VALUE                     0x4e14
+#define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
+#define R300_RB3D_CCTL				        0x4e00
+#define R300_RB3D_DITHER_CTL			        0x4e50
+
+#define R300_SC_EDGERULE				0x43a8
+#define R300_SC_SCISSOR0				0x43e0
+#define R300_SC_SCISSOR1				0x43e4
+#define R300_SC_CLIP_0_A				0x43b0
+#define R300_SC_CLIP_0_B				0x43b4
+#define R300_SC_CLIP_RULE				0x43d0
+#define R300_SC_SCREENDOOR				0x43e8
+
 #endif

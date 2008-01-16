@@ -121,6 +121,17 @@ static struct formatinfo R200TexFormats[] = {
     {PICT_a8,		R200_TXFORMAT_I8 | R200_TXFORMAT_ALPHA_IN_MAP},
 };
 
+static struct formatinfo R300TexFormats[] = {
+    {PICT_a8r8g8b8,	R300_EASY_TX_FORMAT(X, Y, Z, W, W8Z8Y8X8)},
+    {PICT_x8r8g8b8,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W8Z8Y8X8)},
+    {PICT_a8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, W, W8Z8Y8X8)},
+    {PICT_x8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, ONE, W8Z8Y8X8)},
+    {PICT_r5g6b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, Z5Y6X5)},
+    {PICT_a1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, W, W1Z5Y5X5)},
+    {PICT_x1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5)},
+    {PICT_a8,		R300_EASY_TX_FORMAT(ZERO, ZERO, ZERO, X, X8)},
+};
+
 /* Common Radeon setup code */
 
 static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
@@ -145,6 +156,31 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
 			(int)pDstPicture->format));
     }
 
+    return TRUE;
+}
+
+static Bool R300GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
+{
+    switch (pDstPicture->format) {
+    case PICT_a8r8g8b8:
+    case PICT_x8r8g8b8:
+	*dst_format = R300_COLORFORMAT_ARGB8888;
+	break;
+    case PICT_r5g6b5:
+	*dst_format = R300_COLORFORMAT_RGB565;
+	break;
+    case PICT_a1r5g5b5:
+    case PICT_x1r5g5b5:
+	*dst_format = R300_COLORFORMAT_ARGB1555;
+	break;
+    case PICT_a8:
+	*dst_format = R300_COLORFORMAT_I8;
+	break;
+    default:
+	ErrorF("Unsupported dest format 0x%x\n",
+	       (int)pDstPicture->format);
+	return FALSE;
+    }
     return TRUE;
 }
 
@@ -706,9 +742,304 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     return TRUE;
 }
 
-#ifdef ACCEL_CP
+#ifdef ONLY_ONCE
 
-#define VTX_DWORD_COUNT 6
+static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit)
+{
+    int w = pPict->pDrawable->width;
+    int h = pPict->pDrawable->height;
+    int i;
+
+    if ((w > 0x7ff) || (h > 0x7ff))
+	RADEON_FALLBACK(("Picture w/h too large (%dx%d)\n", w, h));
+
+    for (i = 0; i < sizeof(R300TexFormats) / sizeof(R300TexFormats[0]); i++)
+    {
+	if (R300TexFormats[i].fmt == pPict->format)
+	    break;
+    }
+    if (i == sizeof(R300TexFormats) / sizeof(R300TexFormats[0]))
+	RADEON_FALLBACK(("Unsupported picture format 0x%x\n",
+			 (int)pPict->format));
+
+    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0))
+	RADEON_FALLBACK(("NPOT repeat unsupported (%dx%d)\n", w, h));
+
+    if (pPict->filter != PictFilterNearest &&
+	pPict->filter != PictFilterBilinear)
+	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
+
+    return TRUE;
+}
+
+#endif /* ONLY_ONCE */
+
+static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
+					int unit)
+{
+    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    CARD32 txfilter, txformat0, txformat1, txoffset, txpitch;
+    int w = pPict->pDrawable->width;
+    int h = pPict->pDrawable->height;
+    int i, pixel_shift;
+    ACCEL_PREAMBLE();
+
+    TRACE;
+
+    txpitch = exaGetPixmapPitch(pPix);
+    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
+
+    if ((txoffset & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
+    if ((txpitch & 0x1f) != 0)
+	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
+
+    pixel_shift = pPix->drawable.bitsPerPixel >> 4;
+    txpitch >>= pixel_shift;
+    txpitch -= 1;
+
+    if (RADEONPixmapIsColortiled(pPix))
+	txoffset |= R300_MACRO_TILE;
+
+    for (i = 0; i < sizeof(R300TexFormats) / sizeof(R300TexFormats[0]); i++)
+    {
+	if (R300TexFormats[i].fmt == pPict->format)
+	    break;
+    }
+
+    txformat1 = R300TexFormats[i].card_fmt;
+
+    txformat0 = (((RADEONPow2(w) - 1) << R300_TXWIDTH_SHIFT) |
+		 ((RADEONPow2(h) - 1) << R300_TXHEIGHT_SHIFT));
+
+    if (pPict->repeat) {
+	ErrorF("repeat\n");
+	if ((h != 1) &&
+	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
+	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
+			     w, (unsigned)txpitch));
+    } else
+	txformat0 |= R300_TXPITCH_EN;
+
+
+    info->texW[unit] = RADEONPow2(w);
+    info->texH[unit] = RADEONPow2(h);
+
+    switch (pPict->filter) {
+    case PictFilterNearest:
+	txfilter = (R300_TX_MAG_FILTER_NEAREST | R300_TX_MIN_FILTER_NEAREST);
+	break;
+    case PictFilterBilinear:
+	txfilter = (R300_TX_MAG_FILTER_LINEAR | R300_TX_MIN_FILTER_LINEAR);
+	break;
+    default:
+	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
+    }
+
+    BEGIN_ACCEL(6);
+    OUT_ACCEL_REG(R300_TX_FILTER0_0 + (unit * 4), txfilter);
+    OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0x0);
+    OUT_ACCEL_REG(R300_TX_FORMAT0_0 + (unit * 4), txformat0);
+    OUT_ACCEL_REG(R300_TX_FORMAT1_0 + (unit * 4), txformat1);
+    OUT_ACCEL_REG(R300_TX_FORMAT2_0 + (unit * 4), txpitch);
+    OUT_ACCEL_REG(R300_TX_OFFSET_0 + (unit * 4), txoffset);
+    FINISH_ACCEL();
+
+    if (pPict->transform != 0) {
+	is_transform[unit] = TRUE;
+	transform[unit] = pPict->transform;
+    } else {
+	is_transform[unit] = FALSE;
+    }
+
+    return TRUE;
+}
+
+#ifdef ONLY_ONCE
+
+static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
+			       PicturePtr pDstPicture)
+{
+    CARD32 tmp1;
+    ScreenPtr pScreen = pDstPicture->pDrawable->pScreen;
+    PixmapPtr pSrcPixmap, pDstPixmap;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
+
+    TRACE;
+
+    /* Check for unsupported compositing operations. */
+    if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
+	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
+
+#if 1
+    /* Throw out cases that aren't going to be our rotation first */
+    if (pMaskPicture != NULL || op != PictOpSrc || pSrcPicture->pDrawable == NULL)
+	RADEON_FALLBACK(("Junk driver\n"));
+
+    if (pSrcPicture->pDrawable->type != DRAWABLE_WINDOW ||
+	pDstPicture->pDrawable->type != DRAWABLE_PIXMAP) {
+	RADEON_FALLBACK(("bad drawable\n"));
+    }
+
+    pSrcPixmap = (*pScreen->GetWindowPixmap) ((WindowPtr) pSrcPicture->pDrawable);
+    pDstPixmap = (PixmapPtr)pDstPicture->pDrawable;
+
+    /* Check if the dest is one of our shadow pixmaps */
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+	if (crtc->rotatedPixmap == pDstPixmap)
+	    break;
+    }
+    if (i == xf86_config->num_crtc)
+	RADEON_FALLBACK(("no rotated pixmap\n"));
+
+    if (pSrcPixmap != pScreen->GetScreenPixmap(pScreen))
+	RADEON_FALLBACK(("src not screen\n"));
+#endif
+
+
+    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
+	/* Check if it's component alpha that relies on a source alpha and on
+	 * the source value.  We can only get one of those into the single
+	 * source value that we get to blend with.
+	 */
+	if (RadeonBlendOp[op].src_alpha &&
+	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+	     RADEON_SRC_BLEND_GL_ZERO)
+	{
+	    RADEON_FALLBACK(("Component alpha not supported with source "
+			    "alpha and source value blending.\n"));
+	}
+    }
+
+    if (!R300CheckCompositeTexture(pSrcPicture, 0))
+	return FALSE;
+    if (pMaskPicture != NULL && !R300CheckCompositeTexture(pMaskPicture, 1))
+	return FALSE;
+
+    if (!R300GetDestFormat(pDstPicture, &tmp1))
+	return FALSE;
+
+    return TRUE;
+
+}
+#endif /* ONLY_ONCE */
+
+static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
+				PicturePtr pMaskPicture, PicturePtr pDstPicture,
+				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+{
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    CARD32 dst_format, dst_offset, dst_pitch;
+    CARD32 txenable, colorpitch;
+    /*CARD32 blendcntl, cblend, ablend;*/
+    int pixel_shift;
+    ACCEL_PREAMBLE();
+
+    TRACE;
+
+    if (!info->XInited3D)
+	RADEONInit3DEngine(pScrn);
+
+    R300GetDestFormat(pDstPicture, &dst_format);
+    pixel_shift = pDst->drawable.bitsPerPixel >> 4;
+
+    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
+    dst_pitch = exaGetPixmapPitch(pDst);
+    colorpitch = dst_pitch >> pixel_shift;
+
+    if (RADEONPixmapIsColortiled(pDst))
+	colorpitch |= R300_COLORTILE;
+
+    colorpitch |= dst_format;
+
+    if ((dst_offset & 0x0f) != 0)
+	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
+    if (((dst_pitch >> pixel_shift) & 0x7) != 0)
+	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
+
+    if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
+	return FALSE;
+    txenable = R300_TEX_0_ENABLE;
+
+    if (pMask != NULL) {
+	if (!FUNC_NAME(R300TextureSetup)(pMaskPicture, pMask, 1))
+	    return FALSE;
+	txenable |= R300_TEX_1_ENABLE;
+    } else {
+	is_transform[1] = FALSE;
+    }
+
+    RADEON_SWITCH_TO_3D();
+
+    BEGIN_ACCEL(6);
+    OUT_ACCEL_REG(R300_TX_INVALTAGS, 0x0);
+    OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
+
+    OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
+    OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
+
+    OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, 0x0);
+    OUT_ACCEL_REG(R300_RB3D_ABLENDCNTL, 0x0);
+
+#if 0
+    /* IN operator: Multiply src by mask components or mask alpha.
+     * BLEND_CTL_ADD is A * B + C.
+     * If a picture is a8, we have to explicitly zero its color values.
+     * If the destination is a8, we have to route the alpha to red, I think.
+     * If we're doing component alpha where the source for blending is going to
+     * be the source alpha (and there's no source value used), we have to zero
+     * the source's color values.
+     */
+    cblend = R200_TXC_OP_MADD | R200_TXC_ARG_C_ZERO;
+    ablend = R200_TXA_OP_MADD | R200_TXA_ARG_C_ZERO;
+
+    if (pDstPicture->format == PICT_a8 ||
+	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
+    {
+	cblend |= R200_TXC_ARG_A_R0_ALPHA;
+    } else if (pSrcPicture->format == PICT_a8)
+	cblend |= R200_TXC_ARG_A_ZERO;
+    else
+	cblend |= R200_TXC_ARG_A_R0_COLOR;
+    ablend |= R200_TXA_ARG_A_R0_ALPHA;
+
+    if (pMask) {
+	if (pMaskPicture->componentAlpha &&
+	    pDstPicture->format != PICT_a8)
+	    cblend |= R200_TXC_ARG_B_R1_COLOR;
+	else
+	    cblend |= R200_TXC_ARG_B_R1_ALPHA;
+	ablend |= R200_TXA_ARG_B_R1_ALPHA;
+    } else {
+	cblend |= R200_TXC_ARG_B_ZERO | R200_TXC_COMP_ARG_B;
+	ablend |= R200_TXA_ARG_B_ZERO | R200_TXA_COMP_ARG_B;
+    }
+
+    OUT_ACCEL_REG(R200_PP_TXCBLEND_0, cblend);
+    OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
+	R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
+    OUT_ACCEL_REG(R200_PP_TXABLEND_0, ablend);
+    OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
+	R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
+
+    /* Op operator. */
+    blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
+    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
+#endif
+
+    FINISH_ACCEL();
+
+    return TRUE;
+}
+
+#define VTX_COUNT 6
+#define R300_VTX_COUNT 4
+
+#ifdef ACCEL_CP
 
 #define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
@@ -720,9 +1051,15 @@ do {								\
     OUT_RING_F(_maskY);						\
 } while (0)
 
-#else /* ACCEL_CP */
+#define VTX_OUT4(_dstX, _dstY, _srcX, _srcY)	                \
+do {								\
+    OUT_RING_F(_dstX);						\
+    OUT_RING_F(_dstY);						\
+    OUT_RING_F(_srcX);						\
+    OUT_RING_F(_srcY);						\
+} while (0)
 
-#define VTX_REG_COUNT 6
+#else /* ACCEL_CP */
 
 #define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
@@ -732,6 +1069,14 @@ do {								\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);		\
+} while (0)
+
+#define VTX_OUT4(_dstX, _dstY, _srcX, _srcY)	                \
+do {								\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
 } while (0)
 
 #endif /* !ACCEL_CP */
@@ -759,6 +1104,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     int srcXend, srcYend, maskXend, maskYend;
+    int vtx_count;
     xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
     xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
     ACCEL_PREAMBLE();
@@ -766,7 +1112,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     ENTER_DRAW(0);
 
     /*ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
-	   srcX, srcY, maskX, maskY,dstX, dstY, w, h);*/
+          srcX, srcY, maskX, maskY,dstX, dstY, w, h);*/
 
     srcXend = srcX + w;
     srcYend = srcY + h;
@@ -804,11 +1150,19 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	transformPoint(transform[1], &maskBottomRight);
     }
 
+    vtx_count = (info->ChipFamily >= CHIP_FAMILY_R300) ? R300_VTX_COUNT : VTX_COUNT;
+
+    if (IS_R300_VARIANT) {
+	BEGIN_ACCEL(1);
+	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, vtx_count);
+	FINISH_ACCEL();
+    }
+
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {
-	BEGIN_RING(4 * VTX_DWORD_COUNT + 3);
+	BEGIN_RING(4 * vtx_count + 3);
 	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
-			    4 * VTX_DWORD_COUNT + 1));
+			    4 * vtx_count + 1));
 	OUT_RING(RADEON_CP_VC_FRMT_XY |
 		 RADEON_CP_VC_FRMT_ST0 |
 		 RADEON_CP_VC_FRMT_ST1);
@@ -818,16 +1172,24 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     } else {
-	BEGIN_RING(4 * VTX_DWORD_COUNT + 2);
+	if (IS_R300_VARIANT)
+	    BEGIN_RING(4 * vtx_count + 6);
+	else
+	    BEGIN_RING(4 * vtx_count + 2);
+
 	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-			    4 * VTX_DWORD_COUNT));
+			    4 * vtx_count));
 	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_FAN |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     }
 
 #else /* ACCEL_CP */
-    BEGIN_ACCEL(1 + VTX_REG_COUNT * 4);
+    if (IS_R300_VARIANT)
+	BEGIN_ACCEL(3 + vtx_count * 4);
+    else
+	BEGIN_ACCEL(1 + vtx_count * 4);
+
     if (info->ChipFamily < CHIP_FAMILY_R200) {
 	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_FAN |
 					  RADEON_VF_PRIM_WALK_DATA |
@@ -846,6 +1208,22 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	VTX_OUT(dstX,     dstY + h,   srcX,     srcYend,  maskX,    maskYend);
 	VTX_OUT(dstX + w, dstY + h,   srcXend,  srcYend,  maskXend, maskYend);
 	VTX_OUT(dstX + w, dstY,	      srcXend,  srcY,     maskXend, maskY);
+    } else if (IS_R300_VARIANT) {
+	VTX_OUT4((float)dstX, (float)dstY,
+		 xFixedToFloat(srcTopLeft.x) / info->texW[0],
+		 xFixedToFloat(srcTopLeft.y) / info->texH[0]);
+
+	VTX_OUT4((float)dstX, (float)(dstY + h),
+		 xFixedToFloat(srcBottomLeft.x) / info->texW[0],
+		 xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
+
+	VTX_OUT4((float)(dstX + w), (float)(dstY + h),
+		 xFixedToFloat(srcBottomRight.x) / info->texW[0],
+		 xFixedToFloat(srcBottomRight.y) / info->texH[0]);
+
+	VTX_OUT4((float)(dstX + w), (float)dstY,
+		 xFixedToFloat(srcTopRight.x) / info->texW[0],
+		 xFixedToFloat(srcTopRight.y) / info->texH[0]);
     } else {
 	VTX_OUT((float)dstX,                                      (float)dstY,
 	        xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
@@ -861,6 +1239,11 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	        xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
     }
 
+    if (IS_R300_VARIANT) {
+	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, 0xA);
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
+    }
+
 #ifdef ACCEL_CP
     ADVANCE_RING();
 #else
@@ -870,6 +1253,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     LEAVE_DRAW(0);
 }
 #undef VTX_OUT
+#undef VTX_OUT4
 
 #ifdef ONLY_ONCE
 static void RadeonDoneComposite(PixmapPtr pDst)
