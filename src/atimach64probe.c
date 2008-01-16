@@ -107,7 +107,7 @@ Mach64PciChipsets[] = {
     {-1, -1, RES_UNDEFINED}
 };
 
-_X_EXPORT const OptionInfoRec *
+static const OptionInfoRec *
 Mach64AvailableOptions(int chipid, int busid)
 {
     /*
@@ -122,7 +122,7 @@ Mach64AvailableOptions(int chipid, int busid)
  *
  * Print the driver's list of chipset names.
  */
-_X_EXPORT void
+static void
 Mach64Identify
 (
     int flags
@@ -138,7 +138,7 @@ Mach64Identify
  * This function is called once, at the start of the first server generation to
  * do a minimal probe for supported hardware.
  */
-_X_EXPORT Bool
+static Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
     GDevPtr *devSections, *ATIGDevs, *Mach64GDevs;
@@ -221,3 +221,14 @@ Mach64Probe(DriverPtr pDriver, int flags)
 
     return ProbeSuccess;
 }
+
+_X_EXPORT DriverRec MACH64 =
+{
+    MACH64_VERSION_CURRENT,
+    MACH64_DRIVER_NAME,
+    Mach64Identify,
+    Mach64Probe,
+    Mach64AvailableOptions,
+    NULL,
+    0
+};

@@ -58,7 +58,7 @@
 int gRADEONEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
-_X_EXPORT const OptionInfoRec *
+static const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)
 {
     int  i;
@@ -77,7 +77,7 @@ RADEONAvailableOptions(int chipid, int busid)
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
-_X_EXPORT void
+static void
 RADEONIdentify(int flags)
 {
     xf86PrintChipsets(RADEON_NAME,
@@ -86,7 +86,7 @@ RADEONIdentify(int flags)
 }
 
 /* Return TRUE if chipset is present; FALSE otherwise. */
-_X_EXPORT Bool
+static Bool
 RADEONProbe(DriverPtr drv, int flags)
 {
     int      numUsed;
@@ -207,3 +207,14 @@ RADEONProbe(DriverPtr drv, int flags)
 
     return foundScreen;
 }
+
+_X_EXPORT DriverRec RADEON =
+{
+    RADEON_VERSION_CURRENT,
+    RADEON_DRIVER_NAME,
+    RADEONIdentify,
+    RADEONProbe,
+    RADEONAvailableOptions,
+    NULL,
+    0
+};

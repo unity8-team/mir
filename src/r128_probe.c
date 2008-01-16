@@ -106,7 +106,7 @@ PciChipsets R128PciChipsets[] = {
 int gR128EntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
-_X_EXPORT const OptionInfoRec *
+static const OptionInfoRec *
 R128AvailableOptions(int chipid, int busid)
 {
     int i;
@@ -125,7 +125,7 @@ R128AvailableOptions(int chipid, int busid)
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
-_X_EXPORT void
+static void
 R128Identify(int flags)
 {
     xf86PrintChipsets(R128_NAME,
@@ -134,7 +134,7 @@ R128Identify(int flags)
 }
 
 /* Return TRUE if chipset is present; FALSE otherwise. */
-_X_EXPORT Bool
+static Bool
 R128Probe(DriverPtr drv, int flags)
 {
     int           numUsed;
@@ -253,3 +253,14 @@ R128Probe(DriverPtr drv, int flags)
 
     return foundScreen;
 }
+
+_X_EXPORT DriverRec R128 =
+{
+    R128_VERSION_CURRENT,
+    R128_DRIVER_NAME,
+    R128Identify,
+    R128Probe,
+    R128AvailableOptions,
+    NULL,
+    0
+};

@@ -65,9 +65,13 @@
 #include "ati.h"
 #include "ativersion.h"
 
-#include "atimach64probe.h"
-#include "radeon_probe.h"
-#include "r128_probe.h"
+/* names duplicated from version headers */
+#define MACH64_NAME         "MACH64"
+#define MACH64_DRIVER_NAME  "mach64"
+#define R128_NAME           "R128"
+#define R128_DRIVER_NAME    "r128"
+#define RADEON_NAME         "RADEON"
+#define RADEON_DRIVER_NAME  "radeon"
 
 enum
 {
@@ -193,61 +197,70 @@ ATIProbe
     /* Call Radeon driver probe */
     if (DoRadeon)
     {
-        pointer radeon = xf86LoadDrvSubModule(pDriver, "radeon");
+        DriverRec *radeon;
+
+        if (!LoaderSymbol(RADEON_NAME))
+            xf86LoadDrvSubModule(pDriver, RADEON_DRIVER_NAME);
+
+        radeon = (DriverRec*)LoaderSymbol(RADEON_NAME);
 
         if (!radeon)
         {
             xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to load \"radeon\" module.\n");
+                ATI_NAME ":  Failed to find \"radeon\" driver symbol.\n");
             return FALSE;
         }
 
-        RADEONIdentify(flags);
+        radeon->Identify(flags);
 
-        if (RADEONProbe(pDriver, flags))
+        if (radeon->Probe(pDriver, flags))
             return TRUE;
-
-        xf86UnloadSubModule(radeon);
     }
 
     /* Call Rage 128 driver probe */
     if (DoRage128)
     {
-        pointer r128 = xf86LoadDrvSubModule(pDriver, "r128");
+        DriverRec *r128;
+
+        if (!LoaderSymbol(R128_NAME))
+            xf86LoadDrvSubModule(pDriver, R128_DRIVER_NAME);
+
+        r128 = (DriverRec*)LoaderSymbol(R128_NAME);
 
         if (!r128)
         {
             xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to load \"r128\" module.\n");
+                ATI_NAME ":  Failed to find \"r128\" driver symbol.\n");
             return FALSE;
         }
 
-        R128Identify(flags);
+        r128->Identify(flags);
 
-        if (R128Probe(pDriver, flags))
+        if (r128->Probe(pDriver, flags))
             return TRUE;
-
-        xf86UnloadSubModule(r128);
     }
 
     /* Call Mach64 driver probe */
     if (DoMach64)
     {
-        pointer mach64 = xf86LoadDrvSubModule(pDriver, "mach64");
+        DriverRec *mach64;
+
+        if (!LoaderSymbol(MACH64_NAME))
+            xf86LoadDrvSubModule(pDriver, MACH64_DRIVER_NAME);
+
+        mach64 = (DriverRec*)LoaderSymbol(MACH64_NAME);
 
         if (!mach64)
         {
             xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to load \"mach64\" module.\n");
+                ATI_NAME ":  Failed to find \"mach64\" driver symbol.\n");
             return FALSE;
         }
 
-        Mach64Identify(flags);
+        mach64->Identify(flags);
 
-        if (Mach64Probe(pDriver, flags))
+        if (mach64->Probe(pDriver, flags))
             return TRUE;
-
-        xf86UnloadSubModule(mach64);
     }
 
     return FALSE;
@@ -272,11 +285,46 @@ ATIAvailableOptions
 
     Chip = ATIChipID(ChipType);
     if (Chip == ATI_CHIP_FAMILY_Mach64)
-        return Mach64AvailableOptions(ChipId, BusId);
-    else if (Chip == ATI_CHIP_FAMILY_Rage128)
-        return R128AvailableOptions(ChipId, BusId);
-    else if (Chip == ATI_CHIP_FAMILY_Radeon)
-        return RADEONAvailableOptions(ChipId, BusId);
+    {
+        DriverRec *mach64 = (DriverRec*)LoaderSymbol(MACH64_NAME);
+
+        if (!mach64)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to find \"mach64\" driver symbol.\n");
+            return NULL;
+        }
+
+        return mach64->AvailableOptions(ChipId, BusId);
+    }
+
+    if (Chip == ATI_CHIP_FAMILY_Rage128)
+    {
+        DriverRec *r128 = (DriverRec*)LoaderSymbol(R128_NAME);
+
+        if (!r128)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to find \"r128\" driver symbol.\n");
+            return NULL;
+        }
+
+        return r128->AvailableOptions(ChipId, BusId);
+    }
+
+    if (Chip == ATI_CHIP_FAMILY_Radeon)
+    {
+        DriverRec *radeon = (DriverRec*)LoaderSymbol(RADEON_NAME);
+
+        if (!radeon)
+        {
+            xf86Msg(X_ERROR,
+                ATI_NAME ":  Failed to find \"radeon\" driver symbol.\n");
+            return NULL;
+        }
+
+        return radeon->AvailableOptions(ChipId, BusId);
+    }
 
     return NULL;
 }

@@ -54,10 +54,6 @@ typedef struct
 } R128EntRec, *R128EntPtr;
 
 /* r128_probe.c */
-extern const OptionInfoRec * R128AvailableOptions(int, int);
-extern void                  R128Identify(int);
-extern Bool                  R128Probe(DriverPtr, int);
-
 extern PciChipsets           R128PciChipsets[];
 
 /* r128_driver.c */

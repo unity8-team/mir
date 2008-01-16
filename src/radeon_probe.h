@@ -543,10 +543,6 @@ typedef struct
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
-extern const OptionInfoRec *RADEONAvailableOptions(int, int);
-extern void                 RADEONIdentify(int);
-extern Bool                 RADEONProbe(DriverPtr, int);
-
 extern PciChipsets          RADEONPciChipsets[];
 
 /* radeon_driver.c */
