@@ -141,9 +141,9 @@ Mach64Identify
 _X_EXPORT Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
-    GDevPtr *devSections;
+    GDevPtr *devSections, *ATIGDevs, *Mach64GDevs;
     int     *usedChips;
-    int     numDevSections;
+    int     numDevSections, nATIGDev, nMach64GDev;
     int     numUsed;
     Bool    ProbeSuccess = FALSE;
 
@@ -152,8 +152,30 @@ Mach64Probe(DriverPtr pDriver, int flags)
         return FALSE;
 #endif
 
-    if ((numDevSections = xf86MatchDevice(ATI_DRIVER_NAME, &devSections)) <= 0)
+    /* Collect unclaimed device sections for both driver names */
+    nATIGDev = xf86MatchDevice(ATI_DRIVER_NAME, &ATIGDevs);
+    nMach64GDev = xf86MatchDevice(MACH64_DRIVER_NAME, &Mach64GDevs);
+
+    if ((numDevSections = nATIGDev + nMach64GDev) <= 0)
         return FALSE;
+
+    if (ATIGDevs == NULL) {
+        devSections = Mach64GDevs;
+        numDevSections = nMach64GDev;
+    } else if (Mach64GDevs == NULL) {
+        devSections = ATIGDevs;
+        numDevSections = nATIGDev;
+    } else {
+        /* Combine into one list */
+        devSections = xnfalloc((numDevSections + 1) * sizeof(GDevPtr));
+        (void)memcpy(devSections,
+                     ATIGDevs, nATIGDev * sizeof(GDevPtr));
+        (void)memcpy(devSections + nATIGDev,
+                     Mach64GDevs, nMach64GDev * sizeof(GDevPtr));
+        devSections[numDevSections] = NULL;
+        xfree(ATIGDevs);
+        xfree(Mach64GDevs);
+    }
 
     numUsed = xf86MatchPciInstances(MACH64_NAME, PCI_VENDOR_ATI,
                                     Mach64Chipsets, Mach64PciChipsets,
