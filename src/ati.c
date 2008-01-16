@@ -233,12 +233,12 @@ ATIProbe
     /* Call Mach64 driver probe */
     if (DoMach64)
     {
-        pointer atimisc = xf86LoadDrvSubModule(pDriver, "atimisc");
+        pointer mach64 = xf86LoadDrvSubModule(pDriver, "mach64");
 
-        if (!atimisc)
+        if (!mach64)
         {
             xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to load \"atimisc\" module.\n");
+                ATI_NAME ":  Failed to load \"mach64\" module.\n");
             return FALSE;
         }
 
@@ -247,7 +247,7 @@ ATIProbe
         if (Mach64Probe(pDriver, flags))
             return TRUE;
 
-        xf86UnloadSubModule(atimisc);
+        xf86UnloadSubModule(mach64);
     }
 
     return FALSE;

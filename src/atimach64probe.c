@@ -110,7 +110,7 @@ _X_EXPORT const OptionInfoRec *
 Mach64AvailableOptions(int chipid, int busid)
 {
     /*
-     * Return options defined in the atimisc submodule which will have been
+     * Return options defined in the mach64 submodule which will have been
      * loaded by this point.
      */
     return ATIOptionsWeak();

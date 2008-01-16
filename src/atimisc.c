@@ -31,7 +31,7 @@
 
 static XF86ModuleVersionInfo ATIVersionRec =
 {
-    "atimisc",
+    "mach64",
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
@@ -67,7 +67,7 @@ ATISetup
             if (!LoaderSymbol(ATI_NAME))
                 xf86LoadOneModule(ATI_DRIVER_NAME, Options);
 
-            /* ati & atimisc module versions must match */
+            /* ati & mach64 module versions must match */
             do
             {
                 XF86ModuleData *pModuleData = LoaderSymbol("atiModuleData");
@@ -83,7 +83,7 @@ ATISetup
                 }
 
                 xf86Msg(X_ERROR,
-                        "\"ati\" and \"atimisc\" module versions must"
+                        "\"ati\" and \"mach64\" module versions must"
                         " match.\n");
 
                 if (ErrorMajor)
@@ -101,8 +101,8 @@ ATISetup
     return (pointer)TRUE;
 }
 
-/* The following record must be called atimiscModuleData */
-_X_EXPORT XF86ModuleData atimiscModuleData =
+/* The following record must be called mach64ModuleData */
+_X_EXPORT XF86ModuleData mach64ModuleData =
 {
     &ATIVersionRec,
     ATISetup,

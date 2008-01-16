@@ -86,10 +86,10 @@ ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
 	ati.c atimodule.c
 
-atimisc_drv_la_LTLIBRARIES = atimisc_drv.la
-atimisc_drv_la_LDFLAGS = -module -avoid-version
-atimisc_drv_ladir = @moduledir@/drivers
-atimisc_drv_la_SOURCES = \
+mach64_drv_la_LTLIBRARIES = mach64_drv.la
+mach64_drv_la_LDFLAGS = -module -avoid-version
+mach64_drv_ladir = @moduledir@/drivers
+mach64_drv_la_SOURCES = \
 	atibus.c atichip.c atiprobe.c atividmem.c \
 	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
 	atidac.c atidecoder.c atidsp.c atii2c.c \
