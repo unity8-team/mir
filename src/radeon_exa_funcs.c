@@ -533,7 +533,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
 #ifdef RENDER
     if (info->RenderAccel) {
-	if (info->ChipFamily >= CHIP_FAMILY_R300) {
+	if (IS_R300_VARIANT && !info->IsIGP) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R300 type cards.\n");
 		info->exa->CheckComposite = R300CheckComposite;
