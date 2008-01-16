@@ -1645,6 +1645,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
 
+	regp->head = 0;
+
 	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
 	/* But what are those special conditions? */
 	if (pNv->Architecture <= NV_ARCH_30) {
@@ -1664,10 +1666,14 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* Except for rare conditions I2C is enabled on the primary crtc */
 	if (nv_crtc->head == 0) {
-		if (pNv->overlayAdaptor) {
-			regp->head |= NV_CRTC_FSEL_OVERLAY;
-		}
 		regp->head |= NV_CRTC_FSEL_I2C;
+	}
+
+	/* Set overlay to desired crtc. */
+	if (pNv->overlayAdaptor) {
+		NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
+		if (pPriv->overlayCRTC == nv_crtc->head)
+			regp->head |= NV_CRTC_FSEL_OVERLAY;
 	}
 
 	/* This is not what nv does, but it is what the blob does (for nv4x at least) */

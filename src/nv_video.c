@@ -198,7 +198,7 @@ nv_window_belongs_to_crtc(ScrnInfoPtr pScrn, int x, int y, int w, int h)
 		 */
 		if (pNv->crtc_active[0])
 			mask |= 0x1;
-		if (pNv->crtc_active[1])
+		else if (pNv->crtc_active[1])
 			mask |= 0x2;
 
 		return mask;

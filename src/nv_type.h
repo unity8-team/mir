@@ -352,10 +352,6 @@ typedef struct {
 	uint32_t fb_start;
 } NVConsoleMode;
 
-typedef struct {
-	uint32_t Flags;
-} NVModePrivateRec, *NVModePrivatePtr;
-
 #define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
