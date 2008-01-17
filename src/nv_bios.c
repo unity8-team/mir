@@ -1,6 +1,7 @@
 /*
  * Copyright 2005-2006 Erik Waling
  * Copyright 2006 Stephane Marchesin
+ * Copyright 2007-2008 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

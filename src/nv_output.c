@@ -1,6 +1,7 @@
 /*
  * Copyright 2006 Dave Airlie
  * Copyright 2007 Maarten Maathuis
+ * Copyright 2007 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
