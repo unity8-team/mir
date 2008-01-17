@@ -954,7 +954,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    pScrn->monitor = pScrn->confScreen->monitor;
 
    flags24 = Support24bppFb | PreferConvert32to24 | SupportConvert32to24;
-   if (!xf86SetDepthBpp(pScrn, 0, 0, 0, flags24)) {
+   if (!xf86SetDepthBpp(pScrn, 16, 0, 16, flags24)) {
       return FALSE;
    } else {
       switch (pScrn->depth) {
