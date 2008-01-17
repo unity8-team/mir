@@ -1011,12 +1011,9 @@ void nv_crtc_calc_state_ext(
 		break;
 	}
 
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) { /* is this also true of 720x400 consoles? */
-		if (is_fp) {
-			regp->CRTC[NV_VGA_CRTCX_REPAINT1] = 0xBD;
-		} else {
-			regp->CRTC[NV_VGA_CRTCX_REPAINT1] = 0x3D; /* Why the difference? */
-		}
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+		/* This is a bit of a guess. */
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] |= 0xB8;
 	}
 
 	/* okay do we have 2 CRTCs running ? */
@@ -1037,67 +1034,81 @@ void nv_crtc_calc_state_ext(
 		if (!state->sel_clk)
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
-		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			/* Only wipe when are a relevant (digital) output. */
-			state->sel_clk &= ~(0xf << 16);
-			Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-			/* Even with two dvi, this should not conflict. */
-			if (crossed_clocks) {
-				state->sel_clk |= (0x1 << 16);
-			} else {
-				state->sel_clk |= (0x4 << 16);
-			}
-		}
-
-		/* Some cards, specifically dual dvi/lvds cards set another bitrange.
-		 * I suspect inverse beheaviour to the normal bitrange, but i am not a 100% certain about this.
-		 * This is all based on default settings found in mmio-traces.
-		 * The blob never changes these, as it doesn't run unusual output configurations.
-		 * It seems to prefer situations that avoid changing these bits (for a good reason?).
-		 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
-		 */
-
-		/* Some extra info:
-		 * nv30:
-		 *	bit 0		NVClk spread spectrum on/off
-		 *	bit 2		MemClk spread spectrum on/off
-		 *	bit 4		PixClk1 spread spectrum on/off
-		 *	bit 6		PixClk2 spread spectrum on/off
-
-		 *	nv40:
-		 *	what causes setting of bits not obvious but:
-		 *	bits 4&5		relate to headA
-		 *	bits 6&7		relate to headB
-		*/
-		/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
-		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			if (pNv->Architecture == NV_ARCH_40) {
-				for (i = 0; i < 4; i++) {
-					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
-					if (var == 0x1 || var == 0x4) {
-						state->sel_clk &= ~(0xf << 4*i);
-						Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-						if (crossed_clocks) {
-							state->sel_clk |= (0x4 << 4*i);
-						} else {
-							state->sel_clk |= (0x1 << 4*i);
-						}
-						break; /* This should only occur once. */
+		if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+				/* bioses are very conservative with regards to sel_clk. */
+				/* At this stage we expect a clean sel_clk value. */
+				if (nv_crtc->head == 1) {
+					if (nv_output->preferred_output == 1) {
+						state->sel_clk |= (0x4 << 16);
+					} else {
+						state->sel_clk |= (0x1 << 16);
 					}
 				}
-			/* Based on NV31M. */
-			} else if (pNv->Architecture == NV_ARCH_30) {
-				for (i = 0; i < 4; i++) {
-					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
-					if (var == 0x4 || var == 0x5) {
-						state->sel_clk &= ~(0xf << 4*i);
-						Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-						if (crossed_clocks) {
-							state->sel_clk |= (0x4 << 4*i);
-						} else {
-							state->sel_clk |= (0x5 << 4*i);
+			}
+		} else {
+			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+				/* Only wipe when are a relevant (digital) output. */
+				state->sel_clk &= ~(0xf << 16);
+				Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+				/* Even with two dvi, this should not conflict. */
+				if (crossed_clocks) {
+					state->sel_clk |= (0x1 << 16);
+				} else {
+					state->sel_clk |= (0x4 << 16);
+				}
+			}
+
+			/* Some cards, specifically dual dvi/lvds cards set another bitrange.
+			 * I suspect inverse beheaviour to the normal bitrange, but i am not a 100% certain about this.
+			 * This is all based on default settings found in mmio-traces.
+			 * The blob never changes these, as it doesn't run unusual output configurations.
+			 * It seems to prefer situations that avoid changing these bits (for a good reason?).
+			 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
+			 */
+
+			/* Some extra info:
+			 * nv30:
+			 *	bit 0		NVClk spread spectrum on/off
+			 *	bit 2		MemClk spread spectrum on/off
+			 *	bit 4		PixClk1 spread spectrum on/off
+			 *	bit 6		PixClk2 spread spectrum on/off
+
+			 *	nv40:
+			 *	what causes setting of bits not obvious but:
+			 *	bits 4&5		relate to headA
+			 *	bits 6&7		relate to headB
+			*/
+			/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
+			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+				if (pNv->Architecture == NV_ARCH_40) {
+					for (i = 0; i < 4; i++) {
+						uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+						if (var == 0x1 || var == 0x4) {
+							state->sel_clk &= ~(0xf << 4*i);
+							Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+							if (crossed_clocks) {
+								state->sel_clk |= (0x4 << 4*i);
+							} else {
+								state->sel_clk |= (0x1 << 4*i);
+							}
+							break; /* This should only occur once. */
 						}
-						break; /* This should only occur once. */
+					}
+				/* Based on NV31M. */
+				} else if (pNv->Architecture == NV_ARCH_30) {
+					for (i = 0; i < 4; i++) {
+						uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+						if (var == 0x4 || var == 0x5) {
+							state->sel_clk &= ~(0xf << 4*i);
+							Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+							if (crossed_clocks) {
+								state->sel_clk |= (0x4 << 4*i);
+							} else {
+								state->sel_clk |= (0x5 << 4*i);
+							}
+							break; /* This should only occur once. */
+						}
 					}
 				}
 			}
@@ -1600,7 +1611,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 		if (is_fp) {
 			regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0);
-			if (!NVMatchModePrivate(mode, NV_MODE_VGA)) {
+			if (!NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 				regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 1);
 			}
 		}
@@ -1709,7 +1720,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
@@ -1718,7 +1729,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Some cards have 0x41 instead of 0x1 (for crtc 0), what is the meaning of that? */
 	regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
 
-	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_VGA))
+	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_CONSOLE))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
@@ -1992,7 +2003,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		ErrorF("Post-panel scaling\n");
 	}
 
-	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_VGA)) {
+	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->debug_1 = 0x08000800;
 	}
 
