@@ -736,7 +736,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = nv32_rd(pScrn, reg2);
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
-	uint32_t saved1584, savedc040, maskc040 = ~0;
+	uint32_t saved1584 = 0, savedc040 = 0, maskc040 = ~0;
 	int shift1584 = -1;
 
 	if (oldpll1 == pll1 && oldpll2 == pll2)
