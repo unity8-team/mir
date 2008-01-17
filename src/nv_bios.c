@@ -3769,9 +3769,6 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			if (conn & 0x10)
 				entry->type = OUTPUT_LVDS;
 			else
-				/* FIXME: do we need to add a DVI-A analogue output in this case,
-				 * assuming this connector is DVI-I, not pure DVI-D?
-				 */
 				entry->type = OUTPUT_TMDS;
 		}
 		/* what's in bits 5-13? could be some brooktree/chrontel/philips thing, in tv case */
@@ -3789,6 +3786,12 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			entry->lvdsconf.use_straps_for_mode = TRUE;
 			entry->lvdsconf.use_power_scripts = TRUE;
 			break;
+		case OUTPUT_TMDS:
+			/* invent a DVI-A output, by copying the fields of the DVI-D output
+			 * reported to work by math_b on an NV20(!) */
+			memcpy(&entry[1], &entry[0], sizeof(struct dcb_entry));
+			entry[1].type = OUTPUT_ANALOG;
+			pNv->dcb_table.entries++;
 		}
 	} else if (dcb_version >= 0x12) {
 		/* use the defaults for a crt
@@ -3950,7 +3953,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
-		if (!parse_dcb_entry(pScrn, dcb_version, connection, config, &pNv->dcb_table.entry[i]))
+		if (!parse_dcb_entry(pScrn, dcb_version, connection, config, &pNv->dcb_table.entry[pNv->dcb_table.entries]))
 			break;
 	}
 
