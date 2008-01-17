@@ -28,7 +28,7 @@
  */
 
 /*
- * avivo output handling functions. 
+ * avivo output handling functions.
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -192,12 +192,12 @@ atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TVEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output TV1 setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output TV1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
@@ -224,12 +224,12 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("External TMDS setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("External TMDS setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -251,12 +251,12 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS1EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output TMDS1 setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output TMDS1 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
@@ -279,12 +279,12 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output TMDS2 setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output TMDS2 setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -306,12 +306,12 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
-    
+
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Output LVDS setup success\n");
 	return ATOM_SUCCESS;
     }
-    
+
     ErrorF("Output LVDS setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -328,7 +328,7 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.ucScaler = radeon_crtc->crtc_id;
 
-    if (mode->Flags & RADEON_USE_RMX) {
+    if (radeon_output->Flags & RADEON_USE_RMX) {
 	ErrorF("Using RMX\n");
 	if (radeon_output->rmx_type == RMX_FULL ||
 	    radeon_output->rmx_type == RMX_ASPECT)

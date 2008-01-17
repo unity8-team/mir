@@ -31,7 +31,7 @@
  *
  */
 /*
- * avivo crtc handling functions. 
+ * avivo crtc handling functions.
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -65,12 +65,12 @@ atombios_enable_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableCRTC);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_data;
-    
+
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("%s CRTC %d success\n", state? "Enable":"Disable", crtc);
 	return ATOM_SUCCESS ;
     }
-  
+
     ErrorF("Enable CRTC failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -89,12 +89,12 @@ atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     data.exec.index = offsetof(ATOM_MASTER_LIST_OF_COMMAND_TABLES, BlankCRTC) / sizeof(unsigned short);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_data;
-    
+
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("%s CRTC %d success\n", state? "Blank":"Unblank", crtc);
 	return ATOM_SUCCESS ;
     }
-  
+
     ErrorF("Blank CRTC failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -107,7 +107,7 @@ atombios_crtc_enable(xf86CrtcPtr crtc, int enable)
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
 
     atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, enable);
-    
+
     //TODOavivo_wait_idle(avivo);
 }
 #endif
@@ -123,11 +123,11 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
     case DPMSModeSuspend:
 	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
-        break;
+	break;
     case DPMSModeOff:
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
-        break;
+	break;
     }
 }
 
@@ -140,12 +140,12 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_Timing);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = crtc_param;
-    
+
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC Timing success\n");
 	return ATOM_SUCCESS ;
     }
-  
+
     ErrorF("Set CRTC Timing failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
@@ -334,20 +334,20 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     if (IS_AVIVO_VARIANT) {
-	radeon_crtc->fb_width = adjusted_mode->CrtcHDisplay;
+	radeon_crtc->fb_width = mode->CrtcHDisplay;
 	radeon_crtc->fb_height = pScrn->virtualY;
-	radeon_crtc->fb_pitch = adjusted_mode->CrtcHDisplay;
+	radeon_crtc->fb_pitch = mode->CrtcHDisplay;
 	radeon_crtc->fb_length = radeon_crtc->fb_pitch * radeon_crtc->fb_height * 4;
 	switch (crtc->scrn->bitsPerPixel) {
 	case 15:
 	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
 	    break;
 	case 16:
- 	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
 	    break;
 	case 24:
 	case 32:
- 	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
 	    break;
 	default:
 	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());

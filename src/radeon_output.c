@@ -199,7 +199,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	output = xf86_config->output[o];
 	radeon_output = output->driver_private;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- 0x%x\n", 
 		   o,
 		   MonTypeName[radeon_output->MonType+1],
@@ -568,31 +568,52 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 	if (IS_AVIVO_VARIANT || radeon_crtc->crtc_id == 0) {
 	    if (mode->HDisplay < radeon_output->PanelXRes ||
-		mode->VDisplay < radeon_output->PanelYRes)
+		mode->VDisplay < radeon_output->PanelYRes) {
 		radeon_output->Flags |= RADEON_USE_RMX;
+		if (IS_AVIVO_VARIANT) {
+		    /* set to the panel's native mode */
+		    adjusted_mode->HDisplay = radeon_output->PanelXRes;
+		    adjusted_mode->HDisplay = radeon_output->PanelYRes;
+		    adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
+		    adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
+		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
+		    adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
+		    adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
+		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
+		    /* update crtc values */
+		    xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+		    /* adjust crtc values */
+		    adjusted_mode->CrtcHDisplay = radeon_output->PanelXRes;
+		    adjusted_mode->CrtcVDisplay = radeon_output->PanelYRes;
+		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
+		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
+		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
+		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
+		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+		} else {
+		    /* set to the panel's native mode */
+		    adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
+		    adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
+		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
+		    adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
+		    adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
+		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
+		    adjusted_mode->Clock = radeon_output->DotClock;
+		    /* update crtc values */
+		    xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
+		    /* adjust crtc values */
+		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
+		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
+		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
+		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
+		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
+		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+		}
+		adjusted_mode->Clock = radeon_output->DotClock;
+		adjusted_mode->Flags = radeon_output->Flags;
+	    }
 	}
-    }
-
-    /* update timing for LVDS and DFP if RMX is active */
-    if (radeon_output->Flags & RADEON_USE_RMX) {
-	/* set to the panel's native mode */
-	adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
-	adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-	adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
-	adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
-	adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-	adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
-	/* update crtc values */
-	xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
-	/* adjust crtc values */
-	adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
-	adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
-	adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-	adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
-	adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
-	adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
-	adjusted_mode->Clock = radeon_output->DotClock;
-	adjusted_mode->Flags = radeon_output->Flags;
     }
 
     return TRUE;
