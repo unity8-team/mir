@@ -893,7 +893,7 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
     if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_R200) || !pRADEONEnt->HasCRTC2)
 	save->tmds_transmitter_cntl &= ~(RADEON_TMDS_TRANSMITTER_PLLEN);
     else /* weird, RV chips got this bit reversed? */
-        save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
+	save->tmds_transmitter_cntl |= (RADEON_TMDS_TRANSMITTER_PLLEN);
 
     save->fp_gen_cntl = info->SavedReg->fp_gen_cntl |
 			 (RADEON_FP_CRTC_DONT_SHADOW_VPAR |
@@ -902,25 +902,25 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 
     if (pScrn->rgbBits == 8)
-        save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
+	save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
     else
-        save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
+	save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
 
 
     if (IsPrimary) {
 	if ((IS_R300_VARIANT) || (info->ChipFamily == CHIP_FAMILY_R200)) {
 	    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
-	    if (mode->Flags & RADEON_USE_RMX) 
+	    if (radeon_output->Flags & RADEON_USE_RMX)
 		save->fp_gen_cntl |= R200_FP_SOURCE_SEL_RMX;
 	    else
 		save->fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
-	} else 
+	} else
 	    save->fp_gen_cntl |= RADEON_FP_SEL_CRTC1;
     } else {
 	if ((IS_R300_VARIANT) || (info->ChipFamily == CHIP_FAMILY_R200)) {
 	    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
 	    save->fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC2;
-	} else 
+	} else
 	    save->fp_gen_cntl |= RADEON_FP_SEL_CRTC2;
     }
 
@@ -932,9 +932,9 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-
-    if (pScrn->rgbBits == 8) 
+    if (pScrn->rgbBits == 8)
 	save->fp2_gen_cntl = info->SavedReg->fp2_gen_cntl |
 				RADEON_FP2_PANEL_FORMAT; /* 24 bit format, */
     else
@@ -956,20 +956,20 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
     }
 
     if (IsPrimary) {
-        if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
-            save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
-	    if (mode->Flags & RADEON_USE_RMX)
+	if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
+	    save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
+	    if (radeon_output->Flags & RADEON_USE_RMX)
 		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
-        } else {
-            save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
+	} else {
+	    save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
 	}
     } else {
-        if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
-            save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
-            save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
-        } else {
-            save->fp2_gen_cntl |= RADEON_FP2_SRC_SEL_CRTC2;
-        }
+	if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
+	    save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
+	    save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
+	} else {
+	    save->fp2_gen_cntl |= RADEON_FP2_SRC_SEL_CRTC2;
+	}
     }
 
 }
@@ -980,6 +980,7 @@ RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     save->lvds_pll_cntl = (info->SavedReg->lvds_pll_cntl |
 			   RADEON_LVDS_PLL_EN);
@@ -998,7 +999,7 @@ RADEONInitLVDSRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     if (IsPrimary) {
 	if (IS_R300_VARIANT) {
-	    if (mode->Flags & RADEON_USE_RMX)
+	    if (radeon_output->Flags & RADEON_USE_RMX)
 		save->lvds_pll_cntl |= R300_LVDS_SRC_SEL_RMX;
 	} else
 	    save->lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
@@ -1042,7 +1043,7 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	Vratio = (float)yres/(float)radeon_output->PanelYRes;
     }
 
-    if (Hratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
+    if (Hratio == 1.0 || !(radeon_output->Flags & RADEON_USE_RMX)) {
 	save->fp_horz_stretch |= ((xres/8-1)<<16);
     } else {
 	save->fp_horz_stretch |= ((((unsigned long)
@@ -1053,7 +1054,7 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				  ((radeon_output->PanelXRes/8-1)<<16));
     }
 
-    if (Vratio == 1.0 || !(mode->Flags & RADEON_USE_RMX)) {
+    if (Vratio == 1.0 || !(radeon_output->Flags & RADEON_USE_RMX)) {
 	save->fp_vert_stretch |= ((yres-1)<<12);
     } else {
 	save->fp_vert_stretch |= ((((unsigned long)(Vratio * RADEON_VERT_STRETCH_RATIO_MAX)) &
@@ -1235,14 +1236,18 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		CARD32 fp2_gen_cntl;
 
 		atombios_external_tmds_setup(output, mode);
-		/* r4xx atom seems to have hard coded crtc mappings in the atom code
+		/* r4xx atom has hard coded crtc mappings in the atom code
 		 * Fix it up here.
 		 */
 		fp2_gen_cntl = INREG(RADEON_FP2_GEN_CNTL) & ~R200_FP2_SOURCE_SEL_MASK;
 		if (radeon_crtc->crtc_id == 1)
 		    fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
-		else
-		    fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
+		else {
+		    if (radeon_output->Flags & RADEON_USE_RMX)
+			fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
+		    else
+			fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
+		}
 		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
 	    } else {
 		RADEONRestoreDVOChip(pScrn, output);
