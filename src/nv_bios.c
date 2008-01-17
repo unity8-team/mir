@@ -722,49 +722,50 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 #endif
 }
 
-static void setPLL_double(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
-	uint32_t reg2, pll1, pll2;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	uint32_t reg2 = reg1 + ((reg1 == 0x680520) ? 0x5c : 0x70);
+	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = nv32_rd(pScrn, reg2);
+	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
+	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
+	uint32_t saved1584, savedc040, maskc040 = ~0;
+	int shift1584 = -1;
 
-	reg2 = reg1 + 0x70;
-	if (reg2 == 0x680590)
-		reg2 = NV_RAMDAC_VPLL2_B;
-
-	pll1 = nv32_rd(pScrn, reg1);
-	pll2 = nv32_rd(pScrn, reg2);
-	if (pll1 == (log2P << 16 | NM1) && pll2 == (1 << 31 | NM2))
+	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
-#if 0
-	//this stuff is present on my nv31
-	//I don't know how useful or necessary it is
-
-	uint32_t saved_1584, shift_1584;
-	Bool frob1584 = FALSE;
-	switch (reg1) {
-	case 0x680500:
-		shift_1584 = 0;
-		frob1584 = TRUE;
-		break;
-	case 0x680504:
-		shift_1584 = 4;
-		frob1584 = TRUE;
-		break;
+	if (reg1 == 0x680500) {
+		shift1584 = 0;
+		maskc040 = ~(3 << 20);
+	}
+	if (reg1 == 0x680504) {
+		shift1584 = 4;
+		maskc040 = ~(3 << 22);
+	}
+	if (shift1584 >= 0) {
+		saved1584 = nv32_rd(pScrn, 0x1584);
+		nv32_wr(pScrn, 0x1584, (saved1584 & ~(0xf << shift1584)) | 1 << shift1584);
 	}
 
-	if (frob1584) {
-		saved_1584 = nv32_rd(pScrn, 0x00001584);
-		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
+	if (bios->chip_version >= 0x40) {
+		savedc040 = nv32_rd(pScrn, 0xc040);
+		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
+
+		if (reg1 == 0x680508)
+			nv32_wr(pScrn, 0x680580, nv32_rd(pScrn, 0x680580) & ~(1 << 28));
+		if (reg1 == 0x680520)
+			nv32_wr(pScrn, 0x680580, nv32_rd(pScrn, 0x680580) & ~(1 << 8));
 	}
-#endif
 
-	nv32_wr(pScrn, reg2, (pll2 & 0x7fff0000) | NM2);
-	nv32_wr(pScrn, reg1, (pll1 & 0xfff80000) | log2P << 16 | NM1);
+	nv32_wr(pScrn, reg2, pll2);
+	nv32_wr(pScrn, reg1, pll1);
 
-#if 0
-	if (frob1584)
-		nv32_wr(pScrn, 0x00001584, saved_1584);
-#endif
+	if (shift1584 >= 0) {
+		nv32_wr(pScrn, 0x1584, saved1584);
+		if (bios->chip_version >= 0x40)
+			nv32_wr(pScrn, 0xc040, savedc040);
+	}
 }
 
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
@@ -772,10 +773,10 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	/* clk in kHz */
 	int NM1, NM2, log2P;
 
-	// FIXME: both getMNP versions will need some alterations for nv40 type stuff
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
 		getMNP_double(pScrn, reg, clk, &NM1, &NM2, &log2P);
-		setPLL_double(pScrn, reg, NM1, NM2, log2P);
+		if (reg > 0x405c)
+			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
 	} else {
 		getMNP_single(pScrn, clk, &NM1, &log2P);
 		setPLL_single(pScrn, reg, NM1, log2P);
