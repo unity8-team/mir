@@ -581,6 +581,7 @@ int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *b
 	int minN1 = pll_lim.vco1.min_n, maxN1 = pll_lim.vco1.max_n;
 	int minM2 = pll_lim.vco2.min_m, maxM2 = pll_lim.vco2.max_m;
 	int minN2 = pll_lim.vco2.min_n, maxN2 = pll_lim.vco2.max_n;
+	Bool fixedgain2 = (minM2 == maxM2 && minN2 == maxN2);
 	int crystal = 0;
 	int M1, N1, M2, N2, log2P;
 	int clkP, calcclk1, calcclk2, calcclkout;
@@ -639,14 +640,17 @@ int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *b
 				if (N2 > maxN2)
 					break;
 
-				if (N2/M2 < 4 || N2/M2 > 10)
-					continue;
+				if (!fixedgain2) {
+					if (N2/M2 < 4 || N2/M2 > 10)
+						continue;
 
-				calcclk2 = calcclk1 * N2 / M2;
-				if (calcclk2 < minvco2)
-					break;
-				if (calcclk2 > maxvco2)
-					continue;
+					calcclk2 = calcclk1 * N2 / M2;
+					if (calcclk2 < minvco2)
+						break;
+					if (calcclk2 > maxvco2)
+						continue;
+				} else
+					calcclk2 = calcclk1;
 
 				calcclkout = calcclk2 >> log2P;
 				delta = abs(calcclkout - clk);
@@ -847,7 +851,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
-	int NM1, NM2, log2P;
+	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
 		getMNP_double(pScrn, reg, clk, &NM1, &NM2, &log2P);
@@ -1305,7 +1309,7 @@ static Bool init_io_restrict_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 			   "0x%04X: Reg: 0x%08X, Config: 0x%02X, Freq: %dkHz\n",
 			   offset, reg, config, freq);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	setPLL(pScrn, bios, reg, freq);
 
 	return TRUE;
 }
@@ -1332,7 +1336,7 @@ static Bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 			   "0x%04X: Reg: 0x%04X, Freq: %dkHz\n",
 			   offset, reg, freq);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: [ NOT YET IMPLEMENTED ]\n", offset);
+	setPLL(pScrn, bios, reg, freq);
 
 	return TRUE;
 }
