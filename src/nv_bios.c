@@ -768,6 +768,79 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	}
 }
 
+static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, int NM2, int log2P)
+{
+	/* When setting PLLs, there is a merry game of disabling and enabling
+	 * various bits of hardware during the process. This function is a
+	 * synthesis of six nv40 traces, nearly each card doing a subtly
+	 * different thing. With luck all the necessary bits for each card are
+	 * combined herein. Without luck it deviates from each card's formula
+	 * so as to not work on any :)
+	 */
+
+	uint32_t Preg = NMNMreg - 4;
+	uint32_t oldPval = nv32_rd(pScrn, Preg);
+	uint32_t NMNM = NM2 << 16 | NM1;
+	uint32_t Pval = (oldPval & ((Preg == 0x4020) ? ~(0x11 << 16) : ~(1 << 16))) | 0xc << 28 | log2P << 16;
+	uint32_t saved4600 = 0;
+	/* some cards have different maskc040s */
+	uint32_t maskc040 = ~(3 << 14), savedc040;
+
+	if (nv32_rd(pScrn, NMNMreg) == NMNM && (oldPval & 0xc0070000) == Pval)
+		return;
+
+	if (Preg == 0x4000)
+		maskc040 = ~0x333;
+	if (Preg == 0x4058)
+		maskc040 = ~(3 << 26);
+
+	if (Preg == 0x4020) {
+		struct pll_lims pll_lim;
+		uint8_t Pval2;
+
+		if (!get_pll_limits(pScrn, Preg, &pll_lim))
+			return;
+
+		Pval2 = log2P + pll_lim.unk1e;
+		if (Pval2 > pll_lim.unk1d)
+			Pval2 = pll_lim.unk1d;
+		Pval |= 1 << 28 | Pval2 << 20;
+
+		saved4600 = nv32_rd(pScrn, 0x4600);
+		nv32_wr(pScrn, 0x4600, saved4600 | 1 << 31);
+	}
+
+	nv32_wr(pScrn, Preg, oldPval | 1 << 28);
+	nv32_wr(pScrn, Preg, Pval & ~(1 << 30));
+	if (Preg == 0x4020) {
+		Pval |= 1 << 23 | 1 << 12;
+		nv32_wr(pScrn, 0x4020, Pval & ~(3 << 30));
+		nv32_wr(pScrn, 0x4038, Pval & ~(3 << 30));
+	}
+
+	savedc040 = nv32_rd(pScrn, 0xc040);
+	nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
+
+	nv32_wr(pScrn, NMNMreg, NMNM);
+	if (NMNMreg == 0x4024)
+		nv32_wr(pScrn, 0x403c, NMNM);
+
+	nv32_wr(pScrn, Preg, Pval);
+	if (Preg == 0x4020) {
+		Pval &= ~(1 << 23);
+		nv32_wr(pScrn, 0x4020, Pval);
+		nv32_wr(pScrn, 0x4038, Pval);
+		nv32_wr(pScrn, 0x4600, saved4600);
+	}
+
+	nv32_wr(pScrn, 0xc040, savedc040);
+
+	if (Preg == 0x4020) {
+		nv32_wr(pScrn, 0x4020, Pval & ~(1 << 28));
+		nv32_wr(pScrn, 0x4038, Pval & ~(1 << 28));
+	}
+}
+
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
@@ -777,6 +850,8 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 		getMNP_double(pScrn, reg, clk, &NM1, &NM2, &log2P);
 		if (reg > 0x405c)
 			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
+		else
+			setPLL_double_lowregs(pScrn, reg, NM1, NM2, log2P);
 	} else {
 		getMNP_single(pScrn, clk, &NM1, &log2P);
 		setPLL_single(pScrn, reg, NM1, log2P);
