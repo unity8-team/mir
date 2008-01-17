@@ -3757,7 +3757,7 @@ static Bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			break;
 		}
 	} else if (dcb_version >= 0x14 ) {
-		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf4204011) {
+		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011) {
 			ErrorF("Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
 			pNv->dcb_table.entries = 0;
