@@ -247,7 +247,8 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		dstBox->y2 -= pPix->screen_y;
 	}
 
-	DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
+	/* I suspect that pDraw itself is not offscreen, hence not suited for damage tracking. */
+	DamageDamageRegion(&pPix->drawable, clipBoxes);
 #endif
 
 	pbox = REGION_RECTS(clipBoxes);
