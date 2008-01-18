@@ -3001,8 +3001,7 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 		   bios->data[offset + 1], bios->data[offset]);
 }
 
-//int getMNP_double_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, int clk, int *NM1, int *NM2, int *log2P)
-int get_pll_limits_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim)
+Bool get_pll_limits_reg(ScrnInfoPtr pScrn, enum pll_types plltype, uint32_t *reg)
 {
 	/*
 	 * Here we just try to find a register matching plltype in the PLL
@@ -3010,16 +3009,23 @@ int get_pll_limits_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	uint8_t pll_lim_ver = 0;
 
 	if (!bios->pll_limit_tbl_ptr) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Pointer to PLL limits table invalid\n");
-		return 0;
-	}
+		if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Pointer to PLL limits table invalid\n");
+			return FALSE;
+		}
+	} else
+		pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
 
-	switch (bios->data[bios->pll_limit_tbl_ptr]) {
+	/* default match */
+	*reg = 0;
+
+	switch (pll_lim_ver) {
+	case 0:
 	case 0x10:
-		return get_pll_limits(pScrn, 0, pll_lim);
-//		return getMNP_double(pScrn, 0, clk, NM1, NM2, log2P);
+		break;
 	case 0x20:
 	case 0x21:
 		{
@@ -3028,29 +3034,24 @@ int get_pll_limits_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll
 		uint8_t entries = bios->data[bios->pll_limit_tbl_ptr + 3];
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 		int i;
-		uint32_t reg = 0;
 
 		for (i = 1; i < entries; i++) {
 			uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
 
-			if (plltype == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010)) {
-				reg = cmpreg;
-				break;
-			}
-			if (plltype == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018)) {
-				reg = cmpreg;
-				break;
-			}
+			if (plltype == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010))
+				*reg = cmpreg;
+			if (plltype == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018))
+				*reg = cmpreg;
 		}
-
-		return get_pll_limits(pScrn, reg, pll_lim);
-//		return getMNP_double(pScrn, reg, clk, NM1, NM2, log2P);
 		}
+		break;
 	default:
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "PLL limits table revision not currently supported\n");
-		return 0;
+		return FALSE;
 	}
+
+	return TRUE;
 }
 
 Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)

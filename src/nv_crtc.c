@@ -624,6 +624,7 @@ CalculateVClkNV4x(
 )
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t pll_lim_reg;
 	struct pll_lims pll_lim;
 	/* We have 2 mulitpliers, 2 dividers and one post divider */
 	/* Note that p is only 3 bits */
@@ -631,11 +632,13 @@ CalculateVClkNV4x(
 	uint32_t special_bits = 0;
 
 	if (primary) {
-		if (!get_pll_limits_plltype(pScrn, VPLL1, &pll_lim))
+		if (!get_pll_limits_reg(pScrn, VPLL1, &pll_lim_reg))
 			return;
 	} else
-		if (!get_pll_limits_plltype(pScrn, VPLL2, &pll_lim))
+		if (!get_pll_limits_reg(pScrn, VPLL2, &pll_lim_reg))
 			return;
+
+	get_pll_limits(pScrn, pll_lim_reg, &pll_lim);
 
 	if (requested_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* single VCO */
 		*db1_ratio = TRUE;
