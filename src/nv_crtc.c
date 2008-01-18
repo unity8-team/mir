@@ -927,7 +927,7 @@ void nv_crtc_calc_state_ext(
 		}
 	} else {
 		int NM, log2P;
-		VClk = getMNP_single(pScrn, dotClock, &NM, &log2P);
+		VClk = getMNP_single(pScrn, 0, dotClock, &NM, &log2P);
 		state->pll = log2P << 16 | NM;
 	}
 

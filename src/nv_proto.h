@@ -88,7 +88,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn);
 void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, Bool overrideval);
 void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk);
 void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk);
-uint32_t getMNP_single(ScrnInfoPtr pScrn, uint32_t clk, int *NM, int *log2P);
+int getMNP_single(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *NM, int *log2P);
 int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *NM1, int *NM2, int *log2P);
 //int getMNP_double_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, int clk, int *NM1, int *NM2, int *log2P);
 int get_pll_limits_plltype(ScrnInfoPtr pScrn, enum pll_types plltype, struct pll_lims *pll_lim);
