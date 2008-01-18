@@ -676,58 +676,46 @@ int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *b
 
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
-	uint32_t pll;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	uint32_t oldpll = nv32_rd(pScrn, reg);
+	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
+	uint32_t saved1584 = 0;
+	int shift1584 = -4;
 
-	pll = nv32_rd(pScrn, reg);
-	if (pll == (log2P << 16 | NM))
+	if (oldpll == pll)
 		return;	/* already set */
 
-#if 0
-	//this stuff is present on my nv34 and something similar on the nv31
-	//it is not on nv20, and I don't know how useful or necessary it is
+	/* FIXME needs verification on pre nv30 */
+	if (bios->chip_version >= 0x17 && bios->chip_version != 0x20) {
+		switch (reg) {
+		case 0x680520:
+			shift1584 += 4;
+		case 0x680508:
+			shift1584 += 4;
+		case 0x680504:
+			shift1584 += 4;
+		case 0x680500:
+			shift1584 += 4;
+		}
 
-	uint32_t saved_1584, shift_1584;
-	Bool frob1584 = FALSE;
-	switch (reg) {
-	case 0x680500:
-		shift_1584 = 0;
-		frob1584 = TRUE;
-		break;
-	case 0x680504:
-		shift_1584 = 4;
-		frob1584 = TRUE;
-		break;
-	case 0x680508:
-		shift_1584 = 8;
-		frob1584 = TRUE;
-		break;
-	case 0x680520:
-		shift_1584 = 12;
-		frob1584 = TRUE;
-		break;
+		if (shift1584 >= 0) {
+			saved1584 = nv32_rd(pScrn, 0x00001584);
+			nv32_wr(pScrn, 0x00001584, (saved1584 & ~(0xf << shift1584)) | 1 << shift1584);
+		}
 	}
-
-	if (frob1584) {
-		saved_1584 = nv32_rd(pScrn, 0x00001584);
-		nv32_wr(pScrn, 0x00001584, (saved_1584 & ~(0xf << shift_1584)) | 1 << shift_1584);
-	}
-#endif
 
 	/* write NM first */
-	pll = (pll & 0xffff0000) | NM;
-	nv32_wr(pScrn, reg, pll);
+	nv32_wr(pScrn, reg, (oldpll & 0xffff0000) | NM);
 
 	/* wait a bit */
 	usleep(64000);
 	nv32_rd(pScrn, reg);
 
 	/* then write P as well */
-	nv32_wr(pScrn, reg, (pll & 0xfff8ffff) | log2P << 16);
+	nv32_wr(pScrn, reg, pll);
 
-#if 0
-	if (frob1584)
-		nv32_wr(pScrn, 0x00001584, saved_1584);
-#endif
+	if (shift1584 >= 0)
+		nv32_wr(pScrn, 0x00001584, saved1584);
 }
 
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
