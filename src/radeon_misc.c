@@ -64,9 +64,8 @@ RADEONSetup
     static Bool Inited = FALSE;
 
     if (!Inited) {
-        /* Ensure main driver module is loaded, but not as a submodule */
-        if (!xf86ServerIsOnlyDetecting() && !LoaderSymbol(ATI_NAME))
-            xf86LoadOneModule(ATI_DRIVER_NAME, Options);
+        if (xf86ServerIsOnlyDetecting() || !LoaderSymbol(ATI_NAME))
+            xf86AddDriver(&RADEON, Module, 0);
 
         Inited = TRUE;
     }

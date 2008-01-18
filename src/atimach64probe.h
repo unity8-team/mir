@@ -25,6 +25,8 @@
 
 #include "xf86str.h"
 
+extern DriverRec MACH64;
+
 extern SymTabRec Mach64Chipsets[];
 
 #endif /* ___ATIMACH64PROBE_H___ */

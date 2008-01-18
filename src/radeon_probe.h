@@ -53,6 +53,8 @@
 #include "xaa.h"
 #endif
 
+extern DriverRec RADEON;
+
 typedef enum
 {
     MT_UNKNOWN = -1,

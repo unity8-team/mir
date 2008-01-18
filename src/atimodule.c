@@ -63,6 +63,8 @@ ATISetup
     {
         Inited = TRUE;
         xf86AddDriver(&ATI, Module, 0);
+
+        ati_check_subdriver_added();
     }
 
     return (pointer)1;

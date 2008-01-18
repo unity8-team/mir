@@ -81,6 +81,29 @@ enum
     ATI_CHIP_FAMILY_Radeon
 };
 
+/*
+ * Record which sub-drivers have already been loaded, and thus have called
+ * xf86AddDriver(). For those sub-drivers, cause the ati wrapper later to fail
+ * when probing.
+ *
+ * The check is only called once when the ati wrapper is loaded and depends on
+ * the X server loading all drivers before doing any probes.
+ */
+static Bool mach64_drv_added = FALSE;
+static Bool r128_drv_added = FALSE;
+static Bool radeon_drv_added = FALSE;
+
+void
+ati_check_subdriver_added()
+{
+    if (LoaderSymbol(MACH64_NAME))
+        mach64_drv_added = TRUE;
+    if (LoaderSymbol(R128_NAME))
+        r128_drv_added = TRUE;
+    if (LoaderSymbol(RADEON_NAME))
+        radeon_drv_added = TRUE;
+}
+
 static int ATIChipID(const CARD16);
 
 #ifdef XSERVER_LIBPCIACCESS
@@ -142,6 +165,10 @@ ATIProbe
     Bool        DoRage128 = FALSE, DoRadeon = FALSE;
     int         Chip;
 
+    /* Let the sub-drivers probe & configure for themselves */
+    if (xf86ServerIsOnlyDetecting())
+        return FALSE;
+
 #ifndef XSERVER_LIBPCIACCESS
 
     xf86PciVideoInfo = xf86GetPciVideoInfo();
@@ -199,6 +226,10 @@ ATIProbe
     {
         DriverRec *radeon;
 
+        /* If the sub-driver was added, let it probe for itself */
+        if (radeon_drv_added)
+            return FALSE;
+
         if (!LoaderSymbol(RADEON_NAME))
             xf86LoadDrvSubModule(pDriver, RADEON_DRIVER_NAME);
 
@@ -222,6 +253,10 @@ ATIProbe
     {
         DriverRec *r128;
 
+        /* If the sub-driver was added, let it probe for itself */
+        if (r128_drv_added)
+            return FALSE;
+
         if (!LoaderSymbol(R128_NAME))
             xf86LoadDrvSubModule(pDriver, R128_DRIVER_NAME);
 
@@ -244,6 +279,10 @@ ATIProbe
     if (DoMach64)
     {
         DriverRec *mach64;
+
+        /* If the sub-driver was added, let it probe for itself */
+        if (mach64_drv_added)
+            return FALSE;
 
         if (!LoaderSymbol(MACH64_NAME))
             xf86LoadDrvSubModule(pDriver, MACH64_DRIVER_NAME);

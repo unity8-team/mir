@@ -38,6 +38,8 @@
 
 #include "xf86str.h"
 
+extern DriverRec R128;
+
 typedef struct
 {
     Bool IsDRIEnabled;
