@@ -1864,11 +1864,7 @@ NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 		return;
 
 	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	Bool need_unlock;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
 
 	if (!crtc->enabled)
 		return;
@@ -1946,7 +1942,7 @@ NVRestore(ScrnInfoPtr pScrn)
 			/* Otherwise we end up with corrupted terminals. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
-				RIVA_HW_STATE *state = &pNv->ModeReg;
+				RIVA_HW_STATE *state = &pNv->SavedReg;
 				NVCrtcRegPtr savep = &state->crtc_reg[nv_crtc->head];
 				uint8_t pixelDepth = pNv->console_mode[nv_crtc->head].depth/8;
 				/* restore PIXEL value */
