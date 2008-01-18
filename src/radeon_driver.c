@@ -4053,6 +4053,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph1.viewport_start = INREG(AVIVO_D1MODE_VIEWPORT_START);
     state->grph1.viewport_size = INREG(AVIVO_D1MODE_VIEWPORT_SIZE);
     state->grph1.scl_enable = INREG(AVIVO_D1SCL_SCALER_ENABLE);
+    state->grph1.scl_tap_control = INREG(AVIVO_D1SCL_SCALER_TAP_CONTROL);
 
     state->crtc2.pll_source = INREG(AVIVO_PCLK_CRTC2_CNTL);
 
@@ -4093,6 +4094,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
     state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
     state->grph2.scl_enable = INREG(AVIVO_D2SCL_SCALER_ENABLE);
+    state->grph2.scl_tap_control = INREG(AVIVO_D2SCL_SCALER_TAP_CONTROL);
 
     state->daca.enable = INREG(AVIVO_DACA_ENABLE);
     state->daca.source_select = INREG(AVIVO_DACA_SOURCE_SELECT);
@@ -4207,6 +4209,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D1MODE_VIEWPORT_START, state->grph1.viewport_start);
     OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE, state->grph1.viewport_size);
     OUTREG(AVIVO_D1SCL_SCALER_ENABLE, state->grph1.scl_enable);
+    OUTREG(AVIVO_D1SCL_SCALER_TAP_CONTROL, state->grph1.scl_tap_control);
 
     OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
 
@@ -4246,7 +4249,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
     OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
     OUTREG(AVIVO_D2SCL_SCALER_ENABLE, state->grph2.scl_enable);
-
+    OUTREG(AVIVO_D2SCL_SCALER_TAP_CONTROL, state->grph2.scl_tap_control);
 
     OUTREG(AVIVO_DACA_ENABLE, state->daca.enable);
     OUTREG(AVIVO_DACA_SOURCE_SELECT, state->daca.source_select);

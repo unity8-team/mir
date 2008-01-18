@@ -289,6 +289,7 @@ struct avivo_grph_state {
     CARD32 viewport_start;
     CARD32 viewport_size;
     CARD32 scl_enable;
+    CARD32 scl_tap_control;
 };
 
 struct avivo_dac_state {

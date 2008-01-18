@@ -3439,6 +3439,7 @@
 #define AVIVO_D1MODE_EXT_OVERSCAN_TOP_BOTTOM    0x658c
 
 #define AVIVO_D1SCL_SCALER_ENABLE               0x6590
+#define AVIVO_D1SCL_SCALER_TAP_CONTROL	 	0x6594
 #define AVIVO_D1SCL_UPDATE                      0x65cc
 #       define AVIVO_D1SCL_UPDATE_LOCK         (1<<16)
 
@@ -3489,6 +3490,7 @@
 #define AVIVO_D2MODE_EXT_OVERSCAN_TOP_BOTTOM    0x6d8c
 
 #define AVIVO_D2SCL_SCALER_ENABLE               0x6d90
+#define AVIVO_D2SCL_SCALER_TAP_CONTROL	 	0x6d94
 
 #define AVIVO_DACA_ENABLE					0x7800
 #	define AVIVO_DAC_ENABLE				(1 << 0)
