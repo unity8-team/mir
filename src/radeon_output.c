@@ -383,8 +383,8 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	RADEONUpdatePanelSize(output);
 
     if (output->MonInfo) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on connector: %s ----------------------\n",
-		   ConnectorTypeName[radeon_output->ConnectorType]);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
+		   output->name);
 	xf86PrintEDID( output->MonInfo );
     }
 }
