@@ -1868,8 +1868,6 @@ NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 	Bool need_unlock;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state = &pNv->ModeReg;
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	int i;
 
 	if (!crtc->enabled)
@@ -1896,10 +1894,6 @@ NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
 	/* Always turn on outputs afterwards. */
 	output->funcs->dpms(output, DPMSModeOn);
 	crtc->funcs->dpms(crtc, DPMSModeOn);
-
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads)
-		for (i = 0; i < 0x10; i++)
-			NVWriteVGACR5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 
 	/* Free mode. */
 	xfree(adjusted_mode);
@@ -1952,6 +1946,8 @@ NVRestore(ScrnInfoPtr pScrn)
 			/* Otherwise we end up with corrupted terminals. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+				RIVA_HW_STATE *state = &pNv->ModeReg;
+				NVCrtcRegPtr savep = &state->crtc_reg[nv_crtc->head];
 				uint8_t pixelDepth = pNv->console_mode[nv_crtc->head].depth/8;
 				/* restore PIXEL value */
 				uint32_t pixel = NVReadVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_PIXEL) & ~(0xF);
@@ -1966,6 +1962,10 @@ NVRestore(ScrnInfoPtr pScrn)
 				nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
 				/* Restore general control */
 				nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL, pNv->misc_info.ramdac_general_control[nv_crtc->head]);
+				/* Restore CR5758 */
+				if (pNv->NVArch >= 0x17 && pNv->twoHeads)
+					for (i = 0; i < 0x10; i++)
+						NVWriteVGACR5758(pNv, nv_crtc->head, i, savep->CR58[i]);
 			}
 
 			/* Restore outputs when enabled. */

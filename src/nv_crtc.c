@@ -1468,7 +1468,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	/* 0x80 enables the sequencer, we don't want that */
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xA3 & ~0x80;
-	} else if (depth < 8) {
+	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xE3 & ~0x80;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xC3 & ~0x80;
