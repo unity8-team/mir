@@ -649,6 +649,12 @@ ATISwitchMode
 
 #endif /* XF86DRI_DEVEL */
 
+        /* XXX Workaround for X server not hiding the cursor for Xcursor (but
+         * only for core cursor), leaving a 64x64 garbage upper-left.
+         */
+        if (pATI->pCursorInfo)
+            (*pATI->pCursorInfo->HideCursor)(pScreenInfo);
+
         ATIModeSet(pScreenInfo, pATI, &pATI->NewHW);
 
 #ifdef XF86DRI_DEVEL
