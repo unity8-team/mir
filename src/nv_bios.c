@@ -797,9 +797,9 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		if (!get_pll_limits(pScrn, Preg, &pll_lim))
 			return;
 
-		Pval2 = log2P + pll_lim.p_bias;
-		if (Pval2 > pll_lim.max_p)
-			Pval2 = pll_lim.max_p;
+		Pval2 = log2P + pll_lim.log2p_bias;
+		if (Pval2 > pll_lim.max_log2p_bias)
+			Pval2 = pll_lim.max_log2p_bias;
 		Pval |= 1 << 28 | Pval2 << 20;
 
 		saved4600 = nv32_rd(pScrn, 0x4600);
@@ -3199,9 +3199,9 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 		pll_lim->vco2.min_m = bios->data[plloffs + 26];
 		pll_lim->vco2.max_m = bios->data[plloffs + 27];
 
-		pll_lim->min_p = bios->data[plloffs + 28];
-		pll_lim->max_p = bios->data[plloffs + 29];
-		pll_lim->p_bias = bios->data[plloffs + 30];
+		pll_lim->unk1c = bios->data[plloffs + 28];
+		pll_lim->max_log2p_bias = bios->data[plloffs + 29];
+		pll_lim->log2p_bias = bios->data[plloffs + 30];
 
 		if (recordlen > 0x22)
 			pll_lim->refclk = le32_to_cpu(*((uint32_t *)&bios->data[plloffs + 31]));
@@ -3227,9 +3227,9 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 	ErrorF("pll.vco2.min_m: %d\n", pll_lim->vco2.min_m);
 	ErrorF("pll.vco2.max_m: %d\n", pll_lim->vco2.max_m);
 
-	ErrorF("pll.min_p: %d\n", pll_lim->min_p);
-	ErrorF("pll.max_p: %d\n", pll_lim->max_p);
-	ErrorF("pll.p_bias: %d\n", pll_lim->p_bias);
+	ErrorF("pll.unk1c: %d\n", pll_lim->unk1c);
+	ErrorF("pll.max_log2p_bias: %d\n", pll_lim->max_log2p_bias);
+	ErrorF("pll.log2p_bias: %d\n", pll_lim->log2p_bias);
 
 	ErrorF("pll.refclk: %d\n", pll_lim->refclk);
 #endif
