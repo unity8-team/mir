@@ -1729,11 +1729,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 	}
 
-	/* Some cards have 0x41 instead of 0x1 (for crtc 0), what is the meaning of that? */
+	/* What does this do?:
+	 * bit0: crtc0
+	 * bit6: lvds
+	 * bit7: lvds + tmds (only in X)
+	 */
 	if (nv_crtc->head == 0)
 		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
 	else 
 		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
+
+	if (is_lvds)
+		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x40;
 
 	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_CONSOLE))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
