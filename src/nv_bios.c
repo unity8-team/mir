@@ -3687,8 +3687,10 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	/* want pll_limit_tbl_ptr set (if available) before init is run */
 	if (bmp_version_major < 5 || bmp_version_minor < 0x10) {
 		init_exec_t iexec = {TRUE, FALSE};
-		parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
-		parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
+		if (bios->init_script_tbls_ptr)
+			parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
+		if (bios->extra_init_script_tbl_ptr)
+			parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
 	} else
 		parse_init_tables(pScrn, bios);
 
