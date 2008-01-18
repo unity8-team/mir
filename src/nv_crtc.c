@@ -628,7 +628,7 @@ CalculateVClkNV4x(
 	struct pll_lims pll_lim;
 	/* We have 2 mulitpliers, 2 dividers and one post divider */
 	/* Note that p is only 3 bits */
-	uint32_t m1_best = 0, m2_best = 0, n1_best = 0, n2_best = 0, p_best = 0;
+	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
 	uint32_t special_bits = 0;
 
 	if (primary) {
@@ -644,12 +644,11 @@ CalculateVClkNV4x(
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Bogus data, the same nvidia uses */
-		n2_best = 1;
-		m2_best = 31;
-		CalculateVClkNV4x_SingleVCO(pNv, &pll_lim, requested_clock, &n1_best, &m1_best, &p_best);
+		NM2 = 0x11f;
+		*given_clock = getMNP_single(pScrn, pll_lim_reg, requested_clock, &NM1, &log2P);
 	} else { /* dual VCO */
 		*db1_ratio = FALSE;
-		CalculateVClkNV4x_DoubleVCO(pNv, &pll_lim, requested_clock, &n1_best, &n2_best, &m1_best, &m2_best, &p_best);
+		*given_clock = getMNP_double(pScrn, pll_lim_reg, requested_clock, &NM1, &NM2, &log2P);
 	}
 
 	/* Are this all (relevant) G70 cards? */
@@ -663,9 +662,9 @@ CalculateVClkNV4x(
 	}
 
 	/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
-	*pll_a = (special_bits << 30) | (p_best << 16) | (n1_best << 8) | (m1_best << 0);
+	*pll_a = (special_bits << 30) | (log2P << 16) | NM1;
 	/* This VCO2 bit is an educated guess, but it needs to stay on for NV4x. */
-	*pll_b = NV31_RAMDAC_ENABLE_VCO2 | (n2_best << 8) | (m2_best << 0);
+	*pll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
 	if (*db1_ratio) {
 		if (primary) {
@@ -682,9 +681,9 @@ CalculateVClkNV4x(
 	}
 
 	if (*db1_ratio) {
-		ErrorF("vpll: n1 %d m1 %d p %d db1_ratio %d\n", n1_best, m1_best, p_best, *db1_ratio);
+		ErrorF("vpll: n1 %d m1 %d p %d db1_ratio %d\n", NM1 >> 8, NM1 & 0xff, log2P, *db1_ratio);
 	} else {
-		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", n1_best, n2_best, m1_best, m2_best, p_best, *db1_ratio);
+		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P, *db1_ratio);
 	}
 }
 

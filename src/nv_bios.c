@@ -731,6 +731,18 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 			nv32_wr(pScrn, 0x680580, nv32_rd(pScrn, 0x680580) & ~(1 << 8));
 	}
 
+#if 0
+	/* NM2 will not be 0, the way we calculate MNPs at present */
+	/* something like this will be needed if we set single pll modes on double pll chips */
+	if (NM2 == 0) {
+		if (crtchead == NV_VGA_CRTCX_OWNER_HEADA)
+			nv32_wr(0x680580, nv32_rd(0x680580) | 0x00000100);
+		else
+			nv32_wr(0x680580, nv32_rd(0x680580) | 0x10000000);
+		pll2 |= 0x011f;
+	}
+#endif
+
 	nv32_wr(pScrn, reg2, pll2);
 	nv32_wr(pScrn, reg1, pll1);
 
