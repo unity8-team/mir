@@ -342,7 +342,7 @@ static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "	Indexed read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+			   "	Indexed IO read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
 			   port, index, crtchead, data);
 
 	return data;
@@ -367,7 +367,7 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 		nv_idx_port_rd(pScrn, port, index);
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "	Indexed write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
+			   "	Indexed IO write: Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
 			   port, index, crtchead, data);
 
 	if (pNv->VBIOS.execute) {
@@ -378,6 +378,38 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 1;
+}
+
+static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	uint8_t data = VGA_RD08(ptr, port);
+
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "	IO read:  Port: 0x%04X, Head: 0x%02X, Data: 0x%02X\n",
+			   port, crtchead, data);
+
+	return data;
+}
+
+static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+
+	if (DEBUGLEVEL >= 8)
+		nv_port_rd(pScrn, port);
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "	IO write: Port: 0x%04X, Head: 0x%02X, Data: 0x%02X\n",
+			   port, crtchead, data);
+
+	if (pNv->VBIOS.execute) {
+		still_alive();
+		VGA_WR08(ptr, port, data);
+	}
 }
 
 #define ACCESS_UNLOCK 0
@@ -1884,44 +1916,34 @@ static Bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	return TRUE;
 }
 
-#if 0
-static Bool init_index_io8(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static Bool init_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_INDEX_IO8   opcode: 0x69
-	 * 
+	/* INIT_IO   opcode: 0x69 ('i')
+	 *
 	 * offset      (8  bit): opcode
-	 * offset + 1  (16 bit): CRTC reg
-	 * offset + 3  (8  bit): and mask
-	 * offset + 4  (8  bit): or with
-	 * 
-	 * 
+	 * offset + 1  (16 bit): CRTC port
+	 * offset + 3  (8  bit): mask
+	 * offset + 4  (8  bit): data
+	 *
+	 * Assign ((IOVAL("crtc port") & "mask") | "data") to "crtc port"
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	volatile CARD8 *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
-	CARD16 reg = le16_to_cpu(*((CARD16 *)(&bios->data[offset + 1])));
-	CARD8 and  = *((CARD8 *)(&bios->data[offset + 3]));
-	CARD8 or = *((CARD8 *)(&bios->data[offset + 4]));
-	CARD8 data;
+	uint16_t crtcport = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 1])));
+	uint8_t mask = bios->data[offset + 3];
+	uint8_t data = bios->data[offset + 4];
 
-	if (iexec->execute) {
-		data = (VGA_RD08(ptr, reg) & and) | or;
+	if (!iexec->execute)
+		return TRUE;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-				"0x%04X: CRTC REG: 0x%04X, VALUE: 0x%02X\n", 
-				offset, reg, data);
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%02X\n", offset, 
-				VGA_RD08(ptr, reg));
+	if (DEBUGLEVEL >= 6)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: Port: 0x%04X, Mask: 0x%02X, Data: 0x%02X\n",
+			   offset, crtcport, mask, data);
 
-#ifdef PERFORM_WRITE
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "init_index_io8 crtcreg 0x%X value 0x%X\n",reg,data);
-		still_alive();
-		VGA_WR08(ptr, reg, data);
-#endif
-	}
+	nv_port_wr(pScrn, crtcport, (nv_port_rd(pScrn, crtcport) & mask) | data);
+
 	return TRUE;
 }
-#endif
 
 static Bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -2443,7 +2465,7 @@ static init_tbl_entry_t itbl_entry[] = {
 /*	{ "INIT_NEXT"                         , 0x66, x       , x       , x       , init_next                       }, */	
 /*	{ "INIT_NEXT"                         , 0x67, x       , x       , x       , init_next                       }, */	
 /*	{ "INIT_NEXT"                         , 0x68, x       , x       , x       , init_next                       }, */	
-//	{ "INIT_INDEX_IO8"                    , 0x69, 5       , 0       , 0       , init_index_io8                  },
+	{ "INIT_IO"                           , 0x69, 5       , 0       , 0       , init_io                         },
 	{ "INIT_SUB"                          , 0x6B, 2       , 0       , 0       , init_sub                        },
 //	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
 	{ "INIT_NV_REG"                       , 0x6E, 13      , 0       , 0       , init_nv_reg                     },
