@@ -1126,7 +1126,7 @@ RADEONInitTvDacCntl(xf86OutputPtr output, RADEONSavePtr save)
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
 			  RADEON_TV_DAC_NHOLD |
 			  RADEON_TV_DAC_STD_PS2 |
-			  radeon_output->tv_dac_adj);
+			  radeon_output->ps2_tvdac_adj);
 
 }
 

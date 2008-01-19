@@ -1734,12 +1734,16 @@ RADEONGetTVDacAdjInfo(xf86OutputPtr output)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    /* Todo: get this setting from BIOS */
-    radeon_output->tv_dac_adj = default_tvdac_adj[info->ChipFamily];
-    if (info->IsMobility) { /* some mobility chips may different */
-	if (info->ChipFamily == CHIP_FAMILY_RV250)
-	    radeon_output->tv_dac_adj = 0x00880000;
+    if (!RADEONGetDAC2InfoFromBIOS(output)) {
+	radeon_output->ps2_tvdac_adj = default_tvdac_adj[info->ChipFamily];
+	if (info->IsMobility) { /* some mobility chips may different */
+	    if (info->ChipFamily == CHIP_FAMILY_RV250)
+		radeon_output->ps2_tvdac_adj = 0x00880000;
+	}
+	radeon_output->pal_tvdac_adj = radeon_output->ps2_tvdac_adj;
+	radeon_output->ntsc_tvdac_adj = radeon_output->ps2_tvdac_adj;
     }
+
 }
 
 void RADEONInitConnector(xf86OutputPtr output)

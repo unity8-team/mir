@@ -595,6 +595,58 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+Bool RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int offset, rev, bg, dac;
+
+    if (!info->VBIOS) return FALSE;
+
+    if (info->IsAtomBios) {
+	/* not implemented yet */
+	return FALSE;
+    } else {
+	/* first check TV table */
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x32);
+        if (offset) {
+	    rev = RADEON_BIOS8(offset + 0x3);
+	    if (rev > 1) {
+		bg = RADEON_BIOS8(offset + 0xc) & 0xf;
+		dac = (RADEON_BIOS8(offset + 0xc) >> 4) & 0xf;
+		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
+
+		bg = RADEON_BIOS8(offset + 0xd) & 0xf;
+		dac = (RADEON_BIOS8(offset + 0xd) >> 4) & 0xf;
+		radeon_output->pal_tvdac_adj = (bg << 16) | (dac << 20);
+
+		bg = RADEON_BIOS8(offset + 0xe) & 0xf;
+		dac = (RADEON_BIOS8(offset + 0xe) >> 4) & 0xf;
+		radeon_output->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
+
+		return TRUE;
+	    }
+	}
+	/* then check CRT table */
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x60);
+        if (offset) {
+	    rev = RADEON_BIOS8(offset) & 0x3;
+	    if (rev < 2) {
+		bg = RADEON_BIOS8(offset + 0x3) & 0xf;
+		dac = (RADEON_BIOS8(offset + 0x3) >> 4) & 0xf;
+		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
+		radeon_output->pal_tvdac_adj = radeon_output->ps2_tvdac_adj;
+		radeon_output->ntsc_tvdac_adj = radeon_output->ps2_tvdac_adj;
+
+		return TRUE;
+	    }
+	}
+    }
+
+    return FALSE;
+}
+
 Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;

@@ -206,7 +206,9 @@ typedef struct _RADEONOutputPrivateRec {
     int crtc_num;
     int DDCReg;
     I2CBusPtr         pI2CBus;
-    CARD32            tv_dac_adj;
+    CARD32            ps2_tvdac_adj;
+    CARD32            pal_tvdac_adj;
+    CARD32            ntsc_tvdac_adj;
     /* panel stuff */
     int               PanelXRes;
     int               PanelYRes;
