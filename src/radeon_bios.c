@@ -556,18 +556,26 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->sclk = RADEON_BIOS32(pll_info_block + 8) / 100.0;
 	    info->mclk = RADEON_BIOS32(pll_info_block + 12) / 100.0;
 	} else {
+	    int rev;
+
 	    pll_info_block = RADEON_BIOS16 (info->ROMHeaderStart + 0x30);
+
+	    rev = RADEON_BIOS8(pll_info_block);
 
 	    pll->reference_freq = RADEON_BIOS16 (pll_info_block + 0x0e);
 	    pll->reference_div = RADEON_BIOS16 (pll_info_block + 0x10);
 	    pll->pll_out_min = RADEON_BIOS32 (pll_info_block + 0x12);
 	    pll->pll_out_max = RADEON_BIOS32 (pll_info_block + 0x16);
 
-	    /* not available in the bios */
-	    pll->pll_in_min = 40;
-	    pll->pll_in_max = 500;
+	    if (rev > 9) {
+		pll->pll_in_min = RADEON_BIOS32(pll_info_block + 0x36);
+		pll->pll_in_max = RADEON_BIOS32(pll_info_block + 0x3a);
+	    } else {
+		pll->pll_in_min = 40;
+		pll->pll_in_max = 500;
+	    }
 
-	    pll->xclk = RADEON_BIOS16 (pll_info_block + 0x08);
+	    pll->xclk = RADEON_BIOS16(pll_info_block + 0x08);
 
 	    info->sclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
 	    info->mclk = RADEON_BIOS16(pll_info_block + 10) / 100.0;
@@ -577,11 +585,12 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 	if (info->mclk == 0) info->mclk = 200;
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_pll: %u, "
-	       "max_pll: %u, xclk: %d, sclk: %f, mclk: %f\n",
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "ref_freq: %d, min_out_pll: %u, "
+	       "max_out_pll: %u, min_in_pll: %u, max_in_pll: %u, xclk: %d, "
+	       "sclk: %f, mclk: %f\n",
 	       pll->reference_freq, (unsigned)pll->pll_out_min,
-	       (unsigned)pll->pll_out_max, pll->xclk, info->sclk,
-	       info->mclk);
+	       (unsigned)pll->pll_out_max, (unsigned)pll->pll_in_min,
+	       (unsigned)pll->pll_in_max, pll->xclk, info->sclk, info->mclk);
 
     return TRUE;
 }
