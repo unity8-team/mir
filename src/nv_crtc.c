@@ -2056,11 +2056,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (pNv->Architecture >= NV_ARCH_10) {
-		/* Bios and blob don't seem to do anything (else) */
-		if (!NVMatchModePrivate(mode, NV_MODE_CONSOLE))
-			regp->nv10_cursync = (1<<25);
-		else
-			regp->nv10_cursync = 0;
+		/* Only bit that bios and blob set. */
+		regp->nv10_cursync = (1<<25);
 	}
 
 	/* These are the common blob values, minus a few fp specific bit's */

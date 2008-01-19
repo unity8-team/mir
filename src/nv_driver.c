@@ -2053,14 +2053,14 @@ NVRestore(ScrnInfoPtr pScrn)
 
 			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 
-			/* Lock the crtc's. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
-			}
-
 			/* Force hide the cursor. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				xf86_config->crtc[i]->funcs->hide_cursor(xf86_config->crtc[i]);
+			}
+
+			/* Lock the crtc's. */
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
 
 			/* Let's clean our slate once again, so we always rewrite vpll's upon returning to X. */
