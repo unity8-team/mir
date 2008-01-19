@@ -236,7 +236,7 @@ static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 	NVPtr pNv = NVPTR(pScrn);
 	/* Non standard beheaviour required by NV11 */
 	if (pNv) {
-		uint8_t owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
+		uint8_t owner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
 		ErrorF("pre-Owner: 0x%X\n", owner);
 		if (owner == 0x04) {
 			uint32_t pbus84 = nvReadMC(pNv, 0x1084);
@@ -247,10 +247,10 @@ static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 		}
 		/* The blob never writes owner to pcio1, so should we */
 		if (pNv->NVArch == 0x11) {
-			NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, 0xff);
+			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, 0xff);
 		}
-		NVWriteVGA0(pNv, NV_VGA_CRTCX_OWNER, nv_crtc->head * 0x3);
-		owner = NVReadVGA0(pNv, NV_VGA_CRTCX_OWNER);
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, nv_crtc->head * 0x3);
+		owner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
 		ErrorF("post-Owner: 0x%X\n", owner);
 	} else {
 		ErrorF("pNv pointer is NULL\n");

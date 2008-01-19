@@ -2419,8 +2419,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 		/* Gather some misc info before the randr stuff kicks in */
 		if (pNv->Architecture >= NV_ARCH_10) {
-			pNv->misc_info.crtc_reg_52[0] = NVReadVGA0(pNv, NV_VGA_CRTCX_52);
-			pNv->misc_info.crtc_reg_52[1] = NVReadVGA1(pNv, NV_VGA_CRTCX_52);
+			pNv->misc_info.crtc_reg_52[0] = NVReadVGA(pNv, 0, NV_VGA_CRTCX_52);
+			pNv->misc_info.crtc_reg_52[1] = NVReadVGA(pNv, 1, NV_VGA_CRTCX_52);
 		}
 		if (pNv->Architecture == NV_ARCH_40) {
 			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
