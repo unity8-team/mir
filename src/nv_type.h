@@ -581,23 +581,23 @@ enum scaling_modes {
 #define nvReadCurCRTC(pNv, reg) nvReadCRTC(pNv, pNv->cur_head, reg)
 #define nvWriteCurCRTC(pNv, reg, val) nvWriteCRTC(pNv, pNv->cur_head, reg, val)
 
-#define nvReadFB(pNv, fb_reg) MMIO_IN32(pNv->PFB, fb_reg)
-#define nvWriteFB(pNv, fb_reg, val) MMIO_OUT32(pNv->PFB, fb_reg, val)
+#define nvReadFB(pNv, reg) DDXMMIOW("nvReadFB: reg %08x val %08x\n", reg + NV_PFB_OFFSET, (uint32_t)MMIO_IN32(pNv->PFB, reg))
+#define nvWriteFB(pNv, reg, val) MMIO_OUT32(pNv->PFB, reg, DDXMMIOW("nvWriteFB: reg %08x val %08x\n", reg + NV_PFB_OFFSET, val))
 
-#define nvReadGRAPH(pNv, reg) MMIO_IN32(pNv->PGRAPH, reg)
-#define nvWriteGRAPH(pNv, reg, val) MMIO_OUT32(pNv->PGRAPH, reg, val)
+#define nvReadGRAPH(pNv, reg) DDXMMIOW("nvReadGRAPH: reg %08x val %08x\n", reg + NV_PGRAPH_OFFSET, (uint32_t)MMIO_IN32(pNv->PGRAPH, reg))
+#define nvWriteGRAPH(pNv, reg, val) MMIO_OUT32(pNv->PGRAPH, reg, DDXMMIOW("nvWriteGRAPH: reg %08x val %08x\n", reg + NV_PGRAPH_OFFSET, val))
 
-#define nvReadMC(pNv, reg) MMIO_IN32(pNv->PMC, reg)
-#define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->PMC, reg, val)
+#define nvReadMC(pNv, reg) DDXMMIOW("nvReadMC: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->PMC, reg))
+#define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->PMC, reg, DDXMMIOW("nvWriteMC: reg %08x val %08x\n", reg, val))
 
-#define nvReadEXTDEV(pNv, reg) MMIO_IN32(pNv->PEXTDEV, reg)
-#define nvWriteEXTDEV(pNv, reg, val) MMIO_OUT32(pNv->PEXTDEV, reg, val)
+#define nvReadEXTDEV(pNv, reg) DDXMMIOW("nvReadEXTDEV: reg %08x val %08x\n", reg + NV_PEXTDEV_OFFSET, (uint32_t)MMIO_IN32(pNv->PEXTDEV, reg))
+#define nvWriteEXTDEV(pNv, reg, val) MMIO_OUT32(pNv->PEXTDEV, reg, DDXMMIOW("nvWriteEXTDEV: reg %08x val %08x\n", reg + NV_PEXTDEV_OFFSET, val))
 
-#define nvReadTIMER(pNv, reg) MMIO_IN32(pNv->PTIMER, reg)
-#define nvWriteTIMER(pNv, reg, val) MMIO_OUT32(pNv->PTIMER, reg, val)
+#define nvReadTIMER(pNv, reg) DDXMMIOW("nvReadTIMER: reg %08x val %08x\n", reg + NV_PTIMER_OFFSET, (uint32_t)MMIO_IN32(pNv->PTIMER, reg))
+#define nvWriteTIMER(pNv, reg, val) MMIO_OUT32(pNv->PTIMER, reg, DDXMMIOW("nvWriteTIMER: reg %08x val %08x\n", reg + NV_PTIMER_OFFSET, val))
 
-#define nvReadVIDEO(pNv, reg) MMIO_IN32(pNv->PVIDEO, reg)
-#define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->PVIDEO, reg, val)
+#define nvReadVIDEO(pNv, reg) DDXMMIOW("nvReadVIDEO: reg %08x val %08x\n", reg + NV_PVIDEO_OFFSET, (uint32_t)MMIO_IN32(pNv->PVIDEO, reg))
+#define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->PVIDEO, reg, DDXMMIOW("nvWriteVIDEO: reg %08x val %08x\n", reg + NV_PVIDEO_OFFSET, val))
 
 typedef struct _NVPortPrivRec {
 	short		brightness;

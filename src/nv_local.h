@@ -49,6 +49,15 @@
 #include "compiler.h"
 #include "xf86_OSproc.h"
 
+//#define NOUVEAU_MODESET_TRACE
+#ifdef NOUVEAU_MODESET_TRACE
+#define DDXMMIOH(f, h, r, v)	ErrorF(f, h, r, v)
+#define DDXMMIOW(f, r, w)	(ErrorF(f, r, w), w)
+#else
+#define DDXMMIOH(f, h, r, v)
+#define DDXMMIOW(f, r, w)	w
+#endif
+
 /*
  * HW access macros.  These assume memory-mapped I/O, and not normal I/O space.
  */
@@ -60,8 +69,8 @@
 #define NV_RD32(p,i)    MMIO_IN32((pointer)(p), (i))
 
 /* VGA I/O is now always done through MMIO */
-#define VGA_WR08(p,i,d) NV_WR08(p,i,d)
-#define VGA_RD08(p,i)   NV_RD08(p,i)
+#define VGA_WR08(p,i,d) NV_WR08(p, i, DDXMMIOW("VGA_WR08 index 0x%04x val 0x%02x\n", i, d))
+#define VGA_RD08(p,i)   DDXMMIOW("VGA_RD08 index 0x%04x val 0x%02x\n", i, NV_RD08(p,i))
 
 static inline int log2i(int i)
 {

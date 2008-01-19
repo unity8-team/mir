@@ -71,10 +71,10 @@ uint8_t NVReadVGA0(NVPtr pNv, uint8_t index);
 uint8_t NVReadVGA1(NVPtr pNv, uint8_t index);
 void NVWriteVGA0(NVPtr pNv, uint8_t index, uint8_t data);
 void NVWriteVGA1(NVPtr pNv, uint8_t index, uint8_t data);
-void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, CARD32 val);
-CARD32 nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg);
-void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, CARD32 val);
-CARD32 nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
+void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, uint32_t val);
+uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg);
+void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
 
 /* in nv_shadow.c */
 void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
