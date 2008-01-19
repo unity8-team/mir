@@ -918,8 +918,8 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 	    { /* We need to put the overlay on CRTC0 - if it's not already here */
 	    if ( pPriv->overlayCRTC == 1 )
 		{
-		nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, nvReadCRTC(pNv, 0, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
-		nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, nvReadCRTC(pNv, 1, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+		NVWriteCRTC(pNv, 0, NV_CRTC_FSEL, NVReadCRTC(pNv, 0, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
+		NVWriteCRTC(pNv, 1, NV_CRTC_FSEL, NVReadCRTC(pNv, 1, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
 		pPriv->overlayCRTC = 0;
 		}
 	    }
@@ -927,8 +927,8 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 	    {
 	    if ( pPriv->overlayCRTC == 0 )
 		{
-		nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, nvReadCRTC(pNv, 1, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
-		nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, nvReadCRTC(pNv, 0, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+		NVWriteCRTC(pNv, 1, NV_CRTC_FSEL, NVReadCRTC(pNv, 1, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
+		NVWriteCRTC(pNv, 0, NV_CRTC_FSEL, NVReadCRTC(pNv, 0, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
 		pPriv->overlayCRTC = 1;
 		}
 	    }

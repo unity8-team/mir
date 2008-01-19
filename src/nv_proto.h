@@ -110,6 +110,14 @@ xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
 void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
 void NVCrtcModeFix(xf86CrtcPtr crtc);
+uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
+void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg);
+void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
+uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg);
+void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg);
+void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);

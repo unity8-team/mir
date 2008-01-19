@@ -42,7 +42,7 @@
 #include "nv_local.h"
 #include "compiler.h"
 
-/* Reminder: Do NOT use this function for the randr-1.2 codepath. */
+/* Reminder: Do NOT use these function for the randr-1.2 codepath. */
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 {
 	volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
@@ -50,8 +50,6 @@ uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 	VGA_WR08(ptr, 0x03D4, index);
 	return VGA_RD08(ptr, 0x03D5);
 }
-
-/* Reminder: Do NOT use this function for the randr-1.2 codepath. */
 void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 {
 	volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
@@ -63,6 +61,7 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
 	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	assert(pNv->randr12_enable == FALSE);
 	DDXMMIOH("nvReadRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
 	return MMIO_IN32(ptr, reg);
 }
@@ -70,6 +69,7 @@ uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
 	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	assert(pNv->randr12_enable == FALSE);
 	DDXMMIOH("nvWriteRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), val);
 	MMIO_OUT32(ptr, reg, val);
 }
@@ -77,6 +77,7 @@ void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
 	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
+	assert(pNv->randr12_enable == FALSE);
 	DDXMMIOH("nvReadCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
 	return MMIO_IN32(ptr, reg);
 }
@@ -84,6 +85,7 @@ uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
 	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
+	assert(pNv->randr12_enable == FALSE);
 	DDXMMIOH("nvWriteCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), val);
 	MMIO_OUT32(ptr, reg, val);
 }

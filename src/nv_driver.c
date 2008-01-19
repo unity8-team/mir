@@ -1950,14 +1950,14 @@ NVRestore(ScrnInfoPtr pScrn)
 				pixel |= (pixelDepth > 2) ? 3 : pixelDepth;
 				NVWriteVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_PIXEL, pixel);
 				/* restore HDisplay and VDisplay */
-				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
-				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
+				NVWriteVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
+				NVWriteVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
 				/* restore CR52 */
-				NVWriteVGA(pNv, nv_crtc->head, NV_VGA_CRTCX_52, pNv->misc_info.crtc_reg_52[nv_crtc->head]);
+				NVWriteVgaCrtc(xf86_config->crtc[i], NV_VGA_CRTCX_52, pNv->misc_info.crtc_reg_52[nv_crtc->head]);
 				/* restore crtc base */
-				nvWriteCRTC(pNv, nv_crtc->head, NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
+				NVCrtcWriteCRTC(xf86_config->crtc[i], NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
 				/* Restore general control */
-				nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_GENERAL_CONTROL, pNv->misc_info.ramdac_general_control[nv_crtc->head]);
+				NVCrtcWriteRAMDAC(xf86_config->crtc[i], NV_RAMDAC_GENERAL_CONTROL, pNv->misc_info.ramdac_general_control[nv_crtc->head]);
 				/* Restore CR5758 */
 				if (pNv->NVArch >= 0x17 && pNv->twoHeads)
 					for (i = 0; i < 0x10; i++)
@@ -2474,7 +2474,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
 			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
 
-			pNv->console_mode[i].fb_start = nvReadCRTC(pNv, i, NV_CRTC_START);
+			pNv->console_mode[i].fb_start = NVReadCRTC(pNv, i, NV_CRTC_START);
 
 			pNv->console_mode[i].enabled = FALSE;
 
