@@ -2733,7 +2733,8 @@ RADEONDisplayVideo(
     }
     else {
 	left = (left >> 16) & 7;
-	leftuv = left >> 1;
+	if (!is_rgb)
+	    leftuv = left >> 1;
     }
 
     RADEONWaitForFifo(pScrn, 2);
@@ -2742,7 +2743,7 @@ RADEONDisplayVideo(
     while(!(INREG(RADEON_OV0_REG_LOAD_CNTL) & RADEON_REG_LD_CTL_LOCK_READBACK));
 
     RADEONWaitForFifo(pScrn, 10);
-    OUTREG(RADEON_OV0_H_INC, h_inc | ((h_inc_uv >> 1) << 16));
+    OUTREG(RADEON_OV0_H_INC, h_inc | ((is_rgb? h_inc_uv: (h_inc_uv >> 1)) << 16));
     OUTREG(RADEON_OV0_STEP_BY, step_by_y | (step_by_uv << 8) |
 	predownscale << 4 | predownscale << 12);
 
@@ -2807,7 +2808,8 @@ RADEONDisplayVideo(
     OUTREG(RADEON_OV0_VID_BUF_PITCH0_VALUE, pitch);
     OUTREG(RADEON_OV0_VID_BUF_PITCH1_VALUE, is_planar ? pitch >> 1 : pitch);
     OUTREG(RADEON_OV0_P1_X_START_END, (src_w + left - 1) | (left << 16));
-    src_w >>= 1;
+    if (!is_rgb)
+	src_w >>= 1;
     OUTREG(RADEON_OV0_P2_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     OUTREG(RADEON_OV0_P3_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     OUTREG(RADEON_OV0_VID_BUF0_BASE_ADRS, offset1);
