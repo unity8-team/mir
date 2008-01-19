@@ -334,24 +334,33 @@
 #define NV_RAMDAC_A24		0xA24
 #define NV_RAMDAC_A34		0xA34
 
-#define NV_CRTC_INTR_0              0x100
-#	define NV_CRTC_INTR_VBLANK           1
-#define NV_CRTC_INTR_EN_0           0x140
-#define NV_CRTC_START               0x800
-#define NV_CRTC_CONFIG               0x804
-#define NV_CRTC_CURSOR_CONFIG       0x810
-#define NV_CRTC_GPIO			0x818
-#define NV_CRTC_081C                0x81c
-#define NV_CRTC_0830                0x830
-#define NV_CRTC_0834                0x834
-#define NV_CRTC_0850			0x850
-#define NV_CRTC_FSEL                0x860
-#define NV_CRTC_FSEL_I2C           (1<<4)
-#define NV_CRTC_FSEL_TVOUT1        (1<<8)
-#define NV_CRTC_FSEL_TVOUT2        (2<<8)
-#define NV_CRTC_FSEL_OVERLAY       (1<<12)
-#define NV_CRTC_FSEL_FPP2          (1<<16)
-#define NV_CRTC_FSEL_FPP1          (2<<16)
+#define NV_CRTC_INTR_0				0x100
+#	define NV_CRTC_INTR_VBLANK			(1<<0)
+#define NV_CRTC_INTR_EN_0			0x140
+#define NV_CRTC_START				0x800
+#define NV_CRTC_CONFIG			0x804
+#define NV_CRTC_CURSOR_ADDRESS	0x80C
+#define NV_CRTC_CURSOR_CONFIG		0x810
+#	define NV_CRTC_CURSOR_CONFIG_ENABLE		(1 << 0)
+#	define NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN	(1 << 4)
+#	define NV_CRTC_CURSOR_CONFIG_32BPP			(1 << 12)
+#	define NV_CRTC_CURSOR_CONFIG_64PIXELS		(1 << 16)
+#	define NV_CRTC_CURSOR_CONFIG_32LINES		(1 << 25)
+#	define NV_CRTC_CURSOR_CONFIG_64LINES		(1 << 26)
+#	define NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND	(1 << 28)
+
+#define NV_CRTC_GPIO				0x818
+#define NV_CRTC_081C				0x81c
+#define NV_CRTC_0830				0x830
+#define NV_CRTC_0834				0x834
+#define NV_CRTC_0850				0x850
+#define NV_CRTC_FSEL				0x860
+#	define NV_CRTC_FSEL_I2C				(1<<4)
+#	define NV_CRTC_FSEL_TVOUT1			(1<<8)
+#	define NV_CRTC_FSEL_TVOUT2			(2<<8)
+#	define NV_CRTC_FSEL_OVERLAY		(1<<12)
+#	define NV_CRTC_FSEL_FPP2			(1<<16)
+#	define NV_CRTC_FSEL_FPP1			(2<<16)
 
 #define NV_PFB_CFG0                 0x200
 #define NV_PFB_CFG1                 0x204

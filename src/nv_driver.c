@@ -2058,6 +2058,11 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
 
+			/* Force hide the cursor. */
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				xf86_config->crtc[i]->funcs->hide_cursor(xf86_config->crtc[i]);
+			}
+
 			/* Let's clean our slate once again, so we always rewrite vpll's upon returning to X. */
 			state->vpll1_a = 0;
 			state->vpll1_b = 0;

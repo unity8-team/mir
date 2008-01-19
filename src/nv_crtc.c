@@ -955,8 +955,8 @@ void nv_crtc_calc_state_ext(
 		if (flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
-		state->pllsel   |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
-		state->config   = 0x00001114;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
+		state->config = 0x00001114;
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = CrtcHDisplay < 1280 ? 0x04 : 0x00;
 		break;
 	case NV_ARCH_10:
@@ -1033,95 +1033,82 @@ void nv_crtc_calc_state_ext(
 		if (!state->sel_clk)
 			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
 
-		if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-				/* bioses are very conservative with regards to sel_clk. */
-				/* At this stage we expect a clean sel_clk value. */
-				if (nv_crtc->head == 1) {
-					if (nv_output->preferred_output == 1) {
-						state->sel_clk |= (0x4 << 16);
-					} else {
-						state->sel_clk |= (0x1 << 16);
+		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+			/* Only wipe when are a relevant (digital) output. */
+			state->sel_clk &= ~(0xf << 16);
+			Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+			/* Even with two dvi, this should not conflict. */
+			if (crossed_clocks) {
+				state->sel_clk |= (0x1 << 16);
+			} else {
+				state->sel_clk |= (0x4 << 16);
+			}
+		}
+
+		/* Some cards, specifically dual dvi/lvds cards set another bitrange.
+		 * I suspect inverse beheaviour to the normal bitrange, but i am not a 100% certain about this.
+		 * This is all based on default settings found in mmio-traces.
+		 * The blob never changes these, as it doesn't run unusual output configurations.
+		 * It seems to prefer situations that avoid changing these bits (for a good reason?).
+		 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
+		 */
+
+		/* Some extra info:
+		 * nv30:
+		 *	bit 0		NVClk spread spectrum on/off
+		 *	bit 2		MemClk spread spectrum on/off
+		 *	bit 4		PixClk1 spread spectrum on/off
+		 *	bit 6		PixClk2 spread spectrum on/off
+
+		 *	nv40:
+		 *	what causes setting of bits not obvious but:
+		 *	bits 4&5		relate to headA
+		*	bits 6&7		relate to headB
+		*/
+		/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
+		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
+			if (pNv->Architecture == NV_ARCH_40) {
+				for (i = 0; i < 4; i++) {
+					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+					if (var == 0x1 || var == 0x4) {
+						state->sel_clk &= ~(0xf << 4*i);
+						Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+						if (crossed_clocks) {
+							state->sel_clk |= (0x4 << 4*i);
+						} else {
+							state->sel_clk |= (0x1 << 4*i);
+						}
+						break; /* This should only occur once. */
 					}
 				}
-			}
-		} else {
-			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-				/* Only wipe when are a relevant (digital) output. */
-				state->sel_clk &= ~(0xf << 16);
-				Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-				/* Even with two dvi, this should not conflict. */
-				if (crossed_clocks) {
-					state->sel_clk |= (0x1 << 16);
-				} else {
-					state->sel_clk |= (0x4 << 16);
-				}
-			}
-
-			/* Some cards, specifically dual dvi/lvds cards set another bitrange.
-			 * I suspect inverse beheaviour to the normal bitrange, but i am not a 100% certain about this.
-			 * This is all based on default settings found in mmio-traces.
-			 * The blob never changes these, as it doesn't run unusual output configurations.
-			 * It seems to prefer situations that avoid changing these bits (for a good reason?).
-			 * I still don't know the purpose of value 2, it's similar to 4, but what exactly does it do?
-			 */
-
-			/* Some extra info:
-			 * nv30:
-			 *	bit 0		NVClk spread spectrum on/off
-			 *	bit 2		MemClk spread spectrum on/off
-			 *	bit 4		PixClk1 spread spectrum on/off
-			 *	bit 6		PixClk2 spread spectrum on/off
-
-			 *	nv40:
-			 *	what causes setting of bits not obvious but:
-			 *	bits 4&5		relate to headA
-			 *	bits 6&7		relate to headB
-			*/
-			/* Only let digital outputs mess with this, otherwise strange output routings may mess it up. */
-			if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-				if (pNv->Architecture == NV_ARCH_40) {
-					for (i = 0; i < 4; i++) {
-						uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
-						if (var == 0x1 || var == 0x4) {
-							state->sel_clk &= ~(0xf << 4*i);
-							Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-							if (crossed_clocks) {
-								state->sel_clk |= (0x4 << 4*i);
-							} else {
-								state->sel_clk |= (0x1 << 4*i);
-							}
-							break; /* This should only occur once. */
+			/* Based on NV31M. */
+			} else if (pNv->Architecture == NV_ARCH_30) {
+				for (i = 0; i < 4; i++) {
+					uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
+					if (var == 0x4 || var == 0x5) {
+						state->sel_clk &= ~(0xf << 4*i);
+						Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+						if (crossed_clocks) {
+							state->sel_clk |= (0x4 << 4*i);
+						} else {
+							state->sel_clk |= (0x5 << 4*i);
 						}
-					}
-				/* Based on NV31M. */
-				} else if (pNv->Architecture == NV_ARCH_30) {
-					for (i = 0; i < 4; i++) {
-						uint32_t var = (state->sel_clk & (0xf << 4*i)) >> 4*i;
-						if (var == 0x4 || var == 0x5) {
-							state->sel_clk &= ~(0xf << 4*i);
-							Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-							if (crossed_clocks) {
-								state->sel_clk |= (0x4 << 4*i);
-							} else {
-								state->sel_clk |= (0x5 << 4*i);
-							}
-							break; /* This should only occur once. */
-						}
+						break; /* This should only occur once. */
 					}
 				}
 			}
 		}
+	}
 
-		/* Are we crosswired? */
-		if (output && nv_crtc->head != nv_output->preferred_output) {
-			state->crosswired = TRUE;
-		} else {
-			state->crosswired = FALSE;
-		}
+	/* Are we crosswired? */
+	if (output && nv_crtc->head != nv_output->preferred_output) {
+		state->crosswired = TRUE;
+	} else {
+		state->crosswired = FALSE;
+	}
 
-		if (nv_crtc->head == 1) {
-			if (state->db1_ratio[1])
+	if (nv_crtc->head == 1) {
+		if (state->db1_ratio[1]) {
 				ErrorF("We are a lover of the DB1 VCLK ratio\n");
 		} else if (nv_crtc->head == 0) {
 			if (state->db1_ratio[0])
@@ -1610,7 +1597,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 		if (is_fp) {
 			regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0);
-			if (!NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+			if (!NVMatchModePrivate(mode, NV_MODE_VGA)) {
 				regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 1);
 			}
 		}
@@ -1690,12 +1677,14 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* This fixes my cursor corruption issue */
 	regp->cursorConfig = 0x0;
 	if(mode->Flags & V_DBLSCAN)
-		regp->cursorConfig |= (1 << 4);
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
 	if (pNv->alphaCursor && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		/* bit28 means we go into alpha blend mode and not rely on the current ROP */
-		regp->cursorConfig |= 0x14011000;
+		regp->cursorConfig |= 	(NV_CRTC_CURSOR_CONFIG_32BPP |
+							NV_CRTC_CURSOR_CONFIG_64PIXELS |
+							NV_CRTC_CURSOR_CONFIG_64LINES |
+							NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND);
 	} else {
-		regp->cursorConfig |= 0x02000000;
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32LINES;
 	}
 
 	/* Unblock some timings */
@@ -1719,7 +1708,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
 
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
@@ -1738,7 +1727,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	if (is_lvds)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x40;
 
-	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_CONSOLE))
+	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_VGA))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
@@ -1756,7 +1745,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
 		regp->unk81c = nvReadCRTC0(pNv, NV_CRTC_081C);
 
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->unk830 = 0;
 		regp->unk834 = 0;
 	} else {
@@ -1998,7 +1987,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		ErrorF("Post-panel scaling\n");
 	}
 
-	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->debug_1 = 0x08000800;
 	}
 
