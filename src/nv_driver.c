@@ -2760,12 +2760,9 @@ NVSave(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	NVRegPtr nvReg = &pNv->SavedReg;
-	vgaHWPtr pVga = VGAHWPTR(pScrn);
-	vgaRegPtr vgaReg = &pVga->SavedReg;
 
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		int vgaflags = VGA_SR_CMAP | VGA_SR_MODE;
 		int i;
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -2776,15 +2773,11 @@ NVSave(ScrnInfoPtr pScrn)
 			xf86_config->output[i]->funcs->save(xf86_config->
 							    output[i]);
 		}
-
-		vgaHWUnlock(pVga);
-	#ifndef __powerpc__
-		vgaflags |= VGA_SR_FONTS;
-	#endif
-		vgaHWSave(pScrn, vgaReg, vgaflags);
 	} else {
+		vgaHWPtr pVga = VGAHWPTR(pScrn);
+		vgaRegPtr vgaReg = &pVga->SavedReg;
 		NVLockUnlock(pNv, 0);
-		if(pNv->twoHeads) {
+		if (pNv->twoHeads) {
 			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
 			NVLockUnlock(pNv, 0);
 		}

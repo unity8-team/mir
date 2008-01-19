@@ -42,7 +42,7 @@
 #include "nv_local.h"
 #include "compiler.h"
 
-/* Reminder: Do NOT use these function for the randr-1.2 codepath. */
+/* Reminder: Do NOT use these functions for the randr-1.2 codepath. */
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index)
 {
 	volatile const uint8_t *ptr = pNv->cur_head ? pNv->PCIO1 : pNv->PCIO0;
