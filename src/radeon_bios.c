@@ -274,12 +274,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    case DDC_CRT2:
 		info->BiosConnector[i].ddc_line = RADEON_GPIO_CRT2_DDC;
 		break;
-	    case DDC_LCD:
-		info->BiosConnector[i].ddc_line = RADEON_LCD_GPIO_MASK;
-		break;
-	    case DDC_GPIO:
-		info->BiosConnector[i].ddc_line = RADEON_MDGPIO_EN_REG;
-		break;
 	    default:
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
 		break;
@@ -371,9 +365,13 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			    break;
 			case DDC_LCD:
 			    info->BiosConnector[4].ddc_line = RADEON_LCD_GPIO_MASK;
+			    info->BiosConnector[4].ddc_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    break;
 			case DDC_GPIO:
 			    info->BiosConnector[4].ddc_line = RADEON_MDGPIO_EN_REG;
+			    info->BiosConnector[4].ddc_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    break;
 			default:
 			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);

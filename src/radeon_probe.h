@@ -160,6 +160,17 @@ typedef enum
     TV_STD_PAL_CN    = 128,
 } TVStd;
 
+typedef struct
+{
+    CARD32 gpio_reg;
+    CARD32 put_reg;
+    CARD32 get_reg;
+    CARD32 put_clk_mask;
+    CARD32 put_data_mask;
+    CARD32 get_clk_mask;
+    CARD32 get_data_mask;
+} RADEONI2CBusRec, *RADEONI2CBusPtr;
+
 typedef struct _RADEONCrtcPrivateRec {
 #ifdef USE_XAA
     FBLinearPtr rotate_mem_xaa;
@@ -191,6 +202,8 @@ typedef struct {
     int output_id;
     int devices;
     int hpd_mask;
+    CARD32 ddc_clk_mask;
+    CARD32 ddc_data_mask;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -238,6 +251,9 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
+
+    CARD32            ddc_clk_mask;
+    CARD32            ddc_data_mask;
 
     char              *name;
     int               output_id;

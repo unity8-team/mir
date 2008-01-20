@@ -172,7 +172,7 @@ static void RADEONUpdatePanelSize(xf86OutputPtr output);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
 #define AVIVO_I2C_DISABLE 0
 #define AVIVO_I2C_ENABLE 1
-static Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio);
+static Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state);
 
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
@@ -220,9 +220,9 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
     if (radeon_output->pI2CBus) {
-	AVIVOI2CDoLock(pScrn, AVIVO_I2C_ENABLE, radeon_output->ddc_line);
+	AVIVOI2CDoLock(output, AVIVO_I2C_ENABLE);
 	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	AVIVOI2CDoLock(pScrn, AVIVO_I2C_DISABLE, radeon_output->ddc_line);
+	AVIVOI2CDoLock(output, AVIVO_I2C_DISABLE);
     }
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
@@ -1267,91 +1267,23 @@ Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
 #endif
 
 static
-Bool AVIVOI2CDoLock(ScrnInfoPtr pScrn, int lock_state, int gpio_reg)
+Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONI2CBusPtr pRADEONI2CBus = radeon_output->pI2CBus->DriverPrivate.ptr;
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 temp;
 
-    temp = INREG(gpio_reg);
-    if (gpio_reg == AVIVO_GPIO_0) {
-	if (lock_state == AVIVO_I2C_ENABLE)
-	    temp |= (1 << 19) | (1 << 18);
-	else
-	    temp &= ~((1 << 19) | (1 << 18));
-    } else {
-	if (lock_state == AVIVO_I2C_ENABLE)
-	    temp |= (1 << 0) | (1 << 8);
-	else
-	    temp &= ~((1 << 0) | (1 << 8));
-    }
-    OUTREG(gpio_reg, temp);
-    temp = INREG(gpio_reg);
+    temp = INREG(pRADEONI2CBus->gpio_reg);
+    if (lock_state == AVIVO_I2C_ENABLE)
+	temp |= (pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);
+    else
+	temp &= ~(pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);;
+    OUTREG(pRADEONI2CBus->gpio_reg, temp);
+    temp = INREG(pRADEONI2CBus->gpio_reg);
 
-    return TRUE;
-}
-
-void
-avivo_i2c_gpio_get_bits(I2CBusPtr b, int *Clock, int *data)
-{
-    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
-    RADEONInfoPtr info       = RADEONPTR(screen_info);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long  val;
-
-    /* Get the result */
-    if (b->DriverPrivate.uval == AVIVO_GPIO_0) {
-	val = INREG(b->DriverPrivate.uval + 0xc);
-	*Clock = (val & (1<<19)) != 0;
-	*data  = (val & (1<<18)) != 0;
-    } else {
-	val = INREG(b->DriverPrivate.uval + 0xc);
-	*Clock = (val & (1<<0)) != 0;
-	*data  = (val & (1<<8)) != 0;
-    }
-}
-
-static void
-avivo_i2c_gpio_put_bits(I2CBusPtr b, int Clock, int data)
-{
-    ScrnInfoPtr screen_info = xf86Screens[b->scrnIndex]; 
-    RADEONInfoPtr info       = RADEONPTR(screen_info);
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned long  val;
-
-    val = 0;
-    if (b->DriverPrivate.uval == AVIVO_GPIO_0) {
-	val |= (Clock ? 0:(1<<19));
-	val |= (data ? 0:(1<<18));
-    } else {
-	val |= (Clock ? 0:(1<<0));
-	val |= (data ? 0:(1<<8));
-
-    }
-
-    OUTREG(b->DriverPrivate.uval + 0x8, val);
-    /* read back to improve reliability on some cards. */
-    val = INREG(b->DriverPrivate.uval + 0x8);
-}
-
-static Bool
-avivo_i2c_init(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
-{
-    I2CBusPtr pI2CBus;
-
-    pI2CBus = xf86CreateI2CBusRec();
-    if (!pI2CBus) return FALSE;
-
-    pI2CBus->BusName    = name;
-    pI2CBus->scrnIndex  = pScrn->scrnIndex;
-    pI2CBus->I2CPutBits = avivo_i2c_gpio_put_bits;
-    pI2CBus->I2CGetBits = avivo_i2c_gpio_get_bits;
-    pI2CBus->AcknTimeout = 5;
-    pI2CBus->DriverPrivate.uval = i2c_reg;
-
-    if (!xf86I2CBusInit(pI2CBus)) return FALSE;
-
-    *bus_ptr = pI2CBus;
     return TRUE;
 }
 
@@ -1361,22 +1293,12 @@ static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned long  val;
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
 
     /* Get the result */
-
-    if (b->DriverPrivate.uval == RADEON_LCD_GPIO_MASK) { 
-        val = INREG(b->DriverPrivate.uval+4);
-        *Clock = (val & (1<<13)) != 0;
-        *data  = (val & (1<<12)) != 0;
-    } else if (b->DriverPrivate.uval == RADEON_MDGPIO_EN_REG) {
-        val = INREG(b->DriverPrivate.uval+4);
-        *Clock = (val & (1<<19)) != 0;
-        *data  = (val & (1<<18)) != 0;
-    } else {
-        val = INREG(b->DriverPrivate.uval);
-        *Clock = (val & RADEON_GPIO_Y_1) != 0;
-        *data  = (val & RADEON_GPIO_Y_0) != 0;
-    }
+    val = INREG(pRADEONI2CBus->get_reg);
+    *Clock = (val & pRADEONI2CBus->get_clk_mask) != 0;
+    *data  = (val & pRADEONI2CBus->get_data_mask) != 0;
 }
 
 static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
@@ -1385,31 +1307,25 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned long  val;
     unsigned char *RADEONMMIO = info->MMIO;
+    RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
 
-    if (b->DriverPrivate.uval == RADEON_LCD_GPIO_MASK) {
-        val = INREG(b->DriverPrivate.uval) & (CARD32)~((1<<12) | (1<<13));
-        val |= (Clock ? 0:(1<<13));
-        val |= (data ? 0:(1<<12));
-        OUTREG(b->DriverPrivate.uval, val);
-    } else if (b->DriverPrivate.uval == RADEON_MDGPIO_EN_REG) {
-        val = INREG(b->DriverPrivate.uval) & (CARD32)~((1<<18) | (1<<19));
-        val |= (Clock ? 0:(1<<19));
-        val |= (data ? 0:(1<<18));
-        OUTREG(b->DriverPrivate.uval, val);
-    } else {
-        val = INREG(b->DriverPrivate.uval) & (CARD32)~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1);
-        val |= (Clock ? 0:RADEON_GPIO_EN_1);
-        val |= (data ? 0:RADEON_GPIO_EN_0);
-        OUTREG(b->DriverPrivate.uval, val);
-   }
+    val = INREG(pRADEONI2CBus->put_reg) & (CARD32)~(pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);
+    val |= (Clock ? 0:pRADEONI2CBus->put_clk_mask);
+    val |= (data ? 0:pRADEONI2CBus->put_data_mask);
+    OUTREG(pRADEONI2CBus->put_reg, val);
+
     /* read back to improve reliability on some cards. */
-    val = INREG(b->DriverPrivate.uval);
+    val = INREG(pRADEONI2CBus->put_reg);
 }
 
 static Bool
-RADEONI2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
+RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
 {
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     I2CBusPtr pI2CBus;
+    RADEONI2CBusPtr pRADEONI2CBus;
 
     pI2CBus = xf86CreateI2CBusRec();
     if (!pI2CBus) return FALSE;
@@ -1419,9 +1335,62 @@ RADEONI2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
     pI2CBus->I2CPutBits = RADEONI2CPutBits;
     pI2CBus->I2CGetBits = RADEONI2CGetBits;
     pI2CBus->AcknTimeout = 5;
-    pI2CBus->DriverPrivate.uval = i2c_reg;
 
-    if (!xf86I2CBusInit(pI2CBus)) return FALSE;
+    pRADEONI2CBus = xcalloc(sizeof(RADEONI2CBusRec), 1);
+    if (!pRADEONI2CBus) {
+	xf86DrvMsg(pScrn->scrnIndex,X_ERROR, "Failed to allocate radeon i2c bus info\n");
+	return FALSE;
+    }
+
+    if (dvo) {
+	/* these only seem to work properly on MACs */
+	pRADEONI2CBus->gpio_reg = radeon_output->dvo_i2c_reg;
+	pRADEONI2CBus->put_reg = radeon_output->dvo_i2c_reg;
+	pRADEONI2CBus->get_reg = radeon_output->dvo_i2c_reg;
+	pRADEONI2CBus->put_clk_mask = RADEON_GPIO_EN_1;
+	pRADEONI2CBus->put_data_mask = RADEON_GPIO_EN_0;
+	pRADEONI2CBus->get_clk_mask = RADEON_GPIO_Y_1;
+	pRADEONI2CBus->get_data_mask = RADEON_GPIO_Y_0;
+    } else {
+	if (IS_AVIVO_VARIANT) {
+	    pRADEONI2CBus->gpio_reg = radeon_output->ddc_line;
+	    pRADEONI2CBus->put_reg = radeon_output->ddc_line + 0x8;
+	    pRADEONI2CBus->get_reg = radeon_output->ddc_line + 0xc;
+	    /* FIXME: get these from the BIOS */
+	    if (radeon_output->ddc_line == AVIVO_GPIO_0) {
+		pRADEONI2CBus->put_clk_mask = (1 << 19);
+		pRADEONI2CBus->put_data_mask = (1 << 18);
+		pRADEONI2CBus->get_clk_mask = (1 << 19);
+		pRADEONI2CBus->get_data_mask = (1 << 18);
+	    } else {
+		pRADEONI2CBus->put_clk_mask = (1 << 0);
+		pRADEONI2CBus->put_data_mask = (1 << 8);
+		pRADEONI2CBus->get_clk_mask = (1 << 0);
+		pRADEONI2CBus->get_data_mask = (1 << 8);
+	    }
+	} else {
+	    pRADEONI2CBus->gpio_reg = radeon_output->ddc_line;
+	    pRADEONI2CBus->put_reg = radeon_output->ddc_line;
+	    pRADEONI2CBus->get_reg = radeon_output->ddc_line;
+	    if ((radeon_output->ddc_line == RADEON_LCD_GPIO_MASK) ||
+		(radeon_output->ddc_line == RADEON_MDGPIO_EN_REG)) {
+		pRADEONI2CBus->put_clk_mask = radeon_output->ddc_clk_mask;
+		pRADEONI2CBus->put_data_mask = radeon_output->ddc_data_mask;
+		pRADEONI2CBus->get_clk_mask = radeon_output->ddc_clk_mask;
+		pRADEONI2CBus->get_data_mask = radeon_output->ddc_data_mask;
+	    } else {
+		pRADEONI2CBus->put_clk_mask = RADEON_GPIO_EN_1;
+		pRADEONI2CBus->put_data_mask = RADEON_GPIO_EN_0;
+		pRADEONI2CBus->get_clk_mask = RADEON_GPIO_Y_1;
+		pRADEONI2CBus->get_data_mask = RADEON_GPIO_Y_0;
+	    }
+	}
+    }
+
+    pI2CBus->DriverPrivate.ptr = (pointer)pRADEONI2CBus;
+
+    if (!xf86I2CBusInit(pI2CBus))
+	return FALSE;
 
     *bus_ptr = pI2CBus;
     return TRUE;
@@ -1757,14 +1726,6 @@ void RADEONInitConnector(xf86OutputPtr output)
     name = xnfalloc(strlen(stmp) + 1);
     strcpy(name, stmp);
 
-    if (IS_AVIVO_VARIANT) {
-	if (radeon_output->ddc_line)
-	    avivo_i2c_init(pScrn, &radeon_output->pI2CBus, radeon_output->ddc_line, name);
-    } else {
-	if (radeon_output->ddc_line)
-	    RADEONI2CInit(pScrn, &radeon_output->pI2CBus, radeon_output->ddc_line, name);
-    }
-
     if (radeon_output->DACType == DAC_PRIMARY)
 	radeon_output->load_detection = 1; /* primary dac, only drives vga */
     /*else if (radeon_output->DACType == DAC_TVDAC &&
@@ -1784,7 +1745,7 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (OUTPUT_IS_DVI) {
 	I2CBusPtr pDVOBus;
 	radeon_output->rmx_type = RMX_OFF;
-	if ((!IS_AVIVO_VARIANT) && radeon_output->TMDSType == TMDS_EXT) {
+	if ((!info->IsAtomBios) && radeon_output->TMDSType == TMDS_EXT) {
 #if defined(__powerpc__)
 	    radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
 	    radeon_output->dvo_i2c_slave_addr = 0x70;
@@ -1794,7 +1755,7 @@ void RADEONInitConnector(xf86OutputPtr output)
 		radeon_output->dvo_i2c_slave_addr = 0x70;
 	    }
 #endif
-	    if (RADEONI2CInit(pScrn, &pDVOBus, radeon_output->dvo_i2c_reg, "DVO")) {
+	    if (RADEONI2CInit(output, &pDVOBus, "DVO", TRUE)) {
 		radeon_output->DVOChip =
 		    RADEONDVODeviceInit(pDVOBus,
 					radeon_output->dvo_i2c_slave_addr);
@@ -1814,6 +1775,9 @@ void RADEONInitConnector(xf86OutputPtr output)
 	radeon_output->tv_on = FALSE;
 	RADEONGetTVDacAdjInfo(output);
     }
+
+    if (radeon_output->ddc_line)
+	RADEONI2CInit(output, &radeon_output->pI2CBus, name, FALSE);
 
 }
 
@@ -2365,6 +2329,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->ddc_line = info->BiosConnector[i].ddc_line;
 	    radeon_output->devices = info->BiosConnector[i].devices;
 	    radeon_output->output_id = info->BiosConnector[i].output_id;
+	    radeon_output->ddc_clk_mask = info->BiosConnector[i].ddc_clk_mask;
+	    radeon_output->ddc_data_mask = info->BiosConnector[i].ddc_data_mask;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
