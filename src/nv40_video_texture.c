@@ -343,18 +343,6 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 
 	FIRE_RING();
 
-	/* When compositing, this stage is not the last. */
-	/* If you are lucky the next composite operation happens within vblank period. */
-	if (pPriv->SyncToVBlank && redirected) {
-		uint8_t crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
-			dstBox->x2, dstBox->y2);
-
-		if (crtcs & 0x1)
-			NVWaitVSync(pScrn, 0);
-		else if (crtcs & 0x2)
-			NVWaitVSync(pScrn, 1);
-	}
-
 	return Success;
 }
 
