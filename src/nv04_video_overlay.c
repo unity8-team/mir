@@ -144,7 +144,6 @@ NV04SetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                           INT32 value, pointer data)
 {
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
-        NVPtr         pNv   = NVPTR(pScrn);
 
         if (attribute == xvBrightness) {
                 if ((value < -512) || (value > 512))

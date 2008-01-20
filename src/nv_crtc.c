@@ -794,14 +794,14 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
 		ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
 
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2_a);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2_b);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2_a);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 
 		ErrorF("writing pllsel %08X\n", state->pllsel);
 		/* Don't turn vpll1 off. */
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
 		ErrorF("writing reg580 %08X\n", state->reg580);
 
 		/* We need to wait a while */
@@ -829,13 +829,13 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
 		ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
 
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll1_a);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll1_b);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll1_a);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpll1_b);
 
 		ErrorF("writing pllsel %08X\n", state->pllsel);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_580, state->reg580);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
 		ErrorF("writing reg580 %08X\n", state->reg580);
 
 		/* We need to wait a while */
@@ -849,10 +849,10 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	}
 
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
 	ErrorF("writing reg594 %08X\n", state->reg594);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_594, state->reg594);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_594, state->reg594);
 
 	/* All clocks have been set at this point. */
 	state->vpll_changed[0] = FALSE;
@@ -879,30 +879,30 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	/* This sequence is important, the NV28 is very sensitive in this area. */
 	/* Keep pllsel last and sel_clk first. */
 	ErrorF("writing sel_clk %08X\n", state->sel_clk);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
 	if (state->vpll2_a && state->vpll_changed[1]) {
 		if (pNv->twoHeads) {
 			ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2_a);
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2_a);
 		}
 		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 			ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2_b);
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 		}
 	}
 
 	if (state->vpll1_a && state->vpll_changed[0]) {
 		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
-		nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll1_a);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll1_a);
 		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 			ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
-			nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpll1_b);
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpll1_b);
 		}
 	}
 
 	ErrorF("writing pllsel %08X\n", state->pllsel);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 	/* All clocks have been set at this point. */
 	state->vpll_changed[0] = FALSE;
@@ -2689,7 +2689,6 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 static void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
 {
 	/* TODO - implement this properly */
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 

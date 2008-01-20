@@ -353,7 +353,6 @@ Bool NVCursorInitRandr12(ScreenPtr pScreen)
 
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
@@ -369,7 +368,6 @@ void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
