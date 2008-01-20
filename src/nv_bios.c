@@ -2309,6 +2309,96 @@ static Bool init_zm_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	return TRUE;
 }
 
+static Bool init_8e(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_8E   opcode: 0x8E ('')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * The purpose of this opcode is unclear (being for nv50 cards), and
+	 * the literal functionality can be seen in the code below.
+	 *
+	 * A brief synopsis is that for each entry in a table pointed to by the
+	 * DCB table header, depending on the settings of various bits, various
+	 * other bits in registers 0xe100, 0xe104, and 0xe108, are set or
+	 * cleared.
+	 */
+
+	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
+	if (!dcbptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "No Display Configuration Block pointer found\n");
+		return FALSE;
+	}
+	if (bios->data[dcbptr] != 0x40) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DCB table not version 4.0\n");
+		return FALSE;
+	}
+	uint16_t init8etblptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + 10]);
+	if (!init8etblptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Invalid pointer to INIT_8E table\n");
+		return FALSE;
+	}
+	uint8_t headerlen = bios->data[init8etblptr + 1];
+	uint8_t entries = bios->data[init8etblptr + 2];
+	uint8_t recordlen = bios->data[init8etblptr + 3];
+	int i;
+
+	for (i = 0; i < entries; i++) {
+		uint32_t entry = le32_to_cpu(*(uint32_t *)&bios->data[init8etblptr + headerlen + recordlen * i]);
+		int shift = (entry & 0x1f) * 4;
+		uint32_t mask;
+		uint32_t reg = 0xe104;
+		uint32_t data;
+
+		if ((entry & 0xff00) == 0xff00)
+			continue;
+
+		if (shift >= 32) {
+			reg += 4;
+			shift -= 32;
+		}
+		shift %= 32;
+
+		mask = ~(3 << shift);
+		if (entry & (1 << 24))
+			data = (entry >> 21);
+		else
+			data = (entry >> 19);
+		data = ((data & 3) ^ 2) << shift;
+
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Entry: 0x%08X, Reg: 0x%08X, Shift: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
+				   offset, entry, reg, shift, mask, data);
+
+		nv32_wr(pScrn, reg, (nv32_rd(pScrn, reg) & mask) | data);
+
+		reg = 0xe100;
+		shift = entry & 0x1f;
+
+		mask = ~(1 << 16 | 1);
+		mask = mask << shift | mask >> (32 - shift);
+		data = 0;
+		if ((entry & (3 << 25)) == (1 << 25))
+			data |= 1;
+		if ((entry & (3 << 25)) == (2 << 25))
+			data |= 0x10000;
+		data <<= shift;
+
+		if (DEBUGLEVEL >= 6)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "0x%04X: Entry: 0x%08X, Reg: 0x%08X, Shift: 0x%02X, Mask: 0x%08X, Data: 0x%08X\n",
+				   offset, entry, reg, shift, mask, data);
+
+		nv32_wr(pScrn, reg, (nv32_rd(pScrn, reg) & mask) | data);
+	}
+
+	return TRUE;
+}
+
 /* hack to avoid moving the itbl_entry array before this function */
 int init_ram_restrict_zm_reg_group_blocklen = 0;
 
@@ -2479,6 +2569,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_INDEX_IO"                     , 0x78, 6       , 0       , 0       , init_index_io                   },
 	{ "INIT_PLL"                          , 0x79, 7       , 0       , 0       , init_pll                        },
 	{ "INIT_ZM_REG"                       , 0x7A, 9       , 0       , 0       , init_zm_reg                     },
+	{ "INIT_8E"                           , 0x8E, 1       , 0       , 0       , init_8e                         },
 	/* INIT_RAM_RESTRICT_ZM_REG_GROUP's mult is loaded by M table in BIT */
 	{ "INIT_RAM_RESTRICT_ZM_REG_GROUP"    , 0x8F, 7       , 6       , 0       , init_ram_restrict_zm_reg_group  },
 	{ "INIT_COPY_ZM_REG"                  , 0x90, 9       , 0       , 0       , init_copy_zm_reg                },
@@ -3942,6 +4033,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (dcb_version >= 0x30) { /* NV40+ */
 			headerlen = dcbtable[1];
 			entries = dcbtable[2];
+			recordlength = dcbtable[3];
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[4]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[6]);
 
@@ -3949,7 +4041,6 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 				   "DCB header length %02X, with %02X possible entries\n",
 				   headerlen, entries);
 		} else {
-			/* dcb_block_count = *(dcbtable[1]); */
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[4]);
 			headerlen = 8;
@@ -3965,7 +4056,6 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 		memset(sig, 0, 8);
 		strncpy(sig, (char *)&dcbtable[-7], 7);
-		/* dcb_block_count = *(dcbtable[1]); */
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		recordlength = 10;
 		confofs = 6;
@@ -3976,7 +4066,6 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			return 0;
 		}
 	} else if (dcb_version >= 0x12) { /* some NV6/10, and NV15+ */
-		/* dcb_block_count = *(dcbtable[1]); */
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		configblock = FALSE;
 	} else {	/* NV5+, maybe NV4 */
