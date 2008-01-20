@@ -1163,8 +1163,8 @@ void nv_crtc_calc_state_ext(
 			}
 		}
 	} else {
-		/* Do NV1x/NV2x cards need anything in sel_clk? */
-		state->sel_clk = 0x0;
+		/* Don't change SEL_CLK on NV0x/NV1x/NV2x cards */
+		state->sel_clk = pNv->misc_info.sel_clk;
 		state->crosswired = FALSE;
 	}
 
@@ -2223,10 +2223,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 void nv_crtc_restore_generate(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+	int i;
 
 	/* It's a good idea to also save a default palette on shutdown. */
 	for (i = 0; i < 256; i++) {
@@ -2234,10 +2232,6 @@ void nv_crtc_restore_generate(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->DAC[(i*3)+1] = i;
 		regp->DAC[(i*3)+2] = i;
 	}
-
-	/* Noticed that reading this variable is problematic on one card. */
-	if (pNv->NVArch == 0x11)
-		state->sel_clk = 0x0;
 }
 
 void nv_crtc_save(xf86CrtcPtr crtc)

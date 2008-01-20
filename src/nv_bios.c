@@ -3249,12 +3249,17 @@ Bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 		pll_lim->vco1.maxfreq = bios->fmaxvco;
 		pll_lim->vco1.min_n = 0x1;
 		pll_lim->vco1.max_n = 0xff;
-		/* nv_hw.c in nv driver uses 7 and 8 for minM */
 		pll_lim->vco1.min_m = 0x1;
-		if (crystal_straps == 0)
+		if (crystal_straps == 0) {
+			/* nv05 does this, nv11 doesn't, nv10 unknown */
+			if (bios->chip_version < 0x11)
+				pll_lim->vco1.min_m = 0x7;
 			pll_lim->vco1.max_m = 0xd;
-		else
+		} else {
+			if (bios->chip_version < 0x11)
+				pll_lim->vco1.min_m = 0x8;
 			pll_lim->vco1.max_m = 0xe;
+		}
 		pll_lim->vco1.min_inputfreq = 0;
 		pll_lim->vco1.max_inputfreq = INT_MAX;
 	} else if (pll_lim_ver == 0x10) {
