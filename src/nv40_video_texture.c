@@ -193,8 +193,9 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		RegionPtr clipBoxes,
 		DrawablePtr pDraw)
 {
-	NVPtr          pNv   = NVPTR(pScrn);
-	//NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
+	NVPtr pNv   = NVPTR(pScrn);
+	NVPortPrivPtr pPriv = GET_TEXTURED_PRIVATE(pNv);
+	Bool redirected = FALSE;
 
 	/* Remove some warnings. */
 	/* This has to be done better at some point. */
@@ -249,6 +250,10 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 
 	/* I suspect that pDraw itself is not offscreen, hence not suited for damage tracking. */
 	DamageDamageRegion(&pPix->drawable, clipBoxes);
+
+	/* This is test is unneeded for !COMPOSITE. */
+	if (!NVExaPixmapIsOnscreen(pPix))
+		redirected = TRUE;
 #endif
 
 	pbox = REGION_RECTS(clipBoxes);
@@ -300,6 +305,18 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	scaleX = (float)src_w/(float)(x2 - x1);
 	scaleY = (float)src_h/(float)(y2 - y1);
 
+	/* Just before rendering we wait for vblank in the non-composited case. */
+	if (pPriv->SyncToVBlank && !redirected) {
+		uint8_t crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
+			dstBox->x2, dstBox->y2);
+
+		FIRE_RING();
+		if (crtcs & 0x1)
+			NVWaitVSync(pScrn, 0);
+		else if (crtcs & 0x2)
+			NVWaitVSync(pScrn, 1);
+	}
+
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
 
@@ -325,6 +342,18 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	OUT_RING  (NV40TCL_BEGIN_END_STOP);
 
 	FIRE_RING();
+
+	/* When compositing, this stage is not the last. */
+	/* If you are lucky the next composite operation happens within vblank period. */
+	if (pPriv->SyncToVBlank && redirected) {
+		uint8_t crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
+			dstBox->x2, dstBox->y2);
+
+		if (crtcs & 0x1)
+			NVWaitVSync(pScrn, 0);
+		else if (crtcs & 0x2)
+			NVWaitVSync(pScrn, 1);
+	}
 
 	return Success;
 }

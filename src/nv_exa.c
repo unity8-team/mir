@@ -770,6 +770,29 @@ NVExaModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
 #endif
 
 Bool
+NVExaPixmapIsOnscreen(PixmapPtr pPixmap)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+#if NOUVEAU_EXA_PIXMAPS
+	struct nouveau_pixmap *nvpix;
+	nvpix = exaGetPixmapDriverPrivate(pPixmap);
+
+	if (nvpix && nvpix->bo == pNv->FB)
+		return TRUE;
+
+#else
+	unsigned long offset = exaGetPixmapOffset(pPixmap);
+
+	if (offset < pNv->EXADriverPtr->offScreenBase)
+		return TRUE;
+#endif /* NOUVEAU_EXA_PIXMAPS */
+
+	return FALSE;
+}
+
+Bool
 NVExaInit(ScreenPtr pScreen) 
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
