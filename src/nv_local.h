@@ -69,8 +69,8 @@
 #define NV_RD32(p,i)    MMIO_IN32((pointer)(p), (i))
 
 /* VGA I/O is now always done through MMIO */
-#define VGA_WR08(p,i,d) NV_WR08(p, i, DDXMMIOW("VGA_WR08 index 0x%04x val 0x%02x\n", i, d))
-#define VGA_RD08(p,i)   DDXMMIOW("VGA_RD08 index 0x%04x val 0x%02x\n", i, NV_RD08(p,i))
+#define VGA_WR08(p,i,d) NV_WR08(p, i, DDXMMIOW("VGA_WR08 port 0x%04x val 0x%02x\n", i, d))
+#define VGA_RD08(p,i)   DDXMMIOW("VGA_RD08 port 0x%04x val 0x%02x\n", i, NV_RD08(p,i))
 
 static inline int log2i(int i)
 {
