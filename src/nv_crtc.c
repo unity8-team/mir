@@ -1162,6 +1162,10 @@ void nv_crtc_calc_state_ext(
 				}
 			}
 		}
+	} else {
+		/* Do NV1x/NV2x cards need anything in sel_clk? */
+		state->sel_clk = 0x0;
+		state->crosswired = FALSE;
 	}
 
 	/* Are we crosswired? */
@@ -1172,16 +1176,11 @@ void nv_crtc_calc_state_ext(
 	}
 
 	if (nv_crtc->head == 1) {
-		if (state->db1_ratio[1]) {
-				ErrorF("We are a lover of the DB1 VCLK ratio\n");
-		} else if (nv_crtc->head == 0) {
-			if (state->db1_ratio[0])
-				ErrorF("We are a lover of the DB1 VCLK ratio\n");
-		}
-	} else {
-		/* Do NV1x/NV2x cards need anything in sel_clk? */
-		state->sel_clk = 0x0;
-		state->crosswired = FALSE;
+		if (state->db1_ratio[1])
+			ErrorF("We are a lover of the DB1 VCLK ratio\n");
+	} else if (nv_crtc->head == 0) {
+		if (state->db1_ratio[0])
+			ErrorF("We are a lover of the DB1 VCLK ratio\n");
 	}
 
 	/* The NV40 seems to have more similarities to NV3x than other cards. */
