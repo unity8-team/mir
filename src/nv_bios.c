@@ -1420,7 +1420,7 @@ static bool init_tmds(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 			   "0x%04X: MagicLookupValue: 0x%02X, TMDSAddr: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			   offset, mlv, tmdsaddr, mask, data);
 
-	if ((reg = get_tmds_index_reg(pScrn, mlv)))
+	if (!(reg = get_tmds_index_reg(pScrn, mlv)))
 		return false;
 
 	nv32_wr(pScrn, reg, tmdsaddr | 0x10000);
@@ -1460,7 +1460,7 @@ bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 			   "0x%04X: MagicLookupValue: 0x%02X, Count: 0x%02X\n",
 			   offset, mlv, count);
 
-	if ((reg = get_tmds_index_reg(pScrn, mlv)))
+	if (!(reg = get_tmds_index_reg(pScrn, mlv)))
 		return false;
 
 	for (i = 0; i < count; i++) {
@@ -2802,6 +2802,8 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 	/* no sign of the "panel off for reset" bit, but it's safer to assume we should */
 	if (script == LVDS_RESET)
 		run_lvds_table(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 
 	/* for now we assume version 3.0 table - g80 support will need some changes */
 
