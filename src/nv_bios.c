@@ -2975,11 +2975,11 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	mode->type = M_T_DRIVER | M_T_PREFERRED;
 	xf86SetModeDefaultName(mode);
 
-	if (XF86_CRTC_CONFIG_PTR(pScrn)->debug_modes) {
+//	if (XF86_CRTC_CONFIG_PTR(pScrn)->debug_modes) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found flat panel mode in BIOS tables:\n");
 		xf86PrintModeline(pScrn->scrnIndex, mode);
-	}
+//	}
 
 	bios->fp.native_mode = mode;
 }
