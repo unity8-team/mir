@@ -298,6 +298,16 @@ extern int I810_DEBUG;
 #define PCI_CHIP_I815_BRIDGE       0x1130
 #endif
 
+#ifndef PCI_CHIP_I830_M
+#define PCI_CHIP_I830_M            0x3577
+#define PCI_CHIP_I830_M_BRIDGE     0x3575
+#endif
+
+#ifndef PCI_CHIP_845_G
+#define PCI_CHIP_845_G		   0x2562
+#define PCI_CHIP_845_G_BRIDGE	   0x2560
+#endif
+
 #ifndef PCI_CHIP_I855_GM
 #define PCI_CHIP_I855_GM	   0x3582
 #define PCI_CHIP_I855_GM_BRIDGE	   0x3580
