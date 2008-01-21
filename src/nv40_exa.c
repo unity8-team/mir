@@ -560,7 +560,7 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 
 	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
 
-	if (chipset & 0xf0 == NV_ARCH_40) {
+	if ( (chipset & 0xf0) == NV_ARCH_40) {
 		chipset &= 0xf;
 		if (NV40TCL_CHIPSET_4X_MASK & (1<<chipset))
 			class = NV40TCL;
@@ -571,7 +571,7 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 					"NV40EXA: Unknown chipset NV4%1x\n", chipset);
 			return FALSE;
 		}
-	} else if (chipset & 0xf0 == 0x60) {
+	} else if ( (chipset & 0xf0) == 0x60) {
 		class = NV44TCL;
 	} else
 		return TRUE;
