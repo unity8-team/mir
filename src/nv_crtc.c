@@ -2099,7 +2099,12 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			if (pNv->NVArch == 0x11) {
 				regp->dither = savep->dither | 0x00010000;
 			} else {
+				int i;
 				regp->dither = savep->dither | 0x00000001;
+				for (i = 0; i < 3; i++) {
+					regp->dither_regs[i] = 0xe4e4e4e4;
+					regp->dither_regs[i + 3] = 0x44444444;
+				}
 			}
 		} else {
 			regp->dither = savep->dither;
@@ -2895,6 +2900,10 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->dither = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_DITHER_NV11);
 	} else if (pNv->twoHeads) {
 		regp->dither = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DITHER);
+		for (i = 0; i < 3; i++) {
+			regp->dither_regs[i] = NVCrtcReadRAMDAC(crtc, 0x850 + i * 4);
+			regp->dither_regs[i + 3] = NVCrtcReadRAMDAC(crtc, 0x85c + i * 4);
+		}
 	}
 	if (pNv->Architecture >= NV_ARCH_10)
 		regp->nv10_cursync = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_NV10_CURSYNC);
@@ -2954,6 +2963,10 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_DITHER_NV11, regp->dither);
 	} else if (pNv->twoHeads) {
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DITHER, regp->dither);
+		for (i = 0; i < 3; i++) {
+			NVCrtcWriteRAMDAC(crtc, 0x850 + i * 4, regp->dither_regs[i]);
+			NVCrtcWriteRAMDAC(crtc, 0x85c + i * 4, regp->dither_regs[i + 3]);
+		}
 	}
 	if (pNv->Architecture >= NV_ARCH_10)
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
