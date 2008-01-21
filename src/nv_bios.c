@@ -3639,7 +3639,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Found BIT command with id 0x%02X (%c)\n",
-			   offset, bitentry.id[0], bitentry.id[0]);
+			   offset, bitentry.id[0], isprint(bitentry.id[0]) ? bitentry.id[0] : '.');
 
 		switch (bitentry.id[0]) {
 		case 0:
