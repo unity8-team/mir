@@ -2139,10 +2139,13 @@ NVRestore(ScrnInfoPtr pScrn)
 		/* Only restore text mode fonts/text for the primary card */
 		vgaHWProtect(pScrn, TRUE);
 		NVDACRestore(pScrn, vgaReg, nvReg, pNv->Primary);
-		if(pNv->twoHeads) {
-			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
-		}
 		vgaHWProtect(pScrn, FALSE);
+	}
+
+	if (pNv->twoHeads) {
+		NVLockUnlock(pNv, 0);
+		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+		NVLockUnlock(pNv, 1);
 	}
 }
 

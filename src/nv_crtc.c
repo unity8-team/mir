@@ -2647,7 +2647,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	NVWriteMiscOut(crtc, regp->MiscOutReg);
 
-	for (i = 1; i < 5; i++)
+	for (i = 0; i < 5; i++)
 		NVWriteVgaSeq(crtc, i, regp->Sequencer[i]);
 
 	/* Ensure CRTC registers 0-7 are unlocked by clearing bit 7 of CRTC[17] */
@@ -2791,7 +2791,7 @@ static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	for (i = 0; i < 9; i++)
 		regp->Graphics[i] = NVReadVgaGr(crtc, i);
 
-	for (i = 1; i < 5; i++)
+	for (i = 0; i < 5; i++)
 		regp->Sequencer[i] = NVReadVgaSeq(crtc, i);
 }
 

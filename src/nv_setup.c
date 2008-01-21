@@ -493,7 +493,10 @@ NVCommonSetup(ScrnInfoPtr pScrn)
         break;
     }
 
-    pNv->Television = FALSE;
+	pNv->Television = FALSE;
+
+	if (pNv->twoHeads)
+		pNv->vtOWNER = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
 
     /* Parse the bios to initialize the card */
     NVSelectHeadRegisters(pScrn, 0);
@@ -571,8 +574,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		analog_on_B = FALSE;
 	    }
 	    
-	    cr44 = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
-	    pNv->vtOWNER = cr44;
+	    cr44 = pNv->vtOWNER;
 	    
 	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
 	    NVSelectHeadRegisters(pScrn, 1);
