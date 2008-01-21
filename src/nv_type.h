@@ -12,6 +12,7 @@
 #define _XF86DRI_SERVER_
 #include "xf86drm.h"
 #include "dri.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include "nouveau_drm.h"
 #include "xf86Crtc.h"
