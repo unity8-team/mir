@@ -1163,7 +1163,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Chipset: \"%s\"\n", pScrn->chipset);
 
 	/* The highest architecture currently supported is NV5x */
-	if (pNv->NVArch >= 0x50) {
+	if (pNv->NVArch >= 0x80) {
+		pNv->Architecture =  NV_ARCH_50;
+	} else if (pNv->NVArch >= 0x60) {
+		pNv->Architecture =  NV_ARCH_40;
+	} else if (pNv->NVArch >= 0x50) {
 		pNv->Architecture =  NV_ARCH_50;
 	} else if (pNv->NVArch >= 0x40) {
 		pNv->Architecture =  NV_ARCH_40;

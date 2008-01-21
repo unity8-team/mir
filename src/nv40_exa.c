@@ -559,19 +559,22 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	NV40EXAHackupA8Shaders(pScrn);
 
 	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
-	if ((chipset & 0xf0) != NV_ARCH_40)
-		return TRUE;
-	chipset &= 0xf;
 
-	if (NV40TCL_CHIPSET_4X_MASK & (1<<chipset))
-		class = NV40TCL;
-	else if (NV44TCL_CHIPSET_4X_MASK & (1<<chipset))
+	if (chipset & 0xf0 == NV_ARCH_40) {
+		chipset &= 0xf;
+		if (NV40TCL_CHIPSET_4X_MASK & (1<<chipset))
+			class = NV40TCL;
+		else if (NV44TCL_CHIPSET_4X_MASK & (1<<chipset))
+			class = NV44TCL;
+		else {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+					"NV40EXA: Unknown chipset NV4%1x\n", chipset);
+			return FALSE;
+		}
+	} else if (chipset & 0xf0 == 0x60) {
 		class = NV44TCL;
-	else {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "NV40EXA: Unknown chipset NV4%1x\n", chipset);
-		return FALSE;
-	}
+	} else
+		return TRUE;
 
 	if (!pNv->Nv3D) {
 		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
