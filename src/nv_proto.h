@@ -97,7 +97,6 @@ void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDe
 /* nv_crtc.c */
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
-void NVCrtcLoadPalette(xf86CrtcPtr crtc);
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
