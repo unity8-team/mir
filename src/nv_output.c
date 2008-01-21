@@ -221,7 +221,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 		if (!crtc)	/* we need nv_crtc, so give up */
 			return;
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		int pclk = nv_get_clock_from_crtc(pScrn, nv_crtc->head);
+		int pclk = nv_get_clock_from_crtc(pScrn, &pNv->ModeReg, nv_crtc->head);
 
 		switch (mode) {
 		case DPMSModeStandby:
@@ -328,10 +328,9 @@ nv_output_save (xf86OutputPtr output)
 	}
 }
 
-uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, uint8_t crtc)
+uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state = &pNv->SavedReg;
 	Bool vpllb_disabled = FALSE;
 	uint32_t vplla = crtc ? state->vpll2_a : state->vpll1_a;
 	uint32_t vpllb = crtc ? state->vpll2_b : state->vpll1_b;
@@ -400,7 +399,7 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 
 	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
 
-	return nv_get_clock_from_crtc(pScrn, vpll_num);
+	return nv_get_clock_from_crtc(pScrn, state, vpll_num);
 }
 
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)

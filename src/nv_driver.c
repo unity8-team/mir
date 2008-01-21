@@ -1992,7 +1992,7 @@ NVRestore(ScrnInfoPtr pScrn)
 						continue;
 				} else {
 					NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-					uint32_t old_clock = nv_get_clock_from_crtc(pScrn, nv_crtc->head);
+					uint32_t old_clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, nv_crtc->head);
 					uint32_t clock_diff = 0xFFFFFFFF;
 					for (mode = modes; mode != NULL; mode = mode->next) {
 						/* We only have the first 8 bits of y_res - 1. */
