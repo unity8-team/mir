@@ -351,6 +351,12 @@ Bool NVCursorInitRandr12(ScreenPtr pScreen)
 	return xf86_cursors_init(pScreen, cursor_size, cursor_size, flags);
 }
 
+void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
+{
+	volatile uint32_t curpos = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_CURSOR_POS);
+	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_CURSOR_POS, curpos);
+}
+
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -360,10 +366,8 @@ void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 	/* Enable on this crtc */
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current | 1);
 
-	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-		volatile CARD32 curpos = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_CURSOR_POS);
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_CURSOR_POS, curpos);
-	}
+	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
+		nv_crtc_fix_nv40_hw_cursor(crtc);
 }
 
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
@@ -375,10 +379,8 @@ void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 	/* Disable on this crtc */
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current & ~1);
 
-	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-		volatile CARD32 curpos = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_CURSOR_POS);
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_CURSOR_POS, curpos);
-	}
+	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
+		nv_crtc_fix_nv40_hw_cursor(crtc);
 }
 
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)

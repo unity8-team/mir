@@ -49,6 +49,7 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image);
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
+void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc);
 
 /* in nv_dma.c */
 void  NVSync(ScrnInfoPtr pScrn);

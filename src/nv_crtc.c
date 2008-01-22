@@ -160,16 +160,6 @@ static void NVWritePVIO(xf86CrtcPtr crtc, uint32_t address, uint8_t value)
 	}
 }
 
-static void NVWriteMiscOut(xf86CrtcPtr crtc, uint8_t value)
-{
-	NVWritePVIO(crtc, VGA_MISC_OUT_W, value);
-}
-
-static uint8_t NVReadMiscOut(xf86CrtcPtr crtc)
-{
-	return NVReadPVIO(crtc, VGA_MISC_OUT_R);
-}
-
 void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
 	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
@@ -351,17 +341,6 @@ NVDisablePalette(xf86CrtcPtr crtc)
 	DDXMMIOH("NVDisablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PCIO0_OFFSET + (nv_crtc->head ? NV_PCIO0_SIZE : 0) + VGA_ATTR_INDEX, 0x20);
 	NV_WR08(pCRTCReg, VGA_ATTR_INDEX, 0x20);
 	nv_crtc->paletteEnabled = FALSE;
-}
-
-static void NVWriteVgaReg(xf86CrtcPtr crtc, uint32_t reg, uint8_t value)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
-
-	DDXMMIOH("NVWriteVgaReg: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, reg, value);
-	NV_WR08(pCRTCReg, reg, value);
 }
 
 /* perform a sequencer reset */
@@ -910,11 +889,6 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	state->vpll_changed[0] = FALSE;
 	state->vpll_changed[1] = FALSE;
 }
-
-#define IS_NV44P (pNv->NVArch >= 0x44 ? 1 : 0)
-#define SEL_CLK_OFFSET (nv_get_sel_clk_offset(pNv->NVArch, nv_output->bus))
-
-#define WIPE_OTHER_CLOCKS(_sel_clk, _head, _bus) (nv_wipe_other_clocks(_sel_clk, pNv->NVArch, _head, _bus))
 
 /*
  * Calculate extended mode parameters (SVGA) and save in a 
@@ -1555,10 +1529,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	}
 
 	/*
-	* Theory resumes here....
-	*/
-
-	/*
 	* Graphics Display Controller
 	*/
 	regp->Graphics[0] = 0x00;
@@ -1577,7 +1547,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	}
 	regp->Graphics[8] = 0xFF;
 
-	/* I ditched the mono stuff */
 	regp->Attribute[0]  = 0x00; /* standard colormap translation */
 	regp->Attribute[1]  = 0x01;
 	regp->Attribute[2]  = 0x02;
@@ -1609,9 +1578,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	}
 	regp->Attribute[20] = 0x00;
 }
-
-#define MAX_H_VALUE(i) ((0x1ff + i) << 3)
-#define MAX_V_VALUE(i) ((0xfff + i) << 0)
 
 /**
  * Sets up registers for the given mode/adjusted_mode pair.
@@ -2237,8 +2203,6 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	/* We just came back from terminal, so unlock */
 	NVCrtcLockUnlock(crtc, FALSE);
 
-	if (pNv->twoHeads)
-		NVCrtcSetOwner(crtc);
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
@@ -2262,9 +2226,6 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 
 	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->head);
-
-	if (pNv->twoHeads)
-		NVCrtcSetOwner(crtc);
 
 	/* Just to be safe */
 	NVCrtcLockUnlock(crtc, FALSE);
@@ -2650,7 +2611,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp = &state->crtc_reg[nv_crtc->head];
 
-	NVWriteMiscOut(crtc, regp->MiscOutReg);
+	NVWritePVIO(crtc, VGA_MISC_OUT_W, regp->MiscOutReg);
 
 	for (i = 0; i < 5; i++)
 		NVWriteVgaSeq(crtc, i, regp->Sequencer[i]);
@@ -2671,17 +2632,6 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVDisablePalette(crtc);
 }
 
-static void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
-{
-	/* TODO - implement this properly */
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-		volatile uint32_t curpos = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_CURSOR_POS);
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_CURSOR_POS, curpos);
-	}
-}
 static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool override)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -2739,7 +2689,8 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL0, regp->CRTC[NV_VGA_CRTCX_CURCTL0]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, regp->CRTC[NV_VGA_CRTCX_CURCTL1]);
-	nv_crtc_fix_nv40_hw_cursor(crtc);
+	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
+		nv_crtc_fix_nv40_hw_cursor(crtc);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL2, regp->CRTC[NV_VGA_CRTCX_CURCTL2]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_INTERLACE, regp->CRTC[NV_VGA_CRTCX_INTERLACE]);
 
@@ -2783,7 +2734,7 @@ static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp = &state->crtc_reg[nv_crtc->head];
 
-	regp->MiscOutReg = NVReadMiscOut(crtc);
+	regp->MiscOutReg = NVReadPVIO(crtc, VGA_MISC_OUT_R);
 
 	for (i = 0; i < 25; i++)
 		regp->CRTC[i] = NVReadVgaCrtc(crtc, i);
