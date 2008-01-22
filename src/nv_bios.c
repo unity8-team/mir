@@ -224,12 +224,15 @@ void still_alive()
 //	usleep(200);
 }
 
-static int nv_valid_reg(NVPtr pNv, uint32_t reg)
+static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	/* C51 has misaligned regs on purpose. Marvellous */
 	if ((reg & 0x3 && pNv->VBIOS.chip_version != 0x51) ||
 			(reg & 0x2 && pNv->VBIOS.chip_version == 0x51)) {
-		ErrorF("========== misaligned reg 0x%08X ==========\n", reg);
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "========== misaligned reg 0x%08X ==========\n", reg);
 		return 0;
 	}
 
@@ -271,7 +274,8 @@ static int nv_valid_reg(NVPtr pNv, uint32_t reg)
 		return 1;
 	#undef WITHIN
 
-	ErrorF("========== unknown reg 0x%08X ==========\n", reg);
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "========== unknown reg 0x%08X ==========\n", reg);
 
 	return 0;
 }
@@ -281,7 +285,7 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t data;
 
-	if (!nv_valid_reg(pNv, reg))
+	if (!nv_valid_reg(pScrn, reg))
 		return 0;
 
 	/* C51 sometimes uses regs with bit0 set in the address. For these
@@ -310,7 +314,7 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (!nv_valid_reg(pNv, reg))
+	if (!nv_valid_reg(pScrn, reg))
 		return 0;
 
 	/* see note in nv32_rd */
@@ -2952,11 +2956,11 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 
 	int modeofs = headerlen + recordlen * fpindex + ofs;
 	mode->Clock = le16_to_cpu(*(uint16_t *)&fptable[modeofs]) * 10;
-	mode->HDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 2]);
+	mode->HDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 4] + 1);
 	mode->HSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 10] + 1);
 	mode->HSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 12] + 1);
 	mode->HTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 14] + 1);
-	mode->VDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 16]);
+	mode->VDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 18] + 1);
 	mode->VSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 24] + 1);
 	mode->VSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 26] + 1);
 	mode->VTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 28] + 1);
@@ -2966,6 +2970,7 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	/* for version 1.0:
 	 * bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.)
 	 * bytes 3-6 are bits per colour in RGBX
+	 *  9-10 is HActive
 	 * 11-12 is HDispEnd
 	 * 13-14 is HValid Start
 	 * 15-16 is HValid End
@@ -3895,17 +3900,27 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 
 		switch (entry->type) {
 		case OUTPUT_LVDS:
-			if (conf & 0xfffffffa)
-				ErrorF("Unknown LVDS configuration bits, please report\n");
 			if (conf & 0x1)
 				entry->lvdsconf.use_straps_for_mode = true;
-			if (conf & 0x4)
-				entry->lvdsconf.use_power_scripts = true;
+			if (dcb_version < 0x22) {
+				if (conf & ~0x9)
+					xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+						   "Unknown LVDS configuration bits, please report\n");
+				if (conf & 0x8)	/* complete guess */
+					entry->lvdsconf.use_power_scripts = true;
+			} else {
+				if (conf & ~0x5)
+					xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+						   "Unknown LVDS configuration bits, please report\n");
+				if (conf & 0x4)
+					entry->lvdsconf.use_power_scripts = true;
+			}
 			break;
 		}
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011) {
-			ErrorF("Unknown DCB 1.4 / 1.5 entry, please report\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
 			pNv->dcb_table.entries = 0;
 			return false;
