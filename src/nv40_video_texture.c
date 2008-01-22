@@ -308,7 +308,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
 		uint8_t crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
-			dstBox->x2, dstBox->y2);
+			dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1);
 
 		FIRE_RING();
 		if (crtcs & 0x1)
