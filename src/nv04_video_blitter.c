@@ -34,12 +34,6 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-#ifndef exaGetDrawablePixmap
-extern PixmapPtr exaGetDrawablePixmap(DrawablePtr);
-#endif
-#ifndef exaPixmapIsOffscreen
-extern Bool exaPixmapIsOffscreen(PixmapPtr p);
-#endif
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
 extern void exaMoveInPixmap(PixmapPtr pPixmap);
@@ -89,26 +83,12 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
         CARD32         src_point, src_format;
 
         unsigned int crtcs;
-
-        ScreenPtr pScreen = pScrn->pScreen;
-        PixmapPtr pPix    = exaGetDrawablePixmap(pDraw);
+        PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
         int dst_format;
 
-        /* Try to get the dest drawable into vram */
-        if (!exaPixmapIsOffscreen(pPix)) {
-                exaMoveInPixmap(pPix);
-                ExaOffscreenMarkUsed(pPix);
-        }
-
-        /* If we failed, draw directly onto the screen pixmap.
-         * Not sure if this is the best approach, maybe failing
-         * with BadAlloc would be better?
-         */
-        if (!exaPixmapIsOffscreen(pPix)) {
-                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                        "XV: couldn't move dst surface into vram\n");
-                pPix = pScreen->GetScreenPixmap(pScreen);
-        }
+	/* This has to be called always, since it does more than just migration. */
+	exaMoveInPixmap(pPix);
+	ExaOffscreenMarkUsed(pPix);
 
         NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
         BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);

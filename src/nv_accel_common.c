@@ -163,6 +163,16 @@ NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPict, int *fmt_ret)
 	return TRUE;
 }
 
+/* A copy of exaGetOffscreenPixmap(), since it's private. */
+PixmapPtr
+NVGetDrawablePixmap(DrawablePtr pDraw)
+{
+	if (pDraw->type == DRAWABLE_WINDOW)
+		return pDraw->pScreen->GetWindowPixmap ((WindowPtr) pDraw);
+	else
+		return (PixmapPtr) pDraw;
+}
+
 static Bool
 NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 {

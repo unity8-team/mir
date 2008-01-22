@@ -153,15 +153,6 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 {
 }
 
-#ifndef ExaOffscreenMarkUsed
-extern void ExaOffscreenMarkUsed(PixmapPtr);
-#endif
-#ifndef exaGetDrawablePixmap
-extern PixmapPtr exaGetDrawablePixmap(DrawablePtr);
-#endif
-#ifndef exaPixmapIsOffscreen
-extern Bool exaPixmapIsOffscreen(PixmapPtr p);
-#endif
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
 extern void exaMoveInPixmap(PixmapPtr pPixmap);
@@ -215,7 +206,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	float X1, X2, Y1, Y2;
 	float scaleX1, scaleX2, scaleY1, scaleY2;
 	float scaleX, scaleY;
-	PixmapPtr pPix = exaGetDrawablePixmap(pDraw);
+	PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
 	BoxPtr pbox;
 	int nbox;
 	int dst_format = 0;
@@ -223,18 +214,9 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		ErrorF("No surface format, bad.\n");
 	}
 
-	/* Try to get the dest drawable into vram */
-	if (!exaPixmapIsOffscreen(pPix)) {
-		exaMoveInPixmap(pPix);
-		ExaOffscreenMarkUsed(pPix);
-	}
-
-	/* Fail if we can't move the pixmap into memory. */
-	if (!exaPixmapIsOffscreen(pPix)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"XV: couldn't move dst surface into vram.\n");
-		return BadAlloc;
-	}
+	/* This has to be called always, since it does more than just migration. */
+	exaMoveInPixmap(pPix);
+	ExaOffscreenMarkUsed(pPix);
 
 #ifdef COMPOSITE
 	/* Adjust coordinates if drawing to an offscreen pixmap */
