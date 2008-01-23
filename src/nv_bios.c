@@ -2763,13 +2763,11 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	init_exec_t iexec = {true, false};
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
-	bios->execute = true;
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 			head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
-	bios->execute = false;
 
 	link_head_and_output(pScrn, head, dcb_entry, false);
 }
