@@ -161,7 +161,7 @@ static const TVModeConstants availableTVModes[] =
 	TV_STD_PAL,        /* standard */
 	1144,              /* horTotal */
 	706,               /* verTotal */
-	799,               /* horStart */
+	812,               /* horStart */
 	824,               /* horSyncStart */
 	669,               /* verSyncStart */
 	696700,            /* defRestart */
