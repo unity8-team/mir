@@ -1,5 +1,6 @@
+
 /*
- * Copyright 2007 Maarten Maathuis
+ * Copyright 2007-2008 Maarten Maathuis
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -204,8 +205,11 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	}
 
 	float X1, X2, Y1, Y2;
-	float scaleX1, scaleX2, scaleY1, scaleY2;
-	float scaleX, scaleY;
+	uint16_t p_width, p_height;
+	float pf_width, pf_height; /* fractions pbox/dstBox */
+	float pf_x1, pf_y1; /* fractions of x,y/pBox */
+	float df_x1, df_y1; /* fractions of x,y/dstBox */
+	float drf_x, drf_y; /* draw to src ratio. */
 	PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
 	BoxPtr pbox;
 	int nbox;
@@ -281,11 +285,14 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 
 	/* The corrections here are emperical, i tried to explain them as best as possible. */
 
-	/* This correction is need for when the image clips the screen at the right or bottom. */
-	/* In this case x2 and/or y2 is adjusted for the clipping, otherwise not. */
-	/* Otherwise the lower right coordinate stretches in the clipping direction. */
-	scaleX = (float)src_w/(float)(x2 - x1);
-	scaleY = (float)src_h/(float)(y2 - y1);
+	/* Fractions of the upperleft corner of the dstBox. */
+	/* Because all source coords are normalized. */
+	df_x1 = (float)(dstBox->x1)/(float)src_w;
+	df_y1 = (float)(dstBox->y1)/(float)src_h;
+
+	/* Draw ratio fractions. */
+	drf_x = (float)src_w/(float)drw_w;
+	drf_y = (float)src_h/(float)drw_h;
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
@@ -300,28 +307,40 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
+	OUT_RING (NV40TCL_BEGIN_END_TRIANGLES);
 
 	while(nbox--) {
+		p_width = pbox->x2 - pbox->x1;
+		p_height = pbox->y2 - pbox->y1;
+		pf_width = (float)p_width/(float)src_w;
+		pf_height = (float)p_height/(float)src_h;
+		pf_x1 = (float)(pbox->x1)/(float)src_w;
+		pf_y1 = (float)(pbox->y1)/(float)src_h;
 
-		/* The src coordinates needs to be scaled to the draw size. */
-		scaleX1 = (float)(pbox->x1 - dstBox->x1)/(float)drw_w;
-		scaleX2 = (float)(pbox->x2 - dstBox->x1)/(float)drw_w;
-		scaleY1 = (float)(pbox->y1 - dstBox->y1)/(float)drw_h;
-		scaleY2 = (float)(pbox->y2 - dstBox->y1)/(float)drw_h;
+		/* Let's use scissors, since we are drawing larger than our required drawing area. */
+		/* Reminder: Even the pbox'es are drawn as triangles. */
+		BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
+		OUT_RING  ((p_width << 16) | pbox->x1);
+		OUT_RING  ((p_height << 16) | pbox->y1);
 
 		/* Submit the appropriate vertices. */
 		/* This submits the same vertices for the Y and the UV texture. */
-		VERTEX_OUT(X1 + (X2 - X1) * scaleX1 * scaleX, Y1 + (Y2 - Y1) * scaleY1 * scaleY, pbox->x1, pbox->y1);
-		VERTEX_OUT(X1 + (X2 - X1) * scaleX2 * scaleX, Y1 + (Y2 - Y1) * scaleY1 * scaleY, pbox->x2, pbox->y1);
-		VERTEX_OUT(X1 + (X2 - X1) * scaleX2 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x2, pbox->y2);
-		VERTEX_OUT(X1 + (X2 - X1) * scaleX1 * scaleX, Y1 + (Y2 - Y1) * scaleY2 * scaleY, pbox->x1, pbox->y2);
+		/* All are screen coordinate references must be scaled to draw size. */
+		/* I've included a little (svg) drawing for future reference. */
+		VERTEX_OUT(X1 + (pf_x1 - df_x1) * drf_x, Y1 + (pf_y1 - df_y1 - pf_height) * drf_y, pbox->x1, pbox->y1 -  p_height);
+		VERTEX_OUT(X1 + (pf_x1 - df_x1) * drf_x, Y1 + (pf_y1 - df_y1 + pf_height) * drf_y, pbox->x1, pbox->y2);
+		VERTEX_OUT(X1 + (pf_x1 - df_x1 + 2*pf_width) * drf_x, Y1 + (pf_y1 - df_y1 + pf_height) * drf_y, pbox->x2 + p_width, pbox->y2);
 
 		pbox++;
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (NV40TCL_BEGIN_END_STOP);
+
+	/* We can't leak state to exa. */
+	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
+	OUT_RING  ((4096 << 16));
+	OUT_RING  ((4096 << 16));
 
 	FIRE_RING();
 
