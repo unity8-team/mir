@@ -337,11 +337,6 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (NV40TCL_BEGIN_END_STOP);
 
-	/* We can't leak state to exa. */
-	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
-	OUT_RING  ((4096 << 16));
-	OUT_RING  ((4096 << 16));
-
 	FIRE_RING();
 
 	return Success;

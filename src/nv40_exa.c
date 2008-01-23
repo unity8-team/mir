@@ -438,7 +438,7 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	OUT_RING  (1);
 
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_QUADS);
+	OUT_RING  (NV40TCL_BEGIN_END_TRIANGLES);
 
 	return TRUE;
 }
@@ -486,52 +486,49 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 {
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	float sX0, sX1, sX2, sY0, sY1, sY2, sX3, sY3;
-	float mX0, mX1, mX2, mY0, mY1, mY2, mX3, mY3;
+	float sX0, sX1, sX2, sY0, sY1, sY2;
+	float mX0, mX1, mX2, mY0, mY1, mY2;
 	NV40EXA_STATE;
 
-	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX0, &sY0);
+	/* This has to happen here, because we lack all coordinates in the preparation functions. */
+	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
+	OUT_RING  ((width << 16) | dstX);
+	OUT_RING  ((height << 16) | dstY);
+
+	NV40EXATransformCoord(state->unit[0].transform, 
+				srcX, srcY - height,
+				state->unit[0].width,
+				state->unit[0].height, &sX0, &sY0);
 	NV40EXATransformCoord(state->unit[0].transform,
-			      srcX + width, srcY,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX1, &sY1);
+				srcX, srcY + height,
+				state->unit[0].width,
+				state->unit[0].height, &sX1, &sY1);
 	NV40EXATransformCoord(state->unit[0].transform,
-			      srcX + width, srcY + height,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX2, &sY2);
-	NV40EXATransformCoord(state->unit[0].transform,
-			      srcX, srcY + height,
-			      state->unit[0].width,
-			      state->unit[0].height, &sX3, &sY3);
+				srcX + 2*width, srcY + height,
+				state->unit[0].width,
+				state->unit[0].height, &sX2, &sY2);
 
 	if (state->have_mask) {
-		NV40EXATransformCoord(state->unit[1].transform, maskX, maskY,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX0, &mY0);
+		NV40EXATransformCoord(state->unit[1].transform, 
+					maskX, maskY - height,
+					state->unit[1].width,
+					state->unit[1].height, &mX0, &mY0);
 		NV40EXATransformCoord(state->unit[1].transform,
-				      maskX + width, maskY,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX1, &mY1);
+					maskX, maskY + height,
+					state->unit[1].width,
+					state->unit[1].height, &mX1, &mY1);
 		NV40EXATransformCoord(state->unit[1].transform,
-				      maskX + width, maskY + height,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX2, &mY2);
-		NV40EXATransformCoord(state->unit[1].transform,
-				      maskX, maskY + height,
-				      state->unit[1].width,
-				      state->unit[1].height, &mX3, &mY3);
+					maskX + 2*width, maskY + height,
+					state->unit[1].width,
+					state->unit[1].height, &mX2, &mY2);
 
-		CV_OUTm(sX0 , sY0 , mX0, mY0, dstX        ,          dstY);
-		CV_OUTm(sX1 , sY1 , mX1, mY1, dstX + width,          dstY);
-		CV_OUTm(sX2 , sY2 , mX2, mY2, dstX + width, dstY + height);
-		CV_OUTm(sX3 , sY3 , mX3, mY3, dstX        , dstY + height);
+		CV_OUTm(sX0 , sY0 , mX0, mY0, dstX			,	dstY - height);
+		CV_OUTm(sX1 , sY1 , mX1, mY1, dstX			,	dstY + height);
+		CV_OUTm(sX2 , sY2 , mX2, mY2, dstX + 2*width	, 	dstY + height);
 	} else {
-		CV_OUT(sX0 , sY0 , dstX        ,          dstY);
-		CV_OUT(sX1 , sY1 , dstX + width,          dstY);
-		CV_OUT(sX2 , sY2 , dstX + width, dstY + height);
-		CV_OUT(sX3 , sY3 , dstX        , dstY + height);
+		CV_OUT(sX0 , sY0 , dstX			,	dstY - height);
+		CV_OUT(sX1 , sY1 , dstX			,	dstY + height);
+		CV_OUT(sX2 , sY2 , dstX + 2*width	, 	dstY + height);
 	}
 
 	FIRE_RING();
