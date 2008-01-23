@@ -3343,7 +3343,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 			pll_lim->refclk = le32_to_cpu(*((uint32_t *)&bios->data[plloffs + 31]));
 
 		/* C51 special not seen elsewhere */
-		if (bios->chip_version = 0x51 && !pll_lim->refclk) {
+		if (bios->chip_version == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = nv32_rd(pScrn, 0x680524);
 
 			if ((reg == 0x680508 && sel_clk & 0x20) || (reg == 0x680520 && sel_clk & 0x80)) {
