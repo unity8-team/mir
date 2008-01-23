@@ -378,7 +378,7 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 		return 0;
 
 	uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
-	ErrorF("The original bios clock seems to have been %d kHz\n", clock);
+	ErrorF("The clock seems to be %d kHz\n", clock);
 	return clock;
 }
 

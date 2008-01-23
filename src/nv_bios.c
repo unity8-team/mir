@@ -218,7 +218,7 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 #define CONDITION_SIZE          12
 #define IO_FLAG_CONDITION_SIZE  9 
 
-void still_alive()
+static void still_alive()
 {
 //	sync();
 //	usleep(200);
@@ -1217,7 +1217,7 @@ static bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	return true;
 }
 
-bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+static bool init_idx_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_INDEX_ADDRESS_LATCHED   opcode: 0x49 ('I')
 	 *
@@ -1435,7 +1435,7 @@ static bool init_tmds(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	return true;
 }
 
-bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+static bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_ZM_TMDS_GROUP   opcode: 0x50 ('P')	(non-canon name)
 	 *
@@ -1478,7 +1478,7 @@ bool init_zm_tmds_group(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	return true;
 }
 
-bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+static bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_CR_INDEX_ADDRESS_LATCHED   opcode: 0x51 ('Q')
 	 *
@@ -1523,7 +1523,7 @@ bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	return true;
 }
 
-bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+static bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_CR   opcode: 0x52 ('R')
 	 *
@@ -2493,12 +2493,12 @@ static bool init_zm_reg_group_addr_latched(ScrnInfoPtr pScrn, bios_t *bios, uint
 	/* INIT_ZM_REG_GROUP_ADDRESS_LATCHED   opcode: 0x91 ('')
 	 *
 	 * offset      (8  bit): opcode
-	 * offset + 1  (32 bit): src reg
+	 * offset + 1  (32 bit): dst reg
 	 * offset + 5  (8  bit): count
 	 * offset + 6  (32 bit): data 1
 	 * ...
 	 *
-	 * For each of "count" values write "data n" to "src reg"
+	 * For each of "count" values write "data n" to "dst reg"
 	 */
 
 	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[offset + 1])));
@@ -2645,19 +2645,17 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	init_exec_t iexec = {true, false};
 
 	while ((table = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i]))))) {
-
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Parsing init table %d\n", table, i / 2);
-
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
-		still_alive();
+
 		parse_init_table(pScrn, bios, table, &iexec);
 		i += 2;
 	}
 }
 
-void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, bool overrideval)
+static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, bool overrideval)
 {
 	/* The BIOS scripts don't do this for us, sadly
 	 * Luckily we do know the values ;-)
@@ -2683,8 +2681,6 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, bool overr
 	tmds_ctrl = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
 	tmds_ctrl2 = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL_2;
 
-	bool oldexecute = pNv->VBIOS.execute;
-	pNv->VBIOS.execute = true;
 	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
 	nv32_wr(pScrn, tmds_ctrl, 0x04);
 	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
@@ -2695,7 +2691,6 @@ void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, bool overr
 		nv32_wr(pScrn, tmds_ctrl2 + 4, 0x0);
 	}
 	nv32_wr(pScrn, tmds_ctrl2, 0x04);
-	pNv->VBIOS.execute = oldexecute;
 }
 
 static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
@@ -2726,11 +2721,9 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
-	pNv->VBIOS.execute = true;
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 		   head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
 	parse_init_table(pScrn, bios, scriptofs, &iexec);
-	pNv->VBIOS.execute = false;
 
 	if (script == LVDS_PANEL_OFF)
 		usleep(off_on_delay * 1000);
@@ -3406,7 +3399,7 @@ static int parse_bit_B_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 */
 
 	if (bitentry->length < 0x4) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand B table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT B table\n");
 		return 0;
 	}
 
@@ -3423,7 +3416,7 @@ static int parse_bit_C_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 */
 
 	if (bitentry->length < 10) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand C table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT C table\n");
 		return 0;
 	}
 
@@ -3442,8 +3435,7 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 */
 
 	if (bitentry->length != 4) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Do not understand BIT display table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT display table\n");
 		return 0;
 	}
 
@@ -3468,8 +3460,7 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 	 */
 
 	if (bitentry->length < 14) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Unable to recognize BIT init table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand init table\n");
 		return 0;
 	}
 
@@ -3537,8 +3528,7 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	 */
 
 	if (bitentry->length != 2) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Do not understand BIT LVDS table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT LVDS table\n");
 		return 0;
 	}
 
@@ -3602,8 +3592,7 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	uint16_t tmdstableptr, script1, script2;
 
 	if (bitentry->length != 2) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Do not understand BIT TMDS table entry\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT TMDS table\n");
 		return 0;
 	}
 
@@ -4304,6 +4293,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	saved_nv_pextdev_boot_0 = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
 	saved_nv_pfb_cfg0 = nv32_rd(pScrn, NV_PFB_CFG0);
 
+	/* init script execution disabled */
 	pNv->VBIOS.execute = false;
 
 	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
@@ -4317,6 +4307,9 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 
 	if (pNv->Mobile && !pNv->VBIOS.fp.native_mode)
 		read_bios_edid(pScrn);
+
+	/* allow subsequent scripts to execute */
+	pNv->VBIOS.execute = true;
 
 	return 1;
 }

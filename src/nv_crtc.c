@@ -296,9 +296,7 @@ static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 		ErrorF("pre-Owner: 0x%X\n", owner);
 		if (owner == 0x04) {
 			uint32_t pbus84 = nvReadMC(pNv, 0x1084);
-			ErrorF("pbus84: 0x%X\n", pbus84);
 			pbus84 &= ~(1<<28);
-			ErrorF("pbus84: 0x%X\n", pbus84);
 			nvWriteMC(pNv, 0x1084, pbus84);
 		}
 		/* The blob never writes owner to pcio1, so should we */
