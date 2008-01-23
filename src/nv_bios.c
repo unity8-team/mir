@@ -3889,22 +3889,28 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 
 		switch (entry->type) {
 		case OUTPUT_LVDS:
+			{
+			uint32_t mask;
 			if (conf & 0x1)
 				entry->lvdsconf.use_straps_for_mode = true;
 			if (dcb_version < 0x22) {
-				if (conf & ~0x9)
-					xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-						   "Unknown LVDS configuration bits, please report\n");
+				mask = ~0x9;
 				if (conf & 0x8)	/* complete guess */
 					entry->lvdsconf.use_power_scripts = true;
 			} else {
-				if (conf & ~0x5)
-					xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-						   "Unknown LVDS configuration bits, please report\n");
+				mask = ~0x5;
 				if (conf & 0x4)
 					entry->lvdsconf.use_power_scripts = true;
 			}
+			if (conf & mask) {
+				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+					   "Unknown LVDS configuration bits, please report\n");
+				/* cause output setting to fail, so message is seen */
+				pNv->dcb_table.entries = 0;
+				return false;
+			}
 			break;
+			}
 		}
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011) {
