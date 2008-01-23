@@ -28,6 +28,7 @@
 
 /* FIXME: put these somewhere */
 #define CRTC_INDEX_COLOR (VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET)
+#define NV_VGA_CRTCX_27 0x27
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
 #define NV_PBUS_PCI_NV_19 0x0000184C
@@ -3340,6 +3341,18 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 
 		if (recordlen > 0x22)
 			pll_lim->refclk = le32_to_cpu(*((uint32_t *)&bios->data[plloffs + 31]));
+
+		/* C51 special not seen elsewhere */
+		if (bios->chip_version = 0x51 && !pll_lim->refclk) {
+			uint32_t sel_clk = nv32_rd(pScrn, 0x680524);
+
+			if ((reg == 0x680508 && sel_clk & 0x20) || (reg == 0x680520 && sel_clk & 0x80)) {
+				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_27) < 0xa3)
+					pll_lim->refclk = 200000;
+				else
+					pll_lim->refclk = 25000;
+			}
+		}
 	}
 
 	if (!pll_lim->refclk)
