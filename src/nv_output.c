@@ -842,7 +842,8 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			DisplayModePtr cvtmode;
 			/* Add a native resolution mode that is preferred */
 			/* Reduced blanking should be fine on DVI monitor */
-			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
+			/* Occasionally i've found 60 Hz to be noticeable, it's very subtle. */
+			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 72.0, TRUE, FALSE);
 			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
 
 			/* can xf86CVTMode generate invalid modes? */
