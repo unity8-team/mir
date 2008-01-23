@@ -888,6 +888,75 @@ static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	state->vpll_changed[1] = FALSE;
 }
 
+static void nv_crtc_mode_set_sel_clk(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(crtc->scrn);
+	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
+	NVOutputPrivatePtr nv_output;
+	int i;
+
+	/* Don't change SEL_CLK on NV0x/NV1x/NV2x cards */
+	if (pNv->Architecture < NV_ARCH_30) {
+		state->sel_clk = pNv->misc_info.sel_clk;
+		return;
+	}
+
+	/* SEL_CLK is only used on the primary ramdac */
+	/* This seems to be needed to select the proper clocks, otherwise bad things happen */
+	if (!state->sel_clk)
+		state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
+
+	if (!output)
+		return;
+	nv_output = output->driver_private;
+
+	/* Only let digital outputs mess further with SEL_CLK, otherwise strange output routings may mess it up. */
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+
+		state->sel_clk &= ~(0xf << 16);
+		/* Even with two dvi, this should not conflict. */
+		if (crossed_clocks)
+			state->sel_clk |= (0x1 << 16);
+		else
+			state->sel_clk |= (0x4 << 16);
+
+		/* nv30:
+		 *	bit 0		NVClk spread spectrum on/off
+		 *	bit 2		MemClk spread spectrum on/off
+		 *	bit 4		PixClk1 spread spectrum on/off
+		 *	bit 6		PixClk2 spread spectrum on/off
+		 *
+		 * nv40 (observations from bios behaviour and mmio traces):
+		 * 	bit 4		seems to get set when output is on head A - likely related to PixClk1
+		 * 	bit 6		seems to get set when output is on head B - likely related to PixClk2
+		 * 	bits 5&7	set as for bits 4&6, but do not appear on cards using 4&6
+		 *
+		 * 	bits 8&10	seen on dual dvi outputs; possibly means "bits 4&6, dual dvi"
+		 *
+		 * 	Note that the circumstances for setting the bits at all is unclear
+		 */
+		if (pNv->Architecture == NV_ARCH_40) {
+			for (i = 1; i <= 2; i++) {
+				uint32_t var = (state->sel_clk >> 4*i) & 0xf;
+				int shift = 0; /* assume (var & 0x5) by default */
+
+				if (!var)
+					continue;
+				if (var & 0xa)
+					shift = 1;
+
+				state->sel_clk &= ~(0xf << 4*i);
+				if (crossed_clocks)
+					state->sel_clk |= (0x4 << (4*i + shift));
+				else
+					state->sel_clk |= (0x1 << (4*i + shift));
+			}
+		}
+	}
+}
+
 /*
  * Calculate extended mode parameters (SVGA) and save in a 
  * mode state structure.
@@ -1058,61 +1127,6 @@ void nv_crtc_calc_state_ext(
 	}
 
 	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
-
-	if (pNv->Architecture >= NV_ARCH_30) {
-		/* SEL_CLK is only used on the primary ramdac */
-		/* This seems to be needed to select the proper clocks, otherwise bad things happen */
-
-		if (!state->sel_clk)
-			state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
-
-		/* Only let digital outputs mess further with SEL_CLK, otherwise strange output routings may mess it up. */
-		if (output && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-			Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
-
-			state->sel_clk &= ~(0xf << 16);
-			/* Even with two dvi, this should not conflict. */
-			if (crossed_clocks)
-				state->sel_clk |= (0x1 << 16);
-			else
-				state->sel_clk |= (0x4 << 16);
-
-			/* nv30:
-			 *	bit 0		NVClk spread spectrum on/off
-			 *	bit 2		MemClk spread spectrum on/off
-			 *	bit 4		PixClk1 spread spectrum on/off
-			 *	bit 6		PixClk2 spread spectrum on/off
-			 *
-			 * nv40 (observations from bios behaviour and mmio traces):
-			 * 	bit 4		seems to get set when output is on head A - likely related to PixClk1
-			 * 	bit 6		seems to get set when output is on head B - likely related to PixClk2
-			 * 	bits 5&7	set as for bits 4&6, but do not appear on cards using 4&6
-			 *
-			 * 	bits 8&10	seen on dual dvi outputs; possibly means "bits 4&6, dual dvi"
-			 *
-			 * 	Note that the circumstances for setting the bits at all is unclear
-			 */
-			if (pNv->Architecture == NV_ARCH_40) {
-				for (i = 1; i <= 2; i++) {
-					uint32_t var = (state->sel_clk >> 4*i) & 0xf;
-					int shift = 0; /* assume (var & 0x5) by default */
-
-					if (!var)
-						continue;
-					if (var & 0xa)
-						shift = 1;
-
-					state->sel_clk &= ~(0xf << 4*i);
-					if (crossed_clocks)
-						state->sel_clk |= (0x4 << (4*i + shift));
-					else
-						state->sel_clk |= (0x1 << (4*i + shift));
-				}
-			}
-		}
-	} else
-		/* Don't change SEL_CLK on NV0x/NV1x/NV2x cards */
-		state->sel_clk = pNv->misc_info.sel_clk;
 
 	/* Are we crosswired? */
 	if (output && nv_crtc->head != nv_output->preferred_output) {
@@ -2124,6 +2138,13 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		NVCrtcSetOwner(crtc);
 
 	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
+
+	/* set sel_clk before calculating PLLs */
+	nv_crtc_mode_set_sel_clk(crtc, &pNv->ModeReg);
+	if (pNv->Architecture == NV_ARCH_40) {
+		ErrorF("writing sel_clk %08X\n", pNv->ModeReg.sel_clk);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
+	}
 	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
 	nv_crtc_mode_set_ramdac_regs(crtc, mode, adjusted_mode);
 
