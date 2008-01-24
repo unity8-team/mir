@@ -1342,6 +1342,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 		   "Couldn't allocate shadow memory for rotated CRTC\n");
 	return NULL;
     }
+    memset(pI830->FbBase + intel_crtc->rotate_mem->offset, 0, size);
 
     return pI830->FbBase + intel_crtc->rotate_mem->offset;
 }
