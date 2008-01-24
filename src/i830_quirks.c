@@ -91,6 +91,8 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Samsung Q35 has no TV output */
     { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
+    /* Samsung Q45 has no TV output */
+    { PCI_CHIP_I965_GM, 0x144d, 0xc510, quirk_ignore_tv },
 
     /* Dell Inspiron 510m needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
