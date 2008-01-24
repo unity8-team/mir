@@ -837,13 +837,31 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		if (nv_output->native_mode)
 			xfree(nv_output->native_mode);
 		nv_output->native_mode = NULL;
-		/* Disabled for the moment, because it's not essential and caused problems with "newrestore". */
-		if (nv_output->type == OUTPUT_TMDS) {
+
+		/* Prefer ddc modes. */
+		if (!nv_output->native_mode) {
+			DisplayModePtr chosen_mode = NULL;
+			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+				if (mode->HDisplay == nv_output->fpWidth &&
+					mode->VDisplay == nv_output->fpHeight) {
+					/* Take the preferred mode when it exists. */
+					if (mode->type & M_T_PREFERRED) {
+						chosen_mode = mode;
+						break;
+					}
+					/* Find the highest refresh mode otherwise. */
+					if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh))
+						chosen_mode = mode;
+				}
+			}
+			nv_output->native_mode = xf86DuplicateMode(chosen_mode);
+		}
+
+		/* Only fall back to cvt mode when needed. */
+		if (!nv_output->native_mode && nv_output->type == OUTPUT_TMDS) {
 			DisplayModePtr cvtmode;
-			/* Add a native resolution mode that is preferred */
 			/* Reduced blanking should be fine on DVI monitor */
-			/* Occasionally i've found 60 Hz to be noticeable, it's very subtle. */
-			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 72.0, TRUE, FALSE);
+			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
 			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
 
 			/* can xf86CVTMode generate invalid modes? */
@@ -855,23 +873,18 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			}
 		}
 
-		if (!nv_output->native_mode)
-			for (mode = ddc_modes; mode != NULL; mode = mode->next)
-				if (mode->HDisplay == nv_output->fpWidth &&
-				    mode->VDisplay == nv_output->fpHeight) {
-					nv_output->native_mode = xf86DuplicateMode(mode);
-					break;
-				}
 		if (!nv_output->native_mode) {
-			ErrorF("Really bad stuff happening, CVT mode bad and no other native mode can be found.\n");
-			ErrorF("Bailing out\n");
+			ErrorF("No native mode was found, bailing out.\n");
 			return NULL;
 		}
 
-		/* We want the new mode to be the only preferred one */
-		for (mode = ddc_modes; mode != NULL; mode = mode->next)
-			if (mode->type & M_T_PREFERRED && !xf86ModesEqual(mode, nv_output->native_mode))
-				mode->type &= ~M_T_PREFERRED;
+		/* We want the new mode to be a preferred mode. */
+		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+			if (xf86ModesEqual(mode, nv_output->native_mode)) {
+				mode->type |= M_T_PREFERRED;
+				nv_output->native_mode->type |= M_T_PREFERRED; /* this is not the same pointer. */
+			}
+		}
 	}
 
 	return ddc_modes;
