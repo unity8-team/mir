@@ -2353,6 +2353,7 @@ I830BlockHandler(int i,
 
     (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 
+    pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
