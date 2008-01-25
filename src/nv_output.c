@@ -823,7 +823,7 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		int i;
 		DisplayModePtr mode;
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < DET_TIMINGS; i++) {
 			/* We only look at detailed timings atm */
 			if (mon->det_mon[i].type != DT)
 				continue;
@@ -833,30 +833,34 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 				nv_output->fpHeight = mon->det_mon[i].section.d_timings.v_active;
 			}
 		}
+		if (!(nv_output->fpWidth && nv_output->fpHeight)) {
+			ErrorF("No EDID detailed timings available, bailing out.\n");
+			return NULL;
+		}
 
 		if (nv_output->native_mode)
 			xfree(nv_output->native_mode);
-		nv_output->native_mode = NULL;
 
 		/* Prefer ddc modes. */
-		if (!nv_output->native_mode) {
-			DisplayModePtr chosen_mode = NULL;
-			for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-				if (mode->HDisplay == nv_output->fpWidth &&
-					mode->VDisplay == nv_output->fpHeight) {
-					/* Take the preferred mode when it exists. */
-					if (mode->type & M_T_PREFERRED) {
-						chosen_mode = mode;
-						break;
-					}
-					/* Find the highest refresh mode otherwise. */
-					if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh))
-						chosen_mode = mode;
+		DisplayModePtr chosen_mode = NULL;
+		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+			if (mode->HDisplay == nv_output->fpWidth &&
+				mode->VDisplay == nv_output->fpHeight) {
+				/* Take the preferred mode when it exists. */
+				if (mode->type & M_T_PREFERRED) {
+					chosen_mode = mode;
+					break;
 				}
+				/* Find the highest refresh mode otherwise. */
+				if (!chosen_mode || (mode->VRefresh > chosen_mode->VRefresh))
+					chosen_mode = mode;
 			}
-			nv_output->native_mode = xf86DuplicateMode(chosen_mode);
 		}
+		chosen_mode->type |= M_T_PREFERRED;
+		nv_output->native_mode = xf86DuplicateMode(chosen_mode);
 
+#if 0
+// this code can be removed, if the above remains as is, since it guarantees a native mode
 		/* Only fall back to cvt mode when needed. */
 		if (!nv_output->native_mode && nv_output->type == OUTPUT_TMDS) {
 			DisplayModePtr cvtmode;
@@ -872,19 +876,7 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 				xf86DeleteMode(&cvtmode, cvtmode);
 			}
 		}
-
-		if (!nv_output->native_mode) {
-			ErrorF("No native mode was found, bailing out.\n");
-			return NULL;
-		}
-
-		/* We want the new mode to be a preferred mode. */
-		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-			if (xf86ModesEqual(mode, nv_output->native_mode)) {
-				mode->type |= M_T_PREFERRED;
-				nv_output->native_mode->type |= M_T_PREFERRED; /* this is not the same pointer. */
-			}
-		}
+#endif
 	}
 
 	return ddc_modes;
