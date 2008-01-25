@@ -28,6 +28,7 @@
 
 /* FIXME: put these somewhere */
 #define CRTC_INDEX_COLOR (VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET)
+#define SEQ_INDEX VGA_SEQ_INDEX
 #define NV_VGA_CRTCX_27 0x27
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
@@ -41,6 +42,12 @@
 #define NV_PFB_CFG0 0x00100200
 #define NV_PFB_REFCTRL 0x00100210
 #define NV_PFB_REFCTRL_VALID_1 0x80000000
+#define NV_PFB_PAD 0x0010021C
+#define NV_PFB_PAD_CKE_NORMAL 0x1
+#define NV_PFB_REF 0x001002D0
+#define NV_PFB_REF_CMD_REFRESH 0x1
+#define NV_PFB_PRE 0x001002D4
+#define NV_PFB_PRE_CMD_PRECHARGE 0x1
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
 
 #define DEBUGLEVEL 6
@@ -214,10 +221,11 @@ typedef struct {
 
 static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset, init_exec_t *iexec);
 
-#define MACRO_INDEX_SIZE        2
-#define MACRO_SIZE              8
-#define CONDITION_SIZE          12
-#define IO_FLAG_CONDITION_SIZE  9 
+#define MACRO_INDEX_SIZE	2
+#define MACRO_SIZE		8
+#define CONDITION_SIZE		12
+#define IO_FLAG_CONDITION_SIZE	9
+#define MEM_INIT_SIZE		66
 
 static void still_alive()
 {
@@ -1873,12 +1881,12 @@ static bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	/* no iexec->execute check by design */
 
 	/* on every card I've seen, this step gets done for us earlier in the init scripts
-	uint8_t crdata = nv_idx_port_rd(pScrn, VGA_SEQ_INDEX, 0x01);
-	nv_idx_port_wr(pScrn, VGA_SEQ_INDEX, 0x01, crdata | 0x20);
+	uint8_t crdata = nv_idx_port_rd(pScrn, SEQ_INDEX, 0x01);
+	nv_idx_port_wr(pScrn, SEQ_INDEX, 0x01, crdata | 0x20);
 	*/
 
 	/* this also has probably been done in the scripts, but an mmio trace of
-	 * s3 resume shows nvidia doing it anyway (unlike the VGA_SEQ_INDEX write)
+	 * s3 resume shows nvidia doing it anyway (unlike the SEQ_INDEX write)
 	 */
 	nv32_wr(pScrn, NV_PFB_REFCTRL, NV_PFB_REFCTRL_VALID_1);
 
@@ -1919,6 +1927,114 @@ static bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	pci_nv_20 = nv32_rd(pScrn, NV_PBUS_PCI_NV_20);
 	pci_nv_20 &= ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED;	/* 0xfffffffe */
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_20, pci_nv_20);
+
+	return true;
+}
+
+static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_CONFIGURE_MEM   opcode: 0x66 ('f')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * Equivalent to INIT_DONE on bios version 3 or greater.
+	 * For early bios versions, sets up the memory registers, using values
+	 * taken from the memory init table
+	 */
+
+	/* no iexec->execute check by design */
+
+	if (bios->major_version > 2)
+		return false;
+
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C) >> 4);
+	uint16_t seqtbloffs = bios->legacy.sdr_seq_tbl_ptr, meminitdata = meminitoffs + 6;
+	uint32_t reg, data;
+
+	nv_idx_port_wr(pScrn, SEQ_INDEX, 0x01, nv_idx_port_rd(pScrn, SEQ_INDEX, 0x01) | 0x20);
+
+	if (bios->data[meminitoffs] & 1)
+		seqtbloffs = bios->legacy.ddr_seq_tbl_ptr;
+
+	for (reg = le32_to_cpu(*(uint32_t *)&bios->data[seqtbloffs]);
+	     reg != 0xffffffff;
+	     reg = le32_to_cpu(*(uint32_t *)&bios->data[seqtbloffs += 4])) {
+
+		switch (reg) {
+		case NV_PFB_PRE:
+			data = NV_PFB_PRE_CMD_PRECHARGE;
+			break;
+		case NV_PFB_PAD:
+			data = NV_PFB_PAD_CKE_NORMAL;
+			break;
+		case NV_PFB_REF:
+			data = NV_PFB_REF_CMD_REFRESH;
+			break;
+		default:
+			data = le32_to_cpu(*(uint32_t *)&bios->data[meminitdata]);
+			meminitdata += 4;
+			if (data == 0xffffffff)
+				continue;
+		}
+
+		nv32_wr(pScrn, reg, data);
+	}
+
+	return true;
+}
+
+static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_CONFIGURE_CLK   opcode: 0x67 ('g')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * Equivalent to INIT_DONE on bios version 3 or greater.
+	 * For early bios versions, sets up the NVClk and MClk PLLs, using
+	 * values taken from the memory init table
+	 */
+
+	/* no iexec->execute check by design */
+
+	if (bios->major_version > 2)
+		return false;
+
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C) >> 4);
+	int clock, NM, log2P;
+
+	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 4]) * 10;
+	getMNP_single(pScrn, 0x680500, clock, &NM, &log2P);
+	setPLL_single(pScrn, 0x680500, NM, log2P);
+
+	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 2]) * 10;
+	if (bios->data[meminitoffs] & 1) /* DDR */
+		clock *= 2;
+	getMNP_single(pScrn, 0x680504, clock, &NM, &log2P);
+	setPLL_single(pScrn, 0x680504, NM, log2P);
+
+	return true;
+}
+
+static bool init_configure_preinit(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_CONFIGURE_PREINIT   opcode: 0x68 ('h')
+	 *
+	 * offset      (8 bit): opcode
+	 *
+	 * Equivalent to INIT_DONE on bios version 3 or greater.
+	 * For early bios versions, does early init, loading ram and crystal
+	 * configuration from straps into CR3C
+	 */
+
+	/* no iexec->execute check by design */
+
+	if (bios->major_version > 2)
+		return false;
+
+	uint32_t straps = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
+	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
+
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C, cr3c);
 
 	return true;
 }
@@ -2559,9 +2675,9 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, 5       , 0       , 0       , init_zm_index_io                },
 	{ "INIT_COMPUTE_MEM"                  , 0x63, 1       , 0       , 0       , init_compute_mem                },
 	{ "INIT_RESET"                        , 0x65, 13      , 0       , 0       , init_reset                      },
-/*	{ "INIT_NEXT"                         , 0x66, x       , x       , x       , init_next                       }, */	
-/*	{ "INIT_NEXT"                         , 0x67, x       , x       , x       , init_next                       }, */	
-/*	{ "INIT_NEXT"                         , 0x68, x       , x       , x       , init_next                       }, */	
+	{ "INIT_CONFIGURE_MEM"                , 0x66, 1       , 0       , 0       , init_configure_mem              },
+	{ "INIT_CONFIGURE_CLK"                , 0x67, 1       , 0       , 0       , init_configure_clk              },
+	{ "INIT_CONFIGURE_PREINIT"            , 0x68, 1       , 0       , 0       , init_configure_preinit          },
 	{ "INIT_IO"                           , 0x69, 5       , 0       , 0       , init_io                         },
 	{ "INIT_SUB"                          , 0x6B, 2       , 0       , 0       , init_sub                        },
 //	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
@@ -3441,7 +3557,7 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	/* Parses the flat panel table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
 	 *
-	 * offset + 0  (16 bits): FIXME table pointer
+	 * offset + 0  (16 bits): FIXME table pointer - seems to have 18 byte records beginning with a freq
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
@@ -3708,9 +3824,9 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	 * offset +  18: init script table pointer (for bios versions < 5.10h)
 	 * offset +  20: extra init script table pointer (for bios versions < 5.10h)
 	 *
-	 * offset +  24: FIXME
-	 * offset +  26: FIXME
-	 * offset +  28: FIXME
+	 * offset +  24: memory init table pointer (used on early bios versions)
+	 * offset +  26: SDR memory sequencing setup data table
+	 * offset +  28: DDR memory sequencing setup data table
 	 *
 	 * offset +  54: index of I2C CRTC pair to use for CRT output
 	 * offset +  55: index of I2C CRTC pair to use for TV output
@@ -3785,21 +3901,18 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 18]);
 	bios->extra_init_script_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 20]);
 
-#if 0
-	// FIXME needed for pre v16? - haiku uses this in its COMPUTE_MEM on early biosen
-	if (bmp_version_major > 2) {
-		uint16_t meminittbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
-		uint16_t sdrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 26]);
-		uint16_t ddrmemseqtbl = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
+	if (bmp_version_major > 2) {	/* appears in BMP 3 */
+		bios->legacy.mem_init_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
+		bios->legacy.sdr_seq_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 26]);
+		bios->legacy.ddr_seq_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
 	}
-#endif
 
 	uint16_t legacy_i2c_offset = 0x48;	/* BMP version 2 & 3 */
 	if (bmplength > 61)
 		legacy_i2c_offset = offset + 54;
-	bios->legacy_i2c_indices.crt = bios->data[legacy_i2c_offset];
-	bios->legacy_i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
-	bios->legacy_i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
+	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
+	bios->legacy.i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
+	bios->legacy.i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
 	pNv->dcb_table.i2c_write[0] = bios->data[legacy_i2c_offset + 4];
 	pNv->dcb_table.i2c_read[0] = bios->data[legacy_i2c_offset + 5];
 	pNv->dcb_table.i2c_write[1] = bios->data[legacy_i2c_offset + 6];
@@ -3970,7 +4083,7 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
-		entry->i2c_index = pNv->VBIOS.legacy_i2c_indices.crt;
+		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	}
 
 	pNv->dcb_table.entries++;

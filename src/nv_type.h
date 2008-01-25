@@ -330,8 +330,14 @@ typedef struct {
 	} tmds;
 
 	struct {
-		uint8_t crt, tv, panel;
-	} legacy_i2c_indices;
+		uint16_t mem_init_tbl_ptr;
+		uint16_t sdr_seq_tbl_ptr;
+		uint16_t ddr_seq_tbl_ptr;
+
+		struct {
+			uint8_t crt, tv, panel;
+		} i2c_indices;
+	} legacy;
 } bios_t;
 
 enum LVDS_script {
