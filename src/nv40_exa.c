@@ -490,7 +490,9 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	float mX0, mX1, mX2, mY0, mY1, mY2;
 	NV40EXA_STATE;
 
-	/* This has to happen here, because we lack all coordinates in the preparation functions. */
+	/* We're drawing a triangle, we need to scissor it to a quad. */
+	/* The scissors are here for a good reason, we don't get the full image, but just a part. */
+	/* Handling the cliprects is done for us already. */
 	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
 	OUT_RING  ((width << 16) | dstX);
 	OUT_RING  ((height << 16) | dstY);
