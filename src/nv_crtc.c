@@ -287,28 +287,34 @@ static uint8_t NVReadVgaAttr(xf86CrtcPtr crtc, uint8_t index)
 
 static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	/* Non standard beheaviour required by NV11 */
-	if (pNv) {
-		uint8_t owner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
-		ErrorF("pre-Owner: 0x%X\n", owner);
-		if (owner == 0x04) {
-			uint32_t pbus84 = nvReadMC(pNv, 0x1084);
-			pbus84 &= ~(1<<28);
-			nvWriteMC(pNv, 0x1084, pbus84);
-		}
-		/* The blob never writes owner to pcio1, so should we */
-		if (pNv->NVArch == 0x11) {
-			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, 0xff);
-		}
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, nv_crtc->head * 0x3);
-		owner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
-		ErrorF("post-Owner: 0x%X\n", owner);
+	NVPtr pNv = NVPTR(crtc->scrn);
+	uint8_t newowner = ((NVCrtcPrivatePtr)crtc->driver_private)->head * 0x3;
+
+	/* owner reg is broken on NV11 */
+	if (pNv->NVArch == 0x11) {
+		if (nvReadMC(pNv, 0x1084) & (1 << 28))
+			/* force-clear head mirroring when setting head A or B */
+			/* FIXME this could be done once at start then forgotten. Does it need restoring? */
+			nvWriteMC(pNv, 0x1084, nvReadMC(pNv, 0x1084) & ~(1 << 28));
+		/* CRTCX_OWNER is always changed on CRTC0 */
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
+		/* dummy writes / reads */
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_2E, newowner);
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_2E, newowner);
+		NVReadVGA(pNv, 0, NV_VGA_CRTCX_2E);
 	} else {
-		ErrorF("pNv pointer is NULL\n");
+		/* CRTCX_OWNER is always changed on CRTC0 */
+		uint8_t oldowner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
+		ErrorF("old owner: 0x%X\n", oldowner);
+		if (oldowner == 0x04)
+			/* force-clear head mirroring when setting head A or B */
+			/* FIXME this could be done once at start then forgotten. Does it need restoring? */
+			nvWriteMC(pNv, 0x1084, nvReadMC(pNv, 0x1084) & ~(1 << 28));
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
+		newowner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
 	}
+	ErrorF("new owner: 0x%X\n", newowner);
 }
 
 static void

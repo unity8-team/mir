@@ -2148,7 +2148,15 @@ NVRestore(ScrnInfoPtr pScrn)
 
 	if (pNv->twoHeads) {
 		NVLockUnlock(pNv, 0);
+		ErrorF("Restoring CRTC_OWNER to %d\n", pNv->vtOWNER);
 		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+		if (pNv->NVArch == 0x11) {
+			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+			/* dummy writes / reads */
+			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
+			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
+			nvReadVGA(pNv, NV_VGA_CRTCX_2E);
+		}
 		NVLockUnlock(pNv, 1);
 	}
 }

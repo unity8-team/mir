@@ -495,8 +495,17 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
 	pNv->Television = FALSE;
 
-	if (pNv->twoHeads)
+	if (pNv->twoHeads) {
 		pNv->vtOWNER = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
+		if (pNv->NVArch == 0x11) {
+			/* dummy writes / reads */
+			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
+			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
+			nvReadVGA(pNv, NV_VGA_CRTCX_2E);
+		}
+
+		ErrorF("Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
+	}
 
     /* Parse the bios to initialize the card */
     NVSelectHeadRegisters(pScrn, 0);
