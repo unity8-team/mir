@@ -52,9 +52,7 @@
 
 #define DEBUGLEVEL 6
 
-/* TODO: 
- *       * PLL algorithms.
- */
+#define FEATURE_MOBILE 0x10
 
 static int crtchead = 0;
 
@@ -3805,8 +3803,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	parse_init_tables(pScrn, bios);
 
 	/* If it's not a laptop, you probably don't care about LVDS */
-	/* FIXME: detect mobile BIOS? */
-	if (!pNv->Mobile)
+	if (!(pNv->Mobile || (bios->feature_byte & FEATURE_MOBILE)))
 		return;
 
 	/* Need D and L tables parsed before doing this */
@@ -3896,6 +3893,11 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		return;
 	}
 
+	/* bit 4 seems to indicate a mobile bios, bit 5 that the flat panel
+	 * tables are present, and bit 6 a tv bios */
+	/* FIXME: something similar to this must exist in BIT. Where? */
+	bios->feature_byte = bios->data[offset + 9];
+
 	parse_bios_version(pScrn, bios, offset + 10);
 
 	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 18]);
@@ -3958,8 +3960,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		parse_init_tables(pScrn, bios);
 
 	/* If it's not a laptop, you probably don't care about fptables */
-	/* FIXME: detect mobile BIOS? */
-	if (!pNv->Mobile)
+	if (!(pNv->Mobile || (bios->feature_byte & FEATURE_MOBILE)))
 		return;
 
 	parse_fp_mode_table(pScrn, bios, &fpp);
@@ -4435,7 +4436,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
 
-	if (pNv->Mobile && !pNv->VBIOS.fp.native_mode)
+	if ((pNv->Mobile || (pNv->VBIOS.feature_byte & FEATURE_MOBILE)) && !pNv->VBIOS.fp.native_mode)
 		read_bios_edid(pScrn);
 
 	/* allow subsequent scripts to execute */

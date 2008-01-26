@@ -295,6 +295,7 @@ typedef struct {
 	Bool execute;
 
 	uint8_t major_version, chip_version;
+	uint8_t feature_byte;
 
 	uint32_t fmaxvco, fminvco;
 
