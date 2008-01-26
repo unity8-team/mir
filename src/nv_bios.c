@@ -3168,9 +3168,17 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	case 0x0a:
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
-		bios->fp.if_is_18bit = !(bios->data[lvdsofs] & 16);
+		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
 		break;
 	case 0x30:
+		/* My money would be on there being a 24 bit interface bit in this table,
+		 * but I have no example of a laptop bios with a 24 bit panel to confirm that.
+		 * Hence we shout loudly if any bit other than bit 0 is set (I've not even
+		 * seen bit 1)
+		 */
+		if (bios->data[lvdsofs] > 1)
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "You have a very unusual laptop display; please report it\n");
 		/* no sign of the "reset for panel on" bit, but it's safer to assume we should */
 		bios->fp.reset_after_pclk_change = true;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
