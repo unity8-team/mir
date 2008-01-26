@@ -406,6 +406,13 @@ ATIMach64ProbeIO
             goto SkipSparse;
         }
 
+        /* Possibly fix block I/O indicator */
+        if (PciReg & 0x00000004U)
+        {
+            PciReg &= ~0x00000004U;
+            PCI_WRITE_LONG(pVideo, PciReg, PCI_REG_USERCONFIG);
+        }
+
         /* FIXME:
          * Should not probe at sparse I/O bases which have been registered to
          * other PCI devices. The old ATIProbe() would scan the PCI space and
@@ -424,13 +431,6 @@ ATIMach64ProbeIO
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
 
             goto SkipSparse;
-        }
-
-        /* Possibly fix block I/O indicator */
-        if (PciReg & 0x00000004U)
-        {
-            PciReg &= ~0x00000004U;
-            PCI_WRITE_LONG(pVideo, PciReg, PCI_REG_USERCONFIG);
         }
 
         pATI->CPIOBase = Mach64SparseIOBases[j];

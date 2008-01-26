@@ -1385,7 +1385,7 @@ ATIMach64XVInitialiseAdaptor
     else if (pATI->Chip < ATI_CHIP_264GTPRO ||
              pATI->Chip > ATI_CHIP_264LTPRO)
     {
-        /* Do nothing */
+        enc->width = 720; /* default */
     }
     else
     {
@@ -1441,7 +1441,8 @@ ATIMach64XVInitialiseAdaptor
     else if (pATI->Chip < ATI_CHIP_264GTPRO ||
              pATI->Chip > ATI_CHIP_264LTPRO)
     {
-        /* Do nothing */
+        surf0->max_width = 720; /* default */
+        surf1->max_width = 720;
     }
     else
     {

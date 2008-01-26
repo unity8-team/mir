@@ -139,6 +139,16 @@ ATIClockPreInit
                     (double)pATI->ReferenceNumerator /
                         ((double)pATI->ReferenceDenominator * 1000.0));
 
+#if defined(__sparc__)
+            if (pATI->ReferenceNumerator != 315000 &&
+                pATI->ReferenceDenominator != 11)
+            {
+                xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
+                    "If modes do not work on Ultra 5/10 or Blade 100/150,\n"
+                    "set option \"reference_clock\" to \"28.636 MHz\"\n");
+            }
+#endif
+
             if (pATI->ProgrammableClock == ATI_CLOCK_CH8398)
             {   /* First two are fixed */
                 pScreenInfo->numClocks = 2;
