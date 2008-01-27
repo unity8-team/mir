@@ -290,31 +290,10 @@ static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 	NVPtr pNv = NVPTR(crtc->scrn);
 	uint8_t newowner = ((NVCrtcPrivatePtr)crtc->driver_private)->head * 0x3;
 
-	/* owner reg is broken on NV11 */
-	if (pNv->NVArch == 0x11) {
-		if (nvReadMC(pNv, 0x1084) & (1 << 28))
-			/* force-clear head mirroring when setting head A or B */
-			/* FIXME this could be done once at start then forgotten. Does it need restoring? */
-			nvWriteMC(pNv, 0x1084, nvReadMC(pNv, 0x1084) & ~(1 << 28));
-		/* CRTCX_OWNER is always changed on CRTC0 */
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
-		/* dummy writes / reads */
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_2E, newowner);
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_2E, newowner);
-		NVReadVGA(pNv, 0, NV_VGA_CRTCX_2E);
-	} else {
-		/* CRTCX_OWNER is always changed on CRTC0 */
-		uint8_t oldowner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
-		ErrorF("old owner: 0x%X\n", oldowner);
-		if (oldowner == 0x04)
-			/* force-clear head mirroring when setting head A or B */
-			/* FIXME this could be done once at start then forgotten. Does it need restoring? */
-			nvWriteMC(pNv, 0x1084, nvReadMC(pNv, 0x1084) & ~(1 << 28));
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
-		newowner = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
-	}
-	ErrorF("new owner: 0x%X\n", newowner);
+	/* CRTCX_OWNER is always changed on CRTC0 */
+	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
+
+	ErrorF("Setting owner: 0x%X\n", newowner);
 }
 
 static void

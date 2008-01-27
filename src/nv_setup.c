@@ -497,18 +497,43 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
 	if (pNv->twoHeads) {
 		pNv->vtOWNER = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
-		if (pNv->NVArch == 0x11) {
-			/* dummy writes / reads */
-			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
-			nvWriteVGA(pNv, NV_VGA_CRTCX_2E, pNv->vtOWNER);
-			nvReadVGA(pNv, NV_VGA_CRTCX_2E);
+		if (pNv->NVArch == 0x11) {	/* reading OWNER is broken on nv11 */
+			if (nvReadMC(pNv, 0x1084) & (1 << 28))	/* heads tied, restore both */
+				pNv->vtOWNER = 0x04;
+			else {
+				nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
+				NVSelectHeadRegisters(pScrn, 1);
+				NVLockUnlock(pNv, 0);
+
+				uint8_t slaved_on_B = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
+				if (slaved_on_B)
+					tvB = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+
+				nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
+				NVSelectHeadRegisters(pScrn, 0);
+				NVLockUnlock(pNv, 0);
+
+				uint8_t slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
+				if (slaved_on_A)
+					tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+
+				if (slaved_on_A && !tvA)
+					pNv->vtOWNER = 0x0;
+				else if (slaved_on_B && !tvB)
+					pNv->vtOWNER = 0x3;
+				else if (slaved_on_A)
+					pNv->vtOWNER = 0x0;
+				else if (slaved_on_B)
+					pNv->vtOWNER = 0x3;
+				else
+					pNv->vtOWNER = 0x0;
+			}
 		}
 
 		ErrorF("Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
 	}
 
     /* Parse the bios to initialize the card */
-    NVSelectHeadRegisters(pScrn, 0);
     NVParseBios(pScrn);
 
 	if(pNv->Architecture == NV_ARCH_04) {
