@@ -348,8 +348,8 @@ static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 	uint8_t data;
 
-	VGA_WR08(ptr, port, index);
-	data = VGA_RD08(ptr, port + 1);
+	NV_WR08(ptr, port, index);
+	data = NV_RD08(ptr, port + 1);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -383,8 +383,8 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		VGA_WR08(ptr, port, index);
-		VGA_WR08(ptr, port + 1, data);
+		NV_WR08(ptr, port, index);
+		NV_WR08(ptr, port + 1, data);
 	}
 
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
@@ -395,7 +395,7 @@ static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
-	uint8_t data = VGA_RD08(ptr, port);
+	uint8_t data = NV_RD08(ptr, port);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -419,7 +419,7 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		VGA_WR08(ptr, port, data);
+		NV_WR08(ptr, port, data);
 	}
 }
 
@@ -3563,7 +3563,7 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	/* Parses the flat panel table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
 	 *
-	 * offset + 0  (16 bits): FIXME table pointer - seems to have 18 byte records beginning with a freq
+	 * offset + 0  (16 bits): ??? table pointer - seems to have 18 byte records beginning with a freq
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
