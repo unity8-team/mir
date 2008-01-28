@@ -55,21 +55,25 @@ nouveau_dma_channel_init(struct nouveau_channel *userchan)
 	for (i = 0; i < RING_SKIPS; i++)
 		chan->pushbuf[i] = 0x00000000;
 }
-
-#define CHECK_TIMEOUT() do {                                                   \
-	if ((NOUVEAU_TIME_MSEC() - t_start) > NOUVEAU_DMA_TIMEOUT)             \
-		return - EBUSY;                                                \
+/* Reduce the cost of a very short wait, we're still burning cpu though. */
+#define CHECK_TIMEOUT() do {										\
+	if (counter < 0xFFFFFFFF) {										\
+		counter++;												\
+	} else if (!t_start) {												\
+		t_start = NOUVEAU_TIME_MSEC();								\
+	} else if ((NOUVEAU_TIME_MSEC() - t_start) > NOUVEAU_DMA_TIMEOUT) {	\
+		return - EBUSY;											\
+	}															\
 } while(0)
 
 int
 nouveau_dma_wait(struct nouveau_channel *userchan, int size)
 {
 	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
-	uint32_t get, t_start;
+	uint32_t get, counter = 0, t_start = 0;
 
 	FIRE_RING_CH(userchan);
 
-	t_start = NOUVEAU_TIME_MSEC();
 	while (chan->dma.free < size) {
 		get = READ_GET(chan);
 
