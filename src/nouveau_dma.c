@@ -56,11 +56,14 @@ nouveau_dma_channel_init(struct nouveau_channel *userchan)
 		chan->pushbuf[i] = 0x00000000;
 }
 /* Reduce the cost of a very short wait, we're still burning cpu though. */
+/* Also take the odd case into account that t_start is really 0. */
 #define CHECK_TIMEOUT() do {										\
 	if (counter < 0xFFFFFFFF) {										\
 		counter++;												\
 	} else if (!t_start) {												\
 		t_start = NOUVEAU_TIME_MSEC();								\
+		if (!t_start)												\
+			t_start++;											\
 	} else if ((NOUVEAU_TIME_MSEC() - t_start) > NOUVEAU_DMA_TIMEOUT) {	\
 		return - EBUSY;											\
 	}															\
