@@ -2010,8 +2010,6 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	} else {
 		nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
 	}
-	if (pNv->twoHeads)
-		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 	NVVgaProtect(crtc, FALSE);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;

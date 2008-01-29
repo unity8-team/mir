@@ -2055,8 +2055,6 @@ NVRestore(ScrnInfoPtr pScrn)
 				xfree(mode);
 			}
 
-			NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
-
 			/* Force hide the cursor. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				xf86_config->crtc[i]->funcs->hide_cursor(xf86_config->crtc[i]);
