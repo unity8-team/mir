@@ -490,9 +490,7 @@ static bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 	return false;
 }
 
-bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim);
-
-int getMNP_single(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM, int *bestlog2P)
+int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bestNM, int *bestlog2P)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
@@ -504,20 +502,12 @@ int getMNP_single(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM, int *be
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	struct pll_lims pll_lim;
-
-	/* high regs (such as in the mac g5 table) are not -= 4 */
-	if (reg > 0x405c)
-		reg += 4;
-	if (!get_pll_limits(pScrn, reg - 4, &pll_lim))
-		return 0;
-
-	int minvco = pll_lim.vco1.minfreq, maxvco = pll_lim.vco1.maxfreq;
-	int minM = pll_lim.vco1.min_m, maxM = pll_lim.vco1.max_m;
-	int minN = pll_lim.vco1.min_n, maxN = pll_lim.vco1.max_n;
-	int minU = pll_lim.vco1.min_inputfreq, maxU = pll_lim.vco1.max_inputfreq;
+	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
+	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
+	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
+	int minU = pll_lim->vco1.min_inputfreq, maxU = pll_lim->vco1.max_inputfreq;
 	int maxlog2P;
-	int crystal = pll_lim.refclk;
+	int crystal = pll_lim->refclk;
 	int M, N, log2P, P;
 	int clkP, calcclk;
 	int delta, bestdelta = INT_MAX;
@@ -593,7 +583,7 @@ int getMNP_single(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM, int *be
 	return bestclk;
 }
 
-int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *bestNM2, int *bestlog2P)
+int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -604,23 +594,15 @@ int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *bestNM1, int *b
 	 * returns calculated clock
 	 */
 
-	struct pll_lims pll_lim;
-
-	/* high regs (such as in the mac g5 table) are not -= 4 */
-	if (reg > 0x405c)
-		reg += 4;
-	if (!get_pll_limits(pScrn, reg - 4, &pll_lim))
-		return 0;
-
-	int minvco1 = pll_lim.vco1.minfreq, maxvco1 = pll_lim.vco1.maxfreq;
-	int minvco2 = pll_lim.vco2.minfreq, maxvco2 = pll_lim.vco2.maxfreq;
-	int minU1 = pll_lim.vco1.min_inputfreq, minU2 = pll_lim.vco2.min_inputfreq;
-	int maxU1 = pll_lim.vco1.max_inputfreq, maxU2 = pll_lim.vco2.max_inputfreq;
-	int minM1 = pll_lim.vco1.min_m, maxM1 = pll_lim.vco1.max_m;
-	int minN1 = pll_lim.vco1.min_n, maxN1 = pll_lim.vco1.max_n;
-	int minM2 = pll_lim.vco2.min_m, maxM2 = pll_lim.vco2.max_m;
-	int minN2 = pll_lim.vco2.min_n, maxN2 = pll_lim.vco2.max_n;
-	int crystal = pll_lim.refclk;
+	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
+	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
+	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
+	int maxU1 = pll_lim->vco1.max_inputfreq, maxU2 = pll_lim->vco2.max_inputfreq;
+	int minM1 = pll_lim->vco1.min_m, maxM1 = pll_lim->vco1.max_m;
+	int minN1 = pll_lim->vco1.min_n, maxN1 = pll_lim->vco1.max_n;
+	int minM2 = pll_lim->vco2.min_m, maxM2 = pll_lim->vco2.max_m;
+	int minN2 = pll_lim->vco2.min_n, maxN2 = pll_lim->vco2.max_n;
+	int crystal = pll_lim->refclk;
 	bool fixedgain2 = (minM2 == maxM2 && minN2 == maxN2);
 	int M1, N1, M2, N2, log2P;
 	int clkP, calcclk1, calcclk2, calcclkout;
@@ -872,16 +854,23 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
+	struct pll_lims pll_lim;
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 
+	/* high regs (such as in the mac g5 table) are not -= 4 */
+	if (reg > 0x405c)
+		reg += 4;
+	if (!get_pll_limits(pScrn, reg - 4, &pll_lim))
+		return;
+
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
-		getMNP_double(pScrn, reg, clk, &NM1, &NM2, &log2P);
+		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
 		if (reg > 0x405c)
 			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
 		else
 			setPLL_double_lowregs(pScrn, reg, NM1, NM2, log2P);
 	} else {
-		getMNP_single(pScrn, reg, clk, &NM1, &log2P);
+		getMNP_single(pScrn, &pll_lim, clk, &NM1, &log2P);
 		setPLL_single(pScrn, reg, NM1, log2P);
 	}
 }
@@ -1998,17 +1987,15 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 		return false;
 
 	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C) >> 4);
-	int clock, NM, log2P;
+	int clock;
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 4]) * 10;
-	getMNP_single(pScrn, 0x680500, clock, &NM, &log2P);
-	setPLL_single(pScrn, 0x680500, NM, log2P);
+	setPLL(pScrn, bios, 0x680500, clock);
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 2]) * 10;
 	if (bios->data[meminitoffs] & 1) /* DDR */
 		clock *= 2;
-	getMNP_single(pScrn, 0x680504, clock, &NM, &log2P);
-	setPLL_single(pScrn, 0x680504, NM, log2P);
+	setPLL(pScrn, bios, 0x680504, clock);
 
 	return true;
 }
@@ -3249,60 +3236,7 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 		   bios->data[offset + 1], bios->data[offset]);
 }
 
-bool get_pll_limits_reg(ScrnInfoPtr pScrn, enum pll_types plltype, uint32_t *reg)
-{
-	/*
-	 * Here we just try to find a register matching plltype in the PLL
-	 * limits table. The table is better explained in get_pll_limits below.
-	 */
-
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	uint8_t pll_lim_ver = 0;
-
-	if (!bios->pll_limit_tbl_ptr) {
-		if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pointer to PLL limits table invalid\n");
-			return false;
-		}
-	} else
-		pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
-
-	/* default match */
-	*reg = 0;
-
-	switch (pll_lim_ver) {
-	case 0:
-	case 0x10:
-		break;
-	case 0x20:
-	case 0x21:
-		{
-		uint8_t headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
-		uint8_t recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
-		uint8_t entries = bios->data[bios->pll_limit_tbl_ptr + 3];
-		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
-		int i;
-
-		for (i = 1; i < entries; i++) {
-			uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
-
-			if (plltype == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010))
-				*reg = cmpreg;
-			if (plltype == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018))
-				*reg = cmpreg;
-		}
-		}
-		break;
-	default:
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "PLL limits table revision not currently supported\n");
-		return false;
-	}
-
-	return true;
-}
-
-bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
+bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim)
 {
 	/* PLL limits table
 	 *
@@ -3318,7 +3252,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
-	int pllindex = 0, i;
+	int pllindex = 0;
 	uint32_t crystal_straps;
 
 	if (!bios->pll_limit_tbl_ptr) {
@@ -3415,11 +3349,26 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 		pll_lim->vco2.max_m = 0x4;
 	} else {	/* ver 0x20, 0x21 */
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
+		uint32_t reg = 0; /* default match */
+		int i;
 
 		/* first entry is default match, if nothing better. warn if reg field nonzero */
 		if (le32_to_cpu(*((uint32_t *)&bios->data[plloffs])))
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				   "Default PLL limit entry has non-zero register field\n");
+
+		if (limit_match > MAX_PLL_TYPES)
+			/* we've been passed a reg as the match */
+			reg = limit_match;
+		else /* limit match is a pll type */
+			for (i = 1; i < entries && !reg; i++) {
+				uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
+
+				if (limit_match == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010))
+					reg = cmpreg;
+				if (limit_match == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018))
+					reg = cmpreg;
+			}
 
 		for (i = 1; i < entries; i++)
 			if (le32_to_cpu(*((uint32_t *)&bios->data[plloffs + recordlen * i])) == reg) {
@@ -3468,7 +3417,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim)
 		if (bios->chip_version == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = nv32_rd(pScrn, 0x680524);
 
-			if ((reg == 0x680508 && sel_clk & 0x20) || (reg == 0x680520 && sel_clk & 0x80)) {
+			if (((limit_match == 0x680508 || limit_match == VPLL1) && sel_clk & 0x20) || ((limit_match == 0x680520 || limit_match == VPLL2) && sel_clk & 0x80)) {
 				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_27) < 0xa3)
 					pll_lim->refclk = 200000;
 				else

@@ -446,31 +446,28 @@ CalculateVClkNV4x(
 )
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t pll_lim_reg;
 	struct pll_lims pll_lim;
-	/* We have 2 mulitpliers, 2 dividers and one post divider */
+	/* We have 2 multipliers, 2 dividers and one post divider */
 	/* Note that p is only 3 bits */
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
 	uint32_t special_bits = 0;
 
 	if (primary) {
-		if (!get_pll_limits_reg(pScrn, VPLL1, &pll_lim_reg))
+		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
 			return;
 	} else
-		if (!get_pll_limits_reg(pScrn, VPLL2, &pll_lim_reg))
+		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
-
-	get_pll_limits(pScrn, pll_lim_reg, &pll_lim);
 
 	if (requested_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* single VCO */
 		*db1_ratio = TRUE;
 		/* Turn the second set of divider and multiplier off */
 		/* Bogus data, the same nvidia uses */
 		NM2 = 0x11f;
-		*given_clock = getMNP_single(pScrn, pll_lim_reg, requested_clock, &NM1, &log2P);
+		*given_clock = getMNP_single(pScrn, &pll_lim, requested_clock, &NM1, &log2P);
 	} else { /* dual VCO */
 		*db1_ratio = FALSE;
-		*given_clock = getMNP_double(pScrn, pll_lim_reg, requested_clock, &NM1, &NM2, &log2P);
+		*given_clock = getMNP_double(pScrn, &pll_lim, requested_clock, &NM1, &NM2, &log2P);
 	}
 
 	/* Are this all (relevant) G70 cards? */
@@ -799,20 +796,23 @@ void nv_crtc_calc_state_ext(
 		} else {
 			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
 		}
-	} else if (pNv->twoStagePLL) {
+	} else {
+		struct pll_lims pll_lim;
 		int NM1, NM2, log2P;
-		VClk = getMNP_double(pScrn, 0, dotClock, &NM1, &NM2, &log2P);
-		if (pNv->NVArch == 0x30) {
+
+		if (!get_pll_limits(pScrn, 0, &pll_lim))
+			return;
+
+		if (pNv->twoStagePLL) {
+			VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+			state->pllB = NV31_RAMDAC_ENABLE_VCO2 | NM2;
+		} else
+			VClk = getMNP_single(pScrn, &pll_lim, dotClock, &NM1, &log2P);
+		if (pNv->NVArch == 0x30)
 			/* See nvregisters.xml for details. */
 			state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
-		} else {
+		else
 			state->pll = log2P << 16 | NM1;
-			state->pllB = NV31_RAMDAC_ENABLE_VCO2 | NM2;
-		}
-	} else {
-		int NM, log2P;
-		VClk = getMNP_single(pScrn, 0, dotClock, &NM, &log2P);
-		state->pll = log2P << 16 | NM;
 	}
 
 	if (pNv->Architecture < NV_ARCH_40) {

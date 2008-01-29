@@ -265,6 +265,7 @@ struct dcb_entry {
 	};
 };
 
+#define MAX_PLL_TYPES	2
 enum pll_types {
 	VPLL1,
 	VPLL2

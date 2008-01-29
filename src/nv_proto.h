@@ -86,10 +86,9 @@ void NVPointerMoved(int index, int x, int y);
 unsigned int NVParseBios(ScrnInfoPtr pScrn);
 void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk);
 void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk);
-int getMNP_single(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *NM, int *log2P);
-int getMNP_double(ScrnInfoPtr pScrn, uint32_t reg, int clk, int *NM1, int *NM2, int *log2P);
-bool get_pll_limits_reg(ScrnInfoPtr pScrn, enum pll_types plltype, uint32_t *reg);
-bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t reg, struct pll_lims *pll_lim);
+int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM, int *log2P);
+int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
+bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
 
 void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,
