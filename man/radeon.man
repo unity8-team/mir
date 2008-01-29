@@ -165,9 +165,7 @@ Set AGP data transfer rate.
 others \-\- invalid
 .br
 The default is to
-.B leave it unchanged for AGP v3
-and
-.B 1x otherwise.
+.B leave it unchanged.
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
 Enable AGP fast writes.  Enabling this is frequently the cause of
