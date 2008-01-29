@@ -438,9 +438,27 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     pNv->BlendingPossible = ((pNv->Chipset & 0xffff) > CHIPSET_NV04);
 
     /* look for known laptop chips */
-    /* FIXME we could add some ids here (0x0164,0x0167,0x0168,0x01D6,0x01D7,0x01D8,0x0298,0x0299,0x0398) */
+    /* FIXME still probably missing some ids (for randr12, pre-nv40 mobile should be auto-detected) */
     switch(pNv->Chipset & 0xffff) {
+    case 0x0098:
+    case 0x0099:
+    case 0x00C8:
+    case 0x00C9:
+    case 0x00CC:
     case 0x0112:
+    case 0x0144:
+    case 0x0146:
+    case 0x0148:
+    case 0x0149:
+    case 0x0160:
+    case 0x0164:
+    case 0x0166:
+    case 0x0167:
+    case 0x0168:
+    case 0x0169:
+    case 0x016B:
+    case 0x016C:
+    case 0x016D:
     case 0x0174:
     case 0x0175:
     case 0x0176:
@@ -451,10 +469,16 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0186:
     case 0x0187:
     case 0x018D:
+    case 0x01D6:
+    case 0x01D7:
+    case 0x01D8:
     case 0x0228:
     case 0x0244:
     case 0x0286:
     case 0x028C:
+    case 0x0297:
+    case 0x0298:
+    case 0x0299:
     case 0x0316:
     case 0x0317:
     case 0x031A:
@@ -474,19 +498,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
     case 0x0349:
     case 0x034B:
     case 0x034C:
-    case 0x0160:
-    case 0x0166:
-    case 0x0169:
-    case 0x016B:
-    case 0x016C:
-    case 0x016D:
-    case 0x00C8:
-    case 0x00CC:
-    case 0x0144:
-    case 0x0146:
-    case 0x0148:
-    case 0x0098:
-    case 0x0099:
+    case 0x0397:
+    case 0x0398:
+    case 0x039B:
         pNv->Mobile = TRUE;
         break;
     default:
