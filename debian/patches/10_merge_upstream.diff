@@ -1,0 +1,590 @@
+diff --git a/configure.ac b/configure.ac
+index 334a1f4..e707a1a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -117,7 +117,7 @@ CFLAGS="$save_CFLAGS"
+ if test x$XSERVER_LIBPCIACCESS = xyes; then
+ 	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0])
+ else
+-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.5.0],
++	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0],
+ 				       have_libpciaccess=yes,
+ 				       have_libpciaccess=no)
+ fi
+@@ -216,6 +216,8 @@ AC_SUBST([moduledir])
+ DRIVER_NAME=intel
+ AC_SUBST([DRIVER_NAME])
+ 
++m4_ifndef([XORG_MACROS_VERSION], [AC_FATAL([must install xorg-macros 1.1.3 or later before running autoconf/autogen])])
++XORG_MACROS_VERSION(1.1.3)
+ XORG_MANPAGE_SECTIONS
+ XORG_RELEASE_VERSION
+ 
+diff --git a/man/intel.man b/man/intel.man
+index d46e3f9..e5736e5 100644
+--- a/man/intel.man
++++ b/man/intel.man
+@@ -175,6 +175,13 @@ Default: "EXA".
+ .BI "Option \*qModeDebug\*q \*q" boolean \*q
+ Enable printing of additional debugging information about modesetting to
+ the server log.
++.TP
++.BI "Option \*qForceEnablePipeA\*q \*q" boolean \*q
++Force the driver to leave pipe A enabled.  May be necessary in configurations
++where the BIOS accesses pipe registers during display hotswitch or lid close,
++causing a crash.  If you find that your platform needs this option, please file
++a bug against xf86-video-intel at http://bugs.freedesktop.org which includes
++the output of 'lspci -v' and 'lspci -vn'.
+ 
+ .SH OUTPUT CONFIGURATION
+ On 830M and better chipsets, the driver supports runtime configuration of
+diff --git a/src/brw_structs.h b/src/brw_structs.h
+index 28d8e12..d4fc5c6 100644
+--- a/src/brw_structs.h
++++ b/src/brw_structs.h
+@@ -832,9 +832,8 @@ struct brw_wm_unit_state
+       unsigned int program_computes_depth:1; 
+       unsigned int program_uses_killpixel:1; 
+       unsigned int legacy_line_rast: 1; 
+-      unsigned int pad1:1; 
+-      unsigned int max_threads:6; 
+-      unsigned int pad2:1;
++      unsigned int transposed_urb_read:1; 
++      unsigned int max_threads:7; 
+    } wm5;
+    
+    float global_depth_offset_constant;  
+@@ -977,6 +976,13 @@ struct brw_surface_state
+       unsigned int min_array_elt:9; 
+       unsigned int min_lod:4; 
+    } ss4;
++
++   struct {
++       unsigned int pad:20;
++       unsigned int y_offset:4;
++       unsigned int pad2:1;
++       unsigned int x_offset:7;
++   } ss5;
+ };
+ 
+ 
+diff --git a/src/common.h b/src/common.h
+index daab52c..3a11e59 100644
+--- a/src/common.h
++++ b/src/common.h
+@@ -298,6 +298,16 @@ extern int I810_DEBUG;
+ #define PCI_CHIP_I815_BRIDGE       0x1130
+ #endif
+ 
++#ifndef PCI_CHIP_I830_M
++#define PCI_CHIP_I830_M            0x3577
++#define PCI_CHIP_I830_M_BRIDGE     0x3575
++#endif
++
++#ifndef PCI_CHIP_845_G
++#define PCI_CHIP_845_G		   0x2562
++#define PCI_CHIP_845_G_BRIDGE	   0x2560
++#endif
++
+ #ifndef PCI_CHIP_I855_GM
+ #define PCI_CHIP_I855_GM	   0x3582
+ #define PCI_CHIP_I855_GM_BRIDGE	   0x3580
+@@ -384,6 +394,11 @@ extern int I810_DEBUG;
+ #define PCI_CHIP_Q33_G_BRIDGE 	0x29D0
+ #endif
+ 
++#ifndef PCI_CHIP_IGD_GM
++#define PCI_CHIP_IGD_GM		0x2A42
++#define PCI_CHIP_IGD_GM_BRIDGE  0x2A40
++#endif
++
+ #if XSERVER_LIBPCIACCESS
+ #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
+ #define VENDOR_ID(p)      (p)->vendor_id
+@@ -415,14 +430,15 @@ extern int I810_DEBUG;
+ #define IS_I915GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I915_GM)
+ #define IS_I945G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_G)
+ #define IS_I945GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GME)
++#define IS_IGD_GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_GM)
+ #define IS_I965GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
+-#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
++#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_IGD_GM(pI810))
+ #define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\
+  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
+  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G)
+ #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
+ 
+-#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810))
++#define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_IGD_GM(pI810))
+ /* mark chipsets for using gfx VM offset for overlay */
+ #define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810))
+ 
+diff --git a/src/i810_driver.c b/src/i810_driver.c
+index 8ae35b6..53121a6 100644
+--- a/src/i810_driver.c
++++ b/src/i810_driver.c
+@@ -152,6 +152,7 @@ static const struct pci_id_match intel_device_match[] = {
+    INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, 0 ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, 0 ),
+    INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, 0 ),
++   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_GM, 0 ),
+     { 0, 0, 0 },
+ };
+ 
+@@ -204,6 +205,7 @@ static SymTabRec I810Chipsets[] = {
+    {PCI_CHIP_G33_G,		"G33"},
+    {PCI_CHIP_Q35_G,		"Q35"},
+    {PCI_CHIP_Q33_G,		"Q33"},
++   {PCI_CHIP_IGD_GM,		"Intel Integrated Graphics Device"},
+    {-1,				NULL}
+ };
+ 
+@@ -233,6 +235,7 @@ static PciChipsets I810PciChipsets[] = {
+    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
+    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
+    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
++   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
+    {-1,				-1, RES_UNDEFINED }
+ };
+ 
+@@ -796,6 +799,7 @@ I810Probe(DriverPtr drv, int flags)
+  	    case PCI_CHIP_G33_G:
+  	    case PCI_CHIP_Q35_G:
+  	    case PCI_CHIP_Q33_G:
++ 	    case PCI_CHIP_IGD_GM:
+     	       xf86SetEntitySharable(usedChips[i]);
+ 
+     	       /* Allocate an entity private if necessary */		
+@@ -950,7 +954,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
+    pScrn->monitor = pScrn->confScreen->monitor;
+ 
+    flags24 = Support24bppFb | PreferConvert32to24 | SupportConvert32to24;
+-   if (!xf86SetDepthBpp(pScrn, 0, 0, 0, flags24)) {
++   if (!xf86SetDepthBpp(pScrn, 16, 0, 16, flags24)) {
+       return FALSE;
+    } else {
+       switch (pScrn->depth) {
+diff --git a/src/i810_reg.h b/src/i810_reg.h
+index a6663a4..bed3901 100644
+--- a/src/i810_reg.h
++++ b/src/i810_reg.h
+@@ -539,6 +539,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ #define PGETBL_SIZE_512KB   (0 << 1)
+ #define PGETBL_SIZE_256KB   (1 << 1)
+ #define PGETBL_SIZE_128KB   (2 << 1)
++#define PGETBL_SIZE_1MB     (3 << 1)
++#define PGETBL_SIZE_2MB     (4 << 1)
++#define PGETBL_SIZE_1_5MB   (5 << 1)
+ #define G33_PGETBL_SIZE_MASK		(3 << 8)
+ #define G33_PGETBL_SIZE_1M		(1 << 8)
+ #define G33_PGETBL_SIZE_2M		(2 << 8)
+@@ -2281,6 +2284,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ #define BRW_STATE_SIP				BRW_3D(0, 1, 2)
+ #define BRW_PIPELINE_SELECT			BRW_3D(0, 1, 4)
+ 
++#define NEW_PIPELINE_SELECT			BRW_3D(1, 1, 4)
++
+ #define BRW_MEDIA_STATE_POINTERS		BRW_3D(2, 0, 0)
+ #define BRW_MEDIA_OBJECT			BRW_3D(2, 1, 0)
+ 
+diff --git a/src/i830.h b/src/i830.h
+index dcb87cc..9adbaf7 100644
+--- a/src/i830.h
++++ b/src/i830.h
+@@ -836,6 +836,7 @@ extern const int I830CopyROP[16];
+ #define QUIRK_IGNORE_TV			0x00000001
+ #define QUIRK_IGNORE_LVDS		0x00000002
+ #define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
++#define QUIRK_PIPEA_FORCE		0x00000008
+ extern void i830_fixup_devices(ScrnInfoPtr);
+ 
+ #endif /* _I830_H_ */
+diff --git a/src/i830_crt.c b/src/i830_crt.c
+index cd71dc5..82a774a 100644
+--- a/src/i830_crt.c
++++ b/src/i830_crt.c
+@@ -380,6 +380,7 @@ i830_crt_detect(xf86OutputPtr output)
+ 
+ out:
+     i830ReleaseLoadDetectPipe (output, dpms_mode);
++
+     return status;
+ }
+ 
+diff --git a/src/i830_display.c b/src/i830_display.c
+index 0e42624..f61d3c4 100644
+--- a/src/i830_display.c
++++ b/src/i830_display.c
+@@ -724,6 +724,10 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
+ 	/* Give the overlay scaler a chance to disable if it's on this pipe */
+ 	i830_crtc_dpms_video(crtc, FALSE);
+ 
++	/* May need to leave pipe A on */
++	if ((pipe == 0) && (pI830->quirk_flag & QUIRK_PIPEA_FORCE))
++	    return;
++
+ 	/* Disable the VGA plane that we never use */
+ 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+ 
+@@ -1176,14 +1180,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+ 	i830PrintPll("chosen", &clock);
+     }
+ 
+-    if (dpll & DPLL_VCO_ENABLE)
+-    {
+-	OUTREG(fp_reg, fp);
+-	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+-	POSTING_READ(dpll_reg);
+-	usleep(150);
+-    }
+-
+     /* The LVDS pin pair needs to be on before the DPLLs are enabled.
+      * This is an exception to the general rule that mode_set doesn't turn
+      * things on.
+@@ -1192,6 +1188,14 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+     {
+ 	CARD32 lvds = INREG(LVDS);
+ 
++	if (dpll & DPLL_VCO_ENABLE)
++	{
++	    OUTREG(fp_reg, fp);
++	    OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
++	    POSTING_READ(dpll_reg);
++	    usleep(150);
++	}
++
+ 	lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
+ 	/* Set the B0-B3 data pairs corresponding to whether we're going to
+ 	 * set the DPLLs for dual-channel mode or not.
+@@ -1338,6 +1342,7 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
+ 		   "Couldn't allocate shadow memory for rotated CRTC\n");
+ 	return NULL;
+     }
++    memset(pI830->FbBase + intel_crtc->rotate_mem->offset, 0, size);
+ 
+     return pI830->FbBase + intel_crtc->rotate_mem->offset;
+ }
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index 9a59be1..dffc630 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -244,6 +244,7 @@ static SymTabRec I830Chipsets[] = {
+    {PCI_CHIP_G33_G,		"G33"},
+    {PCI_CHIP_Q35_G,		"Q35"},
+    {PCI_CHIP_Q33_G,		"Q33"},
++   {PCI_CHIP_IGD_GM,		"Intel Integrated Graphics Device"},
+    {-1,				NULL}
+ };
+ 
+@@ -267,6 +268,7 @@ static PciChipsets I830PciChipsets[] = {
+    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
+    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
+    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
++   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
+    {-1,				-1,			RES_UNDEFINED}
+ };
+ 
+@@ -296,6 +298,7 @@ typedef enum {
+    OPTION_INTELTEXPOOL,
+ #endif
+    OPTION_TRIPLEBUFFER,
++   OPTION_FORCEENABLEPIPEA
+ } I830Opts;
+ 
+ static OptionInfoRec I830Options[] = {
+@@ -318,6 +321,7 @@ static OptionInfoRec I830Options[] = {
+    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
+ #endif
+    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
++   {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
+    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
+ };
+ /* *INDENT-ON* */
+@@ -453,6 +457,15 @@ I830DetectMemory(ScrnInfoPtr pScrn)
+       case PGETBL_SIZE_128KB:
+ 	 gtt_size = 128;
+ 	 break;
++      case PGETBL_SIZE_1MB:
++	 gtt_size = 1024;
++	 break;
++      case PGETBL_SIZE_2MB:
++	 gtt_size = 2048;
++	 break;
++      case PGETBL_SIZE_1_5MB:
++	 gtt_size = 1024 + 512;
++	 break;
+       default:
+ 	 FatalError("Unknown GTT size value: %08x\n", (int)INREG(PGETBL_CTL));
+       }
+@@ -507,11 +520,11 @@ I830DetectMemory(ScrnInfoPtr pScrn)
+ 	    memsize = MB(64) - KB(range);
+ 	 break;
+       case G33_GMCH_GMS_STOLEN_128M:
+-	 if (IS_G33CLASS(pI830))
++	 if (IS_I9XX(pI830))
+ 	     memsize = MB(128) - KB(range);
+ 	 break;
+       case G33_GMCH_GMS_STOLEN_256M:
+-	 if (IS_G33CLASS(pI830))
++	 if (IS_I9XX(pI830))
+ 	     memsize = MB(256) - KB(range);
+ 	 break;
+       }
+@@ -597,8 +610,13 @@ I830MapMMIO(ScrnInfoPtr pScrn)
+       
+       if (IS_I965G(pI830)) 
+       {
+-	 gttaddr = pI830->MMIOAddr + (512 * 1024);
+-	 pI830->GTTMapSize = 512 * 1024;
++	 if (IS_IGD_GM(pI830)) {
++	     gttaddr = pI830->MMIOAddr + MB(2);
++	     pI830->GTTMapSize = MB(2);
++	 } else {
++	     gttaddr = pI830->MMIOAddr + KB(512);
++	     pI830->GTTMapSize = KB(512);
++	 }
+       }
+       else
+       {
+@@ -1177,6 +1195,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
+       pI830->debug_modes = FALSE;
+    }
+ 
++   if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
++       pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
++
+    /* We have to use PIO to probe, because we haven't mapped yet. */
+    I830SetPIOAccess(pI830);
+ 
+@@ -1263,6 +1284,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
+    case PCI_CHIP_Q33_G:
+       chipname = "Q33";
+       break;
++   case PCI_CHIP_IGD_GM:
++      chipname = "Intel Integrated Graphics Device";
++      break;
+    default:
+       chipname = "unknown chipset";
+       break;
+@@ -2329,6 +2353,7 @@ I830BlockHandler(int i,
+ 
+     (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+ 
++    pI830->BlockHandler = pScreen->BlockHandler;
+     pScreen->BlockHandler = I830BlockHandler;
+ 
+     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
+@@ -2491,7 +2516,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+    }
+ 
+    /* Enable FB compression if possible */
+-   if (i830_fb_compression_supported(pI830) && !IS_I965GM(pI830))
++   if (i830_fb_compression_supported(pI830) && !IS_I965GM(pI830)
++	   && !IS_IGD_GM(pI830))
+        pI830->fb_compression = TRUE;
+    else
+        pI830->fb_compression = FALSE;
+@@ -2783,7 +2809,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+     *       alone in that case.
+     * Also make sure the DRM can handle the swap.
+     */
+-   if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) &&
++   if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) && !IS_IGD_GM(pI830) &&
+        (!pI830->directRenderingEnabled ||
+ 	(pI830->directRenderingEnabled && pI830->drmMinor >= 10))) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "adjusting plane->pipe mappings "
+@@ -2908,9 +2934,25 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+       pI830->directRenderingEnabled = I830DRIFinishScreenInit(pScreen);
+ #endif
+ 
++   /* Must force it before EnterVT, so we are in control of VT and
++    * later memory should be bound when allocating, e.g rotate_mem */
++   pScrn->vtSema = TRUE;
++
+    if (!I830EnterVT(scrnIndex, 0))
+       return FALSE;
+ 
++   pI830->BlockHandler = pScreen->BlockHandler;
++   pScreen->BlockHandler = I830BlockHandler;
++
++   pScreen->SaveScreen = xf86SaveScreen;
++   pI830->CloseScreen = pScreen->CloseScreen;
++   pScreen->CloseScreen = I830CloseScreen;
++   pI830->CreateScreenResources = pScreen->CreateScreenResources;
++   pScreen->CreateScreenResources = i830CreateScreenResources;
++
++   if (!xf86CrtcScreenInit (pScreen))
++       return FALSE;
++
+    DPRINTF(PFX, "assert( if(!miCreateDefColormap(pScreen)) )\n");
+    if (!miCreateDefColormap(pScreen))
+       return FALSE;
+@@ -2947,18 +2989,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
+ #endif
+ 
+-   pI830->BlockHandler = pScreen->BlockHandler;
+-   pScreen->BlockHandler = I830BlockHandler;
+-
+-   pScreen->SaveScreen = xf86SaveScreen;
+-   pI830->CloseScreen = pScreen->CloseScreen;
+-   pScreen->CloseScreen = I830CloseScreen;
+-   pI830->CreateScreenResources = pScreen->CreateScreenResources;
+-   pScreen->CreateScreenResources = i830CreateScreenResources;
+ 
+-   if (!xf86CrtcScreenInit (pScreen))
+-       return FALSE;
+-       
+    /* Wrap pointer motion to flip touch screen around */
+    pI830->PointerMoved = pScrn->PointerMoved;
+    pScrn->PointerMoved = I830PointerMoved;
+diff --git a/src/i830_lvds.c b/src/i830_lvds.c
+index cf0e345..ef8fa4a 100644
+--- a/src/i830_lvds.c
++++ b/src/i830_lvds.c
+@@ -113,7 +113,7 @@ i830_set_lvds_backlight_method(xf86OutputPtr output)
+ 
+     if (i830_kernel_backlight_available(output)) {
+ 	    method = BCM_KERNEL;
+-    } else if (IS_I965GM(pI830)) {
++    } else if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
+ 	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
+ 	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
+ 	    method = BCM_LEGACY;
+@@ -161,7 +161,7 @@ i830_lvds_get_backlight_max_native(xf86OutputPtr output)
+     CARD32 pwm_ctl = INREG(BLC_PWM_CTL);
+     int val;
+ 
+-    if (IS_I965GM(pI830)) {
++    if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
+ 	val = ((pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK2) >>
+ 	       BACKLIGHT_MODULATION_FREQ_SHIFT2);
+     } else {
+@@ -372,6 +372,17 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
+     CARD32		    pp_status;
+ 
+     if (on) {
++	/*
++	 * If we're going from off->on we may need to turn on the backlight.
++	 * We should use the saved value whenever possible, but on some
++	 * machines 0 is a valid backlight value (due to an external backlight
++	 * controller for example), so on them, when turning LVDS back on,
++	 * they'll always re-maximize the brightness.
++	 */
++	if (!(INREG(PP_CONTROL) & POWER_TARGET_ON) &&
++	    dev_priv->backlight_duty_cycle == 0)
++	    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
++
+ 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
+ 	do {
+ 	    pp_status = INREG(PP_STATUS);
+@@ -413,7 +424,7 @@ i830_lvds_save (xf86OutputPtr output)
+     ScrnInfoPtr		    pScrn = output->scrn;
+     I830Ptr		    pI830 = I830PTR(pScrn);
+ 
+-    if (IS_I965GM(pI830))
++    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+ 	pI830->saveBLC_PWM_CTL2 = INREG(BLC_PWM_CTL2);
+     pI830->savePP_ON = INREG(LVDSPP_ON);
+     pI830->savePP_OFF = INREG(LVDSPP_OFF);
+@@ -429,7 +440,7 @@ i830_lvds_restore(xf86OutputPtr output)
+     ScrnInfoPtr	pScrn = output->scrn;
+     I830Ptr	pI830 = I830PTR(pScrn);
+ 
+-    if (IS_I965GM(pI830))
++    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+ 	OUTREG(BLC_PWM_CTL2, pI830->saveBLC_PWM_CTL2);
+     OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
+     OUTREG(LVDSPP_ON, pI830->savePP_ON);
+diff --git a/src/i830_quirks.c b/src/i830_quirks.c
+index 323962c..853a33e 100644
+--- a/src/i830_quirks.c
++++ b/src/i830_quirks.c
+@@ -39,6 +39,11 @@ typedef struct {
+     void (*hook)(I830Ptr);
+ } i830_quirk, *i830_quirk_ptr;
+ 
++static void quirk_pipea_force (I830Ptr pI830)
++{
++    pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
++}
++
+ static void quirk_ignore_tv (I830Ptr pI830)
+ {
+     pI830->quirk_flag |= QUIRK_IGNORE_TV;
+@@ -64,6 +69,9 @@ static i830_quirk i830_quirk_list[] = {
+     /* Apple Mac mini has no lvds, but macbook pro does */
+     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
+ 
++    /* Clevo M720R has no tv output */
++    { PCI_CHIP_I965_GM, 0x1558, 0x0721, quirk_ignore_tv },
++
+     /* Dell Latitude X1 */
+     { PCI_CHIP_I915_GM, 0x1028, 0x01a3, quirk_ignore_tv },
+     /* Dell XPS 1330 */
+@@ -86,6 +94,12 @@ static i830_quirk i830_quirk_list[] = {
+ 
+     /* Samsung Q35 has no TV output */
+     { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
++    /* Samsung Q45 has no TV output */
++    { PCI_CHIP_I965_GM, 0x144d, 0xc510, quirk_ignore_tv },
++
++    /* Dell Inspiron 510m needs pipe A force quirk */
++    { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
++
+     { 0, 0, 0, NULL },
+ };
+ 
+diff --git a/src/i830_sdvo.c b/src/i830_sdvo.c
+index 6b7037e..4b04994 100644
+--- a/src/i830_sdvo.c
++++ b/src/i830_sdvo.c
+@@ -727,7 +727,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+     }
+ 
+     /* Set the SDVO control regs. */
+-    if (IS_I965GM(pI830)) {
++    if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
+ 	sdvox = SDVO_BORDER_ENABLE;
+     } else {
+ 	sdvox = INREG(dev_priv->output_device);
+diff --git a/src/i965_render.c b/src/i965_render.c
+index ad3b53e..4b1d7f3 100644
+--- a/src/i965_render.c
++++ b/src/i965_render.c
+@@ -907,6 +907,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
+ 					   src_sampler_offset) >> 5;
+     wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+     wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
++    wm_state->wm5.transposed_urb_read = 0;
+     wm_state->wm5.thread_dispatch_enable = 1;
+     /* just use 16-pixel dispatch (4 subspans), don't need to change kernel
+      * start point
+@@ -933,7 +934,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
+         BEGIN_LP_RING(12);
+ 
+         /* Match Mesa driver setup */
+-        OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
++	if (IS_IGD_GM(pI830))
++	    OUT_RING(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
++	else
++	    OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+ 
+    	OUT_RING(BRW_CS_URB_STATE | 0);
+    	OUT_RING((0 << 4) |  /* URB Entry Allocation Size */
+diff --git a/src/i965_video.c b/src/i965_video.c
+index 0357270..928b52b 100644
+--- a/src/i965_video.c
++++ b/src/i965_video.c
+@@ -509,7 +509,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
+     {
+ 	BEGIN_LP_RING(12);
+ 	/* Match Mesa driver setup */
+-	OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
++	if (IS_IGD_GM(pI830))
++	    OUT_RING(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
++	else
++	    OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+ 
+ 	/* Mesa does this. Who knows... */
+ 	OUT_RING(BRW_CS_URB_STATE | 0);

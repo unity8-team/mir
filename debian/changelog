@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.2.0+git20080107-1ubuntu2) hardy; urgency=low
+
+  * 10_merge_upstream.diff:
+    - Merge all upstream commits from the stable branch up to commit
+      103dc34f3afc17cea7e086927e124a30c605a686
+  * 02_force_16bit_i81x.diff
+    - Dropped, upstream now.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 29 Jan 2008 12:58:37 +0200
+
 xserver-xorg-video-intel (2:2.2.0+git20080107-1ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable, remaining changes:
