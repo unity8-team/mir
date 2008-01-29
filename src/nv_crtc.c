@@ -67,16 +67,18 @@ static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 
 uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
-	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
-	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
-	return MMIO_IN32(ptr, reg);
+	if (head)
+		reg += NV_PCRTC0_SIZE;
+	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
 }
 
 void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
-	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
-	DDXMMIOH("NVWriteCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), val);
-	MMIO_OUT32(ptr, reg, val);
+	if (head)
+		reg += NV_PCRTC0_SIZE;
+	DDXMMIOH("NVWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
 }
 
 uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg)
@@ -99,16 +101,18 @@ void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 
 uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
-	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
-	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
-	return MMIO_IN32(ptr, reg);
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
+	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
 }
 
 void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
-	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
-	DDXMMIOH("NVWriteRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), val);
-	MMIO_OUT32(ptr, reg, val);
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
+	DDXMMIOH("NVWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
 }
 
 uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg)
@@ -188,7 +192,7 @@ uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index)
  * 0x02		dcb entry's "or" value (or 00 for inactive)
  * 0x03		bit0 set for dual link (LVDS, possibly elsewhere too)
  * 0x08 or 0x09	pxclk in MHz
- * 0x0f		laptop panel info -	low nibble for PEXTDEV_BOOT strap
+ * 0x0f		laptop panel info -	low nibble for PEXTDEV_BOOT_0 strap
  * 					high nibble for xlat strap value
  */
 
@@ -1690,7 +1694,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
 	}
 
-	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
+	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
 
 	/* If the special bit exists, it exists on both ramdacs */
@@ -2614,8 +2618,8 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	} else if (pNv->twoHeads) {
 		regp->dither = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DITHER);
 		for (i = 0; i < 3; i++) {
-			regp->dither_regs[i] = NVCrtcReadRAMDAC(crtc, 0x850 + i * 4);
-			regp->dither_regs[i + 3] = NVCrtcReadRAMDAC(crtc, 0x85c + i * 4);
+			regp->dither_regs[i] = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_850 + i * 4);
+			regp->dither_regs[i + 3] = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_85C + i * 4);
 		}
 	}
 	if (pNv->Architecture >= NV_ARCH_10)
@@ -2677,8 +2681,8 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	} else if (pNv->twoHeads) {
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DITHER, regp->dither);
 		for (i = 0; i < 3; i++) {
-			NVCrtcWriteRAMDAC(crtc, 0x850 + i * 4, regp->dither_regs[i]);
-			NVCrtcWriteRAMDAC(crtc, 0x85c + i * 4, regp->dither_regs[i + 3]);
+			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_850 + i * 4, regp->dither_regs[i]);
+			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_85C + i * 4, regp->dither_regs[i + 3]);
 		}
 	}
 	if (pNv->Architecture >= NV_ARCH_10)

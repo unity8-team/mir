@@ -36,7 +36,6 @@
 #define NV_PBUS_PCI_NV_20 0x00001850
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED 0x00000000
 #define NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED 0x00000001
-#define NV_PEXTDEV_BOOT_0 0x00101000
 /* undef, as we want the +0x00100000 version */
 #undef NV_PFB_CFG0
 #define NV_PFB_CFG0 0x00100200
@@ -2780,8 +2779,8 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, boo
 	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS)
 		tmds04 |= 0x01;
 
-	tmds_ctrl = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
-	tmds_ctrl2 = NV_PRAMDAC0_OFFSET + (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL_2;
+	tmds_ctrl = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
+	tmds_ctrl2 = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL_2;
 
 	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
 	nv32_wr(pScrn, tmds_ctrl, 0x04);

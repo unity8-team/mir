@@ -258,7 +258,7 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
 
 static void nv4GetConfig (NVPtr pNv)
 {
-    CARD32 reg_FB0 = nvReadFB(pNv, 0x0);
+    CARD32 reg_FB0 = nvReadFB(pNv, NV_PFB_BOOT_0);
     if (reg_FB0 & 0x00000100) {
         pNv->RamAmountKBytes = ((reg_FB0 >> 12) & 0x0F) * 1024 * 2
                               + 1024 * 2;
@@ -279,7 +279,7 @@ static void nv4GetConfig (NVPtr pNv)
             break;
         }
     }
-    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, 0x0000) & 0x00000040) ? 14318 : 13500;
+    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
     pNv->CURSOR         = &(pNv->PRAMIN[0x1E00]);
     pNv->MinVClockFreqKHz = 12000;
     pNv->MaxVClockFreqKHz = 350000;
@@ -321,17 +321,17 @@ static void nv10GetConfig (NVPtr pNv)
 #endif /* XSERVER_LIBPCIACCESS */
 		pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
 	} else {
-		pNv->RamAmountKBytes = (nvReadFB(pNv, 0x020C) & 0xFFF00000) >> 10;
+		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_020C) & 0xFFF00000) >> 10;
 	}
 
     if(pNv->RamAmountKBytes > 256*1024)
         pNv->RamAmountKBytes = 256*1024;
 
-    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, 0x0000) & (1 << 6)) ? 14318 : 13500;
+    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 6)) ? 14318 : 13500;
     
     if(pNv->twoHeads && (implementation != CHIPSET_NV11))
     {
-       if(nvReadEXTDEV(pNv, 0x0000) & (1 << 22))
+       if(nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
            pNv->CrystalFreqKHz = 27000;
     }
 
@@ -513,7 +513,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 				NVSelectHeadRegisters(pScrn, 0);
 				NVLockUnlock(pNv, 0);
 
-				uint8_t slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
+				uint8_t slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_A)
 					tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
 

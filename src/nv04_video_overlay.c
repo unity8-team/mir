@@ -65,62 +65,41 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
                 drw_h <<= 1; 
         }
 
-        /* NV_PVIDEO_OE_STATE */
-        /* NV_PVIDEO_SU_STATE */
-        /* NV_PVIDEO_RM_STATE */
-        nvWriteRAMDAC(pNv, 0, 0x224, 0);
-        nvWriteRAMDAC(pNv, 0, 0x228, 0);
-        nvWriteRAMDAC(pNv, 0, 0x22c, 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_OE_STATE, 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_RM_STATE, 0);
 
-        /* NV_PVIDEO_BUFF0_START_ADDRESS */
-        nvWriteRAMDAC(pNv, 0, 0x20C, offset);
-        nvWriteRAMDAC(pNv, 0, 0x20C + 4, offset);
-        /* NV_PVIDEO_BUFF0_PITCH_LENGTH */
-        nvWriteRAMDAC(pNv, 0, 0x214, dstPitch);
-        nvWriteRAMDAC(pNv, 0, 0x214 + 4, dstPitch);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS, offset);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS + 4, offset);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_PITCH_LENGTH, dstPitch);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4, dstPitch);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_OFFSET, 0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_OFFSET + 4, 0);
 
-        /* NV_PVIDEO_BUFF0_OFFSET */
-        nvWriteRAMDAC(pNv, 0, 0x21C, 0);
-        nvWriteRAMDAC(pNv, 0, 0x21C + 4, 0);
-
-        /* NV_PVIDEO_WINDOW_START */
-        nvWriteRAMDAC(pNv, 0, 0x230, (dstBox->y1 << 16) | dstBox->x1);
-        /* NV_PVIDEO_WINDOW_SIZE */
-        nvWriteRAMDAC(pNv, 0, 0x234, ((dstBox->y2 - dstBox->y1) << 16) |
+        nvWriteVIDEO(pNv, NV_PVIDEO_WINDOW_START, (dstBox->y1 << 16) | dstBox->x1);
+        nvWriteVIDEO(pNv, NV_PVIDEO_WINDOW_SIZE, ((dstBox->y2 - dstBox->y1) << 16) |
                            (dstBox->x2 - dstBox->x1));
-        /* NV_PVIDEO_STEP_SIZE */
-        nvWriteRAMDAC(pNv,  0,  0x200, (uint32_t)(((src_h - 1) << 11) / (drw_h - 1)) << 16 | (uint32_t)(((src_w - 1) << 11) / (drw_w - 1)));
+        nvWriteVIDEO(pNv, NV_PVIDEO_STEP_SIZE, (uint32_t)(((src_h - 1) << 11) / (drw_h - 1)) << 16 | (uint32_t)(((src_w - 1) << 11) / (drw_w - 1)));
 
-        /* NV_PVIDEO_RED_CSC_OFFSET */
-        /* NV_PVIDEO_GREEN_CSC_OFFSET */
-        /* NV_PVIDEO_BLUE_CSC_OFFSET */
-        /* NV_PVIDEO_CSC_ADJUST */
-        nvWriteRAMDAC(pNv, 0, 0x280, (0x69 - (pPriv->brightness * 62 / 512)));
-        nvWriteRAMDAC(pNv, 0, 0x284, (0x3e + (pPriv->brightness * 62 / 512)));
-        nvWriteRAMDAC(pNv, 0, 0x288, (0x89 - (pPriv->brightness * 62 / 512)));
-        nvWriteRAMDAC(pNv, 0, 0x28C, 0x0);
+        nvWriteVIDEO(pNv, NV_PVIDEO_RED_CSC_OFFSET, (0x69 - (pPriv->brightness * 62 / 512)));
+        nvWriteVIDEO(pNv, NV_PVIDEO_GREEN_CSC_OFFSET, (0x3e + (pPriv->brightness * 62 / 512)));
+        nvWriteVIDEO(pNv, NV_PVIDEO_BLUE_CSC_OFFSET, (0x89 - (pPriv->brightness * 62 / 512)));
+        nvWriteVIDEO(pNv, NV_PVIDEO_CSC_ADJUST, 0x0);
 
-        /* NV_PVIDEO_CONTROL_Y (BLUR_ON, LINE_HALF) */
-        nvWriteRAMDAC(pNv, 0, 0x204, 0x001);
-        /* NV_PVIDEO_CONTROL_X (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
-        nvWriteRAMDAC(pNv, 0, 0x208, 0x111);
+        nvWriteVIDEO(pNv, NV_PVIDEO_CONTROL_Y, 0x001); /* (BLUR_ON, LINE_HALF) */
+        nvWriteVIDEO(pNv, NV_PVIDEO_CONTROL_X, 0x111); /* (WEIGHT_HEAVY, SHARPENING_ON, SMOOTHING_ON) */
 
-        /* NV_PVIDEO_FIFO_BURST_LENGTH */
-        nvWriteRAMDAC(pNv, 0, 0x23C, 0x03);
-        /* NV_PVIDEO_FIFO_THRES_SIZE */
-        nvWriteRAMDAC(pNv, 0, 0x238, 0x38);
+        nvWriteVIDEO(pNv, NV_PVIDEO_FIFO_BURST_LENGTH, 0x03);
+        nvWriteVIDEO(pNv, NV_PVIDEO_FIFO_THRES_SIZE, 0x38);
 
-        /* Color key */
-        nvWriteRAMDAC(pNv, 0, 0x240, pPriv->colorKey);
+        nvWriteVIDEO(pNv, NV_PVIDEO_KEY, pPriv->colorKey);
 
-        /*NV_PVIDEO_OVERLAY
-                0x1 Video on
+        /*      0x1 Video on
                 0x10 Use colorkey
                 0x100 Format YUY2 */
-        nvWriteRAMDAC(pNv, 0, 0x244, 0x111);
+        nvWriteVIDEO(pNv, NV_PVIDEO_OVERLAY, 0x111);
 
-        /* NV_PVIDEO_SU_STATE */
-        nvWriteRAMDAC(pNv, 0, 0x228, (nvReadRAMDAC(pNv, 0, 0x228) ^ (1 << 16)));
+        nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, (nvReadVIDEO(pNv, NV_PVIDEO_SU_STATE) ^ (1 << 16)));
 
         pPriv->videoStatus = CLIENT_VIDEO_ON;
 }
@@ -203,9 +182,9 @@ NV04StopOverlay (ScrnInfoPtr pScrn)
 {
     NVPtr pNv = NVPTR(pScrn);
 
-    nvWriteRAMDAC(pNv, 0, 0x244, nvReadRAMDAC(pNv, 0, 0x244) &~ 0x1);
-    nvWriteRAMDAC(pNv, 0, 0x224, 0);
-    nvWriteRAMDAC(pNv, 0, 0x228, 0);
-    nvWriteRAMDAC(pNv, 0, 0x22c, 0);
+    nvWriteVIDEO(pNv, NV_PVIDEO_OVERLAY, nvReadVIDEO(pNv, NV_PVIDEO_OVERLAY) &~ 0x1);
+    nvWriteVIDEO(pNv, NV_PVIDEO_OE_STATE, 0);
+    nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, 0);
+    nvWriteVIDEO(pNv, NV_PVIDEO_RM_STATE, 0);
 }
 

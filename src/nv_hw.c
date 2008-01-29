@@ -60,34 +60,38 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 
 uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
-	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
 	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvReadRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
-	return MMIO_IN32(ptr, reg);
+	DDXMMIOH("nvReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
 }
 
 void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
-	volatile const void *ptr = head ? pNv->PRAMDAC1 : pNv->PRAMDAC0;
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
 	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvWriteRamdac: head %d reg %08x val %08x\n", head, reg + NV_PRAMDAC0_OFFSET + (head ? NV_PRAMDAC0_SIZE : 0), val);
-	MMIO_OUT32(ptr, reg, val);
+	DDXMMIOH("nvWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
 }
 
 uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
-	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
+	if (head)
+		reg += NV_PCRTC0_SIZE;
 	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvReadCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), (uint32_t)MMIO_IN32(ptr, reg));
-	return MMIO_IN32(ptr, reg);
+	DDXMMIOH("nvReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
 }
 
 void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 {
-	volatile const void *ptr = head ? pNv->PCRTC1 : pNv->PCRTC0;
+	if (head)
+		reg += NV_PCRTC0_SIZE;
 	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvWriteCRTC: head %d reg %08x val %08x\n", head, reg + NV_PCRTC0_OFFSET + (head ? NV_PCRTC0_SIZE : 0), val);
-	MMIO_OUT32(ptr, reg, val);
+	DDXMMIOH("nvWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
 }
 
 void NVLockUnlock (
@@ -471,7 +475,7 @@ void nv4UpdateArbitrationSettings (
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;
-    sim_data.memory_width   = (nvReadEXTDEV(pNv, 0x0000) & 0x10) ? 128 : 64;
+    sim_data.memory_width   = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
     sim_data.mem_latency    = (char)cfg1 & 0x0F;
     sim_data.mem_aligned    = 1;
     sim_data.mem_page_miss  = (char)(((cfg1 >> 4) &0x0F) + ((cfg1 >> 31) & 0x01));
@@ -699,7 +703,7 @@ void nv10UpdateArbitrationSettings (
     sim_data.enable_video   = 1;
     sim_data.enable_mp      = 0;
     sim_data.memory_type    = (nvReadFB(pNv, NV_PFB_CFG0) & 0x01) ? 1 : 0;
-    sim_data.memory_width   = (nvReadEXTDEV(pNv, 0x0000) & 0x10) ? 128 : 64;
+    sim_data.memory_width   = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
     sim_data.mem_latency    = (char)cfg1 & 0x0F;
     sim_data.mem_aligned    = 1;
     sim_data.mem_page_miss  = (char)(((cfg1>>4) &0x0F) + ((cfg1>>31) & 0x01));
