@@ -830,6 +830,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x148); /* format */
 	OUT_RING  (pitch << 16 | pitch);
 	OUT_RING  (0x0);
+	BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_TX_ORIGIN, 1);
+	OUT_RING  (0);
         BEGIN_RING(Nv3D, 0x0a00, 2);
         OUT_RING  ((w<<16) | 0);
         OUT_RING  ((h<<16) | 0);
