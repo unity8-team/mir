@@ -649,6 +649,11 @@ Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 	    return TRUE;
 	else
 	    return FALSE;
+    } else if (info->ChipFamily == CHIP_FAMILY_RS690) {
+	if (INMC(pScrn, RS690_MC_STATUS) & RS690_MC_STATUS_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
     } else {
 	if (INMC(pScrn, R520_MC_STATUS) & R520_MC_STATUS_IDLE)
 	    return TRUE;
