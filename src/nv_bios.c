@@ -3809,11 +3809,22 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	struct fppointers fpp;
 	memset(&fpp, 0, sizeof(struct fppointers));
 
+	/* load needed defaults in case we can't parse this info */
+	bios->fmaxvco = 256000;
+	bios->fminvco = 128000;
+	pNv->dcb_table.i2c_write[0] = 0x3f;
+	pNv->dcb_table.i2c_read[0] = 0x3e;
+	pNv->dcb_table.i2c_write[1] = 0x37;
+	pNv->dcb_table.i2c_read[1] = 0x36;
+
 	uint8_t bmp_version_major = bios->data[offset + 5];
 	uint8_t bmp_version_minor = bios->data[offset + 6];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP version %d.%d\n",
 		   bmp_version_major, bmp_version_minor);
+
+	if (bmp_version_major == 0 && bmp_version_minor == 1) /* NV04 */
+		return;
 
 	/* version 6 could theoretically exist, but I suspect BIT happened instead */
 	if (bmp_version_major < 2 || bmp_version_major > 5) {
@@ -3879,9 +3890,6 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	if (bmplength > 74) {
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
 		bios->fminvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 71]));
-	} else {
-		bios->fmaxvco = 256000;
-		bios->fminvco = 128000;
 	}
 	if (bmplength > 88) {
 		bit_entry_t initbitentry;
