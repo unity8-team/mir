@@ -175,7 +175,6 @@ typedef struct _riva_hw_state
 	uint32_t sel_clk;
 	Bool crosswired;
 	Bool vpll_changed[2];
-	Bool db1_ratio[2];
 	/* These vpll values are only for nv4x hardware */
 	uint32_t vpll1_a;
 	uint32_t vpll1_b;

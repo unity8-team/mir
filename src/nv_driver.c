@@ -1934,8 +1934,6 @@ NVRestore(ScrnInfoPtr pScrn)
 		state->pllsel = 0;
 		state->sel_clk = 0;
 		state->crosswired = FALSE;
-		state->db1_ratio[0] = FALSE;
-		state->db1_ratio[1] = FALSE;
 
 		if (pNv->new_restore) { /* new style restore. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -2075,8 +2073,6 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->pllsel = 0;
 			state->sel_clk = 0;
 			state->crosswired = FALSE;
-			state->db1_ratio[0] = FALSE;
-			state->db1_ratio[1] = FALSE;
 		} else {
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);

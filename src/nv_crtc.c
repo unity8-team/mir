@@ -437,79 +437,6 @@ nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
  * This is not needed for the vpll's which have their own bits.
  */
 
-static void
-CalculateVClkNV4x(
-	ScrnInfoPtr pScrn,
-	uint32_t requested_clock,
-	uint32_t *given_clock,
-	uint32_t *pll_a,
-	uint32_t *pll_b,
-	uint32_t *reg580,
-	Bool	*db1_ratio,
-	Bool primary
-)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	struct pll_lims pll_lim;
-	/* We have 2 multipliers, 2 dividers and one post divider */
-	/* Note that p is only 3 bits */
-	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
-	uint32_t special_bits = 0;
-
-	if (primary) {
-		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
-			return;
-	} else
-		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
-			return;
-
-	if (requested_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* single VCO */
-		*db1_ratio = TRUE;
-		/* Turn the second set of divider and multiplier off */
-		/* Bogus data, the same nvidia uses */
-		NM2 = 0x11f;
-		*given_clock = getMNP_single(pScrn, &pll_lim, requested_clock, &NM1, &log2P);
-	} else { /* dual VCO */
-		*db1_ratio = FALSE;
-		*given_clock = getMNP_double(pScrn, &pll_lim, requested_clock, &NM1, &NM2, &log2P);
-	}
-
-	/* Are this all (relevant) G70 cards? */
-	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x46 || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
-		/* This is a big guess, but should be reasonable until we can narrow it down. */
-		if (*db1_ratio) {
-			special_bits = 0x1;
-		} else {
-			special_bits = 0x3;
-		}
-	}
-
-	/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
-	*pll_a = (special_bits << 30) | (log2P << 16) | NM1;
-	/* This VCO2 bit is an educated guess, but it needs to stay on for NV4x. */
-	*pll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
-
-	if (*db1_ratio) {
-		if (primary) {
-			*reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
-		} else {
-			*reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
-		}
-	} else {
-		if (primary) {
-			*reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
-		} else {
-			*reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
-		}
-	}
-
-	if (*db1_ratio) {
-		ErrorF("vpll: n1 %d m1 %d p %d db1_ratio %d\n", NM1 >> 8, NM1 & 0xff, log2P, *db1_ratio);
-	} else {
-		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d p %d db1_ratio %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P, *db1_ratio);
-	}
-}
-
 static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 {
 	state->vpll1_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
@@ -766,6 +693,10 @@ void nv_crtc_calc_state_ext(
 	RIVA_HW_STATE *state;
 	int num_crtc_enabled, i;
 	uint32_t old_clock_a = 0, old_clock_b = 0;
+	struct pll_lims pll_lim;
+	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
+	uint32_t g70_pll_special_bits = 0;
+	Bool nv4x_single_stage_pll_mode = FALSE;
 
 	state = &pNv->ModeReg;
 
@@ -790,43 +721,69 @@ void nv_crtc_calc_state_ext(
 	 */
 	/* This is pitch related, not mode related. */
 	pixelDepth = (bpp + 1)/8;
-	if (pNv->Architecture == NV_ARCH_40) {
-		/* Does register 0x580 already have a value? */
-		if (!state->reg580) {
-			state->reg580 = pNv->misc_info.ramdac_0_reg_580;
-		}
-		if (nv_crtc->head == 1) {
-			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll2_a, &state->vpll2_b, &state->reg580, &state->db1_ratio[1], FALSE);
-		} else {
-			CalculateVClkNV4x(pScrn, dotClock, &VClk, &state->vpll1_a, &state->vpll1_b, &state->reg580, &state->db1_ratio[0], TRUE);
-		}
-	} else {
-		struct pll_lims pll_lim;
-		int NM1, NM2, log2P;
 
-		if (!get_pll_limits(pScrn, 0, &pll_lim))
+	if (nv_crtc->head == 0) {
+		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
+			return;
+	} else
+		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
 
-		if (pNv->twoStagePLL) {
-			VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
-			state->pllB = NV31_RAMDAC_ENABLE_VCO2 | NM2;
-		} else
+	if (pNv->twoStagePLL) {
+		if (dotClock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
+			nv4x_single_stage_pll_mode = TRUE;
+			/* Turn the second set of divider and multiplier off */
+			/* Bogus data, the same nvidia uses */
+			NM2 = 0x11f;
 			VClk = getMNP_single(pScrn, &pll_lim, dotClock, &NM1, &log2P);
-		if (pNv->NVArch == 0x30)
-			/* See nvregisters.xml for details. */
-			state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
+		} else
+			VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+	} else
+		VClk = getMNP_single(pScrn, &pll_lim, dotClock, &NM1, &log2P);
+
+	/* Are these all the (relevant) G70 cards? */
+	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x46 || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
+		/* This is a big guess, but should be reasonable until we can narrow it down. */
+		/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
+		if (nv4x_single_stage_pll_mode)
+			g70_pll_special_bits = 0x1;
 		else
-			state->pll = log2P << 16 | NM1;
+			g70_pll_special_bits = 0x3;
 	}
 
-	if (pNv->Architecture < NV_ARCH_40) {
-		if (nv_crtc->head == 1) {
-			state->vpll2_a = state->pll;
-			state->vpll2_b = state->pllB;
-		} else {
-			state->vpll1_a = state->pll;
-			state->vpll1_b = state->pllB;
-		}
+	if (pNv->NVArch == 0x30)
+		/* See nvregisters.xml for details. */
+		state->pll = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
+	else
+		state->pll = g70_pll_special_bits << 30 | log2P << 16 | NM1;
+	state->pllB = NV31_RAMDAC_ENABLE_VCO2 | NM2;
+
+	/* Does register 0x580 already have a value? */
+	if (!state->reg580)
+		state->reg580 = pNv->misc_info.ramdac_0_reg_580;
+	if (nv4x_single_stage_pll_mode) {
+		if (nv_crtc->head == 0)
+			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
+		else
+			state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
+	} else {
+		if (nv_crtc->head == 0)
+			state->reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
+		else
+			state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
+	}
+
+	if (!pNv->twoStagePLL || nv4x_single_stage_pll_mode)
+		ErrorF("vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
+	else
+		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
+
+	if (nv_crtc->head == 1) {
+		state->vpll2_a = state->pll;
+		state->vpll2_b = state->pllB;
+	} else {
+		state->vpll1_a = state->pll;
+		state->vpll1_b = state->pllB;
 	}
 
 	/* always reset vpll, just to be sure. */
@@ -920,14 +877,6 @@ void nv_crtc_calc_state_ext(
 	} else
 		state->crosswired = FALSE;
 
-	if (nv_crtc->head == 1) {
-		if (state->db1_ratio[1])
-			ErrorF("We are a lover of the DB1 VCLK ratio\n");
-	} else if (nv_crtc->head == 0) {
-		if (state->db1_ratio[0])
-			ErrorF("We are a lover of the DB1 VCLK ratio\n");
-	}
-
 	/* The NV40 seems to have more similarities to NV3x than other cards. */
 	if (pNv->NVArch < 0x41) {
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
@@ -935,14 +884,14 @@ void nv_crtc_calc_state_ext(
 	}
 
 	if (nv_crtc->head == 1) {
-		if (!state->db1_ratio[1]) {
+		if (!nv4x_single_stage_pll_mode) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		}
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
-		if (!state->db1_ratio[0]) {
+		if (!nv4x_single_stage_pll_mode) {
 			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		} else {
 			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
