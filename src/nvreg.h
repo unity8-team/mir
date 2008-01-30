@@ -26,15 +26,14 @@
 #ifndef __NVREG_H_
 #define __NVREG_H_
 
-/* TODO PMC size is 0x1000, but we need to get ride of abuses first */
 #define NV_PMC_OFFSET               0x00000000
-#define NV_PMC_SIZE                 0x0000f000
+#define NV_PMC_SIZE                 0x00001000
 
 #define NV_PBUS_OFFSET              0x00001000
 #define NV_PBUS_SIZE                0x00001000
 
 #define NV_PFIFO_OFFSET             0x00002000
-#define NV_PFIFO_SIZE               0x00010000
+#define NV_PFIFO_SIZE               0x00002000
 
 #define NV_HDIAG_OFFSET             0x00005000
 #define NV_HDIAG_SIZE               0x00001000
@@ -84,6 +83,7 @@
 #define NV_PDIO0_OFFSET             0x00681000
 #define NV_PDIO0_SIZE               0x00002000
 
+/* FIXME one of these is wrong */
 #define NV_PRAMIN_OFFSET            0x00710000
 #define NV_PRAMIN_SIZE              0x00100000
 

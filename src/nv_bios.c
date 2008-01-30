@@ -242,41 +242,36 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		return 0;
 	}
 
-	#define WITHIN(x,y,z) ((x>=y)&&(x<y+z))
-	if (WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
+	#define WITHIN(x,y,z) ((x>=y)&&(x<=y+z))
+	if (WITHIN(reg,NV_PMC_OFFSET,NV_PMC_SIZE))
 		return 1;
-	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PFB_OFFSET,NV_PFB_SIZE))
+	if (WITHIN(reg,NV_PBUS_OFFSET,NV_PBUS_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
 		return 1;
-	if (WITHIN(reg,NV_PGRAPH_OFFSET,NV_PGRAPH_SIZE))
+	if (pNv->VBIOS.chip_version >= 0x30 && WITHIN(reg,0x4000,0x600))
+		return 1;
+	if (pNv->VBIOS.chip_version >= 0x40 && WITHIN(reg,0xc000,0x48))
+		return 1;
+	if (pNv->VBIOS.chip_version >= 0x17 && reg == 0x0000d204)
+		return 1;
+	if (pNv->VBIOS.chip_version >= 0x40) {
+		if (reg == 0x00011014 || reg == 0x00020328)
+			return 1;
+		if (WITHIN(reg,0x88000,NV_PBUS_SIZE)) /* new PBUS */
+			return 1;
+	}
+	if (WITHIN(reg,NV_PFB_OFFSET,NV_PFB_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PEXTDEV_OFFSET,NV_PEXTDEV_SIZE))
 		return 1;
-	if (WITHIN(reg,NV_PTIMER_OFFSET,NV_PTIMER_SIZE))
+	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE * 2))
 		return 1;
-	if (WITHIN(reg,NV_PVIDEO_OFFSET,NV_PVIDEO_SIZE))
+	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE * 2))
 		return 1;
-	if (WITHIN(reg,NV_PMC_OFFSET,NV_PMC_SIZE))
+	if (pNv->VBIOS.chip_version >= 0x17 && reg == 0x0070fff0)
 		return 1;
-	if (WITHIN(reg,NV_FIFO_OFFSET,NV_FIFO_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PCIO0_OFFSET,NV_PCIO0_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PDIO0_OFFSET,NV_PDIO0_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PVIO_OFFSET,NV_PVIO_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PROM_OFFSET,NV_PROM_SIZE))
-		return 1;
-	if (WITHIN(reg,NV_PRAMIN_ROM_OFFSET,NV_PROM_SIZE))
-		return 1;
-	/* NV40+ PBUS */
-	if (WITHIN(reg,0x88000,0x1000))
+	if (pNv->VBIOS.chip_version == 0x51 && WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
 		return 1;
 	#undef WITHIN
 
@@ -3298,7 +3293,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	}
 
 	/* initialize all members to zero */
-	memset (pll_lim, 0, sizeof(struct pll_lims));
+	memset(pll_lim, 0, sizeof(struct pll_lims));
 
 	if (pll_lim_ver == 0) {
 		pll_lim->vco1.minfreq = bios->fminvco;
