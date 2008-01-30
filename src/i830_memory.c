@@ -1635,11 +1635,11 @@ i830_allocate_hwstatus(ScrnInfoPtr pScrn)
      * after init (at best), so allocate it fixed for its lifetime
      * (i.e. not through buffer objects).
      */
-    pI830->hw_status = i830_allocate_memory(pScrn, "G33 hw status",
+    pI830->hw_status = i830_allocate_memory(pScrn, "HW status",
 	    HWSTATUS_PAGE_SIZE, GTT_PAGE_SIZE, NEED_LIFETIME_FIXED);
     if (pI830->hw_status == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Failed to allocate hw status page for G33.\n");
+		"Failed to allocate hw status page.\n");
 	return FALSE;
     }
     return TRUE;
@@ -1652,7 +1652,7 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
-    if (IS_G33CLASS(pI830)) {
+    if (HWS_NEED_GFX(pI830)) {
 	if (!i830_allocate_hwstatus(pScrn))
 	    return FALSE;
     }

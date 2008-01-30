@@ -813,7 +813,7 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
-   if (IS_G33CLASS(pI830)) {
+   if (HWS_NEED_GFX(pI830)) {
        if (!I830SetHWS(pScrn, pI830->hw_status->offset)) {
 	   DRICloseScreen(pScreen);
 	   return FALSE;
