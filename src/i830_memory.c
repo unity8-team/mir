@@ -1274,6 +1274,13 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long compressed_size;
+    unsigned long fb_height;
+
+    if (pScrn->virtualX > pScrn->virtualY)
+	fb_height = pScrn->virtualX;
+    else
+	fb_height = pScrn->virtualY;
 
     /* Only mobile chips since 845 support this feature */
     if (!IS_MOBILE(pI830)) {
@@ -1281,11 +1288,12 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 	goto out;
     }
 
-    /* Clear out any stale state */
-    OUTREG(FBC_CFB_BASE, 0);
-    OUTREG(FBC_LL_BASE, 0);
-    OUTREG(FBC_CONTROL2, 0);
-    OUTREG(FBC_CONTROL, 0);
+    if (IS_IGD_GM(pI830)) {
+	/* Update i830_display.c too if compression ratio changes */
+	compressed_size = fb_height * (pScrn->displayWidth / 4);
+    } else {
+	compressed_size = MB(6);
+    }
 
     /*
      * Compressed framebuffer limitations:
@@ -1300,21 +1308,23 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
      */
     pI830->compressed_front_buffer =
 	i830_allocate_memory(pScrn, "compressed frame buffer",
-			     MB(6), KB(4), NEED_PHYSICAL_ADDR);
+			     compressed_size, KB(4), NEED_PHYSICAL_ADDR);
 
     if (!pI830->compressed_front_buffer) {
 	pI830->fb_compression = FALSE;
 	goto out;
     }
 
-    pI830->compressed_ll_buffer =
-	i830_allocate_memory(pScrn, "compressed ll buffer",
-			     FBC_LL_SIZE + FBC_LL_PAD, KB(4),
-			     NEED_PHYSICAL_ADDR);
-    if (!pI830->compressed_ll_buffer) {
-	i830_free_memory(pScrn, pI830->compressed_front_buffer);
-	pI830->fb_compression = FALSE;
-	goto out;
+    if (!IS_IGD_GM(pI830)) {
+	pI830->compressed_ll_buffer =
+	    i830_allocate_memory(pScrn, "compressed ll buffer",
+				 FBC_LL_SIZE + FBC_LL_PAD, KB(4),
+				 NEED_PHYSICAL_ADDR);
+	if (!pI830->compressed_ll_buffer) {
+	    i830_free_memory(pScrn, pI830->compressed_front_buffer);
+	    pI830->fb_compression = FALSE;
+	    goto out;
+	}
     }
 
 out:

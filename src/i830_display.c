@@ -571,9 +571,11 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
  *   - SR display watermarks must be equal between 16bpp and 32bpp?
  *
  * FIXME: verify above conditions are true
+ *
+ * Enable 8xx style FB compression
  */
 static void
-i830_enable_fb_compression(xf86CrtcPtr crtc)
+i830_enable_fb_compression_8xx(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
@@ -629,8 +631,11 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
 	       'b' : 'a');
 }
 
+/*
+ * Disable 8xx style FB compression
+ */
 static void
-i830_disable_fb_compression(xf86CrtcPtr crtc)
+i830_disable_fb_compression_8xx(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
@@ -646,6 +651,86 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on plane %c\n", plane);
+}
+
+static void
+i830_disable_fb_compression2(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t dpfc_ctl;
+    char plane = (INREG(DPFC_CONTROL) & DPFC_CTL_PLANEB) ? 'b' : 'a';
+
+    /* Disable compression */
+    dpfc_ctl = INREG(DPFC_CONTROL);
+    dpfc_ctl &= ~DPFC_CTL_EN;
+    OUTREG(DPFC_CONTROL, dpfc_ctl);
+    i830WaitForVblank(pScrn);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc2 disabled on plane %c\n", plane);
+}
+
+static void
+i830_enable_fb_compression2(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    int plane = (intel_crtc->plane == 0 ? DPFC_CTL_PLANEA : DPFC_CTL_PLANEB);
+    unsigned long stall_watermark = 200, frames = 50;
+
+    if (INREG(DPFC_CONTROL) & DPFC_CTL_EN) {
+	char cur_plane = (INREG(DPFC_CONTROL) & DPFC_CTL_PLANEB) ? 'b' : 'a';
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc2 already enabled on "
+		   "plane %c, not enabling on plane %c\n", cur_plane,
+		   plane ? 'b' : 'a');
+	return;
+    }
+
+    /* Set it up... */
+    i830_disable_fb_compression2(crtc);
+    OUTREG(DPFC_CB_BASE, pI830->compressed_front_buffer->offset);
+    /* Update i830_memory.c too if compression ratio changes */
+    OUTREG(DPFC_CONTROL, plane | DPFC_CTL_FENCE_EN | DPFC_CTL_LIMIT_4X |
+	   pI830->front_buffer->fence_nr);
+    OUTREG(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
+	   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
+	   (frames << DPFC_RECOMP_TIMER_COUNT_SHIFT));
+    OUTREG(DPFC_FENCE_YOFF, crtc->y);
+
+    /* Zero buffers */
+    memset(pI830->FbBase + pI830->compressed_front_buffer->offset, 0,
+	   pI830->compressed_front_buffer->size);
+
+    /* enable it... */
+    OUTREG(DPFC_CONTROL, INREG(DPFC_CONTROL) | DPFC_CTL_EN);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc2 enabled on plane %c\n", plane ?
+	       'b' : 'a');
+}
+
+static void
+i830_enable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (IS_IGD_GM(pI830))
+	return i830_enable_fb_compression2(crtc);
+
+    i830_enable_fb_compression_8xx(crtc);
+}
+
+static void
+i830_disable_fb_compression(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    if (IS_IGD_GM(pI830))
+	return i830_disable_fb_compression2(crtc);
+
+    i830_disable_fb_compression_8xx(crtc);
 }
 
 /**
