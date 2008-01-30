@@ -3731,7 +3731,8 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			parse_bit_C_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'D':
-			parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
+			if (pNv->Mobile)
+				parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'I':
 			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
@@ -3740,7 +3741,8 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 			parse_bit_i_tbl_entry(pScrn, bios, &bitentry);
 			break;
 		case 'L':
-			parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
+			if (pNv->Mobile)
+				parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
 			break;
 		case 'M': /* memory? */
 			parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
