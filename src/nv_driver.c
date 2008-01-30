@@ -1684,12 +1684,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 	pNv->AGPSize=res;
 
 #if !NOUVEAU_EXA_PIXMAPS
-	if ((NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) *
-		(pScrn->bitsPerPixel >> 3)) > (pNv->VRAMPhysicalSize/2 - 0x100000)) {
-		ErrorF("VRAM/2 is insufficient for the framebuffer + 1MiB offscreen memory, failing.\n");
-		return FALSE;
-	}
-
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
 			ErrorF("Failed to allocate memory for framebuffer!\n");
@@ -2604,9 +2598,14 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	xf86SetBlackWhitePixels(pScreen);
 
 	if (!pNv->NoAccel) {
-		NVExaInit(pScreen);
+		if (!NVExaInit(pScreen))
+			return FALSE;
 		NVResetGraphics(pScrn);
+	} else if (pNv->VRAMPhysicalSize / 2 < NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) * (pScrn->bitsPerPixel >> 3)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "The virtual screen size's resolution is too big for the video RAM framebuffer at this colour depth.\n");
+		return FALSE;
 	}
+
 
 	miInitializeBackingStore(pScreen);
 	xf86SetBackingStore(pScreen);
