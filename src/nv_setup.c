@@ -512,7 +512,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	if (pNv->twoHeads) {
 		pNv->vtOWNER = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
 		if (pNv->NVArch == 0x11) {	/* reading OWNER is broken on nv11 */
-			if (nvReadMC(pNv, 0x1084) & (1 << 28))	/* heads tied, restore both */
+			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 				pNv->vtOWNER = 0x04;
 			else {
 				nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);

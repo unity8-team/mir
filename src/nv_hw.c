@@ -1097,7 +1097,7 @@ void NVLoadStateExt (
         nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
 	nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(0), pNv->VRAMPhysicalSize - 1);
         nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(1), pNv->VRAMPhysicalSize - 1);
-        nvWriteMC(pNv, 0x1588, 0);
+        nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
         nvWriteCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG, state->cursorConfig);
         nvWriteCurCRTC(pNv, NV_CRTC_0830, state->displayV - 3);

@@ -690,7 +690,7 @@ nv_load_detect(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t testval, regoffset = 0;
-	uint32_t saved1588 = 0, saved1590 = 0, saved_routput, saved_rtest_ctrl, temp;
+	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput, saved_rtest_ctrl, temp;
 	int present = 0;
 
 	if (nv_output->pDDCBus != NULL) {
@@ -725,12 +725,12 @@ nv_load_detect(xf86OutputPtr output)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);
 
 	if (pNv->NVArch >= 0x17) {
-		saved1588 = nvReadMC(pNv, 0x1588);
+		saved_powerctrl_2 = nvReadMC(pNv, NV_PBUS_POWERCTRL_2);
 
-		nvWriteMC(pNv, 0x1588, saved1588 & 0xd7ffffff);
+		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
 		if (regoffset == 0x68) {
-			saved1590 = nvReadMC(pNv, 0x1590);
-			nvWriteMC(pNv, 0x1590, saved1590 & 0xffffffcf);
+			saved_powerctrl_4 = nvReadMC(pNv, NV_PBUS_POWERCTRL_4);
+			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 		}
 	}
 
@@ -763,8 +763,8 @@ nv_load_detect(xf86OutputPtr output)
 	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (pNv->NVArch >= 0x17) {
 		if (regoffset == 0x68)
-			nvWriteMC(pNv, 0x1590, saved1590);
-		nvWriteMC(pNv, 0x1588, saved1588);
+			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
+		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 	}
 
 	if (present) {

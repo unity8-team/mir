@@ -708,8 +708,8 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint32_t oldpll = nv32_rd(pScrn, reg);
 	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
-	uint32_t saved1584 = 0;
-	int shift1584 = -4;
+	uint32_t saved_powerctrl_1 = 0;
+	int shift_powerctrl_1 = -4;
 
 	if (oldpll == pll)
 		return;	/* already set */
@@ -718,18 +718,18 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	if (bios->chip_version >= 0x17 && bios->chip_version != 0x20) {
 		switch (reg) {
 		case NV_RAMDAC_VPLL2:
-			shift1584 += 4;
+			shift_powerctrl_1 += 4;
 		case NV_RAMDAC_VPLL:
-			shift1584 += 4;
+			shift_powerctrl_1 += 4;
 		case NV_RAMDAC_MPLL:
-			shift1584 += 4;
+			shift_powerctrl_1 += 4;
 		case NV_RAMDAC_NVPLL:
-			shift1584 += 4;
+			shift_powerctrl_1 += 4;
 		}
 
-		if (shift1584 >= 0) {
-			saved1584 = nv32_rd(pScrn, 0x00001584);
-			nv32_wr(pScrn, 0x00001584, (saved1584 & ~(0xf << shift1584)) | 1 << shift1584);
+		if (shift_powerctrl_1 >= 0) {
+			saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
+			nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, (saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) | 1 << shift_powerctrl_1);
 		}
 	}
 
@@ -743,8 +743,8 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	/* then write P as well */
 	nv32_wr(pScrn, reg, pll);
 
-	if (shift1584 >= 0)
-		nv32_wr(pScrn, 0x00001584, saved1584);
+	if (shift_powerctrl_1 >= 0)
+		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
 }
 
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
@@ -754,23 +754,23 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = nv32_rd(pScrn, reg2);
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
-	uint32_t saved1584 = 0, savedc040 = 0, maskc040 = ~0;
-	int shift1584 = -1;
+	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
+	int shift_powerctrl_1 = -1;
 
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
 	if (reg1 == NV_RAMDAC_NVPLL) {
-		shift1584 = 0;
+		shift_powerctrl_1 = 0;
 		maskc040 = ~(3 << 20);
 	}
 	if (reg1 == NV_RAMDAC_MPLL) {
-		shift1584 = 4;
+		shift_powerctrl_1 = 4;
 		maskc040 = ~(3 << 22);
 	}
-	if (shift1584 >= 0) {
-		saved1584 = nv32_rd(pScrn, 0x1584);
-		nv32_wr(pScrn, 0x1584, (saved1584 & ~(0xf << shift1584)) | 1 << shift1584);
+	if (shift_powerctrl_1 >= 0) {
+		saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
+		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, (saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) | 1 << shift_powerctrl_1);
 	}
 
 	if (bios->chip_version >= 0x40) {
@@ -798,8 +798,8 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	nv32_wr(pScrn, reg2, pll2);
 	nv32_wr(pScrn, reg1, pll1);
 
-	if (shift1584 >= 0) {
-		nv32_wr(pScrn, 0x1584, saved1584);
+	if (shift_powerctrl_1 >= 0) {
+		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
 		if (bios->chip_version >= 0x40)
 			nv32_wr(pScrn, 0xc040, savedc040);
 	}
@@ -4320,8 +4320,8 @@ static void load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16
 	for (i = 0; i < bytes_to_write; i += 4)
 		nv32_wr(pScrn, 0x00001400 + i, le32_to_cpu(*(uint32_t *)&bios->data[hwsq_entry_offset + i + 4]));
 
-	/* twiddle 0x1098 */
-	nv32_wr(pScrn, 0x00001098, nv32_rd(pScrn, 0x00001098) | 0x18);
+	/* twiddle NV_PBUS_DEBUG_4 */
+	nv32_wr(pScrn, NV_PBUS_DEBUG_4, nv32_rd(pScrn, NV_PBUS_DEBUG_4) | 0x18);
 }
 
 static void read_bios_edid(ScrnInfoPtr pScrn)
