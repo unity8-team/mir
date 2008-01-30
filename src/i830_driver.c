@@ -3184,6 +3184,22 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
+       /* HW status is fixed, we need to set it up before any drm
+	* operation which accessing that page, like irq install, etc.
+	*/
+       if (pI830->starting) {
+	   if (HWS_NEED_GFX(pI830) && !I830DRISetHWS(pScrn)) {
+		   xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Fail to setup hardware status page.\n");
+		   I830DRICloseScreen(pScrn->pScreen);
+		   return FALSE;
+	   }
+	   if (!I830DRIInstIrqHandler(pScrn)) {
+	       I830DRICloseScreen(pScrn->pScreen);
+	       return FALSE;
+	   }
+       }
+
       /* Update buffer offsets in sarea and mappings, since buffer offsets
        * may have changed.
        */

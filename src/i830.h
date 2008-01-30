@@ -695,7 +695,9 @@ extern Bool I830DRIFinishScreenInit(ScreenPtr pScreen);
 extern void I830DRIUnlock(ScrnInfoPtr pScrn);
 extern Bool I830DRILock(ScrnInfoPtr pScrn);
 extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
-Bool i830_update_dri_buffers(ScrnInfoPtr pScrn);
+extern Bool i830_update_dri_buffers(ScrnInfoPtr pScrn);
+extern Bool I830DRISetHWS(ScrnInfoPtr pScrn);
+extern Bool I830DRIInstIrqHandler(ScrnInfoPtr pScrn);
 #endif
 
 unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
