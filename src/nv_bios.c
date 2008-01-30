@@ -3419,7 +3419,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 			break;
 		}
 
-#if 1 /* for easy debugging */
+#if 0 /* for easy debugging */
 	ErrorF("pll.vco1.minfreq: %d\n", pll_lim->vco1.minfreq);
 	ErrorF("pll.vco1.maxfreq: %d\n", pll_lim->vco1.maxfreq);
 	ErrorF("pll.vco2.minfreq: %d\n", pll_lim->vco2.minfreq);
