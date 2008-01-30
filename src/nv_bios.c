@@ -29,29 +29,12 @@
 /* FIXME: put these somewhere */
 #define CRTC_INDEX_COLOR (VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET)
 #define SEQ_INDEX VGA_SEQ_INDEX
-#define NV_VGA_CRTCX_27 0x27
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
-#define NV_PBUS_PCI_NV_19 0x0000184C
-#define NV_PBUS_PCI_NV_20 0x00001850
-#define NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED 0x00000000
-#define NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED 0x00000001
-/* undef, as we want the +0x00100000 version */
-#undef NV_PFB_CFG0
-#define NV_PFB_CFG0 0x00100200
-#define NV_PFB_REFCTRL 0x00100210
-#define NV_PFB_REFCTRL_VALID_1 0x80000000
-#define NV_PFB_PAD 0x0010021C
-#define NV_PFB_PAD_CKE_NORMAL 0x1
-#define NV_PFB_REF 0x001002D0
-#define NV_PFB_REF_CMD_REFRESH 0x1
-#define NV_PFB_PRE 0x001002D4
-#define NV_PFB_PRE_CMD_PRECHARGE 0x1
 #define NV_PRAMIN_ROM_OFFSET 0x00700000
+#define FEATURE_MOBILE 0x10
 
 #define DEBUGLEVEL 6
-
-#define FEATURE_MOBILE 0x10
 
 static int crtchead = 0;
 
@@ -684,13 +667,13 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	/* FIXME needs verification on pre nv30 */
 	if (bios->chip_version >= 0x17 && bios->chip_version != 0x20) {
 		switch (reg) {
-		case 0x680520:
+		case NV_RAMDAC_VPLL2:
 			shift1584 += 4;
-		case 0x680508:
+		case NV_RAMDAC_VPLL:
 			shift1584 += 4;
-		case 0x680504:
+		case NV_RAMDAC_MPLL:
 			shift1584 += 4;
-		case 0x680500:
+		case NV_RAMDAC_NVPLL:
 			shift1584 += 4;
 		}
 
@@ -717,7 +700,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	uint32_t reg2 = reg1 + ((reg1 == 0x680520) ? 0x5c : 0x70);
+	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
 	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = nv32_rd(pScrn, reg2);
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
@@ -727,11 +710,11 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
-	if (reg1 == 0x680500) {
+	if (reg1 == NV_RAMDAC_NVPLL) {
 		shift1584 = 0;
 		maskc040 = ~(3 << 20);
 	}
-	if (reg1 == 0x680504) {
+	if (reg1 == NV_RAMDAC_MPLL) {
 		shift1584 = 4;
 		maskc040 = ~(3 << 22);
 	}
@@ -744,10 +727,10 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		savedc040 = nv32_rd(pScrn, 0xc040);
 		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
 
-		if (reg1 == 0x680508)
-			nv32_wr(pScrn, 0x680580, nv32_rd(pScrn, 0x680580) & ~(1 << 28));
-		if (reg1 == 0x680520)
-			nv32_wr(pScrn, 0x680580, nv32_rd(pScrn, 0x680580) & ~(1 << 8));
+		if (reg1 == NV_RAMDAC_VPLL)
+			nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL2_ACTIVE);
+		if (reg1 == NV_RAMDAC_VPLL2)
+			nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
 	}
 
 #if 0
@@ -755,9 +738,9 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	/* something like this will be needed if we set single pll modes on double pll chips */
 	if (NM2 == 0) {
 		if (crtchead == NV_VGA_CRTCX_OWNER_HEADA)
-			nv32_wr(0x680580, nv32_rd(0x680580) | 0x00000100);
+			nv32_wr(NV_RAMDAC_580, nv32_rd(NV_RAMDAC_580) | NV_RAMDAC_580_VPLL1_ACTIVE);
 		else
-			nv32_wr(0x680580, nv32_rd(0x680580) | 0x10000000);
+			nv32_wr(NV_RAMDAC_580, nv32_rd(NV_RAMDAC_580) | NV_RAMDAC_580_VPLL2_ACTIVE);
 		pll2 |= 0x011f;
 	}
 #endif
@@ -1984,12 +1967,12 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 	int clock;
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 4]) * 10;
-	setPLL(pScrn, bios, 0x680500, clock);
+	setPLL(pScrn, bios, NV_RAMDAC_NVPLL, clock);
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 2]) * 10;
 	if (bios->data[meminitoffs] & 1) /* DDR */
 		clock *= 2;
-	setPLL(pScrn, bios, 0x680504, clock);
+	setPLL(pScrn, bios, NV_RAMDAC_MPLL, clock);
 
 	return true;
 }
@@ -2861,8 +2844,8 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 			head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x58, dcb_entry);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcb_entry);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
 	link_head_and_output(pScrn, head, dcb_entry, false);
@@ -3358,9 +3341,9 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 			for (i = 1; i < entries && !reg; i++) {
 				uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
 
-				if (limit_match == VPLL1 && (cmpreg == 0x680508 || cmpreg == 0x4010))
+				if (limit_match == VPLL1 && (cmpreg == NV_RAMDAC_VPLL || cmpreg == 0x4010))
 					reg = cmpreg;
-				if (limit_match == VPLL2 && (cmpreg == 0x680520 || cmpreg == 0x4018))
+				if (limit_match == VPLL2 && (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
 					reg = cmpreg;
 			}
 
@@ -3409,9 +3392,9 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 
 		/* C51 special not seen elsewhere */
 		if (bios->chip_version == 0x51 && !pll_lim->refclk) {
-			uint32_t sel_clk = nv32_rd(pScrn, 0x680524);
+			uint32_t sel_clk = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK);
 
-			if (((limit_match == 0x680508 || limit_match == VPLL1) && sel_clk & 0x20) || ((limit_match == 0x680520 || limit_match == VPLL2) && sel_clk & 0x80)) {
+			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) || ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
 				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_27) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
