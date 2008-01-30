@@ -2486,7 +2486,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 			pNv->console_mode[i].enabled = FALSE;
 
-			ErrorF("CRTC %d: Console mode: %dx%d depth: %d bpp: %d\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp);
+			ErrorF("CRTC %d: Console mode: %dx%d depth: %d bpp: %d crtc_start: 0x%X\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp, pNv->console_mode[i].fb_start);
 		}
 
 		/* Check if crtc's were enabled. */
