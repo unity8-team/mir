@@ -1961,7 +1961,7 @@ static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 	if (bios->major_version > 2)
 		return false;
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
 	uint16_t seqtbloffs = bios->legacy.sdr_seq_tbl_ptr, meminitdata = meminitoffs + 6;
 	uint32_t reg, data;
 
@@ -2013,7 +2013,7 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 	if (bios->major_version > 2)
 		return false;
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
 	int clock;
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 4]) * 10;
@@ -2046,7 +2046,7 @@ static bool init_configure_preinit(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	uint32_t straps = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
 	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_3C, cr3c);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4, cr3c);
 
 	return true;
 }

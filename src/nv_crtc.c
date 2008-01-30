@@ -1449,7 +1449,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* These values seem to vary */
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
-	regp->CRTC[NV_VGA_CRTCX_3C] = savep->CRTC[NV_VGA_CRTCX_3C];
+	regp->CRTC[NV_VGA_CRTCX_SCRATCH4] = savep->CRTC[NV_VGA_CRTCX_SCRATCH4];
 
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
@@ -1486,7 +1486,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	if (pNv->twoHeads)
 		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
-		regp->unk81c = NVReadCRTC(pNv, 0, NV_CRTC_081C);
+		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT);
 
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->unk830 = 0;
@@ -2372,7 +2372,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 		NVCrtcWriteCRTC(crtc, NV_CRTC_0834, regp->unk834);
 		if (pNv->Architecture == NV_ARCH_40) {
 			NVCrtcWriteCRTC(crtc, NV_CRTC_0850, regp->unk850);
-			NVCrtcWriteCRTC(crtc, NV_CRTC_081C, regp->unk81c);
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_GPIO_EXT, regp->gpio_ext);
 		}
 
 		if (pNv->Architecture == NV_ARCH_40) {
@@ -2409,7 +2409,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_26, regp->CRTC[NV_VGA_CRTCX_26]);
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3B, regp->CRTC[NV_VGA_CRTCX_3B]);
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_3C, regp->CRTC[NV_VGA_CRTCX_3C]);
+	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_SCRATCH4, regp->CRTC[NV_VGA_CRTCX_SCRATCH4]);
 	if (pNv->Architecture >= NV_ARCH_10) {
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
 		NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
@@ -2497,7 +2497,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->unk834 = NVCrtcReadCRTC(crtc, NV_CRTC_0834);
 		if (pNv->Architecture == NV_ARCH_40) {
 			regp->unk850 = NVCrtcReadCRTC(crtc, NV_CRTC_0850);
-			regp->unk81c = NVCrtcReadCRTC(crtc, NV_CRTC_081C);
+			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_PCRTC_GPIO_EXT);
 		}
 		if (pNv->twoHeads) {
 			regp->head = NVCrtcReadCRTC(crtc, NV_CRTC_FSEL);
@@ -2511,7 +2511,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	regp->CRTC[NV_VGA_CRTCX_26] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_26);
 	regp->CRTC[NV_VGA_CRTCX_3B] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3B);
-	regp->CRTC[NV_VGA_CRTCX_3C] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_3C);
+	regp->CRTC[NV_VGA_CRTCX_SCRATCH4] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_SCRATCH4);
 	if (pNv->Architecture >= NV_ARCH_10) {
 		regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_EXTRA);
 		regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_43);

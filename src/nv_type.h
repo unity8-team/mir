@@ -109,10 +109,10 @@ typedef struct _nv_crtc_reg
 	uint32_t cursorConfig;
 	uint32_t crtcOwner;
 	uint32_t gpio;
+	uint32_t gpio_ext;
 	uint32_t unk830;
 	uint32_t unk834;
 	uint32_t unk850;
-	uint32_t unk81c;
 	uint32_t head;
 	uint32_t config;
 
