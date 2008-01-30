@@ -264,6 +264,38 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	return 0;
 }
 
+static bool nv_valid_idx_port(ScrnInfoPtr pScrn, uint16_t port)
+{
+	/* if adding more ports here, the read/write functions below will need
+	 * updating so that the correct mmio range (PCIO, PDIO, PVIO) is used
+	 * for the port in question
+	 */
+	if (port == CRTC_INDEX_COLOR)
+		return true;
+	if (port == SEQ_INDEX)
+		return true;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "========== unknown indexed io port 0x%04X ==========\n", port);
+
+	return false;
+}
+
+static bool nv_valid_port(ScrnInfoPtr pScrn, uint16_t port)
+{
+	/* if adding more ports here, the read/write functions below will need
+	 * updating so that the correct mmio range (PCIO, PDIO, PVIO) is used
+	 * for the port in question
+	 */
+	if (port == VGA_ENABLE)
+		return true;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "========== unknown io port 0x%04X ==========\n", port);
+
+	return false;
+}
+
 static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -294,12 +326,12 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 	return data;
 }
 
-static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
+static void nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (!nv_valid_reg(pScrn, reg))
-		return 0;
+		return;
 
 	/* see note in nv32_rd */
 	if (reg & 0x1)
@@ -315,15 +347,21 @@ static int nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 		still_alive();
 		pNv->REGS[reg/4] = data;
 	}
-
-	return 1;
 }
 
 static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	volatile uint8_t *ptr;
 	uint8_t data;
+
+	if (!nv_valid_idx_port(pScrn, port))
+		return 0;
+
+	if (port == SEQ_INDEX)
+		ptr = (crtchead && pNv->VBIOS.chip_version > 0x40) ? pNv->PVIO1 : pNv->PVIO0;
+	else	/* assume CRTC_INDEX_COLOR */
+		ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
 	NV_WR08(ptr, port, index);
 	data = NV_RD08(ptr, port + 1);
@@ -341,6 +379,9 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 	NVPtr pNv = NVPTR(pScrn);
 	volatile uint8_t *ptr;
 
+	if (!nv_valid_idx_port(pScrn, port))
+		return;
+
 	/* The current head is maintained in a file scope variable crtchead.
 	 * We trap changes to CRTCX_OWNER and update the head variable
 	 * and hence the register set written.
@@ -349,7 +390,10 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 	 */
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data != NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 0;
-	ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	if (port == SEQ_INDEX)
+		ptr = (crtchead && pNv->VBIOS.chip_version > 0x40) ? pNv->PVIO1 : pNv->PVIO0;
+	else	/* assume CRTC_INDEX_COLOR */
+		ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
 
 	if (DEBUGLEVEL >= 8)
 		nv_idx_port_rd(pScrn, port, index);
@@ -371,8 +415,11 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	volatile uint8_t *ptr = (crtchead && pNv->VBIOS.chip_version > 0x40) ? pNv->PVIO1 : pNv->PVIO0;
 	uint8_t data = NV_RD08(ptr, port);
+
+	if (!nv_valid_port(pScrn, port))
+		return 0;
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -385,7 +432,10 @@ static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *ptr = crtchead ? pNv->PCIO1 : pNv->PCIO0;
+	volatile uint8_t *ptr = (crtchead && pNv->VBIOS.chip_version > 0x40) ? pNv->PVIO1 : pNv->PVIO0;
+
+	if (!nv_valid_port(pScrn, port))
+		return;
 
 	if (DEBUGLEVEL >= 8)
 		nv_port_rd(pScrn, port);
