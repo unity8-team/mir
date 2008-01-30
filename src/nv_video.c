@@ -711,14 +711,20 @@ static int NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 * xa, IN
     NVPtr pNv = NVPTR(pScrn);
 
 
-    if ( action_flags & USE_OVERLAY ) 
-	{ /* overlay hardware scaler limitation - copied from nv, UNCHECKED*/
-	if (*src_w > (*drw_w << 3))
+    if ( (action_flags & USE_OVERLAY) && pNv->Architecture >= NV_ARCH_10 ) 
+	{ /* NV1x overlay can't scale down by a ratio > 8 */
+	if (*drw_w < (*src_w) >> 3)
 	    *drw_w = *src_w >> 3;
-	if (*src_h > (*drw_h << 3))
+	if (*drw_h < (*src_h >> 3))
 	    *drw_h = *src_h >> 3;
 	}
-
+    else if ( (action_flags & USE_OVERLAY) && pNv->Architecture == NV_ARCH_04 )
+	{ /* NV0x overlay can't scale down. at all. */
+	if ( *drw_w < *src_w )
+	    *drw_w = *src_w;
+	if ( *drw_h < *src_h )
+	    *drw_h = *src_h;
+	}
 
     /* Clip */
     *xa = *src_x;
