@@ -888,16 +888,12 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 
     /* Adapter fallbacks (when the desired one can't be used)*/
 #ifdef COMPOSITE
-    WindowPtr pWin = NULL;
+    PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
 
-    if (!noCompositeExtension && WindowDrawable(pDraw->type)) 
+    if (!NVExaPixmapIsOnscreen(pPix))
 	{
-	pWin = (WindowPtr)pDraw;
+	*action_flags &= ~USE_OVERLAY;
 	}
-
-    if ( pWin )
-	if ( pWin->redirectDraw )
-	    *action_flags &= ~USE_OVERLAY;
 
 #endif
 
