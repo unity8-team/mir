@@ -2283,13 +2283,13 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
     } else {
        CARD32 fpcontrol;
 
-       fpcontrol = nvReadCurRAMDAC(pNv, 0x848) & 0xCfffffCC;
+       fpcontrol = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0xCfffffCC;
 
        /* cut the TMDS output */
        if(on) fpcontrol |= pNv->fpSyncs;
        else fpcontrol |= 0x20000022;
 
-       nvWriteCurRAMDAC(pNv, 0x0848, fpcontrol);
+       nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL, fpcontrol);
     }
 }
 
