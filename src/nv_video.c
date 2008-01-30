@@ -711,19 +711,31 @@ static int NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 * xa, IN
     NVPtr pNv = NVPTR(pScrn);
 
 
-    if ( (action_flags & USE_OVERLAY) && pNv->Architecture >= NV_ARCH_10 ) 
-	{ /* NV1x overlay can't scale down by a ratio > 8 */
-	if (*drw_w < (*src_w) >> 3)
-	    *drw_w = *src_w >> 3;
-	if (*drw_h < (*src_h >> 3))
-	    *drw_h = *src_h >> 3;
-	}
-    else if ( (action_flags & USE_OVERLAY) && pNv->Architecture == NV_ARCH_04 )
-	{ /* NV0x overlay can't scale down. at all. */
-	if ( *drw_w < *src_w )
-	    *drw_w = *src_w;
-	if ( *drw_h < *src_h )
-	    *drw_h = *src_h;
+    if (action_flags & USE_OVERLAY)
+	{
+	switch ( pNv->Architecture )
+	    {
+	    case NV_ARCH_04:
+		/* NV0x overlay can't scale down. at all. */
+		if ( *drw_w < *src_w )
+		    *drw_w = *src_w;
+		if ( *drw_h < *src_h )
+		    *drw_h = *src_h;
+		break;
+	    case NV_ARCH_30:
+		/* according to DirectFB, NV3x can't scale down by a ratio > 2 */
+		if ( *drw_w < (*src_w) >> 1 )
+		    *drw_w = *src_w;
+		if ( *drw_h < (*src_h) >> 1 )
+		    *drw_h = *src_h;
+		break;
+	    default: /*NV10, NV20*/
+		/* NV1x overlay can't scale down by a ratio > 8 */
+		if (*drw_w < (*src_w) >> 3)
+		    *drw_w = *src_w >> 3;
+		if (*drw_h < (*src_h >> 3))
+		    *drw_h = *src_h >> 3;
+	    }
 	}
 
     /* Clip */
