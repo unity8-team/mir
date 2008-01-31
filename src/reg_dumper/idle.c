@@ -36,13 +36,52 @@
 #include "reg_dumper.h"
 #include "../i810_reg.h"
 
+struct idle_flags {
+    uint32_t instdone_flag;
+    char *name;
+    unsigned int count;
+};
+
+struct idle_flags i965_idle_flags[] = {
+    {I965_SF_DONE, "SF"},
+    {I965_SE_DONE, "SE"},
+    {I965_WM_DONE, "WM"},
+    {I965_TEXTURE_FETCH_DONE, "texture fetch"},
+    {I965_SAMPLER_CACHE_DONE, "sampler cache"},
+    {I965_FILTER_DONE, "filter"},
+    {I965_PS_DONE, "PS"},
+    {I965_CC_DONE, "CC"},
+    {I965_MAP_FILTER_DONE, "map filter"},
+    {I965_MAP_L2_IDLE, "map L2"},
+    {I965_CP_DONE, "CP"},
+    {0, "other"},
+};
+
+/* Fills in the "other" field's idle flags */
+static void
+setup_other_flags(struct idle_flags *idle_flags, int idle_flag_count)
+{
+    uint32_t other_idle_flags;
+    int i;
+
+    other_idle_flags = ~(I965_RING_0_ENABLE);
+    for (i = 0; i < idle_flag_count - 1; i++) {
+	other_idle_flags &= ~idle_flags[i].instdone_flag;
+    }
+    idle_flags[i].instdone_flag = other_idle_flags;
+
+}
+
 int main(int argc, char **argv)
 {
     struct pci_device *dev;
     I830Rec i830;
+    I830Ptr pI830 = &i830;
     ScrnInfoRec scrn;
     int err, mmio_bar;
     void *mmio;
+    struct idle_flags *idle_flags;
+    int idle_flag_count;
 
     err = pci_system_init();
     if (err != 0) {
@@ -76,7 +115,7 @@ int main(int argc, char **argv)
 				dev->regions[mmio_bar].size, 
 				PCI_DEV_MAP_FLAG_WRITABLE,
 				&mmio);
-    
+
     if (err != 0) {
 	fprintf(stderr, "Couldn't map MMIO region: %s\n", strerror(err));
 	exit(1);
@@ -86,23 +125,31 @@ int main(int argc, char **argv)
     scrn.scrnIndex = 0;
     scrn.pI830 = &i830;
 
-    {
-        I830Ptr pI830 = I830PTR((&scrn));
+    /* if (IS_I965) { */
+    idle_flags = i965_idle_flags;
+    idle_flag_count = sizeof(i965_idle_flags) / sizeof(i965_idle_flags[0]);
 
-	CARD32  idle_value = 0xffe5fafe;
+    setup_other_flags(idle_flags, idle_flag_count);
 
-	for (;;)
-	{
-	    CARD32	busy = 0;
-	    int		i;
+    for (;;) {
+	int i, j;
 
-	    for (i = 0; i < 100; i++) {
-		if (INREG (INST_DONE_I965) != idle_value)
-		    busy++;
-		usleep (10000);
+	for (i = 0; i < 100; i++) {
+	    uint32_t instdone = INREG(INST_DONE_I965);
+
+	    for (j = 0; j < idle_flag_count; j++) {
+		if ((instdone & idle_flags[j].instdone_flag) == 0)
+		    idle_flags[j].count++;
 	    }
-	    printf ("load: %d\n", busy);
+
+	    usleep (10000);
 	}
+
+	for (j = 0; j < idle_flag_count; j++) {
+	    printf("%15s: %3d\n", idle_flags[j].name, idle_flags[j].count);
+	    idle_flags[j].count = 0;
+	}
+	printf("\n");
     }
 
     return 0;

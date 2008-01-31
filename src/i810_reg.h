@@ -351,6 +351,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define IPEIR_I965                  0x2064 /* i965 */
 #define IPEHR_I965                  0x2068 /* i965 */
 #define INST_DONE_I965              0x206c
+# define I965_SF_DONE			(1 << 23)
+# define I965_SE_DONE			(1 << 22)
+# define I965_WM_DONE			(1 << 21)
+# define I965_TEXTURE_FETCH_DONE	(1 << 14)
+# define I965_SAMPLER_CACHE_DONE	(1 << 12)
+# define I965_FILTER_DONE		(1 << 11)
+# define I965_PS_DONE			(1 << 9)
+# define I965_CC_DONE			(1 << 8)
+# define I965_MAP_FILTER_DONE		(1 << 7)
+# define I965_MAP_L2_IDLE		(1 << 6)
+# define I965_CP_DONE			(1 << 1)
+# define I965_RING_0_ENABLE		(1 << 0)
 #define INST_PS_I965                0x2070
 
 /* Current active ring head address: 
