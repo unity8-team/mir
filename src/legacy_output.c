@@ -150,7 +150,7 @@ RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     if (info->IsMobility) {
 	OUTREG(RADEON_LVDS_GEN_CNTL,  restore->lvds_gen_cntl);
-	OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);
+	/*OUTREG(RADEON_LVDS_PLL_CNTL,  restore->lvds_pll_cntl);*/
 
 	if (info->ChipFamily == CHIP_FAMILY_RV410) {
 	    OUTREG(RADEON_CLOCK_CNTL_INDEX, 0);
