@@ -3025,8 +3025,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     RADEONSave(pScrn);
 
-    if (!IS_AVIVO_VARIANT)
-	RADEONDisableDisplays(pScrn);
+    /* blank the outputs/crtcs */
+    RADEONBlank(pScrn);
 
     if (info->IsMobility && !IS_AVIVO_VARIANT) {
         if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
