@@ -1276,18 +1276,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 		}
 	}
 
-	/* Due to serious problems we have to restrict the crtc's for certain types of outputs. */
-	/* This is a result of problems with G70 cards that have a dvi with ffs(or) == 1 */
-	/* Anyone know what the solution for this is? */
-	/* This does not apply to NV31 LVDS with or == 3. */
-	if ((nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) && nv_output->preferred_output == 0 && pNv->Architecture == NV_ARCH_40) {
-		output->possible_crtcs = (1 << 0);
-	} else {
-		if (pNv->switchable_crtc)
-			output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
-		else
-			output->possible_crtcs = (1 << nv_output->preferred_output);
-	}
+	if (pNv->switchable_crtc)
+		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	else
+		output->possible_crtcs = (1 << nv_output->preferred_output);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
 }
