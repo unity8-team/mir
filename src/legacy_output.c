@@ -132,6 +132,12 @@ RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_FP_HORZ_STRETCH,      restore->fp_horz_stretch);
     OUTREG(RADEON_FP_VERT_STRETCH,      restore->fp_vert_stretch);
+    OUTREG(RADEON_CRTC_MORE_CNTL,       restore->crtc_more_cntl);
+    OUTREG(RADEON_FP_HORZ_VERT_ACTIVE,  restore->fp_horz_vert_active);
+    OUTREG(RADEON_FP_H_SYNC_STRT_WID,   restore->fp_h_sync_strt_wid);
+    OUTREG(RADEON_FP_V_SYNC_STRT_WID,   restore->fp_v_sync_strt_wid);
+    OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
+    OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
 
 }
 
@@ -201,10 +207,17 @@ RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->fp2_gen_cntl          = INREG (RADEON_FP2_GEN_CNTL);
     save->fp_horz_stretch      = INREG(RADEON_FP_HORZ_STRETCH);
     save->fp_vert_stretch      = INREG(RADEON_FP_VERT_STRETCH);
+    save->fp_horz_vert_active  = INREG(RADEON_FP_HORZ_VERT_ACTIVE);
+    save->crtc_more_cntl       = INREG(RADEON_CRTC_MORE_CNTL);
     save->lvds_gen_cntl        = INREG(RADEON_LVDS_GEN_CNTL);
     save->lvds_pll_cntl        = INREG(RADEON_LVDS_PLL_CNTL);
     save->tmds_pll_cntl        = INREG(RADEON_TMDS_PLL_CNTL);
     save->tmds_transmitter_cntl= INREG(RADEON_TMDS_TRANSMITTER_CNTL);
+
+    save->fp_h_sync_strt_wid   = INREG(RADEON_FP_H_SYNC_STRT_WID);
+    save->fp_v_sync_strt_wid   = INREG(RADEON_FP_V_SYNC_STRT_WID);
+    save->fp_crtc_h_total_disp = INREG(RADEON_FP_CRTC_H_TOTAL_DISP);
+    save->fp_crtc_v_total_disp = INREG(RADEON_FP_CRTC_V_TOTAL_DISP);
 
     if (info->ChipFamily == CHIP_FAMILY_RV280) {
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
@@ -1022,6 +1035,8 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
     int    xres = mode->HDisplay;
     int    yres = mode->VDisplay;
     float  Hratio, Vratio;
+    int    hsync_wid;
+    int    vsync_wid;
 
     save->fp_vert_stretch = info->SavedReg->fp_vert_stretch &
 	                    RADEON_VERT_STRETCH_RESERVED;
@@ -1029,8 +1044,23 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	                    (RADEON_HORZ_FP_LOOP_STRETCH |
 	                     RADEON_HORZ_AUTO_RATIO_INC);
 
+    save->crtc_more_cntl = 0;
+    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
+	(info->ChipFamily == CHIP_FAMILY_RS200)) {
+	/* This is to workaround the asic bug for RMX, some versions
+           of BIOS dosen't have this register initialized correctly.
+	*/
+	save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
+    }
+
     if (radeon_output->MonType != MT_LCD && radeon_output->MonType != MT_DFP)
 	return;
+
+    if ((radeon_output->rmx_type == RMX_CENTER) &&
+	(radeon_output->Flags & RADEON_USE_RMX)) {
+	save->crtc_more_cntl |= (RADEON_CRTC_AUTO_HORZ_CENTER_EN |
+				 RADEON_CRTC_AUTO_VERT_CENTER_EN);
+    }
 
     if (radeon_output->PanelXRes == 0 || radeon_output->PanelYRes == 0) {
 	Hratio = 1.0;
@@ -1038,12 +1068,13 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
     } else {
 	if (xres > radeon_output->PanelXRes) xres = radeon_output->PanelXRes;
 	if (yres > radeon_output->PanelYRes) yres = radeon_output->PanelYRes;
-	    
+
 	Hratio = (float)xres/(float)radeon_output->PanelXRes;
 	Vratio = (float)yres/(float)radeon_output->PanelYRes;
     }
 
-    if (Hratio == 1.0 || !(radeon_output->Flags & RADEON_USE_RMX)) {
+    if ((Hratio == 1.0) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
+	(radeon_output->rmx_type == RMX_CENTER)) {
 	save->fp_horz_stretch |= ((xres/8-1)<<16);
     } else {
 	save->fp_horz_stretch |= ((((unsigned long)
@@ -1054,7 +1085,8 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				  ((radeon_output->PanelXRes/8-1)<<16));
     }
 
-    if (Vratio == 1.0 || !(radeon_output->Flags & RADEON_USE_RMX)) {
+    if ((Vratio == 1.0) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
+	(radeon_output->rmx_type == RMX_CENTER)) {
 	save->fp_vert_stretch |= ((yres-1)<<12);
     } else {
 	save->fp_vert_stretch |= ((((unsigned long)(Vratio * RADEON_VERT_STRETCH_RATIO_MAX)) &
@@ -1064,6 +1096,74 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 				  ((radeon_output->PanelYRes-1)<<12));
     }
 
+
+
+    if ((radeon_output->rmx_type == RMX_CENTER) &&
+	(radeon_output->Flags & RADEON_USE_RMX)) {
+	int    blank_width;
+
+	blank_width = (mode->CrtcHBlankEnd - mode->CrtcHBlankStart) / 8;
+	if (blank_width > 110) blank_width = 110;
+
+	save->fp_crtc_h_total_disp = (((blank_width) & 0x3ff)
+				      | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff)
+					 << 16));
+
+	hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
+	if (!hsync_wid)       hsync_wid = 1;
+
+	save->fp_h_sync_strt_wid = ((((mode->CrtcHSyncStart - mode->CrtcHBlankStart) / 8) & 0x1fff)
+				    | ((hsync_wid & 0x3f) << 16)
+				    | ((mode->Flags & V_NHSYNC)
+				       ? RADEON_CRTC_H_SYNC_POL
+				       : 0));
+
+	save->fp_crtc_v_total_disp = (((mode->CrtcVBlankEnd - mode->CrtcVBlankStart) & 0xffff)
+				      | ((mode->CrtcVDisplay - 1) << 16));
+
+	vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
+	if (!vsync_wid)       vsync_wid = 1;
+
+	save->fp_v_sync_strt_wid = ((((mode->CrtcVSyncStart - mode->CrtcVBlankStart) & 0xfff)
+				    | ((vsync_wid & 0x1f) << 16)
+				    | ((mode->Flags & V_NVSYNC)
+				       ? RADEON_CRTC_V_SYNC_POL
+				       : 0)));
+
+	save->fp_horz_vert_active = (((radeon_output->PanelYRes) & 0xfff) |
+				     (((radeon_output->PanelXRes / 8) & 0x1ff) << 16));
+
+    } else {
+	int    hsync_start;
+
+	save->fp_crtc_h_total_disp = ((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
+				      | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff)
+					 << 16));
+
+	hsync_wid = (mode->CrtcHSyncEnd - mode->CrtcHSyncStart) / 8;
+	if (!hsync_wid)       hsync_wid = 1;
+	hsync_start = mode->CrtcHSyncStart - 8;
+
+	save->fp_h_sync_strt_wid = ((hsync_start & 0x1fff)
+				    | ((hsync_wid & 0x3f) << 16)
+				    | ((mode->Flags & V_NHSYNC)
+				       ? RADEON_CRTC_H_SYNC_POL
+				       : 0));
+
+	save->fp_crtc_v_total_disp = (((mode->CrtcVTotal - 1) & 0xffff)
+				      | ((mode->CrtcVDisplay - 1) << 16));
+
+	vsync_wid = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
+	if (!vsync_wid)       vsync_wid = 1;
+
+	save->fp_v_sync_strt_wid = (((mode->CrtcVSyncStart - 1) & 0xfff)
+				    | ((vsync_wid & 0x1f) << 16)
+				    | ((mode->Flags & V_NVSYNC)
+				       ? RADEON_CRTC_V_SYNC_POL
+				       : 0));
+
+	save->fp_horz_vert_active = 0;
+    }
 }
 
 static void

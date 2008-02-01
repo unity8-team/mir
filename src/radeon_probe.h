@@ -445,6 +445,7 @@ typedef struct {
     CARD32            fp_h_sync_strt_wid;
     CARD32            fp_h2_sync_strt_wid;
     CARD32            fp_horz_stretch;
+    CARD32            fp_horz_vert_active;
     CARD32            fp_panel_cntl;
     CARD32            fp_v_sync_strt_wid;
     CARD32            fp_v2_sync_strt_wid;

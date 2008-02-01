@@ -123,11 +123,6 @@ RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC_V_TOTAL_DISP,    restore->crtc_v_total_disp);
     OUTREG(RADEON_CRTC_V_SYNC_STRT_WID, restore->crtc_v_sync_strt_wid);
 
-    OUTREG(RADEON_FP_H_SYNC_STRT_WID,   restore->fp_h_sync_strt_wid);
-    OUTREG(RADEON_FP_V_SYNC_STRT_WID,   restore->fp_v_sync_strt_wid);
-    OUTREG(RADEON_FP_CRTC_H_TOTAL_DISP, restore->fp_crtc_h_total_disp);
-    OUTREG(RADEON_FP_CRTC_V_TOTAL_DISP, restore->fp_crtc_v_total_disp);
-
     if (IS_R300_VARIANT)
 	OUTREG(R300_CRTC_TILE_X0_Y0, restore->crtc_tile_x0_y0);
     OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
@@ -135,7 +130,6 @@ RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
 
     OUTREG(RADEON_CRTC_PITCH,           restore->crtc_pitch);
     OUTREG(RADEON_DISP_MERGE_CNTL,      restore->disp_merge_cntl);
-    OUTREG(RADEON_CRTC_MORE_CNTL,       restore->crtc_more_cntl);
 
     if (info->IsDellServer) {
 	OUTREG(RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
@@ -522,16 +516,10 @@ RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc_v_total_disp    = INREG(RADEON_CRTC_V_TOTAL_DISP);
     save->crtc_v_sync_strt_wid = INREG(RADEON_CRTC_V_SYNC_STRT_WID);
 
-    save->fp_h_sync_strt_wid   = INREG(RADEON_FP_H_SYNC_STRT_WID);
-    save->fp_v_sync_strt_wid   = INREG(RADEON_FP_V_SYNC_STRT_WID);
-    save->fp_crtc_h_total_disp = INREG(RADEON_FP_CRTC_H_TOTAL_DISP);
-    save->fp_crtc_v_total_disp = INREG(RADEON_FP_CRTC_V_TOTAL_DISP);
-
     save->crtc_offset          = INREG(RADEON_CRTC_OFFSET);
     save->crtc_offset_cntl     = INREG(RADEON_CRTC_OFFSET_CNTL);
     save->crtc_pitch           = INREG(RADEON_CRTC_PITCH);
     save->disp_merge_cntl      = INREG(RADEON_DISP_MERGE_CNTL);
-    save->crtc_more_cntl       = INREG(RADEON_CRTC_MORE_CNTL);
 
     if (IS_R300_VARIANT)
 	save->crtc_tile_x0_y0 =  INREG(R300_CRTC_TILE_X0_Y0);
@@ -898,15 +886,6 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->disp_merge_cntl = info->SavedReg->disp_merge_cntl;
     save->disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
 
-    save->crtc_more_cntl = 0;
-    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
-        (info->ChipFamily == CHIP_FAMILY_RS200)) {
-        /* This is to workaround the asic bug for RMX, some versions
-           of BIOS dosen't have this register initialized correctly.
-	*/
-        save->crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
-    }
-
     save->crtc_h_total_disp = ((((mode->CrtcHTotal / 8) - 1) & 0x3ff)
 			       | ((((mode->CrtcHDisplay / 8) - 1) & 0x1ff)
 				  << 16));
@@ -938,11 +917,6 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			  ((pScrn->bitsPerPixel * 8) -1)) /
 			 (pScrn->bitsPerPixel * 8));
     save->crtc_pitch |= save->crtc_pitch << 16;
-    
-    save->fp_h_sync_strt_wid = save->crtc_h_sync_strt_wid;
-    save->fp_v_sync_strt_wid = save->crtc_v_sync_strt_wid;
-    save->fp_crtc_h_total_disp = save->crtc_h_total_disp;
-    save->fp_crtc_v_total_disp = save->crtc_v_total_disp;
 
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg->dac2_cntl;

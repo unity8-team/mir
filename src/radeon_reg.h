@@ -337,6 +337,8 @@
 #       define RADEON_CRTC2_HSYNC_DIS       (1 << 28)
 #       define RADEON_CRTC2_VSYNC_DIS       (1 << 29)
 #define RADEON_CRTC_MORE_CNTL               0x27c
+#       define RADEON_CRTC_AUTO_HORZ_CENTER_EN (1<<2)
+#       define RADEON_CRTC_AUTO_VERT_CENTER_EN (1<<3)
 #       define RADEON_CRTC_H_CUTOFF_ACTIVE_EN (1<<4)
 #       define RADEON_CRTC_V_CUTOFF_ACTIVE_EN (1<<5)
 #define RADEON_CRTC_GUI_TRIG_VLINE          0x0218
@@ -812,6 +814,7 @@
 #       define RADEON_HORZ_AUTO_RATIO         (1      << 27)
 #       define RADEON_HORZ_FP_LOOP_STRETCH    (0x7    << 28)
 #       define RADEON_HORZ_AUTO_RATIO_INC     (1      << 31)
+#define RADEON_FP_HORZ_VERT_ACTIVE          0x0278
 #define RADEON_FP_V_SYNC_STRT_WID           0x02c8
 #define RADEON_FP_VERT_STRETCH              0x0290
 #define RADEON_FP_V2_SYNC_STRT_WID          0x03c8
