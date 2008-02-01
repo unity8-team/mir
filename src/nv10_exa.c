@@ -504,19 +504,13 @@ unsigned int color0 = 0, color1 = 0;
 		else
 			rc0_in_rgb |= 0x00190000; /*B = a_1*/
 		
-	BEGIN_RING(Nv3D, NV10TCL_RC_IN_ALPHA(0), 12);
+	BEGIN_RING(Nv3D, NV10TCL_RC_IN_ALPHA(0), 6);
 	OUT_RING(rc0_in_alpha);
 	OUT_RING  (rc1_in_alpha);
 	OUT_RING (rc0_in_rgb);
 	OUT_RING  (rc1_in_rgb);
 	OUT_RING  (color0); /*COLOR 0*/
 	OUT_RING  (color1); /*COLOR 1*/
-	OUT_RING  (0x00000c00);
-	OUT_RING  (0);
-	OUT_RING  (0x000010cd);
-	OUT_RING  (0x18000000);
-	OUT_RING  (0x300e0300);
-	OUT_RING  (0x0c091c80);
 }
 
 static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
@@ -559,19 +553,13 @@ static void NV10SetRegCombs_A8plusA8(NVPtr pNv, int pass, int mask_out_bytes)
 		color1 = 0x0000ff00; /*R = 0, G = 1, B = 0*/
 		}
 
-	BEGIN_RING(Nv3D, NV10TCL_RC_IN_ALPHA(0), 12);
+	BEGIN_RING(Nv3D, NV10TCL_RC_IN_ALPHA(0), 6);
 	OUT_RING(rc0_in_alpha);
 	OUT_RING  (rc1_in_alpha);
 	OUT_RING (rc0_in_rgb);
 	OUT_RING  (rc1_in_rgb);
 	OUT_RING  (color0); /*COLOR 0*/
 	OUT_RING  (color1); /*COLOR 1*/
-	OUT_RING  (0x00000c00);
-	OUT_RING  (0);
-	OUT_RING  (0x00000c00);
-	OUT_RING  (0x18000000);
-	OUT_RING  (0x300c0000);
-	OUT_RING  (0x00001c80);
 }
 
 static void NV10SetPictOp(NVPtr pNv,int op)
@@ -821,8 +809,7 @@ void NV10Composite(PixmapPtr pDst,
 			
 			}
 		}
-
-	if (state.have_mask) {
+	else if (state.have_mask) {
 		NV10EXATransformCoord(state.unit[1].transform, maskX, maskY,
 				      state.unit[1].width,
 				      state.unit[1].height, &mX0, &mY0);
@@ -958,19 +945,13 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, NV10TCL_TX_ENABLE(0), 2);
 	OUT_RING  (0);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, NV10TCL_RC_IN_ALPHA(0), 12);
-	OUT_RING  (0x30141010);
-	OUT_RING  (0);
-	OUT_RING  (0x20040000);
-	OUT_RING  (0);
-	OUT_RING  (0);
-	OUT_RING  (0);
+	BEGIN_RING(Nv3D, NV10TCL_RC_OUT_ALPHA(0), 6);
 	OUT_RING  (0x00000c00);
 	OUT_RING  (0);
 	OUT_RING  (0x00000c00);
 	OUT_RING  (0x18000000);
-	OUT_RING  (0x300e0300);
-	OUT_RING  (0x0c091c80);
+	OUT_RING  (0x300c0000);
+	OUT_RING  (0x00001c80);
 	BEGIN_RING(Nv3D, NV10TCL_BLEND_FUNC_ENABLE, 1);
 	OUT_RING  (0);
 	BEGIN_RING(Nv3D, NV10TCL_DITHER_ENABLE, 2);
