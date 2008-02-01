@@ -709,6 +709,12 @@ NVEnterVT(int scrnIndex, int flags)
 		int i;
 		pScrn->vtSema = TRUE;
 
+		/* bit28: transmit text mode on both heads? */
+		if (pNv->twoHeads) {
+			uint32_t debug1 = nvReadMC(pNv, NV_PBUS_DEBUG_1);
+			nvWriteMC(pNv, NV_PBUS_DEBUG_1, debug1 & ~(1 << 28));
+		}
+
 		if (pNv->Architecture == NV_ARCH_50) {
 			if (!NV50AcquireDisplay(pScrn))
 				return FALSE;
@@ -2126,6 +2132,12 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 			}
 		}
+
+		/* bit28: transmit text mode on both heads? */
+		if (pNv->twoHeads) {
+			uint32_t debug1 = nvReadMC(pNv, NV_PBUS_DEBUG_1);
+			nvWriteMC(pNv, NV_PBUS_DEBUG_1, debug1 | (1 << 28));
+		}
 	} else {
 		NVLockUnlock(pNv, 0);
 
@@ -2140,7 +2152,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		vgaHWProtect(pScrn, FALSE);
 	}
 
-	if (pNv->twoHeads) {
+	if (pNv->twoHeads && !pNv->new_restore) {
 		NVLockUnlock(pNv, 0);
 		ErrorF("Restoring CRTC_OWNER to %d\n", pNv->vtOWNER);
 		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
