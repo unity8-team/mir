@@ -117,8 +117,7 @@ typedef enum
 {
     RMX_OFF,
     RMX_FULL,
-    RMX_CENTER,
-    RMX_ASPECT
+    RMX_CENTER
 } RADEONRMXType;
 
 typedef struct {

@@ -1072,21 +1072,18 @@ radeon_set_property(xf86OutputPtr output, Atom property,
     } else if (property == rmx_atom) {
 	const char *s;
 	if (value->type != XA_STRING || value->format != 8)
- 	    return FALSE;
+	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("full") && !strncmp("full", s, strlen("full"))) {
 	    radeon_output->rmx_type = RMX_FULL;
 	    return TRUE;
-	} else if (value->size == strlen("aspect") && !strncmp("aspect", s, strlen("aspect"))) {
-	    radeon_output->rmx_type = RMX_ASPECT;
-	    return TRUE;
 	} else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
 	    radeon_output->rmx_type = RMX_CENTER;
 	    return TRUE;
- 	} else if (value->size == strlen("off") && !strncmp("off", s, strlen("off"))) {
+	} else if (value->size == strlen("off") && !strncmp("off", s, strlen("off"))) {
 	    radeon_output->rmx_type = RMX_OFF;
 	    return TRUE;
- 	}
+	}
 	return FALSE;
     } else if (property == tmds_pll_atom) {
 	const char *s;

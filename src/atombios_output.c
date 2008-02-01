@@ -330,8 +330,7 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     if (radeon_output->Flags & RADEON_USE_RMX) {
 	ErrorF("Using RMX\n");
-	if (radeon_output->rmx_type == RMX_FULL ||
-	    radeon_output->rmx_type == RMX_ASPECT)
+	if (radeon_output->rmx_type == RMX_FULL)
 	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
 	else if (radeon_output->rmx_type == RMX_CENTER)
 	    disp_data.ucEnable = ATOM_SCALER_CENTER;
