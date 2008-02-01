@@ -389,7 +389,7 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT) | (y << CURSOR_Y_SHIFT));
+	NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT) | (y << CURSOR_Y_SHIFT));
 }
 
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)

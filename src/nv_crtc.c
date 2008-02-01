@@ -289,15 +289,22 @@ static uint8_t NVReadVgaAttr(xf86CrtcPtr crtc, uint8_t index)
 	return NV_RD08(pCRTCReg, VGA_ATTR_DATA_R);
 }
 
+void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	/* CRTCX_OWNER is always changed on CRTC0 */
+	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head*0x3);
+
+	ErrorF("Setting owner: 0x%X\n", head*0x3);
+}
+
 static void NVCrtcSetOwner(xf86CrtcPtr crtc)
 {
-	NVPtr pNv = NVPTR(crtc->scrn);
-	uint8_t newowner = ((NVCrtcPrivatePtr)crtc->driver_private)->head * 0x3;
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	/* CRTCX_OWNER is always changed on CRTC0 */
-	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, newowner);
-
-	ErrorF("Setting owner: 0x%X\n", newowner);
+	NVSetOwner(pScrn, nv_crtc->head);
 }
 
 static void
@@ -361,19 +368,27 @@ static void NVVgaProtect(xf86CrtcPtr crtc, Bool on)
 	}
 }
 
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock)
+void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock)
 {
-	NVPtr pNv = NVPTR(crtc->scrn);
+	NVPtr pNv = NVPTR(pScrn);
 	uint8_t cr11;
 
 	if (pNv->twoHeads)
-		NVCrtcSetOwner(crtc);
+		NVSetOwner(pScrn, head);
 
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57);
-	cr11 = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE);
-	if (Lock) cr11 |= 0x80;
+	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+	cr11 = NVReadVGA(pNv, head, NV_VGA_CRTCX_VSYNCE);
+	if (lock) cr11 |= 0x80;
 	else cr11 &= ~0x80;
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_VSYNCE, cr11);
+	NVWriteVGA(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
+}
+
+void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScrnInfoPtr pScrn = crtc->scrn;
+
+	NVLockUnlockHead(pScrn, nv_crtc->head, lock);
 }
 
 xf86OutputPtr 

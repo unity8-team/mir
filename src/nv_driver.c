@@ -2155,7 +2155,7 @@ NVRestore(ScrnInfoPtr pScrn)
 	if (pNv->twoHeads && !pNv->new_restore) {
 		NVLockUnlock(pNv, 0);
 		ErrorF("Restoring CRTC_OWNER to %d\n", pNv->vtOWNER);
-		nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 		NVLockUnlock(pNv, 1);
 	}
 }
@@ -2437,23 +2437,23 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			pNv->misc_info.crtc_reg_52[1] = NVReadVGA(pNv, 1, NV_VGA_CRTCX_52);
 		}
 		if (pNv->Architecture == NV_ARCH_40) {
-			pNv->misc_info.ramdac_0_reg_580 = nvReadRAMDAC(pNv, 0, NV_RAMDAC_580);
+			pNv->misc_info.ramdac_0_reg_580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
 		}
-		pNv->misc_info.ramdac_general_control[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_GENERAL_CONTROL);
-		pNv->misc_info.ramdac_general_control[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_GENERAL_CONTROL);
-		pNv->misc_info.ramdac_0_pllsel = nvReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-		pNv->misc_info.sel_clk = nvReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
+		pNv->misc_info.ramdac_general_control[0] = NVReadRAMDAC(pNv, 0, NV_RAMDAC_GENERAL_CONTROL);
+		pNv->misc_info.ramdac_general_control[1] = NVReadRAMDAC(pNv, 1, NV_RAMDAC_GENERAL_CONTROL);
+		pNv->misc_info.ramdac_0_pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
+		pNv->misc_info.sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 		if (pNv->twoHeads) {
-			pNv->misc_info.output[0] = nvReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
-			pNv->misc_info.output[1] = nvReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
+			pNv->misc_info.output[0] = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
+			pNv->misc_info.output[1] = NVReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
 		}
 
 		for (i = 0; i <= pNv->twoHeads; i++) {
 			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
 				pNv->console_mode[i].vga_mode = FALSE;
 				uint8_t var = NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf;
-				Bool filled = (nvReadRAMDAC(pNv, i, NV_RAMDAC_GENERAL_CONTROL) & 0x1000);
+				Bool filled = (NVReadRAMDAC(pNv, i, NV_RAMDAC_GENERAL_CONTROL) & 0x1000);
 				switch (var){
 					case 3:
 						if (filled)

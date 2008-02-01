@@ -75,44 +75,44 @@ const char *MonTypeName[7] = {
 
 void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
 {
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA, val & 0xff);
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA, val & 0xff);
 
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, tmds_reg & 0xff);
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, tmds_reg & 0xff);
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 }
 
 uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 {
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 
-	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
+	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
 }
 
 /* Two register sets exist, this one is only used for dual link dvi/lvds */
 
 void NVWriteTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
 {
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
 
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2, val & 0xff);
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2, val & 0xff);
 
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, tmds_reg & 0xff);
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, tmds_reg & 0xff);
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
 }
 
 uint8_t NVReadTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 {
-	nvWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
 		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
 
-	return (nvReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2) & 0xff);
+	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2) & 0xff);
 }
 
 void NVOutputWriteTMDS(xf86OutputPtr output, uint32_t tmds_reg, uint32_t val)
@@ -163,7 +163,7 @@ void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
 
-    nvWriteRAMDAC(pNv, nv_output->preferred_output, ramdac_reg, val);
+    NVWriteRAMDAC(pNv, nv_output->preferred_output, ramdac_reg, val);
 }
 
 uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
@@ -172,7 +172,7 @@ uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
     ScrnInfoPtr	pScrn = output->scrn;
     NVPtr pNv = NVPTR(pScrn);
 
-    return nvReadRAMDAC(pNv, nv_output->preferred_output, ramdac_reg);
+    return NVReadRAMDAC(pNv, nv_output->preferred_output, ramdac_reg);
 }
 
 static Bool dpms_common(xf86OutputPtr output, int mode)
@@ -264,7 +264,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
-		uint32_t fpcontrol = nvReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
+		uint32_t fpcontrol = NVReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 		switch (mode) {
 		case DPMSModeStandby:
 		case DPMSModeSuspend:
@@ -277,7 +277,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 			fpcontrol &= ~0x20000022;
 			break;
 		}
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, fpcontrol);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, fpcontrol);
 	}
 }
 
@@ -607,18 +607,18 @@ nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 		ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
 
 		/* The registers can't be considered seperately on most cards */
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
-		nvWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
+		NVWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44) {
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
 		if (pNv->Architecture == NV_ARCH_40)
-			nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
 	} else {
-		nvWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0x00100000);
-		nvWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0x00100000);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
 	}
 }
 
@@ -721,8 +721,8 @@ nv_load_detect(xf86OutputPtr output)
 		break;
 	}
 
-	saved_rtest_ctrl = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);
+	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);
 
 	if (pNv->NVArch >= 0x17) {
 		saved_powerctrl_2 = nvReadMC(pNv, NV_PBUS_POWERCTRL_2);
@@ -736,31 +736,31 @@ nv_load_detect(xf86OutputPtr output)
 
 	usleep(4000);
 
-	saved_routput = nvReadRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset);
+	saved_routput = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
 	/* nv driver and nv31 use 0xfffffeee
 	 * nv34 and 6600 use 0xfffffece */
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, saved_routput & 0xfffffece);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, saved_routput & 0xfffffece);
 	usleep(1000);
 
-	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
+	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
 
 	/* no regoffset on purpose */
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
-	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
+	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
 	usleep(1000);
 
-	present = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset) & (1 << 28);
+	present = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset) & (1 << 28);
 
 	/* no regoffset on purpose */
-	temp = nvReadRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_DATA, 0);
+	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_DATA, 0);
 
 	/* bios does something more complex for restoring, but I think this is good enough */
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_OUTPUT + regoffset, saved_routput);
-	nvWriteRAMDAC0(pNv, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, saved_routput);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (pNv->NVArch >= 0x17) {
 		if (regoffset == 0x68)
 			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);

@@ -100,7 +100,8 @@ void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool Lock);
+void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock);
+void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 void NVWriteVgaCrtc(xf86CrtcPtr crtc, uint8_t index, uint8_t value);
 uint8_t NVReadVgaCrtc(xf86CrtcPtr crtc, uint8_t index);
 void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value);
@@ -118,6 +119,7 @@ uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg);
 void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
 uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
+void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
