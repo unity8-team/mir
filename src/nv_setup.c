@@ -510,26 +510,26 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pNv->Television = FALSE;
 
 	if (pNv->twoHeads) {
-		pNv->vtOWNER = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
+		pNv->vtOWNER = NVReadVGA(pNv, 0, NV_VGA_CRTCX_OWNER);
 		if (pNv->NVArch == 0x11) {	/* reading OWNER is broken on nv11 */
 			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 				pNv->vtOWNER = 0x04;
 			else {
-				nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
+				NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, 3);
 				NVSelectHeadRegisters(pScrn, 1);
 				NVLockUnlock(pNv, 0);
 
-				uint8_t slaved_on_B = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
+				uint8_t slaved_on_B = NVReadVGA(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_B)
-					tvB = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+					tvB = !(NVReadVGA(pNv, 1, NV_VGA_CRTCX_LCD) & 0x01);
 
-				nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
+				NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, 0);
 				NVSelectHeadRegisters(pScrn, 0);
 				NVLockUnlock(pNv, 0);
 
-				uint8_t slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
+				uint8_t slaved_on_A = NVReadVGA(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_A)
-					tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+					tvA = !(NVReadVGA(pNv, 0, NV_VGA_CRTCX_LCD) & 0x01);
 
 				if (slaved_on_A && !tvA)
 					pNv->vtOWNER = 0x0;
