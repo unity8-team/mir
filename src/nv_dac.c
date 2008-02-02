@@ -228,7 +228,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     nvReg->vpllB = nvReg->pllB;
     nvReg->vpll2B = nvReg->pllB;
 
-    nvReg->fifo = nvReadVGA(pNv, 0x1c) & ~(1<<5);
+    nvReg->fifo = nvReadCurVGA(pNv, 0x1c) & ~(1<<5);
 
     if(pNv->crtc_active[1]) {
        nvReg->head  = NVReadCRTC(pNv, 0, NV_CRTC_FSEL) & ~0x00001000;
@@ -378,7 +378,7 @@ NV_I2CGetBits(I2CBusPtr b, int *clock, int *data)
     unsigned char val;
 
     /* Get the result. */
-    val = nvReadVGA(pNv, pNv->DDCBase);
+    val = nvReadCurVGA(pNv, pNv->DDCBase);
 
     *clock = (val & DDC_SCL_READ_MASK) != 0;
     *data  = (val & DDC_SDA_READ_MASK) != 0;
@@ -390,7 +390,7 @@ NV_I2CPutBits(I2CBusPtr b, int clock, int data)
     NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
     unsigned char val;
 
-    val = nvReadVGA(pNv, pNv->DDCBase + 1) & 0xf0;
+    val = nvReadCurVGA(pNv, pNv->DDCBase + 1) & 0xf0;
     if (clock)
         val |= DDC_SCL_WRITE_MASK;
     else
@@ -401,7 +401,7 @@ NV_I2CPutBits(I2CBusPtr b, int clock, int data)
     else
         val &= ~DDC_SDA_WRITE_MASK;
 
-    nvWriteVGA(pNv, pNv->DDCBase + 1, val | 0x1);
+    nvWriteCurVGA(pNv, pNv->DDCBase + 1, val | 0x1);
 }
 
 Bool

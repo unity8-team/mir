@@ -67,8 +67,6 @@ void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);
 void NVUnloadStateExt(NVPtr,struct _riva_hw_state *);
 void NVSetStartAddress(NVPtr,CARD32);
-uint8_t nvReadVGA(NVPtr pNv, uint8_t index);
-void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data);
 
 /* in nv_shadow.c */
 void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
