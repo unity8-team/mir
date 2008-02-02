@@ -578,11 +578,8 @@ enum scaling_modes {
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 
-#define nvReadRAMDAC0(pNv, reg) nvReadRAMDAC(pNv, 0, reg)
-#define nvWriteRAMDAC0(pNv, reg, val) nvWriteRAMDAC(pNv, 0, reg, val)
-
-#define nvReadCurRAMDAC(pNv, reg) nvReadRAMDAC(pNv, pNv->cur_head, reg)
-#define nvWriteCurRAMDAC(pNv, reg, val) nvWriteRAMDAC(pNv, pNv->cur_head, reg, val)
+#define nvReadCurRAMDAC(pNv, reg) NVReadRAMDAC(pNv, pNv->cur_head, reg)
+#define nvWriteCurRAMDAC(pNv, reg, val) NVWriteRAMDAC(pNv, pNv->cur_head, reg, val)
 
 #define nvReadCRTC0(pNv, reg) nvReadCRTC(pNv, 0, reg)
 #define nvWriteCRTC0(pNv, reg, val) nvWriteCRTC(pNv, 0, reg, val)

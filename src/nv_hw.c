@@ -58,24 +58,6 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 	VGA_WR08(ptr, 0x03D5, data);
 }
 
-uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
-{
-	if (head)
-		reg += NV_PRAMDAC0_SIZE;
-	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
-	return MMIO_IN32(pNv->REGS, reg);
-}
-
-void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
-{
-	if (head)
-		reg += NV_PRAMDAC0_SIZE;
-	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
-	MMIO_OUT32(pNv->REGS, reg, val);
-}
-
 uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
 	if (head)
@@ -242,11 +224,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else
     if(pNv->twoStagePLL) {
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
        M = pll & 0xFF;
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL_B);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL_B);
        if(pll & 0x80000000) {
            MB = pll & 0xFF; 
            NB = (pll >> 8) & 0xFF;
@@ -256,11 +238,11 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL_B);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL_B);
        if(pll & 0x80000000) {
            MB = pll & 0xFF;
            NB = (pll >> 8) & 0xFF;
@@ -273,7 +255,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
     if(((pNv->Chipset & 0x0ff0) == CHIPSET_NV30) ||
        ((pNv->Chipset & 0x0ff0) == CHIPSET_NV35))
     {
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
        M = pll & 0x0F; 
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -286,7 +268,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
 
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
        M = pll & 0x0F;
        N = (pll >> 8) & 0xFF;
        P = (pll >> 16) & 0x07;
@@ -299,13 +281,13 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
        }
        *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
     } else {
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_MPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
        *MClk = (N * pNv->CrystalFreqKHz / M) >> P;
 
-       pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
+       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
        M = pll & 0xFF; 
        N = (pll >> 8) & 0xFF; 
        P = (pll >> 16) & 0x0F;
@@ -794,7 +776,7 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
 #endif /* XSERVER_LIBPCIACCESS */
     }
 
-    pll = nvReadRAMDAC0(pNv, NV_RAMDAC_NVPLL);
+    pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
     M = (pll >> 0)  & 0xFF; N = (pll >> 8)  & 0xFF; P = (pll >> 16) & 0x0F;
     NVClk  = (N * pNv->CrystalFreqKHz / M) >> P;
     sim_data.pix_bpp        = (char)pixelDepth;
@@ -1141,13 +1123,13 @@ void NVLoadStateExt (
     nvWriteVGA(pNv, NV_VGA_CRTCX_INTERLACE, state->interlace);
 
     if(!pNv->FlatPanel) {
-       nvWriteRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT, state->pllsel);
-       nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL, state->vpll);
+       NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
+       NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll);
        if(pNv->twoHeads)
-          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2, state->vpll2);
+          NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2);
        if(pNv->twoStagePLL) {
-          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL_B, state->vpllB);
-          nvWriteRAMDAC0(pNv, NV_RAMDAC_VPLL2_B, state->vpll2B);
+          NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpllB);
+          NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2B);
        }
     } else {
        nvWriteCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL, state->scale);
@@ -1183,14 +1165,14 @@ void NVUnloadStateExt
     state->cursor2      = nvReadVGA(pNv, NV_VGA_CRTCX_CURCTL2);
     state->interlace    = nvReadVGA(pNv, NV_VGA_CRTCX_INTERLACE);
 
-    state->vpll         = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL);
+    state->vpll         = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
     if(pNv->twoHeads)
-       state->vpll2     = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2);
+       state->vpll2     = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
     if(pNv->twoStagePLL) {
-        state->vpllB    = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL_B);
-        state->vpll2B   = nvReadRAMDAC0(pNv, NV_RAMDAC_VPLL2_B);
+        state->vpllB    = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
+        state->vpll2B   = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
     }
-    state->pllsel       = nvReadRAMDAC0(pNv, NV_RAMDAC_PLL_SELECT);
+    state->pllsel       = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
     state->general      = nvReadCurRAMDAC(pNv, NV_RAMDAC_GENERAL_CONTROL);
     state->scale        = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL);
     state->config       = nvReadFB(pNv, NV_PFB_CFG0);
