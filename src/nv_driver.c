@@ -1707,7 +1707,8 @@ NVMapMem(ScrnInfoPtr pScrn)
 		if (pNv->AGPSize > (16*1024*1024))
 			gart_scratch_size = 16*1024*1024;
 		else
-			gart_scratch_size = pNv->AGPSize;
+			/* always leave 512kb for other things like the fifos */
+			gart_scratch_size = pNv->AGPSize - 512*1024;
 	} else {
 		gart_scratch_size = (4 << 20) - (1 << 18) ;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
