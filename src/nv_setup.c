@@ -543,14 +543,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		ErrorF("Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
 	}
 
-	/* This is strictly a NV4x register (don't know about NV5x). */
-	/* The blob sets these to all kinds of values, and they mess up our setup. */
-	/* I got value 0x52802 instead. For some cards the blob even sets it back to 0x1. */
-	/* Note: the blob doesn't read this value, so i'm pretty sure this is safe for all cards. */
-	/* Any idea what this is? */
-	if (pNv->Architecture == NV_ARCH_40)
-		nvWriteFB(pNv, NV_PFB_UNK_800, 0x1);
-
     /* Parse the bios to initialize the card */
     NVParseBios(pScrn);
 
