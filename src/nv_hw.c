@@ -58,21 +58,6 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 	VGA_WR08(ptr, 0x03D5, data);
 }
 
-void NVLockUnlock (
-    NVPtr pNv,
-    Bool  Lock
-)
-{
-    CARD8 cr11;
-
-    nvWriteVGA(pNv, NV_VGA_CRTCX_LOCK, Lock ? 0x99 : 0x57 );
-
-    cr11 = nvReadVGA(pNv, NV_VGA_CRTCX_VSYNCE);
-    if(Lock) cr11 |= 0x80;
-    else cr11 &= ~0x80;
-    nvWriteVGA(pNv, NV_VGA_CRTCX_VSYNCE, cr11);
-}
-
 int NVShowHideCursor (
     NVPtr pNv,
     int   ShowHide

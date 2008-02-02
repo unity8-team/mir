@@ -786,7 +786,7 @@ NVLeaveVT(int scrnIndex, int flags)
 	NVSync(pScrn);
 	NVRestore(pScrn);
 	if (!pNv->randr12_enable)
-		NVLockUnlock(pNv, 1);
+		NVLockUnlock(pScrn, 1);
 }
 
 
@@ -839,7 +839,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 			NVSync(pScrn);
 			NVRestore(pScrn);
 			if (!pNv->randr12_enable)
-				NVLockUnlock(pNv, 1);
+				NVLockUnlock(pScrn, 1);
 		}
 	}
 
@@ -1811,10 +1811,10 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     if(!NVDACInit(pScrn, mode))
         return FALSE;
 
-    NVLockUnlock(pNv, 0);
+    NVLockUnlock(pScrn, 0);
     if(pNv->twoHeads) {
         nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, nvReg->crtcOwner);
-        NVLockUnlock(pNv, 0);
+        NVLockUnlock(pScrn, 0);
     }
 
     /* Program the registers */
@@ -2140,11 +2140,11 @@ NVRestore(ScrnInfoPtr pScrn)
 			nvWriteMC(pNv, NV_PBUS_DEBUG_1, debug1 | (1 << 28));
 		}
 	} else {
-		NVLockUnlock(pNv, 0);
+		NVLockUnlock(pScrn, 0);
 
 		if(pNv->twoHeads) {
 			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
-			NVLockUnlock(pNv, 0);
+			NVLockUnlock(pScrn, 0);
 		}
 
 		/* Only restore text mode fonts/text for the primary card */
@@ -2154,10 +2154,10 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->twoHeads && !pNv->new_restore) {
-		NVLockUnlock(pNv, 0);
+		NVLockUnlock(pScrn, 0);
 		ErrorF("Restoring CRTC_OWNER to %d\n", pNv->vtOWNER);
 		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
-		NVLockUnlock(pNv, 1);
+		NVLockUnlock(pScrn, 1);
 	}
 }
 
@@ -2796,10 +2796,10 @@ NVSave(ScrnInfoPtr pScrn)
 	} else {
 		vgaHWPtr pVga = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &pVga->SavedReg;
-		NVLockUnlock(pNv, 0);
+		NVLockUnlock(pScrn, 0);
 		if (pNv->twoHeads) {
 			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
-			NVLockUnlock(pNv, 0);
+			NVLockUnlock(pScrn, 0);
 		}
 
 		NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
