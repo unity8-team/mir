@@ -2285,7 +2285,7 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
           tmp_pcrt |= 0x1;
       }
       nvWriteMC(pNv, NV_PBUS_DUALHEAD_CTL, tmp_pmc);
-      nvWriteCRTC0(pNv, NV_PCRTC_GPIO_EXT, tmp_pcrt);
+      NVWriteCRTC(pNv, 0, NV_PCRTC_GPIO_EXT, tmp_pcrt);
     }
 #endif
     

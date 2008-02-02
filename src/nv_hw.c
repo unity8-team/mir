@@ -58,24 +58,6 @@ void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data)
 	VGA_WR08(ptr, 0x03D5, data);
 }
 
-uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
-{
-	if (head)
-		reg += NV_PCRTC0_SIZE;
-	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
-	return MMIO_IN32(pNv->REGS, reg);
-}
-
-void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
-{
-	if (head)
-		reg += NV_PCRTC0_SIZE;
-	assert(pNv->randr12_enable == FALSE);
-	DDXMMIOH("nvWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
-	MMIO_OUT32(pNv->REGS, reg, val);
-}
-
 void NVLockUnlock (
     NVPtr pNv,
     Bool  Lock
@@ -1065,8 +1047,8 @@ void NVLoadStateExt (
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           nvWriteCRTC(pNv, 0, NV_CRTC_FSEL, state->head);
-           nvWriteCRTC(pNv, 1, NV_CRTC_FSEL, state->head2);
+           NVWriteCRTC(pNv, 0, NV_CRTC_FSEL, state->head);
+           NVWriteCRTC(pNv, 1, NV_CRTC_FSEL, state->head2);
         }
         temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC);
         nvWriteCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC, temp | (1 << 25));
@@ -1179,8 +1161,8 @@ void NVUnloadStateExt
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           state->head     = nvReadCRTC(pNv, 0, NV_CRTC_FSEL);
-           state->head2    = nvReadCRTC(pNv, 1, NV_CRTC_FSEL);
+           state->head     = NVReadCRTC(pNv, 0, NV_CRTC_FSEL);
+           state->head2    = NVReadCRTC(pNv, 1, NV_CRTC_FSEL);
            state->crtcOwner = nvReadVGA(pNv, NV_VGA_CRTCX_OWNER);
         }
         state->extra = nvReadVGA(pNv, NV_VGA_CRTCX_EXTRA);

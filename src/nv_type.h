@@ -581,11 +581,8 @@ enum scaling_modes {
 #define nvReadCurRAMDAC(pNv, reg) NVReadRAMDAC(pNv, pNv->cur_head, reg)
 #define nvWriteCurRAMDAC(pNv, reg, val) NVWriteRAMDAC(pNv, pNv->cur_head, reg, val)
 
-#define nvReadCRTC0(pNv, reg) nvReadCRTC(pNv, 0, reg)
-#define nvWriteCRTC0(pNv, reg, val) nvWriteCRTC(pNv, 0, reg, val)
-
-#define nvReadCurCRTC(pNv, reg) nvReadCRTC(pNv, pNv->cur_head, reg)
-#define nvWriteCurCRTC(pNv, reg, val) nvWriteCRTC(pNv, pNv->cur_head, reg, val)
+#define nvReadCurCRTC(pNv, reg) NVReadCRTC(pNv, pNv->cur_head, reg)
+#define nvWriteCurCRTC(pNv, reg, val) NVWriteCRTC(pNv, pNv->cur_head, reg, val)
 
 #define nvReadFB(pNv, reg) DDXMMIOW("nvReadFB: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
 #define nvWriteFB(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteFB: reg %08x val %08x\n", reg, val))

@@ -70,10 +70,6 @@ int  NVShowHideCursor(NVPtr,int);
 void NVLockUnlock(NVPtr,int);
 uint8_t nvReadVGA(NVPtr pNv, uint8_t index);
 void nvWriteVGA(NVPtr pNv, uint8_t index, uint8_t data);
-void nvWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg, uint32_t val);
-uint32_t nvReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t ramdac_reg);
-void nvWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
-uint32_t nvReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
 
 /* in nv_shadow.c */
 void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
