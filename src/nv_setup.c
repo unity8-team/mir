@@ -571,8 +571,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		if((pNv->Chipset & 0x0fff) <= CHIPSET_NV04)
 		    FlatPanel = 0;
 	    } else {
-		if(nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
-		    if(!(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01)) 
+		if(nvReadCurVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80) {
+		    if(!(nvReadCurVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01)) 
 			Television = TRUE;
 		    FlatPanel = 1;
 		} else {
@@ -620,22 +620,22 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    
 	    cr44 = pNv->vtOWNER;
 	    
-	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
+	    nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, 3);
 	    NVSelectHeadRegisters(pScrn, 1);
 	    NVLockUnlock(pScrn, 0);
 	    
-	    slaved_on_B = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
+	    slaved_on_B = nvReadCurVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80;
 	    if(slaved_on_B) {
-		tvB = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+		tvB = !(nvReadCurVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
 	    }
 	    
-	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
+	    nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, 0);
 	    NVSelectHeadRegisters(pScrn, 0);
 	    NVLockUnlock(pScrn, 0);
 	    
-	    slaved_on_A = nvReadVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
+	    slaved_on_A = nvReadCurVGA(pNv, NV_VGA_CRTCX_PIXEL) & 0x80; 
 	    if(slaved_on_A) {
-		tvA = !(nvReadVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
+		tvA = !(nvReadCurVGA(pNv, NV_VGA_CRTCX_LCD) & 0x01);
 	    }
 	    
 	    oldhead = NVReadCRTC(pNv, 0, NV_CRTC_FSEL);
@@ -754,7 +754,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    
 	    NVWriteCRTC(pNv, 0, NV_CRTC_FSEL,  oldhead);
 
-	    nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, cr44);
+	    nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, cr44);
 	    NVSelectHeadRegisters(pScrn, pNv->crtc_active[1]);
 	}
 	

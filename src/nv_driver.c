@@ -1813,7 +1813,7 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     NVLockUnlock(pScrn, 0);
     if(pNv->twoHeads) {
-        nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, nvReg->crtcOwner);
+        nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, nvReg->crtcOwner);
         NVLockUnlock(pScrn, 0);
     }
 
@@ -1827,9 +1827,9 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     {
 	unsigned char tmp;
 
-	tmp = nvReadVGA(pNv, NV_VGA_CRTCX_SWAPPING);
+	tmp = nvReadCurVGA(pNv, NV_VGA_CRTCX_SWAPPING);
 	tmp |= (1 << 7);
-	nvWriteVGA(pNv, NV_VGA_CRTCX_SWAPPING, tmp);
+	nvWriteCurVGA(pNv, NV_VGA_CRTCX_SWAPPING, tmp);
     }
 #endif
 
@@ -2143,7 +2143,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		NVLockUnlock(pScrn, 0);
 
 		if(pNv->twoHeads) {
-			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
+			nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
 			NVLockUnlock(pScrn, 0);
 		}
 
@@ -2798,7 +2798,7 @@ NVSave(ScrnInfoPtr pScrn)
 		vgaRegPtr vgaReg = &pVga->SavedReg;
 		NVLockUnlock(pScrn, 0);
 		if (pNv->twoHeads) {
-			nvWriteVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
+			nvWriteCurVGA(pNv, NV_VGA_CRTCX_OWNER, pNv->crtc_active[1] * 0x3);
 			NVLockUnlock(pScrn, 0);
 		}
 
