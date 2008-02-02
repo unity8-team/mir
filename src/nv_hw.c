@@ -42,26 +42,6 @@
 #include "nv_local.h"
 #include "compiler.h"
 
-int NVShowHideCursor (
-    NVPtr pNv,
-    int   ShowHide
-)
-{
-    int current = pNv->CurrentState->cursor1;
-
-    pNv->CurrentState->cursor1 = (pNv->CurrentState->cursor1 & 0xFE) |
-                                 (ShowHide & 0x01);
-
-    nvWriteCurVGA(pNv, NV_VGA_CRTCX_CURCTL1, pNv->CurrentState->cursor1);
-
-    if(pNv->Architecture == NV_ARCH_40) {  /* HW bug */
-       volatile CARD32 curpos = nvReadCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS);
-       nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, curpos);
-    }
-
-    return (current & 0x01);
-}
-
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *

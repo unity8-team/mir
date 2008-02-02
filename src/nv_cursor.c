@@ -220,17 +220,15 @@ NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 static void 
 NVShowCursor(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	/* Enable cursor - X-Windows mode */
-	NVShowHideCursor(pNv, 1);
+	NVShowHideCursor(pScrn, 1);
 }
 
 static void
 NVHideCursor(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	/* Disable cursor */
-	NVShowHideCursor(pNv, 0);
+	NVShowHideCursor(pScrn, 0);
 }
 
 static Bool 
@@ -351,36 +349,41 @@ Bool NVCursorInitRandr12(ScreenPtr pScreen)
 	return xf86_cursors_init(pScreen, cursor_size, cursor_size, flags);
 }
 
-void nv_crtc_fix_nv40_hw_cursor(xf86CrtcPtr crtc)
+void nv_crtc_fix_nv40_hw_cursor(ScrnInfoPtr pScrn, uint8_t head)
 {
-	volatile uint32_t curpos = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_CURSOR_POS);
-	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_CURSOR_POS, curpos);
+	NVPtr pNv = NVPTR(pScrn);
+	volatile uint32_t curpos = NVReadRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS, curpos);
+}
+
+void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	uint32_t current = NVReadVGA(pNv, head, NV_VGA_CRTCX_CURCTL1);
+
+	if (show)
+		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, current | 1);
+	else
+		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, current & ~1);
+
+	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
+		nv_crtc_fix_nv40_hw_cursor(pScrn, head);
 }
 
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 {
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
 
-	/* Enable on this crtc */
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current | 1);
-
-	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
-		nv_crtc_fix_nv40_hw_cursor(crtc);
+	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, TRUE);
 }
 
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int current = NVReadVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1);
 
-	/* Disable on this crtc */
-	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_CURCTL1, current & ~1);
-
-	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
-		nv_crtc_fix_nv40_hw_cursor(crtc);
+	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, FALSE);
 }
 
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)

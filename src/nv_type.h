@@ -578,6 +578,13 @@ enum scaling_modes {
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 
+#define NVShowHideCursor(pScrn, show) do {							\
+	NVPtr pNv = NVPTR(pScrn);										\
+	pNv->CurrentState->cursor1 = (pNv->CurrentState->cursor1 & 0xFE) | 	\
+					(show & 0x01); 								\
+	nv_crtc_show_hide_cursor(pScrn, pNv->cur_head, show);				\
+} while(0)
+
 #define NVLockUnlock(pScrn, lock) NVLockUnlockHead(pScrn, NVPTR(pScrn)->cur_head, lock)
 
 #define nvReadCurVGA(pNv, reg) NVReadVGA(pNv, pNv->cur_head, reg)
