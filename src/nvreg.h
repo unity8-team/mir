@@ -56,6 +56,9 @@
 #define NV_PVIO_OFFSET              0x000C0000
 #define NV_PVIO_SIZE                0x00008000
 
+#define NV_PME_OFFSET               0x00200000
+#define NV_PME_SIZE                 0x00001000
+
 #define NV_PFB_OFFSET               0x00100000
 #define NV_PFB_SIZE                 0x00001000
 
