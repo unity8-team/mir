@@ -422,11 +422,20 @@ NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, PixmapPtr pspix,
 static inline void *
 NVExaPixmapMap(PixmapPtr pPix)
 {
+	void *map;
+#if NOUVEAU_EXA_PIXMAPS
+	struct nouveau_pixmap *nvpix;
+
+	nvpix = exaGetPixmapDriverPrivate(pPix);
+	if (!nvpix || !nvpix->bo)
+		return NULL;
+
+	map = nvpix->bo->map;
+#else
 	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-	void *map;
-
 	map = pNv->FB->map + exaGetPixmapOffset(pPix);
+#endif /* NOUVEAU_EXA_PIXMAPS */
 	return map;
 }
 
@@ -450,7 +459,10 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 			return TRUE;
 	}
 
-	src = NVExaPixmapMap(pSrc) + offset;
+	src = NVExaPixmapMap(pSrc);
+	if (!src)
+		return FALSE;
+	src += offset;
 	exaWaitSync(pSrc->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
 		return TRUE;
@@ -640,7 +652,10 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	}
 
 	/* fallback to memcpy-based transfer */
-	dst = NVExaPixmapMap(pDst) + (y * dst_pitch) + (x * cpp);
+	dst = NVExaPixmapMap(pDst);
+	if (!dst)
+		return FALSE;
+	dst += (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
 	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
 		return TRUE;
