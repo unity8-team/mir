@@ -803,7 +803,8 @@ NVBlockHandler (
 	ScrnInfoPtr pScrnInfo = xf86Screens[i];
 	NVPtr pNv = NVPTR(pScrnInfo);
 
-	FIRE_RING();
+	if (!pNv->NoAccel)
+		FIRE_RING();
 
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
