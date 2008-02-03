@@ -316,7 +316,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	NV40VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 2);
 
 	NV40_LoadVtxProg(pScrn, &nv40_vp_video);
-	NV40_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
+	NV40_LoadFragProg(pScrn, &nv40_fp_yv12_bicubic);
 
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)

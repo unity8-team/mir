@@ -43,5 +43,6 @@ nv_shader_t nv30_fp_composite_mask_sa_ca;
 nv_shader_t nv30_fp_composite_mask_ca;
 nv_shader_t nv30_fp_yv12_bicubic;
 nv_shader_t nv30_fp_yv12_bilinear;
+nv_shader_t nv40_fp_yv12_bicubic;
 
 #endif

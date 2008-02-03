@@ -83,10 +83,6 @@ static void compute_filter_table(int8_t *t) {
 		t[4*i+1]=f32tosb8(1.0-x+w3/(w2+w3));
 		t[4*i+0]=f32tosb8(w0+w1);
 		t[4*i+3]=f32tosb8(0.0);
-		t[4*i+2]=0;
-		t[4*i+1]=0;
-		t[4*i+0]=0;
-		t[4*i+3]=0;
 	}
 }
 
