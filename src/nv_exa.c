@@ -843,8 +843,18 @@ NVExaInit(ScreenPtr pScreen)
 	}
 	pNv->EXADriverPtr->pixmapOffsetAlign	= 256; 
 	pNv->EXADriverPtr->pixmapPitchAlign	= 64; 
-	pNv->EXADriverPtr->maxX			= 32768;
-	pNv->EXADriverPtr->maxY			= 32768;
+
+	if (pNv->Architecture >= NV_ARCH_50) {
+		pNv->EXADriverPtr->maxX = 8192;
+		pNv->EXADriverPtr->maxY = 8192;
+	} else
+	if (pNv->Architecture >= NV_ARCH_40) {
+		pNv->EXADriverPtr->maxX = 4096;
+		pNv->EXADriverPtr->maxY = 4096;
+	} else {
+		pNv->EXADriverPtr->maxX = 2048;
+		pNv->EXADriverPtr->maxY = 2048;
+	}
 
 	pNv->EXADriverPtr->WaitMarker = NVExaWaitMarker;
 
