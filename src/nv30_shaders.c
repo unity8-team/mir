@@ -44,18 +44,15 @@ NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
 	BEGIN_RING(Nv3D, NV34TCL_FP_ACTIVE_PROGRAM, 1);
 	OUT_RELOC (fp_mem, shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
 		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
-		   1 /*NV30TCL_FP_ADDRESS_DMA0*/, 2 /*NV30TCL_FP_ADDRESS_DMA1*/);
+		   NV34TCL_FP_ACTIVE_PROGRAM_DMA0, NV34TCL_FP_ACTIVE_PROGRAM_DMA1);
 
-	BEGIN_RING(Nv3D, 0x1d60, 1);
-	OUT_RING  (0); /* USES_KIL (1<<7) == 0 */
 	BEGIN_RING(Nv3D, 0x1450, 1);
-	OUT_RING  (shader->card_priv.NV30FP.num_regs << 16| 4);
-	BEGIN_RING(Nv3D, 0x1d7c, 1);
+	OUT_RING  ((1 << 16)| 4);
+	BEGIN_RING(Nv3D, NV34TCL_MULTISAMPLE_CONTROL, 1);
 	OUT_RING  (0xffff0000);
-	
-	/* FIXME this needs to be understood and handled properly */
+
 	BEGIN_RING(Nv3D,NV34TCL_FP_CONTROL,1);
-	OUT_RING  (0x1);
+	OUT_RING  ((shader->card_priv.NV30FP.num_regs-1)/2);
 }
 
 
