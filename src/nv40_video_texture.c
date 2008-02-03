@@ -223,11 +223,6 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 extern void exaMoveInPixmap(PixmapPtr pPixmap);
 #endif
 
-#define SF(bf) (NV40TCL_BLEND_FUNC_SRC_RGB_##bf |                              \
-		NV40TCL_BLEND_FUNC_SRC_ALPHA_##bf)
-#define DF(bf) (NV40TCL_BLEND_FUNC_DST_RGB_##bf |                              \
-		NV40TCL_BLEND_FUNC_DST_ALPHA_##bf)
-
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
 	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                         \
 	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
