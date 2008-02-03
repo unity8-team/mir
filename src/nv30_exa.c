@@ -681,7 +681,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (3);
 	BEGIN_RING(Nv3D, 0x1450, 1);
 	OUT_RING  (0x00030004);
-	
+
 	/* NEW */
 	BEGIN_RING(Nv3D, 0x1e98, 1);
 	OUT_RING  (0);

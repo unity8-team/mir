@@ -183,8 +183,8 @@ NV30VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 				NV34TCL_TX_FILTER_SIGNED_RED |
 				NV34TCL_TX_FILTER_SIGNED_GREEN |
 				NV34TCL_TX_FILTER_SIGNED_BLUE |
-				NV34TCL_TX_FILTER_MINIFY_NEAREST |
-				NV34TCL_TX_FILTER_MAGNIFY_NEAREST |
+				NV34TCL_TX_FILTER_MINIFY_LINEAR |
+				NV34TCL_TX_FILTER_MAGNIFY_LINEAR |
 				0x2000);
 	else
 		OUT_RING(NV34TCL_TX_FILTER_MINIFY_LINEAR |
@@ -328,16 +328,19 @@ int NV30PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 
 	filter_table_offset=NV30_LoadFilterTable(pScrn);
 
+	BEGIN_RING(Nv3D, NV34TCL_TX_UNITS_ENABLE, 1);
+	OUT_RING  (NV34TCL_TX_UNITS_ENABLE_TX0 |
+			NV34TCL_TX_UNITS_ENABLE_TX1);
+
 	NV30VideoTexture(pScrn, filter_table_offset, TABLE_SIZE, 1, 0 , 0);
 	NV30VideoTexture(pScrn, src_offset, src_w, src_h, src_pitch, 1);
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
 	NV30VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 2);
 
-	NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bilinear);
+	BEGIN_RING(Nv3D, NV34TCL_TX_ENABLE(3), 1);
+	OUT_RING  (0x0);
 
-	BEGIN_RING(Nv3D, 0x23c, 1);
-	OUT_RING  (0x7);
-
+	NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
