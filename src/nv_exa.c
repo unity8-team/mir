@@ -848,7 +848,7 @@ NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->maxX = 8192;
 		pNv->EXADriverPtr->maxY = 8192;
 	} else
-	if (pNv->Architecture >= NV_ARCH_40) {
+	if (pNv->Architecture >= NV_ARCH_20) {
 		pNv->EXADriverPtr->maxX = 4096;
 		pNv->EXADriverPtr->maxY = 4096;
 	} else {
