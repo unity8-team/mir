@@ -284,7 +284,8 @@ RADEONRestoreDVOChip(ScrnInfoPtr pScrn, xf86OutputPtr output)
     if (!radeon_output->DVOChip)
 	return;
 
-    OUTREG(radeon_output->dvo_i2c_reg, INREG(radeon_output->dvo_i2c_reg) &
+    OUTREG(radeon_output->dvo_i2c.mask_clk_reg,
+	   INREG(radeon_output->dvo_i2c.mask_clk_reg) &
 	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
     if (!RADEONInitExtTMDSInfoFromBIOS(output)) {

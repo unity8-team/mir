@@ -161,9 +161,15 @@ typedef enum
 
 typedef struct
 {
-    CARD32 gpio_reg;
-    CARD32 put_reg;
-    CARD32 get_reg;
+    Bool   valid;
+    CARD32 mask_clk_reg;
+    CARD32 mask_data_reg;
+    CARD32 put_clk_reg;
+    CARD32 put_data_reg;
+    CARD32 get_clk_reg;
+    CARD32 get_data_reg;
+    CARD32 mask_clk_mask;
+    CARD32 mask_data_mask;
     CARD32 put_clk_mask;
     CARD32 put_data_mask;
     CARD32 get_clk_mask;
@@ -193,7 +199,6 @@ typedef struct _RADEONCrtcPrivateRec {
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {
-    CARD32 ddc_line;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
@@ -201,8 +206,7 @@ typedef struct {
     int output_id;
     int devices;
     int hpd_mask;
-    CARD32 ddc_clk_mask;
-    CARD32 ddc_data_mask;
+    RADEONI2CBusRec ddc_i2c;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -218,6 +222,7 @@ typedef struct _RADEONOutputPrivateRec {
     int crtc_num;
     int DDCReg;
     I2CBusPtr         pI2CBus;
+    RADEONI2CBusRec   ddc_i2c;
     CARD32            ps2_tvdac_adj;
     CARD32            pal_tvdac_adj;
     CARD32            ntsc_tvdac_adj;
@@ -237,7 +242,7 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONRMXType     rmx_type;
     /* dvo */
     I2CDevPtr         DVOChip;
-    int               dvo_i2c_reg;
+    RADEONI2CBusRec   dvo_i2c;
     int               dvo_i2c_slave_addr;
     Bool              dvo_duallink;
     /* TV out */
@@ -250,9 +255,6 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
-
-    CARD32            ddc_clk_mask;
-    CARD32            ddc_data_mask;
 
     char              *name;
     int               output_id;

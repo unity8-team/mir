@@ -74,7 +74,8 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     unsigned short dptr;
 
 #ifdef XSERVER_LIBPCIACCESS
-    info->VBIOS = xalloc(info->PciInfo->rom_size);
+    //info->VBIOS = xalloc(info->PciInfo->rom_size);
+    info->VBIOS = xalloc(RADEON_VBIOS_SIZE);
 #else
     info->VBIOS = xalloc(RADEON_VBIOS_SIZE);
 #endif
@@ -260,24 +261,28 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].valid = FALSE;
 		break;
 	    }
+
+	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
+
 	    DDCType = (tmp >> 8) & 0xf;
 	    switch (DDCType) {
 	    case DDC_MONID:
-		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
+		info->BiosConnector[i].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 		break;
 	    case DDC_DVI:
-		info->BiosConnector[i].ddc_line = RADEON_GPIO_DVI_DDC;
+		info->BiosConnector[i].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 		break;
 	    case DDC_VGA:
-		info->BiosConnector[i].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[i].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		break;
 	    case DDC_CRT2:
-		info->BiosConnector[i].ddc_line = RADEON_GPIO_CRT2_DDC;
+		info->BiosConnector[i].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		break;
 	    default:
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
 		break;
 	    }
+
 	    if (tmp & 0x1)
 		info->BiosConnector[i].DACType = DAC_TVDAC;
 	    else
@@ -299,8 +304,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	     */
 	    if (info->ChipFamily == CHIP_FAMILY_RS400 &&
 		info->BiosConnector[i].ConnectorType == CONNECTOR_VGA &&
-		info->BiosConnector[i].ddc_line == RADEON_GPIO_CRT2_DDC) {
-		info->BiosConnector[i].ddc_line = RADEON_GPIO_MONID;
+		info->BiosConnector[i].ddc_i2c.mask_clk_reg == RADEON_GPIO_CRT2_DDC) {
+		info->BiosConnector[i].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 	    }
 
 	    /* XPRESS desktop chips seem to have a proprietary connector listed for
@@ -329,7 +334,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	    info->BiosConnector[0].DACType = DAC_PRIMARY;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
-	    info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	} else
 	    return FALSE;
     }
@@ -342,6 +347,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[4].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[4].DACType = DAC_NONE;
 	    info->BiosConnector[4].TMDSType = TMDS_NONE;
+	    info->BiosConnector[4].ddc_i2c.valid = FALSE;
 
 	    tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42);
 	    if (tmp) {
@@ -352,26 +358,38 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			DDCType	= tmp1;
 			switch (DDCType) {
 			case DDC_MONID:
-			    info->BiosConnector[4].ddc_line = RADEON_GPIO_MONID;
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 			    break;
 			case DDC_DVI:
-			    info->BiosConnector[4].ddc_line = RADEON_GPIO_DVI_DDC;
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 			    break;
 			case DDC_VGA:
-			    info->BiosConnector[4].ddc_line = RADEON_GPIO_VGA_DDC;
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 			    break;
 			case DDC_CRT2:
-			    info->BiosConnector[4].ddc_line = RADEON_GPIO_CRT2_DDC;
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 			    break;
 			case DDC_LCD:
-			    info->BiosConnector[4].ddc_line = RADEON_LCD_GPIO_MASK;
-			    info->BiosConnector[4].ddc_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
-			    info->BiosConnector[4].ddc_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_LCD_GPIO_MASK);
+			    info->BiosConnector[4].ddc_i2c.mask_clk_mask =
+				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.mask_data_mask =
+				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.put_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.put_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.get_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.get_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    break;
 			case DDC_GPIO:
-			    info->BiosConnector[4].ddc_line = RADEON_MDGPIO_EN_REG;
-			    info->BiosConnector[4].ddc_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
-			    info->BiosConnector[4].ddc_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_MDGPIO_EN_REG);
+			    info->BiosConnector[4].ddc_i2c.mask_clk_mask =
+				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.mask_data_mask =
+				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.put_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.put_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.get_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.get_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    break;
 			default:
 			    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Unknown DDC Type: %d\n", DDCType);
@@ -381,7 +399,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    }
 		}
 	    } else {
-		info->BiosConnector[4].ddc_line = 0;
+		info->BiosConnector[4].ddc_i2c.valid = FALSE;
 	    }
 	}
     }
@@ -396,7 +414,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
 		info->BiosConnector[5].DACType = DAC_TVDAC;
 		info->BiosConnector[5].TMDSType = TMDS_NONE;
-		info->BiosConnector[5].ddc_line = 0;
+		info->BiosConnector[5].ddc_i2c.valid = FALSE;
 	    }
 	}
     }
@@ -405,7 +423,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, (unsigned int)info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
+		       i, (unsigned int)info->BiosConnector[i].ddc_i2c.mask_clk_reg, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }
@@ -875,19 +893,19 @@ Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
 	    table_start = offset+4;
 	    max_freq = RADEON_BIOS16(table_start);
 	    radeon_output->dvo_i2c_slave_addr = RADEON_BIOS8(table_start+2);
+	    radeon_output->dvo_i2c.valid = FALSE;
 	    gpio_reg = RADEON_BIOS8(table_start+3);
 	    if (gpio_reg == 1)
-		radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
+		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 	    else if (gpio_reg == 2)
-		radeon_output->dvo_i2c_reg = RADEON_GPIO_DVI_DDC;
+		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	    else if (gpio_reg == 3)
-		radeon_output->dvo_i2c_reg = RADEON_GPIO_VGA_DDC;
+		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	    else if (gpio_reg == 4)
-		radeon_output->dvo_i2c_reg = RADEON_GPIO_CRT2_DDC;
+		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 	    else if (gpio_reg == 5)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "unsupported MM gpio_reg\n");
-		/*radeon_output->i2c_reg = RADEON_GPIO_MM;*/
 	    else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unknown gpio reg: %d\n", gpio_reg);

@@ -206,7 +206,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 		   ConnectorTypeName[radeon_output->ConnectorType],
 		   DACTypeName[radeon_output->DACType],
 		   TMDSTypeName[radeon_output->TMDSType],
-		   (unsigned int)radeon_output->ddc_line);
+		   (unsigned int)radeon_output->ddc_i2c.mask_clk_reg);
     }
 
 }
@@ -240,7 +240,7 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     } else MonType = MT_NONE;
     
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", (unsigned int)radeon_output->ddc_line, MonType);
+	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
 
     return MonType;
 }
@@ -256,7 +256,10 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i, j;
 
-    DDCReg = radeon_output->ddc_line;
+    if (!radeon_output->ddc_i2c.valid)
+	return MT_NONE;
+
+    DDCReg = radeon_output->ddc_i2c.mask_clk_reg;
 
     /* Read and output monitor info using DDC2 over I2C bus */
     if (radeon_output->pI2CBus && info->ddc2 && (DDCReg != RADEON_LCD_GPIO_MASK) && (DDCReg != RADEON_MDGPIO_EN_REG)) {
@@ -340,7 +343,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     } else MonType = MT_NONE;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "DDC Type: 0x%x, Detected Monitor Type: %d\n", (unsigned int)radeon_output->ddc_line, MonType);
+	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
 
     return MonType;
 }
@@ -1273,13 +1276,21 @@ Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32 temp;
 
-    temp = INREG(pRADEONI2CBus->gpio_reg);
+    temp = INREG(pRADEONI2CBus->mask_clk_reg);
     if (lock_state == AVIVO_I2C_ENABLE)
-	temp |= (pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);
+	temp |= (pRADEONI2CBus->put_clk_mask);
     else
-	temp &= ~(pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);;
-    OUTREG(pRADEONI2CBus->gpio_reg, temp);
-    temp = INREG(pRADEONI2CBus->gpio_reg);
+	temp &= ~(pRADEONI2CBus->put_clk_mask);
+    OUTREG(pRADEONI2CBus->mask_clk_reg, temp);
+    temp = INREG(pRADEONI2CBus->mask_clk_reg);
+
+    temp = INREG(pRADEONI2CBus->mask_data_reg);
+    if (lock_state == AVIVO_I2C_ENABLE)
+	temp |= (pRADEONI2CBus->put_data_mask);
+    else
+	temp &= ~(pRADEONI2CBus->put_data_mask);
+    OUTREG(pRADEONI2CBus->mask_data_reg, temp);
+    temp = INREG(pRADEONI2CBus->mask_data_reg);
 
     return TRUE;
 }
@@ -1293,9 +1304,11 @@ static void RADEONI2CGetBits(I2CBusPtr b, int *Clock, int *data)
     RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
 
     /* Get the result */
-    val = INREG(pRADEONI2CBus->get_reg);
+    val = INREG(pRADEONI2CBus->get_clk_reg);
     *Clock = (val & pRADEONI2CBus->get_clk_mask) != 0;
+    val = INREG(pRADEONI2CBus->get_data_reg);
     *data  = (val & pRADEONI2CBus->get_data_mask) != 0;
+
 }
 
 static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
@@ -1306,20 +1319,24 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
 
-    val = INREG(pRADEONI2CBus->put_reg) & (CARD32)~(pRADEONI2CBus->put_clk_mask | pRADEONI2CBus->put_data_mask);
+    val = INREG(pRADEONI2CBus->put_clk_reg) & (CARD32)~(pRADEONI2CBus->put_clk_mask);
     val |= (Clock ? 0:pRADEONI2CBus->put_clk_mask);
-    val |= (data ? 0:pRADEONI2CBus->put_data_mask);
-    OUTREG(pRADEONI2CBus->put_reg, val);
-
+    OUTREG(pRADEONI2CBus->put_clk_reg, val);
     /* read back to improve reliability on some cards. */
-    val = INREG(pRADEONI2CBus->put_reg);
+    val = INREG(pRADEONI2CBus->put_clk_reg);
+
+    val = INREG(pRADEONI2CBus->put_data_reg) & (CARD32)~(pRADEONI2CBus->put_data_mask);
+    val |= (data ? 0:pRADEONI2CBus->put_data_mask);
+    OUTREG(pRADEONI2CBus->put_data_reg, val);
+    /* read back to improve reliability on some cards. */
+    val = INREG(pRADEONI2CBus->put_data_reg);
+
 }
 
 static Bool
 RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     I2CBusPtr pI2CBus;
     RADEONI2CBusPtr pRADEONI2CBus;
@@ -1333,55 +1350,10 @@ RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
     pI2CBus->I2CGetBits = RADEONI2CGetBits;
     pI2CBus->AcknTimeout = 5;
 
-    pRADEONI2CBus = xcalloc(sizeof(RADEONI2CBusRec), 1);
-    if (!pRADEONI2CBus) {
-	xf86DrvMsg(pScrn->scrnIndex,X_ERROR, "Failed to allocate radeon i2c bus info\n");
-	return FALSE;
-    }
-
     if (dvo) {
-	/* these only seem to work properly on MACs */
-	pRADEONI2CBus->gpio_reg = radeon_output->dvo_i2c_reg;
-	pRADEONI2CBus->put_reg = radeon_output->dvo_i2c_reg;
-	pRADEONI2CBus->get_reg = radeon_output->dvo_i2c_reg;
-	pRADEONI2CBus->put_clk_mask = RADEON_GPIO_EN_1;
-	pRADEONI2CBus->put_data_mask = RADEON_GPIO_EN_0;
-	pRADEONI2CBus->get_clk_mask = RADEON_GPIO_Y_1;
-	pRADEONI2CBus->get_data_mask = RADEON_GPIO_Y_0;
+	pRADEONI2CBus = &(radeon_output->dvo_i2c);
     } else {
-	if (IS_AVIVO_VARIANT) {
-	    pRADEONI2CBus->gpio_reg = radeon_output->ddc_line;
-	    pRADEONI2CBus->put_reg = radeon_output->ddc_line + 0x8;
-	    pRADEONI2CBus->get_reg = radeon_output->ddc_line + 0xc;
-	    /* FIXME: get these from the BIOS */
-	    if (radeon_output->ddc_line == AVIVO_GPIO_0) {
-		pRADEONI2CBus->put_clk_mask = (1 << 19);
-		pRADEONI2CBus->put_data_mask = (1 << 18);
-		pRADEONI2CBus->get_clk_mask = (1 << 19);
-		pRADEONI2CBus->get_data_mask = (1 << 18);
-	    } else {
-		pRADEONI2CBus->put_clk_mask = (1 << 0);
-		pRADEONI2CBus->put_data_mask = (1 << 8);
-		pRADEONI2CBus->get_clk_mask = (1 << 0);
-		pRADEONI2CBus->get_data_mask = (1 << 8);
-	    }
-	} else {
-	    pRADEONI2CBus->gpio_reg = radeon_output->ddc_line;
-	    pRADEONI2CBus->put_reg = radeon_output->ddc_line;
-	    pRADEONI2CBus->get_reg = radeon_output->ddc_line;
-	    if ((radeon_output->ddc_line == RADEON_LCD_GPIO_MASK) ||
-		(radeon_output->ddc_line == RADEON_MDGPIO_EN_REG)) {
-		pRADEONI2CBus->put_clk_mask = radeon_output->ddc_clk_mask;
-		pRADEONI2CBus->put_data_mask = radeon_output->ddc_data_mask;
-		pRADEONI2CBus->get_clk_mask = radeon_output->ddc_clk_mask;
-		pRADEONI2CBus->get_data_mask = radeon_output->ddc_data_mask;
-	    } else {
-		pRADEONI2CBus->put_clk_mask = RADEON_GPIO_EN_1;
-		pRADEONI2CBus->put_data_mask = RADEON_GPIO_EN_0;
-		pRADEONI2CBus->get_clk_mask = RADEON_GPIO_Y_1;
-		pRADEONI2CBus->get_data_mask = RADEON_GPIO_Y_0;
-	    }
-	}
+	pRADEONI2CBus = &(radeon_output->ddc_i2c);
     }
 
     pI2CBus->DriverPrivate.ptr = (pointer)pRADEONI2CBus;
@@ -1391,6 +1363,28 @@ RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
 
     *bus_ptr = pI2CBus;
     return TRUE;
+}
+
+RADEONI2CBusRec
+legacy_setup_i2c_bus(int ddc_line)
+{
+    RADEONI2CBusRec i2c;
+
+    i2c.mask_clk_mask = RADEON_GPIO_EN_1 | RADEON_GPIO_Y_1;
+    i2c.mask_data_mask =  RADEON_GPIO_EN_0 | RADEON_GPIO_Y_0;
+    i2c.put_clk_mask = RADEON_GPIO_EN_1;
+    i2c.put_data_mask = RADEON_GPIO_EN_0;
+    i2c.get_clk_mask = RADEON_GPIO_Y_1;
+    i2c.get_data_mask = RADEON_GPIO_Y_0;
+    i2c.mask_clk_reg = ddc_line;
+    i2c.mask_data_reg = ddc_line;
+    i2c.put_clk_reg = ddc_line;
+    i2c.put_data_reg = ddc_line;
+    i2c.get_clk_reg = ddc_line;
+    i2c.get_data_reg = ddc_line;
+    i2c.valid = TRUE;
+
+    return i2c;
 }
 
 static void
@@ -1717,11 +1711,6 @@ void RADEONInitConnector(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    char stmp[16];
-    char *name;
-    sprintf(stmp, "DDC_0x%x", (unsigned int)radeon_output->ddc_line);
-    name = xnfalloc(strlen(stmp) + 1);
-    strcpy(name, stmp);
 
     if (radeon_output->DACType == DAC_PRIMARY)
 	radeon_output->load_detection = 1; /* primary dac, only drives vga */
@@ -1744,11 +1733,11 @@ void RADEONInitConnector(xf86OutputPtr output)
 	radeon_output->rmx_type = RMX_OFF;
 	if ((!info->IsAtomBios) && radeon_output->TMDSType == TMDS_EXT) {
 #if defined(__powerpc__)
-	    radeon_output->dvo_i2c_reg = RADEON_GPIO_MONID;
+	    radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 	    radeon_output->dvo_i2c_slave_addr = 0x70;
 #else
 	    if (!RADEONGetExtTMDSInfoFromBIOS(output)) {
-		radeon_output->dvo_i2c_reg = RADEON_GPIO_CRT2_DDC;
+		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		radeon_output->dvo_i2c_slave_addr = 0x70;
 	    }
 #endif
@@ -1773,8 +1762,8 @@ void RADEONInitConnector(xf86OutputPtr output)
 	RADEONGetTVDacAdjInfo(output);
     }
 
-    if (radeon_output->ddc_line)
-	RADEONI2CInit(output, &radeon_output->pI2CBus, name, FALSE);
+    if (radeon_output->ddc_i2c.valid)
+	RADEONI2CInit(output, &radeon_output->pI2CBus, output->name, FALSE);
 
 }
 
@@ -1786,13 +1775,13 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 
     switch (info->MacModel) {
     case RADEON_MAC_IBOOK:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[1].DACType = DAC_TVDAC;
 	info->BiosConnector[1].TMDSType = TMDS_NONE;
 	info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
@@ -1801,17 +1790,17 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_POWERBOOK_EXTERNAL:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[1].DACType = DAC_PRIMARY;
 	info->BiosConnector[1].TMDSType = TMDS_EXT;
 	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
@@ -1820,18 +1809,18 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
 
     case RADEON_MAC_POWERBOOK_INTERNAL:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[1].DACType = DAC_PRIMARY;
 	info->BiosConnector[1].TMDSType = TMDS_INT;
 	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
@@ -1840,17 +1829,17 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_POWERBOOK_VGA:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[1].DACType = DAC_PRIMARY;
 	info->BiosConnector[1].TMDSType = TMDS_INT;
 	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
@@ -1859,11 +1848,11 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_MINI_EXTERNAL:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 	info->BiosConnector[0].DACType = DAC_TVDAC;
 	info->BiosConnector[0].TMDSType = TMDS_EXT;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
@@ -1872,11 +1861,11 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[1].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[1].DACType = DAC_TVDAC;
 	info->BiosConnector[1].TMDSType = TMDS_NONE;
-	info->BiosConnector[1].ddc_line = 0;
+	info->BiosConnector[1].ddc_i2c.valid = FALSE;
 	info->BiosConnector[1].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_MINI_INTERNAL:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 	info->BiosConnector[0].DACType = DAC_TVDAC;
 	info->BiosConnector[0].TMDSType = TMDS_INT;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
@@ -1885,17 +1874,17 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[1].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[1].DACType = DAC_TVDAC;
 	info->BiosConnector[1].TMDSType = TMDS_NONE;
-	info->BiosConnector[1].ddc_line = 0;
+	info->BiosConnector[1].ddc_i2c.valid = FALSE;
 	info->BiosConnector[1].valid = TRUE;
 	return TRUE;
     case RADEON_MAC_IMAC_G5_ISIGHT:
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_MONID;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 	info->BiosConnector[0].DACType = DAC_NONE;
 	info->BiosConnector[0].TMDSType = TMDS_INT;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_D;
 	info->BiosConnector[0].valid = TRUE;
 
-	info->BiosConnector[1].ddc_line = RADEON_GPIO_DVI_DDC;
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	info->BiosConnector[1].DACType = DAC_TVDAC;
 	info->BiosConnector[1].TMDSType = TMDS_NONE;
 	info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
@@ -1904,7 +1893,7 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
     default:
@@ -1921,7 +1910,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
 
     if (!pRADEONEnt->HasCRTC2) {
-	info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[0].DACType = DAC_PRIMARY;
 	info->BiosConnector[0].TMDSType = TMDS_NONE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
@@ -1931,28 +1920,28 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 
     if (IS_AVIVO_VARIANT) {
 	if (info->IsMobility) {
-	    info->BiosConnector[0].ddc_line = 0x7e60;
+	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(0x7e60);
 	    info->BiosConnector[0].DACType = DAC_NONE;
 	    info->BiosConnector[0].TMDSType = TMDS_NONE;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[0].devices = ATOM_DEVICE_LCD1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    info->BiosConnector[1].ddc_line = 0x7e40;
+	    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(0x7e40);
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 	    info->BiosConnector[1].devices = ATOM_DEVICE_CRT1_SUPPORT;
 	    info->BiosConnector[1].valid = TRUE;
 	} else {
-	    info->BiosConnector[0].ddc_line = 0x7e50;
+	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(0x7e50);
 	    info->BiosConnector[0].DACType = DAC_TVDAC;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	    info->BiosConnector[0].devices = ATOM_DEVICE_CRT2_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    info->BiosConnector[1].ddc_line = 0x7e40;
+	    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(0x7e40);
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
@@ -1963,14 +1952,14 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	info->BiosConnector[2].DACType = DAC_TVDAC;
 	info->BiosConnector[2].TMDSType = TMDS_NONE;
-	info->BiosConnector[2].ddc_line = 0;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].devices = ATOM_DEVICE_TV1_SUPPORT;
 	info->BiosConnector[2].valid = TRUE;
     } else {
 	if (info->IsMobility) {
 	    /* Below is the most common setting, but may not be true */
 	    if (info->IsIGP) {
-		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
+		info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_LCD_GPIO_MASK);
 		info->BiosConnector[0].DACType = DAC_NONE;
 		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
@@ -1978,25 +1967,25 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 
 		/* IGP only has TVDAC */
 		if (info->ChipFamily == CHIP_FAMILY_RS400)
-		    info->BiosConnector[1].ddc_line = RADEON_GPIO_CRT2_DDC;
+		    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		else
-		    info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		info->BiosConnector[1].DACType = DAC_TVDAC;
 		info->BiosConnector[1].TMDSType = TMDS_NONE;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 		info->BiosConnector[1].valid = TRUE;
 	    } else {
 #if defined(__powerpc__)
-		info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+		info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 #else
-		info->BiosConnector[0].ddc_line = RADEON_LCD_GPIO_MASK;
+		info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_LCD_GPIO_MASK);
 #endif
 		info->BiosConnector[0].DACType = DAC_NONE;
 		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 		info->BiosConnector[0].valid = TRUE;
 
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		info->BiosConnector[1].DACType = DAC_PRIMARY;
 		info->BiosConnector[1].TMDSType = TMDS_NONE;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
@@ -2006,9 +1995,9 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	    /* Below is the most common setting, but may not be true */
 	    if (info->IsIGP) {
 		if (info->ChipFamily == CHIP_FAMILY_RS400)
-		    info->BiosConnector[0].ddc_line = RADEON_GPIO_CRT2_DDC;
+		    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		else
-		    info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
+		    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		info->BiosConnector[0].DACType = DAC_TVDAC;
 		info->BiosConnector[0].TMDSType = TMDS_NONE;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
@@ -2017,26 +2006,26 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		/* not sure what a good default DDCType for DVI on
 		 * IGP desktop chips is
 		 */
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_MONID; /* DDC_DVI? */
+		info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID); /* DDC_DVI? */
 		info->BiosConnector[1].DACType = DAC_NONE;
 		info->BiosConnector[1].TMDSType = TMDS_EXT;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_D;
 		info->BiosConnector[1].valid = TRUE;
 	    } else {
-		info->BiosConnector[0].ddc_line = RADEON_GPIO_DVI_DDC;
+		info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 		info->BiosConnector[0].DACType = DAC_TVDAC;
 		info->BiosConnector[0].TMDSType = TMDS_INT;
 		info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 		info->BiosConnector[0].valid = TRUE;
 
 #if defined(__powerpc__)
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		info->BiosConnector[1].DACType = DAC_PRIMARY;
 		info->BiosConnector[1].TMDSType = TMDS_EXT;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
 		info->BiosConnector[1].valid = TRUE;
 #else
-		info->BiosConnector[1].ddc_line = RADEON_GPIO_VGA_DDC;
+		info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 		info->BiosConnector[1].DACType = DAC_PRIMARY;
 		info->BiosConnector[1].TMDSType = TMDS_EXT;
 		info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
@@ -2049,7 +2038,7 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	    info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
 	    info->BiosConnector[2].DACType = DAC_TVDAC;
 	    info->BiosConnector[2].TMDSType = TMDS_NONE;
-	    info->BiosConnector[2].ddc_line = 0;
+	    info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	    info->BiosConnector[2].valid = TRUE;
 	}
 
@@ -2057,8 +2046,8 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	 * detect it yet (Mac cards)
 	 */
 	if (xf86ReturnOptValBool(info->Options, OPTION_REVERSE_DDC, FALSE)) {
-	    info->BiosConnector[0].ddc_line = RADEON_GPIO_VGA_DDC;
-	    info->BiosConnector[1].ddc_line = RADEON_GPIO_DVI_DDC;
+	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
+	    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
 	}
     }
 }
@@ -2198,7 +2187,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
      */
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	info->BiosConnector[i].valid = FALSE;
-	info->BiosConnector[i].ddc_line = 0;
+	info->BiosConnector[i].ddc_i2c.valid = FALSE;
 	info->BiosConnector[i].DACType = DAC_NONE;
 	info->BiosConnector[i].TMDSType = TMDS_NONE;
 	info->BiosConnector[i].ConnectorType = CONNECTOR_NONE;
@@ -2280,8 +2269,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    return FALSE;
 	}
 
-	info->BiosConnector[0].ddc_line = ddc_line[0];
-	info->BiosConnector[1].ddc_line = ddc_line[1];
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(ddc_line[0]);
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(ddc_line[1]);
     }
 
     info->tvdac_use_count = 0;
@@ -2323,11 +2312,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    }
 	    radeon_output->MonType = MT_UNKNOWN;
 	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
-	    radeon_output->ddc_line = info->BiosConnector[i].ddc_line;
 	    radeon_output->devices = info->BiosConnector[i].devices;
 	    radeon_output->output_id = info->BiosConnector[i].output_id;
-	    radeon_output->ddc_clk_mask = info->BiosConnector[i].ddc_clk_mask;
-	    radeon_output->ddc_data_mask = info->BiosConnector[i].ddc_data_mask;
+	    radeon_output->ddc_i2c = info->BiosConnector[i].ddc_i2c;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
