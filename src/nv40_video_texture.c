@@ -248,15 +248,6 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
 	Bool redirected = FALSE;
 
-	/* Remove some warnings. */
-	/* This has to be done better at some point. */
-	(void)nv40_vp_exa_render;
-	(void)nv30_fp_pass_col0;
-	(void)nv30_fp_pass_tex0;
-	(void)nv30_fp_composite_mask;
-	(void)nv30_fp_composite_mask_sa_ca;
-	(void)nv30_fp_composite_mask_ca;
-
 	if (drw_w > 4096 || drw_h > 4096) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"XV: Draw size too large.\n");
