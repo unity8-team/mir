@@ -136,25 +136,13 @@ static float filter_func(float x)
 		return ( (-B-6.0*C)*x3+(6.0*B+30.0*C)*x2+(-12.0*B-48.0*C)*x1+(8.0*B+24.0*C) )/6.0;
 }
 
-static uint16_t f32tof16(float v)
-{
-	if (v==0)
-		return 0;
-	uint16_t sign=(v>0)?0x0:0x8000;
-	v=fabs(v);
-	int e=(int)floor(log2(v));
-	uint16_t exponent=(e+15)<<10;
-	uint16_t mantissa=(v/pow(2.0,(float)e)-1.0)*1024;
-	return sign|exponent|mantissa;
-}
-
 static int8_t f32tosb8(float v)
 {
 	return (int8_t)(v*127.0);
 }
 
 /*
- * 128 means 512 bytes of VRAM
+ * 512 means 2048 bytes of VRAM
  */
 #define TABLE_SIZE 512
 static void compute_filter_table(int8_t *t) {
