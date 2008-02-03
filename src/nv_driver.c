@@ -793,24 +793,24 @@ NVLeaveVT(int scrnIndex, int flags)
 
 static void 
 NVBlockHandler (
-    int i, 
-    pointer blockData, 
-    pointer pTimeout,
-    pointer pReadmask
+	int i, 
+	pointer blockData, 
+	pointer pTimeout,
+	pointer pReadmask
 )
 {
-    ScreenPtr     pScreen = screenInfo.screens[i];
-    ScrnInfoPtr   pScrnInfo = xf86Screens[i];
-    NVPtr         pNv = NVPTR(pScrnInfo);
+	ScreenPtr pScreen = screenInfo.screens[i];
+	ScrnInfoPtr pScrnInfo = xf86Screens[i];
+	NVPtr pNv = NVPTR(pScrnInfo);
 
-    FIRE_RING();
+	FIRE_RING();
 
-    pScreen->BlockHandler = pNv->BlockHandler;
-    (*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
-    pScreen->BlockHandler = NVBlockHandler;
+	pScreen->BlockHandler = pNv->BlockHandler;
+	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
+	pScreen->BlockHandler = NVBlockHandler;
 
-    if (pNv->VideoTimerCallback) 
-        (*pNv->VideoTimerCallback)(pScrnInfo, currentTime.milliseconds);
+	if (pNv->VideoTimerCallback) 
+		(*pNv->VideoTimerCallback)(pScrnInfo, currentTime.milliseconds);
 
 }
 
