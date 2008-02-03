@@ -36,86 +36,9 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-#include "nv_shaders.h"
+#include "nv30_shaders.h"
 
 extern Atom xvSyncToVBlank, xvSetDefaults;
-
-static nv_shader_t nv40_video = {
-	.card_priv.NV30VP.vp_in_reg  = 0x00000309,
-	.card_priv.NV30VP.vp_out_reg = 0x0000c001,
-	.size = (3*4),
-	.data = {
-		/* MOV result.position, vertex.position */
-		0x40041c6c, 0x0040000d, 0x8106c083, 0x6041ff80,
-		/* MOV result.texcoord[0], vertex.texcoord[0] */
-		0x401f9c6c, 0x0040080d, 0x8106c083, 0x6041ff9c,
-		/* MOV result.texcoord[1], vertex.texcoord[1] */
-		0x401f9c6c, 0x0040090d, 0x8106c083, 0x6041ffa1,
-	}
-};
-
-/*
- * Implements the filtering as described in
- * "Fast Third-Order Texture Filtering"
- * Sigg & Hardwiger in GPU Gems 2
- */
-static nv_shader_t nv40_yv12 = {
-	.card_priv.NV30FP.num_regs = 4,
-	.size = (29*4),
-	.data = {
-		/* INST 0: MOVR R0.xy (TR0.xyzw), attrib.texcoord[0] */
-		0x01008600, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
-		/* INST 1: ADDR R0.z (TR0.xyzw), R0.yyyy, { 0.50, 0.00, 0.00, 0.00 }.xxxx */
-		0x03000800, 0x1c9caa00, 0x00000002, 0x0001c800,
-		0x3f000000, 0x00000000, 0x00000000, 0x00000000,
-		/* INST 2: ADDR R1.x (TR0.xyzw), R0, { 0.50, 0.00, 0.00, 0.00 }.xxxx */
-		0x03000202, 0x1c9dc800, 0x00000002, 0x0001c800,
-		0x3f000000, 0x00000000, 0x00000000, 0x00000000,
-		/* INST 3: TEXRC0 R1.xyz (TR0.xyzw), R0.zzzz, texture[0] */
-		0x17000f82, 0x1c9d5400, 0x0001c800, 0x0001c800,
-		/* INST 4: MULR R2.yw (TR0.xyzw), R1.xxyy, { -1.00, 1.00, 0.00, 0.00 }.xxyy */
-		0x02001404, 0x1c9ca104, 0x0000a002, 0x0001c800,
-		0xbf800000, 0x3f800000, 0x00000000, 0x00000000,
-		/* INST 5: TEXR R3.xyz (TR0.xyzw), R1, texture[0] */
-		0x17000e86, 0x1c9dc804, 0x0001c800, 0x0001c800,
-		/* INST 6: MULR R2.xz (TR0.xyzw), R3.xxyy, { -1.00, 1.00, 0.00, 0.00 }.xxyy */
-		0x02000a04, 0x1c9ca10c, 0x0000a002, 0x0001c800,
-		0xbf800000, 0x3f800000, 0x00000000, 0x00000000,
-		/* INST 7: ADDR R2 (TR0.xyzw), R0.xyxy, R2 */
-		0x03001e04, 0x1c9c8800, 0x0001c808, 0x0001c800,
-		/* INST 8: TEXR R1.y (TR0.xyzw), R2.zwzz, -texture[1] */
-		0x17020402, 0x1c9d5c08, 0x0001c800, 0x0001c800,
-		/* INST 9: MADH R1.x (TR0.xyzw), -R1.zzzz, R1.yyyy, R1.yyyy */
-		0x04400282, 0x1c9f5504, 0x0000aa04, 0x0000aa04,
-		/* INST 10: TEXR R0.y (TR0.xyzw), R2.xwxw, -texture[1] */
-		0x17020400, 0x1c9d9808, 0x0001c800, 0x0001c800,
-		/* INST 11: MADH R0.w (TR0.xyzw), -R1.zzzz, R0.yyyy, R0.yyyy */
-		0x04401080, 0x1c9f5504, 0x0000aa00, 0x0000aa00,
-		/* INST 12: TEXR R0.x (TR0.xyzw), R2.zyxy, texture[1] */
-		0x17020200, 0x1c9c8c08, 0x0001c800, 0x0001c800,
-		/* INST 13: MADH R1.x (TR0.xyzw), R1.zzzz, R0, R1 */
-		0x04400282, 0x1c9d5504, 0x0001c800, 0x0001c904,
-		/* INST 14: TEXR R0.x (NE0.zzzz), R2, texture[1] */
-		0x17020200, 0x1555c808, 0x0001c800, 0x0001c800,
-		/* INST 15: MADH R0.x (TR0.xyzw), R1.zzzz, R0, R0.wwww */
-		0x04400280, 0x1c9d5504, 0x0001c800, 0x0001ff00,
-		/* INST 16: MADH R0.w (TR0.xyzw), -R3.zzzz, R1.xxxx, R1.xxxx */
-		0x04401080, 0x1c9f550c, 0x00000104, 0x00000104,
-		/* INST 17: TEXR R0.yz (TR0.xyzw), attrib.texcoord[1], abs(texture[2]) */
-		0x1704ac80, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
-		/* INST 18: MADH R0.x (TR0.xyzw), R3.zzzz, R0, R0.wwww */
-		0x04400280, 0x1c9d550c, 0x0001c900, 0x0001ff00,
-		/* INST 19: MADH R1.xyz (TR0.xyzw), R0.xxxx, { 1.16, -0.87, 0.53, -1.08 }.xxxx, { 1.16, -0.87, 0.53, -1.08 }.yzww */
-		0x04400e82, 0x1c9c0100, 0x00000002, 0x0001f202,
-		0x3f9507c8, 0xbf5ee393, 0x3f078fef, 0xbf8a6762,
-		/* INST 20: MADH R1.xyz (TR0.xyzw), R0.yyyy, { 0.00, -0.39, 2.02, 0.00 }, R1 */
-		0x04400e82, 0x1c9cab00, 0x0001c802, 0x0001c904,
-		0x00000000, 0xbec890d6, 0x40011687, 0x00000000,
-		/* INST 21: MADH R0.xyz (TR0.xyzw), R0.zzzz, { 1.60, -0.81, 0.00, 0.00 }, R1 + END */
-		0x04400e81, 0x1c9d5500, 0x0001c802, 0x0001c904,
-		0x3fcc432d, 0xbf501a37, 0x00000000, 0x00000000,
-	}
-};
 
 /*
  * The filtering function used for video scaling. We use a cubic filter as defined in 
@@ -142,7 +65,9 @@ static int8_t f32tosb8(float v)
 }
 
 /*
- * 512 means 2048 bytes of VRAM
+ * Implements the filtering as described in
+ * "Fast Third-Order Texture Filtering"
+ * Sigg & Hardwiger in GPU Gems 2
  */
 #define TABLE_SIZE 512
 static void compute_filter_table(int8_t *t) {
@@ -400,8 +325,8 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
 	NV40VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 2);
 
-	NV40_LoadVtxProg(pScrn, &nv40_video);
-	NV40_LoadFragProg(pScrn, &nv40_yv12);
+	NV40_LoadVtxProg(pScrn, &nv40_vp_video);
+	NV40_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
 
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)

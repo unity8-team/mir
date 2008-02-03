@@ -21,7 +21,7 @@
  */
 
 #include "nv_include.h"
-#include "nv_shaders.h"
+#include "nv30_shaders.h"
 
 typedef struct nv_pict_surface_format {
 	int	 pict_fmt;

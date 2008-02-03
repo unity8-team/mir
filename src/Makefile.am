@@ -80,6 +80,7 @@ nouveau_drv_la_SOURCES = \
 			 nv50_cursor.h \
 			 nv50_output.h \
 			 nv50reg.h \
-			 nv_shaders.h \
+			 nv30_shaders.c \
+			 nv30_shaders.h \
 			 nv_pcicompat.h
 

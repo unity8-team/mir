@@ -24,7 +24,7 @@
  */
 
 #include "nv_include.h"
-#include "nv_shaders.h"
+#include "nv30_shaders.h"
 
 typedef struct nv_pict_surface_format {
 	int	 pict_fmt;
@@ -248,58 +248,6 @@ NV30_GetPictOpRec(int op)
 	return FALSE;              \
 } while(0)
 #endif
-
-static void
-NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	static struct nouveau_bo *fp_mem = NULL;
-	static int next_hw_id_offset = 0;
-
-	if (!fp_mem) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-				   0, 0x1000, &fp_mem)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-					"Couldn't alloc fragprog buffer!\n");
-			return;
-		}
-
-		if (nouveau_bo_map(fp_mem, NOUVEAU_BO_RDWR)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Couldn't map fragprog buffer!\n");
-		}
-	}
-
-	if (!shader->hw_id) {
-		uint32_t *map = fp_mem->map + next_hw_id_offset;
-		int i;
-
-		for (i = 0; i < shader->size; i++) {
-			uint32_t data = shader->data[i];
-#if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
-			data = ((data >> 16) | ((data & 0xffff) << 16));
-#endif
-			map[i] = data;
-		}
-
-		shader->hw_id += next_hw_id_offset;
-		next_hw_id_offset += (shader->size * sizeof(uint32_t));
-		next_hw_id_offset = (next_hw_id_offset + 63) & ~63;
-	}
-
-	BEGIN_RING(Nv3D, NV34TCL_FP_ACTIVE_PROGRAM, 1);
-	OUT_RELOC (fp_mem, shader->hw_id, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
-		   NOUVEAU_BO_RD | NOUVEAU_BO_LOW | NOUVEAU_BO_OR,
-		   1 /*NV30TCL_FP_ADDRESS_DMA0*/, 2 /*NV30TCL_FP_ADDRESS_DMA1*/);
-
-	BEGIN_RING(Nv3D, 0x1d60, 1);
-	OUT_RING  (0); /* USES_KIL (1<<7) == 0 */
-	BEGIN_RING(Nv3D, 0x1450, 1);
-	OUT_RING  (shader->card_priv.NV30FP.num_regs << 16| 4);
-	BEGIN_RING(Nv3D, 0x1d7c, 1);
-	OUT_RING  (0xffff0000);
-
-}
 
 static void
 NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
