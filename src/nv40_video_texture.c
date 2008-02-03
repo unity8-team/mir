@@ -339,19 +339,19 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	}
 
 	/* These are fixed point values in the 16.16 format. */
-	X1 = (float)(x1>>16)+(float)(x1&0xFFFF)/(float)0xFFFF;
-	Y1 = (float)(y1>>16)+(float)(y1&0xFFFF)/(float)0xFFFF;
-	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0xFFFF;
-	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0xFFFF;
+	X1 = (float)(x1>>16)+(float)(x1&0xFFFF)/(float)0x10000;
+	Y1 = (float)(y1>>16)+(float)(y1&0xFFFF)/(float)0x10000;
+	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
+	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
 	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (NV40TCL_BEGIN_END_TRIANGLES);
 
 	while(nbox--) {
-		float tx1=X1+(float)(pbox->x1 - dstBox->x1)/(float)drw_w*(X2-X1);
-		float tx2=X1+(float)(pbox->x2 - dstBox->x1)/(float)drw_w*(X2-X1);
-		float ty1=Y1+(float)(pbox->y1 - dstBox->y1)/(float)drw_h*(Y2-Y1);
-		float ty2=Y1+(float)(pbox->y2 - dstBox->y1)/(float)drw_h*(Y2-Y1);
+		float tx1=X1+(float)(pbox->x1 - dstBox->x1)*(X2-X1)/(float)(drw_w);
+		float tx2=X1+(float)(pbox->x2 - dstBox->x1)*(src_w)/(float)(drw_w);
+		float ty1=Y1+(float)(pbox->y1 - dstBox->y1)*(Y2-Y1)/(float)(drw_h);
+		float ty2=Y1+(float)(pbox->y2 - dstBox->y1)*(src_h)/(float)(drw_h);
 		int sx1=pbox->x1;
 		int sx2=pbox->x2;
 		int sy1=pbox->y1;
