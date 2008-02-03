@@ -174,7 +174,11 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 	OUT_RING(NV40TCL_TEX_ENABLE_ENABLE);
 	OUT_RING(card_swz);
 	if (unit==0)
-		OUT_RING(0xF0000000|NV40TCL_TEX_FILTER_MIN_NEAREST |
+		OUT_RING(NV40TCL_TEX_FILTER_SIGNED_ALPHA |
+				NV40TCL_TEX_FILTER_SIGNED_RED |
+				NV40TCL_TEX_FILTER_SIGNED_GREEN |
+				NV40TCL_TEX_FILTER_SIGNED_BLUE |
+				NV40TCL_TEX_FILTER_MIN_NEAREST |
 				NV40TCL_TEX_FILTER_MAG_NEAREST |
 				0x3fd6);
 	else
@@ -373,7 +377,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 }
 
 /**
- * NVSetTexturePortAttribute
+ * NV40SetTexturePortAttribute
  * sets the attribute "attribute" of port "data" to value "value"
  * supported attributes:
  * Sync to vblank.
@@ -387,7 +391,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
  * BadValue/BadMatch, if value/attribute are invalid
  */
 int
-NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+NV40SetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                        INT32 value, pointer data)
 {
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
@@ -407,7 +411,7 @@ NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
 }
 
 /**
- * NVGetTexturePortAttribute
+ * NV40GetTexturePortAttribute
  * reads the value of attribute "attribute" from port "data" into INT32 "*value"
  * Sync to vblank.
  * 
@@ -418,7 +422,7 @@ NVSetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
  * @return Success, if queried attribute exists
  */
 int
-NVGetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
+NV40GetTexturePortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                        INT32 *value, pointer data)
 {
         NVPortPrivPtr pPriv = (NVPortPrivPtr)data;

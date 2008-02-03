@@ -191,6 +191,15 @@ Bool NV30EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
 void NV30EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV30EXADoneComposite(PixmapPtr);
 
+/* in nv30_video_texture.c */
+int NV30PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
+		int, int, int, int, uint16_t, uint16_t,
+		uint16_t, uint16_t, uint16_t, uint16_t,
+		RegionPtr, DrawablePtr);
+void NV30StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
+int NV30GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
+int NV30SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+
 /* in nv40_exa.c */
 Bool NVAccelInitNV40TCL(ScrnInfoPtr pScrn);
 Bool NV40EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
@@ -205,8 +214,8 @@ int NV40PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
 		uint16_t, uint16_t, uint16_t, uint16_t,
 		RegionPtr, DrawablePtr);
 void NV40StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
-int NVGetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
-int NVSetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
+int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 
 /* in nv50_exa.c */
 Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);

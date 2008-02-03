@@ -229,7 +229,7 @@ nv_shader_t nv40_vp_video = {
 	}
 };
 
-nv_shader_t nv30_fp_yv12_bicubic = {
+nv_shader_t nv40_fp_yv12_bicubic = {
 	.card_priv.NV30FP.num_regs = 4,
 	.size = (29*4),
 	.data = {
@@ -287,19 +287,66 @@ nv_shader_t nv30_fp_yv12_bicubic = {
 	}
 };
 
-// XXX FIXME this shader is not in line with the current texture submission
-// it should use texunits 1 & 2 instead of 0 & 1
+nv_shader_t nv30_fp_yv12_bicubic = {
+	.card_priv.NV30FP.num_regs = 4,
+	.size = (24*4),
+	.data = {
+		/* INST 0: MOVR R2.xy (TR0.xyzw), attrib.texcoord[0] */
+		0x01008604, 0x1c9dc801, 0x0001c800, 0x0001c800,
+		/* INST 1: ADDR R0.xy (TR0.xyzw), R2, { 0.50, 0.00, 0.00, 0.00 }.xxxx */
+		0x03000600, 0x1c9dc808, 0x00000002, 0x0001c800,
+		0x3f000000, 0x00000000, 0x00000000, 0x00000000,
+		/* INST 2: TEXR R3.xyz (TR0.xyzw), R0, texture[0] */
+		0x17000e06, 0x1c9dc800, 0x0001c800, 0x0001c800,
+		/* INST 3: TEXR R0.xyz (TR0.xyzw), R0.yyyy, texture[0] */
+		0x17000e00, 0x1c9caa00, 0x0001c800, 0x0001c800,
+		/* INST 4: MULR R1.xz (TR0.xyzw), R3.xxyy, { -1.00, 1.00, 0.00, 0.00 }.xxyy */
+		0x02000a02, 0x1c9ca00c, 0x0000a002, 0x0001c800,
+		0xbf800000, 0x3f800000, 0x00000000, 0x00000000,
+		/* INST 5: MULR R1.yw (TR0.xyzw), R0.xxyy, { -1.00, 1.00, 0.00, 0.00 }.xxyy */
+		0x02001402, 0x1c9ca000, 0x0000a002, 0x0001c800,
+		0xbf800000, 0x3f800000, 0x00000000, 0x00000000,
+		/* INST 6: ADDR R2 (TR0.xyzw), R2.xyxy, R1 */
+		0x03001e04, 0x1c9c8808, 0x0001c804, 0x0001c800,
+		/* INST 7: TEXR R0.x (TR0.xyzw), R2, texture[1] */
+		0x17020200, 0x1c9dc808, 0x0001c800, 0x0001c800,
+		/* INST 8: TEXR R1.y (TR0.xyzw), R2.xwxw, texture[1] */
+		0x17020402, 0x1c9d9808, 0x0001c800, 0x0001c800,
+		/* INST 9: TEXR R1.x (TR0.xyzw), R2.zyxy, texture[1] */
+		0x17020202, 0x1c9c8c08, 0x0001c800, 0x0001c800,
+		/* INST 10: LRPH R0.x (TR0.xyzw), R0.zzzz, R0, R1.yyyy */
+		0x1f400280, 0x1c9d5400, 0x0001c800, 0x0000aa04,
+		/* INST 11: TEXR R0.y (TR0.xyzw), R2.zwzz, texture[1] */
+		0x17020400, 0x1c9d5c08, 0x0001c800, 0x0001c800,
+		/* INST 12: LRPH R0.y (TR0.xyzw), R0.zzzz, R1.xxxx, R0 */
+		0x1f400480, 0x1c9d5400, 0x00000004, 0x0001c800,
+		/* INST 13: LRPH R0.x (TR0.xyzw), R3.zzzz, R0, R0.yyyy */
+		0x1f400280, 0x1c9d540c, 0x0001c900, 0x0000ab00,
+		/* INST 14: MADH R0.xyz (TR0.xyzw), R0.xxxx, { 1.16, -0.87, 0.53, -1.08 }.xxxx, { 1.16, -0.87, 0.53, -1.08 }.yzww */
+		0x04400e80, 0x1c9c0100, 0x00000002, 0x0001f202,
+		0x3f9507c8, 0xbf5ee393, 0x3f078fef, 0xbf8a6762,
+		/* INST 15: TEXR R1.yz (TR0.xyzw), attrib.texcoord[1], abs(texture[2]) */
+		0x1704ac02, 0x1c9dc801, 0x0001c800, 0x0001c800,
+		/* INST 16: MADH R0.xyz (TR0.xyzw), R1.yyyy, { 0.00, -0.39, 2.02, 0.00 }, R0 */
+		0x04400e80, 0x1c9caa04, 0x0001c802, 0x0001c900,
+		0x00000000, 0xbec890d6, 0x40011687, 0x00000000,
+		/* INST 17: MADH R0.xyz (TR0.xyzw), R1.zzzz, { 1.60, -0.81, 0.00, 0.00 }, R0 + END */
+		0x04400e81, 0x1c9d5404, 0x0001c802, 0x0001c900,
+		0x3fcc432d, 0xbf501a37, 0x00000000, 0x00000000,
+	}
+};
+
 nv_shader_t nv30_fp_yv12_bilinear = {
 	.card_priv.NV30FP.num_regs = 2,
 	.size = (8*4),
 	.data = {
-		/* INST 0: TEXR R0.x (TR0.xyzw), attrib.texcoord[0], abs(texture[0]) */
-		0x17008200, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
+		/* INST 0: TEXR R0.x (TR0.xyzw), attrib.texcoord[0], abs(texture[1]) */
+		0x17028200, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
 		/* INST 1: MADR R1.xyz (TR0.xyzw), R0.xxxx, { 1.16, -0.87, 0.53, -1.08 }.xxxx, { 1.16, -0.87, 0.53, -1.08 }.yzww */
 		0x04000e02, 0x1c9c0000, 0x00000002, 0x0001f202,
 		0x3f9507c8, 0xbf5ee393, 0x3f078fef, 0xbf8a6762,
-		/* INST 2: TEXR R0.yz (TR0.xyzw), attrib.texcoord[1], abs(texture[1]) */
-		0x1702ac80, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
+		/* INST 2: TEXR R0.yz (TR0.xyzw), attrib.texcoord[1], abs(texture[2]) */
+		0x1704ac80, 0x1c9dc801, 0x0001c800, 0x3fe1c800,
 		/* INST 3: MADR R1.xyz (TR0.xyzw), R0.yyyy, { 0.00, -0.39, 2.02, 0.00 }, R1 */
 		0x04000e02, 0x1c9cab00, 0x0001c802, 0x0001c804,
 		0x00000000, 0xbec890d6, 0x40011687, 0x00000000,

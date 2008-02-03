@@ -316,23 +316,25 @@ NV30EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 	BEGIN_RING(Nv3D, NV34TCL_TX_OFFSET(unit), 8);
 	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
-	OUT_RING  ((2 << 4) /* 2D */ |
-			(fmt->card_fmt << 8) |
-			(1 << 16) /* 1 mipmap level */ |
-			(log2i(pPix->drawable.width)  << 20) |
-			(log2i(pPix->drawable.height) << 24) |
-			9);
+	OUT_RING  (NV34TCL_TX_FORMAT_DIMS_2D |
+			(fmt->card_fmt << NV34TCL_TX_FORMAT_FORMAT_SHIFT) |
+			(1 << NV34TCL_TX_FORMAT_MIPMAP_LEVELS_SHIFT) |
+			(log2i(pPix->drawable.width)  << NV34TCL_TX_FORMAT_BASE_SIZE_U_SHIFT) |
+			(log2i(pPix->drawable.height) << NV34TCL_TX_FORMAT_BASE_SIZE_V_SHIFT) |
+			8 |
+			NV34TCL_TX_FORMAT_DMA0);
 
-	OUT_RING  ((card_repeat <<  0) /* S */ |
-			(card_repeat <<  8) /* T */ |
-			(card_repeat << 16) /* R */);
-	OUT_RING  (0x40000000); /* enable */
-	OUT_RING  ((((uint32_t)exaGetPixmapPitch(pPix))<<16) | fmt->card_swz);
+	OUT_RING  ((card_repeat << NV34TCL_TX_WRAP_S_SHIFT) |
+			(card_repeat << NV34TCL_TX_WRAP_T_SHIFT) |
+			(card_repeat << NV34TCL_TX_WRAP_R_SHIFT));
+	OUT_RING  (NV34TCL_TX_ENABLE_ENABLE);
+	OUT_RING  ((((uint32_t)exaGetPixmapPitch(pPix)) << NV34TCL_TX_SWIZZLE_RECT_PITCH_SHIFT ) | 
+			fmt->card_swz);
 
-	OUT_RING  ((card_filter << 16) /* min */ |
-			(card_filter << 24) /* mag */ |
+	OUT_RING  ((card_filter << NV34TCL_TX_FILTER_MINIFY_SHIFT) /* min */ |
+			(card_filter << NV34TCL_TX_FILTER_MAGNIFY_SHIFT) /* mag */ |
 			0x2000 /* engine lock */);
-	OUT_RING  ((pPix->drawable.width << 16) | pPix->drawable.height);
+	OUT_RING  ((pPix->drawable.width << NV34TCL_TX_NPOT_SIZE_W_SHIFT) | pPix->drawable.height);
 	OUT_RING  (0); /* border ARGB */
 
 	state->unit[unit].width		= (float)pPix->drawable.width;

@@ -1374,12 +1374,21 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		else 
 			{
 				if (action_flags & USE_TEXTURE) { /* Texture adapter */
-					int rval = NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
-							dstPitch, &dstBox,
-							0, 0, xb, yb,
-							npixels, nlines,
-							src_w, src_h, drw_w, drw_h,
-							clipBoxes, pDraw);
+					int rval;
+					if (pNv->Architecture == NV_ARCH_30)
+						rval = NV30PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
+								dstPitch, &dstBox,
+								0, 0, xb, yb,
+								npixels, nlines,
+								src_w, src_h, drw_w, drw_h,
+								clipBoxes, pDraw);
+					else if (pNv->Architecture == NV_ARCH_40)
+						rval = NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
+								dstPitch, &dstBox,
+								0, 0, xb, yb,
+								npixels, nlines,
+								src_w, src_h, drw_w, drw_h,
+								clipBoxes, pDraw);
 					if (rval != Success)
 						return rval;
 				} else { /* Blit adapter */
@@ -1878,6 +1887,86 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 }
 
 /**
+ * NV30 texture adapter.
+ */
+
+#define NUM_FORMAT_TEXTURED 2
+
+static XF86ImageRec NV30TexturedImages[NUM_FORMAT_TEXTURED] =
+{
+	XVIMAGE_YV12,
+	XVIMAGE_I420,
+};
+
+/**
+ * NV30SetupTexturedVideo
+ * this function does all the work setting up textured video port
+ * 
+ * @return texture port
+ */
+static XF86VideoAdaptorPtr
+NV30SetupTexturedVideo (ScreenPtr pScreen)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	XF86VideoAdaptorPtr adapt;
+	NVPortPrivPtr pPriv;
+	int i;
+
+	if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
+					sizeof(NVPortPrivRec) +
+					(sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
+		return NULL;
+	}
+
+	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
+	adapt->flags		= 0;
+	adapt->name		= "NV30 Texture adapter";
+	adapt->nEncodings	= 1;
+	adapt->pEncodings	= &DummyEncodingTex;
+	adapt->nFormats		= NUM_FORMATS_ALL;
+	adapt->pFormats		= NVFormats;
+	adapt->nPorts		= NUM_TEXTURE_PORTS;
+	adapt->pPortPrivates	= (DevUnion*)(&adapt[1]);
+
+	pPriv = (NVPortPrivPtr)(&adapt->pPortPrivates[NUM_TEXTURE_PORTS]);
+	for(i = 0; i < NUM_TEXTURE_PORTS; i++)
+		adapt->pPortPrivates[i].ptr = (pointer)(pPriv);
+
+	if(pNv->WaitVSyncPossible) {
+		adapt->pAttributes = NVTexturedAttributes;
+		adapt->nAttributes = NUM_TEXTURED_ATTRIBUTES;
+	} else {
+		adapt->pAttributes = NULL;
+		adapt->nAttributes = 0;
+	}
+
+	adapt->pImages			= NV30TexturedImages;
+	adapt->nImages			= NUM_FORMAT_TEXTURED;
+	adapt->PutVideo			= NULL;
+	adapt->PutStill			= NULL;
+	adapt->GetVideo			= NULL;
+	adapt->GetStill			= NULL;
+	adapt->StopVideo		= NV30StopTexturedVideo;
+	adapt->SetPortAttribute		= NV30SetTexturePortAttribute;
+	adapt->GetPortAttribute		= NV30GetTexturePortAttribute;
+	adapt->QueryBestSize		= NVQueryBestSize;
+	adapt->PutImage			= NVPutImage;
+	adapt->QueryImageAttributes	= NVQueryImageAttributes;
+
+	pPriv->videoStatus		= 0;
+	pPriv->grabbedByV4L	= FALSE;
+	pPriv->blitter			= FALSE;
+	pPriv->texture			= TRUE;
+	pPriv->doubleBuffer		= FALSE;
+	pPriv->SyncToVBlank	= FALSE;
+
+	pNv->textureAdaptor	= adapt;
+
+	return adapt;
+}
+
+/**
  * NV40 texture adapter.
  */
 
@@ -1939,8 +2028,8 @@ NV40SetupTexturedVideo (ScreenPtr pScreen)
 	adapt->GetVideo			= NULL;
 	adapt->GetStill			= NULL;
 	adapt->StopVideo		= NV40StopTexturedVideo;
-	adapt->SetPortAttribute		= NVSetTexturePortAttribute;
-	adapt->GetPortAttribute		= NVGetTexturePortAttribute;
+	adapt->SetPortAttribute		= NV40SetTexturePortAttribute;
+	adapt->GetPortAttribute		= NV40GetTexturePortAttribute;
 	adapt->QueryBestSize		= NVQueryBestSize;
 	adapt->PutImage			= NVPutImage;
 	adapt->QueryImageAttributes	= NVQueryImageAttributes;
@@ -1985,6 +2074,8 @@ void NVInitVideo (ScreenPtr pScreen)
 	if (pScrn->bitsPerPixel != 8 && pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
 		overlayAdaptor = NVSetupOverlayVideo(pScreen);
 		blitAdaptor    = NVSetupBlitVideo(pScreen);
+		if (pNv->Architecture == NV_ARCH_30)
+			textureAdaptor = NV30SetupTexturedVideo(pScreen);
 		if (pNv->Architecture == NV_ARCH_40)
 			textureAdaptor = NV40SetupTexturedVideo(pScreen);
 	}

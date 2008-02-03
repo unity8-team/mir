@@ -58,16 +58,19 @@ nouveau_drv_la_SOURCES = \
 			 nv_shadow.c \
 			 nv_type.h \
 			 nv_video.c \
+			 nv_crtc.c \
+			 nv_output.c \
+			 nv_i2c.c \
 			 nv04_video_overlay.c \
 			 nv04_video_blitter.c \
 			 nv10_exa.c \
 			 nv10_video_overlay.c \
+			 nv30_shaders.c \
+			 nv30_shaders.h \
 			 nv30_exa.c \
+			 nv30_video_texture.c \
 			 nv40_exa.c \
 			 nv40_video_texture.c \
-			 nv_crtc.c \
-			 nv_output.c \
-			 nv_i2c.c \
 			 nv50_cursor.c \
 			 nv50_crtc.c \
 			 nv50_dac.c \
@@ -80,7 +83,5 @@ nouveau_drv_la_SOURCES = \
 			 nv50_cursor.h \
 			 nv50_output.h \
 			 nv50reg.h \
-			 nv30_shaders.c \
-			 nv30_shaders.h \
 			 nv_pcicompat.h
 
