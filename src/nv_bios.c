@@ -540,7 +540,7 @@ int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	int delta, bestdelta = INT_MAX;
 	int bestclk = 0;
 
-	/* this division verified for nv20, nv28 (Haiku), nv34 -- nv17 is guessed */
+	/* this division verified for nv20, nv18, nv28 (Haiku), and nv34 */
 	/* possibly correlated with introduction of 27MHz crystal */
 	if (bios->chip_version <= 0x16 || bios->chip_version == 0x20) {
 		if (clk > 250000)
@@ -714,7 +714,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	if (oldpll == pll)
 		return;	/* already set */
 
-	/* FIXME needs verification on pre nv30 */
+	/* nv18 doesn't change POWERCTRL_1 for VPLL*; does gf4 need special-casing? */
 	if (bios->chip_version >= 0x17 && bios->chip_version != 0x20) {
 		switch (reg) {
 		case NV_RAMDAC_VPLL2:
@@ -3328,25 +3328,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	/* initialize all members to zero */
 	memset(pll_lim, 0, sizeof(struct pll_lims));
 
-	if (pll_lim_ver == 0) {
-		pll_lim->vco1.minfreq = bios->fminvco;
-		pll_lim->vco1.maxfreq = bios->fmaxvco;
-		pll_lim->vco1.min_n = 0x1;
-		pll_lim->vco1.max_n = 0xff;
-		pll_lim->vco1.min_m = 0x1;
-		if (crystal_straps == 0) {
-			/* nv05 does this, nv11 doesn't, nv10 unknown */
-			if (bios->chip_version < 0x11)
-				pll_lim->vco1.min_m = 0x7;
-			pll_lim->vco1.max_m = 0xd;
-		} else {
-			if (bios->chip_version < 0x11)
-				pll_lim->vco1.min_m = 0x8;
-			pll_lim->vco1.max_m = 0xe;
-		}
-		pll_lim->vco1.min_inputfreq = 0;
-		pll_lim->vco1.max_inputfreq = INT_MAX;
-	} else if (pll_lim_ver == 0x10) {
+	if (pll_lim_ver == 0x10) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex;
 
 		pll_lim->vco1.minfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs])));
@@ -3374,7 +3356,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 			pll_lim->vco2.max_n = 0x4;
 		pll_lim->vco2.min_m = 0x1;
 		pll_lim->vco2.max_m = 0x4;
-	} else {	/* ver 0x20, 0x21 */
+	} else if (pll_lim_ver) {	/* ver 0x20, 0x21 */
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 		uint32_t reg = 0; /* default match */
 		int i;
@@ -3451,6 +3433,30 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 					pll_lim->refclk = 25000;
 			}
 		}
+	}
+
+	/* By now any valid limit table ought to have set a max frequency for
+	 * vco1, so if it's zero it's either a pre limit table bios, or one
+	 * with an empty limit table (seen on nv18)
+	 */
+	if (!pll_lim->vco1.maxfreq) {
+		pll_lim->vco1.minfreq = bios->fminvco;
+		pll_lim->vco1.maxfreq = bios->fmaxvco;
+		pll_lim->vco1.min_n = 0x1;
+		pll_lim->vco1.max_n = 0xff;
+		pll_lim->vco1.min_m = 0x1;
+		if (crystal_straps == 0) {
+			/* nv05 does this, nv11 doesn't, nv10 unknown */
+			if (bios->chip_version < 0x11)
+				pll_lim->vco1.min_m = 0x7;
+			pll_lim->vco1.max_m = 0xd;
+		} else {
+			if (bios->chip_version < 0x11)
+				pll_lim->vco1.min_m = 0x8;
+			pll_lim->vco1.max_m = 0xe;
+		}
+		pll_lim->vco1.min_inputfreq = 0;
+		pll_lim->vco1.max_inputfreq = INT_MAX;
 	}
 
 	if (!pll_lim->refclk)
