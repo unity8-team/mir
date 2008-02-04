@@ -259,7 +259,7 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	}
 
 	float X1, X2, Y1, Y2;
-	PixmapPtr pPix = exaGetDrawablePixmap(pDraw);
+	PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
 	BoxPtr pbox;
 	int nbox;
 	int dst_format = 0;
