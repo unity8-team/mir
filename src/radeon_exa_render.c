@@ -935,7 +935,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 txenable, colorpitch;
-    /*CARD32 blendcntl, cblend, ablend;*/
+    CARD32 blendcntl;
     int pixel_shift;
     ACCEL_PREAMBLE();
 
@@ -975,6 +975,22 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     RADEON_SWITCH_TO_3D();
 
+    /* setup pixel shader */
+    BEGIN_ACCEL(12);
+    OUT_ACCEL_REG(R300_US_CONFIG, 0x8);
+    OUT_ACCEL_REG(R300_US_PIXSIZE, 0x0);
+    OUT_ACCEL_REG(R300_US_CODE_OFFSET, 0x40040);
+    OUT_ACCEL_REG(R300_US_CODE_ADDR_0, 0x0);
+    OUT_ACCEL_REG(R300_US_CODE_ADDR_1, 0x0);
+    OUT_ACCEL_REG(R300_US_CODE_ADDR_2, 0x0);
+    OUT_ACCEL_REG(R300_US_CODE_ADDR_3, 0x400000);
+    OUT_ACCEL_REG(R300_US_TEX_INST_0, 0x8000);
+    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0, 0x1f800000);
+    OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0, 0x50a80);
+    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0, 0x1800000);
+    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0, 0x00040889);
+    FINISH_ACCEL();
+
     BEGIN_ACCEL(6);
     OUT_ACCEL_REG(R300_TX_INVALTAGS, 0x0);
     OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
@@ -982,7 +998,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
     OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
 
-    OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, 0x0);
+    blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
+    OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl);
     OUT_ACCEL_REG(R300_RB3D_ABLENDCNTL, 0x0);
 
 #if 0
