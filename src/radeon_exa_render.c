@@ -1037,7 +1037,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 }
 
 #define VTX_COUNT 6
-#define R300_VTX_COUNT 4
 
 #ifdef ACCEL_CP
 
@@ -1051,14 +1050,6 @@ do {								\
     OUT_RING_F(_maskY);						\
 } while (0)
 
-#define VTX_OUT4(_dstX, _dstY, _srcX, _srcY)	                \
-do {								\
-    OUT_RING_F(_dstX);						\
-    OUT_RING_F(_dstY);						\
-    OUT_RING_F(_srcX);						\
-    OUT_RING_F(_srcY);						\
-} while (0)
-
 #else /* ACCEL_CP */
 
 #define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
@@ -1069,14 +1060,6 @@ do {								\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);		\
-} while (0)
-
-#define VTX_OUT4(_dstX, _dstY, _srcX, _srcY)	                \
-do {								\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
-    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
 } while (0)
 
 #endif /* !ACCEL_CP */
@@ -1111,8 +1094,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 
     ENTER_DRAW(0);
 
-    /*ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
-          srcX, srcY, maskX, maskY,dstX, dstY, w, h);*/
+    /* ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
+       srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
 
     srcXend = srcX + w;
     srcYend = srcY + h;
@@ -1150,7 +1133,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	transformPoint(transform[1], &maskBottomRight);
     }
 
-    vtx_count = (info->ChipFamily >= CHIP_FAMILY_R300) ? R300_VTX_COUNT : VTX_COUNT;
+    vtx_count = VTX_COUNT;
 
     if (IS_R300_VARIANT) {
 	BEGIN_ACCEL(1);
@@ -1208,22 +1191,6 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	VTX_OUT(dstX,     dstY + h,   srcX,     srcYend,  maskX,    maskYend);
 	VTX_OUT(dstX + w, dstY + h,   srcXend,  srcYend,  maskXend, maskYend);
 	VTX_OUT(dstX + w, dstY,	      srcXend,  srcY,     maskXend, maskY);
-    } else if (IS_R300_VARIANT) {
-	VTX_OUT4((float)dstX, (float)dstY,
-		 xFixedToFloat(srcTopLeft.x) / info->texW[0],
-		 xFixedToFloat(srcTopLeft.y) / info->texH[0]);
-
-	VTX_OUT4((float)dstX, (float)(dstY + h),
-		 xFixedToFloat(srcBottomLeft.x) / info->texW[0],
-		 xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
-
-	VTX_OUT4((float)(dstX + w), (float)(dstY + h),
-		 xFixedToFloat(srcBottomRight.x) / info->texW[0],
-		 xFixedToFloat(srcBottomRight.y) / info->texH[0]);
-
-	VTX_OUT4((float)(dstX + w), (float)dstY,
-		 xFixedToFloat(srcTopRight.x) / info->texW[0],
-		 xFixedToFloat(srcTopRight.y) / info->texH[0]);
     } else {
 	VTX_OUT((float)dstX,                                      (float)dstY,
 	        xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
