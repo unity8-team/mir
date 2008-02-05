@@ -612,6 +612,7 @@ i830_enable_fb_compression_8xx(xf86CrtcPtr crtc)
     OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr + 6);
     OUTREG(FBC_CONTROL2, FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_FULL |
 	   FBC_CTL_CPU_FENCE | plane);
+    OUTREG(FBC_FENCE_OFF, crtc->y);
 
     /* Zero buffers */
     memset(pI830->FbBase + pI830->compressed_front_buffer->offset, 0,

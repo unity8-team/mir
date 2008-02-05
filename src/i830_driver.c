@@ -1932,6 +1932,7 @@ SaveHWState(ScrnInfoPtr pScrn)
        pI830->saveFBC_LL_BASE = INREG(FBC_LL_BASE);
        pI830->saveFBC_CONTROL2 = INREG(FBC_CONTROL2);
        pI830->saveFBC_CONTROL = INREG(FBC_CONTROL);
+       pI830->saveFBC_FENCE_OFF = INREG(FBC_FENCE_OFF);
    }
 
    /* Save video mode information for native mode-setting. */
@@ -2212,6 +2213,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    if (pI830->fb_compression) {
        OUTREG(FBC_CFB_BASE, pI830->saveFBC_CFB_BASE);
        OUTREG(FBC_LL_BASE, pI830->saveFBC_LL_BASE);
+       OUTREG(FBC_FENCE_OFF, pI830->saveFBC_FENCE_OFF);
        OUTREG(FBC_CONTROL2, pI830->saveFBC_CONTROL2);
        OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
    }

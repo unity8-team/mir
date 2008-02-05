@@ -616,6 +616,7 @@ typedef struct _I830Rec {
    CARD32 saveFBC_LL_BASE;
    CARD32 saveFBC_CONTROL2;
    CARD32 saveFBC_CONTROL;
+   CARD32 saveFBC_FENCE_OFF;
 
    enum last_3d *last_3d;
 
