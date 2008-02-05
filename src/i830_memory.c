@@ -274,12 +274,16 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	I830Ptr pI830 = I830PTR(pScrn);
 
 	drmBOUnreference(pI830->drmSubFD, &mem->bo);
-	if (pI830->bo_list == mem)
+	if (pI830->bo_list == mem) {
 	    pI830->bo_list = mem->next;
-	if (mem->next)
-	    mem->next->prev = NULL;
-	if (mem->prev)
-	    mem->prev->next = NULL;
+	    if (mem->next)
+		mem->next->prev = NULL;
+	} else {
+	    if (mem->prev)
+		mem->prev->next = mem->next;
+	    if (mem->next)
+		mem->next->prev = mem->prev;
+	}
 	xfree(mem->name);
 	xfree(mem);
 	return;
