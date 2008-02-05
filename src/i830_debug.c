@@ -192,9 +192,9 @@ DEBUGSTRING(i830_debug_dpll)
 	    p1 = ffs((val & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 		     DPLL_FPA01_P1_POST_DIV_SHIFT);
 	    if ((INREG(LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
-		p2 = I8XX_P2_LVDS_SLOW;
+		p2 = 7;
 	    else
-		p2 = I8XX_P2_LVDS_FAST;
+		p2 = 14;
 
 	} else {
 	    mode = "DAC/serial";
