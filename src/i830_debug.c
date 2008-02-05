@@ -693,6 +693,19 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 		xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "p1 out of range\n");
 		break;
 	    }
+	    
+	    switch ((dpll >> 13) & 0x3) {
+	    case 0:
+		ref = 96000;
+		break;
+	    case 3:
+		ref = 100000;
+		break;
+	    default:
+		ref = 0;
+		xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "ref out of range\n");
+		break;
+	    }
 	}
 	else
 	{
@@ -730,18 +743,19 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 		else
 		    p1 = ((dpll >> 16) & 0x3f) + 2;
 	    }
-	}
-	switch ((dpll >> 13) & 0x3) {
-	case 0:
-	    ref = 96000;
-	    break;
-	case 3:
-	    ref = 100000;
-	    break;
-	default:
-	    ref = 0;
-	    xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "ref out of range\n");
-	    break;
+
+	    switch ((dpll >> 13) & 0x3) {
+	    case 0:
+		ref = 48000;
+		break;
+	    case 3:
+		ref = 66000;
+		break;
+	    default:
+		ref = 0;
+		xf86DrvMsg (pScrn->scrnIndex, X_WARNING, "ref out of range\n");
+		break;
+	    }
 	}
 	if (IS_I965G(pI830)) {
 	    phase = (dpll >> 9) & 0xf;
