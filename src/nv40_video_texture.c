@@ -144,7 +144,11 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 		break;
 		case 2:
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8L8;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+		card_swz = SWIZZLE(S1, S1, S1, S1, Z, W, X, Y); /* x = V, y = U */
+#else
 		card_swz = SWIZZLE(S1, S1, S1, S1, W, Z, Y, X); /* x = V, y = U */
+#endif
 		break;
 	}
 
