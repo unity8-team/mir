@@ -155,11 +155,12 @@ static void NVWritePVIO(xf86CrtcPtr crtc, uint32_t address, uint8_t value)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + NV_PVIO_OFFSET + (nv_crtc->head ? NV_PVIO_SIZE : 0), value);
 	/* Only NV4x have two pvio ranges */
 	if (nv_crtc->head == 1 && pNv->Architecture == NV_ARCH_40) {
+		DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + NV_PVIO_OFFSET + NV_PVIO_SIZE, value);
 		NV_WR08(pNv->PVIO1, address, value);
 	} else {
+		DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + NV_PVIO_OFFSET, value);
 		NV_WR08(pNv->PVIO0, address, value);
 	}
 }
