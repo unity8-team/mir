@@ -722,7 +722,8 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
 
     /* Here we disable it to catch one->two pipe enabled configs */
     if (count > 1) {
-	i830_disable_fb_compression(crtc);
+	if (i830_fb_compression_supported(pI830))
+	    i830_disable_fb_compression(crtc);
 	return FALSE;
     }
 
