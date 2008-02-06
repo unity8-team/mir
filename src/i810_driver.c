@@ -152,6 +152,7 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_GM, 0 ),
     { 0, 0, 0 },
 };
 
@@ -204,6 +205,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
+   {PCI_CHIP_IGD_GM,		"Intel Integrated Graphics Device"},
    {-1,				NULL}
 };
 
@@ -233,6 +235,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
+   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -796,6 +799,7 @@ I810Probe(DriverPtr drv, int flags)
  	    case PCI_CHIP_G33_G:
  	    case PCI_CHIP_Q35_G:
  	    case PCI_CHIP_Q33_G:
+ 	    case PCI_CHIP_IGD_GM:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		
@@ -950,7 +954,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    pScrn->monitor = pScrn->confScreen->monitor;
 
    flags24 = Support24bppFb | PreferConvert32to24 | SupportConvert32to24;
-   if (!xf86SetDepthBpp(pScrn, 0, 0, 0, flags24)) {
+   if (!xf86SetDepthBpp(pScrn, 16, 0, 16, flags24)) {
       return FALSE;
    } else {
       switch (pScrn->depth) {

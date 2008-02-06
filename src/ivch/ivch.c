@@ -358,7 +358,7 @@ ivch_restore(I2CDevPtr d)
 }
 
 
-I830I2CVidOutputRec ivch_methods = {
+_X_EXPORT I830I2CVidOutputRec ivch_methods = {
     .init = ivch_init,
     .dpms = ivch_dpms,
     .save = ivch_save,

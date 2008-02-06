@@ -616,6 +616,7 @@ typedef struct _I830Rec {
    CARD32 saveFBC_LL_BASE;
    CARD32 saveFBC_CONTROL2;
    CARD32 saveFBC_CONTROL;
+   CARD32 saveFBC_FENCE_OFF;
 
    enum last_3d *last_3d;
 
@@ -836,6 +837,7 @@ extern const int I830CopyROP[16];
 #define QUIRK_IGNORE_TV			0x00000001
 #define QUIRK_IGNORE_LVDS		0x00000002
 #define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
+#define QUIRK_PIPEA_FORCE		0x00000008
 extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */
