@@ -50,6 +50,7 @@
 #include "config.h"
 #endif
 
+#include <inttypes.h>
 #include <math.h>
 #include <string.h>
 #include <assert.h>
@@ -462,7 +463,8 @@ i830_overlay_continue(ScrnInfoPtr pScrn, Bool update_filter)
 	flip_addr = pI830->overlay_regs->bus_addr;
     if (update_filter)
 	flip_addr |= OFC_UPDATE;
-    OVERLAY_DEBUG ("overlay_continue cmd 0x%08lx -> 0x%08lx sta 0x%08lx\n",
+    OVERLAY_DEBUG ("overlay_continue cmd 0x%08" PRIx32 " -> 0x%08" PRIx32
+		   " sta 0x%08" PRIx32 "\n",
 		   overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
     BEGIN_LP_RING(4);
     OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
@@ -502,7 +504,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
      */
     {
 	overlay->OCMD &= ~OVERLAY_ENABLE;
-	OVERLAY_DEBUG ("overlay_off cmd 0x%08lx -> 0x%08lx sta 0x%08lx\n",
+	OVERLAY_DEBUG ("overlay_off cmd 0x%08" PRIx32 " -> 0x%08" PRIx32 " sta 0x%08" PRIx32 "\n",
 		       overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
 	BEGIN_LP_RING(6);
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
@@ -674,7 +676,7 @@ I830ResetVideo(ScrnInfoPtr pScrn)
     {
 	int i;
 	for (i = 0x30000; i < 0x31000; i += 4)
-	    ErrorF("0x%x 0x%lx\n", i, INREG(i));
+	    ErrorF("0x%x 0x%" PRIx32 "\n", i, INREG(i));
     }
 #endif
 }
@@ -1904,7 +1906,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	overlay->OBUF_1V = pPriv->VBuf1offset;
     }
 
-    OVERLAY_DEBUG("pos: 0x%lx, size: 0x%lx\n",
+    OVERLAY_DEBUG("pos: 0x%" PRIx32 ", size: 0x%" PRIx32 "\n",
 		  overlay->DWINPOS, overlay->DWINSZ);
     OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
 
@@ -2066,7 +2068,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	OCMD |= BUFFER1;
 
     overlay->OCMD = OCMD;
-    OVERLAY_DEBUG("OCMD is 0x%lx\n", OCMD);
+    OVERLAY_DEBUG("OCMD is 0x%" PRIx32 "\n", OCMD);
 
     /* make sure the overlay is on */
     i830_overlay_on (pScrn);
