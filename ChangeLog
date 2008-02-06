@@ -1,3 +1,765 @@
+commit 0516e708abf01d1f83e2e8af9abe4c835ed79444
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 17:39:26 2008 -0800
+
+    Fix version bump, should have been 2.2.0.90
+
+commit 44628efffa6e84e810a26cd201f7312793b5cf63
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 17:35:54 2008 -0800
+
+    Bump version to 2.2.1.90 for 2.2.1 pre-release
+
+commit 4398c0a163b348ccca15d705fcad5bc27604919a
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 17:09:19 2008 -0800
+
+    Fix build warnings on 64 bit
+    
+    Use PRIx32 for printing CARD32 types, and PRIx64 for portably printing uint64_t
+    types.  Requires the addition of a new include, inttypes.h, to work.  Hope C99
+    is ok with everybody...
+
+commit f4d8a5bb6c6a84d6b90157d2e25564dc68bfb7bf
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 17:31:58 2008 -0800
+
+    Fix typo in merge
+    
+    Left a conflict line in...
+
+commit 52557ecc6df12d02b9808895394ca12702373e9b
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 17:30:48 2008 -0800
+
+    Only enable FBC if one pipe is active
+    
+    Some chips can't support FBC if multiple pipes are active.  So if more than one
+    pipe is on or we're going from one->two pipes enabled, make sure FBC is
+    disabled.
+    
+    Intended to fix 13418, 13326, 13152.
+    
+    Conflicts:
+    
+    	src/i830_display.c - don't pull in FBC2 code
+
+commit e9cb38e25619aa8eb1b7faac5fa3749e4e993997
+Author: liuhong <liuhong@devlinux-hong.sh.intel.com>
+Date:   Tue Feb 5 11:04:34 2008 +0800
+
+    xf86-video-intel: fix ivch using wrong dvo register
+    
+    We use the wrong DVO output register for ivch which is used for DVO LVDS.
+    Vbios enables DVOB and driver never touches it, so everything seems
+    working correctly now.
+
+commit 02d12583e313898a5f14ff968ac4360bce3eff3d
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Feb 5 11:36:24 2008 -0800
+
+    Program FBC fence offset register
+    
+    Just a partial fix for some of the FBC issues people have been seeing.  The
+    other half is to disable FBC if both pipes are running.
+
+commit 58cb85a7e4c760adc78128bdf605b7885ac32538
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Feb 5 10:34:55 2008 +0800
+
+    Fix last commit on i8xx debug p2 value
+
+commit 7e6b43960979829946669314d6523573f79e207d
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Tue Feb 5 09:10:48 2008 +0800
+
+    Fix PLL reference clk debug dump
+
+commit a70b59bd44d14e77c9e522dbe225b62a8bcf3050
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Tue Feb 5 09:06:14 2008 +0800
+
+    Allow non-strict free order for bo_list
+
+commit fa841fd05bdebb991f4e4db201e6a260557e2dad
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Tue Feb 5 08:58:44 2008 +0800
+
+    Bug 10584: Mac Mini EDID data assigned to TMDS output
+    
+    EDID data for TMDS output got from crt should be applied
+    to TMDS output on mac mini.
+
+commit 4e5c7ad8bdee98bd23a7066f57d0942e64a415fd
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Mon Feb 4 17:14:23 2008 +0800
+
+    Bug 10773: fix i8xx pll p2 value in i830_crtc_clock_get()
+    
+    Also fix debug dump, slightly modified to use macro instead.
+
+commit ba619ef92b1b1303d8cf76ebd68dea978d17eb7a
+Author: Paulo Cesar Pereira de Andrade <pcpa@mandriva.com>
+Date:   Thu Jan 31 22:47:18 2008 -0200
+
+    Make sure symbols used by other modules are public.
+    
+    These symbols must be explicitly exported, otherwise if compiled with
+    hidden symbols, LoaderSymbol (and dlopen) will fail to find them.
+
+commit 25f4e1729a3447c6288b4acde99f733833661425
+Author: Mark Kettenis <mark.kettenis@xs4all.nl>
+Date:   Thu Jan 31 21:02:48 2008 -0800
+
+    Bug #14246: Fix biuld on OpenBSD.
+
+commit 48eac1a03785c6a795193bb884b2c23dcd5b815b
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 31 18:26:46 2008 +0800
+
+    Don't crash if SW cursor
+    
+    In case of device option or hw cursor allocation fails.
+
+commit 103dc34f3afc17cea7e086927e124a30c605a686
+Merge: ae833b8... 5d9e67a...
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Jan 25 11:10:42 2008 +0800
+
+    Merge branch 'master' into xf86-video-intel-2.2-branch
+
+commit ae833b82867a14c82ab8054cd0e4e4baaa908bc1
+Merge: 8661ef9... 6bf53eb...
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Jan 25 17:17:07 2008 +0800
+
+    Merge branch 'master' into xf86-video-intel-2.2-branch
+
+commit 6bf53eb48f40ad0c8ea9679ee634447410821b4f
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Jan 25 16:59:13 2008 +0800
+
+    Set vtSema before EnterVT
+    
+    Which was missing in our ScreenInit and initial EnterVT.
+    This not only causes failure in initial rotation with TTM,
+    as we won't bind in rotate_mem alloc in this case, and hide
+    another bug that we call randr12 function in I830LoadPalete
+    before we call xf86RandR12Init.
+
+commit 5d9e67aec3ce458d22b7febd3819542abb360534
+Author: Erik Andren <erik.andren@gmail.com>
+Date:   Fri Jan 25 11:06:01 2008 +0800
+
+    Clevo M720R has no TV-out
+
+commit 94a18fa1f8141837bdab32e545da7a7aed1cc396
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Thu Jan 24 15:24:40 2008 +0100
+
+    Don't build reg_dumper if we don't have pciaccess 0.10.0
+    
+    The pci_device_map_range() function was added in libpciaccess 0.10.0, and
+    is used by the reg_dumper tool.  Don't try to build it if we have an older
+    libpciaccess.
+    Also make sure that util-macros >= 1.1.3 is available when running autoconf,
+    because it's required for the PACKAGE_VERSION_* macros.
+
+commit 8661ef9db6a01b3d604b8e55c0e494adc50cb503
+Merge: 81986bb... d341e41...
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 24 10:41:26 2008 +0800
+
+    Merge branch 'master' into xf86-video-intel-2.2-branch
+
+commit d341e41c863f1212bf2c6b84782a7e472b6612a1
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 24 10:40:18 2008 +0800
+
+    Clear shadow memory after allocation
+
+commit 88a1041c5361964d37107c22d77feaa1b2160656
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 24 10:36:06 2008 +0800
+
+    Fix i830 block handler wrap
+    
+    which was observed in rotation crash with stack overflow.
+
+commit 81986bb35c9aea03665abc491d88ef3ab2db8de4
+Merge: c35ab31... db0a7c5...
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 24 08:51:48 2008 +0800
+
+    Merge branch 'master' into xf86-video-intel-2.2-branch
+
+commit db0a7c569e383436a2725e1e74f35fb426da1196
+Author: Andreas Stawinoga <a.stawinoga@gmx.de>
+Date:   Thu Jan 24 08:51:09 2008 +0800
+
+    Samsung Q45 has no TV output
+
+commit c35ab31893c9b2cf93e0b0d3c4d93b5830d39b29
+Merge: 79ea745... f54bba7...
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Mon Jan 21 09:43:38 2008 -0800
+
+    Merge branch 'master' into xf86-video-intel-2.2-branch
+
+commit f54bba7600647c76fe3bd2d0133edc06dbea6a05
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Jan 22 00:48:23 2008 +0800
+
+    Add missing i830M and 845G pci ids info
+
+commit 633dbd28218fd8a746c1735fd44a14f35bd07faa
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Thu Jan 17 22:34:21 2008 +0800
+
+    Bug 14032: i810, set default depth to 16
+    
+    X fails to start without an xorg.conf on i810, because the default depth set by
+    the server (32) is not supported by the driver.  I think the driver should
+    default to 16 bits (it supports 24, but when I tested it that didn't seem to
+    work very well, and dri is disabled at 24 bits depth anyway) instead of letting
+    the server use 32 and failing later on.
+
+commit 4fec18e07f2b23306e885d63c74661ae0e4b04d9
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Fri Jan 11 10:28:59 2008 -0800
+
+    Turn on backlight when LVDS panel is powered up
+    
+    In some configurations, the LVDS may be off at startup along with the
+    backlight.  So when turning the LVDS on for the first time, we may also need to
+    set the backlight to a non-zero value.  So try to use the saved value if
+    possible, but if it's zero, make the backlight full brightness when turning on
+    the LVDS.
+    
+    Note that this is slightly sub-optimal for configurations where zero is a valid backlight brightness.
+    
+    Fixes fdo bz #13958.
+
+commit 79ea745d86b3a3959ce52a4744d0469a55544b31
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Jan 10 14:25:18 2008 -0800
+
+    Remove unnecessary quirk code in CRT probing
+    
+    Since we return early in the CRTC DPMS code, keeping the pipes & clocks
+    enabled, this code is no longer necessary.  As an added bonus, VGA connections
+    should be reported correctly even when the pipe A quirk is active.
+    
+    Updates fix for fdo bz #11432.
+
+commit b5cf8faf8102e6313c23de87a680cc327ac95478
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Jan 10 14:25:18 2008 -0800
+
+    Remove unnecessary quirk code in CRT probing
+    
+    Since we return early in the CRTC DPMS code, keeping the pipes & clocks
+    enabled, this code is no longer necessary.  As an added bonus, VGA connections
+    should be reported correctly even when the pipe A quirk is active.
+    
+    Updates fix for fdo bz #11432.
+
+commit 7ce566c0005d9bb9394f7c730c38210e0ae7f00d
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Jan 3 11:16:15 2008 -0800
+
+    Fix compilation error when not using DRI
+    
+    This patch complements 88f8b688e2316ae4a1f7485f0010ce90de54783a which
+    added uint64_t typed variables to avoid unsigned long overflows in
+    32-bit architectures but didn't include <stdint.h> with the required
+    definition.
+    
+    When XF86DRI and _XF86DRI_SERVER_ are defined this header gets
+    indirectly included through "i830_dri.h", thanks to "i830_common.h"
+    which masquerades this problem as released in 2.1.0 and that manifests
+    with :
+    
+    In file included from i810_driver.c:88:
+    i830.h:137: error: expected specifier-qualifier-list before 'uint64_t'
+    i830.h:240: error: expected specifier-qualifier-list before 'uint64_t'
+    
+    Patch from Carlo Marcelo Arenas Belon <carenas@sajinet.com.pe>
+
+commit c8be857cc93aa9f4bd9315c2b0e5459625ef7a4b
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Jan 4 15:01:25 2008 -0800
+
+    Don't modify low bit of BLC_PWM_CTL when using combo backlight control
+    
+    On some platforms, the low bit of BLC_PWM_CTL is wired as a 'max brightness'
+    flag, rather than a regular part of the backlight duty cycle.  So when in the
+    combo mode, divide the total number of backlight levels available by two
+    (tossing one bit) and adjust the programming in the set_brightness routine.
+    
+    Note that platforms with this behavior may need quirks added so that they work
+    by default.
+
+commit 9d0a8c38f8210c9af6ade6af1375655170e0ab2e
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Jan 9 09:47:38 2008 -0800
+
+    Add pipe A force enable quirk
+    
+    On some platforms, the firmware may read & write GPU registers on lid close,
+    suspend/resume time or during various SMM events.  If one of the graphics pipes
+    is disabled at that time, the GPU may hang due to the programming dependencies
+    of the various registers.
+    
+    This patch adds a quirk to force the driver to keep pipe A enabled if
+    necessary, through user configuration in xorg.conf or via a platform specific
+    quirk.  Leaving the pipe enabled comes at a power cost however, so the quirk
+    should only be enabled when strictly necessary.
+    
+    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=11432.
+
+commit 3c22ed633be2ac96eea7bc533839e956f1f31b84
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Jan 9 09:47:38 2008 -0800
+
+    Add pipe A force enable quirk
+    
+    On some platforms, the firmware may read & write GPU registers on lid close,
+    suspend/resume time or during various SMM events.  If one of the graphics pipes
+    is disabled at that time, the GPU may hang due to the programming dependencies
+    of the various registers.
+    
+    This patch adds a quirk to force the driver to keep pipe A enabled if
+    necessary, through user configuration in xorg.conf or via a platform specific
+    quirk.  Leaving the pipe enabled comes at a power cost however, so the quirk
+    should only be enabled when strictly necessary.
+    
+    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=11432.
+
+commit d3b41bcf231a6ffd289c128c06aa619f554a776c
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 9 21:28:25 2008 +0800
+
+    Disable frame buffer compression on new chipset now.
+
+commit 2f0c0427dc4113bac64cda07c6365df1f0637697
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 9 21:27:42 2008 +0800
+
+    Update PIPELINE_SELECT instruction and surface state format for new chipset
+
+commit 139e9affdd49dcbe08e260a0a2bd001de16566e6
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 9 21:26:57 2008 +0800
+
+    GTT access change for new integrated graphics device
+
+commit 4f288ff2d1e7d28bf49167f073fbce21492a7c32
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 9 21:25:47 2008 +0800
+
+    Add new integrated graphics chipset ids
+
+commit f089942689df622b1af00569eade4883a84eb7a3
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jan 3 11:28:18 2008 +0800
+
+    Change origin i965G_1 to chipset market name G35.
+
+commit 71143200ed66cb9dcc1f9edf98128be80b05619c
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Jan 4 15:01:25 2008 -0800
+
+    Don't modify low bit of BLC_PWM_CTL when using combo backlight control
+    
+    On some platforms, the low bit of BLC_PWM_CTL is wired as a 'max brightness'
+    flag, rather than a regular part of the backlight duty cycle.  So when in the
+    combo mode, divide the total number of backlight levels available by two
+    (tossing one bit) and adjust the programming in the set_brightness routine.
+    
+    Note that platforms with this behavior may need quirks added so that they work
+    by default.
+
+commit b434bf4029d1a405216454629bcea717c779ae5a
+Author: hulifox008 <hulifox008@163.com>
+Date:   Fri Jan 4 02:46:54 2008 -0800
+
+    Fix copy'n'paste-o in unused airlied i2c code.
+
+commit f2ffc0f6e038357dda268363e52c11ada1d0b810
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Jan 3 11:16:15 2008 -0800
+
+    Fix compilation error when not using DRI
+    
+    This patch complements 88f8b688e2316ae4a1f7485f0010ce90de54783a which
+    added uint64_t typed variables to avoid unsigned long overflows in
+    32-bit architectures but didn't include <stdint.h> with the required
+    definition.
+    
+    When XF86DRI and _XF86DRI_SERVER_ are defined this header gets
+    indirectly included through "i830_dri.h", thanks to "i830_common.h"
+    which masquerades this problem as released in 2.1.0 and that manifests
+    with :
+    
+    In file included from i810_driver.c:88:
+    i830.h:137: error: expected specifier-qualifier-list before 'uint64_t'
+    i830.h:240: error: expected specifier-qualifier-list before 'uint64_t'
+    
+    Patch from Carlo Marcelo Arenas Belon <carenas@sajinet.com.pe>
+
+commit 83d304c61ad5fdc58b0a9309dbd1e5a3f6cd9b01
+Author: Nanhai Zou <nanhai.zou@intel.com>
+Date:   Wed Jan 2 10:50:44 2008 +0800
+
+    TV: fix 576p refresh rate
+
+commit 96246c27cb836bae8ee02c46c68a1f2102efd14b
+Author: Joakim <elupus@ecce.se>
+Date:   Thu Dec 27 17:09:02 2007 +0800
+
+    Aopen Minipc 965GM LVDS quirk
+
+commit f69b48fe24ef94dac44b8123884ca71df675be4b
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Dec 18 18:10:33 2007 -0800
+
+    Unconditionally restore pipe configuration
+    
+    This is a partial fix for #13196, which covers both leaving pipes disabled at
+    server exit time and problems with restoring the pipe configuration on certain
+    chipsets.  It restores the pipe configuration unconditionally (previously we
+    made sure the PLL was running and we weren't in VGA mode) but also adds some
+    additional PLL settle time to the PLL register write paths.
+
+commit 4757a218d733af12d04674455fc6e1fad48a1cd0
+Author: Michel Dänzer <michel@tungstengraphics.com>
+Date:   Tue Dec 18 19:37:46 2007 +0100
+
+    Always set pPriv->buf to NULL after freeing the memory it pointed to.
+    
+    Fixes https://bugs.freedesktop.org/show_bug.cgi?id=13108 .
+
+commit 5cbb4110116f6d4187fd27660a78203caa1da46b
+Author: Adam Jackson <ajax@redhat.com>
+Date:   Thu Dec 13 15:10:43 2007 -0500
+
+    i830_sdvo_mode_valid: Fix return values to match what we actually check.
+
+commit e03bc385e924222d3d5f3c9a8d65e1ef63b858dc
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Dec 11 13:28:01 2007 -0800
+
+    Add cscope files to .gitignore
+
+commit e720ae4476c3f986f623ce0f0ab9775b8b9b7e05
+Author: Jesse Barnes <jbarnes@jbarnes-mobile.amr.corp.intel.com>
+Date:   Mon Dec 10 13:00:14 2007 -0800
+
+    CRT hotplug detection improvements
+    
+    Patch from Hong Liu.
+    
+    Fixup CRT detection by making sure the pipe is enabled before CRT
+    detection actually occurs.  Fixes bugs Hong was seeing on G35 and other
+    machines.
+
+commit d9df93578b74785c08ba860b4c9aa23b0c89c91c
+Author: Dave Airlie <airlied@linux.ie>
+Date:   Mon Dec 10 16:41:24 2007 +1000
+
+    ivch: fails on address mismatch as I seem to get this on my 865 system
+
+commit cd6f83519c69f72f146fea59afbd6a3542da783a
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Dec 10 05:49:58 2007 +0800
+
+    Fix tv quirk for Dell Latitude X1
+    
+    which is actually 915GM, reported by
+    Andreas Schildbach <andreas@schildbach.de>
+
+commit 13ec9c8141a9f794258869a04a6bab59dac5eefa
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Sun Dec 9 00:52:13 2007 +0800
+
+    exa: fix rendering issue on some 855GM laptops
+    
+    This trys to initialize more 3d states on i830 like mesa
+    code, which fixes exa rendering failure for some 855GM users.
+
+commit e2d9fd6425584119f28768d85c4b7d106ecf8742
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Dec 7 16:30:46 2007 -0800
+
+    Describe output properties in more detail
+    
+    Add descriptions for LVDS and TV output properties and also mention the EDID
+    property a new output configuration section.
+
+commit 6f92200db39a790c95c1fac64baf0bd41a70e481
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Dec 5 08:10:17 2007 -0800
+
+    Fix backlight setting save/restore
+    
+    We need to save the current backlight value at LVDS init time, as well as when
+    we change the DPMS setting.  Also, since 0 is a valid backlight value, don't
+    set the backlight value to maximum at startup if the value happens to be zero.
+    
+    These fixes should make the backlight user experience much more consistent and
+    hopefully less frustrating.
+
+commit 4c1fa5235555c9ef3de1eebd006c4e91283362bf
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Dec 4 18:27:24 2007 -0800
+
+    Add BCM_ to backlight control method enums
+    
+    Avoids polluting the global namespace with such generic terms.
+
+commit 30d74f1b1f30e751d2c47aa63a4a2043e71467dc
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Dec 4 18:23:44 2007 -0800
+
+    Use "LEGACY" backlight method if backlight control is such
+    
+    This may regress the user experience a bit (fewer backlight levels) on machines
+    where both the LBB and native registers work, but it's better that it work for
+    everyone than work extra well for some and not at all for others.
+
+commit 0e554e6dd4da56be24d2f971ff4cd4d585936724
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Dec 4 10:32:45 2007 -0800
+
+    Remove extra have_libpciaccess=no that broke tools build with old servers.
+
+commit 75ef3e669dac1259d282dcc8f54b197fc19f22b3
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 28 22:13:55 2007 +0800
+
+    Replace ALLOCATE_LOCAL/DEALLOCATE_LOCAL with xalloc/xfree
+
+commit 7f9cefffbf44a2d07b51cc13aaf2d54fcd8f2f22
+Author: Alan Hourihane <alanh@tungstengraphics.com>
+Date:   Fri Nov 16 15:56:08 2007 +0000
+
+    vendor is CARD8
+
+commit 4a2b0f340357c4ca58dc9586fad1337b83966362
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 15 18:36:54 2007 -0800
+
+    Fix typo in 1920x1080 resolution entry
+
+commit 04b60b6d3436fb57163c23acf335364f0ea2f79c
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 15 11:49:53 2007 -0800
+
+    Bump version to 2.2.0
+
+commit 6eecef4fed8a21dfdabef42eb69fd150b96167b2
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 15 10:10:59 2007 -0800
+
+    Adjust default TV out paramaters
+    
+    According to several users, a default brightness of 0 results in much better TV
+    output.  Improved control of these parameters will be provided by Randr1.3,
+    which will standardize several output properties across various chips.
+
+commit 7552d80e367fe38bbc594fe94abd649917fe54d5
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Nov 15 10:07:34 2007 -0800
+
+    Add 1920x1080 mode to TV out
+    
+    Allows users to use 1080p modes on TV out, see bug #13034.
+
+commit e56c166ceb8c1ceddd5020e8de2d0b9d51f535a4
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Nov 15 18:34:18 2007 +0800
+
+    remove unnecessary i830_reg.h includes
+    
+    i830_reg.h only contains 3d engine cmds for 8XX chips.
+
+commit 6f3de19159cd7a2d73ed212add909edb3aedce9c
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Nov 15 18:33:27 2007 +0800
+
+    Move fb compression reg definition into i810_reg.h
+    
+    where we put MMIO control reg in, and shared with intel_reg_dump
+    program.
+
+commit e64f4929690a57701241334fbca17e95b39ba3d4
+Author: Jesse Barnes <jesse.barnes@intel.com>
+Date:   Wed Nov 14 16:44:34 2007 -0800
+
+    Backlight fixes
+    
+    Open the "actual_brightness" file as read only, since we only read from it.
+    Also set an initial backlight_duty_cycle at init time so we don't set the
+    brightness to 0 at startup.
+
+commit 53e3693ef13f31f3fc33bcff7286ab2b03b2d430
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 16:24:56 2007 -0800
+
+    Disable FBC by default on 965GM
+    
+    Several people have reported that they see frequent FBC related display
+    corruption on 965GM, so disable it for now.  Users wanting to enable it can use
+    the driver option "Framebuffercompression" to override the default.
+
+commit b2726899bc6ebd108aa4a5dd66fe1d881bb778b3
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 15:49:41 2007 -0800
+
+    Add more FBC regs
+    
+    Needed for the new debug code
+
+commit b7bc694c6b98dac17763426d905a22d3ae17a018
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 15:46:57 2007 -0800
+
+    Fix kernel get_brightness function
+    
+    We need to look at "actual_brightness" rather than "brightness".  The former
+    contains the brightness value the kernel driver has actually set, while the
+    latter is merely what the user requested.
+
+commit 9ee96ed02aacd953ab58288fddf0fa60f60b668e
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 15:44:56 2007 -0800
+
+    Correct FBC debug message
+    
+    To be consistent, it should say 'plane' rather than 'pipe'.
+
+commit 675b9471d84059496ca41d427a4f95d419f82be9
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 15:17:05 2007 -0800
+
+    Add FBC registers to register dump output
+    
+    Just for completeness.
+
+commit a2a0821e74a61f53cc7f0c41ce629644ad712114
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Nov 14 11:30:20 2007 -0800
+
+    Don't stop ring before restoring hw state
+    
+    Some of the hw state restoration callbacks may want to use the ring for various
+    things like stopping video playback, so leave the ring enabled until we get
+    back from RestoreHWState.  Also rename the functions so that their purpose is
+    clearer and remove a couple of redundant lines.
+
+commit ad3bc0158d37e98fcbbe6a8e31413c142a260424
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 14 22:46:46 2007 +0800
+
+    Don't enable fbc with XAA or tiling is off.
+    
+    This slightly reworks my last fbc patch. We don't
+    support tiled front buffer with XAA now, so also
+    disable fbc on it. If tiled alloc failed, disable
+    fbc too.
+
+commit 26194e19e1c80615697016e25640d4c8c244353f
+Author: Keith Packard <keithp@koto.keithp.com>
+Date:   Tue Nov 13 22:26:40 2007 -0800
+
+    Review PLL spreadsheet and update register ranges.
+    
+    The PLL spreadsheet makes the precise register ranges allowed for each mode
+    quite clear, and shows a few inaccuracies in the b-spec. In particular, the
+    N register value may range from 1 to 6 instead of 3 to 8. This should close
+    the gap we've seen in the reachable frequencies.
+
+commit 581509321e51becb8ee6ddcfaa15a2a713c9ef8e
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 14 22:16:04 2007 +0800
+
+    Remove one redundant line.
+
+commit 8cea3c8cfa86600b5f2c3e1f21c19d4b2a320fd4
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Nov 14 22:13:30 2007 +0800
+
+    Don't setup fb compression if fb is not tiling
+
+commit 539b669d6e23833a917a9b0d3a355d4283e0b76a
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Tue Nov 13 17:59:54 2007 -0800
+
+    Remove harmless error message
+    
+    This really isn't an error in general.  If vblank pipe setup really fails for
+    some reason, it'll be obvious enough when the user tries to use vblank events
+    for something.
+    
+    Patch from Hong Liu.
+
+commit 43fbc547786cf26514f95bce79fab58a66c291bf
+Author: Jesse Barnes <jbarnes@jbarnes-mobile.amr.corp.intel.com>
+Date:   Mon Nov 12 12:23:41 2007 -0800
+
+    Improve backlight control
+    
+    This commit fixes backlight support for several platforms.
+    
+    Except on recent machines supporting the IGD OpRegion specification,
+    backlight control is rather platform specific.  In some cases, we can
+    program the native backlight control regsiters directly without any
+    trouble.  On others, we need to use the legacy backlight control
+    register.  On still others, we need a combination of the two.  And on
+    some platforms, none of the above will work, so we go through the
+    kernel backlight interface, which provides a platform specific driver
+    for backlight control.
+
+commit 10988c5e6ec0f3c40d56bbf209b7976627cca706
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Mon Nov 12 09:19:22 2007 -0800
+
+    Fix typo in PLL enable check
+    
+    Check against DPLL_A instead of DPLL_B before writing PIPEACONF.
+    
+    Thanks to Colin Guthrie for his sharp eyes.
+
+commit ab2055ebb20aa6de121fa377e488ce91913035ae
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Fri Nov 9 13:55:46 2007 -0800
+
+    Add 'ret' variable to i830_allocator_init
+    
+    Needed in the XF86DRI_MM case.
+
+commit 24280edbdf54e9559b26ea27c1b005eea73f51bc
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Fri Nov 9 13:53:58 2007 -0800
+
+    Fixup warnings
+    
+    Remove unused 'ret' variable, move pI830 under #ifdef XF86DRI_MM in
+    i830_allocate_memory.
+
+commit 4fe507957bf826d81a71cd63af17c5547d1023a1
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Fri Nov 9 13:51:11 2007 -0800
+
+    Remove unused 'palette_enable' variable
+
+commit 62404a9c9c0d98efb69ac96209dea17331e0489c
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Nov 9 07:55:01 2007 -0800
+
+    Update man page to reflect EXA by default
+
 commit 177924e879564b7e9e70fd607141978bfd053fff
 Author: Jesse Barnes <jesse.barnes@intel.com>
 Date:   Thu Nov 8 18:16:48 2007 -0800

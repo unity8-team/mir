@@ -1,4 +1,2 @@
 01_gen_pci_ids.diff
 01_fix_compiz_video.diff
-05_fix_xv_reset.diff
-10_merge_upstream.diff

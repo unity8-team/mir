@@ -380,6 +380,7 @@ i830_crt_detect(xf86OutputPtr output)
 
 out:
     i830ReleaseLoadDetectPipe (output, dpms_mode);
+
     return status;
 }
 
