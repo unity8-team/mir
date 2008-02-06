@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu2) hardy; urgency=low
+
+  * 02_quick_fix.patch: Patch from upstream to prevent a crash on start.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Wed, 06 Feb 2008 19:04:04 +0200
+
 xserver-xorg-video-intel (2:2.2.0.90-2ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable, remaining changes:

@@ -1,2 +1,3 @@
 01_gen_pci_ids.diff
 01_fix_compiz_video.diff
+02_quick_fix.patch

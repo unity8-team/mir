@@ -1,0 +1,14 @@
+diff --git a/src/i830_display.c b/src/i830_display.c
+index 585b0e7..3fe7cda 100644
+--- a/src/i830_display.c
++++ b/src/i830_display.c
+@@ -722,7 +722,8 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
+ 
+     /* Here we disable it to catch one->two pipe enabled configs */
+     if (count > 1) {
+-	i830_disable_fb_compression(crtc);
++	if (i830_fb_compression_supported(pI830))
++	    i830_disable_fb_compression(crtc);
+ 	return FALSE;
+     }
+ 
