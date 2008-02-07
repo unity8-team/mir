@@ -3505,24 +3505,6 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	return true;
 }
 
-static int parse_bit_B_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
-{
-	/* offset + 0  (32 bits): BIOS version dword
-	 *
-	 * There's a bunch of bits in this table other than the bios version
-	 * that we don't use - their use currently unknown
-	 */
-
-	if (bitentry->length < 0x4) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT B table\n");
-		return 0;
-	}
-
-	parse_bios_version(pScrn, bios, bitentry->offset);
-
-	return 1;
-}
-
 static int parse_bit_C_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* offset + 8  (16 bits): PLL limits table pointer
@@ -3555,6 +3537,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	}
 
 	fpp->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
+
+	parse_fp_mode_table(pScrn, bios, fpp);
 
 	return 1;
 }
@@ -3592,12 +3576,25 @@ static unsigned int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bi
 
 static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
-	/* offset + 13 (16 bits): pointer to table containing DAC load detection comparison values
+	/* BIT 'i' (info?) table
 	 *
-	 * There's other things in this table, purpose unknown
+	 * offset + 0  (32 bits): BIOS version dword (as in B table)
+	 * offset + 5  (8  bits): BIOS feature byte (same as for BMP?)
+	 * offset + 13 (16 bits): pointer to table containing DAC load detection comparison values
+	 *
+	 * There's other things in the table, purpose unknown
 	 */
 
-	uint16_t offset;
+	if (bitentry->length < 6) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "BIT i table not long enough for BIOS version and feature byte\n");
+		return 0;
+	}
+
+	parse_bios_version(pScrn, bios, bitentry->offset);
+
+	/* bit 4 seems to indicate a mobile bios, other bits possibly as for BMP feature byte */
+	bios->feature_byte = bios->data[bitentry->offset + 5];
 
 	if (bitentry->length < 15) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -3605,31 +3602,29 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 		return 0;
 	}
 
-	offset = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 13])));
+	uint16_t daccmpoffset = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 13])));
 
 	/* doesn't exist on g80 */
-	if (!offset)
+	if (!daccmpoffset)
 		return 1;
 
 	/* The first value in the table, following the header, is the comparison value
-	 * Purpose of subsequent values unknown - TV load detection?
+	 * Purpose of subsequent values unknown -- TV load detection?
 	 */
 
-	uint8_t version = bios->data[offset];
+	uint8_t version = bios->data[daccmpoffset];
+	uint8_t headerlen = bios->data[daccmpoffset + 1];
 
 	if (version != 0x00 && version != 0x10) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "DAC load detection comparison table version %d.%d not known\n",
 			   version >> 4, version & 0xf);
 		return 0;
-	}
-
-	uint8_t headerlen = bios->data[offset + 1];
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	} else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "DAC load detection comparison table version %x found\n", version);
 
-	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[offset + headerlen])));
+	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + headerlen])));
 
 	return 1;
 }
@@ -3733,73 +3728,60 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	return 1;
 }
 
-static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
+static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t bitoffset)
 {
+	/* parse i first, I next (which needs C & M before it), and L before D */
+	char parseorder[] = "iCMILDT";
 	bit_entry_t bitentry;
-	char done = 0;
+	int i;
 	struct fppointers fpp;
-	NVPtr pNv = NVPTR(pScrn);
 
 	memset(&fpp, 0, sizeof(struct fppointers));
 
-	while (!done) {
-		bitentry.id[0] = bios->data[offset];
-		bitentry.id[1] = bios->data[offset + 1];
-		bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
-		bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
+	for (i = 0; i < sizeof(parseorder); i++) {
+		uint16_t offset = bitoffset;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Found BIT command with id 0x%02X (%c)\n",
-			   offset, bitentry.id[0], isprint(bitentry.id[0]) ? bitentry.id[0] : '.');
+		do {
+			bitentry.id[0] = bios->data[offset];
+			bitentry.id[1] = bios->data[offset + 1];
+			bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
+			bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
 
-		switch (bitentry.id[0]) {
-		case 0:
-			/* id[0] = 0 and id[1] = 0 ==> end of BIT struture */
-			if (bitentry.id[1] == 0)
-				done = 1;
-			break;
-		case 'B':
-			parse_bit_B_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		case 'C':
-			parse_bit_C_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		case 'D':
-			if (pNv->Mobile)
-				parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
-			break;
-		case 'I':
-			parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		case 'i':
-			parse_bit_i_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		case 'L':
-			if (pNv->Mobile)
-				parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
-			break;
-		case 'M': /* memory? */
-			parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		case 'T':
-			parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
-			break;
-		}
+			offset += sizeof(bit_entry_t);
 
-		offset += sizeof(bit_entry_t);
+			if (bitentry.id[0] != parseorder[i])
+				continue;
+
+			switch (bitentry.id[0]) {
+			case 'C':
+				parse_bit_C_tbl_entry(pScrn, bios, &bitentry);
+				break;
+			case 'D':
+				if (bios->feature_byte & FEATURE_MOBILE)
+					parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
+				break;
+			case 'I':
+				parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
+				parse_init_tables(pScrn, bios);
+				break;
+			case 'i': /* info? */
+				parse_bit_i_tbl_entry(pScrn, bios, &bitentry);
+				break;
+			case 'L':
+				if (bios->feature_byte & FEATURE_MOBILE)
+					parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
+				break;
+			case 'M': /* memory? */
+				parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
+				break;
+			case 'T':
+				parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
+				break;
+			}
+
+		/* id[0] = 0 and id[1] = 0 => end of BIT struture */
+		} while (bitentry.id[0] + bitentry.id[1] != 0);
 	}
-
-	/* C and M tables have to be parsed before init can run */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Parsing previously deferred init table entry\n");
-	parse_init_tables(pScrn, bios);
-
-	/* If it's not a laptop, you probably don't care about LVDS */
-	if (!(pNv->Mobile || (bios->feature_byte & FEATURE_MOBILE)))
-		return;
-
-	/* Need D and L tables parsed before doing this */
-	parse_fp_mode_table(pScrn, bios, &fpp);
 }
 
 static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
@@ -3898,7 +3880,6 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	/* bit 4 seems to indicate a mobile bios, bit 5 that the flat panel
 	 * tables are present, and bit 6 a tv bios */
-	/* FIXME: something similar to this must exist in BIT. Where? */
 	bios->feature_byte = bios->data[offset + 9];
 
 	parse_bios_version(pScrn, bios, offset + 10);
@@ -3960,7 +3941,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		parse_init_tables(pScrn, bios);
 
 	/* If it's not a laptop, you probably don't care about fptables */
-	if (!(pNv->Mobile || (bios->feature_byte & FEATURE_MOBILE)))
+	if (!(bios->feature_byte & FEATURE_MOBILE))
 		return;
 
 	parse_fp_mode_table(pScrn, bios, &fpp);
@@ -4436,7 +4417,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
 
-	if ((pNv->Mobile || (pNv->VBIOS.feature_byte & FEATURE_MOBILE)) && !pNv->VBIOS.fp.native_mode)
+	if (pNv->VBIOS.feature_byte & FEATURE_MOBILE && !pNv->VBIOS.fp.native_mode)
 		read_bios_edid(pScrn);
 
 	/* allow subsequent scripts to execute */
