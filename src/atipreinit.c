@@ -317,6 +317,60 @@ ati_bios_clock
 }
 
 /*
+ * Pick up multimedia information, which will be at different
+ * displacements depending on table revision.
+ */
+static void
+ati_bios_mmedia
+(
+    ScrnInfoPtr  pScreenInfo,
+    ATIPtr       pATI,
+    CARD8       *BIOS,
+    unsigned int VideoTable
+)
+{
+    pATI->Audio = ATI_AUDIO_NONE;
+
+    if (VideoTable > 0)
+    {
+        switch (BIOSByte(VideoTable - 0x02U))
+        {
+            case 0x00U:
+                pATI->Tuner = BIOSByte(VideoTable) & 0x1FU;
+
+                /*
+                 * XXX  The VideoTable[1] byte is known to have been
+                 *      omitted in LTPro and Mobility BIOS'es.  Any others?
+                 */
+                switch (pATI->Chip)
+                {
+                    case ATI_CHIP_264LTPRO:
+                    case ATI_CHIP_MOBILITY:
+                        pATI->Decoder = BIOSByte(VideoTable + 0x01U) & 0x07U;
+                        pATI->Audio = BIOSByte(VideoTable + 0x02U) & 0x0FU;
+                        break;
+
+                    default:
+                        pATI->Decoder = BIOSByte(VideoTable + 0x02U) & 0x07U;
+                        pATI->Audio = BIOSByte(VideoTable + 0x03U) & 0x0FU;
+                        break;
+                }
+
+                break;
+
+            case 0x01U:
+                pATI->Tuner = BIOSByte(VideoTable) & 0x1FU;
+                pATI->Audio = BIOSByte(VideoTable + 0x01U) & 0x0FU;
+                pATI->Decoder = BIOSByte(VideoTable + 0x05U) & 0x0FU;
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+/*
  * ATIPreInit --
  *
  * This function is only called once per screen at the start of the first
@@ -604,7 +658,6 @@ ATIPreInit
 
     pATI->LCDPanelID = -1;
     pATI->nFIFOEntries = 16;                    /* For now */
-    pATI->Audio = ATI_AUDIO_NONE;
 
     /* Finish probing the adapter */
     {
@@ -811,51 +864,7 @@ ATIPreInit
 
         ati_bios_clock(pScreenInfo, pATI, BIOS, ClockTable, pGDev);
 
-        /*
-         * Pick up multimedia information, which will be at different
-         * displacements depending on table revision.
-         */
-        if (VideoTable > 0)
-        {
-            switch (BIOSByte(VideoTable - 0x02U))
-            {
-                case 0x00U:
-                    pATI->Tuner = BIOSByte(VideoTable) & 0x1FU;
-
-                    /*
-                     * XXX  The VideoTable[1] byte is known to have been
-                     *      omitted in LTPro and Mobility BIOS'es.  Any others?
-                     */
-                    switch (pATI->Chip)
-                    {
-                        case ATI_CHIP_264LTPRO:
-                        case ATI_CHIP_MOBILITY:
-                            pATI->Decoder =
-                                BIOSByte(VideoTable + 0x01U) & 0x07U;
-                            pATI->Audio =
-                                BIOSByte(VideoTable + 0x02U) & 0x0FU;
-                            break;
-
-                        default:
-                            pATI->Decoder =
-                                BIOSByte(VideoTable + 0x02U) & 0x07U;
-                            pATI->Audio =
-                                BIOSByte(VideoTable + 0x03U) & 0x0FU;
-                            break;
-                    }
-
-                    break;
-
-                case 0x01U:
-                    pATI->Tuner = BIOSByte(VideoTable) & 0x1FU;
-                    pATI->Audio = BIOSByte(VideoTable + 0x01U) & 0x0FU;
-                    pATI->Decoder = BIOSByte(VideoTable + 0x05U) & 0x0FU;
-                    break;
-
-                default:
-                    break;
-            }
-        }
+        ati_bios_mmedia(pScreenInfo, pATI, BIOS, VideoTable);
 
         /* Determine panel dimensions */
         if (pATI->LCDPanelID >= 0)
