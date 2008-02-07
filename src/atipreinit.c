@@ -144,10 +144,6 @@ ati_bios_clock
 {
     CARD16 ClockDac;
 
-    /* Set up non-zero defaults */
-    pATI->ClockDescriptor = ATIClockDescriptors[ATI_CLOCK_FIXED];
-    pATI->ClockNumberToProgramme = -1;
-
     if (ClockTable > 0)
     {
         pATI->ProgrammableClock = BIOSByte(ClockTable);
@@ -208,6 +204,8 @@ ati_bios_clock
         pATI->ClockNumberToProgramme = 3;
     }
 
+    pATI->ClockDescriptor = ATIClockDescriptors[ATI_CLOCK_FIXED];
+
     if ((pATI->ProgrammableClock > ATI_CLOCK_FIXED) &&
         (pATI->ProgrammableClock < ATI_CLOCK_MAX))
     {
@@ -220,8 +218,7 @@ ati_bios_clock
             (pATI->DAC == ATI_DAC_IBMRGB514))
             pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
 
-        pATI->ClockDescriptor =
-            ATIClockDescriptors[pATI->ProgrammableClock];
+        pATI->ClockDescriptor = ATIClockDescriptors[pATI->ProgrammableClock];
     }
 
     ClockDac = pATI->DAC;
@@ -234,14 +231,13 @@ ati_bios_clock
              */
             if (ClockTable > 0)
                 pATI->ClockDescriptor.MinM =
-                    pATI->ClockDescriptor.MaxM =
-                        BIOSWord(ClockTable + 0x0AU);
+                pATI->ClockDescriptor.MaxM = BIOSWord(ClockTable + 0x0AU);
             else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-0"))
                 pATI->ClockDescriptor.MinM =
-                    pATI->ClockDescriptor.MaxM = 43;
+                pATI->ClockDescriptor.MaxM = 43;
             else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-1"))
                 pATI->ClockDescriptor.MinM =
-                    pATI->ClockDescriptor.MaxM = 46;
+                pATI->ClockDescriptor.MaxM = 46;
             else
                 pATI->ProgrammableClock = ATI_CLOCK_UNKNOWN;
             break;
@@ -269,8 +265,8 @@ ati_bios_clock
              * effectively prevents generating frequencies beyond the
              * graphics controller's tolerance.
              */
-            pATI->ClockDescriptor.MinM = pATI->ClockDescriptor.MaxM =
-                ATIMach64GetPLLReg(PLL_REF_DIV);
+            pATI->ClockDescriptor.MinM =
+            pATI->ClockDescriptor.MaxM = ATIMach64GetPLLReg(PLL_REF_DIV);
 
             /* The DAC is also integrated */
             if ((pATI->DAC & ~0x0FU) != ATI_DAC_INTERNAL)
@@ -308,8 +304,7 @@ ati_bios_clock
         if (pATI->DAC == ATI_DAC_IBMRGB514)
         {
             pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
-            pATI->ClockDescriptor =
-                ATIClockDescriptors[ATI_CLOCK_IBMRGB514];
+            pATI->ClockDescriptor = ATIClockDescriptors[ATI_CLOCK_IBMRGB514];
             pATI->ClockNumberToProgramme = 7;
         }
         else
