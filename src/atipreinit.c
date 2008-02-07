@@ -123,6 +123,202 @@ ATIPrintNoiseIfRequested
     ATIPrintRegisters(pATI);
 }
 
+#define BIOS_SIZE    0x00010000U     /* 64kB */
+#define BIOSByte(_n) ((CARD8)(BIOS[_n]))
+#define BIOSWord(_n) ((CARD16)(BIOS[_n] |                \
+                               (BIOS[(_n) + 1] << 8)))
+
+/*
+ * For Mach64 adapters, pick up, from the BIOS, the type of programmable
+ * clock generator (if any), and various information about it.
+ */
+static void
+ati_bios_clock
+(
+    ScrnInfoPtr  pScreenInfo,
+    ATIPtr       pATI,
+    CARD8       *BIOS,
+    unsigned int ClockTable,
+    GDevPtr      pGDev
+)
+{
+    CARD16 ClockDac;
+
+    /* Set up non-zero defaults */
+    pATI->ClockDescriptor = ATIClockDescriptors[ATI_CLOCK_FIXED];
+    pATI->ClockNumberToProgramme = -1;
+
+    if (ClockTable > 0)
+    {
+        pATI->ProgrammableClock = BIOSByte(ClockTable);
+        pATI->ClockNumberToProgramme = BIOSByte(ClockTable + 0x06U);
+        switch (BIOSWord(ClockTable + 0x08U) / 10)
+        {
+            case 143:
+                pATI->ReferenceNumerator = 157500;
+                pATI->ReferenceDenominator = 11;
+                break;
+
+            case 286:
+                pATI->ReferenceNumerator = 315000;
+                pATI->ReferenceDenominator = 11;
+                break;
+
+            default:
+                pATI->ReferenceNumerator =
+                    BIOSWord(ClockTable + 0x08U) * 10;
+                pATI->ReferenceDenominator = 1;
+                break;
+        }
+    }
+    else
+    {
+        /*
+         * Compensate for BIOS absence.  Note that the reference
+         * frequency has already been set by option processing.
+         */
+        if ((pATI->DAC & ~0x0FU) == ATI_DAC_INTERNAL)
+        {
+            pATI->ProgrammableClock = ATI_CLOCK_INTERNAL;
+        }
+        else switch (pATI->DAC)
+        {
+            case ATI_DAC_STG1703:
+                pATI->ProgrammableClock = ATI_CLOCK_STG1703;
+                break;
+
+            case ATI_DAC_CH8398:
+                pATI->ProgrammableClock = ATI_CLOCK_CH8398;
+                break;
+
+            case ATI_DAC_ATT20C408:
+                pATI->ProgrammableClock = ATI_CLOCK_ATT20C408;
+                break;
+
+            case ATI_DAC_IBMRGB514:
+                pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
+                break;
+
+            default:        /* Provisional */
+                pATI->ProgrammableClock = ATI_CLOCK_ICS2595;
+                break;
+        }
+
+        /* This should be safe for all generators except IBM's RGB514 */
+        pATI->ClockNumberToProgramme = 3;
+    }
+
+    if ((pATI->ProgrammableClock > ATI_CLOCK_FIXED) &&
+        (pATI->ProgrammableClock < ATI_CLOCK_MAX))
+    {
+        /*
+         * Graphics PRO TURBO 1600's are unusual in that an ICS2595 is used
+         * to generate clocks for VGA modes, and an IBM RGB514 is used for
+         * accelerator modes.
+         */
+        if ((pATI->ProgrammableClock == ATI_CLOCK_ICS2595) &&
+            (pATI->DAC == ATI_DAC_IBMRGB514))
+            pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
+
+        pATI->ClockDescriptor =
+            ATIClockDescriptors[pATI->ProgrammableClock];
+    }
+
+    ClockDac = pATI->DAC;
+    switch (pATI->ProgrammableClock)
+    {
+        case ATI_CLOCK_ICS2595:
+            /*
+             * Pick up reference divider (43 or 46) appropriate to the chip
+             * revision level.
+             */
+            if (ClockTable > 0)
+                pATI->ClockDescriptor.MinM =
+                    pATI->ClockDescriptor.MaxM =
+                        BIOSWord(ClockTable + 0x0AU);
+            else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-0"))
+                pATI->ClockDescriptor.MinM =
+                    pATI->ClockDescriptor.MaxM = 43;
+            else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-1"))
+                pATI->ClockDescriptor.MinM =
+                    pATI->ClockDescriptor.MaxM = 46;
+            else
+                pATI->ProgrammableClock = ATI_CLOCK_UNKNOWN;
+            break;
+
+        case ATI_CLOCK_STG1703:
+            /* This one's also a RAMDAC */
+            ClockDac = ATI_DAC_STG1703;
+            break;
+
+        case ATI_CLOCK_CH8398:
+            /* This one's also a RAMDAC */
+            ClockDac = ATI_DAC_CH8398;
+            break;
+
+        case ATI_CLOCK_INTERNAL:
+            /*
+             * The reference divider has already been programmed by BIOS
+             * initialisation.  Because, there is only one reference
+             * divider for all generated frequencies (including MCLK), it
+             * cannot be changed without reprogramming all clocks every
+             * time one of them needs a different reference divider.
+             *
+             * Besides, it's not a good idea to change the reference
+             * divider.  BIOS initialisation sets it to a value that
+             * effectively prevents generating frequencies beyond the
+             * graphics controller's tolerance.
+             */
+            pATI->ClockDescriptor.MinM = pATI->ClockDescriptor.MaxM =
+                ATIMach64GetPLLReg(PLL_REF_DIV);
+
+            /* The DAC is also integrated */
+            if ((pATI->DAC & ~0x0FU) != ATI_DAC_INTERNAL)
+                ClockDac = ATI_DAC_INTERNAL;
+
+            break;
+
+        case ATI_CLOCK_ATT20C408:
+            /* This one's also a RAMDAC */
+            ClockDac = ATI_DAC_ATT20C408;
+            break;
+
+        case ATI_CLOCK_IBMRGB514:
+            /* This one's also a RAMDAC */
+            ClockDac = ATI_DAC_IBMRGB514;
+            pATI->ClockNumberToProgramme = 7;
+            break;
+
+        default:
+            break;
+    }
+
+    /*
+     * We now have up to two indications of what RAMDAC the adapter uses.
+     * They should be the same.  The following test and corresponding
+     * action are under construction.
+     */
+    if (pATI->DAC != ClockDac)
+    {
+        xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
+                   "Mach64 RAMDAC probe discrepancy detected:\n"
+                   "  DAC=0x%02X;  ClockDac=0x%02X.\n",
+                   pATI->DAC, ClockDac);
+
+        if (pATI->DAC == ATI_DAC_IBMRGB514)
+        {
+            pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
+            pATI->ClockDescriptor =
+                ATIClockDescriptors[ATI_CLOCK_IBMRGB514];
+            pATI->ClockNumberToProgramme = 7;
+        }
+        else
+        {
+            pATI->DAC = ClockDac;   /* For now */
+        }
+    }
+}
+
 /*
  * ATIPreInit --
  *
@@ -136,15 +332,7 @@ ATIPreInit
     int flags
 )
 {
-#   define           BIOS_SIZE       0x00010000U     /* 64kB */
     CARD8            BIOS[BIOS_SIZE];
-#   define           BIOSByte(_n)    ((CARD8)(BIOS[_n]))
-#   define           BIOSWord(_n)    ((CARD16)(BIOS[_n] |                \
-                                               (BIOS[(_n) + 1] << 8)))
-#   define           BIOSLong(_n)    ((CARD32)(BIOS[_n] |                \
-                                               (BIOS[(_n) + 1] << 8) |   \
-                                               (BIOS[(_n) + 2] << 16) |  \
-                                               (BIOS[(_n) + 3] << 24)))
     unsigned int     BIOSSize = 0;
     unsigned int     ROMTable = 0, ClockTable = 0, FrequencyTable = 0;
     unsigned int     LCDTable = 0, LCDPanelInfo = 0, VideoTable = 0;
@@ -590,17 +778,7 @@ ATIPreInit
                 pATI->DAC += ATI_DAC_INTERNAL;
     }
 
-    /*
-     * For Mach64 adapters, pick up, from the BIOS, the type of programmable
-     * clock generator (if any), and various information about it.
-     */
     {
-        CARD16 ClockDac;
-
-        /* Set up non-zero defaults */
-        pATI->ClockDescriptor = ATIClockDescriptors[ATI_CLOCK_FIXED];
-        pATI->ClockNumberToProgramme = -1;
-
         ROMTable = BIOSWord(0x48U);
         if ((ROMTable < 0x0002U) ||
             (BIOSWord(ROMTable - 0x02U) < 0x0012U) ||
@@ -634,175 +812,7 @@ ATIPreInit
             }
         }
 
-        if (ClockTable > 0)
-        {
-            pATI->ProgrammableClock = BIOSByte(ClockTable);
-            pATI->ClockNumberToProgramme = BIOSByte(ClockTable + 0x06U);
-            switch (BIOSWord(ClockTable + 0x08U) / 10)
-            {
-                case 143:
-                    pATI->ReferenceNumerator = 157500;
-                    pATI->ReferenceDenominator = 11;
-                    break;
-
-                case 286:
-                    pATI->ReferenceNumerator = 315000;
-                    pATI->ReferenceDenominator = 11;
-                    break;
-
-                default:
-                    pATI->ReferenceNumerator =
-                        BIOSWord(ClockTable + 0x08U) * 10;
-                    pATI->ReferenceDenominator = 1;
-                    break;
-            }
-        }
-        else
-        {
-            /*
-             * Compensate for BIOS absence.  Note that the reference
-             * frequency has already been set by option processing.
-             */
-            if ((pATI->DAC & ~0x0FU) == ATI_DAC_INTERNAL)
-            {
-                pATI->ProgrammableClock = ATI_CLOCK_INTERNAL;
-            }
-            else switch (pATI->DAC)
-            {
-                case ATI_DAC_STG1703:
-                    pATI->ProgrammableClock = ATI_CLOCK_STG1703;
-                    break;
-
-                case ATI_DAC_CH8398:
-                    pATI->ProgrammableClock = ATI_CLOCK_CH8398;
-                    break;
-
-                case ATI_DAC_ATT20C408:
-                    pATI->ProgrammableClock = ATI_CLOCK_ATT20C408;
-                    break;
-
-                case ATI_DAC_IBMRGB514:
-                    pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
-                    break;
-
-                default:        /* Provisional */
-                    pATI->ProgrammableClock = ATI_CLOCK_ICS2595;
-                    break;
-            }
-
-            /* This should be safe for all generators except IBM's RGB514 */
-            pATI->ClockNumberToProgramme = 3;
-        }
-
-        if ((pATI->ProgrammableClock > ATI_CLOCK_FIXED) &&
-            (pATI->ProgrammableClock < ATI_CLOCK_MAX))
-        {
-            /*
-             * Graphics PRO TURBO 1600's are unusual in that an ICS2595 is used
-             * to generate clocks for VGA modes, and an IBM RGB514 is used for
-             * accelerator modes.
-             */
-            if ((pATI->ProgrammableClock == ATI_CLOCK_ICS2595) &&
-                (pATI->DAC == ATI_DAC_IBMRGB514))
-                pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
-
-            pATI->ClockDescriptor =
-                ATIClockDescriptors[pATI->ProgrammableClock];
-        }
-
-        ClockDac = pATI->DAC;
-        switch (pATI->ProgrammableClock)
-        {
-            case ATI_CLOCK_ICS2595:
-                /*
-                 * Pick up reference divider (43 or 46) appropriate to the chip
-                 * revision level.
-                 */
-                if (ClockTable > 0)
-                    pATI->ClockDescriptor.MinM =
-                        pATI->ClockDescriptor.MaxM =
-                            BIOSWord(ClockTable + 0x0AU);
-                else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-0"))
-                    pATI->ClockDescriptor.MinM =
-                        pATI->ClockDescriptor.MaxM = 43;
-                else if (!xf86NameCmp(pGDev->clockchip, "ATI 18818-1"))
-                    pATI->ClockDescriptor.MinM =
-                        pATI->ClockDescriptor.MaxM = 46;
-                else
-                    pATI->ProgrammableClock = ATI_CLOCK_UNKNOWN;
-                break;
-
-            case ATI_CLOCK_STG1703:
-                /* This one's also a RAMDAC */
-                ClockDac = ATI_DAC_STG1703;
-                break;
-
-            case ATI_CLOCK_CH8398:
-                /* This one's also a RAMDAC */
-                ClockDac = ATI_DAC_CH8398;
-                break;
-
-            case ATI_CLOCK_INTERNAL:
-                /*
-                 * The reference divider has already been programmed by BIOS
-                 * initialisation.  Because, there is only one reference
-                 * divider for all generated frequencies (including MCLK), it
-                 * cannot be changed without reprogramming all clocks every
-                 * time one of them needs a different reference divider.
-                 *
-                 * Besides, it's not a good idea to change the reference
-                 * divider.  BIOS initialisation sets it to a value that
-                 * effectively prevents generating frequencies beyond the
-                 * graphics controller's tolerance.
-                 */
-                pATI->ClockDescriptor.MinM = pATI->ClockDescriptor.MaxM =
-                    ATIMach64GetPLLReg(PLL_REF_DIV);
-
-                /* The DAC is also integrated */
-                if ((pATI->DAC & ~0x0FU) != ATI_DAC_INTERNAL)
-                    ClockDac = ATI_DAC_INTERNAL;
-
-                break;
-
-            case ATI_CLOCK_ATT20C408:
-                /* This one's also a RAMDAC */
-                ClockDac = ATI_DAC_ATT20C408;
-                break;
-
-            case ATI_CLOCK_IBMRGB514:
-                /* This one's also a RAMDAC */
-                ClockDac = ATI_DAC_IBMRGB514;
-                pATI->ClockNumberToProgramme = 7;
-                break;
-
-            default:
-                break;
-        }
-
-        /*
-         * We now have up to two indications of what RAMDAC the adapter uses.
-         * They should be the same.  The following test and corresponding
-         * action are under construction.
-         */
-        if (pATI->DAC != ClockDac)
-        {
-            xf86DrvMsg(pScreenInfo->scrnIndex, X_WARNING,
-                       "Mach64 RAMDAC probe discrepancy detected:\n"
-                       "  DAC=0x%02X;  ClockDac=0x%02X.\n",
-                       pATI->DAC, ClockDac);
-
-            if (pATI->DAC == ATI_DAC_IBMRGB514)
-            {
-                pATI->ProgrammableClock = ATI_CLOCK_IBMRGB514;
-                pATI->ClockDescriptor =
-                    ATIClockDescriptors[ATI_CLOCK_IBMRGB514];
-                pATI->ClockNumberToProgramme = 7;
-            }
-            else
-            {
-                pATI->DAC = ClockDac;   /* For now */
-            }
-        }
+        ati_bios_clock(pScreenInfo, pATI, BIOS, ClockTable, pGDev);
 
         /*
          * Pick up multimedia information, which will be at different
