@@ -368,6 +368,7 @@ static struct i830SnapshotRec {
     DEFINEREG2(VCLK_DIVISOR_VGA1, i830_debug_fp),
     DEFINEREG2(VCLK_POST_DIV, i830_debug_vga_pd),
     DEFINEREG2(DPLL_TEST, i830_debug_dpll_test),
+    DEFINEREG(CACHE_MODE_0),
     DEFINEREG(D_STATE),
     DEFINEREG(DSPCLK_GATE_D),
     DEFINEREG(RENCLK_GATE_D1),
