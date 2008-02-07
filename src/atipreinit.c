@@ -148,7 +148,9 @@ ati_bios_clock
     {
         pATI->ProgrammableClock = BIOSByte(ClockTable);
         pATI->ClockNumberToProgramme = BIOSByte(ClockTable + 0x06U);
-        switch (BIOSWord(ClockTable + 0x08U) / 10)
+        pATI->refclk = BIOSWord(ClockTable + 0x08U);
+        pATI->refclk *= 10000;
+        switch (pATI->refclk / 100000)
         {
             case 143:
                 pATI->ReferenceNumerator = 157500;
@@ -161,8 +163,7 @@ ati_bios_clock
                 break;
 
             default:
-                pATI->ReferenceNumerator =
-                    BIOSWord(ClockTable + 0x08U) * 10;
+                pATI->ReferenceNumerator = pATI->refclk / 1000;
                 pATI->ReferenceDenominator = 1;
                 break;
         }

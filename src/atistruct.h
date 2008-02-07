@@ -352,6 +352,7 @@ typedef struct _ATIRec
     /*
      * Clock-related definitions.
      */
+    int refclk;
     int ClockNumberToProgramme, ReferenceNumerator, ReferenceDenominator;
     int ProgrammableClock, maxClock;
     ClockRec ClockDescriptor;
