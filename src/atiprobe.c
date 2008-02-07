@@ -191,10 +191,6 @@ ATIMach64Detect
         return FALSE;
     }
 
-    /* Determine legacy BIOS address */
-    pATI->BIOSBase = 0x000C0000U +
-        (GetBits(inr(SCRATCH_REG1), BIOS_BASE_SEGMENT) << 11);
-
     ATIUnmapApertures(-1, pATI);
     return TRUE;
 }

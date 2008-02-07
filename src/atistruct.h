@@ -283,7 +283,6 @@ typedef struct _ATIRec
     /*
      * BIOS-related definitions.
      */
-    unsigned long BIOSBase;
     CARD8 I2CType, Tuner, Decoder, Audio;
 
     /*
