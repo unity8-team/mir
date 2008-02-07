@@ -140,12 +140,13 @@ ATIClockPreInit
                         ((double)pATI->ReferenceDenominator * 1000.0));
 
 #if defined(__sparc__)
-            if (pATI->ReferenceNumerator != 315000 &&
-                pATI->ReferenceDenominator != 11)
+            if ((pATI->refclk / 100000) != 286 &&
+                (pATI->refclk / 100000) != 295)
             {
                 xf86DrvMsg(pScreenInfo->scrnIndex, X_INFO,
                     "If modes do not work on Ultra 5/10 or Blade 100/150,\n"
-                    "set option \"reference_clock\" to \"28.636 MHz\"\n");
+                    "\tset option \"reference_clock\" to \"28.636 MHz\""
+                    " or \"29.5 MHz\"\n");
             }
 #endif
 
