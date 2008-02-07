@@ -150,23 +150,6 @@ ati_bios_clock
         pATI->ClockNumberToProgramme = BIOSByte(ClockTable + 0x06U);
         pATI->refclk = BIOSWord(ClockTable + 0x08U);
         pATI->refclk *= 10000;
-        switch (pATI->refclk / 100000)
-        {
-            case 143:
-                pATI->ReferenceNumerator = 157500;
-                pATI->ReferenceDenominator = 11;
-                break;
-
-            case 286:
-                pATI->ReferenceNumerator = 315000;
-                pATI->ReferenceDenominator = 11;
-                break;
-
-            default:
-                pATI->ReferenceNumerator = pATI->refclk / 1000;
-                pATI->ReferenceDenominator = 1;
-                break;
-        }
     }
     else
     {
@@ -312,6 +295,24 @@ ati_bios_clock
         {
             pATI->DAC = ClockDac;   /* For now */
         }
+    }
+
+    switch (pATI->refclk / 100000)
+    {
+        case 143:
+            pATI->ReferenceNumerator = 157500;
+            pATI->ReferenceDenominator = 11;
+            break;
+
+        case 286:
+            pATI->ReferenceNumerator = 315000;
+            pATI->ReferenceDenominator = 11;
+            break;
+
+        default:
+            pATI->ReferenceNumerator = pATI->refclk / 1000;
+            pATI->ReferenceDenominator = 1;
+            break;
     }
 }
 

@@ -473,28 +473,6 @@ ATIProcessOptions
 
     pATI->refclk = (int)ReferenceClock;
 
-    /* Only set the reference clock if it hasn't already been determined */
-    if (!pATI->ReferenceNumerator || !pATI->ReferenceDenominator)
-    {
-        switch (pATI->refclk / 100000)
-        {
-            case 143:
-                pATI->ReferenceNumerator = 157500;
-                pATI->ReferenceDenominator = 11;
-                break;
-
-            case 286:
-                pATI->ReferenceNumerator = 315000;
-                pATI->ReferenceDenominator = 11;
-                break;
-
-            default:
-                pATI->ReferenceNumerator = pATI->refclk / 1000;
-                pATI->ReferenceDenominator = 1;
-                break;
-        }
-    }
-
     pATI->useEXA = FALSE;
     if (pATI->OptionAccel)
     {
