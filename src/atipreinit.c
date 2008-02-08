@@ -371,6 +371,114 @@ ati_bios_mmedia
 }
 
 /*
+ * Determine panel dimensions and model.
+ */
+static void
+ati_bios_panel_info
+(
+    ScrnInfoPtr  pScreenInfo,
+    ATIPtr       pATI,
+    CARD8       *BIOS,
+    unsigned int BIOSSize,
+    unsigned int LCDTable
+)
+{
+    unsigned int LCDPanelInfo = 0;
+    char         Buffer[128];
+    int          i, j;
+
+    if (LCDTable > 0)
+    {
+        LCDPanelInfo = BIOSWord(LCDTable + 0x0AU);
+        if (((LCDPanelInfo + 0x1DU) > BIOSSize) ||
+            ((BIOSByte(LCDPanelInfo) != pATI->LCDPanelID) &&
+             (pATI->LCDPanelID || (BIOSByte(LCDPanelInfo) > 0x1FU) ||
+              (pATI->Chip <= ATI_CHIP_264LTPRO))))
+            LCDPanelInfo = 0;
+    }
+
+    if (!LCDPanelInfo)
+    {
+        /*
+         * Scan BIOS for panel info table.
+         */
+        for (i = 0;  i <= (int)(BIOSSize - 0x1DU);  i++)
+        {
+            /* Look for panel ID ... */
+            if ((BIOSByte(i) != pATI->LCDPanelID) &&
+                (pATI->LCDPanelID || (BIOSByte(i) > 0x1FU) ||
+                 (pATI->Chip <= ATI_CHIP_264LTPRO)))
+                continue;
+
+            /* ... followed by 24-byte panel model name ... */
+            for (j = 0;  j < 24;  j++)
+            {
+                if ((CARD8)(BIOSByte(i + j + 1) - 0x20U) > 0x5FU)
+                {
+                    i += j;
+                    goto NextBIOSByte;
+                }
+            }
+
+            /* ... verify panel width ... */
+            if (pATI->LCDHorizontal &&
+                (pATI->LCDHorizontal != BIOSWord(i + 0x19U)))
+                continue;
+
+            /* ... and verify panel height */
+            if (pATI->LCDVertical &&
+                (pATI->LCDVertical != BIOSWord(i + 0x1BU)))
+                continue;
+
+            if (LCDPanelInfo)
+            {
+                /*
+                 * More than one possibility, but don't care if all
+                 * tables describe panels of the same size.
+                 */
+                if ((BIOSByte(LCDPanelInfo + 0x19U) ==
+                     BIOSByte(i + 0x19U)) &&
+                    (BIOSByte(LCDPanelInfo + 0x1AU) ==
+                     BIOSByte(i + 0x1AU)) &&
+                    (BIOSByte(LCDPanelInfo + 0x1BU) ==
+                     BIOSByte(i + 0x1BU)) &&
+                    (BIOSByte(LCDPanelInfo + 0x1CU) ==
+                     BIOSByte(i + 0x1CU)))
+                    continue;
+
+                LCDPanelInfo = 0;
+                break;
+            }
+
+            LCDPanelInfo = i;
+
+    NextBIOSByte:  ;
+        }
+    }
+
+    if (LCDPanelInfo > 0)
+    {
+        pATI->LCDPanelID = BIOSByte(LCDPanelInfo);
+        pATI->LCDHorizontal = BIOSWord(LCDPanelInfo + 0x19U);
+        pATI->LCDVertical = BIOSWord(LCDPanelInfo + 0x1BU);
+    }
+
+    if (LCDPanelInfo)
+    {
+        for (i = 0;  i < 24;  i++)
+            Buffer[i] = BIOSByte(LCDPanelInfo + 1 + i);
+        for (;  --i >= 0;  )
+            if (Buffer[i] && Buffer[i] != ' ')
+            {
+                Buffer[i + 1] = '\0';
+                xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
+                    "Panel model %s.\n", Buffer);
+                break;
+            }
+    }
+}
+
+/*
  * ATIPreInit --
  *
  * This function is only called once per screen at the start of the first
@@ -386,7 +494,7 @@ ATIPreInit
     CARD8            BIOS[BIOS_SIZE];
     unsigned int     BIOSSize = 0;
     unsigned int     ROMTable = 0, ClockTable = 0, FrequencyTable = 0;
-    unsigned int     LCDTable = 0, LCDPanelInfo = 0, VideoTable = 0;
+    unsigned int     LCDTable = 0, VideoTable = 0;
     unsigned int     HardwareTable = 0;
 
     char             Buffer[128], *Message;
@@ -872,88 +980,13 @@ ATIPreInit
 
         ati_bios_mmedia(pScreenInfo, pATI, BIOS, VideoTable);
 
-        /* Determine panel dimensions */
         if (pATI->LCDPanelID >= 0)
         {
             LCDTable = BIOSWord(0x78U);
             if ((LCDTable + BIOSByte(LCDTable + 5)) > BIOSSize)
                 LCDTable = 0;
 
-            if (LCDTable > 0)
-            {
-                LCDPanelInfo = BIOSWord(LCDTable + 0x0AU);
-                if (((LCDPanelInfo + 0x1DU) > BIOSSize) ||
-                    ((BIOSByte(LCDPanelInfo) != pATI->LCDPanelID) &&
-                     (pATI->LCDPanelID || (BIOSByte(LCDPanelInfo) > 0x1FU) ||
-                      (pATI->Chip <= ATI_CHIP_264LTPRO))))
-                    LCDPanelInfo = 0;
-            }
-
-            if (!LCDPanelInfo)
-            {
-                /*
-                 * Scan BIOS for panel info table.
-                 */
-                for (i = 0;  i <= (int)(BIOSSize - 0x1DU);  i++)
-                {
-                    /* Look for panel ID ... */
-                    if ((BIOSByte(i) != pATI->LCDPanelID) &&
-                        (pATI->LCDPanelID || (BIOSByte(i) > 0x1FU) ||
-                         (pATI->Chip <= ATI_CHIP_264LTPRO)))
-                        continue;
-
-                    /* ... followed by 24-byte panel model name ... */
-                    for (j = 0;  j < 24;  j++)
-                    {
-                        if ((CARD8)(BIOSByte(i + j + 1) - 0x20U) > 0x5FU)
-                        {
-                            i += j;
-                            goto NextBIOSByte;
-                        }
-                    }
-
-                    /* ... verify panel width ... */
-                    if (pATI->LCDHorizontal &&
-                        (pATI->LCDHorizontal != BIOSWord(i + 0x19U)))
-                        continue;
-
-                    /* ... and verify panel height */
-                    if (pATI->LCDVertical &&
-                        (pATI->LCDVertical != BIOSWord(i + 0x1BU)))
-                        continue;
-
-                    if (LCDPanelInfo)
-                    {
-                        /*
-                         * More than one possibility, but don't care if all
-                         * tables describe panels of the same size.
-                         */
-                        if ((BIOSByte(LCDPanelInfo + 0x19U) ==
-                             BIOSByte(i + 0x19U)) &&
-                            (BIOSByte(LCDPanelInfo + 0x1AU) ==
-                             BIOSByte(i + 0x1AU)) &&
-                            (BIOSByte(LCDPanelInfo + 0x1BU) ==
-                             BIOSByte(i + 0x1BU)) &&
-                            (BIOSByte(LCDPanelInfo + 0x1CU) ==
-                             BIOSByte(i + 0x1CU)))
-                            continue;
-
-                        LCDPanelInfo = 0;
-                        break;
-                    }
-
-                    LCDPanelInfo = i;
-
-            NextBIOSByte:  ;
-                }
-            }
-
-            if (LCDPanelInfo > 0)
-            {
-                pATI->LCDPanelID = BIOSByte(LCDPanelInfo);
-                pATI->LCDHorizontal = BIOSWord(LCDPanelInfo + 0x19U);
-                pATI->LCDVertical = BIOSWord(LCDPanelInfo + 0x1BU);
-            }
+            ati_bios_panel_info(pScreenInfo, pATI, BIOS, BIOSSize, LCDTable);
         }
 
         xf86DrvMsgVerb(pScreenInfo->scrnIndex, X_INFO, 3,
@@ -963,8 +996,8 @@ ATIPreInit
             "BIOS Data:  ClockTable=0x%04X, FrequencyTable=0x%04X.\n",
             ClockTable, FrequencyTable);
         xf86DrvMsgVerb(pScreenInfo->scrnIndex, X_INFO, 3,
-            "BIOS Data:  LCDTable=0x%04X, LCDPanelInfo=0x%04X.\n",
-            LCDTable, LCDPanelInfo);
+            "BIOS Data:  LCDTable=0x%04X.\n",
+            LCDTable);
         xf86DrvMsgVerb(pScreenInfo->scrnIndex, X_INFO, 3,
             "BIOS Data:  VideoTable=0x%04X, HardwareTable=0x%04X.\n",
             VideoTable, HardwareTable);
@@ -1724,20 +1757,6 @@ ATIPreInit
                 xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
                     "%dx%d panel detected.\n",
                     pATI->LCDHorizontal, pATI->LCDVertical);
-
-            if (LCDPanelInfo)
-            {
-                for (i = 0;  i < 24;  i++)
-                    Buffer[i] = BIOSByte(LCDPanelInfo + 1 + i);
-                for (;  --i >= 0;  )
-                    if (Buffer[i] && Buffer[i] != ' ')
-                    {
-                        Buffer[i + 1] = '\0';
-                        xf86DrvMsg(pScreenInfo->scrnIndex, X_PROBED,
-                            "Panel model %s.\n", Buffer);
-                        break;
-                    }
-            }
 
             /*
              * Determine panel clock.  This must be done after option
