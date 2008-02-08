@@ -654,7 +654,6 @@ ATIPreInit
 #endif /* AVOID_CPIO */
 
     /* Finish private area initialisation */
-    pATI->LCDPanelID = -1;
     pATI->nFIFOEntries = 16;                    /* For now */
 
     /* Finish probing the adapter */
@@ -739,7 +738,16 @@ ATIPreInit
             if (pATI->Chip >= ATI_CHIP_264CT)
             {
                 pATI->MemoryType = GetBits(IOValue, CFG_MEM_TYPE_T);
+            }
+            else
+            {
+                pATI->MemoryType = GetBits(IOValue, CFG_MEM_TYPE);
+            }
 
+            pATI->LCDPanelID = -1;
+
+            if (pATI->Chip >= ATI_CHIP_264CT)
+            {
                 /* Get LCD panel id */
                 if (pATI->Chip == ATI_CHIP_264LT)
                 {
@@ -806,10 +814,6 @@ ATIPreInit
                     else
                         pATI->OptionPanelDisplay = FALSE;
                 }
-            }
-            else
-            {
-                pATI->MemoryType = GetBits(IOValue, CFG_MEM_TYPE);
             }
 
             /* Get DAC type */
