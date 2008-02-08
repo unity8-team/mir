@@ -1404,7 +1404,7 @@ const int object_connector_convert[] =
 
 static void
 rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
-			ATOM_I2C_RECORD *Record, int *line)
+			ATOM_I2C_RECORD *Record, int *ddc_line)
 {
     ErrorF(" %s:  I2C Record: %s[%x] EngineID: %x I2CAddr: %x\n",
 	     __func__,
@@ -1414,13 +1414,22 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
 	     Record->ucI2CAddr);
 
     if (!*(unsigned char *)&(Record->sucI2cId))
-	*line = 0;
+	*ddc_line = 0;
     else {
-
 	if (Record->ucI2CAddr != 0)
 	    return;
-	*line = Record->sucI2cId.bfI2C_LineMux;
-	return;
+
+	if (Record->sucI2cId.bfHW_Capable) {
+	    switch(Record->sucI2cId.bfI2C_LineMux) {
+	    case 0: *ddc_line = 0x7e40; break;
+	    case 1: *ddc_line = 0x7e50; break;
+	    case 2: *ddc_line = 0x7e30; break;
+	    default: break;
+	    }
+	    return;
+	} else {
+	    /* add GPIO pin parsing */
+	}
     }
 }
 
@@ -1470,7 +1479,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
-    int i, j, line = 0;
+    int i, j, ddc_line;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
@@ -1558,8 +1567,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		case ATOM_I2C_RECORD_TYPE:
 		    rhdAtomParseI2CRecord(info->atomBIOS, 
 					  (ATOM_I2C_RECORD *)Record,
-					  &line);
-		    info->BiosConnector[i].ddc_i2c = RADEONLookupGPIOLineForDDC(pScrn, line);
+					  &ddc_line);
+		    info->BiosConnector[i].ddc_i2c = atom_setup_i2c_bus(ddc_line);
 		    break;
 		case ATOM_HPD_INT_RECORD_TYPE:
 		    break;

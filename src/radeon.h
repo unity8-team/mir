@@ -872,6 +872,8 @@ RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
 
 extern RADEONI2CBusRec
 legacy_setup_i2c_bus(int ddc_line);
+extern RADEONI2CBusRec
+atom_setup_i2c_bus(int ddc_line);
 
 extern void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);

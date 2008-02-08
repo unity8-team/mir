@@ -1382,7 +1382,44 @@ legacy_setup_i2c_bus(int ddc_line)
     i2c.put_data_reg = ddc_line;
     i2c.get_clk_reg = ddc_line;
     i2c.get_data_reg = ddc_line;
-    i2c.valid = TRUE;
+    if (ddc_line)
+	i2c.valid = TRUE;
+    else
+	i2c.valid = FALSE;
+
+    return i2c;
+}
+
+RADEONI2CBusRec
+atom_setup_i2c_bus(int ddc_line)
+{
+    RADEONI2CBusRec i2c;
+
+    if (ddc_line == AVIVO_GPIO_0) {
+	i2c.put_clk_mask = (1 << 19);
+	i2c.put_data_mask = (1 << 18);
+	i2c.get_clk_mask = (1 << 19);
+	i2c.get_data_mask = (1 << 18);
+	i2c.mask_clk_mask = (1 << 19);
+	i2c.mask_data_mask = (1 << 18);
+    } else {
+	i2c.put_clk_mask = (1 << 0);
+	i2c.put_data_mask = (1 << 8);
+	i2c.get_clk_mask = (1 << 0);
+	i2c.get_data_mask = (1 << 8);
+	i2c.mask_clk_mask = (1 << 0);
+	i2c.mask_data_mask = (1 << 8);
+    }
+    i2c.mask_clk_reg = ddc_line;
+    i2c.mask_data_reg = ddc_line;
+    i2c.put_clk_reg = ddc_line + 0x8;
+    i2c.put_data_reg = ddc_line + 0x8;
+    i2c.get_clk_reg = ddc_line + 0xc;
+    i2c.get_data_reg = ddc_line + 0xc;
+    if (ddc_line)
+	i2c.valid = TRUE;
+    else
+	i2c.valid = FALSE;
 
     return i2c;
 }
@@ -1920,28 +1957,28 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 
     if (IS_AVIVO_VARIANT) {
 	if (info->IsMobility) {
-	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(0x7e60);
+	    info->BiosConnector[0].ddc_i2c = atom_setup_i2c_bus(0x7e60);
 	    info->BiosConnector[0].DACType = DAC_NONE;
 	    info->BiosConnector[0].TMDSType = TMDS_NONE;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[0].devices = ATOM_DEVICE_LCD1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(0x7e40);
+	    info->BiosConnector[1].ddc_i2c = atom_setup_i2c_bus(0x7e40);
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 	    info->BiosConnector[1].devices = ATOM_DEVICE_CRT1_SUPPORT;
 	    info->BiosConnector[1].valid = TRUE;
 	} else {
-	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(0x7e50);
+	    info->BiosConnector[0].ddc_i2c = atom_setup_i2c_bus(0x7e50);
 	    info->BiosConnector[0].DACType = DAC_TVDAC;
 	    info->BiosConnector[0].TMDSType = TMDS_INT;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	    info->BiosConnector[0].devices = ATOM_DEVICE_CRT2_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
 	    info->BiosConnector[0].valid = TRUE;
 
-	    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(0x7e40);
+	    info->BiosConnector[1].ddc_i2c = atom_setup_i2c_bus(0x7e40);
 	    info->BiosConnector[1].DACType = DAC_PRIMARY;
 	    info->BiosConnector[1].TMDSType = TMDS_NONE;
 	    info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
