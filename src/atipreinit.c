@@ -654,8 +654,6 @@ ATIPreInit
 #endif /* AVOID_CPIO */
 
     /* Finish private area initialisation */
-    pATI->DAC = ATI_DAC_GENERIC;
-
     pATI->LCDPanelID = -1;
     pATI->nFIFOEntries = 16;                    /* For now */
 
@@ -737,8 +735,6 @@ ATIPreInit
                     pATI->VideoRAM = (IOValue - 7) * 2048;
             }
 
-            pATI->DAC = GetBits(inr(DAC_CNTL), DAC_TYPE);
-
             IOValue = inr(CONFIG_STATUS64_0);
             if (pATI->Chip >= ATI_CHIP_264CT)
             {
@@ -814,7 +810,13 @@ ATIPreInit
             else
             {
                 pATI->MemoryType = GetBits(IOValue, CFG_MEM_TYPE);
+            }
 
+            /* Get DAC type */
+            pATI->DAC = GetBits(inr(DAC_CNTL), DAC_TYPE);
+
+            if (pATI->Chip < ATI_CHIP_264CT)
+            {
                 /* Factor in what the BIOS says the DAC is */
                 pATI->DAC = ATI_DAC(pATI->DAC,
                     GetBits(inr(SCRATCH_REG1), BIOS_INIT_DAC_SUBTYPE));
