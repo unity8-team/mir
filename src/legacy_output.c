@@ -160,26 +160,6 @@ RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 }
 
 void
-RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 bios_5_scratch = INREG(RADEON_BIOS_5_SCRATCH);
-    CARD32 bios_6_scratch = INREG(RADEON_BIOS_6_SCRATCH);
-
-    OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
-    bios_5_scratch &= 0xF;
-    bios_5_scratch |= (restore->bios_5_scratch & ~0xF);
-    OUTREG(RADEON_BIOS_5_SCRATCH, bios_5_scratch);
-    if (restore->bios_6_scratch & 0x40000000)
-	bios_6_scratch |= 0x40000000;
-    else
-	bios_6_scratch &= ~0x40000000;
-    OUTREG(RADEON_BIOS_6_SCRATCH, bios_6_scratch);
-
-}
-
-void
 RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);

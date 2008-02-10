@@ -491,17 +491,6 @@ RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->grph2_buffer_cntl  = INREG(RADEON_GRPH2_BUFFER_CNTL);
 }
 
-void
-RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
-{
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
-    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
-    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
-    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
-}
-
 /* Read CRTC registers */
 void
 RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
@@ -1304,18 +1293,6 @@ RADEONInitPLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save,
 }
 
 static void
-RADEONInitBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
-{
-    RADEONInfoPtr  info      = RADEONPTR(pScrn);
-
-    /* tell the bios not to muck with the hardware on events */
-    save->bios_4_scratch = 0x4; /* 0x4 needed for backlight */
-    save->bios_5_scratch = (info->SavedReg->bios_5_scratch & 0xff) | 0xff00; /* bits 0-3 keep backlight level */
-    save->bios_6_scratch = info->SavedReg->bios_6_scratch | 0x40000000;
-
-}
-
-static void
 radeon_update_tv_routing(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     /* pixclks_cntl controls tv clock routing */
@@ -1715,8 +1692,6 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
     }
 
-    if (info->IsMobility)
-	RADEONInitBIOSRegisters(pScrn, info->ModeReg);
 
     ErrorF("init memmap\n");
     RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
@@ -1772,9 +1747,6 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    }
 	}
     }
-
-    if (info->IsMobility)
-	RADEONRestoreBIOSRegisters(pScrn, info->ModeReg);
 
     ErrorF("restore memmap\n");
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);

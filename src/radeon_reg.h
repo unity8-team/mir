@@ -130,13 +130,71 @@
 
 #define RADEON_BASE_CODE                    0x0f0b
 #define RADEON_BIOS_0_SCRATCH               0x0010
+#       define RADEON_FP_PANEL_SCALABLE     (1 << 16)
+#       define RADEON_FP_PANEL_SCALE_EN     (1 << 17)
+#       define RADEON_FP_CHIP_SCALE_EN      (1 << 18)
+#       define RADEON_DRIVER_BRIGHTNESS_EN  (1 << 26)
+#       define RADEON_DISPLAY_ROT_MASK      (3 << 28)
+#       define RADEON_DISPLAY_ROT_00        (0 << 28)
+#       define RADEON_DISPLAY_ROT_90        (1 << 28)
+#       define RADEON_DISPLAY_ROT_180       (2 << 28)
+#       define RADEON_DISPLAY_ROT_270       (3 << 28)
 #define RADEON_BIOS_1_SCRATCH               0x0014
 #define RADEON_BIOS_2_SCRATCH               0x0018
 #define RADEON_BIOS_3_SCRATCH               0x001c
 #define RADEON_BIOS_4_SCRATCH               0x0020
+#       define RADEON_CRT1_ATTACHED_MASK    (3 << 0)
+#       define RADEON_CRT1_ATTACHED_MONO    (1 << 0)
+#       define RADEON_CRT1_ATTACHED_COLOR   (2 << 0)
+#       define RADEON_LCD1_ATTACHED         (1 << 2)
+#       define RADEON_DFP1_ATTACHED         (1 << 3)
+#       define RADEON_TV1_ATTACHED_MASK     (3 << 4)
+#       define RADEON_TV1_ATTACHED_COMP     (1 << 4)
+#       define RADEON_TV1_ATTACHED_SVIDEO   (2 << 4)
+#       define RADEON_CRT2_ATTACHED_MASK    (3 << 8)
+#       define RADEON_CRT2_ATTACHED_MONO    (1 << 8)
+#       define RADEON_CRT2_ATTACHED_COLOR   (2 << 8)
+#       define RADEON_DFP2_ATTACHED         (1 << 11)
 #define RADEON_BIOS_5_SCRATCH               0x0024
+#       define RADEON_LCD1_ON               (1 << 0)
+#       define RADEON_CRT1_ON               (1 << 1)
+#       define RADEON_TV1_ON                (1 << 2)
+#       define RADEON_DFP1_ON               (1 << 3)
+#       define RADEON_CRT2_ON               (1 << 5)
+#       define RADEON_CV1_ON                (1 << 6)
+#       define RADEON_DFP2_ON               (1 << 7)
+#       define RADEON_LCD1_CRTC_MASK        (1 << 8)
+#       define RADEON_LCD1_CRTC_SHIFT       8
+#       define RADEON_CRT1_CRTC_MASK        (1 << 9)
+#       define RADEON_CRT1_CRTC_SHIFT       9
+#       define RADEON_TV1_CRTC_MASK         (1 << 10)
+#       define RADEON_TV1_CRTC_SHIFT        10
+#       define RADEON_DFP1_CRTC_MASK        (1 << 11)
+#       define RADEON_DFP1_CRTC_SHIFT       11
+#       define RADEON_CRT2_CRTC_MASK        (1 << 12)
+#       define RADEON_CRT2_CRTC_SHIFT       12
+#       define RADEON_CV1_CRTC_MASK         (1 << 13)
+#       define RADEON_CV1_CRTC_SHIFT        13
+#       define RADEON_DFP2_CRTC_MASK        (1 << 14)
+#       define RADEON_DFP2_CRTC_SHIFT       14
 #define RADEON_BIOS_6_SCRATCH               0x0028
+#       define RADEON_ACC_MODE_CHANGE       (1 << 2)
+#       define RADEON_EXT_DESKTOP_MODE      (1 << 3)
+#       define RADEON_LCD_DPMS_ON           (1 << 20)
+#       define RADEON_CRT_DPMS_ON           (1 << 21)
+#       define RADEON_TV_DPMS_ON            (1 << 22)
+#       define RADEON_DFP_DPMS_ON           (1 << 23)
+#       define RADEON_DPMS_MASK             (3 << 24)
+#       define RADEON_DPMS_ON               (0 << 24)
+#       define RADEON_DPMS_STANDBY          (1 << 24)
+#       define RADEON_DPMS_SUSPEND          (2 << 24)
+#       define RADEON_DPMS_OFF              (3 << 24)
+#       define RADEON_SCREEN_BLANKING       (1 << 26)
+#       define RADEON_DRIVER_CRITICAL       (1 << 27)
+#       define RADEON_DISPLAY_SWITCHING_DIS (1 << 30)
 #define RADEON_BIOS_7_SCRATCH               0x002c
+#       define RADEON_SYS_HOTKEY            (1 << 10)
+#       define RADEON_DRV_LOADED            (1 << 12)
 #define RADEON_BIOS_ROM                     0x0f30 /* PCI */
 #define RADEON_BIST                         0x0f0f /* PCI */
 #define RADEON_BRUSH_DATA0                  0x1480

@@ -428,28 +428,6 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    int tmp, count;
-
-#if 1
-    /* try to grab card lock or at least somethings that looks like a lock
-     * if it fails more than 5 times with 1000ms wait btw each try than we
-     * assume we can process.
-     */
-    count = 0;
-    tmp = INREG(RADEON_BIOS_6_SCRATCH);
-    while((tmp & 0x100) && (count < 5)) {
-        tmp = INREG(RADEON_BIOS_6_SCRATCH);
-        count++;
-        usleep(1000);
-    }
-    if (count >= 5) {
-        xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
-                   "%s (WARNING) failed to grab card lock process anyway.\n",
-                   __func__);
-    }
-    OUTREG(RADEON_BIOS_6_SCRATCH, tmp | 0x100);
-#endif
 
     ErrorF("AGD: output dpms %d\n", mode);
 
@@ -479,11 +457,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
        if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
    }
-#if 1
-    /* release card lock */
-    tmp = INREG(RADEON_BIOS_6_SCRATCH);
-    OUTREG(RADEON_BIOS_6_SCRATCH, tmp & (~0x100));
-#endif
+
 }
 
 static void

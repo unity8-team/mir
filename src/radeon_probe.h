@@ -385,9 +385,16 @@ typedef struct {
     CARD32            cap0_trig_cntl;
     CARD32            cap1_trig_cntl;
     CARD32            bus_cntl;
+
+    CARD32            bios_0_scratch;
+    CARD32            bios_1_scratch;
+    CARD32            bios_2_scratch;
+    CARD32            bios_3_scratch;
     CARD32            bios_4_scratch;
     CARD32            bios_5_scratch;
     CARD32            bios_6_scratch;
+    CARD32            bios_7_scratch;
+
     CARD32            surface_cntl;
     CARD32            surfaces[8][3];
     CARD32            mc_agp_location;

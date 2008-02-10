@@ -186,7 +186,12 @@ extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr ou
 extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern I2CDevPtr RADEONDVODeviceInit(I2CBusPtr b, I2CSlaveAddr addr);
-
+static void
+radeon_bios_output_dpms(xf86OutputPtr output, int mode);
+static void
+radeon_bios_output_crtc(xf86OutputPtr output);
+static void
+radeon_bios_output_lock(xf86OutputPtr output, Bool lock);
 
 void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 {
@@ -480,6 +485,8 @@ radeon_dpms(xf86OutputPtr output, int mode)
     } else {
 	legacy_output_dpms(output, mode);
     }
+    radeon_bios_output_dpms(output, mode);
+
 }
 
 static void
@@ -625,6 +632,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
+    radeon_bios_output_lock(output, TRUE);
 }
 
 static void
@@ -637,6 +645,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	atombios_output_mode_set(output, mode, adjusted_mode);
     else
 	legacy_output_mode_set(output, mode, adjusted_mode);
+    radeon_bios_output_crtc(output);
 
 }
 
@@ -644,6 +653,207 @@ static void
 radeon_mode_commit(xf86OutputPtr output)
 {
     radeon_dpms(output, DPMSModeOn);
+    radeon_bios_output_lock(output, FALSE);
+}
+
+static void
+radeon_bios_output_lock(xf86OutputPtr output, Bool lock)
+{
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONSavePtr save = info->ModeReg;
+
+    if (info->IsAtomBios) {
+	int tmp, count;
+
+	if (lock) {
+	    /* try to grab card lock or at least somethings that looks like a lock
+	     * if it fails more than 5 times with 1000ms wait btw each try than we
+	     * assume we can process.
+	     */
+	    count = 0;
+	    tmp = INREG(RADEON_BIOS_6_SCRATCH);
+	    while((tmp & 0x100) && (count < 5)) {
+		tmp = INREG(RADEON_BIOS_6_SCRATCH);
+		count++;
+		usleep(1000);
+	    }
+	    if (count >= 5) {
+		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+			   "%s (WARNING) failed to grab card lock process anyway.\n",
+			   __func__);
+	    }
+	    OUTREG(RADEON_BIOS_6_SCRATCH, tmp | 0x100);
+	} else {
+	    /* release card lock */
+	    tmp = INREG(RADEON_BIOS_6_SCRATCH);
+	    OUTREG(RADEON_BIOS_6_SCRATCH, tmp & (~0x100));
+	}
+    } else {
+	if (lock) {
+	    save->bios_6_scratch |= (RADEON_DRIVER_CRITICAL | RADEON_ACC_MODE_CHANGE);
+	} else {
+	    save->bios_6_scratch &= ~(RADEON_DRIVER_CRITICAL | RADEON_ACC_MODE_CHANGE);
+	}
+	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+    }
+
+}
+
+static void
+radeon_bios_output_dpms(xf86OutputPtr output, int mode)
+{
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONSavePtr save = info->ModeReg;
+
+    if (info->IsAtomBios) {
+
+    } else {
+	if (mode == DPMSModeOn) {
+	    save->bios_6_scratch &= ~(RADEON_DPMS_MASK | RADEON_SCREEN_BLANKING);
+	    save->bios_6_scratch |= RADEON_DPMS_ON;
+	    if (radeon_output->MonType == MT_STV ||
+		radeon_output->MonType == MT_CTV) {
+		save->bios_5_scratch |= RADEON_TV1_ON;
+		save->bios_6_scratch |= RADEON_TV_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_CRT) {
+		if (radeon_output->DACType == DAC_PRIMARY)
+		    save->bios_5_scratch |= RADEON_CRT1_ON;
+		else
+		    save->bios_5_scratch |= RADEON_CRT2_ON;
+		save->bios_6_scratch |= RADEON_CRT_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_LCD) {
+		save->bios_5_scratch |= RADEON_LCD1_ON;
+		save->bios_6_scratch |= RADEON_LCD_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_DFP) {
+		if (radeon_output->TMDSType == TMDS_INT)
+		    save->bios_5_scratch |= RADEON_DFP1_ON;
+		else
+		    save->bios_5_scratch |= RADEON_DFP2_ON;
+		save->bios_6_scratch |= RADEON_DFP_DPMS_ON;
+	    }
+	} else {
+	    save->bios_6_scratch &= ~RADEON_DPMS_MASK;
+	    save->bios_6_scratch |= (RADEON_DPMS_OFF | RADEON_SCREEN_BLANKING);
+	    if (radeon_output->MonType == MT_STV ||
+		radeon_output->MonType == MT_CTV) {
+		save->bios_5_scratch &= ~RADEON_TV1_ON;
+		save->bios_6_scratch &= ~RADEON_TV_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_CRT) {
+		if (radeon_output->DACType == DAC_PRIMARY)
+		    save->bios_5_scratch &= ~RADEON_CRT1_ON;
+		else
+		    save->bios_5_scratch &= ~RADEON_CRT2_ON;
+		save->bios_6_scratch &= ~RADEON_CRT_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_LCD) {
+		save->bios_5_scratch &= ~RADEON_LCD1_ON;
+		save->bios_6_scratch &= ~RADEON_LCD_DPMS_ON;
+	    } else if (radeon_output->MonType == MT_DFP) {
+		if (radeon_output->TMDSType == TMDS_INT)
+		    save->bios_5_scratch &= ~RADEON_DFP1_ON;
+		else
+		    save->bios_5_scratch &= ~RADEON_DFP2_ON;
+		save->bios_6_scratch &= ~RADEON_DFP_DPMS_ON;
+	    }
+	}
+	OUTREG(RADEON_BIOS_5_SCRATCH, save->bios_5_scratch);
+	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+    }
+}
+
+static void
+radeon_bios_output_crtc(xf86OutputPtr output)
+{
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONSavePtr save = info->ModeReg;
+    xf86CrtcPtr crtc = output->crtc;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+    if (info->IsAtomBios) {
+
+    } else {
+	if (radeon_output->MonType == MT_STV ||
+	    radeon_output->MonType == MT_CTV) {
+	    save->bios_5_scratch &= ~RADEON_TV1_CRTC_MASK;
+	    save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_TV1_CRTC_SHIFT);
+	} else if (radeon_output->MonType == MT_CRT) {
+	    if (radeon_output->DACType == DAC_PRIMARY) {
+		save->bios_5_scratch &= ~RADEON_CRT1_CRTC_MASK;
+		save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_CRT1_CRTC_SHIFT);
+	    } else {
+		save->bios_5_scratch &= ~RADEON_CRT2_CRTC_MASK;
+		save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_CRT2_CRTC_SHIFT);
+	    }
+	} else if (radeon_output->MonType == MT_LCD) {
+	    save->bios_5_scratch &= ~RADEON_LCD1_CRTC_MASK;
+	    save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_LCD1_CRTC_SHIFT);
+	} else if (radeon_output->MonType == MT_DFP) {
+	    if (radeon_output->TMDSType == TMDS_INT) {
+		save->bios_5_scratch &= ~RADEON_DFP1_CRTC_MASK;
+		save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_DFP1_CRTC_SHIFT);
+	    } else {
+		save->bios_5_scratch &= ~RADEON_DFP2_CRTC_MASK;
+		save->bios_5_scratch |= (radeon_crtc->crtc_id << RADEON_DFP2_CRTC_SHIFT);
+	    }
+	}
+	OUTREG(RADEON_BIOS_5_SCRATCH, save->bios_5_scratch);
+    }
+}
+
+static void
+radeon_bios_output_connected(xf86OutputPtr output, Bool connected)
+{
+    ScrnInfoPtr	    pScrn = output->scrn;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONSavePtr save = info->ModeReg;
+
+    if (info->IsAtomBios) {
+
+    } else {
+	if (connected) {
+	    if (radeon_output->MonType == MT_STV)
+		save->bios_4_scratch |= RADEON_TV1_ATTACHED_SVIDEO;
+	    else if (radeon_output->MonType == MT_CTV)
+		save->bios_4_scratch |= RADEON_TV1_ATTACHED_COMP;
+	    else if (radeon_output->MonType == MT_CRT) {
+		if (radeon_output->DACType == DAC_PRIMARY)
+		    save->bios_4_scratch |= RADEON_CRT1_ATTACHED_COLOR;
+		else
+		    save->bios_4_scratch |= RADEON_CRT2_ATTACHED_COLOR;
+	    } else if (radeon_output->MonType == MT_LCD)
+		save->bios_4_scratch |= RADEON_LCD1_ATTACHED;
+	    else if (radeon_output->MonType == MT_DFP) {
+		if (radeon_output->TMDSType == TMDS_INT)
+		    save->bios_4_scratch |= RADEON_DFP1_ATTACHED;
+		else
+		    save->bios_4_scratch |= RADEON_DFP2_ATTACHED;
+	    }
+	} else {
+	    if (OUTPUT_IS_TV)
+		save->bios_4_scratch &= ~RADEON_TV1_ATTACHED_MASK;
+	    else if (radeon_output->DACType == DAC_TVDAC)
+		save->bios_4_scratch &= ~RADEON_CRT2_ATTACHED_MASK;
+	    if (radeon_output->DACType == DAC_PRIMARY)
+		save->bios_4_scratch &= ~RADEON_CRT1_ATTACHED_MASK;
+	    if (radeon_output->type == OUTPUT_LVDS)
+		save->bios_4_scratch &= ~RADEON_LCD1_ATTACHED;
+	    if (radeon_output->TMDSType == TMDS_INT)
+		save->bios_4_scratch &= ~RADEON_DFP1_ATTACHED;
+	    if (radeon_output->TMDSType == TMDS_EXT)
+		save->bios_4_scratch &= ~RADEON_DFP2_ATTACHED;
+	}
+	OUTREG(RADEON_BIOS_4_SCRATCH, save->bios_4_scratch);
+    }
+
 }
 
 static xf86OutputStatus
@@ -655,6 +865,7 @@ radeon_detect(xf86OutputPtr output)
     Bool connected = TRUE;
 
     radeon_output->MonType = MT_UNKNOWN;
+    radeon_bios_output_connected(output, FALSE);
     RADEONConnectorFindMonitor(pScrn, output);
 
     /* nothing connected, light up some defaults so the server comes up */
@@ -679,6 +890,8 @@ radeon_detect(xf86OutputPtr output)
 	    }
 	}
     }
+
+    radeon_bios_output_connected(output, TRUE);
 
     /* set montype so users can force outputs on even if detection fails */
     if (radeon_output->MonType == MT_NONE) {

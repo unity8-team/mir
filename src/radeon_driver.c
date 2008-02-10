@@ -131,8 +131,6 @@ RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 extern void
 RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void
-RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
 RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void
 RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
@@ -2978,6 +2976,40 @@ RADEONPointerMoved(int index, int x, int y)
     (*info->PointerMoved)(index, newX, newY);
 }
 
+static void
+RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONSavePtr save = info->ModeReg;
+
+    save->bios_0_scratch = info->SavedReg->bios_0_scratch;
+    save->bios_1_scratch = info->SavedReg->bios_1_scratch;
+    save->bios_2_scratch = info->SavedReg->bios_2_scratch;
+    save->bios_3_scratch = info->SavedReg->bios_3_scratch;
+    save->bios_4_scratch = info->SavedReg->bios_4_scratch;
+    save->bios_5_scratch = info->SavedReg->bios_5_scratch;
+    save->bios_6_scratch = info->SavedReg->bios_6_scratch;
+    save->bios_7_scratch = info->SavedReg->bios_7_scratch;
+
+    if (info->IsAtomBios) {
+	
+    } else {
+	/* let the bios control the backlight */
+	save->bios_0_scratch &= ~RADEON_DRIVER_BRIGHTNESS_EN;
+	/* tell the bios not to handle mode switching */
+	save->bios_6_scratch |= RADEON_DISPLAY_SWITCHING_DIS;
+	/* tell the bios a driver is loaded */
+	save->bios_7_scratch |= RADEON_DRV_LOADED;
+
+	OUTREG(RADEON_BIOS_0_SCRATCH, save->bios_0_scratch);
+	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+	//OUTREG(RADEON_BIOS_7_SCRATCH, save->bios_7_scratch);
+    }
+
+}
+
+
 /* Called at the start of each server generation. */
 Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
                                 int argc, char **argv)
@@ -3024,6 +3056,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->crtc2_on = FALSE;
 
     RADEONSave(pScrn);
+
+    /* set initial bios scratch reg state */
+    RADEONInitBIOSRegisters(pScrn);
 
     /* blank the outputs/crtcs */
     RADEONBlank(pScrn);
@@ -4304,6 +4339,38 @@ void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 }
 
+static void
+RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(RADEON_BIOS_0_SCRATCH, restore->bios_0_scratch);
+    OUTREG(RADEON_BIOS_1_SCRATCH, restore->bios_1_scratch);
+    OUTREG(RADEON_BIOS_2_SCRATCH, restore->bios_2_scratch);
+    OUTREG(RADEON_BIOS_3_SCRATCH, restore->bios_3_scratch);
+    OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+    OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
+    OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
+    OUTREG(RADEON_BIOS_7_SCRATCH, restore->bios_7_scratch);
+}
+
+static void
+RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    save->bios_0_scratch       = INREG(RADEON_BIOS_0_SCRATCH);
+    save->bios_1_scratch       = INREG(RADEON_BIOS_1_SCRATCH);
+    save->bios_2_scratch       = INREG(RADEON_BIOS_2_SCRATCH);
+    save->bios_3_scratch       = INREG(RADEON_BIOS_3_SCRATCH);
+    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
+    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
+    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
+    save->bios_7_scratch       = INREG(RADEON_BIOS_7_SCRATCH);
+}
+
 /* Save everything needed to restore the original VC state */
 static void RADEONSave(ScrnInfoPtr pScrn)
 {
@@ -4349,7 +4416,6 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	RADEONSavePLLRegisters(pScrn, save);
 	RADEONSaveCrtcRegisters(pScrn, save);
 	RADEONSaveFPRegisters(pScrn, save);
-	RADEONSaveBIOSRegisters(pScrn, save);
 	RADEONSaveDACRegisters(pScrn, save);
 	if (pRADEONEnt->HasCRTC2) {
 	    RADEONSaveCrtc2Registers(pScrn, save);
@@ -4359,7 +4425,8 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	    RADEONSaveTVRegisters(pScrn, save);
     }
 
-	RADEONSaveSurfaces(pScrn, save);
+    RADEONSaveBIOSRegisters(pScrn, save);
+    RADEONSaveSurfaces(pScrn, save);
 
 }
 
@@ -4394,27 +4461,27 @@ void RADEONRestore(ScrnInfoPtr pScrn)
 	OUTREG(RADEON_GRPH_BUFFER_CNTL, restore->grph_buffer_cntl);
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, restore->grph2_buffer_cntl);
 
-    if (!info->IsSecondary) {
-	RADEONRestoreMemMapRegisters(pScrn, restore);
-	RADEONRestoreCommonRegisters(pScrn, restore);
+	if (!info->IsSecondary) {
+	    RADEONRestoreMemMapRegisters(pScrn, restore);
+	    RADEONRestoreCommonRegisters(pScrn, restore);
 
-	if (pRADEONEnt->HasCRTC2) {
-	    RADEONRestoreCrtc2Registers(pScrn, restore);
-	    RADEONRestorePLL2Registers(pScrn, restore);
+	    if (pRADEONEnt->HasCRTC2) {
+		RADEONRestoreCrtc2Registers(pScrn, restore);
+		RADEONRestorePLL2Registers(pScrn, restore);
+	    }
+
+	    RADEONRestoreCrtcRegisters(pScrn, restore);
+	    RADEONRestorePLLRegisters(pScrn, restore);
+	    RADEONRestoreRMXRegisters(pScrn, restore);
+	    RADEONRestoreFPRegisters(pScrn, restore);
+	    RADEONRestoreFP2Registers(pScrn, restore);
+	    RADEONRestoreLVDSRegisters(pScrn, restore);
+
+	    if (info->InternalTVOut)
+		RADEONRestoreTVRegisters(pScrn, restore);
 	}
 
 	RADEONRestoreBIOSRegisters(pScrn, restore);
-	RADEONRestoreCrtcRegisters(pScrn, restore);
-	RADEONRestorePLLRegisters(pScrn, restore);
-	RADEONRestoreRMXRegisters(pScrn, restore);
-	RADEONRestoreFPRegisters(pScrn, restore);
-	RADEONRestoreFP2Registers(pScrn, restore);
-	RADEONRestoreLVDSRegisters(pScrn, restore);
-
-	if (info->InternalTVOut)
-	    RADEONRestoreTVRegisters(pScrn, restore);
-    }
-
 	RADEONRestoreSurfaces(pScrn, restore);
     }
 
