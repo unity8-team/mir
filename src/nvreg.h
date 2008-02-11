@@ -93,6 +93,9 @@
 #define NV_FIFO_OFFSET              0x00800000
 #define NV_FIFO_SIZE                0x00800000
 
+#define CRTC_INDEX_COLOR		0x3d4
+#define CRTC_DATA_COLOR			0x3d5
+
 /* Nvidia CRTC indexed registers */
 /* VGA standard registers: - from Haiku */
 #define NV_VGA_CRTCX_HTOTAL		0x00
@@ -156,6 +159,9 @@
 #define NV_VGA_CRTCX_59			0x59
 #define NV_VGA_CRTCX_85			0x85
 #define NV_VGA_CRTCX_86			0x86
+
+#define NV_PMC_BOOT_0			0x00000000
+#define NV_PMC_ENABLE			0x00000200
 
 #define NV_PBUS_DEBUG_1			0x00001084
 #define NV_PBUS_DEBUG_4			0x00001098

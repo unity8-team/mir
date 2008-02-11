@@ -83,36 +83,22 @@ int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM,
 int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
 bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
 
-void nForceUpdateArbitrationSettings (unsigned      VClk,  unsigned      pixelDepth,
-				      unsigned     *burst, unsigned     *lwm,
-				      NVPtr        pNv);
-
 /* nv_crtc.c */
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
 void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
-void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 void NVWriteVgaCrtc(xf86CrtcPtr crtc, uint8_t index, uint8_t value);
 uint8_t NVReadVgaCrtc(xf86CrtcPtr crtc, uint8_t index);
-void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value);
-uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index);
 xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
-void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
-uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
 void NVCrtcModeFix(xf86CrtcPtr crtc);
-uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
-void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
 uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
-uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg);
-void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
 uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
-void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
@@ -125,6 +111,16 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
 
 /* nv_hw.c */
+uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
+void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg);
+void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index);
+void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
+void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head);
+void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock);
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,
 				      NVPtr        pNv);
@@ -141,9 +137,6 @@ void nv4UpdateArbitrationSettings (unsigned      VClk,
 				   unsigned     *burst,
 				   unsigned     *lwm,
 				   NVPtr        pNv);
-
-void NVInitSurface(ScrnInfoPtr pScrn, RIVA_HW_STATE *state);
-void NVInitGraphContext(ScrnInfoPtr pScrn);
 
 /* in nv_i2c.c */
 Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);

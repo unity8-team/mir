@@ -42,6 +42,108 @@
 #include "nv_local.h"
 #include "compiler.h"
 
+uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
+{
+	if (head)
+		reg += NV_PCRTC0_SIZE;
+	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
+}
+
+void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
+{
+	if (head)
+		reg += NV_PCRTC0_SIZE;
+	DDXMMIOH("NVWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
+}
+
+uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
+{
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
+	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
+	return MMIO_IN32(pNv->REGS, reg);
+}
+
+void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
+{
+	if (head)
+		reg += NV_PRAMDAC0_SIZE;
+	DDXMMIOH("NVWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
+	MMIO_OUT32(pNv->REGS, reg, val);
+}
+
+void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	DDXMMIOH("NVWriteVGA: head %d index 0x%02x data 0x%02x\n", head, index, value);
+	NV_WR08(pCRTCReg, CRTC_INDEX_COLOR, index);
+	NV_WR08(pCRTCReg, CRTC_DATA_COLOR, value);
+}
+
+uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index)
+{
+	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+
+	NV_WR08(pCRTCReg, CRTC_INDEX_COLOR, index);
+	DDXMMIOH("NVReadVGA: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pCRTCReg, CRTC_DATA_COLOR));
+	return NV_RD08(pCRTCReg, CRTC_DATA_COLOR);
+}
+
+/* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
+ * I suspect they in fact do nothing, but are merely a way to carry useful
+ * per-head variables around
+ *
+ * Known uses:
+ * CR57		CR58
+ * 0x00		index to the appropriate dcb entry (or 7f for inactive)
+ * 0x02		dcb entry's "or" value (or 00 for inactive)
+ * 0x03		bit0 set for dual link (LVDS, possibly elsewhere too)
+ * 0x08 or 0x09	pxclk in MHz
+ * 0x0f		laptop panel info -	low nibble for PEXTDEV_BOOT_0 strap
+ * 					high nibble for xlat strap value
+ */
+
+void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	NVWriteVGA(pNv, head, 0x57, index);
+	NVWriteVGA(pNv, head, 0x58, value);
+}
+
+uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index)
+{
+	NVWriteVGA(pNv, head, 0x57, index);
+	return NVReadVGA(pNv, head, 0x58);
+}
+
+void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	/* CRTCX_OWNER is always changed on CRTC0 */
+	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head*0x3);
+
+	ErrorF("Setting owner: 0x%X\n", head*0x3);
+}
+
+void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->twoHeads)
+		NVSetOwner(pScrn, head);
+
+	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+
+	uint8_t cr11 = NVReadVGA(pNv, head, NV_VGA_CRTCX_VSYNCE);
+	if (lock)
+		cr11 |= 0x80;
+	else
+		cr11 &= ~0x80;
+	NVWriteVGA(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
+}
+
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
@@ -94,7 +196,6 @@ typedef struct {
   uint8_t mem_aligned;
   uint8_t enable_mp;
 } nv10_sim_state;
-
 
 static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 {
@@ -229,7 +330,6 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
     ErrorF("NVClock = %i MHz, MEMClock = %i MHz\n", *NVClk/1000, *MClk/1000);
 #endif
 }
-
 
 void nv4CalcArbitration (
     nv4_fifo_info *fifo,

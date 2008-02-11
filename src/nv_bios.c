@@ -27,7 +27,6 @@
 #include <byteswap.h>
 
 /* FIXME: put these somewhere */
-#define CRTC_INDEX_COLOR (VGA_IOBASE_COLOR + VGA_CRTC_INDEX_OFFSET)
 #define SEQ_INDEX VGA_SEQ_INDEX
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
