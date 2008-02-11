@@ -23,7 +23,6 @@
  */
 
 #include "nv_include.h"
-#include "nvreg.h"
 #include <byteswap.h>
 
 /* FIXME: put these somewhere */
@@ -111,17 +110,17 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED);
 	for (i = 0; i < NV_PROM_SIZE; i++) {
 		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
-		data[i] = pNv->PROM[i];
-		data[i] = pNv->PROM[i];
-		data[i] = pNv->PROM[i];
-		data[i] = pNv->PROM[i];
-		data[i] = pNv->PROM[i];
+		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
+		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
+		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
+		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
+		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
 	}
 	/* disable ROM access */
 	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 }
 
-static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
+static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	const uint32_t *pramin = (uint32_t *)&pNv->REGS[NV_PRAMIN_ROM_OFFSET/4];
@@ -131,23 +130,19 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint32_t *data)
 		   "Attempting to locate BIOS image in PRAMIN\n");
 
 	if (pNv->Architecture >= NV_ARCH_50) {
-		uint32_t vbios_vram;
+		uint32_t vbios_vram = (NV_RD32(pNv->REGS, 0x619f04) & ~0xff) << 8;
 
-		vbios_vram = (pNv->REGS[0x619f04/4] & ~0xff) << 8;
-		if (!vbios_vram) {
-			vbios_vram = pNv->REGS[0x1700/4] << 16;
-			vbios_vram += 0xf0000;
-		}
+		if (!vbios_vram)
+			vbios_vram = (NV_RD32(pNv->REGS, 0x1700) << 16) + 0xf0000;
 
-		old_bar0_pramin = pNv->REGS[0x1700/4];
-		pNv->REGS[0x1700/4] = vbios_vram >> 16;
+		old_bar0_pramin = NV_RD32(pNv->REGS, 0x1700);
+		NV_WR32(pNv->REGS, 0x1700, vbios_vram >> 16);
 	}
 
 	memcpy(data, pramin, NV_PROM_SIZE);
 
-	if (pNv->Architecture >= NV_ARCH_50) {
-		pNv->REGS[0x1700/4] = old_bar0_pramin;
-	}
+	if (pNv->Architecture >= NV_ARCH_50)
+		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
 }
 
 static void NVVBIOS_PCIROM(ScrnInfoPtr pScrn, uint8_t *data)
@@ -170,7 +165,7 @@ static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 	if (NVValidVBIOS(pScrn, data) == 2)
 		return true;
 
-	NVShadowVBIOS_PRAMIN(pScrn, (uint32_t *)data);
+	NVShadowVBIOS_PRAMIN(pScrn, data);
 	if (NVValidVBIOS(pScrn, data))
 		return true;
 
@@ -206,7 +201,7 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 #define IO_FLAG_CONDITION_SIZE	9
 #define MEM_INIT_SIZE		66
 
-static void still_alive()
+static void still_alive(void)
 {
 //	sync();
 //	usleep(200);
@@ -316,7 +311,7 @@ static uint32_t nv32_rd(ScrnInfoPtr pScrn, uint32_t reg)
 	if (reg & 0x1)
 		reg &= ~0x1;
 
-	data = pNv->REGS[reg/4];
+	data = NV_RD32(pNv->REGS, reg);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -344,7 +339,7 @@ static void nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		pNv->REGS[reg/4] = data;
+		NV_WR32(pNv->REGS, reg, data);
 	}
 }
 
@@ -1957,12 +1952,12 @@ static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	if (bios->major_version > 2)
-		return false;
-
 	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
 	uint16_t seqtbloffs = bios->legacy.sdr_seq_tbl_ptr, meminitdata = meminitoffs + 6;
 	uint32_t reg, data;
+
+	if (bios->major_version > 2)
+		return false;
 
 	nv_idx_port_wr(pScrn, SEQ_INDEX, 0x01, nv_idx_port_rd(pScrn, SEQ_INDEX, 0x01) | 0x20);
 
@@ -2009,11 +2004,11 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	if (bios->major_version > 2)
-		return false;
-
 	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
 	int clock;
+
+	if (bios->major_version > 2)
+		return false;
 
 	clock = le16_to_cpu(*(uint16_t *)&bios->data[meminitoffs + 4]) * 10;
 	setPLL(pScrn, bios, NV_RAMDAC_NVPLL, clock);
@@ -2039,11 +2034,11 @@ static bool init_configure_preinit(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 
 	/* no iexec->execute check by design */
 
-	if (bios->major_version > 2)
-		return false;
-
 	uint32_t straps = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
 	uint8_t cr3c = ((straps << 2) & 0xf0) | (straps & (1 << 6));
+
+	if (bios->major_version > 2)
+		return false;
 
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4, cr3c);
 
@@ -3008,6 +3003,7 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ofs;
+	uint16_t modeofs;
 	DisplayModePtr mode;
 
 	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
@@ -3073,7 +3069,7 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
 		return;
 
-	int modeofs = headerlen + recordlen * fpindex + ofs;
+	modeofs = headerlen + recordlen * fpindex + ofs;
 	mode->Clock = le16_to_cpu(*(uint16_t *)&fptable[modeofs]) * 10;
 	mode->HDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 4] + 1);
 	mode->HSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 10] + 1);
@@ -3136,6 +3132,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 
 	unsigned int fpstrapping, lvdsmanufacturerindex = 0;
 	uint8_t lvds_ver, headerlen, recordlen;
+	uint16_t lvdsofs;
 
 	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
@@ -3176,7 +3173,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		return;
 	}
 
-	uint16_t lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
+	lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
 	switch (lvds_ver) {
 	case 0x0a:
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
@@ -3279,7 +3276,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
 	int pllindex = 0;
-	uint32_t crystal_straps;
+	uint32_t crystal_strap_mask, crystal_straps;
 
 	if (!bios->pll_limit_tbl_ptr) {
 		if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
@@ -3294,7 +3291,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 				   "Found PLL limits table version 0x%X\n", pll_lim_ver);
 	}
 
-	uint32_t crystal_strap_mask = 1 << 6;
+	crystal_strap_mask = 1 << 6;
         /* open coded pNv->twoHeads test */
         if (bios->chip_version > 0x10 && bios->chip_version != 0x15 &&
             bios->chip_version != 0x1a && bios->chip_version != 0x20)
@@ -3584,6 +3581,9 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 * There's other things in the table, purpose unknown
 	 */
 
+	uint16_t daccmpoffset;
+	uint8_t dacversion, dacheaderlen;
+
 	if (bitentry->length < 6) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "BIT i table not long enough for BIOS version and feature byte\n");
@@ -3601,7 +3601,7 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 		return 0;
 	}
 
-	uint16_t daccmpoffset = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 13])));
+	daccmpoffset = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 13])));
 
 	/* doesn't exist on g80 */
 	if (!daccmpoffset)
@@ -3611,19 +3611,19 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	 * Purpose of subsequent values unknown -- TV load detection?
 	 */
 
-	uint8_t version = bios->data[daccmpoffset];
-	uint8_t headerlen = bios->data[daccmpoffset + 1];
+	dacversion = bios->data[daccmpoffset];
+	dacheaderlen = bios->data[daccmpoffset + 1];
 
-	if (version != 0x00 && version != 0x10) {
+	if (dacversion != 0x00 && dacversion != 0x10) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "DAC load detection comparison table version %d.%d not known\n",
-			   version >> 4, version & 0xf);
+			   dacversion >> 4, dacversion & 0xf);
 		return 0;
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "DAC load detection comparison table version %x found\n", version);
+		   "DAC load detection comparison table version %x found\n", dacversion);
 
-	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + headerlen])));
+	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + dacheaderlen])));
 
 	return 1;
 }
@@ -3822,6 +3822,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
+	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
 	struct fppointers fpp;
 	memset(&fpp, 0, sizeof(struct fppointers));
@@ -3834,8 +3835,8 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	pNv->dcb_table.i2c_write[1] = 0x37;
 	pNv->dcb_table.i2c_read[1] = 0x36;
 
-	uint8_t bmp_version_major = bios->data[offset + 5];
-	uint8_t bmp_version_minor = bios->data[offset + 6];
+	bmp_version_major = bios->data[offset + 5];
+	bmp_version_minor = bios->data[offset + 6];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP version %d.%d\n",
 		   bmp_version_major, bmp_version_minor);
@@ -4279,6 +4280,7 @@ static void load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16
 	 */
 
 	uint8_t bytes_to_write;
+	uint16_t hwsq_entry_offset;
 	int i;
 
 	if (bios->data[hwsq_offset] <= entry) {
@@ -4296,7 +4298,7 @@ static void load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loading NV17 power sequencing microcode\n");
 
-	uint16_t hwsq_entry_offset = hwsq_offset + 2 + entry * bytes_to_write;
+	hwsq_entry_offset = hwsq_offset + 2 + entry * bytes_to_write;
 
 	/* set sequencer control */
 	nv32_wr(pScrn, 0x00001304, le32_to_cpu(*(uint32_t *)&bios->data[hwsq_entry_offset]));
