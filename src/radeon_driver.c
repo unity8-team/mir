@@ -1314,7 +1314,11 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
      */
 
     if (IS_AVIVO_VARIANT) {
-        OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    OUTREG(R600_HDP_NONSURFACE_BASE, (info->mc_fb_location << 16) & 0xff0000);
+	} else {
+	    OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
+	}
     	info->mc_agp_location = 0x003f0000;
     } else
     	info->mc_agp_location = 0xffffffc0;
@@ -3596,6 +3600,8 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 
 	    if (info->ChipFamily < CHIP_FAMILY_R600) {
 		OUTREG(AVIVO_HDP_FB_LOCATION, restore->mc_fb_location);
+	    } else {
+		OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location << 16) & 0xff0000);
 	    }
 	    
 	    /* Reset the engine and HDP */
