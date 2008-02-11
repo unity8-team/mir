@@ -633,6 +633,7 @@ static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
     radeon_bios_output_lock(output, TRUE);
+    radeon_dpms(output, DPMSModeOff);
 }
 
 static void
