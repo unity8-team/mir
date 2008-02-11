@@ -53,17 +53,18 @@
 #define NV_PVGA_OFFSET              0x000A0000
 #define NV_PVGA_SIZE                0x00020000
 
-#define NV_PVIO_OFFSET              0x000C0000
+#define NV_PVIO0_OFFSET             0x000C0000
 #define NV_PVIO_SIZE                0x00002000
-
-#define NV_PME_OFFSET               0x00200000
-#define NV_PME_SIZE                 0x00001000
+#define NV_PVIO1_OFFSET             0x000C2000
 
 #define NV_PFB_OFFSET               0x00100000
 #define NV_PFB_SIZE                 0x00001000
 
 #define NV_PEXTDEV_OFFSET           0x00101000
 #define NV_PEXTDEV_SIZE             0x00001000
+
+#define NV_PME_OFFSET               0x00200000
+#define NV_PME_SIZE                 0x00001000
 
 #define NV_PROM_OFFSET              0x00300000
 #define NV_PROM_SIZE                0x00010000
@@ -75,7 +76,8 @@
 #define NV_PCRTC0_SIZE              0x00002000 /* empirical */
 
 #define NV_PCIO0_OFFSET             0x00601000
-#define NV_PCIO0_SIZE               0x00002000
+#define NV_PCIO_SIZE                0x00002000
+#define NV_PCIO1_OFFSET             0x00603000
 
 #define NV50_PCRTC_OFFSET           0x00610000
 #define NV50_PCRTC_SIZE             0x00004000 /* Until a better guess comes along */
@@ -84,7 +86,8 @@
 #define NV_PRAMDAC0_SIZE            0x00002000
 
 #define NV_PDIO0_OFFSET             0x00681000
-#define NV_PDIO0_SIZE               0x00002000
+#define NV_PDIO_SIZE                0x00002000
+#define NV_PDIO1_OFFSET             0x00683000
 
 /* FIXME one of these is wrong */
 #define NV_PRAMIN_OFFSET            0x00710000

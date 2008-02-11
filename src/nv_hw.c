@@ -46,8 +46,8 @@ uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
 	if (head)
 		reg += NV_PCRTC0_SIZE;
-	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
-	return MMIO_IN32(pNv->REGS, reg);
+	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)NV_RD32(pNv->REGS, reg));
+	return NV_RD32(pNv->REGS, reg);
 }
 
 void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
@@ -55,15 +55,15 @@ void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 	if (head)
 		reg += NV_PCRTC0_SIZE;
 	DDXMMIOH("NVWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
-	MMIO_OUT32(pNv->REGS, reg, val);
+	NV_WR32(pNv->REGS, reg, val);
 }
 
 uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 {
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
-	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)MMIO_IN32(pNv->REGS, reg));
-	return MMIO_IN32(pNv->REGS, reg);
+	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)NV_RD32(pNv->REGS, reg));
+	return NV_RD32(pNv->REGS, reg);
 }
 
 void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
@@ -71,25 +71,25 @@ void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
 	DDXMMIOH("NVWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
-	MMIO_OUT32(pNv->REGS, reg, val);
+	NV_WR32(pNv->REGS, reg, val);
 }
 
 void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
 	DDXMMIOH("NVWriteVGA: head %d index 0x%02x data 0x%02x\n", head, index, value);
-	NV_WR08(pCRTCReg, CRTC_INDEX_COLOR, index);
-	NV_WR08(pCRTCReg, CRTC_DATA_COLOR, value);
+	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
+	NV_WR08(pNv->REGS, CRTC_DATA_COLOR + mmiobase, value);
 }
 
 uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index)
 {
-	volatile uint8_t *pCRTCReg = head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	NV_WR08(pCRTCReg, CRTC_INDEX_COLOR, index);
-	DDXMMIOH("NVReadVGA: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pCRTCReg, CRTC_DATA_COLOR));
-	return NV_RD08(pCRTCReg, CRTC_DATA_COLOR);
+	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
+	DDXMMIOH("NVReadVGA: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase));
+	return NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase);
 }
 
 /* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
@@ -130,13 +130,14 @@ void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head)
 void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint8_t cr11;
 
 	if (pNv->twoHeads)
 		NVSetOwner(pScrn, head);
 
 	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
 
-	uint8_t cr11 = NVReadVGA(pNv, head, NV_VGA_CRTCX_VSYNCE);
+	cr11 = NVReadVGA(pNv, head, NV_VGA_CRTCX_VSYNCE);
 	if (lock)
 		cr11 |= 0x80;
 	else

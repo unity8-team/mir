@@ -393,24 +393,12 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	if (pNv->Architecture >= NV_ARCH_50) {
 		pNv->NV50_PCRTC = pNv->REGS + (NV50_PCRTC_OFFSET/4);
 	}
-    pNv->PCRTC0   = pNv->REGS + (NV_PCRTC0_OFFSET/4);
-    pNv->PRAMDAC0 = pNv->REGS + (NV_PRAMDAC0_OFFSET/4);
-    pNv->PFB      = pNv->REGS + (NV_PFB_OFFSET/4);
-    pNv->PFIFO    = pNv->REGS + (NV_PFIFO_OFFSET/4);
     pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
-    pNv->PEXTDEV  = pNv->REGS + (NV_PEXTDEV_OFFSET/4);
-    pNv->PTIMER   = pNv->REGS + (NV_PTIMER_OFFSET/4);
-    pNv->PVIDEO   = pNv->REGS + (NV_PVIDEO_OFFSET/4);
-    pNv->PMC      = pNv->REGS + (NV_PMC_OFFSET/4);
-
-    pNv->PCRTC1   = pNv->PCRTC0 + 0x2000/4;
-    pNv->PRAMDAC1 = pNv->PRAMDAC0 + 0x2000/4;
 
     /* 8 bit registers */
     pNv->PCIO0    = (CARD8*)pNv->REGS + NV_PCIO0_OFFSET;
     pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
-    pNv->PVIO0     = (CARD8*)pNv->REGS + NV_PVIO_OFFSET;
-    pNv->PROM     = (CARD8*)pNv->REGS + NV_PROM_OFFSET;
+    pNv->PVIO0     = (CARD8*)pNv->REGS + NV_PVIO0_OFFSET;
 
     pNv->PCIO1    = pNv->PCIO0 + 0x2000;
     pNv->PDIO1    = pNv->PDIO0 + 0x2000;

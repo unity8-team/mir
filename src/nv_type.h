@@ -413,20 +413,8 @@ typedef struct _NVRec {
     CARD32              RamAmountKBytes;
 
     volatile CARD32 *REGS;
-    volatile CARD32 *PCRTC0;
-    volatile CARD32 *PCRTC1;
-
 	volatile CARD32 *NV50_PCRTC;
-
-    volatile CARD32 *PRAMDAC0;
-    volatile CARD32 *PRAMDAC1;
-    volatile CARD32 *PFB;
-    volatile CARD32 *PFIFO;
     volatile CARD32 *PGRAPH;
-    volatile CARD32 *PEXTDEV;
-    volatile CARD32 *PTIMER;
-    volatile CARD32 *PVIDEO;
-    volatile CARD32 *PMC;
     volatile CARD32 *PRAMIN;
     volatile CARD32 *CURSOR;
     volatile CARD8 *PCIO0;
@@ -435,11 +423,6 @@ typedef struct _NVRec {
     volatile CARD8 *PVIO1;
     volatile CARD8 *PDIO0;
     volatile CARD8 *PDIO1;
-    volatile CARD8 *PROM;
-
-
-    volatile CARD32 *RAMHT;
-    CARD32 pramin_free;
 
     unsigned int SaveGeneration;
     uint8_t cur_head;

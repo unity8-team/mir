@@ -48,8 +48,6 @@
 
 #include "vgaHW.h"
 
-#define CRTC_INDEX 0x3d4
-#define CRTC_DATA 0x3d5
 #define CRTC_IN_STAT_1 0x3da
 
 #define WHITE_VALUE 0x3F
@@ -124,15 +122,11 @@ static uint8_t NVReadPVIO(xf86CrtcPtr crtc, uint32_t address)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-
 	/* Only NV4x have two pvio ranges */
-	if (nv_crtc->head == 1 && pNv->Architecture == NV_ARCH_40) {
-		DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", 1, address + NV_PVIO_OFFSET + NV_PVIO_SIZE, NV_RD08(pNv->PVIO1, address));
-		return NV_RD08(pNv->PVIO1, address);
-	} else {
-		DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", 0, address + NV_PVIO_OFFSET, NV_RD08(pNv->PVIO0, address));
-		return NV_RD08(pNv->PVIO0, address);
-	}
+	uint32_t mmiobase = (nv_crtc->head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
+
+	DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + mmiobase, NV_RD08(pNv->REGS, address + mmiobase));
+	return NV_RD08(pNv->REGS, address + mmiobase);
 }
 
 static void NVWritePVIO(xf86CrtcPtr crtc, uint32_t address, uint8_t value)
@@ -140,15 +134,11 @@ static void NVWritePVIO(xf86CrtcPtr crtc, uint32_t address, uint8_t value)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-
 	/* Only NV4x have two pvio ranges */
-	if (nv_crtc->head == 1 && pNv->Architecture == NV_ARCH_40) {
-		DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + NV_PVIO_OFFSET + NV_PVIO_SIZE, value);
-		NV_WR08(pNv->PVIO1, address, value);
-	} else {
-		DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + NV_PVIO_OFFSET, value);
-		NV_WR08(pNv->PVIO0, address, value);
-	}
+	uint32_t mmiobase = (nv_crtc->head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
+
+	DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", nv_crtc->head, address + mmiobase, value);
+	NV_WR08(pNv->REGS, address + mmiobase, value);
 }
 
 static void NVWriteVgaSeq(xf86CrtcPtr crtc, uint8_t index, uint8_t value)
@@ -180,18 +170,18 @@ static void NVWriteVgaAttr(xf86CrtcPtr crtc, uint8_t index, uint8_t value)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	DDXMMIOH("NVWriteVgaAttr: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1, NV_RD08(pCRTCReg, CRTC_IN_STAT_1));
-	NV_RD08(pCRTCReg, CRTC_IN_STAT_1);
+	DDXMMIOH("NVWriteVgaAttr: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1 + mmiobase, NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase));
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
 	if (nv_crtc->paletteEnabled)
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
 	DDXMMIOH("NVWriteVgaAttr: head %d index 0x%02x data 0x%02x\n", nv_crtc->head, index, value);
-	NV_WR08(pCRTCReg, VGA_ATTR_INDEX, index);
-	NV_WR08(pCRTCReg, VGA_ATTR_DATA_W, value);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
+	NV_WR08(pNv->REGS, VGA_ATTR_DATA_W + mmiobase, value);
 }
 
 static uint8_t NVReadVgaAttr(xf86CrtcPtr crtc, uint8_t index)
@@ -199,18 +189,18 @@ static uint8_t NVReadVgaAttr(xf86CrtcPtr crtc, uint8_t index)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	DDXMMIOH("NVReadVgaAttr: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1, NV_RD08(pCRTCReg, CRTC_IN_STAT_1));
-	NV_RD08(pCRTCReg, CRTC_IN_STAT_1);
+	DDXMMIOH("NVReadVgaAttr: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1 + mmiobase, NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase));
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
 	if (nv_crtc->paletteEnabled)
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	NV_WR08(pCRTCReg, VGA_ATTR_INDEX, index);
-	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", nv_crtc->head, index, NV_RD08(pCRTCReg, VGA_ATTR_DATA_R));
-	return NV_RD08(pCRTCReg, VGA_ATTR_DATA_R);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
+	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", nv_crtc->head, index, NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase));
+	return NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase);
 }
 
 static void NVCrtcSetOwner(xf86CrtcPtr crtc)
@@ -228,12 +218,12 @@ NVEnablePalette(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	DDXMMIOH("NVEnablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1, NV_RD08(pCRTCReg, CRTC_IN_STAT_1));
-	NV_RD08(pCRTCReg, CRTC_IN_STAT_1);
-	DDXMMIOH("NVEnablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, VGA_ATTR_INDEX, 0);
-	NV_WR08(pCRTCReg, VGA_ATTR_INDEX, 0);
+	DDXMMIOH("NVEnablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1 + mmiobase, NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase));
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	DDXMMIOH("NVEnablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, VGA_ATTR_INDEX + mmiobase, 0);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, 0);
 	nv_crtc->paletteEnabled = TRUE;
 }
 
@@ -243,12 +233,12 @@ NVDisablePalette(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	volatile uint8_t *pCRTCReg = nv_crtc->head ? pNv->PCIO1 : pNv->PCIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	DDXMMIOH("NVDisablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PCIO0_OFFSET + (nv_crtc->head ? NV_PCIO0_SIZE : 0) + CRTC_IN_STAT_1, NV_RD08(pCRTCReg, CRTC_IN_STAT_1));
-	NV_RD08(pCRTCReg, CRTC_IN_STAT_1);
-	DDXMMIOH("NVDisablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PCIO0_OFFSET + (nv_crtc->head ? NV_PCIO0_SIZE : 0) + VGA_ATTR_INDEX, 0x20);
-	NV_WR08(pCRTCReg, VGA_ATTR_INDEX, 0x20);
+	DDXMMIOH("NVDisablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, CRTC_IN_STAT_1 + mmiobase, NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase));
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	DDXMMIOH("NVDisablePalette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, VGA_ATTR_INDEX + mmiobase, 0x20);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, 0x20);
 	nv_crtc->paletteEnabled = FALSE;
 }
 
@@ -2608,15 +2598,15 @@ static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(crtc->scrn);
-	volatile uint8_t *pDACReg = nv_crtc->head ? pNv->PDIO1 : pNv->PDIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PDIO1_OFFSET : NV_PDIO0_OFFSET;
 	int i;
 
-	VGA_WR08(pDACReg, VGA_DAC_MASK, 0xff);
-	VGA_WR08(pDACReg, VGA_DAC_READ_ADDR, 0x0);
+	VGA_WR08(pNv->REGS, VGA_DAC_MASK + mmiobase, 0xff);
+	VGA_WR08(pNv->REGS, VGA_DAC_READ_ADDR + mmiobase, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		state->crtc_reg[nv_crtc->head].DAC[i] = NV_RD08(pDACReg, VGA_DAC_DATA);
-		DDXMMIOH("nv_crtc_save_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PDIO0_OFFSET + (nv_crtc->head ? NV_PDIO0_SIZE : 0) + VGA_DAC_DATA, state->crtc_reg[nv_crtc->head].DAC[i]);
+		state->crtc_reg[nv_crtc->head].DAC[i] = NV_RD08(pNv->REGS, VGA_DAC_DATA + mmiobase);
+		DDXMMIOH("nv_crtc_save_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, VGA_DAC_DATA + mmiobase, state->crtc_reg[nv_crtc->head].DAC[i]);
 	}
 
 	NVDisablePalette(crtc);
@@ -2625,15 +2615,15 @@ static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(crtc->scrn);
-	volatile uint8_t *pDACReg = nv_crtc->head ? pNv->PDIO1 : pNv->PDIO0;
+	uint32_t mmiobase = nv_crtc->head ? NV_PDIO1_OFFSET : NV_PDIO0_OFFSET;
 	int i;
 
-	VGA_WR08(pDACReg, VGA_DAC_MASK, 0xff);
-	VGA_WR08(pDACReg, VGA_DAC_WRITE_ADDR, 0x0);
+	VGA_WR08(pNv->REGS, VGA_DAC_MASK + mmiobase, 0xff);
+	VGA_WR08(pNv->REGS, VGA_DAC_WRITE_ADDR + mmiobase, 0x0);
 
 	for (i = 0; i < 768; i++) {
-		DDXMMIOH("nv_crtc_load_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PDIO0_OFFSET + (nv_crtc->head ? NV_PDIO0_SIZE : 0) + VGA_DAC_DATA, state->crtc_reg[nv_crtc->head].DAC[i]);
-		NV_WR08(pDACReg, VGA_DAC_DATA, state->crtc_reg[nv_crtc->head].DAC[i]);
+		DDXMMIOH("nv_crtc_load_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, VGA_DAC_DATA + mmiobase, state->crtc_reg[nv_crtc->head].DAC[i]);
+		NV_WR08(pNv->REGS, VGA_DAC_DATA + mmiobase, state->crtc_reg[nv_crtc->head].DAC[i]);
 	}
 
 	NVDisablePalette(crtc);
