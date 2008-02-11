@@ -816,13 +816,10 @@ void nv_crtc_calc_state_ext(
 			state->reg594 = 0x0;
 		} else if (output) {
 			/* Are we a flexible output? */
-			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_0) {
+			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_0)
 				state->reg594 = 0x1;
-				pNv->restricted_mode = FALSE;
-			} else {
+			else
 				state->reg594 = 0x0;
-				pNv->restricted_mode = TRUE;
-			}
 
 			/* More values exist, but they seem related to the 3rd dac (tv-out?) somehow */
 			/* bit 16-19 are bits that are set on some G70 cards */
@@ -2340,8 +2337,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	/* Setting 1 on this value gives you interrupts for every vblank period. */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_EN_0, 0);
 	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
-
-	pNv->CurrentState = state;
 }
 
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)

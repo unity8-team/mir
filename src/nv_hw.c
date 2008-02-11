@@ -1171,8 +1171,6 @@ void NVLoadStateExt (
 
     nvWriteCurCRTC(pNv, NV_CRTC_INTR_EN_0, 0);
     nvWriteCurCRTC(pNv, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
-
-    pNv->CurrentState = state;
 }
 
 void NVUnloadStateExt

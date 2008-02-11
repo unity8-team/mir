@@ -1448,13 +1448,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
-
-		/* Set this in case no output ever does. */
-		if (pNv->Architecture >= NV_ARCH_30) {
-			pNv->restricted_mode = FALSE;
-		} else { /* real flexibility starts at the NV3x cards */
-			pNv->restricted_mode = TRUE;
-		}
 	}
 
 	if (NVPreInitDRI(pScrn) == FALSE) {

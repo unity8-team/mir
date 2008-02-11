@@ -367,7 +367,6 @@ typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
-    RIVA_HW_STATE       *CurrentState;
 	NV50_HW_STATE	NV50SavedReg;
 	NV50_HW_STATE	NV50ModeReg;
     uint32_t              Architecture;
@@ -482,7 +481,6 @@ typedef struct _NVRec {
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
 	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
-	Bool restricted_mode;
 	Bool switchable_crtc;
 
 	uint8_t fp_regs_owner[2];
@@ -563,8 +561,6 @@ enum scaling_modes {
 
 #define NVShowHideCursor(pScrn, show) do {							\
 	NVPtr pNv = NVPTR(pScrn);										\
-	pNv->CurrentState->cursor1 = (pNv->CurrentState->cursor1 & 0xFE) | 	\
-					(show & 0x01); 								\
 	nv_crtc_show_hide_cursor(pScrn, pNv->cur_head, show);				\
 } while(0)
 
