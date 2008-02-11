@@ -74,6 +74,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#include "radeon_atombios.h"
 
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -2993,7 +2994,13 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
     save->bios_7_scratch = info->SavedReg->bios_7_scratch;
 
     if (info->IsAtomBios) {
-	
+	/* let the bios control the backlight */
+	save->bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
+	/* tell the bios not to handle mode switching */
+	save->bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
+
+	OUTREG(RADEON_BIOS_2_SCRATCH, save->bios_2_scratch);
+	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
     } else {
 	/* let the bios control the backlight */
 	save->bios_0_scratch &= ~RADEON_DRIVER_BRIGHTNESS_EN;
