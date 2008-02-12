@@ -904,13 +904,6 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	NVVgaSeqReset(crtc, FALSE);
 
 	NVWriteVgaCrtc(crtc, NV_VGA_CRTCX_REPAINT1, crtc1A);
-
-	/* I hope this is the right place */
-	if (crtc->enabled && mode == DPMSModeOn) {
-		pNv->crtc_active[nv_crtc->head] = TRUE;
-	} else {
-		pNv->crtc_active[nv_crtc->head] = FALSE;
-	}
 }
 
 static Bool

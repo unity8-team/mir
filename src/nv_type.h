@@ -140,9 +140,6 @@ typedef struct _nv_crtc_reg
 
 typedef struct _nv_output_reg
 {
-	uint32_t test_control;
-	uint32_t unk_670;
-
 	uint32_t output;
 	uint8_t TMDS[0xFF];
 	uint8_t TMDS2[0xFF];
@@ -225,7 +222,6 @@ typedef struct _NVOutputPrivateRec {
 	uint32_t fpWidth;
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
-	Bool fpdither;
 	uint8_t scaling_mode;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
@@ -238,15 +234,6 @@ typedef struct _MiscStartupInfo {
 	uint32_t sel_clk;
 	uint32_t output[2];
 } MiscStartupInfo;
-
-typedef enum {
-	OUTPUT_0_SLAVED = (1 << 0),
-	OUTPUT_1_SLAVED = (1 << 1),
-	OUTPUT_0_LVDS = (1 << 2),
-	OUTPUT_1_LVDS = (1 << 3),
-	OUTPUT_0_CROSSWIRED_TMDS = (1 << 4),
-	OUTPUT_1_CROSSWIRED_TMDS = (1 << 5)
-} OutputInfo;
 
 struct dcb_entry {
 	uint8_t type;
