@@ -1524,14 +1524,17 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_INT;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP2_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP3_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 		break;
