@@ -178,17 +178,18 @@ uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
 static Bool dpms_common(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
+	xf86CrtcPtr crtc = output->crtc;
+	NVCrtcPrivatePtr nv_crtc;
 
-	if (nv_output->last_dpms == mode) /* Don't do unnecesary mode changes. */
+	if (nv_output->last_dpms == mode) /* Don't do unnecessary mode changes. */
 		return FALSE;
 
 	nv_output->last_dpms = mode;
 
-	NVPtr pNv = NVPTR(output->scrn);
-	xf86CrtcPtr crtc = output->crtc;
 	if (!crtc)	/* we need nv_crtc, so give up */
 		return TRUE;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	nv_crtc = crtc->driver_private;
 
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
 		/* We may be going for modesetting, so we must reset our output binding */
@@ -210,16 +211,14 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	xf86CrtcPtr crtc = output->crtc;
 
 	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
 	if (!dpms_common(output, mode))
 		return;
 
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
-		xf86CrtcPtr crtc = output->crtc;
-		if (!crtc)	/* we need nv_crtc, so give up */
-			return;
+	if (crtc && pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 		int pclk = nv_get_clock_from_crtc(pScrn, &pNv->ModeReg, nv_crtc->head);
 
@@ -261,10 +260,10 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	if (crtc) {
 		NVPtr pNv = NVPTR(output->scrn);
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		uint32_t fpcontrol = NVReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 
 		ErrorF("nv_tmds_output_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
 
-		uint32_t fpcontrol = NVReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 		switch (mode) {
 		case DPMSModeStandby:
 		case DPMSModeSuspend:
@@ -334,6 +333,7 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 	Bool vpllb_disabled = FALSE;
 	uint32_t vplla = crtc ? state->vpll2_a : state->vpll1_a;
 	uint32_t vpllb = crtc ? state->vpll2_b : state->vpll1_b;
+	uint8_t m1, m2, n1, n2, p;
 
 	if (!pNv->twoStagePLL)
 		vpllb_disabled = TRUE;
@@ -347,8 +347,6 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 
 	if (!(vplla & NV30_RAMDAC_ENABLE_VCO2) && pNv->NVArch == 0x30)
 		vpllb_disabled = TRUE;
-
-	uint8_t m1, m2, n1, n2, p;
 
 	if (pNv->NVArch == 0x30) {
 		m1 = vplla & 0x7;
@@ -377,30 +375,23 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 	if (!m1 || !m2)
 		return 0;
 
-	uint32_t clock = ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
-	ErrorF("The clock seems to be %d kHz\n", clock);
-	return clock;
+	ErrorF("The clock seems to be %d kHz\n", (uint32_t)((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p);
+	return ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
 }
 
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state;
-	NVOutputRegPtr regp;
+	RIVA_HW_STATE *state = &pNv->SavedReg;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	state = &pNv->SavedReg;
 	/* Registers are stored by their preferred ramdac */
 	/* So or = 3 still means it uses the "ramdac0" regs. */
-	regp = &state->dac_reg[nv_output->preferred_output];
+	NVOutputRegPtr regp = &state->dac_reg[nv_output->preferred_output];
 
-	Bool swapped_clock = FALSE;
 	/* Bit3 swaps crtc (clocks are bound to crtc) and output */
-	if (regp->TMDS[0x4] & (1 << 3)) {
-		swapped_clock = TRUE;
-	}
-
+	Bool swapped_clock = !!(regp->TMDS[0x4] & (1 << 3));
 	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
 
 	return nv_get_clock_from_crtc(pScrn, state, vpll_num);
@@ -872,8 +863,8 @@ nv_output_get_ddc_modes(xf86OutputPtr output)
 static void
 nv_output_destroy (xf86OutputPtr output)
 {
-	ErrorF("nv_output_destroy is called\n");
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	ErrorF("nv_output_destroy is called\n");
 
 	if (nv_output) {
 		if (nv_output->native_mode)
@@ -885,7 +876,6 @@ nv_output_destroy (xf86OutputPtr output)
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
-	ErrorF("nv_output_prepare is called\n");
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86CrtcPtr crtc = output->crtc;
@@ -893,7 +883,9 @@ nv_output_prepare(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	Bool reset_other_crtc = FALSE;
-	int i;
+	int i, output_resource_mask, or;
+
+	ErrorF("nv_output_prepare is called\n");
 
 	output->funcs->dpms(output, DPMSModeOff);
 
@@ -902,7 +894,7 @@ nv_output_prepare(xf86OutputPtr output)
 	 * We do this based on connected monitors, since we need to catch this before something important happens.
 	 */
 
-	uint8_t output_resource_mask = 0;
+	output_resource_mask = 0;
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output2 = xf86_config->output[i];
 		NVOutputPrivatePtr nv_output2 = output2->driver_private;
@@ -913,7 +905,7 @@ nv_output_prepare(xf86OutputPtr output)
 		}
 	}
 
-	uint8_t or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
+	or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
 	/* Do we have a output resource conflict? */
 	if (output_resource_mask & (nv_output->output_resource + 1)) {
 		if (or == (1 << (ffs(or) - 1))) { /* we need this output resource */
@@ -1131,10 +1123,11 @@ static int nv_lvds_output_mode_valid
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
 {
-	ErrorF("nv_lvds_output_detect is called\n");
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	ErrorF("nv_lvds_output_detect is called\n");
 
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
@@ -1150,22 +1143,25 @@ nv_lvds_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 nv_lvds_output_get_modes(xf86OutputPtr output)
 {
-	ErrorF("nv_lvds_output_get_modes is called\n");
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr modes;
+
+	ErrorF("nv_lvds_output_get_modes is called\n");
 
 	if ((modes = nv_output_get_ddc_modes(output)))
 		return modes;
 
 	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
 	    (pNv->VBIOS.fp.native_mode == NULL)) {
+		xf86MonPtr edid_mon;
+
 		if (!pNv->VBIOS.fp.edid)
 			return NULL;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using hardcoded BIOS FP EDID\n");
-		xf86MonPtr edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
+		edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 		return nv_output_get_modes(output, edid_mon);
 	}
 
