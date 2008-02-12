@@ -665,6 +665,9 @@ radeon_bios_output_lock(xf86OutputPtr output, Bool lock)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return;
+
     if (info->IsAtomBios) {
 	if (lock) {
 	    save->bios_6_scratch |= (ATOM_S6_CRITICAL_STATE | ATOM_S6_ACC_MODE);
@@ -689,6 +692,9 @@ radeon_bios_output_dpms(xf86OutputPtr output, int mode)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return;
 
     if (info->IsAtomBios) {
 	if (mode == DPMSModeOn) {
@@ -832,6 +838,9 @@ radeon_bios_output_crtc(xf86OutputPtr output)
     xf86CrtcPtr crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return;
+
     if (info->IsAtomBios) {
 	if (radeon_output->MonType == MT_STV ||
 	    radeon_output->MonType == MT_CTV) {
@@ -907,6 +916,9 @@ radeon_bios_output_connected(xf86OutputPtr output, Bool connected)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return;
 
     if (info->IsAtomBios) {
 	if (connected) {

@@ -2988,6 +2988,9 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return;
+
     save->bios_0_scratch = info->SavedReg->bios_0_scratch;
     save->bios_1_scratch = info->SavedReg->bios_1_scratch;
     save->bios_2_scratch = info->SavedReg->bios_2_scratch;
