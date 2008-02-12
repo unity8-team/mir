@@ -693,14 +693,6 @@ nv_load_detect(xf86OutputPtr output)
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput, saved_rtest_ctrl, temp;
 	int present = 0;
 
-	if (nv_output->pDDCBus != NULL) {
-		xf86MonPtr ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
-		/* Is there a digital flatpanel on this channel? */
-		if (ddc_mon && ddc_mon->features.input_type) {
-			return FALSE;
-		}
-	}
-
 #define RGB_TEST_DATA(r,g,b) (r << 0 | g << 10 | b << 20)
 	testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
 	if (pNv->VBIOS.dactestval)
@@ -794,11 +786,11 @@ nv_analog_output_detect(xf86OutputPtr output)
 
 	ErrorF("nv_analog_output_detect is called\n");
 
-	/* assume a CRT connection on non dualhead cards */
-	if (!pNv->twoHeads)
+	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
-	if (nv_ddc_detect(output))
+	/* assume a CRT connection on non dualhead cards */
+	if (!pNv->twoHeads)
 		return XF86OutputStatusConnected;
 
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads && nv_load_detect(output))
@@ -842,41 +834,21 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			xfree(nv_output->native_mode);
 
 		/* Prefer ddc modes. */
-		DisplayModePtr chosen_mode = NULL;
 		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
 			if (mode->HDisplay == nv_output->fpWidth &&
 				mode->VDisplay == nv_output->fpHeight) {
 				/* Take the preferred mode when it exists. */
 				if (mode->type & M_T_PREFERRED) {
-					chosen_mode = mode;
+					nv_output->native_mode = xf86DuplicateMode(mode);
 					break;
 				}
 				/* Find the highest refresh mode otherwise. */
-				if (!chosen_mode || (mode->VRefresh > chosen_mode->VRefresh))
-					chosen_mode = mode;
+				if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh)) {
+					mode->type |= M_T_PREFERRED;
+					nv_output->native_mode = xf86DuplicateMode(mode);
+				}
 			}
 		}
-		chosen_mode->type |= M_T_PREFERRED;
-		nv_output->native_mode = xf86DuplicateMode(chosen_mode);
-
-#if 0
-// this code can be removed, if the above remains as is, since it guarantees a native mode
-		/* Only fall back to cvt mode when needed. */
-		if (!nv_output->native_mode && nv_output->type == OUTPUT_TMDS) {
-			DisplayModePtr cvtmode;
-			/* Reduced blanking should be fine on DVI monitor */
-			cvtmode = xf86CVTMode(nv_output->fpWidth, nv_output->fpHeight, 60.0, TRUE, FALSE);
-			cvtmode->type = M_T_DRIVER | M_T_PREFERRED;
-
-			/* can xf86CVTMode generate invalid modes? */
-			if (output->funcs->mode_valid(output, cvtmode) == MODE_OK) {
-				ddc_modes = xf86ModesAdd(ddc_modes, cvtmode);
-				nv_output->native_mode = xf86DuplicateMode(cvtmode);
-			} else {
-				xf86DeleteMode(&cvtmode, cvtmode);
-			}
-		}
-#endif
 	}
 
 	return ddc_modes;
@@ -1164,10 +1136,10 @@ nv_lvds_output_detect(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
+	if (nv_ddc_detect(output))
+		return XF86OutputStatusConnected;
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode &&
 	    pNv->VBIOS.fp.native_mode)
-		return XF86OutputStatusConnected;
-	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 	if (pNv->VBIOS.fp.edid)
 		return XF86OutputStatusConnected;
