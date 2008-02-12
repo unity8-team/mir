@@ -1440,8 +1440,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
-	float aspect_ratio, panel_ratio;
-	uint32_t h_scale, v_scale;
 
 	regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
@@ -1554,75 +1552,59 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_control[nv_crtc->head] |= (8 << 28);
 
 	if (is_fp) {
-		ErrorF("Pre-panel scaling\n");
-		ErrorF("panel-size:%dx%d\n", nv_output->fpWidth, nv_output->fpHeight);
-		panel_ratio = (nv_output->fpWidth)/(float)(nv_output->fpHeight);
-		ErrorF("panel_ratio=%f\n", panel_ratio);
-		aspect_ratio = (mode->HDisplay)/(float)(mode->VDisplay);
-		ErrorF("aspect_ratio=%f\n", aspect_ratio);
-		/* Scale factors is the so called 20.12 format, taken from Haiku */
-		h_scale = ((1 << 12) * mode->HDisplay)/nv_output->fpWidth;
-		v_scale = ((1 << 12) * mode->VDisplay)/nv_output->fpHeight;
-		ErrorF("h_scale=%d\n", h_scale);
-		ErrorF("v_scale=%d\n", v_scale);
-
 		/* This can override HTOTAL and VTOTAL */
 		regp->debug_2 = 0;
-
 		/* We want automatic scaling */
 		regp->debug_1 = 0;
 
 		regp->fp_hvalid_start = 0;
 		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
-
 		regp->fp_vvalid_start = 0;
 		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
 
-		/* 0 = panel scaling */
-		if (nv_output->scaling_mode == SCALE_PANEL) {
-			ErrorF("Flat panel is doing the scaling.\n");
-		} else {
-			ErrorF("GPU is doing the scaling.\n");
+		if (nv_output->scaling_mode == SCALE_ASPECT) {
+			/* Use 20.12 fixed point format to avoid floats */
+			uint32_t panel_ratio = (1 << 12) * nv_output->fpWidth / nv_output->fpHeight;
+			uint32_t aspect_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
+			uint32_t h_scale = (1 << 12) * mode->HDisplay / nv_output->fpWidth;
+			uint32_t v_scale = (1 << 12) * mode->VDisplay / nv_output->fpHeight;
+			#define ONE_TENTH ((1 << 12) / 10)
 
-			if (nv_output->scaling_mode == SCALE_ASPECT) {
-				/* GPU scaling happens automaticly at a ratio of 1.33 */
-				/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
-				if (h_scale != (1 << 12) && (panel_ratio > (aspect_ratio + 0.10))) {
-					uint32_t diff;
+			/* GPU scaling happens automatically at a ratio of 1.33 */
+			/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
+			if (h_scale != (1 << 12) && (panel_ratio > aspect_ratio + ONE_TENTH)) {
+				uint32_t diff;
 
-					ErrorF("Scaling resolution on a widescreen panel\n");
+				ErrorF("Scaling resolution on a widescreen panel\n");
 
-					/* Scaling in both directions needs to the same */
-					h_scale = v_scale;
+				/* Scaling in both directions needs to the same */
+				h_scale = v_scale;
 
-					/* Set a new horizontal scale factor and enable testmode (bit12) */
-					regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
+				/* Set a new horizontal scale factor and enable testmode (bit12) */
+				regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
 
-					diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
-					regp->fp_hvalid_start = diff/2;
-					regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
-				}
+				diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
+				regp->fp_hvalid_start = diff/2;
+				regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
+			}
 
-				/* Same scaling, just for panels with aspect ratio's smaller than 1 */
-				if (v_scale != (1 << 12) && (panel_ratio < (aspect_ratio - 0.10))) {
-					uint32_t diff;
+			/* Same scaling, just for panels with aspect ratios smaller than 1 */
+			if (v_scale != (1 << 12) && (panel_ratio < aspect_ratio - ONE_TENTH)) {
+				uint32_t diff;
 
-					ErrorF("Scaling resolution on a portrait panel\n");
+				ErrorF("Scaling resolution on a portrait panel\n");
 
-					/* Scaling in both directions needs to the same */
-					v_scale = h_scale;
+				/* Scaling in both directions needs to the same */
+				v_scale = h_scale;
 
-					/* Set a new vertical scale factor and enable testmode (bit28) */
-					regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
+				/* Set a new vertical scale factor and enable testmode (bit28) */
+				regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
 
-					diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
-					regp->fp_vvalid_start = diff/2;
-					regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
-				}
+				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
+				regp->fp_vvalid_start = diff/2;
+				regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
 			}
 		}
-
-		ErrorF("Post-panel scaling\n");
 	}
 
 	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_VGA)) {
