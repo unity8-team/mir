@@ -665,9 +665,6 @@ radeon_bios_output_lock(xf86OutputPtr output, Bool lock)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return;
-
     if (info->IsAtomBios) {
 	if (lock) {
 	    save->bios_6_scratch |= (ATOM_S6_CRITICAL_STATE | ATOM_S6_ACC_MODE);
@@ -681,7 +678,10 @@ radeon_bios_output_lock(xf86OutputPtr output, Bool lock)
 	    save->bios_6_scratch &= ~(RADEON_DRIVER_CRITICAL | RADEON_ACC_MODE_CHANGE);
 	}
     }
-    OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	OUTREG(R600_BIOS_6_SCRATCH, save->bios_6_scratch);
+    else
+	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
 }
 
 static void
@@ -692,9 +692,6 @@ radeon_bios_output_dpms(xf86OutputPtr output, int mode)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return;
 
     if (info->IsAtomBios) {
 	if (mode == DPMSModeOn) {
@@ -772,8 +769,13 @@ radeon_bios_output_dpms(xf86OutputPtr output, int mode)
 		}
 	    }
 	}
-	OUTREG(RADEON_BIOS_2_SCRATCH, save->bios_2_scratch);
-	OUTREG(RADEON_BIOS_3_SCRATCH, save->bios_3_scratch);
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    OUTREG(R600_BIOS_2_SCRATCH, save->bios_2_scratch);
+	    OUTREG(R600_BIOS_3_SCRATCH, save->bios_3_scratch);
+	} else {
+	    OUTREG(RADEON_BIOS_2_SCRATCH, save->bios_2_scratch);
+	    OUTREG(RADEON_BIOS_3_SCRATCH, save->bios_3_scratch);
+	}
     } else {
 	if (mode == DPMSModeOn) {
 	    save->bios_6_scratch &= ~(RADEON_DPMS_MASK | RADEON_SCREEN_BLANKING);
@@ -838,9 +840,6 @@ radeon_bios_output_crtc(xf86OutputPtr output)
     xf86CrtcPtr crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return;
-
     if (info->IsAtomBios) {
 	if (radeon_output->MonType == MT_STV ||
 	    radeon_output->MonType == MT_CTV) {
@@ -878,7 +877,10 @@ radeon_bios_output_crtc(xf86OutputPtr output)
 		save->bios_3_scratch |= (radeon_crtc->crtc_id << 25);
 	    }
 	}
-	OUTREG(RADEON_BIOS_3_SCRATCH, save->bios_3_scratch);
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    OUTREG(R600_BIOS_3_SCRATCH, save->bios_3_scratch);
+	else
+	    OUTREG(RADEON_BIOS_3_SCRATCH, save->bios_3_scratch);
     } else {
 	if (radeon_output->MonType == MT_STV ||
 	    radeon_output->MonType == MT_CTV) {
@@ -972,7 +974,10 @@ radeon_bios_output_connected(xf86OutputPtr output, Bool connected)
 		    save->bios_0_scratch &= ~ATOM_S0_DFP3;
 	    }
 	}
-	OUTREG(RADEON_BIOS_0_SCRATCH, save->bios_0_scratch);
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    OUTREG(R600_BIOS_0_SCRATCH, save->bios_0_scratch);
+	else
+	    OUTREG(RADEON_BIOS_0_SCRATCH, save->bios_0_scratch);
     } else {
 	if (connected) {
 	    if (radeon_output->MonType == MT_STV)

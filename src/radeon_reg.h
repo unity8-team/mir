@@ -3809,6 +3809,15 @@
 #define R600_CONFIG_F0_BASE                                     0x542C
 #define R600_CONFIG_APER_SIZE                                   0x5430
 
+#define R600_BIOS_0_SCRATCH               0x1724
+#define R600_BIOS_1_SCRATCH               0x1728
+#define R600_BIOS_2_SCRATCH               0x172c
+#define R600_BIOS_3_SCRATCH               0x1730
+#define R600_BIOS_4_SCRATCH               0x1734
+#define R600_BIOS_5_SCRATCH               0x1738
+#define R600_BIOS_6_SCRATCH               0x173c
+#define R600_BIOS_7_SCRATCH               0x1740
+
 #define R300_GB_TILE_CONFIG				0x4018
 #define R300_GB_SELECT				        0x401c
 #define R300_GB_ENABLE				        0x4008

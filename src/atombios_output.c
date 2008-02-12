@@ -427,7 +427,6 @@ void
 atombios_output_dpms(xf86OutputPtr output, int mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
 
     ErrorF("AGD: output dpms %d\n", mode);
 
@@ -452,7 +451,8 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
        ErrorF("AGD: cv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-   } else if (0 /*OUTPUT_IS_TV*/) {
+   } else if (0 /*radeon_output->MonType == MT_STV ||
+		  radeon_output->MonType == MT_CTV*/) {
        ErrorF("AGD: tv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
@@ -642,7 +642,10 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     ret = atom_bios_dac_load_detect(info->atomBIOS, output);
     if (ret == ATOM_SUCCESS) {
-	bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    bios_0_scratch = INREG(R600_BIOS_0_SCRATCH);
+	else
+	    bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
 	ErrorF("DAC connect %08X\n", (unsigned int)bios_0_scratch);
 
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {

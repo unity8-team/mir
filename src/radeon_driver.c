@@ -2988,9 +2988,6 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONSavePtr save = info->ModeReg;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return;
-
     save->bios_0_scratch = info->SavedReg->bios_0_scratch;
     save->bios_1_scratch = info->SavedReg->bios_1_scratch;
     save->bios_2_scratch = info->SavedReg->bios_2_scratch;
@@ -3006,8 +3003,13 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 	/* tell the bios not to handle mode switching */
 	save->bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
 
-	OUTREG(RADEON_BIOS_2_SCRATCH, save->bios_2_scratch);
-	OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    OUTREG(R600_BIOS_2_SCRATCH, save->bios_2_scratch);
+	    OUTREG(R600_BIOS_6_SCRATCH, save->bios_6_scratch);
+	} else {
+	    OUTREG(RADEON_BIOS_2_SCRATCH, save->bios_2_scratch);
+	    OUTREG(RADEON_BIOS_6_SCRATCH, save->bios_6_scratch);
+	}
     } else {
 	/* let the bios control the backlight */
 	save->bios_0_scratch &= ~RADEON_DRIVER_BRIGHTNESS_EN;
@@ -4361,14 +4363,25 @@ RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    OUTREG(RADEON_BIOS_0_SCRATCH, restore->bios_0_scratch);
-    OUTREG(RADEON_BIOS_1_SCRATCH, restore->bios_1_scratch);
-    OUTREG(RADEON_BIOS_2_SCRATCH, restore->bios_2_scratch);
-    OUTREG(RADEON_BIOS_3_SCRATCH, restore->bios_3_scratch);
-    OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
-    OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
-    OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
-    OUTREG(RADEON_BIOS_7_SCRATCH, restore->bios_7_scratch);
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	OUTREG(R600_BIOS_0_SCRATCH, restore->bios_0_scratch);
+	OUTREG(R600_BIOS_1_SCRATCH, restore->bios_1_scratch);
+	OUTREG(R600_BIOS_2_SCRATCH, restore->bios_2_scratch);
+	OUTREG(R600_BIOS_3_SCRATCH, restore->bios_3_scratch);
+	OUTREG(R600_BIOS_4_SCRATCH, restore->bios_4_scratch);
+	OUTREG(R600_BIOS_5_SCRATCH, restore->bios_5_scratch);
+	OUTREG(R600_BIOS_6_SCRATCH, restore->bios_6_scratch);
+	OUTREG(R600_BIOS_7_SCRATCH, restore->bios_7_scratch);
+    } else {
+	OUTREG(RADEON_BIOS_0_SCRATCH, restore->bios_0_scratch);
+	OUTREG(RADEON_BIOS_1_SCRATCH, restore->bios_1_scratch);
+	OUTREG(RADEON_BIOS_2_SCRATCH, restore->bios_2_scratch);
+	OUTREG(RADEON_BIOS_3_SCRATCH, restore->bios_3_scratch);
+	OUTREG(RADEON_BIOS_4_SCRATCH, restore->bios_4_scratch);
+	OUTREG(RADEON_BIOS_5_SCRATCH, restore->bios_5_scratch);
+	OUTREG(RADEON_BIOS_6_SCRATCH, restore->bios_6_scratch);
+	OUTREG(RADEON_BIOS_7_SCRATCH, restore->bios_7_scratch);
+    }
 }
 
 static void
@@ -4377,14 +4390,25 @@ RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    save->bios_0_scratch       = INREG(RADEON_BIOS_0_SCRATCH);
-    save->bios_1_scratch       = INREG(RADEON_BIOS_1_SCRATCH);
-    save->bios_2_scratch       = INREG(RADEON_BIOS_2_SCRATCH);
-    save->bios_3_scratch       = INREG(RADEON_BIOS_3_SCRATCH);
-    save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
-    save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
-    save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
-    save->bios_7_scratch       = INREG(RADEON_BIOS_7_SCRATCH);
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	save->bios_0_scratch       = INREG(R600_BIOS_0_SCRATCH);
+	save->bios_1_scratch       = INREG(R600_BIOS_1_SCRATCH);
+	save->bios_2_scratch       = INREG(R600_BIOS_2_SCRATCH);
+	save->bios_3_scratch       = INREG(R600_BIOS_3_SCRATCH);
+	save->bios_4_scratch       = INREG(R600_BIOS_4_SCRATCH);
+	save->bios_5_scratch       = INREG(R600_BIOS_5_SCRATCH);
+	save->bios_6_scratch       = INREG(R600_BIOS_6_SCRATCH);
+	save->bios_7_scratch       = INREG(R600_BIOS_7_SCRATCH);
+    } else {
+	save->bios_0_scratch       = INREG(RADEON_BIOS_0_SCRATCH);
+	save->bios_1_scratch       = INREG(RADEON_BIOS_1_SCRATCH);
+	save->bios_2_scratch       = INREG(RADEON_BIOS_2_SCRATCH);
+	save->bios_3_scratch       = INREG(RADEON_BIOS_3_SCRATCH);
+	save->bios_4_scratch       = INREG(RADEON_BIOS_4_SCRATCH);
+	save->bios_5_scratch       = INREG(RADEON_BIOS_5_SCRATCH);
+	save->bios_6_scratch       = INREG(RADEON_BIOS_6_SCRATCH);
+	save->bios_7_scratch       = INREG(RADEON_BIOS_7_SCRATCH);
+    }
 }
 
 /* Save everything needed to restore the original VC state */
