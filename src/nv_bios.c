@@ -123,8 +123,8 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const uint32_t *pramin = (uint32_t *)&pNv->REGS[NV_PRAMIN_ROM_OFFSET/4];
 	uint32_t old_bar0_pramin = 0;
+	int i;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Attempting to locate BIOS image in PRAMIN\n");
@@ -139,7 +139,8 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
 		NV_WR32(pNv->REGS, 0x1700, vbios_vram >> 16);
 	}
 
-	memcpy(data, pramin, NV_PROM_SIZE);
+	for (i = 0; i < NV_PROM_SIZE; i++)
+		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_ROM_OFFSET + i);
 
 	if (pNv->Architecture >= NV_ARCH_50)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
