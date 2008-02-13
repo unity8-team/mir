@@ -880,9 +880,7 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 
 	/* high regs (such as in the mac g5 table) are not -= 4 */
-	if (reg > 0x405c)
-		reg += 4;
-	if (!get_pll_limits(pScrn, reg - 4, &pll_lim))
+	if (!get_pll_limits(pScrn, (reg > 0x405c ? reg : reg - 4), &pll_lim))
 		return;
 
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
