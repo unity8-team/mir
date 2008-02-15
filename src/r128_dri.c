@@ -53,8 +53,8 @@
 
 				/* X and server generic header files */
 #include "xf86.h"
+#include "xf86PciInfo.h"
 #include "windowstr.h"
-#include "atipciids.h"
 
 #include "shadowfb.h"
 				/* GLX/DRI/DRM definitions */

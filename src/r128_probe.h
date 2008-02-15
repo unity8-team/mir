@@ -56,7 +56,7 @@ typedef struct
 } R128EntRec, *R128EntPtr;
 
 /* r128_probe.c */
-extern PciChipsets           R128PciChipsets[];
+extern SymTabRec             R128Chipsets[];
 
 /* r128_driver.c */
 extern Bool                  R128PreInit(ScrnInfoPtr, int);

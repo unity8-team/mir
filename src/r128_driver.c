@@ -86,6 +86,7 @@
 				/* X and server generic header files */
 #include "xf86.h"
 #include "xf86_OSproc.h"
+#include "xf86PciInfo.h"
 #include "xf86RAC.h"
 #include "xf86Resources.h"
 #include "xf86cmap.h"
@@ -102,9 +103,6 @@
 				/* DPMS support. */
 #define DPMS_SERVER
 #include <X11/extensions/dpms.h>
-
-#include "atipciids.h"
-#include "r128_chipset.h"
 
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))

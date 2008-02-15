@@ -199,7 +199,6 @@ EXTRA_DIST = \
 	mach64_common.h \
 	mach64_dri.h \
 	mach64_sarea.h \
-	r128_chipset.h \
 	r128_common.h \
 	r128_dri.h \
 	r128_dripriv.h \
