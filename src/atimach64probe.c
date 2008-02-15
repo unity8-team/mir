@@ -30,7 +30,6 @@
 #include "atimach64probe.h"
 #include "atimach64version.h"
 #include "atioption.h"
-#include "ativersion.h"
 
 /* include headers corresponding to ScrnInfoPtr fields */
 #include "atipreinit.h"
@@ -110,10 +109,6 @@ Mach64PciChipsets[] = {
 static const OptionInfoRec *
 Mach64AvailableOptions(int chipid, int busid)
 {
-    /*
-     * Return options defined in the mach64 submodule which will have been
-     * loaded by this point.
-     */
     return ATIOptionsWeak();
 }
 
@@ -141,9 +136,9 @@ Mach64Identify
 static Bool
 Mach64Probe(DriverPtr pDriver, int flags)
 {
-    GDevPtr *devSections, *ATIGDevs, *Mach64GDevs;
+    GDevPtr *devSections;
     int     *usedChips;
-    int     numDevSections, nATIGDev, nMach64GDev;
+    int     numDevSections;
     int     numUsed;
     Bool    ProbeSuccess = FALSE;
 
@@ -152,30 +147,10 @@ Mach64Probe(DriverPtr pDriver, int flags)
         return FALSE;
 #endif
 
-    /* Collect unclaimed device sections for both driver names */
-    nATIGDev = xf86MatchDevice(ATI_DRIVER_NAME, &ATIGDevs);
-    nMach64GDev = xf86MatchDevice(MACH64_DRIVER_NAME, &Mach64GDevs);
+    numDevSections = xf86MatchDevice(MACH64_DRIVER_NAME, &devSections);
 
-    if ((numDevSections = nATIGDev + nMach64GDev) <= 0)
+    if (numDevSections <= 0)
         return FALSE;
-
-    if (ATIGDevs == NULL) {
-        devSections = Mach64GDevs;
-        numDevSections = nMach64GDev;
-    } else if (Mach64GDevs == NULL) {
-        devSections = ATIGDevs;
-        numDevSections = nATIGDev;
-    } else {
-        /* Combine into one list */
-        devSections = xnfalloc((numDevSections + 1) * sizeof(GDevPtr));
-        (void)memcpy(devSections,
-                     ATIGDevs, nATIGDev * sizeof(GDevPtr));
-        (void)memcpy(devSections + nATIGDev,
-                     Mach64GDevs, nMach64GDev * sizeof(GDevPtr));
-        devSections[numDevSections] = NULL;
-        xfree(ATIGDevs);
-        xfree(Mach64GDevs);
-    }
 
     numUsed = xf86MatchPciInstances(MACH64_NAME, PCI_VENDOR_ATI,
                                     Mach64Chipsets, Mach64PciChipsets,

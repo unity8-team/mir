@@ -25,8 +25,6 @@
 #endif
 
 #include "ati.h"
-#include "ativersion.h"
-
 #include "atimach64probe.h"
 #include "atimach64version.h"
 
@@ -34,7 +32,7 @@
 
 static XF86ModuleVersionInfo ATIVersionRec =
 {
-    "mach64",
+    MACH64_DRIVER_NAME,
     MODULEVENDORSTRING,
     MODINFOSTRING1,
     MODINFOSTRING2,
@@ -64,10 +62,8 @@ ATISetup
 
     if (!Inited)
     {
-        if (xf86ServerIsOnlyDetecting() || !LoaderSymbol(ATI_NAME))
-            xf86AddDriver(&MACH64, Module, 0);
-
         Inited = TRUE;
+        xf86AddDriver(&MACH64, Module, 0);
     }
 
     return (pointer)TRUE;

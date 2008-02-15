@@ -36,11 +36,7 @@
  * Authors:
  *   Kevin E. Martin <martin@xfree86.org>
  *   Rickard E. Faith <faith@valinux.com>
- *
- * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
-
-#include "ativersion.h"
 
 #include "radeon_probe.h"
 #include "radeon_version.h"
@@ -61,19 +57,7 @@ int gRADEONEntityIndex = -1;
 static const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)
 {
-    int  i;
-
-    /*
-     * Return options defined in the radeon submodule which will have been
-     * loaded by this point.
-     */
-    if ((chipid >> 16) == PCI_VENDOR_ATI)
-	chipid -= PCI_VENDOR_ATI << 16;
-    for (i = 0; RADEONPciChipsets[i].PCIid > 0; i++) {
-	if (chipid == RADEONPciChipsets[i].PCIid)
-	    return RADEONOptionsWeak();
-    }
-    return NULL;
+    return RADEONOptionsWeak();
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
@@ -90,9 +74,9 @@ static Bool
 RADEONProbe(DriverPtr drv, int flags)
 {
     int      numUsed;
-    int      numDevSections, nATIGDev, nRadeonGDev;
+    int      numDevSections;
     int     *usedChips;
-    GDevPtr *devSections, *ATIGDevs, *RadeonGDevs;
+    GDevPtr *devSections;
     Bool     foundScreen = FALSE;
     int      i;
 
@@ -100,29 +84,9 @@ RADEONProbe(DriverPtr drv, int flags)
     if (!xf86GetPciVideoInfo()) return FALSE;
 #endif
 
-    /* Collect unclaimed device sections for both driver names */
-    nATIGDev    = xf86MatchDevice(ATI_NAME, &ATIGDevs);
-    nRadeonGDev = xf86MatchDevice(RADEON_NAME, &RadeonGDevs);
+    numDevSections = xf86MatchDevice(RADEON_NAME, &devSections);
 
-    if (!(numDevSections = nATIGDev + nRadeonGDev)) return FALSE;
-
-    if (!ATIGDevs) {
-	if (!(devSections = RadeonGDevs)) numDevSections = 1;
-	else                              numDevSections = nRadeonGDev;
-    } if (!RadeonGDevs) {
-	devSections    = ATIGDevs;
-	numDevSections = nATIGDev;
-    } else {
-	/* Combine into one list */
-	devSections = xnfalloc((numDevSections + 1) * sizeof(GDevPtr));
-	(void)memcpy(devSections,
-		     ATIGDevs, nATIGDev * sizeof(GDevPtr));
-	(void)memcpy(devSections + nATIGDev,
-		     RadeonGDevs, nRadeonGDev * sizeof(GDevPtr));
-	devSections[numDevSections] = NULL;
-	xfree(ATIGDevs);
-	xfree(RadeonGDevs);
-    }
+    if (!numDevSections) return FALSE;
 
     numUsed = xf86MatchPciInstances(RADEON_NAME,
 				    PCI_VENDOR_ATI,

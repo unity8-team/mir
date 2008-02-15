@@ -24,8 +24,6 @@
 #include "config.h"
 #endif
 
-#include "ativersion.h"
-
 #include "r128_probe.h"
 #include "r128_version.h"
 
@@ -65,10 +63,8 @@ R128Setup
 
     if (!Inited)
     {
-        if (xf86ServerIsOnlyDetecting() || !LoaderSymbol(ATI_NAME))
-            xf86AddDriver(&R128, Module, 0);
-
         Inited = TRUE;
+        xf86AddDriver(&R128, Module, 0);
     }
 
     return (pointer)TRUE;

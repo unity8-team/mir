@@ -37,11 +37,7 @@
  * Authors:
  *   Rickard E. Faith <faith@valinux.com>
  *   Kevin E. Martin <martin@valinux.com>
- *
- * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
-
-#include "ativersion.h"
 
 #include "r128_probe.h"
 #include "r128_version.h"
@@ -158,19 +154,7 @@ int gR128EntityIndex = -1;
 static const OptionInfoRec *
 R128AvailableOptions(int chipid, int busid)
 {
-    int i;
-
-    /*
-     * Return options defined in the r128 submodule which will have been
-     * loaded by this point.
-     */
-    if ((chipid >> 16) == PCI_VENDOR_ATI)
-	chipid -= PCI_VENDOR_ATI << 16;
-    for (i = 0; R128PciChipsets[i].PCIid > 0; i++) {
-	if (chipid == R128PciChipsets[i].PCIid)
-	    return R128OptionsWeak();
-    }
-    return NULL;
+    return R128OptionsWeak();
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
@@ -187,9 +171,9 @@ static Bool
 R128Probe(DriverPtr drv, int flags)
 {
     int           numUsed;
-    int           numDevSections, nATIGDev, nR128GDev;
+    int           numDevSections;
     int           *usedChips;
-    GDevPtr       *devSections, *ATIGDevs, *R128GDevs;
+    GDevPtr       *devSections;
     Bool          foundScreen = FALSE;
     int           i;
 
@@ -197,31 +181,9 @@ R128Probe(DriverPtr drv, int flags)
     if (!xf86GetPciVideoInfo()) return FALSE;
 #endif
 
-    /* Collect unclaimed device sections for both driver names */
-    nATIGDev = xf86MatchDevice(ATI_NAME, &ATIGDevs);
-    nR128GDev = xf86MatchDevice(R128_NAME, &R128GDevs);
+    numDevSections = xf86MatchDevice(R128_NAME, &devSections);
 
-    if (!(numDevSections = nATIGDev + nR128GDev)) return FALSE;
-
-    if (!ATIGDevs) {
-	if (!(devSections = R128GDevs))
-	    numDevSections = 1;
-	else
-	    numDevSections = nR128GDev;
-    } if (!R128GDevs) {
-	devSections = ATIGDevs;
-	numDevSections = nATIGDev;
-    } else {
-	/* Combine into one list */
-	devSections = xnfalloc((numDevSections + 1) * sizeof(GDevPtr));
-	(void)memcpy(devSections,
-		     ATIGDevs, nATIGDev * sizeof(GDevPtr));
-	(void)memcpy(devSections + nATIGDev,
-		     R128GDevs, nR128GDev * sizeof(GDevPtr));
-	devSections[numDevSections] = NULL;
-	xfree(ATIGDevs);
-	xfree(R128GDevs);
-    }
+    if (!numDevSections) return FALSE;
 
     numUsed = xf86MatchPciInstances(R128_NAME,
 				    PCI_VENDOR_ATI,

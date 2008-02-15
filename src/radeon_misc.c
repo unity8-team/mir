@@ -24,8 +24,6 @@
 #include "config.h"
 #endif
 
-#include "ativersion.h"
-
 #include "radeon_probe.h"
 #include "radeon_version.h"
 
@@ -64,10 +62,8 @@ RADEONSetup
     static Bool Inited = FALSE;
 
     if (!Inited) {
-        if (xf86ServerIsOnlyDetecting() || !LoaderSymbol(ATI_NAME))
-            xf86AddDriver(&RADEON, Module, 0);
-
         Inited = TRUE;
+        xf86AddDriver(&RADEON, Module, 0);
     }
 
     return (pointer)TRUE;
