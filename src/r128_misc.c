@@ -64,7 +64,7 @@ R128Setup
     if (!Inited)
     {
         Inited = TRUE;
-        xf86AddDriver(&R128, Module, 0);
+        xf86AddDriver(&R128, Module, HaveDriverFuncs);
     }
 
     return (pointer)TRUE;

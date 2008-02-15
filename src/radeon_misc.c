@@ -63,7 +63,7 @@ RADEONSetup
 
     if (!Inited) {
         Inited = TRUE;
-        xf86AddDriver(&RADEON, Module, 0);
+        xf86AddDriver(&RADEON, Module, HaveDriverFuncs);
     }
 
     return (pointer)TRUE;

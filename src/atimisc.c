@@ -63,7 +63,7 @@ ATISetup
     if (!Inited)
     {
         Inited = TRUE;
-        xf86AddDriver(&MACH64, Module, 0);
+        xf86AddDriver(&MACH64, Module, HaveDriverFuncs);
     }
 
     return (pointer)TRUE;

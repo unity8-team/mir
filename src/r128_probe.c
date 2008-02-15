@@ -41,6 +41,7 @@
 
 #include "r128_probe.h"
 #include "r128_version.h"
+#include "atipcirename.h"
 
 #include "xf86.h"
 #include "xf86PciInfo.h"
@@ -148,6 +149,61 @@ static PciChipsets R128PciChipsets[] = {
     { -1,                 -1,                 RES_UNDEFINED }
 };
 
+#ifdef XSERVER_LIBPCIACCESS
+
+static const struct pci_id_match r128_device_match[] = {
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128LE, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128LF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128MF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128ML, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PA, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PB, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PC, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PD, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PE, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PG, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PH, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PI, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PJ, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PK, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PL, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PM, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PN, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PO, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PP, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PQ, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PR, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PS, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PT, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PU, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PV, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PW, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128PX, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128RE, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128RF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128RG, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128RK, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128RL, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SE, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SG, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SH, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SK, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SL, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SM, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128SN, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TF, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TL, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TR, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TS, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TT, 0 ),
+    ATI_DEVICE_MATCH( PCI_CHIP_RAGE128TU, 0 ),
+    { 0, 0, 0 }
+};
+
+#endif /* XSERVER_LIBPCIACCESS */
+
 int gR128EntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
@@ -166,6 +222,81 @@ R128Identify(int flags)
 		      R128Chipsets);
 }
 
+static Bool
+r128_get_scrninfo(int entity_num)
+{
+    ScrnInfoPtr   pScrn = NULL;
+    EntityInfoPtr pEnt;
+
+    pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, R128PciChipsets,
+                                NULL,
+                                NULL, NULL, NULL, NULL);
+
+    if (!pScrn)
+        return FALSE;
+
+    pScrn->driverVersion = R128_VERSION_CURRENT;
+    pScrn->driverName    = R128_DRIVER_NAME;
+    pScrn->name          = R128_NAME;
+#ifdef XSERVER_LIBPCIACCESS
+    pScrn->Probe         = NULL;
+#else
+    pScrn->Probe         = R128Probe;
+#endif
+    pScrn->PreInit       = R128PreInit;
+    pScrn->ScreenInit    = R128ScreenInit;
+    pScrn->SwitchMode    = R128SwitchMode;
+    pScrn->AdjustFrame   = R128AdjustFrame;
+    pScrn->EnterVT       = R128EnterVT;
+    pScrn->LeaveVT       = R128LeaveVT;
+    pScrn->FreeScreen    = R128FreeScreen;
+    pScrn->ValidMode     = R128ValidMode;
+
+    pEnt = xf86GetEntityInfo(entity_num);
+
+    /* mobility cards support Dual-Head, mark the entity as sharable*/
+    if (pEnt->chipset == PCI_CHIP_RAGE128LE ||
+        pEnt->chipset == PCI_CHIP_RAGE128LF ||
+        pEnt->chipset == PCI_CHIP_RAGE128MF ||
+        pEnt->chipset == PCI_CHIP_RAGE128ML)
+    {
+        static int instance = 0;
+        DevUnion* pPriv;
+
+        xf86SetEntitySharable(entity_num);
+
+        xf86SetEntityInstanceForScreen(pScrn,
+                                       pScrn->entityList[0],
+                                       instance);
+
+        if (gR128EntityIndex < 0)
+        {
+            gR128EntityIndex = xf86AllocateEntityPrivateIndex();
+
+            pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
+                                         gR128EntityIndex);
+
+            if (!pPriv->ptr)
+            {
+                R128EntPtr pR128Ent;
+                pPriv->ptr = xnfcalloc(sizeof(R128EntRec), 1);
+                pR128Ent = pPriv->ptr;
+                pR128Ent->IsDRIEnabled = FALSE;
+                pR128Ent->BypassSecondary = FALSE;
+                pR128Ent->HasSecondary = FALSE;
+                pR128Ent->IsSecondaryRestored = FALSE;
+            }
+        }
+        instance++;
+    }
+
+    xfree(pEnt);
+
+    return TRUE;
+}
+
+#ifndef XSERVER_LIBPCIACCESS
+
 /* Return TRUE if chipset is present; FALSE otherwise. */
 static Bool
 R128Probe(DriverPtr drv, int flags)
@@ -177,9 +308,7 @@ R128Probe(DriverPtr drv, int flags)
     Bool          foundScreen = FALSE;
     int           i;
 
-#ifndef XSERVER_LIBPCIACCESS
     if (!xf86GetPciVideoInfo()) return FALSE;
-#endif
 
     numDevSections = xf86MatchDevice(R128_NAME, &devSections);
 
@@ -199,64 +328,8 @@ R128Probe(DriverPtr drv, int flags)
     if (flags & PROBE_DETECT)
 	foundScreen = TRUE;
     else for (i = 0; i < numUsed; i++) {
-        ScrnInfoPtr pScrn;
-        EntityInfoPtr pEnt;
- 
-        pScrn    = NULL;
-        if((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
-             R128PciChipsets, NULL, NULL, NULL, NULL, NULL)))
-	{
-	    pScrn->driverVersion = R128_VERSION_CURRENT;
-	    pScrn->driverName    = R128_DRIVER_NAME;
-	    pScrn->name          = R128_NAME;
-	    pScrn->Probe         = R128Probe;
-	    pScrn->PreInit       = R128PreInit;
-	    pScrn->ScreenInit    = R128ScreenInit;
-	    pScrn->SwitchMode    = R128SwitchMode;
-	    pScrn->AdjustFrame   = R128AdjustFrame;
-	    pScrn->EnterVT       = R128EnterVT;
-	    pScrn->LeaveVT       = R128LeaveVT;
-	    pScrn->FreeScreen    = R128FreeScreen;
-	    pScrn->ValidMode     = R128ValidMode;
-
-	    foundScreen          = TRUE;
-
-        pEnt = xf86GetEntityInfo(usedChips[i]);
-
-        /* mobility cards support Dual-Head, mark the entity as sharable*/
-        if(pEnt->chipset == PCI_CHIP_RAGE128LE ||
-           pEnt->chipset == PCI_CHIP_RAGE128LF ||
-           pEnt->chipset == PCI_CHIP_RAGE128MF ||
-           pEnt->chipset == PCI_CHIP_RAGE128ML)
-        {
-            static int instance = 0;
-            DevUnion* pPriv;
-
-            xf86SetEntitySharable(usedChips[i]);
-            xf86SetEntityInstanceForScreen(pScrn,
-                pScrn->entityList[0], instance);
-
-            if(gR128EntityIndex < 0)
-            {
-                gR128EntityIndex = xf86AllocateEntityPrivateIndex();
-                pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
-                        gR128EntityIndex);
-
-                if (!pPriv->ptr)
-                {
-                    R128EntPtr pR128Ent;
-                    pPriv->ptr = xnfcalloc(sizeof(R128EntRec), 1);
-                    pR128Ent = pPriv->ptr;
-                    pR128Ent->IsDRIEnabled = FALSE;
-                    pR128Ent->BypassSecondary = FALSE;
-                    pR128Ent->HasSecondary = FALSE;
-                    pR128Ent->IsSecondaryRestored = FALSE;                   
-                } 
-            }
-            instance++;
-	}
-	xfree(pEnt);
-    }
+	if (r128_get_scrninfo(entity_num))
+	    foundScreen = TRUE;
     }
 
     xfree(usedChips);
@@ -265,13 +338,37 @@ R128Probe(DriverPtr drv, int flags)
     return foundScreen;
 }
 
+#else /* XSERVER_LIBPCIACCESS */
+
+static Bool
+r128_pci_probe(
+    DriverPtr          pDriver,
+    int                entity_num,
+    struct pci_device *device,
+    intptr_t           match_data
+)
+{
+    return r128_get_scrninfo(entity_num);
+}
+
+#endif /* XSERVER_LIBPCIACCESS */
+
 _X_EXPORT DriverRec R128 =
 {
     R128_VERSION_CURRENT,
     R128_DRIVER_NAME,
     R128Identify,
+#ifdef XSERVER_LIBPCIACCESS
+    NULL,
+#else
     R128Probe,
+#endif
     R128AvailableOptions,
     NULL,
-    0
+    0,
+    NULL,
+#ifdef XSERVER_LIBPCIACCESS
+    r128_device_match,
+    r128_pci_probe
+#endif
 };
