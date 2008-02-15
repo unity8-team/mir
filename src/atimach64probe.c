@@ -38,6 +38,10 @@
 #include "atiadjust.h"
 #include "ativalid.h"
 
+#ifndef XSERVER_LIBPCIACCESS
+static Bool Mach64Probe(DriverPtr pDriver, int flags);
+#endif
+
 SymTabRec
 Mach64Chipsets[] = {
     {ATI_CHIP_88800GXC, "ATI 88800GX-C"},
