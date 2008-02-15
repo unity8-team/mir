@@ -180,7 +180,7 @@ RADEONProbe(DriverPtr drv, int flags)
 	foundScreen = TRUE;
     } else {
 	for (i = 0; i < numUsed; i++) {
-	    if (radeon_get_scrninfo(entity_num))
+	    if (radeon_get_scrninfo(i))
 		foundScreen = TRUE;
 	}
     }

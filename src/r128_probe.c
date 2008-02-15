@@ -332,7 +332,7 @@ R128Probe(DriverPtr drv, int flags)
     if (flags & PROBE_DETECT)
 	foundScreen = TRUE;
     else for (i = 0; i < numUsed; i++) {
-	if (r128_get_scrninfo(entity_num))
+	if (r128_get_scrninfo(i))
 	    foundScreen = TRUE;
     }
 
