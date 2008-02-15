@@ -367,13 +367,12 @@ ATIMach64ProbeIO
     ATIPtr      pATI
 )
 {
-    Bool ProbeSuccess = FALSE;
-
-#ifndef AVOID_CPIO
-
     /* Next, look for sparse I/O Mach64's */
     if (!PCI_REGION_SIZE(pVideo, 1))
     {
+
+#ifndef AVOID_CPIO
+
         static const IOADDRESS Mach64SparseIOBases[] = {
             0x02ECU,
             0x01CCU,
@@ -386,7 +385,7 @@ ATIMach64ProbeIO
         pciConfigPtr pPCI = pVideo->thisCard;
 
         if (pPCI == NULL)
-            goto SkipSparse;
+            return FALSE;
 #endif
 
         PCI_READ_LONG(pVideo, &PciReg, PCI_REG_USERCONFIG);
@@ -399,7 +398,7 @@ ATIMach64ProbeIO
                 "because it has neither a block, nor a sparse, I/O base.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
 
-            goto SkipSparse;
+            return FALSE;
         }
 
         /* Possibly fix block I/O indicator */
@@ -426,62 +425,23 @@ ATIMach64ProbeIO
                 "set option \"probe_sparse\" to force sparse I/O probing.\n",
                 PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
 
-            goto SkipSparse;
+            return FALSE;
         }
 
         pATI->CPIOBase = Mach64SparseIOBases[j];
         pATI->CPIODecoding = SPARSE_IO;
         pATI->PCIInfo = pVideo;
 
-        if (!ATIMach64Probe(pATI, pVideo, pATI->Chip))
-        {
-            xf86Msg(X_WARNING, MACH64_NAME ": "
-                "PCI Mach64 in slot %d:%d:%d could not be detected!\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
-        }
-        else
-        {
-            ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, MACH64_NAME ": "
-                "Shared PCI Mach64 in slot %d:%d:%d with sparse PIO base"
-                " 0x%04lX detected.\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo),
-                Mach64SparseIOBases[j]);
-
-            if (pATI->VGAAdapter)
-                ATIFindVGA(pVideo, pATI);
-        }
-    }
-
-SkipSparse:
-
 #else /* AVOID_CPIO */
 
-    if (!PCI_REGION_SIZE(pVideo, 1))
-    {
         /* The adapter's CPIO base is of little concern here */
         pATI->CPIOBase = 0;
         pATI->CPIODecoding = SPARSE_IO;
         pATI->PCIInfo = pVideo;
 
-        if (ATIMach64Probe(pATI, pVideo, pATI->Chip))
-        {
-            ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, MACH64_NAME ": "
-                "Shared PCI Mach64 in slot %d:%d:%d with Block 0 base"
-                " 0x%08lX detected.\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo),
-                pATI->Block0Base);
-        }
-        else
-        {
-            xf86Msg(X_WARNING, MACH64_NAME ": "
-                "PCI Mach64 in slot %d:%d:%d could not be detected!\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
-        }
-    }
-
 #endif /* AVOID_CPIO */
+
+    }
 
     /* Lastly, look for block I/O devices */
     if (PCI_REGION_SIZE(pVideo, 1))
@@ -489,29 +449,27 @@ SkipSparse:
         pATI->CPIOBase = PCI_REGION_BASE(pVideo, 1, REGION_IO);
         pATI->CPIODecoding = BLOCK_IO;
         pATI->PCIInfo = pVideo;
+    }
 
-        if (ATIMach64Probe(pATI, pVideo, pATI->Chip))
-        {
-            ProbeSuccess = TRUE;
-            xf86Msg(X_INFO, MACH64_NAME ": "
-                "Shared PCI/AGP Mach64 in slot %d:%d:%d detected.\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
+    if (!ATIMach64Probe(pATI, pVideo, pATI->Chip))
+    {
+        xf86Msg(X_WARNING, MACH64_NAME ": "
+            "Mach64 in slot %d:%d:%d could not be detected!\n",
+            PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
+
+        return FALSE;
+    }
+
+    xf86Msg(X_INFO, MACH64_NAME ": "
+        "Mach64 in slot %d:%d:%d detected.\n",
+        PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
 
 #ifndef AVOID_CPIO
 
-            if (pATI->VGAAdapter)
-                ATIFindVGA(pVideo, pATI);
+    if (pATI->VGAAdapter)
+        ATIFindVGA(pVideo, pATI);
 
 #endif /* AVOID_CPIO */
 
-        }
-        else
-        {
-            xf86Msg(X_WARNING, MACH64_NAME ": "
-                "PCI/AGP Mach64 in slot %d:%d:%d could not be detected!\n",
-                PCI_DEV_BUS(pVideo), PCI_DEV_DEV(pVideo), PCI_DEV_FUNC(pVideo));
-        }
-    }
-
-    return ProbeSuccess;
+    return TRUE;
 }
