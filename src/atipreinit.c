@@ -326,7 +326,8 @@ ati_bios_mmedia
     ScrnInfoPtr  pScreenInfo,
     ATIPtr       pATI,
     CARD8       *BIOS,
-    unsigned int VideoTable
+    unsigned int VideoTable,
+    unsigned int HardwareTable
 )
 {
     pATI->Audio = ATI_AUDIO_NONE;
@@ -367,6 +368,11 @@ ati_bios_mmedia
             default:
                 break;
         }
+    }
+
+    if (HardwareTable > 0)
+    {
+        pATI->I2CType = BIOSByte(HardwareTable + 0x06U) & 0x0FU;
     }
 }
 
@@ -968,17 +974,15 @@ ATIPreInit
             if (BIOSWord(ROMTable - 0x02U) >= 0x004AU)
             {
                 HardwareTable = BIOSWord(ROMTable + 0x48U);
-                if (((HardwareTable + 0x08U) <= BIOSSize) &&
-                    !memcmp(BIOS + HardwareTable, "$ATI", 4))
-                    pATI->I2CType = BIOSByte(HardwareTable + 0x06U) & 0x0FU;
-                else
+                if (((HardwareTable + 0x08U) > BIOSSize) ||
+                    (memcmp(BIOS + HardwareTable, "$ATI", 4) != 0))
                     HardwareTable = 0;
             }
         }
 
         ati_bios_clock(pScreenInfo, pATI, BIOS, ClockTable, pGDev);
 
-        ati_bios_mmedia(pScreenInfo, pATI, BIOS, VideoTable);
+        ati_bios_mmedia(pScreenInfo, pATI, BIOS, VideoTable, HardwareTable);
 
         if (pATI->LCDPanelID >= 0)
         {
