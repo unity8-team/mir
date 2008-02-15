@@ -361,7 +361,7 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	pNOUVEAUDRI->bpp		= pScrn->bitsPerPixel;
 
 	pNOUVEAUDRI->front_offset 	= pNv->FB->offset;
-	pNOUVEAUDRI->front_pitch	= pScrn->virtualX;
+	pNOUVEAUDRI->front_pitch	= pScrn->displayWidth;
 	/* back/depth buffers will likely be allocated on a per-drawable
 	 * basis, but these may be useful if we want to support shared back
 	 * buffers at some point.
