@@ -174,6 +174,7 @@ EXTRA_DIST = \
 	atimach64i2c.h \
 	atimach64io.h \
 	atimach64probe.h \
+	atimach64version.h \
 	atimode.h \
 	atioption.h \
 	atipreinit.h \
