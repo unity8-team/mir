@@ -56,6 +56,10 @@
 #include "radeon_pci_device_match_gen.h"
 #endif
 
+#ifndef XSERVER_LIBPCIACCESS
+static Bool RADEONProbe(DriverPtr drv, int flags);
+#endif
+
 int gRADEONEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */

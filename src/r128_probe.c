@@ -47,6 +47,10 @@
 #include "xf86PciInfo.h"
 #include "xf86Resources.h"
 
+#ifndef XSERVER_LIBPCIACCESS
+static Bool R128Probe(DriverPtr drv, int flags);
+#endif
+
 SymTabRec R128Chipsets[] = {
     { PCI_CHIP_RAGE128LE, "ATI Rage 128 Mobility M3 LE (PCI)" },
     { PCI_CHIP_RAGE128LF, "ATI Rage 128 Mobility M3 LF (AGP)" },
