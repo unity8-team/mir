@@ -377,7 +377,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CACHE_MODE_0           0x2120
 #define CACHE_MODE_1           0x2124
+#define MI_MODE		       0x209c
+#define MI_DISPLAY_POWER_DOWN  0x20e0
 #define MI_ARB_STATE           0x20e4
+#define MI_RDRET_STATE	       0x20fc
 
 /* Start addresses for each of the primary rings:
  */
@@ -988,6 +991,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define D_STATE			0x6104
 #define DSPCLK_GATE_D		0x6200
+# define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
+# define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
+# define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* 965 */
+# define VRDUNIT_CLOCK_GATE_DISABLE		(1 << 27) /* 965 */
+# define AUDUNIT_CLOCK_GATE_DISABLE		(1 << 26) /* 965 */
+# define DPUNIT_A_CLOCK_GATE_DISABLE		(1 << 25) /* 965 */
+# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 24) /* 965 */
 # define TVRUNIT_CLOCK_GATE_DISABLE		(1 << 23) /* 915-945 */
 # define TVCUNIT_CLOCK_GATE_DISABLE		(1 << 22) /* 915-945 */
 # define TVFUNIT_CLOCK_GATE_DISABLE		(1 << 21) /* 915-945 */
@@ -1002,7 +1012,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLUNIT_CLOCK_GATE_DISABLE		(1 << 12) /* 915-945 */
 # define DPOUNIT_CLOCK_GATE_DISABLE		(1 << 11)
 # define DPBUNIT_CLOCK_GATE_DISABLE		(1 << 10)
-# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
+# define DCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
 # define DPUNIT_CLOCK_GATE_DISABLE		(1 << 8)
 # define VRUNIT_CLOCK_GATE_DISABLE		(1 << 7) /* 915+: reserved */
 # define OVHUNIT_CLOCK_GATE_DISABLE		(1 << 6) /* 830-865 */
@@ -2007,6 +2017,32 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEAGCMAXGREEN		0x70014
 #define PIPEAGCMAXBLUE		0x70018
 #define PIPEASTAT		0x70024
+# define FIFO_UNDERRUN		(1 << 31)
+# define CRC_ERROR_ENABLE	(1 << 29)
+# define CRC_DONE_ENABLE	(1 << 28)
+# define GMBUS_EVENT_ENABLE	(1 << 27)
+# define VSYNC_INT_ENABLE	(1 << 25)
+# define DLINE_COMPARE_ENABLE	(1 << 24)
+# define DPST_EVENT_ENABLE	(1 << 23)
+# define LBLC_EVENT_ENABLE	(1 << 22)
+# define OFIELD_INT_ENABLE	(1 << 21)
+# define EFIELD_INT_ENABLE	(1 << 20)
+# define SVBLANK_INT_ENABLE	(1 << 18)
+# define VBLANK_INT_ENABLE	(1 << 17)
+# define OREG_UPDATE_ENABLE	(1 << 16)
+# define CRC_ERROR_INT_STATUS	(1 << 13)
+# define CRC_DONE_INT_STATUS	(1 << 12)
+# define GMBUS_INT_STATUS	(1 << 11)
+# define VSYNC_INT_STATUS	(1 << 9)
+# define DLINE_COMPARE_STATUS	(1 << 8)
+# define DPST_EVENT_STATUS	(1 << 7)
+# define LBLC_EVENT_STATUS	(1 << 6)
+# define OFIELD_INT_STATUS	(1 << 5)
+# define EFIELD_INT_STATUS	(1 << 4)
+# define SVBLANK_INT_STATUS	(1 << 2)
+# define VBLANK_INT_STATUS	(1 << 1)
+# define OREG_UPDATE_STATUS	(1 << 0)
+				 
 
 #define DSPARB			0x70030
 #define DSPFW1			0x70034
