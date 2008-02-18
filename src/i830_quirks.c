@@ -178,6 +178,23 @@ static void quirk_mac_mini (I830Ptr pI830)
     pI830->quirk_flag |= QUIRK_IGNORE_MACMINI_LVDS;
 }
 
+static void quirk_lenovo_tv_dmi (I830Ptr pI830)
+{
+    /* X60, X60s has no TV output.
+     * Z61 has S-video TV output.
+     * And they have same subsys ids...
+     *
+     * http://www-307.ibm.com/pc/support/site.wss/MIGR-45120.html
+     * http://www.thinkwiki.org/wiki/List_of_DMI_IDs
+     */
+    if (!i830_dmi_data[bios_version]) {
+	ErrorF("Failed to load DMI info, X60 TV quirk not applied.\n");
+	return;
+    }
+    if (!strncmp(i830_dmi_data[bios_version], "7B", 2))
+	pI830->quirk_flag |= QUIRK_IGNORE_TV;
+}
+
 /* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
@@ -196,8 +213,8 @@ static i830_quirk i830_quirk_list[] = {
     /* Dell XPS 1330 */
     { PCI_CHIP_I965_GM, 0x1028, 0x0209, quirk_ignore_tv },
 
-    /* Lenovo X60s has no TV output */
-    { PCI_CHIP_I945_GM, 0x17aa, 0x201a, quirk_ignore_tv },
+    /* Lenovo Napa TV (use dmi)*/
+    { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
     /* Lenovo T61 has no TV output */
     { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
     /* Lenovo 3000 v200 */
