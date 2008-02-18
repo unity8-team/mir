@@ -1710,13 +1710,11 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   gart_scratch_size >> 10);
 	}
 
-#ifndef __powerpc__
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
 			   gart_scratch_size, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
 	}
-#endif
 	if (pNv->GART) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "GART: Allocated %dMiB as a scratch buffer\n",
