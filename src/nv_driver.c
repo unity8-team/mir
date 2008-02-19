@@ -2755,8 +2755,8 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 	    for (i = 0; i < xf86_config->num_crtc; i++) {
 		
 		if (xf86_config->crtc[i]->enabled) {
-		    NVCrtcBlankScreen(xf86_config->crtc[i],
-				      on);
+		    NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+		    NVBlankScreen(pNv, nv_crtc->head, !on);
 		}
 	    }
 	    

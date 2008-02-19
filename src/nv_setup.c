@@ -503,13 +503,13 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 				pNv->vtOWNER = 0x04;
 			else {
-				NVLockUnlockHead(pScrn, 1, FALSE); /* implicit owner set */
+				NVLockUnlockHead(pNv, 1, false); /* implicit owner set */
 
 				uint8_t slaved_on_B = NVReadVGA(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_B)
 					tvB = !(NVReadVGA(pNv, 1, NV_VGA_CRTCX_LCD) & 0x01);
 
-				NVLockUnlockHead(pScrn, 0, FALSE);
+				NVLockUnlockHead(pNv, 0, false);
 
 				uint8_t slaved_on_A = NVReadVGA(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_A)

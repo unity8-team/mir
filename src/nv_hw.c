@@ -42,7 +42,7 @@
 #include "nv_local.h"
 #include "compiler.h"
 
-uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
+uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg)
 {
 	if (head)
 		reg += NV_PCRTC0_SIZE;
@@ -50,7 +50,7 @@ uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg)
 	return NV_RD32(pNv->REGS, reg);
 }
 
-void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
+void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
 {
 	if (head)
 		reg += NV_PCRTC0_SIZE;
@@ -58,7 +58,7 @@ void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
 	NV_WR32(pNv->REGS, reg, val);
 }
 
-uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
+uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg)
 {
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
@@ -66,7 +66,7 @@ uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg)
 	return NV_RD32(pNv->REGS, reg);
 }
 
-void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val)
+void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
 {
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
@@ -118,22 +118,130 @@ uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index)
 	return NVReadVGA(pNv, head, 0x58);
 }
 
-void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head)
+uint8_t NVReadPVIO(NVPtr pNv, int head, uint32_t address)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	/* Only NV4x have two pvio ranges */
+	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
+
+	DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", head, address + mmiobase, NV_RD08(pNv->REGS, address + mmiobase));
+	return NV_RD08(pNv->REGS, address + mmiobase);
+}
+
+void NVWritePVIO(NVPtr pNv, int head, uint32_t address, uint8_t value)
+{
+	/* Only NV4x have two pvio ranges */
+	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
+
+	DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", head, address + mmiobase, value);
+	NV_WR08(pNv->REGS, address + mmiobase, value);
+}
+
+void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	NVWritePVIO(pNv, head, VGA_SEQ_INDEX, index);
+	NVWritePVIO(pNv, head, VGA_SEQ_DATA, value);
+}
+
+uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index)
+{
+	NVWritePVIO(pNv, head, VGA_SEQ_INDEX, index);
+	return NVReadPVIO(pNv, head, VGA_SEQ_DATA);
+}
+
+void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	NVWritePVIO(pNv, head, VGA_GRAPH_INDEX, index);
+	NVWritePVIO(pNv, head, VGA_GRAPH_DATA, value);
+}
+
+uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index)
+{
+	NVWritePVIO(pNv, head, VGA_GRAPH_INDEX, index);
+	return NVReadPVIO(pNv, head, VGA_GRAPH_DATA);
+}
+
+#define CRTC_IN_STAT_1 0x3da
+
+void NVSetEnablePalette(NVPtr pNv, int head, bool enable)
+{
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
+
+	VGA_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	VGA_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, enable ? 0 : 0x20);
+}
+
+static bool NVGetEnablePalette(NVPtr pNv, int head)
+{
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
+
+	VGA_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	return !(VGA_RD08(pNv->REGS, VGA_ATTR_INDEX + mmiobase) & 0x20);
+}
+
+void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value)
+{
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
+
+	if (NVGetEnablePalette(pNv, head))
+		index &= ~0x20;
+	else
+		index |= 0x20;
+
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	DDXMMIOH("NVWriteVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, value);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
+	NV_WR08(pNv->REGS, VGA_ATTR_DATA_W + mmiobase, value);
+}
+
+uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index)
+{
+	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
+
+	if (NVGetEnablePalette(pNv, head))
+		index &= ~0x20;
+	else
+		index |= 0x20;
+
+	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
+	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase));
+	return NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase);
+}
+
+void NVVgaSeqReset(NVPtr pNv, int head, bool start)
+{
+	NVWriteVgaSeq(pNv, head, 0x0, start ? 0x1 : 0x3);
+}
+
+void NVVgaProtect(NVPtr pNv, int head, bool protect)
+{
+	uint8_t seq1 = NVReadVgaSeq(pNv, head, 0x1);
+
+	if (protect) {
+		NVVgaSeqReset(pNv, head, true);
+		NVWriteVgaSeq(pNv, head, 0x01, seq1 | 0x20);
+	} else {
+		/* Reenable sequencer, then turn on screen */
+		NVWriteVgaSeq(pNv, head, 0x01, seq1 & ~0x20);   /* reenable display */
+		NVVgaSeqReset(pNv, head, false);
+	}
+	NVSetEnablePalette(pNv, head, protect);
+}
+
+void NVSetOwner(NVPtr pNv, int head)
+{
 	/* CRTCX_OWNER is always changed on CRTC0 */
 	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head*0x3);
 
 	ErrorF("Setting owner: 0x%X\n", head*0x3);
 }
 
-void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock)
+void NVLockUnlockHead(NVPtr pNv, int head, bool lock)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	uint8_t cr11;
 
 	if (pNv->twoHeads)
-		NVSetOwner(pScrn, head);
+		NVSetOwner(pNv, head);
 
 	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
 
@@ -143,6 +251,23 @@ void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock)
 	else
 		cr11 &= ~0x80;
 	NVWriteVGA(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
+}
+
+void NVBlankScreen(NVPtr pNv, int head, bool blank)
+{
+	unsigned char seq1;
+
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, head);
+
+	seq1 = NVReadVgaSeq(pNv, head, 0x1);
+
+	NVVgaSeqReset(pNv, head, TRUE);
+	if (blank)
+		NVWriteVgaSeq(pNv, head, 0x1, seq1 | 0x20);
+	else
+		NVWriteVgaSeq(pNv, head, 0x1, seq1 & ~0x20);
+	NVVgaSeqReset(pNv, head, FALSE);
 }
 
 /****************************************************************************\

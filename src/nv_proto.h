@@ -86,7 +86,6 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 /* nv_crtc.c */
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
-void NVCrtcBlankScreen(xf86CrtcPtr crtc, Bool on);
 void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
@@ -111,16 +110,28 @@ uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
 
 /* nv_hw.c */
-uint32_t NVReadCRTC(NVPtr pNv, uint8_t head, uint32_t reg);
-void NVWriteCRTC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
-uint32_t NVReadRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg);
-void NVWriteRAMDAC(NVPtr pNv, uint8_t head, uint32_t reg, uint32_t val);
+uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg);
+void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
+uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg);
+void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
 void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index);
 void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index);
-void NVSetOwner(ScrnInfoPtr pScrn, uint8_t head);
-void NVLockUnlockHead(ScrnInfoPtr pScrn, uint8_t head, Bool lock);
+uint8_t NVReadPVIO(NVPtr pNv, int head, uint32_t address);
+void NVWritePVIO(NVPtr pNv, int head, uint32_t address, uint8_t value);
+void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index);
+void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index);
+void NVSetEnablePalette(NVPtr pNv, int head, bool enable);
+void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value);
+uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index);
+void NVVgaSeqReset(NVPtr pNv, int head, bool start);
+void NVVgaProtect(NVPtr pNv, int head, bool protect);
+void NVSetOwner(NVPtr pNv, int head);
+void NVLockUnlockHead(NVPtr pNv, int head, bool lock);
+void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,
 				      NVPtr        pNv);
