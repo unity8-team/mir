@@ -2908,11 +2908,9 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
-	unsigned int fpstrapping, outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
+	unsigned int outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
-
-	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		run_lvds_table(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
@@ -2936,8 +2934,7 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
 		break;
 	case LVDS_RESET:
-		if (pNv->dcb_table.entry[dcb_entry].lvdsconf.use_straps_for_mode ||
-			(fpstrapping != 0x0f && bios->data[bios->fp.xlated_entry + 1] != 0x0f)) {
+		if (pNv->dcb_table.entry[dcb_entry].lvdsconf.use_straps_for_mode) {
 			if (bios->fp.dual_link)
 				clktableptr += 2;
 			if (bios->fp.BITbit1)
@@ -2998,14 +2995,11 @@ struct fppointers {
 
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
-	unsigned int fpstrapping;
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ofs;
 	uint16_t modeofs;
 	DisplayModePtr mode;
-
-	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	if (fpp->fptablepointer == 0x0 || fpp->fpxlatetableptr == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3052,7 +3046,8 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		return;
 	}
 
-	fpindex = bios->data[fpp->fpxlatetableptr + fpstrapping * fpp->xlatwidth];
+	fpindex = bios->data[fpp->fpxlatetableptr + bios->fp.strapping * fpp->xlatwidth];
+	bios->fp.strapping |= fpindex << 4;
 	if (fpindex > fpentries) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Bad flat panel table index\n");
@@ -3060,7 +3055,7 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	}
 
 	/* reserved values - means that ddc or hard coded edid should be used */
-	if (fpindex == 0xf && fpstrapping == 0xf) {
+	if (bios->fp.strapping == 0xff) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Ignoring FP table\n");
 		return;
 	}
@@ -3129,11 +3124,11 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	 * by the BIT 'D' table
 	 */
 
-	unsigned int fpstrapping, lvdsmanufacturerindex = 0;
+	unsigned int lvdsmanufacturerindex = 0;
 	uint8_t lvds_ver, headerlen, recordlen;
 	uint16_t lvdsofs;
 
-	fpstrapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
+	bios->fp.strapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 
 	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3149,14 +3144,14 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 
 	switch (lvds_ver) {
 	case 0x0a:	/* pre NV40 */
-		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + fpstrapping];
+		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + bios->fp.strapping];
 
 		headerlen = 2;
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 
 		break;
 	case 0x30:	/* NV4x */
-		lvdsmanufacturerindex = fpstrapping;
+		lvdsmanufacturerindex = bios->fp.strapping;
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x1f) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3952,8 +3947,8 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	if (!(bios->feature_byte & FEATURE_MOBILE))
 		return;
 
-	parse_fp_mode_table(pScrn, bios, &fpp);
 	parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
+	parse_fp_mode_table(pScrn, bios, &fpp);
 	/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
 	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 }
@@ -4055,8 +4050,7 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 
 		switch (entry->type) {
 		case OUTPUT_LVDS:
-			/* these are probably buried in conn's unknown bits */
-			entry->lvdsconf.use_straps_for_mode = true;
+			/* this is probably buried in conn's unknown bits */
 			entry->lvdsconf.use_power_scripts = true;
 			break;
 		case OUTPUT_TMDS:
@@ -4077,6 +4071,9 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			   "No information in BIOS output table; assuming a CRT output exists\n");
 		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	}
+
+	if (entry->type == OUTPUT_LVDS && pNv->VBIOS.fp.strapping != 0xff)
+		entry->lvdsconf.use_straps_for_mode = true;
 
 	pNv->dcb_table.entries++;
 
