@@ -1210,8 +1210,8 @@ static bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	 * offset + 1  (8 bit): condition number
 	 *
 	 * Check condition "condition number" in the IO flag condition table.
-	 * If condition not met skip subsequent opcodes until condition
-	 * is inverted (INIT_NOT), or we hit INIT_RESUME
+	 * If condition not met skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
 	 */
 
 	uint8_t cond = bios->data[offset + 1];
@@ -2101,43 +2101,43 @@ static bool init_sub(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec
 	return true;
 }
 
-#if 0
-static bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
+static bool init_ram_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
-	/* INIT_RAM_CONDITION   opcode: 0x6D
-	 * 
-	 * offset      (8  bit): opcode
-	 * offset + 1  (8  bit): and mask
-	 * offset + 2  (8  bit): cmpval
+	/* INIT_RAM_CONDITION   opcode: 0x6D ('m')
 	 *
-	 * Test if (NV_PFB_BOOT & and mask) matches cmpval
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): mask
+	 * offset + 2  (8 bit): cmpval
+	 *
+	 * Test if (NV_PFB_BOOT_0 & "mask") equals "cmpval".
+	 * If condition not met skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
 	 */
-	NVPtr pNv = NVPTR(pScrn);
-	CARD8 and = *((CARD8 *) (&bios->data[offset + 1]));
-	CARD8 cmpval = *((CARD8 *) (&bios->data[offset + 2]));
-	CARD32 data;
 
-	if (iexec->execute) {
-		data=(pNv->PFB[NV_PFB_BOOT/4])&and;
+	uint8_t mask = bios->data[offset + 1];
+	uint8_t cmpval = bios->data[offset + 2];
+	uint8_t data;
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-				"0x%04X: CHECKING IF REGVAL: 0x%08X equals COND: 0x%08X\n",
-				offset, data, cmpval);
+	if (!iexec->execute)
+		return true;
 
-		if (data == cmpval) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-					"0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n",
-					offset);
-		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONDITION IS NOT FULFILLED\n", offset);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-					"0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
-			iexec->execute = false;
-		}
+	data = nv32_rd(pScrn, NV_PFB_BOOT_0) & mask;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "0x%04X: Checking if 0x%08X equals 0x%08X\n", offset, data, cmpval);
+
+	if (data == cmpval)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n", offset);
+	else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: CONDITION IS NOT FULFILLED\n", offset);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "0x%04X: ------ SKIPPING FOLLOWING COMMANDS ------\n", offset);
+		iexec->execute = false;
 	}
+
 	return true;
 }
-#endif
 
 static bool init_nv_reg(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
@@ -2313,8 +2313,8 @@ static bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	 * Check condition "condition number" in the condition table.
 	 * The condition table entry has 4 bytes for the address of the
 	 * register to check, 4 bytes for a mask and 4 for a test value.
-	 * If condition not met skip subsequent opcodes until condition
-	 * is inverted (INIT_NOT), or we hit INIT_RESUME
+	 * If condition not met skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
 	 */
 
 	uint8_t cond = bios->data[offset + 1];
@@ -2685,7 +2685,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_CONFIGURE_PREINIT"            , 0x68, 1       , 0       , 0       , init_configure_preinit          },
 	{ "INIT_IO"                           , 0x69, 5       , 0       , 0       , init_io                         },
 	{ "INIT_SUB"                          , 0x6B, 2       , 0       , 0       , init_sub                        },
-//	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
+	{ "INIT_RAM_CONDITION"                , 0x6D, 3       , 0       , 0       , init_ram_condition              },
 	{ "INIT_NV_REG"                       , 0x6E, 13      , 0       , 0       , init_nv_reg                     },
 	{ "INIT_MACRO"                        , 0x6F, 2       , 0       , 0       , init_macro                      },
 	{ "INIT_DONE"                         , 0x71, 1       , 0       , 0       , init_done                       },
