@@ -3999,8 +3999,10 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			if (conf & 0x1)
 				entry->lvdsconf.use_straps_for_mode = true;
 			if (dcb_version < 0x22) {
-				mask = ~0x9;
-				if (conf & 0x8)	/* complete guess */
+				mask = ~0xd;
+				/* both 0x4 and 0x8 show up in v2.0 tables; assume they mean
+				 * the same thing, which is probably wrong, but might work */
+				if (conf & 0x4 || conf & 0x8)
 					entry->lvdsconf.use_power_scripts = true;
 			} else {
 				mask = ~0x5;
