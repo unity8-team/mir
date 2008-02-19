@@ -1442,6 +1442,7 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
     RADEONI2CBusRec i2c;
     CARD8 crev, frev;
 
+    memset(&i2c, 0, sizeof(RADEONI2CBusRec));
     i2c.valid = FALSE;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
@@ -1468,6 +1469,25 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
     i2c.get_data_mask = (1 <<  gpio.ucDataY_Shift);
     i2c.valid = TRUE;
 
+#if 0
+    ErrorF("mask_clk_reg: 0x%x\n", gpio.usClkMaskRegisterIndex * 4);
+    ErrorF("mask_data_reg: 0x%x\n", gpio.usDataMaskRegisterIndex * 4);
+    ErrorF("put_clk_reg: 0x%x\n", gpio.usClkEnRegisterIndex * 4);
+    ErrorF("put_data_reg: 0x%x\n", gpio.usDataEnRegisterIndex * 4);
+    ErrorF("get_clk_reg: 0x%x\n", gpio.usClkY_RegisterIndex * 4);
+    ErrorF("get_data_reg: 0x%x\n", gpio.usDataY_RegisterIndex * 4);
+    ErrorF("other_clk_reg: 0x%x\n", gpio.usClkA_RegisterIndex * 4);
+    ErrorF("other_data_reg: 0x%x\n", gpio.usDataA_RegisterIndex * 4);
+    ErrorF("mask_clk_mask: %d\n", gpio.ucClkMaskShift);
+    ErrorF("mask_data_mask: %d\n", gpio.ucDataMaskShift);
+    ErrorF("put_clk_mask: %d\n", gpio.ucClkEnShift);
+    ErrorF("put_data_mask: %d\n", gpio.ucDataEnShift);
+    ErrorF("get_clk_mask: %d\n", gpio.ucClkY_Shift);
+    ErrorF("get_data_mask: %d\n", gpio.ucDataY_Shift);
+    ErrorF("other_clk_mask: %d\n", gpio.ucClkA_Shift);
+    ErrorF("other_data_mask: %d\n", gpio.ucDataA_Shift);
+#endif
+
     return i2c;
 }
 
@@ -1479,7 +1499,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
-    int i, j, ddc_line;
+    int i, j, ddc_line = 0;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
@@ -1725,7 +1745,12 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
-	info->BiosConnector[i].devices = (1 << i);
+	if (info->IsIGP && (i == ATOM_DEVICE_DFP2_INDEX))
+	    info->BiosConnector[i].devices = (1 << ATOM_DEVICE_DFP3_INDEX);
+	else if (info->IsIGP && (i == ATOM_DEVICE_DFP3_INDEX))
+	    info->BiosConnector[i].devices = (1 << ATOM_DEVICE_DFP2_INDEX);
+	else
+	    info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
 	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
 
@@ -1740,11 +1765,17 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
-	else if (i == ATOM_DEVICE_DFP2_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_EXT;
-	else if (i == ATOM_DEVICE_DFP3_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-	else
+	else if (i == ATOM_DEVICE_DFP2_INDEX) {
+	    if (info->IsIGP)
+		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
+	    else
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	} else if (i == ATOM_DEVICE_DFP3_INDEX) {
+	    if (info->IsIGP)
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	    else
+		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
+	} else
 	    info->BiosConnector[i].TMDSType = TMDS_NONE;
 
 	/* Always set the connector type to VGA for CRT1/CRT2. if they are
