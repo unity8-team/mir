@@ -880,7 +880,7 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 
 	/* high regs (such as in the mac g5 table) are not -= 4 */
-	if (!get_pll_limits(pScrn, (reg > 0x405c ? reg : reg - 4), &pll_lim))
+	if (!get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim))
 		return;
 
 	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
@@ -4020,7 +4020,7 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			}
 		}
 	} else if (dcb_version >= 0x14 ) {
-		if (conn != 0xf0003f00 && conn != 0xf2204301 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011) {
+		if (conn != 0xf0003f00 && conn != 0xf2247f10 && conn != 0xf2204301 && conn != 0xf2244311 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
@@ -4208,9 +4208,10 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (configblock)
 			config = le32_to_cpu(*(uint32_t *)&dcbtable[headerlen + confofs + recordlength * i]);
 
-		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables
-		 * can be discontinuous */
+		/* Should we allow discontinuous DCBs? Certainly DCB I2C tables can be discontinuous */
 		if ((connection & 0x0000000f) == 0x0000000f) /* end of records */
+			break;
+		if (connection == 0x00000000) /* seen on an NV11 with DCB v1.5 */
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
