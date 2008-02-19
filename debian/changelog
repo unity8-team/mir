@@ -1,3 +1,35 @@
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu6) hardy; urgency=low
+
+  * Add 06_xaa_as_default_except_i965.patch to switch us back to XAA by
+    default for intel chipsets for performance reasons, except for i965
+    which does not work as well with XAA (Xv video doesn't display
+    properly.)  This patch essentially just reverts upstream's 'Default to
+    EXA' patch, and adds a special case i965 to allow it to use EXA.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 19 Feb 2008 14:27:18 -0800
+
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu5) hardy; urgency=low
+
+  * Add 05_intel_exa_force_greedy.patch to force use of greedy mode on
+    i965 hardware.  (closes LP: #177492, #148247, #152206)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 19 Feb 2008 13:48:02 -0800
+
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu4) hardy; urgency=low
+
+  * 04_dell_1735_quirk.patch: Another HDMI port quirk, for the Dell
+    Inspiron 1735. (LP: #188204)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 14 Feb 2008 18:08:47 -0800
+
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu3) hardy; urgency=low
+
+  * 03_dell_1535_quirk.patch: Add a quirk for Dell Inspiron 1535 so it
+    does not configure against the HDMI port instead of the LCD's native
+    resolution (LP: #187860).
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 14 Feb 2008 15:52:01 -0800
+
 xserver-xorg-video-intel (2:2.2.0.90-2ubuntu2) hardy; urgency=low
 
   * 02_quick_fix.patch: Patch from upstream to prevent a crash on start.
