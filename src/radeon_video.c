@@ -2282,7 +2282,7 @@ RADEONCopyRGB24Data(
     }
 }
 
-#if 0
+
 #ifdef XF86DRI
 static void RADEON_420_422(
     unsigned int *d,
@@ -2398,7 +2398,7 @@ RADEONCopyMungedData(
 #endif
     }
 }
-#endif
+
 
 /* Allocates memory, either by resizing the allocation pointed to by mem_struct,
  * or by freeing mem_struct (if non-NULL) and allocating a new space.  The size
@@ -2889,6 +2889,7 @@ RADEONPutImage(
    int srcPitch, srcPitch2, dstPitch;
    int d2line, d3line;
    int top, left, npixels, nlines, bpp;
+   int idconv = id;
    BoxRec dstBox;
    CARD32 tmp;
    xf86CrtcPtr crtc;
@@ -2961,11 +2962,20 @@ RADEONPutImage(
 	break;
    case FOURCC_YV12:
    case FOURCC_I420:
-	/* need 16bytes alignment for u,v plane, so 2 times that for width
-	   but blitter needs 64bytes alignment. 128byte is a waste but dstpitch
-	   for uv planes needs to be dstpitch yplane >> 1 for now. */
-	dstPitch = ((width + 127) & ~127);
-	srcPitch = (width + 3) & ~3;
+	/* it seems rs4xx chips (all of them???) either can't handle planar
+	   yuv at all or would need some unknown different setup. */
+	if (info->ChipFamily != CHIP_FAMILY_RS400) {
+	    /* need 16bytes alignment for u,v plane, so 2 times that for width
+	       but blitter needs 64bytes alignment. 128byte is a waste but dstpitch
+	       for uv planes needs to be dstpitch yplane >> 1 for now. */
+	    dstPitch = ((width + 127) & ~127);
+	    srcPitch = (width + 3) & ~3;
+	}
+	else {
+	    dstPitch = width * 2;
+	    srcPitch = (width + 3) & ~3;
+	    idconv = FOURCC_YUY2;
+	}
 	break;
    case FOURCC_UYVY:
    case FOURCC_YUY2:
@@ -2985,7 +2995,7 @@ RADEONPutImage(
        dstPitch = (dstPitch + 15) & ~15;
 
    new_size = dstPitch * height;
-   if (id == FOURCC_YV12 || id == FOURCC_I420) {
+   if (idconv == FOURCC_YV12 || id == FOURCC_I420) {
       new_size += (dstPitch >> 1) * ((height + 1) & ~1);
    }
    pPriv->video_offset = RADEONAllocateMemory(pScrn, &pPriv->video_memory,
@@ -3017,32 +3027,52 @@ RADEONPutImage(
    switch(id) {
    case FOURCC_YV12:
    case FOURCC_I420:
-/* meh. Such a mess just for someone who wants to watch half the video clipped */
-	top &= ~1;
-	/* odd number of pixels? That may not work correctly */
-	srcPitch2 = ((width >> 1) + 3) & ~3;
-	/* odd number of lines? Maybe... */
-	s2offset = srcPitch * ((height + 1) & ~1);
-	s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
-	s2offset += (top >> 1) * srcPitch2 + (left >> 1);
-	s3offset += (top >> 1) * srcPitch2 + (left >> 1);
-	d2line = (height * dstPitch);
-	d3line = d2line + ((height + 1) >> 1) * (dstPitch >> 1);
-	nlines = ((yb + 0xffff) >> 16) - top;
-	d2line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
-	d3line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
-        if(id == FOURCC_YV12) {
-            tmp = s2offset;
-            s2offset = s3offset;
-            s3offset = tmp;
-        }
-        RADEONCopyData(pScrn, buf + (top * srcPitch) + left, dst_start + left,
+	if (id == idconv) {
+	    /* meh. Such a mess just for someone who wants to watch half the video clipped */
+	    top &= ~1;
+	    /* odd number of pixels? That may not work correctly */
+	    srcPitch2 = ((width >> 1) + 3) & ~3;
+	    /* odd number of lines? Maybe... */
+	    s2offset = srcPitch * ((height + 1) & ~1);
+	    s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
+	    s2offset += (top >> 1) * srcPitch2 + (left >> 1);
+	    s3offset += (top >> 1) * srcPitch2 + (left >> 1);
+	    d2line = (height * dstPitch);
+	    d3line = d2line + ((height + 1) >> 1) * (dstPitch >> 1);
+	    nlines = ((yb + 0xffff) >> 16) - top;
+	    d2line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
+	    d3line += (top >> 1) * (dstPitch >> 1) - (top * dstPitch);
+	    if(id == FOURCC_YV12) {
+		tmp = s2offset;
+		s2offset = s3offset;
+		s3offset = tmp;
+	    }
+	    RADEONCopyData(pScrn, buf + (top * srcPitch) + left, dst_start + left,
 		srcPitch, dstPitch, nlines, npixels, 1);
-        RADEONCopyData(pScrn, buf + s2offset, dst_start + d2line + (left >> 1),
+	    RADEONCopyData(pScrn, buf + s2offset, dst_start + d2line + (left >> 1),
 		srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
-        RADEONCopyData(pScrn, buf + s3offset, dst_start + d3line + (left >> 1),
+	    RADEONCopyData(pScrn, buf + s3offset, dst_start + d3line + (left >> 1),
 		srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
-
+	}
+	else {
+	    s2offset = srcPitch * height;
+	    srcPitch2 = ((width >> 1) + 3) & ~3;
+	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	    top &= ~1;
+	    dst_start += left << 1;
+	    tmp = ((top >> 1) * srcPitch2) + (left >> 1);
+	    s2offset += tmp;
+	    s3offset += tmp;
+	    if(id == FOURCC_I420) {
+		tmp = s2offset;
+		s2offset = s3offset;
+		s3offset = tmp;
+	    }
+	    nlines = ((((yb + 0xffff) >> 16) + 1) & ~1) - top;
+	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
+				 buf + s2offset, buf + s3offset, dst_start,
+				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
+	}
 	break;
     case FOURCC_RGBT16:
     case FOURCC_RGB16:
@@ -3080,7 +3110,7 @@ RADEONPutImage(
 
     /* FIXME: someone should look at these offsets, I don't think it makes sense how
               they are handled throughout the source. */
-    RADEONDisplayVideo(pScrn, crtc, pPriv, id, offset, offset + d2line, offset + d3line,
+    RADEONDisplayVideo(pScrn, crtc, pPriv, idconv, offset, offset + d2line, offset + d3line,
 		     offset, offset + d2line, offset + d3line, width, height, dstPitch,
 		     xa, xb, ya, &dstBox, src_w, src_h, drw_w, drw_h, METHOD_BOB);
 
