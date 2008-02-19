@@ -1725,10 +1725,11 @@ i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
 	    clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 			   DPLL_FPA01_P1_POST_DIV_SHIFT);
 
+	    /* if LVDS is dual-channel, p2 = 7 */
 	    if ((INREG(LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
-		clock.p2 = I8XX_P2_LVDS_SLOW;
+		clock.p2 = 7;
 	    else
-		clock.p2 = I8XX_P2_LVDS_FAST;
+		clock.p2 = 14;
 
 	    if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
 		i8xx_clock(66000, &clock); /* XXX: might not be 66MHz */
