@@ -1374,21 +1374,23 @@ NVPutImage(ScrnInfoPtr  pScrn, short src_x, short src_y,
 		else 
 			{
 				if (action_flags & USE_TEXTURE) { /* Texture adapter */
-					int rval;
+					int rval = BadImplementation;
 					if (pNv->Architecture == NV_ARCH_30)
 						rval = NV30PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
 								dstPitch, &dstBox,
 								0, 0, xb, yb,
 								npixels, nlines,
 								src_w, src_h, drw_w, drw_h,
-								clipBoxes, pDraw);
+								clipBoxes, pDraw,
+								pPriv);
 					else if (pNv->Architecture == NV_ARCH_40)
 						rval = NV40PutTextureImage(pScrn, offset, offset + nlines * dstPitch, id,
 								dstPitch, &dstBox,
 								0, 0, xb, yb,
 								npixels, nlines,
 								src_w, src_h, drw_w, drw_h,
-								clipBoxes, pDraw);
+								clipBoxes, pDraw,
+								pPriv);
 					if (rval != Success)
 						return rval;
 				} else { /* Blit adapter */
@@ -1689,6 +1691,7 @@ NVSetupBlitVideo (ScreenPtr pScreen)
 	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= TRUE;
 	pPriv->texture			= FALSE;
+	pPriv->bicubic			= FALSE;
 	pPriv->doubleBuffer		= FALSE;
 	pPriv->SyncToVBlank		= pNv->WaitVSyncPossible;
 
@@ -1751,6 +1754,7 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	pPriv->grabbedByV4L		= FALSE;
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= FALSE;
+	pPriv->bicubic			= FALSE;
 	if ( pNv->Architecture == NV_ARCH_04 )
 		pPriv->doubleBuffer		= 0;
 	
@@ -1905,7 +1909,7 @@ static XF86ImageRec NV30TexturedImages[NUM_FORMAT_TEXTURED] =
  * @return texture port
  */
 static XF86VideoAdaptorPtr
-NV30SetupTexturedVideo (ScreenPtr pScreen)
+NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -1921,7 +1925,10 @@ NV30SetupTexturedVideo (ScreenPtr pScreen)
 
 	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
 	adapt->flags		= 0;
-	adapt->name		= "NV30 Texture adapter";
+	if (bicubic)
+		adapt->name		= "NV30 high quality adapter";
+	else
+		adapt->name		= "NV30 texture adapter";
 	adapt->nEncodings	= 1;
 	adapt->pEncodings	= &DummyEncodingTex;
 	adapt->nFormats		= NUM_FORMATS_ALL;
@@ -1958,10 +1965,14 @@ NV30SetupTexturedVideo (ScreenPtr pScreen)
 	pPriv->grabbedByV4L	= FALSE;
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= TRUE;
+	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank	= FALSE;
+	pPriv->SyncToVBlank	= pNv->WaitVSyncPossible;
 
-	pNv->textureAdaptor	= adapt;
+	if (bicubic)
+		pNv->textureAdaptor[1]	= adapt;
+	else
+		pNv->textureAdaptor[0]	= adapt;
 
 	return adapt;
 }
@@ -1985,7 +1996,7 @@ static XF86ImageRec NV40TexturedImages[NUM_FORMAT_TEXTURED] =
  * @return texture port
  */
 static XF86VideoAdaptorPtr
-NV40SetupTexturedVideo (ScreenPtr pScreen)
+NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -2001,7 +2012,10 @@ NV40SetupTexturedVideo (ScreenPtr pScreen)
 
 	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
 	adapt->flags		= 0;
-	adapt->name		= "NV40 Texture adapter";
+	if (bicubic)
+		adapt->name		= "NV40 high quality adapter";
+	else
+		adapt->name		= "NV40 texture adapter";
 	adapt->nEncodings	= 1;
 	adapt->pEncodings	= &DummyEncodingTex;
 	adapt->nFormats		= NUM_FORMATS_ALL;
@@ -2038,10 +2052,14 @@ NV40SetupTexturedVideo (ScreenPtr pScreen)
 	pPriv->grabbedByV4L	= FALSE;
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= TRUE;
+	pPriv->bicubic			= bicubic;
 	pPriv->doubleBuffer		= FALSE;
-	pPriv->SyncToVBlank	= FALSE;
+	pPriv->SyncToVBlank	= pNv->WaitVSyncPossible;
 
-	pNv->textureAdaptor	= adapt;
+	if (bicubic)
+		pNv->textureAdaptor[1]	= adapt;
+	else
+		pNv->textureAdaptor[0]	= adapt;
 
 	return adapt;
 }
@@ -2062,7 +2080,7 @@ void NVInitVideo (ScreenPtr pScreen)
 	XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
 	XF86VideoAdaptorPtr  overlayAdaptor = NULL;
 	XF86VideoAdaptorPtr  blitAdaptor = NULL;
-	XF86VideoAdaptorPtr  textureAdaptor = NULL;
+	XF86VideoAdaptorPtr  textureAdaptor[2] = {NULL, NULL};
 	int                  num_adaptors;
 
 	/*
@@ -2074,10 +2092,14 @@ void NVInitVideo (ScreenPtr pScreen)
 	if (pScrn->bitsPerPixel != 8 && pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
 		overlayAdaptor = NVSetupOverlayVideo(pScreen);
 		blitAdaptor    = NVSetupBlitVideo(pScreen);
-		if (pNv->Architecture == NV_ARCH_30)
-			textureAdaptor = NV30SetupTexturedVideo(pScreen);
-		if (pNv->Architecture == NV_ARCH_40)
-			textureAdaptor = NV40SetupTexturedVideo(pScreen);
+		if (pNv->Architecture == NV_ARCH_30) {
+			textureAdaptor[0] = NV30SetupTexturedVideo(pScreen, FALSE);
+			textureAdaptor[1] = NV30SetupTexturedVideo(pScreen, TRUE);
+		}
+		if (pNv->Architecture == NV_ARCH_40) {
+			textureAdaptor[0] = NV40SetupTexturedVideo(pScreen, FALSE);
+			textureAdaptor[1] = NV40SetupTexturedVideo(pScreen, TRUE);
+		}
 	}
 
 	num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
@@ -2099,8 +2121,13 @@ void NVInitVideo (ScreenPtr pScreen)
 				num_adaptors++;
 			}
 
-			if (textureAdaptor) {
-				newAdaptors[num_adaptors] = textureAdaptor;
+			if (textureAdaptor[0]) { /* bilinear */
+				newAdaptors[num_adaptors] = textureAdaptor[0];
+				num_adaptors++;
+			}
+
+			if (textureAdaptor[1]) { /* bicubic */
+				newAdaptors[num_adaptors] = textureAdaptor[1];
 				num_adaptors++;
 			}
 

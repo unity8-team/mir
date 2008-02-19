@@ -199,7 +199,7 @@ void NV30EXADoneComposite(PixmapPtr);
 int NV30PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
 		int, int, int, int, uint16_t, uint16_t,
 		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, DrawablePtr);
+		RegionPtr, DrawablePtr, NVPortPrivPtr);
 void NV30StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV30GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV30SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
@@ -216,7 +216,7 @@ void NV40EXADoneComposite(PixmapPtr);
 int NV40PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
 		int, int, int, int, uint16_t, uint16_t,
 		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, DrawablePtr);
+		RegionPtr, DrawablePtr, NVPortPrivPtr);
 void NV40StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);

@@ -432,7 +432,7 @@ typedef struct _NVRec {
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;
     XF86VideoAdaptorPtr	blitAdaptor;
-    XF86VideoAdaptorPtr	textureAdaptor;
+    XF86VideoAdaptorPtr	textureAdaptor[2];
     int			videoKey;
     int			FlatPanel;
     Bool                FPDither;
@@ -603,6 +603,7 @@ typedef struct _NVPortPrivRec {
 	Bool		iturbt_709;
 	Bool		blitter;
 	Bool		texture;
+	Bool		bicubic; /* only for texture adapter */
 	Bool		SyncToVBlank;
 	struct nouveau_bo *video_mem;
 	int		pitch;
@@ -617,9 +618,6 @@ typedef struct _NVPortPrivRec {
 
 #define GET_BLIT_PRIVATE(pNv) \
             (NVPortPrivPtr)((pNv)->blitAdaptor->pPortPrivates[0].ptr)
-
-#define GET_TEXTURE_PRIVATE(pNv) \
-            (NVPortPrivPtr)((pNv)->textureAdaptor->pPortPrivates[0].ptr)
 
 #define OFF_TIMER       0x01
 #define FREE_TIMER      0x02

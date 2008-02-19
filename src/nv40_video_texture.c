@@ -239,9 +239,6 @@ extern void exaMoveInPixmap(PixmapPtr pPixmap);
  	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
-#define GET_TEXTURED_PRIVATE(pNv) \
-	(NVPortPrivPtr)((pNv)->blitAdaptor->pPortPrivates[0].ptr)
-
 int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		int src_offset2, int id,
 		int src_pitch, BoxPtr dstBox,
@@ -250,10 +247,10 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		uint16_t src_w, uint16_t src_h,
 		uint16_t drw_w, uint16_t drw_h,
 		RegionPtr clipBoxes,
-		DrawablePtr pDraw)
+		DrawablePtr pDraw,
+		NVPortPrivPtr pPriv)
 {
-	NVPtr          pNv   = NVPTR(pScrn);
-	NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
+	NVPtr pNv = NVPTR(pScrn);
 	Bool redirected = FALSE;
 
 	if (drw_w > 4096 || drw_h > 4096) {
@@ -320,7 +317,10 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	NV40VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 2);
 
 	NV40_LoadVtxProg(pScrn, &nv40_vp_video);
-	NV40_LoadFragProg(pScrn, &nv40_fp_yv12_bicubic);
+	if (pPriv->bicubic)
+		NV40_LoadFragProg(pScrn, &nv40_fp_yv12_bicubic);
+	else
+		NV40_LoadFragProg(pScrn, &nv30_fp_yv12_bilinear);
 
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)

@@ -241,9 +241,6 @@ extern void exaMoveInPixmap(PixmapPtr pPixmap);
  	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
-#define GET_TEXTURED_PRIVATE(pNv) \
-	(NVPortPrivPtr)((pNv)->blitAdaptor->pPortPrivates[0].ptr)
-
 int NV30PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		int src_offset2, int id,
 		int src_pitch, BoxPtr dstBox,
@@ -252,10 +249,10 @@ int NV30PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		uint16_t src_w, uint16_t src_h,
 		uint16_t drw_w, uint16_t drw_h,
 		RegionPtr clipBoxes,
-		DrawablePtr pDraw)
+		DrawablePtr pDraw,
+		NVPortPrivPtr pPriv)
 {
-	NVPtr          pNv   = NVPTR(pScrn);
-	NVPortPrivPtr  pPriv = GET_TEXTURED_PRIVATE(pNv);
+	NVPtr pNv = NVPTR(pScrn);
 	Bool redirected = FALSE;
 
 	if (drw_w > 4096 || drw_h > 4096) {
@@ -344,7 +341,10 @@ int NV30PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	BEGIN_RING(Nv3D, NV34TCL_TX_ENABLE(3), 1);
 	OUT_RING  (0x0);
 
-	NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
+	if (pPriv->bicubic)
+		NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bicubic);
+	else
+		NV30_LoadFragProg(pScrn, &nv30_fp_yv12_bilinear);
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
