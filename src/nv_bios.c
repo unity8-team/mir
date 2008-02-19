@@ -3827,12 +3827,12 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	memset(&fpp, 0, sizeof(struct fppointers));
 
 	/* load needed defaults in case we can't parse this info */
-	bios->fmaxvco = 256000;
-	bios->fminvco = 128000;
 	pNv->dcb_table.i2c_write[0] = 0x3f;
 	pNv->dcb_table.i2c_read[0] = 0x3e;
 	pNv->dcb_table.i2c_write[1] = 0x37;
 	pNv->dcb_table.i2c_read[1] = 0x36;
+	bios->fmaxvco = 256000;
+	bios->fminvco = 128000;
 
 	bmp_version_major = bios->data[offset + 5];
 	bmp_version_minor = bios->data[offset + 6];
@@ -3840,17 +3840,23 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP version %d.%d\n",
 		   bmp_version_major, bmp_version_minor);
 
-	if (bmp_version_major == 0 && bmp_version_minor == 1) /* NV04 */
-		return;
+	/* Make sure that 0x36 is blank and can't be mistaken for a DCB pointer on early versions */
+	if (bmp_version_major < 5)
+		*(uint16_t *)&bios->data[0x36] = 0;
 
-	/* version 6 could theoretically exist, but I suspect BIT happened instead */
-	if (bmp_version_major < 2 || bmp_version_major > 5) {
+	/* Seems that the minor version was 1 for all major versions prior to 5 */
+	/* Version 6 could theoretically exist, but I suspect BIT happened instead */
+	if ((bmp_version_major < 5 && bmp_version_minor != 1) || bmp_version_major > 5) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "You have an unsupported BMP version. Please send in your bios\n");
 		return;
 	}
 
-	if (bmp_version_major == 2)
-		bmplength = 48; /* exact for 2.01 - not sure if minor version used in versions < 5 */
+	if (bmp_version_major == 0) /* nothing that's currently useful in this version */
+		return;
+	else if (bmp_version_major == 1)
+		bmplength = 44; /* exact for 1.01 */
+	else if (bmp_version_major == 2)
+		bmplength = 48; /* exact for 2.01 */
 	else if (bmp_version_major == 3)
 		bmplength = 54; /* guessed - mem init tables added in this version */
 	else if (bmp_version_major == 4 || bmp_version_minor < 0x1) /* don't know if 5.0 exists... */
@@ -3883,8 +3889,11 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	parse_bios_version(pScrn, bios, offset + 10);
 
-	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 18]);
-	bios->extra_init_script_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 20]);
+	uint16_t legacy_scripts_offset = offset + 18;
+	if (bmp_version_major < 2)
+		legacy_scripts_offset -= 4;
+	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[legacy_scripts_offset]);
+	bios->extra_init_script_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[legacy_scripts_offset + 2]);
 
 	if (bmp_version_major > 2) {	/* appears in BMP 3 */
 		bios->legacy.mem_init_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 24]);
