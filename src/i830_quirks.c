@@ -71,7 +71,10 @@ static void i830_dmi_store_##field(void) \
 {\
     FILE *f = NULL;\
     f = fopen(DMIID_FILE(field), "r");\
-    if (f == NULL) { i830_dmi_data[field] = NULL; return;}\
+    if (f == NULL) {\
+	xfree(i830_dmi_data[field]); i830_dmi_data[field] = NULL;\
+	return;\
+    }\
     fread(i830_dmi_data[field], 64, 1, f);\
     fclose(f);\
 }
@@ -95,7 +98,7 @@ I830_DMI_FIELD_FUNC(chassis_version);
 I830_DMI_FIELD_FUNC(chassis_serial);
 I830_DMI_FIELD_FUNC(chassis_asset_tag);
 
-static int i830_dmi_scan(void)
+static void i830_dmi_scan(void)
 {
     int i;
 
@@ -103,9 +106,11 @@ static int i830_dmi_scan(void)
 	i830_dmi_data[i] = xcalloc(64, sizeof(char));
 	if (!i830_dmi_data[i]) {
 	    int j;
-	    for (j = 0; j < i; j++)
+	    for (j = 0; j < i; j++) {
 		xfree(i830_dmi_data[j]);
-	    return -1;
+		i830_dmi_data[i] = NULL;
+	    }
+	    return;
 	}
     }
 
@@ -127,8 +132,6 @@ static int i830_dmi_scan(void)
     i830_dmi_store_chassis_version();
     i830_dmi_store_chassis_serial();
     i830_dmi_store_chassis_asset_tag();
-
-    return 0;
 }
 
 #define DMIID_DUMP(field) \
@@ -243,9 +246,9 @@ void i830_fixup_devices(ScrnInfoPtr scrn)
 {
     I830Ptr pI830 = I830PTR(scrn);
     i830_quirk_ptr p = i830_quirk_list;
-    int i, ret;
+    int i;
 
-    ret = i830_dmi_scan();
+    i830_dmi_scan();
 
     if (0)
 	i830_dmi_dump();
@@ -259,8 +262,7 @@ void i830_fixup_devices(ScrnInfoPtr scrn)
 	++p;
     }
 
-    if (!ret) {
-	for (i = 0; i < dmi_data_max; i++)
+    for (i = 0; i < dmi_data_max; i++)
+	if (i830_dmi_data[i])
 	    xfree(i830_dmi_data[i]);
-    }
 }
