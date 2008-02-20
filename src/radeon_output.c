@@ -1754,12 +1754,23 @@ legacy_setup_i2c_bus(int ddc_line)
     i2c.put_data_mask = RADEON_GPIO_EN_0;
     i2c.get_clk_mask = RADEON_GPIO_Y_1;
     i2c.get_data_mask = RADEON_GPIO_Y_0;
-    i2c.mask_clk_reg = ddc_line;
-    i2c.mask_data_reg = ddc_line;
-    i2c.put_clk_reg = ddc_line;
-    i2c.put_data_reg = ddc_line;
-    i2c.get_clk_reg = ddc_line;
-    i2c.get_data_reg = ddc_line;
+    if ((ddc_line == RADEON_LCD_GPIO_MASK) ||
+	(ddc_line == RADEON_MDGPIO_EN_REG)) {
+	i2c.mask_clk_reg = ddc_line;
+	i2c.mask_data_reg = ddc_line;
+	i2c.put_clk_reg = ddc_line;
+	i2c.put_data_reg = ddc_line;
+	i2c.get_clk_reg = ddc_line + 4;
+	i2c.get_data_reg = ddc_line + 4;
+    } else {
+	i2c.mask_clk_reg = ddc_line;
+	i2c.mask_data_reg = ddc_line;
+	i2c.put_clk_reg = ddc_line;
+	i2c.put_data_reg = ddc_line;
+	i2c.get_clk_reg = ddc_line;
+	i2c.get_data_reg = ddc_line;
+    }
+
     if (ddc_line)
 	i2c.valid = TRUE;
     else
