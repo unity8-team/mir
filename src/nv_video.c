@@ -2108,6 +2108,8 @@ void NVInitVideo (ScreenPtr pScreen)
 
 		if(overlayAdaptor) size++;
 		if(blitAdaptor)    size++;
+		if(textureAdaptor[0]) size++;
+		if(textureAdaptor[1]) size++;
 
 		newAdaptors = xalloc(size * sizeof(XF86VideoAdaptorPtr *));
 		if(newAdaptors) {
