@@ -393,7 +393,7 @@ void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
     /* panel is probably busted or not connected */
     if ((radeon_output->MonType == MT_LCD) &&
 	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
-	radeon_output->MonType == MT_NONE;
+	radeon_output->MonType = MT_NONE;
 
     if (output->MonInfo) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
