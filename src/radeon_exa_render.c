@@ -1103,7 +1103,6 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 				     int w, int h)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    int srcXend, srcYend, maskXend, maskYend;
     int vtx_count;
     xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
     xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
@@ -1113,11 +1112,6 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 
     /* ErrorF("RadeonComposite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
        srcX, srcY, maskX, maskY,dstX, dstY, w, h); */
-
-    srcXend = srcX + w;
-    srcYend = srcY + h;
-    maskXend = maskX + w;
-    maskYend = maskY + h;
 
     srcTopLeft.x     = IntToxFixed(srcX);
     srcTopLeft.y     = IntToxFixed(srcY);
@@ -1202,26 +1196,18 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     }
 #endif
 
-    if (info->texW[0] == 1 && info->texH[0] == 1 &&
-	info->texW[1] == 1 && info->texH[1] == 1) {
-	VTX_OUT(dstX,     dstY,       srcX,     srcY,	  maskX,    maskY);
-	VTX_OUT(dstX,     dstY + h,   srcX,     srcYend,  maskX,    maskYend);
-	VTX_OUT(dstX + w, dstY + h,   srcXend,  srcYend,  maskXend, maskYend);
-	VTX_OUT(dstX + w, dstY,	      srcXend,  srcY,     maskXend, maskY);
-    } else {
-	VTX_OUT((float)dstX,                                      (float)dstY,
-	        xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-	        xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
-	VTX_OUT((float)dstX,                                      (float)(dstY + h),
-	        xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
-	        xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
-	VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
-	        xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
-	        xFixedToFloat(maskBottomRight.x) / info->texW[1], xFixedToFloat(maskBottomRight.y) / info->texH[1]);
-	VTX_OUT((float)(dstX + w),                                (float)dstY,
-	        xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
-	        xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
-    }
+    VTX_OUT((float)dstX,                                      (float)dstY,
+	    xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
+	    xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
+    VTX_OUT((float)dstX,                                      (float)(dstY + h),
+	    xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
+	    xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
+    VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
+	    xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
+	    xFixedToFloat(maskBottomRight.x) / info->texW[1], xFixedToFloat(maskBottomRight.y) / info->texH[1]);
+    VTX_OUT((float)(dstX + w),                                (float)dstY,
+	    xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
+	    xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
 
     if (IS_R300_VARIANT) {
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, 0xA);
