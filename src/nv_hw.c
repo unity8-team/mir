@@ -118,22 +118,22 @@ uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
 	return NVReadVgaCrtc(pNv, head, 0x58);
 }
 
-uint8_t NVReadPVIO(NVPtr pNv, int head, uint32_t address)
+uint8_t NVReadPVIO(NVPtr pNv, int head, uint16_t port)
 {
 	/* Only NV4x have two pvio ranges */
 	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
 
-	DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", head, address + mmiobase, NV_RD08(pNv->REGS, address + mmiobase));
-	return NV_RD08(pNv->REGS, address + mmiobase);
+	DDXMMIOH("NVReadPVIO: head %d reg %08x val %02x\n", head, port + mmiobase, NV_RD08(pNv->REGS, port + mmiobase));
+	return NV_RD08(pNv->REGS, port + mmiobase);
 }
 
-void NVWritePVIO(NVPtr pNv, int head, uint32_t address, uint8_t value)
+void NVWritePVIO(NVPtr pNv, int head, uint16_t port, uint8_t value)
 {
 	/* Only NV4x have two pvio ranges */
 	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
 
-	DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", head, address + mmiobase, value);
-	NV_WR08(pNv->REGS, address + mmiobase, value);
+	DDXMMIOH("NVWritePVIO: head %d reg %08x val %02x\n", head, port + mmiobase, value);
+	NV_WR08(pNv->REGS, port + mmiobase, value);
 }
 
 void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value)
@@ -231,9 +231,9 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect)
 void NVSetOwner(NVPtr pNv, int head)
 {
 	/* CRTCX_OWNER is always changed on CRTC0 */
-	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head*0x3);
+	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head * 0x3);
 
-	ErrorF("Setting owner: 0x%X\n", head*0x3);
+	ErrorF("Setting owner: 0x%X\n", head * 0x3);
 }
 
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)

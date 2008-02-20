@@ -347,19 +347,15 @@ static void nv32_wr(ScrnInfoPtr pScrn, uint32_t reg, uint32_t data)
 static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t mmiobase;
 	uint8_t data;
 
 	if (!nv_valid_idx_port(pScrn, port))
 		return 0;
 
 	if (port == SEQ_INDEX)
-		mmiobase = (crtchead && pNv->VBIOS.chip_version > 0x40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
+		data = NVReadVgaSeq(pNv, crtchead, index);
 	else	/* assume CRTC_INDEX_COLOR */
-		mmiobase = crtchead ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
-
-	NV_WR08(pNv->REGS, port + mmiobase, index);
-	data = NV_RD08(pNv->REGS, port + 1 + mmiobase);
+		data = NVReadVgaCrtc(pNv, crtchead, index);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -372,7 +368,6 @@ static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint8_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t mmiobase;
 
 	if (!nv_valid_idx_port(pScrn, port))
 		return;
@@ -385,10 +380,6 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 	 */
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data != NV_VGA_CRTCX_OWNER_HEADB)
 		crtchead = 0;
-	if (port == SEQ_INDEX)
-		mmiobase = (crtchead && pNv->VBIOS.chip_version > 0x40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
-	else	/* assume CRTC_INDEX_COLOR */
-		mmiobase = crtchead ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
 	if (DEBUGLEVEL >= 8)
 		nv_idx_port_rd(pScrn, port, index);
@@ -399,8 +390,10 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		NV_WR08(pNv->REGS, port + mmiobase, index);
-		NV_WR08(pNv->REGS, port + 1 + mmiobase, data);
+		if (port == SEQ_INDEX)
+			NVWriteVgaSeq(pNv, crtchead, index, data);
+		else	/* assume CRTC_INDEX_COLOR */
+			NVWriteVgaCrtc(pNv, crtchead, index, data);
 	}
 
 	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
@@ -410,11 +403,12 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t mmiobase = (crtchead && pNv->VBIOS.chip_version > 0x40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
-	uint8_t data = NV_RD08(pNv->REGS, port + mmiobase);
+	uint8_t data;
 
 	if (!nv_valid_port(pScrn, port))
 		return 0;
+
+	data = NVReadPVIO(pNv, crtchead, port);
 
 	if (DEBUGLEVEL >= 6)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -427,7 +421,6 @@ static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t mmiobase = (crtchead && pNv->VBIOS.chip_version > 0x40) ? NV_PVIO1_OFFSET : NV_PVIO0_OFFSET;
 
 	if (!nv_valid_port(pScrn, port))
 		return;
@@ -441,33 +434,22 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		NV_WR08(pNv->REGS, port + mmiobase, data);
+		NVWritePVIO(pNv, crtchead, port, data);
 	}
 }
 
 #define ACCESS_UNLOCK 0
 #define ACCESS_LOCK 1
-static void crtc_access(ScrnInfoPtr pScrn, bool lock)
+static void crtc_access(NVPtr pNv, bool lock)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	int savedhead = crtchead;
-	uint8_t cr11;
-
-	/* necessary external dependancy (twoHeads) */
 	if (pNv->twoHeads)
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADA);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
-	cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
-
+		NVSetOwner(pNv, 0);
+	NVLockVgaCrtc(pNv, 0, lock);
 	if (pNv->twoHeads) {
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER, NV_VGA_CRTCX_OWNER_HEADB);
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
-		cr11 = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE);
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_VSYNCE, lock ? cr11 | 0x80 : cr11 & ~0x80);
+		NVSetOwner(pNv, 1);
+		NVLockVgaCrtc(pNv, 1, lock);
+		NVSetOwner(pNv, crtchead);
 	}
-
-	crtchead = savedhead;
 }
 
 static bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
@@ -4373,7 +4355,7 @@ bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 	const uint8_t bit_signature[] = { 'B', 'I', 'T' };
 	int offset, ret = 0;
 
-	crtc_access(pScrn, ACCESS_UNLOCK);
+	crtc_access(pNv, ACCESS_UNLOCK);
 
 	if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
@@ -4394,7 +4376,7 @@ bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		ret = 1;
 	}
 
-	crtc_access(pScrn, ACCESS_LOCK);
+	crtc_access(pNv, ACCESS_LOCK);
 
 	if (ret)
 		return false;
