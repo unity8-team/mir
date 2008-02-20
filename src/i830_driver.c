@@ -2120,12 +2120,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
     * enabled if pipe A is actually on (otherwise we have a bug in the initial
     * state).
     */
-   if (pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_A) {
+   if ((pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_MASK) ==
+       DISPPLANE_SEL_PIPE_A) {
        OUTREG(DSPACNTR, pI830->saveDSPACNTR);
        OUTREG(DSPABASE, INREG(DSPABASE));
        i830WaitForVblank(pScrn);
    }
-   if (pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_A) {
+   if ((pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_MASK) ==
+       DISPPLANE_SEL_PIPE_A) {
        OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
        OUTREG(DSPBBASE, INREG(DSPBBASE));
        i830WaitForVblank(pScrn);
@@ -2177,12 +2179,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
        * Note that pipe B may be disabled, and in that case, the plane
        * should also be disabled or we must have had a bad initial state.
        */
-      if (pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_B) {
+      if ((pI830->saveDSPACNTR & DISPPLANE_SEL_PIPE_MASK) ==
+	  DISPPLANE_SEL_PIPE_B) {
 	  OUTREG(DSPACNTR, pI830->saveDSPACNTR);
 	  OUTREG(DSPABASE, INREG(DSPABASE));
 	  i830WaitForVblank(pScrn);
       }
-      if (pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_B) {
+      if ((pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_MASK) ==
+	  DISPPLANE_SEL_PIPE_B) {
 	  OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
 	  OUTREG(DSPBBASE, INREG(DSPBBASE));
 	  i830WaitForVblank(pScrn);
