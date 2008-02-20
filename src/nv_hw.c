@@ -74,21 +74,21 @@ void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
 	NV_WR32(pNv->REGS, reg, val);
 }
 
-void NVWriteVGA(NVPtr pNv, int head, uint8_t index, uint8_t value)
+void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
 	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
-	DDXMMIOH("NVWriteVGA: head %d index 0x%02x data 0x%02x\n", head, index, value);
+	DDXMMIOH("NVWriteVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, value);
 	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
 	NV_WR08(pNv->REGS, CRTC_DATA_COLOR + mmiobase, value);
 }
 
-uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index)
+uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index)
 {
 	uint32_t mmiobase = head ? NV_PCIO1_OFFSET : NV_PCIO0_OFFSET;
 
 	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
-	DDXMMIOH("NVReadVGA: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase));
+	DDXMMIOH("NVReadVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase));
 	return NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase);
 }
 
@@ -106,16 +106,16 @@ uint8_t NVReadVGA(NVPtr pNv, int head, uint8_t index)
  * 					high nibble for xlat strap value
  */
 
-void NVWriteVGACR5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
+void NVWriteVgaCrtc5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	NVWriteVGA(pNv, head, 0x57, index);
-	NVWriteVGA(pNv, head, 0x58, value);
+	NVWriteVgaCrtc(pNv, head, 0x57, index);
+	NVWriteVgaCrtc(pNv, head, 0x58, value);
 }
 
-uint8_t NVReadVGACR5758(NVPtr pNv, int head, uint8_t index)
+uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
 {
-	NVWriteVGA(pNv, head, 0x57, index);
-	return NVReadVGA(pNv, head, 0x58);
+	NVWriteVgaCrtc(pNv, head, 0x57, index);
+	return NVReadVgaCrtc(pNv, head, 0x58);
 }
 
 uint8_t NVReadPVIO(NVPtr pNv, int head, uint32_t address)

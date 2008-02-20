@@ -554,6 +554,8 @@ enum scaling_modes {
 	nv_crtc_show_hide_cursor(pScrn, pNv->cur_head, show);				\
 } while(0)
 
+#define NVWriteVGA(pNv, head, index, value) NVWriteVgaCrtc(pNv, head, index, value)
+#define NVReadVGA(pNv, head, index) NVReadVgaCrtc(pNv, head, index)
 #define NVLockUnlock(pScrn, lock) NVLockUnlockHead(NVPTR(pScrn), NVPTR(pScrn)->cur_head, lock)
 
 #define nvReadCurVGA(pNv, reg) NVReadVGA(pNv, pNv->cur_head, reg)
