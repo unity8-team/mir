@@ -460,23 +460,32 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	int x, y;
 	uint32_t alpha, value;
 
-	for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
-		for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
-			alpha = *src >> 24;
-			if (alpha == 0x0 || alpha == 0xff) {
-				value = *src;
-			} else {
-				value = 	((((*src & 0xff) * 0xff) / alpha) 		& 0x000000ff)	|
-						((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00)	|
-						((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000)	|
-						((alpha << 24)				& 0xff000000);
+	if (pNv->NVArch == 0x11) { /* NV11 takes premultiplied cursors i think. */
+		for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
+			for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
+				/* I suspect NV11 is the only card needing cursor byteswapping. */
+				#if X_BYTE_ORDER == X_BIG_ENDIAN
+					*dst++ = BYTE_SWAP_32(*src++);
+				#else
+					*dst++ = *src++;
+				#endif
 			}
-			src++;
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-			*dst++ = BYTE_SWAP_32(value);
-#else
-			*dst++ = value;
-#endif
+		}
+	} else {
+		for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
+			for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
+				alpha = *src >> 24;
+				if (alpha == 0x0 || alpha == 0xff) {
+					value = *src;
+				} else {
+					value = 	((((*src & 0xff) * 0xff) / alpha) 		& 0x000000ff)	|
+							((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00)	|
+							((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000)	|
+							((alpha << 24)				& 0xff000000);
+				}
+				src++;
+				*dst++ = value;
+			}
 		}
 	}
 }
