@@ -4906,6 +4906,17 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     /* Makes sure the engine is idle before doing anything */
     RADEONWaitForIdleMMIO(pScrn);
 
+    if (info->IsMobility && !IS_AVIVO_VARIANT) {
+        if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	    RADEONSetDynamicClock(pScrn, 1);
+        } else {
+	    RADEONSetDynamicClock(pScrn, 0);
+        }
+    }
+
+    if (IS_R300_VARIANT || IS_RV100_VARIANT)
+	RADEONForceSomeClocks(pScrn);
+
     pScrn->vtSema = TRUE;
     for (i = 0; i < xf86_config->num_crtc; i++) {
 	xf86CrtcPtr	crtc = xf86_config->crtc[i];
