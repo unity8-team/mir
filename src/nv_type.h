@@ -556,7 +556,7 @@ enum scaling_modes {
 
 #define NVWriteVGA(pNv, head, index, value) NVWriteVgaCrtc(pNv, head, index, value)
 #define NVReadVGA(pNv, head, index) NVReadVgaCrtc(pNv, head, index)
-#define NVLockUnlock(pScrn, lock) NVLockUnlockHead(NVPTR(pScrn), NVPTR(pScrn)->cur_head, lock)
+#define NVLockUnlock(pScrn, lock) NVLockVgaCrtc(NVPTR(pScrn), NVPTR(pScrn)->cur_head, lock)
 
 #define nvReadCurVGA(pNv, reg) NVReadVGA(pNv, pNv->cur_head, reg)
 #define nvWriteCurVGA(pNv, reg, val) NVWriteVGA(pNv, pNv->cur_head, reg, val)

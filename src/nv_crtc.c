@@ -97,7 +97,9 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	NVLockUnlockHead(pNv, nv_crtc->head, lock);
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, nv_crtc->head);
+	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
 xf86OutputPtr 

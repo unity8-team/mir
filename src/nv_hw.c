@@ -236,12 +236,9 @@ void NVSetOwner(NVPtr pNv, int head)
 	ErrorF("Setting owner: 0x%X\n", head*0x3);
 }
 
-void NVLockUnlockHead(NVPtr pNv, int head, bool lock)
+void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 {
 	uint8_t cr11;
-
-	if (pNv->twoHeads)
-		NVSetOwner(pNv, head);
 
 	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
 
