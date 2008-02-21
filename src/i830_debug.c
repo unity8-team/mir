@@ -734,6 +734,7 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
     }
     INREG8(st01);
     OUTREG8(0x3c0, orig_arx);
+    INREG8(st01); /* switch back to index mode */
 }
 
 void i830DumpRegs (ScrnInfoPtr pScrn)
