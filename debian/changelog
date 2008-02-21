@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.2.0.90-2ubuntu7) hardy; urgency=low
+
+  * Drop the xaa-patch, as it turns out that not only i965 has issues 
+    with Xv & compiz.
+  * Bump the build-dep on xserver-xorg-dev to match the current version 
+    that is needed in order to default to greedy EXA.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Thu, 21 Feb 2008 09:00:53 +0200
+
 xserver-xorg-video-intel (2:2.2.0.90-2ubuntu6) hardy; urgency=low
 
   * Add 06_xaa_as_default_except_i965.patch to switch us back to XAA by

@@ -4,4 +4,4 @@
 03_dell_1535_quirk.diff
 04_dell_1735_quirk.diff
 05_intel_exa_force_greedy.patch
-06_xaa_as_default_except_i965.patch
+#06_xaa_as_default_except_i965.patch
