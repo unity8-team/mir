@@ -198,6 +198,11 @@ static void quirk_lenovo_tv_dmi (I830Ptr pI830)
 	pI830->quirk_flag |= QUIRK_IGNORE_TV;
 }
 
+static void quirk_ivch_dvob (I830Ptr pI830)
+{
+	pI830->quirk_flag |= QUIRK_IVCH_NEED_DVOB;
+}
+
 /* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
@@ -230,6 +235,8 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Toshiba Satellite U300 has no TV output */
     { PCI_CHIP_I965_GM, 0x1179, 0xff50, quirk_ignore_tv },
+    /* Toshiba i830M laptop (fix bug 11148) */
+    { PCI_CHIP_I830_M, 0x1179, 0xff00, quirk_ivch_dvob },
 
     /* Samsung Q35 has no TV output */
     { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
@@ -241,6 +248,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
+
+    /* Sony vaio PCG-r600HFP (fix bug 13722) */
+    { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
 
     { 0, 0, 0, NULL },
 };
