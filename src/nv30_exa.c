@@ -364,7 +364,6 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	/* This is confirmed to be needed for nv30, please leave it alone. */
-	/* yeah */
 	if (pNv->NVArch == 0x30) {
 		int x = pPict->pDrawable->x;
 		int y = pPict->pDrawable->y;
