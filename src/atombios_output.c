@@ -235,6 +235,35 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 static int
+atombios_ddia_setup(xf86OutputPtr output, DisplayModePtr mode)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    DVO_ENCODER_CONTROL_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    disp_data.sDVOEncoder.ucAction = ATOM_ENABLE;
+    disp_data.sDVOEncoder.usPixelClock = mode->Clock / 10;
+
+    if (mode->Clock > 165000)
+	disp_data.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = PANEL_ENCODER_MISC_DUAL;
+    else
+	disp_data.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = 0;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("DDIA setup success\n");
+	return ATOM_SUCCESS;
+    }
+
+    ErrorF("DDIA setup failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+}
+
+static int
 atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
@@ -536,6 +565,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
 
     atombios_output_scaler_setup(output, mode);
     atombios_set_output_crtc_source(output);
@@ -551,9 +581,12 @@ atombios_output_mode_set(xf86OutputPtr output,
     } else if (radeon_output->MonType == MT_DFP) {
        if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
 	   atombios_output_tmds1_setup(output, adjusted_mode);
-       else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
-	   atombios_external_tmds_setup(output, adjusted_mode);
-       else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+       else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
+	   if (info->IsIGP)
+	       atombios_ddia_setup(output, adjusted_mode);
+	   else
+	       atombios_external_tmds_setup(output, adjusted_mode);
+       } else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
 	   atombios_output_tmds2_setup(output, adjusted_mode);
     } else if (radeon_output->MonType == MT_LCD) {
 	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
