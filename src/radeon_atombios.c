@@ -1759,11 +1759,15 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
-	else if ((i == ATOM_DEVICE_DFP3_INDEX) && info->IsIGP)
-	    /* DDIA port uses gpio entry 3 */
-	    info->BiosConnector[i].ddc_i2c =
-		RADEONLookupGPIOLineForDDC(pScrn, 3);
-	else
+	else if ((i == ATOM_DEVICE_DFP3_INDEX) && info->IsIGP) {
+	    /* DDIA port uses non-standard gpio entry */
+	    if (info->BiosConnector[ATOM_DEVICE_DFP2_INDEX].valid)
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 2);
+	    else
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
+	} else
 	    info->BiosConnector[i].ddc_i2c =
 		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 
