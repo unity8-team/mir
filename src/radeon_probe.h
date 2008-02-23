@@ -103,7 +103,8 @@ typedef enum
     TMDS_NONE    = 0,
     TMDS_INT     = 1,
     TMDS_EXT     = 2,
-    TMDS_LVTMA   = 3
+    TMDS_LVTMA   = 3,
+    TMDS_DDIA    = 4
 } RADEONTmdsType;
 
 typedef enum

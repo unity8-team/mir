@@ -1759,6 +1759,10 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
+	else if ((i == ATOM_DEVICE_DFP3_INDEX) && info->IsIGP)
+	    /* DDIA port uses gpio entry 3 */
+	    info->BiosConnector[i].ddc_i2c =
+		RADEONLookupGPIOLineForDDC(pScrn, 3);
 	else
 	    info->BiosConnector[i].ddc_i2c =
 		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
@@ -1772,7 +1776,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 	} else if (i == ATOM_DEVICE_DFP3_INDEX) {
 	    if (info->IsIGP)
-		info->BiosConnector[i].TMDSType = TMDS_EXT;
+		info->BiosConnector[i].TMDSType = TMDS_DDIA;
 	    else
 		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 	} else
