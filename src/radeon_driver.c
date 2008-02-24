@@ -3485,7 +3485,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONDGAInit(pScreen);
 
     /* Init Xv */
-    if (!IS_AVIVO_VARIANT) {
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Initializing Xv\n");
 	RADEONInitVideo(pScreen);
