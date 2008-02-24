@@ -285,7 +285,7 @@ void RADEONInitVideo(ScreenPtr pScreen)
 	RADEONInitOffscreenImages(pScreen);
     }
 
-    if (info->ChipFamily != CHIP_FAMILY_RS400 && info->ChipFamily != CHIP_FAMILY_RS690) {
+    if (info->ChipFamily != CHIP_FAMILY_RS400) {
 	texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
 	if (texturedAdaptor != NULL) {
 	    adaptors[num_adaptors++] = texturedAdaptor;
