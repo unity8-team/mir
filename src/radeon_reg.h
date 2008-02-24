@@ -4028,6 +4028,14 @@
 #define R300_SC_CLIP_RULE				0x43d0
 #define R300_SC_SCREENDOOR				0x43e8
 
+/* R500 US has to be loaded through an index/data pair */
+#define R500_GA_US_VECTOR_INDEX				0x4250
+#   define R500_US_VECTOR_INDEX(x)			(x << 0)
+#   define R500_US_VECTOR_TYPE_INST			(0 << 16)
+#   define R500_US_VECTOR_TYPE_CONST			(1 << 16)
+#   define R500_US_VECTOR_CLAMP				(1 << 17)
+#define R500_GA_US_VECTOR_DATA				0x4254
+
 /*
  * The R500 unified shader (US) registers come in banks of 512 each, one
  * for each instruction slot in the shader.  The base _0 registers are
