@@ -4038,8 +4038,10 @@
 
 /*
  * The R500 unified shader (US) registers come in banks of 512 each, one
- * for each instruction slot in the shader.  The base _0 registers are
- * defined here, use offsets to program the others.
+ * for each instruction slot in the shader.  You can't touch them directly.
+ * R500_US_VECTOR_INDEX() sets the base instruction to modify; successive
+ * writes to R500_GA_US_VECTOR_DATA autoincrement the index after the
+ * instruction is fully specified.
  */
 #define R500_US_ALU_ALPHA_INST_0			0xa800
 #   define R500_ALPHA_OP_MAD				0
