@@ -3860,9 +3860,14 @@
 #define R300_SU_DEPTH_OFFSET			        0x42c4
 
 #define R300_RS_COUNT				        0x4300
+#	define R300_RS_COUNT_IT_COUNT_SHIFT		0
+#	define R300_RS_COUNT_IC_COUNT_SHIFT		7
+#	define R300_RS_COUNT_HIRES_EN			(1<<18)
+
 #define R300_RS_IP_0				        0x4310
 #define R300_RS_INST_COUNT				0x4304
 #define R300_RS_INST_0				        0x4330
+#define R300_RS_INST_TEX_CN_WRITE 			(1 << 3)
 
 #define R300_TX_INVALTAGS				0x4100
 #define R300_TX_FILTER0_0				0x4400
@@ -4504,5 +4509,39 @@
 #   define R500_W_FMT_W24FP				(2 << 0)
 #   define R500_W_SRC_US				(0 << 2)
 #   define R500_W_SRC_RAS				(1 << 2)
+
+#define R500_GA_US_VECTOR_INDEX 0x4250
+#define R500_GA_US_VECTOR_DATA 0x4254
+
+#define R500_RS_INST_0					0x4320
+#define R500_RS_INST_TEX_ID_SHIFT			0
+#define R500_RS_INST_TEX_CN_WRITE			(1 << 4)
+#define R500_RS_INST_TEX_ADDR_SHIFT			5
+#define R500_RS_INST_COL_ID_SHIFT			12
+#define R500_RS_INST_COL_CN_NO_WRITE			(0 << 16)
+#define R500_RS_INST_COL_CN_WRITE			(1 << 16)
+#define R500_RS_INST_COL_CN_WRITE_FBUFFER		(2 << 16)
+#define R500_RS_INST_COL_CN_WRITE_BACKFACE		(3 << 16)
+#define R500_RS_INST_COL_COL_ADDR_SHIFT			18
+#define R500_RS_INST_TEX_ADJ				(1 << 25)
+#define R500_RS_INST_W_CN				(1 << 26)
+
+#define R500_US_FC_CTRL					0x4624
+#define R500_US_CODE_ADDR				0x4630
+#define R500_US_CODE_RANGE 				0x4634
+#define R500_US_CODE_OFFSET 				0x4638
+
+#define R500_RS_IP_0					0x4074
+#define R500_RS_IP_PTR_K0				62
+#define R500_RS_IP_PTR_K1 				63
+#define R500_RS_IP_TEX_PTR_S_SHIFT 			0
+#define R500_RS_IP_TEX_PTR_T_SHIFT 			6
+#define R500_RS_IP_TEX_PTR_R_SHIFT 			12
+#define R500_RS_IP_TEX_PTR_Q_SHIFT 			18
+#define R500_RS_IP_COL_PTR_SHIFT 			24
+#define R500_RS_IP_COL_FMT_SHIFT 			27
+#define R500_RS_IP_COL_FMT_RGBA				(0<<27)
+#define R500_RS_IP_OFFSET_EN 				(1 << 31)
+
 
 #endif
