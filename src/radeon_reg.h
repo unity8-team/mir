@@ -3819,15 +3819,70 @@
 #define R600_BIOS_7_SCRATCH               0x1740
 
 #define R300_GB_TILE_CONFIG				0x4018
+#       define R300_ENABLE_TILING                       (1 << 1)
+#       define R300_TILE_SIZE_8                         (0 << 4)
+#       define R300_TILE_SIZE_16                        (1 << 4)
+#       define R300_TILE_SIZE_32                        (2 << 4)
+#       define R300_SUBPIXEL_1_12                       (0 << 16)
+#       define R300_SUBPIXEL_1_16                       (1 << 16)
 #define R300_GB_SELECT				        0x401c
 #define R300_GB_ENABLE				        0x4008
 #define R300_GB_AA_CONFIG				0x4020
 #define R300_GB_MSPOS0				        0x4010
+#       define R300_MS_X0_SHIFT                         0
+#       define R300_MS_Y0_SHIFT                         4
+#       define R300_MS_X1_SHIFT                         8
+#       define R300_MS_Y1_SHIFT                         12
+#       define R300_MS_X2_SHIFT                         16
+#       define R300_MS_Y2_SHIFT                         20
+#       define R300_MSBD0_Y_SHIFT                       24
+#       define R300_MSBD0_X_SHIFT                       28
 #define R300_GB_MSPOS1				        0x4014
+#       define R300_MS_X3_SHIFT                         0
+#       define R300_MS_Y3_SHIFT                         4
+#       define R300_MS_X4_SHIFT                         8
+#       define R300_MS_Y4_SHIFT                         12
+#       define R300_MS_X5_SHIFT                         16
+#       define R300_MS_Y5_SHIFT                         20
+#       define R300_MSBD1_SHIFT                         24
 
 #define R300_GA_POLY_MODE				0x4288
+#       define R300_FRONT_PTYPE_POINT                   (0 << 4)
+#       define R300_FRONT_PTYPE_LINE                    (1 << 4)
+#       define R300_FRONT_PTYPE_TRIANGE                 (2 << 4)
+#       define R300_BACK_PTYPE_POINT                    (0 << 7)
+#       define R300_BACK_PTYPE_LINE                     (1 << 7)
+#       define R300_BACK_PTYPE_TRIANGE                  (2 << 7)
 #define R300_GA_ROUND_MODE				0x428c
+#       define R300_GEOMETRY_ROUND_TRUNC                (0 << 0)
+#       define R300_GEOMETRY_ROUND_NEAREST              (1 << 0)
+#       define R300_COLOR_ROUND_TRUNC                   (0 << 2)
+#       define R300_COLOR_ROUND_NEAREST                 (1 << 2)
 #define R300_GA_COLOR_CONTROL			        0x4278
+#       define R300_RGB0_SHADING_SOLID                  (0 << 0)
+#       define R300_RGB0_SHADING_FLAT                   (1 << 0)
+#       define R300_RGB0_SHADING_GOURAND                (2 << 0)
+#       define R300_ALPHA0_SHADING_SOLID                (0 << 2)
+#       define R300_ALPHA0_SHADING_FLAT                 (1 << 2)
+#       define R300_ALPHA0_SHADING_GOURAND              (2 << 2)
+#       define R300_RGB1_SHADING_SOLID                  (0 << 4)
+#       define R300_RGB1_SHADING_FLAT                   (1 << 4)
+#       define R300_RGB1_SHADING_GOURAND                (2 << 4)
+#       define R300_ALPHA1_SHADING_SOLID                (0 << 6)
+#       define R300_ALPHA1_SHADING_FLAT                 (1 << 6)
+#       define R300_ALPHA1_SHADING_GOURAND              (2 << 6)
+#       define R300_RGB2_SHADING_SOLID                  (0 << 8)
+#       define R300_RGB2_SHADING_FLAT                   (1 << 8)
+#       define R300_RGB2_SHADING_GOURAND                (2 << 8)
+#       define R300_ALPHA2_SHADING_SOLID                (0 << 10)
+#       define R300_ALPHA2_SHADING_FLAT                 (1 << 10)
+#       define R300_ALPHA2_SHADING_GOURAND              (2 << 10)
+#       define R300_RGB3_SHADING_SOLID                  (0 << 12)
+#       define R300_RGB3_SHADING_FLAT                   (1 << 12)
+#       define R300_RGB3_SHADING_GOURAND                (2 << 12)
+#       define R300_ALPHA3_SHADING_SOLID                (0 << 14)
+#       define R300_ALPHA3_SHADING_FLAT                 (1 << 14)
+#       define R300_ALPHA3_SHADING_GOURAND              (2 << 14)
 #define R300_GA_OFFSET				        0x4290
 
 #define R300_VAP_CNTL_STATUS				0x2140
@@ -3856,6 +3911,10 @@
 #define R300_SU_TEX_WRAP				0x42a0
 #define R300_SU_POLY_OFFSET_ENABLE		        0x42b4
 #define R300_SU_CULL_MODE				0x42b8
+#       define R300_CULL_FRONT                          (1 << 0)
+#       define R300_CULL_BACK                           (1 << 1)
+#       define R300_FACE_POS                            (0 << 2)
+#       define R300_FACE_NEG                            (1 << 2)
 #define R300_SU_DEPTH_SCALE				0x42c0
 #define R300_SU_DEPTH_OFFSET			        0x42c4
 
@@ -3972,6 +4031,43 @@
 #define R300_US_OUT_FMT_2				0x46ac
 #define R300_US_OUT_FMT_3				0x46b0
 #define R300_US_OUT_FMT_0				0x46a4
+#       define R300_OUT_FMT_C4_8                        (0 << 0)
+#       define R300_OUT_FMT_C4_10                       (1 << 0)
+#       define R300_OUT_FMT_C4_10_GAMMA                 (2 << 0)
+#       define R300_OUT_FMT_C_16                        (3 << 0)
+#       define R300_OUT_FMT_C2_16                       (4 << 0)
+#       define R300_OUT_FMT_C4_16                       (5 << 0)
+#       define R300_OUT_FMT_C_16_MPEG                   (6 << 0)
+#       define R300_OUT_FMT_C2_16_MPEG                  (7 << 0)
+#       define R300_OUT_FMT_C2_4                        (8 << 0)
+#       define R300_OUT_FMT_C_3_3_2                     (9 << 0)
+#       define R300_OUT_FMT_C_6_5_6                     (10 << 0)
+#       define R300_OUT_FMT_C_11_11_10                  (11 << 0)
+#       define R300_OUT_FMT_C_10_11_11                  (12 << 0)
+#       define R300_OUT_FMT_C_2_10_10_10                (13 << 0)
+#       define R300_OUT_FMT_UNUSED                      (15 << 0)
+#       define R300_OUT_FMT_C_16_FP                     (16 << 0)
+#       define R300_OUT_FMT_C2_16_FP                    (17 << 0)
+#       define R300_OUT_FMT_C4_16_FP                    (18 << 0)
+#       define R300_OUT_FMT_C_32_FP                     (19 << 0)
+#       define R300_OUT_FMT_C2_32_FP                    (20 << 0)
+#       define R300_OUT_FMT_C4_32_FP                    (21 << 0)
+#       define R300_OUT_FMT_C0_SEL_ALPHA                (0 << 8)
+#       define R300_OUT_FMT_C0_SEL_RED                  (1 << 8)
+#       define R300_OUT_FMT_C0_SEL_GREEN                (2 << 8)
+#       define R300_OUT_FMT_C0_SEL_BLUE                 (3 << 8)
+#       define R300_OUT_FMT_C1_SEL_ALPHA                (0 << 10)
+#       define R300_OUT_FMT_C1_SEL_RED                  (1 << 10)
+#       define R300_OUT_FMT_C1_SEL_GREEN                (2 << 10)
+#       define R300_OUT_FMT_C1_SEL_BLUE                 (3 << 10)
+#       define R300_OUT_FMT_C2_SEL_ALPHA                (0 << 12)
+#       define R300_OUT_FMT_C2_SEL_RED                  (1 << 12)
+#       define R300_OUT_FMT_C2_SEL_GREEN                (2 << 12)
+#       define R300_OUT_FMT_C2_SEL_BLUE                 (3 << 12)
+#       define R300_OUT_FMT_C3_SEL_ALPHA                (0 << 14)
+#       define R300_OUT_FMT_C3_SEL_RED                  (1 << 14)
+#       define R300_OUT_FMT_C3_SEL_GREEN                (2 << 14)
+#       define R300_OUT_FMT_C3_SEL_BLUE                 (3 << 14)
 #define R300_US_CONFIG				        0x4600
 #define R300_US_PIXSIZE				        0x4604
 #define R300_US_CODE_OFFSET				0x4608
@@ -3990,8 +4086,14 @@
 #define R300_FG_ALPHA_FUNC				0x4bd4
 
 #define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
+#       define R300_DC_FLUSH_3D                         (2 << 0)
+#       define R300_DC_FREE_3D                          (2 << 2)
 #define R300_RB3D_ZCACHE_CTLSTAT			0x4f18
+#       define R300_ZC_FLUSH                            (1 << 0)
+#       define R300_ZC_FREE                             (1 << 1)
 #define R300_WAIT_UNTIL				        0x1720
+#       define R300_WAIT_2D_IDLECLEAN                   (1 << 16)
+#       define R300_WAIT_3D_IDLECLEAN                   (1 << 17)
 #define R300_RB3D_ZSTENCILCNTL			        0x4f04
 #define R300_RB3D_ZCACHE_CTLSTAT		        0x4f18
 #define R300_RB3D_BW_CNTL				0x4f1c
@@ -4020,6 +4122,10 @@
 
 #define R300_RB3D_AARESOLVE_CTL			        0x4e88
 #define R300_RB3D_COLOR_CHANNEL_MASK	                0x4e0c
+#       define R300_BLUE_MASK_EN                        (1 << 0)
+#       define R300_GREEN_MASK_EN                       (1 << 1)
+#       define R300_RED_MASK_EN                         (1 << 2)
+#       define R300_ALPHA_MASK_EN                       (1 << 3)
 #define R300_RB3D_COLOR_CLEAR_VALUE                     0x4e14
 #define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
 #define R300_RB3D_CCTL				        0x4e00
@@ -4028,8 +4134,12 @@
 #define R300_SC_EDGERULE				0x43a8
 #define R300_SC_SCISSOR0				0x43e0
 #define R300_SC_SCISSOR1				0x43e4
+#       define R300_SCISSOR_X_SHIFT                     0
+#       define R300_SCISSOR_Y_SHIFT                     13
 #define R300_SC_CLIP_0_A				0x43b0
 #define R300_SC_CLIP_0_B				0x43b4
+#       define R300_CLIP_X_SHIFT                        0
+#       define R300_CLIP_Y_SHIFT                        13
 #define R300_SC_CLIP_RULE				0x43d0
 #define R300_SC_SCREENDOOR				0x43e8
 
