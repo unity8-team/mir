@@ -3901,6 +3901,8 @@
 #	define R300_TX_FORMAT_A8R8G8B8	    	    0x13     /* no swizzle */
 #	define R300_TX_FORMAT_B8G8_B8G8	    	    0x14     /* no swizzle */
 #	define R300_TX_FORMAT_G8R8_G8B8	    	    0x15     /* no swizzle */
+#	define R300_TX_FORMAT_VYUY422	    	    0x14     /* no swizzle */
+#	define R300_TX_FORMAT_YVYU422	    	    0x15     /* no swizzle */
 #	define R300_TX_FORMAT_X24_Y8	    	    0x1e
 #	define R300_TX_FORMAT_X32	    	    0x1e
 	/* Floating point formats */
@@ -3944,6 +3946,10 @@
 		| ((R300_TX_FORMAT_##A)<<R300_TX_FORMAT_A_SHIFT)	\
 		| (R300_TX_FORMAT_##FMT)				\
 		)
+
+#       define R300_TX_FORMAT_YUV_TO_RGB_CLAMP         (1 << 22)
+#       define R300_TX_FORMAT_YUV_TO_RGB_NO_CLAMP      (2 << 22)
+#       define R300_TX_FORMAT_APPLE_YUV                (1 << 24)
 
 #define R300_TX_FORMAT2_0				0x4500
 #define R300_TX_OFFSET_0				0x4540

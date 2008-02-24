@@ -184,6 +184,8 @@ typedef enum {
 				   * for something else.
 				   */
 
+#define xFixedToFloat(f) (((float) (f)) / 65536)
+
 #define RADEON_LOGLEVEL_DEBUG 4
 
 /* for Xv, outputs */

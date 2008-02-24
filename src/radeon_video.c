@@ -74,19 +74,10 @@
 static void RADEONInitOffscreenImages(ScreenPtr);
 
 static XF86VideoAdaptorPtr RADEONSetupImageVideo(ScreenPtr);
-static int  RADEONSetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
-static int  RADEONGetPortAttribute(ScrnInfoPtr, Atom ,INT32 *, pointer);
-static void RADEONStopVideo(ScrnInfoPtr, pointer, Bool);
-static void RADEONQueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
-			unsigned int *, unsigned int *, pointer);
 static int  RADEONPutImage(ScrnInfoPtr, short, short, short, short, short,
 			short, short, short, int, unsigned char*, short,
 			short, Bool, RegionPtr, pointer,
 			DrawablePtr);
-static int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
-			unsigned short *,  int *, int *);
-static void RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);
-
 static void RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now);
 static int RADEONPutVideo(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x, short drw_y,
                         short src_w, short src_h, short drw_w, short drw_h, 
@@ -270,36 +261,43 @@ ATIVideoSave(ScreenPtr pScreen, ExaOffscreenArea *area)
 void RADEONInitVideo(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr    info = RADEONPTR(pScrn);
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
-    XF86VideoAdaptorPtr newAdaptor = NULL;
+    XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
 
-    newAdaptor = RADEONSetupImageVideo(pScreen);
-    RADEONInitOffscreenImages(pScreen);
-    num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
 
-    if(newAdaptor) {
-	if(!num_adaptors) {
-	    num_adaptors = 1;
-	    adaptors = &newAdaptor;
-	} else {
-	    newAdaptors =  /* need to free this someplace */
-		xalloc((num_adaptors + 1) * sizeof(XF86VideoAdaptorPtr*));
-	    if(newAdaptors) {
-		memcpy(newAdaptors, adaptors, num_adaptors *
-					sizeof(XF86VideoAdaptorPtr));
-		newAdaptors[num_adaptors] = newAdaptor;
-		adaptors = newAdaptors;
-		num_adaptors++;
-	    }
-	}
+    num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
+    newAdaptors = xalloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
+    if (newAdaptors == NULL)
+	return;
+
+    memcpy(newAdaptors, adaptors, num_adaptors * sizeof(XF86VideoAdaptorPtr));
+    adaptors = newAdaptors;
+
+    if (!IS_AVIVO_VARIANT) {
+	overlayAdaptor = RADEONSetupImageVideo(pScreen);
+	if (overlayAdaptor != NULL) {
+	    adaptors[num_adaptors++] = overlayAdaptor;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
+	} else
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up overlay video\n");
+	RADEONInitOffscreenImages(pScreen);
     }
+
+    texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
+    if (texturedAdaptor != NULL) {
+	adaptors[num_adaptors++] = texturedAdaptor;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+    } else
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
 
     if(num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
     if(newAdaptors)
 	xfree(newAdaptors);
+
 }
 
 /* client libraries expect an encoding */
@@ -1611,6 +1609,8 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
     pPriv = (RADEONPortPrivPtr)(adapt->pPortPrivates[0].ptr);
     REGION_NULL(pScreen, &(pPriv->clip));
 
+    pPriv->textured = FALSE;
+
     if(pPriv->theatre != NULL) 
     {
 	/* video decoder is present, extend capabilities */
@@ -1626,12 +1626,15 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
     return adapt;
 }
 
-static void
+void
 RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 {
   RADEONInfoPtr info = RADEONPTR(pScrn);
   unsigned char *RADEONMMIO = info->MMIO;
   RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
+
+    if (pPriv->textured)
+	return;
 
   REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
@@ -1663,7 +1666,7 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
   }
 }
 
-static int
+int
 RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 		       Atom	    attribute,
 		       INT32	    value,
@@ -1674,6 +1677,9 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
     Bool		setTransform = FALSE;
     Bool		setAlpha = FALSE;
     unsigned char *RADEONMMIO = info->MMIO;
+
+    if (pPriv->textured)
+	return BadMatch;
 
     RADEON_SYNC(info, pScrn);
 
@@ -1937,7 +1943,7 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
     return Success;
 }
 
-static int
+int
 RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
 		       Atom	    attribute,
 		       INT32	    *value,
@@ -1945,6 +1951,9 @@ RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
 {
     RADEONInfoPtr	info = RADEONPTR(pScrn);
     RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
+
+    if (pPriv->textured)
+	return BadMatch;
 
     if (info->accelOn) RADEON_SYNC(info, pScrn);
 
@@ -2031,7 +2040,7 @@ RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
     return Success;
 }
 
-static void
+void
 RADEONQueryBestSize(
   ScrnInfoPtr pScrn,
   Bool motion,
@@ -2040,10 +2049,14 @@ RADEONQueryBestSize(
   unsigned int *p_w, unsigned int *p_h,
   pointer data
 ){
-   if(vid_w > (drw_w << 4))
-	drw_w = vid_w >> 4;
-   if(vid_h > (drw_h << 4))
-	drw_h = vid_h >> 4;
+    RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
+
+    if (!pPriv->textured) {
+	if (vid_w > (drw_w << 4))
+	    drw_w = vid_w >> 4;
+	if (vid_h > (drw_h << 4))
+	    drw_h = vid_h >> 4;
+    }
 
   *p_w = drw_w;
   *p_h = drw_h;
@@ -2405,7 +2418,7 @@ RADEONCopyMungedData(
  * is measured in bytes, and the offset from the beginning of card space is
  * returned.
  */
-static CARD32
+CARD32
 RADEONAllocateMemory(
    ScrnInfoPtr pScrn,
    void **mem_struct,
@@ -2482,7 +2495,7 @@ RADEONAllocateMemory(
     return offset;
 }
 
-static void
+void
 RADEONFreeMemory(
    ScrnInfoPtr pScrn,
    void *mem_struct
@@ -3122,7 +3135,7 @@ RADEONPutImage(
 }
 
 
-static int
+int
 RADEONQueryImageAttributes(
     ScrnInfoPtr pScrn,
     int id,

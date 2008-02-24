@@ -120,8 +120,6 @@ RADEONPow2(int num)
     return pot;
 }
 
-
-
 static __inline__ CARD32 F_TO_DW(float val)
 {
     union {
