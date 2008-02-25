@@ -3886,27 +3886,135 @@
 #define R300_GA_OFFSET				        0x4290
 
 #define R300_VAP_CNTL_STATUS				0x2140
+#       define R300_PVS_BYPASS                          (1 << 8)
 #define R300_VAP_PVS_STATE_FLUSH_REG		        0x2284
 #define R300_VAP_CNTL				        0x2080
+#       define R300_PVS_NUM_SLOTS_SHIFT                 0
+#       define R300_PVS_NUM_CNTLRS_SHIFT                4
+#       define R300_PVS_NUM_FPUS_SHIFT                  8
+#       define R300_VF_MAX_VTX_NUM_SHIFT                18
+#       define R300_GL_CLIP_SPACE_DEF                   (0 << 22)
+#       define R300_DX_CLIP_SPACE_DEF                   (1 << 22)
 #define R300_VAP_VTE_CNTL				0x20B0
+#       define R300_VPORT_X_SCALE_ENA                   (1 << 0)
+#       define R300_VPORT_X_OFFSET_ENA                  (1 << 1)
+#       define R300_VPORT_Y_SCALE_ENA                   (1 << 2)
+#       define R300_VPORT_Y_OFFSET_ENA                  (1 << 3)
+#       define R300_VPORT_Z_SCALE_ENA                   (1 << 4)
+#       define R300_VPORT_Z_OFFSET_ENA                  (1 << 5)
+#       define R300_VTX_XY_FMT                          (1 << 8)
+#       define R300_VTX_Z_FMT                           (1 << 9)
+#       define R300_VTX_W0_FMT                          (1 << 10)
 #define R300_VAP_PSC_SGN_NORM_CNTL		        0x21DC
 #define R300_VAP_PROG_STREAM_CNTL_0		        0x2150
+#       define R300_DATA_TYPE_0_SHIFT                   0
+#       define R300_DATA_TYPE_FLOAT_1                   0
+#       define R300_DATA_TYPE_FLOAT_2                   1
+#       define R300_DATA_TYPE_FLOAT_3                   2
+#       define R300_DATA_TYPE_FLOAT_4                   3
+#       define R300_DATA_TYPE_BYTE                      4
+#       define R300_DATA_TYPE_D3DCOLOR                  5
+#       define R300_DATA_TYPE_SHORT_2                   6
+#       define R300_DATA_TYPE_SHORT_4                   7
+#       define R300_DATA_TYPE_VECTOR_3_TTT              8
+#       define R300_DATA_TYPE_VECTOR_3_EET              9
+#       define R300_SKIP_DWORDS_0_SHIFT                 4
+#       define R300_DST_VEC_LOC_0_SHIFT                 8
+#       define R300_LAST_VEC_0                          (1 << 13)
+#       define R300_SIGNED_0                            (1 << 14)
+#       define R300_NORMALIZE_0                         (1 << 15)
+#       define R300_DATA_TYPE_1_SHIFT                   16
+#       define R300_SKIP_DWORDS_1_SHIFT                 20
+#       define R300_DST_VEC_LOC_1_SHIFT                 24
+#       define R300_LAST_VEC_1                          (1 << 29)
+#       define R300_SIGNED_1                            (1 << 30)
+#       define R300_NORMALIZE_1                         (1 << 31)
 #define R300_VAP_PROG_STREAM_CNTL_1		        0x2154
+#       define R300_DATA_TYPE_2_SHIFT                   0
+#       define R300_SKIP_DWORDS_2_SHIFT                 4
+#       define R300_DST_VEC_LOC_2_SHIFT                 8
+#       define R300_LAST_VEC_2                          (1 << 13)
+#       define R300_SIGNED_2                            (1 << 14)
+#       define R300_NORMALIZE_2                         (1 << 15)
+#       define R300_DATA_TYPE_3_SHIFT                   16
+#       define R300_SKIP_DWORDS_3_SHIFT                 20
+#       define R300_DST_VEC_LOC_3_SHIFT                 24
+#       define R300_LAST_VEC_3                          (1 << 29)
+#       define R300_SIGNED_3                            (1 << 30)
+#       define R300_NORMALIZE_3                         (1 << 31)
 #define R300_VAP_PROG_STREAM_CNTL_EXT_0	                0x21e0
+#       define R300_SWIZZLE_SELECT_X_0_SHIFT            0
+#       define R300_SWIZZLE_SELECT_Y_0_SHIFT            3
+#       define R300_SWIZZLE_SELECT_Z_0_SHIFT            6
+#       define R300_SWIZZLE_SELECT_W_0_SHIFT            9
+#       define R300_SWIZZLE_SELECT_X                    0
+#       define R300_SWIZZLE_SELECT_Y                    1
+#       define R300_SWIZZLE_SELECT_Z                    2
+#       define R300_SWIZZLE_SELECT_W                    3
+#       define R300_SWIZZLE_SELECT_FP_ZERO              4
+#       define R300_SWIZZLE_SELECT_FP_ONE               5
+#       define R300_WRITE_ENA_0_SHIFT                   12
+#       define R300_WRITE_ENA_X                         1
+#       define R300_WRITE_ENA_Y                         2
+#       define R300_WRITE_ENA_Z                         4
+#       define R300_WRITE_ENA_W                         8
+#       define R300_SWIZZLE_SELECT_X_1_SHIFT            16
+#       define R300_SWIZZLE_SELECT_Y_1_SHIFT            19
+#       define R300_SWIZZLE_SELECT_Z_1_SHIFT            22
+#       define R300_SWIZZLE_SELECT_W_1_SHIFT            25
+#       define R300_WRITE_ENA_1_SHIFT                   28
 #define R300_VAP_PROG_STREAM_CNTL_EXT_1	                0x21e4
+#       define R300_SWIZZLE_SELECT_X_2_SHIFT            0
+#       define R300_SWIZZLE_SELECT_Y_2_SHIFT            3
+#       define R300_SWIZZLE_SELECT_Z_2_SHIFT            6
+#       define R300_SWIZZLE_SELECT_W_2_SHIFT            9
+#       define R300_WRITE_ENA_2_SHIFT                   12
+#       define R300_SWIZZLE_SELECT_X_3_SHIFT            16
+#       define R300_SWIZZLE_SELECT_Y_3_SHIFT            19
+#       define R300_SWIZZLE_SELECT_Z_3_SHIFT            22
+#       define R300_SWIZZLE_SELECT_W_3_SHIFT            25
+#       define R300_WRITE_ENA_3_SHIFT                   28
 #define R300_VAP_PVS_CODE_CNTL_0			0x22D0
+#       define R300_PVS_FIRST_INST_SHIFT                0
+#       define R300_PVS_XYZW_VALID_INST_SHIFT           10
+#       define R300_PVS_LAST_INST_SHIFT                 20
 #define R300_VAP_PVS_CODE_CNTL_1			0x22D8
+#       define R300_PVS_LAST_VTX_SRC_INST_SHIFT         0
 #define R300_VAP_PVS_VECTOR_INDX_REG		        0x2200
 #define R300_VAP_PVS_VECTOR_DATA_REG		        0x2204
 #define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22DC
 #define R300_VAP_OUT_VTX_FMT_0			        0x2090
+#       define R300_VTX_POS_PRESENT                     (1 << 0)
+#       define R300_VTX_COLOR_0_PRESENT                 (1 << 1)
+#       define R300_VTX_COLOR_1_PRESENT                 (1 << 2)
+#       define R300_VTX_COLOR_2_PRESENT                 (1 << 3)
+#       define R300_VTX_COLOR_3_PRESENT                 (1 << 4)
+#       define R300_VTX_PT_SIZE_PRESENT                 (1 << 16)
 #define R300_VAP_OUT_VTX_FMT_1			        0x2094
+#       define R300_TEX_0_COMP_CNT_SHIFT                0
+#       define R300_TEX_1_COMP_CNT_SHIFT                3
+#       define R300_TEX_2_COMP_CNT_SHIFT                6
+#       define R300_TEX_3_COMP_CNT_SHIFT                9
+#       define R300_TEX_4_COMP_CNT_SHIFT                12
+#       define R300_TEX_5_COMP_CNT_SHIFT                15
+#       define R300_TEX_6_COMP_CNT_SHIFT                18
+#       define R300_TEX_7_COMP_CNT_SHIFT                21
 #define R300_VAP_VTX_SIZE				0x20b4
 #define R300_VAP_GB_VERT_CLIP_ADJ		        0x2220
 #define R300_VAP_GB_VERT_DISC_ADJ		        0x2224
 #define R300_VAP_GB_HORZ_CLIP_ADJ		        0x2228
 #define R300_VAP_GB_HORZ_DISC_ADJ		        0x222c
 #define R300_VAP_CLIP_CNTL				0x221c
+#       define R300_UCP_ENA_0                           (1 << 0)
+#       define R300_UCP_ENA_1                           (1 << 1)
+#       define R300_UCP_ENA_2                           (1 << 2)
+#       define R300_UCP_ENA_3                           (1 << 3)
+#       define R300_UCP_ENA_4                           (1 << 4)
+#       define R300_UCP_ENA_5                           (1 << 5)
+#       define R300_PS_UCP_MODE_SHIFT                   14
+#       define R300_CLIP_DISABLE                        (1 << 16)
+#       define R300_UCP_CULL_ONLY_ENA                   (1 << 17)
+#       define R300_BOUNDARY_EDGE_FLAG_ENA              (1 << 18)
 
 #define R300_SU_TEX_WRAP				0x42a0
 #define R300_SU_POLY_OFFSET_ENABLE		        0x42b4
@@ -3921,12 +4029,15 @@
 #define R300_RS_COUNT				        0x4300
 #	define R300_RS_COUNT_IT_COUNT_SHIFT		0
 #	define R300_RS_COUNT_IC_COUNT_SHIFT		7
-#	define R300_RS_COUNT_HIRES_EN			(1<<18)
+#	define R300_RS_COUNT_HIRES_EN			(1 << 18)
 
 #define R300_RS_IP_0				        0x4310
 #define R300_RS_INST_COUNT				0x4304
+#	define R300_INST_COUNT_RS(x)		        (x << 0)
+#	define R300_RS_W_EN			        (1 << 4)
+#	define R300_TX_OFFSET_RS(x)		        (x << 5)
 #define R300_RS_INST_0				        0x4330
-#define R300_RS_INST_TEX_CN_WRITE 			(1 << 3)
+#       define R300_RS_INST_TEX_CN_WRITE		(1 << 3)
 
 #define R300_TX_INVALTAGS				0x4100
 #define R300_TX_FILTER0_0				0x4400
@@ -4013,7 +4124,7 @@
 
 #       define R300_TX_FORMAT_YUV_TO_RGB_CLAMP         (1 << 22)
 #       define R300_TX_FORMAT_YUV_TO_RGB_NO_CLAMP      (2 << 22)
-#       define R300_TX_FORMAT_APPLE_YUV                (1 << 24)
+#       define R300_TX_FORMAT_SWAP_YUV                 (1 << 24)
 
 #define R300_TX_FORMAT2_0				0x4500
 #define R300_TX_OFFSET_0				0x4540
@@ -4069,8 +4180,15 @@
 #       define R300_OUT_FMT_C3_SEL_GREEN                (2 << 14)
 #       define R300_OUT_FMT_C3_SEL_BLUE                 (3 << 14)
 #define R300_US_CONFIG				        0x4600
+#       define R300_NLEVEL_SHIFT                        0
+#       define R300_FIRST_TEX                           (1 << 3)
+#       define R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO     (1 << 1)
 #define R300_US_PIXSIZE				        0x4604
 #define R300_US_CODE_OFFSET				0x4608
+#       define R300_ALU_CODE_OFFSET(x)                  (x << 0)
+#       define R300_ALU_CODE_SIZE(x)                    (x << 6)
+#       define R300_TEX_CODE_OFFSET(x)                  (x << 13)
+#       define R300_TEX_CODE_SIZE(x)                    (x << 18)
 #define R300_US_CODE_ADDR_0				0x4610
 #define R300_US_CODE_ADDR_1				0x4614
 #define R300_US_CODE_ADDR_2				0x4618
