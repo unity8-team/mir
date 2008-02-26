@@ -140,16 +140,16 @@ if test -d "$XSERVER_SOURCE"; then
 		XSERVER_SOURCE="`cd $XSERVER_SOURCE && pwd`"
 		;;
 	esac
-	if test -f src/modes/xf86Modes.h; then
+	if test -f $srcdir/src/modes/xf86Modes.h; then
 		:
 	else
-		ln -sf $XSERVER_SOURCE/hw/xfree86/modes src/modes
+		ln -sf $XSERVER_SOURCE/hw/xfree86/modes $srcdir/src/modes
 	fi
 	
-	if test -f src/parser/xf86Parser.h; then
+	if test -f $srcdir/src/parser/xf86Parser.h; then
 		:
 	else
-		ln -sf $XSERVER_SOURCE/hw/xfree86/parser src/parser
+		ln -sf $XSERVER_SOURCE/hw/xfree86/parser $srcdir/src/parser
 	fi
 fi
 
@@ -158,7 +158,7 @@ if test "x$XMODES" = xyes; then
 	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
 	XMODES_CFLAGS=
 else
-	if test -f src/modes/xf86Modes.h -a -f src/parser/xf86Parser.h; then
+	if test -f $srcdir/src/modes/xf86Modes.h -a -f $srcdir/src/parser/xf86Parser.h; then
 		AC_MSG_NOTICE([X server is missing new mode code, using local copy])
 	else
 		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
