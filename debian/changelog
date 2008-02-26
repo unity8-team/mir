@@ -1,3 +1,55 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu1) hardy; urgency=low
+
+  * Merge from debian unstable (LP: #189868, #195424), remaining
+    changes:
+    - debian/patches
+      + 01_fix_compiz_video.diff:
+        use xf86XVFillKeyHelperDrawable() to fix video playback with
+        compositing enabled.
+      + 03_dell_1535_quirk.diff:
+        Add a quirk for Dell Inspiron 1535 so it does not configure
+        against the HDMI port instead of the LCD's native resolution
+        (LP: 187860).
+      + 04_dell_1735_quirk.diff:
+        Another HDMI port quirk, for the Dell Inspiron 1735.
+        (LP: 188204)
+      + 05_intel_exa_force_greedy.patch:
+        Force use of greedy mode on i965 hardware.
+        (LP: 177492, 148247, 152206)
+    - debian/control
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+    - Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to coexist
+      until -intel is able to replace it completely.
+      debian/control:
+      + Nuke Conflicts and Replaces related to -i810.
+      debian/rules:
+      + Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
+      + Nuke /usr/share/man/man4/i810.4 conflict
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 26 Feb 2008 14:04:11 +0200
+
+xserver-xorg-video-intel (2:2.2.1-1) unstable; urgency=low
+
+  [ Brice Goglin ]
+  * New upstream release.
+    + Fix some blinking pixels and unreadable text, closes: #465921.
+    + Fix i830 stolen memory mask, closes: #464661.
+    + Fix flickering on i855, closes: #443809, #435621.
+
+  [ Julien Cristau ]
+  * Build the intel_reg_dumper tool, and install it in the -dbg package.
+    Add build-dependency on libpciaccess-dev.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 23 Feb 2008 00:52:39 +0100
+
+xserver-xorg-video-intel (2:2.2.0.90-3) unstable; urgency=low
+
+  * Grab upstream commit 2c8f87be99957e0e18d8bcda46bd8706ab374253
+    to unbreak FramebufferCompression on i965.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 06 Feb 2008 21:29:44 +0100
+
 xserver-xorg-video-intel (2:2.2.0.90-2ubuntu7) hardy; urgency=low
 
   * Drop the xaa-patch, as it turns out that not only i965 has issues 
@@ -518,3 +570,4 @@ xserver-xorg-driver-i810 (1:1.4.0-1) breezy; urgency=low
   * First xserver-xorg-driver-i810 release.
 
  -- Daniel Stone <daniel.stone@ubuntu.com>  Wed,  6 Jul 2005 15:48:17 +1000
+

@@ -1,3 +1,137 @@
+commit 90dcbcef878e0e708c871702a45381752707418a
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Feb 22 12:28:50 2008 -0800
+
+    Bump version to 2.2.1
+
+commit c81cf678aabbf84bfa4b98d491a5a38179f591f4
+Author: Jesse Barnes <root@nietzche.virtuousgeek.org>
+Date:   Thu Feb 7 11:56:28 2008 -0800
+
+    Add CACHE_MODE_0 register to dump output
+
+commit db2e848b13368eb9c180cd82494645459a6c0382
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Feb 16 18:16:12 2008 -0800
+
+    Decode DSPCLK_GATE, dump PIPE*STAT, MI_MODE, MI_DISPLAY_POWER_DOWN, MI_ARB_STATE, MI_RDRET_STATE, ECOSKPD
+
+commit b85c0992938e85e2228e69a3d9bfdd14958c0f4f
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Fri Feb 22 11:41:25 2008 -0800
+
+    Add quirk for DVO channel selection
+    
+    Some machines want DVOA, some DVOB.  We can use this quirk to differentiate
+    them until we come up with a better solution.  Patch from Hong Liu.
+    
+    Fixes #13722.
+
+commit 5073b4026c536f6e5f0c8c5a741a1852b4480f31
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Feb 19 21:13:45 2008 +0800
+
+    Don't leak memory if no DMI info is provided by kernel
+
+commit 3709962b91402027f2a73f732d1eb935f7d714b9
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Feb 18 14:35:06 2008 +0800
+
+    Fix Lenovo X60 TV quirk
+    
+    Z61 has same subsys ids with X60, but does have one S-video
+    TV out. Use DMI info instead to quirk TV on X60, X60s.
+
+commit 866ae8873613a51ca09973f77aa1ea62477b54a1
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Feb 18 14:32:32 2008 +0800
+
+    Add DMI info for i830 quirks
+    
+    Linux kernel has CONFIG_DMIID to export dmi info
+    through sysfs.
+
+commit 945ec2b2516b6508857ee5cd136e59accbc6ebe7
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 30 18:55:20 2008 +0800
+
+    hardware status page initialization rework
+    
+    Order hardware status page setup more reasonable after
+    all memory bound, in case new chipset requires non-stolen
+    page and that could be bound then.
+    
+    Also clean up drm irq handler install function, and put
+    first install in starting stage later than status page setup,
+    so we won't make device cry for uninitialized status page.
+
+commit 9e3fb1c75a9aff6aecfc2a21ccc6b2e2d32a5f9a
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jan 30 18:52:32 2008 +0800
+
+    Wrap up chipsets which needs graphics address for status page
+    
+    Also add support on new chipset.
+
+commit 4ef51aba115820fe79048fa45221138f1e5054d2
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Feb 21 08:43:34 2008 -0800
+
+    Add pipe A force enable quirk for ThinkPad X40
+    
+    ThinkPad X40s need this quirk or they'll crash frequently.
+    
+    Fixes #14521.
+
+commit 122e9a266b04b9f88a4294aadfa6fb5f9a6faff5
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Thu Feb 21 08:37:42 2008 -0800
+
+    Remove side effects from VGA debug code
+    
+    The VGA register dumping code was leaving ARX in data mode rather than index
+    mode, which could cause problems for later software accessing AR* registers.
+    Fix it to make sure it's in index mode when we're done.
+    
+    Fixes #14434.
+
+commit 83be0e293aee63cd181ace8e36a0ee78e3c5a8e1
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Feb 20 13:08:27 2008 -0800
+
+    Fix DSP*CNTR restoration
+    
+    When checking which pipe a given plane was associated with, we weren't properly
+    masking the pipe selection bits.  Fixes #14481 and should allow the driver to
+    work with vesafb again.
+
+commit aa1813e4807e500fb122f36af988cf60f91e05a5
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Feb 19 08:51:53 2008 +0800
+
+    Fix last 8XX clock's p2 value commit
+    
+    My fault to change Hong's origin patch reversely.
+
+commit 1cea254b70158600d9dfff8ba66fb2ec0a6e0f67
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Feb 15 13:20:22 2008 +0800
+
+    Bug #14440: fix stolen mem size mask on i830M
+    
+    For i830M stolen mem size mask should always be 0x70.
+    Use 0xF0 for later chipsets should be ok, so behavior is
+    identical to kernel agp.
+
+commit 2c8f87be99957e0e18d8bcda46bd8706ab374253
+Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
+Date:   Wed Feb 6 09:35:43 2008 -0800
+
+    Only disable FBC if registers are available
+    
+    The call to disable FBC should only occur if the FBC feature is actually
+    present or we may end up hanging on a read from a non-existent register.
+
 commit 0516e708abf01d1f83e2e8af9abe4c835ed79444
 Author: Jesse Barnes <jbarnes@hobbes.virtuousgeek.org>
 Date:   Tue Feb 5 17:39:26 2008 -0800
