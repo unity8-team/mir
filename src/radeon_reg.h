@@ -4032,6 +4032,28 @@
 #	define R300_RS_COUNT_HIRES_EN			(1 << 18)
 
 #define R300_RS_IP_0				        0x4310
+#	define R300_RS_TEX_PTR(x)		        (x << 0)
+#	define R300_RS_COL_PTR(x)		        (x << 6)
+#	define R300_RS_COL_FMT(x)		        (x << 9)
+#	define R300_RS_COL_FMT_RGBA		        0
+#	define R300_RS_COL_FMT_RGB0		        2
+#	define R300_RS_COL_FMT_RGB1		        3
+#	define R300_RS_COL_FMT_000A		        4
+#	define R300_RS_COL_FMT_0000		        5
+#	define R300_RS_COL_FMT_0001		        6
+#	define R300_RS_COL_FMT_111A		        8
+#	define R300_RS_COL_FMT_1110		        9
+#	define R300_RS_COL_FMT_1111		        10
+#	define R300_RS_SEL_S(x)		                (x << 13)
+#	define R300_RS_SEL_T(x)		                (x << 16)
+#	define R300_RS_SEL_R(x)		                (x << 19)
+#	define R300_RS_SEL_Q(x)		                (x << 22)
+#	define R300_RS_SEL_C0		                0
+#	define R300_RS_SEL_C1		                1
+#	define R300_RS_SEL_C2		                2
+#	define R300_RS_SEL_C3		                3
+#	define R300_RS_SEL_K0		                4
+#	define R300_RS_SEL_K1		                5
 #define R300_RS_INST_COUNT				0x4304
 #	define R300_INST_COUNT_RS(x)		        (x << 0)
 #	define R300_RS_W_EN			        (1 << 4)
