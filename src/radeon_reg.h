@@ -3819,7 +3819,11 @@
 #define R600_BIOS_7_SCRATCH               0x1740
 
 #define R300_GB_TILE_CONFIG				0x4018
-#       define R300_ENABLE_TILING                       (1 << 1)
+#       define R300_ENABLE_TILING                       (1 << 0)
+#       define R300_PIPE_COUNT_RV350                    (0 << 1)
+#       define R300_PIPE_COUNT_R300                     (3 << 1)
+#       define R300_PIPE_COUNT_R420_3P                  (6 << 1)
+#       define R300_PIPE_COUNT_R420                     (7 << 1)
 #       define R300_TILE_SIZE_8                         (0 << 4)
 #       define R300_TILE_SIZE_16                        (1 << 4)
 #       define R300_TILE_SIZE_32                        (2 << 4)

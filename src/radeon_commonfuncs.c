@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include "ati_pciids_gen.h"
+
 #if defined(ACCEL_MMIO) && defined(ACCEL_CP)
 #error Cannot define both MMIO and CP acceleration!
 #endif
@@ -53,21 +55,45 @@
 static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    CARD32 gb_tile_config;
     ACCEL_PREAMBLE();
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
 
     if (IS_R300_VARIANT || IS_AVIVO_VARIANT || info->ChipFamily == CHIP_FAMILY_RS690) {
+
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
 	OUT_ACCEL_REG(R300_RB3D_ZCACHE_CTLSTAT, R300_ZC_FLUSH | R300_ZC_FREE);
 	OUT_ACCEL_REG(R300_WAIT_UNTIL, R300_WAIT_2D_IDLECLEAN | R300_WAIT_3D_IDLECLEAN);
 	FINISH_ACCEL();
 
+	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
+
+	if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
+	    (info->Chipset == PCI_CHIP_RV410_5E4F)) {
+	    /* RV410 SE chips */
+	    gb_tile_config |= R300_PIPE_COUNT_RV350;
+	} else if ((info->ChipFamily == CHIP_FAMILY_RV350) ||
+		   (info->ChipFamily == CHIP_FAMILY_RV380) ||
+		   (info->ChipFamily == CHIP_FAMILY_RS400)) {
+	    /* RV3xx, RS4xx chips */
+	    gb_tile_config |= R300_PIPE_COUNT_RV350;
+	} else if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+		   (info->ChipFamily == CHIP_FAMILY_R350)) {
+	    /* R3xx chips */
+	    gb_tile_config |= R300_PIPE_COUNT_R300;
+	} else if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
+		   (info->ChipFamily == CHIP_FAMILY_RS690)) {
+	    /* RV4xx, RS6xx chips */
+	    gb_tile_config |= R300_PIPE_COUNT_R420_3P;
+	} else {
+	    /* R4xx, R5xx chips */
+	    gb_tile_config |= R300_PIPE_COUNT_R420;
+	}
+
 	BEGIN_ACCEL(3);
-	OUT_ACCEL_REG(R300_GB_TILE_CONFIG, (R300_ENABLE_TILING |
-					    R300_TILE_SIZE_16 |
-					    R300_SUBPIXEL_1_16));
+	OUT_ACCEL_REG(R300_GB_TILE_CONFIG, gb_tile_config);
 	OUT_ACCEL_REG(R300_GB_SELECT, 0);
 	OUT_ACCEL_REG(R300_GB_ENABLE, 0);
 	FINISH_ACCEL();
