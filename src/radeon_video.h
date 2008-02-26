@@ -129,4 +129,17 @@ int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen);
 
+void
+RADEONCopyData(ScrnInfoPtr pScrn,
+	       unsigned char *src, unsigned char *dst,
+	       unsigned int srcPitch, unsigned int dstPitch,
+	       unsigned int h, unsigned int w, unsigned int bpp);
+
+void
+RADEONCopyMungedData(ScrnInfoPtr pScrn,
+		     unsigned char *src1, unsigned char *src2,
+		     unsigned char *src3, unsigned char *dst1,
+		     unsigned int srcPitch, unsigned int srcPitch2,
+		     unsigned int dstPitch, unsigned int h, unsigned int w);
+
 #endif

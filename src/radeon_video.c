@@ -2147,7 +2147,7 @@ static struct {
         {1.00, {{ 0,    32,  0,  0}, {-2,   29,  5,  0}, {-3,   27,  9, -1}, {-4,   24, 14, -2}, {-3,   19, 19, -3}, }}
     };
 
-static void
+void
 RADEONCopyData(
   ScrnInfoPtr pScrn,
   unsigned char *src,
@@ -2315,7 +2315,7 @@ static void RADEON_420_422(
 }
 #endif
 
-static void
+void
 RADEONCopyMungedData(
    ScrnInfoPtr pScrn,
    unsigned char *src1,

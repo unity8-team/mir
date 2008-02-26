@@ -107,147 +107,6 @@ static __inline__ CARD32 F_TO_DW(float val)
 
 #endif /* XF86DRI */
 
-static void
-RADEONXVCopyPlanarData(CARD8 *src, CARD8 *dst, int randr,
-		       int srcPitch, int srcPitch2, int dstPitch,
-		       int srcW, int srcH, int height,
-		       int top, int left, int h, int w, int id)
-{
-    int i, j;
-    CARD8 *src1, *src2, *src3, *dst1;
-    int srcDown = srcPitch, srcDown2 = srcPitch2;
-    int srcRight = 2, srcRight2 = 1, srcNext = 1;
-
-    /* compute source data pointers */
-    src1 = src;
-    src2 = src1 + height * srcPitch;
-    src3 = src2 + (height >> 1) * srcPitch2;
-    switch (randr) {
-    case RR_Rotate_0:
-	srcDown = srcPitch;
-	srcDown2 = srcPitch2;
-	srcRight = 2;
-	srcRight2 = 1;
-	srcNext = 1;
-	break;
-    case RR_Rotate_90:
-	src1 = src1 + srcH - 1;
-	src2 = src2 + (srcH >> 1) - 1;
-	src3 = src3 + (srcH >> 1) - 1;
-	srcDown = -1;
-	srcDown2 = -1;
-	srcRight = srcPitch * 2;
-	srcRight2 = srcPitch2;
-	srcNext = srcPitch;
-	break;
-    case RR_Rotate_180:
-	src1 = src1 + srcPitch * (srcH - 1) + (srcW - 1);
-	src2 = src2 + srcPitch2 * ((srcH >> 1) - 1) + ((srcW >> 1) - 1);
-	src3 = src3 + srcPitch2 * ((srcH >> 1) - 1) + ((srcW >> 1) - 1);
-	srcDown = -srcPitch;
-	srcDown2 = -srcPitch2;
-	srcRight = -2;
-	srcRight2 = -1;
-	srcNext = -1;
-	break;
-    case RR_Rotate_270:
-	src1 = src1 + srcPitch * (srcW - 1);
-	src2 = src2 + srcPitch2 * ((srcW >> 1) - 1);
-	src3 = src3 + srcPitch2 * ((srcW >> 1) - 1);
-	srcDown = 1;
-	srcDown2 = 1;
-	srcRight = -srcPitch * 2;
-	srcRight2 = -srcPitch2;
-	srcNext = -srcPitch;
-	break;
-    }
-
-    /* adjust for origin */
-    src1 += top * srcDown + left * srcNext;
-    src2 += (top >> 1) * srcDown2 + (left >> 1) * srcRight2;
-    src3 += (top >> 1) * srcDown2 + (left >> 1) * srcRight2;
-
-    if (id == FOURCC_I420) {
-	CARD8 *srct = src2;
-	src2 = src3;
-	src3 = srct;
-    }
-
-    dst1 = dst;
-
-    w >>= 1;
-    for (j = 0; j < h; j++) {
-	CARD32 *dst = (CARD32 *)dst1;
-	CARD8 *s1l = src1;
-	CARD8 *s1r = src1 + srcNext;
-	CARD8 *s2 = src2;
-	CARD8 *s3 = src3;
-
-	for (i = 0; i < w; i++) {
-	    *dst++ = *s1l | (*s1r << 16) | (*s3 << 8) | (*s2 << 24);
-	    s1l += srcRight;
-	    s1r += srcRight;
-	    s2 += srcRight2;
-	    s3 += srcRight2;
-	}
-	src1 += srcDown;
-	dst1 += dstPitch;
-	if (j & 1) {
-	    src2 += srcDown2;
-	    src3 += srcDown2;
-	}
-    }
-}
-
-static void
-RADEONXVCopyPackedData(CARD8 *src, CARD8 *dst, int randr,
-		       int srcPitch, int dstPitch,
-		       int srcW, int srcH, int top, int left,
-		       int h, int w)
-{
-    int srcDown = srcPitch, srcRight = 2, srcNext;
-    int p;
-
-    switch (randr) {
-    case RR_Rotate_0:
-	srcDown = srcPitch;
-	srcRight = 2;
-	break;
-    case RR_Rotate_90:
-	src += (srcH - 1) * 2;
-	srcDown = -2;
-	srcRight = srcPitch;
-	break;
-    case RR_Rotate_180:
-	src += srcPitch * (srcH - 1) + (srcW - 1) * 2;
-	srcDown = -srcPitch;
-	srcRight = -2;
-	break;
-    case RR_Rotate_270:
-	src += srcPitch * (srcW - 1);
-	srcDown = 2;
-	srcRight = -srcPitch;
-	break;
-    }
-
-    src = src + top * srcDown + left * srcRight;
-
-    w >>= 1;
-    /* srcRight >>= 1; */
-    srcNext = srcRight >> 1;
-    while (h--) {
-	CARD16 *s = (CARD16 *)src;
-	CARD32 *d = (CARD32 *)dst;
-	p = w;
-	while (p--) {
-	    *d++ = s[0] | (s[srcNext] << 16);
-	    s += srcRight;
-	}
-	src += srcPitch;
-	dst += dstPitch;
-    }
-}
-
 static int
 RADEONPutImageTextured(ScrnInfoPtr pScrn,
 		       short src_x, short src_y,
@@ -267,14 +126,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
     INT32 x1, x2, y1, y2;
-    int randr = RR_Rotate_0 /* XXX */;
     int srcPitch, srcPitch2, dstPitch;
+    int s2offset, s3offset, tmp;
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
-    int rot_x1, rot_y1, rot_x2, rot_y2;
-    int dst_x1, dst_y1, dst_x2, dst_y2;
-    int rot_src_w, rot_src_h, rot_drw_w, rot_drw_h;
+
+    /* make the compiler happy */
+    s2offset = s3offset = srcPitch2 = 0;
 
     /* Clip */
     x1 = src_x;
@@ -297,66 +156,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     if ((x1 >= x2) || (y1 >= y2))
 	return Success;
-
-    if (randr & (RR_Rotate_0|RR_Rotate_180)) {
-	dst_width = width;
-	dst_height = height;
-	rot_src_w = src_w;
-	rot_src_h = src_h;
-	rot_drw_w = drw_w;
-	rot_drw_h = drw_h;
-    } else {
-	dst_width = height;
-	dst_height = width;
-	rot_src_w = src_h;
-	rot_src_h = src_w;
-	rot_drw_w = drw_h;
-	rot_drw_h = drw_w;
-    }
-
-    switch (randr) {
-    case RR_Rotate_0:
-    default:
-	dst_x1 = dstBox.x1;
-	dst_y1 = dstBox.y1;
-	dst_x2 = dstBox.x2;
-	dst_y2 = dstBox.y2;
-	rot_x1 = x1;
-	rot_y1 = y1;
-	rot_x2 = x2;
-	rot_y2 = y2;
-	break;
-    case RR_Rotate_90:
-	dst_x1 = dstBox.y1;
-	dst_y1 = pScrn->virtualY - dstBox.x2;
-	dst_x2 = dstBox.y2;
-	dst_y2 = pScrn->virtualY - dstBox.x1;
-	rot_x1 = y1;
-	rot_y1 = (src_w << 16) - x2;
-	rot_x2 = y2;
-	rot_y2 = (src_w << 16) - x1;
-	break;
-    case RR_Rotate_180:
-	dst_x1 = pScrn->virtualX - dstBox.x2;
-	dst_y1 = pScrn->virtualY - dstBox.y2;
-	dst_x2 = pScrn->virtualX - dstBox.x1;
-	dst_y2 = pScrn->virtualY - dstBox.y1;
-	rot_x1 = (src_w << 16) - x2;
-	rot_y1 = (src_h << 16) - y2;
-	rot_x2 = (src_w << 16) - x1;
-	rot_y2 = (src_h << 16) - y1;
-	break;
-    case RR_Rotate_270:
-	dst_x1 = pScrn->virtualX - dstBox.y2;
-	dst_y1 = dstBox.x1;
-	dst_x2 = pScrn->virtualX - dstBox.y1;
-	dst_y2 = dstBox.x2;
-	rot_x1 = (src_h << 16) - y2;
-	rot_y1 = x1;
-	rot_x2 = (src_h << 16) - y1;
-	rot_y2 = x2;
-	break;
-    }
 
     switch(id) {
     case FOURCC_YV12:
@@ -424,37 +223,37 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 #endif
 
     /* copy data */
-    top = rot_y1 >> 16;
-    left = (rot_x1 >> 16) & ~1;
-    npixels = ((((rot_x2 + 0xffff) >> 16) + 1) & ~1) - left;
-
-    /* Since we're probably overwriting the area that might still be used
-     * for the last PutImage request, wait for idle.
-     */
-#ifdef XF86DRI
-    if (info->directRenderingEnabled)
-	RADEONWaitForIdleCP(pScrn);
-    else
-#endif
-	RADEONWaitForIdleMMIO(pScrn);
-
+    top = y1 >> 16;
+    left = (x1 >> 16) & ~1;
+    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
 	top &= ~1;
-	nlines = ((((rot_y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	RADEONXVCopyPlanarData(buf, pPriv->src_addr, randr,
-			       srcPitch, srcPitch2, dstPitch, rot_src_w, rot_src_h,
-			       height, top, left, nlines, npixels, id);
+	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	s2offset = srcPitch * height;
+	srcPitch2 = ((width >> 1) + 3) & ~3;
+	s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	top &= ~1;
+	pPriv->src_addr += left << 1;
+	tmp = ((top >> 1) * srcPitch2) + (left >> 1);
+	s2offset += tmp;
+	s3offset += tmp;
+	if(id == FOURCC_I420) {
+	    tmp = s2offset;
+	    s2offset = s3offset;
+	    s3offset = tmp;
+	}
+	RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
+			     buf + s2offset, buf + s3offset, pPriv->src_addr,
+			     srcPitch, srcPitch2, dstPitch, nlines, npixels);
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	nlines = ((rot_y2 + 0xffff) >> 16) - top;
-	RADEONXVCopyPackedData(buf, pPriv->src_addr, randr,
-			       srcPitch, dstPitch, rot_src_w, rot_src_h, top, left,
-			       nlines, npixels);
+	nlines = ((y2 + 0xffff) >> 16) - top;
+	RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
 	break;
     }
 
@@ -464,18 +263,18 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     pPriv->id = id;
-    pPriv->src_x1 = rot_x1;
-    pPriv->src_y1 = rot_y1;
-    pPriv->src_x2 = rot_x2;
-    pPriv->src_y2 = rot_y2;
-    pPriv->src_w = rot_src_w;
-    pPriv->src_h = rot_src_h;
-    pPriv->dst_x1 = dst_x1;
-    pPriv->dst_y1 = dst_y1;
-    pPriv->dst_x2 = dst_x2;
-    pPriv->dst_y2 = dst_y2;
-    pPriv->dst_w = rot_drw_w;
-    pPriv->dst_h = rot_drw_h;
+    pPriv->src_x1 = x1;
+    pPriv->src_y1 = y1;
+    pPriv->src_x2 = x2;
+    pPriv->src_y2 = y2;
+    pPriv->src_w = src_w;
+    pPriv->src_h = src_h;
+    pPriv->dst_x1 = dstBox.x1;
+    pPriv->dst_y1 = dstBox.y1;
+    pPriv->dst_x2 = dstBox.x2;
+    pPriv->dst_y2 = dstBox.y1;
+    pPriv->dst_w = drw_w;
+    pPriv->dst_h = drw_h;
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled)
