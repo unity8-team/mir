@@ -290,6 +290,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define GPIO_DATA_VAL_IN		(1 << 12)
 # define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
+/* GMBus registers for hardware-assisted (non-bitbanging) I2C access */
+#define GMBUS0			0x5100
+#define GMBUS1			0x5104
+#define GMBUS2			0x5108
+#define GMBUS3			0x510c
+#define GMBUS4			0x5110
+#define GMBUS5			0x5120
+
 /* p317, 319
  */
 #define VCLK2_VCO_M        0x6008 /* treat as 16 bit? (includes msbs) */

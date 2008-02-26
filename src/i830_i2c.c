@@ -346,6 +346,7 @@ Bool
 I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 {
     I2CBusPtr pI2CBus;
+    I830Ptr pI830 = I830PTR(pScrn);
 
     pI2CBus = xf86CreateI2CBusRec();
 
@@ -378,6 +379,12 @@ I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
     pI2CBus->BitTimeout = 40;
     pI2CBus->AcknTimeout = 40;
     pI2CBus->RiseFallTime = 20;
+
+    /* Disable the GMBUS, which we won't use.  If it is left enabled (for
+     * example, by Mac Mini EFI initialization), GPIO access to the pins it
+     * uses gets disabled.
+     */
+    OUTREG(GMBUS0, 0);
 
     if (!xf86I2CBusInit(pI2CBus))
 	return FALSE;
