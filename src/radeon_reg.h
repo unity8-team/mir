@@ -4067,6 +4067,17 @@
 
 #define R300_TX_INVALTAGS				0x4100
 #define R300_TX_FILTER0_0				0x4400
+#       define R300_TX_CLAMP_S(x)                       (x << 0)
+#       define R300_TX_CLAMP_T(x)                       (x << 3)
+#       define R300_TX_CLAMP_R(x)                       (x << 6)
+#       define R300_TX_CLAMP_WRAP                       0
+#       define R300_TX_CLAMP_MIRROR                     1
+#       define R300_TX_CLAMP_CLAMP_LAST                 2
+#       define R300_TX_CLAMP_MIRROR_CLAMP_LAST          3
+#       define R300_TX_CLAMP_CLAMP_BORDER               4
+#       define R300_TX_CLAMP_MIRROR_CLAMP_BORDER        5
+#       define R300_TX_CLAMP_CLAMP_GL                   6
+#       define R300_TX_CLAMP_MIRROR_CLAMP_GL            7
 #       define R300_TX_MAG_FILTER_NEAREST               (1 << 9)
 #       define R300_TX_MIN_FILTER_NEAREST               (1 << 11)
 #       define R300_TX_MAG_FILTER_LINEAR                (2 << 9)
