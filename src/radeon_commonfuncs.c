@@ -206,15 +206,16 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 					 (8191 << R300_SCISSOR_Y_SHIFT)));
 
 	if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS690)) {
+	    /* clip has offset 1440 */
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((1088 << R300_CLIP_X_SHIFT) |
 					     (1088 << R300_CLIP_Y_SHIFT)));
-	    OUT_ACCEL_REG(R300_SC_CLIP_0_B, ((4080 << R300_CLIP_X_SHIFT) |
-					     (2040 << R300_CLIP_Y_SHIFT)));
+	    OUT_ACCEL_REG(R300_SC_CLIP_0_B, (((1080 + 2048) << R300_CLIP_X_SHIFT) |
+					     ((1080 + 2048) << R300_CLIP_Y_SHIFT)));
 	} else {
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((0 << R300_CLIP_X_SHIFT) |
 					     (0 << R300_CLIP_Y_SHIFT)));
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_B, ((4080 << R300_CLIP_X_SHIFT) |
-					     (2040 << R300_CLIP_Y_SHIFT)));
+					     (4080 << R300_CLIP_Y_SHIFT)));
 	}
 	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_SC_SCREENDOOR, 0xffffff);
