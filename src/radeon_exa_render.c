@@ -809,8 +809,8 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     txformat1 = R300TexFormats[i].card_fmt;
 
-    txformat0 = (((RADEONPow2(w) - 1) << R300_TXWIDTH_SHIFT) |
-		 ((RADEONPow2(h) - 1) << R300_TXHEIGHT_SHIFT));
+    txformat0 = (((w - 1) << R300_TXWIDTH_SHIFT) |
+		 ((h - 1) << R300_TXHEIGHT_SHIFT));
 
     if (pPict->repeat) {
 	ErrorF("repeat\n");
@@ -822,15 +822,18 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	txformat0 |= R300_TXPITCH_EN;
 
 
-    info->texW[unit] = RADEONPow2(w);
-    info->texH[unit] = RADEONPow2(h);
+    info->texW[unit] = w;
+    info->texH[unit] = h;
+
+    txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
+		R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST));
 
     switch (pPict->filter) {
     case PictFilterNearest:
-	txfilter = (R300_TX_MAG_FILTER_NEAREST | R300_TX_MIN_FILTER_NEAREST);
+	txfilter |= (R300_TX_MAG_FILTER_NEAREST | R300_TX_MIN_FILTER_NEAREST);
 	break;
     case PictFilterBilinear:
-	txfilter = (R300_TX_MAG_FILTER_LINEAR | R300_TX_MIN_FILTER_LINEAR);
+	txfilter |= (R300_TX_MAG_FILTER_LINEAR | R300_TX_MIN_FILTER_LINEAR);
 	break;
     default:
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
