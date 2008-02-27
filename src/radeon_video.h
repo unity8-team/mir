@@ -101,9 +101,9 @@ typedef struct {
     CARD8 *src_addr;
 
     int id;
-    int src_x1, src_y1, src_x2, src_y2;
-    int dst_x1, dst_y1, dst_x2, dst_y2;
     int src_w, src_h, dst_w, dst_h;
+    int w, h;
+    int drw_x, drw_y;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
 

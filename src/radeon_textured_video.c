@@ -240,7 +240,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	tmp = ((top >> 1) * srcPitch2) + (left >> 1);
 	s2offset += tmp;
 	s3offset += tmp;
-	if(id == FOURCC_I420) {
+	if (id == FOURCC_I420) {
 	    tmp = s2offset;
 	    s2offset = s3offset;
 	    s3offset = tmp;
@@ -263,18 +263,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     pPriv->id = id;
-    pPriv->src_x1 = x1;
-    pPriv->src_y1 = y1;
-    pPriv->src_x2 = x2;
-    pPriv->src_y2 = y2;
     pPriv->src_w = src_w;
     pPriv->src_h = src_h;
-    pPriv->dst_x1 = dstBox.x1;
-    pPriv->dst_y1 = dstBox.y1;
-    pPriv->dst_x2 = dstBox.x2;
-    pPriv->dst_y2 = dstBox.y1;
+    pPriv->drw_x = drw_x;
+    pPriv->drw_y = drw_y;
     pPriv->dst_w = drw_w;
     pPriv->dst_h = drw_h;
+    pPriv->w = width;
+    pPriv->h = height;
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled)

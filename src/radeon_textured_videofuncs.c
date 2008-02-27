@@ -157,13 +157,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
 
-	txformat0 = (((pPriv->src_w - 1) << R300_TXWIDTH_SHIFT) |
-		     ((pPriv->src_h - 1) << R300_TXHEIGHT_SHIFT));
+	txformat0 = (((pPriv->w - 1) << R300_TXWIDTH_SHIFT) |
+		     ((pPriv->h - 1) << R300_TXHEIGHT_SHIFT));
 
 	txformat0 |= R300_TXPITCH_EN;
 
-	info->texW[0] = pPriv->src_w;
-	info->texH[0] = pPriv->src_h;
+	info->texW[0] = pPriv->w;
+	info->texH[0] = pPriv->h;
 
 	txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
@@ -419,8 +419,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    (info->ChipFamily == CHIP_FAMILY_RS300) ||
 	    (info->ChipFamily == CHIP_FAMILY_R200)) {
 
-	    info->texW[0] = pPriv->src_w;
-	    info->texH[0] = pPriv->src_h;
+	    info->texW[0] = pPriv->w;
+	    info->texH[0] = pPriv->h;
 
 	    BEGIN_VIDEO(12);
 
@@ -435,8 +435,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    OUT_VIDEO_REG(R200_PP_TXFORMAT_0, txformat);
 	    OUT_VIDEO_REG(R200_PP_TXFORMAT_X_0, 0);
 	    OUT_VIDEO_REG(R200_PP_TXSIZE_0,
-			(pPriv->src_w - 1) |
-			((pPriv->src_h - 1) << RADEON_TEX_VSIZE_SHIFT));
+			(pPriv->w - 1) |
+			((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	    OUT_VIDEO_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
 
 	    OUT_VIDEO_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
@@ -485,8 +485,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			RADEON_CLAMP_TX);
 
 	    OUT_VIDEO_REG(RADEON_PP_TEX_SIZE_0,
-			(pPriv->src_w - 1) |
-			((pPriv->src_h - 1) << RADEON_TEX_VSIZE_SHIFT));
+			(pPriv->w - 1) |
+			((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	    OUT_VIDEO_REG(RADEON_PP_TEX_PITCH_0,
 			pPriv->src_pitch - 32);
 	    FINISH_VIDEO();
@@ -501,10 +501,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	dstY = pBox->y1 + dstyoff;
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
-	srcX = (pBox->x1 - pPriv->dst_x1) *
-	    pPriv->src_w / pPriv->dst_w;
-	srcY = (pBox->y1 - pPriv->dst_y1) *
-	    pPriv->src_h / pPriv->dst_h;
+
+	srcX = ((pBox->x1 - pPriv->drw_x) *
+		pPriv->src_w) / pPriv->dst_w;
+	srcY = ((pBox->y1 - pPriv->drw_y) *
+		pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
@@ -517,6 +518,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	srcBottomLeft.y  = IntToxFixed(srcY + srch);
 	srcBottomRight.x = IntToxFixed(srcX + srcw);
 	srcBottomRight.y = IntToxFixed(srcY + srch);
+
 
 #if 0
 	ErrorF("dst: %d, %d, %d, %d\n", dstX, dstY, dstw, dsth);
