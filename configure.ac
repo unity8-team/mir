@@ -243,6 +243,12 @@ XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
 XORG_CHECK_LINUXDOC
 
+AC_MSG_NOTICE(
+[The atimisc sub-driver has been split out to xf86-video-mach64:]
+[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-mach64]
+[Please install that driver as well for mach64-based cards.]
+)
+
 AC_OUTPUT([
 	Makefile
 	src/Makefile
