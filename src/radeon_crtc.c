@@ -275,6 +275,10 @@ radeon_crtc_load_lut(xf86CrtcPtr crtc)
 	OUTPAL(i, radeon_crtc->lut_r[i], radeon_crtc->lut_g[i], radeon_crtc->lut_b[i]);
     }
 
+    if (IS_AVIVO_VARIANT) {
+	OUTREG(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
+    }
+
 }
 
 
