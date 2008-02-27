@@ -118,6 +118,7 @@ EXTRA_DIST = \
 	$(XMODE_SRCS) \
 	radeon_render.c \
 	radeon_accelfuncs.c \
+	radeon_textured_videofuncs.c \
 	\
 	ati.h \
 	ativersion.h \
