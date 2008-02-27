@@ -249,6 +249,12 @@ AC_MSG_NOTICE(
 [Please install that driver as well for mach64-based cards.]
 )
 
+AC_MSG_NOTICE(
+[The r128 sub-driver has been split out to xf86-video-r128:]
+[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-r128]
+[Please install that driver as well for rage128-based cards.]
+)
+
 AC_OUTPUT([
 	Makefile
 	src/Makefile
