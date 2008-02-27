@@ -122,58 +122,6 @@ CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 CFLAGS="$save_CFLAGS"
 
-# Note that this is sort of inverted from drivers/ati/Imakefile in
-# the monolith.  We test for foo, not for !foo (i.e. ATMISC_CPIO, not
-# ATIMISC_AVOID_CPIO), but the defines are negative.  So beware.  Oh yeah,
-# TV_OUT is the special case where it's a positive define, not AVOID_TV_OUT.
-
-# AVOID_CPIO: Only x86, amd64, and alpha are cool with CPIO.  It needs a
-# little-endian, undirected PIO space of at least 64kB.
-# AVOID_DGA: ???
-# ATI_TV_OUT: This only works on x86.
-
-ATIMISC_CPIO=no
-ATIMISC_DGA=yes
-ATIMISC_TV_OUT=no
-
-case $host_cpu in
-  i*86)
-    ATIMISC_TV_OUT=yes
-    ATIMISC_CPIO=yes
-    ;;
-  x86_64|amd64|alpha|ia64)
-    ATIMISC_CPIO=yes
-    ;;
-  sparc)
-    ATIMISC_DGA=no
-    ;;
-  *)
-    ;;
-esac
-
-AC_MSG_CHECKING([whether to include PIO support])
-AM_CONDITIONAL(ATIMISC_CPIO, test "x$ATIMISC_CPIO" = xyes)
-if test "x$ATIMISC_CPIO" = xyes; then
-	AC_MSG_RESULT([yes, PIO])
-else
-	AC_DEFINE(AVOID_CPIO, 1, [Avoid PIO and use MMIO for atimisc.])
-	AC_MSG_RESULT([no, MMIO])
-fi
-
-AC_MSG_CHECKING([whether to include DGA support])
-AC_MSG_RESULT([$ATIMISC_DGA])
-AM_CONDITIONAL(ATIMISC_DGA, test "x$ATIMISC_DGA" = xyes)
-if ! test "x$ATIMISC_DGA" = xyes; then
-	AC_DEFINE(AVOID_DGA, 1, [Do not build DGA support.])
-fi
-
-AC_MSG_CHECKING([whether to include TV Out support])
-AC_MSG_RESULT([$ATIMISC_TV_OUT])
-AM_CONDITIONAL(ATIMISC_TV_OUT, test "x$ATIMISC_TV_OUT" = xyes)
-if test "x$ATIMISC_TV_OUT" = xyes; then
-	AC_DEFINE(TV_OUT, 1, [Build TV-Out support for atimisc.])
-fi
-
 AC_DEFINE(USE_XAA, 1, [Build support for XAA])
 
 # Properly handle EXA.
