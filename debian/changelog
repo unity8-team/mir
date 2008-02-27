@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu2) hardy; urgency=low
+
+  * Don't build the intel_reg_dumper tool, since libpciaccess is in
+    universe.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Wed, 27 Feb 2008 00:04:15 +0200
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu1) hardy; urgency=low
 
   * Merge from debian unstable (LP: #189868, #195424), remaining

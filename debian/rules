@@ -64,8 +64,8 @@ install: build
 	dh_installdirs
 
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-	install -d $(CURDIR)/debian/tmp/usr/bin
-	install -m 755 obj-$(DEB_BUILD_GNU_TYPE)/src/reg_dumper/intel_reg_dumper $(CURDIR)/debian/tmp/usr/bin/
+#	install -d $(CURDIR)/debian/tmp/usr/bin
+#	install -m 755 obj-$(DEB_BUILD_GNU_TYPE)/src/reg_dumper/intel_reg_dumper $(CURDIR)/debian/tmp/usr/bin/
 	rm -f $(CURDIR)/debian/tmp/usr/lib/xorg/modules/drivers/i810_drv.so \
 	      $(CURDIR)/debian/tmp/usr/share/man/man4/i810.4
 
