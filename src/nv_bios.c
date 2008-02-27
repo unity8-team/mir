@@ -2789,11 +2789,10 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, boo
 	nv32_wr(pScrn, tmds_ctrl, 0x04);
 	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
 		nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
-	else {
+	else
 		/* I have encountered no dvi (dual-link or not) that sets to anything else. */
 		/* Does this change beyond the 165 MHz boundary? */
 		nv32_wr(pScrn, tmds_ctrl2 + 4, 0x0);
-	}
 	nv32_wr(pScrn, tmds_ctrl2, 0x04);
 }
 
@@ -2803,7 +2802,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	bios_t *bios = &pNv->VBIOS;
 	init_exec_t iexec = {true, false};
 
-	uint8_t sub = bios->data[bios->fp.xlated_entry + script];
+	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & 4 ? 1 : 0);
 	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 	bool power_off_for_reset;
 	uint16_t off_on_delay;
@@ -2811,10 +2810,8 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return;
 
-	if (script == LVDS_INIT && bios->data[scriptofs] != 'q') {
+	if (script == LVDS_INIT && bios->data[scriptofs] != 'q')
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LVDS init script not stubbed\n");
-		return;
-	}
 
 	power_off_for_reset = bios->data[bios->fp.xlated_entry] & 1;
 	off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]);
@@ -2925,7 +2922,7 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 			int fallbackcmpval = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 4 : 1;
 
-			if (pxclk >= bios->fp.duallink_transition_clk) {
+			if (bios->fp.dual_link) {
 				clktableptr += 2;
 				fallbackcmpval *= 2;
 			}
@@ -3128,6 +3125,14 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	case 0x0a:	/* pre NV40 */
 		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + bios->fp.strapping];
 
+		/* adjust some things if straps are invalid (implies the panel has EDID) */
+		if (bios->fp.strapping == 0xf) {
+			bios->data[fpp->fpxlatetableptr + 0xf] = 0xf;
+			lvdsmanufacturerindex = bios->fp.if_is_24bit ? 2 : 0;
+			/* nvidia set the high nibble of (cr57=f, cr58) to
+			 * lvdsmanufacturerindex in this case; we don't */
+		}
+
 		headerlen = 2;
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 
@@ -3154,7 +3159,9 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	case 0x0a:
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
+		bios->fp.link_c_increment = bios->data[lvdsofs] & 8;
 		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
+		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 		break;
 	case 0x30:
 		/* My money would be on there being a 24 bit interface bit in this table,
@@ -3169,11 +3176,34 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.reset_after_pclk_change = true;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
-		/* BMP likely has something like this, but I have no dump to point to where it is */
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
 		fpp->xlatwidth = recordlen;
 		break;
+	}
+}
+
+void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk)
+{
+	/* Due to the stage at which DDC is used, the EDID res for a panel isn't
+	 * known at init, so the dual link flag (which tests against a
+	 * transition frequency) cannot be set until later
+	 *
+	 * Here the flag and the LVDS script set pointer are updated
+	 *
+	 * This function should *not* be called in the case where the panel
+	 * config is set by the straps
+	 */
+
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+
+	if (bios->fp.dual_link)	/* already set and done */
+		return;
+
+	if (pxclk >= bios->fp.duallink_transition_clk) {
+		bios->fp.dual_link = true;
+		/* move to (entry + 1) */
+		bios->fp.xlated_entry += bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 	}
 }
 
@@ -3850,9 +3880,12 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 					    * certainly exist by 0x24 though */
 		/* length not exact: this is long enough to get lvds members */
 		bmplength = 123;
-	else
+	else if (bmp_version_minor < 0x27)
 		/* length not exact: this is long enough to get pll limit member */
 		bmplength = 144;
+	else
+		/* length not exact: this is long enough to get dual link transition clock */
+		bmplength = 158;
 
 	/* checksum */
 	if (nv_cksum(bios->data + offset, 8)) {
@@ -3899,9 +3932,12 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		initbitentry.offset = offset + 75;
 		parse_bit_init_tbl_entry(pScrn, bios, &initbitentry);
 	}
-	if (bmplength > 92) {
+	if (bmplength > 94) {
 		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 89]));
 		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 91]));
+		/* it seems the old style lvds script pointer (which I've not observed in use) gets
+		 * reused as the 18/24 bit panel interface default for EDID equipped panels */
+		bios->fp.if_is_24bit = bios->data[offset + 95] & 1;
 	}
 	if (bmplength > 108) {
 		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 105])));
@@ -3914,6 +3950,9 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	}
 	if (bmplength > 143)
 		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 142])));
+
+	if (bmplength > 157)
+		bios->fp.duallink_transition_clk = le16_to_cpu(*((uint16_t *)&bios->data[offset + 156])) * 10;
 
 	/* want pll_limit_tbl_ptr set (if available) before init is run */
 	if (bmp_version_major < 5 || bmp_version_minor < 0x10) {
@@ -3931,8 +3970,6 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
 	parse_fp_mode_table(pScrn, bios, &fpp);
-	/* I've never seen a valid LVDS_INIT script, so we'll do a test for it here */
-	call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 }
 
 static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)

@@ -82,6 +82,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk);
 int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM, int *log2P);
 int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
 bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
+void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk);
 
 /* nv_crtc.c */
 DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);

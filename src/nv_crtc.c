@@ -1350,8 +1350,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	else
 		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE;
 
-	Bool lvds_use_straps = pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode;
-	if (is_lvds && ((lvds_use_straps && pNv->VBIOS.fp.dual_link) || (!lvds_use_straps && adjusted_mode->Clock >= pNv->VBIOS.fp.duallink_transition_clk)))
+	if (is_lvds && pNv->VBIOS.fp.dual_link)
 		regp->fp_control[nv_crtc->head] |= (8 << 28);
 
 	if (is_fp) {

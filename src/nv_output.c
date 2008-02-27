@@ -793,6 +793,7 @@ nv_analog_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 {
+	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr ddc_modes;
 
@@ -841,6 +842,9 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			}
 		}
 	}
+
+	if (nv_output->type == OUTPUT_LVDS)
+		setup_edid_dual_link_lvds(pScrn, nv_output->native_mode->Clock);
 
 	return ddc_modes;
 }

@@ -305,10 +305,11 @@ typedef struct {
 		uint8_t *edid;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t xlated_entry;
-		Bool reset_after_pclk_change;
-		Bool dual_link;
-		Bool if_is_24bit;
-		Bool BITbit1;
+		bool reset_after_pclk_change;
+		bool dual_link;
+		bool link_c_increment;
+		bool if_is_24bit;
+		bool BITbit1;
 		int duallink_transition_clk;
 		/* lower nibble stores PEXTDEV_BOOT_0 strap
 		 * upper nibble stores xlated display strap */
