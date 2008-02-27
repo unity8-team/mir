@@ -175,6 +175,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	break;
     }
 
+#ifdef XF86DRI
+   if (info->directRenderingEnabled && info->DMAForXv)
+       /* The upload blit only supports multiples of 64 bytes */
+       dstPitch = (dstPitch + 63) & ~63;
+   else
+#endif
+       dstPitch = (dstPitch + 15) & ~15;
+
     if (pPriv->video_memory != NULL && size != pPriv->size) {
 	RADEONFreeMemory(pScrn, pPriv->video_memory);
 	pPriv->video_memory = NULL;
@@ -210,8 +218,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	return BadAlloc;
     }
 
+    /* copy data */
+    top = y1 >> 16;
+    left = (x1 >> 16) & ~1;
+    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
+
     pPriv->src_offset = pPriv->video_offset + info->fbLocation;
-    pPriv->src_addr = (CARD8 *)(info->FB + pPriv->video_offset);
+    pPriv->src_addr = (CARD8 *)(info->FB + pPriv->video_offset + (top * dstPitch));
     pPriv->src_pitch = dstPitch;
     pPriv->size = size;
     pPriv->pDraw = pDraw;
@@ -222,18 +235,12 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     ErrorF("src_pitch: 0x%x\n", pPriv->src_pitch);
 #endif
 
-    /* copy data */
-    top = y1 >> 16;
-    left = (x1 >> 16) & ~1;
-    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
-
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
 	top &= ~1;
 	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 	s2offset = srcPitch * height;
-	srcPitch2 = ((width >> 1) + 3) & ~3;
 	s3offset = (srcPitch2 * (height >> 1)) + s2offset;
 	top &= ~1;
 	pPriv->src_addr += left << 1;
