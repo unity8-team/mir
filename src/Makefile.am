@@ -27,7 +27,6 @@
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 if DRI
-R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
@@ -76,13 +75,6 @@ ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
 	ati.c atimodule.c
 
-r128_drv_la_LTLIBRARIES = r128_drv.la
-r128_drv_la_LDFLAGS = -module -avoid-version
-r128_drv_ladir = @moduledir@/drivers
-r128_drv_la_SOURCES = \
-	r128_accel.c r128_cursor.c r128_dga.c r128_driver.c \
-	r128_video.c r128_misc.c r128_probe.c $(R128_DRI_SRCS)
-
 radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
@@ -130,14 +122,6 @@ EXTRA_DIST = \
 	ati.h \
 	ativersion.h \
 	generic_bus.h \
-	r128_common.h \
-	r128_dri.h \
-	r128_dripriv.h \
-	r128.h \
-	r128_probe.h \
-	r128_reg.h \
-	r128_sarea.h \
-	r128_version.h \
 	radeon_common.h \
 	radeon_commonfuncs.c \
 	radeon_dri.h \

@@ -21,13 +21,7 @@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src man
 
-if BUILD_LINUXDOC
-README.r128: README.r128.sgml
-	$(MAKE_TEXT) README.r128.sgml && mv README.r128.txt README.r128
-
-endif
-
-EXTRA_DIST = README.r128 README.r128.sgml ChangeLog
+EXTRA_DIST = ChangeLog
 CLEANFILES = ChangeLog
 
 .PHONY: ChangeLog
