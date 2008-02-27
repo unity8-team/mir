@@ -3840,6 +3840,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	pNv->dcb_table.i2c_read[1] = 0x36;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
+	bios->fp.duallink_transition_clk = 90000;
 
 	bmp_version_major = bios->data[offset + 5];
 	bmp_version_minor = bios->data[offset + 6];
