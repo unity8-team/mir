@@ -261,7 +261,11 @@ NV40EXATexture(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict, int unit)
 		    NV40TCL_TEX_FORMAT_DMA0, NV40TCL_TEX_FORMAT_DMA1);
 	if (pPict->repeat) {
 		switch(pPict->repeatType) {
-			/* At the moment i do not know if we can support RepeatPad. */
+			case RepeatPad:
+				OUT_RING (NV40TCL_TEX_WRAP_S_CLAMP | 
+				NV40TCL_TEX_WRAP_T_CLAMP |
+				NV40TCL_TEX_WRAP_R_CLAMP);
+				break;
 			case RepeatReflect:
 				OUT_RING  (NV40TCL_TEX_WRAP_S_MIRRORED_REPEAT |
 				NV40TCL_TEX_WRAP_T_MIRRORED_REPEAT |
@@ -343,9 +347,6 @@ NV40EXACheckCompositeTexture(PicturePtr pPict)
 	if (pPict->filter != PictFilterNearest &&
 	    pPict->filter != PictFilterBilinear)
 		FALLBACK("filter 0x%x not supported\n", pPict->filter);
-
-	if (pPict->repeat && pPict->repeatType == RepeatPad)
-		FALLBACK("repeat 0x%x not supported\n", pPict->repeatType);
 
 	return TRUE;
 }
