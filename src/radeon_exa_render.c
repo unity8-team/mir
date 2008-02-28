@@ -338,40 +338,75 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 }
 
 #ifdef ONLY_ONCE
+
+static PixmapPtr
+RADEONGetDrawablePixmap(DrawablePtr pDrawable)
+{
+    if (pDrawable->type == DRAWABLE_WINDOW)
+	return pDrawable->pScreen->GetWindowPixmap((WindowPtr)pDrawable);
+    else
+	return (PixmapPtr)pDrawable;
+}	
+
 static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 			       PicturePtr pMaskPicture, PicturePtr pDstPicture)
 {
+    PixmapPtr pSrcPixmap, pDstPixmap;
     CARD32 tmp1;
 
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
 
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
-	/* Check if it's component alpha that relies on a source alpha and on
-	 * the source value.  We can only get one of those into the single
-	 * source value that we get to blend with.
-	 */
-	if (RadeonBlendOp[op].src_alpha &&
-	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
-	     RADEON_SRC_BLEND_GL_ZERO)
-	{
-	    RADEON_FALLBACK(("Component alpha not supported with source "
-			    "alpha and source value blending.\n"));
-	}
+    if (!pSrcPicture->pDrawable)
+	return FALSE;
+
+    pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
+
+    if (pSrcPixmap->drawable.width >= 2048 ||
+	pSrcPixmap->drawable.height >= 2048) {
+	RADEON_FALLBACK(("Source w/h too large (%d,%d).\n",
+			 pSrcPixmap->drawable.width,
+			 pSrcPixmap->drawable.height));
     }
 
-    if (pDstPicture->pDrawable->width >= (1 << 11) ||
-	pDstPicture->pDrawable->height >= (1 << 11))
-    {
+    pDstPixmap = RADEONGetDrawablePixmap(pDstPicture->pDrawable);
+
+    if (pDstPixmap->drawable.width >= 2048 ||
+	pDstPixmap->drawable.height >= 2048) {
 	RADEON_FALLBACK(("Dest w/h too large (%d,%d).\n",
-			pDstPicture->pDrawable->width,
-			pDstPicture->pDrawable->height));
+			 pDstPixmap->drawable.width,
+			 pDstPixmap->drawable.height));
+    }
+
+    if (pMaskPicture) {
+	PixmapPtr pMaskPixmap = RADEONGetDrawablePixmap(pMaskPicture->pDrawable);
+
+	if (pMaskPixmap->drawable.width >= 2048 ||
+	    pMaskPixmap->drawable.height >= 2048) {
+	    RADEON_FALLBACK(("Mask w/h too large (%d,%d).\n",
+			     pMaskPixmap->drawable.width,
+			     pMaskPixmap->drawable.height));
+	}
+
+	if (pMaskPicture->componentAlpha) {
+	    /* Check if it's component alpha that relies on a source alpha and
+	     * on the source value.  We can only get one of those into the
+	     * single source value that we get to blend with.
+	     */
+	    if (RadeonBlendOp[op].src_alpha &&
+		(RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+		RADEON_SRC_BLEND_GL_ZERO) {
+		RADEON_FALLBACK(("Component alpha not supported with source "
+				 "alpha and source value blending.\n"));
+	    }
+	}
+
+	if (!R100CheckCompositeTexture(pMaskPicture, 1))
+	    return FALSE;
     }
 
     if (!R100CheckCompositeTexture(pSrcPicture, 0))
-	return FALSE;
-    if (pMaskPicture != NULL && !R100CheckCompositeTexture(pMaskPicture, 1))
 	return FALSE;
 
     if (!RADEONGetDestFormat(pDstPicture, &tmp1))
@@ -604,31 +639,60 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			       PicturePtr pDstPicture)
 {
+    PixmapPtr pSrcPixmap, pDstPixmap;
     CARD32 tmp1;
 
     TRACE;
 
-    /* Check for unsupported compositing operations. */
-    if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
-	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
+    if (!pSrcPicture->pDrawable)
+	return FALSE;
 
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
-	/* Check if it's component alpha that relies on a source alpha and on
-	 * the source value.  We can only get one of those into the single
-	 * source value that we get to blend with.
-	 */
-	if (RadeonBlendOp[op].src_alpha &&
-	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
-	     RADEON_SRC_BLEND_GL_ZERO)
-	{
-	    RADEON_FALLBACK(("Component alpha not supported with source "
-			    "alpha and source value blending.\n"));
+    pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
+
+    if (pSrcPixmap->drawable.width >= 2048 ||
+	pSrcPixmap->drawable.height >= 2048) {
+	RADEON_FALLBACK(("Source w/h too large (%d,%d).\n",
+			 pSrcPixmap->drawable.width,
+			 pSrcPixmap->drawable.height));
+    }
+
+    pDstPixmap = RADEONGetDrawablePixmap(pDstPicture->pDrawable);
+
+    if (pDstPixmap->drawable.width >= 2048 ||
+	pDstPixmap->drawable.height >= 2048) {
+	RADEON_FALLBACK(("Dest w/h too large (%d,%d).\n",
+			 pDstPixmap->drawable.width,
+			 pDstPixmap->drawable.height));
+    }
+
+    if (pMaskPicture) {
+	PixmapPtr pMaskPixmap = RADEONGetDrawablePixmap(pMaskPicture->pDrawable);
+
+	if (pMaskPixmap->drawable.width >= 2048 ||
+	    pMaskPixmap->drawable.height >= 2048) {
+	    RADEON_FALLBACK(("Mask w/h too large (%d,%d).\n",
+			     pMaskPixmap->drawable.width,
+			     pMaskPixmap->drawable.height));
 	}
+
+	if (pMaskPicture->componentAlpha) {
+	    /* Check if it's component alpha that relies on a source alpha and
+	     * on the source value.  We can only get one of those into the
+	     * single source value that we get to blend with.
+	     */
+	    if (RadeonBlendOp[op].src_alpha &&
+		(RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+		RADEON_SRC_BLEND_GL_ZERO) {
+		RADEON_FALLBACK(("Component alpha not supported with source "
+				 "alpha and source value blending.\n"));
+	    }
+	}
+
+	if (!R200CheckCompositeTexture(pMaskPicture, 1))
+	    return FALSE;
     }
 
     if (!R200CheckCompositeTexture(pSrcPicture, 0))
-	return FALSE;
-    if (pMaskPicture != NULL && !R200CheckCompositeTexture(pMaskPicture, 1))
 	return FALSE;
 
     if (!RADEONGetDestFormat(pDstPicture, &tmp1))
@@ -903,24 +967,54 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	RADEON_FALLBACK(("src not screen\n"));
 #endif
 
+    pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
-    if (pMaskPicture != NULL && pMaskPicture->componentAlpha) {
-	/* Check if it's component alpha that relies on a source alpha and on
-	 * the source value.  We can only get one of those into the single
-	 * source value that we get to blend with.
-	 */
-	if (RadeonBlendOp[op].src_alpha &&
-	    (RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
-	     RADEON_SRC_BLEND_GL_ZERO)
-	{
-	    RADEON_FALLBACK(("Component alpha not supported with source "
-			    "alpha and source value blending.\n"));
+    /* XXX: R(V)5xx may have higher limits
+     */
+    if (pSrcPixmap->drawable.width >= 2048 ||
+	pSrcPixmap->drawable.height >= 2048) {
+	RADEON_FALLBACK(("Source w/h too large (%d,%d).\n",
+			 pSrcPixmap->drawable.width,
+			 pSrcPixmap->drawable.height));
+    }
+
+    pDstPixmap = RADEONGetDrawablePixmap(pDstPicture->pDrawable);
+
+    if (pDstPixmap->drawable.width >= 2560 ||
+	pDstPixmap->drawable.height >= 2560) {
+	RADEON_FALLBACK(("Dest w/h too large (%d,%d).\n",
+			 pDstPixmap->drawable.width,
+			 pDstPixmap->drawable.height));
+    }
+
+    if (pMaskPicture) {
+	PixmapPtr pMaskPixmap = RADEONGetDrawablePixmap(pMaskPicture->pDrawable);
+
+	if (pMaskPixmap->drawable.width >= 2048 ||
+	    pMaskPixmap->drawable.height >= 2048) {
+	    RADEON_FALLBACK(("Mask w/h too large (%d,%d).\n",
+			     pMaskPixmap->drawable.width,
+			     pMaskPixmap->drawable.height));
 	}
+
+	if (pMaskPicture->componentAlpha) {
+	    /* Check if it's component alpha that relies on a source alpha and
+	     * on the source value.  We can only get one of those into the
+	     * single source value that we get to blend with.
+	     */
+	    if (RadeonBlendOp[op].src_alpha &&
+		(RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK) !=
+		RADEON_SRC_BLEND_GL_ZERO) {
+		RADEON_FALLBACK(("Component alpha not supported with source "
+				 "alpha and source value blending.\n"));
+	    }
+	}
+
+	if (!R300CheckCompositeTexture(pMaskPicture, 1))
+	    return FALSE;
     }
 
     if (!R300CheckCompositeTexture(pSrcPicture, 0))
-	return FALSE;
-    if (pMaskPicture != NULL && !R300CheckCompositeTexture(pMaskPicture, 1))
 	return FALSE;
 
     if (!R300GetDestFormat(pDstPicture, &tmp1))

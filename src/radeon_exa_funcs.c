@@ -572,11 +572,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
 
     info->exa->maxPitchBytes = 16320;
-    info->exa->maxX = info->exa->Composite ? 2048 : 8192;
+    info->exa->maxX = 8192;
 #else
-    info->exa->maxX = info->exa->Composite ? 2048 : 16320 / 4;
+    info->exa->maxX = 16320 / 4;
 #endif
-    info->exa->maxY = info->exa->Composite ? 2048 : 8192;
+    info->exa->maxY = 8192;
 
     RADEONEngineInit(pScrn);
 
