@@ -4309,10 +4309,10 @@
 #       define R300_ALU_RGB_SEL_C(x)                    (x << 14)
 #       define R300_ALU_RGB_MOD_C(x)                    (x << 19)
 #       define R300_ALU_RGB_SRCP_OP(x)                  (x << 21)
-#       define R300_ALU_RGB_SRCP_OP0                    0 /* 1.0 - 2.0 * RGB0 */
-#       define R300_ALU_RGB_SRCP_OP1                    1 /* RGB1 - RGB0 */
-#       define R300_ALU_RGB_SRCP_OP2                    2 /* RGB1 + RGB0 */
-#       define R300_ALU_RGB_SRCP_OP3                    3 /* 1.0 - RGB0 */
+#       define R300_ALU_RGB_SRCP_OP_1_MINUS_2RGB0	0
+#       define R300_ALU_RGB_SRCP_OP_RGB1_MINUS_RGB0	1
+#       define R300_ALU_RGB_SRCP_OP_RGB1_PLUS_RGB0	2
+#       define R300_ALU_RGB_SRCP_OP_1_MINUS_RGB0	3
 #       define R300_ALU_RGB_OP(x)                       (x << 23)
 #       define R300_ALU_RGB_OP_MAD                      0
 #       define R300_ALU_RGB_OP_DP3                      1
@@ -4383,10 +4383,10 @@
 #       define R300_ALU_ALPHA_SEL_C(x)                  (x << 14)
 #       define R300_ALU_ALPHA_MOD_C(x)                  (x << 19)
 #       define R300_ALU_ALPHA_SRCP_OP(x)                (x << 21)
-#       define R300_ALU_ALPHA_SRCP_OP0                  0 /* 1.0 - 2.0 * A0 */
-#       define R300_ALU_ALPHA_SRCP_OP1                  1 /* A1 - A0 */
-#       define R300_ALU_ALPHA_SRCP_OP2                  2 /* A1 + A0 */
-#       define R300_ALU_ALPHA_SRCP_OP3                  3 /* 1.0 - A0 */
+#       define R300_ALU_ALPHA_SRCP_OP_1_MINUS_2RGB0	0
+#       define R300_ALU_ALPHA_SRCP_OP_RGB1_MINUS_RGB0	1
+#       define R300_ALU_ALPHA_SRCP_OP_RGB1_PLUS_RGB0	2
+#       define R300_ALU_ALPHA_SRCP_OP_1_MINUS_RGB0	3
 #       define R300_ALU_ALPHA_OP(x)                     (x << 23)
 #       define R300_ALU_ALPHA_OP_MAD                    0
 #       define R300_ALU_ALPHA_OP_DP                     1
@@ -4560,7 +4560,7 @@
 #   define R500_ALPHA_SRCP_OP_1_MINUS_2A0		(0 << 30)
 #   define R500_ALPHA_SRCP_OP_A1_MINUS_A0		(1 << 30)
 #   define R500_ALPHA_SRCP_OP_A1_PLUS_A0		(2 << 30)
-#   define R500_ALPHA_SRCP_OP_1_PLUS_A0			(3 << 30)
+#   define R500_ALPHA_SRCP_OP_1_MINUS_A0		(3 << 30)
 #define R500_US_ALU_RGBA_INST_0				0xb000
 #   define R500_ALU_RGBA_OP_MAD				(0 << 0)
 #   define R500_ALU_RGBA_OP_DP3				(1 << 0)
@@ -4713,7 +4713,7 @@
 #   define R500_RGB_SRCP_OP_1_MINUS_2RGB0		(0 << 30)
 #   define R500_RGB_SRCP_OP_RGB1_MINUS_RGB0		(1 << 30)
 #   define R500_RGB_SRCP_OP_RGB1_PLUS_RGB0		(2 << 30)
-#   define R500_RGB_SRCP_OP_1_PLUS_RGB0			(3 << 30)
+#   define R500_RGB_SRCP_OP_1_MINUS_RGB0		(3 << 30)
 #define R500_US_CMN_INST_0				0xb800
 #   define R500_INST_TYPE_ALU				(0 << 0)
 #   define R500_INST_TYPE_OUT				(1 << 0)
