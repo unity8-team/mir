@@ -3555,6 +3555,8 @@
 #define AVIVO_D2SCL_SCALER_ENABLE               0x6d90
 #define AVIVO_D2SCL_SCALER_TAP_CONTROL	 	0x6d94
 
+#define AVIVO_DDIA_BIT_DEPTH_CONTROL				0x7214
+
 #define AVIVO_DACA_ENABLE					0x7800
 #	define AVIVO_DAC_ENABLE				(1 << 0)
 #define AVIVO_DACA_SOURCE_SELECT				0x7804
@@ -3744,6 +3746,8 @@
 #	define AVIVO_LVDS_BACKLIGHT_CNTL_EN			(1 << 0)
 #	define AVIVO_LVDS_BACKLIGHT_LEVEL_MASK		0x0000ff00
 #	define AVIVO_LVDS_BACKLIGHT_LEVEL_SHIFT		8
+
+#define AVIVO_DVOA_BIT_DEPTH_CONTROL			0x7988
 
 #define AVIVO_GPIO_0                        0x7e30
 #define AVIVO_GPIO_1                        0x7e40

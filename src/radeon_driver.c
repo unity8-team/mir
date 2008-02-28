@@ -4177,20 +4177,29 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->tmds2.data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-        state->tmds2.transmitter_enable = INREG(R600_LVTMA_TRANSMITTER_ENABLE);
-        state->tmds2.transmitter_cntl = INREG(R600_LVTMA_TRANSMITTER_CONTROL);
-        state->lvtma_pwrseq_cntl = INREG(R600_LVTMA_PWRSEQ_CNTL);
-        state->lvtma_pwrseq_state = INREG(R600_LVTMA_PWRSEQ_STATE);
+	state->tmds2.transmitter_enable = INREG(R600_LVTMA_TRANSMITTER_ENABLE);
+	state->tmds2.transmitter_cntl = INREG(R600_LVTMA_TRANSMITTER_CONTROL);
+	state->lvtma_pwrseq_cntl = INREG(R600_LVTMA_PWRSEQ_CNTL);
+	state->lvtma_pwrseq_state = INREG(R600_LVTMA_PWRSEQ_STATE);
     } else {
-        state->tmds2.transmitter_enable = INREG(R500_LVTMA_TRANSMITTER_ENABLE);
-        state->tmds2.transmitter_cntl = INREG(R500_LVTMA_TRANSMITTER_CONTROL);
-        state->lvtma_pwrseq_cntl = INREG(R500_LVTMA_PWRSEQ_CNTL);
-        state->lvtma_pwrseq_state = INREG(R500_LVTMA_PWRSEQ_STATE);
+	state->tmds2.transmitter_enable = INREG(R500_LVTMA_TRANSMITTER_ENABLE);
+	state->tmds2.transmitter_cntl = INREG(R500_LVTMA_TRANSMITTER_CONTROL);
+	state->lvtma_pwrseq_cntl = INREG(R500_LVTMA_PWRSEQ_CNTL);
+	state->lvtma_pwrseq_state = INREG(R500_LVTMA_PWRSEQ_STATE);
+    }
+
+    if (info->IsIGP) {
+	int i, j = 0;
+	/* save DDIA regs */
+	for (i = 0x7200; i <= 0x7290; i += 4) {
+	    state->ddia[j] = INREG(i);
+	    j++;
+	}
     }
 
     if (state->crtc1.control & AVIVO_CRTC_EN)
 	info->crtc_on = TRUE;
-    
+
     if (state->crtc2.control & AVIVO_CRTC_EN)
 	info->crtc2_on = TRUE;
 
@@ -4343,12 +4352,20 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
         OUTREG(R500_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
     }
 
+    if (info->IsIGP) {
+	int i, j = 0;
+	for (i = 0x7200; i <= 0x7290; i =+ 4) {
+	    OUTREG(i, state->ddia[j]);
+	    j++;
+	}
+    }
+
     OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 }
 
 void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)
-{    
+{
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &restore->avivo;

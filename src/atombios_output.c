@@ -382,6 +382,33 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
 }
 
+static void
+dfp_disable_dither(xf86OutputPtr output, int device)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    switch (device) {
+    case ATOM_DEVICE_DFP1_SUPPORT:
+	OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, 0); /* TMDSA */
+	break;
+    case ATOM_DEVICE_DFP2_SUPPORT:
+	if (info->IsIGP)
+	    OUTREG(AVIVO_DDIA_BIT_DEPTH_CONTROL, 0); /* DDIA */
+	else
+	    OUTREG(AVIVO_DVOA_BIT_DEPTH_CONTROL, 0); /* DVO */
+	break;
+    case ATOM_DEVICE_LCD1_SUPPORT:
+    case ATOM_DEVICE_DFP3_SUPPORT:
+	OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, 0); /* LVTMA */
+	break;
+    default:
+	break;
+    }
+
+}
+
 static AtomBiosResult
 atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
 {
@@ -579,19 +606,27 @@ atombios_output_mode_set(xf86OutputPtr output,
 	       atombios_output_dac2_setup(output, adjusted_mode);
        }
     } else if (radeon_output->MonType == MT_DFP) {
-       if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
-	   atombios_output_tmds1_setup(output, adjusted_mode);
-       else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
-	   if (info->IsIGP)
-	       atombios_ddia_setup(output, adjusted_mode);
-	   else
-	       atombios_external_tmds_setup(output, adjusted_mode);
-       } else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
-	   atombios_output_tmds2_setup(output, adjusted_mode);
+	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT) {
+	    atombios_output_tmds1_setup(output, adjusted_mode);
+	    dfp_disable_dither(output, ATOM_DEVICE_DFP1_SUPPORT);
+	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
+	    if (info->IsIGP)
+		atombios_ddia_setup(output, adjusted_mode);
+	    else
+		atombios_external_tmds_setup(output, adjusted_mode);
+	    dfp_disable_dither(output, ATOM_DEVICE_DFP2_SUPPORT);
+	} else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
+	    atombios_output_tmds2_setup(output, adjusted_mode);
+	    dfp_disable_dither(output, ATOM_DEVICE_DFP3_SUPPORT);
+	}
     } else if (radeon_output->MonType == MT_LCD) {
-	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
 	    atombios_output_lvds_setup(output, adjusted_mode);
-    } else if (OUTPUT_IS_TV || (radeon_output->MonType == MT_CV)) {
+	    dfp_disable_dither(output, ATOM_DEVICE_LCD1_SUPPORT);
+	}
+    } else if ((radeon_output->MonType == MT_CTV) ||
+	       (radeon_output->MonType == MT_STV) ||
+	       (radeon_output->MonType == MT_CV)) {
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    atombios_output_dac1_setup(output, adjusted_mode);
 	else if (radeon_output->DACType == DAC_TVDAC)

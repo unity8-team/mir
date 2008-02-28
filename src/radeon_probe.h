@@ -361,6 +361,8 @@ struct avivo_state
     struct avivo_dig_state tmds1;
     struct avivo_dig_state tmds2;
 
+    /* DDIA block on RS6xx chips */
+    CARD32 ddia[36];
 };
 
 /*
