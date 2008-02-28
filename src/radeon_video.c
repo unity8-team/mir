@@ -2159,6 +2159,13 @@ RADEONCopyData(
   unsigned int bpp
 ){
     RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    /* Get the byte-swapping right for big endian systems */
+    if ( bpp == 2 ) {
+	w *= 2;
+	bpp = 1;
+    }
+
 #ifdef XF86DRI
 
     if ( info->directRenderingEnabled && info->DMAForXv )
@@ -2167,13 +2174,6 @@ RADEONCopyData(
 	CARD32 bufPitch, dstPitchOff;
 	int x, y;
 	unsigned int hpass;
-
-	/* Get the byte-swapping right for big endian systems */
-	if ( bpp == 2 )
-	{
-	    w *= 2;
-	    bpp = 1;
-	}
 
 	RADEONHostDataParams( pScrn, dst, dstPitch, bpp, &dstPitchOff, &x, &y );
 
