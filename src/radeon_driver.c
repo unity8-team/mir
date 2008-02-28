@@ -4354,7 +4354,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     if (info->IsIGP) {
 	int i, j = 0;
-	for (i = 0x7200; i <= 0x7290; i =+ 4) {
+	for (i = 0x7200; i <= 0x7290; i += 4) {
 	    OUTREG(i, state->ddia[j]);
 	    j++;
 	}
