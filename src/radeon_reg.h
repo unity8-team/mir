@@ -4227,14 +4227,187 @@
 #       define R300_TEX_CODE_OFFSET(x)                  (x << 13)
 #       define R300_TEX_CODE_SIZE(x)                    (x << 18)
 #define R300_US_CODE_ADDR_0				0x4610
+#       define R300_ALU_START(x)                        (x << 0)
+#       define R300_ALU_SIZE(x)                         (x << 6)
+#       define R300_TEX_START(x)                        (x << 12)
+#       define R300_TEX_SIZE(x)                         (x << 17)
+#       define R300_RGBA_OUT                            (1 << 22)
+#       define R300_W_OUT                               (1 << 23)
 #define R300_US_CODE_ADDR_1				0x4614
 #define R300_US_CODE_ADDR_2				0x4618
 #define R300_US_CODE_ADDR_3				0x461c
 #define R300_US_TEX_INST_0				0x4620
+#       define R300_TEX_SRC_ADDR(x)                     (x << 0)
+#       define R300_TEX_DST_ADDR(x)                     (x << 6)
+#       define R300_TEX_ID(x)                           (x << 11)
+#       define R300_TEX_INST(x)                         (x << 15)
+#       define R300_TEX_INST_NOP                        0
+#       define R300_TEX_INST_LD                         1
+#       define R300_TEX_INST_TEXKILL                    2
+#       define R300_TEX_INST_PROJ                       3
+#       define R300_TEX_INST_LODBIAS                    4
 #define R300_US_ALU_RGB_ADDR_0			        0x46c0
+/* for ADDR0-2, values 0-31 specify a location in the pixel stack,
+   values 32-63 specify a constant */
+#       define R300_ALU_RGB_ADDR0(x)                    (x << 0)
+#       define R300_ALU_RGB_ADDR1(x)                    (x << 6)
+#       define R300_ALU_RGB_ADDR2(x)                    (x << 12)
+/* ADDRD - where on the pixle stack the result of this instruction
+   will be written */
+#       define R300_ALU_RGB_ADDRD(x)                    (x << 18)
+#       define R300_ALU_RGB_WMASK(x)                    (x << 23)
+#       define R300_ALU_RGB_OMASK(x)                    (x << 26)
+#       define R300_ALU_RGB_MASK_NONE                   0
+#       define R300_ALU_RGB_MASK_R                      1
+#       define R300_ALU_RGB_MASK_G                      2
+#       define R300_ALU_RGB_MASK_B                      4
+#       define R300_ALU_RGB_TARGET_A                    (0 << 29)
+#       define R300_ALU_RGB_TARGET_B                    (1 << 29)
+#       define R300_ALU_RGB_TARGET_C                    (2 << 29)
+#       define R300_ALU_RGB_TARGET_D                    (3 << 29)
 #define R300_US_ALU_RGB_INST_0			        0x48c0
+#       define R300_ALU_RGB_SEL_A(x)                    (x << 0)
+#       define R300_ALU_RGB_SRC0_RGB                    0
+#       define R300_ALU_RGB_SRC0_RRR                    1
+#       define R300_ALU_RGB_SRC0_GGG                    2
+#       define R300_ALU_RGB_SRC0_BBB                    3
+#       define R300_ALU_RGB_SRC1_RGB                    4
+#       define R300_ALU_RGB_SRC1_RRR                    5
+#       define R300_ALU_RGB_SRC1_GGG                    6
+#       define R300_ALU_RGB_SRC1_BBB                    7
+#       define R300_ALU_RGB_SRC2_RGB                    8
+#       define R300_ALU_RGB_SRC2_RRR                    9
+#       define R300_ALU_RGB_SRC2_GGG                    10
+#       define R300_ALU_RGB_SRC2_BBB                    11
+#       define R300_ALU_RGB_SRC0_AAA                    12
+#       define R300_ALU_RGB_SRC1_AAA                    13
+#       define R300_ALU_RGB_SRC2_AAA                    14
+#       define R300_ALU_RGB_SRCP_RGB                    15
+#       define R300_ALU_RGB_SRCP_RRR                    16
+#       define R300_ALU_RGB_SRCP_GGG                    17
+#       define R300_ALU_RGB_SRCP_BBB                    18
+#       define R300_ALU_RGB_SRCP_AAA                    19
+#       define R300_ALU_RGB_0_0                         20
+#       define R300_ALU_RGB_1_0                         21
+#       define R300_ALU_RGB_0_5                         22
+#       define R300_ALU_RGB_SRC0_GBR                    23
+#       define R300_ALU_RGB_SRC1_GBR                    24
+#       define R300_ALU_RGB_SRC2_GBR                    25
+#       define R300_ALU_RGB_SRC0_BRG                    26
+#       define R300_ALU_RGB_SRC1_BRG                    27
+#       define R300_ALU_RGB_SRC2_BRG                    28
+#       define R300_ALU_RGB_SRC0_ABG                    29
+#       define R300_ALU_RGB_SRC1_ABG                    30
+#       define R300_ALU_RGB_SRC2_ABG                    31
+#       define R300_ALU_RGB_MOD_A(x)                    (x << 5)
+#       define R300_ALU_RGB_MOD_NOP                     0
+#       define R300_ALU_RGB_MOD_NEG                     1
+#       define R300_ALU_RGB_MOD_ABS                     2
+#       define R300_ALU_RGB_MOD_NAB                     3
+#       define R300_ALU_RGB_SEL_B(x)                    (x << 7)
+#       define R300_ALU_RGB_MOD_B(x)                    (x << 12)
+#       define R300_ALU_RGB_SEL_C(x)                    (x << 14)
+#       define R300_ALU_RGB_MOD_C(x)                    (x << 19)
+#       define R300_ALU_RGB_SRCP_OP(x)                  (x << 21)
+#       define R300_ALU_RGB_SRCP_OP0                    0 /* 1.0 - 2.0 * RGB0 */
+#       define R300_ALU_RGB_SRCP_OP1                    1 /* RGB1 - RGB0 */
+#       define R300_ALU_RGB_SRCP_OP2                    2 /* RGB1 + RGB0 */
+#       define R300_ALU_RGB_SRCP_OP3                    3 /* 1.0 - RGB0 */
+#       define R300_ALU_RGB_OP(x)                       (x << 23)
+#       define R300_ALU_RGB_OP_MAD                      0
+#       define R300_ALU_RGB_OP_DP3                      1
+#       define R300_ALU_RGB_OP_DP4                      2
+#       define R300_ALU_RGB_OP_D2A                      3
+#       define R300_ALU_RGB_OP_MIN                      4
+#       define R300_ALU_RGB_OP_MAX                      5
+#       define R300_ALU_RGB_OP_CND                      7
+#       define R300_ALU_RGB_OP_CMP                      8
+#       define R300_ALU_RGB_OP_FRC                      9
+#       define R300_ALU_RGB_OP_SOP                      10
+#       define R300_ALU_RGB_OMOD(x)                     (x << 27)
+#       define R300_ALU_RGB_OMOD_NONE                   0
+#       define R300_ALU_RGB_OMOD_MUL_2                  1
+#       define R300_ALU_RGB_OMOD_MUL_4                  2
+#       define R300_ALU_RGB_OMOD_MUL_8                  3
+#       define R300_ALU_RGB_OMOD_DIV_2                  4
+#       define R300_ALU_RGB_OMOD_DIV_4                  5
+#       define R300_ALU_RGB_OMOD_DIV_8                  6
+#       define R300_ALU_RGB_CLAMP                       (1 << 30)
+#       define R300_ALU_RGB_INSERT_NOP                  (1 << 31)
 #define R300_US_ALU_ALPHA_ADDR_0		        0x47c0
+/* for ADDR0-2, values 0-31 specify a location in the pixel stack,
+   values 32-63 specify a constant */
+#       define R300_ALU_ALPHA_ADDR0(x)                  (x << 0)
+#       define R300_ALU_ALPHA_ADDR1(x)                  (x << 6)
+#       define R300_ALU_ALPHA_ADDR2(x)                  (x << 12)
+/* ADDRD - where on the pixle stack the result of this instruction
+   will be written */
+#       define R300_ALU_ALPHA_ADDRD(x)                  (x << 18)
+#       define R300_ALU_ALPHA_WMASK(x)                  (x << 23)
+#       define R300_ALU_ALPHA_OMASK(x)                  (x << 24)
+#       define R300_ALU_ALPHA_OMASK_W(x)                (x << 27)
+#       define R300_ALU_ALPHA_MASK_NONE                 0
+#       define R300_ALU_ALPHA_MASK_A                    1
+#       define R300_ALU_ALPHA_TARGET_A                  (0 << 25)
+#       define R300_ALU_ALPHA_TARGET_B                  (1 << 25)
+#       define R300_ALU_ALPHA_TARGET_C                  (2 << 25)
+#       define R300_ALU_ALPHA_TARGET_D                  (3 << 25)
 #define R300_US_ALU_ALPHA_INST_0		        0x49c0
+#       define R300_ALU_ALPHA_SEL_A(x)                  (x << 0)
+#       define R300_ALU_ALPHA_SRC0_R                    0
+#       define R300_ALU_ALPHA_SRC0_G                    1
+#       define R300_ALU_ALPHA_SRC0_B                    2
+#       define R300_ALU_ALPHA_SRC1_R                    3
+#       define R300_ALU_ALPHA_SRC1_G                    4
+#       define R300_ALU_ALPHA_SRC1_B                    5
+#       define R300_ALU_ALPHA_SRC2_R                    6
+#       define R300_ALU_ALPHA_SRC2_G                    7
+#       define R300_ALU_ALPHA_SRC2_B                    8
+#       define R300_ALU_ALPHA_SRC0_A                    9
+#       define R300_ALU_ALPHA_SRC1_A                    10
+#       define R300_ALU_ALPHA_SRC2_A                    11
+#       define R300_ALU_ALPHA_SRCP_R                    12
+#       define R300_ALU_ALPHA_SRCP_G                    13
+#       define R300_ALU_ALPHA_SRCP_B                    14
+#       define R300_ALU_ALPHA_SRCP_A                    15
+#       define R300_ALU_ALPHA_0_0                       16
+#       define R300_ALU_ALPHA_1_0                       17
+#       define R300_ALU_ALPHA_0_5                       18
+#       define R300_ALU_ALPHA_MOD_A(x)                  (x << 5)
+#       define R300_ALU_ALPHA_MOD_NOP                   0
+#       define R300_ALU_ALPHA_MOD_NEG                   1
+#       define R300_ALU_ALPHA_MOD_ABS                   2
+#       define R300_ALU_ALPHA_MOD_NAB                   3
+#       define R300_ALU_ALPHA_SEL_B(x)                  (x << 7)
+#       define R300_ALU_ALPHA_MOD_B(x)                  (x << 12)
+#       define R300_ALU_ALPHA_SEL_C(x)                  (x << 14)
+#       define R300_ALU_ALPHA_MOD_C(x)                  (x << 19)
+#       define R300_ALU_ALPHA_SRCP_OP(x)                (x << 21)
+#       define R300_ALU_ALPHA_SRCP_OP0                  0 /* 1.0 - 2.0 * A0 */
+#       define R300_ALU_ALPHA_SRCP_OP1                  1 /* A1 - A0 */
+#       define R300_ALU_ALPHA_SRCP_OP2                  2 /* A1 + A0 */
+#       define R300_ALU_ALPHA_SRCP_OP3                  3 /* 1.0 - A0 */
+#       define R300_ALU_ALPHA_OP(x)                     (x << 23)
+#       define R300_ALU_ALPHA_OP_MAD                    0
+#       define R300_ALU_ALPHA_OP_DP                     1
+#       define R300_ALU_ALPHA_OP_MIN                    2
+#       define R300_ALU_ALPHA_OP_MAX                    3
+#       define R300_ALU_ALPHA_OP_CND                    5
+#       define R300_ALU_ALPHA_OP_CMP                    6
+#       define R300_ALU_ALPHA_OP_FRC                    7
+#       define R300_ALU_ALPHA_OP_EX2                    8
+#       define R300_ALU_ALPHA_OP_LN2                    9
+#       define R300_ALU_ALPHA_OP_RCP                    10
+#       define R300_ALU_ALPHA_OP_RSQ                    11
+#       define R300_ALU_ALPHA_OMOD(x)                   (x << 27)
+#       define R300_ALU_ALPHA_OMOD_NONE                 0
+#       define R300_ALU_ALPHA_OMOD_MUL_2                1
+#       define R300_ALU_ALPHA_OMOD_MUL_4                2
+#       define R300_ALU_ALPHA_OMOD_MUL_8                3
+#       define R300_ALU_ALPHA_OMOD_DIV_2                4
+#       define R300_ALU_ALPHA_OMOD_DIV_4                5
+#       define R300_ALU_ALPHA_OMOD_DIV_8                6
+#       define R300_ALU_ALPHA_CLAMP                     (1 << 30)
 
 #define R300_FG_DEPTH_SRC				0x4bd8
 #define R300_FG_FOG_BLEND				0x4bc0
