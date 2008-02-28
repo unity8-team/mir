@@ -209,8 +209,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	    /* clip has offset 1440 */
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((1088 << R300_CLIP_X_SHIFT) |
 					     (1088 << R300_CLIP_Y_SHIFT)));
-	    OUT_ACCEL_REG(R300_SC_CLIP_0_B, (((1080 + 2048) << R300_CLIP_X_SHIFT) |
-					     ((1080 + 2048) << R300_CLIP_Y_SHIFT)));
+	    OUT_ACCEL_REG(R300_SC_CLIP_0_B, (((1080 + 2920) << R300_CLIP_X_SHIFT) |
+					     ((1080 + 2920) << R300_CLIP_Y_SHIFT)));
 	} else {
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((0 << R300_CLIP_X_SHIFT) |
 					     (0 << R300_CLIP_Y_SHIFT)));
