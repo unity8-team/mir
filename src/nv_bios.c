@@ -3189,22 +3189,26 @@ void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk)
 	 * known at init, so the dual link flag (which tests against a
 	 * transition frequency) cannot be set until later
 	 *
-	 * Here the flag and the LVDS script set pointer are updated
+	 * Here the flag and the LVDS script set pointer are updated (only once
+	 * per driver incarnation)
 	 *
 	 * This function should *not* be called in the case where the panel
 	 * config is set by the straps
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	static bool dual_link_correction_done = false;
 
-	if (bios->fp.dual_link)	/* already set and done */
+	if (dual_link_correction_done)
 		return;
+	dual_link_correction_done = true;
 
 	if (pxclk >= bios->fp.duallink_transition_clk) {
 		bios->fp.dual_link = true;
-		/* move to (entry + 1) */
+		/* move to (entry + 1) for BMP bioses (BIT doesn't use this) */
 		bios->fp.xlated_entry += bios->data[bios->fp.lvdsmanufacturerpointer + 1];
-	}
+	} else
+		bios->fp.dual_link = false;
 }
 
 void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
