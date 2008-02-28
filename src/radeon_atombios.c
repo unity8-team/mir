@@ -1745,12 +1745,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
-	if (info->IsIGP && (i == ATOM_DEVICE_DFP2_INDEX))
-	    info->BiosConnector[i].devices = (1 << ATOM_DEVICE_DFP3_INDEX);
-	else if (info->IsIGP && (i == ATOM_DEVICE_DFP3_INDEX))
-	    info->BiosConnector[i].devices = (1 << ATOM_DEVICE_DFP2_INDEX);
-	else
-	    info->BiosConnector[i].devices = (1 << i);
+	info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
 	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
 
@@ -1759,14 +1754,14 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
-	else if ((i == ATOM_DEVICE_DFP3_INDEX) && info->IsIGP) {
-	    /* DDIA port uses non-standard gpio entry */
-	    if (info->BiosConnector[ATOM_DEVICE_DFP2_INDEX].valid)
-		info->BiosConnector[i].ddc_i2c =
-		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 2);
-	    else
+	else if (info->IsIGP) {
+	    /* IGP DFP ports use non-standard gpio entries */
+	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
+	    else
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 	} else
 	    info->BiosConnector[i].ddc_i2c =
 		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
@@ -1775,15 +1770,12 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
 	else if (i == ATOM_DEVICE_DFP2_INDEX) {
 	    if (info->IsIGP)
-		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-	    else
-		info->BiosConnector[i].TMDSType = TMDS_EXT;
-	} else if (i == ATOM_DEVICE_DFP3_INDEX) {
-	    if (info->IsIGP)
 		info->BiosConnector[i].TMDSType = TMDS_DDIA;
 	    else
-		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-	} else
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	} else if (i == ATOM_DEVICE_DFP3_INDEX)
+	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
+	else
 	    info->BiosConnector[i].TMDSType = TMDS_NONE;
 
 	/* Always set the connector type to VGA for CRT1/CRT2. if they are
