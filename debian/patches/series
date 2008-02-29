@@ -2,4 +2,5 @@
 01_fix_compiz_video.diff
 03_dell_1535_quirk.diff
 04_dell_1735_quirk.diff
-05_intel_exa_force_greedy.patch
+07_intel_exa_force_all_greedy.patch
+08_945gm_quirk.diff

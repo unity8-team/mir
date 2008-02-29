@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu3) hardy; urgency=low
+
+  * Add 07_intel_exa_force_all_greedy.patch, to expand the fix from
+    05_intel_exa_force_greedy.patch to cover all Intel chipsets, not just
+    965.  (LP: #177492)
+  * Drop 05_intel_exa_force_greedy.patch, since 07 is a superset of it.
+  * Add 08_945gm_quirk.diff, to add quirk for another laptop model with a
+    tv out detection bug.  (LP: #152416)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 29 Feb 2008 15:52:16 -0800
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu2) hardy; urgency=low
 
   * Don't build the intel_reg_dumper tool, since libpciaccess is in

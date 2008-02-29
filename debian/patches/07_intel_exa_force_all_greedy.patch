@@ -1,0 +1,19 @@
+This forces EXA on for all Intel chips, not just 965.  (See LP: #177492)
+
+--- xserver-xorg-video-intel-2.2.0.90/src/i830_driver.c.orig	2008-02-15 11:57:24.000000000 -0800
++++ xserver-xorg-video-intel-2.2.0.90/src/i830_driver.c	2008-02-15 13:07:51.000000000 -0800
+@@ -1483,6 +1483,14 @@ I830PreInit(ScrnInfoPtr pScrn, int flags
+ #endif
+        xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
+ 		  pI830->useEXA ? "EXA" : "XAA");
++
++#if defined(EXA_MIGRATION_GREEDY) && defined(I830_USE_EXA)
++       if (pI830->useEXA == TRUE && pI830->EXADriverPtr) {
++           /* Force use of Option "MigrationHeuristic" "greedy" here for 965 with EXA (LP: #177492) */
++           pI830->EXADriverPtr->flags |= EXA_MIGRATION_GREEDY;
++           xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Forcing use of MigrationHeuristic \"greedy\" for EXA on 965\n");
++       }
++#endif
+    }
+ 
+    if (xf86ReturnOptValBool(pI830->Options, OPTION_SW_CURSOR, FALSE)) {
