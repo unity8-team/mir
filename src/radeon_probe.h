@@ -363,8 +363,8 @@ struct avivo_state
     CARD32 ddia[37];
 
     /* scalers */
-    CARD32 d1scl[39];
-    CARD32 d2scl[39];
+    CARD32 d1scl[40];
+    CARD32 d2scl[40];
     CARD32 dxscl[6+2];
 
 };
