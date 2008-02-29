@@ -2163,7 +2163,14 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     } else {
 	from = xf86GetOptValBool(info->Options, OPTION_PAGE_FLIP,
 				 &info->allowPageFlip) ? X_CONFIG : X_DEFAULT;
-	reason = "";
+
+	if (IS_AVIVO_VARIANT) {
+	    info->allowPageFlip = 0;
+	    reason = " on r5xx and newer chips.\n";
+	} else {
+	    reason = "";
+	}
+
     }
 #else
     from = X_DEFAULT;
