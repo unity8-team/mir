@@ -4045,6 +4045,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &save->avivo;
+    int i, j;
 
     //    state->vga_memory_base = INREG(AVIVO_VGA_MEMORY_BASE);
     //    state->vga_fb_start = INREG(AVIVO_VGA_FB_START);
@@ -4110,8 +4111,6 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     state->grph1.viewport_start = INREG(AVIVO_D1MODE_VIEWPORT_START);
     state->grph1.viewport_size = INREG(AVIVO_D1MODE_VIEWPORT_SIZE);
-    state->grph1.scl_enable = INREG(AVIVO_D1SCL_SCALER_ENABLE);
-    state->grph1.scl_tap_control = INREG(AVIVO_D1SCL_SCALER_TAP_CONTROL);
 
     state->crtc2.pll_source = INREG(AVIVO_PCLK_CRTC2_CNTL);
 
@@ -4151,8 +4150,6 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
     state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
-    state->grph2.scl_enable = INREG(AVIVO_D2SCL_SCALER_ENABLE);
-    state->grph2.scl_tap_control = INREG(AVIVO_D2SCL_SCALER_TAP_CONTROL);
 
     state->daca.enable = INREG(AVIVO_DACA_ENABLE);
     state->daca.source_select = INREG(AVIVO_DACA_SOURCE_SELECT);
@@ -4189,13 +4186,33 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
 
     if (info->IsIGP) {
-	int i, j = 0;
+	j = 0;
 	/* save DDIA regs */
 	for (i = 0x7200; i <= 0x7290; i += 4) {
 	    state->ddia[j] = INREG(i);
 	    j++;
 	}
     }
+
+    /* scalers */
+    j = 0;
+    for (i = 0x6578; i <= 0x65e4; i += 4) {
+	state->d1scl[j] = INREG(i);
+	state->d2scl[j] = INREG(i + 0x800);
+	j++;
+    }
+    for (i = 0x6600; i <= 0x662c; i += 4) {
+	state->d1scl[j] = INREG(i);
+	state->d2scl[j] = INREG(i + 0x800);
+	j++;
+    }
+    j = 0;
+    for (i = 0x66e8; i <= 0x66fc; i += 4) {
+	state->dxscl[j] = INREG(i);
+	j++;
+    }
+    state->dxscl[6] = INREG(0x6e30);
+    state->dxscl[7] = INREG(0x6e34);
 
     if (state->crtc1.control & AVIVO_CRTC_EN)
 	info->crtc_on = TRUE;
@@ -4211,6 +4228,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     struct avivo_state *state = &restore->avivo;
+    int i, j;
 
     //    OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, state->mc_memory_map);
     //    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
@@ -4275,8 +4293,6 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(AVIVO_D1MODE_VIEWPORT_START, state->grph1.viewport_start);
     OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE, state->grph1.viewport_size);
-    OUTREG(AVIVO_D1SCL_SCALER_ENABLE, state->grph1.scl_enable);
-    OUTREG(AVIVO_D1SCL_SCALER_TAP_CONTROL, state->grph1.scl_tap_control);
 
     OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
 
@@ -4315,8 +4331,6 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
     OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
-    OUTREG(AVIVO_D2SCL_SCALER_ENABLE, state->grph2.scl_enable);
-    OUTREG(AVIVO_D2SCL_SCALER_TAP_CONTROL, state->grph2.scl_tap_control);
 
     OUTREG(AVIVO_DACA_ENABLE, state->daca.enable);
     OUTREG(AVIVO_DACA_SOURCE_SELECT, state->daca.source_select);
@@ -4341,15 +4355,15 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_LVTMA_SOURCE_SELECT, state->tmds2.source_select);
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-        OUTREG(R600_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
-        OUTREG(R600_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
-        OUTREG(R600_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
-        OUTREG(R600_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
+	OUTREG(R600_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
+	OUTREG(R600_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
+	OUTREG(R600_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
+	OUTREG(R600_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
     } else {
-        OUTREG(R500_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
-        OUTREG(R500_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
-        OUTREG(R500_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
-        OUTREG(R500_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
+	OUTREG(R500_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
+	OUTREG(R500_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
+	OUTREG(R500_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
+	OUTREG(R500_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
     }
 
     if (info->IsIGP) {
@@ -4359,6 +4373,26 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    j++;
 	}
     }
+
+    /* scalers */
+    j = 0;
+    for (i = 0x6578; i <= 0x65e4; i += 4) {
+	OUTREG(i, state->d1scl[j]);
+	OUTREG((i + 0x800), state->d2scl[j]);
+	j++;
+    }
+    for (i = 0x6600; i <= 0x662c; i += 4) {
+	OUTREG(i, state->d1scl[j]);
+	OUTREG((i + 0x800), state->d2scl[j]);
+	j++;
+    }
+    j = 0;
+    for (i = 0x66e8; i <= 0x66fc; i += 4) {
+	OUTREG(i, state->dxscl[j]);
+	j++;
+    }
+    OUTREG(0x6e30, state->dxscl[6]);
+    OUTREG(0x6e34, state->dxscl[7]);
 
     OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);

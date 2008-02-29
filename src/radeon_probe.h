@@ -310,8 +310,6 @@ struct avivo_grph_state {
 
     CARD32 viewport_start;
     CARD32 viewport_size;
-    CARD32 scl_enable;
-    CARD32 scl_tap_control;
 };
 
 struct avivo_dac_state {
@@ -363,6 +361,12 @@ struct avivo_state
 
     /* DDIA block on RS6xx chips */
     CARD32 ddia[37];
+
+    /* scalers */
+    CARD32 d1scl[39];
+    CARD32 d2scl[39];
+    CARD32 dxscl[6+2];
+
 };
 
 /*
