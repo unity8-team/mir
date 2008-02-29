@@ -363,23 +363,6 @@ NV30_SetupSurface(ScrnInfoPtr pScrn, PixmapPtr pPix, PicturePtr pPict)
 	OUT_RING  (pitch << 16 | pitch);
 	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
-	/* This is confirmed to be needed for nv30, please leave it alone. */
-	if (pNv->NVArch == 0x30) {
-		int x = pPict->pDrawable->x;
-		int y = pPict->pDrawable->y;
-		int w = pPict->pDrawable->width;
-		int h = pPict->pDrawable->height;
-
-		BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_HORIZ, 2);
-		OUT_RING  ((w<<16)|x);
-		OUT_RING  ((h<<16)|y);
-		BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_CLIP_HORIZ(0), 2);
-		OUT_RING  ((w-1+x)<<16);
-		OUT_RING  ((h-1+y)<<16);
-		BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_TX_ORIGIN, 1);
-		OUT_RING((y<<16)|x);
-	}
-
 	return TRUE;
 }
 
