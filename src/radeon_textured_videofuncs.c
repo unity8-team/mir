@@ -378,7 +378,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE)));
 	    FINISH_VIDEO();
 	} else {
-	    BEGIN_VIDEO(22);
+	    BEGIN_VIDEO(23);
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
