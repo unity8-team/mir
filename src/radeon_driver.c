@@ -4158,41 +4158,50 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
     state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
 
-    state->daca.enable = INREG(AVIVO_DACA_ENABLE);
-    state->daca.source_select = INREG(AVIVO_DACA_SOURCE_SELECT);
-    state->daca.force_output_cntl = INREG(AVIVO_DACA_FORCE_OUTPUT_CNTL);
-    state->daca.powerdown = INREG(AVIVO_DACA_POWERDOWN);
-
-    state->dacb.enable = INREG(AVIVO_DACB_ENABLE);
-    state->dacb.source_select = INREG(AVIVO_DACB_SOURCE_SELECT);
-    state->dacb.force_output_cntl = INREG(AVIVO_DACB_FORCE_OUTPUT_CNTL);
-    state->dacb.powerdown = INREG(AVIVO_DACB_POWERDOWN);
-
-    state->tmds1.cntl = INREG(AVIVO_TMDSA_CNTL);
-    state->tmds1.source_select = INREG(AVIVO_TMDSA_SOURCE_SELECT);
-    state->tmds1.bit_depth_cntl = INREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL);
-    state->tmds1.data_sync = INREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION);
-    state->tmds1.transmitter_enable = INREG(AVIVO_TMDSA_TRANSMITTER_ENABLE);
-    state->tmds1.transmitter_cntl = INREG(AVIVO_TMDSA_TRANSMITTER_CONTROL);
-
-    state->tmds2.cntl = INREG(AVIVO_LVTMA_CNTL);
-    state->tmds2.source_select = INREG(AVIVO_LVTMA_SOURCE_SELECT);
-    state->tmds2.bit_depth_cntl = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
-    state->tmds2.data_sync = INREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION);
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	state->tmds2.transmitter_enable = INREG(R600_LVTMA_TRANSMITTER_ENABLE);
-	state->tmds2.transmitter_cntl = INREG(R600_LVTMA_TRANSMITTER_CONTROL);
-	state->lvtma_pwrseq_cntl = INREG(R600_LVTMA_PWRSEQ_CNTL);
-	state->lvtma_pwrseq_state = INREG(R600_LVTMA_PWRSEQ_STATE);
-    } else {
-	state->tmds2.transmitter_enable = INREG(R500_LVTMA_TRANSMITTER_ENABLE);
-	state->tmds2.transmitter_cntl = INREG(R500_LVTMA_TRANSMITTER_CONTROL);
-	state->lvtma_pwrseq_cntl = INREG(R500_LVTMA_PWRSEQ_CNTL);
-	state->lvtma_pwrseq_state = INREG(R500_LVTMA_PWRSEQ_STATE);
+    j = 0;
+    /* save DVOA regs */
+    for (i = 0x7980; i <= 0x79bc; i += 4) {
+	state->dvoa[j] = INREG(i);
+	j++;
     }
 
-    if (info->IsIGP) {
+    j = 0;
+    /* save DAC regs */
+    for (i = 0x7800; i <= 0x782c; i += 4) {
+	state->daca[j] = INREG(i);
+	state->dacb[j] = INREG(i + 0x200);
+	j++;
+    }
+    for (i = 0x7834; i <= 0x7840; i += 4) {
+	state->daca[j] = INREG(i);
+	state->dacb[j] = INREG(i + 0x200);
+	j++;
+    }
+    for (i = 0x7850; i <= 0x7868; i += 4) {
+	state->daca[j] = INREG(i);
+	state->dacb[j] = INREG(i + 0x200);
+	j++;
+    }
+
+    j = 0;
+    /* save TMDSA regs */
+    for (i = 0x7880; i <= 0x78e0; i += 4) {
+	state->tmdsa[j] = INREG(i);
+	j++;
+    }
+    for (i = 0x7904; i <= 0x7918; i += 4) {
+	state->tmdsa[j] = INREG(i);
+	j++;
+    }
+
+    j = 0;
+    /* save LVTMA regs */
+    for (i = 0x7a80; i <= 0x7b18; i += 4) {
+	state->lvtma[j] = INREG(i);
+	j++;
+    }
+
+    if (info->ChipFamily == CHIP_FAMILY_RS690) {
 	j = 0;
 	/* save DDIA regs */
 	for (i = 0x7200; i <= 0x7290; i += 4) {
@@ -4339,42 +4348,52 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
     OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
 
-    OUTREG(AVIVO_DACA_ENABLE, state->daca.enable);
-    OUTREG(AVIVO_DACA_SOURCE_SELECT, state->daca.source_select);
-    OUTREG(AVIVO_DACA_FORCE_OUTPUT_CNTL, state->daca.force_output_cntl);
-    OUTREG(AVIVO_DACA_POWERDOWN, state->daca.powerdown);
-
-    OUTREG(AVIVO_TMDSA_CNTL, state->tmds1.cntl);
-    OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, state->tmds1.bit_depth_cntl);
-    OUTREG(AVIVO_TMDSA_DATA_SYNCHRONIZATION, state->tmds1.data_sync);
-    OUTREG(AVIVO_TMDSA_TRANSMITTER_ENABLE, state->tmds1.transmitter_enable);
-    OUTREG(AVIVO_TMDSA_TRANSMITTER_CONTROL, state->tmds1.transmitter_cntl);
-    OUTREG(AVIVO_TMDSA_SOURCE_SELECT, state->tmds1.source_select);
-
-    OUTREG(AVIVO_DACB_ENABLE, state->dacb.enable);
-    OUTREG(AVIVO_DACB_SOURCE_SELECT, state->dacb.source_select);
-    OUTREG(AVIVO_DACB_FORCE_OUTPUT_CNTL, state->dacb.force_output_cntl);
-    OUTREG(AVIVO_DACB_POWERDOWN, state->dacb.powerdown);
-
-    OUTREG(AVIVO_LVTMA_CNTL, state->tmds2.cntl);
-    OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, state->tmds2.bit_depth_cntl);
-    OUTREG(AVIVO_LVTMA_DATA_SYNCHRONIZATION, state->tmds2.data_sync);
-    OUTREG(AVIVO_LVTMA_SOURCE_SELECT, state->tmds2.source_select);
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	OUTREG(R600_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
-	OUTREG(R600_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
-	OUTREG(R600_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
-	OUTREG(R600_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
-    } else {
-	OUTREG(R500_LVTMA_TRANSMITTER_ENABLE, state->tmds2.transmitter_enable);
-	OUTREG(R500_LVTMA_TRANSMITTER_CONTROL, state->tmds2.transmitter_cntl);
-	OUTREG(R500_LVTMA_PWRSEQ_CNTL, state->lvtma_pwrseq_cntl);
-	OUTREG(R500_LVTMA_PWRSEQ_STATE, state->lvtma_pwrseq_state);
+    j = 0;
+    /* DVOA regs */
+    for (i = 0x7980; i <= 0x79bc; i += 4) {
+	OUTREG(i, state->dvoa[j]);
+	j++;
     }
 
-    if (info->IsIGP) {
-	int i, j = 0;
+    j = 0;
+    /* DAC regs */
+    for (i = 0x7800; i <= 0x782c; i += 4) {
+	OUTREG(i, state->daca[j]);
+	OUTREG((i + 0x200), state->dacb[j]);
+	j++;
+    }
+    for (i = 0x7834; i <= 0x7840; i += 4) {
+	OUTREG(i, state->daca[j]);
+	OUTREG((i + 0x200), state->dacb[j]);
+	j++;
+    }
+    for (i = 0x7850; i <= 0x7868; i += 4) {
+	OUTREG(i, state->daca[j]);
+	OUTREG((i + 0x200), state->dacb[j]);
+	j++;
+    }
+
+    j = 0;
+    /* TMDSA regs */
+    for (i = 0x7880; i <= 0x78e0; i += 4) {
+	OUTREG(i, state->tmdsa[j]);
+	j++;
+    }
+    for (i = 0x7904; i <= 0x7918; i += 4) {
+	OUTREG(i, state->tmdsa[j]);
+	j++;
+    }
+
+    j = 0;
+    /* LVTMA regs */
+    for (i = 0x7a80; i <= 0x7b18; i += 4) {
+	OUTREG(i, state->lvtma[j]);
+	j++;
+    }
+
+    /* DDIA regs */
+    if (info->ChipFamily == CHIP_FAMILY_RS690) {
+	j = 0;
 	for (i = 0x7200; i <= 0x7290; i += 4) {
 	    OUTREG(i, state->ddia[j]);
 	    j++;
