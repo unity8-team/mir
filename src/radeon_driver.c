@@ -3031,9 +3031,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 {
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int            hasDRI = 0;
-    int i;
 #ifdef RENDER
     int            subPixelOrder = SubPixelUnknown;
     char*          s;
@@ -3342,28 +3340,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* xf86CrtcRotate() accesses pScrn->pScreen */
     pScrn->pScreen = pScreen;
 
-#if 1
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr crtc = xf86_config->crtc[i];
-
-	/* Mark that we'll need to re-set the mode for sure */
-	memset(&crtc->mode, 0, sizeof(crtc->mode));
-	if (!crtc->desiredMode.CrtcHDisplay) {
-	    crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
-	    crtc->desiredRotation = RR_Rotate_0;
-	    crtc->desiredX = 0;
-	    crtc->desiredY = 0;
-	}
-
-	if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation, crtc->desiredX, crtc->desiredY))
-	    return FALSE;
-
-    }
-#else
-    /* seems to do the wrong thing on some cards??? */
     if (!xf86SetDesiredModes (pScrn))
 	return FALSE;
-#endif
 
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
 
@@ -4967,8 +4945,6 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT\n");
@@ -5021,22 +4997,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     RADEONRestoreSurfaces(pScrn, info->ModeReg);
 
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr	crtc = xf86_config->crtc[i];
-	/* Mark that we'll need to re-set the mode for sure */
-	memset(&crtc->mode, 0, sizeof(crtc->mode));
-	if (!crtc->desiredMode.CrtcHDisplay) {
-	    crtc->desiredMode = *RADEONCrtcFindClosestMode (crtc, pScrn->currentMode);
-	    crtc->desiredRotation = RR_Rotate_0;
-	    crtc->desiredX = 0;
-	    crtc->desiredY = 0;
-	}
-
-	if (!xf86CrtcSetMode (crtc, &crtc->desiredMode, crtc->desiredRotation,
-			      crtc->desiredX, crtc->desiredY))
-	    return FALSE;
-
-    }
+    if (!xf86SetDesiredModes(pScrn))
+	return FALSE;
 
     /* this will get XVideo going again, but only if XVideo was initialised
        during server startup (hence the info->adaptor if). */
