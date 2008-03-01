@@ -4644,7 +4644,9 @@ void RADEONRestore(ScrnInfoPtr pScrn)
      */
     if (IS_AVIVO_VARIANT)
 	avivo_restore_vga_regs(pScrn, restore);
-    RADEONRestoreDACRegisters(pScrn, restore);
+
+    if (!IS_AVIVO_VARIANT)
+	RADEONRestoreDACRegisters(pScrn, restore);
 
 #if 0
     RADEONWaitForVerticalSync(pScrn);
