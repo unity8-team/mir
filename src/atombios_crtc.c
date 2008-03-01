@@ -330,9 +330,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
 
-    RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
-    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
-
     if (IS_AVIVO_VARIANT) {
 	radeon_crtc->fb_width = mode->CrtcHDisplay;
 	radeon_crtc->fb_height = pScrn->virtualY;

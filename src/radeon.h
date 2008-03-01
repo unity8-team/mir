@@ -817,8 +817,6 @@ extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
-extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
-						RADEONSavePtr restore);
 extern void        RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 						RADEONSavePtr restore);
 extern void        RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
@@ -840,9 +838,6 @@ extern void        RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 extern void        RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 					      RADEONSavePtr restore);
 
-extern void        RADEONInitMemMapRegisters(ScrnInfoPtr pScrn,
-					     RADEONSavePtr save,
-					     RADEONInfoPtr info);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
