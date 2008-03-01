@@ -385,7 +385,6 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 static void
 dfp_disable_dither(xf86OutputPtr output, int device)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
@@ -399,7 +398,7 @@ dfp_disable_dither(xf86OutputPtr output, int device)
 	else
 	    OUTREG(AVIVO_DVOA_BIT_DEPTH_CONTROL, 0); /* DVO */
 	break;
-    case ATOM_DEVICE_LCD1_SUPPORT:
+    /*case ATOM_DEVICE_LCD1_SUPPORT:*/ /* LVDS panels need dither enabled */
     case ATOM_DEVICE_DFP3_SUPPORT:
 	OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, 0); /* LVTMA */
 	break;
