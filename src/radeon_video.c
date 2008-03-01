@@ -285,14 +285,12 @@ void RADEONInitVideo(ScreenPtr pScreen)
 	RADEONInitOffscreenImages(pScreen);
     }
 
-    if (info->ChipFamily != CHIP_FAMILY_RS400) {
-	texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
-	if (texturedAdaptor != NULL) {
-	    adaptors[num_adaptors++] = texturedAdaptor;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
-	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
-    }
+    texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
+    if (texturedAdaptor != NULL) {
+	adaptors[num_adaptors++] = texturedAdaptor;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+    } else
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
 
     if(num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
