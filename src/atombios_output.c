@@ -393,7 +393,7 @@ dfp_disable_dither(xf86OutputPtr output, int device)
 	OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, 0); /* TMDSA */
 	break;
     case ATOM_DEVICE_DFP2_SUPPORT:
-	if (info->IsIGP)
+	if (info->ChipFamily == CHIP_FAMILY_RS690)
 	    OUTREG(AVIVO_DDIA_BIT_DEPTH_CONTROL, 0); /* DDIA */
 	else
 	    OUTREG(AVIVO_DVOA_BIT_DEPTH_CONTROL, 0); /* DVO */
@@ -609,7 +609,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 	    atombios_output_tmds1_setup(output, adjusted_mode);
 	    dfp_disable_dither(output, ATOM_DEVICE_DFP1_SUPPORT);
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
-	    if (info->IsIGP)
+	    if (info->ChipFamily == CHIP_FAMILY_RS690)
 		atombios_ddia_setup(output, adjusted_mode);
 	    else
 		atombios_external_tmds_setup(output, adjusted_mode);

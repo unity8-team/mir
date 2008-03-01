@@ -1754,7 +1754,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
-	else if (info->IsIGP) {
+	else if (info->ChipFamily == CHIP_FAMILY_RS690) {
 	    /* IGP DFP ports use non-standard gpio entries */
 	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
 		info->BiosConnector[i].ddc_i2c =
@@ -1769,7 +1769,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
 	else if (i == ATOM_DEVICE_DFP2_INDEX) {
-	    if (info->IsIGP)
+	    if (info->ChipFamily == CHIP_FAMILY_RS690)
 		info->BiosConnector[i].TMDSType = TMDS_DDIA;
 	    else
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
