@@ -2759,7 +2759,7 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, bool overrideval)
+static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 {
 	/* The BIOS scripts don't do this for us, sadly
 	 * Luckily we do know the values ;-)
@@ -2769,17 +2769,15 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, boo
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	int preferred_output = (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
+	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
+	int preferred_output = (ffs(dcbent->or) & OUTPUT_1) >> 1;
 	uint8_t tmds04 = 0x80;
 	uint32_t tmds_ctrl, tmds_ctrl2;
 
-	/* Bit 3 crosswires output and bus. */
-	if (head >= 0 && head != preferred_output)
-		tmds04 = 0x88;
-	if (head < 0 && overrideval)
+	if (head != preferred_output)
 		tmds04 = 0x88;
 
-	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS)
+	if (dcbent->type == OUTPUT_LVDS)
 		tmds04 |= 0x01;
 
 	tmds_ctrl = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
@@ -2787,13 +2785,15 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry, boo
 
 	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
 	nv32_wr(pScrn, tmds_ctrl, 0x04);
-	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
-		nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
-	else
-		/* I have encountered no dvi (dual-link or not) that sets to anything else. */
-		/* Does this change beyond the 165 MHz boundary? */
+
+	/* does tmds_ctrl2 need setting at all for OUTPUT_TMDS? */
+	if (dcbent->type == OUTPUT_TMDS) {
 		nv32_wr(pScrn, tmds_ctrl2 + 4, 0x0);
-	nv32_wr(pScrn, tmds_ctrl2, 0x04);
+		nv32_wr(pScrn, tmds_ctrl2, 0x04);
+	} else if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link) {
+		nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
+		nv32_wr(pScrn, tmds_ctrl2, 0x04);
+	}
 }
 
 static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
@@ -2829,7 +2829,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	if (script == LVDS_PANEL_OFF)
 		usleep(off_on_delay * 1000);
 	if (script == LVDS_RESET)
-		link_head_and_output(pScrn, head, dcb_entry, false);
+		link_head_and_output(pScrn, head, dcb_entry);
 }
 
 static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
@@ -2870,7 +2870,7 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcb_entry);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
-	link_head_and_output(pScrn, head, dcb_entry, false);
+	link_head_and_output(pScrn, head, dcb_entry);
 }
 
 static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
@@ -3199,7 +3199,7 @@ void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk)
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	static bool dual_link_correction_done = false;
 
-	if (dual_link_correction_done)
+	if ((bios->fp.strapping & 0xf) != 0xf || dual_link_correction_done)
 		return;
 	dual_link_correction_done = true;
 
