@@ -226,13 +226,11 @@ static const OptionInfoRec RADEONOptions[] = {
 
 const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions; }
 
+extern _X_EXPORT int gRADEONEntityIndex;
+
 static int getRADEONEntityIndex(void)
 {
-    int *radeon_entity_index = LoaderSymbol("gRADEONEntityIndex");
-    if (!radeon_entity_index)
-        return -1;
-    else
-        return *radeon_entity_index;
+    return gRADEONEntityIndex;
 }
 
 struct RADEONInt10Save {

@@ -64,7 +64,7 @@ static Bool theatre_write(TheatrePtr t,CARD32 reg, CARD32 data)
 #define VIP_TYPE      "ATI VIP BUS"
 
 
-TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
+_X_EXPORT TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b)
 {
    TheatrePtr t;  
    int i;

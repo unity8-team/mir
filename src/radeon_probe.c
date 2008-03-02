@@ -60,7 +60,7 @@
 static Bool RADEONProbe(DriverPtr drv, int flags);
 #endif
 
-int gRADEONEntityIndex = -1;
+_X_EXPORT int gRADEONEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
 static const OptionInfoRec *

@@ -1492,7 +1492,7 @@ static CARD32 ReadRT_fld1 (TheatrePtr t,CARD32 dwReg)
  *    Inputs: int hue - the hue value to be set.                            *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetTint (TheatrePtr t, int hue)
+_X_EXPORT void RT_SetTint (TheatrePtr t, int hue)
 {
     /* Validate Hue level */
     if (hue < -1000)
@@ -1517,7 +1517,7 @@ void RT_SetTint (TheatrePtr t, int hue)
  *    Inputs: int Saturation - the saturation value to be set.              *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetSaturation (TheatrePtr t, int Saturation)
+_X_EXPORT void RT_SetSaturation (TheatrePtr t, int Saturation)
 {
     /* VALIDATE SATURATION LEVEL */
     if (Saturation < -1000L)
@@ -1543,7 +1543,7 @@ void RT_SetSaturation (TheatrePtr t, int Saturation)
  *    Inputs: int Brightness - the brightness value to be set.              *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetBrightness (TheatrePtr t, int Brightness)
+_X_EXPORT void RT_SetBrightness (TheatrePtr t, int Brightness)
 {
     /* VALIDATE BRIGHTNESS LEVEL */
     if (Brightness < -1000)
@@ -1572,7 +1572,7 @@ void RT_SetBrightness (TheatrePtr t, int Brightness)
  *    Inputs: CARD16 wSharpness - the sharpness value to be set.              *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetSharpness (TheatrePtr t, CARD16 wSharpness)
+_X_EXPORT void RT_SetSharpness (TheatrePtr t, CARD16 wSharpness)
 {
 	switch (wSharpness)
 	{
@@ -1598,7 +1598,7 @@ void RT_SetSharpness (TheatrePtr t, CARD16 wSharpness)
  *    Inputs: int Contrast - the contrast value to be set.                  *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetContrast (TheatrePtr t, int Contrast)
+_X_EXPORT void RT_SetContrast (TheatrePtr t, int Contrast)
 {
 	/* VALIDATE CONTRAST LEVEL */
 	if (Contrast < -1000)
@@ -1626,7 +1626,7 @@ void RT_SetContrast (TheatrePtr t, int Contrast)
  *    Inputs: CARD8 bInterlace                                               *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetInterlace (TheatrePtr t, CARD8 bInterlace)
+_X_EXPORT void RT_SetInterlace (TheatrePtr t, CARD8 bInterlace)
 {
 	switch(bInterlace)
 	{
@@ -1653,7 +1653,7 @@ void RT_SetInterlace (TheatrePtr t, CARD8 bInterlace)
  *    Inputs: CARD16 wStandard - input standard (NTSC, PAL, SECAM)            *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetStandard (TheatrePtr t, CARD16 wStandard)
+_X_EXPORT void RT_SetStandard (TheatrePtr t, CARD16 wStandard)
 {
 	xf86DrvMsg(t->VIP->scrnIndex,X_INFO,"Rage Theatre setting standard 0x%04x\n",
 		wStandard);
@@ -1772,7 +1772,7 @@ void RT_SetStandard (TheatrePtr t, CARD16 wStandard)
  *            CARD8 fVBI_Cap_On - enable VBI capture                         *
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetOutputVideoSize (TheatrePtr t, CARD16 wHorzSize, CARD16 wVertSize, CARD8 fCC_On, CARD8 fVBICap_On)
+_X_EXPORT void RT_SetOutputVideoSize (TheatrePtr t, CARD16 wHorzSize, CARD16 wVertSize, CARD8 fCC_On, CARD8 fVBICap_On)
 {
 	/* VBI is ignored now */
 
@@ -1792,7 +1792,7 @@ void RT_SetOutputVideoSize (TheatrePtr t, CARD16 wHorzSize, CARD16 wVertSize, CA
  *            int tunerFlag
  *   Outputs: NONE                                                          *
  ****************************************************************************/
-void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
+_X_EXPORT void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
 {
 	CARD32 data;
 
@@ -1871,7 +1871,7 @@ void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag)
 } /* RT_SetConnector ()...*/
 
 
-void InitTheatre(TheatrePtr t)
+_X_EXPORT void InitTheatre(TheatrePtr t)
 {
 	CARD32 data;
 	CARD32 M, N, P;
@@ -1992,7 +1992,7 @@ err_exit:
 }
 
 
-void ShutdownTheatre(TheatrePtr t)
+_X_EXPORT void ShutdownTheatre(TheatrePtr t)
 {
 #if 0
     WriteRT_fld (fld_VIN_ASYNC_RST, RT_ASYNC_DISABLE);
@@ -2003,7 +2003,7 @@ void ShutdownTheatre(TheatrePtr t)
     t->mode=MODE_UNINITIALIZED;
 }
 
-void DumpRageTheatreRegs(TheatrePtr t)
+_X_EXPORT void DumpRageTheatreRegs(TheatrePtr t)
 {
     int i;
     CARD32 data;
@@ -2224,7 +2224,7 @@ void DumpRageTheatreRegsByName(TheatrePtr t)
 
 }
 
-void ResetTheatreRegsForNoTVout(TheatrePtr t)
+_X_EXPORT void ResetTheatreRegsForNoTVout(TheatrePtr t)
 {
      RT_regw(VIP_CLKOUT_CNTL, 0x0); 
      RT_regw(VIP_HCOUNT, 0x0); 
@@ -2238,7 +2238,7 @@ void ResetTheatreRegsForNoTVout(TheatrePtr t)
 }
 
 
-void ResetTheatreRegsForTVout(TheatrePtr t)
+_X_EXPORT void ResetTheatreRegsForTVout(TheatrePtr t)
 {
 /*    RT_regw(VIP_HW_DEBUG, 0x200);   */
 /*     RT_regw(VIP_INT_CNTL, 0x0); 
