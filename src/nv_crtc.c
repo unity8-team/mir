@@ -1012,7 +1012,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	uint32_t i, depth;
+	uint32_t depth;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
@@ -1055,16 +1055,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Some kind of tmds switch for older cards */
 	if (pNv->Architecture < NV_ARCH_40) {
 		regp->CRTC[NV_VGA_CRTCX_59] |= 0x1;
-	}
-
-	/*
-	* Initialize DAC palette.
-	* Will only be written when depth != 8.
-	*/
-	for (i = 0; i < 256; i++) {
-		regp->DAC[i*3] = i;
-		regp->DAC[(i*3)+1] = i;
-		regp->DAC[(i*3)+2] = i;
 	}
 
 	/*
@@ -1989,6 +1979,15 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
 
 	crtc->driver_private = nv_crtc;
+
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	int i;
+	/* Initialise the default LUT table. */
+	for (i = 0; i < 256; i++) {
+		regp->DAC[i*3] = i;
+		regp->DAC[(i*3)+1] = i;
+		regp->DAC[(i*3)+2] = i;
+	}
 
 	NVCrtcLockUnlock(crtc, FALSE);
 }
