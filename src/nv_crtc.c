@@ -503,8 +503,11 @@ void nv_crtc_calc_state_ext(
 		state->vpll1_b = state->pllB;
 	}
 
-	/* always reset vpll, just to be sure. */
-	state->vpll_changed[nv_crtc->head] = TRUE;
+	/* Changing clocks gives a delay, which is not always needed. */
+	if (old_clock_a != state->pll || old_clock_b != state->pllB)
+		state->vpll_changed[nv_crtc->head] = TRUE;
+	else
+		state->vpll_changed[nv_crtc->head] = FALSE;
 
 	switch (pNv->Architecture) {
 	case NV_ARCH_04:
