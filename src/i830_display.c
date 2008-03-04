@@ -1281,6 +1281,14 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	i830PrintPll("chosen", &clock);
     }
 
+    if (dpll & DPLL_VCO_ENABLE)
+    {
+	OUTREG(fp_reg, fp);
+	OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
+	POSTING_READ(dpll_reg);
+	usleep(150);
+    }
+
     /* The LVDS pin pair needs to be on before the DPLLs are enabled.
      * This is an exception to the general rule that mode_set doesn't turn
      * things on.
@@ -1288,14 +1296,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     if (is_lvds)
     {
 	CARD32 lvds = INREG(LVDS);
-
-	if (dpll & DPLL_VCO_ENABLE)
-	{
-	    OUTREG(fp_reg, fp);
-	    OUTREG(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-	    POSTING_READ(dpll_reg);
-	    usleep(150);
-	}
 
 	lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
