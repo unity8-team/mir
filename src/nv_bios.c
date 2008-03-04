@@ -2828,8 +2828,17 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 
 	if (script == LVDS_PANEL_OFF)
 		usleep(off_on_delay * 1000);
-	if (script == LVDS_RESET)
+	if (script == LVDS_RESET) {
+#ifdef __powerpc__
+		/* Powerbook specific quirk */
+		if (pNv->Chipset & 0xffff == 0x0329) {
+			nv32_wr(pScrn, 0x006828b4, 0x72);
+			nv32_wr(pScrn, 0x006828b0, 0x02);
+			nv32_wr(pScrn, 0x00001588, 0);
+		}
+#endif
 		link_head_and_output(pScrn, head, dcb_entry);
+	}
 }
 
 static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
