@@ -580,7 +580,7 @@ i830_enable_fb_compression_8xx(xf86CrtcPtr crtc)
     i830WaitForVblank(pScrn);
     OUTREG(FBC_CFB_BASE, pI830->compressed_front_buffer->bus_addr);
     OUTREG(FBC_LL_BASE, pI830->compressed_ll_buffer->bus_addr + 6);
-    OUTREG(FBC_CONTROL2, FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_FULL |
+    OUTREG(FBC_CONTROL2, FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM |
 	   FBC_CTL_CPU_FENCE | plane);
     OUTREG(FBC_FENCE_OFF, crtc->y);
 
