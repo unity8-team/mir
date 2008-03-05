@@ -1203,7 +1203,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	}
 
 	/* Some misc regs */
-	regp->CRTC[NV_VGA_CRTCX_43] = 0x1;
 	if (pNv->Architecture == NV_ARCH_40) {
 		regp->CRTC[NV_VGA_CRTCX_85] = 0xFF;
 		regp->CRTC[NV_VGA_CRTCX_86] = 0x1;
@@ -2090,7 +2089,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_SCRATCH4, regp->CRTC[NV_VGA_CRTCX_SCRATCH4]);
 	if (pNv->Architecture >= NV_ARCH_10) {
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_EXTRA, regp->CRTC[NV_VGA_CRTCX_EXTRA]);
-		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_43, regp->CRTC[NV_VGA_CRTCX_43]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_45, regp->CRTC[NV_VGA_CRTCX_45]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_4B, regp->CRTC[NV_VGA_CRTCX_4B]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_52, regp->CRTC[NV_VGA_CRTCX_52]);
@@ -2190,7 +2188,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->CRTC[NV_VGA_CRTCX_SCRATCH4] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_SCRATCH4);
 	if (pNv->Architecture >= NV_ARCH_10) {
 		regp->CRTC[NV_VGA_CRTCX_EXTRA] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_EXTRA);
-		regp->CRTC[NV_VGA_CRTCX_43] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_43);
 		regp->CRTC[NV_VGA_CRTCX_45] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_45);
 		regp->CRTC[NV_VGA_CRTCX_4B] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_4B);
 		regp->CRTC[NV_VGA_CRTCX_52] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_52);

@@ -146,7 +146,6 @@
 #define NV_VGA_CRTCX_3B			0x3b
 #define NV_VGA_CRTCX_SCRATCH4		0x3c
 #define NV_VGA_CRTCX_EXTRA		0x41
-#define NV_VGA_CRTCX_43			0x43
 #define NV_VGA_CRTCX_OWNER		0x44
 #define NV_VGA_CRTCX_45			0x45
 #define NV_VGA_CRTCX_SWAPPING		0x46
