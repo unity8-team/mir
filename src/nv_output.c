@@ -637,7 +637,6 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static xf86MonPtr
 nv_get_edid(xf86OutputPtr output)
 {
-	/* no use for shared DDC output */
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 

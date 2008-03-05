@@ -4117,17 +4117,11 @@ static void
 read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_version, uint16_t i2ctabptr)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint8_t *i2ctable;
+	uint8_t *i2ctable = &bios->data[i2ctabptr];
 	uint8_t headerlen = 0;
-	int i2c_entries;
+	int i2c_entries = MAX_NUM_DCB_ENTRIES;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	int i;
-
-	i2c_entries = MAX_NUM_DCB_ENTRIES;
-	memset(pNv->dcb_table.i2c_read, 0, sizeof(pNv->dcb_table.i2c_read));
-	memset(pNv->dcb_table.i2c_write, 0, sizeof(pNv->dcb_table.i2c_write));
-
-	i2ctable = &bios->data[i2ctabptr];
 
 	if (dcb_version >= 0x30) {
 		if (i2ctable[0] != dcb_version) { /* necessary? */
