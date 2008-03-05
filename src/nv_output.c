@@ -779,11 +779,10 @@ nv_analog_output_detect(xf86OutputPtr output)
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
 
-	/* assume a CRT connection on non dualhead cards */
-	if (!pNv->twoHeads)
-		return XF86OutputStatusConnected;
-
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads && nv_load_detect(output))
+	/* we don't have a load det function for early cards */
+	if (!pNv->twoHeads || pNv->NVArch == 0x11)
+		return XF86OutputStatusUnknown;
+	else if (pNv->twoHeads && nv_load_detect(output))
 		return XF86OutputStatusConnected;
 
 	return XF86OutputStatusDisconnected;
