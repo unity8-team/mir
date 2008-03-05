@@ -2260,13 +2260,13 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
        /* NV17,18,34 Apple iMac, iBook, PowerBook */
       CARD32 tmp_pmc, tmp_pcrt;
       tmp_pmc = nvReadMC(pNv, NV_PBUS_DEBUG_DUALHEAD_CTL) & 0x7FFFFFFF;
-      tmp_pcrt = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT) & 0xFFFFFFFC;
+      tmp_pcrt = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT) & 0xFFFFFFFC;
       if(on) {
           tmp_pmc |= (1 << 31);
           tmp_pcrt |= 0x1;
       }
       nvWriteMC(pNv, NV_PBUS_DEBUG_DUALHEAD_CTL, tmp_pmc);
-      NVWriteCRTC(pNv, 0, NV_PCRTC_GPIO_EXT, tmp_pcrt);
+      NVWriteCRTC(pNv, 0, NV_CRTC_GPIO_EXT, tmp_pcrt);
     }
 #endif
     

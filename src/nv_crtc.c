@@ -1178,10 +1178,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		}
 	}
 
-	if (pNv->twoHeads)
-		/* The exact purpose of this register is unknown, but we copy value from crtc0 */
-		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT);
-
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->unk830 = 0;
 		regp->unk834 = 0;
@@ -1196,6 +1192,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* Never ever modify gpio, unless you know very well what you're doing */
 	regp->gpio = NVReadCRTC(pNv, 0, NV_CRTC_GPIO);
+
+	if (pNv->twoHeads)
+		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT);
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->config = 0x0; /* VGA mode */
@@ -1333,15 +1332,15 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	}
 
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
-		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_WIDTH_12;
 
 	/* If the special bit exists, it exists on both ramdacs */
 	regp->fp_control[nv_crtc->head] |= NVReadRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL) & (1 << 26);
 
 	if (is_fp)
-		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_DISPEN_POS;
 	else
-		regp->fp_control[nv_crtc->head] |= NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE;
+		regp->fp_control[nv_crtc->head] |= NV_RAMDAC_FP_CONTROL_DISPEN_DISABLE;
 
 	if (is_lvds && pNv->VBIOS.fp.dual_link)
 		regp->fp_control[nv_crtc->head] |= (8 << 28);
@@ -2051,7 +2050,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 		NVCrtcWriteCRTC(crtc, NV_CRTC_0834, regp->unk834);
 		if (pNv->Architecture == NV_ARCH_40) {
 			NVCrtcWriteCRTC(crtc, NV_CRTC_0850, regp->unk850);
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_GPIO_EXT, regp->gpio_ext);
+			NVCrtcWriteCRTC(crtc, NV_CRTC_GPIO_EXT, regp->gpio_ext);
 		}
 
 		if (pNv->Architecture == NV_ARCH_40) {
@@ -2174,7 +2173,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->unk834 = NVCrtcReadCRTC(crtc, NV_CRTC_0834);
 		if (pNv->Architecture == NV_ARCH_40) {
 			regp->unk850 = NVCrtcReadCRTC(crtc, NV_CRTC_0850);
-			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_PCRTC_GPIO_EXT);
+			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_CRTC_GPIO_EXT);
 		}
 		if (pNv->twoHeads) {
 			regp->head = NVCrtcReadCRTC(crtc, NV_CRTC_FSEL);
