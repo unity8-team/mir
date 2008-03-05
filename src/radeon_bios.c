@@ -628,7 +628,21 @@ Bool RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output)
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x32);
         if (offset) {
 	    rev = RADEON_BIOS8(offset + 0x3);
-	    if (rev > 1) {
+	    if (rev > 4) {
+		bg = RADEON_BIOS8(offset + 0xc) & 0xf;
+		dac = RADEON_BIOS8(offset + 0xd) & 0xf;
+		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
+
+		bg = RADEON_BIOS8(offset + 0xe) & 0xf;
+		dac = RADEON_BIOS8(offset + 0xf) & 0xf;
+		radeon_output->pal_tvdac_adj = (bg << 16) | (dac << 20);
+
+		bg = RADEON_BIOS8(offset + 0x10) & 0xf;
+		dac = RADEON_BIOS8(offset + 0x11) & 0xf;
+		radeon_output->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
+
+		return TRUE;
+	    } else if (rev > 1) {
 		bg = RADEON_BIOS8(offset + 0xc) & 0xf;
 		dac = (RADEON_BIOS8(offset + 0xc) >> 4) & 0xf;
 		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
@@ -651,6 +665,14 @@ Bool RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output)
 	    if (rev < 2) {
 		bg = RADEON_BIOS8(offset + 0x3) & 0xf;
 		dac = (RADEON_BIOS8(offset + 0x3) >> 4) & 0xf;
+		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
+		radeon_output->pal_tvdac_adj = radeon_output->ps2_tvdac_adj;
+		radeon_output->ntsc_tvdac_adj = radeon_output->ps2_tvdac_adj;
+
+		return TRUE;
+	    } else {
+		bg = RADEON_BIOS8(offset + 0x4) & 0xf;
+		dac = RADEON_BIOS8(offset + 0x5) & 0xf;
 		radeon_output->ps2_tvdac_adj = (bg << 16) | (dac << 20);
 		radeon_output->pal_tvdac_adj = radeon_output->ps2_tvdac_adj;
 		radeon_output->ntsc_tvdac_adj = radeon_output->ps2_tvdac_adj;
