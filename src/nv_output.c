@@ -571,6 +571,7 @@ nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 		NVOutputPrivatePtr nv_output = output->driver_private;
 		Bool strange_mode = FALSE;
 		uint32_t output_reg[2] = {0, 0};
+		uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
 		int i;
 
 		for (i = 0; i < xf86_config->num_output; i++) {
@@ -586,14 +587,9 @@ nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 			}
 		}
 
-		/* Some (most?) pre-NV30 cards have switchable crtc's. */
-		if (pNv->switchable_crtc) {
-			uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
-			output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-
-			if (strange_mode)
-				output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		}
+		output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		if (strange_mode)
+			output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
 
 		ErrorF("output reg: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
 
@@ -1246,10 +1242,7 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 		}
 	}
 
-	if (pNv->switchable_crtc)
-		output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
-	else
-		output->possible_crtcs = (1 << nv_output->preferred_output);
+	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
 }
@@ -1262,11 +1255,6 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
 
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
-
-	pNv->switchable_crtc = FALSE;
-	if (pNv->NVArch > 0x11 && pNv->twoHeads)
-		pNv->switchable_crtc = TRUE;
-
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		i2c_count[pNv->dcb_table.entry[i].i2c_index]++;

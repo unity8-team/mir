@@ -471,9 +471,6 @@ typedef struct _NVRec {
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
-	/* Is our secondary (analog) output not flexible (ffs(or) != 3)? */
-	Bool switchable_crtc;
-
 	uint8_t fp_regs_owner[2];
 
 	struct {
