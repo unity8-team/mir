@@ -4094,11 +4094,8 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			pNv->dcb_table.entries++;
 		}
 	} else if (dcb_version >= 0x12) {
-		/* use the defaults for a crt
-		 * v1.2 tables often have other entries though - need a trace
-		 */
-		entry->type = conn & 0xf;	// this is valid, but will probably confuse the randr stuff
-		entry->type = 0;
+		/* v1.2 tables normally have the same 5 entries, which are not
+		 * specific to the card, so use the defaults for a crt */
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
@@ -4252,7 +4249,13 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 	}
 
-	read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
+	/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can handle, but cards
+	 * exist (seen on nv11) where the pointer to the table points to the wrong
+	 * place, so for now, we rely on the indices parsed in parse_bmp_structure
+	 * If that fails, we'll have to do some kind of heuristic/quirk...
+	 */
+	if (dcb_version > 0x12)
+		read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
 
 	/* DCB v2.0, in particular, lists each output combination separately.
 	 * Here we merge compatible entries to have fewer outputs, with more options
