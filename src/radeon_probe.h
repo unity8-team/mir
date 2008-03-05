@@ -256,6 +256,8 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
+    /* dig block */
+    int transmitter_config;
 
     char              *name;
     int               output_id;
@@ -343,8 +345,8 @@ struct avivo_state
     CARD32 dxscl[6+2];
 
     /* dac regs */
-    CARD32 daca[23];
-    CARD32 dacb[23];
+    CARD32 daca[26];
+    CARD32 dacb[26];
 
     /* tmdsa */
     CARD32 tmdsa[31];
@@ -354,6 +356,21 @@ struct avivo_state
 
     /* dvoa */
     CARD32 dvoa[16];
+
+    /* DCE3 chips */
+    CARD32 fmt1[18];
+    CARD32 fmt2[18];
+    CARD32 dig1[19];
+    CARD32 dig2[19];
+    CARD32 hdmi1[57];
+    CARD32 hdmi2[57];
+    CARD32 aux_cntl1[14];
+    CARD32 aux_cntl2[14];
+    CARD32 aux_cntl3[14];
+    CARD32 aux_cntl4[14];
+    CARD32 phy[10];
+    CARD32 uniphy1[8];
+    CARD32 uniphy2[8];
 
 };
 

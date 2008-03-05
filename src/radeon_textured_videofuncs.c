@@ -128,7 +128,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     FINISH_VIDEO();
 
     if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
-	int has_tcl = (info->ChipFamily != CHIP_FAMILY_RS690 && info->ChipFamily != CHIP_FAMILY_RS400);
+	int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+		       (info->ChipFamily != CHIP_FAMILY_RS740) &&
+		       (info->ChipFamily != CHIP_FAMILY_RS400));
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:
@@ -289,7 +291,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_VIDEO();
 
 	/* setup pixel shader */
-	if (IS_R300_VARIANT || info->ChipFamily == CHIP_FAMILY_RS690) {
+	if (IS_R300_VARIANT ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    BEGIN_VIDEO(16);
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |

@@ -1568,7 +1568,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    //info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    info->BiosConnector[i].valid = FALSE;
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
@@ -1754,7 +1755,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
 	    (i == ATOM_DEVICE_CV_INDEX))
 	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
-	else if (info->ChipFamily == CHIP_FAMILY_RS690) {
+	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    /* IGP DFP ports use non-standard gpio entries */
 	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
 		info->BiosConnector[i].ddc_i2c =
@@ -1769,7 +1771,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
 	else if (i == ATOM_DEVICE_DFP2_INDEX) {
-	    if (info->ChipFamily == CHIP_FAMILY_RS690)
+	    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		(info->ChipFamily == CHIP_FAMILY_RS740))
 		info->BiosConnector[i].TMDSType = TMDS_DDIA;
 	    else
 		info->BiosConnector[i].TMDSType = TMDS_EXT;

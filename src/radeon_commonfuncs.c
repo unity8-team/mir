@@ -60,7 +60,9 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
 
-    if (IS_R300_VARIANT || IS_AVIVO_VARIANT || info->ChipFamily == CHIP_FAMILY_RS690) {
+    if (IS_R300_VARIANT || IS_AVIVO_VARIANT ||
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740)) {
 
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
@@ -84,7 +86,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	    /* R3xx chips */
 	    gb_tile_config |= R300_PIPE_COUNT_R300;
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
-		   (info->ChipFamily == CHIP_FAMILY_RS690)) {
+		   (info->ChipFamily == CHIP_FAMILY_RS690) ||
+		   (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    /* RV4xx, RS6xx chips */
 	    gb_tile_config |= R300_PIPE_COUNT_R420_3P;
 	} else {
@@ -205,7 +208,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_SC_SCISSOR1, ((8191 << R300_SCISSOR_X_SHIFT) |
 					 (8191 << R300_SCISSOR_Y_SHIFT)));
 
-	if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS690)) {
+	if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    /* clip has offset 1440 */
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((1088 << R300_CLIP_X_SHIFT) |
 					     (1088 << R300_CLIP_Y_SHIFT)));

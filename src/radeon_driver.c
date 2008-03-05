@@ -585,10 +585,10 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
     unsigned char *RADEONMMIO = info->MMIO;
     CARD32         data;
 
-    if (info->ChipFamily == CHIP_FAMILY_RS690)
-    {
-        OUTREG(RS690_MC_INDEX, (addr & RS690_MC_INDEX_MASK));
-        data = INREG(RS690_MC_DATA);
+    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740)) {
+	OUTREG(RS690_MC_INDEX, (addr & RS690_MC_INDEX_MASK));
+	data = INREG(RS690_MC_DATA);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0x7f0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -614,12 +614,12 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->ChipFamily == CHIP_FAMILY_RS690)
-    {
-        OUTREG(RS690_MC_INDEX, ((addr & RS690_MC_INDEX_MASK) |
-                        RS690_MC_INDEX_WR_EN));
-        OUTREG(RS690_MC_DATA, data);
-        OUTREG(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);
+    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740)) {
+	OUTREG(RS690_MC_INDEX, ((addr & RS690_MC_INDEX_MASK) |
+				RS690_MC_INDEX_WR_EN));
+	OUTREG(RS690_MC_DATA, data);
+	OUTREG(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0xff0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -648,7 +648,8 @@ Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 	    return TRUE;
 	else
 	    return FALSE;
-    } else if (info->ChipFamily == CHIP_FAMILY_RS690) {
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	if (INMC(pScrn, RS690_MC_STATUS) & RS690_MC_STATUS_IDLE)
 	    return TRUE;
 	else
@@ -681,12 +682,13 @@ void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 fb_loc,
 	if (mask & LOC_AGP)
 	    OUTMC(pScrn, RV515_MC_AGP_LOCATION, agp_loc);
 	(void)INMC(pScrn, RV515_MC_AGP_LOCATION);
-    } else if (info->ChipFamily == CHIP_FAMILY_RS690) {
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	if (mask & LOC_FB)
 	    OUTMC(pScrn, RS690_MC_FB_LOCATION, fb_loc);
 	if (mask & LOC_AGP)
 	    OUTMC(pScrn, RS690_MC_AGP_LOCATION, agp_loc);
-    } else if (info->ChipFamily >= CHIP_FAMILY_R520) { 
+    } else if (info->ChipFamily >= CHIP_FAMILY_R520) {
 	if (mask & LOC_FB)
 	    OUTMC(pScrn, R520_MC_FB_LOCATION, fb_loc);
 	if (mask & LOC_AGP)
@@ -719,7 +721,8 @@ void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 *fb_loc,
 	    *agp_loc = INMC(pScrn, RV515_MC_AGP_LOCATION);
 	    *agp_loc_hi = 0;
 	}
-    } else if (info->ChipFamily == CHIP_FAMILY_RS690) {
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	if (mask & LOC_FB)
 	    *fb_loc = INMC(pScrn, RS690_MC_FB_LOCATION);
 	if (mask & LOC_AGP) {
@@ -1244,7 +1247,8 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
 #endif
 
-    if (info->ChipFamily != CHIP_FAMILY_RS690) {
+    if ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+	(info->ChipFamily != CHIP_FAMILY_RS740)) {
 	if (info->IsIGP)
 	    save->mc_fb_location = INREG(RADEON_NB_TOM);
 	else
@@ -1448,7 +1452,8 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     MessageType    from = X_PROBED;
     CARD32         accessible, bar_size;
 
-    if (info->ChipFamily == CHIP_FAMILY_RS690) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740)) {
 	pScrn->videoRam = INREG(RADEON_CONFIG_MEMSIZE);
     } else if (info->IsIGP) {
         CARD32 tom = INREG(RADEON_NB_TOM);
@@ -4137,55 +4142,168 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
     state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
 
-    j = 0;
-    /* save DVOA regs */
-    for (i = 0x7980; i <= 0x79bc; i += 4) {
-	state->dvoa[j] = INREG(i);
-	j++;
-    }
+    if (IS_DCE3_VARIANT) {
+	/* save DVOA regs */
+	state->dvoa[0] = INREG(0x7080);
+	state->dvoa[1] = INREG(0x7084);
+	state->dvoa[2] = INREG(0x708c);
+	state->dvoa[3] = INREG(0x7090);
+	state->dvoa[4] = INREG(0x7094);
+	state->dvoa[5] = INREG(0x70ac);
+	state->dvoa[6] = INREG(0x70b0);
 
-    j = 0;
-    /* save DAC regs */
-    for (i = 0x7800; i <= 0x782c; i += 4) {
-	state->daca[j] = INREG(i);
-	state->dacb[j] = INREG(i + 0x200);
-	j++;
-    }
-    for (i = 0x7834; i <= 0x7840; i += 4) {
-	state->daca[j] = INREG(i);
-	state->dacb[j] = INREG(i + 0x200);
-	j++;
-    }
-    for (i = 0x7850; i <= 0x7868; i += 4) {
-	state->daca[j] = INREG(i);
-	state->dacb[j] = INREG(i + 0x200);
-	j++;
-    }
-
-    j = 0;
-    /* save TMDSA regs */
-    for (i = 0x7880; i <= 0x78e0; i += 4) {
-	state->tmdsa[j] = INREG(i);
-	j++;
-    }
-    for (i = 0x7904; i <= 0x7918; i += 4) {
-	state->tmdsa[j] = INREG(i);
-	j++;
-    }
-
-    j = 0;
-    /* save LVTMA regs */
-    for (i = 0x7a80; i <= 0x7b18; i += 4) {
-	state->lvtma[j] = INREG(i);
-	j++;
-    }
-
-    if (info->ChipFamily == CHIP_FAMILY_RS690) {
 	j = 0;
-	/* save DDIA regs */
-	for (i = 0x7200; i <= 0x7290; i += 4) {
-	    state->ddia[j] = INREG(i);
+	/* save DAC regs */
+	for (i = 0x7000; i <= 0x7040; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x100);
 	    j++;
+	}
+	for (i = 0x7058; i <= 0x7060; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x100);
+	    j++;
+	}
+	for (i = 0x7068; i <= 0x706c; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x100);
+	    j++;
+	}
+	for (i = 0x7ef0; i <= 0x7ef8; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x100);
+	    j++;
+	}
+	state->daca[j] = INREG(0x7050);
+	state->dacb[j] = INREG(0x7050 + 0x100);
+
+	j = 0;
+	/* save FMT regs */
+	for (i = 0x6700; i <= 0x6744; i += 4) {
+	    state->fmt1[j] = INREG(i);
+	    state->fmt2[j] = INREG(i + 0x800);
+	    j++;
+	}
+
+	j = 0;
+	/* save DIG regs */
+	for (i = 0x75a0; i <= 0x75e0; i += 4) {
+	    state->dig1[j] = INREG(i);
+	    state->dig2[j] = INREG(i + 0x400);
+	    j++;
+	}
+	for (i = 0x75e8; i <= 0x75ec; i += 4) {
+	    state->dig1[j] = INREG(i);
+	    state->dig2[j] = INREG(i + 0x400);
+	    j++;
+	}
+
+	j = 0;
+	/* save HDMI regs */
+	for (i = 0x7400; i <= 0x741c; i += 4) {
+	    state->hdmi1[j] = INREG(i);
+	    state->hdmi2[j] = INREG(i + 0x400);
+	    j++;
+	}
+	for (i = 0x7430; i <= 0x74ec; i += 4) {
+	    state->hdmi1[j] = INREG(i);
+	    state->hdmi2[j] = INREG(i + 0x400);
+	    j++;
+	}
+	state->hdmi1[j] = INREG(0x7428);
+	state->hdmi2[j] = INREG(0x7828);
+
+	j = 0;
+	/* save AUX regs */
+	for (i = 0x7780; i <= 0x77b4; i += 4) {
+	    state->aux_cntl1[j] = INREG(i);
+	    state->aux_cntl2[j] = INREG(i + 0x040);
+	    state->aux_cntl3[j] = INREG(i + 0x400);
+	    state->aux_cntl4[j] = INREG(i + 0x440);
+	    j++;
+	}
+
+	j = 0;
+	/* save UNIPHY regs */
+	for (i = 0x7ec0; i <= 0x7edc; i += 4) {
+	    state->uniphy1[j] = INREG(i);
+	    state->uniphy2[j] = INREG(i + 0x100);
+	    j++;
+	}
+	j = 0;
+	/* save PHY,LINK regs */
+	for (i = 0x7f20; i <= 0x7f34; i += 4) {
+	    state->phy[j] = INREG(i);
+	    j++;
+	}
+	for (i = 0x7f9c; i <= 0x7fa4; i += 4) {
+	    state->phy[j] = INREG(i);
+	    j++;
+	}
+	state->phy[j] = INREG(0x7f40);
+
+	j = 0;
+	/* save LVTMA regs */
+	for (i = 0x7f00; i <= 0x7f1c; i += 4) {
+	    state->lvtma[j] = INREG(i);
+	    j++;
+	}
+	for (i = 0x7f80; i <= 0x7f98; i += 4) {
+	    state->lvtma[j] = INREG(i);
+	    j++;
+	}
+    } else {
+	j = 0;
+	/* save DVOA regs */
+	for (i = 0x7980; i <= 0x79bc; i += 4) {
+	    state->dvoa[j] = INREG(i);
+	    j++;
+	}
+
+	j = 0;
+	/* save DAC regs */
+	for (i = 0x7800; i <= 0x782c; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x200);
+	    j++;
+	}
+	for (i = 0x7834; i <= 0x7840; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x200);
+	    j++;
+	}
+	for (i = 0x7850; i <= 0x7868; i += 4) {
+	    state->daca[j] = INREG(i);
+	    state->dacb[j] = INREG(i + 0x200);
+	    j++;
+	}
+
+	j = 0;
+	/* save TMDSA regs */
+	for (i = 0x7880; i <= 0x78e0; i += 4) {
+	    state->tmdsa[j] = INREG(i);
+	    j++;
+	}
+	for (i = 0x7904; i <= 0x7918; i += 4) {
+	    state->tmdsa[j] = INREG(i);
+	    j++;
+	}
+
+	j = 0;
+	/* save LVTMA regs */
+	for (i = 0x7a80; i <= 0x7b18; i += 4) {
+	    state->lvtma[j] = INREG(i);
+	    j++;
+	}
+
+	if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
+	    j = 0;
+	    /* save DDIA regs */
+	    for (i = 0x7200; i <= 0x7290; i += 4) {
+		state->ddia[j] = INREG(i);
+		j++;
+	    }
 	}
     }
 
@@ -4327,55 +4445,169 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
     OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
 
-    j = 0;
-    /* DVOA regs */
-    for (i = 0x7980; i <= 0x79bc; i += 4) {
-	OUTREG(i, state->dvoa[j]);
-	j++;
-    }
 
-    j = 0;
-    /* DAC regs */
-    for (i = 0x7800; i <= 0x782c; i += 4) {
-	OUTREG(i, state->daca[j]);
-	OUTREG((i + 0x200), state->dacb[j]);
-	j++;
-    }
-    for (i = 0x7834; i <= 0x7840; i += 4) {
-	OUTREG(i, state->daca[j]);
-	OUTREG((i + 0x200), state->dacb[j]);
-	j++;
-    }
-    for (i = 0x7850; i <= 0x7868; i += 4) {
-	OUTREG(i, state->daca[j]);
-	OUTREG((i + 0x200), state->dacb[j]);
-	j++;
-    }
+    if (IS_DCE3_VARIANT) {
+	/* DVOA regs */
+	OUTREG(0x7080, state->dvoa[0]);
+	OUTREG(0x7084, state->dvoa[1]);
+	OUTREG(0x708c, state->dvoa[2]);
+	OUTREG(0x7090, state->dvoa[3]);
+	OUTREG(0x7094, state->dvoa[4]);
+	OUTREG(0x70ac, state->dvoa[5]);
+	OUTREG(0x70b0, state->dvoa[6]);
 
-    j = 0;
-    /* TMDSA regs */
-    for (i = 0x7880; i <= 0x78e0; i += 4) {
-	OUTREG(i, state->tmdsa[j]);
-	j++;
-    }
-    for (i = 0x7904; i <= 0x7918; i += 4) {
-	OUTREG(i, state->tmdsa[j]);
-	j++;
-    }
-
-    j = 0;
-    /* LVTMA regs */
-    for (i = 0x7a80; i <= 0x7b18; i += 4) {
-	OUTREG(i, state->lvtma[j]);
-	j++;
-    }
-
-    /* DDIA regs */
-    if (info->ChipFamily == CHIP_FAMILY_RS690) {
 	j = 0;
-	for (i = 0x7200; i <= 0x7290; i += 4) {
-	    OUTREG(i, state->ddia[j]);
+	/* DAC regs */
+	for (i = 0x7000; i <= 0x7040; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x100), state->dacb[j]);
 	    j++;
+	}
+	for (i = 0x7058; i <= 0x7060; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x100), state->dacb[j]);
+	    j++;
+	}
+	for (i = 0x7068; i <= 0x706c; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x100), state->dacb[j]);
+	    j++;
+	}
+	for (i = 0x7ef0; i <= 0x7ef8; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x100), state->dacb[j]);
+	    j++;
+	}
+	OUTREG(0x7050, state->daca[j]);
+	OUTREG((0x7050 + 0x100), state->dacb[j]);
+
+	j = 0;
+	/* FMT regs */
+	for (i = 0x6700; i <= 0x6744; i += 4) {
+	    OUTREG(i, state->fmt1[j]);
+	    OUTREG((i + 0x800), state->fmt2[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* DIG regs */
+	for (i = 0x75a0; i <= 0x75e0; i += 4) {
+	    OUTREG(i, state->dig1[j]);
+	    OUTREG((i + 0x400), state->dig2[j]);
+	    j++;
+	}
+	for (i = 0x75e8; i <= 0x75ec; i += 4) {
+	    OUTREG(i, state->dig1[j]);
+	    OUTREG((i + 0x400), state->dig2[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* HDMI regs */
+	for (i = 0x7400; i <= 0x741c; i += 4) {
+	    OUTREG(i, state->hdmi1[j]);
+	    OUTREG((i + 0x400), state->hdmi2[j]);
+	    j++;
+	}
+	for (i = 0x7430; i <= 0x74ec; i += 4) {
+	    OUTREG(i, state->hdmi1[j]);
+	    OUTREG((i + 0x400), state->hdmi2[j]);
+	    j++;
+	}
+	OUTREG(0x7428, state->hdmi1[j]);
+	OUTREG((0x7428 + 0x400), state->hdmi2[j]);
+
+	j = 0;
+	/* save AUX regs */
+	for (i = 0x7780; i <= 0x77b4; i += 4) {
+	    OUTREG(i, state->aux_cntl1[j]);
+	    OUTREG((i + 0x040), state->aux_cntl2[j]);
+	    OUTREG((i + 0x400), state->aux_cntl3[j]);
+	    OUTREG((i + 0x440), state->aux_cntl4[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* save UNIPHY regs */
+	for (i = 0x7ec0; i <= 0x7edc; i += 4) {
+	    OUTREG(i, state->uniphy1[j]);
+	    OUTREG((i + 0x100), state->uniphy2[j]);
+	    j++;
+	}
+	j = 0;
+	/* save PHY,LINK regs */
+	for (i = 0x7f20; i <= 0x7f34; i += 4) {
+	    OUTREG(i, state->phy[j]);
+	    j++;
+	}
+	for (i = 0x7f9c; i <= 0x7fa4; i += 4) {
+	    OUTREG(i, state->phy[j]);
+	    j++;
+	}
+	state->phy[j] = INREG(0x7f40);
+
+	j = 0;
+	/* save LVTMA regs */
+	for (i = 0x7f00; i <= 0x7f1c; i += 4) {
+	    OUTREG(i, state->lvtma[j]);
+	    j++;
+	}
+	for (i = 0x7f80; i <= 0x7f98; i += 4) {
+	    OUTREG(i, state->lvtma[j]);
+	    j++;
+	}
+    } else {
+	j = 0;
+	/* DVOA regs */
+	for (i = 0x7980; i <= 0x79bc; i += 4) {
+	    OUTREG(i, state->dvoa[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* DAC regs */
+	for (i = 0x7800; i <= 0x782c; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x200), state->dacb[j]);
+	    j++;
+	}
+	for (i = 0x7834; i <= 0x7840; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x200), state->dacb[j]);
+	    j++;
+	}
+	for (i = 0x7850; i <= 0x7868; i += 4) {
+	    OUTREG(i, state->daca[j]);
+	    OUTREG((i + 0x200), state->dacb[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* TMDSA regs */
+	for (i = 0x7880; i <= 0x78e0; i += 4) {
+	    OUTREG(i, state->tmdsa[j]);
+	    j++;
+	}
+	for (i = 0x7904; i <= 0x7918; i += 4) {
+	    OUTREG(i, state->tmdsa[j]);
+	    j++;
+	}
+
+	j = 0;
+	/* LVTMA regs */
+	for (i = 0x7a80; i <= 0x7b18; i += 4) {
+	    OUTREG(i, state->lvtma[j]);
+	    j++;
+	}
+
+	/* DDIA regs */
+	if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
+	    j = 0;
+	    for (i = 0x7200; i <= 0x7290; i += 4) {
+		OUTREG(i, state->ddia[j]);
+		j++;
+	    }
 	}
     }
 
