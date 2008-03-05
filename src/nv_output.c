@@ -212,6 +212,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
+	int oldmode = nv_output->last_dpms;
 
 	ErrorF("nv_lvds_output_dpms is called with mode %d\n", mode);
 
@@ -231,7 +232,10 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
 			break;
 		case DPMSModeOn:
-			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
+			if (oldmode == DPMSModeStandby || oldmode == DPMSModeSuspend)
+				call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_ON, pclk);
+			else
+				call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
 		default:
 			break;
 		}
