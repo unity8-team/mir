@@ -173,6 +173,9 @@ I830Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
+   if (pI830->noAccel)
+       return;
+
 #ifdef XF86DRI
    /* VT switching tries to do this.
     */
