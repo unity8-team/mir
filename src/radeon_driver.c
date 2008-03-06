@@ -2639,8 +2639,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (xf86RegisterResources(info->pEnt->index, 0, ResExclusive))
 	goto fail;
 
-    if (xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr))
-	goto fail;
+    xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr);
 
     pScrn->racMemFlags = RAC_FB | RAC_COLORMAP | RAC_VIEWPORT | RAC_CURSOR;
     pScrn->monitor     = pScrn->confScreen->monitor;
