@@ -150,7 +150,7 @@ TransformCursor (NVPtr pNv)
 
 	/* convert to color cursor */
 	if(pNv->NVArch==0x10) {
-		dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
+		dwords = (MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA) >> 1;
 		if(!(tmp = xalloc(dwords * 4))) return;
 		ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
 	} else if(pNv->alphaCursor) {
