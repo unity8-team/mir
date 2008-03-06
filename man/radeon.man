@@ -422,6 +422,14 @@ internal TMDS controller.
 The default is
 .B off.
 .TP
+.BI "Option \*qDefaultTVDACAdj\*q \*q" boolean \*q
+Use the default driver provided TVDAC Adj values rather than the ones
+provided by the bios. This option has no effect on Mac cards.  Enable 
+this option if you are having problems with a washed out display on 
+the secondary DAC.
+The default is
+.B off.
+.TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Enable DRI support.  This option allows you to enable to disable the DRI.  
 The default is

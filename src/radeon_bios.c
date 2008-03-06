@@ -620,6 +620,9 @@ Bool RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output)
 
     if (!info->VBIOS) return FALSE;
 
+    if (xf86ReturnOptValBool(info->Options, OPTION_DEFAULT_TVDAC_ADJ, FALSE))
+	return FALSE;
+
     if (info->IsAtomBios) {
 	/* not implemented yet */
 	return FALSE;
