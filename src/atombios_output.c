@@ -398,7 +398,6 @@ atombios_output_dig1_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
 
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = mode->Clock / 10;
-    // not sure on clk src...
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
     if (mode->Clock > 165000)
 	disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
@@ -476,7 +475,6 @@ atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
 
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = mode->Clock / 10;
-    // not sure on clk src...
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
     if (mode->Clock > 165000)
 	disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |

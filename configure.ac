@@ -233,14 +233,9 @@ fi
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 
 case $host_os in
-  *freebsd*)
-  AC_DEFINE(ALT_PRAGMA_PACK, 1, [Use alternate pragma pack]) ;;
-  *netbsd*)
-  AC_DEFINE(ALT_PRAGMA_PACK, 1, [Use alternate pragma pack]) ;;
-  *openbsd*)
-  AC_DEFINE(ALT_PRAGMA_PACK, 1, [Use alternate pragma pack]) ;;
+  *linux*)
+  AC_DEFINE(FGL_LINUX, 1, [Use linux pragma pack]) ;;
 esac
-AM_CONDITIONAL(ALT_PRAGMA_PACK, test "x$ALT_PRAGMA_PACK" = xyes)
 
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
