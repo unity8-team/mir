@@ -720,8 +720,8 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
        ErrorF("AGD: cv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-   } else if (radeon_output->MonType == MT_STV ||
-	      radeon_output->MonType == MT_CTV) {
+   } else if (0 /*radeon_output->MonType == MT_STV ||
+		  radeon_output->MonType == MT_CTV*/) {
        ErrorF("AGD: tv dpms\n");
        if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
