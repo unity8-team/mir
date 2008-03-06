@@ -92,7 +92,6 @@ void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
-void NVCrtcModeFix(xf86CrtcPtr crtc);
 uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg);
@@ -107,6 +106,7 @@ uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg);
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc);
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
+void NVOutputModeFix(xf86OutputPtr output);
 
 /* nv_hw.c */
 uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg);

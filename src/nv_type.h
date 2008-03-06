@@ -441,6 +441,7 @@ typedef struct _NVRec {
     Bool                Television;
 	int         vtOWNER;
 	Bool		crtc_active[2];
+	xf86OutputPtr		output_resource[2];
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;

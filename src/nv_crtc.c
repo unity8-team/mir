@@ -2395,36 +2395,6 @@ static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVSetEnablePalette(pNv, nv_crtc->head, false);
 }
 
-/* Reset a mode after a drastic output resource change for example. */
-void NVCrtcModeFix(xf86CrtcPtr crtc)
-{
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	Bool need_unlock;
-
-	if (!crtc->enabled)
-		return;
-
-	if (!xf86ModesEqual(&crtc->mode, &crtc->desiredMode)) /* not currently in X */
-		return;
-
-	DisplayModePtr adjusted_mode = xf86DuplicateMode(&crtc->mode);
-	uint8_t dpms_mode = nv_crtc->last_dpms;
-
-	/* Set the crtc mode again. */
-	crtc->funcs->dpms(crtc, DPMSModeOff);
-	need_unlock = crtc->funcs->lock(crtc);
-	crtc->funcs->mode_fixup(crtc, &crtc->mode, adjusted_mode);
-	crtc->funcs->prepare(crtc);
-	crtc->funcs->mode_set(crtc, &crtc->mode, adjusted_mode, crtc->x, crtc->y);
-	crtc->funcs->commit(crtc);
-	if (need_unlock)
-		crtc->funcs->unlock(crtc);
-	crtc->funcs->dpms(crtc, dpms_mode);
-
-	/* Free mode. */
-	xfree(adjusted_mode);
-}
-
 /*************************************************************************** \
 |*                                                                           *|
 |*       Copyright 1993-2003 NVIDIA, Corporation.  All rights reserved.      *|
