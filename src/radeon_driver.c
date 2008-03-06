@@ -1453,24 +1453,20 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     MessageType    from = X_PROBED;
     CARD32         accessible, bar_size;
 
-    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
-	(info->ChipFamily == CHIP_FAMILY_RS740)) {
-	pScrn->videoRam = INREG(RADEON_CONFIG_MEMSIZE);
-    } else if (info->IsIGP) {
-        CARD32 tom = INREG(RADEON_NB_TOM);
+    if ((!IS_AVIVO_VARIANT) && info->IsIGP) {
+	CARD32 tom = INREG(RADEON_NB_TOM);
 
 	pScrn->videoRam = (((tom >> 16) -
 			    (tom & 0xffff) + 1) << 6);
 
 	OUTREG(RADEON_CONFIG_MEMSIZE, pScrn->videoRam * 1024);
     } else {
-	
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
 	    pScrn->videoRam = INREG(R600_CONFIG_MEMSIZE) / 1024;
 	else {
 	    /* Read VRAM size from card */
 	    pScrn->videoRam      = INREG(RADEON_CONFIG_MEMSIZE) / 1024;
-	    
+
 	    /* Some production boards of m6 will return 0 if it's 8 MB */
 	    if (pScrn->videoRam == 0) {
 		pScrn->videoRam = 8192;
