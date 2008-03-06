@@ -1530,7 +1530,10 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	
 	ErrorF("object id %04x %02x\n", obj_id, SrcDstTable->ucNumberOfSrc);
 	info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
-	info->BiosConnector[i].valid = TRUE;
+	if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE)
+	    info->BiosConnector[i].valid = FALSE;
+	else
+	    info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].devices = 0;
 
 	for (j = 0; j < SrcDstTable->ucNumberOfSrc; j++) {
