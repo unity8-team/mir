@@ -2365,6 +2365,50 @@ I830BlockHandler(int i,
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
 
+static void
+i830_fixup_mtrrs(ScrnInfoPtr pScrn)
+{
+#ifdef HAS_MTRR_SUPPORT
+    I830Ptr pI830 = I830PTR(pScrn);
+    int fd;
+    struct mtrr_gentry gentry;
+    struct mtrr_sentry sentry;
+
+    if ( ( fd = open ("/proc/mtrr", O_RDONLY, 0) ) != -1 ) {
+	for (gentry.regnum = 0; ioctl (fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
+		++gentry.regnum) {
+
+	    if (gentry.size < 1) {
+		/* DISABLED */
+		continue;
+	    }
+
+	    /* Check the MTRR range is one we like and if not - remove it.
+	     * The Xserver common layer will then setup the right range
+	     * for us.
+	     */
+	    if (gentry.base == pI830->LinearAddr && 
+		    gentry.size < pI830->FbMapSize) {
+
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
+			gentry.base, gentry.size);
+
+		sentry.base = gentry.base;
+		sentry.size = gentry.size;
+		sentry.type = gentry.type;
+
+		if (ioctl (fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			    "Failed to remove bad MTRR range\n");
+		}
+	    }
+	}
+	close(fd);
+    }
+#endif
+}
+
 static Bool
 i830_try_memory_allocation(ScrnInfoPtr pScrn)
 {
@@ -2707,46 +2751,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    I830UnmapMMIO(pScrn);
 
-#ifdef HAS_MTRR_SUPPORT
-   {
-      int fd;
-      struct mtrr_gentry gentry;
-      struct mtrr_sentry sentry;
-
-      if ( ( fd = open ("/proc/mtrr", O_RDONLY, 0) ) != -1 ) {
-         for (gentry.regnum = 0; ioctl (fd, MTRRIOC_GET_ENTRY, &gentry) == 0;
-	      ++gentry.regnum) {
-
-	    if (gentry.size < 1) {
-	       /* DISABLED */
-	       continue;
-	    }
-
-            /* Check the MTRR range is one we like and if not - remove it.
-             * The Xserver common layer will then setup the right range
-             * for us.
-             */
-	    if (gentry.base == pI830->LinearAddr && 
-	        gentry.size < pI830->FbMapSize) {
-
-               xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		  "Removing bad MTRR range (base 0x%lx, size 0x%x)\n",
-		  gentry.base, gentry.size);
-
-    	       sentry.base = gentry.base;
-               sentry.size = gentry.size;
-               sentry.type = gentry.type;
-
-               if (ioctl (fd, MTRRIOC_DEL_ENTRY, &sentry) == -1) {
-                  xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		     "Failed to remove bad MTRR range\n");
-               }
-	    }
-         }
-         close(fd);
-      }
-   }
-#endif
+   i830_fixup_mtrrs(pScrn);
 
    pI830->starting = TRUE;
 
