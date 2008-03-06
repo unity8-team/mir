@@ -48,7 +48,7 @@
 #include "sarea.h"
 #endif
 
-AtomBiosResult
+static AtomBiosResult
 atombios_enable_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
 {
     ENABLE_CRTC_PS_ALLOCATION crtc_data;
@@ -71,7 +71,30 @@ atombios_enable_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     return ATOM_NOT_IMPLEMENTED;
 }
 
-AtomBiosResult
+static AtomBiosResult
+atombios_enable_crtc_memreq(atomBiosHandlePtr atomBIOS, int crtc, int state)
+{
+    ENABLE_CRTC_PS_ALLOCATION crtc_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    crtc_data.ucCRTC = crtc;
+    crtc_data.ucEnable = state;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableCRTCMemReq);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &crtc_data;
+
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("%s CRTC memreq %d success\n", state? "Enable":"Disable", crtc);
+	return ATOM_SUCCESS ;
+    }
+
+    ErrorF("Enable CRTC memreq failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+}
+
+static AtomBiosResult
 atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
 {
     BLANK_CRTC_PS_ALLOCATION crtc_data;
@@ -95,19 +118,6 @@ atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     return ATOM_NOT_IMPLEMENTED;
 }
 
-#if 0
-static void
-atombios_crtc_enable(xf86CrtcPtr crtc, int enable)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
-
-    atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, enable);
-
-    //TODOavivo_wait_idle(avivo);
-}
-#endif
-
 void
 atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
@@ -117,12 +127,16 @@ atombios_crtc_dpms(xf86CrtcPtr crtc, int mode)
     case DPMSModeOn:
     case DPMSModeStandby:
     case DPMSModeSuspend:
+	if (IS_DCE3_VARIANT)
+	    atombios_enable_crtc_memreq(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
 	break;
     case DPMSModeOff:
 	atombios_blank_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	atombios_enable_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
+	if (IS_DCE3_VARIANT)
+	    atombios_enable_crtc_memreq(info->atomBIOS, radeon_crtc->crtc_id, 0);
 	break;
     }
 }
