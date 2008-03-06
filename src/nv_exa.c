@@ -477,6 +477,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	NVPtr pNv = NVPTR(pScrn);
 	int line_len = w * cpp;
 	int iw, id, surf_fmt, ifc_fmt;
+	int padbytes;
 
 	if (pNv->Architecture >= NV_ARCH_50)
 		return FALSE;
@@ -502,6 +503,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 
 	/* Pad out input width to cover both COLORA() and COLORB() */
 	iw  = (line_len + 7) & ~7;
+	padbytes = iw - line_len;
 	id  = iw / 4; /* line push size */
 	iw /= cpp;
 
@@ -521,12 +523,22 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	OUT_RING  ((h << 16) | w); /* width/height out */
 	OUT_RING  ((h << 16) | iw); /* width/height in */
 
+	if (padbytes)
+		h--;
 	while (h--) {
 		/* send a line */
 		BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_COLOR(0), id);
 		OUT_RINGp (src, id);
 
 		src += src_pitch;
+	}
+	if (padbytes) {
+		char padding[8];
+		int aux = (padbytes + 7) >> 2;
+		BEGIN_RING(NvImageFromCpu, NV01_IMAGE_FROM_CPU_COLOR(0), id);
+		OUT_RINGp (src, id - aux);
+		memcpy(padding, src + (id - aux) * 4, padbytes);
+		OUT_RINGp (padding, aux);
 	}
 
 	return TRUE;
