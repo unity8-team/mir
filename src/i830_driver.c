@@ -1036,6 +1036,211 @@ i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
    pI830->writeControl(pI830, GRX, 0x18, gr18);
 }
 
+static Bool
+i830_detect_chipset(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    MessageType from = X_PROBED;
+    const char *chipname;
+    uint32_t capid;
+    int fb_bar, mmio_bar;
+
+    switch (DEVICE_ID(pI830->PciInfo)) {
+    case PCI_CHIP_I830_M:
+	chipname = "830M";
+	break;
+    case PCI_CHIP_845_G:
+	chipname = "845G";
+	break;
+    case PCI_CHIP_I855_GM:
+	/* Check capid register to find the chipset variant */
+#if XSERVER_LIBPCIACCESS
+	pci_device_cfg_read_u32 (pI830->PciInfo, &capid, I85X_CAPID);
+#else
+	capid = pciReadLong (pI830->PciTag, I85X_CAPID);
+#endif
+	pI830->variant = (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
+	switch (pI830->variant) {
+	case I855_GM:
+	    chipname = "855GM";
+	    break;
+	case I855_GME:
+	    chipname = "855GME";
+	    break;
+	case I852_GM:
+	    chipname = "852GM";
+	    break;
+	case I852_GME:
+	    chipname = "852GME";
+	    break;
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Unknown 852GM/855GM variant: 0x%x)\n", pI830->variant);
+	    chipname = "852GM/855GM (unknown variant)";
+	    break;
+	}
+	break;
+    case PCI_CHIP_I865_G:
+	chipname = "865G";
+	break;
+    case PCI_CHIP_I915_G:
+	chipname = "915G";
+	break;
+    case PCI_CHIP_E7221_G:
+	chipname = "E7221 (i915)";
+	break;
+    case PCI_CHIP_I915_GM:
+	chipname = "915GM";
+	break;
+    case PCI_CHIP_I945_G:
+	chipname = "945G";
+	break;
+    case PCI_CHIP_I945_GM:
+	chipname = "945GM";
+	break;
+    case PCI_CHIP_I945_GME:
+	chipname = "945GME";
+	break;
+    case PCI_CHIP_I965_G:
+	chipname = "965G";
+	break;
+    case PCI_CHIP_G35_G:
+	chipname = "G35";
+	break;
+    case PCI_CHIP_I965_Q:
+	chipname = "965Q";
+	break;
+    case PCI_CHIP_I946_GZ:
+	chipname = "946GZ";
+	break;
+    case PCI_CHIP_I965_GM:
+	chipname = "965GM";
+	break;
+    case PCI_CHIP_I965_GME:
+	chipname = "965GME/GLE";
+	break;
+    case PCI_CHIP_G33_G:
+	chipname = "G33";
+	break;
+    case PCI_CHIP_Q35_G:
+	chipname = "Q35";
+	break;
+    case PCI_CHIP_Q33_G:
+	chipname = "Q33";
+	break;
+    case PCI_CHIP_IGD_GM:
+	chipname = "Intel Integrated Graphics Device";
+	break;
+   default:
+	chipname = "unknown chipset";
+	break;
+    }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Integrated Graphics Chipset: Intel(R) %s\n", chipname);
+
+    /* Set the Chipset and ChipRev, allowing config file entries to override. */
+    if (pI830->pEnt->device->chipset && *pI830->pEnt->device->chipset) {
+	pScrn->chipset = pI830->pEnt->device->chipset;
+	from = X_CONFIG;
+    } else if (pI830->pEnt->device->chipID >= 0) {
+	pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
+						   pI830->pEnt->device->chipID);
+	from = X_CONFIG;
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
+		   pI830->pEnt->device->chipID);
+	DEVICE_ID(pI830->PciInfo) = pI830->pEnt->device->chipID;
+    } else {
+	from = X_PROBED;
+	pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
+						   DEVICE_ID(pI830->PciInfo));
+    }
+
+    if (pI830->pEnt->device->chipRev >= 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
+		   pI830->pEnt->device->chipRev);
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n",
+	       (pScrn->chipset != NULL) ? pScrn->chipset : "Unknown i8xx");
+
+    /* Now that we know the chipset, figure out the resource base addrs */
+    if (IS_I9XX(pI830)) {
+	fb_bar = 2;
+	mmio_bar = 0;
+    } else {
+	fb_bar = 0;
+	mmio_bar = 1;
+    }
+
+    if (pI830->pEnt->device->MemBase != 0) {
+	pI830->LinearAddr = pI830->pEnt->device->MemBase;
+	from = X_CONFIG;
+    } else {
+	pI830->LinearAddr = I810_MEMBASE (pI830->PciInfo, fb_bar);
+	if (pI830->LinearAddr == 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "No valid FB address in PCI config space\n");
+	    PreInitCleanup(pScrn);
+	    return FALSE;
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
+	       (unsigned long)pI830->LinearAddr);
+
+    if (pI830->pEnt->device->IOBase != 0) {
+	pI830->MMIOAddr = pI830->pEnt->device->IOBase;
+	from = X_CONFIG;
+    } else {
+	pI830->MMIOAddr = I810_MEMBASE (pI830->PciInfo, mmio_bar);
+	if (pI830->MMIOAddr == 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "No valid MMIO address in PCI config space\n");
+	    PreInitCleanup(pScrn);
+	    return FALSE;
+	}
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
+	       (unsigned long)pI830->MMIOAddr);
+
+    /* Now figure out mapsize on 8xx chips */
+    if (IS_I830(pI830) || IS_845G(pI830)) {
+#if XSERVER_LIBPCIACCESS
+	uint16_t		gmch_ctrl;
+	struct pci_device *bridge;
+
+	bridge = intel_host_bridge ();
+	pci_device_cfg_read_u16 (bridge, &gmch_ctrl, I830_GMCH_CTRL);
+#else
+	PCITAG bridge;
+	CARD16 gmch_ctrl;
+
+	bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
+	gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
+#endif
+	if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
+	    pI830->FbMapSize = 0x8000000;
+	} else {
+	    pI830->FbMapSize = 0x4000000; /* 64MB - has this been tested ?? */
+	}
+    } else {
+	if (IS_I9XX(pI830)) {
+#if XSERVER_LIBPCIACCESS
+	    pI830->FbMapSize = pI830->PciInfo->regions[fb_bar].size;
+#else
+	    pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
+						     NULL);
+#endif
+	} else {
+	    /* 128MB aperture for later i8xx series. */
+	    pI830->FbMapSize = 0x8000000;
+	}
+    }
+
+    return TRUE;
+}
+
 /**
  * This is called per zaphod head (so usually just once) to do initialization
  * before the Screen is created.
@@ -1057,11 +1262,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    int i;
    char *s;
    pointer pVBEModule = NULL;
-   const char *chipname;
    int num_pipe;
    int max_width, max_height;
-   uint32_t	capid;
-   int fb_bar, mmio_bar;
 
    if (pScrn->numEntities != 1)
       return FALSE;
@@ -1201,166 +1403,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    /* We have to use PIO to probe, because we haven't mapped yet. */
    I830SetPIOAccess(pI830);
 
-   switch (DEVICE_ID(pI830->PciInfo)) {
-   case PCI_CHIP_I830_M:
-      chipname = "830M";
-      break;
-   case PCI_CHIP_845_G:
-      chipname = "845G";
-      break;
-   case PCI_CHIP_I855_GM:
-      /* Check capid register to find the chipset variant */
-#if XSERVER_LIBPCIACCESS
-      pci_device_cfg_read_u32 (pI830->PciInfo, &capid, I85X_CAPID);
-#else
-      capid = pciReadLong (pI830->PciTag, I85X_CAPID);
-#endif
-      pI830->variant = (capid >> I85X_VARIANT_SHIFT) & I85X_VARIANT_MASK;
-      switch (pI830->variant) {
-      case I855_GM:
-	 chipname = "855GM";
-	 break;
-      case I855_GME:
-	 chipname = "855GME";
-	 break;
-      case I852_GM:
-	 chipname = "852GM";
-	 break;
-      case I852_GME:
-	 chipname = "852GME";
-	 break;
-      default:
-	 xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		    "Unknown 852GM/855GM variant: 0x%x)\n", pI830->variant);
-	 chipname = "852GM/855GM (unknown variant)";
-	 break;
-      }
-      break;
-   case PCI_CHIP_I865_G:
-      chipname = "865G";
-      break;
-   case PCI_CHIP_I915_G:
-      chipname = "915G";
-      break;
-   case PCI_CHIP_E7221_G:
-      chipname = "E7221 (i915)";
-      break;
-   case PCI_CHIP_I915_GM:
-      chipname = "915GM";
-      break;
-   case PCI_CHIP_I945_G:
-      chipname = "945G";
-      break;
-   case PCI_CHIP_I945_GM:
-      chipname = "945GM";
-      break;
-   case PCI_CHIP_I945_GME:
-      chipname = "945GME";
-      break;
-   case PCI_CHIP_I965_G:
-      chipname = "965G";
-      break;
-   case PCI_CHIP_G35_G:
-      chipname = "G35";
-      break;
-   case PCI_CHIP_I965_Q:
-      chipname = "965Q";
-      break;
-   case PCI_CHIP_I946_GZ:
-      chipname = "946GZ";
-      break;
-   case PCI_CHIP_I965_GM:
-      chipname = "965GM";
-      break;
-   case PCI_CHIP_I965_GME:
-      chipname = "965GME/GLE";
-      break;
-   case PCI_CHIP_G33_G:
-      chipname = "G33";
-      break;
-   case PCI_CHIP_Q35_G:
-      chipname = "Q35";
-      break;
-   case PCI_CHIP_Q33_G:
-      chipname = "Q33";
-      break;
-   case PCI_CHIP_IGD_GM:
-      chipname = "Intel Integrated Graphics Device";
-      break;
-   default:
-      chipname = "unknown chipset";
-      break;
-   }
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	      "Integrated Graphics Chipset: Intel(R) %s\n", chipname);
-
-   /* Set the Chipset and ChipRev, allowing config file entries to override. */
-   if (pI830->pEnt->device->chipset && *pI830->pEnt->device->chipset) {
-      pScrn->chipset = pI830->pEnt->device->chipset;
-      from = X_CONFIG;
-   } else if (pI830->pEnt->device->chipID >= 0) {
-      pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
-						 pI830->pEnt->device->chipID);
-      from = X_CONFIG;
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipID override: 0x%04X\n",
-		 pI830->pEnt->device->chipID);
-      DEVICE_ID(pI830->PciInfo) = pI830->pEnt->device->chipID;
-   } else {
-      from = X_PROBED;
-      pScrn->chipset = (char *)xf86TokenToString(I830Chipsets,
-						 DEVICE_ID(pI830->PciInfo));
-   }
-
-   if (pI830->pEnt->device->chipRev >= 0) {
-      xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ChipRev override: %d\n",
-		 pI830->pEnt->device->chipRev);
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, from, "Chipset: \"%s\"\n",
-	      (pScrn->chipset != NULL) ? pScrn->chipset : "Unknown i8xx");
-
-   if (IS_I9XX(pI830))
-   {
-      fb_bar = 2;
-      mmio_bar = 0;
-   }
-   else
-   {
-      fb_bar = 0;
-      mmio_bar = 1;
-   }
-
-   if (pI830->pEnt->device->MemBase != 0) {
-      pI830->LinearAddr = pI830->pEnt->device->MemBase;
-      from = X_CONFIG;
-   } else {
-      pI830->LinearAddr = I810_MEMBASE (pI830->PciInfo, fb_bar);
-      if (pI830->LinearAddr == 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "No valid FB address in PCI config space\n");
-	 PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, from, "Linear framebuffer at 0x%lX\n",
-	      (unsigned long)pI830->LinearAddr);
-
-   if (pI830->pEnt->device->IOBase != 0) {
-      pI830->MMIOAddr = pI830->pEnt->device->IOBase;
-      from = X_CONFIG;
-   } else {
-      pI830->MMIOAddr = I810_MEMBASE (pI830->PciInfo, mmio_bar);
-      if (pI830->MMIOAddr == 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "No valid MMIO address in PCI config space\n");
-	 PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-   }
-
-   xf86DrvMsg(pScrn->scrnIndex, from, "IO registers at addr 0x%lX\n",
-	      (unsigned long)pI830->MMIOAddr);
+   if (!i830_detect_chipset(pScrn))
+       return FALSE;
 
    /* check quirks */
    i830_fixup_devices(pScrn);
@@ -1379,39 +1423,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       max_height = 2048;
    }
    xf86CrtcSetSizeRange (pScrn, 320, 200, max_width, max_height);
-
-   if (IS_I830(pI830) || IS_845G(pI830)) {
-#if XSERVER_LIBPCIACCESS
-      uint16_t		gmch_ctrl;
-      struct pci_device *bridge;
-
-      bridge = intel_host_bridge ();
-      pci_device_cfg_read_u16 (bridge, &gmch_ctrl, I830_GMCH_CTRL);
-#else
-      PCITAG bridge;
-      CARD16 gmch_ctrl;
-
-      bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
-      gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
-#endif
-      if ((gmch_ctrl & I830_GMCH_MEM_MASK) == I830_GMCH_MEM_128M) {
-	 pI830->FbMapSize = 0x8000000;
-      } else {
-	 pI830->FbMapSize = 0x4000000; /* 64MB - has this been tested ?? */
-      }
-   } else {
-      if (IS_I9XX(pI830)) {
-#if XSERVER_LIBPCIACCESS
-	 pI830->FbMapSize = pI830->PciInfo->regions[fb_bar].size;
-#else
-	 pI830->FbMapSize = 1UL << pciGetBaseSize(pI830->PciTag, 2, TRUE,
-						  NULL);
-#endif
-      } else {
-	 /* 128MB aperture for later i8xx series. */
-	 pI830->FbMapSize = 0x8000000;
-      }
-   }
 
    /* Some of the probing needs MMIO access, so map it here. */
    I830MapMMIO(pScrn);
