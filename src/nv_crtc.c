@@ -98,7 +98,7 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
+		NVSetOwner(pScrn, nv_crtc->head);
 	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
@@ -163,8 +163,9 @@ nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
  * This is not needed for the vpll's which have their own bits.
  */
 
-static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
+static void nv40_crtc_save_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	state->vpll1_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
 	state->vpll1_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
 	state->vpll2_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
@@ -175,9 +176,8 @@ static void nv40_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 	state->reg594 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_594);
 }
 
-static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
+static void nv40_crtc_load_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t fp_debug_0[2];
 	uint32_t index[2];
@@ -188,7 +188,6 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	if (state->crosswired) {
 		index[0] = 1;
 		index[1] = 0;
-		ErrorF("Crosswired pll state load\n");
 	} else {
 		index[0] = 0;
 		index[1] = 1;
@@ -204,18 +203,18 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		/* for vpll2 change bits 18 and 19 are disabled */
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040 & ~(3 << 18));
 
-		ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
-		ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2 %08X\n", state->vpll2_a);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2_B %08X\n", state->vpll2_b);
 
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2_a);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 
-		ErrorF("writing pllsel %08X\n", state->pllsel);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_PLL_SELECT %08X\n", state->pllsel);
 		/* Don't turn vpll1 off. */
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_580 %08X\n", state->reg580);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
-		ErrorF("writing reg580 %08X\n", state->reg580);
 
 		/* We need to wait a while */
 		usleep(5000);
@@ -237,17 +236,17 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		/* for vpll1 change bits 16 and 17 are disabled */
 		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040 & ~(3 << 16));
 
-		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
-		ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL %08X\n", state->vpll1_a);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL_B %08X\n", state->vpll1_b);
 
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll1_a);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpll1_b);
 
-		ErrorF("writing pllsel %08X\n", state->pllsel);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_PLL_SELECT %08X\n", state->pllsel);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_580 %08X\n", state->reg580);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
-		ErrorF("writing reg580 %08X\n", state->reg580);
 
 		/* We need to wait a while */
 		usleep(5000);
@@ -259,10 +258,10 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		usleep(5000);
 	}
 
-	ErrorF("writing sel_clk %08X\n", state->sel_clk);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", state->sel_clk);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
-	ErrorF("writing reg594 %08X\n", state->reg594);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_594 %08X\n", state->reg594);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_594, state->reg594);
 
 	/* All clocks have been set at this point. */
@@ -270,8 +269,9 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	state->vpll_changed[1] = FALSE;
 }
 
-static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
+static void nv_crtc_save_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	state->vpll1_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
 	if (pNv->twoHeads) {
 		state->vpll2_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
@@ -285,34 +285,35 @@ static void nv_crtc_save_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
 }
 
 
-static void nv_crtc_load_state_pll(NVPtr pNv, RIVA_HW_STATE *state)
+static void nv_crtc_load_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	/* This sequence is important, the NV28 is very sensitive in this area. */
 	/* Keep pllsel last and sel_clk first. */
-	ErrorF("writing sel_clk %08X\n", state->sel_clk);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", state->sel_clk);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
 	if (state->vpll2_a && state->vpll_changed[1]) {
 		if (pNv->twoHeads) {
-			ErrorF("writing vpll2_a %08X\n", state->vpll2_a);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2 %08X\n", state->vpll2_a);
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2_a);
 		}
 		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
-			ErrorF("writing vpll2_b %08X\n", state->vpll2_b);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2_B %08X\n", state->vpll2_b);
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2_b);
 		}
 	}
 
 	if (state->vpll1_a && state->vpll_changed[0]) {
-		ErrorF("writing vpll1_a %08X\n", state->vpll1_a);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL %08X\n", state->vpll1_a);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll1_a);
 		if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
-			ErrorF("writing vpll1_b %08X\n", state->vpll1_b);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL_B %08X\n", state->vpll1_b);
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpll1_b);
 		}
 	}
 
-	ErrorF("writing pllsel %08X\n", state->pllsel);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_PLL_SELECT %08X\n", state->pllsel);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 	/* All clocks have been set at this point. */
@@ -410,10 +411,8 @@ void nv_crtc_calc_state_ext(
 	uint32_t pixelDepth, VClk = 0;
 	uint32_t CursorStart;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	RIVA_HW_STATE *state = &pNv->ModeReg;
-	int num_crtc_enabled, i;
 	uint32_t old_clock_a = 0, old_clock_b = 0;
 	struct pll_lims pll_lim;
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
@@ -491,9 +490,9 @@ void nv_crtc_calc_state_ext(
 	}
 
 	if (!pNv->twoStagePLL || nv4x_single_stage_pll_mode)
-		ErrorF("vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 	else
-		ErrorF("vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 
 	if (nv_crtc->head == 1) {
 		state->vpll2_a = state->pll;
@@ -581,16 +580,6 @@ void nv_crtc_calc_state_ext(
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] |= 0xB8;
 	}
 
-	/* okay do we have 2 CRTCs running ? */
-	num_crtc_enabled = 0;
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		if (xf86_config->crtc[i]->enabled) {
-			num_crtc_enabled++;
-		}
-	}
-
-	ErrorF("There are %d CRTC's enabled\n", num_crtc_enabled);
-
 	/* Are we crosswired? */
 	if (output && nv_crtc->head != nv_output->preferred_output) {
 		state->crosswired = TRUE;
@@ -670,7 +659,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
-	ErrorF("nv_crtc_dpms is called for CRTC %d with mode %d\n", nv_crtc->head, mode);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_dpms is called for CRTC %d with mode %d.\n", nv_crtc->head, mode);
 
 	if (nv_crtc->last_dpms == mode) /* Don't do unnecesary mode changes. */
 		return;
@@ -678,7 +667,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	nv_crtc->last_dpms = mode;
 
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
+		NVSetOwner(pScrn, nv_crtc->head);
 
 	crtc1A = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_REPAINT1) & ~0xC0;
 	switch(mode) {
@@ -725,7 +714,8 @@ nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_mode_fixup is called for CRTC %d\n", nv_crtc->head);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_mode_fixup is called for CRTC %d.\n", nv_crtc->head);
 
 	return TRUE;
 }
@@ -763,8 +753,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE))
 		depth = pNv->console_mode[nv_crtc->head].bpp;
 
-	ErrorF("Mode clock: %d\n", mode->Clock);
-	ErrorF("Adjusted mode clock: %d\n", adjusted_mode->Clock);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode clock: %d\n", mode->Clock);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Adjusted mode clock: %d\n", adjusted_mode->Clock);
 
 	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
 	if (output && (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)) {
@@ -783,6 +773,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	if (mode->Flags & V_INTERLACE) 
 		vertTotal |= 1;
 
+#if 0
 	ErrorF("horizDisplay: 0x%X \n", horizDisplay);
 	ErrorF("horizStart: 0x%X \n", horizStart);
 	ErrorF("horizEnd: 0x%X \n", horizEnd);
@@ -795,6 +786,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	ErrorF("vertTotal: 0x%X \n", vertTotal);
 	ErrorF("vertBlankStart: 0x%X \n", vertBlankStart);
 	ErrorF("vertBlankEnd: 0x%X \n", vertBlankEnd);
+#endif
 
 	/*
 	* compute correct Hsync & Vsync polarity 
@@ -1211,7 +1203,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/*
 	 * Calculate the state that is common to all crtc's (stored in the state struct).
 	 */
-	ErrorF("crtc %d %d %d\n", nv_crtc->head, mode->CrtcHDisplay, pScrn->displayWidth);
 	nv_crtc_calc_state_ext(crtc,
 				mode,
 				depth,
@@ -1269,6 +1260,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
 		regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
 
+#if 0
 		ErrorF("Horizontal:\n");
 		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
 		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
@@ -1286,6 +1278,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
 		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
 		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
+#endif
 	}
 
 	/*
@@ -1368,7 +1361,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			if (h_scale != (1 << 12) && (panel_ratio > aspect_ratio + ONE_TENTH)) {
 				uint32_t diff;
 
-				ErrorF("Scaling resolution on a widescreen panel\n");
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires vertical black bars.\n");
 
 				/* Scaling in both directions needs to the same */
 				h_scale = v_scale;
@@ -1385,7 +1378,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			if (v_scale != (1 << 12) && (panel_ratio < aspect_ratio - ONE_TENTH)) {
 				uint32_t diff;
 
-				ErrorF("Scaling resolution on a portrait panel\n");
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires horizontal black bars.\n");
 
 				/* Scaling in both directions needs to the same */
 				v_scale = h_scale;
@@ -1434,9 +1427,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
-
-	if (output)
-		ErrorF("output %d debug_0 %08X\n", nv_output->output_resource, regp->debug_0[nv_crtc->head]);
 
 	/* Flatpanel support needs at least a NV10 */
 	if (pNv->twoHeads) {
@@ -1507,7 +1497,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 				regp->debug_0[nv_crtc->head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK;
 				regp->debug_0[other_head] |= NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL;
 			} else {
-				ErrorF("This is BAD, we own more than one fp reg set, but are not a LVDS or TMDS output.\n");
+				xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "This is BAD, we own more than one flat panel register set, but are not a LVDS or TMDS output.\n");
 			}
 		}
 	}
@@ -1531,19 +1521,19 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVPtr pNv = NVPTR(pScrn);
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 
-	ErrorF("nv_crtc_mode_set is called for CRTC %d\n", nv_crtc->head);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_mode_set is called for CRTC %d.\n", nv_crtc->head);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
+		NVSetOwner(pScrn, nv_crtc->head);
 
 	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
 
 	/* set sel_clk before calculating PLLs */
 	nv_crtc_mode_set_sel_clk(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
-		ErrorF("writing sel_clk %08X\n", pNv->ModeReg.sel_clk);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", pNv->ModeReg.sel_clk);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 	}
 	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
@@ -1556,9 +1546,9 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
-		nv40_crtc_load_state_pll(crtc, &pNv->ModeReg);
+		nv40_crtc_load_state_pll(pScrn, &pNv->ModeReg);
 	} else {
-		nv_crtc_load_state_pll(pNv, &pNv->ModeReg);
+		nv_crtc_load_state_pll(pScrn, &pNv->ModeReg);
 	}
 
 	NVVgaProtect(pNv, nv_crtc->head, false);
@@ -1583,7 +1573,7 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	ErrorF("nv_crtc_save is called for CRTC %d\n", nv_crtc->head);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_save is called for CRTC %d.\n", nv_crtc->head);
 
 	/* We just came back from terminal, so unlock */
 	NVCrtcLockUnlock(crtc, FALSE);
@@ -1593,9 +1583,9 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 	if (pNv->Architecture == NV_ARCH_40) {
-		nv40_crtc_save_state_pll(pNv, &pNv->SavedReg);
+		nv40_crtc_save_state_pll(pScrn, &pNv->SavedReg);
 	} else {
-		nv_crtc_save_state_pll(pNv, &pNv->SavedReg);
+		nv_crtc_save_state_pll(pScrn, &pNv->SavedReg);
 	}
 }
 
@@ -1610,7 +1600,7 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	state = &pNv->SavedReg;
 	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 
-	ErrorF("nv_crtc_restore is called for CRTC %d\n", nv_crtc->head);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_restore is called for CRTC %d.\n", nv_crtc->head);
 
 	/* Just to be safe */
 	NVCrtcLockUnlock(crtc, FALSE);
@@ -1625,9 +1615,9 @@ void nv_crtc_restore(xf86CrtcPtr crtc)
 	state->vpll_changed[nv_crtc->head] = TRUE;
 
 	if (pNv->Architecture == NV_ARCH_40) {
-		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
+		nv40_crtc_load_state_pll(pScrn, &pNv->SavedReg);
 	} else {
-		nv_crtc_load_state_pll(pNv, &pNv->SavedReg);
+		nv_crtc_load_state_pll(pScrn, &pNv->SavedReg);
 	}
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
@@ -1662,7 +1652,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-	ErrorF("nv_crtc_prepare is called for CRTC %d\n", nv_crtc->head);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_prepare is called for CRTC %d.\n", nv_crtc->head);
 
 	/* Just in case */
 	NVCrtcLockUnlock(crtc, 0);
@@ -1677,7 +1667,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 		exaWaitSync(pScrn->pScreen);
 	}
 
-	NVBlankScreen(pNv, nv_crtc->head, true);
+	NVBlankScreen(pScrn, nv_crtc->head, true);
 
 	/* Some more preperation. */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, 0x1); /* Go to non-vga mode/out of enhanced mode */
@@ -1690,7 +1680,8 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 void nv_crtc_commit(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_commit for CRTC %d\n", nv_crtc->head);
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_commit for CRTC %d.\n", nv_crtc->head);
 
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 
@@ -1703,7 +1694,9 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_lock is called for CRTC %d\n", nv_crtc->head);
+	ScrnInfoPtr pScrn = crtc->scrn;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_lock is called for CRTC %d.\n", nv_crtc->head);
 
 	return FALSE;
 }
@@ -1711,7 +1704,9 @@ static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ErrorF("nv_crtc_unlock is called for CRTC %d\n", nv_crtc->head);
+	ScrnInfoPtr pScrn = crtc->scrn;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_unlock is called for CRTC %d.\n", nv_crtc->head);
 }
 
 static void
@@ -1773,7 +1768,6 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 static void *
 nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 {
-	ErrorF("nv_crtc_shadow_allocate is called\n");
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 #if !NOUVEAU_EXA_PIXMAPS
@@ -1785,6 +1779,8 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	unsigned long rotate_pitch;
 	int size, align = 64;
 
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_shadow_allocate is called.\n");
+
 	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
 	size = rotate_pitch * height;
 
@@ -1792,7 +1788,7 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 #if NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 			align, size, &nv_crtc->shadow)) {
-		ErrorF("Failed to allocate memory for shadow buffer!\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for shadow buffer!\n");
 		return NULL;
 	}
 
@@ -1807,7 +1803,7 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	nv_crtc->shadow = exaOffscreenAlloc(pScreen, size, align, TRUE, NULL, NULL);
 	if (nv_crtc->shadow == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Couldn't allocate shadow memory for rotated CRTC\n");
+			"Couldn't allocate shadow memory for rotated CRTC.\n");
 		return NULL;
 	}
 	offset = pNv->FB->map + nv_crtc->shadow->offset;
@@ -1822,7 +1818,6 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 static PixmapPtr
 nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
-	ErrorF("nv_crtc_shadow_create is called\n");
 	ScrnInfoPtr pScrn = crtc->scrn;
 #if NOUVEAU_EXA_PIXMAPS
 	ScreenPtr pScreen = pScrn->pScreen;
@@ -1833,6 +1828,8 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 #if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_pixmap *nvpix;
 #endif /* NOUVEAU_EXA_PIXMAPS */
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_shadow_create is called.\n");
 
 	if (!data)
 		data = crtc->funcs->shadow_allocate (crtc, width, height);
@@ -1867,7 +1864,7 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 #if NOUVEAU_EXA_PIXMAPS
 	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
 	if (!nvpix) {
-		ErrorF("No shadow private, stage 1\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No initial shadow private available for rotation.\n");
 	} else {
 		nvpix->bo = nv_crtc->shadow;
 		nvpix->mapped = TRUE;
@@ -1884,7 +1881,7 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 
 	nvpix = exaGetPixmapDriverPrivate(rotate_pixmap);
 	if (!nvpix || !nvpix->bo)
-		ErrorF("No shadow private, stage 2\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No final shadow private available for rotation.\n");
 #endif /* NOUVEAU_EXA_PIXMAPS */
 
 	return rotate_pixmap;
@@ -1893,10 +1890,11 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 static void
 nv_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
-	ErrorF("nv_crtc_shadow_destroy is called\n");
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScreenPtr pScreen = pScrn->pScreen;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_shadow_destroy is called.\n");
 
 	if (rotate_pixmap) { /* This should also unmap the buffer object if relevant. */
 		pScreen->DestroyPixmap(rotate_pixmap);
@@ -2335,7 +2333,7 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	uint32_t start = 0;
 
-	ErrorF("NVCrtcSetBase: x: %d y: %d\n", x, y);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCrtcSetBase is called with coordinates: x: %d y: %d\n", x, y);
 
 	if (bios_restore) {
 		start = pNv->console_mode[nv_crtc->head].fb_start;

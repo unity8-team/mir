@@ -228,12 +228,13 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect)
 	NVSetEnablePalette(pNv, head, protect);
 }
 
-void NVSetOwner(NVPtr pNv, int head)
+void NVSetOwner(ScrnInfoPtr pScrn, int head)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	/* CRTCX_OWNER is always changed on CRTC0 */
 	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head * 0x3);
 
-	ErrorF("Setting owner: 0x%X\n", head * 0x3);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting owner: 0x%X.\n", head * 0x3);
 }
 
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
@@ -250,12 +251,13 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 	NVWriteVGA(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
 }
 
-void NVBlankScreen(NVPtr pNv, int head, bool blank)
+void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)
 {
 	unsigned char seq1;
+	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, head);
+		NVSetOwner(pScrn, head);
 
 	seq1 = NVReadVgaSeq(pNv, head, 0x1);
 
@@ -344,7 +346,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 		NB = (pll >> 24) & 0xFF;
 	}
 	if (!MB || !NB) {
-		ErrorF("Something wrong with MPLL VCO2 settings, ignoring VCO2.\n");
+		xf86ErrorF("Something wrong with MPLL VCO2 settings, ignoring VCO2.\n");
 		MB = 1;
 		NB = 1;
 	}
@@ -371,7 +373,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 		NB = (pll >> 24) & 0xFF;
 	}
 	if (!MB || !NB) {
-		ErrorF("Something wrong with NVPLL VCO2 settings, ignoring VCO2\n");
+		xf86ErrorF("Something wrong with NVPLL VCO2 settings, ignoring VCO2.\n");
 		MB = 1;
 		NB = 1;
 	}

@@ -128,9 +128,9 @@ void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index);
 void NVVgaSeqReset(NVPtr pNv, int head, bool start);
 void NVVgaProtect(NVPtr pNv, int head, bool protect);
-void NVSetOwner(NVPtr pNv, int head);
+void NVSetOwner(ScrnInfoPtr pScrn, int head);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
-void NVBlankScreen(NVPtr pNv, int head, bool blank);
+void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank);
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,
 				      NVPtr        pNv);

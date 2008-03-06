@@ -440,15 +440,17 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 
 #define ACCESS_UNLOCK 0
 #define ACCESS_LOCK 1
-static void crtc_access(NVPtr pNv, bool lock)
+static void crtc_access(ScrnInfoPtr pScrn, bool lock)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, 0);
+		NVSetOwner(pScrn, 0);
 	NVLockVgaCrtc(pNv, 0, lock);
 	if (pNv->twoHeads) {
-		NVSetOwner(pNv, 1);
+		NVSetOwner(pScrn, 1);
 		NVLockVgaCrtc(pNv, 1, lock);
-		NVSetOwner(pNv, crtchead);
+		NVSetOwner(pScrn, crtchead);
 	}
 }
 
@@ -4403,7 +4405,7 @@ bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 	const uint8_t bit_signature[] = { 'B', 'I', 'T' };
 	int offset, ret = 0;
 
-	crtc_access(pNv, ACCESS_UNLOCK);
+	crtc_access(pScrn, ACCESS_UNLOCK);
 
 	if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
@@ -4424,7 +4426,7 @@ bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		ret = 1;
 	}
 
-	crtc_access(pNv, ACCESS_LOCK);
+	crtc_access(pScrn, ACCESS_LOCK);
 
 	if (ret)
 		return false;

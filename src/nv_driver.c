@@ -704,7 +704,7 @@ NVEnterVT(int scrnIndex, int flags)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->randr12_enable) {
-		ErrorF("NVEnterVT is called\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
 		pScrn->vtSema = TRUE;
@@ -771,7 +771,7 @@ NVLeaveVT(int scrnIndex, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 	if (pNv->randr12_enable)
-		ErrorF("NVLeaveVT is called\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		NV50ReleaseDisplay(pScrn);
@@ -830,7 +830,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 			NV50ReleaseDisplay(pScrn);
 		} else {
 			if (pNv->randr12_enable)
-				ErrorF("NVCloseScreen is called\n");
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCloseScreen is called.\n");
 			NVSync(pScrn);
 			NVRestore(pScrn);
 			if (!pNv->randr12_enable)
@@ -947,7 +947,7 @@ static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
 static Bool
 nv_xf86crtc_resize(ScrnInfoPtr pScrn, int width, int height)
 {
-	ErrorF("nv_xf86crtc_resize is called with %dx%d resolution\n", width, height);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_xf86crtc_resize is called with %dx%d resolution.\n", width, height);
 	pScrn->virtualX = width;
 	pScrn->virtualY = height;
 	return TRUE;
@@ -980,7 +980,7 @@ static CARD8 NVGetCRTCMask(ScrnInfoPtr pScrn, CARD8 bpp)
 			mask = 0x3; /* 0x1 */
 			break;
 		default:
-			ErrorF("Unkown color format\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unkown color format.\n");
 			break;
 	}
 
@@ -1013,7 +1013,7 @@ static CARD8 NVGetAccelerationMask(ScrnInfoPtr pScrn, CARD8 bpp)
 				mask = 0x0f;
 				break;
 			default:
-				ErrorF("Unkown color format\n");
+				xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unkown color format.\n");
 				break;
 		}
 	}
@@ -1680,7 +1680,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 #if !NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
-			ErrorF("Failed to allocate memory for framebuffer!\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for framebuffer!\n");
 			return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -2080,9 +2080,9 @@ NVRestore(ScrnInfoPtr pScrn)
 				Bool crosswired = regp->TMDS[0x4] & (1 << 3);
 				/* Let's guess the bios state ;-) */
 				if (nv_output2->type == OUTPUT_TMDS)
-					ErrorF("Restoring TMDS timings, before restoring anything else\n");
+					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring TMDS timings, before restoring anything else.\n");
 				if (nv_output2->type == OUTPUT_LVDS)
-					ErrorF("Restoring LVDS timings, before restoring anything else\n");
+					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring LVDS timings, before restoring anything else.\n");
 				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
 					uint32_t clock = nv_calc_tmds_clock_from_pll(xf86_config->output[i]);
 					nv_set_tmds_registers(xf86_config->output[i], clock, TRUE, crosswired);
@@ -2134,9 +2134,9 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->twoHeads && !pNv->new_restore) {
-		NVSetOwner(pNv, 0);	/* move to head A to set owner */
+		NVSetOwner(pScrn, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
-		ErrorF("Restoring CRTC_OWNER to %d\n", pNv->vtOWNER);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
 		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 		NVLockVgaCrtc(pNv, 0, true);
 	}
@@ -2394,7 +2394,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 			0, NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) *
 			(pScrn->bitsPerPixel >> 3), &pNv->FB)) {
-		ErrorF("Failed to allocate memory for screen pixmap.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for screen pixmap.\n");
 		return FALSE;
 	}
 #endif
@@ -2474,18 +2474,18 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 			pNv->console_mode[i].enabled = FALSE;
 
-			ErrorF("CRTC %d: Console mode: %dx%d depth: %d bpp: %d crtc_start: 0x%X\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp, pNv->console_mode[i].fb_start);
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC %d: Console mode: %dx%d depth: %d bpp: %d crtc_start: 0x%X.\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp, pNv->console_mode[i].fb_start);
 		}
 
 		/* Check if crtc's were enabled. */
 		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL) {
 			pNv->console_mode[0].enabled = TRUE;
-			ErrorF("CRTC 0 was enabled.\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 0 was enabled.\n");
 		}
 
 		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2) {
 			pNv->console_mode[1].enabled = TRUE;
-			ErrorF("CRTC 1 was enabled.\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 1 was enabled.\n");
 		}
 
 		if (!NVEnterVT(scrnIndex, 0))
@@ -2745,7 +2745,7 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 		
 		if (xf86_config->crtc[i]->enabled) {
 		    NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
-		    NVBlankScreen(pNv, nv_crtc->head, !on);
+		    NVBlankScreen(pScrn, nv_crtc->head, !on);
 		}
 	    }
 	    

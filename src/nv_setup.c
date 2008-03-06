@@ -503,14 +503,14 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 				pNv->vtOWNER = 0x04;
 			else {
-				NVSetOwner(pNv, 1);
+				NVSetOwner(pScrn, 1);
 				NVLockVgaCrtc(pNv, 1, false);
 
 				uint8_t slaved_on_B = NVReadVGA(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_B)
 					tvB = !(NVReadVGA(pNv, 1, NV_VGA_CRTCX_LCD) & 0x01);
 
-				NVSetOwner(pNv, 0);
+				NVSetOwner(pScrn, 0);
 				NVLockVgaCrtc(pNv, 0, false);
 
 				uint8_t slaved_on_A = NVReadVGA(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;
@@ -530,7 +530,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			}
 		}
 
-		ErrorF("Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
 	}
 
     /* Parse the bios to initialize the card */
