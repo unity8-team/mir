@@ -904,7 +904,15 @@ static void
 nv_output_commit(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86CrtcPtr crtc = output->crtc;
+
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_commit is called.\n");
+
+	if (crtc) {
+		NVOutputPrivatePtr nv_output = output->driver_private;
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Output %s is running on CRTC %d using output resource %d.\n", output->name, nv_crtc->head, nv_output->output_resource);
+	}
 
 	output->funcs->dpms(output, DPMSModeOn);
 }
