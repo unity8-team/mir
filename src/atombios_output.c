@@ -474,10 +474,10 @@ atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     AtomBiosArgRec data;
     unsigned char *space;
 
-    disp_data.ucAction = ATOM_TRANSMITTER_ACTION_SETUP;
+    disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = mode->Clock / 10;
     // not sure on clk src...
-    disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
+    disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
     if (mode->Clock > 165000)
 	disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
 			       ATOM_TRANSMITTER_CONFIG_LINKA_B |
@@ -492,11 +492,8 @@ atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
-	if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	    ErrorF("Output DIG2 transmitter setup success\n");
-	    return ATOM_SUCCESS;
-	}
+	ErrorF("Output DIG2 transmitter setup success\n");
+	return ATOM_SUCCESS;
     }
 
     ErrorF("Output DIG2 transmitter setup failed\n");

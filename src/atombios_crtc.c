@@ -1,10 +1,5 @@
  /*
  * Copyright © 2007 Red Hat, Inc.
- *
- * PLL code is:
- * Copyright 2007  Luc Verhaegen <lverhaegen@novell.com>
- * Copyright 2007  Matthias Hopf <mhopf@novell.com>
- * Copyright 2007  Egbert Eich   <eich@novell.com>
  * Copyright 2007  Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,6 +23,7 @@
  *
  * Authors:
  *    Dave Airlie <airlied@redhat.com>
+ *    Alex Deucher <alexander.deucher@amd.com>
  *
  */
 /*

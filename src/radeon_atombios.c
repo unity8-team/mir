@@ -1545,6 +1545,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_INT;
 		break;
