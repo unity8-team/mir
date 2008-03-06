@@ -470,7 +470,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 		    ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
 	}
 	if (pI830->fb_compression)
-	    mmsize -= MB(6);
+	    mmsize -= MB(6) + ROUND_TO_PAGE(FBC_LL_SIZE + FBC_LL_PAD);
 	/* Can't do TTM on stolen memory */
 	mmsize -= pI830->stolen_size;
 
