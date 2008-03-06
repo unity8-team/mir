@@ -83,11 +83,12 @@ ConvertCursor1555(NVPtr pNv, CARD32 *src, CARD16 *dst)
 {
 	CARD32 b, m;
 	int i, j;
+	int sz=pNv->NVArch==0x10?MAX_CURSOR_SIZE_ALPHA:MAX_CURSOR_SIZE;
 
-	for ( i = 0; i < MAX_CURSOR_SIZE; i++ ) {
+	for ( i = 0; i < sz; i++ ) {
 		b = *src++;
 		m = *src++;
-		for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
+		for ( j = 0; j < sz; j++ ) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 			if ( m & 0x80000000)
 				*dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
@@ -148,7 +149,11 @@ TransformCursor (NVPtr pNv)
 	int i, dwords;
 
 	/* convert to color cursor */
-	if(pNv->alphaCursor) {
+	if(pNv->NVArch==0x10) {
+		dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
+		if(!(tmp = xalloc(dwords * 4))) return;
+		ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
+	} else if(pNv->alphaCursor) {
 		dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
 		if(!(tmp = xalloc(dwords * 4))) return;
 		ConvertCursor8888(pNv, pNv->curImage, tmp);
