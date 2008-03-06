@@ -2635,8 +2635,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (xf86RegisterResources(info->pEnt->index, 0, ResExclusive))
 	goto fail;
 
-    if (xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr))
-	goto fail;
+    xf86SetOperatingState(resVga, info->pEnt->index, ResUnusedOpr);
 
     pScrn->racMemFlags = RAC_FB | RAC_COLORMAP | RAC_VIEWPORT | RAC_CURSOR;
     pScrn->monitor     = pScrn->confScreen->monitor;
@@ -2738,17 +2737,22 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	if (crtc_max_Y > 8192)
 	    crtc_max_Y = 8192;
     } else {
+	/*
+	 * note that these aren't really the CRTC limits, they're just
+	 * heuristics until we have a better memory manager.
+	 */
 	if (pScrn->videoRam <= 16384) {
 	    crtc_max_X = 1600;
 	    crtc_max_Y = 1200;
+	} else if (IS_R300_VARIANT) {
+	    crtc_max_X = 2560;
+	    crtc_max_Y = 1200;
+	} else if (IS_AVIVO_VARIANT) {
+	    crtc_max_X = 2560;
+	    crtc_max_Y = 1600;
 	} else {
-	    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
-		crtc_max_X = 2560;
-		crtc_max_Y = 1200;
-	    } else {
-		crtc_max_X = 2048;
-		crtc_max_Y = 1200;
-	    }
+	    crtc_max_X = 2048;
+	    crtc_max_Y = 1200;
 	}
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Max desktop size set to %dx%d\n",
