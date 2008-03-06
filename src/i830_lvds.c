@@ -851,6 +851,35 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 }
 #endif /* RANDR_12_INTERFACE */
 
+#ifdef RANDR_13_INTERFACE
+static Bool
+i830_lvds_get_property(xf86OutputPtr output, Atom property)
+{
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
+    int ret;
+
+    /*
+     * Only need to update properties that might change out from under
+     * us.  The others will be cached by the randr core code.
+     */
+    if (property == backlight_atom) {
+	int val;
+	val = dev_priv->get_backlight(output);
+	dev_priv->backlight_duty_cycle = val;
+	ret = RRChangeOutputProperty(output->randr_output, backlight_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &val,
+				     FALSE, TRUE);
+	if (ret != Success)
+	    return FALSE;
+    }
+
+    return TRUE;
+}
+#endif /* RANDR_13_INTERFACE */
+
 static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .create_resources = i830_lvds_create_resources,
     .dpms = i830_lvds_dpms,
@@ -865,6 +894,9 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .get_modes = i830_lvds_get_modes,
 #ifdef RANDR_12_INTERFACE
     .set_property = i830_lvds_set_property,
+#endif
+#ifdef RANDR_13_INTERFACE
+    .get_property = i830_lvds_get_property,
 #endif
     .destroy = i830_lvds_destroy
 };
