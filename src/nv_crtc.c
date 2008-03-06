@@ -1685,8 +1685,20 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 
 	crtc->funcs->dpms (crtc, DPMSModeOn);
 
-	if (crtc->scrn->pScreen != NULL)
+	if (crtc->scrn->pScreen != NULL) {
+		NVPtr pNv = NVPTR(crtc->scrn);
+
 		xf86_reload_cursors (crtc->scrn->pScreen);
+		if (!pNv->alphaCursor) {
+			/* this works round the fact that xf86_reload_cursors
+			 * will quite happily show the hw cursor when it knows
+			 * the hardware can't do alpha, and the current cursor
+			 * has an alpha channel
+			 */
+			xf86ForceHWCursor(crtc->scrn->pScreen, 1);
+			xf86ForceHWCursor(crtc->scrn->pScreen, 0);
+		}
+	}
 
 	NVResetCrtcConfig(crtc, TRUE);
 }
