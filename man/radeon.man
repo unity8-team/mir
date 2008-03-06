@@ -53,7 +53,7 @@ Radeon 9100 IGP
 Radeon 9200 IGP
 .TP 12
 .B RS400
-Radeon XPRESS 200/200M IGP (2d only)
+Radeon XPRESS 200/200M IGP
 .TP 12
 .B RV280
 Radeon 9200PRO/9200/9200SE, M9+
@@ -90,6 +90,30 @@ Radeon X800, M28 PCIE
 .TP 12
 .B R480/R481
 Radeon X850 PCIE/AGP
+.TP 12
+.B RV515
+Radeon X1300/X1400/X1500
+.TP 12
+.B R520
+Radeon X1800
+.TP 12
+.B RV530/RV560
+Radeon X1600/X1650/X1700
+.TP 12
+.B RV570/R580
+Radeon X1900/X1950
+.TP 12
+.B RS600/RS690
+Radeon X1200
+.TP 12
+.B R600
+Radeon HD 2900
+.TP 12
+.B RV610/RV630
+Radeon HD 2400/2600
+.TP 12
+.B RV670
+Radeon HD 3850/3870
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
@@ -165,9 +189,7 @@ Set AGP data transfer rate.
 others \-\- invalid
 .br
 The default is to
-.B leave it unchanged for AGP v3
-and
-.B 1x otherwise.
+.B leave it unchanged.
 .TP
 .BI "Option \*qAGPFastWrite\*q \*q" boolean \*q
 Enable AGP fast writes.  Enabling this is frequently the cause of
@@ -397,6 +419,14 @@ Use the default driver provided TMDS PLL values rather than the ones
 provided by the bios. This option has no effect on Mac cards.  Enable 
 this option if you are having problems with a DVI monitor using the 
 internal TMDS controller.
+The default is
+.B off.
+.TP
+.BI "Option \*qDefaultTVDACAdj\*q \*q" boolean \*q
+Use the default driver provided TVDAC Adj values rather than the ones
+provided by the bios. This option has no effect on Mac cards.  Enable 
+this option if you are having problems with a washed out display on 
+the secondary DAC.
 The default is
 .B off.
 .TP

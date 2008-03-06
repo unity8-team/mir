@@ -38,9 +38,9 @@
  */
 
 
-TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b);
+#define xf86_DetectTheatre	DetectTheatre
+_X_EXPORT TheatrePtr DetectTheatre(GENERIC_BUS_Ptr b);
 
 
-#define xf86_DetectTheatre         ((TheatrePtr (*)(GENERIC_BUS_Ptr))LoaderSymbol("DetectTheatre"))
 
 #endif

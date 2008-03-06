@@ -285,10 +285,22 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	    if (output->MonInfo)
 		modes = xf86OutputGetEDIDModes (output);
 	    if (modes == NULL) {
-		if (radeon_output->type == OUTPUT_LVDS)
-		    modes = RADEONFPNativeMode(output);
-		/* add the screen modes */
-		RADEONAddScreenModes(output, &modes);
+		if ((radeon_output->type == OUTPUT_LVDS) && info->IsAtomBios) {
+		    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex,
+						     info->atomBIOS,
+						     ATOMBIOS_GET_PANEL_EDID, &atomBiosArg);
+		    if (atomBiosResult == ATOM_SUCCESS) {
+			output->MonInfo = xf86InterpretEDID(pScrn->scrnIndex,
+							    atomBiosArg.EDIDBlock);
+			modes = xf86OutputGetEDIDModes(output);
+		    }
+		}
+		if (modes == NULL) {
+		    if (radeon_output->type == OUTPUT_LVDS)
+			modes = RADEONFPNativeMode(output);
+		    /* add the screen modes */
+		    RADEONAddScreenModes(output, &modes);
+		}
 	    }
 	}
     }

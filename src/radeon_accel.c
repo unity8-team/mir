@@ -390,8 +390,12 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     info->sc_bottom       = RADEON_DEFAULT_SC_BOTTOM_MAX;
 
     info->re_top_left     = 0x00000000;
-    info->re_width_height = ((0x7ff << RADEON_RE_WIDTH_SHIFT) |
-			     (0x7ff << RADEON_RE_HEIGHT_SHIFT));
+    if (info->ChipFamily <= CHIP_FAMILY_RV280)
+	info->re_width_height = ((0x7ff << RADEON_RE_WIDTH_SHIFT) |
+				 (0x7ff << RADEON_RE_HEIGHT_SHIFT));
+    else
+	info->re_width_height = ((8191 << R300_SCISSOR_X_SHIFT) |
+				 (8191 << R300_SCISSOR_Y_SHIFT));
 
     info->aux_sc_cntl     = 0x00000000;
 #endif

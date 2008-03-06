@@ -726,9 +726,18 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
        pcie-agp rialto bridge chip - use the one from bridge which must match */
     CARD32 agp_status = (INREG(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode;
     Bool is_v3 = (agp_status & RADEON_AGPv3_MODE);
-    unsigned int defaultMode = is_v3 ?
-	((agp_status & RADEON_AGPv3_8X_MODE) ? 8 : 4) : 1;
-    MessageType from = X_DEFAULT;
+    unsigned int defaultMode;
+    MessageType from;
+
+    if (is_v3) {
+	defaultMode = (agp_status & RADEON_AGPv3_8X_MODE) ? 8 : 4;
+    } else {
+	if (agp_status & RADEON_AGP_4X_MODE) defaultMode = 4;
+	else if (agp_status & RADEON_AGP_2X_MODE) defaultMode = 2;
+	else defaultMode = 1;
+    }
+
+    from = X_DEFAULT;
 
     if (xf86GetOptValInteger(info->Options, OPTION_AGP_MODE, &info->agpMode)) {
 	if ((info->agpMode < (is_v3 ? 4 : 1)) ||

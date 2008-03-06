@@ -66,11 +66,8 @@
 #include "ativersion.h"
 
 /* names duplicated from version headers */
-#define MACH64_NAME         "MACH64"
 #define MACH64_DRIVER_NAME  "mach64"
-#define R128_NAME           "R128"
 #define R128_DRIVER_NAME    "r128"
-#define RADEON_NAME         "RADEON"
 #define RADEON_DRIVER_NAME  "radeon"
 
 enum
@@ -84,262 +81,167 @@ enum
 static int ATIChipID(const CARD16);
 
 #ifdef XSERVER_LIBPCIACCESS
-static const struct pci_id_match ati_device_match = {
-    PCI_VENDOR_ATI, PCI_MATCH_ANY, PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, 0
-};
 
-/* Stolen from xf86pciBus.c */
-/* PCI classes that get included in xf86PciVideoInfo */
-#define PCIINFOCLASSES(c) \
-    (  (((c) & 0x00ff0000) == (PCI_CLASS_PREHISTORIC << 16)) ||           \
-       (((c) & 0x00ff0000) == (PCI_CLASS_DISPLAY << 16)) ||               \
-      ((((c) & 0x00ffff00) == ((PCI_CLASS_MULTIMEDIA << 16) |             \
-                               (PCI_SUBCLASS_MULTIMEDIA_VIDEO << 8)))) || \
-      ((((c) & 0x00ffff00) == ((PCI_CLASS_PROCESSOR << 16) |              \
-                               (PCI_SUBCLASS_PROCESSOR_COPROC << 8)))) )
+/* domain defines (stolen from xserver) */
+#if (defined(__alpha__) || defined(__ia64__)) && defined (linux)
+# define PCI_DOM_MASK 0x01fful
+#else
+# define PCI_DOM_MASK 0x0ffu
 #endif
 
-/*
- * ATIIdentify --
- *
- * Print the driver's list of chipset names.
- */
-static void
-ATIIdentify
-(
-    int flags
-)
+#define PCI_DOM_FROM_BUS(bus)  (((bus) >> 8) & (PCI_DOM_MASK))
+#define PCI_BUS_NO_DOMAIN(bus) ((bus) & 0xffu)
+
+static struct pci_device*
+ati_device_get_from_busid(int bus, int dev, int func)
 {
-    /*
-     * Only print chip families here, chip lists are printed when a subdriver
-     * is loaded.
-     */
-    xf86Msg(X_INFO, "%s: %s\n", ATI_NAME,
-            "ATI driver wrapper (version " ATI_VERSION_NAME ") for chipsets: "
-            "mach64, rage128, radeon");
+    return pci_device_find_by_slot(PCI_DOM_FROM_BUS(bus),
+                                   PCI_BUS_NO_DOMAIN(bus),
+                                   dev,
+                                   func);
 }
 
-/*
- * ATIProbe --
- *
- * This function is called once, at the start of the first server generation to
- * do a minimal probe for supported hardware.
- */
-static Bool
-ATIProbe
-(
-    DriverPtr pDriver,
-    int       flags
-)
+static struct pci_device*
+ati_device_get_primary()
 {
-    pciVideoPtr pVideo;
-#ifndef XSERVER_LIBPCIACCESS
-    pciVideoPtr *xf86PciVideoInfo;
-#else
-    struct pci_device_iterator *pVideoIter;
-#endif
-    Bool        DoMach64 = FALSE;
-    Bool        DoRage128 = FALSE, DoRadeon = FALSE;
-    int         Chip;
+    struct pci_device *device = NULL;
+    struct pci_device_iterator *device_iter;
 
-#ifndef XSERVER_LIBPCIACCESS
+    device_iter = pci_slot_match_iterator_create(NULL);
+
+    while ((device = pci_device_next(device_iter)) != NULL) {
+        if (xf86IsPrimaryPci(device))
+            break;
+    }
+
+    pci_iterator_destroy(device_iter);
+
+    return device;
+}
+
+#else /* XSERVER_LIBPCIACCESS */
+
+static pciVideoPtr
+ati_device_get_from_busid(int bus, int dev, int func)
+{
+    pciVideoPtr  pVideo = NULL;
+    pciVideoPtr *xf86PciVideoInfo;
 
     xf86PciVideoInfo = xf86GetPciVideoInfo();
 
     if (xf86PciVideoInfo == NULL)
-        return FALSE;
+        return NULL;
 
     while ((pVideo = *xf86PciVideoInfo++) != NULL)
     {
-        if ((PCI_DEV_VENDOR_ID(pVideo) != PCI_VENDOR_ATI) ||
-            (PCI_DEV_DEVICE_ID(pVideo) == PCI_CHIP_MACH32))
-            continue;
-
-        /* Check for Rage128's, Radeon's and later adapters */
-        Chip = ATIChipID(PCI_DEV_DEVICE_ID(pVideo));
-        if (Chip == ATI_CHIP_FAMILY_Mach64)
-            DoMach64 = TRUE;
-        else if (Chip == ATI_CHIP_FAMILY_Rage128)
-            DoRage128 = TRUE;
-        else if (Chip == ATI_CHIP_FAMILY_Radeon)
-            DoRadeon = TRUE;
+        if ((pVideo->bus == bus) && (pVideo->device == dev) &&
+            (pVideo->func == func))
+            break;
     }
 
-#else /* XSERVER_LIBPCIACCESS */
+    return pVideo;
+}
 
-    pVideoIter = pci_id_match_iterator_create(&ati_device_match);
+static pciVideoPtr
+ati_device_get_primary()
+{
+    pciVideoPtr  pVideo = NULL;
+    pciVideoPtr *xf86PciVideoInfo;
 
-    while ((pVideo = pci_device_next(pVideoIter)) != NULL)
+    xf86PciVideoInfo = xf86GetPciVideoInfo();
+
+    if (xf86PciVideoInfo == NULL)
+        return NULL;
+
+    while ((pVideo = *xf86PciVideoInfo++) != NULL)
     {
-        /* Check for non-video devices */
-        if (!PCIINFOCLASSES(pVideo->device_class))
-            continue;
-
-        /* Check for prehistoric PCI Mach32 */
-        if ((PCI_DEV_VENDOR_ID(pVideo) != PCI_VENDOR_ATI) ||
-            (PCI_DEV_DEVICE_ID(pVideo) == PCI_CHIP_MACH32))
-            continue;
-
-        /* Check for Rage128's, Radeon's and later adapters */
-        Chip = ATIChipID(PCI_DEV_DEVICE_ID(pVideo));
-        if (Chip == ATI_CHIP_FAMILY_Mach64)
-            DoMach64 = TRUE;
-        else if (Chip == ATI_CHIP_FAMILY_Rage128)
-            DoRage128 = TRUE;
-        else if (Chip == ATI_CHIP_FAMILY_Radeon)
-            DoRadeon = TRUE;
+        if (xf86IsPrimaryPci(pVideo))
+            break;
     }
 
-    pci_iterator_destroy(pVideoIter);
+    return pVideo;
+}
 
 #endif /* XSERVER_LIBPCIACCESS */
 
-    /* Call Radeon driver probe */
-    if (DoRadeon)
-    {
-        DriverRec *radeon;
-
-        if (!LoaderSymbol(RADEON_NAME))
-            xf86LoadDrvSubModule(pDriver, RADEON_DRIVER_NAME);
-
-        radeon = (DriverRec*)LoaderSymbol(RADEON_NAME);
-
-        if (!radeon)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"radeon\" driver symbol.\n");
-            return FALSE;
-        }
-
-        radeon->Identify(flags);
-
-        if (radeon->Probe(pDriver, flags))
-            return TRUE;
-    }
-
-    /* Call Rage 128 driver probe */
-    if (DoRage128)
-    {
-        DriverRec *r128;
-
-        if (!LoaderSymbol(R128_NAME))
-            xf86LoadDrvSubModule(pDriver, R128_DRIVER_NAME);
-
-        r128 = (DriverRec*)LoaderSymbol(R128_NAME);
-
-        if (!r128)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"r128\" driver symbol.\n");
-            return FALSE;
-        }
-
-        r128->Identify(flags);
-
-        if (r128->Probe(pDriver, flags))
-            return TRUE;
-    }
-
-    /* Call Mach64 driver probe */
-    if (DoMach64)
-    {
-        DriverRec *mach64;
-
-        if (!LoaderSymbol(MACH64_NAME))
-            xf86LoadDrvSubModule(pDriver, MACH64_DRIVER_NAME);
-
-        mach64 = (DriverRec*)LoaderSymbol(MACH64_NAME);
-
-        if (!mach64)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"mach64\" driver symbol.\n");
-            return FALSE;
-        }
-
-        mach64->Identify(flags);
-
-        if (mach64->Probe(pDriver, flags))
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-/*
- * ATIAvailableOptions --
- *
- * Return recognised options that are intended for public consumption.
- */
-static const OptionInfoRec *
-ATIAvailableOptions
-(
-    int ChipId,
-    int BusId
-)
+void
+ati_gdev_subdriver(pointer options)
 {
-    CARD16      ChipType = ChipId & 0xffff;
-    int         Chip;
+    int      nATIGDev, nMach64GDev, nR128GDev, nRadeonGDev;
+    GDevPtr *ATIGDevs;
+    Bool     load_mach64 = FALSE, load_r128 = FALSE, load_radeon = FALSE;
+    int      i;
 
-    /* Probe should have loaded the appropriate subdriver by this point */
+    /* let the subdrivers configure for themselves */
+    if (xf86ServerIsOnlyDetecting())
+        return;
 
-    Chip = ATIChipID(ChipType);
-    if (Chip == ATI_CHIP_FAMILY_Mach64)
-    {
-        DriverRec *mach64 = (DriverRec*)LoaderSymbol(MACH64_NAME);
+    /* get Device sections with Driver "ati" */
+    nATIGDev = xf86MatchDevice(ATI_DRIVER_NAME, &ATIGDevs);
+    nMach64GDev = xf86MatchDevice(MACH64_DRIVER_NAME, NULL);
+    nR128GDev = xf86MatchDevice(R128_DRIVER_NAME, NULL);
+    nRadeonGDev = xf86MatchDevice(RADEON_DRIVER_NAME, NULL);
 
-        if (!mach64)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"mach64\" driver symbol.\n");
-            return NULL;
+    for (i = 0; i < nATIGDev; i++) {
+        GDevPtr     ati_gdev = ATIGDevs[i];
+        pciVideoPtr device = NULL;
+        int         chip_family;
+
+        /* get pci device for the Device section */
+        if (ati_gdev->busID) {
+            int bus, dev, func;
+
+            if (!xf86ParsePciBusString(ati_gdev->busID, &bus, &dev, &func))
+                continue;
+
+            device = ati_device_get_from_busid(bus, dev, func);
+        }
+        else {
+            device = ati_device_get_primary();
         }
 
-        return mach64->AvailableOptions(ChipId, BusId);
-    }
+        if (!device)
+            continue;
 
-    if (Chip == ATI_CHIP_FAMILY_Rage128)
-    {
-        DriverRec *r128 = (DriverRec*)LoaderSymbol(R128_NAME);
+        /* check for non-ati devices and prehistoric mach32 */
+        if ((PCI_DEV_VENDOR_ID(device) != PCI_VENDOR_ATI) ||
+            (PCI_DEV_DEVICE_ID(device) == PCI_CHIP_MACH32))
+            continue;
 
-        if (!r128)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"r128\" driver symbol.\n");
-            return NULL;
+        /* replace Driver line in the Device section */
+        chip_family = ATIChipID(PCI_DEV_DEVICE_ID(device));
+
+        if (chip_family == ATI_CHIP_FAMILY_Mach64) {
+            ati_gdev->driver = MACH64_DRIVER_NAME;
+            load_mach64 = TRUE;
         }
 
-        return r128->AvailableOptions(ChipId, BusId);
-    }
-
-    if (Chip == ATI_CHIP_FAMILY_Radeon)
-    {
-        DriverRec *radeon = (DriverRec*)LoaderSymbol(RADEON_NAME);
-
-        if (!radeon)
-        {
-            xf86Msg(X_ERROR,
-                ATI_NAME ":  Failed to find \"radeon\" driver symbol.\n");
-            return NULL;
+        if (chip_family == ATI_CHIP_FAMILY_Rage128) {
+            ati_gdev->driver = R128_DRIVER_NAME;
+            load_r128 = TRUE;
         }
 
-        return radeon->AvailableOptions(ChipId, BusId);
+        if (chip_family == ATI_CHIP_FAMILY_Radeon) {
+            ati_gdev->driver = RADEON_DRIVER_NAME;
+            load_radeon = TRUE;
+        }
     }
 
-    return NULL;
+    xfree(ATIGDevs);
+
+    /* load subdrivers as primary modules and only if they do not get loaded
+     * from other device sections
+     */
+
+    if (load_mach64 && (nMach64GDev == 0))
+         xf86LoadOneModule(MACH64_DRIVER_NAME, options);
+
+    if (load_r128 && (nR128GDev == 0))
+         xf86LoadOneModule(R128_DRIVER_NAME, options);
+
+    if (load_radeon && (nRadeonGDev == 0))
+         xf86LoadOneModule(RADEON_DRIVER_NAME, options);
 }
-
-/* The root of all evil... */
-_X_EXPORT DriverRec ATI =
-{
-    ATI_VERSION_CURRENT,
-    "ati",
-    ATIIdentify,
-    ATIProbe,
-    ATIAvailableOptions,
-    NULL,
-    0
-};
 
 /*
  * ATIChipID --

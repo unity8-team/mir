@@ -841,9 +841,15 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     tmp = (tmp << RADEON_UV_OUTPUT_POST_SCALE_SHIFT) | 0x000b0000;
     save->tv_timing_cntl = tmp;
 
-    save->tv_dac_cntl = (RADEON_TV_DAC_NBLANK |
-			 RADEON_TV_DAC_NHOLD |
-			 radeon_output->tv_dac_adj /*(8 << 16) | (6 << 20)*/);
+    if (radeon_output->tvStd == TV_STD_NTSC ||
+        radeon_output->tvStd == TV_STD_NTSC_J ||
+        radeon_output->tvStd == TV_STD_PAL_M ||
+        radeon_output->tvStd == TV_STD_PAL_60)
+	save->tv_dac_cntl = radeon_output->ntsc_tvdac_adj;
+    else
+	save->tv_dac_cntl = radeon_output->pal_tvdac_adj;
+
+    save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
 
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J)

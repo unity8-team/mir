@@ -36,15 +36,12 @@
  * Authors:
  *   Kevin E. Martin <martin@xfree86.org>
  *   Rickard E. Faith <faith@valinux.com>
- *
- * Modified by Marc Aurele La France <tsi@xfree86.org> for ATI driver merge.
  */
-
-#include "ativersion.h"
 
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "atipciids.h"
+#include "atipcirename.h"
 
 #include "xf86.h"
 #define _XF86MISC_SERVER_
@@ -55,25 +52,21 @@
 
 #include "radeon_pci_chipset_gen.h"
 
-int gRADEONEntityIndex = -1;
+#ifdef XSERVER_LIBPCIACCESS
+#include "radeon_pci_device_match_gen.h"
+#endif
+
+#ifndef XSERVER_LIBPCIACCESS
+static Bool RADEONProbe(DriverPtr drv, int flags);
+#endif
+
+_X_EXPORT int gRADEONEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
 static const OptionInfoRec *
 RADEONAvailableOptions(int chipid, int busid)
 {
-    int  i;
-
-    /*
-     * Return options defined in the radeon submodule which will have been
-     * loaded by this point.
-     */
-    if ((chipid >> 16) == PCI_VENDOR_ATI)
-	chipid -= PCI_VENDOR_ATI << 16;
-    for (i = 0; RADEONPciChipsets[i].PCIid > 0; i++) {
-	if (chipid == RADEONPciChipsets[i].PCIid)
-	    return RADEONOptionsWeak();
-    }
-    return NULL;
+    return RADEONOptionsWeak();
 }
 
 /* Return the string name for supported chipset 'n'; NULL otherwise. */
@@ -85,44 +78,92 @@ RADEONIdentify(int flags)
 		      RADEONChipsets);
 }
 
+static Bool
+radeon_get_scrninfo(int entity_num)
+{
+    ScrnInfoPtr   pScrn = NULL;
+    EntityInfoPtr pEnt;
+
+    pScrn = xf86ConfigPciEntity(pScrn, 0, entity_num, RADEONPciChipsets,
+                                NULL,
+                                NULL, NULL, NULL, NULL);
+
+    if (!pScrn)
+        return FALSE;
+
+    pScrn->driverVersion = RADEON_VERSION_CURRENT;
+    pScrn->driverName    = RADEON_DRIVER_NAME;
+    pScrn->name          = RADEON_NAME;
+#ifdef XSERVER_LIBPCIACCESS
+    pScrn->Probe         = NULL;
+#else
+    pScrn->Probe         = RADEONProbe;
+#endif
+    pScrn->PreInit       = RADEONPreInit;
+    pScrn->ScreenInit    = RADEONScreenInit;
+    pScrn->SwitchMode    = RADEONSwitchMode;
+    pScrn->AdjustFrame   = RADEONAdjustFrame;
+    pScrn->EnterVT       = RADEONEnterVT;
+    pScrn->LeaveVT       = RADEONLeaveVT;
+    pScrn->FreeScreen    = RADEONFreeScreen;
+    pScrn->ValidMode     = RADEONValidMode;
+
+    pEnt = xf86GetEntityInfo(entity_num);
+
+    /* Create a RADEONEntity for all chips, even with old single head
+     * Radeon, need to use pRADEONEnt for new monitor detection routines.
+     */
+    {
+        DevUnion    *pPriv;
+        RADEONEntPtr pRADEONEnt;
+
+        xf86SetEntitySharable(entity_num);
+
+        if (gRADEONEntityIndex == -1)
+            gRADEONEntityIndex = xf86AllocateEntityPrivateIndex();
+
+        pPriv = xf86GetEntityPrivate(pEnt->index,
+                                     gRADEONEntityIndex);
+
+        if (!pPriv->ptr) {
+            int j;
+            int instance = xf86GetNumEntityInstances(pEnt->index);
+
+            for (j = 0; j < instance; j++)
+                xf86SetEntityInstanceForScreen(pScrn, pEnt->index, j);
+
+            pPriv->ptr = xnfcalloc(sizeof(RADEONEntRec), 1);
+            pRADEONEnt = pPriv->ptr;
+            pRADEONEnt->HasSecondary = FALSE;
+        } else {
+            pRADEONEnt = pPriv->ptr;
+            pRADEONEnt->HasSecondary = TRUE;
+        }
+    }
+
+    xfree(pEnt);
+
+    return TRUE;
+}
+
+#ifndef XSERVER_LIBPCIACCESS
+
 /* Return TRUE if chipset is present; FALSE otherwise. */
 static Bool
 RADEONProbe(DriverPtr drv, int flags)
 {
     int      numUsed;
-    int      numDevSections, nATIGDev, nRadeonGDev;
+    int      numDevSections;
     int     *usedChips;
-    GDevPtr *devSections, *ATIGDevs, *RadeonGDevs;
+    GDevPtr *devSections;
     Bool     foundScreen = FALSE;
     int      i;
 
-#ifndef XSERVER_LIBPCIACCESS
     if (!xf86GetPciVideoInfo()) return FALSE;
-#endif
 
-    /* Collect unclaimed device sections for both driver names */
-    nATIGDev    = xf86MatchDevice(ATI_NAME, &ATIGDevs);
-    nRadeonGDev = xf86MatchDevice(RADEON_NAME, &RadeonGDevs);
+    numDevSections = xf86MatchDevice(RADEON_NAME, &devSections);
 
-    if (!(numDevSections = nATIGDev + nRadeonGDev)) return FALSE;
-
-    if (!ATIGDevs) {
-	if (!(devSections = RadeonGDevs)) numDevSections = 1;
-	else                              numDevSections = nRadeonGDev;
-    } if (!RadeonGDevs) {
-	devSections    = ATIGDevs;
-	numDevSections = nATIGDev;
-    } else {
-	/* Combine into one list */
-	devSections = xnfalloc((numDevSections + 1) * sizeof(GDevPtr));
-	(void)memcpy(devSections,
-		     ATIGDevs, nATIGDev * sizeof(GDevPtr));
-	(void)memcpy(devSections + nATIGDev,
-		     RadeonGDevs, nRadeonGDev * sizeof(GDevPtr));
-	devSections[numDevSections] = NULL;
-	xfree(ATIGDevs);
-	xfree(RadeonGDevs);
-    }
+    if (!numDevSections) return FALSE;
 
     numUsed = xf86MatchPciInstances(RADEON_NAME,
 				    PCI_VENDOR_ATI,
@@ -139,66 +180,8 @@ RADEONProbe(DriverPtr drv, int flags)
 	foundScreen = TRUE;
     } else {
 	for (i = 0; i < numUsed; i++) {
-	    ScrnInfoPtr    pScrn = NULL;
-	    EntityInfoPtr  pEnt;
-	    pEnt = xf86GetEntityInfo(usedChips[i]);
-	    if ((pScrn = xf86ConfigPciEntity(pScrn, 0, usedChips[i],
-					     RADEONPciChipsets, 0, 0, 0,
-					     0, 0))) {
-		pScrn->driverVersion = RADEON_VERSION_CURRENT;
-		pScrn->driverName    = RADEON_DRIVER_NAME;
-		pScrn->name          = RADEON_NAME;
-		pScrn->Probe         = RADEONProbe;
-		pScrn->PreInit       = RADEONPreInit;
-		pScrn->ScreenInit    = RADEONScreenInit;
-		pScrn->SwitchMode    = RADEONSwitchMode;
-#ifdef X_XF86MiscPassMessage
-		pScrn->HandleMessage = RADEONHandleMessage;
-#endif
-		pScrn->AdjustFrame   = RADEONAdjustFrame;
-		pScrn->EnterVT       = RADEONEnterVT;
-		pScrn->LeaveVT       = RADEONLeaveVT;
-		pScrn->FreeScreen    = RADEONFreeScreen;
-		pScrn->ValidMode     = RADEONValidMode;
-
-		foundScreen          = TRUE;
-	    }
-
-            xfree(pEnt);
-	    pEnt = xf86GetEntityInfo(usedChips[i]);
-
-            /* create a RADEONEntity for all chips, even with
-               old single head Radeon, need to use pRADEONEnt
-               for new monitor detection routines
-            */
-            {
-		DevUnion   *pPriv;
-		RADEONEntPtr pRADEONEnt;
-
-		xf86SetEntitySharable(usedChips[i]);
-
-		if (gRADEONEntityIndex == -1)
-		    gRADEONEntityIndex = xf86AllocateEntityPrivateIndex();
-
-		pPriv = xf86GetEntityPrivate(pEnt->index,
-					     gRADEONEntityIndex);
-
-		if (!pPriv->ptr) {
-		    int j;
-		    int instance = xf86GetNumEntityInstances(pEnt->index);
-
-		    for (j = 0; j < instance; j++)
-			xf86SetEntityInstanceForScreen(pScrn, pEnt->index, j);
-
-		    pPriv->ptr = xnfcalloc(sizeof(RADEONEntRec), 1);
-		    pRADEONEnt = pPriv->ptr;
-		    pRADEONEnt->HasSecondary = FALSE;
-		} else {
-		    pRADEONEnt = pPriv->ptr;
-		    pRADEONEnt->HasSecondary = TRUE;
-		}
-	    }
-	    xfree(pEnt);
+	    if (radeon_get_scrninfo(usedChips[i]))
+		foundScreen = TRUE;
 	}
     }
 
@@ -208,13 +191,37 @@ RADEONProbe(DriverPtr drv, int flags)
     return foundScreen;
 }
 
+#else /* XSERVER_LIBPCIACCESS */
+
+static Bool
+radeon_pci_probe(
+    DriverPtr          pDriver,
+    int                entity_num,
+    struct pci_device *device,
+    intptr_t           match_data
+)
+{
+    return radeon_get_scrninfo(entity_num);
+}
+
+#endif /* XSERVER_LIBPCIACCESS */
+
 _X_EXPORT DriverRec RADEON =
 {
     RADEON_VERSION_CURRENT,
     RADEON_DRIVER_NAME,
     RADEONIdentify,
+#ifdef XSERVER_LIBPCIACCESS
+    NULL,
+#else
     RADEONProbe,
+#endif
     RADEONAvailableOptions,
     NULL,
-    0
+    0,
+    NULL,
+#ifdef XSERVER_LIBPCIACCESS
+    radeon_device_match,
+    radeon_pci_probe
+#endif
 };

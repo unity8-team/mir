@@ -31,6 +31,4 @@
 
 #include "xf86_OSproc.h"
 
-extern DriverRec ATI;
-
 #endif /* ___ATI_H___ */

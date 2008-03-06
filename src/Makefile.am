@@ -27,8 +27,6 @@
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 if DRI
-ATIMISC_DRI_SRCS = atidri.c
-R128_DRI_SRCS = r128_dri.c
 RADEON_DRI_SRCS = radeon_dri.c
 endif
 
@@ -64,20 +62,12 @@ XMODE_SRCS=\
         modes/xf86Rotate.c \
         modes/xf86DiDGA.c
 
-if ATIMISC_CPIO
-ATIMISC_CPIO_SOURCES = ativga.c ativgaio.c atibank.c atiwonder.c atiwonderio.c
-endif
-
-if ATIMISC_DGA
-ATIMISC_DGA_SOURCES = atidga.c
-endif
-
 if USE_EXA
-ATIMISC_EXA_SOURCES = atimach64exa.c
 RADEON_EXA_SOURCES = radeon_exa.c
 endif
 
-AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER -DFGL_LINUX -DDRIVER_PARSER
+AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER -DDRIVER_PARSER
+
 INCLUDES = -I$(srcdir)/AtomBios/includes
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
@@ -85,26 +75,6 @@ ati_drv_la_LDFLAGS = -module -avoid-version
 ati_drv_ladir = @moduledir@/drivers
 ati_drv_la_SOURCES = \
 	ati.c atimodule.c
-
-mach64_drv_la_LTLIBRARIES = mach64_drv.la
-mach64_drv_la_LDFLAGS = -module -avoid-version
-mach64_drv_ladir = @moduledir@/drivers
-mach64_drv_la_SOURCES = \
-	atibus.c atichip.c atiprobe.c atividmem.c \
-	atiadjust.c atiaudio.c aticlock.c aticonfig.c aticonsole.c \
-	atidac.c atidecoder.c atidsp.c atii2c.c \
-	atilock.c atimach64.c atimach64accel.c atimach64cursor.c \
-	atimach64i2c.c atimach64io.c atimach64xv.c atimode.c atipreinit.c \
-	atiprint.c atirgb514.c atiscreen.c atituner.c atiutil.c ativalid.c \
-	atiload.c atimisc.c atimach64probe.c $(ATIMISC_CPIO_SOURCES) \
-	$(ATIMISC_DGA_SOURCES) $(ATIMISC_DRI_SRCS) $(ATIMISC_EXA_SOURCES)
-
-r128_drv_la_LTLIBRARIES = r128_drv.la
-r128_drv_la_LDFLAGS = -module -avoid-version
-r128_drv_ladir = @moduledir@/drivers
-r128_drv_la_SOURCES = \
-	r128_accel.c r128_cursor.c r128_dga.c r128_driver.c \
-	r128_video.c r128_misc.c r128_probe.c $(R128_DRI_SRCS)
 
 radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
@@ -114,6 +84,7 @@ radeon_drv_la_SOURCES = \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c \
 	legacy_crtc.c legacy_output.c \
+	radeon_textured_video.c \
 	radeon_crtc.c radeon_output.c radeon_modes.c radeon_tv.c \
 	$(RADEON_ATOMBIOS_SOURCES) radeon_atombios.c radeon_atomwrapper.c \
 	$(RADEON_DRI_SRCS) $(RADEON_EXA_SOURCES) atombios_output.c atombios_crtc.c
@@ -146,67 +117,13 @@ theatre200_drv_la_SOURCES = \
 
 EXTRA_DIST = \
 	$(XMODE_SRCS) \
-	atimach64render.c \
 	radeon_render.c \
 	radeon_accelfuncs.c \
+	radeon_textured_videofuncs.c \
 	\
-	atiadjust.h \
-	atiaudio.h \
-	atibank.h \
-	atibus.h \
-	atichip.h \
-	aticlock.h \
-	aticonsole.h \
-	aticrtc.h \
-	aticursor.h \
-	atidac.h \
-	atidecoder.h \
-	atidga.h \
-	atidri.h \
-	atidripriv.h \
-	atidsp.h \
 	ati.h \
-	atii2c.h \
-	atiload.h \
-	atilock.h \
-	atimach64accel.h \
-	atimach64.h \
-	atimach64i2c.h \
-	atimach64io.h \
-	atimach64probe.h \
-	atimode.h \
-	atioption.h \
-	atipreinit.h \
-	atiprint.h \
-	atipriv.h \
-	atiprobe.h \
-	atiregs.h \
-	atirgb514.h \
-	atiscreen.h \
-	atistruct.h \
-	atituner.h \
-	atiutil.h \
-	ativalid.h \
 	ativersion.h \
-	ativga.h \
-	ativgaio.h \
-	atividmem.h \
-	atiwonder.h \
-	atiwonderio.h \
-	atixv.h \
 	generic_bus.h \
-	mach64_common.h \
-	mach64_dri.h \
-	mach64_sarea.h \
-	r128_chipset.h \
-	r128_common.h \
-	r128_dri.h \
-	r128_dripriv.h \
-	r128.h \
-	r128_probe.h \
-	r128_reg.h \
-	r128_sarea.h \
-	r128_version.h \
 	radeon_common.h \
 	radeon_commonfuncs.c \
 	radeon_dri.h \
@@ -232,6 +149,7 @@ EXTRA_DIST = \
 	radeon_chipinfo_gen.h \
 	radeon_chipset_gen.h \
 	radeon_pci_chipset_gen.h \
+	radeon_pci_device_match_gen.h \
 	pcidb/ati_pciids.csv \
 	pcidb/parse_pci_ids.pl \
 	radeon_atombios.h

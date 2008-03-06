@@ -117,6 +117,9 @@ typedef struct pci_device *pciVideoPtr;
 #define PCI_WRITE_LONG(_pcidev, _value, _offset) \
     pci_device_cfg_write_u32((_pcidev), (_value), (_offset))
 
+#define ATI_DEVICE_MATCH(d, i) \
+    { PCI_VENDOR_ATI, (d), PCI_MATCH_ANY, PCI_MATCH_ANY, 0, 0, (i) }
+
 #endif /* XSERVER_LIBPCIACCESS */
 
 #endif /* ATIPCIRENAME_H */

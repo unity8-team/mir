@@ -53,6 +53,8 @@
 #include "xaa.h"
 #endif
 
+extern DriverRec RADEON;
+
 typedef enum
 {
     MT_UNKNOWN = -1,
@@ -101,7 +103,8 @@ typedef enum
     TMDS_NONE    = 0,
     TMDS_INT     = 1,
     TMDS_EXT     = 2,
-    TMDS_LVTMA   = 3
+    TMDS_LVTMA   = 3,
+    TMDS_DDIA    = 4
 } RADEONTmdsType;
 
 typedef enum
@@ -115,8 +118,7 @@ typedef enum
 {
     RMX_OFF,
     RMX_FULL,
-    RMX_CENTER,
-    RMX_ASPECT
+    RMX_CENTER
 } RADEONRMXType;
 
 typedef struct {
@@ -158,6 +160,23 @@ typedef enum
     TV_STD_PAL_CN    = 128,
 } TVStd;
 
+typedef struct
+{
+    Bool   valid;
+    CARD32 mask_clk_reg;
+    CARD32 mask_data_reg;
+    CARD32 put_clk_reg;
+    CARD32 put_data_reg;
+    CARD32 get_clk_reg;
+    CARD32 get_data_reg;
+    CARD32 mask_clk_mask;
+    CARD32 mask_data_mask;
+    CARD32 put_clk_mask;
+    CARD32 put_data_mask;
+    CARD32 get_clk_mask;
+    CARD32 get_data_mask;
+} RADEONI2CBusRec, *RADEONI2CBusPtr;
+
 typedef struct _RADEONCrtcPrivateRec {
 #ifdef USE_XAA
     FBLinearPtr rotate_mem_xaa;
@@ -181,7 +200,6 @@ typedef struct _RADEONCrtcPrivateRec {
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {
-    CARD32 ddc_line;
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
@@ -189,6 +207,7 @@ typedef struct {
     int output_id;
     int devices;
     int hpd_mask;
+    RADEONI2CBusRec ddc_i2c;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -204,7 +223,10 @@ typedef struct _RADEONOutputPrivateRec {
     int crtc_num;
     int DDCReg;
     I2CBusPtr         pI2CBus;
-    CARD32            tv_dac_adj;
+    RADEONI2CBusRec   ddc_i2c;
+    CARD32            ps2_tvdac_adj;
+    CARD32            pal_tvdac_adj;
+    CARD32            ntsc_tvdac_adj;
     /* panel stuff */
     int               PanelXRes;
     int               PanelYRes;
@@ -221,7 +243,7 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONRMXType     rmx_type;
     /* dvo */
     I2CDevPtr         DVOChip;
-    int               dvo_i2c_reg;
+    RADEONI2CBusRec   dvo_i2c;
     int               dvo_i2c_slave_addr;
     Bool              dvo_duallink;
     /* TV out */
@@ -234,6 +256,8 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
+    /* dig block */
+    int transmitter_config;
 
     char              *name;
     int               output_id;
@@ -288,23 +312,6 @@ struct avivo_grph_state {
 
     CARD32 viewport_start;
     CARD32 viewport_size;
-    CARD32 scl_enable;
-};
-
-struct avivo_dac_state {
-    CARD32 enable;
-    CARD32 source_select;
-    CARD32 force_output_cntl;
-    CARD32 powerdown;
-};
-
-struct avivo_dig_state {
-    CARD32 cntl;
-    CARD32 bit_depth_cntl;
-    CARD32 data_sync;
-    CARD32 transmitter_enable;
-    CARD32 transmitter_cntl;
-    CARD32 source_select;
 };
 
 struct avivo_state
@@ -320,9 +327,6 @@ struct avivo_state
     CARD32 crtc_master_en;
     CARD32 crtc_tv_control;
 
-    CARD32 lvtma_pwrseq_cntl;
-    CARD32 lvtma_pwrseq_state;
-
     struct avivo_pll_state pll1;
     struct avivo_pll_state pll2;
 
@@ -332,11 +336,41 @@ struct avivo_state
     struct avivo_grph_state grph1;
     struct avivo_grph_state grph2;
 
-    struct avivo_dac_state daca;
-    struct avivo_dac_state dacb;
+    /* DDIA block on RS6xx chips */
+    CARD32 ddia[37];
 
-    struct avivo_dig_state tmds1;
-    struct avivo_dig_state tmds2;
+    /* scalers */
+    CARD32 d1scl[40];
+    CARD32 d2scl[40];
+    CARD32 dxscl[6+2];
+
+    /* dac regs */
+    CARD32 daca[26];
+    CARD32 dacb[26];
+
+    /* tmdsa */
+    CARD32 tmdsa[31];
+
+    /* lvtma */
+    CARD32 lvtma[39];
+
+    /* dvoa */
+    CARD32 dvoa[16];
+
+    /* DCE3 chips */
+    CARD32 fmt1[18];
+    CARD32 fmt2[18];
+    CARD32 dig1[19];
+    CARD32 dig2[19];
+    CARD32 hdmi1[57];
+    CARD32 hdmi2[57];
+    CARD32 aux_cntl1[14];
+    CARD32 aux_cntl2[14];
+    CARD32 aux_cntl3[14];
+    CARD32 aux_cntl4[14];
+    CARD32 phy[10];
+    CARD32 uniphy1[8];
+    CARD32 uniphy2[8];
 
 };
 
@@ -363,9 +397,16 @@ typedef struct {
     CARD32            cap0_trig_cntl;
     CARD32            cap1_trig_cntl;
     CARD32            bus_cntl;
+
+    CARD32            bios_0_scratch;
+    CARD32            bios_1_scratch;
+    CARD32            bios_2_scratch;
+    CARD32            bios_3_scratch;
     CARD32            bios_4_scratch;
     CARD32            bios_5_scratch;
     CARD32            bios_6_scratch;
+    CARD32            bios_7_scratch;
+
     CARD32            surface_cntl;
     CARD32            surfaces[8][3];
     CARD32            mc_agp_location;
@@ -424,6 +465,7 @@ typedef struct {
     CARD32            fp_h_sync_strt_wid;
     CARD32            fp_h2_sync_strt_wid;
     CARD32            fp_horz_stretch;
+    CARD32            fp_horz_vert_active;
     CARD32            fp_panel_cntl;
     CARD32            fp_v_sync_strt_wid;
     CARD32            fp_v2_sync_strt_wid;

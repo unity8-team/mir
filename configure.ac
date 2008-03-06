@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-ati],
-        6.7.197,
+        6.8.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 
@@ -121,58 +121,6 @@ save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 CFLAGS="$save_CFLAGS"
-
-# Note that this is sort of inverted from drivers/ati/Imakefile in
-# the monolith.  We test for foo, not for !foo (i.e. ATMISC_CPIO, not
-# ATIMISC_AVOID_CPIO), but the defines are negative.  So beware.  Oh yeah,
-# TV_OUT is the special case where it's a positive define, not AVOID_TV_OUT.
-
-# AVOID_CPIO: Only x86, amd64, and alpha are cool with CPIO.  It needs a
-# little-endian, undirected PIO space of at least 64kB.
-# AVOID_DGA: ???
-# ATI_TV_OUT: This only works on x86.
-
-ATIMISC_CPIO=no
-ATIMISC_DGA=yes
-ATIMISC_TV_OUT=no
-
-case $host_cpu in
-  i*86)
-    ATIMISC_TV_OUT=yes
-    ATIMISC_CPIO=yes
-    ;;
-  x86_64|amd64|alpha|ia64)
-    ATIMISC_CPIO=yes
-    ;;
-  sparc)
-    ATIMISC_DGA=no
-    ;;
-  *)
-    ;;
-esac
-
-AC_MSG_CHECKING([whether to include PIO support])
-AM_CONDITIONAL(ATIMISC_CPIO, test "x$ATIMISC_CPIO" = xyes)
-if test "x$ATIMISC_CPIO" = xyes; then
-	AC_MSG_RESULT([yes, PIO])
-else
-	AC_DEFINE(AVOID_CPIO, 1, [Avoid PIO and use MMIO for atimisc.])
-	AC_MSG_RESULT([no, MMIO])
-fi
-
-AC_MSG_CHECKING([whether to include DGA support])
-AC_MSG_RESULT([$ATIMISC_DGA])
-AM_CONDITIONAL(ATIMISC_DGA, test "x$ATIMISC_DGA" = xyes)
-if ! test "x$ATIMISC_DGA" = xyes; then
-	AC_DEFINE(AVOID_DGA, 1, [Do not build DGA support.])
-fi
-
-AC_MSG_CHECKING([whether to include TV Out support])
-AC_MSG_RESULT([$ATIMISC_TV_OUT])
-AM_CONDITIONAL(ATIMISC_TV_OUT, test "x$ATIMISC_TV_OUT" = xyes)
-if test "x$ATIMISC_TV_OUT" = xyes; then
-	AC_DEFINE(TV_OUT, 1, [Build TV-Out support for atimisc.])
-fi
 
 AC_DEFINE(USE_XAA, 1, [Build support for XAA])
 
@@ -284,6 +232,11 @@ if test "x$XSERVER_LIBPCIACCESS" = xyes; then
 fi
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 
+case $host_os in
+  *linux*)
+  AC_DEFINE(FGL_LINUX, 1, [Use linux pragma pack]) ;;
+esac
+
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([moduledir])
@@ -294,6 +247,18 @@ AC_SUBST([DRIVER_NAME])
 XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
 XORG_CHECK_LINUXDOC
+
+AC_MSG_NOTICE(
+[The atimisc sub-driver has been split out to xf86-video-mach64:]
+[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-mach64]
+[Please install that driver as well for mach64-based cards.]
+)
+
+AC_MSG_NOTICE(
+[The r128 sub-driver has been split out to xf86-video-r128:]
+[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-r128]
+[Please install that driver as well for rage128-based cards.]
+)
 
 AC_OUTPUT([
 	Makefile

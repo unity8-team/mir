@@ -533,9 +533,17 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
 #ifdef RENDER
     if (info->RenderAccel) {
-	if (info->ChipFamily >= CHIP_FAMILY_R300) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
-			       "unsupported on R300 type cards and newer.\n");
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
+			       "unsupported on R600 and newer cards.\n");
+	else if (IS_R300_VARIANT || (IS_AVIVO_VARIANT && info->ChipFamily <= CHIP_FAMILY_RS740)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
+			       "enabled for R300 type cards.\n");
+		info->exa->CheckComposite = R300CheckComposite;
+		info->exa->PrepareComposite =
+		    FUNC_NAME(R300PrepareComposite);
+		info->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->exa->DoneComposite = RadeonDoneComposite;
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
 		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
 		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
@@ -563,11 +571,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
 
     info->exa->maxPitchBytes = 16320;
-    info->exa->maxX = info->exa->Composite ? 2048 : 8192;
+    info->exa->maxX = 8192;
 #else
-    info->exa->maxX = info->exa->Composite ? 2048 : 16320 / 4;
+    info->exa->maxX = 16320 / 4;
 #endif
-    info->exa->maxY = info->exa->Composite ? 2048 : 8192;
+    info->exa->maxY = 8192;
 
     RADEONEngineInit(pScrn);
 

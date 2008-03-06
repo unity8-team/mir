@@ -81,8 +81,8 @@ typedef struct {
    Bool          autopaint_colorkey;
    xf86CrtcPtr   desired_crtc;
 
-#ifdef USE_EXA
    int              size;
+#ifdef USE_EXA
    ExaOffscreenArea *off_screen;
 #endif
 
@@ -90,6 +90,20 @@ typedef struct {
    int           video_offset;
 
    Atom          device_id, location_id, instance_id;
+
+    /* textured video */
+    Bool textured;
+    DrawablePtr pDraw;
+    PixmapPtr pPixmap;
+
+    CARD32 src_offset;
+    CARD32 src_pitch;
+    CARD8 *src_addr;
+
+    int id;
+    int src_w, src_h, dst_w, dst_h;
+    int w, h;
+    int drw_x, drw_y;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
 
@@ -99,5 +113,33 @@ void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONVIP_init(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONVIP_reset(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
+CARD32
+RADEONAllocateMemory(ScrnInfoPtr pScrn, void **mem_struct, int size);
+void
+RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);
+
+int  RADEONSetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+int  RADEONGetPortAttribute(ScrnInfoPtr, Atom ,INT32 *, pointer);
+void RADEONStopVideo(ScrnInfoPtr, pointer, Bool);
+void RADEONQueryBestSize(ScrnInfoPtr, Bool, short, short, short, short,
+			 unsigned int *, unsigned int *, pointer);
+int  RADEONQueryImageAttributes(ScrnInfoPtr, int, unsigned short *,
+			unsigned short *,  int *, int *);
+
+XF86VideoAdaptorPtr
+RADEONSetupImageTexturedVideo(ScreenPtr pScreen);
+
+void
+RADEONCopyData(ScrnInfoPtr pScrn,
+	       unsigned char *src, unsigned char *dst,
+	       unsigned int srcPitch, unsigned int dstPitch,
+	       unsigned int h, unsigned int w, unsigned int bpp);
+
+void
+RADEONCopyMungedData(ScrnInfoPtr pScrn,
+		     unsigned char *src1, unsigned char *src2,
+		     unsigned char *src3, unsigned char *dst1,
+		     unsigned int srcPitch, unsigned int srcPitch2,
+		     unsigned int dstPitch, unsigned int h, unsigned int w);
 
 #endif

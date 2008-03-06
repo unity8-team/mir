@@ -167,7 +167,8 @@ typedef enum {
     OPTION_TVDAC_LOAD_DETECT,
     OPTION_FORCE_TVOUT,
     OPTION_TVSTD,
-    OPTION_IGNORE_LID_STATUS
+    OPTION_IGNORE_LID_STATUS,
+    OPTION_DEFAULT_TVDAC_ADJ
 } RADEONOpts;
 
 
@@ -183,6 +184,8 @@ typedef enum {
 				   * Need to comfirm this is not used
 				   * for something else.
 				   */
+
+#define xFixedToFloat(f) (((float) (f)) / 65536)
 
 #define RADEON_LOGLEVEL_DEBUG 4
 
@@ -266,11 +269,15 @@ typedef enum {
     CHIP_FAMILY_RV560,   /* rv560 */
     CHIP_FAMILY_RV570,   /* rv570 */
     CHIP_FAMILY_RS690,
+    CHIP_FAMILY_RS740,
     CHIP_FAMILY_R600,    /* r60 */
     CHIP_FAMILY_R630,
     CHIP_FAMILY_RV610,
     CHIP_FAMILY_RV630,
-    CHIP_FAMILY_RS740,
+    CHIP_FAMILY_RV670,
+    CHIP_FAMILY_RV620,
+    CHIP_FAMILY_RV635,
+    CHIP_FAMILY_RS780,
     CHIP_FAMILY_LAST
 } RADEONChipFamily;
 
@@ -292,6 +299,8 @@ typedef enum {
         (info->ChipFamily == CHIP_FAMILY_RS400))
 
 #define IS_AVIVO_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV515))
+
+#define IS_DCE3_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV620))
 
 /*
  * Errata workarounds
@@ -352,9 +361,6 @@ typedef struct {
     unsigned long     BIOSAddr;         /* BIOS physical address             */
     CARD32            fbLocation;
     CARD32            gartLocation;
-    CARD32            mc_fb_location;
-    CARD32            mc_agp_location;
-    CARD32            mc_agp_location_hi;
 
     void              *MMIO;            /* Map of MMIO region                */
     void              *FB;              /* Map of frame buffer               */
@@ -811,10 +817,9 @@ extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
 extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
+extern Bool        RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output);
 extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
 
-extern void        RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
-						RADEONSavePtr restore);
 extern void        RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 						RADEONSavePtr restore);
 extern void        RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
@@ -827,8 +832,6 @@ extern void        RADEONRestoreFP2Registers(ScrnInfoPtr pScrn,
 					     RADEONSavePtr restore);
 extern void        RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn,
 					      RADEONSavePtr restore);
-extern void        RADEONRestoreBIOSRegisters(ScrnInfoPtr pScrn,
-					      RADEONSavePtr restore);
 extern void        RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn,
 					     RADEONSavePtr restore);
 extern void        RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
@@ -838,9 +841,6 @@ extern void        RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
 extern void        RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
 					      RADEONSavePtr restore);
 
-extern void        RADEONInitMemMapRegisters(ScrnInfoPtr pScrn,
-					     RADEONSavePtr save,
-					     RADEONInfoPtr info);
 extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
 extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
@@ -868,6 +868,11 @@ extern Bool
 RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool
 RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
+
+extern RADEONI2CBusRec
+legacy_setup_i2c_bus(int ddc_line);
+extern RADEONI2CBusRec
+atom_setup_i2c_bus(int ddc_line);
 
 extern void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
@@ -991,11 +996,18 @@ do {									\
 	    info->needCacheFlush = FALSE;				\
 	}								\
 	RADEON_WAIT_UNTIL_IDLE();					\
-	BEGIN_RING(6);							\
-	OUT_RING_REG(RADEON_RE_TOP_LEFT,     info->re_top_left);	\
-	OUT_RING_REG(RADEON_RE_WIDTH_HEIGHT, info->re_width_height);	\
-	OUT_RING_REG(RADEON_AUX_SC_CNTL,     info->aux_sc_cntl);	\
-	ADVANCE_RING();							\
+        if (info->ChipFamily <= CHIP_FAMILY_RV280) {                    \
+	    BEGIN_RING(6);						\
+	    OUT_RING_REG(RADEON_RE_TOP_LEFT,     info->re_top_left);	\
+	    OUT_RING_REG(RADEON_RE_WIDTH_HEIGHT, info->re_width_height); \
+	    OUT_RING_REG(RADEON_AUX_SC_CNTL,     info->aux_sc_cntl);	\
+	    ADVANCE_RING();						\
+        } else {                                                        \
+            BEGIN_RING(4);                                              \
+            OUT_RING_REG(R300_SC_SCISSOR0, info->re_top_left);          \
+	    OUT_RING_REG(R300_SC_SCISSOR1, info->re_width_height);      \
+            ADVANCE_RING();                                             \
+	}                                                               \
 	info->CPInUse = TRUE;						\
     }									\
 } while (0)

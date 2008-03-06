@@ -1401,10 +1401,10 @@ const int object_connector_convert[] =
       CONNECTOR_NONE,
       CONNECTOR_NONE,
     };
-     
+
 static void
 rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
-			ATOM_I2C_RECORD *Record, CARD32 *ddc_line)
+			ATOM_I2C_RECORD *Record, int *ddc_line)
 {
     ErrorF(" %s:  I2C Record: %s[%x] EngineID: %x I2CAddr: %x\n",
 	     __func__,
@@ -1416,7 +1416,6 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
     if (!*(unsigned char *)&(Record->sucI2cId))
 	*ddc_line = 0;
     else {
-
 	if (Record->ucI2CAddr != 0)
 	    return;
 
@@ -1428,21 +1427,23 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
 	    default: break;
 	    }
 	    return;
-	
 	} else {
 	    /* add GPIO pin parsing */
 	}
     }
 }
 
-static CARD32
+static RADEONI2CBusRec
 RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     atomDataTablesPtr atomDataPtr;
     ATOM_GPIO_I2C_ASSIGMENT gpio;
-    CARD32 ret = 0;
+    RADEONI2CBusRec i2c;
     CARD8 crev, frev;
+
+    memset(&i2c, 0, sizeof(RADEONI2CBusRec));
+    i2c.valid = FALSE;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
 
@@ -1450,17 +1451,44 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
 	    &(atomDataPtr->GPIO_I2C_Info->sHeader),
 	    &crev,&frev,NULL)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No GPIO Info Table found!\n");
-	return ret;
+	return i2c;
     }
 
-    /* note clk and data regs can be different!
-     * gpio.usClkMaskRegisterIndex and gpio.usDataMaskRegisterIndex
-     */
-
     gpio = atomDataPtr->GPIO_I2C_Info->asGPIO_Info[id];
-    ret = gpio.usClkMaskRegisterIndex * 4;
+    i2c.mask_clk_reg = gpio.usClkMaskRegisterIndex * 4;
+    i2c.mask_data_reg = gpio.usDataMaskRegisterIndex * 4;
+    i2c.put_clk_reg = gpio.usClkEnRegisterIndex * 4;
+    i2c.put_data_reg = gpio.usDataEnRegisterIndex * 4;
+    i2c.get_clk_reg = gpio.usClkY_RegisterIndex * 4;
+    i2c.get_data_reg = gpio.usDataY_RegisterIndex * 4;
+    i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
+    i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
+    i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
+    i2c.put_data_mask = (1 << gpio.ucDataEnShift);
+    i2c.get_clk_mask = (1 << gpio.ucClkY_Shift);
+    i2c.get_data_mask = (1 <<  gpio.ucDataY_Shift);
+    i2c.valid = TRUE;
 
-    return ret;
+#if 0
+    ErrorF("mask_clk_reg: 0x%x\n", gpio.usClkMaskRegisterIndex * 4);
+    ErrorF("mask_data_reg: 0x%x\n", gpio.usDataMaskRegisterIndex * 4);
+    ErrorF("put_clk_reg: 0x%x\n", gpio.usClkEnRegisterIndex * 4);
+    ErrorF("put_data_reg: 0x%x\n", gpio.usDataEnRegisterIndex * 4);
+    ErrorF("get_clk_reg: 0x%x\n", gpio.usClkY_RegisterIndex * 4);
+    ErrorF("get_data_reg: 0x%x\n", gpio.usDataY_RegisterIndex * 4);
+    ErrorF("other_clk_reg: 0x%x\n", gpio.usClkA_RegisterIndex * 4);
+    ErrorF("other_data_reg: 0x%x\n", gpio.usDataA_RegisterIndex * 4);
+    ErrorF("mask_clk_mask: %d\n", gpio.ucClkMaskShift);
+    ErrorF("mask_data_mask: %d\n", gpio.ucDataMaskShift);
+    ErrorF("put_clk_mask: %d\n", gpio.ucClkEnShift);
+    ErrorF("put_data_mask: %d\n", gpio.ucDataEnShift);
+    ErrorF("get_clk_mask: %d\n", gpio.ucClkY_Shift);
+    ErrorF("get_data_mask: %d\n", gpio.ucDataY_Shift);
+    ErrorF("other_clk_mask: %d\n", gpio.ucClkA_Shift);
+    ErrorF("other_data_mask: %d\n", gpio.ucDataA_Shift);
+#endif
+
+    return i2c;
 }
 
 Bool
@@ -1471,7 +1499,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
-    int i, j;
+    int i, j, ddc_line = 0;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
@@ -1516,14 +1544,18 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_INT;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP2_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP3_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 		break;
@@ -1537,7 +1569,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    //info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    info->BiosConnector[i].valid = FALSE;
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
@@ -1559,7 +1592,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		case ATOM_I2C_RECORD_TYPE:
 		    rhdAtomParseI2CRecord(info->atomBIOS, 
 					  (ATOM_I2C_RECORD *)Record,
-					  &info->BiosConnector[i].ddc_line);
+					  &ddc_line);
+		    info->BiosConnector[i].ddc_i2c = atom_setup_i2c_bus(ddc_line);
 		    break;
 		case ATOM_HPD_INT_RECORD_TYPE:
 		    break;
@@ -1720,17 +1754,30 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	/* don't assign a gpio for tv */
 	if ((i == ATOM_DEVICE_TV1_INDEX) ||
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
-            (i == ATOM_DEVICE_CV_INDEX))
-            info->BiosConnector[i].ddc_line = 0;
-	else
-	    info->BiosConnector[i].ddc_line =
-	        RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
+	    (i == ATOM_DEVICE_CV_INDEX))
+	    info->BiosConnector[i].ddc_i2c.valid = FALSE;
+	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
+	    /* IGP DFP ports use non-standard gpio entries */
+	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
+	    else
+		info->BiosConnector[i].ddc_i2c =
+		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
+	} else
+	    info->BiosConnector[i].ddc_i2c =
+		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
-	else if (i == ATOM_DEVICE_DFP2_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_EXT;
-	else if (i == ATOM_DEVICE_DFP3_INDEX)
+	else if (i == ATOM_DEVICE_DFP2_INDEX) {
+	    if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		(info->ChipFamily == CHIP_FAMILY_RS740))
+		info->BiosConnector[i].TMDSType = TMDS_DDIA;
+	    else
+		info->BiosConnector[i].TMDSType = TMDS_EXT;
+	} else if (i == ATOM_DEVICE_DFP3_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 	else
 	    info->BiosConnector[i].TMDSType = TMDS_NONE;
@@ -1799,7 +1846,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
 	if (info->BiosConnector[i].valid) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d, hpd_mask-0x%x\n",
-		       i, (unsigned int)info->BiosConnector[i].ddc_line, info->BiosConnector[i].DACType,
+		       i, (unsigned int)info->BiosConnector[i].ddc_i2c.mask_clk_reg, info->BiosConnector[i].DACType,
 		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType,
 		       info->BiosConnector[i].hpd_mask);
 	}
