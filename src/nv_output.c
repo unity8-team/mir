@@ -905,6 +905,12 @@ nv_output_prepare(xf86OutputPtr output)
 			break;
 	}
 
+	uint8_t other_index = (~nv_output->output_resource) & 1;
+
+	/* Clean up, if we still occupy two slots. */
+	if (pNv->output_resource[other_index] == output)
+		pNv->output_resource[other_index] = NULL;
+
 	/* Quirk for strange dual link laptops. */
 	if ((nv_output->output_resource == 1) && (or == 3)) {
 		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
