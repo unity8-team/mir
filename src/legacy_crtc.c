@@ -1665,7 +1665,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     Bool tilingChanged = FALSE;
 
     if (info->allowColorTiling) {
-        radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+	radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 	tilingChanged = RADEONSetTiling(pScrn);
     }
 

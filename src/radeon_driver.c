@@ -2220,7 +2220,7 @@ static void RADEONPreInitColorTiling(ScrnInfoPtr pScrn)
 		   info->pKernelDRMVersion->version_minor,
 		   info->pKernelDRMVersion->version_patchlevel);
 	   info->allowColorTiling = FALSE;
-	   return;	   
+	   return;
     }
 #endif /* XF86DRI */
 
@@ -2687,7 +2687,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitWeight(pScrn))
 	goto fail;
 
-    info->DispPriority = 1; 
+    info->DispPriority = 1;
     if ((s = xf86GetOptValString(info->Options, OPTION_DISP_PRIORITY))) {
 	if (strcmp(s, "AUTO") == 0) {
 	    info->DispPriority = 1;
@@ -2696,7 +2696,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	} else if (strcmp(s, "HIGH") == 0) {
 	    info->DispPriority = 2;
 	} else
-	    info->DispPriority = 1; 
+	    info->DispPriority = 1;
     }
 
     if (!RADEONPreInitInt10(pScrn, &pInt10))

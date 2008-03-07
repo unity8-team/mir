@@ -537,11 +537,12 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
 Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     if (mask & 1) {
 	if (pRADEONEnt->Controller[0])
 	    return TRUE;
-	
+
 	pRADEONEnt->pCrtc[0] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
 	if (!pRADEONEnt->pCrtc[0])
 	    return FALSE;
@@ -553,16 +554,20 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	pRADEONEnt->pCrtc[0]->driver_private = pRADEONEnt->Controller[0];
 	pRADEONEnt->Controller[0]->crtc_id = 0;
 	pRADEONEnt->Controller[0]->crtc_offset = 0;
+	if (info->allowColorTiling)
+	    pRADEONEnt->Controller[0]->can_tile = 1;
+	else
+	    pRADEONEnt->Controller[0]->can_tile = 0;
     }
 
     if (mask & 2) {
 	if (!pRADEONEnt->HasCRTC2)
 	    return TRUE;
-	
+
 	pRADEONEnt->pCrtc[1] = xf86CrtcCreate(pScrn, &radeon_crtc_funcs);
 	if (!pRADEONEnt->pCrtc[1])
 	    return FALSE;
-	
+
 	pRADEONEnt->Controller[1] = xnfcalloc(sizeof(RADEONCrtcPrivateRec), 1);
 	if (!pRADEONEnt->Controller[1])
 	    {
@@ -573,6 +578,10 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
 	pRADEONEnt->Controller[1]->crtc_id = 1;
 	pRADEONEnt->Controller[1]->crtc_offset = AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL;
+	if (info->allowColorTiling)
+	    pRADEONEnt->Controller[1]->can_tile = 1;
+	else
+	    pRADEONEnt->Controller[1]->can_tile = 0;
     }
 
     return TRUE;
@@ -738,9 +747,11 @@ RADEONSetTiling(ScrnInfoPtr pScrn)
 	crtc = xf86_config->crtc[c];
 	radeon_crtc = crtc->driver_private;
 
-	if (!radeon_crtc->can_tile)
-	    can_tile = 0;
-    }	
+	if (crtc->enabled) {
+	    if (!radeon_crtc->can_tile)
+		can_tile = 0;
+	}
+    }
 
     if (info->tilingEnabled != can_tile)
 	changed = TRUE;
@@ -748,7 +759,7 @@ RADEONSetTiling(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
     if (info->directRenderingEnabled && (info->tilingEnabled != can_tile)) {
 	RADEONSAREAPrivPtr pSAREAPriv;
-	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (can_tile ? 1 : 0)) < 0)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "[drm] failed changing tiling status\n");
 	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
