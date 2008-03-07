@@ -1044,15 +1044,13 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     if (!OVERLAY_NOPHYSICAL(pI830))
 	flags |= NEED_PHYSICAL_ADDR;
 
-    if (!IS_I965G(pI830)) {
-	pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
-						   OVERLAY_SIZE, GTT_PAGE_SIZE,
-						   flags);
-	if (pI830->overlay_regs == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to allocate Overlay register space.\n");
-	    /* This failure isn't fatal. */
-	}
+    pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
+					       OVERLAY_SIZE, GTT_PAGE_SIZE,
+					       flags);
+    if (pI830->overlay_regs == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Failed to allocate Overlay register space.\n");
+	/* This failure isn't fatal. */
     }
 
     return TRUE;

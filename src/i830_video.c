@@ -352,7 +352,7 @@ i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
     int			pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
 
-    if (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE)
+    if (!IS_I965G(pI830) && (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE))
 	pPriv->overlayOK = FALSE;
     else
 	pPriv->overlayOK = TRUE;
@@ -580,8 +580,7 @@ I830InitVideo(ScreenPtr pScreen)
     }
 
     /* Set up overlay video if we can do it at this depth. */
-    if (!IS_I965G(pI830) && pScrn->bitsPerPixel != 8 &&
-	pI830->overlay_regs != NULL)
+    if (pScrn->bitsPerPixel != 8 && pI830->overlay_regs != NULL)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 	if (overlayAdaptor != NULL) {
@@ -2563,10 +2562,6 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
     if (pI830->adaptor == NULL)
         return;
 
-    /* No overlay scaler on the 965. */
-    if (IS_I965G(pI830))
-        return;
-
     pPriv = GET_PORT_PRIVATE(pScrn);
 
     if (pPriv->videoStatus & TIMER_MASK) {
@@ -2844,10 +2839,6 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
     I830PortPrivPtr pPriv;
 
     if (pI830->adaptor == NULL)
-	return;
-
-    /* No overlay scaler on the 965. */
-    if (IS_I965G(pI830))
 	return;
 
     pPriv = GET_PORT_PRIVATE(pScrn);
