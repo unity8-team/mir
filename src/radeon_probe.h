@@ -197,6 +197,8 @@ typedef struct _RADEONCrtcPrivateRec {
     int               fb_pitch, fb_width, fb_height;
     INT16             cursor_x;
     INT16             cursor_y;
+
+    int can_tile;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {

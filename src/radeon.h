@@ -850,7 +850,7 @@ extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONUnblank(ScrnInfoPtr pScrn);
 extern void        RADEONBlank(ScrnInfoPtr pScrn);
-
+extern Bool        RADEONSetTiling(ScrnInfoPtr pScrn);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
 extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
 

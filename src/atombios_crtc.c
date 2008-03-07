@@ -330,22 +330,13 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     int need_tv_timings = 0;
     int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
+    Bool tilingChanged = FALSE;
 
     memset(&crtc_timing, 0, sizeof(crtc_timing));
 
     if (info->allowColorTiling) {
-	info->tilingEnabled = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
-#ifdef XF86DRI
-	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
-	    RADEONSAREAPrivPtr pSAREAPriv;
-	    if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[drm] failed changing tiling status\n");
-	    /* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
-	    pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
-	    info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
-	}
-#endif
+        radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
+	tilingChanged = RADEONSetTiling(pScrn);
     }
 
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -487,7 +478,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
-    if (info->tilingEnabled != tilingOld) {
+    if (tilingChanged) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
 	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
 	if (pScrn->pScreen)

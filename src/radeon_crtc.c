@@ -723,3 +723,39 @@ RADEONUnblank(ScrnInfoPtr pScrn)
     }
 }
 
+Bool
+RADEONSetTiling(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONCrtcPrivatePtr radeon_crtc;
+    xf86CrtcPtr crtc;
+    int c;
+    int can_tile = 1;
+    Bool changed = FALSE;
+
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	crtc = xf86_config->crtc[c];
+	radeon_crtc = crtc->driver_private;
+
+	if (!radeon_crtc->can_tile)
+	    can_tile = 0;
+    }	
+
+    if (info->tilingEnabled != can_tile)
+	changed = TRUE;
+
+#ifdef XF86DRI
+    if (info->directRenderingEnabled && (info->tilingEnabled != can_tile)) {
+	RADEONSAREAPrivPtr pSAREAPriv;
+	if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "[drm] failed changing tiling status\n");
+	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
+	pSAREAPriv = DRIGetSAREAPrivate(screenInfo.screens[pScrn->scrnIndex]);
+	info->tilingEnabled = pSAREAPriv->tiling_enabled ? TRUE : FALSE;
+    }
+#endif
+
+    return changed;
+}
