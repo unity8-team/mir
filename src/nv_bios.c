@@ -3326,6 +3326,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	case 0:
 		break;
 	case 0x10:
+	case 0x11: /* strictly v0x11 has 3 entries, but the last two don't seem to get used */
 		headerlen = 1;
 		recordlen = 0x18;
 		entries = 1;
@@ -3346,7 +3347,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	/* initialize all members to zero */
 	memset(pll_lim, 0, sizeof(struct pll_lims));
 
-	if (pll_lim_ver == 0x10) {
+	if (pll_lim_ver == 0x10 || pll_lim_ver == 0x11) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex;
 
 		pll_lim->vco1.minfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs])));
