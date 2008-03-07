@@ -1564,7 +1564,13 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT1_INDEX);
+		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
+		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
+		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
+		    //info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    info->BiosConnector[i].valid = FALSE;
+		else
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT1_INDEX);
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
