@@ -25,10 +25,10 @@
 #define __NV50REG_H_
 
 /* These are probably redrirected from 0x4000 range (very similar regs to nv40, maybe different order) */
-#define NV50_DISPLAY_VPLL1_A		0x4104
-#define NV50_DISPLAY_VPLL1_B		0x4108
-#define NV50_DISPLAY_VPLL2_A		0x4904
-#define NV50_DISPLAY_VPLL2_B		0x4908
+#define NV50_CRTC_VPLL1_A		0x00614104
+#define NV50_CRTC_VPLL1_B		0x00614108
+#define NV50_CRTC_VPLL2_A		0x00614904
+#define NV50_CRTC_VPLL2_B		0x00614908
 
 /* These things below are so called "commands" */
 #define NV50_CRTC0_CLOCK			0x804
@@ -87,8 +87,8 @@
 #define NV50_CRTC1_CLUT_OFFSET		0xC44
 
 /* Clamped to 256 MiB */
-#define NV50_CRTC0_RAM_AMOUNT		0x384
-#define NV50_CRTC1_RAM_AMOUNT		0x784
+#define NV50_CRTC0_RAM_AMOUNT		0x00610384
+#define NV50_CRTC1_RAM_AMOUNT		0x00610784
 
 #define NV50_CRTC0_CURSOR0		0x880
 	#define NV50_CRTC0_CURSOR0_SHOW		0x85000000

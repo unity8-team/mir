@@ -23,44 +23,18 @@
 
 #include "nv_include.h"
 
-void NV50DisplayWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	pNv->NV50_PCRTC[addr/4] = value;
-}
-
-CARD32 NV50DisplayRead(ScrnInfoPtr pScrn, CARD32 addr)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	return pNv->NV50_PCRTC[addr/4];
-}
-
-/* Things related to crtc's seem to come with offsets of 0x800 */
-void NV50CrtcWrite(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
-{
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50DisplayWrite(pScrn, addr + nv_crtc->head * 0x800, value);
-}
-
-CARD32 NV50CrtcRead(xf86CrtcPtr crtc, CARD32 addr)
-{
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	return  NV50DisplayRead(pScrn, addr + nv_crtc->head * 0x800);
-}
-
 /* Don't call the directly, only load state should do this on the long run*/
 void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 {
-	while (NV50DisplayRead(pScrn, 0x300) & 0x80000000) {
+	NVPtr pNv = NVPTR(pScrn);
+	while (NVRead(pNv, 0x00610300) & 0x80000000) {
 		/* What does is the meaning of this? */
-		const int super = ffs((NV50DisplayRead(pScrn, 0x24) >> 4) & 0x7);
+		const int super = ffs((NVRead(pNv, 0x00610024) >> 4) & 0x7);
 
 		if (super > 0) {
 			if (super == 2) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-				const CARD32 clockvar = NV50DisplayRead(pScrn, 0x30);
+				const CARD32 clockvar = NVRead(pNv, 0x00610030);
 				int i;
 
 				for(i = 0; i < xf86_config->num_crtc; i++) {
@@ -73,16 +47,17 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 				}
 			}
 
-			NV50DisplayWrite(pScrn, 0x24, 1 << (3 + super));
-			NV50DisplayWrite(pScrn, 0x30, 0x80000000);
+			NVWrite(pNv, 0x00610024, 1 << (3 + super));
+			NVWrite(pNv, 0x00610030, 0x80000000);
 		}
 	}
 }
 
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 {
-	NV50DisplayWrite(pScrn, 0x304, value);
-	NV50DisplayWrite(pScrn, 0x300, addr | 0x80010001);
+	NVPtr pNv = NVPTR(pScrn);
+	NVWrite(pNv, 0x00610304, value);
+	NVWrite(pNv, 0x00610300, addr | 0x80010001);
 	NV50CheckWriteVClk(pScrn);
 }
 

@@ -30,32 +30,6 @@
 
 #include <xf86DDC.h>
 
-/* Register writes related to outputs also come at a 0x800 offset. */
-/* So called DisplayCommand's do not use that offset */
-void NV50OrWrite(ScrnInfoPtr pScrn, int or, CARD32 addr, CARD32 value)
-{
-	NV50DisplayWrite(pScrn, addr + or * 0x800, value);
-}
-
-CARD32 NV50OrRead(ScrnInfoPtr pScrn, int or, CARD32 addr)
-{
-	return NV50DisplayRead(pScrn, addr + or * 0x800);
-}
-
-void NV50OutputWrite(xf86OutputPtr output, CARD32 addr, CARD32 value)
-{
-	NV50OutputPrivPtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	NV50OrWrite(pScrn, nv_output->or, addr, value);
-}
-
-CARD32 NV50OutputRead(xf86OutputPtr output, CARD32 addr)
-{
-	NV50OutputPrivPtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	return NV50OrRead(pScrn, nv_output->or, addr);
-}
-
 static Bool NV50ReadPortMapping(int scrnIndex, NVPtr pNv)
 {
 	 unsigned const char *VBIOS = (unsigned const char *)pNv->VBIOS.data;

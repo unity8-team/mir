@@ -109,6 +109,8 @@ void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, 
 void NVOutputModeFix(xf86OutputPtr output);
 
 /* nv_hw.c */
+uint32_t NVRead(NVPtr pNv, uint32_t reg);
+void NVWrite(NVPtr pNv, uint32_t reg, uint32_t val);
 uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg);
 void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
 uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg);
@@ -254,16 +256,8 @@ void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src);
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
 void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
-void NV50CrtcWrite(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
-CARD32 NV50CrtcRead(xf86CrtcPtr crtc, CARD32 addr);
-void NV50DisplayWrite(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
-CARD32 NV50DisplayRead(ScrnInfoPtr pScrn, CARD32 addr);
 
 /* in nv50_output.c */
-void NV50OrWrite(ScrnInfoPtr pScrn, int or, CARD32 addr, CARD32 value);
-CARD32 NV50OrRead(ScrnInfoPtr pScrn, int or, CARD32 addr);
-void NV50OutputWrite(xf86OutputPtr output, CARD32 addr, CARD32 value);
-CARD32 NV50OutputRead(xf86OutputPtr output, CARD32 addr);
 
 
 #endif /* __NV_PROTO_H__ */

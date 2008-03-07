@@ -33,19 +33,25 @@
 static void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)
 {
+	NV50OutputPrivPtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
-	NV50OutputWrite(output, 0x4300, (pclk > limit) ? 0x101 : 0);
+	NVWrite(pNv, 0x00614300 + nv_output->or * 0x800, (pclk > limit) ? 0x101 : 0);
 }
 
 static void
 NV50SorDPMSSet(xf86OutputPtr output, int mode)
 {
+	NV50OutputPrivPtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
 
-	while((NV50OutputRead(output, 0xc004) & 0x80000000));
+	while((NVRead(pNv, 0x0061c004 + nv_output->or * 0x800) & 0x80000000));
 
-	tmp = NV50OutputRead(output, 0xc004);
+	tmp = NVRead(pNv, 0x0061c004 + nv_output->or * 0x800);
 	tmp |= 0x80000000;
 
 	if(mode == DPMSModeOn)
@@ -53,8 +59,8 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 	else
 		tmp &= ~1;
 
-	NV50OutputWrite(output, 0xc004, tmp);
-	while((NV50OutputRead(output, 0xc030) & 0x10000000));
+	NVWrite(pNv, 0x0061c004 + nv_output->or * 0x800, tmp);
+	while((NVRead(pNv, 0x0061c030 + nv_output->or * 0x800) & 0x10000000));
 }
 
 static int
@@ -416,18 +422,19 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 static DisplayModePtr
 ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	DisplayModePtr mode = xnfcalloc(1, sizeof(DisplayModeRec));
-	const CARD32 size = NV50DisplayRead(pScrn, 0xb4c + off);
+	const CARD32 size = NVRead(pNv, 0x00610b4c + off);
 	const int width = size & 0x3fff;
 	const int height = (size >> 16) & 0x3fff;
 
 	mode->HDisplay = mode->CrtcHDisplay = width;
 	mode->VDisplay = mode->CrtcVDisplay = height;
-	mode->Clock = NV50DisplayRead(pScrn, 0xad4 + off) & 0x3fffff;
-	mode->CrtcHBlankStart = NV50DisplayRead(pScrn, 0xafc + off);
-	mode->CrtcHSyncEnd = NV50DisplayRead(pScrn, 0xb04 + off);
-	mode->CrtcHBlankEnd = NV50DisplayRead(pScrn, 0xae8 + off);
-	mode->CrtcHTotal = NV50DisplayRead(pScrn, 0xaf4 + off);
+	mode->Clock = NVRead(pNv, 0x00610ad4 + off) & 0x3fffff;
+	mode->CrtcHBlankStart = NVRead(pNv, 0x00610afc + off);
+	mode->CrtcHSyncEnd = NVRead(pNv, 0x00610b04 + off);
+	mode->CrtcHBlankEnd = NVRead(pNv, 0x00610ae8 + off);
+	mode->CrtcHTotal = NVRead(pNv, 0x00610af4 + off);
 
 	mode->next = mode->prev = NULL;
 	mode->status = MODE_OK;
@@ -441,7 +448,8 @@ ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 static DisplayModePtr
 GetLVDSNativeMode(ScrnInfoPtr pScrn)
 {
-	CARD32 val = NV50DisplayRead(pScrn, 0x50);
+	NVPtr pNv = NVPTR(pScrn);
+	CARD32 val = NVRead(pNv, 0x00610050);
 
 	if ((val & 0x3) == 0x2) {
 		return ReadLVDSNativeMode(pScrn, 0);
@@ -456,6 +464,7 @@ xf86OutputPtr
 NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 {
 	NV50OutputPrivPtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
+	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
 	char orName[5];
 	const xf86OutputFuncsRec *funcs;
@@ -497,10 +506,10 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 	output->doubleScanAllowed = TRUE;
 
 	if (panelType != LVDS) {
-		NV50OutputWrite(output, 0xc00c, 0x03010700);
-		NV50OutputWrite(output, 0xc010, 0x0000152f);
-		NV50OutputWrite(output, 0xc014, 0x00000000);
-		NV50OutputWrite(output, 0xc018, 0x00245af8);
+		NVWrite(pNv, 0x0061c00c + nv_output->or * 0x800, 0x03010700);
+		NVWrite(pNv, 0x0061c010 + nv_output->or * 0x800, 0x0000152f);
+		NVWrite(pNv, 0x0061c014 + nv_output->or * 0x800, 0x00000000);
+		NVWrite(pNv, 0x0061c018 + nv_output->or * 0x800, 0x00245af8);
 	}
 
 	return output;

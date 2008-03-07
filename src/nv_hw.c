@@ -42,6 +42,17 @@
 #include "nv_local.h"
 #include "compiler.h"
 
+uint32_t NVRead(NVPtr pNv, uint32_t reg)
+{
+	DDXMMIOW("NVRead: reg %08x val %08x\n", reg, (uint32_t)NV_RD32(pNv->REGS, reg));
+	return NV_RD32(pNv->REGS, reg);
+}
+
+void NVWrite(NVPtr pNv, uint32_t reg, uint32_t val)
+{
+	DDXMMIOW("NVWrite: reg %08x val %08x\n", reg, NV_WR32(pNv->REGS, reg, val));
+}
+
 uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg)
 {
 	if (head)
