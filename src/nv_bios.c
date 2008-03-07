@@ -205,7 +205,7 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 static void still_alive(void)
 {
 //	sync();
-//	usleep(200);
+//	usleep(2000);
 }
 
 static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
@@ -823,13 +823,14 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		Pval |= 1 << 28 | Pval2 << 20;
 
 		saved4600 = nv32_rd(pScrn, 0x4600);
-		nv32_wr(pScrn, 0x4600, saved4600 | 1 << 31);
+		nv32_wr(pScrn, 0x4600, saved4600 | 8 << 28);
 	}
 
 	nv32_wr(pScrn, Preg, oldPval | 1 << 28);
-	nv32_wr(pScrn, Preg, Pval & ~(1 << 30));
+	nv32_wr(pScrn, Preg, Pval & ~(4 << 28));
 	if (Preg == 0x4020) {
-		Pval |= 1 << 23 | 1 << 12;
+		// some cards do '| 1 << 12', but using it breaks on 6600 :(
+		Pval |= 8 << 20;// | 1 << 12;
 		nv32_wr(pScrn, 0x4020, Pval & ~(3 << 30));
 		nv32_wr(pScrn, 0x4038, Pval & ~(3 << 30));
 	}
@@ -843,7 +844,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 
 	nv32_wr(pScrn, Preg, Pval);
 	if (Preg == 0x4020) {
-		Pval &= ~(1 << 23);
+		Pval &= ~(8 << 20);
 		nv32_wr(pScrn, 0x4020, Pval);
 		nv32_wr(pScrn, 0x4038, Pval);
 		nv32_wr(pScrn, 0x4600, saved4600);
