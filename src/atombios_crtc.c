@@ -401,27 +401,25 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	   adjusted_mode->CrtcHTotal, adjusted_mode->CrtcVTotal, adjusted_mode->Flags);
 
     if (IS_AVIVO_VARIANT) {
-	radeon_crtc->fb_width = mode->CrtcHDisplay;
-	radeon_crtc->fb_height = pScrn->virtualY;
-	radeon_crtc->fb_pitch = mode->CrtcHDisplay;
-	radeon_crtc->fb_length = radeon_crtc->fb_pitch * radeon_crtc->fb_height * 4;
+	CARD32 fb_format;
+
 	switch (crtc->scrn->bitsPerPixel) {
 	case 15:
-	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
+	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_ARGB1555;
 	    break;
 	case 16:
-	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
 	    break;
 	case 24:
 	case 32:
-	    radeon_crtc->fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
 	    break;
 	default:
 	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
 	}
 
 	if (info->tilingEnabled && (crtc->rotatedData == NULL)) {
-	    radeon_crtc->fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+	    fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 	}
 
 	if (radeon_crtc->crtc_id == 0)
@@ -443,8 +441,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
-	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset,
-	       radeon_crtc->fb_format);
+	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
