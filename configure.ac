@@ -74,7 +74,7 @@ AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 		[#include "xorg/xorg-server.h"])
 
 if test x$XSERVER_LIBPCIACCESS = xyes; then
-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0])
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 fi
 
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
