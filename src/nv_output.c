@@ -845,12 +845,12 @@ nv_output_prepare(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	//xf86CrtcPtr crtc = output->crtc;
+	//NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr reset_output = NULL;
 	int or, ffsor;
-	Bool quirk_mode = FALSE;
+	//Bool quirk_mode = FALSE;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
 
@@ -911,6 +911,10 @@ nv_output_prepare(xf86OutputPtr output)
 	if (pNv->output_resource[other_index] == output)
 		pNv->output_resource[other_index] = NULL;
 
+/* This quirk has weird sideeffects on NV36M, so disable it. */
+/* Remove later (a month or two) on if it proves to be unneeded. */
+/* Date: 8 March 2008 */
+#if 0
 	/* Quirk for strange dual link laptops. */
 	if ((nv_output->output_resource == 1) && (or == 3)) {
 		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
@@ -928,6 +932,7 @@ nv_output_prepare(xf86OutputPtr output)
 		pNv->fp_regs_owner[0] = 0;
 		pNv->fp_regs_owner[1] = 1;
 	}
+#endif
 
 	/* Reset the output if needed. */
 	if (reset_output)
