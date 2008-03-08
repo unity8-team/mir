@@ -2111,7 +2111,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		NVSetOwner(pScrn, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
-		NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
+		NVWriteVgaCrtc(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
 		NVLockVgaCrtc(pNv, 0, true);
 	}
 }
@@ -2389,8 +2389,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 		/* Gather some misc info before the randr stuff kicks in */
 		if (pNv->Architecture >= NV_ARCH_10) {
-			pNv->misc_info.crtc_reg_52[0] = NVReadVGA(pNv, 0, NV_VGA_CRTCX_52);
-			pNv->misc_info.crtc_reg_52[1] = NVReadVGA(pNv, 1, NV_VGA_CRTCX_52);
+			pNv->misc_info.crtc_reg_52[0] = NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_52);
+			pNv->misc_info.crtc_reg_52[1] = NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_52);
 		}
 		if (pNv->Architecture == NV_ARCH_40) {
 			pNv->misc_info.ramdac_0_reg_580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
@@ -2406,9 +2406,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 
 		for (i = 0; i <= pNv->twoHeads; i++) {
-			if (NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
+			if (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
 				pNv->console_mode[i].vga_mode = FALSE;
-				uint8_t var = NVReadVGA(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf;
+				uint8_t var = NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf;
 				Bool filled = (NVReadRAMDAC(pNv, i, NV_RAMDAC_GENERAL_CONTROL) & 0x1000);
 				switch (var){
 					case 3:
@@ -2441,8 +2441,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				pNv->console_mode[i].depth = 4;
 			}
 
-			pNv->console_mode[i].x_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
-			pNv->console_mode[i].y_res = (NVReadVGA(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
+			pNv->console_mode[i].x_res = (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
+			pNv->console_mode[i].y_res = (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
 
 			pNv->console_mode[i].fb_start = NVReadCRTC(pNv, i, NV_CRTC_START);
 

@@ -18,7 +18,7 @@ NVI2CGetBits(I2CBusPtr b, int *clock, int *data)
 
 	/* Get the result. */
 	/* Doing this on head 0 seems fine. */
-	val = NVReadVGA(pNv, 0, b->DriverPrivate.uval);
+	val = NVReadVgaCrtc(pNv, 0, b->DriverPrivate.uval);
 
 	*clock = (val & DDC_SCL_READ_MASK) != 0;
 	*data  = (val & DDC_SDA_READ_MASK) != 0;
@@ -31,7 +31,7 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 	unsigned char val;
 
 	/* Doing this on head 0 seems fine. */
-	val = NVReadVGA(pNv, 0, b->DriverPrivate.uval + 1) & 0xf0;
+	val = NVReadVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1) & 0xf0;
 	if (clock)
 		val |= DDC_SCL_WRITE_MASK;
 	else
@@ -43,7 +43,7 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 		val &= ~DDC_SDA_WRITE_MASK;
 
 	/* Doing this on head 0 seems fine. */
-	NVWriteVGA(pNv, 0, b->DriverPrivate.uval + 1, val | 0x1);
+	NVWriteVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1, val | 0x1);
 }
 
 Bool

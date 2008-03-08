@@ -243,7 +243,7 @@ void NVSetOwner(ScrnInfoPtr pScrn, int head)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	/* CRTCX_OWNER is always changed on CRTC0 */
-	NVWriteVGA(pNv, 0, NV_VGA_CRTCX_OWNER, head * 0x3);
+	NVWriteVgaCrtc(pNv, 0, NV_VGA_CRTCX_OWNER, head * 0x3);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting owner: 0x%X.\n", head * 0x3);
 }
@@ -252,14 +252,14 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 {
 	uint8_t cr11;
 
-	NVWriteVGA(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
+	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_LOCK, lock ? 0x99 : 0x57);
 
-	cr11 = NVReadVGA(pNv, head, NV_VGA_CRTCX_VSYNCE);
+	cr11 = NVReadVgaCrtc(pNv, head, NV_VGA_CRTCX_VSYNCE);
 	if (lock)
 		cr11 |= 0x80;
 	else
 		cr11 &= ~0x80;
-	NVWriteVGA(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
+	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
 }
 
 void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)

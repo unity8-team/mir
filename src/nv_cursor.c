@@ -360,12 +360,12 @@ void nv_crtc_fix_nv40_hw_cursor(ScrnInfoPtr pScrn, uint8_t head)
 void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int curctl1 = NVReadVGA(pNv, head, NV_VGA_CRTCX_CURCTL1);
+	int curctl1 = NVReadVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1);
 
 	if (show)
-		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 | 1);
+		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 | 1);
 	else
-		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 & ~1);
+		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 & ~1);
 
 	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
 		nv_crtc_fix_nv40_hw_cursor(pScrn, head);
