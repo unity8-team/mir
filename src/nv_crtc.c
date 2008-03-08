@@ -713,10 +713,6 @@ static Bool
 nv_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_mode_fixup is called for CRTC %d.\n", nv_crtc->head);
-
 	return TRUE;
 }
 
@@ -1705,20 +1701,11 @@ void nv_crtc_commit(xf86CrtcPtr crtc)
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_lock is called for CRTC %d.\n", nv_crtc->head);
-
 	return FALSE;
 }
 
 static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_unlock is called for CRTC %d.\n", nv_crtc->head);
 }
 
 static void
@@ -1975,12 +1962,13 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcPtr crtc;
 	NVCrtcPrivatePtr nv_crtc;
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[crtc_num];
+	int i;
 
-	if (pNv->NVArch >= 0x11) {
-		crtc = xf86CrtcCreate (pScrn, &nv11_crtc_funcs);
-	} else {
-		crtc = xf86CrtcCreate (pScrn, &nv_crtc_funcs);
-	}
+	if (pNv->NVArch >= 0x11)
+		crtc = xf86CrtcCreate(pScrn, &nv11_crtc_funcs);
+	else
+		crtc = xf86CrtcCreate(pScrn, &nv_crtc_funcs);
 	if (crtc == NULL)
 		return;
 
@@ -1991,8 +1979,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtc->driver_private = nv_crtc;
 
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-	int i;
 	/* Initialise the default LUT table. */
 	for (i = 0; i < 256; i++) {
 		regp->DAC[i*3] = i;

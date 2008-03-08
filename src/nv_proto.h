@@ -55,7 +55,6 @@ void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show);
 
 /* in nv_dma.c */
 void  NVSync(ScrnInfoPtr pScrn);
-void  NVResetGraphics(ScrnInfoPtr pScrn);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
 
 /* in nv_exa.c */

@@ -104,11 +104,6 @@ void NVSync(ScrnInfoPtr pScrn)
 		NVLockedUp(pScrn);
 }
 
-void NVResetGraphics(ScrnInfoPtr pScrn)
-{
-	NVAccelCommonInit(pScrn);
-}
-
 static void NVInitDmaCB(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);

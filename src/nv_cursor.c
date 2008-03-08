@@ -51,9 +51,6 @@
 *                                                                            *
 \****************************************************************************/
 
-#define NV_CURSOR_X 64
-#define NV_CURSOR_Y 64
-
 #define CURSOR_X_SHIFT 0
 #define CURSOR_Y_SHIFT 16
 #define CURSOR_POS_MASK 0xffff
@@ -140,7 +137,6 @@ ConvertCursor8888(NVPtr pNv, CARD32 *src, CARD32 *dst)
 		}
 	}
 }
-
 
 static void
 TransformCursor (NVPtr pNv)
@@ -364,12 +360,12 @@ void nv_crtc_fix_nv40_hw_cursor(ScrnInfoPtr pScrn, uint8_t head)
 void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t current = NVReadVGA(pNv, head, NV_VGA_CRTCX_CURCTL1);
+	int curctl1 = NVReadVGA(pNv, head, NV_VGA_CRTCX_CURCTL1);
 
 	if (show)
-		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, current | 1);
+		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 | 1);
 	else
-		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, current & ~1);
+		NVWriteVGA(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 & ~1);
 
 	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
 		nv_crtc_fix_nv40_hw_cursor(pScrn, head);
@@ -494,4 +490,3 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 		}
 	}
 }
-

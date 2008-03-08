@@ -272,13 +272,6 @@ static XF86ModuleVersionInfo nouveauVersRec =
 
 _X_EXPORT XF86ModuleData nouveauModuleData = { &nouveauVersRec, nouveauSetup, NULL };
 
-
-/*
- * This is intentionally screen-independent.  It indicates the binding
- * choice made in the first PreInit.
- */
-static int pix24bpp = 0;
-
 static Bool
 NVGetRec(ScrnInfoPtr pScrn)
 {
@@ -886,42 +879,22 @@ NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
     return (MODE_OK);
 }
 
-static void
-nvProbeDDC(ScrnInfoPtr pScrn, int index)
-{
-    vbeInfoPtr pVbe;
-
-    if (xf86LoadSubModule(pScrn, "vbe")) {
-        pVbe = VBEInit(NULL,index);
-        ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
-	vbeFree(pVbe);
-    }
-}
-
 Bool NVI2CInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	char *mod = "i2c";
 
-	if (xf86LoadSubModule(pScrn, mod)) {
+	if (xf86LoadSubModule(pScrn, "i2c") && xf86LoadSubModule(pScrn, "ddc")) {
 		xf86LoaderReqSymLists(i2cSymbols,NULL);
+		xf86LoaderReqSymLists(ddcSymbols, NULL);
 
-		mod = "ddc";
-		if(xf86LoadSubModule(pScrn, mod)) {
-			xf86LoaderReqSymLists(ddcSymbols, NULL);
-			/* randr-1.2 clients have their DDC's initialized elsewhere */
-			if (pNv->randr12_enable) {
-				return TRUE;
-			} else {
-				return NVDACi2cInit(pScrn);
-			}
-		} 
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Couldn't load %s module.  DDC probing can't be done\n", mod);
-
-	return FALSE;
+		/* randr-1.2 clients have their DDCs initialized elsewhere */
+		if (!pNv->randr12_enable)
+			return NVDACi2cInit(pScrn);
+		return true;
+	} else
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"Couldn't load i2c and ddc modules.  DDC probing can't be done\n");
+	return false;
 }
 
 static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
@@ -1068,7 +1041,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		i = pEnt->index;
 		xfree(pEnt);
 
-		nvProbeDDC(pScrn, i);
+		if (xf86LoadSubModule(pScrn, "vbe")) {
+			vbeInfoPtr pVbe = VBEInit(NULL, i);
+			ConfiguredMonitor = vbeDoEDID(pVbe, NULL);
+			vbeFree(pVbe);
+		}
+
 		return TRUE;
 	}
 
@@ -1207,10 +1185,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 	xf86PrintDepthBpp(pScrn);
 
-	/* Get the depth24 pixmap format */
-	if (pScrn->depth == 24 && pix24bpp == 0)
-		pix24bpp = xf86GetBppFromDepth(pScrn, 24);
-
 	/*
 	 * This must happen after pScrn->display has been set because
 	 * xf86SetWeight references it.
@@ -1267,8 +1241,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	from = X_DEFAULT;
 
-	pNv->new_restore = FALSE;
-
 	if (pNv->Architecture == NV_ARCH_50) {
 		pNv->randr12_enable = TRUE;
 	} else {
@@ -1278,6 +1250,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		}
 	}
 	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
+
+	pNv->new_restore = FALSE;
 
 	if (pNv->randr12_enable) {
 		if (xf86ReturnOptValBool(pNv->Options, OPTION_NEW_RESTORE, FALSE)) {
@@ -1820,7 +1794,7 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 #endif
 
     if (!pNv->NoAccel)
-	    NVResetGraphics(pScrn);
+		NVAccelCommonInit(pScrn);
 
     vgaHWProtect(pScrn, FALSE);
 
@@ -2594,7 +2568,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->NoAccel) {
 		if (!NVExaInit(pScreen))
 			return FALSE;
-		NVResetGraphics(pScrn);
+		NVAccelCommonInit(pScrn);
 	} else if (pNv->VRAMPhysicalSize / 2 < NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) * (pScrn->bitsPerPixel >> 3)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "The virtual screen size's resolution is too big for the video RAM framebuffer at this colour depth.\n");
 		return FALSE;
