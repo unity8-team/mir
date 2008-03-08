@@ -79,42 +79,10 @@ static Bool nv50_crtc_lock(xf86CrtcPtr crtc)
 	return FALSE;
 }
 
-void nv50_crtc_load_state(xf86CrtcPtr crtc, NV50_HW_STATE *state)
-{
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
-	NV50CrtcRegPtr regp;
-
-	regp = &state->crtc_reg[nv_crtc->head];
-}
-
-void nv50_crtc_save_state(xf86CrtcPtr crtc, NV50_HW_STATE *state)
-{
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
-	NV50CrtcRegPtr regp;
-
-	regp = &state->crtc_reg[nv_crtc->head];
-}
-
-void nv50_crtc_restore(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	nv50_crtc_load_state(crtc, &(pNv->NV50ModeReg));
-}
-
-void nv50_crtc_save(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	nv50_crtc_save_state(crtc, &(pNv->NV50SavedReg));
-}
-
 static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.dpms = nv50_crtc_dpms_set,
-	.save = nv50_crtc_save,
-	.restore = nv50_crtc_restore,
+	.save = NULL,
+	.restore = NULL,
 	.lock = nv50_crtc_lock,
 	.unlock = NULL,
 	.mode_fixup = NV50CrtcModeFixup,

@@ -197,16 +197,6 @@ typedef struct _riva_hw_state
     NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
-typedef struct _nv50_crtc_reg
-{
-	
-} NV50CrtcRegRec, *NV50CrtcRegPtr;
-
-typedef struct _nv50_hw_state
-{
-	NV50CrtcRegRec crtc_reg[2];
-} NV50_HW_STATE, *NV50RegPtr;
-
 typedef enum {
 	OUTPUT_0 = (1 << 0),
 	OUTPUT_1 = (1 << 1)
@@ -358,8 +348,6 @@ typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
-	NV50_HW_STATE	NV50SavedReg;
-	NV50_HW_STATE	NV50ModeReg;
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 #ifndef XSERVER_LIBPCIACCESS
@@ -520,7 +508,6 @@ typedef struct _NVRec {
 typedef struct _NVCrtcPrivateRec {
 	int head;
 	uint8_t last_dpms;
-	Bool paletteEnabled;
 #if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_bo *shadow;
 #else
