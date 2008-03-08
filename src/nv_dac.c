@@ -88,7 +88,6 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
    
     NVPtr pNv = NVPTR(pScrn);
     NVRegPtr nvReg = &pNv->ModeReg;
-    NVFBLayout *pLayout = &pNv->CurrentLayout;
     vgaRegPtr   pVga;
 
     /*
@@ -144,7 +143,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     pVga->CRTC[0x10] = Set8Bits(vertStart);
     pVga->CRTC[0x11] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
     pVga->CRTC[0x12] = Set8Bits(vertDisplay);
-    pVga->CRTC[0x13] = ((pLayout->displayWidth/8)*(pLayout->bitsPerPixel/8));
+    pVga->CRTC[0x13] = ((pScrn->displayWidth/8)*(pScrn->bitsPerPixel/8));
     pVga->CRTC[0x15] = Set8Bits(vertBlankStart);
     pVga->CRTC[0x16] = Set8Bits(vertBlankEnd);
 
@@ -181,7 +180,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     /*
      * Initialize DAC palette.
      */
-    if(pLayout->bitsPerPixel != 8 )
+    if(pScrn->bitsPerPixel != 8 )
     {
         for (i = 0; i < 256; i++)
         {
@@ -195,8 +194,8 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
      * Calculate the extended registers.
      */
 
-    if(pLayout->depth < 24) 
-	i = pLayout->depth;
+    if (pScrn->depth < 24) 
+	i = pScrn->depth;
     else i = 32;
 
     if(pNv->Architecture >= NV_ARCH_10)
@@ -205,7 +204,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     NVCalcStateExt(pNv, 
                     nvReg,
                     i,
-                    pLayout->displayWidth,
+                    pScrn->displayWidth,
                     mode->CrtcHDisplay,
                     pScrn->virtualY,
                     mode->Clock,
@@ -326,12 +325,9 @@ NVDACLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices, LOCO *colors,
                  VisualPtr pVisual )
 {
     int i, index;
-    NVPtr pNv = NVPTR(pScrn);
-    vgaRegPtr   pVga;
+    vgaRegPtr pVga = &VGAHWPTR(pScrn)->ModeReg;
 
-    pVga = &VGAHWPTR(pScrn)->ModeReg;
-
-    switch(pNv->CurrentLayout.depth) {
+    switch(pScrn->depth) {
     case 15:
         for(i = 0; i < numColors; i++) {
             index = indices[i];

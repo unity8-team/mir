@@ -59,7 +59,7 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
                 } 
         }         
                   
-        if(pNv->CurrentLayout.mode->Flags & V_DBLSCAN) { /*This may not work with NV04 overlay according to rivatv source*/
+        if (pScrn->currentMode->Flags & V_DBLSCAN) { /*This may not work with NV04 overlay according to rivatv source*/
                 dstBox->y1 <<= 1;
                 dstBox->y2 <<= 1;
                 drw_h <<= 1; 

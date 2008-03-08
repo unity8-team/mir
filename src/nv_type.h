@@ -89,14 +89,6 @@ typedef enum /* matches DCB types */
     OUTPUT_TV = 1,
 } NVOutputType;
 
-typedef struct {
-    int bitsPerPixel;
-    int depth;
-    int displayWidth;
-    rgb weight;
-    DisplayModePtr mode;
-} NVFBLayout;
-
 typedef struct _nv_crtc_reg 
 {
 	unsigned char MiscOutReg;     /* */
@@ -422,7 +414,6 @@ typedef struct _NVRec {
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
     int			Rotate;
-    NVFBLayout		CurrentLayout;
     /* Cursor */
     CARD32              curFg, curBg;
     CARD32              curImage[256];

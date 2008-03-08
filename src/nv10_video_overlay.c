@@ -83,7 +83,7 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
                 }
         }
 
-        if(pNv->CurrentLayout.mode->Flags & V_DBLSCAN) {
+        if (pScrn->currentMode->Flags & V_DBLSCAN) {
                 dstBox->y1 <<= 1;
                 dstBox->y2 <<= 1;
                 drw_h <<= 1;

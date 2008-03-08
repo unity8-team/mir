@@ -723,7 +723,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	int depth = pScrn->depth;
 
 	/* Calculate our timings */
@@ -888,7 +887,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((mode->CrtcHDisplay*depth)/64);
 	} else { /* framebuffer can be larger than crtc scanout area. */
-		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pLayout->bitsPerPixel/8));
+		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pScrn->bitsPerPixel/8));
 	}
 	if (depth == 4) { /* How can these values be calculated? */
 		regp->CRTC[NV_VGA_CRTCX_UNDERLINE] = 0x1F;
@@ -1000,7 +999,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 	uint32_t depth;
@@ -1052,11 +1050,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	* Calculate the extended registers.
 	*/
 
-	if (pLayout->depth < 24) {
-		depth = pLayout->depth;
-	} else {
+	if (pScrn->depth < 24)
+		depth = pScrn->depth;
+	else
 		depth = 32;
-	}
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		/* bpp is pitch related. */
@@ -1222,7 +1219,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
@@ -1446,11 +1442,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	uint8_t depth;
 	/* This is mode related, not pitch. */
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE))
 		depth = pNv->console_mode[nv_crtc->head].depth;
-	} else {
-		depth = pLayout->depth;
-	}
+	else
+		depth = pScrn->depth;
 
 	switch (depth) {
 		case 4:
@@ -1518,7 +1513,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_mode_set is called for CRTC %d.\n", nv_crtc->head);
 
@@ -1541,7 +1535,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
-	if (pLayout->depth > 8)
+	if (pScrn->depth > 8)
 		nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -1721,7 +1715,7 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	int i, j;
 
-	switch (pNv->CurrentLayout.depth) {
+	switch (pScrn->depth) {
 	case 15:
 		/* R5G5B5 */
 		/* We've got 5 bit (32 values) colors and 256 registers for each color */
@@ -2332,7 +2326,6 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVFBLayout *pLayout = &pNv->CurrentLayout;
 	uint32_t start = 0;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCrtcSetBase is called with coordinates: x: %d y: %d\n", x, y);
@@ -2340,7 +2333,7 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 	if (bios_restore) {
 		start = pNv->console_mode[nv_crtc->head].fb_start;
 	} else {
-		start += ((y * pScrn->displayWidth + x) * (pLayout->bitsPerPixel/8));
+		start += ((y * pScrn->displayWidth + x) * (pScrn->bitsPerPixel/8));
 		if (crtc->rotatedData != NULL) { /* we do not exist on the real framebuffer */
 #if NOUVEAU_EXA_PIXMAPS
 			start = nv_crtc->shadow->offset;

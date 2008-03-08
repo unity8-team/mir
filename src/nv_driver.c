@@ -651,8 +651,7 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 		}
 	} else {
 		int startAddr;
-		NVFBLayout *pLayout = &pNv->CurrentLayout;
-		startAddr = (((y*pLayout->displayWidth)+x)*(pLayout->bitsPerPixel/8));
+		startAddr = (((y*pScrn->displayWidth)+x)*(pScrn->bitsPerPixel/8));
 		startAddr += pNv->FB->offset;
 		NVSetStartAddress(pNv, startAddr);
 	}
@@ -1614,14 +1613,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86LoaderReqSymLists(shadowSymbols, NULL);
 	}
 
-	pNv->CurrentLayout.bitsPerPixel = pScrn->bitsPerPixel;
-	pNv->CurrentLayout.depth = pScrn->depth;
-	pNv->CurrentLayout.displayWidth = pScrn->displayWidth;
-	pNv->CurrentLayout.weight.red = pScrn->weight.red;
-	pNv->CurrentLayout.weight.green = pScrn->weight.green;
-	pNv->CurrentLayout.weight.blue = pScrn->weight.blue;
-	pNv->CurrentLayout.mode = pScrn->currentMode;
-
 	xf86FreeInt10(pNv->pInt10);
 
 	pNv->pInt10 = NULL;
@@ -1794,7 +1785,7 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
     vgaHWProtect(pScrn, FALSE);
 
-    pNv->CurrentLayout.mode = mode;
+    pScrn->currentMode = mode;
 
     return TRUE;
 }
