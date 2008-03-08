@@ -411,33 +411,30 @@ NVGetScrnInfoRec(PciChipsets *chips, int chip)
 #endif
 
 /* This returns architecture in hexdecimal, so NV40 is 0x40 */
-static int NVGetArchitecture (volatile CARD32 *regs)
+static int NVGetArchitecture(volatile uint32_t *regs)
 {
 	int architecture = 0;
 
 	/* We're dealing with >=NV10 */
-	if ((regs[0] & 0x0f000000) > 0 ) {
+	if ((regs[0] & 0x0f000000) > 0 )
 		/* Bit 27-20 contain the architecture in hex */
 		architecture = (regs[0] & 0xff00000) >> 20;
 	/* NV04 or NV05 */
-	} else if ((regs[0] & 0xff00fff0) == 0x20004000) {
+	else if ((regs[0] & 0xff00fff0) == 0x20004000)
 		architecture = 0x04;
-	}
 
 	return architecture;
 }
 
 /* Reading the pci_id from the card registers is the most reliable way */
-static CARD32 NVGetPCIID (volatile CARD32 *regs)
+static uint32_t NVGetPCIID(volatile uint32_t *regs)
 {
-	CARD32 pci_id;
-
 	int architecture = NVGetArchitecture(regs);
+	uint32_t pci_id;
 
 	/* Dealing with an unknown or unsupported card */
-	if (architecture == 0) {
+	if (architecture == 0)
 		return 0;
-	}
 
 	if (architecture >= 0x40)
 		pci_id = regs[0x88000/4];
@@ -445,21 +442,20 @@ static CARD32 NVGetPCIID (volatile CARD32 *regs)
 		pci_id = regs[0x1800/4];
 
 	/* A pci-id can be inverted, we must correct this */
-	if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA) {
+	if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA)
 		pci_id = (PCI_VENDOR_NVIDIA << 16) | (pci_id >> 16);
-	} else if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA_SGS) {
+	else if ((pci_id & 0xffff) == PCI_VENDOR_NVIDIA_SGS)
 		pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | (pci_id >> 16);
 	/* Checking endian issues */
-	} else {
+	else {
 		/* PCI_VENDOR_NVIDIA = 0x10DE */
-		if ((pci_id & (0xffff << 16)) == (0xDE10 << 16)) { /* wrong endian */
+		if ((pci_id & (0xffff << 16)) == (0xDE10 << 16)) /* wrong endian */
 			pci_id = (PCI_VENDOR_NVIDIA << 16) | ((pci_id << 8) & 0x0000ff00) |
 				((pci_id >> 8) & 0x000000ff);
 		/* PCI_VENDOR_NVIDIA_SGS = 0x12D2 */
-		} else if ((pci_id & (0xffff << 16)) == (0xD212 << 16)) { /* wrong endian */
+		else if ((pci_id & (0xffff << 16)) == (0xD212 << 16)) /* wrong endian */
 			pci_id = (PCI_VENDOR_NVIDIA_SGS << 16) | ((pci_id << 8) & 0x0000ff00) |
 				((pci_id >> 8) & 0x000000ff);
-		}
 	}
 
 	return pci_id;
@@ -555,8 +551,8 @@ NVProbe(DriverPtr drv, int flags)
 		if (((*ppPci)->vendor == PCI_VENDOR_NVIDIA_SGS) || 
 			((*ppPci)->vendor == PCI_VENDOR_NVIDIA)) 
 		{
-			volatile CARD32 *regs;
-			CARD32 pcicmd;
+			volatile uint32_t *regs;
+			uint32_t pcicmd;
 
 			PCI_DEV_READ_LONG(*ppPci, PCI_CMD_STAT_REG, &pcicmd);
 			/* Enable reading memory? */

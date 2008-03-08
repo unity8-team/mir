@@ -142,33 +142,32 @@ typedef struct _nv_output_reg
 {
 	uint32_t output;
 	uint8_t TMDS[0xFF];
-	uint8_t TMDS2[0xFF];
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state
 {
-    CARD32 bpp;
-    CARD32 width;
-    CARD32 height;
-    CARD32 interlace;
-    CARD32 repaint0;
-    CARD32 repaint1;
-    CARD32 screen;
-    CARD32 scale;
-    CARD32 dither;
-    CARD32 extra;
-    CARD32 fifo;
-    CARD32 pixel;
-    CARD32 horiz;
-    CARD32 arbitration0;
-    CARD32 arbitration1;
-    CARD32 pll;
-    CARD32 pllB;
-    CARD32 vpll;
-    CARD32 vpll2;
-    CARD32 vpllB;
-    CARD32 vpll2B;
-    CARD32 pllsel;
+	uint32_t bpp;
+	uint32_t width;
+	uint32_t height;
+	uint32_t interlace;
+	uint32_t repaint0;
+	uint32_t repaint1;
+	uint32_t screen;
+	uint32_t scale;
+	uint32_t dither;
+	uint32_t extra;
+	uint32_t fifo;
+	uint32_t pixel;
+	uint32_t horiz;
+	uint32_t arbitration0;
+	uint32_t arbitration1;
+	uint32_t pll;
+	uint32_t pllB;
+	uint32_t vpll;
+	uint32_t vpll2;
+	uint32_t vpllB;
+	uint32_t vpll2B;
+	uint32_t pllsel;
 	uint32_t sel_clk;
 	Bool crosswired;
 	Bool vpll_changed[2];
@@ -179,22 +178,22 @@ typedef struct _riva_hw_state
 	uint32_t vpll2_b;
 	uint32_t reg580;
 	uint32_t reg594;
-    CARD32 general;
-    CARD32 crtcOwner;
-    CARD32 head;
-    CARD32 head2;
-    CARD32 config;
-    CARD32 cursorConfig;
-    CARD32 cursor0;
-    CARD32 cursor1;
-    CARD32 cursor2;
-    CARD32 timingH;
-    CARD32 timingV;
-    CARD32 displayV;
-    CARD32 crtcSync;
+	uint32_t general;
+	uint32_t crtcOwner;
+	uint32_t head;
+	uint32_t head2;
+	uint32_t config;
+	uint32_t cursorConfig;
+	uint32_t cursor0;
+	uint32_t cursor1;
+	uint32_t cursor2;
+	uint32_t timingH;
+	uint32_t timingV;
+	uint32_t displayV;
+	uint32_t crtcSync;
 
-    NVCrtcRegRec crtc_reg[2];
-    NVOutputRegRec dac_reg[2];
+	NVCrtcRegRec crtc_reg[2];
+	NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
 typedef struct _NVCrtcPrivateRec {
@@ -374,7 +373,6 @@ typedef struct _NVRec {
     int                 NVArch;
     Bool                Primary;
     CARD32              IOAddress;
-    Bool cursorOn;
 
     /* VRAM physical address */
     unsigned long	VRAMPhysical;
@@ -429,7 +427,6 @@ typedef struct _NVRec {
     CARD32              curFg, curBg;
     CARD32              curImage[256];
     /* I2C / DDC */
-    int ddc2;
     xf86Int10InfoPtr    pInt10;
     I2CBusPtr           I2C;
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
@@ -470,7 +467,6 @@ typedef struct _NVRec {
 
 	Bool randr12_enable;
 	Bool new_restore;
-	CreateScreenResourcesProcPtr    CreateScreenResources;
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
@@ -483,7 +479,6 @@ typedef struct _NVRec {
 		unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
 	} dcb_table;
 
-	uint32_t output_info;
 	MiscStartupInfo misc_info;
 	NVConsoleMode console_mode[2];
 
