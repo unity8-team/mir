@@ -135,7 +135,7 @@ NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
 
 void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -168,7 +168,7 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 Head
 NV50CrtcGetHead(xf86CrtcPtr crtc)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	return nv_crtc->head;
 }
 
@@ -290,7 +290,7 @@ NV50CrtcDoModeFixup(DisplayModePtr dst, const DisplayModePtr src)
 Bool
 NV50CrtcModeFixup(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	if (nv_crtc->skipModeFixup)
 		return TRUE;
@@ -303,7 +303,7 @@ void
 NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	const int HDisplay = adjusted_mode->HDisplay;
 	const int VDisplay = adjusted_mode->VDisplay;
 
@@ -339,7 +339,7 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_24BPP); 
 			break;
 	}
-	NV50CrtcSetDither(crtc, nv_crtc->dither, FALSE);
+	NV50CrtcSetDither(crtc, nv_crtc->ditherEnabled, FALSE);
 	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, VDisplay << 16 | HDisplay);
@@ -353,7 +353,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	if(blank) {
 		NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
@@ -390,7 +390,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 /******************************** Cursor stuff ********************************/
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR0, 
 		show ? NV50_CRTC0_CURSOR0_SHOW : NV50_CRTC0_CURSOR0_HIDE);
@@ -416,7 +416,7 @@ void
 NV50CrtcPrepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
@@ -433,16 +433,16 @@ NV50CrtcPrepare(xf86CrtcPtr crtc)
 void
 NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	nv_crtc->skipModeFixup = TRUE;
 }
 
 void
 NV50CrtcSetDither(xf86CrtcPtr crtc, Bool dither, Bool update)
 {
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-	nv_crtc->dither = dither;
+	nv_crtc->ditherEnabled = dither;
 
 	NV50CrtcCommand(crtc, 0x8a0, dither ? 0x11 : 0);
 	if(update) 

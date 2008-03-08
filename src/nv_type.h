@@ -197,6 +197,20 @@ typedef struct _riva_hw_state
     NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
+typedef struct _NVCrtcPrivateRec {
+	int head;
+	uint8_t last_dpms;
+	Bool cursorVisible;
+	Bool ditherEnabled;
+	Bool skipModeFixup; /* NV50 only */
+	int pclk; /* Pixel clock in kHz */ /* NV50 only */
+#if NOUVEAU_EXA_PIXMAPS
+	struct nouveau_bo *shadow;
+#else
+	ExaOffscreenArea *shadow;
+#endif /* NOUVEAU_EXA_PIXMAPS */
+} NVCrtcPrivateRec, *NVCrtcPrivatePtr;
+
 typedef enum {
 	OUTPUT_0 = (1 << 0),
 	OUTPUT_1 = (1 << 1)
@@ -504,24 +518,6 @@ typedef struct _NVRec {
 	struct nouveau_grobj *Nv3D;
 
 } NVRec;
-
-typedef struct _NVCrtcPrivateRec {
-	int head;
-	uint8_t last_dpms;
-#if NOUVEAU_EXA_PIXMAPS
-	struct nouveau_bo *shadow;
-#else
-	ExaOffscreenArea *shadow;
-#endif /* NOUVEAU_EXA_PIXMAPS */
-} NVCrtcPrivateRec, *NVCrtcPrivatePtr;
-
-typedef struct _NV50CrtcPrivRec {
-	int head;
-	int pclk; /* Target pixel clock in kHz */
-	Bool cursorVisible;
-	Bool skipModeFixup;
-	Bool dither;
-} NV50CrtcPrivRec, *NV50CrtcPrivPtr;
 
 enum scaling_modes {
 	SCALE_PANEL,

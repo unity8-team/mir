@@ -376,6 +376,8 @@ void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 
+	nv_crtc->cursorVisible = TRUE;
+
 	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, TRUE);
 }
 
@@ -383,6 +385,8 @@ void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
+
+	nv_crtc->cursorVisible = FALSE;
 
 	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, FALSE);
 }

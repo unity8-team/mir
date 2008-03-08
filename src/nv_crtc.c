@@ -1427,6 +1427,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	/* Flatpanel support needs at least a NV10 */
 	if (pNv->twoHeads) {
 		if (pNv->FPDither || (is_lvds && !pNv->VBIOS.fp.if_is_24bit)) {
+			nv_crtc->ditherEnabled = TRUE;
 			if (pNv->NVArch == 0x11)
 				regp->dither = savep->dither | 0x00010000;
 			else {
@@ -1437,8 +1438,10 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 					regp->dither_regs[i + 3] = 0x44444444;
 				}
 			}
-		} else
+		} else {
+			nv_crtc->ditherEnabled = FALSE;
 			regp->dither = savep->dither;
+		}
 	}
 
 	uint8_t depth;
@@ -1975,6 +1978,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
 	nv_crtc->head = crtc_num;
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
+	nv_crtc->ditherEnabled = pNv->FPDither;
 	pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
 
 	crtc->driver_private = nv_crtc;

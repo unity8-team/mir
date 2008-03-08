@@ -39,7 +39,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 
 				for(i = 0; i < xf86_config->num_crtc; i++) {
 					xf86CrtcPtr crtc = xf86_config->crtc[i];
-					NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+					NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 					if (clockvar & (1 << (9 + nv_crtc->head))) {
 						NV50CrtcSetPClk(crtc);
@@ -64,7 +64,7 @@ void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NV50CrtcPrivPtr nv_crtc = crtc->driver_private;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	/* This head dependent offset may not be true everywere */
 	NV50DisplayCommand(pScrn, addr + 0x400 * nv_crtc->head, value);
@@ -104,7 +104,7 @@ void NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	Head head;
 	xf86CrtcPtr crtc;
-	NV50CrtcPrivPtr nv50_crtc;
+	NVCrtcPrivatePtr nv50_crtc;
 
 	/* Create a "crtc" object for each head */
 	for(head = HEAD0; head <= HEAD1; head++) {
@@ -113,7 +113,7 @@ void NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
 
 		nv50_crtc = xnfcalloc(sizeof(*nv50_crtc), 1);
 		nv50_crtc->head = head;
-		nv50_crtc->dither = pNv->FPDither;
+		nv50_crtc->ditherEnabled = pNv->FPDither;
 		crtc->driver_private = nv50_crtc;
 	}
 }
