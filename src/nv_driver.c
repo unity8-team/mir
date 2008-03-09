@@ -55,6 +55,8 @@ static Bool    NVCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
 
 /* Optional functions */
+static Bool    NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
+static void    NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 static void    NVFreeScreen(int scrnIndex, int flags);
 static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
 			      Bool verbose, int flags);

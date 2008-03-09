@@ -93,88 +93,6 @@ uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
 }
 
-/* Two register sets exist, this one is only used for dual link dvi/lvds */
-
-void NVWriteTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
-{
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
-
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2, val & 0xff);
-
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, tmds_reg & 0xff);
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
-}
-
-uint8_t NVReadTMDS2(NVPtr pNv, int ramdac, uint32_t tmds_reg)
-{
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL_2, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_2_WRITE_DISABLE);
-
-	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA_2) & 0xff);
-}
-
-void NVOutputWriteTMDS(xf86OutputPtr output, uint32_t tmds_reg, uint32_t val)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* We must write to the "bus" of the output */
-	NVWriteTMDS(pNv, nv_output->preferred_output, tmds_reg, val);
-}
-
-uint8_t NVOutputReadTMDS(xf86OutputPtr output, uint32_t tmds_reg)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* We must read from the "bus" of the output */
-	return NVReadTMDS(pNv, nv_output->preferred_output, tmds_reg);
-}
-
-void NVOutputWriteTMDS2(xf86OutputPtr output, uint32_t tmds_reg, uint32_t val)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* We must write to the "bus" of the output */
-	NVWriteTMDS2(pNv, nv_output->preferred_output, tmds_reg, val);
-}
-
-uint8_t NVOutputReadTMDS2(xf86OutputPtr output, uint32_t tmds_reg)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr	pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* We must read from the "bus" of the output */
-	return NVReadTMDS2(pNv, nv_output->preferred_output, tmds_reg);
-}
-
-/* These functions now write into the output, instead of a specific ramdac */
-
-void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val)
-{
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-
-    NVWriteRAMDAC(pNv, nv_output->preferred_output, ramdac_reg, val);
-}
-
-uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg)
-{
-    NVOutputPrivatePtr nv_output = output->driver_private;
-    ScrnInfoPtr	pScrn = output->scrn;
-    NVPtr pNv = NVPTR(pScrn);
-
-    return NVReadRAMDAC(pNv, nv_output->preferred_output, ramdac_reg);
-}
-
 static Bool dpms_common(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -293,8 +211,8 @@ static void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state,
 	if (override && pNv->twoHeads) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
 		NVOutputRegPtr regp = &state->dac_reg[nv_output->output_resource];
-		
-		NVOutputWriteRAMDAC(output, NV_RAMDAC_OUTPUT, regp->output);
+
+		NVWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, regp->output);
 	}
 }
 
@@ -315,7 +233,7 @@ nv_output_save (xf86OutputPtr output)
 	regp = &pNv->SavedReg.dac_reg[nv_output->output_resource];
 
 	if (pNv->twoHeads)
-		regp->output = NVOutputReadRAMDAC(output, NV_RAMDAC_OUTPUT);
+		regp->output = NVReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
 
 	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
@@ -323,13 +241,7 @@ nv_output_save (xf86OutputPtr output)
 
 		/* Store the registers for helping with VT restore */
 		for (i = 0; i < 0xFF; i++)
-			regp->TMDS[i] = NVOutputReadTMDS(output, i);
-
-#if 0
-		// disabled, as nothing uses the TMDS2 regs currently
-		for (i = 0; i < 0xFF; i++)
-			regp->TMDS2[i] = NVOutputReadTMDS2(output, i);
-#endif
+			regp->TMDS[i] = NVReadTMDS(pNv, nv_output->preferred_output, i);
 	}
 }
 
@@ -840,6 +752,45 @@ nv_output_destroy (xf86OutputPtr output)
 									(pNv->output_resource[num] == output) || \
 									(pNv->output_resource[num]->crtc == NULL))
 
+/* Reset a mode after a drastic output resource change for example. */
+static void NVOutputModeFix(xf86OutputPtr output)
+{
+	xf86CrtcPtr crtc = output->crtc;
+	if (!crtc) /* not active */
+		return;
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	Bool need_unlock;
+
+	if (!crtc->enabled)
+		return;
+
+	if (!xf86ModesEqual(&crtc->mode, &crtc->desiredMode)) /* not currently in X */
+		return;
+
+	DisplayModePtr adjusted_mode = xf86DuplicateMode(&crtc->mode);
+	uint8_t dpms_mode = nv_crtc->last_dpms;
+
+	/* Set the mode again. */
+	output->funcs->dpms(output, DPMSModeOff);
+	crtc->funcs->dpms(crtc, DPMSModeOff);
+	need_unlock = crtc->funcs->lock(crtc);
+	output->funcs->mode_fixup(output, &crtc->mode, adjusted_mode);
+	crtc->funcs->mode_fixup(crtc, &crtc->mode, adjusted_mode);
+	output->funcs->prepare(output);
+	crtc->funcs->prepare(crtc);
+	crtc->funcs->mode_set(crtc, &crtc->mode, adjusted_mode, crtc->x, crtc->y);
+	output->funcs->mode_set(output, &crtc->mode, adjusted_mode);
+	crtc->funcs->commit(crtc);
+	output->funcs->commit(output);
+	if (need_unlock)
+		crtc->funcs->unlock(crtc);
+	output->funcs->dpms(output, dpms_mode);
+	crtc->funcs->dpms(crtc, dpms_mode);
+
+	/* Free mode. */
+	xfree(adjusted_mode);
+}
+
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
@@ -954,45 +905,6 @@ nv_output_commit(xf86OutputPtr output)
 	}
 
 	output->funcs->dpms(output, DPMSModeOn);
-}
-
-/* Reset a mode after a drastic output resource change for example. */
-void NVOutputModeFix(xf86OutputPtr output)
-{
-	xf86CrtcPtr crtc = output->crtc;
-	if (!crtc) /* not active */
-		return;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	Bool need_unlock;
-
-	if (!crtc->enabled)
-		return;
-
-	if (!xf86ModesEqual(&crtc->mode, &crtc->desiredMode)) /* not currently in X */
-		return;
-
-	DisplayModePtr adjusted_mode = xf86DuplicateMode(&crtc->mode);
-	uint8_t dpms_mode = nv_crtc->last_dpms;
-
-	/* Set the mode again. */
-	output->funcs->dpms(output, DPMSModeOff);
-	crtc->funcs->dpms(crtc, DPMSModeOff);
-	need_unlock = crtc->funcs->lock(crtc);
-	output->funcs->mode_fixup(output, &crtc->mode, adjusted_mode);
-	crtc->funcs->mode_fixup(crtc, &crtc->mode, adjusted_mode);
-	output->funcs->prepare(output);
-	crtc->funcs->prepare(crtc);
-	crtc->funcs->mode_set(crtc, &crtc->mode, adjusted_mode, crtc->x, crtc->y);
-	output->funcs->mode_set(output, &crtc->mode, adjusted_mode);
-	crtc->funcs->commit(crtc);
-	output->funcs->commit(output);
-	if (need_unlock)
-		crtc->funcs->unlock(crtc);
-	output->funcs->dpms(output, dpms_mode);
-	crtc->funcs->dpms(crtc, dpms_mode);
-
-	/* Free mode. */
-	xfree(adjusted_mode);
 }
 
 static const xf86OutputFuncsRec nv_analog_output_funcs = {

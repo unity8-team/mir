@@ -10,8 +10,6 @@ Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 
 /* in nv_driver.c */
-Bool   NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
-void   NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
 Bool NVMatchModePrivate(DisplayModePtr mode, uint32_t flags);
 
@@ -84,28 +82,19 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk);
 
 /* nv_crtc.c */
-DisplayModePtr NVCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
 void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
-void NVCrtcSetCursor(xf86CrtcPtr crtc, Bool state);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
-xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
-xf86CrtcPtr nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index);
-uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
-uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg);
 void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
-void NVOutputWriteRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg, uint32_t val);
-uint32_t NVOutputReadRAMDAC(xf86OutputPtr output, uint32_t ramdac_reg);
 void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val);
 uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg);
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc);
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
-void NVOutputModeFix(xf86OutputPtr output);
 
 /* nv_hw.c */
 uint32_t NVRead(NVPtr pNv, uint32_t reg);

@@ -55,7 +55,7 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 
-uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg)
+static uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -73,7 +73,7 @@ void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 	NVWriteCRTC(pNv, nv_crtc->head, reg, val);
 }
 
-uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg)
+static uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -102,7 +102,7 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
 	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
-xf86OutputPtr 
+static xf86OutputPtr
 NVGetOutputFromCRTC(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -119,7 +119,7 @@ NVGetOutputFromCRTC(xf86CrtcPtr crtc)
 	return NULL;
 }
 
-xf86CrtcPtr
+static xf86CrtcPtr
 nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -395,7 +395,7 @@ static void nv_crtc_mode_set_sel_clk(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
  * mode state structure.
  * State is not specific to a single crtc, but shared.
  */
-void nv_crtc_calc_state_ext(
+static void nv_crtc_calc_state_ext(
 	xf86CrtcPtr 		crtc,
 	DisplayModePtr	mode,
 	int				bpp,
@@ -1560,7 +1560,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
 }
 
-void nv_crtc_save(xf86CrtcPtr crtc)
+static void nv_crtc_save(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -1575,14 +1575,13 @@ void nv_crtc_save(xf86CrtcPtr crtc)
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
-	if (pNv->Architecture == NV_ARCH_40) {
+	if (pNv->Architecture == NV_ARCH_40)
 		nv40_crtc_save_state_pll(pScrn, &pNv->SavedReg);
-	} else {
+	else
 		nv_crtc_save_state_pll(pScrn, &pNv->SavedReg);
-	}
 }
 
-void nv_crtc_restore(xf86CrtcPtr crtc)
+static void nv_crtc_restore(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -1639,7 +1638,7 @@ NVResetCrtcConfig(xf86CrtcPtr crtc, Bool set)
 	}
 }
 
-void nv_crtc_prepare(xf86CrtcPtr crtc)
+static void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -1670,7 +1669,7 @@ void nv_crtc_prepare(xf86CrtcPtr crtc)
 	}
 }
 
-void nv_crtc_commit(xf86CrtcPtr crtc)
+static void nv_crtc_commit(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;

@@ -467,7 +467,7 @@ static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
 #endif
 }
 
-void nv4CalcArbitration (
+static void nv4CalcArbitration (
     nv4_fifo_info *fifo,
     nv4_sim_state *arb
 )
@@ -642,7 +642,7 @@ void nv4UpdateArbitrationSettings (
     }
 }
 
-void nv10CalcArbitration (
+static void nv10CalcArbitration (
     nv10_fifo_info *fifo,
     nv10_sim_state *arb
 )
