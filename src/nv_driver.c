@@ -323,10 +323,7 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 		 * might refer to.
 		 */
 		LoaderRefSymLists(vgahwSymbols, exaSymbols, fbSymbols,
-#ifdef XF86DRI
-				drmSymbols, 
-#endif
-				ramdacSymbols, shadowSymbols,
+				ramdacSymbols, shadowSymbols, drmSymbols, 
 				i2cSymbols, ddcSymbols, vbeSymbols,
 				int10Symbols, NULL);
 
