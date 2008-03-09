@@ -1391,11 +1391,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, from, "MMIO registers at 0x%lX\n",
 		(unsigned long)pNv->IOAddress);
 
-	if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive)) {
+	if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive))
 		NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
-	}
-
-	pNv->alphaCursor = (pNv->NVArch >= 0x11);
 
 	if(pNv->Architecture < NV_ARCH_10) {
 		max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;

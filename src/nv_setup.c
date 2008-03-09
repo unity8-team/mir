@@ -258,42 +258,40 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
 
 static void nv4GetConfig (NVPtr pNv)
 {
-    CARD32 reg_FB0 = nvReadFB(pNv, NV_PFB_BOOT_0);
-    if (reg_FB0 & 0x00000100) {
-        pNv->RamAmountKBytes = ((reg_FB0 >> 12) & 0x0F) * 1024 * 2
-                              + 1024 * 2;
-    } else {
-        switch (reg_FB0 & 0x00000003) {
-        case 0:
-            pNv->RamAmountKBytes = 1024 * 32;
-            break;
-        case 1:
-            pNv->RamAmountKBytes = 1024 * 4;
-            break;
-        case 2:
-            pNv->RamAmountKBytes = 1024 * 8;
-            break;
-        case 3:
-        default:
-            pNv->RamAmountKBytes = 1024 * 16;
-            break;
-        }
-    }
-    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
-    pNv->CURSOR         = &(pNv->PRAMIN[0x1E00]);
-    pNv->MinVClockFreqKHz = 12000;
-    pNv->MaxVClockFreqKHz = 350000;
+	uint32_t reg_FB0 = nvReadFB(pNv, NV_PFB_BOOT_0);
+
+	if (reg_FB0 & 0x00000100)
+		pNv->RamAmountKBytes = ((reg_FB0 >> 12) & 0x0F) * 1024 * 2 + 1024 * 2;
+	else
+		switch (reg_FB0 & 0x00000003) {
+		case 0:
+			pNv->RamAmountKBytes = 1024 * 32;
+			break;
+		case 1:
+			pNv->RamAmountKBytes = 1024 * 4;
+			break;
+		case 2:
+			pNv->RamAmountKBytes = 1024 * 8;
+			break;
+		case 3:
+			default:
+			pNv->RamAmountKBytes = 1024 * 16;
+			break;
+		}
+
+	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
+	pNv->CURSOR         = &(pNv->PRAMIN[0x1E00]);
+	pNv->MinVClockFreqKHz = 12000;
+	pNv->MaxVClockFreqKHz = 350000;
 }
 
 static void nv10GetConfig (NVPtr pNv)
 {
-    CARD32 implementation = pNv->Chipset & 0x0ff0;
+	uint32_t implementation = pNv->Chipset & 0x0ff0;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* turn on big endian register access */
-    if(!(nvReadMC(pNv, 0x0004) & 0x01000001)) {
-       xf86DrvMsg(0, X_ERROR, "Card is in big endian mode, something is very wrong !\n");
-    }
+	if (!(nvReadMC(pNv, 0x0004) & 0x01000001))
+		xf86DrvMsg(0, X_ERROR, "Card is in big endian mode, something is very wrong !\n");
 #endif
 
 	if (implementation == CHIPSET_NFORCE) {
@@ -320,38 +318,34 @@ static void nv10GetConfig (NVPtr pNv)
 		amt = pciReadLong(pciTag(0, 0, 1), 0x84);
 #endif /* XSERVER_LIBPCIACCESS */
 		pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
-	} else {
+	} else
 		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_020C) & 0xFFF00000) >> 10;
-	}
 
-    if(pNv->RamAmountKBytes > 256*1024)
-        pNv->RamAmountKBytes = 256*1024;
+	if (pNv->RamAmountKBytes > 256*1024)
+		pNv->RamAmountKBytes = 256*1024;
 
-    pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 6)) ? 14318 : 13500;
-    
-    if(pNv->twoHeads && (implementation != CHIPSET_NV11))
-    {
-       if(nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
-           pNv->CrystalFreqKHz = 27000;
-    }
+	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 6)) ? 14318 : 13500;
+	if (pNv->twoHeads && implementation != CHIPSET_NV11)
+		if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
+			pNv->CrystalFreqKHz = 27000;
 
-    pNv->CURSOR           = NULL;  /* can't set this here */
-    pNv->MinVClockFreqKHz = 12000;
-    pNv->MaxVClockFreqKHz = pNv->twoStagePLL ? 400000 : 350000;
+	pNv->CURSOR           = NULL;  /* can't set this here */
+	pNv->MinVClockFreqKHz = 12000;
+	pNv->MaxVClockFreqKHz = pNv->twoStagePLL ? 400000 : 350000;
 }
 
 void
 NVCommonSetup(ScrnInfoPtr pScrn)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    vgaHWPtr pVga = VGAHWPTR(pScrn);
-    CARD16 implementation = pNv->Chipset & 0x0ff0;
-    xf86MonPtr monitorA, monitorB;
-    Bool tvA = FALSE;
-    Bool tvB = FALSE;
-    int FlatPanel = -1;   /* really means the CRTC is slaved */
-    Bool Television = FALSE;
-    
+	NVPtr pNv = NVPTR(pScrn);
+	vgaHWPtr pVga = VGAHWPTR(pScrn);
+	uint16_t implementation = pNv->Chipset & 0x0ff0;
+	xf86MonPtr monitorA, monitorB;
+	Bool tvA = FALSE;
+	Bool tvB = FALSE;
+	int FlatPanel = -1;   /* really means the CRTC is slaved */
+	Bool Television = FALSE;
+ 
     /*
      * Override VGA I/O routines.
      */
@@ -389,41 +383,40 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->REGS);
 #endif /* XSERVER_LIBPCIACCESS */
 
-    pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
-	if (pNv->Architecture >= NV_ARCH_50) {
-		pNv->NV50_PCRTC = pNv->REGS + (NV50_PCRTC_OFFSET/4);
-	}
-    pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
+	pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
+	pNv->NV50_PCRTC = pNv->REGS + (NV50_PCRTC_OFFSET/4);
+	pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
 
-    /* 8 bit registers */
-    pNv->PCIO0    = (CARD8*)pNv->REGS + NV_PCIO0_OFFSET;
-    pNv->PDIO0    = (CARD8*)pNv->REGS + NV_PDIO0_OFFSET;
-    pNv->PVIO0     = (CARD8*)pNv->REGS + NV_PVIO0_OFFSET;
+	/* 8 bit registers */
+	pNv->PCIO0    = (uint8_t *)pNv->REGS + NV_PCIO0_OFFSET;
+	pNv->PDIO0    = (uint8_t *)pNv->REGS + NV_PDIO0_OFFSET;
+	pNv->PVIO0    = (uint8_t *)pNv->REGS + NV_PVIO0_OFFSET;
+	pNv->PCIO1    = pNv->PCIO0 + NV_PCIO_SIZE;
+	pNv->PDIO1    = pNv->PDIO0 + NV_PDIO_SIZE;
+	pNv->PVIO1    = pNv->PVIO0 + NV_PVIO_SIZE;
 
-    pNv->PCIO1    = pNv->PCIO0 + 0x2000;
-    pNv->PDIO1    = pNv->PDIO0 + 0x2000;
-    pNv->PVIO1    = pNv->PVIO0 + 0x2000;
+	pNv->alphaCursor = (pNv->NVArch >= 0x11);
 
-    pNv->twoHeads =  (pNv->Architecture >= NV_ARCH_10) &&
-                     (implementation != CHIPSET_NV10) &&
-                     (implementation != CHIPSET_NV15) &&
-                     (implementation != CHIPSET_NFORCE) &&
-                     (implementation != CHIPSET_NV20);
+	pNv->twoHeads = (pNv->Architecture >= NV_ARCH_10) &&
+			(implementation != CHIPSET_NV10) &&
+			(implementation != CHIPSET_NV15) &&
+			(implementation != CHIPSET_NFORCE) &&
+			(implementation != CHIPSET_NV20);
 
-    pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && (implementation!=CHIPSET_NV11));
+	pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && implementation != CHIPSET_NV11);
 
-    pNv->twoStagePLL = (implementation == CHIPSET_NV31) ||
-                       (implementation == CHIPSET_NV36) ||
-                       (pNv->Architecture >= NV_ARCH_40);
+	pNv->twoStagePLL = (implementation == CHIPSET_NV31) ||
+			   (implementation == CHIPSET_NV36) ||
+			   (pNv->Architecture >= NV_ARCH_40);
 
 	/* Don't mess with pre-randr12 situations. */
 	if (pNv->NVArch == 0x30 && pNv->randr12_enable)
 		pNv->twoStagePLL = TRUE;
 
-    pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
-                             (implementation != CHIPSET_NV10);
+	pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
+				 (implementation != CHIPSET_NV10);
 
-    pNv->BlendingPossible = ((pNv->Chipset & 0xffff) > CHIPSET_NV04);
+	pNv->BlendingPossible = ((pNv->Chipset & 0xffff) > CHIPSET_NV04);
 
     /* look for known laptop chips */
     /* FIXME still probably missing some ids (for randr12, pre-nv40 mobile should be auto-detected) */
@@ -533,14 +526,13 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
 	}
 
-    /* Parse the bios to initialize the card */
-    NVParseBios(pScrn);
+	/* Parse the bios to initialize the card */
+	NVParseBios(pScrn);
 
-	if(pNv->Architecture == NV_ARCH_04) {
+	if (pNv->Architecture == NV_ARCH_04)
 		nv4GetConfig(pNv);
-	} else {
+	else
 		nv10GetConfig(pNv);
-	}
 
     if (!pNv->randr12_enable) {
       
