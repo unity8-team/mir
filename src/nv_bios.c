@@ -2762,6 +2762,15 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
+static void nv_dcb_write_tmds(ScrnInfoPtr pScrn, int dcb_entry, int dl, uint8_t address, uint8_t data)
+{
+	int preferred_output = (ffs(NVPTR(pScrn)->dcb_table.entry[dcb_entry].or) & OUTPUT_1) >> 1;
+	uint32_t tmds_offs = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + (dl ? 8 : 0);
+
+	nv32_wr(pScrn, NV_RAMDAC_FP_TMDS_DATA + tmds_offs, data);
+	nv32_wr(pScrn, NV_RAMDAC_FP_TMDS_CONTROL + tmds_offs, address);
+}
+
 static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 {
 	/* The BIOS scripts don't do this for us, sadly
@@ -2775,7 +2784,6 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
 	int preferred_output = (ffs(dcbent->or) & OUTPUT_1) >> 1;
 	uint8_t tmds04 = 0x80;
-	uint32_t tmds_ctrl, tmds_ctrl2;
 
 	if (head != preferred_output)
 		tmds04 = 0x88;
@@ -2783,20 +2791,13 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	if (dcbent->type == OUTPUT_LVDS)
 		tmds04 |= 0x01;
 
-	tmds_ctrl = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL;
-	tmds_ctrl2 = (preferred_output ? NV_PRAMDAC0_SIZE : 0) + NV_RAMDAC_FP_TMDS_CONTROL_2;
-
-	nv32_wr(pScrn, tmds_ctrl + 4, tmds04);
-	nv32_wr(pScrn, tmds_ctrl, 0x04);
+	nv_dcb_write_tmds(pScrn, dcb_entry, 0, 0x04, tmds04);
 
 	/* does tmds_ctrl2 need setting at all for OUTPUT_TMDS? */
-	if (dcbent->type == OUTPUT_TMDS) {
-		nv32_wr(pScrn, tmds_ctrl2 + 4, 0x0);
-		nv32_wr(pScrn, tmds_ctrl2, 0x04);
-	} else if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link) {
-		nv32_wr(pScrn, tmds_ctrl2 + 4, tmds04 ^ 0x08);
-		nv32_wr(pScrn, tmds_ctrl2, 0x04);
-	}
+	if (dcbent->type == OUTPUT_TMDS)
+		nv_dcb_write_tmds(pScrn, dcb_entry, 1, 0x04, 0);
+	else if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
+		nv_dcb_write_tmds(pScrn, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
 }
 
 static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
@@ -2834,11 +2835,8 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	if (script == LVDS_RESET) {
 #ifdef __powerpc__
 		/* Powerbook specific quirk */
-		if ((pNv->Chipset & 0xffff) == 0x0329) {
-			nv32_wr(pScrn, 0x006828b4, 0x72);
-			nv32_wr(pScrn, 0x006828b0, 0x02);
-			nv32_wr(pScrn, 0x00001588, 0);
-		}
+		if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329)
+			nv_dcb_write_tmds(pScrn, dcb_entry, 0, 0x02, 0x72);
 #endif
 		link_head_and_output(pScrn, head, dcb_entry);
 	}
@@ -2967,14 +2965,20 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
+	uint32_t sel_clk_binding;
 
 	if (!lvds_ver)
 		return;
+
+	/* don't let script change pll->head binding */
+	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 
 	if (lvds_ver < 0x30)
 		call_lvds_manufacturer_script(pScrn, head, dcb_entry, script);
 	else
 		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
+
+	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 }
 
 struct fppointers {
@@ -3237,6 +3241,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
 	uint16_t clktable = 0, scriptptr;
+	uint32_t sel_clk_binding;
 
 	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
 		return;
@@ -3263,7 +3268,10 @@ void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
 		return;
 	}
 
+	/* don't let script change pll->head binding */
+	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
+	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 }
 
 static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
