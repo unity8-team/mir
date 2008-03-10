@@ -238,6 +238,9 @@ static i830_quirk i830_quirk_list[] = {
     /* Toshiba i830M laptop (fix bug 11148) */
     { PCI_CHIP_I830_M, 0x1179, 0xff00, quirk_ivch_dvob },
 
+    /* Motion Computing M1200 reported on irc */
+    { PCI_CHIP_I830_M, 0x14c0, 0x0012, quirk_ivch_dvob },
+
     /* Samsung Q35 has no TV output */
     { PCI_CHIP_I945_GM, 0x144d, 0xc504, quirk_ignore_tv },
     /* Samsung Q45 has no TV output */
