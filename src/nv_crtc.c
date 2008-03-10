@@ -329,24 +329,16 @@ static void nv_crtc_mode_set_sel_clk(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVOutputPrivatePtr nv_output;
 	int i;
 
-	/* Don't change SEL_CLK on NV0x/NV1x/NV2x cards */
-	if (pNv->Architecture < NV_ARCH_30) {
-		state->sel_clk = pNv->misc_info.sel_clk;
-		return;
-	}
-
-	/* SEL_CLK is only used on the primary ramdac */
-	/* This seems to be needed to select the proper clocks, otherwise bad things happen */
-	if (!state->sel_clk)
-		state->sel_clk = pNv->misc_info.sel_clk & ~(0xf << 16);
-
-	if (!output)
+	if (!pNv->twoHeads || !output)
 		return;
 	nv_output = output->driver_private;
 
-	/* Only let digital outputs mess further with SEL_CLK, otherwise strange output routings may mess it up. */
+	/* SEL_CLK is only used on the primary ramdac
+	 * It toggles spread spectrum PLL output and sets the bindings of PLLs
+	 * to heads on digital outputs
+	 */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		Bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+		bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
 
 		state->sel_clk &= ~(0xf << 16);
 		/* Even with two dvi, this should not conflict. */
@@ -370,22 +362,20 @@ static void nv_crtc_mode_set_sel_clk(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		 *
 		 * 	Note that the circumstances for setting the bits at all is unclear
 		 */
-		if (pNv->Architecture == NV_ARCH_40) {
-			for (i = 1; i <= 2; i++) {
-				uint32_t var = (state->sel_clk >> 4*i) & 0xf;
-				int shift = 0; /* assume (var & 0x5) by default */
+		for (i = 1; i <= 2; i++) {
+			uint32_t var = (state->sel_clk >> 4*i) & 0xf;
+			int shift = 0; /* assume (var & 0x5) by default */
 
-				if (!var)
-					continue;
-				if (var & 0xa)
-					shift = 1;
+			if (!var)
+				continue;
+			if (var & 0xa)
+				shift = 1;
 
-				state->sel_clk &= ~(0xf << 4*i);
-				if (crossed_clocks)
-					state->sel_clk |= (0x4 << (4*i + shift));
-				else
-					state->sel_clk |= (0x1 << (4*i + shift));
-			}
+			state->sel_clk &= ~(0xf << 4*i);
+			if (crossed_clocks)
+				state->sel_clk |= (0x4 << (4*i + shift));
+			else
+				state->sel_clk |= (0x1 << (4*i + shift));
 		}
 	}
 }
