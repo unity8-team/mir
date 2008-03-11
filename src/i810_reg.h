@@ -290,6 +290,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define GPIO_DATA_VAL_IN		(1 << 12)
 # define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
+/* GMBus registers for hardware-assisted (non-bitbanging) I2C access */
+#define GMBUS0			0x5100
+#define GMBUS1			0x5104
+#define GMBUS2			0x5108
+#define GMBUS3			0x510c
+#define GMBUS4			0x5110
+#define GMBUS5			0x5120
+
 /* p317, 319
  */
 #define VCLK2_VCO_M        0x6008 /* treat as 16 bit? (includes msbs) */
@@ -351,6 +359,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define IPEIR_I965                  0x2064 /* i965 */
 #define IPEHR_I965                  0x2068 /* i965 */
 #define INST_DONE_I965              0x206c
+# define I965_SF_DONE			(1 << 23)
+# define I965_SE_DONE			(1 << 22)
+# define I965_WM_DONE			(1 << 21)
+# define I965_TEXTURE_FETCH_DONE	(1 << 14)
+# define I965_SAMPLER_CACHE_DONE	(1 << 12)
+# define I965_FILTER_DONE		(1 << 11)
+# define I965_PS_DONE			(1 << 9)
+# define I965_CC_DONE			(1 << 8)
+# define I965_MAP_FILTER_DONE		(1 << 7)
+# define I965_MAP_L2_IDLE		(1 << 6)
+# define I965_CP_DONE			(1 << 1)
+# define I965_RING_0_ENABLE		(1 << 0)
 #define INST_PS_I965                0x2070
 
 /* Current active ring head address: 
@@ -365,7 +385,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define CACHE_MODE_0           0x2120
 #define CACHE_MODE_1           0x2124
+#define MI_MODE		       0x209c
+#define MI_DISPLAY_POWER_DOWN  0x20e0
 #define MI_ARB_STATE           0x20e4
+#define MI_RDRET_STATE	       0x20fc
 
 /* Start addresses for each of the primary rings:
  */
@@ -539,6 +562,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PGETBL_SIZE_512KB   (0 << 1)
 #define PGETBL_SIZE_256KB   (1 << 1)
 #define PGETBL_SIZE_128KB   (2 << 1)
+#define PGETBL_SIZE_1MB     (3 << 1)
+#define PGETBL_SIZE_2MB     (4 << 1)
+#define PGETBL_SIZE_1_5MB   (5 << 1)
 #define G33_PGETBL_SIZE_MASK		(3 << 8)
 #define G33_PGETBL_SIZE_1M		(1 << 8)
 #define G33_PGETBL_SIZE_2M		(2 << 8)
@@ -973,6 +999,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define D_STATE			0x6104
 #define DSPCLK_GATE_D		0x6200
+# define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
+# define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
+# define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* 965 */
+# define VRDUNIT_CLOCK_GATE_DISABLE		(1 << 27) /* 965 */
+# define AUDUNIT_CLOCK_GATE_DISABLE		(1 << 26) /* 965 */
+# define DPUNIT_A_CLOCK_GATE_DISABLE		(1 << 25) /* 965 */
+# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 24) /* 965 */
 # define TVRUNIT_CLOCK_GATE_DISABLE		(1 << 23) /* 915-945 */
 # define TVCUNIT_CLOCK_GATE_DISABLE		(1 << 22) /* 915-945 */
 # define TVFUNIT_CLOCK_GATE_DISABLE		(1 << 21) /* 915-945 */
@@ -987,7 +1020,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLUNIT_CLOCK_GATE_DISABLE		(1 << 12) /* 915-945 */
 # define DPOUNIT_CLOCK_GATE_DISABLE		(1 << 11)
 # define DPBUNIT_CLOCK_GATE_DISABLE		(1 << 10)
-# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
+# define DCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
 # define DPUNIT_CLOCK_GATE_DISABLE		(1 << 8)
 # define VRUNIT_CLOCK_GATE_DISABLE		(1 << 7) /* 915+: reserved */
 # define OVHUNIT_CLOCK_GATE_DISABLE		(1 << 6) /* 830-865 */
@@ -1992,6 +2025,32 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PIPEAGCMAXGREEN		0x70014
 #define PIPEAGCMAXBLUE		0x70018
 #define PIPEASTAT		0x70024
+# define FIFO_UNDERRUN		(1 << 31)
+# define CRC_ERROR_ENABLE	(1 << 29)
+# define CRC_DONE_ENABLE	(1 << 28)
+# define GMBUS_EVENT_ENABLE	(1 << 27)
+# define VSYNC_INT_ENABLE	(1 << 25)
+# define DLINE_COMPARE_ENABLE	(1 << 24)
+# define DPST_EVENT_ENABLE	(1 << 23)
+# define LBLC_EVENT_ENABLE	(1 << 22)
+# define OFIELD_INT_ENABLE	(1 << 21)
+# define EFIELD_INT_ENABLE	(1 << 20)
+# define SVBLANK_INT_ENABLE	(1 << 18)
+# define VBLANK_INT_ENABLE	(1 << 17)
+# define OREG_UPDATE_ENABLE	(1 << 16)
+# define CRC_ERROR_INT_STATUS	(1 << 13)
+# define CRC_DONE_INT_STATUS	(1 << 12)
+# define GMBUS_INT_STATUS	(1 << 11)
+# define VSYNC_INT_STATUS	(1 << 9)
+# define DLINE_COMPARE_STATUS	(1 << 8)
+# define DPST_EVENT_STATUS	(1 << 7)
+# define LBLC_EVENT_STATUS	(1 << 6)
+# define OFIELD_INT_STATUS	(1 << 5)
+# define EFIELD_INT_STATUS	(1 << 4)
+# define SVBLANK_INT_STATUS	(1 << 2)
+# define VBLANK_INT_STATUS	(1 << 1)
+# define OREG_UPDATE_STATUS	(1 << 0)
+				 
 
 #define DSPARB			0x70030
 #define DSPFW1			0x70034
@@ -2131,7 +2190,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I830_GMCH_MEM_64M	0x1
 #define I830_GMCH_MEM_128M	0
 
-#define I830_GMCH_GMS_MASK			0xF0
+#define I830_GMCH_GMS_MASK			0x70
 #define I830_GMCH_GMS_DISABLED			0x00
 #define I830_GMCH_GMS_LOCAL			0x10
 #define I830_GMCH_GMS_STOLEN_512		0x20
@@ -2142,7 +2201,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I830_RDRAM_ND(x)			(((x) & 0x20) >> 5)
 #define I830_RDRAM_DDT(x)			(((x) & 0x18) >> 3)
 
-#define I855_GMCH_GMS_MASK			(0x7 << 4)
+#define I855_GMCH_GMS_MASK			(0xF << 4)
 #define I855_GMCH_GMS_DISABLED			0x00
 #define I855_GMCH_GMS_STOLEN_1M			(0x1 << 4)
 #define I855_GMCH_GMS_STOLEN_4M			(0x2 << 4)
@@ -2280,6 +2339,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define BRW_STATE_BASE_ADDRESS			BRW_3D(0, 1, 1)
 #define BRW_STATE_SIP				BRW_3D(0, 1, 2)
 #define BRW_PIPELINE_SELECT			BRW_3D(0, 1, 4)
+
+#define NEW_PIPELINE_SELECT			BRW_3D(1, 1, 4)
 
 #define BRW_MEDIA_STATE_POINTERS		BRW_3D(2, 0, 0)
 #define BRW_MEDIA_OBJECT			BRW_3D(2, 1, 0)
@@ -2628,5 +2689,29 @@ typedef enum {
 
 #define FBC_LL_SIZE		(1536)
 #define FBC_LL_PAD		(32)
+
+/* Framebuffer compression version 2 */
+#define DPFC_CB_BASE		0x3200
+#define DPFC_CONTROL		0x3208
+#define   DPFC_CTL_EN		(1<<31)
+#define   DPFC_CTL_PLANEA	(0<<30)
+#define   DPFC_CTL_PLANEB	(1<<30)
+#define   DPFC_CTL_FENCE_EN	(1<<29)
+#define   DPFC_CTL_LIMIT_1X	(0<<6)
+#define   DPFC_CTL_LIMIT_2X	(1<<6)
+#define   DPFC_CTL_LIMIT_4X	(2<<6)
+#define DPFC_RECOMP_CTL		0x320c
+#define   DPFC_RECOMP_STALL_EN	(1<<27)
+#define   DPFC_RECOMP_STALL_WM_SHIFT (16)
+#define   DPFC_RECOMP_STALL_WM_MASK (0x07ff0000)
+#define   DPFC_RECOMP_TIMER_COUNT_SHIFT (0)
+#define   DPFC_RECOMP_TIMER_COUNT_MASK (0x0000003f)
+#define DPFC_STATUS		0x3210
+#define   DPFC_INVAL_SEG_SHIFT  (16)
+#define   DPFC_INVAL_SEG_MASK	(0x07ff0000)
+#define   DPFC_COMP_SEG_SHIFT	(0)
+#define   DPFC_COMP_SEG_MASK	(0x000003ff)
+#define DPFC_STATUS2		0x3214
+#define DPFC_FENCE_YOFF		0x3218
 
 #endif /* _I810_REG_H */

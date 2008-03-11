@@ -65,6 +65,7 @@ typedef struct {
    int oneLineMode;
    int scaleRatio;
    Bool textured;
+   Rotation rotation; /* should remove I830->rotation later*/
 } I830PortPrivRec, *I830PortPrivPtr;
 
 #define GET_PORT_PRIVATE(pScrn) \

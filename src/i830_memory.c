@@ -97,8 +97,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <assert.h>
+#include <inttypes.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
 #include <sys/mman.h>
 
 #include "xf86.h"
@@ -273,12 +275,16 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	I830Ptr pI830 = I830PTR(pScrn);
 
 	drmBOUnreference(pI830->drmSubFD, &mem->bo);
-	if (pI830->bo_list == mem)
+	if (pI830->bo_list == mem) {
 	    pI830->bo_list = mem->next;
-	if (mem->next)
-	    mem->next->prev = NULL;
-	if (mem->prev)
-	    mem->prev->next = NULL;
+	    if (mem->next)
+		mem->next->prev = NULL;
+	} else {
+	    if (mem->prev)
+		mem->prev->next = mem->next;
+	    if (mem->next)
+		mem->next->prev = mem->prev;
+	}
 	xfree(mem->name);
 	xfree(mem);
 	return;
@@ -464,9 +470,12 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 		    ROUND_TO(HWCURSOR_SIZE_ARGB, GTT_PAGE_SIZE));
 	}
 	if (pI830->fb_compression)
-	    mmsize -= MB(6);
+	    mmsize -= MB(6) + ROUND_TO_PAGE(FBC_LL_SIZE + FBC_LL_PAD);
 	/* Can't do TTM on stolen memory */
 	mmsize -= pI830->stolen_size;
+
+	if (HWS_NEED_GFX(pI830) && IS_IGD_GM(pI830))
+	    mmsize -= HWSTATUS_PAGE_SIZE;
 
 	/* Create the aperture allocation */
 	pI830->memory_manager =
@@ -595,8 +604,8 @@ i830_get_stolen_physical(ScrnInfoPtr pScrn, unsigned long offset,
 
 	if ((scan - offset) != (scan_physical - physical)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Non-contiguous GTT entries: (%ld,0x16%llx) vs "
-		       "(%ld,0x%16llx)\n",
+		       "Non-contiguous GTT entries: (%ld,0x16%" PRIx64 ") vs "
+		       "(%ld,0x%" PRIx64 ")\n",
 		       scan, scan_physical, offset, physical);
 	    return -1;
 	}
@@ -944,7 +953,7 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 
 	if (mem->bus_addr != 0)
 	    snprintf(phys_suffix, sizeof(phys_suffix),
-		    ", 0x%016llx physical\n", mem->bus_addr);
+		    ", 0x%016" PRIx64 " physical\n", mem->bus_addr);
 	if (mem->tiling == TILE_XMAJOR)
 	    tile_suffix = " X tiled";
 	else if (mem->tiling == TILE_YMAJOR)
@@ -1035,15 +1044,13 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     if (!OVERLAY_NOPHYSICAL(pI830))
 	flags |= NEED_PHYSICAL_ADDR;
 
-    if (!IS_I965G(pI830)) {
-	pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
-						   OVERLAY_SIZE, GTT_PAGE_SIZE,
-						   flags);
-	if (pI830->overlay_regs == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to allocate Overlay register space.\n");
-	    /* This failure isn't fatal. */
-	}
+    pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
+					       OVERLAY_SIZE, GTT_PAGE_SIZE,
+					       flags);
+    if (pI830->overlay_regs == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Failed to allocate Overlay register space.\n");
+	/* This failure isn't fatal. */
     }
 
     return TRUE;
@@ -1271,6 +1278,13 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    unsigned long compressed_size;
+    unsigned long fb_height;
+
+    if (pScrn->virtualX > pScrn->virtualY)
+	fb_height = pScrn->virtualX;
+    else
+	fb_height = pScrn->virtualY;
 
     /* Only mobile chips since 845 support this feature */
     if (!IS_MOBILE(pI830)) {
@@ -1278,11 +1292,12 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 	goto out;
     }
 
-    /* Clear out any stale state */
-    OUTREG(FBC_CFB_BASE, 0);
-    OUTREG(FBC_LL_BASE, 0);
-    OUTREG(FBC_CONTROL2, 0);
-    OUTREG(FBC_CONTROL, 0);
+    if (IS_IGD_GM(pI830)) {
+	/* Update i830_display.c too if compression ratio changes */
+	compressed_size = fb_height * (pScrn->displayWidth / 4);
+    } else {
+	compressed_size = MB(6);
+    }
 
     /*
      * Compressed framebuffer limitations:
@@ -1297,21 +1312,23 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
      */
     pI830->compressed_front_buffer =
 	i830_allocate_memory(pScrn, "compressed frame buffer",
-			     MB(6), KB(4), NEED_PHYSICAL_ADDR);
+			     compressed_size, KB(4), NEED_PHYSICAL_ADDR);
 
     if (!pI830->compressed_front_buffer) {
 	pI830->fb_compression = FALSE;
 	goto out;
     }
 
-    pI830->compressed_ll_buffer =
-	i830_allocate_memory(pScrn, "compressed ll buffer",
-			     FBC_LL_SIZE + FBC_LL_PAD, KB(4),
-			     NEED_PHYSICAL_ADDR);
-    if (!pI830->compressed_ll_buffer) {
-	i830_free_memory(pScrn, pI830->compressed_front_buffer);
-	pI830->fb_compression = FALSE;
-	goto out;
+    if (!IS_IGD_GM(pI830)) {
+	pI830->compressed_ll_buffer =
+	    i830_allocate_memory(pScrn, "compressed ll buffer",
+				 FBC_LL_SIZE + FBC_LL_PAD, KB(4),
+				 NEED_PHYSICAL_ADDR);
+	if (!pI830->compressed_ll_buffer) {
+	    i830_free_memory(pScrn, pI830->compressed_front_buffer);
+	    pI830->fb_compression = FALSE;
+	    goto out;
+	}
     }
 
 out:
@@ -1630,16 +1647,20 @@ static Bool
 i830_allocate_hwstatus(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int flags;
 
     /* The current DRM will leak the HWS mapping if we update the address
      * after init (at best), so allocate it fixed for its lifetime
      * (i.e. not through buffer objects).
      */
-    pI830->hw_status = i830_allocate_memory(pScrn, "G33 hw status",
-	    HWSTATUS_PAGE_SIZE, GTT_PAGE_SIZE, NEED_LIFETIME_FIXED);
+    flags = NEED_LIFETIME_FIXED;
+    if (IS_IGD_GM(pI830))
+	    flags |= NEED_NON_STOLEN;
+    pI830->hw_status = i830_allocate_memory(pScrn, "HW status",
+	    HWSTATUS_PAGE_SIZE, GTT_PAGE_SIZE, flags);
     if (pI830->hw_status == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Failed to allocate hw status page for G33.\n");
+		"Failed to allocate hw status page.\n");
 	return FALSE;
     }
     return TRUE;
@@ -1652,7 +1673,7 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
-    if (IS_G33CLASS(pI830)) {
+    if (HWS_NEED_GFX(pI830)) {
 	if (!i830_allocate_hwstatus(pScrn))
 	    return FALSE;
     }
@@ -1929,7 +1950,8 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 	}
 #endif
     }
-    i830_update_cursor_offsets(pScrn);
+    if (!pI830->SWCursor)
+	i830_update_cursor_offsets(pScrn);
 
     return TRUE;
 }

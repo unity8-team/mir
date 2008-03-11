@@ -306,7 +306,7 @@ ch7xxx_restore(I2CDevPtr d)
     ch7xxx_write(dev_priv, CH7xxx_PM, dev_priv->save_PM);
 }
 
-I830I2CVidOutputRec CH7xxxVidOutput = {
+_X_EXPORT I830I2CVidOutputRec CH7xxxVidOutput = {
     .init = ch7xxx_init,
     .detect = ch7xxx_detect,
     .mode_valid = ch7xxx_mode_valid,
