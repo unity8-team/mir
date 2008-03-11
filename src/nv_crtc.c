@@ -275,13 +275,13 @@ static void nv_crtc_save_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 	state->vpll1_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
 	if (pNv->twoHeads) {
 		state->vpll2_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
+		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 	}
 	if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
 		state->vpll1_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
 		state->vpll2_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
 	}
 	state->pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-	state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 }
 
 
@@ -290,8 +290,10 @@ static void nv_crtc_load_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 	NVPtr pNv = NVPTR(pScrn);
 	/* This sequence is important, the NV28 is very sensitive in this area. */
 	/* Keep pllsel last and sel_clk first. */
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", state->sel_clk);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	if (pNv->twoHeads) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", state->sel_clk);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	}
 
 	if (state->vpll2_a && state->vpll_changed[1]) {
 		if (pNv->twoHeads) {
@@ -329,9 +331,13 @@ static void nv_crtc_mode_set_sel_clk(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVOutputPrivatePtr nv_output;
 	int i;
 
-	if (!pNv->twoHeads || !output)
+	if (!output)
 		return;
 	nv_output = output->driver_private;
+
+	/* init to existing value, less PLL binding */
+	if (!state->sel_clk)
+		state->sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
 
 	/* SEL_CLK is only used on the primary ramdac
 	 * It toggles spread spectrum PLL output and sets the bindings of PLLs
