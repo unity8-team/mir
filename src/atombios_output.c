@@ -356,11 +356,20 @@ atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.ucAction = 1;
     disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER1;
+    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
+	if (radeon_output->coherent_mode) {
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG1: Coherent Mode enabled\n");
+	} else
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG1: Coherent Mode disabled\n");
+    }
+
     if (mode->Clock > 165000) {
-	disp_data.ucConfig = ATOM_ENCODER_CONFIG_LINKA_B | ATOM_ENCODER_CONFIG_TRANSMITTER1;
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
 	disp_data.ucLaneNum = 8;
     } else {
-	disp_data.ucConfig = ATOM_ENCODER_CONFIG_LINKA | ATOM_ENCODER_CONFIG_TRANSMITTER1;
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
 	disp_data.ucLaneNum = 4;
     }
 
@@ -433,11 +442,20 @@ atombios_output_dig2_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.ucAction = 1;
     disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER2;
+    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
+	if (radeon_output->coherent_mode) {
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG2: Coherent Mode enabled\n");
+	} else
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG2: Coherent Mode disabled\n");
+    }
+
     if (mode->Clock > 165000) {
-	disp_data.ucConfig = ATOM_ENCODER_CONFIG_LINKA_B | ATOM_ENCODER_CONFIG_TRANSMITTER2;
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
 	disp_data.ucLaneNum = 8;
     } else {
-	disp_data.ucConfig = ATOM_ENCODER_CONFIG_LINKA | ATOM_ENCODER_CONFIG_TRANSMITTER2;
+	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
 	disp_data.ucLaneNum = 4;
     }
 

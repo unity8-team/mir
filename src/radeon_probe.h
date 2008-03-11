@@ -253,6 +253,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               load_detection;
     /* dig block */
     int transmitter_config;
+    Bool coherent_mode;
 
     char              *name;
     int               output_id;

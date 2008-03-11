@@ -1168,6 +1168,7 @@ static Atom tmds_pll_atom;
 static Atom rmx_atom;
 static Atom monitor_type_atom;
 static Atom load_detection_atom;
+static Atom coherent_mode_atom;
 static Atom tv_hsize_atom;
 static Atom tv_hpos_atom;
 static Atom tv_vpos_atom;
@@ -1227,6 +1228,30 @@ radeon_create_resources(xf86OutputPtr output)
 	    data = 0; /* shared tvdac between vga/dvi/tv */
 
 	err = RRChangeOutputProperty(output->randr_output, load_detection_atom,
+				     XA_INTEGER, 32, PropModeReplace, 1, &data,
+				     FALSE, TRUE);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    if (IS_DCE3_VARIANT &&
+	(OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI))) {
+	coherent_mode_atom = MAKE_ATOM("coherent_mode");
+
+	range[0] = 0; /* off */
+	range[1] = 1; /* on */
+	err = RRConfigureOutputProperty(output->randr_output, coherent_mode_atom,
+					FALSE, TRUE, FALSE, 2, range);
+	if (err != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+
+	data = 1; /* use coherent mode by default */
+
+	err = RRChangeOutputProperty(output->randr_output, coherent_mode_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
 				     FALSE, TRUE);
 	if (err != 0) {
@@ -1450,6 +1475,19 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->load_detection = val;
+
+    } else if (property == coherent_mode_atom) {
+	if (value->type != XA_INTEGER ||
+	    value->format != 32 ||
+	    value->size != 1) {
+	    return FALSE;
+	}
+
+	val = *(INT32 *)value->data;
+	if (val < 0 || val > 1)
+	    return FALSE;
+
+	radeon_output->coherent_mode = val;
 
     } else if (property == rmx_atom) {
 	const char *s;
@@ -2188,6 +2226,9 @@ void RADEONInitConnector(xf86OutputPtr output)
 	radeon_output->tv_on = FALSE;
 	RADEONGetTVDacAdjInfo(output);
     }
+
+    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI))
+	radeon_output->coherent_mode = TRUE;
 
     if (radeon_output->ddc_i2c.valid)
 	RADEONI2CInit(output, &radeon_output->pI2CBus, output->name, FALSE);
