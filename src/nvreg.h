@@ -89,8 +89,7 @@
 #define NV_PDIO_SIZE                0x00002000
 #define NV_PDIO1_OFFSET             0x00683000
 
-/* FIXME one of these is wrong */
-#define NV_PRAMIN_OFFSET            0x00710000
+#define NV_PRAMIN_OFFSET            0x00700000
 #define NV_PRAMIN_SIZE              0x00100000
 
 #define NV_FIFO_OFFSET              0x00800000

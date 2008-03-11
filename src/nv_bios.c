@@ -29,7 +29,6 @@
 #define SEQ_INDEX VGA_SEQ_INDEX
 #define NV_VGA_CRTCX_OWNER_HEADA 0x0
 #define NV_VGA_CRTCX_OWNER_HEADB 0x3
-#define NV_PRAMIN_ROM_OFFSET 0x00700000
 #define FEATURE_MOBILE 0x10
 
 #define DEBUGLEVEL 6
@@ -140,7 +139,7 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
 	}
 
 	for (i = 0; i < NV_PROM_SIZE; i++)
-		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_ROM_OFFSET + i);
+		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET + i);
 
 	if (pNv->Architecture >= NV_ARCH_50)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);

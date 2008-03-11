@@ -274,13 +274,13 @@ static void nv4GetConfig (NVPtr pNv)
 			pNv->RamAmountKBytes = 1024 * 8;
 			break;
 		case 3:
-			default:
+		default:
 			pNv->RamAmountKBytes = 1024 * 16;
 			break;
 		}
 
 	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
-	pNv->CURSOR         = &(pNv->PRAMIN[0x1E00]);
+	pNv->CURSOR         = &(pNv->PRAMIN[0x5E00]);
 	pNv->MinVClockFreqKHz = 12000;
 	pNv->MaxVClockFreqKHz = 350000;
 }
@@ -341,10 +341,10 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	vgaHWPtr pVga = VGAHWPTR(pScrn);
 	uint16_t implementation = pNv->Chipset & 0x0ff0;
 	xf86MonPtr monitorA, monitorB;
-	Bool tvA = FALSE;
-	Bool tvB = FALSE;
+	bool tvA = false;
+	bool tvB = false;
 	int FlatPanel = -1;   /* really means the CRTC is slaved */
-	Bool Television = FALSE;
+	bool Television = false;
  
     /*
      * Override VGA I/O routines.
