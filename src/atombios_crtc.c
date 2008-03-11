@@ -174,6 +174,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
     PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
+    int pll_flags = 0;
 
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output = NULL;
@@ -185,7 +186,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     if (IS_AVIVO_VARIANT) {
 	CARD32 temp;
-	RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, 0);
+
+	if (IS_DCE3_VARIANT)
+	    pll_flags |= RADEON_PLL_DCE3;
+
+	RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, pll_flags);
 	sclock = temp;
 
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
