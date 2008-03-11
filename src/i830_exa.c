@@ -376,8 +376,8 @@ i830_upload_to_screen(PixmapPtr pDst, int x, int y, int w, int h, char *src,
     const int uts_width_max = 16, uts_height_max = 16;
     int cpp = pDst->drawable.bitsPerPixel / 8;
     int sub_x, sub_y;
-    CARD32 br13;
-    CARD32 offset;
+    uint32_t br13;
+    uint32_t offset;
 
     if (w > uts_width_max || h > uts_height_max)
 	I830FALLBACK("too large for upload to screen (%d,%d)", w, h);

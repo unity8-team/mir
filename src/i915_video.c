@@ -48,7 +48,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 PixmapPtr pPixmap)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 format, ms3, s5;
+   uint32_t format, ms3, s5;
    BoxPtr pbox;
    int nbox, dxo, dyo, pix_xoff, pix_yoff;
    Bool planar;

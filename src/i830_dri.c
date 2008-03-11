@@ -993,7 +993,7 @@ I830DRIFinishScreenInit(ScreenPtr pScreen)
  * Otherwise will have to sync again???
  */
 static void
-I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, CARD32 dst)
+I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, uint32_t dst)
 {
    I830Ptr pI830 = I830PTR(pScrn);
    int i, cmd, br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);

@@ -59,13 +59,13 @@ do { 							\
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
-    CARD32 src_blend;
-    CARD32 dst_blend;
+    uint32_t src_blend;
+    uint32_t dst_blend;
 };
 
 struct formatinfo {
     int fmt;
-    CARD32 card_fmt;
+    uint32_t card_fmt;
 };
 
 // refer vol2, 3d rasterization 3.8.1
@@ -113,8 +113,8 @@ static struct formatinfo i965_tex_formats[] = {
     {PICT_a8,       BRW_SURFACEFORMAT_A8_UNORM	 },
 };
 
-static void i965_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format,
-				CARD32 *sblend, CARD32 *dblend)
+static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
+				uint32_t *sblend, uint32_t *dblend)
 {
 
     *sblend = i965_blend_op[op].src_blend;
@@ -145,7 +145,7 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format,
 
 }
 
-static Bool i965_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
+static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -212,7 +212,7 @@ Bool
 i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
-    CARD32 tmp1;
+    uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(i965_blend_op) / sizeof(i965_blend_op[0]))
@@ -271,7 +271,7 @@ static struct brw_instruction *sf_kernel;
 static struct brw_instruction *ps_kernel;
 static struct brw_instruction *sip_kernel;
 
-static CARD32 *binding_table;
+static uint32_t *binding_table;
 static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
@@ -287,9 +287,9 @@ static int state_base_offset;
 static float *vb;
 static int vb_size = (6 * 4) * 4 ; /* 6 DWORDS per vertex - and mask*/
 
-static CARD32 src_blend, dst_blend;
+static uint32_t src_blend, dst_blend;
 
-static const CARD32 sip_kernel_static[][4] = {
+static const uint32_t sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
     { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -320,15 +320,15 @@ static const CARD32 sip_kernel_static[][4] = {
 #define SF_KERNEL_NUM_GRF  16
 #define SF_MAX_THREADS	   1
 
-static const CARD32 sf_kernel_static[][4] = {
+static const uint32_t sf_kernel_static[][4] = {
 #include "exa_sf_prog.h"
 };
 
-static const CARD32 sf_kernel_static_mask[][4] = {
+static const uint32_t sf_kernel_static_mask[][4] = {
 #include "exa_sf_mask_prog.h"
 };
 
-static const CARD32 sf_kernel_static_rotation[][4] = {
+static const uint32_t sf_kernel_static_rotation[][4] = {
 #include "exa_sf_rotation_prog.h"
 };
 
@@ -336,27 +336,27 @@ static const CARD32 sf_kernel_static_rotation[][4] = {
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	   32
 
-static const CARD32 ps_kernel_static_nomask [][4] = {
+static const uint32_t ps_kernel_static_nomask [][4] = {
 #include "exa_wm_nomask_prog.h"
 };
 
-static const CARD32 ps_kernel_static_maskca [][4] = {
+static const uint32_t ps_kernel_static_maskca [][4] = {
 #include "exa_wm_maskca_prog.h"
 };
 
-static const CARD32 ps_kernel_static_maskca_srcalpha [][4] = {
+static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
 #include "exa_wm_maskca_srcalpha_prog.h"
 };
 
-static const CARD32 ps_kernel_static_masknoca [][4] = {
+static const uint32_t ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_masknoca_prog.h"
 };
 
-static const CARD32 ps_kernel_static_rotation [][4] = {
+static const uint32_t ps_kernel_static_rotation [][4] = {
 #include "exa_wm_rotation_prog.h"
 };
 
-static CARD32 
+static uint32_t 
 i965_get_card_format(PicturePtr pPict)
 {
     int i;
@@ -392,10 +392,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 src_offset, src_pitch, src_tile_format = 0, src_tiled = 0;
-    CARD32 mask_offset = 0, mask_pitch = 0, mask_tile_format = 0,
+    uint32_t src_offset, src_pitch, src_tile_format = 0, src_tiled = 0;
+    uint32_t mask_offset = 0, mask_pitch = 0, mask_tile_format = 0,
 	mask_tiled = 0;
-    CARD32 dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
+    uint32_t dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
 	dst_tiled = 0;
     Bool rotation_program = FALSE;
 

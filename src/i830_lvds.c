@@ -108,7 +108,7 @@ i830_set_lvds_backlight_method(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 blc_pwm_ctl, blc_pwm_ctl2;
+    uint32_t blc_pwm_ctl, blc_pwm_ctl2;
     enum backlight_control method = BCM_NATIVE; /* Default to native */
 
     if (i830_kernel_backlight_available(output)) {
@@ -134,7 +134,7 @@ i830_lvds_set_backlight_native(xf86OutputPtr output, int level)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 blc_pwm_ctl;
+    uint32_t blc_pwm_ctl;
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= ~BACKLIGHT_DUTY_CYCLE_MASK;
@@ -146,7 +146,7 @@ i830_lvds_get_backlight_native(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 blc_pwm_ctl;
+    uint32_t blc_pwm_ctl;
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
@@ -158,7 +158,7 @@ i830_lvds_get_backlight_max_native(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 pwm_ctl = INREG(BLC_PWM_CTL);
+    uint32_t pwm_ctl = INREG(BLC_PWM_CTL);
     int val;
 
     if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
@@ -194,7 +194,7 @@ i830_lvds_get_backlight_legacy(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD8 lbb;
+    uint8_t lbb;
 
 #if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
@@ -213,8 +213,8 @@ i830_lvds_set_backlight_combo(xf86OutputPtr output, int level)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 blc_pwm_ctl;
-    CARD8 lbb;
+    uint32_t blc_pwm_ctl;
+    uint8_t lbb;
 
 #if XSERVER_LIBPCIACCESS
     pci_device_cfg_read_u8(pI830->PciInfo, &lbb, LEGACY_BACKLIGHT_BRIGHTNESS);
@@ -250,7 +250,7 @@ i830_lvds_get_backlight_combo(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 blc_pwm_ctl;
+    uint32_t blc_pwm_ctl;
 
     blc_pwm_ctl = INREG(BLC_PWM_CTL);
     blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
@@ -369,7 +369,7 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
     struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
-    CARD32		    pp_status;
+    uint32_t		    pp_status;
 
     if (on) {
 	/*
@@ -534,7 +534,7 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	    intel_crtc = output->crtc->driver_private;
-    CARD32		    pfit_control;
+    uint32_t		    pfit_control;
 
     /* The LVDS pin pair will already have been turned on in
      * i830_crtc_mode_set since it has a large impact on the DPLL settings.
@@ -964,7 +964,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
      * If so, assume that whatever is currently programmed is the correct mode.
      */
     if (dev_priv->panel_fixed_mode == NULL) {
-	CARD32 lvds = INREG(LVDS);
+	uint32_t lvds = INREG(LVDS);
 	int pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86CrtcPtr crtc = xf86_config->crtc[pipe];

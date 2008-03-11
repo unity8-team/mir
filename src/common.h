@@ -230,14 +230,14 @@ union intfloat {
 
 
 /* Memory mapped register access macros */
-#define INREG8(addr)        *(volatile CARD8  *)(RecPtr->MMIOBase + (addr))
-#define INREG16(addr)       *(volatile CARD16 *)(RecPtr->MMIOBase + (addr))
-#define INREG(addr)         *(volatile CARD32 *)(RecPtr->MMIOBase + (addr))
-#define INGTT(addr)         *(volatile CARD32 *)(RecPtr->GTTBase + (addr))
+#define INREG8(addr)        *(volatile uint8_t *)(RecPtr->MMIOBase + (addr))
+#define INREG16(addr)       *(volatile uint16_t *)(RecPtr->MMIOBase + (addr))
+#define INREG(addr)         *(volatile uint32_t *)(RecPtr->MMIOBase + (addr))
+#define INGTT(addr)         *(volatile uint32_t *)(RecPtr->GTTBase + (addr))
 #define POSTING_READ(addr)  (void)INREG(addr)
 
 #define OUTREG8(addr, val) do {						\
-   *(volatile CARD8 *)(RecPtr->MMIOBase  + (addr)) = (val);		\
+   *(volatile uint8_t *)(RecPtr->MMIOBase  + (addr)) = (val);		\
    if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
       ErrorF("OUTREG8(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
 		(unsigned long)(val), FUNCTION_NAME);			\
@@ -245,7 +245,7 @@ union intfloat {
 } while (0)
 
 #define OUTREG16(addr, val) do {					\
-   *(volatile CARD16 *)(RecPtr->MMIOBase + (addr)) = (val);		\
+   *(volatile uint16_t *)(RecPtr->MMIOBase + (addr)) = (val);		\
    if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
       ErrorF("OUTREG16(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
 		(unsigned long)(val), FUNCTION_NAME);			\
@@ -253,7 +253,7 @@ union intfloat {
 } while (0)
 
 #define OUTREG(addr, val) do {						\
-   *(volatile CARD32 *)(RecPtr->MMIOBase + (addr)) = (val);		\
+   *(volatile uint32_t *)(RecPtr->MMIOBase + (addr)) = (val);		\
    if (I810_DEBUG&DEBUG_VERBOSE_OUTREG) {				\
       ErrorF("OUTREG(0x%lx, 0x%lx) in %s\n", (unsigned long)(addr),	\
 		(unsigned long)(val), FUNCTION_NAME);			\

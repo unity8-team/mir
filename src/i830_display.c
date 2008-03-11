@@ -767,7 +767,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
     int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
     int dspbase_reg = (plane == 0) ? DSPABASE : DSPBBASE;
-    CARD32 temp;
+    uint32_t temp;
 
     /* XXX: When our outputs are all unaware of DPMS modes other than off and
      * on, we should map those modes to DPMSModeOff in the CRTC.
@@ -1012,7 +1012,7 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
 	pci_device_cfg_read_u16 (bridge, &hpllcc, I855_HPLLCC);
 #else
 	PCITAG bridge = pciTag(0, 0, 0); /* This is always the host bridge */
-	CARD16 hpllcc = pciReadWord(bridge, I855_HPLLCC);
+	uint16_t hpllcc = pciReadWord(bridge, I855_HPLLCC);
 #endif
 
 	/* Assume that the hardware is in the high speed state.  This
@@ -1040,7 +1040,7 @@ i830_get_core_clock_speed(ScrnInfoPtr pScrn)
 static int
 i830_panel_fitter_pipe(I830Ptr pI830)
 {
-    CARD32  pfit_control;
+    uint32_t pfit_control;
 
     /* i830 doesn't have a panel fitter */
     if (IS_I830(pI830))
@@ -1097,7 +1097,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int i;
     int refclk;
     intel_clock_t clock;
-    CARD32 dpll = 0, fp = 0, dspcntr, pipeconf;
+    uint32_t dpll = 0, fp = 0, dspcntr, pipeconf;
     Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
     Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
 
@@ -1295,7 +1295,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      */
     if (is_lvds)
     {
-	CARD32 lvds = INREG(LVDS);
+	uint32_t lvds = INREG(LVDS);
 
 	lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
@@ -1508,9 +1508,9 @@ i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
     for (i = 0; i < xf86_config->num_crtc; i++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[i];
 	I830CrtcPrivatePtr intel_crtc = crtc ? crtc->driver_private : NULL;
-	CARD32 dspcntr = intel_crtc->plane == 0 ? INREG(DSPACNTR) :
+	uint32_t dspcntr = intel_crtc->plane == 0 ? INREG(DSPACNTR) :
 	    INREG(DSPBCNTR);
-	CARD32 pipeconf = i == 0 ? INREG(PIPEACONF) :
+	uint32_t pipeconf = i == 0 ? INREG(PIPEACONF) :
 	    INREG(PIPEBCONF);
 	Bool hw_plane_enable = (dspcntr & DISPLAY_PLANE_ENABLE) != 0;
 	Bool hw_pipe_enable = (pipeconf & PIPEACONF_ENABLE) != 0;
@@ -1686,8 +1686,8 @@ i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
-    CARD32 dpll = INREG((pipe == 0) ? DPLL_A : DPLL_B);
-    CARD32 fp;
+    uint32_t dpll = INREG((pipe == 0) ? DPLL_A : DPLL_B);
+    uint32_t fp;
     intel_clock_t clock;
 
     if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)

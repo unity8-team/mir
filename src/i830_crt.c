@@ -39,7 +39,7 @@ i830_crt_dpms(xf86OutputPtr output, int mode)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
     I830Ptr	    pI830 = I830PTR(pScrn);
-    CARD32	    temp;
+    uint32_t	    temp;
 
     temp = INREG(ADPA);
     temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
@@ -109,7 +109,7 @@ i830_crt_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr		    crtc = output->crtc;
     I830CrtcPrivatePtr	    i830_crtc = crtc->driver_private;
     int			    dpll_md_reg;
-    CARD32		    adpa, dpll_md;
+    uint32_t		    adpa, dpll_md;
 
     if (i830_crtc->pipe == 0) 
 	dpll_md_reg = DPLL_A_MD;
@@ -158,7 +158,7 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
-    CARD32	temp;
+    uint32_t	temp;
     const int	timeout_ms = 1000;
     int		starttime, curtime;
 
@@ -199,13 +199,13 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     ScrnInfoPtr		    pScrn = output->scrn;
     I830Ptr		    pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	    i830_crtc = I830CrtcPrivate(crtc);
-    CARD32		    save_bclrpat;
-    CARD32		    save_vtotal;
-    CARD32		    vtotal, vactive;
-    CARD32		    vsample;
-    CARD32		    vblank, vblank_start, vblank_end;
-    CARD32		    dsl;
-    CARD8		    st00;
+    uint32_t		    save_bclrpat;
+    uint32_t		    save_vtotal;
+    uint32_t		    vtotal, vactive;
+    uint32_t		    vsample;
+    uint32_t		    vblank, vblank_start, vblank_end;
+    uint32_t		    dsl;
+    uint8_t		    st00;
     int			    bclrpat_reg, pipeconf_reg, pipe_dsl_reg;
     int			    vtotal_reg, vblank_reg, vsync_reg;
     int			    pipe = i830_crtc->pipe;
@@ -245,7 +245,7 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
     
     if (IS_I9XX (pI830))
     {
-	CARD32	pipeconf = INREG(pipeconf_reg);
+	uint32_t	pipeconf = INREG(pipeconf_reg);
 	OUTREG(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
 	
 	st00 = pI830->readStandard (pI830, 0x3c2);
@@ -263,8 +263,8 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
 	 */
 	if (vblank_start <= vactive && vblank_end >= vtotal)
 	{
-	    CARD32  vsync = INREG(vsync_reg);
-	    CARD32  vsync_start = (vsync & 0xffff) + 1;
+	    uint32_t  vsync = INREG(vsync_reg);
+	    uint32_t  vsync_start = (vsync & 0xffff) + 1;
 
 	    vblank_start = vsync_start;
 	    OUTREG(vblank_reg, (vblank_start - 1) | ((vblank_end - 1) << 16));

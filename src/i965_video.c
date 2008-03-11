@@ -45,7 +45,7 @@
 #undef NDEBUG
 #include <assert.h>
 
-static const CARD32 sip_kernel_static[][4] = {
+static const uint32_t sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
     { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
 /*    nop (4) g0<1>UD { align1 +  } */
@@ -77,7 +77,7 @@ static const CARD32 sip_kernel_static[][4] = {
 #define SF_KERNEL_NUM_GRF  16
 #define SF_MAX_THREADS	   1
 
-static const CARD32 sf_kernel_static[][4] = {
+static const uint32_t sf_kernel_static[][4] = {
 #include "sf_prog.h"
 };
 
@@ -93,7 +93,7 @@ static const CARD32 sf_kernel_static[][4] = {
 
 #define BRW_GRF_BLOCKS(nreg)	((nreg + 15) / 16 - 1)
 
-static const CARD32 ps_kernel_static[][4] = {
+static const uint32_t ps_kernel_static[][4] = {
 #include "wm_prog.h"
 };
 
@@ -102,15 +102,15 @@ static const CARD32 ps_kernel_static[][4] = {
 
 #define WM_BINDING_TABLE_ENTRIES    2
 
-static CARD32 float_to_uint (float f) {
-    union {CARD32 i; float f;} x;
+static uint32_t float_to_uint (float f) {
+    union {uint32_t i; float f;} x;
     x.f = f;
     return x.i;
 }
 
 #if 0
 static struct {
-    CARD32 svg_ctl;
+    uint32_t svg_ctl;
     char *name;
 } svg_ctl_bits[] = {
     { BRW_SVG_CTL_GS_BA, "General State Base Address" },
@@ -127,7 +127,7 @@ brw_debug (ScrnInfoPtr pScrn, char *when)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int	i;
-    CARD32 v;
+    uint32_t v;
 
     I830Sync (pScrn);
     ErrorF("brw_debug: %s\n", when);
@@ -173,7 +173,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     struct brw_instruction *sip_kernel;
     float *vb;
     float src_scale_x, src_scale_y;
-    CARD32 *binding_table;
+    uint32_t *binding_table;
     Bool first_output = TRUE;
     int dest_surf_offset, src_surf_offset, src_sampler_offset, vs_offset;
     int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;

@@ -88,7 +88,7 @@
 #define REG_NR(reg)		((reg) & 0xff)
 
 struct i915_fs_op {
-    CARD32 ui[3];
+    uint32_t ui[3];
 };
 
 #define X_CHANNEL_VAL		1
@@ -419,7 +419,7 @@ do {									\
  *        a FS_START and FS_END
  */
 #define FS_LOCALS(x)							\
-    CARD32 _shader_buf[(x) * 3];					\
+    uint32_t _shader_buf[(x) * 3];					\
     int _max_shader_commands = x;					\
     int _cur_shader_commands
 
