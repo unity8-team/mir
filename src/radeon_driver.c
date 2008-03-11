@@ -5208,6 +5208,11 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     pScrn->vtSema = TRUE;
 
+    RADEONRestoreSurfaces(pScrn, info->ModeReg);
+
+    if (!xf86SetDesiredModes(pScrn))
+	return FALSE;
+
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	if (info->cardType == CARD_PCIE &&
@@ -5226,10 +5231,6 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 #endif
 	RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
-    RADEONRestoreSurfaces(pScrn, info->ModeReg);
-
-    if (!xf86SetDesiredModes(pScrn))
-	return FALSE;
 
     /* this will get XVideo going again, but only if XVideo was initialised
        during server startup (hence the info->adaptor if). */
