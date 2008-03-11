@@ -68,11 +68,27 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
                   short drw_w, short drw_h,
                   RegionPtr clipBoxes)
 {
-        NVPtr         pNv    = NVPTR(pScrn);
-        NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
-        int           buffer = pPriv->currentBuffer;
+	NVPtr         pNv    = NVPTR(pScrn);
+	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
+	int           buffer = pPriv->currentBuffer;
 
-        /* paint the color key */
+	if (!pNv->randr12_enable) {
+		if (pScrn->currentMode->Flags & V_DBLSCAN) {
+			dstBox->y1 <<= 1;
+			dstBox->y2 <<= 1;
+			drw_h <<= 1;
+		}
+	} else {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
+		if (crtc->mode.Flags & V_DBLSCAN) {
+			dstBox->y1 <<= 1;
+			dstBox->y2 <<= 1;
+			drw_h <<= 1;
+		}
+	}
+
+	/* paint the color key */
         if(pPriv->autopaintColorKey && (pPriv->grabbedByV4L ||
                 !REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes))) {
                 /* we always paint V4L's color key */
@@ -81,12 +97,6 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
                 {
                 xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
                 }
-        }
-
-        if (pScrn->currentMode->Flags & V_DBLSCAN) {
-                dstBox->y1 <<= 1;
-                dstBox->y2 <<= 1;
-                drw_h <<= 1;
         }
 
         //xf86DrvMsg(0, X_INFO, "SIZE_IN h %d w %d, POINT_IN x %d y %d, DS_DX %d DT_DY %d, POINT_OUT x %d y %d SIZE_OUT h %d w %d\n", height, width, x1 >>

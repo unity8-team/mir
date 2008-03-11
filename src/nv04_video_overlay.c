@@ -45,9 +45,26 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
                   short drw_w, short drw_h,
                   RegionPtr clipBoxes)
 {                       
-        NVPtr         pNv    = NVPTR(pScrn);
-        NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
-                
+	NVPtr         pNv    = NVPTR(pScrn);
+	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
+
+	/*This may not work with NV04 overlay according to rivatv source*/
+	if (!pNv->randr12_enable) {
+		if (pScrn->currentMode->Flags & V_DBLSCAN) {
+			dstBox->y1 <<= 1;
+			dstBox->y2 <<= 1;
+			drw_h <<= 1;
+		}
+	} else {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		xf86CrtcPtr crtc = xf86_config->crtc[pPriv->overlayCRTC];
+		if (crtc->mode.Flags & V_DBLSCAN) {
+			dstBox->y1 <<= 1;
+			dstBox->y2 <<= 1;
+			drw_h <<= 1;
+		}
+	}
+
         /* paint the color key */
         if(pPriv->autopaintColorKey && (pPriv->grabbedByV4L ||
                 !REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes))) {
@@ -58,12 +75,6 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
                 xf86XVFillKeyHelper(pScrn->pScreen, pPriv->colorKey, clipBoxes);
                 } 
         }         
-                  
-        if (pScrn->currentMode->Flags & V_DBLSCAN) { /*This may not work with NV04 overlay according to rivatv source*/
-                dstBox->y1 <<= 1;
-                dstBox->y2 <<= 1;
-                drw_h <<= 1; 
-        }
 
         nvWriteVIDEO(pNv, NV_PVIDEO_OE_STATE, 0);
         nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, 0);
