@@ -104,7 +104,8 @@ typedef enum
     TMDS_INT     = 1,
     TMDS_EXT     = 2,
     TMDS_LVTMA   = 3,
-    TMDS_DDIA    = 4
+    TMDS_DDIA    = 4,
+    TMDS_UNIPHY  = 5
 } RADEONTmdsType;
 
 typedef enum
@@ -203,6 +204,7 @@ typedef struct {
     int devices;
     int hpd_mask;
     RADEONI2CBusRec ddc_i2c;
+    int igp_lane_info;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -254,6 +256,7 @@ typedef struct _RADEONOutputPrivateRec {
     /* dig block */
     int transmitter_config;
     Bool coherent_mode;
+    int igp_lane_info;
 
     char              *name;
     int               output_id;

@@ -1399,7 +1399,7 @@ const int object_connector_convert[] =
       CONNECTOR_NONE,
       CONNECTOR_NONE,
       CONNECTOR_NONE,
-      CONNECTOR_NONE,
+      CONNECTOR_DISPLAY_PORT,
     };
 
 static void
@@ -1499,6 +1499,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
+    ATOM_INTEGRATED_SYSTEM_INFO_V2 *igp_obj = NULL;
     int i, j, ddc_line = 0;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
@@ -1507,7 +1508,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
     if (crev < 2)
 	return FALSE;
-    
+
     con_obj = (ATOM_CONNECTOR_OBJECT_TABLE *)
 	((char *)&atomDataPtr->Object_Header->sHeader +
 	 atomDataPtr->Object_Header->usConnectorObjectTableOffset);
@@ -1527,9 +1528,30 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	SrcDstTable = (ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *)
 	    ((char *)&atomDataPtr->Object_Header->sHeader
 	     + con_obj->asObjects[i].usSrcDstTableOffset);
-	
+
 	ErrorF("object id %04x %02x\n", obj_id, SrcDstTable->ucNumberOfSrc);
-	info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
+
+	if ((info->ChipFamily == CHIP_FAMILY_RS780) &&
+	    (obj_id == CONNECTOR_OBJECT_ID_PCIE_CONNECTOR)) {
+	    CARD32 slot_config, ct;
+
+	    igp_obj = info->atomBIOS->atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2;
+
+	    if (!igp_obj)
+		info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
+	    else {
+		if (num == 1)
+		    slot_config = igp_obj->ulDDISlot1Config;
+		else
+		    slot_config = igp_obj->ulDDISlot2Config;
+
+		ct = (slot_config  >> 16) & 0xff;
+		info->BiosConnector[i].ConnectorType = object_connector_convert[ct];
+		info->BiosConnector[i].igp_lane_info = slot_config & 0xffff;
+	    }
+	} else
+	    info->BiosConnector[i].ConnectorType = object_connector_convert[obj_id];
+
 	if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE)
 	    info->BiosConnector[i].valid = FALSE;
 	else
@@ -1541,16 +1563,22 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
 	    sobj_id = (SrcDstTable->usSrcObjectID[j] & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
 	    ErrorF("src object id %04x %d\n", SrcDstTable->usSrcObjectID[j], sobj_id);
-	    
+
 	    switch(sobj_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
 		info->BiosConnector[i].TMDSType = TMDS_INT;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		if (num == 1)
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP1_INDEX);
+		else
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP2_INDEX);
+		info->BiosConnector[i].TMDSType = TMDS_UNIPHY;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
@@ -1599,7 +1627,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    ErrorF("record type %d\n", Record->ucRecordType);
 	    switch (Record->ucRecordType) {
 		case ATOM_I2C_RECORD_TYPE:
-		    rhdAtomParseI2CRecord(info->atomBIOS, 
+		    rhdAtomParseI2CRecord(info->atomBIOS,
 					  (ATOM_I2C_RECORD *)Record,
 					  &ddc_line);
 		    info->BiosConnector[i].ddc_i2c = atom_setup_i2c_bus(ddc_line);

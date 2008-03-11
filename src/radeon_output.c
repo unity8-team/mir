@@ -239,6 +239,8 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_HDMI)
 	    MonType = MT_DFP;
+	else if (radeon_output->type == OUTPUT_DP)
+	    MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_DVI_I && (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
 	    MonType = MT_DFP;
 	else
@@ -1660,6 +1662,8 @@ void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output
     case CONNECTOR_HDMI_TYPE_A:
     case CONNECTOR_HDMI_TYPE_B:
 	output = OUTPUT_HDMI; break;
+    case CONNECTOR_DISPLAY_PORT:
+	output = OUTPUT_DP; break;
     case CONNECTOR_DIGITAL:
     case CONNECTOR_NONE:
     case CONNECTOR_UNSUPPORTED:
@@ -2784,6 +2788,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->devices = info->BiosConnector[i].devices;
 	    radeon_output->output_id = info->BiosConnector[i].output_id;
 	    radeon_output->ddc_i2c = info->BiosConnector[i].ddc_i2c;
+	    radeon_output->igp_lane_info = info->BiosConnector[i].igp_lane_info;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;

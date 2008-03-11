@@ -408,12 +408,35 @@ atombios_output_dig1_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = mode->Clock / 10;
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-    if (mode->Clock > 165000)
-	disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-			       ATOM_TRANSMITTER_CONFIG_LINKA_B |
-			       ATOM_TRANSMITTER_CONFIG_LANE_0_7);
-    else
-	disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+
+    if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
+	if (mode->Clock > 165000) {
+	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
+				   ATOM_TRANSMITTER_CONFIG_LINKA_B);
+	    /* guess */
+	    if (radeon_output->igp_lane_info & 0x3)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
+	    else if (radeon_output->igp_lane_info & 0xc)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
+	} else {
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
+	    if (radeon_output->igp_lane_info & 0x1)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+	    else if (radeon_output->igp_lane_info & 0x2)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
+	    else if (radeon_output->igp_lane_info & 0x4)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
+	    else if (radeon_output->igp_lane_info & 0x8)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
+	}
+    } else {
+	if (mode->Clock > 165000)
+	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
+				   ATOM_TRANSMITTER_CONFIG_LINKA_B |
+				   ATOM_TRANSMITTER_CONFIG_LANE_0_7);
+	else
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+    }
 
     radeon_output->transmitter_config = disp_data.ucConfig;
 
@@ -494,12 +517,35 @@ atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = mode->Clock / 10;
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-    if (mode->Clock > 165000)
-	disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-			       ATOM_TRANSMITTER_CONFIG_LINKA_B |
-			       ATOM_TRANSMITTER_CONFIG_LANE_0_7);
-    else
-	disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+
+    if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
+	if (mode->Clock > 165000) {
+	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
+				   ATOM_TRANSMITTER_CONFIG_LINKA_B);
+	    /* guess */
+	    if (radeon_output->igp_lane_info & 0x3)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
+	    else if (radeon_output->igp_lane_info & 0xc)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
+	} else {
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
+	    if (radeon_output->igp_lane_info & 0x1)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+	    else if (radeon_output->igp_lane_info & 0x2)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
+	    else if (radeon_output->igp_lane_info & 0x4)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
+	    else if (radeon_output->igp_lane_info & 0x8)
+		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
+	}
+    } else {
+	if (mode->Clock > 165000)
+	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
+				   ATOM_TRANSMITTER_CONFIG_LINKA_B |
+				   ATOM_TRANSMITTER_CONFIG_LANE_0_7);
+	else
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
+    }
 
     radeon_output->transmitter_config = disp_data.ucConfig;
 
