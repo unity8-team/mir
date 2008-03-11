@@ -2975,6 +2975,8 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
 
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
+	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
+	nv32_wr(pScrn, NV_PBUS_POWERCTRL_2, 0);
 }
 
 struct fppointers {
