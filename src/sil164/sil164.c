@@ -45,8 +45,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "sil164.h"
 #include "sil164_reg.h"
 
+typedef struct _Sil164SaveRec {
+    uint8_t reg8;
+    uint8_t reg9;
+    uint8_t regc;
+} SIL164SaveRec;
+
+typedef struct {
+    I2CDevRec d;
+    Bool quiet;
+    SIL164SaveRec SavedReg;
+    SIL164SaveRec ModeReg;
+} SIL164Rec, *SIL164Ptr;
+
+#define SILPTR(d) ((SIL164Ptr)(d->DriverPrivate.ptr))
+
 static Bool
-sil164ReadByte(SIL164Ptr sil, int addr, CARD8 *ch)
+sil164ReadByte(SIL164Ptr sil, int addr, uint8_t *ch)
 {
     if (!xf86I2CReadByte(&(sil->d), addr, ch)) {
 	if (!sil->quiet) {
@@ -60,7 +75,7 @@ sil164ReadByte(SIL164Ptr sil, int addr, CARD8 *ch)
 }
 
 static Bool
-sil164WriteByte(SIL164Ptr sil, int addr, CARD8 ch)
+sil164WriteByte(SIL164Ptr sil, int addr, uint8_t ch)
 {
     if (!xf86I2CWriteByte(&(sil->d), addr, ch)) {
 	if (!sil->quiet) {
@@ -131,7 +146,7 @@ static xf86OutputStatus
 sil164_detect(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
-    CARD8 reg9;
+    uint8_t reg9;
 
     sil164ReadByte(sil, SIL164_REG9, &reg9);
 
@@ -190,7 +205,7 @@ static void
 sil164_dump_regs(I2CDevPtr d)
 {
     SIL164Ptr sil = SILPTR(d);
-    CARD8 val;
+    uint8_t val;
 
     sil164ReadByte(sil, SIL164_FREQ_LO, &val);
     xf86DrvMsg(sil->d.pI2CBus->scrnIndex, X_INFO, "SIL164_FREQ_LO: 0x%02x\n",

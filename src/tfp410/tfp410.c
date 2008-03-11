@@ -44,8 +44,23 @@
 #include "tfp410.h"
 #include "tfp410_reg.h"
 
+typedef struct _TFP410SaveRec {
+    uint8_t ctl1;
+    uint8_t ctl2;
+} TFP410SaveRec;
+
+typedef struct {
+    I2CDevRec d;
+    Bool quiet;
+
+    TFP410SaveRec SavedReg;
+    TFP410SaveRec ModeReg;
+} TFP410Rec, *TFP410Ptr;
+
+#define TFPPTR(d) ((TFP410Ptr)(d->DriverPrivate.ptr))
+
 static Bool
-tfp410ReadByte(TFP410Ptr tfp, int addr, CARD8 *ch)
+tfp410ReadByte(TFP410Ptr tfp, int addr, uint8_t *ch)
 {
     if (!xf86I2CReadByte(&(tfp->d), addr, ch)) {
 	if (!tfp->quiet) {
@@ -59,7 +74,7 @@ tfp410ReadByte(TFP410Ptr tfp, int addr, CARD8 *ch)
 }
 
 static Bool
-tfp410WriteByte(TFP410Ptr tfp, int addr, CARD8 ch)
+tfp410WriteByte(TFP410Ptr tfp, int addr, uint8_t ch)
 {
     if (!xf86I2CWriteByte(&(tfp->d), addr, ch)) {
 	if (!tfp->quiet) {
@@ -191,7 +206,7 @@ static void
 tfp410_dump_regs(I2CDevPtr d)
 {
     TFP410Ptr tfp = TFPPTR(d);
-    CARD8 val, val2;
+    uint8_t val, val2;
 
     tfp410ReadByte(tfp, TFP410_REV, &val);
     xf86DrvMsg(tfp->d.pI2CBus->scrnIndex, X_INFO,
