@@ -237,7 +237,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	switch(minor) {
 	case 1:
 	case 2:
-	    spc2_ptr = &spc_param.sPCLKInput;
+	    spc2_ptr = (PIXEL_CLOCK_PARAMETERS_V2*)&spc_param.sPCLKInput;
 	    spc2_ptr->usPixelClock = sclock;
 	    spc2_ptr->usRefDiv = ref_div;
 	    spc2_ptr->usFbDiv = fb_div;
@@ -248,8 +248,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    ptr = &spc_param;
 	    break;
 	case 3:
-	    spc3_ptr = &spc_param.sPCLKInput;
-
+	    spc3_ptr = (PIXEL_CLOCK_PARAMETERS_V3*)&spc_param.sPCLKInput;
 	    spc3_ptr->usPixelClock = sclock;
 	    spc3_ptr->usRefDiv = ref_div;
 	    spc3_ptr->usFbDiv = fb_div;
@@ -331,7 +330,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned long fb_location = crtc->scrn->fbOffset + info->fbLocation;
-    Bool           tilingOld   = info->tilingEnabled;
     int need_tv_timings = 0;
     int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
