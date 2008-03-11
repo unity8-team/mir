@@ -132,9 +132,17 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    ADVANCE_LP_RING();
 
    if (!planar) {
-      FS_LOCALS(3);
+      FS_LOCALS(10);
 
-      BEGIN_LP_RING(10);
+      BEGIN_LP_RING(16);
+      OUT_RING(_3DSTATE_PIXEL_SHADER_CONSTANTS | 4);
+      OUT_RING(0x0000001);	/* constant 0 */
+      /* constant 0: brightness/contrast */
+      OUT_RING_F(pPriv->brightness / 128.0);
+      OUT_RING_F(pPriv->contrast / 255.0);
+      OUT_RING_F(0.0);
+      OUT_RING_F(0.0);
+
       OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
       OUT_RING(0x00000001);
       OUT_RING(SS2_COLORSPACE_CONVERSION |
@@ -162,17 +170,23 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ms3 |= (width - 1) << MS3_WIDTH_SHIFT;
       OUT_RING(ms3);
       OUT_RING(((video_pitch / 4) - 1) << MS4_PITCH_SHIFT);
+
       ADVANCE_LP_RING();
 
       FS_BEGIN();
       i915_fs_dcl(FS_S0);
       i915_fs_dcl(FS_T0);
       i915_fs_texld(FS_OC, FS_S0, FS_T0);
+      if (pPriv->brightness != 0) {
+	  i915_fs_add(FS_OC,
+		      i915_fs_operand_reg(FS_OC),
+		      i915_fs_operand(FS_C0, X, X, X, ZERO));
+      }
       FS_END();
    } else {
       FS_LOCALS(16);
 
-      BEGIN_LP_RING(18 + 11 + 11);
+      BEGIN_LP_RING(22 + 11 + 11);
       /* For the planar formats, we set up three samplers -- one for each plane,
        * in a Y8 format.  Because I couldn't get the special PLANAR_TO_PACKED
        * shader setup to work, I did the manual pixel shader:
@@ -192,8 +206,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        * r3 = (v,v,v,v)
        * OC = (r,g,b,1)
        */
-      OUT_RING(_3DSTATE_PIXEL_SHADER_CONSTANTS | 16);
-      OUT_RING(0x000000f);	/* constants 0-3 */
+      OUT_RING(_3DSTATE_PIXEL_SHADER_CONSTANTS | (22 - 2));
+      OUT_RING(0x000001f);	/* constants 0-4 */
       /* constant 0: normalization offsets */
       OUT_RING_F(-0.0625);
       OUT_RING_F(-0.5);
@@ -212,6 +226,11 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       /* constant 3: b coefficients */
       OUT_RING_F(1.1643);
       OUT_RING_F(2.017);
+      OUT_RING_F(0.0);
+      OUT_RING_F(0.0);
+      /* constant 4: brightness/contrast */
+      OUT_RING_F(pPriv->brightness / 128.0);
+      OUT_RING_F(pPriv->contrast / 255.0);
       OUT_RING_F(0.0);
       OUT_RING_F(0.0);
 
@@ -305,6 +324,12 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        * the source.
        */
       i915_fs_mov_masked(FS_OC, MASK_W, i915_fs_operand_one());
+
+      if (pPriv->brightness != 0) {
+	  i915_fs_add(FS_OC,
+		      i915_fs_operand_reg(FS_OC),
+		      i915_fs_operand(FS_C4, X, X, X, ZERO));
+      }
       FS_END();
    }
    

@@ -94,6 +94,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
 static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+static int I830SetPortAttributeTextured(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 static void I830QueryBestSize(ScrnInfoPtr, Bool,
 			      short, short, short, short, unsigned int *,
@@ -940,7 +941,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
     adapt->GetVideo = NULL;
     adapt->GetStill = NULL;
     adapt->StopVideo = I830StopVideo;
-    adapt->SetPortAttribute = I830SetPortAttribute;
+    adapt->SetPortAttribute = I830SetPortAttributeTextured;
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
@@ -1029,20 +1030,33 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 }
 
 static int
+I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
+			     Atom attribute, INT32 value, pointer data)
+{
+    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
+
+    if (attribute == xvBrightness) {
+	if ((value < -128) || (value > 127))
+	    return BadValue;
+	pPriv->brightness = value;
+	return Success;
+    } else if (attribute == xvContrast) {
+	if ((value < 0) || (value > 255))
+	    return BadValue;
+	pPriv->contrast = value;
+	return Success;
+    } else {
+	return BadMatch;
+    }
+}
+
+static int
 I830SetPortAttribute(ScrnInfoPtr pScrn,
 		     Atom attribute, INT32 value, pointer data)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     I830Ptr pI830 = I830PTR(pScrn);
     I830OverlayRegPtr overlay;
-
-    if (pPriv->textured) {
-	/* XXX: Currently the brightness/saturation attributes aren't hooked up.
-	 * However, apps expect them to be there, and the spec seems to let us
-	 * sneak out of actually implementing them for now.
-	 */
-	return Success;
-    }
 
     overlay = I830OVERLAYREG(pI830);
 
