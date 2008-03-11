@@ -1,6 +1,9 @@
-01_gen_pci_ids.diff
 01_fix_compiz_video.diff
+01_gen_pci_ids.diff
 03_dell_1535_quirk.diff
 04_dell_1735_quirk.diff
-07_intel_exa_force_all_greedy.patch
+05_intel_exa_force_greedy.patch
+#07_intel_exa_force_all_greedy.patch
 08_945gm_quirk.diff
+10_hw_overlay.diff
+11_hw_overlay_option.diff

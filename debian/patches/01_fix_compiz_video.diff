@@ -24,19 +24,6 @@ Index: xserver-xorg-video-intel-2.1.1/src/i830_video.c
 ===================================================================
 --- xserver-xorg-video-intel-2.1.1.orig/src/i830_video.c	2007-10-12 13:38:10.000000000 +0100
 +++ xserver-xorg-video-intel-2.1.1/src/i830_video.c	2007-10-12 13:39:03.000000000 +0100
-@@ -569,8 +569,12 @@
-     /* Set up textured video if we can do it at this depth and we are on
-      * supported hardware.
-      */
-+#if 0
-     if (pScrn->bitsPerPixel >= 16 && (IS_I9XX(pI830) || IS_I965G(pI830)) &&
- 	!(!IS_I965G(pI830) && pScrn->displayWidth > 2048))
-+#endif
-+    if (pScrn->bitsPerPixel >= 16 && IS_I965G(pI830) &&
-+	!(!IS_I965G(pI830) && pScrn->displayWidth > 2048))
-     {
- 	texturedAdaptor = I830SetupImageVideoTextured(pScreen);
- 	if (texturedAdaptor != NULL) {
 @@ -2504,6 +2509,7 @@
  	if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
  	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
