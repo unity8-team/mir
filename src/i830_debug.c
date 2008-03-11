@@ -957,13 +957,14 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    ErrorF("pgetbl_ctl: 0x%" PRIx32 "getbl_err: 0x%" PRIx32 "\n",
+    ErrorF("pgetbl_ctl: 0x%" CARD32_HEX "getbl_err: 0x%" CARD32_HEX "\n",
 	   INREG(PGETBL_CTL), INREG(PGE_ERR));
 
-    ErrorF("ipeir: %" PRIx32 " iphdr: %" PRIx32 "\n", INREG(IPEIR),
+    ErrorF("ipeir: %" CARD32_HEX " iphdr: %" CARD32_HEX "\n", INREG(IPEIR),
 	   INREG(IPEHR));
 
-    ErrorF("LP ring tail: %" PRIx32 " head: %" PRIx32 " len: %" PRIx32 " start %" PRIx32 "\n",
+    ErrorF("LP ring tail: %" CARD32_HEX " head: %" CARD32_HEX
+	   " len: %" CARD32_HEX " start %" CARD32_HEX "\n",
 	   INREG(LP_RING + RING_TAIL),
 	   INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
 	   INREG(LP_RING + RING_LEN),
@@ -974,8 +975,8 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 
     ErrorF("instdone: %x instpm: %x\n", INREG16(INST_DONE), INREG8(INST_PM));
 
-    ErrorF("memmode: %" PRIx32 " instps: %" PRIx32 "\n", INREG(MEMMODE),
-	   INREG(INST_PS));
+    ErrorF("memmode: %" CARD32_HEX " instps: %" CARD32_HEX "\n",
+	   INREG(MEMMODE), INREG(INST_PS));
 
     ErrorF("hwstam: %x ier: %x imr: %x iir: %x\n",
 	   INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
@@ -987,12 +988,14 @@ i965_dump_error_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    ErrorF("pgetbl_ctl: 0x%" PRIx32 " pgetbl_err: 0x%" PRIx32 "\n",
+    ErrorF("pgetbl_ctl: 0x%" CARD32_HEX " pgetbl_err: 0x%" CARD32_HEX "\n",
 	   INREG(PGETBL_CTL), INREG(PGE_ERR));
 
-    ErrorF("ipeir: %" PRIx32 " iphdr: %" PRIx32 "\n", INREG(IPEIR_I965), INREG(IPEHR_I965));
+    ErrorF("ipeir: %" CARD32_HEX " iphdr: %" CARD32_HEX "\n",
+	   INREG(IPEIR_I965), INREG(IPEHR_I965));
 
-    ErrorF("LP ring tail: %" PRIx32 " head: %" PRIx32 " len: %" PRIx32 " start %" PRIx32 "\n",
+    ErrorF("LP ring tail: %" CARD32_HEX " head: %" CARD32_HEX 
+	   " len: %" CARD32_HEX " start %" CARD32_HEX "\n",
 	   INREG(LP_RING + RING_TAIL),
 	   INREG(LP_RING + RING_HEAD) & HEAD_ADDR,
 	   INREG(LP_RING + RING_LEN), INREG(LP_RING + RING_START));
@@ -1004,15 +1007,18 @@ i965_dump_error_state(ScrnInfoPtr pScrn)
 	   (int)INREG(INST_DONE_1));
     ErrorF("instpm: %x\n", (int)INREG(INST_PM));
 
-    ErrorF("memmode: %" PRIx32 " instps: %" PRIx32 "\n", INREG(MEMMODE), INREG(INST_PS_I965));
+    ErrorF("memmode: %" CARD32_HEX " instps: %" CARD32_HEX "\n",
+	   INREG(MEMMODE), INREG(INST_PS_I965));
 
     ErrorF("HW Status mask (hwstam): %x\nIRQ enable (ier): %x "
 	   "imr: %x iir: %x\n",
 	   (int)INREG(HWSTAM), (int)INREG(IER), (int)INREG(IMR),
 	   (int)INREG(IIR));
 
-    ErrorF("acthd: %" PRIx32 " dma_fadd_p: %" PRIx32 "\n", INREG(ACTHD), INREG(DMA_FADD_P));
-    ErrorF("ecoskpd: %" PRIx32 " excc: %" PRIx32 "\n", INREG(ECOSKPD), INREG(EXCC));
+    ErrorF("acthd: %" CARD32_HEX " dma_fadd_p: %" CARD32_HEX "\n",
+	   INREG(ACTHD), INREG(DMA_FADD_P));
+    ErrorF("ecoskpd: %" CARD32_HEX " excc: %" CARD32_HEX "\n",
+	   INREG(ECOSKPD), INREG(EXCC));
 
     ErrorF("cache_mode: %x/%x\n", (int)INREG(CACHE_MODE_0),
 	   (int)INREG(CACHE_MODE_1));

@@ -843,4 +843,11 @@ extern const int I830CopyROP[16];
 #define QUIRK_IVCH_NEED_DVOB		0x00000010
 extern void i830_fixup_devices(ScrnInfoPtr);
 
+/* Mirrors CARD32 definition in Xmd.h */
+#ifdef LONG64
+#define CARD32_HEX "x"
+#else
+#define CARD32_HEX "lx"
+#endif
+
 #endif /* _I830_H_ */
