@@ -660,11 +660,6 @@ atombios_output_dig_dpms(xf86OutputPtr output, int mode, int block)
     AtomBiosArgRec data;
     unsigned char *space;
 
-    /* this tends to cause problems
-     * just turning off the crtc seems to be adequte for now
-     */
-    return ATOM_NOT_IMPLEMENTED;
-
     switch (mode) {
     case DPMSModeOn:
 	disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT;
