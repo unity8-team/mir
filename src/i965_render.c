@@ -629,7 +629,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     memset(dest_surf_state, 0, sizeof(*dest_surf_state));
     dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
-    i965_get_dest_format(pDstPicture, &dst_format);
+    if (!i965_get_dest_format(pDstPicture, &dst_format))
+	return FALSE;
     dest_surf_state->ss0.surface_format = dst_format;
 
     dest_surf_state->ss0.writedisable_alpha = 0;

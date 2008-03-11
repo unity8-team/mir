@@ -322,7 +322,8 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
 
-    i915_get_dest_format(pDstPicture, &dst_format);
+    if (!i915_get_dest_format(pDstPicture, &dst_format))
+	return FALSE;
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
     FS_LOCALS(20);
