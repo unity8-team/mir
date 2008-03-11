@@ -2177,16 +2177,17 @@ void RADEONInitConnector(xf86OutputPtr output)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->DACType == DAC_PRIMARY)
+    if (info->IsAtomBios &&
+	((radeon_output->DACType == DAC_PRIMARY) ||
+	 (radeon_output->DACType == DAC_TVDAC)))
+	radeon_output->load_detection = 1;
+    else if (radeon_output->DACType == DAC_PRIMARY)
 	radeon_output->load_detection = 1; /* primary dac, only drives vga */
-    /*else if (radeon_output->DACType == DAC_TVDAC &&
-	     info->tvdac_use_count < 2)
-	     radeon_output->load_detection = 1;*/ /* only one output with tvdac */
     else if ((radeon_output->DACType == DAC_TVDAC) &&
 	     (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE)))
 	radeon_output->load_detection = 1; /* shared tvdac between vga/dvi/tv */
     else
-	radeon_output->load_detection = 0; /* shared tvdac between vga/dvi/tv */
+	radeon_output->load_detection = 0;
 
     if (radeon_output->type == OUTPUT_LVDS) {
 	radeon_output->rmx_type = RMX_FULL;
