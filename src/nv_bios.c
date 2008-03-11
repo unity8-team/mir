@@ -2793,10 +2793,7 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 
 	nv_dcb_write_tmds(pScrn, dcb_entry, 0, 0x04, tmds04);
 
-	/* does tmds_ctrl2 need setting at all for OUTPUT_TMDS? */
-	if (dcbent->type == OUTPUT_TMDS)
-		nv_dcb_write_tmds(pScrn, dcb_entry, 1, 0x04, 0);
-	else if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
+	if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
 		nv_dcb_write_tmds(pScrn, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
 }
 
