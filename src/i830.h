@@ -121,11 +121,12 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-                                         CARD8 index, CARD8 value);
-typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-                                        CARD8 index);
-typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
-typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
+                                         uint8_t index, uint8_t value);
+typedef uint8_t(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
+					  uint8_t index);
+typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr,
+				  uint8_t value);
+typedef uint8_t(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
 enum tile_format {
     TILE_NONE,

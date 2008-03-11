@@ -3511,7 +3511,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 {
    ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD8 gr18;
+   uint8_t gr18;
 
    if (!pScrn->vtSema)
       return 1000;
