@@ -342,8 +342,9 @@ static Bool i915_allocate_xvmc_buffers(ScrnInfoPtr pScrn, I915XvMCContextPriv *c
         return FALSE;
     }
 
+    if (0)
+	i830_describe_allocations(pScrn, 1, "");
 
-    i830_describe_allocations(pScrn, 1, "");
     return TRUE;
 }
 
@@ -577,7 +578,10 @@ static int i915_xvmc_create_surface (ScrnInfoPtr pScrn, XvMCSurfacePtr pSurf,
         *num_priv = 0;
         return BadAlloc;
     }
-    i830_describe_allocations(pScrn, 1, "");
+
+    if (0)
+	i830_describe_allocations(pScrn, 1, "");
+
     if (drmAddMap(pI830->drmSubFD,
                   (drm_handle_t)(sfpriv->surface->offset + pI830->LinearAddr),
                   sfpriv->surface->size, DRM_AGP, 0,
