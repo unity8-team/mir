@@ -31,32 +31,37 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _INTEL_RING_H
 
 #define OUT_RING(n) do {						\
-   if (I810_DEBUG & DEBUG_VERBOSE_RING)					\
-      ErrorF( "OUT_RING %lx: %x, (mask %x)\n",				\
-		(unsigned long)(outring), (unsigned int)(n), ringmask);	\
-   *(volatile unsigned int *)(virt + outring) = n;			\
-   outring += 4; ringused += 4;						\
-   outring &= ringmask;							\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF("OUT_RING 0x%08x: 0x%08x, (mask %x)\n",			\
+	       pI830->ring_next, (unsigned int)(n),			\
+	       pI830->LpRing->tail_mask);				\
+    *(volatile uint32_t *)(pI830->LpRing->virtual_start +		\
+			   pI830->ring_next) = n;			\
+    pI830->ring_used += 4;						\
+    pI830->ring_next += 4;						\
+    pI830->ring_next &= pI830->LpRing->tail_mask;			\
 } while (0)
 
 /** Copies a given number of bytes to the ring */
 #define OUT_RING_COPY(n, ptr) do {					\
     if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
 	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
-    memcpy_volatile(virt + outring, ptr, n);				\
-    outring += n;							\
-    ringused += n;							\
-    outring &= ringmask;						\
+    memcpy_volatile(pI830->LpRing->virtual_start + pI830->ring_next,	\
+		    ptr, n);						\
+    pI830->ring_used += n;						\
+    pI830->ring_next += n;						\
+    pI830->ring_next &= pI830->LpRing->tail_mask;			\
 } while (0)
 
 /** Pads the ring with a given number of zero bytes */
 #define OUT_RING_PAD(n) do {						\
     if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
 	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
-    memset_volatile(virt + outring, 0, n);				\
-    outring += n;							\
-    ringused += n;							\
-    outring &= ringmask;						\
+    memset_volatile(pI830->LpRing->virtual_start + pI830->ring_next,	\
+		    0, n);						\
+    pI830->ring_used += n;						\
+    pI830->ring_next += n;						\
+    pI830->ring_next &= pI830->LpRing->tail_mask;			\
 } while (0)
 
 union intfloat {
@@ -68,22 +73,28 @@ union intfloat {
 	union intfloat tmp;			\
 	tmp.f = (float)(x);			\
 	OUT_RING(tmp.ui);			\
-} while(0)				
+} while(0)
 
 #define ADVANCE_LP_RING() do {						\
-   if (ringused > needed)          \
-      FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
-	     __FUNCTION__, ringused, needed);   			\
-   else if (ringused < needed)						\
-      FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ",	\
-	     __FUNCTION__, ringused, needed);   			\
-   pI830->LpRing->tail = outring;					\
-   pI830->LpRing->space -= ringused;					\
-   if (outring & 0x07)							\
-      FatalError("%s: ADVANCE_LP_RING: "				\
-	     "outring (0x%x) isn't on a QWord boundary\n",		\
-	     __FUNCTION__, outring);					\
-   OUTREG(LP_RING + RING_TAIL, outring);				\
+    if (pI830->ring_emitting == 0)					\
+	FatalError("%s: ADVANCE_LP_RING called with no matching "	\
+		   "BEGIN_LP_RING\n", __FUNCTION__);			\
+    if (pI830->ring_used > pI830->ring_emitting)			\
+	FatalError("%s: ADVANCE_LP_RING: exceeded allocation %d/%d\n ",	\
+		   __FUNCTION__, pI830->ring_used,			\
+		   pI830->ring_emitting);				\
+    if (pI830->ring_used < pI830->ring_emitting)			\
+	FatalError("%s: ADVANCE_LP_RING: under-used allocation %d/%d\n ", \
+		   __FUNCTION__, pI830->ring_used,			\
+		   pI830->ring_emitting);				\
+    pI830->LpRing->tail = pI830->ring_next;				\
+    pI830->LpRing->space -= pI830->ring_used;				\
+    if (pI830->ring_next & 0x07)					\
+	FatalError("%s: ADVANCE_LP_RING: "				\
+		   "ring_next (0x%x) isn't on a QWord boundary\n",	\
+		   __FUNCTION__, pI830->ring_next);			\
+    OUTREG(LP_RING + RING_TAIL, pI830->ring_next);			\
+    pI830->ring_emitting = 0;						\
 } while (0)
 
 /*
@@ -92,30 +103,33 @@ union intfloat {
  * a problem.  Check this!
  */
 #define DO_RING_IDLE() do {						\
-   int _head;								\
-   int _tail;								\
-   do {									\
-      _head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;		\
-      _tail = INREG(LP_RING + RING_TAIL) & I830_TAIL_MASK;		\
-      DELAY(10);							\
-   } while (_head != _tail);						\
-} while( 0)
+    int _head;								\
+    int _tail;								\
+    do {								\
+	_head = INREG(LP_RING + RING_HEAD) & I830_HEAD_MASK;		\
+	_tail = INREG(LP_RING + RING_TAIL) & I830_TAIL_MASK;		\
+	DELAY(10);							\
+    } while (_head != _tail);						\
+} while (0)
 
 #define BEGIN_LP_RING(n)						\
-   unsigned int outring, ringmask, ringused = 0;			\
-   volatile unsigned char *virt;					\
-   int needed;								\
-   if ((n) & 1)								\
-      ErrorF("BEGIN_LP_RING called with odd argument: %d\n", n);	\
-   if ((n) > 2 && (I810_DEBUG&DEBUG_ALWAYS_SYNC))			\
-      DO_RING_IDLE();							\
-   needed = (n) * 4;							\
-   if (pI830->LpRing->space < needed)					\
-      WaitRingFunc(pScrn, needed, 0);					\
-   outring = pI830->LpRing->tail;					\
-   ringmask = pI830->LpRing->tail_mask;					\
-   virt = pI830->LpRing->virtual_start;					\
-   if (I810_DEBUG & DEBUG_VERBOSE_RING)					\
-      ErrorF( "BEGIN_LP_RING %d in %s\n", n, FUNCTION_NAME);
+do {									\
+    if (pI830->ring_emitting != 0)					\
+	FatalError("%s: BEGIN_LP_RING called without closing "		\
+		   "ADVANCE_LP_RING\n", __FUNCTION__);			\
+    if ((n) > 2 && (I810_DEBUG&DEBUG_ALWAYS_SYNC))			\
+	DO_RING_IDLE();							\
+    pI830->ring_emitting = (n) * 4;					\
+    if ((n) & 1)							\
+	pI830->ring_emitting += 4;					\
+    if (pI830->LpRing->space < pI830->ring_emitting)			\
+	WaitRingFunc(pScrn, pI830->ring_emitting, 0);			\
+    pI830->ring_next = pI830->LpRing->tail;				\
+    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
+	ErrorF( "BEGIN_LP_RING %d in %s\n", n, FUNCTION_NAME);		\
+    pI830->ring_used = 0;						\
+    if ((n) & 1)							\
+	OUT_RING(MI_NOOP);						\
+} while (0)
 
 #endif /* _INTEL_RING_H */

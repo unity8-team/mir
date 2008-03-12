@@ -395,6 +395,13 @@ typedef struct _I830Rec {
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
 
+   /** Number of bytes being emitted in the current BEGIN_LP_RING */
+   unsigned int ring_emitting;
+   /** Number of bytes that have been emitted in the current BEGIN_LP_RING */
+   unsigned int ring_used;
+   /** Offset in the ring for the next DWORD emit */
+   uint32_t ring_next;
+
 #ifdef I830_XV
    /* For Xvideo */
    i830_memory *overlay_regs;
