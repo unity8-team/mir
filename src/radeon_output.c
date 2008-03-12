@@ -1440,6 +1440,26 @@ radeon_create_resources(xf86OutputPtr output)
 }
 
 static Bool
+radeon_set_mode_for_property(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+
+    if (output->crtc) {
+	xf86CrtcPtr crtc = output->crtc;
+
+	if (crtc->enabled) {
+	    if (!xf86CrtcSetMode(crtc, &crtc->desiredMode, crtc->desiredRotation,
+				 crtc->desiredX, crtc->desiredY)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to set mode after propery change!\n");
+		return FALSE;
+	    }
+	}
+    }
+    return TRUE;
+}
+
+static Bool
 radeon_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
 {
@@ -1479,6 +1499,8 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_output->load_detection = val;
 
     } else if (property == coherent_mode_atom) {
+	Bool coherent_mode = radeon_output->coherent_mode;
+
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
 	    value->size != 1) {
@@ -1490,23 +1512,33 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 
 	radeon_output->coherent_mode = val;
+	if (!radeon_set_mode_for_property(output)) {
+	    radeon_output->coherent_mode = coherent_mode;
+	    (void)radeon_set_mode_for_property(output);
+	    return FALSE;
+	}
 
     } else if (property == rmx_atom) {
 	const char *s;
+	RADEONRMXType rmx = radeon_output->rmx_type;
+
 	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("full") && !strncmp("full", s, strlen("full"))) {
 	    radeon_output->rmx_type = RMX_FULL;
-	    return TRUE;
 	} else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
 	    radeon_output->rmx_type = RMX_CENTER;
-	    return TRUE;
 	} else if (value->size == strlen("off") && !strncmp("off", s, strlen("off"))) {
 	    radeon_output->rmx_type = RMX_OFF;
-	    return TRUE;
+	} else
+	    return FALSE;
+
+	if (!radeon_set_mode_for_property(output)) {
+	    radeon_output->rmx_type = rmx;
+	    (void)radeon_set_mode_for_property(output);
+	    return FALSE;
 	}
-	return FALSE;
     } else if (property == tmds_pll_atom) {
 	const char *s;
 	if (value->type != XA_STRING || value->format != 8)
@@ -1515,12 +1547,12 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	if (value->size == strlen("bios") && !strncmp("bios", s, strlen("bios"))) {
 	    if (!RADEONGetTMDSInfoFromBIOS(output))
 		RADEONGetTMDSInfoFromTable(output);
-	    return TRUE;
 	} else if (value->size == strlen("driver") && !strncmp("driver", s, strlen("driver"))) {
 	    RADEONGetTMDSInfoFromTable(output);
-	    return TRUE;
-	}
-	return FALSE;
+	} else
+	    return FALSE;
+
+	return radeon_set_mode_for_property(output);
     } else if (property == monitor_type_atom) {
 	const char *s;
 	if (value->type != XA_STRING || value->format != 8)
@@ -1535,8 +1567,8 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	} else if (value->size == strlen("digital") && !strncmp("digital", s, strlen("digital"))) {
 	    radeon_output->DVIType = DVI_DIGITAL;
 	    return TRUE;
-	}
-	return FALSE;
+	} else
+	    return FALSE;
     } else if (property == tv_hsize_atom) {
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
@@ -1551,7 +1583,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_output->hSize = val;
 	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
-	return TRUE;
+
     } else if (property == tv_hpos_atom) {
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
@@ -1566,7 +1598,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_output->hPos = val;
 	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
-	return TRUE;
+
     } else if (property == tv_vpos_atom) {
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
@@ -1581,38 +1613,38 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	radeon_output->vPos = val;
 	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
-	return TRUE;
+
     } else if (property == tv_std_atom) {
 	const char *s;
+	TVStd std = radeon_output->tvStd;
+
 	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
 	    radeon_output->tvStd = TV_STD_NTSC;
-	    return TRUE;
 	} else if (value->size == strlen("pal") && !strncmp("pal", s, strlen("pal"))) {
 	    radeon_output->tvStd = TV_STD_PAL;
-	    return TRUE;
 	} else if (value->size == strlen("pal-m") && !strncmp("pal-m", s, strlen("pal-m"))) {
 	    radeon_output->tvStd = TV_STD_PAL_M;
-	    return TRUE;
 	} else if (value->size == strlen("pal-60") && !strncmp("pal-60", s, strlen("pal-60"))) {
 	    radeon_output->tvStd = TV_STD_PAL_60;
-	    return TRUE;
 	} else if (value->size == strlen("ntsc-j") && !strncmp("ntsc-j", s, strlen("ntsc-j"))) {
 	    radeon_output->tvStd = TV_STD_NTSC_J;
-	    return TRUE;
 	} else if (value->size == strlen("scart-pal") && !strncmp("scart-pal", s, strlen("scart-pal"))) {
 	    radeon_output->tvStd = TV_STD_SCART_PAL;
-	    return TRUE;
 	} else if (value->size == strlen("pal-cn") && !strncmp("pal-cn", s, strlen("pal-cn"))) {
 	    radeon_output->tvStd = TV_STD_PAL_CN;
-	    return TRUE;
 	} else if (value->size == strlen("secam") && !strncmp("secam", s, strlen("secam"))) {
 	    radeon_output->tvStd = TV_STD_SECAM;
-	    return TRUE;
+	} else
+	    return FALSE;
+
+	if (!radeon_set_mode_for_property(output)) {
+	    radeon_output->tvStd = std;
+	    (void)radeon_set_mode_for_property(output);
+	    return FALSE;
 	}
-	return FALSE;
     }
 
     return TRUE;
