@@ -28,6 +28,7 @@
 #ifndef _I830_BIOS_H_
 #define _I830_BIOS_H_
 
+#include <stdint.h>
 #include <xf86str.h>
 
 struct vbt_header {
