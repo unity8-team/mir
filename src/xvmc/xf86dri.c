@@ -374,8 +374,7 @@ uniDRICreateContext(dpy, screen, visual, context, hHWContext)
     drm_context_t *hHWContext;
 {
     return uniDRICreateContextWithConfig(dpy, screen,
-	   visual ? visual->visualid : 0,
-	context, hHWContext);
+	   visual->visualid, context, hHWContext);
 }
 
 Bool

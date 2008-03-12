@@ -337,7 +337,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
     pthread_mutex_init(&xvmc_driver->ctxmutex, NULL);
 
     /* context_id is alloc in _xvmc_create_context */
-    if (!uniDRICreateContext(display, screen, NULL,
+    if (!uniDRICreateContext(display, screen, DefaultVisual(display, screen),
 			     context->context_id,
                              &intel_ctx->hw_context)) {
         XVMC_ERR("Could not create DRI context for xvmc ctx %d.",
