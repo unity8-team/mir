@@ -29,6 +29,7 @@
 #include "config.h"
 #endif
 
+#include <stdint.h>
 #include <unistd.h>
 
 #include "xf86.h"

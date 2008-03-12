@@ -30,6 +30,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "config.h"
 #endif
 
+#include <stdint.h>
 #include <string.h>
 #include "xf86.h"
 #include "xf86_OSproc.h"
