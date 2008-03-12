@@ -65,6 +65,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include "common.h"
+#include "i810_ring.h"
 
 #define I810_VERSION 4000
 #define I810_NAME "intel"

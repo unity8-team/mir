@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -97,6 +96,7 @@ Bool I830XAAInit(ScreenPtr pScreen);
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #include "common.h"
+#include "i830_ring.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
