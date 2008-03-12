@@ -68,6 +68,7 @@ static char *backlight_interfaces[] = {
     "thinkpad_screen",
     "acpi_video1",
     "acpi_video0",
+    "fujitsu-laptop",
     NULL,
 };
 
