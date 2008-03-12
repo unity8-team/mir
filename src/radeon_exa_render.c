@@ -425,7 +425,7 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 					    PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format = 0, dst_offset, dst_pitch, colorpitch;
+    CARD32 dst_format, dst_offset, dst_pitch, colorpitch;
     CARD32 pp_cntl, blendcntl, cblend, ablend;
     int pixel_shift;
     ACCEL_PREAMBLE();
@@ -435,7 +435,9 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
-    RADEONGetDestFormat(pDstPicture, &dst_format);
+    if (!RADEONGetDestFormat(pDstPicture, &dst_format))
+    	return FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
@@ -707,7 +709,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format = 0, dst_offset, dst_pitch;
+    CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 pp_cntl, blendcntl, cblend, ablend, colorpitch;
     int pixel_shift;
     ACCEL_PREAMBLE();
@@ -717,7 +719,9 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
-    RADEONGetDestFormat(pDstPicture, &dst_format);
+    if (!RADEONGetDestFormat(pDstPicture, &dst_format))
+    	return FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
@@ -1030,7 +1034,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format = 0, dst_offset, dst_pitch;
+    CARD32 dst_format, dst_offset, dst_pitch;
     CARD32 txenable, colorpitch;
     CARD32 blendcntl;
     int pixel_shift;
@@ -1044,7 +1048,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
-    R300GetDestFormat(pDstPicture, &dst_format);
+    if (!R300GetDestFormat(pDstPicture, &dst_format))
+    	return FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
