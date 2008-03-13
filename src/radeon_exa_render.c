@@ -1279,7 +1279,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    break;
 	}
 
-      BEGIN_ACCEL(17);
+	if (pMask)
+	    BEGIN_ACCEL(18);
+	else
+	    BEGIN_ACCEL(17);
       OUT_ACCEL_REG(R300_RS_COUNT,
 		    ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 		     R300_RS_COUNT_HIRES_EN));
@@ -1331,10 +1334,17 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_TEX_DST_ADDR(0) |
 		     R300_TEX_ID(0) |
 		     R300_TEX_INST(R300_TEX_INST_LD)));
+      if (pMask) {
+	  OUT_ACCEL_REG(R300_US_TEX_INST_1,
+			(R300_TEX_SRC_ADDR(1) |
+			 R300_TEX_DST_ADDR(1) |
+			 R300_TEX_ID(1) |
+			 R300_TEX_INST(R300_TEX_INST_LD)));
+      }
 
       OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
 		    (R300_ALU_RGB_ADDR0(0) |
-		     R300_ALU_RGB_ADDR1(0) |
+		     R300_ALU_RGB_ADDR1(1) |
 		     R300_ALU_RGB_ADDR2(0) |
 		     R300_ALU_RGB_ADDRD(0) |
 		     R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
@@ -1355,7 +1365,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
       OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
 		    (R300_ALU_ALPHA_ADDR0(0) |
-		     R300_ALU_ALPHA_ADDR1(0) |
+		     R300_ALU_ALPHA_ADDR1(1) |
 		     R300_ALU_ALPHA_ADDR2(0) |
 		     R300_ALU_ALPHA_ADDRD(0) |
 		     R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |
