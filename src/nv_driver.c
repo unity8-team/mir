@@ -481,9 +481,9 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 
 	pci_device_unmap_range(dev, (void *) regs, 0x90000);
 
-	/* Currently NV04 up to NV83 is supported */
-	/* For safety the fictional NV8F is used */
-	if (architecture >= 0x04 && architecture <= 0x8F) {
+	/* Currently NV04 up to NV98 is known. */
+	/* Using 0x9F as upper bound for some margin. */
+	if (architecture >= 0x04 && architecture <= 0x9F) {
 
 		/* At this stage the pci_id should be ok, so we generate this
 		 * to avoid list duplication */
@@ -563,8 +563,8 @@ NVProbe(DriverPtr drv, int flags)
 			int architecture = NVGetArchitecture(regs);
 			char name[25];
 			sprintf(name, "NVIDIA NV%02X", architecture);
-			/* NV04 upto NV83 is supported, NV8F is fictive limit */
-			if (architecture >= 0x04 && architecture <= 0x8F) {
+			/* NV04 upto NV98 is known. */
+			if (architecture >= 0x04 && architecture <= 0x9F) {
 				NVChipsets[numUsed].token = pciid;
 				NVChipsets[numUsed].name = name;
 				NVPciChipsets[numUsed].numChipset = pciid;
