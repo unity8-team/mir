@@ -503,7 +503,6 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 
 	nv_output->or = or;
 	nv_output->type = type;
-	nv_output->cached_status = XF86OutputStatusUnknown;
 	if (type == OUTPUT_TMDS)
 		nv_output->set_pclk = NV50SorSetPClk;
 	output->driver_private = nv_output;

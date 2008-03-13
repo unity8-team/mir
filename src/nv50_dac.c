@@ -203,7 +203,6 @@ NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 
 	nv_output->type = OUTPUT_ANALOG;
 	nv_output->or = or;
-	nv_output->cached_status = XF86OutputStatusUnknown;
 	nv_output->set_pclk = NV50DacSetPClk;
 	output->driver_private = nv_output;
 	output->interlaceAllowed = TRUE;

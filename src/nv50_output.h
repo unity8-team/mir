@@ -12,8 +12,6 @@ typedef struct NV50OutputPrivRec {
 
     I2CBusPtr pDDCBus;
 
-    xf86OutputStatus cached_status;
-
     void (*set_pclk)(xf86OutputPtr, int pclk);
 } NV50OutputPrivRec, *NV50OutputPrivPtr;
 
