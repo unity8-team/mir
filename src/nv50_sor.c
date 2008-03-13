@@ -78,7 +78,7 @@ static int
 NV50LVDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
-	DisplayModePtr native = nv_output->nativeMode;
+	DisplayModePtr native = nv_output->native_mode;
 
 	// Ignore modes larger than the native res.
 	if (mode->HDisplay > native->HDisplay || mode->VDisplay > native->VDisplay)
@@ -157,7 +157,7 @@ NV50SorDestroy(xf86OutputPtr output)
 
 	NV50OutputDestroy(output);
 
-	xf86DeleteMode(&nv_output->nativeMode, nv_output->nativeMode);
+	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
 
 	xfree(output->driver_private);
 	output->driver_private = NULL;
@@ -191,7 +191,7 @@ NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
-	DisplayModePtr native = nv_output->nativeMode;
+	DisplayModePtr native = nv_output->native_mode;
 
 	if(native && nv_output->scale != SCALE_PANEL) {
 		NV50SorSetModeBackend(adjusted_mode, native);
@@ -210,7 +210,7 @@ NV50SorTMDSModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 	NV50OutputPrivPtr nv_output = output->driver_private;
 	DisplayModePtr modes = output->probed_modes;
 
-	xf86DeleteMode(&nv_output->nativeMode, nv_output->nativeMode);
+	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
 
 	if(modes) {
 		// Find the preferred mode and use that as the "native" mode.
@@ -235,8 +235,8 @@ NV50SorTMDSModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 				output->name, mode->name);
 		}
 
-		nv_output->nativeMode = xf86DuplicateMode(mode);
-		NV50CrtcDoModeFixup(nv_output->nativeMode, mode);
+		nv_output->native_mode = xf86DuplicateMode(mode);
+		NV50CrtcDoModeFixup(nv_output->native_mode, mode);
 	}
 
 	return NV50SorModeFixup(output, mode, adjusted_mode);
@@ -246,7 +246,7 @@ static DisplayModePtr
 NV50SorGetLVDSModes(xf86OutputPtr output)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
-	return xf86DuplicateMode(nv_output->nativeMode);
+	return xf86DuplicateMode(nv_output->native_mode);
 }
 
 #define MAKE_ATOM(a) MakeAtom((a), sizeof(a) - 1, TRUE);
@@ -482,9 +482,9 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 		strcpy(orName, "LVDS");
 		funcs = &NV50SorLVDSOutputFuncs;
 
-		nv_output->nativeMode = GetLVDSNativeMode(pScrn);
+		nv_output->native_mode = GetLVDSNativeMode(pScrn);
 
-		if(!nv_output->nativeMode) {
+		if(!nv_output->native_mode) {
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 				"Failed to find LVDS native mode\n");
 			xfree(nv_output);
@@ -492,8 +492,8 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 		}
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s native size %dx%d\n",
-			orName, nv_output->nativeMode->HDisplay,
-			nv_output->nativeMode->VDisplay);
+			orName, nv_output->native_mode->HDisplay,
+			nv_output->native_mode->VDisplay);
 	} else {
 		snprintf(orName, 5, "DVI%d", or);
 		funcs = &NV50SorTMDSOutputFuncs;
