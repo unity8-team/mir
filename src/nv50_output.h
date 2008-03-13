@@ -4,15 +4,6 @@
 #include "nv50_display.h"
 #include "nv_type.h"
 
-typedef struct NV50OutputPrivRec {
-    uint8_t output_resource;
-    NVOutputType type;
-    DisplayModePtr native_mode;
-    uint8_t scaling_mode;
-
-    I2CBusPtr pDDCBus;
-} NV50OutputPrivRec, *NV50OutputPrivPtr;
-
 void NV50OutputSetPClk(xf86OutputPtr, int pclk);
 int NV50OutputModeValid(xf86OutputPtr, DisplayModePtr);
 void NV50OutputPrepare(xf86OutputPtr);

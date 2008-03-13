@@ -33,7 +33,7 @@
 void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
@@ -44,7 +44,7 @@ NV50SorSetPClk(xf86OutputPtr output, int pclk)
 static void
 NV50SorDPMSSet(xf86OutputPtr output, int mode)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
@@ -77,7 +77,7 @@ NV50TMDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 static int
 NV50LVDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr native = nv_output->native_mode;
 
 	// Ignore modes larger than the native res.
@@ -92,7 +92,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int sorOff = 0x40 * nv_output->output_resource;
 	CARD32 type;
 
@@ -127,7 +127,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 NV50SorDetect(xf86OutputPtr output)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 
 	if (nv_output->pDDCBus == NULL)
@@ -153,7 +153,7 @@ NV50SorLVDSDetect(xf86OutputPtr output)
 static void
 NV50SorDestroy(xf86OutputPtr output)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	NV50OutputDestroy(output);
 
@@ -190,7 +190,7 @@ static Bool
 NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr native = nv_output->native_mode;
 
 	if(native && nv_output->scaling_mode != SCALE_PANEL) {
@@ -207,7 +207,7 @@ NV50SorTMDSModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 			DisplayModePtr adjusted_mode)
 {
 	int scrnIndex = output->scrn->scrnIndex;
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr modes = output->probed_modes;
 
 	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
@@ -245,7 +245,7 @@ NV50SorTMDSModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 static DisplayModePtr
 NV50SorGetLVDSModes(xf86OutputPtr output)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	return xf86DuplicateMode(nv_output->native_mode);
 }
 
@@ -315,7 +315,7 @@ NV50SorCreateResources(xf86OutputPtr output)
 static Bool
 NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if(prop == properties.dither.atom) {
 		INT32 i;
@@ -469,7 +469,7 @@ GetLVDSNativeMode(ScrnInfoPtr pScrn)
 xf86OutputPtr
 NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 {
-	NV50OutputPrivPtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
+	NVOutputPrivatePtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
 	char orName[5];

@@ -170,7 +170,7 @@ NV50I2CInit(ScrnInfoPtr pScrn, const char *name, const int port)
 void
 NV50OutputSetPClk(xf86OutputPtr output, int pclk)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if (nv_output->type == OUTPUT_TMDS)
 		NV50SorSetPClk(output, pclk);
@@ -238,7 +238,7 @@ NV50OutputGetDDCModes(xf86OutputPtr output)
 void
 NV50OutputDestroy(xf86OutputPtr output)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if (nv_output->pDDCBus)
 		xf86DestroyI2CBusRec(nv_output->pDDCBus, TRUE, TRUE);
@@ -282,13 +282,13 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 			sor = NV50CreateSor(pScrn, pNv->i2cMap[i].sor, OUTPUT_TMDS);
 
 		if (dac) {
-			NV50OutputPrivPtr nv_output = dac->driver_private;
+			NVOutputPrivatePtr nv_output = dac->driver_private;
 
 			nv_output->pDDCBus = i2c;
 			nv_output->scaling_mode = SCALE_PANEL;
 		}
 		if (sor) {
-			NV50OutputPrivPtr nv_output = sor->driver_private;
+			NVOutputPrivatePtr nv_output = sor->driver_private;
 
 			nv_output->pDDCBus = i2c;
 			nv_output->scaling_mode = SCALE_ASPECT;
@@ -297,7 +297,7 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 
 	if (pNv->lvds.present) {
 		xf86OutputPtr lvds = NV50CreateSor(pScrn, pNv->lvds.or, OUTPUT_LVDS);
-		NV50OutputPrivPtr nv_output = lvds->driver_private;
+		NVOutputPrivatePtr nv_output = lvds->driver_private;
 
 		nv_output->scaling_mode = SCALE_ASPECT;
 	}

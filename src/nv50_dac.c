@@ -33,7 +33,7 @@
 void
 NV50DacSetPClk(xf86OutputPtr output, int pclk)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVWrite(pNv, 0x00614280 + nv_output->output_resource * 0x800, 0);
@@ -43,7 +43,7 @@ static void
 NV50DacDPMSSet(xf86OutputPtr output, int mode)
 {
 	CARD32 tmp;
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
@@ -83,7 +83,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int dacOff = 0x80 * nv_output->output_resource;
 
 	if(!adjusted_mode) {
@@ -112,7 +112,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 NV50DacDetect(xf86OutputPtr output)
 {
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 
 	if (nv_output->pDDCBus == NULL)
@@ -133,7 +133,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NV50OutputPrivPtr nv_output = output->driver_private;
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int scrnIndex = pScrn->scrnIndex;
 	int sigstate;
 	CARD32 load, tmp, tmp2;
@@ -191,7 +191,7 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
 xf86OutputPtr
 NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 {
-	NV50OutputPrivPtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
+	NVOutputPrivatePtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
 	xf86OutputPtr output;
 	char orName[5];
 
