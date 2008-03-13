@@ -10,7 +10,6 @@ typedef struct NV50OutputPrivRec {
     DisplayModePtr nativeMode;
     enum scaling_modes scale;
 
-    xf86OutputPtr partner;
     I2CBusPtr pDDCBus;
 
     xf86OutputStatus cached_status;

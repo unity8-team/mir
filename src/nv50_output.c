@@ -237,10 +237,9 @@ NV50OutputDestroy(xf86OutputPtr output)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
 
-	if(nv_output->partner)
-		((NV50OutputPrivPtr)nv_output->partner->driver_private)->partner = NULL;
-	else
+	if (nv_output->pDDCBus)
 		xf86DestroyI2CBusRec(nv_output->pDDCBus, TRUE, TRUE);
+
 	nv_output->pDDCBus = NULL;
 }
 
@@ -282,14 +281,12 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 		if (dac) {
 			NV50OutputPrivPtr nv_output = dac->driver_private;
 
-			nv_output->partner = sor;
 			nv_output->pDDCBus = i2c;
 			nv_output->scale = SCALE_PANEL;
 		}
 		if (sor) {
 			NV50OutputPrivPtr nv_output = sor->driver_private;
 
-			nv_output->partner = dac;
 			nv_output->pDDCBus = i2c;
 			nv_output->scale = SCALE_ASPECT;
 		}
