@@ -896,6 +896,8 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST));
 
+    txfilter |= (unit << R300_TX_ID_SHIFT);
+
     switch (pPict->filter) {
     case PictFilterNearest:
 	txfilter |= (R300_TX_MAG_FILTER_NEAREST | R300_TX_MIN_FILTER_NEAREST);
@@ -1227,7 +1229,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_RS_SEL_R(R300_RS_SEL_K0) |
 		     R300_RS_SEL_Q(R300_RS_SEL_K1)));
       OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_TX_OFFSET_RS(6));
-      OUT_ACCEL_REG(R300_RS_INST_0, R300_RS_INST_TEX_CN_WRITE);
+      OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+				     R300_RS_INST_TEX_CN_WRITE |
+				     R300_INST_TEX_ADDR(0)));
       OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
       OUT_ACCEL_REG(R300_US_PIXSIZE, 0);
       OUT_ACCEL_REG(R300_US_CODE_OFFSET,

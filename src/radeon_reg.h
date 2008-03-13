@@ -4040,6 +4040,7 @@
 #	define R300_RS_COUNT_HIRES_EN			(1 << 18)
 
 #define R300_RS_IP_0				        0x4310
+#define R300_RS_IP_1				        0x4314
 #	define R300_RS_TEX_PTR(x)		        (x << 0)
 #	define R300_RS_COL_PTR(x)		        (x << 6)
 #	define R300_RS_COL_FMT(x)		        (x << 9)
@@ -4067,7 +4068,10 @@
 #	define R300_RS_W_EN			        (1 << 4)
 #	define R300_TX_OFFSET_RS(x)		        (x << 5)
 #define R300_RS_INST_0				        0x4330
+#define R300_RS_INST_1				        0x4334
+#	define R300_INST_TEX_ID(x)		        (x << 0)
 #       define R300_RS_INST_TEX_CN_WRITE		(1 << 3)
+#	define R300_INST_TEX_ADDR(x)		        (x << 6)
 
 #define R300_TX_INVALTAGS				0x4100
 #define R300_TX_FILTER0_0				0x4400
@@ -4086,6 +4090,7 @@
 #       define R300_TX_MIN_FILTER_NEAREST               (1 << 11)
 #       define R300_TX_MAG_FILTER_LINEAR                (2 << 9)
 #       define R300_TX_MIN_FILTER_LINEAR                (2 << 11)
+#       define R300_TX_ID_SHIFT                         28
 #define R300_TX_FILTER1_0				0x4440
 #define R300_TX_FORMAT0_0				0x4480
 #       define R300_TXWIDTH_SHIFT                       0
@@ -4193,7 +4198,7 @@
 #       define R300_OUT_FMT_C2_16_MPEG                  (7 << 0)
 #       define R300_OUT_FMT_C2_4                        (8 << 0)
 #       define R300_OUT_FMT_C_3_3_2                     (9 << 0)
-#       define R300_OUT_FMT_C_6_5_6                     (10 << 0)
+#       define R300_OUT_FMT_C_5_6_5                     (10 << 0)
 #       define R300_OUT_FMT_C_11_11_10                  (11 << 0)
 #       define R300_OUT_FMT_C_10_11_11                  (12 << 0)
 #       define R300_OUT_FMT_C_2_10_10_10                (13 << 0)
@@ -4241,6 +4246,8 @@
 #define R300_US_CODE_ADDR_2				0x4618
 #define R300_US_CODE_ADDR_3				0x461c
 #define R300_US_TEX_INST_0				0x4620
+#define R300_US_TEX_INST_1				0x4624
+#define R300_US_TEX_INST_2				0x4628
 #       define R300_TEX_SRC_ADDR(x)                     (x << 0)
 #       define R300_TEX_DST_ADDR(x)                     (x << 6)
 #       define R300_TEX_ID(x)                           (x << 11)
@@ -4251,6 +4258,8 @@
 #       define R300_TEX_INST_PROJ                       3
 #       define R300_TEX_INST_LODBIAS                    4
 #define R300_US_ALU_RGB_ADDR_0			        0x46c0
+#define R300_US_ALU_RGB_ADDR_1			        0x46c4
+#define R300_US_ALU_RGB_ADDR_2			        0x46c8
 /* for ADDR0-2, values 0-31 specify a location in the pixel stack,
    values 32-63 specify a constant */
 #       define R300_ALU_RGB_ADDR0(x)                    (x << 0)
@@ -4270,6 +4279,8 @@
 #       define R300_ALU_RGB_TARGET_C                    (2 << 29)
 #       define R300_ALU_RGB_TARGET_D                    (3 << 29)
 #define R300_US_ALU_RGB_INST_0			        0x48c0
+#define R300_US_ALU_RGB_INST_1			        0x48c4
+#define R300_US_ALU_RGB_INST_2			        0x48c8
 #       define R300_ALU_RGB_SEL_A(x)                    (x << 0)
 #       define R300_ALU_RGB_SRC0_RGB                    0
 #       define R300_ALU_RGB_SRC0_RRR                    1
@@ -4339,6 +4350,8 @@
 #       define R300_ALU_RGB_CLAMP                       (1 << 30)
 #       define R300_ALU_RGB_INSERT_NOP                  (1 << 31)
 #define R300_US_ALU_ALPHA_ADDR_0		        0x47c0
+#define R300_US_ALU_ALPHA_ADDR_1		        0x47c4
+#define R300_US_ALU_ALPHA_ADDR_2		        0x47c8
 /* for ADDR0-2, values 0-31 specify a location in the pixel stack,
    values 32-63 specify a constant */
 #       define R300_ALU_ALPHA_ADDR0(x)                  (x << 0)
@@ -4357,6 +4370,8 @@
 #       define R300_ALU_ALPHA_TARGET_C                  (2 << 25)
 #       define R300_ALU_ALPHA_TARGET_D                  (3 << 25)
 #define R300_US_ALU_ALPHA_INST_0		        0x49c0
+#define R300_US_ALU_ALPHA_INST_1		        0x49c4
+#define R300_US_ALU_ALPHA_INST_2		        0x49c8
 #       define R300_ALU_ALPHA_SEL_A(x)                  (x << 0)
 #       define R300_ALU_ALPHA_SRC0_R                    0
 #       define R300_ALU_ALPHA_SRC0_G                    1
