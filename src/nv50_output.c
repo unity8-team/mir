@@ -224,58 +224,6 @@ ProbeDDC(I2CBusPtr i2c)
 	return monInfo;
 }
 
-/*
- * Read an EDID from the i2c port.  Perform load detection on the DAC (if
- * present) to see if the display is connected via VGA.  Sets the cached status
- * of both outputs.  The status is marked dirty again in the BlockHandler.
- */
-void NV50OutputPartnersDetect(xf86OutputPtr dac, xf86OutputPtr sor, I2CBusPtr i2c)
-{
-	xf86MonPtr monInfo = ProbeDDC(i2c);
-	xf86OutputPtr connected = NULL;
-	Bool load = dac && NV50DacLoadDetect(dac);
-
-	if(dac) {
-		NV50OutputPrivPtr nv_output = dac->driver_private;
-
-		if(load) {
-			nv_output->cached_status = XF86OutputStatusConnected;
-			connected = dac;
-		} else {
-			nv_output->cached_status = XF86OutputStatusDisconnected;
-		}
-	}
-
-	if(sor) {
-		NV50OutputPrivPtr nv_output = sor->driver_private;
-
-		if(monInfo && !load) {
-			nv_output->cached_status = XF86OutputStatusConnected;
-			connected = sor;
-		} else {
-			nv_output->cached_status = XF86OutputStatusDisconnected;
-		}
-	}
-
-	if(connected)
-		xf86OutputSetEDID(connected, monInfo);
-}
-
-/*
- * Reset the cached output status for all outputs.  Called from NV50BlockHandler.
- */
-void
-NV50OutputResetCachedStatus(ScrnInfoPtr pScrn)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-
-	for(i = 0; i < xf86_config->num_output; i++) {
-		NV50OutputPrivPtr nv_output = xf86_config->output[i]->driver_private;
-		nv_output->cached_status = XF86OutputStatusUnknown;
-	}
-}
-
 DisplayModePtr
 NV50OutputGetDDCModes(xf86OutputPtr output)
 {

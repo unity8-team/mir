@@ -113,13 +113,19 @@ static xf86OutputStatus
 NV50DacDetect(xf86OutputPtr output)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
+	xf86MonPtr ddc_mon;
 
-	/* Assume physical status isn't going to change before the BlockHandler */
-	if(nv_output->cached_status != XF86OutputStatusUnknown)
-		return nv_output->cached_status;
+	if (nv_output->pDDCBus == NULL)
+		return XF86OutputStatusDisconnected;
 
-	NV50OutputPartnersDetect(output, nv_output->partner, nv_output->pDDCBus);
-	return nv_output->cached_status;
+	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+	if (!ddc_mon && !NV50DacLoadDetect(output))
+		return XF86OutputStatusDisconnected;
+
+	if (ddc_mon && ddc_mon->features.input_type) /* DVI? */
+		return XF86OutputStatusDisconnected;
+
+	return XF86OutputStatusConnected;
 }
 
 Bool

@@ -22,8 +22,6 @@ void NV50OutputSetPClk(xf86OutputPtr, int pclk);
 int NV50OutputModeValid(xf86OutputPtr, DisplayModePtr);
 void NV50OutputPrepare(xf86OutputPtr);
 void NV50OutputCommit(xf86OutputPtr);
-void NV50OutputPartnersDetect(xf86OutputPtr dac, xf86OutputPtr sor, I2CBusPtr i2c);
-void NV50OutputResetCachedStatus(ScrnInfoPtr);
 DisplayModePtr NV50OutputGetDDCModes(xf86OutputPtr);
 void NV50OutputDestroy(xf86OutputPtr);
 Bool NV50CreateOutputs(ScrnInfoPtr);
