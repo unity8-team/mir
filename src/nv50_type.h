@@ -1,6 +1,8 @@
 #ifndef __NV50_TYPE_H__
 #define __NV50_TYPE_H__
 
+#include "nv_type.h"
+
 typedef enum Head {
     HEAD0 = 0,
     HEAD1

@@ -465,20 +465,20 @@ static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
 	*outY = mode->VDisplay * scale;
 }
 
-void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum NV50ScaleMode scale)
+void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum scaling_modes scale)
 {
 	int outX = 0, outY = 0;
 
 	switch(scale) {
-		case NV50_SCALE_ASPECT:
+		case SCALE_ASPECT:
 			ComputeAspectScale(mode, &outX, &outY);
 			break;
-		case NV50_SCALE_OFF:
-		case NV50_SCALE_FILL:
+		case SCALE_PANEL:
+		case SCALE_FULLSCREEN:
 			outX = mode->CrtcHDisplay;
 			outY = mode->CrtcVDisplay;
 			break;
-		case NV50_SCALE_CENTER:
+		case SCALE_NOSCALE:
 			outX = mode->HDisplay;
 			outY = mode->VDisplay;
 			break;

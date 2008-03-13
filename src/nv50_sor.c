@@ -187,7 +187,7 @@ NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 	NV50OutputPrivPtr nv_output = output->driver_private;
 	DisplayModePtr native = nv_output->nativeMode;
 
-	if(native && nv_output->scale != NV50_SCALE_OFF) {
+	if(native && nv_output->scale != SCALE_PANEL) {
 		NV50SorSetModeBackend(adjusted_mode, native);
 		// This mode is already "fixed"
 		NV50CrtcSkipModeFixup(output->crtc);
@@ -325,16 +325,16 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 		return TRUE;
 	} else if (prop == properties.scale.atom) {
 		const char *s;
-		enum NV50ScaleMode oldScale, scale;
+		enum scaling_modes oldScale, scale;
 		int i;
 		const struct {
 			const char *name;
-			enum NV50ScaleMode scale;
+			enum scaling_modes scale;
 		} modes[] = {
-			{ "off",    NV50_SCALE_OFF },
-			{ "aspect", NV50_SCALE_ASPECT },
-			{ "fill",   NV50_SCALE_FILL },
-			{ "center", NV50_SCALE_CENTER },
+			{ "panel", SCALE_PANEL },
+			{ "aspect", SCALE_ASPECT },
+			{ "fullscreen",   SCALE_FULLSCREEN },
+			{ "noscale", SCALE_NOSCALE },
 			{ NULL,     0 },
 		};
 
@@ -353,7 +353,7 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 		}
 		if (!modes[i].name)
 			return FALSE;
-		if (scale == NV50_SCALE_OFF && nv_output->type == OUTPUT_LVDS)
+		if (scale == SCALE_PANEL && nv_output->type == OUTPUT_LVDS)
 			// LVDS requires scaling
 			return FALSE;
 
