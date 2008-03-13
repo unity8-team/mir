@@ -8,7 +8,7 @@ typedef struct NV50OutputPrivRec {
     uint8_t output_resource;
     NVOutputType type;
     DisplayModePtr native_mode;
-    enum scaling_modes scale;
+    uint8_t scaling_mode;
 
     I2CBusPtr pDDCBus;
 } NV50OutputPrivRec, *NV50OutputPrivPtr;

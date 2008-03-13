@@ -285,13 +285,13 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 			NV50OutputPrivPtr nv_output = dac->driver_private;
 
 			nv_output->pDDCBus = i2c;
-			nv_output->scale = SCALE_PANEL;
+			nv_output->scaling_mode = SCALE_PANEL;
 		}
 		if (sor) {
 			NV50OutputPrivPtr nv_output = sor->driver_private;
 
 			nv_output->pDDCBus = i2c;
-			nv_output->scale = SCALE_ASPECT;
+			nv_output->scaling_mode = SCALE_ASPECT;
 		}
 	}
 
@@ -299,7 +299,7 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 		xf86OutputPtr lvds = NV50CreateSor(pScrn, pNv->lvds.or, OUTPUT_LVDS);
 		NV50OutputPrivPtr nv_output = lvds->driver_private;
 
-		nv_output->scale = SCALE_ASPECT;
+		nv_output->scaling_mode = SCALE_ASPECT;
 	}
 
 	/* For each output, set the crtc and clone masks */

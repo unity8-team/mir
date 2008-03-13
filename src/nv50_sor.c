@@ -121,7 +121,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		((adjusted_mode->Flags & V_NHSYNC) ? 0x1000 : 0) |
 		((adjusted_mode->Flags & V_NVSYNC) ? 0x2000 : 0));
 
-	NV50CrtcSetScale(output->crtc, adjusted_mode, nv_output->scale);
+	NV50CrtcSetScale(output->crtc, adjusted_mode, nv_output->scaling_mode);
 }
 
 static xf86OutputStatus
@@ -193,7 +193,7 @@ NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 	NV50OutputPrivPtr nv_output = output->driver_private;
 	DisplayModePtr native = nv_output->native_mode;
 
-	if(native && nv_output->scale != SCALE_PANEL) {
+	if(native && nv_output->scaling_mode != SCALE_PANEL) {
 		NV50SorSetModeBackend(adjusted_mode, native);
 		// This mode is already "fixed"
 		NV50CrtcSkipModeFixup(output->crtc);
@@ -363,8 +363,8 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 			// LVDS requires scaling
 			return FALSE;
 
-		oldScale = nv_output->scale;
-		nv_output->scale = scale;
+		oldScale = nv_output->scaling_mode;
+		nv_output->scaling_mode = scale;
 		if (output->crtc) {
 			xf86CrtcPtr crtc = output->crtc;
 
@@ -375,7 +375,7 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 						modes[i].name, output->name);
 
 				// Restore old scale and try again.
-				nv_output->scale = oldScale;
+				nv_output->scaling_mode = oldScale;
 				if (!xf86CrtcSetMode(crtc, &crtc->desiredMode,
 							crtc->desiredRotation, crtc->desiredX,
 							crtc->desiredY)) {
