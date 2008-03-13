@@ -329,7 +329,7 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 		if (pNv->i2cMap[i].dac != -1)
 			dac = NV50CreateDac(pScrn, pNv->i2cMap[i].dac);
 		if (pNv->i2cMap[i].sor != -1)
-			sor = NV50CreateSor(pScrn, pNv->i2cMap[i].sor, TMDS);
+			sor = NV50CreateSor(pScrn, pNv->i2cMap[i].sor, OUTPUT_TMDS);
 
 		if (dac) {
 			NV50OutputPrivPtr nv_output = dac->driver_private;
@@ -348,7 +348,7 @@ NV50CreateOutputs(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->lvds.present) {
-		xf86OutputPtr lvds = NV50CreateSor(pScrn, pNv->lvds.or, LVDS);
+		xf86OutputPtr lvds = NV50CreateSor(pScrn, pNv->lvds.or, OUTPUT_LVDS);
 		NV50OutputPrivPtr nv_output = lvds->driver_private;
 
 		nv_output->scale = NV50_SCALE_ASPECT;

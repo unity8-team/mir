@@ -195,7 +195,7 @@ NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 	snprintf(orName, 5, "VGA%i", or);
 	output = xf86OutputCreate(pScrn, &NV50DacOutputFuncs, orName);
 
-	nv_output->type = DAC;
+	nv_output->type = OUTPUT_ANALOG;
 	nv_output->or = or;
 	nv_output->cached_status = XF86OutputStatusUnknown;
 	nv_output->set_pclk = NV50DacSetPClk;

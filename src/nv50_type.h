@@ -6,11 +6,6 @@ typedef enum Head {
     HEAD1
 } Head;
 
-typedef enum ORType {
-   DAC,
-   SOR
-} ORType;
-
 typedef enum ORNum {
    DAC0 = 0,
    DAC1 = 1,
@@ -18,10 +13,5 @@ typedef enum ORNum {
    SOR0 = 0,
    SOR1 = 1
 } ORNum;
-
-typedef enum PanelType {
-    TMDS,
-    LVDS
-} PanelType;
 
 #endif

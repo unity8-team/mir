@@ -102,7 +102,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		return;
 	}
 
-	if (nv_output->panelType == LVDS) {
+	if (nv_output->type == OUTPUT_LVDS) {
 		type = 0;
 	} else
 	if (adjusted_mode->Clock > 165000) {
@@ -353,7 +353,7 @@ NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
 		}
 		if (!modes[i].name)
 			return FALSE;
-		if (scale == NV50_SCALE_OFF && nv_output->panelType == LVDS)
+		if (scale == NV50_SCALE_OFF && nv_output->type == OUTPUT_LVDS)
 			// LVDS requires scaling
 			return FALSE;
 
@@ -461,7 +461,7 @@ GetLVDSNativeMode(ScrnInfoPtr pScrn)
 }
 
 xf86OutputPtr
-NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
+NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 {
 	NV50OutputPrivPtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
 	NVPtr pNv = NVPTR(pScrn);
@@ -472,7 +472,7 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 	if(!nv_output)
 		return NULL;
 
-	if(panelType == LVDS) {
+	if(type == OUTPUT_LVDS) {
 		strcpy(orName, "LVDS");
 		funcs = &NV50SorLVDSOutputFuncs;
 
@@ -495,17 +495,16 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, PanelType panelType)
 
 	output = xf86OutputCreate(pScrn, funcs, orName);
 
-	nv_output->type = SOR;
 	nv_output->or = or;
-	nv_output->panelType = panelType;
+	nv_output->type = type;
 	nv_output->cached_status = XF86OutputStatusUnknown;
-	if (panelType == TMDS)
+	if (type == OUTPUT_TMDS)
 		nv_output->set_pclk = NV50SorSetPClk;
 	output->driver_private = nv_output;
 	output->interlaceAllowed = TRUE;
 	output->doubleScanAllowed = TRUE;
 
-	if (panelType != LVDS) {
+	if (type != OUTPUT_LVDS) {
 		NVWrite(pNv, 0x0061c00c + nv_output->or * 0x800, 0x03010700);
 		NVWrite(pNv, 0x0061c010 + nv_output->or * 0x800, 0x0000152f);
 		NVWrite(pNv, 0x0061c014 + nv_output->or * 0x800, 0x00000000);

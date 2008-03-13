@@ -2,11 +2,11 @@
 #define __NV50_OUTPUT_H__
 
 #include "nv50_display.h"
+#include "nv_type.h"
 
 typedef struct NV50OutputPrivRec {
-    ORType type;
     ORNum or;
-    PanelType panelType;
+    NVOutputType type;
     DisplayModePtr nativeMode;
     enum NV50ScaleMode scale;
 
@@ -33,6 +33,6 @@ xf86OutputPtr NV50CreateDac(ScrnInfoPtr, ORNum);
 Bool NV50DacLoadDetect(xf86OutputPtr);
 
 /* nv50_sor.c */
-xf86OutputPtr NV50CreateSor(ScrnInfoPtr, ORNum, PanelType);
+xf86OutputPtr NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type);
 
 #endif
