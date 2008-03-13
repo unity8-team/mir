@@ -169,7 +169,6 @@ typedef struct _riva_hw_state
 	uint32_t vpll2_a;
 	uint32_t vpll2_b;
 	uint32_t reg580;
-	uint32_t reg594;
 	uint32_t general;
 	uint32_t crtcOwner;
 	uint32_t head;
@@ -218,6 +217,7 @@ typedef struct _NVOutputPrivateRec {
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
+	uint32_t restore_output;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
 typedef struct _MiscStartupInfo {

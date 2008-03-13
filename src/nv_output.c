@@ -93,6 +93,20 @@ uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg)
 	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
 }
 
+static int nv_output_ramdac_offset(xf86OutputPtr output)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
+	int offset = 0;
+
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].or & 0xc)
+		offset += 0x68;
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].or & 0xa)
+		offset += 0x2000;
+
+	return offset;
+}
+
 static Bool dpms_common(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -164,10 +178,26 @@ static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(output->scrn);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_analog_output_dpms is called with mode %d.\n", mode);
 
 	dpms_common(output, mode);
+
+	if (pNv->twoHeads) {
+		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
+
+		switch (mode) {
+		case DPMSModeOff:
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
+				      outputval & ~NV_RAMDAC_OUTPUT_DAC_ENABLE);
+			break;
+		case DPMSModeOn:
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
+				      outputval | NV_RAMDAC_OUTPUT_DAC_ENABLE);
+			break;
+		}
+	}
 }
 
 static void
@@ -210,13 +240,10 @@ static void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state,
 	/* This exists purely for proper text mode restore */
 	if (override && pNv->twoHeads) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
-		NVOutputRegPtr regp = &state->dac_reg[nv_output->output_resource];
 
-		NVWriteRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT, regp->output);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore_output);
 	}
 }
-
-/* NOTE: Don't rely on this data for anything other than restoring VT's */
 
 static void
 nv_output_save (xf86OutputPtr output)
@@ -224,18 +251,13 @@ nv_output_save (xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVOutputRegPtr regp;
+	NVOutputRegPtr regp = &pNv->SavedReg.dac_reg[nv_output->preferred_output];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_save is called.\n");
 
-	/* Due to strange mapping of outputs we could have swapped analog and digital */
-	/* So we force save all the registers */
-	regp = &pNv->SavedReg.dac_reg[nv_output->output_resource];
-
 	if (pNv->twoHeads)
-		regp->output = NVReadRAMDAC(pNv, nv_output->preferred_output, NV_RAMDAC_OUTPUT);
+		nv_output->restore_output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 
-	/* NV11's don't seem to like this, so let's restrict it to digital outputs only. */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		int i;
 
@@ -423,52 +445,29 @@ nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePt
 static void
 nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 {
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->twoHeads) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		NVOutputPrivatePtr nv_output = output->driver_private;
-		Bool strange_mode = FALSE;
-		uint32_t output_reg[2] = {0, 0};
-		uint8_t crtc0_index = nv_output->output_resource ^ nv_crtc->head;
-		int i;
+		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		uint32_t outputval = 0;
 
-		for (i = 0; i < xf86_config->num_output; i++) {
-			xf86OutputPtr output2 = xf86_config->output[i];
-			NVOutputPrivatePtr nv_output2 = output2->driver_private;
-			if (output2->crtc) { /* enabled? */
-				uint8_t ors = nv_output2->output_resource;
-				if (nv_output2->type == OUTPUT_ANALOG)
-					output_reg[ors] = NV_RAMDAC_OUTPUT_DAC_ENABLE;
-				if (ors != nv_output2->preferred_output)
-					if (pNv->Architecture == NV_ARCH_40)
-						strange_mode = TRUE;
-			}
-		}
+		if (nv_output->type == OUTPUT_ANALOG)
+			/* bit 16-19 are bits that are set on some G70 cards,
+			 * but don't seem to have much effect */
+			outputval = nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE;
 
-		output_reg[~(crtc0_index) & 1] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
-		if (strange_mode)
-			output_reg[crtc0_index] |= NV_RAMDAC_OUTPUT_SELECT_CRTC1;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV_RAMDAC_OUTPUT: 0x%X\n", outputval);
 
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV_RAMDAC_OUTPUT: 0x%X 0x%X\n", output_reg[0], output_reg[1]);
-
-		/* The registers can't be considered seperately on most cards */
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT, output_reg[0]);
-		NVWriteRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT, output_reg[1]);
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), outputval);
 	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
-	if (pNv->NVArch < 0x44) {
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0xf0000000);
-		if (pNv->Architecture == NV_ARCH_40)
-			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0xf0000000);
-	} else {
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_TEST_CONTROL, 0x00100000);
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_670, 0x00100000);
-	}
+	if (pNv->NVArch < 0x44)
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(output), 0xf0000000);
+	else
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(output), 0x00100000);
 }
 
 static void
@@ -537,7 +536,7 @@ nv_load_detect(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t testval, regoffset = 0;
+	uint32_t testval, regoffset = nv_output_ramdac_offset(output);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput, saved_rtest_ctrl, temp;
 	int present = 0;
 
@@ -545,21 +544,6 @@ nv_load_detect(xf86OutputPtr output)
 	testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
 	if (pNv->VBIOS.dactestval)
 		testval = pNv->VBIOS.dactestval;
-
-	/* something more clever than this, using output_resource, might be
-	 * required, as we might not be on the preferred output */
-	switch (pNv->dcb_table.entry[nv_output->dcb_entry].or) {
-	case 1:
-		regoffset = 0;
-		break;
-	case 2:
-		regoffset = 0x2000;
-		break;
-	case 4:
-		/* this gives rise to RAMDAC_670 and RAMDAC_594 */
-		regoffset = 0x68;
-		break;
-	}
 
 	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);

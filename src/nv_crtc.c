@@ -173,7 +173,6 @@ static void nv40_crtc_save_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 	state->pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 	state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 	state->reg580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
-	state->reg594 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_594);
 }
 
 static void nv40_crtc_load_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
@@ -260,9 +259,6 @@ static void nv40_crtc_load_state_pll(ScrnInfoPtr pScrn, RIVA_HW_STATE *state)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", state->sel_clk);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_594 %08X\n", state->reg594);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_594, state->reg594);
 
 	/* All clocks have been set at this point. */
 	state->vpll_changed[0] = FALSE;
@@ -607,27 +603,6 @@ static void nv_crtc_calc_state_ext(
 	/* The blob uses this always, so let's do the same */
 	if (pNv->Architecture == NV_ARCH_40) {
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
-	}
-
-	/* The primary output resource doesn't seem to care */
-	if (output && pNv->Architecture == NV_ARCH_40 && nv_output->output_resource == 1) { /* This is the "output" */
-		/* non-zero values are for analog, don't know about tv-out and the likes */
-		if (output && nv_output->type != OUTPUT_ANALOG) {
-			state->reg594 = 0x0;
-		} else if (output) {
-			/* Are we a flexible output? */
-			if (ffs(pNv->dcb_table.entry[nv_output->dcb_entry].or) & OUTPUT_0)
-				state->reg594 = 0x1;
-			else
-				state->reg594 = 0x0;
-
-			/* More values exist, but they seem related to the 3rd dac (tv-out?) somehow */
-			/* bit 16-19 are bits that are set on some G70 cards */
-			/* Those bits are also set to the 3rd OUTPUT register */
-			if (nv_crtc->head == 1) {
-				state->reg594 |= 0x100;
-			}
-		}
 	}
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;

@@ -1879,7 +1879,6 @@ NVRestore(ScrnInfoPtr pScrn)
 		state->vpll1_b = 0;
 		state->vpll2_a = 0;
 		state->vpll2_b = 0;
-		state->reg594 = 0;
 		state->reg580 = 0;
 		state->pllsel = 0;
 		state->sel_clk = 0;
@@ -2018,7 +2017,6 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->vpll1_b = 0;
 			state->vpll2_a = 0;
 			state->vpll2_b = 0;
-			state->reg594 = 0;
 			state->reg580 = 0;
 			state->pllsel = 0;
 			state->sel_clk = 0;
