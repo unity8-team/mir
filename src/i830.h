@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
@@ -97,6 +96,7 @@ Bool I830XAAInit(ScreenPtr pScreen);
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #include "common.h"
+#include "i830_ring.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
@@ -127,11 +127,12 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-                                         CARD8 index, CARD8 value);
-typedef CARD8(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
-                                        CARD8 index);
-typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr, CARD8 value);
-typedef CARD8(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
+                                         uint8_t index, uint8_t value);
+typedef uint8_t(*I830ReadIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
+					  uint8_t index);
+typedef void (*I830WriteByteFunc)(I830Ptr pI830, IOADDRESS addr,
+				  uint8_t value);
+typedef uint8_t(*I830ReadByteFunc)(I830Ptr pI830, IOADDRESS addr);
 
 enum tile_format {
     TILE_NONE,
@@ -265,7 +266,7 @@ typedef struct _I830CrtcPrivateRec {
     int			    dpms_mode;
     
     /* Lookup table values to be set when the CRTC is enabled */
-    CARD8 lut_r[256], lut_g[256], lut_b[256];
+    uint8_t lut_r[256], lut_g[256], lut_b[256];
 
     i830_memory *rotate_mem;
     /* Card virtual address of the cursor */
@@ -400,6 +401,13 @@ typedef struct _I830Rec {
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
 
+   /** Number of bytes being emitted in the current BEGIN_LP_RING */
+   unsigned int ring_emitting;
+   /** Number of bytes that have been emitted in the current BEGIN_LP_RING */
+   unsigned int ring_used;
+   /** Offset in the ring for the next DWORD emit */
+   uint32_t ring_next;
+
 #ifdef I830_XV
    /* For Xvideo */
    i830_memory *overlay_regs;
@@ -462,7 +470,7 @@ typedef struct _I830Rec {
    pciVideoPtr PciInfo;
    PCITAG PciTag;
 #endif
-   CARD8 variant;
+   uint8_t variant;
 
    unsigned int BR[20];
 
@@ -517,8 +525,8 @@ typedef struct _I830Rec {
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
    /* i915 EXA render state */
-   CARD32 mapstate[6];
-   CARD32 samplerstate[6];
+   uint32_t mapstate[6];
+   uint32_t samplerstate[6];
 
    Bool directRenderingDisabled;	/* DRI disabled in PreInit. */
    Bool directRenderingEnabled;		/* DRI enabled this generation. */
@@ -541,8 +549,8 @@ typedef struct _I830Rec {
    Bool StolenOnly;
 
    Bool swfSaved;
-   CARD32 saveSWF0;
-   CARD32 saveSWF4;
+   uint32_t saveSWF0;
+   uint32_t saveSWF4;
 
    Bool checkDevices;
 
@@ -565,70 +573,70 @@ typedef struct _I830Rec {
 
    enum backlight_control backlight_control_method;
 
-   CARD32 saveDSPACNTR;
-   CARD32 saveDSPBCNTR;
-   CARD32 savePIPEACONF;
-   CARD32 savePIPEBCONF;
-   CARD32 savePIPEASRC;
-   CARD32 savePIPEBSRC;
-   CARD32 saveFPA0;
-   CARD32 saveFPA1;
-   CARD32 saveDPLL_A;
-   CARD32 saveDPLL_A_MD;
-   CARD32 saveHTOTAL_A;
-   CARD32 saveHBLANK_A;
-   CARD32 saveHSYNC_A;
-   CARD32 saveVTOTAL_A;
-   CARD32 saveVBLANK_A;
-   CARD32 saveVSYNC_A;
-   CARD32 saveBCLRPAT_A;
-   CARD32 saveDSPASTRIDE;
-   CARD32 saveDSPASIZE;
-   CARD32 saveDSPAPOS;
-   CARD32 saveDSPABASE;
-   CARD32 saveDSPASURF;
-   CARD32 saveDSPATILEOFF;
-   CARD32 saveFPB0;
-   CARD32 saveFPB1;
-   CARD32 saveDPLL_B;
-   CARD32 saveDPLL_B_MD;
-   CARD32 saveHTOTAL_B;
-   CARD32 saveHBLANK_B;
-   CARD32 saveHSYNC_B;
-   CARD32 saveVTOTAL_B;
-   CARD32 saveVBLANK_B;
-   CARD32 saveVSYNC_B;
-   CARD32 saveBCLRPAT_B;
-   CARD32 saveDSPBSTRIDE;
-   CARD32 saveDSPBSIZE;
-   CARD32 saveDSPBPOS;
-   CARD32 saveDSPBBASE;
-   CARD32 saveDSPBSURF;
-   CARD32 saveDSPBTILEOFF;
-   CARD32 saveVCLK_DIVISOR_VGA0;
-   CARD32 saveVCLK_DIVISOR_VGA1;
-   CARD32 saveVCLK_POST_DIV;
-   CARD32 saveVGACNTRL;
-   CARD32 saveADPA;
-   CARD32 saveLVDS;
-   CARD32 saveDVOA;
-   CARD32 saveDVOB;
-   CARD32 saveDVOC;
-   CARD32 savePP_ON;
-   CARD32 savePP_OFF;
-   CARD32 savePP_CONTROL;
-   CARD32 savePP_CYCLE;
-   CARD32 savePFIT_CONTROL;
-   CARD32 savePaletteA[256];
-   CARD32 savePaletteB[256];
-   CARD32 saveSWF[17];
-   CARD32 saveBLC_PWM_CTL;
-   CARD32 saveBLC_PWM_CTL2;
-   CARD32 saveFBC_CFB_BASE;
-   CARD32 saveFBC_LL_BASE;
-   CARD32 saveFBC_CONTROL2;
-   CARD32 saveFBC_CONTROL;
-   CARD32 saveFBC_FENCE_OFF;
+   uint32_t saveDSPACNTR;
+   uint32_t saveDSPBCNTR;
+   uint32_t savePIPEACONF;
+   uint32_t savePIPEBCONF;
+   uint32_t savePIPEASRC;
+   uint32_t savePIPEBSRC;
+   uint32_t saveFPA0;
+   uint32_t saveFPA1;
+   uint32_t saveDPLL_A;
+   uint32_t saveDPLL_A_MD;
+   uint32_t saveHTOTAL_A;
+   uint32_t saveHBLANK_A;
+   uint32_t saveHSYNC_A;
+   uint32_t saveVTOTAL_A;
+   uint32_t saveVBLANK_A;
+   uint32_t saveVSYNC_A;
+   uint32_t saveBCLRPAT_A;
+   uint32_t saveDSPASTRIDE;
+   uint32_t saveDSPASIZE;
+   uint32_t saveDSPAPOS;
+   uint32_t saveDSPABASE;
+   uint32_t saveDSPASURF;
+   uint32_t saveDSPATILEOFF;
+   uint32_t saveFPB0;
+   uint32_t saveFPB1;
+   uint32_t saveDPLL_B;
+   uint32_t saveDPLL_B_MD;
+   uint32_t saveHTOTAL_B;
+   uint32_t saveHBLANK_B;
+   uint32_t saveHSYNC_B;
+   uint32_t saveVTOTAL_B;
+   uint32_t saveVBLANK_B;
+   uint32_t saveVSYNC_B;
+   uint32_t saveBCLRPAT_B;
+   uint32_t saveDSPBSTRIDE;
+   uint32_t saveDSPBSIZE;
+   uint32_t saveDSPBPOS;
+   uint32_t saveDSPBBASE;
+   uint32_t saveDSPBSURF;
+   uint32_t saveDSPBTILEOFF;
+   uint32_t saveVCLK_DIVISOR_VGA0;
+   uint32_t saveVCLK_DIVISOR_VGA1;
+   uint32_t saveVCLK_POST_DIV;
+   uint32_t saveVGACNTRL;
+   uint32_t saveADPA;
+   uint32_t saveLVDS;
+   uint32_t saveDVOA;
+   uint32_t saveDVOB;
+   uint32_t saveDVOC;
+   uint32_t savePP_ON;
+   uint32_t savePP_OFF;
+   uint32_t savePP_CONTROL;
+   uint32_t savePP_CYCLE;
+   uint32_t savePFIT_CONTROL;
+   uint32_t savePaletteA[256];
+   uint32_t savePaletteB[256];
+   uint32_t saveSWF[17];
+   uint32_t saveBLC_PWM_CTL;
+   uint32_t saveBLC_PWM_CTL2;
+   uint32_t saveFBC_CFB_BASE;
+   uint32_t saveFBC_LL_BASE;
+   uint32_t saveFBC_CONTROL2;
+   uint32_t saveFBC_CONTROL;
+   uint32_t saveFBC_FENCE_OFF;
 
    enum last_3d *last_3d;
 

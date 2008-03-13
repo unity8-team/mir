@@ -100,6 +100,7 @@ static XF86VideoAdaptorPtr I830SetupImageVideoOverlay(ScreenPtr);
 static XF86VideoAdaptorPtr I830SetupImageVideoTextured(ScreenPtr);
 static void I830StopVideo(ScrnInfoPtr, pointer, Bool);
 static int I830SetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
+static int I830SetPortAttributeTextured(ScrnInfoPtr, Atom, INT32, pointer);
 static int I830GetPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 static void I830QueryBestSize(ScrnInfoPtr, Bool,
 			      short, short, short, short, unsigned int *,
@@ -295,58 +296,58 @@ static XF86ImageRec Images[NUM_IMAGES] = {
 };
 
 typedef struct {
-    CARD32 OBUF_0Y;
-    CARD32 OBUF_1Y;
-    CARD32 OBUF_0U;
-    CARD32 OBUF_0V;
-    CARD32 OBUF_1U;
-    CARD32 OBUF_1V;
-    CARD32 OSTRIDE;
-    CARD32 YRGB_VPH;
-    CARD32 UV_VPH;
-    CARD32 HORZ_PH;
-    CARD32 INIT_PHS;
-    CARD32 DWINPOS;
-    CARD32 DWINSZ;
-    CARD32 SWIDTH;
-    CARD32 SWIDTHSW;
-    CARD32 SHEIGHT;
-    CARD32 YRGBSCALE;
-    CARD32 UVSCALE;
-    CARD32 OCLRC0;
-    CARD32 OCLRC1;
-    CARD32 DCLRKV;
-    CARD32 DCLRKM;
-    CARD32 SCLRKVH;
-    CARD32 SCLRKVL;
-    CARD32 SCLRKEN;
-    CARD32 OCONFIG;
-    CARD32 OCMD;
-    CARD32 RESERVED1;			/* 0x6C */
-    CARD32 OSTART_0Y; 		/* for i965 */
-    CARD32 OSTART_1Y;		/* for i965 */
-    CARD32 OSTART_0U;
-    CARD32 OSTART_0V;
-    CARD32 OSTART_1U;
-    CARD32 OSTART_1V;
-    CARD32 OTILEOFF_0Y;
-    CARD32 OTILEOFF_1Y;
-    CARD32 OTILEOFF_0U;
-    CARD32 OTILEOFF_0V;
-    CARD32 OTILEOFF_1U;
-    CARD32 OTILEOFF_1V;
-    CARD32 FASTHSCALE;			/* 0xA0 */
-    CARD32 UVSCALEV;			/* 0xA4 */
+    uint32_t OBUF_0Y;
+    uint32_t OBUF_1Y;
+    uint32_t OBUF_0U;
+    uint32_t OBUF_0V;
+    uint32_t OBUF_1U;
+    uint32_t OBUF_1V;
+    uint32_t OSTRIDE;
+    uint32_t YRGB_VPH;
+    uint32_t UV_VPH;
+    uint32_t HORZ_PH;
+    uint32_t INIT_PHS;
+    uint32_t DWINPOS;
+    uint32_t DWINSZ;
+    uint32_t SWIDTH;
+    uint32_t SWIDTHSW;
+    uint32_t SHEIGHT;
+    uint32_t YRGBSCALE;
+    uint32_t UVSCALE;
+    uint32_t OCLRC0;
+    uint32_t OCLRC1;
+    uint32_t DCLRKV;
+    uint32_t DCLRKM;
+    uint32_t SCLRKVH;
+    uint32_t SCLRKVL;
+    uint32_t SCLRKEN;
+    uint32_t OCONFIG;
+    uint32_t OCMD;
+    uint32_t RESERVED1;			/* 0x6C */
+    uint32_t OSTART_0Y; 		/* for i965 */
+    uint32_t OSTART_1Y;		/* for i965 */
+    uint32_t OSTART_0U;
+    uint32_t OSTART_0V;
+    uint32_t OSTART_1U;
+    uint32_t OSTART_1V;
+    uint32_t OTILEOFF_0Y;
+    uint32_t OTILEOFF_1Y;
+    uint32_t OTILEOFF_0U;
+    uint32_t OTILEOFF_0V;
+    uint32_t OTILEOFF_1U;
+    uint32_t OTILEOFF_1V;
+    uint32_t FASTHSCALE;			/* 0xA0 */
+    uint32_t UVSCALEV;			/* 0xA4 */
 
-    CARD32 RESERVEDC[(0x200 - 0xA8) / 4];		   /* 0xA8 - 0x1FC */
-    CARD16 Y_VCOEFS[N_VERT_Y_TAPS * N_PHASES];		   /* 0x200 */
-    CARD16 RESERVEDD[0x100 / 2 - N_VERT_Y_TAPS * N_PHASES];
-    CARD16 Y_HCOEFS[N_HORIZ_Y_TAPS * N_PHASES];		   /* 0x300 */
-    CARD16 RESERVEDE[0x200 / 2 - N_HORIZ_Y_TAPS * N_PHASES];
-    CARD16 UV_VCOEFS[N_VERT_UV_TAPS * N_PHASES];		   /* 0x500 */
-    CARD16 RESERVEDF[0x100 / 2 - N_VERT_UV_TAPS * N_PHASES];
-    CARD16 UV_HCOEFS[N_HORIZ_UV_TAPS * N_PHASES];	   /* 0x600 */
-    CARD16 RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
+    uint32_t RESERVEDC[(0x200 - 0xA8) / 4];		   /* 0xA8 - 0x1FC */
+    uint16_t Y_VCOEFS[N_VERT_Y_TAPS * N_PHASES];		   /* 0x200 */
+    uint16_t RESERVEDD[0x100 / 2 - N_VERT_Y_TAPS * N_PHASES];
+    uint16_t Y_HCOEFS[N_HORIZ_Y_TAPS * N_PHASES];		   /* 0x300 */
+    uint16_t RESERVEDE[0x200 / 2 - N_HORIZ_Y_TAPS * N_PHASES];
+    uint16_t UV_VCOEFS[N_VERT_UV_TAPS * N_PHASES];		   /* 0x500 */
+    uint16_t RESERVEDF[0x100 / 2 - N_VERT_UV_TAPS * N_PHASES];
+    uint16_t UV_HCOEFS[N_HORIZ_UV_TAPS * N_PHASES];	   /* 0x600 */
+    uint16_t RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
 } I830OverlayRegRec, *I830OverlayRegPtr;
 
 #define I830OVERLAYREG(pI830) ((I830OverlayRegPtr)\
@@ -354,10 +355,10 @@ typedef struct {
 				(pI830)->overlay_regs->offset))
 #if VIDEO_DEBUG
 static void
-CompareOverlay(I830Ptr pI830, CARD32 * overlay, int size)
+CompareOverlay(I830Ptr pI830, uint32_t * overlay, int size)
 {
     int i;
-    CARD32 val;
+    uint32_t val;
     int bad = 0;
 
     for (i = 0; i < size; i += 4) {
@@ -397,9 +398,9 @@ i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     {
 
 	int	vtotal_reg = intel_crtc->pipe == 0 ? VTOTAL_A : VTOTAL_B;
-	CARD32	size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
-	CARD32	active;
-	CARD32	hsize, vsize;
+	uint32_t size = intel_crtc->pipe ? INREG(PIPEBSRC) : INREG(PIPEASRC);
+	uint32_t active;
+	uint32_t hsize, vsize;
 
 	hsize = (size >> 16) & 0x7FF;
 	vsize = size & 0x7FF;
@@ -483,7 +484,7 @@ static void
 i830_overlay_continue(ScrnInfoPtr pScrn, Bool update_filter)
 {
     I830Ptr		pI830 = I830PTR(pScrn);
-    CARD32		flip_addr;
+    uint32_t		flip_addr;
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
 
     if (!*pI830->overlayOn)
@@ -495,8 +496,7 @@ i830_overlay_continue(ScrnInfoPtr pScrn, Bool update_filter)
 	flip_addr = pI830->overlay_regs->bus_addr;
     if (update_filter)
 	flip_addr |= OFC_UPDATE;
-    OVERLAY_DEBUG ("overlay_continue cmd 0x%08" PRIx32 " -> 0x%08" PRIx32
-		   " sta 0x%08" PRIx32 "\n",
+    OVERLAY_DEBUG ("overlay_continue cmd 0x%08x  -> 0x%08x sta 0x%08x\n",
 		   overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
     BEGIN_LP_RING(4);
     OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
@@ -536,7 +536,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
      */
     {
 	overlay->OCMD &= ~OVERLAY_ENABLE;
-	OVERLAY_DEBUG ("overlay_off cmd 0x%08" PRIx32 " -> 0x%08" PRIx32 " sta 0x%08" PRIx32 "\n",
+	OVERLAY_DEBUG ("overlay_off cmd 0x%08x -> 0x%08x sta 0x%08x\n",
 		       overlay->OCMD, INREG(OCMD_REGISTER), INREG(DOVSTA));
 	BEGIN_LP_RING(6);
 	OUT_RING(MI_FLUSH | MI_WRITE_DIRTY_STATE);
@@ -734,7 +734,7 @@ I830SetOneLineModeRatio(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    CARD32 panelFitControl = INREG(PFIT_CONTROLS);
+    uint32_t panelFitControl = INREG(PFIT_CONTROLS);
     int vertScale;
 
     pPriv->scaleRatio = 0x10000;
@@ -758,7 +758,7 @@ I830SetOneLineModeRatio(ScrnInfoPtr pScrn)
 	pPriv->oneLineMode = FALSE;
 }
 
-static CARD32 I830BoundGammaElt (CARD32 elt, CARD32 eltPrev)
+static uint32_t I830BoundGammaElt (uint32_t elt, uint32_t eltPrev)
 {
     elt &= 0xff;
     eltPrev &= 0xff;
@@ -769,7 +769,7 @@ static CARD32 I830BoundGammaElt (CARD32 elt, CARD32 eltPrev)
     return elt;
 }
 
-static CARD32 I830BoundGamma (CARD32 gamma, CARD32 gammaPrev)
+static uint32_t I830BoundGamma (uint32_t gamma, uint32_t gammaPrev)
 {
     return (I830BoundGammaElt (gamma >> 24, gammaPrev >> 24) << 24 |
 	    I830BoundGammaElt (gamma >> 16, gammaPrev >> 16) << 16 |
@@ -782,12 +782,12 @@ I830UpdateGamma(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv = pI830->adaptor->pPortPrivates[0].ptr;
-    CARD32   gamma0 = pPriv->gamma0;
-    CARD32   gamma1 = pPriv->gamma1;
-    CARD32   gamma2 = pPriv->gamma2;
-    CARD32   gamma3 = pPriv->gamma3;
-    CARD32   gamma4 = pPriv->gamma4;
-    CARD32   gamma5 = pPriv->gamma5;
+    uint32_t gamma0 = pPriv->gamma0;
+    uint32_t gamma1 = pPriv->gamma1;
+    uint32_t gamma2 = pPriv->gamma2;
+    uint32_t gamma3 = pPriv->gamma3;
+    uint32_t gamma4 = pPriv->gamma4;
+    uint32_t gamma5 = pPriv->gamma5;
 
 #if 0
     ErrorF ("Original gamma: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
@@ -982,7 +982,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
     adapt->GetVideo = NULL;
     adapt->GetStill = NULL;
     adapt->StopVideo = I830StopVideo;
-    adapt->SetPortAttribute = I830SetPortAttribute;
+    adapt->SetPortAttribute = I830SetPortAttributeTextured;
     adapt->GetPortAttribute = I830GetPortAttribute;
     adapt->QueryBestSize = I830QueryBestSize;
     adapt->PutImage = I830PutImage;
@@ -1071,20 +1071,33 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 }
 
 static int
+I830SetPortAttributeTextured(ScrnInfoPtr pScrn,
+			     Atom attribute, INT32 value, pointer data)
+{
+    I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
+
+    if (attribute == xvBrightness) {
+	if ((value < -128) || (value > 127))
+	    return BadValue;
+	pPriv->brightness = value;
+	return Success;
+    } else if (attribute == xvContrast) {
+	if ((value < 0) || (value > 255))
+	    return BadValue;
+	pPriv->contrast = value;
+	return Success;
+    } else {
+	return BadMatch;
+    }
+}
+
+static int
 I830SetPortAttribute(ScrnInfoPtr pScrn,
 		     Atom attribute, INT32 value, pointer data)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
     I830Ptr pI830 = I830PTR(pScrn);
     I830OverlayRegPtr overlay;
-
-    if (pPriv->textured) {
-	/* XXX: Currently the brightness/saturation attributes aren't hooked up.
-	 * However, apps expect them to be there, and the spec seems to let us
-	 * sneak out of actually implementing them for now.
-	 */
-	return Success;
-    }
 
     overlay = I830OVERLAYREG(pI830);
 
@@ -1336,7 +1349,7 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			   int top, int left, int h, int w, int id)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD8 *dst1, *srcy, *srcu, *srcv;
+    uint8_t *dst1, *srcy, *srcu, *srcv;
     int y;
 
     if (pPriv->currentBuf == 0)
@@ -1356,10 +1369,10 @@ I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 
     for (y = 0; y < h; y++) {
-	CARD32 *dst = (CARD32 *)dst1;
-	CARD8 *sy = srcy;
-	CARD8 *su = srcu;
-	CARD8 *sv = srcv;
+	uint32_t *dst = (uint32_t *)dst1;
+	uint8_t *sy = srcy;
+	uint8_t *su = srcu;
+	uint8_t *sv = srcv;
 	int i;
 
 	i = w / 2;
@@ -1566,9 +1579,9 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 }
 
 typedef struct {
-    CARD8 sign;
-    CARD16 mantissa;
-    CARD8 exponent;
+    uint8_t sign;
+    uint16_t mantissa;
+    uint8_t exponent;
 } coeffRec, *coeffPtr;
 
 static Bool
@@ -1794,14 +1807,14 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     unsigned int	swidth, swidthy, swidthuv;
     unsigned int	mask, shift, offsety, offsetu;
     int			tmp;
-    CARD32		OCMD;
+    uint32_t		OCMD;
     Bool		scaleChanged = FALSE;
 
     OVERLAY_DEBUG("I830DisplayVideo: %dx%d (pitch %d)\n", width, height,
 		  dstPitch);
 
 #if VIDEO_DEBUG
-    CompareOverlay(pI830, (CARD32 *) overlay, 0x100);
+    CompareOverlay(pI830, (uint32_t *) overlay, 0x100);
 #endif
     
     /*
@@ -1956,7 +1969,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	overlay->OBUF_1V = pPriv->VBuf1offset;
     }
 
-    OVERLAY_DEBUG("pos: 0x%" PRIx32 ", size: 0x%" PRIx32 "\n",
+    OVERLAY_DEBUG("pos: 0x%x, size: 0x%x\n",
 		  overlay->DWINPOS, overlay->DWINSZ);
     OVERLAY_DEBUG("dst: %d x %d, src: %d x %d\n", drw_w, drw_h, src_w, src_h);
 
@@ -1971,7 +1984,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	int yscaleIntUV, yscaleFractUV;
 	/* UV is half the size of Y -- YUV420 */
 	int uvratio = 2;
-	CARD32 newval;
+	uint32_t newval;
 	coeffRec xcoeffY[N_HORIZ_Y_TAPS * N_PHASES];
 	coeffRec xcoeffUV[N_HORIZ_UV_TAPS * N_PHASES];
 	int i, j, pos;
@@ -2118,7 +2131,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	OCMD |= BUFFER1;
 
     overlay->OCMD = OCMD;
-    OVERLAY_DEBUG("OCMD is 0x%" PRIx32 "\n", OCMD);
+    OVERLAY_DEBUG("OCMD is 0x%x\n", OCMD);
 
     /* make sure the overlay is on */
     i830_overlay_on (pScrn);
@@ -2171,7 +2184,7 @@ i830_clip_video_helper (ScrnInfoPtr pScrn,
 }
 
 static void
-i830_fill_colorkey (ScreenPtr pScreen, CARD32 key, RegionPtr clipboxes)
+i830_fill_colorkey (ScreenPtr pScreen, uint32_t key, RegionPtr clipboxes)
 {
    DrawablePtr root = &WindowTable[pScreen->myNum]->drawable;
    XID	       pval[2];

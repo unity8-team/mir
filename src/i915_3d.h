@@ -61,6 +61,10 @@
 #define FS_C1			((REG_TYPE_CONST << 8) | 1)
 #define FS_C2			((REG_TYPE_CONST << 8) | 2)
 #define FS_C3			((REG_TYPE_CONST << 8) | 3)
+#define FS_C4			((REG_TYPE_CONST << 8) | 4)
+#define FS_C5			((REG_TYPE_CONST << 8) | 5)
+#define FS_C6			((REG_TYPE_CONST << 8) | 6)
+#define FS_C7			((REG_TYPE_CONST << 8) | 7)
 
 /* Sampler regs */
 #define FS_S0			((REG_TYPE_S << 8) | 0)
@@ -84,7 +88,7 @@
 #define REG_NR(reg)		((reg) & 0xff)
 
 struct i915_fs_op {
-    CARD32 ui[3];
+    uint32_t ui[3];
 };
 
 #define X_CHANNEL_VAL		1
@@ -415,7 +419,7 @@ do {									\
  *        a FS_START and FS_END
  */
 #define FS_LOCALS(x)							\
-    CARD32 _shader_buf[(x) * 3];					\
+    uint32_t _shader_buf[(x) * 3];					\
     int _max_shader_commands = x;					\
     int _cur_shader_commands
 

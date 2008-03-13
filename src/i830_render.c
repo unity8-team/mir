@@ -54,13 +54,13 @@ do { 							\
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
-    CARD32 src_blend;
-    CARD32 dst_blend;
+    uint32_t src_blend;
+    uint32_t dst_blend;
 };
 
 struct formatinfo {
     int fmt;
-    CARD32 card_fmt;
+    uint32_t card_fmt;
 };
 
 #define TB0C_LAST_STAGE	(1 << 31)
@@ -154,7 +154,7 @@ static struct formatinfo i830_tex_formats[] = {
     {PICT_a8,       MT_8BIT_A8        },
 };
 
-static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
+static Bool i830_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -186,9 +186,10 @@ static Bool i830_get_dest_format(PicturePtr pDstPicture, CARD32 *dst_format)
 }
 
 
-static CARD32 i830_get_blend_cntl(int op, PicturePtr pMask, CARD32 dst_format)
+static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
+				    uint32_t dst_format)
 {
-    CARD32 sblend, dblend;
+    uint32_t sblend, dblend;
 
     sblend = i830_blend_op[op].src_blend;
     dblend = i830_blend_op[op].dst_blend;
@@ -260,7 +261,7 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     return TRUE;
 }
 
-static CARD32
+static uint32_t
 i8xx_get_card_format(PicturePtr pPict)
 {
     int i;
@@ -279,8 +280,8 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 format, offset, pitch, filter;
-    CARD32 wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+    uint32_t format, offset, pitch, filter;
+    uint32_t wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
     offset = intel_get_pixmap_offset(pPix);
     pitch = intel_get_pixmap_pitch(pPix);
@@ -362,7 +363,7 @@ Bool
 i830_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
-    CARD32 tmp1;
+    uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(i830_blend_op) / sizeof(i830_blend_op[0]))
@@ -398,12 +399,13 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_offset, dst_pitch;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
 
-    i830_get_dest_format(pDstPicture, &dst_format);
+    if (!i830_get_dest_format(pDstPicture, &dst_format))
+	return FALSE;
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
 
@@ -419,7 +421,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     {
-	CARD32 cblend, ablend, blendctl, vf2;
+	uint32_t cblend, ablend, blendctl, vf2;
 
 	BEGIN_LP_RING(30);
 

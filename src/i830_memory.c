@@ -543,7 +543,7 @@ static uint64_t
 i830_get_gtt_physical(ScrnInfoPtr pScrn, unsigned long offset)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 gttentry;
+    uint32_t gttentry;
 
     /* We don't have GTTBase set up on i830 yet. */
     if (pI830->GTTBase == NULL)
@@ -730,10 +730,6 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
 	return FALSE;
     }
 
-    if (!i830_bind_memory(pScrn, mem)) {
-	return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -850,6 +846,11 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	    return NULL;
 
 	if (!i830_allocate_agp_memory(pScrn, mem, flags)) {
+	    i830_free_memory(pScrn, mem);
+	    return NULL;
+	}
+
+	if (!i830_bind_memory(pScrn, mem)) {
 	    i830_free_memory(pScrn, mem);
 	    return NULL;
 	}
@@ -1712,8 +1713,8 @@ i830_set_tiling(ScrnInfoPtr pScrn, unsigned int offset,
 		enum tile_format tile_format)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    CARD32 val;
-    CARD32 fence_mask = 0;
+    uint32_t val;
+    uint32_t fence_mask = 0;
     unsigned int fence_pitch;
     unsigned int max_fence;
     unsigned int fence_nr;

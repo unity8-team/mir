@@ -171,7 +171,7 @@ i830_bios_get_panel_mode(ScrnInfoPtr pScrn, Bool *wants_dither)
 	struct lvds_bdb_2_fp_params *fpparam;
 	struct lvds_bdb_2_fp_edid_dtd *fptiming;
 	DisplayModePtr fixed_mode;
-	CARD8 *timing_ptr;
+	uint8_t *timing_ptr;
 
 	id = INTEL_BIOS_8(start);
 	block_size = INTEL_BIOS_16(start + 1) + 3;

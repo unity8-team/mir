@@ -226,7 +226,7 @@ i830_dvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct _I830DVODriver   *drv = intel_output->i2c_drv;
     int			    pipe = intel_crtc->pipe;
-    CARD32		    dvo;
+    uint32_t		    dvo;
     unsigned int	    dvo_reg = drv->dvo_reg, dvo_srcdim_reg;
     int			    dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 
@@ -358,7 +358,7 @@ i830_dvo_get_current_mode (xf86OutputPtr output)
     I830Ptr		    pI830 = I830PTR(pScrn);
     struct _I830DVODriver   *drv = intel_output->i2c_drv;
     unsigned int	    dvo_reg = drv->dvo_reg;
-    CARD32		    dvo = INREG(dvo_reg);
+    uint32_t		    dvo = INREG(dvo_reg);
     DisplayModePtr    	    mode = NULL;
 
     /* If the DVO port is active, that'll be the LVDS, so we can pull out

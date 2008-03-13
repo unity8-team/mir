@@ -617,8 +617,8 @@ I830MapMMIO(ScrnInfoPtr pScrn)
     * time.
     */
    if (IS_I9XX(pI830)) {
-      CARD32   gttaddr;
-      
+      uint32_t gttaddr;
+
       if (IS_I965G(pI830)) 
       {
 	 if (IS_IGD_GM(pI830)) {
@@ -755,7 +755,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    int i,j, index;
    int p;
-   CARD16 lut_r[256], lut_g[256], lut_b[256];
+   uint16_t lut_r[256], lut_g[256], lut_b[256];
 
    DPRINTF(PFX, "I830LoadPalette: numColors: %d\n", numColors);
 
@@ -1037,7 +1037,7 @@ static void
 i830SetHotkeyControl(ScrnInfoPtr pScrn, int mode)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD8 gr18;
+   uint8_t gr18;
 
    gr18 = pI830->readControl(pI830, GRX, 0x18);
    if (mode == HOTKEY_BIOS_SWITCH)
@@ -1225,7 +1225,7 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	pci_device_cfg_read_u16 (bridge, &gmch_ctrl, I830_GMCH_CTRL);
 #else
 	PCITAG bridge;
-	CARD16 gmch_ctrl;
+	uint16_t gmch_ctrl;
 
 	bridge = pciTag(0, 0, 0);		/* This is always the host bridge */
 	gmch_ctrl = pciReadWord(bridge, I830_GMCH_CTRL);
@@ -2334,7 +2334,7 @@ void
 IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD32 ctx_addr;
+   uint32_t ctx_addr;
 
    if (pI830->noAccel)
       return;
@@ -3111,6 +3111,8 @@ I830LeaveVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+   int o;
 
    DPRINTF(PFX, "Leave VT\n");
 
@@ -3137,6 +3139,17 @@ I830LeaveVT(int scrnIndex, int flags)
       drmCtlUninstHandler(pI830->drmSubFD);
    }
 #endif
+
+   for (o = 0; o < config->num_crtc; o++) {
+       xf86CrtcPtr crtc = config->crtc[o];
+
+       if (crtc->rotatedPixmap || crtc->rotatedData) {
+	   crtc->funcs->shadow_destroy(crtc, crtc->rotatedPixmap,
+				crtc->rotatedData);
+	   crtc->rotatedPixmap = NULL;
+	   crtc->rotatedData = NULL;
+       }
+   }
 
    xf86_hide_cursors (pScrn);
 
@@ -3534,7 +3547,7 @@ I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
 {
    ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
    I830Ptr pI830 = I830PTR(pScrn);
-   CARD8 gr18;
+   uint8_t gr18;
 
    if (!pScrn->vtSema)
       return 1000;
