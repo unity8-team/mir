@@ -946,7 +946,7 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
 
-#if 1
+#if 0
     /* Throw out cases that aren't going to be our rotation first */
     if (pMaskPicture != NULL || op != PictOpSrc || pSrcPicture->pDrawable == NULL)
 	RADEON_FALLBACK(("Junk driver\n"));
@@ -1047,8 +1047,11 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
-    if (pMask && pMaskPicture->componentAlpha)
+    //if (pMask && pMaskPicture->componentAlpha)
+    if (pMask)
 	return FALSE;
+
+    ErrorF("op: 0x%x, src: 0x%x, dst: 0x%x\n", op, pSrcPicture->format, pDstPicture->format);
 
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
