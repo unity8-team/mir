@@ -556,13 +556,8 @@ i830_enable_fb_compression_8xx(xf86CrtcPtr crtc)
     unsigned long uncompressed_stride = pScrn->displayWidth * pI830->cpp;
     unsigned long interval = 1000;
 
-    if (INREG(FBC_CONTROL) & FBC_CTL_EN) {
-	char cur_plane = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc already enabled on "
-		   "plane %c, not enabling on plane %c\n", cur_plane,
-		   plane ? 'b' : 'a');
+    if (INREG(FBC_CONTROL) & FBC_CTL_EN)
 	return;
-    }
 
     compressed_stride = pI830->compressed_front_buffer->size /
 	FBC_LL_SIZE;
@@ -597,9 +592,6 @@ i830_enable_fb_compression_8xx(xf86CrtcPtr crtc)
     fbc_ctl |= FBC_CTL_UNCOMPRESSIBLE;
     fbc_ctl |= pI830->front_buffer->fence_nr;
     OUTREG(FBC_CONTROL, fbc_ctl);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc enabled on plane %c\n", plane ?
-	       'b' : 'a');
 }
 
 /*
@@ -611,7 +603,6 @@ i830_disable_fb_compression_8xx(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t fbc_ctl;
-    char plane = (INREG(FBC_CONTROL2) & 1) ? 'b' : 'a';
 
     /* Disable compression */
     fbc_ctl = INREG(FBC_CONTROL);
@@ -621,7 +612,6 @@ i830_disable_fb_compression_8xx(xf86CrtcPtr crtc)
     /* Wait for compressing bit to clear */
     while (INREG(FBC_STATUS) & FBC_STAT_COMPRESSING)
 	; /* nothing */
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc disabled on plane %c\n", plane);
 }
 
 static void
@@ -630,15 +620,12 @@ i830_disable_fb_compression2(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t dpfc_ctl;
-    char plane = (INREG(DPFC_CONTROL) & DPFC_CTL_PLANEB) ? 'b' : 'a';
 
     /* Disable compression */
     dpfc_ctl = INREG(DPFC_CONTROL);
     dpfc_ctl &= ~DPFC_CTL_EN;
     OUTREG(DPFC_CONTROL, dpfc_ctl);
     i830WaitForVblank(pScrn);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc2 disabled on plane %c\n", plane);
 }
 
 static void
@@ -650,13 +637,8 @@ i830_enable_fb_compression2(xf86CrtcPtr crtc)
     int plane = (intel_crtc->plane == 0 ? DPFC_CTL_PLANEA : DPFC_CTL_PLANEB);
     unsigned long stall_watermark = 200, frames = 50;
 
-    if (INREG(DPFC_CONTROL) & DPFC_CTL_EN) {
-	char cur_plane = (INREG(DPFC_CONTROL) & DPFC_CTL_PLANEB) ? 'b' : 'a';
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "fbc2 already enabled on "
-		   "plane %c, not enabling on plane %c\n", cur_plane,
-		   plane ? 'b' : 'a');
+    if (INREG(DPFC_CONTROL) & DPFC_CTL_EN)
 	return;
-    }
 
     /* Set it up... */
     i830_disable_fb_compression2(crtc);
@@ -675,9 +657,6 @@ i830_enable_fb_compression2(xf86CrtcPtr crtc)
 
     /* enable it... */
     OUTREG(DPFC_CONTROL, INREG(DPFC_CONTROL) | DPFC_CTL_EN);
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "fbc2 enabled on plane %c\n", plane ?
-	       'b' : 'a');
 }
 
 static void
