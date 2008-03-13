@@ -1047,11 +1047,14 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
+    if (pMask && pMaskPicture->componentAlpha)
+	return FALSE;
+
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
     if (!R300GetDestFormat(pDstPicture, &dst_format))
-    	return FALSE;
+	return FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
@@ -1216,7 +1219,49 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (IS_R300_VARIANT ||
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||
 	(info->ChipFamily == CHIP_FAMILY_RS740)) {
-      BEGIN_ACCEL(16);
+	CARD32 output_fmt;
+	int src_color, src_alpha;
+
+	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
+	    src_color = R300_ALU_RGB_1_0;
+	else
+	    src_color = R300_ALU_RGB_SRC0_RGB;
+
+	if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+	    src_alpha = R300_ALU_ALPHA_1_0;
+	else
+	    src_alpha = R300_ALU_ALPHA_SRC0_A;
+
+
+	/* shader output swizzling */
+	switch (pDstPicture->format) {
+	case PICT_a8r8g8b8:
+	case PICT_x8r8g8b8:
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+	default:
+	    output_fmt = (R300_OUT_FMT_C4_8 |
+			  R300_OUT_FMT_C0_SEL_BLUE |
+			  R300_OUT_FMT_C1_SEL_GREEN |
+			  R300_OUT_FMT_C2_SEL_RED |
+			  R300_OUT_FMT_C3_SEL_ALPHA);
+	    break;
+	case PICT_r5g6b5:
+	case PICT_a1r5g5b5:
+	case PICT_x1r5g5b5:
+	    output_fmt = (R300_OUT_FMT_C_5_6_5 |
+			  R300_OUT_FMT_C0_SEL_BLUE |
+			  R300_OUT_FMT_C1_SEL_GREEN |
+			  R300_OUT_FMT_C2_SEL_RED |
+			  R300_OUT_FMT_C3_SEL_ALPHA);
+	    break;
+	case PICT_a8:
+	    output_fmt = (R300_OUT_FMT_C4_8 |
+			  R300_OUT_FMT_C0_SEL_ALPHA);
+	    break;
+	}
+
+      BEGIN_ACCEL(17);
       OUT_ACCEL_REG(R300_RS_COUNT,
 		    ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 		     R300_RS_COUNT_HIRES_EN));
@@ -1260,11 +1305,15 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_TEX_START(0) |
 		     R300_TEX_SIZE(0) |
 		     R300_RGBA_OUT));
+
+      OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
+
       OUT_ACCEL_REG(R300_US_TEX_INST_0,
 		    (R300_TEX_SRC_ADDR(0) |
 		     R300_TEX_DST_ADDR(0) |
 		     R300_TEX_ID(0) |
 		     R300_TEX_INST(R300_TEX_INST_LD)));
+
       OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
 		    (R300_ALU_RGB_ADDR0(0) |
 		     R300_ALU_RGB_ADDR1(0) |
@@ -1278,7 +1327,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					 R300_ALU_RGB_MASK_B)) |
 		     R300_ALU_RGB_TARGET_A));
       OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
-		    (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
+		    (R300_ALU_RGB_SEL_A(src_color) |
 		     R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
 		     R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
 		     R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
@@ -1296,7 +1345,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_ALPHA_TARGET_A |
 		     R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
       OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
-		    (R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_A) |
+		    (R300_ALU_ALPHA_SEL_A(src_alpha) |
 		     R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
 		     R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_1_0) |
 		     R300_ALU_ALPHA_MOD_B(R300_ALU_ALPHA_MOD_NOP) |
