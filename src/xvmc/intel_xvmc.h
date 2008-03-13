@@ -165,10 +165,6 @@ typedef struct _intel_xvmc_driver {
 
     void *private;
 
-    /* XXX: remove? */
-    int (*init)(void);
-    void (*fini)(void);
-
     /* driver specific xvmc callbacks */
     Status (*create_context)(Display* display, XvMCContext *context,
 	    int priv_count, CARD32 *priv_data);
@@ -191,7 +187,6 @@ typedef struct _intel_xvmc_driver {
 	    XvMCMacroBlockArray *macroblock_array,
 	    XvMCBlockArray *blocks);
 
-    /* XXX this should be same for all drivers */
     Status (*put_surface)(Display *display, XvMCSurface *surface,
 	    Drawable draw, short srcx, short srcy,
 	    unsigned short srcw, unsigned short srch,

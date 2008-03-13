@@ -60,15 +60,6 @@ static char I915KernelDriverName[] = "i915";
 static int error_base;
 static int event_base;
 
-static int i915_xvmc_mc_init()
-{
-    return 0;
-}
-
-static void i915_xvmc_mc_fini()
-{}
-
-
 static int findOverlap(unsigned int width, unsigned int height,
                        short *dstX, short *dstY,
                        short *srcX, short *srcY,
@@ -2538,8 +2529,6 @@ struct _intel_xvmc_driver i915_xvmc_mc_driver = {
     .type		= XVMC_I915_MPEG2_MC,
     .num_ctx		= 0,
     .ctx_list		= NULL,
-    .init		= i915_xvmc_mc_init,
-    .fini		= i915_xvmc_mc_fini,
     .create_context	= i915_xvmc_mc_create_context,
     .destroy_context	= i915_xvmc_mc_destroy_context,
     .create_surface	= i915_xvmc_mc_create_surface,
