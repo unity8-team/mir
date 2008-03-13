@@ -5,7 +5,7 @@
 #include "nv_type.h"
 
 typedef struct NV50OutputPrivRec {
-    ORNum or;
+    uint8_t output_resource;
     NVOutputType type;
     DisplayModePtr nativeMode;
     enum scaling_modes scale;

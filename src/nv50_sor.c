@@ -38,7 +38,7 @@ NV50SorSetPClk(xf86OutputPtr output, int pclk)
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
-	NVWrite(pNv, 0x00614300 + nv_output->or * 0x800, (pclk > limit) ? 0x101 : 0);
+	NVWrite(pNv, 0x00614300 + nv_output->output_resource * 0x800, (pclk > limit) ? 0x101 : 0);
 }
 
 static void
@@ -49,9 +49,9 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
 
-	while((NVRead(pNv, 0x0061c004 + nv_output->or * 0x800) & 0x80000000));
+	while((NVRead(pNv, 0x0061c004 + nv_output->output_resource * 0x800) & 0x80000000));
 
-	tmp = NVRead(pNv, 0x0061c004 + nv_output->or * 0x800);
+	tmp = NVRead(pNv, 0x0061c004 + nv_output->output_resource * 0x800);
 	tmp |= 0x80000000;
 
 	if(mode == DPMSModeOn)
@@ -59,8 +59,8 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 	else
 		tmp &= ~1;
 
-	NVWrite(pNv, 0x0061c004 + nv_output->or * 0x800, tmp);
-	while((NVRead(pNv, 0x0061c030 + nv_output->or * 0x800) & 0x10000000));
+	NVWrite(pNv, 0x0061c004 + nv_output->output_resource * 0x800, tmp);
+	while((NVRead(pNv, 0x0061c030 + nv_output->output_resource * 0x800) & 0x10000000));
 }
 
 static int
@@ -93,7 +93,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NV50OutputPrivPtr nv_output = output->driver_private;
-	const int sorOff = 0x40 * nv_output->or;
+	const int sorOff = 0x40 * nv_output->output_resource;
 	CARD32 type;
 
 	if(!adjusted_mode) {
@@ -501,17 +501,17 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 
 	output = xf86OutputCreate(pScrn, funcs, orName);
 
-	nv_output->or = or;
+	nv_output->output_resource = or;
 	nv_output->type = type;
 	output->driver_private = nv_output;
 	output->interlaceAllowed = TRUE;
 	output->doubleScanAllowed = TRUE;
 
 	if (type != OUTPUT_LVDS) {
-		NVWrite(pNv, 0x0061c00c + nv_output->or * 0x800, 0x03010700);
-		NVWrite(pNv, 0x0061c010 + nv_output->or * 0x800, 0x0000152f);
-		NVWrite(pNv, 0x0061c014 + nv_output->or * 0x800, 0x00000000);
-		NVWrite(pNv, 0x0061c018 + nv_output->or * 0x800, 0x00245af8);
+		NVWrite(pNv, 0x0061c00c + nv_output->output_resource * 0x800, 0x03010700);
+		NVWrite(pNv, 0x0061c010 + nv_output->output_resource * 0x800, 0x0000152f);
+		NVWrite(pNv, 0x0061c014 + nv_output->output_resource * 0x800, 0x00000000);
+		NVWrite(pNv, 0x0061c018 + nv_output->output_resource * 0x800, 0x00245af8);
 	}
 
 	return output;
