@@ -56,10 +56,6 @@ typedef union {
     uint  u[2];
 } su_t;
 
-static char I915KernelDriverName[] = "i915";
-static int error_base;
-static int event_base;
-
 static int findOverlap(unsigned int width, unsigned int height,
                        short *dstX, short *dstY,
                        short *srcX, short *srcY,
@@ -1728,7 +1724,7 @@ static Status i915_xvmc_mc_create_surface(Display *display,
     I915XvMCCreateSurfaceRec *tmpComm = NULL;
 
     if (!(pI915XvMC = context->privData))
-        return (error_base + XvMCBadContext);
+        return XvMCBadContext;
 
     XVMC_DBG("%s\n", __FUNCTION__);
 
@@ -1796,10 +1792,10 @@ static int i915_xvmc_mc_destroy_surface(Display *display, XvMCSurface *surface)
         return BadValue;
 
     if (!(pI915Surface = surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (!(pI915XvMC = pI915Surface->privContext))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (pI915Surface->last_flip)
         XvMCSyncSurface(display,surface);
@@ -1866,10 +1862,10 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     }
 
     if (!(pI915XvMC = context->privData))
-        return (error_base + XvMCBadContext);
+        return XvMCBadContext;
 
     if (!(privTarget = target_surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     /* Test For YV12 Surface */
     if (context->surface_type_id != FOURCC_YV12) {
@@ -1890,7 +1886,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     } else {
         if (!(privPast = past_surface->privData)) {
             XVMC_ERR("Invalid Past Surface!");
-            return (error_base + XvMCBadSurface);
+            return XvMCBadSurface;
         }
         picture_coding_type = MPEG_P_PICTURE;
     }
@@ -1906,7 +1902,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 
         if (!(privFuture = future_surface->privData)) {
             XVMC_ERR("Invalid Future Surface!");
-            return (error_base + XvMCBadSurface);
+            return XvMCBadSurface;
         }
 
         picture_coding_type = MPEG_B_PICTURE;
@@ -2037,10 +2033,10 @@ static int i915_xvmc_mc_put_surface(Display *display,XvMCSurface *surface,
     i915XvMCSubpicture *pI915SubPic;
 
     if (!(pI915Surface = surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (!(pI915XvMC = pI915Surface->privContext))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     PPTHREAD_MUTEX_LOCK();
 
@@ -2069,10 +2065,10 @@ static int i915_xvmc_mc_get_surface_status(Display *display,
     *stat = 0;
 
     if (!(pI915Surface = surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (!(pI915XvMC = pI915Surface->privContext))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     PPTHREAD_MUTEX_LOCK();
     if (pI915Surface->last_flip) {
@@ -2119,11 +2115,11 @@ Status XvMCHideSurface(Display *display, XvMCSurface *surface)
         return BadValue;
 
     if (!(pI915Surface = surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     /* Get the associated context pointer */
     if (!(pI915XvMC = pI915Surface->privContext))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     XvMCSyncSurface(display, surface);
 
@@ -2159,7 +2155,7 @@ Status i915_xvmc_create_subpict(Display *display, XvMCContext *context,
     pI915XvMC = (i915XvMCContext *)context->privData;
 
     if (!pI915XvMC)
-        return (error_base + XvMCBadContext);
+        return XvMCBadContext;
 
     subpicture->privData =
         (i915XvMCSubpicture *)malloc(sizeof(i915XvMCSubpicture));
@@ -2264,10 +2260,10 @@ Status i915_xvmc_clear_subpict(Display *display, XvMCSubpicture *subpicture,
         return BadValue;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if (!(pI915XvMC = pI915Subpicture->privContext))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if ((x < 0) || (x + width) > subpicture->width)
         return BadValue;
@@ -2293,10 +2289,10 @@ Status i915_xvmc_composite_subpict(Display *display, XvMCSubpicture *subpicture,
         return BadValue;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if (!(pI915XvMC = pI915Subpicture->privContext))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if ((srcx < 0) || (srcx + width) > subpicture->width)
         return BadValue;
@@ -2327,10 +2323,10 @@ Status i915_xvmc_destroy_subpict(Display *display, XvMCSubpicture *subpicture)
         return BadValue;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if (!(pI915XvMC = pI915Subpicture->privContext))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if (pI915Subpicture->last_render)
         XvMCSyncSubpicture(display, subpicture);
@@ -2363,7 +2359,7 @@ Status i915_xvmc_set_subpict_palette(Display *display,
         return BadValue;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     j = 0;
     for (i = 0; i < 16; i++) {
@@ -2390,15 +2386,15 @@ Status i915_xvmc_blend_subpict(Display *display, XvMCSurface *target_surface,
         return BadValue;
 
     if (!(privTargetSurface = target_surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (subpicture) {
         if (!(pI915Subpicture = subpicture->privData))
-            return (error_base + XvMCBadSubpicture);
+            return XvMCBadSubpicture;
 
         if ((FOURCC_AI44 != subpicture->xvimage_id) &&
             (FOURCC_IA44 != subpicture->xvimage_id))
-            return (error_base + XvMCBadSubpicture);
+            return XvMCBadSubpicture;
 
         privTargetSurface->privSubPic = pI915Subpicture;
     } else {
@@ -2426,13 +2422,13 @@ Status i915_xvmc_blend_subpict2(Display *display,
         return BadValue;
 
     if (!(privSourceSurface = source_surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (!(privTargetSurface = target_surface->privData))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (!(pI915XvMC = privTargetSurface->privContext))
-        return (error_base + XvMCBadSurface);
+        return XvMCBadSurface;
 
     if (((surfx + surfw) > privTargetSurface->width) ||
         ((surfy + surfh) > privTargetSurface->height))
@@ -2453,11 +2449,11 @@ Status i915_xvmc_blend_subpict2(Display *display,
             return BadValue;
 
         if (!(pI915Subpicture = subpicture->privData))
-            return (error_base + XvMCBadSubpicture);
+            return XvMCBadSubpicture;
 
         if ((FOURCC_AI44 != subpicture->xvimage_id) &&
             (FOURCC_IA44 != subpicture->xvimage_id))
-            return (error_base + XvMCBadSubpicture);
+            return XvMCBadSubpicture;
 
         privTargetSurface->privSubPic = pI915Subpicture;
     } else {
@@ -2490,7 +2486,7 @@ Status i915_xvmc_flush_subpict(Display *display, XvMCSubpicture *subpicture)
         return BadValue;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     return Success;
 }
@@ -2507,10 +2503,10 @@ Status i915_xvmc_get_subpict_status(Display *display, XvMCSubpicture *subpicture
     *stat = 0;
 
     if (!(pI915Subpicture = subpicture->privData))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     if (!(pI915XvMC = pI915Subpicture->privContext))
-        return (error_base + XvMCBadSubpicture);
+        return XvMCBadSubpicture;
 
     PPTHREAD_MUTEX_LOCK();
     /* FIXME: */
