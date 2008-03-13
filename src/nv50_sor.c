@@ -140,6 +140,9 @@ NV50SorDetect(xf86OutputPtr output)
 	if (!ddc_mon->features.input_type) /* Analog? */
 		return XF86OutputStatusDisconnected;
 
+	if (ddc_mon)
+		xf86OutputSetEDID(output, ddc_mon);
+
 	return XF86OutputStatusConnected;
 }
 

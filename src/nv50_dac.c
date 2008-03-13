@@ -125,6 +125,9 @@ NV50DacDetect(xf86OutputPtr output)
 	if (ddc_mon && ddc_mon->features.input_type) /* DVI? */
 		return XF86OutputStatusDisconnected;
 
+	if (ddc_mon)
+		xf86OutputSetEDID(output, ddc_mon);
+
 	return XF86OutputStatusConnected;
 }
 
