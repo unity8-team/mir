@@ -4433,6 +4433,9 @@
 #define R300_RB3D_ZTOP				        0x4f14
 #define R300_RB3D_ROPCNTL				0x4e18
 #define R300_RB3D_BLENDCNTL				0x4e04
+#       define R300_ALPHA_BLEND_ENABLE                  (1 << 0)
+#       define R300_SEPARATE_ALPHA_ENABLE               (1 << 1)
+#       define R300_READ_ENABLE                         (1 << 2)
 #define R300_RB3D_ABLENDCNTL			        0x4e08
 #define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
 #define R300_RB3D_COLOROFFSET0			        0x4e28

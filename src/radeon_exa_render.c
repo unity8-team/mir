@@ -1407,7 +1407,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
 
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
-    OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl);
+    OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl | R300_ALPHA_BLEND_ENABLE | R300_READ_ENABLE);
     OUT_ACCEL_REG(R300_RB3D_ABLENDCNTL, 0);
 
 #if 0
