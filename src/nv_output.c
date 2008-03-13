@@ -713,7 +713,6 @@ nv_output_destroy (xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_destroy is called.\n");
 
@@ -722,129 +721,19 @@ nv_output_destroy (xf86OutputPtr output)
 			xfree(nv_output->native_mode);
 		xfree(output->driver_private);
 	}
-
-	/* Ensure that it always points to something valid. */
-	if (pNv->output_resource[0] == output)
-		pNv->output_resource[0] = NULL;
-
-	if (pNv->output_resource[1] == output)
-		pNv->output_resource[1] = NULL;
-}
-
-/* Is this output resource empty, ours or unused. */
-#define OR_AVAIL(num) ((pNv->output_resource[num] == NULL) || \
-									(pNv->output_resource[num] == output) || \
-									(pNv->output_resource[num]->crtc == NULL))
-
-/* Reset a mode after a drastic output resource change for example. */
-static void NVOutputModeFix(xf86OutputPtr output)
-{
-	xf86CrtcPtr crtc = output->crtc;
-	if (!crtc) /* not active */
-		return;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	Bool need_unlock;
-
-	if (!crtc->enabled)
-		return;
-
-	if (!xf86ModesEqual(&crtc->mode, &crtc->desiredMode)) /* not currently in X */
-		return;
-
-	DisplayModePtr adjusted_mode = xf86DuplicateMode(&crtc->mode);
-	uint8_t dpms_mode = nv_crtc->last_dpms;
-
-	/* Set the mode again. */
-	output->funcs->dpms(output, DPMSModeOff);
-	crtc->funcs->dpms(crtc, DPMSModeOff);
-	need_unlock = crtc->funcs->lock(crtc);
-	output->funcs->mode_fixup(output, &crtc->mode, adjusted_mode);
-	crtc->funcs->mode_fixup(crtc, &crtc->mode, adjusted_mode);
-	output->funcs->prepare(output);
-	crtc->funcs->prepare(crtc);
-	crtc->funcs->mode_set(crtc, &crtc->mode, adjusted_mode, crtc->x, crtc->y);
-	output->funcs->mode_set(output, &crtc->mode, adjusted_mode);
-	crtc->funcs->commit(crtc);
-	output->funcs->commit(output);
-	if (need_unlock)
-		crtc->funcs->unlock(crtc);
-	output->funcs->dpms(output, dpms_mode);
-	crtc->funcs->dpms(crtc, dpms_mode);
-
-	/* Free mode. */
-	xfree(adjusted_mode);
 }
 
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	//xf86CrtcPtr crtc = output->crtc;
 	//NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVPtr pNv = NVPTR(pScrn);
-	xf86OutputPtr reset_output = NULL;
-	int or, ffsor;
 	//Bool quirk_mode = FALSE;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
 
 	output->funcs->dpms(output, DPMSModeOff);
-
-	/*
-	 * Here we choose an output resource and also handle any conflicts.
-	 * Note: A race condition could occur if nvidia released a really odd card (seperate connectors, same or).
-	 */
-
-	or = pNv->dcb_table.entry[nv_output->dcb_entry].or;
-	ffsor = ffs(or);
-
-	switch(ffsor) {
-		case 3: /* both */
-			if (OR_AVAIL(1)) {
-				nv_output->output_resource = 1;
-				pNv->output_resource[1] = output;
-			} else if (OR_AVAIL(0)) {
-				nv_output->output_resource = 0;
-				pNv->output_resource[1] = output;
-			} else {
-				xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "We can take neither output resource, something very bad is happening.\n");
-			}
-			break;
-		case 2: /* secondary */
-			if (!OR_AVAIL(1)) {
-				reset_output = pNv->output_resource[1];
-			}
-			nv_output->output_resource = 1;
-			pNv->output_resource[1] = output;
-			break;
-		case 1: /* primary */
-		default:
-			if (!OR_AVAIL(0)) {
-				reset_output = pNv->output_resource[0];
-			}
-			/* Handle the strange 7300GO laptops, amongst other things. */
-			/* They have or = 3 and move to secondary when primary is filled. */
-			if (reset_output && (ffsor != or)) {
-				if (OR_AVAIL(1)) {
-					reset_output = NULL;
-				} else {
-					reset_output = pNv->output_resource[1];
-				}
-				nv_output->output_resource = 1;
-				pNv->output_resource[1] = output;
-			} else {
-				nv_output->output_resource = 0;
-				pNv->output_resource[0] = output;
-			}
-			break;
-	}
-
-	uint8_t other_index = (~nv_output->output_resource) & 1;
-
-	/* Clean up, if we still occupy two slots. */
-	if (pNv->output_resource[other_index] == output)
-		pNv->output_resource[other_index] = NULL;
 
 /* This quirk has weird sideeffects on NV36M, so disable it. */
 /* Remove later (a month or two) on if it proves to be unneeded. */
@@ -868,10 +757,6 @@ nv_output_prepare(xf86OutputPtr output)
 		pNv->fp_regs_owner[1] = 1;
 	}
 #endif
-
-	/* Reset the output if needed. */
-	if (reset_output)
-		NVOutputModeFix(reset_output);
 }
 
 static void
@@ -885,7 +770,7 @@ nv_output_commit(xf86OutputPtr output)
 	if (crtc) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Output %s is running on CRTC %d using output resource %d.\n", output->name, nv_crtc->head, nv_output->output_resource);
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Output %s is running on CRTC %d using output resource %d.\n", output->name, nv_crtc->head, nv_output->preferred_output);
 	}
 
 	output->funcs->dpms(output, DPMSModeOn);
@@ -1160,13 +1045,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 	 * bit2: All outputs valid
 	 */
 	/* We choose the preferred output resource initially. */
-	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1) {
+	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1)
 		nv_output->preferred_output = 1;
-		nv_output->output_resource = 1;
-	} else {
+	else
 		nv_output->preferred_output = 0;
-		nv_output->output_resource = 0;
-	}
 
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		if (pNv->fpScaler) /* GPU Scaling */

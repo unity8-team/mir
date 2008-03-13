@@ -208,7 +208,6 @@ typedef enum {
 
 typedef struct _NVOutputPrivateRec {
 	uint8_t preferred_output;
-	uint8_t output_resource;
 	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
@@ -431,7 +430,6 @@ typedef struct _NVRec {
     Bool                Television;
 	int         vtOWNER;
 	Bool		crtc_active[2];
-	xf86OutputPtr		output_resource[2];
     OptionInfoPtr	Options;
     Bool                alphaCursor;
     unsigned char       DDCBase;
