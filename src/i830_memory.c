@@ -730,10 +730,6 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
 	return FALSE;
     }
 
-    if (!i830_bind_memory(pScrn, mem)) {
-	return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -850,6 +846,11 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	    return NULL;
 
 	if (!i830_allocate_agp_memory(pScrn, mem, flags)) {
+	    i830_free_memory(pScrn, mem);
+	    return NULL;
+	}
+
+	if (!i830_bind_memory(pScrn, mem)) {
 	    i830_free_memory(pScrn, mem);
 	    return NULL;
 	}
