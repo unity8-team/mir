@@ -30,7 +30,7 @@
 #include "nv50_display.h"
 #include "nv50_output.h"
 
-static void
+void
 NV50DacSetPClk(xf86OutputPtr output, int pclk)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
@@ -203,7 +203,6 @@ NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
 
 	nv_output->type = OUTPUT_ANALOG;
 	nv_output->or = or;
-	nv_output->set_pclk = NV50DacSetPClk;
 	output->driver_private = nv_output;
 	output->interlaceAllowed = TRUE;
 	output->doubleScanAllowed = TRUE;

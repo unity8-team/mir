@@ -30,7 +30,7 @@
 #include "nv50_display.h"
 #include "nv50_output.h"
 
-static void
+void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
@@ -503,8 +503,6 @@ NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
 
 	nv_output->or = or;
 	nv_output->type = type;
-	if (type == OUTPUT_TMDS)
-		nv_output->set_pclk = NV50SorSetPClk;
 	output->driver_private = nv_output;
 	output->interlaceAllowed = TRUE;
 	output->doubleScanAllowed = TRUE;

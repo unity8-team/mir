@@ -172,8 +172,11 @@ NV50OutputSetPClk(xf86OutputPtr output, int pclk)
 {
 	NV50OutputPrivPtr nv_output = output->driver_private;
 
-	if (nv_output->set_pclk)
-		nv_output->set_pclk(output, pclk);
+	if (nv_output->type == OUTPUT_TMDS)
+		NV50SorSetPClk(output, pclk);
+
+	if (nv_output->type == OUTPUT_ANALOG)
+		NV50DacSetPClk(output, pclk);
 }
 
 int
