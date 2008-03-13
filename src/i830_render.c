@@ -143,11 +143,15 @@ static struct blendinfo i830_blend_op[] = {
     {0, 0, BLENDFACTOR_ONE, 		BLENDFACTOR_ONE},
 };
 
+/* The x8* formats could use MT_32BIT_X* on 855+, but since we implement
+ * workarounds for 830/845 anyway, we just rely on those whether the hardware
+ * could handle it for us or not.
+ */
 static struct formatinfo i830_tex_formats[] = {
     {PICT_a8r8g8b8, MT_32BIT_ARGB8888 },
-    {PICT_x8r8g8b8, MT_32BIT_XRGB8888 },
+    {PICT_x8r8g8b8, MT_32BIT_ARGB8888 },
     {PICT_a8b8g8r8, MT_32BIT_ABGR8888 },
-    {PICT_x8b8g8r8, MT_32BIT_XBGR8888 },
+    {PICT_x8b8g8r8, MT_32BIT_ABGR8888 },
     {PICT_r5g6b5,   MT_16BIT_RGB565   },
     {PICT_a1r5g5b5, MT_16BIT_ARGB1555 },
     {PICT_x1r5g5b5, MT_16BIT_ARGB1555 },
@@ -223,8 +227,6 @@ static uint32_t i830_get_blend_cntl(int op, PicturePtr pMask,
 
 static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -241,13 +243,6 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     if (i == sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]))
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
-
-    if (IS_I830(pI830) || IS_845G(pI830)) {
-	if (pPict->format == PICT_x8r8g8b8 || 
-		pPict->format == PICT_x8b8g8r8 || 
-		pPict->format == PICT_a8)
-	    I830FALLBACK("830/845G don't support a8, x8r8g8b8, x8b8g8r8\n");
-    }
 
     if (pPict->repeat && pPict->repeatType != RepeatNormal)
 	I830FALLBACK("unsupport repeat type\n");
@@ -461,40 +456,61 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_RING(vf2); /* TEXCOORDFMT_2D */
 	OUT_RING(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 
-	/* We use two pipes for color and alpha, and do (src In mask)
-	   in one stage. Arg1 is from src pict, and arg2 is from mask pict.
-	   Be sure to force 1.0 when src or mask pict has no alpha channel.
+	/* If component alpha is active in the mask and the blend operation
+	 * uses the source alpha, then we know we don't need the source
+	 * value (otherwise we would have hit a fallback earlier), so we
+	 * provide the source alpha (src.A * mask.X) as output color.
+	 * Conversely, if CA is set and we don't need the source alpha, then
+	 * we produce the source value (src.X * mask.X) and the source alpha
+	 * is unused..  Otherwise, we provide the non-CA source value
+	 * (src.X * mask.A).
+	 *
+	 * The PICT_FORMAT_RGB(pict) == 0 fixups are not needed on 855+'s a8
+	 * pictures, but we need to implement it for 830/845 and there's no
+	 * harm done in leaving it in.
 	 */
 	cblend = TB0C_LAST_STAGE | TB0C_RESULT_SCALE_1X | TB0C_OP_MODULE |
 		 TB0C_OUTPUT_WRITE_CURRENT;
 	ablend = TB0A_RESULT_SCALE_1X | TB0A_OP_MODULE |
 		 TB0A_OUTPUT_WRITE_CURRENT;
 
-	if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
-	    ablend |= TB0A_ARG1_SEL_TEXEL0;
-	    cblend |= TB0C_ARG1_SEL_TEXEL0;
-	} else {
-	    ablend |= TB0A_ARG1_SEL_ONE;
-	    if (pMask && pMaskPicture->componentAlpha 
-		    && PICT_FORMAT_RGB(pMaskPicture->format)
-		    && i830_blend_op[op].src_alpha)
+	/* Get the source picture's channels into TBx_ARG1 */
+	if (pMaskPicture != NULL &&
+	    pMaskPicture->componentAlpha &&
+	    PICT_FORMAT_RGB(pMaskPicture->format) &&
+	    i830_blend_op[op].src_alpha)
+	{
+	    /* Producing source alpha value, so the first set of channels
+	     * is src.A instead of src.X
+	     */
+	    if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+		ablend |= TB0A_ARG1_SEL_TEXEL0;
+		cblend |= TB0C_ARG1_SEL_TEXEL0 | TB0C_ARG1_REPLICATE_ALPHA;
+	    } else {
+		ablend |= TB0A_ARG1_SEL_ONE;
 		cblend |= TB0C_ARG1_SEL_ONE;
-	    else
+	    }
+	} else {
+	    if (PICT_FORMAT_A(pSrcPicture->format) != 0) {
+		ablend |= TB0A_ARG1_SEL_TEXEL0;
+	    } else {
+		ablend |= TB0A_ARG1_SEL_ONE;
+	    }
+	    if (PICT_FORMAT_RGB(pSrcPicture->format) != 0)
 		cblend |= TB0C_ARG1_SEL_TEXEL0;
+	    else
+		cblend |= TB0C_ARG1_SEL_ONE | TB0C_ARG1_INVERT; /* 0.0 */
 	}
 
 	if (pMask) {
-	    if (pMaskPicture->componentAlpha && 
-		    PICT_FORMAT_RGB(pMaskPicture->format)) {
-		if (i830_blend_op[op].src_alpha)
-		    cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
-			    TB0C_ARG1_REPLICATE_ALPHA);
-		else 
-		    cblend |= TB0C_ARG2_SEL_TEXEL1;
+	    if (pMaskPicture->componentAlpha &&
+		PICT_FORMAT_RGB(pMaskPicture->format))
+	    {
+		cblend |= TB0C_ARG2_SEL_TEXEL1;
 	    } else {
 		if (PICT_FORMAT_A(pMaskPicture->format) != 0)
-		    cblend |= (TB0C_ARG2_SEL_TEXEL1 | 
-			    TB0C_ARG2_REPLICATE_ALPHA);
+		    cblend |= TB0C_ARG2_SEL_TEXEL1 |
+			TB0C_ARG2_REPLICATE_ALPHA;
 		else
 		    cblend |= TB0C_ARG2_SEL_ONE;
 	    }
