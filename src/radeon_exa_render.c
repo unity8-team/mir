@@ -1221,6 +1221,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	(info->ChipFamily == CHIP_FAMILY_RS740)) {
 	CARD32 output_fmt;
 	int src_color, src_alpha;
+	int mask_color, mask_alpha;
 
 	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = R300_ALU_RGB_1_0;
@@ -1232,6 +1233,20 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	else
 	    src_alpha = R300_ALU_ALPHA_SRC0_A;
 
+	if (pMask) {
+	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		mask_color = R300_ALU_RGB_1_0;
+	    else
+		mask_color = R300_ALU_RGB_SRC1_AAA;
+
+	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		mask_alpha = R300_ALU_ALPHA_1_0;
+	    else
+		mask_alpha = R300_ALU_ALPHA_SRC1_A;
+	} else {
+	    mask_color = R300_ALU_RGB_1_0;
+	    mask_alpha = R300_ALU_ALPHA_1_0;
+	}
 
 	/* shader output swizzling */
 	switch (pDstPicture->format) {
@@ -1329,7 +1344,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
       OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
 		    (R300_ALU_RGB_SEL_A(src_color) |
 		     R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
-		     R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
+		     R300_ALU_RGB_SEL_B(mask_color) |
 		     R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
 		     R300_ALU_RGB_SEL_C(R300_ALU_RGB_0_0) |
 		     R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
@@ -1347,7 +1362,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
       OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
 		    (R300_ALU_ALPHA_SEL_A(src_alpha) |
 		     R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
-		     R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_1_0) |
+		     R300_ALU_ALPHA_SEL_B(mask_alpha) |
 		     R300_ALU_ALPHA_MOD_B(R300_ALU_ALPHA_MOD_NOP) |
 		     R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0) |
 		     R300_ALU_ALPHA_MOD_C(R300_ALU_ALPHA_MOD_NOP) |
