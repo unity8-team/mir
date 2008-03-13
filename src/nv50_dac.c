@@ -118,7 +118,7 @@ NV50DacDetect(xf86OutputPtr output)
 	if(nv_output->cached_status != XF86OutputStatusUnknown)
 		return nv_output->cached_status;
 
-	NV50OutputPartnersDetect(output, nv_output->partner, nv_output->i2c);
+	NV50OutputPartnersDetect(output, nv_output->partner, nv_output->pDDCBus);
 	return nv_output->cached_status;
 }
 

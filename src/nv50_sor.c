@@ -133,7 +133,7 @@ NV50SorDetect(xf86OutputPtr output)
 	if(nv_output->cached_status != XF86OutputStatusUnknown)
 		return nv_output->cached_status;
 
-	NV50OutputPartnersDetect(nv_output->partner, output, nv_output->i2c);
+	NV50OutputPartnersDetect(nv_output->partner, output, nv_output->pDDCBus);
 	return nv_output->cached_status;
 }
 
