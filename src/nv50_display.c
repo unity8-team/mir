@@ -479,6 +479,7 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum scaling_modes 
 			outY = mode->CrtcVDisplay;
 			break;
 		case SCALE_NOSCALE:
+		default:
 			outX = mode->HDisplay;
 			outY = mode->VDisplay;
 			break;
