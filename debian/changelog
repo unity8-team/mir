@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu5) hardy; urgency=low
+
+  * Fix the overlay patch to really disable TexturedVideo by default.
+    (LP: #201596)
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Fri, 14 Mar 2008 11:01:09 +0200
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu4) hardy; urgency=low
 
   * Revert the greedy change, use the old patch again since the new one

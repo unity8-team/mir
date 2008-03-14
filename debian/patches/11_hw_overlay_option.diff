@@ -59,7 +59,7 @@ index 5cd0a34..0a17149 100644
     pI830->XvDisabled =
  	!xf86ReturnOptValBool(pI830->Options, OPTION_XVIDEO, TRUE);
  
-+   pI830->TexturedXvEnabled = xf86ReturnOptValBool(pI830->Options, OPTION_TEXTURED_VIDEO, TRUE);
++   pI830->TexturedXvEnabled = xf86ReturnOptValBool(pI830->Options, OPTION_TEXTURED_VIDEO, FALSE);
 +
  #ifdef I830_XV
     if (xf86GetOptValInteger(pI830->Options, OPTION_VIDEO_KEY,
