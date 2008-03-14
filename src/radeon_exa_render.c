@@ -1334,6 +1334,14 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	  OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
 					 R300_RS_INST_TEX_CN_WRITE |
 					 R300_INST_TEX_ADDR(1)));
+
+	  OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
+	  OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
+	  OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
+					      R300_ALU_CODE_SIZE(0) |
+					      R300_TEX_CODE_OFFSET(0) |
+					      R300_TEX_CODE_SIZE(1)));
+
       } else {
 	    BEGIN_ACCEL(17);
 	    /* 2 components: 2 for tex0 */
@@ -1351,15 +1359,16 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
 					   R300_RS_INST_TEX_CN_WRITE |
 					   R300_INST_TEX_ADDR(0)));
+
+	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
+	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
+						R300_ALU_CODE_SIZE(0) |
+						R300_TEX_CODE_OFFSET(0) |
+						R300_TEX_CODE_SIZE(0)));
+
       }
 
-      OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-      OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
-      OUT_ACCEL_REG(R300_US_CODE_OFFSET,
-		    (R300_ALU_CODE_OFFSET(0) |
-		     R300_ALU_CODE_SIZE(1) |
-		     R300_TEX_CODE_OFFSET(0) |
-		     R300_TEX_CODE_SIZE(1)));
       OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
 		    (R300_ALU_START(0) |
 		     R300_ALU_SIZE(0) |
@@ -1375,12 +1384,22 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_SIZE(0) |
 		     R300_TEX_START(0) |
 		     R300_TEX_SIZE(0)));
-      OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
-		    (R300_ALU_START(0) |
-		     R300_ALU_SIZE(0) |
-		     R300_TEX_START(0) |
-		     R300_TEX_SIZE(0) |
-		     R300_RGBA_OUT));
+
+      if (pMask) {
+	  OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
+			(R300_ALU_START(0) |
+			 R300_ALU_SIZE(0) |
+			 R300_TEX_START(0) |
+			 R300_TEX_SIZE(1) |
+			 R300_RGBA_OUT));
+      } else {
+	  OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
+			(R300_ALU_START(0) |
+			 R300_ALU_SIZE(0) |
+			 R300_TEX_START(0) |
+			 R300_TEX_SIZE(0) |
+			 R300_RGBA_OUT));
+      }
 
       OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
