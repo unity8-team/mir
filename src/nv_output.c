@@ -206,37 +206,21 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
-static void nv_output_load_state_ext(xf86OutputPtr output, RIVA_HW_STATE *state, Bool override)
-{
-	NVPtr pNv = NVPTR(output->scrn);
-
-	/* This exists purely for proper text mode restore */
-	if (override && pNv->twoHeads) {
-		NVOutputPrivatePtr nv_output = output->driver_private;
-
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore_output);
-	}
-}
-
-static void
-nv_output_save (xf86OutputPtr output)
+static void nv_output_save(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVOutputRegPtr regp = &pNv->SavedReg.dac_reg[nv_output->preferred_output];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_save is called.\n");
 
 	if (pNv->twoHeads)
-		nv_output->restore_output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
+		nv_output->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		int i;
+		int ramdac = (pNv->dcb_table.entry[nv_output->dcb_entry].or & 4) >> 2;
 
-		/* Store the registers for helping with VT restore */
-		for (i = 0; i < 0xFF; i++)
-			regp->TMDS[i] = nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, i);
+		nv_output->restore.head = ((nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4) & 0x8) >> 3) ^ ramdac;
 	}
 }
 
@@ -292,71 +276,30 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 	return ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
 }
 
-uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output)
+static void nv_output_restore(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	RIVA_HW_STATE *state = &pNv->SavedReg;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	/* Registers are stored by their preferred ramdac */
-	/* So or = 3 still means it uses the "ramdac0" regs. */
-	NVOutputRegPtr regp = &state->dac_reg[nv_output->preferred_output];
-
-	/* Bit3 swaps crtc (clocks are bound to crtc) and output */
-	Bool swapped_clock = !!(regp->TMDS[0x4] & (1 << 3));
-	uint8_t vpll_num = swapped_clock ^ nv_output->preferred_output;
-
-	return nv_get_clock_from_crtc(pScrn, state, vpll_num);
-}
-
-void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	xf86CrtcPtr crtc = output->crtc;
-	/* We have no crtc, so what are we supposed to do now? */
-	/* This can only happen during VT restore */
-	if (crtc && !override) {
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		/*
-		 * Resetting all registers is a bad idea, it seems to work fine without it.
-		 */
-		if (nv_output->type == OUTPUT_TMDS)
-			run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, clock);
-		/* on panels where we do reset after pclk change, DPMS on will do this */
-		else if (!pNv->VBIOS.fp.reset_after_pclk_change)
-			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, clock);
-	} else {
-		/*
-		 * We have no crtc, but we do know what output we are and if we were crosswired.
-		 * We can determine our crtc from this.
-		 */
-		if (nv_output->type == OUTPUT_TMDS)
-			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->preferred_output ^ crosswired, clock);
-		else {
-			if (!pNv->VBIOS.fp.reset_after_pclk_change)
-				call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_RESET, clock);
-			call_lvds_script(pScrn, nv_output->preferred_output ^ crosswired, nv_output->dcb_entry, LVDS_PANEL_ON, clock);
-		}
-	}
-}
-
-static void
-nv_output_restore (xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state;
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
 
-	state = &pNv->SavedReg;
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		uint32_t clock = nv_get_clock_from_crtc(pScrn, state, nv_output->restore.head);
 
-	/* Due to strange mapping of outputs we could have swapped analog and digital */
-	/* So we force load all the registers */
-	nv_output_load_state_ext(output, state, TRUE);
+		if (nv_output->type == OUTPUT_TMDS)
+			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
+		else {
+			/* on panels where we do reset after pclk change, PANEL_ON will also RESET */
+			if (!pNv->VBIOS.fp.reset_after_pclk_change)
+				call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_RESET, clock);
+			call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, clock);
+		}
+	}
+
+	if (pNv->twoHeads)
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore.output);
 
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 }
@@ -404,26 +347,24 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	return TRUE;
 }
 
-#if 0
 static void
-nv_output_mode_set_regs(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
-	//RIVA_HW_STATE *state;
-	//NVOutputRegPtr regp, savep;
-}
-#endif
-
-static void
-nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
-{
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
+
+	if (nv_output->type == OUTPUT_TMDS)
+		run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, adjusted_mode->Clock);
+	/* on panels where we do reset after pclk change, DPMS on will do this */
+	else if (nv_output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.reset_after_pclk_change)
+		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, adjusted_mode->Clock);
 
 	if (pNv->twoHeads) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
-		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
 		uint32_t outputval = 0;
 
 		if (nv_output->type == OUTPUT_ANALOG)
@@ -441,27 +382,6 @@ nv_output_mode_set_routing(xf86OutputPtr output, Bool bios_restore)
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(output), 0xf0000000);
 	else
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(output), 0x00100000);
-}
-
-static void
-nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
-		   DisplayModePtr adjusted_mode)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	RIVA_HW_STATE *state;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
-
-	state = &pNv->ModeReg;
-
-	//nv_output_mode_set_regs(output, mode, adjusted_mode);
-	nv_output_load_state_ext(output, state, FALSE);
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
-		nv_set_tmds_registers(output, adjusted_mode->Clock, FALSE, FALSE);
-
-	nv_output_mode_set_routing(output, NVMatchModePrivate(mode, NV_MODE_CONSOLE));
 }
 
 static xf86MonPtr

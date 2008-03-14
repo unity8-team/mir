@@ -133,7 +133,7 @@ typedef struct _nv_crtc_reg
 typedef struct _nv_output_reg
 {
 	uint32_t output;
-	uint8_t TMDS[0xFF];
+	int head;
 } NVOutputRegRec, *NVOutputRegPtr;
 
 typedef struct _riva_hw_state
@@ -184,7 +184,6 @@ typedef struct _riva_hw_state
 	uint32_t crtcSync;
 
 	NVCrtcRegRec crtc_reg[2];
-	NVOutputRegRec dac_reg[2];
 } RIVA_HW_STATE, *NVRegPtr;
 
 typedef struct _NVCrtcPrivateRec {
@@ -217,7 +216,7 @@ typedef struct _NVOutputPrivateRec {
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
-	uint32_t restore_output;
+	NVOutputRegRec restore;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
 typedef struct _MiscStartupInfo {

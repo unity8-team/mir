@@ -2021,45 +2021,20 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->crosswired = FALSE;
 		} else {
 			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-			}
-
-			/* Some aspects of an output needs to be restore before the crtc. */
-			/* In my case this has to do with the mode that i get at very low resolutions. */
-			/* If i do this at the end, it will not be restored properly */
-			for (i = 0; i < xf86_config->num_output; i++) {
-				NVOutputPrivatePtr nv_output2 = xf86_config->output[i]->driver_private;
-				NVOutputRegPtr regp = &nvReg->dac_reg[nv_output2->preferred_output];
-				Bool crosswired = regp->TMDS[0x4] & (1 << 3);
-				/* Let's guess the bios state ;-) */
-				if (nv_output2->type == OUTPUT_TMDS)
-					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring TMDS timings, before restoring anything else.\n");
-				if (nv_output2->type == OUTPUT_LVDS)
-					xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring LVDS timings, before restoring anything else.\n");
-				if (nv_output2->type == OUTPUT_TMDS || nv_output2->type == OUTPUT_LVDS) {
-					uint32_t clock = nv_calc_tmds_clock_from_pll(xf86_config->output[i]);
-					nv_set_tmds_registers(xf86_config->output[i], clock, TRUE, crosswired);
-				}
-			}
-
-			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 				/* Restore this, so it doesn't mess with restore. */
 				pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
 			}
 
-			for (i = 0; i < xf86_config->num_crtc; i++) {
+			for (i = 0; i < xf86_config->num_output; i++)
+				xf86_config->output[i]->funcs->restore(xf86_config->output[i]);
+
+			for (i = 0; i < xf86_config->num_crtc; i++)
 				xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
-			}
 
-			for (i = 0; i < xf86_config->num_output; i++) {
-				xf86_config->output[i]->funcs->restore(xf86_config->
-								       output[i]);
-			}
-
-			for (i = 0; i < xf86_config->num_crtc; i++) {
+			for (i = 0; i < xf86_config->num_crtc; i++)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
-			}
 		}
 	} else {
 		NVLockUnlock(pScrn, 0);
