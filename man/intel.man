@@ -225,6 +225,24 @@ This method attempts to use the native registers where possible, resorting to th
 .TP 4
 On some system, the kernel may provide a backlight control driver.  In that case, using the kernel interfaces is preferable, as the same driver may respond to hotkey events or external APIs.
 
+.PP
+.B PANEL_FITTING
+- control LCD panel fitting
+.TP 2
+By default, the driver will attempt to upscale resolutions smaller than the LCD's native size while preserving the aspect ratio.  Other modes are available however:
+.PP
+.B CENTER
+.TP 4
+Simply center the image on-screen, without scaling.
+.PP
+.B FULL_ASPECT
+.TP 4
+The default mode.  Try to upscale the image to the screen size, while preserving aspect ratio.  May result in letterboxing or pillar-boxing with some resolutions.
+.PP
+.B FULL
+.TP 4
+Upscale the image to the native screen size without regard to aspect ratio.  In this mode, the full screen image may appear distorted in some resolutions.
+
 .SS "TV"
 Integrated TV output.  Available properties include:
 
