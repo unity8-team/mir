@@ -259,21 +259,8 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 }
 
-/*
- * Calculate extended mode parameters (SVGA) and save in a 
- * mode state structure.
- * State is not specific to a single crtc, but shared.
- */
-static void nv_crtc_calc_state_ext(
-	xf86CrtcPtr 		crtc,
-	DisplayModePtr	mode,
-	int				bpp,
-	int				DisplayWidth, /* Does this change after setting the mode? */
-	int				CrtcHDisplay,
-	int				CrtcVDisplay,
-	int				dotClock,
-	int				flags
-)
+/* Calculate extended mode parameters (SVGA) and save in a mode state structure */
+static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dotClock)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -287,6 +274,7 @@ static void nv_crtc_calc_state_ext(
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
 	uint32_t g70_pll_special_bits = 0;
 	Bool nv4x_single_stage_pll_mode = FALSE;
+	int bpp;
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
 	NVOutputPrivatePtr nv_output = NULL;
 	if (output)
@@ -299,7 +287,16 @@ static void nv_crtc_calc_state_ext(
 	/*
 	 * Extended RIVA registers.
 	 */
+
 	/* This is pitch related, not mode related. */
+	if (pScrn->depth < 24)
+		bpp = pScrn->depth;
+	else
+		bpp = 32;
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+		bpp = pNv->console_mode[nv_crtc->head].bpp;
+	}
+
 	pixelDepth = (bpp + 1)/8;
 
 	if (nv_crtc->head == 0) {
@@ -371,12 +368,12 @@ static void nv_crtc_calc_state_ext(
 						pNv);
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
-		if (flags & V_DBLSCAN)
+		if (mode->Flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
 		state->config = 0x00001114;
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = CrtcHDisplay < 1280 ? 0x04 : 0x00;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
 		break;
 	case NV_ARCH_10:
 	case NV_ARCH_20:
@@ -421,11 +418,11 @@ static void nv_crtc_calc_state_ext(
 			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x0;
 		}
 
-		if (flags & V_DBLSCAN) 
+		if (mode->Flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 
 		state->config   = nvReadFB(pNv, NV_PFB_CFG0);
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = CrtcHDisplay < 1280 ? 0x04 : 0x00;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
 		break;
 	}
 
@@ -474,11 +471,11 @@ static void nv_crtc_calc_state_ext(
 	}
 
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((CrtcHDisplay/16) & 0x700) >> 3;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((mode->CrtcHDisplay/16) & 0x700) >> 3;
 	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((CrtcHDisplay*bpp)/64) & 0x700) >> 3;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((mode->CrtcHDisplay*bpp)/64) & 0x700) >> 3;
 	} else { /* framebuffer can be larger than crtc scanout area. */
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((DisplayWidth/8) * pixelDepth) & 0x700) >> 3;
+		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((pScrn->displayWidth/8) * pixelDepth) & 0x700) >> 3;
 	}
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
@@ -834,7 +831,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	uint32_t depth;
 	Bool is_fp = FALSE;
 	Bool is_lvds = FALSE;
 	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
@@ -877,20 +873,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Some kind of tmds switch for older cards */
 	if (pNv->Architecture < NV_ARCH_40) {
 		regp->CRTC[NV_VGA_CRTCX_59] |= 0x1;
-	}
-
-	/*
-	* Calculate the extended registers.
-	*/
-
-	if (pScrn->depth < 24)
-		depth = pScrn->depth;
-	else
-		depth = 32;
-
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		/* bpp is pitch related. */
-		depth = pNv->console_mode[nv_crtc->head].bpp;
 	}
 
 	/* What is the meaning of this register? */
@@ -1026,17 +1008,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_86] = 0x1;
 	}
 
-	/*
-	 * Calculate the state that is common to all crtc's (stored in the state struct).
-	 */
-	nv_crtc_calc_state_ext(crtc,
-				mode,
-				depth,
-				pScrn->displayWidth,
-				mode->CrtcHDisplay,
-				mode->CrtcVDisplay,
-				adjusted_mode->Clock,
-				mode->Flags);
+	/* Calculate the state that is common to all crtcs (stored in the state struct) */
+	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
 
 	/* Enable slaved mode */
 	if (is_fp) {
