@@ -1047,8 +1047,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
-    //if (pMask && pMaskPicture->componentAlpha)
-    if (pMask)
+    if (pMask && pMaskPicture->componentAlpha)
+    //if (pMask)
 	return FALSE;
 
     ErrorF("op: 0x%x, src: 0x%x, dst: 0x%x\n", op, pSrcPicture->format, pDstPicture->format);
@@ -1092,7 +1092,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* setup the VAP */
 
     if (has_tcl) {
-	BEGIN_ACCEL(28);
+	BEGIN_ACCEL(9);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, 0);
 	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 	OUT_ACCEL_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
@@ -1100,7 +1100,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
 				      (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
     } else {
-	BEGIN_ACCEL(10);
+	BEGIN_ACCEL(8);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
 	OUT_ACCEL_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
 				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
@@ -1184,15 +1184,27 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       ((R300_WRITE_ENA_X | R300_WRITE_ENA_Y)
 			<< R300_WRITE_ENA_2_SHIFT)));
     }
+    FINISH_ACCEL();
 
     /* setup the vertex shader */
     if (has_tcl) {
-	OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
-		      ((0 << R300_PVS_FIRST_INST_SHIFT) |
-		       (1 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-		       (1 << R300_PVS_LAST_INST_SHIFT)));
-	OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
-		      (1 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+	if (0/*pMask*/) {
+	    BEGIN_ACCEL(21);
+	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
+			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
+			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (2 << R300_PVS_LAST_INST_SHIFT)));
+	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
+			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+	} else {
+	    BEGIN_ACCEL(17);
+	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
+			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
+			   (1 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (1 << R300_PVS_LAST_INST_SHIFT)));
+	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
+			  (1 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+	}
 	OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, 0);
 	OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x00f00203);
 	OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x00d10001);
@@ -1203,6 +1215,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x01248141);
 	OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x01248141);
 
+	if (0/*pMask*/) {
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x00f04203);
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x00d10141);
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x01248141);
+	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_DATA_REG,0x01248141);
+	}
+
 	OUT_ACCEL_REG(R300_VAP_PVS_FLOW_CNTL_OPC, 0);
 
 	OUT_ACCEL_REG(R300_VAP_GB_VERT_CLIP_ADJ, 0x3f800000);
@@ -1210,12 +1229,17 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	OUT_ACCEL_REG(R300_VAP_GB_HORZ_CLIP_ADJ, 0x3f800000);
 	OUT_ACCEL_REG(R300_VAP_GB_HORZ_DISC_ADJ, 0x3f800000);
 	OUT_ACCEL_REG(R300_VAP_CLIP_CNTL, R300_CLIP_DISABLE);
+	FINISH_ACCEL();
     }
+
+    BEGIN_ACCEL(4);
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
 		  ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
 		   (2 << R300_TEX_1_COMP_CNT_SHIFT)));
 
+    OUT_ACCEL_REG(R300_TX_INVALTAGS, 0x0);
+    OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
     FINISH_ACCEL();
 
     /* setup pixel shader */
@@ -1279,27 +1303,58 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    break;
 	}
 
-	if (pMask)
-	    BEGIN_ACCEL(18);
-	else
+
+	/* setup the rasterizer */
+      if (pMask) {
+	  BEGIN_ACCEL(20);
+	  /* 4 components: 2 for tex0, 2 for tex1 */
+	  OUT_ACCEL_REG(R300_RS_COUNT,
+			((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			 R300_RS_COUNT_HIRES_EN));
+	  /* rasterizer source table */
+	  OUT_ACCEL_REG(R300_RS_IP_0,
+			(R300_RS_TEX_PTR(0) |
+			 R300_RS_SEL_S(R300_RS_SEL_C0) |
+			 R300_RS_SEL_T(R300_RS_SEL_C1) |
+			 R300_RS_SEL_R(R300_RS_SEL_K0) |
+			 R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	  OUT_ACCEL_REG(R300_RS_IP_1,
+			(R300_RS_TEX_PTR(2) |
+			 R300_RS_SEL_S(R300_RS_SEL_C0) |
+			 R300_RS_SEL_T(R300_RS_SEL_C1) |
+			 R300_RS_SEL_R(R300_RS_SEL_K0) |
+			 R300_RS_SEL_Q(R300_RS_SEL_K1)));
+
+	  OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(2) | R300_TX_OFFSET_RS(6));
+	  /* src tex */
+	  OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+					 R300_RS_INST_TEX_CN_WRITE |
+					 R300_INST_TEX_ADDR(0)));
+	  /* mask tex */
+	  OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
+					 R300_RS_INST_TEX_CN_WRITE |
+					 R300_INST_TEX_ADDR(1)));
+      } else {
 	    BEGIN_ACCEL(17);
-      OUT_ACCEL_REG(R300_RS_COUNT,
-		    ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-		     R300_RS_COUNT_HIRES_EN));
-      OUT_ACCEL_REG(R300_RS_IP_0,
-		    (R300_RS_TEX_PTR(0) |
-		     R300_RS_COL_PTR(0) |
-		     R300_RS_COL_FMT(R300_RS_COL_FMT_RGBA) |
-		     R300_RS_SEL_S(R300_RS_SEL_C0) |
-		     R300_RS_SEL_T(R300_RS_SEL_C1) |
-		     R300_RS_SEL_R(R300_RS_SEL_K0) |
-		     R300_RS_SEL_Q(R300_RS_SEL_K1)));
-      OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_TX_OFFSET_RS(6));
-      OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
-				     R300_RS_INST_TEX_CN_WRITE |
-				     R300_INST_TEX_ADDR(0)));
+	    /* 2 components: 2 for tex0 */
+	    OUT_ACCEL_REG(R300_RS_COUNT,
+			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			   R300_RS_COUNT_HIRES_EN));
+	    OUT_ACCEL_REG(R300_RS_IP_0,
+			  (R300_RS_TEX_PTR(0) |
+			   R300_RS_SEL_S(R300_RS_SEL_C0) |
+			   R300_RS_SEL_T(R300_RS_SEL_C1) |
+			   R300_RS_SEL_R(R300_RS_SEL_K0) |
+			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
+	    /* src tex */
+	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(0)));
+      }
+
       OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-      OUT_ACCEL_REG(R300_US_PIXSIZE, 0);
+      OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
       OUT_ACCEL_REG(R300_US_CODE_OFFSET,
 		    (R300_ALU_CODE_OFFSET(0) |
 		     R300_ALU_CODE_SIZE(1) |
@@ -1334,6 +1389,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_TEX_DST_ADDR(0) |
 		     R300_TEX_ID(0) |
 		     R300_TEX_INST(R300_TEX_INST_LD)));
+
       if (pMask) {
 	  OUT_ACCEL_REG(R300_US_TEX_INST_1,
 			(R300_TEX_SRC_ADDR(1) |
@@ -1346,7 +1402,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		    (R300_ALU_RGB_ADDR0(0) |
 		     R300_ALU_RGB_ADDR1(1) |
 		     R300_ALU_RGB_ADDR2(0) |
-		     R300_ALU_RGB_ADDRD(0) |
+		     R300_ALU_RGB_ADDRD(2) |
 		     R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
 					 R300_ALU_RGB_MASK_G |
 					 R300_ALU_RGB_MASK_B)) |
@@ -1367,7 +1423,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		    (R300_ALU_ALPHA_ADDR0(0) |
 		     R300_ALU_ALPHA_ADDR1(1) |
 		     R300_ALU_ALPHA_ADDR2(0) |
-		     R300_ALU_ALPHA_ADDRD(0) |
+		     R300_ALU_ALPHA_ADDRD(2) |
 		     R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |
 		     R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 		     R300_ALU_ALPHA_TARGET_A |
@@ -1480,9 +1536,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
       FINISH_ACCEL();
     }
 
-    BEGIN_ACCEL(6);
-    OUT_ACCEL_REG(R300_TX_INVALTAGS, 0x0);
-    OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
+    BEGIN_ACCEL(4);
 
     OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
     OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
