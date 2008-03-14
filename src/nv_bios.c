@@ -755,23 +755,19 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		savedc040 = nv32_rd(pScrn, 0xc040);
 		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
 
-		if (reg1 == NV_RAMDAC_VPLL)
-			nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL2_ACTIVE);
-		if (reg1 == NV_RAMDAC_VPLL2)
-			nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
+		if (NM2) {
+			if (reg1 == NV_RAMDAC_VPLL)
+				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
+			if (reg1 == NV_RAMDAC_VPLL2)
+				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL2_ACTIVE);
+		} else {
+			if (reg1 == NV_RAMDAC_VPLL)
+				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL1_ACTIVE);
+			if (reg1 == NV_RAMDAC_VPLL2)
+				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL2_ACTIVE);
+			pll2 |= 0x011f;
+		}
 	}
-
-#if 0
-	/* NM2 will not be 0, the way we calculate MNPs at present */
-	/* something like this will be needed if we set single pll modes on double pll chips */
-	if (NM2 == 0) {
-		if (crtchead == NV_VGA_CRTCX_OWNER_HEADA)
-			nv32_wr(NV_RAMDAC_580, nv32_rd(NV_RAMDAC_580) | NV_RAMDAC_580_VPLL1_ACTIVE);
-		else
-			nv32_wr(NV_RAMDAC_580, nv32_rd(NV_RAMDAC_580) | NV_RAMDAC_580_VPLL2_ACTIVE);
-		pll2 |= 0x011f;
-	}
-#endif
 
 	nv32_wr(pScrn, reg2, pll2);
 	nv32_wr(pScrn, reg1, pll1);
