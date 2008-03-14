@@ -90,8 +90,6 @@ void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
-void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val);
-uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg);
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc);
 uint32_t nv_calc_tmds_clock_from_pll(xf86OutputPtr output);
 void nv_set_tmds_registers(xf86OutputPtr output, uint32_t clock, Bool override, Bool crosswired);
@@ -103,6 +101,8 @@ uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg);
 void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
 uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg);
 void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
+uint8_t nv_dcb_read_tmds(NVPtr pNv, int dcb_entry, int dl, uint8_t address);
+void nv_dcb_write_tmds(NVPtr pNv, int dcb_entry, int dl, uint8_t address, uint8_t data);
 void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index);
 void NVWriteVgaCrtc5758(NVPtr pNv, int head, uint8_t index, uint8_t value);

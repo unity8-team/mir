@@ -714,19 +714,17 @@ NVEnterVT(int scrnIndex, int flags)
 
 		/* Reassign outputs so disabled outputs don't get stuck on the wrong crtc */
 		for (i = 0; i < xf86_config->num_output; i++) {
-			xf86OutputPtr output = xf86_config->output[i];
-			NVOutputPrivatePtr nv_output = output->driver_private;
+			NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
 			if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-				uint8_t tmds_reg4;
+				uint8_t tmds04 = nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4);
 
 				/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
 				/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled. */
 				/* But the bios reinits it to CRTC0 when going back to VT. */
 				/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
 				/* A legitimately crosswired output will get set properly during mode set */
-				if ((tmds_reg4 = NVReadTMDS(pNv, nv_output->preferred_output, 0x4)) & (1 << 3)) {
-					NVWriteTMDS(pNv, nv_output->preferred_output, 0x4, tmds_reg4 & ~(1 << 3));
-				}
+				if (tmds04 & 8)
+					nv_dcb_write_tmds(pNv, nv_output->dcb_entry, 0, 0x4, tmds04 ^ 8);
 			}
 		}
 

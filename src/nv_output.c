@@ -66,33 +66,6 @@ const char *MonTypeName[7] = {
     "STV"
 };
 
-/* 
- * TMDS registers are indirect 8 bit registers.
- * Reading is straightforward, writing a bit odd.
- * Reading: Write adress (+write protect bit, do not forget this), then read value.
- * Writing: Write adress (+write protect bit), write value, write adress again and write it again (+write protect bit).
- */
-
-void NVWriteTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg, uint32_t val)
-{
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
-
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA, val & 0xff);
-
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, tmds_reg & 0xff);
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
-}
-
-uint8_t NVReadTMDS(NVPtr pNv, int ramdac, uint32_t tmds_reg)
-{
-	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL, 
-		(tmds_reg & 0xff) | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
-
-	return (NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0xff);
-}
-
 static int nv_output_ramdac_offset(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -263,7 +236,7 @@ nv_output_save (xf86OutputPtr output)
 
 		/* Store the registers for helping with VT restore */
 		for (i = 0; i < 0xFF; i++)
-			regp->TMDS[i] = NVReadTMDS(pNv, nv_output->preferred_output, i);
+			regp->TMDS[i] = nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, i);
 	}
 }
 

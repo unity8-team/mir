@@ -2757,15 +2757,6 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void nv_dcb_write_tmds(ScrnInfoPtr pScrn, int dcb_entry, int dl, uint8_t address, uint8_t data)
-{
-	int ramdac = (NVPTR(pScrn)->dcb_table.entry[dcb_entry].or & 4) >> 2;
-	uint32_t tmds_offs = ramdac * NV_PRAMDAC0_SIZE + dl * 8;
-
-	nv32_wr(pScrn, NV_RAMDAC_FP_TMDS_DATA + tmds_offs, data);
-	nv32_wr(pScrn, NV_RAMDAC_FP_TMDS_CONTROL + tmds_offs, address);
-}
-
 static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 {
 	/* The BIOS scripts don't do this for us, sadly
@@ -2786,10 +2777,10 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	if (dcbent->type == OUTPUT_LVDS)
 		tmds04 |= 0x01;
 
-	nv_dcb_write_tmds(pScrn, dcb_entry, 0, 0x04, tmds04);
+	nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x04, tmds04);
 
 	if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
-		nv_dcb_write_tmds(pScrn, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
+		nv_dcb_write_tmds(pNv, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
 }
 
 static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
@@ -2828,7 +2819,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 #ifdef __powerpc__
 		/* Powerbook specific quirk */
 		if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329)
-			nv_dcb_write_tmds(pScrn, dcb_entry, 0, 0x02, 0x72);
+			nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x02, 0x72);
 #endif
 		link_head_and_output(pScrn, head, dcb_entry);
 	}
