@@ -1333,7 +1333,40 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	else
 	    src_alpha = R300_ALU_ALPHA_SRC0_A;
 
-	if (pMask) {
+	if (pMask && pMaskPicture->componentAlpha) {
+	    if (RadeonBlendOp[op].src_alpha) {
+		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
+		    src_color = R300_ALU_RGB_1_0;
+		    src_alpha = R300_ALU_ALPHA_1_0;
+		} else {
+		    src_color = R300_ALU_RGB_SRC0_AAA;
+		    src_alpha = R300_ALU_ALPHA_SRC0_A;
+		}
+
+		mask_color = R300_ALU_RGB_SRC1_RGB;
+
+		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		    mask_alpha = R300_ALU_ALPHA_1_0;
+		else
+		    mask_alpha = R300_ALU_ALPHA_SRC1_A;
+
+	    } else {
+		src_color = R300_ALU_RGB_SRC0_RGB;
+
+		if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+		    src_alpha = R300_ALU_ALPHA_1_0;
+		else
+		    src_alpha = R300_ALU_ALPHA_SRC0_A;
+
+		mask_color = R300_ALU_RGB_SRC1_RGB;
+
+		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		    mask_alpha = R300_ALU_ALPHA_1_0;
+		else
+		    mask_alpha = R300_ALU_ALPHA_SRC1_A;
+
+	    }
+	} else if (pMask) {
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 		mask_color = R300_ALU_RGB_1_0;
 	    else
