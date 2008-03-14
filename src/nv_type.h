@@ -110,7 +110,7 @@ typedef struct _nv_crtc_reg
 
 	/* These are former output regs, but are believed to be crtc related */
 	uint32_t general;
-	uint32_t debug_0[2];
+	uint32_t debug_0;
 	uint32_t debug_1;
 	uint32_t debug_2;
 	uint32_t unk_a20;
@@ -125,7 +125,7 @@ typedef struct _nv_crtc_reg
 	uint32_t fp_vvalid_end;
 	uint32_t bpp;
 	uint32_t nv10_cursync;
-	uint32_t fp_control[2];
+	uint32_t fp_control;
 	uint32_t crtcSync;
 	uint32_t dither;
 } NVCrtcRegRec, *NVCrtcRegPtr;
@@ -458,8 +458,6 @@ typedef struct _NVRec {
 	Bool new_restore;
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
-
-	uint8_t fp_regs_owner[2];
 
 	struct {
 		int entries;

@@ -2020,12 +2020,8 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->sel_clk = 0;
 			state->crosswired = FALSE;
 		} else {
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
+			for (i = 0; i < xf86_config->num_crtc; i++)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-				/* Restore this, so it doesn't mess with restore. */
-				pNv->fp_regs_owner[nv_crtc->head] = nv_crtc->head;
-			}
 
 			for (i = 0; i < xf86_config->num_output; i++)
 				xf86_config->output[i]->funcs->restore(xf86_config->output[i]);

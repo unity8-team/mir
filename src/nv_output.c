@@ -687,29 +687,6 @@ nv_output_prepare(xf86OutputPtr output)
 
 	output->funcs->dpms(output, DPMSModeOff);
 
-/* This quirk has weird sideeffects on NV36M, so disable it. */
-/* Remove later (a month or two) on if it proves to be unneeded. */
-/* Date: 8 March 2008 */
-#if 0
-	/* Quirk for strange dual link laptops. */
-	if ((nv_output->output_resource == 1) && (or == 3)) {
-		if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-			/* Observed on a NV31M, some regs are claimed by one output/crtc. */
-			if (nv_crtc->head == 1) {
-				pNv->fp_regs_owner[0] = 1;
-				pNv->fp_regs_owner[1] = 1;
-				quirk_mode = TRUE;
-			}
-		}
-	}
-
-	/* If a normal tmds or lvds comes by, we better reset this, otherwise messy things might happen. */
-	if (!quirk_mode && (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)) {
-		pNv->fp_regs_owner[0] = 0;
-		pNv->fp_regs_owner[1] = 1;
-	}
-#endif
-
 	/* calculate sel_clk now, and write it in nv_crtc_set_mode before calculating PLLs */
 	nv_output_prepare_sel_clk(output);
 }
