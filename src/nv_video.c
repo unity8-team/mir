@@ -440,8 +440,8 @@ NVFreeOverlayMemory(ScrnInfoPtr pScrn)
 	NVFreePortMemory(pScrn, pPriv);
 
 	/* "power cycle" the overlay */
-	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) & 0xEFFFFFFF));
-	nvWriteMC(pNv, 0x200, (nvReadMC(pNv, 0x200) | 0x10000000));
+	nvWriteMC(pNv, NV_PMC_ENABLE, (nvReadMC(pNv, NV_PMC_ENABLE) & 0xEFFFFFFF));
+	nvWriteMC(pNv, NV_PMC_ENABLE, (nvReadMC(pNv, NV_PMC_ENABLE) | 0x10000000));
 }
 
 /**

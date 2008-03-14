@@ -858,7 +858,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	uint32_t class = 0, chipset;
 	int i;
 
-	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
+	chipset = (nvReadMC(pNv, NV_PMC_BOOT_0) >> 20) & 0xff;
 	if (	((chipset & 0xf0) != NV_ARCH_10) &&
 		((chipset & 0xf0) != NV_ARCH_20) )
 		return FALSE;

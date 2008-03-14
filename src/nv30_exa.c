@@ -612,7 +612,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 #define NV35TCL_CHIPSET_3X_MASK 0x000001e0
 #define NV34TCL_CHIPSET_3X_MASK 0x00000010
 
-	chipset = (nvReadMC(pNv, 0) >> 20) & 0xff;
+	chipset = (nvReadMC(pNv, NV_PMC_BOOT_0) >> 20) & 0xff;
 	if ((chipset & 0xf0) != NV_ARCH_30)
 		return TRUE;
 	chipset &= 0xf;
