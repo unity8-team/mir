@@ -363,93 +363,6 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
     }
 }
 
-/**
- * Uploads data from system memory to the framebuffer using a series of
- * 8x8 pattern blits.
- */
-static Bool
-i830_upload_to_screen(PixmapPtr pDst, int x, int y, int w, int h, char *src,
-		      int src_pitch)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    const int uts_width_max = 16, uts_height_max = 16;
-    int cpp = pDst->drawable.bitsPerPixel / 8;
-    int sub_x, sub_y;
-    uint32_t br13;
-    uint32_t offset;
-
-    if (w > uts_width_max || h > uts_height_max)
-	I830FALLBACK("too large for upload to screen (%d,%d)", w, h);
-
-    offset = exaGetPixmapOffset(pDst);
-
-    br13 = exaGetPixmapPitch(pDst);
-    br13 |= ((I830PatternROP[GXcopy] & 0xff) << 16);
-    switch (pDst->drawable.bitsPerPixel) {
-    case 16:
-	br13 |= 1 << 24;
-	break;
-    case 32:
-	br13 |= 3 << 24;
-	break;
-    }
-
-    for (sub_y = 0; sub_y < uts_height_max && sub_y < h; sub_y += 8) {
-	int sub_height;
-
-	if (sub_y + 8 > h)
-	    sub_height = h - sub_y;
-	else
-	    sub_height = 8;
-
-	for (sub_x = 0; sub_x < uts_width_max && sub_x < w; sub_x += 8) {
-	    int sub_width, line;
-	    char *src_line = src + sub_y * src_pitch + sub_x * cpp;
-
-	    if (sub_x + 8 > w)
-		sub_width = w - sub_x;
-	    else
-		sub_width = 8;
-
-	    BEGIN_LP_RING(6 + (cpp * 8 * 8 / 4));
-
-	    /* XXX We may need a pattern offset here for {x,y} % 8 != 0*/
-	    OUT_RING(XY_PAT_BLT_IMMEDIATE |
-		     XY_SRC_COPY_BLT_WRITE_ALPHA |
-		     XY_SRC_COPY_BLT_WRITE_RGB |
-		     (3 + cpp * 8 * 8 / 4));
-	    OUT_RING(br13);
-	    OUT_RING(((y + sub_y) << 16) | (x + sub_x));
-	    OUT_RING(((y + sub_y + sub_height) << 16) |
-		     (x + sub_x + sub_width));
-	    OUT_RING(offset);
-
-	    /* Write out the lines with valid data, followed by any needed
-	     * padding
-	     */
-	    for (line = 0; line < sub_height; line++) {
-		OUT_RING_COPY(sub_width * cpp, src_line);
-		src_line += src_pitch;
-		if (sub_width != 8)
-		    OUT_RING_PAD((8 - sub_width) * cpp);
-	    }
-	    /* Write out any full padding lines to follow */
-	    if (sub_height != 8)
-		OUT_RING_PAD(8 * cpp * (8 - sub_height));
-
-	    OUT_RING(MI_NOOP);
-	    ADVANCE_LP_RING();
-	}
-    }
-
-    exaMarkSync(pDst->drawable.pScreen);
-    /* exaWaitSync(pDst->drawable.pScreen); */
-
-    return TRUE;
-}
-
-
 /*
  * TODO:
  *   - Dual head?
@@ -583,10 +496,6 @@ I830EXAInit(ScreenPtr pScreen)
 #if EXA_VERSION_MINOR >= 2
     pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
 #endif
-
-    /* UploadToScreen/DownloadFromScreen */
-    if (0)
-	pI830->EXADriverPtr->UploadToScreen = i830_upload_to_screen;
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
