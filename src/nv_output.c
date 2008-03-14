@@ -228,8 +228,8 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 {
 	NVPtr pNv = NVPTR(pScrn);
 	Bool vpllb_disabled = FALSE;
-	uint32_t vplla = crtc ? state->vpll2_a : state->vpll1_a;
-	uint32_t vpllb = crtc ? state->vpll2_b : state->vpll1_b;
+	uint32_t vplla = state->crtc_reg[crtc].vpll_a;
+	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
 	uint8_t m1, m2, n1, n2, p;
 
 	if (!pNv->twoStagePLL)

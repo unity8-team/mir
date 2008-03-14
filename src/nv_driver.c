@@ -1873,10 +1873,10 @@ NVRestore(ScrnInfoPtr pScrn)
 		int i;
 
 		/* Let's wipe some state regs */
-		state->vpll1_a = 0;
-		state->vpll1_b = 0;
-		state->vpll2_a = 0;
-		state->vpll2_b = 0;
+		state->crtc_reg[0].vpll_a = 0;
+		state->crtc_reg[0].vpll_b = 0;
+		state->crtc_reg[1].vpll_a = 0;
+		state->crtc_reg[1].vpll_b = 0;
 		state->reg580 = 0;
 		state->pllsel = 0;
 		state->sel_clk = 0;
@@ -2011,10 +2011,10 @@ NVRestore(ScrnInfoPtr pScrn)
 			}
 
 			/* Let's clean our slate once again, so we always rewrite vpll's upon returning to X. */
-			state->vpll1_a = 0;
-			state->vpll1_b = 0;
-			state->vpll2_a = 0;
-			state->vpll2_b = 0;
+			state->crtc_reg[0].vpll_a = 0;
+			state->crtc_reg[0].vpll_b = 0;
+			state->crtc_reg[1].vpll_a = 0;
+			state->crtc_reg[1].vpll_b = 0;
 			state->reg580 = 0;
 			state->pllsel = 0;
 			state->sel_clk = 0;

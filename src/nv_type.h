@@ -128,6 +128,9 @@ typedef struct _nv_crtc_reg
 	uint32_t fp_control;
 	uint32_t crtcSync;
 	uint32_t dither;
+	bool vpll_changed;
+	uint32_t vpll_a;
+	uint32_t vpll_b;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
 typedef struct _nv_output_reg
@@ -161,13 +164,7 @@ typedef struct _riva_hw_state
 	uint32_t vpll2B;
 	uint32_t pllsel;
 	uint32_t sel_clk;
-	Bool crosswired;
-	Bool vpll_changed[2];
-	/* These vpll values are only for nv4x hardware */
-	uint32_t vpll1_a;
-	uint32_t vpll1_b;
-	uint32_t vpll2_a;
-	uint32_t vpll2_b;
+	bool crosswired;
 	uint32_t reg580;
 	uint32_t general;
 	uint32_t crtcOwner;
