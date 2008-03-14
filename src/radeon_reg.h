@@ -3990,6 +3990,123 @@
 #       define R300_PVS_LAST_VTX_SRC_INST_SHIFT         0
 #define R300_VAP_PVS_VECTOR_INDX_REG		        0x2200
 #define R300_VAP_PVS_VECTOR_DATA_REG		        0x2204
+/* PVS instructions */
+/* Opcode and dst instruction */
+#define R300_PVS_DST_OPCODE(x)                          (x << 0)
+/* Vector ops */
+#       define R300_VECTOR_NO_OP                        0
+#       define R300_VE_DOT_PRODUCT                      1
+#       define R300_VE_MULTIPLY                         2
+#       define R300_VE_ADD                              3
+#       define R300_VE_MULTIPLY_ADD                     4
+#       define R300_VE_DISTANCE_VECTOR                  5
+#       define R300_VE_FRACTION                         6
+#       define R300_VE_MAXIMUM                          7
+#       define R300_VE_MINIMUM                          8
+#       define R300_VE_SET_GREATER_THAN_EQUAL           9
+#       define R300_VE_SET_LESS_THAN                    10
+#       define R300_VE_MULTIPLYX2_ADD                   11
+#       define R300_VE_MULTIPLY_CLAMP                   12
+#       define R300_VE_FLT2FIX_DX                       13
+#       define R300_VE_FLT2FIX_DX_RND                   14
+/* R500 additions */
+#       define R500_VE_PRED_SET_EQ_PUSH                 15
+#       define R500_VE_PRED_SET_GT_PUSH                 16
+#       define R500_VE_PRED_SET_GTE_PUSH                17
+#       define R500_VE_PRED_SET_NEQ_PUSH                18
+#       define R500_VE_COND_WRITE_EQ                    19
+#       define R500_VE_COND_WRITE_GT                    20
+#       define R500_VE_COND_WRITE_GTE                   21
+#       define R500_VE_COND_WRITE_NEQ                   22
+#       define R500_VE_COND_MUX_EQ                      23
+#       define R500_VE_COND_MUX_GT                      24
+#       define R500_VE_COND_MUX_GTE                     25
+#       define R500_VE_SET_GREATER_THAN                 26
+#       define R500_VE_SET_EQUAL                        27
+#       define R500_VE_SET_NOT_EQUAL                    28
+/* Math ops */
+#       define R300_MATH_NO_OP                          0
+#       define R300_ME_EXP_BASE2_DX                     1
+#       define R300_ME_LOG_BASE2_DX                     2
+#       define R300_ME_EXP_BASEE_FF                     3
+#       define R300_ME_LIGHT_COEFF_DX                   4
+#       define R300_ME_POWER_FUNC_FF                    5
+#       define R300_ME_RECIP_DX                         6
+#       define R300_ME_RECIP_FF                         7
+#       define R300_ME_RECIP_SQRT_DX                    8
+#       define R300_ME_RECIP_SQRT_FF                    9
+#       define R300_ME_MULTIPLY                         10
+#       define R300_ME_EXP_BASE2_FULL_DX                11
+#       define R300_ME_LOG_BASE2_FULL_DX                12
+#       define R300_ME_POWER_FUNC_FF_CLAMP_B            13
+#       define R300_ME_POWER_FUNC_FF_CLAMP_B1           14
+#       define R300_ME_POWER_FUNC_FF_CLAMP_01           15
+#       define R300_ME_SIN                              16
+#       define R300_ME_COS                              17
+/* R500 additions */
+#       define R500_ME_LOG_BASE2_IEEE                   18
+#       define R500_ME_RECIP_IEEE                       19
+#       define R500_ME_RECIP_SQRT_IEEE                  20
+#       define R500_ME_PRED_SET_EQ                      21
+#       define R500_ME_PRED_SET_GT                      22
+#       define R500_ME_PRED_SET_GTE                     23
+#       define R500_ME_PRED_SET_NEQ                     24
+#       define R500_ME_PRED_SET_CLR                     25
+#       define R500_ME_PRED_SET_INV                     26
+#       define R500_ME_PRED_SET_POP                     27
+#       define R500_ME_PRED_SET_RESTORE                 28
+/* macro */
+#       define R300_PVS_MACRO_OP_2CLK_MADD              0
+#       define R300_PVS_MACRO_OP_2CLK_M2X_ADD           1
+#define R300_PVS_DST_MATH_INST                          (1 << 6)
+#define R300_PVS_DST_MACRO_INST                         (1 << 7)
+#define R300_PVS_DST_REG_TYPE(x)                        (x << 8)
+#       define R300_PVS_DST_REG_TEMPORARY               0
+#       define R300_PVS_DST_REG_A0                      1
+#       define R300_PVS_DST_REG_OUT                     2
+#       define R500_PVS_DST_REG_OUT_REPL_X              3
+#       define R300_PVS_DST_REG_ALT_TEMPORARY           4
+#       define R300_PVS_DST_REG_INPUT                   5
+#define R300_PVS_DST_ADDR_MODE_1                        (1 << 12)
+#define R300_PVS_DST_OFFSET(x)                          (x << 13)
+#define R300_PVS_DST_WE_X                               (1 << 20)
+#define R300_PVS_DST_WE_Y                               (1 << 21)
+#define R300_PVS_DST_WE_Z                               (1 << 22)
+#define R300_PVS_DST_WE_W                               (1 << 23)
+#define R300_PVS_DST_VE_SAT                             (1 << 24)
+#define R300_PVS_DST_ME_SAT                             (1 << 25)
+#define R300_PVS_DST_PRED_ENABLE                        (1 << 26)
+#define R300_PVS_DST_PRED_SENSE                         (1 << 27)
+#define R300_PVS_DST_DUAL_MATH_OP                       (1 << 28)
+#define R300_PVS_DST_ADDR_SEL(x)                        (x << 29)
+#define R300_PVS_DST_ADDR_MODE_0                        (1 << 31)
+/* src operand instruction */
+#define R300_PVS_SRC_REG_TYPE(x)                        (x << 0)
+#       define R300_PVS_SRC_REG_TEMPORARY               0
+#       define R300_PVS_SRC_REG_INPUT                   1
+#       define R300_PVS_SRC_REG_CONSTANT                2
+#       define R300_PVS_SRC_REG_ALT_TEMPORARY           3
+#define R300_SPARE_0                                    (1 << 2)
+#define R300_PVS_SRC_ABS_XYZW                           (1 << 3)
+#define R300_PVS_SRC_ADDR_MODE_0                        (1 << 4)
+#define R300_PVS_SRC_OFFSET(x)                          (x << 5)
+#define R300_PVS_SRC_SWIZZLE_X(x)                       (x << 13)
+#define R300_PVS_SRC_SWIZZLE_Y(x)                       (x << 16)
+#define R300_PVS_SRC_SWIZZLE_Z(x)                       (x << 19)
+#define R300_PVS_SRC_SWIZZLE_W(x)                       (x << 22)
+#       define R300_PVS_SRC_SELECT_X                    0
+#       define R300_PVS_SRC_SELECT_Y                    1
+#       define R300_PVS_SRC_SELECT_Z                    2
+#       define R300_PVS_SRC_SELECT_W                    3
+#       define R300_PVS_SRC_SELECT_FORCE_0              4
+#       define R300_PVS_SRC_SELECT_FORCE_1              5
+#define R300_PVS_SRC_NEG_X                              (1 << 25)
+#define R300_PVS_SRC_NEG_Y                              (1 << 26)
+#define R300_PVS_SRC_NEG_Z                              (1 << 27)
+#define R300_PVS_SRC_NEG_W                              (1 << 28)
+#define R300_PVS_SRC_ADDR_SEL(x)                        (x << 29)
+#define R300_PVS_SRC_ADDR_MODE_1                        (1 << 31)
+
 #define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22DC
 #define R300_VAP_OUT_VTX_FMT_0			        0x2090
 #       define R300_VTX_POS_PRESENT                     (1 << 0)
