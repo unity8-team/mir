@@ -207,7 +207,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
     pitch = exaGetPixmapPitch(pPixmap);
 
     {
-	BEGIN_LP_RING(6);
+	BEGIN_BATCH(6);
 
 	cmd = XY_COLOR_BLT_CMD;
 
@@ -220,14 +220,14 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	    cmd |= XY_COLOR_BLT_TILED;
 	}
 
-	OUT_RING(cmd);
+	OUT_BATCH(cmd);
 
-	OUT_RING(pI830->BR[13] | pitch);
-	OUT_RING((y1 << 16) | (x1 & 0xffff));
-	OUT_RING((y2 << 16) | (x2 & 0xffff));
-	OUT_RING(offset);
-	OUT_RING(pI830->BR[16]);
-	ADVANCE_LP_RING();
+	OUT_BATCH(pI830->BR[13] | pitch);
+	OUT_BATCH((y1 << 16) | (x1 & 0xffff));
+	OUT_BATCH((y2 << 16) | (x2 & 0xffff));
+	OUT_BATCH(offset);
+	OUT_BATCH(pI830->BR[16]);
+	ADVANCE_BATCH();
     }
 }
 
@@ -291,7 +291,7 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     src_pitch = exaGetPixmapPitch(pI830->pSrcPixmap);
 
     {
-	BEGIN_LP_RING(8);
+	BEGIN_BATCH(8);
 
 	cmd = XY_SRC_COPY_BLT_CMD;
 
@@ -312,17 +312,17 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	    }
 	}
 
-	OUT_RING(cmd);
+	OUT_BATCH(cmd);
 
-	OUT_RING(pI830->BR[13] | dst_pitch);
-	OUT_RING((dst_y1 << 16) | (dst_x1 & 0xffff));
-	OUT_RING((dst_y2 << 16) | (dst_x2 & 0xffff));
-	OUT_RING(dst_off);
-	OUT_RING((src_y1 << 16) | (src_x1 & 0xffff));
-	OUT_RING(src_pitch);
-	OUT_RING(src_off);
+	OUT_BATCH(pI830->BR[13] | dst_pitch);
+	OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
+	OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
+	OUT_BATCH(dst_off);
+	OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
+	OUT_BATCH(src_pitch);
+	OUT_BATCH(src_off);
 
-	ADVANCE_LP_RING();
+	ADVANCE_BATCH();
     }
 }
 

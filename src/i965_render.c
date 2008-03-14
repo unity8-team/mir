@@ -924,72 +924,72 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      * rendering pipe
      */
     {
-	BEGIN_LP_RING(2);
-   	OUT_RING(MI_FLUSH |
-		 MI_STATE_INSTRUCTION_CACHE_FLUSH |
-		 BRW_MI_GLOBAL_SNAPSHOT_RESET);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
+	BEGIN_BATCH(2);
+	OUT_BATCH(MI_FLUSH |
+		  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+		  BRW_MI_GLOBAL_SNAPSHOT_RESET);
+	OUT_BATCH(MI_NOOP);
+	ADVANCE_BATCH();
     }
     {
-        BEGIN_LP_RING(12);
+        BEGIN_BATCH(12);
 
         /* Match Mesa driver setup */
 	if (IS_IGD_GM(pI830))
-	    OUT_RING(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
-	    OUT_RING(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
+	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 
-   	OUT_RING(BRW_CS_URB_STATE | 0);
-   	OUT_RING((0 << 4) |  /* URB Entry Allocation Size */
-		 (0 << 0));  /* Number of URB Entries */
+	OUT_BATCH(BRW_CS_URB_STATE | 0);
+	OUT_BATCH((0 << 4) |  /* URB Entry Allocation Size */
+		  (0 << 0));  /* Number of URB Entries */
 
 	/* Zero out the two base address registers so all offsets are
 	 * absolute.
 	 */
-   	OUT_RING(BRW_STATE_BASE_ADDRESS | 4);
-   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
-   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
-   	OUT_RING(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
+	OUT_BATCH(BRW_STATE_BASE_ADDRESS | 4);
+	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Generate state base address */
+	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* Surface state base address */
+	OUT_BATCH(0 | BASE_ADDRESS_MODIFY);  /* media base addr, don't care */
 	/* general state max addr, disabled */
-   	OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);
+	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
 	/* media object state max addr, disabled */
-   	OUT_RING(0x10000000 | BASE_ADDRESS_MODIFY);
+	OUT_BATCH(0x10000000 | BASE_ADDRESS_MODIFY);
 
 	/* Set system instruction pointer */
-   	OUT_RING(BRW_STATE_SIP | 0);
-   	OUT_RING(state_base_offset + sip_kernel_offset);
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
+	OUT_BATCH(BRW_STATE_SIP | 0);
+	OUT_BATCH(state_base_offset + sip_kernel_offset);
+	OUT_BATCH(MI_NOOP);
+	ADVANCE_BATCH();
     }
     {
-	BEGIN_LP_RING(26);
+	BEGIN_BATCH(26);
 	/* Pipe control */
-   	OUT_RING(BRW_PIPE_CONTROL |
-		 BRW_PIPE_CONTROL_NOWRITE |
-		 BRW_PIPE_CONTROL_IS_FLUSH |
-		 2);
-   	OUT_RING(0);			       /* Destination address */
-   	OUT_RING(0);			       /* Immediate data low DW */
-   	OUT_RING(0);			       /* Immediate data high DW */
+	OUT_BATCH(BRW_PIPE_CONTROL |
+		  BRW_PIPE_CONTROL_NOWRITE |
+		  BRW_PIPE_CONTROL_IS_FLUSH |
+		  2);
+	OUT_BATCH(0);			       /* Destination address */
+	OUT_BATCH(0);			       /* Immediate data low DW */
+	OUT_BATCH(0);			       /* Immediate data high DW */
 
 	/* Binding table pointers */
-   	OUT_RING(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
-   	OUT_RING(0); /* vs */
-   	OUT_RING(0); /* gs */
-   	OUT_RING(0); /* clip */
-   	OUT_RING(0); /* sf */
+	OUT_BATCH(BRW_3DSTATE_BINDING_TABLE_POINTERS | 4);
+	OUT_BATCH(0); /* vs */
+	OUT_BATCH(0); /* gs */
+	OUT_BATCH(0); /* clip */
+	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
-   	OUT_RING(state_base_offset + binding_table_offset); /* ps */
+	OUT_BATCH(state_base_offset + binding_table_offset); /* ps */
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
 	 */
-   	OUT_RING(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
-   	OUT_RING(0x00000000);	/* ymin, xmin */
-	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
-		 DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */
-   	OUT_RING(0x00000000);	/* yorigin, xorigin */
+	OUT_BATCH(BRW_3DSTATE_DRAWING_RECTANGLE | 2); /* XXX 3 for BLC or CTG */
+	OUT_BATCH(0x00000000);	/* ymin, xmin */
+	OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) |
+		  DRAW_XMAX(pDst->drawable.width - 1)); /* ymax, xmax */
+	OUT_BATCH(0x00000000);	/* yorigin, xorigin */
 
 	/* skip the depth buffer */
 	/* skip the polygon stipple */
@@ -997,83 +997,83 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	/* skip the line stipple */
 
 	/* Set the pointers to the 3d pipeline state */
-   	OUT_RING(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-   	OUT_RING(state_base_offset + vs_offset);  /* 32 byte aligned */
-   	OUT_RING(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
-   	OUT_RING(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
-   	OUT_RING(state_base_offset + sf_offset);  /* 32 byte aligned */
-   	OUT_RING(state_base_offset + wm_offset);  /* 32 byte aligned */
-   	OUT_RING(state_base_offset + cc_offset);  /* 64 byte aligned */
+	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
+	OUT_BATCH(state_base_offset + vs_offset);  /* 32 byte aligned */
+	OUT_BATCH(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
+	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
+	OUT_BATCH(state_base_offset + sf_offset);  /* 32 byte aligned */
+	OUT_BATCH(state_base_offset + wm_offset);  /* 32 byte aligned */
+	OUT_BATCH(state_base_offset + cc_offset);  /* 64 byte aligned */
 
 	/* URB fence */
-   	OUT_RING(BRW_URB_FENCE |
-        	 UF0_CS_REALLOC |
-	    	 UF0_SF_REALLOC |
-	    	 UF0_CLIP_REALLOC |
-	         UF0_GS_REALLOC |
-	         UF0_VS_REALLOC |
-	    	 1);
-   	OUT_RING(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
-	    	 ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
-	    	 ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
-   	OUT_RING(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
-	     	 ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
+	OUT_BATCH(BRW_URB_FENCE |
+		  UF0_CS_REALLOC |
+		  UF0_SF_REALLOC |
+		  UF0_CLIP_REALLOC |
+		  UF0_GS_REALLOC |
+		  UF0_VS_REALLOC |
+		  1);
+	OUT_BATCH(((urb_clip_start + urb_clip_size) << UF1_CLIP_FENCE_SHIFT) |
+		  ((urb_gs_start + urb_gs_size) << UF1_GS_FENCE_SHIFT) |
+		  ((urb_vs_start + urb_vs_size) << UF1_VS_FENCE_SHIFT));
+	OUT_BATCH(((urb_cs_start + urb_cs_size) << UF2_CS_FENCE_SHIFT) |
+		  ((urb_sf_start + urb_sf_size) << UF2_SF_FENCE_SHIFT));
 
 	/* Constant buffer state */
-   	OUT_RING(BRW_CS_URB_STATE | 0);
-   	OUT_RING(((URB_CS_ENTRY_SIZE - 1) << 4) |
-	    	 (URB_CS_ENTRIES << 0));
-	ADVANCE_LP_RING();
+	OUT_BATCH(BRW_CS_URB_STATE | 0);
+	OUT_BATCH(((URB_CS_ENTRY_SIZE - 1) << 4) |
+		  (URB_CS_ENTRIES << 0));
+	ADVANCE_BATCH();
     }
     {
         int nelem = pMask ? 3: 2;
-   	BEGIN_LP_RING(pMask?12:10);
+	BEGIN_BATCH(pMask?12:10);
 	/* Set up the pointer to our vertex buffer */
-   	OUT_RING(BRW_3DSTATE_VERTEX_BUFFERS | 3);
-   	OUT_RING((0 << VB0_BUFFER_INDEX_SHIFT) |
-	    	 VB0_VERTEXDATA |
-	    	 ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT));
-   	OUT_RING(state_base_offset + vb_offset);
-        OUT_RING(3);
-   	OUT_RING(0); // ignore for VERTEXDATA, but still there
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
+	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+		  VB0_VERTEXDATA |
+		  ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT));
+	OUT_BATCH(state_base_offset + vb_offset);
+        OUT_BATCH(3);
+	OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
 	/* Set up our vertex elements, sourced from the single vertex buffer.
 	 */
-   	OUT_RING(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));
+	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));
 	/* vertex coordinates */
-   	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    	 VE0_VALID |
-	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    	 (0 << VE0_OFFSET_SHIFT));
-   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	     	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-	    	 (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (0 << VE0_OFFSET_SHIFT));
+	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
+		  (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
 	/* u0, v0 */
-   	OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-	    	 VE0_VALID |
-	    	 (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-	    	 (8 << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
-   	OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-	    	 (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-	    	 (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
-	    	 (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
-	    	 (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+	OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  VE0_VALID |
+		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		  (8 << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
+	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
+		  (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
 	/* u1, v1 */
    	if (pMask) {
-	    OUT_RING((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		     VE0_VALID |
-		     (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		     (16 << VE0_OFFSET_SHIFT));
-	    OUT_RING((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		     (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		     (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
-		     (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
-		     (10 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	    OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		      VE0_VALID |
+		      (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
+		      (16 << VE0_OFFSET_SHIFT));
+	    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
+		      (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
+		      (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
+		      (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
+		      (10 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
    	}
 
-   	ADVANCE_LP_RING();
+	ADVANCE_BATCH();
     }
 
 #ifdef I830DEBUG
@@ -1155,18 +1155,18 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     }
 
     {
-      BEGIN_LP_RING(6);
-      OUT_RING(BRW_3DPRIMITIVE |
-	       BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-	       (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
-	       (0 << 9) |  /* CTG - indirect vertex count */
-	       4);
-      OUT_RING(3);  /* vertex count per instance */
-      OUT_RING(0); /* start vertex offset */
-      OUT_RING(1); /* single instance */
-      OUT_RING(0); /* start instance location */
-      OUT_RING(0); /* index buffer offset, ignored */
-      ADVANCE_LP_RING();
+      BEGIN_BATCH(6);
+      OUT_BATCH(BRW_3DPRIMITIVE |
+		BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+		(_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
+		(0 << 9) |  /* CTG - indirect vertex count */
+		4);
+      OUT_BATCH(3);  /* vertex count per instance */
+      OUT_BATCH(0); /* start vertex offset */
+      OUT_BATCH(1); /* single instance */
+      OUT_BATCH(0); /* start instance location */
+      OUT_BATCH(0); /* index buffer offset, ignored */
+      ADVANCE_BATCH();
     }
 #ifdef I830DEBUG
     ErrorF("sync after 3dprimitive");
@@ -1175,17 +1175,17 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     /* we must be sure that the pipeline is flushed before next exa draw,
        because that will be new state, binding state and instructions*/
     {
-	BEGIN_LP_RING(4);
-   	OUT_RING(BRW_PIPE_CONTROL |
-	    BRW_PIPE_CONTROL_NOWRITE |
-	    BRW_PIPE_CONTROL_WC_FLUSH |
-	    BRW_PIPE_CONTROL_IS_FLUSH |
-	    (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
-	    2);
-   	OUT_RING(0); /* Destination address */
-   	OUT_RING(0); /* Immediate data low DW */
-   	OUT_RING(0); /* Immediate data high DW */
-	ADVANCE_LP_RING();
+	BEGIN_BATCH(4);
+	OUT_BATCH(BRW_PIPE_CONTROL |
+		  BRW_PIPE_CONTROL_NOWRITE |
+		  BRW_PIPE_CONTROL_WC_FLUSH |
+		  BRW_PIPE_CONTROL_IS_FLUSH |
+		  (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
+		  2);
+	OUT_BATCH(0); /* Destination address */
+	OUT_BATCH(0); /* Immediate data low DW */
+	OUT_BATCH(0); /* Immediate data high DW */
+	ADVANCE_BATCH();
     }
 
     /* Mark sync so we can wait for it before setting up the VB on the next

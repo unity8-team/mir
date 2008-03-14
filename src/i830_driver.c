@@ -2341,12 +2341,12 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    ctx_addr = pI830->logical_context->offset;
    assert((pI830->logical_context->offset & 2047) == 0);
    {
-      BEGIN_LP_RING(2);
-      OUT_RING(MI_SET_CONTEXT);
-      OUT_RING(pI830->logical_context->offset |
-	       CTXT_NO_RESTORE |
-	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
-      ADVANCE_LP_RING();
+      BEGIN_BATCH(2);
+      OUT_BATCH(MI_SET_CONTEXT);
+      OUT_BATCH(pI830->logical_context->offset |
+		CTXT_NO_RESTORE |
+		CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
+      ADVANCE_BATCH();
    }
 
    if (!IS_I965G(pI830))

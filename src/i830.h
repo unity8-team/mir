@@ -828,6 +828,13 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 
 Bool i830_pixmap_tiled(PixmapPtr p);
 
+/* Batchbuffer compatibility handling */
+#define BEGIN_BATCH(n) BEGIN_LP_RING(n)
+#define ENSURE_BATCH(n)
+#define OUT_BATCH(d) OUT_RING(d)
+#define OUT_BATCH_F(x) OUT_RING_F(x)
+#define ADVANCE_BATCH() ADVANCE_LP_RING()
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 

@@ -312,38 +312,38 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	else
 	    format |= MAPSURF_32BIT;
 
-	BEGIN_LP_RING(10);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
-	OUT_RING((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE); 
-	OUT_RING(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
-		((pPix->drawable.width - 1) << TM0S1_WIDTH_SHIFT) | format);
-	OUT_RING((pitch/4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
-	OUT_RING(filter);
-	OUT_RING(0); /* default color */
-	OUT_RING(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
-		 ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
-		 TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
-		 TEXCOORD_ADDR_V_MODE(wrap_mode) |
-		 ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
+	BEGIN_BATCH(10);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
+	OUT_BATCH((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE);
+	OUT_BATCH(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
+		  ((pPix->drawable.width - 1) << TM0S1_WIDTH_SHIFT) | format);
+	OUT_BATCH((pitch/4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
+	OUT_BATCH(filter);
+	OUT_BATCH(0); /* default color */
+	OUT_BATCH(_3DSTATE_MAP_COORD_SET_CMD | TEXCOORD_SET(unit) |
+		  ENABLE_TEXCOORD_PARAMS | TEXCOORDS_ARE_NORMAL |
+		  TEXCOORDTYPE_CARTESIAN | ENABLE_ADDR_V_CNTL |
+		  TEXCOORD_ADDR_V_MODE(wrap_mode) |
+		  ENABLE_ADDR_U_CNTL | TEXCOORD_ADDR_U_MODE(wrap_mode));
 	/* map texel stream */
-	OUT_RING(_3DSTATE_MAP_COORD_SETBIND_CMD);
+	OUT_BATCH(_3DSTATE_MAP_COORD_SETBIND_CMD);
 	if (unit == 0)
-	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-		    TEXBIND_SET1(TEXCOORDSRC_KEEP) |
-		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	    OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		      TEXBIND_SET1(TEXCOORDSRC_KEEP) |
+		      TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		      TEXBIND_SET3(TEXCOORDSRC_KEEP));
 	else
-	    OUT_RING(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
-		    TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
-		    TEXBIND_SET2(TEXCOORDSRC_KEEP) |
-		    TEXBIND_SET3(TEXCOORDSRC_KEEP));
-	OUT_RING(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
-		DISABLE_TEX_STREAM_BUMP | 
-		ENABLE_TEX_STREAM_COORD_SET |
-		TEX_STREAM_COORD_SET(unit) |
-		ENABLE_TEX_STREAM_MAP_IDX |
-		TEX_STREAM_MAP_IDX(unit));
-	ADVANCE_LP_RING();
+	    OUT_BATCH(TEXBIND_SET0(TEXCOORDSRC_VTXSET_0) |
+		      TEXBIND_SET1(TEXCOORDSRC_VTXSET_1) |
+		      TEXBIND_SET2(TEXCOORDSRC_KEEP) |
+		      TEXBIND_SET3(TEXCOORDSRC_KEEP));
+	OUT_BATCH(_3DSTATE_MAP_TEX_STREAM_CMD | (unit << 16) |
+		  DISABLE_TEX_STREAM_BUMP |
+		  ENABLE_TEX_STREAM_COORD_SET |
+		  TEX_STREAM_COORD_SET(unit) |
+		  ENABLE_TEX_STREAM_MAP_IDX |
+		  TEX_STREAM_MAP_IDX(unit));
+	ADVANCE_BATCH();
      }
 
 #ifdef I830DEBUG
@@ -418,43 +418,43 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     {
 	uint32_t cblend, ablend, blendctl, vf2;
 
-	BEGIN_LP_RING(30);
+	BEGIN_BATCH(30);
 
 	/* color buffer */
-	OUT_RING(_3DSTATE_BUF_INFO_CMD);
-	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
-			BUF_3D_PITCH(dst_pitch));
-	OUT_RING(BUF_3D_ADDR(dst_offset));
-	OUT_RING(MI_NOOP);
+	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
+	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
+		  BUF_3D_PITCH(dst_pitch));
+	OUT_BATCH(BUF_3D_ADDR(dst_offset));
+	OUT_BATCH(MI_NOOP);
 
-	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_RING(dst_format);
+	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
+	OUT_BATCH(dst_format);
 
 	/* defaults */
-	OUT_RING(_3DSTATE_DFLT_Z_CMD);
-	OUT_RING(0);
+	OUT_BATCH(_3DSTATE_DFLT_Z_CMD);
+	OUT_BATCH(0);
 
-	OUT_RING(_3DSTATE_DFLT_DIFFUSE_CMD);
-	OUT_RING(0);
+	OUT_BATCH(_3DSTATE_DFLT_DIFFUSE_CMD);
+	OUT_BATCH(0);
 
-	OUT_RING(_3DSTATE_DFLT_SPEC_CMD);
-	OUT_RING(0);
+	OUT_BATCH(_3DSTATE_DFLT_SPEC_CMD);
+	OUT_BATCH(0);
 
-	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
-	OUT_RING(0);
-	OUT_RING(0); /* ymin, xmin */
-	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
-		DRAW_XMAX(pDst->drawable.width - 1));
-	OUT_RING(0); /* yorig, xorig */
+	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
+	OUT_BATCH(0);
+	OUT_BATCH(0); /* ymin, xmin */
+	OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) |
+		  DRAW_XMAX(pDst->drawable.width - 1));
+	OUT_BATCH(0); /* yorig, xorig */
 
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) | 
-		I1_LOAD_S(3) | 1);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
+		  I1_LOAD_S(3) | 1);
 	if (pMask)
 	    vf2 = 2 << 12; /* 2 texture coord sets */
 	else
 	    vf2 = 1 << 12;
-	OUT_RING(vf2); /* TEXCOORDFMT_2D */
-	OUT_RING(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
+	OUT_BATCH(vf2); /* TEXCOORDFMT_2D */
+	OUT_BATCH(S3_CULLMODE_NONE | S3_VERTEXHAS_XY);
 
 	/* If component alpha is active in the mask and the blend operation
 	 * uses the source alpha, then we know we don't need the source
@@ -523,29 +523,29 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	    ablend |= TB0A_ARG2_SEL_ONE;
 	}
 
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
-		 LOAD_TEXTURE_BLEND_STAGE(0)|1);
-	OUT_RING(cblend);
-	OUT_RING(ablend);
-	OUT_RING(0);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 |
+		  LOAD_TEXTURE_BLEND_STAGE(0)|1);
+	OUT_BATCH(cblend);
+	OUT_BATCH(ablend);
+	OUT_BATCH(0);
 
 	blendctl = i830_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
-	OUT_RING(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
-	OUT_RING(MI_NOOP);
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
-	OUT_RING(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl | 
-		 S8_ENABLE_COLOR_BUFFER_WRITE);
+	OUT_BATCH(_3DSTATE_INDPT_ALPHA_BLEND_CMD | DISABLE_INDPT_ALPHA_BLEND);
+	OUT_BATCH(MI_NOOP);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(8) | 0);
+	OUT_BATCH(S8_ENABLE_COLOR_BLEND | S8_BLENDFUNC_ADD | blendctl |
+		  S8_ENABLE_COLOR_BUFFER_WRITE);
 
-	OUT_RING(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP | 
-		DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS | 
-		DISABLE_SPEC_ADD | DISABLE_FOG | DISABLE_ALPHA_TEST | 
-		ENABLE_COLOR_BLEND | DISABLE_DEPTH_TEST);
+	OUT_BATCH(_3DSTATE_ENABLES_1_CMD | DISABLE_LOGIC_OP |
+		  DISABLE_STENCIL_TEST | DISABLE_DEPTH_BIAS |
+		  DISABLE_SPEC_ADD | DISABLE_FOG | DISABLE_ALPHA_TEST |
+		  ENABLE_COLOR_BLEND | DISABLE_DEPTH_TEST);
 	/* We have to explicitly say we don't want write disabled */
-	OUT_RING(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK |
-		DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
-		DISABLE_DITHER | ENABLE_COLOR_WRITE |
-		DISABLE_DEPTH_WRITE);
-	ADVANCE_LP_RING();
+	OUT_BATCH(_3DSTATE_ENABLES_2_CMD | ENABLE_COLOR_MASK |
+		  DISABLE_STENCIL_WRITE | ENABLE_TEX_CACHE |
+		  DISABLE_DITHER | ENABLE_COLOR_WRITE |
+		  DISABLE_DEPTH_WRITE);
+	ADVANCE_BATCH();
     }
 
 #ifdef I830DEBUG
@@ -604,43 +604,43 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	else
 		vertex_count = 3*4;
 
-	BEGIN_LP_RING(6+vertex_count);
+	BEGIN_BATCH(6+vertex_count);
 
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_NOOP);
+	OUT_BATCH(MI_NOOP);
+	OUT_BATCH(MI_NOOP);
+	OUT_BATCH(MI_NOOP);
+	OUT_BATCH(MI_NOOP);
+	OUT_BATCH(MI_NOOP);
 
-	OUT_RING(PRIM3D_INLINE | PRIM3D_RECTLIST | (vertex_count-1));
+	OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (vertex_count-1));
 
-	OUT_RING_F(-0.125 + dstX + w);
-	OUT_RING_F(-0.125 + dstY + h);
-	OUT_RING_F(src_x[2] / pI830->scale_units[0][0]);
-	OUT_RING_F(src_y[2] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(-0.125 + dstX + w);
+	OUT_BATCH_F(-0.125 + dstY + h);
+	OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
+	OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
 	if (has_mask) {
-	    OUT_RING_F(mask_x[2] / pI830->scale_units[1][0]);
-	    OUT_RING_F(mask_y[2] / pI830->scale_units[1][1]);
+	    OUT_BATCH_F(mask_x[2] / pI830->scale_units[1][0]);
+	    OUT_BATCH_F(mask_y[2] / pI830->scale_units[1][1]);
 	}
 
-	OUT_RING_F(-0.125 + dstX);
-	OUT_RING_F(-0.125 + dstY + h);
-	OUT_RING_F(src_x[1] / pI830->scale_units[0][0]);
-	OUT_RING_F(src_y[1] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(-0.125 + dstX);
+	OUT_BATCH_F(-0.125 + dstY + h);
+	OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
+	OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
 	if (has_mask) {
-	    OUT_RING_F(mask_x[1] / pI830->scale_units[1][0]);
-	    OUT_RING_F(mask_y[1] / pI830->scale_units[1][1]);
+	    OUT_BATCH_F(mask_x[1] / pI830->scale_units[1][0]);
+	    OUT_BATCH_F(mask_y[1] / pI830->scale_units[1][1]);
 	}
 
-	OUT_RING_F(-0.125 + dstX);
-	OUT_RING_F(-0.125 + dstY);
-	OUT_RING_F(src_x[0] / pI830->scale_units[0][0]);
-	OUT_RING_F(src_y[0] / pI830->scale_units[0][1]);
+	OUT_BATCH_F(-0.125 + dstX);
+	OUT_BATCH_F(-0.125 + dstY);
+	OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
+	OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
 	if (has_mask) {
-	    OUT_RING_F(mask_x[0] / pI830->scale_units[1][0]);
-	    OUT_RING_F(mask_y[0] / pI830->scale_units[1][1]);
+	    OUT_BATCH_F(mask_x[0] / pI830->scale_units[1][0]);
+	    OUT_BATCH_F(mask_y[0] / pI830->scale_units[1][1]);
 	}
-	ADVANCE_LP_RING();
+	ADVANCE_BATCH();
     }
 }
 
