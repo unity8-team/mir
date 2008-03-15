@@ -3998,7 +3998,66 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 	return 0;
 }
 
-static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+static void
+read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, int index)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	uint8_t *i2ctable = &pNv->VBIOS.data[i2ctabptr];
+	uint8_t headerlen = 0;
+	int i2c_entries = MAX_NUM_DCB_ENTRIES;
+	int recordoffset = 0, rdofs = 1, wrofs = 0;
+
+	if (!i2ctabptr)
+		return;
+
+	if (dcb_version >= 0x30) {
+		if (i2ctable[0] != dcb_version) /* necessary? */
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "DCB I2C table version mismatch (%02X vs %02X)\n",
+				   i2ctable[0], dcb_version);
+		headerlen = i2ctable[1];
+		i2c_entries = i2ctable[2];
+		if (i2ctable[0] >= 0x40)
+			/* same port number used for read and write */
+			rdofs = 0;
+	}
+	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
+	 * the test below is for DCB 1.2
+	 */
+	if (dcb_version < 0x14) {
+		recordoffset = 2;
+		rdofs = 0;
+		wrofs = 1;
+	}
+
+	if (index == 0xf)
+		return;
+	if (index > i2c_entries) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DCB I2C index too big (%d > %d)\n",
+			   index, i2ctable[2]);
+		return;
+	}
+	if (i2ctable[headerlen + 4 * index + 3] == 0xff) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DCB I2C entry invalid\n");
+		return;
+	}
+
+	if (i2ctable[0] >= 0x40) {
+		int port_type = i2ctable[headerlen + 4 * index + 3];
+
+		if (port_type != 5)
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "DCB I2C table has port type %d\n", port_type);
+	}
+
+	pNv->dcb_table.i2c_read[index] = i2ctable[headerlen + recordoffset + rdofs + 4 * index];
+	pNv->dcb_table.i2c_write[index] = i2ctable[headerlen + recordoffset + wrofs + 4 * index];
+}
+
+static bool
+parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
@@ -4053,6 +4112,7 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			break;
 			}
 		}
+		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 && conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2244311 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -4090,9 +4150,14 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 			entry[1].type = OUTPUT_ANALOG;
 			pNv->dcb_table.entries++;
 		}
+		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
 	} else if (dcb_version >= 0x12) {
 		/* v1.2 tables normally have the same 5 entries, which are not
 		 * specific to the card, so use the defaults for a crt */
+		/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can handle, but cards
+		 * exist (seen on nv11) where the pointer to the table points to the wrong
+		 * place, so for now, we rely on the indices parsed in parse_bmp_structure
+		 */
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
@@ -4105,46 +4170,6 @@ static bool parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint32_t con
 	pNv->dcb_table.entries++;
 
 	return true;
-}
-
-static void
-read_dcb_i2c_table(ScrnInfoPtr pScrn, bios_t *bios, uint8_t dcb_version, uint16_t i2ctabptr)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	uint8_t *i2ctable = &bios->data[i2ctabptr];
-	uint8_t headerlen = 0;
-	int i2c_entries = MAX_NUM_DCB_ENTRIES;
-	int recordoffset = 0, rdofs = 1, wrofs = 0;
-	int i;
-
-	if (dcb_version >= 0x30) {
-		if (i2ctable[0] != dcb_version) { /* necessary? */
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				   "DCB I2C table version mismatch (%02X vs %02X)\n",
-				   i2ctable[0], dcb_version);
-		}
-		headerlen = i2ctable[1];
-		i2c_entries = i2ctable[2];
-		if (i2ctable[0] >= 0x40) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "G80 DCB I2C table detected, arrgh\n"); /* they're plain weird */
-			return;
-		}
-	}
-	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
-	 * the below assumes DCB 1.2
-	 */
-	if (dcb_version < 0x14) {
-		recordoffset = 2;
-		rdofs = 0;
-		wrofs = 1;
-	}
-
-	for (i = 0; i < i2c_entries; i++)
-		if (i2ctable[headerlen + 4 * i + 3] != 0xff) {
-			pNv->dcb_table.i2c_read[i] = i2ctable[headerlen + recordoffset + rdofs + 4 * i];
-			pNv->dcb_table.i2c_write[i] = i2ctable[headerlen + recordoffset + wrofs + 4 * i];
-		}
 }
 
 static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
@@ -4166,7 +4191,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No Display Configuration Block pointer found\n");
 		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
-		parse_dcb_entry(pScrn, 0, 0, 0, &pNv->dcb_table.entry[0]);
+		parse_dcb_entry(pScrn, 0, 0, 0, 0, &pNv->dcb_table.entry[0]);
 		return 1;
 	}
 
@@ -4221,7 +4246,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		configblock = false;
 	} else {	/* NV5+, maybe NV4 */
 		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
-		parse_dcb_entry(pScrn, dcb_version, 0, 0, &pNv->dcb_table.entry[0]);
+		parse_dcb_entry(pScrn, dcb_version, 0, 0, 0, &pNv->dcb_table.entry[0]);
 		return 1;
 	}
 
@@ -4242,19 +4267,11 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
-		if (!parse_dcb_entry(pScrn, dcb_version, connection, config, &pNv->dcb_table.entry[pNv->dcb_table.entries]))
+		if (!parse_dcb_entry(pScrn, dcb_version, i2ctabptr, connection, config, &pNv->dcb_table.entry[pNv->dcb_table.entries]))
 			break;
 	}
 
-	/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can handle, but cards
-	 * exist (seen on nv11) where the pointer to the table points to the wrong
-	 * place, so for now, we rely on the indices parsed in parse_bmp_structure
-	 * If that fails, we'll have to do some kind of heuristic/quirk...
-	 */
-	if (dcb_version > 0x12)
-		read_dcb_i2c_table(pScrn, bios, dcb_version, i2ctabptr);
-
-	/* DCB v2.0, in particular, lists each output combination separately.
+	/* DCB v2.0 lists each output combination separately.
 	 * Here we merge compatible entries to have fewer outputs, with more options
 	 */
 	for (i = 0; i < pNv->dcb_table.entries; i++) {
