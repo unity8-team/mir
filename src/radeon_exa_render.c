@@ -569,7 +569,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
-    
+
     for (i = 0; i < sizeof(R200TexFormats) / sizeof(R200TexFormats[0]); i++)
     {
 	if (R200TexFormats[i].fmt == pPict->format)
@@ -720,7 +720,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	RADEONInit3DEngine(pScrn);
 
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
-    	return FALSE;
+	return FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
@@ -911,7 +911,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     BEGIN_ACCEL(6);
     OUT_ACCEL_REG(R300_TX_FILTER0_0 + (unit * 4), txfilter);
-    OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0x0);
+    OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0);
     OUT_ACCEL_REG(R300_TX_FORMAT0_0 + (unit * 4), txformat0);
     OUT_ACCEL_REG(R300_TX_FORMAT1_0 + (unit * 4), txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0 + (unit * 4), txpitch);
@@ -1090,7 +1090,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     RADEON_SWITCH_TO_3D();
 
     /* setup the VAP */
-
     if (has_tcl) {
 	BEGIN_ACCEL(9);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, 0);
@@ -1189,7 +1188,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* setup the vertex shader */
     if (has_tcl) {
 	if (pMask) {
-	    BEGIN_ACCEL(21);
+	    BEGIN_ACCEL(22);
+	    /* flush the PVS before updating??? */
+	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);w
+
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
@@ -1197,7 +1199,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
 			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	} else {
-	    BEGIN_ACCEL(17);
+	    BEGIN_ACCEL(18);
+	    /* flush the PVS before updating??? */
+	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
+
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (1 << R300_PVS_XYZW_VALID_INST_SHIFT) |
@@ -1385,13 +1390,19 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	switch (pDstPicture->format) {
 	case PICT_a8r8g8b8:
 	case PICT_x8r8g8b8:
-	case PICT_a8b8g8r8:
-	case PICT_x8b8g8r8:
 	default:
 	    output_fmt = (R300_OUT_FMT_C4_8 |
 			  R300_OUT_FMT_C0_SEL_BLUE |
 			  R300_OUT_FMT_C1_SEL_GREEN |
 			  R300_OUT_FMT_C2_SEL_RED |
+			  R300_OUT_FMT_C3_SEL_ALPHA);
+	    break;
+	case PICT_a8b8g8r8:
+	case PICT_x8b8g8r8:
+	    output_fmt = (R300_OUT_FMT_C4_8 |
+			  R300_OUT_FMT_C0_SEL_RED |
+			  R300_OUT_FMT_C1_SEL_GREEN |
+			  R300_OUT_FMT_C2_SEL_BLUE |
 			  R300_OUT_FMT_C3_SEL_ALPHA);
 	    break;
 	case PICT_r5g6b5:
@@ -1528,9 +1539,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_RGB_ADDR1(1) |
 		     R300_ALU_RGB_ADDR2(0) |
 		     R300_ALU_RGB_ADDRD(2) |
-		     R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
+		     /*R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
 					 R300_ALU_RGB_MASK_G |
-					 R300_ALU_RGB_MASK_B)) |
+					 R300_ALU_RGB_MASK_B)) |*/
 		     R300_ALU_RGB_OMASK((R300_ALU_RGB_MASK_R |
 					 R300_ALU_RGB_MASK_G |
 					 R300_ALU_RGB_MASK_B)) |
@@ -1549,7 +1560,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_ALPHA_ADDR1(1) |
 		     R300_ALU_ALPHA_ADDR2(0) |
 		     R300_ALU_ALPHA_ADDRD(2) |
-		     R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |
+		     /*R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |*/
 		     R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 		     R300_ALU_ALPHA_TARGET_A |
 		     R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));

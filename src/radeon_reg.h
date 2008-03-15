@@ -4140,6 +4140,7 @@
 #       define R300_CLIP_DISABLE                        (1 << 16)
 #       define R300_UCP_CULL_ONLY_ENA                   (1 << 17)
 #       define R300_BOUNDARY_EDGE_FLAG_ENA              (1 << 18)
+#define R300_VAP_PVS_STATE_FLUSH_REG			0x2284
 
 #define R300_SU_TEX_WRAP				0x42a0
 #define R300_SU_POLY_OFFSET_ENABLE		        0x42b4
