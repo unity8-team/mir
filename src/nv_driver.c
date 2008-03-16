@@ -1877,9 +1877,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		state->crtc_reg[0].vpll_b = 0;
 		state->crtc_reg[1].vpll_a = 0;
 		state->crtc_reg[1].vpll_b = 0;
-		state->reg580 = 0;
 		state->pllsel = 0;
-		state->sel_clk = 0;
 		state->crosswired = FALSE;
 
 		if (pNv->new_restore) { /* new style restore. */
@@ -1902,11 +1900,11 @@ NVRestore(ScrnInfoPtr pScrn)
 				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
 				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
 				/* restore CR52 */
-				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_52, pNv->misc_info.crtc_reg_52[nv_crtc->head]);
+				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_52, savep->CRTC[NV_VGA_CRTCX_52]);
 				/* restore crtc base */
 				NVCrtcWriteCRTC(xf86_config->crtc[i], NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
 				/* Restore general control */
-				NVCrtcWriteRAMDAC(xf86_config->crtc[i], NV_RAMDAC_GENERAL_CONTROL, pNv->misc_info.ramdac_general_control[nv_crtc->head]);
+				NVCrtcWriteRAMDAC(xf86_config->crtc[i], NV_RAMDAC_GENERAL_CONTROL, savep->general);
 				/* Restore CR5758 */
 				if (pNv->NVArch >= 0x17 && pNv->twoHeads)
 					for (i = 0; i < 0x10; i++)
@@ -2015,9 +2013,7 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->crtc_reg[0].vpll_b = 0;
 			state->crtc_reg[1].vpll_a = 0;
 			state->crtc_reg[1].vpll_b = 0;
-			state->reg580 = 0;
 			state->pllsel = 0;
-			state->sel_clk = 0;
 			state->crosswired = FALSE;
 		} else {
 			for (i = 0; i < xf86_config->num_crtc; i++)
@@ -2327,23 +2323,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pScrn->fbOffset = 0;
 
 		/* Gather some misc info before the randr stuff kicks in */
-		if (pNv->Architecture >= NV_ARCH_10) {
-			pNv->misc_info.crtc_reg_52[0] = NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_52);
-			pNv->misc_info.crtc_reg_52[1] = NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_52);
-		}
-		if (pNv->Architecture == NV_ARCH_40) {
-			pNv->misc_info.ramdac_0_reg_580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
-			pNv->misc_info.reg_c040 = nvReadMC(pNv, 0xc040);
-		}
-		pNv->misc_info.ramdac_general_control[0] = NVReadRAMDAC(pNv, 0, NV_RAMDAC_GENERAL_CONTROL);
-		pNv->misc_info.ramdac_general_control[1] = NVReadRAMDAC(pNv, 1, NV_RAMDAC_GENERAL_CONTROL);
-		pNv->misc_info.ramdac_0_pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-		pNv->misc_info.sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
-		if (pNv->twoHeads) {
-			pNv->misc_info.output[0] = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT);
-			pNv->misc_info.output[1] = NVReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT);
-		}
-
 		for (i = 0; i <= pNv->twoHeads; i++) {
 			if (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
 				pNv->console_mode[i].vga_mode = FALSE;
@@ -2391,12 +2370,12 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 
 		/* Check if crtc's were enabled. */
-		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL) {
+		if (NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL) {
 			pNv->console_mode[0].enabled = TRUE;
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 0 was enabled.\n");
 		}
 
-		if (pNv->misc_info.ramdac_0_pllsel & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2) {
+		if (NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2) {
 			pNv->console_mode[1].enabled = TRUE;
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 1 was enabled.\n");
 		}

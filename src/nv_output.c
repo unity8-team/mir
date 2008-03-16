@@ -621,10 +621,6 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	NVRegPtr state = &pNv->ModeReg;
 
-	/* init to existing value, less PLL binding */
-	if (!state->sel_clk)
-		state->sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
-
 	/* SEL_CLK is only used on the primary ramdac
 	 * It toggles spread spectrum PLL output and sets the bindings of PLLs
 	 * to heads on digital outputs
@@ -634,7 +630,7 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 		bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
 		int i;
 
-		state->sel_clk &= ~(0xf << 16);
+		state->sel_clk &= ~(0x5 << 16);
 		/* Even with two dvi, this should not conflict. */
 		if (crossed_clocks)
 			state->sel_clk |= (0x1 << 16);
@@ -678,9 +674,6 @@ static void
 nv_output_prepare(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	//xf86CrtcPtr crtc = output->crtc;
-	//NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	//Bool quirk_mode = FALSE;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
 

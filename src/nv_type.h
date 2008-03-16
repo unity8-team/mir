@@ -217,16 +217,6 @@ typedef struct _NVOutputPrivateRec {
 	NVOutputRegRec restore;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
-typedef struct _MiscStartupInfo {
-	uint8_t crtc_reg_52[2];
-	uint32_t ramdac_0_reg_580;
-	uint32_t ramdac_0_pllsel;
-	uint32_t ramdac_general_control[2];
-	uint32_t reg_c040;
-	uint32_t sel_clk;
-	uint32_t output[2];
-} MiscStartupInfo;
-
 struct dcb_entry {
 	uint8_t type;
 	uint8_t i2c_index;
@@ -462,7 +452,6 @@ typedef struct _NVRec {
 		unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
 	} dcb_table;
 
-	MiscStartupInfo misc_info;
 	NVConsoleMode console_mode[2];
 
 	struct {

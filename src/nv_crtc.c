@@ -176,6 +176,8 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	uint32_t fp_debug_0 = NVReadRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0);
 
 	if (regp->vpll_changed) {
+		uint32_t savedc040 = nvReadMC(pNv, 0xc040);
+
 		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0,
 			fp_debug_0 | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
 
@@ -184,7 +186,7 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 		/* for vpll1 change bits 16 and 17 are disabled */
 		/* for vpll2 change bits 18 and 19 are disabled */
-		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040 & ~(3 << (16 + nv_crtc->head * 2)));
+		nvWriteMC(pNv, 0xc040, savedc040 & ~(3 << (16 + nv_crtc->head * 2)));
 
 		nv_crtc_load_state_pll(crtc, state);
 
@@ -193,7 +195,7 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 		/* We need to wait a while */
 		usleep(5000);
-		nvWriteMC(pNv, 0xc040, pNv->misc_info.reg_c040);
+		nvWriteMC(pNv, 0xc040, savedc040);
 
 		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0, fp_debug_0);
 	}
@@ -335,9 +337,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->vpll_a = g70_pll_special_bits << 30 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
-	/* Does register 0x580 already have a value? */
-	if (!state->reg580)
-		state->reg580 = pNv->misc_info.ramdac_0_reg_580;
 	if (nv4x_single_stage_pll_mode) {
 		if (nv_crtc->head == 0)
 			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
@@ -968,14 +967,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
-		regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[nv_crtc->head];
+		regp->CRTC[NV_VGA_CRTCX_52] = savep->CRTC[NV_VGA_CRTCX_52];
 	} else {
 		/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1.*/
-		if (nv_crtc->head == 1) {
-			regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[0];
-		} else {
-			regp->CRTC[NV_VGA_CRTCX_52] = pNv->misc_info.crtc_reg_52[0] + 4;
-		}
+		regp->CRTC[NV_VGA_CRTCX_52] = pNv->SavedReg.crtc_reg[0].CRTC[NV_VGA_CRTCX_52];
+		if (!nv_crtc->head)
+			regp->CRTC[NV_VGA_CRTCX_52] += 4;
 	}
 
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
@@ -1363,6 +1360,10 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_pll(crtc, &pNv->SavedReg);
+
+	/* init some state to saved value */
+	pNv->ModeReg.reg580 = pNv->SavedReg.reg580;
+	pNv->ModeReg.sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
 }
 
 static void nv_crtc_restore(xf86CrtcPtr crtc)
