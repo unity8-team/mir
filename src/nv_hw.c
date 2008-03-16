@@ -87,7 +87,7 @@ void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
 
 uint8_t nv_dcb_read_tmds(NVPtr pNv, int dcb_entry, int dl, uint8_t address)
 {
-	int ramdac = (pNv->dcb_table.entry[dcb_entry].or & 4) >> 2;
+	int ramdac = (pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL + dl * 8,
 		      NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | address);
@@ -96,7 +96,7 @@ uint8_t nv_dcb_read_tmds(NVPtr pNv, int dcb_entry, int dl, uint8_t address)
 
 void nv_dcb_write_tmds(NVPtr pNv, int dcb_entry, int dl, uint8_t address, uint8_t data)
 {
-	int ramdac = (pNv->dcb_table.entry[dcb_entry].or & 4) >> 2;
+	int ramdac = (pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C) >> 2;
 
 	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA + dl * 8, data);
 	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL + dl * 8, address);

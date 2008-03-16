@@ -2768,7 +2768,7 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 
 	NVPtr pNv = NVPTR(pScrn);
 	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
-	int ramdac = (dcbent->or & 4) >> 2;
+	int ramdac = (dcbent->or & OUTPUT_C) >> 2;
 	uint8_t tmds04 = 0x80;
 
 	if (head != ramdac)
@@ -2789,7 +2789,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 	bios_t *bios = &pNv->VBIOS;
 	init_exec_t iexec = {true, false};
 
-	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & 4 ? 1 : 0);
+	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 	bool power_off_for_reset;
 	uint16_t off_on_delay;

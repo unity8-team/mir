@@ -69,12 +69,11 @@ const char *MonTypeName[7] = {
 static int nv_output_ramdac_offset(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVPtr pNv = NVPTR(output->scrn);
 	int offset = 0;
 
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].or & 0xc)
+	if (nv_output->or & (8 | OUTPUT_C))
 		offset += 0x68;
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].or & 0xa)
+	if (nv_output->or & (8 | OUTPUT_B))
 		offset += 0x2000;
 
 	return offset;
@@ -102,8 +101,8 @@ static Bool dpms_common(xf86OutputPtr output, int mode)
 			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, 0x7f);
 			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 2, 0);
 		} else {
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, pNv->dcb_table.entry[nv_output->dcb_entry].type);
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 2, pNv->dcb_table.entry[nv_output->dcb_entry].or);
+			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, nv_output->type);
+			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 2, nv_output->or);
 		}
 	}
 
@@ -218,7 +217,7 @@ static void nv_output_save(xf86OutputPtr output)
 		nv_output->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		int ramdac = (pNv->dcb_table.entry[nv_output->dcb_entry].or & 4) >> 2;
+		int ramdac = (nv_output->or & OUTPUT_C) >> 2;
 
 		nv_output->restore.head = ((nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4) & 0x8) >> 3) ^ ramdac;
 	}
@@ -485,7 +484,7 @@ nv_load_detect(xf86OutputPtr output)
 	}
 
 	if (present) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %d\n", nv_output->preferred_output);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %d\n", ffs(nv_output->or));
 		return TRUE;
 	}
 
@@ -632,7 +631,7 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 	 */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-		bool crossed_clocks = nv_output->preferred_output ^ nv_crtc->head;
+		bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
 		int i;
 
 		state->sel_clk &= ~(0xf << 16);
@@ -702,7 +701,7 @@ nv_output_commit(xf86OutputPtr output)
 	if (crtc) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Output %s is running on CRTC %d using output resource %d.\n", output->name, nv_crtc->head, nv_output->preferred_output);
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %d\n", output->name, nv_crtc->head, ffs(nv_output->or));
 	}
 
 	output->funcs->dpms(output, DPMSModeOn);
@@ -969,18 +968,15 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 
-	/* output route:
-	 * bit0: OUTPUT_0 valid
-	 * bit1: OUTPUT_1 valid
-	 * So lowest order has highest priority.
-	 * Below is guesswork:
-	 * bit2: All outputs valid
+	/* or:
+	 * First set bit (LSB->MSB) defines output:
+	 * bit0: OUTPUT_A
+	 * bit1: OUTPUT_B
+	 * bit2: OUTPUT_C
+	 *
+	 * If bit following first set bit is also set, output is capable of dual-link
 	 */
-	/* We choose the preferred output resource initially. */
-	if (ffs(pNv->dcb_table.entry[dcb_entry].or) & OUTPUT_1)
-		nv_output->preferred_output = 1;
-	else
-		nv_output->preferred_output = 0;
+	nv_output->or = pNv->dcb_table.entry[dcb_entry].or;
 
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		if (pNv->fpScaler) /* GPU Scaling */

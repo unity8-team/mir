@@ -432,9 +432,9 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	}
 
 	/* Are we crosswired? */
-	if (output && nv_crtc->head != nv_output->preferred_output) {
+	if (output && nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
 		state->crosswired = TRUE;
-	} else
+	else
 		state->crosswired = FALSE;
 
 	/* The NV40 seems to have more similarities to NV3x than other cards. */

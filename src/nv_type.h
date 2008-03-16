@@ -198,12 +198,13 @@ typedef struct _NVCrtcPrivateRec {
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef enum {
-	OUTPUT_0 = (1 << 0),
-	OUTPUT_1 = (1 << 1)
+	OUTPUT_A = (1 << 0),
+	OUTPUT_B = (1 << 1),
+	OUTPUT_C = (1 << 2)
 } ValidOutputResource;
 
 typedef struct _NVOutputPrivateRec {
-	uint8_t preferred_output;
+	uint8_t or;
 	uint8_t output_resource;
 	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
@@ -342,8 +343,6 @@ typedef struct {
 	Bool enabled;
 	uint32_t fb_start;
 } NVConsoleMode;
-
-#define NVOutputPrivate(o) ((NVOutputPrivatePtr (o)->driver_private)
 
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
@@ -505,8 +504,6 @@ enum scaling_modes {
 	SCALE_NOSCALE,
 	SCALE_INVALID
 };
-
-#define NVCrtcPrivate(c) ((NVCrtcPrivatePtr)(c)->driver_private)
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 
