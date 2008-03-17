@@ -277,10 +277,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	uint32_t g70_pll_special_bits = 0;
 	Bool nv4x_single_stage_pll_mode = FALSE;
 	int bpp;
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = NULL;
-	if (output)
-		nv_output = output->driver_private;
 
 	/* Store old clock. */
 	old_clock_a = regp->vpll_a;
@@ -430,12 +426,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] |= 0xB8;
 	}
 
-	/* Are we crosswired? */
-	if (output && nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
-		state->crosswired = TRUE;
-	else
-		state->crosswired = FALSE;
-
 	/* The NV40 seems to have more similarities to NV3x than other cards. */
 	if (pNv->NVArch < 0x41) {
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
@@ -568,10 +558,17 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	int vertBlankStart	= mode->CrtcVDisplay 			- 1;
 	int vertBlankEnd	= mode->CrtcVTotal			- 1;
 
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = NULL;
-	if (output)
-		nv_output = output->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	bool fp_output = false;
+	int i;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output = output->driver_private;
+
+		if (output->crtc == crtc && (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS))
+			fp_output = true;
+	}
 
 	/* This is pitch/memory size related. */
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE))
@@ -580,18 +577,16 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode clock: %d\n", mode->Clock);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Adjusted mode clock: %d\n", adjusted_mode->Clock);
 
-	/* Reverted to what nv did, because that works for all resolutions on flatpanels */
-	if (output && (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)) {
+	if (fp_output) {
 		vertStart = vertTotal - 3;  
 		vertEnd = vertTotal - 2;
 		vertBlankStart = vertStart;
 		horizStart = horizTotal - 5;
 		horizEnd = horizTotal - 2;
 		horizBlankEnd = horizTotal + 4;
-		if (pNv->overlayAdaptor && pNv->Architecture >= NV_ARCH_10) {
-			/* This reportedly works around Xv some overlay bandwidth problems*/
+		if (pNv->overlayAdaptor && pNv->Architecture >= NV_ARCH_10)
+			/* This reportedly works around some video overlay bandwidth problems */
 			horizTotal += 2;
-		}
 	}
 
 	if (mode->Flags & V_INTERLACE) 
@@ -830,18 +825,19 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	Bool is_fp = FALSE;
-	Bool is_lvds = FALSE;
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = NULL;
-	if (output) {
-		nv_output = output->driver_private;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	bool lvds_output = false;
+	bool fp_output = false;
+	int i;
 
-		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
-			is_fp = TRUE;
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		NVOutputPrivatePtr nv_output = output->driver_private;
 
-		if (nv_output->type == OUTPUT_LVDS)
-			is_lvds = TRUE;
+		if (output->crtc == crtc && nv_output->type == OUTPUT_LVDS)
+			lvds_output = true;
+		if (lvds_output || (output->crtc == crtc && nv_output->type == OUTPUT_TMDS))
+			fp_output = true;
 	}
 
 	/* Registers not directly related to the (s)vga mode */
@@ -856,7 +852,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 			regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3);
 		}
 
-		if (is_fp) {
+		if (fp_output) {
 			regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0);
 			if (!NVMatchModePrivate(mode, NV_MODE_VGA)) {
 				regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 1);
@@ -882,25 +878,17 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 
 	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
 	/* But what are those special conditions? */
-	if (pNv->Architecture <= NV_ARCH_30) {
-		if (is_fp) {
-			if(nv_crtc->head == 1) {
-				regp->head |= NV_CRTC_FSEL_FPP1;
-			} else if (pNv->twoHeads) {
-				regp->head |= NV_CRTC_FSEL_FPP2;
-			}
-		}
-	} else {
-		/* Most G70 cards have FPP2 set on the secondary CRTC. */
-		if (nv_crtc->head == 1 && pNv->NVArch > 0x44) {
+	if (pNv->Architecture <= NV_ARCH_30 && fp_output) {
+		if (nv_crtc->head == 1)
+			regp->head |= NV_CRTC_FSEL_FPP1;
+		else if (pNv->twoHeads)
 			regp->head |= NV_CRTC_FSEL_FPP2;
-		}
-	}
-
+	} else if (nv_crtc->head == 1 && pNv->NVArch > 0x44)
+		/* Most G70 cards have FPP2 set on the secondary CRTC. */
+		regp->head |= NV_CRTC_FSEL_FPP2;
 	/* Except for rare conditions I2C is enabled on the primary crtc */
-	if (nv_crtc->head == 0) {
+	if (nv_crtc->head == 0)
 		regp->head |= NV_CRTC_FSEL_I2C;
-	}
 
 	/* Set overlay to desired crtc. */
 	if (pNv->overlayAdaptor) {
@@ -932,9 +920,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
 
 	/* 0x00 is disabled, 0x11 is lvds, 0x22 crt and 0x88 tmds */
-	if (is_lvds) {
+	if (lvds_output) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x11;
-	} else if (is_fp) {
+	} else if (fp_output) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
@@ -960,10 +948,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	else 
 		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
 
-	if (is_lvds)
+	if (lvds_output)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x40;
 
-	if (is_fp && !NVMatchModePrivate(mode, NV_MODE_VGA))
+	if (fp_output && !NVMatchModePrivate(mode, NV_MODE_VGA))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
@@ -1009,9 +997,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
 
 	/* Enable slaved mode */
-	if (is_fp) {
+	if (fp_output)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
-	}
 }
 
 static void
@@ -1029,8 +1016,13 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	if (output) {
 		nv_output = output->driver_private;
 
-		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS))
+		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
 			is_fp = TRUE;
+			if (nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
+				pNv->ModeReg.crosswired = true;
+			else
+				pNv->ModeReg.crosswired = false;
+		}
 
 		if (nv_output->type == OUTPUT_LVDS)
 			is_lvds = TRUE;
