@@ -102,39 +102,6 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
 	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
-static xf86OutputPtr
-NVGetOutputFromCRTC(xf86CrtcPtr crtc)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-
-		if (output->crtc == crtc) {
-			return output;
-		}
-	}
-
-	return NULL;
-}
-
-static xf86CrtcPtr
-nv_find_crtc_by_index(ScrnInfoPtr pScrn, int index)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-		xf86CrtcPtr crtc = xf86_config->crtc[i];
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		if (nv_crtc->head == index)
-			return crtc;
-	}
-
-	return NULL;
-}
-
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
 /* gpu pll: 0x4000 + 0x4004
