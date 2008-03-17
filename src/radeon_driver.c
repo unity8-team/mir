@@ -3753,7 +3753,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     radeon_read_mc_fb_agp_location(pScrn, LOC_FB | LOC_AGP, &fb, &agp, &agp_hi);
 
     if (fb != save->mc_fb_location || agp != save->mc_agp_location ||
-	agp_hi || save->mc_agp_location_hi)
+	agp_hi != save->mc_agp_location_hi)
 	changed = 1;
 
     if (changed) {
