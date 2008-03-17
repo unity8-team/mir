@@ -3745,7 +3745,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     CARD32 fb, agp, agp_hi;
-    int changed;
+    int changed = 0;
 
     if (info->IsSecondary)
       return;
