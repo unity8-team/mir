@@ -999,221 +999,12 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 	/* Enable slaved mode */
 	if (fp_output)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
-}
 
-static void
-nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	Bool is_fp = FALSE;
-	Bool is_lvds = FALSE;
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
-	NVOutputPrivatePtr nv_output = NULL;
-	if (output) {
-		nv_output = output->driver_private;
+	/* Generic PRAMDAC regs */
 
-		if ((nv_output->type == OUTPUT_LVDS) || (nv_output->type == OUTPUT_TMDS)) {
-			is_fp = TRUE;
-			if (nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
-				pNv->ModeReg.crosswired = true;
-			else
-				pNv->ModeReg.crosswired = false;
-		}
-
-		if (nv_output->type == OUTPUT_LVDS)
-			is_lvds = TRUE;
-	}
-
-	if (is_fp) {
-		regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
-		regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
-		/* This is what the blob does. */
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - 75 - 1;
-		regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
-		regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
-		regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
-		regp->fp_horiz_regs[REG_DISP_VALID_END] = adjusted_mode->HDisplay - 1;
-
-		regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
-		regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
-		/* This is what the blob does. */
-		regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VTotal - 5 - 1;
-		regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
-		regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
-		regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-		regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
-
-#if 0
-		ErrorF("Horizontal:\n");
-		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
-		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
-		ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_horiz_regs[REG_DISP_CRTC]);
-		ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_START]);
-		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_END]);
-		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_START]);
-		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_END]);
-
-		ErrorF("Vertical:\n");
-		ErrorF("REG_DISP_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_END]);
-		ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_vert_regs[REG_DISP_TOTAL]);
-		ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_vert_regs[REG_DISP_CRTC]);
-		ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_START]);
-		ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
-		ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
-		ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
-#endif
-	}
-
-	/*
-	* bit0: positive vsync
-	* bit4: positive hsync
-	* bit8: enable center mode
-	* bit9: enable native mode
-	* bit24: 12/24 bit interface (12bit=on, 24bit=off)
-	* bit26: a bit sometimes seen on some g70 cards
-	* bit28: fp display enable bit
-	* bit31: set for dual link LVDS
-	* nv10reg contains a few more things, but i don't quite get what it all means.
-	*/
-
-	if (pNv->Architecture >= NV_ARCH_30)
-		regp->fp_control = 0x00100000;
-	else
-		regp->fp_control = 0x00000000;
-
-	/* Deal with vsync/hsync polarity */
-	/* LVDS screens do set this, but modes with +ve syncs are very rare */
-	if (is_fp) {
-		if (adjusted_mode->Flags & V_PVSYNC)
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
-		if (adjusted_mode->Flags & V_PHSYNC)
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
-	} else {
-		/* The blob doesn't always do this, but often */
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE;
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE;
-	}
-
-	if (is_fp) {
-		if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) /* seems to be used almost always */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-		else if (nv_output->scaling_mode == SCALE_PANEL || nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
-		/* This is also true for panel scaling, so we must put the panel scale check first */
-		else if (mode->Clock == adjusted_mode->Clock) /* native mode */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
-		else /* gpu needs to scale */
-			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-	}
-
-	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_WIDTH_12;
-
-	/* If the special bit exists, it exists on both ramdacs */
-	regp->fp_control |= NVReadRAMDAC(pNv, 0, NV_RAMDAC_FP_CONTROL) & (1 << 26);
-
-	if (is_fp)
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_DISPEN_POS;
-	else
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_DISPEN_DISABLE;
-
-	if (is_lvds && pNv->VBIOS.fp.dual_link)
-		regp->fp_control |= (8 << 28);
-
-	if (is_fp) {
-		/* This can override HTOTAL and VTOTAL */
-		regp->debug_2 = 0;
-		/* We want automatic scaling */
-		regp->debug_1 = 0;
-
-		if (nv_output->scaling_mode == SCALE_ASPECT) {
-			/* Use 20.12 fixed point format to avoid floats */
-			uint32_t panel_ratio = (1 << 12) * nv_output->fpWidth / nv_output->fpHeight;
-			uint32_t aspect_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
-			uint32_t h_scale = (1 << 12) * mode->HDisplay / nv_output->fpWidth;
-			uint32_t v_scale = (1 << 12) * mode->VDisplay / nv_output->fpHeight;
-			#define ONE_TENTH ((1 << 12) / 10)
-
-			/* GPU scaling happens automatically at a ratio of 1.33 */
-			/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
-			if (h_scale != (1 << 12) && (panel_ratio > aspect_ratio + ONE_TENTH)) {
-				uint32_t diff;
-
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires vertical black bars.\n");
-
-				/* Scaling in both directions needs to the same */
-				h_scale = v_scale;
-
-				/* Set a new horizontal scale factor and enable testmode (bit12) */
-				regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
-
-				diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
-				regp->fp_horiz_regs[REG_DISP_VALID_START] += diff / 2;
-				regp->fp_horiz_regs[REG_DISP_VALID_END] -= diff / 2;
-			}
-
-			/* Same scaling, just for panels with aspect ratios smaller than 1 */
-			if (v_scale != (1 << 12) && (panel_ratio < aspect_ratio - ONE_TENTH)) {
-				uint32_t diff;
-
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires horizontal black bars.\n");
-
-				/* Scaling in both directions needs to the same */
-				v_scale = h_scale;
-
-				/* Set a new vertical scale factor and enable testmode (bit28) */
-				regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
-
-				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
-				regp->fp_vert_regs[REG_DISP_VALID_START] += diff / 2;
-				regp->fp_vert_regs[REG_DISP_VALID_END] -= diff / 2;
-			}
-		}
-	}
-
-	if (!is_fp && NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->debug_1 = 0x08000800;
-	}
-
-	if (pNv->Architecture >= NV_ARCH_10) {
+	if (pNv->Architecture >= NV_ARCH_10)
 		/* Only bit that bios and blob set. */
-		regp->nv10_cursync = (1<<25);
-	}
-
-	/* These are the common blob values, minus a few fp specific bit's */
-	/* Let's keep the TMDS pll and fpclock running in all situations */
-	regp->debug_0 = 0x01101100;
-
-	if (is_fp) {
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
-		/* I am not completely certain, but seems to be set only for dfp's */
-		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
-	}
-
-	/* Flatpanel support needs at least a NV10 */
-	if (pNv->twoHeads) {
-		if (pNv->FPDither || (is_lvds && !pNv->VBIOS.fp.if_is_24bit)) {
-			nv_crtc->ditherEnabled = TRUE;
-			if (pNv->NVArch == 0x11)
-				regp->dither = savep->dither | 0x00010000;
-			else {
-				int i;
-				regp->dither = savep->dither | 0x00000001;
-				for (i = 0; i < 3; i++) {
-					regp->dither_regs[i] = 0xe4e4e4e4;
-					regp->dither_regs[i + 3] = 0x44444444;
-				}
-			}
-		} else {
-			nv_crtc->ditherEnabled = FALSE;
-			regp->dither = savep->dither;
-		}
-	}
+		regp->nv10_cursync = (1 << 25);
 
 	uint8_t depth;
 	/* This is mode related, not pitch. */
@@ -1237,22 +1028,196 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 			regp->general = 0x00101100;
 			break;
 	}
-
 	if (depth > 8 && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		regp->general |= 0x30; /* enable palette mode */
 	}
-
 	if (pNv->alphaCursor && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
 		regp->general |= (1<<29);
 	}
 
 	/* Some values the blob sets */
-	/* This may apply to the real ramdac that is being used (for crosswired situations) */
-	/* Nevertheless, it's unlikely to cause many problems, since the values are equal for both */
 	regp->unk_a20 = 0x0;
 	regp->unk_a24 = 0xfffff;
 	regp->unk_a34 = 0x1;
+}
+
+/* this could be set in nv_output, but would require some rework of load/save */
+static void
+nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
+	NVOutputPrivatePtr nv_output = NULL;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	bool is_fp = false;
+	bool is_lvds = false;
+	int i;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		/* assuming one fp output per crtc seems ok */
+		nv_output = output->driver_private;
+
+		if (output->crtc == crtc && nv_output->type == OUTPUT_LVDS)
+			is_lvds = true;
+		if (is_lvds || (output->crtc == crtc && nv_output->type == OUTPUT_TMDS)) {
+			is_fp = true;
+			if (nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
+				pNv->ModeReg.crosswired = true;
+			else
+				pNv->ModeReg.crosswired = false;
+			break;
+		}
+	}
+	if (!is_fp)
+		return;
+
+	regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
+	regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
+	regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - 75 - 1;
+	regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
+	regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
+	regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
+	regp->fp_horiz_regs[REG_DISP_VALID_END] = adjusted_mode->HDisplay - 1;
+
+	regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
+	regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
+	regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VTotal - 5 - 1;
+	regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
+	regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
+	regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
+	regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
+
+#if 0
+	ErrorF("Horizontal:\n");
+	ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
+	ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
+	ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_horiz_regs[REG_DISP_CRTC]);
+	ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_START]);
+	ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_END]);
+	ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_START]);
+	ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_END]);
+
+	ErrorF("Vertical:\n");
+	ErrorF("REG_DISP_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_END]);
+	ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_vert_regs[REG_DISP_TOTAL]);
+	ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_vert_regs[REG_DISP_CRTC]);
+	ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_START]);
+	ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
+	ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
+	ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
+#endif
+
+	/*
+	* bit0: positive vsync
+	* bit4: positive hsync
+	* bit8: enable center mode
+	* bit9: enable native mode
+	* bit24: 12/24 bit interface (12bit=on, 24bit=off)
+	* bit26: a bit sometimes seen on some g70 cards
+	* bit28: fp display enable bit
+	* bit31: set for dual link LVDS
+	* nv10reg contains a few more things, but i don't quite get what it all means.
+	*/
+
+	regp->fp_control = (savep->fp_control & 0x04100000) |
+			   NV_RAMDAC_FP_CONTROL_DISPEN_POS;
+
+	/* Deal with vsync/hsync polarity */
+	/* LVDS screens do set this, but modes with +ve syncs are very rare */
+	if (adjusted_mode->Flags & V_PVSYNC)
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_VSYNC_POS;
+	if (adjusted_mode->Flags & V_PHSYNC)
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
+
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) /* seems to be used almost always */
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
+	else if (nv_output->scaling_mode == SCALE_PANEL || nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
+	/* This is also true for panel scaling, so we must put the panel scale check first */
+	else if (mode->Clock == adjusted_mode->Clock) /* native mode */
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
+	else /* gpu needs to scale */
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
+
+	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
+		regp->fp_control |= NV_RAMDAC_FP_CONTROL_WIDTH_12;
+
+	if (is_lvds && pNv->VBIOS.fp.dual_link)
+		regp->fp_control |= (8 << 28);
+
+	/* Use the generic value, and enable x-scaling, y-scaling, and the TMDS enable bit */
+	regp->debug_0 = 0x01101191;
+	/* We want automatic scaling */
+	regp->debug_1 = 0;
+	/* This can override HTOTAL and VTOTAL */
+	regp->debug_2 = 0;
+
+	if (nv_output->scaling_mode == SCALE_ASPECT) {
+		/* Use 20.12 fixed point format to avoid floats */
+		uint32_t panel_ratio = (1 << 12) * nv_output->fpWidth / nv_output->fpHeight;
+		uint32_t aspect_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
+		uint32_t h_scale = (1 << 12) * mode->HDisplay / nv_output->fpWidth;
+		uint32_t v_scale = (1 << 12) * mode->VDisplay / nv_output->fpHeight;
+		#define ONE_TENTH ((1 << 12) / 10)
+
+		/* GPU scaling happens automatically at a ratio of 1.33 */
+		/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
+		if (h_scale != (1 << 12) && (panel_ratio > aspect_ratio + ONE_TENTH)) {
+			uint32_t diff;
+
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires vertical black bars.\n");
+
+			/* Scaling in both directions needs to the same */
+			h_scale = v_scale;
+
+			/* Set a new horizontal scale factor and enable testmode (bit12) */
+			regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
+
+			diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
+			regp->fp_horiz_regs[REG_DISP_VALID_START] += diff / 2;
+			regp->fp_horiz_regs[REG_DISP_VALID_END] -= diff / 2;
+		}
+
+		/* Same scaling, just for panels with aspect ratios smaller than 1 */
+		if (v_scale != (1 << 12) && (panel_ratio < aspect_ratio - ONE_TENTH)) {
+			uint32_t diff;
+
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires horizontal black bars.\n");
+
+			/* Scaling in both directions needs to the same */
+			v_scale = h_scale;
+
+			/* Set a new vertical scale factor and enable testmode (bit28) */
+			regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
+
+			diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
+			regp->fp_vert_regs[REG_DISP_VALID_START] += diff / 2;
+			regp->fp_vert_regs[REG_DISP_VALID_END] -= diff / 2;
+		}
+	}
+
+	/* Flatpanel support needs at least a NV10 */
+	if (pNv->twoHeads && (pNv->FPDither || (is_lvds && !pNv->VBIOS.fp.if_is_24bit))) {
+		nv_crtc->ditherEnabled = TRUE;
+		if (pNv->NVArch == 0x11)
+			regp->dither = savep->dither | 0x00010000;
+		else {
+			int i;
+			regp->dither = savep->dither | 0x00000001;
+			for (i = 0; i < 3; i++) {
+				regp->dither_regs[i] = 0xe4e4e4e4;
+				regp->dither_regs[i + 3] = 0x44444444;
+			}
+		}
+	} else {
+		nv_crtc->ditherEnabled = FALSE;
+		regp->dither = savep->dither;
+	}
 }
 
 /**
@@ -1287,7 +1252,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 	}
 	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
-	nv_crtc_mode_set_ramdac_regs(crtc, mode, adjusted_mode);
+	nv_crtc_mode_set_fp_regs(crtc, mode, adjusted_mode);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
