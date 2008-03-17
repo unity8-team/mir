@@ -42,28 +42,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     pI830->ring_next &= pI830->LpRing->tail_mask;			\
 } while (0)
 
-/** Copies a given number of bytes to the ring */
-#define OUT_RING_COPY(n, ptr) do {					\
-    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
-	ErrorF("OUT_RING_DATA %d bytes\n", n);				\
-    memcpy_volatile(pI830->LpRing->virtual_start + pI830->ring_next,	\
-		    ptr, n);						\
-    pI830->ring_used += n;						\
-    pI830->ring_next += n;						\
-    pI830->ring_next &= pI830->LpRing->tail_mask;			\
-} while (0)
-
-/** Pads the ring with a given number of zero bytes */
-#define OUT_RING_PAD(n) do {						\
-    if (I810_DEBUG & DEBUG_VERBOSE_RING)				\
-	ErrorF("OUT_RING_PAD %d bytes\n", n);				\
-    memset_volatile(pI830->LpRing->virtual_start + pI830->ring_next,	\
-		    0, n);						\
-    pI830->ring_used += n;						\
-    pI830->ring_next += n;						\
-    pI830->ring_next &= pI830->LpRing->tail_mask;			\
-} while (0)
-
 union intfloat {
 	float f;
 	unsigned int ui;

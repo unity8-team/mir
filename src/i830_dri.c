@@ -1008,16 +1008,16 @@ I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, uint32_t dst)
    }
 
    for (i = 0 ; i < num ; i++, pbox++) {
-      BEGIN_LP_RING(8);
-      OUT_RING(cmd);
-      OUT_RING(br13);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING((pbox->y2 << 16) | pbox->x2);
-      OUT_RING(dst);
-      OUT_RING((pbox->y1 << 16) | pbox->x1);
-      OUT_RING(br13 & 0xffff);
-      OUT_RING(pI830->front_buffer->offset);
-      ADVANCE_LP_RING();
+      BEGIN_BATCH(8);
+      OUT_BATCH(cmd);
+      OUT_BATCH(br13);
+      OUT_BATCH((pbox->y1 << 16) | pbox->x1);
+      OUT_BATCH((pbox->y2 << 16) | pbox->x2);
+      OUT_BATCH(dst);
+      OUT_BATCH((pbox->y1 << 16) | pbox->x1);
+      OUT_BATCH(br13 & 0xffff);
+      OUT_BATCH(pI830->front_buffer->offset);
+      ADVANCE_BATCH();
    }
 }
 

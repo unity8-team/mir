@@ -1146,6 +1146,18 @@ i830_sdvo_destroy (xf86OutputPtr output)
     }
 }
 
+static xf86CrtcPtr
+i830_sdvo_get_crtc(xf86OutputPtr output)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    int pipe = !!(INREG(dev_priv->output_device) & SDVO_PIPE_B_SELECT);
+   
+    return i830_pipe_to_crtc(pScrn, pipe);
+}
+
 static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .dpms = i830_sdvo_dpms,
     .save = i830_sdvo_save,
@@ -1157,7 +1169,10 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .commit = i830_output_commit,
     .detect = i830_sdvo_detect,
     .get_modes = i830_sdvo_get_modes,
-    .destroy = i830_sdvo_destroy
+    .destroy = i830_sdvo_destroy,
+#ifdef RANDR_GET_CRTC_INTERFACE
+    .get_crtc = i830_sdvo_get_crtc,
+#endif
 };
 
 void

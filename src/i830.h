@@ -686,6 +686,8 @@ extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 int
 i830_crtc_pipe (xf86CrtcPtr crtc);
 
+extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe);
+
 Bool
 i830_pipe_a_require_activate (ScrnInfoPtr scrn);
 
@@ -827,6 +829,13 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 }
 
 Bool i830_pixmap_tiled(PixmapPtr p);
+
+/* Batchbuffer compatibility handling */
+#define BEGIN_BATCH(n) BEGIN_LP_RING(n)
+#define ENSURE_BATCH(n)
+#define OUT_BATCH(d) OUT_RING(d)
+#define OUT_BATCH_F(x) OUT_RING_F(x)
+#define ADVANCE_BATCH() ADVANCE_LP_RING()
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
