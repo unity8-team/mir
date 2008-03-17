@@ -1109,7 +1109,7 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 	if (is_fp) {
 		if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) /* seems to be used almost always */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-		else if (nv_output->scaling_mode == SCALE_PANEL) /* panel needs to scale */
+		else if (nv_output->scaling_mode == SCALE_PANEL || nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
 			regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 		/* This is also true for panel scaling, so we must put the panel scale check first */
 		else if (mode->Clock == adjusted_mode->Clock) /* native mode */
@@ -1199,26 +1199,11 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 
 	/* These are the common blob values, minus a few fp specific bit's */
 	/* Let's keep the TMDS pll and fpclock running in all situations */
-	regp->debug_0 = 0x1101100;
+	regp->debug_0 = 0x01101100;
 
-	if (is_fp && nv_output->scaling_mode != SCALE_NOSCALE) {
+	if (is_fp) {
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED;
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED;
-	} else if (is_fp) { /* no_scale mode, so we must center it */
-		uint32_t diff;
-
-		diff = nv_output->fpWidth - mode->HDisplay;
-		regp->fp_hvalid_start = diff/2;
-		regp->fp_hvalid_end = (nv_output->fpWidth - diff/2 - 1);
-
-		diff = nv_output->fpHeight - mode->VDisplay;
-		regp->fp_vvalid_start = diff/2;
-		regp->fp_vvalid_end = (nv_output->fpHeight - diff/2 - 1);
-	}
-
-	/* Is this crtc bound or output bound? */
-	/* Does the bios TMDS script try to change this sometimes? */
-	if (is_fp) {
 		/* I am not completely certain, but seems to be set only for dfp's */
 		regp->debug_0 |= NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED;
 	}
