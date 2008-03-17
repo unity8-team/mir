@@ -484,7 +484,7 @@ nv_load_detect(xf86OutputPtr output)
 	}
 
 	if (present) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", 'A' + ffs(nv_output->or));
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_output->or));
 		return TRUE;
 	}
 
@@ -694,7 +694,7 @@ nv_output_commit(xf86OutputPtr output)
 	if (crtc) {
 		NVOutputPrivatePtr nv_output = output->driver_private;
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, 'A' + ffs(nv_output->or));
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_output->or));
 	}
 
 	output->funcs->dpms(output, DPMSModeOn);
