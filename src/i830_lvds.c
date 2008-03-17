@@ -879,6 +879,16 @@ i830_lvds_get_property(xf86OutputPtr output, Atom property)
 }
 #endif /* RANDR_13_INTERFACE */
 
+static xf86CrtcPtr
+i830_lvds_get_crtc(xf86OutputPtr output)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe = !!(INREG(LVDS) & LVDS_PIPEB_SELECT);
+   
+    return i830_pipe_to_crtc(pScrn, pipe);
+}
+
 static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .create_resources = i830_lvds_create_resources,
     .dpms = i830_lvds_dpms,
@@ -897,7 +907,10 @@ static const xf86OutputFuncsRec i830_lvds_output_funcs = {
 #ifdef RANDR_13_INTERFACE
     .get_property = i830_lvds_get_property,
 #endif
-    .destroy = i830_lvds_destroy
+    .destroy = i830_lvds_destroy,
+#ifdef RANDR_GET_CRTC_INTERFACE
+    .get_crtc = i830_lvds_get_crtc,
+#endif
 };
 
 void

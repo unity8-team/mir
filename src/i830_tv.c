@@ -1640,6 +1640,16 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 }
 #endif /* RANDR_12_INTERFACE */
 
+static xf86CrtcPtr
+i830_tv_get_crtc(xf86OutputPtr output)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe = !!(INREG(TV_CTL) & TV_ENC_PIPEB_SELECT);
+   
+    return i830_pipe_to_crtc(pScrn, pipe);
+}
+
 static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .create_resources = i830_tv_create_resources,
     .dpms = i830_tv_dpms,
@@ -1655,6 +1665,9 @@ static const xf86OutputFuncsRec i830_tv_output_funcs = {
     .destroy = i830_tv_destroy,
 #ifdef RANDR_12_INTERFACE
     .set_property = i830_tv_set_property,
+#endif
+#ifdef RANDR_GET_CRTC_INTERFACE
+    .get_crtc = i830_tv_get_crtc,
 #endif
 };
 

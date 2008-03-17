@@ -686,6 +686,8 @@ extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
 int
 i830_crtc_pipe (xf86CrtcPtr crtc);
 
+extern xf86CrtcPtr i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe);
+
 Bool
 i830_pipe_a_require_activate (ScrnInfoPtr scrn);
 
