@@ -1190,7 +1190,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	if (pMask) {
 	    BEGIN_ACCEL(22);
 	    /* flush the PVS before updating??? */
-	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);w
+	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
