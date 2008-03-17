@@ -119,14 +119,8 @@ typedef struct _nv_crtc_reg
 	uint32_t dither_regs[6];
 	uint32_t fp_horiz_regs[7];
 	uint32_t fp_vert_regs[7];
-	uint32_t fp_hvalid_start;
-	uint32_t fp_hvalid_end;
-	uint32_t fp_vvalid_start;
-	uint32_t fp_vvalid_end;
-	uint32_t bpp;
 	uint32_t nv10_cursync;
 	uint32_t fp_control;
-	uint32_t crtcSync;
 	uint32_t dither;
 	bool vpll_changed;
 	uint32_t vpll_a;

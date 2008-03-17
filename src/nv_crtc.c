@@ -1138,11 +1138,6 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 		/* We want automatic scaling */
 		regp->debug_1 = 0;
 
-		regp->fp_hvalid_start = 0;
-		regp->fp_hvalid_end = (nv_output->fpWidth - 1);
-		regp->fp_vvalid_start = 0;
-		regp->fp_vvalid_end = (nv_output->fpHeight - 1);
-
 		if (nv_output->scaling_mode == SCALE_ASPECT) {
 			/* Use 20.12 fixed point format to avoid floats */
 			uint32_t panel_ratio = (1 << 12) * nv_output->fpWidth / nv_output->fpHeight;
@@ -1165,8 +1160,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 				regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
 
 				diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
-				regp->fp_hvalid_start = diff/2;
-				regp->fp_hvalid_end = nv_output->fpWidth - (diff/2) - 1;
+				regp->fp_horiz_regs[REG_DISP_VALID_START] += diff / 2;
+				regp->fp_horiz_regs[REG_DISP_VALID_END] -= diff / 2;
 			}
 
 			/* Same scaling, just for panels with aspect ratios smaller than 1 */
@@ -1182,8 +1177,8 @@ nv_crtc_mode_set_ramdac_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModeP
 				regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
 
 				diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
-				regp->fp_vvalid_start = diff/2;
-				regp->fp_vvalid_end = nv_output->fpHeight - (diff/2) - 1;
+				regp->fp_vert_regs[REG_DISP_VALID_START] += diff / 2;
+				regp->fp_vert_regs[REG_DISP_VALID_END] -= diff / 2;
 			}
 		}
 	}
@@ -2013,11 +2008,6 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
 		regp->fp_vert_regs[i] = NVCrtcReadRAMDAC(crtc, ramdac_reg);
 	}
-
-	regp->fp_hvalid_start = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_HVALID_START);
-	regp->fp_hvalid_end = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_HVALID_END);
-	regp->fp_vvalid_start = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_VVALID_START);
-	regp->fp_vvalid_end = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_VVALID_END);
 }
 
 static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -2070,11 +2060,6 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		uint32_t ramdac_reg = NV_RAMDAC_FP_VDISP_END + (i * 4);
 		NVCrtcWriteRAMDAC(crtc, ramdac_reg, regp->fp_vert_regs[i]);
 	}
-
-	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_HVALID_START, regp->fp_hvalid_start);
-	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_HVALID_END, regp->fp_hvalid_end);
-	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_VVALID_START, regp->fp_vvalid_start);
-	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_VVALID_END, regp->fp_vvalid_end);
 }
 
 void
