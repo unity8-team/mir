@@ -952,8 +952,6 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     PixmapPtr pSrcPixmap, pDstPixmap;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
     int max_tex_w, max_tex_h, max_dst_w, max_dst_h;
     Bool is_r500;
 
@@ -962,33 +960,6 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
 	RADEON_FALLBACK(("Unsupported Composite op 0x%x\n", op));
-
-#if 0
-    /* Throw out cases that aren't going to be our rotation first */
-    if (pMaskPicture != NULL || op != PictOpSrc || pSrcPicture->pDrawable == NULL)
-	RADEON_FALLBACK(("Junk driver\n"));
-
-    if (pSrcPicture->pDrawable->type != DRAWABLE_WINDOW ||
-	pDstPicture->pDrawable->type != DRAWABLE_PIXMAP) {
-	RADEON_FALLBACK(("bad drawable\n"));
-    }
-
-    pSrcPixmap = (*pScreen->GetWindowPixmap) ((WindowPtr) pSrcPicture->pDrawable);
-    pDstPixmap = (PixmapPtr)pDstPicture->pDrawable;
-
-    /* Check if the dest is one of our shadow pixmaps */
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr crtc = xf86_config->crtc[i];
-
-	if (crtc->rotatedPixmap == pDstPixmap)
-	    break;
-    }
-    if (i == xf86_config->num_crtc)
-	RADEON_FALLBACK(("no rotated pixmap\n"));
-
-    if (pSrcPixmap != pScreen->GetScreenPixmap(pScreen))
-	RADEON_FALLBACK(("src not screen\n"));
-#endif
 
     pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
