@@ -177,8 +177,8 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
 	*dst_format = R300_COLORFORMAT_I8;
 	break;
     default:
-	ErrorF("Unsupported dest format 0x%x\n",
-	       (int)pDstPicture->format);
+	RADEON_FALLBACK(("Unsupported dest format 0x%x\n",
+	       (int)pDstPicture->format));
 	return FALSE;
     }
     return TRUE;
