@@ -1448,7 +1448,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   R300_INST_TEX_ADDR(1)));
 
 	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* max num of temps used */
 	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
 						R300_ALU_CODE_SIZE(0) |
 						R300_TEX_CODE_OFFSET(0) |
