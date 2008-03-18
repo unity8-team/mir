@@ -1047,12 +1047,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
-    if (pMask && pMaskPicture->componentAlpha)
-    //if (pMask)
-	return FALSE;
-
-    ErrorF("op: 0x%x, src: 0x%x, dst: 0x%x\n", op, pSrcPicture->format, pDstPicture->format);
-
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
@@ -1436,7 +1430,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			 R300_RS_SEL_R(R300_RS_SEL_K0) |
 			 R300_RS_SEL_Q(R300_RS_SEL_K1)));
 	  OUT_ACCEL_REG(R300_RS_IP_1,
-			(R300_RS_TEX_PTR(1) |
+			(R300_RS_TEX_PTR(2) |
 			 R300_RS_SEL_S(R300_RS_SEL_C0) |
 			 R300_RS_SEL_T(R300_RS_SEL_C1) |
 			 R300_RS_SEL_R(R300_RS_SEL_K0) |
@@ -1539,9 +1533,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_RGB_ADDR1(1) |
 		     R300_ALU_RGB_ADDR2(0) |
 		     R300_ALU_RGB_ADDRD(0) |
-		     /*R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
-					 R300_ALU_RGB_MASK_G |
-					 R300_ALU_RGB_MASK_B)) |*/
 		     R300_ALU_RGB_OMASK((R300_ALU_RGB_MASK_R |
 					 R300_ALU_RGB_MASK_G |
 					 R300_ALU_RGB_MASK_B)) |
@@ -1560,7 +1551,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		     R300_ALU_ALPHA_ADDR1(1) |
 		     R300_ALU_ALPHA_ADDR2(0) |
 		     R300_ALU_ALPHA_ADDRD(0) |
-		     /*R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |*/
 		     R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 		     R300_ALU_ALPHA_TARGET_A |
 		     R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
