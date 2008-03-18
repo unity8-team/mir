@@ -179,7 +179,6 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
     default:
 	RADEON_FALLBACK(("Unsupported dest format 0x%x\n",
 	       (int)pDstPicture->format));
-	return FALSE;
     }
     return TRUE;
 }
