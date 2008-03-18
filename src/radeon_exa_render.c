@@ -1848,7 +1848,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(1) |
 						   R500_TEX_SRC_S_SWIZ_R |
 						   R500_TEX_SRC_T_SWIZ_G |
-						   R500_TEX_DST_ADDR(0) |
+						   R500_TEX_DST_ADDR(1) |
 						   R500_TEX_DST_R_SWIZ_R |
 						   R500_TEX_DST_G_SWIZ_G |
 						   R500_TEX_DST_B_SWIZ_B |
