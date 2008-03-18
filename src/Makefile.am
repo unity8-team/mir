@@ -77,6 +77,7 @@ intel_drv_la_SOURCES = \
          i810_io.c \
          i810_memory.c \
          i810_reg.h \
+         i810_ring.h \
          i810_video.c \
          i810_wmark.c \
 	 i830_3d.c \
@@ -102,6 +103,7 @@ intel_drv_la_SOURCES = \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
+         i830_ring.h \
 	 i830_sdvo.c \
 	 i830_sdvo.h \
 	 i830_sdvo_regs.h \
