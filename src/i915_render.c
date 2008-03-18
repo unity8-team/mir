@@ -319,6 +319,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     uint32_t dst_format, dst_offset, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
+    FS_LOCALS(20);
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -327,7 +328,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	return FALSE;
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
-    FS_LOCALS(20);
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
@@ -341,54 +341,54 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     if (pMask == NULL) {
-	BEGIN_LP_RING(10);
-	OUT_RING(_3DSTATE_MAP_STATE | 3);
-	OUT_RING(0x00000001); /* map 0 */
-	OUT_RING(pI830->mapstate[0]);
-	OUT_RING(pI830->mapstate[1]);
-	OUT_RING(pI830->mapstate[2]);
+	BEGIN_BATCH(10);
+	OUT_BATCH(_3DSTATE_MAP_STATE | 3);
+	OUT_BATCH(0x00000001); /* map 0 */
+	OUT_BATCH(pI830->mapstate[0]);
+	OUT_BATCH(pI830->mapstate[1]);
+	OUT_BATCH(pI830->mapstate[2]);
 
-	OUT_RING(_3DSTATE_SAMPLER_STATE | 3);
-	OUT_RING(0x00000001); /* sampler 0 */
-	OUT_RING(pI830->samplerstate[0]);
-	OUT_RING(pI830->samplerstate[1]);
-	OUT_RING(pI830->samplerstate[2]);
-	ADVANCE_LP_RING();
+	OUT_BATCH(_3DSTATE_SAMPLER_STATE | 3);
+	OUT_BATCH(0x00000001); /* sampler 0 */
+	OUT_BATCH(pI830->samplerstate[0]);
+	OUT_BATCH(pI830->samplerstate[1]);
+	OUT_BATCH(pI830->samplerstate[2]);
+	ADVANCE_BATCH();
     } else {
-	BEGIN_LP_RING(16);
-	OUT_RING(_3DSTATE_MAP_STATE | 6);
-	OUT_RING(0x00000003); /* map 0,1 */
-	OUT_RING(pI830->mapstate[0]);
-	OUT_RING(pI830->mapstate[1]);
-	OUT_RING(pI830->mapstate[2]);
-	OUT_RING(pI830->mapstate[3]);
-	OUT_RING(pI830->mapstate[4]);
-	OUT_RING(pI830->mapstate[5]);
+	BEGIN_BATCH(16);
+	OUT_BATCH(_3DSTATE_MAP_STATE | 6);
+	OUT_BATCH(0x00000003); /* map 0,1 */
+	OUT_BATCH(pI830->mapstate[0]);
+	OUT_BATCH(pI830->mapstate[1]);
+	OUT_BATCH(pI830->mapstate[2]);
+	OUT_BATCH(pI830->mapstate[3]);
+	OUT_BATCH(pI830->mapstate[4]);
+	OUT_BATCH(pI830->mapstate[5]);
 
-	OUT_RING(_3DSTATE_SAMPLER_STATE | 6);
-	OUT_RING(0x00000003); /* sampler 0,1 */
-	OUT_RING(pI830->samplerstate[0]);
-	OUT_RING(pI830->samplerstate[1]);
-	OUT_RING(pI830->samplerstate[2]);
-	OUT_RING(pI830->samplerstate[3]);
-	OUT_RING(pI830->samplerstate[4]);
-	OUT_RING(pI830->samplerstate[5]);
-	ADVANCE_LP_RING();
+	OUT_BATCH(_3DSTATE_SAMPLER_STATE | 6);
+	OUT_BATCH(0x00000003); /* sampler 0,1 */
+	OUT_BATCH(pI830->samplerstate[0]);
+	OUT_BATCH(pI830->samplerstate[1]);
+	OUT_BATCH(pI830->samplerstate[2]);
+	OUT_BATCH(pI830->samplerstate[3]);
+	OUT_BATCH(pI830->samplerstate[4]);
+	OUT_BATCH(pI830->samplerstate[5]);
+	ADVANCE_BATCH();
     }
     {
 	uint32_t ss2;
 
-	BEGIN_LP_RING(16);
-	OUT_RING(_3DSTATE_BUF_INFO_CMD);
-	OUT_RING(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
-		BUF_3D_PITCH(dst_pitch));
-	OUT_RING(BUF_3D_ADDR(dst_offset));
+	BEGIN_BATCH(16);
+	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
+	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
+		  BUF_3D_PITCH(dst_pitch));
+	OUT_BATCH(BUF_3D_ADDR(dst_offset));
 
-	OUT_RING(_3DSTATE_DST_BUF_VARS_CMD);
-	OUT_RING(dst_format);
+	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
+	OUT_BATCH(dst_format);
 
-	OUT_RING(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
-		 I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
+	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
+		  I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
 	ss2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
 	if (pMask)
 		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
@@ -400,23 +400,23 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	ss2 |= S2_TEXCOORD_FMT(5, TEXCOORDFMT_NOT_PRESENT);
 	ss2 |= S2_TEXCOORD_FMT(6, TEXCOORDFMT_NOT_PRESENT);
 	ss2 |= S2_TEXCOORD_FMT(7, TEXCOORDFMT_NOT_PRESENT);
-	OUT_RING(ss2);
-	OUT_RING((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
-		 S4_CULLMODE_NONE| S4_VFMT_XY);
+	OUT_BATCH(ss2);
+	OUT_BATCH((1 << S4_POINT_WIDTH_SHIFT) | S4_LINE_WIDTH_ONE |
+		  S4_CULLMODE_NONE| S4_VFMT_XY);
 	blendctl = i915_get_blend_cntl(op, pMaskPicture, pDstPicture->format);
-	OUT_RING(0x00000000); /* Disable stencil buffer */
-	OUT_RING(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
-		 (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
+	OUT_BATCH(0x00000000); /* Disable stencil buffer */
+	OUT_BATCH(S6_CBUF_BLEND_ENABLE | S6_COLOR_WRITE_ENABLE |
+		  (BLENDFUNC_ADD << S6_CBUF_BLEND_FUNC_SHIFT) | blendctl);
 
 	/* draw rect is unconditional */
-	OUT_RING(_3DSTATE_DRAW_RECT_CMD);
-	OUT_RING(0x00000000);
-	OUT_RING(0x00000000);  /* ymin, xmin*/
-	OUT_RING(DRAW_YMAX(pDst->drawable.height - 1) |
-		 DRAW_XMAX(pDst->drawable.width - 1));
-	OUT_RING(0x00000000);  /* yorig, xorig (relate to color buffer?)*/
-	OUT_RING(MI_NOOP);
-	ADVANCE_LP_RING();
+	OUT_BATCH(_3DSTATE_DRAW_RECT_CMD);
+	OUT_BATCH(0x00000000);
+	OUT_BATCH(0x00000000);  /* ymin, xmin*/
+	OUT_BATCH(DRAW_YMAX(pDst->drawable.height - 1) |
+		  DRAW_XMAX(pDst->drawable.width - 1));
+	OUT_BATCH(0x00000000);  /* yorig, xorig (relate to color buffer?)*/
+	OUT_BATCH(MI_NOOP);
+	ADVANCE_BATCH();
     }
 
     if (dst_format == COLR_BUF_8BIT)

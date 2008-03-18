@@ -1490,7 +1490,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        pI830->useEXA = FALSE;
 #endif
 #if defined(I830_USE_XAA) && defined(I830_USE_EXA)
-       int from = X_DEFAULT;
+       from = X_DEFAULT;
        if ((s = (char *)xf86GetOptValString(pI830->Options,
 					    OPTION_ACCELMETHOD))) {
 	   if (!xf86NameCmp(s, "EXA")) {
@@ -2361,12 +2361,12 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    ctx_addr = pI830->logical_context->offset;
    assert((pI830->logical_context->offset & 2047) == 0);
    {
-      BEGIN_LP_RING(2);
-      OUT_RING(MI_SET_CONTEXT);
-      OUT_RING(pI830->logical_context->offset |
-	       CTXT_NO_RESTORE |
-	       CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
-      ADVANCE_LP_RING();
+      BEGIN_BATCH(2);
+      OUT_BATCH(MI_SET_CONTEXT);
+      OUT_BATCH(pI830->logical_context->offset |
+		CTXT_NO_RESTORE |
+		CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
+      ADVANCE_BATCH();
    }
 
    if (!IS_I965G(pI830))
@@ -3191,8 +3191,6 @@ I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr  pI830 = I830PTR(pScrn);
-   xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);
-   int o;
 
    DPRINTF(PFX, "Enter VT\n");
 
@@ -3238,11 +3236,6 @@ I830EnterVT(int scrnIndex, int flags)
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
 	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
-
-   for (o = 0; o < config->num_output; o++) {
-   	xf86OutputPtr  output = config->output[o];
-	output->funcs->dpms(output, DPMSModeOff);
-   }
 
    if (!xf86SetDesiredModes (pScrn))
       return FALSE;
@@ -3508,6 +3501,23 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
    }
    return TRUE;
 }
+
+xf86CrtcPtr
+i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe)
+{
+   xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
+   int c;
+   
+   for (c = 0; c < config->num_crtc; c++) {
+      xf86CrtcPtr crtc = config->crtc[c];
+      I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+
+      if (intel_crtc->pipe == pipe)
+	  return crtc;
+   }
+
+   return NULL;
+} 
 
 #if 0
 /**

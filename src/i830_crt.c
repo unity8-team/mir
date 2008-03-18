@@ -391,6 +391,16 @@ i830_crt_destroy (xf86OutputPtr output)
 	xfree (output->driver_private);
 }
 
+static xf86CrtcPtr
+i830_crt_get_crtc(xf86OutputPtr output)
+{
+    ScrnInfoPtr	pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int pipe = !!(INREG(ADPA) & ADPA_PIPE_SELECT_MASK);
+   
+    return i830_pipe_to_crtc(pScrn, pipe);
+}
+
 static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .dpms = i830_crt_dpms,
     .save = i830_crt_save,
@@ -402,7 +412,10 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .commit = i830_output_commit,
     .detect = i830_crt_detect,
     .get_modes = i830_ddc_get_modes,
-    .destroy = i830_crt_destroy
+    .destroy = i830_crt_destroy,
+#ifdef RANDR_GET_CRTC_INTERFACE
+    .get_crtc = i830_crt_get_crtc,
+#endif
 };
 
 void
