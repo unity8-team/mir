@@ -363,7 +363,7 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
     }
 }
 
-**
+/**
  * Returns the un-normalized floating-point coordinates transformed by the given transform.
  *
  * transform may be null.
