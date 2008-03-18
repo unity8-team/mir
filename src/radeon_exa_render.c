@@ -1416,44 +1416,44 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 
 	/* setup the rasterizer */
-      if (pMask) {
-	  BEGIN_ACCEL(20);
-	  /* 4 components: 2 for tex0, 2 for tex1 */
-	  OUT_ACCEL_REG(R300_RS_COUNT,
-			((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-			 R300_RS_COUNT_HIRES_EN));
-	  /* rasterizer source table */
-	  OUT_ACCEL_REG(R300_RS_IP_0,
-			(R300_RS_TEX_PTR(0) |
-			 R300_RS_SEL_S(R300_RS_SEL_C0) |
-			 R300_RS_SEL_T(R300_RS_SEL_C1) |
-			 R300_RS_SEL_R(R300_RS_SEL_K0) |
-			 R300_RS_SEL_Q(R300_RS_SEL_K1)));
-	  OUT_ACCEL_REG(R300_RS_IP_1,
-			(R300_RS_TEX_PTR(2) |
-			 R300_RS_SEL_S(R300_RS_SEL_C0) |
-			 R300_RS_SEL_T(R300_RS_SEL_C1) |
-			 R300_RS_SEL_R(R300_RS_SEL_K0) |
-			 R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	if (pMask) {
+	    BEGIN_ACCEL(20);
+	    /* 4 components: 2 for tex0, 2 for tex1 */
+	    OUT_ACCEL_REG(R300_RS_COUNT,
+			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			   R300_RS_COUNT_HIRES_EN));
+	    /* rasterizer source table */
+	    OUT_ACCEL_REG(R300_RS_IP_0,
+			  (R300_RS_TEX_PTR(0) |
+			   R300_RS_SEL_S(R300_RS_SEL_C0) |
+			   R300_RS_SEL_T(R300_RS_SEL_C1) |
+			   R300_RS_SEL_R(R300_RS_SEL_K0) |
+			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	    OUT_ACCEL_REG(R300_RS_IP_1,
+			  (R300_RS_TEX_PTR(2) |
+			   R300_RS_SEL_S(R300_RS_SEL_C0) |
+			   R300_RS_SEL_T(R300_RS_SEL_C1) |
+			   R300_RS_SEL_R(R300_RS_SEL_K0) |
+			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
 
-	  OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
-	  /* src tex */
-	  OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
-					 R300_RS_INST_TEX_CN_WRITE |
-					 R300_INST_TEX_ADDR(0)));
-	  /* mask tex */
-	  OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
-					 R300_RS_INST_TEX_CN_WRITE |
-					 R300_INST_TEX_ADDR(1)));
+	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
+	    /* src tex */
+	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(0)));
+	    /* mask tex */
+	    OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(1)));
 
-	  OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	  OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
-	  OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
-					      R300_ALU_CODE_SIZE(0) |
-					      R300_TEX_CODE_OFFSET(0) |
-					      R300_TEX_CODE_SIZE(1)));
+	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* max num of temps used */
+	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
+						R300_ALU_CODE_SIZE(0) |
+						R300_TEX_CODE_OFFSET(0) |
+						R300_TEX_CODE_SIZE(1)));
 
-      } else {
+	} else {
 	    BEGIN_ACCEL(17);
 	    /* 2 components: 2 for tex0 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
@@ -1478,188 +1478,188 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						R300_TEX_CODE_OFFSET(0) |
 						R300_TEX_CODE_SIZE(0)));
 
-      }
+	}
 
-      OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
-		    (R300_ALU_START(0) |
-		     R300_ALU_SIZE(0) |
-		     R300_TEX_START(0) |
-		     R300_TEX_SIZE(0)));
-      OUT_ACCEL_REG(R300_US_CODE_ADDR_1,
-		    (R300_ALU_START(0) |
-		     R300_ALU_SIZE(0) |
-		     R300_TEX_START(0) |
-		     R300_TEX_SIZE(0)));
-      OUT_ACCEL_REG(R300_US_CODE_ADDR_2,
-		    (R300_ALU_START(0) |
-		     R300_ALU_SIZE(0) |
-		     R300_TEX_START(0) |
-		     R300_TEX_SIZE(0)));
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_1,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_2,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
 
-      if (pMask) {
-	  OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
-			(R300_ALU_START(0) |
-			 R300_ALU_SIZE(0) |
-			 R300_TEX_START(0) |
-			 R300_TEX_SIZE(1) |
-			 R300_RGBA_OUT));
-      } else {
-	  OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
-			(R300_ALU_START(0) |
-			 R300_ALU_SIZE(0) |
-			 R300_TEX_START(0) |
-			 R300_TEX_SIZE(0) |
-			 R300_RGBA_OUT));
-      }
+	if (pMask) {
+	    OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
+			  (R300_ALU_START(0) |
+			   R300_ALU_SIZE(0) |
+			   R300_TEX_START(0) |
+			   R300_TEX_SIZE(1) |
+			   R300_RGBA_OUT));
+	} else {
+	    OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
+			  (R300_ALU_START(0) |
+			   R300_ALU_SIZE(0) |
+			   R300_TEX_START(0) |
+			   R300_TEX_SIZE(0) |
+			   R300_RGBA_OUT));
+	}
 
-      OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
+	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
-      OUT_ACCEL_REG(R300_US_TEX_INST_0,
-		    (R300_TEX_SRC_ADDR(0) |
-		     R300_TEX_DST_ADDR(0) |
-		     R300_TEX_ID(0) |
-		     R300_TEX_INST(R300_TEX_INST_LD)));
+	OUT_ACCEL_REG(R300_US_TEX_INST_0,
+		      (R300_TEX_SRC_ADDR(0) |
+		       R300_TEX_DST_ADDR(0) |
+		       R300_TEX_ID(0) |
+		       R300_TEX_INST(R300_TEX_INST_LD)));
 
-      if (pMask) {
-	  OUT_ACCEL_REG(R300_US_TEX_INST_1,
-			(R300_TEX_SRC_ADDR(1) |
-			 R300_TEX_DST_ADDR(1) |
-			 R300_TEX_ID(1) |
-			 R300_TEX_INST(R300_TEX_INST_LD)));
-      }
+	if (pMask) {
+	    OUT_ACCEL_REG(R300_US_TEX_INST_1,
+			  (R300_TEX_SRC_ADDR(1) |
+			   R300_TEX_DST_ADDR(1) |
+			   R300_TEX_ID(1) |
+			   R300_TEX_INST(R300_TEX_INST_LD)));
+	}
 
-      OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
-		    (R300_ALU_RGB_ADDR0(0) |
-		     R300_ALU_RGB_ADDR1(1) |
-		     R300_ALU_RGB_ADDR2(0) |
-		     R300_ALU_RGB_ADDRD(0) |
-		     R300_ALU_RGB_OMASK((R300_ALU_RGB_MASK_R |
-					 R300_ALU_RGB_MASK_G |
-					 R300_ALU_RGB_MASK_B)) |
-		     R300_ALU_RGB_TARGET_A));
-      OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
-		    (R300_ALU_RGB_SEL_A(src_color) |
-		     R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
-		     R300_ALU_RGB_SEL_B(mask_color) |
-		     R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
-		     R300_ALU_RGB_SEL_C(R300_ALU_RGB_0_0) |
-		     R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
-		     R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
-		     R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
-      OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
-		    (R300_ALU_ALPHA_ADDR0(0) |
-		     R300_ALU_ALPHA_ADDR1(1) |
-		     R300_ALU_ALPHA_ADDR2(0) |
-		     R300_ALU_ALPHA_ADDRD(0) |
-		     R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
-		     R300_ALU_ALPHA_TARGET_A |
-		     R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
-      OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
-		    (R300_ALU_ALPHA_SEL_A(src_alpha) |
-		     R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
-		     R300_ALU_ALPHA_SEL_B(mask_alpha) |
-		     R300_ALU_ALPHA_MOD_B(R300_ALU_ALPHA_MOD_NOP) |
-		     R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0) |
-		     R300_ALU_ALPHA_MOD_C(R300_ALU_ALPHA_MOD_NOP) |
-		     R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
-		     R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE)));
-      FINISH_ACCEL();
+	OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
+		      (R300_ALU_RGB_ADDR0(0) |
+		       R300_ALU_RGB_ADDR1(1) |
+		       R300_ALU_RGB_ADDR2(0) |
+		       R300_ALU_RGB_ADDRD(0) |
+		       R300_ALU_RGB_OMASK((R300_ALU_RGB_MASK_R |
+					   R300_ALU_RGB_MASK_G |
+					   R300_ALU_RGB_MASK_B)) |
+		       R300_ALU_RGB_TARGET_A));
+	OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
+		      (R300_ALU_RGB_SEL_A(src_color) |
+		       R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
+		       R300_ALU_RGB_SEL_B(mask_color) |
+		       R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
+		       R300_ALU_RGB_SEL_C(R300_ALU_RGB_0_0) |
+		       R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
+		       R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
+		       R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
+	OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
+		      (R300_ALU_ALPHA_ADDR0(0) |
+		       R300_ALU_ALPHA_ADDR1(1) |
+		       R300_ALU_ALPHA_ADDR2(0) |
+		       R300_ALU_ALPHA_ADDRD(0) |
+		       R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
+		       R300_ALU_ALPHA_TARGET_A |
+		       R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
+	OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
+		      (R300_ALU_ALPHA_SEL_A(src_alpha) |
+		       R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
+		       R300_ALU_ALPHA_SEL_B(mask_alpha) |
+		       R300_ALU_ALPHA_MOD_B(R300_ALU_ALPHA_MOD_NOP) |
+		       R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0) |
+		       R300_ALU_ALPHA_MOD_C(R300_ALU_ALPHA_MOD_NOP) |
+		       R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+		       R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE)));
+	FINISH_ACCEL();
     } else {
-      BEGIN_ACCEL(23);
-      OUT_ACCEL_REG(R300_RS_COUNT,
-		    ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-		     R300_RS_COUNT_HIRES_EN));
-      OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-				   (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-				   (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-				   (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
+	BEGIN_ACCEL(23);
+	OUT_ACCEL_REG(R300_RS_COUNT,
+		      ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+		       R300_RS_COUNT_HIRES_EN));
+	OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
+				     (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
+				     (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
+				     (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 
-      OUT_ACCEL_REG(R300_RS_INST_COUNT, 0);
-      OUT_ACCEL_REG(R500_RS_INST_0, R500_RS_INST_TEX_CN_WRITE);
-      OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-      OUT_ACCEL_REG(R300_US_PIXSIZE, 0);
-      OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
-      OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
-					R500_US_CODE_END_ADDR(1)));
-      OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
-					 R500_US_CODE_RANGE_SIZE(1)));
-      OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
-      // 7807
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-					     R500_INST_TEX_SEM_WAIT |
-					     R500_INST_RGB_WMASK_R |
-					     R500_INST_RGB_WMASK_G |
-					     R500_INST_RGB_WMASK_B |
-					     R500_INST_ALPHA_WMASK));
+	OUT_ACCEL_REG(R300_RS_INST_COUNT, 0);
+	OUT_ACCEL_REG(R500_RS_INST_0, R500_RS_INST_TEX_CN_WRITE);
+	OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
+	OUT_ACCEL_REG(R300_US_PIXSIZE, 0);
+	OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
+	OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
+					  R500_US_CODE_END_ADDR(1)));
+	OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
+					   R500_US_CODE_RANGE_SIZE(1)));
+	OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
+	// 7807
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK));
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-					     R500_TEX_INST_LD |
-					     R500_TEX_SEM_ACQUIRE |
-					     R500_TEX_IGNORE_UNCOVERED));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
+					       R500_TEX_INST_LD |
+					       R500_TEX_SEM_ACQUIRE |
+					       R500_TEX_IGNORE_UNCOVERED));
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
-					     R500_TEX_SRC_S_SWIZ_R |
-					     R500_TEX_SRC_T_SWIZ_G |
-					     R500_TEX_DST_ADDR(0) |
-					     R500_TEX_DST_R_SWIZ_R |
-					     R500_TEX_DST_G_SWIZ_G |
-					     R500_TEX_DST_B_SWIZ_B |
-					     R500_TEX_DST_A_SWIZ_A));
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
-					     R500_DX_S_SWIZ_R |
-					     R500_DX_T_SWIZ_R |
-					     R500_DX_R_SWIZ_R |
-					     R500_DX_Q_SWIZ_R |
-					     R500_DY_ADDR(0) |
-					     R500_DY_S_SWIZ_R |
-					     R500_DY_T_SWIZ_R |
-					     R500_DY_R_SWIZ_R |
-					     R500_DY_Q_SWIZ_R)); // TEX_ADDR_DXDY
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
+					       R500_TEX_SRC_S_SWIZ_R |
+					       R500_TEX_SRC_T_SWIZ_G |
+					       R500_TEX_DST_ADDR(0) |
+					       R500_TEX_DST_R_SWIZ_R |
+					       R500_TEX_DST_G_SWIZ_G |
+					       R500_TEX_DST_B_SWIZ_B |
+					       R500_TEX_DST_A_SWIZ_A));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
+					       R500_DX_S_SWIZ_R |
+					       R500_DX_T_SWIZ_R |
+					       R500_DX_R_SWIZ_R |
+					       R500_DX_Q_SWIZ_R |
+					       R500_DY_ADDR(0) |
+					       R500_DY_S_SWIZ_R |
+					       R500_DY_T_SWIZ_R |
+					       R500_DY_R_SWIZ_R |
+					       R500_DY_Q_SWIZ_R)); // TEX_ADDR_DXDY
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
 
-      // 0x78105
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
-					     R500_INST_TEX_SEM_WAIT |
-					     R500_INST_LAST |
-					     R500_INST_RGB_OMASK_R |
-					     R500_INST_RGB_OMASK_G |
-					     R500_INST_RGB_OMASK_B |
-					     R500_INST_ALPHA_OMASK));
+	// 0x78105
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_LAST |
+					       R500_INST_RGB_OMASK_R |
+					       R500_INST_RGB_OMASK_G |
+					       R500_INST_RGB_OMASK_B |
+					       R500_INST_ALPHA_OMASK));
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-					     R500_RGB_ADDR1(0) |
-					     R500_RGB_ADDR1_CONST |
-					     R500_RGB_ADDR2(0) |
-					     R500_RGB_ADDR2_CONST |
-					     R500_RGB_SRCP_OP_1_MINUS_2RGB0)); //0x10040000
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-					     R500_ALPHA_ADDR1(0) |
-					     R500_ALPHA_ADDR1_CONST |
-					     R500_ALPHA_ADDR2(0) |
-					     R500_ALPHA_ADDR2_CONST |
-					     R500_ALPHA_SRCP_OP_1_MINUS_2A0)); //0x10040000
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
+					       R500_RGB_ADDR1(0) |
+					       R500_RGB_ADDR1_CONST |
+					       R500_RGB_ADDR2(0) |
+					       R500_RGB_ADDR2_CONST |
+					       R500_RGB_SRCP_OP_1_MINUS_2RGB0)); //0x10040000
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
+					       R500_ALPHA_ADDR1(0) |
+					       R500_ALPHA_ADDR1_CONST |
+					       R500_ALPHA_ADDR2(0) |
+					       R500_ALPHA_ADDR2_CONST |
+					       R500_ALPHA_SRCP_OP_1_MINUS_2A0)); //0x10040000
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
-					     R500_ALU_RGB_R_SWIZ_A_R |
-					     R500_ALU_RGB_G_SWIZ_A_G |
-					     R500_ALU_RGB_B_SWIZ_A_B |
-					     R500_ALU_RGB_SEL_B_SRC0 |
-					     R500_ALU_RGB_R_SWIZ_B_1 |
-					     R500_ALU_RGB_B_SWIZ_B_1 |
-					     R500_ALU_RGB_G_SWIZ_B_1));//0x00db0220
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_R |
+					       R500_ALU_RGB_G_SWIZ_A_G |
+					       R500_ALU_RGB_B_SWIZ_A_B |
+					       R500_ALU_RGB_SEL_B_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_B_1 |
+					       R500_ALU_RGB_B_SWIZ_B_1 |
+					       R500_ALU_RGB_G_SWIZ_B_1));//0x00db0220
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
-					     R500_ALPHA_SWIZ_A_A |
-					     R500_ALPHA_SWIZ_B_1));//0x00c0c000)
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_SWIZ_A_A |
+					       R500_ALPHA_SWIZ_B_1));//0x00c0c000)
 
-      OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
-					     R500_ALU_RGBA_R_SWIZ_0 |
-					     R500_ALU_RGBA_G_SWIZ_0 |
-					     R500_ALU_RGBA_B_SWIZ_0 |
-					     R500_ALU_RGBA_A_SWIZ_0));//0x20490000
-      FINISH_ACCEL();
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_R_SWIZ_0 |
+					       R500_ALU_RGBA_G_SWIZ_0 |
+					       R500_ALU_RGBA_B_SWIZ_0 |
+					       R500_ALU_RGBA_A_SWIZ_0));//0x20490000
+	FINISH_ACCEL();
     }
 
     BEGIN_ACCEL(4);
@@ -1670,52 +1670,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl | R300_ALPHA_BLEND_ENABLE | R300_READ_ENABLE);
     OUT_ACCEL_REG(R300_RB3D_ABLENDCNTL, 0);
-
-#if 0
-    /* IN operator: Multiply src by mask components or mask alpha.
-     * BLEND_CTL_ADD is A * B + C.
-     * If a picture is a8, we have to explicitly zero its color values.
-     * If the destination is a8, we have to route the alpha to red, I think.
-     * If we're doing component alpha where the source for blending is going to
-     * be the source alpha (and there's no source value used), we have to zero
-     * the source's color values.
-     */
-    cblend = R200_TXC_OP_MADD | R200_TXC_ARG_C_ZERO;
-    ablend = R200_TXA_OP_MADD | R200_TXA_ARG_C_ZERO;
-
-    if (pDstPicture->format == PICT_a8 ||
-	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
-    {
-	cblend |= R200_TXC_ARG_A_R0_ALPHA;
-    } else if (pSrcPicture->format == PICT_a8)
-	cblend |= R200_TXC_ARG_A_ZERO;
-    else
-	cblend |= R200_TXC_ARG_A_R0_COLOR;
-    ablend |= R200_TXA_ARG_A_R0_ALPHA;
-
-    if (pMask) {
-	if (pMaskPicture->componentAlpha &&
-	    pDstPicture->format != PICT_a8)
-	    cblend |= R200_TXC_ARG_B_R1_COLOR;
-	else
-	    cblend |= R200_TXC_ARG_B_R1_ALPHA;
-	ablend |= R200_TXA_ARG_B_R1_ALPHA;
-    } else {
-	cblend |= R200_TXC_ARG_B_ZERO | R200_TXC_COMP_ARG_B;
-	ablend |= R200_TXA_ARG_B_ZERO | R200_TXA_COMP_ARG_B;
-    }
-
-    OUT_ACCEL_REG(R200_PP_TXCBLEND_0, cblend);
-    OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
-	R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
-    OUT_ACCEL_REG(R200_PP_TXABLEND_0, ablend);
-    OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
-	R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
-
-    /* Op operator. */
-    blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
-    OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
-#endif
 
     FINISH_ACCEL();
 
