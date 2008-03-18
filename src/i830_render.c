@@ -231,7 +231,7 @@ static Bool i830_check_composite_texture(PicturePtr pPict, int unit)
     int h = pPict->pDrawable->height;
     int i;
 
-    if ((w > 0x7ff) || (h > 0x7ff))
+    if ((w > 2048) || (h > 2048))
         I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
     for (i = 0; i < sizeof(i830_tex_formats) / sizeof(i830_tex_formats[0]);

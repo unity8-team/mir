@@ -182,7 +182,7 @@ static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
     int h = pPict->pDrawable->height;
     int i;
 
-    if ((w > 0x7ff) || (h > 0x7ff))
+    if ((w > 8192) || (h > 8192))
         I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
     for (i = 0; i < sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]);
