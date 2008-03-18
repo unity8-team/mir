@@ -812,13 +812,22 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 #ifdef ONLY_ONCE
 
-static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit)
+static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit, Bool is_r500)
 {
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
+    int max_tex_w, max_tex_h;
 
-    if ((w > 0x7ff) || (h > 0x7ff))
+    if (is_r500) {
+	max_tex_w = 4096;
+	max_tex_h = 4096;
+    } else {
+	max_tex_w = 2048;
+	max_tex_h = 2048;
+    }
+
+    if ((w > max_tex_w) || (h > max_tex_h))
 	RADEON_FALLBACK(("Picture w/h too large (%dx%d)\n", w, h));
 
     for (i = 0; i < sizeof(R300TexFormats) / sizeof(R300TexFormats[0]); i++)
@@ -877,11 +886,16 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     txformat1 = R300TexFormats[i].card_fmt;
 
-    txformat0 = (((w - 1) << R300_TXWIDTH_SHIFT) |
-		 ((h - 1) << R300_TXHEIGHT_SHIFT));
+    txformat0 = ((((w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
+		 (((h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT));
+
+    if (IS_AVIVO_VARIANT && ((w - 1) & 0x800))
+	txpitch |= R500_TXWIDTH_11;
+
+    if (IS_AVIVO_VARIANT && ((h - 1) & 0x800))
+	txpitch |= R500_TXHEIGHT_11;
 
     if (pPict->repeat) {
-	ErrorF("repeat\n");
 	if ((h != 1) &&
 	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
 	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
@@ -937,8 +951,11 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     ScreenPtr pScreen = pDstPicture->pDrawable->pScreen;
     PixmapPtr pSrcPixmap, pDstPixmap;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
+    int max_tex_w, max_tex_h, max_dst_w, max_dst_h;
+    Bool is_r500;
 
     TRACE;
 
@@ -975,10 +992,23 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 
     pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
-    /* XXX: R(V)5xx may have higher limits
-     */
-    if (pSrcPixmap->drawable.width >= 2048 ||
-	pSrcPixmap->drawable.height >= 2048) {
+    is_r500 = ((info->ChipFamily >= CHIP_FAMILY_RV515) &&
+	       (info->ChipFamily <= CHIP_FAMILY_RV570));
+
+    if (is_r500) {
+	max_tex_w = 4096;
+	max_tex_h = 4096;
+	max_dst_w = 4096;
+	max_dst_h = 4096;
+    } else {
+	max_tex_w = 2048;
+	max_tex_h = 2048;
+	max_dst_w = 2560;
+	max_dst_h = 2560;
+    }
+
+    if (pSrcPixmap->drawable.width >= max_tex_w ||
+	pSrcPixmap->drawable.height >= max_tex_h) {
 	RADEON_FALLBACK(("Source w/h too large (%d,%d).\n",
 			 pSrcPixmap->drawable.width,
 			 pSrcPixmap->drawable.height));
@@ -986,8 +1016,8 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 
     pDstPixmap = RADEONGetDrawablePixmap(pDstPicture->pDrawable);
 
-    if (pDstPixmap->drawable.width >= 2560 ||
-	pDstPixmap->drawable.height >= 2560) {
+    if (pDstPixmap->drawable.width >= max_dst_w ||
+	pDstPixmap->drawable.height >= max_dst_h) {
 	RADEON_FALLBACK(("Dest w/h too large (%d,%d).\n",
 			 pDstPixmap->drawable.width,
 			 pDstPixmap->drawable.height));
@@ -996,8 +1026,8 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     if (pMaskPicture) {
 	PixmapPtr pMaskPixmap = RADEONGetDrawablePixmap(pMaskPicture->pDrawable);
 
-	if (pMaskPixmap->drawable.width >= 2048 ||
-	    pMaskPixmap->drawable.height >= 2048) {
+	if (pMaskPixmap->drawable.width >= max_tex_w ||
+	    pMaskPixmap->drawable.height >= max_tex_h) {
 	    RADEON_FALLBACK(("Mask w/h too large (%d,%d).\n",
 			     pMaskPixmap->drawable.width,
 			     pMaskPixmap->drawable.height));
@@ -1016,11 +1046,11 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	    }
 	}
 
-	if (!R300CheckCompositeTexture(pMaskPicture, 1))
+	if (!R300CheckCompositeTexture(pMaskPicture, 1, is_r500))
 	    return FALSE;
     }
 
-    if (!R300CheckCompositeTexture(pSrcPicture, 0))
+    if (!R300CheckCompositeTexture(pSrcPicture, 0, is_r500))
 	return FALSE;
 
     if (!R300GetDestFormat(pDstPicture, &tmp1))

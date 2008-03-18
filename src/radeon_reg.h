@@ -4291,11 +4291,14 @@
 #       define R300_TX_FORMAT_SWAP_YUV                 (1 << 24)
 
 #define R300_TX_FORMAT2_0				0x4500
+#       define R500_TXWIDTH_11                          (1 << 15)
+#       define R500_TXHEIGHT_11                         (1 << 16)
+
 #define R300_TX_OFFSET_0				0x4540
 #       define R300_ENDIAN_SWAP_16_BIT                  (1 << 0)
 #       define R300_ENDIAN_SWAP_32_BIT                  (2 << 0)
 #       define R300_ENDIAN_SWAP_HALF_DWORD              (3 << 0)
-#       define R300_MACRO_TILE                          (1 << 2);
+#       define R300_MACRO_TILE                          (1 << 2)
 
 #define R300_TX_ENABLE				        0x4104
 #       define R300_TEX_0_ENABLE                        (1 << 0)
