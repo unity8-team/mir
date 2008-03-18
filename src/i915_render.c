@@ -319,6 +319,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     uint32_t dst_format, dst_offset, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
+    FS_LOCALS(20);
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -327,7 +328,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	return FALSE;
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
-    FS_LOCALS(20);
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");

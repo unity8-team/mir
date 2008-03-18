@@ -1479,7 +1479,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        pI830->useEXA = FALSE;
 #endif
 #if defined(I830_USE_XAA) && defined(I830_USE_EXA)
-       int from = X_DEFAULT;
+       from = X_DEFAULT;
        if ((s = (char *)xf86GetOptValString(pI830->Options,
 					    OPTION_ACCELMETHOD))) {
 	   if (!xf86NameCmp(s, "EXA")) {

@@ -747,12 +747,12 @@ static void
 I830InitTextureHeap(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   drmI830MemInitHeap drmHeap;
 
    if (pI830->textures == NULL)
        return;
 
    /* Start up the simple memory manager for agp space */
-   drmI830MemInitHeap drmHeap;
    drmHeap.region = I830_MEM_REGION_AGP;
    drmHeap.start  = 0;
    drmHeap.size   = pI830->textures->size;
