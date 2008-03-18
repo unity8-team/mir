@@ -363,6 +363,45 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
     }
 }
 
+**
+ * Returns the un-normalized floating-point coordinates transformed by the given transform.
+ *
+ * transform may be null.
+ */
+void
+i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+				    float *x_out, float *y_out, float *w_out)
+{
+    if (transform == NULL) {
+	*x_out = x;
+	*y_out = y;
+	*w_out = 1;
+    } else {
+	PictVector v;
+
+        v.vector[0] = IntToxFixed(x);
+        v.vector[1] = IntToxFixed(y);
+        v.vector[2] = xFixed1;
+        PictureTransformPoint3d(transform, &v);
+	*x_out = xFixedToFloat(v.vector[0]);
+	*y_out = xFixedToFloat(v.vector[1]);
+	*w_out = xFixedToFloat(v.vector[2]);
+    }
+}
+
+/**
+ * Returns whether the provided transform is affine.
+ *
+ * transform may be null.
+ */
+Bool
+i830_transform_is_affine (PictTransformPtr t)
+{
+    if (t == NULL)
+	return TRUE;
+    return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
+}
+
 /*
  * TODO:
  *   - Dual head?

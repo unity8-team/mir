@@ -790,6 +790,9 @@ Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PicturePtr pDst, PixmapPtr pSrcPixmap,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+Bool
+i830_transform_is_affine (PictTransformPtr t);
+
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i830_done_composite(PixmapPtr pDst);
@@ -811,6 +814,10 @@ void i965_composite(PixmapPtr pDst, int srcX, int srcY,
 void
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 				 float *x_out, float *y_out);
+
+void
+i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+				    float *x_out, float *y_out, float *z_out);
 
 void i830_enter_render(ScrnInfoPtr);
 
