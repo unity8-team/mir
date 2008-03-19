@@ -4158,6 +4158,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, uint
 		 * exist (seen on nv11) where the pointer to the table points to the wrong
 		 * place, so for now, we rely on the indices parsed in parse_bmp_structure
 		 */
+		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No information in BIOS output table; assuming a CRT output exists\n");

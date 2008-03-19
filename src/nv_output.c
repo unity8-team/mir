@@ -984,19 +984,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
 	NVOutputPrivatePtr nv_output;
-	Bool valid_index = FALSE;
 
 	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
 
-	if (pNv->Architecture == NV_ARCH_50) {
-		if (i2c_index >= 0 && i2c_index <= 16)
-			valid_index = TRUE;
-	} else {
-		if (i2c_index)
-			valid_index = TRUE;
-	}
-
-	if (valid_index && (pNv->pI2CBus[i2c_index] == NULL))
+	if (i2c_index < 0xf && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
