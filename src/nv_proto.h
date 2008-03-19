@@ -87,7 +87,6 @@ void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
-xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);

@@ -443,8 +443,17 @@ NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
 void
 NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 {
-	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
+	xf86OutputPtr output = NULL;
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		if (xf86_config->output[i]->crtc == crtc) {
+			output = xf86_config->output[i];
+			break;
+		}
+	}
 
 	if (!output)
 		return;
