@@ -339,7 +339,7 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_24BPP); 
 			break;
 	}
-	NV50CrtcSetDither(crtc, nv_crtc->ditherEnabled, FALSE);
+	NV50CrtcSetDither(crtc, FALSE);
 	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, VDisplay << 16 | HDisplay);
@@ -438,14 +438,17 @@ NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
 }
 
 void
-NV50CrtcSetDither(xf86CrtcPtr crtc, Bool dither, Bool update)
+NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	xf86OutputPtr output = NVGetOutputFromCRTC(crtc);
 
-	nv_crtc->ditherEnabled = dither;
+	if (!output)
+		return;
 
-	NV50CrtcCommand(crtc, 0x8a0, dither ? 0x11 : 0);
-	if(update) 
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	NV50CrtcCommand(crtc, 0x8a0, nv_output->dithering ? 0x11 : 0);
+	if (update) 
 		NV50CrtcCommand(crtc, 0x80, 0);
 }
 

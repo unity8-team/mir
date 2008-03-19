@@ -1172,7 +1172,6 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (pNv->twoHeads) {
 		/* Output property. */
 		if (nv_output && nv_output->dithering) {
-			nv_crtc->ditherEnabled = TRUE;
 			if (pNv->NVArch == 0x11)
 				regp->dither = savep->dither | 0x00010000;
 			else {
@@ -1192,11 +1191,9 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 					regp->dither_regs[i + 3] = savep->dither_regs[i + 3];
 				}
 			}
-			nv_crtc->ditherEnabled = FALSE;
 			regp->dither = savep->dither;
 		}
 	} else {
-		nv_crtc->ditherEnabled = FALSE;
 		regp->dither = savep->dither;
 	}
 }
@@ -1675,7 +1672,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	nv_crtc = xnfcalloc (sizeof (NVCrtcPrivateRec), 1);
 	nv_crtc->head = crtc_num;
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
-	nv_crtc->ditherEnabled = pNv->FPDither;
 
 	crtc->driver_private = nv_crtc;
 

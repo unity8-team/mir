@@ -15,7 +15,7 @@ void NV50CrtcEnableCursor(xf86CrtcPtr, Bool update);
 void NV50CrtcDisableCursor(xf86CrtcPtr, Bool update);
 void NV50CrtcSetCursorPosition(xf86CrtcPtr, int x, int y);
 void NV50CrtcSkipModeFixup(xf86CrtcPtr);
-void NV50CrtcSetDither(xf86CrtcPtr, Bool dither, Bool update);
+void NV50CrtcSetDither(xf86CrtcPtr, Bool update);
 void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, enum scaling_modes);
 
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);

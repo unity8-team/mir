@@ -752,7 +752,7 @@ nv_scaling_mode_lookup(char *name, int size)
 	return scaling_mode[i].mode;
 }
 
-static void
+void
 nv_digital_output_create_resources(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -815,7 +815,7 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 	}
 }
 
-static Bool
+Bool
 nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {

@@ -252,150 +252,6 @@ NV50SorGetLVDSModes(xf86OutputPtr output)
 	return xf86DuplicateMode(nv_output->native_mode);
 }
 
-#define MAKE_ATOM(a) MakeAtom((a), sizeof(a) - 1, TRUE);
-
-struct property {
-	Atom atom;
-	INT32 range[2];
-};
-
-static struct {
-	struct property dither;
-	struct property scale;
-} properties;
-
-static void
-NV50SorCreateResources(xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	int data, err;
-	const char *s;
-
-	/******** dithering ********/
-	properties.dither.atom = MAKE_ATOM("dither");
-	properties.dither.range[0] = 0;
-	properties.dither.range[1] = 1;
-	err = RRConfigureOutputProperty(output->randr_output,
-					properties.dither.atom, FALSE, TRUE, FALSE,
-					2, properties.dither.range);
-	if(err)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to configure dithering property for %s: error %d\n",
-			output->name, err);
-
-	// Set the default value
-	data = pNv->FPDither;
-	err = RRChangeOutputProperty(output->randr_output, properties.dither.atom,
-					XA_INTEGER, 32, PropModeReplace, 1, &data,
-					FALSE, FALSE);
-	if(err)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to set dithering property for %s: error %d\n",
-			output->name, err);
-
-	/******** scaling ********/
-	properties.scale.atom = MAKE_ATOM("scale");
-	err = RRConfigureOutputProperty(output->randr_output,
-					properties.scale.atom, FALSE, FALSE,
-					FALSE, 0, NULL);
-	if(err)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to configure scaling property for %s: error %d\n",
-			output->name, err);
-
-	// Set the default value
-	s = "aspect";
-	err = RRChangeOutputProperty(output->randr_output, properties.scale.atom,
-					XA_STRING, 8, PropModeReplace, strlen(s),
-					(pointer)s, FALSE, FALSE);
-	if(err)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to set scaling property for %s: error %d\n",
-			output->name, err);
-}
-
-static Bool
-NV50SorSetProperty(xf86OutputPtr output, Atom prop, RRPropertyValuePtr val)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if(prop == properties.dither.atom) {
-		INT32 i;
-
-		if (val->type != XA_INTEGER || val->format != 32 || val->size != 1)
-			return FALSE;
-
-		i = *(INT32*)val->data;
-		if (i < properties.dither.range[0] || i > properties.dither.range[1])
-			return FALSE;
-
-		NV50CrtcSetDither(output->crtc, i, TRUE);
-		return TRUE;
-	} else if (prop == properties.scale.atom) {
-		const char *s;
-		enum scaling_modes oldScale, scale;
-		int i;
-		const struct {
-			const char *name;
-			enum scaling_modes scale;
-		} modes[] = {
-			{ "panel", SCALE_PANEL },
-			{ "aspect", SCALE_ASPECT },
-			{ "fullscreen",   SCALE_FULLSCREEN },
-			{ "noscale", SCALE_NOSCALE },
-			{ NULL,     0 },
-		};
-
-		if (val->type != XA_STRING || val->format != 8)
-			return FALSE;
-		s = (char*)val->data;
-
-		for (i = 0; modes[i].name; i++) {
-			const char *name = modes[i].name;
-			const int len = strlen(name);
-
-			if(val->size == len && !strncmp(name, s, len)) {
-				scale = modes[i].scale;
-				break;
-			}
-		}
-		if (!modes[i].name)
-			return FALSE;
-		if (scale == SCALE_PANEL && nv_output->type == OUTPUT_LVDS)
-			// LVDS requires scaling
-			return FALSE;
-
-		oldScale = nv_output->scaling_mode;
-		nv_output->scaling_mode = scale;
-		if (output->crtc) {
-			xf86CrtcPtr crtc = output->crtc;
-
-			if (!xf86CrtcSetMode(crtc, &crtc->desiredMode, crtc->desiredRotation,
-					crtc->desiredX, crtc->desiredY)) {
-				xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-						"Failed to set scaling to %s for output %s\n",
-						modes[i].name, output->name);
-
-				// Restore old scale and try again.
-				nv_output->scaling_mode = oldScale;
-				if (!xf86CrtcSetMode(crtc, &crtc->desiredMode,
-							crtc->desiredRotation, crtc->desiredX,
-							crtc->desiredY)) {
-					xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-						"Failed to restore old scaling for output %s\n",
-						output->name);
-				}
-
-				return FALSE;
-			}
-		}
-		return TRUE;
-	}
-
-	return FALSE;
-}
-
 static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.dpms = NV50SorDPMSSet,
 	.save = NULL,
@@ -407,8 +263,8 @@ static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.mode_set = NV50SorModeSet,
 	.detect = NV50SorDetect,
 	.get_modes = NV50OutputGetDDCModes,
-	.create_resources = NV50SorCreateResources,
-	.set_property = NV50SorSetProperty,
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
 	.destroy = NV50SorDestroy,
 };
 
@@ -423,8 +279,8 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 	.mode_set = NV50SorModeSet,
 	.detect = NV50SorLVDSDetect,
 	.get_modes = NV50SorGetLVDSModes,
-	.create_resources = NV50SorCreateResources,
-	.set_property = NV50SorSetProperty,
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
 	.destroy = NV50SorDestroy,
 };
 

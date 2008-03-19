@@ -87,10 +87,13 @@ void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
+xf86OutputPtr NVGetOutputFromCRTC(xf86CrtcPtr crtc);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc);
+void nv_digital_output_create_resources(xf86OutputPtr output);
+Bool nv_digital_output_set_property(xf86OutputPtr output, Atom property, RRPropertyValuePtr value);
 
 /* nv_hw.c */
 uint32_t NVRead(NVPtr pNv, uint32_t reg);
