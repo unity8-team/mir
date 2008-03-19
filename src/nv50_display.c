@@ -395,8 +395,8 @@ static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 
-	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR0, 
-		show ? NV50_CRTC0_CURSOR0_SHOW : NV50_CRTC0_CURSOR0_HIDE);
+	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR, 
+		show ? NV50_CRTC0_CURSOR_SHOW : NV50_CRTC0_CURSOR_HIDE);
 	if (update) {
 		nv_crtc->cursorVisible = show;
 		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
@@ -451,7 +451,8 @@ NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	NV50CrtcCommand(crtc, 0x8a0, nv_output->dithering ? 0x11 : 0);
+	NV50CrtcCommand(crtc, NV50_CRTC0_DITHERING_CTRL, nv_output->dithering ? 
+			NV50_CRTC0_DITHERING_CTRL_ON : NV50_CRTC0_DITHERING_CTRL_OFF);
 	if (update) 
 		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
