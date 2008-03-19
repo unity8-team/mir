@@ -209,19 +209,19 @@ By adjusting the BACKLIGHT property, the brightness on the LVDS output can be ad
 .TP 2
 The driver will attempt to automatically detect the backlight control method for your platform.  If this fails however, you can select another method which may allow you to control your backlight.  Available methods include:
 .PP
-.B NATIVE
+.B native
 .TP 4
 Intel chipsets include backlight control registers, which on some platforms may be wired to control the backlight directly.  This method uses those registers.
 .PP
-.B LEGACY
+.B legacy
 .TP 4
 The legacy backlight control registers exist in PCI configuration space, and have fewer available backlight levels than the native registers.  However, some platforms are wired this way and so need to use this method.
 .PP
-.B COMBO
+.B combo
 .TP 4
 This method attempts to use the native registers where possible, resorting to the legacy, configuration space registers only to enable the backlight if needed.  On platforms that have both wired this can be a good choice as it allows the fine grained backlight control of the native interface.
 .PP
-.B KERNEL
+.B kernel
 .TP 4
 On some system, the kernel may provide a backlight control driver.  In that case, using the kernel interfaces is preferable, as the same driver may respond to hotkey events or external APIs.
 
@@ -231,15 +231,15 @@ On some system, the kernel may provide a backlight control driver.  In that case
 .TP 2
 By default, the driver will attempt to upscale resolutions smaller than the LCD's native size while preserving the aspect ratio.  Other modes are available however:
 .PP
-.B CENTER
+.B center
 .TP 4
 Simply center the image on-screen, without scaling.
 .PP
-.B FULL_ASPECT
+.B full_aspect
 .TP 4
 The default mode.  Try to upscale the image to the screen size, while preserving aspect ratio.  May result in letterboxing or pillar-boxing with some resolutions.
 .PP
-.B FULL
+.B full
 .TP 4
 Upscale the image to the native screen size without regard to aspect ratio.  In this mode, the full screen image may appear distorted in some resolutions.
 
