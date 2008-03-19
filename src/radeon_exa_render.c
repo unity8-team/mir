@@ -1540,7 +1540,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_RGB_SEL_C(R300_ALU_RGB_0_0) |
 		       R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
 		       R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
-		       R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
+		       R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE) |
+		       R300_ALU_RGB_CLAMP));
 	OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
 		      (R300_ALU_ALPHA_ADDR0(0) |
 		       R300_ALU_ALPHA_ADDR1(1) |
@@ -1557,7 +1558,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0) |
 		       R300_ALU_ALPHA_MOD_C(R300_ALU_ALPHA_MOD_NOP) |
 		       R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
-		       R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE)));
+		       R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE) |
+		       R300_ALU_ALPHA_CLAMP));
 	FINISH_ACCEL();
     } else {
 	CARD32 output_fmt;
@@ -1771,7 +1773,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
 						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						   R500_INST_ALPHA_WMASK |
+						   R500_INST_RGB_CLAMP |
+						   R500_INST_ALPHA_CLAMP));
 
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
 						   R500_TEX_INST_LD |
@@ -1803,7 +1807,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
 						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						   R500_INST_ALPHA_WMASK |
+						   R500_INST_RGB_CLAMP |
+						   R500_INST_ALPHA_CLAMP));
 
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(1) |
 						   R500_TEX_INST_LD |
@@ -1838,7 +1844,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
 						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						   R500_INST_ALPHA_WMASK |
+						   R500_INST_RGB_CLAMP |
+						   R500_INST_ALPHA_CLAMP));
 
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
 						   R500_TEX_INST_LD |
@@ -1873,7 +1881,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					       R500_INST_RGB_OMASK_R |
 					       R500_INST_RGB_OMASK_G |
 					       R500_INST_RGB_OMASK_B |
-					       R500_INST_ALPHA_OMASK));
+					       R500_INST_ALPHA_OMASK |
+					       R500_INST_RGB_CLAMP |
+					       R500_INST_ALPHA_CLAMP));
 
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
 					       R500_RGB_ADDR1(1) |
