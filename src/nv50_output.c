@@ -106,6 +106,23 @@ NV50OutputGetDDCModes(xf86OutputPtr output)
 	return xf86OutputGetEDIDModes(output);
 }
 
+xf86MonPtr
+NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(pScrn);
+	xf86MonPtr rval = NULL;
+	const int off = pDDCBus->DriverPrivate.val * 0x18;
+
+	NVWrite(pNv, 0x0000E138+off, NV50_I2C_START);
+
+	rval = xf86OutputGetEDID(output, pDDCBus);
+
+	NVWrite(pNv, 0x0000E138+off, NV50_I2C_STOP);
+
+	return rval;
+}
+
 void
 NV50OutputDestroy(xf86OutputPtr output)
 {

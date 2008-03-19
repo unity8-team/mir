@@ -131,7 +131,7 @@ NV50SorDetect(xf86OutputPtr output)
 	if (nv_output->pDDCBus == NULL)
 		return XF86OutputStatusDisconnected;
 
-	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
 	if (!ddc_mon)
 		return XF86OutputStatusDisconnected;
 

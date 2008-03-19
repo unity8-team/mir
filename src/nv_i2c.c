@@ -46,46 +46,12 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 	NVWriteVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1, val | 0x1);
 }
 
-/* This is a duplicate of the xorg function, plus an extra register write. */
-static Bool
-NV50_I2CStart(I2CBusPtr b, int timeout)
-{
-	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
-	const int off = b->DriverPrivate.val * 0x18;
-
-	NVWrite(pNv, (0x0000E138+off)/4, NV50_I2C_START);
-
-	if (pNv->I2CStart)
-		return pNv->I2CStart(b, timeout);
-	else
-		xf86DrvMsg(b->scrnIndex, X_ERROR, "We're lacking a pNv->I2CStart pointer.\n");
-
-	return FALSE;
-}
-
-/* This is a duplicate of the xorg function, plus an extra register write. */
-static void
-NV50_I2CStop(I2CDevPtr d)
-{
-	I2CBusPtr b = d->pI2CBus;
-	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
-
-	const int off = b->DriverPrivate.val * 0x18;
-
-	if (pNv->I2CStop)
-		pNv->I2CStop(d);
-	else
-		xf86DrvMsg(b->scrnIndex, X_ERROR, "We're lacking a pNv->I2CStop pointer.\n");
-
-	NVWrite(pNv, (0x0000E138+off)/4, NV50_I2C_STOP);
-}
-
 static void NV50_I2CPutBits(I2CBusPtr b, int clock, int data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
 	const int off = b->DriverPrivate.val * 0x18;
 
-	NVWrite(pNv, (0x0000E138+off)/4, (4 | clock | data << 1));
+	NVWrite(pNv, 0x0000E138+off, (4 | clock | data << 1));
 }
 
 static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
@@ -94,7 +60,7 @@ static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
 	const int off = b->DriverPrivate.val * 0x18;
 	unsigned char val;
 
-	val = NVRead(pNv, (0x0000E138+off)/4);
+	val = NVRead(pNv, 0x0000E138+off);
 	*clock = !!(val & 1);
 	*data = !!(val & 2);
 }
@@ -130,16 +96,6 @@ NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 
 	if (!xf86I2CBusInit(pI2CBus)) {
 		return FALSE;
-	}
-
-	/* This is to avoid code duplication, so we can wrap the start and stop function. */
-	if (pNv->Architecture == NV_ARCH_50) {
-		if (!pNv->I2CStart || !pNv->I2CStop) {
-			pNv->I2CStart = pI2CBus->I2CStart;
-			pNv->I2CStop = pI2CBus->I2CStop;
-		}
-		pI2CBus->I2CStart = NV50_I2CStart;
-		pI2CBus->I2CStop = NV50_I2CStop;
 	}
 
 	*bus_ptr = pI2CBus;

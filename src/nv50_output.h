@@ -11,6 +11,7 @@ void NV50OutputPrepare(xf86OutputPtr);
 void NV50OutputCommit(xf86OutputPtr);
 DisplayModePtr NV50OutputGetDDCModes(xf86OutputPtr);
 void NV50OutputDestroy(xf86OutputPtr);
+xf86MonPtr NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus);
 
 /* nv50_dac.c */
 xf86OutputPtr NV50CreateDac(ScrnInfoPtr, ORNum);
