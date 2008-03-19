@@ -160,8 +160,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
 
-	txformat0 = (((pPriv->w - 1) << R300_TXWIDTH_SHIFT) |
-		     ((pPriv->h - 1) << R300_TXHEIGHT_SHIFT));
+	txformat0 = ((((pPriv->w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
+		     (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT));
 
 	txformat0 |= R300_TXPITCH_EN;
 
@@ -175,6 +175,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	/* pitch is in pixels */
 	txpitch = pPriv->src_pitch / 2;
 	txpitch -= 1;
+
+	if (IS_R500_3D && ((pPriv->w - 1) & 0x800))
+	    txpitch |= R500_TXWIDTH_11;
+
+	if (IS_R500_3D && ((pPriv->h - 1) & 0x800))
+	    txpitch |= R500_TXHEIGHT_11;
 
 	txoffset = pPriv->src_offset;
 

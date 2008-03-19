@@ -46,6 +46,9 @@
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
 
+#define IMAGE_MAX_WIDTH_R500	4096
+#define IMAGE_MAX_HEIGHT_R500	4096
+
 static Bool
 RADEONTilingEnabled(ScrnInfoPtr pScrn, PixmapPtr pPix)
 {
@@ -300,6 +303,16 @@ static XF86VideoEncodingRec DummyEncoding[1] =
     }
 };
 
+static XF86VideoEncodingRec DummyEncodingR500[1] =
+{
+    {
+	0,
+	"XV_IMAGE",
+	IMAGE_MAX_WIDTH_R500, IMAGE_MAX_HEIGHT_R500,
+	{1, 1}
+    }
+};
+
 #define NUM_FORMATS 3
 
 static XF86VideoFormatRec Formats[NUM_FORMATS] =
@@ -326,6 +339,8 @@ static XF86ImageRec Images[NUM_IMAGES] =
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    RADEONInfoPtr    info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPortPriv;
     XF86VideoAdaptorPtr adapt;
     int i;
@@ -340,7 +355,10 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     adapt->flags = 0;
     adapt->name = "Radeon Textured Video";
     adapt->nEncodings = 1;
-    adapt->pEncodings = DummyEncoding;
+    if (IS_R500_3D)
+	adapt->pEncodings = DummyEncodingR500;
+    else
+	adapt->pEncodings = DummyEncoding;
     adapt->nFormats = NUM_FORMATS;
     adapt->pFormats = Formats;
     adapt->nPorts = num_texture_ports;

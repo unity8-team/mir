@@ -345,7 +345,7 @@ RADEONGetDrawablePixmap(DrawablePtr pDrawable)
 	return pDrawable->pScreen->GetWindowPixmap((WindowPtr)pDrawable);
     else
 	return (PixmapPtr)pDrawable;
-}	
+}
 
 static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 			       PicturePtr pMaskPicture, PicturePtr pDstPicture)
@@ -435,7 +435,7 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 	RADEONInit3DEngine(pScrn);
 
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
-    	return FALSE;
+	return FALSE;
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
