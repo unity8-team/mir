@@ -46,10 +46,30 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 	NVWriteVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1, val | 0x1);
 }
 
+static void NV50_I2CPutBits(I2CBusPtr b, int clock, int data)
+{
+	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	const int off = b->DriverPrivate.val * 0x18;
+
+	NVWrite(pNv, (0x0000E138+off)/4, (4 | clock | data << 1));
+}
+
+static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
+{
+	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	const int off = b->DriverPrivate.val * 0x18;
+	unsigned char val;
+
+	val = NVRead(pNv, (0x0000E138+off)/4);
+	*clock = !!(val & 1);
+	*data = !!(val & 2);
+}
+
 Bool
 NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 {
 	I2CBusPtr pI2CBus;
+	NVPtr pNv = NVPTR(pScrn);
 
 	pI2CBus = xf86CreateI2CBusRec();
 	if(!pI2CBus)
@@ -57,9 +77,20 @@ NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 
 	pI2CBus->BusName    = name;
 	pI2CBus->scrnIndex  = pScrn->scrnIndex;
-	pI2CBus->I2CPutBits = NVI2CPutBits;
-	pI2CBus->I2CGetBits = NVI2CGetBits;
-	pI2CBus->AcknTimeout = 5;
+	if (pNv->Architecture == NV_ARCH_50) {
+		pI2CBus->I2CPutBits = NV50_I2CPutBits;
+		pI2CBus->I2CGetBits = NV50_I2CGetBits;
+		/* Could this be used for the rest as well? */
+		pI2CBus->ByteTimeout = 2200; /* VESA DDC spec 3 p. 43 (+10 %) */
+		pI2CBus->StartTimeout = 550;
+		pI2CBus->BitTimeout = 40;
+		pI2CBus->ByteTimeout = 40;
+		pI2CBus->AcknTimeout = 40;
+	} else {
+		pI2CBus->I2CPutBits = NVI2CPutBits;
+		pI2CBus->I2CGetBits = NVI2CGetBits;
+		pI2CBus->AcknTimeout = 5;
+	}
 
 	pI2CBus->DriverPrivate.uval = i2c_reg;
 

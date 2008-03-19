@@ -956,6 +956,9 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 
 	output->driver_private = nv_output;
 
+	/* needed for NV5x, used by pre-NV5x as well. */
+	nv_output->output_resource = ffs(pNv->dcb_table.entry[dcb_entry].or);
+
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 	nv_output->dcb_entry = dcb_entry;
 	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
@@ -987,8 +990,60 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	output->interlaceAllowed = TRUE;
+	output->doubleScanAllowed = TRUE;
+
+	if (pNv->Architecture == NV_ARCH_50) {
+		if (nv_output->type == OUTPUT_TMDS) {
+			NVWrite(pNv, 0x0061c00c + nv_output->output_resource * 0x800, 0x03010700);
+			NVWrite(pNv, 0x0061c010 + nv_output->output_resource * 0x800, 0x0000152f);
+			NVWrite(pNv, 0x0061c014 + nv_output->output_resource * 0x800, 0x00000000);
+			NVWrite(pNv, 0x0061c018 + nv_output->output_resource * 0x800, 0x00245af8);
+		}
+
+		/* This needs to be handled in the same way as pre-NV5x on the long run. */
+		if (nv_output->type == OUTPUT_LVDS)
+			nv_output->native_mode = GetLVDSNativeMode(pScrn);
+	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
+}
+
+static const xf86OutputFuncsRec * nv_get_output_funcs(ScrnInfoPtr pScrn, int type)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->Architecture == NV_ARCH_50) {
+		switch (type) {
+			case OUTPUT_ANALOG:
+				return nv50_get_analog_output_funcs();
+				break;
+			case OUTPUT_TMDS:
+				return nv50_get_tmds_output_funcs();
+				break;
+			case OUTPUT_LVDS:
+				return nv50_get_lvds_output_funcs();
+				break;
+			default:
+				return NULL;
+				break;
+		}
+	} else {
+		switch (type) {
+			case OUTPUT_ANALOG:
+				return &nv_analog_output_funcs;
+				break;
+			case OUTPUT_TMDS:
+				return &nv_tmds_output_funcs;
+				break;
+			case OUTPUT_LVDS:
+				return &nv_lvds_output_funcs;
+				break;
+			default:
+				return NULL;
+				break;
+		}
+	}
 }
 
 void NvSetupOutputs(ScrnInfoPtr pScrn)
@@ -997,6 +1052,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	int i, type, i2c_count[0xf];
 	char outputname[20];
 	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
+	xf86OutputFuncsRec * funcs = NULL;
 
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(i2c_count, 0, sizeof(i2c_count));
@@ -1015,24 +1071,24 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
-			nv_add_output(pScrn, i, &nv_analog_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "DVI-D-%d", dvid_count++);
-			nv_add_output(pScrn, i, &nv_tmds_output_funcs, outputname);
 			break;
 		case OUTPUT_TV:
 			sprintf(outputname, "TV-%d", tv_count++);
-//			nv_add_output(pScrn, i, &nv_tv_output_funcs, outputname);
 			break;
 		case OUTPUT_LVDS:
 			sprintf(outputname, "LVDS-%d", lvds_count++);
-			nv_add_output(pScrn, i, &nv_lvds_output_funcs, outputname);
 			break;
 		default:
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
 			break;
 		}
+
+		funcs = (xf86OutputFuncsRec *) nv_get_output_funcs(pScrn, type);
+		if (funcs)
+			nv_add_output(pScrn, i, funcs, outputname);
 	}
 }
 

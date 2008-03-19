@@ -1424,24 +1424,18 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	NVCommonSetup(pScrn);
 
 	if (pNv->randr12_enable) {
-		if (pNv->Architecture < NV_ARCH_50) {
-			NVI2CInit(pScrn);
-
-			num_crtc = pNv->twoHeads ? 2 : 1;
-			for (i = 0; i < num_crtc; i++) {
-				nv_crtc_init(pScrn, i);
-			}
-
-			NvSetupOutputs(pScrn);
-		} else {
+		if (pNv->Architecture == NV_ARCH_50)
 			if (!NV50DispPreInit(pScrn))
 				NVPreInitFail("\n");
-			if (!NV50CreateOutputs(pScrn))
-				NVPreInitFail("\n");
-			for (i = 0; i < 2; i++) {
-				nv_crtc_init(pScrn, i);
-			}
+
+		NVI2CInit(pScrn);
+
+		num_crtc = pNv->twoHeads ? 2 : 1;
+		for (i = 0; i < num_crtc; i++) {
+			nv_crtc_init(pScrn, i);
 		}
+
+		NvSetupOutputs(pScrn);
 
 		if (!xf86InitialConfiguration(pScrn, FALSE))
 			NVPreInitFail("No valid modes.\n");

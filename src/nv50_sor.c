@@ -428,6 +428,16 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 	.destroy = NV50SorDestroy,
 };
 
+const xf86OutputFuncsRec * nv50_get_tmds_output_funcs()
+{
+	return &NV50SorTMDSOutputFuncs;
+}
+
+const xf86OutputFuncsRec * nv50_get_lvds_output_funcs()
+{
+	return &NV50SorLVDSOutputFuncs;
+}
+
 static DisplayModePtr
 ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 {
@@ -454,7 +464,7 @@ ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 	return mode;
 }
 
-static DisplayModePtr
+DisplayModePtr
 GetLVDSNativeMode(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -468,55 +478,3 @@ GetLVDSNativeMode(ScrnInfoPtr pScrn)
 
 	return NULL;
 }
-
-xf86OutputPtr
-NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type)
-{
-	NVOutputPrivatePtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
-	NVPtr pNv = NVPTR(pScrn);
-	xf86OutputPtr output;
-	char orName[5];
-	const xf86OutputFuncsRec *funcs;
-
-	if(!nv_output)
-		return NULL;
-
-	if(type == OUTPUT_LVDS) {
-		strcpy(orName, "LVDS");
-		funcs = &NV50SorLVDSOutputFuncs;
-
-		nv_output->native_mode = GetLVDSNativeMode(pScrn);
-
-		if(!nv_output->native_mode) {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				"Failed to find LVDS native mode\n");
-			xfree(nv_output);
-			return NULL;
-		}
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s native size %dx%d\n",
-			orName, nv_output->native_mode->HDisplay,
-			nv_output->native_mode->VDisplay);
-	} else {
-		snprintf(orName, 5, "DVI%d", or);
-		funcs = &NV50SorTMDSOutputFuncs;
-	}
-
-	output = xf86OutputCreate(pScrn, funcs, orName);
-
-	nv_output->output_resource = or;
-	nv_output->type = type;
-	output->driver_private = nv_output;
-	output->interlaceAllowed = TRUE;
-	output->doubleScanAllowed = TRUE;
-
-	if (type != OUTPUT_LVDS) {
-		NVWrite(pNv, 0x0061c00c + nv_output->output_resource * 0x800, 0x03010700);
-		NVWrite(pNv, 0x0061c010 + nv_output->output_resource * 0x800, 0x0000152f);
-		NVWrite(pNv, 0x0061c014 + nv_output->output_resource * 0x800, 0x00000000);
-		NVWrite(pNv, 0x0061c018 + nv_output->output_resource * 0x800, 0x00245af8);
-	}
-
-	return output;
-}
-

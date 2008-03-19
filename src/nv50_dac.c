@@ -191,25 +191,8 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
 	.destroy = NV50DacDestroy,
 };
 
-xf86OutputPtr
-NV50CreateDac(ScrnInfoPtr pScrn, ORNum or)
+const xf86OutputFuncsRec * nv50_get_analog_output_funcs()
 {
-	NVOutputPrivatePtr nv_output = xnfcalloc(sizeof(*nv_output), 1);
-	xf86OutputPtr output;
-	char orName[5];
-
-	if(!nv_output)
-		return NULL;
-
-	snprintf(orName, 5, "VGA%i", or);
-	output = xf86OutputCreate(pScrn, &NV50DacOutputFuncs, orName);
-
-	nv_output->type = OUTPUT_ANALOG;
-	nv_output->output_resource = or;
-	output->driver_private = nv_output;
-	output->interlaceAllowed = TRUE;
-	output->doubleScanAllowed = TRUE;
-
-	return output;
+	return &NV50DacOutputFuncs;
 }
 
