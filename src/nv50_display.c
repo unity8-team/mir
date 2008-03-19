@@ -228,7 +228,8 @@ NV50DispInit(ScrnInfoPtr pScrn)
 
 	NV50DisplayCommand(pScrn, 0x84, 0);
 	NV50DisplayCommand(pScrn, 0x88, 0);
-	NV50DisplayCommand(pScrn, 0x874, 0);
+	/* Does the bios always use crtc0? */
+	NV50DisplayCommand(pScrn, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
 	NV50DisplayCommand(pScrn, 0x800, 0);
 	NV50DisplayCommand(pScrn, 0x810, 0);
 	NV50DisplayCommand(pScrn, 0x82c, 0);
@@ -249,7 +250,7 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 		NV50CrtcBlankScreen(crtc, TRUE);
 	}
 
-	NV50DisplayCommand(pScrn, 0x80, 0);
+	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 
 	for(i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -362,10 +363,10 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, NV50_CRTC0_CLUT_MODE_BLANK);
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, 0);
 		if(pNv->NVArch != 0x50)
-			NV50CrtcCommand(crtc, 0x85c, 0);
-		NV50CrtcCommand(crtc, 0x874, 0);
+			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_BLANK);
+		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
 		if(pNv->NVArch != 0x50)
-			NV50CrtcCommand(crtc, 0x89c, 0);
+			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_BLANK);
 	} else {
 		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, pNv->FB->offset >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
@@ -376,15 +377,15 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 		NVWrite(pNv, 0x0061038C, 0);
 		NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor->offset >> 8);
 		if(pNv->NVArch != 0x50)
-			NV50CrtcCommand(crtc, 0x89c, 1);
+			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_UNBLANK);
 		if(nv_crtc->cursorVisible)
 			NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, 
 			pScrn->depth == 8 ? NV50_CRTC0_CLUT_MODE_OFF : NV50_CRTC0_CLUT_MODE_ON);
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT->offset >> 8);
 		if(pNv->NVArch != 0x50)
-			NV50CrtcCommand(crtc, 0x85c, 1);
-		NV50CrtcCommand(crtc, 0x874, 1);
+			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_UNBLANK);
+		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL_BLANK, NV50_CRTC0_BLANK_CTRL_UNBLANK);
      }
 }
 
@@ -398,7 +399,7 @@ static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 		show ? NV50_CRTC0_CURSOR0_SHOW : NV50_CRTC0_CURSOR0_HIDE);
 	if (update) {
 		nv_crtc->cursorVisible = show;
-		NV50DisplayCommand(pScrn, 0x80, 0);
+		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 	}
 }
 
@@ -452,7 +453,7 @@ NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 
 	NV50CrtcCommand(crtc, 0x8a0, nv_output->dithering ? 0x11 : 0);
 	if (update) 
-		NV50DisplayCommand(pScrn, 0x80, 0);
+		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
 
 static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
@@ -524,6 +525,6 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
 		}
 	}
 
-	NV50DisplayCommand(pScrn, 0x80, 0);
+	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
 

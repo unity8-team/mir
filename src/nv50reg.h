@@ -30,29 +30,71 @@
 #define NV50_CRTC_VPLL2_A		0x00614904
 #define NV50_CRTC_VPLL2_B		0x00614908
 
+/* Clamped to 256 MiB */
+#define NV50_CRTC0_RAM_AMOUNT		0x00610384
+#define NV50_CRTC1_RAM_AMOUNT		0x00610784
+
 /* These things below are so called "commands" */
+#define NV50_UPDATE_DISPLAY		0x80
+
 #define NV50_CRTC0_CLOCK			0x804
-#define NV50_CRTC1_CLOCK			0xC04
 #define NV50_CRTC0_INTERLACE		0x808
-#define NV50_CRTC1_INTERLACE		0xC08
+
+/* Anyone know what part of the chip is triggered here precisely? */
+#define NV84_CRTC0_BLANK_UNK1		0x85C
+	#define NV84_CRTC0_BLANK_UNK1_BLANK	0x0
+	#define NV84_CRTC0_BLANK_UNK1_UNBLANK	0x1
+
+#define NV50_CRTC0_FB_SIZE			0x868
+#define NV50_CRTC0_PITCH			0x86C
+
+/* I'm openminded to better interpretations. */
+/* This is an educated guess. */
+/* NV50 has RAMDAC and TMDS offchip, so it's unlikely to be that. */
+#define NV50_CRTC0_BLANK_CTRL		0x874
+	#define NV50_CRTC0_BLANK_CTRL_BLANK	0x0
+	#define NV50_CRTC0_BLANK_CTRL_UNBLANK	0x1
+
+/* Anyone know what part of the chip is triggered here precisely? */
+#define NV84_CRTC0_BLANK_UNK2		0x89C
+	#define NV84_CRTC0_BLANK_UNK2_BLANK	0x0
+	#define NV84_CRTC0_BLANK_UNK2_UNBLANK	0x1
+
+#define NV50_CRTC0_FB_POS			0x8C0
+#define NV50_CRTC0_SCRN_SIZE		0x8C8
 
 #define NV50_CRTC0_HBLANK_START	0x814
 #define NV50_CRTC0_HSYNC_END		0x818
 #define NV50_CRTC0_HBLANK_END		0x81C
 #define NV50_CRTC0_HTOTAL			0x820
 
+#define NV50_CRTC1_CLOCK			0xC04
+#define NV50_CRTC1_INTERLACE		0xC08
+
+/* Anyone know what part of the chip is triggered here precisely? */
+#define NV84_CRTC1_BLANK_UNK1		0xC5C
+	#define NV84_CRTC1_BLANK_UNK1_BLANK	0x0
+	#define NV84_CRTC1_BLANK_UNK1_UNBLANK	0x1
+
+/* I'm openminded to better interpretations. */
+#define NV50_CRTC1_BLANK_CTRL		0xC74
+	#define NV50_CRTC1_BLANK_CTRL_BLANK	0x0
+	#define NV50_CRTC1_BLANK_CTRL_UNBLANK	0x1
+
+/* Anyone know what part of the chip is triggered here precisely? */
+#define NV84_CRTC1_BLANK_UNK2		0xC9C
+	#define NV84_CRTC1_BLANK_UNK2_BLANK	0x0
+	#define NV84_CRTC1_BLANK_UNK2_UNBLANK	0x1
+
 #define NV50_CRTC1_HBLANK_START	0xC14
 #define NV50_CRTC1_HSYNC_END		0xC18
 #define NV50_CRTC1_HBLANK_END		0xC1C
 #define NV50_CRTC1_HTOTAL			0xC20
 
-#define NV50_CRTC0_FB_SIZE			0x868
 #define NV50_CRTC1_FB_SIZE			0xC68
-#define NV50_CRTC0_PITCH			0x86C
 #define NV50_CRTC1_PITCH			0xC6C
-#define NV50_CRTC0_FB_POS			0x8C0
+
 #define NV50_CRTC1_FB_POS			0xCC0
-#define NV50_CRTC0_SCRN_SIZE		0x8C8
 #define NV50_CRTC1_SCRN_SIZE		0xCC8
 
 #define NV50_CRTC0_DEPTH			0x870
@@ -85,10 +127,6 @@
 	#define NV50_CRTC1_CLUT_MODE_OFF		0x80000000
 	#define NV50_CRTC1_CLUT_MODE_ON		0xC0000000
 #define NV50_CRTC1_CLUT_OFFSET		0xC44
-
-/* Clamped to 256 MiB */
-#define NV50_CRTC0_RAM_AMOUNT		0x00610384
-#define NV50_CRTC1_RAM_AMOUNT		0x00610784
 
 #define NV50_CRTC0_CURSOR0		0x880
 	#define NV50_CRTC0_CURSOR0_SHOW		0x85000000
