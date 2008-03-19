@@ -280,6 +280,7 @@ typedef struct {
 		uint8_t *edid;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t xlated_entry;
+		bool power_off_for_reset;
 		bool reset_after_pclk_change;
 		bool dual_link;
 		bool link_c_increment;

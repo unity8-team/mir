@@ -37,6 +37,8 @@ static int crtchead = 0;
 
 /* this will need remembering across a suspend */
 static uint32_t saved_nv_pfb_cfg0;
+/* this will need resetting over a suspend */
+static bool lvds_reset_done = false;
 
 typedef struct {
 	bool execute;
@@ -2783,48 +2785,6 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 		nv_dcb_write_tmds(pNv, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
 }
 
-static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
-	init_exec_t iexec = {true, false};
-
-	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C ? 1 : 0);
-	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
-	bool power_off_for_reset;
-	uint16_t off_on_delay;
-
-	if (!bios->fp.xlated_entry || !sub || !scriptofs)
-		return;
-
-	if (script == LVDS_INIT && bios->data[scriptofs] != 'q')
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LVDS init script not stubbed\n");
-
-	power_off_for_reset = bios->data[bios->fp.xlated_entry] & 1;
-	off_on_delay = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]);
-
-	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
-		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_RESET);
-	if (script == LVDS_RESET && power_off_for_reset)
-		call_lvds_manufacturer_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
-		   head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
-	parse_init_table(pScrn, bios, scriptofs, &iexec);
-
-	if (script == LVDS_PANEL_OFF)
-		usleep(off_on_delay * 1000);
-	if (script == LVDS_RESET) {
-#ifdef __powerpc__
-		/* Powerbook specific quirk */
-		if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329)
-			nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x02, 0x72);
-#endif
-		link_head_and_output(pScrn, head, dcb_entry);
-	}
-}
-
 static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
 {
 	int compare_record_len, i = 0;
@@ -2866,6 +2826,28 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	link_head_and_output(pScrn, head, dcb_entry);
 }
 
+static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
+	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C ? 1 : 0);
+	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
+
+	if (!bios->fp.xlated_entry || !sub || !scriptofs)
+		return;
+
+	rundigitaloutscript(pScrn, scriptofs, head, dcb_entry);
+
+	if (script == LVDS_PANEL_OFF)
+		/* off-on delay in ms */
+		usleep(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
+#ifdef __powerpc__
+	/* Powerbook specific quirk */
+	if (script == LVDS_RESET && ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329))
+		nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x02, 0x72);
+#endif
+}
+
 static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
 {
 	/* The BIT LVDS table's header has the information to setup the
@@ -2884,24 +2866,16 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
 
-	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
-		run_lvds_table(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
-	/* no sign of the "panel off for reset" bit, but it's safer to assume we should */
-	if (script == LVDS_RESET)
-		run_lvds_table(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
-
 	/* for now we assume version 3.0 table - g80 support will need some changes */
 
 	switch (script) {
 	case LVDS_INIT:
 		return;
-	case LVDS_BACKLIGHT_ON:	// check applicability of the script for this
+	case LVDS_BACKLIGHT_ON:
 	case LVDS_PANEL_ON:
 		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 7 + outputset * 2]);
 		break;
-	case LVDS_BACKLIGHT_OFF:	// check applicability of the script for this
+	case LVDS_BACKLIGHT_OFF:
 	case LVDS_PANEL_OFF:
 		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
 		break;
@@ -2953,6 +2927,18 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	if (!lvds_ver)
 		return;
 
+	/* LVDS_RESET only ever needs doing once per pxclk, and for one-mode LVDS, pxclk doesn't change */
+	if (script == LVDS_RESET && lvds_reset_done) {
+		link_head_and_output(pScrn, head, dcb_entry);
+		return;
+	}
+	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
+		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
+	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
+		call_lvds_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
+
 	/* don't let script change pll->head binding */
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 
@@ -2960,6 +2946,9 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 		call_lvds_manufacturer_script(pScrn, head, dcb_entry, script);
 	else
 		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
+
+	if (script == LVDS_RESET)
+		lvds_reset_done = true;
 
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
@@ -3158,6 +3147,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
 	switch (lvds_ver) {
 	case 0x0a:
+		bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
 		bios->fp.link_c_increment = bios->data[lvdsofs] & 8;
@@ -3173,7 +3163,8 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		if (bios->data[lvdsofs] > 1)
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "You have a very unusual laptop display; please report it\n");
-		/* no sign of the "reset for panel on" bit, but it's safer to assume we should */
+		/* no sign of the "power off for reset" or "reset for panel on" bits, but it's safer to assume we should */
+		bios->fp.power_off_for_reset = true;
 		bios->fp.reset_after_pclk_change = true;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;

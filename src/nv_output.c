@@ -116,7 +116,6 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
-	int oldmode = nv_output->last_dpms;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_dpms is called with mode %d.\n", mode);
 
@@ -125,21 +124,16 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 
 	if (crtc && pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-		int pclk = nv_get_clock_from_crtc(pScrn, &pNv->ModeReg, nv_crtc->head);
+		int pclk = nv_output->native_mode->Clock;
 
 		switch (mode) {
 		case DPMSModeStandby:
 		case DPMSModeSuspend:
-			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_OFF, pclk);
-			break;
 		case DPMSModeOff:
 			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
 			break;
 		case DPMSModeOn:
-			if (oldmode == DPMSModeStandby || oldmode == DPMSModeSuspend)
-				call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_BACKLIGHT_ON, pclk);
-			else
-				call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
+			call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
 		default:
 			break;
 		}
@@ -289,12 +283,8 @@ static void nv_output_restore(xf86OutputPtr output)
 
 		if (nv_output->type == OUTPUT_TMDS)
 			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
-		else {
-			/* on panels where we do reset after pclk change, PANEL_ON will also RESET */
-			if (!pNv->VBIOS.fp.reset_after_pclk_change)
-				call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_RESET, clock);
+		else
 			call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, clock);
-		}
 	}
 
 	if (pNv->twoHeads)
@@ -358,8 +348,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 
 	if (nv_output->type == OUTPUT_TMDS)
 		run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, adjusted_mode->Clock);
-	/* on panels where we do reset after pclk change, DPMS on will do this */
-	else if (nv_output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.reset_after_pclk_change)
+	else if (nv_output->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, adjusted_mode->Clock);
 
 	if (pNv->twoHeads) {
