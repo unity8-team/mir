@@ -1169,17 +1169,31 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	}
 
 	/* Flatpanel support needs at least a NV10 */
-	if (pNv->twoHeads && (pNv->FPDither || (is_lvds && !pNv->VBIOS.fp.if_is_24bit))) {
-		nv_crtc->ditherEnabled = TRUE;
-		if (pNv->NVArch == 0x11)
-			regp->dither = savep->dither | 0x00010000;
-		else {
-			int i;
-			regp->dither = savep->dither | 0x00000001;
-			for (i = 0; i < 3; i++) {
-				regp->dither_regs[i] = 0xe4e4e4e4;
-				regp->dither_regs[i + 3] = 0x44444444;
+	if (pNv->twoHeads) {
+		/* Output property. */
+		if (nv_output && nv_output->dithering) {
+			nv_crtc->ditherEnabled = TRUE;
+			if (pNv->NVArch == 0x11)
+				regp->dither = savep->dither | 0x00010000;
+			else {
+				int i;
+				regp->dither = savep->dither | 0x00000001;
+				for (i = 0; i < 3; i++) {
+					regp->dither_regs[i] = 0xe4e4e4e4;
+					regp->dither_regs[i + 3] = 0x44444444;
+				}
 			}
+		} else {
+			if (pNv->NVArch != 0x11) {
+				/* reset them */
+				int i;
+				for (i = 0; i < 3; i++) {
+					regp->dither_regs[i] = savep->dither_regs[i];
+					regp->dither_regs[i + 3] = savep->dither_regs[i + 3];
+				}
+			}
+			nv_crtc->ditherEnabled = FALSE;
+			regp->dither = savep->dither;
 		}
 	} else {
 		nv_crtc->ditherEnabled = FALSE;

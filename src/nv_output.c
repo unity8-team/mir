@@ -730,6 +730,10 @@ static const struct {
 };
 static Atom scaling_mode_atom;
 
+#define DITHERING_MODE_NAME "DITHERING"
+static Atom dithering_atom;
+int32_t dithering_range[2];
+
 static int
 nv_scaling_mode_lookup(char *name, int size)
 {
@@ -783,6 +787,32 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Failed to set scaling mode, %d\n", error);
 	}
+
+	/*
+	 * Setup dithering property.
+	 */
+	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
+
+	dithering_range[0] = 0;
+	dithering_range[1] = 1;
+
+	error = RRConfigureOutputProperty(output->randr_output,
+					dithering_atom, TRUE, TRUE, FALSE,
+					2, dithering_range);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"RRConfigureOutputProperty error, %d\n", error);
+	}
+
+	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
+					XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
+					FALSE, FALSE);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Failed to set dithering mode, %d\n", error);
+	}
 }
 
 static Bool
@@ -810,6 +840,17 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		nv_output->scaling_mode = ret;
+		return TRUE;
+	} else if (property == dithering_atom) {
+		if (value->type != XA_INTEGER || value->format != 32)
+			return FALSE;
+
+		int32_t val = *(int32_t *) value->data;
+
+		if (val < dithering_range[0] || val > dithering_range[1])
+			return FALSE;
+
+		nv_output->dithering = val;
 		return TRUE;
 	}
 
@@ -973,6 +1014,9 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 	 * If bit following first set bit is also set, output is capable of dual-link
 	 */
 	nv_output->or = pNv->dcb_table.entry[dcb_entry].or;
+
+	/* Output property for tmds and lvds. */
+	nv_output->dithering = (pNv->FPDither || (nv_output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
 
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		if (pNv->fpScaler) /* GPU Scaling */

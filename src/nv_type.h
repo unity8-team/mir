@@ -208,6 +208,7 @@ typedef struct _NVOutputPrivateRec {
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
+	Bool dithering;
 	NVOutputRegRec restore;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
