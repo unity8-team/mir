@@ -1371,8 +1371,8 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 		uint8_t dcb_entry;
 		int dacoffset;
 		/* This register needs to be written to set index for reading CR58 */
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, 0x57, 0);
-		dcb_entry = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, 0x58);
+		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
+		dcb_entry = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58);
 		if (dcb_entry > pNv->dcb_table.entries) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "CR58 doesn't have a valid DCB entry currently (%02X)\n", dcb_entry);
@@ -2818,7 +2818,7 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
-			head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
+		       head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcb_entry);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
