@@ -60,6 +60,9 @@ RADEONTilingEnabled(ScrnInfoPtr pScrn, PixmapPtr pPix)
     } else
 #endif
 	{
+	    if (info->tilingEnabled && ((pPix->devPrivate.ptr - info->FB) == 0))
+		return TRUE;
+	    else
 		return FALSE;
 	}
 }
