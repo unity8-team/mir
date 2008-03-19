@@ -1438,7 +1438,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 				NVPreInitFail("\n");
 			if (!NV50CreateOutputs(pScrn))
 				NVPreInitFail("\n");
-			NV50DispCreateCrtcs(pScrn);
+			for (i = 0; i < 2; i++) {
+				nv_crtc_init(pScrn, i);
+			}
 		}
 
 		if (!xf86InitialConfiguration(pScrn, FALSE))

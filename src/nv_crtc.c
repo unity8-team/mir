@@ -1649,7 +1649,9 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[crtc_num];
 	int i;
 
-	if (pNv->NVArch >= 0x11)
+	if (pNv->Architecture == NV_ARCH_50)
+		crtc = xf86CrtcCreate(pScrn, nv50_get_crtc_funcs());
+	else if (pNv->NVArch >= 0x11)
 		crtc = xf86CrtcCreate(pScrn, &nv11_crtc_funcs);
 	else
 		crtc = xf86CrtcCreate(pScrn, &nv_crtc_funcs);
@@ -1662,6 +1664,9 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	nv_crtc->ditherEnabled = pNv->FPDither;
 
 	crtc->driver_private = nv_crtc;
+
+	if (pNv->Architecture == NV_ARCH_50)
+		return;
 
 	/* Initialise the default LUT table. */
 	for (i = 0; i < 256; i++) {

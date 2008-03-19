@@ -99,22 +99,8 @@ static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.destroy = NULL,
 };
 
-void NV50DispCreateCrtcs(ScrnInfoPtr pScrn)
+const xf86CrtcFuncsRec * nv50_get_crtc_funcs()
 {
-	NVPtr pNv = NVPTR(pScrn);
-	Head head;
-	xf86CrtcPtr crtc;
-	NVCrtcPrivatePtr nv50_crtc;
-
-	/* Create a "crtc" object for each head */
-	for(head = HEAD0; head <= HEAD1; head++) {
-		crtc = xf86CrtcCreate(pScrn, &nv50_crtc_funcs);
-		if(!crtc) return;
-
-		nv50_crtc = xnfcalloc(sizeof(*nv50_crtc), 1);
-		nv50_crtc->head = head;
-		nv50_crtc->ditherEnabled = pNv->FPDither;
-		crtc->driver_private = nv50_crtc;
-	}
+	return &nv50_crtc_funcs;
 }
 

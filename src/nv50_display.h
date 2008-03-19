@@ -19,5 +19,6 @@ void NV50CrtcSetDither(xf86CrtcPtr, Bool dither, Bool update);
 void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, enum scaling_modes);
 
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
+const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
 
 #endif
