@@ -33,25 +33,23 @@
 void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
-	NVWrite(pNv, 0x00614300 + ffs(nv_output->or) * 0x800, (pclk > limit) ? 0x101 : 0);
+	NVWrite(pNv, 0x00614300 + NV50OrOffset(output) * 0x800, (pclk > limit) ? 0x101 : 0);
 }
 
 static void
 NV50SorDPMSSet(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
 
-	while((NVRead(pNv, 0x0061c004 + ffs(nv_output->or) * 0x800) & 0x80000000));
+	while((NVRead(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800) & 0x80000000));
 
-	tmp = NVRead(pNv, 0x0061c004 + ffs(nv_output->or) * 0x800);
+	tmp = NVRead(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800);
 	tmp |= 0x80000000;
 
 	if(mode == DPMSModeOn)
@@ -59,8 +57,8 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 	else
 		tmp &= ~1;
 
-	NVWrite(pNv, 0x0061c004 + ffs(nv_output->or) * 0x800, tmp);
-	while((NVRead(pNv, 0x0061c030 + ffs(nv_output->or) * 0x800) & 0x10000000));
+	NVWrite(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800, tmp);
+	while((NVRead(pNv, 0x0061c030 + NV50OrOffset(output) * 0x800) & 0x10000000));
 }
 
 static int
@@ -93,7 +91,7 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	const int sorOff = 0x40 * ffs(nv_output->or);
+	const int sorOff = 0x40 * NV50OrOffset(output);
 	CARD32 type;
 
 	if(!adjusted_mode) {

@@ -4,6 +4,7 @@
 #include "nv50_display.h"
 #include "nv_type.h"
 
+int NV50OrOffset(xf86OutputPtr output);
 void NV50OutputSetPClk(xf86OutputPtr, int pclk);
 int NV50OutputModeValid(xf86OutputPtr, DisplayModePtr);
 void NV50OutputPrepare(xf86OutputPtr);

@@ -30,6 +30,14 @@
 
 #include <xf86DDC.h>
 
+int
+NV50OrOffset(xf86OutputPtr output)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	return ffs(nv_output->or) - 1;
+}
+
 void
 NV50OutputSetPClk(xf86OutputPtr output, int pclk)
 {
