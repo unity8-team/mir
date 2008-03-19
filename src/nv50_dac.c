@@ -36,7 +36,7 @@ NV50DacSetPClk(xf86OutputPtr output, int pclk)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVWrite(pNv, 0x00614280 + nv_output->output_resource * 0x800, 0);
+	NVWrite(pNv, 0x00614280 + ffs(nv_output->or) * 0x800, 0);
 }
 
 static void
@@ -53,9 +53,9 @@ NV50DacDPMSSet(xf86OutputPtr output, int mode)
 	 * DPMSModeSuspend  hsync enabled, vsync disabled
 	 * DPMSModeOff      sync disabled
 	 */
-	while(NVRead(pNv, 0x0061a004 + nv_output->output_resource * 0x800) & 0x80000000);
+	while(NVRead(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800) & 0x80000000);
 
-	tmp = NVRead(pNv, 0x0061a004 + nv_output->output_resource * 0x800);
+	tmp = NVRead(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800);
 	tmp &= ~0x7f;
 	tmp |= 0x80000000;
 
@@ -68,7 +68,7 @@ NV50DacDPMSSet(xf86OutputPtr output, int mode)
 	if(mode == DPMSModeOff)
 		tmp |= 0x40;
 
-	NVWrite(pNv, 0x0061a004 + nv_output->output_resource * 0x800, tmp);
+	NVWrite(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800, tmp);
 }
 
 Bool
@@ -84,7 +84,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
-	const int dacOff = 0x80 * nv_output->output_resource;
+	const int dacOff = 0x80 * ffs(nv_output->or);
 
 	if(!adjusted_mode) {
 		NV50DisplayCommand(pScrn, 0x400 + dacOff, 0);
@@ -142,21 +142,21 @@ NV50DacLoadDetect(xf86OutputPtr output)
 	CARD32 load, tmp, tmp2;
 
 	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
-		nv_output->output_resource);
+		ffs(nv_output->or));
 
-	NVWrite(pNv, 0x0061a010 + nv_output->output_resource * 0x800, 0x00000001);
-	tmp2 = NVRead(pNv, 0x0061a004 + nv_output->output_resource * 0x800);
+	NVWrite(pNv, 0x0061a010 + ffs(nv_output->or) * 0x800, 0x00000001);
+	tmp2 = NVRead(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800);
 
-	NVWrite(pNv, 0x0061a004 + nv_output->output_resource * 0x800, 0x80150000);
-	while(NVRead(pNv, 0x0061a004 + nv_output->output_resource * 0x800) & 0x80000000);
+	NVWrite(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800, 0x80150000);
+	while(NVRead(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800) & 0x80000000);
 	tmp = (pNv->NVArch == 0x50) ? 420 : 340;
-	NVWrite(pNv, 0x0061a00c + nv_output->output_resource * 0x800, tmp | 0x100000);
+	NVWrite(pNv, 0x0061a00c + ffs(nv_output->or) * 0x800, tmp | 0x100000);
 	sigstate = xf86BlockSIGIO();
 	usleep(45000);
 	xf86UnblockSIGIO(sigstate);
-	load = NVRead(pNv, 0x0061a00c + nv_output->output_resource * 0x800);
-	NVWrite(pNv, 0x0061a00c + nv_output->output_resource * 0x800, 0);
-	NVWrite(pNv, 0x0061a004 + nv_output->output_resource * 0x800, 0x80000000 | tmp2);
+	load = NVRead(pNv, 0x0061a00c + ffs(nv_output->or) * 0x800);
+	NVWrite(pNv, 0x0061a00c + ffs(nv_output->or) * 0x800, 0);
+	NVWrite(pNv, 0x0061a004 + ffs(nv_output->or) * 0x800, 0x80000000 | tmp2);
 
 	// Use this DAC if all three channels show load.
 	if((load & 0x38000000) == 0x38000000) {

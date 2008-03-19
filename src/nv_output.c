@@ -997,9 +997,6 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 
 	output->driver_private = nv_output;
 
-	/* needed for NV5x, used by pre-NV5x as well. */
-	nv_output->output_resource = ffs(pNv->dcb_table.entry[dcb_entry].or);
-
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 	nv_output->dcb_entry = dcb_entry;
 	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
@@ -1039,10 +1036,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		if (nv_output->type == OUTPUT_TMDS) {
-			NVWrite(pNv, 0x0061c00c + nv_output->output_resource * 0x800, 0x03010700);
-			NVWrite(pNv, 0x0061c010 + nv_output->output_resource * 0x800, 0x0000152f);
-			NVWrite(pNv, 0x0061c014 + nv_output->output_resource * 0x800, 0x00000000);
-			NVWrite(pNv, 0x0061c018 + nv_output->output_resource * 0x800, 0x00245af8);
+			NVWrite(pNv, 0x0061c00c + ffs(nv_output->or) * 0x800, 0x03010700);
+			NVWrite(pNv, 0x0061c010 + ffs(nv_output->or) * 0x800, 0x0000152f);
+			NVWrite(pNv, 0x0061c014 + ffs(nv_output->or) * 0x800, 0x00000000);
+			NVWrite(pNv, 0x0061c018 + ffs(nv_output->or) * 0x800, 0x00245af8);
 		}
 
 		/* This needs to be handled in the same way as pre-NV5x on the long run. */

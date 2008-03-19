@@ -198,7 +198,6 @@ typedef enum {
 
 typedef struct _NVOutputPrivateRec {
 	uint8_t or;
-	uint8_t output_resource;
 	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
