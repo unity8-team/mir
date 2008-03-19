@@ -346,14 +346,6 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 
     return xf86_cursors_init (pScreen, CURSOR_WIDTH, CURSOR_HEIGHT,
 			      (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-				 /* this is a lie --
-				  * HARDWARE_CURSOR_BIT_ORDER_MSBFIRST
-				  * actually inverts the bit order, so
-				  * this switches to LSBFIRST
-				  */
-			       HARDWARE_CURSOR_BIT_ORDER_MSBFIRST |
-#endif
 			       HARDWARE_CURSOR_AND_SOURCE_WITH_MASK |
 			       HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1 |
 			       HARDWARE_CURSOR_ARGB));
