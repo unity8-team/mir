@@ -271,7 +271,7 @@ typedef enum {
     CHIP_FAMILY_RV570,   /* rv570 */
     CHIP_FAMILY_RS690,
     CHIP_FAMILY_RS740,
-    CHIP_FAMILY_R600,    /* r60 */
+    CHIP_FAMILY_R600,    /* r600 */
     CHIP_FAMILY_R630,
     CHIP_FAMILY_RV610,
     CHIP_FAMILY_RV630,
@@ -302,6 +302,23 @@ typedef enum {
 #define IS_AVIVO_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV515))
 
 #define IS_DCE3_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV620))
+
+#define IS_R500_3D ((info->ChipFamily == CHIP_FAMILY_RV515)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_R520)   ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV530)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_R580)   ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV560)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV570))
+
+#define IS_R300_3D ((info->ChipFamily == CHIP_FAMILY_R300)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV350) ||  \
+	(info->ChipFamily == CHIP_FAMILY_R350)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV380) ||  \
+	(info->ChipFamily == CHIP_FAMILY_R420)  ||  \
+	(info->ChipFamily == CHIP_FAMILY_RV410) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS740) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS400))
 
 /*
  * Errata workarounds

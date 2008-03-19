@@ -536,9 +536,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "unsupported on R600 and newer cards.\n");
-	else if (IS_R300_VARIANT || (IS_AVIVO_VARIANT && info->ChipFamily <= CHIP_FAMILY_RS740)) {
+	else if (IS_R300_3D || IS_R500_3D) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
-			       "enabled for R300 type cards.\n");
+			       "enabled for R300/R400/R500 type cards.\n");
 		info->exa->CheckComposite = R300CheckComposite;
 		info->exa->PrepareComposite =
 		    FUNC_NAME(R300PrepareComposite);

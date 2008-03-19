@@ -340,9 +340,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_VIDEO();
 
 	/* setup pixel shader */
-	if (IS_R300_VARIANT ||
-	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
+	if (IS_R300_3D) {
 	    BEGIN_VIDEO(16);
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |

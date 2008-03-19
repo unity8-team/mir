@@ -888,10 +888,10 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     txformat0 = ((((w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		 (((h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT));
 
-    if (IS_AVIVO_VARIANT && ((w - 1) & 0x800))
+    if (IS_R500_3D && ((w - 1) & 0x800))
 	txpitch |= R500_TXWIDTH_11;
 
-    if (IS_AVIVO_VARIANT && ((h - 1) & 0x800))
+    if (IS_R500_3D && ((h - 1) & 0x800))
 	txpitch |= R500_TXHEIGHT_11;
 
     if (pPict->repeat) {
@@ -952,7 +952,6 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int max_tex_w, max_tex_h, max_dst_w, max_dst_h;
-    Bool is_r500;
 
     TRACE;
 
@@ -962,10 +961,7 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 
     pSrcPixmap = RADEONGetDrawablePixmap(pSrcPicture->pDrawable);
 
-    is_r500 = ((info->ChipFamily >= CHIP_FAMILY_RV515) &&
-	       (info->ChipFamily <= CHIP_FAMILY_RV570));
-
-    if (is_r500) {
+    if (IS_R500_3D) {
 	max_tex_w = 4096;
 	max_tex_h = 4096;
 	max_dst_w = 4096;
@@ -1016,11 +1012,11 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	    }
 	}
 
-	if (!R300CheckCompositeTexture(pMaskPicture, 1, is_r500))
+	if (!R300CheckCompositeTexture(pMaskPicture, 1, IS_R500_3D))
 	    return FALSE;
     }
 
-    if (!R300CheckCompositeTexture(pSrcPicture, 0, is_r500))
+    if (!R300CheckCompositeTexture(pSrcPicture, 0, IS_R500_3D))
 	return FALSE;
 
     if (!R300GetDestFormat(pDstPicture, &tmp1))
@@ -1316,9 +1312,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     FINISH_ACCEL();
 
     /* setup pixel shader */
-    if (IS_R300_VARIANT ||
-	(info->ChipFamily == CHIP_FAMILY_RS690) ||
-	(info->ChipFamily == CHIP_FAMILY_RS740)) {
+    if (IS_R300_3D) {
 	CARD32 output_fmt;
 	int src_color, src_alpha;
 	int mask_color, mask_alpha;
