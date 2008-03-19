@@ -3745,7 +3745,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     CARD32 fb, agp, agp_hi;
-    int changed;
+    int changed = 0;
 
     if (info->IsSecondary)
       return;
@@ -3753,7 +3753,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     radeon_read_mc_fb_agp_location(pScrn, LOC_FB | LOC_AGP, &fb, &agp, &agp_hi);
 
     if (fb != save->mc_fb_location || agp != save->mc_agp_location ||
-	agp_hi || save->mc_agp_location_hi)
+	agp_hi != save->mc_agp_location_hi)
 	changed = 1;
 
     if (changed) {
@@ -5208,6 +5208,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     pScrn->vtSema = TRUE;
 
+    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
     RADEONRestoreSurfaces(pScrn, info->ModeReg);
 
     if (!xf86SetDesiredModes(pScrn))
@@ -5227,10 +5228,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	RADEONDRIResume(pScrn->pScreen);
 	RADEONAdjustMemMapRegisters(pScrn, info->ModeReg);
 
-    } else
+    }
 #endif
-	RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
-
 
     /* this will get XVideo going again, but only if XVideo was initialised
        during server startup (hence the info->adaptor if). */
