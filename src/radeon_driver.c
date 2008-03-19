@@ -128,35 +128,6 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 static void
 RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 
-extern DisplayModePtr
-RADEONCrtcFindClosestMode(xf86CrtcPtr crtc, DisplayModePtr pMode);
-
-extern void
-RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-extern void
-RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
-
-#ifdef USE_XAA
-#ifdef XF86DRI
-extern Bool
-RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen);
-#endif /* XF86DRI */
-extern Bool
-RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
-#endif /* USE_XAA */
-
 static const OptionInfoRec RADEONOptions[] = {
     { OPTION_NOACCEL,        "NoAccel",          OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_SW_CURSOR,      "SWcursor",         OPTV_BOOLEAN, {0}, FALSE },
@@ -440,6 +411,9 @@ static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn)
 /* Memory map the frame buffer.  Used by RADEONMapMem, below. */
 static Bool RADEONMapFB(ScrnInfoPtr pScrn)
 {
+#ifdef XSERVER_LIBPCIACCESS
+    int err;
+#endif
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -457,7 +431,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
 
 #else
 
-    int err = pci_device_map_range(info->PciInfo,
+    err = pci_device_map_range(info->PciInfo,
 				   info->LinearAddr,
 				   info->FbMapSize,
 				   PCI_DEV_MAP_FLAG_WRITABLE |
@@ -637,7 +611,7 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data)
     }
 }
 
-Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
+static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
@@ -665,7 +639,7 @@ Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 
 #define LOC_FB 0x1
 #define LOC_AGP 0x2
-void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 fb_loc, CARD32 agp_loc, CARD32 agp_loc_hi)
+static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 fb_loc, CARD32 agp_loc, CARD32 agp_loc_hi)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -703,7 +677,7 @@ void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 fb_loc,
     }
 }
 
-void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 *fb_loc, CARD32 *agp_loc, CARD32 *agp_loc_hi)
+static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, CARD32 *fb_loc, CARD32 *agp_loc, CARD32 *agp_loc_hi)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -3143,12 +3117,14 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     /* empty the surfaces */
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int j;
-    for (j = 0; j < 8; j++) {
-	OUTREG(RADEON_SURFACE0_INFO + 16 * j, 0);
-	OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * j, 0);
-	OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * j, 0);
+    {
+	unsigned char *RADEONMMIO = info->MMIO;
+	unsigned int j;
+	for (j = 0; j < 8; j++) {
+	    OUTREG(RADEON_SURFACE0_INFO + 16 * j, 0);
+	    OUTREG(RADEON_SURFACE0_LOWER_BOUND + 16 * j, 0);
+	    OUTREG(RADEON_SURFACE0_UPPER_BOUND + 16 * j, 0);
+	}
     }
 
 #ifdef XF86DRI
@@ -4031,7 +4007,7 @@ static void RADEONSavePalette(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 #endif
 
-void
+static void
 avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -4336,7 +4312,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
 }
 
-void
+static void
 avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -4636,7 +4612,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
 }
 
-void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)
+static void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -4760,7 +4736,7 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 }
 
 /* Restore the original (text) mode */
-void RADEONRestore(ScrnInfoPtr pScrn)
+static void RADEONRestore(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);

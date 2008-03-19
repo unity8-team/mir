@@ -675,9 +675,9 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
     unsigned long tmp;
     RADEONOutputPrivatePtr radeon_output;
     int tv_dac_change = 0, o;
-    radeon_output = output->driver_private;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
+    radeon_output = output->driver_private;
     for (o = 0; o < xf86_config->num_output; o++) {
 	if (output == xf86_config->output[o]) {
 	    break;

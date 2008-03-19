@@ -43,6 +43,7 @@
 #include "generic_bus.h"
 #include "theatre.h"
 #include "theatre_reg.h"
+#include "theatre_detect.h"
 
 static Bool theatre_read(TheatrePtr t,CARD32 reg, CARD32 *data)
 {

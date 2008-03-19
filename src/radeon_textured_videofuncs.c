@@ -80,10 +80,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     CARD32 txenable, colorpitch;
     CARD32 blendcntl;
     int dstxoff, dstyoff, pixel_shift;
-    VIDEO_PREAMBLE();
-
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
+    VIDEO_PREAMBLE();
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
 

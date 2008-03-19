@@ -102,7 +102,7 @@ ati_device_get_from_busid(int bus, int dev, int func)
 }
 
 static struct pci_device*
-ati_device_get_primary()
+ati_device_get_primary(void)
 {
     struct pci_device *device = NULL;
     struct pci_device_iterator *device_iter;

@@ -766,147 +766,204 @@ do {									\
     info->fifo_slots -= entries;					\
 } while (0)
 
-extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
-extern void        RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
-extern void        RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
+/* legacy_crtc.c */
+extern void legacy_crtc_dpms(xf86CrtcPtr crtc, int mode);
+extern void legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
+				 DisplayModePtr adjusted_mode, int x, int y);
+extern void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
+extern void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
+					 RADEONSavePtr restore);
+extern void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
+				       RADEONSavePtr restore);
+extern void RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
+					RADEONSavePtr restore);
+extern void RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
+				      RADEONSavePtr restore);
+extern void RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
+				       RADEONSavePtr restore);
+extern void RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
+/* legacy_output.c */
+extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn,
+					   xf86OutputPtr output);
+extern void legacy_output_dpms(xf86OutputPtr output, int mode);
+extern void legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
+				   DisplayModePtr adjusted_mode);
+extern I2CDevPtr RADEONDVODeviceInit(I2CBusPtr b, I2CSlaveAddr addr);
+extern Bool RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch);
+extern Bool RADEONDVOWriteByte(I2CDevPtr dvo, int addr, CARD8 ch);
+extern void RADEONRestoreDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+extern void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
+/* radeon_accel.c */
+extern Bool RADEONAccelInit(ScreenPtr pScreen);
+extern void RADEONEngineFlush(ScrnInfoPtr pScrn);
+extern void RADEONEngineInit(ScrnInfoPtr pScrn);
+extern void RADEONEngineReset(ScrnInfoPtr pScrn);
+extern void RADEONEngineRestore(ScrnInfoPtr pScrn);
+extern CARD8 *RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int cpp,
+				 unsigned int w, CARD32 dstPitchOff,
+				 CARD32 *bufPitch, int x, int *y,
+				 unsigned int *h, unsigned int *hpass);
+extern void RADEONHostDataBlitCopyPass(ScrnInfoPtr pScrn,
+				       unsigned int bpp,
+				       CARD8 *dst, CARD8 *src,
+				       unsigned int hpass,
+				       unsigned int dstPitch,
+				       unsigned int srcPitch);
+extern void  RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size, int swap);
+extern void RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst,
+				 CARD32 pitch, int cpp,
+				 CARD32 *dstPitchOffset, int *x, int *y);
+extern void RADEONInit3DEngine(ScrnInfoPtr pScrn);
+extern void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries);
 #ifdef XF86DRI
-extern int RADEONDRISetParam(ScrnInfoPtr pScrn, unsigned int param, int64_t value);
-extern void        RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
+extern drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn);
+extern void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
+extern void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
+extern int RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
+#  ifdef USE_XAA
+extern Bool RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen);
+#  endif
 #endif
 
-extern void        RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y,
-				       Bool clone);
-
-extern void        RADEONEngineReset(ScrnInfoPtr pScrn);
-extern void        RADEONEngineFlush(ScrnInfoPtr pScrn);
-extern void        RADEONEngineRestore(ScrnInfoPtr pScrn);
-
-extern unsigned    RADEONINPLL(ScrnInfoPtr pScrn, int addr);
-extern void        RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data);
-
-extern unsigned    RADEONINMC(ScrnInfoPtr pScrn, int addr);
-extern void        RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data);
-
-extern void        RADEONWaitForVerticalSync(ScrnInfoPtr pScrn);
-extern void        RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
-
-extern void        RADEONChangeSurfaces(ScrnInfoPtr pScrn);
-
-extern Bool        RADEONAccelInit(ScreenPtr pScreen);
-#ifdef USE_EXA
-extern Bool        RADEONSetupMemEXA (ScreenPtr pScreen);
-extern Bool        RADEONDrawInitMMIO(ScreenPtr pScreen);
-#ifdef XF86DRI
-extern unsigned long long RADEONTexOffsetStart(PixmapPtr pPix);
-extern Bool        RADEONGetDatatypeBpp(int bpp, CARD32 *type);
-extern Bool        RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
-					      CARD32 *pitch_offset);
-extern Bool        RADEONDrawInitCP(ScreenPtr pScreen);
-extern void        RADEONDoPrepareCopyCP(ScrnInfoPtr pScrn,
-					 CARD32 src_pitch_offset,
-					 CARD32 dst_pitch_offset,
-					 CARD32 datatype, int rop,
-					 Pixel planemask);
-extern void        RADEONCopyCP(PixmapPtr pDst, int srcX, int srcY, int dstX,
-				int dstY, int w, int h);
-#endif
-#endif
 #ifdef USE_XAA
-extern void        RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);
+/* radeon_accelfuncs.c */
+extern void RADEONAccelInitMMIO(ScreenPtr pScreen, XAAInfoRecPtr a);
+extern Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
 #endif
-extern void        RADEONEngineInit(ScrnInfoPtr pScrn);
-extern Bool        RADEONCursorInit(ScreenPtr pScreen);
-extern Bool        RADEONDGAInit(ScreenPtr pScreen);
 
-extern void        RADEONInit3DEngine(ScrnInfoPtr pScrn);
+/* radeon_bios.c */
+extern Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
+extern Bool RADEONGetClockInfoFromBIOS(ScrnInfoPtr pScrn);
+extern Bool RADEONGetConnectorInfoFromBIOS(ScrnInfoPtr pScrn);
+extern Bool RADEONGetDAC2InfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetExtTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetHardCodedEDIDFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn);
+extern Bool RADEONGetLVDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetTVInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
+extern Bool RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn);
 
-extern int         RADEONMinBits(int val);
+/* radeon_commonfuncs.c */
+#ifdef XF86DRI
+extern void RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
+#endif
+extern void RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 
-extern void        RADEONInitVideo(ScreenPtr pScreen);
-extern void        RADEONResetVideo(ScrnInfoPtr pScrn);
-extern void        R300CGWorkaround(ScrnInfoPtr pScrn);
-
-extern void        RADEONPllErrataAfterIndex(RADEONInfoPtr info);
-extern void        RADEONPllErrataAfterData(RADEONInfoPtr info);
-
-extern Bool        RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
-extern Bool        RADEONGetConnectorInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn);
-extern Bool        RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output);
-extern Bool        RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output);
-extern Bool        RADEONGetTVInfoFromBIOS (xf86OutputPtr output);
-extern Bool        RADEONGetDAC2InfoFromBIOS (xf86OutputPtr output);
-extern Bool        RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output);
-
-extern void        RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
-						RADEONSavePtr restore);
-extern void        RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
-					      RADEONSavePtr restore);
-extern void        RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
-					     RADEONSavePtr restore);
-extern void        RADEONRestoreFPRegisters(ScrnInfoPtr pScrn,
-					    RADEONSavePtr restore);
-extern void        RADEONRestoreFP2Registers(ScrnInfoPtr pScrn,
-					     RADEONSavePtr restore);
-extern void        RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn,
-					      RADEONSavePtr restore);
-extern void        RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn,
-					     RADEONSavePtr restore);
-extern void        RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
-					     RADEONSavePtr restore);
-extern void        RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
-					       RADEONSavePtr restore);
-extern void        RADEONRestorePLL2Registers(ScrnInfoPtr pScrn,
-					      RADEONSavePtr restore);
-
-extern void        RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
-extern Bool        RADEONI2cInit(ScrnInfoPtr pScrn);
-extern Bool        RADEONSetupConnectors(ScrnInfoPtr pScrn);
-extern void        RADEONPrintPortMap(ScrnInfoPtr pScrn);
-extern void        RADEONDisableDisplays(ScrnInfoPtr pScrn);
-extern void        RADEONGetPanelInfo(ScrnInfoPtr pScrn);
-extern void        RADEONUnblank(ScrnInfoPtr pScrn);
-extern void        RADEONUnblank(ScrnInfoPtr pScrn);
-extern void        RADEONBlank(ScrnInfoPtr pScrn);
-extern Bool        RADEONSetTiling(ScrnInfoPtr pScrn);
+/* radeon_crtc.c */
+extern void radeon_crtc_load_lut(xf86CrtcPtr crtc);
 extern Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask);
-extern Bool RADEONAllocateConnectors(ScrnInfoPtr pScrn);
+extern void RADEONBlank(ScrnInfoPtr pScrn);
+extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq,
+			     CARD32 *chosen_dot_clock_freq,
+			     CARD32 *chosen_feedback_div,
+			     CARD32 *chosen_reference_div,
+			     CARD32 *chosen_post_div, int flags);
+extern DisplayModePtr RADEONCrtcFindClosestMode(xf86CrtcPtr crtc,
+						DisplayModePtr pMode);
+extern void RADEONUnblank(ScrnInfoPtr pScrn);
+extern Bool RADEONSetTiling(ScrnInfoPtr pScrn);
 
-extern void RADEONSetPitch (ScrnInfoPtr pScrn);
-extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
+/* radeon_cursor.c */
+extern Bool RADEONCursorInit(ScreenPtr pScreen);
+extern void radeon_crtc_hide_cursor(xf86CrtcPtr crtc);
+extern void radeon_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
+extern void radeon_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
+extern void radeon_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
+extern void radeon_crtc_show_cursor(xf86CrtcPtr crtc);
 
-extern DisplayModePtr
-RADEONProbeOutputModes(xf86OutputPtr output);
+/* radeon_dga.c */
+extern Bool RADEONDGAInit(ScreenPtr pScreen);
 
-extern Bool
-RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch);
-extern Bool
-RADEONDVOWriteByte(I2CDevPtr dvo, int addr, CARD8 ch);
-extern Bool
-RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output);
-extern Bool
-RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
+#ifdef XF86DRI
+/* radeon_dri.c */
+extern void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
+extern void RADEONDRICloseScreen(ScreenPtr pScreen);
+extern Bool RADEONDRIFinishScreenInit(ScreenPtr pScreen);
+extern int RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn);
+extern Bool RADEONDRIGetVersion(ScrnInfoPtr pScrn);
+extern void RADEONDRIResume(ScreenPtr pScreen);
+extern Bool RADEONDRIScreenInit(ScreenPtr pScreen);
+extern int RADEONDRISetParam(ScrnInfoPtr pScrn,
+			     unsigned int param, int64_t value);
+extern Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on);
+extern void RADEONDRIStop(ScreenPtr pScreen);
+#endif
 
-extern RADEONI2CBusRec
-legacy_setup_i2c_bus(int ddc_line);
-extern RADEONI2CBusRec
-atom_setup_i2c_bus(int ddc_line);
+/* radeon_driver.c */
+extern void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool clone);
+extern void RADEONChangeSurfaces(ScrnInfoPtr pScrn);
+extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
+extern int RADEONMinBits(int val);
+extern unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr);
+extern unsigned RADEONINPLL(ScrnInfoPtr pScrn, int addr);
+extern void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, CARD32 data);
+extern void RADEONOUTPLL(ScrnInfoPtr pScrn, int addr, CARD32 data);
+extern void RADEONPllErrataAfterData(RADEONInfoPtr info);
+extern void RADEONPllErrataAfterIndex(RADEONInfoPtr info);
+extern void RADEONWaitForVerticalSync(ScrnInfoPtr pScrn);
+extern void RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
 
-extern void
-radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
-extern void
-radeon_crtc_show_cursor (xf86CrtcPtr crtc);
-extern void
-radeon_crtc_hide_cursor (xf86CrtcPtr crtc);
-extern void
-radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y);
-extern void
-radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
-extern void
-radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image);
-extern void
-radeon_crtc_load_lut(xf86CrtcPtr crtc);
+#ifdef USE_EXA
+/* radeon_exa.c */
+extern Bool RADEONSetupMemEXA(ScreenPtr pScreen);
 
+/* radeon_exa_funcs.c */
+extern void RADEONCopyCP(PixmapPtr pDst, int srcX, int srcY, int dstX,
+			 int dstY, int w, int h);
+extern void RADEONCopyMMIO(PixmapPtr pDst, int srcX, int srcY, int dstX,
+			   int dstY, int w, int h);
+extern Bool RADEONDrawInitCP(ScreenPtr pScreen);
+extern Bool RADEONDrawInitMMIO(ScreenPtr pScreen);
+extern void RADEONDoPrepareCopyCP(ScrnInfoPtr pScrn,
+				  CARD32 src_pitch_offset,
+				  CARD32 dst_pitch_offset,
+				  CARD32 datatype, int rop,
+				  Pixel planemask);
+extern void RADEONDoPrepareCopyMMIO(ScrnInfoPtr pScrn,
+				    CARD32 src_pitch_offset,
+				    CARD32 dst_pitch_offset,
+				    CARD32 datatype, int rop,
+				    Pixel planemask);
+#endif
+
+#if defined(XF86DRI) && defined(USE_EXA)
+/* radeon_exa.c */
+extern Bool RADEONGetDatatypeBpp(int bpp, CARD32 *type);
+extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
+				       CARD32 *pitch_offset);
+extern unsigned long long RADEONTexOffsetStart(PixmapPtr pPix);
+#endif
+
+/* radeon_modes.c */
+extern void RADEONSetPitch(ScrnInfoPtr pScrn);
+extern DisplayModePtr RADEONProbeOutputModes(xf86OutputPtr output);
+
+/* radeon_output.c */
+extern RADEONI2CBusRec atom_setup_i2c_bus(int ddc_line);
+extern RADEONI2CBusRec legacy_setup_i2c_bus(int ddc_line);
+extern void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output);
+extern void RADEONGetPanelInfo(ScrnInfoPtr pScrn);
+extern void RADEONInitConnector(xf86OutputPtr output);
+extern void RADEONPrintPortMap(ScrnInfoPtr pScrn);
+extern void RADEONSetOutputType(ScrnInfoPtr pScrn,
+				RADEONOutputPrivatePtr radeon_output);
+extern Bool RADEONSetupConnectors(ScrnInfoPtr pScrn);
+
+/* radeon_tv.c */
+extern void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 					   DisplayModePtr mode, xf86OutputPtr output);
 extern void RADEONAdjustPLLRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
@@ -917,47 +974,18 @@ extern void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save
 					  DisplayModePtr mode, xf86OutputPtr output);
 extern void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
                                   DisplayModePtr mode, BOOL IsPrimary);
-
 extern void RADEONRestoreTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
+extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 
-extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq, CARD32 *chosen_dot_clock_freq,
-		CARD32 *chosen_feedback_div, CARD32 *chosen_reference_div,
-		CARD32 *chosen_post_div, int flags);
+/* radeon_video.c */
+extern void RADEONInitVideo(ScreenPtr pScreen);
+extern void RADEONResetVideo(ScrnInfoPtr pScrn);
 
 #ifdef XF86DRI
-#ifdef USE_XAA
-extern void        RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
-#endif
-extern Bool        RADEONDRIGetVersion(ScrnInfoPtr pScrn);
-extern Bool        RADEONDRIScreenInit(ScreenPtr pScreen);
-extern void        RADEONDRICloseScreen(ScreenPtr pScreen);
-extern void        RADEONDRIResume(ScreenPtr pScreen);
-extern Bool        RADEONDRIFinishScreenInit(ScreenPtr pScreen);
-extern void        RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen);
-extern int         RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn);
-extern void        RADEONDRIStop(ScreenPtr pScreen);
-
-extern drmBufPtr   RADEONCPGetBuffer(ScrnInfoPtr pScrn);
-extern void        RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard);
-extern void        RADEONCPReleaseIndirect(ScrnInfoPtr pScrn);
-extern int         RADEONCPStop(ScrnInfoPtr pScrn,  RADEONInfoPtr info);
-extern Bool RADEONDRISetVBlankInterrupt(ScrnInfoPtr pScrn, Bool on);
-
-extern void        RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst,
-					CARD32 pitch, int cpp,
-					CARD32 *dstPitchOffset, int *x, int *y);
-extern CARD8*      RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int cpp,
-				      unsigned int w, CARD32 dstPitchOff,
-				      CARD32 *bufPitch, int x, int *y,
-				      unsigned int *h, unsigned int *hpass);
-extern void        RADEONHostDataBlitCopyPass(ScrnInfoPtr pScrn,
-					      unsigned int bpp,
-					      CARD8 *dst, CARD8 *src,
-					      unsigned int hpass,
-					      unsigned int dstPitch,
-					      unsigned int srcPitch);
-extern void        RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size,
-				  int swap);
+#  ifdef USE_XAA
+/* radeon_accelfuncs.c */
+extern void RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
+#  endif
 
 #define RADEONCP_START(pScrn, info)					\
 do {									\

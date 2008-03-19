@@ -27,7 +27,7 @@
 # include "config.h"
 #endif
 
-//#include "radeon_atomwrapper.h"
+#include "radeon_atomwrapper.h"
 
 #define INT32 INT32
 #include "CD_Common_Types.h"

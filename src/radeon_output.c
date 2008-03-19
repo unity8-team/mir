@@ -178,15 +178,9 @@ static Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state);
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
-extern void legacy_output_mode_set(xf86OutputPtr output,
-				   DisplayModePtr mode,
-				   DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
-extern void legacy_output_dpms(xf86OutputPtr output, int mode);
 extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
-extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
-extern I2CDevPtr RADEONDVODeviceInit(I2CBusPtr b, I2CSlaveAddr addr);
 static void
 radeon_bios_output_dpms(xf86OutputPtr output, int mode);
 static void
@@ -2807,11 +2801,12 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
+	    RADEONOutputPrivatePtr radeon_output;
 
 	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE)
 		continue;
 
-	    RADEONOutputPrivatePtr radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
+	    radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
 	    if (!radeon_output) {
 		return FALSE;
 	    }

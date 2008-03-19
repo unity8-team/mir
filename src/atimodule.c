@@ -27,8 +27,6 @@
 #include "ati.h"
 #include "ativersion.h"
 
-extern void ati_gdev_subdriver(pointer options);
-
 /* Module loader interface */
 
 static XF86ModuleVersionInfo ATIVersionRec =
