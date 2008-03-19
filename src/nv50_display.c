@@ -205,6 +205,7 @@ Bool
 NV50DispInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	uint32_t val;
 	if (NVRead(pNv, 0x00610024) & 0x100) {
 		NVWrite(pNv, 0x00610024, 0x100);
 		NVWrite(pNv, 0x006194e8, NVRead(pNv, 0x006194e8) & ~1);
@@ -214,13 +215,13 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	NVWrite(pNv, 0x00610200, 0x2b00);
 	/* A bugfix (#12637) from the nv driver, to unlock the driver if it's left in a poor state */
 	do {
-		CARD32 val = NVRead(pNv, 0x00610200);
+		val = NVRead(pNv, 0x00610200);
 		if ((val & 0x9f0000) == 0x20000)
 			NVWrite(pNv, 0x00610200, val | 0x800000);
 
 		if ((val & 0x3f0000) == 0x30000)
 			NVWrite(pNv, 0x00610200, val | 0x200000);
-	} while ((NVRead(pNv, 0x00610200) & 0x1e0000) != 0);
+	} while ((val & 0x1e0000) != 0);
 	NVWrite(pNv, 0x00610300, 0x1);
 	NVWrite(pNv, 0x00610200, 0x1000b03);
 	while (!(NVRead(pNv, 0x00610200) & 0x40000000));
