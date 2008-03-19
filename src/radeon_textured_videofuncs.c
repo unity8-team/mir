@@ -130,7 +130,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
 	int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
 		       (info->ChipFamily != CHIP_FAMILY_RS740) &&
-		       (info->ChipFamily != CHIP_FAMILY_RS400));
+		       (info->ChipFamily != CHIP_FAMILY_RS400) &&
+		       (info->ChipFamily != CHIP_FAMILY_RV515));
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:

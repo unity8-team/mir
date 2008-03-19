@@ -1042,7 +1042,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     int pixel_shift;
     int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
 		   (info->ChipFamily != CHIP_FAMILY_RS740) &&
-		   (info->ChipFamily != CHIP_FAMILY_RS400));
+		   (info->ChipFamily != CHIP_FAMILY_RS400) &&
+		   (info->ChipFamily != CHIP_FAMILY_RV515));
     ACCEL_PREAMBLE();
 
     TRACE;
