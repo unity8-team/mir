@@ -436,6 +436,10 @@ typedef struct _NVRec {
 	Bool randr12_enable;
 	Bool new_restore;
 
+	/* Needed to wrap the NV50 i2c stuff. */
+	Bool		(*I2CStart) (I2CBusPtr b, int timeout);
+	void		(*I2CStop) (I2CDevPtr d);
+
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
 	struct {

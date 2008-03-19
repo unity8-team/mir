@@ -146,4 +146,8 @@
 #define NV50_CRTC1_FB_POS			0xCC0
 #define NV50_CRTC1_SCRN_SIZE		0xCC8
 
+/* misc stuff */
+#define NV50_I2C_START		0x7
+#define NV50_I2C_STOP		0x3
+
 #endif /* __NV50REG_H_ */

@@ -385,7 +385,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT->offset >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_UNBLANK);
-		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL_BLANK, NV50_CRTC0_BLANK_CTRL_UNBLANK);
+		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_UNBLANK);
      }
 }
 
