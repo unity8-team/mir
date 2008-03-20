@@ -206,8 +206,8 @@ NV50DispInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t val;
-	if (NVRead(pNv, 0x00610024) & 0x100) {
-		NVWrite(pNv, 0x00610024, 0x100);
+	if (NVRead(pNv, NV50_DISPLAY_SUPERVISOR) & 0x100) {
+		NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, 0x100);
 		NVWrite(pNv, 0x006194e8, NVRead(pNv, 0x006194e8) & ~1);
 		while (NVRead(pNv, 0x006194e8) & 2);
 	}
@@ -222,7 +222,7 @@ NV50DispInit(ScrnInfoPtr pScrn)
 		if ((val & 0x3f0000) == 0x30000)
 			NVWrite(pNv, 0x00610200, val | 0x200000);
 	} while ((val & 0x1e0000) != 0);
-	NVWrite(pNv, 0x00610300, 0x1);
+	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, NV50_DISPLAY_CTRL_STATE_ENABLE);
 	NVWrite(pNv, 0x00610200, 0x1000b03);
 	while (!(NVRead(pNv, 0x00610200) & 0x40000000));
 
@@ -254,17 +254,22 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 
 	for(i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 		if(crtc->enabled) {
-			const CARD32 mask = 4 << NV50CrtcGetHead(crtc);
+			uint32_t mask = 0;
+			if (nv_crtc->head == 1)
+				mask = NV50_DISPLAY_SUPERVISOR_DISABLE_CRTC1;
+			else 
+				mask = NV50_DISPLAY_SUPERVISOR_DISABLE_CRTC0;
 
-			NVWrite(pNv, 0x00610024, mask);
-			while(!(NVRead(pNv, 0x00610024) & mask));
+			NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, mask);
+			while(!(NVRead(pNv, NV50_DISPLAY_SUPERVISOR) & mask));
 		}
 	}
 
 	NVWrite(pNv, 0x00610200, 0x0);
-	NVWrite(pNv, 0x00610300, 0x0);
+	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, NV50_DISPLAY_CTRL_STATE_DISABLE);
 	while ((NVRead(pNv, 0x00610200) & 0x1e0000) != 0);
 	while ((NVRead(pNv, 0x0061c030 + SOR0 * 0x800) & 0x10000000));
 	while ((NVRead(pNv, 0x0061c030 + SOR1 * 0x800) & 0x10000000));

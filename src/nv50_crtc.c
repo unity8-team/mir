@@ -27,12 +27,12 @@
 void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	while (NVRead(pNv, 0x00610300) & 0x80000000) {
-		/* What does is the meaning of this? */
-		const int super = ffs((NVRead(pNv, 0x00610024) >> 4) & 0x7);
+	while (NVRead(pNv, NV50_DISPLAY_CTRL_STATE) & NV50_DISPLAY_CTRL_STATE_PENDING) {
+		/* An educated guess. */
+		const int supervisor = NVRead(pNv, NV50_DISPLAY_SUPERVISOR);
 
-		if (super > 0) {
-			if (super == 2) {
+		if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) {
+			if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_UPDATE) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 				const CARD32 clockvar = NVRead(pNv, 0x00610030);
 				int i;
@@ -47,7 +47,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 				}
 			}
 
-			NVWrite(pNv, 0x00610024, 1 << (3 + super));
+			NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, 1 << (ffs(supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) - 1));
 			NVWrite(pNv, 0x00610030, 0x80000000);
 		}
 	}
@@ -56,8 +56,8 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	NVWrite(pNv, 0x00610304, value);
-	NVWrite(pNv, 0x00610300, addr | 0x80010001);
+	NVWrite(pNv, NV50_DISPLAY_CTRL_VAL, value);
+	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, addr | 0x10000 | NV50_DISPLAY_CTRL_STATE_ENABLE | NV50_DISPLAY_CTRL_STATE_PENDING);
 	NV50CheckWriteVClk(pScrn);
 }
 
