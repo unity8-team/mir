@@ -34,21 +34,27 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 		if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) {
 			if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_UPDATE) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-				const CARD32 clockvar = NVRead(pNv, 0x00610030);
+				const CARD32 clockvar = NVRead(pNv, NV50_DISPLAY_UNK30_CTRL);
 				int i;
 
 				for(i = 0; i < xf86_config->num_crtc; i++) {
 					xf86CrtcPtr crtc = xf86_config->crtc[i];
 					NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+					uint32_t mask = 0;
 
-					if (clockvar & (1 << (9 + nv_crtc->head))) {
+					if (nv_crtc->head == 1)
+						mask = NV50_DISPLAY_UNK30_CTRL_UPDATE_VCLK1;
+					else
+						mask = NV50_DISPLAY_UNK30_CTRL_UPDATE_VCLK0;
+
+					if (clockvar & mask) {
 						NV50CrtcSetPClk(crtc);
 					}
 				}
 			}
 
 			NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, 1 << (ffs(supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) - 1));
-			NVWrite(pNv, 0x00610030, 0x80000000);
+			NVWrite(pNv, NV50_DISPLAY_UNK30_CTRL, NV50_DISPLAY_UNK30_CTRL_PENDING);
 		}
 	}
 }
