@@ -51,22 +51,22 @@ NV50DacDPMSSet(xf86OutputPtr output, int mode)
 	 * DPMSModeSuspend  hsync enabled, vsync disabled
 	 * DPMSModeOff      sync disabled
 	 */
-	while(NVRead(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800) & 0x80000000);
+	while(NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_DAC_DPMS_CTRL_PENDING);
 
-	tmp = NVRead(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800);
+	tmp = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 	tmp &= ~0x7f;
-	tmp |= 0x80000000;
+	tmp |= NV50_DAC_DPMS_CTRL_PENDING;
 
 	if(mode == DPMSModeStandby || mode == DPMSModeOff)
-		tmp |= 1;
+		tmp |= NV50_DAC_DPMS_CTRL_HSYNC_OFF;
 	if(mode == DPMSModeSuspend || mode == DPMSModeOff)
-		tmp |= 4;
+		tmp |= NV50_DAC_DPMS_CTRL_VSYNC_OFF;
 	if(mode != DPMSModeOn)
-		tmp |= 0x10;
+		tmp |= NV50_DAC_DPMS_CTRL_BLANK;
 	if(mode == DPMSModeOff)
-		tmp |= 0x40;
+		tmp |= NV50_DAC_DPMS_CTRL_OFF;
 
-	NVWrite(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800, tmp);
+	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, tmp);
 }
 
 Bool

@@ -24,15 +24,30 @@
 #ifndef __NV50REG_H_
 #define __NV50REG_H_
 
+
+/* Clamped to 256 MiB */
+#define NV50_CRTC0_RAM_AMOUNT		0x00610384
+#define NV50_CRTC1_RAM_AMOUNT		0x00610784
+
 /* These are probably redrirected from 0x4000 range (very similar regs to nv40, maybe different order) */
 #define NV50_CRTC_VPLL1_A		0x00614104
 #define NV50_CRTC_VPLL1_B		0x00614108
 #define NV50_CRTC_VPLL2_A		0x00614904
 #define NV50_CRTC_VPLL2_B		0x00614908
 
-/* Clamped to 256 MiB */
-#define NV50_CRTC0_RAM_AMOUNT		0x00610384
-#define NV50_CRTC1_RAM_AMOUNT		0x00610784
+#define NV50_DAC0_DPMS_CTRL	0x0061A004
+#define NV50_DAC1_DPMS_CTRL	0x0061A804
+#define NV50_DAC2_DPMS_CTRL	0x0061B004
+	#define	NV50_DAC_DPMS_CTRL_HSYNC_OFF		(1 << 0)
+	#define	NV50_DAC_DPMS_CTRL_VSYNC_OFF		(1 << 2)
+	#define	NV50_DAC_DPMS_CTRL_BLANK			(1 << 4)
+	#define	NV50_DAC_DPMS_CTRL_OFF			(1 << 6)
+	#define	NV50_DAC_DPMS_CTRL_PENDING		(1 << 31)
+
+#define NV50_SOR0_DPMS_CTRL	0x0061C004
+#define NV50_SOR1_DPMS_CTRL	0x0061C804
+	#define	NV50_SOR_DPMS_CTRL_MODE_ON	(1 << 0)
+	#define	NV50_SOR_DPMS_CTRL_PENDING	(1 << 31)
 
 /* These things below are so called "commands" */
 #define NV50_UPDATE_DISPLAY		0x80

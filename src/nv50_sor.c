@@ -47,17 +47,17 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
 
-	while((NVRead(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800) & 0x80000000));
+	while((NVRead(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_CTRL_PENDING));
 
-	tmp = NVRead(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800);
-	tmp |= 0x80000000;
+	tmp = NVRead(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
+	tmp |= NV50_SOR_DPMS_CTRL_PENDING;
 
 	if(mode == DPMSModeOn)
-		tmp |= 1;
+		tmp |= NV50_SOR_DPMS_CTRL_MODE_ON;
 	else
-		tmp &= ~1;
+		tmp &= ~NV50_SOR_DPMS_CTRL_MODE_ON;
 
-	NVWrite(pNv, 0x0061c004 + NV50OrOffset(output) * 0x800, tmp);
+	NVWrite(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800, tmp);
 	while((NVRead(pNv, 0x0061c030 + NV50OrOffset(output) * 0x800) & 0x10000000));
 }
 
