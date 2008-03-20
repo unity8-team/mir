@@ -92,32 +92,44 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = output->scrn;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int sorOff = 0x40 * NV50OrOffset(output);
-	CARD32 type;
+	uint32_t mode_ctl = NV50_SOR_MODE_CTRL_OFF;
 
-	if(!adjusted_mode) {
+	if (!adjusted_mode) {
 		/* Disconnect the SOR */
-		NV50DisplayCommand(pScrn, 0x600 + sorOff, 0);
+		NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
 		return;
 	}
 
 	if (nv_output->type == OUTPUT_LVDS) {
-		type = 0;
-	} else
-	if (adjusted_mode->Clock > 165000) {
-		type = 0x500;
+		mode_ctl |= NV50_SOR_MODE_CTRL_LVDS;
 	} else {
-		type = 0x100;
+		mode_ctl |= NV50_SOR_MODE_CTRL_TMDS;
+		if (adjusted_mode->Clock > 165000)
+			mode_ctl |= NV50_SOR_MODE_CTRL_TMDS_DUAL_LINK;
 	}
+
+	if (output->crtc) {
+		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		if (nv_crtc->head == 1)
+			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC1;
+		else
+			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC0;
+	} else {
+		return;
+	}
+
+	if (adjusted_mode->Flags & V_NHSYNC)
+		mode_ctl |= NV50_SOR_MODE_CTRL_NHSYNC;
+
+	if (adjusted_mode->Flags & V_NVSYNC)
+		mode_ctl |= NV50_SOR_MODE_CTRL_NVSYNC;
 
 	// This wouldn't be necessary, but the server is stupid and calls
 	// NV50SorDPMSSet after the output is disconnected, even though the hardware
 	// turns it off automatically.
 	NV50SorDPMSSet(output, DPMSModeOn);
 
-	NV50DisplayCommand(pScrn, 0x600 + sorOff,
-		(NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | type |
-		((adjusted_mode->Flags & V_NHSYNC) ? 0x1000 : 0) |
-		((adjusted_mode->Flags & V_NVSYNC) ? 0x2000 : 0));
+	NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
 
 	NV50CrtcSetScale(output->crtc, adjusted_mode, nv_output->scaling_mode);
 }

@@ -52,6 +52,17 @@
 /* These things below are so called "commands" */
 #define NV50_UPDATE_DISPLAY		0x80
 
+#define NV50_SOR0_MODE_CTRL		0x600
+	#define NV50_SOR_MODE_CTRL_OFF			(0 << 0)
+	#define NV50_SOR_MODE_CTRL_CRTC0			(1 << 0)
+	#define NV50_SOR_MODE_CTRL_CRTC1			(1 << 1)
+	#define NV50_SOR_MODE_CTRL_LVDS			(0 << 8)
+	#define NV50_SOR_MODE_CTRL_TMDS			(1 << 8)
+	#define NV50_SOR_MODE_CTRL_TMDS_DUAL_LINK	(4 << 8)
+	#define NV50_SOR_MODE_CTRL_NHSYNC			(1 << 12)
+	#define NV50_SOR_MODE_CTRL_NVSYNC			(2 << 12)
+#define NV50_SOR1_MODE_CTRL		0x640
+
 #define NV50_CRTC0_CLOCK			0x804
 #define NV50_CRTC0_INTERLACE		0x808
 
