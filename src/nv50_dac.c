@@ -82,23 +82,41 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	const int dacOff = 0x80 * NV50OrOffset(output);
+	uint32_t mode_ctl = NV50_DAC_MODE_CTRL_OFF;
+	uint32_t mode_ctl2 = 0;
 
-	if(!adjusted_mode) {
-		NV50DisplayCommand(pScrn, 0x400 + dacOff, 0);
+	if (!adjusted_mode) {
+		NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL + dacOff, mode_ctl);
 		return;
 	}
+
+	if (output->crtc) {
+		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+		if (nv_crtc->head == 1)
+			mode_ctl |= NV50_DAC_MODE_CTRL_CRTC1;
+		else
+			mode_ctl |= NV50_DAC_MODE_CTRL_CRTC0;
+	} else {
+		return;
+	}
+
+	/* What is this? */
+	mode_ctl |= 0x40;
+
+	if (adjusted_mode->Flags & V_NHSYNC)
+		mode_ctl2 |= NV50_DAC_MODE_CTRL2_NHSYNC;
+
+	if (adjusted_mode->Flags & V_NVSYNC)
+		mode_ctl2 |= NV50_DAC_MODE_CTRL2_NVSYNC;
 
 	// This wouldn't be necessary, but the server is stupid and calls
 	// NV50DacDPMSSet after the output is disconnected, even though the hardware
 	// turns it off automatically.
 	NV50DacDPMSSet(output, DPMSModeOn);
 
-	NV50DisplayCommand(pScrn, 0x400 + dacOff,
-		(NV50CrtcGetHead(output->crtc) == HEAD0 ? 1 : 2) | 0x40);
+	NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL + dacOff, mode_ctl);
 
-	NV50DisplayCommand(pScrn, 0x404 + dacOff,
-		(adjusted_mode->Flags & V_NHSYNC) ? 1 : 0 |
-		(adjusted_mode->Flags & V_NVSYNC) ? 2 : 0);
+	NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL2 + dacOff, mode_ctl2);
 
 	NV50CrtcSetScale(output->crtc, adjusted_mode, SCALE_PANEL);
 }

@@ -52,6 +52,19 @@
 /* These things below are so called "commands" */
 #define NV50_UPDATE_DISPLAY		0x80
 
+#define NV50_DAC0_MODE_CTRL		0x400
+	#define NV50_DAC_MODE_CTRL_OFF			(0 << 0)
+	#define NV50_DAC_MODE_CTRL_CRTC0			(1 << 0)
+	#define NV50_DAC_MODE_CTRL_CRTC1			(1 << 1)
+#define NV50_DAC1_MODE_CTRL		0x480
+#define NV50_DAC2_MODE_CTRL		0x500
+
+#define NV50_DAC0_MODE_CTRL2		0x404
+	#define NV50_DAC_MODE_CTRL2_NHSYNC			(1 << 0)
+	#define NV50_DAC_MODE_CTRL2_NVSYNC			(2 << 0)
+#define NV50_DAC1_MODE_CTRL2		0x484
+#define NV50_DAC2_MODE_CTRL2		0x504
+
 #define NV50_SOR0_MODE_CTRL		0x600
 	#define NV50_SOR_MODE_CTRL_OFF			(0 << 0)
 	#define NV50_SOR_MODE_CTRL_CRTC0			(1 << 0)
