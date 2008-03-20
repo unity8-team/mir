@@ -159,10 +159,10 @@ NV50DacLoadDetect(xf86OutputPtr output)
 		NV50OrOffset(output));
 
 	NVWrite(pNv, 0x0061a010 + NV50OrOffset(output) * 0x800, 0x00000001);
-	tmp2 = NVRead(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800);
+	tmp2 = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 
-	NVWrite(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800, 0x80150000);
-	while(NVRead(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800) & 0x80000000);
+	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, 0x00150000 | NV50_DAC_DPMS_CTRL_PENDING);
+	while(NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_DAC_DPMS_CTRL_PENDING);
 	tmp = (pNv->NVArch == 0x50) ? 420 : 340;
 	NVWrite(pNv, 0x0061a00c + NV50OrOffset(output) * 0x800, tmp | 0x100000);
 	sigstate = xf86BlockSIGIO();
@@ -170,7 +170,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
 	xf86UnblockSIGIO(sigstate);
 	load = NVRead(pNv, 0x0061a00c + NV50OrOffset(output) * 0x800);
 	NVWrite(pNv, 0x0061a00c + NV50OrOffset(output) * 0x800, 0);
-	NVWrite(pNv, 0x0061a004 + NV50OrOffset(output) * 0x800, 0x80000000 | tmp2);
+	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, NV50_DAC_DPMS_CTRL_PENDING | tmp2);
 
 	// Use this DAC if all three channels show load.
 	if((load & 0x38000000) == 0x38000000) {
