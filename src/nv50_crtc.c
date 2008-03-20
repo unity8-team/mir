@@ -29,12 +29,12 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	while (NVRead(pNv, NV50_DISPLAY_CTRL_STATE) & NV50_DISPLAY_CTRL_STATE_PENDING) {
 		/* An educated guess. */
-		const int supervisor = NVRead(pNv, NV50_DISPLAY_SUPERVISOR);
+		const uint32_t supervisor = NVRead(pNv, NV50_DISPLAY_SUPERVISOR);
 
 		if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) {
 			if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_UPDATE) {
 				xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-				const CARD32 clockvar = NVRead(pNv, NV50_DISPLAY_UNK30_CTRL);
+				const uint32_t clockvar = NVRead(pNv, NV50_DISPLAY_UNK30_CTRL);
 				int i;
 
 				for(i = 0; i < xf86_config->num_crtc; i++) {
