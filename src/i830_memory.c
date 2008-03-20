@@ -2015,3 +2015,25 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 
     return maxPages * 4;
 }
+
+/*
+ * Allocate memory for MC compensation
+ */
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
+                               i830_memory **buffer, unsigned long size,
+                               int flags)
+{
+    *buffer = i830_allocate_memory(pScrn, name, size,
+                                   GTT_PAGE_SIZE, flags);
+
+    if (!*buffer) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to allocate memory for %s.\n", name);
+        return FALSE;
+    }
+
+    if (!i830_bind_memory(pScrn, *buffer))
+	return FALSE;
+
+    return TRUE;
+}

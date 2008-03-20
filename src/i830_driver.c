@@ -199,6 +199,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_bios.h"
 #include "i830_video.h"
 
+#ifdef INTEL_XVMC
+#define _INTEL_XVMC_SERVER_
+#include "i830_hwmc.h"
+#endif
+
 #ifdef XF86DRI
 #include "dri.h"
 #include <sys/ioctl.h>
@@ -298,7 +303,10 @@ typedef enum {
    OPTION_INTELTEXPOOL,
 #endif
    OPTION_TRIPLEBUFFER,
-   OPTION_FORCEENABLEPIPEA
+   OPTION_FORCEENABLEPIPEA,
+#ifdef INTEL_XVMC
+   OPTION_XVMC,
+#endif
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -322,6 +330,9 @@ static OptionInfoRec I830Options[] = {
 #endif
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
+#ifdef INTEL_XVMC
+   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
+#endif
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -1618,6 +1629,15 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, from, "Triple buffering %sabled\n",
 	      pI830->TripleBuffer ? "en" : "dis");
+#endif
+
+#ifdef INTEL_XVMC
+   pI830->XvMCEnabled = FALSE;
+   from =  (!pI830->directRenderingDisabled &&
+	    xf86GetOptValBool(pI830->Options, OPTION_XVMC,
+			      &pI830->XvMCEnabled)) ? X_CONFIG : X_DEFAULT;
+   xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
+	   pI830->XvMCEnabled ? "en" : "dis");
 #endif
 
    /*
@@ -3078,6 +3098,12 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void
 I830FreeScreen(int scrnIndex, int flags)
 {
+#ifdef INTEL_XVMC
+    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    if (pI830->XvMCEnabled)
+	intel_xvmc_finish(xf86Screens[scrnIndex]);
+#endif
    I830FreeRec(xf86Screens[scrnIndex]);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);

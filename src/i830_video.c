@@ -75,6 +75,12 @@
 #include "dixstruct.h"
 #include "fourcc.h"
 
+#ifdef INTEL_XVMC
+#define _INTEL_XVMC_SERVER_
+#include "i830_hwmc.h"
+#include "i915_hwmc.h"
+#endif
+
 #ifndef USE_USLEEP_FOR_VIDEO
 #define USE_USLEEP_FOR_VIDEO 0
 #endif
@@ -254,13 +260,39 @@ static XF86AttributeRec GammaAttributes[GAMMA_ATTRIBUTES] = {
     {XvSettable | XvGettable, 0, 0xffffff, "XV_GAMMA5"}
 };
 
-#define NUM_IMAGES 4
+#define NUM_IMAGES 5
 
 static XF86ImageRec Images[NUM_IMAGES] = {
     XVIMAGE_YUY2,
     XVIMAGE_YV12,
     XVIMAGE_I420,
-    XVIMAGE_UYVY
+    XVIMAGE_UYVY,
+#ifdef INTEL_XVMC
+    {
+        /*
+         * Below, a dummy picture type that is used in XvPutImage only to do
+         * an overlay update. Introduced for the XvMC client lib.
+         * Defined to have a zero data size.
+         */
+        FOURCC_XVMC,
+        XvYUV,
+        LSBFirst,
+        {'X', 'V', 'M', 'C',
+         0x00, 0x00, 0x00, 0x10, 0x80, 0x00, 0x00, 0xAA, 0x00,
+         0x38, 0x9B, 0x71},
+        12,
+        XvPlanar,
+        3,
+        0, 0, 0, 0,
+        8, 8, 8,
+        1, 2, 2,
+        1, 2, 2,
+        {'Y', 'V', 'U',
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        XvTopToBottom
+    },
+#endif
 };
 
 typedef struct {
@@ -592,10 +624,21 @@ I830InitVideo(ScreenPtr pScreen)
 	}
 	I830InitOffscreenImages(pScreen);
     }
+#ifdef INTEL_XVMC
+    Bool ret = FALSE;
+    if (intel_xvmc_probe(pScrn)) {
+	if (texturedAdaptor)
+	    ret = intel_xvmc_driver_init(pScreen, texturedAdaptor);
+    }
+#endif
 
     if (num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
+#ifdef INTEL_XVMC
+    if (ret)
+	intel_xvmc_screen_init(pScreen);
+#endif
     xfree(adaptors);
 }
 
@@ -2277,8 +2320,14 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	srcPitch = (width + 3) & ~3;
-	srcPitch2 = ((width >> 1) + 3) & ~3;
+	srcPitch = (width + 0x3) & ~0x3;
+	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
+#ifdef INTEL_XVMC
+        if (pI830->IsXvMCSurface) {
+            srcPitch = (width + 0x3ff) & ~0x3ff;
+            srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
+        }
+#endif
 	if (pPriv->textured && IS_I965G(pI830))
 	    destId = FOURCC_YUY2;
 	break;
@@ -2533,6 +2582,14 @@ I830QueryImageAttributes(ScrnInfoPtr pScrn,
 	    ErrorF("size is %d\n", size);
 #endif
 	break;
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+        *h = (*h + 1) & ~1;
+        size = sizeof(struct intel_xvmc_command);
+        if (pitches)
+            pitches[0] = size;
+        break;
+#endif
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
