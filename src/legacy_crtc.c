@@ -78,6 +78,13 @@ RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_BUS_CNTL,           restore->bus_cntl);
     OUTREG(RADEON_SURFACE_CNTL,       restore->surface_cntl);
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	OUTREG(RS400_DISP2_REQ_CNTL1, restore->disp2_req_cntl1);
+	OUTREG(RS400_DISP2_REQ_CNTL2, restore->disp2_req_cntl2);
+	OUTREG(RS400_DMIF_MEM_CNTL1,  restore->dmif_mem_cntl1);
+	OUTREG(RS400_DISP1_REQ_CNTL1, restore->disp1_req_cntl1);
+    }
+
     /* Workaround for the VT switching problem in dual-head mode.  This
      * problem only occurs on RV style chips, typically when a FP and
      * CRT are connected.
@@ -178,12 +185,6 @@ RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	OUTREG(RS400_DISP2_REQ_CNTL1, restore->disp2_req_cntl1);
-	OUTREG(RS400_DISP2_REQ_CNTL2, restore->disp2_req_cntl2);
-	OUTREG(RS400_DMIF_MEM_CNTL1, restore->dmif_mem_cntl1);
-	OUTREG(RS400_DISP1_REQ_CNTL1, restore->disp1_req_cntl1);
-    }
     OUTREG(RADEON_CRTC2_GEN_CNTL, restore->crtc2_gen_cntl);
 
 }
@@ -489,6 +490,13 @@ RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->surface_cntl	     = INREG(RADEON_SURFACE_CNTL);
     save->grph_buffer_cntl   = INREG(RADEON_GRPH_BUFFER_CNTL);
     save->grph2_buffer_cntl  = INREG(RADEON_GRPH2_BUFFER_CNTL);
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->disp2_req_cntl1 = INREG(RS400_DISP2_REQ_CNTL1);
+	save->disp2_req_cntl2 = INREG(RS400_DISP2_REQ_CNTL2);
+	save->dmif_mem_cntl1  = INREG(RS400_DMIF_MEM_CNTL1);
+	save->disp1_req_cntl1 = INREG(RS400_DISP1_REQ_CNTL1);
+    }
 }
 
 /* Read CRTC registers */
@@ -549,13 +557,6 @@ RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     save->fp_h2_sync_strt_wid   = INREG (RADEON_FP_H2_SYNC_STRT_WID);
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
-
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	save->disp2_req_cntl1 = INREG(RS400_DISP2_REQ_CNTL1);
-	save->disp2_req_cntl2 = INREG(RS400_DISP2_REQ_CNTL2);
-	save->dmif_mem_cntl1  = INREG(RS400_DMIF_MEM_CNTL1);
-	save->disp1_req_cntl1 = INREG(RS400_DISP1_REQ_CNTL1);
-    }
 
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 
@@ -677,6 +678,14 @@ RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
     save->cap0_trig_cntl     = 0;
     save->cap1_trig_cntl     = 0;
     save->bus_cntl           = info->BusCntl;
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->disp2_req_cntl1 = info->SavedReg->disp2_req_cntl1;
+	save->disp2_req_cntl2 = info->SavedReg->disp2_req_cntl2;
+	save->dmif_mem_cntl1  = info->SavedReg->dmif_mem_cntl1;
+	save->disp1_req_cntl1 = info->SavedReg->disp1_req_cntl1;
+    }
+
     /*
      * If bursts are enabled, turn on discards
      * Radeon doesn't have write bursts
@@ -1554,6 +1563,16 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
     OUTREG(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	/* attempt to program RS400 disp regs correctly ??? */
+	temp = info->SavedReg->disp1_req_cntl1;
+	temp &= ~(RS400_DISP1_START_REQ_LEVEL_MASK |
+		  RS400_DISP1_STOP_REQ_LEVEL_MASK);
+	OUTREG(RS400_DISP1_REQ_CNTL1, (temp |
+				       (critical_point << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
+				       (critical_point << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+    }
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "GRPH_BUFFER_CNTL from %x to %x\n",
 		   (unsigned int)info->SavedReg->grph_buffer_cntl,
@@ -1603,6 +1622,16 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
 
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
+
+	if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	    /* attempt to program RS400 disp2 regs correctly ??? */
+	    temp = info->SavedReg->disp2_req_cntl1;
+	    temp &= ~(RS400_DISP2_START_REQ_LEVEL_MASK |
+		      RS400_DISP2_STOP_REQ_LEVEL_MASK);
+	    OUTREG(RS400_DISP2_REQ_CNTL1, (temp |
+					   (critical_point2 << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
+					   (critical_point2 << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+	}
 
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "GRPH2_BUFFER_CNTL from %x to %x\n",
