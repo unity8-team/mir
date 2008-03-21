@@ -505,10 +505,16 @@ typedef struct {
     CARD32            palette[256];
     CARD32            palette2[256];
 
-    CARD32            rs480_unk_e30;
-    CARD32            rs480_unk_e34;
-    CARD32            rs480_unk_e38;
-    CARD32            rs480_unk_e3c;
+    CARD32            disp2_req_cntl1;
+    CARD32            disp2_req_cntl2;
+    CARD32            dmif_mem_cntl1;
+    CARD32            disp1_req_cntl1;
+
+    CARD32            fp_2nd_gen_cntl;
+    CARD32            fp2_2_gen_cntl;
+    CARD32            tmds2_cntl;
+    CARD32            tmds2_transmitter_cntl;
+
 
     /* TV out registers */
     CARD32 	      tv_master_cntl;

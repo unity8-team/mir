@@ -103,6 +103,12 @@ RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(RADEON_TMDS_TRANSMITTER_CNTL,restore->tmds_transmitter_cntl);
     OUTREG(RADEON_FP_GEN_CNTL,          restore->fp_gen_cntl);
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	OUTREG(RS400_FP_2ND_GEN_CNTL, restore->fp_2nd_gen_cntl);
+	/*OUTREG(RS400_TMDS2_CNTL, restore->tmds2_cntl);*/
+	OUTREG(RS400_TMDS2_TRANSMITTER_CNTL, restore->tmds2_transmitter_cntl);
+    }
+
     /* old AIW Radeon has some BIOS initialization problem
      * with display buffer underflow, only occurs to DFP
      */
@@ -121,6 +127,8 @@ RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400)
+	OUTREG(RS400_FP2_2_GEN_CNTL, restore->fp2_2_gen_cntl);
 }
 
 /* Write RMX registers */
@@ -203,6 +211,14 @@ RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	/* bit 22 of TMDS_PLL_CNTL is read-back inverted */
 	save->tmds_pll_cntl ^= (1 << 22);
     }
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->fp_2nd_gen_cntl         = INREG(RS400_FP_2ND_GEN_CNTL);
+	save->fp2_2_gen_cntl          = INREG(RS400_FP2_2_GEN_CNTL);
+	save->tmds2_cntl              = INREG(RS400_TMDS2_CNTL);
+	save->tmds2_transmitter_cntl  = INREG(RS400_TMDS2_TRANSMITTER_CNTL);
+    }
+
 }
 
 Bool
@@ -716,6 +732,13 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		tmp |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 		OUTREG(RADEON_FP_GEN_CNTL, tmp);
 		save->fp_gen_cntl |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+		if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		    tmp = INREG(RS400_FP_2ND_GEN_CNTL);
+		    tmp |= (RS400_FP_2ND_ON | RS400_TMDS_2ND_EN);
+		    OUTREG(RS400_FP_2ND_GEN_CNTL, tmp);
+		    save->fp_2nd_gen_cntl |= (RS400_FP_2ND_ON |
+					      RS400_TMDS_2ND_EN);
+		}
 	    } else if (radeon_output->TMDSType == TMDS_EXT) {
 		info->output_dfp2 |= (1 << o);
 		tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -724,6 +747,14 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 		save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		save->fp2_gen_cntl &= ~RADEON_FP2_BLANK_EN;
+		if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		    tmp = INREG(RS400_FP2_2_GEN_CNTL);
+		    tmp &= ~RS400_FP2_2_BLANK_EN;
+		    tmp |= (RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
+		    OUTREG(RS400_FP2_2_GEN_CNTL, tmp);
+		    save->fp2_2_gen_cntl |= (RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
+		    save->fp2_2_gen_cntl &= ~RS400_FP2_2_BLANK_EN;
+		}
 	    }
 	} else if (radeon_output->MonType == MT_LCD) {
 	    info->output_lcd1 |= (1 << o);
@@ -780,6 +811,13 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		    tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 		    OUTREG(RADEON_FP_GEN_CNTL, tmp);
 		    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
+		    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+			tmp = INREG(RS400_FP_2ND_GEN_CNTL);
+			tmp &= ~(RS400_FP_2ND_ON | RS400_TMDS_2ND_EN);
+			OUTREG(RS400_FP_2ND_GEN_CNTL, tmp);
+			save->fp_2nd_gen_cntl &= ~(RS400_FP_2ND_ON |
+						   RS400_TMDS_2ND_EN);
+		    }
 		}
 	    } else if (radeon_output->TMDSType == TMDS_EXT) {
 		info->output_dfp2 &= ~(1 << o);
@@ -790,6 +828,14 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		    OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 		    save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		    save->fp2_gen_cntl |= RADEON_FP2_BLANK_EN;
+		    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+			tmp = INREG(RS400_FP2_2_GEN_CNTL);
+			tmp |= RS400_FP2_2_BLANK_EN;
+			tmp &= ~(RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
+			OUTREG(RS400_FP2_2_GEN_CNTL, tmp);
+			save->fp2_2_gen_cntl &= ~(RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
+			save->fp2_2_gen_cntl |= RS400_FP2_2_BLANK_EN;
+		    }
 		}
 	    }
 	} else if (radeon_output->MonType == MT_LCD) {
@@ -918,6 +964,29 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	    save->fp_gen_cntl |= RADEON_FP_SEL_CRTC2;
     }
 
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	save->tmds2_transmitter_cntl = info->SavedReg->tmds2_transmitter_cntl &
+	    ~(RS400_TMDS2_PLLRST);
+	save->tmds2_transmitter_cntl &= ~(RS400_TMDS2_PLLEN);
+
+	save->fp_2nd_gen_cntl = info->SavedReg->fp_2nd_gen_cntl;
+
+	if (pScrn->rgbBits == 8)
+	    save->fp_2nd_gen_cntl |= RS400_PANEL_FORMAT_2ND;  /* 24 bit format */
+	else
+	    save->fp_2nd_gen_cntl &= ~RS400_PANEL_FORMAT_2ND;/* 18 bit format */
+
+	save->fp_2nd_gen_cntl &= ~RS400_FP_2ND_SOURCE_SEL_MASK;
+
+	if (IsPrimary) {
+	    if (radeon_output->Flags & RADEON_USE_RMX)
+		save->fp_2nd_gen_cntl |= RS400_FP_2ND_SOURCE_SEL_RMX;
+	    else
+		save->fp_2nd_gen_cntl |= RS400_FP_2ND_SOURCE_SEL_CRTC1;
+	} else
+	    save->fp_2nd_gen_cntl |= RS400_FP_2ND_SOURCE_SEL_CRTC2;
+    }
+
 }
 
 static void
@@ -954,6 +1023,8 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	    save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
 	    if (radeon_output->Flags & RADEON_USE_RMX)
 		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
+	    else
+		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
 	} else {
 	    save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
 	}
@@ -964,6 +1035,27 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	} else {
 	    save->fp2_gen_cntl |= RADEON_FP2_SRC_SEL_CRTC2;
 	}
+    }
+
+    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	if (pScrn->rgbBits == 8)
+	    save->fp2_2_gen_cntl = info->SavedReg->fp2_2_gen_cntl |
+		RS400_FP2_2_PANEL_FORMAT; /* 24 bit format, */
+	else
+	    save->fp2_2_gen_cntl = info->SavedReg->fp2_2_gen_cntl &
+		~RS400_FP2_2_PANEL_FORMAT;/* 18 bit format, */
+
+	save->fp2_2_gen_cntl &= ~(RS400_FP2_2_ON |
+				  RS400_FP2_2_DVO2_EN |
+				  RS400_FP2_2_SOURCE_SEL_MASK);
+
+	if (IsPrimary) {
+	    if (radeon_output->Flags & RADEON_USE_RMX)
+		save->fp2_2_gen_cntl |= RS400_FP2_2_SOURCE_SEL_RMX;
+	    else
+		save->fp2_2_gen_cntl |= RS400_FP2_2_SOURCE_SEL_CRTC1;
+	} else
+	    save->fp2_2_gen_cntl |= RS400_FP2_2_SOURCE_SEL_CRTC2;
     }
 
 }

@@ -179,10 +179,10 @@ RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
 
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	OUTREG(RADEON_RS480_UNK_e30, restore->rs480_unk_e30);
-	OUTREG(RADEON_RS480_UNK_e34, restore->rs480_unk_e34);
-	OUTREG(RADEON_RS480_UNK_e38, restore->rs480_unk_e38);
-	OUTREG(RADEON_RS480_UNK_e3c, restore->rs480_unk_e3c);
+	OUTREG(RS400_DISP2_REQ_CNTL1, restore->disp2_req_cntl1);
+	OUTREG(RS400_DISP2_REQ_CNTL2, restore->disp2_req_cntl2);
+	OUTREG(RS400_DMIF_MEM_CNTL1, restore->dmif_mem_cntl1);
+	OUTREG(RS400_DISP1_REQ_CNTL1, restore->disp1_req_cntl1);
     }
     OUTREG(RADEON_CRTC2_GEN_CNTL, restore->crtc2_gen_cntl);
 
@@ -551,12 +551,12 @@ RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->fp_v2_sync_strt_wid   = INREG (RADEON_FP_V2_SYNC_STRT_WID);
 
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	save->rs480_unk_e30 = INREG(RADEON_RS480_UNK_e30);
-	save->rs480_unk_e34 = INREG(RADEON_RS480_UNK_e34);
-	save->rs480_unk_e38 = INREG(RADEON_RS480_UNK_e38);
-	save->rs480_unk_e3c = INREG(RADEON_RS480_UNK_e3c);
+	save->disp2_req_cntl1 = INREG(RS400_DISP2_REQ_CNTL1);
+	save->disp2_req_cntl2 = INREG(RS400_DISP2_REQ_CNTL2);
+	save->dmif_mem_cntl1  = INREG(RS400_DMIF_MEM_CNTL1);
+	save->disp1_req_cntl1 = INREG(RS400_DISP1_REQ_CNTL1);
     }
-    
+
     save->disp2_merge_cntl      = INREG(RADEON_DISP2_MERGE_CNTL);
 
     /* track if the crtc is enabled for text restore */
@@ -1126,10 +1126,10 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
     if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	save->rs480_unk_e30 = 0x105DC1CC; /* because I'm worth it */
-	save->rs480_unk_e34 = 0x2749D000; /* AMD really should */
-	save->rs480_unk_e38 = 0x29ca71dc; /* release docs */
-	save->rs480_unk_e3c = 0x28FBC3AC; /* this is so a trade secret */
+	save->disp2_req_cntl1 = 0x105DC1CC;
+	save->disp2_req_cntl2 = 0x2749D000;
+	save->dmif_mem_cntl1  = 0x29ca71dc;
+	save->disp1_req_cntl1 = 0x28FBC3AC;
     }
 
     return TRUE;

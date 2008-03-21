@@ -887,6 +887,33 @@
 #       define RADEON_VERT_STRETCH_BLEND       (1     << 26)
 #       define RADEON_VERT_AUTO_RATIO_EN       (1     << 27)
 #       define RADEON_VERT_STRETCH_RESERVED    0xf1000000
+#define RS400_FP_2ND_GEN_CNTL               0x0384
+#       define RS400_FP_2ND_ON              (1 << 0)
+#       define RS400_FP_2ND_BLANK_EN        (1 << 1)
+#       define RS400_TMDS_2ND_EN            (1 << 2)
+#       define RS400_PANEL_FORMAT_2ND       (1 << 3)
+#       define RS400_FP_2ND_EN_TMDS         (1 << 7)
+#       define RS400_FP_2ND_DETECT_SENSE    (1 << 8)
+#       define RS400_FP_2ND_SOURCE_SEL_MASK        (3 << 10)
+#       define RS400_FP_2ND_SOURCE_SEL_CRTC1       (0 << 10)
+#       define RS400_FP_2ND_SOURCE_SEL_CRTC2       (1 << 10)
+#       define RS400_FP_2ND_SOURCE_SEL_RMX         (2 << 10)
+#       define RS400_FP_2ND_DETECT_EN       (1 << 12)
+#       define RS400_HPD_2ND_SEL            (1 << 13)
+#define RS400_FP2_2_GEN_CNTL                0x0388
+#       define RS400_FP2_2_BLANK_EN         (1 << 1)
+#       define RS400_FP2_2_ON               (1 << 2)
+#       define RS400_FP2_2_PANEL_FORMAT     (1 << 3)
+#       define RS400_FP2_2_DETECT_SENSE     (1 << 8)
+#       define RS400_FP2_2_SOURCE_SEL_MASK        (3 << 10)
+#       define RS400_FP2_2_SOURCE_SEL_CRTC1       (0 << 10)
+#       define RS400_FP2_2_SOURCE_SEL_CRTC2       (1 << 10)
+#       define RS400_FP2_2_SOURCE_SEL_RMX         (2 << 10)
+#       define RS400_FP2_2_DVO2_EN          (1 << 25)
+#define RS400_TMDS2_CNTL                    0x0394
+#define RS400_TMDS2_TRANSMITTER_CNTL        0x03a4
+#       define RS400_TMDS2_PLLEN            (1 << 0)
+#       define RS400_TMDS2_PLLRST           (1 << 1)
 
 #define RADEON_GEN_INT_CNTL                 0x0040
 #define RADEON_GEN_INT_STATUS               0x0044
@@ -3328,10 +3355,10 @@
 #       define RADEON_TVPLL_TEST_DIS             (1 << 31)
 #       define RADEON_TVCLK_SRC_SEL_TVPLL        (1 << 30)
 
-#define RADEON_RS480_UNK_e30			0xe30
-#define RADEON_RS480_UNK_e34			0xe34
-#define RADEON_RS480_UNK_e38			0xe38
-#define RADEON_RS480_UNK_e3c			0xe3c
+#define RS400_DISP2_REQ_CNTL1			0xe30
+#define RS400_DISP2_REQ_CNTL2			0xe34
+#define RS400_DMIF_MEM_CNTL1			0xe38
+#define RS400_DISP1_REQ_CNTL1			0xe3c
 
 #define RS690_MC_INDEX				0x78
 #	define RS690_MC_INDEX_MASK		0x1ff
