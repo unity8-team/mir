@@ -321,6 +321,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     int out_reg = FS_OC;
     FS_LOCALS(20);
     Bool is_affine_src, is_affine_mask;
+    Bool is_nearest = FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -332,9 +333,13 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
+    if (pSrcPicture->filter == PictFilterNearest)
+	is_nearest = TRUE;
     if (pMask != NULL) {
 	if (!i915_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
+	if (pMaskPicture->filter == PictFilterNearest)
+	    is_nearest = TRUE;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
@@ -342,6 +347,11 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     }
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
+
+    if (is_nearest)
+	pI830->coord_adjust = -0.125;
+    else
+	pI830->coord_adjust = 0;
 
     if (pMask == NULL) {
 	BEGIN_BATCH(10);

@@ -1093,29 +1093,35 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     float src_x[3], src_y[3], mask_x[3], mask_y[3];
     int i;
 
-    i830_get_transformed_coordinates(srcX, srcY,
-				     pI830->transform[0],
-				     &src_x[0], &src_y[0]);
-    i830_get_transformed_coordinates(srcX, srcY + h,
-				     pI830->transform[0],
-				     &src_x[1], &src_y[1]);
-    i830_get_transformed_coordinates(srcX + w, srcY + h,
-				     pI830->transform[0],
-				     &src_x[2], &src_y[2]);
+    if (!i830_get_transformed_coordinates(srcX, srcY,
+					  pI830->transform[0],
+					  &src_x[0], &src_y[0]))
+	return;
+    if (!i830_get_transformed_coordinates(srcX, srcY + h,
+					  pI830->transform[0],
+					  &src_x[1], &src_y[1]))
+	return;
+    if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+					  pI830->transform[0],
+					  &src_x[2], &src_y[2]))
+	return;
 
     if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
 	has_mask = FALSE;
     } else {
 	has_mask = TRUE;
-	i830_get_transformed_coordinates(maskX, maskY,
-					 pI830->transform[1],
-					 &mask_x[0], &mask_y[0]);
-	i830_get_transformed_coordinates(maskX, maskY + h,
-					 pI830->transform[1],
-					 &mask_x[1], &mask_y[1]);
-	i830_get_transformed_coordinates(maskX + w, maskY + h,
-					 pI830->transform[1],
-					 &mask_x[2], &mask_y[2]);
+	if (!i830_get_transformed_coordinates(maskX, maskY,
+					      pI830->transform[1],
+					      &mask_x[0], &mask_y[0]))
+	    return;
+	if (!i830_get_transformed_coordinates(maskX, maskY + h,
+					      pI830->transform[1],
+					      &mask_x[1], &mask_y[1]))
+	    return;
+	if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
+					      pI830->transform[1],
+					      &mask_x[2], &mask_y[2]))
+	    return;
     }
 
     /* Wait for any existing composite rectangles to land before we overwrite

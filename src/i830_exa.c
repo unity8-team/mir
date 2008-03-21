@@ -339,12 +339,31 @@ I830EXADoneCopy(PixmapPtr pDstPixmap)
 #define xFixedToFloat(val) \
 	((float)xFixedToInt(val) + ((float)xFixedFrac(val) / 65536.0))
 
+static Bool
+_i830_transform_point (PictTransformPtr transform,
+		       float		x,
+		       float		y,
+		       float		result[3])
+{
+    int		    j;
+
+    for (j = 0; j < 3; j++)
+    {
+	result[j] = (xFixedToFloat (transform->matrix[j][0]) * x +
+		     xFixedToFloat (transform->matrix[j][1]) * y +
+		     xFixedToFloat (transform->matrix[j][2]));
+    }
+    if (!result[2])
+	return FALSE;
+    return TRUE;
+}
+
 /**
  * Returns the floating-point coordinates transformed by the given transform.
  *
  * transform may be null.
  */
-void
+Bool
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 				 float *x_out, float *y_out)
 {
@@ -352,15 +371,14 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 	*x_out = x;
 	*y_out = y;
     } else {
-	PictVector v;
+	float	result[3];
 
-        v.vector[0] = IntToxFixed(x);
-        v.vector[1] = IntToxFixed(y);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint(transform, &v);
-	*x_out = xFixedToFloat(v.vector[0]);
-	*y_out = xFixedToFloat(v.vector[1]);
+	if (!_i830_transform_point (transform, (float) x, (float) y, result))
+	    return FALSE;
+	*x_out = result[0] / result[2];
+	*y_out = result[1] / result[2];
     }
+    return TRUE;
 }
 
 /**
@@ -368,7 +386,7 @@ i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
  *
  * transform may be null.
  */
-void
+Bool
 i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 				    float *x_out, float *y_out, float *w_out)
 {
@@ -377,16 +395,15 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 	*y_out = y;
 	*w_out = 1;
     } else {
-	PictVector v;
+	float    result[3];
 
-        v.vector[0] = IntToxFixed(x);
-        v.vector[1] = IntToxFixed(y);
-        v.vector[2] = xFixed1;
-        PictureTransformPoint3d(transform, &v);
-	*x_out = xFixedToFloat(v.vector[0]);
-	*y_out = xFixedToFloat(v.vector[1]);
-	*w_out = xFixedToFloat(v.vector[2]);
+	if (!_i830_transform_point (transform, (float) x, (float) y, result))
+	    return FALSE;
+	*x_out = result[0];
+	*y_out = result[1];
+	*w_out = result[2];
     }
+    return TRUE;
 }
 
 /**

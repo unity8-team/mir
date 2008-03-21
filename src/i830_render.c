@@ -396,6 +396,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t dst_format, dst_offset, dst_pitch;
     Bool is_affine_src, is_affine_mask;
+    Bool is_nearest = FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -407,9 +408,13 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i830_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
+    if (pSrcPicture->filter == PictFilterNearest)
+	is_nearest = TRUE;
     if (pMask != NULL) {
 	if (!i830_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
+	if (pMaskPicture->filter == PictFilterNearest)
+	    is_nearest = TRUE;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
@@ -418,6 +423,11 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
+
+    if (is_nearest)
+	pI830->coord_adjust = -0.125;
+    else
+	pI830->coord_adjust = 0;
 
     if (!is_affine_src || !is_affine_mask)
 	I830FALLBACK("non-affine transform unsupported on 8xx hardware\n");
@@ -591,56 +601,68 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     per_vertex = 2; /* dest x/y */
     if (is_affine_src)
     {
-	i830_get_transformed_coordinates(srcX, srcY,
-					 pI830->transform[0],
-					 &src_x[0], &src_y[0]);
-	i830_get_transformed_coordinates(srcX, srcY + h,
-					 pI830->transform[0],
-					 &src_x[1], &src_y[1]);
-	i830_get_transformed_coordinates(srcX + w, srcY + h,
-					 pI830->transform[0],
-					 &src_x[2], &src_y[2]);
+	if (!i830_get_transformed_coordinates(srcX, srcY,
+					      pI830->transform[0],
+					      &src_x[0], &src_y[0]))
+	    return;
+	if (!i830_get_transformed_coordinates(srcX, srcY + h,
+					      pI830->transform[0],
+					      &src_x[1], &src_y[1]))
+	    return;
+	if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+					      pI830->transform[0],
+					      &src_x[2], &src_y[2]))
+	    return;
 	per_vertex += 2;    /* src x/y */
     } else {
-	i830_get_transformed_coordinates_3d(srcX, srcY,
-					    pI830->transform[0],
-					    &src_x[0], &src_y[0],
-					    &src_w[0]);
-	i830_get_transformed_coordinates_3d(srcX, srcY + h,
-					    pI830->transform[0],
-					    &src_x[1], &src_y[1],
-					    &src_w[1]);
-	i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
-					    pI830->transform[0],
-					    &src_x[2], &src_y[2],
-					    &src_w[2]);
+	if (!i830_get_transformed_coordinates_3d(srcX, srcY,
+						 pI830->transform[0],
+						 &src_x[0], &src_y[0],
+						 &src_w[0]))
+	    return;
+	if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
+						 pI830->transform[0],
+						 &src_x[1], &src_y[1],
+						 &src_w[1]))
+	    return;
+	if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
+						 pI830->transform[0],
+						 &src_x[2], &src_y[2],
+						 &src_w[2]))
+	    return;
 	per_vertex += 4;    /* src x/y/z/w */
     }
     if (has_mask) {
 	if (is_affine_mask) {
-	    i830_get_transformed_coordinates(maskX, maskY,
-					     pI830->transform[1],
-					     &mask_x[0], &mask_y[0]);
-	    i830_get_transformed_coordinates(maskX, maskY + h,
-					     pI830->transform[1],
-					     &mask_x[1], &mask_y[1]);
-	    i830_get_transformed_coordinates(maskX + w, maskY + h,
-					     pI830->transform[1],
-					     &mask_x[2], &mask_y[2]);
+	    if (!i830_get_transformed_coordinates(maskX, maskY,
+						  pI830->transform[1],
+						  &mask_x[0], &mask_y[0]))
+		return;
+	    if (!i830_get_transformed_coordinates(maskX, maskY + h,
+						  pI830->transform[1],
+						  &mask_x[1], &mask_y[1]))
+		return;
+	    if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
+						  pI830->transform[1],
+						  &mask_x[2], &mask_y[2]))
+		return;
 	    per_vertex += 2;	/* mask x/y */
 	} else {
-	    i830_get_transformed_coordinates_3d(maskX, maskY,
-						pI830->transform[1],
-						&mask_x[0], &mask_y[0],
-						&mask_w[0]);
-	    i830_get_transformed_coordinates_3d(maskX, maskY + h,
-						pI830->transform[1],
-						&mask_x[1], &mask_y[1],
-						&mask_w[1]);
-	    i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
-						pI830->transform[1],
-						&mask_x[2], &mask_y[2],
-						&mask_w[2]);
+	    if (!i830_get_transformed_coordinates_3d(maskX, maskY,
+						     pI830->transform[1],
+						     &mask_x[0], &mask_y[0],
+						     &mask_w[0]))
+		return;
+	    if (!i830_get_transformed_coordinates_3d(maskX, maskY + h,
+						     pI830->transform[1],
+						     &mask_x[1], &mask_y[1],
+						     &mask_w[1]))
+		return;
+	    if (!i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
+						     pI830->transform[1],
+						     &mask_x[2], &mask_y[2],
+						     &mask_w[2]))
+		return;
 	    per_vertex += 4;	/* mask x/y/z/w */
 	}
     }
@@ -655,8 +677,8 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH(MI_NOOP);
 
     OUT_BATCH(PRIM3D_INLINE | PRIM3D_RECTLIST | (num_floats-1));
-    OUT_BATCH_F(-0.125 + dstX + w);
-    OUT_BATCH_F(-0.125 + dstY + h);
+    OUT_BATCH_F(pI830->coord_adjust + dstX + w);
+    OUT_BATCH_F(pI830->coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[2] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[2] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
@@ -672,8 +694,8 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    OUT_BATCH_F(-0.125 + dstX);
-    OUT_BATCH_F(-0.125 + dstY + h);
+    OUT_BATCH_F(pI830->coord_adjust + dstX);
+    OUT_BATCH_F(pI830->coord_adjust + dstY + h);
     OUT_BATCH_F(src_x[1] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[1] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
@@ -689,8 +711,8 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    OUT_BATCH_F(-0.125 + dstX);
-    OUT_BATCH_F(-0.125 + dstY);
+    OUT_BATCH_F(pI830->coord_adjust + dstX);
+    OUT_BATCH_F(pI830->coord_adjust + dstY);
     OUT_BATCH_F(src_x[0] / pI830->scale_units[0][0]);
     OUT_BATCH_F(src_y[0] / pI830->scale_units[0][1]);
     if (!is_affine_src) {
