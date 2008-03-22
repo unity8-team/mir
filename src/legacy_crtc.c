@@ -1134,13 +1134,6 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->fp_h2_sync_strt_wid = save->crtc2_h_sync_strt_wid;
     save->fp_v2_sync_strt_wid = save->crtc2_v_sync_strt_wid;
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
-	save->disp2_req_cntl1 = 0x105DC1CC;
-	save->disp2_req_cntl2 = 0x2749D000;
-	save->dmif_mem_cntl1  = 0x29ca71dc;
-	save->disp1_req_cntl1 = 0x28FBC3AC;
-    }
-
     return TRUE;
 }
 
