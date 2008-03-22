@@ -1564,6 +1564,12 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
 	OUTREG(RS400_DISP1_REQ_CNTL1, (temp |
 				       (critical_point << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
 				       (critical_point << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+	temp = info->SavedReg->dmif_mem_cntl1;
+	temp &= ~(RS400_DISP1_CRITICAL_POINT_START_MASK |
+		  RS400_DISP1_CRITICAL_POINT_STOP_MASK);
+	OUTREG(RS400_DMIF_MEM_CNTL1, (temp |
+				      (critical_point << RS400_DISP1_CRITICAL_POINT_START_SHIFT) |
+				      (critical_point << RS400_DISP1_CRITICAL_POINT_STOP_SHIFT)));
     }
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -1624,6 +1630,12 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
 	    OUTREG(RS400_DISP2_REQ_CNTL1, (temp |
 					   (critical_point2 << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
 					   (critical_point2 << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+	    temp = info->SavedReg->disp2_req_cntl2;
+	    temp &= ~(RS400_DISP2_CRITICAL_POINT_START_MASK |
+		      RS400_DISP2_CRITICAL_POINT_STOP_MASK);
+	    OUTREG(RS400_DISP2_REQ_CNTL2, (temp |
+					   (critical_point2 << RS400_DISP2_CRITICAL_POINT_START_SHIFT) |
+					   (critical_point2 << RS400_DISP2_CRITICAL_POINT_STOP_SHIFT)));
 	}
 
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
