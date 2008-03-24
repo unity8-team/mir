@@ -1036,10 +1036,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     CARD32 txenable, colorpitch;
     CARD32 blendcntl;
     int pixel_shift;
-    int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+    int has_tcl = 0; /*((info->ChipFamily != CHIP_FAMILY_RS690) &&
 		   (info->ChipFamily != CHIP_FAMILY_RS740) &&
 		   (info->ChipFamily != CHIP_FAMILY_RS400) &&
-		   (info->ChipFamily != CHIP_FAMILY_RV515));
+		   (info->ChipFamily != CHIP_FAMILY_RV515)); */
     ACCEL_PREAMBLE();
 
     TRACE;
