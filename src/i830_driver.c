@@ -171,7 +171,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/mman.h>
 #include <errno.h>
 
 #include "xf86.h"
@@ -695,15 +694,6 @@ I830MapMem(ScrnInfoPtr pScrn)
    if (I830IsPrimary(pScrn) && pI830->LpRing->mem != NULL) {
       pI830->LpRing->virtual_start =
 	 pI830->FbBase + pI830->LpRing->mem->offset;
-   }
-
-   /* Mark the pages we haven't yet bound into AGP as inaccessible. */
-   if (pI830->FbMapSize > pI830->stolen_size) {
-      if (mprotect(pI830->FbBase + pI830->stolen_size,
-		   pI830->FbMapSize - pI830->stolen_size, PROT_NONE) != 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to mprotect unbound AGP: %s\n", strerror(errno));
-      }
    }
 
    return TRUE;
