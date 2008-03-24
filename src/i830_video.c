@@ -385,11 +385,13 @@ i830_overlay_switch_to_crtc (ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
     I830CrtcPrivatePtr  intel_crtc = crtc->driver_private;
     int			pipeconf_reg = intel_crtc->pipe == 0 ? PIPEACONF : PIPEBCONF;
 
-    if (!IS_I965G(pI830) && (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE))
+    /* overlay can't be used on pipe with double wide, and pipe must be enabled. */
+    if ((!IS_I965G(pI830) && (INREG(pipeconf_reg) & PIPEACONF_DOUBLE_WIDE))
+	    || (intel_crtc->dpms_mode == DPMSModeOff))
 	pPriv->overlayOK = FALSE;
     else
 	pPriv->overlayOK = TRUE;
-    
+
     if (!pPriv->overlayOK)
 	return;
 
@@ -1829,10 +1831,11 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     
     if (crtc != pPriv->current_crtc)
     {
-        pPriv->current_crtc = crtc;
 	i830_overlay_switch_to_crtc (pScrn, crtc);
-	if (pPriv->overlayOK)
+	if (pPriv->overlayOK) {
+	    pPriv->current_crtc = crtc;
 	    I830ResetVideo (pScrn);
+	}
     }
 
     if (!pPriv->overlayOK)
