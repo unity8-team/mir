@@ -1887,7 +1887,11 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    /* Disable clock gating reported to work incorrectly according to the specs.
     */
-   if (IS_I965GM(pI830)) {
+   if (IS_IGD_GM(pI830)) {
+      OUTREG(RENCLK_GATE_D1, 0);
+      OUTREG(RENCLK_GATE_D2, 0);
+      OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+   } else if (IS_I965GM(pI830)) {
       OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
    } else if (IS_I965G(pI830)) {
       OUTREG(RENCLK_GATE_D1,
