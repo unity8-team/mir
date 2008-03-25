@@ -285,12 +285,15 @@ void RADEONInitVideo(ScreenPtr pScreen)
 	RADEONInitOffscreenImages(pScreen);
     }
 
-    texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
-    if (texturedAdaptor != NULL) {
-	adaptors[num_adaptors++] = texturedAdaptor;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+    if (info->ChipFamily != CHIP_FAMILY_RV250) {
+	texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
+	if (texturedAdaptor != NULL) {
+	    adaptors[num_adaptors++] = texturedAdaptor;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+	} else
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
     } else
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video disabled on RV250 due to HW bug\n");
 
     if(num_adaptors)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
