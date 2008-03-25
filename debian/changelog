@@ -1,3 +1,18 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu6) hardy; urgency=low
+
+  [ Bryce Harrington ]
+  * debian/patches/05_intel_exa_force_greedy.patch: Another shot at the
+    greedy patch.  This time by slightly modifying the working patch by
+    moving its logic outside the i965 if loop, so it'll apply to all
+    hardware.  (LP: #177492)
+
+  [ Timo Aaltonen ]
+  * Don't conflict with 915resolution, since it breaks upgrades where
+    people are still using i810 with widescreen resolutions.
+    (LP: #206167)
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 25 Mar 2008 11:25:42 +0200
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu5) hardy; urgency=low
 
   * Fix the overlay patch to really disable TexturedVideo by default.
