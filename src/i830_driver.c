@@ -2387,6 +2387,15 @@ I830BlockHandler(int i,
     pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
 
+    /* Emit a flush of the rendering cache, or on the 965 and beyond
+     * rendering results may not hit the framebuffer until significantly
+     * later.  In the direct rendering case this is already done just
+     * after the page flipping updates, so there's no need to duplicate
+     * the effort here.
+     */
+    if (!pI830->noAccel && !pI830->directRenderingEnabled)
+	I830EmitFlush(pScrn);
+
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
 
