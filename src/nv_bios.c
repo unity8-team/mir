@@ -2921,9 +2921,9 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 	uint32_t sel_clk_binding;
-	static enum LVDS_script last_script = 0;
+	static int last_invoc = 0;
 
-	if (script == last_script || !lvds_ver)
+	if (last_invoc == (script << 1 | head) || !lvds_ver)
 		return;
 
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
@@ -2941,7 +2941,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	else
 		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
 
-	last_script = script;
+	last_invoc = (script << 1 | head);
 
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
