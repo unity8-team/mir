@@ -1302,15 +1302,16 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	a->CPUToScreenTextureDstFormats = RADEONDstFormats;
 
 	if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
-		       "unsupported on Radeon 9500/9700 and newer.\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "XAA Render acceleration "
+		       "unsupported on Radeon 9500/9700 and newer. "
+		       "Please use EXA instead.\n");
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
 		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
 		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
 		   (info->ChipFamily == CHIP_FAMILY_R200)) {
 	    a->SetupForCPUToScreenAlphaTexture2 =
 		FUNC_NAME(R200SetupForCPUToScreenAlphaTexture);
-	    a->SubsequentCPUToScreenAlphaTexture = 
+	    a->SubsequentCPUToScreenAlphaTexture =
 		FUNC_NAME(R200SubsequentCPUToScreenTexture);
 
 	    a->SetupForCPUToScreenTexture2 =
