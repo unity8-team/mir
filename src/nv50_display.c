@@ -387,7 +387,11 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 			NV50CrtcShowHideCursor(crtc, TRUE, FALSE);
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, 
 			pScrn->depth == 8 ? NV50_CRTC0_CLUT_MODE_OFF : NV50_CRTC0_CLUT_MODE_ON);
-		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT->offset >> 8);
+		/* Each CRTC has it's own CLUT. */
+		if (nv_crtc->head == 1)
+			NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT1->offset >> 8);
+		else
+			NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT0->offset >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_UNBLANK);
 		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_UNBLANK);

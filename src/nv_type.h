@@ -358,7 +358,8 @@ typedef struct _NVRec {
     struct nouveau_bo * FB;
     struct nouveau_bo * Cursor;
     struct nouveau_bo * Cursor2;
-    struct nouveau_bo * CLUT;	/* NV50 only */
+    struct nouveau_bo * CLUT0;	/* NV50 only */
+    struct nouveau_bo * CLUT1;	/* NV50 only */
     struct nouveau_bo * GART;
 
     bios_t		VBIOS;

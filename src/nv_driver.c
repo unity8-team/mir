@@ -1683,17 +1683,26 @@ NVMapMem(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->Architecture >= NV_ARCH_50) {
+		/* Both CRTC's have a CLUT. */
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-				   0, 0x1000, &pNv->CLUT)) {
+				   0, 0x1000, &pNv->CLUT0)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed to allocate memory for CLUT\n");
+				   "Failed to allocate memory for CLUT0\n");
+			return FALSE;
+		}
+
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+				   0, 0x1000, &pNv->CLUT1)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Failed to allocate memory for CLUT1\n");
 			return FALSE;
 		}
 	}
 
 	if ((pNv->FB && nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR)) ||
 	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
-	    (pNv->CLUT && nouveau_bo_map(pNv->CLUT, NOUVEAU_BO_RDWR)) ||
+	    (pNv->CLUT0 && nouveau_bo_map(pNv->CLUT0, NOUVEAU_BO_RDWR)) ||
+	    (pNv->CLUT1 && nouveau_bo_map(pNv->CLUT1, NOUVEAU_BO_RDWR)) ||
 	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR) ||
 	    (pNv->randr12_enable && nouveau_bo_map(pNv->Cursor2, NOUVEAU_BO_RDWR))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1719,7 +1728,8 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	if (pNv->randr12_enable) {
 		nouveau_bo_del(&pNv->Cursor2);
 	}
-	nouveau_bo_del(&pNv->CLUT);
+	nouveau_bo_del(&pNv->CLUT0);
+	nouveau_bo_del(&pNv->CLUT1);
 
 	return TRUE;
 }
@@ -2102,55 +2112,6 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 		RRCrtcGammaSet(crtc->randr_crtc, lut_r, lut_g, lut_b);
 	}
 }
-
-#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
-#define COLOR(c) (unsigned int)(0x3fff * ((c)/255.0))
-static void
-NV50LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
-		LOCO * colors, VisualPtr pVisual)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	int i, index;
-	volatile struct {
-		unsigned short red, green, blue, unused;
-	} *lut = (void *) pNv->CLUT->map;
-
-	switch (pScrn->depth) {
-	case 15:
-		for (i = 0; i < numColors; i++) {
-			index = indices[i];
-			lut[DEPTH_SHIFT(index, 5)].red =
-			    COLOR(colors[index].red);
-			lut[DEPTH_SHIFT(index, 5)].green =
-			    COLOR(colors[index].green);
-			lut[DEPTH_SHIFT(index, 5)].blue =
-			    COLOR(colors[index].blue);
-		}
-		break;
-	case 16:
-		for (i = 0; i < numColors; i++) {
-			index = indices[i];
-			lut[DEPTH_SHIFT(index, 6)].green =
-			    COLOR(colors[index].green);
-			if (index < 32) {
-				lut[DEPTH_SHIFT(index, 5)].red =
-				    COLOR(colors[index].red);
-				lut[DEPTH_SHIFT(index, 5)].blue =
-				    COLOR(colors[index].blue);
-			}
-		}
-		break;
-	default:
-		for (i = 0; i < numColors; i++) {
-			index = indices[i];
-			lut[index].red = COLOR(colors[index].red);
-			lut[index].green = COLOR(colors[index].green);
-			lut[index].blue = COLOR(colors[index].blue);
-		}
-		break;
-	}
-}
-
 
 static void NVBacklightEnable(NVPtr pNv,  Bool on)
 {
@@ -2544,17 +2505,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 		return FALSE;
 	} else {
-		if (pNv->Architecture < NV_ARCH_50) {
-			if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-						NULL,
-						CMAP_RELOAD_ON_MODE_SWITCH |
-						CMAP_PALETTED_TRUECOLOR))
+		if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+				NULL, CMAP_PALETTED_TRUECOLOR))
 			return FALSE;
-		} else {
-			if (!xf86HandleColormaps(pScreen, 256, 8, NV50LoadPalette,
-						NULL, CMAP_PALETTED_TRUECOLOR))
-			return FALSE;
-		}
 	}
 
 	if(pNv->ShadowFB) {
