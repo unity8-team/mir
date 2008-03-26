@@ -48,7 +48,7 @@
 
 #define MI_BATCH_BUFFER_END     (0xA << 23)
 
-int intelEmitIrqLocked(void)
+static int intelEmitIrqLocked(void)
 {
    drmI830IrqEmit ie;
    int ret, seq;
@@ -65,7 +65,7 @@ int intelEmitIrqLocked(void)
    return seq;
 }
 
-void intelWaitIrq(int seq)
+static void intelWaitIrq(int seq)
 {
    int ret;
    drmI830IrqWait iw;
@@ -118,6 +118,7 @@ Bool intelInitBatchBuffer(void)
 
     xvmc_driver->alloc.active_buf = 0;
     assert(xvmc_driver->alloc.ptr);
+    return True;
 }
 
 void intelFiniBatchBuffer(void)
@@ -129,7 +130,7 @@ void intelFiniBatchBuffer(void)
     intelDestroyBatchBuffer();
 }
 
-void intelBatchbufferRequireSpace(unsigned int sz)
+static void intelBatchbufferRequireSpace(unsigned int sz)
 {
    if (xvmc_driver->batch.space < sz)
       intelFlushBatch(TRUE);
@@ -152,7 +153,7 @@ void intelBatchbufferData(const void *data, unsigned bytes, unsigned flags)
 #define FLUSH_RENDER_CACHE      (0 << 2)
 #define FLUSH_WRITE_DIRTY_STATE (1 << 4)
 
-void intelRefillBatchLocked(Bool allow_unlock )
+static void intelRefillBatchLocked(Bool allow_unlock)
 {
    unsigned half = xvmc_driver->alloc.size >> 1;
    unsigned buf = (xvmc_driver->alloc.active_buf ^= 1);
@@ -175,9 +176,9 @@ void intelRefillBatchLocked(Bool allow_unlock )
 }
 
 
-void intelFlushBatchLocked(Bool ignore_cliprects,
-                           Bool refill,
-                           Bool allow_unlock)
+static void intelFlushBatchLocked(Bool ignore_cliprects,
+				  Bool refill,
+				  Bool allow_unlock)
 {
    drmI830BatchBuffer batch;
 

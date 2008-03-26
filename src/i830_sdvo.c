@@ -1146,6 +1146,7 @@ i830_sdvo_destroy (xf86OutputPtr output)
     }
 }
 
+#ifdef RANDR_GET_CRTC_INTERFACE
 static xf86CrtcPtr
 i830_sdvo_get_crtc(xf86OutputPtr output)
 {
@@ -1157,6 +1158,7 @@ i830_sdvo_get_crtc(xf86OutputPtr output)
    
     return i830_pipe_to_crtc(pScrn, pipe);
 }
+#endif
 
 static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .dpms = i830_sdvo_dpms,

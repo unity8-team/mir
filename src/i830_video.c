@@ -565,6 +565,9 @@ I830InitVideo(ScreenPtr pScreen)
     XF86VideoAdaptorPtr *adaptors, *newAdaptors = NULL;
     XF86VideoAdaptorPtr overlayAdaptor = NULL, texturedAdaptor = NULL;
     int num_adaptors;
+#ifdef INTEL_XVMC
+    Bool xvmc_status = FALSE;
+#endif
 
 #if 0
     {
@@ -627,10 +630,9 @@ I830InitVideo(ScreenPtr pScreen)
 	I830InitOffscreenImages(pScreen);
     }
 #ifdef INTEL_XVMC
-    Bool ret = FALSE;
     if (intel_xvmc_probe(pScrn)) {
 	if (texturedAdaptor)
-	    ret = intel_xvmc_driver_init(pScreen, texturedAdaptor);
+	    xvmc_status = intel_xvmc_driver_init(pScreen, texturedAdaptor);
     }
 #endif
 
@@ -638,7 +640,7 @@ I830InitVideo(ScreenPtr pScreen)
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 
 #ifdef INTEL_XVMC
-    if (ret)
+    if (xvmc_status)
 	intel_xvmc_screen_init(pScreen);
 #endif
     xfree(adaptors);

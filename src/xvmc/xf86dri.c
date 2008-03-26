@@ -88,9 +88,8 @@ XEXT_GENERATE_FIND_DISPLAY(find_display, xf86dri_info,
 #else
 #define TRACE(msg, arg...)
 #endif
-    Bool uniDRIQueryExtension(dpy, event_basep, error_basep)
-    Display *dpy;
-    int *event_basep, *error_basep;
+Bool
+uniDRIQueryExtension(Display *dpy, int *event_basep, int *error_basep)
 {
     XExtDisplayInfo *info = find_display(dpy);
 
@@ -107,11 +106,8 @@ XEXT_GENERATE_FIND_DISPLAY(find_display, xf86dri_info,
 }
 
 Bool
-uniDRIQueryVersion(dpy, majorVersion, minorVersion, patchVersion)
-    Display *dpy;
-    int *majorVersion;
-    int *minorVersion;
-    int *patchVersion;
+uniDRIQueryVersion(Display *dpy, int *majorVersion, int *minorVersion,
+		   int *patchVersion)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIQueryVersionReply rep;
@@ -141,10 +137,7 @@ uniDRIQueryVersion(dpy, majorVersion, minorVersion, patchVersion)
 }
 
 Bool
-uniDRIQueryDirectRenderingCapable(dpy, screen, isCapable)
-    Display *dpy;
-    int screen;
-    Bool *isCapable;
+uniDRIQueryDirectRenderingCapable(Display *dpy, int screen, Bool *isCapable)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIQueryDirectRenderingCapableReply rep;
@@ -173,11 +166,8 @@ uniDRIQueryDirectRenderingCapable(dpy, screen, isCapable)
 }
 
 Bool
-uniDRIOpenConnection(dpy, screen, hSAREA, busIdString)
-    Display *dpy;
-    int screen;
-    drm_handle_t *hSAREA;
-    char **busIdString;
+uniDRIOpenConnection(Display *dpy, int screen,
+		     drm_handle_t *hSAREA, char **busIdString)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIOpenConnectionReply rep;
@@ -224,10 +214,7 @@ uniDRIOpenConnection(dpy, screen, hSAREA, busIdString)
 }
 
 Bool
-uniDRIAuthConnection(dpy, screen, magic)
-    Display *dpy;
-    int screen;
-    drm_magic_t magic;
+uniDRIAuthConnection(Display *dpy, int screen, drm_magic_t magic)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIAuthConnectionReq *req;
@@ -256,9 +243,7 @@ uniDRIAuthConnection(dpy, screen, magic)
 }
 
 Bool
-uniDRICloseConnection(dpy, screen)
-    Display *dpy;
-    int screen;
+uniDRICloseConnection(Display *dpy, int screen)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRICloseConnectionReq *req;
@@ -279,14 +264,9 @@ uniDRICloseConnection(dpy, screen)
 }
 
 Bool
-uniDRIGetClientDriverName(dpy, screen, ddxDriverMajorVersion,
-    ddxDriverMinorVersion, ddxDriverPatchVersion, clientDriverName)
-    Display *dpy;
-    int screen;
-    int *ddxDriverMajorVersion;
-    int *ddxDriverMinorVersion;
-    int *ddxDriverPatchVersion;
-    char **clientDriverName;
+uniDRIGetClientDriverName(Display *dpy, int screen, int *ddxDriverMajorVersion,
+			  int *ddxDriverMinorVersion, int *ddxDriverPatchVersion,
+			  char **clientDriverName)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIGetClientDriverNameReply rep;
@@ -331,12 +311,8 @@ uniDRIGetClientDriverName(dpy, screen, ddxDriverMajorVersion,
 }
 
 Bool
-uniDRICreateContextWithConfig(dpy, screen, configID, context, hHWContext)
-    Display *dpy;
-    int screen;
-    int configID;
-    XID context;
-    drm_context_t *hHWContext;
+uniDRICreateContextWithConfig(Display *dpy, int screen, int configID,
+			      XID context, drm_context_t *hHWContext)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRICreateContextReply rep;
@@ -366,12 +342,8 @@ uniDRICreateContextWithConfig(dpy, screen, configID, context, hHWContext)
 }
 
 Bool
-uniDRICreateContext(dpy, screen, visual, context, hHWContext)
-    Display *dpy;
-    int screen;
-    Visual *visual;
-    XID context;
-    drm_context_t *hHWContext;
+uniDRICreateContext(Display *dpy, int screen, Visual *visual,
+		    XID context, drm_context_t *hHWContext)
 {
     return uniDRICreateContextWithConfig(dpy, screen,
 	   visual->visualid, context, hHWContext);
@@ -539,16 +511,9 @@ uniDRIGetDrawableInfo(Display * dpy, int screen, Drawable drawable,
 }
 
 Bool
-uniDRIGetDeviceInfo(dpy, screen, hFrameBuffer,
-    fbOrigin, fbSize, fbStride, devPrivateSize, pDevPrivate)
-    Display *dpy;
-    int screen;
-    drm_handle_t *hFrameBuffer;
-    int *fbOrigin;
-    int *fbSize;
-    int *fbStride;
-    int *devPrivateSize;
-    void **pDevPrivate;
+uniDRIGetDeviceInfo(Display *dpy, int screen, drm_handle_t *hFrameBuffer,
+		    int *fbOrigin, int *fbSize, int *fbStride,
+		    int *devPrivateSize, void **pDevPrivate)
 {
     XExtDisplayInfo *info = find_display(dpy);
     xXF86DRIGetDeviceInfoReply rep;

@@ -250,7 +250,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
         XVMC_ERR("Unable to create XvMC Context.");
         return ret;
     }
-    XVMC_DBG("new context %d created\n", context->context_id);
+    XVMC_DBG("new context %d created\n", (int)context->context_id);
 
     comm = (struct _intel_xvmc_common *)priv_data;
 
@@ -341,7 +341,7 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 			     context->context_id,
                              &intel_ctx->hw_context)) {
         XVMC_ERR("Could not create DRI context for xvmc ctx %d.",
-			context->context_id);
+		 (int)context->context_id);
 	XFree(priv_data);
         context->privData = NULL;
         drmUnmap(xvmc_driver->sarea_address, xvmc_driver->sarea_size);

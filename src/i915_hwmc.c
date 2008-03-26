@@ -97,6 +97,7 @@ typedef struct _I915XvMC
 
 #define ARRARY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
+/*
 static int yv12_subpicture_index_list[2] =
 {
     FOURCC_IA44,
@@ -108,6 +109,7 @@ static XF86MCImageIDList yv12_subpicture_list =
     ARRARY_SIZE(yv12_subpicture_index_list),
     yv12_subpicture_index_list
 };
+ */
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
 {
@@ -147,6 +149,7 @@ static XF86MCSurfaceInfoPtr ppSI[2] =
     (XF86MCSurfaceInfoPtr)&i915_YV12_mpg1_surface
 };
 
+#if 0
 /* List of subpicture types that we support */
 static XF86ImageRec ia44_subpicture = XVIMAGE_IA44;
 static XF86ImageRec ai44_subpicture = XVIMAGE_AI44;
@@ -156,7 +159,7 @@ static XF86ImagePtr i915_subpicture_list[2] =
     (XF86ImagePtr)&ia44_subpicture,
     (XF86ImagePtr)&ai44_subpicture
 };
-
+#endif
 
 /*
  * Init and clean up the screen private parts of XvMC.

@@ -27,6 +27,7 @@
 #ifndef INTEL_XVMC_H
 #define INTEL_XVMC_H
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

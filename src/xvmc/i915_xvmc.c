@@ -25,7 +25,6 @@
  *
  */
 
-#include <pthread.h>
 #include <sys/ioctl.h>
 
 #include "i915_xvmc.h"
@@ -56,6 +55,7 @@ typedef union {
     uint  u[2];
 } su_t;
 
+#if 0
 static int findOverlap(unsigned int width, unsigned int height,
                        short *dstX, short *dstY,
                        short *srcX, short *srcY,
@@ -91,6 +91,7 @@ static int findOverlap(unsigned int width, unsigned int height,
     *areaH = (h <= mHeight) ? h : mHeight;
     return 0;
 }
+#endif
 
 static void i915_flush(int map, int render)
 {
@@ -117,7 +118,7 @@ static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
     struct i915_3dstate_dest_buffer_variables_mpeg *dest_buffer_variables_mpeg;
     i915XvMCSurface *pI915Surface = (i915XvMCSurface *)surface->privData;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    unsigned int w = surface->width, h = surface->height;
+    unsigned int w = surface->width;
 
     /* 3DSTATE_BUFFER_INFO */
     /* DEST Y */
@@ -459,7 +460,7 @@ static void i915_mc_mpeg_macroblock_ipicture(XvMCContext *context, XvMCMacroBloc
     intelBatchbufferData(&macroblock_ipicture, sizeof(macroblock_ipicture), 0);
 }
 
-
+#if 0
 static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_0mv macroblock_0mv;
@@ -487,6 +488,7 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
 
     intelBatchbufferData(&macroblock_0mv, sizeof(macroblock_0mv), 0);
 }
+#endif
 
 static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
@@ -529,7 +531,6 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
 static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *mb, unsigned int ps)
 {
     struct i915_3dmpeg_macroblock_2fbmv macroblock_2fbmv;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
 
     /* Motion Vectors */
     su_t fmv;
@@ -979,6 +980,7 @@ static void i915_mc_one_time_state_initialization(XvMCContext *context)
     free(base);
 }
 
+#if 0
 static void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsigned int mask)
 {
     struct i915_3dstate_load_indirect *load_indirect = NULL;
@@ -1086,6 +1088,7 @@ static void i915_mc_invalidate_subcontext_buffers(XvMCContext *context, unsigned
     intelBatchbufferData(base, size, 0);
     free(base);
 }
+#endif
 
 static int i915_xvmc_map_buffers(i915XvMCContext *pI915XvMC)
 {
@@ -1167,6 +1170,7 @@ static void i915_xvmc_unmap_buffers(i915XvMCContext *pI915XvMC)
     }
 }
 
+#if 0
 /*
  * Video post processing
  */
@@ -1243,7 +1247,9 @@ static void i915_yuv2rgb_map_state_buffer(XvMCSurface *target_surface)
     tm->tm2.cube_face = 0;
     tm->tm2.pitch = (privTarget->uvStride >> 2) - 1;    /* in DWords - 1 */
 }
+#endif
 
+#if 0
 static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
 {
     struct i915_3dstate_sampler_state *sampler_state;
@@ -1340,7 +1346,9 @@ static void i915_yuv2rgb_sampler_state_buffer(XvMCSurface *surface)
     ts->ts1.east_deinterlacer = 0;
     ts->ts2.default_color = 0;
 }
+#endif
 
+#if 0
 static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
                                                       unsigned int dstaddr,
                                                       int dstpitch)
@@ -1374,7 +1382,9 @@ static void i915_yuv2rgb_static_indirect_state_buffer(XvMCSurface *surface,
     dest_buffer_variables->dw1.dest_h_bias = 8;
     dest_buffer_variables->dw1.color_fmt = COLORBUFFER_A8R8G8B8;  /* FIXME */
 }
+#endif
 
+#if 0
 static void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
 {
     struct i915_3dstate_pixel_shader_program *pixel_shader_program;
@@ -1424,7 +1434,9 @@ static void i915_yuv2rgb_pixel_shader_program_buffer(XvMCSurface *surface)
     src1 = UREG(REG_TYPE_S, 2); /* SAMPLER */
     i915_inst_texld(inst, T0_TEXLD, dest, src0, src1);
 }
+#endif
 
+#if 0
 static void i915_yuv2rgb_proc(XvMCSurface *surface)
 {
     i915XvMCSurface *privSurface = (i915XvMCSurface *)surface->privData;
@@ -1581,6 +1593,7 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
     intelBatchbufferData(base, size, 0);
     free(base);
 }
+#endif
 
 /*
  * Function: i915_release_resource
@@ -1588,7 +1601,6 @@ static void i915_yuv2rgb_proc(XvMCSurface *surface)
 static void i915_release_resource(Display *display, XvMCContext *context)
 {
     i915XvMCContext *pI915XvMC;
-    int screen = DefaultScreen(display);
 
     if (!(pI915XvMC = context->privData))
         return;
@@ -1608,13 +1620,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 {
     i915XvMCContext *pI915XvMC = NULL;
     I915XvMCCreateContextRec *tmpComm = NULL;
-    Status ret;
     drm_sarea_t *pSAREA;
-    char *curBusID;
-    uint magic;
-    int major, minor;
-    int isCapable;
-    int screen = DefaultScreen(display);
 
     XVMC_DBG("%s\n", __FUNCTION__);
 
@@ -1718,7 +1724,6 @@ static Status i915_xvmc_mc_create_surface(Display *display,
 	XvMCContext *context, XvMCSurface *surface, int priv_count,
 	CARD32 *priv_data)
 {
-    Status ret;
     i915XvMCContext *pI915XvMC;
     i915XvMCSurface *pI915Surface;
     I915XvMCCreateSurfaceRec *tmpComm = NULL;

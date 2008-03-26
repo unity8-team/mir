@@ -66,33 +66,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _XF86DRI_SERVER_
 
 _XFUNCPROTOBEGIN
-    Bool uniDRIQueryExtension(Display * dpy, int *event_base,
+extern Bool uniDRIQueryExtension(Display * dpy, int *event_base,
     int *error_base);
 
-Bool uniDRIQueryVersion(Display * dpy, int *majorVersion, int *minorVersion,
-    int *patchVersion);
+extern Bool uniDRIQueryVersion(Display * dpy, int *majorVersion,
+    int *minorVersion, int *patchVersion);
 
-Bool uniDRIQueryDirectRenderingCapable(Display * dpy, int screen,
+extern Bool uniDRIQueryDirectRenderingCapable(Display * dpy, int screen,
     Bool * isCapable);
 
-Bool uniDRIOpenConnection(Display * dpy, int screen, drm_handle_t * hSAREA,
+extern Bool uniDRIOpenConnection(Display * dpy, int screen, drm_handle_t * hSAREA,
     char **busIDString);
 
-Bool uniDRIAuthConnection(Display * dpy, int screen, drm_magic_t magic);
+extern Bool uniDRIAuthConnection(Display * dpy, int screen, drm_magic_t magic);
 
-Bool uniDRICloseConnection(Display * dpy, int screen);
+extern Bool uniDRICloseConnection(Display * dpy, int screen);
 
-Bool uniDRIGetClientDriverName(Display * dpy, int screen,
+extern Bool uniDRIGetClientDriverName(Display * dpy, int screen,
     int *ddxDriverMajorVersion, int *ddxDriverMinorVersion,
     int *ddxDriverPatchVersion, char **clientDriverName);
 
 /* XvMC context XID is alloced in _xvmc_create_context, so
  * don't recreate here */
-Bool uniDRICreateContext(Display * dpy, int screen, Visual * visual,
+extern Bool uniDRICreateContext(Display * dpy, int screen, Visual * visual,
     XID context_id, drm_context_t * hHWContext);
 
-Bool uniDRICreateContextWithConfig(Display * dpy, int screen, int configID,
-    XID context_id, drm_context_t * hHWContext);
+extern Bool uniDRICreateContextWithConfig(Display * dpy, int screen,
+    int configID, XID context_id, drm_context_t * hHWContext);
 
 extern Bool uniDRIDestroyContext(Display * dpy, int screen, XID context_id);
 
@@ -102,9 +102,16 @@ extern Bool uniDRICreateDrawable(Display * dpy, int screen,
 extern Bool uniDRIDestroyDrawable(Display * dpy, int screen,
     Drawable drawable);
 
-Bool uniDRIGetDeviceInfo(Display * dpy, int screen,
+extern Bool uniDRIGetDeviceInfo(Display * dpy, int screen,
     drm_handle_t * hFrameBuffer, int *fbOrigin, int *fbSize,
     int *fbStride, int *devPrivateSize, void **pDevPrivate);
+
+extern Bool uniDRIGetDrawableInfo(Display * dpy, int screen,
+    Drawable drawable, unsigned int *index, unsigned int *stamp,
+    int *X, int *Y, int *W, int *H,
+    int *numClipRects, drm_clip_rect_t ** pClipRects,
+    int *backX, int *backY,
+    int *numBackClipRects, drm_clip_rect_t ** pBackClipRects);
 
 _XFUNCPROTOEND
 #endif /* _XF86DRI_SERVER_ */

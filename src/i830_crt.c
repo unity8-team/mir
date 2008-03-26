@@ -391,6 +391,7 @@ i830_crt_destroy (xf86OutputPtr output)
 	xfree (output->driver_private);
 }
 
+#ifdef RANDR_GET_CRTC_INTERFACE
 static xf86CrtcPtr
 i830_crt_get_crtc(xf86OutputPtr output)
 {
@@ -400,6 +401,7 @@ i830_crt_get_crtc(xf86OutputPtr output)
    
     return i830_pipe_to_crtc(pScrn, pipe);
 }
+#endif
 
 static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .dpms = i830_crt_dpms,
