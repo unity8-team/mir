@@ -37,8 +37,6 @@ static int crtchead = 0;
 
 /* this will need remembering across a suspend */
 static uint32_t saved_nv_pfb_cfg0;
-/* this will need resetting over a suspend */
-static bool lvds_reset_done = false;
 
 typedef struct {
 	bool execute;
@@ -2923,15 +2921,11 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 	uint32_t sel_clk_binding;
+	static enum LVDS_script last_script = 0;
 
-	if (!lvds_ver)
+	if (script == last_script || !lvds_ver)
 		return;
 
-	/* LVDS_RESET only ever needs doing once per pxclk, and for one-mode LVDS, pxclk doesn't change */
-	if (script == LVDS_RESET && lvds_reset_done) {
-		link_head_and_output(pScrn, head, dcb_entry);
-		return;
-	}
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
 	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
@@ -2947,8 +2941,7 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	else
 		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
 
-	if (script == LVDS_RESET)
-		lvds_reset_done = true;
+	last_script = script;
 
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
