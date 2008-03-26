@@ -2339,7 +2339,7 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
        }
 
     bios_header=info->VBIOS[0x48];
-    bios_header+=(((int)info->VBIOS[0x49]+0)<<8);           
+    bios_header+=(((int)info->VBIOS[0x49]+0)<<8);
         
     mm_table=info->VBIOS[bios_header+0x38];
     if(mm_table==0)
@@ -2770,14 +2770,16 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitAccel(pScrn))              goto fail;
 
-    if (!RADEONPreInitXv(pScrn))                 goto fail;
+    if (!IS_AVIVO_VARIANT) {
+	if (!RADEONPreInitXv(pScrn))                 goto fail;
+    }
 
     if (!xf86RandR12PreInit (pScrn))
     {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "RandR initialization failure\n");
       goto fail;
-    }	
-    
+    }
+
     if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
       goto fail;
