@@ -182,6 +182,11 @@ where the BIOS accesses pipe registers during display hotswitch or lid close,
 causing a crash.  If you find that your platform needs this option, please file
 a bug against xf86-video-intel at http://bugs.freedesktop.org which includes
 the output of 'lspci -v' and 'lspci -vn'.
+.TP
+.BI "Option \*qXvMC\*q \*q" boolean \*q
+Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
+User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
+Default: Disabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

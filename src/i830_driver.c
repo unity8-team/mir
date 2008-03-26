@@ -171,7 +171,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/mman.h>
 #include <errno.h>
 
 #include "xf86.h"
@@ -198,6 +197,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_debug.h"
 #include "i830_bios.h"
 #include "i830_video.h"
+
+#ifdef INTEL_XVMC
+#define _INTEL_XVMC_SERVER_
+#include "i830_hwmc.h"
+#endif
 
 #ifdef XF86DRI
 #include "dri.h"
@@ -298,7 +302,10 @@ typedef enum {
    OPTION_INTELTEXPOOL,
 #endif
    OPTION_TRIPLEBUFFER,
-   OPTION_FORCEENABLEPIPEA
+   OPTION_FORCEENABLEPIPEA,
+#ifdef INTEL_XVMC
+   OPTION_XVMC,
+#endif
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -322,6 +329,9 @@ static OptionInfoRec I830Options[] = {
 #endif
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
+#ifdef INTEL_XVMC
+   {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
+#endif
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -684,15 +694,6 @@ I830MapMem(ScrnInfoPtr pScrn)
    if (I830IsPrimary(pScrn) && pI830->LpRing->mem != NULL) {
       pI830->LpRing->virtual_start =
 	 pI830->FbBase + pI830->LpRing->mem->offset;
-   }
-
-   /* Mark the pages we haven't yet bound into AGP as inaccessible. */
-   if (pI830->FbMapSize > pI830->stolen_size) {
-      if (mprotect(pI830->FbBase + pI830->stolen_size,
-		   pI830->FbMapSize - pI830->stolen_size, PROT_NONE) != 0) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Failed to mprotect unbound AGP: %s\n", strerror(errno));
-      }
    }
 
    return TRUE;
@@ -1479,7 +1480,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        pI830->useEXA = FALSE;
 #endif
 #if defined(I830_USE_XAA) && defined(I830_USE_EXA)
-       int from = X_DEFAULT;
+       from = X_DEFAULT;
        if ((s = (char *)xf86GetOptValString(pI830->Options,
 					    OPTION_ACCELMETHOD))) {
 	   if (!xf86NameCmp(s, "EXA")) {
@@ -1618,6 +1619,15 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86DrvMsg(pScrn->scrnIndex, from, "Triple buffering %sabled\n",
 	      pI830->TripleBuffer ? "en" : "dis");
+#endif
+
+#ifdef INTEL_XVMC
+   pI830->XvMCEnabled = FALSE;
+   from =  (!pI830->directRenderingDisabled &&
+	    xf86GetOptValBool(pI830->Options, OPTION_XVMC,
+			      &pI830->XvMCEnabled)) ? X_CONFIG : X_DEFAULT;
+   xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
+	   pI830->XvMCEnabled ? "en" : "dis");
 #endif
 
    /*
@@ -1867,7 +1877,11 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    /* Disable clock gating reported to work incorrectly according to the specs.
     */
-   if (IS_I965GM(pI830)) {
+   if (IS_IGD_GM(pI830)) {
+      OUTREG(RENCLK_GATE_D1, 0);
+      OUTREG(RENCLK_GATE_D2, 0);
+      OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+   } else if (IS_I965GM(pI830)) {
       OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
    } else if (IS_I965G(pI830)) {
       OUTREG(RENCLK_GATE_D1,
@@ -2372,6 +2386,15 @@ I830BlockHandler(int i,
 
     pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
+
+    /* Emit a flush of the rendering cache, or on the 965 and beyond
+     * rendering results may not hit the framebuffer until significantly
+     * later.  In the direct rendering case this is already done just
+     * after the page flipping updates, so there's no need to duplicate
+     * the effort here.
+     */
+    if (!pI830->noAccel && !pI830->directRenderingEnabled)
+	I830EmitFlush(pScrn);
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
@@ -3078,6 +3101,12 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 static void
 I830FreeScreen(int scrnIndex, int flags)
 {
+#ifdef INTEL_XVMC
+    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+    I830Ptr pI830 = I830PTR(pScrn);
+    if (pI830->XvMCEnabled)
+	intel_xvmc_finish(xf86Screens[scrnIndex]);
+#endif
    I830FreeRec(xf86Screens[scrnIndex]);
    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
       vgaHWFreeHWRec(xf86Screens[scrnIndex]);

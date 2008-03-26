@@ -118,6 +118,12 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #define I830_KERNEL_TEX (1 << 1) /* Allocate texture memory pool */
 #endif
 
+#ifdef XvMCExtension
+#ifdef ENABLE_XVMC
+#define INTEL_XVMC 1
+#endif
+#endif
+
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -406,6 +412,12 @@ typedef struct _I830Rec {
    /* For Xvideo */
    i830_memory *overlay_regs;
 #endif
+#ifdef INTEL_XVMC
+   /* For XvMC */
+   Bool XvMCEnabled;
+   Bool IsXvMCSurface;
+#endif
+
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
    Rotation rotation;
    void (*PointerMoved)(int, int, int);
@@ -512,6 +524,7 @@ typedef struct _I830Rec {
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
+   float coord_adjust;
    /* i915 EXA render state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
@@ -746,6 +759,10 @@ extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
+#ifdef INTEL_XVMC
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
+                               i830_memory **buffer, unsigned long size, int flags);
+#endif
 
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
@@ -790,6 +807,9 @@ Bool i830_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 Bool i830_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PicturePtr pDst, PixmapPtr pSrcPixmap,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+Bool
+i830_transform_is_affine (PictTransformPtr t);
+
 void i830_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 void i830_done_composite(PixmapPtr pDst);
@@ -808,9 +828,13 @@ Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 void i965_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
 
-void
+Bool
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,
 				 float *x_out, float *y_out);
+
+Bool
+i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
+				    float *x_out, float *y_out, float *z_out);
 
 void i830_enter_render(ScrnInfoPtr);
 

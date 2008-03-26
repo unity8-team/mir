@@ -66,6 +66,10 @@ AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE]
 			   [ XSERVER_SOURCE="$withval" ],
 			   [ XSERVER_SOURCE="" ])
 
+AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
+                                  [Disable XvMC support [[default=auto]]]),
+              [XVMC="$enableval"],
+              [XVMC=auto])
 
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
@@ -83,7 +87,8 @@ sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 # Checks for header files.
 AC_HEADER_STDC
 
-if test "$DRI" != no; then
+AC_MSG_CHECKING([whether to include DRI support])
+if test x$DRI = xauto; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
                       [have_dri_h="yes"], [have_dri_h="no"])
         AC_CHECK_FILE([${sdkdir}/sarea.h],
@@ -92,10 +97,7 @@ if test "$DRI" != no; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
-fi
 
-AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI = xauto; then
         if test "$have_dri_h" = yes -a \
                 "$have_sarea_h" = yes -a \
                 "$have_dristruct_h" = yes; then
@@ -207,6 +209,20 @@ AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
 if test "$VIDEO_DEBUG" = yes; then
 	AC_DEFINE(VIDEO_DEBUG,1,[Enable debug support])
 fi
+
+AC_MSG_CHECKING([whether to include XvMC support])
+if test "$XVMC" = auto; then
+	XVMC="$DRI"
+fi
+if test "$XVMC" = yes && test "$DRI" = no; then
+	AC_MSG_ERROR([XvMC can't be enabled without DRI])
+fi
+AC_MSG_RESULT([$XVMC])
+AM_CONDITIONAL(XVMC, test x$XVMC = xyes)
+if test "$XVMC" = yes; then
+	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
+fi
+
 
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])

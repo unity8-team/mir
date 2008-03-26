@@ -101,7 +101,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -204,30 +203,14 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 					mem->allocated_size, mem->tiling);
     }
 
-    /* Mark the pages accessible now that they're bound. */
-    if (mprotect(pI830->FbBase + mem->offset, ALIGN(mem->size, GTT_PAGE_SIZE),
-		 PROT_READ | PROT_WRITE) != 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Failed to mprotect %s: %s\n", mem->name, strerror(errno));
-    }
-
     return TRUE;
 }
 
 static Bool
 i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-
     if (mem == NULL || !mem->bound)
 	return TRUE;
-
-    /* Mark the pages accessible now that they're bound. */
-    if (mprotect(pI830->FbBase + mem->offset, ALIGN(mem->size, GTT_PAGE_SIZE),
-		 PROT_NONE) != 0) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Failed to mprotect %s: %s\n", mem->name, strerror(errno));
-    }
 
     if (mem->tiling != TILE_NONE)
 	i830_clear_tiling(pScrn, mem->fence_nr);
@@ -2014,4 +1997,26 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
 		   "I830CheckAvailableMemory", maxPages * 4);
 
     return maxPages * 4;
+}
+
+/*
+ * Allocate memory for MC compensation
+ */
+Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
+                               i830_memory **buffer, unsigned long size,
+                               int flags)
+{
+    *buffer = i830_allocate_memory(pScrn, name, size,
+                                   GTT_PAGE_SIZE, flags);
+
+    if (!*buffer) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to allocate memory for %s.\n", name);
+        return FALSE;
+    }
+
+    if (!i830_bind_memory(pScrn, *buffer))
+	return FALSE;
+
+    return TRUE;
 }

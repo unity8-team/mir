@@ -61,6 +61,13 @@ INTEL_DRI_SRCS = \
          i810_hwmc.c \
          i830_dri.h
 
+INTEL_XVMC_SRCS = \
+	 i830_hwmc.h \
+	 i830_hwmc.c \
+         i915_hwmc.c \
+         i915_hwmc.h
+
+
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
@@ -77,6 +84,7 @@ intel_drv_la_SOURCES = \
          i810_io.c \
          i810_memory.c \
          i810_reg.h \
+         i810_ring.h \
          i810_video.c \
          i810_wmark.c \
 	 i830_3d.c \
@@ -102,6 +110,7 @@ intel_drv_la_SOURCES = \
          i830_video.c \
          i830_video.h \
 	 i830_reg.h \
+         i830_ring.h \
 	 i830_sdvo.c \
 	 i830_sdvo.h \
 	 i830_sdvo_regs.h \
@@ -145,7 +154,8 @@ EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_G4A)	\
 	$(INTEL_G4H)	\
-	$(INTEL_DRI_SRCS)
+	$(INTEL_DRI_SRCS) \
+	$(INTEL_XVMC_SRCS)
 
 if HAVE_GEN4ASM
 
@@ -189,6 +199,11 @@ endif
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
+endif
+
+if XVMC
+intel_drv_la_SOURCES += \
+	$(INTEL_XVMC_SRCS)
 endif
 
 install-data-local: install-intel_drv_laLTLIBRARIES

@@ -188,7 +188,7 @@ static Bool i915_check_composite_texture(PicturePtr pPict, int unit)
     int h = pPict->pDrawable->height;
     int i;
 
-    if ((w > 0x7ff) || (h > 0x7ff))
+    if ((w > 2048) || (h > 2048))
         I830FALLBACK("Picture w/h too large (%dx%d)\n", w, h);
 
     for (i = 0; i < sizeof(i915_tex_formats) / sizeof(i915_tex_formats[0]);
@@ -319,6 +319,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     uint32_t dst_format, dst_offset, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
+    FS_LOCALS(20);
+    Bool is_affine_src, is_affine_mask;
+    Bool is_nearest = FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -327,18 +330,28 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	return FALSE;
     dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
-    FS_LOCALS(20);
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
+    if (pSrcPicture->filter == PictFilterNearest)
+	is_nearest = TRUE;
     if (pMask != NULL) {
 	if (!i915_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
+	if (pMaskPicture->filter == PictFilterNearest)
+	    is_nearest = TRUE;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }
+    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
+    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
+
+    if (is_nearest)
+	pI830->coord_adjust = -0.125;
+    else
+	pI830->coord_adjust = 0;
 
     if (pMask == NULL) {
 	BEGIN_BATCH(10);
@@ -389,9 +402,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_1 | I1_LOAD_S(2) |
 		  I1_LOAD_S(4) | I1_LOAD_S(5) | I1_LOAD_S(6) | 3);
-	ss2 = S2_TEXCOORD_FMT(0, TEXCOORDFMT_2D);
+	ss2 = S2_TEXCOORD_FMT(0, is_affine_src ? TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 	if (pMask)
-		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_2D);
+		ss2 |= S2_TEXCOORD_FMT(1, is_affine_mask ? TEXCOORDFMT_2D : TEXCOORDFMT_4D);
 	else
 		ss2 |= S2_TEXCOORD_FMT(1, TEXCOORDFMT_NOT_PRESENT);
 	ss2 |= S2_TEXCOORD_FMT(2, TEXCOORDFMT_NOT_PRESENT);
@@ -435,7 +448,12 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	i915_fs_dcl(FS_T1);
 
     /* Load the pSrcPicture texel */
-    i915_fs_texld(FS_R0, FS_S0, FS_T0);
+    if (is_affine_src) {
+	i915_fs_texld(FS_R0, FS_S0, FS_T0);
+    } else {
+	i915_fs_texldp(FS_R0, FS_S0, FS_T0);
+    }
+
     /* If the texture lacks an alpha channel, force the alpha to 1. */
     if (PICT_FORMAT_A(pSrcPicture->format) == 0)
 	i915_fs_mov_masked(FS_R0, MASK_W, i915_fs_operand_one());
@@ -445,7 +463,11 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	i915_fs_mov(out_reg, i915_fs_operand_reg(FS_R0));
     } else {
 	/* Load the pMaskPicture texel */
-	i915_fs_texld(FS_R1, FS_S1, FS_T1);
+	if (is_affine_mask) {
+	    i915_fs_texld(FS_R1, FS_S1, FS_T1);
+	} else {
+	    i915_fs_texldp(FS_R1, FS_S1, FS_T1);
+	}
 	/* If the texture lacks an alpha channel, force the alpha to 1. */
 	if (PICT_FORMAT_A(pMaskPicture->format) == 0)
 	    i915_fs_mov_masked(FS_R1, MASK_W, i915_fs_operand_one());

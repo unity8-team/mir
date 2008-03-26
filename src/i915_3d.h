@@ -236,6 +236,11 @@ do {									\
      FS_OUT(_i915_fs_texld(T0_TEXLD, dest_reg, sampler_reg, address_reg)); \
 } while (0)
 
+#define i915_fs_texldp(dest_reg, sampler_reg, address_reg)		\
+do {									\
+     FS_OUT(_i915_fs_texld(T0_TEXLDP, dest_reg, sampler_reg, address_reg)); \
+} while (0)
+
 static inline struct i915_fs_op
 _i915_fs_texld(int load_op, int dest_reg, int sampler_reg, int address_reg)
 {

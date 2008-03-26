@@ -1165,6 +1165,7 @@ i830_lvds_get_property(xf86OutputPtr output, Atom property)
 }
 #endif /* RANDR_13_INTERFACE */
 
+#ifdef RANDR_GET_CRTC_INTERFACE
 static xf86CrtcPtr
 i830_lvds_get_crtc(xf86OutputPtr output)
 {
@@ -1174,6 +1175,7 @@ i830_lvds_get_crtc(xf86OutputPtr output)
    
     return i830_pipe_to_crtc(pScrn, pipe);
 }
+#endif
 
 static const xf86OutputFuncsRec i830_lvds_output_funcs = {
     .create_resources = i830_lvds_create_resources,
