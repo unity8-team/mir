@@ -627,7 +627,7 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 	 */
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
 		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-		bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
+		bool crossed_clocks = nv_crtc->head ^ ((ffs(nv_output->or) > 1) ? 1 : 0);
 		int i;
 
 		state->sel_clk &= ~(0x5 << 16);
