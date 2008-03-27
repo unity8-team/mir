@@ -305,13 +305,10 @@ static void nv_output_restore(xf86OutputPtr output)
 }
 
 static int
-nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
+nv_analog_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
-	if (pMode->Flags & V_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
-	if (pMode->Clock > 400000 || pMode->Clock < 25000)
-		return MODE_CLOCK_RANGE;
+	if (pMode->Clock > 400000)
+		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
@@ -702,7 +699,7 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .dpms = nv_analog_output_dpms,
     .save = nv_output_save,
     .restore = nv_output_restore,
-    .mode_valid = nv_output_mode_valid,
+    .mode_valid = nv_analog_output_mode_valid,
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
     .detect = nv_analog_output_detect,
@@ -868,13 +865,13 @@ nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
 		if (pMode->Clock > 330000) /* 2x165 MHz */
-			return MODE_CLOCK_RANGE;
+			return MODE_CLOCK_HIGH;
 	} else {
 		if (pMode->Clock > 165000) /* 165 MHz */
-			return MODE_CLOCK_RANGE;
+			return MODE_CLOCK_HIGH;
 	}
 
-	return nv_output_mode_valid(output, pMode);
+	return MODE_OK;
 }
 
 static const xf86OutputFuncsRec nv_tmds_output_funcs = {
@@ -902,7 +899,7 @@ static int nv_lvds_output_mode_valid
 	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
 		return MODE_PANEL;
 
-	return nv_output_mode_valid(output, pMode);
+	return MODE_OK;
 }
 
 static xf86OutputStatus
