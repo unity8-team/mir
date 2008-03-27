@@ -75,7 +75,8 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 
 #ifdef XSERVER_LIBPCIACCESS
     //info->VBIOS = xalloc(info->PciInfo->rom_size);
-    info->VBIOS = xalloc(RADEON_VBIOS_SIZE);
+    int size = info->PciInfo->rom_size > RADEON_VBIOS_SIZE ? info->PciInfo->rom_size : RADEON_VBIOS_SIZE;
+    info->VBIOS = xalloc(size);
 #else
     info->VBIOS = xalloc(RADEON_VBIOS_SIZE);
 #endif
