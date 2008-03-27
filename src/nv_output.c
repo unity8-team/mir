@@ -104,7 +104,7 @@ static Bool dpms_common(xf86OutputPtr output, int mode)
 		return TRUE;
 	nv_crtc = crtc->driver_private;
 
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
+	if (0) { //pNv->NVArch >= 0x17 && pNv->twoHeads) {
 		/* We may be going for modesetting, so we must reset our output binding */
 		if (mode == DPMSModeOff) {
 			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, 0x7f);
