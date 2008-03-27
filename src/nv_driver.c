@@ -712,6 +712,7 @@ NVEnterVT(int scrnIndex, int flags)
 			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 		}
 
+#if 0
 		/* Reassign outputs so disabled outputs don't get stuck on the wrong crtc */
 		for (i = 0; i < xf86_config->num_output; i++) {
 			NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
@@ -727,6 +728,7 @@ NVEnterVT(int scrnIndex, int flags)
 					nv_dcb_write_tmds(pNv, nv_output->dcb_entry, 0, 0x4, tmds04 ^ 8);
 			}
 		}
+#endif
 
 		if (!xf86SetDesiredModes(pScrn))
 			return FALSE;
