@@ -139,14 +139,14 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	/* The TMDS_PLL switch is on the actual ramdac */
-	int fp_head = nv_crtc->head ^ state->crosswired;
-	uint32_t fp_debug_0 = NVReadRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0);
+//	int fp_head = nv_crtc->head ^ state->crosswired;
+//	uint32_t fp_debug_0 = NVReadRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0);
 
 	if (regp->vpll_changed) {
 		uint32_t savedc040 = nvReadMC(pNv, 0xc040);
 
-		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0,
-			fp_debug_0 | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
+//		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0,
+//			fp_debug_0 | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
 
 		/* Wait for the situation to stabilise */
 		usleep(5000);
@@ -164,7 +164,7 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, savedc040);
 
-		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0, fp_debug_0);
+//		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0, fp_debug_0);
 	}
 }
 
