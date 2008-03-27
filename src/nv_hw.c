@@ -1395,4 +1395,21 @@ void NVSetStartAddress (
     nvWriteCurCRTC(pNv, NV_CRTC_START, start);
 }
 
+uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
+{
+	int mask;
 
+	if (bpp == 15)
+		bpp = 16;
+	if (bpp == 24)
+		bpp = 8;
+
+	/* Alignment requirements taken from the Haiku driver */
+	if (pNv->Architecture == NV_ARCH_04 || pNv->NoAccel) /* CRTC only case */
+		/* Apparently a hardware bug on some hardware makes this 128 instead of 64 */
+		mask = 128 / bpp - 1;
+	else /* Accel case */
+		mask = 512 / bpp - 1;
+
+	return (width + mask) & ~mask;
+}

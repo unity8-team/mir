@@ -137,6 +137,7 @@ void nv4UpdateArbitrationSettings (unsigned      VClk,
 				   unsigned     *burst,
 				   unsigned     *lwm,
 				   NVPtr        pNv);
+uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 
 /* in nv_i2c.c */
 Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);
