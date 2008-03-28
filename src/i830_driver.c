@@ -2685,6 +2685,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       pScrn->videoRam &= ~3;
    }
 
+   if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Cannot support DRI with frame buffer width > 2048.\n");
+      pI830->directRenderingDisabled = TRUE;
+   }
+
 #ifdef XF86DRI
    /* If DRI hasn't been explicitly disabled, try to initialize it.
     * It will be used by the memory allocator.
@@ -2762,12 +2768,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     pI830->XvEnabled = !pI830->XvDisabled;
 #endif
 
-   if (!IS_I965G(pI830) && pScrn->displayWidth > 2048) {
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		 "Cannot support DRI with frame buffer width > 2048.\n");
-      pI830->tiling = FALSE;
-      pI830->directRenderingEnabled = FALSE;
-   }
 
    /* Need MMIO mapped to do GTT lookups during memory allocation. */
    I830MapMMIO(pScrn);
