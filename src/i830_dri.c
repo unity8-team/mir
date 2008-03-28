@@ -135,7 +135,7 @@ static void I830DRITransitionSingleToMulti3d(ScreenPtr pScreen);
 #define DRI_DRIVER_FRAMEBUFFER_MAP 0
 #endif
 
-#ifdef DRI_SUPPORTS_CLIP_NOTIFY
+#if DRI_SUPPORTS_CLIP_NOTIFY
 static void I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num);
 #endif
 
