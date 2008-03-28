@@ -54,22 +54,24 @@ struct idle_flags i965_idle_flags[] = {
     {I965_MAP_FILTER_DONE, "map filter"},
     {I965_MAP_L2_IDLE, "map L2"},
     {I965_CP_DONE, "CP"},
+    {0, "total"},
     {0, "other"},
 };
 
-/* Fills in the "other" field's idle flags */
+/* Fills in the "other" and "total" fields' idle flags */
 static void
 setup_other_flags(struct idle_flags *idle_flags, int idle_flag_count)
 {
-    uint32_t other_idle_flags;
+    uint32_t other_idle_flags, total_idle_flags = 0;
     int i;
 
     other_idle_flags = ~(I965_RING_0_ENABLE);
-    for (i = 0; i < idle_flag_count - 1; i++) {
+    for (i = 0; i < idle_flag_count - 2; i++) {
 	other_idle_flags &= ~idle_flags[i].instdone_flag;
+	total_idle_flags |= idle_flags[i].instdone_flag;
     }
+    idle_flags[i - 1].instdone_flag = total_idle_flags;
     idle_flags[i].instdone_flag = other_idle_flags;
-
 }
 
 int main(int argc, char **argv)
@@ -138,7 +140,8 @@ int main(int argc, char **argv)
 	    uint32_t instdone = INREG(INST_DONE_I965);
 
 	    for (j = 0; j < idle_flag_count; j++) {
-		if ((instdone & idle_flags[j].instdone_flag) == 0)
+		if ((instdone & idle_flags[j].instdone_flag) !=
+		    idle_flags[j].instdone_flag)
 		    idle_flags[j].count++;
 	    }
 
