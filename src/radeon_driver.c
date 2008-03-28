@@ -2980,7 +2980,8 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 	/* let the bios control the backlight */
 	save->bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
 	/* tell the bios not to handle mode switching */
-	save->bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
+	save->bios_6_scratch |= (ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH |
+				 ATOM_S6_ACC_MODE);
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	    OUTREG(R600_BIOS_2_SCRATCH, save->bios_2_scratch);
@@ -2993,7 +2994,8 @@ RADEONInitBIOSRegisters(ScrnInfoPtr pScrn)
 	/* let the bios control the backlight */
 	save->bios_0_scratch &= ~RADEON_DRIVER_BRIGHTNESS_EN;
 	/* tell the bios not to handle mode switching */
-	save->bios_6_scratch |= RADEON_DISPLAY_SWITCHING_DIS;
+	save->bios_6_scratch |= (RADEON_DISPLAY_SWITCHING_DIS |
+				 RADEON_ACC_MODE_CHANGE);
 	/* tell the bios a driver is loaded */
 	save->bios_7_scratch |= RADEON_DRV_LOADED;
 

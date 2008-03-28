@@ -669,15 +669,15 @@ radeon_bios_output_lock(xf86OutputPtr output, Bool lock)
 
     if (info->IsAtomBios) {
 	if (lock) {
-	    save->bios_6_scratch |= (ATOM_S6_CRITICAL_STATE | ATOM_S6_ACC_MODE);
+	    save->bios_6_scratch |= ATOM_S6_CRITICAL_STATE;
 	} else {
-	    save->bios_6_scratch &= ~(ATOM_S6_CRITICAL_STATE | ATOM_S6_ACC_MODE);
+	    save->bios_6_scratch &= ~ATOM_S6_CRITICAL_STATE;
 	}
     } else {
 	if (lock) {
-	    save->bios_6_scratch |= (RADEON_DRIVER_CRITICAL | RADEON_ACC_MODE_CHANGE);
+	    save->bios_6_scratch |= RADEON_DRIVER_CRITICAL;
 	} else {
-	    save->bios_6_scratch &= ~(RADEON_DRIVER_CRITICAL | RADEON_ACC_MODE_CHANGE);
+	    save->bios_6_scratch &= ~RADEON_DRIVER_CRITICAL;
 	}
     }
     if (info->ChipFamily >= CHIP_FAMILY_R600)
