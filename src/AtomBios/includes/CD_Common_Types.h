@@ -37,6 +37,10 @@ Revision History:
 #ifndef _COMMON_TYPES_H_
 	#define _COMMON_TYPES_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
     #ifndef LINUX
 	#if _MSC_EXTENSIONS 
     
