@@ -445,7 +445,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	/* Overlay and cursors, if physical, need to be allocated outside
 	 * of the kernel memory manager.
 	 */
-	if (!OVERLAY_NOPHYSICAL(pI830) && !IS_I965G(pI830)) {
+	if (!OVERLAY_NOPHYSICAL(pI830) && !IS_IGD_GM(pI830)) {
 	    mmsize -= ROUND_TO(OVERLAY_SIZE, GTT_PAGE_SIZE);
 	}
 	if (pI830->CursorNeedsPhysical) {
@@ -1023,6 +1023,9 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled)
+	return TRUE;
+
+    if (IS_IGD_GM(pI830))
 	return TRUE;
 
     if (!OVERLAY_NOPHYSICAL(pI830))

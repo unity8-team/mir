@@ -617,7 +617,8 @@ I830InitVideo(ScreenPtr pScreen)
     }
 
     /* Set up overlay video if we can do it at this depth. */
-    if (pScrn->bitsPerPixel != 8 && pI830->overlay_regs != NULL)
+    if (!IS_IGD_GM(pI830) && pScrn->bitsPerPixel != 8 &&
+	    pI830->overlay_regs != NULL)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 	if (overlayAdaptor != NULL) {
@@ -2634,6 +2635,7 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv;
 
+    /* no overlay */
     if (pI830->adaptor == NULL)
         return;
 
@@ -2913,6 +2915,7 @@ i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on)
     I830Ptr pI830 = I830PTR(pScrn);
     I830PortPrivPtr pPriv;
 
+    /* no overlay */
     if (pI830->adaptor == NULL)
 	return;
 
