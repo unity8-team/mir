@@ -108,7 +108,7 @@ nv50_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 
 	volatile struct {
 		unsigned short red, green, blue, unused;
-	} *lut = CLUT;
+	} *lut = (void *) CLUT;
 
 	switch (pScrn->depth) {
 	case 15:
