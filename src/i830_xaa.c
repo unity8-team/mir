@@ -326,7 +326,7 @@ I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
      */
     pI830->BR[13] |= (I830PatternROP[rop] << 16);
 #else
-    pI830->BR[13] |= ((XAAGetPatternROP(rop) << 16);
+    pI830->BR[13] |= (XAAGetPatternROP(rop) << 16);
 #endif
 
     pI830->BR[16] = color;
