@@ -133,11 +133,11 @@ i830_set_lvds_backlight_method(xf86OutputPtr output)
     } else if (IS_I965GM(pI830) || IS_IGD_GM(pI830)) {
 	blc_pwm_ctl2 = INREG(BLC_PWM_CTL2);
 	if (blc_pwm_ctl2 & BLM_LEGACY_MODE2)
-	    method = BCM_LEGACY;
+	    method = BCM_COMBO;
     } else {
 	blc_pwm_ctl = INREG(BLC_PWM_CTL);
 	if (blc_pwm_ctl & BLM_LEGACY_MODE)
-	    method = BCM_LEGACY;
+	    method = BCM_COMBO;
     }
 
     pI830->backlight_control_method = method;
