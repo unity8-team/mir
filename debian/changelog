@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu12) hardy; urgency=low
+
+  * debian/patches/17_lockup_virtual_size_2048.patch:
+    - merging patch from http://bugs.freedesktop.org/show_bug.cgi?id=13376.
+      Fixes crash if Virtual set to >2048 by disabling DRI in this case,
+      prior to initializing the DRI subsystem.  (closes LP: #188178)
+
+ -- Emmanuel Bretelle <chantra@debuntu.org>  Sat, 29 Mar 2008 14:06:49 +0000
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu11) hardy; urgency=low
 
   * debian/patches/16_legacy_backlight_blc_pwn_ctl.patch:

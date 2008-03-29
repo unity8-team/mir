@@ -11,3 +11,4 @@
 14_sysfs_fujitsu_backlight.patch
 15_quirk_sony_vaio_vgn-sz4mn.patch
 16_legacy_backlight_blc_pwn_ctl.patch
+17_lockup_virtual_size_2048.patch
