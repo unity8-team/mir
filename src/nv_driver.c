@@ -760,11 +760,13 @@ NVLeaveVT(int scrnIndex, int flags)
 	if (pNv->randr12_enable)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
+	NVSync(pScrn);
+
 	if (pNv->Architecture == NV_ARCH_50) {
 		NV50ReleaseDisplay(pScrn);
 		return;
 	}
-	NVSync(pScrn);
+
 	NVRestore(pScrn);
 	if (!pNv->randr12_enable)
 		NVLockUnlock(pScrn, 1);
