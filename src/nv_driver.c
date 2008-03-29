@@ -2042,9 +2042,9 @@ static void NVBacklightEnable(NVPtr pNv,  Bool on)
        define the ones we know for sure. */
 
 #if defined(__powerpc__)
-    if((pNv->Chipset == 0x10DE0179) || 
-       (pNv->Chipset == 0x10DE0189) || 
-       (pNv->Chipset == 0x10DE0329))
+    if((pNv->Chipset & 0xffff == 0x0179) ||
+       (pNv->Chipset & 0xffff == 0x0189) ||
+       (pNv->Chipset & 0xffff == 0x0329))
     {
        /* NV17,18,34 Apple iMac, iBook, PowerBook */
       CARD32 tmp_pmc, tmp_pcrt;
