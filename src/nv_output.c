@@ -659,7 +659,7 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 				shift = 1;
 
 			state->sel_clk &= ~(0xf << 4*i);
-			if (crossed_clocks)
+			if (nv_crtc->head)
 				state->sel_clk |= (0x4 << (4*i + shift));
 			else
 				state->sel_clk |= (0x1 << (4*i + shift));
