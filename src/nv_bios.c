@@ -4269,18 +4269,12 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			if (jent->type == 100) /* already merged entry */
 				continue;
 
-			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location) {
-				/* only merge heads field when output field is the same --
-				 * we could merge output field for same heads, but dual link,
-				 * the resultant need to make several merging passes, and lack
-				 * of applicable real life cases has deterred this so far
-				 */
-				if (jent->or == ient->or) {
-					xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-						   "Merging DCB entries %d and %d\n", i, j);
-					ient->heads |= jent->heads;
-					jent->type = 100; /* dummy value */
-				}
+			/* merge heads field when all other fields the same */
+			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location && jent->or == ient->or) {
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					   "Merging DCB entries %d and %d\n", i, j);
+				ient->heads |= jent->heads;
+				jent->type = 100; /* dummy value */
 			}
 		}
 	}
