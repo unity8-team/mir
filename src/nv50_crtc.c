@@ -61,6 +61,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 {
+	DDXMMIOH("NV50DisplayCommand: head %d addr 0x%X value 0x%X\n", 0, addr, value);
 	NVPtr pNv = NVPTR(pScrn);
 	NVWrite(pNv, NV50_DISPLAY_CTRL_VAL, value);
 	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, addr | 0x10000 | NV50_DISPLAY_CTRL_STATE_ENABLE | NV50_DISPLAY_CTRL_STATE_PENDING);
@@ -145,13 +146,20 @@ nv50_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	}
 }
 
+static Bool
+nv50_crtc_mode_fixup(xf86CrtcPtr crtc, DisplayModePtr mode,
+		     DisplayModePtr adjusted_mode)
+{
+	return TRUE;
+}
+
 static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.dpms = nv50_crtc_dpms_set,
 	.save = NULL,
 	.restore = NULL,
 	.lock = nv50_crtc_lock,
 	.unlock = NULL,
-	.mode_fixup = NV50CrtcModeFixup,
+	.mode_fixup = nv50_crtc_mode_fixup,
 	.prepare = NV50CrtcPrepare,
 	.mode_set = NV50CrtcModeSet,
 	.gamma_set = nv50_crtc_gamma_set,

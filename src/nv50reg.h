@@ -96,10 +96,13 @@
 #define NV50_CRTC0_CLOCK			0x804
 #define NV50_CRTC0_INTERLACE		0x808
 
-#define NV50_CRTC0_HBLANK_START	0x814
-#define NV50_CRTC0_HSYNC_END		0x818
-#define NV50_CRTC0_HBLANK_END		0x81C
-#define NV50_CRTC0_HTOTAL			0x820
+/* 0x810 is a reasonable guess, nothing more. */
+#define NV50_CRTC0_DISPLAY_START				0x810
+#define NV50_CRTC0_DISPLAY_END					0x814
+#define NV50_CRTC0_SYNC_DURATION				0x818
+#define NV50_CRTC0_SYNC_START_TO_BLANK_END		0x81C
+#define NV50_CRTC0_MODE_UNK1					0x820
+#define NV50_CRTC0_MODE_UNK2					0x824
 
 /* You can't have a palette in 8 bit mode (=OFF) */
 #define NV50_CRTC0_CLUT_MODE		0x840
@@ -146,16 +149,26 @@
 	#define NV50_CRTC0_DITHERING_CTRL_ON	0x11
 	#define NV50_CRTC0_DITHERING_CTRL_OFF	0x0
 
+#define NV50_CRTC0_SCALE_CTRL		0x8A4
+
 #define NV50_CRTC0_FB_POS			0x8C0
 #define NV50_CRTC0_SCRN_SIZE		0x8C8
+
+/* These control the scaling relative to the native mode and the actual mode. */
+/* But why 2, what do happens when they are used seperately? */
+#define NV50_CRTC0_SCALE_REG1		0x8D8
+#define NV50_CRTC0_SCALE_REG2		0x8DC
 
 #define NV50_CRTC1_CLOCK			0xC04
 #define NV50_CRTC1_INTERLACE		0xC08
 
-#define NV50_CRTC1_HBLANK_START	0xC14
-#define NV50_CRTC1_HSYNC_END		0xC18
-#define NV50_CRTC1_HBLANK_END		0xC1C
-#define NV50_CRTC1_HTOTAL			0xC20
+/* 0xC10 is a reasonable guess, nothing more. */
+#define NV50_CRTC1_DISPLAY_START				0xC10
+#define NV50_CRTC1_DISPLAY_END					0xC14
+#define NV50_CRTC1_SYNC_DURATION				0xC18
+#define NV50_CRTC1_SYNC_START_TO_BLANK_END		0xC1C
+#define NV50_CRTC1_MODE_UNK1					0xC20
+#define NV50_CRTC1_MODE_UNK2					0xC24
 
 #define NV50_CRTC1_CLUT_MODE		0xC40
 	#define NV50_CRTC1_CLUT_MODE_BLANK		0x00000000
@@ -199,8 +212,15 @@
 	#define NV50_CRTC1_DITHERING_CTRL_ON	0x11
 	#define NV50_CRTC1_DITHERING_CTRL_OFF	0x0
 
+#define NV50_CRTC1_SCALE_CTRL		0xCA4
+
 #define NV50_CRTC1_FB_POS			0xCC0
 #define NV50_CRTC1_SCRN_SIZE		0xCC8
+
+/* These control the scaling relative to the native mode and the actual mode. */
+/* But why 2, what do happens when they are used seperately? */
+#define NV50_CRTC1_SCALE_REG1		0xCD8
+#define NV50_CRTC1_SCALE_REG2		0xCDC
 
 /* misc stuff */
 #define NV50_I2C_START		0x7

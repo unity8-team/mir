@@ -231,7 +231,7 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	/* Does the bios always use crtc0? */
 	NV50DisplayCommand(pScrn, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
 	NV50DisplayCommand(pScrn, 0x800, 0);
-	NV50DisplayCommand(pScrn, 0x810, 0);
+	NV50DisplayCommand(pScrn, NV50_CRTC0_DISPLAY_START, 0);
 	NV50DisplayCommand(pScrn, 0x82c, 0);
 
 	return TRUE;
@@ -276,59 +276,51 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 }
 
 void
-NV50CrtcDoModeFixup(DisplayModePtr dst, const DisplayModePtr src)
-{
-	/* Magic mode timing fudge factor */
-	const int fudge = ((src->Flags & V_INTERLACE) && (src->Flags & V_DBLSCAN)) ? 2 : 1;
-	const int interlaceDiv = (src->Flags & V_INTERLACE) ? 2 : 1;
-
-	/* Stash the src timings in the Crtc fields in dst */
-	dst->CrtcHBlankStart = src->CrtcVTotal << 16 | src->CrtcHTotal;
-	dst->CrtcHSyncEnd = ((src->CrtcVSyncEnd - src->CrtcVSyncStart) / interlaceDiv - 1) << 16 |
-		(src->CrtcHSyncEnd - src->CrtcHSyncStart - 1);
-	dst->CrtcHBlankEnd = ((src->CrtcVBlankEnd - src->CrtcVSyncStart) / interlaceDiv - fudge) << 16 |
-		(src->CrtcHBlankEnd - src->CrtcHSyncStart - 1);
-	dst->CrtcHTotal = ((src->CrtcVTotal - src->CrtcVSyncStart + src->CrtcVBlankStart) / interlaceDiv - fudge) << 16 |
-		(src->CrtcHTotal - src->CrtcHSyncStart + src->CrtcHBlankStart - 1);
-	dst->CrtcHSkew = ((src->CrtcVTotal + src->CrtcVBlankEnd - src->CrtcVSyncStart) / 2 - 2) << 16 |
-		((2*src->CrtcVTotal - src->CrtcVSyncStart + src->CrtcVBlankStart) / 2 - 2);
-}
-
-Bool
-NV50CrtcModeFixup(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
-{
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-	if (nv_crtc->skipModeFixup)
-		return TRUE;
-
-	NV50CrtcDoModeFixup(adjusted_mode, mode);
-	return TRUE;
-}
-
-void
 NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	const int HDisplay = adjusted_mode->HDisplay;
-	const int VDisplay = adjusted_mode->VDisplay;
 
 	nv_crtc->pclk = adjusted_mode->Clock;
 
+	uint32_t hsync_dur = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
+	uint32_t vsync_dur = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
+	uint32_t hsync_start_to_end = adjusted_mode->CrtcHBlankEnd - adjusted_mode->CrtcHSyncStart;
+	uint32_t vsync_start_to_end = adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVSyncStart;
+	/* I can't give this a proper name, anyone else can? */
+	uint32_t hunk1 = adjusted_mode->CrtcHTotal - adjusted_mode->CrtcHSyncStart + adjusted_mode->CrtcHBlankStart;
+	uint32_t vunk1 = adjusted_mode->CrtcVTotal - adjusted_mode->CrtcVSyncStart + adjusted_mode->CrtcVBlankStart;
+	/* Another strange value, this time only for interlaced modes. */
+	uint32_t vunk2a = 2*adjusted_mode->CrtcVTotal - adjusted_mode->CrtcVSyncStart + adjusted_mode->CrtcVBlankStart;
+	uint32_t vunk2b = adjusted_mode->CrtcVTotal - adjusted_mode->CrtcVSyncStart + adjusted_mode->CrtcVBlankEnd;
+
+	if (adjusted_mode->Flags & V_INTERLACE) {
+		vsync_dur /= 2;
+		vsync_start_to_end  /= 2;
+		vunk1 /= 2;
+		vunk2a /= 2;
+		vunk2b /= 2;
+		/* magic */
+		if (adjusted_mode->Flags & V_DBLSCAN) {
+			vsync_start_to_end -= 1;
+			vunk1 -= 1;
+			vunk2a -= 1;
+			vunk2b -= 1;
+		}
+	}
+
 	/* NV50CrtcCommand includes head offset */
+	/* This is the native mode when DFP && !SCALE_PANEL */
 	NV50CrtcCommand(crtc, NV50_CRTC0_CLOCK, adjusted_mode->Clock | 0x800000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_INTERLACE, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
-	NV50CrtcCommand(crtc, 0x810, 0);
+	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_START, 0);
 	NV50CrtcCommand(crtc, 0x82c, 0);
-	/* This confirms my suspicion that recent nvidia hardware does no vertical programming */
-	/* NV40 still has it as a legacy mode, and i don't know how to do the "new" way, but it definately exists */
-	NV50CrtcCommand(crtc, NV50_CRTC0_HBLANK_START, adjusted_mode->CrtcHBlankStart);
-	NV50CrtcCommand(crtc, NV50_CRTC0_HSYNC_END, adjusted_mode->CrtcHSyncEnd);
-	NV50CrtcCommand(crtc, NV50_CRTC0_HBLANK_END, adjusted_mode->CrtcHBlankEnd);
-	NV50CrtcCommand(crtc, NV50_CRTC0_HTOTAL, adjusted_mode->CrtcHTotal);
-	if(adjusted_mode->Flags & V_INTERLACE) {
-		NV50CrtcCommand(crtc, 0x824, adjusted_mode->CrtcHSkew);
+	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_END, adjusted_mode->CrtcVTotal << 16 | adjusted_mode->CrtcHTotal);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_DURATION, (vsync_dur - 1) << 16 | (hsync_dur - 1));
+	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_START_TO_BLANK_END, (vsync_start_to_end - 1) << 16 | (hsync_start_to_end - 1));
+	NV50CrtcCommand(crtc, NV50_CRTC0_MODE_UNK1, (vunk1 - 1) << 16 | (hunk1 - 1));
+	if (adjusted_mode->Flags & V_INTERLACE) {
+		NV50CrtcCommand(crtc, NV50_CRTC0_MODE_UNK2, (vunk2b - 1) << 16 | (vunk2a - 1));
 	}
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_SIZE, pScrn->virtualY << 16 | pScrn->virtualX);
 	NV50CrtcCommand(crtc, NV50_CRTC0_PITCH, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
@@ -349,7 +341,8 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 	NV50CrtcSetDither(crtc, FALSE);
 	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
-	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, VDisplay << 16 | HDisplay);
+	/* This is the actual resolution of the mode. */
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, (mode->VDisplay << 16) | mode->HDisplay);
 	NV50CrtcCommand(crtc, 0x8d4, 0);
 
 	NV50CrtcBlankScreen(crtc, FALSE);
@@ -428,7 +421,6 @@ void
 NV50CrtcPrepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
@@ -438,15 +430,6 @@ NV50CrtcPrepare(xf86CrtcPtr crtc)
 		if(!output->crtc)
 			output->funcs->mode_set(output, NULL, NULL);
 	}
-
-	nv_crtc->skipModeFixup = FALSE;
-}
-
-void
-NV50CrtcSkipModeFixup(xf86CrtcPtr crtc)
-{
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	nv_crtc->skipModeFixup = TRUE;
 }
 
 void
@@ -475,12 +458,12 @@ NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
 
-static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
+static void ComputeAspectScale(DisplayModePtr mode, DisplayModePtr adjusted_mode, int *outX, int *outY)
 {
 	float scaleX, scaleY, scale;
 
-	scaleX = mode->CrtcHDisplay / (float)mode->HDisplay;
-	scaleY = mode->CrtcVDisplay / (float)mode->VDisplay;
+	scaleX = adjusted_mode->HDisplay / (float)mode->HDisplay;
+	scaleY = adjusted_mode->VDisplay / (float)mode->VDisplay;
 
 	if(scaleX > scaleY)
 		scale = scaleY;
@@ -491,18 +474,18 @@ static void ComputeAspectScale(DisplayModePtr mode, int *outX, int *outY)
 	*outY = mode->VDisplay * scale;
 }
 
-void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum scaling_modes scale)
+void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, enum scaling_modes scale)
 {
 	int outX = 0, outY = 0;
 
 	switch(scale) {
 		case SCALE_ASPECT:
-			ComputeAspectScale(mode, &outX, &outY);
+			ComputeAspectScale(mode, adjusted_mode, &outX, &outY);
 			break;
 		case SCALE_PANEL:
 		case SCALE_FULLSCREEN:
-			outX = mode->CrtcHDisplay;
-			outY = mode->CrtcVDisplay;
+			outX = adjusted_mode->HDisplay;
+			outY = adjusted_mode->VDisplay;
 			break;
 		case SCALE_NOSCALE:
 		default:
@@ -511,14 +494,15 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, enum scaling_modes 
 			break;
 	}
 
+	/* What kind of mode is this precisely? */
 	if ((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
 		mode->HDisplay != outX || mode->VDisplay != outY) {
-		NV50CrtcCommand(crtc, 0x8a4, 9);
+		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, 9);
 	} else {
-		NV50CrtcCommand(crtc, 0x8a4, 0);
+		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, 0);
 	}
-	NV50CrtcCommand(crtc, 0x8d8, outY << 16 | outX);
-	NV50CrtcCommand(crtc, 0x8dc, outY << 16 | outX);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_REG1, outY << 16 | outX);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_REG2, outY << 16 | outX);
 }
 
 void

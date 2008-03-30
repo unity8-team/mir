@@ -118,7 +118,7 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 
 	NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL2 + dacOff, mode_ctl2);
 
-	NV50CrtcSetScale(output->crtc, adjusted_mode, SCALE_PANEL);
+	NV50CrtcSetScale(output->crtc, mode, adjusted_mode, SCALE_PANEL);
 }
 
 /*

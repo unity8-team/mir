@@ -227,8 +227,6 @@ Bool NV50EXAUploadSIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 
 /* in nv50_display.c */
-Bool NV50CrtcModeFixup(xf86CrtcPtr crtc,
-		DisplayModePtr mode, DisplayModePtr adjusted_mode);
 void NV50CrtcPrepare(xf86CrtcPtr crtc);
 void NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode, int x, int y);

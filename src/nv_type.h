@@ -181,7 +181,6 @@ typedef struct _NVCrtcPrivateRec {
 	int head;
 	uint8_t last_dpms;
 	Bool cursorVisible;
-	Bool skipModeFixup; /* NV50 only */
 	int pclk; /* Pixel clock in kHz */ /* NV50 only */
 #if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_bo *shadow;
