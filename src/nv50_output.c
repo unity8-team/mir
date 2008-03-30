@@ -71,33 +71,6 @@ NV50OutputCommit(xf86OutputPtr output)
 {
 }
 
-static xf86MonPtr
-ProbeDDC(I2CBusPtr i2c)
-{
-	ScrnInfoPtr pScrn = xf86Screens[i2c->scrnIndex];
-	NVPtr pNv = NVPTR(pScrn);
-	xf86MonPtr monInfo = NULL;
-	const int bus = i2c->DriverPrivate.val, off = bus * 0x18;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Probing for EDID on I2C bus %i...\n", bus);
-	pNv->REGS[(0x0000E138+off)/4] = 7;
-	/* Should probably use xf86OutputGetEDID here */
-	monInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, i2c);
-	pNv->REGS[(0x0000E138+off)/4] = 3;
-
-	if(monInfo) {
-		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-			"DDC detected a %s:\n", monInfo->features.input_type ?
-			"DFP" : "CRT");
-		xf86PrintEDID(monInfo);
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "  ... none found\n");
-	}
-
-	return monInfo;
-}
-
 DisplayModePtr
 NV50OutputGetDDCModes(xf86OutputPtr output)
 {
