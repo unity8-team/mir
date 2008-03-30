@@ -373,7 +373,10 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 		NVWrite(pNv, NV50_CRTC0_RAM_AMOUNT, pNv->RamAmountKBytes * 1024 - 1);
 		NVWrite(pNv, 0x00610388, 0x150000);
 		NVWrite(pNv, 0x0061038C, 0);
-		NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor->offset >> 8);
+		if (nv_crtc->head == 1)
+			NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor2->offset >> 8);
+		else
+			NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor->offset >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_UNBLANK);
 		if(nv_crtc->cursorVisible)
@@ -527,6 +530,8 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
 			NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
 		}
 	}
+
+	xf86_reload_cursors (pScrn->pScreen);
 
 	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 }
