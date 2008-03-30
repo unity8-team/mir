@@ -384,7 +384,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 #endif /* XSERVER_LIBPCIACCESS */
 
 	pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
-	pNv->NV50_PCRTC = pNv->REGS + (NV50_PCRTC_OFFSET/4);
 	pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
 
 	/* 8 bit registers */

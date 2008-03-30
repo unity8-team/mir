@@ -374,7 +374,6 @@ typedef struct _NVRec {
     CARD32              RamAmountKBytes;
 
     volatile CARD32 *REGS;
-	volatile CARD32 *NV50_PCRTC;
     volatile CARD32 *PGRAPH;
     volatile CARD32 *PRAMIN;
     volatile CARD32 *CURSOR;
