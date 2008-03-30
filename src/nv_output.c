@@ -649,20 +649,25 @@ static void nv_output_prepare_sel_clk(xf86OutputPtr output)
 		 *
 		 * 	Note that the circumstances for setting the bits at all is unclear
 		 */
-		for (i = 1; i <= 2; i++) {
-			uint32_t var = (state->sel_clk >> 4*i) & 0xf;
-			int shift = 0; /* assume (var & 0x5) by default */
+		if (pNv->Architecture == NV_ARCH_40)
+			for (i = 1; i <= 2; i++) {
+				uint32_t var = (state->sel_clk >> 4*i) & 0xf;
+				int shift = 0; /* assume (var & 0x5) by default */
 
-			if (!var)
-				continue;
-			if (var & 0xa)
-				shift = 1;
+				if (!var)
+					continue;
+				if (var & 0xa)
+					shift = 1;
 
-			state->sel_clk &= ~(0xf << 4*i);
-			if (nv_crtc->head)
-				state->sel_clk |= (0x4 << (4*i + shift));
-			else
-				state->sel_clk |= (0x1 << (4*i + shift));
+				state->sel_clk &= ~(0xf << 4*i);
+				if (crossed_clocks)
+					state->sel_clk |= (0x4 << (4*i + shift));
+				else
+					state->sel_clk |= (0x1 << (4*i + shift));
+			}
+		else if ((state->sel_clk & 0x50) != 0x50) {
+			state->sel_clk &= ~0x50;
+			state->sel_clk |= nv_crtc->head ? 0x40 : 0x10;
 		}
 	}
 }
