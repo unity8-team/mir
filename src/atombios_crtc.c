@@ -450,10 +450,13 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset,
-	       crtc->scrn->virtualX);
-	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset,
-	       crtc->scrn->virtualY);
+	if ((crtc->rotation == RR_Rotate_90) || (crtc->rotation == RR_Rotate_270)) {
+		OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, crtc->scrn->virtualY);
+		OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, crtc->scrn->virtualX);
+	} else {
+		OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, crtc->scrn->virtualX);
+		OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, crtc->scrn->virtualY);
+	}
 	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
@@ -464,14 +467,19 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	/* lock the mode regs */
 	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, AVIVO_D1SCL_UPDATE_LOCK);
 
-	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
-	       crtc->scrn->virtualY);
+	if ((crtc->rotation == RR_Rotate_90) || (crtc->rotation == RR_Rotate_270))
+		OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+	       		crtc->scrn->virtualX);
+	else
+		OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+	       		crtc->scrn->virtualY);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);
 	/* unlock the mode regs */
 	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, 0);
 
+	ErrorF("scrn virtual X %d Y %d pitch %d\n", crtc->scrn->virtualX, crtc->scrn->virtualY, crtc->scrn->displayWidth);
     }
 
     atombios_crtc_set_pll(crtc, adjusted_mode);
