@@ -318,7 +318,7 @@ static const uint32_t sip_kernel_static[][4] = {
  */
 
 #define SF_KERNEL_NUM_GRF  16
-#define SF_MAX_THREADS	   1
+#define SF_MAX_THREADS	   2
 
 static const uint32_t sf_kernel_static[][4] = {
 #include "exa_sf_prog.h"
@@ -326,10 +326,6 @@ static const uint32_t sf_kernel_static[][4] = {
 
 static const uint32_t sf_kernel_static_mask[][4] = {
 #include "exa_sf_mask_prog.h"
-};
-
-static const uint32_t sf_kernel_static_rotation[][4] = {
-#include "exa_sf_rotation_prog.h"
 };
 
 /* ps kernels */
@@ -352,10 +348,6 @@ static const uint32_t ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_masknoca_prog.h"
 };
 
-static const uint32_t ps_kernel_static_rotation [][4] = {
-#include "exa_wm_rotation_prog.h"
-};
-
 static uint32_t 
 i965_get_card_format(PicturePtr pPict)
 {
@@ -370,21 +362,6 @@ i965_get_card_format(PicturePtr pPict)
     return i965_tex_formats[i].card_fmt;
 }
 
-static Bool
-i965_check_rotation_transform(PictTransformPtr t)
-{
-    /* XXX this is arbitrary */
-    int a, b;
-    a = xFixedToInt(t->matrix[0][1]);
-    b = xFixedToInt(t->matrix[1][0]);
-    if (a == -1 && b == 1)
-	return TRUE;
-    else if (a == 1 && b == -1)
-	return TRUE;
-    else
-	return FALSE;
-}
-
 Bool
 i965_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -397,7 +374,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	mask_tiled = 0;
     uint32_t dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
 	dst_tiled = 0;
-    Bool rotation_program = FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -431,9 +407,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
-	if (pI830->transform[0] && 
-		i965_check_rotation_transform(pI830->transform[0]))
-	    rotation_program = TRUE;
     } else {
 	pI830->transform[1] = pMaskPicture->transform;
 	if (pI830->transform[1])
@@ -469,8 +442,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     sf_kernel_offset = ALIGN(next_offset, 64);
     if (pMask)
 	next_offset = sf_kernel_offset + sizeof (sf_kernel_static_mask);
-    else if (rotation_program)
-	next_offset = sf_kernel_offset + sizeof (sf_kernel_static_rotation);
     else 
 	next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
 
@@ -488,8 +459,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
         } else
 	    next_offset = ps_kernel_offset + 
                           sizeof(ps_kernel_static_masknoca);
-    } else if (rotation_program) {
-   	next_offset = ps_kernel_offset + sizeof (ps_kernel_static_rotation);
     } else {
    	next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask);
     }
@@ -816,9 +785,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     if (pMask)
 	memcpy(sf_kernel, sf_kernel_static_mask,
 		sizeof (sf_kernel_static_mask));
-    else if (rotation_program)
-	memcpy(sf_kernel, sf_kernel_static_rotation, 
-		sizeof (sf_kernel_static_rotation));
     else
 	memcpy(sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
 
@@ -870,9 +836,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
         } else
    	    memcpy(ps_kernel, ps_kernel_static_masknoca,
 		   sizeof (ps_kernel_static_masknoca));
-    } else if (rotation_program) {
-   	memcpy(ps_kernel, ps_kernel_static_rotation,
-	       sizeof (ps_kernel_static_rotation));
     } else {
    	memcpy(ps_kernel, ps_kernel_static_nomask,
 	       sizeof (ps_kernel_static_nomask));
@@ -883,7 +846,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-    wm_state->thread1.single_program_flow = 1;
+    wm_state->thread1.single_program_flow = 0;
     if (!pMask)
 	wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
     else
