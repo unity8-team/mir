@@ -80,7 +80,7 @@
 /* Compute inverses of the input deltas */
 send (4) 0 g6<1>F g1.12<4,4,1>F math inv mlen 1 rlen 1 { align1 };
 
-/* texture value at V0 */
+/* texture location at V0 */
 mov (4) m3<1>F g3<4,4,1>F { align1 };
 
 /* compute V1 - V2 (motion in X) for texture coordinates */
