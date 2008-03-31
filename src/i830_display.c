@@ -901,9 +901,12 @@ i830_crtc_unlock (xf86CrtcPtr crtc)
 static void
 i830_crtc_prepare (xf86CrtcPtr crtc)
 {
+    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     /* Temporarily turn off FB compression during modeset */
     if (i830_use_fb_compression(crtc))
         i830_disable_fb_compression(crtc);
+    if (intel_crtc->enabled)
+	crtc->funcs->hide_cursor (crtc);
     crtc->funcs->dpms (crtc, DPMSModeOff);
 }
 
