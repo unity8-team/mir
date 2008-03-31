@@ -1992,9 +1992,6 @@ NVLoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[c];
 
-		if (crtc->enabled == 0)
-			continue;
-
 		/* code borrowed from intel driver */
 		switch (pScrn->depth) {
 		case 15:
