@@ -136,58 +136,66 @@ INTEL_G4A =				\
 	exa_wm_maskca_srcalpha.g4a 	\
 	exa_wm_masknoca.g4a 		\
 	exa_wm_nomask.g4a		\
-	exa_wm_rotation.g4a
+	exa_wm_rotation.g4a		\
+	exa_wm_src_affine.g4a 		\
+	exa_wm_src_projective.g4a 	\
+	exa_wm_src_sample.g4a 		\
+	exa_wm_mask_affine.g4a 		\
+	exa_wm_mask_projective.g4a 	\
+	exa_wm_mask_sample.g4a 		\
+	exa_wm_noca.g4a			\
+	exa_wm_ca.g4a			\
+	exa_wm_ca_srcalpha.g4a		\
+	exa_wm_write.g4a 		\
+	exa_wm_xy.g4a
 
-INTEL_G4H = 				\
-	sf_prog.h			\
-	wm_prog.h 			\
-	exa_sf_mask_prog.h		\
-	exa_sf_prog.h 			\
-	exa_sf_rotation_prog.h		\
-	exa_wm_maskca_prog.h		\
-	exa_wm_maskca_srcalpha_prog.h	\
-	exa_wm_masknoca_prog.h		\
-	exa_wm_nomask_prog.h		\
-	exa_wm_rotation_prog.h
+INTEL_G4I =				\
+	exa_wm.g4i			\
+	exa_wm_affine.g4i		\
+	exa_wm_projective.g4i
 
+INTEL_G4B = 				\
+	packed_yuv_sf.g4b		\
+	packed_yuv_wm.g4b 		\
+	exa_sf_mask.g4b			\
+	exa_sf.g4b 			\
+	exa_sf_rotation.g4b		\
+	exa_wm_maskca.g4b		\
+	exa_wm_maskca_srcalpha.g4b	\
+	exa_wm_masknoca.g4b		\
+	exa_wm_nomask.g4b		\
+	exa_wm_rotation.g4b		\
+	exa_wm_maskca.g4b 		\
+	exa_wm_maskca_srcalpha.g4b 	\
+	exa_wm_masknoca.g4b 		\
+	exa_wm_nomask.g4b		\
+	exa_wm_rotation.g4b		\
+	exa_wm_src_affine.g4b 		\
+	exa_wm_src_projective.g4b 	\
+	exa_wm_src_sample.g4b 		\
+	exa_wm_mask_affine.g4b 		\
+	exa_wm_mask_projective.g4b 	\
+	exa_wm_mask_sample.g4b 		\
+	exa_wm_noca.g4b			\
+	exa_wm_ca.g4b			\
+	exa_wm_ca_srcalpha.g4b		\
+	exa_wm_write.g4b 		\
+	exa_wm_xy.g4b
+	
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_G4A)	\
-	$(INTEL_G4H)	\
+	$(INTEL_G4I)	\
+	$(INTEL_G4B)	\
 	$(INTEL_DRI_SRCS) \
 	$(INTEL_XVMC_SRCS)
 
 if HAVE_GEN4ASM
 
-sf_prog.h: packed_yuv_sf.g4a
-	intel-gen4asm -o sf_prog.h packed_yuv_sf.g4a
-
-wm_prog.h: packed_yuv_wm.g4a
-	intel-gen4asm -o wm_prog.h packed_yuv_wm.g4a
-
-exa_sf_mask_prog.h: exa_sf_mask.g4a
-	intel-gen4asm -o exa_sf_mask_prog.h exa_sf_mask.g4a
-
-exa_sf_prog.h: exa_sf.g4a
-	intel-gen4asm -o exa_sf_prog.h exa_sf.g4a
-
-exa_sf_rotation_prog.h: exa_sf_rotation.g4a
-	intel-gen4asm -o exa_sf_rotation_prog.h exa_sf_rotation.g4a
-
-exa_wm_maskca_prog.h: exa_wm_maskca.g4a
-	intel-gen4asm -o exa_wm_maskca_prog.h exa_wm_maskca.g4a
-
-exa_wm_maskca_srcalpha_prog.h: exa_wm_maskca_srcalpha.g4a
-	intel-gen4asm -o exa_wm_maskca_srcalpha_prog.h exa_wm_maskca_srcalpha.g4a
-
-exa_wm_masknoca_prog.h: exa_wm_masknoca.g4a
-	intel-gen4asm -o exa_wm_masknoca_prog.h exa_wm_masknoca.g4a
-
-exa_wm_nomask_prog.h: exa_wm_nomask.g4a
-	intel-gen4asm -o exa_wm_nomask_prog.h exa_wm_nomask.g4a
-
-exa_wm_rotation_prog.h: exa_wm_rotation.g4a
-	intel-gen4asm -o exa_wm_rotation_prog.h exa_wm_rotation.g4a
+SUFFIXES = .g4a .g4b
+.g4a.g4b:
+	m4 -s $*.g4a > $*.g4m
+	intel-gen4asm -o $@ $*.g4m && rm $*.g4m
 
 endif
 

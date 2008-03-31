@@ -321,31 +321,68 @@ static const uint32_t sip_kernel_static[][4] = {
 #define SF_MAX_THREADS	   2
 
 static const uint32_t sf_kernel_static[][4] = {
-#include "exa_sf_prog.h"
+#include "exa_sf.g4b"
 };
 
 static const uint32_t sf_kernel_static_mask[][4] = {
-#include "exa_sf_mask_prog.h"
+#include "exa_sf_mask.g4b"
 };
 
 /* ps kernels */
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	   32
 
-static const uint32_t ps_kernel_static_nomask [][4] = {
-#include "exa_wm_nomask_prog.h"
+static const uint32_t ps_kernel_static_nomask_affine [][4] = {
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_affine.g4b"
+#include "exa_wm_src_sample.g4b"
+#include "exa_wm_write.g4b"
+};
+
+static const uint32_t ps_kernel_static_nomask_projective [][4] = {
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_projective.g4b"
+#include "exa_wm_src_sample.g4b"
+#include "exa_wm_write.g4b"
 };
 
 static const uint32_t ps_kernel_static_maskca [][4] = {
-#include "exa_wm_maskca_prog.h"
+#include "exa_wm_maskca.g4b"
+#if 0
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_affine.g4b"
+#include "exa_wm_src_sample.g4b"
+#include "exa_wm_mask_affine.g4b"
+#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_ca.g4b"
+#include "exa_wm_write.g4b"
+#endif
 };
 
 static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
-#include "exa_wm_maskca_srcalpha_prog.h"
+#include "exa_wm_maskca_srcalpha.g4b"
+#if 0
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_affine.g4b"
+#include "exa_wm_src_sample.g4b"
+#include "exa_wm_mask_affine.g4b"
+#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_ca_srcalpha.g4b"
+#include "exa_wm_write.g4b"
+#endif
 };
 
 static const uint32_t ps_kernel_static_masknoca [][4] = {
-#include "exa_wm_masknoca_prog.h"
+#include "exa_wm_masknoca.g4b"
+#if 0
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_affine.g4b"
+#include "exa_wm_src_sample.g4b"
+#include "exa_wm_mask_affine.g4b"
+#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_noca.g4b"
+#include "exa_wm_write.g4b"
+#endif
 };
 
 static uint32_t 
@@ -374,6 +411,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	mask_tiled = 0;
     uint32_t dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
 	dst_tiled = 0;
+    Bool is_affine_src, is_affine_mask, is_affine;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -402,6 +440,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     pI830->scale_units[0][1] = pSrc->drawable.height;
 
     pI830->transform[0] = pSrcPicture->transform;
+    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
+    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
+    is_affine = is_affine_src && is_affine_mask;
 
     if (!pMask) {
 	pI830->transform[1] = NULL;
@@ -460,7 +501,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    next_offset = ps_kernel_offset + 
                           sizeof(ps_kernel_static_masknoca);
     } else {
-   	next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask);
+	if (is_affine)
+	    next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask_affine);
+	else
+	    next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask_projective);
     }
 
     sip_kernel_offset = ALIGN(next_offset, 64);
@@ -837,8 +881,12 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	    memcpy(ps_kernel, ps_kernel_static_masknoca,
 		   sizeof (ps_kernel_static_masknoca));
     } else {
-   	memcpy(ps_kernel, ps_kernel_static_nomask,
-	       sizeof (ps_kernel_static_nomask));
+	if (is_affine)
+	    memcpy(ps_kernel, ps_kernel_static_nomask_affine,
+		   sizeof (ps_kernel_static_nomask_affine));
+	else
+	    memcpy(ps_kernel, ps_kernel_static_nomask_projective,
+		   sizeof (ps_kernel_static_nomask_projective));
     }
 
     wm_state = &wm_state_local;
@@ -989,51 +1037,75 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	ADVANCE_BATCH();
     }
     {
-        int nelem = pMask ? 3: 2;
+	/* 
+	 * number of extra parameters per vertex
+	 */
+        int nelem = pMask ? 2: 1;
+	/* 
+	 * size of extra parameters:
+	 *  3 for homogenous (xyzw)
+	 *  2 for cartesian (xy)
+	 */
+	int selem = is_affine ? 2 : 3;
+	uint32_t    w_component;
+	uint32_t    src_format;
+	
+	if (is_affine)
+	{
+	    src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
+	    w_component = BRW_VFCOMPONENT_NOSTORE;
+	}
+	else
+	{
+	    src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
+	    w_component = BRW_VFCOMPONENT_NOSTORE;
+	}
 	BEGIN_BATCH(pMask?12:10);
-	/* Set up the pointer to our vertex buffer */
+	/* Set up the pointer to our (single) vertex buffer */
 	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
 	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 		  VB0_VERTEXDATA |
-		  ((4 * 2 * nelem) << VB0_BUFFER_PITCH_SHIFT));
+		  ((4 * (2 + nelem * selem)) << VB0_BUFFER_PITCH_SHIFT));
 	OUT_BATCH(state_base_offset + vb_offset);
         OUT_BATCH(3);
 	OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
 	/* Set up our vertex elements, sourced from the single vertex buffer.
 	 */
-	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * nelem) - 1));
-	/* vertex coordinates */
+	
+	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + nelem)) - 1));
+	/* x,y */
 	OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
 		  VE0_VALID |
 		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		  (0 << VE0_OFFSET_SHIFT));
-	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_2_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_1_FLT << VE1_VFCOMPONENT_3_SHIFT) |
-		  (4 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
-	/* u0, v0 */
-	OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		  VE0_VALID |
-		  (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		  (8 << VE0_OFFSET_SHIFT)); /* offset vb in bytes */
-	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		  (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		  (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
-		  (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
-		  (8 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
-	/* u1, v1 */
+		  (0				<< VE0_OFFSET_SHIFT));
+	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
+		  (4				<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	/* u0, v0, w0 */
+	OUT_BATCH((0				<< VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		  VE0_VALID					     |
+		  (src_format			<< VE0_FORMAT_SHIFT) |
+		  ((2 * 4)			<< VE0_OFFSET_SHIFT)); /* offset vb in bytes */
+	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
+		  (w_component			<< VE1_VFCOMPONENT_2_SHIFT) |
+		  (BRW_VFCOMPONENT_NOSTORE	<< VE1_VFCOMPONENT_3_SHIFT) |
+		  ((4 + 4)			<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+	/* u1, v1, w1 */
    	if (pMask) {
-	    OUT_BATCH((0 << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
-		      VE0_VALID |
-		      (BRW_SURFACEFORMAT_R32G32_FLOAT << VE0_FORMAT_SHIFT) |
-		      (16 << VE0_OFFSET_SHIFT));
-	    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_0_SHIFT) |
-		      (BRW_VFCOMPONENT_STORE_SRC << VE1_VFCOMPONENT_1_SHIFT) |
-		      (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_2_SHIFT) |
-		      (BRW_VFCOMPONENT_NOSTORE << VE1_VFCOMPONENT_3_SHIFT) |
-		      (10 << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT));
+	    OUT_BATCH((0			    << VE0_VERTEX_BUFFER_INDEX_SHIFT) |
+		      VE0_VALID							    |
+		      (src_format		    << VE0_FORMAT_SHIFT) |
+		      (((2 + selem) * 4)    	    << VE0_OFFSET_SHIFT));  /* vb offset in bytes */
+	    
+	    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_0_SHIFT) |
+		      (BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_1_SHIFT) |
+		      (w_component		    << VE1_VFCOMPONENT_2_SHIFT) |
+		      (BRW_VFCOMPONENT_NOSTORE	    << VE1_VFCOMPONENT_3_SHIFT) |
+		      ((4 + 2 + 4)		    << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
    	}
 
 	ADVANCE_BATCH();
@@ -1053,38 +1125,87 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     Bool has_mask;
-    float src_x[3], src_y[3], mask_x[3], mask_y[3];
+    Bool is_affine_src, is_affine_mask, is_affine;
+    float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
     int i;
+    int per_vertex = 2; /* dst x/y */
 
-    if (!i830_get_transformed_coordinates(srcX, srcY,
-					  pI830->transform[0],
-					  &src_x[0], &src_y[0]))
-	return;
-    if (!i830_get_transformed_coordinates(srcX, srcY + h,
-					  pI830->transform[0],
-					  &src_x[1], &src_y[1]))
-	return;
-    if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
-					  pI830->transform[0],
-					  &src_x[2], &src_y[2]))
-	return;
+    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
+    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
+    is_affine = is_affine_src && is_affine_mask;
+    
+    if (is_affine)
+    {
+	if (!i830_get_transformed_coordinates(srcX, srcY,
+					      pI830->transform[0],
+					      &src_x[0], &src_y[0]))
+	    return;
+	if (!i830_get_transformed_coordinates(srcX, srcY + h,
+					      pI830->transform[0],
+					      &src_x[1], &src_y[1]))
+	    return;
+	if (!i830_get_transformed_coordinates(srcX + w, srcY + h,
+					      pI830->transform[0],
+					      &src_x[2], &src_y[2]))
+	    return;
+	per_vertex += 2;    /* src u/v */
+    }
+    else
+    {
+	if (!i830_get_transformed_coordinates_3d(srcX, srcY,
+						 pI830->transform[0],
+						 &src_x[0], &src_y[0],
+						 &src_w[0]))
+	    return;
+	if (!i830_get_transformed_coordinates_3d(srcX, srcY + h,
+						 pI830->transform[0],
+						 &src_x[1], &src_y[1],
+						 &src_w[1]))
+	    return;
+	if (!i830_get_transformed_coordinates_3d(srcX + w, srcY + h,
+						 pI830->transform[0],
+						 &src_x[2], &src_y[2],
+						 &src_w[2]))
+	    return;
+	per_vertex += 3;    /* src u/v/w */
+    }
 
     if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
 	has_mask = FALSE;
     } else {
 	has_mask = TRUE;
-	if (!i830_get_transformed_coordinates(maskX, maskY,
-					      pI830->transform[1],
-					      &mask_x[0], &mask_y[0]))
-	    return;
-	if (!i830_get_transformed_coordinates(maskX, maskY + h,
-					      pI830->transform[1],
-					      &mask_x[1], &mask_y[1]))
-	    return;
-	if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
-					      pI830->transform[1],
-					      &mask_x[2], &mask_y[2]))
-	    return;
+	if (is_affine_mask) {
+	    if (!i830_get_transformed_coordinates(maskX, maskY,
+						  pI830->transform[1],
+						  &mask_x[0], &mask_y[0]))
+		return;
+	    if (!i830_get_transformed_coordinates(maskX, maskY + h,
+						  pI830->transform[1],
+						  &mask_x[1], &mask_y[1]))
+		return;
+	    if (!i830_get_transformed_coordinates(maskX + w, maskY + h,
+						  pI830->transform[1],
+						  &mask_x[2], &mask_y[2]))
+		return;
+	    per_vertex += 2;	/* mask u/v */
+	} else {
+	    if (!i830_get_transformed_coordinates_3d(maskX, maskY,
+						     pI830->transform[1],
+						     &mask_x[0], &mask_y[0],
+						     &mask_w[0]))
+		return;
+	    if (!i830_get_transformed_coordinates_3d(maskX, maskY + h,
+						     pI830->transform[1],
+						     &mask_x[1], &mask_y[1],
+						     &mask_w[1]))
+		return;
+	    if (!i830_get_transformed_coordinates_3d(maskX + w, maskY + h,
+						     pI830->transform[1],
+						     &mask_x[2], &mask_y[2],
+						     &mask_w[2]))
+		return;
+	    per_vertex += 3;	/* mask u/v/w */
+	}
     }
 
     /* Wait for any existing composite rectangles to land before we overwrite
@@ -1098,9 +1219,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     vb[i++] = (float)(dstY + h);
     vb[i++] = src_x[2] / pI830->scale_units[0][0];
     vb[i++] = src_y[2] / pI830->scale_units[0][1];
+    if (!is_affine)
+	vb[i++] = src_w[2];
     if (has_mask) {
         vb[i++] = mask_x[2] / pI830->scale_units[1][0];
         vb[i++] = mask_y[2] / pI830->scale_units[1][1];
+	if (!is_affine)
+	    vb[i++] = mask_w[2];
     }
 
     /* rect (x1,y2) */
@@ -1108,9 +1233,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     vb[i++] = (float)(dstY + h);
     vb[i++] = src_x[1] / pI830->scale_units[0][0];
     vb[i++] = src_y[1] / pI830->scale_units[0][1];
+    if (!is_affine)
+	vb[i++] = src_w[1];
     if (has_mask) {
         vb[i++] = mask_x[1] / pI830->scale_units[1][0];
         vb[i++] = mask_y[1] / pI830->scale_units[1][1];
+	if (!is_affine)
+	    vb[i++] = mask_w[1];
     }
 
     /* rect (x1,y1) */
@@ -1118,9 +1247,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     vb[i++] = (float)dstY;
     vb[i++] = src_x[0] / pI830->scale_units[0][0];
     vb[i++] = src_y[0] / pI830->scale_units[0][1];
+    if (!is_affine)
+	vb[i++] = src_w[0];
     if (has_mask) {
         vb[i++] = mask_x[0] / pI830->scale_units[1][0];
         vb[i++] = mask_y[0] / pI830->scale_units[1][1];
+	if (!is_affine)
+	    vb[i++] = mask_w[0];
     }
 
     {

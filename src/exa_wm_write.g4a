@@ -1,0 +1,80 @@
+/*
+ * Copyright © 2006 Intel Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * Authors:
+ *    Wang Zhenyu <zhenyu.z.wang@intel.com>
+ *    Keith Packard <keithp@keithp.com>
+ */
+
+/* 
+ * Once the data are ready, write them to the destination
+ */
+
+include(`exa_wm.g4i')
+
+/* m0, m1 are all direct passed by PS thread payload */
+mov (8) m1<1>F g1<8,8,1>F { align1 };
+
+/* prepare data in m2-m5 for subspan(1,0), m6-m9 for subspan(3,2), then it's ready to write */
+/* src_sample0 -> m2
+   src_sample1 -> m6
+   src_sample2 -> m3
+   src_sample3 -> m7
+   src_sample4 -> m4
+   src_sample5 -> m8
+   src_sample6 -> m5
+   src_sample7 -> m9
+*/
+
+mov (8) m2<1>F src_sample0<8,8,1>F { align1 };
+mov (8) m3<1>F src_sample2<8,8,1>F { align1 };
+mov (8) m4<1>F src_sample4<8,8,1>F { align1 };
+mov (8) m5<1>F src_sample6<8,8,1>F { align1 };
+mov (8) m6<1>F src_sample1<8,8,1>F { align1 };
+mov (8) m7<1>F src_sample3<8,8,1>F { align1 };
+mov (8) m8<1>F src_sample5<8,8,1>F { align1 };
+mov (8) m9<1>F src_sample7<8,8,1>F { align1 };
+
+/* m0, m1 are all direct passed by PS thread payload */
+mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable };
+
+/* write */
+send (16) 0 acc0<1>UW g0<8,8,1>UW write (
+	0,  /* binding_table */
+	8,  /* pixel scordboard clear, msg type simd16 single source */
+	4,  /* render target write */
+	0   /* no write commit message */
+	) 
+	mlen 10
+	rlen 0
+	{ align1 EOT };
+
+nop;
+nop;
+nop;
+nop;
+nop;
+nop;
+nop;
+nop;
+nop;
+

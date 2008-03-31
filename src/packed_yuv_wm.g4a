@@ -49,44 +49,44 @@
 
     /* Set up ss0.x coordinates*/
 mov (1) g4<1>F g1.8<0,1,0>UW { align1 };
-add (1) g4.4<1>F g1.8<0,1,0>UW 1UB { align1 };
+add (1) g4.4<1>F g1.8<0,1,0>UW 1UD { align1 };
 mov (1) g4.8<1>F g1.8<0,1,0>UW { align1 };
-add (1) g4.12<1>F g1.8<0,1,0>UW 1UB { align1 };
+add (1) g4.12<1>F g1.8<0,1,0>UW 1UD { align1 };
     /* Set up ss0.y coordinates */
 mov (1) g6<1>F g1.10<0,1,0>UW { align1 };
 mov (1) g6.4<1>F g1.10<0,1,0>UW { align1 };
-add (1) g6.8<1>F g1.10<0,1,0>UW 1UB { align1 };
-add (1) g6.12<1>F g1.10<0,1,0>UW 1UB { align1 };
+add (1) g6.8<1>F g1.10<0,1,0>UW 1UD { align1 };
+add (1) g6.12<1>F g1.10<0,1,0>UW 1UD { align1 };
     /* set up ss1.x coordinates */
 mov (1) g4.16<1>F g1.12<0,1,0>UW { align1 };
-add (1) g4.20<1>F g1.12<0,1,0>UW 1UB { align1 };
+add (1) g4.20<1>F g1.12<0,1,0>UW 1UD { align1 };
 mov (1) g4.24<1>F g1.12<0,1,0>UW { align1 };
-add (1) g4.28<1>F g1.12<0,1,0>UW 1UB { align1 };
+add (1) g4.28<1>F g1.12<0,1,0>UW 1UD { align1 };
     /* set up ss1.y coordinates */
 mov (1) g6.16<1>F g1.14<0,1,0>UW { align1 };
 mov (1) g6.20<1>F g1.14<0,1,0>UW { align1 };
-add (1) g6.24<1>F g1.14<0,1,0>UW 1UB { align1 };
-add (1) g6.28<1>F g1.14<0,1,0>UW 1UB { align1 };
+add (1) g6.24<1>F g1.14<0,1,0>UW 1UD { align1 };
+add (1) g6.28<1>F g1.14<0,1,0>UW 1UD { align1 };
     /* Set up ss2.x coordinates */
 mov (1) g5<1>F g1.16<0,1,0>UW { align1 };
-add (1) g5.4<1>F g1.16<0,1,0>UW 1UB { align1 };
+add (1) g5.4<1>F g1.16<0,1,0>UW 1UD { align1 };
 mov (1) g5.8<1>F g1.16<0,1,0>UW { align1 };
-add (1) g5.12<1>F g1.16<0,1,0>UW 1UB { align1 };
+add (1) g5.12<1>F g1.16<0,1,0>UW 1UD { align1 };
     /* Set up ss2.y coordinates */
 mov (1) g7<1>F g1.18<0,1,0>UW { align1 };
 mov (1) g7.4<1>F g1.18<0,1,0>UW { align1 };
-add (1) g7.8<1>F g1.18<0,1,0>UW 1UB { align1 };
-add (1) g7.12<1>F g1.18<0,1,0>UW 1UB { align1 };
+add (1) g7.8<1>F g1.18<0,1,0>UW 1UD { align1 };
+add (1) g7.12<1>F g1.18<0,1,0>UW 1UD { align1 };
     /* Set up ss3.x coordinates */
 mov (1) g5.16<1>F g1.20<0,1,0>UW { align1 };
-add (1) g5.20<1>F g1.20<0,1,0>UW 1UB { align1 };
+add (1) g5.20<1>F g1.20<0,1,0>UW 1UD { align1 };
 mov (1) g5.24<1>F g1.20<0,1,0>UW { align1 };
-add (1) g5.28<1>F g1.20<0,1,0>UW 1UB { align1 };
+add (1) g5.28<1>F g1.20<0,1,0>UW 1UD { align1 };
     /* Set up ss3.y coordinates */
 mov (1) g7.16<1>F g1.22<0,1,0>UW { align1 };
 mov (1) g7.20<1>F g1.22<0,1,0>UW { align1 };
-add (1) g7.24<1>F g1.22<0,1,0>UW 1UB { align1 };
-add (1) g7.28<1>F g1.22<0,1,0>UW 1UB { align1 };
+add (1) g7.24<1>F g1.22<0,1,0>UW 1UD { align1 };
+add (1) g7.28<1>F g1.22<0,1,0>UW 1UD { align1 };
 
     /* Now, map these screen space coordinates into texture coordinates. */
     /* subtract screen-space X origin of vertex 0. */
