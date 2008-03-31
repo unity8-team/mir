@@ -347,8 +347,6 @@ static const uint32_t ps_kernel_static_nomask_projective [][4] = {
 };
 
 static const uint32_t ps_kernel_static_maskca [][4] = {
-#include "exa_wm_maskca.g4b"
-#if 0
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample.g4b"
@@ -356,12 +354,9 @@ static const uint32_t ps_kernel_static_maskca [][4] = {
 #include "exa_wm_mask_sample.g4b"
 #include "exa_wm_ca.g4b"
 #include "exa_wm_write.g4b"
-#endif
 };
 
 static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
-#include "exa_wm_maskca_srcalpha.g4b"
-#if 0
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample.g4b"
@@ -369,12 +364,9 @@ static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
 #include "exa_wm_mask_sample.g4b"
 #include "exa_wm_ca_srcalpha.g4b"
 #include "exa_wm_write.g4b"
-#endif
 };
 
 static const uint32_t ps_kernel_static_masknoca [][4] = {
-#include "exa_wm_masknoca.g4b"
-#if 0
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample.g4b"
@@ -382,7 +374,6 @@ static const uint32_t ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_mask_sample.g4b"
 #include "exa_wm_noca.g4b"
 #include "exa_wm_write.g4b"
-#endif
 };
 
 static uint32_t 
@@ -907,9 +898,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->thread3.const_urb_entry_read_offset = 0;
     /* Each pair of attributes (src/mask coords) is one URB entry */
     if (pMask)
-	wm_state->thread3.urb_entry_read_length = 2;
+	wm_state->thread3.urb_entry_read_length = 4;
     else
-	wm_state->thread3.urb_entry_read_length = 1;
+	wm_state->thread3.urb_entry_read_length = 2;
     wm_state->thread3.urb_entry_read_offset = 0;
     /* wm kernel use urb from 3, see wm_program in compiler module */
     wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */

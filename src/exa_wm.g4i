@@ -29,8 +29,6 @@
  * Input parameters
  */
 
-define(`quote', `ifelse(`$#', `0', `', ``$*'')')
-
 /* Destination X/Y */
 define(`dst_x_uw',  `g1.8<2,4,0>UW')
 define(`dst_y_uw',  `g1.10<2,4,0>UW')
@@ -48,15 +46,15 @@ define(`src_dw_dx', `g4.0<0,1,0>F')
 define(`src_dw_dy', `g4.4<0,1,0>F')
 define(`src_wo',    `g4.12<0,1,0>F')
 
-define(`mask_du_dx', `g4.16<0,1,0>F')
-define(`mask_du_dy', `g4.20<0,1,0>F')
-define(`mask_uo',    `g4.28<0,1,0>F')
-define(`mask_dv_dx', `g5.0<0,1,0>F')
-define(`mask_dv_dy', `g5.4<0,1,0>F')
-define(`mask_vo',    `g5.12<0,1,0>F')
-define(`mask_dw_dx', `g5.16<0,1,0>F')
-define(`mask_dw_dy', `g5.20<0,1,0>F')
-define(`mask_wo',    `g5.28<0,1,0>F')
+define(`mask_du_dx', `g5.0<0,1,0>F')
+define(`mask_du_dy', `g5.4<0,1,0>F')
+define(`mask_uo',    `g5.12<0,1,0>F')
+define(`mask_dv_dx', `g5.16<0,1,0>F')
+define(`mask_dv_dy', `g5.20<0,1,0>F')
+define(`mask_vo',    `g5.28<0,1,0>F')
+define(`mask_dw_dx', `g6.0<0,1,0>F')
+define(`mask_dw_dy', `g6.4<0,1,0>F')
+define(`mask_wo',    `g6.12<0,1,0>F')
 
 /*
  * Local variables
