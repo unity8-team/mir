@@ -141,10 +141,15 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 	NVPtr pNv = NVPTR(pScrn);
 	int lo_n, lo_m, hi_n, hi_m, p, i;
 	/* These clocks are probably rerouted from the 0x4000 range to the 0x610000 range */
-	CARD32 lo = NVRead(pNv, nv_crtc->head ? NV50_CRTC_VPLL2_A : NV50_CRTC_VPLL1_A);
-	CARD32 hi = NVRead(pNv, nv_crtc->head ? NV50_CRTC_VPLL2_B : NV50_CRTC_VPLL1_B);
+	uint32_t lo = NVRead(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_A : NV50_CRTC0_VPLL_A);
+	uint32_t hi = NVRead(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_B : NV50_CRTC0_VPLL_B);
 
-	NVWrite(pNv, 0x00614100 + nv_crtc->head * 0x800, 0x10000610);
+	/* bit0: The blob (and bios) seem to have this on (almost) always.
+	 *          I'm hoping this (experiment) will fix my image stability issues.
+	 * bit9+10: These are off if a clock was never used. I think certain operations (restarting X) trigger this to go off as well.
+	 *                So for all we know, this may be *the* clock on/off indicator.
+	 */
+	NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, 0x10000611);
 	lo &= 0xff00ff00;
 	hi &= 0x8000ff00;
 
@@ -152,9 +157,10 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 
 	lo |= (lo_m << 16) | lo_n;
 	hi |= (p << 28) | (hi_m << 16) | hi_n;
-	NVWrite(pNv, nv_crtc->head ? NV50_CRTC_VPLL2_A : NV50_CRTC_VPLL1_A, lo);
-	NVWrite(pNv, nv_crtc->head ? NV50_CRTC_VPLL2_B : NV50_CRTC_VPLL1_B, hi);
-	NVWrite(pNv, 0x00614200 + nv_crtc->head * 0x800, 0);
+	NVWrite(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_A : NV50_CRTC0_VPLL_A, lo);
+	NVWrite(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_B : NV50_CRTC0_VPLL_B, hi);
+	/* There seem to be a few indicator bits, which are similar to the SOR_CTRL bits. */
+	NVWrite(pNv, NV50_CRTC0_CLK_CTRL2 + nv_crtc->head * 0x800, 0);
 
 	for(i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];

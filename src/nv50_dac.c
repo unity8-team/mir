@@ -35,7 +35,7 @@ NV50DacSetPClk(xf86OutputPtr output, int pclk)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVWrite(pNv, 0x00614280 + NV50OrOffset(output) * 0x800, 0);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL + NV50OrOffset(output) * 0x800, 0);
 }
 
 static void
