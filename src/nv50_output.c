@@ -71,14 +71,6 @@ NV50OutputCommit(xf86OutputPtr output)
 {
 }
 
-DisplayModePtr
-NV50OutputGetDDCModes(xf86OutputPtr output)
-{
-	/* The EDID is read as part of the detect step */
-	output->funcs->detect(output);
-	return xf86OutputGetEDIDModes(output);
-}
-
 xf86MonPtr
 NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus)
 {
@@ -94,6 +86,55 @@ NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus)
 	NVWrite(pNv, 0x0000E138+off, NV50_I2C_STOP);
 
 	return rval;
+}
+
+DisplayModePtr
+NV50OutputGetDDCModes(xf86OutputPtr output)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86MonPtr ddc_mon;
+	DisplayModePtr ddc_modes;
+
+	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
+
+	if (!ddc_mon)
+		return NULL;
+
+	xf86OutputSetEDID(output, ddc_mon);
+
+	ddc_modes = xf86OutputGetEDIDModes(output);
+
+	if (nv_output->type == OUTPUT_TMDS && ddc_modes) {
+		xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
+
+		/* Use the first preferred mode as native mode. */
+		DisplayModePtr mode;
+
+		/* Find the preferred mode. */
+		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
+			if (mode->type & M_T_PREFERRED) {
+				xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 5,
+						"%s: preferred mode is %s\n",
+						output->name, mode->name);
+				break;
+			}
+		}
+
+		/* TODO: Scaling needs a native mode, maybe fail in a better way. */
+		if (!mode) {
+			mode = ddc_modes;
+			xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 5,
+				"%s: no preferred mode found, using %s\n",
+				output->name, mode->name);
+		}
+
+		nv_output->native_mode = xf86DuplicateMode(mode);
+		nv_output->fpWidth = nv_output->native_mode->HDisplay;
+		nv_output->fpHeight = nv_output->native_mode->VDisplay;
+	}
+
+	return ddc_modes;
 }
 
 void

@@ -37,7 +37,10 @@ NV50SorSetPClk(xf86OutputPtr output, int pclk)
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
-	NVWrite(pNv, 0x00614300 + NV50OrOffset(output) * 0x800, (pclk > limit) ? 0x101 : 0);
+	/* 0x70000 was a late addition to nv, mentioned as fixing tmds initialisation on certain gpu's. */
+	/* This *may* have solved my shaking image problem, but i am not sure. */
+	/* I presume it's some kind of clock setting, but what precisely i do not know. */
+	NVWrite(pNv, 0x00614300 + NV50OrOffset(output) * 0x800, 0x70000 | ((pclk > limit) ? 0x101 : 0));
 }
 
 static void
@@ -64,10 +67,15 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 static int
 NV50TMDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
 	// Disable dual-link modes until I can find a way to make them work
 	// reliably.
 	if (mode->Clock > 165000)
 		return MODE_CLOCK_HIGH;
+
+	if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
+		return MODE_PANEL;
 
 	return NV50OutputModeValid(output, mode);
 }
@@ -150,9 +158,6 @@ NV50SorDetect(xf86OutputPtr output)
 	if (!ddc_mon->features.input_type) /* Analog? */
 		return XF86OutputStatusDisconnected;
 
-	if (ddc_mon)
-		xf86OutputSetEDID(output, ddc_mon);
-
 	return XF86OutputStatusConnected;
 }
 
@@ -202,45 +207,6 @@ NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 	return TRUE;
 }
 
-static Bool
-NV50SorTMDSModeFixup(xf86OutputPtr output, DisplayModePtr mode,
-			DisplayModePtr adjusted_mode)
-{
-	int scrnIndex = output->scrn->scrnIndex;
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	DisplayModePtr modes = output->probed_modes;
-
-	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
-
-	if (modes) {
-		// Find the preferred mode and use that as the "native" mode.
-		// If no preferred mode is available, use the first one.
-		DisplayModePtr mode;
-
-		// Find the preferred mode.
-		for(mode = modes; mode; mode = mode->next) {
-			if(mode->type & M_T_PREFERRED) {
-				xf86DrvMsgVerb(scrnIndex, X_INFO, 5,
-						"%s: preferred mode is %s\n",
-						output->name, mode->name);
-				break;
-			}
-		}
-
-		// XXX: May not want to allow scaling if no preferred mode is found.
-		if(!mode) {
-			mode = modes;
-			xf86DrvMsgVerb(scrnIndex, X_INFO, 5,
-				"%s: no preferred mode found, using %s\n",
-				output->name, mode->name);
-		}
-
-		nv_output->native_mode = xf86DuplicateMode(mode);
-	}
-
-	return NV50SorModeFixup(output, mode, adjusted_mode);
-}
-
 static DisplayModePtr
 NV50SorGetLVDSModes(xf86OutputPtr output)
 {
@@ -253,7 +219,7 @@ static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.save = NULL,
 	.restore = NULL,
 	.mode_valid = NV50TMDSModeValid,
-	.mode_fixup = NV50SorTMDSModeFixup,
+	.mode_fixup = NV50SorModeFixup,
 	.prepare = NV50OutputPrepare,
 	.commit = NV50OutputCommit,
 	.mode_set = NV50SorModeSet,
