@@ -3335,21 +3335,23 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 		pll_lim->vco2.min_inputfreq = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + 20])));
 		pll_lim->vco1.max_inputfreq = pll_lim->vco2.max_inputfreq = INT_MAX;
 
-		/* these values taken from nv31. nv30, nv36 might do better with different ones */
+		/* these values taken from nv30/31/36 */
 		pll_lim->vco1.min_n = 0x1;
+		if (bios->chip_version == 0x36)
+			pll_lim->vco1.min_n = 0x5;
 		pll_lim->vco1.max_n = 0xff;
 		pll_lim->vco1.min_m = 0x1;
 		pll_lim->vco1.max_m = 0xd;
 		pll_lim->vco2.min_n = 0x4;
-		pll_lim->vco2.max_n = 0x46;
-		if (bios->chip_version == 0x30)
-		       /* only 5 bits available for N2 on nv30 */
+		/* on nv30, 31, 36 (i.e. all cards with two stage PLLs with this
+		 * table version (apart from nv35)), N2 is compared to
+		 * maxN2 (0x46) and 10 * maxM2 (0x4), so set maxN2 to 0x28 and
+		 * save a comparison
+		 */
+		pll_lim->vco2.max_n = 0x28;
+		if (bios->chip_version == 0x30 || bios->chip_version == 0x35)
+		       /* only 5 bits available for N2 on nv30/35 */
 			pll_lim->vco2.max_n = 0x1f;
-		if (bios->chip_version == 0x31)
-			/* on nv31, N2 is compared to maxN2 (0x46) and maxM2 (0x4),
-			 * so set maxN2 to 0x4 and save a comparison
-			 */
-			pll_lim->vco2.max_n = 0x4;
 		pll_lim->vco2.min_m = 0x1;
 		pll_lim->vco2.max_m = 0x4;
 	} else if (pll_lim_ver) {	/* ver 0x20, 0x21 */
