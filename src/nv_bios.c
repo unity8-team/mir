@@ -728,13 +728,17 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	bool nv3035 = bios->chip_version == 0x30 || bios->chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
-	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = nv32_rd(pScrn, reg2);
+	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = !nv3035 ? nv32_rd(pScrn, reg2) : 0;
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
-	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
+	uint32_t pll2 = !nv3035 ? (oldpll2 & 0x7fff0000) | 1 << 31 | NM2 : 0;
 	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
 	int shift_powerctrl_1 = -1;
 
+	if (nv3035)
+		pll1 = (pll1 & 0xfcc7ffff) | (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
+	
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
@@ -769,7 +773,8 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		}
 	}
 
-	nv32_wr(pScrn, reg2, pll2);
+	if (!nv3035)
+		nv32_wr(pScrn, reg2, pll2);
 	nv32_wr(pScrn, reg1, pll1);
 
 	if (shift_powerctrl_1 >= 0) {
@@ -863,7 +868,9 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	if (!get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim))
 		return;
 
-	if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
+	if (bios->chip_version >= 0x40 || bios->chip_version == 0x30 ||
+	    bios->chip_version == 0x31 || bios->chip_version == 0x35 ||
+	    bios->chip_version == 0x36) {
 		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
 		if (reg > 0x405c)
 			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
