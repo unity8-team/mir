@@ -348,7 +348,7 @@ static const uint32_t ps_kernel_static_nomask_projective [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca [][4] = {
+static const uint32_t ps_kernel_static_maskca_affine [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
@@ -358,7 +358,17 @@ static const uint32_t ps_kernel_static_maskca [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
+static const uint32_t ps_kernel_static_maskca_projective [][4] = {
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_projective.g4b"
+#include "exa_wm_src_sample_argb.g4b"
+#include "exa_wm_mask_projective.g4b"
+#include "exa_wm_mask_sample_argb.g4b"
+#include "exa_wm_ca.g4b"
+#include "exa_wm_write.g4b"
+};
+
+static const uint32_t ps_kernel_static_maskca_srcalpha_affine [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_a.g4b"
@@ -368,11 +378,31 @@ static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_masknoca [][4] = {
+static const uint32_t ps_kernel_static_maskca_srcalpha_projective [][4] = {
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_projective.g4b"
+#include "exa_wm_src_sample_a.g4b"
+#include "exa_wm_mask_projective.g4b"
+#include "exa_wm_mask_sample_argb.g4b"
+#include "exa_wm_ca_srcalpha.g4b"
+#include "exa_wm_write.g4b"
+};
+
+static const uint32_t ps_kernel_static_masknoca_affine [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_mask_affine.g4b"
+#include "exa_wm_mask_sample_a.g4b"
+#include "exa_wm_noca.g4b"
+#include "exa_wm_write.g4b"
+};
+
+static const uint32_t ps_kernel_static_masknoca_projective [][4] = {
+#include "exa_wm_xy.g4b"
+#include "exa_wm_src_projective.g4b"
+#include "exa_wm_src_sample_argb.g4b"
+#include "exa_wm_mask_projective.g4b"
 #include "exa_wm_mask_sample_a.g4b"
 #include "exa_wm_noca.g4b"
 #include "exa_wm_write.g4b"
@@ -484,15 +514,22 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	if (pMaskPicture->componentAlpha && 
                 PICT_FORMAT_RGB(pMaskPicture->format)) {
             if (i965_blend_op[op].src_alpha) {
-                next_offset = ps_kernel_offset + 
-                    sizeof(ps_kernel_static_maskca_srcalpha);
+		if (is_affine)
+		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_srcalpha_affine);
+		else
+		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_srcalpha_projective);
             } else {
-                next_offset = ps_kernel_offset + 
-                    sizeof(ps_kernel_static_maskca);
+		if (is_affine)
+		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_affine);
+		else
+		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_projective);
             }
-        } else
-	    next_offset = ps_kernel_offset + 
-                          sizeof(ps_kernel_static_masknoca);
+        } else {
+	    if (is_affine)
+		next_offset = ps_kernel_offset + sizeof(ps_kernel_static_masknoca_affine);
+	    else
+		next_offset = ps_kernel_offset + sizeof(ps_kernel_static_masknoca_projective);
+	}
     } else {
 	if (is_affine)
 	    next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask_affine);
@@ -865,22 +902,28 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     if (pMask) {
 	if (pMaskPicture->componentAlpha && 
                 PICT_FORMAT_RGB(pMaskPicture->format)) {
-            if (i965_blend_op[op].src_alpha) 
-                memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha,
-                        sizeof (ps_kernel_static_maskca_srcalpha));
-            else
-                memcpy(ps_kernel, ps_kernel_static_maskca,
-                        sizeof (ps_kernel_static_maskca));
-        } else
-   	    memcpy(ps_kernel, ps_kernel_static_masknoca,
-		   sizeof (ps_kernel_static_masknoca));
+            if (i965_blend_op[op].src_alpha) {
+		if (is_affine)
+		    memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha_affine, sizeof (ps_kernel_static_maskca_srcalpha_affine));
+		else
+                    memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha_projective, sizeof (ps_kernel_static_maskca_srcalpha_projective));
+            } else {
+		if (is_affine)
+		    memcpy(ps_kernel, ps_kernel_static_maskca_affine, sizeof (ps_kernel_static_maskca_affine));
+		else
+		    memcpy(ps_kernel, ps_kernel_static_maskca_projective, sizeof (ps_kernel_static_maskca_projective));
+	    }
+        } else {
+	    if (is_affine)
+		memcpy(ps_kernel, ps_kernel_static_masknoca_affine, sizeof (ps_kernel_static_masknoca_affine));
+	    else
+		memcpy(ps_kernel, ps_kernel_static_masknoca_projective, sizeof (ps_kernel_static_masknoca_projective));
+	}
     } else {
 	if (is_affine)
-	    memcpy(ps_kernel, ps_kernel_static_nomask_affine,
-		   sizeof (ps_kernel_static_nomask_affine));
+	    memcpy(ps_kernel, ps_kernel_static_nomask_affine, sizeof (ps_kernel_static_nomask_affine));
 	else
-	    memcpy(ps_kernel, ps_kernel_static_nomask_projective,
-		   sizeof (ps_kernel_static_nomask_projective));
+	    memcpy(ps_kernel, ps_kernel_static_nomask_projective, sizeof (ps_kernel_static_nomask_projective));
     }
 
     wm_state = &wm_state_local;
