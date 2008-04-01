@@ -318,7 +318,7 @@ static const uint32_t sip_kernel_static[][4] = {
  */
 
 #define SF_KERNEL_NUM_GRF  16
-#define SF_MAX_THREADS	   1
+#define SF_MAX_THREADS	   2
 
 static const uint32_t sf_kernel_static[][4] = {
 #include "exa_sf.g4b"
@@ -330,7 +330,7 @@ static const uint32_t sf_kernel_static_mask[][4] = {
 
 /* ps kernels */
 #define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	    32
+#define PS_MAX_THREADS	    48
 #define PS_SCRATCH_SPACE    1024
 #define PS_SCRATCH_SPACE_LOG	0   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
 
@@ -931,7 +931,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-    wm_state->thread1.single_program_flow = 1;
+    wm_state->thread1.single_program_flow = 0;
     if (!pMask)
 	wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
     else
@@ -1240,14 +1240,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    {
-	BEGIN_BATCH(2);
-	OUT_BATCH(MI_FLUSH |
-		  MI_STATE_INSTRUCTION_CACHE_FLUSH |
-		  BRW_MI_GLOBAL_SNAPSHOT_RESET);
-	OUT_BATCH(MI_NOOP);
-	ADVANCE_BATCH();
-    }
     /* Wait for any existing composite rectangles to land before we overwrite
      * the VB with the next one.
      */
