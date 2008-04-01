@@ -24,6 +24,13 @@
 #ifndef __NV50REG_H_
 #define __NV50REG_H_
 
+/* It seems to be i2c port based and can be used to determine if a dvi port is plugged in. */
+/* It's unknown if bits exist for i2c port > 1. */
+#define NV50_I2C_STATE_UNK1	0x0000E104
+	#define NV50_I2C_STATE_UNK1_TMDS_0_CONNECTED	(1 << 2)
+	#define NV50_I2C_STATE_UNK1_TMDS_1_CONNECTED	(1 << 6)
+#define NV50_I2C_PORT(i) (0x0000E138 + 0x18*i)
+
 /* This is a grey area. */
 #define NV50_DISPLAY_SUPERVISOR	0x00610024
 	#define NV50_DISPLAY_SUPERVISOR_DISABLE_CRTC0	(1 << 2)

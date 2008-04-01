@@ -436,7 +436,7 @@ NV50CrtcPrepare(xf86CrtcPtr crtc)
 	for(i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 
-		if(!output->crtc)
+		if (!output->crtc)
 			output->funcs->mode_set(output, NULL, NULL);
 	}
 }
