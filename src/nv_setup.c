@@ -404,13 +404,10 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
 	pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && implementation != CHIPSET_NV11);
 
+	/* nv30 and nv35 have two stage PLLs, but use only one register; they are dealt with separately */
 	pNv->twoStagePLL = (implementation == CHIPSET_NV31) ||
 			   (implementation == CHIPSET_NV36) ||
 			   (pNv->Architecture >= NV_ARCH_40);
-
-	/* Don't mess with pre-randr12 situations. */
-	if (pNv->NVArch == 0x30 && pNv->randr12_enable)
-		pNv->twoStagePLL = TRUE;
 
 	pNv->WaitVSyncPossible = (pNv->Architecture >= NV_ARCH_10) &&
 				 (implementation != CHIPSET_NV10);

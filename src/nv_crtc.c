@@ -176,11 +176,11 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	if (nv_crtc->head) {
 		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
-		if (pNv->twoStagePLL && pNv->NVArch != 0x30)
+		if (pNv->twoStagePLL)
 			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
 	} else {
 		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
-		if (pNv->twoStagePLL && pNv->NVArch != 0x30)
+		if (pNv->twoStagePLL)
 			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
 	}
 	if (pNv->twoHeads)
@@ -210,14 +210,14 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		if (nv_crtc->head) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2 %08X\n", regp->vpll_a);
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, regp->vpll_a);
-			if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
+			if (pNv->twoStagePLL) {
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2_B %08X\n", regp->vpll_b);
 				NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, regp->vpll_b);
 			}
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL %08X\n", regp->vpll_a);
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, regp->vpll_a);
-			if (pNv->twoStagePLL && pNv->NVArch != 0x30) {
+			if (pNv->twoStagePLL) {
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL_B %08X\n", regp->vpll_b);
 				NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, regp->vpll_b);
 			}
@@ -271,7 +271,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
 			return;
 
-	if (pNv->twoStagePLL) {
+	if (pNv->twoStagePLL || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
 		if (dotClock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
 			nv4x_single_stage_pll_mode = TRUE;
 			/* Turn the second set of divider and multiplier off */
@@ -293,9 +293,9 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			g70_pll_special_bits = 0x3;
 	}
 
-	if (pNv->NVArch == 0x30)
+	if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35)
 		/* See nvregisters.xml for details. */
-		regp->vpll_a = log2P << 16 | NM1 | (NM2 & 7) << 4 | ((NM2 >> 8) & 7) << 19 | ((NM2 >> 11) & 3) << 24 | NV30_RAMDAC_ENABLE_VCO2;
+		regp->vpll_a = (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | log2P << 16 | NV30_RAMDAC_ENABLE_VCO2 | (NM2 & 7) << 4 | NM1;
 	else
 		regp->vpll_a = g70_pll_special_bits << 30 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
@@ -312,7 +312,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
 	}
 
-	if (!pNv->twoStagePLL || nv4x_single_stage_pll_mode)
+	if ((!pNv->twoStagePLL && pNv->NVArch != 0x30 && pNv->NVArch != 0x35) || nv4x_single_stage_pll_mode)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);

@@ -236,7 +236,7 @@ uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t
 	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
 	uint8_t m1, m2, n1, n2, p;
 
-	if (!pNv->twoStagePLL)
+	if (!pNv->twoStagePLL && pNv->NVArch != 0x30 && pNv->NVArch != 0x35)
 		vpllb_disabled = TRUE;
 
 	/* This is the dummy value nvidia sets when vpll is disabled */
