@@ -135,9 +135,11 @@ NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
 
 void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetPClk is called.\n");
+
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	int lo_n, lo_m, hi_n, hi_m, p, i;
 	/* These clocks are probably rerouted from the 0x4000 range to the 0x610000 range */
@@ -181,6 +183,8 @@ NV50CrtcGetHead(xf86CrtcPtr crtc)
 Bool
 NV50DispPreInit(ScrnInfoPtr pScrn)
 {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DispPreInit is called.\n");
+
 	NVPtr pNv = NVPTR(pScrn);
 	/* These labels are guesswork based on symmetry (2 SOR's and 3 DAC's exist)*/
 	NVWrite(pNv, 0x00610184, NVRead(pNv, 0x00614004));
@@ -210,6 +214,8 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 Bool
 NV50DispInit(ScrnInfoPtr pScrn)
 {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DispInit is called.\n");
+
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t val;
 	if (NVRead(pNv, NV50_DISPLAY_SUPERVISOR) & 0x100) {
@@ -246,6 +252,7 @@ NV50DispInit(ScrnInfoPtr pScrn)
 void
 NV50DispShutdown(ScrnInfoPtr pScrn)
 {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DispShutdown is called.\n");
 	NVPtr pNv = NVPTR(pScrn);
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
@@ -285,6 +292,8 @@ void
 NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcModeSet is called with position (%d, %d).\n", x, y);
+
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	nv_crtc->pclk = adjusted_mode->Clock;
@@ -358,6 +367,8 @@ void
 NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcBlankScreen is called (%s).\n", blank ? "blanked" : "unblanked");
+
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
@@ -403,8 +414,10 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 /******************************** Cursor stuff ********************************/
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcShowHideCursor is called (%s, %s).\n", show ? "show" : "hide", update ? "update" : "no update");
+
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
 	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR, 
 		show ? NV50_CRTC0_CURSOR_SHOW : NV50_CRTC0_CURSOR_HIDE);
@@ -430,6 +443,8 @@ void
 NV50CrtcPrepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcPrepare is called.\n");
+
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
@@ -444,8 +459,10 @@ NV50CrtcPrepare(xf86CrtcPtr crtc)
 void
 NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 {
-	xf86OutputPtr output = NULL;
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetDither is called (%s).\n", update ? "update" : "no update");
+
+	xf86OutputPtr output = NULL;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
@@ -485,6 +502,9 @@ static void ComputeAspectScale(DisplayModePtr mode, DisplayModePtr adjusted_mode
 
 void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, enum scaling_modes scale)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetScale is called.\n");
+
 	int outX = 0, outY = 0;
 
 	switch(scale) {
@@ -517,8 +537,10 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 void
 NV50CrtcCommit(xf86CrtcPtr crtc)
 {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcCommit is called.\n");
+
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	int i, crtc_mask = 0;
 
 	/* If any heads are unused, blank them */

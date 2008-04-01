@@ -34,6 +34,8 @@ void
 NV50DacSetPClk(xf86OutputPtr output, int pclk)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacSetPClk is called.\n");
+
 	NVPtr pNv = NVPTR(pScrn);
 	NVWrite(pNv, NV50_DAC0_CLK_CTRL + NV50OrOffset(output) * 0x800, 0);
 }
@@ -41,8 +43,10 @@ NV50DacSetPClk(xf86OutputPtr output, int pclk)
 static void
 NV50DacDPMSSet(xf86OutputPtr output, int mode)
 {
-	CARD32 tmp;
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacDPMSSet is called with mode %d.\n", mode);
+
+	CARD32 tmp;
 	NVPtr pNv = NVPTR(pScrn);
 
 	/*
@@ -73,6 +77,9 @@ Bool
 NV50DacModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacModeFixup is called.\n");
+
 	return TRUE;
 }
 
@@ -81,6 +88,8 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacModeSet is called.\n");
+
 	const int dacOff = 0x80 * NV50OrOffset(output);
 	uint32_t mode_ctl = NV50_DAC_MODE_CTRL_OFF;
 	uint32_t mode_ctl2 = 0;
@@ -127,6 +136,9 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 NV50DacDetect(xf86OutputPtr output)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacDetect is called.\n");
+
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 

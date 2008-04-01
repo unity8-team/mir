@@ -34,6 +34,8 @@ void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorSetPClk is called.\n");
+
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
@@ -47,6 +49,8 @@ static void
 NV50SorDPMSSet(xf86OutputPtr output, int mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorDPMSSet is called with mode %d.\n", mode);
+
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
 
@@ -98,6 +102,8 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorModeSet is called.\n");
+
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int sorOff = 0x40 * NV50OrOffset(output);
 	uint32_t mode_ctl = NV50_SOR_MODE_CTRL_OFF;
@@ -145,6 +151,9 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 NV50SorDetect(xf86OutputPtr output)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorDetect is called.\n");
+
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
 
@@ -164,6 +173,9 @@ NV50SorDetect(xf86OutputPtr output)
 static xf86OutputStatus
 NV50SorLVDSDetect(xf86OutputPtr output)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorLVDSDetect is called.\n");
+
 	/* Assume LVDS is always connected */
 	return XF86OutputStatusConnected;
 }
@@ -185,6 +197,9 @@ static Bool
 NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorModeFixup is called.\n");
+
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	if (nv_output->native_mode && nv_output->scaling_mode != SCALE_PANEL) {

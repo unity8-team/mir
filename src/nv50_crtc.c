@@ -95,8 +95,10 @@ static void
 nv50_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 					int size)
 {
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_gamma_set is called.\n");
+
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t index, i;
 	void * CLUT = NULL;
