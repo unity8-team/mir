@@ -30,12 +30,16 @@
  */
 
 include(`exa_wm.g4i')
+
 define(`du_dx',	`src_du_dx')
 define(`du_dy',	`src_du_dy')
 define(`uo',	`src_uo')
+
 define(`dv_dx',	`src_dv_dx')
 define(`dv_dy',	`src_dv_dy')
 define(`vo',	`src_vo')
+
 define(`u',	`src_u')
 define(`v',	`src_v')
+
 include(`exa_wm_affine.g4i')

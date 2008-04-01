@@ -119,7 +119,7 @@ mov (8) m8<1>F g17<8,8,1>F { align1 };
 mov (8) m9<1>F g19<8,8,1>F { align1 };
 
 /* m0, m1 are all direct passed by PS thread payload */
-mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable };
+mov (8) m1<1>UD g1<8,8,1>UD { align1 };
 
 /* write */
 send (16) 0 acc0<1>UW g0<8,8,1>UW write (

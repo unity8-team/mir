@@ -131,18 +131,14 @@ INTEL_G4A =				\
 	packed_yuv_wm.g4a		\
 	exa_sf.g4a 			\
 	exa_sf_mask.g4a 		\
-	exa_sf_rotation.g4a		\
-	exa_wm_maskca.g4a 		\
-	exa_wm_maskca_srcalpha.g4a 	\
-	exa_wm_masknoca.g4a 		\
-	exa_wm_nomask.g4a		\
-	exa_wm_rotation.g4a		\
 	exa_wm_src_affine.g4a 		\
 	exa_wm_src_projective.g4a 	\
-	exa_wm_src_sample.g4a 		\
+	exa_wm_src_sample_argb.g4a 	\
+	exa_wm_src_sample_a.g4a 	\
 	exa_wm_mask_affine.g4a 		\
 	exa_wm_mask_projective.g4a 	\
-	exa_wm_mask_sample.g4a 		\
+	exa_wm_mask_sample_argb.g4a 	\
+	exa_wm_mask_sample_a.g4a 	\
 	exa_wm_noca.g4a			\
 	exa_wm_ca.g4a			\
 	exa_wm_ca_srcalpha.g4a		\
@@ -153,29 +149,21 @@ INTEL_G4I =				\
 	exa_wm.g4i			\
 	exa_wm_affine.g4i		\
 	exa_wm_projective.g4i
+	
 
 INTEL_G4B = 				\
 	packed_yuv_sf.g4b		\
-	packed_yuv_wm.g4b 		\
-	exa_sf_mask.g4b			\
+	packed_yuv_wm.g4b		\
 	exa_sf.g4b 			\
-	exa_sf_rotation.g4b		\
-	exa_wm_maskca.g4b		\
-	exa_wm_maskca_srcalpha.g4b	\
-	exa_wm_masknoca.g4b		\
-	exa_wm_nomask.g4b		\
-	exa_wm_rotation.g4b		\
-	exa_wm_maskca.g4b 		\
-	exa_wm_maskca_srcalpha.g4b 	\
-	exa_wm_masknoca.g4b 		\
-	exa_wm_nomask.g4b		\
-	exa_wm_rotation.g4b		\
+	exa_sf_mask.g4b 		\
 	exa_wm_src_affine.g4b 		\
 	exa_wm_src_projective.g4b 	\
-	exa_wm_src_sample.g4b 		\
+	exa_wm_src_sample_argb.g4b 	\
+	exa_wm_src_sample_a.g4b 	\
 	exa_wm_mask_affine.g4b 		\
 	exa_wm_mask_projective.g4b 	\
-	exa_wm_mask_sample.g4b 		\
+	exa_wm_mask_sample_argb.g4b 	\
+	exa_wm_mask_sample_a.g4b 	\
 	exa_wm_noca.g4b			\
 	exa_wm_ca.g4b			\
 	exa_wm_ca_srcalpha.g4b		\
@@ -194,8 +182,11 @@ if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b
 .g4a.g4b:
-	m4 -s $*.g4a > $*.g4m
-	intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+	m4 -s $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+
+$(INTEL_G4B): $(INTEL_G4I)
+
+BUILT_SOURCES= $(INTEL_G4B)
 
 endif
 

@@ -25,25 +25,23 @@
  *    Keith Packard <keithp@keithp.com>
  */
 
+/* Sample the src surface */
 
 include(`exa_wm.g4i')
-define(`du_dx',	`src_du_dx')
-define(`du_dy',	`src_du_dy')
-define(`uo',	`src_uo')
-define(`dv_dx',	`src_dv_dx')
-define(`dv_dy',	`src_dv_dy')
-define(`vo',	`src_vo')
-define(`dw_dx',	`src_dw_dx')
-define(`dw_dy',	`src_dw_dy')
-define(`wo',	`src_wo')
-define(`u',	`src_u')
-define(`v',	`src_v')
-define(`w',	`src_w')
-define(`u_0',	`src_u_0')
-define(`v_0',	`src_v_0')
-define(`u_1',	`src_u_1')
-define(`v_1',	`src_v_1')
-define(`w_0',	`src_w_0')
-define(`w_1',	`src_w_1')
 
-include(`exa_wm_projective.g4i')
+/* prepare sampler read back gX register, which would be written back to output */
+
+/* use simd16 sampler, param 0 is u, param 1 is v. */
+/* 'payload' loading, assuming tex coord start from g4 */
+
+/* load alpha */
+mov (1) g0.8<1>UD	0x00007000UD { align1 mask_disable };
+
+/* src_msg will be copied with g0, as it contains send desc */
+/* emit sampler 'send' cmd */
+send (16) src_msg_ind		/* msg reg index */
+	src_sample6<1>UW 	/* readback */
+	g0<8,8,1>UW		/* copy to msg start reg*/
+	sampler (1,0,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+				/* here(src->dst) we should use src_sampler and src_surface */
+	mlen 5 rlen 2 { align1 };   /* required message len 5, readback len 8 */

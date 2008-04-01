@@ -31,9 +31,6 @@
 
 include(`exa_wm.g4i')
 
-/* m0, m1 are all direct passed by PS thread payload */
-mov (8) m1<1>F g1<8,8,1>F { align1 };
-
 /* prepare data in m2-m5 for subspan(1,0), m6-m9 for subspan(3,2), then it's ready to write */
 /* src_sample0 -> m2
    src_sample1 -> m6
@@ -55,7 +52,7 @@ mov (8) m8<1>F src_sample5<8,8,1>F { align1 };
 mov (8) m9<1>F src_sample7<8,8,1>F { align1 };
 
 /* m0, m1 are all direct passed by PS thread payload */
-mov (8) m1<1>UD g1<8,8,1>UD { align1 mask_disable };
+mov (8) m1<1>UD g1<8,8,1>UD { align1 };
 
 /* write */
 send (16) 0 acc0<1>UW g0<8,8,1>UW write (
@@ -68,7 +65,6 @@ send (16) 0 acc0<1>UW g0<8,8,1>UW write (
 	rlen 0
 	{ align1 EOT };
 
-nop;
 nop;
 nop;
 nop;

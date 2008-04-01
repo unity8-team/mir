@@ -78,7 +78,7 @@ static const uint32_t sip_kernel_static[][4] = {
 #define SF_MAX_THREADS	   1
 
 static const uint32_t sf_kernel_static[][4] = {
-#include "sf_prog.h"
+#include "packed_yuv_sf.g4b"
 };
 
 /*
@@ -94,7 +94,7 @@ static const uint32_t sf_kernel_static[][4] = {
 #define BRW_GRF_BLOCKS(nreg)	((nreg + 15) / 16 - 1)
 
 static const uint32_t ps_kernel_static[][4] = {
-#include "wm_prog.h"
+#include "packed_yuv_wm.g4b"
 };
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))

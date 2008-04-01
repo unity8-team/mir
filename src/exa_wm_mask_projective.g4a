@@ -42,6 +42,11 @@ define(`wo',	`mask_wo')
 define(`u',	`mask_u')
 define(`v',	`mask_v')
 define(`w',	`mask_w')
+
+define(`u_0',	`mask_u_0')
+define(`v_0',	`mask_v_0')
+define(`u_1',	`mask_u_1')
+define(`v_1',	`mask_v_1')
 define(`w_0',	`mask_w_0')
 define(`w_1',	`mask_w_1')
 

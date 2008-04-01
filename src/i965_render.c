@@ -285,7 +285,7 @@ static int next_offset, total_state_size;
 static char *state_base;
 static int state_base_offset;
 static float *vb;
-static int vb_size = (6 * 4) * 4 ; /* 6 DWORDS per vertex - and mask*/
+static int vb_size = (2 + 3 + 3) * 3 * 4;   /* (dst, src, mask) 3 vertices, 4 bytes */
 
 static uint32_t src_blend, dst_blend;
 
@@ -318,7 +318,7 @@ static const uint32_t sip_kernel_static[][4] = {
  */
 
 #define SF_KERNEL_NUM_GRF  16
-#define SF_MAX_THREADS	   2
+#define SF_MAX_THREADS	   1
 
 static const uint32_t sf_kernel_static[][4] = {
 #include "exa_sf.g4b"
@@ -329,29 +329,31 @@ static const uint32_t sf_kernel_static_mask[][4] = {
 };
 
 /* ps kernels */
-#define PS_KERNEL_NUM_GRF   32
-#define PS_MAX_THREADS	   32
+#define PS_KERNEL_NUM_GRF   48
+#define PS_MAX_THREADS	    32
+#define PS_SCRATCH_SPACE    2048
+#define PS_SCRATCH_SPACE_LOG	1   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
 
 static const uint32_t ps_kernel_static_nomask_affine [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample.g4b"
+#include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_write.g4b"
 };
 
 static const uint32_t ps_kernel_static_nomask_projective [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
-#include "exa_wm_src_sample.g4b"
+#include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_write.g4b"
 };
 
 static const uint32_t ps_kernel_static_maskca [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample.g4b"
+#include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_mask_sample_argb.g4b"
 #include "exa_wm_ca.g4b"
 #include "exa_wm_write.g4b"
 };
@@ -359,9 +361,9 @@ static const uint32_t ps_kernel_static_maskca [][4] = {
 static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample.g4b"
+#include "exa_wm_src_sample_a.g4b"
 #include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_mask_sample_argb.g4b"
 #include "exa_wm_ca_srcalpha.g4b"
 #include "exa_wm_write.g4b"
 };
@@ -369,9 +371,9 @@ static const uint32_t ps_kernel_static_maskca_srcalpha [][4] = {
 static const uint32_t ps_kernel_static_masknoca [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
-#include "exa_wm_src_sample.g4b"
+#include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_mask_affine.g4b"
-#include "exa_wm_mask_sample.g4b"
+#include "exa_wm_mask_sample_a.g4b"
 #include "exa_wm_noca.g4b"
 #include "exa_wm_write.g4b"
 };
@@ -432,20 +434,20 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     pI830->transform[0] = pSrcPicture->transform;
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-    is_affine = is_affine_src && is_affine_mask;
 
     if (!pMask) {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
+	is_affine_mask = TRUE;
     } else {
 	pI830->transform[1] = pMaskPicture->transform;
-	if (pI830->transform[1])
-	    I830FALLBACK("i965 mask transform not implemented!\n");
 	pI830->scale_units[1][0] = pMask->drawable.width;
 	pI830->scale_units[1][1] = pMask->drawable.height;
+	is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
     }
+
+    is_affine = is_affine_src && is_affine_mask;
 
     /* setup 3d pipeline state */
 
@@ -463,7 +465,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     next_offset = wm_offset + sizeof(*wm_state);
 
     wm_scratch_offset = ALIGN(next_offset, 1024);
-    next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
+    next_offset = wm_scratch_offset + PS_SCRATCH_SPACE * PS_MAX_THREADS;
 
     cc_offset = ALIGN(next_offset, 32);
     next_offset = cc_offset + sizeof(*cc_state);
@@ -782,6 +784,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    I830FALLBACK("Bad filter 0x%x\n", pMaskPicture->filter);
    	}
 
+	mask_sampler_state->ss0.default_color_mode = 0; /* GL mode */
    	if (!pMaskPicture->repeat) {
    	    mask_sampler_state->ss1.r_wrap_mode =
 		BRW_TEXCOORDMODE_CLAMP_BORDER;
@@ -885,7 +888,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_state->thread0.kernel_start_pointer =
 	(state_base_offset + ps_kernel_offset) >> 6;
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-    wm_state->thread1.single_program_flow = 0;
+    wm_state->thread1.single_program_flow = 1;
     if (!pMask)
 	wm_state->thread1.binding_table_entry_count = 2; /* 1 tex and fb */
     else
@@ -893,7 +896,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     wm_state->thread2.scratch_space_base_pointer = (state_base_offset +
 						    wm_scratch_offset)>>10;
-    wm_state->thread2.per_thread_scratch_space = 0;
+    wm_state->thread2.per_thread_scratch_space = PS_SCRATCH_SPACE_LOG; 
     wm_state->thread3.const_urb_entry_read_length = 0;
     wm_state->thread3.const_urb_entry_read_offset = 0;
     /* Each pair of attributes (src/mask coords) is one URB entry */
@@ -1044,12 +1047,12 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	if (is_affine)
 	{
 	    src_format = BRW_SURFACEFORMAT_R32G32_FLOAT;
-	    w_component = BRW_VFCOMPONENT_NOSTORE;
+	    w_component = BRW_VFCOMPONENT_STORE_1_FLT;
 	}
 	else
 	{
 	    src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
-	    w_component = BRW_VFCOMPONENT_NOSTORE;
+	    w_component = BRW_VFCOMPONENT_STORE_SRC;
 	}
 	BEGIN_BATCH(pMask?12:10);
 	/* Set up the pointer to our (single) vertex buffer */
@@ -1083,7 +1086,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_0_SHIFT) |
 		  (BRW_VFCOMPONENT_STORE_SRC	<< VE1_VFCOMPONENT_1_SHIFT) |
 		  (w_component			<< VE1_VFCOMPONENT_2_SHIFT) |
-		  (BRW_VFCOMPONENT_NOSTORE	<< VE1_VFCOMPONENT_3_SHIFT) |
+		  (BRW_VFCOMPONENT_STORE_1_FLT	<< VE1_VFCOMPONENT_3_SHIFT) |
 		  ((4 + 4)			<< VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
 	/* u1, v1, w1 */
    	if (pMask) {
@@ -1095,15 +1098,15 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    OUT_BATCH((BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_0_SHIFT) |
 		      (BRW_VFCOMPONENT_STORE_SRC    << VE1_VFCOMPONENT_1_SHIFT) |
 		      (w_component		    << VE1_VFCOMPONENT_2_SHIFT) |
-		      (BRW_VFCOMPONENT_NOSTORE	    << VE1_VFCOMPONENT_3_SHIFT) |
-		      ((4 + 2 + 4)		    << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
+		      (BRW_VFCOMPONENT_STORE_1_FLT  << VE1_VFCOMPONENT_3_SHIFT) |
+		      ((4 + 4 + 4)		    << VE1_DESTINATION_ELEMENT_OFFSET_SHIFT)); /* VUE offset in dwords */
    	}
 
 	ADVANCE_BATCH();
     }
 
 #ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...");
+    ErrorF("try to sync to show any errors...\n");
     I830Sync(pScrn);
 #endif
     return TRUE;
@@ -1119,7 +1122,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
     int i;
-    int per_vertex = 2; /* dst x/y */
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
@@ -1139,7 +1141,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 					      pI830->transform[0],
 					      &src_x[2], &src_y[2]))
 	    return;
-	per_vertex += 2;    /* src u/v */
     }
     else
     {
@@ -1158,14 +1159,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 						 &src_x[2], &src_y[2],
 						 &src_w[2]))
 	    return;
-	per_vertex += 3;    /* src u/v/w */
     }
 
     if (pI830->scale_units[1][0] == -1 || pI830->scale_units[1][1] == -1) {
 	has_mask = FALSE;
     } else {
 	has_mask = TRUE;
-	if (is_affine_mask) {
+	if (is_affine) {
 	    if (!i830_get_transformed_coordinates(maskX, maskY,
 						  pI830->transform[1],
 						  &mask_x[0], &mask_y[0]))
@@ -1178,7 +1178,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 						  pI830->transform[1],
 						  &mask_x[2], &mask_y[2]))
 		return;
-	    per_vertex += 2;	/* mask u/v */
 	} else {
 	    if (!i830_get_transformed_coordinates_3d(maskX, maskY,
 						     pI830->transform[1],
@@ -1195,10 +1194,17 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 						     &mask_x[2], &mask_y[2],
 						     &mask_w[2]))
 		return;
-	    per_vertex += 3;	/* mask u/v/w */
 	}
     }
 
+    {
+	BEGIN_BATCH(2);
+	OUT_BATCH(MI_FLUSH |
+		  MI_STATE_INSTRUCTION_CACHE_FLUSH |
+		  BRW_MI_GLOBAL_SNAPSHOT_RESET);
+	OUT_BATCH(MI_NOOP);
+	ADVANCE_BATCH();
+    }
     /* Wait for any existing composite rectangles to land before we overwrite
      * the VB with the next one.
      */
@@ -1246,6 +1252,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
+    assert (i * 4 <= vb_size);
 
     {
       BEGIN_BATCH(6);
@@ -1262,7 +1269,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
       ADVANCE_BATCH();
     }
 #ifdef I830DEBUG
-    ErrorF("sync after 3dprimitive");
+    ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);
 #endif
     /* we must be sure that the pipeline is flushed before next exa draw,

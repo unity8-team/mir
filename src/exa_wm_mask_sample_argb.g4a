@@ -34,16 +34,15 @@ include(`exa_wm.g4i')
 /* use simd16 sampler, param 0 is u, param 1 is v. */
 /* 'payload' loading, assuming tex coord start from g4 */
 
-/* m0 will be copied with g0, as it contains send desc */
+/* load argb */
+mov (1) g0.8<1>UD	0x00000000UD { align1 mask_disable };
+
+/* mask_msg will be copied with g0, as it contains send desc */
 /* emit sampler 'send' cmd */
-send (16) 0			/* msg reg index */
+send (16) mask_msg_ind		/* msg reg index */
 	mask_sample0<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
-	sampler (1,0,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+	sampler (2,1,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 8 { align1 };   /* required message len 5, readback len 8 */
-
-// mov (8)  mask_sample7<1>UD	mask_sample7<8,8,1>UD	    { align1 };  /* wait sampler return */
-
-/* if we set up read-back reg correctly, emit dataport write 'send' cmd with EOT */
 
