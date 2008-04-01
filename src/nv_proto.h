@@ -121,6 +121,7 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect);
 void NVSetOwner(ScrnInfoPtr pScrn, int head);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank);
+int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single);
 void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
 				      unsigned     *burst, unsigned     *lwm,
 				      NVPtr        pNv);

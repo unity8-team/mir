@@ -225,8 +225,11 @@ struct dcb_entry {
 	};
 };
 
-#define MAX_PLL_TYPES	2
+/* changing these requires matching changes to reg tables in nv_get_clock */
+#define MAX_PLL_TYPES	4
 enum pll_types {
+	NVPLL,
+	MPLL,
 	VPLL1,
 	VPLL2
 };

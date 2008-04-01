@@ -297,6 +297,74 @@ void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)
 	NVVgaSeqReset(pNv, head, FALSE);
 }
 
+int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single)
+{
+	int M1, N1, M2 = 1, N2 = 1, log2P;
+
+	M1 = pll1 & 0xff;
+	N1 = (pll1 >> 8) & 0xff;
+	log2P = (pll1 >> 16) & 0x7; /* never more than 6, and nv30/35 only uses 3 bits */
+	if (pNv->twoStagePLL && pll2 & NV31_RAMDAC_ENABLE_VCO2 && !force_single) {
+		M2 = pll2 & 0xff;
+		N2 = (pll2 >> 8) & 0xff;
+	} else if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
+		M1 &= 0xf; /* only 4 bits */
+		if (pll1 & NV30_RAMDAC_ENABLE_VCO2) {
+			M2 = (pll1 >> 4) & 0x7;
+			N2 = ((pll2 >> 21) & 0x18) | ((pll2 >> 19) & 0x7);
+		}
+	}
+
+	/* Avoid divide by zero if called at an inappropriate time */
+	if (!M1 || !M2)
+		return 0;
+
+	return (N1 * N2 * pNv->CrystalFreqKHz / (M1 * M2)) >> log2P;
+}
+
+static int nv_decode_pll_lowregs(NVPtr pNv, uint32_t Pval, uint32_t NMNM)
+{
+	int M1, N1, M2 = 1, N2 = 1, log2P;
+
+	log2P = (Pval >> 16) & 0x7;
+
+	M1 = NMNM & 0xff;
+	N1 = (NMNM >> 8) & 0xff;
+	/* NVPLL and VPLLs use 1 << 8 to indicate single stage mode, MPLL uses 1 << 12 */
+	if (!(Pval & (1 << 8) || Pval & (1 << 12))) {
+		M2 = (NMNM >> 16) & 0xff;
+		N2 = (NMNM >> 24) & 0xff;
+	}
+
+	/* Avoid divide by zero if called at an inappropriate time */
+	if (!M1 || !M2)
+		return 0;
+
+	return (N1 * N2 * pNv->CrystalFreqKHz / (M1 * M2)) >> log2P;
+}
+
+
+static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
+{
+	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_RAMDAC_NVPLL, NV_RAMDAC_MPLL, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
+	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000, 0x4020, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
+	uint32_t reg1;
+
+	if (pNv->Architecture < NV_ARCH_40)
+		reg1 = nv04_regs[plltype];
+	else
+		reg1 = nv40_regs[plltype];
+
+	if (reg1 <= 0x405c)
+		return nv_decode_pll_lowregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4));
+	if (pNv->twoStagePLL) {
+		bool nv40_single = pNv->Architecture == 0x40 && ((plltype == VPLL1 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL1_ACTIVE) || (plltype == VPLL2 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL2_ACTIVE));
+
+		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)), nv40_single);
+	}
+	return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), 0, false);
+}
+
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
