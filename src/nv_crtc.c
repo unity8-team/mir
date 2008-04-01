@@ -1675,6 +1675,8 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtc->driver_private = nv_crtc;
 
+	nv_crtc->modeset_lock = FALSE;
+
 	if (pNv->Architecture == NV_ARCH_50)
 		return;
 

@@ -429,11 +429,23 @@ static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 
 void NV50CrtcShowCursor(xf86CrtcPtr crtc)
 {
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	/* Calling NV50_UPDATE_DISPLAY during modeset will lock up everything. */
+	if (nv_crtc->modeset_lock)
+		return;
+
 	NV50CrtcShowHideCursor(crtc, TRUE, TRUE);
 }
 
 void NV50CrtcHideCursor(xf86CrtcPtr crtc)
 {
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	/* Calling NV50_UPDATE_DISPLAY during modeset will lock up everything. */
+	if (nv_crtc->modeset_lock)
+		return;
+
 	NV50CrtcShowHideCursor(crtc, FALSE, TRUE);
 }
 
@@ -445,8 +457,11 @@ NV50CrtcPrepare(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcPrepare is called.\n");
 
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
+
+	nv_crtc->modeset_lock = TRUE;
 
 	for(i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
@@ -540,6 +555,7 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcCommit is called.\n");
 
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	int i, crtc_mask = 0;
 
@@ -562,5 +578,7 @@ NV50CrtcCommit(xf86CrtcPtr crtc)
 	xf86_reload_cursors (pScrn->pScreen);
 
 	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
+
+	nv_crtc->modeset_lock = FALSE;
 }
 
