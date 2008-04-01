@@ -289,13 +289,12 @@ static void nv_output_restore(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
 
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+	if (nv_output->type == OUTPUT_LVDS)
+		call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, nv_output->native_mode->Clock);
+	if (nv_output->type == OUTPUT_TMDS) {
 		uint32_t clock = nv_get_clock_from_crtc(pScrn, state, nv_output->restore.head);
 
-		if (nv_output->type == OUTPUT_TMDS)
-			run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
-		else
-			call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, clock);
+		run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
 	}
 
 	if (pNv->twoHeads)
