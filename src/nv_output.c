@@ -231,53 +231,11 @@ static void nv_output_save(xf86OutputPtr output)
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	Bool vpllb_disabled = FALSE;
 	uint32_t vplla = state->crtc_reg[crtc].vpll_a;
 	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
-	uint8_t m1, m2, n1, n2, p;
+	bool nv40_single = pNv->Architecture == 0x40 && ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) || (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
 
-	if (!pNv->twoStagePLL && pNv->NVArch != 0x30 && pNv->NVArch != 0x35)
-		vpllb_disabled = TRUE;
-
-	/* This is the dummy value nvidia sets when vpll is disabled */
-	if ((vpllb & 0xFFFF) == 0x11F)
-		vpllb_disabled = TRUE;
-
-	if (!(vpllb & NV31_RAMDAC_ENABLE_VCO2) && pNv->NVArch != 0x30)
-		vpllb_disabled = TRUE;
-
-	if (!(vplla & NV30_RAMDAC_ENABLE_VCO2) && pNv->NVArch == 0x30)
-		vpllb_disabled = TRUE;
-
-	if (pNv->NVArch == 0x30) {
-		m1 = vplla & 0x7;
-		n1 = (vplla >> 8) & 0xFF;
-		p = (vplla >> 16) & 0x7;
-	} else {
-		m1 = vplla & 0xFF;
-		n1 = (vplla >> 8) & 0xFF;
-		p = (vplla >> 16) & 0x7;
-	}
-
-	if (vpllb_disabled) {
-		m2 = 1;
-		n2 = 1;
-	} else {
-		if (pNv->NVArch == 0x30) {
-			m2 = (vplla >> 4) & 0x7;
-			n2 = ((vplla >> 19) & 0x7) | (((vplla >> 24) & 0x3) << 3);
-		} else {
-			m2 = vpllb & 0xFF;
-			n2 = (vpllb >> 8) & 0xFF;
-		}
-	}
-
-	/* avoid div by 0, if used on pNv->ModeReg before ModeReg set up */
-	if (!m1 || !m2)
-		return 0;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "The clock seems to be %d kHz.\n", (uint32_t)((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p);
-	return ((pNv->CrystalFreqKHz * n1 * n2)/(m1 * m2)) >> p;
+	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single);
 }
 
 static void nv_output_restore(xf86OutputPtr output)

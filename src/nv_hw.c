@@ -418,140 +418,6 @@ typedef struct {
   uint8_t enable_mp;
 } nv10_sim_state;
 
-static void nvGetClocks(NVPtr pNv, unsigned int *MClk, unsigned int *NVClk)
-{
-	unsigned int pll, N, M, MB, NB, P;
-
-    if(pNv->Architecture >= NV_ARCH_40) {
-	Bool VCO2_off = FALSE;
-       pll = nvReadMC(pNv, 0x4020);
-       P = (pll >> 16) & 0x07;
-	/* There seem to be 2 (redundant?) switches to turn VCO2 off. */
-	if (pll & (1 << 8))
-		VCO2_off = TRUE;
-	if (!(pll & (1 << 30))) 
-		VCO2_off = TRUE;
-       pll = nvReadMC(pNv, 0x4024);
-       M = pll & 0xFF;
-       N = (pll >> 8) & 0xFF;
-	if (VCO2_off) {
-		MB = 1;
-		NB = 1;
-	} else {
-		MB = (pll >> 16) & 0xFF;
-		NB = (pll >> 24) & 0xFF;
-	}
-	if (!MB || !NB) {
-		xf86ErrorF("Something wrong with MPLL VCO2 settings, ignoring VCO2.\n");
-		MB = 1;
-		NB = 1;
-	}
-
-       *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-
-	VCO2_off = FALSE; /* reset */
-
-       pll = nvReadMC(pNv, 0x4000);
-       P = (pll >> 16) & 0x07;
-	/* There seem to be 2 (redundant?) switches to turn VCO2 off. */
-	if (pll & (1 << 8))
-		VCO2_off = TRUE;
-	if (!(pll & (1 << 30))) 
-		VCO2_off = TRUE;
-       pll = nvReadMC(pNv, 0x4004);
-       M = pll & 0xFF;
-       N = (pll >> 8) & 0xFF;
-	if (VCO2_off) {
-		MB = 1;
-		NB = 1;
-	} else {
-		MB = (pll >> 16) & 0xFF;
-		NB = (pll >> 24) & 0xFF;
-	}
-	if (!MB || !NB) {
-		xf86ErrorF("Something wrong with NVPLL VCO2 settings, ignoring VCO2.\n");
-		MB = 1;
-		NB = 1;
-	}
-
-       *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-    } else
-    if(pNv->twoStagePLL) {
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
-       M = pll & 0xFF;
-       N = (pll >> 8) & 0xFF; 
-       P = (pll >> 16) & 0x0F;
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL_B);
-       if(pll & 0x80000000) {
-           MB = pll & 0xFF; 
-           NB = (pll >> 8) & 0xFF;
-       } else {
-           MB = 1;
-           NB = 1;
-       }
-       *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
-       M = pll & 0xFF; 
-       N = (pll >> 8) & 0xFF; 
-       P = (pll >> 16) & 0x0F;
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL_B);
-       if(pll & 0x80000000) {
-           MB = pll & 0xFF;
-           NB = (pll >> 8) & 0xFF;
-       } else {
-           MB = 1;
-           NB = 1;
-       }
-       *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-    } else 
-    if(((pNv->Chipset & 0x0ff0) == CHIPSET_NV30) ||
-       ((pNv->Chipset & 0x0ff0) == CHIPSET_NV35))
-    {
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
-       M = pll & 0x0F; 
-       N = (pll >> 8) & 0xFF;
-       P = (pll >> 16) & 0x07;
-       if(pll & 0x00000080) {
-           MB = (pll >> 4) & 0x07;     
-           NB = (pll >> 19) & 0x1f;
-       } else {
-           MB = 1;
-           NB = 1;
-       }
-       *MClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
-       M = pll & 0x0F;
-       N = (pll >> 8) & 0xFF;
-       P = (pll >> 16) & 0x07;
-       if(pll & 0x00000080) {
-           MB = (pll >> 4) & 0x07;
-           NB = (pll >> 19) & 0x1f;
-       } else {
-           MB = 1;
-           NB = 1;
-       }
-       *NVClk = ((N * NB * pNv->CrystalFreqKHz) / (M * MB)) >> P;
-    } else {
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_MPLL);
-       M = pll & 0xFF; 
-       N = (pll >> 8) & 0xFF; 
-       P = (pll >> 16) & 0x0F;
-       *MClk = (N * pNv->CrystalFreqKHz / M) >> P;
-
-       pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
-       M = pll & 0xFF; 
-       N = (pll >> 8) & 0xFF; 
-       P = (pll >> 16) & 0x0F;
-       *NVClk = (N * pNv->CrystalFreqKHz / M) >> P;
-    }
-
-#if 0
-    ErrorF("NVClock = %i MHz, MEMClock = %i MHz\n", *NVClk/1000, *MClk/1000);
-#endif
-}
-
 static void nv4CalcArbitration (
     nv4_fifo_info *fifo,
     nv4_sim_state *arb
@@ -703,7 +569,8 @@ void nv4UpdateArbitrationSettings (
     nv4_sim_state sim_data;
     unsigned int MClk, NVClk, cfg1;
 
-    nvGetClocks(pNv, &MClk, &NVClk);
+	MClk = nv_get_clock(pNv, MPLL);
+	NVClk = nv_get_clock(pNv, NVPLL);
 
     cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
     sim_data.pix_bpp        = (char)pixelDepth;
@@ -930,7 +797,8 @@ void nv10UpdateArbitrationSettings (
     nv10_sim_state sim_data;
     unsigned int MClk, NVClk, cfg1;
 
-    nvGetClocks(pNv, &MClk, &NVClk);
+	MClk = nv_get_clock(pNv, MPLL);
+	NVClk = nv_get_clock(pNv, NVPLL);
 
     cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
     sim_data.pix_bpp        = (char)pixelDepth;
@@ -959,15 +827,12 @@ void nv30UpdateArbitrationSettings (NVPtr pNv,
 				    unsigned     *burst,
 				    unsigned     *lwm)   
 {
-    unsigned int MClk, NVClk;
     unsigned int fifo_size, burst_size, graphics_lwm;
 
     fifo_size = 2048;
     burst_size = 512;
     graphics_lwm = fifo_size - burst_size;
 
-    nvGetClocks(pNv, &MClk, &NVClk);
-    
     *burst = 0;
     burst_size >>= 5;
     while(burst_size >>= 1) (*burst)++;
