@@ -329,10 +329,10 @@ static const uint32_t sf_kernel_static_mask[][4] = {
 };
 
 /* ps kernels */
-#define PS_KERNEL_NUM_GRF   48
+#define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	    32
-#define PS_SCRATCH_SPACE    2048
-#define PS_SCRATCH_SPACE_LOG	1   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
+#define PS_SCRATCH_SPACE    1024
+#define PS_SCRATCH_SPACE_LOG	0   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
 
 static const uint32_t ps_kernel_static_nomask_affine [][4] = {
 #include "exa_wm_xy.g4b"

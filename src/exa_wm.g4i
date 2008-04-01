@@ -57,7 +57,7 @@ define(`mask_dw_dy', `g6.4<0,1,0>F')
 define(`mask_wo',    `g6.12<0,1,0>F')
 
 /*
- * Local variables
+ * Local variables. Pairs must be aligned on even reg boundry
  */
 
 /* this holds the X dest coordinates */
@@ -71,14 +71,14 @@ define(`dst_y_0',   `dst_y')
 define(`dst_y_1',   `g11')
 
 /* When computing x * dn/dx, use this */
-define(`temp_x',    `g34')
+define(`temp_x',    `g30')
 define(`temp_x_0',  `temp_x')
-define(`temp_x_1',  `g35')
+define(`temp_x_1',  `g31')
 
 /* When computing y * dn/dy, use this */
-define(`temp_y',    `g32')
+define(`temp_y',    `g28')
 define(`temp_y_0',  temp_y)
-define(`temp_y_1',  `g33')
+define(`temp_y_1',  `g29')
 
 /* when loading x/y, use these to hold them in UW format */
 define(`temp_x_uw', temp_x)
@@ -90,33 +90,33 @@ define(`src_msg_ind',`1')
 define(`src_u',	    `m2')
 define(`src_v',	    `m4')
 define(`src_w',	    `g12')
-define(`src_w_0',   `g12')
+define(`src_w_0',   `src_w')
 define(`src_w_1',   `g13')
 
 define(`mask_msg',  `m7')
 define(`mask_msg_ind',`7')
 define(`mask_u',    `m8')
 define(`mask_v',    `m10')
-define(`mask_w',    `g14')
-define(`mask_w_0',  `g14')
-define(`mask_w_1',  `g15')
+define(`mask_w',    `src_w')
+define(`mask_w_0',  `src_w_0')
+define(`mask_w_1',  `src_w_1')
 
 /* sample src to these registers */
-define(`src_sample0',	`g16')
-define(`src_sample1',	`g17')
-define(`src_sample2',	`g18')
-define(`src_sample3',	`g19')
-define(`src_sample4',	`g20')
-define(`src_sample5',	`g21')
-define(`src_sample6',	`g22')
-define(`src_sample7',	`g23')
+define(`src_sample0',	`g14')
+define(`src_sample1',	`g15')
+define(`src_sample2',	`g16')
+define(`src_sample3',	`g17')
+define(`src_sample4',	`g18')
+define(`src_sample5',	`g19')
+define(`src_sample6',	`g20')
+define(`src_sample7',	`g21')
 
 /* sample mask to these registers */
-define(`mask_sample0',	`g24')
-define(`mask_sample1',	`g25')
-define(`mask_sample2',	`g26')
-define(`mask_sample3',	`g27')
-define(`mask_sample4',	`g28')
-define(`mask_sample5',	`g29')
-define(`mask_sample6',	`g30')
-define(`mask_sample7',	`g31')
+define(`mask_sample0',	`g22')
+define(`mask_sample1',	`g23')
+define(`mask_sample2',	`g24')
+define(`mask_sample3',	`g25')
+define(`mask_sample4',	`g26')
+define(`mask_sample5',	`g27')
+define(`mask_sample6',	`g28')
+define(`mask_sample7',	`g29')
