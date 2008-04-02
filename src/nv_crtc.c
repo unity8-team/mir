@@ -1475,11 +1475,6 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_shadow_allocate is called.\n");
 
-	if (pNv->NoAccel) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Acceleration is required.\n");
-		return NULL;
-	}
-
 	rotate_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
 	size = rotate_pitch * height;
 
@@ -1518,7 +1513,6 @@ static PixmapPtr
 nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 #if NOUVEAU_EXA_PIXMAPS
 	ScreenPtr pScreen = pScrn->pScreen;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -1530,11 +1524,6 @@ nv_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 #endif /* NOUVEAU_EXA_PIXMAPS */
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_shadow_create is called.\n");
-
-	if (pNv->NoAccel) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Acceleration is required.\n");
-		return NULL;
-	}
 
 	if (!data)
 		data = crtc->funcs->shadow_allocate (crtc, width, height);
