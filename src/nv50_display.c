@@ -268,12 +268,16 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		if(crtc->enabled) {
+		/* I think this is some kind of trigger to reinitialise the supervisor. */
+		/* Without anything active (this is shutdown) it's likely to disable itself. */
+		/* The blob doesn't do it quite this way., it seems to do 0x30C as init and end. */
+		/* It doesn't wait for a non-zero value either. */
+		if (crtc->enabled) {
 			uint32_t mask = 0;
 			if (nv_crtc->head == 1)
-				mask = NV50_DISPLAY_SUPERVISOR_DISABLE_CRTC1;
+				mask = NV50_DISPLAY_SUPERVISOR_CRTC1;
 			else 
-				mask = NV50_DISPLAY_SUPERVISOR_DISABLE_CRTC0;
+				mask = NV50_DISPLAY_SUPERVISOR_CRTC0;
 
 			NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, mask);
 			while(!(NVRead(pNv, NV50_DISPLAY_SUPERVISOR) & mask));
