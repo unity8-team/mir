@@ -1603,35 +1603,10 @@ nv_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	nv_crtc->shadow = NULL;
 }
 
-/* NV04-NV10 doesn't support alpha cursors */
 static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.dpms = nv_crtc_dpms,
-	.save = nv_crtc_save, /* XXX */
-	.restore = nv_crtc_restore, /* XXX */
-	.mode_fixup = nv_crtc_mode_fixup,
-	.mode_set = nv_crtc_mode_set,
-	.prepare = nv_crtc_prepare,
-	.commit = nv_crtc_commit,
-	.destroy = NULL, /* XXX */
-	.lock = nv_crtc_lock,
-	.unlock = nv_crtc_unlock,
-	.set_cursor_colors = nv_crtc_set_cursor_colors,
-	.set_cursor_position = nv_crtc_set_cursor_position,
-	.show_cursor = nv_crtc_show_cursor,
-	.hide_cursor = nv_crtc_hide_cursor,
-	.load_cursor_image = nv_crtc_load_cursor_image,
-	.gamma_set = nv_crtc_gamma_set,
-	.shadow_create = nv_crtc_shadow_create,
-	.shadow_allocate = nv_crtc_shadow_allocate,
-	.shadow_destroy = nv_crtc_shadow_destroy,
-};
-
-/* NV11 and up has support for alpha cursors. */ 
-/* Due to different maximum sizes we cannot allow it to use normal cursors */
-static const xf86CrtcFuncsRec nv11_crtc_funcs = {
-	.dpms = nv_crtc_dpms,
-	.save = nv_crtc_save, /* XXX */
-	.restore = nv_crtc_restore, /* XXX */
+	.save = nv_crtc_save,
+	.restore = nv_crtc_restore,
 	.mode_fixup = nv_crtc_mode_fixup,
 	.mode_set = nv_crtc_mode_set,
 	.prepare = nv_crtc_prepare,
@@ -1650,7 +1625,6 @@ static const xf86CrtcFuncsRec nv11_crtc_funcs = {
 	.shadow_destroy = nv_crtc_shadow_destroy,
 };
 
-
 void
 nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 {
@@ -1663,11 +1637,15 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	if (pNv->Architecture == NV_ARCH_50)
 		crtcfuncs = *nv50_get_crtc_funcs();
-	else if (pNv->NVArch >= 0x11)
-		crtcfuncs = nv11_crtc_funcs;
 	else
 		crtcfuncs = nv_crtc_funcs;
 
+	/* NV04-NV10 doesn't support alpha cursors */
+	if (pNv->NVArch < 0x11) {
+		crtcfuncs.set_cursor_colors = nv_crtc_set_cursor_colors;
+		crtcfuncs.load_cursor_image = nv_crtc_load_cursor_image;
+		crtcfuncs.load_cursor_argb = NULL;
+	}
 	if (pNv->NoAccel) {
 		crtcfuncs.shadow_create = NULL;
 		crtcfuncs.shadow_allocate = NULL;
