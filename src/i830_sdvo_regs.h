@@ -52,7 +52,7 @@ struct i830_sdvo_caps {
     uint8_t device_rev_id;
     uint8_t sdvo_version_major;
     uint8_t sdvo_version_minor;
-    unsigned int sdvo_inputs_mask:2;
+    unsigned int sdvo_input_count:2;
     unsigned int smooth_scaling:1;
     unsigned int sharp_scaling:1;
     unsigned int up_scaling:1;
@@ -174,6 +174,9 @@ struct i830_sdvo_get_trained_inputs_response {
  * Returns two struct i830_sdvo_output_flags structures.
  */
 #define SDVO_CMD_GET_IN_OUT_MAP				0x06
+struct i830_sdvo_in_out_map {
+    uint16_t in0, in1;
+};
 
 /**
  * Sets the current mapping of SDVO inputs to outputs on the device.

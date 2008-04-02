@@ -230,7 +230,7 @@ const static struct _sdvo_cmd_name {
 
 static I2CSlaveAddr slaveAddr;
 
-#define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVO" : "SDVO")
+#define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVOB" : "SDVOC")
 #define SDVO_PRIV(output)   ((struct i830_sdvo_priv *) (output)->dev_priv)
 
 /**
@@ -668,13 +668,26 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     uint16_t width, height;
     uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     uint16_t h_sync_offset, v_sync_offset;
+    struct i830_sdvo_in_out_map in_out;
     struct i830_sdvo_dtd output_dtd;
-    uint16_t no_outputs;
-
-    no_outputs = 0;
+    uint8_t status;
 
     if (!mode)
 	return;
+
+    /* First, set the input mapping for the first input to our controlled
+     * output. This is only correct if we're a single-input device, in
+     * which case the first input is the output from the appropriate SDVO
+     * channel on the motherboard.  In a two-input device, the first input
+     * will be SDVOB and the second SDVOC.
+     */
+    in_out.in0 = dev_priv->controlled_output;
+    in_out.in1 = 0;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_IN_OUT_MAP,
+			&in_out, sizeof(in_out));
+    status = i830_sdvo_read_response(output, NULL, 0);
+
     width = mode->CrtcHDisplay;
     height = mode->CrtcVDisplay;
     
@@ -843,12 +856,10 @@ i830_sdvo_save(xf86OutputPtr output)
     dev_priv->save_sdvo_mult = i830_sdvo_get_clock_rate_mult(output);
     i830_sdvo_get_active_outputs(output, &dev_priv->save_active_outputs);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
-       i830_sdvo_set_target_input(output, TRUE, FALSE);
-       i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_1);
-    }
+    i830_sdvo_set_target_input(output, TRUE, FALSE);
+    i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_1);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x2) {
+    if (dev_priv->caps.sdvo_input_count >= 2) {
        i830_sdvo_set_target_input(output, FALSE, TRUE);
        i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_2);
     }
@@ -892,12 +903,10 @@ i830_sdvo_restore(xf86OutputPtr output)
 	}
     }
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
-       i830_sdvo_set_target_input(output, TRUE, FALSE);
-       i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_1);
-    }
+    i830_sdvo_set_target_input(output, TRUE, FALSE);
+    i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_1);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x2) {
+    if (dev_priv->caps.sdvo_input_count >= 2) {
        i830_sdvo_set_target_input(output, FALSE, TRUE);
        i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_2);
     }
@@ -1345,7 +1354,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     char		    name[60];
     char		    *name_prefix;
     char		    *name_suffix;
-    struct i830_sdvo_tv_format tv_formats;
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
@@ -1463,6 +1471,13 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
     }
+    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
+        output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
+	name_prefix="TV";
+	dev_priv->is_tv = TRUE;
+    }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
     {
 	dev_priv->controlled_output = SDVO_OUTPUT_RGB0;
@@ -1475,13 +1490,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
     }
-    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
-    {
-	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
-        output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
-	name_prefix="S-Video";
-	dev_priv->is_tv = TRUE;
-    }
     else
     {
 	unsigned char	bytes[2];
@@ -1493,21 +1501,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
 	name_prefix="Unknown";
-    }
-
-    if (dev_priv->controlled_output == SDVO_OUTPUT_RGB0 ||
-	dev_priv->controlled_output == SDVO_OUTPUT_RGB1) {
-	uint8_t status;
-
-	/* Detect if an RGB device is actually a TV device.  This is the
-	 * case for our HDMI+S-Video SDVO card.
-	 */
-	i830_sdvo_write_cmd(output, SDVO_CMD_GET_SUPPORTED_TV_FORMATS,
-			    NULL, 0);
-	status = i830_sdvo_read_response(output,
-					 &tv_formats, sizeof(tv_formats));
-	if (status == SDVO_CMD_STATUS_SUCCESS)
-	    dev_priv->is_tv = TRUE;
     }
 
     strcpy (name, name_prefix);
@@ -1526,17 +1519,40 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 					  &dev_priv->pixel_clock_max);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "%s device VID/DID: %02X:%02X.%02X, "
-	       "clock range %.1fMHz - %.1fMHz, "
-	       "input 1: %c, input 2: %c, "
-	       "output 1: %c, output 2: %c\n",
+	       "%s: device VID/DID: %02X:%02X.%02X, "
+	       "clock range %.1fMHz - %.1fMHz\n",
 	       SDVO_NAME(dev_priv),
 	       dev_priv->caps.vendor_id, dev_priv->caps.device_id,
 	       dev_priv->caps.device_rev_id,
 	       dev_priv->pixel_clock_min / 1000.0,
-	       dev_priv->pixel_clock_max / 1000.0,
-	       (dev_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
-	       (dev_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_TMDS0) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB1 | SDVO_OUTPUT_TMDS1) ? 'Y' : 'N');
+	       dev_priv->pixel_clock_max / 1000.0);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "%s: %d input channel%s\n",
+	       SDVO_NAME(dev_priv), dev_priv->caps.sdvo_input_count,
+	       dev_priv->caps.sdvo_input_count >= 2 ? "s" : "");
+
+#define REPORT_OUTPUT_FLAG(flag, name) do {				\
+    if (dev_priv->caps.output_flags & flag) {				\
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s: %s output reported\n", \
+		   SDVO_NAME(dev_priv), name);				\
+    }									\
+} while (0)
+
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_TMDS0, "TMDS0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_RGB0, "RGB0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_CVBS0, "CVBS0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SVID0, "SVID0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_YPRPB0, "YPRPB0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART0, "SCART0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS0, "LVDS0");
+
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_TMDS1, "TMDS1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_RGB1, "RGB1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_CVBS1, "CVBS1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SVID1, "SVID1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_YPRPB1, "YPRPB1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART1, "SCART1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS1, "LVDS1");
+
 }
