@@ -264,8 +264,10 @@ static void nv_output_restore(xf86OutputPtr output)
 static int
 nv_analog_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
-	if (pMode->Clock > 400000)
+	if (pMode->Clock > (NVPTR(output->scrn)->twoStagePLL ? 400000 : 350000))
 		return MODE_CLOCK_HIGH;
+	if (pMode->Clock < 12000)
+		return MODE_CLOCK_LOW;
 
 	return MODE_OK;
 }
