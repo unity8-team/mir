@@ -735,6 +735,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t pll2 = !nv3035 ? (oldpll2 & 0x7fff0000) | 1 << 31 | NM2 : 0;
 	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
 	int shift_powerctrl_1 = -1;
+	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
 
 	if (nv3035)
 		pll1 = (pll1 & 0xfcc7ffff) | (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
@@ -759,7 +760,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		savedc040 = nv32_rd(pScrn, 0xc040);
 		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
 
-		if (NM2) {
+		if (!single_stage) {
 			if (reg1 == NV_RAMDAC_VPLL)
 				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
 			if (reg1 == NV_RAMDAC_VPLL2)
@@ -801,6 +802,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	uint32_t saved4600 = 0;
 	/* some cards have different maskc040s */
 	uint32_t maskc040 = ~(3 << 14), savedc040;
+	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
 
 	if (nv32_rd(pScrn, NMNMreg) == NMNM && (oldPval & 0xc0070000) == Pval)
 		return;
@@ -808,7 +810,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	if (Preg == 0x4000)
 		maskc040 = ~0x333;
 	if (Preg == 0x4058)
-		maskc040 = ~(3 << 26);
+		maskc040 = ~(0xc << 24);
 
 	if (Preg == 0x4020) {
 		struct pll_lims pll_lim;
@@ -825,14 +827,15 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		saved4600 = nv32_rd(pScrn, 0x4600);
 		nv32_wr(pScrn, 0x4600, saved4600 | 8 << 28);
 	}
+	if (single_stage)
+		Pval |= (Preg == 0x4020) ? 1 << 12 : 1 << 8;
 
 	nv32_wr(pScrn, Preg, oldPval | 1 << 28);
 	nv32_wr(pScrn, Preg, Pval & ~(4 << 28));
 	if (Preg == 0x4020) {
-		// some cards do '| 1 << 12', but using it breaks on 6600 :(
-		Pval |= 8 << 20;// | 1 << 12;
-		nv32_wr(pScrn, 0x4020, Pval & ~(3 << 30));
-		nv32_wr(pScrn, 0x4038, Pval & ~(3 << 30));
+		Pval |= 8 << 20;
+		nv32_wr(pScrn, 0x4020, Pval & ~(0xc << 28));
+		nv32_wr(pScrn, 0x4038, Pval & ~(0xc << 28));
 	}
 
 	savedc040 = nv32_rd(pScrn, 0xc040);
