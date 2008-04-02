@@ -2847,9 +2847,19 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 		/* off-on delay in ms */
 		usleep(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
 #ifdef __powerpc__
-	/* Powerbook specific quirk */
+	/* Powerbook specific quirks */
 	if (script == LVDS_RESET && ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329))
 		nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x02, 0x72);
+	if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0189 || (pNv->Chipset & 0xffff) == 0x0329) {
+		if (script == LVDS_PANEL_ON) {
+			nv32_wr(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL, nv32_rd(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL) | (1 << 31));
+			nv32_wr(pScrn, NV_CRTC_GPIO_EXT, nv32_rd(pScrn, NV_CRTC_GPIO_EXT) | 1);
+		}
+		if (script == LVDS_PANEL_OFF) {
+			nv32_wr(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL, nv32_rd(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL) & ~(1 << 31));
+			nv32_wr(pScrn, NV_CRTC_GPIO_EXT, nv32_rd(pScrn, NV_CRTC_GPIO_EXT) & ~3);
+		}
+	}
 #endif
 }
 
