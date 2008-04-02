@@ -92,6 +92,9 @@ struct i830_sdvo_priv {
      */
     struct i830_sdvo_tv_format tv_format;
 
+    /** DDC bus used by this SDVO output */
+    uint8_t ddc_bus;
+
     /** State for save/restore */
     /** @{ */
     int save_sdvo_mult;
@@ -1011,8 +1014,9 @@ i830_sdvo_ddc_i2c_start(I2CBusPtr b, int timeout)
     xf86OutputPtr	    output = b->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
 
-    i830_sdvo_set_control_bus_switch(output, SDVO_CONTROL_BUS_DDC2);
+    i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
     return i2cbus->I2CStart(i2cbus, timeout);
 }
 
@@ -1342,6 +1346,60 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
 #endif
 };
 
+static unsigned int count_bits(uint32_t mask)
+{
+    unsigned int n;
+
+    for (n = 0; mask; n++)
+	mask &= mask - 1;
+
+    return n;
+}
+
+/**
+ * Choose the appropriate DDC bus for control bus switch command for this
+ * SDVO output based on the controlled output.
+ *
+ * DDC bus number assignment is in a priority order of RGB outputs, then TMDS
+ * outputs, then LVDS outputs.
+ */
+static void
+i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
+{
+    uint16_t mask = 0;
+    unsigned int num_bits;
+
+    /* Make a mask of outputs less than or equal to our own priority in the
+     * list.
+     */
+    switch (dev_priv->controlled_output) {
+    case SDVO_OUTPUT_LVDS1:
+	mask |= SDVO_OUTPUT_LVDS1;
+    case SDVO_OUTPUT_LVDS0:
+	mask |= SDVO_OUTPUT_LVDS0;
+    case SDVO_OUTPUT_TMDS1:
+	mask |= SDVO_OUTPUT_TMDS1;
+    case SDVO_OUTPUT_TMDS0:
+	mask |= SDVO_OUTPUT_TMDS0;
+    case SDVO_OUTPUT_RGB1:
+	mask |= SDVO_OUTPUT_RGB1;
+    case SDVO_OUTPUT_RGB0:
+	mask |= SDVO_OUTPUT_RGB0;
+	break;
+    }
+
+    /* Count bits to find what number we are in the priority list. */
+    mask &= dev_priv->caps.output_flags;
+    num_bits = count_bits(mask);
+    if (num_bits > 3) {
+	/* if more than 3 outputs, default to DDC bus 3 for now */
+	num_bits = 3;
+    }
+
+    /* Corresponds to SDVO_CONTROL_BUS_DDCx */
+    dev_priv->ddc_bus = 1 << num_bits;
+}
+
 void
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 {
@@ -1510,8 +1568,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	xf86OutputDestroy (output);
 	return;
     }
-	
-    
+
+    i830_sdvo_select_ddc_bus(dev_priv);
+
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);
 

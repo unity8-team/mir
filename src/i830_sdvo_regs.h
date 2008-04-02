@@ -506,8 +506,8 @@ struct i830_sdvo_enhancements_arg {
 #define SDVO_CMD_SET_TV_RESOLUTION_SUPPORT		0x93
 
 #define SDVO_CMD_SET_CONTROL_BUS_SWITCH			0x7a
-# define SDVO_CONTROL_BUS_PROM				0x0
-# define SDVO_CONTROL_BUS_DDC1				0x1
-# define SDVO_CONTROL_BUS_DDC2				0x2
-# define SDVO_CONTROL_BUS_DDC3				0x3
+# define SDVO_CONTROL_BUS_PROM				(1 << 0)
+# define SDVO_CONTROL_BUS_DDC1				(1 << 1)
+# define SDVO_CONTROL_BUS_DDC2				(1 << 2)
+# define SDVO_CONTROL_BUS_DDC3				(1 << 3)
 
