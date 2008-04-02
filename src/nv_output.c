@@ -691,7 +691,6 @@ static Atom scaling_mode_atom;
 
 #define DITHERING_MODE_NAME "DITHERING"
 static Atom dithering_atom;
-int32_t dithering_range[2];
 
 static int
 nv_scaling_mode_lookup(char *name, int size)
@@ -716,6 +715,7 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
+	INT32 dithering_range[2] = { 0, 1 };
 	int error, i;
 
 	/*
@@ -752,9 +752,6 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 	 */
 	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
 
-	dithering_range[0] = 0;
-	dithering_range[1] = 1;
-
 	error = RRConfigureOutputProperty(output->randr_output,
 					dithering_atom, TRUE, TRUE, FALSE,
 					2, dithering_range);
@@ -766,7 +763,7 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 
 	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
 					XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
-					FALSE, FALSE);
+					FALSE, TRUE);
 
 	if (error != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -806,7 +803,7 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 
 		int32_t val = *(int32_t *) value->data;
 
-		if (val < dithering_range[0] || val > dithering_range[1])
+		if (val < 0 || val > 1)
 			return FALSE;
 
 		nv_output->dithering = val;
