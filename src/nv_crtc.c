@@ -1655,17 +1655,26 @@ void
 nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	static xf86CrtcFuncsRec crtcfuncs;
 	xf86CrtcPtr crtc;
 	NVCrtcPrivatePtr nv_crtc;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[crtc_num];
 	int i;
 
 	if (pNv->Architecture == NV_ARCH_50)
-		crtc = xf86CrtcCreate(pScrn, nv50_get_crtc_funcs());
+		crtcfuncs = *nv50_get_crtc_funcs();
 	else if (pNv->NVArch >= 0x11)
-		crtc = xf86CrtcCreate(pScrn, &nv11_crtc_funcs);
+		crtcfuncs = nv11_crtc_funcs;
 	else
-		crtc = xf86CrtcCreate(pScrn, &nv_crtc_funcs);
+		crtcfuncs = nv_crtc_funcs;
+
+	if (pNv->NoAccel) {
+		crtcfuncs.shadow_create = NULL;
+		crtcfuncs.shadow_allocate = NULL;
+		crtcfuncs.shadow_destroy = NULL;
+	}
+	
+	crtc = xf86CrtcCreate(pScrn, &crtcfuncs);
 	if (crtc == NULL)
 		return;
 
