@@ -69,6 +69,29 @@ struct i830_sdvo_priv {
     /** Pixel clock limitations reported by the SDVO device, in kHz */
     int pixel_clock_min, pixel_clock_max;
 
+    /**
+     * This is set if we're going to treat the device as TV-out.
+     *
+     * While we have these nice friendly flags for output types that ought to
+     * decide this for us, the S-Video output on our HDMI+S-Video card shows
+     * up as RGB1 (VGA).
+     */
+    Bool is_tv;
+
+    /**
+     * Returned SDTV resolutions allowed for the current format, if the
+     * device reported it.
+     */
+    struct i830_sdvo_sdtv_resolution_reply sdtv_resolutions;
+
+    /**
+     * Current selected TV format.
+     *
+     * This is stored in the same structure that's passed to the device, for
+     * convenience.
+     */
+    struct i830_sdvo_tv_format tv_format;
+
     /** State for save/restore */
     /** @{ */
     int save_sdvo_mult;
@@ -201,6 +224,8 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODER_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
 };
 
 static I2CSlaveAddr slaveAddr;
@@ -837,6 +862,9 @@ i830_sdvo_save(xf86OutputPtr output)
 	    i830_sdvo_get_output_timing(output, &dev_priv->save_output_dtd[o]);
 	}
     }
+    if (dev_priv->is_tv) {
+	/* XXX: Save TV format/enhancements. */
+    }
 
     dev_priv->save_SDVOX = INREG(dev_priv->output_device);
 }
@@ -875,6 +903,10 @@ i830_sdvo_restore(xf86OutputPtr output)
     }
 
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
+
+    if (dev_priv->is_tv) {
+	/* XXX: Restore TV format/enhancements. */
+    }
 
     i830_sdvo_write_sdvox(output, dev_priv->save_SDVOX);
 
@@ -1052,6 +1084,8 @@ i830_sdvo_dump_device(xf86OutputPtr output)
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_CLOCK_RATE_MULT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_TV_FORMATS);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_TV_FORMAT);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS);
 }
 
 void
@@ -1169,40 +1203,73 @@ i830_sdvo_get_tv_mode(DisplayModePtr *head, int width, int height,
 	*head = mode;
 }
 
+/**
+ * This function checks the current TV format, and chooses a default if
+ * it hasn't been set.
+ */
+static void
+i830_sdvo_check_tv_format(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    struct i830_sdvo_tv_format format, unset;
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_TV_FORMAT, NULL, 0);
+    status = i830_sdvo_read_response(output, &format, sizeof(format));
+    if (status != SDVO_CMD_STATUS_SUCCESS)
+	return;
+
+    memset(&unset, 0, sizeof(unset));
+    if (memcmp(&format, &unset, sizeof(format))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "%s: Choosing default TV format of NTSC-M\n",
+		   SDVO_NAME(dev_priv));
+
+	format.ntsc_m = TRUE;
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, NULL, 0);
+	status = i830_sdvo_read_response(output, NULL, 0);
+    }
+}
+
 static DisplayModePtr
 i830_sdvo_get_tv_modes(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn = output->scrn;
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
     DisplayModePtr modes = NULL;
-    struct i830_sdvo_sdtv_resolution_reply res;
+    struct i830_sdvo_sdtv_resolution_reply *res = &dev_priv->sdtv_resolutions;
     uint8_t status;
     float refresh = 60; /* XXX */
+
+    i830_sdvo_check_tv_format(output);
 
     /* Read the list of supported input resolutions for the selected TV format.
      */
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT, NULL, 0);
-    status = i830_sdvo_read_response(output, &res, sizeof(res));
+    status = i830_sdvo_read_response(output, res, sizeof(*res));
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return NULL;
 
-    if (res.res_320x200) i830_sdvo_get_tv_mode(&modes, 320, 200, refresh);
-    if (res.res_320x240) i830_sdvo_get_tv_mode(&modes, 320, 240, refresh);
-    if (res.res_400x300) i830_sdvo_get_tv_mode(&modes, 400, 300, refresh);
-    if (res.res_640x350) i830_sdvo_get_tv_mode(&modes, 640, 350, refresh);
-    if (res.res_640x400) i830_sdvo_get_tv_mode(&modes, 640, 400, refresh);
-    if (res.res_640x480) i830_sdvo_get_tv_mode(&modes, 640, 480, refresh);
-    if (res.res_704x480) i830_sdvo_get_tv_mode(&modes, 704, 480, refresh);
-    if (res.res_704x576) i830_sdvo_get_tv_mode(&modes, 704, 576, refresh);
-    if (res.res_720x350) i830_sdvo_get_tv_mode(&modes, 720, 350, refresh);
-    if (res.res_720x400) i830_sdvo_get_tv_mode(&modes, 720, 400, refresh);
-    if (res.res_720x480) i830_sdvo_get_tv_mode(&modes, 720, 480, refresh);
-    if (res.res_720x540) i830_sdvo_get_tv_mode(&modes, 720, 540, refresh);
-    if (res.res_720x576) i830_sdvo_get_tv_mode(&modes, 720, 576, refresh);
-    if (res.res_800x600) i830_sdvo_get_tv_mode(&modes, 800, 600, refresh);
-    if (res.res_832x624) i830_sdvo_get_tv_mode(&modes, 832, 624, refresh);
-    if (res.res_920x766) i830_sdvo_get_tv_mode(&modes, 920, 766, refresh);
-    if (res.res_1024x768) i830_sdvo_get_tv_mode(&modes, 1024, 768, refresh);
-    if (res.res_1280x1024) i830_sdvo_get_tv_mode(&modes, 1280, 1024, refresh);
+    if (res->res_320x200) i830_sdvo_get_tv_mode(&modes, 320, 200, refresh);
+    if (res->res_320x240) i830_sdvo_get_tv_mode(&modes, 320, 240, refresh);
+    if (res->res_400x300) i830_sdvo_get_tv_mode(&modes, 400, 300, refresh);
+    if (res->res_640x350) i830_sdvo_get_tv_mode(&modes, 640, 350, refresh);
+    if (res->res_640x400) i830_sdvo_get_tv_mode(&modes, 640, 400, refresh);
+    if (res->res_640x480) i830_sdvo_get_tv_mode(&modes, 640, 480, refresh);
+    if (res->res_704x480) i830_sdvo_get_tv_mode(&modes, 704, 480, refresh);
+    if (res->res_704x576) i830_sdvo_get_tv_mode(&modes, 704, 576, refresh);
+    if (res->res_720x350) i830_sdvo_get_tv_mode(&modes, 720, 350, refresh);
+    if (res->res_720x400) i830_sdvo_get_tv_mode(&modes, 720, 400, refresh);
+    if (res->res_720x480) i830_sdvo_get_tv_mode(&modes, 720, 480, refresh);
+    if (res->res_720x540) i830_sdvo_get_tv_mode(&modes, 720, 540, refresh);
+    if (res->res_720x576) i830_sdvo_get_tv_mode(&modes, 720, 576, refresh);
+    if (res->res_800x600) i830_sdvo_get_tv_mode(&modes, 800, 600, refresh);
+    if (res->res_832x624) i830_sdvo_get_tv_mode(&modes, 832, 624, refresh);
+    if (res->res_920x766) i830_sdvo_get_tv_mode(&modes, 920, 766, refresh);
+    if (res->res_1024x768) i830_sdvo_get_tv_mode(&modes, 1024, 768, refresh);
+    if (res->res_1280x1024) i830_sdvo_get_tv_mode(&modes, 1280, 1024, refresh);
 
     return modes;
 }
@@ -1213,7 +1280,7 @@ i830_sdvo_get_modes(xf86OutputPtr output)
     I830OutputPrivatePtr intel_output = output->driver_private;
     struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
 
-    if (dev_priv->controlled_output == SDVO_OUTPUT_SVID0)
+    if (dev_priv->is_tv)
 	return i830_sdvo_get_tv_modes(output);
     else
 	return i830_sdvo_get_ddc_modes(output);
@@ -1278,6 +1345,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     char		    name[60];
     char		    *name_prefix;
     char		    *name_suffix;
+    struct i830_sdvo_tv_format tv_formats;
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
@@ -1412,6 +1480,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
         output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
 	name_prefix="S-Video";
+	dev_priv->is_tv = TRUE;
     }
     else
     {
@@ -1425,6 +1494,22 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   bytes[0], bytes[1]);
 	name_prefix="Unknown";
     }
+
+    if (dev_priv->controlled_output == SDVO_OUTPUT_RGB0 ||
+	dev_priv->controlled_output == SDVO_OUTPUT_RGB1) {
+	uint8_t status;
+
+	/* Detect if an RGB device is actually a TV device.  This is the
+	 * case for our HDMI+S-Video SDVO card.
+	 */
+	i830_sdvo_write_cmd(output, SDVO_CMD_GET_SUPPORTED_TV_FORMATS,
+			    NULL, 0);
+	status = i830_sdvo_read_response(output,
+					 &tv_formats, sizeof(tv_formats));
+	if (status == SDVO_CMD_STATUS_SUCCESS)
+	    dev_priv->is_tv = TRUE;
+    }
+
     strcpy (name, name_prefix);
     strcat (name, name_suffix);
     if (!xf86OutputRename (output, name))
