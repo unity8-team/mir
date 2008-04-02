@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 NVIDIA, Corporation
+ * Copyright (c) 2008 Maarten Maathuis
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
