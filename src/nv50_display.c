@@ -148,10 +148,8 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 
 	/* bit0: The blob (and bios) seem to have this on (almost) always.
 	 *          I'm hoping this (experiment) will fix my image stability issues.
-	 * bit9+10: These are off if a clock was never used. I think certain operations (restarting X) trigger this to go off as well.
-	 *                So for all we know, this may be *the* clock on/off indicator.
 	 */
-	NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, 0x10000611);
+	NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, NV50_CRTC_CLK_CTRL1_CONNECTED | 0x10000011);
 	lo &= 0xff00ff00;
 	hi &= 0x8000ff00;
 
@@ -202,11 +200,11 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 	NVWrite(pNv, 0x006101e0 + SOR0 * 0x4, NVRead(pNv, 0x0061c000 + SOR0 * 0x800));
 	NVWrite(pNv, 0x006101e0 + SOR1 * 0x4, NVRead(pNv, 0x0061c000 + SOR1 * 0x800));
 	NVWrite(pNv, NV50_DAC0_DPMS_CTRL, 0x00550000 | NV50_DAC_DPMS_CTRL_PENDING);
-	NVWrite(pNv, 0x0061a010 + DAC0 * 0x800, 0x00000001);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL2, 0x00000001);
 	NVWrite(pNv, NV50_DAC1_DPMS_CTRL, 0x00550000 | NV50_DAC_DPMS_CTRL_PENDING);
-	NVWrite(pNv, 0x0061a010 + DAC1 * 0x800, 0x00000001);
+	NVWrite(pNv, NV50_DAC1_CLK_CTRL2, 0x00000001);
 	NVWrite(pNv, NV50_DAC2_DPMS_CTRL, 0x00550000 | NV50_DAC_DPMS_CTRL_PENDING);
-	NVWrite(pNv, 0x0061a010 + DAC2 * 0x800, 0x00000001);
+	NVWrite(pNv, NV50_DAC2_CLK_CTRL2, 0x00000001);
 
 	return TRUE;
 }

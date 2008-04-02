@@ -26,9 +26,10 @@
 
 /* It seems to be i2c port based and can be used to determine if a dvi port is plugged in. */
 /* It's unknown if bits exist for i2c port > 1. */
+/* Renamed to avoid confusion with other instances of CONNECTED. */
 #define NV50_I2C_STATE_UNK1	0x0000E104
-	#define NV50_I2C_STATE_UNK1_TMDS_0_CONNECTED	(1 << 2)
-	#define NV50_I2C_STATE_UNK1_TMDS_1_CONNECTED	(1 << 6)
+	#define NV50_I2C_STATE_UNK1_TMDS_0_DETECT_PIN	(1 << 2)
+	#define NV50_I2C_STATE_UNK1_TMDS_1_DETECT_PIN	(1 << 6)
 #define NV50_I2C_PORT(i) (0x0000E138 + 0x18*i)
 
 /* This is a grey area. */
@@ -59,38 +60,51 @@
 #define NV50_CRTC1_RAM_AMOUNT		0x00610784
 
 /* These CLK_CTRL names are a bit of a guess, i do have my reasons though. */
+/* These connected indicators exist for crtc, dac and sor. */
 #define NV50_CRTC0_CLK_CTRL1	0x00614100
+	#define NV50_CRTC_CLK_CTRL1_CONNECTED		(3 << 9)
 /* These are probably redrirected from 0x4000 range (very similar regs to nv40, maybe different order) */
 #define NV50_CRTC0_VPLL_A		0x00614104
 #define NV50_CRTC0_VPLL_B		0x00614108
 #define NV50_CRTC0_CLK_CTRL2	0x00614200
 
-#define NV50_DAC0_CLK_CTRL		0x00614280
-#define NV50_SOR0_CLK_CTRL		0x00614300
+/* These control some special modes, like dual link dvi, maybe they need another name? */
+#define NV50_DAC0_CLK_CTRL1	0x00614280
+#define NV50_SOR0_CLK_CTRL1	0x00614300
 
 #define NV50_CRTC1_CLK_CTRL1	0x00614900
 #define NV50_CRTC1_VPLL_A		0x00614904
 #define NV50_CRTC1_VPLL_B		0x00614908
 #define NV50_CRTC1_CLK_CTRL2	0x00614A00
 
-#define NV50_DAC1_CLK_CTRL		0x00614A80
-#define NV50_SOR1_CLK_CTRL		0x00614B00
+#define NV50_DAC1_CLK_CTRL1	0x00614A80
+#define NV50_SOR1_CLK_CTRL1	0x00614B00
 
-#define NV50_DAC2_CLK_CTRL		0x00615280
+#define NV50_DAC2_CLK_CTRL1	0x00615280
 
 #define NV50_DAC0_DPMS_CTRL	0x0061A004
-#define NV50_DAC1_DPMS_CTRL	0x0061A804
-#define NV50_DAC2_DPMS_CTRL	0x0061B004
 	#define	NV50_DAC_DPMS_CTRL_HSYNC_OFF		(1 << 0)
 	#define	NV50_DAC_DPMS_CTRL_VSYNC_OFF		(1 << 2)
 	#define	NV50_DAC_DPMS_CTRL_BLANK			(1 << 4)
 	#define	NV50_DAC_DPMS_CTRL_OFF			(1 << 6)
 	#define	NV50_DAC_DPMS_CTRL_PENDING		(1 << 31)
+/* These connected indicators exist for crtc, dac and sor. */
+#define NV50_DAC0_CLK_CTRL2	0x0061A010
+	#define NV50_DAC_CLK_CTRL2_CONNECTED		(3 << 9)
+#define NV50_DAC1_DPMS_CTRL	0x0061A804
+#define NV50_DAC1_CLK_CTRL2	0x0061A810
+#define NV50_DAC2_DPMS_CTRL	0x0061B004
+#define NV50_DAC2_CLK_CTRL2	0x0061B010
+
 
 #define NV50_SOR0_DPMS_CTRL	0x0061C004
+	#define	NV50_SOR_DPMS_CTRL_MODE_ON		(1 << 0)
+	#define	NV50_SOR_DPMS_CTRL_PENDING		(1 << 31)
+/* These connected indicators exist for crtc, dac and sor. */
+#define NV50_SOR0_CLK_CTRL2	0x0061C008
+	#define NV50_SOR_CLK_CTRL2_CONNECTED		(3 << 9)
 #define NV50_SOR1_DPMS_CTRL	0x0061C804
-	#define	NV50_SOR_DPMS_CTRL_MODE_ON	(1 << 0)
-	#define	NV50_SOR_DPMS_CTRL_PENDING	(1 << 31)
+#define NV50_SOR1_CLK_CTRL2	0x0061C808
 
 #define NV50_CRTC0_CURSOR_POS		0x00647084
 #define NV50_CRTC1_CURSOR_POS		0x00648084

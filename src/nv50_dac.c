@@ -37,7 +37,7 @@ NV50DacSetPClk(xf86OutputPtr output, int pclk)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacSetPClk is called.\n");
 
 	NVPtr pNv = NVPTR(pScrn);
-	NVWrite(pNv, NV50_DAC0_CLK_CTRL + NV50OrOffset(output) * 0x800, 0);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0);
 }
 
 static void
@@ -167,7 +167,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
 	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
 		NV50OrOffset(output));
 
-	NVWrite(pNv, 0x0061a010 + NV50OrOffset(output) * 0x800, 0x00000001);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0x00000001);
 	tmp2 = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 
 	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, 0x00150000 | NV50_DAC_DPMS_CTRL_PENDING);
