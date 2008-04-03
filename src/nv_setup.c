@@ -340,9 +340,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	vgaHWPtr pVga = VGAHWPTR(pScrn);
 	uint16_t implementation = pNv->Chipset & 0x0ff0;
-	xf86MonPtr monitorA, monitorB;
 	bool tvA = false;
 	bool tvB = false;
+	xf86MonPtr monitorA, monitorB;
 	int FlatPanel = -1;   /* really means the CRTC is slaved */
 	bool Television = false;
  
@@ -492,17 +492,19 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
 				pNv->vtOWNER = 0x04;
 			else {
+				uint8_t slaved_on_A, slaved_on_B;
+
 				NVSetOwner(pScrn, 1);
 				NVLockVgaCrtc(pNv, 1, false);
 
-				uint8_t slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
+				slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_B)
 					tvB = !(NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_LCD) & 0x01);
 
 				NVSetOwner(pScrn, 0);
 				NVLockVgaCrtc(pNv, 0, false);
 
-				uint8_t slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;
+				slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_A)
 					tvA = !(NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_LCD) & 0x01);
 
