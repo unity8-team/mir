@@ -870,6 +870,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
 
+    /* TXPITCH = pixels (texels) per line - 1 */
     pixel_shift = pPix->drawable.bitsPerPixel >> 4;
     txpitch >>= pixel_shift;
     txpitch -= 1;
@@ -894,20 +895,21 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     if (IS_R500_3D && ((h - 1) & 0x800))
 	txpitch |= R500_TXHEIGHT_11;
 
-    if (pPict->repeat) {
-	if ((h != 1) &&
-	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
-	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
-			     w, (unsigned)txpitch));
-    } else
-	txformat0 |= R300_TXPITCH_EN;
-
+    /* Use TXPITCH instead of TXWIDTH for address computations: we could
+     * omit this if there is no padding, but there is no apparent advantage
+     * in doing so.
+     */
+    txformat0 |= R300_TXPITCH_EN;
 
     info->texW[unit] = w;
     info->texH[unit] = h;
 
-    txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
-		R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST));
+    if (pPict->repeat)
+      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
+		  R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP));
+    else
+      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
+		  R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST));
 
     txfilter |= (unit << R300_TX_ID_SHIFT);
 
