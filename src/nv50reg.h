@@ -32,12 +32,25 @@
 	#define NV50_I2C_STATE_UNK1_TMDS_1_DETECT_PIN	(1 << 6)
 #define NV50_I2C_PORT(i) (0x0000E138 + 0x18*i)
 
-/* This is a grey area. */
-#define NV50_DISPLAY_SUPERVISOR	0x00610024
-	#define NV50_DISPLAY_SUPERVISOR_CRTC0	(1 << 2)
-	#define NV50_DISPLAY_SUPERVISOR_CRTC1	(1 << 3)
+/* 0x00610024 is the state register to read, all it's bits also exist in 0x0061002C in the form of interrupt switches. */
+#define NV50_DISPLAY_SUPERVISOR		0x00610024
+	#define NV50_DISPLAY_SUPERVISOR_CRTC0			(1 << 2)
+	#define NV50_DISPLAY_SUPERVISOR_CRTC1			(1 << 3)
 	#define NV50_DISPLAY_SUPERVISOR_CLK_MASK		(7 << 4)
 	#define NV50_DISPLAY_SUPERVISOR_CLK_UPDATE		(2 << 4)
+
+/* Two vblank interrupts arrive per blanking period, it could be rise and fall, i do not know. */
+/* If a vblank interrupt arrives, check NV50_DISPLAY_SUPERVISOR, it will show for which crtc (or both) it is. */
+/* Note that one crtc bit will always show, maybe it's updated when a vblank occurs? */
+/* Once modesetting goes into the kernel, we can ditch NV50CheckWriteVClk() and do it with interrupts. */
+/* Up until then, realise that most interrupts are not handled properly yet (and will stall your machine). */
+/* Bit 8 and 9 also exist for sure, but their purpose is unknown. */
+#define NV50_DISPLAY_SUPERVISOR_INTR	0x0061002C
+	#define NV50_DISPLAY_INTR_CTRL_VBLANK_CRTC0		(1 << 2)
+	#define NV50_DISPLAY_INTR_CTRL_VBLANK_CRTC1		(1 << 3)
+	#define NV50_DISPLAY_INTR_CTRL_STATE_UNK1		(1 << 4)
+	#define NV50_DISPLAY_INTR_CTRL_STATE_CLK_UPDATE	(2 << 4)
+	#define NV50_DISPLAY_INTR_CTRL_STATE_UNK4		(4 << 4)
 
 #define NV50_DISPLAY_UNK30_CTRL	0x00610030
 	#define NV50_DISPLAY_UNK30_CTRL_UPDATE_VCLK0	(1 << 9)
