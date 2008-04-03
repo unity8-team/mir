@@ -2443,6 +2443,12 @@ static bool init_8e(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_
 	 */
 
 	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
+	uint16_t init8etblptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + 10]);
+	uint8_t headerlen = bios->data[init8etblptr + 1];
+	uint8_t entries = bios->data[init8etblptr + 2];
+	uint8_t recordlen = bios->data[init8etblptr + 3];
+	int i;
+
 	if (!dcbptr) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "No Display Configuration Block pointer found\n");
@@ -2453,16 +2459,11 @@ static bool init_8e(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_
 			   "DCB table not version 4.0\n");
 		return false;
 	}
-	uint16_t init8etblptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + 10]);
 	if (!init8etblptr) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Invalid pointer to INIT_8E table\n");
 		return false;
 	}
-	uint8_t headerlen = bios->data[init8etblptr + 1];
-	uint8_t entries = bios->data[init8etblptr + 2];
-	uint8_t recordlen = bios->data[init8etblptr + 3];
-	int i;
 
 	for (i = 0; i < entries; i++) {
 		uint32_t entry = le32_to_cpu(*(uint32_t *)&bios->data[init8etblptr + headerlen + recordlen * i]);
@@ -3847,6 +3848,8 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
 	struct fppointers fpp;
+	uint16_t legacy_scripts_offset, legacy_i2c_offset;
+
 	memset(&fpp, 0, sizeof(struct fppointers));
 
 	/* load needed defaults in case we can't parse this info */
@@ -3916,7 +3919,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	parse_bios_version(pScrn, bios, offset + 10);
 
-	uint16_t legacy_scripts_offset = offset + 18;
+	legacy_scripts_offset = offset + 18;
 	if (bmp_version_major < 2)
 		legacy_scripts_offset -= 4;
 	bios->init_script_tbls_ptr = le16_to_cpu(*(uint16_t *)&bios->data[legacy_scripts_offset]);
@@ -3928,7 +3931,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		bios->legacy.ddr_seq_tbl_ptr = le16_to_cpu(*(uint16_t *)&bios->data[offset + 28]);
 	}
 
-	uint16_t legacy_i2c_offset = 0x48;	/* BMP version 2 & 3 */
+	legacy_i2c_offset = 0x48;	/* BMP version 2 & 3 */
 	if (bmplength > 61)
 		legacy_i2c_offset = offset + 54;
 	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
@@ -4179,6 +4182,48 @@ parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, uint
 	return true;
 }
 
+void merge_like_dcb_entries(ScrnInfoPtr pScrn)
+{
+	/* DCB v2.0 lists each output combination separately.
+	 * Here we merge compatible entries to have fewer outputs, with more options
+	 */
+
+	NVPtr pNv = NVPTR(pScrn);
+	int i, newentries = 0;
+
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		struct dcb_entry *ient = &pNv->dcb_table.entry[i];
+		int j;
+
+		for (j = i + 1; j < pNv->dcb_table.entries; j++) {
+			struct dcb_entry *jent = &pNv->dcb_table.entry[j];
+
+			if (jent->type == 100) /* already merged entry */
+				continue;
+
+			/* merge heads field when all other fields the same */
+			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location && jent->or == ient->or) {
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					   "Merging DCB entries %d and %d\n", i, j);
+				ient->heads |= jent->heads;
+				jent->type = 100; /* dummy value */
+			}
+		}
+	}
+
+	/* Compact entries merged into others out of dcb_table */
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		if ( pNv->dcb_table.entry[i].type == 100 )
+			continue;
+
+		if (newentries != i)
+			memcpy(&pNv->dcb_table.entry[newentries], &pNv->dcb_table.entry[i], sizeof(struct dcb_entry));
+		newentries++;
+	}
+
+	pNv->dcb_table.entries = newentries;
+}
+
 static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -4278,41 +4323,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 	}
 
-	/* DCB v2.0 lists each output combination separately.
-	 * Here we merge compatible entries to have fewer outputs, with more options
-	 */
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		struct dcb_entry *ient = &pNv->dcb_table.entry[i];
-		int j;
-
-		for (j = i + 1; j < pNv->dcb_table.entries; j++) {
-			struct dcb_entry *jent = &pNv->dcb_table.entry[j];
-
-			if (jent->type == 100) /* already merged entry */
-				continue;
-
-			/* merge heads field when all other fields the same */
-			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location && jent->or == ient->or) {
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					   "Merging DCB entries %d and %d\n", i, j);
-				ient->heads |= jent->heads;
-				jent->type = 100; /* dummy value */
-			}
-		}
-	}
-
-	/* Compact entries merged into others out of dcb_table */
-	int newentries = 0;
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		if ( pNv->dcb_table.entry[i].type == 100 )
-			continue;
-
-		if (newentries != i)
-			memcpy(&pNv->dcb_table.entry[newentries], &pNv->dcb_table.entry[i], sizeof(struct dcb_entry));
-		newentries++;
-	}
-
-	pNv->dcb_table.entries = newentries;
+	merge_like_dcb_entries(pScrn);
 
 	return pNv->dcb_table.entries;
 }
