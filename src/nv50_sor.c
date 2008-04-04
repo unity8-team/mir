@@ -41,7 +41,6 @@ NV50SorSetPClk(xf86OutputPtr output, int pclk)
 	const int limit = 165000;
 
 	/* 0x70000 was a late addition to nv, mentioned as fixing tmds initialisation on certain gpu's. */
-	/* This *may* have solved my shaking image problem, but i am not sure. */
 	/* I presume it's some kind of clock setting, but what precisely i do not know. */
 	NVWrite(pNv, NV50_SOR0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x70000 | ((pclk > limit) ? 0x101 : 0));
 }

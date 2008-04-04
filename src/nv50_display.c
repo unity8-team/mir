@@ -239,7 +239,7 @@ NV50DispInit(ScrnInfoPtr pScrn)
 
 	NV50DisplayCommand(pScrn, 0x84, 0);
 	NV50DisplayCommand(pScrn, 0x88, 0);
-	/* Does the bios always use crtc0? */
+	/* The GetLVDSNativeMode() function is proof that more than crtc0 is used by the bios. */
 	NV50DisplayCommand(pScrn, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
 	NV50DisplayCommand(pScrn, 0x800, 0);
 	NV50DisplayCommand(pScrn, NV50_CRTC0_DISPLAY_START, 0);
