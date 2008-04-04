@@ -253,6 +253,16 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].valid = FALSE;
 	}
     }
+
+    /* Some RV100 cards with 2 VGA ports show up with DVI+VGA */
+    if (info->Chipset == PCI_CHIP_RV100_QY &&
+	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1002 &&
+	PCI_SUB_DEVICE_ID(info->PciInfo) == 0x013a) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I) {
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_VGA;
+	}
+    }
+
 }
 
 static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)

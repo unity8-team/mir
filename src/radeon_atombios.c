@@ -35,6 +35,8 @@
 #include "radeon_probe.h"
 #include "radeon_macros.h"
 
+#include "ati_pciids_gen.h"
+
 #include "xorg-server.h"
 
 /* only for testing now */
@@ -1747,6 +1749,22 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     return TRUE;
 }
 
+static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+    /* Asus M2A-VM HDMI board lists the DVI port as HDMI */
+    if ((info->Chipset == PCI_CHIP_RS690_791E) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x826d)) {
+	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) &&
+	    (info->BiosConnector[index].TMDSType == TMDS_LVTMA)) {
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+	}
+    }
+
+}
+
 Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 {
@@ -1849,6 +1867,9 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	} else {
 	    info->BiosConnector[i].hpd_mask = 0;
 	}
+
+	RADEONApplyATOMQuirks(pScrn, i);
+
     }
 
     /* CRTs/DFPs may share a port */
