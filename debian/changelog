@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu8) hardy; urgency=low
+
+  * debian/patches/13_dpms_low_power_overlay.patch:
+    - Fix crash triggered by dpms low power mode with hardware overlay
+      running (LP: #160309)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 04 Apr 2008 16:33:51 -0700
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu7) hardy; urgency=low
 
   * debian/patches/12_quirk_sync.patch: Add some quirks from current git
