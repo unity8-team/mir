@@ -1724,6 +1724,8 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     }
 
 
+    ErrorF("init memmap\n");
+    RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
     ErrorF("init common\n");
     RADEONInitCommonRegisters(info->ModeReg, info);
 
@@ -1777,6 +1779,8 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
     }
 
+    ErrorF("restore memmap\n");
+    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
     ErrorF("restore common\n");
     RADEONRestoreCommonRegisters(pScrn, info->ModeReg);
 
@@ -1800,7 +1804,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	radeon_update_tv_routing(pScrn, info->ModeReg);
 
     if (info->DispPriority)
-	RADEONInitDispBandwidth(pScrn);
+        RADEONInitDispBandwidth(pScrn);
 
     if (tilingChanged) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
