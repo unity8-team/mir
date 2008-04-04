@@ -7,3 +7,4 @@
 08_945gm_quirk.diff
 10_hw_overlay.diff
 11_hw_overlay_option.diff
+12_quirk_sync.patch

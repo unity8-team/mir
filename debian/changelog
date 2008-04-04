@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu7) hardy; urgency=low
+
+  * debian/patches/12_quirk_sync.patch: Add some quirks from current git
+    upstream, and a quirk for Dell Latitude D630 (LP: #197740)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 04 Apr 2008 14:02:07 -0700
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu6) hardy; urgency=low
 
   [ Bryce Harrington ]
