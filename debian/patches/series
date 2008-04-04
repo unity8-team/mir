@@ -9,3 +9,4 @@
 11_hw_overlay_option.diff
 12_quirk_sync.patch
 13_dpms_low_power_overlay.patch
+14_sysfs_fujitsu_backlight.patch
