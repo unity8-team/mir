@@ -223,19 +223,19 @@ NV50DispInit(ScrnInfoPtr pScrn)
 		while (NVRead(pNv, 0x006194e8) & 2);
 	}
 
-	NVWrite(pNv, 0x00610200, 0x2b00);
+	NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, 0x2b00);
 	/* A bugfix (#12637) from the nv driver, to unlock the driver if it's left in a poor state */
 	do {
-		val = NVRead(pNv, 0x00610200);
+		val = NVRead(pNv, NV50_DISPLAY_UNK200_CTRL);
 		if ((val & 0x9f0000) == 0x20000)
-			NVWrite(pNv, 0x00610200, val | 0x800000);
+			NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, val | 0x800000);
 
 		if ((val & 0x3f0000) == 0x30000)
-			NVWrite(pNv, 0x00610200, val | 0x200000);
+			NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, val | 0x200000);
 	} while ((val & 0x1e0000) != 0);
 	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, NV50_DISPLAY_CTRL_STATE_ENABLE);
-	NVWrite(pNv, 0x00610200, 0x1000b03);
-	while (!(NVRead(pNv, 0x00610200) & 0x40000000));
+	NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, 0x1000b03);
+	while (!(NVRead(pNv, NV50_DISPLAY_UNK200_CTRL) & 0x40000000));
 
 	NV50DisplayCommand(pScrn, 0x84, 0);
 	NV50DisplayCommand(pScrn, 0x88, 0);
@@ -284,9 +284,9 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 		}
 	}
 
-	NVWrite(pNv, 0x00610200, 0x0);
+	NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, 0x0);
 	NVWrite(pNv, NV50_DISPLAY_CTRL_STATE, NV50_DISPLAY_CTRL_STATE_DISABLE);
-	while ((NVRead(pNv, 0x00610200) & 0x1e0000) != 0);
+	while ((NVRead(pNv, NV50_DISPLAY_UNK200_CTRL) & 0x1e0000) != 0);
 	while ((NVRead(pNv, 0x0061c030 + SOR0 * 0x800) & 0x10000000));
 	while ((NVRead(pNv, 0x0061c030 + SOR1 * 0x800) & 0x10000000));
 }

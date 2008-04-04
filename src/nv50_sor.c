@@ -315,11 +315,12 @@ DisplayModePtr
 GetLVDSNativeMode(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	CARD32 val = NVRead(pNv, 0x00610050);
+	uint32_t val = NVRead(pNv, NV50_DISPLAY_UNK50_CTRL);
 
-	if ((val & 0x3) == 0x2) {
+	/* This is rather crude imo, i wonder if it always works. */
+	if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC0_MASK) == NV50_DISPLAY_UNK50_CTRL_CRTC0_ACTIVE) {
 		return ReadLVDSNativeMode(pScrn, 0);
-	} else if ((val & 0x300) == 0x200) {
+	} else if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC1_MASK) == NV50_DISPLAY_UNK50_CTRL_CRTC1_ACTIVE) {
 		return ReadLVDSNativeMode(pScrn, 0x540);
 	}
 
