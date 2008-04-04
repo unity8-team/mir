@@ -116,6 +116,12 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn);
 extern Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn);
 
+extern int
+atombios_dyn_clk_setup(ScrnInfoPtr pScrn, int enable);
+
+extern int
+atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, int enable);
+
 extern Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output);
 

@@ -3067,11 +3067,16 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONBlank(pScrn);
 
     if (info->IsMobility && !IS_AVIVO_VARIANT) {
-        if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
 	    RADEONSetDynamicClock(pScrn, 1);
-        } else {
+	} else {
 	    RADEONSetDynamicClock(pScrn, 0);
-        }
+	}
+    } else if (IS_AVIVO_VARIANT) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	    atombios_static_pwrmgt_setup(pScrn, 1);
+	    atombios_dyn_clk_setup(pScrn, 1);
+	}
     }
 
     if (IS_R300_VARIANT || IS_RV100_VARIANT)
@@ -5173,11 +5178,16 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     RADEONWaitForIdleMMIO(pScrn);
 
     if (info->IsMobility && !IS_AVIVO_VARIANT) {
-        if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
 	    RADEONSetDynamicClock(pScrn, 1);
-        } else {
+	} else {
 	    RADEONSetDynamicClock(pScrn, 0);
-        }
+	}
+    } else if (IS_AVIVO_VARIANT) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_CLOCKS, FALSE)) {
+	    atombios_static_pwrmgt_setup(pScrn, 1);
+	    atombios_dyn_clk_setup(pScrn, 1);
+	}
     }
 
     if (IS_R300_VARIANT || IS_RV100_VARIANT)

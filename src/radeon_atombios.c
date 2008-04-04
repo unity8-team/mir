@@ -519,25 +519,52 @@ rhdAtomASICInit(atomBiosHandlePtr handle)
     return FALSE;
 }
 
-Bool
-rhdAtomSetScaler(atomBiosHandlePtr handle, unsigned char scalerID, int setting)
+int
+atombios_dyn_clk_setup(ScrnInfoPtr pScrn, int enable)
 {
-    ENABLE_SCALER_PARAMETERS scaler;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    DYNAMIC_CLOCK_GATING_PS_ALLOCATION dynclk_data;
     AtomBiosArgRec data;
+    unsigned char *space;
 
-    scaler.ucScaler = scalerID;
-    scaler.ucEnable = setting;
-    data.exec.dataSpace = NULL;
-    data.exec.index = 0x21;
-    data.exec.pspace = &scaler;
-    xf86DrvMsg(handle->scrnIndex, X_INFO, "Calling EnableScaler\n");
-    if (RHDAtomBiosFunc(handle->scrnIndex, handle,
-			ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	xf86DrvMsg(handle->scrnIndex, X_INFO, "EnableScaler Successful\n");
-	return TRUE;
+    dynclk_data.ucEnable = enable;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, DynamicClockGating);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &dynclk_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Dynamic clock gating %s success\n", enable? "enable" : "disable");
+	return ATOM_SUCCESS;
     }
-    xf86DrvMsg(handle->scrnIndex, X_INFO, "EableScaler Failed\n");
-    return FALSE;
+
+    ErrorF("Dynamic clock gating %s failure\n", enable? "enable" : "disable");
+    return ATOM_NOT_IMPLEMENTED;
+
+}
+
+int
+atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, int enable)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    ENABLE_ASIC_STATIC_PWR_MGT_PS_ALLOCATION pwrmgt_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    pwrmgt_data.ucEnable = enable;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableASIC_StaticPwrMgt);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &pwrmgt_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Static power management %s success\n", enable? "enable" : "disable");
+	return ATOM_SUCCESS;
+    }
+
+    ErrorF("Static power management %s failure\n", enable? "enable" : "disable");
+    return ATOM_NOT_IMPLEMENTED;
+
 }
 
 # endif
