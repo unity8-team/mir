@@ -35,105 +35,6 @@
 
 static void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update);
 
-/*
- * PLL calculation.  pclk is in kHz.
- */
-static void
-NV50CalcPLL(float pclk, int *pNA, int *pMA, int *pNB, int *pMB, int *pP)
-{
-    const float refclk = 27000.0f;
-    const float minVcoA = 100000;
-    const float maxVcoA = 400000;
-    const float minVcoB = 600000;
-    float maxVcoB = 1400000;
-    const float minUA = 2000;
-    const float maxUA = 400000;
-    const float minUB = 50000;
-    const float maxUB = 200000;
-    const int minNA = 1, maxNA = 255;
-    const int minNB = 1, maxNB = 31;
-    const int minMA = 1, maxMA = 255;
-    const int minMB = 1, maxMB = 31;
-    const int minP = 0, maxP = 6;
-    int lowP, highP;
-    float vcoB;
-
-    int na, ma, nb, mb, p;
-    float bestError = FLT_MAX;
-
-    *pNA = *pMA = *pNB = *pMB = *pP = 0;
-
-    if(maxVcoB < pclk + pclk / 200)
-        maxVcoB = pclk + pclk / 200;
-    if(minVcoB / (1 << maxP) > pclk)
-        pclk = minVcoB / (1 << maxP);
-
-    vcoB = maxVcoB - maxVcoB / 200;
-    lowP = minP;
-    vcoB /= 1 << (lowP + 1);
-
-    while(pclk <= vcoB && lowP < maxP)
-    {
-        vcoB /= 2;
-        lowP++;
-    }
-
-    vcoB = maxVcoB + maxVcoB / 200;
-    highP = lowP;
-    vcoB /= 1 << (highP + 1);
-
-    while(pclk <= vcoB && highP < maxP)
-    {
-        vcoB /= 2;
-        highP++;
-    }
-
-    for(p = lowP; p <= highP; p++)
-    {
-        for(ma = minMA; ma <= maxMA; ma++)
-        {
-            if(refclk / ma < minUA)
-                break;
-            else if(refclk / ma > maxUA)
-                continue;
-
-            for(na = minNA; na <= maxNA; na++)
-            {
-                if(refclk * na / ma < minVcoA || refclk * na / ma > maxVcoA)
-                    continue;
-
-                for(mb = minMB; mb <= maxMB; mb++)
-                {
-                    if(refclk * na / ma / mb < minUB)
-                        break;
-                    else if(refclk * na / ma / mb > maxUB)
-                        continue;
-
-                    nb = rint(pclk * (1 << p) * (ma / (float)na) * mb / refclk);
-
-                    if(nb > maxNB)
-                        break;
-                    else if(nb < minNB)
-                        continue;
-                    else
-                    {
-                        float freq = refclk * (na / (float)ma) * (nb / (float)mb) / (1 << p);
-                        float error = fabsf(pclk - freq);
-                        if(error < bestError) {
-                            *pNA = na;
-                            *pMA = ma;
-                            *pNB = nb;
-                            *pMB = mb;
-                            *pP = p;
-                            bestError = error;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -142,24 +43,39 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	NVPtr pNv = NVPTR(pScrn);
-	int lo_n, lo_m, hi_n, hi_m, p, i;
-	/* These clocks are probably rerouted from the 0x4000 range to the 0x610000 range */
-	uint32_t lo = NVRead(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_A : NV50_CRTC0_VPLL_A);
-	uint32_t hi = NVRead(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_B : NV50_CRTC0_VPLL_B);
+	int i;
+
+	/* I don't know why exactly, but these were in my table. */
+	uint32_t pll_reg = nv_crtc->head ? NV50_CRTC1_CLK_CTRL1 : NV50_CRTC0_CLK_CTRL1;
+
+	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
+	struct pll_lims pll_lim;
+	get_pll_limits(pScrn, pll_reg, &pll_lim);
+	getMNP_double(pScrn, &pll_lim, nv_crtc->pclk, &NM1, &NM2, &log2P);
+
+	uint32_t reg1 = NVRead(pNv, pll_reg + 4);
+	uint32_t reg2 = NVRead(pNv, pll_reg + 8);
 
 	/* bit0: The blob (and bios) seem to have this on (almost) always.
 	 *          I'm hoping this (experiment) will fix my image stability issues.
 	 */
 	NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, NV50_CRTC_CLK_CTRL1_CONNECTED | 0x10000011);
-	lo &= 0xff00ff00;
-	hi &= 0x8000ff00;
 
-	NV50CalcPLL(nv_crtc->pclk, &lo_n, &lo_m, &hi_n, &hi_m, &p);
+	/* Eventually we should learn ourselves what all the bits should be. */
+	reg1 &= 0xff00ff00;
+	reg2 &= 0x8000ff00;
 
-	lo |= (lo_m << 16) | lo_n;
-	hi |= (p << 28) | (hi_m << 16) | hi_n;
-	NVWrite(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_A : NV50_CRTC0_VPLL_A, lo);
-	NVWrite(pNv, nv_crtc->head ? NV50_CRTC1_VPLL_B : NV50_CRTC0_VPLL_B, hi);
+	uint8_t N1 = (NM1 >> 8) & 0xFF;
+	uint8_t M1 = NM1 & 0xFF;
+	uint8_t N2 = (NM2 >> 8) & 0xFF;
+	uint8_t M2 = NM2 & 0xFF;
+
+	reg1 |= (M1 << 16) | N1;
+	reg2 |= (log2P << 28) | (M2 << 16) | N2;
+
+	NVWrite(pNv, pll_reg + 4, reg1);
+	NVWrite(pNv, pll_reg + 8, reg2);
+
 	/* There seem to be a few indicator bits, which are similar to the SOR_CTRL bits. */
 	NVWrite(pNv, NV50_CRTC0_CLK_CTRL2 + nv_crtc->head * 0x800, 0);
 
