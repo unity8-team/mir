@@ -286,10 +286,10 @@ ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 	mode->Clock = NVRead(pNv, 0x00610ad4 + off) & 0x3fffff;
 
 	/* We should investigate what else is found in these register ranges. */
-	uint32_t unk1 = NVRead(pNv, 0x00610afc + off);
-	uint32_t unk2 = NVRead(pNv, 0x00610b04 + off);
-	uint32_t unk3 = NVRead(pNv, 0x00610ae8 + off);
-	/*uint32_t unk4 = NVRead(pNv, 0x00610af4 + off);*/
+	uint32_t unk1 = NVRead(pNv, NV50_CRTC0_DISPLAY_TOTAL_VAL + off);
+	uint32_t unk2 = NVRead(pNv, NV50_CRTC0_SYNC_DURATION_VAL + off);
+	uint32_t unk3 = NVRead(pNv, NV50_CRTC0_SYNC_START_TO_BLANK_END_VAL + off);
+	/*uint32_t unk4 = NVRead(pNv, NV50_CRTC0_MODE_UNK1_VAL + off);*/
 
 	/* Recontruct our mode, so it can be handled normally. */
 	mode->HTotal = (unk1 & 0xFFFF);

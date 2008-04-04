@@ -72,6 +72,32 @@
 #define NV50_CRTC0_RAM_AMOUNT		0x00610384
 #define NV50_CRTC1_RAM_AMOUNT		0x00610784
 
+/* The registers in this range are normally accessed through display commands, with an offset of 0x540 for crtc1. */
+/* They also seem duplicated into the next register as well. */
+#define NV50_CRTC0_DEPTH_VAL						0x00610AC8
+#define NV50_CRTC0_CLOCK_VAL						0x00610AD0
+#define NV50_CRTC0_UNK_8A8_VAL						0x00610AE0
+#define NV50_CRTC0_SYNC_START_TO_BLANK_END_VAL		0x00610AE8
+#define NV50_CRTC0_MODE_UNK1_VAL					0x00610AF0
+#define NV50_CRTC0_DISPLAY_TOTAL_VAL				0x00610AF8
+#define NV50_CRTC0_SYNC_DURATION_VAL				0x00610B00
+/* For some reason this displayed the maximum framebuffer size for crtc0/dfp. */
+/* It was correct for crtc1/afp. */
+#define NV50_CRTC0_FB_SIZE_VAL						0x00610B18
+#define NV50_CRTC0_PITCH_VAL						0x00610B20
+#define NV50_CRTC0_FB_POS_VAL						0x00610B28
+
+#define NV50_CRTC1_DEPTH_VAL						0x00611008
+#define NV50_CRTC1_CLOCK_VAL						0x00611010
+#define NV50_CRTC1_UNK_8A8_VAL						0x00611020
+#define NV50_CRTC1_SYNC_START_TO_BLANK_END_VAL		0x00611028
+#define NV50_CRTC1_MODE_UNK1_VAL					0x00611030
+#define NV50_CRTC1_DISPLAY_TOTAL_VAL				0x00611038
+#define NV50_CRTC1_SYNC_DURATION_VAL				0x00611040
+#define NV50_CRTC1_FB_SIZE_VAL						0x00611058
+#define NV50_CRTC1_PITCH_VAL						0x00611060
+#define NV50_CRTC1_FB_POS_VAL						0x00611068
+
 /* These CLK_CTRL names are a bit of a guess, i do have my reasons though. */
 /* These connected indicators exist for crtc, dac and sor. */
 #define NV50_CRTC0_CLK_CTRL1	0x00614100
@@ -108,7 +134,6 @@
 #define NV50_DAC1_CLK_CTRL2	0x0061A810
 #define NV50_DAC2_DPMS_CTRL	0x0061B004
 #define NV50_DAC2_CLK_CTRL2	0x0061B010
-
 
 #define NV50_SOR0_DPMS_CTRL	0x0061C004
 	#define	NV50_SOR_DPMS_CTRL_MODE_ON		(1 << 0)
@@ -154,7 +179,7 @@
 
 /* 0x810 is a reasonable guess, nothing more. */
 #define NV50_CRTC0_DISPLAY_START				0x810
-#define NV50_CRTC0_DISPLAY_END					0x814
+#define NV50_CRTC0_DISPLAY_TOTAL				0x814
 #define NV50_CRTC0_SYNC_DURATION				0x818
 #define NV50_CRTC0_SYNC_START_TO_BLANK_END		0x81C
 #define NV50_CRTC0_MODE_UNK1					0x820
@@ -206,6 +231,7 @@
 	#define NV50_CRTC0_DITHERING_CTRL_OFF	0x0
 
 #define NV50_CRTC0_SCALE_CTRL		0x8A4
+#define NV50_CRTC0_UNK_8A8		0x8A8
 
 #define NV50_CRTC0_FB_POS			0x8C0
 #define NV50_CRTC0_SCRN_SIZE		0x8C8
@@ -220,7 +246,7 @@
 
 /* 0xC10 is a reasonable guess, nothing more. */
 #define NV50_CRTC1_DISPLAY_START				0xC10
-#define NV50_CRTC1_DISPLAY_END					0xC14
+#define NV50_CRTC1_DISPLAY_TOTAL				0xC14
 #define NV50_CRTC1_SYNC_DURATION				0xC18
 #define NV50_CRTC1_SYNC_START_TO_BLANK_END		0xC1C
 #define NV50_CRTC1_MODE_UNK1					0xC20
@@ -269,6 +295,7 @@
 	#define NV50_CRTC1_DITHERING_CTRL_OFF	0x0
 
 #define NV50_CRTC1_SCALE_CTRL		0xCA4
+#define NV50_CRTC1_UNK_8A8		0xCA8
 
 #define NV50_CRTC1_FB_POS			0xCC0
 #define NV50_CRTC1_SCRN_SIZE		0xCC8

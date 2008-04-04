@@ -333,7 +333,7 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 	NV50CrtcCommand(crtc, NV50_CRTC0_INTERLACE, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
 	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_START, 0);
 	NV50CrtcCommand(crtc, 0x82c, 0);
-	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_END, adjusted_mode->CrtcVTotal << 16 | adjusted_mode->CrtcHTotal);
+	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_TOTAL, adjusted_mode->CrtcVTotal << 16 | adjusted_mode->CrtcHTotal);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_DURATION, (vsync_dur - 1) << 16 | (hsync_dur - 1));
 	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_START_TO_BLANK_END, (vsync_start_to_end - 1) << 16 | (hsync_start_to_end - 1));
 	NV50CrtcCommand(crtc, NV50_CRTC0_MODE_UNK1, (vunk1 - 1) << 16 | (hunk1 - 1));
@@ -357,7 +357,7 @@ NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_m
 			break;
 	}
 	NV50CrtcSetDither(crtc, FALSE);
-	NV50CrtcCommand(crtc, 0x8a8, 0x40000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_UNK_8A8, 0x40000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
 	/* This is the actual resolution of the mode. */
 	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, (mode->VDisplay << 16) | mode->HDisplay);
