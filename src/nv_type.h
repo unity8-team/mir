@@ -158,7 +158,6 @@ typedef struct _riva_hw_state
 	uint32_t vpll2B;
 	uint32_t pllsel;
 	uint32_t sel_clk;
-	bool crosswired;
 	uint32_t reg580;
 	uint32_t general;
 	uint32_t crtcOwner;

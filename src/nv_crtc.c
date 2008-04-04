@@ -138,18 +138,9 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	/* The TMDS_PLL switch is on the actual ramdac */
-//	int fp_head = nv_crtc->head ^ state->crosswired;
-//	uint32_t fp_debug_0 = NVReadRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0);
 
 	if (regp->vpll_changed) {
 		uint32_t savedc040 = nvReadMC(pNv, 0xc040);
-
-//		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0,
-//			fp_debug_0 | NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL);
-
-		/* Wait for the situation to stabilise */
-		usleep(5000);
 
 		/* for vpll1 change bits 16 and 17 are disabled */
 		/* for vpll2 change bits 18 and 19 are disabled */
@@ -163,8 +154,6 @@ static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		/* We need to wait a while */
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, savedc040);
-
-//		NVWriteRAMDAC(pNv, fp_head, NV_RAMDAC_FP_DEBUG_0, fp_debug_0);
 	}
 }
 
@@ -1033,10 +1022,6 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			is_lvds = true;
 		if (is_lvds || (output->crtc == crtc && nv_output->type == OUTPUT_TMDS)) {
 			is_fp = true;
-			if (nv_crtc->head != (nv_output->or & OUTPUT_C) >> 2)
-				pNv->ModeReg.crosswired = true;
-			else
-				pNv->ModeReg.crosswired = false;
 			break;
 		}
 	}

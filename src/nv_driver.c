@@ -712,24 +712,6 @@ NVEnterVT(int scrnIndex, int flags)
 			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 		}
 
-#if 0
-		/* Reassign outputs so disabled outputs don't get stuck on the wrong crtc */
-		for (i = 0; i < xf86_config->num_output; i++) {
-			NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
-			if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-				uint8_t tmds04 = nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4);
-
-				/* Disable any crosswired tmds, to avoid picking up a signal on a disabled output */
-				/* Example: TMDS1 crosswired to CRTC0 (by bios) reassigned to CRTC1 in xorg, disabled. */
-				/* But the bios reinits it to CRTC0 when going back to VT. */
-				/* Because it's disabled, it doesn't get a mode set, still it picks up the signal from CRTC0 (which is another output) */
-				/* A legitimately crosswired output will get set properly during mode set */
-				if (tmds04 & 8)
-					nv_dcb_write_tmds(pNv, nv_output->dcb_entry, 0, 0x4, tmds04 ^ 8);
-			}
-		}
-#endif
-
 		if (!xf86SetDesiredModes(pScrn))
 			return FALSE;
 	} else {
@@ -1807,7 +1789,6 @@ NVRestore(ScrnInfoPtr pScrn)
 		state->crtc_reg[1].vpll_a = 0;
 		state->crtc_reg[1].vpll_b = 0;
 		state->pllsel = 0;
-		state->crosswired = FALSE;
 
 		if (pNv->new_restore) { /* new style restore. */
 			for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -1943,7 +1924,6 @@ NVRestore(ScrnInfoPtr pScrn)
 			state->crtc_reg[1].vpll_a = 0;
 			state->crtc_reg[1].vpll_b = 0;
 			state->pllsel = 0;
-			state->crosswired = FALSE;
 		} else {
 			for (i = 0; i < xf86_config->num_crtc; i++)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);

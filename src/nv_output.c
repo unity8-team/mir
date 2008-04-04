@@ -88,36 +88,6 @@ static int get_digital_bound_head(xf86OutputPtr output)
 	return (((nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4) & 0x8) >> 3) ^ ramdac);
 }
 
-static Bool dpms_common(xf86OutputPtr output, int mode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVPtr pNv = NVPTR(output->scrn);
-	xf86CrtcPtr crtc = output->crtc;
-	NVCrtcPrivatePtr nv_crtc;
-
-	if (nv_output->last_dpms == mode) /* Don't do unnecessary mode changes. */
-		return FALSE;
-
-	nv_output->last_dpms = mode;
-
-	if (!crtc)	/* we need nv_crtc, so give up */
-		return TRUE;
-	nv_crtc = crtc->driver_private;
-
-	if (0) { //pNv->NVArch >= 0x17 && pNv->twoHeads) {
-		/* We may be going for modesetting, so we must reset our output binding */
-		if (mode == DPMSModeOff) {
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, 0x7f);
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 2, 0);
-		} else {
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 0, nv_output->type);
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, 2, nv_output->or);
-		}
-	}
-
-	return TRUE;
-}
-
 static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
@@ -127,8 +97,9 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_dpms is called with mode %d.\n", mode);
 
-	if (!dpms_common(output, mode))
+	if (nv_output->last_dpms == mode)
 		return;
+	nv_output->last_dpms = mode;
 
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
 		xf86CrtcPtr crtc = output->crtc;
@@ -156,13 +127,15 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_analog_output_dpms is called with mode %d.\n", mode);
 
-	if (!dpms_common(output, mode))
+	if (nv_output->last_dpms == mode)
 		return;
+	nv_output->last_dpms = mode;
 
 	if (pNv->twoHeads) {
 		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
@@ -183,6 +156,7 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 	xf86CrtcPtr crtc = output->crtc;
@@ -192,8 +166,9 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,"nv_tmds_output_dpms is called with mode %d.\n", mode);
 
-	if (!dpms_common(output, mode))
+	if (nv_output->last_dpms == mode)
 		return;
+	nv_output->last_dpms = mode;
 
 	if (crtc)
 		head = ((NVCrtcPrivatePtr)crtc->driver_private)->head;
