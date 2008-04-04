@@ -918,6 +918,10 @@ extern void RADEONPllErrataAfterData(RADEONInfoPtr info);
 extern void RADEONPllErrataAfterIndex(RADEONInfoPtr info);
 extern void RADEONWaitForVerticalSync(ScrnInfoPtr pScrn);
 extern void RADEONWaitForVerticalSync2(ScrnInfoPtr pScrn);
+extern void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
+				      RADEONInfoPtr info);
+extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
+					 RADEONSavePtr restore);
 
 #ifdef USE_EXA
 /* radeon_exa.c */
