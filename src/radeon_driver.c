@@ -5191,11 +5191,11 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     RADEONRestoreSurfaces(pScrn, info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
-    	if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 &&
-	    info->FbSecureSize)
-    	{
-      		/* we need to backup the PCIE GART TABLE from fb memory */
-	  memcpy(info->FB + info->pciGartOffset, info->pciGartBackup, info->pciGartSize);
+    	if (info->cardType == CARD_PCIE &&
+	    info->pKernelDRMVersion->version_minor >= 19 &&
+	    info->FbSecureSize) {
+	    /* we need to backup the PCIE GART TABLE from fb memory */
+	    memcpy(info->FB + info->pciGartOffset, info->pciGartBackup, info->pciGartSize);
     	}
 
 	/* get the DRI back into shape after resume */
@@ -5220,8 +5220,6 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     }
 #endif
 
-    //    pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-
     return TRUE;
 }
 
@@ -5242,8 +5240,9 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 	DRILock(pScrn->pScreen, 0);
 	RADEONCP_STOP(pScrn, info);
 
-        if (info->cardType == CARD_PCIE && info->pKernelDRMVersion->version_minor >= 19 && info->FbSecureSize)
-        {
+        if (info->cardType == CARD_PCIE &&
+	    info->pKernelDRMVersion->version_minor >= 19 &&
+	    info->FbSecureSize) {
             /* we need to backup the PCIE GART TABLE from fb memory */
             memcpy(info->pciGartBackup, (info->FB + info->pciGartOffset), info->pciGartSize);
         }
