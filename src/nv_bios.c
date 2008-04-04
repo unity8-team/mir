@@ -226,6 +226,11 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
 		return 1;
+	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
+		return 1;
+	/* maybe a little large, but it will do for the moment. */
+	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, 0x1000, 0xEFFF))
+		return 1;
 	if (pNv->VBIOS.chip_version >= 0x30 && WITHIN(reg,0x4000,0x600))
 		return 1;
 	if (pNv->VBIOS.chip_version >= 0x40 && WITHIN(reg,0xc000,0x48))

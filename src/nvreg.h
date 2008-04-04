@@ -79,8 +79,8 @@
 #define NV_PCIO_SIZE                0x00002000
 #define NV_PCIO1_OFFSET             0x00603000
 
-#define NV50_PCRTC_OFFSET           0x00610000
-#define NV50_PCRTC_SIZE             0x00004000 /* Until a better guess comes along */
+#define NV50_DISPLAY_OFFSET           0x00610000
+#define NV50_DISPLAY_SIZE             0x0000FFFF
 
 #define NV_PRAMDAC0_OFFSET          0x00680000
 #define NV_PRAMDAC0_SIZE            0x00002000
