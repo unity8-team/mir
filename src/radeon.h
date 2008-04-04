@@ -379,6 +379,9 @@ typedef struct {
     unsigned long     BIOSAddr;         /* BIOS physical address             */
     CARD32            fbLocation;
     CARD32            gartLocation;
+    CARD32            mc_fb_location;
+    CARD32            mc_agp_location;
+    CARD32            mc_agp_location_hi;
 
     void              *MMIO;            /* Map of MMIO region                */
     void              *FB;              /* Map of frame buffer               */
