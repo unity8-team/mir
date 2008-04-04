@@ -51,6 +51,7 @@ void NV50CrtcSetPClk(xf86CrtcPtr crtc)
 	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 	struct pll_lims pll_lim;
 	get_pll_limits(pScrn, pll_reg, &pll_lim);
+	/* NV5x hardware doesn't seem to support a single vco mode, otherwise the blob is hiding it well. */
 	getMNP_double(pScrn, &pll_lim, nv_crtc->pclk, &NM1, &NM2, &log2P);
 
 	uint32_t reg1 = NVRead(pNv, pll_reg + 4);
