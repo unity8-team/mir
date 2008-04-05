@@ -74,7 +74,6 @@
 #include "nouveau_class.h"
 #include "nvreg.h"
 
-#include "nv50_display.h"
 #include "nv50_cursor.h"
 #include "nv50_output.h"
 #include "nv50_type.h"

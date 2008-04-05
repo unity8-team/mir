@@ -228,13 +228,15 @@ Bool NV50EXAUploadSIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
 
 /* in nv50_display.c */
-void NV50CrtcPrepare(xf86CrtcPtr crtc);
-void NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode,
-		DisplayModePtr adjusted_mode, int x, int y);
-void NV50CrtcCommit(xf86CrtcPtr crtc);
-void NV50CrtcSetPClk(xf86CrtcPtr crtc);
+Bool NV50DispPreInit(ScrnInfoPtr);
+Bool NV50DispInit(ScrnInfoPtr);
+void NV50DispShutdown(ScrnInfoPtr);
 
 /* in nv50_cursor.c */
+void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update);
+void NV50CrtcEnableCursor(xf86CrtcPtr, Bool update);
+void NV50CrtcDisableCursor(xf86CrtcPtr, Bool update);
+void NV50CrtcSetCursorPosition(xf86CrtcPtr, int x, int y);
 void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y);
 void NV50CrtcShowCursor(xf86CrtcPtr crtc);
 void NV50CrtcHideCursor(xf86CrtcPtr crtc);
@@ -244,6 +246,11 @@ void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src);
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
 void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
 void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
+void NV50CrtcBlankScreen(xf86CrtcPtr, Bool blank);
+void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, DisplayModePtr, enum scaling_modes);
+void NV50CrtcSetPClk(xf86CrtcPtr crtc);
+
+const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
 
 /* in nv50_output.c */
 

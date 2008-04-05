@@ -1,7 +1,6 @@
 #ifndef __NV50_OUTPUT_H__
 #define __NV50_OUTPUT_H__
 
-#include "nv50_display.h"
 #include "nv_type.h"
 
 int NV50OrOffset(xf86OutputPtr output);

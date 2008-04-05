@@ -29,7 +29,43 @@
 #include "nv_include.h"
 #include "nv50_type.h"
 #include "nv50_cursor.h"
-#include "nv50_display.h"
+
+void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcShowHideCursor is called (%s, %s).\n", show ? "show" : "hide", update ? "update" : "no update");
+
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR, 
+		show ? NV50_CRTC0_CURSOR_SHOW : NV50_CRTC0_CURSOR_HIDE);
+	if (update) {
+		nv_crtc->cursorVisible = show;
+		NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
+	}
+}
+
+void NV50CrtcShowCursor(xf86CrtcPtr crtc)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	/* Calling NV50_UPDATE_DISPLAY during modeset will lock up everything. */
+	if (nv_crtc->modeset_lock)
+		return;
+
+	NV50CrtcShowHideCursor(crtc, TRUE, TRUE);
+}
+
+void NV50CrtcHideCursor(xf86CrtcPtr crtc)
+{
+	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	/* Calling NV50_UPDATE_DISPLAY during modeset will lock up everything. */
+	if (nv_crtc->modeset_lock)
+		return;
+
+	NV50CrtcShowHideCursor(crtc, FALSE, TRUE);
+}
 
 void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y)
 {

@@ -28,7 +28,6 @@
 #include <X11/extensions/dpms.h>
 
 #include "nv_include.h"
-#include "nv50_display.h"
 #include "nv50_output.h"
 
 void
