@@ -20,7 +20,6 @@
 #error "This driver requires a DRI-enabled X server"
 #endif
 
-#include "nv50_type.h"
 #include "nv_pcicompat.h"
 
 #include "nouveau_local.h" /* needed for NOUVEAU_EXA_PIXMAPS */
@@ -82,12 +81,27 @@
 
 typedef enum /* matches DCB types */
 {
-    OUTPUT_NONE = 4,
-    OUTPUT_ANALOG = 0,
-    OUTPUT_TMDS = 2,
-    OUTPUT_LVDS = 3,
-    OUTPUT_TV = 1,
+	OUTPUT_NONE = 4,
+	OUTPUT_ANALOG = 0,
+	OUTPUT_TMDS = 2,
+	OUTPUT_LVDS = 3,
+	OUTPUT_TV = 1,
 } NVOutputType;
+
+/* NV50 */
+typedef enum Head {
+	HEAD0 = 0,
+	HEAD1
+} Head;
+
+/* NV50 */
+typedef enum ORNum {
+	DAC0 = 0,
+	DAC1 = 1,
+	DAC2 = 2,
+	SOR0 = 0,
+	SOR1 = 1
+} ORNum;
 
 typedef struct _nv_crtc_reg 
 {

@@ -28,9 +28,6 @@
 #include <unistd.h>
 
 #include "nv_include.h"
-#include "nv50_type.h"
-#include "nv50_cursor.h"
-#include "nv50_output.h"
 
 Bool
 NV50DispPreInit(ScrnInfoPtr pScrn)

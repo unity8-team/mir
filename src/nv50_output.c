@@ -25,8 +25,6 @@
 #include <string.h>
 
 #include "nv_include.h"
-#include "nv50_type.h"
-#include "nv50_output.h"
 
 #include <xf86DDC.h>
 

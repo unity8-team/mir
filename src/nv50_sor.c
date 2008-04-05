@@ -27,8 +27,6 @@
 #include <X11/Xatom.h>
 
 #include "nv_include.h"
-#include "nv50_type.h"
-#include "nv50_output.h"
 
 void
 NV50SorSetPClk(xf86OutputPtr output, int pclk)

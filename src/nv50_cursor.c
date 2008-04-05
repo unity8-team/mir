@@ -27,8 +27,6 @@
 #include <cursorstr.h>
 
 #include "nv_include.h"
-#include "nv50_type.h"
-#include "nv50_cursor.h"
 
 void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 {
