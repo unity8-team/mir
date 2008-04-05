@@ -24,12 +24,26 @@
 #ifndef __NV50REG_H_
 #define __NV50REG_H_
 
-/* It seems to be i2c port based and can be used to determine if a dvi port is plugged in. */
+/* Bit 28 also does something, although i don't know what. */
+#define NV50_I2C_CONTROLLER_INTR	0x0000E050
+	#define NV50_I2C_CONTROLLER_INTR_PLUG_I2C0		(1 << 0)
+	#define NV50_I2C_CONTROLLER_INTR_PLUG_I2C1		(2 << 0)
+	#define NV50_I2C_CONTROLLER_INTR_UNPLUG_I2C0		(1 << 16)
+	#define NV50_I2C_CONTROLLER_INTR_UNPLUG_I2C1		(2 << 16)
+
+/* Writing 0x7FFF7FFF seems to be the way to acknowledge an interrupt. */
+#define NV50_I2C_CONTROLLER		0x0000E054
+	#define NV50_I2C_CONTROLLER_PLUG_I2C0			(1 << 0)
+	#define NV50_I2C_CONTROLLER_PLUG_I2C1			(2 << 0)
+	#define NV50_I2C_CONTROLLER_UNPLUG_I2C0			(1 << 16)
+	#define NV50_I2C_CONTROLLER_UNPLUG_I2C1			(2 << 16)
+
+/* This works for DVI->VGA adapters as well, providing the adapter supports it. */
 /* It's unknown if bits exist for i2c port > 1. */
 /* Renamed to avoid confusion with other instances of CONNECTED. */
 #define NV50_I2C_STATE_UNK1	0x0000E104
-	#define NV50_I2C_STATE_UNK1_TMDS_0_DETECT_PIN	(1 << 2)
-	#define NV50_I2C_STATE_UNK1_TMDS_1_DETECT_PIN	(1 << 6)
+	#define NV50_I2C_STATE_UNK1_I2C0_DETECT_PIN	(1 << 2)
+	#define NV50_I2C_STATE_UNK1_i2C1_DETECT_PIN	(1 << 6)
 #define NV50_I2C_PORT(i) (0x0000E138 + 0x18*i)
 
 /* 0x00610024 is the state register to read, all it's bits also exist in 0x0061002C in the form of interrupt switches. */
