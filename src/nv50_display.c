@@ -104,14 +104,14 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	/* These labels are guesswork based on symmetry (2 SOR's and 3 DAC's exist)*/
 	NVWrite(pNv, 0x00610184, NVRead(pNv, 0x00614004));
-	NVWrite(pNv, 0x00610190 + SOR0 * 0x10, NVRead(pNv, 0x00616100 + SOR0 * 0x800));
-	NVWrite(pNv, 0x00610190 + SOR1 * 0x10, NVRead(pNv, 0x00616100 + SOR1 * 0x800));
-	NVWrite(pNv, 0x00610194 + SOR0 * 0x10, NVRead(pNv, 0x00616104 + SOR0 * 0x800));
-	NVWrite(pNv, 0x00610194 + SOR1 * 0x10, NVRead(pNv, 0x00616104 + SOR1 * 0x800));
-	NVWrite(pNv, 0x00610198 + SOR0 * 0x10, NVRead(pNv, 0x00616108 + SOR0 * 0x800));
-	NVWrite(pNv, 0x00610198 + SOR1 * 0x10, NVRead(pNv, 0x00616108 + SOR1 * 0x800));
-	NVWrite(pNv, 0x0061019c + SOR0 * 0x10, NVRead(pNv, 0x0061610c + SOR0 * 0x800));
-	NVWrite(pNv, 0x0061019c + SOR1 * 0x10, NVRead(pNv, 0x0061610c + SOR1 * 0x800));
+	NVWrite(pNv, 0x00610190 + 0 * 0x10, NVRead(pNv, 0x00616100 + 0 * 0x800));
+	NVWrite(pNv, 0x00610190 + 1 * 0x10, NVRead(pNv, 0x00616100 + 1 * 0x800));
+	NVWrite(pNv, 0x00610194 + 0 * 0x10, NVRead(pNv, 0x00616104 + 0 * 0x800));
+	NVWrite(pNv, 0x00610194 + 1 * 0x10, NVRead(pNv, 0x00616104 + 1 * 0x800));
+	NVWrite(pNv, 0x00610198 + 0 * 0x10, NVRead(pNv, 0x00616108 + 0 * 0x800));
+	NVWrite(pNv, 0x00610198 + 1 * 0x10, NVRead(pNv, 0x00616108 + 1 * 0x800));
+	NVWrite(pNv, 0x0061019c + 0 * 0x10, NVRead(pNv, 0x0061610c + 0 * 0x800));
+	NVWrite(pNv, 0x0061019c + 1 * 0x10, NVRead(pNv, 0x0061610c + 1 * 0x800));
 	NVWrite(pNv, 0x006101d0 + DAC0 * 0x4, NVRead(pNv, 0x0061a000 + DAC0 * 0x800));
 	NVWrite(pNv, 0x006101d0 + DAC1 * 0x4, NVRead(pNv, 0x0061a000 + DAC1 * 0x800));
 	NVWrite(pNv, 0x006101d0 + DAC2 * 0x4, NVRead(pNv, 0x0061a000 + DAC2 * 0x800));
