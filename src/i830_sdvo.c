@@ -59,7 +59,7 @@ struct i830_sdvo_priv {
     int output_device;
 
     /** Active outputs controlled by this SDVO output */
-    uint16_t active_outputs;
+    uint16_t controlled_output;
 
     /**
      * Capabilities of the SDVO device returned by i830_sdvo_get_capabilities()
@@ -68,6 +68,32 @@ struct i830_sdvo_priv {
 
     /** Pixel clock limitations reported by the SDVO device, in kHz */
     int pixel_clock_min, pixel_clock_max;
+
+    /**
+     * This is set if we're going to treat the device as TV-out.
+     *
+     * While we have these nice friendly flags for output types that ought to
+     * decide this for us, the S-Video output on our HDMI+S-Video card shows
+     * up as RGB1 (VGA).
+     */
+    Bool is_tv;
+
+    /**
+     * Returned SDTV resolutions allowed for the current format, if the
+     * device reported it.
+     */
+    struct i830_sdvo_sdtv_resolution_reply sdtv_resolutions;
+
+    /**
+     * Current selected TV format.
+     *
+     * This is stored in the same structure that's passed to the device, for
+     * convenience.
+     */
+    struct i830_sdvo_tv_format tv_format;
+
+    /** DDC bus used by this SDVO output */
+    uint8_t ddc_bus;
 
     /** State for save/restore */
     /** @{ */
@@ -201,11 +227,13 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODER_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
 };
 
 static I2CSlaveAddr slaveAddr;
 
-#define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVO" : "SDVO")
+#define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVOB" : "SDVOC")
 #define SDVO_PRIV(output)   ((struct i830_sdvo_priv *) (output)->dev_priv)
 
 /**
@@ -643,13 +671,26 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     uint16_t width, height;
     uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
     uint16_t h_sync_offset, v_sync_offset;
+    struct i830_sdvo_in_out_map in_out;
     struct i830_sdvo_dtd output_dtd;
-    uint16_t no_outputs;
-
-    no_outputs = 0;
+    uint8_t status;
 
     if (!mode)
 	return;
+
+    /* First, set the input mapping for the first input to our controlled
+     * output. This is only correct if we're a single-input device, in
+     * which case the first input is the output from the appropriate SDVO
+     * channel on the motherboard.  In a two-input device, the first input
+     * will be SDVOB and the second SDVOC.
+     */
+    in_out.in0 = dev_priv->controlled_output;
+    in_out.in1 = 0;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_IN_OUT_MAP,
+			&in_out, sizeof(in_out));
+    status = i830_sdvo_read_response(output, NULL, 0);
+
     width = mode->CrtcHDisplay;
     height = mode->CrtcVDisplay;
     
@@ -692,7 +733,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     output_dtd.part2.reserved = 0;
 
     /* Set the output timing to the screen */
-    i830_sdvo_set_target_output(output, dev_priv->active_outputs);
+    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
     i830_sdvo_set_output_timing(output, &output_dtd);
 
     /* Set the input timing to the screen. Assume always input 0. */
@@ -800,7 +841,7 @@ i830_sdvo_dpms(xf86OutputPtr output, int mode)
 
 	if (0)
 	    i830_sdvo_set_encoder_power_state(output, mode);
-	i830_sdvo_set_active_outputs(output, dev_priv->active_outputs);
+	i830_sdvo_set_active_outputs(output, dev_priv->controlled_output);
     }
 }
 
@@ -818,12 +859,10 @@ i830_sdvo_save(xf86OutputPtr output)
     dev_priv->save_sdvo_mult = i830_sdvo_get_clock_rate_mult(output);
     i830_sdvo_get_active_outputs(output, &dev_priv->save_active_outputs);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
-       i830_sdvo_set_target_input(output, TRUE, FALSE);
-       i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_1);
-    }
+    i830_sdvo_set_target_input(output, TRUE, FALSE);
+    i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_1);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x2) {
+    if (dev_priv->caps.sdvo_input_count >= 2) {
        i830_sdvo_set_target_input(output, FALSE, TRUE);
        i830_sdvo_get_input_timing(output, &dev_priv->save_input_dtd_2);
     }
@@ -836,6 +875,9 @@ i830_sdvo_save(xf86OutputPtr output)
 	    i830_sdvo_set_target_output(output, this_output);
 	    i830_sdvo_get_output_timing(output, &dev_priv->save_output_dtd[o]);
 	}
+    }
+    if (dev_priv->is_tv) {
+	/* XXX: Save TV format/enhancements. */
     }
 
     dev_priv->save_SDVOX = INREG(dev_priv->output_device);
@@ -864,17 +906,19 @@ i830_sdvo_restore(xf86OutputPtr output)
 	}
     }
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x1) {
-       i830_sdvo_set_target_input(output, TRUE, FALSE);
-       i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_1);
-    }
+    i830_sdvo_set_target_input(output, TRUE, FALSE);
+    i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_1);
 
-    if (dev_priv->caps.sdvo_inputs_mask & 0x2) {
+    if (dev_priv->caps.sdvo_input_count >= 2) {
        i830_sdvo_set_target_input(output, FALSE, TRUE);
        i830_sdvo_set_input_timing(output, &dev_priv->save_input_dtd_2);
     }
 
     i830_sdvo_set_clock_rate_mult(output, dev_priv->save_sdvo_mult);
+
+    if (dev_priv->is_tv) {
+	/* XXX: Restore TV format/enhancements. */
+    }
 
     i830_sdvo_write_sdvox(output, dev_priv->save_SDVOX);
 
@@ -970,8 +1014,9 @@ i830_sdvo_ddc_i2c_start(I2CBusPtr b, int timeout)
     xf86OutputPtr	    output = b->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
 
-    i830_sdvo_set_control_bus_switch(output, SDVO_CONTROL_BUS_DDC2);
+    i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
     return i2cbus->I2CStart(i2cbus, timeout);
 }
 
@@ -1052,6 +1097,8 @@ i830_sdvo_dump_device(xf86OutputPtr output)
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_CLOCK_RATE_MULT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_TV_FORMATS);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_TV_FORMAT);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS);
 }
 
 void
@@ -1098,7 +1145,7 @@ i830_sdvo_detect(xf86OutputPtr output)
 }
 
 static DisplayModePtr
-i830_sdvo_get_modes(xf86OutputPtr output)
+i830_sdvo_get_ddc_modes(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -1128,6 +1175,128 @@ i830_sdvo_get_modes(xf86OutputPtr output)
     }
 
     return modes;
+}
+
+/**
+ * Constructs a DisplayModeRec for the given widht/height/refresh, which will
+ * be programmed into the display pipe.  The TV encoder's scaler will filter
+ * this to the format actually required by the display.
+ */
+static void
+i830_sdvo_get_tv_mode(DisplayModePtr *head, int width, int height,
+		      float refresh)
+{
+    DisplayModePtr mode;
+
+    mode = xcalloc(1, sizeof(*mode));
+    if (mode == NULL)
+	return;
+
+    mode->name = XNFprintf("%dx%d@%.2f", width, height, refresh);
+    mode->HDisplay = width;
+    mode->HSyncStart = width + 1;
+    mode->HSyncEnd = width + 64;
+    mode->HTotal = width + 96;
+
+    mode->VDisplay = height;
+    mode->VSyncStart = height + 1;
+    mode->VSyncEnd = height + 32;
+    mode->VTotal = height + 33;
+
+    mode->Clock = (int) (refresh * mode->VTotal * mode->HTotal / 1000.0);
+    mode->type = M_T_DRIVER;
+    mode->next = NULL;
+    mode->prev = NULL;
+
+    mode->next = NULL;
+    mode->prev = *head;
+    if (*head != NULL)
+	(*head)->next = mode;
+    else
+	*head = mode;
+}
+
+/**
+ * This function checks the current TV format, and chooses a default if
+ * it hasn't been set.
+ */
+static void
+i830_sdvo_check_tv_format(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    struct i830_sdvo_tv_format format, unset;
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_TV_FORMAT, NULL, 0);
+    status = i830_sdvo_read_response(output, &format, sizeof(format));
+    if (status != SDVO_CMD_STATUS_SUCCESS)
+	return;
+
+    memset(&unset, 0, sizeof(unset));
+    if (memcmp(&format, &unset, sizeof(format))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "%s: Choosing default TV format of NTSC-M\n",
+		   SDVO_NAME(dev_priv));
+
+	format.ntsc_m = TRUE;
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, NULL, 0);
+	status = i830_sdvo_read_response(output, NULL, 0);
+    }
+}
+
+static DisplayModePtr
+i830_sdvo_get_tv_modes(xf86OutputPtr output)
+{
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    DisplayModePtr modes = NULL;
+    struct i830_sdvo_sdtv_resolution_reply *res = &dev_priv->sdtv_resolutions;
+    uint8_t status;
+    float refresh = 60; /* XXX */
+
+    i830_sdvo_check_tv_format(output);
+
+    /* Read the list of supported input resolutions for the selected TV format.
+     */
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT, NULL, 0);
+    status = i830_sdvo_read_response(output, res, sizeof(*res));
+    if (status != SDVO_CMD_STATUS_SUCCESS)
+	return NULL;
+
+    if (res->res_320x200) i830_sdvo_get_tv_mode(&modes, 320, 200, refresh);
+    if (res->res_320x240) i830_sdvo_get_tv_mode(&modes, 320, 240, refresh);
+    if (res->res_400x300) i830_sdvo_get_tv_mode(&modes, 400, 300, refresh);
+    if (res->res_640x350) i830_sdvo_get_tv_mode(&modes, 640, 350, refresh);
+    if (res->res_640x400) i830_sdvo_get_tv_mode(&modes, 640, 400, refresh);
+    if (res->res_640x480) i830_sdvo_get_tv_mode(&modes, 640, 480, refresh);
+    if (res->res_704x480) i830_sdvo_get_tv_mode(&modes, 704, 480, refresh);
+    if (res->res_704x576) i830_sdvo_get_tv_mode(&modes, 704, 576, refresh);
+    if (res->res_720x350) i830_sdvo_get_tv_mode(&modes, 720, 350, refresh);
+    if (res->res_720x400) i830_sdvo_get_tv_mode(&modes, 720, 400, refresh);
+    if (res->res_720x480) i830_sdvo_get_tv_mode(&modes, 720, 480, refresh);
+    if (res->res_720x540) i830_sdvo_get_tv_mode(&modes, 720, 540, refresh);
+    if (res->res_720x576) i830_sdvo_get_tv_mode(&modes, 720, 576, refresh);
+    if (res->res_800x600) i830_sdvo_get_tv_mode(&modes, 800, 600, refresh);
+    if (res->res_832x624) i830_sdvo_get_tv_mode(&modes, 832, 624, refresh);
+    if (res->res_920x766) i830_sdvo_get_tv_mode(&modes, 920, 766, refresh);
+    if (res->res_1024x768) i830_sdvo_get_tv_mode(&modes, 1024, 768, refresh);
+    if (res->res_1280x1024) i830_sdvo_get_tv_mode(&modes, 1280, 1024, refresh);
+
+    return modes;
+}
+
+static DisplayModePtr
+i830_sdvo_get_modes(xf86OutputPtr output)
+{
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+
+    if (dev_priv->is_tv)
+	return i830_sdvo_get_tv_modes(output);
+    else
+	return i830_sdvo_get_ddc_modes(output);
 }
 
 static void
@@ -1176,6 +1345,60 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .get_crtc = i830_sdvo_get_crtc,
 #endif
 };
+
+static unsigned int count_bits(uint32_t mask)
+{
+    unsigned int n;
+
+    for (n = 0; mask; n++)
+	mask &= mask - 1;
+
+    return n;
+}
+
+/**
+ * Choose the appropriate DDC bus for control bus switch command for this
+ * SDVO output based on the controlled output.
+ *
+ * DDC bus number assignment is in a priority order of RGB outputs, then TMDS
+ * outputs, then LVDS outputs.
+ */
+static void
+i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
+{
+    uint16_t mask = 0;
+    unsigned int num_bits;
+
+    /* Make a mask of outputs less than or equal to our own priority in the
+     * list.
+     */
+    switch (dev_priv->controlled_output) {
+    case SDVO_OUTPUT_LVDS1:
+	mask |= SDVO_OUTPUT_LVDS1;
+    case SDVO_OUTPUT_LVDS0:
+	mask |= SDVO_OUTPUT_LVDS0;
+    case SDVO_OUTPUT_TMDS1:
+	mask |= SDVO_OUTPUT_TMDS1;
+    case SDVO_OUTPUT_TMDS0:
+	mask |= SDVO_OUTPUT_TMDS0;
+    case SDVO_OUTPUT_RGB1:
+	mask |= SDVO_OUTPUT_RGB1;
+    case SDVO_OUTPUT_RGB0:
+	mask |= SDVO_OUTPUT_RGB0;
+	break;
+    }
+
+    /* Count bits to find what number we are in the priority list. */
+    mask &= dev_priv->caps.output_flags;
+    num_bits = count_bits(mask);
+    if (num_bits > 3) {
+	/* if more than 3 outputs, default to DDC bus 3 for now */
+	num_bits = 3;
+    }
+
+    /* Corresponds to SDVO_CONTROL_BUS_DDCx */
+    dev_priv->ddc_bus = 1 << num_bits;
+}
 
 void
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
@@ -1294,28 +1517,34 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     i830_sdvo_get_capabilities(output, &dev_priv->caps);
 
-    memset(&dev_priv->active_outputs, 0, sizeof(dev_priv->active_outputs));
     if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
     {
-	dev_priv->active_outputs = SDVO_OUTPUT_TMDS0;
+	dev_priv->controlled_output = SDVO_OUTPUT_TMDS0;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
     {
-	dev_priv->active_outputs = SDVO_OUTPUT_TMDS1;
+	dev_priv->controlled_output = SDVO_OUTPUT_TMDS1;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
     }
+    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
+        output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
+	name_prefix="TV";
+	dev_priv->is_tv = TRUE;
+    }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
     {
-	dev_priv->active_outputs = SDVO_OUTPUT_RGB0;
+	dev_priv->controlled_output = SDVO_OUTPUT_RGB0;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB1)
     {
-	dev_priv->active_outputs = SDVO_OUTPUT_RGB1;
+	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
     }
@@ -1323,13 +1552,15 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     {
 	unsigned char	bytes[2];
 
+	dev_priv->controlled_output = 0;
 	memcpy (bytes, &dev_priv->caps.output_flags, 2);
-	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_ERROR,
-		   "%s: No active TMDS outputs (0x%02x%02x)\n",
+	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
+		   "%s: Unknown SDVO output type (0x%02x%02x)\n",
 		   SDVO_NAME(dev_priv),
 		   bytes[0], bytes[1]);
 	name_prefix="Unknown";
     }
+
     strcpy (name, name_prefix);
     strcat (name, name_suffix);
     if (!xf86OutputRename (output, name))
@@ -1337,8 +1568,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	xf86OutputDestroy (output);
 	return;
     }
-	
-    
+
+    i830_sdvo_select_ddc_bus(dev_priv);
+
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);
 
@@ -1346,17 +1578,40 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 					  &dev_priv->pixel_clock_max);
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "%s device VID/DID: %02X:%02X.%02X, "
-	       "clock range %.1fMHz - %.1fMHz, "
-	       "input 1: %c, input 2: %c, "
-	       "output 1: %c, output 2: %c\n",
+	       "%s: device VID/DID: %02X:%02X.%02X, "
+	       "clock range %.1fMHz - %.1fMHz\n",
 	       SDVO_NAME(dev_priv),
 	       dev_priv->caps.vendor_id, dev_priv->caps.device_id,
 	       dev_priv->caps.device_rev_id,
 	       dev_priv->pixel_clock_min / 1000.0,
-	       dev_priv->pixel_clock_max / 1000.0,
-	       (dev_priv->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
-	       (dev_priv->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_TMDS0) ? 'Y' : 'N',
-	       dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB1 | SDVO_OUTPUT_TMDS1) ? 'Y' : 'N');
+	       dev_priv->pixel_clock_max / 1000.0);
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "%s: %d input channel%s\n",
+	       SDVO_NAME(dev_priv), dev_priv->caps.sdvo_input_count,
+	       dev_priv->caps.sdvo_input_count >= 2 ? "s" : "");
+
+#define REPORT_OUTPUT_FLAG(flag, name) do {				\
+    if (dev_priv->caps.output_flags & flag) {				\
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s: %s output reported\n", \
+		   SDVO_NAME(dev_priv), name);				\
+    }									\
+} while (0)
+
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_TMDS0, "TMDS0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_RGB0, "RGB0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_CVBS0, "CVBS0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SVID0, "SVID0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_YPRPB0, "YPRPB0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART0, "SCART0");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS0, "LVDS0");
+
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_TMDS1, "TMDS1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_RGB1, "RGB1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_CVBS1, "CVBS1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SVID1, "SVID1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_YPRPB1, "YPRPB1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART1, "SCART1");
+    REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS1, "LVDS1");
+
 }
