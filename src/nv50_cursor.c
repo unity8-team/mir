@@ -79,7 +79,7 @@ void nv50_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	NVWrite(pNv, 0x00647080 + nv_crtc->head * 0x1000, 0);
 }
 
-void nv50_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
+void nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;

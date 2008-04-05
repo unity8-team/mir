@@ -49,7 +49,7 @@ NV50OutputSetPClk(xf86OutputPtr output, int pclk)
 }
 
 int
-NV50OutputModeValid(xf86OutputPtr output, DisplayModePtr mode)
+nv50_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
 	if (mode->Clock > 400000)
 		return MODE_CLOCK_HIGH;
