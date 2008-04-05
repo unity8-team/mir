@@ -234,13 +234,10 @@ void NV50DispShutdown(ScrnInfoPtr);
 
 /* in nv50_cursor.c */
 void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update);
-void NV50CrtcEnableCursor(xf86CrtcPtr, Bool update);
-void NV50CrtcDisableCursor(xf86CrtcPtr, Bool update);
-void NV50CrtcSetCursorPosition(xf86CrtcPtr, int x, int y);
-void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y);
-void NV50CrtcShowCursor(xf86CrtcPtr crtc);
-void NV50CrtcHideCursor(xf86CrtcPtr crtc);
-void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src);
+void nv50_crtc_show_cursor(xf86CrtcPtr crtc);
+void nv50_crtc_hide_cursor(xf86CrtcPtr crtc);
+void nv50_crtc_set_cursor_position(xf86CrtcPtr, int x, int y);
+void nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src);
 Bool NV50CursorInit(ScreenPtr);
 Bool NV50CursorAcquire(ScrnInfoPtr);
 void NV50CursorRelease(ScrnInfoPtr);
@@ -258,10 +255,10 @@ const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
 /* in nv50_output.c */
 int NV50OrOffset(xf86OutputPtr output);
 void NV50OutputSetPClk(xf86OutputPtr, int pclk);
-int NV50OutputModeValid(xf86OutputPtr, DisplayModePtr);
-void NV50OutputPrepare(xf86OutputPtr);
-void NV50OutputCommit(xf86OutputPtr);
-DisplayModePtr NV50OutputGetDDCModes(xf86OutputPtr);
+int nv50_output_mode_valid(xf86OutputPtr, DisplayModePtr);
+void nv50_output_prepare(xf86OutputPtr);
+void nv50_output_commit(xf86OutputPtr);
+DisplayModePtr nv50_output_get_ddc_modes(xf86OutputPtr);
 void NV50OutputDestroy(xf86OutputPtr);
 xf86MonPtr NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus);
 

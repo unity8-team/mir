@@ -43,10 +43,10 @@ NV50SorSetPClk(xf86OutputPtr output, int pclk)
 }
 
 static void
-NV50SorDPMSSet(xf86OutputPtr output, int mode)
+nv50_sor_dpms(xf86OutputPtr output, int mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorDPMSSet is called with mode %d.\n", mode);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_dpms is called with mode %d.\n", mode);
 
 	NVPtr pNv = NVPTR(pScrn);
 	CARD32 tmp;
@@ -66,7 +66,7 @@ NV50SorDPMSSet(xf86OutputPtr output, int mode)
 }
 
 static int
-NV50TMDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
+nv50_tmds_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
@@ -78,11 +78,11 @@ NV50TMDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 	if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
 		return MODE_PANEL;
 
-	return NV50OutputModeValid(output, mode);
+	return nv50_output_mode_valid(output, mode);
 }
 
 static int
-NV50LVDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
+nv50_lvds_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	DisplayModePtr native = nv_output->native_mode;
@@ -91,15 +91,15 @@ NV50LVDSModeValid(xf86OutputPtr output, DisplayModePtr mode)
 	if (mode->HDisplay > native->HDisplay || mode->VDisplay > native->VDisplay)
 		return MODE_PANEL;
 
-	return NV50OutputModeValid(output, mode);
+	return nv50_output_mode_valid(output, mode);
 }
 
 static void
-NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
+nv50_sor_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorModeSet is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_mode_set is called.\n");
 
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int sorOff = 0x40 * NV50OrOffset(output);
@@ -136,9 +136,9 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		mode_ctl |= NV50_SOR_MODE_CTRL_NVSYNC;
 
 	// This wouldn't be necessary, but the server is stupid and calls
-	// NV50SorDPMSSet after the output is disconnected, even though the hardware
+	// nv50_sor_dpms after the output is disconnected, even though the hardware
 	// turns it off automatically.
-	NV50SorDPMSSet(output, DPMSModeOn);
+	nv50_sor_dpms(output, DPMSModeOn);
 
 	NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
 
@@ -146,10 +146,10 @@ NV50SorModeSet(xf86OutputPtr output, DisplayModePtr mode,
 }
 
 static xf86OutputStatus
-NV50SorDetect(xf86OutputPtr output)
+nv50_sor_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorDetect is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_detect is called.\n");
 
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
@@ -168,17 +168,17 @@ NV50SorDetect(xf86OutputPtr output)
 }
 
 static xf86OutputStatus
-NV50SorLVDSDetect(xf86OutputPtr output)
+nv50_lvds_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorLVDSDetect is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_lvds_detect is called.\n");
 
 	/* Assume LVDS is always connected */
 	return XF86OutputStatusConnected;
 }
 
 static void
-NV50SorDestroy(xf86OutputPtr output)
+nv50_sor_destroy(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
@@ -191,11 +191,11 @@ NV50SorDestroy(xf86OutputPtr output)
 }
 
 static Bool
-NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
+nv50_sor_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorModeFixup is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_mode_fixup is called.\n");
 
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
@@ -220,42 +220,42 @@ NV50SorModeFixup(xf86OutputPtr output, DisplayModePtr mode,
 }
 
 static DisplayModePtr
-NV50SorGetLVDSModes(xf86OutputPtr output)
+nv50_lvds_get_modes(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	return xf86DuplicateMode(nv_output->native_mode);
 }
 
 static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
-	.dpms = NV50SorDPMSSet,
+	.dpms = nv50_sor_dpms,
 	.save = NULL,
 	.restore = NULL,
-	.mode_valid = NV50TMDSModeValid,
-	.mode_fixup = NV50SorModeFixup,
-	.prepare = NV50OutputPrepare,
-	.commit = NV50OutputCommit,
-	.mode_set = NV50SorModeSet,
-	.detect = NV50SorDetect,
-	.get_modes = NV50OutputGetDDCModes,
+	.mode_valid = nv50_tmds_mode_valid,
+	.mode_fixup = nv50_sor_mode_fixup,
+	.prepare = nv50_output_prepare,
+	.commit = nv50_output_commit,
+	.mode_set = nv50_sor_mode_set,
+	.detect = nv50_sor_detect,
+	.get_modes = nv50_output_get_ddc_modes,
 	.create_resources = nv_digital_output_create_resources,
 	.set_property = nv_digital_output_set_property,
-	.destroy = NV50SorDestroy,
+	.destroy = nv50_sor_destroy,
 };
 
 static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
-	.dpms = NV50SorDPMSSet,
+	.dpms = nv50_sor_dpms,
 	.save = NULL,
 	.restore = NULL,
-	.mode_valid = NV50LVDSModeValid,
-	.mode_fixup = NV50SorModeFixup,
-	.prepare = NV50OutputPrepare,
-	.commit = NV50OutputCommit,
-	.mode_set = NV50SorModeSet,
-	.detect = NV50SorLVDSDetect,
-	.get_modes = NV50SorGetLVDSModes,
+	.mode_valid = nv50_lvds_mode_valid,
+	.mode_fixup = nv50_sor_mode_fixup,
+	.prepare = nv50_output_prepare,
+	.commit = nv50_output_commit,
+	.mode_set = nv50_sor_mode_set,
+	.detect = nv50_lvds_detect,
+	.get_modes = nv50_lvds_get_modes,
 	.create_resources = nv_digital_output_create_resources,
 	.set_property = nv_digital_output_set_property,
-	.destroy = NV50SorDestroy,
+	.destroy = nv50_sor_destroy,
 };
 
 const xf86OutputFuncsRec * nv50_get_tmds_output_funcs()

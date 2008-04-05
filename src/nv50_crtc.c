@@ -161,10 +161,10 @@ NV50CrtcSetDither(xf86CrtcPtr crtc, Bool update)
 }
 
 static void
-NV50CrtcModeSet(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
+nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcModeSet is called with position (%d, %d).\n", x, y);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_mode_set is called with position (%d, %d).\n", x, y);
 
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
@@ -284,10 +284,10 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 }
 
 static void
-NV50CrtcPrepare(xf86CrtcPtr crtc)
+nv50_crtc_prepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcPrepare is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_prepare is called.\n");
 
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -354,10 +354,10 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 }
 
 static void
-NV50CrtcCommit(xf86CrtcPtr crtc)
+nv50_crtc_commit(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcCommit is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_commit is called.\n");
 
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
@@ -472,16 +472,16 @@ static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.lock = nv50_crtc_lock,
 	.unlock = NULL,
 	.mode_fixup = nv50_crtc_mode_fixup,
-	.prepare = NV50CrtcPrepare,
-	.mode_set = NV50CrtcModeSet,
+	.prepare = nv50_crtc_prepare,
+	.mode_set = nv50_crtc_mode_set,
 	.gamma_set = nv50_crtc_gamma_set,
-	.commit = NV50CrtcCommit,
+	.commit = nv50_crtc_commit,
 	.shadow_create = NULL,
 	.shadow_destroy = NULL,
-	.set_cursor_position = NV50SetCursorPosition,
-	.show_cursor = NV50CrtcShowCursor,
-	.hide_cursor = NV50CrtcHideCursor,
-	.load_cursor_argb = NV50LoadCursorARGB,
+	.set_cursor_position = nv50_crtc_set_cursor_position,
+	.show_cursor = nv50_crtc_show_cursor,
+	.hide_cursor = nv50_crtc_hide_cursor,
+	.load_cursor_argb = nv50_crtc_load_cursor_argb,
 	.destroy = NULL,
 };
 

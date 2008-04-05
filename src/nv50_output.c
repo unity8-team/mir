@@ -60,12 +60,12 @@ NV50OutputModeValid(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 void
-NV50OutputPrepare(xf86OutputPtr output)
+nv50_output_prepare(xf86OutputPtr output)
 {
 }
 
 void
-NV50OutputCommit(xf86OutputPtr output)
+nv50_output_commit(xf86OutputPtr output)
 {
 }
 
@@ -86,7 +86,7 @@ NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus)
 }
 
 DisplayModePtr
-NV50OutputGetDDCModes(xf86OutputPtr output)
+nv50_output_get_ddc_modes(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;

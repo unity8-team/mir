@@ -43,7 +43,7 @@ void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update)
 	}
 }
 
-void NV50CrtcShowCursor(xf86CrtcPtr crtc)
+void nv50_crtc_show_cursor(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
@@ -54,7 +54,7 @@ void NV50CrtcShowCursor(xf86CrtcPtr crtc)
 	NV50CrtcShowHideCursor(crtc, TRUE, TRUE);
 }
 
-void NV50CrtcHideCursor(xf86CrtcPtr crtc)
+void nv50_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
@@ -65,7 +65,7 @@ void NV50CrtcHideCursor(xf86CrtcPtr crtc)
 	NV50CrtcShowHideCursor(crtc, FALSE, TRUE);
 }
 
-void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y)
+void nv50_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -79,7 +79,7 @@ void NV50SetCursorPosition(xf86CrtcPtr crtc, int x, int y)
 	NVWrite(pNv, 0x00647080 + nv_crtc->head * 0x1000, 0);
 }
 
-void NV50LoadCursorARGB(xf86CrtcPtr crtc, CARD32 *src)
+void nv50_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;

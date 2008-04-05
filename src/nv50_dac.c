@@ -40,10 +40,10 @@ NV50DacSetPClk(xf86OutputPtr output, int pclk)
 }
 
 static void
-NV50DacDPMSSet(xf86OutputPtr output, int mode)
+nv50_dac_dpms(xf86OutputPtr output, int mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacDPMSSet is called with mode %d.\n", mode);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_dpms is called with mode %d.\n", mode);
 
 	CARD32 tmp;
 	NVPtr pNv = NVPTR(pScrn);
@@ -73,21 +73,21 @@ NV50DacDPMSSet(xf86OutputPtr output, int mode)
 }
 
 Bool
-NV50DacModeFixup(xf86OutputPtr output, DisplayModePtr mode,
+nv50_dac_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		 DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacModeFixup is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_mode_fixup is called.\n");
 
 	return TRUE;
 }
 
 static void
-NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
+nv50_dac_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		DisplayModePtr adjusted_mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacModeSet is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_mode_set is called.\n");
 
 	const int dacOff = 0x80 * NV50OrOffset(output);
 	uint32_t mode_ctl = NV50_DAC_MODE_CTRL_OFF;
@@ -118,9 +118,9 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
 		mode_ctl2 |= NV50_DAC_MODE_CTRL2_NVSYNC;
 
 	// This wouldn't be necessary, but the server is stupid and calls
-	// NV50DacDPMSSet after the output is disconnected, even though the hardware
+	// nv50_dac_dpms after the output is disconnected, even though the hardware
 	// turns it off automatically.
-	NV50DacDPMSSet(output, DPMSModeOn);
+	nv50_dac_dpms(output, DPMSModeOn);
 
 	NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL + dacOff, mode_ctl);
 
@@ -133,10 +133,10 @@ NV50DacModeSet(xf86OutputPtr output, DisplayModePtr mode,
  * Perform DAC load detection to determine if there is a connected display.
  */
 static xf86OutputStatus
-NV50DacDetect(xf86OutputPtr output)
+nv50_dac_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacDetect is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_detect is called.\n");
 
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	xf86MonPtr ddc_mon;
@@ -191,7 +191,7 @@ NV50DacLoadDetect(xf86OutputPtr output)
 }
 
 static void
-NV50DacDestroy(xf86OutputPtr output)
+nv50_dac_destroy(xf86OutputPtr output)
 {
 	NV50OutputDestroy(output);
 
@@ -200,17 +200,17 @@ NV50DacDestroy(xf86OutputPtr output)
 }
 
 static const xf86OutputFuncsRec NV50DacOutputFuncs = {
-	.dpms = NV50DacDPMSSet,
+	.dpms = nv50_dac_dpms,
 	.save = NULL,
 	.restore = NULL,
-	.mode_valid = NV50OutputModeValid,
-	.mode_fixup = NV50DacModeFixup,
-	.prepare = NV50OutputPrepare,
-	.commit = NV50OutputCommit,
-	.mode_set = NV50DacModeSet,
-	.detect = NV50DacDetect,
-	.get_modes = NV50OutputGetDDCModes,
-	.destroy = NV50DacDestroy,
+	.mode_valid = nv50_output_mode_valid,
+	.mode_fixup = nv50_dac_mode_fixup,
+	.prepare = nv50_output_prepare,
+	.commit = nv50_output_commit,
+	.mode_set = nv50_dac_mode_set,
+	.detect = nv50_dac_detect,
+	.get_modes = nv50_output_get_ddc_modes,
+	.destroy = nv50_dac_destroy,
 };
 
 const xf86OutputFuncsRec * nv50_get_analog_output_funcs()
