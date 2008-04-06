@@ -166,8 +166,14 @@
 /* These connected indicators exist for crtc, dac and sor. */
 #define NV50_SOR0_CLK_CTRL2	0x0061C008
 	#define NV50_SOR_CLK_CTRL2_CONNECTED		(3 << 9)
+#define NV50_SOR0_DPMS_STATE	0x0061C030
+	#define NV50_SOR_DPMS_STATE_SOR_ACTIVE			(3 << 16) /* this does not show if DAC is active */
+	#define NV50_SOR_DPMS_STATE_SOR_DPMS_OFF		(8 << 16) /* as in blanked */
+	#define NV50_SOR_DPMS_STATE_PENDING			(1 << 28)
+
 #define NV50_SOR1_DPMS_CTRL	0x0061C804
 #define NV50_SOR1_CLK_CTRL2	0x0061C808
+#define NV50_SOR1_DPMS_STATE	0x0061C830
 
 #define NV50_CRTC0_CURSOR_POS		0x00647084
 #define NV50_CRTC1_CURSOR_POS		0x00648084
