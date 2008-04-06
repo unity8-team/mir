@@ -50,7 +50,8 @@
 /* 0x00610024 is the state register to read, all it's bits also exist in 0x0061002C in the form of interrupt switches. */
 #define NV50_DISPLAY_SUPERVISOR		0x00610024
 	#define NV50_DISPLAY_SUPERVISOR_CRTC0			(1 << 2)
-	#define NV50_DISPLAY_SUPERVISOR_CRTC1			(1 << 3)
+	#define NV50_DISPLAY_SUPERVISOR_CRTC1			(2 << 2)
+	#define NV50_DISPLAY_SUPERVISOR_CRTCn			(3 << 2)
 	#define NV50_DISPLAY_SUPERVISOR_CLK_MASK		(7 << 4)
 	#define NV50_DISPLAY_SUPERVISOR_CLK_UPDATE		(2 << 4)
 

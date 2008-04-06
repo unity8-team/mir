@@ -248,7 +248,7 @@ void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
 void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
 void NV50CrtcBlankScreen(xf86CrtcPtr, Bool blank);
 void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, DisplayModePtr, enum scaling_modes);
-void NV50CrtcSetPClk(xf86CrtcPtr crtc);
+void NV50CrtcSetPClk(xf86CrtcPtr crtc, Bool update);
 
 const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
 

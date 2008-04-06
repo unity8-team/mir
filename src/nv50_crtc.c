@@ -28,9 +28,23 @@
 void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	int t_start = GetTimeInMillis();
+
 	while (NVRead(pNv, NV50_DISPLAY_CTRL_STATE) & NV50_DISPLAY_CTRL_STATE_PENDING) {
 		/* An educated guess. */
 		const uint32_t supervisor = NVRead(pNv, NV50_DISPLAY_SUPERVISOR);
+
+		/* Just in case something goes bad, at least you can blindly restart your machine. */
+		if ((GetTimeInMillis() - t_start) > 5000) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "NV50CheckWriteVClk() timed out.\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "A reboot is probably required now.\n");
+			break;
+		}
+
+		/* Simply acknowledge it, maybe we should do more? */
+		if (supervisor & NV50_DISPLAY_SUPERVISOR_CRTCn) {
+			NVWrite(pNv, NV50_DISPLAY_SUPERVISOR, supervisor & NV50_DISPLAY_SUPERVISOR_CRTCn);
+		}
 
 		if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_MASK) {
 			if (supervisor & NV50_DISPLAY_SUPERVISOR_CLK_UPDATE) {
@@ -48,9 +62,10 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 					else
 						mask = NV50_DISPLAY_UNK30_CTRL_UPDATE_VCLK0;
 
-					if (clockvar & mask) {
-						NV50CrtcSetPClk(crtc);
-					}
+					/* Always do something if the supervisor wants a clock change. */
+					/* This is needed because you get a deadlock if you don't kick the NV50_CRTC0_CLK_CTRL2 register. */
+					if (nv_crtc->modeset_lock || (clockvar & mask))
+						NV50CrtcSetPClk(crtc, !!(clockvar & mask));
 				}
 			}
 
@@ -78,47 +93,50 @@ void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
 	NV50DisplayCommand(pScrn, addr + 0x400 * nv_crtc->head, value);
 }
 
-void NV50CrtcSetPClk(xf86CrtcPtr crtc)
+void NV50CrtcSetPClk(xf86CrtcPtr crtc, Bool update)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetPClk is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetPClk is called (%s).\n", update ? "update" : "no update");
 
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
 
-	/* I don't know why exactly, but these were in my table. */
-	uint32_t pll_reg = nv_crtc->head ? NV50_CRTC1_CLK_CTRL1 : NV50_CRTC0_CLK_CTRL1;
+	/* Sometimes NV50_CRTC0_CLK_CTRL2 needs a kick, but the clock needs no update. */
+	if (update) {
+		/* I don't know why exactly, but these were in my table. */
+		uint32_t pll_reg = nv_crtc->head ? NV50_CRTC1_CLK_CTRL1 : NV50_CRTC0_CLK_CTRL1;
 
-	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
-	struct pll_lims pll_lim;
-	get_pll_limits(pScrn, pll_reg, &pll_lim);
-	/* NV5x hardware doesn't seem to support a single vco mode, otherwise the blob is hiding it well. */
-	getMNP_double(pScrn, &pll_lim, nv_crtc->pclk, &NM1, &NM2, &log2P);
+		int NM1 = 0xbeef, NM2 = 0xdead, log2P;
+		struct pll_lims pll_lim;
+		get_pll_limits(pScrn, pll_reg, &pll_lim);
+		/* NV5x hardware doesn't seem to support a single vco mode, otherwise the blob is hiding it well. */
+		getMNP_double(pScrn, &pll_lim, nv_crtc->pclk, &NM1, &NM2, &log2P);
 
-	uint32_t reg1 = NVRead(pNv, pll_reg + 4);
-	uint32_t reg2 = NVRead(pNv, pll_reg + 8);
+		uint32_t reg1 = NVRead(pNv, pll_reg + 4);
+		uint32_t reg2 = NVRead(pNv, pll_reg + 8);
 
-	/* bit0: The blob (and bios) seem to have this on (almost) always.
-	 *          I'm hoping this (experiment) will fix my image stability issues.
-	 */
-	NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, NV50_CRTC_CLK_CTRL1_CONNECTED | 0x10000011);
+		/* bit0: The blob (and bios) seem to have this on (almost) always.
+		 *          I'm hoping this (experiment) will fix my image stability issues.
+		 */
+		NVWrite(pNv, NV50_CRTC0_CLK_CTRL1 + nv_crtc->head * 0x800, NV50_CRTC_CLK_CTRL1_CONNECTED | 0x10000011);
 
-	/* Eventually we should learn ourselves what all the bits should be. */
-	reg1 &= 0xff00ff00;
-	reg2 &= 0x8000ff00;
+		/* Eventually we should learn ourselves what all the bits should be. */
+		reg1 &= 0xff00ff00;
+		reg2 &= 0x8000ff00;
 
-	uint8_t N1 = (NM1 >> 8) & 0xFF;
-	uint8_t M1 = NM1 & 0xFF;
-	uint8_t N2 = (NM2 >> 8) & 0xFF;
-	uint8_t M2 = NM2 & 0xFF;
+		uint8_t N1 = (NM1 >> 8) & 0xFF;
+		uint8_t M1 = NM1 & 0xFF;
+		uint8_t N2 = (NM2 >> 8) & 0xFF;
+		uint8_t M2 = NM2 & 0xFF;
 
-	reg1 |= (M1 << 16) | N1;
-	reg2 |= (log2P << 28) | (M2 << 16) | N2;
+		reg1 |= (M1 << 16) | N1;
+		reg2 |= (log2P << 28) | (M2 << 16) | N2;
 
-	NVWrite(pNv, pll_reg + 4, reg1);
-	NVWrite(pNv, pll_reg + 8, reg2);
+		NVWrite(pNv, pll_reg + 4, reg1);
+		NVWrite(pNv, pll_reg + 8, reg2);
+	}
 
 	/* There seem to be a few indicator bits, which are similar to the SOR_CTRL bits. */
 	NVWrite(pNv, NV50_CRTC0_CLK_CTRL2 + nv_crtc->head * 0x800, 0);
@@ -164,9 +182,8 @@ static void
 nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_mode_set is called with position (%d, %d).\n", x, y);
-
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_mode_set is called for %s with position (%d, %d).\n", nv_crtc->head ? "CRTC1" : "CRTC0", x, y);
 
 	nv_crtc->pclk = adjusted_mode->Clock;
 
@@ -211,7 +228,7 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjuste
 	}
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_SIZE, pScrn->virtualY << 16 | pScrn->virtualX);
 	NV50CrtcCommand(crtc, NV50_CRTC0_PITCH, pScrn->displayWidth * (pScrn->bitsPerPixel / 8) | 0x100000);
-	switch(pScrn->depth) {
+	switch (pScrn->depth) {
 		case 8:
 			NV50CrtcCommand(crtc, NV50_CRTC0_DEPTH, NV50_CRTC0_DEPTH_8BPP); 
 			break;
@@ -244,7 +261,7 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-	if(blank) {
+	if (blank) {
 		NV50CrtcShowHideCursor(crtc, FALSE, FALSE);
 
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, NV50_CRTC0_CLUT_MODE_BLANK);
@@ -364,7 +381,7 @@ nv50_crtc_commit(xf86CrtcPtr crtc)
 	int i, crtc_mask = 0;
 
 	/* If any heads are unused, blank them */
-	for(i = 0; i < xf86_config->num_output; i++) {
+	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 
 		if (output->crtc) {
@@ -373,7 +390,7 @@ nv50_crtc_commit(xf86CrtcPtr crtc)
 		}
 	}
 
-	for(i = 0; i < xf86_config->num_crtc; i++) {
+	for (i = 0; i < xf86_config->num_crtc; i++) {
 		if(!((1 << i) & crtc_mask)) {
 			NV50CrtcBlankScreen(xf86_config->crtc[i], TRUE);
 		}
