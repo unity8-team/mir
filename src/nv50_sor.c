@@ -62,7 +62,7 @@ nv50_sor_dpms(xf86OutputPtr output, int mode)
 		tmp &= ~NV50_SOR_DPMS_CTRL_MODE_ON;
 
 	NVWrite(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800, tmp);
-	while((NVRead(pNv, NV50_SOR0_DPMS_STATE + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_STATE_PENDING));
+	while((NVRead(pNv, NV50_SOR0_DPMS_STATE + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_STATE_WAIT));
 }
 
 static int

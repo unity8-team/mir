@@ -169,7 +169,7 @@
 #define NV50_SOR0_DPMS_STATE	0x0061C030
 	#define NV50_SOR_DPMS_STATE_SOR_ACTIVE			(3 << 16) /* this does not show if DAC is active */
 	#define NV50_SOR_DPMS_STATE_SOR_DPMS_OFF		(8 << 16) /* as in blanked */
-	#define NV50_SOR_DPMS_STATE_PENDING			(1 << 28)
+	#define NV50_SOR_DPMS_STATE_WAIT				(1 << 28)
 
 #define NV50_SOR1_DPMS_CTRL	0x0061C804
 #define NV50_SOR1_CLK_CTRL2	0x0061C808
