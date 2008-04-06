@@ -151,19 +151,34 @@
 	#define	NV50_DAC_DPMS_CTRL_VSYNC_OFF		(1 << 2)
 	#define	NV50_DAC_DPMS_CTRL_BLANK			(1 << 4)
 	#define	NV50_DAC_DPMS_CTRL_OFF			(1 << 6)
+	/* Some cards also use bit 22, why exactly is unknown. */
+	/* It seems that 1, 4 and 5 are present at bit0. bit4. bit16, bit20. */
+	/* No idea what the symmetry means precisely. */
+	#define	NV50_DAC_DPMS_CTRL_DEFAULT_STATE	(21 << 16)
 	#define	NV50_DAC_DPMS_CTRL_PENDING		(1 << 31)
+#define NV50_DAC0_LOAD_CTRL	0x0061A00C
+	#define	NV50_DAC_LOAD_CTRL_ACTIVE			(1 << 20)
+	#define	NV50_DAC_LOAD_CTRL_PRESENT		(7 << 27)
+	/* this a bit of a guess, as load detect is very fast */
+	#define	NV50_DAC_LOAD_CTRL_DONE			(1 << 31)
 /* These connected indicators exist for crtc, dac and sor. */
+/* The upper 4 bits seem to be some kind indicator. */
+/* The purpose of bit 1 is unknown, maybe some kind of reset? */
 #define NV50_DAC0_CLK_CTRL2	0x0061A010
 	#define NV50_DAC_CLK_CTRL2_CONNECTED		(3 << 9)
 #define NV50_DAC1_DPMS_CTRL	0x0061A804
+#define NV50_DAC1_LOAD_CTRL	0x0061A80C
 #define NV50_DAC1_CLK_CTRL2	0x0061A810
 #define NV50_DAC2_DPMS_CTRL	0x0061B004
+#define NV50_DAC2_LOAD_CTRL	0x0061B00C
 #define NV50_DAC2_CLK_CTRL2	0x0061B010
 
+/* both SOR_DPMS and DAC_DPMS have a bit28, whose purpose is unknown atm. */
 #define NV50_SOR0_DPMS_CTRL	0x0061C004
 	#define	NV50_SOR_DPMS_CTRL_MODE_ON		(1 << 0)
 	#define	NV50_SOR_DPMS_CTRL_PENDING		(1 << 31)
 /* These connected indicators exist for crtc, dac and sor. */
+/* I don't know what bit27 does, it doesn't seem extremely important. */
 #define NV50_SOR0_CLK_CTRL2	0x0061C008
 	#define NV50_SOR_CLK_CTRL2_CONNECTED		(3 << 9)
 #define NV50_SOR0_DPMS_STATE	0x0061C030
