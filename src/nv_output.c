@@ -686,7 +686,7 @@ nv_scaling_mode_lookup(char *name, int size)
 }
 
 void
-nv_digital_output_create_resources(xf86OutputPtr output)
+nv_output_create_resources(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
@@ -722,32 +722,34 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 			"Failed to set scaling mode, %d\n", error);
 	}
 
-	/*
-	 * Setup dithering property.
-	 */
-	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
+	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		/*
+		 * Setup dithering property.
+		 */
+		dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
 
-	error = RRConfigureOutputProperty(output->randr_output,
-					dithering_atom, TRUE, TRUE, FALSE,
-					2, dithering_range);
+		error = RRConfigureOutputProperty(output->randr_output,
+						dithering_atom, TRUE, TRUE, FALSE,
+						2, dithering_range);
 
-	if (error != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"RRConfigureOutputProperty error, %d\n", error);
-	}
+		if (error != 0) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"RRConfigureOutputProperty error, %d\n", error);
+		}
 
-	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
-					XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
-					FALSE, TRUE);
+		error = RRChangeOutputProperty(output->randr_output, dithering_atom,
+						XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
+						FALSE, TRUE);
 
-	if (error != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to set dithering mode, %d\n", error);
+		if (error != 0) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Failed to set dithering mode, %d\n", error);
+		}
 	}
 }
 
 Bool
-nv_digital_output_set_property(xf86OutputPtr output, Atom property,
+nv_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -822,8 +824,8 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 };
 
 static int nv_lvds_output_mode_valid
@@ -906,8 +908,8 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 };
 
 static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname)
@@ -959,6 +961,17 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 			nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
 			if (nv_output->scaling_mode == SCALE_INVALID)
 				nv_output->scaling_mode = SCALE_ASPECT; /* default */
+		}
+	}
+
+	/* NV5x scaling hardware seems to work fine for analog too. */
+	if (nv_output->type == OUTPUT_ANALOG) {
+		nv_output->scaling_mode = SCALE_PANEL;
+
+		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+			nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+			if (nv_output->scaling_mode == SCALE_INVALID)
+				nv_output->scaling_mode = SCALE_PANEL; /* default */
 		}
 	}
 

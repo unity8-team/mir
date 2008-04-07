@@ -102,7 +102,8 @@ nv50_output_get_ddc_modes(xf86OutputPtr output)
 
 	ddc_modes = xf86OutputGetEDIDModes(output);
 
-	if (nv_output->type == OUTPUT_TMDS && ddc_modes) {
+	/* NV5x hardware can also do scaling on analog connections. */
+	if (nv_output->type != OUTPUT_LVDS && ddc_modes) {
 		xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
 
 		/* Use the first preferred mode as native mode. */

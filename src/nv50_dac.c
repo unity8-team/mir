@@ -79,6 +79,32 @@ nv50_dac_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_mode_fixup is called.\n");
 
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	/* NV5x hardware supports scaling on analog outputs as well. */
+	if (nv_output->native_mode && nv_output->scaling_mode != SCALE_PANEL) {
+		if ((adjusted_mode->VDisplay > nv_output->fpHeight) || 
+			(adjusted_mode->HDisplay > nv_output->fpWidth)) {
+
+			/* Let's not do stupid things when the resolution exceeds the "native" resolution. */
+			return TRUE;
+		}
+		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
+		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
+		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
+		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
+		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
+		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
+		adjusted_mode->VScan = nv_output->native_mode->VScan;
+		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
+		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
+		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
+		adjusted_mode->Clock = nv_output->native_mode->Clock;
+		adjusted_mode->Flags = nv_output->native_mode->Flags;
+
+		/* No INTERLACE_HALVE_V, because we manually correct. */
+		xf86SetModeCrtc(adjusted_mode, 0);
+	}
 	return TRUE;
 }
 
@@ -89,6 +115,7 @@ nv50_dac_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_mode_set is called.\n");
 
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	const int dacOff = 0x80 * NV50OrOffset(output);
 	uint32_t mode_ctl = NV50_DAC_MODE_CTRL_OFF;
 	uint32_t mode_ctl2 = 0;
@@ -126,7 +153,7 @@ nv50_dac_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
 	NV50DisplayCommand(pScrn, NV50_DAC0_MODE_CTRL2 + dacOff, mode_ctl2);
 
-	NV50CrtcSetScale(output->crtc, mode, adjusted_mode, SCALE_PANEL);
+	NV50CrtcSetScale(output->crtc, mode, adjusted_mode, nv_output->scaling_mode);
 }
 
 /*
@@ -195,7 +222,11 @@ NV50DacLoadDetect(xf86OutputPtr output)
 static void
 nv50_dac_destroy(xf86OutputPtr output)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
 	NV50OutputDestroy(output);
+
+	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
 
 	xfree(output->driver_private);
 	output->driver_private = NULL;
@@ -213,6 +244,8 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
 	.detect = nv50_dac_detect,
 	.get_modes = nv50_output_get_ddc_modes,
 	.destroy = nv50_dac_destroy,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 };
 
 const xf86OutputFuncsRec * nv50_get_analog_output_funcs()

@@ -226,7 +226,7 @@ nv50_lvds_get_modes(xf86OutputPtr output)
 	return xf86DuplicateMode(nv_output->native_mode);
 }
 
-static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
+static const xf86OutputFuncsRec nv50_tmds_output_funcs = {
 	.dpms = nv50_sor_dpms,
 	.save = NULL,
 	.restore = NULL,
@@ -237,12 +237,12 @@ static const xf86OutputFuncsRec NV50SorTMDSOutputFuncs = {
 	.mode_set = nv50_sor_mode_set,
 	.detect = nv50_sor_detect,
 	.get_modes = nv50_output_get_ddc_modes,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 	.destroy = nv50_sor_destroy,
 };
 
-static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
+static const xf86OutputFuncsRec nv50_lvds_output_funcs = {
 	.dpms = nv50_sor_dpms,
 	.save = NULL,
 	.restore = NULL,
@@ -253,19 +253,19 @@ static const xf86OutputFuncsRec NV50SorLVDSOutputFuncs = {
 	.mode_set = nv50_sor_mode_set,
 	.detect = nv50_lvds_detect,
 	.get_modes = nv50_lvds_get_modes,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 	.destroy = nv50_sor_destroy,
 };
 
 const xf86OutputFuncsRec * nv50_get_tmds_output_funcs()
 {
-	return &NV50SorTMDSOutputFuncs;
+	return &nv50_tmds_output_funcs;
 }
 
 const xf86OutputFuncsRec * nv50_get_lvds_output_funcs()
 {
-	return &NV50SorLVDSOutputFuncs;
+	return &nv50_lvds_output_funcs;
 }
 
 static DisplayModePtr
