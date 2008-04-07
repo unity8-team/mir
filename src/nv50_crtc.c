@@ -218,7 +218,7 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjuste
 	NV50CrtcCommand(crtc, NV50_CRTC0_CLOCK, adjusted_mode->Clock | 0x800000);
 	NV50CrtcCommand(crtc, NV50_CRTC0_INTERLACE, (adjusted_mode->Flags & V_INTERLACE) ? 2 : 0);
 	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_START, 0);
-	NV50CrtcCommand(crtc, 0x82c, 0);
+	NV50CrtcCommand(crtc, NV50_CRTC0_UNK82C, 0);
 	NV50CrtcCommand(crtc, NV50_CRTC0_DISPLAY_TOTAL, adjusted_mode->CrtcVTotal << 16 | adjusted_mode->CrtcHTotal);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_DURATION, (vsync_dur - 1) << 16 | (hsync_dur - 1));
 	NV50CrtcCommand(crtc, NV50_CRTC0_SYNC_START_TO_BLANK_END, (vsync_start_to_end - 1) << 16 | (hsync_start_to_end - 1));
@@ -274,11 +274,11 @@ NV50CrtcBlankScreen(xf86CrtcPtr crtc, Bool blank)
 	} else {
 		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, pNv->FB->offset >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
-		NVWrite(pNv, 0x00610380, 0);
+		NVWrite(pNv, NV50_DISPLAY_UNK_380, 0);
 		/* RAM is clamped to 256 MiB. */
-		NVWrite(pNv, NV50_CRTC0_RAM_AMOUNT, pNv->RamAmountKBytes * 1024 - 1);
-		NVWrite(pNv, 0x00610388, 0x150000);
-		NVWrite(pNv, 0x0061038C, 0);
+		NVWrite(pNv, NV50_DISPLAY_RAM_AMOUNT, pNv->RamAmountKBytes * 1024 - 1);
+		NVWrite(pNv, NV50_DISPLAY_UNK_388, 0x150000);
+		NVWrite(pNv, NV50_DISPLAY_UNK_38C, 0);
 		if (nv_crtc->head == 1)
 			NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor2->offset >> 8);
 		else

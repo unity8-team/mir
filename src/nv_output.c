@@ -968,10 +968,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		if (nv_output->type == OUTPUT_TMDS) {
-			NVWrite(pNv, 0x0061c00c + NV50OrOffset(output) * 0x800, 0x03010700);
-			NVWrite(pNv, 0x0061c010 + NV50OrOffset(output) * 0x800, 0x0000152f);
-			NVWrite(pNv, 0x0061c014 + NV50OrOffset(output) * 0x800, 0x00000000);
-			NVWrite(pNv, 0x0061c018 + NV50OrOffset(output) * 0x800, 0x00245af8);
+			NVWrite(pNv, NV50_SOR0_UNK00C + NV50OrOffset(output) * 0x800, 0x03010700);
+			NVWrite(pNv, NV50_SOR0_UNK010 + NV50OrOffset(output) * 0x800, 0x0000152f);
+			NVWrite(pNv, NV50_SOR0_UNK014 + NV50OrOffset(output) * 0x800, 0x00000000);
+			NVWrite(pNv, NV50_SOR0_UNK018 + NV50OrOffset(output) * 0x800, 0x00245af8);
 		}
 
 		/* This needs to be handled in the same way as pre-NV5x on the long run. */

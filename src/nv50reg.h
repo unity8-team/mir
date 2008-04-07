@@ -93,9 +93,11 @@
 	#define NV50_DISPLAY_CTRL_STATE_PENDING		(1 << 31)
 #define NV50_DISPLAY_CTRL_VAL		0x00610304
 
+#define NV50_DISPLAY_UNK_380		0x00610380
 /* Clamped to 256 MiB */
-#define NV50_CRTC0_RAM_AMOUNT		0x00610384
-#define NV50_CRTC1_RAM_AMOUNT		0x00610784
+#define NV50_DISPLAY_RAM_AMOUNT	0x00610384
+#define NV50_DISPLAY_UNK_388		0x00610388
+#define NV50_DISPLAY_UNK_38C		0x0061038C
 
 /* The registers in this range are normally accessed through display commands, with an offset of 0x540 for crtc1. */
 /* They also seem duplicated into the next register as well. */
@@ -181,6 +183,12 @@
 /* I don't know what bit27 does, it doesn't seem extremely important. */
 #define NV50_SOR0_CLK_CTRL2	0x0061C008
 	#define NV50_SOR_CLK_CTRL2_CONNECTED		(3 << 9)
+/* Seems to be a default state, nothing that can RE'd in great detail. */
+#define NV50_SOR0_UNK00C		0x0061C00C
+#define NV50_SOR0_UNK010		0x0061C010
+#define NV50_SOR0_UNK014		0x0061C014
+#define NV50_SOR0_UNK018		0x0061C018
+
 #define NV50_SOR0_DPMS_STATE	0x0061C030
 	#define NV50_SOR_DPMS_STATE_SOR_ACTIVE			(3 << 16) /* this does not show if DAC is active */
 	#define NV50_SOR_DPMS_STATE_SOR_DPMS_OFF		(8 << 16) /* as in blanked */
@@ -188,6 +196,12 @@
 
 #define NV50_SOR1_DPMS_CTRL	0x0061C804
 #define NV50_SOR1_CLK_CTRL2	0x0061C808
+/* Seems to be a default state, nothing that can RE'd in any great detail. */
+#define NV50_SOR1_UNK00C		0x0061C80C
+#define NV50_SOR1_UNK010		0x0061C810
+#define NV50_SOR1_UNK014		0x0061C814
+#define NV50_SOR1_UNK018		0x0061C818
+
 #define NV50_SOR1_DPMS_STATE	0x0061C830
 
 #define NV50_CRTC0_CURSOR_POS		0x00647084
@@ -230,6 +244,8 @@
 #define NV50_CRTC0_SYNC_START_TO_BLANK_END		0x81C
 #define NV50_CRTC0_MODE_UNK1					0x820
 #define NV50_CRTC0_MODE_UNK2					0x824
+
+#define NV50_CRTC0_UNK82C						0x82C
 
 /* You can't have a palette in 8 bit mode (=OFF) */
 #define NV50_CRTC0_CLUT_MODE		0x840

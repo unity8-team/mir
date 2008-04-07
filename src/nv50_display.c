@@ -94,7 +94,7 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	NV50DisplayCommand(pScrn, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
 	NV50DisplayCommand(pScrn, 0x800, 0);
 	NV50DisplayCommand(pScrn, NV50_CRTC0_DISPLAY_START, 0);
-	NV50DisplayCommand(pScrn, 0x82c, 0);
+	NV50DisplayCommand(pScrn, NV50_CRTC0_UNK82C, 0);
 
 	return TRUE;
 }
