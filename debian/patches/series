@@ -3,10 +3,11 @@
 03_dell_1535_quirk.diff
 04_dell_1735_quirk.diff
 05_intel_exa_force_greedy.patch
-#07_intel_exa_force_all_greedy.patch
 08_945gm_quirk.diff
 10_hw_overlay.diff
 11_hw_overlay_option.diff
 12_quirk_sync.patch
 13_dpms_low_power_overlay.patch
 14_sysfs_fujitsu_backlight.patch
+15_quirk_sony_vaio_vgn-sz4mn.patch
+16_legacy_backlight_blc_pwn_ctl.patch

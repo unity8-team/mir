@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.2.1-1ubuntu11) hardy; urgency=low
+
+  * debian/patches/16_legacy_backlight_blc_pwn_ctl.patch:
+    - Fixes issue where gdm, opengl apps, and vlc resets brightness to
+      xbacklight value on i915, by switching from BCM_LEGACY to BCM_COMBO.
+      This won't affect users using the kernel's /sys/class/backlight
+      interfaces for managing the backlight, but should produce better
+      results for the majority of legacy bit users. (LP: #201933)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 07 Apr 2008 23:41:38 -0700
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu10) hardy; urgency=low
 
   * debian/patches/15_quirk_sony_vaio_vgn-sz4mn.patch:
