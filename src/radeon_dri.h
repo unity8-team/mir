@@ -46,7 +46,7 @@
 #define RADEON_DEFAULT_BUFFER_SIZE    2 /* MB (must be page aligned) */
 #define RADEON_DEFAULT_GART_TEX_SIZE  1 /* MB (must be page aligned) */
 
-#define RADEON_DEFAULT_CP_TIMEOUT     10000  /* usecs */
+#define RADEON_DEFAULT_CP_TIMEOUT     100000  /* usecs */
 
 #define RADEON_DEFAULT_PCI_APER_SIZE 32 /* in MB */
 
