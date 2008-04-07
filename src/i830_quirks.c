@@ -218,8 +218,14 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Dell Latitude X1 */
     { PCI_CHIP_I915_GM, 0x1028, 0x01a3, quirk_ignore_tv },
+    /* Dell Latitude X1 / D630 (LP: #197740) */
+    { PCI_CHIP_I915_GM, 0x1028, 0x01f9, quirk_ignore_tv },
     /* Dell XPS 1330 */
     { PCI_CHIP_I965_GM, 0x1028, 0x0209, quirk_ignore_tv },
+    /* Dell Inspiron 1535 */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0254, quirk_ignore_tv },
+    /* Dell Inspiron 1735 */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0256, quirk_ignore_tv },
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
@@ -249,6 +255,9 @@ static i830_quirk i830_quirk_list[] = {
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_IGD_GM, 0x103c, 0x30e8, quirk_ignore_tv },
 
+    /* Dell Inspiron 510m needs pipe A force quirk */
+    { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
+
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
     /* Dell Latitude D500 needs pipe A force quirk */
@@ -265,6 +274,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Sony vaio PCG-r600HFP (fix bug 13722) */
     { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
+
+    /* Intel 945GM hardware (See LP: #152416) */
+    { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },
 
     { 0, 0, 0, NULL },
 };
