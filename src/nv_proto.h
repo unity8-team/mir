@@ -244,8 +244,8 @@ void NV50CursorRelease(ScrnInfoPtr);
 
 /* in nv50_crtc.c */
 void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
-void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value);
-void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value);
+void NV50DisplayCommand(ScrnInfoPtr pScrn, uint32_t addr, uint32_t value);
+void NV50CrtcCommand(xf86CrtcPtr crtc, uint32_t addr, uint32_t value);
 void NV50CrtcBlankScreen(xf86CrtcPtr, Bool blank);
 void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, DisplayModePtr, enum scaling_modes);
 void NV50CrtcSetPClk(xf86CrtcPtr crtc, Bool update);

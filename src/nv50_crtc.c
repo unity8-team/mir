@@ -75,7 +75,7 @@ void NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 	}
 }
 
-void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
+void NV50DisplayCommand(ScrnInfoPtr pScrn, uint32_t addr, uint32_t value)
 {
 	DDXMMIOH("NV50DisplayCommand: head %d addr 0x%X value 0x%X\n", 0, addr, value);
 	NVPtr pNv = NVPTR(pScrn);
@@ -84,7 +84,7 @@ void NV50DisplayCommand(ScrnInfoPtr pScrn, CARD32 addr, CARD32 value)
 	NV50CheckWriteVClk(pScrn);
 }
 
-void NV50CrtcCommand(xf86CrtcPtr crtc, CARD32 addr, CARD32 value)
+void NV50CrtcCommand(xf86CrtcPtr crtc, uint32_t addr, uint32_t value)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
