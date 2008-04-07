@@ -4349,6 +4349,8 @@
 #       define R300_ENDIAN_SWAP_HALF_DWORD              (3 << 0)
 #       define R300_MACRO_TILE                          (1 << 2)
 
+#define R300_TX_BORDER_COLOR_0			        0x45c0
+
 #define R300_TX_ENABLE				        0x4104
 #       define R300_TEX_0_ENABLE                        (1 << 0)
 #       define R300_TEX_1_ENABLE                        (1 << 1)

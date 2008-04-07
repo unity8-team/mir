@@ -845,6 +845,17 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit, Bool is_r500)
 	pPict->filter != PictFilterBilinear)
 	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
 
+    /* for REPEAT_NONE, Render semantics are that sampling outside the source
+     * picture results in alpha=0 pixels. We can implement this with a border color
+     * *if* our source texture has an alpha channel, otherwise we need to fall
+     * back. If we're not transformed then we hope that upper layers have clipped
+     * rendering to the bounds of the source drawable, in which case it doesn't
+     * matter. I have not, however, verified that the X server always does such
+     * clipping.
+     */
+    if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0)
+	RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
+
     return TRUE;
 }
 
@@ -908,8 +919,8 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
       txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
 		  R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP));
     else
-      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
-		  R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST));
+      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
+		  R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL));
 
     txfilter |= (unit << R300_TX_ID_SHIFT);
 
@@ -924,13 +935,15 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    BEGIN_ACCEL(6);
+    BEGIN_ACCEL(pPict->repeat ? 6 : 7);
     OUT_ACCEL_REG(R300_TX_FILTER0_0 + (unit * 4), txfilter);
     OUT_ACCEL_REG(R300_TX_FILTER1_0 + (unit * 4), 0);
     OUT_ACCEL_REG(R300_TX_FORMAT0_0 + (unit * 4), txformat0);
     OUT_ACCEL_REG(R300_TX_FORMAT1_0 + (unit * 4), txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0 + (unit * 4), txpitch);
     OUT_ACCEL_REG(R300_TX_OFFSET_0 + (unit * 4), txoffset);
+    if (!pPict->repeat)
+	OUT_ACCEL_REG(R300_TX_BORDER_COLOR_0 + (unit * 4), 0);
     FINISH_ACCEL();
 
     if (pPict->transform != 0) {
