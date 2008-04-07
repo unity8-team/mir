@@ -293,15 +293,21 @@
 	#define NV50_CRTC0_DITHERING_CTRL_OFF	0x0
 
 #define NV50_CRTC0_SCALE_CTRL		0x8A4
-#define NV50_CRTC0_UNK_8A8		0x8A8
+	#define	NV50_CRTC0_SCALE_CTRL_SCALER_INACTIVE	(0 << 0)
+	/* It doesn't seem to be needed, hence i wonder what it does precisely. */
+	#define	NV50_CRTC0_SCALE_CTRL_SCALER_ACTIVE	(9 << 0)
+#define NV50_CRTC0_COLOR_CTRL		0x8A8
+	#define NV50_CRTC_COLOR_CTRL_MODE_COLOR		(4 << 16)
 
 #define NV50_CRTC0_FB_POS			0x8C0
-#define NV50_CRTC0_SCRN_SIZE		0x8C8
+#define NV50_CRTC0_REAL_RES		0x8C8
 
-/* These control the scaling relative to the native mode and the actual mode. */
-/* But why 2, what do happens when they are used seperately? */
-#define NV50_CRTC0_SCALE_REG1		0x8D8
-#define NV50_CRTC0_SCALE_REG2		0x8DC
+/* Added a macro, because the signed stuff can cause you problems very quickly. */
+#define NV50_CRTC0_SCALE_CENTER_OFFSET		0x8D4
+	#define NV50_CRTC_SCALE_CENTER_OFFSET_VAL(x, y) ((((unsigned)y << 16) & 0xFFFF0000) | (((unsigned)x) & 0x0000FFFF))
+/* Both of these are needed, otherwise nothing happens. */
+#define NV50_CRTC0_SCALE_RES1		0x8D8
+#define NV50_CRTC0_SCALE_RES2		0x8DC
 
 #define NV50_CRTC1_CLOCK			0xC04
 #define NV50_CRTC1_INTERLACE		0xC08
@@ -357,15 +363,15 @@
 	#define NV50_CRTC1_DITHERING_CTRL_OFF	0x0
 
 #define NV50_CRTC1_SCALE_CTRL		0xCA4
-#define NV50_CRTC1_UNK_8A8		0xCA8
+#define NV50_CRTC1_COLOR_CTRL		0xCA8
 
 #define NV50_CRTC1_FB_POS			0xCC0
-#define NV50_CRTC1_SCRN_SIZE		0xCC8
+#define NV50_CRTC1_REAL_RES		0xCC8
 
-/* These control the scaling relative to the native mode and the actual mode. */
-/* But why 2, what do happens when they are used seperately? */
-#define NV50_CRTC1_SCALE_REG1		0xCD8
-#define NV50_CRTC1_SCALE_REG2		0xCDC
+#define NV50_CRTC1_SCALE_CENTER_OFFSET		0xCD4
+/* Both of these are needed, otherwise nothing happens. */
+#define NV50_CRTC1_SCALE_RES1		0xCD8
+#define NV50_CRTC1_SCALE_RES2		0xCDC
 
 /* misc stuff */
 #define NV50_I2C_START		0x7

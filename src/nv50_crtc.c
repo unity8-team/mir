@@ -243,11 +243,11 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjuste
 			break;
 	}
 	NV50CrtcSetDither(crtc, FALSE);
-	NV50CrtcCommand(crtc, NV50_CRTC0_UNK_8A8, 0x40000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_COLOR_CTRL, NV50_CRTC_COLOR_CTRL_MODE_COLOR);
 	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, y << 16 | x);
 	/* This is the actual resolution of the mode. */
-	NV50CrtcCommand(crtc, NV50_CRTC0_SCRN_SIZE, (mode->VDisplay << 16) | mode->HDisplay);
-	NV50CrtcCommand(crtc, 0x8d4, 0);
+	NV50CrtcCommand(crtc, NV50_CRTC0_REAL_RES, (mode->VDisplay << 16) | mode->HDisplay);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CENTER_OFFSET, NV50_CRTC_SCALE_CENTER_OFFSET_VAL(0,0));
 
 	NV50CrtcBlankScreen(crtc, FALSE);
 }
@@ -359,15 +359,15 @@ void NV50CrtcSetScale(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 			break;
 	}
 
-	/* What kind of mode is this precisely? */
+	/* Got a better name for SCALER_ACTIVE? */
 	if ((mode->Flags & V_DBLSCAN) || (mode->Flags & V_INTERLACE) ||
 		mode->HDisplay != outX || mode->VDisplay != outY) {
-		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, 9);
+		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, NV50_CRTC0_SCALE_CTRL_SCALER_ACTIVE);
 	} else {
-		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, 0);
+		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, NV50_CRTC0_SCALE_CTRL_SCALER_INACTIVE);
 	}
-	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_REG1, outY << 16 | outX);
-	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_REG2, outY << 16 | outX);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_RES1, outY << 16 | outX);
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_RES2, outY << 16 | outX);
 }
 
 static void
