@@ -604,8 +604,6 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	 * returns calculated clock
 	 */
 
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-
 	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
 	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
 	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
@@ -656,9 +654,7 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 					break;
 
 				if (!fixedgain2) {
-					/* N2/M2 can become very small on nv5x hardware. */
-					/* The bios limitations are already very strict, so no need for an extra limitation. */
-					if (bios->chip_version < 0x80)
+					if (NVPTR(pScrn)->VBIOS.chip_version < 0x60)
 						if (N2/M2 < 4 || N2/M2 > 10)
 							continue;
 
