@@ -622,7 +622,7 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	int bestclk = 0;
 
 	int vco2 = (maxvco2 - maxvco2/200) / 2;
-	for (log2P = 0; log2P < 6 && clk <= (vco2 >> log2P); log2P++) /* log2P is maximum of 6 */
+	for (log2P = 0; clk && log2P < 6 && clk <= (vco2 >> log2P); log2P++) /* log2P is maximum of 6 */
 		;
 	clkP = clk << log2P;
 
@@ -3305,7 +3305,8 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	 * Version 0x20: Found on Geforce 6 cards
 	 * Trivial 4 byte BIT header. 31 (0x1f) byte record length
 	 * Version 0x21: Found on Geforce 7, 8 and some Geforce 6 cards
-	 * 5 byte header, fifth byte of unknown purpose. 35 (0x23) byte record length
+	 * 5 byte header, fifth byte of unknown purpose. 35 (0x23) byte record
+	 * length in general, some (integrated) have an extra configuration byte
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
@@ -3456,11 +3457,17 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 		if (recordlen > 0x22)
 			pll_lim->refclk = le32_to_cpu(*((uint32_t *)&bios->data[plloffs + 31]));
 
+		if (recordlen > 0x23)
+			if (bios->data[plloffs + 35])
+				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+					   "Bits set in PLL configuration byte (%x)\n", bios->data[plloffs + 35]);
+
 		/* C51 special not seen elsewhere */
 		if (bios->chip_version == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK);
 
-			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) || ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
+			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) ||
+			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
 				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_27) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
@@ -3476,6 +3483,8 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	if (!pll_lim->vco1.maxfreq) {
 		pll_lim->vco1.minfreq = bios->fminvco;
 		pll_lim->vco1.maxfreq = bios->fmaxvco;
+		pll_lim->vco1.min_inputfreq = 0;
+		pll_lim->vco1.max_inputfreq = INT_MAX;
 		pll_lim->vco1.min_n = 0x1;
 		pll_lim->vco1.max_n = 0xff;
 		pll_lim->vco1.min_m = 0x1;
@@ -3489,8 +3498,6 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 				pll_lim->vco1.min_m = 0x8;
 			pll_lim->vco1.max_m = 0xe;
 		}
-		pll_lim->vco1.min_inputfreq = 0;
-		pll_lim->vco1.max_inputfreq = INT_MAX;
 	}
 
 	if (!pll_lim->refclk)
