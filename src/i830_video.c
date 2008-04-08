@@ -190,6 +190,9 @@ void exaMoveInPixmap (PixmapPtr pPixmap);
 #define OVERLAY_PIPE_MASK	(0x1<<18)		
 #define OVERLAY_PIPE_A		(0x0<<18)		
 #define OVERLAY_PIPE_B		(0x1<<18)		
+#define GAMMA2_ENBL		(0x1<<16)
+#define CSC_MODE_BT709		(0x1<<5)
+#define CSC_MODE_BT601		(0x0<<5)
 #define THREE_LINE_BUFFERS	(0x1<<0)
 #define TWO_LINE_BUFFERS	(0x0<<0)
 
@@ -704,6 +707,8 @@ I830ResetVideo(ScrnInfoPtr pScrn)
     overlay->SCLRKVL = 0;
     overlay->SCLRKEN = 0;		/* source color key disable */
     overlay->OCONFIG = CC_OUT_8BIT;
+    if (IS_I965GM(pI830))
+	overlay->OCONFIG |= CSC_MODE_BT709;
 
     /*
      * Select which pipe the overlay is enabled on.
@@ -880,9 +885,9 @@ I830SetupImageVideoOverlay(ScreenPtr pScreen)
     pPriv->textured = FALSE;
     pPriv->colorKey = pI830->colorKey & ((1 << pScrn->depth) - 1);
     pPriv->videoStatus = 0;
-    pPriv->brightness = 0;
-    pPriv->contrast = 64;
-    pPriv->saturation = 128;
+    pPriv->brightness = -19; /* (255/219) * -16 */
+    pPriv->contrast = 75;  /* 255/219 * 64 */
+    pPriv->saturation = 146; /* 128/112 * 128 */
     pPriv->current_crtc = NULL;
     pPriv->desired_crtc = NULL;
     pPriv->buf = NULL;
