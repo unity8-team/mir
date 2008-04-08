@@ -885,6 +885,11 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	    bios->chip_version == 0x31 || bios->chip_version == 0x35 ||
 	    bios->chip_version == 0x36) {
 		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
+		if (NM2 == 0xdead) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "Could not find a suitable set of coefficients, giving up\n");
+			return;
+		}
 		if (reg > 0x405c)
 			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
 		else
