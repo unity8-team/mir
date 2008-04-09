@@ -1535,6 +1535,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
 	name_prefix="TV";
 	dev_priv->is_tv = TRUE;
+	intel_output->needs_tv_clock = TRUE;
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
     {

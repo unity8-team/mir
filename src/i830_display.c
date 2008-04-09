@@ -1100,6 +1100,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    break;
 	case I830_OUTPUT_SDVO:
 	    is_sdvo = TRUE;
+	    if (intel_output->needs_tv_clock)
+		is_tv = TRUE;
 	    break;
 	case I830_OUTPUT_DVO_TMDS:
 	case I830_OUTPUT_DVO_LVDS:
@@ -1144,7 +1146,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (is_sdvo)
 	{
 	    dpll |= DPLL_DVO_HIGH_SPEED;
-	    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+	    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)) &&
+		!is_tv)
 	    {
 		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
@@ -1182,7 +1185,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
     }
 
-    if (is_tv)
+    if (is_sdvo && is_tv)
+	dpll |= PLL_REF_INPUT_TVCLKINBC;
+    else if (is_tv)
     {
 	/* XXX: just matching BIOS for now */
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */

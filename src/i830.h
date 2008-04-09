@@ -288,6 +288,7 @@ typedef struct _I830OutputPrivateRec {
    I2CBusPtr		    pDDCBus;
    struct _I830DVODriver    *i2c_drv;
    Bool			    load_detect_temp;
+   Bool			    needs_tv_clock;
    uint32_t		    lvds_bits;
    int                      pipe_mask;
    int			    clone_mask;
