@@ -557,13 +557,12 @@ i830_sdvo_set_output_timing(xf86OutputPtr output, struct i830_sdvo_dtd *dtd)
     return i830_sdvo_set_timing(output, SDVO_CMD_SET_OUTPUT_TIMINGS_PART1, dtd);
 }
 
-#if 0
 static Bool
 i830_sdvo_create_preferred_input_timing(xf86OutputPtr output, uint16_t clock,
 					uint16_t width, uint16_t height)
 {
-    struct i830_sdvo_priv *dev_priv = output->dev_priv;
     struct i830_sdvo_preferred_input_timing_args args;
+    uint8_t status;
 
     args.clock = clock;
     args.width = width;
@@ -578,10 +577,10 @@ i830_sdvo_create_preferred_input_timing(xf86OutputPtr output, uint16_t clock,
 }
 
 static Bool
-i830_sdvo_get_preferred_input_timing(I830OutputPtr output,
+i830_sdvo_get_preferred_input_timing(xf86OutputPtr output,
 				     struct i830_sdvo_dtd *dtd)
 {
-    struct i830_sdvo_priv *dev_priv = output->dev_priv;
+    Bool status;
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_PREFERRED_INPUT_TIMING_PART1,
 			NULL, 0);
@@ -599,7 +598,6 @@ i830_sdvo_get_preferred_input_timing(I830OutputPtr output,
 
     return TRUE;
 }
-#endif
 
 /** Returns the SDVO_CLOCK_RATE_MULT_* for the current clock multiplier */
 static int
@@ -644,14 +642,155 @@ i830_sdvo_set_clock_rate_mult(xf86OutputPtr output, uint8_t val)
     return TRUE;
 }
 
+static void
+i830_sdvo_get_dtd_from_mode(struct i830_sdvo_dtd *dtd, DisplayModePtr mode)
+{
+    uint16_t width, height;
+    uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
+    uint16_t h_sync_offset, v_sync_offset;
+
+    width = mode->CrtcHDisplay;
+    height = mode->CrtcVDisplay;
+
+    /* do some mode translations */
+    h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
+    h_sync_len = mode->CrtcHSyncEnd - mode->CrtcHSyncStart;
+
+    v_blank_len = mode->CrtcVBlankEnd - mode->CrtcVBlankStart;
+    v_sync_len = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
+
+    h_sync_offset = mode->CrtcHSyncStart - mode->CrtcHBlankStart;
+    v_sync_offset = mode->CrtcVSyncStart - mode->CrtcVBlankStart;
+
+    dtd->part1.clock = mode->Clock / 10;
+    dtd->part1.h_active = width & 0xff;
+    dtd->part1.h_blank = h_blank_len & 0xff;
+    dtd->part1.h_high = (((width >> 8) & 0xf) << 4) |
+	((h_blank_len >> 8) & 0xf);
+    dtd->part1.v_active = height & 0xff;
+    dtd->part1.v_blank = v_blank_len & 0xff;
+    dtd->part1.v_high = (((height >> 8) & 0xf) << 4) |
+	((v_blank_len >> 8) & 0xf);
+
+    dtd->part2.h_sync_off = h_sync_offset;
+    dtd->part2.h_sync_width = h_sync_len & 0xff;
+    dtd->part2.v_sync_off_width = (v_sync_offset & 0xf) << 4 |
+	(v_sync_len & 0xf);
+    dtd->part2.sync_off_width_high = ((h_sync_offset & 0x300) >> 2) |
+	((h_sync_len & 0x300) >> 4) | ((v_sync_offset & 0x30) >> 2) |
+	((v_sync_len & 0x30) >> 4);
+
+    dtd->part2.dtd_flags = 0x18;
+    if (mode->Flags & V_PHSYNC)
+	dtd->part2.dtd_flags |= 0x2;
+    if (mode->Flags & V_PVSYNC)
+	dtd->part2.dtd_flags |= 0x4;
+
+    dtd->part2.sdvo_flags = 0;
+    dtd->part2.v_sync_off_high = v_sync_offset & 0xc0;
+    dtd->part2.reserved = 0;
+}
+
+static void
+i830_sdvo_get_mode_from_dtd(DisplayModePtr mode, struct i830_sdvo_dtd *dtd)
+{
+    uint16_t width, height;
+    uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
+    uint16_t h_sync_offset, v_sync_offset;
+
+    width = mode->CrtcHDisplay;
+    height = mode->CrtcVDisplay;
+
+    /* do some mode translations */
+    h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
+    h_sync_len = mode->CrtcHSyncEnd - mode->CrtcHSyncStart;
+
+    v_blank_len = mode->CrtcVBlankEnd - mode->CrtcVBlankStart;
+    v_sync_len = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
+
+    h_sync_offset = mode->CrtcHSyncStart - mode->CrtcHBlankStart;
+    v_sync_offset = mode->CrtcVSyncStart - mode->CrtcVBlankStart;
+
+    mode->HDisplay = dtd->part1.h_active;
+    mode->HDisplay += ((dtd->part1.h_high >> 4) & 0x0f) << 8;
+    mode->HSyncStart = mode->HDisplay + dtd->part2.h_sync_off;
+    mode->HSyncStart += (dtd->part2.sync_off_width_high & 0xa0) << 2;
+    mode->HSyncEnd = mode->HSyncStart + dtd->part2.h_sync_width;
+    mode->HSyncEnd += (dtd->part2.sync_off_width_high & 0x30) << 4;
+    mode->HTotal = mode->HDisplay + dtd->part1.h_blank;
+    mode->HTotal += (dtd->part1.h_high & 0xf) << 8;
+
+    mode->VDisplay = dtd->part1.v_active;
+    mode->VDisplay += ((dtd->part1.v_high >> 4) & 0x0f) << 8;
+    mode->VSyncStart = mode->VDisplay;
+    mode->VSyncStart += (dtd->part2.v_sync_off_width >> 4) & 0xf;
+    mode->VSyncStart += (dtd->part2.sync_off_width_high & 0x0a) << 2;
+    mode->VSyncStart += dtd->part2.v_sync_off_high & 0xc0;
+    mode->VSyncEnd = mode->VSyncStart + (dtd->part2.v_sync_off_width & 0xf);
+    mode->VSyncEnd += (dtd->part2.sync_off_width_high & 0x3) << 4;
+    mode->VTotal = mode->VDisplay + dtd->part1.v_blank;
+    mode->VTotal += (dtd->part1.v_high & 0xf) << 8;
+
+    mode->Clock = dtd->part1.clock * 10;
+
+    mode->Flags &= (V_PHSYNC | V_PVSYNC);
+    if (dtd->part2.dtd_flags & 0x2)
+	mode->Flags |= V_PHSYNC;
+    if (dtd->part2.dtd_flags & 0x4)
+	mode->Flags |= V_PVSYNC;
+}
+
 static Bool
 i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-    /* Make the CRTC code factor in the SDVO pixel multiplier.  The SDVO
-     * device will be told of the multiplier during mode_set.
-     */
-    adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(mode);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
+
+    if (!dev_priv->is_tv) {
+	/* Make the CRTC code factor in the SDVO pixel multiplier.  The SDVO
+	 * device will be told of the multiplier during mode_set.
+	 */
+	adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(mode);
+    } else {
+	struct i830_sdvo_dtd output_dtd;
+	Bool success;
+
+	/* We need to construct preferred input timings based on our output
+	 * timings.  To do that, we have to set the output timings, even
+	 * though this isn't really the right place in the sequence to do it.
+	 * Oh well.
+	 */
+
+	ErrorF("output modeline:\n");
+	xf86PrintModeline(0, mode);
+
+	/* Set output timings */
+	i830_sdvo_get_dtd_from_mode(&output_dtd, mode);
+	i830_sdvo_set_target_output(output, dev_priv->controlled_output);
+	i830_sdvo_set_output_timing(output, &output_dtd);
+
+	/* Set the input timing to the screen. Assume always input 0. */
+	i830_sdvo_set_target_input(output, TRUE, FALSE);
+
+
+	success = i830_sdvo_create_preferred_input_timing(output,
+							  mode->Clock / 10,
+							  mode->HDisplay,
+							  mode->VDisplay);
+	if (success) {
+	    struct i830_sdvo_dtd input_dtd;
+
+	    i830_sdvo_get_preferred_input_timing(output, &input_dtd);
+
+	    i830_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
+
+	    ErrorF("input modeline:\n");
+	    xf86PrintModeline(0, adjusted_mode);
+	} else {
+	    return FALSE;
+	}
+    }
 
     return TRUE;
 }
@@ -668,9 +807,6 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
     uint32_t sdvox;
     int sdvo_pixel_multiply;
-    uint16_t width, height;
-    uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
-    uint16_t h_sync_offset, v_sync_offset;
     struct i830_sdvo_in_out_map in_out;
     struct i830_sdvo_dtd output_dtd;
     uint8_t status;
@@ -691,50 +827,14 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
 
-    width = mode->CrtcHDisplay;
-    height = mode->CrtcVDisplay;
-    
-    /* do some mode translations */
-    h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
-    h_sync_len = mode->CrtcHSyncEnd - mode->CrtcHSyncStart;
+    /* If it's a TV, we already set the output timing in mode_fixup. */
+    if (!dev_priv->is_tv) {
+	i830_sdvo_get_dtd_from_mode(&output_dtd, mode);
 
-    v_blank_len = mode->CrtcVBlankEnd - mode->CrtcVBlankStart;
-    v_sync_len = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
-
-    h_sync_offset = mode->CrtcHSyncStart - mode->CrtcHBlankStart;
-    v_sync_offset = mode->CrtcVSyncStart - mode->CrtcVBlankStart;
-
-    output_dtd.part1.clock = mode->Clock / 10;
-    output_dtd.part1.h_active = width & 0xff;
-    output_dtd.part1.h_blank = h_blank_len & 0xff;
-    output_dtd.part1.h_high = (((width >> 8) & 0xf) << 4) |
-	((h_blank_len >> 8) & 0xf);
-    output_dtd.part1.v_active = height & 0xff;
-    output_dtd.part1.v_blank = v_blank_len & 0xff;
-    output_dtd.part1.v_high = (((height >> 8) & 0xf) << 4) |
-	((v_blank_len >> 8) & 0xf);
-
-    output_dtd.part2.h_sync_off = h_sync_offset;
-    output_dtd.part2.h_sync_width = h_sync_len & 0xff;
-    output_dtd.part2.v_sync_off_width = (v_sync_offset & 0xf) << 4 |
-	(v_sync_len & 0xf);
-    output_dtd.part2.sync_off_width_high = ((h_sync_offset & 0x300) >> 2) |
-	((h_sync_len & 0x300) >> 4) | ((v_sync_offset & 0x30) >> 2) |
-	((v_sync_len & 0x30) >> 4);
-
-    output_dtd.part2.dtd_flags = 0x18;
-    if (mode->Flags & V_PHSYNC)
-	output_dtd.part2.dtd_flags |= 0x2;
-    if (mode->Flags & V_PVSYNC)
-	output_dtd.part2.dtd_flags |= 0x4;
-
-    output_dtd.part2.sdvo_flags = 0;
-    output_dtd.part2.v_sync_off_high = v_sync_offset & 0xc0;
-    output_dtd.part2.reserved = 0;
-
-    /* Set the output timing to the screen */
-    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
-    i830_sdvo_set_output_timing(output, &output_dtd);
+	/* Set the output timing to the screen */
+	i830_sdvo_set_target_output(output, dev_priv->controlled_output);
+	i830_sdvo_set_output_timing(output, &output_dtd);
+    }
 
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);
