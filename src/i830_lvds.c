@@ -62,7 +62,6 @@ struct i830_lvds_priv {
     
     /* The panel needs dithering enabled */
     Bool	    panel_wants_dither;
-    Bool	    need_border;
 
     /* restore backlight to this value */
     int		    backlight_duty_cycle;
@@ -542,23 +541,22 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     adjusted_mode->Clock = dev_priv->panel_fixed_mode->Clock;
     xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
 
+    /* Make sure pre-965s set dither correctly */
+    if (!IS_I965G(pI830) && dev_priv->panel_wants_dither)
+	pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
     /* Native modes don't need fitting */
     if (adjusted_mode->HDisplay == mode->HDisplay &&
 	adjusted_mode->VDisplay == mode->VDisplay) {
-	pfit_control = 0;
 	pfit_pgm_ratios = 0;
 	border = 0;
 	goto out;
     }
 
-    /* Basic panel fitting options */
-    if (!IS_I965G(pI830)) {
-	if (dev_priv->panel_wants_dither)
-	    pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-    } else {
+    /* 965+ wants fuzzy fitting */
+    if (IS_I965G(pI830))
 	pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 	    PFIT_FILTER_FUZZY;
-    }
 
     /*
      * Deal with panel fitting options.  Figure out how to stretch the image
@@ -721,8 +719,11 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 out:
     dev_priv->pfit_control = pfit_control;
     dev_priv->pfit_pgm_ratios = pfit_pgm_ratios;
-    dev_priv->need_border = border;
 
+    if (border)
+	intel_output->lvds_bits |= LVDS_BORDER_ENABLE;
+    else
+	intel_output->lvds_bits &= ~LVDS_BORDER_ENABLE;
     /* XXX: It would be nice to support lower refresh rates on the
      * panels to reduce power consumption, and perhaps match the
      * user's requested refresh rate.
@@ -734,23 +735,7 @@ out:
 static void
 i830_lvds_prepare(xf86OutputPtr output)
 {
-    I830OutputPrivatePtr    intel_output = output->driver_private;
-    struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
-    ScrnInfoPtr		    pScrn = output->scrn;
-    I830Ptr		    pI830 = I830PTR(pScrn);
-    uint32_t		    lvds;
-
-    lvds = INREG(LVDS);
-
     i830_lvds_dpms(output, DPMSModeOff);
-    /*
-     * ->prepare will be called after the CRTC is off but before
-     * we set the mode, so program the PFIT regs here.
-     */
-    if (dev_priv->need_border)
-	OUTREG(LVDS, lvds | LVDS_BORDER_ENABLE);
-    else
-	OUTREG(LVDS, lvds & (~LVDS_BORDER_ENABLE));
 }
 
 static void
@@ -767,8 +752,6 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
      */
     OUTREG(PFIT_PGM_RATIOS, dev_priv->pfit_pgm_ratios);
     OUTREG(PFIT_CONTROL, dev_priv->pfit_control);
-    /* It's harmless to turn on the LVDS if it's already on */
-    i830_lvds_dpms(output, DPMSModeOn);
 }
 
 /**
@@ -1008,6 +991,11 @@ i830_lvds_create_resources(xf86OutputPtr output)
     /*
      * Panel fitting control
      */
+
+    /* XXX Disable panel fitting setting on pre-915. */
+    if (!IS_I9XX(pI830))
+	return;
+
     panel_fitting_atom = MakeAtom(PANEL_FITTING_NAME,
 				  sizeof(PANEL_FITTING_NAME) - 1, TRUE);
     for (i = 0; i < NUM_PANEL_FITTING_TYPES; i++) {

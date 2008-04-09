@@ -1059,6 +1059,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    I830OutputPrivatePtr intel_output;
     int pipe = intel_crtc->pipe;
     int plane = intel_crtc->plane;
     int fp_reg = (pipe == 0) ? FPA0 : FPB0;
@@ -1088,7 +1089,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
      */
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr  output = xf86_config->output[i];
-	I830OutputPrivatePtr intel_output = output->driver_private;
+	intel_output = output->driver_private;
 
 	if (output->crtc != crtc)
 	    continue;
@@ -1301,6 +1302,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    else
 		lvds |= LVDS_DITHER_ENABLE;
 	}
+
+	lvds |= intel_output->lvds_bits;
 
 	OUTREG(LVDS, lvds);
 	POSTING_READ(LVDS);
