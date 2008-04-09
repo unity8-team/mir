@@ -88,11 +88,11 @@ NV50DispInit(ScrnInfoPtr pScrn)
 	NVWrite(pNv, NV50_DISPLAY_UNK200_CTRL, 0x1000b03);
 	while (!(NVRead(pNv, NV50_DISPLAY_UNK200_CTRL) & 0x40000000));
 
-	NV50DisplayCommand(pScrn, 0x84, 0);
-	NV50DisplayCommand(pScrn, 0x88, 0);
+	NV50DisplayCommand(pScrn, NV50_UNK84, 0);
+	NV50DisplayCommand(pScrn, NV50_UNK88, 0);
 	/* The GetLVDSNativeMode() function is proof that more than crtc0 is used by the bios. */
 	NV50DisplayCommand(pScrn, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_BLANK);
-	NV50DisplayCommand(pScrn, 0x800, 0);
+	NV50DisplayCommand(pScrn, NV50_CRTC0_UNK800, 0);
 	NV50DisplayCommand(pScrn, NV50_CRTC0_DISPLAY_START, 0);
 	NV50DisplayCommand(pScrn, NV50_CRTC0_UNK82C, 0);
 
@@ -119,9 +119,8 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
 		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-		/* I think this is some kind of trigger to reinitialise the supervisor. */
-		/* Without anything active (this is shutdown) it's likely to disable itself. */
-		/* The blob doesn't do it quite this way., it seems to do 0x30C as init and end. */
+		/* This is like acknowledging a vblank, maybe this is in the spirit of cleaning up? */
+		/* The blob doesn't do it quite this way, it seems to do 0x30C as init and end. */
 		/* It doesn't wait for a non-zero value either. */
 		if (crtc->enabled) {
 			uint32_t mask = 0;

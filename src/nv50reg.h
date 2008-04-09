@@ -209,6 +209,8 @@
 
 /* These things below are so called "commands" */
 #define NV50_UPDATE_DISPLAY		0x80
+#define NV50_UNK84				0x84
+#define NV50_UNK88				0x88
 
 #define NV50_DAC0_MODE_CTRL		0x400
 	#define NV50_DAC_MODE_CTRL_OFF			(0 << 0)
@@ -234,6 +236,7 @@
 	#define NV50_SOR_MODE_CTRL_NVSYNC			(2 << 12)
 #define NV50_SOR1_MODE_CTRL		0x640
 
+#define NV50_CRTC0_UNK800			0x800
 #define NV50_CRTC0_CLOCK			0x804
 #define NV50_CRTC0_INTERLACE		0x808
 
@@ -309,6 +312,7 @@
 #define NV50_CRTC0_SCALE_RES1		0x8D8
 #define NV50_CRTC0_SCALE_RES2		0x8DC
 
+#define NV50_CRTC1_UNK800			0xC00
 #define NV50_CRTC1_CLOCK			0xC04
 #define NV50_CRTC1_INTERLACE		0xC08
 

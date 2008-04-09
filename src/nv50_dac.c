@@ -232,7 +232,7 @@ nv50_dac_destroy(xf86OutputPtr output)
 	output->driver_private = NULL;
 }
 
-static const xf86OutputFuncsRec NV50DacOutputFuncs = {
+static const xf86OutputFuncsRec nv50_analog_output_funcs = {
 	.dpms = nv50_dac_dpms,
 	.save = NULL,
 	.restore = NULL,
@@ -250,6 +250,6 @@ static const xf86OutputFuncsRec NV50DacOutputFuncs = {
 
 const xf86OutputFuncsRec * nv50_get_analog_output_funcs()
 {
-	return &NV50DacOutputFuncs;
+	return &nv50_analog_output_funcs;
 }
 
