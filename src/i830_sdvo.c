@@ -1208,12 +1208,11 @@ i830_sdvo_get_tv_mode(DisplayModePtr *head, int width, int height,
     mode->next = NULL;
     mode->prev = NULL;
 
-    mode->next = NULL;
-    mode->prev = *head;
+    mode->next = *head;
+    mode->prev = NULL;
     if (*head != NULL)
-	(*head)->next = mode;
-    else
-	*head = mode;
+	(*head)->prev = mode;
+    *head = mode;
 }
 
 /**
