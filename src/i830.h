@@ -548,6 +548,8 @@ typedef struct _I830Rec {
    /* Broken-out options. */
    OptionInfoPtr Options;
 
+   Bool lvds_24_bit_mode;
+
    Bool StolenOnly;
 
    Bool swfSaved;

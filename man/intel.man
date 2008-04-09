@@ -183,6 +183,23 @@ causing a crash.  If you find that your platform needs this option, please file
 a bug against xf86-video-intel at http://bugs.freedesktop.org which includes
 the output of 'lspci -v' and 'lspci -vn'.
 .TP
+.BI "Option \*qLVDS24Bit\*q \*q" boolean \*q
+Specify 24 bit pixel format (i.e. 8 bits per color) to be used for the
+LVDS output.  Some newer LCD panels expect pixels to be formatted and
+sent as 8 bits per color channel instead of the more common 6 bits per
+color channel.  Set this option to true to enable the newer format.
+Note that this concept is entirely different and independent from the
+frame buffer color depth - which is still controlled in the usual way
+within the X server.  This option instead selects the physical format
+/ sequencing of the digital bits sent to the display.  Setting the
+frame buffer color depth is really a matter of preference by the user,
+while setting the pixel format here is a requirement of the connected
+hardware.  Leaving this unset implies the default value of false,
+which is almost always going to be right choice.  If your
+LVDS-connected display on the other hand is extremely washed out
+(e.g. white on a lighter white), trying this option might clear the
+problem.
+.TP
 .BI "Option \*qXvMC\*q \*q" boolean \*q
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.

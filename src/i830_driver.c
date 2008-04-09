@@ -296,6 +296,7 @@ typedef enum {
    OPTION_COLOR_KEY,
    OPTION_CHECKDEVICES,
    OPTION_MODEDEBUG,
+   OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
 #ifdef XF86DRI_MM
@@ -322,6 +323,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef XF86DRI_MM
@@ -1396,6 +1398,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->debug_modes = TRUE;
    } else {
       pI830->debug_modes = FALSE;
+   }
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_LVDS24BITMODE, FALSE)) {
+      pI830->lvds_24_bit_mode = TRUE;
+   } else {
+      pI830->lvds_24_bit_mode = FALSE;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))

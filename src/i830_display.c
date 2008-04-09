@@ -1289,10 +1289,21 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	else
 	    lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 
-	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
-	 * appropriately here, but we need to look more thoroughly into how
-	 * panels behave in the two modes.
-	 */
+	if (pI830->lvds_24_bit_mode) {
+	    /* Option set which requests 24-bit mode
+	     * (LVDS_A3_POWER_UP, as opposed to 18-bit mode) here; we
+	     * still need to look more thoroughly into how panels
+	     * behave in the two modes.  This option enables that
+	     * experimentation.
+	     */
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Selecting less common 24 bit TMDS pixel format.\n");
+	    lvds |= LVDS_A3_POWER_UP;
+	    lvds |= LVDS_DATA_FORMAT_DOT_ONE;
+	} else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Selecting standard 18 bit TMDS pixel format.\n");
+	}
 
 	/* Enable dithering if we're in 18-bit mode. */
 	if (IS_I965G(pI830))
