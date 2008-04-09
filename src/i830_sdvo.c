@@ -808,7 +808,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     uint32_t sdvox;
     int sdvo_pixel_multiply;
     struct i830_sdvo_in_out_map in_out;
-    struct i830_sdvo_dtd output_dtd;
+    struct i830_sdvo_dtd input_dtd;
     uint8_t status;
 
     if (!mode)
@@ -827,13 +827,15 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
 
-    /* If it's a TV, we already set the output timing in mode_fixup. */
-    if (!dev_priv->is_tv) {
-	i830_sdvo_get_dtd_from_mode(&output_dtd, mode);
+    i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
+    /* If it's a TV, we already set the output timing in mode_fixup.
+     * Otherwise, the output timing is equal to the input timing.
+     */
+    if (!dev_priv->is_tv) {
 	/* Set the output timing to the screen */
 	i830_sdvo_set_target_output(output, dev_priv->controlled_output);
-	i830_sdvo_set_output_timing(output, &output_dtd);
+	i830_sdvo_set_output_timing(output, &input_dtd);
     }
 
     /* Set the input timing to the screen. Assume always input 0. */
@@ -854,7 +856,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	i830_sdvo_set_input_timing(output, &input_dtd);
     }
 #else
-    i830_sdvo_set_input_timing(output, &output_dtd);
+    i830_sdvo_set_input_timing(output, &input_dtd);
 #endif
 
     switch (i830_sdvo_get_pixel_multiplier(mode)) {
