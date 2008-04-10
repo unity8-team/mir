@@ -1573,103 +1573,80 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	CARD32 mask_color, mask_alpha;
 
 	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
-	    //src_color = R300_ALU_RGB_0_0;
 	    src_color = (R500_ALU_RGB_R_SWIZ_A_0 |
 			 R500_ALU_RGB_G_SWIZ_A_0 |
 			 R500_ALU_RGB_B_SWIZ_A_0);
 	else
-	    //src_color = R300_ALU_RGB_SRC0_RGB;
 	    src_color = (R500_ALU_RGB_R_SWIZ_A_R |
 			 R500_ALU_RGB_G_SWIZ_A_G |
 			 R500_ALU_RGB_B_SWIZ_A_B);
 
 	if (PICT_FORMAT_A(pSrcPicture->format) == 0)
-	    //src_alpha = R300_ALU_ALPHA_1_0;
 	    src_alpha = R500_ALPHA_SWIZ_A_1;
 	else
-	    //src_alpha = R300_ALU_ALPHA_SRC0_A;
 	    src_alpha = R500_ALPHA_SWIZ_A_A;
 
 	if (pMask && pMaskPicture->componentAlpha) {
 	    if (RadeonBlendOp[op].src_alpha) {
 		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		    //src_color = R300_ALU_RGB_1_0;
-		    //src_alpha = R300_ALU_ALPHA_1_0;
 		    src_color = (R500_ALU_RGB_R_SWIZ_A_1 |
 				 R500_ALU_RGB_G_SWIZ_A_1 |
 				 R500_ALU_RGB_B_SWIZ_A_1);
 		    src_alpha = R500_ALPHA_SWIZ_A_1;
 		} else {
-		    //src_color = R300_ALU_RGB_SRC0_AAA;
-		    //src_alpha = R300_ALU_ALPHA_SRC0_A;
 		    src_color = (R500_ALU_RGB_R_SWIZ_A_A |
 				 R500_ALU_RGB_G_SWIZ_A_A |
 				 R500_ALU_RGB_B_SWIZ_A_A);
 		    src_alpha = R500_ALPHA_SWIZ_A_A;
 		}
 
-		//mask_color = R300_ALU_RGB_SRC1_RGB;
 		mask_color = (R500_ALU_RGB_R_SWIZ_B_R |
 			      R500_ALU_RGB_G_SWIZ_B_G |
 			      R500_ALU_RGB_B_SWIZ_B_B);
 
 		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    //mask_alpha = R300_ALU_ALPHA_1_0;
 		    mask_alpha = R500_ALPHA_SWIZ_B_1;
 		else
-		    //mask_alpha = R300_ALU_ALPHA_SRC1_A;
 		    mask_alpha = R500_ALPHA_SWIZ_B_A;
 
 	    } else {
-		//src_color = R300_ALU_RGB_SRC0_RGB;
 		src_color = (R500_ALU_RGB_R_SWIZ_A_R |
 			     R500_ALU_RGB_G_SWIZ_A_G |
 			     R500_ALU_RGB_B_SWIZ_A_B);
 
 		if (PICT_FORMAT_A(pSrcPicture->format) == 0)
-		    //src_alpha = R300_ALU_ALPHA_1_0;
 		    src_alpha = R500_ALPHA_SWIZ_A_1;
 		else
-		    //src_alpha = R300_ALU_ALPHA_SRC0_A;
 		    src_alpha = R500_ALPHA_SWIZ_A_A;
 
-		//mask_color = R300_ALU_RGB_SRC1_RGB;
 		mask_color = (R500_ALU_RGB_R_SWIZ_B_R |
 			      R500_ALU_RGB_G_SWIZ_B_G |
 			      R500_ALU_RGB_B_SWIZ_B_B);
 
 		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		    //mask_alpha = R300_ALU_ALPHA_1_0;
 		    mask_alpha = R500_ALPHA_SWIZ_B_1;
 		else
-		    //mask_alpha = R300_ALU_ALPHA_SRC1_A;
 		    mask_alpha = R500_ALPHA_SWIZ_B_A;
 
 	    }
 	} else if (pMask) {
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		//mask_color = R300_ALU_RGB_1_0;
 		mask_color = (R500_ALU_RGB_R_SWIZ_B_1 |
 			      R500_ALU_RGB_G_SWIZ_B_1 |
 			      R500_ALU_RGB_B_SWIZ_B_1);
 	    else
-		//mask_color = R300_ALU_RGB_SRC1_AAA;
 		mask_color = (R500_ALU_RGB_R_SWIZ_B_A |
 			      R500_ALU_RGB_G_SWIZ_B_A |
 			      R500_ALU_RGB_B_SWIZ_B_A);
 
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
-		//mask_alpha = R300_ALU_ALPHA_1_0;
 		mask_alpha = R500_ALPHA_SWIZ_B_1;
 	    else
-		//mask_alpha = R300_ALU_ALPHA_SRC1_A;
 		mask_alpha = R500_ALPHA_SWIZ_B_A;
 	} else {
-	    //mask_color = R300_ALU_RGB_1_0;
 	    mask_color = (R500_ALU_RGB_R_SWIZ_B_1 |
 			  R500_ALU_RGB_G_SWIZ_B_1 |
 			  R500_ALU_RGB_B_SWIZ_B_1);
-	    //mask_alpha = R300_ALU_ALPHA_1_0;
 	    mask_alpha = R500_ALPHA_SWIZ_B_1;
 	}
 
@@ -1795,9 +1772,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_DY_S_SWIZ_R |
 						   R500_DY_T_SWIZ_R |
 						   R500_DY_R_SWIZ_R |
-						   R500_DY_Q_SWIZ_R)); // TEX_ADDR_DXDY
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
+						   R500_DY_Q_SWIZ_R));
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
@@ -1830,9 +1807,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_DY_S_SWIZ_R |
 						   R500_DY_T_SWIZ_R |
 						   R500_DY_R_SWIZ_R |
-						   R500_DY_Q_SWIZ_R)); // TEX_ADDR_DXDY
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
+						   R500_DY_Q_SWIZ_R));
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	} else {
 	    BEGIN_ACCEL(13);
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
@@ -1867,9 +1844,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						   R500_DY_S_SWIZ_R |
 						   R500_DY_T_SWIZ_R |
 						   R500_DY_R_SWIZ_R |
-						   R500_DY_Q_SWIZ_R)); // TEX_ADDR_DXDY
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000); // mbz
+						   R500_DY_Q_SWIZ_R));
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	}
 
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
