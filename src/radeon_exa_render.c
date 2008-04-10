@@ -1051,10 +1051,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     CARD32 txenable, colorpitch;
     CARD32 blendcntl;
     int pixel_shift;
-    int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+    /*int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
 		   (info->ChipFamily != CHIP_FAMILY_RS740) &&
 		   (info->ChipFamily != CHIP_FAMILY_RS400) &&
-		   (info->ChipFamily != CHIP_FAMILY_RV515));
+		   (info->ChipFamily != CHIP_FAMILY_RV515));*/
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -1096,27 +1096,24 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     RADEON_SWITCH_TO_3D();
 
     /* setup the VAP */
-    if (has_tcl) {
+    if (info->has_tcl) {
 	BEGIN_ACCEL(9);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, 0);
-	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-	OUT_ACCEL_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
-				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
-				      (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
+
     } else {
-	BEGIN_ACCEL(8);
+	BEGIN_ACCEL(9);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
-	OUT_ACCEL_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
-				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
-				      (5 << R300_VF_MAX_VTX_NUM_SHIFT)));
     }
 
+    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
+    OUT_ACCEL_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
+				  (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
+				  (4 << R300_PVS_NUM_FPUS_SHIFT) |
+				  (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
     OUT_ACCEL_REG(R300_VAP_VTE_CNTL, R300_VTX_XY_FMT | R300_VTX_Z_FMT);
     OUT_ACCEL_REG(R300_VAP_PSC_SGN_NORM_CNTL, 0);
 
-    if (has_tcl) {
+    if (info->has_tcl) {
 	OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_0,
 		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -1192,7 +1189,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     FINISH_ACCEL();
 
     /* setup the vertex shader */
-    if (has_tcl) {
+    if (info->has_tcl) {
 	if (pMask) {
 	    BEGIN_ACCEL(22);
 	    /* flush the PVS before updating??? */
