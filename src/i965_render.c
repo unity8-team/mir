@@ -1,5 +1,6 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright © 2006,2008 Intel Corporation
+ * Copyright © 2007 Red Hat, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,6 +24,8 @@
  * Authors:
  *    Wang Zhenyu <zhenyu.z.wang@intel.com>
  *    Eric Anholt <eric@anholt.net>
+ *    Carl Worth <cworth@redhat.com>
+ *    Keith Packard <keithp@keithp.com>
  *
  */
 
