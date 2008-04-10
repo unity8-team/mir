@@ -196,21 +196,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	txenable = R300_TEX_0_ENABLE;
 
 	/* setup the VAP */
-	if (info->has_tcl) {
-	    BEGIN_VIDEO(27);
-	    OUT_VIDEO_REG(R300_VAP_CNTL_STATUS, 0);
-	} else {
-	    BEGIN_VIDEO(10);
-	    OUT_VIDEO_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
-	}
-
-	OUT_VIDEO_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-	OUT_VIDEO_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
-				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
-				      (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
-	OUT_VIDEO_REG(R300_VAP_VTE_CNTL, R300_VTX_XY_FMT | R300_VTX_Z_FMT);
-	OUT_VIDEO_REG(R300_VAP_PSC_SGN_NORM_CNTL, 0);
+	if (info->has_tcl)
+	    BEGIN_VIDEO(22);
+	else
+	    BEGIN_VIDEO(5);
 
 	if (info->has_tcl) {
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
