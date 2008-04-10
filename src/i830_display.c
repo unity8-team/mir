@@ -1080,7 +1080,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int i;
     int refclk;
     intel_clock_t clock;
-    uint32_t dpll = 0, fp = 0, dspcntr, pipeconf;
+    uint32_t dpll = 0, fp = 0, dspcntr, pipeconf, lvds_bits = 0;
     Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
     Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
 
@@ -1097,6 +1097,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	switch (intel_output->type) {
 	case I830_OUTPUT_LVDS:
 	    is_lvds = TRUE;
+	    lvds_bits = intel_output->lvds_bits;
 	    break;
 	case I830_OUTPUT_SDVO:
 	    is_sdvo = TRUE;
@@ -1319,7 +1320,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		lvds |= LVDS_DITHER_ENABLE;
 	}
 
-	lvds |= intel_output->lvds_bits;
+	lvds |= lvds_bits;
 
 	OUTREG(LVDS, lvds);
 	POSTING_READ(LVDS);
