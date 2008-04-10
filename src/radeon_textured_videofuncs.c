@@ -106,15 +106,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     dstyoff = 0;
 #endif
 
-#if 0
-    ErrorF("dst_offset: 0x%x\n", dst_offset);
-    ErrorF("dst_pitch: 0x%x\n", dst_pitch);
-    ErrorF("dstxoff: 0x%x\n", dstxoff);
-    ErrorF("dstyoff: 0x%x\n", dstyoff);
-    ErrorF("src_offset: 0x%x\n", pPriv->src_offset);
-    ErrorF("src_pitch: 0x%x\n", pPriv->src_pitch);
-#endif
-
     if (!info->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
@@ -131,10 +122,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
     if (IS_R300_3D || IS_R500_3D) {
 	CARD32 output_fmt;
-	int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+	/*int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
 		       (info->ChipFamily != CHIP_FAMILY_RS740) &&
 		       (info->ChipFamily != CHIP_FAMILY_RS400) &&
-		       (info->ChipFamily != CHIP_FAMILY_RV515));
+		       (info->ChipFamily != CHIP_FAMILY_RV515));*/
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:
@@ -205,27 +196,23 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	txenable = R300_TEX_0_ENABLE;
 
 	/* setup the VAP */
-	if (has_tcl) {
+	if (info->has_tcl) {
 	    BEGIN_VIDEO(27);
 	    OUT_VIDEO_REG(R300_VAP_CNTL_STATUS, 0);
 	    OUT_VIDEO_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-	    OUT_VIDEO_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
-					  (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-					  (4 << R300_PVS_NUM_FPUS_SHIFT) |
-					  (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
 	} else {
 	    BEGIN_VIDEO(9);
 	    OUT_VIDEO_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
-	    OUT_VIDEO_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
-					  (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-					  (4 << R300_PVS_NUM_FPUS_SHIFT) |
-					  (5 << R300_VF_MAX_VTX_NUM_SHIFT)));
 	}
 
+	OUT_VIDEO_REG(R300_VAP_CNTL, ((6 << R300_PVS_NUM_SLOTS_SHIFT) |
+				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
+				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
+				      (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
 	OUT_VIDEO_REG(R300_VAP_VTE_CNTL, R300_VTX_XY_FMT | R300_VTX_Z_FMT);
 	OUT_VIDEO_REG(R300_VAP_PSC_SGN_NORM_CNTL, 0);
 
-	if (has_tcl) {
+	if (info->has_tcl) {
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
 			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 			   (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -276,7 +263,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
 
 	/* setup vertex shader */
-	if (has_tcl) {
+	if (info->has_tcl) {
 	    OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (1 << R300_PVS_XYZW_VALID_INST_SHIFT) |
