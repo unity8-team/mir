@@ -1051,10 +1051,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     CARD32 txenable, colorpitch;
     CARD32 blendcntl;
     int pixel_shift;
-    /*int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
-		   (info->ChipFamily != CHIP_FAMILY_RS740) &&
-		   (info->ChipFamily != CHIP_FAMILY_RS400) &&
-		   (info->ChipFamily != CHIP_FAMILY_RV515));*/
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -1175,10 +1171,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     /* setup the vertex shader */
     if (info->has_tcl) {
 	if (pMask) {
-	    BEGIN_ACCEL(22);
-	    /* flush the PVS before updating??? */
-	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-
+	    BEGIN_ACCEL(15);
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
@@ -1186,10 +1179,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_1,
 			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	} else {
-	    BEGIN_ACCEL(18);
-	    /* flush the PVS before updating??? */
-	    OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-
+	    BEGIN_ACCEL(11);
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
 			   (1 << R300_PVS_XYZW_VALID_INST_SHIFT) |
@@ -1287,13 +1277,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_PVS_SRC_SWIZZLE_W(R300_PVS_SRC_SELECT_FORCE_0)));
 	}
 
-	OUT_ACCEL_REG(R300_VAP_PVS_FLOW_CNTL_OPC, 0);
-
-	OUT_ACCEL_REG(R300_VAP_GB_VERT_CLIP_ADJ, 0x3f800000);
-	OUT_ACCEL_REG(R300_VAP_GB_VERT_DISC_ADJ, 0x3f800000);
-	OUT_ACCEL_REG(R300_VAP_GB_HORZ_CLIP_ADJ, 0x3f800000);
-	OUT_ACCEL_REG(R300_VAP_GB_HORZ_DISC_ADJ, 0x3f800000);
-	OUT_ACCEL_REG(R300_VAP_CLIP_CNTL, R300_CLIP_DISABLE);
 	FINISH_ACCEL();
     }
 
@@ -1871,14 +1854,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	FINISH_ACCEL();
     }
 
-    BEGIN_ACCEL(4);
+    BEGIN_ACCEL(3);
 
     OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
     OUT_ACCEL_REG(R300_RB3D_COLORPITCH0, colorpitch);
 
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(R300_RB3D_BLENDCNTL, blendcntl | R300_ALPHA_BLEND_ENABLE | R300_READ_ENABLE);
-    OUT_ACCEL_REG(R300_RB3D_ABLENDCNTL, 0);
 
     FINISH_ACCEL();
 

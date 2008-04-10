@@ -122,10 +122,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
     if (IS_R300_3D || IS_R500_3D) {
 	CARD32 output_fmt;
-	/*int has_tcl = ((info->ChipFamily != CHIP_FAMILY_RS690) &&
-		       (info->ChipFamily != CHIP_FAMILY_RS740) &&
-		       (info->ChipFamily != CHIP_FAMILY_RS400) &&
-		       (info->ChipFamily != CHIP_FAMILY_RV515));*/
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:
@@ -196,12 +192,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	txenable = R300_TEX_0_ENABLE;
 
 	/* setup the VAP */
-	if (info->has_tcl)
-	    BEGIN_VIDEO(22);
-	else
-	    BEGIN_VIDEO(5);
-
 	if (info->has_tcl) {
+	    BEGIN_VIDEO(16);
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
 			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 			   (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -226,6 +218,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   ((R300_WRITE_ENA_X | R300_WRITE_ENA_Y | R300_WRITE_ENA_Z | R300_WRITE_ENA_W)
 			    << R300_WRITE_ENA_1_SHIFT)));
 	} else {
+	    BEGIN_VIDEO(5);
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
 			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 			   (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -317,13 +310,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_PVS_SRC_SWIZZLE_Z(R300_PVS_SRC_SELECT_FORCE_0) |
 			   R300_PVS_SRC_SWIZZLE_W(R300_PVS_SRC_SELECT_FORCE_0)));
 
-	    OUT_VIDEO_REG(R300_VAP_PVS_FLOW_CNTL_OPC, 0);
-
-	    OUT_VIDEO_REG(R300_VAP_GB_VERT_CLIP_ADJ, 0x3f800000);
-	    OUT_VIDEO_REG(R300_VAP_GB_VERT_DISC_ADJ, 0x3f800000);
-	    OUT_VIDEO_REG(R300_VAP_GB_HORZ_CLIP_ADJ, 0x3f800000);
-	    OUT_VIDEO_REG(R300_VAP_GB_HORZ_DISC_ADJ, 0x3f800000);
-	    OUT_VIDEO_REG(R300_VAP_CLIP_CNTL, R300_CLIP_DISABLE);
 	}
 
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
@@ -523,7 +509,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    FINISH_VIDEO();
 	}
 
-	BEGIN_VIDEO(6);
+	BEGIN_VIDEO(5);
 	OUT_VIDEO_REG(R300_TX_INVALTAGS, 0);
 	OUT_VIDEO_REG(R300_TX_ENABLE, txenable);
 
@@ -531,8 +517,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	OUT_VIDEO_REG(R300_RB3D_COLORPITCH0, colorpitch);
 
 	blendcntl = RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO;
+	/* no need to enable blending */
 	OUT_VIDEO_REG(R300_RB3D_BLENDCNTL, blendcntl);
-	OUT_VIDEO_REG(R300_RB3D_ABLENDCNTL, 0);
 	FINISH_VIDEO();
 
 	BEGIN_VIDEO(1);
