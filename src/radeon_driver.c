@@ -1785,6 +1785,23 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
         if (!xf86LoadSubModule(pScrn, "shadow"))
             return FALSE;
     }
+
+
+    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
+	(info->ChipFamily == CHIP_FAMILY_RS200) ||
+	(info->ChipFamily == CHIP_FAMILY_RS300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740))
+	info->has_tcl = FALSE;
+    else {
+	/* need to sort out why PVS has issues on RV515 */
+	if (info->ChipFamily == CHIP_FAMILY_RV515)
+	    info->has_tcl = FALSE;
+	else
+	    info->has_tcl = TRUE;
+    }
+
     return TRUE;
 }
 

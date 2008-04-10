@@ -762,6 +762,7 @@ typedef struct {
     void *fb_shadow;
 
     int num_gb_pipes;
+    Bool has_tcl;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
