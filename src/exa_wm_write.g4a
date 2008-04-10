@@ -25,41 +25,39 @@
  *    Keith Packard <keithp@keithp.com>
  */
 
-/* 
- * Once the data are ready, write them to the destination
- */
-
 include(`exa_wm.g4i')
 
-/* prepare data in m2-m5 for subspan(1,0), m6-m9 for subspan(3,2), then it's ready to write */
-/* src_sample0 -> m2
-   src_sample1 -> m6
-   src_sample2 -> m3
-   src_sample3 -> m7
-   src_sample4 -> m4
-   src_sample5 -> m8
-   src_sample6 -> m5
-   src_sample7 -> m9
-*/
+/*
+ * Prepare data in m2-m5 for subspan(1,0), m6-m9 for subspan(3,2),
+ *
+ * Note that the SIMD16 write message takes data for the first
+ * two sub-spans followed by the data for the second two sub-spans
+ * instead of having the two sub-spans interleaved by channel. Weird.
+ */
 
-mov (8) m2<1>F src_sample0<8,8,1>F { align1 };
-mov (8) m3<1>F src_sample2<8,8,1>F { align1 };
-mov (8) m4<1>F src_sample4<8,8,1>F { align1 };
-mov (8) m5<1>F src_sample6<8,8,1>F { align1 };
-mov (8) m6<1>F src_sample1<8,8,1>F { align1 };
-mov (8) m7<1>F src_sample3<8,8,1>F { align1 };
-mov (8) m8<1>F src_sample5<8,8,1>F { align1 };
-mov (8) m9<1>F src_sample7<8,8,1>F { align1 };
+mov (8) data_port_r_01<1>F	src_sample_r_01<8,8,1>F { align1 };
+mov (8) data_port_g_01<1>F	src_sample_g_01<8,8,1>F { align1 };
+mov (8) data_port_b_01<1>F	src_sample_b_01<8,8,1>F { align1 };
+mov (8) data_port_a_01<1>F	src_sample_a_01<8,8,1>F { align1 };
+
+mov (8) data_port_r_23<1>F	src_sample_r_23<8,8,1>F { align1 };
+mov (8) data_port_g_23<1>F	src_sample_g_23<8,8,1>F { align1 };
+mov (8) data_port_b_23<1>F	src_sample_b_23<8,8,1>F { align1 };
+mov (8) data_port_a_23<1>F 	src_sample_a_23<8,8,1>F { align1 };
 
 /* m0, m1 are all direct passed by PS thread payload */
-mov (8) m1<1>UD g1<8,8,1>UD { align1 };
+mov (8) data_port_msg_1<1>UD	g1<8,8,1>UD		{ align1 };
 
 /* write */
-send (16) 0 acc0<1>UW g0<8,8,1>UW write (
-	0,  /* binding_table */
-	8,  /* pixel scordboard clear, msg type simd16 single source */
-	4,  /* render target write */
-	0   /* no write commit message */
+send (16) 
+	data_port_msg_0_ind 
+	acc0<1>UW 
+	g0<8,8,1>UW 
+	write (
+	       0,  /* binding_table */
+	       8,  /* pixel scordboard clear, msg type simd16 single source */
+	       4,  /* render target write */
+	       0   /* no write commit message */
 	) 
 	mlen 10
 	rlen 0

@@ -32,7 +32,7 @@
 include(`exa_wm.g4i')
 /* mul mask's alpha channel to src */
 
-mul (16)    src_sample0<1>F src_sample0<8,8,1>F	mask_sample6<8,8,1>F	{ compr align1 };
-mul (16)    src_sample2<1>F src_sample2<8,8,1>F	mask_sample6<8,8,1>F	{ compr align1 };
-mul (16)    src_sample4<1>F src_sample4<8,8,1>F	mask_sample6<8,8,1>F	{ compr align1 };
-mul (16)    src_sample6<1>F src_sample6<8,8,1>F	mask_sample6<8,8,1>F	{ compr align1 };
+mul (16)    src_sample_r_01<1>F	src_sample_r_01<8,8,1>F	mask_sample_a_01<8,8,1>F { compr align1 };
+mul (16)    src_sample_g_01<1>F src_sample_g_01<8,8,1>F	mask_sample_a_01<8,8,1>F { compr align1 };
+mul (16)    src_sample_b_01<1>F src_sample_b_01<8,8,1>F	mask_sample_a_01<8,8,1>F { compr align1 };
+mul (16)    src_sample_a_01<1>F src_sample_a_01<8,8,1>F	mask_sample_a_01<8,8,1>F { compr align1 };

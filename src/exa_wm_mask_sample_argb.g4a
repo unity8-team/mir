@@ -40,7 +40,7 @@ mov (1) g0.8<1>UD	0x00000000UD { align1 mask_disable };
 /* mask_msg will be copied with g0, as it contains send desc */
 /* emit sampler 'send' cmd */
 send (16) mask_msg_ind		/* msg reg index */
-	mask_sample0<1>UW 	/* readback */
+	mask_sample_base<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
 	sampler (2,1,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
