@@ -1382,11 +1382,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	for (i = 0; i < h; i++) {
-	    memcpy(dst1, src1, w);
-	    src1 += srcPitch;
-	    dst1 += dstPitch2;
-	}
+	if (srcPitch == dstPitch2)
+	    memcpy (dst1, src1, srcPitch * h);
+	else
+	    for (i = 0; i < h; i++) {
+		memcpy(dst1, src1, w);
+		src1 += srcPitch;
+		dst1 += dstPitch2;
+	    }
 	break;
     case RR_Rotate_90:
 	for (i = 0; i < h; i++) {
@@ -1437,11 +1440,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	for (i = 0; i < h / 2; i++) {
-	    memcpy(dst2, src2, w / 2);
-	    src2 += srcPitch2;
-	    dst2 += dstPitch;
-	}
+	if (srcPitch2 == dstPitch)
+	    memcpy (dst2, src2, h/2 * srcPitch2);
+	else
+	    for (i = 0; i < h / 2; i++) {
+		memcpy(dst2, src2, w / 2);
+		src2 += srcPitch2;
+		dst2 += dstPitch;
+	    }
 	break;
     case RR_Rotate_90:
 	for (i = 0; i < (h/2); i++) {
@@ -1493,11 +1499,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
-	for (i = 0; i < h / 2; i++) {
-	    memcpy(dst3, src3, w / 2);
-	    src3 += srcPitch2;
-	    dst3 += dstPitch;
-	}
+	if (srcPitch2 == dstPitch)
+	    memcpy (dst3, src3, srcPitch2 * h/2);
+	else
+	    for (i = 0; i < h / 2; i++) {
+		memcpy(dst3, src3, w / 2);
+		src3 += srcPitch2;
+		dst3 += dstPitch;
+	    }
 	break;
     case RR_Rotate_90:
 	for (i = 0; i < (h/2); i++) {
