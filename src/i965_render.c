@@ -268,7 +268,6 @@ static struct brw_surface_state *src_surf_state, src_surf_state_local;
 static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
 static struct brw_sampler_state *src_sampler_state, src_sampler_state_local;
 static struct brw_sampler_state *mask_sampler_state, mask_sampler_state_local;
-static struct brw_sampler_default_color *default_color_state;
 
 static struct brw_vs_unit_state *vs_state, vs_state_local;
 static struct brw_sf_unit_state *sf_state, sf_state_local;
@@ -284,7 +283,6 @@ static int src_sampler_offset, mask_sampler_offset,vs_offset;
 static int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
 static int wm_scratch_offset;
 static int binding_table_offset;
-static int default_color_offset;
 static int next_offset, total_state_size;
 static char *state_base;
 static int state_base_offset;
@@ -418,6 +416,13 @@ static const uint32_t ps_kernel_masknoca_projective_static [][4] = {
 #define KERNEL_DECL(template) \
     uint32_t template [((sizeof (template ## _static) + 63) & ~63) / 16][4];
 
+/* Many of the fields in the state structure must be aligned to a
+ * 64-byte boundary, (or a 32-byte boundary, but 64 is good enough for
+ * those too).
+ */
+#define PAD64_MULTI(previous, idx, factor) char previous ## _pad ## idx [(64 - (sizeof(struct previous) * (factor)) % 64) % 64]
+#define PAD64(previous, idx) PAD64_MULTI(previous, idx, 1)
+
 /**
  * Gen4 rendering state buffer structure.
  *
@@ -440,6 +445,9 @@ typedef struct _gen4_state {
     KERNEL_DECL (ps_kernel_maskca_srcalpha_projective);
     KERNEL_DECL (ps_kernel_masknoca_affine);
     KERNEL_DECL (ps_kernel_masknoca_projective);
+
+    struct brw_sampler_default_color sampler_default_color;
+    PAD64 (brw_sampler_default_color, 0);
 
     uint8_t other_state[65536];
 } gen4_state_t;
@@ -464,6 +472,13 @@ gen4_state_init (gen4_state_t *state)
     KERNEL_COPY (ps_kernel_maskca_srcalpha_projective);
     KERNEL_COPY (ps_kernel_masknoca_affine);
     KERNEL_COPY (ps_kernel_masknoca_projective);
+
+    memset(&state->sampler_default_color, 0,
+	   sizeof(state->sampler_default_color));
+    state->sampler_default_color.color[0] = 0.0; /* R */
+    state->sampler_default_color.color[1] = 0.0; /* G */
+    state->sampler_default_color.color[2] = 0.0; /* B */
+    state->sampler_default_color.color[3] = 0.0; /* A */
 
 #undef KERNEL_COPY
 }
@@ -592,9 +607,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table_offset = ALIGN(next_offset, 32);
     next_offset = binding_table_offset + (binding_table_entries * 4);
 
-    default_color_offset = ALIGN(next_offset, 32);
-    next_offset = default_color_offset + sizeof(*default_color_state);
-
     total_state_size = next_offset;
     assert(total_state_size < sizeof(gen4_state_t));
 
@@ -607,8 +619,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table = (void *)(state_base + binding_table_offset);
 
     vb = (void *)(state_base + vb_offset);
-
-    default_color_state = (void*)(state_base + default_color_offset);
 
     /* Set up a default static partitioning of the URB, which is supposed to
      * allow anything we would want to do, at potentially lower performance.
@@ -793,12 +803,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	I830FALLBACK("Bad filter 0x%x\n", pSrcPicture->filter);
     }
 
-    memset(default_color_state, 0, sizeof(*default_color_state));
-    default_color_state->color[0] = 0.0; /* R */
-    default_color_state->color[1] = 0.0; /* G */
-    default_color_state->color[2] = 0.0; /* B */
-    default_color_state->color[3] = 0.0; /* A */
-
     src_sampler_state->ss0.default_color_mode = 0; /* GL mode */
 
     if (!pSrcPicture->repeat) {
@@ -806,7 +810,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
    	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
    	src_sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP_BORDER;
 	src_sampler_state->ss2.default_color_pointer =
-	    (state_base_offset + default_color_offset) >> 5;
+	    (state_base_offset +
+	     offsetof(gen4_state_t, sampler_default_color)) >> 5;
     } else {
    	src_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    	src_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
@@ -842,8 +847,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 		BRW_TEXCOORDMODE_CLAMP_BORDER;
    	    mask_sampler_state->ss1.t_wrap_mode =
 		BRW_TEXCOORDMODE_CLAMP_BORDER;
-            mask_sampler_state->ss2.default_color_pointer =
-		(state_base_offset + default_color_offset)>>5;
+	    mask_sampler_state->ss2.default_color_pointer =
+		(state_base_offset +
+		 offsetof(gen4_state_t, sampler_default_color)) >> 5;
    	} else {
    	    mask_sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
    	    mask_sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
