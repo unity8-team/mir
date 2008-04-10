@@ -1,0 +1,102 @@
+/*
+ * Copyright © 2006 Intel Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * Authors:
+ *    Keith Packard <keithp@keithp.com>
+ *    Eric Anholt <eric@anholt.net>
+ *
+ */
+
+include(`exa_wm.g4i')
+
+define(`YCbCr_base',	`src_sample_base')
+
+define(`Cr',		`src_sample_r')
+define(`Cr_01',		`src_sample_r_01')
+define(`Cr_23',		`src_sample_r_23')
+
+define(`Y',		`src_sample_g')
+define(`Y_01',		`src_sample_g_01')
+define(`Y_23',		`src_sample_g_23')
+
+define(`Cb',		`src_sample_b')
+define(`Cb_01',		`src_sample_b_01')
+define(`Cb_23',		`src_sample_b_23')
+
+    /* color space conversion function:
+     * R = Clamp ( 1.164(Y-16/255) + 1.596(Cr-128/255), 0, 1)
+     * G = Clamp ( 1.164(Y-16/255) - 0.813(Cr-128/255) - 0.392(Cb-128/255), 0, 1)
+     * B = Clamp ( 1.164(Y-16/255) + 2.017(Cb-128/255), 0, 1)
+     *
+     * Y is g14, g15.
+     * Cr is g12, g13.
+     * Cb is g16, g17.
+     *
+     * R is g2, g6.
+     * G is g3, g7.
+     * B is g4, g8.
+     */
+
+    /* Normalize Y, Cb and Cr:
+     *
+     * Y = (Y - 16/255) * 1.164
+     * Cr = Cr - 128 / 255
+     * Cb = Cb - 128 / 255
+     */
+add (16)    Y<1>F		Y<8,8,1>F	-0.0627451F { compr align1 };
+mul (16)    Y<1>F		Y<8,8,1>F	1.164F	    { compr align1 };
+
+add (16)    Cr<1>F		Cr<8,8,1>F	-0.501961F  { compr align1 };
+
+add (16)    Cb<1>F		Cb<8,8,1>F	-0.501961F  { compr align1 };
+
+    /* 
+     * R = Y + Cr * 1.596
+     */
+mul (8)	    null		Cr_01<8,8,1>F	1.596F	    { align1 };
+mac.sat (8) data_port_r_01<1>F	Y_01<8,8,1>F	1F	    { align1  };
+mul (8)     null		Cr_23<8,8,1>F	1.596F	    { align1 };
+mac.sat (8) data_port_r_23<1>F	Y_23<8,8,1>F	1F	    { align1  };
+     
+    /*
+     * G = Cr * -0.813 + Cb * -0.392 + Y
+     */
+mul (8)	    null		Cr_01<8,8,1>F	-0.813F	    { align1 };
+mac (8)	    null		Cb_01<8,8,1>F	-0.392F	    { align1 };
+mac.sat (8) data_port_g_01<1>F	Y_01<8,8,1>F	1F	    { align1 };
+mul (8)	    null		Cr_23<8,8,1>F	-0.813F	    { align1 };
+mac (8)	    null		Cb_23<8,8,1>F	-0.392F	    { align1 };
+mac.sat (8) data_port_g_23<1>F	Y_23<8,8,1>F	1F	    { align1 };
+
+    /*
+     * B = Cb * 2.017 + Y
+     */
+mul (8)	    null		Cb_01<8,8,1>F	2.017F	    { align1 };
+mac.sat (8) data_port_b_01<1>F	Y_01<8,8,1>F	1F	    { align1 };
+mul (8)	    null		Cb_23<8,8,1>F	2.017F	    { align1 };
+mac.sat (8) data_port_b_23<1>F	Y_23<8,8,1>F	1F	    { align1 };
+
+    /*
+     * A = 1.0
+     */
+mov (8)	    data_port_a_01<1>F	1.0F			    { align1 };
+mov (8)	    data_port_a_23<1>F	1.0F			    { align1 };

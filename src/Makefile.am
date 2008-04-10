@@ -135,6 +135,7 @@ INTEL_G4A =				\
 	exa_wm_src_projective.g4a 	\
 	exa_wm_src_sample_argb.g4a 	\
 	exa_wm_src_sample_a.g4a 	\
+	exa_wm_src_data.g4a		\
 	exa_wm_mask_affine.g4a 		\
 	exa_wm_mask_projective.g4a 	\
 	exa_wm_mask_sample_argb.g4a 	\
@@ -160,6 +161,7 @@ INTEL_G4B = 				\
 	exa_wm_src_projective.g4b 	\
 	exa_wm_src_sample_argb.g4b 	\
 	exa_wm_src_sample_a.g4b 	\
+	exa_wm_src_data.g4b		\
 	exa_wm_mask_affine.g4b 		\
 	exa_wm_mask_projective.g4b 	\
 	exa_wm_mask_sample_argb.g4b 	\
