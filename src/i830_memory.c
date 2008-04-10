@@ -334,7 +334,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->xaa_scratch = NULL;
     pI830->xaa_scratch_2 = NULL;
     pI830->exa_offscreen = NULL;
-    pI830->exa_965_state = NULL;
+    pI830->gen4_render_state_mem = NULL;
     pI830->overlay_regs = NULL;
     pI830->logical_context = NULL;
 #ifdef XF86DRI
@@ -1370,11 +1370,14 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     }
 
     /* even in XAA, 965G needs state mem buffer for rendering */
-    if (IS_I965G(pI830) && !pI830->noAccel && pI830->exa_965_state == NULL) {
-	pI830->exa_965_state =
+    if (IS_I965G(pI830) && !pI830->noAccel &&
+	pI830->gen4_render_state_mem == NULL)
+    {
+	pI830->gen4_render_state_mem =
 	    i830_allocate_memory(pScrn, "exa G965 state buffer",
-		    EXA_LINEAR_EXTRA, GTT_PAGE_SIZE, 0);
-	if (pI830->exa_965_state == NULL) {
+				 gen4_render_state_size(pScrn),
+				 GTT_PAGE_SIZE, 0);
+	if (pI830->gen4_render_state_mem == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		    "Failed to allocate exa state buffer for 965.\n");
 	    return FALSE;

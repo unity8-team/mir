@@ -113,6 +113,12 @@ static struct formatinfo i965_tex_formats[] = {
     {PICT_a8,       BRW_SURFACEFORMAT_A8_UNORM	 },
 };
 
+/** Private data for gen4 render accel implementation. */
+struct gen4_render_state {
+    unsigned char *state_addr;
+    unsigned int state_offset;
+};
+
 static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 				uint32_t *sblend, uint32_t *dblend)
 {
@@ -267,17 +273,12 @@ static struct brw_wm_unit_state *wm_state, wm_state_local;
 static struct brw_cc_unit_state *cc_state, cc_state_local;
 static struct brw_cc_viewport *cc_viewport;
 
-static struct brw_instruction *sf_kernel;
-static struct brw_instruction *ps_kernel;
-static struct brw_instruction *sip_kernel;
-
 static uint32_t *binding_table;
 static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
 static int src_sampler_offset, mask_sampler_offset,vs_offset;
 static int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
-static int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
 static int wm_scratch_offset;
 static int binding_table_offset;
 static int default_color_offset;
@@ -324,7 +325,7 @@ static const uint32_t sf_kernel_static[][4] = {
 #include "exa_sf.g4b"
 };
 
-static const uint32_t sf_kernel_static_mask[][4] = {
+static const uint32_t sf_kernel_mask_static[][4] = {
 #include "exa_sf_mask.g4b"
 };
 
@@ -334,21 +335,21 @@ static const uint32_t sf_kernel_static_mask[][4] = {
 #define PS_SCRATCH_SPACE    1024
 #define PS_SCRATCH_SPACE_LOG	0   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
 
-static const uint32_t ps_kernel_static_nomask_affine [][4] = {
+static const uint32_t ps_kernel_nomask_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_nomask_projective [][4] = {
+static const uint32_t ps_kernel_nomask_projective_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
 #include "exa_wm_src_sample_argb.g4b"
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca_affine [][4] = {
+static const uint32_t ps_kernel_maskca_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
@@ -358,7 +359,7 @@ static const uint32_t ps_kernel_static_maskca_affine [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca_projective [][4] = {
+static const uint32_t ps_kernel_maskca_projective_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
 #include "exa_wm_src_sample_argb.g4b"
@@ -368,7 +369,7 @@ static const uint32_t ps_kernel_static_maskca_projective [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca_srcalpha_affine [][4] = {
+static const uint32_t ps_kernel_maskca_srcalpha_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_a.g4b"
@@ -378,7 +379,7 @@ static const uint32_t ps_kernel_static_maskca_srcalpha_affine [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_maskca_srcalpha_projective [][4] = {
+static const uint32_t ps_kernel_maskca_srcalpha_projective_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
 #include "exa_wm_src_sample_a.g4b"
@@ -388,7 +389,7 @@ static const uint32_t ps_kernel_static_maskca_srcalpha_projective [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_masknoca_affine [][4] = {
+static const uint32_t ps_kernel_masknoca_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
@@ -398,7 +399,7 @@ static const uint32_t ps_kernel_static_masknoca_affine [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-static const uint32_t ps_kernel_static_masknoca_projective [][4] = {
+static const uint32_t ps_kernel_masknoca_projective_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
 #include "exa_wm_src_sample_argb.g4b"
@@ -407,6 +408,62 @@ static const uint32_t ps_kernel_static_masknoca_projective [][4] = {
 #include "exa_wm_noca.g4b"
 #include "exa_wm_write.g4b"
 };
+
+/**
+ * Storage for the static kernel data with template name, rounded to 64 bytes.
+ */
+#define KERNEL_DECL(template) \
+    uint32_t template [((sizeof (template ## _static) + 63) & ~63) / 16][4];
+
+/**
+ * Gen4 rendering state buffer structure.
+ *
+ * Ideally this structure would contain static data for all of the
+ * combinations of state that we use for Render acceleration, and another
+ * buffer would be the use-and-throw-away surface and vertex data.  See the
+ * intel-batchbuffer branch for an implementation of that.  For now, it
+ * has the static program data, and then a changing buffer containing all
+ * the rest.
+ */
+typedef struct _gen4_state {
+    KERNEL_DECL (sip_kernel);
+    KERNEL_DECL (sf_kernel);
+    KERNEL_DECL (sf_kernel_mask);
+    KERNEL_DECL (ps_kernel_nomask_affine);
+    KERNEL_DECL (ps_kernel_nomask_projective);
+    KERNEL_DECL (ps_kernel_maskca_affine);
+    KERNEL_DECL (ps_kernel_maskca_projective);
+    KERNEL_DECL (ps_kernel_maskca_srcalpha_affine);
+    KERNEL_DECL (ps_kernel_maskca_srcalpha_projective);
+    KERNEL_DECL (ps_kernel_masknoca_affine);
+    KERNEL_DECL (ps_kernel_masknoca_projective);
+
+    uint8_t other_state[65536];
+} gen4_state_t;
+
+/**
+ * Called at EnterVT to fill in our state buffer with any static information.
+ */
+static void
+gen4_state_init (gen4_state_t *state)
+{
+#define KERNEL_COPY(kernel) \
+    memcpy(state->kernel, kernel ## _static, sizeof(kernel ## _static))
+
+    KERNEL_COPY (sip_kernel);
+    KERNEL_COPY (sf_kernel);
+    KERNEL_COPY (sf_kernel_mask);
+    KERNEL_COPY (ps_kernel_nomask_affine);
+    KERNEL_COPY (ps_kernel_nomask_projective);
+    KERNEL_COPY (ps_kernel_maskca_affine);
+    KERNEL_COPY (ps_kernel_maskca_projective);
+    KERNEL_COPY (ps_kernel_maskca_srcalpha_affine);
+    KERNEL_COPY (ps_kernel_maskca_srcalpha_projective);
+    KERNEL_COPY (ps_kernel_masknoca_affine);
+    KERNEL_COPY (ps_kernel_masknoca_projective);
+
+#undef KERNEL_COPY
+}
 
 static uint32_t 
 i965_get_card_format(PicturePtr pPict)
@@ -484,7 +541,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table_entries = 2; /* default no mask */
 
     /* Set up our layout of state in framebuffer.  First the general state: */
-    next_offset = 0;
+    next_offset = offsetof(gen4_state_t, other_state);
     vs_offset = ALIGN(next_offset, 64);
     next_offset = vs_offset + sizeof(*vs_state);
 
@@ -499,46 +556,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     cc_offset = ALIGN(next_offset, 32);
     next_offset = cc_offset + sizeof(*cc_state);
-
-    /* keep current sf_kernel, which will send one setup urb entry to
-     * PS kernel
-     */
-    sf_kernel_offset = ALIGN(next_offset, 64);
-    if (pMask)
-	next_offset = sf_kernel_offset + sizeof (sf_kernel_static_mask);
-    else 
-	next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
-
-    ps_kernel_offset = ALIGN(next_offset, 64);
-    if (pMask) {
-	if (pMaskPicture->componentAlpha && 
-                PICT_FORMAT_RGB(pMaskPicture->format)) {
-            if (i965_blend_op[op].src_alpha) {
-		if (is_affine)
-		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_srcalpha_affine);
-		else
-		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_srcalpha_projective);
-            } else {
-		if (is_affine)
-		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_affine);
-		else
-		    next_offset = ps_kernel_offset + sizeof(ps_kernel_static_maskca_projective);
-            }
-        } else {
-	    if (is_affine)
-		next_offset = ps_kernel_offset + sizeof(ps_kernel_static_masknoca_affine);
-	    else
-		next_offset = ps_kernel_offset + sizeof(ps_kernel_static_masknoca_projective);
-	}
-    } else {
-	if (is_affine)
-	    next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask_affine);
-	else
-	    next_offset = ps_kernel_offset + sizeof (ps_kernel_static_nomask_projective);
-    }
-
-    sip_kernel_offset = ALIGN(next_offset, 64);
-    next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
 
     /* needed? */
     cc_viewport_offset = ALIGN(next_offset, 32);
@@ -576,15 +593,11 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     next_offset = default_color_offset + sizeof(*default_color_state);
 
     total_state_size = next_offset;
-    assert(total_state_size < pI830->exa_965_state->size);
+    assert(total_state_size < sizeof(gen4_state_t));
 
-    state_base_offset = pI830->exa_965_state->offset;
-    state_base_offset = ALIGN(state_base_offset, 64);
+    state_base_offset = pI830->gen4_render_state_mem->offset;
+    assert((state_base_offset & 63) == 0);
     state_base = (char *)(pI830->FbBase + state_base_offset);
-
-    sf_kernel = (void *)(state_base + sf_kernel_offset);
-    ps_kernel = (void *)(state_base + ps_kernel_offset);
-    sip_kernel = (void *)(state_base + sip_kernel_offset);
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
 
@@ -663,9 +676,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     cc_state = (void *)(state_base + cc_offset);
     memcpy (cc_state, &cc_state_local, sizeof (cc_state_local));
-
-    /* Upload system kernel */
-    memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
 
     /* Set up the state buffer for the destination surface */
     dest_surf_state = &dest_surf_state_local;
@@ -857,16 +867,15 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
      * back to SF which then hands pixels off to WM.
      */
-    if (pMask)
-	memcpy(sf_kernel, sf_kernel_static_mask,
-		sizeof (sf_kernel_static_mask));
-    else
-	memcpy(sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
-
     sf_state = &sf_state_local;
     memset(sf_state, 0, sizeof(*sf_state));
-    sf_state->thread0.kernel_start_pointer =
-	(state_base_offset + sf_kernel_offset) >> 6;
+    if (pMask) {
+	sf_state->thread0.kernel_start_pointer = (state_base_offset +
+		       offsetof(gen4_state_t, sf_kernel_mask)) >> 6;
+    } else {
+	sf_state->thread0.kernel_start_pointer = (state_base_offset +
+		       offsetof(gen4_state_t, sf_kernel)) >> 6;
+    }
     sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
     sf_state->sf1.single_program_flow = 1;
     sf_state->sf1.binding_table_entry_count = 0;
@@ -899,37 +908,64 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     memcpy (sf_state, &sf_state_local, sizeof (sf_state_local));
 
    /* Set up the PS kernel (dispatched by WM) */
-    if (pMask) {
-	if (pMaskPicture->componentAlpha && 
-                PICT_FORMAT_RGB(pMaskPicture->format)) {
-            if (i965_blend_op[op].src_alpha) {
-		if (is_affine)
-		    memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha_affine, sizeof (ps_kernel_static_maskca_srcalpha_affine));
-		else
-                    memcpy(ps_kernel, ps_kernel_static_maskca_srcalpha_projective, sizeof (ps_kernel_static_maskca_srcalpha_projective));
-            } else {
-		if (is_affine)
-		    memcpy(ps_kernel, ps_kernel_static_maskca_affine, sizeof (ps_kernel_static_maskca_affine));
-		else
-		    memcpy(ps_kernel, ps_kernel_static_maskca_projective, sizeof (ps_kernel_static_maskca_projective));
-	    }
-        } else {
-	    if (is_affine)
-		memcpy(ps_kernel, ps_kernel_static_masknoca_affine, sizeof (ps_kernel_static_masknoca_affine));
-	    else
-		memcpy(ps_kernel, ps_kernel_static_masknoca_projective, sizeof (ps_kernel_static_masknoca_projective));
-	}
-    } else {
-	if (is_affine)
-	    memcpy(ps_kernel, ps_kernel_static_nomask_affine, sizeof (ps_kernel_static_nomask_affine));
-	else
-	    memcpy(ps_kernel, ps_kernel_static_nomask_projective, sizeof (ps_kernel_static_nomask_projective));
-    }
-
     wm_state = &wm_state_local;
     memset(wm_state, 0, sizeof (*wm_state));
-    wm_state->thread0.kernel_start_pointer =
-	(state_base_offset + ps_kernel_offset) >> 6;
+    if (pMask) {
+	if (pMaskPicture->componentAlpha &&
+	    PICT_FORMAT_RGB(pMaskPicture->format))
+	{
+            if (i965_blend_op[op].src_alpha) {
+		if (is_affine) {
+		    wm_state->thread0.kernel_start_pointer =
+			(state_base_offset +
+			 offsetof(gen4_state_t,
+				  ps_kernel_maskca_srcalpha_affine)) >> 6;
+		} else {
+		    wm_state->thread0.kernel_start_pointer =
+			(state_base_offset +
+			 offsetof(gen4_state_t,
+				  ps_kernel_maskca_srcalpha_projective)) >> 6;
+		}
+            } else {
+		if (is_affine) {
+		    wm_state->thread0.kernel_start_pointer =
+			(state_base_offset +
+			 offsetof(gen4_state_t,
+				  ps_kernel_maskca_affine)) >> 6;
+		} else {
+		    wm_state->thread0.kernel_start_pointer =
+			(state_base_offset +
+			 offsetof(gen4_state_t,
+				  ps_kernel_maskca_projective)) >> 6;
+		}
+            }
+        } else {
+	    if (is_affine) {
+		wm_state->thread0.kernel_start_pointer =
+		    (state_base_offset +
+		     offsetof(gen4_state_t,
+			      ps_kernel_masknoca_affine)) >> 6;
+	    } else {
+		wm_state->thread0.kernel_start_pointer =
+		    (state_base_offset +
+		     offsetof(gen4_state_t,
+			      ps_kernel_masknoca_projective)) >> 6;
+	    }
+	}
+    } else {
+	if (is_affine) {
+	    wm_state->thread0.kernel_start_pointer =
+		(state_base_offset +
+		 offsetof(gen4_state_t,
+			  ps_kernel_nomask_affine)) >> 6;
+	} else {
+	    wm_state->thread0.kernel_start_pointer =
+		(state_base_offset +
+		 offsetof(gen4_state_t,
+			  ps_kernel_nomask_projective)) >> 6;
+	}
+    }
+
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
     wm_state->thread1.single_program_flow = 0;
     if (!pMask)
@@ -1006,7 +1042,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(state_base_offset + sip_kernel_offset);
+	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, sip_kernel));
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
     }
@@ -1327,4 +1363,50 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
      * rectangle.
      */
     i830MarkSync(pScrn);
+}
+
+/**
+ * Called at EnterVT so we can set up our offsets into the state buffer.
+ */
+void
+gen4_render_state_init(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *state;
+
+    if (pI830->gen4_render_state == NULL)
+	pI830->gen4_render_state = calloc(sizeof(*state), 1);
+
+    state = pI830->gen4_render_state;
+
+    state->state_offset = pI830->gen4_render_state_mem->offset;
+    state->state_addr = pI830->FbBase + pI830->gen4_render_state_mem->offset;
+
+    gen4_state_init((gen4_state_t *)state->state_addr);
+}
+
+/**
+ * Called at LeaveVT.
+ */
+void
+gen4_render_state_cleanup(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->gen4_render_state->state_addr = NULL;
+}
+
+/**
+ * Called when the hardware is idled and flushed, so we know we can
+ * reuse the buffer contents.
+ */
+void
+gen4_render_state_reset(ScrnInfoPtr pScrn)
+{
+}
+
+unsigned int
+gen4_render_state_size(ScrnInfoPtr pScrn)
+{
+    return sizeof(gen4_state_t);
 }

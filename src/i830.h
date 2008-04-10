@@ -85,7 +85,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830_USE_EXA
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
-#define EXA_LINEAR_EXTRA	(64*1024)
 unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #endif
 
@@ -398,7 +397,7 @@ typedef struct _I830Rec {
    i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
-   i830_memory *exa_965_state;
+   i830_memory *gen4_render_state_mem;
 #endif
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
@@ -530,6 +529,9 @@ typedef struct _I830Rec {
    /* i915 EXA render state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
+
+   /* 965 render acceleration state */
+   struct gen4_render_state *gen4_render_state;
 
    Bool directRenderingDisabled;	/* DRI disabled in PreInit. */
    Bool directRenderingEnabled;		/* DRI enabled this generation. */
@@ -824,6 +826,10 @@ Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PicturePtr pDst, PixmapPtr pSrcPixmap,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
 /* i965_render.c */
+unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
+void gen4_render_state_init(ScrnInfoPtr pScrn);
+void gen4_render_state_cleanup(ScrnInfoPtr pScrn);
+void gen4_render_state_reset(ScrnInfoPtr pScrn);
 Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			  PicturePtr pDst);
 Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
