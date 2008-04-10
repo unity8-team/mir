@@ -4614,6 +4614,7 @@
 #       define R300_DC_FLUSH_2D                         (1 << 0)
 #       define R300_DC_FREE_2D                          (1 << 2)
 #       define R300_RB2D_DC_FLUSH_ALL                   (R300_DC_FLUSH_2D | R300_DC_FREE_2D)
+#       define R300_RB2D_DC_BUSY                        (1 << 31)
 #define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
 #       define R300_DC_FLUSH_3D                         (2 << 0)
 #       define R300_DC_FREE_3D                          (2 << 2)

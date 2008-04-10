@@ -158,17 +158,32 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     int            i;
 
-    OUTREGP(RADEON_RB3D_DSTCACHE_CTLSTAT,
-	    RADEON_RB3D_DC_FLUSH_ALL,
-	    ~RADEON_RB3D_DC_FLUSH_ALL);
-    for (i = 0; i < RADEON_TIMEOUT; i++) {
-	if (!(INREG(RADEON_RB3D_DSTCACHE_CTLSTAT) & RADEON_RB3D_DC_BUSY))
-	    break;
-    }
-    if (i == RADEON_TIMEOUT) {
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "DC flush timeout: %x\n",
-		       (unsigned int)INREG(RADEON_RB3D_DSTCACHE_CTLSTAT));
+    if (info->ChipFamily <= CHIP_FAMILY_RV280) {
+	OUTREGP(RADEON_RB3D_DSTCACHE_CTLSTAT,
+		RADEON_RB3D_DC_FLUSH_ALL,
+		~RADEON_RB3D_DC_FLUSH_ALL);
+	for (i = 0; i < RADEON_TIMEOUT; i++) {
+	    if (!(INREG(RADEON_RB3D_DSTCACHE_CTLSTAT) & RADEON_RB3D_DC_BUSY))
+		break;
+	}
+	if (i == RADEON_TIMEOUT) {
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "DC flush timeout: %x\n",
+			   (unsigned int)INREG(RADEON_RB3D_DSTCACHE_CTLSTAT));
+	}
+    } else {
+	OUTREGP(R300_RB2D_DSTCACHE_CTLSTAT,
+		R300_RB2D_DC_FLUSH_ALL,
+		~R300_RB2D_DC_FLUSH_ALL);
+	for (i = 0; i < RADEON_TIMEOUT; i++) {
+	    if (!(INREG(R300_RB2D_DSTCACHE_CTLSTAT) & R300_RB2D_DC_BUSY))
+		break;
+	}
+	if (i == RADEON_TIMEOUT) {
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "DC flush timeout: %x\n",
+			   (unsigned int)INREG(R300_RB2D_DSTCACHE_CTLSTAT));
+	}
     }
 }
 
