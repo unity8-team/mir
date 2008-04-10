@@ -923,7 +923,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	i830MarkSync(pScrn);
     }
 
-    i830WaitSync(pScrn);
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif
