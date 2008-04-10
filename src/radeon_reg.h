@@ -3885,6 +3885,7 @@
 #define R300_GB_SELECT				        0x401c
 #define R300_GB_ENABLE				        0x4008
 #define R300_GB_AA_CONFIG				0x4020
+#define R400_GB_PIPE_SELECT                             0x402c
 #define R300_GB_MSPOS0				        0x4010
 #       define R300_MS_X0_SHIFT                         0
 #       define R300_MS_Y0_SHIFT                         4
@@ -3942,6 +3943,8 @@
 #       define R300_ALPHA3_SHADING_GOURAUD              (2 << 14)
 #define R300_GA_OFFSET				        0x4290
 
+#define R500_SU_REG_DEST                                0x42c8
+
 #define R300_VAP_CNTL_STATUS				0x2140
 #       define R300_PVS_BYPASS                          (1 << 8)
 #define R300_VAP_PVS_STATE_FLUSH_REG		        0x2284
@@ -3952,6 +3955,7 @@
 #       define R300_VF_MAX_VTX_NUM_SHIFT                18
 #       define R300_GL_CLIP_SPACE_DEF                   (0 << 22)
 #       define R300_DX_CLIP_SPACE_DEF                   (1 << 22)
+#       define R500_TCL_STATE_OPTIMIZATION              (1 << 23)
 #define R300_VAP_VTE_CNTL				0x20B0
 #       define R300_VPORT_X_SCALE_ENA                   (1 << 0)
 #       define R300_VPORT_X_OFFSET_ENA                  (1 << 1)
@@ -4190,6 +4194,8 @@
 #       define R300_UCP_CULL_ONLY_ENA                   (1 << 17)
 #       define R300_BOUNDARY_EDGE_FLAG_ENA              (1 << 18)
 #define R300_VAP_PVS_STATE_FLUSH_REG			0x2284
+
+#define R500_VAP_INDEX_OFFSET			        0x208c
 
 #define R300_SU_TEX_WRAP				0x42a0
 #define R300_SU_POLY_OFFSET_ENABLE		        0x42b4
@@ -4604,12 +4610,19 @@
 #define R300_FG_FOG_BLEND				0x4bc0
 #define R300_FG_ALPHA_FUNC				0x4bd4
 
+#define R300_RB2D_DSTCACHE_CTLSTAT		        0x342c
+#       define R300_DC_FLUSH_2D                         (1 << 0)
+#       define R300_DC_FREE_2D                          (1 << 2)
+#       define R300_RB2D_DC_FLUSH_ALL                   (R300_DC_FLUSH_2D | R300_DC_FREE_2D)
 #define R300_RB3D_DSTCACHE_CTLSTAT		        0x4e4c
 #       define R300_DC_FLUSH_3D                         (2 << 0)
 #       define R300_DC_FREE_3D                          (2 << 2)
+#       define R300_RB3D_DC_FLUSH_ALL                   (R300_DC_FLUSH_3D | R300_DC_FREE_3D)
+#       define R300_DC_FINISH_3D                        (1 << 4)
 #define R300_RB3D_ZCACHE_CTLSTAT			0x4f18
 #       define R300_ZC_FLUSH                            (1 << 0)
 #       define R300_ZC_FREE                             (1 << 1)
+#       define R300_ZC_FLUSH_ALL                        0x3
 #define R300_WAIT_UNTIL				        0x1720
 #       define R300_WAIT_2D_IDLECLEAN                   (1 << 16)
 #       define R300_WAIT_3D_IDLECLEAN                   (1 << 17)
@@ -5177,5 +5190,6 @@
 #   define R500_RS_IP_COL_FMT_RGBA			(0 << 27)
 #   define R500_RS_IP_OFFSET_EN 			(1 << 31)
 
+#define R500_DYN_SCLK_PWMEM_PIPE                        0x000d /* PLL */
 
 #endif

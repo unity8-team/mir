@@ -760,6 +760,8 @@ typedef struct {
 
     Bool              r600_shadow_fb;
     void *fb_shadow;
+
+    int num_gb_pipes;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -1188,15 +1190,27 @@ do {									\
 #define RADEON_PURGE_CACHE()						\
 do {									\
     BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);					\
+    if (info->ChipFamily <= CHIP_FAMILY_RV280) {                        \
+        OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
+        OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);				\
+    } else {                                                            \
+        OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));		\
+        OUT_RING(R300_RB3D_DC_FLUSH_ALL);				\
+    }                                                                   \
     ADVANCE_RING();							\
 } while (0)
 
 #define RADEON_PURGE_ZCACHE()						\
 do {									\
-    OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));		\
-    OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);					\
+    BEGIN_RING(2);							\
+    if (info->ChipFamily <= CHIP_FAMILY_RV280) {                        \
+        OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));		\
+        OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);				\
+    } else {                                                            \
+        OUT_RING(CP_PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));		\
+        OUT_RING(R300_ZC_FLUSH_ALL);					\
+    }                                                                   \
+    ADVANCE_RING();							\
 } while (0)
 
 #endif /* XF86DRI */

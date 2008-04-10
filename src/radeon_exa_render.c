@@ -1220,16 +1220,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			  R300_OUT_FMT_C2_SEL_BLUE |
 			  R300_OUT_FMT_C3_SEL_ALPHA);
 	    break;
-	case PICT_a1r5g5b5:
-	case PICT_x1r5g5b5:
-	    /* fix me */
-	case PICT_r5g6b5:
-	    output_fmt = (R300_OUT_FMT_C_5_6_5 |
-			  R300_OUT_FMT_C0_SEL_BLUE |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_RED |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
 	case PICT_a8:
 	    output_fmt = (R300_OUT_FMT_C4_8 |
 			  R300_OUT_FMT_C0_SEL_ALPHA);
@@ -1488,16 +1478,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			  R300_OUT_FMT_C0_SEL_RED |
 			  R300_OUT_FMT_C1_SEL_GREEN |
 			  R300_OUT_FMT_C2_SEL_BLUE |
-			  R300_OUT_FMT_C3_SEL_ALPHA);
-	    break;
-	case PICT_a1r5g5b5:
-	case PICT_x1r5g5b5:
-	    /* fix me */
-	case PICT_r5g6b5:
-	    output_fmt = (R300_OUT_FMT_C_5_6_5 |
-			  R300_OUT_FMT_C0_SEL_BLUE |
-			  R300_OUT_FMT_C1_SEL_GREEN |
-			  R300_OUT_FMT_C2_SEL_RED |
 			  R300_OUT_FMT_C3_SEL_ALPHA);
 	    break;
 	case PICT_a8:
@@ -1825,7 +1805,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 
     vtx_count = VTX_COUNT;
 
-    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
+    if (IS_R300_3D || IS_R500_3D) {
 	BEGIN_ACCEL(1);
 	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, vtx_count);
 	FINISH_ACCEL();
@@ -1845,8 +1825,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     } else {
-	if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
-	    BEGIN_RING(4 * vtx_count + 6);
+	if (IS_R300_3D || IS_R500_3D)
+	    BEGIN_RING(4 * vtx_count + 4);
 	else
 	    BEGIN_RING(4 * vtx_count + 2);
 
@@ -1858,8 +1838,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     }
 
 #else /* ACCEL_CP */
-    if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
-	BEGIN_ACCEL(3 + vtx_count * 4);
+    if (IS_R300_3D || IS_R500_3D)
+	BEGIN_ACCEL(2 + vtx_count * 4);
     else
 	BEGIN_ACCEL(1 + vtx_count * 4);
 
@@ -1888,10 +1868,9 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	    xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
 	    xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
 
-    if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    }
+    if (IS_R300_3D || IS_R500_3D)
+	/* flushing is pipelined, free/finish is not */
+	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
 
 #ifdef ACCEL_CP
     ADVANCE_RING();

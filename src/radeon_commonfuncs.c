@@ -55,7 +55,7 @@
 static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32 gb_tile_config;
+    CARD32 gb_tile_config, su_reg_dest;
     ACCEL_PREAMBLE();
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
@@ -70,27 +70,12 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
 
-	if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
-	    (info->Chipset == PCI_CHIP_RV410_5E4F)) {
-	    /* RV410 SE chips */
-	    gb_tile_config |= R300_PIPE_COUNT_RV350;
-	} else if ((info->ChipFamily == CHIP_FAMILY_RV350) ||
-		   (info->ChipFamily == CHIP_FAMILY_RV380) ||
-		   (info->ChipFamily == CHIP_FAMILY_RS400)) {
-	    /* RV3xx, RS4xx chips */
-	    gb_tile_config |= R300_PIPE_COUNT_RV350;
-	} else if ((info->ChipFamily == CHIP_FAMILY_R300) ||
-		   (info->ChipFamily == CHIP_FAMILY_R350)) {
-	    /* R3xx chips */
-	    gb_tile_config |= R300_PIPE_COUNT_R300;
-	} else if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
-		   (info->ChipFamily == CHIP_FAMILY_RS690) ||
-		   (info->ChipFamily == CHIP_FAMILY_RS740)) {
-	    /* RV4xx, RS6xx chips */
-	    gb_tile_config |= R300_PIPE_COUNT_R420_3P;
-	} else {
-	    /* R4xx, R5xx chips */
-	    gb_tile_config |= R300_PIPE_COUNT_R420;
+	switch(info->num_gb_pipes) {
+	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
+	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
+	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
+	default:
+	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
 	}
 
 	BEGIN_ACCEL(3);
@@ -98,6 +83,14 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_GB_SELECT, 0);
 	OUT_ACCEL_REG(R300_GB_ENABLE, 0);
 	FINISH_ACCEL();
+
+	if (IS_R500_3D) {
+	    su_reg_dest = ((1 << info->num_gb_pipes) - 1);
+	    BEGIN_ACCEL(2);
+	    OUT_ACCEL_REG(R500_SU_REG_DEST, su_reg_dest);
+	    OUT_ACCEL_REG(R500_VAP_INDEX_OFFSET, 0);
+	    FINISH_ACCEL();
+	}
 
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
@@ -150,14 +143,22 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
 
 	/* setup the VAP */
-	BEGIN_ACCEL(5);
+	BEGIN_ACCEL(6);
 	/* disable TCL/PVS */
 	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 	OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
-	OUT_ACCEL_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
-				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
-				      (5 << R300_VF_MAX_VTX_NUM_SHIFT)));
+	if (IS_R300_3D)
+	    OUT_ACCEL_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
+					  (6 << R300_PVS_NUM_CNTLRS_SHIFT) |
+					  (6 << R300_PVS_NUM_FPUS_SHIFT) |
+					  (12 << R300_VF_MAX_VTX_NUM_SHIFT)));
+	else
+	    OUT_ACCEL_REG(R300_VAP_CNTL, ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
+					  (6 << R300_PVS_NUM_CNTLRS_SHIFT) |
+					  (6 << R300_PVS_NUM_FPUS_SHIFT) |
+					  (12 << R300_VF_MAX_VTX_NUM_SHIFT) |
+					  R500_TCL_STATE_OPTIMIZATION));
+	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 	OUT_ACCEL_REG(R300_VAP_VTE_CNTL, R300_VTX_XY_FMT | R300_VTX_Z_FMT);
 	OUT_ACCEL_REG(R300_VAP_PSC_SGN_NORM_CNTL, 0);
 	FINISH_ACCEL();

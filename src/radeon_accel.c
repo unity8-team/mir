@@ -400,6 +400,33 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     info->aux_sc_cntl     = 0x00000000;
 #endif
 
+    if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
+	(info->ChipFamily == CHIP_FAMILY_R420)  ||
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	IS_R500_3D) {
+	uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
+	if (info->num_gb_pipes == 0) {
+	    info->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "%s: num pipes is %d\n", __FUNCTION__, info->num_gb_pipes);
+	}
+	if (IS_R500_3D)
+	    OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
+    } else {
+	if (info->num_gb_pipes == 0) {
+	    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
+		(info->ChipFamily == CHIP_FAMILY_R350)) {
+		/* R3xx chips */
+		info->num_gb_pipes = 2;
+	    } else {
+		/* RV3xx chips */
+		info->num_gb_pipes = 1;
+	    }
+	}
+    }
+
     RADEONEngineRestore(pScrn);
 }
 

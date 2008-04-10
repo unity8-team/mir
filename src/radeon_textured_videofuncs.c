@@ -589,7 +589,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		     (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else {
 	    if (IS_R300_3D || IS_R500_3D)
-		BEGIN_RING(4 * VTX_DWORD_COUNT + 6);
+		BEGIN_RING(4 * VTX_DWORD_COUNT + 4);
 	    else
 		BEGIN_RING(4 * VTX_DWORD_COUNT + 2);
 	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
@@ -600,7 +600,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
 #else /* ACCEL_CP */
 	if (IS_R300_3D || IS_R500_3D)
-	    BEGIN_VIDEO(3 + VTX_DWORD_COUNT * 4);
+	    BEGIN_VIDEO(2 + VTX_DWORD_COUNT * 4);
 	else
 	    BEGIN_VIDEO(1 + VTX_DWORD_COUNT * 4);
 
@@ -625,10 +625,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	VTX_OUT((float)(dstX + dstw),                                (float)dstY,
 		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0]);
 
-	if (IS_R300_3D || IS_R500_3D) {
-	    OUT_VIDEO_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
-	    OUT_VIDEO_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-	}
+	if (IS_R300_3D || IS_R500_3D)
+	    /* flushing is pipelined, free/finish is not */
+	    OUT_VIDEO_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
 
 #ifdef ACCEL_CP
 	ADVANCE_RING();
