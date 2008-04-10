@@ -1350,65 +1350,6 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     }
 }
 
-/* Copies planar data in *buf to UYVY-packed data in the screen atYBufXOffset.
- */
-static void
-I830CopyPlanarToPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
-			   unsigned char *buf, int srcPitch,
-			   int srcPitch2, int dstPitch, int srcH,
-			   int top, int left, int h, int w, int id)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    uint8_t *dst1, *srcy, *srcu, *srcv;
-    int y;
-
-    if (pPriv->currentBuf == 0)
-	dst1 = pI830->FbBase + pPriv->YBuf0offset;
-    else
-	dst1 = pI830->FbBase + pPriv->YBuf1offset;
-
-    srcy = buf + (top * srcPitch) + left;
-    if (id == FOURCC_YV12) {
-	srcu = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
-	srcv = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
-	((top / 2) * srcPitch2) + (left / 2);
-    } else {
-	srcv = buf + (srcH * srcPitch) + ((top / 2) * srcPitch2) + (left / 2);
-	srcu = buf + (srcH * srcPitch) + ((srcH / 2) * srcPitch2) +
-	((top / 2) * srcPitch2) + (left / 2);
-    }
-
-    for (y = 0; y < h; y++) {
-	uint32_t *dst = (uint32_t *)dst1;
-	uint8_t *sy = srcy;
-	uint8_t *su = srcu;
-	uint8_t *sv = srcv;
-	int i;
-
-	i = w / 2;
-	while(i > 4) {
-	    dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
-	    dst[1] = sy[2] | (sy[3] << 16) | (sv[1] << 8) | (su[1] << 24);
-	    dst[2] = sy[4] | (sy[5] << 16) | (sv[2] << 8) | (su[2] << 24);
-	    dst[3] = sy[6] | (sy[7] << 16) | (sv[3] << 8) | (su[3] << 24);
-	    dst += 4; su += 4; sv += 4; sy += 8;
-	    i -= 4;
-	}
-	while(i--) {
-	    dst[0] = sy[0] | (sy[1] << 16) | (sv[0] << 8) | (su[0] << 24);
-	    dst++; su++; sv++;
-	    sy += 2;
-	}
-
-	dst1 += dstPitch;
-	srcy += srcPitch;
-	if (y & 1) {
-	    srcu += srcPitch2;
-	    srcv += srcPitch2;
-	}	
-    }
-}
-
 static void
 I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   unsigned char *buf, int srcPitch,
@@ -2339,8 +2280,6 @@ I830PutImage(ScrnInfoPtr pScrn,
             srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
         }
 #endif
-	if (pPriv->textured && IS_I965G(pI830))
-	    destId = FOURCC_YUY2;
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
@@ -2460,14 +2399,8 @@ I830PutImage(ScrnInfoPtr pScrn,
     case FOURCC_I420:
 	top &= ~1;
 	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	if (pPriv->textured && IS_I965G(pI830)) {
-	    I830CopyPlanarToPackedData(pScrn, pPriv, buf, srcPitch, srcPitch2,
-				       dstPitch, height, top, left, nlines,
-				       npixels, id);
-	} else {
-	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
-			       height, top, left, nlines, npixels, id);
-	}
+	I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
+	    	       height, top, left, nlines, npixels, id);
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
