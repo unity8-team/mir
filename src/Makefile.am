@@ -192,6 +192,8 @@ $(INTEL_G4B): $(INTEL_G4I)
 
 BUILT_SOURCES= $(INTEL_G4B)
 
+clean-local:
+	-rm -f $(INTEL_G4B)
 endif
 
 if XMODES
