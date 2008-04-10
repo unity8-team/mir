@@ -111,13 +111,17 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
     /* we can probably improve this */
     BEGIN_VIDEO(2);
-    OUT_VIDEO_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
+    if (IS_R300_3D || IS_R500_3D)
+	OUT_VIDEO_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
+    else
+	OUT_VIDEO_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
     /* We must wait for 3d to idle, in case source was just written as a dest. */
     OUT_VIDEO_REG(RADEON_WAIT_UNTIL,
 		RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
     FINISH_VIDEO();
 
     if (IS_R300_3D || IS_R500_3D) {
+	CARD32 output_fmt;
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:
@@ -132,6 +136,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	default:
 	    return;
 	}
+
+	output_fmt = (R300_OUT_FMT_C4_8 |
+		      R300_OUT_FMT_C0_SEL_BLUE |
+		      R300_OUT_FMT_C1_SEL_GREEN |
+		      R300_OUT_FMT_C2_SEL_RED |
+		      R300_OUT_FMT_C3_SEL_ALPHA);
 
 	colorpitch = dst_pitch >> pixel_shift;
 	colorpitch |= dst_format;
@@ -181,7 +191,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	txenable = R300_TEX_0_ENABLE;
 
-	BEGIN_VIDEO(6);
+	BEGIN_VIDEO(7);
 	OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
 		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -211,6 +221,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	OUT_VIDEO_REG(R300_TX_INVALTAGS, 0);
 	OUT_VIDEO_REG(R300_TX_ENABLE, txenable);
+	OUT_VIDEO_REG(R300_US_OUT_FMT_0, output_fmt);
 	FINISH_VIDEO();
 
 	/* setup pixel shader */
