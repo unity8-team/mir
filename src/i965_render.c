@@ -340,6 +340,7 @@ static const uint32_t ps_kernel_nomask_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_affine.g4b"
 #include "exa_wm_src_sample_argb.g4b"
+#include "exa_wm_src_data.g4b"
 #include "exa_wm_write.g4b"
 };
 
@@ -347,6 +348,7 @@ static const uint32_t ps_kernel_nomask_projective_static [][4] = {
 #include "exa_wm_xy.g4b"
 #include "exa_wm_src_projective.g4b"
 #include "exa_wm_src_sample_argb.g4b"
+#include "exa_wm_src_data.g4b"
 #include "exa_wm_write.g4b"
 };
 
