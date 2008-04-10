@@ -102,6 +102,14 @@ static struct blendinfo i965_blend_op[] = {
     /* Add */
     {0, 0, BRW_BLENDFACTOR_ONE,           BRW_BLENDFACTOR_ONE},
 };
+/**
+ * Highest-valued BLENDFACTOR used in i965_blend_op.
+ *
+ * This leaves out BRW_BLENDFACTOR_INV_DST_COLOR,
+ * BRW_BLENDFACTOR_INV_CONST_{COLOR,ALPHA},
+ * BRW_BLENDFACTOR_INV_SRC1_{COLOR,ALPHA}
+ */
+#define BRW_BLENDFACTOR_COUNT (BRW_BLENDFACTOR_INV_DST_ALPHA + 1)
 
 /* FIXME: surface format defined in brw_defines.h, shared Sampling engine
  * 1.7.2
@@ -272,15 +280,13 @@ static struct brw_sampler_state *mask_sampler_state, mask_sampler_state_local;
 static struct brw_vs_unit_state *vs_state, vs_state_local;
 static struct brw_sf_unit_state *sf_state, sf_state_local;
 static struct brw_wm_unit_state *wm_state, wm_state_local;
-static struct brw_cc_unit_state *cc_state, cc_state_local;
-static struct brw_cc_viewport *cc_viewport;
 
 static uint32_t *binding_table;
 static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
 static int src_sampler_offset, mask_sampler_offset,vs_offset;
-static int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
+static int sf_offset, wm_offset, cc_offset, vb_offset;
 static int wm_scratch_offset;
 static int binding_table_offset;
 static int next_offset, total_state_size;
@@ -423,6 +429,11 @@ static const uint32_t ps_kernel_masknoca_projective_static [][4] = {
 #define PAD64_MULTI(previous, idx, factor) char previous ## _pad ## idx [(64 - (sizeof(struct previous) * (factor)) % 64) % 64]
 #define PAD64(previous, idx) PAD64_MULTI(previous, idx, 1)
 
+typedef struct _brw_cc_unit_state_padded {
+    struct brw_cc_unit_state state;
+    char pad[64 - sizeof (struct brw_cc_unit_state)];
+} brw_cc_unit_state_padded;
+
 /**
  * Gen4 rendering state buffer structure.
  *
@@ -449,15 +460,58 @@ typedef struct _gen4_state {
     struct brw_sampler_default_color sampler_default_color;
     PAD64 (brw_sampler_default_color, 0);
 
+    /* Index by [src_blend][dst_blend] */
+    brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
+				     [BRW_BLENDFACTOR_COUNT];
+    struct brw_cc_viewport cc_viewport;
+    PAD64 (brw_cc_viewport, 0);
+
     uint8_t other_state[65536];
 } gen4_state_t;
+
+static void
+cc_state_init (struct brw_cc_unit_state *cc_state,
+	       int src_blend,
+	       int dst_blend,
+	       int cc_viewport_offset)
+{
+    memset(cc_state, 0, sizeof(*cc_state));
+    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
+    cc_state->cc2.depth_test = 0;       /* disable depth test */
+    cc_state->cc2.logicop_enable = 0;   /* disable logic op */
+    cc_state->cc3.ia_blend_enable = 0;  /* blend alpha same as colors */
+    cc_state->cc3.blend_enable = 1;     /* enable color blend */
+    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
+
+    assert((cc_viewport_offset & 31) == 0);
+    cc_state->cc4.cc_viewport_state_offset = cc_viewport_offset >> 5;
+
+    cc_state->cc5.dither_enable = 0;    /* disable dither */
+    cc_state->cc5.logicop_func = 0xc;   /* COPY */
+    cc_state->cc5.statistics_enable = 1;
+    cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
+
+    /* Fill in alpha blend factors same as color, for the future. */
+    cc_state->cc5.ia_src_blend_factor = src_blend;
+    cc_state->cc5.ia_dest_blend_factor = dst_blend;
+
+    cc_state->cc6.blend_function = BRW_BLENDFUNCTION_ADD;
+    cc_state->cc6.clamp_post_alpha_blend = 1;
+    cc_state->cc6.clamp_pre_alpha_blend = 1;
+    cc_state->cc6.clamp_range = 0;  /* clamp range [0,1] */
+
+    cc_state->cc6.src_blend_factor = src_blend;
+    cc_state->cc6.dest_blend_factor = dst_blend;
+}
 
 /**
  * Called at EnterVT to fill in our state buffer with any static information.
  */
 static void
-gen4_state_init (gen4_state_t *state)
+gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
 {
+    int i, j;
+
 #define KERNEL_COPY(kernel) \
     memcpy(state->kernel, kernel ## _static, sizeof(kernel ## _static))
 
@@ -479,6 +533,17 @@ gen4_state_init (gen4_state_t *state)
     state->sampler_default_color.color[1] = 0.0; /* G */
     state->sampler_default_color.color[2] = 0.0; /* B */
     state->sampler_default_color.color[3] = 0.0; /* A */
+
+    state->cc_viewport.min_depth = -1.e35;
+    state->cc_viewport.max_depth = 1.e35;
+
+    for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
+	for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
+	    cc_state_init (&state->cc_state[i][j].state, i, j,
+			   state_base_offset +
+			   offsetof (gen4_state_t, cc_viewport));
+	}
+    }
 
 #undef KERNEL_COPY
 }
@@ -572,13 +637,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     wm_scratch_offset = ALIGN(next_offset, 1024);
     next_offset = wm_scratch_offset + PS_SCRATCH_SPACE * PS_MAX_THREADS;
 
-    cc_offset = ALIGN(next_offset, 32);
-    next_offset = cc_offset + sizeof(*cc_state);
-
-    /* needed? */
-    cc_viewport_offset = ALIGN(next_offset, 32);
-    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
-
     /* for texture sampler */
     src_sampler_offset = ALIGN(next_offset, 32);
     next_offset = src_sampler_offset + sizeof(*src_sampler_state);
@@ -613,8 +671,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     state_base_offset = pI830->gen4_render_state_mem->offset;
     assert((state_base_offset & 63) == 0);
     state_base = (char *)(pI830->FbBase + state_base_offset);
-
-    cc_viewport = (void *)(state_base + cc_viewport_offset);
 
     binding_table = (void *)(state_base + binding_table_offset);
 
@@ -654,41 +710,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
      */
     i830WaitSync(pScrn);
 
-    memset (cc_viewport, 0, sizeof (*cc_viewport));
-    cc_viewport->min_depth = -1.e35;
-    cc_viewport->max_depth = 1.e35;
-
-    /* Color calculator state */
-    cc_state = &cc_state_local;
-    memset(cc_state, 0, sizeof(*cc_state));
-    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
-    cc_state->cc2.depth_test = 0;       /* disable depth test */
-    cc_state->cc2.logicop_enable = 0;   /* disable logic op */
-    cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
-    cc_state->cc3.blend_enable = 1;     /* enable color blend */
-    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
-    cc_state->cc4.cc_viewport_state_offset = (state_base_offset +
-					      cc_viewport_offset) >> 5;
-    cc_state->cc5.dither_enable = 0;    /* disable dither */
-    cc_state->cc5.logicop_func = 0xc;   /* COPY */
-    cc_state->cc5.statistics_enable = 1;
-    cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
-    /* XXX: alpha blend factor should be same as color, but check
-     * for CA case in future
-     */
-    cc_state->cc5.ia_src_blend_factor = src_blend;
-    cc_state->cc5.ia_dest_blend_factor = dst_blend;
-    cc_state->cc6.blend_function = BRW_BLENDFUNCTION_ADD;
-    cc_state->cc6.src_blend_factor = src_blend;
-    cc_state->cc6.dest_blend_factor = dst_blend;
-    cc_state->cc6.clamp_post_alpha_blend = 1;
-    cc_state->cc6.clamp_pre_alpha_blend = 1;
-    cc_state->cc6.clamp_range = 0;  /* clamp range [0,1] */
-
-    cc_state = (void *)(state_base + cc_offset);
-    memcpy (cc_state, &cc_state_local, sizeof (cc_state_local));
 
     /* Set up the state buffer for the destination surface */
     dest_surf_state = &dest_surf_state_local;
@@ -1096,7 +1119,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
 	OUT_BATCH(state_base_offset + sf_offset);  /* 32 byte aligned */
 	OUT_BATCH(state_base_offset + wm_offset);  /* 32 byte aligned */
-	OUT_BATCH(state_base_offset + cc_offset);  /* 64 byte aligned */
+	/* 64 byte aligned */
+	OUT_BATCH(state_base_offset +
+		  offsetof(gen4_state_t, cc_state[src_blend][dst_blend]));
 
 	/* URB fence */
 	OUT_BATCH(BRW_URB_FENCE |
@@ -1391,7 +1416,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     state->state_offset = pI830->gen4_render_state_mem->offset;
     state->state_addr = pI830->FbBase + pI830->gen4_render_state_mem->offset;
 
-    gen4_state_init((gen4_state_t *)state->state_addr);
+    gen4_state_init((gen4_state_t *)state->state_addr, state->state_offset);
 }
 
 /**
