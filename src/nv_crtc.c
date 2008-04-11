@@ -130,33 +130,6 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
  * This is not needed for the vpll's which have their own bits.
  */
 
-static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-
-static void nv40_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (regp->vpll_changed) {
-		uint32_t savedc040 = nvReadMC(pNv, 0xc040);
-
-		/* for vpll1 change bits 16 and 17 are disabled */
-		/* for vpll2 change bits 18 and 19 are disabled */
-		nvWriteMC(pNv, 0xc040, savedc040 & ~(3 << (16 + nv_crtc->head * 2)));
-
-		nv_crtc_load_state_pll(crtc, state);
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_580 %08X\n", state->reg580);
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
-
-		/* We need to wait a while */
-		usleep(5000);
-		nvWriteMC(pNv, 0xc040, savedc040);
-	}
-}
-
 static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -194,7 +167,17 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	}
 
 	if (regp->vpll_changed) {
+		uint32_t savedc040 = 0;
+
 		regp->vpll_changed = false;
+
+		if (pNv->Architecture == NV_ARCH_40) {
+			savedc040 = nvReadMC(pNv, 0xc040);
+
+			/* for vpll1 change bits 16 and 17 are disabled */
+			/* for vpll2 change bits 18 and 19 are disabled */
+			nvWriteMC(pNv, 0xc040, savedc040 & ~(3 << (16 + nv_crtc->head * 2)));
+		}
 
 		if (nv_crtc->head) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL2 %08X\n", regp->vpll_a);
@@ -210,6 +193,15 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_VPLL_B %08X\n", regp->vpll_b);
 				NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, regp->vpll_b);
 			}
+		}
+
+		if (pNv->Architecture == NV_ARCH_40) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_580 %08X\n", state->reg580);
+			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
+
+			/* We need to wait a while */
+			usleep(5000);
+			nvWriteMC(pNv, 0xc040, savedc040);
 		}
 	}
 
@@ -1219,10 +1211,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (pScrn->depth > 8)
 		nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
-	if (pNv->Architecture == NV_ARCH_40)
-		nv40_crtc_load_state_pll(crtc, &pNv->ModeReg);
-	else
-		nv_crtc_load_state_pll(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_pll(crtc, &pNv->ModeReg);
 
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
@@ -1286,11 +1275,7 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 
 	/* Force restoring vpll. */
 	savep->vpll_changed = true;
-
-	if (pNv->Architecture == NV_ARCH_40)
-		nv40_crtc_load_state_pll(crtc, &pNv->SavedReg);
-	else
-		nv_crtc_load_state_pll(crtc, &pNv->SavedReg);
+	nv_crtc_load_state_pll(crtc, &pNv->SavedReg);
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
