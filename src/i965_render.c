@@ -283,7 +283,7 @@ static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
 static int vs_offset;
-static int sf_offset, cc_offset, vb_offset;
+static int sf_offset, vb_offset;
 static int binding_table_offset;
 static int next_offset, total_state_size;
 static char *state_base;
@@ -668,10 +668,12 @@ gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
 		    sampler_state_init (&state->sampler_state[i][j][k][l][0],
 					i, j,
+					state_base_offset +
 					offsetof (gen4_state_t,
 						  sampler_default_color));
 		    sampler_state_init (&state->sampler_state[i][j][k][l][1],
 					k, l,
+					state_base_offset +
 					offsetof (gen4_state_t,
 						  sampler_default_color));
 		}
