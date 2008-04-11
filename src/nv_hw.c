@@ -865,7 +865,7 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
 {
     nv10_fifo_info fifo_data;
     nv10_sim_state sim_data;
-    unsigned int M, N, P, pll, MClk, NVClk, memctrl;
+    unsigned int MClk, NVClk, memctrl;
 
 #ifdef XSERVER_LIBPCIACCESS
 	struct pci_device tmp;
@@ -893,9 +893,7 @@ void nForceUpdateArbitrationSettings (unsigned VClk,
 #endif /* XSERVER_LIBPCIACCESS */
     }
 
-    pll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_NVPLL);
-    M = (pll >> 0)  & 0xFF; N = (pll >> 8)  & 0xFF; P = (pll >> 16) & 0x0F;
-    NVClk  = (N * pNv->CrystalFreqKHz / M) >> P;
+	NVClk = nv_get_clock(pNv, NVPLL);
     sim_data.pix_bpp        = (char)pixelDepth;
     sim_data.enable_video   = 0;
     sim_data.enable_mp      = 0;

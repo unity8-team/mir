@@ -253,12 +253,8 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 
 	pixelDepth = (bpp + 1)/8;
 
-	if (nv_crtc->head == 0) {
-		if (!get_pll_limits(pScrn, VPLL1, &pll_lim))
-			return;
-	} else
-		if (!get_pll_limits(pScrn, VPLL2, &pll_lim))
-			return;
+	if (!get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
+		return;
 
 	if (pNv->twoStagePLL || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
 		if (dotClock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */

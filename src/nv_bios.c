@@ -3305,7 +3305,8 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	 * length in general, some (integrated) have an extra configuration byte
 	 */
 
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
 	int pllindex = 0;
 	uint32_t crystal_strap_mask, crystal_straps;
@@ -3318,7 +3319,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 	} else {
 		pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
 
-		if (DEBUGLEVEL >= 6)
+		if (DEBUGLEVEL >= 7)
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Found PLL limits table version 0x%X\n", pll_lim_ver);
 	}
@@ -3328,7 +3329,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
         if (bios->chip_version > 0x10 && bios->chip_version != 0x15 &&
             bios->chip_version != 0x1a && bios->chip_version != 0x20)
                 crystal_strap_mask |= 1 << 22;
-	crystal_straps = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) & crystal_strap_mask;
+	crystal_straps = nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & crystal_strap_mask;
 
 	switch (pll_lim_ver) {
 	/* we use version 0 to indicate a pre limit table bios (single stage pll)
@@ -3404,6 +3405,10 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 			for (i = 1; i < entries && !reg; i++) {
 				uint32_t cmpreg = le32_to_cpu(*((uint32_t *)(&bios->data[plloffs + recordlen * i])));
 
+				if (limit_match == NVPLL && (cmpreg == NV_RAMDAC_NVPLL || cmpreg == 0x4000))
+					reg = cmpreg;
+				if (limit_match == MPLL && (cmpreg == NV_RAMDAC_MPLL || cmpreg == 0x4020))
+					reg = cmpreg;
 				if (limit_match == VPLL1 && (cmpreg == NV_RAMDAC_VPLL || cmpreg == 0x4010))
 					reg = cmpreg;
 				if (limit_match == VPLL2 && (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
