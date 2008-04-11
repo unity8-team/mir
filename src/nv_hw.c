@@ -1105,7 +1105,6 @@ void NVCalcStateExt (
 		state->cursor1 |= 2;
             state->cursor2  = 0x00000000;
             state->pllsel   = 0x10000700;
-            state->config   = 0x00001114;
             state->general  = bpp == 16 ? 0x00101100 : 0x00100100;
             state->repaint1 = hDisplaySize < 1280 ? 0x04 : 0x00;
             break;
@@ -1145,7 +1144,6 @@ void NVCalcStateExt (
 	    if (flags & V_DBLSCAN) 
 		state->cursor1 |= 2;
             state->pllsel   = 0x10000700;
-            state->config   = nvReadFB(pNv, NV_PFB_CFG0);
             state->general  = bpp == 16 ? 0x00101100 : 0x00100100;
             state->repaint1 = hDisplaySize < 1280 ? 0x04 : 0x00;
             break;
@@ -1295,7 +1293,6 @@ void NVUnloadStateExt
     state->pllsel       = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
     state->general      = nvReadCurRAMDAC(pNv, NV_RAMDAC_GENERAL_CONTROL);
     state->scale        = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL);
-    state->config       = nvReadFB(pNv, NV_PFB_CFG0);
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {

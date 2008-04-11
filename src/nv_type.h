@@ -177,7 +177,6 @@ typedef struct _riva_hw_state
 	uint32_t crtcOwner;
 	uint32_t head;
 	uint32_t head2;
-	uint32_t config;
 	uint32_t cursorConfig;
 	uint32_t cursor0;
 	uint32_t cursor1;
