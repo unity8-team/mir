@@ -297,7 +297,7 @@ void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)
 	NVVgaSeqReset(pNv, head, FALSE);
 }
 
-int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single)
+int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk)
 {
 	int M1, N1, M2 = 1, N2 = 1, log2P;
 
@@ -319,10 +319,10 @@ int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_s
 	if (!M1 || !M2)
 		return 0;
 
-	return (N1 * N2 * pNv->CrystalFreqKHz / (M1 * M2)) >> log2P;
+	return (N1 * N2 * refclk / (M1 * M2)) >> log2P;
 }
 
-static int nv_decode_pll_lowregs(NVPtr pNv, uint32_t Pval, uint32_t NMNM)
+static int nv_decode_pll_lowregs(uint32_t Pval, uint32_t NMNM, int refclk)
 {
 	int M1, N1, M2 = 1, N2 = 1, log2P;
 
@@ -340,7 +340,7 @@ static int nv_decode_pll_lowregs(NVPtr pNv, uint32_t Pval, uint32_t NMNM)
 	if (!M1 || !M2)
 		return 0;
 
-	return (N1 * N2 * pNv->CrystalFreqKHz / (M1 * M2)) >> log2P;
+	return (N1 * N2 * refclk / (M1 * M2)) >> log2P;
 }
 
 
@@ -349,20 +349,27 @@ static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
 	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_RAMDAC_NVPLL, NV_RAMDAC_MPLL, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
 	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000, 0x4020, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
 	uint32_t reg1;
+	struct pll_lims pll_lim;
 
 	if (pNv->Architecture < NV_ARCH_40)
 		reg1 = nv04_regs[plltype];
 	else
 		reg1 = nv40_regs[plltype];
 
+	/* XXX no pScrn. CrystalFreqKHz is good enough for current nv_get_clock users though
+	if (!get_pll_limits(pScrn, plltype, &pll_lim))
+		return 0;
+	*/
+	pll_lim.refclk = pNv->CrystalFreqKHz;
+
 	if (reg1 <= 0x405c)
-		return nv_decode_pll_lowregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4));
+		return nv_decode_pll_lowregs(nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4), pll_lim.refclk);
 	if (pNv->twoStagePLL) {
 		bool nv40_single = pNv->Architecture == 0x40 && ((plltype == VPLL1 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL1_ACTIVE) || (plltype == VPLL2 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL2_ACTIVE));
 
-		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)), nv40_single);
+		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)), nv40_single, pll_lim.refclk);
 	}
-	return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), 0, false);
+	return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), 0, false, pll_lim.refclk);
 }
 
 /****************************************************************************\

@@ -206,11 +206,15 @@ static void nv_output_save(xf86OutputPtr output)
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct pll_lims pll_lim;
 	uint32_t vplla = state->crtc_reg[crtc].vpll_a;
 	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
 	bool nv40_single = pNv->Architecture == 0x40 && ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) || (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
 
-	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single);
+	if (!get_pll_limits(pScrn, crtc ? VPLL2 : VPLL1, &pll_lim))
+		return 0;
+
+	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single, pll_lim.refclk);
 }
 
 static void nv_output_restore(xf86OutputPtr output)
