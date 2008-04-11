@@ -210,55 +210,37 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 }
 
 /* Calculate extended mode parameters (SVGA) and save in a mode state structure */
-static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dotClock)
+static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	uint32_t pixelDepth, VClk = 0;
-	uint32_t CursorStart;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	RIVA_HW_STATE *state = &pNv->ModeReg;
-	uint32_t old_clock_a = 0, old_clock_b = 0;
+	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+
+	uint32_t old_clock_a = regp->vpll_a, old_clock_b = regp->vpll_b;
 	struct pll_lims pll_lim;
-	int NM1 = 0xbeef, NM2 = 0xdead, log2P = 0;
+	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
 	Bool nv4x_single_stage_pll_mode = FALSE;
-	int bpp;
 
-	/* Store old clock. */
-	old_clock_a = regp->vpll_a;
-	old_clock_b = regp->vpll_b;
-
-	/*
-	 * Extended RIVA registers.
-	 */
-
-	/* This is pitch related, not mode related. */
-	if (pScrn->depth < 24)
-		bpp = pScrn->depth;
-	else
-		bpp = 32;
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		bpp = pNv->console_mode[nv_crtc->head].bpp;
-	}
-
-	pixelDepth = (bpp + 1)/8;
+	int bpp, pixelDepth;
+	uint32_t arbitration0, arbitration1;
 
 	if (!get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
 
 	if (pNv->twoStagePLL || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
-		if (dotClock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
+		if (dot_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
 			nv4x_single_stage_pll_mode = TRUE;
 			/* Turn the second set of divider and multiplier off */
 			/* Bogus data, the same nvidia uses */
 			NM2 = 0x11f;
-			VClk = getMNP_single(pScrn, &pll_lim, dotClock, &NM1, &log2P);
+			VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
 		} else
-			VClk = getMNP_double(pScrn, &pll_lim, dotClock, &NM1, &NM2, &log2P);
+			VClk = getMNP_double(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
 	} else
-		VClk = getMNP_single(pScrn, &pll_lim, dotClock, &NM1, &log2P);
+		VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
 
 	/* Are these all the (relevant) G70 cards? */
 	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x46 || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
@@ -277,6 +259,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->vpll_a = g70_pll_special_bits << 30 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
+	/* Changing clocks gives a delay, which is not always needed. */
+	if (old_clock_a != regp->vpll_a || old_clock_b != regp->vpll_b)
+		regp->vpll_changed = true;
+
 	if (nv4x_single_stage_pll_mode) {
 		if (nv_crtc->head == 0)
 			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
@@ -289,62 +275,73 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
 	}
 
+	/* The NV40 seems to have more similarities to NV3x than other NV4x */
+	if (pNv->NVArch < 0x41)
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL |
+				 NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL;
+	/* The blob uses this always, so let's do the same */
+	if (pNv->Architecture == NV_ARCH_40)
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
+
+	if (nv_crtc->head == 1) {
+		if (!nv4x_single_stage_pll_mode)
+			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		else
+			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
+	} else {
+		if (!nv4x_single_stage_pll_mode)
+			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		else
+			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
+	}
+
 	if ((!pNv->twoStagePLL && pNv->NVArch != 0x30 && pNv->NVArch != 0x35) || nv4x_single_stage_pll_mode)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 
-	/* Changing clocks gives a delay, which is not always needed. */
-	if (old_clock_a != regp->vpll_a || old_clock_b != regp->vpll_b)
-		regp->vpll_changed = true;
+	/* This is pitch related, not mode related. */
+	if (pScrn->depth < 24)
+		bpp = pScrn->depth;
+	else
+		bpp = 32;
+	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+		bpp = pNv->console_mode[nv_crtc->head].bpp;
+	}
 
-	switch (pNv->Architecture) {
-	case NV_ARCH_04:
-		nv4UpdateArbitrationSettings(VClk, 
-						pixelDepth * 8, 
-						&(state->arbitration0),
-						&(state->arbitration1),
-						pNv);
+	pixelDepth = (bpp + 1)/8;
+
+	if (pNv->Architecture == NV_ARCH_04) {
+		nv4UpdateArbitrationSettings(VClk, pixelDepth * 8,
+					     &arbitration0, &arbitration1, pNv);
+
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
 		if (mode->Flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2 | NV_RAMDAC_PLL_SELECT_PLL_SOURCE_ALL; 
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
-		break;
-	case NV_ARCH_10:
-	case NV_ARCH_20:
-	case NV_ARCH_30:
-	default:
-		if (((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
-			((pNv->Chipset & 0xfff0) == CHIPSET_C512)) {
-			state->arbitration0 = 128; 
-			state->arbitration1 = 0x0480; 
-		} else if (((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
-			((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2)) {
-			nForceUpdateArbitrationSettings(VClk,
-						pixelDepth * 8,
-						&(state->arbitration0),
-						&(state->arbitration1),
-						pNv);
-		} else if (pNv->Architecture < NV_ARCH_30) {
-			nv10UpdateArbitrationSettings(VClk, 
-						pixelDepth * 8, 
-						&(state->arbitration0),
-						&(state->arbitration1),
-						pNv);
-		} else {
-			nv30UpdateArbitrationSettings(pNv,
-						&(state->arbitration0),
-						&(state->arbitration1));
-		}
+	} else {
+		uint32_t CursorStart = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
 
-		if (nv_crtc->head == 1) {
-			CursorStart = pNv->Cursor2->offset;
-		} else {
-			CursorStart = pNv->Cursor->offset;
-		}
+		if (((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
+		    ((pNv->Chipset & 0xfff0) == CHIPSET_C512)) {
+			arbitration0 = 128;
+			arbitration1 = 0x0480;
+		} else if (((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
+			 ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2))
+			nForceUpdateArbitrationSettings(VClk, pixelDepth * 8,
+							&arbitration0,
+							&arbitration1, pNv);
+		else if (pNv->Architecture < NV_ARCH_30)
+			nv10UpdateArbitrationSettings(VClk, pixelDepth * 8,
+						      &arbitration0,
+						      &arbitration1, pNv);
+		else
+			nv30UpdateArbitrationSettings(pNv, &arbitration0,
+						      &arbitration1);
 
 		if (!NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
 			regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
@@ -355,12 +352,9 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0x0;
 			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x0;
 		}
-
 		if (mode->Flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
-
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
-		break;
 	}
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
@@ -368,38 +362,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] |= 0xB8;
 	}
 
-	/* The NV40 seems to have more similarities to NV3x than other cards. */
-	if (pNv->NVArch < 0x41) {
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL;
-	}
-
-	if (nv_crtc->head == 1) {
-		if (!nv4x_single_stage_pll_mode) {
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-		} else {
-			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-		}
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
-	} else {
-		if (!nv4x_single_stage_pll_mode) {
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-		} else {
-			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-		}
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
-	}
-
-	/* The blob uses this always, so let's do the same */
-	if (pNv->Architecture == NV_ARCH_40) {
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
-	}
-
-	regp->CRTC[NV_VGA_CRTCX_FIFO0] = state->arbitration0;
-	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = state->arbitration1 & 0xff;
-	if (pNv->Architecture >= NV_ARCH_30) {
-		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = state->arbitration1 >> 8;
-	}
+	regp->CRTC[NV_VGA_CRTCX_FIFO0] = arbitration0;
+	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = arbitration1 & 0xff;
+	if (pNv->Architecture >= NV_ARCH_30)
+		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = arbitration1 >> 8;
 
 	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
 		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((mode->CrtcHDisplay/16) & 0x700) >> 3;
@@ -408,7 +374,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	} else { /* framebuffer can be larger than crtc scanout area. */
 		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((pScrn->displayWidth/8) * pixelDepth) & 0x700) >> 3;
 	}
-	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pixelDepth > 2) ? 3 : pixelDepth;
 }
 
 static void
@@ -760,7 +725,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
  * be easily turned on/off after this.
  */
 static void
-nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -935,9 +900,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adju
 		regp->CRTC[NV_VGA_CRTCX_86] = 0x1;
 	}
 
-	/* Calculate the state that is common to all crtcs (stored in the state struct) */
-	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
-
+	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pScrn->depth + 1) / 8;
 	/* Enable slaved mode */
 	if (fp_output)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
@@ -1200,8 +1163,9 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_SEL_CLK %08X\n", pNv->ModeReg.sel_clk);
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 	}
-	nv_crtc_mode_set_regs(crtc, mode, adjusted_mode);
+	nv_crtc_mode_set_regs(crtc, mode);
 	nv_crtc_mode_set_fp_regs(crtc, mode, adjusted_mode);
+	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
