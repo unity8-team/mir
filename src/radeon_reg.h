@@ -3904,6 +3904,10 @@
 #       define R300_MS_Y5_SHIFT                         20
 #       define R300_MSBD1_SHIFT                         24
 
+#define R300_GA_ENHANCE				        0x4274
+#       define R300_GA_DEADLOCK_CNTL                    (1 << 0)
+#       define R300_GA_FASTSYNC_CNTL                    (1 << 1)
+
 #define R300_GA_POLY_MODE				0x4288
 #       define R300_FRONT_PTYPE_POINT                   (0 << 4)
 #       define R300_FRONT_PTYPE_LINE                    (1 << 4)
@@ -3966,6 +3970,7 @@
 #       define R300_VTX_XY_FMT                          (1 << 8)
 #       define R300_VTX_Z_FMT                           (1 << 9)
 #       define R300_VTX_W0_FMT                          (1 << 10)
+#define R300_VAP_VTX_STATE_CNTL		                0x2180
 #define R300_VAP_PSC_SGN_NORM_CNTL		        0x21DC
 #define R300_VAP_PROG_STREAM_CNTL_0		        0x2150
 #       define R300_DATA_TYPE_0_SHIFT                   0
@@ -4610,6 +4615,11 @@
 #define R300_FG_FOG_BLEND				0x4bc0
 #define R300_FG_ALPHA_FUNC				0x4bd4
 
+#define R300_DST_PIPE_CONFIG		                0x170c
+#       define R300_PIPE_AUTO_CONFIG                    (1 << 31)
+#define R300_RB2D_DSTCACHE_MODE		                0x3428
+#       define R300_DC_AUTOFLUSH_ENABLE                 (1 << 8)
+#       define R300_DC_DC_DISABLE_IGNORE_PE             (1 << 17)
 #define R300_RB2D_DSTCACHE_CTLSTAT		        0x342c
 #       define R300_DC_FLUSH_2D                         (1 << 0)
 #       define R300_DC_FREE_2D                          (1 << 2)
