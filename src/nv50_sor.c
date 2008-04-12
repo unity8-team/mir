@@ -146,28 +146,6 @@ nv50_sor_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 }
 
 static xf86OutputStatus
-nv50_sor_detect(xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_detect is called.\n");
-
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	xf86MonPtr ddc_mon;
-
-	if (nv_output->pDDCBus == NULL)
-		return XF86OutputStatusDisconnected;
-
-	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
-	if (!ddc_mon)
-		return XF86OutputStatusDisconnected;
-
-	if (!ddc_mon->features.input_type) /* Analog? */
-		return XF86OutputStatusDisconnected;
-
-	return XF86OutputStatusConnected;
-}
-
-static xf86OutputStatus
 nv50_lvds_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
@@ -235,7 +213,7 @@ static const xf86OutputFuncsRec nv50_tmds_output_funcs = {
 	.prepare = nv50_output_prepare,
 	.commit = nv50_output_commit,
 	.mode_set = nv50_sor_mode_set,
-	.detect = nv50_sor_detect,
+	.detect = nv50_output_detect,
 	.get_modes = nv50_output_get_ddc_modes,
 	.create_resources = nv_output_create_resources,
 	.set_property = nv_output_set_property,

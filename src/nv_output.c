@@ -916,7 +916,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.set_property = nv_output_set_property,
 };
 
-static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname)
+static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname, xf86OutputPtr partner)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
@@ -928,10 +928,10 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
-		return;
+		return NULL;
 
 	if (!(nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1)))
-		return;
+		return NULL;
 
 	output->driver_private = nv_output;
 
@@ -996,7 +996,17 @@ static void nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFunc
 			nv_output->native_mode = GetLVDSNativeMode(pScrn);
 	}
 
+	nv_output->valid_cache = FALSE;
+
+	/* Set partner for both outputs. */
+	if (partner) {
+		((NVOutputPrivatePtr)partner->driver_private)->partner = output;
+		nv_output->partner = partner;
+	}
+
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
+
+	return output;
 }
 
 static const xf86OutputFuncsRec * nv_get_output_funcs(ScrnInfoPtr pScrn, int type)
@@ -1039,11 +1049,13 @@ static const xf86OutputFuncsRec * nv_get_output_funcs(ScrnInfoPtr pScrn, int typ
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int i, type, i2c_count[0xf];
+	int i, type, i2c_index, i2c_count[0xf];
 	char outputname[20];
 	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
 	xf86OutputFuncsRec * funcs = NULL;
+	xf86OutputPtr partner[MAX_NUM_DCB_ENTRIES]; /* i2c port based. */
 
+	memset(partner, 0, sizeof(partner));
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1052,12 +1064,13 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	/* we setup the outputs up from the BIOS table */
 	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
 		type = pNv->dcb_table.entry[i].type;
+		i2c_index = pNv->dcb_table.entry[i].i2c_index;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
 
 		switch (type) {
 		case OUTPUT_ANALOG:
-			if (i2c_count[pNv->dcb_table.entry[i].i2c_index] == 1)
+			if (i2c_count[i2c_index] == 1)
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
@@ -1077,8 +1090,8 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 		}
 
 		funcs = (xf86OutputFuncsRec *) nv_get_output_funcs(pScrn, type);
-		if (funcs)
-			nv_add_output(pScrn, i, funcs, outputname);
+		if (funcs) /* the 2nd partner is responsible for setting both. */
+			partner[i2c_index] = nv_add_output(pScrn, i, funcs, outputname, partner[i2c_index]);
 	}
 }
 

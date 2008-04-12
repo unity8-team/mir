@@ -209,8 +209,10 @@ typedef enum {
 } ValidOutputResource;
 
 typedef struct _NVOutputPrivateRec {
+	xf86OutputPtr partner;
+	Bool valid_cache;
 	uint8_t or;
-	uint8_t last_dpms;
+	uint8_t last_dpms; /* pre-NV50 */
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	int dcb_entry;

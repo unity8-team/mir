@@ -255,6 +255,8 @@ const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
 /* in nv50_output.c */
 int NV50OrOffset(xf86OutputPtr output);
 void NV50OutputSetPClk(xf86OutputPtr, int pclk);
+void NV50OutputInvalidateCache(ScrnInfoPtr pScrn);
+xf86OutputStatus nv50_output_detect(xf86OutputPtr output);
 int nv50_output_mode_valid(xf86OutputPtr, DisplayModePtr);
 void nv50_output_prepare(xf86OutputPtr);
 void nv50_output_commit(xf86OutputPtr);

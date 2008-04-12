@@ -771,6 +771,11 @@ NVBlockHandler (
 	if (!pNv->NoAccel)
 		FIRE_RING();
 
+	/* The idea is to cache output status, until the server starts to idle, which should be pretty short. */
+	/* But this reduces call time when using xrandr. */
+	if (pNv->randr12_enable)
+		NV50OutputInvalidateCache(pScrnInfo);
+
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 	pScreen->BlockHandler = NVBlockHandler;

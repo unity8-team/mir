@@ -156,31 +156,6 @@ nv50_dac_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	NV50CrtcSetScale(output->crtc, mode, adjusted_mode, nv_output->scaling_mode);
 }
 
-/*
- * Perform DAC load detection to determine if there is a connected display.
- */
-static xf86OutputStatus
-nv50_dac_detect(xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_dac_detect is called.\n");
-
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	xf86MonPtr ddc_mon;
-
-	if (nv_output->pDDCBus == NULL)
-		return XF86OutputStatusDisconnected;
-
-	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
-	if (!ddc_mon && !NV50DacLoadDetect(output))
-		return XF86OutputStatusDisconnected;
-
-	if (ddc_mon && ddc_mon->features.input_type) /* DVI? */
-		return XF86OutputStatusDisconnected;
-
-	return XF86OutputStatusConnected;
-}
-
 Bool
 NV50DacLoadDetect(xf86OutputPtr output)
 {
@@ -241,7 +216,7 @@ static const xf86OutputFuncsRec nv50_analog_output_funcs = {
 	.prepare = nv50_output_prepare,
 	.commit = nv50_output_commit,
 	.mode_set = nv50_dac_mode_set,
-	.detect = nv50_dac_detect,
+	.detect = nv50_output_detect,
 	.get_modes = nv50_output_get_ddc_modes,
 	.destroy = nv50_dac_destroy,
 	.create_resources = nv_output_create_resources,
