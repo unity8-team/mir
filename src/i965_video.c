@@ -171,8 +171,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
     struct brw_surface_state *dest_surf_state;
-    struct brw_surface_state *src_surf_state[3];
-    struct brw_sampler_state *src_sampler_state[3];
+    struct brw_surface_state *src_surf_state[6];
+    struct brw_sampler_state *src_sampler_state[6];
     struct brw_vs_unit_state *vs_state;
     struct brw_sf_unit_state *sf_state;
     struct brw_wm_unit_state *wm_state;
@@ -185,7 +185,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     float src_scale_x, src_scale_y;
     uint32_t *binding_table;
     Bool first_output = TRUE;
-    int dest_surf_offset, src_surf_offset[3], src_sampler_offset[3], vs_offset;
+    int dest_surf_offset, src_surf_offset[6], src_sampler_offset[6], vs_offset;
     int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
     int wm_scratch_offset;
     int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
@@ -197,10 +197,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int src_surf;
     int n_src_surf;
     uint32_t	src_surf_format;
-    uint32_t	src_surf_base[3];
-    int		src_width[3];
-    int		src_height[3];
-    int		src_pitch[3];
+    uint32_t	src_surf_base[6];
+    int		src_width[6];
+    int		src_height[6];
+    int		src_pitch[6];
     int wm_binding_table_entries;
     const uint32_t	*ps_kernel_static;
     int		ps_kernel_static_size;
@@ -219,8 +219,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #endif
 
     src_surf_base[0] = pPriv->YBuf0offset;
-    src_surf_base[1] = pPriv->VBuf0offset;
-    src_surf_base[2] = pPriv->UBuf0offset;
+    src_surf_base[1] = pPriv->YBuf0offset;
+    src_surf_base[2] = pPriv->VBuf0offset;
+    src_surf_base[3] = pPriv->VBuf0offset;
+    src_surf_base[4] = pPriv->UBuf0offset;
+    src_surf_base[5] = pPriv->UBuf0offset;
 #if 0
     ErrorF ("base 0 0x%x base 1 0x%x base 2 0x%x\n",
 	    src_surf_base[0], src_surf_base[1], src_surf_base[2]);
@@ -250,13 +253,13 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	src_surf_format = BRW_SURFACEFORMAT_R8_UNORM;
 	ps_kernel_static = &ps_kernel_planar_static[0][0];
 	ps_kernel_static_size = sizeof (ps_kernel_planar_static);
-	src_width[0] = width;
-	src_height[0] = height;
-	src_pitch[0] = video_pitch * 2;
-	src_width[1] = src_width[2] = width / 2;
-	src_height[1] = src_height[2] = height / 2;
-	src_pitch[1] = src_pitch[2] = video_pitch;
-	n_src_surf = 3;
+	src_width[1] = src_width[0] = width;
+	src_width[1] = src_height[0] = height;
+	src_pitch[1] = src_pitch[0] = video_pitch * 2;
+	src_width[4] = src_width[5] = src_width[2] = src_width[3] = width / 2;
+	src_height[4] = src_height[5] = src_height[2] = src_height[3] = height / 2;
+	src_pitch[4] = src_pitch[5] = src_pitch[2] = src_pitch[3] = video_pitch;
+	n_src_surf = 6;
 	break;
     default:
 	return;
