@@ -2060,6 +2060,7 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
+    case FOURCC_XVMC:
 	OVERLAY_DEBUG("YUV420\n");
 #if 0
 	/* set UV vertical phase to -0.25 */
@@ -2074,7 +2075,6 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
-    default:
 	OVERLAY_DEBUG("YUV422\n");
 	overlay->OSTRIDE = dstPitch;
 	OCMD &= ~SOURCE_FORMAT;
@@ -2315,6 +2315,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (destId) {
     case FOURCC_YV12:
     case FOURCC_I420:
+    case FOURCC_XVMC:
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
 	    size = dstPitch * width * 3;
@@ -2325,7 +2326,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
-    default:
+
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    dstPitch = ((height << 1) + pitchAlignMask) & ~pitchAlignMask;
 	    size = dstPitch * width;
@@ -2333,6 +2334,10 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    dstPitch = ((width << 1) + pitchAlignMask) & ~pitchAlignMask;
 	    size = dstPitch * height;
 	}
+	break;
+    default:  
+	dstPitch = 0;
+	size = 0;
 	break;
     }
 #if 0
@@ -2413,10 +2418,13 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
-    default:
 	nlines = ((y2 + 0xffff) >> 16) - top;
 	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
 			   nlines, npixels);
+	break;
+    case FOURCC_XVMC:
+	break;
+    default:
 	break;
     }
 
