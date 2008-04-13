@@ -30,27 +30,27 @@ include(`exa_wm.g4i')
 
 define(`YCbCr_base',	`src_sample_base')
 
-define(`Cr',		`src_sample_r_01')
+define(`Cr',		`src_sample_r')
 define(`Cr_01',		`src_sample_r_01')
 define(`Cr_23',		`src_sample_r_23')
 
-define(`Y',		`src_sample_g_01')
+define(`Y',		`src_sample_g')
 define(`Y_01',		`src_sample_g_01')
 define(`Y_23',		`src_sample_g_23')
 
-define(`Cb',		`src_sample_b_01')
+define(`Cb',		`src_sample_b')
 define(`Cb_01',		`src_sample_b_01')
 define(`Cb_23',		`src_sample_b_23')
 
-define(`Crn',		`mask_sample_r_01')
+define(`Crn',		`mask_sample_r')
 define(`Crn_01',	`mask_sample_r_01')
 define(`Crn_23',	`mask_sample_r_23')
 
-define(`Yn',		`mask_sample_g_01')
+define(`Yn',		`mask_sample_g')
 define(`Yn_01',		`mask_sample_g_01')
 define(`Yn_23',		`mask_sample_g_23')
 
-define(`Cbn',		`mask_sample_b_01')
+define(`Cbn',		`mask_sample_b')
 define(`Cbn_01',	`mask_sample_b_01')
 define(`Cbn_23',	`mask_sample_b_23')
 
@@ -58,14 +58,6 @@ define(`Cbn_23',	`mask_sample_b_23')
      * R = Clamp ( 1.164(Y-16/255) + 1.596(Cr-128/255), 0, 1)
      * G = Clamp ( 1.164(Y-16/255) - 0.813(Cr-128/255) - 0.392(Cb-128/255), 0, 1)
      * B = Clamp ( 1.164(Y-16/255) + 2.017(Cb-128/255), 0, 1)
-     *
-     * Y is g14, g15.
-     * Cr is g12, g13.
-     * Cb is g16, g17.
-     *
-     * R is g2, g6.
-     * G is g3, g7.
-     * B is g4, g8.
      */
 
     /* Normalize Y, Cb and Cr:
@@ -84,31 +76,23 @@ add (16)    Cbn<1>F		Cb<8,8,1>F	-0.501961F  { compr align1 };
     /* 
      * R = Y + Cr * 1.596
      */
-mul (8)	    null		Crn_01<8,8,1>F	1.596F	    { align1 };
-mac.sat (8) src_sample_r_01<1>F	Yn_01<8,8,1>F	1F	    { align1  };
-mul (8)     null		Crn_23<8,8,1>F	1.596F	    { align1 };
-mac.sat (8) src_sample_r_23<1>F	Yn_23<8,8,1>F	1F	    { align1  };
+mov (16)    acc0<1>F		Yn<8,8,1>F		    { compr align1 };
+mac.sat(16) src_sample_r<1>F	Crn<8,8,1>F	1.596F	    { compr align1 };
      
     /*
      * G = Crn * -0.813 + Cbn * -0.392 + Y
      */
-mul (8)	    null		Crn_01<8,8,1>F	-0.813F	    { align1 };
-mac (8)	    null		Cbn_01<8,8,1>F	-0.392F	    { align1 };
-mac.sat (8) src_sample_g_01<1>F	Yn_01<8,8,1>F	1F	    { align1 };
-mul (8)	    null		Crn_23<8,8,1>F	-0.813F	    { align1 };
-mac (8)	    null		Cbn_23<8,8,1>F	-0.392F	    { align1 };
-mac.sat (8) src_sample_g_23<1>F	Yn_23<8,8,1>F	1F	    { align1 };
+mov (16)    acc0<1>F		Yn<8,8,1>F		    { compr align1 };
+mac (16)    acc0<1>F		Crn<8,8,1>F    	-0.813F	    { compr align1 };
+mac.sat(16) src_sample_g<1>F	Cbn<8,8,1>F    	-0.392F	    { compr align1 };
 
     /*
      * B = Cbn * 2.017 + Y
      */
-mul (8)	    null		Cbn_01<8,8,1>F	2.017F	    { align1 };
-mac.sat (8) src_sample_b_01<1>F	Yn_01<8,8,1>F	1F	    { align1 };
-mul (8)	    null		Cbn_23<8,8,1>F	2.017F	    { align1 };
-mac.sat (8) src_sample_b_23<1>F	Yn_23<8,8,1>F	1F	    { align1 };
+mov (16)    acc0<1>F	        Yn<8,8,1>F		    { compr align1 };
+mac.sat(16) src_sample_b<1>F	Cbn<8,8,1>F     2.017F	    { compr align1 };
 
     /*
      * A = 1.0
      */
-mov (8)	    src_sample_a_01<1>F	1.0F			    { align1 };
-mov (8)	    src_sample_a_23<1>F	1.0F			    { align1 };
+mov (16)    src_sample_a<1>F	1.0F			    { compr align1 };
