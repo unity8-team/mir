@@ -101,6 +101,9 @@
 
 /* The registers in this range are normally accessed through display commands, with an offset of 0x540 for crtc1. */
 /* They also seem duplicated into the next register as well. */
+#define NV50_CRTC0_CLUT_MODE_VAL					0x00610A24
+#define NV50_CRTC0_SCALE_CTRL_VAL					0x00610A50
+#define NV50_CRTC0_CURSOR_VAL						0x00610A58
 #define NV50_CRTC0_DEPTH_VAL						0x00610AC8
 #define NV50_CRTC0_CLOCK_VAL						0x00610AD0
 #define NV50_CRTC0_COLOR_CTRL_VAL					0x00610AE0
@@ -113,7 +116,15 @@
 #define NV50_CRTC0_FB_SIZE_VAL						0x00610B18
 #define NV50_CRTC0_PITCH_VAL						0x00610B20
 #define NV50_CRTC0_FB_POS_VAL						0x00610B28
+#define NV50_CRTC0_SCALE_CENTER_OFFSET_VAL			0x00610B38
+#define NV50_CRTC0_REAL_RES_VAL					0x00610B40
+/* I can't be 100% about the order of these two, as setting them differently locks up the card. */
+#define NV50_CRTC0_SCALE_RES1_VAL					0x00610B48
+#define NV50_CRTC0_SCALE_RES2_VAL					0x00610B50
 
+#define NV50_CRTC1_CLUT_MODE_VAL					0x00610F64
+#define NV50_CRTC1_SCALE_CTRL_VAL					0x00610F90
+#define NV50_CRTC1_CURSOR_VAL						0x00610F98
 #define NV50_CRTC1_DEPTH_VAL						0x00611008
 #define NV50_CRTC1_CLOCK_VAL						0x00611010
 #define NV50_CRTC1_COLOR_CTRL_VAL					0x00611020
@@ -124,6 +135,11 @@
 #define NV50_CRTC1_FB_SIZE_VAL						0x00611058
 #define NV50_CRTC1_PITCH_VAL						0x00611060
 #define NV50_CRTC1_FB_POS_VAL						0x00611068
+#define NV50_CRTC1_SCALE_CENTER_OFFSET_VAL			0x00611078
+#define NV50_CRTC1_REAL_RES_VAL					0x00611080
+/* I can't be 100% about the order of these two, as setting them differently locks up the card. */
+#define NV50_CRTC1_SCALE_RES1_VAL					0x00611088
+#define NV50_CRTC1_SCALE_RES2_VAL					0x00611090
 
 /* These CLK_CTRL names are a bit of a guess, i do have my reasons though. */
 /* These connected indicators exist for crtc, dac and sor. */
