@@ -459,6 +459,8 @@ typedef struct _brw_cc_unit_state_padded {
  * the rest.
  */
 typedef struct _gen4_state {
+    uint8_t wm_scratch[128 * PS_MAX_THREADS];
+
     KERNEL_DECL (sip_kernel);
     KERNEL_DECL (sf_kernel);
     KERNEL_DECL (sf_kernel_mask);
@@ -470,8 +472,6 @@ typedef struct _gen4_state {
     KERNEL_DECL (ps_kernel_maskca_srcalpha_projective);
     KERNEL_DECL (ps_kernel_masknoca_affine);
     KERNEL_DECL (ps_kernel_masknoca_projective);
-
-    uint8_t wm_scratch[128 * PS_MAX_THREADS];
 
     WM_STATE_DECL (nomask_affine);
     WM_STATE_DECL (nomask_projective);
