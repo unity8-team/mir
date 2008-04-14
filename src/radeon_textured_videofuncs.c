@@ -245,7 +245,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	/* setup pixel shader */
 	if (IS_R300_3D) {
-	    BEGIN_VIDEO(16);
+	    BEGIN_VIDEO(13);
 	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -277,21 +277,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_ALU_CODE_SIZE(1) |
 			   R300_TEX_CODE_OFFSET(0) |
 			   R300_TEX_CODE_SIZE(1)));
-	    OUT_VIDEO_REG(R300_US_CODE_ADDR_0,
-			  (R300_ALU_START(0) |
-			   R300_ALU_SIZE(0) |
-			   R300_TEX_START(0) |
-			   R300_TEX_SIZE(0)));
-	    OUT_VIDEO_REG(R300_US_CODE_ADDR_1,
-			  (R300_ALU_START(0) |
-			   R300_ALU_SIZE(0) |
-			   R300_TEX_START(0) |
-			   R300_TEX_SIZE(0)));
-	    OUT_VIDEO_REG(R300_US_CODE_ADDR_2,
-			  (R300_ALU_START(0) |
-			   R300_ALU_SIZE(0) |
-			   R300_TEX_START(0) |
-			   R300_TEX_SIZE(0)));
+
 	    OUT_VIDEO_REG(R300_US_CODE_ADDR_3,
 			  (R300_ALU_START(0) |
 			   R300_ALU_SIZE(0) |

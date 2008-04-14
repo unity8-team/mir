@@ -1254,7 +1254,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 	/* setup the rasterizer */
 	if (pMask) {
-	    BEGIN_ACCEL(20);
+	    BEGIN_ACCEL(17);
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1299,7 +1299,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						R300_TEX_CODE_SIZE(1)));
 
 	} else {
-	    BEGIN_ACCEL(17);
+	    BEGIN_ACCEL(14);
 	    /* 2 components: 2 for tex0 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1324,22 +1324,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 						R300_TEX_CODE_SIZE(0)));
 
 	}
-
-	OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
-		      (R300_ALU_START(0) |
-		       R300_ALU_SIZE(0) |
-		       R300_TEX_START(0) |
-		       R300_TEX_SIZE(0)));
-	OUT_ACCEL_REG(R300_US_CODE_ADDR_1,
-		      (R300_ALU_START(0) |
-		       R300_ALU_SIZE(0) |
-		       R300_TEX_START(0) |
-		       R300_TEX_SIZE(0)));
-	OUT_ACCEL_REG(R300_US_CODE_ADDR_2,
-		      (R300_ALU_START(0) |
-		       R300_ALU_SIZE(0) |
-		       R300_TEX_START(0) |
-		       R300_TEX_SIZE(0)));
 
 	if (pMask) {
 	    OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
