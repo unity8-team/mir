@@ -265,6 +265,24 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define BRW_GRF_BLOCKS(nreg)    ((nreg + 15) / 16 - 1)
 
+/* Set up a default static partitioning of the URB, which is supposed to
+ * allow anything we would want to do, at potentially lower performance.
+ */
+#define URB_CS_ENTRY_SIZE     0
+#define URB_CS_ENTRIES	      0
+
+#define URB_VS_ENTRY_SIZE     1	  // each 512-bit row
+#define URB_VS_ENTRIES	      8	  // we needs at least 8 entries
+
+#define URB_GS_ENTRY_SIZE     0
+#define URB_GS_ENTRIES	      0
+
+#define URB_CLIP_ENTRY_SIZE   0
+#define URB_CLIP_ENTRIES      0
+
+#define URB_SF_ENTRY_SIZE     2
+#define URB_SF_ENTRIES	      1
+
 static int urb_vs_start, urb_vs_size;
 static int urb_gs_start, urb_gs_size;
 static int urb_clip_start, urb_clip_size;
@@ -276,14 +294,13 @@ static struct brw_surface_state *src_surf_state, src_surf_state_local;
 static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
 
 static struct brw_vs_unit_state *vs_state, vs_state_local;
-static struct brw_sf_unit_state *sf_state, sf_state_local;
 
 static uint32_t *binding_table;
 static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
 static int vs_offset;
-static int sf_offset, vb_offset;
+static int vb_offset;
 static int binding_table_offset;
 static int next_offset, total_state_size;
 static char *state_base;
@@ -473,6 +490,11 @@ typedef struct _gen4_state {
     KERNEL_DECL (ps_kernel_masknoca_affine);
     KERNEL_DECL (ps_kernel_masknoca_projective);
 
+    struct brw_sf_unit_state sf_state;
+    PAD64 (brw_sf_unit_state, 0);
+    struct brw_sf_unit_state sf_state_mask;
+    PAD64 (brw_sf_unit_state, 1);
+
     WM_STATE_DECL (nomask_affine);
     WM_STATE_DECL (nomask_projective);
     WM_STATE_DECL (maskca_affine);
@@ -499,6 +521,49 @@ typedef struct _gen4_state {
 
     uint8_t other_state[65536];
 } gen4_state_t;
+
+/**
+ * Sets up the SF state pointing at an SF kernel.
+ *
+ * The SF kernel does coord interp: for each attribute,
+ * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
+ * back to SF which then hands pixels off to WM.
+ */
+static void
+sf_state_init (struct brw_sf_unit_state *sf_state, int kernel_offset)
+{
+    memset(sf_state, 0, sizeof(*sf_state));
+    sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
+    sf_state->sf1.single_program_flow = 1;
+    sf_state->sf1.binding_table_entry_count = 0;
+    sf_state->sf1.thread_priority = 0;
+    sf_state->sf1.floating_point_mode = 0; /* Mesa does this */
+    sf_state->sf1.illegal_op_exception_enable = 1;
+    sf_state->sf1.mask_stack_exception_enable = 1;
+    sf_state->sf1.sw_exception_enable = 1;
+    sf_state->thread2.per_thread_scratch_space = 0;
+    /* scratch space is not used in our kernel */
+    sf_state->thread2.scratch_space_base_pointer = 0;
+    sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
+    sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
+    sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
+    /* don't smash vertex header, read start from dw8 */
+    sf_state->thread3.urb_entry_read_offset = 1;
+    sf_state->thread3.dispatch_grf_start_reg = 3;
+    sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
+    sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+    sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
+    sf_state->thread4.stats_enable = 1;
+    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
+    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
+    sf_state->sf6.scissor = 0;
+    sf_state->sf7.trifan_pv = 2;
+    sf_state->sf6.dest_org_vbias = 0x8;
+    sf_state->sf6.dest_org_hbias = 0x8;
+
+    assert((kernel_offset & 63) == 0);
+    sf_state->thread0.kernel_start_pointer = kernel_offset >> 6;
+}
 
 static void
 sampler_state_init (struct brw_sampler_state *sampler_state,
@@ -662,6 +727,13 @@ gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
     state->cc_viewport.min_depth = -1.e35;
     state->cc_viewport.max_depth = 1.e35;
 
+    sf_state_init (&state->sf_state,
+		   state_base_offset +
+		   offsetof (gen4_state_t, sf_kernel));
+    sf_state_init (&state->sf_state_mask,
+		   state_base_offset +
+		   offsetof (gen4_state_t, sf_kernel_mask));
+
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
@@ -772,6 +844,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	mask_tiled = 0;
     uint32_t dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
 	dst_tiled = 0;
+    uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
     Bool is_affine_src, is_affine_mask, is_affine;
@@ -828,9 +901,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     vs_offset = ALIGN(next_offset, 64);
     next_offset = vs_offset + sizeof(*vs_state);
 
-    sf_offset = ALIGN(next_offset, 32);
-    next_offset = sf_offset + sizeof(*sf_state);
-
     /* Align VB to native size of elements, for safety */
     vb_offset = ALIGN(next_offset, 32);
     next_offset = vb_offset + vb_size;
@@ -861,24 +931,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table = (void *)(state_base + binding_table_offset);
 
     vb = (void *)(state_base + vb_offset);
-
-    /* Set up a default static partitioning of the URB, which is supposed to
-     * allow anything we would want to do, at potentially lower performance.
-     */
-#define URB_CS_ENTRY_SIZE     0
-#define URB_CS_ENTRIES	      0
-
-#define URB_VS_ENTRY_SIZE     1	  // each 512-bit row
-#define URB_VS_ENTRIES	      8	  // we needs at least 8 entries
-
-#define URB_GS_ENTRY_SIZE     0
-#define URB_GS_ENTRIES	      0
-
-#define URB_CLIP_ENTRY_SIZE   0
-#define URB_CLIP_ENTRIES      0
-
-#define URB_SF_ENTRY_SIZE     2
-#define URB_SF_ENTRIES	      1
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1026,49 +1078,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     vs_state = (void *)(state_base + vs_offset);
     memcpy (vs_state, &vs_state_local, sizeof (vs_state_local));
 
-    /* Set up the SF kernel to do coord interp: for each attribute,
-     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
-     * back to SF which then hands pixels off to WM.
-     */
-    sf_state = &sf_state_local;
-    memset(sf_state, 0, sizeof(*sf_state));
-    if (pMask) {
-	sf_state->thread0.kernel_start_pointer = (state_base_offset +
-		       offsetof(gen4_state_t, sf_kernel_mask)) >> 6;
-    } else {
-	sf_state->thread0.kernel_start_pointer = (state_base_offset +
-		       offsetof(gen4_state_t, sf_kernel)) >> 6;
-    }
-    sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
-    sf_state->sf1.single_program_flow = 1;
-    sf_state->sf1.binding_table_entry_count = 0;
-    sf_state->sf1.thread_priority = 0;
-    sf_state->sf1.floating_point_mode = 0; /* Mesa does this */
-    sf_state->sf1.illegal_op_exception_enable = 1;
-    sf_state->sf1.mask_stack_exception_enable = 1;
-    sf_state->sf1.sw_exception_enable = 1;
-    sf_state->thread2.per_thread_scratch_space = 0;
-    /* scratch space is not used in our kernel */
-    sf_state->thread2.scratch_space_base_pointer = 0;
-    sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
-    sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
-    sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
-    /* don't smash vertex header, read start from dw8 */
-    sf_state->thread3.urb_entry_read_offset = 1;
-    sf_state->thread3.dispatch_grf_start_reg = 3;
-    sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
-    sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
-    sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-    sf_state->thread4.stats_enable = 1;
-    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
-    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
-    sf_state->sf6.scissor = 0;
-    sf_state->sf7.trifan_pv = 2;
-    sf_state->sf6.dest_org_vbias = 0x8;
-    sf_state->sf6.dest_org_hbias = 0x8;
-
-    sf_state = (void *)(state_base + sf_offset);
-    memcpy (sf_state, &sf_state_local, sizeof (sf_state_local));
 
     /* Begin the long sequence of commands needed to set up the 3D
      * rendering pipe
@@ -1151,7 +1160,16 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(state_base_offset + vs_offset);  /* 32 byte aligned */
 	OUT_BATCH(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
 	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
-	OUT_BATCH(state_base_offset + sf_offset);  /* 32 byte aligned */
+
+	if (pMask) {
+	    sf_state_offset = state_base_offset +
+		offsetof(gen4_state_t, sf_state_mask);
+	} else {
+	    sf_state_offset = state_base_offset +
+		offsetof(gen4_state_t, sf_state);
+	}
+	assert((sf_state_offset & 31) == 0);
+	OUT_BATCH(sf_state_offset);
 
 	/* Shorthand for long array lookup */
 #define OUT_WM_KERNEL(kernel) do {					\
