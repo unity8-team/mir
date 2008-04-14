@@ -2060,7 +2060,9 @@ i830_display_video(ScrnInfoPtr pScrn, xf86CrtcPtr crtc,
     switch (id) {
     case FOURCC_YV12:
     case FOURCC_I420:
+#ifdef INTEL_XVMC
     case FOURCC_XVMC:
+#endif
 	OVERLAY_DEBUG("YUV420\n");
 #if 0
 	/* set UV vertical phase to -0.25 */
@@ -2315,7 +2317,9 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (destId) {
     case FOURCC_YV12:
     case FOURCC_I420:
+#ifdef INTEL_XVMC
     case FOURCC_XVMC:
+#endif
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
 	    size = dstPitch * width * 3;
@@ -2422,8 +2426,10 @@ I830PutImage(ScrnInfoPtr pScrn,
 	I830CopyPackedData(pScrn, pPriv, buf, srcPitch, dstPitch, top, left,
 			   nlines, npixels);
 	break;
+#ifdef INTEL_XVMC
     case FOURCC_XVMC:
 	break;
+#endif
     default:
 	break;
     }
