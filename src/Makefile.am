@@ -71,8 +71,6 @@ INTEL_XVMC_SRCS = \
 intel_drv_la_SOURCES = \
          brw_defines.h \
          brw_structs.h \
-	 sf_prog.h \
-         wm_prog.h \
          common.h \
 	 i2c_vid.h \
          i810_accel.c \
