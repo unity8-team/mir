@@ -287,13 +287,10 @@ static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
 static struct brw_surface_state *src_surf_state, src_surf_state_local;
 static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
 
-static struct brw_vs_unit_state *vs_state, vs_state_local;
-
 static uint32_t *binding_table;
 static int binding_table_entries;
 
 static int dest_surf_offset, src_surf_offset, mask_surf_offset;
-static int vs_offset;
 static int vb_offset;
 static int binding_table_offset;
 static int next_offset, total_state_size;
@@ -483,6 +480,9 @@ typedef struct _gen4_state {
     KERNEL_DECL (ps_kernel_maskca_srcalpha_projective);
     KERNEL_DECL (ps_kernel_masknoca_affine);
     KERNEL_DECL (ps_kernel_masknoca_projective);
+
+    struct brw_vs_unit_state vs_state;
+    PAD64 (brw_vs_unit_state, 0);
 
     struct brw_sf_unit_state sf_state;
     PAD64 (brw_sf_unit_state, 0);
@@ -719,6 +719,15 @@ gen4_state_init (struct gen4_render_state *render_state)
     KERNEL_COPY (ps_kernel_masknoca_projective);
 #undef KERNEL_COPY
 
+    /* Set up the vertex shader to be disabled (passthrough) */
+    memset(&card_state->vs_state, 0, sizeof(card_state->vs_state));
+    card_state->vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
+    card_state->vs_state.thread4.urb_entry_allocation_size =
+	URB_VS_ENTRY_SIZE - 1;
+    card_state->vs_state.vs6.vs_enable = 0;
+    card_state->vs_state.vs6.vert_cache_disable = 1;
+
+    /* Set up the sampler default color (always transparent black) */
     memset(&card_state->sampler_default_color, 0,
 	   sizeof(card_state->sampler_default_color));
     card_state->sampler_default_color.color[0] = 0.0; /* R */
@@ -900,8 +909,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     /* Set up our layout of state in framebuffer.  First the general state: */
     next_offset = offsetof(gen4_state_t, other_state);
-    vs_offset = ALIGN(next_offset, 64);
-    next_offset = vs_offset + sizeof(*vs_state);
 
     /* Align VB to native size of elements, for safety */
     vb_offset = ALIGN(next_offset, 32);
@@ -1069,18 +1076,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	mask_extend = SAMPLER_STATE_EXTEND_NONE;
     }
 
-    /* Set up the vertex shader to be disabled (passthrough) */
-    vs_state = &vs_state_local;
-    memset(vs_state, 0, sizeof(*vs_state));
-    vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
-    vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
-    vs_state->vs6.vs_enable = 0;
-    vs_state->vs6.vert_cache_disable = 1;
-
-    vs_state = (void *)(state_base + vs_offset);
-    memcpy (vs_state, &vs_state_local, sizeof (vs_state_local));
-
-
     /* Begin the long sequence of commands needed to set up the 3D
      * rendering pipe
      */
@@ -1159,7 +1154,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set the pointers to the 3d pipeline state */
 	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-	OUT_BATCH(state_base_offset + vs_offset);  /* 32 byte aligned */
+	assert((offsetof(gen4_state_t, vs_state) & 31) == 0);
+	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, vs_state));
 	OUT_BATCH(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
 	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
 
