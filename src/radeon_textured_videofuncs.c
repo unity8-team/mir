@@ -197,6 +197,19 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	else
 	    BEGIN_VIDEO(3);
 
+	/* These registers define the number, type, and location of data submitted
+	 * to the PVS unit of GA input (when PVS is disabled)
+	 * DST_VEC_LOC is the slot in the PVS input vector memory when PVS/TCL is
+	 * enabled.  This memory provides the imputs to the vertex shader program
+	 * and ordering is not important.  When PVS/TCL is disabled, this field maps
+	 * directly to the GA input memory and the order is signifigant.  In
+	 * PVS_BYPASS mode the order is as follows:
+	 * Position
+	 * Point Size
+	 * Color 0-3
+	 * Textures 0-7
+	 * Fog
+	 */
 	OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
 		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -208,7 +221,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		       R300_LAST_VEC_1 |
 		       R300_SIGNED_1));
 
-	/* load the vertex shader */
+	/* load the vertex shader 
+	 * We pre-load vertex programs in RADEONInit3DEngine():
+	 * - exa no mask
+	 * - exa mask
+	 * - Xv
+	 * Here we select the offset of the vertex program we want to use
+	 */
 	if (info->has_tcl) {
 	    OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((5 << R300_PVS_FIRST_INST_SHIFT) |
@@ -218,6 +237,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			  (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	}
 
+	/* Position and one set of 2 texture coordinates */
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT));
 	OUT_VIDEO_REG(R300_US_OUT_FMT_0, output_fmt);
@@ -226,9 +246,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	/* setup pixel shader */
 	if (IS_R300_3D) {
 	    BEGIN_VIDEO(16);
+	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     */
 	    OUT_VIDEO_REG(R300_RS_IP_0,
 			  (R300_RS_TEX_PTR(0) |
 			   R300_RS_COL_PTR(0) |
@@ -237,10 +262,16 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_RS_SEL_T(R300_RS_SEL_C1) |
 			   R300_RS_SEL_R(R300_RS_SEL_K0) |
 			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
-	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_TX_OFFSET_RS(6));
-	    OUT_VIDEO_REG(R300_RS_INST_0, R300_RS_INST_TEX_CN_WRITE);
+	    /* R300_INST_COUNT_RS - highest RS instruction used */
+	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+	    /* R300_INST_TEX_ID - select the RS source table entry
+	     * R300_INST_TEX_ADDR - the FS temp register for the texture data
+	     */
+	    OUT_VIDEO_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(0)));
 	    OUT_VIDEO_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0);
+	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* we only use temp 0 in this program */
 	    OUT_VIDEO_REG(R300_US_CODE_OFFSET,
 			  (R300_ALU_CODE_OFFSET(0) |
 			   R300_ALU_CODE_SIZE(1) |
@@ -267,19 +298,19 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(0) |
 			   R300_RGBA_OUT));
+	    /* tex inst */
 	    OUT_VIDEO_REG(R300_US_TEX_INST_0,
 			  (R300_TEX_SRC_ADDR(0) |
 			   R300_TEX_DST_ADDR(0) |
 			   R300_TEX_ID(0) |
 			   R300_TEX_INST(R300_TEX_INST_LD)));
+	    /* ALU inst */
+	    /* RGB */
 	    OUT_VIDEO_REG(R300_US_ALU_RGB_ADDR_0,
 			  (R300_ALU_RGB_ADDR0(0) |
 			   R300_ALU_RGB_ADDR1(0) |
 			   R300_ALU_RGB_ADDR2(0) |
 			   R300_ALU_RGB_ADDRD(0) |
-			   R300_ALU_RGB_WMASK((R300_ALU_RGB_MASK_R |
-					       R300_ALU_RGB_MASK_G |
-					       R300_ALU_RGB_MASK_B)) |
 			   R300_ALU_RGB_OMASK((R300_ALU_RGB_MASK_R |
 					       R300_ALU_RGB_MASK_G |
 					       R300_ALU_RGB_MASK_B)) |
@@ -294,12 +325,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 			   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE) |
 			   R300_ALU_RGB_CLAMP));
+	    /* Alpha */
 	    OUT_VIDEO_REG(R300_US_ALU_ALPHA_ADDR_0,
 			  (R300_ALU_ALPHA_ADDR0(0) |
 			   R300_ALU_ALPHA_ADDR1(0) |
 			   R300_ALU_ALPHA_ADDR2(0) |
 			   R300_ALU_ALPHA_ADDRD(0) |
-			   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A) |
 			   R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 			   R300_ALU_ALPHA_TARGET_A |
 			   R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
@@ -316,18 +347,29 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    FINISH_VIDEO();
 	} else {
 	    BEGIN_VIDEO(23);
+	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     */
 	    OUT_VIDEO_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
 					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
 					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
 					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 
-	    OUT_VIDEO_REG(R300_RS_INST_COUNT, 0);
-	    OUT_VIDEO_REG(R500_RS_INST_0, R500_RS_INST_TEX_CN_WRITE);
+	    /* R300_INST_COUNT_RS - highest RS instruction used */
+	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+	    /* R500_RS_INST_TEX_ID - select the RS source table entry
+	     * R500_RS_INST_TEX_ADDR - the FS temp register for the texture data
+	     */
+	    OUT_VIDEO_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
+					   R500_RS_INST_TEX_CN_WRITE |
+					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
 	    OUT_VIDEO_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0);
+	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* highest temp used */
 	    OUT_VIDEO_REG(R500_US_FC_CTRL, 0);
 	    OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(1)));
@@ -336,6 +378,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
 
+	    /* tex inst */
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -371,6 +414,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
+	    /* ALU inst */
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_LAST |
@@ -385,14 +429,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_RGB_ADDR1(0) |
 						   R500_RGB_ADDR1_CONST |
 						   R500_RGB_ADDR2(0) |
-						   R500_RGB_ADDR2_CONST |
-						   R500_RGB_SRCP_OP_1_MINUS_2RGB0));
+						   R500_RGB_ADDR2_CONST));
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
 						   R500_ALPHA_ADDR1(0) |
 						   R500_ALPHA_ADDR1_CONST |
 						   R500_ALPHA_ADDR2(0) |
-						   R500_ALPHA_ADDR2_CONST |
-						   R500_ALPHA_SRCP_OP_1_MINUS_2A0));
+						   R500_ALPHA_ADDR2_CONST));
 
 	    OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
 						   R500_ALU_RGB_R_SWIZ_A_R |

@@ -1098,6 +1098,19 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     else
 	BEGIN_ACCEL(6);
 
+    /* These registers define the number, type, and location of data submitted
+     * to the PVS unit of GA input (when PVS is disabled)
+     * DST_VEC_LOC is the slot in the PVS input vector memory when PVS/TCL is
+     * enabled.  This memory provides the imputs to the vertex shader program
+     * and ordering is not important.  When PVS/TCL is disabled, this field maps
+     * directly to the GA input memory and the order is signifigant.  In
+     * PVS_BYPASS mode the order is as follows:
+     * Position
+     * Point Size
+     * Color 0-3
+     * Textures 0-7
+     * Fog
+     */
     OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_0,
 		  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
 		   (0 << R300_SKIP_DWORDS_0_SHIFT) |
@@ -1114,7 +1127,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		   R300_LAST_VEC_2 |
 		   R300_SIGNED_2));
 
-    /* load the vertex shader */
+    /* load the vertex shader 
+     * We pre-load vertex programs in RADEONInit3DEngine():
+     * - exa no mask
+     * - exa mask
+     * - Xv
+     * Here we select the offset of the vertex program we want to use
+     */
     if (info->has_tcl) {
 	if (pMask) {
 	    OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
@@ -1133,6 +1152,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	}
     }
 
+    /* Position and two sets of 2 texture coordinates */
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
 		  ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
@@ -1239,7 +1259,11 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
-	    /* rasterizer source table */
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     * 2,3 are tex1
+	     */
 	    OUT_ACCEL_REG(R300_RS_IP_0,
 			  (R300_RS_TEX_PTR(0) |
 			   R300_RS_SEL_S(R300_RS_SEL_C0) |
@@ -1253,8 +1277,12 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_RS_SEL_R(R300_RS_SEL_K0) |
 			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
 
+	    /* R300_INST_COUNT_RS - highest RS instruction used */
 	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 	    /* src tex */
+	    /* R300_INST_TEX_ID - select the RS source table entry
+	     * R300_INST_TEX_ADDR - the FS temp register for the texture data
+	     */
 	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
 					   R300_RS_INST_TEX_CN_WRITE |
 					   R300_INST_TEX_ADDR(0)));
@@ -1264,7 +1292,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   R300_INST_TEX_ADDR(1)));
 
 	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* max num of temps used */
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
 						R300_ALU_CODE_SIZE(0) |
 						R300_TEX_CODE_OFFSET(0) |
@@ -1289,7 +1317,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   R300_INST_TEX_ADDR(0)));
 
 	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* max num of temps used */
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
 						R300_ALU_CODE_SIZE(0) |
 						R300_TEX_CODE_OFFSET(0) |
@@ -1329,8 +1357,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_RGBA_OUT));
 	}
 
+	/* shader output swizzling */
 	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
+	/* tex inst for src texture */
 	OUT_ACCEL_REG(R300_US_TEX_INST_0,
 		      (R300_TEX_SRC_ADDR(0) |
 		       R300_TEX_DST_ADDR(0) |
@@ -1338,6 +1368,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_TEX_INST(R300_TEX_INST_LD)));
 
 	if (pMask) {
+	    /* tex inst for mask texture */
 	    OUT_ACCEL_REG(R300_US_TEX_INST_1,
 			  (R300_TEX_SRC_ADDR(1) |
 			   R300_TEX_DST_ADDR(1) |
@@ -1345,6 +1376,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_TEX_INST(R300_TEX_INST_LD)));
 	}
 
+	/* RGB inst
+	 * temp addresses for texture inputs
+	 * ALU_RGB_ADDR0 is src tex (temp 0)
+	 * ALU_RGB_ADDR1 is mask tex (temp 1)
+	 * R300_ALU_RGB_OMASK - output components to write
+	 * R300_ALU_RGB_TARGET_A - render target
+	 */
 	OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
 		      (R300_ALU_RGB_ADDR0(0) |
 		       R300_ALU_RGB_ADDR1(1) |
@@ -1354,6 +1392,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   R300_ALU_RGB_MASK_G |
 					   R300_ALU_RGB_MASK_B)) |
 		       R300_ALU_RGB_TARGET_A));
+	/* RGB inst
+	 * ALU operation
+	 */
 	OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
 		      (R300_ALU_RGB_SEL_A(src_color) |
 		       R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
@@ -1364,6 +1405,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 		       R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE) |
 		       R300_ALU_RGB_CLAMP));
+	/* Alpha inst
+	 * temp addresses for texture inputs
+	 * ALU_ALPHA_ADDR0 is src tex (0)
+	 * ALU_ALPHA_ADDR1 is mask tex (1)
+	 * R300_ALU_ALPHA_OMASK - output components to write
+	 * R300_ALU_ALPHA_TARGET_A - render target
+	 */
 	OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
 		      (R300_ALU_ALPHA_ADDR0(0) |
 		       R300_ALU_ALPHA_ADDR1(1) |
@@ -1372,6 +1420,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 		       R300_ALU_ALPHA_TARGET_A |
 		       R300_ALU_ALPHA_OMASK_W(R300_ALU_ALPHA_MASK_NONE)));
+	/* Alpha inst
+	 * ALU operation
+	 */
 	OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
 		      (R300_ALU_ALPHA_SEL_A(src_alpha) |
 		       R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
@@ -1493,9 +1544,15 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 	if (pMask) {
 	    BEGIN_ACCEL(13);
+	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     * 2,3 are tex1
+	     */
 	    OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
 					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
 					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
@@ -1505,10 +1562,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					 (3 << R500_RS_IP_TEX_PTR_T_SHIFT) |
 					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
 					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
-
+	    /* 2 RS instructions: 1 for tex0 (src), 1 for tex1 (mask) */
 	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 
 	    /* src tex */
+	    /* R500_RS_INST_TEX_ID_SHIFT - select the RS source table entry
+	     * R500_RS_INST_TEX_ADDR_SHIFT - the FS temp register for the texture data
+	     */
 	    OUT_ACCEL_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
 					   R500_RS_INST_TEX_CN_WRITE |
 					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
@@ -1518,7 +1578,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   (1 << R500_RS_INST_TEX_ADDR_SHIFT)));
 
 	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
 	    OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(2)));
@@ -1536,7 +1596,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
 					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 
-	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
+	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
 
 	    /* src tex */
 	    OUT_ACCEL_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
@@ -1544,7 +1604,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
 
 	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
 	    OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(1)));
@@ -1559,6 +1619,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	if (pMask) {
 	    BEGIN_ACCEL(19);
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
+	    /* tex inst for src texture */
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -1592,6 +1653,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
+	    /* tex inst for mask texture */
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -1629,6 +1691,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	} else {
 	    BEGIN_ACCEL(13);
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
+	    /* tex inst for src texture */
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -1665,6 +1728,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	}
 
+	/* ALU inst */
+	/* *_OMASK* - output component write mask */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
 					       R500_INST_TEX_SEM_WAIT |
 					       R500_INST_LAST |
@@ -1674,21 +1739,31 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 					       R500_INST_ALPHA_OMASK |
 					       R500_INST_RGB_CLAMP |
 					       R500_INST_ALPHA_CLAMP));
-
+	/* ALU inst
+	 * temp addresses for texture inputs
+	 * RGB_ADDR0 is src tex (temp 0)
+	 * RGB_ADDR1 is mask tex (temp 1)
+	 */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
 					       R500_RGB_ADDR1(1) |
 					       R500_RGB_ADDR2(0)));
-
+	/* ALU inst
+	 * temp addresses for texture inputs
+	 * ALPHA_ADDR0 is src tex (temp 0)
+	 * ALPHA_ADDR1 is mask tex (temp 1)
+	 */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
 					       R500_ALPHA_ADDR1(1) |
 					       R500_ALPHA_ADDR2(0)));
 
+	/* R500_ALU_RGB_TARGET - RGB render target */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
 					       src_color |
 					       R500_ALU_RGB_SEL_B_SRC1 |
 					       mask_color |
 					       R500_ALU_RGB_TARGET(0)));
 
+	/* R500_ALPHA_RGB_TARGET - alpha render target */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
 					       R500_ALPHA_ADDRD(0) |
 					       R500_ALPHA_SEL_A_SRC0 |
