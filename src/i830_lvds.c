@@ -1366,9 +1366,10 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 
     /*
      * Default to filling the whole screen if the mode is less than the
-     * native size, without breaking aspect ratio.
+     * native size. (Change default to origin FULL mode, i8xx can only work
+     * in that mode for now.)
      */
-    dev_priv->fitting_mode = FULL_ASPECT;
+    dev_priv->fitting_mode = FULL;
 
     return;
 
