@@ -124,12 +124,6 @@ static struct formatinfo i965_tex_formats[] = {
     {PICT_a8,       BRW_SURFACEFORMAT_A8_UNORM	 },
 };
 
-/** Private data for gen4 render accel implementation. */
-struct gen4_render_state {
-    unsigned char *state_addr;
-    unsigned int state_offset;
-};
-
 static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 				uint32_t *sblend, uint32_t *dblend)
 {
@@ -522,6 +516,12 @@ typedef struct _gen4_state {
     uint8_t other_state[65536];
 } gen4_state_t;
 
+/** Private data for gen4 render accel implementation. */
+struct gen4_render_state {
+    gen4_state_t *card_state;
+    uint32_t card_state_offset;
+};
+
 /**
  * Sets up the SF state pointing at an SF kernel.
  *
@@ -697,12 +697,14 @@ wm_state_init (struct brw_wm_unit_state *wm_state,
  * Called at EnterVT to fill in our state buffer with any static information.
  */
 static void
-gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
+gen4_state_init (struct gen4_render_state *render_state)
 {
     int i, j, k, l;
+    gen4_state_t *card_state = render_state->card_state;
+    uint32_t state_base_offset = render_state->card_state_offset;
 
 #define KERNEL_COPY(kernel) \
-    memcpy(state->kernel, kernel ## _static, sizeof(kernel ## _static))
+    memcpy(card_state->kernel, kernel ## _static, sizeof(kernel ## _static))
 
     KERNEL_COPY (sip_kernel);
     KERNEL_COPY (sf_kernel);
@@ -717,20 +719,20 @@ gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
     KERNEL_COPY (ps_kernel_masknoca_projective);
 #undef KERNEL_COPY
 
-    memset(&state->sampler_default_color, 0,
-	   sizeof(state->sampler_default_color));
-    state->sampler_default_color.color[0] = 0.0; /* R */
-    state->sampler_default_color.color[1] = 0.0; /* G */
-    state->sampler_default_color.color[2] = 0.0; /* B */
-    state->sampler_default_color.color[3] = 0.0; /* A */
+    memset(&card_state->sampler_default_color, 0,
+	   sizeof(card_state->sampler_default_color));
+    card_state->sampler_default_color.color[0] = 0.0; /* R */
+    card_state->sampler_default_color.color[1] = 0.0; /* G */
+    card_state->sampler_default_color.color[2] = 0.0; /* B */
+    card_state->sampler_default_color.color[3] = 0.0; /* A */
 
-    state->cc_viewport.min_depth = -1.e35;
-    state->cc_viewport.max_depth = 1.e35;
+    card_state->cc_viewport.min_depth = -1.e35;
+    card_state->cc_viewport.max_depth = 1.e35;
 
-    sf_state_init (&state->sf_state,
+    sf_state_init (&card_state->sf_state,
 		   state_base_offset +
 		   offsetof (gen4_state_t, sf_kernel));
-    sf_state_init (&state->sf_state_mask,
+    sf_state_init (&card_state->sf_state_mask,
 		   state_base_offset +
 		   offsetof (gen4_state_t, sf_kernel_mask));
 
@@ -738,12 +740,12 @@ gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-		    sampler_state_init (&state->sampler_state[i][j][k][l][0],
+		    sampler_state_init (&card_state->sampler_state[i][j][k][l][0],
 					i, j,
 					state_base_offset +
 					offsetof (gen4_state_t,
 						  sampler_default_color));
-		    sampler_state_init (&state->sampler_state[i][j][k][l][1],
+		    sampler_state_init (&card_state->sampler_state[i][j][k][l][1],
 					k, l,
 					state_base_offset +
 					offsetof (gen4_state_t,
@@ -756,14 +758,14 @@ gen4_state_init (gen4_state_t *state, uint32_t state_base_offset)
 
     for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 	for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
-	    cc_state_init (&state->cc_state[i][j].state, i, j,
+	    cc_state_init (&card_state->cc_state[i][j].state, i, j,
 			   state_base_offset +
 			   offsetof (gen4_state_t, cc_viewport));
 	}
     }
 
 #define SETUP_WM_STATE(kernel, has_mask)				\
-    wm_state_init(&state->wm_state_ ## kernel [i][j][k][l],		\
+    wm_state_init(&card_state->wm_state_ ## kernel [i][j][k][l],	\
 		  has_mask,						\
 		  state_base_offset + offsetof(gen4_state_t,		\
 					       wm_scratch),		\
@@ -1500,17 +1502,18 @@ void
 gen4_render_state_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    struct gen4_render_state *state;
+    struct gen4_render_state *render_state;
 
     if (pI830->gen4_render_state == NULL)
-	pI830->gen4_render_state = calloc(sizeof(*state), 1);
+	pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
 
-    state = pI830->gen4_render_state;
+    render_state = pI830->gen4_render_state;
 
-    state->state_offset = pI830->gen4_render_state_mem->offset;
-    state->state_addr = pI830->FbBase + pI830->gen4_render_state_mem->offset;
+    render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
+    render_state->card_state = (gen4_state_t *)
+	(pI830->FbBase + render_state->card_state_offset);
 
-    gen4_state_init((gen4_state_t *)state->state_addr, state->state_offset);
+    gen4_state_init(render_state);
 }
 
 /**
@@ -1521,7 +1524,7 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    pI830->gen4_render_state->state_addr = NULL;
+    pI830->gen4_render_state->card_state = NULL;
 }
 
 /**
