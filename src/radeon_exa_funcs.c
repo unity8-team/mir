@@ -543,7 +543,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		info->exa->PrepareComposite =
 		    FUNC_NAME(R300PrepareComposite);
 		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = RadeonDoneComposite;
+		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
 		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
 		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
@@ -554,7 +554,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		info->exa->PrepareComposite =
 		    FUNC_NAME(R200PrepareComposite);
 		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = RadeonDoneComposite;
+		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R100 type cards.\n");
@@ -562,7 +562,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		info->exa->PrepareComposite =
 		    FUNC_NAME(R100PrepareComposite);
 		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = RadeonDoneComposite;
+		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	}
     }
 #endif

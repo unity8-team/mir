@@ -1889,10 +1889,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     } else {
-	if (IS_R300_3D)
+	if (IS_R300_3D | IS_R500_3D)
 	    BEGIN_RING(4 * vtx_count + 4);
-	else if (IS_R500_3D)
-	    BEGIN_RING(4 * vtx_count + 6);
 	else
 	    BEGIN_RING(4 * vtx_count + 2);
 
@@ -1904,10 +1902,8 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     }
 
 #else /* ACCEL_CP */
-    if (IS_R300_3D)
+    if (IS_R300_3D | IS_R500_3D)
 	BEGIN_ACCEL(2 + vtx_count * 4);
-    else if (IS_R500_3D)
-	BEGIN_ACCEL(3 + vtx_count * 4);
     else
 	BEGIN_ACCEL(1 + vtx_count * 4);
 
@@ -1936,14 +1932,9 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	    xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
 	    xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
 
-    if (IS_R300_3D)
+    if (IS_R300_3D | IS_R500_3D)
 	/* flushing is pipelined, free/finish is not */
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
-    else if (IS_R500_3D) {
-	/* r500 shows corruption on small things like glyphs without a 3D idle */
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    }
 
 #ifdef ACCEL_CP
     ADVANCE_RING();
@@ -1955,13 +1946,22 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 }
 #undef VTX_OUT
 
-#ifdef ONLY_ONCE
-static void RadeonDoneComposite(PixmapPtr pDst)
+static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 {
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    ACCEL_PREAMBLE();
+
     ENTER_DRAW(0);
+
+    if (IS_R500_3D) {
+	/* r500 shows corruption on small things like glyphs without a 3D idle */
+	BEGIN_ACCEL(1);
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
+	FINISH_ACCEL();
+    }
+
     LEAVE_DRAW(0);
 }
-#endif /* ONLY_ONCE */
 
 #undef ONLY_ONCE
 #undef FUNC_NAME
