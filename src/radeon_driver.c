@@ -1795,11 +1795,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS740))
 	info->has_tcl = FALSE;
     else {
-	/* need to sort out why PVS has issues on RV515 */
-	if (info->ChipFamily == CHIP_FAMILY_RV515)
-	    info->has_tcl = FALSE;
-	else
-	    info->has_tcl = TRUE;
+	info->has_tcl = TRUE;
     }
 
     return TRUE;

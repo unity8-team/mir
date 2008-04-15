@@ -55,14 +55,12 @@
 static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32 gb_tile_config, su_reg_dest;
+    CARD32 gb_tile_config, su_reg_dest, vap_cntl;
     ACCEL_PREAMBLE();
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
 
-    if (IS_R300_VARIANT || IS_AVIVO_VARIANT ||
-	(info->ChipFamily == CHIP_FAMILY_RS690) ||
-	(info->ChipFamily == CHIP_FAMILY_RS740)) {
+    if (IS_R300_3D || IS_R500_3D) {
 
 	BEGIN_ACCEL(3);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
@@ -147,20 +145,35 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_SU_DEPTH_OFFSET, 0);
 	FINISH_ACCEL();
 
-	/* setup the VAP */	
+	/* setup the VAP */
+	vap_cntl = ((5 << R300_PVS_NUM_SLOTS_SHIFT) |
+		    (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
+		    (9/*12*/ << R300_VF_MAX_VTX_NUM_SHIFT));
+
+	if (info->ChipFamily == CHIP_FAMILY_RV515)
+	    vap_cntl |= (2 << R300_PVS_NUM_FPUS_SHIFT);
+	else if (info->ChipFamily == CHIP_FAMILY_RV530)
+	    vap_cntl |= (5 << R300_PVS_NUM_FPUS_SHIFT);
+	else if (info->ChipFamily == CHIP_FAMILY_R420)
+	    vap_cntl |= (6 << R300_PVS_NUM_FPUS_SHIFT);
+	else if (info->ChipFamily == CHIP_FAMILY_R520)
+	    vap_cntl |= (8 << R300_PVS_NUM_FPUS_SHIFT);
+	else if (info->ChipFamily == CHIP_FAMILY_RV530)
+	    vap_cntl |= (5 << R300_PVS_NUM_FPUS_SHIFT);
+	else
+	    vap_cntl |= (4 << R300_PVS_NUM_FPUS_SHIFT);
+
 	if (info->has_tcl)
 	    BEGIN_ACCEL(15);
 	else
-	    BEGIN_ACCEL(9);
+	    BEGIN_ACCEL(8);
 	OUT_ACCEL_REG(R300_VAP_VTX_STATE_CNTL, 0);
 	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-	OUT_ACCEL_REG(R300_VAP_CNTL, ((5/*6*/ << R300_PVS_NUM_SLOTS_SHIFT) |
-				      (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-				      (4 << R300_PVS_NUM_FPUS_SHIFT) |
-				      (9/*12*/ << R300_VF_MAX_VTX_NUM_SHIFT)));
-	if (info->has_tcl)
+
+	if (info->has_tcl) {
 	    OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, 0);
-	else
+	    OUT_ACCEL_REG(R300_VAP_CNTL, vap_cntl);
+	}else
 	    OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
 	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 	OUT_ACCEL_REG(R300_VAP_VTE_CNTL, R300_VTX_XY_FMT | R300_VTX_Z_FMT);
