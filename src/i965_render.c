@@ -277,9 +277,6 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 #define URB_SF_ENTRY_SIZE     2
 #define URB_SF_ENTRIES	      1
 
-static float *vb;
-static int vb_size = (2 + 3 + 3) * 3 * 4;   /* (dst, src, mask) 3 vertices, 4 bytes */
-
 static const uint32_t sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
     { 0x00000030, 0x20000108, 0x00001220, 0x00000000 },
@@ -497,6 +494,8 @@ typedef struct _gen4_state {
     PAD64 (brw_cc_viewport, 0);
 
     uint8_t other_state[65536];
+
+    float vb[(2 + 3 + 3) * 3];   /* (dst, src, mask) 3 vertices, 4 bytes */
 } gen4_state_t;
 
 /** Private data for gen4 render accel implementation. */
@@ -852,7 +851,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     struct brw_surface_state *src_surf_state, src_surf_state_local;
     struct brw_surface_state *mask_surf_state, mask_surf_state_local;
     int dest_surf_offset, src_surf_offset, mask_surf_offset = 0;
-    int vb_offset;
     int next_offset, total_state_size;
     char *state_base;
     int state_base_offset;
@@ -907,10 +905,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     /* Set up our layout of state in framebuffer.  First the general state: */
     next_offset = offsetof(gen4_state_t, other_state);
 
-    /* Align VB to native size of elements, for safety */
-    vb_offset = ALIGN(next_offset, 32);
-    next_offset = vb_offset + vb_size;
-
     /* And then the general state: */
     dest_surf_offset = ALIGN(next_offset, 32);
     next_offset = dest_surf_offset + sizeof(*dest_surf_state);
@@ -929,8 +923,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     state_base_offset = pI830->gen4_render_state_mem->offset;
     assert((state_base_offset & 63) == 0);
     state_base = (char *)(pI830->FbBase + state_base_offset);
-
-    vb = (void *)(state_base + vb_offset);
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1257,7 +1249,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 		  VB0_VERTEXDATA |
 		  ((4 * (2 + nelem * selem)) << VB0_BUFFER_PITCH_SHIFT));
-	OUT_BATCH(state_base_offset + vb_offset);
+	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, vb));
         OUT_BATCH(3);
 	OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
@@ -1315,9 +1307,11 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
+    float *vb = card_state->vb;
     int i;
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
@@ -1441,7 +1435,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
-    assert (i * 4 <= vb_size);
+    assert (i * 4 <= sizeof(card_state->vb));
 
     {
       BEGIN_BATCH(6);
