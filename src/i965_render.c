@@ -432,6 +432,11 @@ typedef struct _brw_cc_unit_state_padded {
     char pad[64 - sizeof (struct brw_cc_unit_state)];
 } brw_cc_unit_state_padded;
 
+typedef struct brw_surface_state_padded {
+    struct brw_surface_state state;
+    char pad[32 - sizeof (struct brw_surface_state)];
+} brw_surface_state_padded;
+
 /**
  * Gen4 rendering state buffer structure.
  *
@@ -476,6 +481,11 @@ typedef struct _gen4_state {
 
     uint32_t binding_table[16]; /* Only use 3, but pad to 64 bytes */
 
+    struct brw_surface_state_padded dst_surface;
+    struct brw_surface_state_padded src_surface;
+    struct brw_surface_state_padded mask_surface;
+    uint8_t surface_pad[32];
+
     /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
      * the structs happen to add to 32 bytes.
      */
@@ -492,8 +502,6 @@ typedef struct _gen4_state {
 				     [BRW_BLENDFACTOR_COUNT];
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
-
-    uint8_t other_state[65536];
 
     float vb[(2 + 3 + 3) * 3];   /* (dst, src, mask) 3 vertices, 4 bytes */
 } gen4_state_t;
@@ -796,6 +804,8 @@ i965_get_card_format(PicturePtr pPict)
 	if (i965_tex_formats[i].fmt == pPict->format)
 	    break;
     }
+    assert(i != sizeof(i965_tex_formats) / sizeof(i965_tex_formats[0]));
+
     return i965_tex_formats[i].card_fmt;
 }
 
@@ -825,6 +835,64 @@ sampler_state_extend_from_picture (int repeat)
     }
 }
 
+/**
+ * Sets up the common fields for a surface state buffer for the given picture
+ * in the surface state buffer at index, and returns the offset within the
+ * state buffer for this entry.
+ */
+static unsigned int
+i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
+			       PicturePtr pPicture, PixmapPtr pPixmap,
+			       Bool is_dst)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_state_t *card_state = render_state->card_state;
+    struct brw_surface_state local_ss;
+    uint32_t offset;
+
+    /* Since ss is a pointer to WC memory, do all of our bit operations
+     * into a local temporary first.
+     */
+    memset(&local_ss, 0, sizeof(local_ss));
+    local_ss.ss0.surface_type = BRW_SURFACE_2D;
+    if (is_dst) {
+	uint32_t dst_format;
+
+	assert(i965_get_dest_format(pPicture, &dst_format) == TRUE);
+	local_ss.ss0.surface_format = dst_format;
+    } else {
+	local_ss.ss0.surface_format = i965_get_card_format(pPicture);
+    }
+
+    local_ss.ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
+    local_ss.ss0.writedisable_alpha = 0;
+    local_ss.ss0.writedisable_red = 0;
+    local_ss.ss0.writedisable_green = 0;
+    local_ss.ss0.writedisable_blue = 0;
+    local_ss.ss0.color_blend = 1;
+    local_ss.ss0.vert_line_stride = 0;
+    local_ss.ss0.vert_line_stride_ofs = 0;
+    local_ss.ss0.mipmap_layout_mode = 0;
+    local_ss.ss0.render_cache_read_mode = 0;
+    local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
+
+    local_ss.ss2.mip_count = 0;
+    local_ss.ss2.render_target_rotation = 0;
+    local_ss.ss2.height = pPixmap->drawable.height - 1;
+    local_ss.ss2.width = pPixmap->drawable.width - 1;
+    local_ss.ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
+    local_ss.ss3.tile_walk = 0; /* Tiled X */
+    local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap);
+
+    memcpy(ss, &local_ss, sizeof(local_ss));
+
+    offset = (char *)ss - (char *)card_state;
+    assert((offset & 31) == 0);
+
+    return offset;
+}
+
 Bool
 i965_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -832,12 +900,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
-    uint32_t src_offset, src_pitch, src_tile_format = 0, src_tiled = 0;
-    uint32_t mask_offset = 0, mask_pitch = 0, mask_tile_format = 0,
-	mask_tiled = 0;
-    uint32_t dst_format, dst_offset, dst_pitch, dst_tile_format = 0,
-	dst_tiled = 0;
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_state_t *card_state = render_state->card_state;
     uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
@@ -847,39 +911,13 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     int urb_clip_start, urb_clip_size;
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
-    struct brw_surface_state *dest_surf_state, dest_surf_state_local;
-    struct brw_surface_state *src_surf_state, src_surf_state_local;
-    struct brw_surface_state *mask_surf_state, mask_surf_state_local;
-    int dest_surf_offset, src_surf_offset, mask_surf_offset = 0;
-    int next_offset, total_state_size;
     char *state_base;
     int state_base_offset;
     uint32_t src_blend, dst_blend;
-    uint32_t *binding_table;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
 
-    src_offset = intel_get_pixmap_offset(pSrc);
-    src_pitch = intel_get_pixmap_pitch(pSrc);
-    if (i830_pixmap_tiled(pSrc)) {
-	src_tiled = 1;
-	src_tile_format = 0; /* Tiled X */
-    }
-    dst_offset = intel_get_pixmap_offset(pDst);
-    dst_pitch = intel_get_pixmap_pitch(pDst);
-    if (i830_pixmap_tiled(pDst)) {
-	dst_tiled = 1;
-	dst_tile_format = 0; /* Tiled X */
-    }
-    if (pMask) {
-	mask_offset = intel_get_pixmap_offset(pMask);
-	mask_pitch = intel_get_pixmap_pitch(pMask);
-	if (i830_pixmap_tiled(pMask)) {
-	    mask_tiled = 1;
-	    mask_tile_format = 0; /* Tiled X */
-	}
-    }
     pI830->scale_units[0][0] = pSrc->drawable.width;
     pI830->scale_units[0][1] = pSrc->drawable.height;
 
@@ -899,26 +937,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     is_affine = is_affine_src && is_affine_mask;
-
-    /* setup 3d pipeline state */
-
-    /* Set up our layout of state in framebuffer.  First the general state: */
-    next_offset = offsetof(gen4_state_t, other_state);
-
-    /* And then the general state: */
-    dest_surf_offset = ALIGN(next_offset, 32);
-    next_offset = dest_surf_offset + sizeof(*dest_surf_state);
-
-    src_surf_offset = ALIGN(next_offset, 32);
-    next_offset = src_surf_offset + sizeof(*src_surf_state);
-
-    if (pMask) {
-   	mask_surf_offset = ALIGN(next_offset, 32);
-   	next_offset = mask_surf_offset + sizeof(*mask_surf_state);
-    }
-
-    total_state_size = next_offset;
-    assert(total_state_size < sizeof(gen4_state_t));
 
     state_base_offset = pI830->gen4_render_state_mem->offset;
     assert((state_base_offset & 63) == 0);
@@ -943,103 +961,27 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
 
-    /* Set up the state buffer for the destination surface */
-    dest_surf_state = &dest_surf_state_local;
-    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
-    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-    dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
-    if (!i965_get_dest_format(pDstPicture, &dst_format))
-	return FALSE;
-    dest_surf_state->ss0.surface_format = dst_format;
+    /* Set up and bind the state buffer for the destination surface */
+    card_state->binding_table[0] = state_base_offset +
+	i965_set_picture_surface_state(pScrn,
+				       &card_state->dst_surface.state,
+				       pDstPicture, pDst, TRUE);
 
-    dest_surf_state->ss0.writedisable_alpha = 0;
-    dest_surf_state->ss0.writedisable_red = 0;
-    dest_surf_state->ss0.writedisable_green = 0;
-    dest_surf_state->ss0.writedisable_blue = 0;
-    dest_surf_state->ss0.color_blend = 1;
-    dest_surf_state->ss0.vert_line_stride = 0;
-    dest_surf_state->ss0.vert_line_stride_ofs = 0;
-    dest_surf_state->ss0.mipmap_layout_mode = 0;
-    dest_surf_state->ss0.render_cache_read_mode = 0;
-
-    dest_surf_state->ss1.base_addr = dst_offset;
-    dest_surf_state->ss2.height = pDst->drawable.height - 1;
-    dest_surf_state->ss2.width = pDst->drawable.width - 1;
-    dest_surf_state->ss2.mip_count = 0;
-    dest_surf_state->ss2.render_target_rotation = 0;
-    dest_surf_state->ss3.pitch = dst_pitch - 1;
-    dest_surf_state->ss3.tile_walk = dst_tile_format;
-    dest_surf_state->ss3.tiled_surface = dst_tiled;
-
-    dest_surf_state = (void *)(state_base + dest_surf_offset);
-    memcpy (dest_surf_state, &dest_surf_state_local, sizeof (dest_surf_state_local));
-
-    /* Set up the source surface state buffer */
-    src_surf_state = &src_surf_state_local;
-    memset(src_surf_state, 0, sizeof(*src_surf_state));
-    src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-    src_surf_state->ss0.surface_format = i965_get_card_format(pSrcPicture);
-
-    src_surf_state->ss0.writedisable_alpha = 0;
-    src_surf_state->ss0.writedisable_red = 0;
-    src_surf_state->ss0.writedisable_green = 0;
-    src_surf_state->ss0.writedisable_blue = 0;
-    src_surf_state->ss0.color_blend = 1;
-    src_surf_state->ss0.vert_line_stride = 0;
-    src_surf_state->ss0.vert_line_stride_ofs = 0;
-    src_surf_state->ss0.mipmap_layout_mode = 0;
-    src_surf_state->ss0.render_cache_read_mode = 0;
-
-    src_surf_state->ss1.base_addr = src_offset;
-    src_surf_state->ss2.width = pSrc->drawable.width - 1;
-    src_surf_state->ss2.height = pSrc->drawable.height - 1;
-    src_surf_state->ss2.mip_count = 0;
-    src_surf_state->ss2.render_target_rotation = 0;
-    src_surf_state->ss3.pitch = src_pitch - 1;
-    src_surf_state->ss3.tile_walk = src_tile_format;
-    src_surf_state->ss3.tiled_surface = src_tiled;
-
-    src_surf_state = (void *)(state_base + src_surf_offset);
-    memcpy (src_surf_state, &src_surf_state_local, sizeof (src_surf_state_local));
-
-    /* setup mask surface */
+    /* Set up and bind the source surface state buffer */
+    card_state->binding_table[1] = state_base_offset +
+	i965_set_picture_surface_state(pScrn,
+				       &card_state->src_surface.state,
+				       pSrcPicture, pSrc, FALSE);
     if (pMask) {
-	mask_surf_state = &mask_surf_state_local;
-   	memset(mask_surf_state, 0, sizeof(*mask_surf_state));
-	mask_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-   	mask_surf_state->ss0.surface_format =
-	    i965_get_card_format(pMaskPicture);
-
-   	mask_surf_state->ss0.writedisable_alpha = 0;
-   	mask_surf_state->ss0.writedisable_red = 0;
-   	mask_surf_state->ss0.writedisable_green = 0;
-   	mask_surf_state->ss0.writedisable_blue = 0;
-   	mask_surf_state->ss0.color_blend = 1;
-   	mask_surf_state->ss0.vert_line_stride = 0;
-   	mask_surf_state->ss0.vert_line_stride_ofs = 0;
-   	mask_surf_state->ss0.mipmap_layout_mode = 0;
-   	mask_surf_state->ss0.render_cache_read_mode = 0;
-
-   	mask_surf_state->ss1.base_addr = mask_offset;
-   	mask_surf_state->ss2.width = pMask->drawable.width - 1;
-   	mask_surf_state->ss2.height = pMask->drawable.height - 1;
-   	mask_surf_state->ss2.mip_count = 0;
-   	mask_surf_state->ss2.render_target_rotation = 0;
-   	mask_surf_state->ss3.pitch = mask_pitch - 1;
-	mask_surf_state->ss3.tile_walk = mask_tile_format;
-	mask_surf_state->ss3.tiled_surface = mask_tiled;
-
-	mask_surf_state = (void *)(state_base + mask_surf_offset);
-	memcpy (mask_surf_state, &mask_surf_state_local, sizeof (mask_surf_state_local));
+	/* Set up and bind the mask surface state buffer */
+	card_state->binding_table[2] = state_base_offset +
+	    i965_set_picture_surface_state(pScrn,
+					   &card_state->mask_surface.state,
+					   pMaskPicture, pMask,
+					   FALSE);
+    } else {
+	card_state->binding_table[2] = 0;
     }
-
-    /* Set up a binding table for our surfaces.  Only the PS will use it */
-    binding_table = &card_state->binding_table[0];
-    binding_table[0] = state_base_offset + dest_surf_offset;
-    binding_table[1] = state_base_offset + src_surf_offset;
-    if (pMask)
-   	binding_table[2] = state_base_offset + mask_surf_offset;
-
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
@@ -1120,6 +1062,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(0); /* clip */
 	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
+	assert((offsetof(gen4_state_t, binding_table) & 31) == 0);
 	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, binding_table));
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
@@ -1196,6 +1139,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 #undef OUT_WM_KERNEL
 
 	/* 64 byte aligned */
+	assert((offsetof(gen4_state_t,
+			 cc_state[src_blend][dst_blend]) & 63) == 0);
 	OUT_BATCH(state_base_offset +
 		  offsetof(gen4_state_t, cc_state[src_blend][dst_blend]));
 
