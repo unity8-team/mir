@@ -277,29 +277,8 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 #define URB_SF_ENTRY_SIZE     2
 #define URB_SF_ENTRIES	      1
 
-static int urb_vs_start, urb_vs_size;
-static int urb_gs_start, urb_gs_size;
-static int urb_clip_start, urb_clip_size;
-static int urb_sf_start, urb_sf_size;
-static int urb_cs_start, urb_cs_size;
-
-static struct brw_surface_state *dest_surf_state, dest_surf_state_local;
-static struct brw_surface_state *src_surf_state, src_surf_state_local;
-static struct brw_surface_state *mask_surf_state, mask_surf_state_local;
-
-static uint32_t *binding_table;
-static int binding_table_entries;
-
-static int dest_surf_offset, src_surf_offset, mask_surf_offset;
-static int vb_offset;
-static int binding_table_offset;
-static int next_offset, total_state_size;
-static char *state_base;
-static int state_base_offset;
 static float *vb;
 static int vb_size = (2 + 3 + 3) * 3 * 4;   /* (dst, src, mask) 3 vertices, 4 bytes */
-
-static uint32_t src_blend, dst_blend;
 
 static const uint32_t sip_kernel_static[][4] = {
 /*    wait (1) a0<1>UW a145<0,1,0>UW { align1 +  } */
@@ -859,6 +838,23 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
     Bool is_affine_src, is_affine_mask, is_affine;
+    int urb_vs_start, urb_vs_size;
+    int urb_gs_start, urb_gs_size;
+    int urb_clip_start, urb_clip_size;
+    int urb_sf_start, urb_sf_size;
+    int urb_cs_start, urb_cs_size;
+    struct brw_surface_state *dest_surf_state, dest_surf_state_local;
+    struct brw_surface_state *src_surf_state, src_surf_state_local;
+    struct brw_surface_state *mask_surf_state, mask_surf_state_local;
+    uint32_t *binding_table;
+    int binding_table_entries;
+    int dest_surf_offset, src_surf_offset, mask_surf_offset = 0;
+    int vb_offset;
+    int binding_table_offset;
+    int next_offset, total_state_size;
+    char *state_base;
+    int state_base_offset;
+    uint32_t src_blend, dst_blend;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
