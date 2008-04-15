@@ -477,7 +477,11 @@ typedef struct _gen4_state {
     WM_STATE_DECL (masknoca_affine);
     WM_STATE_DECL (masknoca_projective);
 
-    /* Index by [src_filter][src_extend][mask_filter][mask_extend] */
+    uint32_t binding_table[16]; /* Only use 3, but pad to 64 bytes */
+
+    /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
+     * the structs happen to add to 32 bytes.
+     */
     struct brw_sampler_state sampler_state[SAMPLER_STATE_FILTER_COUNT]
 					  [SAMPLER_STATE_EXTEND_COUNT]
 					  [SAMPLER_STATE_FILTER_COUNT]
@@ -829,6 +833,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
     uint32_t src_offset, src_pitch, src_tile_format = 0, src_tiled = 0;
     uint32_t mask_offset = 0, mask_pitch = 0, mask_tile_format = 0,
 	mask_tiled = 0;
@@ -846,15 +851,13 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     struct brw_surface_state *dest_surf_state, dest_surf_state_local;
     struct brw_surface_state *src_surf_state, src_surf_state_local;
     struct brw_surface_state *mask_surf_state, mask_surf_state_local;
-    uint32_t *binding_table;
-    int binding_table_entries;
     int dest_surf_offset, src_surf_offset, mask_surf_offset = 0;
     int vb_offset;
-    int binding_table_offset;
     int next_offset, total_state_size;
     char *state_base;
     int state_base_offset;
     uint32_t src_blend, dst_blend;
+    uint32_t *binding_table;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -901,8 +904,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
     /* setup 3d pipeline state */
 
-    binding_table_entries = 2; /* default no mask */
-
     /* Set up our layout of state in framebuffer.  First the general state: */
     next_offset = offsetof(gen4_state_t, other_state);
 
@@ -920,11 +921,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     if (pMask) {
    	mask_surf_offset = ALIGN(next_offset, 32);
    	next_offset = mask_surf_offset + sizeof(*mask_surf_state);
-	binding_table_entries = 3;
     }
-
-    binding_table_offset = ALIGN(next_offset, 32);
-    next_offset = binding_table_offset + (binding_table_entries * 4);
 
     total_state_size = next_offset;
     assert(total_state_size < sizeof(gen4_state_t));
@@ -932,8 +929,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     state_base_offset = pI830->gen4_render_state_mem->offset;
     assert((state_base_offset & 63) == 0);
     state_base = (char *)(pI830->FbBase + state_base_offset);
-
-    binding_table = (void *)(state_base + binding_table_offset);
 
     vb = (void *)(state_base + vb_offset);
 
@@ -1047,6 +1042,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     /* Set up a binding table for our surfaces.  Only the PS will use it */
+    binding_table = &card_state->binding_table[0];
     binding_table[0] = state_base_offset + dest_surf_offset;
     binding_table[1] = state_base_offset + src_surf_offset;
     if (pMask)
@@ -1132,7 +1128,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(0); /* clip */
 	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
-	OUT_BATCH(state_base_offset + binding_table_offset); /* ps */
+	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, binding_table));
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
