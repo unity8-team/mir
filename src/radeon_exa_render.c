@@ -59,6 +59,12 @@
 static Bool is_transform[2];
 static PictTransform *transform[2];
 static Bool has_mask;
+/* Whether we are tiling horizontally and vertically */
+static Bool need_src_tile_x;
+static Bool need_src_tile_y;
+/* Size of tiles ... set to 65536x65536 if not tiling in that direction */
+static Bool src_tile_width;
+static Bool src_tile_height;
 
 struct blendinfo {
     Bool dst_alpha;
@@ -222,6 +228,95 @@ union intfloat {
     CARD32 i;
 };
 
+/* Check if we need a software-fallback because of a repeating
+ *   non-power-of-two texture.
+ *
+ * canTile: whether we can emulate a repeat by drawing in tiles:
+ *   possible for the source, but not for the mask. (Actually
+ *   we could do tiling for the mask too, but dealing with the
+ *   combination of a tiled mask and a tiled source would be
+ *   a lot of complexity, so we handle only the most common
+ *   case of a repeating mask.)
+ */
+static Bool RADEONCheckTexturePOT(PicturePtr pPict, Bool canTile)
+{
+    int w = pPict->pDrawable->width;
+    int h = pPict->pDrawable->height;
+
+    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0) &&
+	!(!pPict->transform && canTile))
+	RADEON_FALLBACK(("NPOT repeating %s unsupported (%dx%d), transform=%d\n",
+			 canTile ? "source" : "mask", w, h, pPict->transform != 0));
+
+    return TRUE;
+}
+
+/* Determine if the pitch of the pixmap meets the criteria for being
+ * used as a repeating texture: no padding or only a single line texture.
+ */
+static Bool RADEONPitchMatches(PixmapPtr pPix)
+{
+    int w = pPix->drawable.width;
+    int h = pPix->drawable.height;
+    CARD32 txpitch = exaGetPixmapPitch(pPix);
+
+    if (h > 1 && ((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
+	return FALSE;
+
+    return TRUE;
+}
+
+/* We can't turn on repeats normally for a non-power-of-two dimension,
+ * but if the source isn't transformed, we can get the same effect
+ * by drawing the image in multiple tiles. (A common case that it's
+ * important to get right is drawing a strip of a NPOTxPOT texture
+ * repeating in the POT direction. With tiling, this ends up as a
+ * a single tile on R300 and newer, which is perfect.)
+ *
+ * canTile1d: On R300 and newer, we can repeat a texture that is NPOT in
+ *   one direction and POT in the other in the POT direction; on
+ *   older chips we can only repeat at all if the texture is POT in
+ *   both directions.
+ *
+ * needMatchingPitch: On R100/R200, we can only repeat horizontally if
+ *   there is no padding in the texture. Textures with small POT widths
+ *   (1,2,4,8) thus can't be tiled.
+ */
+static Bool RADEONSetupSourceTile(PicturePtr pPict,
+				  PixmapPtr pPix,
+				  Bool canTile1d,
+				  Bool needMatchingPitch)
+{
+    need_src_tile_x = need_src_tile_y = FALSE;
+    src_tile_width = src_tile_height = 65536; /* "infinite" */
+	    
+    if (pPict->repeat) {
+	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
+	
+	int w = pPict->pDrawable->width;
+	int h = pPict->pDrawable->height;
+	
+	if (pPict->transform) {
+	    if (badPitch)
+		RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
+				 w, (unsigned)exaGetPixmapPitch(pPix)));
+	} else {
+	    need_src_tile_x = (w & (w - 1)) != 0 || badPitch;
+	    need_src_tile_y = (h & (h - 1)) != 0;
+	    
+	    if (!canTile1d)
+		need_src_tile_x = need_src_tile_y = need_src_tile_x || need_src_tile_y;
+	}
+
+	if (need_src_tile_x)
+	  src_tile_width = w;
+	if (need_src_tile_y)
+	  src_tile_height = h;
+    }
+
+    return TRUE;
+}
+
 /* R100-specific code */
 
 static Bool R100CheckCompositeTexture(PicturePtr pPict, int unit)
@@ -241,8 +336,8 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict, int unit)
 	RADEON_FALLBACK(("Unsupported picture format 0x%x\n",
 			(int)pPict->format));
 
-    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0))
-	RADEON_FALLBACK(("NPOT repeat unsupported (%dx%d)\n", w, h));
+    if (!RADEONCheckTexturePOT(pPict, unit == 0))
+	return FALSE;
 
     if (pPict->filter != PictFilterNearest &&
 	pPict->filter != PictFilterBilinear)
@@ -262,6 +357,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     CARD32 txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
+    Bool repeat = pPict->repeat && !(unit == 0 && (need_src_tile_x || need_src_tile_y));
     int i;
     ACCEL_PREAMBLE();
 
@@ -282,9 +378,8 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     if (RADEONPixmapIsColortiled(pPix))
 	txoffset |= RADEON_TXO_MACRO_TILE;
 
-    if (pPict->repeat) {
-	if ((h != 1) &&
-	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
+    if (repeat) {
+	if (!RADEONPitchMatches(pPix))
 	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
 			     w, (unsigned)txpitch));
 
@@ -308,7 +403,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (pPict->repeat)
+    if (repeat)
       txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
 
     BEGIN_ACCEL(5);
@@ -462,6 +557,9 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
+    if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
+	return FALSE;
+
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
@@ -553,8 +651,8 @@ static Bool R200CheckCompositeTexture(PicturePtr pPict, int unit)
 	RADEON_FALLBACK(("Unsupported picture format 0x%x\n",
 			 (int)pPict->format));
 
-    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0))
-	RADEON_FALLBACK(("NPOT repeat unsupported (%dx%d)\n", w, h));
+    if (!RADEONCheckTexturePOT(pPict, unit == 0))
+	return FALSE;
 
     if (pPict->filter != PictFilterNearest &&
 	pPict->filter != PictFilterBilinear)
@@ -572,6 +670,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     CARD32 txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
+    Bool repeat = pPict->repeat && !(unit == 0 && (need_src_tile_x || need_src_tile_y));
     int i;
     ACCEL_PREAMBLE();
 
@@ -592,9 +691,8 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     if (RADEONPixmapIsColortiled(pPix))
 	txoffset |= R200_TXO_MACRO_TILE;
 
-    if (pPict->repeat) {
-	if ((h != 1) &&
-	    (((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch))
+    if (repeat) {
+	if (!RADEONPitchMatches(pPix))
 	    RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
 			     w, (unsigned)txpitch));
 
@@ -620,7 +718,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (pPict->repeat)
+    if (repeat)
       txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
 
     BEGIN_ACCEL(6);
@@ -756,6 +854,9 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
 
+    if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
+	return FALSE;
+
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
@@ -864,8 +965,8 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit, Bool is_r500)
 	RADEON_FALLBACK(("Unsupported picture format 0x%x\n",
 			 (int)pPict->format));
 
-    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0))
-	RADEON_FALLBACK(("NPOT repeat unsupported (%dx%d)\n", w, h));
+    if (!RADEONCheckTexturePOT(pPict, unit == 0))
+	return FALSE;
 
     if (pPict->filter != PictFilterNearest &&
 	pPict->filter != PictFilterBilinear)
@@ -941,13 +1042,16 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     info->texW[unit] = w;
     info->texH[unit] = h;
 
-    if (pPict->repeat)
-      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
-		  R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP));
+    if (pPict->repeat && !(unit == 0 && need_src_tile_x))
+      txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP);
     else
-      txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
-		  R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL));
+      txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL);
 
+    if (pPict->repeat && !(unit == 0 && need_src_tile_y))
+      txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP);
+    else
+      txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
+		   
     txfilter |= (unit << R300_TX_ID_SHIFT);
 
     switch (pPict->filter) {
@@ -1107,6 +1211,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
     if (((dst_pitch >> pixel_shift) & 0x7) != 0)
 	RADEON_FALLBACK(("Bad destination pitch 0x%x\n", (int)dst_pitch));
+
+    if (!RADEONSetupSourceTile(pSrcPicture, pSrc, TRUE, FALSE))
+	return FALSE;
 
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -1788,11 +1895,11 @@ static inline void transformPoint(PictTransform *transform, xPointFixed *point)
 }
 #endif
 
-static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
-				     int srcX, int srcY,
-				     int maskX, int maskY,
-				     int dstX, int dstY,
-				     int w, int h)
+static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
+					   int srcX, int srcY,
+					   int maskX, int maskY,
+					   int dstX, int dstY,
+					   int w, int h)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     int vtx_count;
@@ -1933,6 +2040,66 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 }
 #undef VTX_OUT
 #undef VTX_OUT_MASK
+
+static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
+				       int srcX, int srcY,
+				       int maskX, int maskY,
+				       int dstX, int dstY,
+				       int width, int height)
+{
+    int tileSrcY, tileMaskY, tileDstY;
+    int remainingHeight;
+    
+    if (!need_src_tile_x && !need_src_tile_y) {
+	FUNC_NAME(RadeonCompositeTile)(pDst,
+				       srcX, srcY,
+				       maskX, maskY,
+				       dstX, dstY,
+				       width, height);
+	return;
+    }
+
+    /* Tiling logic borrowed from exaFillRegionTiled */
+
+    modulus(srcY, src_tile_height, tileSrcY);
+    tileMaskY = maskY;
+    tileDstY = dstY;
+
+    remainingHeight = height;
+    while (remainingHeight > 0) {
+	int remainingWidth = width;
+	int tileSrcX, tileMaskX, tileDstX;
+	int h = src_tile_height - tileSrcY;
+	
+	if (h > remainingHeight)
+	    h = remainingHeight;
+	remainingHeight -= h;
+
+	modulus(srcX, src_tile_width, tileSrcX);
+	tileMaskX = maskX;
+	tileDstX = dstX;
+	
+	while (remainingWidth > 0) {
+	    int w = src_tile_width - tileSrcX;
+	    if (w > remainingWidth)
+		w = remainingWidth;
+	    remainingWidth -= w;
+	    
+	    FUNC_NAME(RadeonCompositeTile)(pDst,
+					   tileSrcX, tileSrcY,
+					   tileMaskX, tileMaskY,
+					   tileDstX, tileDstY,
+					   w, h);
+	    
+	    tileSrcX = 0;
+	    tileMaskX += w;
+	    tileDstX += w;
+	}
+	tileSrcY = 0;
+	tileMaskY += h;
+	tileDstY += h;
+    }
+}
 
 static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 {
