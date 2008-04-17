@@ -831,7 +831,6 @@ Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
 void gen4_render_state_init(ScrnInfoPtr pScrn);
 void gen4_render_state_cleanup(ScrnInfoPtr pScrn);
-void gen4_render_state_reset(ScrnInfoPtr pScrn);
 Bool i965_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			  PicturePtr pDst);
 Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,

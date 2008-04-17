@@ -479,12 +479,9 @@ typedef struct _gen4_state {
     WM_STATE_DECL (masknoca_affine);
     WM_STATE_DECL (masknoca_projective);
 
-    uint32_t binding_table[16]; /* Only use 3, but pad to 64 bytes */
+    uint32_t binding_table[128];
 
-    struct brw_surface_state_padded dst_surface;
-    struct brw_surface_state_padded src_surface;
-    struct brw_surface_state_padded mask_surface;
-    uint8_t surface_pad[32];
+    struct brw_surface_state_padded surface_state[32];
 
     /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
      * the structs happen to add to 32 bytes.
@@ -510,6 +507,9 @@ typedef struct _gen4_state {
 struct gen4_render_state {
     gen4_state_t *card_state;
     uint32_t card_state_offset;
+
+    int binding_table_index;
+    int surface_state_index;
 };
 
 /**
@@ -902,6 +902,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
     gen4_state_t *card_state = render_state->card_state;
+    struct brw_surface_state_padded *ss;
     uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
@@ -914,6 +915,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     char *state_base;
     int state_base_offset;
     uint32_t src_blend, dst_blend;
+    uint32_t *binding_table;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -953,34 +955,48 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     urb_cs_start = urb_sf_start + urb_sf_size;
     urb_cs_size = URB_CS_ENTRIES * URB_CS_ENTRY_SIZE;
 
-    /* Because we only have a single static buffer for our state currently,
-     * we have to sync before updating it every time.
-     */
-    i830WaitSync(pScrn);
-
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
 
+    if ((render_state->binding_table_index + 3 >=
+	 ARRAY_SIZE(card_state->binding_table)) ||
+	(render_state->surface_state_index + 3 >=
+	 ARRAY_SIZE(card_state->surface_state)))
+    {
+	i830WaitSync(pScrn);
+	render_state->binding_table_index = 0;
+	render_state->surface_state_index = 0;
+    }
+
+    binding_table = card_state->binding_table +
+	render_state->binding_table_index;
+    ss = card_state->surface_state + render_state->surface_state_index;
+    /* We only use 2 or 3 entries, but the table has to be 32-byte
+     * aligned.
+     */
+    render_state->binding_table_index += 8;
+    render_state->surface_state_index += (pMask != NULL) ? 3 : 2;
+
     /* Set up and bind the state buffer for the destination surface */
-    card_state->binding_table[0] = state_base_offset +
+    binding_table[0] = state_base_offset +
 	i965_set_picture_surface_state(pScrn,
-				       &card_state->dst_surface.state,
+				       &ss[0].state,
 				       pDstPicture, pDst, TRUE);
 
     /* Set up and bind the source surface state buffer */
-    card_state->binding_table[1] = state_base_offset +
+    binding_table[1] = state_base_offset +
 	i965_set_picture_surface_state(pScrn,
-				       &card_state->src_surface.state,
+				       &ss[1].state,
 				       pSrcPicture, pSrc, FALSE);
     if (pMask) {
 	/* Set up and bind the mask surface state buffer */
-	card_state->binding_table[2] = state_base_offset +
+	binding_table[2] = state_base_offset +
 	    i965_set_picture_surface_state(pScrn,
-					   &card_state->mask_surface.state,
+					   &ss[2].state,
 					   pMaskPicture, pMask,
 					   FALSE);
     } else {
-	card_state->binding_table[2] = 0;
+	binding_table[2] = 0;
     }
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
@@ -1062,8 +1078,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(0); /* clip */
 	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
-	assert((offsetof(gen4_state_t, binding_table) & 31) == 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, binding_table));
+	assert((((unsigned char *)binding_table - pI830->FbBase) & 31) == 0);
+	OUT_BATCH((unsigned char *)binding_table - pI830->FbBase);
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
@@ -1452,15 +1468,6 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
 
     pI830->gen4_render_state->card_state = NULL;
-}
-
-/**
- * Called when the hardware is idled and flushed, so we know we can
- * reuse the buffer contents.
- */
-void
-gen4_render_state_reset(ScrnInfoPtr pScrn)
-{
 }
 
 unsigned int

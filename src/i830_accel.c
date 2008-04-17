@@ -205,9 +205,6 @@ I830Sync(ScrnInfoPtr pScrn)
 
    pI830->LpRing->space = pI830->LpRing->mem->size - 8;
    pI830->nextColorExpandBuf = 0;
-
-   if (IS_I965G(pI830))
-       gen4_render_state_reset(pScrn);
 }
 
 void
