@@ -197,6 +197,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_debug.h"
 #include "i830_bios.h"
 #include "i830_video.h"
+#if HAVE_SYS_MMAN_H && HAVE_MPROTECT
+#include <sys/mman.h>
+#endif
 
 #ifdef INTEL_XVMC
 #define _INTEL_XVMC_SERVER_
@@ -685,6 +688,13 @@ I830MapMem(ScrnInfoPtr pScrn)
    err = pci_device_map_range (device, pI830->LinearAddr, pI830->FbMapSize,
 			       PCI_DEV_MAP_FLAG_WRITABLE | PCI_DEV_MAP_FLAG_WRITE_COMBINE,
 			       (void **) &pI830->FbBase);
+    if (err)
+	return FALSE;
+    /* KLUDGE ALERT -- rewrite the PTEs to turn off the CD and WT bits */
+#if HAVE_MPROTECT
+    mprotect (pI830->FbBase, pI830->FbMapSize, PROT_NONE);
+    mprotect (pI830->FbBase, pI830->FbMapSize, PROT_READ|PROT_WRITE);
+#endif
 #else
    pI830->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI830->PciTag,
