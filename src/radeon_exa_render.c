@@ -58,6 +58,7 @@
 #ifdef ONLY_ONCE
 static Bool is_transform[2];
 static PictTransform *transform[2];
+static Bool has_mask;
 
 struct blendinfo {
     Bool dst_alpha;
@@ -438,6 +439,11 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
+    if (pMask)
+	has_mask = TRUE;
+    else
+	has_mask = FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
@@ -508,9 +514,13 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0, cblend);
     OUT_ACCEL_REG(RADEON_PP_TXABLEND_0, ablend);
-    OUT_ACCEL_REG(RADEON_SE_VTX_FMT, RADEON_SE_VTX_FMT_XY |
-				     RADEON_SE_VTX_FMT_ST0 |
-				     RADEON_SE_VTX_FMT_ST1);
+    if (pMask)
+	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
+					  RADEON_SE_VTX_FMT_ST0 |
+					  RADEON_SE_VTX_FMT_ST1));
+    else
+	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
+					  RADEON_SE_VTX_FMT_ST0));
     /* Op operator. */
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
 
@@ -722,6 +732,11 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
+    if (pMask)
+	has_mask = TRUE;
+    else
+	has_mask = FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
@@ -756,9 +771,13 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
 
     OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
-    OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
-		 (2 << R200_VTX_TEX0_COMP_CNT_SHIFT) |
-		 (2 << R200_VTX_TEX1_COMP_CNT_SHIFT));
+    if (pMask)
+	OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
+		      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT) |
+		      (2 << R200_VTX_TEX1_COMP_CNT_SHIFT));
+    else
+	OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
+		      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
 
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
 
@@ -1062,6 +1081,11 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!R300GetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
+    if (pMask)
+	has_mask = TRUE;
+    else
+	has_mask = FALSE;
+
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
     dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
@@ -1093,10 +1117,17 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     RADEON_SWITCH_TO_3D();
 
     /* setup the VAP */
-    if (info->has_tcl)
-	BEGIN_ACCEL(8);
-    else
-	BEGIN_ACCEL(6);
+    if (info->has_tcl) {
+	if (pMask)
+	    BEGIN_ACCEL(8);
+	else
+	    BEGIN_ACCEL(7);
+    } else {
+	if (pMask)
+	    BEGIN_ACCEL(6);
+	else
+	    BEGIN_ACCEL(5);
+    }
 
     /* These registers define the number, type, and location of data submitted
      * to the PVS unit of GA input (when PVS is disabled)
@@ -1111,23 +1142,35 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
      * Textures 0-7
      * Fog
      */
-    OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_0,
-		  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
-		   (0 << R300_SKIP_DWORDS_0_SHIFT) |
-		   (0 << R300_DST_VEC_LOC_0_SHIFT) |
-		   R300_SIGNED_0 |
-		   (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
-		   (0 << R300_SKIP_DWORDS_1_SHIFT) |
-		   (6 << R300_DST_VEC_LOC_1_SHIFT) |
-		   R300_SIGNED_1));
-    OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_1,
-		  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_2_SHIFT) |
-		   (0 << R300_SKIP_DWORDS_2_SHIFT) |
-		   (7 << R300_DST_VEC_LOC_2_SHIFT) |
-		   R300_LAST_VEC_2 |
-		   R300_SIGNED_2));
+    if (pMask) {
+	OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_0,
+		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
+		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
+		       (0 << R300_DST_VEC_LOC_0_SHIFT) |
+		       R300_SIGNED_0 |
+		       (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
+		       (0 << R300_SKIP_DWORDS_1_SHIFT) |
+		       (6 << R300_DST_VEC_LOC_1_SHIFT) |
+		       R300_SIGNED_1));
+	OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_1,
+		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_2_SHIFT) |
+		       (0 << R300_SKIP_DWORDS_2_SHIFT) |
+		       (7 << R300_DST_VEC_LOC_2_SHIFT) |
+		       R300_LAST_VEC_2 |
+		       R300_SIGNED_2));
+    } else
+	OUT_ACCEL_REG(R300_VAP_PROG_STREAM_CNTL_0,
+		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
+		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
+		       (0 << R300_DST_VEC_LOC_0_SHIFT) |
+		       R300_SIGNED_0 |
+		       (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
+		       (0 << R300_SKIP_DWORDS_1_SHIFT) |
+		       (6 << R300_DST_VEC_LOC_1_SHIFT) |
+		       R300_LAST_VEC_1 |
+		       R300_SIGNED_1));
 
-    /* load the vertex shader 
+    /* load the vertex shader
      * We pre-load vertex programs in RADEONInit3DEngine():
      * - exa no mask
      * - exa mask
@@ -1154,9 +1197,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     /* Position and two sets of 2 texture coordinates */
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
-    OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
-		  ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
-		   (2 << R300_TEX_1_COMP_CNT_SHIFT)));
+    if (pMask)
+	OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
+		      ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
+		       (2 << R300_TEX_1_COMP_CNT_SHIFT)));
+    else
+	OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
+		      (2 << R300_TEX_0_COMP_CNT_SHIFT));
 
     OUT_ACCEL_REG(R300_TX_INVALTAGS, 0x0);
     OUT_ACCEL_REG(R300_TX_ENABLE, txenable);
@@ -1778,11 +1825,12 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     return TRUE;
 }
 
-#define VTX_COUNT 6
+#define VTX_COUNT_MASK 6
+#define VTX_COUNT 4
 
 #ifdef ACCEL_CP
 
-#define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
+#define VTX_OUT_MASK(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
     OUT_RING_F(_dstX);						\
     OUT_RING_F(_dstY);						\
@@ -1792,9 +1840,17 @@ do {								\
     OUT_RING_F(_maskY);						\
 } while (0)
 
+#define VTX_OUT(_dstX, _dstY, _srcX, _srcY)	\
+do {								\
+    OUT_RING_F(_dstX);						\
+    OUT_RING_F(_dstY);						\
+    OUT_RING_F(_srcX);						\
+    OUT_RING_F(_srcY);						\
+} while (0)
+
 #else /* ACCEL_CP */
 
-#define VTX_OUT(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
+#define VTX_OUT_MASK(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
 do {								\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
@@ -1802,6 +1858,14 @@ do {								\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskX);		\
     OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _maskY);		\
+} while (0)
+
+#define VTX_OUT(_dstX, _dstY, _srcX, _srcY)	\
+do {								\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _dstY);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcX);		\
+    OUT_ACCEL_REG_F(RADEON_SE_PORT_DATA0, _srcY);		\
 } while (0)
 
 #endif /* !ACCEL_CP */
@@ -1867,7 +1931,10 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	transformPoint(transform[1], &maskBottomRight);
     }
 
-    vtx_count = VTX_COUNT;
+    if (has_mask)
+	vtx_count = VTX_COUNT_MASK;
+    else
+	vtx_count = VTX_COUNT;
 
     if (IS_R300_3D || IS_R500_3D) {
 	BEGIN_ACCEL(1);
@@ -1880,9 +1947,13 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
 	BEGIN_RING(4 * vtx_count + 3);
 	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
 			    4 * vtx_count + 1));
-	OUT_RING(RADEON_CP_VC_FRMT_XY |
-		 RADEON_CP_VC_FRMT_ST0 |
-		 RADEON_CP_VC_FRMT_ST1);
+	if (has_mask)
+	    OUT_RING(RADEON_CP_VC_FRMT_XY |
+		     RADEON_CP_VC_FRMT_ST0 |
+		     RADEON_CP_VC_FRMT_ST1);
+	else
+	    OUT_RING(RADEON_CP_VC_FRMT_XY |
+		     RADEON_CP_VC_FRMT_ST0);
 	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_FAN |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
@@ -1919,18 +1990,29 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     }
 #endif
 
-    VTX_OUT((float)dstX,                                      (float)dstY,
-	    xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-	    xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
-    VTX_OUT((float)dstX,                                      (float)(dstY + h),
-	    xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
-	    xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
-    VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
-	    xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
-	    xFixedToFloat(maskBottomRight.x) / info->texW[1], xFixedToFloat(maskBottomRight.y) / info->texH[1]);
-    VTX_OUT((float)(dstX + w),                                (float)dstY,
-	    xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
-	    xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
+    if (has_mask) {
+	VTX_OUT_MASK((float)dstX,                                      (float)dstY,
+		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
+		xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
+	VTX_OUT_MASK((float)dstX,                                      (float)(dstY + h),
+		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
+		xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
+	VTX_OUT_MASK((float)(dstX + w),                                (float)(dstY + h),
+		xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
+		xFixedToFloat(maskBottomRight.x) / info->texW[1], xFixedToFloat(maskBottomRight.y) / info->texH[1]);
+	VTX_OUT_MASK((float)(dstX + w),                                (float)dstY,
+		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
+		xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
+    } else {
+	VTX_OUT((float)dstX,                                      (float)dstY,
+		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
+	VTX_OUT((float)dstX,                                      (float)(dstY + h),
+		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
+	VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
+		xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0]);
+	VTX_OUT((float)(dstX + w),                                (float)dstY,
+		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0]);
+    }
 
     if (IS_R300_3D | IS_R500_3D)
 	/* flushing is pipelined, free/finish is not */
@@ -1945,6 +2027,7 @@ static void FUNC_NAME(RadeonComposite)(PixmapPtr pDst,
     LEAVE_DRAW(0);
 }
 #undef VTX_OUT
+#undef VTX_OUT_MASK
 
 static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 {
