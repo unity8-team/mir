@@ -308,6 +308,9 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
+    if (pPict->repeat)
+      txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
+
     BEGIN_ACCEL(5);
     if (unit == 0) {
 	OUT_ACCEL_REG(RADEON_PP_TXFILTER_0, txfilter);
@@ -616,6 +619,9 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     default:
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
+
+    if (pPict->repeat)
+      txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
 
     BEGIN_ACCEL(6);
     if (unit == 0) {
