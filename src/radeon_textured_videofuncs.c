@@ -193,9 +193,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	/* setup the VAP */
 	if (info->has_tcl)
-	    BEGIN_VIDEO(5);
+	    BEGIN_VIDEO(6);
 	else
-	    BEGIN_VIDEO(3);
+	    BEGIN_VIDEO(4);
 
 	/* These registers define the number, type, and location of data submitted
 	 * to the PVS unit of GA input (when PVS is disabled)
@@ -221,7 +221,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		       R300_LAST_VEC_1 |
 		       R300_SIGNED_1));
 
-	/* load the vertex shader 
+	/* load the vertex shader
 	 * We pre-load vertex programs in RADEONInit3DEngine():
 	 * - exa no mask
 	 * - exa mask
@@ -245,33 +245,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	/* setup pixel shader */
 	if (IS_R300_3D) {
-	    BEGIN_VIDEO(13);
+	    BEGIN_VIDEO(8);
 	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
-	    /* rasterizer source table
-	     * R300_RS_TEX_PTR is the offset into the input RS stream
-	     * 0,1 are tex0
-	     */
-	    OUT_VIDEO_REG(R300_RS_IP_0,
-			  (R300_RS_TEX_PTR(0) |
-			   R300_RS_COL_PTR(0) |
-			   R300_RS_COL_FMT(R300_RS_COL_FMT_RGBA) |
-			   R300_RS_SEL_S(R300_RS_SEL_C0) |
-			   R300_RS_SEL_T(R300_RS_SEL_C1) |
-			   R300_RS_SEL_R(R300_RS_SEL_K0) |
-			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
 	    /* R300_INST_COUNT_RS - highest RS instruction used */
 	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
-	    /* R300_INST_TEX_ID - select the RS source table entry
-	     * R300_INST_TEX_ADDR - the FS temp register for the texture data
-	     */
-	    OUT_VIDEO_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
-					   R300_RS_INST_TEX_CN_WRITE |
-					   R300_INST_TEX_ADDR(0)));
-	    OUT_VIDEO_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* we only use temp 0 in this program */
+
 	    OUT_VIDEO_REG(R300_US_CODE_OFFSET,
 			  (R300_ALU_CODE_OFFSET(0) |
 			   R300_ALU_CODE_SIZE(1) |
@@ -284,12 +265,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(0) |
 			   R300_RGBA_OUT));
-	    /* tex inst */
-	    OUT_VIDEO_REG(R300_US_TEX_INST_0,
-			  (R300_TEX_SRC_ADDR(0) |
-			   R300_TEX_DST_ADDR(0) |
-			   R300_TEX_ID(0) |
-			   R300_TEX_INST(R300_TEX_INST_LD)));
+
+	    /* tex inst is preloaded in RADEONInit3DEngine() */
+
 	    /* ALU inst */
 	    /* RGB */
 	    OUT_VIDEO_REG(R300_US_ALU_RGB_ADDR_0,
@@ -332,31 +310,15 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_ALU_ALPHA_CLAMP));
 	    FINISH_VIDEO();
 	} else {
-	    BEGIN_VIDEO(23);
+	    BEGIN_VIDEO(18);
 	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
-	    /* rasterizer source table
-	     * R300_RS_TEX_PTR is the offset into the input RS stream
-	     * 0,1 are tex0
-	     */
-	    OUT_VIDEO_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 
 	    /* R300_INST_COUNT_RS - highest RS instruction used */
 	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
-	    /* R500_RS_INST_TEX_ID - select the RS source table entry
-	     * R500_RS_INST_TEX_ADDR - the FS temp register for the texture data
-	     */
-	    OUT_VIDEO_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
-					   R500_RS_INST_TEX_CN_WRITE |
-					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
-	    OUT_VIDEO_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* highest temp used */
-	    OUT_VIDEO_REG(R500_US_FC_CTRL, 0);
+
 	    OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(1)));
 	    OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |

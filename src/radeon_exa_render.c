@@ -1195,7 +1195,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	}
     }
 
-    /* Position and two sets of 2 texture coordinates */
+    /* Position and one or two sets of 2 texture coordinates */
     OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
     if (pMask)
 	OUT_ACCEL_REG(R300_VAP_OUT_VTX_FMT_1,
@@ -1299,80 +1299,22 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	}
 
 
-	/* setup the rasterizer */
+	/* setup the rasterizer, load FS */
+	BEGIN_ACCEL(9);
 	if (pMask) {
-	    BEGIN_ACCEL(17);
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
-	    /* rasterizer source table
-	     * R300_RS_TEX_PTR is the offset into the input RS stream
-	     * 0,1 are tex0
-	     * 2,3 are tex1
-	     */
-	    OUT_ACCEL_REG(R300_RS_IP_0,
-			  (R300_RS_TEX_PTR(0) |
-			   R300_RS_SEL_S(R300_RS_SEL_C0) |
-			   R300_RS_SEL_T(R300_RS_SEL_C1) |
-			   R300_RS_SEL_R(R300_RS_SEL_K0) |
-			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
-	    OUT_ACCEL_REG(R300_RS_IP_1,
-			  (R300_RS_TEX_PTR(2) |
-			   R300_RS_SEL_S(R300_RS_SEL_C0) |
-			   R300_RS_SEL_T(R300_RS_SEL_C1) |
-			   R300_RS_SEL_R(R300_RS_SEL_K0) |
-			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
 
 	    /* R300_INST_COUNT_RS - highest RS instruction used */
 	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
-	    /* src tex */
-	    /* R300_INST_TEX_ID - select the RS source table entry
-	     * R300_INST_TEX_ADDR - the FS temp register for the texture data
-	     */
-	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
-					   R300_RS_INST_TEX_CN_WRITE |
-					   R300_INST_TEX_ADDR(0)));
-	    /* mask tex */
-	    OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
-					   R300_RS_INST_TEX_CN_WRITE |
-					   R300_INST_TEX_ADDR(1)));
 
-	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
 						R300_ALU_CODE_SIZE(0) |
 						R300_TEX_CODE_OFFSET(0) |
 						R300_TEX_CODE_SIZE(1)));
 
-	} else {
-	    BEGIN_ACCEL(14);
-	    /* 2 components: 2 for tex0 */
-	    OUT_ACCEL_REG(R300_RS_COUNT,
-			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-			   R300_RS_COUNT_HIRES_EN));
-	    OUT_ACCEL_REG(R300_RS_IP_0,
-			  (R300_RS_TEX_PTR(0) |
-			   R300_RS_SEL_S(R300_RS_SEL_C0) |
-			   R300_RS_SEL_T(R300_RS_SEL_C1) |
-			   R300_RS_SEL_R(R300_RS_SEL_K0) |
-			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
-	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
-	    /* src tex */
-	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
-					   R300_RS_INST_TEX_CN_WRITE |
-					   R300_INST_TEX_ADDR(0)));
-
-	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
-	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
-						R300_ALU_CODE_SIZE(0) |
-						R300_TEX_CODE_OFFSET(0) |
-						R300_TEX_CODE_SIZE(0)));
-
-	}
-
-	if (pMask) {
 	    OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
 			  (R300_ALU_START(0) |
 			   R300_ALU_SIZE(0) |
@@ -1380,6 +1322,18 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_TEX_SIZE(1) |
 			   R300_RGBA_OUT));
 	} else {
+	    /* 2 components: 2 for tex0 */
+	    OUT_ACCEL_REG(R300_RS_COUNT,
+			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			   R300_RS_COUNT_HIRES_EN));
+
+	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+
+	    OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
+						R300_ALU_CODE_SIZE(0) |
+						R300_TEX_CODE_OFFSET(0) |
+						R300_TEX_CODE_SIZE(0)));
+
 	    OUT_ACCEL_REG(R300_US_CODE_ADDR_3,
 			  (R300_ALU_START(0) |
 			   R300_ALU_SIZE(0) |
@@ -1391,21 +1345,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	/* shader output swizzling */
 	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
-	/* tex inst for src texture */
-	OUT_ACCEL_REG(R300_US_TEX_INST_0,
-		      (R300_TEX_SRC_ADDR(0) |
-		       R300_TEX_DST_ADDR(0) |
-		       R300_TEX_ID(0) |
-		       R300_TEX_INST(R300_TEX_INST_LD)));
-
-	if (pMask) {
-	    /* tex inst for mask texture */
-	    OUT_ACCEL_REG(R300_US_TEX_INST_1,
-			  (R300_TEX_SRC_ADDR(1) |
-			   R300_TEX_DST_ADDR(1) |
-			   R300_TEX_ID(1) |
-			   R300_TEX_INST(R300_TEX_INST_LD)));
-	}
+	/* tex inst for src texture is pre-loaded in RADEONInit3DEngine() */
+	/* tex inst for mask texture is pre-loaded in RADEONInit3DEngine() */
 
 	/* RGB inst
 	 * temp addresses for texture inputs
@@ -1573,70 +1514,28 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    break;
 	}
 
+	BEGIN_ACCEL(6);
 	if (pMask) {
-	    BEGIN_ACCEL(13);
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
-	    /* rasterizer source table
-	     * R300_RS_TEX_PTR is the offset into the input RS stream
-	     * 0,1 are tex0
-	     * 2,3 are tex1
-	     */
-	    OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 
-	    OUT_ACCEL_REG(R500_RS_IP_1, ((2 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-					 (3 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
 	    /* 2 RS instructions: 1 for tex0 (src), 1 for tex1 (mask) */
 	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 
-	    /* src tex */
-	    /* R500_RS_INST_TEX_ID_SHIFT - select the RS source table entry
-	     * R500_RS_INST_TEX_ADDR_SHIFT - the FS temp register for the texture data
-	     */
-	    OUT_ACCEL_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
-					   R500_RS_INST_TEX_CN_WRITE |
-					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
-	    /* mask tex */
-	    OUT_ACCEL_REG(R500_RS_INST_1, ((1 << R500_RS_INST_TEX_ID_SHIFT) |
-					   R500_RS_INST_TEX_CN_WRITE |
-					   (1 << R500_RS_INST_TEX_ADDR_SHIFT)));
-
-	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
-	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
 	    OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(2)));
 	    OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
 					       R500_US_CODE_RANGE_SIZE(2)));
 	    OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
 	} else {
-	    BEGIN_ACCEL(11);
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
 
-	    OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
-
 	    OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
 
-	    /* src tex */
-	    OUT_ACCEL_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
-					   R500_RS_INST_TEX_CN_WRITE |
-					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
-
-	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
-	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
 	    OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
 					      R500_US_CODE_END_ADDR(1)));
 	    OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |

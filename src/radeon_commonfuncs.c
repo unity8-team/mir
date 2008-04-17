@@ -428,8 +428,90 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	    FINISH_ACCEL();
 	}
 
+	/* pre-load the RS instructions */
+	BEGIN_ACCEL(4);
 	if (IS_R300_3D) {
-	    BEGIN_ACCEL(7);
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     * 2,3 are tex1
+	     */
+	    OUT_ACCEL_REG(R300_RS_IP_0,
+			  (R300_RS_TEX_PTR(0) |
+			   R300_RS_SEL_S(R300_RS_SEL_C0) |
+			   R300_RS_SEL_T(R300_RS_SEL_C1) |
+			   R300_RS_SEL_R(R300_RS_SEL_K0) |
+			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	    OUT_ACCEL_REG(R300_RS_IP_1,
+			  (R300_RS_TEX_PTR(2) |
+			   R300_RS_SEL_S(R300_RS_SEL_C0) |
+			   R300_RS_SEL_T(R300_RS_SEL_C1) |
+			   R300_RS_SEL_R(R300_RS_SEL_K0) |
+			   R300_RS_SEL_Q(R300_RS_SEL_K1)));
+	    /* src tex */
+	    /* R300_INST_TEX_ID - select the RS source table entry
+	     * R300_INST_TEX_ADDR - the FS temp register for the texture data
+	     */
+	    OUT_ACCEL_REG(R300_RS_INST_0, (R300_INST_TEX_ID(0) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(0)));
+	    /* mask tex */
+	    OUT_ACCEL_REG(R300_RS_INST_1, (R300_INST_TEX_ID(1) |
+					   R300_RS_INST_TEX_CN_WRITE |
+					   R300_INST_TEX_ADDR(1)));
+
+	} else {
+	    /* rasterizer source table
+	     * R300_RS_TEX_PTR is the offset into the input RS stream
+	     * 0,1 are tex0
+	     * 2,3 are tex1
+	     */
+	    OUT_ACCEL_REG(R500_RS_IP_0, ((0 << R500_RS_IP_TEX_PTR_S_SHIFT) |
+					 (1 << R500_RS_IP_TEX_PTR_T_SHIFT) |
+					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
+					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
+
+	    OUT_ACCEL_REG(R500_RS_IP_1, ((2 << R500_RS_IP_TEX_PTR_S_SHIFT) |
+					 (3 << R500_RS_IP_TEX_PTR_T_SHIFT) |
+					 (R500_RS_IP_PTR_K0 << R500_RS_IP_TEX_PTR_R_SHIFT) |
+					 (R500_RS_IP_PTR_K1 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
+	    /* src tex */
+	    /* R500_RS_INST_TEX_ID_SHIFT - select the RS source table entry
+	     * R500_RS_INST_TEX_ADDR_SHIFT - the FS temp register for the texture data
+	     */
+	    OUT_ACCEL_REG(R500_RS_INST_0, ((0 << R500_RS_INST_TEX_ID_SHIFT) |
+					   R500_RS_INST_TEX_CN_WRITE |
+					   (0 << R500_RS_INST_TEX_ADDR_SHIFT)));
+	    /* mask tex */
+	    OUT_ACCEL_REG(R500_RS_INST_1, ((1 << R500_RS_INST_TEX_ID_SHIFT) |
+					   R500_RS_INST_TEX_CN_WRITE |
+					   (1 << R500_RS_INST_TEX_ADDR_SHIFT)));
+	}
+	FINISH_ACCEL();
+
+	/* pre-load FS tex instructions */
+	if (IS_R300_3D) {
+	    BEGIN_ACCEL(2);
+	    /* tex inst for src texture */
+	    OUT_ACCEL_REG(R300_US_TEX_INST_0,
+			  (R300_TEX_SRC_ADDR(0) |
+			   R300_TEX_DST_ADDR(0) |
+			   R300_TEX_ID(0) |
+			   R300_TEX_INST(R300_TEX_INST_LD)));
+
+	    /* tex inst for mask texture */
+	    OUT_ACCEL_REG(R300_US_TEX_INST_1,
+			  (R300_TEX_SRC_ADDR(1) |
+			   R300_TEX_DST_ADDR(1) |
+			   R300_TEX_ID(1) |
+			   R300_TEX_INST(R300_TEX_INST_LD)));
+	    FINISH_ACCEL();
+	}
+
+	if (IS_R300_3D) {
+	    BEGIN_ACCEL(9);
+	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
 			  (R300_ALU_START(0) |
 			   R300_ALU_SIZE(0) |
@@ -445,8 +527,12 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 			   R300_ALU_SIZE(0) |
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(0)));
-	} else
-	    BEGIN_ACCEL(4);
+	} else {
+	    BEGIN_ACCEL(7);
+	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
+	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
+	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
+	}
 	OUT_ACCEL_REG(R300_US_W_FMT, 0);
 	OUT_ACCEL_REG(R300_US_OUT_FMT_1, (R300_OUT_FMT_UNUSED |
 					  R300_OUT_FMT_C0_SEL_BLUE |
