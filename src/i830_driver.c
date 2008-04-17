@@ -3112,7 +3112,7 @@ I830FreeScreen(int scrnIndex, int flags)
 #ifdef INTEL_XVMC
     ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
     I830Ptr pI830 = I830PTR(pScrn);
-    if (pI830->XvMCEnabled)
+    if (pI830 && pI830->XvMCEnabled)
 	intel_xvmc_finish(xf86Screens[scrnIndex]);
 #endif
    I830FreeRec(xf86Screens[scrnIndex]);
