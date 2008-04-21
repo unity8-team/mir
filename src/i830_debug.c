@@ -1172,85 +1172,92 @@ static char *_2d_cmds[0x80] = {
     
 };
 
-static char *_3d_cmds[0x4][0x8][0x100] = {
+#define _3D_ONE_WORD	1
+
+static struct {
+    char    *name;
+    int	    flags;
+} _3d_cmds[0x4][0x8][0x100] = {
     {		/* Pipeline Type 00 (Common) */
 	{	    /* Opcode 0 */
-	    "URB_FENCE",			/* 00 */
-	    "CS_URB_STATE",
-	    "CONSTANT_BUFFER",
-	    "STATE_PREFETCH",
+	    { "URB_FENCE", 0 },			/* 00 */
+	    { "CS_URB_STATE", 0 },
+	    { "CONSTANT_BUFFER", 0 },
+	    { "STATE_PREFETCH", 0 },
 	},
 	{	    /* Opcode 1 */
-	    NULL,				/* 00 */
-	    "STATE_BASE_ADDRESS",
-	    "STATE_SIP",
-	    NULL,
+	    { NULL, 0 },				/* 00 */
+	    { "STATE_BASE_ADDRESS", 0 },
+	    { "STATE_SIP", 0 },
+	    { NULL, 0 },
+
+	    { "PIPELINE_SELECT", _3D_ONE_WORD },	/* 04 */
 	},
     },
     {		/* Pipeline Type 01 (Single DW) */
 	{	    /* Opcode 0 */
 	},
 	{	    /* Opcode 1 */
-	    NULL,				/* 00 */
-	    NULL,
-	    NULL,
-	    NULL,
+	    { NULL, 0 },				/* 00 */
+	    { NULL, 0 },
+	    { NULL, 0 },
+	    { NULL, 0 },
 
-	    "PIPELINE_SELECT",			/* 04 */
-	    NULL,
-	    NULL,
-	    NULL,
+	    { "PIPELINE_SELECT", 0 },			/* 04 */
+	    { NULL, 0 },
+	    { NULL, 0 },
+	    { NULL, 0 },
 	},
     },
     {		/* Pipeline Type 02 (Media) */
 	{	    /* Opcode 0 */
-	    "MEDIA_STATE_POINTERS",		/* 00 */
+	    { "MEDIA_STATE_POINTERS", 0 },		/* 00 */
 	},
 	{	    /* Opcode 1 */
-	    "MEDIA_OBJECT",			/* 00 */
-	    "MEDIA_OBJECT_EX",
-	    "MEDIA_OBJECT_PTR",
+	    { "MEDIA_OBJECT", 0 },			/* 00 */
+	    { "MEDIA_OBJECT_EX", 0 },
+	    { "MEDIA_OBJECT_PTR", 0 },
 	},
     },
     {		/* Pipeline Type 03 (3D) */
 	{	    /* Opcode 0 */
-	    "3DSTATE_PIPELINED_POINTERS",	/* 00 */
-	    "3DSTATE_BINDING_TABLE_POINTERS",
-	    NULL,
-	    NULL,
+	    { "3DSTATE_PIPELINED_POINTERS", 0 },	/* 00 */
+	    { "3DSTATE_BINDING_TABLE_POINTERS", 0 },
+	    { NULL, 0 },
+	    { NULL, 0 },
 
-	    NULL,				/* 04 */
-	    "3DSTATE_URB",
-	    NULL,
-	    NULL,
+	    { NULL, 0 },				/* 04 */
+	    { "3DSTATE_URB", 0 },
+	    { NULL, 0 },
+	    { NULL, 0 },
 
-	    "3DSTATE_VERTEX_BUFFERS",		/* 08 */
-	    "3DSTATE_VERTEX_ELEMENTS",
-	    "3DSTATE_INDEX_BUFFER",
-	    NULL,
+	    { "3DSTATE_VERTEX_BUFFERS", 0 },		/* 08 */
+	    { "3DSTATE_VERTEX_ELEMENTS", 0 },
+	    { "3DSTATE_INDEX_BUFFER", 0 },
+	    { "3DSTATE_VF_STATISTICS", _3D_ONE_WORD },
 
-	    NULL,				/* 0c */
-	    "3DSTATE_VIEWPORT_STATE_POINTERS",
+	    { NULL, 0 },				/* 0c */
+	    { "3DSTATE_VIEWPORT_STATE_POINTERS", 0 },
 	},
 	{	    /* Opcode 1 */
-	    "3DSTATE_DRAWING_RECTANGLE",	/* 00 */
-	    "3DSTATE_CONSTANT_COLOR",
-	    "3DSTATE_SAMPLER_PALETTE_LOAD0",
-	    NULL,
+	    { "3DSTATE_DRAWING_RECTANGLE", 0 },	/* 00 */
+	    { "3DSTATE_CONSTANT_COLOR", 0 },
+	    { "3DSTATE_SAMPLER_PALETTE_LOAD0", 0 },
+	    { NULL, 0 },
 
-	    "3DSTATE_CHROMA_KEY",		/* 04 */
-	    "3DSTATE_DEPTH_BUFFER",
-	    "3DSTATE_POLY_STIPPLE_OFFSET",
-	    "3DSTATE_POLY_STIPPLE_PATTERN",
+	    { "3DSTATE_CHROMA_KEY", 0 },		/* 04 */
+	    { "3DSTATE_DEPTH_BUFFER", 0 },
+	    { "3DSTATE_POLY_STIPPLE_OFFSET", 0 },
+	    { "3DSTATE_POLY_STIPPLE_PATTERN", 0 },
 	    
-	    "3DSTATE_LINE_STIPPLE",		/* 08 */
-	    "3DSTATE_GLOBAL_DEPTH_OFFSET_CLAMP",
+	    { "3DSTATE_LINE_STIPPLE", 0 },		/* 08 */
+	    { "3DSTATE_GLOBAL_DEPTH_OFFSET_CLAMP", 0 },
 	},
 	{	    /* Opcode 2 */
-	    "PIPE_CONTROL",			/* 00 */
+	    { "PIPE_CONTROL", 0 },			/* 00 */
 	},
 	{	    /* Opcode 3 */
-	    "3DPRIMITIVE",			/* 00 */
+	    { "3DPRIMITIVE", 0 },			/* 00 */
 	},
     },
 };
@@ -1267,10 +1274,12 @@ i830_valid_command (uint32_t cmd)
     switch (type) {
     case 0:			    /* Memory Interface */
 	opcode = (cmd >> 23) & 0x3f;
-	if (cmd == 0x00000000)
+	if (opcode < 0x10)
 	    count = 1;
 	else
 	    count = (cmd & 0x3f) + 2;
+	if (opcode == 0x00 && cmd != 0x00000000)
+	    return -1;
 	if (!mi_cmds[opcode])
 	    return -1;
 	break;
@@ -1286,10 +1295,13 @@ i830_valid_command (uint32_t cmd)
 	pipeline_type = (cmd >> 27) & 0x3;
 	opcode = (cmd >> 24) & 0x7;
 	subopcode = (cmd >> 16) & 0xff;
-        count = (cmd & 0xff) + 2;
+	if (_3d_cmds[pipeline_type][opcode][subopcode].flags & _3D_ONE_WORD)
+	    count = 1;
+	else
+	    count = (cmd & 0xff) + 2;
 	if (pipeline_type <= 3)
 	    return count;
-	if (!_3d_cmds[pipeline_type][opcode][subopcode])
+	if (!_3d_cmds[pipeline_type][opcode][subopcode].name)
 	    return -1;
 	break;
     default:
@@ -1298,63 +1310,57 @@ i830_valid_command (uint32_t cmd)
     return count;
 }
 
-static void
-i830_dump_cmd (uint32_t cmd)
+static int
+i830_dump_cmd (uint32_t cmd, int count)
 {
     uint32_t	type = (cmd >> 29) & 0x7;
     uint32_t	pipeline_type;
     uint32_t	opcode;
     uint32_t	subopcode;
-    uint32_t	count;
+    int		ret = 1;
     
-    ErrorF ("\t\t");
+    ErrorF ("\t");
     switch (type) {
     case 0:			    /* Memory Interface */
 	opcode = (cmd >> 23) & 0x3f;
-	if (cmd == 0x00000000)
-	    count = 1;
-	else
-	    count = (cmd & 0x3f) + 2;
 	if (mi_cmds[opcode])
-	    ErrorF ("%08x %20.20s %d\n", cmd, mi_cmds[opcode], count);
+	    ErrorF ("%-40.40s %d\n", mi_cmds[opcode], count);
 	else
-	    ErrorF ("%08x Memory Interface Reserved\n", cmd);
+	    ErrorF ("Memory Interface Reserved\n");
 	break;
     case 1:
 	break;
     case 2:			    /* 2D */
 	opcode = (cmd >> 22) & 0x7f;
-	count = (cmd & 0x1f) + 2;
 	if (_2d_cmds[opcode])
-	    ErrorF ("%08x %20.20s %d\n", cmd, _2d_cmds[opcode], count);
+	    ErrorF ("%-40.40s %d\n", _2d_cmds[opcode], count);
 	else
-	    ErrorF ("%08x 2D Reserved\n", cmd);
+	    ErrorF ("2D Reserved\n");
 	break;
     case 3:			    /* 3D */
 	pipeline_type = (cmd >> 27) & 0x3;
 	opcode = (cmd >> 24) & 0x7;
 	subopcode = (cmd >> 16) & 0xff;
-        count = (cmd & 0xff) + 2;
-	if (_3d_cmds[pipeline_type][opcode][subopcode]) {
-	    ErrorF ("%08x %20.20s %d\n",
-		    cmd,
-		    _3d_cmds[pipeline_type][opcode][subopcode],
+	if (_3d_cmds[pipeline_type][opcode][subopcode].name) {
+	    ErrorF ("%-40.40s %d\n",
+		    _3d_cmds[pipeline_type][opcode][subopcode].name,
 		    count);
 	} else {
-	    ErrorF ("%08x 3D/Media Reserved\n", cmd);
+	    ErrorF ("3D/Media Reserved (pipe %d op %d sub %d)\n", pipeline_type, opcode, subopcode);
 	}
 	break;
     default:
-	ErrorF ("%08x Reserved\n", cmd);
+	ErrorF ("Reserved\n");
 	break;
     }
+    return ret;
 }
 
-static void
-i830_dump_ring(ScrnInfoPtr pScrn)
+static int
+i830_valid_chain (ScrnInfoPtr pScrn, unsigned int ring, unsigned int end)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned int head, tail, ring, mask, cmd;
+    unsigned int head, tail, mask;
     volatile unsigned char *virt;
     uint32_t		data;
     int			count;
@@ -1368,38 +1374,118 @@ i830_dump_ring(ScrnInfoPtr pScrn)
     ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d\n",
 	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
 
-    /* walk back by instructions */
-    cmd = (head + 4) & mask;
-    for (ring = head & mask; ring != ((head - 256) & mask);
-	 ring = (ring - 4) & mask)
+    for (;;)
     {
 	ptr = (volatile uint32_t *) (virt + ring);
 	data = *ptr;
-        ErrorF ("\t%08x: %08x\n", ring, *(volatile unsigned int *) (virt + ring));
 	count = i830_valid_command (data);
 	if (count < 0)
-	    continue;
-	if (((ring + count * 4) & mask) == cmd)
+	    return 0;
+	while (count > 0 && ring != end) 
 	{
-	    i830_dump_cmd (data);
-	    cmd = ring;
+	    ring = (ring + 4) & mask;
+	    count--;
+	}
+	if (ring == end) {
+	    if (count == 0)
+		return 1;
+	    else
+		return 0;
 	}
     }
+}
 
-    for (ring = cmd; ring != ((head + 4) & mask);
-	 ring = (ring + 4) & mask)
+static void
+i830_dump_cmds (ScrnInfoPtr		pScrn,
+		volatile unsigned char	*virt,
+		uint32_t		start,
+		uint32_t		stop,
+		uint32_t		mask,
+		uint32_t		acthd)
+{
+    I830Ptr		pI830 = I830PTR(pScrn);
+    uint32_t		ring = start;
+    uint32_t		cmd = start;
+    uint32_t		data;
+    uint32_t		batch_start_mask = ((0x7 << 29) |
+					    (0x3f << 23) |
+					    (0x7ff << 12) |
+					    (1 << 11) |
+					    (1 << 7) |
+					    (1 << 6) |
+					    (0x3f << 0));
+    uint32_t		batch_start_cmd  = ((0x0 << 29) |
+					    (0x31 << 23) |
+					    (0x00 << 12) |
+					    (0 << 11) |
+					    (1 << 7) |
+					    (0 << 6) |
+					    (0 << 0));
+    int			count;
+    volatile uint32_t	*ptr;
+
+    while (ring != stop)
     {
-	ErrorF ("\t%08x: %08x\n", ring, *(volatile unsigned int *) (virt + ring));
+	if (ring == acthd)
+	    ErrorF ("****");
+	ErrorF ("\t%08x: %08x", ring, *(volatile unsigned int *) (virt + ring));
 	if (ring == cmd)
 	{
 	    ptr = (volatile uint32_t *) (virt + ring);
 	    data = *ptr;
-	    i830_dump_cmd (data);
 	    count = i830_valid_command (data);
-	    
+	    i830_dump_cmd (data, count);
+
+	    /* check for MI_BATCH_BUFFER_END */
+	    if (data == (0x0a << 23))
+		stop = (ring + 4) & mask;
+	    /* check for MI_BATCH_BUFFER_START */
+	    if ((data & batch_start_mask) == batch_start_cmd)
+	    {
+		uint32_t    batch = ptr[1];
+		if (batch < pI830->FbMapSize) {
+		    ErrorF ("\t%08x: %08x\n", (ring + 4) & mask, batch);
+		    ErrorF ("Batch buffer at 0x%08x {\n", batch);
+		    i830_dump_cmds (pScrn, pI830->FbBase, batch,
+				    pI830->FbMapSize - batch,
+				    0xffffffff, acthd);
+		    ErrorF ("}\n");
+		    ring = (ring + (count - 1) * 4) & mask;
+		}
+	    }
 	    cmd = (cmd + count * 4) & mask;
-	}
+	} else
+	     ErrorF ("\n");
+	ring = (ring + 4) & mask;
     }
+}
+
+static void
+i830_dump_ring(ScrnInfoPtr pScrn, uint32_t acthd)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned int head, tail, mask, cmd;
+    volatile unsigned char *virt;
+    
+    head = (INREG (LP_RING + RING_HEAD)) & I830_HEAD_MASK;
+    tail = INREG (LP_RING + RING_TAIL) & I830_TAIL_MASK;
+    mask = pI830->LpRing->tail_mask;
+    
+    virt = pI830->LpRing->virtual_start;
+    ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d\n",
+	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
+
+    /* walk back by instructions */
+    for (cmd = (head - 256) & mask;
+	 cmd != (head & mask);
+	 cmd = (cmd + 4) & mask)
+    {
+	if (i830_valid_chain (pScrn, cmd, (head & mask)))
+	    break;
+    }
+
+    i830_dump_cmds (pScrn, virt, cmd, head, mask, acthd);
+
     ErrorF ("Ring end\n");
 }
 
@@ -1432,13 +1518,14 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 
     ErrorF("hwstam: 0x%04x ier: 0x%04x imr: 0x%04x iir: 0x%04x\n",
 	   INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
-    i830_dump_ring (pScrn);
+    i830_dump_ring (pScrn, 0);
 }
 
 void
 i965_dump_error_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t	acthd;
 
     ErrorF("pgetbl_ctl: 0x%08x pgetbl_err: 0x%08x\n",
 	   INREG(PGETBL_CTL), INREG(PGE_ERR));
@@ -1468,8 +1555,9 @@ i965_dump_error_state(ScrnInfoPtr pScrn)
 	   "imr: 0x%08x iir: 0x%08x\n",
 	   INREG(HWSTAM), INREG(IER), INREG(IMR), INREG(IIR));
 
+    acthd = INREG(ACTHD);
     ErrorF("acthd: 0x%08x dma_fadd_p: 0x%08x\n",
-	   INREG(ACTHD), INREG(DMA_FADD_P));
+	   acthd, INREG(DMA_FADD_P));
     ErrorF("ecoskpd: 0x%08x excc: 0x%08x\n",
 	   INREG(ECOSKPD), INREG(EXCC));
 
@@ -1514,7 +1602,7 @@ i965_dump_error_state(ScrnInfoPtr pScrn)
 	   INREG(TS_DEBUG_DATA));
     ErrorF("TD_CTL 0x%08x / 0x%08x\n",
 	   INREG(TD_CTL), INREG(TD_CTL2));
-    i830_dump_ring (pScrn);
+    i830_dump_ring (pScrn, acthd);
 }
 
 /**
