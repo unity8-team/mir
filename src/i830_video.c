@@ -2441,13 +2441,13 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 
 #ifdef I830_USE_EXA
-    if (pI830->useEXA) {
+    if (pPriv->textured && pI830->useEXA) {
 	/* Force the pixmap into framebuffer so we can draw to it. */
 	exaMoveInPixmap(pPixmap);
     }
 #endif
 
-    if (!pI830->useEXA &&
+    if (pPriv->textured && !pI830->useEXA &&
 	    (((char *)pPixmap->devPrivate.ptr < (char *)pI830->FbBase) ||
 	     ((char *)pPixmap->devPrivate.ptr >= (char *)pI830->FbBase +
 	      pI830->FbMapSize))) {
