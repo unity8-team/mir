@@ -753,23 +753,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* The rest disables double buffering on CRTC access */
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
-	if (savep->CRTC[NV_VGA_CRTCX_LCD] <= 0xb) {
-		/* Common values are 0x0, 0x3, 0x8, 0xb, see logic below */
-		if (nv_crtc->head == 0) {
-			regp->CRTC[NV_VGA_CRTCX_LCD] = (1 << 3);
-		}
-
-		if (fp_output) {
-			regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 0);
-			if (!NVMatchModePrivate(mode, NV_MODE_VGA)) {
-				regp->CRTC[NV_VGA_CRTCX_LCD] |= (1 << 1);
-			}
-		}
-	} else {
-		/* Let's keep any abnormal value there may be, like 0x54 or 0x79 */
-		regp->CRTC[NV_VGA_CRTCX_LCD] = savep->CRTC[NV_VGA_CRTCX_LCD];
-	}
-
 	/* Sometimes 0x10 is used, what is this? */
 	regp->CRTC[NV_VGA_CRTCX_59] = 0x0;
 	/* Some kind of tmds switch for older cards */
@@ -1199,6 +1182,7 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	/* init some state to saved value */
 	pNv->ModeReg.reg580 = pNv->SavedReg.reg580;
 	pNv->ModeReg.sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
+	pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_VGA_CRTCX_LCD] = pNv->SavedReg.crtc_reg[nv_crtc->head].CRTC[NV_VGA_CRTCX_LCD];
 }
 
 static void nv_crtc_restore(xf86CrtcPtr crtc)

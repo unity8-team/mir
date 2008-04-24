@@ -1,7 +1,7 @@
 /*
  * Copyright 2006 Dave Airlie
  * Copyright 2007 Maarten Maathuis
- * Copyright 2007 Stuart Bennett
+ * Copyright 2007-2008 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -540,77 +540,98 @@ nv_output_destroy (xf86OutputPtr output)
 	}
 }
 
-static void nv_output_prepare_sel_clk(xf86OutputPtr output)
+static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 	NVRegPtr state = &pNv->ModeReg;
+	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
+	int i;
+
+	/* seemingly not used for off-chip outputs */
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].location)
+		return;
 
 	/* SEL_CLK is only used on the primary ramdac
 	 * It toggles spread spectrum PLL output and sets the bindings of PLLs
 	 * to heads on digital outputs
 	 */
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-		bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
-		int i;
+	state->sel_clk &= ~(0x5 << 16);
+	/* Even with two dvi, this should not conflict. */
+	if (crossed_clocks)
+		state->sel_clk |= (0x1 << 16);
+	else
+		state->sel_clk |= (0x4 << 16);
 
-		state->sel_clk &= ~(0x5 << 16);
-		/* Even with two dvi, this should not conflict. */
-		if (crossed_clocks)
-			state->sel_clk |= (0x1 << 16);
-		else
-			state->sel_clk |= (0x4 << 16);
+	/* nv30:
+	 *	bit 0		NVClk spread spectrum on/off
+	 *	bit 2		MemClk spread spectrum on/off
+	 *	bit 4		PixClk1 spread spectrum on/off
+	 *	bit 6		PixClk2 spread spectrum on/off
+	 *
+	 * nv40 (observations from bios behaviour and mmio traces):
+	 * 	bit 4		seems to get set when output is on head A - likely related to PixClk1
+	 * 	bit 6		seems to get set when output is on head B - likely related to PixClk2
+	 * 	bits 5&7	set as for bits 4&6, but do not appear on cards using 4&6
+	 *
+	 * 	bits 8&10	seen on dual dvi outputs; possibly means "bits 4&6, dual dvi"
+	 *
+	 * 	Note that the circumstances for setting the bits at all is unclear
+	 */
+	if (pNv->Architecture == NV_ARCH_40)
+		for (i = 1; i <= 2; i++) {
+			uint32_t var = (state->sel_clk >> 4*i) & 0xf;
+			int shift = 0; /* assume (var & 0x5) by default */
 
-		/* nv30:
-		 *	bit 0		NVClk spread spectrum on/off
-		 *	bit 2		MemClk spread spectrum on/off
-		 *	bit 4		PixClk1 spread spectrum on/off
-		 *	bit 6		PixClk2 spread spectrum on/off
-		 *
-		 * nv40 (observations from bios behaviour and mmio traces):
-		 * 	bit 4		seems to get set when output is on head A - likely related to PixClk1
-		 * 	bit 6		seems to get set when output is on head B - likely related to PixClk2
-		 * 	bits 5&7	set as for bits 4&6, but do not appear on cards using 4&6
-		 *
-		 * 	bits 8&10	seen on dual dvi outputs; possibly means "bits 4&6, dual dvi"
-		 *
-		 * 	Note that the circumstances for setting the bits at all is unclear
-		 */
-		if (pNv->Architecture == NV_ARCH_40)
-			for (i = 1; i <= 2; i++) {
-				uint32_t var = (state->sel_clk >> 4*i) & 0xf;
-				int shift = 0; /* assume (var & 0x5) by default */
+			if (!var)
+				continue;
+			if (var & 0xa)
+				shift = 1;
 
-				if (!var)
-					continue;
-				if (var & 0xa)
-					shift = 1;
-
-				state->sel_clk &= ~(0xf << 4*i);
-				if (crossed_clocks)
-					state->sel_clk |= (0x4 << (4*i + shift));
-				else
-					state->sel_clk |= (0x1 << (4*i + shift));
-			}
-		else if (state->sel_clk & 0x50 && (state->sel_clk & 0x50) != 0x50) {
-			state->sel_clk &= ~0x50;
-			state->sel_clk |= nv_crtc->head ? 0x40 : 0x10;
+			state->sel_clk &= ~(0xf << 4*i);
+			if (crossed_clocks)
+				state->sel_clk |= (0x4 << (4*i + shift));
+			else
+				state->sel_clk |= (0x1 << (4*i + shift));
 		}
+	else if (state->sel_clk & 0x50 && (state->sel_clk & 0x50) != 0x50) {
+		state->sel_clk &= ~0x50;
+		state->sel_clk |= nv_crtc->head ? 0x40 : 0x10;
 	}
 }
 
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
+	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(output->scrn);
+	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
 
 	output->funcs->dpms(output, DPMSModeOff);
 
-	/* calculate sel_clk now, and write it in nv_crtc_set_mode before calculating PLLs */
-	nv_output_prepare_sel_clk(output);
+	/* calculate some output specific CRTC regs now, so that they can be written in nv_crtc_set_mode */
+	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
+		nv_digital_output_prepare_sel_clk(output);
+
+	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f etc.) which we don't alter */
+	if (!(regp->CRTC[NV_VGA_CRTCX_LCD] & 0x44)) {
+		if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
+			regp->CRTC[NV_VGA_CRTCX_LCD] &= ~0x30;
+			regp->CRTC[NV_VGA_CRTCX_LCD] |= 0x3;
+			if (nv_crtc->head == 0)
+				regp->CRTC[NV_VGA_CRTCX_LCD] |= 0x8;
+			else
+				regp->CRTC[NV_VGA_CRTCX_LCD] &= ~0x8;
+			if (pNv->dcb_table.entry[nv_output->dcb_entry].location)
+				regp->CRTC[NV_VGA_CRTCX_LCD] |= (nv_output->or << 4) & 0x30;
+		} else
+			regp->CRTC[NV_VGA_CRTCX_LCD] = 0;
+	}
 }
 
 static void
