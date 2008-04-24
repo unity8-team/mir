@@ -200,6 +200,7 @@ typedef struct _NVCrtcPrivateRec {
 #else
 	ExaOffscreenArea *shadow;
 #endif /* NOUVEAU_EXA_PIXMAPS */
+	int fp_users;
 } NVCrtcPrivateRec, *NVCrtcPrivatePtr;
 
 typedef enum {

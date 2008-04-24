@@ -81,11 +81,42 @@ static int nv_output_ramdac_offset(xf86OutputPtr output)
 
 static int get_digital_bound_head(xf86OutputPtr output)
 {
+	/* this does not give a correct answer for off-chip dvi, but there's no
+	 * use for such an answer anyway */
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
 	int ramdac = (nv_output->or & OUTPUT_C) >> 2;
 
 	return (((nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4) & 0x8) >> 3) ^ ramdac);
+}
+
+static void dpms_update_fp_control(xf86OutputPtr output, int mode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
+	NVCrtcPrivatePtr nv_crtc;
+	NVCrtcRegPtr regp;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(output->scrn);
+	int i;
+
+	if (mode == DPMSModeOn) {
+		nv_crtc = output->crtc->driver_private;
+		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+
+		nv_crtc->fp_users |= 1 << nv_output->dcb_entry;
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control & ~0x20000022);
+	} else
+		for (i = 0; i <= pNv->twoHeads; i++) {
+			nv_crtc = xf86_config->crtc[i]->driver_private;
+			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+
+			nv_crtc->fp_users &= ~(1 << nv_output->dcb_entry);
+			if (!nv_crtc->fp_users) {
+				/* cut the FP output */
+				regp->fp_control |= 0x20000022;
+				NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control);
+			}
+		}
 }
 
 static void
@@ -110,18 +141,13 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 		if (crtc)
 			head = ((NVCrtcPrivatePtr)crtc->driver_private)->head;
 
-		switch (mode) {
-		case DPMSModeStandby:
-		case DPMSModeSuspend:
-		case DPMSModeOff:
-			call_lvds_script(pScrn, head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
-			break;
-		case DPMSModeOn:
+		if (mode == DPMSModeOn)
 			call_lvds_script(pScrn, head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
-		default:
-			break;
-		}
+		else
+			call_lvds_script(pScrn, head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
 	}
+
+	dpms_update_fp_control(output, mode);
 }
 
 static void
@@ -140,16 +166,12 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 	if (pNv->twoHeads) {
 		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 
-		switch (mode) {
-		case DPMSModeOff:
+		if (mode == DPMSModeOff)
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
 				      outputval & ~NV_RAMDAC_OUTPUT_DAC_ENABLE);
-			break;
-		case DPMSModeOn:
+		else if (mode == DPMSModeOn)
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
 				      outputval | NV_RAMDAC_OUTPUT_DAC_ENABLE);
-			break;
-		}
 	}
 }
 
@@ -159,10 +181,6 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
-	xf86CrtcPtr crtc = output->crtc;
-	/* when removing an output, crtc may not be set, but output should still be turned off */
-	int head = get_digital_bound_head(output);
-	uint32_t fpcontrol;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,"nv_tmds_output_dpms is called with mode %d.\n", mode);
 
@@ -170,23 +188,21 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 		return;
 	nv_output->last_dpms = mode;
 
-	if (crtc)
-		head = ((NVCrtcPrivatePtr)crtc->driver_private)->head;
+	dpms_update_fp_control(output, mode);
 
-	fpcontrol = NVReadRAMDAC(pNv, head, NV_RAMDAC_FP_CONTROL);
-	switch (mode) {
-	case DPMSModeStandby:
-	case DPMSModeSuspend:
-	case DPMSModeOff:
-		/* cut the TMDS output */
-		fpcontrol |= 0x20000022;
-		break;
-	case DPMSModeOn:
-		/* disable cutting the TMDS output */
-		fpcontrol &= ~0x20000022;
-		break;
+	if (pNv->dcb_table.entry[nv_output->dcb_entry].location) {
+		NVCrtcPrivatePtr nv_crtc;
+		int i;
+
+		if (mode == DPMSModeOn) {
+			nv_crtc = output->crtc->driver_private;
+			NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_LCD,
+				       pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_VGA_CRTCX_LCD]);
+		} else
+			for (i = 0; i <= pNv->twoHeads; i++)
+				NVWriteVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD,
+					       NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD) & ~((nv_output->or << 4) & 0x30));
 	}
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_FP_CONTROL, fpcontrol);
 }
 
 static void nv_output_save(xf86OutputPtr output)
