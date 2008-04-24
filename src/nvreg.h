@@ -224,8 +224,6 @@
 #	define NV_CRTC_FSEL_TVOUT1			(1<<8)
 #	define NV_CRTC_FSEL_TVOUT2			(2<<8)
 #	define NV_CRTC_FSEL_OVERLAY			(1<<12)
-#	define NV_CRTC_FSEL_FPP2			(1<<16)
-#	define NV_CRTC_FSEL_FPP1			(2<<16)
 
 #define NV_RAMDAC_CURSOR_POS		0x00680300
 #define NV_RAMDAC_CURSOR_CTRL		0x00680320
