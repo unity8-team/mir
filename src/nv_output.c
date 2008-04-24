@@ -821,16 +821,26 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
 }
 
+static int
+nv_lvds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
+{
+	NVOutputPrivatePtr nv_output = output->driver_private;
+
+	if (pMode->Flags & V_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+	/* No modes > panel's native res */
+	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
+		return MODE_PANEL;
+
+	return MODE_OK;
+}
+
 static int 
 nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	/* We can't exceed the native mode.*/
-	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
-		return MODE_PANEL;
 
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
 		if (pMode->Clock > 330000) /* 2x165 MHz */
@@ -840,7 +850,7 @@ nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 			return MODE_CLOCK_HIGH;
 	}
 
-	return MODE_OK;
+	return nv_lvds_output_mode_valid(output, pMode);
 }
 
 static const xf86OutputFuncsRec nv_tmds_output_funcs = {
@@ -858,18 +868,6 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.create_resources = nv_output_create_resources,
 	.set_property = nv_output_set_property,
 };
-
-static int nv_lvds_output_mode_valid
-(xf86OutputPtr output, DisplayModePtr pMode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	/* No modes > panel's native res */
-	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
-		return MODE_PANEL;
-
-	return MODE_OK;
-}
 
 static xf86OutputStatus
 nv_lvds_output_detect(xf86OutputPtr output)
