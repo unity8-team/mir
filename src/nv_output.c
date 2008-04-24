@@ -611,7 +611,7 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 			else
 				state->sel_clk |= (0x1 << (4*i + shift));
 		}
-	else if (state->sel_clk & 0x50 && (state->sel_clk & 0x50) != 0x50) {
+	else if (state->sel_clk & 0x50) {
 		state->sel_clk &= ~0x50;
 		state->sel_clk |= nv_crtc->head ? 0x40 : 0x10;
 	}
