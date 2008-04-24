@@ -782,21 +782,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_FIFO1] = savep->CRTC[NV_VGA_CRTCX_FIFO1] & ~(1<<5);
 
 	regp->head = 0;
-
-	/* NV40's don't set FPP units, unless in special conditions (then they set both) */
-	/* But what are those special conditions? */
-	if (pNv->Architecture <= NV_ARCH_30 && fp_output) {
-		if (nv_crtc->head == 1)
-			regp->head |= NV_CRTC_FSEL_FPP1;
-		else if (pNv->twoHeads)
-			regp->head |= NV_CRTC_FSEL_FPP2;
-	} else if (nv_crtc->head == 1 && pNv->NVArch > 0x44)
-		/* Most G70 cards have FPP2 set on the secondary CRTC. */
-		regp->head |= NV_CRTC_FSEL_FPP2;
 	/* Except for rare conditions I2C is enabled on the primary crtc */
 	if (nv_crtc->head == 0)
 		regp->head |= NV_CRTC_FSEL_I2C;
-
 	/* Set overlay to desired crtc. */
 	if (pNv->overlayAdaptor) {
 		NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
@@ -1243,28 +1231,6 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 }
 
-static void
-NVResetCrtcConfig(xf86CrtcPtr crtc, Bool set)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (pNv->twoHeads) {
-		uint32_t val = 0;
-
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-
-		if (set) {
-			NVCrtcRegPtr regp;
-
-			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-			val = regp->head;
-		}
-
-		NVCrtcWriteCRTC(crtc, NV_CRTC_FSEL, val);
-	}
-}
-
 static void nv_crtc_prepare(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -1275,8 +1241,6 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 	/* Just in case */
 	NVCrtcLockUnlock(crtc, 0);
-
-	NVResetCrtcConfig(crtc, FALSE);
 
 	crtc->funcs->dpms(crtc, DPMSModeOff);
 
@@ -1318,8 +1282,6 @@ static void nv_crtc_commit(xf86CrtcPtr crtc)
 			xf86ForceHWCursor(crtc->scrn->pScreen, 0);
 		}
 	}
-
-	NVResetCrtcConfig(crtc, TRUE);
 }
 
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
@@ -1645,6 +1607,11 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	regp = &state->crtc_reg[nv_crtc->head];
 
 	if (pNv->Architecture >= NV_ARCH_10) {
+		if (pNv->twoHeads)
+			/* setting FSEL *must* come before CRTCX_LCD, as writing CRTCX_LCD sets some
+			 * bits (16 & 17) in FSEL that should not be overwritten by writing FSEL */
+			NVCrtcWriteCRTC(crtc, NV_CRTC_FSEL, regp->head);
+
 		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
 		nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
 		nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);
