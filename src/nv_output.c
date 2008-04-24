@@ -197,7 +197,7 @@ static void nv_output_save(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_save is called.\n");
 
-	if (pNv->twoHeads)
+	if (pNv->twoHeads && nv_output->type == OUTPUT_ANALOG)
 		nv_output->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
 		nv_output->restore.head = get_digital_bound_head(output);
@@ -226,6 +226,8 @@ static void nv_output_restore(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
 
+	if (pNv->twoHeads && nv_output->type == OUTPUT_ANALOG)
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore.output);
 	if (nv_output->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, nv_output->native_mode->Clock);
 	if (nv_output->type == OUTPUT_TMDS) {
@@ -233,9 +235,6 @@ static void nv_output_restore(xf86OutputPtr output)
 
 		run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
 	}
-
-	if (pNv->twoHeads)
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore.output);
 
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 }
@@ -292,24 +291,15 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
 
+	if (pNv->twoHeads && nv_output->type == OUTPUT_ANALOG)
+		/* bit 16-19 are bits that are set on some G70 cards,
+		 * but don't seem to have much effect */
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
+			      nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE);
 	if (nv_output->type == OUTPUT_TMDS)
 		run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, adjusted_mode->Clock);
 	else if (nv_output->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, adjusted_mode->Clock);
-
-	if (pNv->twoHeads) {
-		NVOutputPrivatePtr nv_output = output->driver_private;
-		uint32_t outputval = 0;
-
-		if (nv_output->type == OUTPUT_ANALOG)
-			/* bit 16-19 are bits that are set on some G70 cards,
-			 * but don't seem to have much effect */
-			outputval = nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE;
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV_RAMDAC_OUTPUT: 0x%X\n", outputval);
-
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), outputval);
-	}
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44)
