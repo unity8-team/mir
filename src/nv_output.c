@@ -237,7 +237,6 @@ static void nv_output_restore(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state = &pNv->SavedReg;
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
@@ -247,7 +246,7 @@ static void nv_output_restore(xf86OutputPtr output)
 	if (nv_output->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, nv_output->native_mode->Clock);
 	if (nv_output->type == OUTPUT_TMDS) {
-		uint32_t clock = nv_get_clock_from_crtc(pScrn, state, nv_output->restore.head);
+		uint32_t clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, nv_output->restore.head);
 
 		run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
 	}
@@ -255,17 +254,38 @@ static void nv_output_restore(xf86OutputPtr output)
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 }
 
-static int
-nv_analog_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
+static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
-	if (pMode->Clock > (NVPTR(output->scrn)->twoStagePLL ? 400000 : 350000))
-		return MODE_CLOCK_HIGH;
-	if (pMode->Clock < 12000)
-		return MODE_CLOCK_LOW;
+	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(output->scrn);
+
+	if (!output->doubleScanAllowed && mode->Flags & V_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+	if (!output->interlaceAllowed && mode->Flags & V_INTERLACE)
+		return MODE_NO_INTERLACE;
+
+	if (nv_output->type == OUTPUT_ANALOG) {
+		if (mode->Clock > (pNv->twoStagePLL ? 400000 : 350000))
+			return MODE_CLOCK_HIGH;
+		if (mode->Clock < 12000)
+			return MODE_CLOCK_LOW;
+	}
+	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
+		/* No modes > panel's native res */
+		if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
+			return MODE_PANEL;
+	if (nv_output->type == OUTPUT_TMDS) {
+		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
+			if (mode->Clock > 330000) /* 2x165 MHz */
+				return MODE_CLOCK_HIGH;
+		} else {
+			if (mode->Clock > 165000) /* 165 MHz */
+				return MODE_CLOCK_HIGH;
+		}
+	}
 
 	return MODE_OK;
 }
-
 
 static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
@@ -669,7 +689,7 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .dpms = nv_analog_output_dpms,
     .save = nv_output_save,
     .restore = nv_output_restore,
-    .mode_valid = nv_analog_output_mode_valid,
+    .mode_valid = nv_output_mode_valid,
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
     .detect = nv_analog_output_detect,
@@ -821,43 +841,11 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
 }
 
-static int
-nv_lvds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if (pMode->Flags & V_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-	/* No modes > panel's native res */
-	if (pMode->HDisplay > nv_output->fpWidth || pMode->VDisplay > nv_output->fpHeight)
-		return MODE_PANEL;
-
-	return MODE_OK;
-}
-
-static int 
-nv_tmds_output_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
-		if (pMode->Clock > 330000) /* 2x165 MHz */
-			return MODE_CLOCK_HIGH;
-	} else {
-		if (pMode->Clock > 165000) /* 165 MHz */
-			return MODE_CLOCK_HIGH;
-	}
-
-	return nv_lvds_output_mode_valid(output, pMode);
-}
-
 static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.dpms = nv_tmds_output_dpms,
 	.save = nv_output_save,
 	.restore = nv_output_restore,
-	.mode_valid = nv_tmds_output_mode_valid,
+	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_tmds_output_detect,
@@ -929,7 +917,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.dpms = nv_lvds_output_dpms,
 	.save = nv_output_save,
 	.restore = nv_output_restore,
-	.mode_valid = nv_lvds_output_mode_valid,
+	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_lvds_output_detect,
@@ -1005,8 +993,20 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 	}
 
 	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
-	output->interlaceAllowed = TRUE;
-	output->doubleScanAllowed = TRUE;
+	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
+		output->doubleScanAllowed = false;
+		output->interlaceAllowed = false;
+	} else {
+		output->doubleScanAllowed = true;
+		if (pNv->Architecture == NV_ARCH_20 ||
+		   (pNv->Architecture == NV_ARCH_10 &&
+		    (pNv->Chipset & 0x0ff0) != CHIPSET_NV10 &&
+		    (pNv->Chipset & 0x0ff0) != CHIPSET_NV15))
+			/* HW is broken */
+			output->interlaceAllowed = false;
+		else
+			output->interlaceAllowed = true;
+	}
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		if (nv_output->type == OUTPUT_TMDS) {
