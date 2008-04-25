@@ -582,7 +582,7 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	NVRegPtr state = &pNv->ModeReg;
 	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-	bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
+	uint32_t bits1618 = nv_output->or & OUTPUT_A ? 0x10000 : 0x40000;
 	int i;
 
 	/* seemingly not used for off-chip outputs */
@@ -593,12 +593,10 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 	 * It toggles spread spectrum PLL output and sets the bindings of PLLs
 	 * to heads on digital outputs
 	 */
-	state->sel_clk &= ~(0x5 << 16);
-	/* Even with two dvi, this should not conflict. */
-	if (crossed_clocks)
-		state->sel_clk |= (0x1 << 16);
+	if (nv_crtc->head)
+		state->sel_clk |= bits1618;
 	else
-		state->sel_clk |= (0x4 << 16);
+		state->sel_clk &= ~bits1618;
 
 	/* nv30:
 	 *	bit 0		NVClk spread spectrum on/off
@@ -619,6 +617,7 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 		for (i = 1; i <= 2; i++) {
 			uint32_t var = (state->sel_clk >> 4*i) & 0xf;
 			int shift = 0; /* assume (var & 0x5) by default */
+			bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
 
 			if (!var)
 				continue;
