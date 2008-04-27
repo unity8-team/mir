@@ -742,49 +742,49 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
 
-    ErrorF("AGD: output dpms %d\n", mode);
+    /*ErrorF("output dpms %d\n", mode);*/
 
-   if (radeon_output->MonType == MT_LCD) {
-       if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
-	   if (IS_DCE3_VARIANT)
-	       atombios_output_dig_dpms(output, mode, 2);
-	   else
-	       atombios_device_dpms(output, ATOM_DEVICE_LCD1_SUPPORT, mode);
-       }
-   } else if (radeon_output->MonType == MT_DFP) {
-       ErrorF("AGD: tmds dpms\n");
-       if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT) {
-	   if (IS_DCE3_VARIANT)
-	       atombios_output_dig_dpms(output, mode, 1);
-	   else
-	       atombios_device_dpms(output, ATOM_DEVICE_DFP1_SUPPORT, mode);
-       } else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
-	   if (IS_DCE3_VARIANT)
-	       return; // fixme
-	   else
-	       atombios_device_dpms(output, ATOM_DEVICE_DFP2_SUPPORT, mode);
-       } else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
-	   if (IS_DCE3_VARIANT)
-	       atombios_output_dig_dpms(output, mode, 2);
-	   else
-	       atombios_device_dpms(output, ATOM_DEVICE_DFP3_SUPPORT, mode);
-       }
-   } else if (radeon_output->MonType == MT_CRT) {
-       ErrorF("AGD: dac dpms\n");
-       if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
-	   atombios_device_dpms(output, ATOM_DEVICE_CRT1_SUPPORT, mode);
-       else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
-	   atombios_device_dpms(output, ATOM_DEVICE_CRT2_SUPPORT, mode);
-   } else if (radeon_output->MonType == MT_CV) {
-       ErrorF("AGD: cv dpms\n");
-       if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-	   atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-   } else if (0 /*radeon_output->MonType == MT_STV ||
-		  radeon_output->MonType == MT_CTV*/) {
-       ErrorF("AGD: tv dpms\n");
-       if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-	   atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
-   }
+    if (radeon_output->MonType == MT_LCD) {
+	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
+	    if (IS_DCE3_VARIANT)
+		atombios_output_dig_dpms(output, mode, 2);
+	    else
+		atombios_device_dpms(output, ATOM_DEVICE_LCD1_SUPPORT, mode);
+	}
+    } else if (radeon_output->MonType == MT_DFP) {
+	/*ErrorF("tmds dpms\n");*/
+	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT) {
+	    if (IS_DCE3_VARIANT)
+		atombios_output_dig_dpms(output, mode, 1);
+	    else
+		atombios_device_dpms(output, ATOM_DEVICE_DFP1_SUPPORT, mode);
+	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
+	    if (IS_DCE3_VARIANT)
+		return; // fixme
+	    else
+		atombios_device_dpms(output, ATOM_DEVICE_DFP2_SUPPORT, mode);
+	} else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
+	    if (IS_DCE3_VARIANT)
+		atombios_output_dig_dpms(output, mode, 2);
+	    else
+		atombios_device_dpms(output, ATOM_DEVICE_DFP3_SUPPORT, mode);
+	}
+    } else if (radeon_output->MonType == MT_CRT) {
+	/*ErrorF("AGD: dac dpms\n");*/
+	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+	    atombios_device_dpms(output, ATOM_DEVICE_CRT1_SUPPORT, mode);
+	else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+	    atombios_device_dpms(output, ATOM_DEVICE_CRT2_SUPPORT, mode);
+    } else if (radeon_output->MonType == MT_CV) {
+	/*ErrorF("AGD: cv dpms\n");*/
+	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+	    atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
+    } else if (0 /*radeon_output->MonType == MT_STV ||
+		   radeon_output->MonType == MT_CTV*/) {
+	/*ErrorF("AGD: tv dpms\n");*/
+	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+	    atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
+    }
 
 }
 
@@ -803,7 +803,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
-    ErrorF("select crtc source table is %d %d\n", major, minor);
+    /*ErrorF("select crtc source table is %d %d\n", major, minor);*/
 
     switch(major) {
     case 1: {
@@ -836,7 +836,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
 	    }
 	    data.exec.pspace = &crtc_src_param;
-	    ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);
+	    /*ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);*/
 	    break;
 	case 2:
 	    crtc_src_param2.ucCRTC = radeon_crtc->crtc_id;
@@ -874,7 +874,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    }
 
 	    data.exec.pspace = &crtc_src_param2;
-	    ErrorF("device sourced: 0x%x\n", crtc_src_param2.ucEncoderID);
+	    /*ErrorF("device sourced: 0x%x\n", crtc_src_param2.ucEncoderID);*/
 	    break;
 	}
 	break;
@@ -1049,7 +1049,7 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    bios_0_scratch = INREG(R600_BIOS_0_SCRATCH);
 	else
 	    bios_0_scratch = INREG(RADEON_BIOS_0_SCRATCH);
-	ErrorF("DAC connect %08X\n", (unsigned int)bios_0_scratch);
+	/*ErrorF("DAC connect %08X\n", (unsigned int)bios_0_scratch);*/
 
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 	    if (bios_0_scratch & ATOM_S0_CRT1_MASK)

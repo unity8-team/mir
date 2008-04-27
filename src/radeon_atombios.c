@@ -2071,7 +2071,7 @@ CailDelayMicroSeconds(VOID *CAIL, UINT32 delay)
 
     usleep(delay);
 
-    DEBUGP(xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_INFO,"Delay %i usec\n",delay));
+    /*DEBUGP(xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_INFO,"Delay %i usec\n",delay));*/
 }
 
 UINT32
@@ -2084,7 +2084,7 @@ CailReadATIRegister(VOID* CAIL, UINT32 idx)
     CAILFUNC(CAIL);
 
     ret  =  INREG(idx << 2);
-    DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx << 2,ret));
+    /*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx << 2,ret));*/
     return ret;
 }
 
@@ -2097,7 +2097,7 @@ CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
     CAILFUNC(CAIL);
 
     OUTREG(idx << 2,data);
-    DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx << 2,data));
+    /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx << 2,data));*/
 }
 
 UINT32
@@ -2112,10 +2112,10 @@ CailReadFBData(VOID* CAIL, UINT32 idx)
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
 	CARD8 *FBBase = (CARD8*)info->FB;
 	ret =  *((CARD32*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx));
-	DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));
+	/*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));*/
     } else if (((atomBiosHandlePtr)CAIL)->scratchBase) {
 	ret = *(CARD32*)((CARD8*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx);
-	DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));
+	/*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));*/
     } else {
 	xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_ERROR,
 		   "%s: no fbbase set\n",__func__);
@@ -2129,7 +2129,7 @@ CailWriteFBData(VOID *CAIL, UINT32 idx, UINT32 data)
 {
     CAILFUNC(CAIL);
 
-    DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,data));
+    /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,data));*/
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
 	CARD8 *FBBase = (CARD8*)
 	    RADEONPTR(xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex])->FB;
@@ -2150,7 +2150,7 @@ CailReadMC(VOID *CAIL, ULONG Address)
     CAILFUNC(CAIL);
 
     ret = INMC(pScrn, Address);
-    DEBUGP(ErrorF("%s(%x) = %x\n",__func__,Address,ret));
+    /*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,Address,ret));*/
     return ret;
 }
 
@@ -2160,7 +2160,7 @@ CailWriteMC(VOID *CAIL, ULONG Address, ULONG data)
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
 
     CAILFUNC(CAIL);
-    DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,data));
+    /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,data));*/
     OUTMC(pScrn, Address, data);
 }
 
@@ -2206,7 +2206,7 @@ CailReadPCIConfigData(VOID*CAIL, VOID* ret, UINT32 idx,UINT16 size)
 	return;
 	    break;
     }
-    DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,*(unsigned int*)ret));
+    /*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,*(unsigned int*)ret));*/
 
 }
 
@@ -2216,7 +2216,7 @@ CailWritePCIConfigData(VOID*CAIL,VOID*src,UINT32 idx,UINT16 size)
     PCITAG tag = ((atomBiosHandlePtr)CAIL)->PciTag;
 
     CAILFUNC(CAIL);
-    DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,(*(unsigned int*)src)));
+    /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,(*(unsigned int*)src)));*/
     switch (size) {
 	case 8:
 	    pciWriteByte(tag,idx << 2,*(CARD8*)src);
@@ -2244,7 +2244,7 @@ CailReadPLL(VOID *CAIL, ULONG Address)
     CAILFUNC(CAIL);
 
     ret = RADEONINPLL(pScrn, Address);
-    DEBUGP(ErrorF("%s(%x) = %x\n",__func__,Address,ret));
+    /*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,Address,ret));*/
     return ret;
 }
 
@@ -2254,7 +2254,7 @@ CailWritePLL(VOID *CAIL, ULONG Address,ULONG Data)
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
     CAILFUNC(CAIL);
 
-    DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,Data));
+    /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,Address,Data));*/
     RADEONOUTPLL(pScrn, Address, Data);
 }
 

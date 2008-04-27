@@ -701,7 +701,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
     }
 
     if (bEnable) {
-	ErrorF("enable montype: %d\n", radeon_output->MonType);
+	/*ErrorF("enable montype: %d\n", radeon_output->MonType);*/
 	if (radeon_output->MonType == MT_CRT) {
 	    if (radeon_output->DACType == DAC_PRIMARY) {
 		info->output_crt1 |= (1 << o);
@@ -775,7 +775,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    radeon_output->tv_on = TRUE;
 	}
     } else {
-	ErrorF("disable montype: %d\n", radeon_output->MonType);
+	/*ErrorF("disable montype: %d\n", radeon_output->MonType);*/
 	if (radeon_output->MonType == MT_CRT) {
 	    if (radeon_output->DACType == DAC_PRIMARY) {
 		info->output_crt1 &= ~(1 << o);

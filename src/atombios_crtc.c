@@ -231,7 +231,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
-    ErrorF("table is %d %d\n", major, minor);
+    /*ErrorF("table is %d %d\n", major, minor);*/
     switch(major) {
     case 1:
 	switch(minor) {
