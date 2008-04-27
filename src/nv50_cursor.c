@@ -70,13 +70,10 @@ void nv50_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	NVPtr pNv = NVPTR(crtc->scrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 
-	if (nv_crtc->head == 1)
-		NVWrite(pNv, NV50_CRTC1_CURSOR_POS, (y & 0xFFFF) << 16 | (x & 0xFFFF));
-	else
-		NVWrite(pNv, NV50_CRTC0_CURSOR_POS, (y & 0xFFFF) << 16 | (x & 0xFFFF));
+	NVWrite(pNv, NV50_CRTC0_CURSOR_POS + nv_crtc->head * 0x1000, (y & 0xFFFF) << 16 | (x & 0xFFFF));
 
 	/* This is needed to allow the cursor to move. */
-	NVWrite(pNv, 0x00647080 + nv_crtc->head * 0x1000, 0);
+	NVWrite(pNv, NV50_CRTC0_CURSOR_POS_CTRL + nv_crtc->head * 0x1000, 0);
 }
 
 void nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
@@ -108,10 +105,10 @@ Bool NV50CursorAcquire(ScrnInfoPtr pScrn)
 		const int headOff = 0x10 * nv_crtc->head;
 
 		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL+headOff, 0x2000);
-		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & 0x30000);
+		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK);
 
 		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL+headOff, NV50_CRTC_CURSOR_CTRL_ON);
-		while ((NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & 0x30000) != 0x10000);
+		while ((NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK) != NV50_CRTC_CURSOR_CTRL_STATUS_ACTIVE);
 	}
 
 	return TRUE;
@@ -131,7 +128,7 @@ void NV50CursorRelease(ScrnInfoPtr pScrn)
 		const int headOff = 0x10 * nv_crtc->head;
 
 		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL+headOff, NV50_CRTC_CURSOR_CTRL_OFF);
-		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & 0x30000);
+		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK);
 	}
 }
 

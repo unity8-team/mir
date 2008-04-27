@@ -82,9 +82,12 @@
 /* I really don't know what this does, except that it's only revelant at start. */
 #define NV50_DISPLAY_UNK200_CTRL	0x00610200
 
+/* bit3 always activates itself, and bit 4 is some kind of switch. */
 #define NV50_CRTC0_CURSOR_CTRL	0x00610270
-	#define NV50_CRTC_CURSOR_CTRL_ON			0x1
-	#define NV50_CRTC_CURSOR_CTRL_OFF			0x0
+	#define NV50_CRTC_CURSOR_CTRL_ON				(1 << 0)
+	#define NV50_CRTC_CURSOR_CTRL_OFF				(0 << 0)
+	#define NV50_CRTC_CURSOR_CTRL_STATUS_MASK		(3 << 16)
+	#define NV50_CRTC_CURSOR_CTRL_STATUS_ACTIVE		(1 << 16)
 #define NV50_CRTC1_CURSOR_CTRL	0x00610280
 
 #define NV50_DISPLAY_CTRL_STATE		0x00610300
@@ -231,8 +234,24 @@
 
 #define NV50_SOR1_DPMS_STATE	0x0061C830
 
-#define NV50_CRTC0_CURSOR_POS		0x00647084
-#define NV50_CRTC1_CURSOR_POS		0x00648084
+/* A few things seem to exist in the 0x0064XXXX range, but not much. */
+/* Each of these corresponds to a range in 0x006102XX. */
+/* The blob writes zero to these regs. */
+/* 0x00610200-0x0061020C, 0x00610200 seems special from all the rest. */
+#define NV50_UNK_640000				0x00640000
+/* 0x00610210-0x0061021C */
+#define NV50_UNK_641000				0x00641000
+/* 0x00610220-0x0061022C */
+/* Seems tv-out related somehow, the other two show up always. */
+#define NV50_UNK_642000				0x00642000
+/* 0x00610230-0x0061023C and 0x00610240-0x0061024C seem to be similar. */
+/* I think the correlation goes for all 0x0064X000, up to and including 6. */
+
+/* Write 0 to process the new position, seem to be write only registers. */
+#define NV50_CRTC0_CURSOR_POS_CTRL		0x00647080
+#define NV50_CRTC0_CURSOR_POS			0x00647084
+#define NV50_CRTC1_CURSOR_POS_CTRL		0x00648080
+#define NV50_CRTC1_CURSOR_POS			0x00648084
 
 /* These things below are so called "commands" */
 #define NV50_UPDATE_DISPLAY		0x80
