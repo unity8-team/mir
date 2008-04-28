@@ -146,9 +146,14 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
 
 	/* setup the VAP */
-	vap_cntl = ((5 << R300_PVS_NUM_SLOTS_SHIFT) |
-		    (5 << R300_PVS_NUM_CNTLRS_SHIFT) |
-		    (9/*12*/ << R300_VF_MAX_VTX_NUM_SHIFT));
+	if (info->has_tcl)
+	    vap_cntl = ((5 << R300_PVS_NUM_SLOTS_SHIFT) |
+			(5 << R300_PVS_NUM_CNTLRS_SHIFT) |
+			(9 << R300_VF_MAX_VTX_NUM_SHIFT));
+	else
+	    vap_cntl = ((10 << R300_PVS_NUM_SLOTS_SHIFT) |
+			(5 << R300_PVS_NUM_CNTLRS_SHIFT) |
+			(5 << R300_VF_MAX_VTX_NUM_SHIFT));
 
 	if (info->ChipFamily == CHIP_FAMILY_RV515)
 	    vap_cntl |= (2 << R300_PVS_NUM_FPUS_SHIFT);
