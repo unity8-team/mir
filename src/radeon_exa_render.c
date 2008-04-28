@@ -2108,8 +2108,12 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 
     ENTER_DRAW(0);
 
-    if (IS_R500_3D) {
-	/* r500 shows corruption on small things like glyphs without a 3D idle */
+    if (IS_R500_3D || ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		       (info->ChipFamily == CHIP_FAMILY_RS690) ||
+		       (info->ChipFamily == CHIP_FAMILY_RS740))) {
+	/* r500 shows corruption on small things like glyphs without a 3D idle 
+	 * IGP shows more substantial corruption
+	 */
 	BEGIN_ACCEL(1);
 	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
 	FINISH_ACCEL();
