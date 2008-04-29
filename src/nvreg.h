@@ -133,7 +133,7 @@
 #define NV_VGA_CRTCX_BUFFER		0x21
 #define NV_VGA_CRTCX_LSR		0x25
 #define NV_VGA_CRTCX_26			0x26
-#define NV_VGA_CRTCX_27			0x27
+#define NV_VGA_CRTCX_REVISION		0x27
 #define NV_VGA_CRTCX_PIXEL		0x28
 #define NV_VGA_CRTCX_HEB		0x2d
 #define NV_VGA_CRTCX_2E			0x2e
