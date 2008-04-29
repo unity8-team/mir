@@ -119,6 +119,8 @@ static void dpms_update_fp_control(xf86OutputPtr output, int mode)
 		}
 }
 
+static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output);
+
 static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
@@ -148,6 +150,14 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	}
 
 	dpms_update_fp_control(output, mode);
+
+	if (mode == DPMSModeOn)
+		nv_digital_output_prepare_sel_clk(output);
+	else {
+		pNv->ModeReg.sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
+		pNv->ModeReg.sel_clk &= ~0xf0;
+	}
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 }
 
 static void
@@ -583,7 +593,6 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 	NVRegPtr state = &pNv->ModeReg;
 	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
 	uint32_t bits1618 = nv_output->or & OUTPUT_A ? 0x10000 : 0x40000;
-	int i;
 
 	/* seemingly not used for off-chip outputs */
 	if (pNv->dcb_table.entry[nv_output->dcb_entry].location)
@@ -601,38 +610,23 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 	/* nv30:
 	 *	bit 0		NVClk spread spectrum on/off
 	 *	bit 2		MemClk spread spectrum on/off
-	 *	bit 4		PixClk1 spread spectrum on/off
-	 *	bit 6		PixClk2 spread spectrum on/off
+	 * 	bit 4		PixClk1 spread spectrum on/off toggle
+	 * 	bit 6		PixClk2 spread spectrum on/off toggle
 	 *
 	 * nv40 (observations from bios behaviour and mmio traces):
-	 * 	bit 4		seems to get set when output is on head A - likely related to PixClk1
-	 * 	bit 6		seems to get set when output is on head B - likely related to PixClk2
-	 * 	bits 5&7	set as for bits 4&6, but do not appear on cards using 4&6
-	 *
-	 * 	bits 8&10	seen on dual dvi outputs; possibly means "bits 4&6, dual dvi"
-	 *
-	 * 	Note that the circumstances for setting the bits at all is unclear
+	 * 	bits 4&6	as for nv30
+	 * 	bits 5&7	head dependent as for bits 4&6, but do not appear with 4&6;
+	 * 			maybe a different spread mode
+	 * 	bits 8&10	seen on dual-link dvi outputs, purpose unknown (set by POST scripts)
+	 * 	The logic behind turning spread spectrum on/off in the first place,
+	 * 	and which bit-pair to use, is unclear on nv40 (for earlier cards, the fp table
+	 * 	entry has the necessary info)
 	 */
-	if (pNv->Architecture == NV_ARCH_40)
-		for (i = 1; i <= 2; i++) {
-			uint32_t var = (state->sel_clk >> 4*i) & 0xf;
-			int shift = 0; /* assume (var & 0x5) by default */
-			bool crossed_clocks = nv_crtc->head ^ (nv_output->or & OUTPUT_C) >> 2;
+	if (nv_output->type == OUTPUT_LVDS && pNv->SavedReg.sel_clk & 0xf0) {
+		int shift = (pNv->SavedReg.sel_clk & 0x50) ? 0 : 1;
 
-			if (!var)
-				continue;
-			if (var & 0xa)
-				shift = 1;
-
-			state->sel_clk &= ~(0xf << 4*i);
-			if (crossed_clocks)
-				state->sel_clk |= (0x4 << (4*i + shift));
-			else
-				state->sel_clk |= (0x1 << (4*i + shift));
-		}
-	else if (state->sel_clk & 0x50) {
-		state->sel_clk &= ~0x50;
-		state->sel_clk |= nv_crtc->head ? 0x40 : 0x10;
+		state->sel_clk &= ~0xf0;
+		state->sel_clk |= (nv_crtc->head ? 0x40 : 0x10) << shift;
 	}
 }
 
