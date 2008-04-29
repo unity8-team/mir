@@ -144,9 +144,9 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 			head = ((NVCrtcPrivatePtr)crtc->driver_private)->head;
 
 		if (mode == DPMSModeOn)
-			call_lvds_script(pScrn, head, nv_output->dcb_entry, LVDS_PANEL_ON, pclk);
+			call_lvds_script(pScrn, nv_output->dcb, head, LVDS_PANEL_ON, pclk);
 		else
-			call_lvds_script(pScrn, head, nv_output->dcb_entry, LVDS_PANEL_OFF, pclk);
+			call_lvds_script(pScrn, nv_output->dcb, head, LVDS_PANEL_OFF, pclk);
 	}
 
 	dpms_update_fp_control(output, mode);
@@ -254,11 +254,11 @@ static void nv_output_restore(xf86OutputPtr output)
 	if (pNv->twoHeads && nv_output->type == OUTPUT_ANALOG)
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore.output);
 	if (nv_output->type == OUTPUT_LVDS)
-		call_lvds_script(pScrn, nv_output->restore.head, nv_output->dcb_entry, LVDS_PANEL_ON, nv_output->native_mode->Clock);
+		call_lvds_script(pScrn, nv_output->dcb, nv_output->restore.head, LVDS_PANEL_ON, nv_output->native_mode->Clock);
 	if (nv_output->type == OUTPUT_TMDS) {
 		uint32_t clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, nv_output->restore.head);
 
-		run_tmds_table(pScrn, nv_output->dcb_entry, nv_output->restore.head, clock);
+		run_tmds_table(pScrn, nv_output->dcb, nv_output->restore.head, clock);
 	}
 
 	nv_output->last_dpms = NV_DPMS_CLEARED;
@@ -343,9 +343,9 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
 			      nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE);
 	if (nv_output->type == OUTPUT_TMDS)
-		run_tmds_table(pScrn, nv_output->dcb_entry, nv_crtc->head, adjusted_mode->Clock);
+		run_tmds_table(pScrn, nv_output->dcb, nv_crtc->head, adjusted_mode->Clock);
 	else if (nv_output->type == OUTPUT_LVDS)
-		call_lvds_script(pScrn, nv_crtc->head, nv_output->dcb_entry, LVDS_RESET, adjusted_mode->Clock);
+		call_lvds_script(pScrn, nv_output->dcb, nv_crtc->head, LVDS_RESET, adjusted_mode->Clock);
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44)

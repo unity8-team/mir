@@ -2779,7 +2779,7 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
+static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head)
 {
 	/* The BIOS scripts don't do this for us, sadly
 	 * Luckily we do know the values ;-)
@@ -2789,7 +2789,6 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
-	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
 	int ramdac = (dcbent->or & OUTPUT_C) >> 2;
 	uint8_t tmds04 = 0x80;
 
@@ -2831,7 +2830,7 @@ static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
 	return scriptptr;
 }
 
-static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head, int dcb_entry)
+static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dcb_entry *dcbent, int head)
 {
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	init_exec_t iexec = {true, false};
@@ -2840,24 +2839,23 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, int head,
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 		       head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcb_entry);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
-	link_head_and_output(pScrn, head, dcb_entry);
+	link_head_and_output(pScrn, dcbent, head);
 }
 
-static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script)
+static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
-	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return;
 
-	rundigitaloutscript(pScrn, scriptofs, head, dcb_entry);
+	rundigitaloutscript(pScrn, scriptofs, dcbent, head);
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
@@ -2879,7 +2877,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 #endif
 }
 
-static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
+static void run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk)
 {
 	/* The BIT LVDS table's header has the information to setup the
 	 * necessary registers. Following the standard 4 byte header are:
@@ -2893,7 +2891,7 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
-	unsigned int outputset = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 1 : 0;
+	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
 
@@ -2911,14 +2909,14 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
 		break;
 	case LVDS_RESET:
-		if (pNv->dcb_table.entry[dcb_entry].lvdsconf.use_straps_for_mode) {
+		if (dcbent->lvdsconf.use_straps_for_mode) {
 			if (bios->fp.dual_link)
 				clktableptr += 2;
 			if (bios->fp.BITbit1)
 				clktableptr++;
 		} else {
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
-			int fallbackcmpval = (pNv->dcb_table.entry[dcb_entry].or == 4) ? 4 : 1;
+			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
 
 			if (bios->fp.dual_link) {
 				clktableptr += 2;
@@ -2941,10 +2939,10 @@ static void run_lvds_table(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS output init script not found\n");
 		return;
 	}
-	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
+	rundigitaloutscript(pScrn, scriptptr, dcbent, head);
 }
 
-void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_script script, int pxclk)
+void call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk)
 {
 	/* LVDS operations are multiplexed in an effort to present a single API
 	 * which works with two vastly differing underlying structures.
@@ -2960,9 +2958,9 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 		return;
 
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
-		call_lvds_script(pScrn, head, dcb_entry, LVDS_RESET, pxclk);
+		call_lvds_script(pScrn, dcbent, head, LVDS_RESET, pxclk);
 	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
-		call_lvds_script(pScrn, head, dcb_entry, LVDS_PANEL_OFF, pxclk);
+		call_lvds_script(pScrn, dcbent, head, LVDS_PANEL_OFF, pxclk);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 
@@ -2970,9 +2968,9 @@ void call_lvds_script(ScrnInfoPtr pScrn, int head, int dcb_entry, enum LVDS_scri
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 
 	if (lvds_ver < 0x30)
-		call_lvds_manufacturer_script(pScrn, head, dcb_entry, script);
+		call_lvds_manufacturer_script(pScrn, dcbent, head, script);
 	else
-		run_lvds_table(pScrn, head, dcb_entry, script, pxclk);
+		run_lvds_table(pScrn, dcbent, head, script, pxclk);
 
 	last_invoc = (script << 1 | head);
 
@@ -3229,10 +3227,9 @@ void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk)
 		bios->fp.dual_link = false;
 }
 
-void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
+void run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk)
 {
-	/* the dcb_entry parameter is the index of the appropriate DCB entry
-	 * the pxclk parameter is in kHz
+	/* the pxclk parameter is in kHz
 	 *
 	 * This runs the TMDS regs setting code found on BIT bios cards
 	 *
@@ -3245,10 +3242,10 @@ void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding;
 
-	if (pNv->dcb_table.entry[dcb_entry].location) /* off chip */
+	if (dcbent->location) /* off chip */
 		return;
 
-	switch (ffs(pNv->dcb_table.entry[dcb_entry].or)) {
+	switch (ffs(dcbent->or)) {
 	case 1:
 		clktable = bios->tmds.output0_script_ptr;
 		break;
@@ -3272,7 +3269,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, int dcb_entry, int head, int pxclk)
 
 	/* don't let script change pll->head binding */
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
-	rundigitaloutscript(pScrn, scriptptr, head, dcb_entry);
+	rundigitaloutscript(pScrn, scriptptr, dcbent, head);
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 }
 
