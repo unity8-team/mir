@@ -4034,7 +4034,8 @@ static void
 read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, int index)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint8_t *i2ctable = &pNv->VBIOS.data[i2ctabptr];
+	bios_t *bios = &pNv->VBIOS;
+	uint8_t *i2ctable = &bios->data[i2ctabptr];
 	uint8_t headerlen = 0;
 	int i2c_entries = MAX_NUM_DCB_ENTRIES;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
@@ -4049,9 +4050,12 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, i
 				   i2ctable[0], dcb_version);
 		headerlen = i2ctable[1];
 		i2c_entries = i2ctable[2];
+
+		/* same address offset used for read and write for C51 and G80 */
+		if (bios->chip_version == 0x51)
+			rdofs = wrofs = 1;
 		if (i2ctable[0] >= 0x40)
-			/* same port number used for read and write */
-			rdofs = 0;
+			rdofs = wrofs = 0;
 	}
 	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
 	 * the test below is for DCB 1.2
@@ -4076,6 +4080,13 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, i
 		return;
 	}
 
+	if (bios->chip_version == 0x51) {
+		int port_type = i2ctable[headerlen + 4 * index + 3];
+
+		if (port_type != 4)
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "DCB I2C table has port type %d\n", port_type);
+	}
 	if (i2ctable[0] >= 0x40) {
 		int port_type = i2ctable[headerlen + 4 * index + 3];
 
