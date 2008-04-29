@@ -87,7 +87,7 @@ static int get_digital_bound_head(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	int ramdac = (nv_output->or & OUTPUT_C) >> 2;
 
-	return (((nv_dcb_read_tmds(pNv, nv_output->dcb_entry, 0, 0x4) & 0x8) >> 3) ^ ramdac);
+	return (((nv_read_tmds(pNv, nv_output->dcb->or, 0, 0x4) & 0x8) >> 3) ^ ramdac);
 }
 
 static void dpms_update_fp_control(xf86OutputPtr output, int mode)

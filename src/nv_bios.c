@@ -2799,10 +2799,10 @@ static void link_head_and_output(ScrnInfoPtr pScrn, int head, int dcb_entry)
 	if (dcbent->type == OUTPUT_LVDS)
 		tmds04 |= 0x01;
 
-	nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x04, tmds04);
+	nv_write_tmds(pNv, dcbent->or, 0, 0x04, tmds04);
 
 	if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
-		nv_dcb_write_tmds(pNv, dcb_entry, 1, 0x04, tmds04 ^ 0x08);
+		nv_write_tmds(pNv, dcbent->or, 1, 0x04, tmds04 ^ 0x08);
 }
 
 static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
@@ -2850,7 +2850,8 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 {
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
-	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && pNv->dcb_table.entry[dcb_entry].or & OUTPUT_C ? 1 : 0);
+	struct dcb_entry *dcbent = &pNv->dcb_table.entry[dcb_entry];
+	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + sub * 2])));
 
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
@@ -2864,7 +2865,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, int head, int dcb_e
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET && ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329))
-		nv_dcb_write_tmds(pNv, dcb_entry, 0, 0x02, 0x72);
+		nv_write_tmds(pNv, dcbent->or, 0, 0x02, 0x72);
 	if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0189 || (pNv->Chipset & 0xffff) == 0x0329) {
 		if (script == LVDS_PANEL_ON) {
 			nv32_wr(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL, nv32_rd(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL) | (1 << 31));
