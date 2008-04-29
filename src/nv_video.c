@@ -943,7 +943,7 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 		}
 	    }
 
-	if (XF86_CRTC_CONFIG_PTR(pScrn)->crtc[pPriv->overlayCRTC]->transform_in_use)
+	if (XF86_CRTC_CONFIG_PTR(pScrn)->crtc[pPriv->overlayCRTC]->rotation != RR_Rotate_0)
 		*action_flags &= ~USE_OVERLAY;
 	}
 
