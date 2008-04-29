@@ -773,7 +773,7 @@ NVBlockHandler (
 
 	/* The idea is to cache output status, until the server starts to idle, which should be pretty short. */
 	/* But this reduces call time when using xrandr. */
-	if (pNv->randr12_enable)
+	if (pNv->Architecture == NV_ARCH_50)
 		NV50OutputInvalidateCache(pScrnInfo);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
