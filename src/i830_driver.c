@@ -3528,6 +3528,9 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
 
       I830CheckDevicesTimer(NULL, 0, pScrn);
       SaveScreens(SCREEN_SAVER_FORCER, ScreenSaverReset);
+      if (pI830->quirk_flag & QUIRK_RESET_MODES)
+	 xf86SetDesiredModes(pScrn);
+
       break;
    default:
       ErrorF("I830PMEvent: received APM event %d\n", event);

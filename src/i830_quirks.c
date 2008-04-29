@@ -161,6 +161,15 @@ static void i830_dmi_dump(void)
     DMIID_DUMP(chassis_asset_tag);
 }
 
+/*
+ * Some machines hose the display regs regardless of the ACPI DOS
+ * setting, so we need to reset modes at ACPI event time.
+ */
+static void quirk_reset_modes (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_RESET_MODES;
+}
+
 static void quirk_pipea_force (I830Ptr pI830)
 {
     pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
@@ -277,6 +286,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Intel 945GM hardware (See LP: #152416) */
     { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },
+
+    /* Dell Latitude D500 needs reset modes quirk */
+    { PCI_CHIP_I855_GM, 0x1028, 0x0152, quirk_reset_modes },
 
     { 0, 0, 0, NULL },
 };
