@@ -79,6 +79,23 @@
 
 #define MAX_NUM_DCB_ENTRIES 16
 
+struct dcb_entry {
+	int index;
+	uint8_t type;
+	uint8_t i2c_index;
+	uint8_t heads;
+	uint8_t bus;
+	uint8_t location;
+	uint8_t or;
+	bool duallink_possible;
+	union {
+		struct {
+			bool use_straps_for_mode;
+			bool use_power_scripts;
+		} lvdsconf;
+	};
+};
+
 typedef enum /* matches DCB types */
 {
 	OUTPUT_NONE = 4,
@@ -217,6 +234,7 @@ typedef struct _NVOutputPrivateRec {
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	int dcb_entry;
+	struct dcb_entry *dcb;
 	uint32_t fpWidth;
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
@@ -224,22 +242,6 @@ typedef struct _NVOutputPrivateRec {
 	Bool dithering;
 	NVOutputRegRec restore;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
-
-struct dcb_entry {
-	uint8_t type;
-	uint8_t i2c_index;
-	uint8_t heads;
-	uint8_t bus;
-	uint8_t location;
-	uint8_t or;
-	Bool duallink_possible;
-	union {
-		struct {
-			Bool use_straps_for_mode;
-			Bool use_power_scripts;
-		} lvdsconf;
-	};
-};
 
 /* changing these requires matching changes to reg tables in nv_get_clock */
 #define MAX_PLL_TYPES	4

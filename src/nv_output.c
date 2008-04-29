@@ -943,6 +943,7 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
 	nv_output->dcb_entry = dcb_entry;
+	nv_output->dcb = &pNv->dcb_table.entry[dcb_entry];
 	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 

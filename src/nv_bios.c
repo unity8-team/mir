@@ -4100,12 +4100,14 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, i
 }
 
 static bool
-parse_dcb_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ctabptr, uint32_t conn, uint32_t conf)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct dcb_entry *entry = &pNv->dcb_table.entry[index];
 
 	memset(entry, 0, sizeof (struct dcb_entry));
 
+	entry->index = index;
 	/* safe defaults for a crt */
 	entry->type = 0;
 	entry->i2c_index = 0;
@@ -4277,7 +4279,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No Display Configuration Block pointer found\n");
 		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
-		parse_dcb_entry(pScrn, 0, 0, 0, 0, &pNv->dcb_table.entry[0]);
+		parse_dcb_entry(pScrn, 0, 0, 0, 0, 0);
 		return 1;
 	}
 
@@ -4332,7 +4334,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		configblock = false;
 	} else {	/* NV5+, maybe NV4 */
 		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
-		parse_dcb_entry(pScrn, dcb_version, 0, 0, 0, &pNv->dcb_table.entry[0]);
+		parse_dcb_entry(pScrn, 0, dcb_version, 0, 0, 0);
 		return 1;
 	}
 
@@ -4353,7 +4355,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
-		if (!parse_dcb_entry(pScrn, dcb_version, i2ctabptr, connection, config, &pNv->dcb_table.entry[pNv->dcb_table.entries]))
+		if (!parse_dcb_entry(pScrn, pNv->dcb_table.entries, dcb_version, i2ctabptr, connection, config))
 			break;
 	}
 
