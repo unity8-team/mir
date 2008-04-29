@@ -942,6 +942,9 @@ static void NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPriv
 		pPriv->overlayCRTC = 1;
 		}
 	    }
+
+	if (XF86_CRTC_CONFIG_PTR(pScrn)->crtc[pPriv->overlayCRTC]->transform_in_use)
+		*action_flags &= ~USE_OVERLAY;
 	}
 
     /* At this point the adapter we're going to use is _known_. You cannot change it now. */
