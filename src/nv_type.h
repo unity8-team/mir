@@ -79,6 +79,8 @@
 
 #define MAX_NUM_DCB_ENTRIES 16
 
+#define LOC_ON_CHIP 0
+
 struct dcb_entry {
 	int index;
 	uint8_t type;
@@ -229,11 +231,9 @@ typedef enum {
 typedef struct _NVOutputPrivateRec {
 	xf86OutputPtr partner;
 	Bool valid_cache;
-	uint8_t or;
 	uint8_t last_dpms; /* pre-NV50 */
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
-	int dcb_entry;
 	struct dcb_entry *dcb;
 	uint32_t fpWidth;
 	uint32_t fpHeight;

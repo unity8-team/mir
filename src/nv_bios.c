@@ -3242,7 +3242,7 @@ void run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int p
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding;
 
-	if (dcbent->location) /* off chip */
+	if (dcbent->location != LOC_ON_CHIP)
 		return;
 
 	switch (ffs(dcbent->or)) {
@@ -4111,7 +4111,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 	entry->i2c_index = 0;
 	entry->heads = 1;
 	entry->bus = 0;
-	entry->location = 0;
+	entry->location = LOC_ON_CHIP;
 	entry->or = 1;
 	entry->duallink_possible = false;
 

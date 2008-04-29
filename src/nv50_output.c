@@ -33,7 +33,7 @@ NV50OrOffset(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 
-	return ffs(nv_output->or) - 1;
+	return ffs(nv_output->dcb->or) - 1;
 }
 
 void

@@ -71,9 +71,9 @@ static int nv_output_ramdac_offset(xf86OutputPtr output)
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	int offset = 0;
 
-	if (nv_output->or & (8 | OUTPUT_C))
+	if (nv_output->dcb->or & (8 | OUTPUT_C))
 		offset += 0x68;
-	if (nv_output->or & (8 | OUTPUT_B))
+	if (nv_output->dcb->or & (8 | OUTPUT_B))
 		offset += 0x2000;
 
 	return offset;
@@ -85,7 +85,7 @@ static int get_digital_bound_head(xf86OutputPtr output)
 	 * use for such an answer anyway */
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	NVPtr pNv = NVPTR(output->scrn);
-	int ramdac = (nv_output->or & OUTPUT_C) >> 2;
+	int ramdac = (nv_output->dcb->or & OUTPUT_C) >> 2;
 
 	return (((nv_read_tmds(pNv, nv_output->dcb->or, 0, 0x4) & 0x8) >> 3) ^ ramdac);
 }
@@ -103,14 +103,14 @@ static void dpms_update_fp_control(xf86OutputPtr output, int mode)
 		nv_crtc = output->crtc->driver_private;
 		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
-		nv_crtc->fp_users |= 1 << nv_output->dcb_entry;
+		nv_crtc->fp_users |= 1 << nv_output->dcb->index;
 		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control & ~0x20000022);
 	} else
 		for (i = 0; i <= pNv->twoHeads; i++) {
 			nv_crtc = xf86_config->crtc[i]->driver_private;
 			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
-			nv_crtc->fp_users &= ~(1 << nv_output->dcb_entry);
+			nv_crtc->fp_users &= ~(1 << nv_output->dcb->index);
 			if (!nv_crtc->fp_users) {
 				/* cut the FP output */
 				regp->fp_control |= 0x20000022;
@@ -134,7 +134,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 		return;
 	nv_output->last_dpms = mode;
 
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_power_scripts) {
+	if (nv_output->dcb->lvdsconf.use_power_scripts) {
 		xf86CrtcPtr crtc = output->crtc;
 		/* when removing an output, crtc may not be set, but PANEL_OFF must still be run */
 		int head = get_digital_bound_head(output);
@@ -200,7 +200,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 
 	dpms_update_fp_control(output, mode);
 
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].location) {
+	if (nv_output->dcb->location != LOC_ON_CHIP) {
 		NVCrtcPrivatePtr nv_crtc;
 		int i;
 
@@ -211,7 +211,7 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 		} else
 			for (i = 0; i <= pNv->twoHeads; i++)
 				NVWriteVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD,
-					       NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD) & ~((nv_output->or << 4) & 0x30));
+					       NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD) & ~((nv_output->dcb->or << 4) & 0x30));
 	}
 }
 
@@ -285,7 +285,7 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 		if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
 			return MODE_PANEL;
 	if (nv_output->type == OUTPUT_TMDS) {
-		if (pNv->dcb_table.entry[nv_output->dcb_entry].duallink_possible) {
+		if (nv_output->dcb->duallink_possible) {
 			if (mode->Clock > 330000) /* 2x165 MHz */
 				return MODE_CLOCK_HIGH;
 		} else {
@@ -455,7 +455,7 @@ nv_load_detect(xf86OutputPtr output)
 	}
 
 	if (present) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_output->or));
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_output->dcb->or));
 		return TRUE;
 	}
 
@@ -592,10 +592,9 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	NVRegPtr state = &pNv->ModeReg;
 	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-	uint32_t bits1618 = nv_output->or & OUTPUT_A ? 0x10000 : 0x40000;
+	uint32_t bits1618 = nv_output->dcb->or & OUTPUT_A ? 0x10000 : 0x40000;
 
-	/* seemingly not used for off-chip outputs */
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].location)
+	if (nv_output->dcb->location != LOC_ON_CHIP)
 		return;
 
 	/* SEL_CLK is only used on the primary ramdac
@@ -656,8 +655,8 @@ nv_output_prepare(xf86OutputPtr output)
 				regp->CRTC[NV_VGA_CRTCX_LCD] |= 0x8;
 			else
 				regp->CRTC[NV_VGA_CRTCX_LCD] &= ~0x8;
-			if (pNv->dcb_table.entry[nv_output->dcb_entry].location)
-				regp->CRTC[NV_VGA_CRTCX_LCD] |= (nv_output->or << 4) & 0x30;
+			if (nv_output->dcb->location != LOC_ON_CHIP)
+				regp->CRTC[NV_VGA_CRTCX_LCD] |= (nv_output->dcb->or << 4) & 0x30;
 		} else
 			regp->CRTC[NV_VGA_CRTCX_LCD] = 0;
 	}
@@ -673,7 +672,7 @@ nv_output_commit(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_commit is called.\n");
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_output->or));
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_output->dcb->or));
 
 	output->funcs->dpms(output, DPMSModeOn);
 }
@@ -861,8 +860,7 @@ nv_lvds_output_detect(xf86OutputPtr output)
 
 	if (nv_ddc_detect(output))
 		return XF86OutputStatusConnected;
-	if (pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode &&
-	    pNv->VBIOS.fp.native_mode)
+	if (nv_output->dcb->lvdsconf.use_straps_for_mode && pNv->VBIOS.fp.native_mode)
 		return XF86OutputStatusConnected;
 	if (pNv->VBIOS.fp.edid)
 		return XF86OutputStatusConnected;
@@ -883,8 +881,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	if ((modes = nv_output_get_ddc_modes(output)))
 		return modes;
 
-	if (!pNv->dcb_table.entry[nv_output->dcb_entry].lvdsconf.use_straps_for_mode ||
-	    (pNv->VBIOS.fp.native_mode == NULL)) {
+	if (!nv_output->dcb->lvdsconf.use_straps_for_mode || pNv->VBIOS.fp.native_mode == NULL) {
 		xf86MonPtr edid_mon;
 
 		if (!pNv->VBIOS.fp.edid)
@@ -942,20 +939,9 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 	output->driver_private = nv_output;
 
 	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-	nv_output->dcb_entry = dcb_entry;
 	nv_output->dcb = &pNv->dcb_table.entry[dcb_entry];
 	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
 	nv_output->last_dpms = NV_DPMS_CLEARED;
-
-	/* or:
-	 * First set bit (LSB->MSB) defines output:
-	 * bit0: OUTPUT_A
-	 * bit1: OUTPUT_B
-	 * bit2: OUTPUT_C
-	 *
-	 * If bit following first set bit is also set, output is capable of dual-link
-	 */
-	nv_output->or = pNv->dcb_table.entry[dcb_entry].or;
 
 	/* Output property for tmds and lvds. */
 	nv_output->dithering = (pNv->FPDither || (nv_output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
@@ -986,7 +972,7 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 		}
 	}
 
-	output->possible_crtcs = pNv->dcb_table.entry[dcb_entry].heads;
+	output->possible_crtcs = nv_output->dcb->heads;
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		output->doubleScanAllowed = false;
 		output->interlaceAllowed = false;
