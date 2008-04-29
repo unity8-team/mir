@@ -733,8 +733,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	bool lvds_output = false;
-	bool fp_output = false;
+	bool lvds_output = false, tmds_output = false;
 	int i;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -743,8 +742,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 		if (output->crtc == crtc && nv_output->type == OUTPUT_LVDS)
 			lvds_output = true;
-		if (lvds_output || (output->crtc == crtc && nv_output->type == OUTPUT_TMDS))
-			fp_output = true;
+		if (output->crtc == crtc && nv_output->type == OUTPUT_TMDS)
+			tmds_output = true;
 	}
 
 	/* Registers not directly related to the (s)vga mode */
@@ -753,12 +752,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* The rest disables double buffering on CRTC access */
 	regp->CRTC[NV_VGA_CRTCX_BUFFER] = 0xfa;
 
-	/* Sometimes 0x10 is used, what is this? */
+	/* the blob sometimes sets |= 0x10 (which is the same as setting |=
+	 * 1 << 30 on 0x60.830), for no apparent reason */
 	regp->CRTC[NV_VGA_CRTCX_59] = 0x0;
-	/* Some kind of tmds switch for older cards */
-	if (pNv->Architecture < NV_ARCH_40) {
+	if (tmds_output && pNv->Architecture < NV_ARCH_40)
 		regp->CRTC[NV_VGA_CRTCX_59] |= 0x1;
-	}
 
 	/* What is the meaning of this register? */
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
@@ -800,7 +798,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* 0x00 is disabled, 0x11 is lvds, 0x22 crt and 0x88 tmds */
 	if (lvds_output) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x11;
-	} else if (fp_output) {
+	} else if (tmds_output) {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
 	} else {
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
@@ -819,7 +817,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* What does this do?:
 	 * bit0: crtc0
 	 * bit6: lvds
-	 * bit7: lvds + tmds (only in X)
+	 * bit7: (only in X)
 	 */
 	if (nv_crtc->head == 0)
 		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
@@ -829,7 +827,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	if (lvds_output)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x40;
 
-	if (fp_output && !NVMatchModePrivate(mode, NV_MODE_VGA))
+	if (!NVMatchModePrivate(mode, NV_MODE_VGA))
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
@@ -873,7 +871,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	regp->CRTC[NV_VGA_CRTCX_PIXEL] = (pScrn->depth + 1) / 8;
 	/* Enable slaved mode */
-	if (fp_output)
+	if (lvds_output || tmds_output)
 		regp->CRTC[NV_VGA_CRTCX_PIXEL] |= (1 << 7);
 
 	/* Generic PRAMDAC regs */
