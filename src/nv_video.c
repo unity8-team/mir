@@ -749,6 +749,26 @@ static int NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 * xa, IN
     dstBox->y1 = *drw_y;
     dstBox->y2 = *drw_y + *drw_h;
 
+	/* In randr 1.2 mode VIDEO_CLIP_TO_VIEWPORT is broken (hence it is not
+	 * set in the overlay adapter flags) since pScrn->frame{X,Y}1 do not get
+	 * updated. Hence manual clipping against the CRTC dimensions
+	 */
+	if (pNv->randr12_enable && action_flags & USE_OVERLAY) {
+		xf86CrtcPtr crtc = XF86_CRTC_CONFIG_PTR(pScrn)->crtc
+					[((NVPortPrivPtr)GET_OVERLAY_PRIVATE(pNv))->overlayCRTC];
+		RegionRec VPReg;
+		BoxRec VPBox;
+
+		VPBox.x1 = crtc->x;
+		VPBox.y1 = crtc->y;
+		VPBox.x2 = crtc->x + crtc->mode.HDisplay;
+		VPBox.y2 = crtc->y + crtc->mode.VDisplay;
+
+		REGION_INIT(pScreen, &VPReg, &VPBox, 1);
+		REGION_INTERSECT(pScreen, clipBoxes, clipBoxes, &VPReg);
+		REGION_UNINIT(pScreen, &VPReg);
+	}
+
     if (!xf86XVClipVideoHelper(dstBox, xa, xb, ya, yb, clipBoxes,
 		width, height))
 	return -1;
@@ -1725,7 +1745,10 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	}
 
 	adapt->type		= XvWindowMask | XvInputMask | XvImageMask;
-	adapt->flags		= VIDEO_OVERLAID_IMAGES|VIDEO_CLIP_TO_VIEWPORT;
+	if (pNv->randr12_enable)
+		adapt->flags		= VIDEO_OVERLAID_IMAGES;
+	else
+		adapt->flags		= VIDEO_OVERLAID_IMAGES | VIDEO_CLIP_TO_VIEWPORT;
 	adapt->name		= "NV Video Overlay";
 	adapt->nEncodings	= 1;
 	adapt->pEncodings	= &DummyEncoding;
