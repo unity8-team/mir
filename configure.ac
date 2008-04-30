@@ -176,6 +176,14 @@ AC_CHECK_DECL(xf86_crtc_clip_video_helper,
 	       #include "xf86i2c.h"
 	       #include "xf86Crtc.h"])
 
+AC_CHECK_DECL(xf86RotateFreeShadow,
+	      [AC_DEFINE(HAVE_FREE_SHADOW, 1, [have new FreeShadow API])],
+	      [],
+	      [#include <xorg-server.h>
+               #include <windowstr.h>
+	       #include <xf86Crtc.h>])
+
+
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])

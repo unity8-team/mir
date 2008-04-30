@@ -193,6 +193,7 @@ typedef struct _RADEONCrtcPrivateRec {
 
     uint32_t crtc_offset;
     int can_tile;
+    Bool enabled;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct {
@@ -261,6 +262,7 @@ typedef struct _RADEONOutputPrivateRec {
     char              *name;
     int               output_id;
     int               devices;
+    Bool enabled;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {
@@ -273,7 +275,6 @@ struct avivo_pll_state {
     CARD32 pll_cntl;
     CARD32 int_ss_cntl;
 };
-
 
 struct avivo_crtc_state {
     CARD32 pll_source;

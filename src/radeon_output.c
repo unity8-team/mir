@@ -481,6 +481,10 @@ static void
 radeon_dpms(xf86OutputPtr output, int mode)
 {
     RADEONInfoPtr info = RADEONPTR(output->scrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    if ((mode == DPMSModeOn) && radeon_output->enabled)
+	return;
 
     if (IS_AVIVO_VARIANT) {
 	atombios_output_dpms(output, mode);
@@ -488,6 +492,11 @@ radeon_dpms(xf86OutputPtr output, int mode)
 	legacy_output_dpms(output, mode);
     }
     radeon_bios_output_dpms(output, mode);
+
+    if (mode == DPMSModeOn)
+	radeon_output->enabled = TRUE;
+    else
+	radeon_output->enabled = FALSE;
 
 }
 
