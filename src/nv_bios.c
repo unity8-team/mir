@@ -3773,24 +3773,21 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 
 static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t bitoffset)
 {
+	int entries = bios->data[bitoffset + 4];
 	/* parse i first, I next (which needs C & M before it), and L before D */
 	char parseorder[] = "iCMILDT";
 	bit_entry_t bitentry;
-	int i;
+	int i, j, offset;
 	struct fppointers fpp;
 
 	memset(&fpp, 0, sizeof(struct fppointers));
 
 	for (i = 0; i < sizeof(parseorder); i++) {
-		uint16_t offset = bitoffset;
-
-		do {
+		for (j = 0, offset = bitoffset + 6; j < entries; j++, offset += 6) {
 			bitentry.id[0] = bios->data[offset];
 			bitentry.id[1] = bios->data[offset + 1];
 			bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
 			bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
-
-			offset += sizeof(bit_entry_t);
 
 			if (bitentry.id[0] != parseorder[i])
 				continue;
@@ -3821,9 +3818,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t 
 				parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			}
-
-		/* id[0] = 0 and id[1] = 0 => end of BIT struture */
-		} while (bitentry.id[0] + bitentry.id[1] != 0);
+		}
 	}
 }
 
