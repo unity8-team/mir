@@ -108,6 +108,24 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
     }
 }
 
+static void
+avivo_lock_cursor(xf86CrtcPtr crtc, Bool lock)
+{
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
+    unsigned char     *RADEONMMIO = info->MMIO;
+    CARD32 tmp;
+
+    tmp = INREG(AVIVO_D1CUR_UPDATE + radeon_crtc->crtc_offset);
+
+    if (lock)
+	tmp |= AVIVO_D1CURSOR_UPDATE_LOCK;
+    else
+	tmp &= ~AVIVO_D1CURSOR_UPDATE_LOCK;
+
+    OUTREG(AVIVO_D1CUR_UPDATE + radeon_crtc->crtc_offset, tmp);
+}
+
 void
 radeon_crtc_show_cursor (xf86CrtcPtr crtc)
 {
@@ -118,10 +136,12 @@ radeon_crtc_show_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
+	avivo_lock_cursor(crtc, TRUE);
 	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
 	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
 	       | AVIVO_D1CURSOR_EN);
 	avivo_setup_cursor(crtc, TRUE);
+	avivo_lock_cursor(crtc, FALSE);
     } else {
         switch (crtc_id) {
         case 0:
@@ -149,10 +169,12 @@ radeon_crtc_hide_cursor (xf86CrtcPtr crtc)
     unsigned char     *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
+	avivo_lock_cursor(crtc, TRUE);
 	OUTREG(AVIVO_D1CUR_CONTROL+ radeon_crtc->crtc_offset,
 	       INREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset)
 	       & ~(AVIVO_D1CURSOR_EN));
 	avivo_setup_cursor(crtc, FALSE);
+	avivo_lock_cursor(crtc, FALSE);
     } else {
 	switch(crtc_id) {
     	case 0:
@@ -195,9 +217,11 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	/* avivo cursor spans the full fb width */
 	x += crtc->x;
 	y += crtc->y;
+	avivo_lock_cursor(crtc, TRUE);
 	OUTREG(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset, ((xorigin ? 0 : x) << 16)
 	       | (yorigin ? 0 : y));
 	OUTREG(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
+	avivo_lock_cursor(crtc, FALSE);
     } else {
 	if (crtc_id == 0) {
 	    OUTREG(RADEON_CUR_HORZ_VERT_OFF,  (RADEON_CUR_LOCK

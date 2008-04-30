@@ -3540,6 +3540,8 @@
 #define AVIVO_D1CUR_SIZE                        0x6410
 #define AVIVO_D1CUR_POSITION                    0x6414
 #define AVIVO_D1CUR_HOT_SPOT                    0x6418
+#define AVIVO_D1CUR_UPDATE                      0x6424
+#       define AVIVO_D1CURSOR_UPDATE_LOCK (1 << 16)
 
 #define AVIVO_DC_LUT_RW_SELECT                  0x6480
 #define AVIVO_DC_LUT_RW_MODE                    0x6484
