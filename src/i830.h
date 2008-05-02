@@ -195,7 +195,7 @@ struct _i830_memory {
     /** @} */
 
 #ifdef XF86DRI_MM
-    drmBO bo;
+    uint32_t gem_handle;
     Bool lifetime_fixed_offset;
 #endif
 };

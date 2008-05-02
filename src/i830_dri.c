@@ -1542,6 +1542,7 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    sarea->third_bo_handle = -1;
    sarea->depth_bo_handle = -1;
 #ifdef XF86DRI_MM
+   /* XXX
    if (pI830->front_buffer->bo.size)
        sarea->front_bo_handle = pI830->front_buffer->bo.handle;
    if (pI830->back_buffer->bo.size)
@@ -1550,6 +1551,7 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
        sarea->third_bo_handle = pI830->third_buffer->bo.handle;
    if (pI830->depth_buffer->bo.size)
        sarea->depth_bo_handle = pI830->depth_buffer->bo.handle;
+   */
 #endif
 
    /* The rotation is now handled entirely by the X Server, so just leave the

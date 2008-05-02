@@ -101,12 +101,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
 
 #include "i830.h"
 #include "i810_reg.h"
+#ifdef XF86DRI_MM
+#include "i915_drm.h"
+#endif
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
@@ -161,27 +165,19 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	return TRUE;
 
 #ifdef XF86DRI_MM
-    if (mem->bo.size != 0) {
+    if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
+	struct drm_i915_gem_pin pin;
 	int ret;
 
-	ret = drmBOSetStatus(pI830->drmSubFD, &mem->bo,
-			     DRM_BO_FLAG_MEM_VRAM |
-			     DRM_BO_FLAG_MEM_TT |
-			     DRM_BO_FLAG_READ |
-			     DRM_BO_FLAG_WRITE |
-			     DRM_BO_FLAG_NO_EVICT,
-			     DRM_BO_MASK_MEM |
-			     DRM_BO_FLAG_READ |
-			     DRM_BO_FLAG_WRITE |
-			     DRM_BO_FLAG_NO_EVICT,
-			     0, 0, 0);
+	pin.handle = mem->gem_handle;
+	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
 	if (ret != 0)
 	    return FALSE;
 
 	mem->bound = TRUE;
-	mem->offset = mem->bo.offset;
-	mem->end = mem->bo.offset + mem->size;
+	mem->offset = pin.offset;
+	mem->end = mem->offset + mem->size;
     }
 #endif
 
@@ -216,13 +212,13 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
 #ifdef XF86DRI_MM
-    if (mem->bo.size != 0) {
+    if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
+	struct drm_i915_gem_unpin unpin;
 	int ret;
 
-	ret = drmBOSetStatus(pI830->drmSubFD, &mem->bo,
-			     0, DRM_BO_FLAG_NO_EVICT,
-			     0, 0, 0);
+	unpin.handle = mem->gem_handle;
+	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_UNPIN, &unpin);
 
 	if (ret == 0) {
 	    mem->bound = FALSE;
@@ -254,10 +250,12 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     i830_unbind_memory(pScrn, mem);
 
 #ifdef XF86DRI_MM
-    if (mem->bo.size != 0) {
+    if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
+	struct drm_gem_unreference unref;
 
-	drmBOUnreference(pI830->drmSubFD, &mem->bo);
+	unref.handle = mem->gem_handle;
+	ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_UNREFERENCE, &unref);
 	if (pI830->bo_list == mem) {
 	    pI830->bo_list = mem->next;
 	    if (mem->next)
@@ -467,13 +465,15 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 				   ALIGN_BOTH_ENDS | NEED_NON_STOLEN);
 
 	if (pI830->memory_manager != NULL) {
+	    struct drm_i915_gem_init init;
 	    int ret;
 
+	    init.gtt_start = pI830->memory_manager->offset;
+	    init.gtt_end = pI830->memory_manager->offset +
+		pI830->memory_manager->size;
+
 	    /* Tell the kernel to manage it */
-	    ret = drmMMInit(pI830->drmSubFD,
-			    pI830->memory_manager->offset / GTT_PAGE_SIZE,
-			    pI830->memory_manager->size / GTT_PAGE_SIZE,
-			    DRM_BO_MEM_TT);
+	    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_INIT, &init);
 	    if (ret != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to initialize kernel memory manager\n");
@@ -503,7 +503,7 @@ i830_allocator_fini(ScrnInfoPtr pScrn)
 #ifdef XF86DRI_MM
     /* The memory manager is more special */
     if (pI830->memory_manager) {
-	 drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);
+	 /* XXX drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);*/
 	 i830_free_memory(pScrn, pI830->memory_manager);
 	 pI830->memory_manager = NULL;
     }
@@ -723,8 +723,8 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
-    unsigned long mask;
     int ret;
+    struct drm_gem_alloc alloc;
 
     assert((flags & NEED_PHYSICAL_ADDR) == 0);
 
@@ -742,25 +742,17 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
     }
 
-    /*
-     * Create buffers in local memory to avoid having the creation order
-     * determine the TT offset. Driver acceleration
-     * cannot handle changed front buffer TT offsets yet ,
-     * so let's keep our fingers crossed.
-     */
+    memset(&alloc, 0, sizeof(alloc));
+    alloc.size = size;
 
-    mask = DRM_BO_FLAG_READ | DRM_BO_FLAG_WRITE | DRM_BO_FLAG_MAPPABLE |
-	DRM_BO_FLAG_MEM_LOCAL;
-    if (flags & ALLOW_SHARING)
-	mask |= DRM_BO_FLAG_SHAREABLE;
-
-    ret = drmBOCreate(pI830->drmSubFD, size, align / GTT_PAGE_SIZE, NULL,
-		      mask, 0, &mem->bo);
+    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_ALLOC, &alloc);
     if (ret) {
 	xfree(mem->name);
 	xfree(mem);
 	return NULL;
     }
+    mem->gem_handle = alloc.handle;
+
     /* Give buffer obviously wrong offset/end until it's pinned. */
     mem->offset = -1;
     mem->end = -1;
@@ -772,7 +764,10 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     /* Bind it if we currently control the VT */
     if (pScrn->vtSema) {
 	if (!i830_bind_memory(pScrn, mem)) {
-	    drmBOUnreference(pI830->drmSubFD, &mem->bo);
+	    struct drm_gem_unreference unref;
+
+	    unref.handle = mem->gem_handle;
+	    ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_UNREFERENCE, &unref);
 	    xfree(mem->name);
 	    xfree(mem);
 	    return NULL;
