@@ -254,7 +254,7 @@ NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	pPriv->hue			= 0;
 	pPriv->colorKey			= pNv->videoKey;
 	pPriv->autopaintColorKey	= TRUE;
-	pPriv->doubleBuffer		= TRUE;
+	pPriv->doubleBuffer		= pNv->Architecture != NV_ARCH_04;
 	pPriv->iturbt_709		= FALSE;
 	pPriv->currentHostBuffer	= 0;
 }
@@ -1781,9 +1781,7 @@ NVSetupOverlayVideoAdapter(ScreenPtr pScreen)
 	pPriv->blitter			= FALSE;
 	pPriv->texture			= FALSE;
 	pPriv->bicubic			= FALSE;
-	if ( pNv->Architecture == NV_ARCH_04 )
-		pPriv->doubleBuffer		= 0;
-	
+
 	NVSetPortDefaults (pScrn, pPriv);
 
 	/* gotta uninit this someplace */
