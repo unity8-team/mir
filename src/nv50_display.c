@@ -104,27 +104,25 @@ NV50DispShutdown(ScrnInfoPtr pScrn)
 {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DispShutdown is called.\n");
 	NVPtr pNv = NVPTR(pScrn);
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
-	for(i = 0; i < xf86_config->num_crtc; i++) {
-		xf86CrtcPtr crtc = xf86_config->crtc[i];
+	for(i = 0; i < 2; i++) {
+		nouveauCrtcPtr crtc = pNv->crtc[i];
 
-		NV50CrtcBlankScreen(crtc, TRUE);
+		crtc->Blank(crtc, TRUE);
 	}
 
 	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
 
-	for(i = 0; i < xf86_config->num_crtc; i++) {
-		xf86CrtcPtr crtc = xf86_config->crtc[i];
-		NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	for(i = 0; i < 2; i++) {
+		nouveauCrtcPtr crtc = pNv->crtc[i];
 
 		/* This is like acknowledging a vblank, maybe this is in the spirit of cleaning up? */
 		/* The blob doesn't do it quite this way, it seems to do 0x30C as init and end. */
 		/* It doesn't wait for a non-zero value either. */
-		if (crtc->enabled) {
+		if (crtc->active) {
 			uint32_t mask = 0;
-			if (nv_crtc->head == 1)
+			if (crtc->index == 1)
 				mask = NV50_DISPLAY_SUPERVISOR_CRTC1;
 			else 
 				mask = NV50_DISPLAY_SUPERVISOR_CRTC0;

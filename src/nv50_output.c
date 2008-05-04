@@ -28,194 +28,195 @@
 
 #include <xf86DDC.h>
 
-int
-NV50OrOffset(xf86OutputPtr output)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	return ffs(nv_output->dcb->or) - 1;
-}
-
-void
-NV50OutputSetPClk(xf86OutputPtr output, int pclk)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if (nv_output->type == OUTPUT_TMDS)
-		NV50SorSetPClk(output, pclk);
-
-	if (nv_output->type == OUTPUT_ANALOG)
-		NV50DacSetPClk(output, pclk);
-}
+#include "nouveau_crtc.h"
+#include "nouveau_output.h"
+#include "nouveau_connector.h"
 
 int
-nv50_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
+NV50OrOffset(nouveauOutputPtr output)
 {
-	if (mode->Clock > 400000)
-		return MODE_CLOCK_HIGH;
-	if (mode->Clock < 25000)
-		return MODE_CLOCK_LOW;
-
-	return MODE_OK;
+	return ffs(output->dcb->or) - 1;
 }
 
-void
-NV50OutputInvalidateCache(ScrnInfoPtr pScrn)
+static void
+NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count)
 {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 	int i;
 
-	for (i = 0; i < xf86_config->num_output; i++) {
-		NVOutputPrivatePtr nv_output = xf86_config->output[i]->driver_private;
-		nv_output->valid_cache = FALSE;
-	}
-}
+	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
+	int bus = pNv->dcb_table.entry[dcb_entry].bus;
 
-/* This also handles NULL partners. */
-#define IS_OUTPUT_TYPE(outputPriv, typeReq) (outputPriv && outputPriv->type == typeReq)
+	char connector_name[20];
 
-xf86OutputStatus
-nv50_output_detect(xf86OutputPtr output)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	/* I2C buses belong to the connector, but can only inited once we know the outputs. */
+	sprintf(connector_name, "Connector-%d", bus);
 
-	if (nv_output->valid_cache)
-		return output->status;
-
-	xf86OutputPtr output_partner = nv_output->partner;
-	NVOutputPrivatePtr nv_output_partner = NULL;
-	Bool load[2] = {FALSE, FALSE};
-
-	if (output_partner)
-		nv_output_partner = output_partner->driver_private;
-
-	xf86MonPtr ddc_mon;
-
-	if (!nv_output->pDDCBus)
-		return XF86OutputStatusDisconnected;
-
-	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
-
-	/* Don't directly write the values, as any changes have to stay within this function. */
-	/* We don't want the system to freak out. */
-	if (!ddc_mon) {
-		if (IS_OUTPUT_TYPE(nv_output, OUTPUT_ANALOG) && NV50DacLoadDetect(output))
-			load[0] = TRUE;
-		if (IS_OUTPUT_TYPE(nv_output_partner, OUTPUT_ANALOG) && NV50DacLoadDetect(output_partner))
-			load[1] = TRUE;
+	/* Give the connectors better names if possible. */
+	switch (pNv->dcb_table.entry[dcb_entry].type) {
+		case OUTPUT_LVDS:
+			sprintf(connector_name, "LVDS-%d", bus);
+			break;
+		case OUTPUT_TMDS:
+			sprintf(connector_name, "DVI-%d", bus);
+			break;
+		case OUTPUT_ANALOG:
+			if (bus_count > 1) /* DVI-I */
+				sprintf(connector_name, "DVI-%d", bus);
+			else
+				sprintf(connector_name, "VGA-%d", bus);
+			break;
+		default:
+			break;
 	}
 
-	/* Do this just before writing back the new values. */
-	output->status = XF86OutputStatusDisconnected;
-	if (output_partner)
-		output_partner->status = XF86OutputStatusDisconnected;
+	xfree(pNv->connector[bus]->name);
+	pNv->connector[bus]->name = xstrdup(connector_name);
 
-	if (ddc_mon) {
-		if (IS_OUTPUT_TYPE(nv_output, OUTPUT_ANALOG) && !ddc_mon->features.input_type)
-			output->status = XF86OutputStatusConnected;
-		if (IS_OUTPUT_TYPE(nv_output, OUTPUT_TMDS) && ddc_mon->features.input_type)
-			output->status = XF86OutputStatusConnected;
-		if (IS_OUTPUT_TYPE(nv_output_partner, OUTPUT_ANALOG) && !ddc_mon->features.input_type)
-			output_partner->status = XF86OutputStatusConnected;
-		if (IS_OUTPUT_TYPE(nv_output_partner, OUTPUT_TMDS) && ddc_mon->features.input_type)
-			output_partner->status = XF86OutputStatusConnected;
+	if (i2c_index < 0xf && pNv->pI2CBus[i2c_index] == NULL)
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(connector_name));
+
+	pNv->connector[bus]->i2c_index = i2c_index;
+	pNv->connector[bus]->pDDCBus = pNv->pI2CBus[i2c_index];
+
+	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_TV) /* unsupported */
+		return;
+
+	/* Create output. */
+	nouveauOutputPtr output = xnfcalloc(sizeof(nouveauOutputRec), 1);
+	output->name = xstrdup(outputname);
+	output->dcb = &pNv->dcb_table.entry[dcb_entry];
+	output->type = pNv->dcb_table.entry[dcb_entry].type;
+	output->scrn = pScrn;
+
+	/* Put the output in the connector's list of outputs. */
+	for (i = 0; i < MAX_OUTPUTS_PER_CONNECTOR; i++) {
+		if (pNv->connector[bus]->outputs[i]) /* filled */
+			continue;
+		pNv->connector[bus]->outputs[i] = output;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s attached with index %d to %s\n", outputname, i, connector_name);
+		break;
+	}
+
+	/* Put ourselves in the main output list. */
+	if (!pNv->output) {
+		pNv->output = output;
 	} else {
-		if (load[0])
-			output->status = XF86OutputStatusConnected;
-		if (load[1])
-			output_partner->status = XF86OutputStatusConnected;
+		nouveauOutputPtr output_link = pNv->output;
+		if (output_link->next) {
+			do {
+				output_link = output_link->next;
+			} while (output_link->next);
+		}
+		output_link->next = output;
 	}
 
-	nv_output->valid_cache = TRUE;
-	if (output_partner)
-		nv_output_partner->valid_cache = TRUE;
+	/* Output property for tmds and lvds. */
+	output->dithering = (pNv->FPDither || (output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
 
-	return output->status;
+	if (output->type == OUTPUT_LVDS || output->type == OUTPUT_TMDS) {
+		if (pNv->fpScaler) /* GPU Scaling */
+			output->scale_mode = SCALE_ASPECT;
+		else if (output->type == OUTPUT_LVDS)
+			output->scale_mode = SCALE_NOSCALE;
+		else
+			output->scale_mode = SCALE_PANEL;
+
+		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+			output->scale_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+			if (output->scale_mode == SCALE_INVALID)
+				output->scale_mode = SCALE_ASPECT; /* default */
+		}
+	}
+
+	/* NV5x scaling hardware seems to work fine for analog too. */
+	if (output->type == OUTPUT_ANALOG) {
+		output->scale_mode = SCALE_PANEL;
+
+		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+			output->scale_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+			if (output->scale_mode == SCALE_INVALID)
+				output->scale_mode = SCALE_PANEL; /* default */
+		}
+	}
+
+	/* Usually 3, which means both crtc's. */
+	output->allowed_crtc = output->dcb->heads;
+
+	if (output->type == OUTPUT_TMDS) {
+		NVWrite(pNv, NV50_SOR0_UNK00C + NV50OrOffset(output) * 0x800, 0x03010700);
+		NVWrite(pNv, NV50_SOR0_UNK010 + NV50OrOffset(output) * 0x800, 0x0000152f);
+		NVWrite(pNv, NV50_SOR0_UNK014 + NV50OrOffset(output) * 0x800, 0x00000000);
+		NVWrite(pNv, NV50_SOR0_UNK018 + NV50OrOffset(output) * 0x800, 0x00245af8);
+	}
+
+	/* This needs to be handled in the same way as pre-NV5x on the long run. */
+	if (output->type == OUTPUT_LVDS)
+		output->native_mode = GetLVDSNativeMode(pScrn);
+
+	/* Function pointers. */
+	if (output->type == OUTPUT_TMDS || output->type == OUTPUT_LVDS) {
+		NV50SorSetFunctionPointers(output);
+	} else if (output->type == OUTPUT_ANALOG) {
+		NV50DacSetFunctionPointers(output);
+	}
 }
 
 void
-nv50_output_prepare(xf86OutputPtr output)
+NV50OutputSetup(ScrnInfoPtr pScrn)
 {
-}
-
-void
-nv50_output_commit(xf86OutputPtr output)
-{
-}
-
-xf86MonPtr
-NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus)
-{
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	xf86MonPtr rval = NULL;
+	int i, type, i2c_index, bus, bus_count[0xf];
+	char outputname[20];
+	uint32_t dac_count = 0, sor_count = 0;
 
-	NVWrite(pNv, NV50_I2C_PORT(pDDCBus->DriverPrivate.val), NV50_I2C_START);
+	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
+	memset(bus_count, 0, sizeof(bus_count));
 
-	rval = xf86OutputGetEDID(output, pDDCBus);
+	for (i = 0 ; i < pNv->dcb_table.entries; i++)
+		bus_count[pNv->dcb_table.entry[i].bus]++;
 
-	NVWrite(pNv, NV50_I2C_PORT(pDDCBus->DriverPrivate.val), NV50_I2C_STOP);
+	/* we setup the outputs up from the BIOS table */
+	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
+		type = pNv->dcb_table.entry[i].type;
+		i2c_index = pNv->dcb_table.entry[i].i2c_index;
+		bus = pNv->dcb_table.entry[i].bus;
 
-	return rval;
-}
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
 
-DisplayModePtr
-nv50_output_get_ddc_modes(xf86OutputPtr output)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86MonPtr ddc_mon;
-	DisplayModePtr ddc_modes;
-
-	ddc_mon = NV50OutputGetEDID(output, nv_output->pDDCBus);
-
-	if (!ddc_mon)
-		return NULL;
-
-	xf86OutputSetEDID(output, ddc_mon);
-
-	ddc_modes = xf86OutputGetEDIDModes(output);
-
-	/* NV5x hardware can also do scaling on analog connections. */
-	if (nv_output->type != OUTPUT_LVDS && ddc_modes) {
-		xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
-
-		/* Use the first preferred mode as native mode. */
-		DisplayModePtr mode;
-
-		/* Find the preferred mode. */
-		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-			if (mode->type & M_T_PREFERRED) {
-				xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 5,
-						"%s: preferred mode is %s\n",
-						output->name, mode->name);
-				break;
-			}
+		switch (type) {
+		case OUTPUT_ANALOG:
+			sprintf(outputname, "DAC-%d", dac_count++);
+			break;
+		case OUTPUT_TMDS:
+			sprintf(outputname, "SOR-%d", sor_count++); /* maybe SOR as name? */
+			break;
+		case OUTPUT_TV:
+			sprintf(outputname, "DAC-%d", dac_count++);
+			break;
+		case OUTPUT_LVDS:
+			sprintf(outputname, "SOR-%d", sor_count++);
+			break;
+		default:
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
+			break;
 		}
 
-		/* TODO: Scaling needs a native mode, maybe fail in a better way. */
-		if (!mode) {
-			mode = ddc_modes;
-			xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 5,
-				"%s: no preferred mode found, using %s\n",
-				output->name, mode->name);
-		}
-
-		nv_output->native_mode = xf86DuplicateMode(mode);
-		nv_output->fpWidth = nv_output->native_mode->HDisplay;
-		nv_output->fpHeight = nv_output->native_mode->VDisplay;
+		NV50OutputInit(pScrn, i, outputname, bus_count[bus]);
 	}
-
-	return ddc_modes;
 }
 
 void
-NV50OutputDestroy(xf86OutputPtr output)
+NV50OutputDestroy(ScrnInfoPtr pScrn)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
+	nouveauOutputPtr output, next;
 
-	if (nv_output->pDDCBus)
-		xf86DestroyI2CBusRec(nv_output->pDDCBus, TRUE, TRUE);
+	for (output = pNv->output; output != NULL; output = next) {
+		next = output->next;
+		xfree(output->name);
+		xfree(output);
+	}
 
-	nv_output->pDDCBus = NULL;
+	pNv->output = NULL;
 }

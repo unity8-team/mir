@@ -710,24 +710,6 @@ static Atom scaling_mode_atom;
 #define DITHERING_MODE_NAME "DITHERING"
 static Atom dithering_atom;
 
-static int
-nv_scaling_mode_lookup(char *name, int size)
-{
-	int i;
-
-	/* for when name is zero terminated */
-	if (size < 0)
-		size = strlen(name);
-
-	for (i = 0; scaling_mode[i].name; i++)
-		/* We're getting non-terminated strings */
-		if (strlen(scaling_mode[i].name) >= size &&
-				!strncasecmp(name, scaling_mode[i].name, size))
-			break;
-
-	return scaling_mode[i].mode;
-}
-
 void
 nv_output_create_resources(xf86OutputPtr output)
 {
@@ -961,17 +943,6 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 		}
 	}
 
-	/* NV5x scaling hardware seems to work fine for analog too. */
-	if (nv_output->type == OUTPUT_ANALOG) {
-		nv_output->scaling_mode = SCALE_PANEL;
-
-		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
-			nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
-			if (nv_output->scaling_mode == SCALE_INVALID)
-				nv_output->scaling_mode = SCALE_PANEL; /* default */
-		}
-	}
-
 	output->possible_crtcs = nv_output->dcb->heads;
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		output->doubleScanAllowed = false;
@@ -986,19 +957,6 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 			output->interlaceAllowed = false;
 		else
 			output->interlaceAllowed = true;
-	}
-
-	if (pNv->Architecture == NV_ARCH_50) {
-		if (nv_output->type == OUTPUT_TMDS) {
-			NVWrite(pNv, NV50_SOR0_UNK00C + NV50OrOffset(output) * 0x800, 0x03010700);
-			NVWrite(pNv, NV50_SOR0_UNK010 + NV50OrOffset(output) * 0x800, 0x0000152f);
-			NVWrite(pNv, NV50_SOR0_UNK014 + NV50OrOffset(output) * 0x800, 0x00000000);
-			NVWrite(pNv, NV50_SOR0_UNK018 + NV50OrOffset(output) * 0x800, 0x00245af8);
-		}
-
-		/* This needs to be handled in the same way as pre-NV5x on the long run. */
-		if (nv_output->type == OUTPUT_LVDS)
-			nv_output->native_mode = GetLVDSNativeMode(pScrn);
 	}
 
 	nv_output->valid_cache = FALSE;
@@ -1018,36 +976,19 @@ static const xf86OutputFuncsRec * nv_get_output_funcs(ScrnInfoPtr pScrn, int typ
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->Architecture == NV_ARCH_50) {
-		switch (type) {
-			case OUTPUT_ANALOG:
-				return nv50_get_analog_output_funcs();
-				break;
-			case OUTPUT_TMDS:
-				return nv50_get_tmds_output_funcs();
-				break;
-			case OUTPUT_LVDS:
-				return nv50_get_lvds_output_funcs();
-				break;
-			default:
-				return NULL;
-				break;
-		}
-	} else {
-		switch (type) {
-			case OUTPUT_ANALOG:
-				return &nv_analog_output_funcs;
-				break;
-			case OUTPUT_TMDS:
-				return &nv_tmds_output_funcs;
-				break;
-			case OUTPUT_LVDS:
-				return &nv_lvds_output_funcs;
-				break;
-			default:
-				return NULL;
-				break;
-		}
+	switch (type) {
+		case OUTPUT_ANALOG:
+			return &nv_analog_output_funcs;
+			break;
+		case OUTPUT_TMDS:
+			return &nv_tmds_output_funcs;
+			break;
+		case OUTPUT_LVDS:
+			return &nv_lvds_output_funcs;
+			break;
+		default:
+			return NULL;
+			break;
 	}
 }
 

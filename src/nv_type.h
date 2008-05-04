@@ -24,6 +24,11 @@
 
 #include "nouveau_local.h" /* needed for NOUVEAU_EXA_PIXMAPS */
 
+#include "nouveau_crtc.h"
+#include "nouveau_connector.h"
+#include "nouveau_output.h"
+
+
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10
@@ -98,8 +103,8 @@ struct dcb_entry {
 	};
 };
 
-typedef enum /* matches DCB types */
-{
+typedef enum
+{/* matches DCB types */
 	OUTPUT_NONE = 4,
 	OUTPUT_ANALOG = 0,
 	OUTPUT_TMDS = 2,
@@ -121,6 +126,14 @@ typedef enum ORNum {
 	SOR0 = 0,
 	SOR1 = 1
 } ORNum;
+
+enum scaling_modes {
+	SCALE_PANEL,
+	SCALE_FULLSCREEN,
+	SCALE_ASPECT,
+	SCALE_NOSCALE,
+	SCALE_INVALID
+};
 
 typedef struct _nv_crtc_reg 
 {
@@ -468,6 +481,11 @@ typedef struct _NVRec {
 
 	NVConsoleMode console_mode[2];
 
+	nouveauCrtcPtr crtc[2];
+	nouveauOutputPtr output; /* this a linked list. */
+	/* Assume a connector can exist for each i2c bus. */
+	nouveauConnectorPtr connector[MAX_NUM_DCB_ENTRIES];
+
 	struct {
 		ORNum dac;
 		ORNum sor;
@@ -499,14 +517,6 @@ typedef struct _NVRec {
 	struct nouveau_grobj *Nv3D;
 
 } NVRec;
-
-enum scaling_modes {
-	SCALE_PANEL,
-	SCALE_FULLSCREEN,
-	SCALE_ASPECT,
-	SCALE_NOSCALE,
-	SCALE_INVALID
-};
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 

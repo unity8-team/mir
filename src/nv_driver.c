@@ -294,10 +294,16 @@ NVGetRec(ScrnInfoPtr pScrn)
 static void
 NVFreeRec(ScrnInfoPtr pScrn)
 {
-    if (pScrn->driverPrivate == NULL)
-        return;
-    xfree(pScrn->driverPrivate);
-    pScrn->driverPrivate = NULL;
+	if (pScrn->driverPrivate == NULL)
+		return;
+	NVPtr pNv = NVPTR(pScrn);
+	if (pNv->Architecture == NV_ARCH_50) {
+		NV50ConnectorDestroy(pScrn);
+		NV50OutputDestroy(pScrn);
+		NV50CrtcDestroy(pScrn);
+	}
+	xfree(pScrn->driverPrivate);
+	pScrn->driverPrivate = NULL;
 }
 
 
@@ -771,11 +777,6 @@ NVBlockHandler (
 	if (!pNv->NoAccel)
 		FIRE_RING();
 
-	/* The idea is to cache output status, until the server starts to idle, which should be pretty short. */
-	/* But this reduces call time when using xrandr. */
-	if (pNv->Architecture == NV_ARCH_50)
-		NV50OutputInvalidateCache(pScrnInfo);
-
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);
 	pScreen->BlockHandler = NVBlockHandler;
@@ -837,13 +838,13 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 static void
 NVFreeScreen(int scrnIndex, int flags)
 {
-    /*
-     * This only gets called when a screen is being deleted.  It does not
-     * get called routinely at the end of a server generation.
-     */
-    if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-	vgaHWFreeHWRec(xf86Screens[scrnIndex]);
-    NVFreeRec(xf86Screens[scrnIndex]);
+	/*
+	 * This only gets called when a screen is being deleted.  It does not
+	 * get called routinely at the end of a server generation.
+	*/
+	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
+		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
+	NVFreeRec(xf86Screens[scrnIndex]);
 }
 
 
@@ -1340,12 +1341,25 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 		NVI2CInit(pScrn);
 
-		num_crtc = pNv->twoHeads ? 2 : 1;
-		for (i = 0; i < num_crtc; i++) {
-			nv_crtc_init(pScrn, i);
+		/* This is the internal system, not the randr-1.2 ones. */
+		if (pNv->Architecture == NV_ARCH_50) {
+			NV50CrtcInit(pScrn);
+			NV50ConnectorInit(pScrn);
+			NV50OutputSetup(pScrn);
 		}
 
-		NvSetupOutputs(pScrn);
+		num_crtc = pNv->twoHeads ? 2 : 1;
+		for (i = 0; i < num_crtc; i++) {
+			if (pNv->Architecture == NV_ARCH_50)
+				nv50_crtc_init(pScrn, i);
+			else
+				nv_crtc_init(pScrn, i);
+		}
+
+		if (pNv->Architecture < NV_ARCH_50)
+			NvSetupOutputs(pScrn);
+		else
+			nv50_output_create(pScrn); /* create randr-1.2 "outputs". */
 
 		if (!xf86InitialConfiguration(pScrn, FALSE))
 			NVPreInitFail("No valid modes.\n");

@@ -233,49 +233,36 @@ Bool NV50DispInit(ScrnInfoPtr);
 void NV50DispShutdown(ScrnInfoPtr);
 
 /* in nv50_cursor.c */
-void NV50CrtcShowHideCursor(xf86CrtcPtr crtc, Bool show, Bool update);
-void nv50_crtc_show_cursor(xf86CrtcPtr crtc);
-void nv50_crtc_hide_cursor(xf86CrtcPtr crtc);
-void nv50_crtc_set_cursor_position(xf86CrtcPtr, int x, int y);
-void nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src);
 Bool NV50CursorInit(ScreenPtr);
 Bool NV50CursorAcquire(ScrnInfoPtr);
 void NV50CursorRelease(ScrnInfoPtr);
 
 /* in nv50_crtc.c */
-void NV50DispCreateCrtcs(ScrnInfoPtr pScrn);
 void NV50DisplayCommand(ScrnInfoPtr pScrn, uint32_t addr, uint32_t value);
-void NV50CrtcCommand(xf86CrtcPtr crtc, uint32_t addr, uint32_t value);
-void NV50CrtcBlankScreen(xf86CrtcPtr, Bool blank);
-void NV50CrtcSetScale(xf86CrtcPtr, DisplayModePtr, DisplayModePtr, enum scaling_modes);
-void NV50CrtcSetPClk(xf86CrtcPtr crtc, Bool update);
-
-const xf86CrtcFuncsRec * nv50_get_crtc_funcs();
+void NV50CrtcCommand(nouveauCrtcPtr crtc, uint32_t addr, uint32_t value);
+void NV50CrtcInit(ScrnInfoPtr pScrn);
+void NV50CrtcDestroy(ScrnInfoPtr pScrn);
 
 /* in nv50_output.c */
-int NV50OrOffset(xf86OutputPtr output);
-void NV50OutputSetPClk(xf86OutputPtr, int pclk);
-void NV50OutputInvalidateCache(ScrnInfoPtr pScrn);
-xf86OutputStatus nv50_output_detect(xf86OutputPtr output);
-int nv50_output_mode_valid(xf86OutputPtr, DisplayModePtr);
-void nv50_output_prepare(xf86OutputPtr);
-void nv50_output_commit(xf86OutputPtr);
-DisplayModePtr nv50_output_get_ddc_modes(xf86OutputPtr);
-void NV50OutputDestroy(xf86OutputPtr);
-xf86MonPtr NV50OutputGetEDID(xf86OutputPtr output, I2CBusPtr pDDCBus);
+int NV50OrOffset(nouveauOutputPtr output);
+void NV50OutputSetup(ScrnInfoPtr pScrn);
+void NV50OutputDestroy(ScrnInfoPtr pScrn);
 
 /* nv50_dac.c */
-xf86OutputPtr NV50CreateDac(ScrnInfoPtr, ORNum);
-Bool NV50DacLoadDetect(xf86OutputPtr);
-void NV50DacSetPClk(xf86OutputPtr output, int pclk);
-const xf86OutputFuncsRec * nv50_get_analog_output_funcs();
+void NV50DacSetFunctionPointers(nouveauOutputPtr output);
 
 /* nv50_sor.c */
-xf86OutputPtr NV50CreateSor(ScrnInfoPtr pScrn, ORNum or, NVOutputType type);
-void NV50SorSetPClk(xf86OutputPtr output, int pclk);
-const xf86OutputFuncsRec * nv50_get_tmds_output_funcs();
-const xf86OutputFuncsRec * nv50_get_lvds_output_funcs();
+void NV50SorSetFunctionPointers(nouveauOutputPtr output);
 DisplayModePtr GetLVDSNativeMode(ScrnInfoPtr pScrn);
+
+/* nv50_connector.c */
+void NV50ConnectorInit(ScrnInfoPtr pScrn);
+void NV50ConnectorDestroy(ScrnInfoPtr pScrn);
+
+/* nv50_randr.c */
+void nv50_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
+void nv50_output_create(ScrnInfoPtr pScrn);
+int nv_scaling_mode_lookup(char *name, int size);
 
 #endif /* __NV_PROTO_H__ */
 

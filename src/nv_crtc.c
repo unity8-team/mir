@@ -1507,10 +1507,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[crtc_num];
 	int i;
 
-	if (pNv->Architecture == NV_ARCH_50)
-		crtcfuncs = *nv50_get_crtc_funcs();
-	else
-		crtcfuncs = nv_crtc_funcs;
+	crtcfuncs = nv_crtc_funcs;
 
 	/* NV04-NV10 doesn't support alpha cursors */
 	if (pNv->NVArch < 0x11) {
@@ -1535,9 +1532,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	crtc->driver_private = nv_crtc;
 
 	nv_crtc->modeset_lock = FALSE;
-
-	if (pNv->Architecture == NV_ARCH_50)
-		return;
 
 	/* Initialise the default LUT table. */
 	for (i = 0; i < 256; i++) {

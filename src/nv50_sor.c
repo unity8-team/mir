@@ -1,250 +1,162 @@
 /*
- * Copyright (c) 2007 NVIDIA, Corporation
- * Copyright (c) 2008 Maarten Maathuis
+ * Copyright 2007 NVIDIA, Corporation
+ * Copyright 2008 Maarten Maathuis
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+ * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
-#define DPMS_SERVER
-#include <X11/extensions/dpms.h>
-#include <X11/Xatom.h>
+#include "nouveau_modeset.h"
+#include "nouveau_crtc.h"
+#include "nouveau_output.h"
+#include "nouveau_connector.h"
 
-#include "nv_include.h"
+static int
+NV50SorModeValid(nouveauOutputPtr output, DisplayModePtr mode)
+{
+	if (mode->Clock > 165000) /* no dual link until we figure it out completely */
+		return MODE_CLOCK_HIGH;
 
-void
-NV50SorSetPClk(xf86OutputPtr output, int pclk)
+	if (mode->Clock < 25000)
+		return MODE_CLOCK_LOW;
+
+	if (mode->HDisplay > output->native_mode->HDisplay || mode->VDisplay > output->native_mode->VDisplay)
+		return MODE_PANEL;
+
+	return MODE_OK;
+}
+
+static void
+NV50SorModeSet(nouveauOutputPtr output, DisplayModePtr mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorSetPClk is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorModeSet is called.\n");
+
+	const int sorOff = 0x40 * NV50OrOffset(output);
+	uint32_t mode_ctl = NV50_SOR_MODE_CTRL_OFF;
+
+	if (!mode) {
+		/* Disconnect the SOR */
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disconnecting SOR.\n");
+		NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
+		return;
+	}
+
+	/* Anyone know a more appropriate name? */
+	DisplayModePtr desired_mode = output->crtc->use_native_mode ? output->crtc->native_mode : mode;
+
+	if (output->type == OUTPUT_LVDS) {
+		mode_ctl |= NV50_SOR_MODE_CTRL_LVDS;
+	} else {
+		mode_ctl |= NV50_SOR_MODE_CTRL_TMDS;
+		if (desired_mode->Clock > 165000)
+			mode_ctl |= NV50_SOR_MODE_CTRL_TMDS_DUAL_LINK;
+	}
+
+	if (output->crtc) {
+		if (output->crtc->index == 1)
+			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC1;
+		else
+			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC0;
+	} else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Warning, output has no crtc.\n");
+		return;
+	}
+
+	if (desired_mode->Flags & V_NHSYNC)
+		mode_ctl |= NV50_SOR_MODE_CTRL_NHSYNC;
+
+	if (desired_mode->Flags & V_NVSYNC)
+		mode_ctl |= NV50_SOR_MODE_CTRL_NVSYNC;
+
+	// This wouldn't be necessary, but the server is stupid and calls
+	// nv50_sor_dpms after the output is disconnected, even though the hardware
+	// turns it off automatically.
+	output->SetPowerMode(output, DPMSModeOn);
+
+	NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
+
+	output->crtc->SetScaleMode(output->crtc, output->scale_mode);
+}
+
+static void
+NV50SorSetClockMode(nouveauOutputPtr output, int clock)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorSetClockMode is called.\n");
 
 	NVPtr pNv = NVPTR(pScrn);
 	const int limit = 165000;
 
 	/* 0x70000 was a late addition to nv, mentioned as fixing tmds initialisation on certain gpu's. */
 	/* I presume it's some kind of clock setting, but what precisely i do not know. */
-	NVWrite(pNv, NV50_SOR0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x70000 | ((pclk > limit) ? 0x101 : 0));
+	NVWrite(pNv, NV50_SOR0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x70000 | ((clock > limit) ? 0x101 : 0));
+}
+
+static int
+NV50SorSense(nouveauOutputPtr output)
+{
+	switch (output->type) {
+		case OUTPUT_TMDS:
+		case OUTPUT_LVDS:
+			return output->type;
+		default:
+			return OUTPUT_NONE;
+	}
 }
 
 static void
-nv50_sor_dpms(xf86OutputPtr output, int mode)
+NV50SorSetPowerMode(nouveauOutputPtr output, int mode)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_dpms is called with mode %d.\n", mode);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorSetPowerMode is called with mode %d.\n", mode);
 
 	NVPtr pNv = NVPTR(pScrn);
-	CARD32 tmp;
+	uint32_t tmp;
 
-	while((NVRead(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_CTRL_PENDING));
+	while ((NVRead(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_CTRL_PENDING));
 
 	tmp = NVRead(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 	tmp |= NV50_SOR_DPMS_CTRL_PENDING;
 
-	if(mode == DPMSModeOn)
+	if (mode == DPMSModeOn)
 		tmp |= NV50_SOR_DPMS_CTRL_MODE_ON;
 	else
 		tmp &= ~NV50_SOR_DPMS_CTRL_MODE_ON;
 
 	NVWrite(pNv, NV50_SOR0_DPMS_CTRL + NV50OrOffset(output) * 0x800, tmp);
-	while((NVRead(pNv, NV50_SOR0_DPMS_STATE + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_STATE_WAIT));
+	while ((NVRead(pNv, NV50_SOR0_DPMS_STATE + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_STATE_WAIT));
 }
 
-static int
-nv50_tmds_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
+void
+NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	// Disable dual-link modes until I can find a way to make them work
-	// reliably.
-	if (mode->Clock > 165000)
-		return MODE_CLOCK_HIGH;
-
-	if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
-		return MODE_PANEL;
-
-	return nv50_output_mode_valid(output, mode);
+	output->ModeValid = NV50SorModeValid;
+	output->ModeSet = NV50SorModeSet;
+	output->SetClockMode = NV50SorSetClockMode;
+	output->Sense = NV50SorSense;
+	output->Detect = NULL;
+	output->SetPowerMode = NV50SorSetPowerMode;
 }
 
-static int
-nv50_lvds_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	DisplayModePtr native = nv_output->native_mode;
-
-	// Ignore modes larger than the native res.
-	if (mode->HDisplay > native->HDisplay || mode->VDisplay > native->VDisplay)
-		return MODE_PANEL;
-
-	return nv50_output_mode_valid(output, mode);
-}
-
-static void
-nv50_sor_mode_set(xf86OutputPtr output, DisplayModePtr mode,
-		DisplayModePtr adjusted_mode)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_mode_set is called.\n");
-
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	const int sorOff = 0x40 * NV50OrOffset(output);
-	uint32_t mode_ctl = NV50_SOR_MODE_CTRL_OFF;
-
-	if (!adjusted_mode) {
-		/* Disconnect the SOR */
-		NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
-		return;
-	}
-
-	if (nv_output->type == OUTPUT_LVDS) {
-		mode_ctl |= NV50_SOR_MODE_CTRL_LVDS;
-	} else {
-		mode_ctl |= NV50_SOR_MODE_CTRL_TMDS;
-		if (adjusted_mode->Clock > 165000)
-			mode_ctl |= NV50_SOR_MODE_CTRL_TMDS_DUAL_LINK;
-	}
-
-	if (output->crtc) {
-		NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-		if (nv_crtc->head == 1)
-			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC1;
-		else
-			mode_ctl |= NV50_SOR_MODE_CTRL_CRTC0;
-	} else {
-		return;
-	}
-
-	if (adjusted_mode->Flags & V_NHSYNC)
-		mode_ctl |= NV50_SOR_MODE_CTRL_NHSYNC;
-
-	if (adjusted_mode->Flags & V_NVSYNC)
-		mode_ctl |= NV50_SOR_MODE_CTRL_NVSYNC;
-
-	// This wouldn't be necessary, but the server is stupid and calls
-	// nv50_sor_dpms after the output is disconnected, even though the hardware
-	// turns it off automatically.
-	nv50_sor_dpms(output, DPMSModeOn);
-
-	NV50DisplayCommand(pScrn, NV50_SOR0_MODE_CTRL + sorOff, mode_ctl);
-
-	NV50CrtcSetScale(output->crtc, mode, adjusted_mode, nv_output->scaling_mode);
-}
-
-static xf86OutputStatus
-nv50_lvds_detect(xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_lvds_detect is called.\n");
-
-	/* Assume LVDS is always connected */
-	return XF86OutputStatusConnected;
-}
-
-static void
-nv50_sor_destroy(xf86OutputPtr output)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	NV50OutputDestroy(output);
-
-	xf86DeleteMode(&nv_output->native_mode, nv_output->native_mode);
-
-	xfree(output->driver_private);
-	output->driver_private = NULL;
-}
-
-static Bool
-nv50_sor_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
-		 DisplayModePtr adjusted_mode)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_sor_mode_fixup is called.\n");
-
-	NVOutputPrivatePtr nv_output = output->driver_private;
-
-	if (nv_output->native_mode && nv_output->scaling_mode != SCALE_PANEL) {
-		adjusted_mode->HDisplay = nv_output->native_mode->HDisplay;
-		adjusted_mode->HSkew = nv_output->native_mode->HSkew;
-		adjusted_mode->HSyncStart = nv_output->native_mode->HSyncStart;
-		adjusted_mode->HSyncEnd = nv_output->native_mode->HSyncEnd;
-		adjusted_mode->HTotal = nv_output->native_mode->HTotal;
-		adjusted_mode->VDisplay = nv_output->native_mode->VDisplay;
-		adjusted_mode->VScan = nv_output->native_mode->VScan;
-		adjusted_mode->VSyncStart = nv_output->native_mode->VSyncStart;
-		adjusted_mode->VSyncEnd = nv_output->native_mode->VSyncEnd;
-		adjusted_mode->VTotal = nv_output->native_mode->VTotal;
-		adjusted_mode->Clock = nv_output->native_mode->Clock;
-		adjusted_mode->Flags = nv_output->native_mode->Flags;
-
-		/* No INTERLACE_HALVE_V, because we manually correct. */
-		xf86SetModeCrtc(adjusted_mode, 0);
-	}
-	return TRUE;
-}
-
-static DisplayModePtr
-nv50_lvds_get_modes(xf86OutputPtr output)
-{
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	return xf86DuplicateMode(nv_output->native_mode);
-}
-
-static const xf86OutputFuncsRec nv50_tmds_output_funcs = {
-	.dpms = nv50_sor_dpms,
-	.save = NULL,
-	.restore = NULL,
-	.mode_valid = nv50_tmds_mode_valid,
-	.mode_fixup = nv50_sor_mode_fixup,
-	.prepare = nv50_output_prepare,
-	.commit = nv50_output_commit,
-	.mode_set = nv50_sor_mode_set,
-	.detect = nv50_output_detect,
-	.get_modes = nv50_output_get_ddc_modes,
-	.create_resources = nv_output_create_resources,
-	.set_property = nv_output_set_property,
-	.destroy = nv50_sor_destroy,
-};
-
-static const xf86OutputFuncsRec nv50_lvds_output_funcs = {
-	.dpms = nv50_sor_dpms,
-	.save = NULL,
-	.restore = NULL,
-	.mode_valid = nv50_lvds_mode_valid,
-	.mode_fixup = nv50_sor_mode_fixup,
-	.prepare = nv50_output_prepare,
-	.commit = nv50_output_commit,
-	.mode_set = nv50_sor_mode_set,
-	.detect = nv50_lvds_detect,
-	.get_modes = nv50_lvds_get_modes,
-	.create_resources = nv_output_create_resources,
-	.set_property = nv_output_set_property,
-	.destroy = nv50_sor_destroy,
-};
-
-const xf86OutputFuncsRec * nv50_get_tmds_output_funcs()
-{
-	return &nv50_tmds_output_funcs;
-}
-
-const xf86OutputFuncsRec * nv50_get_lvds_output_funcs()
-{
-	return &nv50_lvds_output_funcs;
-}
+/*
+ * Some misc functions.
+ */
 
 static DisplayModePtr
 ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
