@@ -1442,13 +1442,12 @@ i830_dump_cmds (ScrnInfoPtr		pScrn,
 	    /* check for MI_BATCH_BUFFER_START */
 	    if ((data & batch_start_mask) == batch_start_cmd)
 	    {
-		uint32_t    batch = ptr[1];
+		uint32_t    batch = ptr[1] & ~3;
 		if (batch < pI830->FbMapSize) {
 		    ErrorF ("\t%08x: %08x\n", (ring + 4) & mask, batch);
 		    ErrorF ("Batch buffer at 0x%08x {\n", batch);
 		    i830_dump_cmds (pScrn, pI830->FbBase, batch,
-				    pI830->FbMapSize - batch,
-				    0xffffffff, acthd);
+				    batch + 256, 0xffffffff, acthd);
 		    ErrorF ("}\n");
 		    ring = (ring + (count - 1) * 4) & mask;
 		}
@@ -1472,8 +1471,8 @@ i830_dump_ring(ScrnInfoPtr pScrn, uint32_t acthd)
     mask = pI830->LpRing->tail_mask;
     
     virt = pI830->LpRing->virtual_start;
-    ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d\n",
-	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
+    ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d acthd 0x%x\n",
+	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2, acthd);
 
     /* walk back by instructions */
     for (cmd = (head - 256) & mask;
@@ -1518,7 +1517,7 @@ i830_dump_error_state(ScrnInfoPtr pScrn)
 
     ErrorF("hwstam: 0x%04x ier: 0x%04x imr: 0x%04x iir: 0x%04x\n",
 	   INREG16(HWSTAM), INREG16(IER), INREG16(IMR), INREG16(IIR));
-    i830_dump_ring (pScrn, 0);
+    i830_dump_ring (pScrn, INREG(ACTHD));
 }
 
 void
@@ -1555,7 +1554,7 @@ i965_dump_error_state(ScrnInfoPtr pScrn)
 	   "imr: 0x%08x iir: 0x%08x\n",
 	   INREG(HWSTAM), INREG(IER), INREG(IMR), INREG(IIR));
 
-    acthd = INREG(ACTHD);
+    acthd = INREG(ACTHD_I965);
     ErrorF("acthd: 0x%08x dma_fadd_p: 0x%08x\n",
 	   acthd, INREG(DMA_FADD_P));
     ErrorF("ecoskpd: 0x%08x excc: 0x%08x\n",

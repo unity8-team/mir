@@ -375,7 +375,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Current active ring head address: 
  */
-#define ACTHD                 0x2074
+#define ACTHD_I965                 0x2074
+#define ACTHD			   0x20C8
 
 /* Current primary/secondary DMA fetch addresses:
  */
