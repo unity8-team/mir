@@ -65,6 +65,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -1506,6 +1509,27 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 }
 #endif /* DRI_SUPPORTS_CLIP_NOTIFY */
 
+static int
+i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
+{
+#ifdef XF86DRI_MM
+    if (mem && mem->gem_handle)
+    {
+	I830Ptr			pI830 = I830PTR(pScrn);
+	struct drm_gem_name	name;
+	int			ret;
+	
+	name.handle = mem->gem_handle;
+	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_NAME, &name);
+	if (ret == 0)
+	    return name.name;
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "[drm] failed to name buffer %d\n", -errno);
+    }
+#endif
+    return -1;
+}
+
 /**
  * Update the SAREA fields with current buffer information.
  *
@@ -1537,22 +1561,10 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->log_tex_granularity = pI830->TexGranularity;
 
-   sarea->front_bo_handle = -1;
-   sarea->back_bo_handle = -1;
-   sarea->third_bo_handle = -1;
-   sarea->depth_bo_handle = -1;
-#ifdef XF86DRI_MM
-   /* XXX
-   if (pI830->front_buffer->bo.size)
-       sarea->front_bo_handle = pI830->front_buffer->bo.handle;
-   if (pI830->back_buffer->bo.size)
-       sarea->back_bo_handle = pI830->back_buffer->bo.handle;
-   if (pI830->third_buffer != NULL && pI830->third_buffer->bo.size)
-       sarea->third_bo_handle = pI830->third_buffer->bo.handle;
-   if (pI830->depth_buffer->bo.size)
-       sarea->depth_bo_handle = pI830->depth_buffer->bo.handle;
-   */
-#endif
+   sarea->front_bo_handle = i830_name_buffer (pScrn, pI830->front_buffer);
+   sarea->back_bo_handle = i830_name_buffer (pScrn, pI830->back_buffer);
+   sarea->third_bo_handle = i830_name_buffer (pScrn, pI830->third_buffer);
+   sarea->depth_bo_handle = i830_name_buffer (pScrn, pI830->depth_buffer);
 
    /* The rotation is now handled entirely by the X Server, so just leave the
     * DRI unaware.
