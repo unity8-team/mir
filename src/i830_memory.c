@@ -171,6 +171,19 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	int ret;
 
 	pin.handle = mem->gem_handle;
+	pin.alignment = 0;
+	if (mem->tiling) {
+	    if (IS_I965G(pI830))
+		pin.alignment = 0;
+	    else {
+		if (IS_I9XX (pI830))
+		    pin.alignment = 1024 * 1024;
+		else
+		    pin.alignment = 512 * 1024;
+		if (pin.alignment < mem->size)
+		    pin.alignment = mem->size;
+	    }
+	}
 	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
 	if (ret != 0)
 	    return FALSE;
