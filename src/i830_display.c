@@ -1718,8 +1718,10 @@ i830_crtc_clock_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc)
 	    return 0;
 	}
 
-	/* XXX: Handle the 100Mhz refclk */
-	i9xx_clock(96000, &clock);
+	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
+	    i9xx_clock(100000, &clock);
+	else
+	    i9xx_clock(96000, &clock);
     } else {
 	Bool is_lvds = (pipe == 1) && (INREG(LVDS) & LVDS_PORT_EN);
 

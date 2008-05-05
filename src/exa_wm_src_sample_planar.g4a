@@ -42,7 +42,7 @@ mov (1) g0.8<1>UD	0x0000e000UD { align1 mask_disable };
 
 /* sample Y */
 send (16) src_msg_ind		/* msg reg index */
-	src_sample_g_01<1>UW 	/* readback */
+	src_sample_g<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
 	sampler (1,0,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
@@ -50,17 +50,16 @@ send (16) src_msg_ind		/* msg reg index */
 	
 /* sample U (Cr) */
 send (16) src_msg_ind		/* msg reg index */
-	src_sample_r_01<1>UW 	/* readback */
+	src_sample_r<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
-	sampler (2,1,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+	sampler (3,2,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 2 { align1 };   /* required message len 5, readback len 8 */
 	
 /* sample V (Cb) */
 send (16) src_msg_ind		/* msg reg index */
-	src_sample_b_01<1>UW 	/* readback */
+	src_sample_b<1>UW 	/* readback */
 	g0<8,8,1>UW		/* copy to msg start reg*/
-	sampler (3,2,F)		/* sampler message description, (binding_table,sampler_index,datatype)
+	sampler (5,4,F)		/* sampler message description, (binding_table,sampler_index,datatype)
 				/* here(src->dst) we should use src_sampler and src_surface */
 	mlen 5 rlen 2 { align1 };   /* required message len 5, readback len 8 */
-

@@ -44,6 +44,9 @@ AM_PROG_CC_C_O
 AC_CHECK_PROG(gen4asm, [intel-gen4asm], yes, no)
 AM_CONDITIONAL(HAVE_GEN4ASM, test x$gen4asm = xyes)
 
+AC_CHECK_HEADERS(sys/mman.h)
+AC_CHECK_FUNCS(mprotect)
+
 AH_TOP([#include "xorg-server.h"])
 
 AC_ARG_WITH(xorg-module-dir,
@@ -170,6 +173,18 @@ else
 fi
 
 AC_SUBST([XMODES_CFLAGS])
+
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
+
+AC_CHECK_DECL(xf86RotateFreeShadow,
+	      [AC_DEFINE(HAVE_FREE_SHADOW, 1, [have new FreeShadow API])],
+	      [],
+	      [#include <xorg-server.h>
+	       #include <windowstr.h>
+	       #include <xf86Crtc.h>])
+	     
+CPPFLAGS="$SAVE_CPPFLAGS"
 
 dnl Use lots of warning flags with GCC
 
