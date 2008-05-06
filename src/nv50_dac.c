@@ -67,8 +67,12 @@ NV50DacModeSet(nouveauOutputPtr output, DisplayModePtr mode)
 		return;
 	}
 
-	/* What is this? */
-	mode_ctl |= 0x40;
+	if (output->type == OUTPUT_ANALOG) {
+		/* What is this? */
+		mode_ctl |= 0x40;
+	} else if (output->type == OUTPUT_TV) {
+		mode_ctl |= 0x100;
+	}
 
 	if (desired_mode->Flags & V_NHSYNC)
 		mode_ctl2 |= NV50_DAC_MODE_CTRL2_NHSYNC;
@@ -101,7 +105,13 @@ NV50DacSetClockMode(nouveauOutputPtr output, int clock)
 static int
 NV50DacSense(nouveauOutputPtr output)
 {
-	return OUTPUT_ANALOG;
+	switch (output->type) {
+		case OUTPUT_ANALOG:
+		case OUTPUT_TV:
+			return output->type;
+		default:
+			return OUTPUT_NONE;
+	}
 }
 
 static Bool

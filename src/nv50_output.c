@@ -66,6 +66,9 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 			else
 				sprintf(connector_name, "VGA-%d", bus);
 			break;
+		case OUTPUT_TV:
+			sprintf(connector_name, "TV-%d", bus);
+			break;
 		default:
 			break;
 	}
@@ -73,14 +76,14 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	xfree(pNv->connector[bus]->name);
 	pNv->connector[bus]->name = xstrdup(connector_name);
 
-	if (i2c_index < 0xf && pNv->pI2CBus[i2c_index] == NULL)
+	if (i2c_index < 0x10 && pNv->pI2CBus[i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(connector_name));
 
 	pNv->connector[bus]->i2c_index = i2c_index;
 	pNv->connector[bus]->pDDCBus = pNv->pI2CBus[i2c_index];
 
-	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_TV) /* unsupported */
-		return;
+	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_TV)
+		return; /* unsupported */
 
 	/* Create output. */
 	nouveauOutputPtr output = xnfcalloc(sizeof(nouveauOutputRec), 1);
@@ -157,7 +160,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	/* Function pointers. */
 	if (output->type == OUTPUT_TMDS || output->type == OUTPUT_LVDS) {
 		NV50SorSetFunctionPointers(output);
-	} else if (output->type == OUTPUT_ANALOG) {
+	} else if (output->type == OUTPUT_ANALOG || output->type == OUTPUT_TV) {
 		NV50DacSetFunctionPointers(output);
 	}
 }

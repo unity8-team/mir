@@ -344,6 +344,7 @@ NV50CrtcSetScaleMode(nouveauCrtcPtr crtc, int scale)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcSetScale is called with mode %d for %s.\n", scale, crtc->index ? "CRTC1" : "CRTC0");
 
+	uint32_t scale_val = 0;
 	int outX = 0, outY = 0;
 
 	switch(scale) {
@@ -365,10 +366,12 @@ NV50CrtcSetScaleMode(nouveauCrtcPtr crtc, int scale)
 	/* Got a better name for SCALER_ACTIVE? */
 	if ((crtc->cur_mode->Flags & V_DBLSCAN) || (crtc->cur_mode->Flags & V_INTERLACE) ||
 		crtc->cur_mode->HDisplay != outX || crtc->cur_mode->VDisplay != outY) {
-		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, NV50_CRTC0_SCALE_CTRL_SCALER_ACTIVE);
+		scale_val = NV50_CRTC0_SCALE_CTRL_SCALER_ACTIVE;
 	} else {
-		NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, NV50_CRTC0_SCALE_CTRL_SCALER_INACTIVE);
+		scale_val = NV50_CRTC0_SCALE_CTRL_SCALER_INACTIVE;
 	}
+
+	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_CTRL, scale_val);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_RES1, outY << 16 | outX);
 	NV50CrtcCommand(crtc, NV50_CRTC0_SCALE_RES2, outY << 16 | outX);
 }

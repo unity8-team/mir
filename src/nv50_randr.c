@@ -339,6 +339,10 @@ nv50_output_detect(xf86OutputPtr output)
 		}
 	}
 
+	/* HACK: assume that a connector only holds output in the case of a tv-out */
+	if (nv_output->output->type == OUTPUT_TV)
+		return XF86OutputStatusUnknown;
+
 	/*
 	 * We abuse randr-1.2 outputs as connector, so here we have to determine what actual output is connected to the connector.
 	 */
@@ -393,10 +397,16 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	DisplayModePtr ddc_modes = connector->GetDDCModes(connector);
 
+	/* LVDS has a fixed native mode. */
+	if (nv_output->output->type != OUTPUT_LVDS) {
+		xf86DeleteMode(&nv_output->output->native_mode, nv_output->output->native_mode);
+		nv_output->output->native_mode = NULL;
+		if (nv_output->output->crtc)
+			nv_output->output->crtc->native_mode = NULL;
+	}
+
 	/* NV5x hardware can also do scaling on analog connections. */
 	if (nv_output->output->type != OUTPUT_LVDS && ddc_modes) {
-		xf86DeleteMode(&nv_output->output->native_mode, nv_output->output->native_mode);
-
 		/* Use the first preferred mode as native mode. */
 		DisplayModePtr mode;
 
@@ -419,8 +429,16 @@ nv50_output_get_modes(xf86OutputPtr output)
 		}
 
 		nv_output->output->native_mode = xf86DuplicateMode(mode);
-		xf86SetModeCrtc(nv_output->output->native_mode, 0);
 	}
+
+	/* No ddc means no native mode, so make one up to avoid crashes. */
+	if (!nv_output->output->native_mode)
+		nv_output->output->native_mode = xf86CVTMode(1024, 768, 60.0, FALSE, FALSE);
+
+	xf86SetModeCrtc(nv_output->output->native_mode, 0);
+
+	if (nv_output->output->crtc)
+			nv_output->output->crtc->native_mode =nv_output->output->native_mode;
 
 	return ddc_modes;
 }
