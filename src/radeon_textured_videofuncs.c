@@ -88,7 +88,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 #ifdef USE_EXA
     if (info->useEXA) {
-	dst_offset = exaGetPixmapOffset(pPixmap) + info->fbLocation;
+	dst_offset = exaGetPixmapOffset(pPixmap) + info->fbLocation + pScrn->fbOffset;
 	dst_pitch = exaGetPixmapPitch(pPixmap);
     } else
 #endif
