@@ -362,7 +362,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     ACCEL_PREAMBLE();
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
+    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
 
     if ((txoffset & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
@@ -544,13 +544,13 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
+    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
     if (RADEONPixmapIsColortiled(pDst))
 	colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
+    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     if ((dst_offset & 0x0f) != 0)
 	RADEON_FALLBACK(("Bad destination offset 0x%x\n", (int)dst_offset));
@@ -675,7 +675,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     ACCEL_PREAMBLE();
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
+    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
 
     if ((txoffset & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
@@ -843,7 +843,7 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
+    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
     if (RADEONPixmapIsColortiled(pDst))
@@ -1001,7 +1001,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     TRACE;
 
     txpitch = exaGetPixmapPitch(pPix);
-    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation;
+    txoffset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
 
     if ((txoffset & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
@@ -1198,7 +1198,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
 
-    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation;
+    dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     dst_pitch = exaGetPixmapPitch(pDst);
     colorpitch = dst_pitch >> pixel_shift;
 
