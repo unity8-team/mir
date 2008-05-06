@@ -357,6 +357,12 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (pRADEONEnt->MMIO) {
+        info->MMIO = pRADEONEnt->MMIO;
+        return TRUE;
+    }
 
 #ifndef XSERVER_LIBPCIACCESS
 
@@ -367,7 +373,6 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 			       info->MMIOSize);
 
     if (!info->MMIO) return FALSE;
-
 #else
 
     void** result = (void**)&info->MMIO;
@@ -386,6 +391,7 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 
 #endif
 
+    pRADEONEnt->MMIO = info->MMIO;
     return TRUE;
 }
 
@@ -395,6 +401,13 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn)
 static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (info->IsPrimary || info->IsSecondary) {
+      /* never unmap on zaphod */
+      info->MMIO = NULL;
+      return TRUE;
+    }
 
 #ifndef XSERVER_LIBPCIACCESS
     xf86UnMapVidMem(pScrn->scrnIndex, info->MMIO, info->MMIOSize);
@@ -402,6 +415,7 @@ static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn)
     pci_device_unmap_range(info->PciInfo, info->MMIO, info->MMIOSize);
 #endif
 
+    pRADEONEnt->MMIO = NULL;
     info->MMIO = NULL;
     return TRUE;
 }

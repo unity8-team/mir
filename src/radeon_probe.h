@@ -588,6 +588,7 @@ typedef struct
     RADEONSaveRec     ModeReg;          /* Current mode                      */
     RADEONSaveRec     SavedReg;         /* Original (text) mode              */
 
+    void              *MMIO;            /* Map of MMIO region                */
 } RADEONEntRec, *RADEONEntPtr;
 
 /* radeon_probe.c */
