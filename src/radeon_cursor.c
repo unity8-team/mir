@@ -298,7 +298,7 @@ radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     CURSOR_SWAPPING_DECL_MMIO
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset + pScrn->fbOffset);
+    CARD32        *d          = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset);
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
 
