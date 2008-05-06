@@ -189,7 +189,7 @@ Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, CARD32 *pitch_offset)
 	if (bpp == 24)
 		bpp = 8;
 
-	offset = exaGetPixmapOffset(pPix) + info->fbLocation;
+	offset = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
 	pitch = exaGetPixmapPitch(pPix);
 
 	return RADEONGetOffsetPitch(pPix, bpp, pitch_offset, offset, pitch);
