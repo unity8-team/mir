@@ -226,7 +226,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     left = (x1 >> 16) & ~1;
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
-    pPriv->src_offset = pPriv->video_offset + info->fbLocation;
+    pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
     pPriv->src_addr = (CARD8 *)(info->FB + pPriv->video_offset + (top * dstPitch));
     pPriv->src_pitch = dstPitch;
     pPriv->size = size;
