@@ -92,6 +92,7 @@
 static void
 avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     unsigned char     *RADEONMMIO = info->MMIO;
@@ -100,7 +101,7 @@ avivo_setup_cursor(xf86CrtcPtr crtc, Bool enable)
 
     if (enable) {
 	OUTREG(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
-	       info->fbLocation + radeon_crtc->cursor_offset);
+	       info->fbLocation + radeon_crtc->cursor_offset + pScrn->fbOffset);
 	OUTREG(AVIVO_D1CUR_SIZE + radeon_crtc->crtc_offset,
 	       ((CURSOR_WIDTH - 1) << 16) | (CURSOR_HEIGHT - 1));
 	OUTREG(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
