@@ -3176,7 +3176,6 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.dual_link = bios->data[lvdsofs] & 4;
 		bios->fp.link_c_increment = bios->data[lvdsofs] & 8;
 		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
-		call_lvds_script(pScrn, 0, 0, LVDS_INIT, 0);
 		break;
 	case 0x30:
 		/* My money would be on there being a 24 bit interface bit in this table,
@@ -4491,6 +4490,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t saved_nv_pextdev_boot_0;
+	int i;
 
 	if (!NVInitVBIOS(pScrn))
 		return 0;
@@ -4510,6 +4510,10 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (parse_dcb_table(pScrn, &pNv->VBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
+
+	for (i = 0 ; i < pNv->dcb_table.entries; i++)
+		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
+			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], 0, LVDS_INIT, 0);
 
 	if (pNv->VBIOS.feature_byte & FEATURE_MOBILE && !pNv->VBIOS.fp.native_mode)
 		read_bios_edid(pScrn);
