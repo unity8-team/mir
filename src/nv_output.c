@@ -710,8 +710,8 @@ static Atom scaling_mode_atom;
 #define DITHERING_MODE_NAME "DITHERING"
 static Atom dithering_atom;
 
-void
-nv_output_create_resources(xf86OutputPtr output)
+static void
+nv_digital_output_create_resources(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
 	ScrnInfoPtr pScrn = output->scrn;
@@ -747,34 +747,32 @@ nv_output_create_resources(xf86OutputPtr output)
 			"Failed to set scaling mode, %d\n", error);
 	}
 
-	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
-		/*
-		 * Setup dithering property.
-		 */
-		dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
+	/*
+	 * Setup dithering property.
+	 */
+	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
 
-		error = RRConfigureOutputProperty(output->randr_output,
-						dithering_atom, TRUE, TRUE, FALSE,
-						2, dithering_range);
+	error = RRConfigureOutputProperty(output->randr_output,
+					dithering_atom, TRUE, TRUE, FALSE,
+					2, dithering_range);
 
-		if (error != 0) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				"RRConfigureOutputProperty error, %d\n", error);
-		}
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"RRConfigureOutputProperty error, %d\n", error);
+	}
 
-		error = RRChangeOutputProperty(output->randr_output, dithering_atom,
-						XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
-						FALSE, TRUE);
+	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
+					XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
+					FALSE, TRUE);
 
-		if (error != 0) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				"Failed to set dithering mode, %d\n", error);
-		}
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Failed to set dithering mode, %d\n", error);
 	}
 }
 
-Bool
-nv_output_set_property(xf86OutputPtr output, Atom property,
+static Bool
+nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -827,8 +825,8 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_output_create_resources,
-	.set_property = nv_output_set_property,
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
 };
 
 static xf86OutputStatus
@@ -897,11 +895,12 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_output_create_resources,
-	.set_property = nv_output_set_property,
+	.create_resources = nv_digital_output_create_resources,
+	.set_property = nv_digital_output_set_property,
 };
 
-static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname, xf86OutputPtr partner)
+static void
+nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
@@ -913,10 +912,10 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
-		return NULL;
+		return;
 
 	if (!(nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1)))
-		return NULL;
+		return;
 
 	output->driver_private = nv_output;
 
@@ -959,37 +958,7 @@ static xf86OutputPtr nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86O
 			output->interlaceAllowed = true;
 	}
 
-	nv_output->valid_cache = FALSE;
-
-	/* Set partner for both outputs. */
-	if (partner) {
-		((NVOutputPrivatePtr)partner->driver_private)->partner = output;
-		nv_output->partner = partner;
-	}
-
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
-
-	return output;
-}
-
-static const xf86OutputFuncsRec * nv_get_output_funcs(ScrnInfoPtr pScrn, int type)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	switch (type) {
-		case OUTPUT_ANALOG:
-			return &nv_analog_output_funcs;
-			break;
-		case OUTPUT_TMDS:
-			return &nv_tmds_output_funcs;
-			break;
-		case OUTPUT_LVDS:
-			return &nv_lvds_output_funcs;
-			break;
-		default:
-			return NULL;
-			break;
-	}
 }
 
 void NvSetupOutputs(ScrnInfoPtr pScrn)
@@ -998,10 +967,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	int i, type, i2c_index, i2c_count[0xf];
 	char outputname[20];
 	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
-	xf86OutputFuncsRec * funcs = NULL;
-	xf86OutputPtr partner[MAX_NUM_DCB_ENTRIES]; /* i2c port based. */
 
-	memset(partner, 0, sizeof(partner));
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(i2c_count, 0, sizeof(i2c_count));
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
@@ -1020,24 +986,23 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
+			nv_add_output(pScrn, i, &nv_analog_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "DVI-D-%d", dvid_count++);
+			nv_add_output(pScrn, i, &nv_tmds_output_funcs, outputname);
 			break;
 		case OUTPUT_TV:
 			sprintf(outputname, "TV-%d", tv_count++);
 			break;
 		case OUTPUT_LVDS:
 			sprintf(outputname, "LVDS-%d", lvds_count++);
+			nv_add_output(pScrn, i, &nv_lvds_output_funcs, outputname);
 			break;
 		default:
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
 			break;
 		}
-
-		funcs = (xf86OutputFuncsRec *) nv_get_output_funcs(pScrn, type);
-		if (funcs) /* the 2nd partner is responsible for setting both. */
-			partner[i2c_index] = nv_add_output(pScrn, i, funcs, outputname, partner[i2c_index]);
 	}
 }
 

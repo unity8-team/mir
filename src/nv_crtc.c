@@ -1531,8 +1531,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtc->driver_private = nv_crtc;
 
-	nv_crtc->modeset_lock = FALSE;
-
 	/* Initialise the default LUT table. */
 	for (i = 0; i < 256; i++) {
 		regp->DAC[i*3] = i;

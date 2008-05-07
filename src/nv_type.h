@@ -224,9 +224,6 @@ typedef struct _riva_hw_state
 typedef struct _NVCrtcPrivateRec {
 	int head;
 	uint8_t last_dpms;
-	Bool cursorVisible;
-	int pclk; /* Pixel clock in kHz */ /* NV50 only */
-	Bool modeset_lock; /* NV50 only */
 #if NOUVEAU_EXA_PIXMAPS
 	struct nouveau_bo *shadow;
 #else
@@ -242,8 +239,6 @@ typedef enum {
 } ValidOutputResource;
 
 typedef struct _NVOutputPrivateRec {
-	xf86OutputPtr partner;
-	Bool valid_cache;
 	uint8_t last_dpms; /* pre-NV50 */
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
@@ -252,7 +247,7 @@ typedef struct _NVOutputPrivateRec {
 	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
-	Bool dithering;
+	bool dithering;
 	NVOutputRegRec restore;
 } NVOutputPrivateRec, *NVOutputPrivatePtr;
 
@@ -287,7 +282,7 @@ struct pll_lims {
 typedef struct {
 	uint8_t *data;
 	unsigned int length;
-	Bool execute;
+	bool execute;
 
 	uint8_t major_version, chip_version;
 	uint8_t feature_byte;
