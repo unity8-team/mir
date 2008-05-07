@@ -865,6 +865,17 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 
 Bool i830_pixmap_tiled(PixmapPtr p);
 
+#define i830_exa_check_pitch_2d(p) do {\
+    uint32_t pitch = intel_get_pixmap_pitch(p);\
+    if (pitch > KB(32)) return FALSE;\
+} while(0)
+
+/* For pre-965 chip only, as they have 8KB limit for 3D */
+#define i830_exa_check_pitch_3d(p) do {\
+    uint32_t pitch = intel_get_pixmap_pitch(p);\
+    if (pitch > KB(8)) return FALSE;\
+} while(0)
+
 /* Batchbuffer compatibility handling */
 #define BEGIN_BATCH(n) BEGIN_LP_RING(n)
 #define ENSURE_BATCH(n)
