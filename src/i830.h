@@ -867,13 +867,13 @@ Bool i830_pixmap_tiled(PixmapPtr p);
 
 #define i830_exa_check_pitch_2d(p) do {\
     uint32_t pitch = intel_get_pixmap_pitch(p);\
-    if (pitch > KB(32)) return FALSE;\
+    if (pitch > KB(32)) I830FALLBACK("pitch exceeds 2d limit 32K\n");\
 } while(0)
 
 /* For pre-965 chip only, as they have 8KB limit for 3D */
 #define i830_exa_check_pitch_3d(p) do {\
     uint32_t pitch = intel_get_pixmap_pitch(p);\
-    if (pitch > KB(8)) return FALSE;\
+    if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
 } while(0)
 
 /* Batchbuffer compatibility handling */
