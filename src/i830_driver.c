@@ -2411,7 +2411,7 @@ I830BlockHandler(int i,
      * after the page flipping updates, so there's no need to duplicate
      * the effort here.
      */
-    if (!pI830->noAccel && !pI830->directRenderingEnabled)
+    if (pScrn->vtSema && !pI830->noAccel && !pI830->directRenderingEnabled)
 	I830EmitFlush(pScrn);
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
