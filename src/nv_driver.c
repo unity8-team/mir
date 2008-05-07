@@ -1147,10 +1147,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (pNv->Architecture == NV_ARCH_50) {
 		pNv->randr12_enable = TRUE;
 	} else {
-		pNv->randr12_enable = FALSE;
-		if (xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, FALSE)) {
-			pNv->randr12_enable = TRUE;
-		}
+		pNv->randr12_enable = true;
+		if (!xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
+			pNv->randr12_enable = false;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
 
