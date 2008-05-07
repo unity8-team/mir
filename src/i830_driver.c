@@ -2037,6 +2037,13 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveVCLK_POST_DIV = INREG(VCLK_POST_DIV);
    pI830->saveVGACNTRL = INREG(VGACNTRL);
 
+   pI830->saveCURSOR_A_CONTROL = INREG(CURSOR_A_CONTROL);
+   pI830->saveCURSOR_A_POSITION = INREG(CURSOR_A_POSITION);
+   pI830->saveCURSOR_A_BASE = INREG(CURSOR_A_BASE);
+   pI830->saveCURSOR_B_CONTROL = INREG(CURSOR_B_CONTROL);
+   pI830->saveCURSOR_B_POSITION = INREG(CURSOR_B_POSITION);
+   pI830->saveCURSOR_B_BASE = INREG(CURSOR_B_BASE);
+
    for(i = 0; i < 7; i++) {
       pI830->saveSWF[i] = INREG(SWF0 + (i << 2));
       pI830->saveSWF[i+7] = INREG(SWF00 + (i << 2));
@@ -2237,6 +2244,20 @@ RestoreHWState(ScrnInfoPtr pScrn)
    }
 
    OUTREG(VGACNTRL, pI830->saveVGACNTRL);
+
+   /*
+    * Restore cursors
+    * Even though the X cursor is hidden before we restore the hw state,
+    * we probably only disabled one cursor plane.  If we're going from
+    * e.g. plane b to plane a here in RestoreHWState, we need to restore
+    * both cursor plane settings.
+    */
+   OUTREG(CURSOR_A_POSITION, pI830->saveCURSOR_A_POSITION);
+   OUTREG(CURSOR_A_BASE, pI830->saveCURSOR_A_BASE);
+   OUTREG(CURSOR_A_CONTROL, pI830->saveCURSOR_A_CONTROL);
+   OUTREG(CURSOR_B_POSITION, pI830->saveCURSOR_B_POSITION);
+   OUTREG(CURSOR_B_BASE, pI830->saveCURSOR_B_BASE);
+   OUTREG(CURSOR_B_CONTROL, pI830->saveCURSOR_B_CONTROL);
 
    /* Restore outputs */
    for (i = 0; i < xf86_config->num_output; i++) {

@@ -624,6 +624,12 @@ typedef struct _I830Rec {
    uint32_t saveVCLK_DIVISOR_VGA1;
    uint32_t saveVCLK_POST_DIV;
    uint32_t saveVGACNTRL;
+   uint32_t saveCURSOR_A_CONTROL;
+   uint32_t saveCURSOR_A_BASE;
+   uint32_t saveCURSOR_A_POSITION;
+   uint32_t saveCURSOR_B_CONTROL;
+   uint32_t saveCURSOR_B_BASE;
+   uint32_t saveCURSOR_B_POSITION;
    uint32_t saveADPA;
    uint32_t saveLVDS;
    uint32_t saveDVOA;
