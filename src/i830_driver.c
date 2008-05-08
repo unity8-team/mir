@@ -305,6 +305,7 @@ typedef enum {
 #ifdef XF86DRI_MM
    OPTION_INTELTEXPOOL,
 #endif
+   OPTION_LVDSFIXEDMODE,
    OPTION_TRIPLEBUFFER,
    OPTION_FORCEENABLEPIPEA,
 #ifdef INTEL_XVMC
@@ -332,6 +333,7 @@ static OptionInfoRec I830Options[] = {
 #ifdef XF86DRI_MM
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
 #endif
+   {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef INTEL_XVMC
@@ -1414,6 +1416,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       pI830->lvds_24_bit_mode = TRUE;
    } else {
       pI830->lvds_24_bit_mode = FALSE;
+   }
+
+   if (xf86ReturnOptValBool(pI830->Options, OPTION_LVDSFIXEDMODE, TRUE)) {
+      pI830->lvds_fixed_mode = TRUE;
+   } else {
+      pI830->lvds_fixed_mode = FALSE;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))

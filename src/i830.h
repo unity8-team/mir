@@ -655,6 +655,7 @@ typedef struct _I830Rec {
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
+   Bool lvds_fixed_mode;
    unsigned int quirk_flag;
 } I830Rec;
 

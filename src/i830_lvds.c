@@ -1228,6 +1228,14 @@ i830_lvds_init(ScrnInfoPtr pScrn)
      */
     I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOC, "LVDSDDC_C");
 
+    if (!pI830->lvds_fixed_mode) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Skipping any attempt to determine panel fixed mode.\n");
+	goto skip_panel_fixed_mode_setup;
+    }
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Attempting to determine panel fixed mode.\n");
+
     /* Attempt to get the fixed panel mode from DDC.  Assume that the preferred
      * mode is the right one.
      */
@@ -1310,6 +1318,8 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 		   "Couldn't detect panel mode.  Disabling panel\n");
 	goto disable_exit;
     }
+
+ skip_panel_fixed_mode_setup:
 
     /* Blacklist machines with BIOSes that list an LVDS panel without actually
      * having one.
