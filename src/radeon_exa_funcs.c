@@ -537,6 +537,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "unsupported on R600 and newer cards.\n");
 	else if (IS_R300_3D || IS_R500_3D) {
+#ifdef XF86DRI
+	    if ((info->ChipFamily < CHIP_FAMILY_RS400) || (info->directRenderingEnabled)) {
+#endif
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R300/R400/R500 type cards.\n");
 		info->exa->CheckComposite = R300CheckComposite;
@@ -544,6 +547,10 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		    FUNC_NAME(R300PrepareComposite);
 		info->exa->Composite = FUNC_NAME(RadeonComposite);
 		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+#ifdef XF86DRI
+	    } else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA Composite requires CP on R5xx/IGP\n");
+#endif
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
 		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
 		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
