@@ -900,49 +900,40 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 };
 
 static void
-nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output_funcs, char *outputname)
+nv_add_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, const xf86OutputFuncsRec *output_funcs, char *outputname)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
 	NVOutputPrivatePtr nv_output;
 
-	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
-
-	if (i2c_index < 0xf && pNv->pI2CBus[i2c_index] == NULL)
-		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
-
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
 		return;
-
 	if (!(nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1)))
 		return;
 
 	output->driver_private = nv_output;
 
-	nv_output->pDDCBus = pNv->pI2CBus[i2c_index];
-	nv_output->dcb = &pNv->dcb_table.entry[dcb_entry];
-	nv_output->type = pNv->dcb_table.entry[dcb_entry].type;
+	if (dcbent->i2c_index < 0xf && pNv->pI2CBus[dcbent->i2c_index] == NULL)
+		NV_I2CInit(pScrn, &pNv->pI2CBus[dcbent->i2c_index], pNv->dcb_table.i2c_read[dcbent->i2c_index], xstrdup(outputname));
+	nv_output->pDDCBus = pNv->pI2CBus[dcbent->i2c_index];
+	nv_output->dcb = dcbent;
+	nv_output->type = dcbent->type;
 	nv_output->last_dpms = NV_DPMS_CLEARED;
 
-	/* Output property for tmds and lvds. */
 	nv_output->dithering = (pNv->FPDither || (nv_output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
-
-	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
-		if (pNv->fpScaler) /* GPU Scaling */
-			nv_output->scaling_mode = SCALE_ASPECT;
-		else if (nv_output->type == OUTPUT_LVDS)
-			nv_output->scaling_mode = SCALE_NOSCALE;
-		else
-			nv_output->scaling_mode = SCALE_PANEL;
-
-		if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
-			nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
-			if (nv_output->scaling_mode == SCALE_INVALID)
-				nv_output->scaling_mode = SCALE_ASPECT; /* default */
-		}
+	if (pNv->fpScaler) /* GPU Scaling */
+		nv_output->scaling_mode = SCALE_ASPECT;
+	else if (nv_output->type == OUTPUT_LVDS)
+		nv_output->scaling_mode = SCALE_NOSCALE;
+	else
+		nv_output->scaling_mode = SCALE_PANEL;
+	if (xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE)) {
+		nv_output->scaling_mode = nv_scaling_mode_lookup(xf86GetOptValString(pNv->Options, OPTION_SCALING_MODE), -1);
+		if (nv_output->scaling_mode == SCALE_INVALID)
+			nv_output->scaling_mode = SCALE_ASPECT; /* default */
 	}
 
-	output->possible_crtcs = nv_output->dcb->heads;
+	output->possible_crtcs = dcbent->heads;
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS) {
 		output->doubleScanAllowed = false;
 		output->interlaceAllowed = false;
@@ -957,14 +948,13 @@ nv_add_output(ScrnInfoPtr pScrn, int dcb_entry, const xf86OutputFuncsRec *output
 		else
 			output->interlaceAllowed = true;
 	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Added output %s\n", outputname);
 }
 
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int i, type, i2c_index, i2c_count[0xf];
+	int i, i2c_count[MAX_NUM_DCB_ENTRIES];
+	struct dcb_entry *dcbent;
 	char outputname[20];
 	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
 
@@ -973,34 +963,32 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		i2c_count[pNv->dcb_table.entry[i].i2c_index]++;
 
-	/* we setup the outputs up from the BIOS table */
-	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-		type = pNv->dcb_table.entry[i].type;
-		i2c_index = pNv->dcb_table.entry[i].i2c_index;
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		dcbent = &pNv->dcb_table.entry[i];
 
-		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, heads: %d, or: %d\n", i, dcbent->type, dcbent->heads, dcbent->or);
 
-		switch (type) {
+		switch (dcbent->type) {
 		case OUTPUT_ANALOG:
-			if (i2c_count[i2c_index] == 1)
+			if (i2c_count[dcbent->i2c_index] == 1)
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
-			nv_add_output(pScrn, i, &nv_analog_output_funcs, outputname);
+			nv_add_output(pScrn, dcbent, &nv_analog_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "DVI-D-%d", dvid_count++);
-			nv_add_output(pScrn, i, &nv_tmds_output_funcs, outputname);
+			nv_add_output(pScrn, dcbent, &nv_tmds_output_funcs, outputname);
 			break;
 		case OUTPUT_TV:
 			sprintf(outputname, "TV-%d", tv_count++);
 			break;
 		case OUTPUT_LVDS:
 			sprintf(outputname, "LVDS-%d", lvds_count++);
-			nv_add_output(pScrn, i, &nv_lvds_output_funcs, outputname);
+			nv_add_output(pScrn, dcbent, &nv_lvds_output_funcs, outputname);
 			break;
 		default:
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", dcbent->type);
 			break;
 		}
 	}
