@@ -4148,6 +4148,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			}
 			break;
 			}
+		case 0xe:
+			/* weird type that appears on g80 mobile bios; nv driver treats it as a terminator */
+			return false;
 		}
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
 	} else if (dcb_version >= 0x14 ) {
