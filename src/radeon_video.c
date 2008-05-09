@@ -286,19 +286,19 @@ void RADEONInitVideo(ScreenPtr pScreen)
     }
 
     if (info->ChipFamily != CHIP_FAMILY_RV250) {
+	if ((info->ChipFamily < CHIP_FAMILY_RS400)
 #ifdef XF86DRI
-	if ((info->ChipFamily < CHIP_FAMILY_RS400) || (info->directRenderingEnabled)) {
+	    || (info->directRenderingEnabled)
 #endif
-	texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
-	if (texturedAdaptor != NULL) {
-	    adaptors[num_adaptors++] = texturedAdaptor;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+	    ) {
+	    texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
+	    if (texturedAdaptor != NULL) {
+		adaptors[num_adaptors++] = texturedAdaptor;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
+	    } else
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
 	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
-#ifdef XF86DRI
-        } else
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video requires CP on R5xx/IGP\n");
-#endif
     } else
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video disabled on RV250 due to HW bug\n");
 
