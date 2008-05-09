@@ -21807,12 +21807,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_PCIACCESS_CFLAGS="$PCIACCESS_CFLAGS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10.0") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10\"") >&5
+  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PCIACCESS_CFLAGS=`$PKG_CONFIG --cflags "pciaccess >= 0.10.0" 2>/dev/null`
+  pkg_cv_PCIACCESS_CFLAGS=`$PKG_CONFIG --cflags "pciaccess >= 0.10" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -21825,12 +21825,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_PCIACCESS_LIBS="$PCIACCESS_LIBS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10.0") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10\"") >&5
+  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PCIACCESS_LIBS=`$PKG_CONFIG --libs "pciaccess >= 0.10.0" 2>/dev/null`
+  pkg_cv_PCIACCESS_LIBS=`$PKG_CONFIG --libs "pciaccess >= 0.10" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -21849,14 +21849,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "pciaccess >= 0.10.0"`
+	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "pciaccess >= 0.10"`
         else
-	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "pciaccess >= 0.10.0"`
+	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "pciaccess >= 0.10"`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$PCIACCESS_PKG_ERRORS" >&5
 
-	{ { echo "$as_me:$LINENO: error: Package requirements (pciaccess >= 0.10.0) were not met:
+	{ { echo "$as_me:$LINENO: error: Package requirements (pciaccess >= 0.10) were not met:
 
 $PCIACCESS_PKG_ERRORS
 
@@ -21867,7 +21867,7 @@ Alternatively, you may set the environment variables PCIACCESS_CFLAGS
 and PCIACCESS_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 " >&5
-echo "$as_me: error: Package requirements (pciaccess >= 0.10.0) were not met:
+echo "$as_me: error: Package requirements (pciaccess >= 0.10) were not met:
 
 $PCIACCESS_PKG_ERRORS
 
@@ -21919,12 +21919,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_PCIACCESS_CFLAGS="$PCIACCESS_CFLAGS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10.0") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10\"") >&5
+  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PCIACCESS_CFLAGS=`$PKG_CONFIG --cflags "pciaccess >= 0.10.0" 2>/dev/null`
+  pkg_cv_PCIACCESS_CFLAGS=`$PKG_CONFIG --cflags "pciaccess >= 0.10" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -21937,12 +21937,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_PCIACCESS_LIBS="$PCIACCESS_LIBS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10.0\"") >&5
-  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10.0") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"pciaccess >= 0.10\"") >&5
+  ($PKG_CONFIG --exists --print-errors "pciaccess >= 0.10") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_PCIACCESS_LIBS=`$PKG_CONFIG --libs "pciaccess >= 0.10.0" 2>/dev/null`
+  pkg_cv_PCIACCESS_LIBS=`$PKG_CONFIG --libs "pciaccess >= 0.10" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -21961,9 +21961,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "pciaccess >= 0.10.0"`
+	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "pciaccess >= 0.10"`
         else
-	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "pciaccess >= 0.10.0"`
+	        PCIACCESS_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "pciaccess >= 0.10"`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$PCIACCESS_PKG_ERRORS" >&5
@@ -22382,7 +22382,7 @@ DRIVER_NAME=intel
 	XORG_MACROS_needed_minor=`echo $XORG_MACROS_needed_version | sed -e 's/^[0-9]*\.//' -e 's/\..*$//'`
 	{ echo "$as_me:$LINENO: checking if xorg-macros used to generate configure is at least ${XORG_MACROS_needed_major}.${XORG_MACROS_needed_minor}" >&5
 echo $ECHO_N "checking if xorg-macros used to generate configure is at least ${XORG_MACROS_needed_major}.${XORG_MACROS_needed_minor}... $ECHO_C" >&6; }
-	XORG_MACROS_version=1.1.5
+	XORG_MACROS_version=1.1.6
 	XORG_MACROS_major=`echo $XORG_MACROS_version | sed 's/\..*$//'`
 	XORG_MACROS_minor=`echo $XORG_MACROS_version | sed -e 's/^[0-9]*\.//' -e 's/\..*$//'`
 	if test $XORG_MACROS_major -ne $XORG_MACROS_needed_major ; then
@@ -22489,7 +22489,7 @@ cat >>confdefs.h <<_ACEOF
 #define PACKAGE_VERSION_MAJOR `echo $PACKAGE_VERSION | cut -d . -f 1`
 _ACEOF
 
-	PVM=`echo $PACKAGE_VERSION | cut -d . -f 2`
+	PVM=`echo $PACKAGE_VERSION | cut -d . -f 2 | cut -d - -f 1`
 	if test "x$PVM" = "x"; then
 		PVM="0"
 	fi
@@ -22498,7 +22498,7 @@ cat >>confdefs.h <<_ACEOF
 #define PACKAGE_VERSION_MINOR $PVM
 _ACEOF
 
-	PVP=`echo $PACKAGE_VERSION | cut -d . -f 3`
+	PVP=`echo $PACKAGE_VERSION | cut -d . -f 3 | cut -d - -f 1`
 	if test "x$PVP" = "x"; then
 		PVP="0"
 	fi
@@ -22513,7 +22513,10 @@ _ACEOF
 XORG_SGML_PATH=$prefix/share/sgml
 HAVE_DEFS_ENT=
 
-as_ac_File=`echo "ac_cv_file_$XORG_SGML_PATH/X11/defs.ent" | $as_tr_sh`
+if test x"$cross_compiling" = x"yes" ; then
+  HAVE_DEFS_ENT=no
+else
+  as_ac_File=`echo "ac_cv_file_$XORG_SGML_PATH/X11/defs.ent" | $as_tr_sh`
 { echo "$as_me:$LINENO: checking for $XORG_SGML_PATH/X11/defs.ent" >&5
 echo $ECHO_N "checking for $XORG_SGML_PATH/X11/defs.ent... $ECHO_C" >&6; }
 if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -22536,6 +22539,7 @@ if test `eval echo '${'$as_ac_File'}'` = yes; then
   HAVE_DEFS_ENT=yes
 fi
 
+fi
 
 # Extract the first word of "linuxdoc", so it can be a program name with args.
 set dummy linuxdoc; ac_word=$2

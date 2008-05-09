@@ -12,3 +12,5 @@
 15_quirk_sony_vaio_vgn-sz4mn.patch
 16_legacy_backlight_blc_pwn_ctl.patch
 17_lockup_virtual_size_2048.patch
+18_quirks.patch
+19_check_exa_pitch_to_fix_rotate_crash.patch

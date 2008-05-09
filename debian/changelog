@@ -1,3 +1,90 @@
+xserver-xorg-video-intel (2:2.2.1-2ubuntu1) intrepid; urgency=low
+
+  * Merge from debian unstable, remaining changes:
+    - debian/patches
+      + 01_fix_compiz_video.diff:
+        use xf86XVFillKeyHelperDrawable() to fix video playback with
+        compositing enabled.
+      + 03_dell_1535_quirk.diff:
+        Add a quirk for Dell Inspiron 1535 so it does not configure
+        against the HDMI port instead of the LCD's native resolution
+        (LP: 187860).
+      + 04_dell_1735_quirk.diff:
+        Another HDMI port quirk, for the Dell Inspiron 1735.
+        (LP: 188204)
+      + 05_intel_exa_force_greedy.patch:
+        Force use of greedy mode on i965 hardware.
+        (LP: 177492, 148247, 152206)
+      + 08_945gm_quirk.diff:
+        Adds quirk for another laptop model with a tv out detection bug.
+        (LP: 152416)
+      + 10_hw_overlay.diff:
+        Replace explicit checks for G965 for having no overlay since it
+        has one, with general check for future chips that may have no
+        overlay. (LP: 201596, 152206)
+      + 11_hw_overlay_option.diff:
+        Add a Boolean "TexturedVideo" option with default 'true'  value
+        to be able to turn textured video off.
+        (LP: 201596, 152206)
+      + 12_quirk_sync.patch: Add some quirks from current git
+        upstream, and a quirk for Dell Latitude D630 (LP: 197740)
+      + 13_dpms_low_power_overlay.patch:
+        Fix crash triggered by dpms low power mode with hardware overlay
+        running (LP: 160309)
+      + 14_sysfs_fujitsu_backlight.patch:
+        Add sysfs backlight support for Fujitsu laptops (LP: 197620)
+      + 15_quirk_sony_vaio_vgn-sz4mn.patch:
+        Another Pipe A quirk - not already included - for the Sony Vaio
+        VGN-SZ4MN. (LP: 212163)
+      + 16_legacy_backlight_blc_pwn_ctl.patch:
+        Fixes issue where gdm, opengl apps, and vlc resets brightness to
+        xbacklight value on i915, by switching from BCM_LEGACY to
+        BCM_COMBO. (LP: 201933)
+      + 17_lockup_virtual_size_2048.patch:
+        Fixes crash if Virtual set to >2048 by disabling DRI in this case,
+        prior to initializing the DRI subsystem. (LP: 188178)
+    - debian/control:
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+      + Nuke Conflicts and Replaces related to -i810.
+      + Nuke /usr/lib/xorg/modules/drivers/i810_drv.so symlink
+      + Nuke /usr/share/man/man4/i810.4 conflict
+      + Don't conflict with 915resolution, since it breaks upgrades
+        where people are still using i810 with widescreen resolutions.
+        (LP: 206167)
+    - debian/rules:
+      + Don't build the intel_reg_dumper tool, since libpciaccess is in
+        universe.
+      + Allow xserver-xorg-video-i810 and xserver-xorg-video-intel to
+        coexist until -intel is able to replace it completely.
+  * debian/patches/18_quirks.patch:
+    - Add quirks for pipe A and tv output bugs.
+      (Closes LP: #204603, #216490, #201257, #224102)
+  * debian/patches/19_check_exa_pitch_to_fix_rotate_crash.patch:
+    - Fixes crash on xrandr rotation by checking EXA pitch size.
+      EXA wasn't checking devKind in ModifyPixmapHeader, which
+      makes it impossible to check homemade pixmaps (like produced
+      by rotate_pixmap().  So this patch checks in all !965 cases now.
+      965G supports max pitch for current exa limit (128k) so doesn't
+      need checks.  (Closes LP: #174745)
+  * debian/rules:
+    - Drop dpkg-shlibdeps with --warnings=6 (FTBS), sounds just cosmetic
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 09 May 2008 00:22:45 -0700
+
+xserver-xorg-video-intel (2:2.2.1-2) unstable; urgency=low
+
+  * Add the ${shlibs:Depends} substvar to the -dbg package's dependencies, to
+    bring in libpciaccess0 (closes: #467215).
+  * Only build on x86, this package doesn't make sense anywhere else.
+  * The Vcs-* fields are now recognized by dpkg, so drop the XS- prefix.
+  * configure: check for pciaccess 0.10 instead of 0.10.0 (closes: #470266).
+  * Run dpkg-shlibdeps with --warnings=6.  Drivers reference symbols from
+    /usr/bin/Xorg and other modules, and that's not a bug, so we want
+    dpkg-shlibdeps to shut up about symbols it can't find.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 13 Apr 2008 02:10:18 +0200
+
 xserver-xorg-video-intel (2:2.2.1-1ubuntu12) hardy; urgency=low
 
   * debian/patches/17_lockup_virtual_size_2048.patch:

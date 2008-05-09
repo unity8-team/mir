@@ -115,9 +115,9 @@ AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 CFLAGS="$save_CFLAGS"
 
 if test x$XSERVER_LIBPCIACCESS = xyes; then
-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0])
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10])
 else
-	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10.0],
+	PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.10],
 				       have_libpciaccess=yes,
 				       have_libpciaccess=no)
 fi
