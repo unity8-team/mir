@@ -325,16 +325,20 @@ nv50_output_detect(xf86OutputPtr output)
 	if (!connector)
 		return XF86OutputStatusDisconnected;
 
-	Bool load_present = FALSE;
+	Bool detect_present = FALSE;
+	Bool detect_digital = FALSE;
 	xf86MonPtr ddc_mon = connector->DDCDetect(connector);
 	int i;
 
 	if (!ddc_mon) {
 		for (i = 0; i < MAX_OUTPUTS_PER_CONNECTOR; i++) {
 			if (connector->outputs[i] && connector->outputs[i]->Detect) {
-				load_present = connector->outputs[i]->Detect(connector->outputs[i]);
-				if (load_present)
+				detect_present = connector->outputs[i]->Detect(connector->outputs[i]);
+				if (detect_present) {
+					if (connector->outputs[i]->type == OUTPUT_TMDS || connector->outputs[i]->type == OUTPUT_LVDS)
+						detect_digital = TRUE;
 					break;
+				}
 			}
 		}
 	}
@@ -346,7 +350,7 @@ nv50_output_detect(xf86OutputPtr output)
 	/*
 	 * We abuse randr-1.2 outputs as connector, so here we have to determine what actual output is connected to the connector.
 	 */
-	if (ddc_mon || load_present) {
+	if (ddc_mon || detect_present) {
 		Bool is_digital = FALSE;
 		Bool found = FALSE;
 		nouveauCrtcPtr crtc_backup = nv_output->output->crtc;
@@ -355,6 +359,8 @@ nv50_output_detect(xf86OutputPtr output)
 
 		if (ddc_mon)
 			is_digital = ddc_mon->features.input_type;
+		else
+			is_digital = detect_digital;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Detected a %s output on %s\n", is_digital ? "Digital" : "Analog", connector->name);
 
@@ -375,7 +381,7 @@ nv50_output_detect(xf86OutputPtr output)
 		}
 	}
 
-	if (ddc_mon || load_present)
+	if (ddc_mon || detect_present)
 		return XF86OutputStatusConnected;
 	else
 		return XF86OutputStatusDisconnected;
@@ -396,6 +402,7 @@ nv50_output_get_modes(xf86OutputPtr output)
 	xf86OutputSetEDID(output, ddc_mon);
 
 	DisplayModePtr ddc_modes = connector->GetDDCModes(connector);
+	DisplayModePtr fixed_mode = NULL;
 
 	/* LVDS has a fixed native mode. */
 	if (nv_output->output->type != OUTPUT_LVDS) {
@@ -431,6 +438,9 @@ nv50_output_get_modes(xf86OutputPtr output)
 		nv_output->output->native_mode = xf86DuplicateMode(mode);
 	}
 
+	if (nv_output->output->GetFixedMode)
+		fixed_mode = nv_output->output->GetFixedMode(nv_output->output);
+
 	/* No ddc means no native mode, so make one up to avoid crashes. */
 	if (!nv_output->output->native_mode)
 		nv_output->output->native_mode = xf86CVTMode(1024, 768, 60.0, FALSE, FALSE);
@@ -438,7 +448,10 @@ nv50_output_get_modes(xf86OutputPtr output)
 	xf86SetModeCrtc(nv_output->output->native_mode, 0);
 
 	if (nv_output->output->crtc)
-			nv_output->output->crtc->native_mode =nv_output->output->native_mode;
+		nv_output->output->crtc->native_mode = nv_output->output->native_mode;
+
+	if (fixed_mode) /* probably only lvds */
+		return fixed_mode;
 
 	return ddc_modes;
 }

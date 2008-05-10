@@ -55,7 +55,8 @@ typedef struct nouveauOutput {
 
 	/* This will handle the case where output resources are shared. */
 	int (*Sense) (nouveauOutputPtr output); /* this is not for ddc or load detect, and will often just return a fixed type. */
-	Bool (*Detect) (nouveauOutputPtr output); /* usually only load detect, everything else is at the connector level. */
+	Bool (*Detect) (nouveauOutputPtr output); /* everything that isn't hotplug detect or ddc */
+	DisplayModePtr (*GetFixedMode) (nouveauOutputPtr output); /* only lvds as far as i know. */
 
 	void (*SetPowerMode) (nouveauOutputPtr output, int mode);
 

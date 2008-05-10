@@ -143,6 +143,24 @@ NV50SorSetPowerMode(nouveauOutputPtr output, int mode)
 	while ((NVRead(pNv, NV50_SOR0_DPMS_STATE + NV50OrOffset(output) * 0x800) & NV50_SOR_DPMS_STATE_WAIT));
 }
 
+static Bool
+NV50SorDetect(nouveauOutputPtr output)
+{
+	if (output->type == OUTPUT_LVDS) /* assume connected */
+		return TRUE;
+
+	return FALSE;
+}
+
+static DisplayModePtr
+NV50SorGetFixedMode(nouveauOutputPtr output)
+{
+	if (output->type == OUTPUT_LVDS)
+		return output->native_mode;
+
+	return NULL;
+}
+
 void
 NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
@@ -150,7 +168,8 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
 	output->ModeSet = NV50SorModeSet;
 	output->SetClockMode = NV50SorSetClockMode;
 	output->Sense = NV50SorSense;
-	output->Detect = NULL;
+	output->Detect = NV50SorDetect;
+	output->GetFixedMode = NV50SorGetFixedMode;
 	output->SetPowerMode = NV50SorSetPowerMode;
 }
 

@@ -171,7 +171,7 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int i, type, i2c_index, bus, bus_count[0xf];
 	char outputname[20];
-	uint32_t dac_count = 0, sor_count = 0;
+	uint32_t index;
 
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(bus_count, 0, sizeof(bus_count));
@@ -187,25 +187,29 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 
 		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
 
+		/* SOR-0, SOR-1, DAC-0, DAC-1 or DAC-2. */
+		index = ffs(pNv->dcb_table.entry[i].or) - 1;
+
 		switch (type) {
 		case OUTPUT_ANALOG:
-			sprintf(outputname, "DAC-%d", dac_count++);
+			sprintf(outputname, "DAC-%d", index);
 			break;
 		case OUTPUT_TMDS:
-			sprintf(outputname, "SOR-%d", sor_count++); /* maybe SOR as name? */
+			sprintf(outputname, "SOR-%d", index);
 			break;
-		case OUTPUT_TV:
-			sprintf(outputname, "DAC-%d", dac_count++);
+		case OUTPUT_TV: /* this does not handle shared dac's yet. */
+			sprintf(outputname, "DAC-%d", index);
 			break;
 		case OUTPUT_LVDS:
-			sprintf(outputname, "SOR-%d", sor_count++);
+			sprintf(outputname, "SOR-%d", index);
 			break;
 		default:
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
 			break;
 		}
 
-		NV50OutputInit(pScrn, i, outputname, bus_count[bus]);
+		if (type < OUTPUT_NONE)
+			NV50OutputInit(pScrn, i, outputname, bus_count[bus]);
 	}
 }
 
