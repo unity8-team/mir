@@ -671,7 +671,7 @@ i830_lvds_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 		/* Letterbox will have top/bottom borders */
 		top_border = (dev_priv->panel_fixed_mode->VDisplay -
-			      mode->VDisplay) / 2;
+			      scaled_height) / 2;
 		bottom_border = top_border;
 		if (mode->VDisplay & 1)
 		    bottom_border++;
