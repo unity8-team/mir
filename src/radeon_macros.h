@@ -67,12 +67,12 @@
 #define OUTREG16(addr, val) MMIO_OUT16(RADEONMMIO, addr, val)
 #define OUTREG(addr, val)   MMIO_OUT32(RADEONMMIO, addr, val)
 
-#define ADDRREG(addr)       ((volatile CARD32 *)(pointer)(RADEONMMIO + (addr)))
+#define ADDRREG(addr)       ((volatile uint32_t *)(pointer)(RADEONMMIO + (addr)))
 
 
 #define OUTREGP(addr, val, mask)					\
 do {									\
-    CARD32 tmp = INREG(addr);						\
+    uint32_t tmp = INREG(addr);						\
     tmp &= (mask);							\
     tmp |= ((val) & ~(mask));						\
     OUTREG(addr, tmp);							\
@@ -84,7 +84,7 @@ do {									\
 
 #define OUTPLLP(pScrn, addr, val, mask)					\
 do {									\
-    CARD32 tmp_ = INPLL(pScrn, addr);					\
+    uint32_t tmp_ = INPLL(pScrn, addr);					\
     tmp_ &= (mask);							\
     tmp_ |= ((val) & ~(mask));						\
     OUTPLL(pScrn, addr, tmp_);						\
@@ -108,7 +108,7 @@ do {									\
     }								        \
 } while (0)
 
-#define OUTPAL_NEXT_CARD32(v)						\
+#define OUTPAL_NEXT_uint32_t(v)						\
 do {									\
     OUTREG(RADEON_PALETTE_DATA, (v & 0x00ffffff));			\
 } while (0)
@@ -148,7 +148,7 @@ do {									\
     } else {                                                            \
         if (!idx) {							\
 	    OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) &		\
-	           (CARD32)~RADEON_DAC2_PALETTE_ACC_CTL);		\
+	           (uint32_t)~RADEON_DAC2_PALETTE_ACC_CTL);		\
         } else {							\
 	    OUTREG(RADEON_DAC_CNTL2, INREG(RADEON_DAC_CNTL2) |		\
 	           RADEON_DAC2_PALETTE_ACC_CTL);			\

@@ -113,7 +113,7 @@ radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
     radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
-static CARD32 RADEONDiv(CARD64 n, CARD32 d)
+static uint32_t RADEONDiv(CARD64 n, uint32_t d)
 {
     return (n + (d / 2)) / d;
 }
@@ -121,22 +121,22 @@ static CARD32 RADEONDiv(CARD64 n, CARD32 d)
 void
 RADEONComputePLL(RADEONPLLPtr pll,
 		 unsigned long freq,
-		 CARD32 *chosen_dot_clock_freq,
-		 CARD32 *chosen_feedback_div,
-		 CARD32 *chosen_reference_div,
-		 CARD32 *chosen_post_div,
+		 uint32_t *chosen_dot_clock_freq,
+		 uint32_t *chosen_feedback_div,
+		 uint32_t *chosen_reference_div,
+		 uint32_t *chosen_post_div,
 		 int flags)
 {
-    CARD32 min_ref_div = pll->min_ref_div;
-    CARD32 max_ref_div = pll->max_ref_div;
-    CARD32 best_vco = pll->best_vco;
-    CARD32 best_post_div = 1;
-    CARD32 best_ref_div = 1;
-    CARD32 best_feedback_div = 1;
-    CARD32 best_freq = 1;
-    CARD32 best_error = 0xffffffff;
-    CARD32 best_vco_diff = 1;
-    CARD32 post_div;
+    uint32_t min_ref_div = pll->min_ref_div;
+    uint32_t max_ref_div = pll->max_ref_div;
+    uint32_t best_vco = pll->best_vco;
+    uint32_t best_post_div = 1;
+    uint32_t best_ref_div = 1;
+    uint32_t best_feedback_div = 1;
+    uint32_t best_freq = 1;
+    uint32_t best_error = 0xffffffff;
+    uint32_t best_vco_diff = 1;
+    uint32_t post_div;
 
     freq = freq * 1000;
 
@@ -146,8 +146,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	min_ref_div = max_ref_div = pll->reference_div;
 
     for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
-	CARD32 ref_div;
-	CARD32 vco = (freq / 10000) * post_div;
+	uint32_t ref_div;
+	uint32_t vco = (freq / 10000) * post_div;
 
 	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 	    continue;
@@ -166,8 +166,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	    continue;
 
 	for (ref_div = min_ref_div; ref_div <= max_ref_div; ++ref_div) {
-	    CARD32 feedback_div, current_freq, error, vco_diff;
-	    CARD32 pll_in = pll->reference_freq / ref_div;
+	    uint32_t feedback_div, current_freq, error, vco_diff;
+	    uint32_t pll_in = pll->reference_freq / ref_div;
 
 	    if (pll_in < pll->pll_in_min || pll_in > pll->pll_in_max)
 		continue;
@@ -296,8 +296,8 @@ radeon_crtc_load_lut(xf86CrtcPtr crtc)
 
 
 static void
-radeon_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green,
-		      CARD16 *blue, int size)
+radeon_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
+		      uint16_t *blue, int size)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     ScrnInfoPtr		pScrn = crtc->scrn;

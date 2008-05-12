@@ -98,7 +98,7 @@ typedef struct AtomFb {
 
 typedef union AtomBiosArg
 {
-    CARD32 val;
+    uint32_t val;
     struct rhdConnectorInfo	*connectorInfo;
     unsigned char*		EDIDBlock;
     atomBiosHandlePtr		atomhandle;
@@ -242,7 +242,7 @@ typedef struct _atomBiosHandle {
     atomDataTablesPtr atomDataPtr;
     unsigned int cmd_offset;
     pointer *scratchBase;
-    CARD32 fbBase;
+    uint32_t fbBase;
 #if XSERVER_LIBPCIACCESS
     struct pci_device *device;
 #else

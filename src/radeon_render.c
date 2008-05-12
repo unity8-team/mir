@@ -46,7 +46,7 @@
 struct blendinfo {
 	Bool dst_alpha;
 	Bool src_alpha;
-	CARD32 blend_cntl;
+	uint32_t blend_cntl;
 };
 
 /* The first part of blend_cntl corresponds to Fa from the render "protocol"
@@ -147,7 +147,7 @@ static const struct blendinfo RadeonBlendOp[] = {
  * The RADEON and R200 TXFORMATS we use are the same on r100/r200.
  */
 
-static CARD32 RADEONTextureFormats[] = {
+static uint32_t RADEONTextureFormats[] = {
     PICT_a8r8g8b8,
     PICT_a8,
     PICT_x8r8g8b8,
@@ -157,7 +157,7 @@ static CARD32 RADEONTextureFormats[] = {
     0
 };
 
-static CARD32 RADEONDstFormats[] = {
+static uint32_t RADEONDstFormats[] = {
     PICT_a8r8g8b8,
     PICT_x8r8g8b8,
     PICT_r5g6b5,
@@ -166,8 +166,8 @@ static CARD32 RADEONDstFormats[] = {
     0
 };
 
-static CARD32
-RadeonGetTextureFormat(CARD32 format)
+static uint32_t
+RadeonGetTextureFormat(uint32_t format)
 {
     switch (format) {
     case PICT_a8r8g8b8:
@@ -187,8 +187,8 @@ RadeonGetTextureFormat(CARD32 format)
     }
 }
 
-static CARD32
-RadeonGetColorFormat(CARD32 format)
+static uint32_t
+RadeonGetColorFormat(uint32_t format)
 {
     switch (format) {
     case PICT_a8r8g8b8:
@@ -207,10 +207,10 @@ RadeonGetColorFormat(CARD32 format)
 /* Returns a RADEON_RB3D_BLENDCNTL value, or 0 if the operation is not
  * supported
  */
-static CARD32
-RadeonGetBlendCntl(CARD8 op, CARD32 dstFormat)
+static uint32_t
+RadeonGetBlendCntl(uint8_t op, uint32_t dstFormat)
 {
-    CARD32 blend_cntl;
+    uint32_t blend_cntl;
 
     if (op >= RadeonOpMax || RadeonBlendOp[op].blend_cntl == 0)
 	return 0;
@@ -218,7 +218,7 @@ RadeonGetBlendCntl(CARD8 op, CARD32 dstFormat)
     blend_cntl = RadeonBlendOp[op].blend_cntl;
 	
     if (RadeonBlendOp[op].dst_alpha && !PICT_FORMAT_A(dstFormat)) {
-	CARD32 srcblend = blend_cntl & RADEON_SRC_BLEND_MASK;
+	uint32_t srcblend = blend_cntl & RADEON_SRC_BLEND_MASK;
 
 	/* If there's no destination alpha channel, we need to wire the blending
 	 * to treat the alpha channel as always 1.
@@ -235,11 +235,11 @@ RadeonGetBlendCntl(CARD8 op, CARD32 dstFormat)
     return blend_cntl;
 }
 
-static __inline__ CARD32 F_TO_DW(float val)
+static __inline__ uint32_t F_TO_DW(float val)
 {
     union {
 	float f;
-	CARD32 l;
+	uint32_t l;
     } tmp;
     tmp.f = val;
     return tmp.l;
@@ -324,7 +324,7 @@ static Bool RADEONSetupRenderByteswap(ScrnInfoPtr pScrn, int tex_bytepp)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 swapper = info->ModeReg->surface_cntl;
+    uint32_t swapper = info->ModeReg->surface_cntl;
 
     swapper &= ~(RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP |
 		 RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP);
@@ -380,22 +380,22 @@ static void RADEONRestoreByteswap(RADEONInfoPtr info)
 
 static Bool FUNC_NAME(R100SetupTexture)(
 	ScrnInfoPtr pScrn,
-	CARD32 format,
-	CARD8 *src,
+	uint32_t format,
+	uint8_t *src,
 	int src_pitch,
 	unsigned int width,
 	unsigned int height,
 	int flags)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD8 *dst;
-    CARD32 tex_size = 0, txformat;
+    uint8_t *dst;
+    uint32_t tex_size = 0, txformat;
     int dst_pitch, offset, size, tex_bytepp;
 #ifdef ACCEL_CP
-    CARD32 buf_pitch, dst_pitch_off;
+    uint32_t buf_pitch, dst_pitch_off;
     int x, y;
     unsigned int hpass;
-    CARD8 *tmp_dst;
+    uint8_t *tmp_dst;
 #endif
     ACCEL_PREAMBLE();
 
@@ -436,7 +436,7 @@ static Bool FUNC_NAME(R100SetupTexture)(
     }
 
     offset = info->RenderTex->offset * pScrn->bitsPerPixel / 8;
-    dst = (CARD8*)(info->FB + offset);
+    dst = (uint8_t*)(info->FB + offset);
 
     /* Upload texture to card. */
 
@@ -493,13 +493,13 @@ static Bool
 FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	CARD16		red,
-	CARD16		green,
-	CARD16		blue,
-	CARD16		alpha,
-	CARD32		maskFormat,
-	CARD32		dstFormat,
-	CARD8		*alphaPtr,
+	uint16_t	red,
+	uint16_t	green,
+	uint16_t	blue,
+	uint16_t	alpha,
+	uint32_t	maskFormat,
+	uint32_t	dstFormat,
+	uint8_t		*alphaPtr,
 	int		alphaPitch,
 	int		width,
 	int		height,
@@ -507,7 +507,7 @@ FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 ) 
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD32 colorformat, srccolor, blend_cntl;
+    uint32_t colorformat, srccolor, blend_cntl;
     ACCEL_PREAMBLE();
 
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
@@ -548,9 +548,9 @@ static Bool
 FUNC_NAME(R100SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	CARD32		srcFormat,
-	CARD32		dstFormat,
-	CARD8		*texPtr,
+	uint32_t	srcFormat,
+	uint32_t	dstFormat,
+	uint8_t		*texPtr,
 	int		texPitch,
 	int		width,
 	int		height,
@@ -558,7 +558,7 @@ FUNC_NAME(R100SetupForCPUToScreenTexture) (
 )
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD32 colorformat, blend_cntl;
+    uint32_t colorformat, blend_cntl;
     ACCEL_PREAMBLE();
 
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
@@ -605,7 +605,7 @@ FUNC_NAME(R100SubsequentCPUToScreenTexture) (
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     int byteshift;
-    CARD32 fboffset;
+    uint32_t fboffset;
     float l, t, r, b, fl, fr, ft, fb;
 
     ACCEL_PREAMBLE();
@@ -717,22 +717,22 @@ FUNC_NAME(R100SubsequentCPUToScreenTexture) (
 
 static Bool FUNC_NAME(R200SetupTexture)(
 	ScrnInfoPtr pScrn,
-	CARD32 format,
-	CARD8 *src,
+	uint32_t format,
+	uint8_t *src,
 	int src_pitch,
 	unsigned int width,
 	unsigned int height,
 	int flags)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    CARD8 *dst;
-    CARD32 tex_size = 0, txformat;
+    uint8_t *dst;
+    uint32_t tex_size = 0, txformat;
     int dst_pitch, offset, size, tex_bytepp;
 #ifdef ACCEL_CP
-    CARD32 buf_pitch, dst_pitch_off;
+    uint32_t buf_pitch, dst_pitch_off;
     int x, y;
     unsigned int hpass;
-    CARD8 *tmp_dst;
+    uint8_t *tmp_dst;
 #endif
     ACCEL_PREAMBLE();
 
@@ -776,7 +776,7 @@ static Bool FUNC_NAME(R200SetupTexture)(
     info->texH[0] = height;
 
     offset = info->RenderTex->offset * pScrn->bitsPerPixel / 8;
-    dst = (CARD8*)(info->FB + offset);
+    dst = (uint8_t*)(info->FB + offset);
 
     /* Upload texture to card. */
 
@@ -834,13 +834,13 @@ static Bool
 FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	CARD16		red,
-	CARD16		green,
-	CARD16		blue,
-	CARD16		alpha,
-	CARD32		maskFormat,
-	CARD32		dstFormat,
-	CARD8		*alphaPtr,
+	uint16_t	red,
+	uint16_t	green,
+	uint16_t	blue,
+	uint16_t	alpha,
+	uint32_t	maskFormat,
+	uint32_t	dstFormat,
+	uint8_t		*alphaPtr,
 	int		alphaPitch,
 	int		width,
 	int		height,
@@ -848,7 +848,7 @@ FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
 ) 
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    CARD32 colorformat, srccolor, blend_cntl;
+    uint32_t colorformat, srccolor, blend_cntl;
     ACCEL_PREAMBLE();
 
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
@@ -890,9 +890,9 @@ static Bool
 FUNC_NAME(R200SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	CARD32		srcFormat,
-	CARD32		dstFormat,
-	CARD8		*texPtr,
+	uint32_t	srcFormat,
+	uint32_t	dstFormat,
+	uint8_t		*texPtr,
 	int		texPitch,
 	int		width,
 	int		height,
@@ -900,7 +900,7 @@ FUNC_NAME(R200SetupForCPUToScreenTexture) (
 )
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32 colorformat, blend_cntl;
+    uint32_t colorformat, blend_cntl;
     ACCEL_PREAMBLE();
 
     blend_cntl = RadeonGetBlendCntl(op, dstFormat);
@@ -948,7 +948,7 @@ FUNC_NAME(R200SubsequentCPUToScreenTexture) (
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     int byteshift;
-    CARD32 fboffset;
+    uint32_t fboffset;
     float l, t, r, b, fl, fr, ft, fb;
     ACCEL_PREAMBLE();
 

@@ -277,8 +277,8 @@ rhdAtomAnalyzeRomDataTable(unsigned char *base, int offset,
 
 Bool
 rhdAtomGetTableRevisionAndSize(ATOM_COMMON_TABLE_HEADER *hdr,
-			       CARD8 *contentRev,
-			       CARD8 *formatRev,
+			       uint8_t *contentRev,
+			       uint8_t *formatRev,
 			       unsigned short *size)
 {
     if (!hdr)
@@ -456,7 +456,7 @@ rhdAtomAllocateFbScratch(atomBiosHandlePtr handle,
     }
     if (fb_base && fb_size && size) {
 	/* 4k align */
-	fb_size = (fb_size & ~(CARD32)0xfff) + ((fb_size & 0xfff) ? 1 : 0);
+	fb_size = (fb_size & ~(uint32_t)0xfff) + ((fb_size & 0xfff) ? 1 : 0);
 	if ((fb_base + fb_size) > (start + size)) {
 	    xf86DrvMsg(handle->scrnIndex, X_WARNING,
 		       "%s: FW FB scratch area %i (size: %i)"
@@ -687,7 +687,7 @@ rhdAtomVramInfoQuery(atomBiosHandlePtr handle, AtomBiosRequestID func,
 		     AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD32 *val = &data->val;
+    uint32_t *val = &data->val;
     //RHDFUNC(handle);
 
     atomDataPtr = handle->atomDataPtr;
@@ -712,7 +712,7 @@ rhdAtomTmdsInfoQuery(atomBiosHandlePtr handle,
 		     AtomBiosRequestID func, AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD32 *val = &data->val;
+    uint32_t *val = &data->val;
     int idx = *val;
 
     atomDataPtr = handle->atomDataPtr;
@@ -807,7 +807,7 @@ rhdAtomDTDTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
 }
 
 static unsigned char*
-rhdAtomLvdsDDC(atomBiosHandlePtr handle, CARD32 offset, unsigned char *record)
+rhdAtomLvdsDDC(atomBiosHandlePtr handle, uint32_t offset, unsigned char *record)
 {
     unsigned char *EDIDBlock;
 
@@ -877,7 +877,7 @@ rhdAtomCVGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 		    AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
+    uint8_t crev, frev;
     DisplayModePtr  last       = NULL;
     DisplayModePtr  new        = NULL;
     DisplayModePtr  first      = NULL;
@@ -967,7 +967,7 @@ rhdAtomLvdsGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 		    AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
+    uint8_t crev, frev;
     unsigned long offset;
 
     //RHDFUNC(handle);
@@ -1031,8 +1031,8 @@ rhdAtomLvdsInfoQuery(atomBiosHandlePtr handle,
 		     AtomBiosRequestID func,  AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
-    CARD32 *val = &data->val;
+    uint8_t crev, frev;
+    uint32_t *val = &data->val;
 
     //RHDFUNC(handle);
 
@@ -1141,8 +1141,8 @@ rhdAtomCompassionateDataQuery(atomBiosHandlePtr handle,
 			AtomBiosRequestID func, AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
-    CARD32 *val = &data->val;
+    uint8_t crev, frev;
+    uint32_t *val = &data->val;
 
     //RHDFUNC(handle);
 
@@ -1198,8 +1198,8 @@ rhdAtomGPIOI2CInfoQuery(atomBiosHandlePtr handle,
 			AtomBiosRequestID func, AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
-    CARD32 *val = &data->val;
+    uint8_t crev, frev;
+    uint32_t *val = &data->val;
     unsigned short size;
 
     //RHDFUNC(handle);
@@ -1238,8 +1238,8 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 			 AtomBiosRequestID func, AtomBiosArgPtr data)
 {
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
-    CARD32 *val = &data->val;
+    uint8_t crev, frev;
+    uint32_t *val = &data->val;
 
     //RHDFUNC(handle);
 
@@ -1463,13 +1463,13 @@ rhdAtomParseI2CRecord(atomBiosHandlePtr handle,
 }
 
 static RADEONI2CBusRec
-RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, CARD8 id)
+RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     atomDataTablesPtr atomDataPtr;
     ATOM_GPIO_I2C_ASSIGMENT gpio;
     RADEONI2CBusRec i2c;
-    CARD8 crev, frev;
+    uint8_t crev, frev;
 
     memset(&i2c, 0, sizeof(RADEONI2CBusRec));
     i2c.valid = FALSE;
@@ -1524,7 +1524,7 @@ Bool
 RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    CARD8 crev, frev;
+    uint8_t crev, frev;
     unsigned short size;
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
@@ -1545,7 +1545,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     for (i = 0; i < con_obj->ucNumberOfObjects; i++) {
 	ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *SrcDstTable;
 	ATOM_COMMON_RECORD_HEADER *Record;
-	CARD8 obj_id, num, obj_type;
+	uint8_t obj_id, num, obj_type;
 	int record_base;
 
 	obj_id = (con_obj->asObjects[i].usObjectID & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
@@ -1562,7 +1562,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
 	if ((info->ChipFamily == CHIP_FAMILY_RS780) &&
 	    (obj_id == CONNECTOR_OBJECT_ID_PCIE_CONNECTOR)) {
-	    CARD32 slot_config, ct;
+	    uint32_t slot_config, ct;
 
 	    igp_obj = info->atomBIOS->atomDataPtr->IntegratedSystemInfo.IntegratedSystemInfo_v2;
 
@@ -1588,7 +1588,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].devices = 0;
 
 	for (j = 0; j < SrcDstTable->ucNumberOfSrc; j++) {
-	    CARD8 sobj_id;
+	    uint8_t sobj_id;
 
 	    sobj_id = (SrcDstTable->usSrcObjectID[j] & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
 	    ErrorF("src object id %04x %d\n", SrcDstTable->usSrcObjectID[j], sobj_id);
@@ -1797,7 +1797,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     atomDataTablesPtr atomDataPtr;
-    CARD8 crev, frev;
+    uint8_t crev, frev;
     int i, j;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
@@ -1964,9 +1964,9 @@ rhdAtomExec (atomBiosHandlePtr handle,
 			   __func__);
 		return ATOM_FAILED;
 	    }
-	    *dataSpace = (CARD8*)info->FB + handle->fbBase;
+	    *dataSpace = (uint8_t*)info->FB + handle->fbBase;
 	} else
-	    *dataSpace = (CARD8*)handle->scratchBase;
+	    *dataSpace = (uint8_t*)handle->scratchBase;
     }
     ret = ParseTableWrapper(pspace, idx, handle,
 			    handle->BIOSBase,
@@ -2110,11 +2110,11 @@ CailReadFBData(VOID* CAIL, UINT32 idx)
     CAILFUNC(CAIL);
 
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
-	CARD8 *FBBase = (CARD8*)info->FB;
-	ret =  *((CARD32*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx));
+	uint8_t *FBBase = (uint8_t*)info->FB;
+	ret =  *((uint32_t*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx));
 	/*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));*/
     } else if (((atomBiosHandlePtr)CAIL)->scratchBase) {
-	ret = *(CARD32*)((CARD8*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx);
+	ret = *(uint32_t*)((uint8_t*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx);
 	/*DEBUGP(ErrorF("%s(%x) = %x\n",__func__,idx,ret));*/
     } else {
 	xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_ERROR,
@@ -2131,11 +2131,11 @@ CailWriteFBData(VOID *CAIL, UINT32 idx, UINT32 data)
 
     /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,data));*/
     if (((atomBiosHandlePtr)CAIL)->fbBase) {
-	CARD8 *FBBase = (CARD8*)
+	uint8_t *FBBase = (uint8_t*)
 	    RADEONPTR(xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex])->FB;
-	*((CARD32*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx)) = data;
+	*((uint32_t*)(FBBase + (((atomBiosHandlePtr)CAIL)->fbBase) + idx)) = data;
     } else if (((atomBiosHandlePtr)CAIL)->scratchBase) {
-	*(CARD32*)((CARD8*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx) = data;
+	*(uint32_t*)((uint8_t*)(((atomBiosHandlePtr)CAIL)->scratchBase) + idx) = data;
     } else
 	xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_ERROR,
 		   "%s: no fbbase set\n",__func__);
@@ -2191,13 +2191,13 @@ CailReadPCIConfigData(VOID*CAIL, VOID* ret, UINT32 idx,UINT16 size)
 
     switch (size) {
 	case 8:
-	    *(CARD8*)ret = pciReadByte(tag,idx << 2);
+	    *(uint8_t*)ret = pciReadByte(tag,idx << 2);
 	    break;
 	case 16:
-	    *(CARD16*)ret = pciReadWord(tag,idx << 2);
+	    *(uint16_t*)ret = pciReadWord(tag,idx << 2);
 	    break;
 	case 32:
-	    *(CARD32*)ret = pciReadLong(tag,idx << 2);
+	    *(uint32_t*)ret = pciReadLong(tag,idx << 2);
 	    break;
 	default:
 	xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,
@@ -2219,13 +2219,13 @@ CailWritePCIConfigData(VOID*CAIL,VOID*src,UINT32 idx,UINT16 size)
     /*DEBUGP(ErrorF("%s(%x,%x)\n",__func__,idx,(*(unsigned int*)src)));*/
     switch (size) {
 	case 8:
-	    pciWriteByte(tag,idx << 2,*(CARD8*)src);
+	    pciWriteByte(tag,idx << 2,*(uint8_t*)src);
 	    break;
 	case 16:
-	    pciWriteWord(tag,idx << 2,*(CARD16*)src);
+	    pciWriteWord(tag,idx << 2,*(uint16_t*)src);
 	    break;
 	case 32:
-	    pciWriteLong(tag,idx << 2,*(CARD32*)src);
+	    pciWriteLong(tag,idx << 2,*(uint32_t*)src);
 	    break;
 	default:
 	    xf86DrvMsg(((atomBiosHandlePtr)CAIL)->scrnIndex,X_ERROR,

@@ -88,7 +88,7 @@ static Bool
 FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    CARD32 datatype, dst_pitch_offset;
+    uint32_t datatype, dst_pitch_offset;
     ACCEL_PREAMBLE();
 
     TRACE;
@@ -143,8 +143,8 @@ FUNC_NAME(RADEONDoneSolid)(PixmapPtr pPix)
 }
 
 void
-FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, CARD32 src_pitch_offset,
-			       CARD32 dst_pitch_offset, CARD32 datatype, int rop,
+FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
+			       uint32_t dst_pitch_offset, uint32_t datatype, int rop,
 			       Pixel planemask)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -178,7 +178,7 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 			     Pixel planemask)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 datatype, src_pitch_offset, dst_pitch_offset;
+    uint32_t datatype, src_pitch_offset, dst_pitch_offset;
 
     TRACE;
 
@@ -241,12 +241,12 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 				char *src, int src_pitch)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD8	   *dst	     = info->FB + exaGetPixmapOffset(pDst);
+    uint8_t	   *dst	     = info->FB + exaGetPixmapOffset(pDst);
     unsigned int   dst_pitch = exaGetPixmapPitch(pDst);
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
     unsigned int   hpass;
-    CARD32	   buf_pitch, dst_pitch_off;
+    uint32_t	   buf_pitch, dst_pitch_off;
 #endif
 #if X_BYTE_ORDER == X_BIG_ENDIAN 
     unsigned char *RADEONMMIO = info->MMIO;
@@ -263,7 +263,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 #ifdef ACCEL_CP
     if (info->directRenderingEnabled &&
 	RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_off)) {
-	CARD8 *buf;
+	uint8_t *buf;
 	int cpp = bpp / 8;
 	ACCEL_PREAMBLE();
 
@@ -271,7 +271,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 	while ((buf = RADEONHostDataBlit(pScrn,
 					 cpp, w, dst_pitch_off, &buf_pitch,
 					 x, &y, (unsigned int*)&h, &hpass)) != 0) {
-	    RADEONHostDataBlitCopyPass(pScrn, cpp, buf, (CARD8 *)src,
+	    RADEONHostDataBlitCopyPass(pScrn, cpp, buf, (uint8_t *)src,
 				       hpass, buf_pitch, src_pitch);
 	    src += hpass * src_pitch;
 	}
@@ -319,8 +319,8 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 #ifdef ACCEL_CP
 /* Emit blit with arbitrary source and destination offsets and pitches */
 static void
-RADEONBlitChunk(ScrnInfoPtr pScrn, CARD32 datatype, CARD32 src_pitch_offset,
-		CARD32 dst_pitch_offset, int srcX, int srcY, int dstX, int dstY,
+RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
+		uint32_t dst_pitch_offset, int srcX, int srcY, int dstX, int dstY,
 		int w, int h)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -357,11 +357,11 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
 	      RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
 #endif
-    CARD8	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
+    uint8_t	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
     int		   src_pitch = exaGetPixmapPitch(pSrc);
     int		   bpp	     = pSrc->drawable.bitsPerPixel;
 #ifdef ACCEL_CP
-    CARD32 datatype, src_pitch_offset, scratch_pitch = (w * bpp/8 + 63) & ~63, scratch_off = 0;
+    uint32_t datatype, src_pitch_offset, scratch_pitch = (w * bpp/8 + 63) & ~63, scratch_off = 0;
     drmBufPtr scratch;
 #endif
 
@@ -379,7 +379,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
     {
 	int swap = RADEON_HOST_DATA_SWAP_NONE, wpass = w * bpp / 8;
 	int hpass = min(h, scratch->total/2 / scratch_pitch);
-	CARD32 scratch_pitch_offset = scratch_pitch << 16
+	uint32_t scratch_pitch_offset = scratch_pitch << 16
 				    | (info->gartLocation + info->bufStart
 				       + scratch->idx * scratch->total) >> 10;
 	drmRadeonIndirect indirect;
@@ -406,7 +406,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	while (h) {
 	    int oldhpass = hpass, i = 0;
 
-	    src = (CARD8*)scratch->address + scratch_off;
+	    src = (uint8_t*)scratch->address + scratch_off;
 
 	    y += oldhpass;
 	    h -= oldhpass;
@@ -439,10 +439,10 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 
 	    /* Copy out data from previous blit */
 	    if (wpass == scratch_pitch && wpass == dst_pitch) {
-		RADEONCopySwap((CARD8*)dst, src, wpass * oldhpass, swap);
+		RADEONCopySwap((uint8_t*)dst, src, wpass * oldhpass, swap);
 		dst += dst_pitch * oldhpass;
 	    } else while (oldhpass--) {
-		RADEONCopySwap((CARD8*)dst, src, wpass, swap);
+		RADEONCopySwap((uint8_t*)dst, src, wpass, swap);
 		src += scratch_pitch;
 		dst += dst_pitch;
 	    }

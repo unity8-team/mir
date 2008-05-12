@@ -192,10 +192,10 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32         clock_cntl_index;
-    CARD32         mclk_cntl;
-    CARD32         rbbm_soft_reset;
-    CARD32         host_path_cntl;
+    uint32_t       clock_cntl_index;
+    uint32_t       mclk_cntl;
+    uint32_t       rbbm_soft_reset;
+    uint32_t       host_path_cntl;
 
     /* The following RBBM_SOFT_RESET sequence can help un-wedge
      * an R300 after the command processor got stuck.
@@ -210,7 +210,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
                                    RADEON_SOFT_RESET_E2 |
                                    RADEON_SOFT_RESET_RB));
     INREG(RADEON_RBBM_SOFT_RESET);
-    OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset & (CARD32)
+    OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset & (uint32_t)
                                    ~(RADEON_SOFT_RESET_CP |
                                      RADEON_SOFT_RESET_HI |
                                      RADEON_SOFT_RESET_SE |
@@ -232,7 +232,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
      * ASIC-version dependent, so we force all blocks on for now
      */
     if (info->HasCRTC2) {
-	CARD32 tmp;
+	uint32_t tmp;
 
 	tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
 	OUTPLL(RADEON_SCLK_CNTL, ((tmp & ~RADEON_DYN_STOP_LAT_MASK) |
@@ -266,7 +266,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     rbbm_soft_reset = INREG(RADEON_RBBM_SOFT_RESET);
 
     if (IS_R300_VARIANT || IS_AVIVO_VARIANT) {
-	CARD32 tmp;
+	uint32_t tmp;
 
 	OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset |
 					RADEON_SOFT_RESET_CP |
@@ -285,7 +285,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 					RADEON_SOFT_RESET_E2 |
 					RADEON_SOFT_RESET_RB));
 	INREG(RADEON_RBBM_SOFT_RESET);
-	OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset & (CARD32)
+	OUTREG(RADEON_RBBM_SOFT_RESET, (rbbm_soft_reset & (uint32_t)
 					~(RADEON_SOFT_RESET_CP |
 					  RADEON_SOFT_RESET_SE |
 					  RADEON_SOFT_RESET_RE |
@@ -398,7 +398,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     }
 
     if (IS_R300_3D | IS_R500_3D) {
-	CARD32 gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
+	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
 
 	switch(info->num_gb_pipes) {
 	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
@@ -681,11 +681,11 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
  * about tiling etc.
  */
 void
-RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst, CARD32 pitch, int cpp,
-		     CARD32 *dstPitchOff, int *x, int *y)
+RADEONHostDataParams(ScrnInfoPtr pScrn, uint8_t *dst, uint32_t pitch, int cpp,
+		     uint32_t *dstPitchOff, int *x, int *y)
 {
     RADEONInfoPtr info = RADEONPTR( pScrn );
-    CARD32 dstOffs = dst - (CARD8*)info->FB + info->fbLocation;
+    uint32_t dstOffs = dst - (uint8_t*)info->FB + info->fbLocation;
 
     *dstPitchOff = pitch << 16 | (dstOffs & ~RADEON_BUFFER_ALIGN) >> 10;
     *y = ( dstOffs & RADEON_BUFFER_ALIGN ) / pitch;
@@ -696,21 +696,21 @@ RADEONHostDataParams(ScrnInfoPtr pScrn, CARD8 *dst, CARD32 pitch, int cpp,
  * framebuffer. Returns the address where the data can be written to and sets
  * the dstPitch and hpass variables as required.
  */
-CARD8*
+uint8_t*
 RADEONHostDataBlit(
     ScrnInfoPtr pScrn,
     unsigned int cpp,
     unsigned int w,
-    CARD32 dstPitchOff,
-    CARD32 *bufPitch,
+    uint32_t dstPitchOff,
+    uint32_t *bufPitch,
     int x,
     int *y,
     unsigned int *h,
     unsigned int *hpass
 ){
     RADEONInfoPtr info = RADEONPTR( pScrn );
-    CARD32 format, dwords;
-    CARD8 *ret;
+    uint32_t format, dwords;
+    uint8_t *ret;
     RING_LOCALS;
 
     if ( *h == 0 )
@@ -783,7 +783,7 @@ RADEONHostDataBlit(
     OUT_RING( *hpass << 16 | (*bufPitch / cpp) );
     OUT_RING( dwords );
 
-    ret = ( CARD8* )&__head[__count];
+    ret = ( uint8_t* )&__head[__count];
 
     __count += dwords;
     ADVANCE_RING();
@@ -794,7 +794,7 @@ RADEONHostDataBlit(
     return ret;
 }
 
-void RADEONCopySwap(CARD8 *dst, CARD8 *src, unsigned int size, int swap)
+void RADEONCopySwap(uint8_t *dst, uint8_t *src, unsigned int size, int swap)
 {
     switch(swap) {
     case RADEON_HOST_DATA_SWAP_HDW:
@@ -849,8 +849,8 @@ void
 RADEONHostDataBlitCopyPass(
     ScrnInfoPtr pScrn,
     unsigned int cpp,
-    CARD8 *dst,
-    CARD8 *src,
+    uint8_t *dst,
+    uint8_t *src,
     unsigned int hpass,
     unsigned int dstPitch,
     unsigned int srcPitch
@@ -1139,7 +1139,7 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
 	/* Reserve space for textures */
 	info->textureOffset = ((info->FbMapSize - info->textureSize +
 				RADEON_BUFFER_ALIGN) &
-			       ~(CARD32)RADEON_BUFFER_ALIGN);
+			       ~(uint32_t)RADEON_BUFFER_ALIGN);
     }
 
     /* Reserve space for the shared depth
@@ -1147,7 +1147,7 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
      */
     info->depthOffset = ((info->textureOffset - depthSize +
 			  RADEON_BUFFER_ALIGN) &
-			 ~(CARD32)RADEON_BUFFER_ALIGN);
+			 ~(uint32_t)RADEON_BUFFER_ALIGN);
 
     /* Reserve space for the shared back buffer */
     if (info->noBackBuffer) {
@@ -1155,7 +1155,7 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     } else {
        info->backOffset = ((info->depthOffset - bufferSize +
 			    RADEON_BUFFER_ALIGN) &
-			   ~(CARD32)RADEON_BUFFER_ALIGN);
+			   ~(uint32_t)RADEON_BUFFER_ALIGN);
     }
 
     info->backY = info->backOffset / width_bytes;

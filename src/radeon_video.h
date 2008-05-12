@@ -15,8 +15,8 @@
 
 /* Xvideo port struct */
 typedef struct {
-   CARD32	 transform_index;
-   CARD32	 gamma; /* gamma value x 1000 */
+   uint32_t	 transform_index;
+   uint32_t	 gamma; /* gamma value x 1000 */
    int           brightness;
    int           saturation;
    int           hue;
@@ -32,17 +32,17 @@ typedef struct {
 
      /* i2c bus and devices */
    I2CBusPtr     i2c;
-   CARD32        radeon_i2c_timing;
-   CARD32        radeon_M;
-   CARD32        radeon_N;
-   CARD32        i2c_status;
-   CARD32        i2c_cntl;
+   uint32_t      radeon_i2c_timing;
+   uint32_t      radeon_M;
+   uint32_t      radeon_N;
+   uint32_t      i2c_status;
+   uint32_t      i2c_cntl;
    
    FI1236Ptr     fi1236;
-   CARD8         tuner_type;
+   uint8_t       tuner_type;
    MSP3430Ptr    msp3430;
    TDA9885Ptr    tda9885;
-    UDA1380Ptr	  uda1380;
+   UDA1380Ptr    uda1380;
 
    /* VIP bus and devices */
    GENERIC_BUS_Ptr  VIP;
@@ -50,12 +50,12 @@ typedef struct {
 
    Bool          video_stream_active;
    int           encoding;
-   CARD32        frequency;
+   uint32_t      frequency;
    int           volume;
    Bool          mute;
    int           sap_channel;
    int           v;
-   CARD32        adjustment; /* general purpose variable */
+   uint32_t      adjustment; /* general purpose variable */
    
 #define METHOD_BOB      0
 #define METHOD_SINGLE   1
@@ -74,14 +74,14 @@ typedef struct {
    Bool          doubleBuffer;
    unsigned char currentBuffer;
    RegionRec     clip;
-   CARD32        colorKey;
-   CARD32        videoStatus;
+   uint32_t      colorKey;
+   uint32_t      videoStatus;
    Time          offTime;
    Time          freeTime;
    Bool          autopaint_colorkey;
    xf86CrtcPtr   desired_crtc;
 
-   int              size;
+   int           size;
 #ifdef USE_EXA
    ExaOffscreenArea *off_screen;
 #endif
@@ -96,9 +96,9 @@ typedef struct {
     DrawablePtr pDraw;
     PixmapPtr pPixmap;
 
-    CARD32 src_offset;
-    CARD32 src_pitch;
-    CARD8 *src_addr;
+    uint32_t src_offset;
+    uint32_t src_pitch;
+    uint8_t *src_addr;
 
     int id;
     int src_w, src_h, dst_w, dst_h;
@@ -113,7 +113,7 @@ void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONVIP_init(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONVIP_reset(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
-CARD32
+uint32_t
 RADEONAllocateMemory(ScrnInfoPtr pScrn, void **mem_struct, int size);
 void
 RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);

@@ -4466,7 +4466,7 @@
 #       define R300_ALU_RGB_ADDR0(x)                    (x << 0)
 #       define R300_ALU_RGB_ADDR1(x)                    (x << 6)
 #       define R300_ALU_RGB_ADDR2(x)                    (x << 12)
-/* ADDRD - where on the pixle stack the result of this instruction
+/* ADDRD - where on the pixel stack the result of this instruction
    will be written */
 #       define R300_ALU_RGB_ADDRD(x)                    (x << 18)
 #       define R300_ALU_RGB_WMASK(x)                    (x << 23)
@@ -4558,7 +4558,7 @@
 #       define R300_ALU_ALPHA_ADDR0(x)                  (x << 0)
 #       define R300_ALU_ALPHA_ADDR1(x)                  (x << 6)
 #       define R300_ALU_ALPHA_ADDR2(x)                  (x << 12)
-/* ADDRD - where on the pixle stack the result of this instruction
+/* ADDRD - where on the pixel stack the result of this instruction
    will be written */
 #       define R300_ALU_ALPHA_ADDRD(x)                  (x << 18)
 #       define R300_ALU_ALPHA_WMASK(x)                  (x << 23)

@@ -558,59 +558,59 @@ static REF_TRANSFORM trans[2] =
 /* Gamma curve definition for preset gammas */
 typedef struct tagGAMMA_CURVE_R100
 {
-    CARD32 GAMMA_0_F_SLOPE;
-    CARD32 GAMMA_0_F_OFFSET;
-    CARD32 GAMMA_10_1F_SLOPE;
-    CARD32 GAMMA_10_1F_OFFSET;
-    CARD32 GAMMA_20_3F_SLOPE;
-    CARD32 GAMMA_20_3F_OFFSET;
-    CARD32 GAMMA_40_7F_SLOPE;
-    CARD32 GAMMA_40_7F_OFFSET;
-    CARD32 GAMMA_380_3BF_SLOPE;
-    CARD32 GAMMA_380_3BF_OFFSET;
-    CARD32 GAMMA_3C0_3FF_SLOPE;
-    CARD32 GAMMA_3C0_3FF_OFFSET;
+    uint32_t GAMMA_0_F_SLOPE;
+    uint32_t GAMMA_0_F_OFFSET;
+    uint32_t GAMMA_10_1F_SLOPE;
+    uint32_t GAMMA_10_1F_OFFSET;
+    uint32_t GAMMA_20_3F_SLOPE;
+    uint32_t GAMMA_20_3F_OFFSET;
+    uint32_t GAMMA_40_7F_SLOPE;
+    uint32_t GAMMA_40_7F_OFFSET;
+    uint32_t GAMMA_380_3BF_SLOPE;
+    uint32_t GAMMA_380_3BF_OFFSET;
+    uint32_t GAMMA_3C0_3FF_SLOPE;
+    uint32_t GAMMA_3C0_3FF_OFFSET;
     float OvGammaCont;
 } GAMMA_CURVE_R100;
 
 typedef struct tagGAMMA_CURVE_R200
 {
-    CARD32 GAMMA_0_F_SLOPE;
-    CARD32 GAMMA_0_F_OFFSET;
-    CARD32 GAMMA_10_1F_SLOPE;
-    CARD32 GAMMA_10_1F_OFFSET;
-    CARD32 GAMMA_20_3F_SLOPE;
-    CARD32 GAMMA_20_3F_OFFSET;
-    CARD32 GAMMA_40_7F_SLOPE;
-    CARD32 GAMMA_40_7F_OFFSET;
-    CARD32 GAMMA_80_BF_SLOPE;
-    CARD32 GAMMA_80_BF_OFFSET;
-    CARD32 GAMMA_C0_FF_SLOPE;
-    CARD32 GAMMA_C0_FF_OFFSET;
-    CARD32 GAMMA_100_13F_SLOPE;
-    CARD32 GAMMA_100_13F_OFFSET;
-    CARD32 GAMMA_140_17F_SLOPE;
-    CARD32 GAMMA_140_17F_OFFSET;
-    CARD32 GAMMA_180_1BF_SLOPE;
-    CARD32 GAMMA_180_1BF_OFFSET;
-    CARD32 GAMMA_1C0_1FF_SLOPE;
-    CARD32 GAMMA_1C0_1FF_OFFSET;
-    CARD32 GAMMA_200_23F_SLOPE;
-    CARD32 GAMMA_200_23F_OFFSET;
-    CARD32 GAMMA_240_27F_SLOPE;
-    CARD32 GAMMA_240_27F_OFFSET;
-    CARD32 GAMMA_280_2BF_SLOPE;
-    CARD32 GAMMA_280_2BF_OFFSET;
-    CARD32 GAMMA_2C0_2FF_SLOPE;
-    CARD32 GAMMA_2C0_2FF_OFFSET;
-    CARD32 GAMMA_300_33F_SLOPE;
-    CARD32 GAMMA_300_33F_OFFSET;
-    CARD32 GAMMA_340_37F_SLOPE;
-    CARD32 GAMMA_340_37F_OFFSET;
-    CARD32 GAMMA_380_3BF_SLOPE;
-    CARD32 GAMMA_380_3BF_OFFSET;
-    CARD32 GAMMA_3C0_3FF_SLOPE;
-    CARD32 GAMMA_3C0_3FF_OFFSET;
+    uint32_t GAMMA_0_F_SLOPE;
+    uint32_t GAMMA_0_F_OFFSET;
+    uint32_t GAMMA_10_1F_SLOPE;
+    uint32_t GAMMA_10_1F_OFFSET;
+    uint32_t GAMMA_20_3F_SLOPE;
+    uint32_t GAMMA_20_3F_OFFSET;
+    uint32_t GAMMA_40_7F_SLOPE;
+    uint32_t GAMMA_40_7F_OFFSET;
+    uint32_t GAMMA_80_BF_SLOPE;
+    uint32_t GAMMA_80_BF_OFFSET;
+    uint32_t GAMMA_C0_FF_SLOPE;
+    uint32_t GAMMA_C0_FF_OFFSET;
+    uint32_t GAMMA_100_13F_SLOPE;
+    uint32_t GAMMA_100_13F_OFFSET;
+    uint32_t GAMMA_140_17F_SLOPE;
+    uint32_t GAMMA_140_17F_OFFSET;
+    uint32_t GAMMA_180_1BF_SLOPE;
+    uint32_t GAMMA_180_1BF_OFFSET;
+    uint32_t GAMMA_1C0_1FF_SLOPE;
+    uint32_t GAMMA_1C0_1FF_OFFSET;
+    uint32_t GAMMA_200_23F_SLOPE;
+    uint32_t GAMMA_200_23F_OFFSET;
+    uint32_t GAMMA_240_27F_SLOPE;
+    uint32_t GAMMA_240_27F_OFFSET;
+    uint32_t GAMMA_280_2BF_SLOPE;
+    uint32_t GAMMA_280_2BF_OFFSET;
+    uint32_t GAMMA_2C0_2FF_SLOPE;
+    uint32_t GAMMA_2C0_2FF_OFFSET;
+    uint32_t GAMMA_300_33F_SLOPE;
+    uint32_t GAMMA_300_33F_OFFSET;
+    uint32_t GAMMA_340_37F_SLOPE;
+    uint32_t GAMMA_340_37F_OFFSET;
+    uint32_t GAMMA_380_3BF_SLOPE;
+    uint32_t GAMMA_380_3BF_OFFSET;
+    uint32_t GAMMA_3C0_3FF_SLOPE;
+    uint32_t GAMMA_3C0_3FF_OFFSET;
     float OvGammaCont;
 } GAMMA_CURVE_R200;
 
@@ -849,11 +849,11 @@ static GAMMA_CURVE_R200 gamma_curve_r200[8] =
 };
 
 static void
-RADEONSetOverlayGamma(ScrnInfoPtr pScrn, CARD32 gamma)
+RADEONSetOverlayGamma(ScrnInfoPtr pScrn, uint32_t gamma)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
     unsigned char   *RADEONMMIO = info->MMIO;
-    CARD32	    ov0_scale_cntl;
+    uint32_t	    ov0_scale_cntl;
 
     /* Set gamma */
     RADEONWaitForIdleMMIO(pScrn);
@@ -965,8 +965,8 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
 				float	    red_intensity,
 				float	    green_intensity,
 				float	    blue_intensity,
-				CARD32	    ref,
-				CARD32      user_gamma)
+				uint32_t    ref,
+				uint32_t    user_gamma)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
     unsigned char   *RADEONMMIO = info->MMIO;
@@ -983,11 +983,11 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     float	    Loff = 64.0;
     float	    Coff = 512.0f;
 
-    CARD32	    dwOvLuma, dwOvROff, dwOvGOff, dwOvBOff;
-    CARD32	    dwOvRCb, dwOvRCr;
-    CARD32	    dwOvGCb, dwOvGCr;
-    CARD32	    dwOvBCb, dwOvBCr;
-    CARD32	    gamma = 0;
+    uint32_t	    dwOvLuma, dwOvROff, dwOvGOff, dwOvBOff;
+    uint32_t	    dwOvRCb, dwOvRCr;
+    uint32_t	    dwOvGCb, dwOvGCr;
+    uint32_t	    dwOvBCb, dwOvBCr;
+    uint32_t	    gamma = 0;
 
     if (ref >= 2)
 	return;
@@ -1151,16 +1151,16 @@ static void RADEONSetOverlayAlpha(ScrnInfoPtr pScrn, int ov_alpha, int gr_alpha,
      /* not yet supported */
 }
 
-static void RADEONSetColorKey(ScrnInfoPtr pScrn, CARD32 colorKey)
+static void RADEONSetColorKey(ScrnInfoPtr pScrn, uint32_t colorKey)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 min, max;
-    CARD8 r, g, b;
+    uint32_t min, max;
+    uint8_t r, g, b;
 
     if (info->CurrentLayout.depth > 8)
     {
-	CARD32	rbits, gbits, bbits;
+	uint32_t	rbits, gbits, bbits;
 
 	rbits = (colorKey & pScrn->mask.red) >> pScrn->offset.red;
 	gbits = (colorKey & pScrn->mask.green) >> pScrn->offset.green;
@@ -1172,7 +1172,7 @@ static void RADEONSetColorKey(ScrnInfoPtr pScrn, CARD32 colorKey)
     }
     else
     {
-	CARD32	bits;
+	uint32_t	bits;
 
 	bits = colorKey & ((1 << info->CurrentLayout.depth) - 1);
 	r = bits;
@@ -1315,7 +1315,7 @@ static void RADEONSetupTheatre(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     RADEONPLLPtr  pll = &(info->pll);
     TheatrePtr t;
 
-    CARD8 a;
+    uint8_t a;
     int i;
               
     pPriv->theatre = NULL;
@@ -1409,7 +1409,7 @@ RADEONAllocAdaptor(ScrnInfoPtr pScrn)
     XF86VideoAdaptorPtr adapt;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPriv;
-    CARD32 dot_clock;
+    uint32_t dot_clock;
     int ecp;
 
     if(!(adapt = xf86XVAllocateVideoAdaptorRec(pScrn)))
@@ -2178,8 +2178,8 @@ RADEONCopyData(
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
-	CARD8 *buf;
-	CARD32 bufPitch, dstPitchOff;
+	uint8_t *buf;
+	uint32_t bufPitch, dstPitchOff;
 	int x, y;
 	unsigned int hpass;
 
@@ -2243,21 +2243,21 @@ RADEONCopyRGB24Data(
   unsigned int h,
   unsigned int w
 ){
-    CARD32 *dptr;
-    CARD8 *sptr;
+    uint32_t *dptr;
+    uint8_t *sptr;
     int i,j;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 #ifdef XF86DRI
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
-	CARD32 bufPitch, dstPitchOff;
+	uint32_t bufPitch, dstPitchOff;
 	int x, y;
 	unsigned int hpass;
 
 	RADEONHostDataParams( pScrn, dst, dstPitch, 4, &dstPitchOff, &x, &y );
 
-	while ( (dptr = ( CARD32* )RADEONHostDataBlit( pScrn, 4, w, dstPitchOff,
+	while ( (dptr = ( uint32_t* )RADEONHostDataBlit( pScrn, 4, w, dstPitchOff,
 						       &bufPitch, x, &y, &h,
 						       &hpass )) )
 	{
@@ -2290,7 +2290,7 @@ RADEONCopyRGB24Data(
 #endif
 
 	for (j = 0; j < h; j++) {
-	    dptr = (CARD32 *)(dst + j * dstPitch);
+	    dptr = (uint32_t *)(dst + j * dstPitch);
 	    sptr = src + j * srcPitch;
 
 	    for (i = 0; i < w; i++, sptr += 3) {
@@ -2341,8 +2341,8 @@ RADEONCopyMungedData(
 
     if ( info->directRenderingEnabled && info->DMAForXv )
     {
-	CARD8 *buf;
-	CARD32 y = 0, bufPitch, dstPitchOff;
+	uint8_t *buf;
+	uint32_t y = 0, bufPitch, dstPitchOff;
 	int blitX, blitY;
 	unsigned int hpass;
 
@@ -2373,8 +2373,8 @@ RADEONCopyMungedData(
     else
 #endif /* XF86DRI */
     {
-	CARD32 *dst;
-	CARD8 *s1, *s2, *s3;
+	uint32_t *dst;
+	uint8_t *s1, *s2, *s3;
 	int i, j;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -2428,7 +2428,7 @@ RADEONCopyMungedData(
  * is measured in bytes, and the offset from the beginning of card space is
  * returned.
  */
-CARD32
+uint32_t
 RADEONAllocateMemory(
    ScrnInfoPtr pScrn,
    void **mem_struct,
@@ -2550,7 +2550,7 @@ RADEONDisplayVideo(
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
+    uint32_t v_inc, h_inc, h_inc_uv, step_by_y, step_by_uv, tmp;
     double h_inc_d;
     int p1_h_accum_init, p23_h_accum_init;
     int p1_v_accum_init, p23_v_accum_init;
@@ -2560,12 +2560,12 @@ RADEONDisplayVideo(
     int y_mult;
     int x_off;
     int y_off;
-    CARD32 scaler_src;
-    CARD32 dot_clock;
+    uint32_t scaler_src;
+    uint32_t dot_clock;
     int is_rgb;
     int is_planar;
     int i;
-    CARD32 scale_cntl;
+    uint32_t scale_cntl;
     double dsr;
     int tap_set;
     int predownscale=0;
@@ -2881,7 +2881,7 @@ RADEONDisplayVideo(
 
 
 static void
-RADEONFillKeyHelper(DrawablePtr pDraw, CARD32 colorKey, RegionPtr clipBoxes)
+RADEONFillKeyHelper(DrawablePtr pDraw, uint32_t colorKey, RegionPtr clipBoxes)
 {
 #if HAVE_XV_DRAWABLE_HELPER
     xf86XVFillKeyHelperDrawable(pDraw, colorKey, clipBoxes);
@@ -2914,7 +2914,7 @@ RADEONPutImage(
    int top, left, npixels, nlines, bpp;
    int idconv = id;
    BoxRec dstBox;
-   CARD32 tmp;
+   uint32_t tmp;
    xf86CrtcPtr crtc;
 
    /*
@@ -3470,7 +3470,7 @@ RADEONPutVideo(
    int srcPitch, srcPitch2, dstPitch;
    int bpp;
    BoxRec dstBox;
-   CARD32 id, display_base;
+   uint32_t id, display_base;
    int width, height;
    int mult;
    int vbi_line_width, vbi_start, vbi_end;

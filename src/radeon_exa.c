@@ -112,11 +112,11 @@ RADEONLog2(int val)
 #endif
 }
 
-static __inline__ CARD32 F_TO_DW(float val)
+static __inline__ uint32_t F_TO_DW(float val)
 {
     union {
 	float f;
-	CARD32 l;
+	uint32_t l;
     } tmp;
     tmp.f = val;
     return tmp.l;
@@ -125,7 +125,7 @@ static __inline__ CARD32 F_TO_DW(float val)
 /* Assumes that depth 15 and 16 can be used as depth 16, which is okay since we
  * require src and dest datatypes to be equal.
  */
-Bool RADEONGetDatatypeBpp(int bpp, CARD32 *type)
+Bool RADEONGetDatatypeBpp(int bpp, uint32_t *type)
 {
 	switch (bpp) {
 	case 8:
@@ -159,7 +159,7 @@ static Bool RADEONPixmapIsColortiled(PixmapPtr pPix)
 	return FALSE;
 }
 
-static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, CARD32 *pitch_offset,
+static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, uint32_t *pitch_offset,
 				 unsigned int offset, unsigned int pitch)
 {
 	RINFO_FROM_SCREEN(pPix->drawable.pScreen);
@@ -179,10 +179,10 @@ static Bool RADEONGetOffsetPitch(PixmapPtr pPix, int bpp, CARD32 *pitch_offset,
 	return TRUE;
 }
 
-Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, CARD32 *pitch_offset)
+Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
 {
 	RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-	CARD32 pitch, offset;
+	uint32_t pitch, offset;
 	int bpp;
 
 	bpp = pPix->drawable.bitsPerPixel;
@@ -203,9 +203,9 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 offset = exaGetPixmapOffset(pPix);
+    uint32_t offset = exaGetPixmapOffset(pPix);
     int bpp, soff;
-    CARD32 size, flags;
+    uint32_t size, flags;
 
     /* Front buffer is always set with proper swappers */
     if (offset == 0)
@@ -269,7 +269,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 offset = exaGetPixmapOffset(pPix);
+    uint32_t offset = exaGetPixmapOffset(pPix);
     int soff;
 
     /* Front buffer is always set with proper swappers */
@@ -300,7 +300,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 
 #define RADEON_SWITCH_TO_2D()						\
 do {									\
-	CARD32 wait_until = 0;			\
+	uint32_t wait_until = 0;			\
 	BEGIN_ACCEL(1);							\
 	switch (info->engineMode) {					\
 	case EXA_ENGINEMODE_UNKNOWN:					\
@@ -317,7 +317,7 @@ do {									\
 
 #define RADEON_SWITCH_TO_3D()						\
 do {									\
-	CARD32 wait_until = 0;			\
+	uint32_t wait_until = 0;			\
 	BEGIN_ACCEL(1);							\
 	switch (info->engineMode) {					\
 	case EXA_ENGINEMODE_UNKNOWN:					\

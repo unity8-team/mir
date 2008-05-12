@@ -145,7 +145,7 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
 };
 
-static const CARD32 default_tvdac_adj [CHIP_FAMILY_LAST] =
+static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
 {
     0x00000000,   /* unknown */
     0x00000000,   /* legacy */
@@ -252,7 +252,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 DDCReg;
+    uint32_t DDCReg;
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -266,7 +266,7 @@ RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
     /* Read and output monitor info using DDC2 over I2C bus */
     if (radeon_output->pI2CBus && info->ddc2 && (DDCReg != RADEON_LCD_GPIO_MASK) && (DDCReg != RADEON_MDGPIO_EN_REG)) {
 	OUTREG(DDCReg, INREG(DDCReg) &
-	       (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+	       (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
 	/* For some old monitors (like Compaq Presario FP500), we need
 	 * following process to initialize/stop DDC
@@ -1154,7 +1154,7 @@ radeon_set_backlight_level(xf86OutputPtr output, int level)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char * RADEONMMIO = info->MMIO;
-    CARD32 lvds_gen_cntl;
+    uint32_t lvds_gen_cntl;
 
     lvds_gen_cntl = INREG(RADEON_LVDS_GEN_CNTL);
     lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
@@ -1730,7 +1730,7 @@ Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONI2CBusPtr pRADEONI2CBus = radeon_output->pI2CBus->DriverPrivate.ptr;
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 temp;
+    uint32_t temp;
 
     temp = INREG(pRADEONI2CBus->mask_clk_reg);
     if (lock_state == AVIVO_I2C_ENABLE)
@@ -1775,13 +1775,13 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
 
-    val = INREG(pRADEONI2CBus->put_clk_reg) & (CARD32)~(pRADEONI2CBus->put_clk_mask);
+    val = INREG(pRADEONI2CBus->put_clk_reg) & (uint32_t)~(pRADEONI2CBus->put_clk_mask);
     val |= (Clock ? 0:pRADEONI2CBus->put_clk_mask);
     OUTREG(pRADEONI2CBus->put_clk_reg, val);
     /* read back to improve reliability on some cards. */
     val = INREG(pRADEONI2CBus->put_clk_reg);
 
-    val = INREG(pRADEONI2CBus->put_data_reg) & (CARD32)~(pRADEONI2CBus->put_data_mask);
+    val = INREG(pRADEONI2CBus->put_data_reg) & (uint32_t)~(pRADEONI2CBus->put_data_mask);
     val |= (data ? 0:pRADEONI2CBus->put_data_mask);
     OUTREG(pRADEONI2CBus->put_data_reg, val);
     /* read back to improve reliability on some cards. */
@@ -1898,8 +1898,8 @@ RADEONGetPanelInfoFromReg (xf86OutputPtr output)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 fp_vert_stretch = INREG(RADEON_FP_VERT_STRETCH);
-    CARD32 fp_horz_stretch = INREG(RADEON_FP_HORZ_STRETCH);
+    uint32_t fp_vert_stretch = INREG(RADEON_FP_VERT_STRETCH);
+    uint32_t fp_horz_stretch = INREG(RADEON_FP_HORZ_STRETCH);
 
     radeon_output->PanelPwrDly = 200;
     if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE) {
@@ -1922,7 +1922,7 @@ RADEONGetPanelInfoFromReg (xf86OutputPtr output)
 
     // move this to crtc function
     if (xf86ReturnOptValBool(info->Options, OPTION_LVDS_PROBE_PLL, TRUE)) {
-           CARD32 ppll_div_sel, ppll_val;
+           uint32_t ppll_div_sel, ppll_val;
 
            ppll_div_sel = INREG8(RADEON_CLOCK_CNTL_INDEX + 1) & 0x3;
 	   RADEONPllErrataAfterIndex(info);

@@ -78,7 +78,7 @@ enum
     ATI_CHIP_FAMILY_Radeon
 };
 
-static int ATIChipID(const CARD16);
+static int ATIChipID(const uint16_t);
 
 #ifdef XSERVER_LIBPCIACCESS
 
@@ -249,7 +249,7 @@ ati_gdev_subdriver(pointer options)
  * This returns the ATI_CHIP_FAMILY_* value associated with a particular ChipID.
  */
 static int
-ATIChipID(const CARD16 ChipID)
+ATIChipID(const uint16_t ChipID)
 {
     switch (ChipID)
     {

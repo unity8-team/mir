@@ -70,11 +70,11 @@ RADEONTilingEnabled(ScrnInfoPtr pScrn, PixmapPtr pPix)
 	}
 }
 
-static __inline__ CARD32 F_TO_DW(float val)
+static __inline__ uint32_t F_TO_DW(float val)
 {
     union {
 	float f;
-	CARD32 l;
+	uint32_t l;
     } tmp;
     tmp.f = val;
     return tmp.l;
@@ -227,7 +227,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
     pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
-    pPriv->src_addr = (CARD8 *)(info->FB + pPriv->video_offset + (top * dstPitch));
+    pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
     pPriv->src_pitch = dstPitch;
     pPriv->size = size;
     pPriv->pDraw = pDraw;

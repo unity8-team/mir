@@ -8,30 +8,30 @@
 typedef struct {
          GENERIC_BUS_Ptr VIP;
 	 
-	 int theatre_num;
-	 CARD32 theatre_id;
-	 int  mode;
-	 char* microc_path;
-	 char* microc_type;
+	 int      theatre_num;
+	 uint32_t theatre_id;
+	 int      mode;
+	 char*    microc_path;
+	 char*    microc_type;
 	 
-	 CARD16 video_decoder_type;
-	 CARD32 wStandard;
-	 CARD32 wConnector;
-	 int    iHue;
-	 int    iSaturation;
-	 CARD32 wSaturation_U;
-	 CARD32 wSaturation_V;
-	 int    iBrightness;
-	 int    dbBrightnessRatio;
-	 CARD32 wSharpness;
-	 int    iContrast;
-	 int    dbContrast;
-	 CARD32 wInterlaced;
-	 CARD32 wTunerConnector;
-	 CARD32 wComp0Connector;
-	 CARD32 wSVideo0Connector;
-	 CARD32 dwHorzScalingRatio;
-	 CARD32 dwVertScalingRatio;
+	 uint16_t video_decoder_type;
+	 uint32_t wStandard;
+	 uint32_t wConnector;
+	 int      iHue;
+	 int      iSaturation;
+	 uint32_t wSaturation_U;
+	 uint32_t wSaturation_V;
+	 int      iBrightness;
+	 int      dbBrightnessRatio;
+	 uint32_t wSharpness;
+	 int      iContrast;
+	 int      dbContrast;
+	 uint32_t wInterlaced;
+	 uint32_t wTunerConnector;
+	 uint32_t wComp0Connector;
+	 uint32_t wSVideo0Connector;
+	 uint32_t dwHorzScalingRatio;
+	 uint32_t dwVertScalingRatio;
 	 
 	 } TheatreRec, * TheatrePtr;
 
@@ -46,17 +46,17 @@ _X_EXPORT void RT_SetSaturation (TheatrePtr t, int Saturation);
 #define xf86_RT_SetBrightness		RT_SetBrightness
 _X_EXPORT void RT_SetBrightness (TheatrePtr t, int Brightness);
 #define xf86_RT_SetSharpness		RT_SetSharpness
-_X_EXPORT void RT_SetSharpness (TheatrePtr t, CARD16 wSharpness);
+_X_EXPORT void RT_SetSharpness (TheatrePtr t, uint16_t wSharpness);
 #define xf86_RT_SetContrast		RT_SetContrast
 _X_EXPORT void RT_SetContrast (TheatrePtr t, int Contrast);
 #define xf86_RT_SetInterlace		RT_SetInterlace
-_X_EXPORT void RT_SetInterlace (TheatrePtr t, CARD8 bInterlace);
+_X_EXPORT void RT_SetInterlace (TheatrePtr t, uint8_t bInterlace);
 #define xf86_RT_SetStandard		RT_SetStandard
-_X_EXPORT void RT_SetStandard (TheatrePtr t, CARD16 wStandard);
+_X_EXPORT void RT_SetStandard (TheatrePtr t, uint16_t wStandard);
 #define xf86_RT_SetOutputVideoSize	RT_SetOutputVideoSize
-_X_EXPORT void RT_SetOutputVideoSize (TheatrePtr t, CARD16 wHorzSize, CARD16 wVertSize, CARD8 fCC_On, CARD8 fVBICap_On);
+_X_EXPORT void RT_SetOutputVideoSize (TheatrePtr t, uint16_t wHorzSize, uint16_t wVertSize, uint8_t fCC_On, uint8_t fVBICap_On);
 #define xf86_RT_SetConnector		RT_SetConnector
-_X_EXPORT void RT_SetConnector (TheatrePtr t, CARD16 wConnector, int tunerFlag);
+_X_EXPORT void RT_SetConnector (TheatrePtr t, uint16_t wConnector, int tunerFlag);
 #define xf86_ResetTheatreRegsForNoTVout	ResetTheatreRegsForNoTVout
 _X_EXPORT void ResetTheatreRegsForNoTVout(TheatrePtr t);
 #define xf86_ResetTheatreRegsForTVout	ResetTheatreRegsForTVout

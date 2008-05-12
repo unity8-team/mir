@@ -451,17 +451,17 @@ static void RADEONDRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 
 /* 16-bit depth buffer functions */
 #define WRITE_DEPTH16(_x, _y, d)					\
-    *(CARD16 *)(pointer)(buf + 2*(_x + _y*info->frontPitch)) = (d)
+    *(uint16_t *)(pointer)(buf + 2*(_x + _y*info->frontPitch)) = (d)
 
 #define READ_DEPTH16(d, _x, _y)						\
-    (d) = *(CARD16 *)(pointer)(buf + 2*(_x + _y*info->frontPitch))
+    (d) = *(uint16_t *)(pointer)(buf + 2*(_x + _y*info->frontPitch))
 
 /* 32-bit depth buffer (stencil and depth simultaneously) functions */
 #define WRITE_DEPTHSTENCIL32(_x, _y, d)					\
-    *(CARD32 *)(pointer)(buf + 4*(_x + _y*info->frontPitch)) = (d)
+    *(uint32_t *)(pointer)(buf + 4*(_x + _y*info->frontPitch)) = (d)
 
 #define READ_DEPTHSTENCIL32(d, _x, _y)					\
-    (d) = *(CARD32 *)(pointer)(buf + 4*(_x + _y*info->frontPitch))
+    (d) = *(uint32_t *)(pointer)(buf + 4*(_x + _y*info->frontPitch))
 
 /* Screen to screen copy of data in the depth buffer */
 static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
@@ -508,7 +508,7 @@ static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
 #endif /* USE_XAA */
 
 /* Initialize the state of the back and depth buffers */
-static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
+static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, uint32_t indx)
 {
    /* NOOP.  There's no need for the 2d driver to be clearing buffers
     * for the 3d client.  It knows how to do that on its own.
@@ -523,7 +523,7 @@ static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
  * are reversed.
  */
 static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
-				 RegionPtr prgnSrc, CARD32 indx)
+				 RegionPtr prgnSrc, uint32_t indx)
 {
 #ifdef USE_XAA
     ScreenPtr      pScreen  = pParent->drawable.pScreen;
@@ -646,7 +646,7 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
        info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
 
     (*info->accel->SetupForScreenToScreenCopy)(pScrn, xdir, ydir, GXcopy,
-					       (CARD32)(-1), -1);
+					       (uint32_t)(-1), -1);
 
     for (; nbox-- ; pbox++) {
 	int  xa    = pbox->x1;
@@ -724,7 +724,7 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     unsigned int  device = drmAgpDeviceId(info->drmFD);
     /* ignore agp 3.0 mode bit from the chip as it's buggy on some cards with
        pcie-agp rialto bridge chip - use the one from bridge which must match */
-    CARD32 agp_status = (INREG(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode;
+    uint32_t agp_status = (INREG(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode;
     Bool is_v3 = (agp_status & RADEON_AGPv3_MODE);
     unsigned int defaultMode;
     MessageType from;
@@ -1903,7 +1903,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 
 #ifdef USE_EXA
     if (info->useEXA) {
-	CARD32 src_pitch_offset, dst_pitch_offset, datatype;
+	uint32_t src_pitch_offset, dst_pitch_offset, datatype;
 
 	RADEONGetPixmapOffsetPitch(pPix, &src_pitch_offset);
 	dst_pitch_offset = src_pitch_offset + (info->backOffset >> 10);
@@ -1924,7 +1924,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
 	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
 						   1, 1, GXcopy,
-						   (CARD32)(-1), -1);
+						   (uint32_t)(-1), -1);
     }
 #endif
 

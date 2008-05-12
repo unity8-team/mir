@@ -34,22 +34,22 @@
 
 typedef struct
 {
-    CARD16 horResolution;
-    CARD16 verResolution;
+    uint16_t horResolution;
+    uint16_t verResolution;
     TVStd  standard;
-    CARD16 horTotal;
-    CARD16 verTotal;
-    CARD16 horStart;
-    CARD16 horSyncStart;
-    CARD16 verSyncStart;
+    uint16_t horTotal;
+    uint16_t verTotal;
+    uint16_t horStart;
+    uint16_t horSyncStart;
+    uint16_t verSyncStart;
     unsigned defRestart;
-    CARD16 crtcPLL_N;
-    CARD8  crtcPLL_M;
-    CARD8  crtcPLL_postDiv;
+    uint16_t crtcPLL_N;
+    uint8_t  crtcPLL_M;
+    uint8_t  crtcPLL_postDiv;
     unsigned pixToTV;
 } TVModeConstants;
 
-static const CARD16 hor_timing_NTSC[] =
+static const uint16_t hor_timing_NTSC[] =
 {
     0x0007,
     0x003f,
@@ -71,7 +71,7 @@ static const CARD16 hor_timing_NTSC[] =
     0
 };
 
-static const CARD16 vert_timing_NTSC[] =
+static const uint16_t vert_timing_NTSC[] =
 {
     0x2001,
     0x200d,
@@ -89,7 +89,7 @@ static const CARD16 vert_timing_NTSC[] =
     0
 };
 
-static const CARD16 hor_timing_PAL[] =
+static const uint16_t hor_timing_PAL[] =
 {
     0x0007,
     0x0058,
@@ -111,7 +111,7 @@ static const CARD16 hor_timing_PAL[] =
     0
 };
 
-static const CARD16 vert_timing_PAL[] =
+static const uint16_t vert_timing_PAL[] =
 {
     0x2001,
     0x200c,
@@ -186,7 +186,7 @@ RADEONWaitPLLLock(ScrnInfoPtr pScrn, unsigned nTests,
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 savePLLTest;
+    uint32_t savePLLTest;
     unsigned i;
     unsigned j;
 
@@ -215,12 +215,12 @@ RADEONWaitPLLLock(ScrnInfoPtr pScrn, unsigned nTests,
 
 /* Write to TV FIFO RAM */
 static void
-RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
-		  CARD32 value)
+RADEONWriteTVFIFO(ScrnInfoPtr pScrn, uint16_t addr,
+		  uint32_t value)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 tmp;
+    uint32_t tmp;
     int i = 0;
 
     OUTREG(RADEON_TV_HOST_WRITE_DATA, value);
@@ -241,12 +241,12 @@ RADEONWriteTVFIFO(ScrnInfoPtr pScrn, CARD16 addr,
 }
 
 /* Read from TV FIFO RAM */
-static CARD32
-RADEONReadTVFIFO(ScrnInfoPtr pScrn, CARD16 addr)
+static uint32_t
+RADEONReadTVFIFO(ScrnInfoPtr pScrn, uint16_t addr)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 tmp;
+    uint32_t tmp;
     int i = 0;
   
     OUTREG(RADEON_TV_HOST_RD_WT_CNTL, addr);
@@ -269,10 +269,10 @@ RADEONReadTVFIFO(ScrnInfoPtr pScrn, CARD16 addr)
 /* Get FIFO addresses of horizontal & vertical code timing tables from
  * settings of uv_adr register. 
  */
-static CARD16
-RADEONGetHTimingTablesAddr(CARD32 tv_uv_adr)
+static uint16_t
+RADEONGetHTimingTablesAddr(uint32_t tv_uv_adr)
 {
-    CARD16 hTable;
+    uint16_t hTable;
 
     switch ((tv_uv_adr & RADEON_HCODE_TABLE_SEL_MASK) >> RADEON_HCODE_TABLE_SEL_SHIFT) {
     case 0:
@@ -292,10 +292,10 @@ RADEONGetHTimingTablesAddr(CARD32 tv_uv_adr)
     return hTable;
 }
 
-static CARD16
-RADEONGetVTimingTablesAddr(CARD32 tv_uv_adr)
+static uint16_t
+RADEONGetVTimingTablesAddr(uint32_t tv_uv_adr)
 {
-    CARD16 vTable;
+    uint16_t vTable;
 
     switch ((tv_uv_adr & RADEON_VCODE_TABLE_SEL_MASK) >> RADEON_VCODE_TABLE_SEL_SHIFT) {
     case 0:
@@ -321,9 +321,9 @@ RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD16 hTable;
-    CARD16 vTable;
-    CARD32 tmp;
+    uint16_t hTable;
+    uint16_t vTable;
+    uint32_t tmp;
     unsigned i;
 
     OUTREG(RADEON_TV_UV_ADR, restore->tv_uv_adr);
@@ -331,14 +331,14 @@ RADEONRestoreTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     vTable = RADEONGetVTimingTablesAddr(restore->tv_uv_adr);
 
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2, hTable--) {
-	tmp = ((CARD32)restore->h_code_timing[ i ] << 14) | ((CARD32)restore->h_code_timing[ i + 1 ]);
+	tmp = ((uint32_t)restore->h_code_timing[ i ] << 14) | ((uint32_t)restore->h_code_timing[ i + 1 ]);
 	RADEONWriteTVFIFO(pScrn, hTable, tmp);
 	if (restore->h_code_timing[ i ] == 0 || restore->h_code_timing[ i + 1 ] == 0)
 	    break;
     }
 
     for (i = 0; i < MAX_V_CODE_TIMING_LEN; i += 2, vTable++) {
-	tmp = ((CARD32)restore->v_code_timing[ i + 1 ] << 14) | ((CARD32)restore->v_code_timing[ i ]);
+	tmp = ((uint32_t)restore->v_code_timing[ i + 1 ] << 14) | ((uint32_t)restore->v_code_timing[ i ]);
 	RADEONWriteTVFIFO(pScrn, vTable, tmp);
 	if (restore->v_code_timing[ i ] == 0 || restore->v_code_timing[ i + 1 ] == 0)
 	    break;
@@ -485,9 +485,9 @@ RADEONSaveTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr save)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD16 hTable;
-    CARD16 vTable;
-    CARD32 tmp;
+    uint16_t hTable;
+    uint16_t vTable;
+    uint32_t tmp;
     unsigned i;
 
     save->tv_uv_adr = INREG(RADEON_TV_UV_ADR);
@@ -511,8 +511,8 @@ RADEONSaveTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     for (i = 0; i < MAX_H_CODE_TIMING_LEN; i += 2) {
 	tmp = RADEONReadTVFIFO(pScrn, hTable--);
-	save->h_code_timing[ i     ] = (CARD16)((tmp >> 14) & 0x3fff);
-	save->h_code_timing[ i + 1 ] = (CARD16)(tmp & 0x3fff);
+	save->h_code_timing[ i     ] = (uint16_t)((tmp >> 14) & 0x3fff);
+	save->h_code_timing[ i + 1 ] = (uint16_t)(tmp & 0x3fff);
 
 	if (save->h_code_timing[ i ] == 0 || save->h_code_timing[ i + 1 ] == 0)
 	    break;
@@ -520,8 +520,8 @@ RADEONSaveTVTimingTables(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     for (i = 0; i < MAX_V_CODE_TIMING_LEN; i += 2) {
 	tmp = RADEONReadTVFIFO(pScrn, vTable++);
-	save->v_code_timing[ i     ] = (CARD16)(tmp & 0x3fff);
-	save->v_code_timing[ i + 1 ] = (CARD16)((tmp >> 14) & 0x3fff);
+	save->v_code_timing[ i     ] = (uint16_t)(tmp & 0x3fff);
+	save->v_code_timing[ i + 1 ] = (uint16_t)((tmp >> 14) & 0x3fff);
 
 	if (save->v_code_timing[ i ] == 0 || save->v_code_timing[ i + 1 ] == 0)
 	    break;
@@ -588,10 +588,10 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     unsigned fTotal;
     int vOffset;
     int hOffset;
-    CARD16 p1;
-    CARD16 p2;
+    uint16_t p1;
+    uint16_t p2;
     Bool hChanged;
-    CARD16 hInc;
+    uint16_t hInc;
     const TVModeConstants *constPtr;
 
     /* FIXME: need to revisit this when we add more modes */
@@ -629,8 +629,8 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     }
 
 
-    p1 = (CARD16)((int)p1 + hOffset);
-    p2 = (CARD16)((int)p2 - hOffset);
+    p1 = (uint16_t)((int)p1 + hOffset);
+    p2 = (uint16_t)((int)p2 - hOffset);
 
     hChanged = (p1 != save->h_code_timing[ H_TABLE_POS1 ] || 
 		p2 != save->h_code_timing[ H_TABLE_POS2 ]);
@@ -675,14 +675,14 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
 	radeon_output->tvStd == TV_STD_PAL_M)
-	hInc = (CARD16)((int)(constPtr->horResolution * 4096 * NTSC_TV_CLOCK_T) /
+	hInc = (uint16_t)((int)(constPtr->horResolution * 4096 * NTSC_TV_CLOCK_T) /
 			(radeon_output->hSize * (int)(NTSC_TV_H_SIZE_UNIT) + (int)(NTSC_TV_ZERO_H_SIZE)));
     else
-	hInc = (CARD16)((int)(constPtr->horResolution * 4096 * PAL_TV_CLOCK_T) /
+	hInc = (uint16_t)((int)(constPtr->horResolution * 4096 * PAL_TV_CLOCK_T) /
 			(radeon_output->hSize * (int)(PAL_TV_H_SIZE_UNIT) + (int)(PAL_TV_ZERO_H_SIZE)));
 
     save->tv_timing_cntl = (save->tv_timing_cntl & ~RADEON_H_INC_MASK) |
-	((CARD32)hInc << RADEON_H_INC_SHIFT);
+	((uint32_t)hInc << RADEON_H_INC_SHIFT);
 
     ErrorF("computeRestarts: hSize=%d,hInc=%u\n" , radeon_output->hSize , hInc);
 
@@ -698,10 +698,10 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     unsigned i;
     unsigned long vert_space, flicker_removal;
-    CARD32 tmp;
+    uint32_t tmp;
     const TVModeConstants *constPtr;
-    const CARD16 *hor_timing;
-    const CARD16 *vert_timing;
+    const uint16_t *hor_timing;
+    const uint16_t *vert_timing;
 
 
     /* FIXME: need to revisit this when we add more modes */

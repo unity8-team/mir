@@ -284,7 +284,7 @@ FUNC_NAME(RADEONSetupForDashedLine)(ScrnInfoPtr pScrn,
 				    unsigned char *pattern)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    CARD32         pat  = *(CARD32 *)(pointer)pattern;
+    uint32_t pat  = *(uint32_t *)(pointer)pattern;
     ACCEL_PREAMBLE();
 
     /* Save for determining whether or not to draw last pixel */
@@ -333,7 +333,7 @@ FUNC_NAME(RADEONDashedLastPel)(ScrnInfoPtr pScrn,
 			       int fg)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    CARD32         dp_gui_master_cntl = info->dp_gui_master_cntl_clip;
+    uint32_t dp_gui_master_cntl = info->dp_gui_master_cntl_clip;
     ACCEL_PREAMBLE();
 
     dp_gui_master_cntl &= ~RADEON_GMC_BRUSH_DATATYPE_MASK;
@@ -548,8 +548,8 @@ FUNC_NAME(RADEONSetupForMono8x8PatternFill)(ScrnInfoPtr pScrn,
     OUT_ACCEL_REG(RADEON_BRUSH_DATA0,        patternx);
     OUT_ACCEL_REG(RADEON_BRUSH_DATA1,        patterny);
 #else
-    OUT_ACCEL_REG(RADEON_BRUSH_DATA0,        *(CARD32 *)(pointer)&pattern[0]);
-    OUT_ACCEL_REG(RADEON_BRUSH_DATA1,        *(CARD32 *)(pointer)&pattern[4]);
+    OUT_ACCEL_REG(RADEON_BRUSH_DATA0,        *(uint32_t *)(pointer)&pattern[0]);
+    OUT_ACCEL_REG(RADEON_BRUSH_DATA1,        *(uint32_t *)(pointer)&pattern[4]);
 #endif
 
     FINISH_ACCEL();
@@ -829,10 +829,10 @@ FUNC_NAME(RADEONSubsequentScanline)(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
 #ifdef ACCEL_MMIO
-    CARD32          *p    = (pointer)info->scratch_buffer[bufno];
+    uint32_t        *p    = (pointer)info->scratch_buffer[bufno];
     int              i;
     int              left = info->scanline_words;
-    volatile CARD32 *d;
+    volatile uint32_t *d;
     ACCEL_PREAMBLE();
 
     if (info->scanline_direct) return;

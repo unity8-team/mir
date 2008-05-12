@@ -168,8 +168,8 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-    CARD32 sclock = mode->Clock;
-    CARD32 ref_div = 0, fb_div = 0, post_div = 0;
+    uint32_t sclock = mode->Clock;
+    uint32_t ref_div = 0, fb_div = 0, post_div = 0;
     int major, minor, i;
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
@@ -185,7 +185,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     RADEONSavePtr save = info->ModeReg;
 
     if (IS_AVIVO_VARIANT) {
-	CARD32 temp;
+	uint32_t temp;
 
 	if (IS_DCE3_VARIANT)
 	    pll_flags |= RADEON_PLL_DCE3;
@@ -407,7 +407,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     if (IS_AVIVO_VARIANT) {
-	CARD32 fb_format;
+	uint32_t fb_format;
 
 	switch (crtc->scrn->bitsPerPixel) {
 	case 15:

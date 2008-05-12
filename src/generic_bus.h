@@ -21,10 +21,10 @@ typedef struct _GENERIC_BUS_Rec{
         int scrnIndex;
         DevUnion  DriverPrivate;
 	Bool (*ioctl)(GENERIC_BUS_Ptr, long, long, char *);
-	Bool (*read)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
-	Bool (*write)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
-	Bool (*fifo_read)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
-	Bool (*fifo_write)(GENERIC_BUS_Ptr, CARD32,  CARD32, CARD8 *);
+	Bool (*read)(GENERIC_BUS_Ptr, uint32_t,  uint32_t, uint8_t *);
+	Bool (*write)(GENERIC_BUS_Ptr, uint32_t,  uint32_t, uint8_t *);
+	Bool (*fifo_read)(GENERIC_BUS_Ptr, uint32_t,  uint32_t, uint8_t *);
+	Bool (*fifo_write)(GENERIC_BUS_Ptr, uint32_t,  uint32_t, uint8_t *);
 
 	} GENERIC_BUS_Rec;
 

@@ -222,7 +222,7 @@ RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 
 Bool
-RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
+RADEONDVOReadByte(I2CDevPtr dvo, int addr, uint8_t *ch)
 {
     if (!xf86I2CReadByte(dvo, addr, ch)) {
 	xf86DrvMsg(dvo->pI2CBus->scrnIndex, X_ERROR,
@@ -234,7 +234,7 @@ RADEONDVOReadByte(I2CDevPtr dvo, int addr, CARD8 *ch)
 }
 
 Bool
-RADEONDVOWriteByte(I2CDevPtr dvo, int addr, CARD8 ch)
+RADEONDVOWriteByte(I2CDevPtr dvo, int addr, uint8_t ch)
 {
     if (!xf86I2CWriteByte(dvo, addr, ch)) {
 	xf86DrvMsg(dvo->pI2CBus->scrnIndex, X_ERROR,
@@ -282,7 +282,7 @@ RADEONRestoreDVOChip(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     OUTREG(radeon_output->dvo_i2c.mask_clk_reg,
 	   INREG(radeon_output->dvo_i2c.mask_clk_reg) &
-	   (CARD32)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+	   (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 
     if (!RADEONInitExtTMDSInfoFromBIOS(output)) {
 	if (radeon_output->DVOChip) {
@@ -612,8 +612,8 @@ RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (IsPrimaryDAC) {
-	CARD32 dac_cntl;
-	CARD32 dac_macro_cntl = 0;
+	uint32_t dac_cntl;
+	uint32_t dac_macro_cntl = 0;
 	dac_cntl = INREG(RADEON_DAC_CNTL);
 	dac_macro_cntl = INREG(RADEON_DAC_MACRO_CNTL);
 	if (IsOn) {
@@ -630,8 +630,8 @@ RADEONDacPowerSet(ScrnInfoPtr pScrn, Bool IsOn, Bool IsPrimaryDAC)
 	OUTREG(RADEON_DAC_CNTL, dac_cntl);
 	OUTREG(RADEON_DAC_MACRO_CNTL, dac_macro_cntl);
     } else {
-	CARD32 tv_dac_cntl;
-	CARD32 fp2_gen_cntl;
+	uint32_t tv_dac_cntl;
+	uint32_t fp2_gen_cntl;
 
 	switch(info->ChipFamily)
 	{
@@ -908,11 +908,11 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
     RADEONEntPtr  pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int i;
-    CARD32 tmp = info->SavedReg->tmds_pll_cntl & 0xfffff;
+    uint32_t tmp = info->SavedReg->tmds_pll_cntl & 0xfffff;
 
     for (i=0; i<4; i++) {
 	if (radeon_output->tmds_pll[i].freq == 0) break;
-	if ((CARD32)(mode->Clock/10) < radeon_output->tmds_pll[i].freq) {
+	if ((uint32_t)(mode->Clock/10) < radeon_output->tmds_pll[i].freq) {
 	    tmp = radeon_output->tmds_pll[i].value ;
 	    break;
 	}
@@ -1402,7 +1402,7 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    ErrorF("restore FP2\n");
 	    if (info->IsAtomBios) {
 		unsigned char *RADEONMMIO = info->MMIO;
-		CARD32 fp2_gen_cntl;
+		uint32_t fp2_gen_cntl;
 
 		atombios_external_tmds_setup(output, mode);
 		/* r4xx atom has hard coded crtc mappings in the atom code
@@ -1446,8 +1446,8 @@ radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 vclk_ecp_cntl, crtc_ext_cntl;
-    CARD32 dac_ext_cntl, dac_cntl, dac_macro_cntl, tmp;
+    uint32_t vclk_ecp_cntl, crtc_ext_cntl;
+    uint32_t dac_ext_cntl, dac_cntl, dac_macro_cntl, tmp;
     RADEONMonitorType found = MT_NONE;
 
     /* save the regs we need */
@@ -1513,11 +1513,11 @@ radeon_detect_ext_dac(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 gpio_monid, fp2_gen_cntl, disp_output_cntl, crtc2_gen_cntl;
-    CARD32 disp_lin_trans_grph_a, disp_lin_trans_grph_b, disp_lin_trans_grph_c;
-    CARD32 disp_lin_trans_grph_d, disp_lin_trans_grph_e, disp_lin_trans_grph_f;
-    CARD32 tmp, crtc2_h_total_disp, crtc2_v_total_disp;
-    CARD32 crtc2_h_sync_strt_wid, crtc2_v_sync_strt_wid;
+    uint32_t gpio_monid, fp2_gen_cntl, disp_output_cntl, crtc2_gen_cntl;
+    uint32_t disp_lin_trans_grph_a, disp_lin_trans_grph_b, disp_lin_trans_grph_c;
+    uint32_t disp_lin_trans_grph_d, disp_lin_trans_grph_e, disp_lin_trans_grph_f;
+    uint32_t tmp, crtc2_h_total_disp, crtc2_v_total_disp;
+    uint32_t crtc2_h_sync_strt_wid, crtc2_v_sync_strt_wid;
     RADEONMonitorType found = MT_NONE;
     int connected = 0;
     int i = 0;
@@ -1609,8 +1609,8 @@ radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 crtc2_gen_cntl, tv_dac_cntl, dac_cntl2, dac_ext_cntl;
-    CARD32 disp_hw_debug, disp_output_cntl, gpiopad_a, pixclks_cntl, tmp;
+    uint32_t crtc2_gen_cntl, tv_dac_cntl, dac_cntl2, dac_ext_cntl;
+    uint32_t disp_hw_debug, disp_output_cntl, gpiopad_a, pixclks_cntl, tmp;
     RADEONMonitorType found = MT_NONE;
 
     /* save the regs we need */
@@ -1711,8 +1711,8 @@ r300_detect_tv(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 tmp, dac_cntl2, crtc2_gen_cntl, dac_ext_cntl, tv_dac_cntl;
-    CARD32 gpiopad_a, disp_output_cntl;
+    uint32_t tmp, dac_cntl2, crtc2_gen_cntl, dac_ext_cntl, tv_dac_cntl;
+    uint32_t gpiopad_a, disp_output_cntl;
     RADEONMonitorType found = MT_NONE;
 
     /* save the regs we need */
@@ -1787,8 +1787,8 @@ radeon_detect_tv(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD32 tmp, dac_cntl2, tv_master_cntl;
-    CARD32 tv_dac_cntl, tv_pre_dac_mux_cntl, config_cntl;
+    uint32_t tmp, dac_cntl2, tv_master_cntl;
+    uint32_t tv_dac_cntl, tv_pre_dac_mux_cntl, config_cntl;
     RADEONMonitorType found = MT_NONE;
 
     if (IS_R300_VARIANT)

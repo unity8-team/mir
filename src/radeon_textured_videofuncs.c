@@ -74,11 +74,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
-    CARD32 txformat;
-    CARD32 txfilter, txformat0, txformat1, txoffset, txpitch;
-    CARD32 dst_offset, dst_pitch, dst_format;
-    CARD32 txenable, colorpitch;
-    CARD32 blendcntl;
+    uint32_t txformat;
+    uint32_t txfilter, txformat0, txformat1, txoffset, txpitch;
+    uint32_t dst_offset, dst_pitch, dst_format;
+    uint32_t txenable, colorpitch;
+    uint32_t blendcntl;
     int dstxoff, dstyoff, pixel_shift;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
@@ -121,7 +121,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     FINISH_VIDEO();
 
     if (IS_R300_3D || IS_R500_3D) {
-	CARD32 output_fmt;
+	uint32_t output_fmt;
 
 	switch (pPixmap->drawable.bitsPerPixel) {
 	case 16:

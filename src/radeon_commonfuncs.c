@@ -55,7 +55,7 @@
 static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    CARD32 gb_tile_config, su_reg_dest, vap_cntl;
+    uint32_t gb_tile_config, su_reg_dest, vap_cntl;
     ACCEL_PREAMBLE();
 
     info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;

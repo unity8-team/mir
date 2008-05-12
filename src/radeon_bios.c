@@ -570,7 +570,7 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     RADEONPLLPtr pll = &info->pll;
-    CARD16 pll_info_block;
+    uint16_t pll_info_block;
 
     if (!info->VBIOS) {
 	return FALSE;
@@ -847,16 +847,16 @@ Bool RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output)
 
 	memcpy(EDID, (char*)(info->VBIOS + tmp), 256);
 
-	radeon_output->DotClock = (*(CARD16*)(EDID+54)) * 10;
-	radeon_output->PanelXRes = (*(CARD8*)(EDID+56)) + ((*(CARD8*)(EDID+58))>>4)*256;
-	radeon_output->HBlank = (*(CARD8*)(EDID+57)) + ((*(CARD8*)(EDID+58)) & 0xf)*256;
-	radeon_output->HOverPlus = (*(CARD8*)(EDID+62)) + ((*(CARD8*)(EDID+65)>>6)*256);
-	radeon_output->HSyncWidth = (*(CARD8*)(EDID+63)) + (((*(CARD8*)(EDID+65)>>4) & 3)*256);
-	radeon_output->PanelYRes = (*(CARD8*)(EDID+59)) + ((*(CARD8*)(EDID+61))>>4)*256;
-	radeon_output->VBlank = ((*(CARD8*)(EDID+60)) + ((*(CARD8*)(EDID+61)) & 0xf)*256);
-	radeon_output->VOverPlus = (((*(CARD8*)(EDID+64))>>4) + (((*(CARD8*)(EDID+65)>>2) & 3)*16));
-	radeon_output->VSyncWidth = (((*(CARD8*)(EDID+64)) & 0xf) + ((*(CARD8*)(EDID+65)) & 3)*256);
-	radeon_output->Flags      = V_NHSYNC | V_NVSYNC; /**(CARD8*)(EDID+71);*/
+	radeon_output->DotClock = (*(uint16_t*)(EDID+54)) * 10;
+	radeon_output->PanelXRes = (*(uint8_t*)(EDID+56)) + ((*(uint8_t*)(EDID+58))>>4)*256;
+	radeon_output->HBlank = (*(uint8_t*)(EDID+57)) + ((*(uint8_t*)(EDID+58)) & 0xf)*256;
+	radeon_output->HOverPlus = (*(uint8_t*)(EDID+62)) + ((*(uint8_t*)(EDID+65)>>6)*256);
+	radeon_output->HSyncWidth = (*(uint8_t*)(EDID+63)) + (((*(uint8_t*)(EDID+65)>>4) & 3)*256);
+	radeon_output->PanelYRes = (*(uint8_t*)(EDID+59)) + ((*(uint8_t*)(EDID+61))>>4)*256;
+	radeon_output->VBlank = ((*(uint8_t*)(EDID+60)) + ((*(uint8_t*)(EDID+61)) & 0xf)*256);
+	radeon_output->VOverPlus = (((*(uint8_t*)(EDID+64))>>4) + (((*(uint8_t*)(EDID+65)>>2) & 3)*16));
+	radeon_output->VSyncWidth = (((*(uint8_t*)(EDID+64)) & 0xf) + ((*(uint8_t*)(EDID+65)) & 3)*256);
+	radeon_output->Flags      = V_NHSYNC | V_NVSYNC; /**(uint8_t*)(EDID+71);*/
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardcoded EDID data will be used for TMDS panel\n");
     }
     return TRUE;
@@ -867,7 +867,7 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    CARD32 tmp, maxfreq;
+    uint32_t tmp, maxfreq;
     int i, n;
 
     if (!info->VBIOS) return FALSE;
@@ -988,7 +988,7 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int offset, index, id;
-    CARD32 val, reg, andmask, ormask;
+    uint32_t val, reg, andmask, ormask;
 
     if (!info->VBIOS) return FALSE;
 
@@ -1098,11 +1098,11 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 #define RADEON_PLL_WAIT_DLL_READY_MASK            4
 #define RADEON_PLL_WAIT_CHK_SET_CLK_PWRMGT_CNTL24 5
 
-static CARD16
-RADEONValidateBIOSOffset(ScrnInfoPtr pScrn, CARD16 offset)
+static uint16_t
+RADEONValidateBIOSOffset(ScrnInfoPtr pScrn, uint16_t offset)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    CARD8 revision = RADEON_BIOS8(offset - 1);
+    uint8_t revision = RADEON_BIOS8(offset - 1);
 
     if (revision > 0x10) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -1123,7 +1123,7 @@ Bool
 RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    CARD8 val;
+    uint8_t val;
 
     if (!info->VBIOS) {
 	return FALSE;
@@ -1217,14 +1217,14 @@ RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn)
 }
 
 static void
-RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, uint16_t table_offset)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD16 offset = table_offset;
-    CARD16 value, flag, index, count;
-    CARD32 andmask, ormask, val, channel_complete_mask;
-    CARD8  command;
+    uint16_t offset = table_offset;
+    uint16_t value, flag, index, count;
+    uint32_t andmask, ormask, val, channel_complete_mask;
+    uint8_t  command;
 
     if (offset == 0)
 	return;
@@ -1325,14 +1325,14 @@ RADEONRestoreBIOSRegBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 }
 
 static void
-RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, uint16_t table_offset)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    CARD16 offset = table_offset;
-    CARD16 count;
-    CARD32 ormask, val, channel_complete_mask;
-    CARD8  index;
+    uint16_t offset = table_offset;
+    uint16_t count;
+    uint32_t ormask, val, channel_complete_mask;
+    uint8_t  index;
 
     if (offset == 0)
 	return;
@@ -1369,7 +1369,7 @@ RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    val = (val & RADEON_SDRAM_MODE_MASK) | ormask;
 	    OUTREG(RADEON_MM_DATA, val);
 
-	    ormask = (CARD32)index << 24;
+	    ormask = (uint32_t)index << 24;
 
 	    ErrorF("INDEX RADEON_MEM_SDRAM_MODE_REG %x %x\n",
 		   RADEON_B3MEM_RESET_MASK, (unsigned)ormask);
@@ -1384,13 +1384,13 @@ RADEONRestoreBIOSMemBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 }
 
 static void
-RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
+RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, uint16_t table_offset)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
-    CARD16 offset = table_offset;
-    CARD8  index, shift;
-    CARD32 andmask, ormask, val, clk_pwrmgt_cntl;
-    CARD16 count;
+    uint16_t offset = table_offset;
+    uint8_t  index, shift;
+    uint32_t andmask, ormask, val, clk_pwrmgt_cntl;
+    uint16_t count;
 
     if (offset == 0)
 	return;
@@ -1452,11 +1452,11 @@ RADEONRestoreBIOSPllBlock(ScrnInfoPtr pScrn, CARD16 table_offset)
 	    offset++;
 
 	    andmask =
-		(((CARD32)RADEON_BIOS8(offset)) << shift) |
-		~((CARD32)0xff << shift);
+		(((uint32_t)RADEON_BIOS8(offset)) << shift) |
+		~((uint32_t)0xff << shift);
 	    offset++;
 
-	    ormask = ((CARD32)RADEON_BIOS8(offset)) << shift;
+	    ormask = ((uint32_t)RADEON_BIOS8(offset)) << shift;
 	    offset++;
 
 	    ErrorF("PLL_MASK_BYTE 0x%x 0x%x 0x%x 0x%x\n", 

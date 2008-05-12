@@ -115,7 +115,7 @@ avivo_lock_cursor(xf86CrtcPtr crtc, Bool lock)
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
     unsigned char     *RADEONMMIO = info->MMIO;
-    CARD32 tmp;
+    uint32_t tmp;
 
     tmp = INREG(AVIVO_D1CUR_UPDATE + radeon_crtc->crtc_offset);
 
@@ -255,8 +255,8 @@ radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    uint32_t *pixels = (uint32_t *)(pointer)(info->FB + radeon_crtc->cursor_offset);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
 
@@ -293,13 +293,13 @@ radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
 #ifdef ARGB_CURSOR
 
 void
-radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
+radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, uint32_t *image)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
     CURSOR_SWAPPING_DECL_MMIO
-    CARD32        *d          = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset);
+    uint32_t *d = (uint32_t *)(pointer)(info->FB + radeon_crtc->cursor_offset);
 
     RADEONCTRACE(("RADEONLoadCursorARGB\n"));
 
@@ -325,13 +325,13 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     int		       width_bytes;
     int                height;
     int                size_bytes;
-    CARD32             cursor_offset = 0;
+    uint32_t           cursor_offset = 0;
     int                c;
 
-    size_bytes                = CURSOR_WIDTH * 4 * CURSOR_HEIGHT;
-    width                     = pScrn->displayWidth;
-    width_bytes		      = width * (pScrn->bitsPerPixel / 8);
-    height                    = ((size_bytes * xf86_config->num_crtc) + width_bytes - 1) / width_bytes;
+    size_bytes  = CURSOR_WIDTH * 4 * CURSOR_HEIGHT;
+    width       = pScrn->displayWidth;
+    width_bytes = width * (pScrn->bitsPerPixel / 8);
+    height      = ((size_bytes * xf86_config->num_crtc) + width_bytes - 1) / width_bytes;
 
 #ifdef USE_XAA
     if (!info->useEXA) {

@@ -69,7 +69,7 @@ static Bool src_tile_height;
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
-    CARD32 blend_cntl;
+    uint32_t blend_cntl;
 };
 
 static struct blendinfo RadeonBlendOp[] = {
@@ -103,7 +103,7 @@ static struct blendinfo RadeonBlendOp[] = {
 
 struct formatinfo {
     int fmt;
-    CARD32 card_fmt;
+    uint32_t card_fmt;
 };
 
 /* Note on texture formats:
@@ -142,7 +142,7 @@ static struct formatinfo R300TexFormats[] = {
 
 /* Common Radeon setup code */
 
-static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
+static Bool RADEONGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -167,7 +167,7 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
     return TRUE;
 }
 
-static Bool R300GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
+static Bool R300GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
@@ -191,9 +191,9 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, CARD32 *dst_format)
     return TRUE;
 }
 
-static CARD32 RADEONGetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
+static uint32_t RADEONGetBlendCntl(int op, PicturePtr pMask, uint32_t dst_format)
 {
-    CARD32 sblend, dblend;
+    uint32_t sblend, dblend;
 
     sblend = RadeonBlendOp[op].blend_cntl & RADEON_SRC_BLEND_MASK;
     dblend = RadeonBlendOp[op].blend_cntl & RADEON_DST_BLEND_MASK;
@@ -225,7 +225,7 @@ static CARD32 RADEONGetBlendCntl(int op, PicturePtr pMask, CARD32 dst_format)
 
 union intfloat {
     float f;
-    CARD32 i;
+    uint32_t i;
 };
 
 /* Check if we need a software-fallback because of a repeating
@@ -258,7 +258,7 @@ static Bool RADEONPitchMatches(PixmapPtr pPix)
 {
     int w = pPix->drawable.width;
     int h = pPix->drawable.height;
-    CARD32 txpitch = exaGetPixmapPitch(pPix);
+    uint32_t txpitch = exaGetPixmapPitch(pPix);
 
     if (h > 1 && ((w * pPix->drawable.bitsPerPixel / 8 + 31) & ~31) != txpitch)
 	return FALSE;
@@ -354,7 +354,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    CARD32 txfilter, txformat, txoffset, txpitch;
+    uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     Bool repeat = pPict->repeat && !(unit == 0 && (need_src_tile_x || need_src_tile_y));
@@ -451,7 +451,7 @@ static Bool R100CheckComposite(int op, PicturePtr pSrcPicture,
 			       PicturePtr pMaskPicture, PicturePtr pDstPicture)
 {
     PixmapPtr pSrcPixmap, pDstPixmap;
-    CARD32 tmp1;
+    uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
     if (op >= sizeof(RadeonBlendOp) / sizeof(RadeonBlendOp[0]))
@@ -524,8 +524,8 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 					    PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format, dst_offset, dst_pitch, colorpitch;
-    CARD32 pp_cntl, blendcntl, cblend, ablend;
+    uint32_t dst_format, dst_offset, dst_pitch, colorpitch;
+    uint32_t pp_cntl, blendcntl, cblend, ablend;
     int pixel_shift;
     ACCEL_PREAMBLE();
 
@@ -667,7 +667,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    CARD32 txfilter, txformat, txoffset, txpitch;
+    uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     Bool repeat = pPict->repeat && !(unit == 0 && (need_src_tile_x || need_src_tile_y));
@@ -756,7 +756,7 @@ static Bool R200CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 			       PicturePtr pDstPicture)
 {
     PixmapPtr pSrcPixmap, pDstPixmap;
-    CARD32 tmp1;
+    uint32_t tmp1;
 
     TRACE;
 
@@ -823,8 +823,8 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format, dst_offset, dst_pitch;
-    CARD32 pp_cntl, blendcntl, cblend, ablend, colorpitch;
+    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t pp_cntl, blendcntl, cblend, ablend, colorpitch;
     int pixel_shift;
     ACCEL_PREAMBLE();
 
@@ -992,7 +992,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 					int unit)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
-    CARD32 txfilter, txformat0, txformat1, txoffset, txpitch;
+    uint32_t txfilter, txformat0, txformat1, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i, pixel_shift;
@@ -1091,7 +1091,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 			       PicturePtr pDstPicture)
 {
-    CARD32 tmp1;
+    uint32_t tmp1;
     ScreenPtr pScreen = pDstPicture->pDrawable->pScreen;
     PixmapPtr pSrcPixmap, pDstPixmap;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
@@ -1177,9 +1177,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 				PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    CARD32 dst_format, dst_offset, dst_pitch;
-    CARD32 txenable, colorpitch;
-    CARD32 blendcntl;
+    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t txenable, colorpitch;
+    uint32_t blendcntl;
     int pixel_shift;
     ACCEL_PREAMBLE();
 
@@ -1324,7 +1324,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     /* setup pixel shader */
     if (IS_R300_3D) {
-	CARD32 output_fmt;
+	uint32_t output_fmt;
 	int src_color, src_alpha;
 	int mask_color, mask_alpha;
 
@@ -1520,9 +1520,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 		       R300_ALU_ALPHA_CLAMP));
 	FINISH_ACCEL();
     } else {
-	CARD32 output_fmt;
-	CARD32 src_color, src_alpha;
-	CARD32 mask_color, mask_alpha;
+	uint32_t output_fmt;
+	uint32_t src_color, src_alpha;
+	uint32_t mask_color, mask_alpha;
 
 	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = (R500_ALU_RGB_R_SWIZ_A_0 |
