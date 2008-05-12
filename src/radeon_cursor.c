@@ -256,7 +256,7 @@ radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
-    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset + pScrn->fbOffset);
+    CARD32        *pixels     = (CARD32 *)(pointer)(info->FB + radeon_crtc->cursor_offset);
     int            pixel, i;
     CURSOR_SWAPPING_DECL_MMIO
 
