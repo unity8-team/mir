@@ -2676,10 +2676,48 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 
 #endif /* __powerpc__ */
 
+static int
+radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
+    int			o;
+    int			index_mask = 0;
+
+    /*
+     * cards without a CRTC2 really need cloning enabled
+     * for cards with 2 CRTC this may need more testing
+     */
+    if (pRADEONEnt->HasCRTC2)
+	return index_mask;
+
+    /* LVDS is too wacky */
+    if (radeon_output->type == OUTPUT_LVDS)
+	return index_mask;
+
+    for (o = 0; o < config->num_output; o++) {
+	xf86OutputPtr clone = config->output[o];
+	RADEONOutputPrivatePtr radeon_clone = clone->driver_private;
+	if (output == clone) /* don't clone yourself */
+	    continue;
+	else if (radeon_clone->type == OUTPUT_LVDS) /* LVDS */
+	    continue;
+	else if ((radeon_output->DACType == DAC_TVDAC) &&
+		 (radeon_clone->DACType == DAC_TVDAC)) /* shared tvdac */
+	    continue;
+	else
+	    index_mask |= (1 << o);
+    }
+
+    return index_mask;
+}
+
 /*
  * initialise the static data sos we don't have to re-do at randr change */
 Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     xf86OutputPtr output;
@@ -2879,6 +2917,12 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 
 	    RADEONInitConnector(output);
 	}
+    }
+
+    for (i = 0; i < xf86_config->num_output; i++) {
+	xf86OutputPtr output = xf86_config->output[i];
+
+	output->possible_clones = radeon_output_clones(pScrn, output);
     }
 
     return TRUE;
