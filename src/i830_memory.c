@@ -171,19 +171,10 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	int ret;
 
 	pin.handle = mem->gem_handle;
-	pin.alignment = 0;
-	if (mem->tiling) {
-	    if (IS_I965G(pI830))
-		pin.alignment = 0;
-	    else {
-		if (IS_I9XX (pI830))
-		    pin.alignment = 1024 * 1024;
-		else
-		    pin.alignment = 512 * 1024;
-		if (pin.alignment < mem->size)
-		    pin.alignment = mem->size;
-	    }
-	}
+	pin.alignment = mem->alignment;
+	xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
+		    "alignment %d size %d\n", mem->alignment, mem->size);
+	
 	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
 	if (ret != 0)
 	    return FALSE;
@@ -638,6 +629,7 @@ i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
     size = ALIGN(size, GTT_PAGE_SIZE);
     mem->size = size;
     mem->allocated_size = size;
+    mem->alignment = alignment;
 
     if (alignment < GTT_PAGE_SIZE)
 	alignment = GTT_PAGE_SIZE;
@@ -771,6 +763,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     mem->end = -1;
     mem->size = size;
     mem->allocated_size = size;
+    mem->alignment = align;
     if (flags & NEED_LIFETIME_FIXED)
 	mem->lifetime_fixed_offset = TRUE;
 

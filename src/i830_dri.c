@@ -1519,12 +1519,19 @@ i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 	struct drm_gem_name	name;
 	int			ret;
 	
-	name.handle = mem->gem_handle;
-	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_NAME, &name);
-	if (ret == 0)
-	    return name.name;
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "[drm] failed to name buffer %d\n", -errno);
+	if (!mem->gem_name)
+	{
+	    name.handle = mem->gem_handle;
+	    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_NAME, &name);
+	    if (ret != 0)
+	    {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed to name buffer %d\n", -errno);
+		return -1;
+	    }
+	    mem->gem_name = name.name;
+	}
+	return mem->gem_name;
     }
 #endif
     return -1;

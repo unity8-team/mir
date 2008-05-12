@@ -196,6 +196,8 @@ struct _i830_memory {
 
 #ifdef XF86DRI_MM
     uint32_t gem_handle;
+    uint32_t alignment;
+    uint32_t gem_name;
     Bool lifetime_fixed_offset;
 #endif
 };
