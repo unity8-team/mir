@@ -173,7 +173,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	pin.handle = mem->gem_handle;
 	pin.alignment = mem->alignment;
 	xf86DrvMsg (pScrn->scrnIndex, X_ERROR,
-		    "alignment %d size %d\n", mem->alignment, mem->size);
+		    "alignment %d size %d\n", mem->alignment, (int) mem->size);
 	
 	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
 	if (ret != 0)
@@ -256,10 +256,10 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 #ifdef XF86DRI_MM
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
-	struct drm_gem_unreference unref;
+	struct drm_gem_close close;
 
-	unref.handle = mem->gem_handle;
-	ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_UNREFERENCE, &unref);
+	close.handle = mem->gem_handle;
+	ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CLOSE, &close);
 	if (pI830->bo_list == mem) {
 	    pI830->bo_list = mem->next;
 	    if (mem->next)
@@ -729,7 +729,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
     int ret;
-    struct drm_gem_alloc alloc;
+    struct drm_gem_create create;
 
     assert((flags & NEED_PHYSICAL_ADDR) == 0);
 
@@ -747,16 +747,16 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
     }
 
-    memset(&alloc, 0, sizeof(alloc));
-    alloc.size = size;
+    memset(&create, 0, sizeof(create));
+    create.size = size;
 
-    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_ALLOC, &alloc);
+    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CREATE, &create);
     if (ret) {
 	xfree(mem->name);
 	xfree(mem);
 	return NULL;
     }
-    mem->gem_handle = alloc.handle;
+    mem->gem_handle = create.handle;
 
     /* Give buffer obviously wrong offset/end until it's pinned. */
     mem->offset = -1;
@@ -770,10 +770,10 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     /* Bind it if we currently control the VT */
     if (pScrn->vtSema) {
 	if (!i830_bind_memory(pScrn, mem)) {
-	    struct drm_gem_unreference unref;
+	    struct drm_gem_close close;
 
-	    unref.handle = mem->gem_handle;
-	    ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_UNREFERENCE, &unref);
+	    close.handle = mem->gem_handle;
+	    ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CLOSE, &close);
 	    xfree(mem->name);
 	    xfree(mem);
 	    return NULL;
