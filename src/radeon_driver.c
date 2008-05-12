@@ -1624,6 +1624,13 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "DELL server detected, force to special setup\n");
 	}
 	break;
+    case PCI_CHIP_RS482_5974:
+	/* RH BZ 444586 - non mobility version
+ 	 * Dell appear to have the Vostro 1100 with a mobility part with the same pci-id */
+	if ((PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1462) &&
+            (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x7141)) {
+		info->IsMobility = FALSE;
+	}
     default:
 	break;
     }
