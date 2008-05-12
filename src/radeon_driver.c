@@ -4739,6 +4739,9 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	 * setup in the card at all !!
 	 */
 	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE); /* Save mode only */
+# elif defined(__linux__)
+	/* Save only mode * & fonts */	
+	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
 # else
 	/* Save mode * & fonts & cmap */
 	vgaHWSave(pScrn, &hwp->SavedReg, VGA_SR_ALL);
@@ -4860,7 +4863,9 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 	* write VGA fonts, will find a better solution in the future
 	*/
        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE );
-# else
+# elif defined(__linux__)
+       vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_MODE | VGA_SR_FONTS );
+# else 
        vgaHWRestore(pScrn, &hwp->SavedReg, VGA_SR_ALL );
 # endif
        vgaHWLock(hwp);
