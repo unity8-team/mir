@@ -48,7 +48,7 @@ struct idle_flags i915_idle_flags[] = {
     {PR_DONE, "PR"},
     {VLD_DONE, "VLD"},
     {IP_DONE, "IP"},
-    {FBC_DONE, "FBc"},
+    {FBC_DONE, "FBC"},
     {BINNER_DONE, "BINNER"},
     {SF_DONE, "SF"},
     {SE_DONE, "SE"},
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	}
 
 	for (j = 0; j < idle_flag_count; j++) {
-	    printf("%15s: %3d\n", idle_flags[j].name, idle_flags[j].count);
+	    printf("%25s: %3d\n", idle_flags[j].name, idle_flags[j].count);
 	    idle_flags[j].count = 0;
 	}
 	printf("\n");
