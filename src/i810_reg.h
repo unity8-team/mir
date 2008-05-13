@@ -353,7 +353,37 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define IPEIR                  0x2088
 #define IPEHR                  0x208C
+
 #define INST_DONE                0x2090
+# define IDCT_DONE			(1 << 30)
+# define IQ_DONE			(1 << 29)
+# define PR_DONE			(1 << 28)
+# define VLD_DONE			(1 << 27)
+# define IP_DONE			(1 << 26)
+# define FBC_DONE			(1 << 25)
+# define BINNER_DONE			(1 << 24)
+# define SF_DONE			(1 << 23)
+# define SE_DONE			(1 << 22)
+# define WM_DONE			(1 << 21)
+# define IZ_DONE			(1 << 20)
+# define PERSPECTIVE_INTERP_DONE	(1 << 19)
+# define DISPATCHER_DONE		(1 << 18)
+# define PROJECTION_DONE		(1 << 17)
+# define DEPENDENT_ADDRESS_DONE		(1 << 16)
+# define QUAD_CACHE_DONE		(1 << 15)
+# define TEXTURE_FETCH_DONE		(1 << 14)
+# define TEXTURE_DECOMPRESS_DONE	(1 << 13)
+# define SAMPLER_CACHE_DONE		(1 << 12)
+# define FILTER_DONE			(1 << 11)
+# define BYPASS_FIFO_DONE		(1 << 10)
+# define PS_DONE			(1 << 9)
+# define CC_DONE			(1 << 8)
+# define MAP_FILTER_DONE		(1 << 7)
+# define MAP_L2_IDLE			(1 << 6)
+# define RING_2_ENABLE			(1 << 2)
+# define RING_1_ENABLE			(1 << 1)
+# define RING_0_ENABLE			(1 << 0)
+
 #define SCPD0                    0x209c	/* debug */
 #define INST_PS                  0x20c4
 #define IPEIR_I965                  0x2064 /* i965 */
