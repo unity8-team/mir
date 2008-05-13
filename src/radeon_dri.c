@@ -508,7 +508,7 @@ static void RADEONScreenToScreenCopyDepth(ScrnInfoPtr pScrn,
 #endif /* USE_XAA */
 
 /* Initialize the state of the back and depth buffers */
-static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, uint32_t indx)
+static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 indx)
 {
    /* NOOP.  There's no need for the 2d driver to be clearing buffers
     * for the 3d client.  It knows how to do that on its own.
@@ -523,7 +523,7 @@ static void RADEONDRIInitBuffers(WindowPtr pWin, RegionPtr prgn, uint32_t indx)
  * are reversed.
  */
 static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
-				 RegionPtr prgnSrc, uint32_t indx)
+				 RegionPtr prgnSrc, CARD32 indx)
 {
 #ifdef USE_XAA
     ScreenPtr      pScreen  = pParent->drawable.pScreen;

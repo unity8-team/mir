@@ -293,7 +293,7 @@ radeon_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg)
 #ifdef ARGB_CURSOR
 
 void
-radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, uint32_t *image)
+radeon_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;

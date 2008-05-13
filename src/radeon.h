@@ -885,7 +885,7 @@ extern Bool RADEONSetTiling(ScrnInfoPtr pScrn);
 /* radeon_cursor.c */
 extern Bool RADEONCursorInit(ScreenPtr pScreen);
 extern void radeon_crtc_hide_cursor(xf86CrtcPtr crtc);
-extern void radeon_crtc_load_cursor_argb(xf86CrtcPtr crtc, uint32_t *image);
+extern void radeon_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
 extern void radeon_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
 extern void radeon_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
 extern void radeon_crtc_show_cursor(xf86CrtcPtr crtc);

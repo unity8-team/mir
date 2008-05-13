@@ -147,7 +147,7 @@ static const struct blendinfo RadeonBlendOp[] = {
  * The RADEON and R200 TXFORMATS we use are the same on r100/r200.
  */
 
-static uint32_t RADEONTextureFormats[] = {
+static CARD32 RADEONTextureFormats[] = {
     PICT_a8r8g8b8,
     PICT_a8,
     PICT_x8r8g8b8,
@@ -157,7 +157,7 @@ static uint32_t RADEONTextureFormats[] = {
     0
 };
 
-static uint32_t RADEONDstFormats[] = {
+static CARD32 RADEONDstFormats[] = {
     PICT_a8r8g8b8,
     PICT_x8r8g8b8,
     PICT_r5g6b5,
@@ -493,13 +493,13 @@ static Bool
 FUNC_NAME(R100SetupForCPUToScreenAlphaTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	uint16_t	red,
-	uint16_t	green,
-	uint16_t	blue,
-	uint16_t	alpha,
-	uint32_t	maskFormat,
-	uint32_t	dstFormat,
-	uint8_t		*alphaPtr,
+	CARD16		red,
+	CARD16		green,
+	CARD16		blue,
+	CARD16		alpha,
+	CARD32		maskFormat,
+	CARD32		dstFormat,
+	CARD8		*alphaPtr,
 	int		alphaPitch,
 	int		width,
 	int		height,
@@ -548,9 +548,9 @@ static Bool
 FUNC_NAME(R100SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	uint32_t	srcFormat,
-	uint32_t	dstFormat,
-	uint8_t		*texPtr,
+	CARD32		srcFormat,
+	CARD32		dstFormat,
+	CARD8		*texPtr,
 	int		texPitch,
 	int		width,
 	int		height,
@@ -834,13 +834,13 @@ static Bool
 FUNC_NAME(R200SetupForCPUToScreenAlphaTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	uint16_t	red,
-	uint16_t	green,
-	uint16_t	blue,
-	uint16_t	alpha,
-	uint32_t	maskFormat,
-	uint32_t	dstFormat,
-	uint8_t		*alphaPtr,
+	CARD16		red,
+	CARD16		green,
+	CARD16		blue,
+	CARD16		alpha,
+	CARD32		maskFormat,
+	CARD32		dstFormat,
+	CARD8		*alphaPtr,
 	int		alphaPitch,
 	int		width,
 	int		height,
@@ -890,9 +890,9 @@ static Bool
 FUNC_NAME(R200SetupForCPUToScreenTexture) (
 	ScrnInfoPtr	pScrn,
 	int		op,
-	uint32_t	srcFormat,
-	uint32_t	dstFormat,
-	uint8_t		*texPtr,
+	CARD32		srcFormat,
+	CARD32		dstFormat,
+	CARD8		*texPtr,
 	int		texPitch,
 	int		width,
 	int		height,

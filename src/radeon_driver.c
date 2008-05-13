@@ -213,8 +213,8 @@ static Bool RADEONMapMMIO(ScrnInfoPtr pScrn);
 static Bool RADEONUnmapMMIO(ScrnInfoPtr pScrn);
 
 static void *
-radeonShadowWindow(ScreenPtr screen, uint32_t row, uint32_t offset, int mode,
-		   uint32_t *size, void *closure)
+radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
+		   CARD32 *size, void *closure)
 {
     ScrnInfoPtr pScrn = xf86Screens[screen->myNum];
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
