@@ -576,6 +576,9 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
 	(info->ChipFamily == CHIP_FAMILY_RS740)) {
 	OUTREG(RS690_MC_INDEX, (addr & RS690_MC_INDEX_MASK));
 	data = INREG(RS690_MC_DATA);
+    } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	OUTREG(RS600_MC_INDEX, (addr & RS600_MC_INDEX_MASK));
+	data = INREG(RS600_MC_DATA);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0x7f0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -607,6 +610,11 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, uint32_t data)
 				RS690_MC_INDEX_WR_EN));
 	OUTREG(RS690_MC_DATA, data);
 	OUTREG(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);
+    } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	OUTREG(RS600_MC_INDEX, ((addr & RS600_MC_INDEX_MASK) |
+				RS600_MC_INDEX_WR_EN));
+	OUTREG(RS600_MC_DATA, data);
+	OUTREG(RS600_MC_INDEX, RS600_MC_INDEX_WR_ACK);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0xff0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -632,6 +640,11 @@ static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 	return TRUE;
     } else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	if (INMC(pScrn, RV515_MC_STATUS) & RV515_MC_STATUS_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
+    } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	if (INMC(pScrn, RS600_MC_STATUS) & RS600_MC_STATUS_IDLE)
 	    return TRUE;
 	else
 	    return FALSE;
@@ -669,6 +682,11 @@ static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_
 	if (mask & LOC_AGP)
 	    OUTMC(pScrn, RV515_MC_AGP_LOCATION, agp_loc);
 	(void)INMC(pScrn, RV515_MC_AGP_LOCATION);
+    } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	if (mask & LOC_FB)
+	    OUTMC(pScrn, RS600_MC_FB_LOCATION, fb_loc);
+	/*	if (mask & LOC_AGP)
+		OUTMC(pScrn, RS600_MC_AGP_LOCATION, agp_loc);*/
     } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
 	       (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	if (mask & LOC_FB)
@@ -706,6 +724,13 @@ static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_t
 	    *fb_loc = INMC(pScrn, RV515_MC_FB_LOCATION);
 	if (mask & LOC_AGP) {
 	    *agp_loc = INMC(pScrn, RV515_MC_AGP_LOCATION);
+	    *agp_loc_hi = 0;
+	}
+    } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
+	if (mask & LOC_FB)
+	    *fb_loc = INMC(pScrn, RS600_MC_FB_LOCATION);
+	if (mask & LOC_AGP) {
+	    *agp_loc = 0;//INMC(pScrn, RS600_MC_AGP_LOCATION);
 	    *agp_loc_hi = 0;
 	}
     } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
@@ -1252,7 +1277,8 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     }
 #endif
 
-    if ((info->ChipFamily != CHIP_FAMILY_RS690) &&
+    if ((info->ChipFamily != CHIP_FAMILY_RS600) &&
+	(info->ChipFamily != CHIP_FAMILY_RS690) &&
 	(info->ChipFamily != CHIP_FAMILY_RS740)) {
 	if (info->IsIGP)
 	    info->mc_fb_location = INREG(RADEON_NB_TOM);
@@ -1816,6 +1842,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS300) ||
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||
 	(info->ChipFamily == CHIP_FAMILY_RS480) ||
+	(info->ChipFamily == CHIP_FAMILY_RS600) ||
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||
 	(info->ChipFamily == CHIP_FAMILY_RS740))
 	info->has_tcl = FALSE;
@@ -2008,13 +2035,14 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	info->Chipset == PCI_CHIP_RC410_5A61 ||
 	info->Chipset == PCI_CHIP_RC410_5A62 ||
 	info->Chipset == PCI_CHIP_RS485_5975 ||
+	info->ChipFamily == CHIP_FAMILY_RS600 ||
 	info->ChipFamily >= CHIP_FAMILY_R600) {
-    	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
+	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50/RC410/RS485/R600 forced on -- "
+		"Direct rendering for RN50/RC410/RS485/RS600/R600 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
-    	} else {
+	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"Direct rendering not officially supported on RN50/RC410/R600\n");
 	    return FALSE;
@@ -4317,7 +4345,8 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    j++;
 	}
 
-	if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    j = 0;
 	    /* save DDIA regs */
@@ -4622,7 +4651,8 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	}
 
 	/* DDIA regs */
-	if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    j = 0;
 	    for (i = 0x7200; i <= 0x7290; i += 4) {

@@ -372,6 +372,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
     if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
 	(info->ChipFamily == CHIP_FAMILY_R420)  ||
+	(info->ChipFamily == CHIP_FAMILY_RS600) ||
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||
 	(info->ChipFamily == CHIP_FAMILY_RS740) ||
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||

@@ -2110,6 +2110,7 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 
     if (IS_R500_3D || ((info->ChipFamily == CHIP_FAMILY_RS400) ||
 		       (info->ChipFamily == CHIP_FAMILY_RS480) ||
+		       (info->ChipFamily == CHIP_FAMILY_RS600) ||
 		       (info->ChipFamily == CHIP_FAMILY_RS690) ||
 		       (info->ChipFamily == CHIP_FAMILY_RS740))) {
 	/* r500 shows corruption on small things like glyphs without a 3D idle 

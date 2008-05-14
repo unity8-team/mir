@@ -3408,7 +3408,17 @@
 #define RS690_MC_AGP_LOCATION			0x101
 #define RS690_MC_AGP_BASE			0x102
 #define RS690_MC_STATUS                         0x90
-#define RS690_MC_STATUS_IDLE                     (1 << 0)
+#define RS690_MC_STATUS_IDLE                    (1 << 0)
+
+#define RS600_MC_INDEX				0x78
+#	define RS600_MC_INDEX_MASK		0xff
+#	define RS600_MC_INDEX_WR_EN		(1 << 8)
+#	define RS600_MC_INDEX_WR_ACK		0xff
+#define RS600_MC_DATA				0x7c
+
+#define RS600_MC_FB_LOCATION			0xA
+#define RS600_MC_STATUS                         0x0
+#define RS600_MC_STATUS_IDLE                    (1 << 0)
 
 #define AVIVO_MC_INDEX						0x0070
 #define R520_MC_STATUS 0x00

@@ -611,7 +611,8 @@ dfp_disable_dither(xf86OutputPtr output, int device)
 	OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, 0); /* TMDSA */
 	break;
     case ATOM_DEVICE_DFP2_SUPPORT:
-	if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS740))
 	    OUTREG(AVIVO_DDIA_BIT_DEPTH_CONTROL, 0); /* DDIA */
 	else
@@ -927,7 +928,8 @@ atombios_output_mode_set(xf86OutputPtr output,
 	    if (IS_DCE3_VARIANT) {
 		// fix me
 	    } else {
-		if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+		if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS690) ||
 		    (info->ChipFamily == CHIP_FAMILY_RS740))
 		    atombios_output_ddia_setup(output, adjusted_mode);
 		else

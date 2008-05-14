@@ -270,6 +270,7 @@ typedef enum {
     CHIP_FAMILY_R580,    /* r580 */
     CHIP_FAMILY_RV560,   /* rv560 */
     CHIP_FAMILY_RV570,   /* rv570 */
+    CHIP_FAMILY_RS600,
     CHIP_FAMILY_RS690,
     CHIP_FAMILY_RS740,
     CHIP_FAMILY_R600,    /* r600 */
@@ -319,6 +320,7 @@ typedef enum {
 	(info->ChipFamily == CHIP_FAMILY_R420)  ||  \
 	(info->ChipFamily == CHIP_FAMILY_RV410) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS600) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS740) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS480))
