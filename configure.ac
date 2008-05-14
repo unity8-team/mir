@@ -198,7 +198,7 @@ fi
 
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [libdrm xf86driproto])
+        PKG_CHECK_MODULES(DRI, [libdrm xf86driproto glproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.3.1],[DRI_MM=yes], [DRI_MM=no])
