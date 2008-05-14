@@ -4,6 +4,7 @@
 /* this is meant to be used for proprietary buses where abstraction is needed
    but they don't occur often enough to warrant a separate helper library */
 
+#include <stdint.h>
 
 #define GB_IOCTL_GET_NAME	1
           /* third argument is size of the buffer, fourth argument is pointer
