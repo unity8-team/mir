@@ -71,7 +71,7 @@ RADEONRestoreDACRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_DAC_CNTL2, restore->dac2_cntl);
 
     if ((info->ChipFamily != CHIP_FAMILY_RADEON) &&
-    	(info->ChipFamily != CHIP_FAMILY_R200)) 
+	(info->ChipFamily != CHIP_FAMILY_R200))
     OUTREG (RADEON_TV_DAC_CNTL, restore->tv_dac_cntl);
 
     OUTREG(RADEON_DISP_OUTPUT_CNTL, restore->disp_output_cntl);
@@ -103,7 +103,8 @@ RADEONRestoreFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(RADEON_TMDS_TRANSMITTER_CNTL,restore->tmds_transmitter_cntl);
     OUTREG(RADEON_FP_GEN_CNTL,          restore->fp_gen_cntl);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	OUTREG(RS400_FP_2ND_GEN_CNTL, restore->fp_2nd_gen_cntl);
 	/*OUTREG(RS400_TMDS2_CNTL, restore->tmds2_cntl);*/
 	OUTREG(RS400_TMDS2_TRANSMITTER_CNTL, restore->tmds2_transmitter_cntl);
@@ -127,7 +128,8 @@ RADEONRestoreFP2Registers(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(RADEON_FP2_GEN_CNTL,         restore->fp2_gen_cntl);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400)
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480))
 	OUTREG(RS400_FP2_2_GEN_CNTL, restore->fp2_2_gen_cntl);
 }
 
@@ -212,7 +214,8 @@ RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	save->tmds_pll_cntl ^= (1 << 22);
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	save->fp_2nd_gen_cntl         = INREG(RS400_FP_2ND_GEN_CNTL);
 	save->fp2_2_gen_cntl          = INREG(RS400_FP2_2_GEN_CNTL);
 	save->tmds2_cntl              = INREG(RS400_TMDS2_CNTL);
@@ -732,7 +735,8 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		tmp |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 		OUTREG(RADEON_FP_GEN_CNTL, tmp);
 		save->fp_gen_cntl |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-		if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS480)) {
 		    tmp = INREG(RS400_FP_2ND_GEN_CNTL);
 		    tmp |= (RS400_FP_2ND_ON | RS400_TMDS_2ND_EN);
 		    OUTREG(RS400_FP_2ND_GEN_CNTL, tmp);
@@ -747,7 +751,8 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 		save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		save->fp2_gen_cntl &= ~RADEON_FP2_BLANK_EN;
-		if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS480)) {
 		    tmp = INREG(RS400_FP2_2_GEN_CNTL);
 		    tmp &= ~RS400_FP2_2_BLANK_EN;
 		    tmp |= (RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
@@ -811,7 +816,8 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		    tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 		    OUTREG(RADEON_FP_GEN_CNTL, tmp);
 		    save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
-		    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+			(info->ChipFamily == CHIP_FAMILY_RS480)) {
 			tmp = INREG(RS400_FP_2ND_GEN_CNTL);
 			tmp &= ~(RS400_FP_2ND_ON | RS400_TMDS_2ND_EN);
 			OUTREG(RS400_FP_2ND_GEN_CNTL, tmp);
@@ -828,7 +834,8 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		    OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 		    save->fp2_gen_cntl &= ~(RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		    save->fp2_gen_cntl |= RADEON_FP2_BLANK_EN;
-		    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+		    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+			(info->ChipFamily == CHIP_FAMILY_RS480)) {
 			tmp = INREG(RS400_FP2_2_GEN_CNTL);
 			tmp |= RS400_FP2_2_BLANK_EN;
 			tmp &= ~(RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
@@ -964,7 +971,8 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	    save->fp_gen_cntl |= RADEON_FP_SEL_CRTC2;
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	save->tmds2_transmitter_cntl = info->SavedReg->tmds2_transmitter_cntl &
 	    ~(RS400_TMDS2_PLLRST);
 	save->tmds2_transmitter_cntl &= ~(RS400_TMDS2_PLLEN);
@@ -1037,7 +1045,8 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 	}
     }
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	if (pScrn->rgbBits == 8)
 	    save->fp2_2_gen_cntl = info->SavedReg->fp2_2_gen_cntl |
 		RS400_FP2_2_PANEL_FORMAT; /* 24 bit format, */

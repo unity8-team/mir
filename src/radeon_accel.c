@@ -375,6 +375,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||
 	(info->ChipFamily == CHIP_FAMILY_RS740) ||
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480) ||
 	IS_R500_3D) {
 	uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
 	if (info->num_gb_pipes == 0) {

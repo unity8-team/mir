@@ -928,12 +928,12 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
        xtal = 2700;
     } else {
        if (prev_xtal == 0) {
-           prev_xtal = xtal;
-           tries = 0;
-           goto again;
+	   prev_xtal = xtal;
+	   tries = 0;
+	   goto again;
        } else if (prev_xtal != xtal) {
-           prev_xtal = 0;
-           goto again;
+	   prev_xtal = 0;
+	   goto again;
        }
     }
 
@@ -944,14 +944,16 @@ static Bool RADEONProbePLLParameters(ScrnInfoPtr pScrn)
     if (ref_div < 2) {
        uint32_t tmp;
        tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
-       if (IS_R300_VARIANT || (info->ChipFamily == CHIP_FAMILY_RS300)
-			   || (info->ChipFamily == CHIP_FAMILY_RS400))
-           ref_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >>
-                   R300_PPLL_REF_DIV_ACC_SHIFT;
+       if (IS_R300_VARIANT
+	   || (info->ChipFamily == CHIP_FAMILY_RS300)
+	   || (info->ChipFamily == CHIP_FAMILY_RS400)
+	   || (info->ChipFamily == CHIP_FAMILY_RS480))
+	   ref_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >>
+	       R300_PPLL_REF_DIV_ACC_SHIFT;
        else
-           ref_div = tmp & RADEON_PPLL_REF_DIV_MASK;
+	   ref_div = tmp & RADEON_PPLL_REF_DIV_MASK;
        if (ref_div < 2)
-           ref_div = 12;
+	   ref_div = 12;
     }
 
     /* Calculate "base" xclk straight from MPLL, though that isn't
@@ -1025,7 +1027,8 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
 	    tmp = INPLL(pScrn, RADEON_PPLL_REF_DIV);
 	    if (IS_R300_VARIANT ||
 		(info->ChipFamily == CHIP_FAMILY_RS300) ||
-		(info->ChipFamily == CHIP_FAMILY_RS400)) {
+		(info->ChipFamily == CHIP_FAMILY_RS400) ||
+		(info->ChipFamily == CHIP_FAMILY_RS480)) {
 		pll->reference_div = (tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
 	    } else {
 		pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
@@ -1812,6 +1815,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS200) ||
 	(info->ChipFamily == CHIP_FAMILY_RS300) ||
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480) ||
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||
 	(info->ChipFamily == CHIP_FAMILY_RS740))
 	info->has_tcl = FALSE;

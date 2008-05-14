@@ -78,7 +78,8 @@ RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_BUS_CNTL,           restore->bus_cntl);
     OUTREG(RADEON_SURFACE_CNTL,       restore->surface_cntl);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400)  ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	OUTREG(RS400_DISP2_REQ_CNTL1, restore->disp2_req_cntl1);
 	OUTREG(RS400_DISP2_REQ_CNTL2, restore->disp2_req_cntl2);
 	OUTREG(RS400_DMIF_MEM_CNTL1,  restore->dmif_mem_cntl1);
@@ -330,7 +331,8 @@ RADEONRestorePLLRegisters(ScrnInfoPtr pScrn,
 
     if (IS_R300_VARIANT ||
 	(info->ChipFamily == CHIP_FAMILY_RS300) ||
-	(info->ChipFamily == CHIP_FAMILY_RS400)) {
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	if (restore->ppll_ref_div & R300_PPLL_REF_DIV_ACC_MASK) {
 	    /* When restoring console mode, use saved PPLL_REF_DIV
 	     * setting.
@@ -491,7 +493,8 @@ RADEONSaveCommonRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->grph_buffer_cntl   = INREG(RADEON_GRPH_BUFFER_CNTL);
     save->grph2_buffer_cntl  = INREG(RADEON_GRPH2_BUFFER_CNTL);
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	save->disp2_req_cntl1 = INREG(RS400_DISP2_REQ_CNTL1);
 	save->disp2_req_cntl2 = INREG(RS400_DISP2_REQ_CNTL2);
 	save->dmif_mem_cntl1  = INREG(RS400_DMIF_MEM_CNTL1);
@@ -679,7 +682,8 @@ RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
     save->cap1_trig_cntl     = 0;
     save->bus_cntl           = info->BusCntl;
 
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	save->disp2_req_cntl1 = info->SavedReg->disp2_req_cntl1;
 	save->disp2_req_cntl2 = info->SavedReg->disp2_req_cntl2;
 	save->dmif_mem_cntl1  = info->SavedReg->dmif_mem_cntl1;
@@ -1557,7 +1561,8 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
 				     (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
 #if 0
-    if (info->ChipFamily == CHIP_FAMILY_RS400) {
+    if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
 	/* attempt to program RS400 disp regs correctly ??? */
 	temp = info->SavedReg->disp1_req_cntl1;
 	temp &= ~(RS400_DISP1_START_REQ_LEVEL_MASK |
@@ -1624,7 +1629,8 @@ RADEONInitDispBandwidth2(ScrnInfoPtr pScrn, RADEONInfoPtr info, int pixel_bytes2
 	OUTREG(RADEON_GRPH2_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
 					  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
 
-	if (info->ChipFamily == CHIP_FAMILY_RS400) {
+	if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS480)) {
 #if 0
 	    /* attempt to program RS400 disp2 regs correctly ??? */
 	    temp = info->SavedReg->disp2_req_cntl1;

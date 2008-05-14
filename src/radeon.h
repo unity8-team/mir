@@ -262,7 +262,8 @@ typedef enum {
     CHIP_FAMILY_RV380,    /* RV370/RV380/M22/M24 */
     CHIP_FAMILY_R420,     /* R420/R423/M18 */
     CHIP_FAMILY_RV410,    /* RV410, M26 */
-    CHIP_FAMILY_RS400,    /* xpress 200, 200m (RS400/410/480) */
+    CHIP_FAMILY_RS400,    /* xpress 200, 200m (RS400) Intel */
+    CHIP_FAMILY_RS480,    /* xpress 200, 200m (RS410/480/482/485) AMD */
     CHIP_FAMILY_RV515,    /* rv515 */
     CHIP_FAMILY_R520,    /* r520 */
     CHIP_FAMILY_RV530,    /* rv530 */
@@ -297,7 +298,8 @@ typedef enum {
         (info->ChipFamily == CHIP_FAMILY_RV380) ||  \
         (info->ChipFamily == CHIP_FAMILY_R420)  ||  \
         (info->ChipFamily == CHIP_FAMILY_RV410) ||  \
-        (info->ChipFamily == CHIP_FAMILY_RS400))
+        (info->ChipFamily == CHIP_FAMILY_RS400) ||  \
+        (info->ChipFamily == CHIP_FAMILY_RS480))
 
 #define IS_AVIVO_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV515))
 
@@ -318,7 +320,8 @@ typedef enum {
 	(info->ChipFamily == CHIP_FAMILY_RV410) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS690) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS740) ||  \
-	(info->ChipFamily == CHIP_FAMILY_RS400))
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||  \
+	(info->ChipFamily == CHIP_FAMILY_RS480))
 
 /*
  * Errata workarounds

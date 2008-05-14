@@ -2987,7 +2987,8 @@ RADEONPutImage(
    case FOURCC_I420:
 	/* it seems rs4xx chips (all of them???) either can't handle planar
 	   yuv at all or would need some unknown different setup. */
-	if (info->ChipFamily != CHIP_FAMILY_RS400) {
+       if ((info->ChipFamily != CHIP_FAMILY_RS400) &&
+	   (info->ChipFamily != CHIP_FAMILY_RS480)) {
 	    /* need 16bytes alignment for u,v plane, so 2 times that for width
 	       but blitter needs 64bytes alignment. 128byte is a waste but dstpitch
 	       for uv planes needs to be dstpitch yplane >> 1 for now. */

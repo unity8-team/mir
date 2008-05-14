@@ -1113,11 +1113,13 @@ radeon_detect(xf86OutputPtr output)
 	   */
 	  if ((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI_I) &&
 	      (radeon_output->DACType == DAC_TVDAC) &&
-	      (info->ChipFamily == CHIP_FAMILY_RS400)) {
+	      ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+	       (info->ChipFamily == CHIP_FAMILY_RS480))) {
 	      radeon_output->MonType = MT_CRT;
 	      return XF86OutputStatusUnknown;
-	  } else if  ((info->ChipFamily == CHIP_FAMILY_RS400) &&
-		      radeon_output->type == OUTPUT_DVI_D) {
+	  } else if (((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		      (info->ChipFamily == CHIP_FAMILY_RS480)) &&
+		     radeon_output->type == OUTPUT_DVI_D) {
 	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
 	      return XF86OutputStatusUnknown;
 	  }
@@ -2474,7 +2476,8 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 		info->BiosConnector[0].valid = TRUE;
 
 		/* IGP only has TVDAC */
-		if (info->ChipFamily == CHIP_FAMILY_RS400)
+		if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS480))
 		    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		else
 		    info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
@@ -2502,7 +2505,8 @@ static void RADEONSetupGenericConnectors(ScrnInfoPtr pScrn)
 	} else {
 	    /* Below is the most common setting, but may not be true */
 	    if (info->IsIGP) {
-		if (info->ChipFamily == CHIP_FAMILY_RS400)
+		if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
+		    (info->ChipFamily == CHIP_FAMILY_RS480))
 		    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
 		else
 		    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);

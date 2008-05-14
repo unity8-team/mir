@@ -221,17 +221,18 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    /* most XPRESS chips seem to specify DDC_CRT2 for their 
-     * VGA DDC port, however DDC never seems to work on that
-     * port.  Some have reported success on DDC_MONID, so 
-     * lets see what happens with that.
+    /* on XPRESS chips, CRT2_DDC and MONID_DCC both use the 
+     * MONID gpio, but use different pins.
+     * CRT2_DDC uses the standard pinout, MONID_DDC uses
+     * something else.
      */
-    if (info->ChipFamily == CHIP_FAMILY_RS400 &&
+    if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
+	 info->ChipFamily == CHIP_FAMILY_RS480) &&
 	info->BiosConnector[index].ConnectorType == CONNECTOR_VGA &&
 	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_CRT2_DDC) {
 	info->BiosConnector[index].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
     }
-    
+
     /* XPRESS desktop chips seem to have a proprietary connector listed for
      * DVI-D, try and do the right thing here.
      */
