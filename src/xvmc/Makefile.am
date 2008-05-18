@@ -22,7 +22,7 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
                          xf86dristr.h \
                          driDrawable.c \
                          driDrawable.h
-libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
+libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XVMCLIB_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 libIntelXvMC_la_LDFLAGS = -version-number 1:0:0
 libIntelXvMC_la_LIBADD = @DRI_LIBS@
 endif

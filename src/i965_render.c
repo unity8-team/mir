@@ -858,8 +858,10 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     local_ss.ss0.surface_type = BRW_SURFACE_2D;
     if (is_dst) {
 	uint32_t dst_format;
+	Bool ret = TRUE;
 
-	assert(i965_get_dest_format(pPicture, &dst_format) == TRUE);
+	ret = i965_get_dest_format(pPicture, &dst_format);
+	assert(ret == TRUE);
 	local_ss.ss0.surface_format = dst_format;
     } else {
 	local_ss.ss0.surface_format = i965_get_card_format(pPicture);
@@ -883,7 +885,7 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     local_ss.ss2.width = pPixmap->drawable.width - 1;
     local_ss.ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
     local_ss.ss3.tile_walk = 0; /* Tiled X */
-    local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap);
+    local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap) ? 1 : 0;
 
     memcpy(ss, &local_ss, sizeof(local_ss));
 

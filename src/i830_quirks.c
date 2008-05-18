@@ -161,6 +161,15 @@ static void i830_dmi_dump(void)
     DMIID_DUMP(chassis_asset_tag);
 }
 
+/*
+ * Some machines hose the display regs regardless of the ACPI DOS
+ * setting, so we need to reset modes at ACPI event time.
+ */
+static void quirk_reset_modes (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_RESET_MODES;
+}
+
 static void quirk_pipea_force (I830Ptr pI830)
 {
     pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
@@ -226,6 +235,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I965_GM, 0x1028, 0x0254, quirk_ignore_tv },
     /* Dell Inspiron 1735 */
     { PCI_CHIP_I965_GM, 0x1028, 0x0256, quirk_ignore_tv },
+    /* Dell Inspiron 1318 */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0286, quirk_ignore_tv },
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
@@ -255,11 +266,10 @@ static i830_quirk i830_quirk_list[] = {
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_IGD_GM, 0x103c, 0x30e8, quirk_ignore_tv },
 
-    /* Dell Inspiron 510m needs pipe A force quirk */
-    { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
-
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
+    /* Dell Latitude D400 needs pipe A force quirk (LP: #228519) */
+    { PCI_CHIP_I855_GM, 0x1028, 0x0139, quirk_pipea_force },
     /* Dell Latitude D500 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1028, 0x0152, quirk_pipea_force },
     /* Dell Latitude X300 needs pipe A force quirk */
@@ -268,15 +278,25 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
     /* Toshiba Protege R-205, S-209 needs pipe A force quirk */
     { PCI_CHIP_I915_GM, 0x1179, 0x0001, quirk_pipea_force },
+    /* Intel 855GM hardware (See LP: #216490) */
+    { PCI_CHIP_I855_GM, 0x1028, 0x00c8, quirk_pipea_force },
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
 
     /* Sony vaio PCG-r600HFP (fix bug 13722) */
     { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
+    /* Sony vaio VGN-SZ4MN (See LP: #212163) */
+    { PCI_CHIP_I830_M, 0x104d, 0x81e6, quirk_pipea_force },
 
-    /* Intel 945GM hardware (See LP: #152416) */
+    /* Ordi Enduro UW31 (See LP: #152416) */
     { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },
+
+    /* Dell Latitude D500 needs reset modes quirk */
+    { PCI_CHIP_I855_GM, 0x1028, 0x0152, quirk_reset_modes },
+
+    /* Littlebit Sepia X35 (rebranded Asus Z37E) (See LP: #201257) */
+    { PCI_CHIP_I965_GM, 0x1043, 0x8265, quirk_ignore_tv },
 
     { 0, 0, 0, NULL },
 };

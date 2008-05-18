@@ -626,6 +626,12 @@ typedef struct _I830Rec {
    uint32_t saveVCLK_DIVISOR_VGA1;
    uint32_t saveVCLK_POST_DIV;
    uint32_t saveVGACNTRL;
+   uint32_t saveCURSOR_A_CONTROL;
+   uint32_t saveCURSOR_A_BASE;
+   uint32_t saveCURSOR_A_POSITION;
+   uint32_t saveCURSOR_B_CONTROL;
+   uint32_t saveCURSOR_B_BASE;
+   uint32_t saveCURSOR_B_POSITION;
    uint32_t saveADPA;
    uint32_t saveLVDS;
    uint32_t saveDVOA;
@@ -651,6 +657,7 @@ typedef struct _I830Rec {
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
+   Bool lvds_fixed_mode;
    unsigned int quirk_flag;
 } I830Rec;
 
@@ -867,6 +874,17 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 
 Bool i830_pixmap_tiled(PixmapPtr p);
 
+#define i830_exa_check_pitch_2d(p) do {\
+    uint32_t pitch = intel_get_pixmap_pitch(p);\
+    if (pitch > KB(32)) I830FALLBACK("pitch exceeds 2d limit 32K\n");\
+} while(0)
+
+/* For pre-965 chip only, as they have 8KB limit for 3D */
+#define i830_exa_check_pitch_3d(p) do {\
+    uint32_t pitch = intel_get_pixmap_pitch(p);\
+    if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
+} while(0)
+
 /* Batchbuffer compatibility handling */
 #define BEGIN_BATCH(n) BEGIN_LP_RING(n)
 #define ENSURE_BATCH(n)
@@ -895,6 +913,7 @@ extern const int I830CopyROP[16];
 #define QUIRK_IGNORE_MACMINI_LVDS 	0x00000004
 #define QUIRK_PIPEA_FORCE		0x00000008
 #define QUIRK_IVCH_NEED_DVOB		0x00000010
+#define QUIRK_RESET_MODES		0x00000020
 extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */

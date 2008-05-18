@@ -323,6 +323,11 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     Bool is_affine_src, is_affine_mask;
     Bool is_nearest = FALSE;
 
+    i830_exa_check_pitch_3d(pSrc);
+    if (pMask)
+	i830_exa_check_pitch_3d(pMask);
+    i830_exa_check_pitch_3d(pDst);
+
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
 

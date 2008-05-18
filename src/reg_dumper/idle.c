@@ -42,6 +42,36 @@ struct idle_flags {
     unsigned int count;
 };
 
+struct idle_flags i915_idle_flags[] = {
+    {IDCT_DONE, "IDCT"},
+    {IQ_DONE, "IQ"},
+    {PR_DONE, "PR"},
+    {VLD_DONE, "VLD"},
+    {IP_DONE, "IP"},
+    {FBC_DONE, "FBC"},
+    {BINNER_DONE, "BINNER"},
+    {SF_DONE, "SF"},
+    {SE_DONE, "SE"},
+    {WM_DONE, "WM"},
+    {IZ_DONE, "IZ"},
+    {PERSPECTIVE_INTERP_DONE, "perspective interpolation"},
+    {DISPATCHER_DONE, "dispatcher"},
+    {PROJECTION_DONE, "projection and LOD"},
+    {DEPENDENT_ADDRESS_DONE, "dependent address calc"},
+    {TEXTURE_FETCH_DONE, "texture fetch"},
+    {TEXTURE_DECOMPRESS_DONE, "texture decompress"},
+    {SAMPLER_CACHE_DONE, "sampler cache"},
+    {FILTER_DONE, "filter"},
+    {BYPASS_FIFO_DONE, "bypass FIFO"},
+    {PS_DONE, "PS"},
+    {CC_DONE, "CC"},
+    {MAP_FILTER_DONE, "map filter"},
+    {MAP_L2_IDLE, "map L2"},
+
+    {0, "total"},
+    {0, "other"},
+};
+
 struct idle_flags i965_idle_flags[] = {
     {I965_SF_DONE, "SF"},
     {I965_SE_DONE, "SE"},
@@ -60,12 +90,17 @@ struct idle_flags i965_idle_flags[] = {
 
 /* Fills in the "other" and "total" fields' idle flags */
 static void
-setup_other_flags(struct idle_flags *idle_flags, int idle_flag_count)
+setup_other_flags(I830Ptr pI830,
+		  struct idle_flags *idle_flags, int idle_flag_count)
 {
     uint32_t other_idle_flags, total_idle_flags = 0;
     int i;
 
-    other_idle_flags = ~(I965_RING_0_ENABLE);
+    if (IS_I965G(pI830))
+	other_idle_flags = ~(I965_RING_0_ENABLE);
+    else
+	other_idle_flags = ~(RING_0_ENABLE | RING_1_ENABLE | RING_2_ENABLE);
+
     for (i = 0; i < idle_flag_count - 2; i++) {
 	other_idle_flags &= ~idle_flags[i].instdone_flag;
 	total_idle_flags |= idle_flags[i].instdone_flag;
@@ -127,17 +162,26 @@ int main(int argc, char **argv)
     scrn.scrnIndex = 0;
     scrn.pI830 = &i830;
 
-    /* if (IS_I965) { */
-    idle_flags = i965_idle_flags;
-    idle_flag_count = sizeof(i965_idle_flags) / sizeof(i965_idle_flags[0]);
+    if (IS_I965G(pI830)) {
+	idle_flags = i965_idle_flags;
+	idle_flag_count = ARRAY_SIZE(i965_idle_flags);
+    } else {
+	idle_flags = i915_idle_flags;
+	idle_flag_count = ARRAY_SIZE(i915_idle_flags);
+    }
 
-    setup_other_flags(idle_flags, idle_flag_count);
+    setup_other_flags(pI830, idle_flags, idle_flag_count);
 
     for (;;) {
 	int i, j;
 
 	for (i = 0; i < 100; i++) {
-	    uint32_t instdone = INREG(INST_DONE_I965);
+	    uint32_t instdone;
+
+	    if (IS_I965G(pI830))
+		instdone = INREG(INST_DONE_I965);
+	    else
+		instdone = INREG(INST_DONE);
 
 	    for (j = 0; j < idle_flag_count; j++) {
 		if ((instdone & idle_flags[j].instdone_flag) !=
@@ -149,7 +193,7 @@ int main(int argc, char **argv)
 	}
 
 	for (j = 0; j < idle_flag_count; j++) {
-	    printf("%15s: %3d\n", idle_flags[j].name, idle_flags[j].count);
+	    printf("%25s: %3d\n", idle_flags[j].name, idle_flags[j].count);
 	    idle_flags[j].count = 0;
 	}
 	printf("\n");
