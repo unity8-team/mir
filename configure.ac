@@ -218,6 +218,13 @@ if test "$DRI" = yes; then
 #include <inttypes.h>
 #include <i915_drm.h>
 ])
+	AC_CHECK_DECL(DRM_IOCTL_GEM_CREATE,
+		      [AC_DEFINE(HAVE_DRM_GEM, 1,
+			         [Have DRM Graphics Execution Manager])],
+		      [], [
+#include <inttypes.h>
+#include <drm.h>
+])
 	CFLAGS="$save_CFLAGS"
 fi
 

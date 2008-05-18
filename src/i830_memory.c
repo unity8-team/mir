@@ -164,7 +164,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL || mem->bound)
 	return TRUE;
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_i915_gem_pin pin;
@@ -215,7 +215,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem->tiling != TILE_NONE)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_i915_gem_unpin unpin;
@@ -253,7 +253,7 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     /* Free any AGP memory. */
     i830_unbind_memory(pScrn, mem);
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_gem_close close;
@@ -379,7 +379,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     int dri_major, dri_minor, dri_patch;
 #endif
 
@@ -418,7 +418,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 
     pI830->memory_list = start;
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     DRIQueryVersion(&dri_major, &dri_minor, &dri_patch);
 
     /* Now that we have our manager set up, initialize the kernel MM if
@@ -721,7 +721,7 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
     return TRUE;
 }
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
 static i830_memory *
 i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 			unsigned long size, unsigned long align, int flags)
@@ -815,7 +815,7 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 {
     i830_memory *mem;
 
-#ifdef XF86DRI_MM
+#if HAVE_DRM_GEM
     I830Ptr pI830 = I830PTR(pScrn);
 
     if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
