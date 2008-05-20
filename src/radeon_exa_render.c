@@ -938,7 +938,11 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 #ifdef ONLY_ONCE
 
-static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit, Bool is_r500)
+static Bool R300CheckCompositeTexture(PicturePtr pPict,
+				      PicturePtr pDstPict,
+				      int op,
+				      int unit,
+				      Bool is_r500)
 {
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
@@ -980,8 +984,10 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict, int unit, Bool is_r500)
      * matter. I have not, however, verified that the X server always does such
      * clipping.
      */
-    if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0)
-	RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
+    if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0) {
+	if (((op != PictOpSrc) || (op != PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) != 0))
+	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
+    }
 
     return TRUE;
 }
@@ -1157,11 +1163,11 @@ static Bool R300CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 	    }
 	}
 
-	if (!R300CheckCompositeTexture(pMaskPicture, 1, IS_R500_3D))
+	if (!R300CheckCompositeTexture(pMaskPicture, pDstPicture, op, 1, IS_R500_3D))
 	    return FALSE;
     }
 
-    if (!R300CheckCompositeTexture(pSrcPicture, 0, IS_R500_3D))
+    if (!R300CheckCompositeTexture(pSrcPicture, pDstPicture, op, 0, IS_R500_3D))
 	return FALSE;
 
     if (!R300GetDestFormat(pDstPicture, &tmp1))
