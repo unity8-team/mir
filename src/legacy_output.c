@@ -1116,14 +1116,15 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int    xres = mode->HDisplay;
     int    yres = mode->VDisplay;
-    float  Hratio, Vratio;
+    Bool   Hscale = TRUE, Vscale = TRUE;
     int    hsync_wid;
     int    vsync_wid;
     int    hsync_start;
 
 
     save->fp_vert_stretch = info->SavedReg->fp_vert_stretch &
-	                    RADEON_VERT_STRETCH_RESERVED;
+	                    (RADEON_VERT_STRETCH_RESERVED |
+			     RADEON_VERT_AUTO_RATIO_INC);
     save->fp_horz_stretch = info->SavedReg->fp_horz_stretch &
 	                    (RADEON_HORZ_FP_LOOP_STRETCH |
 	                     RADEON_HORZ_AUTO_RATIO_INC);
@@ -1170,34 +1171,41 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	return;
 
     if (radeon_output->PanelXRes == 0 || radeon_output->PanelYRes == 0) {
-	Hratio = 1.0;
-	Vratio = 1.0;
+	Hscale = FALSE;
+	Vscale = FALSE;
     } else {
 	if (xres > radeon_output->PanelXRes) xres = radeon_output->PanelXRes;
 	if (yres > radeon_output->PanelYRes) yres = radeon_output->PanelYRes;
 
-	Hratio = (float)xres/(float)radeon_output->PanelXRes;
-	Vratio = (float)yres/(float)radeon_output->PanelYRes;
+	if (xres == radeon_output->PanelXRes)
+	    Hscale = FALSE;
+	if (yres == radeon_output->PanelYRes)
+	    Vscale = FALSE;
     }
 
-    if ((Hratio == 1.0) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
+    if ((!Hscale) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
 	(radeon_output->rmx_type == RMX_CENTER)) {
 	save->fp_horz_stretch |= ((xres/8-1)<<16);
     } else {
-	save->fp_horz_stretch |= ((((unsigned long)
-				    (Hratio * RADEON_HORZ_STRETCH_RATIO_MAX)) &
-				   RADEON_HORZ_STRETCH_RATIO_MASK) |
+	CARD32 scale, inc;
+	inc = (save->fp_horz_stretch & RADEON_HORZ_AUTO_RATIO_INC) ? 1 : 0;
+	scale = ((xres + inc) * RADEON_HORZ_STRETCH_RATIO_MAX)
+	    / radeon_output->PanelXRes + 1;
+	save->fp_horz_stretch |= (((scale) & RADEON_HORZ_STRETCH_RATIO_MASK) |
 				  RADEON_HORZ_STRETCH_BLEND |
 				  RADEON_HORZ_STRETCH_ENABLE |
 				  ((radeon_output->PanelXRes/8-1)<<16));
     }
 
-    if ((Vratio == 1.0) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
+    if ((!Vscale) || (!(radeon_output->Flags & RADEON_USE_RMX)) ||
 	(radeon_output->rmx_type == RMX_CENTER)) {
 	save->fp_vert_stretch |= ((yres-1)<<12);
     } else {
-	save->fp_vert_stretch |= ((((unsigned long)(Vratio * RADEON_VERT_STRETCH_RATIO_MAX)) &
-				   RADEON_VERT_STRETCH_RATIO_MASK) |
+	CARD32 scale, inc;
+	inc = (save->fp_vert_stretch & RADEON_VERT_AUTO_RATIO_INC) ? 1 : 0;
+	scale = ((yres + inc) * RADEON_VERT_STRETCH_RATIO_MAX)
+	    / radeon_output->PanelYRes + 1;
+	save->fp_vert_stretch |= (((scale) & RADEON_VERT_STRETCH_RATIO_MASK) |
 				  RADEON_VERT_STRETCH_ENABLE |
 				  RADEON_VERT_STRETCH_BLEND |
 				  ((radeon_output->PanelYRes-1)<<12));
