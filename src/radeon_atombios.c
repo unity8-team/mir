@@ -1831,6 +1831,12 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
 	info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
+
+	if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE) {
+	    info->BiosConnector[i].valid = FALSE;
+	    continue;
+	}
+
 	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
 
 	/* don't assign a gpio for tv */
