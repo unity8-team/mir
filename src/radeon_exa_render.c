@@ -985,7 +985,7 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
      * clipping.
      */
     if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0) {
-	if (((op != PictOpSrc) || (op != PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) != 0))
+	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
