@@ -164,7 +164,7 @@ NV50CrtcModeSet(nouveauCrtcPtr crtc, DisplayModePtr mode)
 
 	/* Maybe move this calculation elsewhere? */
 	crtc->fb_pitch = pScrn->displayWidth * (pScrn->bitsPerPixel / 8);
-	NV50CrtcCommand(crtc, NV50_CRTC0_PITCH, crtc->fb_pitch | 0x100000);
+	NV50CrtcCommand(crtc, NV50_CRTC0_FB_PITCH, crtc->fb_pitch | 0x100000);
 
 	switch (pScrn->depth) {
 		case 8:
@@ -389,7 +389,7 @@ NV50CrtcShowCursor(nouveauCrtcPtr crtc, Bool forced_lock)
 	if (!crtc->modeset_lock)
 		crtc->cursor_visible = TRUE;
 
-	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR, NV50_CRTC0_CURSOR_SHOW);
+	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_CTRL, NV50_CRTC0_CURSOR_CTRL_SHOW);
 
 	/* Calling this during modeset will lock things up. */
 	if (!crtc->modeset_lock && !forced_lock)
@@ -405,7 +405,7 @@ NV50CrtcHideCursor(nouveauCrtcPtr crtc, Bool forced_lock)
 	if (!crtc->modeset_lock)
 		crtc->cursor_visible = FALSE;
 
-	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR, NV50_CRTC0_CURSOR_HIDE);
+	NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_CTRL, NV50_CRTC0_CURSOR_CTRL_HIDE);
 
 	/* Calling this during modeset will lock things up. */
 	if (!crtc->modeset_lock && !forced_lock)

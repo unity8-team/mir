@@ -32,11 +32,11 @@ NV50ConnectorGetEDID(nouveauConnectorPtr connector)
 	NVPtr pNv = NVPTR(pScrn);
 	xf86MonPtr rval = NULL;
 
-	NVWrite(pNv, NV50_I2C_PORT(connector->pDDCBus->DriverPrivate.val), NV50_I2C_START);
+	NVWrite(pNv, NV50_CONNECTOR_I2C_PORT(connector->pDDCBus->DriverPrivate.val), NV50_I2C_START);
 
 	rval = xf86DoEDID_DDC2(pScrn->scrnIndex, connector->pDDCBus);
 
-	NVWrite(pNv, NV50_I2C_PORT(connector->pDDCBus->DriverPrivate.val), NV50_I2C_STOP);
+	NVWrite(pNv, NV50_CONNECTOR_I2C_PORT(connector->pDDCBus->DriverPrivate.val), NV50_I2C_STOP);
 
 	return rval;
 }

@@ -99,7 +99,7 @@ NV50DacSetClockMode(nouveauOutputPtr output, int clock)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DacSetClockMode is called.\n");
 
 	NVPtr pNv = NVPTR(pScrn);
-	NVWrite(pNv, NV50_DAC0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0);
 }
 
 static int
@@ -126,7 +126,7 @@ NV50DacDetect (nouveauOutputPtr output)
 	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
 		NV50OrOffset(output));
 
-	NVWrite(pNv, NV50_DAC0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0x00000001);
+	NVWrite(pNv, NV50_DAC0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x00000001);
 	tmp2 = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 
 	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, NV50_DAC_DPMS_CTRL_DEFAULT_STATE | NV50_DAC_DPMS_CTRL_PENDING);
@@ -178,7 +178,7 @@ NV50DacSetPowerMode(nouveauOutputPtr output, int mode)
 	if (mode == DPMSModeSuspend || mode == DPMSModeOff)
 		tmp |= NV50_DAC_DPMS_CTRL_VSYNC_OFF;
 	if (mode != DPMSModeOn)
-		tmp |= NV50_DAC_DPMS_CTRL_BLANK;
+		tmp |= NV50_DAC_DPMS_CTRL_BLANKED;
 	if (mode == DPMSModeOff)
 		tmp |= NV50_DAC_DPMS_CTRL_OFF;
 

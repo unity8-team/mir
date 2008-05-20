@@ -105,7 +105,7 @@ NV50SorSetClockMode(nouveauOutputPtr output, int clock)
 
 	/* 0x70000 was a late addition to nv, mentioned as fixing tmds initialisation on certain gpu's. */
 	/* I presume it's some kind of clock setting, but what precisely i do not know. */
-	NVWrite(pNv, NV50_SOR0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x70000 | ((clock > limit) ? 0x101 : 0));
+	NVWrite(pNv, NV50_SOR0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0x70000 | ((clock > limit) ? 0x101 : 0));
 }
 
 static int

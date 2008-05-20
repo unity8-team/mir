@@ -62,7 +62,7 @@ static void NV50_I2CPutBits(I2CBusPtr b, int clock, int data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
 
-	NVWrite(pNv, NV50_I2C_PORT(b->DriverPrivate.val), (4 | clock | data << 1));
+	NVWrite(pNv, NV50_CONNECTOR_I2C_PORT(b->DriverPrivate.val), (4 | clock | data << 1));
 }
 
 static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
@@ -70,7 +70,7 @@ static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
 	unsigned char val;
 
-	val = NVRead(pNv, NV50_I2C_PORT(b->DriverPrivate.val));
+	val = NVRead(pNv, NV50_CONNECTOR_I2C_PORT(b->DriverPrivate.val));
 	*clock = !!(val & 1);
 	*data = !!(val & 2);
 }

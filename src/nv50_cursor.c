@@ -40,11 +40,11 @@ Bool NV50CursorAcquire(ScrnInfoPtr pScrn)
 		nouveauCrtcPtr crtc = pNv->crtc[i];
 		const int headOff = 0x10 * crtc->index;
 
-		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL + headOff, 0x2000);
-		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK);
+		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff, 0x2000);
+		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff) & NV50_CRTC_CURSOR_CTRL2_STATUS_MASK);
 
-		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL + headOff, NV50_CRTC_CURSOR_CTRL_ON);
-		while ((NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK) != NV50_CRTC_CURSOR_CTRL_STATUS_ACTIVE);
+		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff, NV50_CRTC_CURSOR_CTRL2_ON);
+		while ((NVRead(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff) & NV50_CRTC_CURSOR_CTRL2_STATUS_MASK) != NV50_CRTC_CURSOR_CTRL2_STATUS_ACTIVE);
 	}
 
 	return TRUE;
@@ -62,8 +62,8 @@ void NV50CursorRelease(ScrnInfoPtr pScrn)
 		nouveauCrtcPtr crtc = pNv->crtc[i];
 		const int headOff = 0x10 * crtc->index;
 
-		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL+headOff, NV50_CRTC_CURSOR_CTRL_OFF);
-		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL+headOff) & NV50_CRTC_CURSOR_CTRL_STATUS_MASK);
+		NVWrite(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff, NV50_CRTC_CURSOR_CTRL2_OFF);
+		while (NVRead(pNv, NV50_CRTC0_CURSOR_CTRL2 + headOff) & NV50_CRTC_CURSOR_CTRL2_STATUS_MASK);
 	}
 }
 
