@@ -168,7 +168,6 @@ static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
 };
 
 
-static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output);
 static void RADEONUpdatePanelSize(xf86OutputPtr output);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
 #define AVIVO_I2C_DISABLE 0
@@ -211,19 +210,99 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 
 }
 
-static RADEONMonitorType
-avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
+static xf86MonPtr
+radeon_do_ddc(xf86OutputPtr output)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t DDCReg;
+    xf86MonPtr MonInfo = NULL;
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    int i, j;
+
+    if (radeon_output->pI2CBus) {
+	DDCReg = radeon_output->ddc_i2c.mask_clk_reg;
+
+	if (IS_AVIVO_VARIANT) {
+	    AVIVOI2CDoLock(output, AVIVO_I2C_ENABLE);
+	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+	    AVIVOI2CDoLock(output, AVIVO_I2C_DISABLE);
+	} else if ((DDCReg == RADEON_LCD_GPIO_MASK) || (DDCReg == RADEON_MDGPIO_EN_REG)) {
+	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+	} else {
+	    OUTREG(DDCReg, INREG(DDCReg) &
+		   (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
+
+	    /* For some old monitors (like Compaq Presario FP500), we need
+	     * following process to initialize/stop DDC
+	     */
+	    OUTREG(DDCReg, INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
+	    for (j = 0; j < 3; j++) {
+		OUTREG(DDCReg,
+		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
+		usleep(13000);
+
+		OUTREG(DDCReg,
+		       INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
+		for (i = 0; i < 10; i++) {
+		    usleep(15000);
+		    if (INREG(DDCReg) & RADEON_GPIO_Y_1)
+			break;
+		}
+		if (i == 10) continue;
+
+		usleep(15000);
+
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
+		usleep(15000);
+
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
+		usleep(15000);
+		OUTREG(DDCReg,
+		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
+		usleep(15000);
+
+		MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
+		usleep(15000);
+		OUTREG(DDCReg,
+		       INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
+		for (i = 0; i < 5; i++) {
+		    usleep(15000);
+		    if (INREG(DDCReg) & RADEON_GPIO_Y_1)
+			break;
+		}
+		usleep(15000);
+		OUTREG(DDCReg,
+		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
+		usleep(15000);
+
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
+		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
+		usleep(15000);
+		if (MonInfo)  break;
+	    }
+	    OUTREG(DDCReg, INREG(DDCReg) &
+		   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
+	}
+    }
+
+    return MonInfo;
+}
+
+static RADEONMonitorType
+radeon_ddc_connected(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn        = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->pI2CBus) {
-	AVIVOI2CDoLock(output, AVIVO_I2C_ENABLE);
-	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	AVIVOI2CDoLock(output, AVIVO_I2C_DISABLE);
-    }
+    if (radeon_output->pI2CBus)
+	MonInfo = radeon_do_ddc(output);
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
 	    xf86OutputSetEDID(output, MonInfo);
@@ -239,164 +318,13 @@ avivo_display_ddc_connected(ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    MonType = MT_DFP;
 	else
 	    MonType = MT_CRT;
-    } else MonType = MT_NONE;
+    } else
+	MonType = MT_NONE;
     
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
 
     return MonType;
-}
-
-static RADEONMonitorType
-RADEONDisplayDDCConnected(ScrnInfoPtr pScrn, xf86OutputPtr output)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t DDCReg;
-    RADEONMonitorType MonType = MT_NONE;
-    xf86MonPtr MonInfo = NULL;
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i, j;
-
-    if (!radeon_output->ddc_i2c.valid)
-	return MT_NONE;
-
-    DDCReg = radeon_output->ddc_i2c.mask_clk_reg;
-
-    /* Read and output monitor info using DDC2 over I2C bus */
-    if (radeon_output->pI2CBus && info->ddc2 && (DDCReg != RADEON_LCD_GPIO_MASK) && (DDCReg != RADEON_MDGPIO_EN_REG)) {
-	OUTREG(DDCReg, INREG(DDCReg) &
-	       (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
-
-	/* For some old monitors (like Compaq Presario FP500), we need
-	 * following process to initialize/stop DDC
-	 */
-	OUTREG(DDCReg, INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-	for (j = 0; j < 3; j++) {
-	    OUTREG(DDCReg,
-		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-	    usleep(13000);
-
-	    OUTREG(DDCReg,
-		   INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-	    for (i = 0; i < 10; i++) {
-		usleep(15000);
-		if (INREG(DDCReg) & RADEON_GPIO_Y_1)
-		    break;
-	    }
-	    if (i == 10) continue;
-
-	    usleep(15000);
-
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-	    usleep(15000);
-
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-	    usleep(15000);
-	    OUTREG(DDCReg,
-		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-	    usleep(15000);
-
-	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-	    usleep(15000);
-	    OUTREG(DDCReg,
-		   INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-	    for (i = 0; i < 5; i++) {
-		usleep(15000);
-		if (INREG(DDCReg) & RADEON_GPIO_Y_1)
-		    break;
-	    }
-	    usleep(15000);
-	    OUTREG(DDCReg,
-		   INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-	    usleep(15000);
-
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-	    OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-	    usleep(15000);
-	    if (MonInfo)  break;
-	}
-    } else if (radeon_output->pI2CBus && info->ddc2 && ((DDCReg == RADEON_LCD_GPIO_MASK) || (DDCReg == RADEON_MDGPIO_EN_REG))) {
-	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-    } else {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DDC2/I2C is not properly initialized\n");
-	MonType = MT_NONE;
-    }
-
-    OUTREG(DDCReg, INREG(DDCReg) &
-	   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
-
-    if (MonInfo) {
-	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
-	    xf86OutputSetEDID(output, MonInfo);
-	if (radeon_output->type == OUTPUT_LVDS)
-	    MonType = MT_LCD;
-	else if (radeon_output->type == OUTPUT_DVI_D)
-	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_HDMI)
-	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_DVI_I && (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
-	    MonType = MT_DFP;
-	else
-	    MonType = MT_CRT;
-    } else MonType = MT_NONE;
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
-
-    return MonType;
-}
-
-
-/* Primary Head (DVI or Laptop Int. panel)*/
-/* A ddc capable display connected on DVI port */
-/* Secondary Head (mostly VGA, can be DVI on some OEM boards)*/
-void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output)
-{
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-
-    if (radeon_output->MonType == MT_UNKNOWN) {
-	if (IS_AVIVO_VARIANT) {
-	    radeon_output->MonType = avivo_display_ddc_connected(pScrn, output);
-	    if (!radeon_output->MonType) {
-		if (radeon_output->type == OUTPUT_LVDS)
-		    radeon_output->MonType = MT_LCD;
-		else
-		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
-	    }
-	} else {
-	    radeon_output->MonType = RADEONDisplayDDCConnected(pScrn, output);
-	    if (!radeon_output->MonType) {
-		if (radeon_output->type == OUTPUT_LVDS || OUTPUT_IS_DVI)
-		    radeon_output->MonType = RADEONPortCheckNonDDC(pScrn, output);
-		if (!radeon_output->MonType) {
-		    if (info->IsAtomBios)
-			radeon_output->MonType = atombios_dac_detect(pScrn, output);
-		    else
-			radeon_output->MonType = legacy_dac_detect(pScrn, output);
-		}
-	    }
-	}
-    }
-
-    /* update panel info for RMX */
-    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
-	RADEONUpdatePanelSize(output);
-
-    /* panel is probably busted or not connected */
-    if ((radeon_output->MonType == MT_LCD) &&
-	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
-	radeon_output->MonType = MT_NONE;
-
-    if (output->MonInfo) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
-		   output->name);
-	xf86PrintEDID( output->MonInfo );
-    }
 }
 
 #ifndef __powerpc__
@@ -445,36 +373,48 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 
 #endif /* __powerpc__ */
 
-static RADEONMonitorType RADEONPortCheckNonDDC(ScrnInfoPtr pScrn, xf86OutputPtr output)
+static void
+RADEONConnectorFindMonitor(xf86OutputPtr output)
 {
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
+    ScrnInfoPtr pScrn        = output->scrn;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONMonitorType MonType = MT_NONE;
 
-    if (radeon_output->type == OUTPUT_LVDS) {
-	if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
-	    MonType = MT_LCD;
-	else
+    if (radeon_output->MonType == MT_UNKNOWN) {
+	radeon_output->MonType = radeon_ddc_connected(output);
+	if (!radeon_output->MonType) {
+	    if (radeon_output->type == OUTPUT_LVDS) {
+		if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
+		    radeon_output->MonType = MT_LCD;
+		else
 #if defined(__powerpc__)
-	    MonType = MT_LCD;
+		    radeon_output->MonType = MT_LCD;
 #else
-	    MonType = RADEONDetectLidStatus(pScrn);
+		    radeon_output->MonType = RADEONDetectLidStatus(pScrn);
 #endif
-    } /*else if (radeon_output->type == OUTPUT_DVI) {
-	if (radeon_output->TMDSType == TMDS_INT) {
-	    if (INREG(RADEON_FP_GEN_CNTL) & RADEON_FP_DETECT_SENSE)
-		MonType = MT_DFP;
-	} else if (radeon_output->TMDSType == TMDS_EXT) {
-	    if (INREG(RADEON_FP2_GEN_CNTL) & RADEON_FP2_DETECT_SENSE)
-		MonType = MT_DFP;
+	    } else {
+		if (info->IsAtomBios)
+		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
+		else
+		    radeon_output->MonType = legacy_dac_detect(pScrn, output);
+	    }
 	}
-	}*/
+    }
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Detected non-DDC Monitor Type: %d\n", MonType);
+    /* update panel info for RMX */
+    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
+	RADEONUpdatePanelSize(output);
 
-    return MonType;
+    /* panel is probably busted or not connected */
+    if ((radeon_output->MonType == MT_LCD) &&
+	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
+	radeon_output->MonType = MT_NONE;
 
+    if (output->MonInfo) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
+		   output->name);
+	xf86PrintEDID( output->MonInfo );
+    }
 }
 
 static void
@@ -1037,7 +977,7 @@ radeon_detect(xf86OutputPtr output)
 
     radeon_output->MonType = MT_UNKNOWN;
     radeon_bios_output_connected(output, FALSE);
-    RADEONConnectorFindMonitor(pScrn, output);
+    RADEONConnectorFindMonitor(output);
 
     /* nothing connected, light up some defaults so the server comes up */
     if (radeon_output->MonType == MT_NONE &&
@@ -1105,26 +1045,6 @@ radeon_detect(xf86OutputPtr output)
 	  output->subpixel_order = SubPixelNone;
 	  break;
       }
-
-#if 0
-      if (!connected) {
-	  /* default to unknown for flaky chips/connectors
-	   * so we can get something on the screen
-	   */
-	  if ((radeon_output->type == OUTPUT_VGA || radeon_output->type == OUTPUT_DVI_I) &&
-	      (radeon_output->DACType == DAC_TVDAC) &&
-	      ((info->ChipFamily == CHIP_FAMILY_RS400) ||
-	       (info->ChipFamily == CHIP_FAMILY_RS480))) {
-	      radeon_output->MonType = MT_CRT;
-	      return XF86OutputStatusUnknown;
-	  } else if (((info->ChipFamily == CHIP_FAMILY_RS400) ||
-		      (info->ChipFamily == CHIP_FAMILY_RS480)) &&
-		     radeon_output->type == OUTPUT_DVI_D) {
-	      radeon_output->MonType = MT_DFP; /* MT_LCD ??? */
-	      return XF86OutputStatusUnknown;
-	  }
-      }
-#endif
 
       if (connected)
 	  return XF86OutputStatusConnected;
@@ -2146,9 +2066,8 @@ RADEONGetTMDSInfo(xf86OutputPtr output)
         radeon_output->tmds_pll[i].freq = 0;
     }
 
-    if (RADEONGetTMDSInfoFromBIOS(output)) return;
-
-    RADEONGetTMDSInfoFromTable(output);
+    if (!RADEONGetTMDSInfoFromBIOS(output))
+	RADEONGetTMDSInfoFromTable(output);
 
 }
 
@@ -2259,10 +2178,8 @@ void RADEONInitConnector(xf86OutputPtr output)
 	    RADEONGetTMDSInfo(output);
     }
 
-    if (OUTPUT_IS_TV) {
+    if (OUTPUT_IS_TV)
 	RADEONGetTVInfo(output);
-	RADEONGetTVDacAdjInfo(output);
-    }
 
     if (radeon_output->DACType == DAC_TVDAC) {
 	radeon_output->tv_on = FALSE;

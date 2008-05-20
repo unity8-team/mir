@@ -969,7 +969,6 @@ extern DisplayModePtr RADEONProbeOutputModes(xf86OutputPtr output);
 /* radeon_output.c */
 extern RADEONI2CBusRec atom_setup_i2c_bus(int ddc_line);
 extern RADEONI2CBusRec legacy_setup_i2c_bus(int ddc_line);
-extern void RADEONConnectorFindMonitor(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern void RADEONGetPanelInfo(ScrnInfoPtr pScrn);
 extern void RADEONInitConnector(xf86OutputPtr output);
 extern void RADEONPrintPortMap(ScrnInfoPtr pScrn);
