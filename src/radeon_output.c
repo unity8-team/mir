@@ -2684,16 +2684,12 @@ static int
 radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     int			o;
     int			index_mask = 0;
 
-    /*
-     * cards without a CRTC2 really need cloning enabled
-     * for cards with 2 CRTC this may need more testing
-     */
-    if (pRADEONEnt->HasCRTC2)
+    if (IS_DCE3_VARIANT)
 	return index_mask;
 
     /* LVDS is too wacky */
@@ -2707,8 +2703,11 @@ radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
 	    continue;
 	else if (radeon_clone->type == OUTPUT_LVDS) /* LVDS */
 	    continue;
-	else if ((radeon_output->DACType == DAC_TVDAC) &&
-		 (radeon_clone->DACType == DAC_TVDAC)) /* shared tvdac */
+	else if ((radeon_output->DACType != DAC_NONE) &&
+		 (radeon_output->DACType == radeon_clone->DACType)) /* shared dac */
+	    continue;
+	else if ((radeon_output->TMDSType != TMDS_NONE) &&
+		 (radeon_output->TMDSType == radeon_clone->TMDSType)) /* shared tmds */
 	    continue;
 	else
 	    index_mask |= (1 << o);
