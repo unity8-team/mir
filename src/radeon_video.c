@@ -687,9 +687,9 @@ static GAMMA_CURVE_R100 gamma_curve_r100[8] =
 static GAMMA_CURVE_R200 gamma_curve_r200[8] =
  {
 	/* Gamma 1.0 */
-      {0x00000040, 0x00000000,
-       0x00000040, 0x00000020,
-       0x00000080, 0x00000040,
+      {0x00000100, 0x00000000,
+       0x00000100, 0x00000020,
+       0x00000100, 0x00000040,
        0x00000100, 0x00000080,
        0x00000100, 0x00000100,
        0x00000100, 0x00000100,
@@ -858,7 +858,10 @@ RADEONSetOverlayGamma(ScrnInfoPtr pScrn, uint32_t gamma)
     /* Set gamma */
     RADEONWaitForIdleMMIO(pScrn);
     ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL) & ~RADEON_SCALER_GAMMA_SEL_MASK;
-    OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl | (gamma << 0x00000005));
+    if (info->ChipFamily < CHIP_FAMILY_R200)
+	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl | (gamma << 5));
+    else
+	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl);
 
     /* Load gamma curve adjustments */
     if (info->ChipFamily >= CHIP_FAMILY_R200) {
