@@ -98,6 +98,11 @@
 #define MIN(a,b) ((a)>(b)?(b):(a))
 #endif
 
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
+# define __FUNCTION__ __func__		/* C99 */
+#endif
+
 #ifndef HAVE_XF86MODEBANDWIDTH
 extern unsigned int xf86ModeBandwidth(DisplayModePtr mode, int depth);
 #define MODE_BANDWIDTH MODE_BAD
