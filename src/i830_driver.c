@@ -2762,8 +2762,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 
    /* Enable FB compression if possible */
-   if (i830_fb_compression_supported(pI830) && !IS_I965GM(pI830)
-	   && !IS_IGD_GM(pI830))
+   if (i830_fb_compression_supported(pI830))
        pI830->fb_compression = TRUE;
    else
        pI830->fb_compression = FALSE;
