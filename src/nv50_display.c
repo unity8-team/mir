@@ -35,8 +35,12 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50DispPreInit is called.\n");
 
 	NVPtr pNv = NVPTR(pScrn);
-	/* These labels are guesswork based on symmetry (2 SOR's and 3 DAC's exist)*/
+	/*
+	 * I get the strange feeling that the 0x006101XX range is some kind of master modesetting control.
+	 * Maybe this what triggers it to be enabled.
+	 */
 	NVWrite(pNv, 0x00610184, NVRead(pNv, 0x00614004));
+	/* CRTC related? */
 	NVWrite(pNv, 0x00610190 + 0 * 0x10, NVRead(pNv, 0x00616100 + 0 * 0x800));
 	NVWrite(pNv, 0x00610190 + 1 * 0x10, NVRead(pNv, 0x00616100 + 1 * 0x800));
 	NVWrite(pNv, 0x00610194 + 0 * 0x10, NVRead(pNv, 0x00616104 + 0 * 0x800));
@@ -50,6 +54,11 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 	NVWrite(pNv, 0x006101d0 + DAC2 * 0x4, NVRead(pNv, 0x0061a000 + DAC2 * 0x800));
 	NVWrite(pNv, 0x006101e0 + SOR0 * 0x4, NVRead(pNv, 0x0061c000 + SOR0 * 0x800));
 	NVWrite(pNv, 0x006101e0 + SOR1 * 0x4, NVRead(pNv, 0x0061c000 + SOR1 * 0x800));
+	/* Maybe TV-out related, or something more generic? */
+	/* These are not in nv, so it must be something nv does not use. */
+	NVWrite(pNv, 0x006101f0 + 0 * 0x4, NVRead(pNv, 0x0061e000 + 0 * 0x800));
+	NVWrite(pNv, 0x006101f0 + 1 * 0x4, NVRead(pNv, 0x0061e000 + 1 * 0x800));
+	NVWrite(pNv, 0x006101f0 + 2 * 0x4, NVRead(pNv, 0x0061e000 + 2 * 0x800));
 	/* 0x00150000 seems to be the default state on many cards. why the extra bit is needed on some is unknown. */
 	NVWrite(pNv, NV50_DAC0_DPMS_CTRL, 0x00400000 | NV50_DAC_DPMS_CTRL_DEFAULT_STATE | NV50_DAC_DPMS_CTRL_PENDING);
 	NVWrite(pNv, NV50_DAC0_CLK_CTRL1, 0x00000001);
