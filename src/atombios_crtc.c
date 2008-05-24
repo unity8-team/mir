@@ -161,7 +161,7 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
 }
 
 void
-atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
+atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
@@ -174,8 +174,6 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
     PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
-    int pll_flags = 0;
-
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output = NULL;
 
@@ -334,7 +332,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
     Bool tilingChanged = FALSE;
-
+    int pll_flags = 0;
     memset(&crtc_timing, 0, sizeof(crtc_timing));
 
     if (info->allowColorTiling) {
@@ -356,6 +354,9 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 		    need_tv_timings = 2;
 
 	    }
+
+	    if (radeon_output->MonType == MT_LCD)
+	      pll_flags |= RADEON_PLL_USE_REF_DIV;
 	}
     }
 
@@ -475,7 +476,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     }
 
-    atombios_crtc_set_pll(crtc, adjusted_mode);
+    atombios_crtc_set_pll(crtc, adjusted_mode, pll_flags);
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
