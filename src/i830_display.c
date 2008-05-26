@@ -1077,6 +1077,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dspstride_reg = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
     int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
+    int pipestat_reg = (pipe == 0) ? PIPEASTAT : PIPEBSTAT;
     int i;
     int refclk;
     intel_clock_t clock;
@@ -1376,6 +1377,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
+
+    /* Clear any FIFO underrun status that may have occurred normally */
+    OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);
 }
 
 

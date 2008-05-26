@@ -1934,12 +1934,36 @@ static void
 SetHWOperatingState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   int i;
 
    DPRINTF(PFX, "SetHWOperatingState\n");
+
+   /*
+    * Disable outputs & pipes since some of these regs can only be updated
+    * when they're off.
+    */
+   for (i = 0; i < xf86_config->num_output; i++) {
+       xf86OutputPtr   output = xf86_config->output[i];
+       output->funcs->dpms(output, DPMSModeOff);
+   }
+   i830WaitForVblank(pScrn);
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+       xf86CrtcPtr crtc = xf86_config->crtc[i];
+       crtc->funcs->dpms(crtc, DPMSModeOff);
+   }
+   i830WaitForVblank(pScrn);
 
    i830_start_ring(pScrn);
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
+
+   /*
+    * Fixup FIFO defaults:
+    * we don't use plane C at all so we can allocate the 96 FIFO RAM
+    * entries equally between planes A and B.
+    */
+   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) | (48 << DSPARB_BSTART_SHIFT));
 }
 
 enum pipe {
@@ -2313,6 +2337,10 @@ RestoreHWState(ScrnInfoPtr pScrn)
        OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
    }
 
+   /* Clear any FIFO underrun status that may have occurred normally */
+   OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
+   OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
+
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
 
@@ -2461,6 +2489,22 @@ I830BlockHandler(int i,
      */
     if (pScrn->vtSema && !pI830->noAccel && !pI830->directRenderingEnabled)
 	I830EmitFlush(pScrn);
+
+    /*
+     * Check for FIFO underruns at block time (which amounts to just
+     * periodically).  If this happens, it means our DSPARB or some other
+     * memory arbitration setting is wrong for the current configuration
+     * (except for mode setting, where it may occur naturally).
+     * Check & ack the condition.
+     */
+    if (INREG(PIPEASTAT) & FIFO_UNDERRUN) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
+	    OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
+    }
+    if (INREG(PIPEBSTAT) & FIFO_UNDERRUN) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe B!\n");
+	    OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
+    }
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
