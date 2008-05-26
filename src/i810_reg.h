@@ -490,6 +490,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   - new bits for i810
  *   - new register hwstam (mask)
  */
+#define PWRCTXA		     0x2088 /* 965GM+ only */
+#define   PWRCTX_EN	     (1<<0)
 #define HWSTAM               0x2098 /* p290 */
 #define IER                  0x20a0 /* p291 */
 #define IIR                  0x20a4 /* p292 */
@@ -1150,6 +1152,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define RENCLK_GATE_D2		0x6208
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
+#define DEUC			0x6214          /* CRL only */
 
 /*
  * This is a PCI config space register to manipulate backlight brightness

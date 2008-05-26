@@ -112,6 +112,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Our hardware status area is just a single page */
 #define HWSTATUS_PAGE_SIZE GTT_PAGE_SIZE
+#define PWRCTX_SIZE GTT_PAGE_SIZE
 
 static i830_memory *
 i830_allocate_aperture(ScrnInfoPtr pScrn, const char *name,
@@ -337,6 +338,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->gen4_render_state_mem = NULL;
     pI830->overlay_regs = NULL;
     pI830->logical_context = NULL;
+    pI830->power_context = NULL;
 #ifdef XF86DRI
     pI830->back_buffer = NULL;
     pI830->third_buffer = NULL;
@@ -1651,6 +1653,22 @@ i830_allocate_hwstatus(ScrnInfoPtr pScrn)
     if (pI830->hw_status == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		"Failed to allocate hw status page.\n");
+	return FALSE;
+    }
+    return TRUE;
+}
+
+Bool
+i830_allocate_pwrctx(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->power_context = i830_allocate_memory(pScrn, "power context",
+						PWRCTX_SIZE, GTT_PAGE_SIZE,
+						NEED_LIFETIME_FIXED);
+    if (!pI830->power_context) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		"Failed to allocate power context.\n");
 	return FALSE;
     }
     return TRUE;

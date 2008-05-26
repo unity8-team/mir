@@ -934,6 +934,40 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    }
 }
 
+static void
+i830_init_clock_gating(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* Disable clock gating reported to work incorrectly according to the specs.
+     */
+    if (IS_IGD_GM(pI830)) {
+	OUTREG(RENCLK_GATE_D1, 0);
+	OUTREG(RENCLK_GATE_D2, 0);
+	OUTREG(RAMCLK_GATE_D, 0);
+	OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE |
+	       OVRUNIT_CLOCK_GATE_DISABLE |
+	       OVCUNIT_CLOCK_GATE_DISABLE);
+    } else if (IS_I965GM(pI830)) {
+	OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
+	OUTREG(RENCLK_GATE_D2, 0);
+	OUTREG(DSPCLK_GATE_D, 0);
+	OUTREG(RAMCLK_GATE_D, 0);
+	OUTREG16(DEUC, 0);
+    } else if (IS_I965G(pI830)) {
+	OUTREG(RENCLK_GATE_D1, I965_RCZ_CLOCK_GATE_DISABLE |
+	       I965_RCC_CLOCK_GATE_DISABLE |
+	       I965_RCPB_CLOCK_GATE_DISABLE |
+	       I965_ISC_CLOCK_GATE_DISABLE |
+	       I965_FBC_CLOCK_GATE_DISABLE);
+	OUTREG(RENCLK_GATE_D2, 0);
+    } else if (IS_I855(pI830) || IS_I865G(pI830)) {
+	OUTREG(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
+    } else if (IS_I830(pI830)) {
+	OUTREG(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
+    }
+}
+
 static int
 I830LVDSPresent(ScrnInfoPtr pScrn)
 {
@@ -1461,6 +1495,8 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    i830TakeRegSnapshot(pScrn);
 
+   i830_init_clock_gating(pScrn);
+
 #if 1
    pI830->saveSWF0 = INREG(SWF0);
    pI830->saveSWF4 = INREG(SWF4);
@@ -1900,23 +1936,6 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    DPRINTF(PFX, "SetHWOperatingState\n");
-
-   /* Disable clock gating reported to work incorrectly according to the specs.
-    */
-   if (IS_IGD_GM(pI830)) {
-      OUTREG(RENCLK_GATE_D1, 0);
-      OUTREG(RENCLK_GATE_D2, 0);
-      OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
-   } else if (IS_I965GM(pI830)) {
-      OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
-   } else if (IS_I965G(pI830)) {
-      OUTREG(RENCLK_GATE_D1,
-	     I965_RCC_CLOCK_GATE_DISABLE | I965_ISC_CLOCK_GATE_DISABLE);
-   } else if (IS_I855(pI830) || IS_I865G(pI830)) {
-      OUTREG(RENCLK_GATE_D1, SV_CLOCK_GATE_DISABLE);
-   } else if (IS_I830(pI830)) {
-      OUTREG(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
-   }
 
    i830_start_ring(pScrn);
    if (!pI830->SWCursor)
@@ -2504,6 +2523,10 @@ i830_try_memory_allocation(ScrnInfoPtr pScrn)
     if (!i830_allocate_2d_memory(pScrn))
 	goto failed;
 
+    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+	if (!i830_allocate_pwrctx(pScrn))
+	    goto failed;
+
     if (dri && !i830_allocate_3d_memory(pScrn))
 	goto failed;
 
@@ -2823,6 +2846,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	       "Couldn't allocate video memory\n");
        return FALSE;
    }
+
+   if (pI830->power_context)
+       OUTREG(PWRCTXA, pI830->power_context->offset | PWRCTX_EN);
 
    I830UnmapMMIO(pScrn);
 
@@ -3452,6 +3478,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       I830DRICloseScreen(pScreen);
    }
 #endif
+
+   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+       OUTREG(PWRCTXA, 0);
 
    if (I830IsPrimary(pScrn)) {
       xf86GARTCloseScreen(scrnIndex);
