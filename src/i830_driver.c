@@ -1960,8 +1960,8 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
 
    /*
     * Fixup FIFO defaults:
-    * we don't use plane C at all so we can allocate the 96 FIFO RAM
-    * entries equally between planes A and B.
+    * we don't use plane C at all so we can allocate all but one of the 96
+    * FIFO RAM entries equally between planes A and B.
     */
    OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) | (48 << DSPARB_BSTART_SHIFT));
 }
