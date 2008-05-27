@@ -3224,9 +3224,11 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 
     /* Initial setup of surfaces */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-                   "Setting up initial surfaces\n");
-    RADEONChangeSurfaces(pScrn);
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+                       "Setting up initial surfaces\n");
+        RADEONChangeSurfaces(pScrn);
+    }
 
 				/* Memory manager setup */
 
@@ -3457,10 +3459,12 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #endif
 
     /* Make sure surfaces are allright since DRI setup may have changed them */
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-                   "Setting up final surfaces\n");
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
+        xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+                       "Setting up final surfaces\n");
 
-    RADEONChangeSurfaces(pScrn);
+        RADEONChangeSurfaces(pScrn);
+    }
 
 
     /* Enable aceleration */
@@ -4037,7 +4041,8 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     }
 
     /* Update surface images */
-    RADEONSaveSurfaces(pScrn, info->ModeReg);
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+        RADEONSaveSurfaces(pScrn, info->ModeReg);
 }
 
 /* Read memory map */
@@ -4808,7 +4813,8 @@ static void RADEONSave(ScrnInfoPtr pScrn)
     }
 
     RADEONSaveBIOSRegisters(pScrn, save);
-    RADEONSaveSurfaces(pScrn, save);
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+        RADEONSaveSurfaces(pScrn, save);
 
 }
 
@@ -4864,8 +4870,8 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 	}
 
 	RADEONRestoreBIOSRegisters(pScrn, restore);
-	RADEONRestoreSurfaces(pScrn, restore);
     }
+
 
 #if 1
     /* Temp fix to "solve" VT switch problems.  When switching VTs on
@@ -4875,6 +4881,9 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
      */
     usleep(100000);
 #endif
+
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+	RADEONRestoreSurfaces(pScrn, restore);
 
     /* need to make sure we don't enable a crtc by accident or we may get a hang */
     if (pRADEONEnt->HasCRTC2 && !info->IsSecondary) {
@@ -5275,7 +5284,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     if (!xf86SetDesiredModes(pScrn))
 	return FALSE;
 
-    RADEONRestoreSurfaces(pScrn, info->ModeReg);
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+        RADEONRestoreSurfaces(pScrn, info->ModeReg);
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
     	if (info->cardType == CARD_PCIE &&
