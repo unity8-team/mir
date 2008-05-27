@@ -575,69 +575,30 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
 {
     int scrnIndex = data->val;
     RADEONInfoPtr  info   = RADEONPTR(xf86Screens[scrnIndex]);
-    unsigned char *ptr;
     atomDataTablesPtr atomDataPtr;
     unsigned int cmd_offset;
     atomBiosHandlePtr handle = NULL;
     unsigned int BIOSImageSize = 0;
     data->atomhandle = NULL;
 
-    //RHDFUNCI(scrnIndex);
-
-    /*if (info->BIOSCopy) {
-	xf86DrvMsg(scrnIndex,X_INFO,"Getting BIOS copy from INT10\n");
-	ptr = info->BIOSCopy;
-	info->BIOSCopy = NULL;
-
-	BIOSImageSize = ptr[2] * 512;
-	if (BIOSImageSize > legacyBIOSMax) {
-	    xf86DrvMsg(scrnIndex,X_ERROR,"Invalid BIOS length field\n");
-	    return ATOM_FAILED;
-	}
-    } else*/ {
-	/*if (!xf86IsEntityPrimary(info->entityIndex)) {
-	    if (!(BIOSImageSize = RHDReadPCIBios(info, &ptr)))
-		return ATOM_FAILED;
-	} else*/ {
-	     int read_len;
-	    unsigned char tmp[32];
-	    xf86DrvMsg(scrnIndex,X_INFO,"Getting BIOS copy from legacy VBIOS location\n");
-	    if (xf86ReadBIOS(legacyBIOSLocation, 0, tmp, 32) < 0) {
-		xf86DrvMsg(scrnIndex,X_ERROR,
-			   "Cannot obtain POSTed BIOS header\n");
-		return ATOM_FAILED;
-	    }
-	    BIOSImageSize = tmp[2] * 512;
-	    if (BIOSImageSize > legacyBIOSMax) {
-		xf86DrvMsg(scrnIndex,X_ERROR,"Invalid BIOS length field\n");
-		return ATOM_FAILED;
-	    }
-	    if (!(ptr = xcalloc(1,BIOSImageSize))) {
-		xf86DrvMsg(scrnIndex,X_ERROR,
-			   "Cannot allocate %i bytes of memory "
-			   "for BIOS image\n",BIOSImageSize);
-		return ATOM_FAILED;
-	    }
-	    if ((read_len = xf86ReadBIOS(legacyBIOSLocation, 0, ptr, BIOSImageSize)
-		 < 0)) {
-		xf86DrvMsg(scrnIndex,X_ERROR,"Cannot read POSTed BIOS\n");
-		goto error;
-	    }
-	}
-    }
+#ifdef XSERVER_LIBPCIACCESS
+    BIOSImageSize = info->PciInfo->rom_size > RADEON_VBIOS_SIZE ? info->PciInfo->rom_size : RADEON_VBIOS_SIZE;
+#else
+    BIOSImageSize = RADEON_VBIOS_SIZE;
+#endif
 
     if (!(atomDataPtr = xcalloc(1, sizeof(atomDataTables)))) {
 	xf86DrvMsg(scrnIndex,X_ERROR,"Cannot allocate memory for "
 		   "ATOM BIOS data tabes\n");
 	goto error;
     }
-    if (!rhdAtomGetDataTable(scrnIndex, ptr, atomDataPtr, &cmd_offset, BIOSImageSize))
+    if (!rhdAtomGetDataTable(scrnIndex, info->VBIOS, atomDataPtr, &cmd_offset, BIOSImageSize))
 	goto error1;
     if (!(handle = xcalloc(1, sizeof(atomBiosHandleRec)))) {
 	xf86DrvMsg(scrnIndex,X_ERROR,"Cannot allocate memory\n");
 	goto error1;
     }
-    handle->BIOSBase = ptr;
+    handle->BIOSBase = info->VBIOS;
     handle->atomDataPtr = atomDataPtr;
     handle->cmd_offset = cmd_offset;
     handle->scrnIndex = scrnIndex;
@@ -665,7 +626,6 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
  error1:
     xfree(atomDataPtr);
  error:
-    xfree(ptr);
     return ATOM_FAILED;
 }
 
