@@ -1631,7 +1631,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	    break;
 	}
     }
-	    
+
     switch (info->Chipset) {
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
@@ -1980,6 +1980,20 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t       fp2_gen_ctl_save   = 0;
 
+#ifdef XSERVER_LIBPCIACCESS
+#if HAVE_PCI_DEVICE_ENABLE
+    pci_device_enable(info->PciInfo);
+#endif
+#endif
+    /* don't need int10 on atom cards.
+     * in theory all radeons, but the older stuff
+     * isn't 100% yet
+     */
+    if ((info->ChipFamily == CHIP_FAMILY_R420)  ||
+	(info->ChipFamily == CHIP_FAMILY_RV410) ||
+	(info->ChipFamily >= CHIP_FAMILY_RV515))
+	return TRUE;
+
     if (xf86LoadSubModule(pScrn, "int10")) {
 	/* The VGA BIOS on the RV100/QY cannot be read when the digital output
 	 * is enabled.  Clear and restore FP2_ON around int10 to avoid this.
@@ -1991,13 +2005,15 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_ctl_save & ~RADEON_FP2_ON);
 	    }
 	}
-	
+
 	xf86DrvMsg(pScrn->scrnIndex,X_INFO,"initializing int10\n");
 	*ppInt10 = xf86InitInt10(info->pEnt->index);
 
-	if (fp2_gen_ctl_save & RADEON_FP2_ON) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "re-enabling digital out\n");
-	    OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_ctl_save);	
+	if (PCI_DEV_DEVICE_ID(info->PciInfo) == PCI_CHIP_RV100_QY) {
+	    if (fp2_gen_ctl_save & RADEON_FP2_ON) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "re-enabling digital out\n");
+		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_ctl_save);
+	    }
 	}
     }
 #endif
@@ -2470,10 +2486,6 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
 static void RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
     RADEONGetBIOSInfo(pScrn, pInt10);
-#if 0
-    RADEONGetBIOSInitTableOffsets(pScrn);
-    RADEONPostCardFromBIOSTables(pScrn);
-#endif
 }
 
 static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
@@ -2747,13 +2759,13 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	    info->DispPriority = 1;
     }
 
+    if (!RADEONPreInitChipType(pScrn))
+	goto fail;
+
     if (!RADEONPreInitInt10(pScrn, &pInt10))
 	goto fail;
 
     RADEONPostInt10Check(pScrn, int10_save);
-
-    if (!RADEONPreInitChipType(pScrn))
-	goto fail;
 
     RADEONPreInitBIOS(pScrn, pInt10);
 
@@ -5244,20 +5256,29 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT\n");
+
     if (info->ChipFamily >= CHIP_FAMILY_R600)
 	mem_size = INREG(R600_CONFIG_MEMSIZE);
     else
 	mem_size = INREG(RADEON_CONFIG_MEMSIZE);
+
     if (mem_size == 0) { /* Softboot V_BIOS */
-       xf86Int10InfoPtr pInt;
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                  "zero MEMSIZE, probably at D3cold. Re-POSTing via int10.\n");
-       pInt = xf86InitInt10 (info->pEnt->index);
-       if (pInt) {
-           pInt->num = 0xe6;
-           xf86ExecX86int10 (pInt);
-           xf86FreeInt10 (pInt);
-       }
+	if (info->IsAtomBios) {
+	    rhdAtomASICInit(info->atomBIOS);
+	} else {
+	    xf86Int10InfoPtr pInt;
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "zero MEMSIZE, probably at D3cold. Re-POSTing via int10.\n");
+	    pInt = xf86InitInt10 (info->pEnt->index);
+	    if (pInt) {
+		pInt->num = 0xe6;
+		xf86ExecX86int10 (pInt);
+		xf86FreeInt10 (pInt);
+	    } else {
+		RADEONGetBIOSInitTableOffsets(pScrn);
+		RADEONPostCardFromBIOSTables(pScrn);
+	    }
+	}
     }
 
     /* Makes sure the engine is idle before doing anything */

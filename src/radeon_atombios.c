@@ -492,7 +492,7 @@ rhdAtomAllocateFbScratch(atomBiosHandlePtr handle,
 }
 
 # ifdef ATOM_BIOS_PARSER
-static Bool
+Bool
 rhdAtomASICInit(atomBiosHandlePtr handle)
 {
     ASIC_INIT_PS_ALLOCATION asicInit;

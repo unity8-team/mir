@@ -265,6 +265,7 @@
 #define RADEON_BRUSH_Y_X                    0x1474
 #define RADEON_BUS_CNTL                     0x0030
 #       define RADEON_BUS_MASTER_DIS         (1 << 6)
+#       define RADEON_BUS_BIOS_DIS_ROM       (1 << 12)
 #       define RADEON_BUS_RD_DISCARD_EN      (1 << 24)
 #       define RADEON_BUS_RD_ABORT_EN        (1 << 25)
 #       define RADEON_BUS_MSTR_DISCONNECT_EN (1 << 28)
@@ -1046,10 +1047,12 @@
 #       define RADEON_MC_MCLK_DYN_ENABLE    (1 << 14)
 #       define RADEON_IO_MCLK_DYN_ENABLE    (1 << 15)
 #define RADEON_LCD_GPIO_MASK                0x01a0
+#define RADEON_GPIOPAD_EN                   0x01a0
 #define RADEON_LCD_GPIO_Y_REG               0x01a4
 #define RADEON_MDGPIO_A_REG                 0x01ac
 #define RADEON_MDGPIO_EN_REG                0x01b0
 #define RADEON_MDGPIO_MASK                  0x0198
+#define RADEON_GPIOPAD_MASK                 0x0198
 #define RADEON_GPIOPAD_A		    0x019c
 #define RADEON_MDGPIO_Y_REG                 0x01b4
 #define RADEON_MEM_ADDR_CONFIG              0x0148
@@ -1084,6 +1087,9 @@
 #define RADEON_MPLL_CNTL                    0x000e /* PLL */
 #define RADEON_MPP_TB_CONFIG                0x01c0 /* ? */
 #define RADEON_MPP_GP_CONFIG                0x01c8 /* ? */
+#define RADEON_SEPROM_CNTL1                 0x01c0
+#       define RADEON_SCK_PRESCALE_SHIFT    24
+#       define RADEON_SCK_PRESCALE_MASK     (0xff << 24)
 #define R300_MC_IND_INDEX                   0x01f8
 #       define R300_MC_IND_ADDR_MASK        0x3f
 #       define R300_MC_IND_WR_EN            (1 << 8)
@@ -1648,6 +1654,7 @@
 #       define RADEON_VIP_BUSY 0
 #       define RADEON_VIP_IDLE 1
 #       define RADEON_VIP_RESET 2
+#       define RADEON_VIPH_EN               (1 << 21)
 #define RADEON_VIPH_DV_LAT                  0x0c44
 #define RADEON_VIPH_BM_CHUNK                0x0c48
 #define RADEON_VIPH_DV_INT                  0x0c4c
@@ -3435,6 +3442,8 @@
 
 #define AVIVO_HDP_FB_LOCATION 0x134
 
+#define AVIVO_VGA_RENDER_CONTROL				0x0300
+#       define AVIVO_VGA_VSTATUS_CNTL_MASK                      (3 << 16)
 #define AVIVO_D1VGA_CONTROL					0x0330
 #       define AVIVO_DVGA_CONTROL_MODE_ENABLE (1<<0)
 #       define AVIVO_DVGA_CONTROL_TIMING_SELECT (1<<8)
@@ -3875,6 +3884,15 @@
 #	define AVIVO_I2C_EN							(1 << 0)
 #	define AVIVO_I2C_RESET						(1 << 8)
 
+#define R600_GENERAL_PWRMGT                                        0x618
+#	define R600_OPEN_DRAIN_PADS				   (1 << 11)
+
+#define R600_LOWER_GPIO_ENABLE                                     0x710
+#define R600_CTXSW_VID_LOWER_GPIO_CNTL                             0x718
+#define R600_HIGH_VID_LOWER_GPIO_CNTL                              0x71c
+#define R600_MEDIUM_VID_LOWER_GPIO_CNTL                            0x720
+#define R600_LOW_VID_LOWER_GPIO_CNTL                               0x724
+
 #define R600_MC_VM_FB_LOCATION                                     0x2180
 #define R600_MC_VM_AGP_TOP                                         0x2184
 #define R600_MC_VM_AGP_BOT                                         0x2188
@@ -3890,6 +3908,11 @@
 #define R600_CONFIG_MEMSIZE                                     0x5428
 #define R600_CONFIG_F0_BASE                                     0x542C
 #define R600_CONFIG_APER_SIZE                                   0x5430
+
+#define R600_ROM_CNTL                              0x1600
+#       define R600_SCK_OVERWRITE                  (1 << 1)
+#       define R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT 28
+#       define R600_SCK_PRESCALE_CRYSTAL_CLK_MASK  (0xf << 28)
 
 #define R600_BIOS_0_SCRATCH               0x1724
 #define R600_BIOS_1_SCRATCH               0x1728

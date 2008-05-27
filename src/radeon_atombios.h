@@ -131,6 +131,9 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern void
 atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *major, int *minor);
 
+Bool
+rhdAtomASICInit(atomBiosHandlePtr handle);
+
 # include "xf86int10.h"
 # ifdef ATOM_BIOS_PARSER
 #  define INT8 INT8

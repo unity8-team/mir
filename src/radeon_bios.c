@@ -65,9 +65,208 @@ typedef enum
     CONNECTOR_UNSUPPORTED_LEGACY
 } RADEONLegacyConnectorType;
 
+static Bool
+radeon_read_bios(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info     = RADEONPTR(pScrn);
+
+#ifdef XSERVER_LIBPCIACCESS
+    if (pci_device_read_rom(info->PciInfo, info->VBIOS)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Failed to read PCI ROM!\n");
+	return FALSE;
+    }
+#else
+    xf86ReadPciBIOS(0, info->PciTag, 0, info->VBIOS, RADEON_VBIOS_SIZE);
+    if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Video BIOS not detected in PCI space!\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Attempting to read Video BIOS from "
+		   "legacy ISA space!\n");
+	info->BIOSAddr = 0x000c0000;
+	xf86ReadDomainMemory(info->PciTag, info->BIOSAddr,
+			     RADEON_VBIOS_SIZE, info->VBIOS);
+    }
+#endif
+    if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa)
+	return FALSE;
+    else
+	return TRUE;
+}
+
+static Bool
+radeon_read_unposted_bios(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info     = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    Bool ret;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to read un-POSTed bios\n");
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	uint32_t viph_control   = INREG(RADEON_VIPH_CONTROL);
+	uint32_t bus_cntl       = INREG(RADEON_BUS_CNTL);
+	uint32_t d1vga_control  = INREG(AVIVO_D1VGA_CONTROL);
+	uint32_t d2vga_control  = INREG(AVIVO_D2VGA_CONTROL);
+	uint32_t vga_render_control  = INREG(AVIVO_VGA_RENDER_CONTROL);
+	uint32_t rom_cntl       = INREG(R600_ROM_CNTL);
+	uint32_t general_pwrmgt = INREG(R600_GENERAL_PWRMGT);
+	uint32_t low_vid_lower_gpio_cntl    = INREG(R600_LOW_VID_LOWER_GPIO_CNTL);
+	uint32_t medium_vid_lower_gpio_cntl = INREG(R600_MEDIUM_VID_LOWER_GPIO_CNTL);
+	uint32_t high_vid_lower_gpio_cntl   = INREG(R600_HIGH_VID_LOWER_GPIO_CNTL);
+	uint32_t ctxsw_vid_lower_gpio_cntl  = INREG(R600_CTXSW_VID_LOWER_GPIO_CNTL);
+	uint32_t lower_gpio_enable          = INREG(R600_LOWER_GPIO_ENABLE);
+
+	/* disable VIP */
+	OUTREG(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
+
+	/* enable the rom */
+	OUTREG(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+
+        /* Disable VGA mode */
+	OUTREG(AVIVO_D1VGA_CONTROL, (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_D2VGA_CONTROL, (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, (vga_render_control & ~AVIVO_VGA_VSTATUS_CNTL_MASK));
+
+	OUTREG(R600_ROM_CNTL, ((rom_cntl & ~R600_SCK_PRESCALE_CRYSTAL_CLK_MASK) |
+			       (1 << R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT) |
+			       R600_SCK_OVERWRITE));
+
+	OUTREG(R600_GENERAL_PWRMGT, (general_pwrmgt & ~R600_OPEN_DRAIN_PADS));
+
+	OUTREG(R600_LOW_VID_LOWER_GPIO_CNTL, (low_vid_lower_gpio_cntl & ~0x400));
+
+	OUTREG(R600_MEDIUM_VID_LOWER_GPIO_CNTL, (medium_vid_lower_gpio_cntl & ~0x400));
+
+	OUTREG(R600_HIGH_VID_LOWER_GPIO_CNTL, (high_vid_lower_gpio_cntl & ~0x400));
+
+	OUTREG(R600_CTXSW_VID_LOWER_GPIO_CNTL, (ctxsw_vid_lower_gpio_cntl & ~0x400));
+
+	OUTREG(R600_LOWER_GPIO_ENABLE, (lower_gpio_enable | 0x400));
+
+	ret = radeon_read_bios(pScrn);
+
+	/* restore regs */
+	OUTREG(RADEON_VIPH_CONTROL, viph_control);
+	OUTREG(RADEON_BUS_CNTL, bus_cntl);
+	OUTREG(AVIVO_D1VGA_CONTROL, d1vga_control);
+	OUTREG(AVIVO_D2VGA_CONTROL, d2vga_control);
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, vga_render_control);
+	OUTREG(R600_ROM_CNTL, rom_cntl);
+	OUTREG(R600_GENERAL_PWRMGT, general_pwrmgt);
+	OUTREG(R600_LOW_VID_LOWER_GPIO_CNTL, low_vid_lower_gpio_cntl);
+	OUTREG(R600_MEDIUM_VID_LOWER_GPIO_CNTL, medium_vid_lower_gpio_cntl);
+	OUTREG(R600_HIGH_VID_LOWER_GPIO_CNTL, high_vid_lower_gpio_cntl);
+	OUTREG(R600_CTXSW_VID_LOWER_GPIO_CNTL, ctxsw_vid_lower_gpio_cntl);
+	OUTREG(R600_LOWER_GPIO_ENABLE, lower_gpio_enable);
+
+    } else if (info->ChipFamily >= CHIP_FAMILY_RV515) {
+	uint32_t seprom_cntl1   = INREG(RADEON_SEPROM_CNTL1);
+	uint32_t viph_control   = INREG(RADEON_VIPH_CONTROL);
+	uint32_t bus_cntl       = INREG(RADEON_BUS_CNTL);
+	uint32_t d1vga_control  = INREG(AVIVO_D1VGA_CONTROL);
+	uint32_t d2vga_control  = INREG(AVIVO_D2VGA_CONTROL);
+	uint32_t vga_render_control  = INREG(AVIVO_VGA_RENDER_CONTROL);
+	uint32_t gpiopad_a      = INREG(RADEON_GPIOPAD_A);
+	uint32_t gpiopad_en     = INREG(RADEON_GPIOPAD_EN);
+	uint32_t gpiopad_mask   = INREG(RADEON_GPIOPAD_MASK);
+
+	OUTREG(RADEON_SEPROM_CNTL1, ((seprom_cntl1 & ~RADEON_SCK_PRESCALE_MASK) |
+				     (0xc << RADEON_SCK_PRESCALE_SHIFT)));
+
+	OUTREG(RADEON_GPIOPAD_A, 0);
+	OUTREG(RADEON_GPIOPAD_EN, 0);
+	OUTREG(RADEON_GPIOPAD_MASK, 0);
+
+	/* disable VIP */
+	OUTREG(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
+
+	/* enable the rom */
+	OUTREG(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+
+        /* Disable VGA mode */
+	OUTREG(AVIVO_D1VGA_CONTROL, (d1vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_D2VGA_CONTROL, (d2vga_control & ~(AVIVO_DVGA_CONTROL_MODE_ENABLE |
+						       AVIVO_DVGA_CONTROL_TIMING_SELECT)));
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, (vga_render_control & ~AVIVO_VGA_VSTATUS_CNTL_MASK));
+
+	ret = radeon_read_bios(pScrn);
+
+	/* restore regs */
+	OUTREG(RADEON_SEPROM_CNTL1, seprom_cntl1);
+	OUTREG(RADEON_VIPH_CONTROL, viph_control);
+	OUTREG(RADEON_BUS_CNTL, bus_cntl);
+	OUTREG(AVIVO_D1VGA_CONTROL, d1vga_control);
+	OUTREG(AVIVO_D2VGA_CONTROL, d2vga_control);
+	OUTREG(AVIVO_VGA_RENDER_CONTROL, vga_render_control);
+	OUTREG(RADEON_GPIOPAD_A, gpiopad_a);
+	OUTREG(RADEON_GPIOPAD_EN, gpiopad_en);
+	OUTREG(RADEON_GPIOPAD_MASK, gpiopad_mask);
+
+    } else {
+	uint32_t seprom_cntl1   = INREG(RADEON_SEPROM_CNTL1);
+	uint32_t viph_control   = INREG(RADEON_VIPH_CONTROL);
+	uint32_t bus_cntl       = INREG(RADEON_BUS_CNTL);
+	uint32_t crtc_gen_cntl  = INREG(RADEON_CRTC_GEN_CNTL);
+	uint32_t crtc2_gen_cntl = 0;
+	uint32_t crtc_ext_cntl  = INREG(RADEON_CRTC_EXT_CNTL);
+	uint32_t fp2_gen_cntl   = 0;
+
+	if (PCI_DEV_DEVICE_ID(info->PciInfo) == PCI_CHIP_RV100_QY)
+	    fp2_gen_cntl   = INREG(RADEON_FP2_GEN_CNTL);
+
+	if (pRADEONEnt->HasCRTC2)
+	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL);
+
+	OUTREG(RADEON_SEPROM_CNTL1, ((seprom_cntl1 & ~RADEON_SCK_PRESCALE_MASK) |
+				     (0xc << RADEON_SCK_PRESCALE_SHIFT)));
+
+	/* disable VIP */
+	OUTREG(RADEON_VIPH_CONTROL, (viph_control & ~RADEON_VIPH_EN));
+
+	/* enable the rom */
+	OUTREG(RADEON_BUS_CNTL, (bus_cntl & ~RADEON_BUS_BIOS_DIS_ROM));
+
+        /* Turn off mem requests and CRTC for both controllers */
+	OUTREG(RADEON_CRTC_GEN_CNTL, ((crtc_gen_cntl & ~RADEON_CRTC_EN) |
+				      (RADEON_CRTC_DISP_REQ_EN_B |
+				       RADEON_CRTC_EXT_DISP_EN)));
+	if (pRADEONEnt->HasCRTC2)
+	    OUTREG(RADEON_CRTC2_GEN_CNTL, ((crtc2_gen_cntl & ~RADEON_CRTC2_EN) |
+					   RADEON_CRTC2_DISP_REQ_EN_B));
+
+        /* Turn off CRTC */
+	OUTREG(RADEON_CRTC_EXT_CNTL, ((crtc_ext_cntl & ~RADEON_CRTC_CRT_ON) |
+				      (RADEON_CRTC_SYNC_TRISTAT |
+				       RADEON_CRTC_DISPLAY_DIS)));
+
+	if (PCI_DEV_DEVICE_ID(info->PciInfo) == PCI_CHIP_RV100_QY)
+	    OUTREG(RADEON_FP2_GEN_CNTL, (fp2_gen_cntl & ~RADEON_FP2_ON));
+
+	ret = radeon_read_bios(pScrn);
+
+	/* restore regs */
+	OUTREG(RADEON_SEPROM_CNTL1, seprom_cntl1);
+	OUTREG(RADEON_VIPH_CONTROL, viph_control);
+	OUTREG(RADEON_BUS_CNTL, bus_cntl);
+	OUTREG(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
+	if (pRADEONEnt->HasCRTC2)
+	    OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+	OUTREG(RADEON_CRTC_EXT_CNTL, crtc_ext_cntl);
+	if (PCI_DEV_DEVICE_ID(info->PciInfo) == PCI_CHIP_RV100_QY)
+	    OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
+    }
+    return ret;
+}
 
 /* Read the Video BIOS block and the FP registers (if applicable). */
-Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
+Bool
+RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     int tmp;
@@ -88,25 +287,8 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    info->BIOSAddr = pInt10->BIOSseg << 4;
 	    (void)memcpy(info->VBIOS, xf86int10Addr(pInt10, info->BIOSAddr),
 			 RADEON_VBIOS_SIZE);
-	} else {
-#ifdef XSERVER_LIBPCIACCESS
-	    if (pci_device_read_rom(info->PciInfo, info->VBIOS)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to read PCI ROM!\n");
-	    }
-#else
-	    xf86ReadPciBIOS(0, info->PciTag, 0, info->VBIOS, RADEON_VBIOS_SIZE);
-	    if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Video BIOS not detected in PCI space!\n");
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Attempting to read Video BIOS from "
-			   "legacy ISA space!\n");
-		info->BIOSAddr = 0x000c0000;
-		xf86ReadDomainMemory(info->PciTag, info->BIOSAddr,
-				     RADEON_VBIOS_SIZE, info->VBIOS);
-	    }
-#endif
+	} else if (!radeon_read_bios(pScrn)) {
+	    (void)radeon_read_unposted_bios(pScrn);
 	}
     }
 
@@ -160,7 +342,6 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	       info->IsAtomBios ? "ATOM":"Legacy");
 
     if (info->IsAtomBios) {
-#if 1
         AtomBiosArgRec atomBiosArg;
 
         if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg)
@@ -194,8 +375,14 @@ Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
         RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
                         GET_REF_CLOCK, &atomBiosArg);
 
-#endif
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
+    } else {
+	/* non-primary card may need posting */
+	if (!pInt10) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to POST via BIOS tables\n");
+	    RADEONGetBIOSInitTableOffsets(pScrn);
+	    RADEONPostCardFromBIOSTables(pScrn);
+	}
     }
 
     return TRUE;

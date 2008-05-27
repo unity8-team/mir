@@ -183,6 +183,10 @@ AC_CHECK_DECL(xf86RotateFreeShadow,
                #include <windowstr.h>
 	       #include <xf86Crtc.h>])
 
+AC_CHECK_DECL(pci_device_enable,
+	      [AC_DEFINE(HAVE_PCI_DEVICE_ENABLE, 1, [Have pci_device_enable prototype])],
+	      [],
+	      [#include <pciaccess.h>])
 
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
