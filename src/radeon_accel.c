@@ -370,6 +370,27 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		   info->CurrentLayout.pixel_code,
 		   info->CurrentLayout.bitsPerPixel);
 
+#ifdef XF86DRI
+    if (IS_R300_3D | IS_R500_3D) {
+	drmRadeonGetParam np;
+	int num_pipes;
+
+	memset(&np, 0, sizeof(np));
+	np.param = RADEON_PARAM_NUM_GB_PIPES;
+	np.value = &num_pipes;
+
+	if (drmCommandWriteRead(info->drmFD, DRM_RADEON_GETPARAM, &np,
+				sizeof(np)) < 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to determine num pipes from DRM, falling back to "
+		       "manual look-up!\n");
+	    info->num_gb_pipes = 0;
+	} else {
+	    info->num_gb_pipes = num_pipes;
+	}
+    }
+#endif
+
     if ((info->ChipFamily == CHIP_FAMILY_RV410) ||
 	(info->ChipFamily == CHIP_FAMILY_R420)  ||
 	(info->ChipFamily == CHIP_FAMILY_RS600) ||
@@ -378,14 +399,13 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||
 	(info->ChipFamily == CHIP_FAMILY_RS480) ||
 	IS_R500_3D) {
-	uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
 	if (info->num_gb_pipes == 0) {
+	    uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
+
 	    info->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "%s: num pipes is %d\n", __FUNCTION__, info->num_gb_pipes);
+	    if (IS_R500_3D)
+		OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
 	}
-	if (IS_R500_3D)
-	    OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
     } else {
 	if (info->num_gb_pipes == 0) {
 	    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
@@ -398,6 +418,10 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	    }
 	}
     }
+
+    if (IS_R300_3D | IS_R500_3D)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "num pipes is %d\n", info->num_gb_pipes);
 
     if (IS_R300_3D | IS_R500_3D) {
 	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);

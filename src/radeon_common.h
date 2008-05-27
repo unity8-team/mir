@@ -422,6 +422,8 @@ typedef union {
 #define RADEON_PARAM_SCRATCH_OFFSET        11
 #define RADEON_PARAM_CARD_TYPE             12
 #define RADEON_PARAM_VBLANK_CRTC           13   /* VBLANK CRTC */
+#define RADEON_PARAM_FB_LOCATION           14   /* FB location */
+#define RADEON_PARAM_NUM_GB_PIPES          15
 
 typedef struct drm_radeon_getparam {
 	int param;
