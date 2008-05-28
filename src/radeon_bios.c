@@ -81,12 +81,14 @@ radeon_read_bios(ScrnInfoPtr pScrn)
     if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Video BIOS not detected in PCI space!\n");
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Attempting to read Video BIOS from "
-		   "legacy ISA space!\n");
-	info->BIOSAddr = 0x000c0000;
-	xf86ReadDomainMemory(info->PciTag, info->BIOSAddr,
-			     RADEON_VBIOS_SIZE, info->VBIOS);
+	if (xf86IsEntityPrimary(info->pEnt->index)) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Attempting to read Video BIOS from "
+		       "legacy ISA space!\n");
+	    info->BIOSAddr = 0x000c0000;
+	    xf86ReadDomainMemory(info->PciTag, info->BIOSAddr,
+				 RADEON_VBIOS_SIZE, info->VBIOS);
+	}
     }
 #endif
     if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa)
