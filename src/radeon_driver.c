@@ -2483,9 +2483,17 @@ static Bool RADEONPreInitXv(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static void RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
+static Bool
+RADEONPreInitBIOS(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 {
-    RADEONGetBIOSInfo(pScrn, pInt10);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (!RADEONGetBIOSInfo(pScrn, pInt10)) {
+	/* Avivo chips require bios for atom */
+	if (IS_AVIVO_VARIANT)
+	    return FALSE;
+    }
+    return TRUE;
 }
 
 static void RADEONFixZaphodOutputs(ScrnInfoPtr pScrn)
@@ -2767,7 +2775,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 
     RADEONPostInt10Check(pScrn, int10_save);
 
-    RADEONPreInitBIOS(pScrn, pInt10);
+    if (!RADEONPreInitBIOS(pScrn, pInt10))
+	goto fail;
 
 #ifdef XF86DRI
     /* PreInit DRI first of all since we need that for getting a proper
