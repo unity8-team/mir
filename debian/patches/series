@@ -14,3 +14,4 @@
 17_lockup_virtual_size_2048.patch
 18_quirks.patch
 19_check_exa_pitch_to_fix_rotate_crash.patch
+20_dpll_prg_in_crtc_mode_set.patch

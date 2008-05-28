@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.2.1-2ubuntu2) intrepid; urgency=low
+
+  * 20_dpll_prg_in_crtc_mode_set.patch:
+      - Fixes display problems caused by Jesse's force pipe A enablement
+        patch, which breaks DPLL programming.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 28 May 2008 15:30:31 -0700
+
 xserver-xorg-video-intel (2:2.2.1-2ubuntu1) intrepid; urgency=low
 
   * Merge from debian unstable, remaining changes:
