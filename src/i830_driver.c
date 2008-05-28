@@ -1963,7 +1963,16 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
     * we don't use plane C at all so we can allocate all but one of the 96
     * FIFO RAM entries equally between planes A and B.
     */
-   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) | (48 << DSPARB_BSTART_SHIFT));
+   if (IS_I9XX(pI830)) {
+       if (IS_I915GM(pI830) || IS_I915G(pI830))
+	   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) |
+		  (48 << DSPARB_BSTART_SHIFT));
+       else
+	   OUTREG(DSPARB, (127 << DSPARB_CSTART_SHIFT) |
+		  (64 << DSPARB_BSTART_SHIFT));
+   } else {
+       OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
+   }
 }
 
 enum pipe {
