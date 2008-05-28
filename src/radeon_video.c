@@ -853,15 +853,14 @@ RADEONSetOverlayGamma(ScrnInfoPtr pScrn, uint32_t gamma)
 {
     RADEONInfoPtr    info = RADEONPTR(pScrn);
     unsigned char   *RADEONMMIO = info->MMIO;
-    uint32_t	    ov0_scale_cntl;
 
     /* Set gamma */
     RADEONWaitForIdleMMIO(pScrn);
-    ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL) & ~RADEON_SCALER_GAMMA_SEL_MASK;
-    if (info->ChipFamily < CHIP_FAMILY_R200)
+
+    if (info->ChipFamily < CHIP_FAMILY_R200) {
+	uint32_t ov0_scale_cntl = INREG(RADEON_OV0_SCALE_CNTL) & ~RADEON_SCALER_GAMMA_SEL_MASK;
 	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl | (gamma << 5));
-    else
-	OUTREG(RADEON_OV0_SCALE_CNTL, ov0_scale_cntl);
+    }
 
     /* Load gamma curve adjustments */
     if (info->ChipFamily >= CHIP_FAMILY_R200) {
@@ -942,6 +941,30 @@ RADEONSetOverlayGamma(ScrnInfoPtr pScrn, uint32_t gamma)
 
 }
 
+static uint32_t
+RADEONTranslateUserGamma(uint32_t user_gamma)
+{
+    /* translate from user_gamma (gamma x 1000) to radeon gamma table index value */
+    if (user_gamma <= 925)       /* 0.85 */
+	return 1;
+    else if (user_gamma <= 1050) /* 1.0  */
+	return 0;
+    else if (user_gamma <= 1150) /* 1.1  */
+	return 2;
+    else if (user_gamma <= 1325) /* 1.2  */
+	return 3;
+    else if (user_gamma <= 1575) /* 1.45 */
+	return 4;
+    else if (user_gamma <= 1950) /* 1.7  */
+	return 5;
+    else if (user_gamma <= 2350) /* 2.2  */
+	return 6;
+    else if (user_gamma > 2350)  /* 2.5  */
+	return 7;
+    else
+	return 0;
+}
+
 
 /****************************************************************************
  * SetTransform                                                             *
@@ -996,22 +1019,7 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
 	return;
 
     /* translate from user_gamma (gamma x 1000) to radeon gamma table index value */
-    if (user_gamma <= 925)       /* 0.85 */
-	gamma = 1;
-    else if (user_gamma <= 1050) /* 1.0  */
-	gamma = 0;
-    else if (user_gamma <= 1150) /* 1.1  */
-	gamma = 2;
-    else if (user_gamma <= 1325) /* 1.2  */
-	gamma = 3;
-    else if (user_gamma <= 1575) /* 1.45 */
-	gamma = 4;
-    else if (user_gamma <= 1950) /* 1.7  */
-	gamma = 5;
-    else if (user_gamma <= 2350) /* 2.2  */
-	gamma = 6;
-    else if (user_gamma > 2350)  /* 2.5  */
-	gamma = 7;
+    gamma = RADEONTranslateUserGamma(user_gamma);
 
     if (gamma >= 8) 
 	return;
@@ -2876,6 +2884,11 @@ RADEONDisplayVideo(
 		scale_cntl |= RADEON_SCALER_SOURCE_VYUY422
 			| ((info->ChipFamily >= CHIP_FAMILY_R200) ? RADEON_SCALER_TEMPORAL_DEINT : 0);
 		break;
+    }
+
+    if (info->ChipFamily < CHIP_FAMILY_R200) {
+	scale_cntl &= ~RADEON_SCALER_GAMMA_SEL_MASK;
+	scale_cntl |= ((RADEONTranslateUserGamma(pPriv->gamma)) << 5);
     }
 
     OUTREG(RADEON_OV0_SCALE_CNTL, scale_cntl);
