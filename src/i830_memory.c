@@ -174,8 +174,12 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	pin.alignment = mem->alignment;
 
 	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
-	if (ret != 0)
+	if (ret != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to pin %s: %s\n",
+			   mem->name, strerror(errno));
 	    return FALSE;
+	}
 
 	mem->bound = TRUE;
 	mem->offset = pin.offset;
