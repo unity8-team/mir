@@ -378,7 +378,9 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
                         GET_REF_CLOCK, &atomBiosArg);
 
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
-    } else {
+    }
+#if 0
+    else {
 	/* non-primary card may need posting */
 	if (!pInt10) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to POST via BIOS tables\n");
@@ -386,7 +388,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    RADEONPostCardFromBIOSTables(pScrn);
 	}
     }
-
+#endif
     return TRUE;
 }
 
