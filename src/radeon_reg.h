@@ -1069,6 +1069,7 @@
 #define RADEON_MEM_SDRAM_MODE_REG           0x0158
 #       define RADEON_SDRAM_MODE_MASK       0xffff0000
 #       define RADEON_B3MEM_RESET_MASK      0x6fffffff
+#       define RADEON_MEM_CFG_TYPE_DDR      (1 << 30)
 #define RADEON_MEM_STR_CNTL                 0x0150
 #       define RADEON_MEM_PWRUP_COMPL_A     (1 <<  0)
 #       define RADEON_MEM_PWRUP_COMPL_B     (1 <<  1)
@@ -3435,10 +3436,20 @@
 #define RV515_MC_STATUS_IDLE (1<<4)
 #define AVIVO_MC_DATA						0x0074
 
-#define RV515_MC_FB_LOCATION 0x1
-#define RV515_MC_AGP_LOCATION 0x2
-#define R520_MC_FB_LOCATION 0x4
-#define R520_MC_AGP_LOCATION 0x5
+#define RV515_MC_FB_LOCATION   0x1
+#define RV515_MC_AGP_LOCATION  0x2
+#define RV515_MC_CNTL          0x5
+#	define RV515_MEM_NUM_CHANNELS_MASK  0x3
+#define R520_MC_FB_LOCATION    0x4
+#define R520_MC_AGP_LOCATION   0x5
+#define R520_MC_CNTL0          0x8
+#	define R520_MEM_NUM_CHANNELS_MASK  (0x3 << 24)
+#	define R520_MEM_NUM_CHANNELS_SHIFT  24
+#	define R520_MC_CHANNEL_SIZE  (1 << 23)
+
+#define R600_RAMCFG				       0x2408
+#       define R600_CHANSIZE                           (1 << 7)
+#       define R600_CHANSIZE_OVERRIDE                  (1 << 10)
 
 #define AVIVO_HDP_FB_LOCATION 0x134
 
