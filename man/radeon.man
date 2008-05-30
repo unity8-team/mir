@@ -505,6 +505,12 @@ LVDS as attached.
 The default is
 .B on. 
 .TP
+.BI "Option \*qInt10\*q \*q" boolean \*q
+This option allows you to disable int10 initialization.  Set this to 
+False if you are experiencing a hang when initializing a secondary card.
+The default is
+.B on. 
+.TP
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

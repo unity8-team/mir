@@ -191,6 +191,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_TVSTD,          "TVStandard",         OPTV_STRING,  {0}, FALSE },
     { OPTION_IGNORE_LID_STATUS, "IgnoreLidStatus", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DEFAULT_TVDAC_ADJ, "DefaultTVDACAdj", OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_INT10,             "Int10",           OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1988,10 +1989,11 @@ static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
     /* don't need int10 on atom cards.
      * in theory all radeons, but the older stuff
      * isn't 100% yet
+     * secondary atom cards tend to hang when initializing int10,
+     * however, on some stom cards, you can't read the bios without
+     * intitializing int10.
      */
-    if ((info->ChipFamily == CHIP_FAMILY_R420)  ||
-	(info->ChipFamily == CHIP_FAMILY_RV410) ||
-	(info->ChipFamily >= CHIP_FAMILY_RV515))
+    if (!xf86ReturnOptValBool(info->Options, OPTION_INT10, TRUE))
 	return TRUE;
 
     if (xf86LoadSubModule(pScrn, "int10")) {
