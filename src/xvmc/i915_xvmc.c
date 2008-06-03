@@ -1608,9 +1608,6 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     pI915XvMC->ref--;
     i915_xvmc_unmap_buffers(pI915XvMC);
 
-    driDestroyHashContents(pI915XvMC->drawHash);
-    drmHashDestroy(pI915XvMC->drawHash);
-
     free(pI915XvMC);
     context->privData = NULL;
 }
@@ -1682,13 +1679,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
-
-    if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
-	XVMC_ERR("Could not allocate drawable hash table.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        return BadAlloc;
-    }
 
     if (i915_xvmc_map_buffers(pI915XvMC)) {
         i915_xvmc_unmap_buffers(pI915XvMC);
