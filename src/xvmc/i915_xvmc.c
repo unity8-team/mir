@@ -1987,7 +1987,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
             }
-        } else {        /* Frame Picture */
+        } else {        /* Field Picture */
             switch (mb->motion_type & 3) {
             case XVMC_PREDICTION_FIELD: /* Field Based */
                 i915_mc_mpeg_macroblock_1fbmv(context, mb);
@@ -2005,7 +2005,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
             }
-        }       /* Field Picture */
+        }
     }
 
     intelFlushBatch(TRUE);
