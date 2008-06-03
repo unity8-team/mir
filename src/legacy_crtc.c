@@ -51,6 +51,9 @@
 #include "radeon_dri.h"
 #include "radeon_sarea.h"
 #include "sarea.h"
+#ifdef DRM_IOCTL_MODESET_CTL
+#include <sys/ioctl.h>
+#endif
 #endif
 
 /* Write common registers */
@@ -615,6 +618,21 @@ RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
 }
 
 void
+radeon_crtc_modeset_ioctl(xf86CrtcPtr crtc, Bool post)
+{
+#if defined(XF86DRI) && defined(DRM_IOCTL_MODESET_CTL)
+    RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    struct drm_modeset_ctl modeset;
+
+    modeset.crtc = radeon_crtc->crtc_id;
+    modeset.cmd = post ? _DRM_POST_MODESET : _DRM_PRE_MODESET;
+
+    ioctl(info->drmFD, DRM_IOCTL_MODESET_CTL, &modeset);
+#endif
+}
+
+void
 legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     int mask;
@@ -625,6 +643,8 @@ legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
     mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_REQ_EN_B) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
+    if (mode == DPMSModeOff)
+	radeon_crtc_modeset_ioctl(crtc, FALSE);
 
     switch(mode) {
     case DPMSModeOn:
@@ -661,8 +681,10 @@ legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	break;
     }
   
-    if (mode != DPMSModeOff)
+    if (mode != DPMSModeOff) {
+	radeon_crtc_modeset_ioctl(crtc, TRUE);
 	radeon_crtc_load_lut(crtc);
+    }
 }
 
 

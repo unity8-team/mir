@@ -5321,6 +5321,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t mem_size;
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT\n");
@@ -5367,6 +5369,9 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
     if (IS_R300_VARIANT || IS_RV100_VARIANT)
 	RADEONForceSomeClocks(pScrn);
+
+    for (i = 0; i < config->num_crtc; i++)
+	radeon_crtc_modeset_ioctl(config->crtc[i], TRUE);
 
     pScrn->vtSema = TRUE;
 
@@ -5416,10 +5421,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-#ifndef HAVE_FREE_SHADOW
-    xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int o;
-#endif
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONLeaveVT\n");
@@ -5442,7 +5445,9 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 	    RADEONSAREAPrivPtr pSAREAPriv =
 		(RADEONSAREAPrivPtr)DRIGetSAREAPrivate(pScrn->pScreen);
 	    drmTextureRegionPtr list = pSAREAPriv->texList[0];
-	    int age = ++pSAREAPriv->texAge[0], i = 0;
+	    int age = ++pSAREAPriv->texAge[0];
+
+	    i = 0;
 
 	    do {
 		list[i].age = age;
@@ -5453,8 +5458,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 #endif
 
 #ifndef HAVE_FREE_SHADOW
-    for (o = 0; o < config->num_crtc; o++) {
-	xf86CrtcPtr crtc = config->crtc[o];
+    for (i = 0; i < config->num_crtc; i++) {
+	xf86CrtcPtr crtc = config->crtc[i];
 
 	if (crtc->rotatedPixmap || crtc->rotatedData) {
 	    crtc->funcs->shadow_destroy(crtc, crtc->rotatedPixmap,
@@ -5470,6 +5475,9 @@ void RADEONLeaveVT(int scrnIndex, int flags)
     xf86_hide_cursors (pScrn);
 
     RADEONRestore(pScrn);
+
+    for (i = 0; i < config->num_crtc; i++)
+	radeon_crtc_modeset_ioctl(config->crtc[i], FALSE);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Ok, leaving now...\n");
