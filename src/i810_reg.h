@@ -1252,6 +1252,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_CLOCK_OUTPUT_INVERT		(1 << 18)
 #define SDVOC_GANG_MODE				(1 << 16)
 #define SDVO_BORDER_ENABLE			(1 << 7)
+/** new with 965, default is to be set */
+#define SDVO_VSYNC_ACTIVE_HIGH			(1 << 4)
+#define SDVO_HSYNC_ACTIVE_HIGH			(1 << 3)
+/** 915/945 only, read-only bit */
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)
 #define SDVO_DETECTED				(1 << 2)
 /* Bits to be preserved when writing */
