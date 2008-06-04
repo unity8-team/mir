@@ -590,10 +590,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_SC_SCISSOR1, ((8191 << R300_SCISSOR_X_SHIFT) |
 					 (8191 << R300_SCISSOR_Y_SHIFT)));
 
-	if (IS_R300_VARIANT ||
-	    (info->ChipFamily == CHIP_FAMILY_RS600) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS740)) {
+	if (IS_R300_3D) {
 	    /* clip has offset 1440 */
 	    OUT_ACCEL_REG(R300_SC_CLIP_0_A, ((1088 << R300_CLIP_X_SHIFT) |
 					     (1088 << R300_CLIP_Y_SHIFT)));

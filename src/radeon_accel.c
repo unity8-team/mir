@@ -371,7 +371,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		   info->CurrentLayout.bitsPerPixel);
 
 #ifdef XF86DRI
-    if (IS_R300_3D | IS_R500_3D) {
+    if (info->directRenderingEnabled && (IS_R300_3D | IS_R500_3D)) {
 	drmRadeonGetParam np;
 	int num_pipes;
 
