@@ -249,4 +249,6 @@ static inline const char* intel_xvmc_decoder_string(int flag)
 extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
 extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
 
+extern unsigned int mb_bytes_420[64];
+
 #endif

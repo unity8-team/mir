@@ -38,18 +38,6 @@
 #define VOFFSET(surface)        (surface->srf.offset + \
                                  SIZE_Y420(surface->width, surface->height))
 
-/* Lookup tables to speed common calculations */
-static unsigned int mb_bytes[] = {
-    000, 128, 128, 256, 128, 256, 256, 384,  // 0
-    128, 256, 256, 384, 256, 384, 384, 512,  // 1
-    128, 256, 256, 384, 256, 384, 384, 512,  // 10
-    256, 384, 384, 512, 384, 512, 512, 640,  // 11
-    128, 256, 256, 384, 256, 384, 384, 512,  // 100
-    256, 384, 384, 512, 384, 512, 512, 640,  // 101
-    256, 384, 384, 512, 384, 512, 512, 640,  // 110
-    384, 512, 512, 640, 512, 640, 640, 768   // 111
-};
-
 typedef union {
     short s[4];
     uint  u[2];
@@ -1931,7 +1919,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
             XVMC_INFO("no coded blocks present!");
         }
 
-        bspm = mb_bytes[mb->coded_block_pattern];
+        bspm = mb_bytes_420[mb->coded_block_pattern];
 
         if (!bspm)
             continue;
