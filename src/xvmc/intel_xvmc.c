@@ -431,6 +431,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 
     intelInitBatchBuffer();
 
+    intel_xvmc_dump_open();
+
     return Success;
 }
 
@@ -478,6 +480,8 @@ Status XvMCDestroyContext(Display *display, XvMCContext *context)
 	xvmc_driver->fd = -1;
 
 	intelFiniBatchBuffer();
+
+	intel_xvmc_dump_close();
     }
     return Success;
 }
@@ -665,6 +669,10 @@ Status XvMCRenderSurface(Display *display, XvMCContext *context,
     }
     if (!target_surface)
 	return XvMCBadSurface;
+
+    intel_xvmc_dump_render(context, picture_structure, target_surface,
+	    past_surface, future_surface, flags, num_macroblocks,
+	    first_macroblock, macroblock_array, blocks);
 
     ret = (xvmc_driver->render_surface)(display, context, picture_structure,
 	    target_surface, past_surface, future_surface, flags,
