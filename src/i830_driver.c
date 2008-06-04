@@ -1964,12 +1964,12 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
     * FIFO RAM entries equally between planes A and B.
     */
    if (IS_I9XX(pI830)) {
-       if (IS_I915GM(pI830) || IS_I915G(pI830))
-	   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) |
-		  (48 << DSPARB_BSTART_SHIFT));
-       else
+       if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
 	   OUTREG(DSPARB, (127 << DSPARB_CSTART_SHIFT) |
 		  (64 << DSPARB_BSTART_SHIFT));
+       else
+	   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) |
+		  (48 << DSPARB_BSTART_SHIFT));
    } else {
        OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
    }
