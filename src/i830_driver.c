@@ -1851,7 +1851,7 @@ i830_stop_ring(ScrnInfoPtr pScrn, Bool flush)
       if (temp & RING_VALID) {
 	 i830_refresh_ring(pScrn);
 	 I830Sync(pScrn);
-	 DO_RING_IDLE();
+	 i830_wait_ring_idle(pScrn);
       }
 
       OUTREG(LP_RING + RING_LEN, 0);
@@ -3416,10 +3416,10 @@ I830EnterVT(int scrnIndex, int flags)
          int i;
 
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
-      
+
 	 i830_refresh_ring(pScrn);
 	 I830Sync(pScrn);
-	 DO_RING_IDLE();
+	 i830_wait_ring_idle(pScrn);
 
 	 sarea->texAge++;
 	 for(i = 0; i < I830_NR_TEX_REGIONS+1 ; i++)

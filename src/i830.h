@@ -859,6 +859,14 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
+static inline void
+i830_wait_ring_idle(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
+}
+
 static inline int i830_fb_compression_supported(I830Ptr pI830)
 {
     if (!IS_MOBILE(pI830))
