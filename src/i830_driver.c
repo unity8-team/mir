@@ -3176,13 +3176,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (serverGeneration == 1)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
-   if (IS_I965G(pI830)) {
-      /* Enable DAP stateless accesses.  
-       * Required for all i965 steppings.
-       */
-      OUTREG(SVG_WORK_CTL, 0x00000010);
-   }
-
    pI830->starting = FALSE;
    pI830->closing = FALSE;
    pI830->suspended = FALSE;
