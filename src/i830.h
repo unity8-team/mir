@@ -649,6 +649,10 @@ typedef struct _I830Rec {
    uint32_t saveFBC_CONTROL2;
    uint32_t saveFBC_CONTROL;
    uint32_t saveFBC_FENCE_OFF;
+   uint32_t saveRENCLK_GATE_D1;
+   uint32_t saveRENCLK_GATE_D2;
+   uint32_t saveDSPCLK_GATE_D;
+   uint32_t saveRAMCLK_GATE_D;
 
    enum last_3d *last_3d;
 

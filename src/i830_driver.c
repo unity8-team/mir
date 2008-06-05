@@ -1499,8 +1499,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    i830TakeRegSnapshot(pScrn);
 
-   i830_init_clock_gating(pScrn);
-
    if (DEVICE_ID(pI830->PciInfo) == PCI_CHIP_E7221_G)
       num_pipe = 1;
    else
@@ -2093,6 +2091,14 @@ SaveHWState(ScrnInfoPtr pScrn)
    pI830->saveSWF[15] = INREG(SWF31);
    pI830->saveSWF[16] = INREG(SWF32);
 
+   pI830->saveDSPCLK_GATE_D = INREG(DSPCLK_GATE_D);
+   pI830->saveRENCLK_GATE_D1 = INREG(RENCLK_GATE_D1);
+
+   if (IS_I965G(pI830)) {
+      pI830->saveRENCLK_GATE_D2 = INREG(RENCLK_GATE_D2);
+      pI830->saveRAMCLK_GATE_D = INREG(RAMCLK_GATE_D);
+   }
+
    if (IS_MOBILE(pI830) && !IS_I830(pI830))
       pI830->saveLVDS = INREG(LVDS);
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
@@ -2152,6 +2158,13 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    OUTREG(DSPARB, pI830->saveDSPARB);
 
+   OUTREG(DSPCLK_GATE_D, pI830->saveDSPCLK_GATE_D);
+   OUTREG(RENCLK_GATE_D1, pI830->saveRENCLK_GATE_D1);
+
+   if (IS_I965G(pI830)) {
+      OUTREG(RENCLK_GATE_D2, pI830->saveRENCLK_GATE_D2);
+      OUTREG(RAMCLK_GATE_D, pI830->saveRAMCLK_GATE_D);
+   }
    /*
     * Pipe regs
     * To restore the saved state, we first need to program the PLL regs,
@@ -3164,13 +3177,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
 
    if (IS_I965G(pI830)) {
-      /* turn off clock gating */
-#if 0
-      OUTREG(0x6204, 0x70804000);
-      OUTREG(0x6208, 0x00000001);
-#else
-      OUTREG(0x6204, 0x70000000);
-#endif
       /* Enable DAP stateless accesses.  
        * Required for all i965 steppings.
        */
@@ -3364,6 +3370,8 @@ I830EnterVT(int scrnIndex, int flags)
 
    /* Tell the BIOS that we're in control of mode setting now. */
    i830_init_bios_control(pScrn);
+
+   i830_init_clock_gating(pScrn);
 
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
