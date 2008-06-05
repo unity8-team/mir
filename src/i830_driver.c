@@ -1965,22 +1965,6 @@ i830_set_dsparb(ScrnInfoPtr pScrn)
    }
 }
 
-/*
- * This should be called everytime the X server gains control of the screen,
- * before any video modes are programmed (ScreenInit, EnterVT).
- */
-static void
-SetHWOperatingState(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   DPRINTF(PFX, "SetHWOperatingState\n");
-
-   i830_start_ring(pScrn);
-   if (!pI830->SWCursor)
-      I830InitHWCursor(pScrn);
-}
-
 enum pipe {
     PIPE_A = 0,
     PIPE_B,
@@ -3380,7 +3364,9 @@ I830EnterVT(int scrnIndex, int flags)
    }
 
    i830_stop_ring(pScrn, FALSE);
-   SetHWOperatingState(pScrn);
+   i830_start_ring(pScrn);
+   if (!pI830->SWCursor)
+      I830InitHWCursor(pScrn);
 
    /* Set the DSPARB register.  This disables the outputs, which is about to
     * happen (likely) in xf86SetDesiredModes anyway.
