@@ -963,6 +963,19 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
     }
 }
 
+static void
+i830_init_bios_control(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   /* Set "extended desktop" */
+   OUTREG(SWF0, INREG(SWF0) | (1 << 21));
+
+   /* Set "driver loaded",  "OS unknown", "APM 1.2" */
+   OUTREG(SWF4, (INREG(SWF4) & ~((3 << 19) | (7 << 16))) |
+		(1 << 23) | (2 << 16));
+}
+
 static int
 I830LVDSPresent(ScrnInfoPtr pScrn)
 {
@@ -1020,10 +1033,6 @@ PreInitCleanup(ScrnInfoPtr pScrn)
    } else {
       if (pI830->entityPrivate)
          pI830->entityPrivate->pScrn_2 = NULL;
-   }
-   if (pI830->swfSaved) {
-      OUTREG(SWF0, pI830->saveSWF0);
-      OUTREG(SWF4, pI830->saveSWF4);
    }
    if (pI830->MMIOBase)
       I830UnmapMMIO(pScrn);
@@ -1492,19 +1501,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    i830_init_clock_gating(pScrn);
 
-#if 1
-   pI830->saveSWF0 = INREG(SWF0);
-   pI830->saveSWF4 = INREG(SWF4);
-   pI830->swfSaved = TRUE;
-
-   /* Set "extended desktop" */
-   OUTREG(SWF0, pI830->saveSWF0 | (1 << 21));
-
-   /* Set "driver loaded",  "OS unknown", "APM 1.2" */
-   OUTREG(SWF4, (pI830->saveSWF4 & ~((3 << 19) | (7 << 16))) |
-		(1 << 23) | (2 << 16));
-#endif
-
    if (DEVICE_ID(pI830->PciInfo) == PCI_CHIP_E7221_G)
       num_pipe = 1;
    else
@@ -1737,12 +1733,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
       pI830->noAccel = TRUE;
-   }
-
-   /* Don't need MMIO access anymore. */
-   if (pI830->swfSaved) {
-      OUTREG(SWF0, pI830->saveSWF0);
-      OUTREG(SWF4, pI830->saveSWF4);
    }
 
    /* Set display resolution */
@@ -3371,6 +3361,9 @@ I830EnterVT(int scrnIndex, int flags)
     * happen (likely) in xf86SetDesiredModes anyway.
     */
    i830_set_dsparb(pScrn);
+
+   /* Tell the BIOS that we're in control of mode setting now. */
+   i830_init_bios_control(pScrn);
 
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,

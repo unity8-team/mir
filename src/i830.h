@@ -557,10 +557,6 @@ typedef struct _I830Rec {
 
    Bool StolenOnly;
 
-   Bool swfSaved;
-   uint32_t saveSWF0;
-   uint32_t saveSWF4;
-
    Bool checkDevices;
 
    /* Driver phase/state information */
