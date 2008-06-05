@@ -53,7 +53,6 @@
 #include <drm_sarea.h>
 
 #include "xf86dri.h"
-#include "driDrawable.h"
 
 #include "intel_batchbuffer.h"
 
@@ -249,5 +248,16 @@ static inline const char* intel_xvmc_decoder_string(int flag)
 
 extern intel_xvmc_context_ptr intel_xvmc_find_context(XID id);
 extern intel_xvmc_surface_ptr intel_xvmc_find_surface(XID id);
+
+extern unsigned int mb_bytes_420[64];
+
+/* dump function */
+extern void intel_xvmc_dump_open(void);
+extern void intel_xvmc_dump_close(void);
+extern void intel_xvmc_dump_render(XvMCContext *context, unsigned int picture_structure,
+	    XvMCSurface *target_surface, XvMCSurface *past_surface,
+	    XvMCSurface *future_surface, unsigned int flags,
+	    unsigned int num_macroblocks, unsigned int first_macroblock,
+	    XvMCMacroBlockArray *macroblock_array, XvMCBlockArray *blocks);
 
 #endif

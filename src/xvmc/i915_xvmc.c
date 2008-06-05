@@ -38,18 +38,6 @@
 #define VOFFSET(surface)        (surface->srf.offset + \
                                  SIZE_Y420(surface->width, surface->height))
 
-/* Lookup tables to speed common calculations */
-static unsigned int mb_bytes[] = {
-    000, 128, 128, 256, 128, 256, 256, 384,  // 0
-    128, 256, 256, 384, 256, 384, 384, 512,  // 1
-    128, 256, 256, 384, 256, 384, 384, 512,  // 10
-    256, 384, 384, 512, 384, 512, 512, 640,  // 11
-    128, 256, 256, 384, 256, 384, 384, 512,  // 100
-    256, 384, 384, 512, 384, 512, 512, 640,  // 101
-    256, 384, 384, 512, 384, 512, 512, 640,  // 110
-    384, 512, 512, 640, 512, 640, 640, 768   // 111
-};
-
 typedef union {
     short s[4];
     uint  u[2];
@@ -1608,9 +1596,6 @@ static void i915_release_resource(Display *display, XvMCContext *context)
     pI915XvMC->ref--;
     i915_xvmc_unmap_buffers(pI915XvMC);
 
-    driDestroyHashContents(pI915XvMC->drawHash);
-    drmHashDestroy(pI915XvMC->drawHash);
-
     free(pI915XvMC);
     context->privData = NULL;
 }
@@ -1682,13 +1667,6 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 
     pSAREA = (drm_sarea_t *)xvmc_driver->sarea_address;
     pI915XvMC->sarea = (drmI830Sarea*)((char*)pSAREA + pI915XvMC->sarea_priv_offset);
-
-    if (NULL == (pI915XvMC->drawHash = drmHashCreate())) {
-	XVMC_ERR("Could not allocate drawable hash table.");
-        free(pI915XvMC);
-        context->privData = NULL;
-        return BadAlloc;
-    }
 
     if (i915_xvmc_map_buffers(pI915XvMC)) {
         i915_xvmc_unmap_buffers(pI915XvMC);
@@ -1941,7 +1919,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
             XVMC_INFO("no coded blocks present!");
         }
 
-        bspm = mb_bytes[mb->coded_block_pattern];
+        bspm = mb_bytes_420[mb->coded_block_pattern];
 
         if (!bspm)
             continue;
@@ -1997,7 +1975,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
             }
-        } else {        /* Frame Picture */
+        } else {        /* Field Picture */
             switch (mb->motion_type & 3) {
             case XVMC_PREDICTION_FIELD: /* Field Based */
                 i915_mc_mpeg_macroblock_1fbmv(context, mb);
@@ -2015,7 +1993,7 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 		XVMC_ERR("Invalid Macroblock Parameters found.");
                 break;
             }
-        }       /* Field Picture */
+        }
     }
 
     intelFlushBatch(TRUE);
