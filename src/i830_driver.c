@@ -692,11 +692,6 @@ I830MapMem(ScrnInfoPtr pScrn)
 			       (void **) &pI830->FbBase);
     if (err)
 	return FALSE;
-    /* KLUDGE ALERT -- rewrite the PTEs to turn off the CD and WT bits */
-#if HAVE_MPROTECT
-    mprotect (pI830->FbBase, pI830->FbMapSize, PROT_NONE);
-    mprotect (pI830->FbBase, pI830->FbMapSize, PROT_READ|PROT_WRITE);
-#endif
 #else
    pI830->FbBase = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
 				 pI830->PciTag,
