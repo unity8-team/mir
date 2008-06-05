@@ -3400,9 +3400,6 @@ I830EnterVT(int scrnIndex, int flags)
    }
    i830DescribeOutputConfiguration(pScrn);
 
-   i830_stop_ring(pScrn, TRUE);
-   SetHWOperatingState(pScrn);
-
 #ifdef XF86DRI
    if (pI830->directRenderingEnabled) {
        /* HW status is fixed, we need to set it up before any drm
