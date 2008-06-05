@@ -1398,7 +1398,7 @@ static void RADEONGetVRamType(ScrnInfoPtr pScrn)
 	case 1: info->RamWidth = 128; break;
 	default: info->RamWidth = 128; break;
 	}
-    } else if ((info->ChipFamily >= CHIP_FAMILY_R520) ||
+    } else if ((info->ChipFamily >= CHIP_FAMILY_R520) &&
 	       (info->ChipFamily <= CHIP_FAMILY_RV570)){
 	/* r520/rv530/rv560/rv570/r580 */
 	tmp = INMC(pScrn, R520_MC_CNTL0);
