@@ -582,6 +582,7 @@ typedef struct _I830Rec {
 
    enum backlight_control backlight_control_method;
 
+   uint32_t saveDSPARB;
    uint32_t saveDSPACNTR;
    uint32_t saveDSPBCNTR;
    uint32_t savePIPEACONF;

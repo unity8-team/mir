@@ -1921,22 +1921,22 @@ i830_refresh_ring(ScrnInfoPtr pScrn)
    i830MarkSync(pScrn);
 }
 
-/*
- * This should be called everytime the X server gains control of the screen,
- * before any video modes are programmed (ScreenInit, EnterVT).
+/**
+ * Sets up the DSPARB register to split the display fifo appropriately between
+ * the display planes.
+ *
+ * Adjusting this register requires that the planes be off, thus as a side
+ * effect they are disabled by this function.
  */
 static void
-SetHWOperatingState(ScrnInfoPtr pScrn)
+i830_set_dsparb(ScrnInfoPtr pScrn)
 {
+   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    int i;
 
-   DPRINTF(PFX, "SetHWOperatingState\n");
-
-   /*
-    * Disable outputs & pipes since some of these regs can only be updated
-    * when they're off.
+   /* Disable outputs & pipes since DSPARB can only be updated when they're
+    * off.
     */
    for (i = 0; i < xf86_config->num_output; i++) {
        xf86OutputPtr   output = xf86_config->output[i];
@@ -1949,12 +1949,7 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
    }
    i830WaitForVblank(pScrn);
 
-   i830_start_ring(pScrn);
-   if (!pI830->SWCursor)
-      I830InitHWCursor(pScrn);
-
-   /*
-    * Fixup FIFO defaults:
+   /* Fixup FIFO defaults:
     * we don't use plane C at all so we can allocate all but one of the 96
     * FIFO RAM entries equally between planes A and B.
     */
@@ -1968,6 +1963,22 @@ SetHWOperatingState(ScrnInfoPtr pScrn)
    } else {
        OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
    }
+}
+
+/*
+ * This should be called everytime the X server gains control of the screen,
+ * before any video modes are programmed (ScreenInit, EnterVT).
+ */
+static void
+SetHWOperatingState(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   DPRINTF(PFX, "SetHWOperatingState\n");
+
+   i830_start_ring(pScrn);
+   if (!pI830->SWCursor)
+      I830InitHWCursor(pScrn);
 }
 
 enum pipe {
@@ -2034,6 +2045,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    }
 
    /* Save video mode information for native mode-setting. */
+   pI830->saveDSPARB = INREG(DSPARB);
+
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
    pI830->savePIPEASRC = INREG(PIPEASRC);
@@ -2163,6 +2176,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
 
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
+
+   OUTREG(DSPARB, pI830->saveDSPARB);
 
    /*
     * Pipe regs
@@ -3237,7 +3252,6 @@ I830LeaveVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
-   xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 #ifndef HAVE_FREE_SHADOW
    int o;
 #endif
@@ -3367,6 +3381,11 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_stop_ring(pScrn, FALSE);
    SetHWOperatingState(pScrn);
+
+   /* Set the DSPARB register.  This disables the outputs, which is about to
+    * happen (likely) in xf86SetDesiredModes anyway.
+    */
+   i830_set_dsparb(pScrn);
 
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
