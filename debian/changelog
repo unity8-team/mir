@@ -1,3 +1,91 @@
+xserver-xorg-video-intel (2:2.3.1-1ubuntu1) intrepid; urgency=low
+
+  * Merge from debian unstable, remaining changes:
+    - debian/patches
+      + 01_fix_compiz_video.diff:
+        use xf86XVFillKeyHelperDrawable() to fix video playback with
+        compositing enabled.
+      + 05_intel_exa_force_greedy.patch:
+          Force use of greedy mode on intel hardware.
+          (LP: 177492, 148247, 152206)
+      + 19_check_exa_pitch_to_fix_rotate_crash.patch:
+        Fixes crash on xrandr rotation by checking EXA pitch size.
+        (LP: #174745)
+    - debian/control:
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+      + Reduce build depends version of dpkg-dev to 1.14.16 to enable it to
+        build on Hardy.  The version change was to fix a bug we workaround
+        already in our rules change below.
+    - debian/rules:
+      + Don't build the intel_reg_dumper tool, since libpciaccess is in
+        universe.
+      + Drop dpkg-shlibdeps with --warnings=6 (FTBS)
+  * 11_textured_video_option.patch:
+    - Renamed and reworked version of the old 11_hw_overlay_option.diff
+      patch, to re-enable the textured video option, to allow users to
+      turn off textured video.
+  * Dropped patches that are now upstream
+  * Restore Debian's Conflicts/Replaces for -i810 and symlink i810 to
+    intel.  We are now following suit to Debian and X.org and fully
+    deprecating the i810 driver and with 915resolution with this
+    release; remaining issues requiring use of the i810 driver need to
+    be reported to Launchpad and upstream so they can finally all get
+    fixed.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 06 Jun 2008 19:34:28 -0700
+
+xserver-xorg-video-intel (2:2.3.1-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 12 May 2008 03:55:45 +0200
+
+xserver-xorg-video-intel (2:2.3.0-1) experimental; urgency=low
+
+  * Build-depend on dpkg-dev >= 1.14.17 for dpkg-shlibdeps --warnings.
+  * New upstream release.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 23 Apr 2008 17:53:26 +0200
+
+xserver-xorg-video-intel (2:2.2.99.903-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Fix LVDS regression: disable panel fitting on 855GM,
+      and fix dither setting, closes: #473838.
+
+ -- Brice Goglin <bgoglin@debian.org>  Tue, 15 Apr 2008 15:04:32 +0200
+
+xserver-xorg-video-intel (2:2.2.99.902-1) experimental; urgency=low
+
+  * New upstream release candidate.
+    + Disable DRI earlier if fb width > 2048, closes: #465421, #452357. 
+
+ -- Brice Goglin <bgoglin@debian.org>  Mon, 31 Mar 2008 08:46:32 +0200
+
+xserver-xorg-video-intel (2:2.2.99.901-2) experimental; urgency=low
+
+  * Install libIntelXvMC.so.
+
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 29 Mar 2008 12:15:14 +0100
+
+xserver-xorg-video-intel (2:2.2.99.901-1) experimental; urgency=low
+
+  [ Julien Cristau ]
+  * Add the ${shlibs:Depends} substvar to the -dbg package's dependencies, to
+    bring in libpciaccess0 (closes: #467215).
+  * Only build on x86, this package doesn't make sense anywhere else.
+  * The Vcs-* fields are now recognized by dpkg, so drop the XS- prefix.
+  * Bump Standards-Version to 3.7.3 (no changes).
+
+  [ Brice Goglin ]
+  * New upstream release.
+    + Fix pciaccess version check, closes: #470266.
+    + Fix crash on VT switch, closes: #469113.
+    + Fix video playback on rotated display, closes: #432157.
+
+ -- Brice Goglin <bgoglin@debian.org>  Fri, 21 Mar 2008 21:50:59 +0100
+
 xserver-xorg-video-intel (2:2.2.1-2ubuntu2) intrepid; urgency=low
 
   * 20_dpll_prg_in_crtc_mode_set.patch:

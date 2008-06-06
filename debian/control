@@ -4,8 +4,8 @@ Priority: optional
 Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
 Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>, Brice Goglin <bgoglin@debian.org>
-Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>=2:1.4.1~git20080131-1ubuntu4), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev
-Standards-Version: 3.7.2
+Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>=2:1.4.1~git20080131-1ubuntu4), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev, dpkg-dev (>= 1.14.16)
+Standards-Version: 3.7.3
 Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git
 
@@ -13,8 +13,8 @@ Package: xserver-xorg-video-intel
 Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 lpia netbsd-i386
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xserver:Depends}
 Provides: ${xviddriver:Provides}
-Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
-Conflicts: xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
+Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
+Conflicts: xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810, 915resolution
 Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package provides the driver for the Intel i8xx and i9xx family
  of chipsets, including i810, i815, i830, i845, i855, i865, i915, i945
@@ -31,7 +31,7 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package is built from the X.org xf86-video-intel driver module.
 
 Package: xserver-xorg-video-intel-dbg
-Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386
+Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 lpia netbsd-i386
 Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
 Priority: extra
 Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)
@@ -41,10 +41,10 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)
  .
  This package provides debugging symbols for this Xorg X driver.
 
-#Package: xserver-xorg-video-i810
-#Architecture: all
-#Section: oldlibs
-#Depends: xserver-xorg-video-intel
-#Description: X.Org X server -- Intel i8xx, i9xx display driver
-# This is a transitional package providing the Xorg video driver for the
-# Intel i8xx and i9xx family of chipsets, and can be safely removed.
+Package: xserver-xorg-video-i810
+Architecture: all
+Section: oldlibs
+Depends: xserver-xorg-video-intel
+Description: X.Org X server -- Intel i8xx, i9xx display driver
+ This is a transitional package providing the Xorg video driver for the
+ Intel i8xx and i9xx family of chipsets, and can be safely removed.

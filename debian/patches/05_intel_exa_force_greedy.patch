@@ -8,7 +8,7 @@ diff -Nurp xserver-xorg-video-intel-2.2.1-patched/src/i830_exa.c xserver-xorg-vi
 +#if defined(EXA_MIGRATION_GREEDY)
 +    /* Force use of Option "MigrationHeuristic" "greedy" here for all hardware with EXA (LP: #177492) */
 +    pI830->EXADriverPtr->flags |= EXA_MIGRATION_GREEDY;
-+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
++    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 +               "EXA greedy migration mode enabled.\n");
 +#endif
 +
