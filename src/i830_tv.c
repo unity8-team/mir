@@ -1303,6 +1303,7 @@ i830_tv_detect_type (xf86CrtcPtr    crtc,
 	tv_dac = INREG(TV_DAC);
 	OUTREG(TV_DAC, save_tv_dac);
 	OUTREG(TV_CTL, save_tv_ctl);
+	i830WaitForVblank(pScrn);
     }
     /*
      *  A B C
