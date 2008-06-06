@@ -42,7 +42,6 @@
 
 double xf86ModeHSync(DisplayModePtr mode);
 double xf86ModeVRefresh(DisplayModePtr mode);
-unsigned int xf86ModeBandwidth(DisplayModePtr mode, int depth);
 
 int
 xf86ModeWidth (DisplayModePtr mode, Rotation rotation);
@@ -80,10 +79,6 @@ xf86ValidateModesSync(ScrnInfoPtr pScrn, DisplayModePtr modeList,
 		      MonPtr mon);
 
 void
-xf86ValidateModesBandwidth(ScrnInfoPtr pScrn, DisplayModePtr modeList,
-			   unsigned int bandwidth, int depth);
-
-void
 xf86PruneInvalidModes(ScrnInfoPtr pScrn, DisplayModePtr *modeList,
 		      Bool verbose);
 
@@ -99,8 +94,5 @@ xf86GetMonitorModes (ScrnInfoPtr pScrn, XF86ConfMonitorPtr conf_monitor);
 
 DisplayModePtr
 xf86GetDefaultModes (Bool interlaceAllowed, Bool doubleScanAllowed);
-
-void
-xf86DDCApplyQuirks(int scrnIndex, xf86MonPtr DDC);
 
 #endif /* _XF86MODES_H_ */
