@@ -491,6 +491,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   - new bits for i810
  *   - new register hwstam (mask)
  */
+#define HWS_PGA		     0x2080
 #define PWRCTXA		     0x2088 /* 965GM+ only */
 #define   PWRCTX_EN	     (1<<0)
 #define HWSTAM               0x2098 /* p290 */
