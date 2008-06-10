@@ -1067,8 +1067,6 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       pI830->LockHeld = 1;
       i830_refresh_ring(pScrn);
 
-      I830EmitFlush(pScrn);
-
 #ifdef DAMAGE
       if (!pI830->pDamage && pI830->allowPageFlip) {
 	 PixmapPtr pPix  = pScreen->GetScreenPixmap(pScreen);
@@ -1121,8 +1119,6 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 	 }
       }
 #endif
-
-      I830EmitFlush(pScrn);
 
 #ifdef DAMAGE
       /* Try flipping back to the front page if necessary */

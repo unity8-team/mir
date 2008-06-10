@@ -463,6 +463,8 @@ typedef struct _I830Rec {
 #endif
 #endif
 
+   Bool need_mi_flush;
+
    Bool NeedRingBufferLow;
    Bool allowPageFlip;
    Bool TripleBuffer;

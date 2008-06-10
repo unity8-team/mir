@@ -2496,17 +2496,17 @@ I830BlockHandler(int i,
     if (pScrn->vtSema && !pI830->noAccel) {
        /* Emit a flush of the rendering cache, or on the 965 and beyond
 	* rendering results may not hit the framebuffer until significantly
-	* later.  In the direct rendering case this is already done just
-	* after the page flipping updates, so there's no need to duplicate
-	* the effort here.
+	* later.
 	*/
-       if (!pI830->noAccel && !pI830->directRenderingEnabled)
+       if (!pI830->noAccel && pI830->need_mi_flush)
 	  I830EmitFlush(pScrn);
 
        /* Flush the batch, so that any rendering is executed in a timely
 	* fashion.
 	*/
        intel_batch_flush(pScrn);
+
+       pI830->need_mi_flush = FALSE;
     }
 
     /*

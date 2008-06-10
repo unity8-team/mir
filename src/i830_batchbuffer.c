@@ -32,10 +32,12 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "i830.h"
 #include "i830_ring.h"
+#include "i915_drm.h"
 
 static void
 intel_next_batch(ScrnInfoPtr pScrn)
@@ -116,4 +118,10 @@ intel_batch_flush(ScrnInfoPtr pScrn)
 
     dri_bo_unreference(pI830->batch_bo);
     intel_next_batch(pScrn);
+
+    /* Mark that we need to flush whatever potential rendering we've done in the
+     * blockhandler.  We could set this less often, but it's probably not worth
+     * the work.
+     */
+    pI830->need_mi_flush = TRUE;
 }
