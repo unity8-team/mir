@@ -3416,6 +3416,7 @@
 #define RS690_MC_FB_LOCATION			0x100
 #define RS690_MC_AGP_LOCATION			0x101
 #define RS690_MC_AGP_BASE			0x102
+#define RS690_MC_AGP_BASE_2                     0x103
 #define RS690_MC_STATUS                         0x90
 #define RS690_MC_STATUS_IDLE                    (1 << 0)
 
@@ -3438,10 +3439,14 @@
 
 #define RV515_MC_FB_LOCATION   0x1
 #define RV515_MC_AGP_LOCATION  0x2
+#define RV515_MC_AGP_BASE      0x3
+#define RV515_MC_AGP_BASE_2    0x4
 #define RV515_MC_CNTL          0x5
 #	define RV515_MEM_NUM_CHANNELS_MASK  0x3
 #define R520_MC_FB_LOCATION    0x4
 #define R520_MC_AGP_LOCATION   0x5
+#define R520_MC_AGP_BASE       0x6
+#define R520_MC_AGP_BASE_2     0x7
 #define R520_MC_CNTL0          0x8
 #	define R520_MEM_NUM_CHANNELS_MASK  (0x3 << 24)
 #	define R520_MEM_NUM_CHANNELS_SHIFT  24

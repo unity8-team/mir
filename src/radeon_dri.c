@@ -820,11 +820,24 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 }
 
 /* Initialize Radeon's AGP registers */
-static void RADEONSetAgpBase(RADEONInfoPtr info)
+static void RADEONSetAgpBase(RADEONInfoPtr info, ScreenPtr pScreen)
 {
+    ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     unsigned char *RADEONMMIO = info->MMIO;
 
-    OUTREG(RADEON_AGP_BASE, drmAgpBase(info->drmFD));
+    /* drm already does this, so we can probably remove this.
+     * agp_base_2 ?
+     */
+    if (info->ChipFamily == CHIP_FAMILY_RV515)
+	OUTMC(pScrn, RV515_MC_AGP_BASE, drmAgpBase(info->drmFD));
+    else if ((info->ChipFamily >= CHIP_FAMILY_R520) &&
+	     (info->ChipFamily <= CHIP_FAMILY_RV570))
+	OUTMC(pScrn, R520_MC_AGP_BASE, drmAgpBase(info->drmFD));
+    else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
+	     (info->ChipFamily == CHIP_FAMILY_RS740))
+	OUTMC(pScrn, RS690_MC_AGP_BASE, drmAgpBase(info->drmFD));
+    else if (info->ChipFamily < CHIP_FAMILY_RV515)
+	OUTREG(RADEON_AGP_BASE, drmAgpBase(info->drmFD));
 }
 
 /* Initialize the AGP state.  Request memory for use in AGP space, and
@@ -940,7 +953,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	       "[agp] GART Texture map mapped at 0x%08lx\n",
 	       (unsigned long)info->gartTex);
 
-    RADEONSetAgpBase(info);
+    RADEONSetAgpBase(info, pScreen);
 
     return TRUE;
 }
@@ -1722,7 +1735,7 @@ void RADEONDRIResume(ScreenPtr pScreen)
 	if (!RADEONSetAgpMode(info, pScreen))
 	    return;
 
-	RADEONSetAgpBase(info);
+	RADEONSetAgpBase(info, pScreen);
     }
 
     _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_RESUME);
