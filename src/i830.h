@@ -690,6 +690,9 @@ typedef struct _I830Rec {
 #define I830_SELECT_DEPTH	2
 #define I830_SELECT_THIRD	3
 
+unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
+unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
+
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
 
@@ -764,8 +767,6 @@ extern Bool I830DRISetHWS(ScrnInfoPtr pScrn);
 extern Bool I830DRIInstIrqHandler(ScrnInfoPtr pScrn);
 #endif
 
-unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
-unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,

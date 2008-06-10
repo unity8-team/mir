@@ -162,7 +162,7 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset, pitch;
+    unsigned long pitch;
 
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
@@ -172,11 +172,8 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
     i830_exa_check_pitch_2d(pPixmap);
 
-    offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
-    if (offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
-	I830FALLBACK("pixmap offset not aligned");
     if (pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
 	I830FALLBACK("pixmap pitch not aligned");
 
@@ -202,10 +199,9 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset, pitch;
+    unsigned long pitch;
     uint32_t cmd;
 
-    offset = exaGetPixmapOffset(pPixmap);
     pitch = exaGetPixmapPitch(pPixmap);
 
     {
@@ -227,7 +223,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	OUT_BATCH(pI830->BR[13] | pitch);
 	OUT_BATCH((y1 << 16) | (x1 & 0xffff));
 	OUT_BATCH((y2 << 16) | (x2 & 0xffff));
-	OUT_BATCH(offset);
+	OUT_RELOC_PIXMAP(pPixmap, 0);
 	OUT_BATCH(pI830->BR[16]);
 	ADVANCE_BATCH();
     }
@@ -285,14 +281,12 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t cmd;
     int dst_x2, dst_y2;
-    unsigned int dst_off, dst_pitch, src_off, src_pitch;
+    unsigned int dst_pitch, src_pitch;
 
     dst_x2 = dst_x1 + w;
     dst_y2 = dst_y1 + h;
 
-    dst_off = exaGetPixmapOffset(pDstPixmap);
     dst_pitch = exaGetPixmapPitch(pDstPixmap);
-    src_off = exaGetPixmapOffset(pI830->pSrcPixmap);
     src_pitch = exaGetPixmapPitch(pI830->pSrcPixmap);
 
     {
@@ -322,10 +316,10 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	OUT_BATCH(pI830->BR[13] | dst_pitch);
 	OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 	OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-	OUT_BATCH(dst_off);
+	OUT_RELOC_PIXMAP(pDstPixmap, 0);
 	OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 	OUT_BATCH(src_pitch);
-	OUT_BATCH(src_off);
+	OUT_RELOC_PIXMAP(pI830->pSrcPixmap, 0);
 
 	ADVANCE_BATCH();
     }

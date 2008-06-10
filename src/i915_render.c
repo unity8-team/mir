@@ -250,11 +250,10 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t format, offset, pitch, filter;
+    uint32_t format, pitch, filter;
     int w, h, i;
     uint32_t wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
-    offset = intel_get_pixmap_offset(pPix);
     pitch = intel_get_pixmap_pitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
@@ -288,7 +287,7 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
 
-    pI830->mapstate[unit * 3 + 0] = offset;
+    pI830->mapstate[unit * 3 + 0] = 0; /* offset filled in at emit time */
     pI830->mapstate[unit * 3 + 1] = format |
 	MS3_USE_FENCE_REGS |
 	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
@@ -316,7 +315,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
     FS_LOCALS(20);
@@ -333,7 +332,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i915_get_dest_format(pDstPicture, &dst_format))
 	return FALSE;
-    dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
@@ -362,7 +360,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(10);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 	OUT_BATCH(0x00000001); /* map 0 */
-	OUT_BATCH(pI830->mapstate[0]);
+	OUT_RELOC_PIXMAP(pSrc, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
 
@@ -376,10 +374,10 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(16);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 6);
 	OUT_BATCH(0x00000003); /* map 0,1 */
-	OUT_BATCH(pI830->mapstate[0]);
+	OUT_RELOC_PIXMAP(pSrc, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
-	OUT_BATCH(pI830->mapstate[3]);
+	OUT_RELOC_PIXMAP(pMask, 0);
 	OUT_BATCH(pI830->mapstate[4]);
 	OUT_BATCH(pI830->mapstate[5]);
 
@@ -400,7 +398,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
 		  BUF_3D_PITCH(dst_pitch));
-	OUT_BATCH(BUF_3D_ADDR(dst_offset));
+	OUT_RELOC_PIXMAP(pDst, 0);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_BATCH(dst_format);

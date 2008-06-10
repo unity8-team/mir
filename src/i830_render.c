@@ -275,10 +275,9 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t format, offset, pitch, filter;
+    uint32_t format, pitch, filter;
     uint32_t wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
 
-    offset = intel_get_pixmap_offset(pPix);
     pitch = intel_get_pixmap_pitch(pPix);
     pI830->scale_units[unit][0] = pPix->drawable.width;
     pI830->scale_units[unit][1] = pPix->drawable.height;
@@ -314,7 +313,7 @@ i830_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 
 	BEGIN_BATCH(10);
 	OUT_BATCH(_3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
-	OUT_BATCH((offset & TM0S0_ADDRESS_MASK) | TM0S0_USE_FENCE);
+	OUT_RELOC_PIXMAP(pPix, TM0S0_USE_FENCE);
 	OUT_BATCH(((pPix->drawable.height - 1) << TM0S1_HEIGHT_SHIFT) |
 		  ((pPix->drawable.width - 1) << TM0S1_WIDTH_SHIFT) | format);
 	OUT_BATCH((pitch/4 - 1) << TM0S2_PITCH_SHIFT | TM0S2_MAP_2D);
@@ -394,7 +393,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_pitch;
     Bool is_affine_src, is_affine_mask;
     Bool is_nearest = FALSE;
 
@@ -408,7 +407,6 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i830_get_dest_format(pDstPicture, &dst_format))
 	return FALSE;
-    dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
 
     if (!i830_texture_setup(pSrcPicture, pSrc, 0))
@@ -446,7 +444,7 @@ i830_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE |
 		  BUF_3D_PITCH(dst_pitch));
-	OUT_BATCH(BUF_3D_ADDR(dst_offset));
+	OUT_RELOC_PIXMAP(pDst, 0);
 	OUT_BATCH(MI_NOOP);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);

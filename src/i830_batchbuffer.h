@@ -59,7 +59,20 @@ intel_batch_emit_dword(I830Ptr pI830, uint32_t dword)
     pI830->batch_used += 4;
 }
 
+static inline void
+intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap, uint32_t delta)
+{
+    assert(pI830->batch_ptr != NULL);
+    assert(intel_batch_space(pI830) >= 4);
+    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) =
+	intel_get_pixmap_offset(pPixmap) + delta;
+    pI830->batch_used += 4;
+}
+
 #define OUT_BATCH(dword) intel_batch_emit_dword(pI830, dword)
+
+#define OUT_RELOC_PIXMAP(pPixmap, delta)	\
+	intel_batch_emit_reloc_pixmap(pI830, pPixmap, delta)
 
 union intfloat {
 	float f;
