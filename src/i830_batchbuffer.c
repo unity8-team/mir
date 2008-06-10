@@ -98,36 +98,59 @@ intel_batch_flush(ScrnInfoPtr pScrn)
     dri_bo_unmap(pI830->batch_bo);
     pI830->batch_ptr = NULL;
 
-    dri_process_relocs(pI830->batch_bo);
-
-    if (pI830->directRenderingEnabled) {
-	struct drm_i915_batchbuffer batch;
+    if (pI830->memory_manager) {
+	struct drm_i915_gem_execbuffer *exec;
 	int ret;
 
-	batch.start = pI830->batch_bo->offset;
-	batch.used = pI830->batch_used;
-	batch.cliprects = NULL;
-	batch.num_cliprects = 0;
-	batch.DR1 = 0;
-	batch.DR4 = 0xffffffff;
+	exec = dri_process_relocs(pI830->batch_bo);
 
-	ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_BATCHBUFFER,
-			      &batch, sizeof(batch));
+	exec->batch_start_offset = 0;
+	exec->batch_len = pI830->batch_used;
+	exec->cliprects_ptr = 0;
+	exec->num_cliprects = 0;
+	exec->DR1 = 0;
+	exec->DR4 = 0xffffffff;
+
+	ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GEM_EXECBUFFER,
+				  exec, sizeof(*exec));
 	if (ret != 0)
 	    FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
+
+	i830_refresh_ring(pScrn);
     } else {
-	if (!IS_I830(pI830) && !IS_845G(pI830)) {
-	    BEGIN_LP_RING(2);
-	    OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
-	    OUT_RING(pI830->batch_bo->offset);
-	    ADVANCE_LP_RING();
+	dri_process_relocs(pI830->batch_bo);
+
+	if (pI830->directRenderingEnabled) {
+	    struct drm_i915_batchbuffer batch;
+	    int ret;
+
+	    batch.start = pI830->batch_bo->offset;
+	    batch.used = pI830->batch_used;
+	    batch.cliprects = NULL;
+	    batch.num_cliprects = 0;
+	    batch.DR1 = 0;
+	    batch.DR4 = 0xffffffff;
+
+	    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_BATCHBUFFER,
+				  &batch, sizeof(batch));
+	    if (ret != 0)
+		FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
+
+	    i830_refresh_ring(pScrn);
 	} else {
-	    BEGIN_LP_RING(4);
-	    OUT_RING(MI_BATCH_BUFFER);
-	    OUT_RING(pI830->batch_bo->offset);
-	    OUT_RING(pI830->batch_bo->offset + pI830->batch_used - 4);
-	    OUT_RING(MI_NOOP);
-	    ADVANCE_LP_RING();
+	    if (!IS_I830(pI830) && !IS_845G(pI830)) {
+		BEGIN_LP_RING(2);
+		OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
+		OUT_RING(pI830->batch_bo->offset);
+		ADVANCE_LP_RING();
+	    } else {
+		BEGIN_LP_RING(4);
+		OUT_RING(MI_BATCH_BUFFER);
+		OUT_RING(pI830->batch_bo->offset);
+		OUT_RING(pI830->batch_bo->offset + pI830->batch_used - 4);
+		OUT_RING(MI_NOOP);
+		ADVANCE_LP_RING();
+	    }
 	}
     }
 

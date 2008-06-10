@@ -2750,13 +2750,25 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    assert(pI830->FbBase != NULL);
-   pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
-					  pI830->FbBase +
-					  pI830->fake_bufmgr_mem->offset,
-					  pI830->fake_bufmgr_mem->size,
-					  i830_fake_fence_emit,
-					  i830_fake_fence_wait,
-					  pScrn);
+   if (pI830->memory_manager) {
+      int batch_size;
+
+      batch_size = 4096 * 4;
+
+      /* The 865 has issues with larger-than-page-sized batch buffers. */
+      if (IS_I865G(pI830))
+	 batch_size = 4096;
+
+      pI830->bufmgr = intel_bufmgr_gem_init(pI830->drmSubFD, batch_size);
+   } else {
+      pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
+					     pI830->FbBase +
+					     pI830->fake_bufmgr_mem->offset,
+					     pI830->fake_bufmgr_mem->size,
+					     i830_fake_fence_emit,
+					     i830_fake_fence_wait,
+					     pScrn);
+   }
 }
 
 
@@ -3338,7 +3350,11 @@ I830LeaveVT(int scrnIndex, int flags)
 
    RestoreHWState(pScrn);
 
-   intel_bufmgr_fake_evict_all(pI830->bufmgr);
+   /* Evict everything from the bufmgr, as we're about to lose ownership of
+    * the graphics memory.
+    */
+   if (!pI830->memory_manager)
+      intel_bufmgr_fake_evict_all(pI830->bufmgr);
    intel_batch_teardown(pScrn);
 
    i830_stop_ring(pScrn, TRUE);

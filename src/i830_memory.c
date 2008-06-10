@@ -1375,12 +1375,14 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
-						  MB(1), GTT_PAGE_SIZE, 0);
-    if (pI830->fake_bufmgr_mem == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate fake bufmgr space.\n");
-	return FALSE;
+    if (pI830->memory_manager == NULL) {
+	pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
+						      MB(1), GTT_PAGE_SIZE, 0);
+	if (pI830->fake_bufmgr_mem == NULL) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to allocate fake bufmgr space.\n");
+	    return FALSE;
+	}
     }
 
     /* even in XAA, 965G needs state mem buffer for rendering */
