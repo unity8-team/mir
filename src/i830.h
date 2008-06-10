@@ -655,6 +655,7 @@ typedef struct _I830Rec {
    uint32_t saveRENCLK_GATE_D2;
    uint32_t saveDSPCLK_GATE_D;
    uint32_t saveRAMCLK_GATE_D;
+   uint32_t savePWRCTXA;
 
    enum last_3d *last_3d;
 
