@@ -81,6 +81,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "damage.h"
 #endif
 #endif
+#include "dri_bufmgr.h"
+#include "intel_bufmgr.h"
 
 #ifdef I830_USE_EXA
 #include "exa.h"
@@ -95,7 +97,6 @@ Bool I830XAAInit(ScreenPtr pScreen);
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #include "common.h"
-#include "i830_ring.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
@@ -401,6 +402,8 @@ typedef struct _I830Rec {
    i830_memory *exa_offscreen;
    i830_memory *gen4_render_state_mem;
 #endif
+   i830_memory *fake_bufmgr_mem;
+
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
 
@@ -410,6 +413,17 @@ typedef struct _I830Rec {
    unsigned int ring_used;
    /** Offset in the ring for the next DWORD emit */
    uint32_t ring_next;
+
+   dri_bufmgr *bufmgr;
+
+   uint8_t *batch_ptr;
+   /** Byte offset in batch_ptr for the next dword to be emitted. */
+   unsigned int batch_used;
+   /** Position in batch_ptr at the start of the current BEGIN_BATCH */
+   unsigned int batch_emit_start;
+   /** Number of bytes to be emitted in the current BEGIN_BATCH. */
+   uint32_t batch_emitting;
+   dri_bo *batch_bo;
 
 #ifdef I830_XV
    /* For Xvideo */
@@ -674,6 +688,9 @@ typedef struct _I830Rec {
 #define I830_SELECT_DEPTH	2
 #define I830_SELECT_THIRD	3
 
+/* Batchbuffer support macros and functions */
+#include "i830_batchbuffer.h"
+
 /* I830 specific functions */
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
@@ -897,13 +914,6 @@ Bool i830_pixmap_tiled(PixmapPtr p);
     uint32_t pitch = intel_get_pixmap_pitch(p);\
     if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
 } while(0)
-
-/* Batchbuffer compatibility handling */
-#define BEGIN_BATCH(n) BEGIN_LP_RING(n)
-#define ENSURE_BATCH(n)
-#define OUT_BATCH(d) OUT_RING(d)
-#define OUT_BATCH_F(x) OUT_RING_F(x)
-#define ADVANCE_BATCH() ADVANCE_LP_RING()
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];

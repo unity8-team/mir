@@ -42,11 +42,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     pI830->ring_next &= pI830->LpRing->tail_mask;			\
 } while (0)
 
-union intfloat {
-	float f;
-	unsigned int ui;
-};
-
 #define OUT_RING_F(x) do {			\
 	union intfloat tmp;			\
 	tmp.f = (float)(x);			\

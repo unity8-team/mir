@@ -59,6 +59,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830.h"
 #include "i810_reg.h"
 #include "i830_debug.h"
+#include "i830_ring.h"
 
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
@@ -168,7 +169,6 @@ void
 I830Sync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
@@ -186,24 +186,12 @@ I830Sync(ScrnInfoPtr pScrn)
 
    if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
 
-   if (IS_I965G(pI830))
-      flags = 0;
+   I830EmitFlush(pScrn);
 
-   /* Send a flush instruction and then wait till the ring is empty.
-    * This is stronger than waiting for the blitter to finish as it also
-    * flushes the internal graphics caches.
-    */
-   
-   {
-      BEGIN_BATCH(2);
-      OUT_BATCH(MI_FLUSH | flags);
-      OUT_BATCH(MI_NOOP);		/* pad to quadword */
-      ADVANCE_BATCH();
-   }
+   intel_batch_flush(pScrn);
 
    i830_wait_ring_idle(pScrn);
 
-   pI830->LpRing->space = pI830->LpRing->mem->size - 8;
    pI830->nextColorExpandBuf = 0;
 }
 

@@ -1838,7 +1838,7 @@ i830_stop_ring(ScrnInfoPtr pScrn, Bool flush)
       temp = INREG(LP_RING + RING_LEN);
       if (temp & RING_VALID) {
 	 i830_refresh_ring(pScrn);
-	 I830Sync(pScrn);
+	 i830_wait_ring_idle(pScrn);
       }
 
       OUTREG(LP_RING + RING_LEN, 0);
@@ -2493,14 +2493,21 @@ I830BlockHandler(int i,
     pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
 
-    /* Emit a flush of the rendering cache, or on the 965 and beyond
-     * rendering results may not hit the framebuffer until significantly
-     * later.  In the direct rendering case this is already done just
-     * after the page flipping updates, so there's no need to duplicate
-     * the effort here.
-     */
-    if (pScrn->vtSema && !pI830->noAccel && !pI830->directRenderingEnabled)
-	I830EmitFlush(pScrn);
+    if (pScrn->vtSema && !pI830->noAccel) {
+       /* Emit a flush of the rendering cache, or on the 965 and beyond
+	* rendering results may not hit the framebuffer until significantly
+	* later.  In the direct rendering case this is already done just
+	* after the page flipping updates, so there's no need to duplicate
+	* the effort here.
+	*/
+       if (!pI830->noAccel && !pI830->directRenderingEnabled)
+	  I830EmitFlush(pScrn);
+
+       /* Flush the batch, so that any rendering is executed in a timely
+	* fashion.
+	*/
+       intel_batch_flush(pScrn);
+    }
 
     /*
      * Check for FIFO underruns at block time (which amounts to just
@@ -2703,6 +2710,55 @@ i830_memory_init(ScrnInfoPtr pScrn)
 
     return FALSE;
 }
+
+/**
+ * Returns a cookie to be waited on.  This is just a stub implementation, and
+ * should be hooked up to the emit/wait irq functions when available (DRI
+ * enabled).
+ */
+static unsigned int
+i830_fake_fence_emit(void *priv)
+{
+   static unsigned int fence = 0;
+
+   /* Match DRM in not using half the range. The fake bufmgr relies on this. */
+   if (++fence >= 0x8000000)
+      fence = 1;
+
+   return fence;
+}
+
+/**
+ * Waits on a cookie representing a request to be passed.
+ *
+ * Stub implementation that should be replaced with DRM functions when
+ * available.
+ */
+static int
+i830_fake_fence_wait(void *priv, unsigned int fence)
+{
+   ScrnInfoPtr pScrn = priv;
+
+   i830_wait_ring_idle(pScrn);
+
+   return 0;
+}
+
+static void
+i830_init_bufmgr(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+
+   assert(pI830->FbBase != NULL);
+   pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
+					  pI830->FbBase +
+					  pI830->fake_bufmgr_mem->offset,
+					  pI830->fake_bufmgr_mem->size,
+					  i830_fake_fence_emit,
+					  i830_fake_fence_wait,
+					  pScrn);
+}
+
 
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
@@ -3033,6 +3089,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->xoffset = (pScrn->fbOffset / pI830->cpp) % pScrn->displayWidth;
    pI830->yoffset = (pScrn->fbOffset / pI830->cpp) / pScrn->displayWidth;
 
+   i830_init_bufmgr(pScrn);
+
    vgaHWSetMmioFuncs(hwp, pI830->MMIOBase, 0);
    vgaHWGetIOBase(hwp);
    DPRINTF(PFX, "assert( if(!vgaHWMapMem(pScrn)) )\n");
@@ -3276,7 +3334,12 @@ I830LeaveVT(int scrnIndex, int flags)
 
    xf86_hide_cursors (pScrn);
 
+   I830Sync(pScrn);
+
    RestoreHWState(pScrn);
+
+   intel_bufmgr_fake_evict_all(pI830->bufmgr);
+   intel_batch_teardown(pScrn);
 
    i830_stop_ring(pScrn, TRUE);
 
@@ -3350,6 +3413,8 @@ I830EnterVT(int scrnIndex, int flags)
 
    /* Update the screen pixmap in case the buffer moved */
    i830_update_front_offset(pScrn);
+
+   intel_batch_init(pScrn);
 
    if (IS_I965G(pI830))
       gen4_render_state_init(pScrn);
@@ -3477,6 +3542,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    if (pScrn->vtSema == TRUE) {
       I830LeaveVT(scrnIndex, 0);
    }
+
+   dri_bufmgr_destroy(pI830->bufmgr);
+   pI830->bufmgr = NULL;
 
    if (pI830->devicesTimer)
       TimerCancel(pI830->devicesTimer);

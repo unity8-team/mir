@@ -350,6 +350,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->textures = NULL;
 #endif
     pI830->LpRing->mem = NULL;
+    pI830->fake_bufmgr_mem = NULL;
 }
 
 void
@@ -1371,6 +1372,14 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (pI830->logical_context == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "Failed to allocate logical context space.\n");
+	return FALSE;
+    }
+
+    pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
+						  MB(1), GTT_PAGE_SIZE, 0);
+    if (pI830->fake_bufmgr_mem == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Failed to allocate fake bufmgr space.\n");
 	return FALSE;
     }
 

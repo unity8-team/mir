@@ -89,6 +89,8 @@ intel_drv_la_SOURCES = \
          i830_accel.c \
          i830_bios.c \
          i830_bios.h \
+         i830_batchbuffer.c \
+         i830_batchbuffer.h \
          i830_common.h \
 	 i830_crt.c \
          i830_cursor.c \
