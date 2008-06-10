@@ -2099,6 +2099,9 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveRAMCLK_GATE_D = INREG(RAMCLK_GATE_D);
    }
 
+   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+      pI830->savePWRCTXA = INREG(PWRCTXA);
+
    if (IS_MOBILE(pI830) && !IS_I830(pI830))
       pI830->saveLVDS = INREG(LVDS);
    pI830->savePFIT_CONTROL = INREG(PFIT_CONTROL);
@@ -2165,6 +2168,10 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(RENCLK_GATE_D2, pI830->saveRENCLK_GATE_D2);
       OUTREG(RAMCLK_GATE_D, pI830->saveRAMCLK_GATE_D);
    }
+
+   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+      OUTREG(PWRCTXA, pI830->savePWRCTXA);
+
    /*
     * Pipe regs
     * To restore the saved state, we first need to program the PLL regs,
@@ -2896,9 +2903,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        return FALSE;
    }
 
-   if (pI830->power_context)
-       OUTREG(PWRCTXA, pI830->power_context->offset | PWRCTX_EN);
-
    I830UnmapMMIO(pScrn);
 
    i830_fixup_mtrrs(pScrn);
@@ -3367,6 +3371,9 @@ I830EnterVT(int scrnIndex, int flags)
 
    i830_init_clock_gating(pScrn);
 
+   if (pI830->power_context)
+       OUTREG(PWRCTXA, pI830->power_context->offset | PWRCTX_EN);
+
    /* Clear the framebuffer */
    memset(pI830->FbBase + pScrn->fbOffset, 0,
 	  pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
@@ -3521,9 +3528,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       I830DRICloseScreen(pScreen);
    }
 #endif
-
-   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
-       OUTREG(PWRCTXA, 0);
 
    if (I830IsPrimary(pScrn)) {
       xf86GARTCloseScreen(scrnIndex);
