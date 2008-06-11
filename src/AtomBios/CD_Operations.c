@@ -36,10 +36,15 @@ Revision History:
 --*/
 #define __SW_4
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <X11/Xos.h>
+#include "xorg-server.h"
+
 #include "Decoder.h"
 #include	"atombios.h"
-
-
 
 VOID PutDataRegister(PARSER_TEMP_DATA STACK_BASED * pParserTempData);
 VOID PutDataPS(PARSER_TEMP_DATA STACK_BASED * pParserTempData);
