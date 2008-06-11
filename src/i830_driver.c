@@ -211,6 +211,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/ioctl.h>
 #ifdef XF86DRI_MM
 #include "xf86mm.h"
+#include "i915_drm.h"
 #endif
 #endif
 
@@ -3005,7 +3006,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #endif
 
    if (!pI830->noAccel) {
-      if (pI830->LpRing->mem->size == 0) {
+      if (pI830->memory_manager == NULL && pI830->LpRing->mem->size == 0) {
 	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		     "Disabling acceleration because the ring buffer "
 		      "allocation failed.\n");
@@ -3357,7 +3358,8 @@ I830LeaveVT(int scrnIndex, int flags)
       intel_bufmgr_fake_evict_all(pI830->bufmgr);
    intel_batch_teardown(pScrn);
 
-   i830_stop_ring(pScrn, TRUE);
+   if (!pI830->memory_manager)
+      i830_stop_ring(pScrn, TRUE);
 
    if (pI830->debug_modes) {
       i830CompareRegsToSnapshot(pScrn, "After LeaveVT");
@@ -3367,15 +3369,16 @@ I830LeaveVT(int scrnIndex, int flags)
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
 
-   /* Tell the kernel to evict all buffer objects and block new buffer
-    * allocations until we relese the lock.
-    */
 #ifdef XF86DRI_MM
-   if (pI830->directRenderingOpen) {
-      /* XXX:
-      if (pI830->memory_manager != NULL && pScrn->vtSema) {
-	 drmMMLock(pI830->drmSubFD, DRM_BO_MEM_TT, 1, 0);
-      }*/
+   if (pI830->memory_manager) {
+      int ret;
+
+      /* Tell the kernel to evict all buffer objects and block GTT usage while
+       * we're no longer in control of the chip.
+       */
+      ret = drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_LEAVEVT);
+      if (ret != 0)
+	 FatalError("DRM_I915_LEAVEVT failed: %s\n", strerror(ret));
    }
 #endif /* XF86DRI_MM */
 
@@ -3409,15 +3412,15 @@ I830EnterVT(int scrnIndex, int flags)
    pI830->leaving = FALSE;
 
 #ifdef XF86DRI_MM
-   if (pI830->directRenderingEnabled) {
-      /* Unlock the memory manager first of all so that we can pin our
-       * buffer objects
+   if (pI830->memory_manager) {
+      int ret;
+
+      /* Tell the kernel that we're back in control and ready for GTT
+       * usage.
        */
-      /*
-      if (pI830->memory_manager != NULL && pScrn->vtSema) {
-	 drmMMUnlock(pI830->drmSubFD, DRM_BO_MEM_TT, 1);
-      }
-      */
+      ret = drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_ENTERVT);
+      if (ret != 0)
+	 FatalError("DRM_I915_ENTERVT failed: %s\n", strerror(ret));
    }
 #endif /* XF86DRI_MM */
 
@@ -3440,8 +3443,11 @@ I830EnterVT(int scrnIndex, int flags)
 		 "Existing errors found in hardware state.\n");
    }
 
-   i830_stop_ring(pScrn, FALSE);
-   i830_start_ring(pScrn);
+   /* Re-set up the ring. */
+   if (!pI830->memory_manager) {
+      i830_stop_ring(pScrn, FALSE);
+      i830_start_ring(pScrn);
+   }
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
 
@@ -3504,7 +3510,8 @@ I830EnterVT(int scrnIndex, int flags)
 
 	 I830DRIResume(screenInfo.screens[scrnIndex]);
 
-	 i830_refresh_ring(pScrn);
+	 if (!pI830->memory_manager)
+	    i830_refresh_ring(pScrn);
 	 I830Sync(pScrn);
 
 	 sarea->texAge++;

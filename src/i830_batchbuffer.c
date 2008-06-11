@@ -115,8 +115,6 @@ intel_batch_flush(ScrnInfoPtr pScrn)
 				  exec, sizeof(*exec));
 	if (ret != 0)
 	    FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
-
-	i830_refresh_ring(pScrn);
     } else {
 	dri_process_relocs(pI830->batch_bo);
 

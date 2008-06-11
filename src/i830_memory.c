@@ -996,7 +996,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->noAccel || pI830->LpRing->mem != NULL)
+    if (pI830->noAccel || pI830->memory_manager || pI830->LpRing->mem != NULL)
 	return TRUE;
 
     /* We don't have any mechanism in the DRM yet to alert it that we've moved
@@ -1632,8 +1632,10 @@ i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 		       size / 1024);
 	    return FALSE;
 	}
-	/* The offset must stay constant currently because we don't ever update
-	 * the DRI maps after screen init.
+	/* Now that the DRM uses the sarea to get the offsets of the buffers,
+	 * and we update the classic DRM mappings and the sarea contents on
+	 * changes, the NEED_LIFETIME_FIXED is no longer true and should be
+	 * made conditional on DRM version.
 	 */
 	pI830->textures = i830_allocate_memory(pScrn, "classic textures", size,
 					       GTT_PAGE_SIZE,

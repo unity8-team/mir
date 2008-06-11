@@ -54,12 +54,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#include <errno.h>
+
 #include "xf86.h"
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
 #include "i830_debug.h"
 #include "i830_ring.h"
+#include "i915_drm.h"
 
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
@@ -190,7 +193,35 @@ I830Sync(ScrnInfoPtr pScrn)
 
    intel_batch_flush(pScrn);
 
-   i830_wait_ring_idle(pScrn);
+   if (pI830->directRenderingEnabled) {
+       struct drm_i915_irq_emit emit;
+       struct drm_i915_irq_wait wait;
+       int ret;
+
+       /* Most of the uses of I830Sync while using GEM should actually be
+	* using set_domain on a specific buffer.  We're not there yet, so fake
+	* it up using irq_emit/wait.  It's still better than spinning on
+	* register reads for idle.
+	*/
+       emit.irq_seq = &wait.irq_seq;
+       ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_EMIT, &emit,
+			    sizeof(emit));
+       if (ret != 0)
+	   FatalError("Failure to emit IRQ: %s\n", strerror(-ret));
+
+       do {
+	   ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_WAIT, &wait,
+				 sizeof(wait));
+       } while (ret == -EINTR);
+
+       if (ret != 0)
+	   FatalError("Failure to wait for IRQ: %s\n", strerror(-ret));
+
+       if (!pI830->memory_manager)
+	   i830_refresh_ring(pScrn);
+   } else {
+       i830_wait_ring_idle(pScrn);
+   }
 
    pI830->nextColorExpandBuf = 0;
 }
