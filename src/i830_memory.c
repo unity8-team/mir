@@ -734,7 +734,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
     int ret;
-    struct drm_gem_create create;
+    struct drm_i915_gem_create create;
 
     assert((flags & NEED_PHYSICAL_ADDR) == 0);
 
@@ -755,7 +755,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     memset(&create, 0, sizeof(create));
     create.size = size;
 
-    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CREATE, &create);
+    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_CREATE, &create);
     if (ret) {
 	xfree(mem->name);
 	xfree(mem);
