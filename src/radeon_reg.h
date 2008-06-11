@@ -4686,9 +4686,11 @@
 #define R300_DST_PIPE_CONFIG		                0x170c
 #       define R300_PIPE_AUTO_CONFIG                    (1 << 31)
 #define R300_RB2D_DSTCACHE_MODE		                0x3428
+#define R300_RB2D_DSTCACHE_MODE		                0x3428
 #       define R300_DC_AUTOFLUSH_ENABLE                 (1 << 8)
 #       define R300_DC_DC_DISABLE_IGNORE_PE             (1 << 17)
-#define R300_RB2D_DSTCACHE_CTLSTAT		        0x342c
+#define R300_RB2D_DSTCACHE_CTLSTAT		        0x342c /* use DSTCACHE_CTLSTAT instead */
+#define R300_DSTCACHE_CTLSTAT		                0x1714
 #       define R300_DC_FLUSH_2D                         (1 << 0)
 #       define R300_DC_FREE_2D                          (1 << 2)
 #       define R300_RB2D_DC_FLUSH_ALL                   (R300_DC_FLUSH_2D | R300_DC_FREE_2D)
