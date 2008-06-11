@@ -34,7 +34,14 @@ Revision History:
 
 	NEG:24.09.2002	Initiated.
 --*/
-//#include "AtomBios.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <X11/Xos.h>
+
+
 #include "Decoder.h"
 #include "atombios.h"
 #include "CD_binding.h"
