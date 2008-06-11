@@ -230,7 +230,7 @@ CailDebug(int scrnIndex, const char *format, ...)
 static int
 rhdAtomAnalyzeCommonHdr(ATOM_COMMON_TABLE_HEADER *hdr)
 {
-    if (hdr->usStructureSize == 0xaa55)
+    if (le16_to_cpu(hdr->usStructureSize) == 0xaa55)
         return FALSE;
 
     return TRUE;
@@ -246,24 +246,24 @@ rhdAtomAnalyzeRomHdr(unsigned char *rombase,
         return FALSE;
     }
     xf86DrvMsg(-1,X_NONE,"\tSubsystemVendorID: 0x%4.4x SubsystemID: 0x%4.4x\n",
-               hdr->usSubsystemVendorID,hdr->usSubsystemID);
-    xf86DrvMsg(-1,X_NONE,"\tIOBaseAddress: 0x%4.4x\n",hdr->usIoBaseAddress);
-    xf86DrvMsgVerb(-1,X_NONE,3,"\tFilename: %s\n",rombase + hdr->usConfigFilenameOffset);
+               le16_to_cpu(hdr->usSubsystemVendorID),le16_to_cpu(hdr->usSubsystemID));
+    xf86DrvMsg(-1,X_NONE,"\tIOBaseAddress: 0x%4.4x\n",le16_to_cpu(hdr->usIoBaseAddress));
+    xf86DrvMsgVerb(-1,X_NONE,3,"\tFilename: %s\n",rombase + le16_to_cpu(hdr->usConfigFilenameOffset));
     xf86DrvMsgVerb(-1,X_NONE,3,"\tBIOS Bootup Message: %s\n",
-		   rombase + hdr->usBIOS_BootupMessageOffset);
+		   rombase + le16_to_cpu(hdr->usBIOS_BootupMessageOffset));
 
-    *data_offset = hdr->usMasterDataTableOffset;
-    *command_offset = hdr->usMasterCommandTableOffset;
+    *data_offset = le16_to_cpu(hdr->usMasterDataTableOffset);
+    *command_offset = le16_to_cpu(hdr->usMasterCommandTableOffset);
 
     return TRUE;
 }
 
 static int
-rhdAtomAnalyzeRomDataTable(unsigned char *base, int offset,
+rhdAtomAnalyzeRomDataTable(unsigned char *base, uint16_t offset,
                     void *ptr,unsigned short *size)
 {
     ATOM_COMMON_TABLE_HEADER *table = (ATOM_COMMON_TABLE_HEADER *)
-        (base + offset);
+      (base + le16_to_cpu(offset));
 
    if (!*size || !rhdAtomAnalyzeCommonHdr(table)) {
        if (*size) *size -= 2;
@@ -286,7 +286,7 @@ rhdAtomGetTableRevisionAndSize(ATOM_COMMON_TABLE_HEADER *hdr,
 
     if (contentRev) *contentRev = hdr->ucTableContentRevision;
     if (formatRev) *formatRev = hdr->ucTableFormatRevision;
-    if (size) *size = (short)hdr->usStructureSize
+    if (size) *size = (short)le16_to_cpu(hdr->usStructureSize)
                    - sizeof(ATOM_COMMON_TABLE_HEADER);
     return TRUE;
 }
@@ -360,8 +360,8 @@ rhdAtomGetDataTable(int scrnIndex,
 		    unsigned int BIOSImageSize)
 {
     unsigned int data_offset;
-    unsigned int atom_romhdr_off =  *(unsigned short*)
-        (base + OFFSET_TO_POINTER_TO_ATOM_ROM_HEADER);
+    unsigned int atom_romhdr_off =  le16_to_cpu(*(unsigned short*)
+        (base + OFFSET_TO_POINTER_TO_ATOM_ROM_HEADER));
     ATOM_ROM_HEADER *atom_rom_hdr =
         (ATOM_ROM_HEADER *)(base + atom_romhdr_off);
 
@@ -654,12 +654,12 @@ rhdAtomVramInfoQuery(atomBiosHandlePtr handle, AtomBiosRequestID func,
 
     switch (func) {
 	case GET_FW_FB_START:
-	    *val = atomDataPtr->VRAM_UsageByFirmware
-		->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware;
+	    *val = le32_to_cpu(atomDataPtr->VRAM_UsageByFirmware
+			       ->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware);
 	    break;
 	case GET_FW_FB_SIZE:
-	    *val = atomDataPtr->VRAM_UsageByFirmware
-		->asFirmwareVramReserveInfo[0].usFirmwareUseInKb;
+	    *val =  le16_to_cpu(atomDataPtr->VRAM_UsageByFirmware
+				->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
 	    break;
 	default:
 	    return ATOM_NOT_IMPLEMENTED;
@@ -686,7 +686,7 @@ rhdAtomTmdsInfoQuery(atomBiosHandlePtr handle,
 
     switch (func) {
 	case ATOM_TMDS_FREQUENCY:
-	    *val = atomDataPtr->TMDS_Info->asMiscInfo[idx].usFrequency;
+	    *val = le16_to_cpu(atomDataPtr->TMDS_Info->asMiscInfo[idx].usFrequency);
 	    break;
 	case ATOM_TMDS_PLL_CHARGE_PUMP:
 	    *val = atomDataPtr->TMDS_Info->asMiscInfo[idx].ucPLL_ChargePump;
@@ -721,20 +721,20 @@ rhdAtomDTDTimings(atomBiosHandlePtr handle, ATOM_DTD_FORMAT *dtd)
     if (!(mode = (DisplayModePtr)xcalloc(1,sizeof(DisplayModeRec))))
 	return NULL;
 
-    mode->CrtcHDisplay = mode->HDisplay = dtd->usHActive;
-    mode->CrtcVDisplay = mode->VDisplay = dtd->usVActive;
+    mode->CrtcHDisplay = mode->HDisplay = le16_to_cpu(dtd->usHActive);
+    mode->CrtcVDisplay = mode->VDisplay = le16_to_cpu(dtd->usVActive);
     mode->CrtcHBlankStart = dtd->usHActive + dtd->ucHBorder;
-    mode->CrtcHBlankEnd = mode->CrtcHBlankStart + dtd->usHBlanking_Time;
+    mode->CrtcHBlankEnd = mode->CrtcHBlankStart + le16_to_cpu(dtd->usHBlanking_Time);
     mode->CrtcHTotal = mode->HTotal = mode->CrtcHBlankEnd + dtd->ucHBorder;
     mode->CrtcVBlankStart = dtd->usVActive + dtd->ucVBorder;
-    mode->CrtcVBlankEnd = mode->CrtcVBlankStart + dtd->usVBlanking_Time;
+    mode->CrtcVBlankEnd = mode->CrtcVBlankStart + le16_to_cpu(dtd->usVBlanking_Time);
     mode->CrtcVTotal = mode->VTotal = mode->CrtcVBlankEnd + dtd->ucVBorder;
-    mode->CrtcHSyncStart = mode->HSyncStart = dtd->usHActive + dtd->usHSyncOffset;
-    mode->CrtcHSyncEnd = mode->HSyncEnd = mode->HSyncStart + dtd->usHSyncWidth;
-    mode->CrtcVSyncStart = mode->VSyncStart = dtd->usVActive + dtd->usVSyncOffset;
-    mode->CrtcVSyncEnd = mode->VSyncEnd = mode->VSyncStart + dtd->usVSyncWidth;
+    mode->CrtcHSyncStart = mode->HSyncStart = dtd->usHActive + le16_to_cpu(dtd->usHSyncOffset);
+    mode->CrtcHSyncEnd = mode->HSyncEnd = mode->HSyncStart + le16_to_cpu(dtd->usHSyncWidth);
+    mode->CrtcVSyncStart = mode->VSyncStart = dtd->usVActive + le16_to_cpu(dtd->usVSyncOffset);
+    mode->CrtcVSyncEnd = mode->VSyncEnd = mode->VSyncStart + le16_to_cpu(dtd->usVSyncWidth);
 
-    mode->SynthClock = mode->Clock = dtd->usPixClk * 10;
+    mode->SynthClock = mode->Clock = le16_to_cpu(dtd->usPixClk) * 10;
 
     mode->HSync = ((float) mode->Clock) / ((float)mode->HTotal);
     mode->VRefresh = (1000.0 * ((float) mode->Clock))
@@ -966,15 +966,15 @@ rhdAtomLvdsGetTimings(atomBiosHandlePtr handle, AtomBiosRequestID func,
 		case ATOMBIOS_GET_PANEL_EDID:
 		    offset = (unsigned long)&atomDataPtr->LVDS_Info.base
 			- (unsigned long)handle->BIOSBase
-			+ atomDataPtr->LVDS_Info
-			.LVDS_Info_v12->usExtInfoTableOffset;
+			+ le16_to_cpu(atomDataPtr->LVDS_Info
+			.LVDS_Info_v12->usExtInfoTableOffset);
 
 		    data->EDIDBlock
 			= rhdAtomLvdsDDC(handle, offset,
 					 (unsigned char *)
 					 &atomDataPtr->LVDS_Info.base
-					 + atomDataPtr->LVDS_Info
-					 .LVDS_Info_v12->usExtInfoTableOffset);
+					 + le16_to_cpu(atomDataPtr->LVDS_Info
+					 .LVDS_Info_v12->usExtInfoTableOffset));
 		    if (data->EDIDBlock)
 			return ATOM_SUCCESS;
 		default:
@@ -1008,12 +1008,12 @@ rhdAtomLvdsInfoQuery(atomBiosHandlePtr handle,
 	case 1:
 	    switch (func) {
 		case ATOM_LVDS_SUPPORTED_REFRESH_RATE:
-		    *val = atomDataPtr->LVDS_Info
-			.LVDS_Info->usSupportedRefreshRate;
+		    *val = le16_to_cpu(atomDataPtr->LVDS_Info
+				       .LVDS_Info->usSupportedRefreshRate);
 		    break;
 		case ATOM_LVDS_OFF_DELAY:
-		    *val = atomDataPtr->LVDS_Info
-			.LVDS_Info->usOffDelayInMs;
+		    *val = le16_to_cpu(atomDataPtr->LVDS_Info
+				       .LVDS_Info->usOffDelayInMs);
 		    break;
 		case ATOM_LVDS_SEQ_DIG_ONTO_DE:
 		    *val = atomDataPtr->LVDS_Info
@@ -1050,12 +1050,12 @@ rhdAtomLvdsInfoQuery(atomBiosHandlePtr handle,
 	case 2:
 	    switch (func) {
 		case ATOM_LVDS_SUPPORTED_REFRESH_RATE:
-		    *val = atomDataPtr->LVDS_Info
-			.LVDS_Info_v12->usSupportedRefreshRate;
+		    *val = le16_to_cpu(atomDataPtr->LVDS_Info
+				       .LVDS_Info_v12->usSupportedRefreshRate);
 		    break;
 		case ATOM_LVDS_OFF_DELAY:
-		    *val = atomDataPtr->LVDS_Info
-			.LVDS_Info_v12->usOffDelayInMs;
+		    *val = le16_to_cpu(atomDataPtr->LVDS_Info
+				       .LVDS_Info_v12->usOffDelayInMs);
 		    break;
 		case ATOM_LVDS_SEQ_DIG_ONTO_DE:
 		    *val = atomDataPtr->LVDS_Info
@@ -1183,8 +1183,8 @@ rhdAtomGPIOI2CInfoQuery(atomBiosHandlePtr handle,
 		return ATOM_FAILED;
 	    }
 
-	    *val = atomDataPtr->GPIO_I2C_Info->asGPIO_Info[*val]
-		.usClkMaskRegisterIndex;
+	    *val = le16_to_cpu(atomDataPtr->GPIO_I2C_Info->asGPIO_Info[*val]
+			       .usClkMaskRegisterIndex);
 	    break;
 
 	default:
@@ -1215,35 +1215,35 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 	case 1:
 	    switch (func) {
 		case GET_DEFAULT_ENGINE_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->ulDefaultEngineClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->ulDefaultEngineClock) * 10;
 		    break;
 		case GET_DEFAULT_MEMORY_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->ulDefaultMemoryClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->ulDefaultMemoryClock) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->ulMaxPixelClockPLL_Output * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->ulMaxPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->usMinPixelClockPLL_Output * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->usMinPixelClockPLL_Output) * 10;
 		case GET_MAX_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->usMaxPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->usMaxPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->usMinPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->usMinPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->usMaxPixelClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->usMaxPixelClock) * 10;
 		    break;
 		case GET_REF_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo->usReferenceClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo->usReferenceClock) * 10;
 		    break;
 		default:
 		    return ATOM_NOT_IMPLEMENTED;
@@ -1251,36 +1251,36 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 	case 2:
 	    switch (func) {
 		case GET_DEFAULT_ENGINE_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->ulDefaultEngineClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->ulDefaultEngineClock) * 10;
 		    break;
 		case GET_DEFAULT_MEMORY_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->ulDefaultMemoryClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->ulDefaultMemoryClock) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->ulMaxPixelClockPLL_Output * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->ulMaxPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->usMinPixelClockPLL_Output * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->usMinPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->usMaxPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->usMaxPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->usMinPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->usMinPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->usMaxPixelClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->usMaxPixelClock) * 10;
 		    break;
 		case GET_REF_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_2->usReferenceClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_2->usReferenceClock) * 10;
 		    break;
 		default:
 		    return ATOM_NOT_IMPLEMENTED;
@@ -1289,36 +1289,36 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 	case 3:
 	    switch (func) {
 		case GET_DEFAULT_ENGINE_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->ulDefaultEngineClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->ulDefaultEngineClock) * 10;
 		    break;
 		case GET_DEFAULT_MEMORY_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->ulDefaultMemoryClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->ulDefaultMemoryClock) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->ulMaxPixelClockPLL_Output * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->ulMaxPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->usMinPixelClockPLL_Output * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->usMinPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->usMaxPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->usMaxPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->usMinPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->usMinPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->usMaxPixelClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->usMaxPixelClock) * 10;
 		    break;
 		case GET_REF_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_3->usReferenceClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_3->usReferenceClock) * 10;
 		    break;
 		default:
 		    return ATOM_NOT_IMPLEMENTED;
@@ -1327,36 +1327,36 @@ rhdAtomFirmwareInfoQuery(atomBiosHandlePtr handle,
 	case 4:
 	    switch (func) {
 		case GET_DEFAULT_ENGINE_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->ulDefaultEngineClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->ulDefaultEngineClock) * 10;
 		    break;
 		case GET_DEFAULT_MEMORY_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->ulDefaultMemoryClock * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->ulDefaultMemoryClock) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->usMaxPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->usMaxPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_INPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->usMinPixelClockPLL_Input * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->usMinPixelClockPLL_Input) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->ulMaxPixelClockPLL_Output * 10;
+		    *val = le32_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->ulMaxPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MIN_PIXEL_CLOCK_PLL_OUTPUT:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->usMinPixelClockPLL_Output * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->usMinPixelClockPLL_Output) * 10;
 		    break;
 		case GET_MAX_PIXEL_CLK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->usMaxPixelClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->usMaxPixelClock) * 10;
 		    break;
 		case GET_REF_CLOCK:
-		    *val = atomDataPtr->FirmwareInfo
-			.FirmwareInfo_V_1_4->usReferenceClock * 10;
+		    *val = le16_to_cpu(atomDataPtr->FirmwareInfo
+				       .FirmwareInfo_V_1_4->usReferenceClock) * 10;
 		    break;
 		default:
 		    return ATOM_NOT_IMPLEMENTED;
@@ -1444,12 +1444,12 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
     }
 
     gpio = atomDataPtr->GPIO_I2C_Info->asGPIO_Info[id];
-    i2c.mask_clk_reg = gpio.usClkMaskRegisterIndex * 4;
-    i2c.mask_data_reg = gpio.usDataMaskRegisterIndex * 4;
-    i2c.put_clk_reg = gpio.usClkEnRegisterIndex * 4;
-    i2c.put_data_reg = gpio.usDataEnRegisterIndex * 4;
-    i2c.get_clk_reg = gpio.usClkY_RegisterIndex * 4;
-    i2c.get_data_reg = gpio.usDataY_RegisterIndex * 4;
+    i2c.mask_clk_reg = le16_to_cpu(gpio.usClkMaskRegisterIndex) * 4;
+    i2c.mask_data_reg = le16_to_cpu(gpio.usDataMaskRegisterIndex) * 4;
+    i2c.put_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
+    i2c.put_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
+    i2c.get_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
+    i2c.get_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
     i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
     i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
     i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
@@ -1500,23 +1500,24 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
     con_obj = (ATOM_CONNECTOR_OBJECT_TABLE *)
 	((char *)&atomDataPtr->Object_Header->sHeader +
-	 atomDataPtr->Object_Header->usConnectorObjectTableOffset);
+	 le16_to_cpu(atomDataPtr->Object_Header->usConnectorObjectTableOffset));
 
     for (i = 0; i < con_obj->ucNumberOfObjects; i++) {
 	ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *SrcDstTable;
 	ATOM_COMMON_RECORD_HEADER *Record;
 	uint8_t obj_id, num, obj_type;
 	int record_base;
+	uint16_t con_obj_id = le16_to_cpu(con_obj->asObjects[i].usObjectID);
 
-	obj_id = (con_obj->asObjects[i].usObjectID & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
-	num = (con_obj->asObjects[i].usObjectID & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
-	obj_type = (con_obj->asObjects[i].usObjectID & OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
+	obj_id = (con_obj_id & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	num = (con_obj_id & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
+	obj_type = (con_obj_id & OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 	if (obj_type != GRAPH_OBJECT_TYPE_CONNECTOR)
 	    continue;
 
 	SrcDstTable = (ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *)
 	    ((char *)&atomDataPtr->Object_Header->sHeader
-	     + con_obj->asObjects[i].usSrcDstTableOffset);
+	     + le16_to_cpu(con_obj->asObjects[i].usSrcDstTableOffset));
 
 	ErrorF("object id %04x %02x\n", obj_id, SrcDstTable->ucNumberOfSrc);
 
@@ -1606,9 +1607,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
 	Record = (ATOM_COMMON_RECORD_HEADER *)
 	    ((char *)&atomDataPtr->Object_Header->sHeader
-	     + con_obj->asObjects[i].usRecordOffset);
+	     + le16_to_cpu(con_obj->asObjects[i].usRecordOffset));
 
-	record_base = con_obj->asObjects[i].usRecordOffset;
+	record_base = le16_to_cpu(con_obj->asObjects[i].usRecordOffset);
 
 	while (Record->ucRecordType > 0
 	       && Record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER ) {
@@ -1715,23 +1716,23 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     if (index > MAX_SUPPORTED_TV_TIMING)
 	return FALSE;
 
-    crtc_timing->usH_Total = tv_info->aModeTimings[index].usCRTC_H_Total;
-    crtc_timing->usH_Disp = tv_info->aModeTimings[index].usCRTC_H_Disp;
-    crtc_timing->usH_SyncStart = tv_info->aModeTimings[index].usCRTC_H_SyncStart;
-    crtc_timing->usH_SyncWidth = tv_info->aModeTimings[index].usCRTC_H_SyncWidth;
+    crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
+    crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
+    crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
+    crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
 
-    crtc_timing->usV_Total = tv_info->aModeTimings[index].usCRTC_V_Total;
-    crtc_timing->usV_Disp = tv_info->aModeTimings[index].usCRTC_V_Disp;
-    crtc_timing->usV_SyncStart = tv_info->aModeTimings[index].usCRTC_V_SyncStart;
-    crtc_timing->usV_SyncWidth = tv_info->aModeTimings[index].usCRTC_V_SyncWidth;
+    crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
+    crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
+    crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
+    crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
 
     crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
 
-    crtc_timing->ucOverscanRight = tv_info->aModeTimings[index].usCRTC_OverscanRight;
-    crtc_timing->ucOverscanLeft = tv_info->aModeTimings[index].usCRTC_OverscanLeft;
-    crtc_timing->ucOverscanBottom = tv_info->aModeTimings[index].usCRTC_OverscanBottom;
-    crtc_timing->ucOverscanTop = tv_info->aModeTimings[index].usCRTC_OverscanTop;
-    *pixel_clock = tv_info->aModeTimings[index].usPixelClock * 10;
+    crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
+    crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
+    crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
+    crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
+    *pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
 
     return TRUE;
 }
@@ -1773,8 +1774,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	ATOM_CONNECTOR_INFO_I2C ci
 	    = atomDataPtr->SupportedDevicesInfo.SupportedDevicesInfo->asConnInfo[i];
 
-	if (!(atomDataPtr->SupportedDevicesInfo
-	      .SupportedDevicesInfo->usDeviceSupport & (1 << i))) {
+	if (!(le16_to_cpu(atomDataPtr->SupportedDevicesInfo
+			  .SupportedDevicesInfo->usDeviceSupport) & (1 << i))) {
 	    info->BiosConnector[i].valid = FALSE;
 	    continue;
 	}
@@ -2247,6 +2248,7 @@ atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *m
 
     offset  = *(((unsigned short *)table_start) + index);
 
+    offset = le16_to_cpu(offset);
     table_hdr = (ATOM_COMMON_ROM_COMMAND_TABLE_HEADER *)(atomBIOS->BIOSBase + offset);
 
     *major = table_hdr->CommonHeader.ucTableFormatRevision;

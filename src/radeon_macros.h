@@ -51,6 +51,16 @@
 
 #include "compiler.h"
 
+#include <byteswap.h>
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+#define le32_to_cpu(x) bswap_32(x)
+#define le16_to_cpu(x) bswap_16(x)
+#else
+#define le32_to_cpu(x) (x)
+#define le16_to_cpu(x) (x)
+#endif
+
 #define RADEON_BIOS8(v)  (info->VBIOS[v])
 #define RADEON_BIOS16(v) (info->VBIOS[v] | \
                           (info->VBIOS[(v) + 1] << 8))
