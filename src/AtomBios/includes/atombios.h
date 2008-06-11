@@ -304,9 +304,15 @@ typedef struct _ATOM_MASTER_COMMAND_TABLE
 
 typedef struct _ATOM_TABLE_ATTRIBUTE
 {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+  USHORT  UpdatedByUtility:1;         //[15]=Table updated by utility flag
+  USHORT  PS_SizeInBytes:7;           //[14:8]=Size of parameter space in Bytes (multiple of a dword), 
+  USHORT  WS_SizeInBytes:8;           //[7:0]=Size of workspace in Bytes (in multiple of a dword), 
+#else
   USHORT  WS_SizeInBytes:8;           //[7:0]=Size of workspace in Bytes (in multiple of a dword), 
   USHORT  PS_SizeInBytes:7;           //[14:8]=Size of parameter space in Bytes (multiple of a dword), 
   USHORT  UpdatedByUtility:1;         //[15]=Table updated by utility flag
+#endif
 }ATOM_TABLE_ATTRIBUTE;
 
 // Common header for all command tables.
@@ -1252,6 +1258,19 @@ typedef struct _ATOM_MULTIMEDIA_CONFIG_INFO
 //Please don't add or expand this bitfield structure below, this one will retire soon.!
 typedef struct _ATOM_FIRMWARE_CAPABILITY
 {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+  USHORT Reserved:3;
+  USHORT HyperMemory_Size:4;
+  USHORT HyperMemory_Support:1;
+  USHORT PPMode_Assigned:1;
+  USHORT WMI_SUPPORT:1;
+  USHORT GPUControlsBL:1;
+  USHORT EngineClockSS_Support:1;
+  USHORT MemoryClockSS_Support:1;
+  USHORT ExtendedDesktopSupport:1;
+  USHORT DualCRTC_Support:1;
+  USHORT FirmwarePosted:1;
+#else
   USHORT FirmwarePosted:1;
   USHORT DualCRTC_Support:1;
   USHORT ExtendedDesktopSupport:1;
@@ -1263,6 +1282,7 @@ typedef struct _ATOM_FIRMWARE_CAPABILITY
   USHORT HyperMemory_Support:1;
   USHORT HyperMemory_Size:4;
   USHORT Reserved:3;
+#endif
 }ATOM_FIRMWARE_CAPABILITY;
 
 typedef union _ATOM_FIRMWARE_CAPABILITY_ACCESS
@@ -1747,9 +1767,15 @@ for Griffin or Greyhound. SBIOS needs to convert to actual time by:
 
 typedef struct _ATOM_I2C_ID_CONFIG
 {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+  UCHAR   bfHW_Capable:1;
+  UCHAR   bfHW_EngineID:3;
+  UCHAR   bfI2C_LineMux:4;
+#else
   UCHAR   bfI2C_LineMux:4;
   UCHAR   bfHW_EngineID:3;
   UCHAR   bfHW_Capable:1;
+#endif
 }ATOM_I2C_ID_CONFIG;
 
 typedef union _ATOM_I2C_ID_CONFIG_ACCESS
@@ -1794,6 +1820,19 @@ typedef struct _ATOM_GPIO_I2C_INFO
 //Please don't add or expand this bitfield structure below, this one will retire soon.!
 typedef struct _ATOM_MODE_MISC_INFO
 { 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+  USHORT Reserved:6;
+  USHORT RGB888:1;
+  USHORT DoubleClock:1;
+  USHORT Interlace:1;
+  USHORT CompositeSync:1;
+  USHORT V_ReplicationBy2:1;
+  USHORT H_ReplicationBy2:1;
+  USHORT VerticalCutOff:1;
+  USHORT VSyncPolarity:1;      //0=Active High, 1=Active Low
+  USHORT HSyncPolarity:1;      //0=Active High, 1=Active Low
+  USHORT HorizontalCutOff:1;
+#else
   USHORT HorizontalCutOff:1;
   USHORT HSyncPolarity:1;      //0=Active High, 1=Active Low
   USHORT VSyncPolarity:1;      //0=Active High, 1=Active Low
@@ -1805,6 +1844,7 @@ typedef struct _ATOM_MODE_MISC_INFO
   USHORT DoubleClock:1;
   USHORT RGB888:1;
   USHORT Reserved:6;           
+#endif
 }ATOM_MODE_MISC_INFO;
   
 typedef union _ATOM_MODE_MISC_INFO_ACCESS
@@ -3386,8 +3426,13 @@ typedef struct _ATOM_MEMORY_VENDOR_BLOCK{
 
 
 typedef struct _ATOM_MEMORY_SETTING_ID_CONFIG{
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	ULONG												ucMemBlkId:8;
+	ULONG												ulMemClockRange:24;
+#else
 	ULONG												ulMemClockRange:24;
 	ULONG												ucMemBlkId:8;
+#endif
 }ATOM_MEMORY_SETTING_ID_CONFIG;
 
 typedef union _ATOM_MEMORY_SETTING_ID_CONFIG_ACCESS
@@ -4027,8 +4072,13 @@ typedef struct  _COMPASSIONATE_DATA
 
 typedef struct _ATOM_CONNECTOR_INFO
 {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+  UCHAR   bfConnectorType:4;
+  UCHAR   bfAssociatedDAC:4;
+#else
   UCHAR   bfAssociatedDAC:4;
   UCHAR   bfConnectorType:4;
+#endif
 }ATOM_CONNECTOR_INFO;
 
 typedef union _ATOM_CONNECTOR_INFO_ACCESS
