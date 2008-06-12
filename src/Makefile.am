@@ -30,7 +30,8 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ \
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+	@PCIACCESS_CFLAGS@ \
 	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
@@ -151,7 +152,6 @@ INTEL_G4I =				\
 	exa_wm.g4i			\
 	exa_wm_affine.g4i		\
 	exa_wm_projective.g4i
-	
 
 INTEL_G4B = 				\
 	packed_yuv_sf.g4b		\
@@ -173,7 +173,7 @@ INTEL_G4B = 				\
 	exa_wm_ca_srcalpha.g4b		\
 	exa_wm_write.g4b 		\
 	exa_wm_xy.g4b
-	
+
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_G4A)	\

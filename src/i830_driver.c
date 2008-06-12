@@ -209,10 +209,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef XF86DRI
 #include "dri.h"
 #include <sys/ioctl.h>
-#ifdef XF86DRI_MM
-#include "xf86mm.h"
 #include "i915_drm.h"
-#endif
 #endif
 
 #ifdef I830_USE_EXA
@@ -303,7 +300,7 @@ typedef enum {
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
    OPTION_INTELTEXPOOL,
 #endif
    OPTION_LVDSFIXEDMODE,
@@ -331,7 +328,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
    {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
 #endif
    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
@@ -1573,7 +1570,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
 	 from = X_PROBED;
 
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
 	 if (!IS_I965G(pI830)) {
 	    Bool tmp;
 
@@ -3369,7 +3366,7 @@ I830LeaveVT(int scrnIndex, int flags)
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
 
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
    if (pI830->memory_manager) {
       int ret;
 
@@ -3380,7 +3377,7 @@ I830LeaveVT(int scrnIndex, int flags)
       if (ret != 0)
 	 FatalError("DRM_I915_LEAVEVT failed: %s\n", strerror(ret));
    }
-#endif /* XF86DRI_MM */
+#endif /* XF86DRI */
 
    if (IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
@@ -3411,7 +3408,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    pI830->leaving = FALSE;
 
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
    if (pI830->memory_manager) {
       int ret;
 
@@ -3422,7 +3419,7 @@ I830EnterVT(int scrnIndex, int flags)
       if (ret != 0)
 	 FatalError("DRM_I915_ENTERVT failed: %s\n", strerror(ret));
    }
-#endif /* XF86DRI_MM */
+#endif /* XF86DRI */
 
    if (I830IsPrimary(pScrn))
       if (!i830_bind_all_memory(pScrn))

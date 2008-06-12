@@ -108,7 +108,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "i830.h"
 #include "i810_reg.h"
-#ifdef XF86DRI_MM
+#ifdef XF86DRI
 #include "i915_drm.h"
 #endif
 
@@ -165,7 +165,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL || mem->bound)
 	return TRUE;
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_i915_gem_pin pin;
@@ -218,7 +218,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem->tiling != TILE_NONE)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_i915_gem_unpin unpin;
@@ -256,7 +256,7 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     /* Free any AGP memory. */
     i830_unbind_memory(pScrn, mem);
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     if (mem->gem_handle != 0) {
 	I830Ptr pI830 = I830PTR(pScrn);
 	struct drm_gem_close close;
@@ -319,12 +319,10 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     }
 
     /* Free any allocations in buffer objects */
-#ifdef XF86DRI_MM
     if (pI830->memory_manager) {
 	while (pI830->bo_list != NULL)
 	    i830_free_memory(pScrn, pI830->bo_list);
     }
-#endif
 
     /* Null out the pointers for all the allocations we just freed.  This is
      * kind of gross, but at least it's just one place now.
@@ -375,7 +373,7 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
  * given range.
  *
  * This sets up the kernel memory manager to manage as much of the memory
- * as we think it can, while leaving enough to us to fulfill our non-TTM
+ * as we think it can, while leaving enough to us to fulfill our non-GEM
  * static allocations.  Some of these exist because of the need for physical
  * addresses to reference.
  */
@@ -384,7 +382,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *start, *end;
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     int dri_major, dri_minor, dri_patch;
 #endif
 
@@ -423,7 +421,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 
     pI830->memory_list = start;
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     DRIQueryVersion(&dri_major, &dri_minor, &dri_patch);
 
     /* Now that we have our manager set up, initialize the kernel MM if
@@ -461,7 +459,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	}
 	if (pI830->fb_compression)
 	    mmsize -= MB(6) + ROUND_TO_PAGE(FBC_LL_SIZE + FBC_LL_PAD);
-	/* Can't do TTM on stolen memory */
+	/* Can't do GEM on stolen memory */
 	mmsize -= pI830->stolen_size;
 
 	if (HWS_NEED_GFX(pI830) && IS_IGD_GM(pI830))
@@ -496,7 +494,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	    pI830->memory_manager = NULL;
 	}
     }
-#endif /* XF86DRI_MM */
+#endif /* XF86DRI */
 
     return TRUE;
 }
@@ -509,14 +507,12 @@ i830_allocator_fini(ScrnInfoPtr pScrn)
     /* Free most of the allocations */
     i830_reset_allocations(pScrn);
 
-#ifdef XF86DRI_MM
     /* The memory manager is more special */
     if (pI830->memory_manager) {
 	 /* XXX drmMMTakedown(pI830->drmSubFD, DRM_BO_MEM_TT);*/
 	 i830_free_memory(pScrn, pI830->memory_manager);
 	 pI830->memory_manager = NULL;
     }
-#endif /* XF86DRI_MM */
 
     /* Free the start/end markers */
     free(pI830->memory_list->next);
@@ -726,7 +722,7 @@ i830_allocate_agp_memory(ScrnInfoPtr pScrn, i830_memory *mem, int flags)
     return TRUE;
 }
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
 static i830_memory *
 i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 			unsigned long size, unsigned long align, int flags)
@@ -794,7 +790,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
     return mem;
 }
-#endif /* XF86DRI_MM */
+#endif /* XF86DRI */
 
 /* Allocates video memory at the given size and alignment.
  *
@@ -820,7 +816,7 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 {
     i830_memory *mem;
 
-#if HAVE_DRM_GEM
+#ifdef XF86DRI
     I830Ptr pI830 = I830PTR(pScrn);
 
     if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
@@ -828,7 +824,7 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
     {
 	return i830_allocate_memory_bo(pScrn, name, size, alignment, flags);
     } else
-#endif	
+#endif /* XF86DRI */
     {
 	mem = i830_allocate_aperture(pScrn, name, size, alignment, flags);
 	if (mem == NULL)
@@ -958,7 +954,6 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		   "%s0x%08lx:            end of aperture\n",
 		   prefix, pI830->FbMapSize);
 
-#ifdef XF86DRI_MM
     if (pI830->memory_manager) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, verbosity,
 		       "%sBO memory allocation layout:\n", prefix);
@@ -988,7 +983,6 @@ i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity, const char *prefix)
 		       "%s0x%08lx:            end of memory manager\n",
 		       prefix, pI830->memory_manager->end);
     }
-#endif /* XF86DRI_MM */
 }
 
 static Bool
@@ -1455,7 +1449,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     if (!pI830->noAccel && !pI830->useEXA) {
 	/* The lifetime fixed offset of xaa scratch is probably not required,
 	 * but we do some setup using it at XAAInit() time.  And XAA may not
-	 * end up being supported with TTM anyway.
+	 * end up being supported with GEM anyway.
 	 */
 	pI830->xaa_scratch =
 	    i830_allocate_memory(pScrn, "xaa scratch", MAX_SCRATCH_BUFFER_SIZE,
@@ -1967,12 +1961,10 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 		FatalError("Couldn't bind memory for %s\n", mem->name);
 	    }
 	}
-#ifdef XF86DRI_MM
 	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
 	    if (!mem->lifetime_fixed_offset && !i830_bind_memory(pScrn, mem))
 		FatalError("Couldn't bind memory for BO %s\n", mem->name);
 	}
-#endif
     }
     if (!pI830->SWCursor)
 	i830_update_cursor_offsets(pScrn);
@@ -1997,7 +1989,6 @@ i830_unbind_all_memory(ScrnInfoPtr pScrn)
 	{
 	    i830_unbind_memory(pScrn, mem);
 	}
-#ifdef XF86DRI_MM
 	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
 	    /* Don't unpin objects which require that their offsets never
 	     * change.
@@ -2005,7 +1996,6 @@ i830_unbind_all_memory(ScrnInfoPtr pScrn)
 	    if (!mem->lifetime_fixed_offset)
 		i830_unbind_memory(pScrn, mem);
 	}
-#endif
 
 	pI830->gtt_acquired = FALSE;
 
