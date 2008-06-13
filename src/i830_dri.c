@@ -1505,7 +1505,6 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 static int
 i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 {
-#if HAVE_DRM_GEM
     if (mem && mem->gem_handle)
     {
 	I830Ptr			pI830 = I830PTR(pScrn);
@@ -1526,7 +1525,6 @@ i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 	}
 	return mem->gem_name;
     }
-#endif
     return -1;
 }
 
