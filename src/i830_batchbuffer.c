@@ -111,8 +111,10 @@ intel_batch_flush(ScrnInfoPtr pScrn)
 	exec->DR1 = 0;
 	exec->DR4 = 0xffffffff;
 
-	ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GEM_EXECBUFFER,
-				  exec, sizeof(*exec));
+	do {
+	    ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GEM_EXECBUFFER,
+				      exec, sizeof(*exec));
+	} while (ret == -EINTR);
 	if (ret != 0)
 	    FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
     } else {
