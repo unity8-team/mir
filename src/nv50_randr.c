@@ -441,6 +441,15 @@ nv50_output_get_modes(xf86OutputPtr output)
 	if (nv_output->output->GetFixedMode)
 		fixed_mode = nv_output->output->GetFixedMode(nv_output->output);
 
+	if (fixed_mode) {
+		if (!ddc_modes)
+			ddc_modes = xf86DuplicateMode(fixed_mode);
+		else
+			ddc_modes = xf86ModesAdd(ddc_modes, fixed_mode);
+
+		nv_output->output->native_mode = xf86DuplicateMode(fixed_mode);
+	}
+
 	/* No ddc means no native mode, so make one up to avoid crashes. */
 	if (!nv_output->output->native_mode)
 		nv_output->output->native_mode = xf86CVTMode(1024, 768, 60.0, FALSE, FALSE);
@@ -449,9 +458,6 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	if (nv_output->output->crtc)
 		nv_output->output->crtc->native_mode = nv_output->output->native_mode;
-
-	if (fixed_mode) /* probably only lvds */
-		return fixed_mode;
 
 	return ddc_modes;
 }
