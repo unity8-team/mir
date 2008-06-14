@@ -1787,13 +1787,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 #endif
-#if 1
-	if (i == ATOM_DEVICE_TV1_INDEX) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping TV-Out\n");
-	    info->BiosConnector[i].valid = FALSE;
-	    continue;
-	}
-#endif
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
