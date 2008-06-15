@@ -2023,6 +2023,7 @@ I830CheckAvailableMemory(ScrnInfoPtr pScrn)
     return maxPages * 4;
 }
 
+#ifdef INTEL_XVMC
 /*
  * Allocate memory for MC compensation
  */
@@ -2044,3 +2045,4 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 
     return TRUE;
 }
+#endif
