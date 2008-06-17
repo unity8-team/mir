@@ -308,6 +308,21 @@ extern int I810_DEBUG;
 #define PCI_CHIP_IGD_GM_BRIDGE  0x2A40
 #endif
 
+#ifndef PCI_CHIP_IGD_E_G
+#define PCI_CHIP_IGD_E_G	0x2E02
+#define PCI_CHIP_IGD_E_G_BRIDGE 0x2E00
+#endif
+
+#ifndef PCI_CHIP_G45_G
+#define PCI_CHIP_G45_G		0x2E22
+#define PCI_CHIP_G45_G_BRIDGE	0x2E20
+#endif
+
+#ifndef PCI_CHIP_Q45_G
+#define PCI_CHIP_Q45_G		0x2E12
+#define PCI_CHIP_Q45_G_BRIDGE	0x2E10
+#endif
+
 #if XSERVER_LIBPCIACCESS
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
@@ -340,8 +355,9 @@ extern int I810_DEBUG;
 #define IS_I945G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GME)
 #define IS_IGD_GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_GM)
+#define IS_G4X(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_E_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q45_G)
 #define IS_I965GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
-#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_IGD_GM(pI810))
+#define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_IGD_GM(pI810) || IS_G4X(pI810))
 #define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G)
@@ -350,8 +366,12 @@ extern int I810_DEBUG;
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_IGD_GM(pI810))
 /* mark chipsets for using gfx VM offset for overlay */
 #define OVERLAY_NOPHYSICAL(pI810) (IS_G33CLASS(pI810) || IS_I965G(pI810))
+/* mark chipsets without overlay hw */
+#define OVERLAY_NOEXIST(pI810) (IS_IGD_GM(pI810) || IS_G4X(pI810))
 /* chipsets require graphics mem for hardware status page */
-#define HWS_NEED_GFX(pI810) (IS_G33CLASS(pI810) || IS_IGD_GM(pI810))
+#define HWS_NEED_GFX(pI810) (IS_G33CLASS(pI810) || IS_IGD_GM(pI810) || IS_G4X(pI810))
+/* chipsets require status page in non stolen memory */
+#define HWS_NEED_NONSTOLEN(pI810) (IS_IGD_GM(pI810) || IS_G4X(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
