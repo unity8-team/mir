@@ -100,6 +100,7 @@ void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
 uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg);
 void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
 uint8_t nv_read_tmds(NVPtr pNv, int or, int dl, uint8_t address);
+int nv_get_digital_bound_head(NVPtr pNv, int or);
 void nv_write_tmds(NVPtr pNv, int or, int dl, uint8_t address, uint8_t data);
 void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index);

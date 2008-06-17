@@ -79,17 +79,6 @@ static int nv_output_ramdac_offset(xf86OutputPtr output)
 	return offset;
 }
 
-static int get_digital_bound_head(xf86OutputPtr output)
-{
-	/* this does not give a correct answer for off-chip dvi, but there's no
-	 * use for such an answer anyway */
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVPtr pNv = NVPTR(output->scrn);
-	int ramdac = (nv_output->dcb->or & OUTPUT_C) >> 2;
-
-	return (((nv_read_tmds(pNv, nv_output->dcb->or, 0, 0x4) & 0x8) >> 3) ^ ramdac);
-}
-
 static void dpms_update_fp_control(xf86OutputPtr output, int mode)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
@@ -137,7 +126,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 	if (nv_output->dcb->lvdsconf.use_power_scripts) {
 		xf86CrtcPtr crtc = output->crtc;
 		/* when removing an output, crtc may not be set, but PANEL_OFF must still be run */
-		int head = get_digital_bound_head(output);
+		int head = nv_get_digital_bound_head(pNv, nv_output->dcb->or);
 		int pclk = nv_output->native_mode->Clock;
 
 		if (crtc)
@@ -226,7 +215,7 @@ static void nv_output_save(xf86OutputPtr output)
 	if (pNv->twoHeads && nv_output->type == OUTPUT_ANALOG)
 		nv_output->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output));
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
-		nv_output->restore.head = get_digital_bound_head(output);
+		nv_output->restore.head = nv_get_digital_bound_head(pNv, nv_output->dcb->or);
 }
 
 uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)

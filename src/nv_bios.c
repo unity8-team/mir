@@ -4516,7 +4516,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
-			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], 0, LVDS_INIT, 0);
+			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], nv_get_digital_bound_head(pNv, pNv->dcb_table.entry[i].or), LVDS_INIT, 0);
 
 	if (pNv->VBIOS.feature_byte & FEATURE_MOBILE && !pNv->VBIOS.fp.native_mode)
 		read_bios_edid(pScrn);

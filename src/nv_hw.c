@@ -94,6 +94,19 @@ uint8_t nv_read_tmds(NVPtr pNv, int or, int dl, uint8_t address)
 	return NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA + dl * 8);
 }
 
+int nv_get_digital_bound_head(NVPtr pNv, int or)
+{
+	/* special case of nv_read_tmds to find crtc associated with an output.
+	 * this does not give a correct answer for off-chip dvi, but there's no
+	 * use for such an answer anyway
+	 */
+	int ramdac = (or & OUTPUT_C) >> 2;
+
+	NVWriteRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_CONTROL,
+		      NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | 0x4);
+	return (((NVReadRAMDAC(pNv, ramdac, NV_RAMDAC_FP_TMDS_DATA) & 0x8) >> 3) ^ ramdac);
+}
+
 void nv_write_tmds(NVPtr pNv, int or, int dl, uint8_t address, uint8_t data)
 {
 	int ramdac = (or & OUTPUT_C) >> 2;
