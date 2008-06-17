@@ -1145,6 +1145,8 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 static Bool
 i830_lvds_get_property(xf86OutputPtr output, Atom property)
 {
+    ScrnInfoPtr		    pScrn = output->scrn;
+    I830Ptr		    pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
     struct i830_lvds_priv   *dev_priv = intel_output->dev_priv;
     int ret;
