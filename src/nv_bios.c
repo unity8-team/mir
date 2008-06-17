@@ -4154,7 +4154,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 		}
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
 	} else if (dcb_version >= 0x14 ) {
-		if (conn != 0xf0003f00 && conn != 0xf2247f10 && conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2244311 && conn != 0xf2045f14 && conn != 0xf2205004 && conn != 0xf2208001 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011) {
+		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
+		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
+		    conn != 0xf2045f14 && conn != 0xf2205004) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
 			/* cause output setting to fail, so message is seen */
