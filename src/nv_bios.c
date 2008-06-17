@@ -4140,6 +4140,12 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 					entry->lvdsconf.use_power_scripts = true;
 			}
 			if (conf & mask) {
+				/* I'm bored of getting this reported; left as a reminder for someone to fix it */
+				if (dcb_version >= 0x40) {
+					xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+						   "G80+ LVDS not initialized by driver; ignoring conf bits\n");
+					break;
+				}
 				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 					   "Unknown LVDS configuration bits, please report\n");
 				/* cause output setting to fail, so message is seen */
