@@ -4457,14 +4457,14 @@ bool NVRunVBIOSInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
-	const uint8_t bit_signature[] = { 'B', 'I', 'T' };
+	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
 	int offset, ret = 0;
 
 	crtc_access(pScrn, ACCESS_UNLOCK);
 
 	if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
-		parse_bit_structure(pScrn, &pNv->VBIOS, offset + 4);
+		parse_bit_structure(pScrn, &pNv->VBIOS, offset + 6);
 	} else if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bmp_signature, sizeof(bmp_signature)))) {
 		const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
 		int hwsq_offset;
