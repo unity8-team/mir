@@ -74,12 +74,13 @@ const RADEONMonitorType MonTypeID[10] = {
   MT_DP
 };
 
-const char *TMDSTypeName[5] = {
+const char *TMDSTypeName[6] = {
   "None",
   "Internal",
   "External",
   "LVTMA",
-  "DDIA"
+  "DDIA",
+  "UNIPHY"
 };
 
 const char *DACTypeName[4] = {
