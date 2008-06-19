@@ -52,10 +52,25 @@ i830_hdmi_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
     return MODE_OK;
 }
 
+static int
+i830_hdmi_get_pixel_multiplier(DisplayModePtr mode)
+{
+    if (mode->Clock >= 100000)
+	return 1;
+    else if (mode->Clock >= 50000)
+	return 2;
+    else
+	return 4;
+}
+
 static Bool
 i830_hdmi_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
+    /* Make the CRTC code factor in the SDVO pixel multiplier.
+     */
+    adjusted_mode->Clock *= i830_hdmi_get_pixel_multiplier(mode);
+
     return TRUE;
 }
 
