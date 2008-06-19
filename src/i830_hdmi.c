@@ -43,6 +43,12 @@ struct i830_hdmi_priv {
 static int
 i830_hdmi_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
+    if (mode->Clock > 165000)
+	return MODE_CLOCK_HIGH;
+
+    if (mode->Clock < 20000)
+	return MODE_CLOCK_LOW;
+
     return MODE_OK;
 }
 

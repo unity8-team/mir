@@ -1175,7 +1175,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 	    break;
 	}
-	if (IS_I965G(pI830))
+	if (IS_I965G(pI830) && !IS_IGD_GM(pI830))
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
 	if (is_lvds) {
