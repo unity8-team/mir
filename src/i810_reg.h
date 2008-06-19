@@ -1451,6 +1451,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /** @} */
 
+#define DP_B			0x64100
+#define DPB_AUX_CH_CTL		0x64110
+#define DPB_AUX_CH_DATA1	0x64114
+#define DPB_AUX_CH_DATA2	0x64118
+#define DPB_AUX_CH_DATA3	0x6411c
+#define DPB_AUX_CH_DATA4	0x64120
+#define DPB_AUX_CH_DATA5	0x64124
+
+#define DP_C			0x64200
+#define DPC_AUX_CH_CTL		0x64210
+#define DPC_AUX_CH_DATA1	0x64214
+#define DPC_AUX_CH_DATA2	0x64218
+#define DPC_AUX_CH_DATA3	0x6421c
+#define DPC_AUX_CH_DATA4	0x64220
+#define DPC_AUX_CH_DATA5	0x64224
+
+#define DP_D			0x64300
+#define DPD_AUX_CH_CTL		0x64310
+#define DPD_AUX_CH_DATA1	0x64314
+#define DPD_AUX_CH_DATA2	0x64318
+#define DPD_AUX_CH_DATA3	0x6431c
+#define DPD_AUX_CH_DATA4	0x64320
+#define DPD_AUX_CH_DATA5	0x64324
+
 /*
  * Two channel clock control. Turn this on if you need clkb for two channel mode
  * Overridden by global LVDS power sequencing
