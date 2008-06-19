@@ -87,6 +87,8 @@ static char *backlight_interfaces[] = {
     "acpi_video1",
     "acpi_video0",
     "fujitsu-laptop",
+    "asus-laptop",
+    "eeepc",
     NULL,
 };
 
