@@ -1527,10 +1527,12 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	return FALSE;
     }
     output->driver_private = intel_output;
+    dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
+    intel_output->dev_priv = dev_priv;
+
     output->interlaceAllowed = FALSE;
     output->doubleScanAllowed = FALSE;
     
-    dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_SDVO;
     intel_output->pipe_mask = ((1 << 0) | (1 << 1));
     intel_output->clone_mask = (1 << I830_OUTPUT_SDVO);
@@ -1572,7 +1574,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     }
 
     intel_output->pI2CBus = i2cbus;
-    intel_output->dev_priv = dev_priv;
 
     /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
