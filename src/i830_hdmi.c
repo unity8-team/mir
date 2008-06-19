@@ -52,25 +52,13 @@ i830_hdmi_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
     return MODE_OK;
 }
 
-static int
-i830_hdmi_get_pixel_multiplier(DisplayModePtr mode)
-{
-    if (mode->Clock >= 100000)
-	return 1;
-    else if (mode->Clock >= 50000)
-	return 2;
-    else
-	return 4;
-}
-
 static Bool
 i830_hdmi_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-    /* Make the CRTC code factor in the SDVO pixel multiplier.
+    /* The HDMI output doesn't need the pixel multiplication that SDVO does,
+     * so no fixup.
      */
-    adjusted_mode->Clock *= i830_hdmi_get_pixel_multiplier(mode);
-
     return TRUE;
 }
 
@@ -88,13 +76,13 @@ i830_hdmi_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     sdvox = SDVO_ENCODING_HDMI |
 	SDVO_BORDER_ENABLE |
-	SDVO_NULL_PACKETS_DURING_VSYNC |
 	SDVO_VSYNC_ACTIVE_HIGH |
 	SDVO_HSYNC_ACTIVE_HIGH;
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
     OUTREG(dev_priv->output_reg, sdvox);
+    POSTING_READ(sdvox);
 }
 
 static void
