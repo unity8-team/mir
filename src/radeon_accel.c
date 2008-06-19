@@ -381,7 +381,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 
 	if (drmCommandWriteRead(info->drmFD, DRM_RADEON_GETPARAM, &np,
 				sizeof(np)) < 0) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to determine num pipes from DRM, falling back to "
 		       "manual look-up!\n");
 	    info->num_gb_pipes = 0;
