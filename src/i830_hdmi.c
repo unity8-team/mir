@@ -82,7 +82,7 @@ i830_hdmi_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	sdvox |= SDVO_PIPE_B_SELECT;
 
     OUTREG(dev_priv->output_reg, sdvox);
-    POSTING_READ(sdvox);
+    POSTING_READ(dev_priv->output_reg);
 }
 
 static void
