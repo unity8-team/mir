@@ -1262,8 +1262,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /** Requird for HDMI operation */
 #define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
 #define SDVO_BORDER_ENABLE			(1 << 7)
-/** new with 965, default is to be set */
+/** New with 965, default is to be set */
 #define SDVO_VSYNC_ACTIVE_HIGH			(1 << 4)
+/** New with 965, default is to be set */
 #define SDVO_HSYNC_ACTIVE_HIGH			(1 << 3)
 /** 915/945 only, read-only bit */
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)

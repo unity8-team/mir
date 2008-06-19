@@ -88,7 +88,9 @@ i830_hdmi_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     sdvox = SDVO_ENCODING_HDMI |
 	SDVO_BORDER_ENABLE |
-	SDVO_NULL_PACKETS_DURING_VSYNC;
+	SDVO_NULL_PACKETS_DURING_VSYNC |
+	SDVO_VSYNC_ACTIVE_HIGH |
+	SDVO_HSYNC_ACTIVE_HIGH;
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
