@@ -1,3 +1,245 @@
+commit b80bf50f8ebfe70044e66c7e8558e3031ba3cfca
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Jun 18 10:46:11 2008 +0800
+
+    Bump version 2.3.2
+
+commit 42a16bd38a0d09e3e6f33b2319b195aeacfa5084
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Jun 17 09:46:12 2008 +0800
+
+    Fix compiling with server master in LVDS backlight patch
+    (cherry picked from commit 289790c0467d27e96b537598a6589fc6a36da8b8)
+
+commit 9036c94b28d4f1d65333bc318079f31bf56b3f99
+Author: Lukas Hejtmanek <xhejtman@ics.muni.cz>
+Date:   Mon Jun 16 02:49:41 2008 +0800
+
+    Fix maximum backlight issue
+    (cherry picked from commit 4c4ef27779aebf4df90b6233de05be2bb972de4c)
+
+commit df0bbdc7cbb6ff357a81ed28d12e56c9c7d643f7
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jun 12 14:04:41 2008 +0800
+
+    Fix compiler warning when disable xvmc config
+
+commit d3df74ebb0b61cda347e5e4754f2fc8a4c3110b0
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jun 10 11:31:22 2008 -0700
+
+    Set up/restore PWRCTXA from enter/leavevt not server start/exit.
+    
+    This should improve behavior in the presence of VT switching, but also avoids
+    a crash on X exit from writing the register after unmapping mmio.
+
+commit 9d767d62fec724079178844915cd3feb9df93c7e
+Author: Bryce Harrington <bryce@bryceharrington.org>
+Date:   Tue Jun 10 14:10:39 2008 +0800
+
+    Two more Dell quirks
+    
+    fd.o #16160
+    (cherry picked from commit 231a302013981cc597ba09ee89b367c8ab56e8ba)
+
+commit 9a8d70fe3d1db2e2d34c79b7d0b271127a63e415
+Author: Jesse Barnes <jbarnes@hobbes.lan>
+Date:   Mon Jun 9 08:52:59 2008 -0700
+
+    Fix TV programming:  add vblank wait after TV_CTL writes
+    
+    Fxies FDO bug #14000; we need to wait for vblank after writing TV_CTL or followi
+    ng "DPMS on" calls may not actually enable the output.
+    (cherry picked from commit 1142be53eb8d2ee8a9b60ace5d49f0ba27332275)
+
+commit 7d9676c8cc309d42c49f82274f7dc43ab327bea3
+Author: Robert Lowery <rglowery@exemail.com.au>
+Date:   Tue May 20 21:09:23 2008 +1000
+
+    Fix TV out connection type detection
+    
+    Make sure we wait for vblank when using the TV DAC to detect the connection
+    type.
+    
+    Fixes FDO bug #14000.
+    (cherry picked from commit 64a8f2433d7774d06119793b57cec6d3be6389c1)
+    (cherry picked from commit e4e61e8c97c585993b4b69b86350b3987178a47e)
+
+commit 4054725c3cf0956cc1717ad8acc558203a7af40d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 14:55:23 2008 -0700
+
+    Move debug clock printout from ErrorF to X_INFO.
+    (cherry picked from commit bff180e6cac4452ef491c81855eb12bfa03d0bf3)
+
+commit e520316dd5f7bfdffadfa19b3046ba40ca367219
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 14:37:59 2008 -0700
+
+    Remove SVG_WORK_CONTROL init.
+    
+    The bit set is now reserved -- used to be a workaround for early revisions.
+    (cherry picked from commit ad459b21b7de4a79552ac155803d5930432fb84b)
+
+commit 34ce546153ce9dd0571ce0a5cec7a481641fbbdd
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 14:37:26 2008 -0700
+
+    Initialize clock gating from EnterVT and save/restore it appropriately.
+
+commit 71befe0581bcc7d75ed982b543bbf575c2f48c37
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 14:09:45 2008 -0700
+
+    Move BIOS scratch register setup to EnterVT instead of PreInit.
+    
+    We want these to always be set when our driver's in control.  They are
+    already appropriately save/restored at leave/entervt.
+    (cherry picked from commit 8061e5ac27a5f61f940bccc940be922999cc1d3f)
+
+commit ae65ddbbc8064c33febc7608122828998ee15a2e
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 13:57:54 2008 -0700
+
+    Remove gratuitous wait_ring_idle after I830Sync.  Syncing implies that.
+    (cherry picked from commit b61cb9283185eb5211e84eb7d8e68beea607c2eb)
+
+commit e0a2b1008f751ee8cddb0d7587514ea574821af6
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 13:39:08 2008 -0700
+
+    Remove duplicated i830_stop_ring()/SetHWOperatingState() in EnterVT().
+    (cherry picked from commit adb4f5a5e826e584ab212d23fc8d474c3e7bb8e8)
+
+commit a4e8b188d469c8092d4314be96a697fb4f780276
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 11:56:42 2008 -0700
+
+    Replace a couple of wait-for-ring-idles with a single function to do so.
+    (cherry picked from commit 7e51384c973a96366b02ea646392c43574674111)
+
+commit 7d267e27c152a4935ec5301d9fbbfd6eff8816d4
+Author: Eric Anholt <eric@anholt.net>
+Date:   Thu Jun 5 11:26:02 2008 -0700
+
+    Just remove the mprotect kludge.
+    
+    Besides not being #ifdef __linux__ed as requested, some linux kernels break
+    in exciting new ways when you try to mprotect from PROT_NONE back to
+    PROT_READ|PROT_WRITE.  Yes, there are bugs in the code we're calling in a
+    bug-exploiting bug workaround.
+    
+    If you want this workaround for the original bug exposed when moving to
+    libpciaccess, it's already in libpciaccess.
+    (cherry picked from commit 65306cdd71dad71e4ca7229764f81a0880dd70bf)
+
+commit 85308ab8aaf58b6620a41621128eba0b7e1ffb44
+Author: Hong Liu <hong.liu@intel.com>
+Date:   Wed Jun 4 16:58:05 2008 +0800
+
+    Set SDVO sync polarity to default on 965
+    
+    Fix fd.o bug 15766
+    (cherry picked from commit beb72ae5aa053303f5cc419e9c9d7c6db964f160)
+
+commit 14dc93cb4dabdd83ee62a2a497c210aeb52f6c30
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jun 12 13:47:04 2008 +0800
+
+    xvmc: a little cleanup
+    
+    Also safe check context size to not exceed surface max.
+
+commit ce674bd39c2fe2844b449fad6cfe83b4d18adad6
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Jun 3 16:13:52 2008 +0800
+
+    xvmc: remove unused dri drawable
+    (cherry picked from commit 96955003557686469c7ae9f7d42620d2851e6fad)
+
+commit 88232a9b9af2c73460eec206c4971679af9dcb43
+Author: Jesse Barnes <jbarnes@hobbes.lan>
+Date:   Mon May 26 09:34:34 2008 -0700
+
+    Fixup power saving registers
+    
+    Update clock gating disable bits to match docs and allocate a power context
+    memory area so that newer chips can save state and power down the render unit.
+    (cherry picked from commit 89bb53cc7a853d88fc34a0ca65ae2b6227a8dd24)
+
+commit 0deedbcc98a831284f6e9db2510e88e90e01c286
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 24 13:25:37 2008 -0700
+
+    Disable a bunch of clock gating disables on IGD_GM, which doesn't need them.
+    
+    Besides our driver having fallen through to the GM965 path for
+    RENCLK_GATE_D1, the BIOS was turning some of these on.  It may be relevant
+    for previous platforms as well to zero out the fields that should be zero
+    in the other registers.
+    (cherry picked from commit 552a1b824db31a234d7c5cb71057ed0e0ce64477)
+
+commit 5dd06d08015cf9c0721f34f7005ecd670025c334
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Wed May 21 14:56:27 2008 -0700
+
+    Define DEFFILEMODE for OS'es that don't have it
+    (cherry picked from commit 165c0865d849b7d280a3a119fe9ae0ad34637df0)
+
+commit 87ace420a34df7425641d089f71830e44fced098
+Author: Shuang He <shuang.he@intel.com>
+Date:   Mon May 26 09:20:53 2008 +0800
+
+    Fix typo in xvmc block destroy
+
+commit 288ef6585150f2a58d4c1723efae1a5a7a41772a
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue May 20 08:54:01 2008 +0800
+
+    Revert "Add FIFO watermark regs to register dumper"
+    
+    This reverts commit 0c00a638ef57aa9d6a3047176b0bfad733f781f0.
+    
+    Those FIFO watermark regs are 945-ish, and cause problem
+    on G35.
+    (cherry picked from commit 740a73dad1d9a9b0ebf1cc7d6f2a056abad57aaf)
+
+commit 730259ed6446f73d9aa0318688b0795641bea076
+Author: Rémi Cardona <remi@gentoo.org>
+Date:   Wed May 14 14:52:37 2008 +0800
+
+    Add glproto to DRI dependencies
+    (cherry picked from commit e9532f3abf1e0b62b2569d4aae60a5a63add571f)
+
+commit f419f56ec8715e980aeb673bf4afd7649580d53c
+Author: Jesse Barnes <jbarnes@nietzche.virtuousgeek.org>
+Date:   Mon May 12 10:58:24 2008 -0700
+
+    Panel fitting:  fix letterbox modes
+    
+    In full_aspect mode, we try to preserve the aspect ratio by adding
+    either top & bottom or left & right borders.  In the letterbox case (top
+    & bottom borders) we were miscalculating the top border which led to
+    programming a bad mode.  Fix the calculation and bug #15559.
+    (cherry picked from commit 5103e5a39a4869a714b8a59da8bf51ecc8c65e4f)
+
+commit 9bb3ac06ed3d1a3456217d478d556b0abf05b585
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sun Apr 13 21:37:49 2008 -0700
+
+    Only use FOURCC_XVMC when INTEL_XVMC is defined
+    
+    The XVMC code uses a magic FOURCC code to signal frame updates, but that
+    code is only defined when the XVMC code is used.
+    (cherry picked from commit 18ef4158e5574bfc6621b268821532f13e261d13)
+
+commit 2aada39e1a2517c07c9ae87722341b6150f75b7d
+Author: Keith Packard <keithp@keithp.com>
+Date:   Sat Apr 12 16:39:00 2008 -0700
+
+    Skip copying on FOURCC_XVMC surfaces
+    (cherry picked from commit 6366e4de540c4713cbc8402c89516464bbdc35b9)
+
 commit f5ad42f0ceef78f6fac490bcc40d56d0ce8c9e2e
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Mon May 12 09:01:21 2008 +0800

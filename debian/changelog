@@ -1,3 +1,43 @@
+xserver-xorg-video-intel (2:2.3.2-1ubuntu1) intrepid; urgency=low
+
+  * Merge from debian unstable, remaining changes:
+    - debian/patches
+      + 01_fix_compiz_video.diff:
+        use xf86XVFillKeyHelperDrawable() to fix video playback with
+        compositing enabled.
+      + 05_intel_exa_force_greedy.patch:
+        Force use of greedy mode on intel hardware.
+        (LP: 177492, 148247, 152206)
+      + 11_textured_video_option.patch:
+        Renamed and reworked version of the old
+        11_hw_overlay_option.diff patch, to re-enable the textured video
+        option, to allow users to turn off textured video.
+      + 19_check_exa_pitch_to_fix_rotate_crash.patch:
+        Fixes crash on xrandr rotation by checking EXA pitch size.
+        (LP: #174745)
+    - debian/control:
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+      + Reduce build depends version of dpkg-dev to 1.14.16 to enable it to
+        build on Hardy.  The version change was to fix a bug we workaround
+        already in our rules change below.
+    - debian/rules:
+      + Don't build the intel_reg_dumper tool, since libpciaccess is in
+        universe.
+      + Drop dpkg-shlibdeps with --warnings=6 (FTBS)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 19 Jun 2008 22:36:51 -0700
+
+xserver-xorg-video-intel (2:2.3.2-1) unstable; urgency=low
+
+  * New upstream release.
+    + Revert "Add FIFO watermark regs to register dumper",
+      closes: #482369, #471413.
+    + Fix TV programming:  add vblank wait after TV_CTL writes,
+      closes: #485616.
+
+ -- Brice Goglin <bgoglin@debian.org>  Wed, 18 Jun 2008 07:16:05 +0200
+
 xserver-xorg-video-intel (2:2.3.1-1ubuntu1) intrepid; urgency=low
 
   * Merge from debian unstable, remaining changes:
