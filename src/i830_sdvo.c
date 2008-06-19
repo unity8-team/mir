@@ -1503,7 +1503,7 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     dev_priv->ddc_bus = 1 << num_bits;
 }
 
-void
+Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 {
     xf86OutputPtr	    output;
@@ -1518,13 +1518,13 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
-	return;
+	return FALSE;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec) +
 			      sizeof (struct i830_sdvo_priv), 1);
     if (!intel_output)
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
     output->driver_private = intel_output;
     output->interlaceAllowed = FALSE;
@@ -1546,7 +1546,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (i2cbus == NULL)
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     if (output_device == SDVOB) {
@@ -1568,7 +1568,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   "Failed to initialize %s I2C device\n",
 		   SDVO_NAME(dev_priv));
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     intel_output->pI2CBus = i2cbus;
@@ -1581,7 +1581,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		       "No SDVO device found on SDVO%c\n",
 		       output_device == SDVOB ? 'B' : 'C');
 	    xf86OutputDestroy (output);
-	    return;
+	    return FALSE;
 	}
     }
 
@@ -1594,7 +1594,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (ddcbus == NULL) 
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
     if (output_device == SDVOB)
         ddcbus->BusName = "SDVOB DDC Bus";
@@ -1611,7 +1611,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (!xf86I2CBusInit(ddcbus)) 
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     intel_output->pI2CBus = i2cbus;
@@ -1670,7 +1670,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (!xf86OutputRename (output, name))
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     i830_sdvo_select_ddc_bus(dev_priv);
@@ -1718,4 +1718,5 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART1, "SCART1");
     REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS1, "LVDS1");
 
+    return TRUE;
 }

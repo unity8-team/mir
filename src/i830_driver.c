@@ -924,13 +924,19 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-#if 1
-      i830_sdvo_init(pScrn, SDVOB);
-      i830_sdvo_init(pScrn, SDVOC);
-#else
-      i830_hdmi_init(pScrn, SDVOB);
-      i830_hdmi_init(pScrn, SDVOC);
-#endif
+      if (INREG(SDVOB) & SDVO_DETECTED) {
+	 Bool found = i830_sdvo_init(pScrn, SDVOB);
+
+	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
+	    i830_hdmi_init(pScrn, SDVOB);
+      }
+
+      if (INREG(SDVOB) & SDVO_DETECTED) {
+	 Bool found = i830_sdvo_init(pScrn, SDVOC);
+
+	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
+	    i830_hdmi_init(pScrn, SDVOC);
+      }
    } else {
       i830_dvo_init(pScrn);
    }

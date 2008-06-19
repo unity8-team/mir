@@ -372,6 +372,7 @@ extern int I810_DEBUG;
 #define HWS_NEED_GFX(pI810) (IS_G33CLASS(pI810) || IS_IGD_GM(pI810) || IS_G4X(pI810))
 /* chipsets require status page in non stolen memory */
 #define HWS_NEED_NONSTOLEN(pI810) (IS_IGD_GM(pI810) || IS_G4X(pI810))
+#define SUPPORTS_INTEGRATED_HDMI(pI810) (IS_IGD_GM(pI810) || IS_G4X(pI810))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
