@@ -924,8 +924,13 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
+#if 1
       i830_sdvo_init(pScrn, SDVOB);
       i830_sdvo_init(pScrn, SDVOC);
+#else
+      i830_hdmi_init(pScrn, SDVOB);
+      i830_hdmi_init(pScrn, SDVOC);
+#endif
    } else {
       i830_dvo_init(pScrn);
    }

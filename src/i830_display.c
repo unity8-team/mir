@@ -1103,6 +1103,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    lvds_bits = intel_output->lvds_bits;
 	    break;
 	case I830_OUTPUT_SDVO:
+	case I830_OUTPUT_HDMI:
 	    is_sdvo = TRUE;
 	    if (intel_output->needs_tv_clock)
 		is_tv = TRUE;
