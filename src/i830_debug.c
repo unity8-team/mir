@@ -697,6 +697,7 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
 }
 #endif /* !REG_DUMPER */
 
+#if 0
 static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int min, int max)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -737,6 +738,7 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
     OUTREG8(0x3c0, orig_arx);
     INREG8(st01); /* switch back to index mode */
 }
+#endif
 
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
@@ -748,8 +750,10 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     int ref;
     int	dot;
     int phase;
+#if 0
     int msr;
     int crt;
+#endif
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsBegin\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
@@ -767,6 +771,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 			i830_snapshot[i].name, (unsigned int)val);
 	}
     }
+#if 0
     i830DumpIndexed (pScrn, "SR", 0x3c4, 0x3c5, 0, 7);
     msr = INREG8(0x3cc);
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%02x\n",
@@ -778,6 +783,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     else
 	crt = 0x3b0;
     i830DumpIndexed (pScrn, "CR", crt + 4, crt + 5, 0, 0x24);
+#endif
     for (pipe = 0; pipe <= 1; pipe++)
     {
 	fp = INREG(pipe == 0 ? FPA0 : FPB0);
