@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.3.2-1ubuntu2) intrepid; urgency=low
+
+  * debian/patches/20_thinkpad_g40_quirk.patch: Quirk for IBM Thinkpad G40
+      (LP: #240457)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 20 Jun 2008 22:48:30 -0700
+
 xserver-xorg-video-intel (2:2.3.2-1ubuntu1) intrepid; urgency=low
 
   * Merge from debian unstable, remaining changes:

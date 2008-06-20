@@ -3,3 +3,4 @@
 05_intel_exa_force_greedy.patch
 11_textured_video_option.patch
 19_check_exa_pitch_to_fix_rotate_crash.patch
+20_thinkpad_g40_quirk.patch
