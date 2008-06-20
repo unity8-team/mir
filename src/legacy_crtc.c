@@ -638,8 +638,8 @@ legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
     int mask;
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
+    unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
 
     mask = radeon_crtc->crtc_id ? (RADEON_CRTC2_DISP_DIS | RADEON_CRTC2_VSYNC_DIS | RADEON_CRTC2_HSYNC_DIS | RADEON_CRTC2_DISP_REQ_EN_B) : (RADEON_CRTC_DISPLAY_DIS | RADEON_CRTC_HSYNC_DIS | RADEON_CRTC_VSYNC_DIS);
 
