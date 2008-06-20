@@ -2496,7 +2496,7 @@ I830BlockHandler(int i,
 	* rendering results may not hit the framebuffer until significantly
 	* later.
 	*/
-       if (!pI830->noAccel && pI830->need_mi_flush)
+       if (!pI830->noAccel && (pI830->need_mi_flush || pI830->batch_used))
 	  I830EmitFlush(pScrn);
 
        /* Flush the batch, so that any rendering is executed in a timely
