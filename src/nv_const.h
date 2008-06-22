@@ -30,7 +30,8 @@ typedef enum {
     OPTION_CMDBUF_SIZE,
     OPTION_RANDR12,
     OPTION_SCALING_MODE,
-    OPTION_NEW_RESTORE
+    OPTION_NEW_RESTORE,
+    OPTION_KMS,
 } NVOpts;
 
 
@@ -51,6 +52,7 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_RANDR12,	"Randr12",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_SCALING_MODE,	"ScalingMode",	OPTV_STRING,	{0}, FALSE },
     { OPTION_NEW_RESTORE,	"NewRestore",	OPTV_BOOLEAN,	{0}, FALSE },
+    { OPTION_KMS,	"KMS",	OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };
 

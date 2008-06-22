@@ -86,5 +86,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_output.h \
 			 nouveau_connector.h \
 			 nouveau_modeset.h \
+			 drmmode_display.c \
+			 drmmode_display.h \
 			 nv_pcicompat.h
 

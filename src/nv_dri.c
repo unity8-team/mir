@@ -8,6 +8,7 @@
 #include "dri.h"
 #include "nv_dripriv.h"
 #include "nv_dri.h"
+#include "drmmode_display.h"
 
 static Bool NVCreateContext(ScreenPtr pScreen, VisualPtr visual,
 		drm_context_t hwContext, void *pVisualConfigPriv,
@@ -167,7 +168,15 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	char *busId;
-	int fd;
+	int fd = 0;
+
+#ifdef XF86DRM_MODE
+	/* drm already open */
+	if (pNv->drmmode) {
+		drmmode_ptr drmmode = pNv->drmmode;
+		fd = drmmode->fd;
+	}
+#endif
 
 	{
 		pointer ret;
@@ -189,10 +198,12 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	xf86LoaderReqSymLists(driSymbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
 
-	busId = DRICreatePCIBusID(pNv->PciInfo);
+	if (!fd) {
+		busId = DRICreatePCIBusID(pNv->PciInfo);
 
-	fd = drmOpen("nouveau", busId);
-	xfree(busId);
+		fd = drmOpen("nouveau", busId);
+		xfree(busId);
+	}
 	if (fd < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"[dri] Failed to open the DRM\n");
@@ -211,7 +222,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	}
 
 	pNv->pKernelDRMVersion = drmGetVersion(fd);
-	drmClose(fd);
+	//drmClose(fd);
 	if (pNv->pKernelDRMVersion == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"failed to get DRM version\n");
@@ -254,6 +265,14 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pScreen = screenInfo.screens[pScrn->scrnIndex];
 	int drm_page_size;
 	int drm_fd;
+
+#ifdef XF86DRM_MODE
+	/* drm already open */
+	if (pNv->drmmode) {
+		drmmode_ptr drmmode = pNv->drmmode;
+		drm_fd = drmmode->fd;
+	}
+#endif
 
 	if (!NVDRICheckModules(pScrn))
 		return FALSE;

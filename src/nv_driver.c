@@ -297,7 +297,7 @@ NVFreeRec(ScrnInfoPtr pScrn)
 	if (pScrn->driverPrivate == NULL)
 		return;
 	NVPtr pNv = NVPTR(pScrn);
-	if (pNv->Architecture == NV_ARCH_50) {
+	if (pNv->Architecture == NV_ARCH_50 && !pNv->kms_enable) {
 		NV50ConnectorDestroy(pScrn);
 		NV50OutputDestroy(pScrn);
 		NV50CrtcDestroy(pScrn);
@@ -696,35 +696,40 @@ NVEnterVT(int scrnIndex, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->randr12_enable) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		int i;
-		pScrn->vtSema = TRUE;
+	if (!pNv->kms_enable) {
+		if (pNv->randr12_enable) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
+			xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+			int i;
+			pScrn->vtSema = TRUE;
 
-		if (pNv->Architecture == NV_ARCH_50) {
-			if (!NV50AcquireDisplay(pScrn))
+			if (pNv->Architecture == NV_ARCH_50) {
+				if (!NV50AcquireDisplay(pScrn))
+					return FALSE;
+				return TRUE;
+			}
+
+			/* Save the current state */
+			if (pNv->SaveGeneration != serverGeneration) {
+				pNv->SaveGeneration = serverGeneration;
+				NVSave(pScrn);
+			}
+
+			for (i = 0; i < xf86_config->num_crtc; i++) {
+				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
+			}
+
+			if (!xf86SetDesiredModes(pScrn))
 				return FALSE;
-			return TRUE;
-		}
+		} else {
+			if (!NVModeInit(pScrn, pScrn->currentMode))
+				return FALSE;
 
-		/* Save the current state */
-		if (pNv->SaveGeneration != serverGeneration) {
-			pNv->SaveGeneration = serverGeneration;
-			NVSave(pScrn);
+			NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 		}
-
-		for (i = 0; i < xf86_config->num_crtc; i++) {
-			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-		}
-
-		if (!xf86SetDesiredModes(pScrn))
-			return FALSE;
 	} else {
-		if (!NVModeInit(pScrn, pScrn->currentMode))
-			return FALSE;
-
-		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+		if (!xf86SetDesiredModes(pScrn))
+				return FALSE;
 	}
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
@@ -749,6 +754,9 @@ NVLeaveVT(int scrnIndex, int flags)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	NVSync(pScrn);
+
+	if (pNv->kms_enable)
+		return;
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		NV50ReleaseDisplay(pScrn);
@@ -803,7 +811,9 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	if (pScrn->vtSema) {
 		pScrn->vtSema = FALSE;
-		if (pNv->Architecture == NV_ARCH_50) {
+		if (pNv->kms_enable) {
+			int dummy = 0; /* TODO */
+		} else if (pNv->Architecture == NV_ARCH_50) {
 			NV50ReleaseDisplay(pScrn);
 		} else {
 			if (pNv->randr12_enable)
@@ -817,6 +827,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
+	nouveau_device_close(pNv->dev);
 	if (pNv->CursorInfoRec)
 		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
 	if (pNv->ShadowPtr)
@@ -1144,6 +1155,18 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	from = X_DEFAULT;
 
+	pNv->kms_enable = false;
+#ifdef XF86DRM_MODE
+	if (pNv->Architecture == NV_ARCH_50) {
+		if (xf86ReturnOptValBool(pNv->Options, OPTION_KMS, FALSE)) {
+			pNv->kms_enable = true;
+		}
+	}
+#endif /* XF86DRM_MODE */
+
+	if (pNv->kms_enable)
+		xf86DrvMsg(pScrn->scrnIndex, from, "NV50 Kernel modesetting enabled\n");
+
 	if (pNv->Architecture == NV_ARCH_50) {
 		pNv->randr12_enable = TRUE;
 	} else {
@@ -1301,15 +1324,29 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (xf86RegisterResources(pNv->pEnt->index, NULL, ResExclusive))
 		NVPreInitFail("xf86RegisterResources() found resource conflicts\n");
 
-	if(pNv->Architecture < NV_ARCH_10) {
+	if (pNv->Architecture < NV_ARCH_10) {
 		max_width = (pScrn->bitsPerPixel > 16) ? 2032 : 2048;
 		max_height = 2048;
-	} else {
+	} else if (pNv->Architecture < NV_ARCH_50) {
 		max_width = (pScrn->bitsPerPixel > 16) ? 4080 : 4096;
 		max_height = 4096;
+	} else {
+		max_width = (pScrn->bitsPerPixel > 16) ? 8176 : 8192;
+		max_height = 8192;
 	}
 
-	if (pNv->randr12_enable) {
+	if (pNv->kms_enable){
+		int res = 0;
+		char *bus_id;
+		bus_id = DRICreatePCIBusID(pNv->PciInfo);
+
+		pNv->drmmode = calloc(1, sizeof(drmmode_rec));
+		res = drmmode_pre_init(pScrn, bus_id, pNv->drmmode, pScrn->bitsPerPixel >> 3);
+		if (!res) {
+			xfree(bus_id);
+			NVPreInitFail("Kernel modesetting failed to initialize\n");
+		}
+	} else if (pNv->randr12_enable) {
 		/* Allocate an xf86CrtcConfig */
 		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
 		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -1333,7 +1370,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	NVCommonSetup(pScrn);
 
-	if (pNv->randr12_enable) {
+	if (pNv->randr12_enable && !pNv->kms_enable) {
 		if (pNv->Architecture == NV_ARCH_50)
 			if (!NV50DispPreInit(pScrn))
 				NVPreInitFail("\n");
@@ -1558,8 +1595,12 @@ NVMapMem(ScrnInfoPtr pScrn)
 			return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps\n",
-		(unsigned int)(pNv->FB->size >> 20));
+		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, at offset 0x%X\n",
+		(unsigned int)(pNv->FB->size >> 20), pNv->FB->offset);
+#ifdef XF86DRM_MODE
+	if (pNv->kms_enable)
+		drmmode_set_fb(pScrn, pNv->drmmode, pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth*(pScrn->bitsPerPixel >> 3), pNv->FB);
+#endif
 #endif
 
 	if (pNv->AGPSize) {
@@ -2418,14 +2459,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Initialize colormap layer.
 	 * Must follow initialization of the default colormap 
 	 */
-	if (!pNv->randr12_enable) {
-		if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
-				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
-		return FALSE;
-	} else {
-		if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-				NULL, CMAP_PALETTED_TRUECOLOR))
+	if (!pNv->kms_enable) {
+		if (!pNv->randr12_enable) {
+			if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
+					NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 			return FALSE;
+		} else {
+			if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+					NULL, CMAP_PALETTED_TRUECOLOR))
+				return FALSE;
+		}
 	}
 
 	if(pNv->ShadowFB) {

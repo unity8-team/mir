@@ -91,9 +91,18 @@ CFLAGS="$CFLAGS -minline-all-stringops"
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h> ]], [[ ]])],
 [ CFLAGS="$OLD_CFLAGS -minline-all-stringops"],[CFLAGS="$OLD_CFLAGS"])
 
-AC_SUBST([CFLAGS])
+# needed for the next test
+CFLAGS="$CFLAGS $XORG_CFLAGS"
 
-AC_SUBST([XORG_CFLAGS])
+AC_CHECK_HEADER([xf86drmMode.h],[DRM_MODE=yes],[DRM_MODE=no],
+	[#include "stdint.h"	]
+)
+
+if test "x$DRM_MODE" = xyes; then
+	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+fi
+
+AC_SUBST([CFLAGS])
 AC_SUBST([moduledir])
 
 DRIVER_NAME=nouveau

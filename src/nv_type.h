@@ -28,6 +28,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_output.h"
 
+#include "drmmode_display.h"
 
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
@@ -384,6 +385,7 @@ typedef struct _NVRec {
 
     /* Various pinned memory regions */
     struct nouveau_bo * FB;
+    struct nouveau_bo * FB_old; /* for KMS */
     struct nouveau_bo * Cursor;
     struct nouveau_bo * Cursor2;
     struct nouveau_bo * CLUT0;	/* NV50 only */
@@ -463,9 +465,14 @@ typedef struct _NVRec {
     drmVersionPtr       pKernelDRMVersion;
 
 	Bool randr12_enable;
+	Bool kms_enable;
 	Bool new_restore;
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
+
+#ifdef XF86DRM_MODE
+	void *drmmode; /* for KMS */
+#endif
 
 	struct {
 		int entries;

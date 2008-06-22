@@ -69,6 +69,7 @@ nouveau_bo_new(struct nouveau_device *userdev, uint32_t flags, int align,
 	bo->base.size = bo->drm.size;
 	bo->base.offset = bo->drm.offset;
 	bo->base.handle = (unsigned long)bo;
+	bo->base.map_handle = bo->drm.map_handle;
 	bo->refcount = 1;
 	*userbo = &bo->base;
 	return 0;
