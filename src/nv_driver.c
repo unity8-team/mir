@@ -811,9 +811,12 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	if (pScrn->vtSema) {
 		pScrn->vtSema = FALSE;
+#ifdef XF86DRM_MODE
 		if (pNv->kms_enable) {
 			int dummy = 0; /* TODO */
-		} else if (pNv->Architecture == NV_ARCH_50) {
+		} else
+#endif
+		if (pNv->Architecture == NV_ARCH_50) {
 			NV50ReleaseDisplay(pScrn);
 		} else {
 			if (pNv->randr12_enable)
@@ -827,7 +830,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
-	nouveau_device_close(pNv->dev);
+	nouveau_device_close(&pNv->dev);
 	if (pNv->CursorInfoRec)
 		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
 	if (pNv->ShadowPtr)
@@ -1335,6 +1338,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		max_height = 8192;
 	}
 
+#ifdef XF86DRM_MODE
 	if (pNv->kms_enable){
 		int res = 0;
 		char *bus_id;
@@ -1346,7 +1350,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			xfree(bus_id);
 			NVPreInitFail("Kernel modesetting failed to initialize\n");
 		}
-	} else if (pNv->randr12_enable) {
+	} else
+#endif
+	if (pNv->randr12_enable) {
 		/* Allocate an xf86CrtcConfig */
 		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
 		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);

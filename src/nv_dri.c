@@ -222,7 +222,11 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	}
 
 	pNv->pKernelDRMVersion = drmGetVersion(fd);
-	//drmClose(fd);
+#ifdef XF86DRM_MODE
+	if (pNv->drmmode)
+#endif
+		drmClose(fd);
+
 	if (pNv->pKernelDRMVersion == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"failed to get DRM version\n");
