@@ -428,6 +428,7 @@ typedef struct _NVRec {
     CARD32              curImage[256];
     /* I2C / DDC */
     xf86Int10InfoPtr    pInt10;
+    unsigned            Int10Mode;
     I2CBusPtr           I2C;
   void		(*VideoTimerCallback)(ScrnInfoPtr, Time);
     XF86VideoAdaptorPtr	overlayAdaptor;

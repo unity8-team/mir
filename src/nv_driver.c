@@ -209,6 +209,7 @@ static const char *shadowSymbols[] = {
 static const char *int10Symbols[] = {
     "xf86FreeInt10",
     "xf86InitInt10",
+    "xf86ExecX86int10",
     NULL
 };
 
@@ -677,8 +678,22 @@ NV50AcquireDisplay(ScrnInfoPtr pScrn)
 static Bool
 NV50ReleaseDisplay(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	NV50CursorRelease(pScrn);
 	NV50DispShutdown(pScrn);
+
+	if (pNv->pInt10 && pNv->Int10Mode) {
+		xf86Int10InfoPtr pInt10 = pNv->pInt10;
+
+		pInt10->num = 0x10;
+		pInt10->ax  = 0x4f02;
+		pInt10->bx  = pNv->Int10Mode | 0x8000;
+		pInt10->cx  =
+		pInt10->dx  = 0;
+		xf86ExecX86int10(pInt10);
+	}
+
 	return TRUE;
 }
 
@@ -827,6 +842,9 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 				NVLockUnlock(pScrn, 1);
 		}
 	}
+
+	if (pNv->pInt10)
+		xf86FreeInt10(pNv->pInt10);
 
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
@@ -1004,21 +1022,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	pNv->Primary = xf86IsPrimaryPci(pNv->PciInfo);
 
-	/* Initialize the card through int10 interface if needed */
-	if (xf86LoadSubModule(pScrn, "int10")) {
-		xf86LoaderReqSymLists(int10Symbols, NULL);
-#if !defined(__alpha__) && !defined(__powerpc__)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing int10\n");
-		pNv->pInt10 = xf86InitInt10(pNv->pEnt->index);
-#endif
-	}
-
-	xf86SetOperatingState(resVgaIo, pNv->pEnt->index, ResUnusedOpr);
-	xf86SetOperatingState(resVgaMem, pNv->pEnt->index, ResDisableOpr);
-
-	/* Set pScrn->monitor */
-	pScrn->monitor = pScrn->confScreen->monitor;
-
 	volatile uint32_t *regs = NULL;
 #ifdef XSERVER_LIBPCIACCESS
 	pci_device_map_range(pNv->PciInfo, PCI_DEV_MEM_BASE(pNv->PciInfo, 0),
@@ -1079,6 +1082,38 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	} else {
 		return FALSE;
 	}
+
+	/* Initialize the card through int10 interface if needed */
+	if (xf86LoadSubModule(pScrn, "int10")) {
+		xf86LoaderReqSymLists(int10Symbols, NULL);
+#if !defined(__alpha__) && !defined(__powerpc__)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing int10\n");
+		pNv->pInt10 = xf86InitInt10(pNv->pEnt->index);
+#endif
+	}
+
+	/* Save current console video mode */
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->pInt10) {
+		const xf86Int10InfoPtr pInt10 = pNv->pInt10;
+
+		pInt10->num = 0x10;
+		pInt10->ax  = 0x4f03;
+		pInt10->bx  =
+		pInt10->cx  =
+		pInt10->dx  = 0;
+		xf86ExecX86int10(pInt10);
+		pNv->Int10Mode = pInt10->bx & 0x3fff;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+			   "VESA-HACK: Console VGA mode is 0x%x\n",
+			   pNv->Int10Mode);
+	}
+
+	xf86SetOperatingState(resVgaIo, pNv->pEnt->index, ResUnusedOpr);
+	xf86SetOperatingState(resVgaMem, pNv->pEnt->index, ResDisableOpr);
+
+	/* Set pScrn->monitor */
+	pScrn->monitor = pScrn->confScreen->monitor;
 
 	/*
 	 * The first thing we should figure out is the depth, bpp, etc.
@@ -1569,9 +1604,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86LoaderReqSymLists(shadowSymbols, NULL);
 	}
 
-	xf86FreeInt10(pNv->pInt10);
-
-	pNv->pInt10 = NULL;
 	return TRUE;
 }
 
