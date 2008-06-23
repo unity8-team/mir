@@ -108,6 +108,11 @@ NV50SorSetClockMode(nouveauOutputPtr output, int clock)
 	NVWrite(pNv, NV50_SOR0_CLK_CTRL2 + NV50OrOffset(output) * 0x800, 0x70000 | ((clock > limit) ? 0x101 : 0));
 }
 
+static void
+NV50SorSetClockModeLVDS(nouveauOutputPtr output, int clock)
+{
+}
+
 static int
 NV50SorSense(nouveauOutputPtr output)
 {
@@ -166,7 +171,10 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
 	output->ModeValid = NV50SorModeValid;
 	output->ModeSet = NV50SorModeSet;
-	output->SetClockMode = NV50SorSetClockMode;
+	if (output->type == OUTPUT_TMDS)
+		output->SetClockMode = NV50SorSetClockMode;
+	else
+		output->SetClockMode = NV50SorSetClockModeLVDS;
 	output->Sense = NV50SorSense;
 	output->Detect = NV50SorDetect;
 	output->GetFixedMode = NV50SorGetFixedMode;
