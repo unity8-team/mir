@@ -223,7 +223,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 
 	pNv->pKernelDRMVersion = drmGetVersion(fd);
 #ifdef XF86DRM_MODE
-	if (pNv->drmmode)
+	if (!pNv->drmmode) /* drmmode still needs the file descriptor */
 #endif
 		drmClose(fd);
 

@@ -151,10 +151,49 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
+/* dpms based on setting a NULL mode when mode is off */
 static void
-drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
+drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	struct drm_mode_modeinfo kmode;
+	uint32_t *output_ids;
+	int output_count = 0;
+	int i;
 
+	if (mode == drmmode_crtc->dpms_mode)
+		return;
+
+	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
+	if (!output_ids) {
+		return;
+	}
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		drmmode_output_private_ptr drmmode_output;
+
+		if (output->crtc != crtc)
+			continue;
+
+		drmmode_output = output->driver_private;
+		output_ids[output_count] = drmmode_output->mode_output->connector_id;
+		output_count++;
+	}
+
+	if (mode == DPMSModeOn) {
+		drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
+		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+			drmmode->fb_id, crtc->x, crtc->y, output_ids, output_count, &kmode);
+	} else {
+		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+			drmmode->fb_id, crtc->x, crtc->y, output_ids, output_count, NULL);
+	}
+
+	if (output_ids)
+		xfree(output_ids);
 }
 
 static Bool
@@ -221,7 +260,12 @@ done:
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
+	} else {
+		drmmode_crtc->dpms_mode = DPMSModeOn;
 	}
+
+	if (output_ids)
+		xfree(output_ids);
 	return ret;
 }
 
@@ -324,6 +368,8 @@ drmmode_output_detect(xf86OutputPtr output)
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 	xf86OutputStatus status;
 	drmModeFreeConnector(drmmode_output->mode_output);
+
+	ErrorF("drmmode_output_detect called\n");
 
 	drmmode_output->mode_output = drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
 
@@ -443,12 +489,17 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	drmmode_output_private_ptr drmmode_output;
 	char name[32];
 
+	ErrorF("drmmode_output_init\n");
+
 	koutput = drmModeGetConnector(drmmode->fd, drmmode->mode_res->connectors[num]);
-	if (!koutput)
+	if (!koutput) {
+		ErrorF("No connector\n");
 		return;
+	}
 
 	kencoder = drmModeGetEncoder(drmmode->fd, koutput->encoders[0]);
 	if (!kencoder) {
+		ErrorF("No encoder\n");
 		drmModeFreeConnector(koutput);
 		return;
 	}
