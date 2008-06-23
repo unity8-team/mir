@@ -1730,7 +1730,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int i = 0;
     double dot_clock = 0;
-    int pll_flags = RADEON_PLL_LEGACY;
+    int pll_flags = RADEON_PLL_LEGACY | RADEON_PLL_PREFER_LOW_REF_DIV;
     Bool update_tv_routing = FALSE;
     Bool tilingChanged = FALSE;
 

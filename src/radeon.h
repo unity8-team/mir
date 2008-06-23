@@ -220,7 +220,7 @@ typedef struct {
 #define RADEON_PLL_NO_ODD_POST_DIV (1 << 1)
 #define RADEON_PLL_USE_REF_DIV     (1 << 2)
 #define RADEON_PLL_LEGACY          (1 << 3)
-#define RADEON_PLL_DCE3            (1 << 4)
+#define RADEON_PLL_PREFER_LOW_REF_DIV (1 << 4)
 
 typedef struct {
     uint16_t          reference_freq;

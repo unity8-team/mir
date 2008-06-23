@@ -185,8 +185,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     if (IS_AVIVO_VARIANT) {
 	uint32_t temp;
 
-	if (IS_DCE3_VARIANT)
-	    pll_flags |= RADEON_PLL_DCE3;
+	pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
 	RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, pll_flags);
 	sclock = temp;
