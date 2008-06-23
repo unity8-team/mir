@@ -59,7 +59,7 @@ extern void atombios_crtc_mode_set(xf86CrtcPtr crtc,
 				   int x, int y);
 extern void atombios_crtc_dpms(xf86CrtcPtr crtc, int mode);
 
-static void
+void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     RADEONInfoPtr info = RADEONPTR(crtc->scrn);
@@ -110,7 +110,6 @@ radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 
     if (radeon_crtc->enabled)
 	crtc->funcs->hide_cursor(crtc);
-    radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
 static uint32_t RADEONDiv(CARD64 n, uint32_t d)
@@ -232,25 +231,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
-    RADEONInfoPtr info = RADEONPTR(crtc->scrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	xf86CrtcPtr other;
-	if (radeon_crtc->crtc_id == 1)
-	    other = pRADEONEnt->pCrtc[0];
-	else
-	    other = pRADEONEnt->pCrtc[1];
-	if (other->enabled)
-	    radeon_crtc_dpms(other, DPMSModeOn);
-    }
-
-    radeon_crtc_dpms(crtc, DPMSModeOn);
-
     if (crtc->scrn->pScreen != NULL)
 	xf86_reload_cursors(crtc->scrn->pScreen);
-
 }
 
 void
