@@ -144,7 +144,6 @@ RADEONComputePLL(RADEONPLLPtr pll,
     if (flags & RADEON_PLL_USE_REF_DIV)
 	min_ref_div = max_ref_div = pll->reference_div;
     else {
-	max_ref_div = 2*max_ref_div - min_ref_div;
 	while (min_ref_div < max_ref_div-1) {
 	    uint32_t mid=(min_ref_div+max_ref_div)/2;
 	    uint32_t pll_in = pll->reference_freq / mid;
