@@ -749,12 +749,10 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
 	/* On -> off is a pre modeset */
 	modeset.cmd = _DRM_PRE_MODESET;
 	ioctl(pI830->drmSubFD, DRM_IOCTL_MODESET_CTL, &modeset);
-	ErrorF("modeset: on -> off on plane %d\n", modeset.crtc);
     } else if (!pre && intel_crtc->dpms_mode == DPMSModeOff) {
 	/* Off -> on means post modeset */
 	modeset.cmd = _DRM_POST_MODESET;
 	ioctl(pI830->drmSubFD, DRM_IOCTL_MODESET_CTL, &modeset);
-	ErrorF("modeset: off -> on on plane %d\n", modeset.crtc);
     }
 }
 #else
