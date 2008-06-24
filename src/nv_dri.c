@@ -301,8 +301,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	 * but we currently don't know how to.
 	 */
 	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize / 2;
-	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical +
-	                                       pDRIInfo->frameBufferSize;
+	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
 	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
 
 	pDRIInfo->ddxDrawableTableEntry      = 1;
