@@ -65,7 +65,9 @@ INTEL_XVMC_SRCS = \
 	 i830_hwmc.h \
 	 i830_hwmc.c \
          i915_hwmc.c \
-         i915_hwmc.h
+         i915_hwmc.h \
+         i965_hwmc.c \
+         i965_hwmc.h
 
 
 intel_drv_la_SOURCES = \
@@ -135,7 +137,6 @@ INTEL_G4A =				\
 	exa_wm_src_sample_argb.g4a 	\
 	exa_wm_src_sample_a.g4a 	\
 	exa_wm_src_sample_planar.g4a 	\
-	exa_wm_src_data.g4a		\
 	exa_wm_mask_affine.g4a 		\
 	exa_wm_mask_projective.g4a 	\
 	exa_wm_mask_sample_argb.g4a 	\

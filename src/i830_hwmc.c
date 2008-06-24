@@ -51,17 +51,14 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     Bool ret = FALSE;
-
-    if (!pI830->XvMCEnabled)
+    if (!pI830->XvMCEnabled) 
 	return FALSE;
 
     if (IS_I9XX(pI830)) {
 	if (!IS_I965G(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
-	/*
 	else
 	    ret = intel_xvmc_set_driver(&i965_xvmc_driver);
-	 */
     } else {
 	ErrorF("Your chipset doesn't support XvMC.\n");
 	return FALSE;
@@ -124,7 +121,7 @@ Bool intel_xvmc_init_batch(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
 
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC] batch buffer",
-                                   &(xvmc_driver->batch), 8 * 1024,
+                                   &(xvmc_driver->batch), 16 * 1024,
                                    ALIGN_BOTH_ENDS))
         return FALSE;
 

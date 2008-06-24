@@ -1,0 +1,205 @@
+/*
+ * Copyright © 2008 Intel Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Author:
+ *    Zou Nan hai <nanhai.zou@intel.com>
+ *
+ */
+
+/* shader for forward and backward predict mc
+*/
+/* (x', y') = (x, y) + (motion_vector1.x >> 1, motion_vector1.y >> 1)
+/* (x'', y'') = (x, y) + (motion_vector2.x >> 1, motion_vector2.y >> 1)
+/* f(x, y) = (motion_forward(x`, y`) + motion_backward(x'', y'') + 1) / 2 */
+
+mov (8) g3.0<1>UD g1.0<8,8,1>UD {align1};
+mov (1) g1.8<1>UD 0x0070007UD  {align1};
+mov (8) g2.0<1>UD g1.0<8,8,1>UD {align1};
+
+/* Y0 */
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g3.0<2,2,1>UD g1.16<2,2,1>D{align1};
+
+define(`input_surface',	`4')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g3.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`7')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x20UD {align1};
+include(`correct.g4i')
+
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 {align1};
+
+/* Y1 */
+add (1) g1.0<1>UD g3.0<1,1,1>UD 8D {align1};
+add (1) g1.4<1>UD g3.4<1,1,1>UD 0D {align1};
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D {align1};
+
+define(`input_surface',	`4')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`7')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x10UD {align1};
+include(`correct.g4i')
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 {align1};
+
+/* Y2 */
+
+add (1) g1.0<1>UD g3.0<1,1,1>UD 0D {align1};
+add (1) g1.4<1>UD g3.4<1,1,1>UD 8D {align1};
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D {align1};
+
+
+define(`input_surface',	`4')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`7')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x8UD {align1};
+include(`correct.g4i')
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 {align1};
+
+/* Y3 */
+add (2) g1.0<1>UD g3.0<2,2,1>UD 8D {align1};
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>D g1.0<2,2,1>D g1.16<2,2,1>D {align1};
+define(`input_surface',	`4')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`7')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x4UD {align1};
+include(`correct.g4i')
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 {align1};
+
+/* U */
+shr (2) g1.0<1>UD g3.0<2,2,1>UD 1UD {align1};
+asr (2) g3.16<1>D g3.16<2,2,1>D 1D {align1};
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D {align1};
+
+define(`input_surface',	`5')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g3.24<1>D g3.24<2,2,1>D 1D {align1};
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`8')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x2UD {align1};
+include(`correct.g4i')
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(1, 0, 2, 0) mlen 3 rlen 0 { align1 };
+
+/* V */
+asr (2) g1.16<1>D g3.16<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D {align1};
+
+define(`input_surface',	`6')
+define(`reg1',	`g4')
+define(`reg2',	`g5')
+define(`mv1',	`g3.16')
+define(`mv2',	`g3.20')
+include(`motion.g4i')
+
+asr (2) g1.16<1>D g3.24<2,2,1>D 1D {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+define(`input_surface',	`9')
+define(`reg1',	`g10')
+define(`reg2',	`g11')
+define(`mv1',	`g3.24')
+define(`mv2',	`g3.28')
+include(`motion.g4i')
+include(`avg.g4i')
+
+and.z (1) null g3.12<1,1,1>UD 0x1UD {align1};
+include(`correct.g4i')
+mov (16) m1.0<1>UD g4.0<8,8,1>UD {align1 compr};
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(2, 0, 2, 0) mlen 3 rlen 0 { align1 };
+
+send (16) 0 null g0<8,8,1>UW 
+	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};

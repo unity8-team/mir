@@ -331,6 +331,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 		xvmc_driver = &i915_xvmc_mc_driver;
 		break;
 	    case XVMC_I965_MPEG2_MC:
+		xvmc_driver = &i965_xvmc_mc_driver;
+		break;
 	    case XVMC_I945_MPEG2_VLD:
 	    case XVMC_I965_MPEG2_VLD:
 	    default:
@@ -568,12 +570,13 @@ Status XvMCCreateBlocks(Display *display, XvMCContext *context,
                         unsigned int num_blocks,
                         XvMCBlockArray *block)
 {
+    Status ret;
     if (!display || !context || !num_blocks || !block)
         return BadValue;
 
     memset(block, 0, sizeof(XvMCBlockArray));
 
-    if (!(block->blocks = (short *)malloc(num_blocks << 6 * sizeof(short))))
+    if (!(block->blocks = (short *)malloc((num_blocks << 6) * sizeof(short))))
         return BadAlloc;
 
     block->num_blocks = num_blocks;
@@ -588,6 +591,7 @@ Status XvMCCreateBlocks(Display *display, XvMCContext *context,
  */
 Status XvMCDestroyBlocks(Display *display, XvMCBlockArray *block)
 {
+    Status ret;
     if (!display || !block)
         return BadValue;
 
