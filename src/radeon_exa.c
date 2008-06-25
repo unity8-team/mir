@@ -323,7 +323,7 @@ do {									\
 	case EXA_ENGINEMODE_UNKNOWN:					\
 	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN;	\
 	case EXA_ENGINEMODE_2D:						\
-	    wait_until |= RADEON_WAIT_2D_IDLECLEAN;			\
+	    wait_until |= RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE;		\
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\

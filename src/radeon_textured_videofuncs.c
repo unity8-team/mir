@@ -117,7 +117,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	OUT_VIDEO_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
     /* We must wait for 3d to idle, in case source was just written as a dest. */
     OUT_VIDEO_REG(RADEON_WAIT_UNTIL,
-		RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
+		  RADEON_WAIT_HOST_IDLECLEAN |
+		  RADEON_WAIT_2D_IDLECLEAN |
+		  RADEON_WAIT_3D_IDLECLEAN |
+		  RADEON_WAIT_DMA_GUI_IDLE);
     FINISH_VIDEO();
 
     if (IS_R300_3D || IS_R500_3D) {
@@ -639,6 +642,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	pBox++;
     }
+
+    if (IS_R300_3D | IS_R500_3D) {
+	BEGIN_VIDEO(2);
+	OUT_VIDEO_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
+    } else
+	BEGIN_VIDEO(1);
+    OUT_VIDEO_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
+    FINISH_VIDEO();
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }

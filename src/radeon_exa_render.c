@@ -2114,18 +2114,13 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
 
     ENTER_DRAW(0);
 
-    if (IS_R500_3D || ((info->ChipFamily == CHIP_FAMILY_RS400) ||
-		       (info->ChipFamily == CHIP_FAMILY_RS480) ||
-		       (info->ChipFamily == CHIP_FAMILY_RS600) ||
-		       (info->ChipFamily == CHIP_FAMILY_RS690) ||
-		       (info->ChipFamily == CHIP_FAMILY_RS740))) {
-	/* r500 shows corruption on small things like glyphs without a 3D idle 
-	 * IGP shows more substantial corruption
-	 */
+    if (IS_R300_3D | IS_R500_3D) {
+	BEGIN_ACCEL(2);
+	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
+    } else
 	BEGIN_ACCEL(1);
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-	FINISH_ACCEL();
-    }
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
+    FINISH_ACCEL();
 
     LEAVE_DRAW(0);
 }

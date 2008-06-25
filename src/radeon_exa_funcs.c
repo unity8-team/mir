@@ -116,11 +116,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	(RADEON_DST_X_LEFT_TO_RIGHT | RADEON_DST_Y_TOP_TO_BOTTOM));
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     FINISH_ACCEL();
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
-    FINISH_ACCEL();
 
     return TRUE;
 }
@@ -129,7 +124,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 static void
 FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 {
-
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     ACCEL_PREAMBLE();
 
@@ -144,7 +138,16 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 static void
 FUNC_NAME(RADEONDoneSolid)(PixmapPtr pPix)
 {
+    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    ACCEL_PREAMBLE();
+
     TRACE;
+
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
+    FINISH_ACCEL();
 }
 
 void
@@ -173,11 +176,6 @@ FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
 	 (info->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
-    FINISH_ACCEL();
-    BEGIN_ACCEL(2);
-    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
     FINISH_ACCEL();
 }
 
@@ -216,7 +214,6 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 		      int dstX, int dstY,
 		      int w, int h)
 {
-
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     ACCEL_PREAMBLE();
 
@@ -243,7 +240,16 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 static void
 FUNC_NAME(RADEONDoneCopy)(PixmapPtr pDst)
 {
+    RINFO_FROM_SCREEN(pDst->drawable.pScreen);
+    ACCEL_PREAMBLE();
+
     TRACE;
+
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(RADEON_DSTCACHE_CTLSTAT, RADEON_RB2D_DC_FLUSH_ALL);
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+                  RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
+    FINISH_ACCEL();
 }
 
 static Bool
