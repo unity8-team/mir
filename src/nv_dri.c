@@ -294,7 +294,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	int drm_fd;
 
 #ifdef XF86DRM_MODE
-	/* drm already open */
+	/* drm already open, reuse it */
 	if (pNv->drmmode) {
 		drmmode_ptr drmmode = pNv->drmmode;
 		drm_fd = drmmode->fd;
@@ -374,7 +374,8 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
+	/* turn on need_close, so we explictly drmClose() on exit */
+	if (nouveau_device_open_existing(&pNv->dev, 1, drm_fd, 0)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR, "Error creating device\n");
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
@@ -417,5 +418,14 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	pNOUVEAUDRI->depth_pitch	= 0;
 
 	return TRUE;
+}
+
+void NVDRICloseScreen(ScrnInfoPtr pScrn)
+{
+	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
+
+	DRICloseScreen(pScreen);
+	nouveau_device_close(&pNv->dev);
 }
 

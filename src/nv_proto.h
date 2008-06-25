@@ -16,6 +16,7 @@ Bool NVMatchModePrivate(DisplayModePtr mode, uint32_t flags);
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
 Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn);
+void NVDRICloseScreen(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];
 Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
 

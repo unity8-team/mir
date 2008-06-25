@@ -841,15 +841,34 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
-	nouveau_device_close(&pNv->dev);
+	NVDRICloseScreen(pScrn);
 	if (pNv->CursorInfoRec)
 		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
-	if (pNv->ShadowPtr)
+	if (pNv->ShadowPtr) {
 		xfree(pNv->ShadowPtr);
-	if (pNv->overlayAdaptor)
+		pNv->ShadowPtr = NULL;
+	}
+	if (pNv->overlayAdaptor) {
 		xfree(pNv->overlayAdaptor);
-	if (pNv->blitAdaptor)
+		pNv->overlayAdaptor = NULL;
+	}
+	if (pNv->blitAdaptor) {
 		xfree(pNv->blitAdaptor);
+		pNv->blitAdaptor = NULL;
+	}
+	if (pNv->textureAdaptor[0]) {
+		xfree(pNv->textureAdaptor[0]);
+		pNv->textureAdaptor[0] = NULL;
+	}
+	if (pNv->textureAdaptor[1]) {
+		xfree(pNv->textureAdaptor[1]);
+		pNv->textureAdaptor[1] = NULL;
+	}
+	if (pNv->EXADriverPtr) {
+		exaDriverFini(pScreen);
+		xfree(pNv->EXADriverPtr);
+		pNv->EXADriverPtr = NULL;
+	}
 
 	pScrn->vtSema = FALSE;
 	pScreen->CloseScreen = pNv->CloseScreen;

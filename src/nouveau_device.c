@@ -69,9 +69,9 @@ nouveau_device_open(struct nouveau_device **userdev, const char *busid)
 
 	ret = nouveau_device_open_existing(userdev, 1, fd, ctx);
 	if (ret) {
-	    drmDestroyContext(fd, ctx);
-	    drmClose(fd);
-	    return ret;
+		drmDestroyContext(fd, ctx);
+		drmClose(fd);
+		return ret;
 	}
 
 	return 0;
@@ -88,7 +88,8 @@ nouveau_device_close(struct nouveau_device **userdev)
 	*userdev = NULL;
 
 	if (nv->needs_close) {
-		drmDestroyContext(nv->fd, nv->ctx);
+		if (nv->ctx)
+			drmDestroyContext(nv->fd, nv->ctx);
 		drmClose(nv->fd);
 	}
 	free(nv);
