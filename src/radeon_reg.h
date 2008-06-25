@@ -1458,6 +1458,7 @@
 #       define RADEON_RB2D_DC_FLUSH_ALL     0xf
 #       define RADEON_RB2D_DC_BUSY          (1 << 31)
 #define RADEON_RB2D_DSTCACHE_MODE           0x3428
+#define RADEON_DSTCACHE_CTLSTAT             0x1714
 
 #define RADEON_RB3D_ZCACHE_MODE             0x3250
 #define RADEON_RB3D_ZCACHE_CTLSTAT          0x3254
