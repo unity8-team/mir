@@ -59,7 +59,7 @@ extern void atombios_crtc_mode_set(xf86CrtcPtr crtc,
 				   int x, int y);
 extern void atombios_crtc_dpms(xf86CrtcPtr crtc, int mode);
 
-static void
+void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     RADEONInfoPtr info = RADEONPTR(crtc->scrn);
@@ -110,7 +110,6 @@ radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 
     if (radeon_crtc->enabled)
 	crtc->funcs->hide_cursor(crtc);
-    radeon_crtc_dpms(crtc, DPMSModeOff);
 }
 
 static uint32_t RADEONDiv(CARD64 n, uint32_t d)
@@ -133,7 +132,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
     uint32_t best_post_div = 1;
     uint32_t best_ref_div = 1;
     uint32_t best_feedback_div = 1;
-    uint32_t best_freq = 1;
+    uint32_t best_freq = -1;
     uint32_t best_error = 0xffffffff;
     uint32_t best_vco_diff = 1;
     uint32_t post_div;
@@ -144,10 +143,20 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
     if (flags & RADEON_PLL_USE_REF_DIV)
 	min_ref_div = max_ref_div = pll->reference_div;
+    else {
+	while (min_ref_div < max_ref_div-1) {
+	    uint32_t mid=(min_ref_div+max_ref_div)/2;
+	    uint32_t pll_in = pll->reference_freq / mid;
+	    if (pll_in < pll->pll_in_min)
+		max_ref_div = mid;
+	    else if (pll_in > pll->pll_in_max)
+		min_ref_div = mid;
+	    else break;
+	}
+    }
 
     for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
 	uint32_t ref_div;
-	uint32_t vco = (freq / 10000) * post_div;
 
 	if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 	    continue;
@@ -162,44 +171,70 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		continue;
 	}
 
-	if (vco < pll->pll_out_min || vco > pll->pll_out_max)
-	    continue;
-
 	for (ref_div = min_ref_div; ref_div <= max_ref_div; ++ref_div) {
 	    uint32_t feedback_div, current_freq, error, vco_diff;
 	    uint32_t pll_in = pll->reference_freq / ref_div;
+	    uint32_t min_feed_div = pll->min_feedback_div;
+	    uint32_t max_feed_div = pll->max_feedback_div+1;
 
 	    if (pll_in < pll->pll_in_min || pll_in > pll->pll_in_max)
 		continue;
 
-	    feedback_div = RADEONDiv((CARD64)freq * ref_div * post_div,
-				     pll->reference_freq * 10000);
+	    while (min_feed_div < max_feed_div) {
+		uint32_t vco;
 
-	    if (feedback_div < pll->min_feedback_div || feedback_div > pll->max_feedback_div)
-		continue;
+		feedback_div = (min_feed_div+max_feed_div)/2;
 
-	    current_freq = RADEONDiv((CARD64)pll->reference_freq * 10000 * feedback_div,
-				     ref_div * post_div);
+		vco = RADEONDiv((CARD64)pll->reference_freq * feedback_div,
+				ref_div);
 
-	    error = abs(current_freq - freq);
-	    vco_diff = abs(vco - best_vco);
+		if (vco < pll->pll_out_min) {
+		    min_feed_div = feedback_div+1;
+		    continue;
+		} else if(vco > pll->pll_out_max) {
+		    max_feed_div = feedback_div;
+		    continue;
+		}
 
-	    if ((best_vco == 0 && error < best_error) ||
-		(ref_div == pll->reference_div) ||
-		(best_vco != 0 &&
-		 (error < best_error - 100 ||
-		  (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
-		best_post_div = post_div;
-		best_ref_div = ref_div;
-		best_feedback_div = feedback_div;
-		best_freq = current_freq;
-		best_error = error;
-		best_vco_diff = vco_diff;
+		current_freq = RADEONDiv((CARD64)pll->reference_freq * 10000 * feedback_div,
+					 ref_div * post_div);
+
+		error = abs(current_freq - freq);
+		vco_diff = abs(vco - best_vco);
+
+		if ((best_vco == 0 && error < best_error) ||
+		    (best_vco != 0 &&
+		     (error < best_error - 100 ||
+		      (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
+		    best_post_div = post_div;
+		    best_ref_div = ref_div;
+		    best_feedback_div = feedback_div;
+		    best_freq = current_freq;
+		    best_error = error;
+		    best_vco_diff = vco_diff;
+		} else if (current_freq == freq) {
+		    if (best_freq == -1) {
+			best_post_div = post_div;
+			best_ref_div = ref_div;
+			best_feedback_div = feedback_div;
+			best_freq = current_freq;
+			best_error = error;
+			best_vco_diff = vco_diff;
+		    } else if ((flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) {
+			best_post_div = post_div;
+			best_ref_div = ref_div;
+			best_feedback_div = feedback_div;
+			best_freq = current_freq;
+			best_error = error;
+			best_vco_diff = vco_diff;
+		    }
+		}
+
+		if (current_freq < freq)
+		    min_feed_div = feedback_div+1;
+		else
+		    max_feed_div = feedback_div;
 	    }
-	}
-	if (!(flags & RADEON_PLL_DCE3)) {
-	    if (best_freq == freq)
-		break;
 	}
     }
 
@@ -208,6 +243,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
     ErrorF("best_ref_div: %u\n", (unsigned int)best_ref_div);
     ErrorF("best_post_div: %u\n", (unsigned int)best_post_div);
 
+    if (best_freq == -1)
+	FatalError("Couldn't find valid PLL dividers\n");
     *chosen_dot_clock_freq = best_freq / 10000;
     *chosen_feedback_div = best_feedback_div;
     *chosen_reference_div = best_ref_div;
@@ -232,25 +269,8 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 static void
 radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
-    RADEONInfoPtr info = RADEONPTR(crtc->scrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
-    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	xf86CrtcPtr other;
-	if (radeon_crtc->crtc_id == 1)
-	    other = pRADEONEnt->pCrtc[0];
-	else
-	    other = pRADEONEnt->pCrtc[1];
-	if (other->enabled)
-	    radeon_crtc_dpms(other, DPMSModeOn);
-    }
-
-    radeon_crtc_dpms(crtc, DPMSModeOn);
-
     if (crtc->scrn->pScreen != NULL)
 	xf86_reload_cursors(crtc->scrn->pScreen);
-
 }
 
 void

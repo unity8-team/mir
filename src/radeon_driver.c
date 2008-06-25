@@ -224,8 +224,7 @@ radeonShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
     stride = (pScrn->displayWidth * pScrn->bitsPerPixel) / 8;
     *size = stride;
 
-    return ((uint8_t *)info->FB + pScrn->fbOffset +
-            row * stride + offset);
+    return ((uint8_t *)info->FB + row * stride + offset);
 }
 static Bool
 RADEONCreateScreenResources (ScreenPtr pScreen)

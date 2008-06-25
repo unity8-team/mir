@@ -1787,13 +1787,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 #endif
-#if 1
-	if (i == ATOM_DEVICE_TV1_INDEX) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping TV-Out\n");
-	    info->BiosConnector[i].valid = FALSE;
-	    continue;
-	}
-#endif
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
@@ -2054,8 +2047,8 @@ UINT32
 CailReadATIRegister(VOID* CAIL, UINT32 idx)
 {
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
-    RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
     UINT32 ret;
     CAILFUNC(CAIL);
 
@@ -2068,8 +2061,8 @@ VOID
 CailWriteATIRegister(VOID *CAIL, UINT32 idx, UINT32 data)
 {
     ScrnInfoPtr pScrn = xf86Screens[((atomBiosHandlePtr)CAIL)->scrnIndex];
-    RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
     CAILFUNC(CAIL);
 
     OUTREG(idx << 2,data);

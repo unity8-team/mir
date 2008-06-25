@@ -74,12 +74,13 @@ const RADEONMonitorType MonTypeID[10] = {
   MT_DP
 };
 
-const char *TMDSTypeName[5] = {
+const char *TMDSTypeName[6] = {
   "None",
   "Internal",
   "External",
   "LVTMA",
-  "DDIA"
+  "DDIA",
+  "UNIPHY"
 };
 
 const char *DACTypeName[4] = {
@@ -143,6 +144,7 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_RV410*/ /* FIXME: just values from r420 used... */
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
+    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS480*/ /* FIXME: just values from rv380 used... */
 };
 
 static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
@@ -165,6 +167,7 @@ static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
     0x01080000,   /* r420 */
     0x01080000,   /* rv410 */ /* FIXME: just values from r420 used... */
     0x00780000,   /* rs400 */ /* FIXME: just values from rv380 used... */
+    0x00780000,   /* rs480 */ /* FIXME: just values from rv380 used... */
 };
 
 
@@ -583,8 +586,26 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
+    int o;
+
+    for (o = 0; o < config->num_output; o++) {
+	xf86OutputPtr loop_output = config->output[o];
+	if (loop_output == output)
+	    continue;
+	else if (loop_output->crtc) {
+	    xf86CrtcPtr other_crtc = loop_output->crtc;
+	    if (other_crtc->enabled) {
+		radeon_dpms(loop_output, DPMSModeOff);
+		radeon_crtc_dpms(other_crtc, DPMSModeOff);
+	    }
+	}
+    }
+
     radeon_bios_output_lock(output, TRUE);
     radeon_dpms(output, DPMSModeOff);
+    radeon_crtc_dpms(output->crtc, DPMSModeOff);
+
 }
 
 static void
@@ -604,7 +625,24 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
+    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
+    int o;
+
+    for (o = 0; o < config->num_output; o++) {
+	xf86OutputPtr loop_output = config->output[o];
+	if (loop_output == output)
+	    continue;
+	else if (loop_output->crtc) {
+	    xf86CrtcPtr other_crtc = loop_output->crtc;
+	    if (other_crtc->enabled) {
+		radeon_dpms(loop_output, DPMSModeOn);		
+		radeon_crtc_dpms(other_crtc, DPMSModeOn);
+	    }
+	}
+    }
+
     radeon_dpms(output, DPMSModeOn);
+    radeon_crtc_dpms(output->crtc, DPMSModeOn);
     radeon_bios_output_lock(output, FALSE);
 }
 
