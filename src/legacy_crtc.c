@@ -636,7 +636,6 @@ void
 legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     int mask;
-    ScrnInfoPtr pScrn = crtc->scrn;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     unsigned char *RADEONMMIO = pRADEONEnt->MMIO;
