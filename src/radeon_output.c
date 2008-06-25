@@ -144,6 +144,7 @@ static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
     {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_RV410*/ /* FIXME: just values from r420 used... */
     {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
+    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS480*/ /* FIXME: just values from rv380 used... */
 };
 
 static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
@@ -166,6 +167,7 @@ static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
     0x01080000,   /* r420 */
     0x01080000,   /* rv410 */ /* FIXME: just values from r420 used... */
     0x00780000,   /* rs400 */ /* FIXME: just values from rv380 used... */
+    0x00780000,   /* rs480 */ /* FIXME: just values from rv380 used... */
 };
 
 
@@ -584,7 +586,6 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
     int o;
 
@@ -624,7 +625,6 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
     int o;
 
