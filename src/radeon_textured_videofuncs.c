@@ -643,7 +643,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	pBox++;
     }
 
-    if (IS_R300_3D | IS_R500_3D) {
+    if (IS_R300_3D || IS_R500_3D) {
 	BEGIN_VIDEO(2);
 	OUT_VIDEO_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
     } else

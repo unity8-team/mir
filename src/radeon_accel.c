@@ -371,7 +371,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		   info->CurrentLayout.bitsPerPixel);
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled && (IS_R300_3D | IS_R500_3D)) {
+    if (info->directRenderingEnabled && (IS_R300_3D || IS_R500_3D)) {
 	drmRadeonGetParam np;
 	int num_pipes;
 
@@ -419,11 +419,11 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	}
     }
 
-    if (IS_R300_3D | IS_R500_3D)
+    if (IS_R300_3D || IS_R500_3D)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "num pipes is %d\n", info->num_gb_pipes);
 
-    if (IS_R300_3D | IS_R500_3D) {
+    if (IS_R300_3D || IS_R500_3D) {
 	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
 
 	switch(info->num_gb_pipes) {
