@@ -4,3 +4,4 @@
 11_textured_video_option.patch
 19_check_exa_pitch_to_fix_rotate_crash.patch
 20_thinkpad_g40_quirk.patch
+21_quirk_lenovo_and_hp_pavilion.patch

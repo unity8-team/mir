@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.3.2-1ubuntu3) intrepid; urgency=low
+
+  * debian/patches/21_quirk_lenovo_and_hp_pavilion.patch:
+    + Quirk for fixing lockup on lid close for the Lenovo ThinkPad T60
+      (LP: #243405)
+    + Quirk for fixing lockup on lid close for the HP Pavilion ze4944ea
+      (LP: #242389)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 26 Jun 2008 20:36:29 -0700
+
 xserver-xorg-video-intel (2:2.3.2-1ubuntu2) intrepid; urgency=low
 
   * debian/patches/20_thinkpad_g40_quirk.patch: Quirk for IBM Thinkpad G40
