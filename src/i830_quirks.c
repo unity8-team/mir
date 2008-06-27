@@ -288,6 +288,9 @@ static i830_quirk i830_quirk_list[] = {
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
 
+    /* ThinkPad T60 needs pipe A force quirk (bug #16494) */
+    { PCI_CHIP_I945_GM, 0x17aa, 0x201a, quirk_pipea_force },
+
     /* Sony vaio PCG-r600HFP (fix bug 13722) */
     { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
     /* Sony vaio VGN-SZ4MN (See LP: #212163) */
