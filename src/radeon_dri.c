@@ -1453,8 +1453,7 @@ Bool RADEONDRIScreenInit(ScreenPtr pScreen)
 		PCI_DEV_DEV(info->PciInfo),
 		PCI_DEV_FUNC(info->PciInfo));
     }
-    pDRIInfo->ddxDriverMajorVersion      = info->allowColorTiling ?
-    				RADEON_VERSION_MAJOR_TILED : RADEON_VERSION_MAJOR;
+    pDRIInfo->ddxDriverMajorVersion      = RADEON_VERSION_MAJOR;
     pDRIInfo->ddxDriverMinorVersion      = RADEON_VERSION_MINOR;
     pDRIInfo->ddxDriverPatchVersion      = RADEON_VERSION_PATCH;
     pDRIInfo->frameBufferPhysicalAddress = (void *)info->LinearAddr + info->frontOffset;
