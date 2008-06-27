@@ -151,49 +151,10 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
-/* dpms based on setting a NULL mode when mode is off */
 static void
 drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	struct drm_mode_modeinfo kmode;
-	uint32_t *output_ids;
-	int output_count = 0;
-	int i;
-
-	if (mode == drmmode_crtc->dpms_mode)
-		return;
-
-	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
-	if (!output_ids) {
-		return;
-	}
-
-	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
-		drmmode_output_private_ptr drmmode_output;
-
-		if (output->crtc != crtc)
-			continue;
-
-		drmmode_output = output->driver_private;
-		output_ids[output_count] = drmmode_output->mode_output->connector_id;
-		output_count++;
-	}
-
-	if (mode == DPMSModeOn) {
-		drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
-		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			drmmode->fb_id, crtc->x, crtc->y, output_ids, output_count, &kmode);
-	} else {
-		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			drmmode->fb_id, crtc->x, crtc->y, output_ids, output_count, NULL);
-	}
-
-	if (output_ids)
-		xfree(output_ids);
+	return;
 }
 
 static Bool
@@ -260,8 +221,6 @@ done:
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
-	} else {
-		drmmode_crtc->dpms_mode = DPMSModeOn;
 	}
 
 	if (output_ids)
@@ -411,9 +370,13 @@ drmmode_output_get_modes(xf86OutputPtr output)
 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
 		if (props && (props->flags & DRM_MODE_PROP_BLOB)) {
 			if (!strcmp(props->name, "EDID")) {
+				ErrorF("EDID property found\n");
 				if (drmmode_output->edid_blob)
 					drmModeFreePropertyBlob(drmmode_output->edid_blob);
 				drmmode_output->edid_blob = drmModeGetPropertyBlob(drmmode->fd, koutput->prop_values[i]);
+
+				if (!drmmode_output->edid_blob)
+					ErrorF("No EDID blob\n");
 			}
 			drmModeFreeProperty(props);
 		}
@@ -450,7 +413,24 @@ drmmode_output_destroy(xf86OutputPtr output)
 static void
 drmmode_output_dpms(xf86OutputPtr output, int mode)
 {
-	return;
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmmode_ptr drmmode = drmmode_output->drmmode;
+	drmModePropertyPtr props;
+	int i;
+
+	ErrorF("drmmode_output_dpms called with mode %d\n", mode);
+
+	for (i = 0; i < koutput->count_props; i++) {
+		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		if (props && (props->flags & DRM_MODE_PROP_ENUM)) {
+			if (!strcmp(props->name, "DPMS")) {
+				ErrorF("DPMS property found\n");
+				drmModeConnectorSetProperty(drmmode->fd, drmmode_output->output_id, props->prop_id, mode); 
+			}
+			drmModeFreeProperty(props);
+		}
+	}
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {

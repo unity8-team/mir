@@ -47,7 +47,6 @@ typedef struct {
 	int index;
 	drmmode_ptr drmmode;
 	drmModeCrtcPtr mode_crtc;
-	int dpms_mode;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
