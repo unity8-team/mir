@@ -56,7 +56,7 @@
 
 #include "intel_batchbuffer.h"
 
-#define DEBUG 0
+extern int DEBUG;
 
 #define XVMC_ERR(s, arg...)					\
     do {							\

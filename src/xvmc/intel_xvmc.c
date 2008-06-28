@@ -98,8 +98,16 @@ unsigned int mb_bytes_420[] = {
     768  /* 111111 */
 };
 
+int DEBUG;
+
 static int error_base;
 static int event_base;
+
+static void intel_xvmc_debug_init(void)
+{
+    if (getenv("INTEL_XVMC_DEBUG"))
+	DEBUG = 1;
+}
 
 /* locking */
 static void intel_xvmc_try_heavy_lock(drm_context_t ctx)
@@ -281,6 +289,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
         XVMC_ERR("Indirect Rendering not supported! Using Direct.");
         return BadValue;
     }
+
+    intel_xvmc_debug_init();
 
     /* Open DRI Device */
     if((fd = drmOpen("i915", NULL)) < 0) {
