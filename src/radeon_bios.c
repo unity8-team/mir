@@ -529,7 +529,9 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
 
 	    /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-	    if (info->IsIGP)
+	    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
+		(info->ChipFamily == CHIP_FAMILY_RS400) ||
+		(info->ChipFamily == CHIP_FAMILY_RS480))
 		info->BiosConnector[i].DACType = DAC_TVDAC;
 
 	    if ((tmp >> 4) & 0x1)
