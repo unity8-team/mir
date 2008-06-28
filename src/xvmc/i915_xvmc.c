@@ -1850,9 +1850,8 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
     if (!(privTarget = target_surface->privData))
         return XvMCBadSurface;
 
-    /* Test For YV12 Surface */
-    if (context->surface_type_id != FOURCC_YV12) {
-        XVMC_ERR("HWMC only possible on YV12 Surfaces.");
+    if (context->surface_type_id >= SURFACE_TYPE_MAX) {
+        XVMC_ERR("Unsupprted surface_type_id %d.", context->surface_type_id);
         return BadValue;
     }
 

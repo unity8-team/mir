@@ -111,7 +111,7 @@ static XF86MCImageIDList yv12_subpicture_list =
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
 {
-    FOURCC_YV12,
+    SURFACE_TYPE_MPEG2_MPML,
     XVMC_CHROMA_FORMAT_420,
     0,
     720,
@@ -127,7 +127,7 @@ static XF86MCSurfaceInfoRec i915_YV12_mpg2_surface =
 
 static XF86MCSurfaceInfoRec i915_YV12_mpg1_surface =
 {
-    FOURCC_YV12,
+    SURFACE_TYPE_MPEG1_MPML,
     XVMC_CHROMA_FORMAT_420,
     0,
     720,
