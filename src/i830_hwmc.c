@@ -122,9 +122,10 @@ Bool intel_xvmc_screen_init(ScreenPtr pScreen)
 Bool intel_xvmc_init_batch(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int size = KB(64);
 
     if (!i830_allocate_xvmc_buffer(pScrn, "[XvMC] batch buffer",
-                                   &(xvmc_driver->batch), 8 * 1024,
+                                   &(xvmc_driver->batch), size,
                                    ALIGN_BOTH_ENDS))
         return FALSE;
 
