@@ -931,7 +931,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
 	    i830_hdmi_init(pScrn, SDVOB);
       }
 
-      if (INREG(SDVOB) & SDVO_DETECTED) {
+      if (INREG(SDVOC) & SDVO_DETECTED) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOC);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
