@@ -56,7 +56,7 @@ Bool intel_xvmc_probe(ScrnInfoPtr pScrn)
 	return FALSE;
 
     if (IS_I9XX(pI830)) {
-	if (!IS_I965G(pI830))
+	if (IS_I915(pI830))
 	    ret = intel_xvmc_set_driver(&i915_xvmc_driver);
 	/*
 	else

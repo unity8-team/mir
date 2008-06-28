@@ -417,7 +417,6 @@ typedef struct _I830Rec {
 #ifdef INTEL_XVMC
    /* For XvMC */
    Bool XvMCEnabled;
-   Bool IsXvMCSurface;
 #endif
 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */

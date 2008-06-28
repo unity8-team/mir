@@ -362,6 +362,7 @@ extern int I810_DEBUG;
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q35_G ||\
  			    DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q33_G)
 #define IS_I9XX(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_I965G(pI810) || IS_G33CLASS(pI810))
+#define IS_I915(pI810) (IS_I915G(pI810) || IS_I915GM(pI810) || IS_I945G(pI810) || IS_I945GM(pI810) || IS_G33CLASS(pI810))
 
 #define IS_MOBILE(pI810) (IS_I830(pI810) || IS_I85X(pI810) || IS_I915GM(pI810) || IS_I945GM(pI810) || IS_I965GM(pI810) || IS_IGD_GM(pI810))
 /* mark chipsets for using gfx VM offset for overlay */

@@ -790,7 +790,6 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
 	short height, Bool sync, RegionPtr clipBoxes, pointer data,
 	DrawablePtr pDraw)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
     I915XvMCPtr pXvMC = (I915XvMCPtr)xvmc_driver->devPrivate;
     struct intel_xvmc_command *xvmc_cmd = (struct intel_xvmc_command *)buf;
     int ret;
@@ -806,10 +805,8 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
 		    return 1;
 		}
 
-		buf = pI830->FbBase +
-		    pXvMC->sfprivs[xvmc_cmd->srfNo]->surface->offset;
-		id = xvmc_cmd->real_id;
-		pI830->IsXvMCSurface = 1;
+		/* use char *buf to hold our surface offset...hacky! */
+		buf = (unsigned char *)pXvMC->sfprivs[xvmc_cmd->srfNo]->surface->offset;
 		break;
 	    default:
 		return 0;
@@ -819,7 +816,6 @@ static int i915_xvmc_put_image(ScrnInfoPtr pScrn,
     ret = pXvMC->savePutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
                         drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
 			data, pDraw);
-    pI830->IsXvMCSurface = 0;
     return ret;
 }
 
