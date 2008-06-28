@@ -447,6 +447,261 @@ static void i915_mc_one_time_state_emit(void)
     i915_emit_batch(one_time_load_indirect, one_time_load_indirect_size, 0);
 }
 
+static void i915_mc_static_indirect_state_init(XvMCContext *context)
+{
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    struct i915_mc_static_indirect_state_buffer *buffer_info =
+	(struct i915_mc_static_indirect_state_buffer *)pI915XvMC->sis.map;
+
+    memset(buffer_info, 0, sizeof(*buffer_info));
+    /* dest Y */
+    buffer_info->dest_y.dw0.type = CMD_3D;
+    buffer_info->dest_y.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
+    buffer_info->dest_y.dw0.length = 1;
+    buffer_info->dest_y.dw1.aux_id = 0;
+    buffer_info->dest_y.dw1.buffer_id = BUFFERID_COLOR_BACK;
+    buffer_info->dest_y.dw1.fence_regs = 0;    /* disabled */ /* FIXME: tiled y for performance */
+    buffer_info->dest_y.dw1.tiled_surface = 0; /* linear */
+    buffer_info->dest_y.dw1.walk = TILEWALK_XMAJOR;
+
+    /* dest U */
+    buffer_info->dest_u.dw0.type = CMD_3D;
+    buffer_info->dest_u.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
+    buffer_info->dest_u.dw0.length = 1;
+    buffer_info->dest_u.dw1.aux_id = 0;
+    buffer_info->dest_u.dw1.buffer_id = BUFFERID_COLOR_AUX;
+    buffer_info->dest_u.dw1.fence_regs = 0;
+    buffer_info->dest_u.dw1.tiled_surface = 0;
+    buffer_info->dest_u.dw1.walk = TILEWALK_XMAJOR;
+
+    /* dest V */
+    buffer_info->dest_v.dw0.type = CMD_3D;
+    buffer_info->dest_v.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
+    buffer_info->dest_v.dw0.length = 1;
+    buffer_info->dest_v.dw1.aux_id = 1;
+    buffer_info->dest_v.dw1.buffer_id = BUFFERID_COLOR_AUX;
+    buffer_info->dest_v.dw1.fence_regs = 0;
+    buffer_info->dest_v.dw1.tiled_surface = 0;
+    buffer_info->dest_v.dw1.walk = TILEWALK_XMAJOR;
+
+    buffer_info->dest_buf.dw0.type = CMD_3D;
+    buffer_info->dest_buf.dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES;
+    buffer_info->dest_buf.dw0.length = 0;
+    buffer_info->dest_buf.dw1.dest_v_bias = 8; /* 0.5 */
+    buffer_info->dest_buf.dw1.dest_h_bias = 8; /* 0.5 */
+    buffer_info->dest_buf.dw1.color_fmt = COLORBUFFER_8BIT;
+    buffer_info->dest_buf.dw1.v_ls = 0; /* fill later */
+    buffer_info->dest_buf.dw1.v_ls_offset = 0; /* fill later */
+
+    buffer_info->dest_buf_mpeg.dw0.type = CMD_3D;
+    buffer_info->dest_buf_mpeg.dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES_MPEG;
+    buffer_info->dest_buf_mpeg.dw0.length = 1;
+    buffer_info->dest_buf_mpeg.dw1.decode_mode = MPEG_DECODE_MC;
+    buffer_info->dest_buf_mpeg.dw1.rcontrol = 0;               /* for MPEG-1/MPEG-2 */
+    buffer_info->dest_buf_mpeg.dw1.bidir_avrg_control = 0;     /* for MPEG-1/MPEG-2/MPEG-4 */
+    buffer_info->dest_buf_mpeg.dw1.abort_on_error = 1;
+    buffer_info->dest_buf_mpeg.dw1.intra8 = 0;         /* 16-bit formatted correction data */
+    buffer_info->dest_buf_mpeg.dw1.tff = 1; /* fill later */
+
+    buffer_info->dest_buf_mpeg.dw1.v_subsample_factor = MC_SUB_1V;
+    buffer_info->dest_buf_mpeg.dw1.h_subsample_factor = MC_SUB_1H;
+
+    buffer_info->corr.dw0.type = CMD_3D;
+    buffer_info->corr.dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
+    buffer_info->corr.dw0.length = 1;
+    buffer_info->corr.dw1.aux_id = 0;
+    buffer_info->corr.dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
+    buffer_info->corr.dw1.aux_id = 0;
+    buffer_info->corr.dw1.fence_regs = 0;
+    buffer_info->corr.dw1.tiled_surface = 0;
+    buffer_info->corr.dw1.walk = 0;
+    buffer_info->corr.dw1.pitch = 0;
+    buffer_info->corr.dw2.base_address = (pI915XvMC->corrdata.offset >> 2);  /* starting DWORD address */
+}
+
+static void i915_mc_static_indirect_state_set(XvMCContext *context, XvMCSurface *dest,
+	unsigned int picture_structure, unsigned int flags, unsigned int picture_coding_type)
+{
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    i915XvMCSurface *pI915Surface = (i915XvMCSurface *)dest->privData;
+    struct i915_mc_static_indirect_state_buffer *buffer_info =
+	(struct i915_mc_static_indirect_state_buffer *)pI915XvMC->sis.map;
+    unsigned int w = dest->width;
+
+    buffer_info->dest_y.dw1.pitch = (pI915Surface->yStride >> 2);      /* in DWords */
+    buffer_info->dest_y.dw2.base_address = (YOFFSET(pI915Surface) >> 2);    /* starting DWORD address */
+    buffer_info->dest_u.dw1.pitch = (pI915Surface->uvStride >> 2);      /* in DWords */
+    buffer_info->dest_u.dw2.base_address = (UOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
+    buffer_info->dest_v.dw1.pitch = (pI915Surface->uvStride >> 2);      /* in Dwords */
+    buffer_info->dest_v.dw2.base_address = (VOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
+
+    if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
+        ;
+    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
+        buffer_info->dest_buf.dw1.v_ls = 1;
+    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_BOTTOM_FIELD) {
+        buffer_info->dest_buf.dw1.v_ls = 1;
+        buffer_info->dest_buf.dw1.v_ls_offset = 1;
+    }
+
+    if (picture_structure & XVMC_FRAME_PICTURE) {
+        ;
+    } else if (picture_structure & XVMC_TOP_FIELD) {
+        if (flags & XVMC_SECOND_FIELD)
+            buffer_info->dest_buf_mpeg.dw1.tff = 0;
+        else
+            buffer_info->dest_buf_mpeg.dw1.tff = 1;
+    } else if (picture_structure & XVMC_BOTTOM_FIELD) {
+        if (flags & XVMC_SECOND_FIELD)
+            buffer_info->dest_buf_mpeg.dw1.tff = 1;
+        else
+            buffer_info->dest_buf_mpeg.dw1.tff = 0;
+    }
+
+    buffer_info->dest_buf_mpeg.dw1.picture_width = (dest->width >> 4);     /* in macroblocks */
+    buffer_info->dest_buf_mpeg.dw2.picture_coding_type = picture_coding_type;
+}
+
+static void i915_mc_map_state_init(XvMCContext *context)
+{
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    unsigned int w = context->width;
+    unsigned int h = context->height;
+    struct i915_mc_map_state *map_state;
+
+    map_state = (struct i915_mc_map_state *)pI915XvMC->msb.map;
+
+    memset(map_state, 0, sizeof(*map_state));
+
+    /* 3DSATE_MAP_STATE: Y */
+    map_state->y_map.dw0.type = CMD_3D;
+    map_state->y_map.dw0.opcode = OPC_3DSTATE_MAP_STATE;
+    map_state->y_map.dw0.retain = 1;
+    map_state->y_map.dw0.length = 6;
+    map_state->y_map.dw1.map_mask = MAP_MAP0 | MAP_MAP1;
+
+    /* Y Forward (Past) */
+    map_state->y_forward.tm0.v_ls_offset = 0;
+    map_state->y_forward.tm0.v_ls = 0;
+    map_state->y_forward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->y_forward.tm1.tiled_surface = 0;
+    map_state->y_forward.tm1.utilize_fence_regs = 0;
+    map_state->y_forward.tm1.texel_fmt = 0;      /* 8bit */
+    map_state->y_forward.tm1.surface_fmt = 1;    /* 8bit */
+    map_state->y_forward.tm1.width = w - 1;
+    map_state->y_forward.tm1.height = h - 1;
+    map_state->y_forward.tm2.depth = 0;
+    map_state->y_forward.tm2.max_lod = 0;
+    map_state->y_forward.tm2.cube_face = 0;
+
+    /* Y Backward (Future) */
+    map_state->y_backward.tm0.v_ls_offset = 0;
+    map_state->y_backward.tm0.v_ls = 0;
+    map_state->y_backward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->y_backward.tm1.tiled_surface = 0;
+    map_state->y_backward.tm1.utilize_fence_regs = 0;
+    map_state->y_backward.tm1.texel_fmt = 0;      /* 8bit */
+    map_state->y_backward.tm1.surface_fmt = 1;    /* 8bit */
+    map_state->y_backward.tm1.width = w - 1;
+    map_state->y_backward.tm1.height = h - 1;
+    map_state->y_backward.tm2.depth = 0;
+    map_state->y_backward.tm2.max_lod = 0;
+    map_state->y_backward.tm2.cube_face = 0;
+
+    /* 3DSATE_MAP_STATE: U */
+    map_state->u_map.dw0.type = CMD_3D;
+    map_state->u_map.dw0.opcode = OPC_3DSTATE_MAP_STATE;
+    map_state->u_map.dw0.retain = 1;
+    map_state->u_map.dw0.length = 6;
+    map_state->u_map.dw1.map_mask = MAP_MAP0 | MAP_MAP1;
+
+    /* U Forward */
+    map_state->u_forward.tm0.v_ls_offset = 0;
+    map_state->u_forward.tm0.v_ls = 0;
+    map_state->u_forward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->u_forward.tm1.tiled_surface = 0;
+    map_state->u_forward.tm1.utilize_fence_regs = 0;
+    map_state->u_forward.tm1.texel_fmt = 0;      /* 8bit */
+    map_state->u_forward.tm1.surface_fmt = 1;    /* 8bit */
+    map_state->u_forward.tm1.width = (w >> 1) - 1;
+    map_state->u_forward.tm1.height = (h >> 1) - 1;
+    map_state->u_forward.tm2.depth = 0;
+    map_state->u_forward.tm2.max_lod = 0;
+    map_state->u_forward.tm2.cube_face = 0;
+
+    /* U Backward */
+    map_state->u_backward.tm0.v_ls_offset = 0;
+    map_state->u_backward.tm0.v_ls = 0;
+    map_state->u_backward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->u_backward.tm1.tiled_surface = 0;
+    map_state->u_backward.tm1.utilize_fence_regs = 0;
+    map_state->u_backward.tm1.texel_fmt = 0;
+    map_state->u_backward.tm1.surface_fmt = 1;
+    map_state->u_backward.tm1.width = (w >> 1) - 1;
+    map_state->u_backward.tm1.height = (h >> 1) - 1;
+    map_state->u_backward.tm2.depth = 0;
+    map_state->u_backward.tm2.max_lod = 0;
+    map_state->u_backward.tm2.cube_face = 0;
+
+    /* 3DSATE_MAP_STATE: V */
+    map_state->v_map.dw0.type = CMD_3D;
+    map_state->v_map.dw0.opcode = OPC_3DSTATE_MAP_STATE;
+    map_state->v_map.dw0.retain = 1;
+    map_state->v_map.dw0.length = 6;
+    map_state->v_map.dw1.map_mask = MAP_MAP0 | MAP_MAP1;
+
+    /* V Forward */
+    map_state->v_forward.tm0.v_ls_offset = 0;
+    map_state->v_forward.tm0.v_ls = 0;
+    map_state->v_forward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->v_forward.tm1.tiled_surface = 0;
+    map_state->v_forward.tm1.utilize_fence_regs = 0;
+    map_state->v_forward.tm1.texel_fmt = 0;
+    map_state->v_forward.tm1.surface_fmt = 1;
+    map_state->v_forward.tm1.width = (w >> 1) - 1;
+    map_state->v_forward.tm1.height = (h >> 1) - 1;
+    map_state->v_forward.tm2.depth = 0;
+    map_state->v_forward.tm2.max_lod = 0;
+    map_state->v_forward.tm2.cube_face = 0;
+
+    /* V Backward */
+    map_state->v_backward.tm0.v_ls_offset = 0;
+    map_state->v_backward.tm0.v_ls = 0;
+    map_state->v_backward.tm1.tile_walk = TILEWALK_XMAJOR;
+    map_state->v_backward.tm1.tiled_surface = 0;
+    map_state->v_backward.tm1.utilize_fence_regs = 0;
+    map_state->v_backward.tm1.texel_fmt = 0;
+    map_state->v_backward.tm1.surface_fmt = 1;
+    map_state->v_backward.tm1.width = (w >> 1) - 1;
+    map_state->v_backward.tm1.height = (h >> 1) - 1;
+    map_state->v_backward.tm2.depth = 0;
+    map_state->v_backward.tm2.max_lod = 0;
+    map_state->v_backward.tm2.cube_face = 0;
+}
+
+static void i915_mc_map_state_set(XvMCContext *context,
+	i915XvMCSurface *privPast,
+	i915XvMCSurface *privFuture)
+{
+    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
+    struct i915_mc_map_state *map_state;
+
+    map_state = (struct i915_mc_map_state *)pI915XvMC->msb.map;
+
+    map_state->y_forward.tm0.base_address = (YOFFSET(privPast) >> 2);
+    map_state->y_forward.tm2.pitch = (privPast->yStride >> 2) - 1;       /* in DWords - 1 */
+    map_state->y_backward.tm0.base_address = (YOFFSET(privFuture) >> 2);
+    map_state->y_backward.tm2.pitch = (privFuture->yStride >> 2) - 1;
+    map_state->u_forward.tm0.base_address = (UOFFSET(privPast) >> 2);
+    map_state->u_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;       /* in DWords - 1 */
+    map_state->u_backward.tm0.base_address = (UOFFSET(privFuture) >> 2);
+    map_state->u_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+    map_state->v_forward.tm0.base_address = (VOFFSET(privPast) >> 2);
+    map_state->v_forward.tm2.pitch = (privPast->uvStride >> 2) - 1;       /* in DWords - 1 */
+    map_state->v_backward.tm0.base_address = (VOFFSET(privFuture) >> 2);
+    map_state->v_backward.tm2.pitch = (privFuture->uvStride >> 2) - 1;
+}
+
 static void i915_flush(int map, int render)
 {
     struct i915_mi_flush mi_flush;
@@ -458,279 +713,6 @@ static void i915_flush(int map, int render)
     mi_flush.dw0.render_cache_flush_inhibit = render;
 
     intelBatchbufferData(&mi_flush, sizeof(mi_flush), 0);
-}
-
-/* for MC picture rendering */
-static void i915_mc_static_indirect_state_buffer(XvMCContext *context,
-	XvMCSurface *surface,
-	unsigned int picture_structure,
-	unsigned int flags,
-	unsigned int picture_coding_type)
-{
-    struct i915_3dstate_buffer_info *buffer_info;
-    struct i915_3dstate_dest_buffer_variables *dest_buffer_variables;
-    struct i915_3dstate_dest_buffer_variables_mpeg *dest_buffer_variables_mpeg;
-    i915XvMCSurface *pI915Surface = (i915XvMCSurface *)surface->privData;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    unsigned int w = surface->width;
-
-    /* 3DSTATE_BUFFER_INFO */
-    /* DEST Y */
-    buffer_info = (struct i915_3dstate_buffer_info *)pI915XvMC->sis.map;
-    memset(buffer_info, 0, sizeof(*buffer_info));
-    buffer_info->dw0.type = CMD_3D;
-    buffer_info->dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
-    buffer_info->dw0.length = 1;
-    buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.buffer_id = BUFFERID_COLOR_BACK;
-    buffer_info->dw1.fence_regs = 0;    /* disabled */ /* FIXME: tiled y for performance */
-    buffer_info->dw1.tiled_surface = 0; /* linear */
-    buffer_info->dw1.walk = TILEWALK_XMAJOR;
-    buffer_info->dw1.pitch = (pI915Surface->yStride >> 2);      /* in DWords */
-    buffer_info->dw2.base_address = (YOFFSET(pI915Surface) >> 2);    /* starting DWORD address */
-
-    /* DEST U */
-    ++buffer_info;
-    memset(buffer_info, 0, sizeof(*buffer_info));
-    buffer_info->dw0.type = CMD_3D;
-    buffer_info->dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
-    buffer_info->dw0.length = 1;
-    buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.buffer_id = BUFFERID_COLOR_AUX;
-    buffer_info->dw1.fence_regs = 0;
-    buffer_info->dw1.tiled_surface = 0;
-    buffer_info->dw1.walk = TILEWALK_XMAJOR;
-    buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in DWords */
-    buffer_info->dw2.base_address = (UOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
-
-    /* DEST V */
-    ++buffer_info;
-    memset(buffer_info, 0, sizeof(*buffer_info));
-    buffer_info->dw0.type = CMD_3D;
-    buffer_info->dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
-    buffer_info->dw0.length = 1;
-    buffer_info->dw1.aux_id = 1;
-    buffer_info->dw1.buffer_id = BUFFERID_COLOR_AUX;
-    buffer_info->dw1.fence_regs = 0;
-    buffer_info->dw1.tiled_surface = 0;
-    buffer_info->dw1.walk = TILEWALK_XMAJOR;
-    buffer_info->dw1.pitch = (pI915Surface->uvStride >> 2);      /* in Dwords */
-    buffer_info->dw2.base_address = (VOFFSET(pI915Surface) >> 2);      /* starting DWORD address */
-
-    /* 3DSTATE_DEST_BUFFER_VARIABLES */
-    dest_buffer_variables = (struct i915_3dstate_dest_buffer_variables *)(++buffer_info);
-    memset(dest_buffer_variables, 0, sizeof(*dest_buffer_variables));
-    dest_buffer_variables->dw0.type = CMD_3D;
-    dest_buffer_variables->dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES;
-    dest_buffer_variables->dw0.length = 0;
-    dest_buffer_variables->dw1.dest_v_bias = 8; /* 0.5 */
-    dest_buffer_variables->dw1.dest_h_bias = 8; /* 0.5 */
-    dest_buffer_variables->dw1.color_fmt = COLORBUFFER_8BIT;
-    dest_buffer_variables->dw1.v_ls = 0;
-    dest_buffer_variables->dw1.v_ls_offset = 0;
-
-    if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
-        ;
-    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_TOP_FIELD) {
-        dest_buffer_variables->dw1.v_ls = 1;
-    } else if ((picture_structure & XVMC_FRAME_PICTURE) == XVMC_BOTTOM_FIELD) {
-        dest_buffer_variables->dw1.v_ls = 1;
-        dest_buffer_variables->dw1.v_ls_offset = 1;
-    }
-
-    /* 3DSTATE_DEST_BUFFER_VARIABLES_MPEG */
-    dest_buffer_variables_mpeg = (struct i915_3dstate_dest_buffer_variables_mpeg *)(++dest_buffer_variables);
-    memset(dest_buffer_variables_mpeg, 0, sizeof(*dest_buffer_variables_mpeg));
-    dest_buffer_variables_mpeg->dw0.type = CMD_3D;
-    dest_buffer_variables_mpeg->dw0.opcode = OPC_3DSTATE_DEST_BUFFER_VARIABLES_MPEG;
-    dest_buffer_variables_mpeg->dw0.length = 1;
-    dest_buffer_variables_mpeg->dw1.decode_mode = MPEG_DECODE_MC;
-    dest_buffer_variables_mpeg->dw1.rcontrol = 0;               /* for MPEG-1/MPEG-2 */
-    dest_buffer_variables_mpeg->dw1.bidir_avrg_control = 0;     /* for MPEG-1/MPEG-2/MPEG-4 */
-    dest_buffer_variables_mpeg->dw1.abort_on_error = 1;
-    dest_buffer_variables_mpeg->dw1.intra8 = 0;         /* 16-bit formatted correction data */
-    dest_buffer_variables_mpeg->dw1.tff = 1;
-
-    if (picture_structure & XVMC_FRAME_PICTURE) {
-        ;
-    } else if (picture_structure & XVMC_TOP_FIELD) {
-        if (flags & XVMC_SECOND_FIELD)
-            dest_buffer_variables_mpeg->dw1.tff = 0;
-        else
-            dest_buffer_variables_mpeg->dw1.tff = 1;
-    } else if (picture_structure & XVMC_BOTTOM_FIELD) {
-        if (flags & XVMC_SECOND_FIELD)
-            dest_buffer_variables_mpeg->dw1.tff = 1;
-        else
-            dest_buffer_variables_mpeg->dw1.tff = 0;
-    }
-
-    dest_buffer_variables_mpeg->dw1.v_subsample_factor = MC_SUB_1V;
-    dest_buffer_variables_mpeg->dw1.h_subsample_factor = MC_SUB_1H;
-    dest_buffer_variables_mpeg->dw1.picture_width = (w >> 4);     /* in macroblocks */
-    dest_buffer_variables_mpeg->dw2.picture_coding_type = picture_coding_type;
-
-    /* 3DSATE_BUFFER_INFO */
-    /* CORRECTION DATA */
-    buffer_info = (struct i915_3dstate_buffer_info *)(++dest_buffer_variables_mpeg);
-    memset(buffer_info, 0, sizeof(*buffer_info));
-    buffer_info->dw0.type = CMD_3D;
-    buffer_info->dw0.opcode = OPC_3DSTATE_BUFFER_INFO;
-    buffer_info->dw0.length = 1;
-    buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.buffer_id = BUFFERID_MC_INTRA_CORR;
-    buffer_info->dw1.aux_id = 0;
-    buffer_info->dw1.fence_regs = 0;
-    buffer_info->dw1.tiled_surface = 0;
-    buffer_info->dw1.walk = 0;
-    buffer_info->dw1.pitch = 0;
-    buffer_info->dw2.base_address = (pI915XvMC->corrdata.offset >> 2);  /* starting DWORD address */
-}
-
-static void i915_mc_map_state_buffer(XvMCContext *context,
-                                       i915XvMCSurface *privTarget,
-                                       i915XvMCSurface *privPast,
-                                       i915XvMCSurface *privFuture)
-{
-    struct i915_3dstate_map_state *map_state;
-    struct texture_map *tm;
-    i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    unsigned int w = context->width, h = context->height;
-
-    /* 3DSATE_MAP_STATE: Y */
-    map_state = (struct i915_3dstate_map_state *)pI915XvMC->msb.map;
-    memset(map_state, 0, sizeof(*map_state));
-    map_state->dw0.type = CMD_3D;
-    map_state->dw0.opcode = OPC_3DSTATE_MAP_STATE;
-    map_state->dw0.retain = 1;
-    map_state->dw0.length = 6;
-    map_state->dw1.map_mask = MAP_MAP0 | MAP_MAP1;
-
-    /* texture map: Forward (Past) */
-    tm = (struct texture_map *)(++map_state);
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (YOFFSET(privPast) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;        /* FIXME: tiled y for performace */
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;      /* 8bit */
-    tm->tm1.surface_fmt = 1;    /* 8bit */
-    tm->tm1.width = w - 1;
-    tm->tm1.height = h - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privPast->yStride >> 2) - 1;       /* in DWords - 1 */
-
-    /* texture map: Backward (Future) */
-    ++tm;
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (YOFFSET(privFuture) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;      /* 8bit */
-    tm->tm1.surface_fmt = 1;    /* 8bit */
-    tm->tm1.width = w - 1;
-    tm->tm1.height = h - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privFuture->yStride >> 2) - 1;
-
-    /* 3DSATE_MAP_STATE: U */
-    map_state = (struct i915_3dstate_map_state *)(++tm);
-    memset(map_state, 0, sizeof(*map_state));
-    map_state->dw0.type = CMD_3D;
-    map_state->dw0.opcode = OPC_3DSTATE_MAP_STATE;
-    map_state->dw0.retain = 1;
-    map_state->dw0.length = 6;
-    map_state->dw1.map_mask = MAP_MAP0 | MAP_MAP1;
-
-    /* texture map: Forward */
-    tm = (struct texture_map *)(++map_state);
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (UOFFSET(privPast) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;      /* 8bit */
-    tm->tm1.surface_fmt = 1;    /* 8bit */
-    tm->tm1.width = (w >> 1) - 1;
-    tm->tm1.height = (h >> 1) - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privPast->uvStride >> 2) - 1;       /* in DWords - 1 */
-
-    /* texture map: Backward */
-    ++tm;
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (UOFFSET(privFuture) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;
-    tm->tm1.surface_fmt = 1;
-    tm->tm1.width = (w >> 1) - 1;
-    tm->tm1.height = (h >> 1) - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privFuture->uvStride >> 2) - 1;
-
-    /* 3DSATE_MAP_STATE: V */
-    map_state = (struct i915_3dstate_map_state *)(++tm);
-    memset(map_state, 0, sizeof(*map_state));
-    map_state->dw0.type = CMD_3D;
-    map_state->dw0.opcode = OPC_3DSTATE_MAP_STATE;
-    map_state->dw0.retain = 1;
-    map_state->dw0.length = 6;
-    map_state->dw1.map_mask = MAP_MAP0 | MAP_MAP1;
-
-    /* texture map: Forward */
-    tm = (struct texture_map *)(++map_state);
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (VOFFSET(privPast) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;
-    tm->tm1.surface_fmt = 1;
-    tm->tm1.width = (w >> 1) - 1;
-    tm->tm1.height = (h >> 1) - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privPast->uvStride >> 2) - 1;       /* in DWords - 1 */
-
-    /* texture map: Backward */
-    ++tm;
-    memset(tm, 0, sizeof(*tm));
-    tm->tm0.v_ls_offset = 0;
-    tm->tm0.v_ls = 0;
-    tm->tm0.base_address = (VOFFSET(privFuture) >> 2);
-    tm->tm1.tile_walk = TILEWALK_XMAJOR;
-    tm->tm1.tiled_surface = 0;
-    tm->tm1.utilize_fence_regs = 0;
-    tm->tm1.texel_fmt = 0;
-    tm->tm1.surface_fmt = 1;
-    tm->tm1.width = (w >> 1) - 1;
-    tm->tm1.height = (h >> 1) - 1;
-    tm->tm2.depth = 0;
-    tm->tm2.max_lod = 0;
-    tm->tm2.cube_face = 0;
-    tm->tm2.pitch = (privFuture->uvStride >> 2) - 1;
 }
 
 static void i915_mc_load_sis_msb_buffers(XvMCContext *context)
@@ -1668,6 +1650,10 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     i915_mc_one_time_context_init(context);
     i915_mc_one_time_state_init(context);
 
+    i915_mc_static_indirect_state_init(context);
+
+    i915_mc_map_state_init(context);
+
     return Success;
 }
 
@@ -1927,10 +1913,10 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 
     i915_mc_one_time_state_emit();
 
-    i915_mc_static_indirect_state_buffer(context, target_surface,
-                                         picture_structure, flags,
-                                         picture_coding_type);
-    i915_mc_map_state_buffer(context, privTarget, privPast, privFuture);
+    i915_mc_static_indirect_state_set(context, target_surface, picture_structure,
+	    flags, picture_coding_type);
+    /* setup reference surfaces */
+    i915_mc_map_state_set(context, privPast, privFuture);
     i915_mc_load_sis_msb_buffers(context);
     i915_mc_mpeg_set_origin(context, &macroblock_array->macro_blocks[first_macroblock]);
 

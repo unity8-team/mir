@@ -354,7 +354,7 @@ struct i915_3dstate_dest_buffer_variables_mpeg
         unsigned rcontrol : 1;
         unsigned decode_mode : 2;
     } dw1;
-        
+
     struct {
         unsigned pad0 : 1;
         unsigned picture_coding_type : 2;
@@ -372,6 +372,15 @@ struct i915_3dstate_dest_buffer_variables_mpeg
         unsigned f_code10 : 4;
         unsigned f_code11 : 4;
     } dw2;
+};
+
+struct i915_mc_static_indirect_state_buffer {
+    struct i915_3dstate_buffer_info dest_y;
+    struct i915_3dstate_buffer_info dest_u;
+    struct i915_3dstate_buffer_info dest_v;
+    struct i915_3dstate_dest_buffer_variables dest_buf;
+    struct i915_3dstate_dest_buffer_variables_mpeg dest_buf_mpeg;
+    struct i915_3dstate_buffer_info corr;
 };
 
 #define MAP_MAP0        0x0001
@@ -434,7 +443,18 @@ struct i915_3dstate_map_state
         unsigned map_mask : 16;
         unsigned pad0 : 16;
     } dw1;
-//    struct texture_map *tms;
+};
+
+struct i915_mc_map_state {
+    struct i915_3dstate_map_state y_map;
+    struct texture_map y_forward;
+    struct texture_map y_backward;
+    struct i915_3dstate_map_state u_map;
+    struct texture_map u_forward;
+    struct texture_map u_backward;
+    struct i915_3dstate_map_state v_map;
+    struct texture_map v_forward;
+    struct texture_map v_backward;
 };
 
 #define SAMPLER_SAMPLER0        0x0001
