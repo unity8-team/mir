@@ -38,6 +38,7 @@
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include <xf86drm.h>
 #include "i830_common.h"
