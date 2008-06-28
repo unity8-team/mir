@@ -152,6 +152,7 @@ typedef struct _nv_crtc_reg
 	uint32_t unk850;
 	uint32_t head;
 	uint32_t config;
+	uint32_t fb_start;
 
 	/* These are former output regs, but are believed to be crtc related */
 	uint32_t general;

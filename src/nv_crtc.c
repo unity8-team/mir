@@ -1658,6 +1658,9 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_86, regp->CRTC[NV_VGA_CRTCX_86]);
 	}
 
+	if (override)
+		NVCrtcWriteCRTC(crtc, NV_CRTC_START, regp->fb_start);
+
 	/* Setting 1 on this value gives you interrupts for every vblank period. */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_EN_0, 0);
 	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
@@ -1754,6 +1757,8 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->CRTC[NV_VGA_CRTCX_85] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_85);
 		regp->CRTC[NV_VGA_CRTCX_86] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_86);
 	}
+
+	regp->fb_start = NVCrtcReadCRTC(crtc, NV_CRTC_START);
 }
 
 static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1883,9 +1888,6 @@ NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
 
 	/* 30 bits addresses in 32 bits according to haiku */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_START, start & 0xfffffffc);
-
-	/* set NV4/NV10 byte adress: (bit0 - 1) */
-	NVWriteVgaAttr(pNv, nv_crtc->head, 0x13, (start & 0x3) << 1);
 
 	crtc->x = x;
 	crtc->y = y;
