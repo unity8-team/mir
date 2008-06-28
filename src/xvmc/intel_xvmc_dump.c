@@ -116,18 +116,25 @@ void intel_xvmc_dump_render(XvMCContext *context, unsigned int picture_structure
 	    fprintf(fp, "intra ");
 	fprintf(fp, ")  ");
 	fprintf(fp, "mc type ");
-	if (mb->motion_type & XVMC_PREDICTION_FIELD)
-	    fprintf(fp, "(field)  ");
-	else if (mb->motion_type & XVMC_PREDICTION_FRAME)
-	    fprintf(fp, "(frame)  ");
-	else if (mb->motion_type & XVMC_PREDICTION_DUAL_PRIME)
-	    fprintf(fp, "(dual-prime)  ");
-	else if (mb->motion_type & XVMC_PREDICTION_16x8)
-	    fprintf(fp, "(16x8)  ");
-	else if (mb->motion_type & XVMC_PREDICTION_4MV)
-	    fprintf(fp, "(4MV)  ");
-	else
-	    fprintf(fp, "(none)  ");
+	if (picture_structure == XVMC_FRAME_PICTURE) {
+	    if (mb->motion_type & XVMC_PREDICTION_FIELD)
+		fprintf(fp, "(field)  ");
+	    else if (mb->motion_type & XVMC_PREDICTION_FRAME)
+		fprintf(fp, "(frame)  ");
+	    else if (mb->motion_type & XVMC_PREDICTION_DUAL_PRIME)
+		fprintf(fp, "(dual-prime)  ");
+	    else
+		fprintf(fp, "(unknown %d)  ", mb->motion_type);
+	} else { /* field */
+	    if (mb->motion_type & XVMC_PREDICTION_FIELD)
+		fprintf(fp, "(field)  ");
+	    else if (mb->motion_type & XVMC_PREDICTION_DUAL_PRIME)
+		fprintf(fp, "(dual-prime)  ");
+	    else if (mb->motion_type & XVMC_PREDICTION_16x8)
+		fprintf(fp, "(16x8)  ");
+	    else
+		fprintf(fp, "(unknown %d)  ", mb->motion_type);
+	}
 
 	if (mb->dct_type == XVMC_DCT_TYPE_FRAME)
 	    fprintf(fp, "dct type (frame)  ");
