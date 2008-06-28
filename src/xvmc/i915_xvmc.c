@@ -350,9 +350,9 @@ static void i915_mc_one_time_state_init(XvMCContext *context)
     psp_state *psp = NULL;
     psc_state *psc = NULL;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    int mem_select = 1;
     struct i915_3dstate_load_state_immediate_1 *load_state_immediate_1;
     struct i915_3dstate_load_indirect *load_indirect;
+    int mem_select;
 
     /* 3DSTATE_LOAD_STATE_IMMEDIATE_1 */
     one_time_load_state_imm1_size = sizeof(*load_state_immediate_1) + sizeof(*s3) + sizeof(*s6);
@@ -398,12 +398,13 @@ static void i915_mc_one_time_state_init(XvMCContext *context)
     load_indirect->dw0.length = (one_time_load_indirect_size >> 2) - 2;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_GM)
-        mem_select = 0;
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM)
+	mem_select = 0; /* use physical address */
+    else
+	mem_select = 1; /* use gfx address */
 
     load_indirect->dw0.mem_select = mem_select;
+
 
     /* Dynamic indirect state buffer */
     dis = (dis_state *)(++load_indirect);
@@ -420,7 +421,7 @@ static void i915_mc_one_time_state_init(XvMCContext *context)
     if (mem_select)
         ssb->dw0.buffer_address = (pI915XvMC->ssb.offset >> 2);
     else
-        ssb->dw0.buffer_address = (pI915XvMC->ssb.bus_addr >> 2);
+	ssb->dw0.buffer_address = (pI915XvMC->ssb.bus_addr >> 2);
 
     /* Pixel shader program buffer */
     psp = (psp_state *)(++ssb);
@@ -429,9 +430,9 @@ static void i915_mc_one_time_state_init(XvMCContext *context)
     psp->dw1.length = 66; /* 4 + 16 + 16 + 31 - 1 */
 
     if (mem_select)
-        psp->dw0.buffer_address = (pI915XvMC->psp.offset >> 2);
+	psp->dw0.buffer_address = (pI915XvMC->psp.offset >> 2);
     else
-        psp->dw0.buffer_address = (pI915XvMC->psp.bus_addr >> 2);
+	psp->dw0.buffer_address = (pI915XvMC->psp.bus_addr >> 2);
 
     /* Pixel shader constant buffer */
     psc = (psc_state *)(++psp);
@@ -725,7 +726,7 @@ static void i915_mc_load_indirect_render_init(XvMCContext *context)
     sis_state *sis;
     msb_state *msb;
     struct i915_3dstate_load_indirect *load_indirect;
-    int mem_select = 1;
+    int mem_select;
 
     mc_render_load_indirect_size = sizeof(*load_indirect) + sizeof(*sis)
 					+ sizeof(*msb);
@@ -738,10 +739,10 @@ static void i915_mc_load_indirect_render_init(XvMCContext *context)
     load_indirect->dw0.length = (mc_render_load_indirect_size >> 2) - 2;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_GM)
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM)
         mem_select = 0;
+    else
+	mem_select = 1;
 
     load_indirect->dw0.mem_select = mem_select;
 
@@ -752,9 +753,9 @@ static void i915_mc_load_indirect_render_init(XvMCContext *context)
     sis->dw1.length = 16; /* 4 * 3 + 2 + 3 - 1 */
 
     if (mem_select)
-        sis->dw0.buffer_address = (pI915XvMC->sis.offset >> 2);
+	sis->dw0.buffer_address = (pI915XvMC->sis.offset >> 2);
     else
-        sis->dw0.buffer_address = (pI915XvMC->sis.bus_addr >> 2);
+	sis->dw0.buffer_address = (pI915XvMC->sis.bus_addr >> 2);
 
     /* Map state buffer (reference buffer info) */
     msb = (msb_state *)(++sis);
@@ -763,9 +764,9 @@ static void i915_mc_load_indirect_render_init(XvMCContext *context)
     msb->dw1.length = 23; /* 3 * 8 - 1 */
 
     if (mem_select)
-        msb->dw0.buffer_address = (pI915XvMC->msb.offset >> 2);
+	msb->dw0.buffer_address = (pI915XvMC->msb.offset >> 2);
     else
-        msb->dw0.buffer_address = (pI915XvMC->msb.bus_addr >> 2);
+	msb->dw0.buffer_address = (pI915XvMC->msb.bus_addr >> 2);
 }
 
 static void i915_mc_load_indirect_render_emit(void)
@@ -1613,9 +1614,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->psc.size = tmpComm->psc.size;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_G ||
-        pI915XvMC->deviceID == PCI_CHIP_I945_GM) {
+        pI915XvMC->deviceID == PCI_CHIP_I915_GM) {
         pI915XvMC->sis.bus_addr = tmpComm->sis.bus_addr;
         pI915XvMC->ssb.bus_addr = tmpComm->ssb.bus_addr;
         pI915XvMC->msb.bus_addr = tmpComm->msb.bus_addr;
