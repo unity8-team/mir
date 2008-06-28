@@ -134,6 +134,10 @@ static uint32_t *one_time_load_state_imm1;
 static uint32_t *one_time_load_indirect;
 static int one_time_load_state_imm1_size, one_time_load_indirect_size;
 
+/* load indirect buffer for mc rendering */
+static uint32_t *mc_render_load_indirect;
+static int mc_render_load_indirect_size;
+
 static void i915_mc_one_time_context_init(XvMCContext *context)
 {
     unsigned int dest, src0, src1, src2;
@@ -715,24 +719,23 @@ static void i915_flush(int map, int render)
     intelBatchbufferData(&mi_flush, sizeof(mi_flush), 0);
 }
 
-static void i915_mc_load_sis_msb_buffers(XvMCContext *context)
+static void i915_mc_load_indirect_render_init(XvMCContext *context)
 {
-    struct i915_3dstate_load_indirect *load_indirect;
-    sis_state *sis = NULL;
-    msb_state *msb = NULL;
     i915XvMCContext *pI915XvMC = (i915XvMCContext *)context->privData;
-    void *base = NULL;
-    unsigned int size;
+    sis_state *sis;
+    msb_state *msb;
+    struct i915_3dstate_load_indirect *load_indirect;
     int mem_select = 1;
 
-    /* 3DSTATE_LOAD_INDIRECT */
-    size = sizeof(*load_indirect) + sizeof(*sis) + sizeof(*msb);
-    base = calloc(1, size);
-    load_indirect = (struct i915_3dstate_load_indirect *)base;
+    mc_render_load_indirect_size = sizeof(*load_indirect) + sizeof(*sis)
+					+ sizeof(*msb);
+    mc_render_load_indirect = calloc(1, mc_render_load_indirect_size);
+
+    load_indirect = (struct i915_3dstate_load_indirect *)mc_render_load_indirect;
     load_indirect->dw0.type = CMD_3D;
     load_indirect->dw0.opcode = OPC_3DSTATE_LOAD_INDIRECT;
     load_indirect->dw0.block_mask = BLOCK_SIS | BLOCK_MSB;
-    load_indirect->dw0.length = (size >> 2) - 2;
+    load_indirect->dw0.length = (mc_render_load_indirect_size >> 2) - 2;
 
     if (pI915XvMC->deviceID == PCI_CHIP_I915_G ||
         pI915XvMC->deviceID == PCI_CHIP_I915_GM ||
@@ -742,30 +745,32 @@ static void i915_mc_load_sis_msb_buffers(XvMCContext *context)
 
     load_indirect->dw0.mem_select = mem_select;
 
-    /* SIS */
+    /* Static Indirect state buffer (dest buffer info) */
     sis = (sis_state *)(++load_indirect);
     sis->dw0.valid = 1;
     sis->dw0.force = 1;
-    sis->dw1.length = 16; // 4 * 3 + 2 + 3 - 1
+    sis->dw1.length = 16; /* 4 * 3 + 2 + 3 - 1 */
 
     if (mem_select)
         sis->dw0.buffer_address = (pI915XvMC->sis.offset >> 2);
     else
         sis->dw0.buffer_address = (pI915XvMC->sis.bus_addr >> 2);
 
-    /* MSB */
+    /* Map state buffer (reference buffer info) */
     msb = (msb_state *)(++sis);
     msb->dw0.valid = 1;
     msb->dw0.force = 1;
-    msb->dw1.length = 23; // 3 * 8 - 1
+    msb->dw1.length = 23; /* 3 * 8 - 1 */
 
     if (mem_select)
         msb->dw0.buffer_address = (pI915XvMC->msb.offset >> 2);
     else
         msb->dw0.buffer_address = (pI915XvMC->msb.bus_addr >> 2);
+}
 
-    intelBatchbufferData(base, size, 0);
-    free(base);
+static void i915_mc_load_indirect_render_emit(void)
+{
+    i915_emit_batch(mc_render_load_indirect, mc_render_load_indirect_size, 0);
 }
 
 static void i915_mc_mpeg_set_origin(XvMCContext *context, XvMCMacroBlock *mb)
@@ -1646,7 +1651,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
     pI915XvMC->port = context->port;
     pI915XvMC->ref = 1;
 
-    /* preinit state buffers */
+    /* pre-init state buffers */
     i915_mc_one_time_context_init(context);
     i915_mc_one_time_state_init(context);
 
@@ -1654,6 +1659,7 @@ static Status i915_xvmc_mc_create_context(Display *display, XvMCContext *context
 
     i915_mc_map_state_init(context);
 
+    i915_mc_load_indirect_render_init(context);
     return Success;
 }
 
@@ -1669,6 +1675,7 @@ static int i915_xvmc_mc_destroy_context(Display *display, XvMCContext *context)
 
     free(one_time_load_state_imm1);
     free(one_time_load_indirect);
+    free(mc_render_load_indirect);
     return Success;
 }
 
@@ -1917,7 +1924,9 @@ static int i915_xvmc_mc_render_surface(Display *display, XvMCContext *context,
 	    flags, picture_coding_type);
     /* setup reference surfaces */
     i915_mc_map_state_set(context, privPast, privFuture);
-    i915_mc_load_sis_msb_buffers(context);
+
+    i915_mc_load_indirect_render_emit();
+
     i915_mc_mpeg_set_origin(context, &macroblock_array->macro_blocks[first_macroblock]);
 
     for (i = first_macroblock; i < (num_macroblocks + first_macroblock); i++) {
