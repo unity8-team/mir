@@ -360,6 +360,7 @@ typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
     RIVA_HW_STATE       ModeReg;
+    uint32_t saved_vga_font[4][16384];
     uint32_t              Architecture;
     EntityInfoPtr       pEnt;
 #ifndef XSERVER_LIBPCIACCESS
@@ -404,6 +405,7 @@ typedef struct _NVRec {
     CARD32              RamAmountKBytes;
 
     volatile CARD32 *REGS;
+    volatile CARD32 *FB_BAR;
     volatile CARD32 *PGRAPH;
     volatile CARD32 *PRAMIN;
     volatile CARD32 *CURSOR;

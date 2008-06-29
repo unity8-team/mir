@@ -1,5 +1,6 @@
 /*
  * Copyright 1993-2003 NVIDIA, Corporation
+ * Copyright 2008 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1342,4 +1343,91 @@ uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 		mask = 512 / bpp - 1;
 
 	return (width + mask) & ~mask;
+}
+
+#define VGA_SEQ_PLANE_WRITE     0x02
+#define VGA_SEQ_MEMORY_MODE     0x04
+#define VGA_GFX_PLANE_READ      0x04
+#define VGA_GFX_MODE            0x05
+#define VGA_GFX_MISC            0x06
+
+void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	bool graphicsmode;
+	uint8_t misc, gr4, gr5, gr6, seq2, seq4;
+	int i;
+
+	NVSetEnablePalette(pNv, 0, true);
+	graphicsmode = NVReadVgaAttr(pNv, 0, 0x10) & 1;
+	NVSetEnablePalette(pNv, 0, false);
+
+	if (graphicsmode)	/* graphics mode => framebuffer => no need to save */
+		return;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%sing VGA fonts\n", save ? "Sav" : "Restor");
+	if (pNv->twoHeads)
+		NVBlankScreen(pScrn, 1, true);
+	NVBlankScreen(pScrn, 0, true);
+
+	/* save control regs */
+	misc = NVReadPVIO(pNv, 0, VGA_MISC_OUT_R);
+	seq2 = NVReadVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE);
+	seq4 = NVReadVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE);
+	gr4 = NVReadVgaGr(pNv, 0, VGA_GFX_PLANE_READ);
+	gr5 = NVReadVgaGr(pNv, 0, VGA_GFX_MODE);
+	gr6 = NVReadVgaGr(pNv, 0, VGA_GFX_MISC);
+
+	NVWritePVIO(pNv, 0, VGA_MISC_OUT_W, 0x67);
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE, 0x6);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_MODE, 0x0);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_MISC, 0x5);
+
+	/* store font in plane 0 */
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x1);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x0);
+	for (i = 0; i < 16384; i++)
+		if (save)
+			pNv->saved_vga_font[0][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
+		else
+			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[0][i]);
+
+	/* store font in plane 1 */
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x2);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x1);
+	for (i = 0; i < 16384; i++)
+		if (save)
+			pNv->saved_vga_font[1][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
+		else
+			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[1][i]);
+
+	/* store font in plane 2 */
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x4);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x2);
+	for (i = 0; i < 16384; i++)
+		if (save)
+			pNv->saved_vga_font[2][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
+		else
+			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[2][i]);
+
+	/* store font in plane 3 */
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x8);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x3);
+	for (i = 0; i < 16384; i++)
+		if (save)
+			pNv->saved_vga_font[3][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
+		else
+			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[3][i]);
+
+	/* restore control regs */
+	NVWritePVIO(pNv, 0, VGA_MISC_OUT_W, misc);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, gr4);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_MODE, gr5);
+	NVWriteVgaGr(pNv, 0, VGA_GFX_MISC, gr6);
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, seq2);
+	NVWriteVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE, seq4);
+
+	if (pNv->twoHeads)
+		NVBlankScreen(pScrn, 1, false);
+	NVBlankScreen(pScrn, 0, false);
 }

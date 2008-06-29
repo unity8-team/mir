@@ -139,6 +139,7 @@ void nv4UpdateArbitrationSettings (unsigned      VClk,
 				   unsigned     *lwm,
 				   NVPtr        pNv);
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
+void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 
 /* in nv_i2c.c */
 Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);

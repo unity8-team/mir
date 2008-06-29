@@ -2043,6 +2043,8 @@ NVRestore(ScrnInfoPtr pScrn)
 			for (i = 0; i < xf86_config->num_crtc; i++)
 				xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 
+			nv_save_restore_vga_fonts(pScrn, 0);
+
 			for (i = 0; i < xf86_config->num_crtc; i++)
 				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 		}
@@ -2617,6 +2619,8 @@ NVSave(ScrnInfoPtr pScrn)
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
+
+		nv_save_restore_vga_fonts(pScrn, 1);
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);

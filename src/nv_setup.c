@@ -359,9 +359,13 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pNv->REGS = xf86MapPciMem(pScrn->scrnIndex, 
 			VIDMEM_MMIO | VIDMEM_READSIDEEFFECT, 
 			pNv->PciTag, pNv->IOAddress, 0x01000000);
+	pNv->FB_BAR = xf86MapPciMem(pScrn->scrnIndex,
+			VIDMEM_MMIO | VIDMEM_READSIDEEFFECT,
+			pNv->PciTag, pNv->VRAMPhysical, 0x10000);
 #else
 	/* 0x01000000 is the size */
 	pci_device_map_range(pNv->PciInfo, pNv->IOAddress, 0x01000000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->REGS);
+	pci_device_map_range(pNv->PciInfo, pNv->VRAMPhysical, 0x10000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->FB_BAR);
 #endif /* XSERVER_LIBPCIACCESS */
 
 	pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
