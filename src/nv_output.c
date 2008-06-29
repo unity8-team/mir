@@ -499,6 +499,7 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		int i;
 		DisplayModePtr mode;
 
+		nv_output->fpHeight = nv_output->fpWidth = 0;
 		for (i = 0; i < DET_TIMINGS; i++) {
 			/* We only look at detailed timings atm */
 			if (mon->det_mon[i].type != DT)
@@ -514,10 +515,11 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 			return NULL;
 		}
 
-		if (nv_output->native_mode)
+		if (nv_output->native_mode) {
 			xfree(nv_output->native_mode);
+			nv_output->native_mode = NULL;
+		}
 
-		/* Prefer ddc modes. */
 		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
 			if (mode->HDisplay == nv_output->fpWidth &&
 				mode->VDisplay == nv_output->fpHeight) {
@@ -528,6 +530,8 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 				}
 				/* Find the highest refresh mode otherwise. */
 				if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh)) {
+					if (nv_output->native_mode)
+						xfree(nv_output->native_mode);
 					mode->type |= M_T_PREFERRED;
 					nv_output->native_mode = xf86DuplicateMode(mode);
 				}
@@ -864,6 +868,8 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %u x %u\n",
 		nv_output->fpWidth, nv_output->fpHeight);
 
+	if (nv_output->native_mode)
+		xfree(nv_output->native_mode);
 	nv_output->native_mode = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
 
 	return xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
