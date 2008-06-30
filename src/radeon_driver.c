@@ -2106,19 +2106,16 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
 	info->Chipset == PCI_CHIP_RN50_5969 ||
-	info->Chipset == PCI_CHIP_RC410_5A61 ||
-	info->Chipset == PCI_CHIP_RC410_5A62 ||
-	info->Chipset == PCI_CHIP_RS485_5975 ||
 	info->ChipFamily == CHIP_FAMILY_RS600 ||
 	info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50/RC410/RS485/RS600/R600 forced on -- "
+		"Direct rendering for RN50/RS600/R600 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Direct rendering not officially supported on RN50/RC410/R600\n");
+		"Direct rendering not officially supported on RN50/RS600/R600\n");
 	    return FALSE;
 	}
     }
