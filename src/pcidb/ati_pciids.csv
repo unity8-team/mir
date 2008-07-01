@@ -1,5 +1,6 @@
 "#pciid","define","family","mobility","igp","nocrtc2","Nointtvout","singledac","name"
 "0x3150","RV380_3150","RV380",1,,,,,"ATI Radeon Mobility X600 (M24) 3150 (PCIE)"
+"0x3151","RV380_3151","RV380",,,,,,"ATI FireMV 2400 (PCI)"
 "0x3152","RV380_3152","RV380",1,,,,,"ATI Radeon Mobility X300 (M24) 3152 (PCIE)"
 "0x3154","RV380_3154","RV380",1,,,,,"ATI FireGL M24 GL 3154 (PCIE)"
 "0x3E50","RV380_3E50","RV380",,,,,,"ATI Radeon X600 (RV380) 3E50 (PCIE)"
