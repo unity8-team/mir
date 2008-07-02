@@ -1282,7 +1282,7 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 	goto out;
     }
 
-    if (IS_IGD_GM(pI830)) {
+    if (IS_GM45(pI830)) {
 	/* Update i830_display.c too if compression ratio changes */
 	compressed_size = fb_height * (pScrn->displayWidth / 4);
     } else {
@@ -1309,7 +1309,7 @@ static void i830_setup_fb_compression(ScrnInfoPtr pScrn)
 	goto out;
     }
 
-    if (!IS_IGD_GM(pI830)) {
+    if (!IS_GM45(pI830)) {
 	pI830->compressed_ll_buffer =
 	    i830_allocate_memory(pScrn, "compressed ll buffer",
 				 FBC_LL_SIZE + FBC_LL_PAD, KB(4),

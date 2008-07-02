@@ -152,7 +152,7 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_G33_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q35_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q33_G, 0 ),
-   INTEL_DEVICE_MATCH (PCI_CHIP_IGD_GM, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_GM45_GM, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_IGD_E_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
@@ -208,7 +208,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_IGD_GM,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
    {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
@@ -241,7 +241,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	RES_SHARED_VGA},
    {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
@@ -808,7 +808,7 @@ I810Probe(DriverPtr drv, int flags)
  	    case PCI_CHIP_G33_G:
  	    case PCI_CHIP_Q35_G:
  	    case PCI_CHIP_Q33_G:
- 	    case PCI_CHIP_IGD_GM:
+ 	    case PCI_CHIP_GM45_GM:
 	    case PCI_CHIP_IGD_E_G:
 	    case PCI_CHIP_G45_G:
 	    case PCI_CHIP_Q45_G:

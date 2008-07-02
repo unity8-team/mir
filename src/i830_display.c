@@ -668,7 +668,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (IS_IGD_GM(pI830))
+    if (IS_GM45(pI830))
 	return i830_enable_fb_compression2(crtc);
 
     i830_enable_fb_compression_8xx(crtc);
@@ -680,7 +680,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (IS_IGD_GM(pI830))
+    if (IS_GM45(pI830))
 	return i830_disable_fb_compression2(crtc);
 
     i830_disable_fb_compression_8xx(crtc);
@@ -1209,7 +1209,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 	    break;
 	}
-	if (IS_I965G(pI830) && !IS_IGD_GM(pI830))
+	if (IS_I965G(pI830) && !IS_GM45(pI830))
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
 	if (is_lvds) {
