@@ -83,12 +83,12 @@ struct i830_lvds_priv {
  * List of available kernel interfaces in priority order
  */
 static char *backlight_interfaces[] = {
+    "asus-laptop",
+    "eeepc",
     "thinkpad_screen",
     "acpi_video1",
     "acpi_video0",
     "fujitsu-laptop",
-    "asus-laptop",
-    "eeepc",
     NULL,
 };
 
