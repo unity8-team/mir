@@ -1105,7 +1105,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 
 	/* Save current console video mode */
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->pInt10) {
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->pInt10 && !pNv->kms_enable) {
 		const xf86Int10InfoPtr pInt10 = pNv->pInt10;
 
 		pInt10->num = 0x10;
