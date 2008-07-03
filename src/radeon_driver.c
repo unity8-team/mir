@@ -3471,9 +3471,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* xf86CrtcRotate() accesses pScrn->pScreen */
     pScrn->pScreen = pScreen;
 
-    if (!xf86SetDesiredModes (pScrn))
-	return FALSE;
-
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
 
     /* Backing store setup */
@@ -3553,6 +3550,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	xf86DrvMsg(scrnIndex, X_INFO, "Acceleration disabled\n");
 	info->accelOn = FALSE;
     }
+
+    if (!xf86SetDesiredModes (pScrn))
+	return FALSE;
 
     /* Init DPMS */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
