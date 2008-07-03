@@ -286,6 +286,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I915_GM, 0x1179, 0x0001, quirk_pipea_force },
     /* Intel 855GM hardware (See LP: #216490) */
     { PCI_CHIP_I855_GM, 0x1028, 0x00c8, quirk_pipea_force },
+    /* Intel 855GM hardware (See Novell Bugzilla #406123) */
+    { PCI_CHIP_I855_GM, 0x10cf, 0x1215, quirk_pipea_force },
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
