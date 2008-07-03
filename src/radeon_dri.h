@@ -39,8 +39,6 @@
 #include "xf86drm.h"
 
 /* DRI Driver defaults */
-#define RADEON_DEFAULT_CP_PIO_MODE    RADEON_CSQ_PRIPIO_INDPIO
-#define RADEON_DEFAULT_CP_BM_MODE     RADEON_CSQ_PRIBM_INDBM
 #define RADEON_DEFAULT_GART_SIZE      8 /* MB (must be 2^n and > 4MB) */
 #define RADEON_DEFAULT_RING_SIZE      1 /* MB (must be page aligned) */
 #define RADEON_DEFAULT_BUFFER_SIZE    2 /* MB (must be page aligned) */
@@ -51,10 +49,6 @@
 #define RADEON_DEFAULT_PCI_APER_SIZE 32 /* in MB */
 
 #define RADEON_CARD_TYPE_RADEON       1
-
-#define RADEONCP_USE_RING_BUFFER(m)					\
-    (((m) == RADEON_CSQ_PRIBM_INDDIS) ||				\
-     ((m) == RADEON_CSQ_PRIBM_INDBM))
 
 typedef struct {
     /* DRI screen private data */

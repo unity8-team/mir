@@ -2164,13 +2164,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	"Direct rendering experimental on RS400/Xpress 200 enabled\n");
     }
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_CP_PIO, FALSE)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Forcing CP into PIO mode\n");
-	info->CPMode = RADEON_DEFAULT_CP_PIO_MODE;
-    } else {
-	info->CPMode = RADEON_DEFAULT_CP_BM_MODE;
-    }
-
     info->gartSize      = RADEON_DEFAULT_GART_SIZE;
     info->ringSize      = RADEON_DEFAULT_RING_SIZE;
     info->bufSize       = RADEON_DEFAULT_BUFFER_SIZE;

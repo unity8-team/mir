@@ -1046,18 +1046,6 @@ RADEONSetupMemXAA_DRI(int scrnIndex, ScreenPtr pScreen)
     depthSize = ((((pScrn->virtualY + 15) & ~15) * info->depthPitch
 		  * depthCpp + RADEON_BUFFER_ALIGN) & ~RADEON_BUFFER_ALIGN);
 
-    switch (info->CPMode) {
-    case RADEON_DEFAULT_CP_PIO_MODE:
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in PIO mode\n");
-	break;
-    case RADEON_DEFAULT_CP_BM_MODE:
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in BM mode\n");
-	break;
-    default:
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CP in UNKNOWN mode\n");
-	break;
-    }
-
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Using %d MB GART aperture\n", info->gartSize);
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,

@@ -567,7 +567,6 @@ typedef struct {
     Bool              CPRuns;           /* CP is running */
     Bool              CPInUse;          /* CP has been used by X server */
     Bool              CPStarted;        /* CP has started */
-    int               CPMode;           /* CP mode that server/clients use */
     int               CPFifoSize;       /* Size of the CP command FIFO */
     int               CPusecTimeout;    /* CP timeout in usecs */
     Bool              needCacheFlush;
@@ -1046,13 +1045,11 @@ do {									\
 
 #define RADEONCP_RESET(pScrn, info)					\
 do {									\
-    if (RADEONCP_USE_RING_BUFFER(info->CPMode)) {			\
 	int _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_RESET);	\
 	if (_ret) {							\
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,			\
 		       "%s: CP reset %d\n", __FUNCTION__, _ret);	\
 	}								\
-    }									\
 } while (0)
 
 #define RADEONCP_REFRESH(pScrn, info)					\

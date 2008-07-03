@@ -1103,7 +1103,7 @@ static int RADEONDRIKernelInit(RADEONInfoPtr info, ScreenPtr pScreen)
 
     drmInfo.sarea_priv_offset   = sizeof(XF86DRISAREARec);
     drmInfo.is_pci              = (info->cardType!=CARD_AGP);
-    drmInfo.cp_mode             = info->CPMode;
+    drmInfo.cp_mode             = RADEON_CSQ_PRIBM_INDBM;
     drmInfo.gart_size           = info->gartSize*1024*1024;
     drmInfo.ring_size           = info->ringSize*1024*1024;
     drmInfo.usec_timeout        = info->CPusecTimeout;
