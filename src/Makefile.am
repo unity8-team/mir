@@ -37,6 +37,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_bo.c nouveau_bo.h \
 			 nouveau_class.h \
 			 nouveau_local.h \
+			 nouveau_xv.c \
 			 nv_accel_common.c \
 			 nv_bios.c \
 			 nv_const.h \
@@ -57,20 +58,19 @@ nouveau_drv_la_SOURCES = \
 			 nv_setup.c \
 			 nv_shadow.c \
 			 nv_type.h \
-			 nv_video.c \
 			 nv_crtc.c \
 			 nv_output.c \
 			 nv_i2c.c \
-			 nv04_video_overlay.c \
-			 nv04_video_blitter.c \
+			 nv04_xv_ovl.c \
+			 nv04_xv_blit.c \
 			 nv10_exa.c \
-			 nv10_video_overlay.c \
+			 nv10_xv_ovl.c \
 			 nv30_shaders.c \
 			 nv30_shaders.h \
 			 nv30_exa.c \
-			 nv30_video_texture.c \
+			 nv30_xv_tex.c \
 			 nv40_exa.c \
-			 nv40_video_texture.c \
+			 nv40_xv_tex.c \
 			 nv50_cursor.c \
 			 nv50_crtc.c \
 			 nv50_dac.c \
