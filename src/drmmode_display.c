@@ -70,12 +70,14 @@ uint32_t drmmode_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pi
 #endif /* NOUVEAU_EXA_PIXMAPS */
 }
 
+#if 0
 static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height);
+#endif
 
 static Bool
 drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	//xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	//drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[0]->driver_private;
 	//drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	//Bool ret;
@@ -536,6 +538,7 @@ void drmmode_set_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height
 	ErrorF("Add fb id %d %d %d\n", drmmode->fb_id, width, height);
 }
 
+#if 0
 static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height)
 {
 	uint32_t handle;
@@ -571,11 +574,11 @@ static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, 
 
 	return TRUE;
 }
+#endif
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, char *busId, drmmode_ptr drmmode, int cpp)
 {
 	xf86CrtcConfigPtr xf86_config = NULL;
-	NVPtr pNv = NVPTR(pScrn);
 	int i, ret;
 
 	int drm_page_size;

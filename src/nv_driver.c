@@ -824,7 +824,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		pScrn->vtSema = FALSE;
 #ifdef XF86DRM_MODE
 		if (pNv->kms_enable) {
-			int dummy = 0; /* TODO */
+			NVSync(pScrn);
 		} else
 #endif
 		if (pNv->Architecture == NV_ARCH_50) {
@@ -1681,7 +1681,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, at offset 0x%X\n",
-		(unsigned int)(pNv->FB->size >> 20), pNv->FB->offset);
+		(uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
 #ifdef XF86DRM_MODE
 	if (pNv->kms_enable)
 		drmmode_set_fb(pScrn, pNv->drmmode, pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth*(pScrn->bitsPerPixel >> 3), pNv->FB);

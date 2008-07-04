@@ -35,7 +35,7 @@
 
 typedef struct {
 	int fd;
-	int fb_id;
+	uint32_t fb_id;
 	drmModeResPtr mode_res;
 	drmModeFBPtr mode_fb;
 	int cpp;
