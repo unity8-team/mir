@@ -654,7 +654,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	return FALSE;
 }
 
-#if NOUVEAU_EXA_PIXMAPS
+#ifdef NOUVEAU_EXA_PIXMAPS
 static Bool
 NVExaPrepareAccess(PixmapPtr pPix, int index)
 {
@@ -773,25 +773,7 @@ NVExaModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
 
 	return FALSE;
 }
-#endif /* NOUVEAU_EXA_PIXMAPS */
-
-#if !NOUVEAU_EXA_PIXMAPS
-static Bool
-NVExaPixmapIsOffscreen(PixmapPtr pPix)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-
-	if ((void *)pPix->devPrivate.ptr >= (void *)pNv->VRAMPhysical &&
-		(void *)pPix->devPrivate.ptr <
-		(void *)(pNv->VRAMPhysical + pNv->VRAMPhysicalSize))
-	{
-		return TRUE;
-	} else {
-		return FALSE;
-	}
-}
-#endif /* !NOUVEAU_EXA_PIXMAPS */
+#endif
 
 Bool
 NVExaPixmapIsOnscreen(PixmapPtr pPixmap)
@@ -830,7 +812,7 @@ NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
 	pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
-#if NOUVEAU_EXA_PIXMAPS
+#ifdef NOUVEAU_EXA_PIXMAPS
 	if (NOUVEAU_EXA_PIXMAPS) {
 		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS |
 					   EXA_HANDLES_PIXMAPS;
@@ -848,11 +830,7 @@ NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->offScreenBase =
 			NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) * 
 			(pScrn->bitsPerPixel / 8); 
-		pNv->EXADriverPtr->memorySize		= pNv->FB->size;
-#if EXA_VERSION_MINOR >= 2
-		/* This should allow all vram to be accelerated. */
-		pNv->EXADriverPtr->PixmapIsOffscreen = NVExaPixmapIsOffscreen;
-#endif
+		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
 	}
 	pNv->EXADriverPtr->pixmapOffsetAlign	= 256; 
 	pNv->EXADriverPtr->pixmapPitchAlign	= 64; 
