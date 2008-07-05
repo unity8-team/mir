@@ -47,6 +47,8 @@ typedef struct {
 	int index;
 	drmmode_ptr drmmode;
 	drmModeCrtcPtr mode_crtc;
+	struct nouveau_bo *shadow;
+	uint32_t shadow_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
