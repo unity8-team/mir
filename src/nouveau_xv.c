@@ -304,9 +304,15 @@ NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
  *
  */
 static void
-NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier *target)
+NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier **ptarget)
 {
+	struct nouveau_notifier *target;
 	int i;
+
+	if (!ptarget || !*ptarget)
+		return;
+	target = *ptarget;
+	*ptarget = NULL;
 
 	for (i = 0; i < 6; i ++) {
 		if (XvDMANotifiers[i] == target)
@@ -316,70 +322,30 @@ NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier *target)
 	XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_FREE;
 }
 
-/**
- * NVAllocateVideoMemory
- * allocates video memory for a given port
- *
- * @param pScrn screen which requests the memory
- * @param mem pointer to previously allocated memory for reallocation
- * @param size size of requested memory segment
- * @return pointer to the allocated memory
- */
-static struct nouveau_bo *
-NVAllocateVideoMemory(ScrnInfoPtr pScrn, struct nouveau_bo *mem, int size)
+static int
+nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
+		      struct nouveau_bo **pbo)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo = NULL;
+	int ret;
 
-	if (mem) {
-		if(mem->size >= size)
-			return mem;
-		nouveau_bo_del(&mem);
+	if (*pbo) {
+		if ((*pbo)->size >= size)
+			return 0;
+		nouveau_bo_del(pbo);
 	}
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-			   size, &bo))
-		return NULL;
+	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_PIN, 0, size, pbo);
+	if (ret)
+		return ret;
 
-	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR)) {
-		nouveau_bo_del(&bo);
-		return NULL;
+	ret = nouveau_bo_map(*pbo, NOUVEAU_BO_RDWR);
+	if (ret) {
+		nouveau_bo_del(pbo);
+		return ret;
 	}
 
-	return bo;
-}
-
-/**
- * NVAllocateTTMemory
- * allocates TT memory for a given port
- *
- * @param pScrn screen which requests the memory
- * @param mem pointer to previously allocated memory for reallocation
- * @param size size of requested memory segment
- * @return pointer to the allocated memory
- */
-static struct nouveau_bo *
-NVAllocateTTMemory(ScrnInfoPtr pScrn, struct nouveau_bo *mem, int size)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *bo = NULL;
-
-	if(mem) {
-		if(mem->size >= size)
-			return mem;
-		nouveau_bo_del(&mem);
-	}
-
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
-			   size, &bo))
-		return NULL;
-
-	if (nouveau_bo_map(bo, NOUVEAU_BO_RDWR)) {
-		nouveau_bo_del(&bo);
-		return NULL;
-	}
-
-	return bo;
+	return 0;
 }
 
 /**
@@ -403,25 +369,10 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	if (pPriv->TT_mem_chunk[1] && pPriv->DMANotifier[1])
 		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1000);
 
-	if (pPriv->TT_mem_chunk[0]) {
-		nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
-		pPriv->TT_mem_chunk[0] = NULL;
-	}
-
-	if (pPriv->TT_mem_chunk[1]) {
-		nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
-		pPriv->TT_mem_chunk[1] = NULL;
-	}
-
-	if (pPriv->DMANotifier[0]) {
-		NVXvDMANotifierFree(pScrn, pPriv->DMANotifier[0]);
-		pPriv->DMANotifier[0] = NULL;
-	}
-
-	if (pPriv->DMANotifier[1]) {
-		NVXvDMANotifierFree(pScrn, pPriv->DMANotifier[1]);
-		pPriv->DMANotifier[1] = NULL;
-	}
+	nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
+	nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
+	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[0]);
+	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[1]);
 
 }
 
@@ -1086,7 +1037,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	struct nouveau_bo *destination_buffer = NULL;
 	int action_flags; /* what shall we do? */
 	unsigned char *map;
-	int i;
+	int ret, i;
 
 	if (pPriv->grabbedByV4L)
 		return Success;
@@ -1123,9 +1074,9 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		s3offset += tmp;
 	}
 
-	pPriv->video_mem = NVAllocateVideoMemory(pScrn, pPriv->video_mem,
-						 newFBSize);
-	if (!pPriv->video_mem)
+	ret = nouveau_xv_bo_realloc(pScrn, NOUVEAU_BO_VRAM, newFBSize,
+				    &pPriv->video_mem);
+	if (ret)
 		return BadAlloc;
 	offset = pPriv->video_mem->offset;
 
@@ -1161,19 +1112,14 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	 * written contiguously
 	 */
 	if (pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE) {
-		pPriv->TT_mem_chunk[0] =
-			NVAllocateTTMemory(pScrn, pPriv->TT_mem_chunk[0],
-					   newTTSize);
-
-		if (pPriv->TT_mem_chunk[0]) {
-			pPriv->TT_mem_chunk[1] =
-				NVAllocateTTMemory(pScrn,
-						   pPriv->TT_mem_chunk[1],
-						   newTTSize);
-
-			if (!pPriv->TT_mem_chunk[1]) {
+		ret = nouveau_xv_bo_realloc(pScrn, NOUVEAU_BO_GART, newTTSize,
+					    &pPriv->TT_mem_chunk[0]);
+		if (ret == 0) {
+			ret = nouveau_xv_bo_realloc(pScrn, NOUVEAU_BO_GART,
+						    newTTSize,
+						    &pPriv->TT_mem_chunk[1]);
+			if (ret) {
 				nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
-				pPriv->TT_mem_chunk[0] = NULL;
 				pPriv->currentHostBuffer =
 					NO_PRIV_HOST_BUFFER_AVAILABLE;
 			}
@@ -1554,7 +1500,7 @@ NVAllocSurface(ScrnInfoPtr pScrn, int id,
 {
 	NVPtr pNv = NVPTR(pScrn);
 	NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
-	int size, bpp;
+	int size, bpp, ret;
 
 	bpp = pScrn->bitsPerPixel >> 3;
 
@@ -1568,10 +1514,9 @@ NVAllocSurface(ScrnInfoPtr pScrn, int id,
 	pPriv->pitch = ((w << 1) + 63) & ~63;
 	size = h * pPriv->pitch / bpp;
 
-	pPriv->video_mem = NVAllocateVideoMemory(pScrn,
-						   pPriv->video_mem,
-						   size);
-	if (!pPriv->video_mem)
+	ret = nouveau_xv_bo_realloc(pScrn, NOUVEAU_BO_VRAM, size,
+				    &pPriv->video_mem);
+	if (ret)
 		return BadAlloc;
 
 	pPriv->offset = 0;
@@ -1931,20 +1876,23 @@ NVSetupOverlayVideo(ScreenPtr pScreen)
 		return NULL;
 
 	overlayAdaptor = NVSetupOverlayVideoAdapter(pScreen);
+	/* I am not sure what this call does. */
 	if (overlayAdaptor && pNv->Architecture != NV_ARCH_04 )
-		NVInitOffscreenImages(pScreen); //I am not sure what this call does.
+		NVInitOffscreenImages(pScreen);
 
 	#ifdef COMPOSITE
 	if (!noCompositeExtension) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Xv: Composite is enabled, enabling overlay with smart blitter fallback\n");
-		overlayAdaptor -> name = "NV Video Overlay with Composite";
+			   "Xv: Composite is enabled, enabling overlay with "
+			   "smart blitter fallback\n");
+		overlayAdaptor->name = "NV Video Overlay with Composite";
 	}
 	#endif
 
 	if (pNv->randr12_enable) {
 	    	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			"Xv: Randr12 is enabled, using overlay with smart blitter fallback and automatic CRTC switching\n");
+			   "Xv: Randr12 is enabled, using overlay with smart "
+			   "blitter fallback and automatic CRTC switching\n");
 	}
 
 
@@ -1979,8 +1927,8 @@ NV30SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	int i;
 
 	if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
-					sizeof(NVPortPrivRec) +
-					(sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
+				 sizeof(NVPortPrivRec) +
+				 (sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
 		return NULL;
 	}
 
@@ -2066,8 +2014,8 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	int i;
 
 	if (!(adapt = xcalloc(1, sizeof(XF86VideoAdaptorRec) +
-					sizeof(NVPortPrivRec) +
-					(sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
+				 sizeof(NVPortPrivRec) +
+				 (sizeof(DevUnion) * NUM_TEXTURE_PORTS)))) {
 		return NULL;
 	}
 
@@ -2134,7 +2082,8 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
  * @see NVSetupOverlayVideo(ScreenPtr pScreen)
  * @see NVSetupBlitVideo(ScreenPtr pScreen)
  */
-void NVInitVideo (ScreenPtr pScreen)
+void
+NVInitVideo(ScreenPtr pScreen)
 {
 	ScrnInfoPtr          pScrn = xf86Screens[pScreen->myNum];
 	NVPtr                pNv = NVPTR(pScrn);
@@ -2150,7 +2099,8 @@ void NVInitVideo (ScreenPtr pScreen)
 	 * might work without accel, we also disable it for now when
 	 * acceleration is disabled:
 	 */
-	if (pScrn->bitsPerPixel != 8 && pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
+	if (pScrn->bitsPerPixel != 8 &&
+	    pNv->Architecture < NV_ARCH_50 && !pNv->NoAccel) {
 		overlayAdaptor = NVSetupOverlayVideo(pScreen);
 		blitAdaptor    = NVSetupBlitVideo(pScreen);
 		if (pNv->Architecture == NV_ARCH_30) {
