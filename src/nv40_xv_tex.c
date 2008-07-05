@@ -199,9 +199,9 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 }
 
 Bool
-NV40GetSurfaceFormat(PixmapPtr pPix, int *fmt_ret)
+NV40GetSurfaceFormat(PixmapPtr ppix, int *fmt_ret)
 {
-	switch (pPix->drawable.bitsPerPixel) {
+	switch (ppix->drawable.bitsPerPixel) {
 		case 32:
 			*fmt_ret = NV40TCL_RT_FORMAT_COLOR_A8R8G8B8;
 			break;
@@ -228,7 +228,7 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
-extern void exaMoveInPixmap(PixmapPtr pPixmap);
+extern void exaMoveInPixmap(PixmapPtr ppixmap);
 #endif
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
@@ -239,19 +239,23 @@ extern void exaMoveInPixmap(PixmapPtr pPixmap);
  	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
-int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
-		int src_offset2, int id,
-		int src_pitch, BoxPtr dstBox,
-		int x1, int y1, int x2, int y2,
-		uint16_t width, uint16_t height,
-		uint16_t src_w, uint16_t src_h,
-		uint16_t drw_w, uint16_t drw_h,
-		RegionPtr clipBoxes,
-		DrawablePtr pDraw,
-		NVPortPrivPtr pPriv)
+int
+NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset, int src_offset2,
+		    int id, int src_pitch, BoxPtr dstBox,
+		    int x1, int y1, int x2, int y2,
+		    uint16_t width, uint16_t height,
+		    uint16_t src_w, uint16_t src_h,
+		    uint16_t drw_w, uint16_t drw_h,
+		    RegionPtr clipBoxes, PixmapPtr ppix,
+		    NVPortPrivPtr pPriv)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	Bool redirected = FALSE;
+	float X1, X2, Y1, Y2;
+	BoxPtr pbox;
+	int nbox;
+	int dst_format = 0;
+	uint64_t filter_table_offset=0;
 
 	if (drw_w > 4096 || drw_h > 4096) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -259,38 +263,12 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 		return BadAlloc;
 	}
 
-	float X1, X2, Y1, Y2;
-	PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
-	BoxPtr pbox;
-	int nbox;
-	int dst_format = 0;
-	uint64_t filter_table_offset=0;
-
-	if (!NV40GetSurfaceFormat(pPix, &dst_format)) {
+	if (!NV40GetSurfaceFormat(ppix, &dst_format)) {
 		ErrorF("No surface format, bad.\n");
 	}
 
-	/* This has to be called always, since it does more than just migration. */
-	exaMoveInPixmap(pPix);
-	ExaOffscreenMarkUsed(pPix);
-
 #ifdef COMPOSITE
-	/* Adjust coordinates if drawing to an offscreen pixmap */
-	if (pPix->screen_x || pPix->screen_y) {
-		REGION_TRANSLATE(pScrn->pScreen, clipBoxes,
-							-pPix->screen_x,
-							-pPix->screen_y);
-		dstBox->x1 -= pPix->screen_x;
-		dstBox->x2 -= pPix->screen_x;
-		dstBox->y1 -= pPix->screen_y;
-		dstBox->y2 -= pPix->screen_y;
-	}
-
-	/* I suspect that pDraw itself is not offscreen, hence not suited for damage tracking. */
-	DamageDamageRegion(&pPix->drawable, clipBoxes);
-
-	/* This is test is unneeded for !COMPOSITE. */
-	if (!NVExaPixmapIsOnscreen(pPix))
+	if (!NVExaPixmapIsOnscreen(ppix))
 		redirected = TRUE;
 #endif
 
@@ -306,8 +284,8 @@ int NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset,
 	OUT_RING  (NV40TCL_RT_FORMAT_TYPE_LINEAR |
 			NV40TCL_RT_FORMAT_ZETA_Z24S8 |
 			dst_format);
-	OUT_RING  (exaGetPixmapPitch(pPix));
-	OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RING  (exaGetPixmapPitch(ppix));
+	OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	filter_table_offset=NV40_LoadFilterTable(pScrn);
 

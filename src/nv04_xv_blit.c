@@ -36,7 +36,7 @@
 
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
-extern void exaMoveInPixmap(PixmapPtr pPixmap);
+extern void exaMoveInPixmap(PixmapPtr ppixmap);
 #endif
 
 #define FOURCC_RGB 0x0000003
@@ -71,8 +71,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
                short width, short height,
                short src_w, short src_h,
                short drw_w, short drw_h,
-               RegionPtr clipBoxes,
-               DrawablePtr pDraw)
+               RegionPtr clipBoxes, PixmapPtr ppix)
 {
         NVPtr          pNv   = NVPTR(pScrn);
         NVPortPrivPtr  pPriv = GET_BLIT_PRIVATE(pNv);
@@ -81,36 +80,15 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
         CARD32         dsdx, dtdy;
         CARD32         dst_size, dst_point;
         CARD32         src_point, src_format;
-
         unsigned int crtcs;
-        PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
         int dst_format;
 
-	/* This has to be called always, since it does more than just migration. */
-	exaMoveInPixmap(pPix);
-	ExaOffscreenMarkUsed(pPix);
-
-        NVAccelGetCtxSurf2DFormatFromPixmap(pPix, &dst_format);
+        NVAccelGetCtxSurf2DFormatFromPixmap(ppix, &dst_format);
         BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
         OUT_RING  (dst_format);
-        OUT_RING  ((exaGetPixmapPitch(pPix) << 16) | exaGetPixmapPitch(pPix));
-        OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-        OUT_PIXMAPl(pPix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-
-#ifdef COMPOSITE
-        /* Adjust coordinates if drawing to an offscreen pixmap */
-        if (pPix->screen_x || pPix->screen_y) {
-                REGION_TRANSLATE(pScrn->pScreen, clipBoxes,
-                                                     -pPix->screen_x,
-                                                     -pPix->screen_y);
-                dstBox->x1 -= pPix->screen_x;
-                dstBox->x2 -= pPix->screen_x;
-                dstBox->y1 -= pPix->screen_y;
-                dstBox->y2 -= pPix->screen_y;
-        }
-
-        DamageDamageRegion((DrawablePtr)pPix, clipBoxes);
-#endif
+        OUT_RING  ((exaGetPixmapPitch(ppix) << 16) | exaGetPixmapPitch(ppix));
+        OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+        OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
         pbox = REGION_RECTS(clipBoxes);
         nbox = REGION_NUM_RECTS(clipBoxes);

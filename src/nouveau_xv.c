@@ -899,9 +899,9 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	/* Adapter fallbacks (when the desired one can't be used)*/
 #ifdef COMPOSITE
 	{
-		PixmapPtr pPix = NVGetDrawablePixmap(pDraw);
+		PixmapPtr ppix = NVGetDrawablePixmap(pDraw);
 
-		if (!NVExaPixmapIsOnscreen(pPix))
+		if (!NVExaPixmapIsOnscreen(ppix))
 			*action_flags &= ~USE_OVERLAY;
 	}
 #endif
@@ -1016,6 +1016,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 {
 	NVPortPrivPtr pPriv = (NVPortPrivPtr)data;
 	NVPtr pNv = NVPTR(pScrn);
+	PixmapPtr ppix;
 	/* source box */
 	INT32 xa = 0, xb = 0, ya = 0, yb = 0;
 	/* size to allocate in VRAM and in GART respectively */
@@ -1360,6 +1361,32 @@ CPU_copy:
 	if (pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE)
 		pPriv->currentHostBuffer ^= 1;
 
+	/* If we're not using the hw overlay, we're rendering into a pixmap
+	 * and need to take a couple of additional steps...
+	 */
+	if (!(action_flags & USE_OVERLAY)) {
+		ppix = NVGetDrawablePixmap(pDraw);
+
+		/* Ensure pixmap is in offscreen memory */
+		exaMoveInPixmap(ppix);
+		ExaOffscreenMarkUsed(ppix);
+
+#ifdef COMPOSITE
+		/* Convert screen coords to pixmap coords */
+		if (ppix->screen_x || ppix->screen_y) {
+			REGION_TRANSLATE(pScrn->pScreen, clipBoxes,
+					 -ppix->screen_x, -ppix->screen_y);
+			dstBox.x1 -= ppix->screen_x;
+			dstBox.x2 -= ppix->screen_x;
+			dstBox.y1 -= ppix->screen_y;
+			dstBox.y2 -= ppix->screen_y;
+		}
+
+		/* Damage tracking */
+		DamageDamageRegion(&ppix->drawable, clipBoxes);
+#endif
+	}
+
 	if (action_flags & USE_OVERLAY) {
 		if (pNv->Architecture == NV_ARCH_04) {
 			NV04PutOverlayImage(pScrn, offset, id, dstPitch,
@@ -1390,7 +1417,7 @@ CPU_copy:
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
 						  src_w, src_h, drw_w, drw_h,
-						  clipBoxes, pDraw, pPriv);
+						  clipBoxes, ppix, pPriv);
 		} else
 		if (pNv->Architecture == NV_ARCH_40) {
 			ret = NV40PutTextureImage(pScrn, offset,
@@ -1398,7 +1425,7 @@ CPU_copy:
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
 						  src_w, src_h, drw_w, drw_h,
-						  clipBoxes, pDraw, pPriv);
+						  clipBoxes, ppix, pPriv);
 		}
 
 		if (ret != Success)
@@ -1406,7 +1433,7 @@ CPU_copy:
 	} else {
 		NVPutBlitImage(pScrn, offset, id, dstPitch, &dstBox,
 			       0, 0, xb, yb, npixels, nlines,
-			       src_w, src_h, drw_w, drw_h, clipBoxes, pDraw);
+			       src_w, src_h, drw_w, drw_h, clipBoxes, ppix);
 	}
 
 	return Success;

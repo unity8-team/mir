@@ -157,7 +157,7 @@ void NVPutBlitImage(ScrnInfoPtr, int, int, int, BoxPtr,
 		int, int, int, int,
 		short, short, short,
 		short, short, short,
-		RegionPtr, DrawablePtr);
+		RegionPtr, PixmapPtr);
 int NVSetBlitPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int NVGetBlitPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NVStopBlitVideo(ScrnInfoPtr, pointer, Bool);
@@ -191,7 +191,7 @@ void NV30EXADoneComposite(PixmapPtr);
 int NV30PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
 		int, int, int, int, uint16_t, uint16_t,
 		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, DrawablePtr, NVPortPrivPtr);
+		RegionPtr, PixmapPtr, NVPortPrivPtr);
 void NV30StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV30GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV30SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
@@ -208,7 +208,7 @@ void NV40EXADoneComposite(PixmapPtr);
 int NV40PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
 		int, int, int, int, uint16_t, uint16_t,
 		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, DrawablePtr, NVPortPrivPtr);
+		RegionPtr, PixmapPtr, NVPortPrivPtr);
 void NV40StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
@@ -264,6 +264,11 @@ void NV50ConnectorDestroy(ScrnInfoPtr pScrn);
 void nv50_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void nv50_output_create(ScrnInfoPtr pScrn);
 int nv_scaling_mode_lookup(char *name, int size);
+
+/* To support EXA 2.0, 2.1 has this in the header */
+#ifndef exaMoveInPixmap
+extern void exaMoveInPixmap(PixmapPtr pPixmap);
+#endif
 
 #endif /* __NV_PROTO_H__ */
 
