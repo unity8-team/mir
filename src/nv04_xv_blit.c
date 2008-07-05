@@ -34,11 +34,6 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-/* To support EXA 2.0, 2.1 has this in the header */
-#ifndef exaMoveInPixmap
-extern void exaMoveInPixmap(PixmapPtr ppixmap);
-#endif
-
 #define FOURCC_RGB 0x0000003
 
 extern Atom xvSetDefaults, xvSyncToVBlank;

@@ -226,11 +226,6 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 {
 }
 
-/* To support EXA 2.0, 2.1 has this in the header */
-#ifndef exaMoveInPixmap
-extern void exaMoveInPixmap(PixmapPtr ppixmap);
-#endif
-
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
 	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                         \
 	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
