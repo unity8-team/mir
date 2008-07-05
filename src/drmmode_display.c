@@ -513,8 +513,8 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	output->subpixel_order = subpixel_conv_table[koutput->subpixel];
 	output->driver_private = drmmode_output;
 
-	output->possible_crtcs = kencoder->crtcs;
-	output->possible_clones = kencoder->clones;
+	output->possible_crtcs = kencoder->possible_crtcs;
+	output->possible_clones = kencoder->possible_clones;
 	return;
 }
 
