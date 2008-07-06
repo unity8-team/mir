@@ -230,10 +230,10 @@ NV30StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 }
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2F_X(8), 4);                      \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2F_X(8), 4);                         \
 	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
 	OUT_RINGf ((sx)/2.0); OUT_RINGf ((sy)/2.0);                            \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2I(0), 1);                        \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2I(0), 1);                           \
  	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 

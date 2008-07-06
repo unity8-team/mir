@@ -387,7 +387,7 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	int w = 2048;
 	int h = 2048;
 
-	BEGIN_RING(Nv3D, NV10TCL_BUFFER_FORMAT, 4);
+	BEGIN_RING(Nv3D, NV10TCL_RT_FORMAT, 4);
 	if ( state.is_a8_plus_a8 )
 		{ /*A8 + A8 hack*/
 		OUT_RING  (NV10DstFormat(PICT_a8r8g8b8));
@@ -400,7 +400,7 @@ static void NV10SetBuffer(NVPtr pNv,PicturePtr Pict,PixmapPtr pixmap)
 	OUT_PIXMAPl(pixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (0);
 		
-	BEGIN_RING(Nv3D, NV10TCL_VIEWPORT_HORIZ, 2);
+	BEGIN_RING(Nv3D, NV10TCL_RT_HORIZ, 2);
 	OUT_RING  ((w<<16)|x);
 	OUT_RING  ((h<<16)|y);
 	BEGIN_RING(Nv3D, NV10TCL_VIEWPORT_CLIP_MODE, 1); /* clip_mode */
@@ -891,7 +891,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, NV10TCL_NOP, 1);
 	OUT_RING  (0);
 
-	BEGIN_RING(Nv3D, NV10TCL_VIEWPORT_HORIZ, 2);
+	BEGIN_RING(Nv3D, NV10TCL_RT_HORIZ, 2);
 	OUT_RING  (0);
 	OUT_RING  (0);
 

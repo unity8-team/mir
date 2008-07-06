@@ -515,16 +515,16 @@ NV30EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 #define CV_OUTm(sx,sy,mx,my,dx,dy) do {                                        \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2F_X(8), 4);        \
-	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
-	OUT_RINGf ((mx)); OUT_RINGf ((my));                          \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2I(0), 1);          \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2F_X(8), 4);                         \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
+	OUT_RINGf ((mx)); OUT_RINGf ((my));                                    \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2I(0), 1);                           \
 	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 #define CV_OUT(sx,sy,dx,dy) do {                                               \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2F_X(8), 2);        \
-	OUT_RINGf ((sx)); OUT_RINGf ((sy));                          \
-	BEGIN_RING(Nv3D, NV34TCL_VERTEX_ATTR_2I(0), 1);          \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2F_X(8), 2);                         \
+	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
+	BEGIN_RING(Nv3D, NV34TCL_VTX_ATTR_2I(0), 1);                           \
 	OUT_RING  (((dy)<<16)|(dx));                                           \
 } while(0)
 
@@ -778,7 +778,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (w<<16);
 	OUT_RING  (h<<16);
 
-	BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_SCALE0_X, 8);
+	BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_SCALE_X, 8);
 	OUT_RINGf (0.0);
 	OUT_RINGf (0.0);
 	OUT_RINGf (0.0);

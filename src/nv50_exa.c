@@ -22,6 +22,7 @@
  */
 
 #include "nv_include.h"
+#include "nv50_texture.h"
 
 struct nv50_exa_state {
 	Bool have_mask;
@@ -64,6 +65,12 @@ static struct nv50_exa_state exa_state;
 #define PFP_S_A8  0x0400 /* (src) a8 rt */
 #define PFP_C_A8  0x0500 /* (src IN mask) a8 rt - same for CA and CA_SA */
 
+/* Constant buffer assignments */
+#define CB_TSC 0
+#define CB_TIC 1
+
+#define BF(f) (NV50TCL_BLEND_FUNC_SRC_RGB_##f | 0x4000)
+
 struct nv50_blend_op {
 	unsigned src_alpha;
 	unsigned dst_alpha;
@@ -73,19 +80,19 @@ struct nv50_blend_op {
 
 static struct nv50_blend_op
 NV50EXABlendOp[] = {
-/* Clear       */ { 0, 0, 0x4000, 0x4000 },
-/* Src         */ { 0, 0, 0x4001, 0x4000 },
-/* Dst         */ { 0, 0, 0x4000, 0x4001 },
-/* Over        */ { 1, 0, 0x4001, 0x4303 },
-/* OverReverse */ { 0, 1, 0x4305, 0x4001 },
-/* In          */ { 0, 1, 0x4304, 0x4000 },
-/* InReverse   */ { 1, 0, 0x4000, 0x4302 },
-/* Out         */ { 0, 1, 0x4305, 0x4000 },
-/* OutReverse  */ { 1, 0, 0x4000, 0x4303 },
-/* Atop        */ { 1, 1, 0x4304, 0x4303 },
-/* AtopReverse */ { 1, 1, 0x4305, 0x4302 },
-/* Xor         */ { 1, 1, 0x4305, 0x4303 },
-/* Add         */ { 0, 0, 0x4001, 0x4001 },
+/* Clear       */ { 0, 0, BF(               ZERO), BF(               ZERO) },
+/* Src         */ { 0, 0, BF(                ONE), BF(               ZERO) },
+/* Dst         */ { 0, 0, BF(               ZERO), BF(                ONE) },
+/* Over        */ { 1, 0, BF(                ONE), BF(ONE_MINUS_SRC_ALPHA) },
+/* OverReverse */ { 0, 1, BF(ONE_MINUS_DST_ALPHA), BF(                ONE) },
+/* In          */ { 0, 1, BF(          DST_ALPHA), BF(               ZERO) },
+/* InReverse   */ { 1, 0, BF(               ZERO), BF(          SRC_ALPHA) },
+/* Out         */ { 0, 1, BF(ONE_MINUS_DST_ALPHA), BF(               ZERO) },
+/* OutReverse  */ { 1, 0, BF(               ZERO), BF(ONE_MINUS_SRC_ALPHA) },
+/* Atop        */ { 1, 1, BF(          DST_ALPHA), BF(ONE_MINUS_SRC_ALPHA) },
+/* AtopReverse */ { 1, 1, BF(ONE_MINUS_DST_ALPHA), BF(          SRC_ALPHA) },
+/* Xor         */ { 1, 1, BF(ONE_MINUS_DST_ALPHA), BF(ONE_MINUS_SRC_ALPHA) },
+/* Add         */ { 0, 0, BF(                ONE), BF(                ONE) },
 };
 
 static Bool
@@ -415,21 +422,21 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	switch (ppict->format) {
-	case PICT_a8r8g8b8: format = 0xcf; break;
-	case PICT_x8r8g8b8: format = 0xe6; break;
-	case PICT_r5g6b5  : format = 0xe8; break;
-	case PICT_a8      : format = 0xf3; break;
+	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_32BPP; break;
+	case PICT_x8r8g8b8: format = NV50TCL_RT_FORMAT_24BPP; break;
+	case PICT_r5g6b5  : format = NV50TCL_RT_FORMAT_16BPP; break;
+	case PICT_a8      : format = NV50TCL_RT_FORMAT_8BPP; break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format\n");
 	}
 
-	BEGIN_RING(Nv3D, 0x0200, 5);
+	BEGIN_RING(Nv3D, NV50TCL_RT_ADDRESS_HIGH(0), 5);
 	OUT_PIXMAPh(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (format);
 	OUT_RING  (0);
 	OUT_RING  (0x00000000);
-	BEGIN_RING(Nv3D, 0x1240, 2);
+	BEGIN_RING(Nv3D, NV50TCL_RT_HORIZ(0), 2);
 	OUT_RING  (ppix->drawable.width);
 	OUT_RING  (ppix->drawable.height);
 	BEGIN_RING(Nv3D, 0x1224, 1);
@@ -479,27 +486,51 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
-	BEGIN_RING(Nv3D, 0x0f00, 1);
-	OUT_RING  (0 | ((unit * 8) << 8));
-	BEGIN_RING(Nv3D, 0x40000f04, 8);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
+	OUT_RING  (CB_TIC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 8);
 	switch (ppict->format) {
 	case PICT_a8r8g8b8:
-		OUT_RING(0x2a712488);
+		OUT_RING(NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C2 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
 		break;
 	case PICT_a8b8g8r8:
-		OUT_RING(0x2c692488);
+		OUT_RING(NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C2 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
 		break;
 	case PICT_x8r8g8b8:
-		OUT_RING(0x3a712488);
+		OUT_RING(NV50TIC_0_0_MAPA_ONE | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C2 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
 		break;
 	case PICT_x8b8g8r8:
-		OUT_RING(0x3c692488);
+		OUT_RING(NV50TIC_0_0_MAPA_ONE | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C2 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C0 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_8_8_8_8);
 		break;
 	case PICT_r5g6b5:
-		OUT_RING(0x3a712495);
+		OUT_RING(NV50TIC_0_0_MAPA_ONE | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_C1 | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_C2 | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_5_6_5);
 		break;
 	case PICT_a8:
-		OUT_RING(0x1001249d);
+		OUT_RING(NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
+			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
+			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEB_UNORM |
+			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEG_UNORM |
+			 NV50TIC_0_0_FMT_8);
 		break;
 	default:
 		NOUVEAU_FALLBACK("invalid picture format\n");
@@ -508,33 +539,45 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (0xd0005000);
 	OUT_RING  (0x00300000);
 	OUT_RING  (ppix->drawable.width);
-	OUT_RING  ((1 << 16) | ppix->drawable.height);
+	OUT_RING  ((1 << NV50TIC_0_5_DEPTH_SHIFT) | ppix->drawable.height);
 	OUT_RING  (0x03000000);
 	OUT_PIXMAPh(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
-	BEGIN_RING(Nv3D, 0x0f00, 1);
-	OUT_RING  (1 | ((unit * 8) << 8));
-	BEGIN_RING(Nv3D, 0x40000f04, 8);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
+	OUT_RING  (CB_TSC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 8);
 	if (ppict->repeat) {
 		switch (ppict->repeatType) {
 		case RepeatPad:
-			OUT_RING(0x00024124);
+			OUT_RING(NV50TSC_1_0_WRAPS_CLAMP |
+				 NV50TSC_1_0_WRAPT_CLAMP |
+				 NV50TSC_1_0_WRAPR_CLAMP | 0x00024000);
 			break;
 		case RepeatReflect:
-			OUT_RING(0x00024049);
+			OUT_RING(NV50TSC_1_0_WRAPS_MIRROR_REPEAT |
+				 NV50TSC_1_0_WRAPT_MIRROR_REPEAT |
+				 NV50TSC_1_0_WRAPR_MIRROR_REPEAT | 0x00024000);
 			break;
 		case RepeatNormal:
 		default:
-			OUT_RING(0x00024000);
+			OUT_RING(NV50TSC_1_0_WRAPS_REPEAT |
+				 NV50TSC_1_0_WRAPT_REPEAT |
+				 NV50TSC_1_0_WRAPR_REPEAT | 0x00024000);
 			break;
 		}
 	} else {
-		OUT_RING(0x000240db);
+		OUT_RING(NV50TSC_1_0_WRAPS_CLAMP_TO_BORDER |
+			 NV50TSC_1_0_WRAPT_CLAMP_TO_BORDER |
+			 NV50TSC_1_0_WRAPR_CLAMP_TO_BORDER | 0x00024000);
 	}
 	if (ppict->filter == PictFilterBilinear) {
-		OUT_RING  (0x00000062);
+		OUT_RING(NV50TSC_1_1_MAGF_LINEAR |
+			 NV50TSC_1_1_MINF_LINEAR |
+			 NV50TSC_1_1_MIPF_NONE);
 	} else {
-		OUT_RING  (0x00000051);
+		OUT_RING(NV50TSC_1_1_MAGF_NEAREST |
+			 NV50TSC_1_1_MINF_NEAREST |
+			 NV50TSC_1_1_MIPF_NONE);
 	}
 	OUT_RING  (0x00000000);
 	OUT_RING  (0x00000000);
@@ -567,40 +610,40 @@ NV50EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 
 	if (b->dst_alpha) {
 		if (!PICT_FORMAT_A(ppict->format)) {
-			if (sblend == 0x4304)
-				sblend = 0x4001;
+			if (sblend == BF(DST_ALPHA))
+				sblend = BF(ONE);
 			else
-			if (sblend == 0x4305)
-				sblend = 0x4000;
+			if (sblend == BF(ONE_MINUS_DST_ALPHA))
+				sblend = BF(ZERO);
 		} else
 		if (ppict->format == PICT_a8) {
-			if (sblend == 0x4304)
-				sblend = 0x4306;
+			if (sblend == BF(DST_ALPHA))
+				sblend = BF(DST_COLOR);
 			else
-			if (sblend == 0x4305)
-				sblend = 0x4307;
+			if (sblend == BF(ONE_MINUS_DST_ALPHA))
+				sblend = BF(ONE_MINUS_DST_COLOR);
 		}
 	}
 
 	if (b->src_alpha && component_alpha) {
-		if (dblend == 0x4302)
-			dblend = 0x4300;
+		if (dblend == BF(SRC_ALPHA))
+			dblend = BF(SRC_COLOR);
 		else
-		if (dblend == 0x4303)
-			dblend = 0x4301;
+		if (dblend == BF(ONE_MINUS_SRC_ALPHA))
+			dblend = BF(ONE_MINUS_SRC_COLOR);
 	}
 
-	if (b->src_blend == 0x4001 && b->dst_blend == 0x4000) {
+	if (b->src_blend == BF(ONE) && b->dst_blend == BF(ZERO)) {
 		BEGIN_RING(Nv3D, NV50TCL_BLEND_ENABLE(0), 1);
 		OUT_RING  (0);
 	} else {
 		BEGIN_RING(Nv3D, NV50TCL_BLEND_ENABLE(0), 1);
 		OUT_RING  (1);
 		BEGIN_RING(Nv3D, NV50TCL_BLEND_EQUATION_RGB, 5);
-		OUT_RING  (0x8006);
+		OUT_RING  (NV50TCL_BLEND_EQUATION_RGB_FUNC_ADD);
 		OUT_RING  (sblend);
 		OUT_RING  (dblend);
-		OUT_RING  (0x8006);
+		OUT_RING  (NV50TCL_BLEND_EQUATION_ALPHA_FUNC_ADD);
 		OUT_RING  (sblend);
 		BEGIN_RING(Nv3D, NV50TCL_BLEND_FUNC_DST_ALPHA, 1);
 		OUT_RING  (dblend);
@@ -654,7 +697,7 @@ NV50EXAPrepareComposite(int op,
 			NOUVEAU_FALLBACK("mask picture invalid\n");
 		state->have_mask = TRUE;
 
-		BEGIN_RING(Nv3D, 0x1414, 1);
+		BEGIN_RING(Nv3D, NV50TCL_FP_START_ID, 1);
 		if (pdpict->format == PICT_a8) {
 			OUT_RING(PFP_C_A8);
 		} else {
@@ -673,7 +716,7 @@ NV50EXAPrepareComposite(int op,
 			NOUVEAU_FALLBACK("src picture invalid\n");
 		state->have_mask = FALSE;
 
-		BEGIN_RING(Nv3D, 0x1414, 1);
+		BEGIN_RING(Nv3D, NV50TCL_FP_START_ID, 1);
 		if (pdpict->format == PICT_a8)
 			OUT_RING(PFP_S_A8);
 		else
@@ -733,8 +776,8 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 			 state->unit[0].width, state->unit[0].height,
 			 &sX3, &sY3);
 
-	BEGIN_RING(Nv3D, 0x15dc, 1);
-	OUT_RING  (7);
+	BEGIN_RING(Nv3D, NV50TCL_VERTEX_BEGIN, 1);
+	OUT_RING  (NV50TCL_VERTEX_BEGIN_QUADS);
 	if (state->have_mask) {
 		float mX0, mX1, mX2, mX3, mY0, mY1, mY2, mY3;
 
@@ -789,7 +832,7 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
 		OUT_RING  ((dY1 << 16) | dX0);
 	}
-	BEGIN_RING(Nv3D, 0x15e0, 1);
+	BEGIN_RING(Nv3D, NV50TCL_VERTEX_END, 1);
 	OUT_RING  (0);
 }
 
@@ -826,13 +869,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 
 	BEGIN_RING(Nv3D, 0x1558, 1);
 	OUT_RING  (1);
-	BEGIN_RING(Nv3D, 0x0180, 1);
+	BEGIN_RING(Nv3D, NV50TCL_DMA_NOTIFY, 1);
 	OUT_RING  (pNv->NvNull->handle);
-	BEGIN_RING(Nv3D, 0x0184, 11);
-	for (i = 0; i < 11; i++)
+	BEGIN_RING(Nv3D, NV50TCL_DMA_UNK0(0), NV50TCL_DMA_UNK0__SIZE);
+	for (i = 0; i < NV50TCL_DMA_UNK0__SIZE; i++)
 		OUT_RING(pNv->chan->vram->handle);
-	BEGIN_RING(Nv3D, 0x01c0, 8);
-	for (i = 0; i < 8; i++)
+	BEGIN_RING(Nv3D, NV50TCL_DMA_UNK1(0), NV50TCL_DMA_UNK1__SIZE);
+	for (i = 0; i < NV50TCL_DMA_UNK1__SIZE; i++)
 		OUT_RING(pNv->chan->vram->handle);
 	BEGIN_RING(Nv3D, 0x121c, 1);
 	OUT_RING  (1);
@@ -849,16 +892,16 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, 0x13bc, 1);
 	OUT_RING  (0x54);
 
-	BEGIN_RING(Nv3D, 0x0f7c, 2);
+	BEGIN_RING(Nv3D, NV50TCL_VP_ADDRESS_HIGH, 2);
 	OUT_RELOCh(pNv->tesla_scratch, PVP_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PVP_OFFSET, NOUVEAU_BO_VRAM);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PVP_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PVP_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, (3*4*2));	
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, (3*4*2));	
 	OUT_RING  (0x10000001);
 	OUT_RING  (0x0423c788);
 	OUT_RING  (0x10000205);
@@ -884,7 +927,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x1000162d);
 	OUT_RING  (0x0423c789);
 
-	BEGIN_RING(Nv3D, 0x1650, 2);
+	BEGIN_RING(Nv3D, NV50TCL_VP_ATTR_EN_0, 2);
 	OUT_RING  (0x0000000f);
 	OUT_RING  (0x000000ff);
 	BEGIN_RING(Nv3D, 0x16b8, 1);
@@ -892,32 +935,32 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv3D, 0x16ac, 2);
 	OUT_RING  (12);
 	OUT_RING  (4);
-	BEGIN_RING(Nv3D, 0x140c, 1);
+	BEGIN_RING(Nv3D, NV50TCL_VP_START_ID, 1);
 	OUT_RING  (0);
 
-	BEGIN_RING(Nv3D, 0x0fa4, 2);
+	BEGIN_RING(Nv3D, NV50TCL_FP_ADDRESS_HIGH, 2);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET, NOUVEAU_BO_VRAM);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_S, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_S, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 6);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 6);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82010200);
 	OUT_RING  (0x82020204);
 	OUT_RING  (0xf6400001);
 	OUT_RING  (0x0000c785);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_C, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_C, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 16);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 16);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82030210);
@@ -934,13 +977,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0xc004060c);
 	OUT_RING  (0x00000001);
 	OUT_RING  (0x00000001);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_CCA, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_CCA, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 16);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 16);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82030210);
@@ -957,13 +1000,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0xc007060c);
 	OUT_RING  (0x00000001);
 	OUT_RING  (0x00000001);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_CCASA, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_CCASA, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 16);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 16);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82030200);
@@ -980,13 +1023,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0xc004060c);
 	OUT_RING  (0x00000001);
 	OUT_RING  (0x00000001);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_S_A8, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_S_A8, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 10);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 10);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82010200);
@@ -997,13 +1040,13 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x10008008);
 	OUT_RING  (0x1000000d);
 	OUT_RING  (0x0403c781);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, PFP_OFFSET + PFP_C_A8, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, PFP_OFFSET + PFP_C_A8, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
-	BEGIN_RING(Nv3D, 0x0f00, 1);
+	OUT_RING  ((0 << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
+	BEGIN_RING(Nv3D, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (0);
-	BEGIN_RING(Nv3D, 0x40000f04, 15);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DATA(0) | 0x40000000, 15);
 	OUT_RING  (0x80000000);
 	OUT_RING  (0x90000004);
 	OUT_RING  (0x82030208);
@@ -1029,33 +1072,33 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (0x08070407);
 	OUT_RING  (0x00000008);
 
-	BEGIN_RING(Nv3D, 0x1574, 3);
+	BEGIN_RING(Nv3D, NV50TCL_TIC_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RING  (0x00000800);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00004000);
+	OUT_RING  ((CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 
-	BEGIN_RING(Nv3D, 0x155c, 3);
+	BEGIN_RING(Nv3D, NV50TCL_TSC_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RING  (0x00000000);
-	BEGIN_RING(Nv3D, 0x1280, 3);
+	BEGIN_RING(Nv3D, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
 	OUT_RELOCl(pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (0x00014000);
+	OUT_RING  ((CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 
-	BEGIN_RING(Nv3D, 0x0c00, 2);
-	OUT_RING  (8192 << 16);
-	OUT_RING  (8192 << 16);
-	BEGIN_RING(Nv3D, 0x0e04, 2);
-	OUT_RING  (8192 << 16);
-	OUT_RING  (8192 << 16);
+	BEGIN_RING(Nv3D, NV50TCL_VIEWPORT_HORIZ, 2);
+	OUT_RING  (8192 << NV50TCL_VIEWPORT_HORIZ_W_SHIFT);
+	OUT_RING  (8192 << NV50TCL_VIEWPORT_VERT_H_SHIFT);
+	BEGIN_RING(Nv3D, NV50TCL_SCISSOR_HORIZ, 2);
+	OUT_RING  (8192 << NV50TCL_SCISSOR_HORIZ_R_SHIFT);
+	OUT_RING  (8192 << NV50TCL_SCISSOR_VERT_B_SHIFT);
 	BEGIN_RING(Nv3D, 0x0ff4, 2);
-	OUT_RING  (8192 << 16);
-	OUT_RING  (8192 << 16);
+	OUT_RING  (8192 << NV50TCL_UNKFF4_W_SHIFT);
+	OUT_RING  (8192 << NV50TCL_UNKFF8_H_SHIFT);
 
 	return TRUE;
 }
