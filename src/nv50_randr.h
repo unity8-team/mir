@@ -31,6 +31,7 @@
 typedef struct NV50CrtcPrivate {
 	int head;
 	nouveauCrtcPtr crtc;
+	struct nouveau_bo *shadow;
 } NV50CrtcPrivateRec, *NV50CrtcPrivatePtr;
 
 typedef struct NV50OutputPrivate {

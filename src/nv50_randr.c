@@ -95,8 +95,13 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjuste
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* Maybe move this elsewhere? */
-	nv_crtc->crtc->SetFB(nv_crtc->crtc, pNv->FB);
-	nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
+	if (crtc->rotatedData) {
+		nv_crtc->crtc->SetFB(nv_crtc->crtc, nv_crtc->shadow);
+		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, 0, 0);
+	} else {
+		nv_crtc->crtc->SetFB(nv_crtc->crtc, pNv->FB);
+		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
+	}
 	nv_crtc->crtc->ModeSet(nv_crtc->crtc, mode);
 }
 
@@ -197,6 +202,82 @@ nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
 	nv_crtc->crtc->LoadCursor(nv_crtc->crtc, TRUE, (uint32_t *) src);
 }
 
+/* This stuff isn't ready for NOUVEAU_EXA_PIXMAPS, but can be easily ported. */
+static void *
+nv50_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
+	int size, pitch;
+
+	ErrorF("nv50_crtc_shadow_allocate\n");
+
+	pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
+	size = pitch * height;
+
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			64, size, &nv_crtc->shadow)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for shadow buffer!\n");
+		return NULL;
+	}
+
+	if (nv_crtc->shadow && nouveau_bo_map(nv_crtc->shadow, NOUVEAU_BO_RDWR)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				"Failed to map shadow buffer.\n");
+		return NULL;
+	}
+
+	return nv_crtc->shadow->map;
+}
+
+static PixmapPtr
+nv50_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	uint32_t pitch;
+	PixmapPtr rotate_pixmap;
+
+	ErrorF("nv50_crtc_shadow_create\n");
+
+	if (!data)
+		data = crtc->funcs->shadow_allocate (crtc, width, height);
+
+	pitch = pScrn->displayWidth * (pScrn->bitsPerPixel/8);
+
+	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
+						width, height,
+						pScrn->depth,
+						pScrn->bitsPerPixel,
+						pitch,
+						data);
+
+	if (rotate_pixmap == NULL) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Couldn't allocate shadow pixmap for rotated CRTC\n");
+	}
+
+	return rotate_pixmap;
+}
+
+static void
+nv50_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
+	ScreenPtr pScreen = pScrn->pScreen;
+
+	ErrorF("nv50_crtc_shadow_destroy\n");
+
+	if (rotate_pixmap)
+		pScreen->DestroyPixmap(rotate_pixmap);
+
+	if (nv_crtc->shadow)
+		nouveau_bo_del(&nv_crtc->shadow);
+
+	nv_crtc->shadow = NULL;
+}
+
 static void
 nv50_crtc_destroy(xf86CrtcPtr crtc)
 {
@@ -214,8 +295,9 @@ static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.mode_set = nv50_crtc_mode_set,
 	.gamma_set = nv50_crtc_gamma_set,
 	.commit = nv50_crtc_commit,
-	.shadow_create = NULL,
-	.shadow_destroy = NULL,
+	.shadow_create = nv50_crtc_shadow_create,
+	.shadow_allocate = nv50_crtc_shadow_allocate,
+	.shadow_destroy = nv50_crtc_shadow_destroy,
 	.set_cursor_position = nv50_crtc_set_cursor_position,
 	.show_cursor = nv50_crtc_show_cursor,
 	.hide_cursor = nv50_crtc_hide_cursor,
