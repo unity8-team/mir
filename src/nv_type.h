@@ -520,7 +520,7 @@ typedef struct _NVRec {
 	struct nouveau_grobj *NvImageFromCpu;
 	struct nouveau_grobj *Nv2D;
 	struct nouveau_grobj *Nv3D;
-
+	struct nouveau_bo *tesla_scratch;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

@@ -507,6 +507,9 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 
 	/* 3D init */
 	switch (pNv->Architecture) {
+	case NV_ARCH_50:
+		INIT_CONTEXT_OBJECT(NV50TCL);
+		break;
 	case NV_ARCH_40:
 		INIT_CONTEXT_OBJECT(NV40TCL);
 		break;
