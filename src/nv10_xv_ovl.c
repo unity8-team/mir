@@ -34,9 +34,9 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
-extern Atom xvBrightness, xvContrast, xvColorKey, xvSaturation,       
-          xvHue, xvAutopaintColorKey, xvSetDefaults, xvDoubleBuffer,
-	       xvITURBT709, xvSyncToVBlank, xvOnCRTCNb;
+extern Atom xvBrightness, xvContrast, xvColorKey, xvSaturation;
+extern Atom xvHue, xvAutopaintColorKey, xvSetDefaults, xvDoubleBuffer;
+extern Atom xvITURBT709, xvSyncToVBlank, xvOnCRTCNb;
 
 /**
  * NV10PutOverlayImage
@@ -60,13 +60,11 @@ extern Atom xvBrightness, xvContrast, xvColorKey, xvSaturation,
  * @param clipBoxes ???
  */
 void
-NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
-                  int dstPitch, BoxPtr dstBox,
-                  int x1, int y1, int x2, int y2,
-                  short width, short height,
-                  short src_w, short src_h,
-                  short drw_w, short drw_h,
-                  RegionPtr clipBoxes)
+NV10PutOverlayImage(ScrnInfoPtr pScrn,
+		    struct nouveau_bo *src, int offset, int uvoffset, int id,
+		    int dstPitch, BoxPtr dstBox, int x1, int y1, int x2, int y2,
+		    short width, short height, short src_w, short src_h,
+		    short drw_w, short drw_h, RegionPtr clipBoxes)
 {
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
@@ -103,7 +101,8 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
 	//16,y1>>16, (src_w << 20) / drw_w, (src_h << 20) / drw_h,  (dstBox->x1),(dstBox->y1), (dstBox->y2 - dstBox->y1), (dstBox->x2 - dstBox->x1));
 
         nvWriteVIDEO(pNv, NV_PVIDEO_BASE(buffer)     , 0);
-        nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(buffer)     , offset);
+        nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(buffer),
+			  src->offset + offset);
         nvWriteVIDEO(pNv, NV_PVIDEO_SIZE_IN(buffer)  , (height << 16) | width);
         nvWriteVIDEO(pNv, NV_PVIDEO_POINT_IN(buffer) ,
                           ((y1 << 4) & 0xffff0000) | (x1 >> 12));
@@ -125,11 +124,11 @@ NV10PutOverlayImage(ScrnInfoPtr pScrn, int offset, int uvoffset, int id,
                 dstPitch |= NV_PVIDEO_FORMAT_PLANAR;
 
         /* Those are important only for planar formats (NV12) */
-        if ( uvoffset )
-                {
+        if (uvoffset) {
                 nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_BASE(buffer), 0);
-                nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_OFFSET_BUFF(buffer), uvoffset);
-                }
+                nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_OFFSET_BUFF(buffer),
+				  src->offset + uvoffset);
+	}
 
         nvWriteVIDEO(pNv, NV_PVIDEO_FORMAT(buffer), dstPitch);
         nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 0);

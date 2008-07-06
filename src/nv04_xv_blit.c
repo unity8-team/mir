@@ -60,8 +60,8 @@ extern Atom xvSetDefaults, xvSyncToVBlank;
  * @param pDraw
  */
 void
-NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
-               int src_pitch, BoxPtr dstBox,
+NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
+	       int id, int src_pitch, BoxPtr dstBox,
                int x1, int y1, int x2, int y2,
                short width, short height,
                short src_w, short src_h,
@@ -155,7 +155,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, int src_offset, int id,
                                 NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
                 OUT_RING  ((height << 16) | width);
                 OUT_RING  (src_pitch);
-                OUT_RING  (src_offset);
+		OUT_RELOCl(src, src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
                 OUT_RING  (src_point);
                 pbox++;
         }

@@ -145,19 +145,17 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);
 
 /* in nv04_video_overlay.c */
-void NV04PutOverlayImage(ScrnInfoPtr, int, int, int, BoxPtr,
-		int, int, int, int, short, short, short, short,
-		short, short, RegionPtr clipBoxes);
+void NV04PutOverlayImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int,
+			 BoxPtr, int, int, int, int, short, short, short,
+			 short, short, short, RegionPtr clipBoxes);
 int NV04SetOverlayPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int NV04GetOverlayPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NV04StopOverlay(ScrnInfoPtr);
 
 /* in nv04_video_blitter.c */
-void NVPutBlitImage(ScrnInfoPtr, int, int, int, BoxPtr,
-		int, int, int, int,
-		short, short, short,
-		short, short, short,
-		RegionPtr, PixmapPtr);
+void NVPutBlitImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, BoxPtr,
+		    int, int, int, int, short, short, short, short, short,
+		    short, RegionPtr, PixmapPtr);
 int NVSetBlitPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int NVGetBlitPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NVStopBlitVideo(ScrnInfoPtr, pointer, Bool);
@@ -171,9 +169,9 @@ void NV10Composite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV10DoneComposite(PixmapPtr);
 
 /* in nv10_video_overlay.c */
-void NV10PutOverlayImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
-		int, int, int, int, short, short, short, short, 
-		short, short, RegionPtr clipBoxes);
+void NV10PutOverlayImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
+			 BoxPtr, int, int, int, int, short, short, short,
+			 short, short, short, RegionPtr clipBoxes);
 int NV10SetOverlayPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int NV10GetOverlayPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NV10StopOverlay(ScrnInfoPtr);
@@ -188,10 +186,10 @@ void NV30EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV30EXADoneComposite(PixmapPtr);
 
 /* in nv30_video_texture.c */
-int NV30PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
-		int, int, int, int, uint16_t, uint16_t,
-		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, PixmapPtr, NVPortPrivPtr);
+int NV30PutTextureImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
+			BoxPtr, int, int, int, int, uint16_t, uint16_t,
+			uint16_t, uint16_t, uint16_t, uint16_t,
+			RegionPtr, PixmapPtr, NVPortPrivPtr);
 void NV30StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV30GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV30SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
@@ -205,10 +203,10 @@ void NV40EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV40EXADoneComposite(PixmapPtr);
 
 /* in nv40_video_texture.c */
-int NV40PutTextureImage(ScrnInfoPtr, int, int, int, int, BoxPtr,
-		int, int, int, int, uint16_t, uint16_t,
-		uint16_t, uint16_t, uint16_t, uint16_t,
-		RegionPtr, PixmapPtr, NVPortPrivPtr);
+int NV40PutTextureImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
+			BoxPtr, int, int, int, int, uint16_t, uint16_t,
+			uint16_t, uint16_t, uint16_t, uint16_t,
+			RegionPtr, PixmapPtr, NVPortPrivPtr);
 void NV40StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);

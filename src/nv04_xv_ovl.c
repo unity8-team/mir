@@ -37,13 +37,11 @@
 extern Atom xvBrightness, xvColorKey, xvAutopaintColorKey, xvSetDefaults;
 
 void
-NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
-                  int dstPitch, BoxPtr dstBox,
-                  int x1, int y1, int x2, int y2,
-                  short width, short height,
-                  short src_w, short src_h,
-                  short drw_w, short drw_h,
-                  RegionPtr clipBoxes)
+NV04PutOverlayImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
+		    int id, int dstPitch, BoxPtr dstBox, int x1, int y1,
+		    int x2, int y2, short width, short height,
+		    short src_w, short src_h, short drw_w, short drw_h,
+		    RegionPtr clipBoxes)
 {                       
 	NVPtr         pNv    = NVPTR(pScrn);
 	NVPortPrivPtr pPriv  = GET_OVERLAY_PRIVATE(pNv);
@@ -80,8 +78,10 @@ NV04PutOverlayImage(ScrnInfoPtr pScrn, int offset, int id,
         nvWriteVIDEO(pNv, NV_PVIDEO_SU_STATE, 0);
         nvWriteVIDEO(pNv, NV_PVIDEO_RM_STATE, 0);
 
-        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS, offset);
-        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS + 4, offset);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS,
+			  src->offset + offset);
+        nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_START_ADDRESS + 4,
+			  src->offset + offset);
         nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_PITCH_LENGTH, dstPitch);
         nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4, dstPitch);
         nvWriteVIDEO(pNv, NV_PVIDEO_BUFF0_OFFSET, 0);

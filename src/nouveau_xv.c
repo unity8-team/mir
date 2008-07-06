@@ -1007,7 +1007,6 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
  * @param data pointer to port
  * @param pDraw drawable pointer
  */
-/*FIXME: need to honor the Sync*/
 static int
 NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	   short drw_y, short src_w, short src_h, short drw_w, short drw_h,
@@ -1079,9 +1078,9 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 				    &pPriv->video_mem);
 	if (ret)
 		return BadAlloc;
-	offset = pPriv->video_mem->offset;
 
 	/* The overlay supports hardware double buffering. We handle this here*/
+	offset = 0;
 	if (pPriv->doubleBuffer) {
 		int mask = 1 << (pPriv->currentBuffer << 2);
 
@@ -1231,9 +1230,10 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 			BEGIN_RING(NvMemFormat,
 				   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-			OUT_RING  ((uint32_t)destination_buffer->offset +
-					     line_len * nlines);
-			OUT_RING  ((uint32_t)offset + dstPitch * nlines);
+			OUT_RELOCl(destination_buffer, line_len * nlines,
+				   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+			OUT_RELOCl(pPriv->video_mem, offset + dstPitch * nlines,
+				   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 			OUT_RING  (line_len);
 			OUT_RING  (dstPitch);
 			OUT_RING  (line_len);
@@ -1245,8 +1245,10 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 		BEGIN_RING(NvMemFormat,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING  ((uint32_t)destination_buffer->offset);
-		OUT_RING  ((uint32_t)offset);
+		OUT_RELOCl(destination_buffer, 0,
+			   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+		OUT_RELOCl(pPriv->video_mem, offset,
+			   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 		OUT_RING  (line_len);
 		OUT_RING  (dstPitch);
 		OUT_RING  (line_len);
@@ -1287,8 +1289,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 	} else {
 CPU_copy:
-		map = pPriv->video_mem->map +
-		      (offset - pPriv->video_mem->offset);
+		map = pPriv->video_mem->map + offset;
 
 		if (action_flags & IS_YV12) {
 			if (action_flags & CONVERT_TO_YUY2) {
@@ -1389,9 +1390,9 @@ CPU_copy:
 
 	if (action_flags & USE_OVERLAY) {
 		if (pNv->Architecture == NV_ARCH_04) {
-			NV04PutOverlayImage(pScrn, offset, id, dstPitch,
-					    &dstBox, 0, 0, xb, yb,
-					    npixels, nlines,
+			NV04PutOverlayImage(pScrn, pPriv->video_mem, offset,
+					    id, dstPitch, &dstBox, 0, 0,
+					    xb, yb, npixels, nlines,
 					    src_w, src_h, drw_w, drw_h,
 					    clipBoxes);
 		} else {
@@ -1400,8 +1401,9 @@ CPU_copy:
 			if (action_flags & (IS_YUY2 | CONVERT_TO_YUY2))
 				uvoffset = offset + nlines * dstPitch;
 
-			NV10PutOverlayImage(pScrn, offset, uvoffset, id,
-					    dstPitch, &dstBox, 0, 0, xb, yb,
+			NV10PutOverlayImage(pScrn, pPriv->video_mem, offset,
+					    uvoffset, id, dstPitch, &dstBox,
+					    0, 0, xb, yb,
 					    npixels, nlines, src_w, src_h,
 					    drw_w, drw_h, clipBoxes);
 		}
@@ -1412,7 +1414,8 @@ CPU_copy:
 		int ret = BadImplementation;
 
 		if (pNv->Architecture == NV_ARCH_30) {
-			ret = NV30PutTextureImage(pScrn, offset,
+			ret = NV30PutTextureImage(pScrn, pPriv->video_mem,
+						  offset,
 						  offset + nlines * dstPitch,
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
@@ -1420,7 +1423,8 @@ CPU_copy:
 						  clipBoxes, ppix, pPriv);
 		} else
 		if (pNv->Architecture == NV_ARCH_40) {
-			ret = NV40PutTextureImage(pScrn, offset,
+			ret = NV40PutTextureImage(pScrn, pPriv->video_mem, 
+						  offset,
 						  offset + nlines * dstPitch,
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
@@ -1431,8 +1435,8 @@ CPU_copy:
 		if (ret != Success)
 			return ret;
 	} else {
-		NVPutBlitImage(pScrn, offset, id, dstPitch, &dstBox,
-			       0, 0, xb, yb, npixels, nlines,
+		NVPutBlitImage(pScrn, pPriv->video_mem, offset, id, dstPitch,
+			       &dstBox, 0, 0, xb, yb, npixels, nlines,
 			       src_w, src_h, drw_w, drw_h, clipBoxes, ppix);
 	}
 
@@ -1545,7 +1549,6 @@ NVAllocSurface(ScrnInfoPtr pScrn, int id,
 				    &pPriv->video_mem);
 	if (ret)
 		return BadAlloc;
-
 	pPriv->offset = 0;
 
 	surface->width = w;
@@ -1655,10 +1658,10 @@ NVDisplaySurface(XF86SurfacePtr surface,
 
 	pPriv->currentBuffer = 0;
 
-	NV10PutOverlayImage(pScrn, surface->offsets[0], 0, surface->id,
-			  surface->pitches[0], &dstBox, xa, ya, xb, yb,
-			  surface->width, surface->height, src_w, src_h,
-			  drw_w, drw_h, clipBoxes);
+	NV10PutOverlayImage(pScrn, pPriv->video_mem, surface->offsets[0],
+			    0, surface->id, surface->pitches[0], &dstBox,
+			    xa, ya, xb, yb, surface->width, surface->height,
+			    src_w, src_h, drw_w, drw_h, clipBoxes);
 
 	return Success;
 }

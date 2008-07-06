@@ -88,28 +88,29 @@ static void compute_filter_table(int8_t *t) {
 	}
 }
 
-static uint64_t NV40_LoadFilterTable(ScrnInfoPtr pScrn)
+static struct nouveau_bo *table_mem = NULL;
+static void
+NV40_LoadFilterTable(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	static struct nouveau_bo *table_mem = NULL;
 
 	if (!table_mem) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
 				0, TABLE_SIZE*sizeof(float)*4, &table_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				"Couldn't alloc filter table!\n");
-			return 0;
+			return;
 		}
 
 		if (nouveau_bo_map(table_mem, NOUVEAU_BO_RDWR)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Couldn't map filter table!\n");
+			return;
 		}
 
 		int8_t *t=table_mem->map;
 		compute_filter_table(t);
 	}
-	return table_mem->offset;
 }
 
 #define SWIZZLE(ts0x,ts0y,ts0z,ts0w,ts1x,ts1y,ts1z,ts1w)				\
@@ -126,7 +127,8 @@ static uint64_t NV40_LoadFilterTable(ScrnInfoPtr pScrn)
  * Texture 2 : UV data
  */
 static Bool
-NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height, uint16_t src_pitch, int unit)
+NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
+		 uint16_t width, uint16_t height, uint16_t src_pitch, int unit)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
@@ -134,15 +136,15 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 	uint32_t card_swz = 0;
 
 	switch(unit) {
-		case 0:
+	case 0:
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8R8G8B8;
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, Y, Z, W);
 		break;
-		case 1:
+	case 1:
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_L8;
 		card_swz = SWIZZLE(S1, S1, S1, S1, X, X, X, X);
 		break;
-		case 2:
+	case 2:
 		card_fmt = NV40TCL_TEX_FORMAT_FORMAT_A8L8;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		card_swz = SWIZZLE(S1, S1, S1, S1, Z, W, X, Y); /* x = V, y = U */
@@ -153,8 +155,7 @@ NV40VideoTexture(ScrnInfoPtr pScrn, int offset, uint16_t width, uint16_t height,
 	}
 
 	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
-	/* We get an absolute offset, which needs to be corrected. */
-	OUT_RELOCl(pNv->FB, (uint32_t)(offset - pNv->FB->offset), NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	if (unit==0) {
 		OUT_RELOCd(pNv->FB, card_fmt | 
 				NV40TCL_TEX_FORMAT_DIMS_1D | NV40TCL_TEX_FORMAT_NO_BORDER |
@@ -235,7 +236,8 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 } while(0)
 
 int
-NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset, int src_offset2,
+NV40PutTextureImage(ScrnInfoPtr pScrn,
+		    struct nouveau_bo *src, int src_offset, int src_offset2,
 		    int id, int src_pitch, BoxPtr dstBox,
 		    int x1, int y1, int x2, int y2,
 		    uint16_t width, uint16_t height,
@@ -250,7 +252,6 @@ NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset, int src_offset2,
 	BoxPtr pbox;
 	int nbox;
 	int dst_format = 0;
-	uint64_t filter_table_offset=0;
 
 	if (drw_w > 4096 || drw_h > 4096) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -282,12 +283,12 @@ NV40PutTextureImage(ScrnInfoPtr pScrn, int src_offset, int src_offset2,
 	OUT_RING  (exaGetPixmapPitch(ppix));
 	OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
-	filter_table_offset=NV40_LoadFilterTable(pScrn);
+	NV40_LoadFilterTable(pScrn);
 
-	NV40VideoTexture(pScrn, filter_table_offset, TABLE_SIZE, 1, 0 , 0);
-	NV40VideoTexture(pScrn, src_offset, src_w, src_h, src_pitch, 1);
+	NV40VideoTexture(pScrn, table_mem, 0, TABLE_SIZE, 1, 0 , 0);
+	NV40VideoTexture(pScrn, src, src_offset, src_w, src_h, src_pitch, 1);
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
-	NV40VideoTexture(pScrn, src_offset2, src_w/2, src_h/2, src_pitch, 2);
+	NV40VideoTexture(pScrn, src, src_offset2, src_w/2, src_h/2, src_pitch, 2);
 
 	NV40_LoadVtxProg(pScrn, &nv40_vp_video);
 	if (pPriv->bicubic)
