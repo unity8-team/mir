@@ -319,11 +319,16 @@ static inline Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 }
 
 static inline Bool
-NVAccelDownloadM2MF(ScrnInfoPtr pScrn, char *dst, PixmapPtr pspix,
-		    uint32_t src_offset, int dst_pitch, int src_pitch,
-		    int line_len, int line_count)
+NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
+		    char *dst, unsigned dst_pitch)
 {
+	ScrnInfoPtr pScrn = xf86Screens[pspix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
+	unsigned line_len = w * cpp;
+	unsigned line_count = h;
+	unsigned src_pitch  = exaGetPixmapPitch(pspix);
+	unsigned src_offset = (y * src_pitch) + (x * cpp);
 
 	BEGIN_RING(NvMemFormat, 0x184, 2);
 	OUT_PIXMAPo(pspix, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
@@ -433,8 +438,7 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	offset = (y * src_pitch) + (x * cpp);
 
 	if (pNv->GART) {
-		if (NVAccelDownloadM2MF(pScrn, dst, pSrc, offset,
-					dst_pitch, src_pitch, w * cpp, h))
+		if (NVAccelDownloadM2MF(pSrc, x, y, w, h, dst, dst_pitch))
 			return TRUE;
 	}
 
@@ -524,11 +528,16 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 }
 
 static inline Bool
-NVAccelUploadM2MF(ScrnInfoPtr pScrn, PixmapPtr pdpix, uint32_t dst_offset,
-		  const char *src, int dst_pitch, int src_pitch,
-		  int line_len, int line_count)
+NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
+		  const char *src, int src_pitch)
 {
+	ScrnInfoPtr pScrn = xf86Screens[pdpix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
+	unsigned line_len = w * cpp;
+	unsigned line_count = h;
+	unsigned dst_pitch  = exaGetPixmapPitch(pdpix);
+	unsigned dst_offset = (y * dst_pitch) + (x * cpp);
 
 	BEGIN_RING(NvMemFormat, 0x184, 2);
 	OUT_RELOCo(pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
@@ -637,8 +646,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 
 	/* try gart-based transfer */
 	if (pNv->GART) {
-		if (NVAccelUploadM2MF(pScrn, pDst, (y * dst_pitch) + (x * cpp),
-				      src, dst_pitch, src_pitch, w * cpp, h))
+		if (NVAccelUploadM2MF(pDst, x, y, w, h, src, src_pitch))
 			return TRUE;
 	}
 
@@ -895,8 +903,7 @@ NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->DoneSolid = NV50EXADoneSolid;
 	}
 
-	switch (pNv->Architecture) {
-	
+	switch (pNv->Architecture) {	
 	case NV_ARCH_10:
 	case NV_ARCH_20:
  		pNv->EXADriverPtr->CheckComposite   = NV10CheckComposite;
