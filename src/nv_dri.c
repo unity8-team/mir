@@ -257,7 +257,7 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 	}
 	
 	/* temporary lock step versioning */
-#if NOUVEAU_DRM_HEADER_PATCHLEVEL != 10
+#if NOUVEAU_DRM_HEADER_PATCHLEVEL != 11
 #error nouveau_drm.h does not match expected patchlevel, update libdrm.
 #endif
 	if (pNv->pKernelDRMVersion->version_patchlevel !=

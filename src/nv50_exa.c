@@ -62,12 +62,22 @@ NV50EXAAcquireSurface2D(PixmapPtr pPix, int is_src)
 	bo_flags  = NOUVEAU_BO_VRAM;
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
-	BEGIN_RING(Nv2D, mthd, 2);
-	OUT_RING  (fmt);
-	OUT_RING  (1);
+	if (exaGetPixmapOffset(pPix) < pNv->EXADriverPtr->offScreenBase) {
+		BEGIN_RING(Nv2D, mthd, 2);
+		OUT_RING  (fmt);
+		OUT_RING  (1);
+		BEGIN_RING(Nv2D, mthd + 0x14, 1);
+		OUT_RING  ((uint32_t)exaGetPixmapPitch(pPix));
+	} else {
+		BEGIN_RING(Nv2D, mthd, 5);
+		OUT_RING  (fmt);
+		OUT_RING  (0);
+		OUT_RING  (0);
+		OUT_RING  (1);
+		OUT_RING  (0);
+	}
 
-	BEGIN_RING(Nv2D, mthd + 0x14, 5);
-	OUT_RING  ((uint32_t)exaGetPixmapPitch(pPix));
+	BEGIN_RING(Nv2D, mthd + 0x18, 4);
 	OUT_RING  (pPix->drawable.width);
 	OUT_RING  (pPix->drawable.height);
 	OUT_PIXMAPh(pPix, 0, bo_flags);
