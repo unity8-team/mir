@@ -228,6 +228,8 @@ nv50_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
+	pNv->shadow[nv_crtc->crtc->index] = nv_crtc->shadow;
+
 	return nv_crtc->shadow->map;
 }
 
@@ -265,6 +267,7 @@ nv50_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
+	NVPtr pNv = NVPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
 
 	ErrorF("nv50_crtc_shadow_destroy\n");
@@ -276,6 +279,8 @@ nv50_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		nouveau_bo_del(&nv_crtc->shadow);
 
 	nv_crtc->shadow = NULL;
+	/* for easy acces by exa */
+	pNv->shadow[nv_crtc->crtc->index] = NULL;
 }
 
 static void

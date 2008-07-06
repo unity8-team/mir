@@ -324,6 +324,9 @@ drmmode_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	if (ret)
 		return NULL;
 
+	/* for easy acces by exa */
+	pNv->shadow[drmmode_crtc->index] = drmmode_crtc->shadow;
+
 	return drmmode_crtc->shadow->map;
 }
 
@@ -362,6 +365,7 @@ drmmode_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
 
 	ErrorF("drmmode_shadow_destroy\n");
@@ -378,6 +382,9 @@ drmmode_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		nouveau_bo_del(&drmmode_crtc->shadow);
 
 	drmmode_crtc->shadow = NULL;
+
+	/* for easy acces by exa */
+	pNv->shadow[drmmode_crtc->index] = NULL;
 }
 
 static void

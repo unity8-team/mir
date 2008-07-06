@@ -654,7 +654,7 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	return FALSE;
 }
 
-#ifdef NOUVEAU_EXA_PIXMAPS
+#if NOUVEAU_EXA_PIXMAPS
 static Bool
 NVExaPrepareAccess(PixmapPtr pPix, int index)
 {
@@ -775,6 +775,27 @@ NVExaModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
 }
 #endif
 
+#if !NOUVEAU_EXA_PIXMAPS
+static Bool
+nouveau_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	void *addr = (void *)pPixmap->devPrivate.ptr;
+
+	if (addr >= pNv->FB->map && addr < (pNv->FB->map + pNv->FB->size))
+		return TRUE;
+
+	if (pNv->shadow[0] && (addr >= pNv->shadow[0]->map && addr < (pNv->shadow[0]->map + pNv->shadow[0]->size)))
+		return TRUE;
+
+	if (pNv->shadow[1] && (addr >= pNv->shadow[1]->map && addr < (pNv->shadow[1]->map + pNv->shadow[1]->size)))
+		return TRUE;
+
+	return FALSE;
+}
+#endif /* !NOUVEAU_EXA_PIXMAPS */
+
 Bool
 NVExaPixmapIsOnscreen(PixmapPtr pPixmap)
 {
@@ -812,7 +833,7 @@ NVExaInit(ScreenPtr pScreen)
 	pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
 	pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
 
-#ifdef NOUVEAU_EXA_PIXMAPS
+#if NOUVEAU_EXA_PIXMAPS
 	if (NOUVEAU_EXA_PIXMAPS) {
 		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS |
 					   EXA_HANDLES_PIXMAPS;
@@ -831,6 +852,9 @@ NVExaInit(ScreenPtr pScreen)
 			NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) * 
 			(pScrn->bitsPerPixel / 8); 
 		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
+#if EXA_VERSION_MINOR >= 2
+		pNv->EXADriverPtr->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
+#endif
 	}
 	pNv->EXADriverPtr->pixmapOffsetAlign	= 256; 
 	pNv->EXADriverPtr->pixmapPitchAlign	= 64; 

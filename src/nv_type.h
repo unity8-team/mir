@@ -385,7 +385,8 @@ typedef struct _NVRec {
 
     /* Various pinned memory regions */
     struct nouveau_bo * FB;
-    struct nouveau_bo * FB_old; /* for KMS */
+    //struct nouveau_bo * FB_old; /* for KMS */
+    struct nouveau_bo * shadow[2]; /* for easy acces by exa */
     struct nouveau_bo * Cursor;
     struct nouveau_bo * Cursor2;
     struct nouveau_bo * CLUT0;	/* NV50 only */
