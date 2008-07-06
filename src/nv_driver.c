@@ -2546,16 +2546,14 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Initialize colormap layer.
 	 * Must follow initialization of the default colormap 
 	 */
-	if (!pNv->kms_enable) {
-		if (!pNv->randr12_enable) {
-			if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
-					NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
+	if (!pNv->randr12_enable && !pNv->kms_enable) {
+		if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
+				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
 			return FALSE;
-		} else {
-			if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-					NULL, CMAP_PALETTED_TRUECOLOR))
-				return FALSE;
-		}
+	} else {
+		if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
+				NULL, CMAP_PALETTED_TRUECOLOR))
+			return FALSE;
 	}
 
 	if(pNv->ShadowFB) {

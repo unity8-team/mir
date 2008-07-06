@@ -380,6 +380,21 @@ drmmode_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	drmmode_crtc->shadow = NULL;
 }
 
+static void
+drmmode_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue, int size)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	int ret;
+
+	ErrorF("drmmode_gamma_set\n");
+
+	ret = drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, size, (uint16_t *)red, (uint16_t *)green, (uint16_t *)blue);
+	if (ret)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "drmModeCrtcSetGamma failed\n");
+}
+
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
 	.set_mode_major = drmmode_set_mode_major,
@@ -391,6 +406,7 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_create = drmmode_shadow_create,
 	.shadow_allocate = drmmode_shadow_allocate,
 	.shadow_destroy = drmmode_shadow_destroy,
+	.gamma_set = drmmode_gamma_set,
 	.destroy = NULL, /* XXX */
 };
 
