@@ -693,6 +693,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    unsigned long uncompressed_size;
     int plane = (intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
     int i, count = 0;
 
@@ -722,6 +723,19 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     /* Need 15, 16, or 32 (w/alpha) pixel format */
     if (!(pScrn->bitsPerPixel == 16 || /* covers 15 bit mode as well */
 	  pScrn->bitsPerPixel == 32)) /* mode_set dtrt if fbc is in use */
+	return FALSE;
+
+    /* Can't cache more lines than we can track */
+    if (crtc->mode.VDisplay > FBC_LL_SIZE)
+	return FALSE;
+
+    /*
+     * Make sure the compressor doesn't go past the end of our compressed
+     * buffer if the uncompressed size is large.
+     */
+    uncompressed_size = crtc->mode.HDisplay * crtc->mode.VDisplay *
+	pI830->cpp;
+    if (pI830->compressed_front_buffer->size < uncompressed_size)
 	return FALSE;
 
     /*
