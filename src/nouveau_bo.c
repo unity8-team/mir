@@ -47,6 +47,8 @@ nouveau_bo_new(struct nouveau_device *userdev, uint32_t flags, int align,
 		bo->drm.flags |= NOUVEAU_MEM_FB;
 	if (flags & NOUVEAU_BO_GART)
 		bo->drm.flags |= (NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI);
+	if (flags & NOUVEAU_BO_TILE)
+		bo->drm.flags |= NOUVEAU_MEM_TILE;
 	bo->drm.flags |= NOUVEAU_MEM_MAPPED;
 
 	bo->drm.size = size;

@@ -46,6 +46,7 @@
 #define NV50TIC_0_0_FMT_MASK                                      0x0000003c
 #define NV50TIC_0_0_FMT_8_8_8_8                                   0x00000008
 #define NV50TIC_0_0_FMT_5_6_5                                     0x00000015
+#define NV50TIC_0_0_FMT_8_8                                       0x00000018
 #define NV50TIC_0_0_FMT_8                                         0x0000001d
 
 #define NV50TIC_0_1_OFFSET_LOW_MASK                               0xffffffff

@@ -264,6 +264,15 @@ void nv50_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void nv50_output_create(ScrnInfoPtr pScrn);
 int nv_scaling_mode_lookup(char *name, int size);
 
+/* nv50_xv.c */
+int nv50_xv_image_put(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,
+		      BoxPtr, int, int, int, int, uint16_t, uint16_t,
+		      uint16_t, uint16_t, uint16_t, uint16_t,
+		      RegionPtr, PixmapPtr, NVPortPrivPtr);
+void nv50_xv_video_stop(ScrnInfoPtr, pointer, Bool);
+int nv50_xv_port_attribute_set(ScrnInfoPtr, Atom, INT32, pointer);
+int nv50_xv_port_attribute_get(ScrnInfoPtr, Atom, INT32 *, pointer);
+
 /* To support EXA 2.0, 2.1 has this in the header */
 #ifndef exaMoveInPixmap
 extern void exaMoveInPixmap(PixmapPtr pPixmap);

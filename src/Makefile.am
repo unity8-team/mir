@@ -81,6 +81,8 @@ nouveau_drv_la_SOURCES = \
 			 nv50_randr.c \
 			 nv50_randr.h \
 			 nv50_connector.c \
+			 nv50_xv.c \
+			 nv50_texture.h \
 			 nv50reg.h \
 			 nouveau_crtc.h \
 			 nouveau_output.h \
