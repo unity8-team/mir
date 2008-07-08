@@ -211,8 +211,10 @@ void NV40StopTexturedVideo(ScrnInfoPtr, pointer, Bool);
 int NV40GetTexturePortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 int NV40SetTexturePortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 
-/* in nv50_exa.c */
+/* in nv50_accel.c */
 Bool NVAccelInitNV50TCL(ScrnInfoPtr pScrn);
+
+/* in nv50_exa.c */
 Bool NV50EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
 void NV50EXASolid(PixmapPtr, int, int, int, int);
 void NV50EXADoneSolid(PixmapPtr);

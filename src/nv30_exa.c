@@ -237,18 +237,6 @@ NV30_GetPictOpRec(int op)
 	return &NV30PictOp[op];
 }
 
-#define FALLBACK_DEBUG 0
-#if FALLBACK_DEBUG == 1
-#define FALLBACK(fmt,args...) do {					\
-	ErrorF("FALLBACK %s:%d> " fmt, __func__, __LINE__, ##args);	\
-	return FALSE;							\
-} while(0)
-#else
-#define FALLBACK(fmt,args...) do { \
-	return FALSE;              \
-} while(0)
-#endif
-
 static void
 NV30_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 		PictFormatShort dest_format, Bool component_alpha)
@@ -374,19 +362,20 @@ NV30EXACheckCompositeTexture(PicturePtr pPict)
 	int h = pPict->pDrawable->height;
 
 	if ((w > 4096) || (h>4096))
-		FALLBACK("picture too large, %dx%d\n", w, h);
+		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
 
 	fmt = NV30_GetPictTextureFormat(pPict->format);
 	if (!fmt)
-		FALLBACK("picture format 0x%08x not supported\n",
+		NOUVEAU_FALLBACK("picture format 0x%08x not supported\n",
 				pPict->format);
 
 	if (pPict->filter != PictFilterNearest &&
 			pPict->filter != PictFilterBilinear)
-		FALLBACK("filter 0x%x not supported\n", pPict->filter);
+		NOUVEAU_FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
 	if (!(w==1 && h==1) && pPict->repeat && pPict->repeatType != RepeatNone)
-		FALLBACK("repeat 0x%x not supported (surface %dx%d)\n", pPict->repeatType,w,h);
+		NOUVEAU_FALLBACK("repeat 0x%x not supported (surface %dx%d)\n",
+				 pPict->repeatType,w,h);
 
 	return TRUE;
 }
@@ -401,22 +390,22 @@ NV30EXACheckComposite(int op, PicturePtr psPict,
 
 	opr = NV30_GetPictOpRec(op);
 	if (!opr)
-		FALLBACK("unsupported blend op 0x%x\n", op);
+		NOUVEAU_FALLBACK("unsupported blend op 0x%x\n", op);
 
 	fmt = NV30_GetPictSurfaceFormat(pdPict->format);
 	if (!fmt)
-		FALLBACK("dst picture format 0x%08x not supported\n",
+		NOUVEAU_FALLBACK("dst picture format 0x%08x not supported\n",
 				pdPict->format);
 
 	if (!NV30EXACheckCompositeTexture(psPict))
-		FALLBACK("src picture\n");
+		NOUVEAU_FALLBACK("src picture\n");
 	if (pmPict) {
 		if (pmPict->componentAlpha &&
 				PICT_FORMAT_RGB(pmPict->format) &&
 				opr->src_alpha && opr->src_card_op != BF(ZERO))
-			FALLBACK("mask CA + SA\n");
+			NOUVEAU_FALLBACK("mask CA + SA\n");
 		if (!NV30EXACheckCompositeTexture(pmPict))
-			FALLBACK("mask picture\n");
+			NOUVEAU_FALLBACK("mask picture\n");
 	}
 
 	return TRUE;

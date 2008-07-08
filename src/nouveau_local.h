@@ -41,6 +41,14 @@ struct nouveau_pixmap {
 #define NOUVEAU_MSG(fmt,args...) ErrorF(fmt, ##args)
 #define NOUVEAU_ERR(fmt,args...) \
 	ErrorF("%s:%d - "fmt, __func__, __LINE__, ##args)
+#if 0
+#define NOUVEAU_FALLBACK(fmt,args...) do {    \
+	NOUVEAU_ERR("FALLBACK: "fmt, ##args); \
+	return FALSE;                         \
+} while(0)
+#else
+#define NOUVEAU_FALLBACK(fmt,args...) return FALSE
+#endif
 
 #define NOUVEAU_TIME_MSEC() GetTimeInMillis()
 

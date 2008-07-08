@@ -33,11 +33,8 @@
 
 #include "nv_include.h"
 #include "nv_dma.h"
+#include "nv50_accel.h"
 #include "nv50_texture.h"
-
-#define CB_TIC 1
-#define CB_TSC 0
-#define PFP_NV12 0x0600
 
 static __inline__ void
 VTX(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)

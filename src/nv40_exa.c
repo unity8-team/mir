@@ -182,17 +182,6 @@ NV40_GetPictOpRec(int op)
 	return &NV40PictOp[op];
 }
 
-#if 0
-#define FALLBACK(fmt,args...) do {					\
-	ErrorF("FALLBACK %s:%d> " fmt, __func__, __LINE__, ##args);	\
-	return FALSE;							\
-} while(0)
-#else
-#define FALLBACK(fmt,args...) do { \
-	return FALSE;              \
-} while(0)
-#endif
-
 static void
 NV40_SetupBlend(ScrnInfoPtr pScrn, nv_pict_op_t *blend,
 		PictFormatShort dest_format, Bool component_alpha)
@@ -337,16 +326,16 @@ NV40EXACheckCompositeTexture(PicturePtr pPict)
 	int h = pPict->pDrawable->height;
 
 	if ((w > 4096) || (h > 4096))
-		FALLBACK("picture too large, %dx%d\n", w, h);
+		NOUVEAU_FALLBACK("picture too large, %dx%d\n", w, h);
 
 	fmt = NV40_GetPictTextureFormat(pPict->format);
 	if (!fmt)
-		FALLBACK("picture format 0x%08x not supported\n",
+		NOUVEAU_FALLBACK("picture format 0x%08x not supported\n",
 				pPict->format);
 
 	if (pPict->filter != PictFilterNearest &&
 	    pPict->filter != PictFilterBilinear)
-		FALLBACK("filter 0x%x not supported\n", pPict->filter);
+		NOUVEAU_FALLBACK("filter 0x%x not supported\n", pPict->filter);
 
 	return TRUE;
 }
@@ -361,22 +350,22 @@ NV40EXACheckComposite(int op, PicturePtr psPict,
 
 	opr = NV40_GetPictOpRec(op);
 	if (!opr)
-		FALLBACK("unsupported blend op 0x%x\n", op);
+		NOUVEAU_FALLBACK("unsupported blend op 0x%x\n", op);
 
 	fmt = NV40_GetPictSurfaceFormat(pdPict->format);
 	if (!fmt)
-		FALLBACK("dst picture format 0x%08x not supported\n",
+		NOUVEAU_FALLBACK("dst picture format 0x%08x not supported\n",
 				pdPict->format);
 
 	if (!NV40EXACheckCompositeTexture(psPict))
-		FALLBACK("src picture\n");
+		NOUVEAU_FALLBACK("src picture\n");
 	if (pmPict) {
 		if (pmPict->componentAlpha && 
 		    PICT_FORMAT_RGB(pmPict->format) &&
 		    opr->src_alpha && opr->src_card_op != SF(ZERO))
-			FALLBACK("mask CA + SA\n");
+			NOUVEAU_FALLBACK("mask CA + SA\n");
 		if (!NV40EXACheckCompositeTexture(pmPict))
-			FALLBACK("mask picture\n");
+			NOUVEAU_FALLBACK("mask picture\n");
 	}
 
 	return TRUE;
@@ -492,46 +481,46 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	NV40EXA_STATE;
 
 	/* We're drawing a triangle, we need to scissor it to a quad. */
-	/* The scissors are here for a good reason, we don't get the full image, but just a part. */
+	/* The scissors are here for a good reason, we don't get the full
+	 * image, but just a part.
+	 */
 	/* Handling the cliprects is done for us already. */
 	BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
 	OUT_RING  ((width << 16) | dstX);
 	OUT_RING  ((height << 16) | dstY);
 
-	NV40EXATransformCoord(state->unit[0].transform, 
-				srcX, srcY - height,
-				state->unit[0].width,
-				state->unit[0].height, &sX0, &sY0);
+	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY - height,
+			      state->unit[0].width, state->unit[0].height,
+			      &sX0, &sY0);
+	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY + height,
+			      state->unit[0].width, state->unit[0].height,
+			      &sX1, &sY1);
 	NV40EXATransformCoord(state->unit[0].transform,
-				srcX, srcY + height,
-				state->unit[0].width,
-				state->unit[0].height, &sX1, &sY1);
-	NV40EXATransformCoord(state->unit[0].transform,
-				srcX + 2*width, srcY + height,
-				state->unit[0].width,
-				state->unit[0].height, &sX2, &sY2);
+			      srcX + 2*width, srcY + height,
+			      state->unit[0].width,
+			      state->unit[0].height, &sX2, &sY2);
 
 	if (state->have_mask) {
-		NV40EXATransformCoord(state->unit[1].transform, 
-					maskX, maskY - height,
-					state->unit[1].width,
-					state->unit[1].height, &mX0, &mY0);
 		NV40EXATransformCoord(state->unit[1].transform,
-					maskX, maskY + height,
-					state->unit[1].width,
-					state->unit[1].height, &mX1, &mY1);
+				      maskX, maskY - height,
+				      state->unit[1].width,
+				      state->unit[1].height, &mX0, &mY0);
 		NV40EXATransformCoord(state->unit[1].transform,
-					maskX + 2*width, maskY + height,
-					state->unit[1].width,
-					state->unit[1].height, &mX2, &mY2);
+				      maskX, maskY + height,
+				      state->unit[1].width,
+				      state->unit[1].height, &mX1, &mY1);
+		NV40EXATransformCoord(state->unit[1].transform,
+				      maskX + 2*width, maskY + height,
+				      state->unit[1].width,
+				      state->unit[1].height, &mX2, &mY2);
 
-		CV_OUTm(sX0 , sY0 , mX0, mY0, dstX			,	dstY - height);
-		CV_OUTm(sX1 , sY1 , mX1, mY1, dstX			,	dstY + height);
-		CV_OUTm(sX2 , sY2 , mX2, mY2, dstX + 2*width	, 	dstY + height);
+		CV_OUTm(sX0, sY0, mX0, mY0, dstX, dstY - height);
+		CV_OUTm(sX1, sY1, mX1, mY1, dstX, dstY + height);
+		CV_OUTm(sX2, sY2, mX2, mY2, dstX + 2*width, dstY + height);
 	} else {
-		CV_OUT(sX0 , sY0 , dstX			,	dstY - height);
-		CV_OUT(sX1 , sY1 , dstX			,	dstY + height);
-		CV_OUT(sX2 , sY2 , dstX + 2*width	, 	dstY + height);
+		CV_OUT(sX0, sY0, dstX, dstY - height);
+		CV_OUT(sX1, sY1, dstX, dstY + height);
+		CV_OUT(sX2, sY2, dstX + 2*width, dstY + height);
 	}
 
 	FIRE_RING();

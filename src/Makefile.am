@@ -71,6 +71,7 @@ nouveau_drv_la_SOURCES = \
 			 nv30_xv_tex.c \
 			 nv40_exa.c \
 			 nv40_xv_tex.c \
+			 nv50_accel.c nv50_accel.h \
 			 nv50_cursor.c \
 			 nv50_crtc.c \
 			 nv50_dac.c \
