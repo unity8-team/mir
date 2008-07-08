@@ -2046,16 +2046,19 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 {
-#if !defined(__powerpc__) && !defined(__sparc__)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+#if !defined(__powerpc__) && !defined(__sparc__)
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t       fp2_gen_ctl_save   = 0;
+#endif
 
 #ifdef XSERVER_LIBPCIACCESS
 #if HAVE_PCI_DEVICE_ENABLE
     pci_device_enable(info->PciInfo);
 #endif
 #endif
+
+#if !defined(__powerpc__) && !defined(__sparc__)
     /* don't need int10 on atom cards.
      * in theory all radeons, but the older stuff
      * isn't 100% yet

@@ -34,6 +34,12 @@
 
 #define ATOM_HEADER_VERSION (ATOM_VERSION_MAJOR | ATOM_VERSION_MINOR)
 
+/* Endianness should be specified before inclusion,
+ * default to little endian
+ */
+#ifndef ATOM_BIG_ENDIAN
+#error Endian not specified
+#endif
 
 #ifdef _H2INC
   #ifndef ULONG 
@@ -304,7 +310,7 @@ typedef struct _ATOM_MASTER_COMMAND_TABLE
 
 typedef struct _ATOM_TABLE_ATTRIBUTE
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
   USHORT  UpdatedByUtility:1;         //[15]=Table updated by utility flag
   USHORT  PS_SizeInBytes:7;           //[14:8]=Size of parameter space in Bytes (multiple of a dword), 
   USHORT  WS_SizeInBytes:8;           //[7:0]=Size of workspace in Bytes (in multiple of a dword), 
@@ -314,6 +320,12 @@ typedef struct _ATOM_TABLE_ATTRIBUTE
   USHORT  UpdatedByUtility:1;         //[15]=Table updated by utility flag
 #endif
 }ATOM_TABLE_ATTRIBUTE;
+
+typedef union _ATOM_TABLE_ATTRIBUTE_ACCESS
+{
+  ATOM_TABLE_ATTRIBUTE sbfAccess;
+  USHORT               susAccess;
+}ATOM_TABLE_ATTRIBUTE_ACCESS;
 
 // Common header for all command tables.
 //Every table pointed by _ATOM_MASTER_COMMAND_TABLE has this common header. 
@@ -1258,7 +1270,7 @@ typedef struct _ATOM_MULTIMEDIA_CONFIG_INFO
 //Please don't add or expand this bitfield structure below, this one will retire soon.!
 typedef struct _ATOM_FIRMWARE_CAPABILITY
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
   USHORT Reserved:3;
   USHORT HyperMemory_Size:4;
   USHORT HyperMemory_Support:1;
@@ -1767,7 +1779,7 @@ for Griffin or Greyhound. SBIOS needs to convert to actual time by:
 
 typedef struct _ATOM_I2C_ID_CONFIG
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
   UCHAR   bfHW_Capable:1;
   UCHAR   bfHW_EngineID:3;
   UCHAR   bfI2C_LineMux:4;
@@ -1820,7 +1832,7 @@ typedef struct _ATOM_GPIO_I2C_INFO
 //Please don't add or expand this bitfield structure below, this one will retire soon.!
 typedef struct _ATOM_MODE_MISC_INFO
 { 
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
   USHORT Reserved:6;
   USHORT RGB888:1;
   USHORT DoubleClock:1;
@@ -3426,7 +3438,7 @@ typedef struct _ATOM_MEMORY_VENDOR_BLOCK{
 
 
 typedef struct _ATOM_MEMORY_SETTING_ID_CONFIG{
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
 	ULONG												ucMemBlkId:8;
 	ULONG												ulMemClockRange:24;
 #else
@@ -4072,7 +4084,7 @@ typedef struct  _COMPASSIONATE_DATA
 
 typedef struct _ATOM_CONNECTOR_INFO
 {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
+#if ATOM_BIG_ENDIAN
   UCHAR   bfConnectorType:4;
   UCHAR   bfAssociatedDAC:4;
 #else

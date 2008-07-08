@@ -146,10 +146,27 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
 {
     AtomBiosArgRec data;
     unsigned char *space;
+    SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION conv_param;
+
+    conv_param.usH_Total		= cpu_to_le16(crtc_param->usH_Total);
+    conv_param.usH_Disp			= cpu_to_le16(crtc_param->usH_Disp);
+    conv_param.usH_SyncStart		= cpu_to_le16(crtc_param->usH_SyncStart);
+    conv_param.usH_SyncWidth		= cpu_to_le16(crtc_param->usH_SyncWidth);
+    conv_param.usV_Total		= cpu_to_le16(crtc_param->usV_Total);
+    conv_param.usV_Disp			= cpu_to_le16(crtc_param->usV_Disp);
+    conv_param.usV_SyncStart		= cpu_to_le16(crtc_param->usV_SyncStart);
+    conv_param.usV_SyncWidth		= cpu_to_le16(crtc_param->usV_SyncWidth);
+    conv_param.susModeMiscInfo.usAccess = cpu_to_le16(crtc_param->susModeMiscInfo.usAccess);
+    conv_param.ucCRTC			= crtc_param->ucCRTC;
+    conv_param.ucOverscanRight		= crtc_param->ucOverscanRight;
+    conv_param.ucOverscanLeft		= crtc_param->ucOverscanLeft;
+    conv_param.ucOverscanBottom		= crtc_param->ucOverscanBottom;
+    conv_param.ucOverscanTop		= crtc_param->ucOverscanTop; 
+    conv_param.ucReserved		= crtc_param->ucReserved;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_Timing);
     data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = crtc_param;
+    data.exec.pspace = &conv_param;
 
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 	ErrorF("Set CRTC Timing success\n");
@@ -235,9 +252,9 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	case 1:
 	case 2:
 	    spc2_ptr = (PIXEL_CLOCK_PARAMETERS_V2*)&spc_param.sPCLKInput;
-	    spc2_ptr->usPixelClock = sclock;
-	    spc2_ptr->usRefDiv = ref_div;
-	    spc2_ptr->usFbDiv = fb_div;
+	    spc2_ptr->usPixelClock = cpu_to_le16(sclock);
+	    spc2_ptr->usRefDiv = cpu_to_le16(ref_div);
+	    spc2_ptr->usFbDiv = cpu_to_le16(fb_div);
 	    spc2_ptr->ucPostDiv = post_div;
 	    spc2_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc2_ptr->ucCRTC = radeon_crtc->crtc_id;
@@ -246,9 +263,9 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	    break;
 	case 3:
 	    spc3_ptr = (PIXEL_CLOCK_PARAMETERS_V3*)&spc_param.sPCLKInput;
-	    spc3_ptr->usPixelClock = sclock;
-	    spc3_ptr->usRefDiv = ref_div;
-	    spc3_ptr->usFbDiv = fb_div;
+	    spc3_ptr->usPixelClock = cpu_to_le16(sclock);
+	    spc3_ptr->usRefDiv = cpu_to_le16(ref_div);
+	    spc3_ptr->usFbDiv = cpu_to_le16(fb_div);
 	    spc3_ptr->ucPostDiv = post_div;
 	    spc3_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc3_ptr->ucMiscInfo = (radeon_crtc->crtc_id << 2);

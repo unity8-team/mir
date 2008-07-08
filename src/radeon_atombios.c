@@ -501,11 +501,11 @@ rhdAtomASICInit(atomBiosHandlePtr handle)
     RHDAtomBiosFunc(handle->scrnIndex, handle,
 		    GET_DEFAULT_ENGINE_CLOCK,
 		    &data);
-    asicInit.sASICInitClocks.ulDefaultEngineClock = data.val / 10;/*in 10 Khz*/
+    asicInit.sASICInitClocks.ulDefaultEngineClock = cpu_to_le32(data.val / 10);/*in 10 Khz*/
     RHDAtomBiosFunc(handle->scrnIndex, handle,
 		    GET_DEFAULT_MEMORY_CLOCK,
 		    &data);
-    asicInit.sASICInitClocks.ulDefaultMemoryClock = data.val / 10;/*in 10 Khz*/
+    asicInit.sASICInitClocks.ulDefaultMemoryClock = cpu_to_le32(data.val / 10);/*in 10 Khz*/
     data.exec.dataSpace = NULL;
     data.exec.index = 0x0;
     data.exec.pspace = &asicInit;
@@ -2027,9 +2027,12 @@ RHDAtomBiosFunc(int scrnIndex, atomBiosHandlePtr handle,
 VOID*
 CailAllocateMemory(VOID *CAIL,UINT16 size)
 {
+    void *ret;
     CAILFUNC(CAIL);
 
-    return malloc(size);
+    ret = malloc(size);
+    memset(ret, 0, size);
+    return ret;
 }
 
 VOID
@@ -2253,6 +2256,17 @@ atombios_get_command_table_version(atomBiosHandlePtr atomBIOS, int index, int *m
 
     *major = table_hdr->CommonHeader.ucTableFormatRevision;
     *minor = table_hdr->CommonHeader.ucTableContentRevision;
+}
+
+
+UINT16 ATOM_BSWAP16(UINT16 x)
+{
+    return bswap_16(x);
+}
+
+UINT32 ATOM_BSWAP32(UINT32 x)
+{
+    return bswap_32(x);
 }
 
 

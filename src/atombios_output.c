@@ -78,7 +78,7 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     }
 
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -128,7 +128,7 @@ atombios_output_dac2_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     }
 
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -188,7 +188,7 @@ atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     }
 
-    disp_data.sTVEncoder.usPixelClock = mode->Clock / 10;
+    disp_data.sTVEncoder.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TVEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -243,7 +243,7 @@ atombios_output_ddia_setup(xf86OutputPtr output, DisplayModePtr mode)
     unsigned char *space;
 
     disp_data.sDVOEncoder.ucAction = ATOM_ENABLE;
-    disp_data.sDVOEncoder.usPixelClock = mode->Clock / 10;
+    disp_data.sDVOEncoder.usPixelClock = cpu_to_le16(mode->Clock / 10);
 
     if (mode->Clock > 165000)
 	disp_data.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = PANEL_ENCODER_MISC_DUAL;
@@ -276,7 +276,7 @@ atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucMisc = 1;
     else
 	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS1EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -304,7 +304,7 @@ atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucMisc = 1;
     else
 	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -331,7 +331,7 @@ atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucMisc = 1;
     else
 	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     data.exec.index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
@@ -355,7 +355,7 @@ atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
     unsigned char *space;
 
     disp_data.ucAction = 1;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER1;
     if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
 	if (radeon_output->coherent_mode) {
@@ -406,7 +406,7 @@ atombios_output_dig1_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     unsigned char *space;
 
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 
     if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
@@ -464,7 +464,7 @@ atombios_output_dig2_setup(xf86OutputPtr output, DisplayModePtr mode)
     unsigned char *space;
 
     disp_data.ucAction = 1;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER2;
     if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
 	if (radeon_output->coherent_mode) {
@@ -515,7 +515,7 @@ atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
     unsigned char *space;
 
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
-    disp_data.usPixelClock = mode->Clock / 10;
+    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
     disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 
     if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
@@ -979,19 +979,19 @@ atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
     dac_data.sDacload.ucMisc = 0;
 
     if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
-	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CRT1_SUPPORT;
+	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT1_SUPPORT);
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
 	else if (radeon_output->DACType == DAC_TVDAC)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
     } else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
-	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CRT2_SUPPORT;
+	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT2_SUPPORT);
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
 	else if (radeon_output->DACType == DAC_TVDAC)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
     } else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
-	dac_data.sDacload.usDeviceID = ATOM_DEVICE_CV_SUPPORT;
+	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CV_SUPPORT);
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
 	else if (radeon_output->DACType == DAC_TVDAC)
@@ -999,7 +999,7 @@ atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
 	if (IS_DCE3_VARIANT)
 	    dac_data.sDacload.ucMisc = 1;
     } else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
-	dac_data.sDacload.usDeviceID = ATOM_DEVICE_TV1_SUPPORT;
+	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_TV1_SUPPORT);
 	if (radeon_output->DACType == DAC_PRIMARY)
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
 	else if (radeon_output->DACType == DAC_TVDAC)
