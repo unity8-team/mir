@@ -3918,6 +3918,8 @@
 #define R600_MC_VM_SYSTEM_APERTURE_HIGH_ADDR                       0x2194
 #define R600_MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR                    0x2198
 
+#define R700_MC_VM_FB_LOCATION                                     0x2024
+
 #define R600_HDP_NONSURFACE_BASE                                0x2c04
 
 #define R600_BUS_CNTL                                           0x5420

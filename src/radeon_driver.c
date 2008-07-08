@@ -669,7 +669,14 @@ static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	if (mask & LOC_FB)
+	    OUTREG(R700_MC_VM_FB_LOCATION, fb_loc);
+	if (mask & LOC_AGP) {
+	    OUTREG(R600_MC_VM_AGP_BOT, agp_loc);
+	    OUTREG(R600_MC_VM_AGP_TOP, agp_loc_hi);
+	}
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (mask & LOC_FB)
 	    OUTREG(R600_MC_VM_FB_LOCATION, fb_loc);
 	if (mask & LOC_AGP) {
@@ -712,7 +719,14 @@ static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_t
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+    if (info->ChipFamily >= CHIP_FAMILY_RV770) {
+	if (mask & LOC_FB)
+	    *fb_loc = INREG(R700_MC_VM_FB_LOCATION);
+	if (mask & LOC_AGP) {
+	    *agp_loc = INREG(R600_MC_VM_AGP_BOT);
+	    *agp_loc_hi = INREG(R600_MC_VM_AGP_TOP);
+	}
+    } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (mask & LOC_FB)
 	    *fb_loc = INREG(R600_MC_VM_FB_LOCATION);
 	if (mask & LOC_AGP) {
