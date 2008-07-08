@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.3.2-2ubuntu2) intrepid; urgency=low
+
+  * Disable 05_intel_exa_force_greedy.patch, since it makes the driver
+    to segfault the xserver. (LP: #246581)
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 08 Jul 2008 18:31:22 +0300
+
 xserver-xorg-video-intel (2:2.3.2-2ubuntu1) intrepid; urgency=low
 
   * Merge from debian unstable, remaining changes:
