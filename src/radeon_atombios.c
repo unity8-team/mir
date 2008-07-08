@@ -1751,6 +1751,15 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* Falcon NW laptop lists vga ddc line for LVDS */
+    if ((info->Chipset == PCI_CHIP_RV410_5653) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1462) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0291)) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_LVDS) {
+	    info->BiosConnector[index].ddc_i2c.valid = FALSE;
+	}
+    }
+
 }
 
 Bool
