@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.3.2-2ubuntu3) intrepid; urgency=low
+
+  * Remove 19_check_exa_pitch_to_fix_rotate_crash.patch, fixed upstream
+    using a different approach. (LP: #246835)
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Wed, 09 Jul 2008 15:31:08 +0300
+
 xserver-xorg-video-intel (2:2.3.2-2ubuntu2) intrepid; urgency=low
 
   * Disable 05_intel_exa_force_greedy.patch, since it makes the driver
