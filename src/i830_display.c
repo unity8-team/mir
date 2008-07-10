@@ -1128,7 +1128,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
     int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
     int pipestat_reg = (pipe == 0) ? PIPEASTAT : PIPEBSTAT;
-    int i;
+    int i, num_outputs = 0;
     int refclk;
     intel_clock_t clock;
     uint32_t dpll = 0, fp = 0, dspcntr, pipeconf, lvds_bits = 0;
@@ -1168,9 +1168,19 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    is_crt = TRUE;
 	    break;
 	}
+
+	num_outputs++;
     }
 
-    if (IS_I9XX(pI830)) {
+    if (num_outputs > 1)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "clone detected, disabling SSC\n");
+
+    /* Don't use SSC when cloned */
+    if (pI830->lvds_use_ssc && num_outputs < 2) {
+	refclk = pI830->lvds_ssc_freq * 1000;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "using SSC reference clock of %d MHz\n", refclk / 1000);
+    } else if (IS_I9XX(pI830)) {
 	refclk = 96000;
     } else {
 	refclk = 48000;
@@ -1246,10 +1256,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 	dpll |= 3;
     }
-#if 0
-    else if (is_lvds)
+    else if (is_lvds && pI830->lvds_use_ssc && num_outputs < 2)
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
-#endif
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
 

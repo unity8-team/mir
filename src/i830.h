@@ -554,6 +554,10 @@ typedef struct _I830Rec {
    OptionInfoPtr Options;
 
    Bool lvds_24_bit_mode;
+   Bool lvds_use_ssc;
+   int lvds_ssc_freq; /* in MHz */
+
+   Bool tv_present; /* TV connector present (from VBIOS) */
 
    Bool StolenOnly;
 

@@ -1341,6 +1341,9 @@ i830_lvds_init(ScrnInfoPtr pScrn)
 	goto disable_exit;
     }
 
+    /* Update pI830 w/SSC info, if any */
+    i830_bios_get_ssc(pScrn);
+
  skip_panel_fixed_mode_setup:
 
     /* Blacklist machines with BIOSes that list an LVDS panel without actually
