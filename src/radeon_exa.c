@@ -413,14 +413,16 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
     /* Reserve static area for hardware cursor */
     if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
 	int cursor_size = 64 * 4 * 64;
+	int align = IS_AVIVO_VARIANT ? 4096 : 256;
 	int c;
 
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    xf86CrtcPtr crtc = xf86_config->crtc[c];
 	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	    radeon_crtc->cursor_offset = info->exa->offScreenBase;
-	    info->exa->offScreenBase += cursor_size;
+	    radeon_crtc->cursor_offset =
+		RADEON_ALIGN(info->exa->offScreenBase, align);
+	    info->exa->offScreenBase = radeon_crtc->cursor_offset + cursor_size;
 
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Will use %d kb for hardware cursor %d at offset 0x%08x\n",
