@@ -746,7 +746,7 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	int w=4096;
 	int h=4096;
 	int pitch=4096*4;
-	BEGIN_RING(Nv3D, NV34TCL_VIEWPORT_HORIZ, 5);
+	BEGIN_RING(Nv3D, NV34TCL_RT_HORIZ, 5);
 	OUT_RING  (w<<16);
 	OUT_RING  (h<<16);
 	OUT_RING  (0x148); /* format */
