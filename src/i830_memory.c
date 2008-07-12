@@ -901,6 +901,31 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     mem->pitch = pitch;
     mem->fence_nr = -1;
 
+#ifdef XF86DRI
+    if (mem->gem_handle != 0) {
+	struct drm_i915_gem_set_tiling set_tiling;
+	int ret;
+
+	set_tiling.handle = mem->gem_handle;
+	if (tile_format == TILE_XMAJOR)
+	    set_tiling.tiling_mode = I915_TILING_X;
+	else
+	    set_tiling.tiling_mode = I915_TILING_Y;
+
+	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_SET_TILING,
+		    &set_tiling);
+	if (ret != 0 || set_tiling.tiling_mode == I915_TILING_NONE) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to set tiling on %s: %s\n",
+			   mem->name, strerror(errno));
+		i830_free_memory(pScrn, mem);
+		return i830_allocate_memory(pScrn, name, size, alignment,
+					    flags);
+	    return FALSE;
+	}
+    }
+#endif
+
     return mem;
 }
 
