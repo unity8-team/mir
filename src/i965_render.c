@@ -59,6 +59,9 @@ do { 							\
 } while(0)
 #endif
 
+#define MAX_VERTEX_PER_COMPOSITE    24
+#define MAX_VERTEX_BUFFERS	    1
+
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
@@ -500,7 +503,7 @@ typedef struct _gen4_state {
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
 
-    float vb[(2 + 3 + 3) * 3];   /* (dst, src, mask) 3 vertices, 4 bytes */
+    float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
 } gen4_state_t;
 
 /** Private data for gen4 render accel implementation. */
@@ -510,6 +513,7 @@ struct gen4_render_state {
 
     int binding_table_index;
     int surface_state_index;
+    int vb_offset;
     int vertex_size;
 };
 
@@ -969,6 +973,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	i830WaitSync(pScrn);
 	render_state->binding_table_index = 0;
 	render_state->surface_state_index = 0;
+	render_state->vb_offset = 0;
     }
 
     binding_table = card_state->binding_table +
@@ -1347,12 +1352,12 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    /* Wait for any existing composite rectangles to land before we overwrite
-     * the VB with the next one.
-     */
-    i830WaitSync(pScrn);
+    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(card_state->vb)) {
+	i830WaitSync(pScrn);
+	render_state->vb_offset = 0;
+    }
 
-    i = 0;
+    i = render_state->vb_offset;
     /* rect (x2,y2) */
     vb[i++] = (float)(dstX + w);
     vb[i++] = (float)(dstY + h);
@@ -1402,7 +1407,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb));
+    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb) +
+	      render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
@@ -1417,6 +1423,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH(0); /* start instance location */
     OUT_BATCH(0); /* index buffer offset, ignored */
     ADVANCE_BATCH();
+
+    render_state->vb_offset = i;
 
 #ifdef I830DEBUG
     ErrorF("sync after 3dprimitive\n");
