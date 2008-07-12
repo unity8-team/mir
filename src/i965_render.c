@@ -60,7 +60,7 @@ do { 							\
 #endif
 
 #define MAX_VERTEX_PER_COMPOSITE    24
-#define MAX_VERTEX_BUFFERS	    1
+#define MAX_VERTEX_BUFFERS	    256
 
 struct blendinfo {
     Bool dst_alpha;
@@ -1401,7 +1401,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     }
     assert (i * 4 <= sizeof(card_state->vb));
 
-    BEGIN_BATCH(11);
+    BEGIN_BATCH(12);
+    OUT_BATCH(MI_FLUSH);
     /* Set up the pointer to our (single) vertex buffer */
     OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
