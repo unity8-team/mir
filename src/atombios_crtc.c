@@ -105,7 +105,7 @@ atombios_blank_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
     crtc_data.ucCRTC = crtc;
     crtc_data.ucBlanking = state;
 
-    data.exec.index = offsetof(ATOM_MASTER_LIST_OF_COMMAND_TABLES, BlankCRTC) / sizeof(unsigned short);
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, BlankCRTC);
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &crtc_data;
 
