@@ -270,6 +270,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RV670_9507, "ATI RV670" },
   { PCI_CHIP_RV670_950F, "ATI Radeon HD3870 X2" },
   { PCI_CHIP_RV670_9511, "ATI FireGL V7700" },
+  { PCI_CHIP_RV670_9515, "ATI Radeon HD3850" },
   { PCI_CHIP_RV630_9580, "ATI RV630" },
   { PCI_CHIP_RV630_9581, "ATI Mobility Radeon HD 2600" },
   { PCI_CHIP_RV630_9583, "ATI Mobility Radeon HD 2600 XT" },
