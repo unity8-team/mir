@@ -537,7 +537,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		if (IS_AVIVO_VARIANT) {
 		    /* set to the panel's native mode */
 		    adjusted_mode->HDisplay = radeon_output->PanelXRes;
-		    adjusted_mode->HDisplay = radeon_output->PanelYRes;
+		    adjusted_mode->VDisplay = radeon_output->PanelYRes;
 		    adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
 		    adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
 		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
