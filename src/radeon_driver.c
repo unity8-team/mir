@@ -2046,7 +2046,10 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
 static Bool RADEONPreInitInt10(ScrnInfoPtr pScrn, xf86Int10InfoPtr *ppInt10)
 {
+#if (!defined(__powerpc__) && !defined(__sparc__)) || \
+    (defined(XSERVER_LIBPCIACCESS) && HAVE_PCI_DEVICE_ENABLE)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+#endif
 #if !defined(__powerpc__) && !defined(__sparc__)
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t       fp2_gen_ctl_save   = 0;
