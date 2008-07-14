@@ -1994,7 +1994,16 @@ i830_set_dsparb(ScrnInfoPtr pScrn)
 	   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) |
 		  (48 << DSPARB_BSTART_SHIFT));
    } else {
-       OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
+       if (IS_MOBILE(pI830)) {
+	   /* The 830 has 288 entries, and the 855 has 256. */
+	   OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
+       } else {
+	   /* The 845/865 only have a AEND field.  Though the field size would
+	    * allow 128 entries, the 865 rendered the cursor wrong then.
+	    * The BIOS set it up for 96.
+	    */
+	   OUTREG(DSPARB, 95 << DSPARB_AEND_SHIFT);
+       }
    }
 }
 
