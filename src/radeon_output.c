@@ -183,6 +183,8 @@ extern void atombios_output_mode_set(xf86OutputPtr output,
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
 extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
+extern AtomBiosResult
+atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
 static void
 radeon_bios_output_dpms(xf86OutputPtr output, int mode);
 static void
@@ -586,6 +588,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
     int o;
 
@@ -595,9 +598,12 @@ radeon_mode_prepare(xf86OutputPtr output)
 	    continue;
 	else if (loop_output->crtc) {
 	    xf86CrtcPtr other_crtc = loop_output->crtc;
+	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
 	    if (other_crtc->enabled) {
-		radeon_dpms(loop_output, DPMSModeOff);
 		radeon_crtc_dpms(other_crtc, DPMSModeOff);
+		if (IS_AVIVO_VARIANT)
+		    atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 1);
+		radeon_dpms(loop_output, DPMSModeOff);
 	    }
 	}
     }
@@ -625,6 +631,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
     int o;
 
@@ -634,9 +641,12 @@ radeon_mode_commit(xf86OutputPtr output)
 	    continue;
 	else if (loop_output->crtc) {
 	    xf86CrtcPtr other_crtc = loop_output->crtc;
+	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
 	    if (other_crtc->enabled) {
-		radeon_dpms(loop_output, DPMSModeOn);		
 		radeon_crtc_dpms(other_crtc, DPMSModeOn);
+		if (IS_AVIVO_VARIANT)
+		    atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 0);
+		radeon_dpms(loop_output, DPMSModeOn);
 	    }
 	}
     }

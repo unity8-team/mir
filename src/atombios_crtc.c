@@ -48,6 +48,29 @@
 #include "sarea.h"
 #endif
 
+AtomBiosResult
+atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock)
+{
+    ENABLE_CRTC_PS_ALLOCATION crtc_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    crtc_data.ucCRTC = crtc;
+    crtc_data.ucEnable = lock;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, UpdateCRTC_DoubleBufferRegisters);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &crtc_data;
+
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("%s CRTC %d success\n", lock? "Lock":"Unlock", crtc);
+	return ATOM_SUCCESS ;
+    }
+
+    ErrorF("Lock CRTC failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+}
+
 static AtomBiosResult
 atombios_enable_crtc(atomBiosHandlePtr atomBIOS, int crtc, int state)
 {
@@ -459,9 +482,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	    fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
 	}
 
-	/* lock the grph regs */
-	OUTREG(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, AVIVO_D1GRPH_UPDATE_LOCK);
-
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
@@ -476,19 +496,11 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	       crtc->scrn->displayWidth);
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
-	/* unlock the grph regs */
-	OUTREG(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, 0);
-
-	/* lock the mode regs */
-	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, AVIVO_D1SCL_UPDATE_LOCK);
-
 	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
 	       		mode->VDisplay);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);
-	/* unlock the mode regs */
-	OUTREG(AVIVO_D1SCL_UPDATE + radeon_crtc->crtc_offset, 0);
 
     }
 
