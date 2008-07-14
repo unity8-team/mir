@@ -26,8 +26,11 @@
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
+radeon_drv_la_LIBADD =
+
 if DRI
 RADEON_DRI_SRCS = radeon_dri.c
+radeon_drv_la_LIBADD += $(DRI_LIBS)
 endif
 
 RADEON_ATOMBIOS_SOURCES = \
@@ -69,6 +72,11 @@ endif
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER -DDRIVER_PARSER
 
 INCLUDES = -I$(srcdir)/AtomBios/includes
+
+if XSERVER_LIBPCIACCESS
+ati_drv_la_LIBADD = $(PCIACCESS_LIBS)
+radeon_drv_la_LIBADD += $(PCIACCESS_LIBS)
+endif
 
 ati_drv_la_LTLIBRARIES = ati_drv.la
 ati_drv_la_LDFLAGS = -module -avoid-version
