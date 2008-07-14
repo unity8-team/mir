@@ -36,6 +36,10 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
+intel_drv_la_LIBADD =
+if XSERVER_LIBPCIACCESS
+intel_drv_la_LIBADD += @PCIACCESS_LIBS@
+endif
 
 XMODE_SRCS=\
 	 local_xf86Rename.h \
@@ -203,6 +207,8 @@ endif
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
+intel_drv_la_LIBADD += \
+	$(DRI_LIBS)
 endif
 
 if XVMC
