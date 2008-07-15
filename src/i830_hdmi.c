@@ -225,7 +225,7 @@ i830_hdmi_init(ScrnInfoPtr pScrn, int output_reg)
     if (output_reg == SDVOB)
 	I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOE, "HDMIDDC_B");
     else
-	I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOE, "HDMIDDC_C");
+	I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOD, "HDMIDDC_C");
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "HDMI output %d detected\n",
