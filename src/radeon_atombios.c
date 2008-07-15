@@ -609,17 +609,6 @@ rhdAtomInit(atomBiosHandlePtr unused1, AtomBiosRequestID unused2,
 #endif
     handle->BIOSImageSize = BIOSImageSize;
 
-# if ATOM_BIOS_PARSER
-    /* Try to find out if BIOS has been posted (either by system or int10 */
-    if (!rhdAtomGetFbBaseAndSize(handle, NULL, NULL)) {
-	/* run AsicInit */
-	if (!rhdAtomASICInit(handle))
-	    xf86DrvMsg(scrnIndex, X_WARNING,
-		       "%s: AsicInit failed. Won't be able to obtain in VRAM "
-		       "FB scratch space\n",__func__);
-    }
-# endif
-
     data->atomhandle = handle;
     return ATOM_SUCCESS;
 
@@ -654,12 +643,18 @@ rhdAtomVramInfoQuery(atomBiosHandlePtr handle, AtomBiosRequestID func,
 
     switch (func) {
 	case GET_FW_FB_START:
-	    *val = le32_to_cpu(atomDataPtr->VRAM_UsageByFirmware
-			       ->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware);
+	    if (atomDataPtr->VRAM_UsageByFirmware)
+		*val = le32_to_cpu(atomDataPtr->VRAM_UsageByFirmware
+				   ->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware);
+	    else
+		return ATOM_NOT_IMPLEMENTED;
 	    break;
 	case GET_FW_FB_SIZE:
-	    *val =  le16_to_cpu(atomDataPtr->VRAM_UsageByFirmware
-				->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
+	    if (atomDataPtr->VRAM_UsageByFirmware)
+		*val =  le16_to_cpu(atomDataPtr->VRAM_UsageByFirmware
+				    ->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
+	    else
+		return ATOM_NOT_IMPLEMENTED;
 	    break;
 	default:
 	    return ATOM_NOT_IMPLEMENTED;

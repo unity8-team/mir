@@ -273,6 +273,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     int tmp;
     unsigned short dptr;
+    Bool unposted = FALSE;
 
 #ifdef XSERVER_LIBPCIACCESS
     int size = info->PciInfo->rom_size > RADEON_VBIOS_SIZE ? info->PciInfo->rom_size : RADEON_VBIOS_SIZE;
@@ -291,6 +292,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 			 RADEON_VBIOS_SIZE);
 	} else if (!radeon_read_bios(pScrn)) {
 	    (void)radeon_read_unposted_bios(pScrn);
+	    unposted = TRUE;
 	}
     }
 
@@ -326,7 +328,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	info->VBIOS = NULL;
 	return FALSE;
     }
- 
+
     tmp = info->ROMHeaderStart + 4;
     if ((RADEON_BIOS8(tmp)   == 'A' &&
 	 RADEON_BIOS8(tmp+1) == 'T' &&
@@ -344,51 +346,56 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	       info->IsAtomBios ? "ATOM":"Legacy");
 
     if (info->IsAtomBios) {
-        AtomBiosArgRec atomBiosArg;
+	AtomBiosArgRec atomBiosArg;
 
-        if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg)
-            == ATOM_SUCCESS) {
-            info->atomBIOS = atomBiosArg.atomhandle;
-        }
+	if (RHDAtomBiosFunc(pScrn->scrnIndex, NULL, ATOMBIOS_INIT, &atomBiosArg)
+	    == ATOM_SUCCESS) {
+	    info->atomBIOS = atomBiosArg.atomhandle;
+	}
 
-        atomBiosArg.fb.start = info->FbFreeStart;
-        atomBiosArg.fb.size = info->FbFreeSize;
-        if (RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
+	atomBiosArg.fb.start = info->FbFreeStart;
+	atomBiosArg.fb.size = info->FbFreeSize;
+	if (RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, ATOMBIOS_ALLOCATE_FB_SCRATCH,
 			    &atomBiosArg) == ATOM_SUCCESS) {
 
 	    info->FbFreeStart = atomBiosArg.fb.start;
 	    info->FbFreeSize = atomBiosArg.fb.size;
-        }
+	}
 
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_ENGINE_CLOCK,
-                        &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_MEMORY_CLOCK,
-                        &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
-                        GET_MAX_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
-                        GET_MIN_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
-                        GET_MAX_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_ENGINE_CLOCK,
+			&atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS, GET_DEFAULT_MEMORY_CLOCK,
+			&atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MAX_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MIN_PIXEL_CLOCK_PLL_OUTPUT, &atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_MAX_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
 			GET_MIN_PIXEL_CLOCK_PLL_INPUT, &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
 			GET_MAX_PIXEL_CLK, &atomBiosArg);
-        RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
-                        GET_REF_CLOCK, &atomBiosArg);
+	RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
+			GET_REF_CLOCK, &atomBiosArg);
 
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }
+
+    if (unposted && info->VBIOS) {
+	if (info->IsAtomBios) {
+	    if (!rhdAtomASICInit(info->atomBIOS))
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "%s: AsicInit failed.\n",__func__);
+	} else {
 #if 0
-    else {
-	/* non-primary card may need posting */
-	if (!pInt10) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to POST via BIOS tables\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to POST via legacy BIOS tables\n");
 	    RADEONGetBIOSInitTableOffsets(pScrn);
 	    RADEONPostCardFromBIOSTables(pScrn);
+#endif
 	}
     }
-#endif
+
     return TRUE;
 }
 
