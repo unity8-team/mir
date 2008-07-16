@@ -39,9 +39,9 @@
                                  SIZE_Y420(surface->width, surface->height))
 
 typedef union {
-    short s[4];
-    uint  u[2];
-} su_t;
+    int16_t component[2];
+    int32_t v;
+} vector_t;
 
 #if 0
 static int findOverlap(unsigned int width, unsigned int height,
@@ -835,10 +835,7 @@ static void i915_mc_mpeg_macroblock_0mv(XvMCContext *context, XvMCMacroBlock *mb
 static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *mb)
 {
     struct i915_3dmpeg_macroblock_1fbmv macroblock_1fbmv;
-
-    /* Motion Vectors */
-    su_t fmv;
-    su_t bmv;
+    vector_t mv0[2];
 
     /* 3DMPEG_MACROBLOCK(1fbmv) */
     memset(&macroblock_1fbmv, 0, sizeof(macroblock_1fbmv));
@@ -859,13 +856,13 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_1fbmv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
     macroblock_1fbmv.header.dw1.skipped_macroblocks = 0;
 
-    fmv.s[0] = mb->PMV[0][0][0];
-    fmv.s[1] = mb->PMV[0][0][1];
-    bmv.s[0] = mb->PMV[0][1][0];
-    bmv.s[1] = mb->PMV[0][1][1];
+    mv0[0].component[0] = mb->PMV[0][0][0];
+    mv0[0].component[1] = mb->PMV[0][0][1];
+    mv0[1].component[0] = mb->PMV[0][1][0];
+    mv0[1].component[1] = mb->PMV[0][1][1];
 
-    macroblock_1fbmv.dw2 = fmv.u[0];
-    macroblock_1fbmv.dw3 = bmv.u[0];
+    macroblock_1fbmv.dw2 = mv0[0].v;
+    macroblock_1fbmv.dw3 = mv0[1].v;
 
     intelBatchbufferData(&macroblock_1fbmv, sizeof(macroblock_1fbmv), 0);
 }
@@ -873,10 +870,8 @@ static void i915_mc_mpeg_macroblock_1fbmv(XvMCContext *context, XvMCMacroBlock *
 static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *mb, unsigned int ps)
 {
     struct i915_3dmpeg_macroblock_2fbmv macroblock_2fbmv;
-
-    /* Motion Vectors */
-    su_t fmv;
-    su_t bmv;
+    vector_t mv0[2];
+    vector_t mv1[2];
 
     /* 3DMPEG_MACROBLOCK(2fbmv) */
     memset(&macroblock_2fbmv, 0, sizeof(macroblock_2fbmv));
@@ -897,41 +892,33 @@ static void i915_mc_mpeg_macroblock_2fbmv(XvMCContext *context, XvMCMacroBlock *
     macroblock_2fbmv.header.dw1.coded_block_pattern = mb->coded_block_pattern;
     macroblock_2fbmv.header.dw1.skipped_macroblocks = 0;
 
-    fmv.s[0] = mb->PMV[0][0][0];
-    fmv.s[1] = mb->PMV[0][0][1];
-    fmv.s[2] = mb->PMV[1][0][0];
-    fmv.s[3] = mb->PMV[1][0][1];
-    bmv.s[0] = mb->PMV[0][1][0];
-    bmv.s[1] = mb->PMV[0][1][1];
-    bmv.s[2] = mb->PMV[1][1][0];
-    bmv.s[3] = mb->PMV[1][1][1];
+    mv0[0].component[0] = mb->PMV[0][0][0];
+    mv0[0].component[1] = mb->PMV[0][0][1];
+    mv0[1].component[0] = mb->PMV[0][1][0];
+    mv0[1].component[1] = mb->PMV[0][1][1];
+    mv1[0].component[0] = mb->PMV[1][0][0];
+    mv1[0].component[1] = mb->PMV[1][0][1];
+    mv1[1].component[0] = mb->PMV[1][1][0];
+    mv1[1].component[1] = mb->PMV[1][1][1];
 
     if ((ps & XVMC_FRAME_PICTURE) == XVMC_FRAME_PICTURE) {
         if ((mb->motion_type & 3) == XVMC_PREDICTION_FIELD) {
-            fmv.s[0] = mb->PMV[0][0][0];
-            fmv.s[1] = mb->PMV[0][0][1] >> 1;
-            fmv.s[2] = mb->PMV[1][0][0];
-            fmv.s[3] = mb->PMV[1][0][1] >> 1;
-            bmv.s[0] = mb->PMV[0][1][0];
-            bmv.s[1] = mb->PMV[0][1][1] >> 1;
-            bmv.s[2] = mb->PMV[1][1][0];
-            bmv.s[3] = mb->PMV[1][1][1] >> 1;
+            mv0[0].component[1] = mb->PMV[0][0][1] >> 1;
+            mv0[1].component[1] = mb->PMV[0][1][1] >> 1;
+            mv1[0].component[1] = mb->PMV[1][0][1] >> 1;
+            mv1[1].component[1] = mb->PMV[1][1][1] >> 1;
         } else if ((mb->motion_type & 3) == XVMC_PREDICTION_DUAL_PRIME) {
-            fmv.s[0] = mb->PMV[0][0][0];
-            fmv.s[1] = mb->PMV[0][0][1] >> 1;
-            fmv.s[2] = mb->PMV[0][0][0];
-            fmv.s[3] = mb->PMV[0][0][1] >> 1;  // MPEG2 MV[0][1] isn't used
-            bmv.s[0] = mb->PMV[1][0][0];
-            bmv.s[1] = mb->PMV[1][0][1] >> 1;
-            bmv.s[2] = mb->PMV[1][1][0];
-            bmv.s[3] = mb->PMV[1][1][1] >> 1;
+            mv0[0].component[1] = mb->PMV[0][0][1] >> 1;
+            mv0[1].component[1] = mb->PMV[0][1][1] >> 1;  // MPEG2 MV[0][1] isn't used
+            mv1[0].component[1] = mb->PMV[1][0][1] >> 1;
+            mv1[1].component[1] = mb->PMV[1][1][1] >> 1;
         }
     }
 
-    macroblock_2fbmv.dw2 = fmv.u[0];
-    macroblock_2fbmv.dw3 = bmv.u[0];
-    macroblock_2fbmv.dw4 = fmv.u[1];
-    macroblock_2fbmv.dw5 = bmv.u[1];
+    macroblock_2fbmv.dw2 = mv0[0].v;
+    macroblock_2fbmv.dw3 = mv0[1].v;
+    macroblock_2fbmv.dw4 = mv1[0].v;
+    macroblock_2fbmv.dw5 = mv1[1].v;
 
     intelBatchbufferData(&macroblock_2fbmv, sizeof(macroblock_2fbmv), 0);
 }
