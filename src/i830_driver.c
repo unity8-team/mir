@@ -940,7 +940,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    } else {
       i830_dvo_init(pScrn);
    }
-   if (IS_I9XX(pI830) && !IS_I915G(pI830))
+   if (IS_I9XX(pI830) && IS_MOBILE(pI830))
       i830_tv_init(pScrn);
    
    for (o = 0; o < config->num_output; o++)
