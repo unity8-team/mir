@@ -23,7 +23,15 @@
  */
 
 #include "nv_include.h"
+
+
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#define bswap_16 bswap16
+#define bswap_32 bswap32
+#else
 #include <byteswap.h>
+#endif
+
 
 /* FIXME: put these somewhere */
 #define SEQ_INDEX VGA_SEQ_INDEX
