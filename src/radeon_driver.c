@@ -4243,6 +4243,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph1.x_end = INREG(AVIVO_D1GRPH_X_END);
     state->grph1.y_end = INREG(AVIVO_D1GRPH_Y_END);
 
+    state->grph1.desktop_height = INREG(AVIVO_D1MODE_DESKTOP_HEIGHT);
     state->grph1.viewport_start = INREG(AVIVO_D1MODE_VIEWPORT_START);
     state->grph1.viewport_size = INREG(AVIVO_D1MODE_VIEWPORT_SIZE);
 
@@ -4282,6 +4283,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->grph2.x_end = INREG(AVIVO_D2GRPH_X_END);
     state->grph2.y_end = INREG(AVIVO_D2GRPH_Y_END);
 
+    state->grph2.desktop_height = INREG(AVIVO_D2MODE_DESKTOP_HEIGHT);
     state->grph2.viewport_start = INREG(AVIVO_D2MODE_VIEWPORT_START);
     state->grph2.viewport_size = INREG(AVIVO_D2MODE_VIEWPORT_SIZE);
 
@@ -4487,14 +4489,69 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     struct avivo_state *state = &restore->avivo;
     int i, j;
 
-    //    OUTMC(pScrn, AVIVO_MC_MEMORY_MAP, state->mc_memory_map);
-    //    OUTREG(AVIVO_VGA_MEMORY_BASE, state->vga_memory_base);
-    //    OUTREG(AVIVO_VGA_FB_START, state->vga_fb_start);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "avivo_restore !\n");
 
+    /* Disable VGA control for now.. maybe needs to be changed */
+    OUTREG(AVIVO_D1VGA_CONTROL, 0);
+    OUTREG(AVIVO_D2VGA_CONTROL, 0);
 
-    OUTREG(AVIVO_DC_CRTC_MASTER_EN, state->crtc_master_en);
-    OUTREG(AVIVO_DC_CRTC_TV_CONTROL, state->crtc_tv_control);
+    /* Disable CRTCs */
+    OUTREG(AVIVO_D1CRTC_CONTROL,
+	   (INREG(AVIVO_D1CRTC_CONTROL) & ~0x300) | 0x01000000);
+    OUTREG(AVIVO_D2CRTC_CONTROL,
+	   (INREG(AVIVO_D2CRTC_CONTROL) & ~0x300) | 0x01000000);
+    OUTREG(AVIVO_D1CRTC_CONTROL,
+	   INREG(AVIVO_D1CRTC_CONTROL) & ~0x1);
+    OUTREG(AVIVO_D2CRTC_CONTROL,
+	   INREG(AVIVO_D2CRTC_CONTROL) & ~0x1);
+    OUTREG(AVIVO_D1CRTC_CONTROL,
+	   INREG(AVIVO_D1CRTC_CONTROL) | 0x100);
+    OUTREG(AVIVO_D2CRTC_CONTROL,
+	   INREG(AVIVO_D2CRTC_CONTROL) | 0x100);
 
+    /* Lock graph registers */
+    OUTREG(AVIVO_D1GRPH_UPDATE, AVIVO_D1GRPH_UPDATE_LOCK);
+    OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS, state->grph1.prim_surf_addr);
+    OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS, state->grph1.sec_surf_addr);
+    OUTREG(AVIVO_D1GRPH_CONTROL, state->grph1.control);
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X, state->grph1.x_offset);
+    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y, state->grph1.y_offset);
+    OUTREG(AVIVO_D1GRPH_X_START, state->grph1.x_start);
+    OUTREG(AVIVO_D1GRPH_Y_START, state->grph1.y_start);
+    OUTREG(AVIVO_D1GRPH_X_END, state->grph1.x_end);
+    OUTREG(AVIVO_D1GRPH_Y_END, state->grph1.y_end);
+    OUTREG(AVIVO_D1GRPH_PITCH, state->grph1.pitch);
+    OUTREG(AVIVO_D1GRPH_ENABLE, state->grph1.enable);
+    OUTREG(AVIVO_D1GRPH_UPDATE, 0);
+
+    OUTREG(AVIVO_D2GRPH_UPDATE, AVIVO_D1GRPH_UPDATE_LOCK);
+    OUTREG(AVIVO_D2GRPH_PRIMARY_SURFACE_ADDRESS, state->grph2.prim_surf_addr);
+    OUTREG(AVIVO_D2GRPH_SECONDARY_SURFACE_ADDRESS, state->grph2.sec_surf_addr);
+    OUTREG(AVIVO_D2GRPH_CONTROL, state->grph2.control);
+    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_X, state->grph2.x_offset);
+    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_Y, state->grph2.y_offset);
+    OUTREG(AVIVO_D2GRPH_X_START, state->grph2.x_start);
+    OUTREG(AVIVO_D2GRPH_Y_START, state->grph2.y_start);
+    OUTREG(AVIVO_D2GRPH_X_END, state->grph2.x_end);
+    OUTREG(AVIVO_D2GRPH_Y_END, state->grph2.y_end);
+    OUTREG(AVIVO_D2GRPH_PITCH, state->grph2.pitch);
+    OUTREG(AVIVO_D2GRPH_ENABLE, state->grph2.enable);
+    OUTREG(AVIVO_D2GRPH_UPDATE, 0);
+
+    /* Whack some mode regs too */
+    OUTREG(AVIVO_D1SCL_UPDATE, AVIVO_D1SCL_UPDATE_LOCK);
+    OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT, state->grph1.desktop_height);
+    OUTREG(AVIVO_D1MODE_VIEWPORT_START, state->grph1.viewport_start);
+    OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE, state->grph1.viewport_size);
+    OUTREG(AVIVO_D1SCL_UPDATE, 0);
+
+    OUTREG(AVIVO_D2SCL_UPDATE, AVIVO_D1SCL_UPDATE_LOCK);
+    OUTREG(AVIVO_D2MODE_DESKTOP_HEIGHT, state->grph2.desktop_height);
+    OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
+    OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
+    OUTREG(AVIVO_D2SCL_UPDATE, 0);
+
+    /* Set the PLL */
     OUTREG(AVIVO_EXT1_PPLL_REF_DIV_SRC, state->pll1.ref_div_src);
     OUTREG(AVIVO_EXT1_PPLL_REF_DIV, state->pll1.ref_div);
     OUTREG(AVIVO_EXT1_PPLL_FB_DIV, state->pll1.fb_div);
@@ -4514,7 +4571,9 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_P2PLL_INT_SS_CNTL, state->pll2.int_ss_cntl);
 
     OUTREG(AVIVO_PCLK_CRTC1_CNTL, state->crtc1.pll_source);
+    OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
 
+    /* Set the CRTC */
     OUTREG(AVIVO_D1CRTC_H_TOTAL, state->crtc1.h_total);
     OUTREG(AVIVO_D1CRTC_H_BLANK_START_END, state->crtc1.h_blank_start_end);
     OUTREG(AVIVO_D1CRTC_H_SYNC_A, state->crtc1.h_sync_a);
@@ -4529,29 +4588,12 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D1CRTC_V_SYNC_B, state->crtc1.v_sync_b);
     OUTREG(AVIVO_D1CRTC_V_SYNC_B_CNTL, state->crtc1.v_sync_b_cntl);
 
-    OUTREG(AVIVO_D1CRTC_CONTROL, state->crtc1.control);
-    OUTREG(AVIVO_D1CRTC_BLANK_CONTROL, state->crtc1.blank_control);
     OUTREG(AVIVO_D1CRTC_INTERLACE_CONTROL, state->crtc1.interlace_control);
     OUTREG(AVIVO_D1CRTC_STEREO_CONTROL, state->crtc1.stereo_control);
 
     OUTREG(AVIVO_D1CUR_CONTROL, state->crtc1.cursor_control);
 
-    OUTREG(AVIVO_D1GRPH_ENABLE, state->grph1.enable);
-    OUTREG(AVIVO_D1GRPH_CONTROL, state->grph1.control);
-    OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS, state->grph1.prim_surf_addr);
-    OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS, state->grph1.sec_surf_addr);
-    OUTREG(AVIVO_D1GRPH_PITCH, state->grph1.pitch);
-    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X, state->grph1.x_offset);
-    OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y, state->grph1.y_offset);
-    OUTREG(AVIVO_D1GRPH_X_START, state->grph1.x_start);
-    OUTREG(AVIVO_D1GRPH_Y_START, state->grph1.y_start);
-    OUTREG(AVIVO_D1GRPH_X_END, state->grph1.x_end);
-    OUTREG(AVIVO_D1GRPH_Y_END, state->grph1.y_end);
-
-    OUTREG(AVIVO_D1MODE_VIEWPORT_START, state->grph1.viewport_start);
-    OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE, state->grph1.viewport_size);
-
-    OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
+    /* XXX Fix scaler */
 
     OUTREG(AVIVO_D2CRTC_H_TOTAL, state->crtc2.h_total);
     OUTREG(AVIVO_D2CRTC_H_BLANK_START_END, state->crtc2.h_blank_start_end);
@@ -4567,28 +4609,10 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(AVIVO_D2CRTC_V_SYNC_B, state->crtc2.v_sync_b);
     OUTREG(AVIVO_D2CRTC_V_SYNC_B_CNTL, state->crtc2.v_sync_b_cntl);
 
-    OUTREG(AVIVO_D2CRTC_CONTROL, state->crtc2.control);
-    OUTREG(AVIVO_D2CRTC_BLANK_CONTROL, state->crtc2.blank_control);
     OUTREG(AVIVO_D2CRTC_INTERLACE_CONTROL, state->crtc2.interlace_control);
     OUTREG(AVIVO_D2CRTC_STEREO_CONTROL, state->crtc2.stereo_control);
 
     OUTREG(AVIVO_D2CUR_CONTROL, state->crtc2.cursor_control);
-
-    OUTREG(AVIVO_D2GRPH_ENABLE, state->grph2.enable);
-    OUTREG(AVIVO_D2GRPH_CONTROL, state->grph2.control);
-    OUTREG(AVIVO_D2GRPH_PRIMARY_SURFACE_ADDRESS, state->grph2.prim_surf_addr);
-    OUTREG(AVIVO_D2GRPH_SECONDARY_SURFACE_ADDRESS, state->grph2.sec_surf_addr);
-    OUTREG(AVIVO_D2GRPH_PITCH, state->grph2.pitch);
-    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_X, state->grph2.x_offset);
-    OUTREG(AVIVO_D2GRPH_SURFACE_OFFSET_Y, state->grph2.y_offset);
-    OUTREG(AVIVO_D2GRPH_X_START, state->grph2.x_start);
-    OUTREG(AVIVO_D2GRPH_Y_START, state->grph2.y_start);
-    OUTREG(AVIVO_D2GRPH_X_END, state->grph2.x_end);
-    OUTREG(AVIVO_D2GRPH_Y_END, state->grph2.y_end);
-
-    OUTREG(AVIVO_D2MODE_VIEWPORT_START, state->grph2.viewport_start);
-    OUTREG(AVIVO_D2MODE_VIEWPORT_SIZE, state->grph2.viewport_size);
-
 
     if (IS_DCE3_VARIANT) {
 	/* DVOA regs */
@@ -4709,7 +4733,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	}
 
 	j = 0;
-	/* DAC regs */
+	/* DAC regs */ /* -- MIGHT NEED ORDERING FIX & DELAYS -- */
 	for (i = 0x7800; i <= 0x782c; i += 4) {
 	    OUTREG(i, state->daca[j]);
 	    OUTREG((i + 0x200), state->dacb[j]);
@@ -4776,8 +4800,30 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
     OUTREG(0x6e30, state->dxscl[6]);
     OUTREG(0x6e34, state->dxscl[7]);
 
+    /* Enable CRTCs */
+    if (state->crtc1.control & 1) {
+	    OUTREG(AVIVO_D1CRTC_CONTROL, 0x01000101);
+	    INREG(AVIVO_D1CRTC_CONTROL);
+	    OUTREG(AVIVO_D1CRTC_CONTROL, 0x00010101);
+    }
+    if (state->crtc2.control & 1) {
+	    OUTREG(AVIVO_D2CRTC_CONTROL, 0x01000101);
+	    INREG(AVIVO_D2CRTC_CONTROL);
+	    OUTREG(AVIVO_D2CRTC_CONTROL, 0x00010101);
+    }
+
+    /* Where should that go ? */
+    OUTREG(AVIVO_DC_CRTC_TV_CONTROL, state->crtc_tv_control);
+
+    /* Need fixing too ? */
+    OUTREG(AVIVO_D1CRTC_BLANK_CONTROL, state->crtc1.blank_control);
+    OUTREG(AVIVO_D2CRTC_BLANK_CONTROL, state->crtc2.blank_control);
+
+    /* Dbl check */
     OUTREG(AVIVO_D1VGA_CONTROL, state->vga1_cntl);
     OUTREG(AVIVO_D2VGA_CONTROL, state->vga2_cntl);
+
+    /* Should only enable outputs here */
 }
 
 static void avivo_restore_vga_regs(ScrnInfoPtr pScrn, RADEONSavePtr restore)

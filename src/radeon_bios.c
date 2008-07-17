@@ -382,6 +382,26 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	info->MasterDataStart = RADEON_BIOS16 (info->ROMHeaderStart + 32);
     }
 
+    /* We are a bit too quick at using this "unposted" to re-post the
+     * card. This causes some problems with VT switch on some machines,
+     * so let's work around this for now by only POSTing if none of the
+     * CRTCs are enabled
+     */
+    if (unposted && info->VBIOS) {	
+	    unsigned char *RADEONMMIO = info->MMIO;
+	    uint32_t reg;
+
+	    if (IS_AVIVO_VARIANT) {
+		    reg = INREG(AVIVO_D1CRTC_CONTROL) | INREG(AVIVO_D2CRTC_CONTROL);
+		    if (reg & AVIVO_CRTC_EN)
+			    unposted = FALSE;
+	    } else {
+		    reg = INREG(RADEON_CRTC_GEN_CNTL) | INREG(RADEON_CRTC2_GEN_CNTL);
+		    if (reg & RADEON_CRTC_EN)
+			    unposted = FALSE;
+	    }
+    }
+
     if (unposted && info->VBIOS) {
 	if (info->IsAtomBios) {
 	    if (!rhdAtomASICInit(info->atomBIOS))

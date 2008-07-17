@@ -3599,7 +3599,7 @@
 #define AVIVO_DC_LUTA_WHITE_OFFSET_RED          0x64d8
 
 
-#define AVIVO_D1MODE_DESKTOP_HEIGHT             0x652C
+#define AVIVO_D1MODE_DESKTOP_HEIGHT             0x652c
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580
 #define AVIVO_D1MODE_VIEWPORT_SIZE              0x6584
 #define AVIVO_D1MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6588
@@ -3651,6 +3651,7 @@
 #define AVIVO_D2CUR_SIZE                        0x6c10
 #define AVIVO_D2CUR_POSITION                    0x6c14
 
+#define AVIVO_D2MODE_DESKTOP_HEIGHT             0x6d2c
 #define AVIVO_D2MODE_VIEWPORT_START             0x6d80
 #define AVIVO_D2MODE_VIEWPORT_SIZE              0x6d84
 #define AVIVO_D2MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6d88
@@ -3658,6 +3659,7 @@
 
 #define AVIVO_D2SCL_SCALER_ENABLE               0x6d90
 #define AVIVO_D2SCL_SCALER_TAP_CONTROL	 	0x6d94
+#define AVIVO_D2SCL_UPDATE                      0x6dcc
 
 #define AVIVO_DDIA_BIT_DEPTH_CONTROL				0x7214
 
