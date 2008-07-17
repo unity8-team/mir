@@ -59,6 +59,9 @@ do { 							\
 } while(0)
 #endif
 
+#define MAX_VERTEX_PER_COMPOSITE    24
+#define MAX_VERTEX_BUFFERS	    256
+
 struct blendinfo {
     Bool dst_alpha;
     Bool src_alpha;
@@ -500,7 +503,7 @@ typedef struct _gen4_state {
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
 
-    float vb[(2 + 3 + 3) * 3];   /* (dst, src, mask) 3 vertices, 4 bytes */
+    float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
 } gen4_state_t;
 
 /** Private data for gen4 render accel implementation. */
@@ -510,6 +513,8 @@ struct gen4_render_state {
 
     int binding_table_index;
     int surface_state_index;
+    int vb_offset;
+    int vertex_size;
 };
 
 /**
@@ -968,6 +973,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	i830WaitSync(pScrn);
 	render_state->binding_table_index = 0;
 	render_state->surface_state_index = 0;
+	render_state->vb_offset = 0;
     }
 
     binding_table = card_state->binding_table +
@@ -1035,7 +1041,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
         BEGIN_BATCH(12);
 
         /* Match Mesa driver setup */
-	if (IS_IGD_GM(pI830))
+	if (IS_GM45(pI830) || IS_G4X(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1195,6 +1201,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	int selem = is_affine ? 2 : 3;
 	uint32_t    w_component;
 	uint32_t    src_format;
+
+	render_state->vertex_size = 4 * (2 + nelem * selem);
 	
 	if (is_affine)
 	{
@@ -1206,17 +1214,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    src_format = BRW_SURFACEFORMAT_R32G32B32_FLOAT;
 	    w_component = BRW_VFCOMPONENT_STORE_SRC;
 	}
-	BEGIN_BATCH(pMask?12:10);
-	/* Set up the pointer to our (single) vertex buffer */
-	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
-	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
-		  VB0_VERTEXDATA |
-		  ((4 * (2 + nelem * selem)) << VB0_BUFFER_PITCH_SHIFT));
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, vb));
-        OUT_BATCH(3);
-	OUT_BATCH(0); // ignore for VERTEXDATA, but still there
-
+	BEGIN_BATCH(pMask?7:5);
 	/* Set up our vertex elements, sourced from the single vertex buffer.
+	 * that will be set up later.
 	 */
 	
 	OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | ((2 * (1 + nelem)) - 1));
@@ -1271,6 +1271,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     gen4_state_t *card_state = pI830->gen4_render_state->card_state;
+    struct gen4_render_state *render_state = pI830->gen4_render_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
@@ -1351,12 +1352,12 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    /* Wait for any existing composite rectangles to land before we overwrite
-     * the VB with the next one.
-     */
-    i830WaitSync(pScrn);
+    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(card_state->vb)) {
+	i830WaitSync(pScrn);
+	render_state->vb_offset = 0;
+    }
 
-    i = 0;
+    i = render_state->vb_offset;
     /* rect (x2,y2) */
     vb[i++] = (float)(dstX + w);
     vb[i++] = (float)(dstY + h);
@@ -1400,20 +1401,32 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     }
     assert (i * 4 <= sizeof(card_state->vb));
 
-    {
-      BEGIN_BATCH(6);
-      OUT_BATCH(BRW_3DPRIMITIVE |
-		BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
-		(_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
-		(0 << 9) |  /* CTG - indirect vertex count */
-		4);
-      OUT_BATCH(3);  /* vertex count per instance */
-      OUT_BATCH(0); /* start vertex offset */
-      OUT_BATCH(1); /* single instance */
-      OUT_BATCH(0); /* start instance location */
-      OUT_BATCH(0); /* index buffer offset, ignored */
-      ADVANCE_BATCH();
-    }
+    BEGIN_BATCH(12);
+    OUT_BATCH(MI_FLUSH);
+    /* Set up the pointer to our (single) vertex buffer */
+    OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 3);
+    OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+	      VB0_VERTEXDATA |
+	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
+    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb) +
+	      render_state->vb_offset * 4);
+    OUT_BATCH(3);
+    OUT_BATCH(0); // ignore for VERTEXDATA, but still there
+
+    OUT_BATCH(BRW_3DPRIMITIVE |
+	      BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
+	      (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
+	      (0 << 9) |  /* CTG - indirect vertex count */
+	      4);
+    OUT_BATCH(3);  /* vertex count per instance */
+    OUT_BATCH(0); /* start vertex offset */
+    OUT_BATCH(1); /* single instance */
+    OUT_BATCH(0); /* start instance location */
+    OUT_BATCH(0); /* index buffer offset, ignored */
+    ADVANCE_BATCH();
+
+    render_state->vb_offset = i;
+
 #ifdef I830DEBUG
     ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);

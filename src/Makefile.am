@@ -37,6 +37,10 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
+intel_drv_la_LIBADD =
+if XSERVER_LIBPCIACCESS
+intel_drv_la_LIBADD += @PCIACCESS_LIBS@
+endif
 
 XMODE_SRCS=\
 	 local_xf86Rename.h \
@@ -103,6 +107,7 @@ intel_drv_la_SOURCES = \
          i830_driver.c \
 	 i830_dvo.c \
          i830.h \
+	 i830_hdmi.c \
          i830_i2c.c \
          i830_io.c \
 	 i830_lvds.c \
@@ -186,7 +191,7 @@ if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b
 .g4a.g4b:
-	m4 -s $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
 
 $(INTEL_G4B): $(INTEL_G4I)
 
@@ -204,6 +209,8 @@ endif
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
+intel_drv_la_LIBADD += \
+	$(DRI_LIBS)
 endif
 
 if XVMC

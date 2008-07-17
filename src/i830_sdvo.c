@@ -92,6 +92,9 @@ struct i830_sdvo_priv {
      */
     struct i830_sdvo_tv_format tv_format;
 
+    /** supported encoding mode, used to determine whether HDMI is supported */
+    struct i830_sdvo_encode encode;
+
     /** DDC bus used by this SDVO output */
     uint8_t ddc_bus;
 
@@ -229,6 +232,19 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
+    /* HDMI op code */
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPP_ENCODE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_PIXEL_REPLI),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_COLORIMETRY_CAP),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_COLORIMETRY),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_AUDIO_ENCRYPT_PREFER),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_AUDIO_STAT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_INDEX),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HBUF_INDEX),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_INFO),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_AV_SPLIT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_TXRATE),
 };
 
 static I2CSlaveAddr slaveAddr;
@@ -741,6 +757,190 @@ i830_sdvo_get_mode_from_dtd(DisplayModePtr mode, struct i830_sdvo_dtd *dtd)
 }
 
 static Bool
+i830_sdvo_get_supp_encode(xf86OutputPtr output, struct i830_sdvo_encode *encode)
+{
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_SUPP_ENCODE, NULL, 0);
+    status = i830_sdvo_read_response(output, encode, sizeof(*encode));
+    if (status != SDVO_CMD_STATUS_SUCCESS) {
+	memset(encode, 0, sizeof(*encode));
+	return FALSE;
+    }
+
+    return TRUE;
+}
+
+static Bool
+i830_sdvo_set_encode(xf86OutputPtr output, uint8_t mode)
+{
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_ENCODE, &mode, 1);
+    status = i830_sdvo_read_response(output, NULL, 0);
+
+    return (status == SDVO_CMD_STATUS_SUCCESS);
+}
+
+static Bool
+i830_sdvo_set_colorimetry(xf86OutputPtr output, uint8_t mode)
+{
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_COLORIMETRY, &mode, 1);
+    status = i830_sdvo_read_response(output, NULL, 0);
+
+    return (status == SDVO_CMD_STATUS_SUCCESS);
+}
+
+#if 0
+static Bool
+i830_sdvo_set_pixel_repli(xf86OutputPtr output, uint8_t repli)
+{
+    uint8_t status;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_PIXEL_REPLI, &repli, 1);
+    status = i830_sdvo_read_response(output, NULL, 0);
+
+    return (status == SDVO_CMD_STATUS_SUCCESS);
+}
+#endif
+
+static void i830_sdvo_dump_hdmi_buf(xf86OutputPtr output)
+{
+    int i, j;
+    uint8_t set_buf_index[2];
+    uint8_t av_split;
+    uint8_t buf_size;
+    uint8_t buf[48];
+    uint8_t *pos;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_HBUF_AV_SPLIT, NULL, 0);
+    i830_sdvo_read_response(output, &av_split, 1);
+
+    for (i = 0; i <= av_split; i++) {
+	set_buf_index[0] = i; set_buf_index[1] = 0;
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_HBUF_INDEX,
+				set_buf_index, 2);
+	i830_sdvo_write_cmd(output, SDVO_CMD_GET_HBUF_INFO, NULL, 0);
+	i830_sdvo_read_response(output, &buf_size, 1);
+
+	pos = buf;
+	for (j = 0; j <= buf_size; j += 8) {
+	    i830_sdvo_write_cmd(output, SDVO_CMD_GET_HBUF_DATA, NULL, 0);
+	    i830_sdvo_read_response(output, pos, 8);
+	    pos += 8;
+	}
+    }
+}
+
+static void i830_sdvo_set_hdmi_buf(xf86OutputPtr output, int index,
+				uint8_t *data, int8_t size, uint8_t tx_rate)
+{
+    uint8_t set_buf_index[2];
+
+    set_buf_index[0] = index;
+    set_buf_index[1] = 0;
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_HBUF_INDEX, set_buf_index, 2);
+
+    for (; size > 0; size -= 8) {
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_HBUF_DATA, data, 8);
+	data += 8;
+    }
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_SET_HBUF_TXRATE, &tx_rate, 1);
+}
+
+static uint8_t i830_sdvo_calc_hbuf_csum(uint8_t *data, uint8_t size)
+{
+    uint8_t csum = 0;
+    int i;
+
+    for (i = 0; i < size; i++)
+	csum += data[i];
+
+    return 0x100 - csum;
+}
+
+#define DIP_TYPE_AVI	0x82
+#define DIP_VERSION_AVI	0x2
+#define DIP_LEN_AVI	13
+
+struct dip_infoframe {
+    uint8_t type;
+    uint8_t version;
+    uint8_t len;
+    uint8_t checksum;
+    union {
+	struct {
+	    /* Packet Byte #1 */
+	    uint8_t S:2;
+	    uint8_t B:2;
+	    uint8_t A:1;
+	    uint8_t Y:2;
+	    uint8_t rsvd1:1;
+	    /* Packet Byte #2 */
+	    uint8_t R:4;
+	    uint8_t M:2;
+	    uint8_t C:2;
+	    /* Packet Byte #3 */
+	    uint8_t SC:2;
+	    uint8_t Q:2;
+	    uint8_t EC:3;
+	    uint8_t ITC:1;
+	    /* Packet Byte #4 */
+	    uint8_t VIC:7;
+	    uint8_t rsvd2:1;
+	    /* Packet Byte #5 */
+	    uint8_t PR:4;
+	    uint8_t rsvd3:4;
+	    /* Packet Byte #6~13 */
+	    uint16_t top_bar_end;
+	    uint16_t bottom_bar_start;
+	    uint16_t left_bar_end;
+	    uint16_t right_bar_start;
+	} avi;
+	struct {
+	    /* Packet Byte #1 */
+	    uint8_t CC:3;
+	    uint8_t rsvd1:1;
+	    uint8_t CT:4;
+	    /* Packet Byte #2 */
+	    uint8_t SS:2;
+	    uint8_t SF:3;
+	    uint8_t rsvd2:3;
+	    /* Packet Byte #3 */
+	    uint8_t CXT:5;
+	    uint8_t rsvd3:3;
+	    /* Packet Byte #4 */
+	    uint8_t CA;
+	    /* Packet Byte #5 */
+	    uint8_t rsvd4:3;
+	    uint8_t LSV:4;
+	    uint8_t DM_INH:1;
+	} audio;
+	uint8_t payload[28];
+    } __attribute__ ((packed)) u;
+} __attribute__((packed));
+
+static void i830_sdvo_set_avi_infoframe(xf86OutputPtr output,
+					DisplayModePtr mode)
+{
+    struct dip_infoframe avi_if = {
+	.type = DIP_TYPE_AVI,
+	.version = DIP_VERSION_AVI,
+	.len = DIP_LEN_AVI,
+    };
+
+    avi_if.u.avi.PR = i830_sdvo_get_pixel_multiplier(mode) - 1;
+    avi_if.checksum = i830_sdvo_calc_hbuf_csum((uint8_t *)&avi_if,
+					4 + avi_if.len);
+    i830_sdvo_set_hdmi_buf(output, 1, (uint8_t *)&avi_if, 4 + avi_if.len,
+			SDVO_HBUF_TX_VSYNC);
+}
+
+static Bool
 i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
@@ -826,6 +1026,9 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     i830_sdvo_write_cmd(output, SDVO_CMD_SET_IN_OUT_MAP,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
+
+    if (dev_priv->encode.hdmi_rev)
+	i830_sdvo_set_avi_infoframe(output, mode);
 
     i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
@@ -1203,6 +1406,15 @@ i830_sdvo_dump_device(xf86OutputPtr output)
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_TV_FORMAT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS);
+
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPP_ENCODE);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_ENCODE);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_PIXEL_REPLI);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_COLORIMETRY_CAP);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_COLORIMETRY);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_AUDIO_ENCRYPT_PREFER);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_AUDIO_STAT);
+    i830_sdvo_dump_hdmi_buf(output);
 }
 
 void
@@ -1503,7 +1715,7 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     dev_priv->ddc_bus = 1 << num_bits;
 }
 
-void
+Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 {
     xf86OutputPtr	    output;
@@ -1518,19 +1730,21 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
-	return;
+	return FALSE;
     intel_output = xnfcalloc (sizeof (I830OutputPrivateRec) +
 			      sizeof (struct i830_sdvo_priv), 1);
     if (!intel_output)
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
     output->driver_private = intel_output;
+    dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
+    intel_output->dev_priv = dev_priv;
+
     output->interlaceAllowed = FALSE;
     output->doubleScanAllowed = FALSE;
     
-    dev_priv = (struct i830_sdvo_priv *) (intel_output + 1);
     intel_output->type = I830_OUTPUT_SDVO;
     intel_output->pipe_mask = ((1 << 0) | (1 << 1));
     intel_output->clone_mask = (1 << I830_OUTPUT_SDVO);
@@ -1546,7 +1760,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (i2cbus == NULL)
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     if (output_device == SDVOB) {
@@ -1568,11 +1782,10 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		   "Failed to initialize %s I2C device\n",
 		   SDVO_NAME(dev_priv));
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     intel_output->pI2CBus = i2cbus;
-    intel_output->dev_priv = dev_priv;
 
     /* Read the regs to test if we can talk to the device */
     for (i = 0; i < 0x40; i++) {
@@ -1581,7 +1794,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 		       "No SDVO device found on SDVO%c\n",
 		       output_device == SDVOB ? 'B' : 'C');
 	    xf86OutputDestroy (output);
-	    return;
+	    return FALSE;
 	}
     }
 
@@ -1594,7 +1807,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (ddcbus == NULL) 
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
     if (output_device == SDVOB)
         ddcbus->BusName = "SDVOB DDC Bus";
@@ -1611,7 +1824,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (!xf86I2CBusInit(ddcbus)) 
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     intel_output->pI2CBus = i2cbus;
@@ -1620,17 +1833,22 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 
     i830_sdvo_get_capabilities(output, &dev_priv->caps);
 
-    if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
     {
-	dev_priv->controlled_output = SDVO_OUTPUT_TMDS0;
+	if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
+	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS0;
+	else
+	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS1;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
-    }
-    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS1)
-    {
-	dev_priv->controlled_output = SDVO_OUTPUT_TMDS1;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="TMDS";
+
+	i830_sdvo_get_supp_encode(output, &dev_priv->encode);
+	if (dev_priv->encode.hdmi_rev != 0) {
+	    /* enable hdmi encoding mode if supported */
+	    i830_sdvo_set_encode(output, SDVO_ENCODE_HDMI);
+	    i830_sdvo_set_colorimetry(output, SDVO_COLORIMETRY_RGB256);
+	    name_prefix = "HDMI";
+	}
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
     {
@@ -1670,7 +1888,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (!xf86OutputRename (output, name))
     {
 	xf86OutputDestroy (output);
-	return;
+	return FALSE;
     }
 
     i830_sdvo_select_ddc_bus(dev_priv);
@@ -1718,4 +1936,5 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     REPORT_OUTPUT_FLAG(SDVO_OUTPUT_SCART1, "SCART1");
     REPORT_OUTPUT_FLAG(SDVO_OUTPUT_LVDS1, "LVDS1");
 
+    return TRUE;
 }

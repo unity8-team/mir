@@ -236,6 +236,7 @@ typedef struct {
 #define I830_OUTPUT_SDVO 5
 #define I830_OUTPUT_LVDS 6
 #define I830_OUTPUT_TVOUT 7
+#define I830_OUTPUT_HDMI 8
 
 struct _I830DVODriver {
    int type;
@@ -427,7 +428,6 @@ typedef struct _I830Rec {
 #ifdef INTEL_XVMC
    /* For XvMC */
    Bool XvMCEnabled;
-   Bool IsXvMCSurface;
 #endif
 
    XF86ModReqInfo shadowReq; /* to test for later libshadow */
@@ -567,6 +567,10 @@ typedef struct _I830Rec {
    OptionInfoPtr Options;
 
    Bool lvds_24_bit_mode;
+   Bool lvds_use_ssc;
+   int lvds_ssc_freq; /* in MHz */
+
+   Bool tv_present; /* TV connector present (from VBIOS) */
 
    Bool StolenOnly;
 
@@ -818,6 +822,9 @@ void i830_crt_init(ScrnInfoPtr pScrn);
 
 /* i830_dvo.c */
 void i830_dvo_init(ScrnInfoPtr pScrn);
+
+/* i830_hdmi.c */
+void i830_hdmi_init(ScrnInfoPtr pScrn, int output_reg);
 
 /* i830_lvds.c */
 void i830_lvds_init(ScrnInfoPtr pScrn);

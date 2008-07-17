@@ -70,6 +70,32 @@ i830DumpBIOSToFile(ScrnInfoPtr pScrn, unsigned char *bios)
     fclose(f);
 }
 
+static void *
+find_section(struct bdb_header *bdb, int section_id)
+{
+	unsigned char *base = (unsigned char *)bdb;
+	int index = 0;
+	uint16_t total, current_size;
+	unsigned char current_id;
+
+	/* skip to first section */
+	index += bdb->header_size;
+	total = bdb->bdb_size;
+
+	/* walk the sections looking for section_id */
+	while (index < total) {
+		current_id = *(base + index);
+		index++;
+		current_size = *((uint16_t *)(base + index));
+		index += 2;
+		if (current_id == section_id)
+			return base + index;
+		index += current_size;
+	}
+
+	return NULL;
+}
+
 /**
  * Loads the Video BIOS and checks that the VBT exists.
  *
@@ -125,6 +151,70 @@ i830_bios_get (ScrnInfoPtr pScrn)
     }
 
     return bios;
+}
+
+void
+i830_bios_get_ssc(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct vbt_header *vbt;
+    struct bdb_header *bdb;
+    struct bdb_general_features *bdb_features;
+    int vbt_off, bdb_off;
+    unsigned char *bios;
+
+    bios = i830_bios_get(pScrn);
+
+    if (bios == NULL)
+	return;
+
+    vbt_off = INTEL_BIOS_16(0x1a);
+    vbt = (struct vbt_header *)(bios + vbt_off);
+    bdb_off = vbt_off + vbt->bdb_offset;
+    bdb = (struct bdb_header *)(bios + bdb_off);
+
+    bdb_features = find_section(bdb, BDB_GENERAL_FEATURES);
+    if (!bdb_features)
+	return;
+
+    pI830->lvds_use_ssc = bdb_features->enable_ssc;
+    if (pI830->lvds_use_ssc) {
+	if (IS_I855(pI830))
+	    pI830->lvds_ssc_freq = bdb_features->ssc_freq ? 66 : 48;
+	else
+	    pI830->lvds_ssc_freq = bdb_features->ssc_freq ? 100 : 96;
+    }
+
+    xfree(bios);
+}
+
+void
+i830_bios_get_tv(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct vbt_header *vbt;
+    struct bdb_header *bdb;
+    struct bdb_general_features *bdb_features;
+    int vbt_off, bdb_off;
+    unsigned char *bios;
+
+    bios = i830_bios_get(pScrn);
+
+    if (bios == NULL)
+	return;
+
+    vbt_off = INTEL_BIOS_16(0x1a);
+    vbt = (struct vbt_header *)(bios + vbt_off);
+    bdb_off = vbt_off + vbt->bdb_offset;
+    bdb = (struct bdb_header *)(bios + bdb_off);
+
+    bdb_features = find_section(bdb, BDB_GENERAL_FEATURES);
+    if (!bdb_features)
+	return;
+
+    pI830->tv_present = bdb_features->int_tv_support;
+
+    xfree(bios);
 }
 
 /**

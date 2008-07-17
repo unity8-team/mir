@@ -537,15 +537,6 @@ static struct i830SnapshotRec {
     DEFINEREG2(PIPEASRC, i830_debug_yxminus1),
     DEFINEREG2(PIPEASTAT, i830_debug_pipestat),
 
-    DEFINEREG(FBC_CFB_BASE),
-    DEFINEREG(FBC_LL_BASE),
-    DEFINEREG(FBC_CONTROL),
-    DEFINEREG(FBC_COMMAND),
-    DEFINEREG(FBC_STATUS),
-    DEFINEREG(FBC_CONTROL2),
-    DEFINEREG(FBC_FENCE_OFF),
-    DEFINEREG(FBC_MOD_NUM),
-
     DEFINEREG2(FPA0, i830_debug_fp),
     DEFINEREG2(FPA1, i830_debug_fp),
     DEFINEREG2(DPLL_A, i830_debug_dpll),
@@ -623,11 +614,45 @@ static struct i830SnapshotRec {
     DEFINEREG(TV_H_CHROMA_0),
     DEFINEREG(TV_H_CHROMA_59),
 
+    DEFINEREG(FBC_CFB_BASE),
+    DEFINEREG(FBC_LL_BASE),
+    DEFINEREG(FBC_CONTROL),
+    DEFINEREG(FBC_COMMAND),
+    DEFINEREG(FBC_STATUS),
+    DEFINEREG(FBC_CONTROL2),
+    DEFINEREG(FBC_FENCE_OFF),
+    DEFINEREG(FBC_MOD_NUM),
+
     DEFINEREG(MI_MODE),
     /* DEFINEREG(MI_DISPLAY_POWER_DOWN), CRL only */
     DEFINEREG(MI_ARB_STATE),
     DEFINEREG(MI_RDRET_STATE),
     DEFINEREG(ECOSKPD),
+
+    DEFINEREG(DP_B),
+    DEFINEREG(DPB_AUX_CH_CTL),
+    DEFINEREG(DPB_AUX_CH_DATA1),
+    DEFINEREG(DPB_AUX_CH_DATA2),
+    DEFINEREG(DPB_AUX_CH_DATA3),
+    DEFINEREG(DPB_AUX_CH_DATA4),
+    DEFINEREG(DPB_AUX_CH_DATA5),
+
+    DEFINEREG(DP_C),
+    DEFINEREG(DPC_AUX_CH_CTL),
+    DEFINEREG(DPC_AUX_CH_DATA1),
+    DEFINEREG(DPC_AUX_CH_DATA2),
+    DEFINEREG(DPC_AUX_CH_DATA3),
+    DEFINEREG(DPC_AUX_CH_DATA4),
+    DEFINEREG(DPC_AUX_CH_DATA5),
+
+    DEFINEREG(DP_D),
+    DEFINEREG(DPD_AUX_CH_CTL),
+    DEFINEREG(DPD_AUX_CH_DATA1),
+    DEFINEREG(DPD_AUX_CH_DATA2),
+    DEFINEREG(DPD_AUX_CH_DATA3),
+    DEFINEREG(DPD_AUX_CH_DATA4),
+    DEFINEREG(DPD_AUX_CH_DATA5),
+
 #if 0
     DEFINEREG2(FENCE_NEW + 0, i810_debug_fence_new),
     DEFINEREG2(FENCE_NEW + 8, i810_debug_fence_new),
@@ -697,6 +722,7 @@ void i830CompareRegsToSnapshot(ScrnInfoPtr pScrn, char *where)
 }
 #endif /* !REG_DUMPER */
 
+#if 0
 static void i830DumpIndexed (ScrnInfoPtr pScrn, char *name, int id, int val, int min, int max)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -737,6 +763,7 @@ static void i830DumpAR(ScrnInfoPtr pScrn)
     OUTREG8(0x3c0, orig_arx);
     INREG8(st01); /* switch back to index mode */
 }
+#endif
 
 void i830DumpRegs (ScrnInfoPtr pScrn)
 {
@@ -748,8 +775,10 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     int ref;
     int	dot;
     int phase;
+#if 0
     int msr;
     int crt;
+#endif
 
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "DumpRegsBegin\n");
     for (i = 0; i < NUM_I830_SNAPSHOTREGS; i++) {
@@ -767,6 +796,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
 			i830_snapshot[i].name, (unsigned int)val);
 	}
     }
+#if 0
     i830DumpIndexed (pScrn, "SR", 0x3c4, 0x3c5, 0, 7);
     msr = INREG8(0x3cc);
     xf86DrvMsg (pScrn->scrnIndex, X_INFO, "%20.20s: 0x%02x\n",
@@ -778,6 +808,7 @@ void i830DumpRegs (ScrnInfoPtr pScrn)
     else
 	crt = 0x3b0;
     i830DumpIndexed (pScrn, "CR", crt + 4, crt + 5, 0, 0x24);
+#endif
     for (pipe = 0; pipe <= 1; pipe++)
     {
 	fp = INREG(pipe == 0 ? FPA0 : FPB0);

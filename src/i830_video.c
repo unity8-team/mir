@@ -620,7 +620,7 @@ I830InitVideo(ScreenPtr pScreen)
     }
 
     /* Set up overlay video if we can do it at this depth. */
-    if (!IS_IGD_GM(pI830) && pScrn->bitsPerPixel != 8 &&
+    if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8 &&
 	    pI830->overlay_regs != NULL)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
@@ -2210,7 +2210,8 @@ I830PutImage(ScrnInfoPtr pScrn,
     I830OverlayRegPtr overlay;
     PixmapPtr pPixmap;
     INT32 x1, x2, y1, y2;
-    int srcPitch, srcPitch2 = 0, dstPitch, destId;
+    int srcPitch = 0, srcPitch2 = 0, dstPitch, destId;
+    int dstPitch2 = 0;
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int pitchAlignMask;
@@ -2285,13 +2286,11 @@ I830PutImage(ScrnInfoPtr pScrn,
     case FOURCC_I420:
 	srcPitch = (width + 0x3) & ~0x3;
 	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
-#ifdef INTEL_XVMC
-        if (pI830->IsXvMCSurface) {
-            srcPitch = (width + 0x3ff) & ~0x3ff;
-            srcPitch2 = ((width >> 1) + 0x3ff) & ~0x3ff;
-        }
-#endif
 	break;
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+	break;
+#endif
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
@@ -2304,6 +2303,11 @@ I830PutImage(ScrnInfoPtr pScrn,
      */
     if (pPriv->textured) {
 	pitchAlignMask = 3;
+#ifdef INTEL_XVMC
+	/* for i915 xvmc, hw requires at least 1kb aligned surface */
+	if ((id == FOURCC_XVMC) && IS_I915(pI830))
+	    pitchAlignMask = 0x3ff;
+#endif
     } else {
 	if (IS_I965G(pI830))
 	    pitchAlignMask = 255;
@@ -2317,9 +2321,6 @@ I830PutImage(ScrnInfoPtr pScrn,
     switch (destId) {
     case FOURCC_YV12:
     case FOURCC_I420:
-#ifdef INTEL_XVMC
-    case FOURCC_XVMC:
-#endif
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    dstPitch = ((height / 2) + pitchAlignMask) & ~pitchAlignMask;
 	    size = dstPitch * width * 3;
@@ -2339,7 +2340,14 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    size = dstPitch * height;
 	}
 	break;
-    default:  
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+	dstPitch = ((width / 2) + pitchAlignMask ) & ~pitchAlignMask;
+	dstPitch2 = (width + pitchAlignMask ) & ~pitchAlignMask;
+	size = 0;
+	break;
+#endif
+    default:
 	dstPitch = 0;
 	size = 0;
 	break;
@@ -2384,24 +2392,35 @@ I830PutImage(ScrnInfoPtr pScrn,
     (pPriv->doubleBuffer ? size * 2 : size);
 
     /* fixup pointers */
-    pPriv->YBuf0offset = pPriv->buf->offset;
-    if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
-	pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
-	pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * width / 2);
-	if(pPriv->doubleBuffer) {
-	    pPriv->YBuf1offset = pPriv->YBuf0offset + size;
-	    pPriv->UBuf1offset = pPriv->YBuf1offset + (dstPitch * 2 * width);
-	    pPriv->VBuf1offset = pPriv->UBuf1offset + (dstPitch * width / 2);
-	}
+#ifdef INTEL_XVMC
+    if (id == FOURCC_XVMC && IS_I915(pI830)) {
+	pPriv->YBuf0offset = (uint32_t)buf;
+	pPriv->VBuf0offset = pPriv->YBuf0offset + (dstPitch2 * height);
+	pPriv->UBuf0offset = pPriv->VBuf0offset + (dstPitch * height / 2);
+	destId = FOURCC_YV12;
     } else {
-	pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * height);
-	pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * height / 2);
-	if(pPriv->doubleBuffer) {
-	    pPriv->YBuf1offset = pPriv->YBuf0offset + size;
-	    pPriv->UBuf1offset = pPriv->YBuf1offset + (dstPitch * 2 * height);
-	    pPriv->VBuf1offset = pPriv->UBuf1offset + (dstPitch * height / 2);
+#endif
+	pPriv->YBuf0offset = pPriv->buf->offset;
+	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
+	    pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
+	    pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * width / 2);
+	    if(pPriv->doubleBuffer) {
+		pPriv->YBuf1offset = pPriv->YBuf0offset + size;
+		pPriv->UBuf1offset = pPriv->YBuf1offset + (dstPitch * 2 * width);
+		pPriv->VBuf1offset = pPriv->UBuf1offset + (dstPitch * width / 2);
+	    }
+	} else {
+	    pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * height);
+	    pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * height / 2);
+	    if(pPriv->doubleBuffer) {
+		pPriv->YBuf1offset = pPriv->YBuf0offset + size;
+		pPriv->UBuf1offset = pPriv->YBuf1offset + (dstPitch * 2 * height);
+		pPriv->VBuf1offset = pPriv->UBuf1offset + (dstPitch * height / 2);
+	    }
 	}
+#ifdef INTEL_XVMC
     }
+#endif
 
     /* Pick the idle buffer */
     if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer)
@@ -2473,7 +2492,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 				 src_w, src_h, drw_w, drw_h, pPixmap);
     } else {
 	I915DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
-				 dstPitch, x1, y1, x2, y2,
+				 dstPitch, dstPitch2, x1, y1, x2, y2,
 				 src_w, src_h, drw_w, drw_h, pPixmap);
     }
     if (pPriv->textured) {

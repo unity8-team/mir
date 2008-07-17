@@ -1218,6 +1218,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
+# define HDMIB_HOTPLUG_INT_EN			(1 << 29)
+# define HDMIC_HOTPLUG_INT_EN			(1 << 28)
+# define HDMID_HOTPLUG_INT_EN			(1 << 27)
 # define SDVOB_HOTPLUG_INT_EN			(1 << 26)
 # define SDVOC_HOTPLUG_INT_EN			(1 << 25)
 # define TV_HOTPLUG_INT_EN			(1 << 18)
@@ -1225,6 +1228,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
 
 #define PORT_HOTPLUG_STAT	0x61114
+# define HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
+# define HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
+# define HDMID_HOTPLUG_INT_STATUS		(1 << 27)
 # define CRT_HOTPLUG_INT_STATUS			(1 << 11)
 # define TV_HOTPLUG_INT_STATUS			(1 << 10)
 # define CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
@@ -1253,9 +1259,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_PHASE_SELECT_DEFAULT		(6 << 19)
 #define SDVO_CLOCK_OUTPUT_INVERT		(1 << 18)
 #define SDVOC_GANG_MODE				(1 << 16)
+#define SDVO_ENCODING_SDVO			(0x0 << 10)
+#define SDVO_ENCODING_HDMI			(0x2 << 10)
+/** Requird for HDMI operation */
+#define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
 #define SDVO_BORDER_ENABLE			(1 << 7)
-/** new with 965, default is to be set */
+/** New with 965, default is to be set */
 #define SDVO_VSYNC_ACTIVE_HIGH			(1 << 4)
+/** New with 965, default is to be set */
 #define SDVO_HSYNC_ACTIVE_HIGH			(1 << 3)
 /** 915/945 only, read-only bit */
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)
@@ -1452,6 +1463,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define LVDS_B0B3_POWER_UP		(3 << 2)
 
 /** @} */
+
+#define DP_B			0x64100
+#define DPB_AUX_CH_CTL		0x64110
+#define DPB_AUX_CH_DATA1	0x64114
+#define DPB_AUX_CH_DATA2	0x64118
+#define DPB_AUX_CH_DATA3	0x6411c
+#define DPB_AUX_CH_DATA4	0x64120
+#define DPB_AUX_CH_DATA5	0x64124
+
+#define DP_C			0x64200
+#define DPC_AUX_CH_CTL		0x64210
+#define DPC_AUX_CH_DATA1	0x64214
+#define DPC_AUX_CH_DATA2	0x64218
+#define DPC_AUX_CH_DATA3	0x6421c
+#define DPC_AUX_CH_DATA4	0x64220
+#define DPC_AUX_CH_DATA5	0x64224
+
+#define DP_D			0x64300
+#define DPD_AUX_CH_CTL		0x64310
+#define DPD_AUX_CH_DATA1	0x64314
+#define DPD_AUX_CH_DATA2	0x64318
+#define DPD_AUX_CH_DATA3	0x6431c
+#define DPD_AUX_CH_DATA4	0x64320
+#define DPD_AUX_CH_DATA5	0x64324
 
 /*
  * Two channel clock control. Turn this on if you need clkb for two channel mode
@@ -2272,6 +2307,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I915G_GMCH_GMS_STOLEN_64M		(0x7 << 4)
 #define G33_GMCH_GMS_STOLEN_128M		(0x8 << 4)
 #define G33_GMCH_GMS_STOLEN_256M		(0x9 << 4)
+#define INTEL_GMCH_GMS_STOLEN_96M		(0xa << 4)
+#define INTEL_GMCH_GMS_STOLEN_160M		(0xb << 4)
+#define INTEL_GMCH_GMS_STOLEN_224M		(0xc << 4)
+#define INTEL_GMCH_GMS_STOLEN_352M		(0xd << 4)
+
 
 #define I85X_CAPID			0x44
 #define I85X_VARIANT_MASK			0x7

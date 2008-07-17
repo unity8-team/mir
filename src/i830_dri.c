@@ -995,26 +995,35 @@ static void
 I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, uint32_t dst)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i, cmd, br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
+   unsigned int i, cmd, pitch, flags;
+
+   pitch = pScrn->displayWidth * pI830->cpp;
+   flags = 0xcc << 16; /* ROP_S */
 
    if (pScrn->bitsPerPixel == 32) {
       cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
 	     XY_SRC_COPY_BLT_WRITE_RGB);
-      br13 |= 3 << 24;
+      flags |= 3 << 24;
    } else {
       cmd = (XY_SRC_COPY_BLT_CMD);
-      br13 |= 1 << 24;
+      flags |= 1 << 24;
+   }
+
+   /* We can assume tiled buffers if page flipping is on */
+   if (IS_I965G(pI830)) {
+       cmd |= XY_SRC_COPY_BLT_DST_TILED | XY_SRC_COPY_BLT_SRC_TILED;
+       pitch >>= 2;
    }
 
    for (i = 0 ; i < num ; i++, pbox++) {
       BEGIN_BATCH(8);
       OUT_BATCH(cmd);
-      OUT_BATCH(br13);
+      OUT_BATCH(flags | pitch);
       OUT_BATCH((pbox->y1 << 16) | pbox->x1);
       OUT_BATCH((pbox->y2 << 16) | pbox->x2);
       OUT_BATCH(dst);
       OUT_BATCH((pbox->y1 << 16) | pbox->x1);
-      OUT_BATCH(br13 & 0xffff);
+      OUT_BATCH(pitch);
       OUT_BATCH(pI830->front_buffer->offset);
       ADVANCE_BATCH();
    }

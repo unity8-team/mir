@@ -584,7 +584,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     {
 	BEGIN_BATCH(12);
 	/* Match Mesa driver setup */
-	if (IS_IGD_GM(pI830))
+	if (IS_GM45(pI830) || IS_G4X(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);

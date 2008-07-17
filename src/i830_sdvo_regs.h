@@ -511,3 +511,39 @@ struct i830_sdvo_enhancements_arg {
 # define SDVO_CONTROL_BUS_DDC2				(1 << 2)
 # define SDVO_CONTROL_BUS_DDC3				(1 << 3)
 
+/* HDMI op codes */
+#define SDVO_CMD_GET_SUPP_ENCODE	0x9d
+#define SDVO_CMD_GET_ENCODE		0x9e
+#define SDVO_CMD_SET_ENCODE		0x9f
+  #define SDVO_ENCODE_DVI	0x0
+  #define SDVO_ENCODE_HDMI	0x1
+#define SDVO_CMD_SET_PIXEL_REPLI	0x8b
+#define SDVO_CMD_GET_PIXEL_REPLI	0x8c
+#define SDVO_CMD_GET_COLORIMETRY_CAP	0x8d
+#define SDVO_CMD_SET_COLORIMETRY	0x8e
+  #define SDVO_COLORIMETRY_RGB256   0x0
+  #define SDVO_COLORIMETRY_RGB220   0x1
+  #define SDVO_COLORIMETRY_YCrCb422 0x3
+  #define SDVO_COLORIMETRY_YCrCb444 0x4
+#define SDVO_CMD_GET_COLORIMETRY	0x8f
+#define SDVO_CMD_GET_AUDIO_ENCRYPT_PREFER 0x90
+#define SDVO_CMD_SET_AUDIO_STAT		0x91
+#define SDVO_CMD_GET_AUDIO_STAT		0x92
+#define SDVO_CMD_SET_HBUF_INDEX		0x93
+#define SDVO_CMD_GET_HBUF_INDEX		0x94
+#define SDVO_CMD_GET_HBUF_INFO		0x95
+#define SDVO_CMD_SET_HBUF_AV_SPLIT	0x96
+#define SDVO_CMD_GET_HBUF_AV_SPLIT	0x97
+#define SDVO_CMD_SET_HBUF_DATA		0x98
+#define SDVO_CMD_GET_HBUF_DATA		0x99
+#define SDVO_CMD_SET_HBUF_TXRATE	0x9a
+#define SDVO_CMD_GET_HBUF_TXRATE	0x9b
+  #define SDVO_HBUF_TX_DISABLED	(0 << 6)
+  #define SDVO_HBUF_TX_ONCE	(2 << 6)
+  #define SDVO_HBUF_TX_VSYNC	(3 << 6)
+#define SDVO_CMD_GET_AUDIO_TX_INFO	0x9c
+
+struct i830_sdvo_encode{
+    uint8_t dvi_rev;
+    uint8_t hdmi_rev;
+} __attribute__ ((packed));
