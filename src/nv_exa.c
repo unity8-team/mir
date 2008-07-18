@@ -628,7 +628,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			BEGIN_RING(NvMemFormat, 0x0238, 2);
 			OUT_RELOCh(pNv->GART, 0, NOUVEAU_BO_GART |
 				   NOUVEAU_BO_RD);
-			OUT_PIXMAPh(pdpix, 0, NOUVEAU_BO_VRAM | 
+			OUT_PIXMAPh(pdpix, dst_offset, NOUVEAU_BO_VRAM | 
 				    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		}
 
