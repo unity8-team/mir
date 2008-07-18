@@ -751,9 +751,11 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 			"RRConfigureOutputProperty error, %d\n", error);
 	}
 
+	/* promote bool into int32 to make RandR DIX and big endian happy */
+	int32_t existing_dither = nv_output->dithering;
 	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
-					XA_INTEGER, 32, PropModeReplace, 1, &nv_output->dithering,
-					FALSE, TRUE);
+					XA_INTEGER, 32, PropModeReplace, 1,
+					&existing_dither, FALSE, TRUE);
 
 	if (error != 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -786,7 +788,6 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		nv_output->scaling_mode = ret;
-		return TRUE;
 	} else if (property == dithering_atom) {
 		if (value->type != XA_INTEGER || value->format != 32)
 			return FALSE;
@@ -797,7 +798,6 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		nv_output->dithering = val;
-		return TRUE;
 	}
 
 	return TRUE;
