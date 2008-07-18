@@ -36,18 +36,6 @@
 #include "nv50_accel.h"
 #include "nv50_texture.h"
 
-static __inline__ void
-VTX(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
-{
-	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
-	OUT_RINGf (sx);
-	OUT_RINGf (sy);
-	OUT_RINGf (sx);
-	OUT_RINGf (sy);
-	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
- 	OUT_RING  ((dy << 16) | dx);
-}
-
 static Bool
 nv50_xv_check_image_put(PixmapPtr ppix)
 {
@@ -200,10 +188,10 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		ty1 = ty1 / src_h;
 		ty2 = ty2 / src_h;
 
-		VTX(pNv, tx1, ty1, sx1, sy1);
-		VTX(pNv, tx2, ty1, sx2, sy1);
-		VTX(pNv, tx2, ty2, sx2, sy2);
-		VTX(pNv, tx1, ty2, sx1, sy2);
+		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
+		VTX2s(pNv, tx2, ty1, tx2, ty1, sx2, sy1);
+		VTX2s(pNv, tx2, ty2, tx2, ty2, sx2, sy2);
+		VTX2s(pNv, tx1, ty2, tx1, ty2, sx1, sy2);
 
 		pbox++;
 	}

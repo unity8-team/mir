@@ -737,43 +737,15 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 				 state->unit[1].width, state->unit[1].height,
 				 &mX3, &mY3);
 
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
-		OUT_RINGf (sX0); OUT_RINGf (sY0);
-		OUT_RINGf (mX0); OUT_RINGf (mY0);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY0 << 16) | dX0);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
-		OUT_RINGf (sX1); OUT_RINGf (sY1);
-		OUT_RINGf (mX1); OUT_RINGf (mY1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY0 << 16) | dX1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
-		OUT_RINGf (sX2); OUT_RINGf (sY2);
-		OUT_RINGf (mX2); OUT_RINGf (mY2);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY1 << 16) | dX1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
-		OUT_RINGf (sX3); OUT_RINGf (sY3);
-		OUT_RINGf (mX3); OUT_RINGf (mY3);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY1 << 16) | dX0);
+		VTX2s(pNv, sX0, sY0, mX0, mY0, dX0, dY0);
+		VTX2s(pNv, sX1, sY1, mX1, mY1, dX1, dY0);
+		VTX2s(pNv, sX2, sY2, mX2, mY2, dX1, dY1);
+		VTX2s(pNv, sX3, sY3, mX3, mY3, dX0, dY1);
 	} else {
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 2);
-		OUT_RINGf (sX0); OUT_RINGf (sY0);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY0 << 16) | dX0);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 2);
-		OUT_RINGf (sX1); OUT_RINGf (sY1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY0 << 16) | dX1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 2);
-		OUT_RINGf (sX2); OUT_RINGf (sY2);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY1 << 16) | dX1);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 2);
-		OUT_RINGf (sX3); OUT_RINGf (sY3);
-		BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
-		OUT_RING  ((dY1 << 16) | dX0);
+		VTX1s(pNv, sX0, sY0, dX0, dY0);
+		VTX1s(pNv, sX1, sY1, dX1, dY0);
+		VTX1s(pNv, sX2, sY2, dX1, dY1);
+		VTX1s(pNv, sX3, sY3, dX0, dY1);
 	}
 	BEGIN_RING(Nv3D, NV50TCL_VERTEX_END, 1);
 	OUT_RING  (0);

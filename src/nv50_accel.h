@@ -20,4 +20,26 @@
 #define CB_TSC 0
 #define CB_TIC 1
 
+static __inline__ void
+VTX1s(NVPtr pNv, float sx, float sy, unsigned dx, unsigned dy)
+{
+	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 2);
+	OUT_RINGf (sx);
+	OUT_RINGf (sy);
+	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
+ 	OUT_RING  ((dy << 16) | dx);
+}
+
+static __inline__ void
+VTX2s(NVPtr pNv, float s1x, float s1y, float s2x, float s2y, unsigned dx, unsigned dy)
+{
+	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2F_X(8), 4);
+	OUT_RINGf (s1x);
+	OUT_RINGf (s1y);
+	OUT_RINGf (s2x);
+	OUT_RINGf (s2y);
+	BEGIN_RING(Nv3D, NV50TCL_VTX_ATTR_2I(0), 1);
+ 	OUT_RING  ((dy << 16) | dx);
+}
+
 #endif
