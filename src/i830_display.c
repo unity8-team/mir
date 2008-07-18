@@ -1093,6 +1093,79 @@ i830_panel_fitter_pipe(I830Ptr pI830)
 }
 
 /**
+ * Sets up the DSPARB register to split the display fifo appropriately between
+ * the display planes.
+ *
+ * Adjusting this register requires that the planes be off.
+ */
+static void
+i830_update_dsparb(ScrnInfoPtr pScrn)
+{
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   I830Ptr pI830 = I830PTR(pScrn);
+   uint32_t dspacntr, dspbcntr;
+   int total_hdisplay = 0, planea_hdisplay = 0, planeb_hdisplay = 0;
+   int fifo_entries = 0, planea_entries = 0, planeb_entries = 0, i;
+
+   dspacntr = INREG(DSPACNTR);
+   dspbcntr = INREG(DSPBCNTR);
+
+   /* Disable planes since DSPARB can only be updated when they're
+    * off.
+    */
+   OUTREG(DSPACNTR, dspacntr & ~DISPLAY_PLANE_ENABLE);
+   OUTREG(DSPBCNTR, dspbcntr & ~DISPLAY_PLANE_ENABLE);
+   i830WaitForVblank(pScrn);
+
+   /*
+    * FIFO entries will be split based on programmed modes
+    */
+   if (IS_I965GM(pI830) || IS_GM45(pI830))
+       fifo_entries = 127;
+   else if (IS_I9XX(pI830))
+       fifo_entries = 95;
+   else if (IS_MOBILE(pI830)) {
+       fifo_entries = 255;
+   } else {
+	/* The 845/865 only have a AEND field.  Though the field size would
+	* allow 128 entries, the 865 rendered the cursor wrong then.
+	* The BIOS set it up for 96.
+	*/
+	fifo_entries = 95;
+   }
+
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+      xf86CrtcPtr crtc = xf86_config->crtc[i];
+      I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+      if (crtc->enabled) {
+	  total_hdisplay += crtc->mode.HDisplay;
+	  if (intel_crtc->plane == 0)
+	      planea_hdisplay = crtc->mode.HDisplay;
+	  else
+	      planeb_hdisplay = crtc->mode.HDisplay;
+      }
+   }
+
+   planea_entries = fifo_entries * planea_hdisplay / total_hdisplay;
+   planeb_entries = fifo_entries * planeb_hdisplay / total_hdisplay;
+
+   if (IS_I9XX(pI830))
+       OUTREG(DSPARB,
+	      ((planea_entries + planeb_entries) << DSPARB_CSTART_SHIFT) |
+	      (planea_entries << DSPARB_BSTART_SHIFT));
+   else if (IS_MOBILE(pI830))
+       OUTREG(DSPARB,
+	      ((planea_entries + planeb_entries) << DSPARB_BEND_SHIFT) |
+	      (planea_entries << DSPARB_AEND_SHIFT));
+   else
+       OUTREG(DSPARB, planea_entries << DSPARB_AEND_SHIFT);
+
+   OUTREG(DSPACNTR, dspacntr);
+   OUTREG(DSPBCNTR, dspbcntr);
+   i830WaitForVblank(pScrn);
+}
+
+/**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
  * The clocks, CRTCs and outputs attached to this CRTC must be off.
@@ -1436,6 +1509,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
+
+    i830_update_dsparb(pScrn);
 
     /* Clear any FIFO underrun status that may have occurred normally */
     OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);
