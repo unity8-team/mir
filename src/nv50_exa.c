@@ -757,5 +757,6 @@ NV50EXADoneComposite(PixmapPtr pdpix)
 	NV50EXA_LOCALS(pdpix);
 
 	FIRE_RING();
+	NVSync(pScrn);
 }
 
