@@ -326,7 +326,6 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned line_count = h;
 	unsigned src_pitch = 0, src_offset = 0, linear = 0;
 
 	BEGIN_RING(NvMemFormat, 0x184, 2);
@@ -358,21 +357,21 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		OUT_RING  (1);
 	}
 
-	while (line_count) {
+	while (h) {
 		char *src = pNv->GART->map;
-		int lc, i;
+		int line_count, i;
 
-		if (line_count * line_len <= pNv->GART->size) {
-			lc = line_count;
+		if (h * line_len <= pNv->GART->size) {
+			line_count = h;
 		} else {
-			lc = pNv->GART->size / line_len;
-			if (lc > line_count)
-				lc = line_count;
+			line_count = pNv->GART->size / line_len;
+			if (line_count > h)
+				line_count = h;
 		}
 
 		/* HW limitations */
-		if (lc > 2047)
-			lc = 2047;
+		if (line_count > 2047)
+			line_count = 2047;
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			if (!linear) {
@@ -395,7 +394,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		OUT_RING  (src_pitch);
 		OUT_RING  (line_len);
 		OUT_RING  (line_len);
-		OUT_RING  (lc);
+		OUT_RING  (line_count);
 		OUT_RING  ((1<<8)|1);
 		OUT_RING  (0);
 
@@ -409,10 +408,10 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 			return FALSE;
 
 		if (dst_pitch == line_len) {
-			memcpy(dst, src, dst_pitch * lc);
-			dst += dst_pitch * lc;
+			memcpy(dst, src, dst_pitch * line_count);
+			dst += dst_pitch * line_count;
 		} else {
-			for (i = 0; i < lc; i++) {
+			for (i = 0; i < line_count; i++) {
 				memcpy(dst, src, line_len);
 				src += line_len;
 				dst += dst_pitch;
@@ -420,9 +419,9 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		}
 
 		if (linear)
-			src_offset += lc * src_pitch;
-		line_count -= lc;
-		y += lc;
+			src_offset += line_count * src_pitch;
+		h -= line_count;
+		y += line_count;
 	}
 
 	return TRUE;
@@ -560,7 +559,6 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned line_count = h;
 	unsigned dst_pitch = 0, dst_offset = 0, linear = 0;
 
 	BEGIN_RING(NvMemFormat, 0x184, 2);
@@ -592,29 +590,29 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		}
 	}
 
-	while (line_count) {
+	while (h) {
 		char *dst = pNv->GART->map;
-		int lc, i;
+		int line_count, i;
 
 		/* Determine max amount of data we can DMA at once */
-		if (line_count * line_len <= pNv->GART->size) {
-			lc = line_count;
+		if (h * line_len <= pNv->GART->size) {
+			line_count = h;
 		} else {
-			lc = pNv->GART->size / line_len;
-			if (lc > line_count)
-				lc = line_count;
+			line_count = pNv->GART->size / line_len;
+			if (line_count > h)
+				line_count = h;
 		}
 
 		/* HW limitations */
-		if (lc > 2047)
-			lc = 2047;
+		if (line_count > 2047)
+			line_count = 2047;
 
 		/* Upload to GART */
 		if (src_pitch == line_len) {
-			memcpy(dst, src, src_pitch * lc);
-			src += src_pitch * lc;
+			memcpy(dst, src, src_pitch * line_count);
+			src += src_pitch * line_count;
 		} else {
-			for (i = 0; i < lc; i++) {
+			for (i = 0; i < line_count; i++) {
 				memcpy(dst, src, line_len);
 				src += src_pitch;
 				dst += line_len;
@@ -643,7 +641,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		OUT_RING  (line_len);
 		OUT_RING  (dst_pitch);
 		OUT_RING  (line_len);
-		OUT_RING  (lc);
+		OUT_RING  (line_count);
 		OUT_RING  ((1<<8)|1);
 		OUT_RING  (0);
 
@@ -657,9 +655,9 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			return FALSE;
 
 		if (linear)
-			dst_offset += lc * dst_pitch;
-		line_count -= lc;
-		y += lc;
+			dst_offset += line_count * dst_pitch;
+		h -= line_count;
+		y += line_count;
 	}
 
 	return TRUE;
