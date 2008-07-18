@@ -1314,8 +1314,6 @@ i830_valid_command (uint32_t cmd)
 	if (!mi_cmds[opcode])
 	    return -1;
 	break;
-    case 1:
-	break;
     case 2:			    /* 2D */
 	count = (cmd & 0x1f) + 2;
 	opcode = (cmd >> 22) & 0x7f;
