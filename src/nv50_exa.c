@@ -135,24 +135,6 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	return TRUE;
 }
 
-static Bool
-NV50EXAAcquireSurfaces(PixmapPtr pdpix)
-{
-	NV50EXA_LOCALS(pdpix);
-
-	return TRUE;
-}
-
-static void
-NV50EXAReleaseSurfaces(PixmapPtr pdpix)
-{
-	NV50EXA_LOCALS(pdpix);
-
-	BEGIN_RING(Nv2D, NV50_2D_NOP, 1);
-	OUT_RING  (0);
-	FIRE_RING();
-}
-
 static void
 NV50EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 {
@@ -221,8 +203,6 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	if (!NV50EXAAcquireSurfaces(pdpix))
-		return FALSE;
 	NV50EXASetROP(pdpix, alu, planemask);
 
 	BEGIN_RING(Nv2D, 0x580, 3);
@@ -251,9 +231,6 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 void
 NV50EXADoneSolid(PixmapPtr pdpix)
 {
-	NV50EXA_LOCALS(pdpix);
-
-	NV50EXAReleaseSurfaces(pdpix);
 }
 
 Bool
@@ -266,8 +243,6 @@ NV50EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 		NOUVEAU_FALLBACK("src pixmap\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	if (!NV50EXAAcquireSurfaces(pdpix))
-		return FALSE;
 	NV50EXASetROP(pdpix, alu, planemask);
 
 	return TRUE;
@@ -305,9 +280,6 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 void
 NV50EXADoneCopy(PixmapPtr pdpix)
 {
-	NV50EXA_LOCALS(pdpix);
-
-	NV50EXAReleaseSurfaces(pdpix);
 }
 
 Bool
@@ -322,8 +294,6 @@ NV50EXAUploadSIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		NOUVEAU_FALLBACK("hostdata format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	if (!NV50EXAAcquireSurfaces(pdpix))
-		return FALSE;
 
 	BEGIN_RING(Nv2D, NV50_2D_OPERATION, 1);
 	OUT_RING (NV50_2D_OPERATION_SRCCOPY);
@@ -359,7 +329,6 @@ NV50EXAUploadSIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		src += src_pitch;
 	}
 
-	NV50EXAReleaseSurfaces(pdpix);
 	return TRUE;
 }
 
