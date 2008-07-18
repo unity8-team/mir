@@ -309,6 +309,9 @@ static i830_quirk i830_quirk_list[] = {
     /* Littlebit Sepia X35 (rebranded Asus Z37E) (See LP: #201257) */
     { PCI_CHIP_I965_GM, 0x1043, 0x8265, quirk_ignore_tv },
 
+    /* 855 & before need to leave pipe A & dpll A up */
+    { PCI_CHIP_I855_GM, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
+
     { 0, 0, 0, NULL },
 };
 
@@ -325,9 +328,10 @@ void i830_fixup_devices(ScrnInfoPtr scrn)
 
     while (p && p->chipType != 0) {
 	if (DEVICE_ID(pI830->PciInfo) == p->chipType &&
-		SUBVENDOR_ID(pI830->PciInfo) == p->subsysVendor &&
-		(SUBSYS_ID(pI830->PciInfo) == p->subsysCard ||
-		 p->subsysCard == SUBSYS_ANY))
+	    (SUBVENDOR_ID(pI830->PciInfo) == p->subsysVendor ||
+	     p->subsysVendor == SUBSYS_ANY) &&
+	    (SUBSYS_ID(pI830->PciInfo) == p->subsysCard ||
+	     p->subsysCard == SUBSYS_ANY))
 	    p->hook(pI830);
 	++p;
     }

@@ -1952,59 +1952,6 @@ i830_refresh_ring(ScrnInfoPtr pScrn)
    i830MarkSync(pScrn);
 }
 
-/**
- * Sets up the DSPARB register to split the display fifo appropriately between
- * the display planes.
- *
- * Adjusting this register requires that the planes be off, thus as a side
- * effect they are disabled by this function.
- */
-static void
-i830_set_dsparb(ScrnInfoPtr pScrn)
-{
-   xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-   I830Ptr pI830 = I830PTR(pScrn);
-   int i;
-
-   /* Disable outputs & pipes since DSPARB can only be updated when they're
-    * off.
-    */
-   for (i = 0; i < xf86_config->num_output; i++) {
-       xf86OutputPtr   output = xf86_config->output[i];
-       output->funcs->dpms(output, DPMSModeOff);
-   }
-   i830WaitForVblank(pScrn);
-   for (i = 0; i < xf86_config->num_crtc; i++) {
-       xf86CrtcPtr crtc = xf86_config->crtc[i];
-       crtc->funcs->dpms(crtc, DPMSModeOff);
-   }
-   i830WaitForVblank(pScrn);
-
-   /* Fixup FIFO defaults:
-    * we don't use plane C at all so we can allocate all but one of the 96
-    * FIFO RAM entries equally between planes A and B.
-    */
-   if (IS_I9XX(pI830)) {
-       if (IS_I965GM(pI830) || IS_GM45(pI830))
-	   OUTREG(DSPARB, (127 << DSPARB_CSTART_SHIFT) |
-		  (64 << DSPARB_BSTART_SHIFT));
-       else
-	   OUTREG(DSPARB, (95 << DSPARB_CSTART_SHIFT) |
-		  (48 << DSPARB_BSTART_SHIFT));
-   } else {
-       if (IS_MOBILE(pI830)) {
-	   /* The 830 has 288 entries, and the 855 has 256. */
-	   OUTREG(DSPARB, 254 << DSPARB_BEND_SHIFT | 128 << DSPARB_AEND_SHIFT);
-       } else {
-	   /* The 845/865 only have a AEND field.  Though the field size would
-	    * allow 128 entries, the 865 rendered the cursor wrong then.
-	    * The BIOS set it up for 96.
-	    */
-	   OUTREG(DSPARB, 95 << DSPARB_AEND_SHIFT);
-       }
-   }
-}
-
 enum pipe {
     PIPE_A = 0,
     PIPE_B,
@@ -3502,11 +3449,6 @@ I830EnterVT(int scrnIndex, int flags)
    }
    if (!pI830->SWCursor)
       I830InitHWCursor(pScrn);
-
-   /* Set the DSPARB register.  This disables the outputs, which is about to
-    * happen (likely) in xf86SetDesiredModes anyway.
-    */
-   i830_set_dsparb(pScrn);
 
    /* Tell the BIOS that we're in control of mode setting now. */
    i830_init_bios_control(pScrn);
