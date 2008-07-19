@@ -627,6 +627,9 @@ NV50EXAPrepareComposite(int op,
 {
 	NV50EXA_LOCALS(pspix);
 
+	BEGIN_RING(Nv2D, 0x0110, 1);
+	OUT_RING  (0);
+
 	if (!NV50EXARenderTarget(pdpix, pdpict))
 		NOUVEAU_FALLBACK("render target invalid\n");
 
@@ -754,9 +757,5 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 void
 NV50EXADoneComposite(PixmapPtr pdpix)
 {
-	NV50EXA_LOCALS(pdpix);
-
-	FIRE_RING();
-	NVSync(pScrn);
 }
 
