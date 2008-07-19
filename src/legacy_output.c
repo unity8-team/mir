@@ -48,6 +48,8 @@
 #include "radeon_tv.h"
 #include "radeon_atombios.h"
 
+#include "ati_pciids_gen.h"
+
 static RADEONMonitorType radeon_detect_tv(ScrnInfoPtr pScrn);
 static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
@@ -1017,9 +1019,14 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 			    RADEON_FP2_DVO_RATE_SEL_SDR);
 
 
-    /* XXX: these may be oem specific */
+    /* XXX: these are oem specific */
     if (IS_R300_VARIANT) {
-	save->fp2_gen_cntl |= RADEON_FP2_PAD_FLOP_EN | R300_FP2_DVO_CLOCK_MODE_SINGLE;
+	if ((info->Chipset == PCI_CHIP_RV350_NP) &&
+	    (PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1028) &&
+	    (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x2001))
+	    save->fp2_gen_cntl |= R300_FP2_DVO_CLOCK_MODE_SINGLE; /* Dell Inspiron 8600 */
+	else
+	    save->fp2_gen_cntl |= RADEON_FP2_PAD_FLOP_EN | R300_FP2_DVO_CLOCK_MODE_SINGLE;
 #if 0
 	if (mode->Clock > 165000)
 	    save->fp2_gen_cntl |= R300_FP2_DVO_DUAL_CHANNEL_EN;
