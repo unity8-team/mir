@@ -34,6 +34,7 @@
 
 #include "drmmode_display.h"
 #include "sarea.h"
+#include "X11/Xatom.h"
 
 /* not using for the moment */
 uint32_t drmmode_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
@@ -551,12 +552,192 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 	}
 }
 
+/*
+ * Output properties.
+ */
+
+/*
+ * Several scaling modes exist, let the user choose.
+ */
+#define SCALING_MODE_NAME "SCALING_MODE"
+static const struct {
+	char *name;
+	int mode;
+} scaling_mode[] = {
+	{ "non-gpu", DRM_MODE_SCALE_NON_GPU },
+	{ "fullscreen", DRM_MODE_SCALE_FULLSCREEN },
+	{ "aspect", DRM_MODE_SCALE_ASPECT },
+	{ "noscale", DRM_MODE_SCALE_NO_SCALE },
+	{ NULL, 0xFFFF /* invalid */ }
+};
+static Atom scaling_mode_atom;
+
+#define DITHERING_MODE_NAME "DITHERING"
+static const struct {
+	char *name;
+	int mode;
+} dithering_mode[] = {
+	{ "off", DRM_MODE_DITHERING_OFF },
+	{ "on", DRM_MODE_DITHERING_ON },
+	{ NULL, 0xFFFF /* invalid */ }
+};
+static Atom dithering_atom;
+
+int
+drmmode_scaling_mode_lookup(char *name, int size)
+{
+	int i;
+
+	/* for when name is zero terminated */
+	if (size < 0)
+		size = strlen(name);
+
+	for (i = 0; scaling_mode[i].name; i++)
+		/* We're getting non-terminated strings */
+		if (strlen(scaling_mode[i].name) >= size &&
+				!strncasecmp(name, scaling_mode[i].name, size))
+			break;
+
+	return scaling_mode[i].mode;
+}
+
+int
+drmmode_dithering_lookup(char *name, int size)
+{
+	int i;
+
+	/* for when name is zero terminated */
+	if (size < 0)
+		size = strlen(name);
+
+	for (i = 0; dithering_mode[i].name; i++)
+		/* We're getting non-terminated strings */
+		if (strlen(dithering_mode[i].name) >= size &&
+				!strncasecmp(name, dithering_mode[i].name, size))
+			break;
+
+	return dithering_mode[i].mode;
+}
+
+
+void
+drmmode_output_create_resources(xf86OutputPtr output)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	int error;
+
+	/*
+	 * Setup scaling mode property.
+	 */
+	scaling_mode_atom = MakeAtom(SCALING_MODE_NAME, sizeof(SCALING_MODE_NAME) - 1, TRUE);
+
+	error = RRConfigureOutputProperty(output->randr_output,
+					scaling_mode_atom, FALSE, FALSE, FALSE,
+					0, NULL);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"RRConfigureOutputProperty error, %d\n", error);
+	}
+
+	/* property has unknown initial value (for the moment) */
+
+	/*
+	 * Setup dithering property.
+	 */
+	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
+
+	error = RRConfigureOutputProperty(output->randr_output,
+					dithering_atom, FALSE, FALSE, FALSE,
+					0, NULL);
+
+	if (error != 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"RRConfigureOutputProperty error, %d\n", error);
+	}
+
+	/* property has unknown initial value (for the moment) */
+}
+
+Bool
+drmmode_output_set_property(xf86OutputPtr output, Atom property,
+				RRPropertyValuePtr value)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmmode_ptr drmmode = drmmode_output->drmmode;
+	drmModePropertyPtr props;
+	int i, mode, rval = 0;
+
+	if (property == scaling_mode_atom) {
+		char *name = NULL;
+
+		if (value->type != XA_STRING || value->format != 8)
+			return FALSE;
+
+		name = (char *) value->data;
+
+		/* Match a string to a scaling mode */
+		mode = drmmode_scaling_mode_lookup(name, value->size);
+		if (mode == 0xFFFF)
+			return FALSE;
+
+		for (i = 0; i < koutput->count_props; i++) {
+			props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+			if (props && (props->flags & DRM_MODE_PROP_ENUM)) {
+				if (!strcmp(props->name, "scaling mode")) {
+					ErrorF("scaling mode property found\n");
+					rval = drmModeConnectorSetProperty(drmmode->fd, drmmode_output->output_id, props->prop_id, mode); 
+				}
+				drmModeFreeProperty(props);
+			}
+		}
+
+		if (rval)
+			return FALSE;
+
+		return TRUE;
+	} else if (property == dithering_atom) {
+		char *name = NULL;
+
+		if (value->type != XA_STRING || value->format != 8)
+			return FALSE;
+
+		name = (char *) value->data;
+
+		/* Match a string to a scaling mode */
+		mode = drmmode_dithering_lookup(name, value->size);
+		if (mode == 0xFFFF)
+			return FALSE;
+
+		for (i = 0; i < koutput->count_props; i++) {
+			props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+			if (props && (props->flags & DRM_MODE_PROP_ENUM)) {
+				if (!strcmp(props->name, "dithering")) {
+					ErrorF("dithering property found\n");
+					rval = drmModeConnectorSetProperty(drmmode->fd, drmmode_output->output_id, props->prop_id, mode); 
+				}
+				drmModeFreeProperty(props);
+			}
+		}
+
+		if (rval)
+			return FALSE;
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 static const xf86OutputFuncsRec drmmode_output_funcs = {
 	.dpms = drmmode_output_dpms,
 	.detect = drmmode_output_detect,
 	.mode_valid = drmmode_output_mode_valid,
 	.get_modes = drmmode_output_get_modes,
-	.destroy = drmmode_output_destroy
+	.destroy = drmmode_output_destroy,
+	.create_resources = drmmode_output_create_resources,
+	.set_property = drmmode_output_set_property,
 };
 
 static int subpixel_conv_table[7] = { 0, SubPixelUnknown,
