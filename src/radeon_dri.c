@@ -1211,6 +1211,12 @@ static void RADEONDRIIrqInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	} else {
 	    unsigned char *RADEONMMIO = info->MMIO;
 	    info->ModeReg->gen_int_cntl = INREG( RADEON_GEN_INT_CNTL );
+
+	    /* Let the DRM know it can safely disable the vblank interrupts */
+	    radeon_crtc_modeset_ioctl(XF86_CRTC_CONFIG_PTR(pScrn)->crtc[0],
+				      FALSE);
+	    radeon_crtc_modeset_ioctl(XF86_CRTC_CONFIG_PTR(pScrn)->crtc[0],
+				      TRUE);
 	}
     }
 
