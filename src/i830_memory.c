@@ -462,10 +462,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	/* Can't do GEM on stolen memory */
 	mmsize -= pI830->stolen_size;
 
-	/* new chipsets need non-stolen status page */
-	if (HWS_NEED_GFX(pI830) && HWS_NEED_NONSTOLEN(pI830))
-	    mmsize -= HWSTATUS_PAGE_SIZE;
-
 	/* Create the aperture allocation */
 	pI830->memory_manager =
 	    i830_allocate_aperture(pScrn, "DRI memory manager",
@@ -1717,7 +1713,7 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 
     DPRINTF(PFX, "i830_allocate_3d_memory\n");
 
-    if (HWS_NEED_GFX(pI830)) {
+    if (!pI830->memory_manager && HWS_NEED_GFX(pI830)) {
 	if (!i830_allocate_hwstatus(pScrn))
 	    return FALSE;
     }
