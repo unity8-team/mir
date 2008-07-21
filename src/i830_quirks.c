@@ -222,6 +222,9 @@ static i830_quirk i830_quirk_list[] = {
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
 
+    /* Transtec Senyo 610 mini pc */
+    { PCI_CHIP_I965_GM, 0x1509, 0x2f15, quirk_ignore_lvds },
+
     /* Clevo M720R has no tv output */
     { PCI_CHIP_I965_GM, 0x1558, 0x0721, quirk_ignore_tv },
 
