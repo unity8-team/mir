@@ -817,7 +817,6 @@ do {									\
 extern void legacy_crtc_dpms(xf86CrtcPtr crtc, int mode);
 extern void legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 				 DisplayModePtr adjusted_mode, int x, int y);
-extern void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 extern void RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
 extern void RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
@@ -924,6 +923,7 @@ extern DisplayModePtr RADEONCrtcFindClosestMode(xf86CrtcPtr crtc,
 						DisplayModePtr pMode);
 extern void RADEONUnblank(ScrnInfoPtr pScrn);
 extern Bool RADEONSetTiling(ScrnInfoPtr pScrn);
+extern void RADEONInitDispBandwidth(ScrnInfoPtr pScrn);
 
 /* radeon_cursor.c */
 extern Bool RADEONCursorInit(ScreenPtr pScreen);

@@ -1032,6 +1032,8 @@
 #define RADEON_OV0_BASE_ADDR                0x43c
 #define RADEON_NB_TOM                       0x15c
 #define R300_MC_INIT_MISC_LAT_TIMER         0x180
+#       define R300_MC_DISP0R_INIT_LAT_SHIFT 8
+#       define R300_MC_DISP1R_INIT_LAT_SHIFT 12
 #define RADEON_MCLK_CNTL                    0x0012 /* PLL */
 #       define RADEON_FORCEON_MCLKA         (1 << 16)
 #       define RADEON_FORCEON_MCLKB         (1 << 17)
@@ -3431,12 +3433,12 @@
 #define RS600_MC_STATUS                         0x0
 #define RS600_MC_STATUS_IDLE                    (1 << 0)
 
-#define AVIVO_MC_INDEX						0x0070
-#define R520_MC_STATUS 0x00
-#define R520_MC_STATUS_IDLE (1<<1)
-#define RV515_MC_STATUS 0x08
-#define RV515_MC_STATUS_IDLE (1<<4)
-#define AVIVO_MC_DATA						0x0074
+#define AVIVO_MC_INDEX				0x0070
+#define R520_MC_STATUS                          0x00
+#       define R520_MC_STATUS_IDLE              (1 << 1)
+#define RV515_MC_STATUS                         0x08
+#       define RV515_MC_STATUS_IDLE             (1 << 4)
+#define AVIVO_MC_DATA				0x0074
 
 #define RV515_MC_FB_LOCATION   0x1
 #define RV515_MC_AGP_LOCATION  0x2
@@ -3597,7 +3599,6 @@
 #define AVIVO_DC_LUTA_WHITE_OFFSET_BLUE         0x64d0
 #define AVIVO_DC_LUTA_WHITE_OFFSET_GREEN        0x64d4
 #define AVIVO_DC_LUTA_WHITE_OFFSET_RED          0x64d8
-
 
 #define AVIVO_D1MODE_DESKTOP_HEIGHT             0x652c
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580

@@ -58,6 +58,10 @@ extern void atombios_crtc_mode_set(xf86CrtcPtr crtc,
 				   DisplayModePtr adjusted_mode,
 				   int x, int y);
 extern void atombios_crtc_dpms(xf86CrtcPtr crtc, int mode);
+extern void
+RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
+			      DisplayModePtr mode1, int pixel_bytes1,
+			      DisplayModePtr mode2, int pixel_bytes2);
 
 void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
@@ -566,6 +570,40 @@ static const xf86CrtcFuncsRec radeon_crtc_funcs = {
     .load_cursor_argb = radeon_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
 };
+
+void
+RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    DisplayModePtr mode1 = NULL, mode2 = NULL;
+    int pixel_bytes1 = info->CurrentLayout.pixel_bytes;
+    int pixel_bytes2 = info->CurrentLayout.pixel_bytes;
+
+    if (xf86_config->num_crtc == 2) {
+	if (xf86_config->crtc[1]->enabled &&
+	    xf86_config->crtc[0]->enabled) {
+	    mode1 = &xf86_config->crtc[0]->mode;
+	    mode2 = &xf86_config->crtc[1]->mode;
+	} else if (xf86_config->crtc[0]->enabled) {
+	    mode1 = &xf86_config->crtc[0]->mode;
+	} else if (xf86_config->crtc[1]->enabled) {
+	    mode2 = &xf86_config->crtc[1]->mode;
+	} else
+	    return;
+    } else {
+	if (info->IsPrimary)
+	    mode1 = &xf86_config->crtc[0]->mode;
+	else if (info->IsSecondary)
+	    mode2 = &xf86_config->crtc[0]->mode;
+	else if (xf86_config->crtc[0]->enabled)
+	    mode1 = &xf86_config->crtc[0]->mode;
+	else
+	    return;
+    }
+
+    RADEONInitDispBandwidthLegacy(pScrn, mode1, pixel_bytes1, mode2, pixel_bytes2);
+}
 
 Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 {
