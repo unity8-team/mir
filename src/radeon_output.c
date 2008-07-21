@@ -582,6 +582,13 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
     }
 
+    if (IS_AVIVO_VARIANT) {
+	/* hw bug */
+	if ((mode->Flags & V_INTERLACE)
+	    && (mode->CrtcVSyncStart < (mode->CrtcVDisplay + 2)))
+	    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + 2;
+    }
+
     return TRUE;
 }
 

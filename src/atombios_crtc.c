@@ -502,6 +502,12 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);
 
+	if (adjusted_mode->Flags & V_INTERLACE)
+	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+		   AVIVO_D1MODE_INTERLEAVE_EN);
+	else
+	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+		   0);
     }
 
     atombios_crtc_set_pll(crtc, adjusted_mode, pll_flags);
