@@ -1369,13 +1369,14 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
      */
     if ((info->DispPriority == 2) && IS_R300_VARIANT) {
 	uint32_t mc_init_misc_lat_timer = INREG(R300_MC_INIT_MISC_LAT_TIMER);
+	mc_init_misc_lat_timer &= ~(R300_MC_DISP1R_INIT_LAT_MASK << R300_MC_DISP1R_INIT_LAT_SHIFT);
+	mc_init_misc_lat_timer &= ~(R300_MC_DISP0R_INIT_LAT_MASK << R300_MC_DISP0R_INIT_LAT_SHIFT);
 	if (pRADEONEnt->pCrtc[1]->enabled)
 	    mc_init_misc_lat_timer |= (1 << R300_MC_DISP1R_INIT_LAT_SHIFT); /* display 1 */
 	if (pRADEONEnt->pCrtc[0]->enabled)
 	    mc_init_misc_lat_timer |= (1 << R300_MC_DISP0R_INIT_LAT_SHIFT); /* display 0 */
 	OUTREG(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
     }
-
 
     /* R420 and RV410 family not supported yet */
     if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) return; 

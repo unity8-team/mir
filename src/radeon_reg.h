@@ -1033,7 +1033,9 @@
 #define RADEON_NB_TOM                       0x15c
 #define R300_MC_INIT_MISC_LAT_TIMER         0x180
 #       define R300_MC_DISP0R_INIT_LAT_SHIFT 8
+#       define R300_MC_DISP0R_INIT_LAT_MASK  0xf
 #       define R300_MC_DISP1R_INIT_LAT_SHIFT 12
+#       define R300_MC_DISP1R_INIT_LAT_MASK  0xf
 #define RADEON_MCLK_CNTL                    0x0012 /* PLL */
 #       define RADEON_FORCEON_MCLKA         (1 << 16)
 #       define RADEON_FORCEON_MCLKB         (1 << 17)
