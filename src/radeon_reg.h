@@ -3422,6 +3422,7 @@
 #define RS690_MC_AGP_LOCATION			0x101
 #define RS690_MC_AGP_BASE			0x102
 #define RS690_MC_AGP_BASE_2                     0x103
+#define RS690_MC_INIT_MISC_LAT_TIMER            0x104
 #define RS690_MC_STATUS                         0x90
 #define RS690_MC_STATUS_IDLE                    (1 << 0)
 
@@ -3440,6 +3441,7 @@
 #       define R520_MC_STATUS_IDLE              (1 << 1)
 #define RV515_MC_STATUS                         0x08
 #       define RV515_MC_STATUS_IDLE             (1 << 4)
+#define RV515_MC_INIT_MISC_LAT_TIMER            0x09
 #define AVIVO_MC_DATA				0x0074
 
 #define RV515_MC_FB_LOCATION   0x1
@@ -3601,6 +3603,17 @@
 #define AVIVO_DC_LUTA_WHITE_OFFSET_BLUE         0x64d0
 #define AVIVO_DC_LUTA_WHITE_OFFSET_GREEN        0x64d4
 #define AVIVO_DC_LUTA_WHITE_OFFSET_RED          0x64d8
+
+#define AVIVO_DC_LB_MEMORY_SPLIT                0x6520
+#       define AVIVO_DC_LB_MEMORY_SPLIT_MASK    0x3
+#       define AVIVO_DC_LB_MEMORY_SPLIT_SHIFT   0
+#       define AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF  0
+#       define AVIVO_DC_LB_MEMORY_SPLIT_D1_3Q_D2_1Q    1
+#       define AVIVO_DC_LB_MEMORY_SPLIT_D1_ONLY        2
+#       define AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q    3
+#       define AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE (1 << 2)
+#       define AVIVO_DC_LB_DISP1_END_ADR_SHIFT  4
+#       define AVIVO_DC_LB_DISP1_END_ADR_MASK   0x7ff
 
 #define AVIVO_D1MODE_DATA_FORMAT                0x6528
 #       define AVIVO_D1MODE_INTERLEAVE_EN       (1 << 0)

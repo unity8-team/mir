@@ -62,6 +62,10 @@ extern void
 RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
 			      DisplayModePtr mode1, int pixel_bytes1,
 			      DisplayModePtr mode2, int pixel_bytes2);
+extern void
+RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
+			     DisplayModePtr mode1, int pixel_bytes1,
+			     DisplayModePtr mode2, int pixel_bytes2);
 
 void
 radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
@@ -602,7 +606,10 @@ RADEONInitDispBandwidth(ScrnInfoPtr pScrn)
 	    return;
     }
 
-    RADEONInitDispBandwidthLegacy(pScrn, mode1, pixel_bytes1, mode2, pixel_bytes2);
+    if (IS_AVIVO_VARIANT)
+	RADEONInitDispBandwidthAVIVO(pScrn, mode1, pixel_bytes1, mode2, pixel_bytes2);
+    else
+	RADEONInitDispBandwidthLegacy(pScrn, mode1, pixel_bytes1, mode2, pixel_bytes2);
 }
 
 Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)

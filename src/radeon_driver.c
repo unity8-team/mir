@@ -4188,6 +4188,7 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 
     state->crtc_master_en = INREG(AVIVO_DC_CRTC_MASTER_EN);
     state->crtc_tv_control = INREG(AVIVO_DC_CRTC_TV_CONTROL);
+    state->dc_lb_memory_split = INREG(AVIVO_DC_LB_MEMORY_SPLIT);
 
     state->pll1.ref_div_src = INREG(AVIVO_EXT1_PPLL_REF_DIV_SRC);
     state->pll1.ref_div = INREG(AVIVO_EXT1_PPLL_REF_DIV);
@@ -4818,6 +4819,7 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     /* Where should that go ? */
     OUTREG(AVIVO_DC_CRTC_TV_CONTROL, state->crtc_tv_control);
+    OUTREG(AVIVO_DC_LB_MEMORY_SPLIT, state->dc_lb_memory_split);
 
     /* Need fixing too ? */
     OUTREG(AVIVO_D1CRTC_BLANK_CONTROL, state->crtc1.blank_control);

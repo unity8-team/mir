@@ -514,6 +514,9 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
+    if (info->DispPriority)
+	RADEONInitDispBandwidth(pScrn);
+
     if (tilingChanged) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
 	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */
@@ -527,3 +530,126 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 }
 
+/* Calculate display buffer watermark to prevent buffer underflow */
+void
+RADEONInitDispBandwidthAVIVO(ScrnInfoPtr pScrn,
+			      DisplayModePtr mode1, int pixel_bytes1,
+			      DisplayModePtr mode2, int pixel_bytes2)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    uint32_t dc_lb_memory_split;
+    float mem_bw, peak_disp_bw;
+    float min_mem_eff = 0.8; /* XXX: taken from legacy method */
+    float pix_clk, pix_clk2; /* in MHz */
+
+    /*
+     * Set display0/1 priority up in the memory controller for
+     * modes if the user specifies HIGH for displaypriority
+     * option.
+     */
+    if (info->DispPriority == 2) {
+	uint32_t mc_init_misc_lat_timer = 0;
+	if (info->ChipFamily == CHIP_FAMILY_RV515)
+	    mc_init_misc_lat_timer = INMC(pScrn, RV515_MC_INIT_MISC_LAT_TIMER);
+	else if (info->ChipFamily == CHIP_FAMILY_RS690)
+	    mc_init_misc_lat_timer = INMC(pScrn, RS690_MC_INIT_MISC_LAT_TIMER);
+
+	mc_init_misc_lat_timer &= ~(R300_MC_DISP1R_INIT_LAT_MASK << R300_MC_DISP1R_INIT_LAT_SHIFT);
+	mc_init_misc_lat_timer &= ~(R300_MC_DISP0R_INIT_LAT_MASK << R300_MC_DISP0R_INIT_LAT_SHIFT);
+
+	if (pRADEONEnt->pCrtc[1]->enabled)
+	    mc_init_misc_lat_timer |= (1 << R300_MC_DISP1R_INIT_LAT_SHIFT); /* display 1 */
+	if (pRADEONEnt->pCrtc[0]->enabled)
+	    mc_init_misc_lat_timer |= (1 << R300_MC_DISP0R_INIT_LAT_SHIFT); /* display 0 */
+
+	if (info->ChipFamily == CHIP_FAMILY_RV515)
+	    OUTMC(pScrn, RV515_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
+	else if (info->ChipFamily == CHIP_FAMILY_RS690)
+	    OUTMC(pScrn, RS690_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
+    }
+
+    /* XXX: fix me for AVIVO
+     * Determine if there is enough bandwidth for current display mode
+     */
+    mem_bw = info->mclk * (info->RamWidth / 8) * (info->IsDDR ? 2 : 1);
+
+    pix_clk = 0;
+    pix_clk2 = 0;
+    peak_disp_bw = 0;
+    if (mode1) {
+	pix_clk = mode1->Clock/1000.0;
+	peak_disp_bw += (pix_clk * pixel_bytes1);
+    }
+    if (mode2) {
+	pix_clk2 = mode2->Clock/1000.0;
+	peak_disp_bw += (pix_clk2 * pixel_bytes2);
+    }
+
+    if (peak_disp_bw >= mem_bw * min_mem_eff) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "You may not have enough display bandwidth for current mode\n"
+		   "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
+    }
+
+    /*
+     * Line Buffer Setup
+     * There is a single line buffer shared by both display controllers.
+     * DC_LB_MEMORY_SPLIT controls how that line buffer is shared between the display
+     * controllers.  The paritioning can either be done manually or via one of four
+     * preset allocations specified in bits 1:0:
+     * 0 - line buffer is divided in half and shared between each display controller
+     * 1 - D1 gets 3/4 of the line buffer, D2 gets 1/4
+     * 2 - D1 gets the whole buffer
+     * 3 - D1 gets 1/4 of the line buffer, D2 gets 3/4
+     * Setting bit 2 of DC_LB_MEMORY_SPLIT controls switches to manual allocation mode.
+     * In manual allocation mode, D1 always starts at 0, D1 end/2 is specified in bits
+     * 14:4; D2 allocation follows D1.
+     */
+
+    /* is auto or manual better ? */
+    dc_lb_memory_split = INREG(AVIVO_DC_LB_MEMORY_SPLIT) & ~AVIVO_DC_LB_MEMORY_SPLIT_MASK;
+    dc_lb_memory_split &= ~AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
+#if 1
+    /* auto */
+    if (mode1 && mode2) {
+	if (mode1->HDisplay > mode2->HDisplay) {
+	    if (mode1->HDisplay > 2560)
+		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_3Q_D2_1Q;
+	    else
+		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
+	} else if (mode2->HDisplay > mode1->HDisplay) {
+	    if (mode2->HDisplay > 2560)
+		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
+	    else
+		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
+	} else
+	    dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
+    } else if (mode1) {
+	dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_ONLY;
+    } else if (mode2) {
+	dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
+    }
+#else
+    /* manual */
+    dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
+    dc_lb_memory_split &= ~(AVIVO_DC_LB_DISP1_END_ADR_MASK << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
+    if (mode1) {
+	dc_lb_memory_split |= ((((mode1->HDisplay / 2) + 64 /*???*/) & AVIVO_DC_LB_DISP1_END_ADR_MASK)
+			       << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
+    } else if (mode2) {
+	dc_lb_memory_split |= (0 << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
+    }
+    OUTREG(AVIVO_DC_LB_MEMORY_SPLIT, dc_lb_memory_split);
+#endif
+
+    /*
+     * Watermark setup
+     * TODO...
+     * Unforunately, I haven't been able to dig up the avivo watermark programming
+     * guide yet. -AGD
+     */
+
+}

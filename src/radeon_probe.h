@@ -328,6 +328,7 @@ struct avivo_state
 
     uint32_t crtc_master_en;
     uint32_t crtc_tv_control;
+    uint32_t dc_lb_memory_split;
 
     struct avivo_pll_state pll1;
     struct avivo_pll_state pll2;
