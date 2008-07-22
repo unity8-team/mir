@@ -3307,7 +3307,7 @@ I830LeaveVT(int scrnIndex, int flags)
    }
 #endif /* XF86DRI_MM */
 
-   if (IS_I965G(pI830))
+   if (pI830->useEXA && IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
    if (pI830->AccelInfoRec)
@@ -3356,7 +3356,7 @@ I830EnterVT(int scrnIndex, int flags)
    /* Update the screen pixmap in case the buffer moved */
    i830_update_front_offset(pScrn);
 
-   if (IS_I965G(pI830))
+   if (pI830->useEXA && IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (i830_check_error_state(pScrn)) {
