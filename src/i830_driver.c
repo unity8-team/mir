@@ -2487,6 +2487,7 @@ I830BlockHandler(int i,
     ScreenPtr pScreen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     pScreen->BlockHandler = pI830->BlockHandler;
 
@@ -2511,11 +2512,14 @@ I830BlockHandler(int i,
      * (except for mode setting, where it may occur naturally).
      * Check & ack the condition.
      */
-    if (INREG(PIPEASTAT) & FIFO_UNDERRUN) {
+    if (xf86_config->crtc[0]->enabled &&
+	    (INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
 	    OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
     }
-    if (INREG(PIPEBSTAT) & FIFO_UNDERRUN) {
+    if (xf86_config->num_crtc > 1 &&
+	    xf86_config->crtc[1]->enabled &&
+	    (INREG(PIPEBSTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe B!\n");
 	    OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
     }
