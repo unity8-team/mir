@@ -2512,16 +2512,18 @@ I830BlockHandler(int i,
      * (except for mode setting, where it may occur naturally).
      * Check & ack the condition.
      */
-    if (xf86_config->crtc[0]->enabled &&
-	    (INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
+    if (pScrn->vtSema) {
+	if (xf86_config->crtc[0]->enabled &&
+		(INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
 	    OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
-    }
-    if (xf86_config->num_crtc > 1 &&
-	    xf86_config->crtc[1]->enabled &&
-	    (INREG(PIPEBSTAT) & FIFO_UNDERRUN)) {
+	}
+	if (xf86_config->num_crtc > 1 &&
+		xf86_config->crtc[1]->enabled &&
+		(INREG(PIPEBSTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe B!\n");
 	    OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
+	}
     }
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
