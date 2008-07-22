@@ -1249,7 +1249,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "clone detected, disabling SSC\n");
 
     /* Don't use SSC when cloned */
-    if (pI830->lvds_use_ssc && num_outputs < 2) {
+    if (is_lvds && pI830->lvds_use_ssc && num_outputs < 2) {
 	refclk = pI830->lvds_ssc_freq * 1000;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "using SSC reference clock of %d MHz\n", refclk / 1000);
