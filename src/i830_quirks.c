@@ -203,7 +203,8 @@ static void quirk_lenovo_tv_dmi (I830Ptr pI830)
 	ErrorF("Failed to load DMI info, X60 TV quirk not applied.\n");
 	return;
     }
-    if (!strncmp(i830_dmi_data[bios_version], "7B", 2))
+    if (!strncmp(i830_dmi_data[bios_version], "7B", 2) || /* X60, X60s */
+	    !strncmp(i830_dmi_data[bios_version], "7E", 2)) /* R60e */
 	pI830->quirk_flag |= QUIRK_IGNORE_TV;
 }
 
