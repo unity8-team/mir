@@ -463,6 +463,27 @@ NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 	BEGIN_RING(Nv2D, 0x58c, 1);
 	OUT_RING  (0x111);
 
+	/* More magics */
+	BEGIN_RING(Nv2D, 0x2B4, 1);
+	OUT_RING  (0);
+	BEGIN_RING(Nv2D, 0x2EC, 1);
+	OUT_RING  (1);
+
+	BEGIN_RING(Nv2D, NV50_2D_CLIP_X, 4);
+	OUT_RING  (0);
+	OUT_RING  (0);
+	OUT_RING  (0x7FFF);
+	OUT_RING  (0x7FFF);
+
+	/* This was originally in NV50EXAAcquireSurface2D for tiled case. */
+	BEGIN_RING(Nv2D, NV50_2D_SRC_FORMAT + 0xC, 2);
+	OUT_RING  (1);
+	OUT_RING  (0);
+
+	BEGIN_RING(Nv2D, NV50_2D_DST_FORMAT + 0xC, 2);
+	OUT_RING  (1);
+	OUT_RING  (0);
+
 	pNv->currentRop = 0xfffffffa;
 	return TRUE;
 }

@@ -110,11 +110,9 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 		BEGIN_RING(Nv2D, mthd + 0x14, 1);
 		OUT_RING  ((uint32_t)exaGetPixmapPitch(ppix));
 	} else {
-		BEGIN_RING(Nv2D, mthd, 5);
+		BEGIN_RING(Nv2D, mthd, 3);
 		OUT_RING  (fmt);
 		OUT_RING  (0);
-		OUT_RING  (0);
-		OUT_RING  (1);
 		OUT_RING  (0);
 	}
 
@@ -162,7 +160,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 		OUT_RING  (NV50_2D_OPERATION_ROP_AND);
 	}
 
-	BEGIN_RING(Nv2D, NV50_2D_PATTERN_FORMAT, 2);
+	BEGIN_RING(Nv2D, NV50_2D_PATTERN_FORMAT, 1);
 	switch (pdpix->drawable.depth) {
 		case  8: OUT_RING  (3); break;
 		case 15: OUT_RING  (1); break;
@@ -173,13 +171,12 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 			 OUT_RING  (2);
 			 break;
 	}
-	OUT_RING(1);
 
-	if(planemask != ~0) {
+	if (planemask != ~0) {
 		NV50EXASetPattern(pdpix, 0, planemask, ~0, ~0);
 		rop = (rop & 0xf0) | 0x0a;
 	} else
-	if((pNv->currentRop & 0x0f) == 0x0a) {
+	if ((pNv->currentRop & 0x0f) == 0x0a) {
 		NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
 	}
 
@@ -196,8 +193,8 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	NV50EXA_LOCALS(pdpix);
 	uint32_t fmt;
 
-	if (pdpix->drawable.depth > 24)
-		NOUVEAU_FALLBACK("32bpp\n");
+	//if (pdpix->drawable.depth > 24)
+	//	NOUVEAU_FALLBACK("32bpp\n");
 	if (!NV50EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
 
@@ -255,6 +252,8 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 {
 	NV50EXA_LOCALS(pdpix);
 
+	BEGIN_RING(Nv2D, NV50_2D_OPERATION, 1);
+	OUT_RING (NV50_2D_OPERATION_SRCCOPY);
 	BEGIN_RING(Nv2D, 0x0110, 1);
 	OUT_RING  (0);
 	BEGIN_RING(Nv2D, 0x088c, 1);
