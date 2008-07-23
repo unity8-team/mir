@@ -229,5 +229,5 @@ i830_hdmi_init(ScrnInfoPtr pScrn, int output_reg)
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "HDMI output %d detected\n",
-	       1 + (output_reg - SDVOB));
+	       (output_reg == SDVOB) ? 1 : 2);
 }
