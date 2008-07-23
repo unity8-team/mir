@@ -862,7 +862,7 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     memset(&local_ss, 0, sizeof(local_ss));
     local_ss.ss0.surface_type = BRW_SURFACE_2D;
     if (is_dst) {
-	uint32_t dst_format;
+	uint32_t dst_format = 0;
 	Bool ret = TRUE;
 
 	ret = i965_get_dest_format(pPicture, &dst_format);
