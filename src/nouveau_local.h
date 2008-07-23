@@ -47,7 +47,9 @@ struct nouveau_pixmap {
 	return FALSE;                         \
 } while(0)
 #else
-#define NOUVEAU_FALLBACK(fmt,args...) return FALSE
+#define NOUVEAU_FALLBACK(fmt,args...) do {    \
+	return FALSE;                         \
+} while(0);
 #endif
 
 #define NOUVEAU_TIME_MSEC() GetTimeInMillis()
