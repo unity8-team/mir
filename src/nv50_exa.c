@@ -196,11 +196,8 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	NV50EXA_LOCALS(pdpix);
 	uint32_t fmt;
 
-	if (pdpix->drawable.depth > 24)
-		NOUVEAU_FALLBACK("32bpp\n");
 	if (!NV50EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
-
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
 	NV50EXASetROP(pdpix, alu, planemask);
