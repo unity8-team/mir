@@ -2134,6 +2134,14 @@ NV40SetupTexturedVideo (ScreenPtr pScreen, Bool bicubic)
 	return adapt;
 }
 
+static XF86ImageRec
+NV50TexturedImages[] =
+{
+	XVIMAGE_YV12,
+	XVIMAGE_I420,
+	XVIMAGE_YUY2
+};
+
 static XF86VideoAdaptorPtr
 NV50SetupTexturedVideo (ScreenPtr pScreen)
 {
@@ -2165,8 +2173,9 @@ NV50SetupTexturedVideo (ScreenPtr pScreen)
 
 	adapt->pAttributes		= NULL;
 	adapt->nAttributes		= 0;
-	adapt->pImages			= NV40TexturedImages;
-	adapt->nImages			= NUM_FORMAT_TEXTURED;
+	adapt->pImages			= NV50TexturedImages;
+	adapt->nImages			= sizeof(NV50TexturedImages) /
+					  sizeof(NV50TexturedImages[0]);
 	adapt->PutVideo			= NULL;
 	adapt->PutStill			= NULL;
 	adapt->GetVideo			= NULL;
