@@ -153,6 +153,10 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 		NVWrite(pNv, NV50_SOR0_UNK018 + NV50OrOffset(output) * 0x800, 0x00245af8);
 	}
 
+	/* This needs to be handled in the same way as pre-NV5x on the long run. */
+	if (output->type == OUTPUT_LVDS)
+		pNv->VBIOS.fp.native_mode = GetLVDSNativeMode(pScrn);
+
 	/* Function pointers. */
 	if (output->type == OUTPUT_TMDS || output->type == OUTPUT_LVDS) {
 		NV50SorSetFunctionPointers(output);

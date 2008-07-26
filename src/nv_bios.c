@@ -3170,6 +3170,10 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
 		break;
 	case 0x40:	/* G80/G90 */
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "LVDS table revision not currently supported\n");
+		return;
+
 		/* This is all based on guesses and getting something sensible. */
 		/* Analysis of a bios only revealed that the clock multiplier/dividers are stored in ramin. */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
