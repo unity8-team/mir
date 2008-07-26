@@ -3169,7 +3169,25 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		}
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
 		break;
-	case 0x40:	/* It changed again with gf8 :o( */
+	case 0x40:	/* G80/G90 */
+		/* This is all based on guesses and getting something sensible. */
+		/* Analysis of a bios only revealed that the clock multiplier/dividers are stored in ramin. */
+		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
+
+		/* Bail out if different from the known situation. */
+		if (headerlen != 7 || recordlen != 2) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "LVDS table header not understood\n");
+			return;
+		}
+
+		/* I had a few bios' to work with one had a compatible mode in slot 14, the other were ddc (=15) candidates. */
+		/* I noticed the first had a value 0x21 and the other 2 had 0x23, which seems reasonable considering the recordlen of 2. */ 
+		/* I had to add 2 to the offset for some reason, and 1 more to get to the index instead of the flags. */
+		/* I was unable to find an equivalent to the old fp strapping. */
+		uint8_t offset = bios->data[bios->fp.lvdsmanufacturerpointer + 6];
+		bios->fp.strapping = lvdsmanufacturerindex = bios->data[bios->fp.lvdsmanufacturerpointer + 2 + offset + 1];
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "LVDS table revision not currently supported\n");
@@ -3200,6 +3218,11 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
+		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
+		fpp->xlatwidth = recordlen;
+		break;
+	case 0x40:
+		/* I have no clue what the flags mean, bit 1 seems common though. */
 		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
 		fpp->xlatwidth = recordlen;
 		break;

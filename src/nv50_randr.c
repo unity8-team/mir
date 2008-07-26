@@ -489,18 +489,24 @@ nv50_output_get_modes(xf86OutputPtr output)
 	xf86OutputSetEDID(output, ddc_mon);
 
 	DisplayModePtr ddc_modes = connector->GetDDCModes(connector);
-	DisplayModePtr fixed_mode = NULL;
 
-	/* LVDS has a fixed native mode. */
-	if (nv_output->output->type != OUTPUT_LVDS) {
-		xf86DeleteMode(&nv_output->output->native_mode, nv_output->output->native_mode);
-		nv_output->output->native_mode = NULL;
-		if (nv_output->output->crtc)
-			nv_output->output->crtc->native_mode = NULL;
+	xf86DeleteMode(&nv_output->output->native_mode, nv_output->output->native_mode);
+	nv_output->output->native_mode = NULL;
+	if (nv_output->output->crtc)
+		nv_output->output->crtc->native_mode = NULL;
+
+	/* typically only LVDS will hit this code path. */
+	if (!ddc_modes)
+		if (pNv->VBIOS.fp.native_mode)
+			ddc_modes = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
+
+	if (!ddc_modes && nv_output->output->type == OUTPUT_LVDS) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS and no modes found, bailing out.\n");
+		return NULL;
 	}
 
 	/* NV5x hardware can also do scaling on analog connections. */
-	if (nv_output->output->type != OUTPUT_LVDS && ddc_modes) {
+	if (ddc_modes) {
 		/* Use the first preferred mode as native mode. */
 		DisplayModePtr mode;
 
@@ -523,18 +529,6 @@ nv50_output_get_modes(xf86OutputPtr output)
 		}
 
 		nv_output->output->native_mode = xf86DuplicateMode(mode);
-	}
-
-	if (nv_output->output->GetFixedMode)
-		fixed_mode = nv_output->output->GetFixedMode(nv_output->output);
-
-	if (fixed_mode) {
-		if (!ddc_modes)
-			ddc_modes = xf86DuplicateMode(fixed_mode);
-		else
-			ddc_modes = xf86ModesAdd(ddc_modes, fixed_mode);
-
-		nv_output->output->native_mode = xf86DuplicateMode(fixed_mode);
 	}
 
 	/* No ddc means no native mode, so make one up to avoid crashes. */

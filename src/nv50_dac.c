@@ -193,6 +193,5 @@ NV50DacSetFunctionPointers(nouveauOutputPtr output)
 	output->SetClockMode = NV50DacSetClockMode;
 	output->Sense = NV50DacSense;
 	output->Detect = NV50DacDetect;
-	output->GetFixedMode = NULL;
 	output->SetPowerMode = NV50DacSetPowerMode;
 }

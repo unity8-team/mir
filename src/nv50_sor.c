@@ -157,15 +157,6 @@ NV50SorDetect(nouveauOutputPtr output)
 	return FALSE;
 }
 
-static DisplayModePtr
-NV50SorGetFixedMode(nouveauOutputPtr output)
-{
-	if (output->type == OUTPUT_LVDS)
-		return output->native_mode;
-
-	return NULL;
-}
-
 void
 NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
@@ -177,7 +168,6 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
 		output->SetClockMode = NV50SorSetClockModeLVDS;
 	output->Sense = NV50SorSense;
 	output->Detect = NV50SorDetect;
-	output->GetFixedMode = NV50SorGetFixedMode;
 	output->SetPowerMode = NV50SorSetPowerMode;
 }
 
