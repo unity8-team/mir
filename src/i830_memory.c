@@ -914,7 +914,8 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 	if (ret != 0 || set_tiling.tiling_mode == I915_TILING_NONE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to set tiling on %s: %s\n",
-			   mem->name, strerror(errno));
+			   mem->name,
+			   ret == 0 ? "rejected by kernel" : strerror(errno));
 		i830_free_memory(pScrn, mem);
 		return i830_allocate_memory(pScrn, name, size, alignment,
 					    flags);
