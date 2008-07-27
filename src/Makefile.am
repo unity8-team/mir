@@ -36,7 +36,7 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD =
+intel_drv_la_LIBADD = -lm
 if XSERVER_LIBPCIACCESS
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 endif
