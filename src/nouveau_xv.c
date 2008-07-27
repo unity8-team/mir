@@ -35,6 +35,8 @@
 #include "nv_include.h"
 #include "nv_dma.h"
 
+#include "vl_hwmc.h"
+
 #define IMAGE_MAX_W 2046
 #define IMAGE_MAX_H 2046
 
@@ -2288,4 +2290,23 @@ NVInitVideo(ScreenPtr pScreen)
 		xf86XVScreenInit(pScreen, adaptors, num_adaptors);
 	if (newAdaptors)
 		xfree(newAdaptors);
+	
+	/*
+	 * For now we associate with the plain texture adapter since it is logical, but we can
+	 * associate with any/all adapters since VL doesn't depend on Xv for color conversion.
+	 */
+	if (textureAdaptor[0]) {
+		XF86MCAdaptorPtr *adaptorsXvMC = xalloc(sizeof(XF86MCAdaptorPtr));
+		
+		if (adaptorsXvMC) {
+			adaptorsXvMC[0] = vlCreateAdaptorXvMC(pScreen, textureAdaptor[0]->name);
+			
+			if (adaptorsXvMC[0]) {
+				vlInitXvMC(pScreen, 1, adaptorsXvMC);
+				vlDestroyAdaptorXvMC(adaptorsXvMC[0]);
+			}
+			
+			xfree(adaptorsXvMC);
+		}
+	}
 }
