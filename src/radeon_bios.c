@@ -481,6 +481,16 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* X300 card with extra non-existent DVI port */
+    if (info->Chipset == PCI_CHIP_RV370_5B60 &&
+	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x17af &&
+	PCI_SUB_DEVICE_ID(info->PciInfo) == 0x201e &&
+	index == 2) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I) {
+	    info->BiosConnector[index].valid = FALSE;
+	}
+    }
+
 }
 
 static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
