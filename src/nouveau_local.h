@@ -64,95 +64,95 @@ struct nouveau_pixmap {
 #define NOUVEAU_DMA_TIMEOUT 2000
 
 /* Push buffer access macros */
-#define BEGIN_RING(obj,mthd,size) do {                                         \
-	BEGIN_RING_CH(pNv->chan, pNv->obj, (mthd), (size));                    \
+#define BEGIN_RING(chan,obj,mthd,size) do {                                    \
+	BEGIN_RING_CH((chan), (obj), (mthd), (size));                          \
 } while(0)
 
-#define OUT_RING(data) do {                                                    \
-	OUT_RING_CH(pNv->chan, (data));                                        \
+#define OUT_RING(chan,data) do {                                               \
+	OUT_RING_CH((chan), (data));                                           \
 } while(0)
 
-#define OUT_RINGp(src,size) do {                                               \
-	OUT_RINGp_CH(pNv->chan, (src), (size));                                \
+#define OUT_RINGp(chan,src,size) do {                                          \
+	OUT_RINGp_CH((chan), (src), (size));                                   \
 } while(0)
 
-#define OUT_RINGf(data) do {                                                   \
+#define OUT_RINGf(chan,data) do {                                              \
 	union { float v; uint32_t u; } c;                                      \
 	c.v = (data);                                                          \
-	OUT_RING(c.u);                                                         \
+	OUT_RING((chan), c.u);                                                 \
 } while(0)
 
-#define WAIT_RING(size) do {                                                   \
-	WAIT_RING_CH(pNv->chan, (size));                                       \
+#define WAIT_RING(chan,size) do {                                              \
+	WAIT_RING_CH((chan), (size));                                          \
 } while(0)
 
-#define FIRE_RING() do {                                                       \
-	FIRE_RING_CH(pNv->chan);                                               \
+#define FIRE_RING(chan) do {                                                   \
+	FIRE_RING_CH((chan));                                               \
 } while(0)
 
-#define OUT_RELOC(bo,data,flags,vor,tor) do {                                  \
-	struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);        \
-	nouveau_bo_emit_reloc(&chan->base, &chan->pushbuf[chan->dma.cur],      \
+#define OUT_RELOC(chan,bo,data,flags,vor,tor) do {                             \
+	struct nouveau_channel_priv *nvchan = nouveau_channel(chan);           \
+	nouveau_bo_emit_reloc((chan), &nvchan->pushbuf[nvchan->dma.cur],       \
 			      (bo), (data), (flags), (vor), (tor));            \
-	OUT_RING(0);                                                           \
+	OUT_RING((chan), 0);                                                   \
 } while(0)
 
 /* Raw data + flags depending on FB/TT buffer */
-#define OUT_RELOCd(bo,data,flags,vor,tor) do {                                 \
-	OUT_RELOC((bo), (data), (flags) | NOUVEAU_BO_OR, (vor), (tor));        \
+#define OUT_RELOCd(chan,bo,data,flags,vor,tor) do {                            \
+	OUT_RELOC((chan), (bo), (data), (flags) | NOUVEAU_BO_OR, (vor), (tor));\
 } while(0)
 
 /* FB/TT object handle */
-#define OUT_RELOCo(bo,flags) do {                                              \
-	OUT_RELOC((bo), 0, (flags) | NOUVEAU_BO_OR,                            \
-		  pNv->chan->vram->handle, pNv->chan->gart->handle);           \
+#define OUT_RELOCo(chan,bo,flags) do {                                         \
+	OUT_RELOC((chan), (bo), 0, (flags) | NOUVEAU_BO_OR,                    \
+		  (chan)->vram->handle, (chan)->gart->handle);                 \
 } while(0)
 
 /* Low 32-bits of offset */
-#define OUT_RELOCl(bo,delta,flags) do {                                        \
-	OUT_RELOC((bo), (delta), (flags) | NOUVEAU_BO_LOW, 0, 0);              \
+#define OUT_RELOCl(chan,bo,delta,flags) do {                                   \
+	OUT_RELOC((chan), (bo), (delta), (flags) | NOUVEAU_BO_LOW, 0, 0);      \
 } while(0)
 
 /* High 32-bits of offset */
-#define OUT_RELOCh(bo,delta,flags) do {                                        \
-	OUT_RELOC((bo), (delta), (flags) | NOUVEAU_BO_HIGH, 0, 0);             \
+#define OUT_RELOCh(chan,bo,delta,flags) do {                                   \
+	OUT_RELOC((chan), (bo), (delta), (flags) | NOUVEAU_BO_HIGH, 0, 0);     \
 } while(0)
 
 
 /* Alternate versions of OUT_RELOCx above, takes pixmaps instead of BOs */
 #if NOUVEAU_EXA_PIXMAPS
-#define OUT_PIXMAPd(pm,data,flags,vor,tor) do {                                \
+#define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
 	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
 	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCd(pmo, (data), (flags), (vor), (tor));                        \
+	OUT_RELOCd((chan), pmo, (data), (flags), (vor), (tor));                \
 } while(0)
-#define OUT_PIXMAPo(pm,flags) do {                                             \
+#define OUT_PIXMAPo(chan,pm,flags) do {                                        \
 	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
 	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCo(pmo, (flags));                                              \
+	OUT_RELOCo((chan), pmo, (flags));                                      \
 } while(0)
-#define OUT_PIXMAPl(pm,delta,flags) do {                                       \
+#define OUT_PIXMAPl(chan,pm,delta,flags) do {                                  \
 	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
 	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCl(pmo, (delta), (flags));                                     \
+	OUT_RELOCl((chan), pmo, (delta), (flags));                             \
 } while(0)
-#define OUT_PIXMAPh(pm,delta,flags) do {                                       \
+#define OUT_PIXMAPh(chan,pm,delta,flags) do {                                  \
 	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
 	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCh(pmo, (delta), (flags));                                     \
+	OUT_RELOCh((chan), pmo, (delta), (flags));                             \
 } while(0)
 #else
-#define OUT_PIXMAPd(pm,data,flags,vor,tor) do {                                \
-	OUT_RELOCd(pNv->FB, (data), (flags), (vor), (tor));                    \
+#define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
+	OUT_RELOCd((chan), pNv->FB, (data), (flags), (vor), (tor));            \
 } while(0)
-#define OUT_PIXMAPo(pm,flags) do {                                             \
-	OUT_RELOCo(pNv->FB, (flags));                                          \
+#define OUT_PIXMAPo(chan,pm,flags) do {                                        \
+	OUT_RELOCo((chan), pNv->FB, (flags));                                  \
 } while(0)
-#define OUT_PIXMAPl(pm,delta,flags) do {                                       \
-	OUT_RELOCl(pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));        \
+#define OUT_PIXMAPl(chan,pm,delta,flags) do {                                  \
+	OUT_RELOCl((chan), pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));\
 } while(0)
-#define OUT_PIXMAPh(pm,delta,flags) do {                                       \
-	OUT_RELOCh(pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));        \
+#define OUT_PIXMAPh(chan,pm,delta,flags) do {                                  \
+	OUT_RELOCh((chan), pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));\
 } while(0)
 #endif
 

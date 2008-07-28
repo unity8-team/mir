@@ -69,7 +69,9 @@ NVChannelHangNotify(struct nouveau_channel *chan)
 void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_channel_priv *nvchan = nouveau_channel(chan);
+	struct nouveau_grobj *gr = pNv->Nv2D ? pNv->Nv2D : pNv->NvImageBlit;
 	int t_start, timeout = 2000;
 
 	if (pNv->NoAccel)
@@ -78,26 +80,19 @@ void NVSync(ScrnInfoPtr pScrn)
 	/* Wait for entire FIFO to be processed */
 	t_start = GetTimeInMillis();
 	while((GetTimeInMillis() - t_start) < timeout &&
-	      (((*chan->get - chan->dma.base) >> 2)!= chan->dma.put));
+	      (((*nvchan->get - nvchan->dma.base) >> 2)!= nvchan->dma.put));
 	if ((GetTimeInMillis() - t_start) >= timeout) {
 		NVLockedUp(pScrn);
 		return;
 	}
 
-	/* Wait for channel to go completely idle */
+	/* Wait for nvchannel to go completely idle */
 	nouveau_notifier_reset(pNv->notify0, 0);
-	if (pNv->Architecture < NV_ARCH_50) {
-		BEGIN_RING(NvImageBlit, 0x104, 1);
-		OUT_RING  (0);
-		BEGIN_RING(NvImageBlit, 0x100, 1);
-		OUT_RING  (0);
-	} else {
-		BEGIN_RING(Nv2D, 0x104, 1);
-		OUT_RING  (0);
-		BEGIN_RING(Nv2D, 0x100, 1);
-		OUT_RING  (0);
-	}
-	FIRE_RING();
+	BEGIN_RING(chan, gr, 0x104, 1);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, gr, 0x100, 1);
+	OUT_RING  (chan, 0);
+	FIRE_RING (chan);
 	if (nouveau_notifier_wait_status(pNv->notify0, 0,
 					 NV_NOTIFY_STATE_STATUS_COMPLETED,
 					 timeout))

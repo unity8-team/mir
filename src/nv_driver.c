@@ -794,7 +794,7 @@ NVBlockHandler (
 	NVPtr pNv = NVPTR(pScrnInfo);
 
 	if (!pNv->NoAccel)
-		FIRE_RING();
+		FIRE_RING (pNv->chan);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
 	(*pScreen->BlockHandler) (i, blockData, pTimeout, pReadmask);

@@ -131,6 +131,8 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		 uint16_t width, uint16_t height, uint16_t src_pitch, int unit)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *curie = pNv->Nv3D;
 
 	uint32_t card_fmt = 0;
 	uint32_t card_swz = 0;
@@ -154,47 +156,49 @@ NV40VideoTexture(ScrnInfoPtr pScrn, struct nouveau_bo *src, int offset,
 		break;
 	}
 
-	BEGIN_RING(Nv3D, NV40TCL_TEX_OFFSET(unit), 8);
-	OUT_RELOCl(src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	BEGIN_RING(chan, curie, NV40TCL_TEX_OFFSET(unit), 8);
+	OUT_RELOCl(chan, src, offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	if (unit==0) {
-		OUT_RELOCd(pNv->FB, card_fmt | 
-				NV40TCL_TEX_FORMAT_DIMS_1D | NV40TCL_TEX_FORMAT_NO_BORDER |
-				(0x8000) | (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
-				NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-				NV40TCL_TEX_FORMAT_DMA0, 0);
-		OUT_RING(NV40TCL_TEX_WRAP_S_REPEAT |
-				NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
-				NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
+		OUT_RELOCd(chan, pNv->FB, card_fmt | 
+				 NV40TCL_TEX_FORMAT_DIMS_1D | 0x8000 |
+				 NV40TCL_TEX_FORMAT_NO_BORDER |
+				 (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
+				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
+				 NV40TCL_TEX_FORMAT_DMA0, 0);
+		OUT_RING  (chan, NV40TCL_TEX_WRAP_S_REPEAT |
+				 NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
+				 NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	} else {
-		OUT_RELOCd(pNv->FB, card_fmt | NV40TCL_TEX_FORMAT_LINEAR | NV40TCL_TEX_FORMAT_RECT |
-				NV40TCL_TEX_FORMAT_DIMS_2D | NV40TCL_TEX_FORMAT_NO_BORDER |
-				(0x8000) | (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
-				NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
-				NV40TCL_TEX_FORMAT_DMA0, 0);
-		OUT_RING(NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
-				NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
-				NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
+		OUT_RELOCd(chan, pNv->FB, card_fmt | NV40TCL_TEX_FORMAT_LINEAR |
+				 NV40TCL_TEX_FORMAT_RECT | 0x8000 |
+				 NV40TCL_TEX_FORMAT_DIMS_2D |
+				 NV40TCL_TEX_FORMAT_NO_BORDER |
+				 (1 << NV40TCL_TEX_FORMAT_MIPMAP_COUNT_SHIFT),
+				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD,
+				 NV40TCL_TEX_FORMAT_DMA0, 0);
+		OUT_RING  (chan, NV40TCL_TEX_WRAP_S_CLAMP_TO_EDGE |
+				 NV40TCL_TEX_WRAP_T_CLAMP_TO_EDGE |
+				 NV40TCL_TEX_WRAP_R_CLAMP_TO_EDGE);
 	}
 
-	OUT_RING(NV40TCL_TEX_ENABLE_ENABLE);
-	OUT_RING(card_swz);
-	if (unit==0)
-		OUT_RING(NV40TCL_TEX_FILTER_SIGNED_ALPHA |
-				NV40TCL_TEX_FILTER_SIGNED_RED |
-				NV40TCL_TEX_FILTER_SIGNED_GREEN |
-				NV40TCL_TEX_FILTER_SIGNED_BLUE |
-				NV40TCL_TEX_FILTER_MIN_LINEAR |
-				NV40TCL_TEX_FILTER_MAG_LINEAR |
-				0x3fd6);
+	OUT_RING  (chan, NV40TCL_TEX_ENABLE_ENABLE);
+	OUT_RING  (chan, card_swz);
+	if (unit == 0)
+		OUT_RING  (chan, NV40TCL_TEX_FILTER_SIGNED_ALPHA |
+				 NV40TCL_TEX_FILTER_SIGNED_RED |
+				 NV40TCL_TEX_FILTER_SIGNED_GREEN |
+				 NV40TCL_TEX_FILTER_SIGNED_BLUE |
+				 NV40TCL_TEX_FILTER_MIN_LINEAR |
+				 NV40TCL_TEX_FILTER_MAG_LINEAR | 0x3fd6);
 	else
-		OUT_RING(NV40TCL_TEX_FILTER_MIN_LINEAR |
-				NV40TCL_TEX_FILTER_MAG_LINEAR |
-				0x3fd6);
-	OUT_RING((width << 16) | height);
-	OUT_RING(0); /* border ARGB */
-	BEGIN_RING(Nv3D, NV40TCL_TEX_SIZE1(unit), 1);
-	OUT_RING((1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
-			(uint16_t) src_pitch);
+		OUT_RING  (chan, NV40TCL_TEX_FILTER_MIN_LINEAR |
+				 NV40TCL_TEX_FILTER_MAG_LINEAR | 0x3fd6);
+	OUT_RING  (chan, (width << 16) | height);
+	OUT_RING  (chan, 0); /* border ARGB */
+
+	BEGIN_RING(chan, curie, NV40TCL_TEX_SIZE1(unit), 1);
+	OUT_RING  (chan, (1 << NV40TCL_TEX_SIZE1_DEPTH_SHIFT) |
+			 (uint16_t) src_pitch);
 
 	return TRUE;
 }
@@ -203,20 +207,20 @@ Bool
 NV40GetSurfaceFormat(PixmapPtr ppix, int *fmt_ret)
 {
 	switch (ppix->drawable.bitsPerPixel) {
-		case 32:
-			*fmt_ret = NV40TCL_RT_FORMAT_COLOR_A8R8G8B8;
-			break;
-		case 24:
-			*fmt_ret = NV40TCL_RT_FORMAT_COLOR_X8R8G8B8;
-			break;
-		case 16:
-			*fmt_ret = NV40TCL_RT_FORMAT_COLOR_R5G6B5;
-			break;
-		case 8:
-			*fmt_ret = NV40TCL_RT_FORMAT_COLOR_B8;
-			break;
-		default:
-			return FALSE;
+	case 32:
+		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_A8R8G8B8;
+		break;
+	case 24:
+		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_X8R8G8B8;
+		break;
+	case 16:
+		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_R5G6B5;
+		break;
+	case 8:
+		*fmt_ret = NV40TCL_RT_FORMAT_COLOR_B8;
+		break;
+	default:
+		return FALSE;
 	}
 
 	return TRUE;
@@ -228,11 +232,11 @@ NV40StopTexturedVideo(ScrnInfoPtr pScrn, pointer data, Bool Exit)
 }
 
 #define VERTEX_OUT(sx,sy,dx,dy) do {                                           \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2F_X(8), 4);                         \
-	OUT_RINGf ((sx)); OUT_RINGf ((sy));                                    \
-	OUT_RINGf ((sx)/2.0); OUT_RINGf ((sy)/2.0);                            \
-	BEGIN_RING(Nv3D, NV40TCL_VTX_ATTR_2I(0), 1);                           \
- 	OUT_RING  (((dy)<<16)|(dx));                                           \
+	BEGIN_RING(chan, curie, NV40TCL_VTX_ATTR_2F_X(8), 4);                  \
+	OUT_RINGf (chan, (sx)); OUT_RINGf (chan, (sy));                        \
+	OUT_RINGf (chan, (sx)/2.0); OUT_RINGf (chan, (sy)/2.0);                \
+	BEGIN_RING(chan, curie, NV40TCL_VTX_ATTR_2I(0), 1);                    \
+ 	OUT_RING  (chan, ((dy)<<16)|(dx));                                     \
 } while(0)
 
 int
@@ -247,6 +251,8 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		    NVPortPrivPtr pPriv)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *curie = pNv->Nv3D;
 	Bool redirected = FALSE;
 	float X1, X2, Y1, Y2;
 	BoxPtr pbox;
@@ -272,16 +278,15 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	nbox = REGION_NUM_RECTS(clipBoxes);
 
 	/* Disable blending */
-	BEGIN_RING(Nv3D, NV40TCL_BLEND_ENABLE, 1);
-	OUT_RING(0);
+	BEGIN_RING(chan, curie, NV40TCL_BLEND_ENABLE, 1);
+	OUT_RING  (chan, 0);
 
 	/* Setup surface */
-	BEGIN_RING(Nv3D, NV40TCL_RT_FORMAT, 3);
-	OUT_RING  (NV40TCL_RT_FORMAT_TYPE_LINEAR |
-			NV40TCL_RT_FORMAT_ZETA_Z24S8 |
-			dst_format);
-	OUT_RING  (exaGetPixmapPitch(ppix));
-	OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	BEGIN_RING(chan, curie, NV40TCL_RT_FORMAT, 3);
+	OUT_RING  (chan, NV40TCL_RT_FORMAT_TYPE_LINEAR |
+			 NV40TCL_RT_FORMAT_ZETA_Z24S8 | dst_format);
+	OUT_RING  (chan, exaGetPixmapPitch(ppix));
+	OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	NV40_LoadFilterTable(pScrn);
 
@@ -299,17 +304,17 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	/* Appears to be some kind of cache flush, needed here at least
 	 * sometimes.. funky text rendering otherwise :)
 	 */
-	BEGIN_RING(Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
-	OUT_RING  (2);
-	BEGIN_RING(Nv3D, NV40TCL_TEX_CACHE_CTL, 1);
-	OUT_RING  (1);
+	BEGIN_RING(chan, curie, NV40TCL_TEX_CACHE_CTL, 1);
+	OUT_RING  (chan, 2);
+	BEGIN_RING(chan, curie, NV40TCL_TEX_CACHE_CTL, 1);
+	OUT_RING  (chan, 1);
 
 	/* Just before rendering we wait for vblank in the non-composited case. */
 	if (pPriv->SyncToVBlank && !redirected) {
 		uint8_t crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
 			dstBox->x2 - dstBox->x1, dstBox->y2 - dstBox->y1);
 
-		FIRE_RING();
+		FIRE_RING (chan);
 		if (crtcs & 0x1)
 			NVWaitVSync(pScrn, 0);
 		else if (crtcs & 0x2)
@@ -322,8 +327,8 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
 
-	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_TRIANGLES);
+	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (chan, NV40TCL_BEGIN_END_TRIANGLES);
 
 	while(nbox--) {
 		float tx1=X1+(float)(pbox->x1 - dstBox->x1)*(X2-X1)/(float)(drw_w);
@@ -335,9 +340,9 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
-		BEGIN_RING(Nv3D, NV40TCL_SCISSOR_HORIZ, 2);
-		OUT_RING  ((sx2 << 16) | 0);
-		OUT_RING  ((sy2 << 16) | 0);
+		BEGIN_RING(chan, curie, NV40TCL_SCISSOR_HORIZ, 2);
+		OUT_RING  (chan, (sx2 << 16) | 0);
+		OUT_RING  (chan, (sy2 << 16) | 0);
 
 		VERTEX_OUT(tx1, ty1, sx1, sy1);
 		VERTEX_OUT(tx2+(tx2-tx1), ty1, sx2+(sx2-sx1), sy1);
@@ -346,10 +351,10 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 		pbox++;
 	}
 
-	BEGIN_RING(Nv3D, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (NV40TCL_BEGIN_END_STOP);
+	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (chan, NV40TCL_BEGIN_END_STOP);
 
-	FIRE_RING();
+	FIRE_RING (chan);
 
 	return Success;
 }

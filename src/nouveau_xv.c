@@ -230,15 +230,17 @@ void
 NVWaitVSync(ScrnInfoPtr pScrn, int crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *blit = pNv->NvImageBlit;
 
-	BEGIN_RING(NvImageBlit, 0x0000012C, 1);
-	OUT_RING  (0);
-	BEGIN_RING(NvImageBlit, 0x00000134, 1);
-	OUT_RING  (crtc);
-	BEGIN_RING(NvImageBlit, 0x00000100, 1);
-	OUT_RING  (0);
-	BEGIN_RING(NvImageBlit, 0x00000130, 1);
-	OUT_RING  (0);
+	BEGIN_RING(chan, blit, 0x0000012C, 1);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, blit, 0x00000134, 1);
+	OUT_RING  (chan, crtc);
+	BEGIN_RING(chan, blit, 0x00000100, 1);
+	OUT_RING  (chan, 0);
+	BEGIN_RING(chan, blit, 0x00000130, 1);
+	OUT_RING  (chan, 0);
 }
 
 /**
@@ -1035,6 +1037,8 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	 * and lines we are interested in
 	 */
 	int top = 0, left = 0, right = 0, bottom = 0, npixels = 0, nlines = 0;
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
 	Bool skip = FALSE;
 	BoxRec dstBox;
 	CARD32 tmp = 0;
@@ -1229,23 +1233,23 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			}
 		}
 
-		BEGIN_RING(NvMemFormat,
+		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_BUFFER_IN, 2);
-		OUT_RING  (pNv->chan->gart->handle);
-		OUT_RING  (pNv->chan->vram->handle);
+		OUT_RING  (chan, pNv->chan->gart->handle);
+		OUT_RING  (chan, pNv->chan->vram->handle);
 
 		if (pNv->Architecture >= NV_ARCH_50) {
-			BEGIN_RING(NvMemFormat, 0x0200, 1);
-			OUT_RING  (1);
+			BEGIN_RING(chan, m2mf, 0x0200, 1);
+			OUT_RING  (chan, 1);
 
-			BEGIN_RING(NvMemFormat, 0x021c, 7);
-			OUT_RING  (0);
-			OUT_RING  (0);
-			OUT_RING  (dstPitch);
-			OUT_RING  (nlines);
-			OUT_RING  (1);
-			OUT_RING  (0);
-			OUT_RING  (0);
+			BEGIN_RING(chan, m2mf, 0x021c, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, dstPitch);
+			OUT_RING  (chan, nlines);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
 		}
 
 		/* DMA to VRAM */
@@ -1253,32 +1257,33 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		    !(action_flags & CONVERT_TO_YUY2)) {
 			/* we start the color plane transfer separately */
 
-			BEGIN_RING(NvMemFormat,
+			BEGIN_RING(chan, m2mf,
 				   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-			OUT_RELOCl(destination_buffer, line_len * nlines,
+			OUT_RELOCl(chan, destination_buffer, line_len * nlines,
 				   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-			OUT_RELOCl(pPriv->video_mem, offset + dstPitch * nlines,
+			OUT_RELOCl(chan, pPriv->video_mem,
+				   offset + dstPitch * nlines,
 				   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-			OUT_RING  (line_len);
-			OUT_RING  (dstPitch);
-			OUT_RING  (line_len);
-			OUT_RING  ((nlines >> 1));
-			OUT_RING  ((1<<8)|1);
-			OUT_RING  (0);
+			OUT_RING  (chan, line_len);
+			OUT_RING  (chan, dstPitch);
+			OUT_RING  (chan, line_len);
+			OUT_RING  (chan, (nlines >> 1));
+			OUT_RING  (chan, (1<<8)|1);
+			OUT_RING  (chan, 0);
 		}
 
-		BEGIN_RING(NvMemFormat,
+		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RELOCl(destination_buffer, 0,
+		OUT_RELOCl(chan, destination_buffer, 0,
 			   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_RELOCl(pPriv->video_mem, offset,
+		OUT_RELOCl(chan, pPriv->video_mem, offset,
 			   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-		OUT_RING  (line_len);
-		OUT_RING  (dstPitch);
-		OUT_RING  (line_len);
-		OUT_RING  (nlines);
-		OUT_RING  ((1<<8)|1);
-		OUT_RING  (0);
+		OUT_RING  (chan, line_len);
+		OUT_RING  (chan, dstPitch);
+		OUT_RING  (chan, line_len);
+		OUT_RING  (chan, nlines);
+		OUT_RING  (chan, (1<<8)|1);
+		OUT_RING  (chan, 0);
 
 		if (destination_buffer == pNv->GART) {
 			nouveau_notifier_reset(pNv->notify0, 0);
@@ -1288,23 +1293,23 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 
 			nouveau_notifier_reset(n, 0);
 
-			BEGIN_RING(NvMemFormat,
+			BEGIN_RING(chan, m2mf,
 				   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-			OUT_RING  (n->handle);
+			OUT_RING  (chan, n->handle);
 		}
 
 
-		BEGIN_RING(NvMemFormat, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		OUT_RING  (0);
-		BEGIN_RING(NvMemFormat, 0x100, 1);
-		OUT_RING  (0);
+		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_RING(chan, m2mf, 0x100, 1);
+		OUT_RING  (chan, 0);
 
 		/* Put back NvDmaNotifier0 for EXA */
-		BEGIN_RING(NvMemFormat,
+		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-		OUT_RING  (pNv->notify0->handle);
+		OUT_RING  (chan, pNv->notify0->handle);
 
-		FIRE_RING();
+		FIRE_RING (chan);
 
 		if (destination_buffer == pNv->GART) {
 			if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 0))

@@ -75,15 +75,19 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
         CARD32         dsdx, dtdy;
         CARD32         dst_size, dst_point;
         CARD32         src_point, src_format;
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
+	struct nouveau_grobj *rect = pNv->NvRectangle;
+	struct nouveau_grobj *sifm = pNv->NvScaledImage;
         unsigned int crtcs;
         int dst_format;
 
         NVAccelGetCtxSurf2DFormatFromPixmap(ppix, &dst_format);
-        BEGIN_RING(NvContextSurfaces, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
-        OUT_RING  (dst_format);
-        OUT_RING  ((exaGetPixmapPitch(ppix) << 16) | exaGetPixmapPitch(ppix));
-        OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-        OUT_PIXMAPl(ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+        BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+        OUT_RING  (chan, dst_format);
+        OUT_RING  (chan, (exaGetPixmapPitch(ppix) << 16) | exaGetPixmapPitch(ppix));
+        OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+        OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
         pbox = REGION_RECTS(clipBoxes);
         nbox = REGION_NUM_RECTS(clipBoxes);
@@ -118,7 +122,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 crtcs = nv_window_belongs_to_crtc(pScrn, dstBox->x1, dstBox->y1,
                         dstBox->x2, dstBox->y2);
 
-                FIRE_RING();
+                FIRE_RING (chan);
                 if (crtcs & 0x1)
                         NVWaitVSync(pScrn, 0);
                 else if (crtcs & 0x2)
@@ -126,41 +130,40 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
         }
 
         if(pNv->BlendingPossible) {
-                BEGIN_RING(NvScaledImage,
-                                NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
-                OUT_RING  (src_format);
-                OUT_RING  (NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
+                BEGIN_RING(chan, sifm,
+				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
+                OUT_RING  (chan, src_format);
+                OUT_RING  (chan, NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
         } else {
-                BEGIN_RING(NvScaledImage,
-                                NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
-                OUT_RING  (src_format);
+                BEGIN_RING(chan, sifm,
+				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
+                OUT_RING  (chan, src_format);
         }
 
         while(nbox--) {
-                BEGIN_RING(NvRectangle,
-                                NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
-                OUT_RING  (0);
+                BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
+                OUT_RING  (chan, 0);
 
-                BEGIN_RING(NvScaledImage,
-                                NV04_SCALED_IMAGE_FROM_MEMORY_CLIP_POINT, 6);
-                OUT_RING  ((pbox->y1 << 16) | pbox->x1);
-                OUT_RING  (((pbox->y2 - pbox->y1) << 16) |
+                BEGIN_RING(chan, sifm,
+				 NV04_SCALED_IMAGE_FROM_MEMORY_CLIP_POINT, 6);
+                OUT_RING  (chan, (pbox->y1 << 16) | pbox->x1);
+                OUT_RING  (chan, ((pbox->y2 - pbox->y1) << 16) |
                                  (pbox->x2 - pbox->x1));
-                OUT_RING  (dst_point);
-                OUT_RING  (dst_size);
-                OUT_RING  (dsdx);
-                OUT_RING  (dtdy);
+                OUT_RING  (chan, dst_point);
+                OUT_RING  (chan, dst_size);
+                OUT_RING  (chan, dsdx);
+                OUT_RING  (chan, dtdy);
 
-                BEGIN_RING(NvScaledImage,
-                                NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
-                OUT_RING  ((height << 16) | width);
-                OUT_RING  (src_pitch);
-		OUT_RELOCl(src, src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-                OUT_RING  (src_point);
+                BEGIN_RING(chan, sifm, NV04_SCALED_IMAGE_FROM_MEMORY_SIZE, 4);
+                OUT_RING  (chan, (height << 16) | width);
+                OUT_RING  (chan, src_pitch);
+		OUT_RELOCl(chan, src, src_offset,
+				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+                OUT_RING  (chan, src_point);
                 pbox++;
         }
 
-        FIRE_RING();
+        FIRE_RING (chan);
 
         exaMarkSync(pScrn->pScreen);
 
