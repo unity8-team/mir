@@ -40,6 +40,7 @@
 
 /* DRI Driver defaults */
 #define RADEON_DEFAULT_GART_SIZE      8 /* MB (must be 2^n and > 4MB) */
+#define R300_DEFAULT_GART_SIZE        32 /* MB (for R300 and above) */
 #define RADEON_DEFAULT_RING_SIZE      1 /* MB (must be page aligned) */
 #define RADEON_DEFAULT_BUFFER_SIZE    2 /* MB (must be page aligned) */
 #define RADEON_DEFAULT_GART_TEX_SIZE  1 /* MB (must be page aligned) */

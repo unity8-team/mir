@@ -2184,7 +2184,11 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	"Direct rendering experimental on RS400/Xpress 200 enabled\n");
     }
 
-    info->gartSize      = RADEON_DEFAULT_GART_SIZE;
+    if (info->ChipFamily >= CHIP_FAMILY_R300)
+	info->gartSize      = R300_DEFAULT_GART_SIZE;
+    else
+	info->gartSize      = RADEON_DEFAULT_GART_SIZE;
+
     info->ringSize      = RADEON_DEFAULT_RING_SIZE;
     info->bufSize       = RADEON_DEFAULT_BUFFER_SIZE;
     info->gartTexSize   = RADEON_DEFAULT_GART_TEX_SIZE;
