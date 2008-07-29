@@ -466,7 +466,7 @@ NVAccelInit2D_NV50(ScrnInfoPtr pScrn)
 		if (nouveau_grobj_alloc(chan, Nv2D, 0x502d, &pNv->Nv2D))
 			return FALSE;
 	}
-	eng2d = pNv->Nv3D;
+	eng2d = pNv->Nv2D;
 
 	BEGIN_RING(chan, eng2d, 0x180, 3);
 	OUT_RING  (chan, pNv->notify0->handle);
