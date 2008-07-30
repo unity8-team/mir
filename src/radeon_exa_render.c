@@ -1962,9 +1962,9 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {
-	BEGIN_RING(4 * vtx_count + 3);
+	BEGIN_RING(3 * vtx_count + 3);
 	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
-			    4 * vtx_count + 1));
+			    3 * vtx_count + 1));
 	if (has_mask)
 	    OUT_RING(RADEON_CP_VC_FRMT_XY |
 		     RADEON_CP_VC_FRMT_ST0 |
@@ -1972,11 +1972,11 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 	else
 	    OUT_RING(RADEON_CP_VC_FRMT_XY |
 		     RADEON_CP_VC_FRMT_ST0);
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_FAN |
+	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
-		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     } else {
 	if (IS_R300_3D || IS_R500_3D)
 	    BEGIN_RING(4 * vtx_count + 4);
@@ -1985,7 +1985,7 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 
 	OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
 			    4 * vtx_count));
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_FAN |
+	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
     }
@@ -1993,25 +1993,29 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 #else /* ACCEL_CP */
     if (IS_R300_3D || IS_R500_3D)
 	BEGIN_ACCEL(2 + vtx_count * 4);
+    else if (info->ChipFamily < CHIP_FAMILY_R200)
+	BEGIN_ACCEL(1 + vtx_count * 3);
     else
 	BEGIN_ACCEL(1 + vtx_count * 4);
 
     if (info->ChipFamily < CHIP_FAMILY_R200) {
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_FAN |
+	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
 					  RADEON_VF_PRIM_WALK_DATA |
 					  RADEON_VF_RADEON_MODE |
-					  4 << RADEON_VF_NUM_VERTICES_SHIFT));
+					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
     } else {
 	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
 					  RADEON_VF_PRIM_WALK_DATA |
-					  4 << RADEON_VF_NUM_VERTICES_SHIFT));
+					  (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
     }
 #endif
 
     if (has_mask) {
-	VTX_OUT_MASK((float)dstX,                                      (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-		xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
+	if (info->ChipFamily >= CHIP_FAMILY_R200) {
+	    VTX_OUT_MASK((float)dstX,                                      (float)dstY,
+			 xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
+			 xFixedToFloat(maskTopLeft.x) / info->texW[1],     xFixedToFloat(maskTopLeft.y) / info->texH[1]);
+	}
 	VTX_OUT_MASK((float)dstX,                                      (float)(dstY + h),
 		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
 		xFixedToFloat(maskBottomLeft.x) / info->texW[1],  xFixedToFloat(maskBottomLeft.y) / info->texH[1]);
@@ -2022,8 +2026,10 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
 		xFixedToFloat(maskTopRight.x) / info->texW[1],    xFixedToFloat(maskTopRight.y) / info->texH[1]);
     } else {
-	VTX_OUT((float)dstX,                                      (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
+	if (info->ChipFamily >= CHIP_FAMILY_R200) {
+	    VTX_OUT((float)dstX,                                      (float)dstY,
+		    xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
+	}
 	VTX_OUT((float)dstX,                                      (float)(dstY + h),
 		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
 	VTX_OUT((float)(dstX + w),                                (float)(dstY + h),
