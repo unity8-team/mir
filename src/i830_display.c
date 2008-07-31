@@ -1510,7 +1510,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     
     i830WaitForVblank(pScrn);
 
-    i830_update_dsparb(pScrn);
+    if (!DSPARB_HWCONTROL(pI830))
+	i830_update_dsparb(pScrn);
 
     /* Clear any FIFO underrun status that may have occurred normally */
     OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);
