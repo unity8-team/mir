@@ -1447,21 +1447,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);
 #endif
-    /* we must be sure that the pipeline is flushed before next exa draw,
-       because that will be new state, binding state and instructions*/
-    {
-	BEGIN_BATCH(4);
-	OUT_BATCH(BRW_PIPE_CONTROL |
-		  BRW_PIPE_CONTROL_NOWRITE |
-		  BRW_PIPE_CONTROL_WC_FLUSH |
-		  BRW_PIPE_CONTROL_IS_FLUSH |
-		  (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
-		  2);
-	OUT_BATCH(0); /* Destination address */
-	OUT_BATCH(0); /* Immediate data low DW */
-	OUT_BATCH(0); /* Immediate data high DW */
-	ADVANCE_BATCH();
-    }
 }
 
 /**
