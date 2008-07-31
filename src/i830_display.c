@@ -1477,7 +1477,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* Wait for the clocks to stabilize. */
     usleep(150);
 
-    i830_update_dsparb(pScrn);
+    if (!DSPARB_HWCONTROL(pI830))
+	i830_update_dsparb(pScrn);
 
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));

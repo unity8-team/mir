@@ -503,8 +503,6 @@ struct i830_sdvo_enhancements_arg {
 # define SDVO_DITHER_ON						(1 << 0)
 # define SDVO_DITHER_DEFAULT_ON					(1 << 1)
 
-#define SDVO_CMD_SET_TV_RESOLUTION_SUPPORT		0x93
-
 #define SDVO_CMD_SET_CONTROL_BUS_SWITCH			0x7a
 # define SDVO_CONTROL_BUS_PROM				(1 << 0)
 # define SDVO_CONTROL_BUS_DDC1				(1 << 1)
