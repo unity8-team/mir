@@ -382,9 +382,9 @@ what is needed.  Set LVDSFixedMode to false and then the user has full
 control over the resolution and timings sent to the LVDS-connected
 device, through the usual means in xorg.
 
-.SH MUTLIHEAD CONFIGURATIONS
+.SH MULTIHEAD CONFIGURATIONS
 
-The number of independent outputs is dicated by the number of CRTCs
+The number of independent outputs is dictated by the number of CRTCs
 (in X parlance) a given chip supports.  Most recent Intel chips have
 two CRTCs, meaning that two separate framebuffers can be displayed
 simultaneously, in an extended desktop configuration.  If a chip
