@@ -33,10 +33,10 @@ details.  This section only covers configuration details specific to this
 driver.
 .PP
 The Intel 8xx and 9xx families of integrated graphics chipsets have a unified
-memory architecture and uses system memory for video ram.  For the i810 and
-i815 family of chipset, operating system support for allocating system
-memory for video use is required in order to use this driver.  For the 830M
-and later, this is required in order for the driver to use more video ram
+memory architecture meaning that system memory is used as video RAM.  For the
+i810 and i815 family of chipsets, operating system support for allocating system
+memory is required in order to use this driver.  For the 830M
+and later, this is required in order for the driver to use more video RAM
 than has been pre-allocated at boot time by the BIOS.  This is usually
 achieved with an "agpgart" or "agp" kernel driver.  Linux, FreeBSD, OpenBSD,
 NetBSD, and Solaris have such kernel drivers available.
@@ -44,7 +44,7 @@ NetBSD, and Solaris have such kernel drivers available.
 By default, the i810 will use 8 megabytes
 of system memory for graphics.  For the 830M and later, the driver will
 automatically size its memory allocation according to the features it will
-support.  The
+support.  Therefore, the
 .B VideoRam
 option, which in the past had been necessary to allow more than some small
 amount of memory to be allocated, is now ignored.
@@ -84,7 +84,8 @@ Default: enabled on supported configurations.
 .TP
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers are allocated in tiled mode.  In
-many cases (especially for complex rendering), tiling can improve performance.
+most cases (especially for complex rendering), tiling dramatically improves
+performance.
 Default: enabled.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
@@ -180,8 +181,7 @@ the server log.
 Force the driver to leave pipe A enabled.  May be necessary in configurations
 where the BIOS accesses pipe registers during display hotswitch or lid close,
 causing a crash.  If you find that your platform needs this option, please file
-a bug against xf86-video-intel at http://bugs.freedesktop.org which includes
-the output of 'lspci -v' and 'lspci -vn'.
+a bug (see REPORTING BUGS below) including the output of 'lspci -v' and 'lspci -vn'.
 .TP
 .BI "Option \*qLVDS24Bit\*q \*q" boolean \*q
 Specify 24 bit pixel format (i.e. 8 bits per color) to be used for the
@@ -220,7 +220,7 @@ detected outputs.  You can use the
 .B xrandr
 tool to control outputs on the command line.  Each output listed below may have
 one or more properties associated with it (like a binary EDID block if one is
-found).  Some outputs have unique properties which are described below.
+found).  Some outputs have unique properties which are described below.  See the "MULTIHEAD CONFIGURATIONS" section below for additional information.
 
 .SS "VGA"
 VGA output port (typically exposed via an HD15 connector).
@@ -381,6 +381,53 @@ fixed mode detection will take place, which in most cases is exactly
 what is needed.  Set LVDSFixedMode to false and then the user has full
 control over the resolution and timings sent to the LVDS-connected
 device, through the usual means in xorg.
+
+.SH MUTLIHEAD CONFIGURATIONS
+
+The number of independent outputs is dicated by the number of CRTCs
+(in X parlance) a given chip supports.  Most recent Intel chips have
+two CRTCs, meaning that two separate framebuffers can be displayed
+simultaneously, in an extended desktop configuration.  If a chip
+supports more outputs than it has CRTCs (say local flat panel, VGA and
+TV in the case of many outputs), two of the outputs will have to be
+"cloned", meaning that they display the same framebuffer contents (or
+one displays a subset of another's framebuffer if the modes aren't
+equal).
+
+You can use the "xrandr" tool, or various desktop utilities, to change
+your output configuration at runtime.  To statically configure your
+outputs, you can use the "Monitor-<type>" options along with
+additional monitor sections in your xorg.conf to create your screen
+topology.  The example below puts the VGA output to the right of the
+builtin laptop screen, both running at 1024x768.
+
+.nf
+.B "Section \*qMonitor\*q"
+.BI "  Identifier \*qLaptop FooBar Internal Display\*q"
+.BI "  Option \*qPosition\*q \*q0 0\*q"
+.B "EndSection"
+
+.B "Section \*qMonitor\*q"
+.BI "  Identifier \*qSome Random CRT\*q"
+.BI "  Option \*qPosition\*q \*q1024 0\*q"
+.BI "  Option \*qRightOf\*q \*qLaptop FoodBar Internal Display\*q"
+.B "EndSection"
+
+.B "Section \*qDevice\*q"
+.BI "  Driver \*qintel\*q"
+.BI "  Option \*qmonitor-LVDS\*q \*qLaptop FooBar Internal Display\*q"
+.BI "  Option \*qmonitor-VGA\*q \*qSome Random CRT\*q"
+.B "EndSection"
+
+.SH REPORTING BUGS
+
+The xf86-video-intel driver is part of the X.Org and Freedesktop.org
+umbrella projects.  Details on bug reporting can be found at
+http://www.intellinuxgraphics.org/how_to_report_bug.html.  Mailing
+lists are also commonly used to report experiences and ask questions
+about configuration and other topics.  See lists.freedesktop.org for
+more information (the xorg@lists.freedesktop.org mailing list is the
+most appropriate place to ask X.Org and driver related questions).
 
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
