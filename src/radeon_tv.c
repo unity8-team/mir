@@ -140,7 +140,7 @@ static const uint16_t vert_timing_PAL[] =
  **********************************************************************/
 static const TVModeConstants availableTVModes[] =
 {
-    {
+    {   /* NTSC timing for 27 Mhz ref clk */
 	800,                /* horResolution */
 	600,                /* verResolution */
 	TV_STD_NTSC,        /* standard */
@@ -155,7 +155,7 @@ static const TVModeConstants availableTVModes[] =
 	4,                  /* crtcPLL_postDiv */
 	1022,               /* pixToTV */
     },
-    {
+    {   /* PAL timing for 27 Mhz ref clk */
 	800,               /* horResolution */
 	600,               /* verResolution */
 	TV_STD_PAL,        /* standard */
@@ -169,7 +169,22 @@ static const TVModeConstants availableTVModes[] =
 	231,               /* crtcPLL_M */
 	4,                 /* crtcPLL_postDiv */
 	759,               /* pixToTV */
-    }
+    },
+    {   /* NTSC timing for 14 Mhz ref clk */
+	800,                /* horResolution */
+	600,                /* verResolution */
+	TV_STD_NTSC,        /* standard */
+	1018,               /* horTotal */
+	727,                /* verTotal */
+	813,                /* horStart */
+	840,                /* horSyncStart */
+	633,                /* verSyncStart */
+	630627,             /* defRestart */
+	347,                /* crtcPLL_N */
+	14,                 /* crtcPLL_M */
+	8,                  /* crtcPLL_postDiv */
+	1022,               /* pixToTV */
+    },
 };
 
 #define N_AVAILABLE_MODES (sizeof(availableModes) / sizeof(availableModes[ 0 ]))
@@ -582,6 +597,8 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
 				 DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr  info       = RADEONPTR(output->scrn);
+    RADEONPLLPtr pll = &info->pll;
     int restart;
     unsigned hTotal;
     unsigned vTotal;
@@ -597,14 +614,21 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     hTotal = constPtr->horTotal;
     vTotal = constPtr->verTotal;
-    
+
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
         radeon_output->tvStd == TV_STD_PAL_M ||
@@ -696,6 +720,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
+    unsigned m, n, p;
     unsigned i;
     unsigned long vert_space, flicker_removal;
     uint32_t tmp;
@@ -703,14 +729,20 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     const uint16_t *hor_timing;
     const uint16_t *vert_timing;
 
-
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     save->tv_crc_cntl = 0;
 
@@ -796,7 +828,10 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->tv_vscaler_cntl1 = RADEON_Y_W_EN;
     save->tv_vscaler_cntl1 =
 	(save->tv_vscaler_cntl1 & 0xe3ff0000) | (vert_space * (1 << FRAC_BITS) / 10000);
-    save->tv_vscaler_cntl1 |= RADEON_RESTART_FIELD;
+
+    if (pll->reference_freq == 2700)
+	save->tv_vscaler_cntl1 |= RADEON_RESTART_FIELD;
+
     if (constPtr->horResolution == 1024)
 	save->tv_vscaler_cntl1 |= (4 << RADEON_Y_DEL_W_SIG_SHIFT);
     else
@@ -873,18 +908,33 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 #endif
 
     if (radeon_output->tvStd == TV_STD_NTSC ||
-        radeon_output->tvStd == TV_STD_NTSC_J)
-	save->tv_pll_cntl = (NTSC_TV_PLL_M & RADEON_TV_M0LO_MASK) |
-	    (((NTSC_TV_PLL_M >> 8) & RADEON_TV_M0HI_MASK) << RADEON_TV_M0HI_SHIFT) |
-	    ((NTSC_TV_PLL_N & RADEON_TV_N0LO_MASK) << RADEON_TV_N0LO_SHIFT) |
-	    (((NTSC_TV_PLL_N >> 9) & RADEON_TV_N0HI_MASK) << RADEON_TV_N0HI_SHIFT) |
-	    ((NTSC_TV_PLL_P & RADEON_TV_P_MASK) << RADEON_TV_P_SHIFT);
-    else
-	save->tv_pll_cntl = (PAL_TV_PLL_M & RADEON_TV_M0LO_MASK) |
-	    (((PAL_TV_PLL_M >> 8) & RADEON_TV_M0HI_MASK) << RADEON_TV_M0HI_SHIFT) |
-	    ((PAL_TV_PLL_N & RADEON_TV_N0LO_MASK) << RADEON_TV_N0LO_SHIFT) |
-	    (((PAL_TV_PLL_N >> 9) & RADEON_TV_N0HI_MASK) << RADEON_TV_N0HI_SHIFT) |
-	    ((PAL_TV_PLL_P & RADEON_TV_P_MASK) << RADEON_TV_P_SHIFT);
+	radeon_output->tvStd == TV_STD_NTSC_J) {
+	if (pll->reference_freq == 2700) {
+	    m = NTSC_TV_PLL_M_27;
+	    n = NTSC_TV_PLL_N_27;
+	    p = NTSC_TV_PLL_P_27;
+	} else {
+	    m = NTSC_TV_PLL_M_14;
+	    n = NTSC_TV_PLL_N_14;
+	    p = NTSC_TV_PLL_P_14;
+	}
+    } else {
+	if (pll->reference_freq == 2700) {
+	    m = PAL_TV_PLL_M_27;
+	    n = PAL_TV_PLL_N_27;
+	    p = PAL_TV_PLL_P_27;
+	} else {
+	    /* FIXME */
+	    m = PAL_TV_PLL_M_27;
+	    n = PAL_TV_PLL_N_27;
+	    p = PAL_TV_PLL_P_27;
+	}
+    }
+    save->tv_pll_cntl = (m & RADEON_TV_M0LO_MASK) |
+	(((m >> 8) & RADEON_TV_M0HI_MASK) << RADEON_TV_M0HI_SHIFT) |
+	((n & RADEON_TV_N0LO_MASK) << RADEON_TV_N0LO_SHIFT) |
+	(((n >> 9) & RADEON_TV_N0HI_MASK) << RADEON_TV_N0HI_SHIFT) |
+	((p & RADEON_TV_P_MASK) << RADEON_TV_P_SHIFT);
 
     save->tv_pll_cntl1 =  (((4 & RADEON_TVPCP_MASK)<< RADEON_TVPCP_SHIFT) |
 			   ((4 & RADEON_TVPVG_MASK) << RADEON_TVPVG_SHIFT) |
@@ -999,14 +1049,23 @@ void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 {
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     save->crtc_h_total_disp = (((constPtr->horResolution / 8) - 1) << RADEON_CRTC_H_DISP_SHIFT) |
 	(((constPtr->horTotal / 8) - 1) << RADEON_CRTC_H_TOTAL_SHIFT);
@@ -1030,14 +1089,23 @@ void RADEONAdjustPLLRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
     unsigned postDiv;
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     save->htotal_cntl = (constPtr->horTotal & 0x7 /*0xf*/) | RADEON_HTOT_CNTL_VGA_EN;
 
@@ -1083,14 +1151,23 @@ void RADEONAdjustCrtc2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 {
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     save->crtc2_h_total_disp = (((constPtr->horResolution / 8) - 1) << RADEON_CRTC_H_DISP_SHIFT) |
 	(((constPtr->horTotal / 8) - 1) << RADEON_CRTC_H_TOTAL_SHIFT);
@@ -1114,14 +1191,23 @@ void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
     unsigned postDiv;
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
     if (radeon_output->tvStd == TV_STD_NTSC ||
 	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M)
-	constPtr = &availableTVModes[0];
-    else
-	constPtr = &availableTVModes[1];
+	radeon_output->tvStd == TV_STD_PAL_M) {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[0];
+	else
+	    constPtr = &availableTVModes[2];
+    } else {
+	if (pll->reference_freq == 2700)
+	    constPtr = &availableTVModes[1];
+	else
+	    constPtr = &availableTVModes[1]; /* FIXME */
+    }
 
     save->htotal_cntl2 = (constPtr->horTotal & 0x7); /* 0xf */
 
