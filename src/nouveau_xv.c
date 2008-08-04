@@ -1425,9 +1425,11 @@ CPU_copy:
 					    src_w, src_h, drw_w, drw_h,
 					    clipBoxes);
 		} else {
-			unsigned uvoffset = 0;
+			unsigned uvoffset;
 
 			if (action_flags & (IS_YUY2 | CONVERT_TO_YUY2))
+				uvoffset = 0;
+			else
 				uvoffset = offset + nlines * dstPitch;
 
 			NV10PutOverlayImage(pScrn, pPriv->video_mem, offset,
