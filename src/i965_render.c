@@ -37,6 +37,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i915_reg.h"
+#include "i915_drm.h"
 
 /* bring in brw structs */
 #include "brw_defines.h"
@@ -60,7 +61,7 @@ do { 							\
 #endif
 
 #define MAX_VERTEX_PER_COMPOSITE    24
-#define MAX_VERTEX_BUFFERS	    256
+#define VERTEX_BUFFER_SIZE	    (16 * MAX_VERTEX_PER_COMPOSITE)
 
 struct blendinfo {
     Bool dst_alpha;
@@ -502,14 +503,14 @@ typedef struct _gen4_state {
 				     [BRW_BLENDFACTOR_COUNT];
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
-
-    float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
 } gen4_state_t;
 
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
     gen4_state_t *card_state;
     uint32_t card_state_offset;
+    dri_bo *vb_bo;
+    int vb_bo_busy;
 
     int binding_table_index;
     int surface_state_index;
@@ -1270,12 +1271,11 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
     struct gen4_render_state *render_state = pI830->gen4_render_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-    float *vb = card_state->vb;
+    float *vb;
     int i;
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
@@ -1352,10 +1352,24 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(card_state->vb)) {
-	i830WaitSync(pScrn);
+    /* Arrange for a buffer object with sufficient space for our
+     * vertices, and that isn't "busy", that is, it is not already
+     * referenced by a batch that has been flushed. */
+    if (! render_state->vb_bo || render_state->vb_bo_busy ||
+	render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE > VERTEX_BUFFER_SIZE)
+    {
+	if (render_state->vb_bo)
+	    dri_bo_unreference (render_state->vb_bo);
+
+	render_state->vb_bo = dri_bo_alloc (pI830->bufmgr, "vb",
+					    VERTEX_BUFFER_SIZE * sizeof (float),
+					    4096);
 	render_state->vb_offset = 0;
     }
+
+    /* Map the vertex buffer object so we can write to it. */
+    dri_bo_map (render_state->vb_bo, 1);
+    vb = render_state->vb_bo->virtual;
 
     i = render_state->vb_offset;
     /* rect (x2,y2) */
@@ -1399,7 +1413,9 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
-    assert (i * 4 <= sizeof(card_state->vb));
+    assert (i <= VERTEX_BUFFER_SIZE);
+
+    dri_bo_unmap (render_state->vb_bo);
 
     BEGIN_BATCH(12);
     OUT_BATCH(MI_FLUSH);
@@ -1408,7 +1424,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb) +
+    OUT_RELOC(render_state->vb_bo, I915_GEM_DOMAIN_VERTEX, 0,
 	      render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
@@ -1431,26 +1447,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);
 #endif
-    /* we must be sure that the pipeline is flushed before next exa draw,
-       because that will be new state, binding state and instructions*/
-    {
-	BEGIN_BATCH(4);
-	OUT_BATCH(BRW_PIPE_CONTROL |
-		  BRW_PIPE_CONTROL_NOWRITE |
-		  BRW_PIPE_CONTROL_WC_FLUSH |
-		  BRW_PIPE_CONTROL_IS_FLUSH |
-		  (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
-		  2);
-	OUT_BATCH(0); /* Destination address */
-	OUT_BATCH(0); /* Immediate data low DW */
-	OUT_BATCH(0); /* Immediate data high DW */
-	ADVANCE_BATCH();
-    }
-
-    /* Mark sync so we can wait for it before setting up the VB on the next
-     * rectangle.
-     */
-    i830MarkSync(pScrn);
 }
 
 /**

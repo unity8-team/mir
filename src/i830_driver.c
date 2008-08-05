@@ -2510,6 +2510,9 @@ I830BlockHandler(int i,
        intel_batch_flush(pScrn);
 
        pI830->need_mi_flush = FALSE;
+#ifdef XF86DRI
+       drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
+#endif
     }
 
     /*
@@ -2768,6 +2771,7 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
 	 batch_size = 4096;
 
       pI830->bufmgr = intel_bufmgr_gem_init(pI830->drmSubFD, batch_size);
+      intel_bufmgr_gem_enable_reuse(pI830->bufmgr);
    } else {
       pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
 					     pI830->FbBase +
