@@ -121,6 +121,21 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     return FALSE;
 }
 
+static unsigned long
+i830_pixmap_pitch(PixmapPtr pixmap)
+{
+    return pixmap->devKind;
+}
+
+static int
+i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    return i830_pixmap_pitch(pixmap) % pI830->accel_pixmap_pitch_alignment == 0;
+}
+
 static Bool
 i830_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 {
@@ -172,9 +187,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
     i830_exa_check_pitch_2d(pPixmap);
 
-    pitch = exaGetPixmapPitch(pPixmap);
+    pitch = i830_pixmap_pitch(pPixmap);
 
-    if (pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
+    if (!i830_pixmap_pitch_is_aligned(pPixmap))
 	I830FALLBACK("pixmap pitch not aligned");
 
     pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16 ;
@@ -202,7 +217,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
     unsigned long pitch;
     uint32_t cmd;
 
-    pitch = exaGetPixmapPitch(pPixmap);
+    pitch = i830_pixmap_pitch(pPixmap);
 
     {
 	BEGIN_BATCH(6);
@@ -286,8 +301,8 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     dst_x2 = dst_x1 + w;
     dst_y2 = dst_y1 + h;
 
-    dst_pitch = exaGetPixmapPitch(pDstPixmap);
-    src_pitch = exaGetPixmapPitch(pI830->pSrcPixmap);
+    dst_pitch = i830_pixmap_pitch(pDstPixmap);
+    src_pitch = i830_pixmap_pitch(pI830->pSrcPixmap);
 
     {
 	BEGIN_BATCH(8);
@@ -466,55 +481,10 @@ I830EXAInit(ScreenPtr pScreen)
 	    pI830->EXADriverPtr->offScreenBase,
 	    pI830->EXADriverPtr->memorySize);
 
-
-    /* Limits are described in the BLT engine chapter under Graphics Data Size
-     * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
-     * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
-     *
-     * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
-     *
-     * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
-     * i965 limits 3D surface to 4kB-aligned offset if tiled.
-     * i965 limits 3D surfaces to w,h of ?,8192.
-     * i965 limits 3D surface to pitch of 1B - 128kB.
-     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
-     * i965 limits 3D surface pitch alignment to 512B if tiled.
-     * i965 limits 3D destination drawing rect to w,h of 8192,8192.
-     *
-     * i915 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i915 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i915 limits 3D textures to width,height of 2048,2048.
-     * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
-     * i915 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
-     * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
-     * i915 limits 3D destination to POT aligned pitch if tiled.
-     * i915 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * i845 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i845 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i845 limits 3D textures to width,height of 2048,2048.
-     * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
-     * i845 limits 3D destination to 4B-aligned offset if un-tiled.
-     * i845 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
-     * i845 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * For the tiled issues, the only tiled buffer we draw to should be
-     * the front, which will have an appropriate pitch/offset already set up,
-     * so EXA doesn't need to worry.
-     */
-    if (IS_I965G(pI830)) {
-	pI830->EXADriverPtr->pixmapOffsetAlign = 4 * 2;
-	pI830->EXADriverPtr->pixmapPitchAlign = 16;
-	pI830->EXADriverPtr->maxX = 8192;
-	pI830->EXADriverPtr->maxY = 8192;
-    } else {
-	pI830->EXADriverPtr->pixmapOffsetAlign = 4;
-	pI830->EXADriverPtr->pixmapPitchAlign = 16;
-	pI830->EXADriverPtr->maxX = 2048;
-	pI830->EXADriverPtr->maxY = 2048;
-    }
+    pI830->EXADriverPtr->pixmapOffsetAlign = pI830->accel_pixmap_offset_alignment;
+    pI830->EXADriverPtr->pixmapPitchAlign = pI830->accel_pixmap_pitch_alignment;
+    pI830->EXADriverPtr->maxX = pI830->accel_max_x;
+    pI830->EXADriverPtr->maxY = pI830->accel_max_y;
 
     /* Sync */
     pI830->EXADriverPtr->WaitMarker = I830EXASync;

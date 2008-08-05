@@ -527,9 +527,17 @@ typedef struct _I830Rec {
 
 #ifdef I830_USE_EXA
    ExaDriverPtr	EXADriverPtr;
+#endif
+#ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
+#endif
+#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
 #endif
+   int accel_pixmap_pitch_alignment;
+   int accel_pixmap_offset_alignment;
+   int accel_max_x;
+   int accel_max_y;
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;
