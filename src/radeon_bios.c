@@ -438,28 +438,38 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    /* on XPRESS chips, CRT2_DDC and MONID_DCC both use the 
-     * MONID gpio, but use different pins.
-     * CRT2_DDC uses the standard pinout, MONID_DDC uses
-     * something else.
+    /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC
+     * Also there is no internal TMDS
      */
+    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480)) {
+	info->BiosConnector[index].DACType = DAC_TVDAC;
+	info->BiosConnector[index].TMDSType = TMDS_EXT;
+    }
+
+    /* XPRESS DDC quirks */
     if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
 	 info->ChipFamily == CHIP_FAMILY_RS480) &&
-	info->BiosConnector[index].ConnectorType == CONNECTOR_VGA &&
 	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_CRT2_DDC) {
 	info->BiosConnector[index].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
     }
-
-    /* XPRESS desktop chips seem to have a proprietary connector listed for
-     * DVI-D, try and do the right thing here.
-     */
-    if ((!info->IsMobility) &&
-	(info->BiosConnector[index].ConnectorType == CONNECTOR_LVDS)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Proprietary connector found, assuming DVI-D\n");
-	info->BiosConnector[index].DACType = DAC_NONE;
-	info->BiosConnector[index].TMDSType = TMDS_EXT;
-	info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+    if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
+	 info->ChipFamily == CHIP_FAMILY_RS480) &&
+	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_MONID) {
+	info->BiosConnector[index].ddc_i2c.valid = TRUE;
+	info->BiosConnector[index].ddc_i2c.mask_clk_mask = (0x20 << 8);
+	info->BiosConnector[index].ddc_i2c.mask_data_mask = 0x80;
+	info->BiosConnector[index].ddc_i2c.put_clk_mask = (0x20 << 8);
+	info->BiosConnector[index].ddc_i2c.put_data_mask = 0x80;
+	info->BiosConnector[index].ddc_i2c.get_clk_mask = (0x20 << 8);
+	info->BiosConnector[index].ddc_i2c.get_data_mask = 0x80;
+	info->BiosConnector[index].ddc_i2c.mask_clk_reg = RADEON_GPIOPAD_MASK;
+	info->BiosConnector[index].ddc_i2c.mask_data_reg = RADEON_GPIOPAD_MASK;
+	info->BiosConnector[index].ddc_i2c.put_clk_reg = RADEON_GPIOPAD_EN;
+	info->BiosConnector[index].ddc_i2c.put_data_reg = RADEON_GPIOPAD_EN;
+	info->BiosConnector[index].ddc_i2c.get_clk_reg = RADEON_GPIOPAD_MASK;
+	info->BiosConnector[index].ddc_i2c.get_data_reg = RADEON_GPIOPAD_MASK;
     }
 
     /* Certain IBM chipset RN50s have a BIOS reporting two VGAs,
@@ -516,7 +526,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    ConnectorType = (tmp >> 12) & 0xf;
 	    switch (ConnectorType) {
 	    case CONNECTOR_PROPRIETARY_LEGACY:
-		info->BiosConnector[i].ConnectorType = CONNECTOR_LVDS;
+		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
 		break;
 	    case CONNECTOR_CRT_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
@@ -565,12 +575,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    else
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
 
-	    /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC*/
-	    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
-		(info->ChipFamily == CHIP_FAMILY_RS400) ||
-		(info->ChipFamily == CHIP_FAMILY_RS480))
-		info->BiosConnector[i].DACType = DAC_TVDAC;
-
 	    if ((tmp >> 4) & 0x1)
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 	    else
@@ -599,7 +603,10 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     }
 
     /* check LVDS table */
-    if (info->IsMobility) {
+    /* RS4xx can be mobile or desktop so check the connectors */
+    if (info->IsMobility ||
+	info->ChipFamily == CHIP_FAMILY_RS400 ||
+	info->ChipFamily == CHIP_FAMILY_RS480) {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
 	if (offset) {
 	    info->BiosConnector[4].valid = TRUE;
@@ -1187,10 +1194,11 @@ Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	    else if (gpio_reg == 4)
 		radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
-	    else if (gpio_reg == 5)
+	    else if (gpio_reg == 5) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "unsupported MM gpio_reg\n");
-	    else {
+		return FALSE;
+	    } else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unknown gpio reg: %d\n", gpio_reg);
 		return FALSE;
