@@ -151,9 +151,6 @@ uxa_prepare_access(DrawablePtr pDrawable, int index)
     if (!offscreen)
 	return;
 
-    /* XXX should be pPixmap eventually */
-    uxa_wait_sync (pScreen);
-
     if (uxa_screen->info->PrepareAccess)
 	(*uxa_screen->info->PrepareAccess) (pPixmap, index);
 }
