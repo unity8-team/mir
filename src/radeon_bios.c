@@ -453,10 +453,9 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	 info->ChipFamily == CHIP_FAMILY_RS480) &&
 	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_CRT2_DDC) {
 	info->BiosConnector[index].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
-    }
-    if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
-	 info->ChipFamily == CHIP_FAMILY_RS480) &&
-	info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_MONID) {
+    } else if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
+		info->ChipFamily == CHIP_FAMILY_RS480) &&
+	       info->BiosConnector[index].ddc_i2c.mask_clk_reg == RADEON_GPIO_MONID) {
 	info->BiosConnector[index].ddc_i2c.valid = TRUE;
 	info->BiosConnector[index].ddc_i2c.mask_clk_mask = (0x20 << 8);
 	info->BiosConnector[index].ddc_i2c.mask_data_mask = 0x80;
