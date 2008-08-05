@@ -167,9 +167,9 @@ nv50_crtc_commit(xf86CrtcPtr crtc)
 static void 
 nv50_crtc_show_cursor(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
+	//ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_show_cursor is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
+	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_show_cursor is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
 	nv_crtc->crtc->ShowCursor(nv_crtc->crtc, FALSE);
 }
@@ -177,9 +177,9 @@ nv50_crtc_show_cursor(xf86CrtcPtr crtc)
 static void
 nv50_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
+	//ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_hide_cursor is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
+	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_hide_cursor is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
 	nv_crtc->crtc->HideCursor(nv_crtc->crtc, FALSE);
 }
@@ -195,9 +195,9 @@ nv50_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 static void
 nv50_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *src)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
+	//ScrnInfoPtr pScrn = crtc->scrn;
 	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_load_cursor_argb is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
+	//xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv50_crtc_load_cursor_argb is called for %s.\n", nv_crtc->crtc->index ? "CRTC1" : "CRTC0");
 
 	nv_crtc->crtc->LoadCursor(nv_crtc->crtc, TRUE, (uint32_t *) src);
 }
