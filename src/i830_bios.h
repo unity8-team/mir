@@ -147,15 +147,22 @@ struct bdb_general_definitions {
 #define LVDS_CAP_PFIT_TEXT_MODE		(1 << 2)
 #define LVDS_CAP_PFIT_GRAPHICS		(1 << 1)
 #define LVDS_CAP_PFIT_TEXT		(1 << 0)
-struct lvds_bdb_1 {
-    uint8_t id;				/**< 40 */
-    uint16_t size;
+
+struct bdb_lvds_options {
     uint8_t panel_type;
-    uint8_t reserved0;
-    uint16_t caps;
+    uint8_t rsvd1;
+    /* LVDS capabilities, stored in a dword */
+    uint8_t rsvd2:1;
+    uint8_t lvds_edid:1;
+    uint8_t pixel_dither:1;
+    uint8_t pfit_ratio_auto:1;
+    uint8_t pfit_gfx_mode_enhanced:1;
+    uint8_t pfit_text_mode_enhanced:1;
+    uint8_t pfit_mode:2;
+    uint8_t rsvd4;
 } __attribute__((packed));
 
-struct lvds_bdb_2_fp_params {
+struct lvds_fp_timing {
     uint16_t x_res;
     uint16_t y_res;
     uint32_t lvds_reg;
@@ -171,7 +178,7 @@ struct lvds_bdb_2_fp_params {
     uint16_t terminator;
 } __attribute__((packed));
 
-struct lvds_bdb_2_fp_edid_dtd {
+struct lvds_dvo_timing {
     uint16_t dclk;		/**< In 10khz */
     uint8_t hactive;
     uint8_t hblank;
@@ -193,20 +200,37 @@ struct lvds_bdb_2_fp_edid_dtd {
 #define FP_EDID_FLAG_HSYNC_POSITIVE	(1 << 1)
 } __attribute__((packed));
 
-struct lvds_bdb_2_entry {
-    uint16_t fp_params_offset;		/**< From beginning of BDB */
-    uint8_t fp_params_size;
-    uint16_t fp_edid_dtd_offset;
-    uint8_t fp_edid_dtd_size;
-    uint16_t fp_edid_pid_offset;
-    uint8_t fp_edid_pid_size;
+struct lvds_pnp_id {
+    uint16_t mfg_name;
+    uint16_t product_code;
+    uint32_t serial;
+    uint8_t mfg_week;
+    uint8_t mfg_year;
+} __attribute__((packed));;
+
+/* LFP pointer table contains entries to the struct below */
+struct bdb_lvds_lfp_data_ptr {
+    uint16_t fp_timing_offset; /* offsets are from start of bdb */
+    uint8_t fp_table_size;
+    uint16_t dvo_timing_offset;
+    uint8_t dvo_table_size;
+    uint16_t panel_pnp_id_offset;
+    uint8_t pnp_table_size;
 } __attribute__((packed));
 
-struct lvds_bdb_2 {
-    uint8_t id;			/**< 41 */
-    uint16_t size;
-    uint8_t table_size;	/* not sure on this one */
-    struct lvds_bdb_2_entry panels[16];
+struct bdb_lvds_lfp_data_ptrs {
+    uint8_t lvds_entries;
+    struct bdb_lvds_lfp_data_ptr ptr[16];
+} __attribute__((packed));
+
+struct bdb_lvds_lfp_data_entry {
+    struct lvds_fp_timing fp_timing;
+    struct lvds_dvo_timing dvo_timing;
+    struct lvds_pnp_id pnp_id;
+} __attribute__((packed));
+
+struct bdb_lvds_lfp_data {
+    struct bdb_lvds_lfp_data_entry data[16];
 } __attribute__((packed));
 
 struct aimdb_header {
@@ -238,14 +262,6 @@ struct vch_bdb_22 {
     struct vch_panel_data   panels[16];
 } __attribute__((packed));
 
-unsigned char *
-i830_bios_get (ScrnInfoPtr pScrn);
-
-void i830_bios_get_ssc(ScrnInfoPtr pScrn);
-void i830_bios_get_tv(ScrnInfoPtr pScrn);
-DisplayModePtr i830_bios_get_panel_mode(ScrnInfoPtr pScrn, Bool *wants_dither);
-
-unsigned char *
-i830_bios_get_aim_data_block (ScrnInfoPtr pScrn, int aim, int data_block);
+int i830_bios_init(ScrnInfoPtr pScrn);
 
 #endif /* _I830_BIOS_H_ */

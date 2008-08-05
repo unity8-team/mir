@@ -1503,9 +1503,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_LVDSFIXEDMODE, TRUE)) {
-      pI830->lvds_fixed_mode = TRUE;
+      pI830->skip_panel_detect = TRUE;
    } else {
-      pI830->lvds_fixed_mode = FALSE;
+      pI830->skip_panel_detect = FALSE;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
@@ -1634,6 +1634,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    } 
    
 #endif
+
+   if (i830_bios_init(pScrn))
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "VBIOS initialization failed.\n");
 
    I830PreInitDDC(pScrn);
    for (i = 0; i < num_pipe; i++) {

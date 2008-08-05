@@ -251,8 +251,6 @@ struct _I830DVODriver {
    I830I2CVidOutputRec *vid_rec;
    void *dev_priv;
    pointer modhandle;
-   DisplayModePtr panel_fixed_mode;
-   Bool panel_wants_dither;
 };
 
 extern const char *i830_output_type_names[];
@@ -556,6 +554,9 @@ typedef struct _I830Rec {
    Bool lvds_24_bit_mode;
    Bool lvds_use_ssc;
    int lvds_ssc_freq; /* in MHz */
+   Bool lvds_dither;
+   DisplayModePtr lvds_fixed_mode;
+   Bool skip_panel_detect;
 
    Bool tv_present; /* TV connector present (from VBIOS) */
 
@@ -663,7 +664,6 @@ typedef struct _I830Rec {
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
-   Bool lvds_fixed_mode;
    unsigned int quirk_flag;
 } I830Rec;
 
