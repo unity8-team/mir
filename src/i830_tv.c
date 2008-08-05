@@ -36,6 +36,7 @@
 #include "xf86.h"
 #include "i830.h"
 #include "i830_display.h"
+#include "i830_bios.h"
 #include "X11/Xatom.h"
 #include <string.h>
 

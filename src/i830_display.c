@@ -1249,7 +1249,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "clone detected, disabling SSC\n");
 
     /* Don't use SSC when cloned */
-    if (pI830->lvds_use_ssc && num_outputs < 2) {
+    if (is_lvds && pI830->lvds_use_ssc && num_outputs < 2) {
 	refclk = pI830->lvds_ssc_freq * 1000;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "using SSC reference clock of %d MHz\n", refclk / 1000);
@@ -1477,6 +1477,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* Wait for the clocks to stabilize. */
     usleep(150);
 
+    if (!DSPARB_HWCONTROL(pI830))
+	i830_update_dsparb(pScrn);
+
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));
     OUTREG(hblank_reg, (adjusted_mode->CrtcHBlankStart - 1) |
@@ -1509,8 +1512,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
-
-    i830_update_dsparb(pScrn);
 
     /* Clear any FIFO underrun status that may have occurred normally */
     OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);

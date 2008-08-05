@@ -2016,7 +2016,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    }
 
    /* Save video mode information for native mode-setting. */
-   pI830->saveDSPARB = INREG(DSPARB);
+   if (!DSPARB_HWCONTROL(pI830))
+       pI830->saveDSPARB = INREG(DSPARB);
 
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
@@ -2159,7 +2160,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
-   OUTREG(DSPARB, pI830->saveDSPARB);
+   if (!DSPARB_HWCONTROL(pI830))
+       OUTREG(DSPARB, pI830->saveDSPARB);
 
    OUTREG(DSPCLK_GATE_D, pI830->saveDSPCLK_GATE_D);
    OUTREG(RENCLK_GATE_D1, pI830->saveRENCLK_GATE_D1);
@@ -2485,6 +2487,7 @@ I830BlockHandler(int i,
     ScreenPtr pScreen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I830Ptr pI830 = I830PTR(pScrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     pScreen->BlockHandler = pI830->BlockHandler;
 
@@ -2516,13 +2519,18 @@ I830BlockHandler(int i,
      * (except for mode setting, where it may occur naturally).
      * Check & ack the condition.
      */
-    if (INREG(PIPEASTAT) & FIFO_UNDERRUN) {
+    if (pScrn->vtSema && !DSPARB_HWCONTROL(pI830)) {
+	if (xf86_config->crtc[0]->enabled &&
+		(INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
 	    OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
-    }
-    if (INREG(PIPEBSTAT) & FIFO_UNDERRUN) {
+	}
+	if (xf86_config->num_crtc > 1 &&
+		xf86_config->crtc[1]->enabled &&
+		(INREG(PIPEBSTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe B!\n");
 	    OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
+	}
     }
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
@@ -3381,7 +3389,7 @@ I830LeaveVT(int scrnIndex, int flags)
    }
 #endif /* XF86DRI */
 
-   if (IS_I965G(pI830))
+   if (pI830->useEXA && IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
    if (pI830->AccelInfoRec)
@@ -3434,7 +3442,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    intel_batch_init(pScrn);
 
-   if (IS_I965G(pI830))
+   if (pI830->useEXA && IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (i830_check_error_state(pScrn)) {

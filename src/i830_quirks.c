@@ -203,7 +203,8 @@ static void quirk_lenovo_tv_dmi (I830Ptr pI830)
 	ErrorF("Failed to load DMI info, X60 TV quirk not applied.\n");
 	return;
     }
-    if (!strncmp(i830_dmi_data[bios_version], "7B", 2))
+    if (!strncmp(i830_dmi_data[bios_version], "7B", 2) || /* X60, X60s */
+	    !strncmp(i830_dmi_data[bios_version], "7E", 2)) /* R60e */
 	pI830->quirk_flag |= QUIRK_IGNORE_TV;
 }
 
@@ -221,6 +222,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
+
+    /* Transtec Senyo 610 mini pc */
+    { PCI_CHIP_I965_GM, 0x1509, 0x2f15, quirk_ignore_lvds },
 
     /* Clevo M720R has no tv output */
     { PCI_CHIP_I965_GM, 0x1558, 0x0721, quirk_ignore_tv },

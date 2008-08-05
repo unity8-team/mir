@@ -37,7 +37,7 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD =
+intel_drv_la_LIBADD = -lm
 if XSERVER_LIBPCIACCESS
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 endif
@@ -142,7 +142,6 @@ INTEL_G4A =				\
 	exa_wm_src_sample_argb.g4a 	\
 	exa_wm_src_sample_a.g4a 	\
 	exa_wm_src_sample_planar.g4a 	\
-	exa_wm_src_data.g4a		\
 	exa_wm_mask_affine.g4a 		\
 	exa_wm_mask_projective.g4a 	\
 	exa_wm_mask_sample_argb.g4a 	\
@@ -151,6 +150,7 @@ INTEL_G4A =				\
 	exa_wm_ca.g4a			\
 	exa_wm_ca_srcalpha.g4a		\
 	exa_wm_write.g4a 		\
+	exa_wm_yuv_rgb.g4a		\
 	exa_wm_xy.g4a
 
 INTEL_G4I =				\
@@ -168,7 +168,6 @@ INTEL_G4B = 				\
 	exa_wm_src_sample_argb.g4b 	\
 	exa_wm_src_sample_a.g4b 	\
 	exa_wm_src_sample_planar.g4b 	\
-	exa_wm_src_data.g4b		\
 	exa_wm_mask_affine.g4b 		\
 	exa_wm_mask_projective.g4b 	\
 	exa_wm_mask_sample_argb.g4b 	\
@@ -177,6 +176,7 @@ INTEL_G4B = 				\
 	exa_wm_ca.g4b			\
 	exa_wm_ca_srcalpha.g4b		\
 	exa_wm_write.g4b 		\
+	exa_wm_yuv_rgb.g4b		\
 	exa_wm_xy.g4b
 
 EXTRA_DIST = 		\
