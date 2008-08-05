@@ -430,7 +430,7 @@ I830EXAInit(ScreenPtr pScreen)
 
     pI830->EXADriverPtr = exaDriverAlloc();
     if (pI830->EXADriverPtr == NULL) {
-	pI830->noAccel = TRUE;
+	pI830->accel = ACCEL_NONE;
 	return FALSE;
     }
     memset(pI830->EXADriverPtr, 0, sizeof(*pI830->EXADriverPtr));
@@ -558,9 +558,136 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->EXADriverPtr->exa_minor = 0;
 	if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
 	    xfree(pI830->EXADriverPtr);
-	    pI830->noAccel = TRUE;
+	    pI830->accel = ACCEL_NONE;
 	    return FALSE;
 	}
+    }
+
+    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
+
+    return TRUE;
+}
+
+static Bool
+i830_uxa_pixmap_is_offscreen(PixmapPtr pPixmap)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    /* XXX for now, eventually we'll support 'real' off-screen pixmaps */
+    if ((void *)pPixmap->devPrivate.ptr >= (void *)pI830->FbBase &&
+	(void *)pPixmap->devPrivate.ptr <
+	(void *)(pI830->FbBase + pI830->FbMapSize))
+    {
+	return TRUE;
+    } else {
+	return FALSE;
+    }
+}
+
+
+Bool
+i830_uxa_init (ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->uxa_driver = uxa_driver_alloc();
+    if (pI830->uxa_driver == NULL) {
+	pI830->accel = ACCEL_NONE;
+	return FALSE;
+    }
+    memset(pI830->uxa_driver, 0, sizeof(*pI830->uxa_driver));
+
+    pI830->bufferOffset = 0;
+    pI830->uxa_driver->uxa_major = 1;
+    pI830->uxa_driver->uxa_minor = 0;
+
+    /* Limits are described in the BLT engine chapter under Graphics Data Size
+     * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
+     * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
+     *
+     * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
+     *
+     * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
+     * i965 limits 3D surface to 4kB-aligned offset if tiled.
+     * i965 limits 3D surfaces to w,h of ?,8192.
+     * i965 limits 3D surface to pitch of 1B - 128kB.
+     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
+     * i965 limits 3D surface pitch alignment to 512B if tiled.
+     * i965 limits 3D destination drawing rect to w,h of 8192,8192.
+     *
+     * i915 limits 3D textures to 4B-aligned offset if un-tiled.
+     * i915 limits 3D textures to ~4kB-aligned offset if tiled.
+     * i915 limits 3D textures to width,height of 2048,2048.
+     * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
+     * i915 limits 3D destination to ~4kB-aligned offset if tiled.
+     * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+     * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
+     * i915 limits 3D destination to POT aligned pitch if tiled.
+     * i915 limits 3D destination drawing rect to w,h of 2048,2048.
+     *
+     * i845 limits 3D textures to 4B-aligned offset if un-tiled.
+     * i845 limits 3D textures to ~4kB-aligned offset if tiled.
+     * i845 limits 3D textures to width,height of 2048,2048.
+     * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
+     * i845 limits 3D destination to 4B-aligned offset if un-tiled.
+     * i845 limits 3D destination to ~4kB-aligned offset if tiled.
+     * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
+     * i845 limits 3D destination drawing rect to w,h of 2048,2048.
+     *
+     * For the tiled issues, the only tiled buffer we draw to should be
+     * the front, which will have an appropriate pitch/offset already set up,
+     * so EXA doesn't need to worry.
+     */
+    if (IS_I965G(pI830)) {
+	pI830->uxa_driver->maxX = 8192;
+	pI830->uxa_driver->maxY = 8192;
+    } else {
+	pI830->uxa_driver->maxX = 2048;
+	pI830->uxa_driver->maxY = 2048;
+    }
+
+    /* Sync */
+    pI830->uxa_driver->WaitMarker = I830EXASync;
+
+    /* Solid fill */
+    pI830->uxa_driver->PrepareSolid = I830EXAPrepareSolid;
+    pI830->uxa_driver->Solid = I830EXASolid;
+    pI830->uxa_driver->DoneSolid = I830EXADoneSolid;
+
+    /* Copy */
+    pI830->uxa_driver->PrepareCopy = I830EXAPrepareCopy;
+    pI830->uxa_driver->Copy = I830EXACopy;
+    pI830->uxa_driver->DoneCopy = I830EXADoneCopy;
+
+    /* Composite */
+    if (!IS_I9XX(pI830)) {
+    	pI830->uxa_driver->CheckComposite = i830_check_composite;
+    	pI830->uxa_driver->PrepareComposite = i830_prepare_composite;
+    	pI830->uxa_driver->Composite = i830_composite;
+    	pI830->uxa_driver->DoneComposite = i830_done_composite;
+    } else if (IS_I915G(pI830) || IS_I915GM(pI830) ||
+	       IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+    {
+	pI830->uxa_driver->CheckComposite = i915_check_composite;
+   	pI830->uxa_driver->PrepareComposite = i915_prepare_composite;
+    	pI830->uxa_driver->Composite = i830_composite;
+    	pI830->uxa_driver->DoneComposite = i830_done_composite;
+    } else {
+ 	pI830->uxa_driver->CheckComposite = i965_check_composite;
+ 	pI830->uxa_driver->PrepareComposite = i965_prepare_composite;
+ 	pI830->uxa_driver->Composite = i965_composite;
+ 	pI830->uxa_driver->DoneComposite = i830_done_composite;
+    }
+    pI830->uxa_driver->PixmapIsOffscreen = i830_uxa_pixmap_is_offscreen;
+
+    if(!uxa_driver_init(pScreen, pI830->uxa_driver)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "UXA initialization failed\n");
+	xfree(pI830->uxa_driver);
+	pI830->accel = ACCEL_NONE;
+	return FALSE;
     }
 
     I830SelectBuffer(pScrn, I830_SELECT_FRONT);

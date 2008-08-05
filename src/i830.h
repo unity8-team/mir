@@ -83,7 +83,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef I830_USE_EXA
 #include "exa.h"
+#include "uxa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
+Bool i830_uxa_init(ScreenPtr pScreen);
 unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #endif
 
@@ -355,6 +357,14 @@ enum backlight_control {
     BCM_KERNEL,
 };
 
+typedef enum accel_method {
+    ACCEL_UNINIT = 0,
+    ACCEL_NONE,
+    ACCEL_XAA,
+    ACCEL_EXA,
+    ACCEL_UXA
+} accel_method_t;
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -496,8 +506,7 @@ typedef struct _I830Rec {
 
    Bool fence_used[FENCE_NEW_NR];
 
-   Bool useEXA;
-   Bool noAccel;
+   accel_method_t accel;
    Bool SWCursor;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
@@ -518,6 +527,7 @@ typedef struct _I830Rec {
 
 #ifdef I830_USE_EXA
    ExaDriverPtr	EXADriverPtr;
+   uxa_driver_t *uxa_driver;
    PixmapPtr pSrcPixmap;
 #endif
 
@@ -902,7 +912,7 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     /* fbc depends on tiled surface. And we don't support tiled
      * front buffer with XAA now.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && !pI830->useEXA))
+    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel <= ACCEL_XAA))
 	return FALSE;
     return TRUE;
 }

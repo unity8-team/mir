@@ -251,6 +251,7 @@ XORG_CHECK_LINUXDOC
 
 AC_OUTPUT([
 	Makefile
+	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
 	src/bios_reader/Makefile

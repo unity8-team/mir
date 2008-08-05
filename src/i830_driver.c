@@ -290,9 +290,7 @@ static PciChipsets I830PciChipsets[] = {
  */
 
 typedef enum {
-#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
    OPTION_ACCELMETHOD,
-#endif
    OPTION_NOACCEL,
    OPTION_SW_CURSOR,
    OPTION_CACHE_LINES,
@@ -318,9 +316,7 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
-#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
    {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
-#endif
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
@@ -1338,6 +1334,15 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static const char *accel_name[] = 
+{
+   "unspecified",
+   "no",
+   "XAA",
+   "EXA",
+   "UXA",
+};
+
 /**
  * This is called per zaphod head (so usually just once) to do initialization
  * before the Screen is created.
@@ -1554,7 +1559,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	      num_pipe, num_pipe > 1 ? "s" : "");
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_NOACCEL, FALSE)) {
-      pI830->noAccel = TRUE;
+      pI830->accel = ACCEL_NONE;
    }
 
    /*
@@ -1568,29 +1573,38 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
     * All this *could* go away if we removed XAA support from this driver,
     * for example. :)
     */
-   if (!pI830->noAccel) {
-#ifdef I830_USE_EXA
-       pI830->useEXA = TRUE;
-#else
-       pI830->useEXA = FALSE;
+   if (pI830->accel == ACCEL_UNINIT) {
+      pI830->accel = ACCEL_NONE;
+#ifdef I830_USE_XAA
+      pI830->accel = ACCEL_XAA;
 #endif
-#if defined(I830_USE_XAA) && defined(I830_USE_EXA)
+#ifdef I830_USE_EXA
+      pI830->accel = ACCEL_EXA;
+#endif
+#ifdef I830_USE_UXA
+      pI830->accel = ACCEL_UXA;
+#endif
+#if I830_USE_XAA + I830_USE_EXA + I830_USE_UXA >= 2
        from = X_DEFAULT;
        if ((s = (char *)xf86GetOptValString(pI830->Options,
 					    OPTION_ACCELMETHOD))) {
 	   if (!xf86NameCmp(s, "EXA")) {
 	       from = X_CONFIG;
-	       pI830->useEXA = TRUE;
+	       pI830->accel = ACCEL_EXA;
 	   }
 	   else if (!xf86NameCmp(s, "XAA")) {
 	       from = X_CONFIG;
-	       pI830->useEXA = FALSE;
+	       pI830->accel = ACCEL_XAA;
+	   }
+	   else if (!xf86NameCmp(s, "UXA")) {
+	       from = X_CONFIG;
+	       pI830->accel = ACCEL_UXA;
 	   }
        }
 #endif
-       xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
-		  pI830->useEXA ? "EXA" : "XAA");
    }
+   xf86DrvMsg(pScrn->scrnIndex, from, "Using %s acceleration\n",
+	      accel_name[pI830->accel]);
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_SW_CURSOR, FALSE)) {
       pI830->SWCursor = TRUE;
@@ -1601,7 +1615,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
 #ifdef XF86DRI
    if (!pI830->directRenderingDisabled) {
-      if (pI830->noAccel || pI830->SWCursor) {
+      if (pI830->accel == ACCEL_NONE || pI830->SWCursor) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
 		    "needs HW cursor and 2D acceleration.\n");
 	 pI830->directRenderingDisabled = TRUE;
@@ -1774,7 +1788,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    if (!IS_I965G(pI830) && pScrn->virtualY > 2048) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Cannot support > 2048 vertical lines. disabling acceleration.\n");
-      pI830->noAccel = TRUE;
+      pI830->accel = ACCEL_NONE;
    }
 
    /* Set display resolution */
@@ -1788,18 +1802,19 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    xf86LoaderReqSymLists(I810fbSymbols, NULL);
 
+   switch (pI830->accel) {
 #ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA) {
+   case ACCEL_XAA:
       if (!xf86LoadSubModule(pScrn, "xaa")) {
 	 PreInitCleanup(pScrn);
 	 return FALSE;
       }
       xf86LoaderReqSymLists(I810xaaSymbols, NULL);
-   }
+      break;
 #endif
 
 #ifdef I830_USE_EXA
-   if (!pI830->noAccel && pI830->useEXA) {
+   case ACCEL_EXA: {
       XF86ModReqInfo req;
       int errmaj, errmin;
 
@@ -1817,8 +1832,12 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 	 return FALSE;
       }
       xf86LoaderReqSymLists(I830exaSymbols, NULL);
+      break;
    }
 #endif
+   default:
+      break;
+   }
    if (!pI830->SWCursor) {
       if (!xf86LoadSubModule(pScrn, "ramdac")) {
 	 PreInitCleanup(pScrn);
@@ -1878,7 +1897,7 @@ i830_stop_ring(ScrnInfoPtr pScrn, Bool flush)
       pI830->entityPrivate->RingRunning = 0;
 
    /* Flush the ring buffer (if enabled), then disable it. */
-   if (!pI830->noAccel) {
+   if (pI830->accel != ACCEL_NONE) {
       temp = INREG(LP_RING + RING_LEN);
       if (temp & RING_VALID) {
 	 i830_refresh_ring(pScrn);
@@ -1900,7 +1919,7 @@ i830_start_ring(ScrnInfoPtr pScrn)
 
    DPRINTF(PFX, "SetRingRegs\n");
 
-   if (pI830->noAccel)
+   if (pI830->accel == ACCEL_NONE)
       return;
 
    if (!I830IsPrimary(pScrn)) return;
@@ -2441,7 +2460,7 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
    uint32_t ctx_addr;
 
-   if (pI830->noAccel)
+   if (pI830->accel == ACCEL_NONE)
       return;
 
 #ifdef XF86DRI
@@ -2496,12 +2515,12 @@ I830BlockHandler(int i,
     pI830->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = I830BlockHandler;
 
-    if (pScrn->vtSema && !pI830->noAccel) {
+    if (pScrn->vtSema && pI830->accel != ACCEL_NONE) {
        /* Emit a flush of the rendering cache, or on the 965 and beyond
 	* rendering results may not hit the framebuffer until significantly
 	* later.
 	*/
-       if (!pI830->noAccel && (pI830->need_mi_flush || pI830->batch_used))
+       if (pI830->accel != ACCEL_NONE && (pI830->need_mi_flush || pI830->batch_used))
 	  I830EmitFlush(pScrn);
 
        /* Flush the batch, so that any rendering is executed in a timely
@@ -3001,12 +3020,12 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->XvEnabled = !pI830->XvDisabled;
    if (pI830->XvEnabled) {
       if (!I830IsPrimary(pScrn)) {
-         if (!pI8301->XvEnabled || pI830->noAccel) {
+         if (!pI8301->XvEnabled || pI830->accel == ACCEL_NONE) {
             pI830->XvEnabled = FALSE;
 	    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled.\n");
          }
       } else
-      if (pI830->noAccel || pI830->StolenOnly) {
+      if (pI830->accel == ACCEL_NONE || pI830->StolenOnly) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
 		    "needs 2D accel and AGPGART.\n");
 	 pI830->XvEnabled = FALSE;
@@ -3016,18 +3035,18 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->XvEnabled = FALSE;
 #endif
 
-   if (!pI830->noAccel) {
+   if (pI830->accel != ACCEL_NONE) {
       if (pI830->memory_manager == NULL && pI830->LpRing->mem->size == 0) {
 	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		     "Disabling acceleration because the ring buffer "
 		      "allocation failed.\n");
-	   pI830->noAccel = TRUE;
+	   pI830->accel = ACCEL_NONE;
       }
    }
 
 #ifdef I830_XV
    if (pI830->XvEnabled) {
-      if (pI830->noAccel) {
+      if (pI830->accel == ACCEL_NONE) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Disabling Xv because it "
 		    "needs 2D acceleration.\n");
 	 pI830->XvEnabled = FALSE;
@@ -3049,7 +3068,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     */
 
    if (pI830->directRenderingEnabled) {
-      if (pI830->noAccel || pI830->SWCursor || (pI830->StolenOnly && I830IsPrimary(pScrn))) {
+      if (pI830->accel == ACCEL_NONE || pI830->SWCursor || (pI830->StolenOnly && I830IsPrimary(pScrn))) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DRI is disabled because it "
 		    "needs HW cursor, 2D accel and AGPGART.\n");
 	 pI830->directRenderingEnabled = FALSE;
@@ -3123,7 +3142,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
-   if (!pI830->useEXA) {
+   if (pI830->accel <= ACCEL_XAA) {
       if (I830IsPrimary(pScrn)) {
 	 if (!I830InitFBManager(pScreen, &(pI830->FbMemBox))) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3171,7 +3190,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    DPRINTF(PFX,
 	   "assert( if(!I830InitFBManager(pScreen, &(pI830->FbMemBox))) )\n");
 
-   if (!pI830->noAccel) {
+   if (pI830->accel != ACCEL_NONE) {
       if (!I830AccelInit(pScreen)) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		    "Hardware acceleration initialization failed\n");
@@ -3596,10 +3615,17 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 #endif
 #ifdef I830_USE_EXA
-   if (pI830->useEXA && pI830->EXADriverPtr) {
+   if (pI830->EXADriverPtr) {
        exaDriverFini(pScreen);
        xfree(pI830->EXADriverPtr);
        pI830->EXADriverPtr = NULL;
+   }
+#endif
+#ifdef I830_USE_UXA
+   if (pI830->uxa_driver) {
+       uxa_driver_fini (pScreen);
+       xfree (pI830->uxa_driver);
+       pI830->uxa_driver = NULL;
    }
 #endif
    xf86_cursors_fini (pScreen);
@@ -3830,19 +3856,34 @@ i830WaitSync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
+   switch (pI830->accel) {
 #ifdef I830_USE_XAA
-   if (!pI830->noAccel && !pI830->useEXA && pI830->AccelInfoRec 
-	&& pI830->AccelInfoRec->NeedToSync) {
-      (*pI830->AccelInfoRec->Sync)(pScrn);
-      pI830->AccelInfoRec->NeedToSync = FALSE;
-   }
+   case ACCEL_XAA:
+      if (pI830->AccelInfoRec && pI830->AccelInfoRec->NeedToSync) {
+	 (*pI830->AccelInfoRec->Sync)(pScrn);
+	 pI830->AccelInfoRec->NeedToSync = FALSE;
+      }
+      break;
 #endif
 #ifdef I830_USE_EXA
-   if (!pI830->noAccel && pI830->useEXA && pI830->EXADriverPtr) {
-	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	exaWaitSync(pScreen);
-   }
+   case ACCEL_EXA:
+      if (pI830->EXADriverPtr) {
+	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	 exaWaitSync(pScreen);
+      }
+      break;
 #endif
+#ifdef I830_USE_UXA
+   case ACCEL_UXA:
+      if (pI830->uxa_driver) {
+	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	 uxa_wait_sync(pScreen);
+      }
+      break;
+#endif
+   default:
+      break;
+   }
 }
 
 void
@@ -3850,16 +3891,32 @@ i830MarkSync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
+   switch (pI830->accel) {
 #ifdef I830_USE_XAA
-   if (!pI830->useEXA && pI830->AccelInfoRec)
-      pI830->AccelInfoRec->NeedToSync = TRUE;
+   case ACCEL_XAA:
+      if (pI830->AccelInfoRec)
+	 pI830->AccelInfoRec->NeedToSync = TRUE;
+      break;
 #endif
 #ifdef I830_USE_EXA
-   if (pI830->useEXA && pI830->EXADriverPtr) {
-      ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-      exaMarkSync(pScreen);
-   }
+   case ACCEL_EXA:
+      if (pI830->EXADriverPtr) {
+	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	 exaMarkSync(pScreen);
+      }
+      break;
 #endif
+#ifdef I830_USE_UXA
+   case ACCEL_UXA:
+      if (pI830->uxa_driver) {
+	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+	 exaMarkSync(pScreen);
+      }
+      break;
+#endif
+   default:
+      break;
+   }
 }
 
 void

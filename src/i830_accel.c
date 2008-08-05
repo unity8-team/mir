@@ -67,12 +67,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
 {
+#ifdef I830_USE_EXA
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef I830_USE_EXA
-    if (pI830->useEXA)
+    if (pI830->accel == ACCEL_EXA)
 	return exaGetPixmapOffset(pPix);
 #endif
     return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
@@ -81,17 +81,15 @@ intel_get_pixmap_offset(PixmapPtr pPix)
 unsigned long
 intel_get_pixmap_pitch(PixmapPtr pPix)
 {
+#ifdef I830_USE_EXA
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef I830_USE_EXA
-    if (pI830->useEXA)
+    if (pI830->accel == ACCEL_EXA)
 	return exaGetPixmapPitch(pPix);
 #endif
-#ifdef I830_USE_XAA
     return (unsigned long)pPix->devKind;
-#endif
 }
 
 int
@@ -151,6 +149,9 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 #ifdef I830_USE_EXA
 	 pI830->EXADriverPtr = NULL;
 #endif
+#ifdef I830_USE_UXA
+	pI830->uxa_driver = NULL;
+#endif
 	 FatalError("lockup\n");
       }
 
@@ -176,7 +177,7 @@ I830Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
-   if (pI830->noAccel)
+   if (pI830->accel == ACCEL_NONE)
        return;
 
 #ifdef XF86DRI
@@ -278,15 +279,25 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
 Bool
 I830AccelInit(ScreenPtr pScreen)
 {
-#ifdef I830_USE_EXA
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->useEXA)
+    switch (pI830->accel) {
+#ifdef I830_USE_UXA
+    case ACCEL_UXA:
+	return i830_uxa_init(pScreen);
+#endif
+#ifdef I830_USE_EXA
+    case ACCEL_EXA:
 	return I830EXAInit(pScreen);
 #endif
 #ifdef I830_USE_XAA
-    return I830XAAInit(pScreen);
+    case ACCEL_XAA:
+	return I830XAAInit(pScreen);
 #endif
+    case ACCEL_UNINIT:
+    case ACCEL_NONE:
+	break;
+    }
     return FALSE;
 }

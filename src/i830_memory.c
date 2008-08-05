@@ -449,7 +449,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	mmsize = size;
 
 	/* EXA area is fixed. */
-	if (pI830->useEXA) {
+	if (pI830->accel == ACCEL_EXA) {
 	    mmsize -= ROUND_TO_PAGE(3 * pScrn->displayWidth * pI830->cpp *
 				    pScrn->virtualY);
 	}
@@ -1022,7 +1022,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->noAccel || pI830->memory_manager || pI830->LpRing->mem != NULL)
+    if (pI830->accel == ACCEL_NONE || pI830->memory_manager || pI830->LpRing->mem != NULL)
 	return TRUE;
 
     /* We don't have any mechanism in the DRM yet to alert it that we've moved
@@ -1167,7 +1167,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     minspace = pitch * pScrn->virtualY;
     avail = pScrn->videoRam * 1024;
 
-    if (!pI830->useEXA) {
+    if (pI830->accel == ACCEL_XAA) {
 	maxCacheLines = (avail - minspace) / pitch;
 	/* This shouldn't happen. */
 	if (maxCacheLines < 0) {
@@ -1198,7 +1198,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 		   "Allocating %d scanlines for pixmap cache\n",
 		   cacheLines);
     } else {
-	/* For EXA, we have a separate allocation for the linear allocator
+	/* For non-XAA, we have a separate allocation for the linear allocator
 	 * which also does the pixmap cache.
 	 */
 	cacheLines = 0;
@@ -1213,7 +1213,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
      * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
      * buffers.
      */
-    if (!pI830->useEXA && IS_I965G(pI830))
+    if (pI830->accel <= ACCEL_XAA && IS_I965G(pI830))
 	tiling = FALSE;
     else
 	tiling = pI830->tiling;
@@ -1412,7 +1412,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     }
 
     /* even in XAA, 965G needs state mem buffer for rendering */
-    if (IS_I965G(pI830) && !pI830->noAccel &&
+    if (IS_I965G(pI830) && pI830->accel != ACCEL_NONE &&
 	pI830->gen4_render_state_mem == NULL)
     {
 	pI830->gen4_render_state_mem =
@@ -1450,7 +1450,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	return FALSE;
 
 #ifdef I830_USE_EXA
-    if (pI830->useEXA) {
+    if (pI830->accel == ACCEL_EXA) {
 	if (pI830->exa_offscreen == NULL) {
 	    /* Default EXA to having 3 screens worth of offscreen memory space
 	     * (for pixmaps).
@@ -1478,7 +1478,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     }
 #endif /* I830_USE_EXA */
 
-    if (!pI830->noAccel && !pI830->useEXA) {
+    if (pI830->accel == ACCEL_XAA) {
 	/* The lifetime fixed offset of xaa scratch is probably not required,
 	 * but we do some setup using it at XAAInit() time.  And XAA may not
 	 * end up being supported with GEM anyway.
