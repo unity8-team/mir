@@ -1164,6 +1164,46 @@ Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)
     return FALSE;
 }
 
+static RADEONI2CBusRec
+RADEONLookupI2CBlock(ScrnInfoPtr pScrn, int id)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    int offset, blocks, i;
+    RADEONI2CBusRec i2c;
+
+    memset(&i2c, 0, sizeof(RADEONI2CBusRec));
+    i2c.valid = FALSE;
+
+    offset = RADEON_BIOS16(info->ROMHeaderStart + 0x70);
+    if (offset) {
+	blocks = RADEON_BIOS8(offset + 2);
+	for (i = 0; i < blocks; i++) {
+	    int i2c_id = RADEON_BIOS8(offset + 3 + (i * 5) + 0);
+	    if (id == i2c_id) {
+		int reg = RADEON_BIOS16(offset + 3 + (i * 5) + 1) * 4;
+		int clock_shift = RADEON_BIOS8(offset + 3 + (i * 5) + 3);
+		int data_shift = RADEON_BIOS8(offset + 3 + (i * 5) + 4);
+
+		i2c.mask_clk_mask = (1 << clock_shift);
+		i2c.mask_data_mask = (1 << data_shift);
+		i2c.put_clk_mask = (1 << clock_shift);
+		i2c.put_data_mask = (1 << data_shift);
+		i2c.get_clk_mask = (1 << clock_shift);
+		i2c.get_data_mask = (1 << data_shift);
+		i2c.mask_clk_reg = reg;
+		i2c.mask_data_reg = reg;
+		i2c.put_clk_reg = reg;
+		i2c.put_data_reg = reg;
+		i2c.get_clk_reg = reg;
+		i2c.get_data_reg = reg;
+		i2c.valid = TRUE;
+		break;
+	    }
+	}
+    }
+    return i2c;
+}
+
 Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
@@ -1175,6 +1215,52 @@ Bool RADEONGetExtTMDSInfoFromBIOS (xf86OutputPtr output)
 
     if (info->IsAtomBios) {
 	return FALSE;
+    } else if (info->IsIGP) {
+	/* RS4xx TMDS stuff is in the mobile table */
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x42);
+	if (offset) {
+	    int rev = RADEON_BIOS8(offset);
+	    if (rev >= 6) {
+		offset = RADEON_BIOS16(offset + 0x17);
+		if (offset) {
+		    offset = RADEON_BIOS16(offset + 2);
+		    rev = RADEON_BIOS8(offset);
+		    if (offset && (rev > 1)) {
+			int blocks = RADEON_BIOS8(offset + 3);
+			int index = offset + 4;
+			radeon_output->dvo_i2c.valid = FALSE;
+			while (blocks > 0) {
+			    int id = RADEON_BIOS16(index);
+			    index += 2;
+			    switch (id >> 13) {
+			    case 0:
+				index += 6;
+				break;
+			    case 2:
+				index += 10;
+				break;
+			    case 3:
+				index += 2;
+				break;
+			    case 4:
+				index += 2;
+				break;
+			    case 6:
+				radeon_output->dvo_i2c_slave_addr =
+				    RADEON_BIOS16(index) & 0xff;
+				index += 2;
+				radeon_output->dvo_i2c =
+				    RADEONLookupI2CBlock(pScrn, RADEON_BIOS8(index));
+				return TRUE;
+			    default:
+				break;
+			    }
+			    blocks--;
+			}
+		    }
+		}
+	    }
+	}
     } else {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
 	if (offset) {
@@ -1226,12 +1312,82 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     int offset, index, id;
-    uint32_t val, reg, andmask, ormask;
+    uint32_t val, reg, and_mask, or_mask;
 
     if (!info->VBIOS) return FALSE;
 
     if (info->IsAtomBios) {
 	return FALSE;
+    } else if (info->IsIGP) {
+	/* RS4xx TMDS stuff is in the mobile table */
+	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x42);
+	if (offset) {
+	    int rev = RADEON_BIOS8(offset);
+	    if (rev >= 6) {
+		offset = RADEON_BIOS16(offset + 0x17);
+		if (offset) {
+		    offset = RADEON_BIOS16(offset + 2);
+		    rev = RADEON_BIOS8(offset);
+		    if (offset && (rev > 1)) {
+			int blocks = RADEON_BIOS8(offset + 3);
+			index = offset + 4;
+			while (blocks > 0) {
+			    id = RADEON_BIOS16(index);
+			    index += 2;
+			    switch (id >> 13) {
+			    case 0:
+				reg = (id & 0x1fff) * 4;
+				val = RADEON_BIOS32(index);
+				index += 4;
+				ErrorF("MMIO: 0x%x 0x%x\n",
+				       (unsigned)reg, (unsigned)val);
+				OUTREG(reg, val);
+				break;
+			    case 2:
+				reg = (id & 0x1fff) * 4;
+				and_mask = RADEON_BIOS32(index);
+				index += 4;
+				or_mask = RADEON_BIOS32(index);
+				index += 4;
+				ErrorF("MMIO mask: 0x%x 0x%x 0x%x\n",
+				       (unsigned)reg, (unsigned)and_mask, (unsigned)or_mask);
+				val = INREG(reg);
+				val = (val & and_mask) | or_mask;
+				OUTREG(reg, val);
+				break;
+			    case 3:
+				val = RADEON_BIOS16(index);
+				index += 2;
+				ErrorF("delay: %u\n", (unsigned)val);
+				usleep(val);
+				break;
+			    case 4:
+				val = RADEON_BIOS16(index);
+				index += 2;
+				ErrorF("delay: %u\n", (unsigned)val * 1000);
+				usleep(val * 1000);
+				break;
+			    case 6:
+				index++;
+				reg = RADEON_BIOS8(index);
+				index++;
+				val = RADEON_BIOS8(index);
+				index++;
+				ErrorF("i2c write: 0x%x, 0x%x\n", (unsigned)reg,
+				       (unsigned)val);
+				RADEONDVOWriteByte(radeon_output->DVOChip, reg, val);
+				break;
+			    default:
+				ErrorF("unknown id %d\n", id>>13);
+				return FALSE;
+			    }
+			    blocks--;
+			}
+			return TRUE;
+		    }
+		}
+	    }
+	}
     } else {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x58);
 	if (offset) {
@@ -1241,24 +1397,24 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		index += 2;
 		switch(id >> 13) {
 		case 0:
-		    reg = id & 0x1fff;
+		    reg = (id & 0x1fff) * 4;
 		    val = RADEON_BIOS32(index);
 		    index += 4;
-		    ErrorF("WRITE INDEXED: 0x%x 0x%x\n",
+		    ErrorF("MMIO: 0x%x 0x%x\n",
 			   (unsigned)reg, (unsigned)val);
-		    /*OUTREG(reg, val);*/
+		    OUTREG(reg, val);
 		    break;
 		case 2:
-		    reg = id & 0x1fff;
-		    andmask = RADEON_BIOS32(index);
+		    reg = (id & 0x1fff) * 4;
+		    and_mask = RADEON_BIOS32(index);
 		    index += 4;
-		    ormask = RADEON_BIOS32(index);
+		    or_mask = RADEON_BIOS32(index);
 		    index += 4;
 		    val = INREG(reg);
-		    val = (val & andmask) | ormask;
-		    ErrorF("MASK DIRECT: 0x%x 0x%x 0x%x\n",
-			   (unsigned)reg, (unsigned)andmask, (unsigned)ormask);
-		    /*OUTREG(reg, val);*/
+		    val = (val & and_mask) | or_mask;
+		    ErrorF("MMIO mask: 0x%x 0x%x 0x%x\n",
+			   (unsigned)reg, (unsigned)and_mask, (unsigned)or_mask);
+		    OUTREG(reg, val);
 		    break;
 		case 4:
 		    val = RADEON_BIOS16(index);
@@ -1268,15 +1424,15 @@ Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output)
 		    break;
 		case 5:
 		    reg = id & 0x1fff;
-		    andmask = RADEON_BIOS32(index);
+		    and_mask = RADEON_BIOS32(index);
 		    index += 4;
-		    ormask = RADEON_BIOS32(index);
+		    or_mask = RADEON_BIOS32(index);
 		    index += 4;
-		    ErrorF("MASK PLL: 0x%x 0x%x 0x%x\n",
-			   (unsigned)reg, (unsigned)andmask, (unsigned)ormask);
-		    /*val = INPLL(pScrn, reg);
-		    val = (val & andmask) | ormask;
-		    OUTPLL(pScrn, reg, val);*/
+		    ErrorF("PLL mask: 0x%x 0x%x 0x%x\n",
+			   (unsigned)reg, (unsigned)and_mask, (unsigned)or_mask);
+		    val = INPLL(pScrn, reg);
+		    val = (val & and_mask) | or_mask;
+		    OUTPLL(pScrn, reg, val);
 		    break;
 		case 6:
 		    reg = id & 0x1fff;

@@ -285,12 +285,11 @@ RADEONRestoreDVOChip(ScrnInfoPtr pScrn, xf86OutputPtr output)
     if (!radeon_output->DVOChip)
 	return;
 
-    OUTREG(radeon_output->dvo_i2c.mask_clk_reg,
-	   INREG(radeon_output->dvo_i2c.mask_clk_reg) &
-	   (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
-
     if (!RADEONInitExtTMDSInfoFromBIOS(output)) {
 	if (radeon_output->DVOChip) {
+	    OUTREG(radeon_output->dvo_i2c.mask_clk_reg,
+		   INREG(radeon_output->dvo_i2c.mask_clk_reg) &
+		   (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
 	    switch(info->ext_tmds_chip) {
 	    case RADEON_SIL_164:
 		RADEONDVOWriteByte(radeon_output->DVOChip, 0x08, 0x30);
@@ -1443,8 +1442,8 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 		}
 		OUTREG(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
 	    } else {
-		RADEONRestoreDVOChip(pScrn, output);
 		RADEONRestoreFP2Registers(pScrn, info->ModeReg);
+		RADEONRestoreDVOChip(pScrn, output);
 	    }
 	}
 	break;
