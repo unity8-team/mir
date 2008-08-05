@@ -538,6 +538,7 @@ typedef struct _I830Rec {
 #ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
    Bool need_flush;
+   Bool need_sync;
 #endif
 #if defined(I830_USE_EXA) || defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;

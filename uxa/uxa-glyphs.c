@@ -362,7 +362,7 @@ uxa_glyph_cache_upload_glyph(ScreenPtr		    pScreen,
     PixmapPtr	    pCachePixmap = (PixmapPtr)cache->picture->pDrawable;
     int		    cacheXoff, cacheYoff;
 
-    if (!uxa_screen->info->UploadToScreen || uxa_screen->swappedOut)
+    if (!uxa_screen->info->put_image || uxa_screen->swappedOut)
 	return FALSE;
 
     /* If the glyph pixmap is already uploaded, no point in doing
@@ -378,13 +378,13 @@ uxa_glyph_cache_upload_glyph(ScreenPtr		    pScreen,
     if (!pCachePixmap)
 	return FALSE;
 
-    if (!uxa_screen->info->UploadToScreen(pCachePixmap,
-					  CACHE_X(pos) + cacheXoff,
-					  CACHE_Y(pos) + cacheYoff,
-					  pGlyph->info.width,
-					  pGlyph->info.height,
-					  (char *)pGlyphPixmap->devPrivate.ptr,
-					  pGlyphPixmap->devKind))
+    if (!uxa_screen->info->put_image(pCachePixmap,
+				     CACHE_X(pos) + cacheXoff,
+				     CACHE_Y(pos) + cacheYoff,
+				     pGlyph->info.width,
+				     pGlyph->info.height,
+				     (char *)pGlyphPixmap->devPrivate.ptr,
+				     pGlyphPixmap->devKind))
 	return FALSE;
 
     return TRUE;

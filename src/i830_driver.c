@@ -3887,9 +3887,9 @@ i830WaitSync(ScrnInfoPtr pScrn)
 #endif
 #ifdef I830_USE_UXA
    case ACCEL_UXA:
-      if (pI830->uxa_driver) {
-	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	 uxa_wait_sync(pScreen);
+      if (pI830->uxa_driver && pI830->need_sync) {
+	 pI830->need_sync = FALSE;
+	 I830Sync(pScrn);
       }
       break;
 #endif
@@ -3920,10 +3920,8 @@ i830MarkSync(ScrnInfoPtr pScrn)
 #endif
 #ifdef I830_USE_UXA
    case ACCEL_UXA:
-      if (pI830->uxa_driver) {
-	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	 exaMarkSync(pScreen);
-      }
+      if (pI830->uxa_driver)
+	 pI830->need_sync = TRUE;
       break;
 #endif
    default:

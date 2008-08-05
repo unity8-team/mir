@@ -42,6 +42,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define ALWAYS_SYNC		0
+#define ALWAYS_FLUSH		0
 
 #ifdef DEBUG_I830FALLBACK
 #define I830FALLBACK(s, arg...)				\
@@ -247,10 +248,15 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 I830EXADoneSolid(PixmapPtr pPixmap)
 {
-#if ALWAYS_SYNC
+#if ALWAYS_SYNC || ALWAYS_FLUSH || 1
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
+#if ALWAYS_FLUSH || 1
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
     I830Sync(pScrn);
+#endif
 #endif
 }
 
@@ -343,10 +349,36 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 static void
 I830EXADoneCopy(PixmapPtr pDstPixmap)
 {
-#if ALWAYS_SYNC
+#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 
+#if ALWAYS_FLUSH
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
     I830Sync(pScrn);
+#endif
+#endif
+}
+
+
+/**
+ * Do any cleanup from the Composite operation.
+ *
+ * This is shared between i830 through i965.
+ */
+void
+i830_done_composite(PixmapPtr pDst)
+{
+#if ALWAYS_SYNC || ALWAYS_FLUSH
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+
+#if ALWAYS_FLUSH
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
+    I830Sync(pScrn);
+#endif
 #endif
 }
 
@@ -558,7 +590,15 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
     dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
 
     if (bo) {
-	intel_batch_flush(xf86Screens[pixmap->drawable.pScreen->myNum]);
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	I830Ptr i830 = I830PTR(scrn);
+	
+	intel_batch_flush(scrn);
+	if (i830->need_sync) {
+	    I830Sync(scrn);
+	    i830->need_sync = FALSE;
+	}
 	if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
 	    return FALSE;
         pixmap->devPrivate.ptr = bo->virtual;
@@ -680,47 +720,42 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->uxa_major = 1;
     i830->uxa_driver->uxa_minor = 0;
 
-    i830->uxa_driver->maxX = i830->accel_max_x;
-    i830->uxa_driver->maxY = i830->accel_max_y;
-
-    /* Sync */
-    i830->uxa_driver->WaitMarker = I830EXASync;
+    i830->uxa_driver->max_x = i830->accel_max_x;
+    i830->uxa_driver->max_y = i830->accel_max_y;
 
     /* Solid fill */
-    i830->uxa_driver->PrepareSolid = I830EXAPrepareSolid;
-    i830->uxa_driver->Solid = I830EXASolid;
-    i830->uxa_driver->DoneSolid = I830EXADoneSolid;
+    i830->uxa_driver->prepare_solid = I830EXAPrepareSolid;
+    i830->uxa_driver->solid = I830EXASolid;
+    i830->uxa_driver->done_solid = I830EXADoneSolid;
 
     /* Copy */
-    i830->uxa_driver->PrepareCopy = I830EXAPrepareCopy;
-    i830->uxa_driver->Copy = I830EXACopy;
-    i830->uxa_driver->DoneCopy = I830EXADoneCopy;
+    i830->uxa_driver->prepare_copy = I830EXAPrepareCopy;
+    i830->uxa_driver->copy = I830EXACopy;
+    i830->uxa_driver->done_copy = I830EXADoneCopy;
 
-#if 0
     /* Composite */
     if (!IS_I9XX(i830)) {
-    	i830->uxa_driver->CheckComposite = i830_check_composite;
-    	i830->uxa_driver->PrepareComposite = i830_prepare_composite;
-    	i830->uxa_driver->Composite = i830_composite;
-    	i830->uxa_driver->DoneComposite = i830_done_composite;
+    	i830->uxa_driver->check_composite = i830_check_composite;
+    	i830->uxa_driver->prepare_composite = i830_prepare_composite;
+    	i830->uxa_driver->composite = i830_composite;
+    	i830->uxa_driver->done_composite = i830_done_composite;
     } else if (IS_I915G(i830) || IS_I915GM(i830) ||
 	       IS_I945G(i830) || IS_I945GM(i830) || IS_G33CLASS(i830))
     {
-	i830->uxa_driver->CheckComposite = i915_check_composite;
-   	i830->uxa_driver->PrepareComposite = i915_prepare_composite;
-    	i830->uxa_driver->Composite = i830_composite;
-    	i830->uxa_driver->DoneComposite = i830_done_composite;
+	i830->uxa_driver->check_composite = i915_check_composite;
+   	i830->uxa_driver->prepare_composite = i915_prepare_composite;
+    	i830->uxa_driver->composite = i830_composite;
+    	i830->uxa_driver->done_composite = i830_done_composite;
     } else {
- 	i830->uxa_driver->CheckComposite = i965_check_composite;
- 	i830->uxa_driver->PrepareComposite = i965_prepare_composite;
- 	i830->uxa_driver->Composite = i965_composite;
- 	i830->uxa_driver->DoneComposite = i830_done_composite;
+ 	i830->uxa_driver->check_composite = i965_check_composite;
+ 	i830->uxa_driver->prepare_composite = i965_prepare_composite;
+ 	i830->uxa_driver->composite = i965_composite;
+ 	i830->uxa_driver->done_composite = i830_done_composite;
     }
-#endif
 
-    i830->uxa_driver->PrepareAccess = i830_uxa_prepare_access;
-    i830->uxa_driver->FinishAccess = i830_uxa_finish_access;
-    i830->uxa_driver->PixmapIsOffscreen = i830_uxa_pixmap_is_offscreen;
+    i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
+    i830->uxa_driver->finish_access = i830_uxa_finish_access;
+    i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
 
     if(!uxa_driver_init(pScreen, i830->uxa_driver)) {
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,

@@ -117,7 +117,6 @@ typedef struct {
 
 #define UXA_NUM_GLYPH_CACHES 4
 
-typedef void (*EnableDisableFBAccessProcPtr)(int, Bool);
 typedef struct {
     uxa_driver_t		*info;
     CreateGCProcPtr 		 SavedCreateGC;

@@ -100,8 +100,8 @@ uxa_pixmap_is_offscreen(PixmapPtr p)
     ScreenPtr	    pScreen = p->drawable.pScreen;
     uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
 
-    if (uxa_screen->info->PixmapIsOffscreen)
-	return uxa_screen->info->PixmapIsOffscreen(p);
+    if (uxa_screen->info->pixmap_is_offscreen)
+	return uxa_screen->info->pixmap_is_offscreen(p);
 
     return FALSE;
 }
@@ -151,14 +151,14 @@ uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access)
     if (!offscreen)
 	return;
 
-    if (uxa_screen->info->PrepareAccess)
-	(*uxa_screen->info->PrepareAccess) (pPixmap, access);
+    if (uxa_screen->info->prepare_access)
+	(*uxa_screen->info->prepare_access) (pPixmap, access);
 }
 
 /**
- * uxa_finish_access() is UXA's wrapper for the driver's FinishAccess() handler.
+ * uxa_finish_access() is UXA's wrapper for the driver's finish_access() handler.
  *
- * It deals with calling the driver's FinishAccess() only if necessary.
+ * It deals with calling the driver's finish_access() only if necessary.
  */
 void
 uxa_finish_access(DrawablePtr pDrawable)
@@ -167,13 +167,13 @@ uxa_finish_access(DrawablePtr pDrawable)
     uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
     PixmapPtr	    pPixmap = uxa_get_drawable_pixmap (pDrawable);
 
-    if (uxa_screen->info->FinishAccess == NULL)
+    if (uxa_screen->info->finish_access == NULL)
 	return;
 
     if (!uxa_pixmap_is_offscreen (pPixmap))
 	return;
 
-    (*uxa_screen->info->FinishAccess) (pPixmap);
+    (*uxa_screen->info->finish_access) (pPixmap);
 }
 
 /**
@@ -185,7 +185,7 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 {
     /* fbValidateGC will do direct access to pixmaps if the tiling has changed.
      * Preempt fbValidateGC by doing its work and masking the change out, so
-     * that we can do the Prepare/FinishAccess.
+     * that we can do the Prepare/finish_access.
      */
 #ifdef FB_24_32BIT
     if ((changes & GCTile) && fbGetRotatedPixmap(pGC)) {
@@ -396,20 +396,14 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 	return FALSE;
     }
 
-    if (!uxa_driver->PrepareSolid) {
-	LogMessage(X_ERROR, "UXA(%d): uxa_driver_t::PrepareSolid must be "
+    if (!uxa_driver->prepare_solid) {
+	LogMessage(X_ERROR, "UXA(%d): uxa_driver_t::prepare_solid must be "
 		   "non-NULL\n", screen->myNum);
 	return FALSE;
     }
 
-    if (!uxa_driver->PrepareCopy) {
-	LogMessage(X_ERROR, "UXA(%d): uxa_driver_t::PrepareCopy must be "
-		   "non-NULL\n", screen->myNum);
-	return FALSE;
-    }
-
-    if (!uxa_driver->WaitMarker) {
-	LogMessage(X_ERROR, "UXA(%d): uxa_driver_t::WaitMarker must be "
+    if (!uxa_driver->prepare_copy) {
+	LogMessage(X_ERROR, "UXA(%d): uxa_driver_t::prepare_copy must be "
 		   "non-NULL\n", screen->myNum);
 	return FALSE;
     }
@@ -418,14 +412,14 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
      * that there's a limitation by pixels, and that it's the same as
      * maxX.
      *
-     * We want maxPitchPixels or maxPitchBytes to be set so we can check
+     * We want max_pitch_pixels or max_pitch_bytes to be set so we can check
      * pixmaps against the max pitch in uxaCreatePixmap() -- it matters
      * whether a pixmap is rejected because of its pitch or
      * because of its width.
      */
-    if (!uxa_driver->maxPitchPixels && !uxa_driver->maxPitchBytes)
+    if (!uxa_driver->max_pitch_pixels && !uxa_driver->max_pitch_bytes)
     {
-        uxa_driver->maxPitchPixels = uxa_driver->maxX;
+        uxa_driver->max_pitch_pixels = uxa_driver->max_x;
     }
 
 #ifdef RENDER
@@ -501,18 +495,18 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 
     LogMessage(X_INFO, "UXA(%d): Driver registered support for the following"
 	       " operations:\n", screen->myNum);
-    assert(uxa_driver->PrepareSolid != NULL);
-    LogMessage(X_INFO, "        Solid\n");
-    assert(uxa_driver->PrepareCopy != NULL);
-    LogMessage(X_INFO, "        Copy\n");
-    if (uxa_driver->PrepareComposite != NULL) {
-	LogMessage(X_INFO, "        Composite (RENDER acceleration)\n");
+    assert(uxa_driver->prepare_solid != NULL);
+    LogMessage(X_INFO, "        solid\n");
+    assert(uxa_driver->prepare_copy != NULL);
+    LogMessage(X_INFO, "        copy\n");
+    if (uxa_driver->prepare_composite != NULL) {
+	LogMessage(X_INFO, "        composite (RENDER acceleration)\n");
     }
-    if (uxa_driver->UploadToScreen != NULL) {
-	LogMessage(X_INFO, "        UploadToScreen\n");
+    if (uxa_driver->put_image != NULL) {
+	LogMessage(X_INFO, "        put_image\n");
     }
-    if (uxa_driver->DownloadFromScreen != NULL) {
-	LogMessage(X_INFO, "        DownloadFromScreen\n");
+    if (uxa_driver->get_image != NULL) {
+	LogMessage(X_INFO, "        get_image\n");
     }
 
     return TRUE;
@@ -527,44 +521,4 @@ void
 uxa_driver_fini (ScreenPtr pScreen)
 {
     /*right now does nothing*/
-}
-
-/**
- * uxa_mark_sync() should be called after any asynchronous drawing by the hardware.
- *
- * @param pScreen screen which drawing occurred on
- *
- * uxa_mark_sync() sets a flag to indicate that some asynchronous drawing has
- * happened and a WaitSync() will be necessary before relying on the contents of
- * offscreen memory from the CPU's perspective.  It also calls an optional
- * driver MarkSync() callback, the return value of which may be used to do partial
- * synchronization with the hardware in the future.
- */
-void uxa_mark_sync(ScreenPtr pScreen)
-{
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
-
-    uxa_screen->info->needsSync = TRUE;
-    if (uxa_screen->info->MarkSync != NULL) {
-        uxa_screen->info->lastMarker = (*uxa_screen->info->MarkSync)(pScreen);
-    }
-}
-
-/**
- * uxa_wait_sync() ensures that all drawing has been completed.
- *
- * @param pScreen screen being synchronized.
- *
- * Calls down into the driver to ensure that all previous drawing has completed.
- * It should always be called before relying on the framebuffer contents
- * reflecting previous drawing, from a CPU perspective.
- */
-void uxa_wait_sync(ScreenPtr pScreen)
-{
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
-
-    if (uxa_screen->info->needsSync && !uxa_screen->swappedOut) {
-        (*uxa_screen->info->WaitMarker)(pScreen, uxa_screen->info->lastMarker);
-        uxa_screen->info->needsSync = FALSE;
-    }
 }

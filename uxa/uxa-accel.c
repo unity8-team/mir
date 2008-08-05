@@ -37,7 +37,7 @@
 
 static void
 uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
-	     DDXPointPtr ppt, int *pwidth, int fSorted)
+	       DDXPointPtr ppt, int *pwidth, int fSorted)
 {
     ScreenPtr	    pScreen = pDrawable->pScreen;
     uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
@@ -52,10 +52,10 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 
     if (uxa_screen->swappedOut || pGC->fillStyle != FillSolid ||
 	!(pPixmap = uxa_get_offscreen_pixmap (pDrawable, &off_x, &off_y)) ||
-	!(*uxa_screen->info->PrepareSolid) (pPixmap,
-					 pGC->alu,
-					 pGC->planemask,
-					 pGC->fgPixel))
+	!(*uxa_screen->info->prepare_solid) (pPixmap,
+					     pGC->alu,
+					     pGC->planemask,
+					     pGC->fgPixel))
     {
 	uxa_check_fill_spans (pDrawable, pGC, n, ppt, pwidth, fSorted);
 	return;
@@ -89,9 +89,9 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 	nbox = REGION_NUM_RECTS (pClip);
 	if (nbox == 1)
 	{
-	    (*uxa_screen->info->Solid) (pPixmap,
-				     fullX1 + off_x, fullY1 + off_y,
-				     fullX2 + off_x, fullY1 + 1 + off_y);
+	    (*uxa_screen->info->solid) (pPixmap,
+					fullX1 + off_x, fullY1 + off_y,
+					fullX2 + off_x, fullY1 + 1 + off_y);
 	}
 	else
 	{
@@ -107,22 +107,21 @@ uxa_fill_spans(DrawablePtr pDrawable, GCPtr pGC, int n,
 		    if (partX2 > fullX2)
 			partX2 = fullX2;
 		    if (partX2 > partX1) {
-			(*uxa_screen->info->Solid) (pPixmap,
-						 partX1 + off_x, fullY1 + off_y,
-						 partX2 + off_x, fullY1 + 1 + off_y);
+			(*uxa_screen->info->solid) (pPixmap,
+						    partX1 + off_x, fullY1 + off_y,
+						    partX2 + off_x, fullY1 + 1 + off_y);
 		    }
 		}
 		pbox++;
 	    }
 	}
     }
-    (*uxa_screen->info->DoneSolid) (pPixmap);
-    uxa_mark_sync(pScreen);
+    (*uxa_screen->info->done_solid) (pPixmap);
 }
 
 static Bool
 uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
-	       int w, int h, int format, char *bits, int src_stride)
+		  int w, int h, int format, char *bits, int src_stride)
 {
     uxa_screen_t    *uxa_screen = uxa_get_screen(pDrawable->pScreen);
     PixmapPtr pPix = uxa_get_drawable_pixmap (pDrawable);
@@ -146,7 +145,7 @@ uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 
     pPix = uxa_get_offscreen_pixmap (pDrawable, &xoff, &yoff);
 
-    if (!pPix || !uxa_screen->info->UploadToScreen)
+    if (!pPix || !uxa_screen->info->put_image)
 	return FALSE;
 
     x += pDrawable->x;
@@ -177,8 +176,8 @@ uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	    continue;
 
 	src = bits + (y1 - y) * src_stride + (x1 - x) * (bpp / 8);
-	ok = uxa_screen->info->UploadToScreen(pPix, x1 + xoff, y1 + yoff,
-					      x2 - x1, y2 - y1, src, src_stride);
+	ok = uxa_screen->info->put_image(pPix, x1 + xoff, y1 + yoff,
+					 x2 - x1, y2 - y1, src, src_stride);
 	/* If we fail to accelerate the upload, fall back to using unaccelerated
 	 * fb calls.
 	 */
@@ -210,8 +209,6 @@ uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 
     if (access_prepared)
 	uxa_finish_access(pDrawable);
-    else
-	uxa_mark_sync(pDrawable->pScreen);
 
     return TRUE;
 }
@@ -226,8 +223,8 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
     int src_stride = PixmapBytePad(w, depth);
 
     if (uxa_do_put_image(pDrawable, pGC, depth, dx, dy, sw, sh, format, data +
-		      sy * src_stride + sx * BitsPerPixel(depth) / 8,
-		      src_stride))
+			 sy * src_stride + sx * BitsPerPixel(depth) / 8,
+			 src_stride))
 	return TRUE;
 
     if (format == ZPixmap)
@@ -235,12 +232,12 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
 	PixmapPtr pPixmap;
 
 	pPixmap = GetScratchPixmapHeader(pDrawable->pScreen, w, h, depth,
-		BitsPerPixel(depth), PixmapBytePad(w, depth), (pointer)data);
+					 BitsPerPixel(depth), PixmapBytePad(w, depth),
+					 (pointer)data);
 	if (!pPixmap)
 	    return FALSE;
 
         uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-
 	fbCopyArea((DrawablePtr)pPixmap, pDrawable, pGC, sx, sy, sw, sh, dx, dy);
 	uxa_finish_access(pDrawable);
 
@@ -260,11 +257,11 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
  */
 void
 uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, unsigned int format,
-	       int w, int h, int sx, int sy, int sw, int sh, int dx, int dy,
-	       char *data)
+		  int w, int h, int sx, int sy, int sw, int sh, int dx, int dy,
+		  char *data)
 {
     if (!uxa_do_shm_put_image(pDrawable, pGC, depth, format, w, h, sx, sy, sw, sh,
-			  dx, dy, data)) {
+			      dx, dy, data)) {
 	uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
 	fbShmPutImage(pDrawable, pGC, depth, format, w, h, sx, sy, sw, sh, dx, dy,
 		      data);
@@ -316,9 +313,9 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 	    /* Do a xdir = ydir = -1 blit instead. */
 	    if (dirsetup != -1) {
 		if (dirsetup != 0)
-		    uxa_screen->info->DoneCopy(pDstPixmap);
+		    uxa_screen->info->done_copy(pDstPixmap);
 		dirsetup = -1;
-		if (!(*uxa_screen->info->PrepareCopy)(pSrcPixmap,
+		if (!(*uxa_screen->info->prepare_copy)(pSrcPixmap,
 						   pDstPixmap,
 						   -1, -1,
 						   pGC ? pGC->alu : GXcopy,
@@ -326,7 +323,7 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 							 FB_ALLONES))
 		    return FALSE;
 	    }
-	    (*uxa_screen->info->Copy)(pDstPixmap,
+	    (*uxa_screen->info->copy)(pDstPixmap,
 				   src_off_x + pbox->x1 + dx,
 				   src_off_y + pbox->y1 + dy,
 				   dst_off_x + pbox->x1,
@@ -337,9 +334,9 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 	    /* Do a xdir = ydir = 1 blit instead. */
 	    if (dirsetup != 1) {
 		if (dirsetup != 0)
-		    uxa_screen->info->DoneCopy(pDstPixmap);
+		    uxa_screen->info->done_copy(pDstPixmap);
 		dirsetup = 1;
-		if (!(*uxa_screen->info->PrepareCopy)(pSrcPixmap,
+		if (!(*uxa_screen->info->prepare_copy)(pSrcPixmap,
 						   pDstPixmap,
 						   1, 1,
 						   pGC ? pGC->alu : GXcopy,
@@ -347,7 +344,7 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 							 FB_ALLONES))
 		    return FALSE;
 	    }
-	    (*uxa_screen->info->Copy)(pDstPixmap,
+	    (*uxa_screen->info->copy)(pDstPixmap,
 				   src_off_x + pbox->x1 + dx,
 				   src_off_y + pbox->y1 + dy,
 				   dst_off_x + pbox->x1,
@@ -362,9 +359,9 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 	    int i;
 	    if (dirsetup != 1) {
 		if (dirsetup != 0)
-		    uxa_screen->info->DoneCopy(pDstPixmap);
+		    uxa_screen->info->done_copy(pDstPixmap);
 		dirsetup = 1;
-		if (!(*uxa_screen->info->PrepareCopy)(pSrcPixmap,
+		if (!(*uxa_screen->info->prepare_copy)(pSrcPixmap,
 						   pDstPixmap,
 						   1, 1,
 						   pGC ? pGC->alu : GXcopy,
@@ -373,7 +370,7 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 		    return FALSE;
 	    }
 	    for (i = pbox->y2 - pbox->y1 - 1; i >= 0; i--)
-		(*uxa_screen->info->Copy)(pDstPixmap,
+		(*uxa_screen->info->copy)(pDstPixmap,
 				       src_off_x + pbox->x1 + dx,
 				       src_off_y + pbox->y1 + dy + i,
 				       dst_off_x + pbox->x1,
@@ -387,9 +384,9 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 	    int i;
 	    if (dirsetup != -1) {
 		if (dirsetup != 0)
-		    uxa_screen->info->DoneCopy(pDstPixmap);
+		    uxa_screen->info->done_copy(pDstPixmap);
 		dirsetup = -1;
-		if (!(*uxa_screen->info->PrepareCopy)(pSrcPixmap,
+		if (!(*uxa_screen->info->prepare_copy)(pSrcPixmap,
 						   pDstPixmap,
 						   -1, -1,
 						   pGC ? pGC->alu : GXcopy,
@@ -398,7 +395,7 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 		    return FALSE;
 	    }
 	    for (i = 0; i < pbox->y2 - pbox->y1; i++)
-		(*uxa_screen->info->Copy)(pDstPixmap,
+		(*uxa_screen->info->copy)(pDstPixmap,
 				       src_off_x + pbox->x1 + dx,
 				       src_off_y + pbox->y1 + dy + i,
 				       dst_off_x + pbox->x1,
@@ -407,8 +404,7 @@ uxa_copy_n_to_n_two_dir (DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable,
 	}
     }
     if (dirsetup != 0)
-	uxa_screen->info->DoneCopy(pDstPixmap);
-    uxa_mark_sync(pDstDrawable->pScreen);
+	uxa_screen->info->done_copy(pDstPixmap);
     return TRUE;
 }
 
@@ -447,7 +443,7 @@ uxa_copy_n_to_n (DrawablePtr    pSrcDrawable,
 
     if (!uxa_pixmap_is_offscreen(pSrcPixmap) ||
 	!uxa_pixmap_is_offscreen(pDstPixmap) ||
-	!(*uxa_screen->info->PrepareCopy) (pSrcPixmap, pDstPixmap, reverse ? -1 : 1,
+	!(*uxa_screen->info->prepare_copy) (pSrcPixmap, pDstPixmap, reverse ? -1 : 1,
 					   upsidedown ? -1 : 1,
 					   pGC ? pGC->alu : GXcopy,
 					   pGC ? pGC->planemask : FB_ALLONES)) {
@@ -456,7 +452,7 @@ uxa_copy_n_to_n (DrawablePtr    pSrcDrawable,
 
     while (nbox--)
     {
-	(*uxa_screen->info->Copy) (pDstPixmap,
+	(*uxa_screen->info->copy) (pDstPixmap,
 				   pbox->x1 + dx + src_off_x,
 				   pbox->y1 + dy + src_off_y,
 				   pbox->x1 + dst_off_x, pbox->y1 + dst_off_y,
@@ -464,8 +460,7 @@ uxa_copy_n_to_n (DrawablePtr    pSrcDrawable,
 	pbox++;
     }
 
-    (*uxa_screen->info->DoneCopy) (pDstPixmap);
-    uxa_mark_sync (pDstDrawable->pScreen);
+    (*uxa_screen->info->done_copy) (pDstPixmap);
 
     return;
 
@@ -704,7 +699,7 @@ uxa_poly_fill_rect(DrawablePtr pDrawable,
     }
 
     if (!uxa_pixmap_is_offscreen (pPixmap) ||
-	!(*uxa_screen->info->PrepareSolid) (pPixmap,
+	!(*uxa_screen->info->prepare_solid) (pPixmap,
 					 pGC->alu,
 					 pGC->planemask,
 					 pGC->fgPixel))
@@ -747,7 +742,7 @@ fallback:
 	n = REGION_NUM_RECTS (pClip);
 	if (n == 1)
 	{
-	    (*uxa_screen->info->Solid) (pPixmap,
+	    (*uxa_screen->info->solid) (pPixmap,
 				     fullX1 + xoff, fullY1 + yoff,
 				     fullX2 + xoff, fullY2 + yoff);
 	}
@@ -777,15 +772,14 @@ fallback:
 		pbox++;
 
 		if (partX1 < partX2 && partY1 < partY2) {
-		    (*uxa_screen->info->Solid) (pPixmap,
+		    (*uxa_screen->info->solid) (pPixmap,
 					     partX1 + xoff, partY1 + yoff,
 					     partX2 + xoff, partY2 + yoff);
 		}
 	    }
 	}
     }
-    (*uxa_screen->info->DoneSolid) (pPixmap);
-    uxa_mark_sync(pDrawable->pScreen);
+    (*uxa_screen->info->done_solid) (pPixmap);
 
 out:
     REGION_UNINIT(pScreen, pReg);
@@ -858,7 +852,7 @@ uxa_fill_region_solid (DrawablePtr	pDrawable,
     REGION_TRANSLATE(pScreen, pRegion, xoff, yoff);
 
     if (uxa_pixmap_is_offscreen (pPixmap) &&
-	(*uxa_screen->info->PrepareSolid) (pPixmap, alu, planemask, pixel))
+	(*uxa_screen->info->prepare_solid) (pPixmap, alu, planemask, pixel))
     {
 	int nbox;
 	BoxPtr pBox;
@@ -868,12 +862,11 @@ uxa_fill_region_solid (DrawablePtr	pDrawable,
 
 	while (nbox--)
 	{
-	    (*uxa_screen->info->Solid) (pPixmap, pBox->x1, pBox->y1, pBox->x2,
+	    (*uxa_screen->info->solid) (pPixmap, pBox->x1, pBox->y1, pBox->x2,
 				     pBox->y2);
 	    pBox++;
 	}
-	(*uxa_screen->info->DoneSolid) (pPixmap);
-	uxa_mark_sync(pDrawable->pScreen);
+	(*uxa_screen->info->done_solid) (pPixmap);
 
 	ret = TRUE;
     }
@@ -906,7 +899,7 @@ uxa_fill_region_tiled (DrawablePtr	pDrawable,
     tileHeight = pTile->drawable.height;
 
     /* If we're filling with a solid color, grab it out and go to
-     * FillRegionSolid, saving numerous copies.
+     * FillRegionsolid, saving numerous copies.
      */
     if (tileWidth == 1 && tileHeight == 1)
 	return uxa_fill_region_solid(pDrawable, pRegion,
@@ -922,7 +915,7 @@ uxa_fill_region_tiled (DrawablePtr	pDrawable,
     if (!pPixmap || !uxa_pixmap_is_offscreen(pTile))
 	goto out;
 
-    if ((*uxa_screen->info->PrepareCopy) (pTile, pPixmap, 1, 1, alu, planemask))
+    if ((*uxa_screen->info->prepare_copy) (pTile, pPixmap, 1, 1, alu, planemask))
     {
 	while (nbox--)
 	{
@@ -951,7 +944,7 @@ uxa_fill_region_tiled (DrawablePtr	pDrawable,
 			w = width;
 		    width -= w;
 
-		    (*uxa_screen->info->Copy) (pPixmap, tileX, tileY, dstX, dstY,
+		    (*uxa_screen->info->copy) (pPixmap, tileX, tileY, dstX, dstY,
 					    w, h);
 		    dstX += w;
 		    tileX = 0;
@@ -961,8 +954,7 @@ uxa_fill_region_tiled (DrawablePtr	pDrawable,
 	    }
 	    pBox++;
 	}
-	(*uxa_screen->info->DoneCopy) (pPixmap);
-	uxa_mark_sync(pDrawable->pScreen);
+	(*uxa_screen->info->done_copy) (pPixmap);
 
 	ret = TRUE;
     }
@@ -1003,7 +995,7 @@ uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,
 
     pPix = uxa_get_offscreen_pixmap (pDrawable, &xoff, &yoff);
 
-    if (pPix == NULL || uxa_screen->info->DownloadFromScreen == NULL)
+    if (pPix == NULL || uxa_screen->info->get_image == NULL)
 	goto fallback;
 
     /* Only cover the ZPixmap, solid copy case. */
@@ -1016,13 +1008,11 @@ uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,
     if (pDrawable->bitsPerPixel < 8)
 	goto fallback;
 
-    ok = uxa_screen->info->DownloadFromScreen(pPix, pDrawable->x + x + xoff,
+    ok = uxa_screen->info->get_image(pPix, pDrawable->x + x + xoff,
 					   pDrawable->y + y + yoff, w, h, d,
 					   PixmapBytePad(w, pDrawable->depth));
-    if (ok) {
-	uxa_wait_sync(pDrawable->pScreen);
-	goto out;
-    }
+    if (ok)
+	return;
 
 fallback:
     UXA_FALLBACK(("from %p (%c)\n", pDrawable,
@@ -1032,6 +1022,5 @@ fallback:
     fbGetImage (pDrawable, x, y, w, h, format, planeMask, d);
     uxa_finish_access (pDrawable);
 
-out:
    return;
 }

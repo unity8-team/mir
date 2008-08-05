@@ -70,36 +70,36 @@ typedef struct _UxaDriver {
 
     /** @{ */
     /**
-     * maxX controls the X coordinate limitation for rendering from the card.
-     * The driver should never receive a request for rendering beyond maxX
+     * max_x controls the X coordinate limitation for rendering from the card.
+     * The driver should never receive a request for rendering beyond max_x
      * in the X direction from the origin of a pixmap.
      */
-    int maxX;
+    int max_x;
 
     /**
-     * maxY controls the Y coordinate limitation for rendering from the card.
-     * The driver should never receive a request for rendering beyond maxY
+     * max_y controls the Y coordinate limitation for rendering from the card.
+     * The driver should never receive a request for rendering beyond max_y
      * in the Y direction from the origin of a pixmap.
      */
-    int maxY;
+    int max_y;
     /** @} */
 
     /* private */
     Bool	      needsSync;
     int               lastMarker;
 
-    /** @name Solid
+    /** @name solid
      * @{
      */
     /**
-     * PrepareSolid() sets up the driver for doing a solid fill.
+     * prepare_solid() sets up the driver for doing a solid fill.
      * @param pPixmap Destination pixmap
      * @param alu raster operation
      * @param planemask write mask for the fill
      * @param fg "foreground" color for the fill
      *
      * This call should set up the driver for doing a series of solid fills
-     * through the Solid() call.  The alu raster op is one of the GX*
+     * through the solid() call.  The alu raster op is one of the GX*
      * graphics functions listed in X.h, and typically maps to a similar
      * single-byte "ROP" setting in all hardware.  The planemask controls
      * which bits of the destination should be affected, and will only represent
@@ -109,16 +109,16 @@ typedef struct _UxaDriver {
      * Note that many drivers will need to store some of the data in the driver
      * private record, for sending to the hardware with each drawing command.
      *
-     * The PrepareSolid() call is required of all drivers, but it may fail for any
+     * The prepare_solid() call is required of all drivers, but it may fail for any
      * reason.  Failure results in a fallback to software rendering.
      */
-    Bool        (*PrepareSolid) (PixmapPtr      pPixmap,
+    Bool        (*prepare_solid) (PixmapPtr      pPixmap,
                                  int            alu,
                                  Pixel          planemask,
                                  Pixel          fg);
 
     /**
-     * Solid() performs a solid fill set up in the last PrepareSolid() call.
+     * solid() performs a solid fill set up in the last prepare_solid() call.
      *
      * @param pPixmap destination pixmap
      * @param x1 left coordinate
@@ -126,37 +126,37 @@ typedef struct _UxaDriver {
      * @param x2 right coordinate
      * @param y2 bottom coordinate
      *
-     * Performs the fill set up by the last PrepareSolid() call, covering the
+     * Performs the fill set up by the last prepare_solid() call, covering the
      * area from (x1,y1) to (x2,y2) in pPixmap.  Note that the coordinates are
      * in the coordinate space of the destination pixmap, so the driver will
      * need to set up the hardware's offset and pitch for the destination
      * coordinates according to the pixmap's offset and pitch within
      * framebuffer.
      *
-     * This call is required if PrepareSolid() ever succeeds.
+     * This call is required if prepare_solid() ever succeeds.
      */
-    void        (*Solid) (PixmapPtr      pPixmap, int x1, int y1, int x2, int y2);
+    void        (*solid) (PixmapPtr      pPixmap, int x1, int y1, int x2, int y2);
 
     /**
-     * DoneSolid() finishes a set of solid fills.
+     * done_solid() finishes a set of solid fills.
      *
      * @param pPixmap destination pixmap.
      *
-     * The DoneSolid() call is called at the end of a series of consecutive
-     * Solid() calls following a successful PrepareSolid().  This allows drivers
+     * The done_solid() call is called at the end of a series of consecutive
+     * solid() calls following a successful prepare_solid().  This allows drivers
      * to finish up emitting drawing commands that were buffered, or clean up
-     * state from PrepareSolid().
+     * state from prepare_solid().
      *
-     * This call is required if PrepareSolid() ever succeeds.
+     * This call is required if prepare_solid() ever succeeds.
      */
-    void        (*DoneSolid) (PixmapPtr      pPixmap);
+    void        (*done_solid) (PixmapPtr      pPixmap);
     /** @} */
 
-    /** @name Copy
+    /** @name copy
      * @{
      */
     /**
-     * PrepareCopy() sets up the driver for doing a copy within video 
+     * prepare_copy() sets up the driver for doing a copy within video 
      * memory.
      *
      * @param pSrcPixmap source pixmap
@@ -173,7 +173,7 @@ typedef struct _UxaDriver {
      * is to deal with self-overlapping copies when pSrcPixmap == pDstPixmap.
      * If your hardware can only support blits that are (left to right, top to
      * bottom) or (right to left, bottom to top), then you should set
-     * #UXA_TWO_BITBLT_DIRECTIONS, and UXA will break down Copy operations to
+     * #UXA_TWO_BITBLT_DIRECTIONS, and UXA will break down copy operations to
      * ones that meet those requirements.  The alu raster op is one of the GX*
      * graphics functions listed in X.h, and typically maps to a similar
      * single-byte "ROP" setting in all hardware.  The planemask controls which
@@ -183,10 +183,10 @@ typedef struct _UxaDriver {
      * Note that many drivers will need to store some of the data in the driver
      * private record, for sending to the hardware with each drawing command.
      *
-     * The PrepareCopy() call is required of all drivers, but it may fail for any
+     * The prepare_copy() call is required of all drivers, but it may fail for any
      * reason.  Failure results in a fallback to software rendering.
      */
-    Bool        (*PrepareCopy) (PixmapPtr       pSrcPixmap,
+    Bool        (*prepare_copy) (PixmapPtr       pSrcPixmap,
                                 PixmapPtr       pDstPixmap,
                                 int             dx,
                                 int             dy,
@@ -194,7 +194,7 @@ typedef struct _UxaDriver {
                                 Pixel           planemask);
 
     /**
-     * Copy() performs a copy set up in the last PrepareCopy call.
+     * copy() performs a copy set up in the last prepare_copy call.
      *
      * @param pDstPixmap destination pixmap
      * @param srcX source X coordinate
@@ -204,20 +204,20 @@ typedef struct _UxaDriver {
      * @param width width of the rectangle to be copied
      * @param height height of the rectangle to be copied.
      *
-     * Performs the copy set up by the last PrepareCopy() call, copying the
+     * Performs the copy set up by the last prepare_copy() call, copying the
      * rectangle from (srcX, srcY) to (srcX + width, srcY + width) in the source
      * pixmap to the same-sized rectangle at (dstX, dstY) in the destination
      * pixmap.  Those rectangles may overlap in memory, if
      * pSrcPixmap == pDstPixmap.  Note that this call does not receive the
      * pSrcPixmap as an argument -- if it's needed in this function, it should
-     * be stored in the driver private during PrepareCopy().  As with Solid(),
+     * be stored in the driver private during prepare_copy().  As with solid(),
      * the coordinates are in the coordinate space of each pixmap, so the driver
      * will need to set up source and destination pitches and offsets from those
      * pixmaps, probably using uxaGetPixmapOffset() and uxa_get_pixmap_pitch().
      *
-     * This call is required if PrepareCopy ever succeeds.
+     * This call is required if prepare_copy ever succeeds.
      */
-    void        (*Copy) (PixmapPtr       pDstPixmap,
+    void        (*copy) (PixmapPtr       pDstPixmap,
                          int    srcX,
                          int    srcY,
                          int    dstX,
@@ -226,25 +226,25 @@ typedef struct _UxaDriver {
                          int    height);
 
     /**
-     * DoneCopy() finishes a set of copies.
+     * done_copy() finishes a set of copies.
      *
      * @param pPixmap destination pixmap.
      *
-     * The DoneCopy() call is called at the end of a series of consecutive
-     * Copy() calls following a successful PrepareCopy().  This allows drivers
+     * The done_copy() call is called at the end of a series of consecutive
+     * copy() calls following a successful prepare_copy().  This allows drivers
      * to finish up emitting drawing commands that were buffered, or clean up
-     * state from PrepareCopy().
+     * state from prepare_copy().
      *
-     * This call is required if PrepareCopy() ever succeeds.
+     * This call is required if prepare_copy() ever succeeds.
      */
-    void        (*DoneCopy) (PixmapPtr       pDstPixmap);
+    void        (*done_copy) (PixmapPtr       pDstPixmap);
     /** @} */
 
-    /** @name Composite
+    /** @name composite
      * @{
      */
     /**
-     * CheckComposite() checks to see if a composite operation could be
+     * check_composite() checks to see if a composite operation could be
      * accelerated.
      *
      * @param op Render operation
@@ -252,25 +252,25 @@ typedef struct _UxaDriver {
      * @param pMaskPicture mask picture
      * @param pDstPicture destination Picture
      *
-     * The CheckComposite() call checks if the driver could handle acceleration
+     * The check_composite() call checks if the driver could handle acceleration
      * of op with the given source, mask, and destination pictures.  This allows
      * drivers to check source and destination formats, supported operations,
      * transformations, and component alpha state, and send operations it can't
      * support to software rendering early on.
      *
-     * See PrepareComposite() for more details on likely issues that drivers
-     * will have in accelerating Composite operations.
+     * See prepare_composite() for more details on likely issues that drivers
+     * will have in accelerating composite operations.
      *
-     * The CheckComposite() call is recommended if PrepareComposite() is
+     * The check_composite() call is recommended if prepare_composite() is
      * implemented, but is not required.
      */
-    Bool        (*CheckComposite) (int          op,
+    Bool        (*check_composite) (int          op,
                                    PicturePtr   pSrcPicture,
                                    PicturePtr   pMaskPicture,
                                    PicturePtr   pDstPicture);
 
     /**
-     * PrepareComposite() sets up the driver for doing a Composite operation
+     * prepare_composite() sets up the driver for doing a composite operation
      * described in the Render extension protocol spec.
      *
      * @param op Render operation
@@ -281,7 +281,7 @@ typedef struct _UxaDriver {
      * @param pMask mask pixmap
      * @param pDst destination pixmap
      *
-     * This call should set up the driver for doing a series of Composite
+     * This call should set up the driver for doing a series of composite
      * operations, as described in the Render protocol spec, with the given
      * pSrcPicture, pMaskPicture, and pDstPicture.  The pSrc, pMask, and
      * pDst are the pixmaps containing the pixel data, and should be used for
@@ -295,7 +295,7 @@ typedef struct _UxaDriver {
      *   operation is simply src OP dst instead of src IN mask OP dst, and
      *   mask coordinates should be ignored.
      * - pMarkPicture may have componentAlpha set, which greatly changes
-     *   the behavior of the Composite operation.  componentAlpha has no effect
+     *   the behavior of the composite operation.  componentAlpha has no effect
      *   when set on pSrcPicture or pDstPicture.
      * - The source and mask Pictures may have a transformation set
      *   (Picture->transform != NULL), which means that the source coordinates
@@ -306,7 +306,7 @@ typedef struct _UxaDriver {
      * - The source and mask pictures may have a filter set.  PictFilterNearest
      *   and PictFilterBilinear are defined in the Render protocol, but others
      *   may be encountered, and must be handled correctly (usually by
-     *   PrepareComposite failing, and falling back to software).  Filters have
+     *   prepare_composite failing, and falling back to software).  Filters have
      *   no effect on Pictures when used as a destination.
      * - The source and mask Pictures may have repeating set, which must be
      *   respected.  Many chipsets will be unable to support repeating on
@@ -318,12 +318,12 @@ typedef struct _UxaDriver {
      * Note that many drivers will need to store some of the data in the driver
      * private record, for sending to the hardware with each drawing command.
      *
-     * The PrepareComposite() call is not required.  However, it is highly
+     * The prepare_composite() call is not required.  However, it is highly
      * recommended for performance of antialiased font rendering and performance
      * of cairo applications.  Failure results in a fallback to software
      * rendering.
      */
-    Bool        (*PrepareComposite) (int                op,
+    Bool        (*prepare_composite) (int                op,
                                      PicturePtr         pSrcPicture,
                                      PicturePtr         pMaskPicture,
                                      PicturePtr         pDstPicture,
@@ -332,8 +332,8 @@ typedef struct _UxaDriver {
                                      PixmapPtr          pDst);
 
     /**
-     * Composite() performs a Composite operation set up in the last
-     * PrepareComposite() call.
+     * composite() performs a composite operation set up in the last
+     * prepare_composite() call.
      *
      * @param pDstPixmap destination pixmap
      * @param srcX source X coordinate
@@ -345,7 +345,7 @@ typedef struct _UxaDriver {
      * @param width destination rectangle width
      * @param height destination rectangle height
      *
-     * Performs the Composite operation set up by the last PrepareComposite()
+     * Performs the composite operation set up by the last prepare_composite()
      * call, to the rectangle from (dstX, dstY) to (dstX + width, dstY + height)
      * in the destination Pixmap.  Note that if a transformation was set on
      * the source or mask Pictures, the source rectangles may not be the same
@@ -353,9 +353,9 @@ typedef struct _UxaDriver {
      * transformation right at the subpixel level can be tricky, and rendercheck
      * can test this for you.
      *
-     * This call is required if PrepareComposite() ever succeeds.
+     * This call is required if prepare_composite() ever succeeds.
      */
-    void        (*Composite) (PixmapPtr         pDst,
+    void        (*composite) (PixmapPtr         pDst,
                               int       srcX,
                               int        srcY,
                               int        maskX,
@@ -366,22 +366,22 @@ typedef struct _UxaDriver {
                               int        height);
 
     /**
-     * DoneComposite() finishes a set of Composite operations.
+     * done_composite() finishes a set of composite operations.
      *
      * @param pPixmap destination pixmap.
      *
-     * The DoneComposite() call is called at the end of a series of consecutive
-     * Composite() calls following a successful PrepareComposite().  This allows
+     * The done_composite() call is called at the end of a series of consecutive
+     * composite() calls following a successful prepare_composite().  This allows
      * drivers to finish up emitting drawing commands that were buffered, or
-     * clean up state from PrepareComposite().
+     * clean up state from prepare_composite().
      *
-     * This call is required if PrepareComposite() ever succeeds.
+     * This call is required if prepare_composite() ever succeeds.
      */
-    void        (*DoneComposite) (PixmapPtr         pDst);
+    void        (*done_composite) (PixmapPtr         pDst);
     /** @} */
 
     /**
-     * UploadToScreen() loads a rectangle of data from src into pDst.
+     * put_image() loads a rectangle of data from src into pDst.
      *
      * @param pDst destination pixmap
      * @param x destination X coordinate.
@@ -391,27 +391,23 @@ typedef struct _UxaDriver {
      * @param src pointer to the beginning of the source data
      * @param src_pitch pitch (in bytes) of the lines of source data.
      *
-     * UploadToScreen() copies data in system memory beginning at src (with
+     * put_image() copies data in system memory beginning at src (with
      * pitch src_pitch) into the destination pixmap from (x, y) to
      * (x + width, y + height).  This is typically done with hostdata uploads,
      * where the CPU sets up a blit command on the hardware with instructions
      * that the blit data will be fed through some sort of aperture on the card.
      *
-     * If UploadToScreen() is performed asynchronously, it is up to the driver
-     * to call uxa_mark_sync().  This is in contrast to most other acceleration
-     * calls in UXA.
-     *
-     * UploadToScreen() can aid in pixmap migration, but is most important for
-     * the performance of uxa_glyphs() (antialiased font drawing) by allowing
-     * pipelining of data uploads, avoiding a sync of the card after each glyph.
+     * put_image() is most important for the performance of uxa_glyphs()
+     * (antialiased font drawing) by allowing pipelining of data uploads,
+     * avoiding a sync of the card after each glyph.
      * 
      * @return TRUE if the driver successfully uploaded the data.  FALSE
      * indicates that UXA should fall back to doing the upload in software.
      *
-     * UploadToScreen() is not required, but is recommended if Composite
+     * put_image() is not required, but is recommended if composite
      * acceleration is supported.
      */
-    Bool        (*UploadToScreen) (PixmapPtr            pDst,
+    Bool        (*put_image) (PixmapPtr            pDst,
 				   int                  x,
 				   int                  y,
 				   int                  w,
@@ -420,33 +416,7 @@ typedef struct _UxaDriver {
                                    int                  src_pitch);
 
     /**
-     * UploadToScratch() is used to upload a pixmap to a scratch area for
-     * acceleration.
-     *
-     * @param pSrc source pixmap in host memory
-     * @param pDst fake, scratch pixmap to be set up in offscreen memory.
-     *
-     * The UploadToScratch() call was added to support Xati before Xati had
-     * support for hostdata uploads and before uxa_glyphs() was written.  It
-     * behaves incorrectly (uses an invalid pixmap as pDst),
-     * and UploadToScreen() should be implemented instead.
-     *
-     * Drivers implementing UploadToScratch() had to set up space (likely in a
-     * statically allocated area) in offscreen memory, copy pSrc to that
-     * scratch area, and adust pDst->devKind for the pitch and
-     * pDst->devPrivate.ptr for the pointer to that scratch area.  The driver
-     * was responsible for syncing (as it was implemented using memcpy() in
-     * Xati), and only the data from the last UploadToScratch() was guaranteed
-     * to be valid at any given time.
-     *
-     * UploadToScratch() should not be implemented by drivers, and will likely
-     * be removed in a future version of UXA.
-     */
-    Bool        (*UploadToScratch) (PixmapPtr           pSrc,
-                                    PixmapPtr           pDst);
-
-    /**
-     * DownloadFromScreen() loads a rectangle of data from pSrc into dst
+     * get_image() loads a rectangle of data from pSrc into dst
      *
      * @param pSrc source pixmap
      * @param x source X coordinate.
@@ -456,108 +426,72 @@ typedef struct _UxaDriver {
      * @param dst pointer to the beginning of the destination data
      * @param dst_pitch pitch (in bytes) of the lines of destination data.
      *
-     * DownloadFromScreen() copies data from offscreen memory in pSrc from
+     * get_image() copies data from offscreen memory in pSrc from
      * (x, y) to (x + width, y + height), to system memory starting at
      * dst (with pitch dst_pitch).  This would usually be done
      * using scatter-gather DMA, supported by a DRM call, or by blitting to AGP
      * and then synchronously reading from AGP.  Because the implementation
      * might be synchronous, UXA leaves it up to the driver to call
-     * uxa_mark_sync() if DownloadFromScreen() was asynchronous.  This is in
+     * uxa_mark_sync() if get_image() was asynchronous.  This is in
      * contrast to most other acceleration calls in UXA.
      *
-     * DownloadFromScreen() can aid in the largest bottleneck in pixmap
-     * migration, which is the read from framebuffer when evicting pixmaps from
-     * framebuffer memory.  Thus, it is highly recommended, even though
-     * implementations are typically complicated.
-     * 
      * @return TRUE if the driver successfully downloaded the data.  FALSE
      * indicates that UXA should fall back to doing the download in software.
      *
-     * DownloadFromScreen() is not required, but is highly recommended.
+     * get_image() is not required, but is highly recommended.
      */
-    Bool (*DownloadFromScreen)(PixmapPtr pSrc,
+    Bool (*get_image)(PixmapPtr pSrc,
                                int x,  int y,
                                int w,  int h,
                                char *dst,  int dst_pitch);
 
-    /**
-     * MarkSync() requests that the driver mark a synchronization point,
-     * returning an driver-defined integer marker which could be requested for
-     * synchronization to later in WaitMarker().  This might be used in the
-     * future to avoid waiting for full hardware stalls before accessing pixmap
-     * data with the CPU, but is not important in the current incarnation of
-     * UXA.
-     *
-     * Note that drivers should call uxa_mark_sync() when they have done some
-     * acceleration, rather than their own MarkSync() handler, as otherwise UXA
-     * will be unaware of the driver's acceleration and not sync to it during
-     * fallbacks.
-     *
-     * MarkSync() is optional.
-     */
-    int		(*MarkSync)   (ScreenPtr pScreen);
-
-    /**
-     * WaitMarker() waits for all rendering before the given marker to have
-     * completed.  If the driver does not implement MarkSync(), marker is
-     * meaningless, and all rendering by the hardware should be completed before
-     * WaitMarker() returns.
-     *
-     * Note that drivers should call uxa_wait_sync() to wait for all acceleration
-     * to finish, as otherwise UXA will be unaware of the driver having
-     * synchronized, resulting in excessive WaitMarker() calls.
-     *
-     * WaitMarker() is required of all drivers.
-     */
-    void	(*WaitMarker) (ScreenPtr pScreen, int marker);
-
     /** @{ */
     /**
-     * PrepareAccess() is called before CPU access to an offscreen pixmap.
+     * prepare_access() is called before CPU access to an offscreen pixmap.
      *
      * @param pPix the pixmap being accessed
      * @param index the index of the pixmap being accessed.
      *
-     * PrepareAccess() will be called before CPU access to an offscreen pixmap.
+     * prepare_access() will be called before CPU access to an offscreen pixmap.
      * This can be used to set up hardware surfaces for byteswapping or
      * untiling, or to adjust the pixmap's devPrivate.ptr for the purpose of
      * making CPU access use a different aperture.
      *
      * The index is one of #UXA_PREPARE_DEST, #UXA_PREPARE_SRC, or
      * #UXA_PREPARE_MASK, indicating which pixmap is in question.  Since only up
-     * to three pixmaps will have PrepareAccess() called on them per operation,
+     * to three pixmaps will have prepare_access() called on them per operation,
      * drivers can have a small, statically-allocated space to maintain state
-     * for PrepareAccess() and FinishAccess() in.  Note that the same pixmap may
-     * have PrepareAccess() called on it more than once, for uxample when doing
-     * a copy within the same pixmap (so it gets PrepareAccess as()
+     * for prepare_access() and finish_access() in.  Note that the same pixmap may
+     * have prepare_access() called on it more than once, for uxample when doing
+     * a copy within the same pixmap (so it gets prepare_access as()
      * #UXA_PREPARE_DEST and then as #UXA_PREPARE_SRC).
      *
-     * PrepareAccess() may fail.  An uxample might be the case of hardware that
-     * can set up 1 or 2 surfaces for CPU access, but not 3.  If PrepareAccess()
+     * prepare_access() may fail.  An uxample might be the case of hardware that
+     * can set up 1 or 2 surfaces for CPU access, but not 3.  If prepare_access()
      * fails, UXA will migrate the pixmap to system memory.
-     * DownloadFromScreen() must be implemented and must not fail if a driver
-     * wishes to fail in PrepareAccess().  PrepareAccess() must not fail when
+     * get_image() must be implemented and must not fail if a driver
+     * wishes to fail in prepare_access().  prepare_access() must not fail when
      * pPix is the visible screen, because the visible screen can not be
      * migrated.
      *
-     * @return TRUE if PrepareAccess() successfully prepared the pixmap for CPU
+     * @return TRUE if prepare_access() successfully prepared the pixmap for CPU
      * drawing.
-     * @return FALSE if PrepareAccess() is unsuccessful and UXA should use
-     * DownloadFromScreen() to migate the pixmap out.
+     * @return FALSE if prepare_access() is unsuccessful and UXA should use
+     * get_image() to migate the pixmap out.
      */
-    Bool	(*PrepareAccess)(PixmapPtr pPix, uxa_access_t access);
+    Bool	(*prepare_access)(PixmapPtr pPix, uxa_access_t access);
 
     /**
-     * FinishAccess() is called after CPU access to an offscreen pixmap.
+     * finish_access() is called after CPU access to an offscreen pixmap.
      *
      * @param pPix the pixmap being accessed
      * @param index the index of the pixmap being accessed.
      *
-     * FinishAccess() will be called after finishing CPU access of an offscreen
-     * pixmap set up by PrepareAccess().  Note that the FinishAccess() will not be
-     * called if PrepareAccess() failed.
+     * finish_access() will be called after finishing CPU access of an offscreen
+     * pixmap set up by prepare_access().  Note that the finish_access() will not be
+     * called if prepare_access() failed.
      */
-    void	(*FinishAccess)(PixmapPtr pPix);
+    void	(*finish_access)(PixmapPtr pPix);
 
     /**
      * PixmapIsOffscreen() is an optional driver replacement to
@@ -569,42 +503,42 @@ typedef struct _UxaDriver {
      *
      * uxa_pixmap_is_offscreen() is used to determine if a pixmap is in offscreen
      * memory, meaning that acceleration could probably be done to it, and that it
-     * will need to be wrapped by PrepareAccess()/FinishAccess() when accessing it
+     * will need to be wrapped by prepare_access()/finish_access() when accessing it
      * with the CPU.
      *
      *
      */
-    Bool	(*PixmapIsOffscreen)(PixmapPtr pPix);
+    Bool	(*pixmap_is_offscreen)(PixmapPtr pPix);
 
     /**
-     * maxPitchPixels controls the pitch limitation for rendering from
+     * max_pitch_pixels controls the pitch limitation for rendering from
      * the card.
      * The driver should never receive a request for rendering a pixmap
-     * that has a pitch (in pixels) beyond maxPitchPixels.
+     * that has a pitch (in pixels) beyond max_pitch_pixels.
      *
      * Setting this field is optional -- if your hardware doesn't have
      * a pitch limitation in pixels, don't set this. If neither this value
-     * nor maxPitchBytes is set, then maxPitchPixels is set to maxX.
-     * If set, it must not be smaller than maxX.
+     * nor max_pitch_bytes is set, then max_pitch_pixels is set to max_x.
+     * If set, it must not be smaller than max_x.
      *
-     * @sa maxPitchBytes
+     * @sa max_pitch_bytes
      */
-    int maxPitchPixels;
+    int max_pitch_pixels;
 
     /**
-     * maxPitchBytes controls the pitch limitation for rendering from
+     * max_pitch_bytes controls the pitch limitation for rendering from
      * the card.
      * The driver should never receive a request for rendering a pixmap
-     * that has a pitch (in bytes) beyond maxPitchBytes.
+     * that has a pitch (in bytes) beyond max_pitch_bytes.
      *
      * Setting this field is optional -- if your hardware doesn't have
      * a pitch limitation in bytes, don't set this.
-     * If set, it must not be smaller than maxX * 4.
-     * There's no default value for maxPitchBytes.
+     * If set, it must not be smaller than max_x * 4.
+     * There's no default value for max_pitch_bytes.
      *
-     * @sa maxPitchPixels
+     * @sa max_pitch_pixels
      */
-    int maxPitchBytes;
+    int max_pitch_bytes;
 
     /** @} */
 } uxa_driver_t;
@@ -629,15 +563,6 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver);
 
 void
 uxa_driver_fini(ScreenPtr pScreen);
-
-void
-uxa_mark_sync(ScreenPtr pScreen);
-
-void
-uxa_wait_sync(ScreenPtr pScreen);
-
-void
-uxaEnableDisableFBAccess (int index, Bool enable);
 
 CARD32
 uxa_get_pixmap_first_pixel (PixmapPtr pPixmap);

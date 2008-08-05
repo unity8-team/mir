@@ -291,7 +291,7 @@ uxa_try_driver_solid_fill(PicturePtr	pSrc,
 	return -1;
     }
 
-    if (!(*uxa_screen->info->PrepareSolid) (pDstPix, GXcopy, 0xffffffff, pixel))
+    if (!(*uxa_screen->info->prepare_solid) (pDstPix, GXcopy, 0xffffffff, pixel))
     {
 	REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 	return -1;
@@ -302,60 +302,46 @@ uxa_try_driver_solid_fill(PicturePtr	pSrc,
 
     while (nbox--)
     {
-	(*uxa_screen->info->Solid) (pDstPix, pbox->x1, pbox->y1, pbox->x2, pbox->y2);
+	(*uxa_screen->info->solid) (pDstPix, pbox->x1, pbox->y1, pbox->x2, pbox->y2);
 	pbox++;
     }
 
-    (*uxa_screen->info->DoneSolid) (pDstPix);
-    uxa_mark_sync(pDst->pDrawable->pScreen);
+    (*uxa_screen->info->done_solid) (pDstPix);
 
     REGION_UNINIT(pDst->pDrawable->pScreen, &region);
     return 1;
 }
 
 static int
-uxa_try_driver_composite_rects(CARD8	       op,
-			   PicturePtr	       pSrc,
-			   PicturePtr	       pDst,
-			   int                 nrect,
-			   uxa_composite_rect_t *rects)
+uxa_try_driver_composite_rects(CARD8		    op,
+			       PicturePtr	    pSrc,
+			       PicturePtr	    pDst,
+			       int		    nrect,
+			       uxa_composite_rect_t *rects)
 {
     uxa_screen_t    *uxa_screen = uxa_get_screen(pDst->pDrawable->pScreen);
     int src_off_x, src_off_y, dst_off_x, dst_off_y;
     PixmapPtr pSrcPix, pDstPix;
-    struct _Pixmap scratch;
 
-    if (!uxa_screen->info->PrepareComposite)
+    if (!uxa_screen->info->prepare_composite)
 	return -1;
 
-    pSrcPix = uxa_get_drawable_pixmap(pSrc->pDrawable);
-
-    pDstPix = uxa_get_drawable_pixmap(pDst->pDrawable);
-
-    if (uxa_screen->info->CheckComposite &&
-	!(*uxa_screen->info->CheckComposite) (op, pSrc, NULL, pDst))
+    if (uxa_screen->info->check_composite &&
+	!(*uxa_screen->info->check_composite) (op, pSrc, NULL, pDst))
     {
 	return -1;
     }
     
-    uxa_get_drawable_deltas (pDst->pDrawable, pDstPix, &dst_off_x, &dst_off_y);
-	
-    pSrcPix = uxa_get_offscreen_pixmap (pSrc->pDrawable, &src_off_x, &src_off_y);
-    if (!uxa_pixmap_is_offscreen(pDstPix))
+    pDstPix = uxa_get_offscreen_pixmap(pDst->pDrawable, &dst_off_x, &dst_off_y);
+    if (!pDstPix)
 	return 0;
-    
-    if (!pSrcPix && uxa_screen->info->UploadToScratch)
-    {
-	pSrcPix = uxa_get_drawable_pixmap (pSrc->pDrawable);
-	if ((*uxa_screen->info->UploadToScratch) (pSrcPix, &scratch))
-	    pSrcPix = &scratch;
-    }
 
+    pSrcPix = uxa_get_offscreen_pixmap(pSrc->pDrawable, &src_off_x, &src_off_y);
     if (!pSrcPix)
 	return 0;
 
-    if (!(*uxa_screen->info->PrepareComposite) (op, pSrc, NULL, pDst, pSrcPix,
-					     NULL, pDstPix))
+    if (!(*uxa_screen->info->prepare_composite) (op, pSrc, NULL, pDst, pSrcPix,
+						 NULL, pDstPix))
 	return -1;
 
     while (nrect--)
@@ -384,14 +370,14 @@ uxa_try_driver_composite_rects(CARD8	       op,
 	
 	while (nbox--)
 	{
-	    (*uxa_screen->info->Composite) (pDstPix,
-					 pbox->x1 + xSrc,
-					 pbox->y1 + ySrc,
-					 0, 0,
-					 pbox->x1,
-					 pbox->y1,
-					 pbox->x2 - pbox->x1,
-					 pbox->y2 - pbox->y1);
+	    (*uxa_screen->info->composite) (pDstPix,
+					    pbox->x1 + xSrc,
+					    pbox->y1 + ySrc,
+					    0, 0,
+					    pbox->x1,
+					    pbox->y1,
+					    pbox->x2 - pbox->x1,
+					    pbox->y2 - pbox->y1);
 	    pbox++;
 	}
 
@@ -400,9 +386,7 @@ uxa_try_driver_composite_rects(CARD8	       op,
 
 	rects++;
     }
-    
-    (*uxa_screen->info->DoneComposite) (pDstPix);
-    uxa_mark_sync(pDst->pDrawable->pScreen);
+    (*uxa_screen->info->done_composite) (pDstPix);
 	
     return 1;
 }
@@ -467,12 +451,6 @@ uxa_try_driver_composite(CARD8		op,
     int nbox;
     int src_off_x, src_off_y, mask_off_x, mask_off_y, dst_off_x, dst_off_y;
     PixmapPtr pSrcPix, pMaskPix = NULL, pDstPix;
-    struct _Pixmap scratch;
-
-    pSrcPix = uxa_get_drawable_pixmap(pSrc->pDrawable);
-    pDstPix = uxa_get_drawable_pixmap(pDst->pDrawable);
-    if (pMask)
-	pMaskPix = uxa_get_drawable_pixmap(pMask->pDrawable);
 
     xDst += pDst->pDrawable->x;
     yDst += pDst->pDrawable->y;
@@ -485,8 +463,8 @@ uxa_try_driver_composite(CARD8		op,
     xSrc += pSrc->pDrawable->x;
     ySrc += pSrc->pDrawable->y;
 
-    if (uxa_screen->info->CheckComposite &&
-	!(*uxa_screen->info->CheckComposite) (op, pSrc, pMask, pDst))
+    if (uxa_screen->info->check_composite &&
+	!(*uxa_screen->info->check_composite) (op, pSrc, pMask, pDst))
     {
 	return -1;
     }
@@ -496,37 +474,23 @@ uxa_try_driver_composite(CARD8		op,
 				   width, height))
 	return 1;
 
-    uxa_get_drawable_deltas (pDst->pDrawable, pDstPix, &dst_off_x, &dst_off_y);
+    pDstPix = uxa_get_offscreen_pixmap (pDst->pDrawable, &dst_off_x, &dst_off_y);
+
+    pSrcPix = uxa_get_offscreen_pixmap (pSrc->pDrawable, &src_off_x, &src_off_y);
+
+    if (pMask)
+	pMaskPix = uxa_get_offscreen_pixmap (pMask->pDrawable, &mask_off_x,
+					     &mask_off_y);
+
+    if (!pDstPix || !pSrcPix || (pMask && !pMaskPix)) {
+	REGION_UNINIT(pDst->pDrawable->pScreen, &region);
+	return 0;
+    }
 
     REGION_TRANSLATE(pScreen, &region, dst_off_x, dst_off_y);
 
-    pSrcPix = uxa_get_offscreen_pixmap (pSrc->pDrawable, &src_off_x, &src_off_y);
-    if (pMask)
-	pMaskPix = uxa_get_offscreen_pixmap (pMask->pDrawable, &mask_off_x,
-					  &mask_off_y);
-
-    if (!uxa_pixmap_is_offscreen(pDstPix)) {
-	REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-	return 0;
-    }
-
-    if (!pSrcPix && (!pMask || pMaskPix) && uxa_screen->info->UploadToScratch) {
-	pSrcPix = uxa_get_drawable_pixmap (pSrc->pDrawable);
-	if ((*uxa_screen->info->UploadToScratch) (pSrcPix, &scratch))
-	    pSrcPix = &scratch;
-    } else if (pSrcPix && pMask && !pMaskPix && uxa_screen->info->UploadToScratch) {
-	pMaskPix = uxa_get_drawable_pixmap (pMask->pDrawable);
-	if ((*uxa_screen->info->UploadToScratch) (pMaskPix, &scratch))
-	    pMaskPix = &scratch;
-    }
-
-    if (!pSrcPix || (pMask && !pMaskPix)) {
-	REGION_UNINIT(pDst->pDrawable->pScreen, &region);
-	return 0;
-    }
-
-    if (!(*uxa_screen->info->PrepareComposite) (op, pSrc, pMask, pDst, pSrcPix,
-					     pMaskPix, pDstPix))
+    if (!(*uxa_screen->info->prepare_composite) (op, pSrc, pMask, pDst, pSrcPix,
+						 pMaskPix, pDstPix))
     {
 	REGION_UNINIT(pDst->pDrawable->pScreen, &region);
 	return -1;
@@ -543,19 +507,18 @@ uxa_try_driver_composite(CARD8		op,
 
     while (nbox--)
     {
-	(*uxa_screen->info->Composite) (pDstPix,
-				     pbox->x1 + xSrc,
-				     pbox->y1 + ySrc,
-				     pbox->x1 + xMask,
-				     pbox->y1 + yMask,
-				     pbox->x1,
-				     pbox->y1,
-				     pbox->x2 - pbox->x1,
-				     pbox->y2 - pbox->y1);
+	(*uxa_screen->info->composite) (pDstPix,
+					pbox->x1 + xSrc,
+					pbox->y1 + ySrc,
+					pbox->x1 + xMask,
+					pbox->y1 + yMask,
+					pbox->x1,
+					pbox->y1,
+					pbox->x2 - pbox->x1,
+					pbox->y2 - pbox->y1);
 	pbox++;
     }
-    (*uxa_screen->info->DoneComposite) (pDstPix);
-    uxa_mark_sync(pDst->pDrawable->pScreen);
+    (*uxa_screen->info->done_composite) (pDstPix);
 
     REGION_UNINIT(pDst->pDrawable->pScreen, &region);
     return 1;
@@ -628,10 +591,10 @@ uxa_try_magic_two_pass_composite_helper(CARD8 op,
 
     assert(op == PictOpOver);
 
-    if (uxa_screen->info->CheckComposite &&
-	(!(*uxa_screen->info->CheckComposite)(PictOpOutReverse, pSrc, pMask,
+    if (uxa_screen->info->check_composite &&
+	(!(*uxa_screen->info->check_composite)(PictOpOutReverse, pSrc, pMask,
 					   pDst) ||
-	 !(*uxa_screen->info->CheckComposite)(PictOpAdd, pSrc, pMask, pDst)))
+	 !(*uxa_screen->info->check_composite)(PictOpAdd, pSrc, pMask, pDst)))
     {
 	return -1;
     }
@@ -735,7 +698,7 @@ uxa_composite(CARD8	op,
 		DDXPointRec patOrg;
 
 		/* Let's see if the driver can do the repeat in one go */
-		if (uxa_screen->info->PrepareComposite && !pSrc->alphaMap &&
+		if (uxa_screen->info->prepare_composite && !pSrc->alphaMap &&
 		    !pDst->alphaMap)
 		{
 		    ret = uxa_try_driver_composite(op, pSrc, pMask, pDst, xSrc,
@@ -779,7 +742,7 @@ uxa_composite(CARD8	op,
 	(yMask + height) <= pMask->pDrawable->height)
 	    pMask->repeat = 0;
 
-    if (uxa_screen->info->PrepareComposite &&
+    if (uxa_screen->info->prepare_composite &&
 	!pSrc->alphaMap && (!pMask || !pMask->alphaMap) && !pDst->alphaMap)
     {
 	Bool isSrcSolid;

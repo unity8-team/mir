@@ -733,14 +733,3 @@ i830_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     ADVANCE_BATCH();
 }
-
-/**
- * Do any cleanup from the Composite operation.
- *
- * This is shared between i830 through i965.
- */
-void
-i830_done_composite(PixmapPtr pDst)
-{
-    /* NO-OP */
-}
