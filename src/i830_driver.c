@@ -2531,6 +2531,10 @@ I830BlockHandler(int i,
 	* fashion.
 	*/
        intel_batch_flush(pScrn);
+#ifdef XF86DRI
+       if (pI830->memory_manager)
+	 drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
+#endif
 
        pI830->need_mi_flush = FALSE;
 #ifdef XF86DRI
