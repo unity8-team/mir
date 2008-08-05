@@ -141,7 +141,7 @@ uxa_get_offscreen_pixmap (DrawablePtr drawable, int *xp, int *yp)
  * PrepareAccess() is necessary, and working around PrepareAccess() failure.
  */
 void
-uxa_prepare_access(DrawablePtr pDrawable, int index)
+uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access)
 {
     ScreenPtr	    pScreen = pDrawable->pScreen;
     uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
@@ -152,7 +152,7 @@ uxa_prepare_access(DrawablePtr pDrawable, int index)
 	return;
 
     if (uxa_screen->info->PrepareAccess)
-	(*uxa_screen->info->PrepareAccess) (pPixmap, index);
+	(*uxa_screen->info->PrepareAccess) (pPixmap, access);
 }
 
 /**
@@ -161,7 +161,7 @@ uxa_prepare_access(DrawablePtr pDrawable, int index)
  * It deals with calling the driver's FinishAccess() only if necessary.
  */
 void
-uxa_finish_access(DrawablePtr pDrawable, int index)
+uxa_finish_access(DrawablePtr pDrawable)
 {
     ScreenPtr	    pScreen = pDrawable->pScreen;
     uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
@@ -173,7 +173,7 @@ uxa_finish_access(DrawablePtr pDrawable, int index)
     if (!uxa_pixmap_is_offscreen (pPixmap))
 	return;
 
-    (*uxa_screen->info->FinishAccess) (pPixmap, index);
+    (*uxa_screen->info->FinishAccess) (pPixmap);
 }
 
 /**
@@ -209,10 +209,10 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 		 * allocated pixmap.  This isn't a problem yet, since we don't
 		 * put pixmaps in FB until at least one accelerated UXA op.
 		 */
-		uxa_prepare_access(&pOldTile->drawable, UXA_PREPARE_SRC);
+		uxa_prepare_access(&pOldTile->drawable, UXA_ACCESS_RO);
 		pNewTile = fb24_32ReformatTile (pOldTile,
 						pDrawable->bitsPerPixel);
-		uxa_finish_access(&pOldTile->drawable, UXA_PREPARE_SRC);
+		uxa_finish_access(&pOldTile->drawable);
 	    }
 	    if (pNewTile)
 	    {
@@ -227,9 +227,9 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 	if (!pGC->tileIsPixel && FbEvenTile (pGC->tile.pixmap->drawable.width *
 					     pDrawable->bitsPerPixel))
 	{
-	    uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_PREPARE_SRC);
+	    uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RW);
 	    fbPadPixmap (pGC->tile.pixmap);
-	    uxa_finish_access(&pGC->tile.pixmap->drawable, UXA_PREPARE_SRC);
+	    uxa_finish_access(&pGC->tile.pixmap->drawable);
 	}
 	/* Mask out the GCTile change notification, now that we've done FB's
 	 * job for it.
@@ -273,20 +273,20 @@ void
 uxa_prepare_access_window(WindowPtr pWin)
 {
     if (pWin->backgroundState == BackgroundPixmap) 
-        uxa_prepare_access(&pWin->background.pixmap->drawable, UXA_PREPARE_SRC);
+        uxa_prepare_access(&pWin->background.pixmap->drawable, UXA_ACCESS_RO);
 
     if (pWin->borderIsPixel == FALSE)
-        uxa_prepare_access(&pWin->border.pixmap->drawable, UXA_PREPARE_SRC);
+        uxa_prepare_access(&pWin->border.pixmap->drawable, UXA_ACCESS_RO);
 }
 
 void
 uxa_finish_access_window(WindowPtr pWin)
 {
     if (pWin->backgroundState == BackgroundPixmap) 
-        uxa_finish_access(&pWin->background.pixmap->drawable, UXA_PREPARE_SRC);
+        uxa_finish_access(&pWin->background.pixmap->drawable);
 
     if (pWin->borderIsPixel == FALSE)
-        uxa_finish_access(&pWin->border.pixmap->drawable, UXA_PREPARE_SRC);
+        uxa_finish_access(&pWin->border.pixmap->drawable);
 }
 
 static Bool
@@ -304,9 +304,9 @@ static RegionPtr
 uxa_bitmap_to_region(PixmapPtr pPix)
 {
   RegionPtr ret;
-  uxa_prepare_access(&pPix->drawable, UXA_PREPARE_SRC);
+  uxa_prepare_access(&pPix->drawable, UXA_ACCESS_RO);
   ret = fbPixmapToRegion(pPix);
-  uxa_finish_access(&pPix->drawable, UXA_PREPARE_SRC);
+  uxa_finish_access(&pPix->drawable);
   return ret;
 }
 

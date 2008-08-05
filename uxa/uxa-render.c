@@ -926,12 +926,12 @@ uxa_trapezoids (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	xoff += pDraw->x;
 	yoff += pDraw->y;
 
-	uxa_prepare_access(pDraw, UXA_PREPARE_DEST);
+	uxa_prepare_access(pDraw, UXA_ACCESS_RW);
 
 	for (; ntrap; ntrap--, traps++)
 	    (*ps->RasterizeTrapezoid) (pDst, traps, 0, 0);
 
-	uxa_finish_access(pDraw, UXA_PREPARE_DEST);
+	uxa_finish_access(pDraw);
     }
     else if (maskFormat)
     {
@@ -948,11 +948,11 @@ uxa_trapezoids (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	if (!pPicture)
 	    return;
 
-	uxa_prepare_access(pPicture->pDrawable, UXA_PREPARE_DEST);
+	uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW);
 	for (; ntrap; ntrap--, traps++)
 	    (*ps->RasterizeTrapezoid) (pPicture, traps,
 				       -bounds.x1, -bounds.y1);
-	uxa_finish_access(pPicture->pDrawable, UXA_PREPARE_DEST);
+	uxa_finish_access(pPicture->pDrawable);
 
 	xRel = bounds.x1 + xSrc - xDst;
 	yRel = bounds.y1 + ySrc - yDst;
@@ -1009,9 +1009,9 @@ uxa_triangles (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
     if (direct)
     {
 	DrawablePtr pDraw = pDst->pDrawable;
-	uxa_prepare_access(pDraw, UXA_PREPARE_DEST);
+	uxa_prepare_access(pDraw, UXA_ACCESS_RW);
 	(*ps->AddTriangles) (pDst, 0, 0, ntri, tris);
-	uxa_finish_access(pDraw, UXA_PREPARE_DEST);
+	uxa_finish_access(pDraw);
     }
     else if (maskFormat)
     {
@@ -1028,9 +1028,9 @@ uxa_triangles (CARD8 op, PicturePtr pSrc, PicturePtr pDst,
 	if (!pPicture)
 	    return;
 
-	uxa_prepare_access(pPicture->pDrawable, UXA_PREPARE_DEST);
+	uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW);
 	(*ps->AddTriangles) (pPicture, -bounds.x1, -bounds.y1, ntri, tris);
-	uxa_finish_access(pPicture->pDrawable, UXA_PREPARE_DEST);
+	uxa_finish_access(pPicture->pDrawable);
 	
 	xRel = bounds.x1 + xSrc - xDst;
 	yRel = bounds.y1 + ySrc - yDst;

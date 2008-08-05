@@ -350,10 +350,10 @@ uxa_check_composite (CARD8      op,
 
 /* uxa.c */
 void
-uxa_prepare_access(DrawablePtr pDrawable, int index);
+uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access);
 
 void
-uxa_finish_access(DrawablePtr pDrawable, int index);
+uxa_finish_access(DrawablePtr pDrawable);
 
 void
 uxa_get_drawable_deltas (DrawablePtr pDrawable, PixmapPtr pPixmap,

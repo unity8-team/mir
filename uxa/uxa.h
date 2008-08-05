@@ -43,6 +43,11 @@
 #define UXA_VERSION_MINOR   0
 #define UXA_VERSION_RELEASE 0
 
+typedef enum {
+	UXA_ACCESS_RO,
+	UXA_ACCESS_RW
+} uxa_access_t;
+
 /**
  * The UxaDriver structure is allocated through uxa_driver_alloc(), and then
  * fllled in by drivers.
@@ -251,11 +256,7 @@ typedef struct _UxaDriver {
      * of op with the given source, mask, and destination pictures.  This allows
      * drivers to check source and destination formats, supported operations,
      * transformations, and component alpha state, and send operations it can't
-     * support to software rendering early on.  This avoids costly pixmap
-     * migration to the wrong places when the driver can't accelerate
-     * operations.  Note that because migration hasn't happened, the driver
-     * can't know during CheckComposite() what the offsets and pitches of the
-     * pixmaps are going to be.
+     * support to software rendering early on.
      *
      * See PrepareComposite() for more details on likely issues that drivers
      * will have in accelerating Composite operations.
@@ -544,7 +545,7 @@ typedef struct _UxaDriver {
      * @return FALSE if PrepareAccess() is unsuccessful and UXA should use
      * DownloadFromScreen() to migate the pixmap out.
      */
-    Bool	(*PrepareAccess)(PixmapPtr pPix, int index);
+    Bool	(*PrepareAccess)(PixmapPtr pPix, uxa_access_t access);
 
     /**
      * FinishAccess() is called after CPU access to an offscreen pixmap.
@@ -554,9 +555,9 @@ typedef struct _UxaDriver {
      *
      * FinishAccess() will be called after finishing CPU access of an offscreen
      * pixmap set up by PrepareAccess().  Note that the FinishAccess() will not be
-     * called if PrepareAccess() failed and the pixmap was migrated out.
+     * called if PrepareAccess() failed.
      */
-    void	(*FinishAccess)(PixmapPtr pPix, int index);
+    void	(*FinishAccess)(PixmapPtr pPix);
 
     /**
      * PixmapIsOffscreen() is an optional driver replacement to
@@ -574,25 +575,6 @@ typedef struct _UxaDriver {
      *
      */
     Bool	(*PixmapIsOffscreen)(PixmapPtr pPix);
-
-	/** @name PrepareAccess() and FinishAccess() indices
-	 * @{
-	 */
-	/**
-	 * UXA_PREPARE_DEST is the index for a pixmap that may be drawn to or
-	 * read from.
-	 */ 
-	#define UXA_PREPARE_DEST	0
-	/**
-	 * UXA_PREPARE_SRC is the index for a pixmap that may be read from
-	 */
-	#define UXA_PREPARE_SRC		1
-	/**
-	 * UXA_PREPARE_SRC is the index for a second pixmap that may be read
-	 * from.
-	 */
-	#define UXA_PREPARE_MASK	2
-	/** @} */
 
     /**
      * maxPitchPixels controls the pitch limitation for rendering from

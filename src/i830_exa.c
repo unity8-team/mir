@@ -553,17 +553,34 @@ i830_uxa_get_pixmap_bo (PixmapPtr pixmap)
 }
 
 static Bool
-i830_uxa_prepare_access (PixmapPtr pixmap, int index)
+i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
     dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
 
     if (bo) {
 	intel_batch_flush(xf86Screens[pixmap->drawable.pScreen->myNum]);
-	if (dri_bo_map (bo, index == UXA_PREPARE_DEST) != 0)
+	if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
 	    return FALSE;
         pixmap->devPrivate.ptr = bo->virtual;
     }
     return TRUE;
+}
+
+static void
+i830_uxa_finish_access (PixmapPtr pixmap)
+{
+    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
+
+    if (bo) {
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	I830Ptr i830 = I830PTR(scrn);
+	
+	dri_bo_unmap (bo);
+	pixmap->devPrivate.ptr = NULL;
+	if (bo == i830->front_buffer->bo)
+	    i830->need_flush = TRUE;
+    }
 }
 
 void
@@ -575,22 +592,6 @@ i830_uxa_block_handler (ScreenPtr screen)
     if (i830->need_flush) {
 	dri_bo_wait_rendering (i830->front_buffer->bo);
 	i830->need_flush = FALSE;
-    }
-}
-
-static void
-i830_uxa_finish_access (PixmapPtr pixmap, int index)
-{
-    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
-
-    if (bo) {
-	ScreenPtr screen = pixmap->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
-	
-	dri_bo_unmap (bo);
-	if (bo == i830->front_buffer->bo)
-	    i830->need_flush = TRUE;
     }
 }
 
@@ -626,16 +627,8 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	    return NullPixmap;
 	}
 	
-	if (dri_bo_map (bo, FALSE) != 0) {
-	    fbDestroyPixmap (pixmap);
-	    dri_bo_unreference (bo);
-	    return NullPixmap;
-	}
-	    
-	screen->ModifyPixmapHeader (pixmap, w, h, 0, 0, stride,
-				    (pointer) bo->virtual);
+	screen->ModifyPixmapHeader (pixmap, w, h, 0, 0, stride, NULL);
     
-	dri_bo_unmap (bo);
 	i830_uxa_set_pixmap_bo (pixmap, bo);
     }
 
@@ -648,10 +641,8 @@ i830_uxa_destroy_pixmap (PixmapPtr pixmap)
     if (pixmap->refcnt == 1) {
 	dri_bo  *bo = i830_uxa_get_pixmap_bo (pixmap);
     
-	if (bo) {
-	    dri_bo_unmap (bo);
+	if (bo)
 	    dri_bo_unreference (bo);
-	}
     }
     fbDestroyPixmap (pixmap);
     return TRUE;
@@ -705,6 +696,7 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->Copy = I830EXACopy;
     i830->uxa_driver->DoneCopy = I830EXADoneCopy;
 
+#if 0
     /* Composite */
     if (!IS_I9XX(i830)) {
     	i830->uxa_driver->CheckComposite = i830_check_composite;
@@ -724,6 +716,7 @@ i830_uxa_init (ScreenPtr pScreen)
  	i830->uxa_driver->Composite = i965_composite;
  	i830->uxa_driver->DoneComposite = i830_done_composite;
     }
+#endif
 
     i830->uxa_driver->PrepareAccess = i830_uxa_prepare_access;
     i830->uxa_driver->FinishAccess = i830_uxa_finish_access;
