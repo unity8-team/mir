@@ -1514,23 +1514,18 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 static int
 i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 {
-    if (mem && mem->gem_handle)
+    if (mem && mem->bo)
     {
-	I830Ptr			pI830 = I830PTR(pScrn);
-	struct drm_gem_flink	flink;
-	int			ret;
-	
 	if (!mem->gem_name)
 	{
-	    flink.handle = mem->gem_handle;
-	    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_FLINK, &flink);
+	    int ret;
+	    ret = intel_bo_flink(mem->bo, &mem->gem_name);
 	    if (ret != 0)
 	    {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] failed to name buffer %d\n", -errno);
 		return -1;
 	    }
-	    mem->gem_name = flink.name;
 	}
 	return mem->gem_name;
     }

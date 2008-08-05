@@ -166,24 +166,16 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	return TRUE;
 
 #ifdef XF86DRI
-    if (mem->gem_handle != 0) {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct drm_i915_gem_pin pin;
-	int ret;
-
-	pin.handle = mem->gem_handle;
-	pin.alignment = mem->alignment;
-
-	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_PIN, &pin);
-	if (ret != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to pin %s: %s\n",
-			   mem->name, strerror(errno));
+    if (mem->bo != NULL) {
+	if (intel_bo_pin (mem->bo, mem->alignment) != 0) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to pin %s: %s\n",
+		       mem->name, strerror(errno));
 	    return FALSE;
 	}
 
 	mem->bound = TRUE;
-	mem->offset = pin.offset;
+	mem->offset = mem->bo->offset;
 	mem->end = mem->offset + mem->size;
     }
 #endif
@@ -219,15 +211,8 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
 #ifdef XF86DRI
-    if (mem->gem_handle != 0) {
-	I830Ptr pI830 = I830PTR(pScrn);
-	struct drm_i915_gem_unpin unpin;
-	int ret;
-
-	unpin.handle = mem->gem_handle;
-	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_UNPIN, &unpin);
-
-	if (ret == 0) {
+    if (mem->bo != NULL) {
+	if (intel_bo_unpin (mem->bo) == 0) {
 	    mem->bound = FALSE;
 	    /* Give buffer obviously wrong offset/end until it's re-pinned. */
 	    mem->offset = -1;
@@ -257,12 +242,9 @@ i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     i830_unbind_memory(pScrn, mem);
 
 #ifdef XF86DRI
-    if (mem->gem_handle != 0) {
+    if (mem->bo != NULL) {
 	I830Ptr pI830 = I830PTR(pScrn);
-	struct drm_gem_close close;
-
-	close.handle = mem->gem_handle;
-	ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CLOSE, &close);
+	dri_bo_unreference (mem->bo);
 	if (pI830->bo_list == mem) {
 	    pI830->bo_list = mem->next;
 	    if (mem->next)
@@ -493,6 +475,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 		i830_free_memory(pScrn, pI830->memory_manager);
 		pI830->memory_manager = NULL;
 	    }
+	    i830_init_bufmgr(pScrn);
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to allocate space for kernel memory manager\n");
@@ -735,8 +718,6 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     i830_memory *mem;
-    int ret;
-    struct drm_i915_gem_create create;
 
     assert((flags & NEED_PHYSICAL_ADDR) == 0);
 
@@ -754,16 +735,13 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
     }
 
-    memset(&create, 0, sizeof(create));
-    create.size = size;
+    mem->bo = dri_bo_alloc (pI830->bufmgr, name, size, align);
 
-    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_CREATE, &create);
-    if (ret) {
+    if (!mem->bo) {
 	xfree(mem->name);
 	xfree(mem);
 	return NULL;
     }
-    mem->gem_handle = create.handle;
 
     /* Give buffer obviously wrong offset/end until it's pinned. */
     mem->offset = -1;
@@ -777,10 +755,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     /* Bind it if we currently control the VT */
     if (pScrn->vtSema) {
 	if (!i830_bind_memory(pScrn, mem)) {
-	    struct drm_gem_close close;
-
-	    close.handle = mem->gem_handle;
-	    ioctl(pI830->drmSubFD, DRM_IOCTL_GEM_CLOSE, &close);
+	    dri_bo_unreference (mem->bo);
 	    xfree(mem->name);
 	    xfree(mem);
 	    return NULL;
@@ -908,19 +883,17 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
     mem->fence_nr = -1;
 
 #ifdef XF86DRI
-    if (mem->gem_handle != 0) {
-	struct drm_i915_gem_set_tiling set_tiling;
-	int ret;
+    if (mem->bo != 0) {
+	uint32_t    tiling_mode = I915_TILING_NONE;
+	int	    ret;
 
-	set_tiling.handle = mem->gem_handle;
 	if (tile_format == TILE_XMAJOR)
-	    set_tiling.tiling_mode = I915_TILING_X;
+	    tiling_mode = I915_TILING_X;
 	else
-	    set_tiling.tiling_mode = I915_TILING_Y;
+	    tiling_mode = I915_TILING_Y;
 
-	ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_SET_TILING,
-		    &set_tiling);
-	if (ret != 0 || set_tiling.tiling_mode == I915_TILING_NONE) {
+	ret = intel_bo_set_tiling (mem->bo, &tiling_mode);
+	if (ret != 0 || tiling_mode == I915_TILING_NONE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to set tiling on %s: %s\n",
 			   mem->name,

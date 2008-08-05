@@ -80,13 +80,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include "dri_bufmgr.h"
 #include "intel_bufmgr.h"
+#include "i915_drm.h"
 
 #ifdef I830_USE_EXA
 #include "exa.h"
-#include "uxa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
-Bool i830_uxa_init(ScreenPtr pScreen);
 unsigned long long I830TexOffsetStart(PixmapPtr pPix);
+#endif
+
+#ifdef I830_USE_UXA
+#include "uxa.h"
+Bool i830_uxa_init(ScreenPtr pScreen);
+dri_bo *i830_uxa_get_pixmap_bo (PixmapPtr pixmap);
+void i830_uxa_create_screen_resources(ScreenPtr pScreen);
+void i830_uxa_block_handler (ScreenPtr pScreen);
 #endif
 
 #ifdef I830_USE_XAA
@@ -194,7 +201,7 @@ struct _i830_memory {
     i830_memory *prev;
     /** @} */
 
-    uint32_t gem_handle;
+    dri_bo *bo;
     uint32_t alignment;
     uint32_t gem_name;
     Bool lifetime_fixed_offset;
@@ -530,6 +537,7 @@ typedef struct _I830Rec {
 #endif
 #ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
+   Bool need_flush;
 #endif
 #if defined(I830_USE_EXA) || defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
@@ -818,6 +826,7 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_pwrctx(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
+void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);

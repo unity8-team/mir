@@ -322,6 +322,8 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     Bool is_affine_src, is_affine_mask;
     Bool is_nearest = FALSE;
 
+    return FALSE;
+
     i830_exa_check_pitch_3d(pSrc);
     if (pMask)
 	i830_exa_check_pitch_3d(pMask);
@@ -360,7 +362,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(10);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 	OUT_BATCH(0x00000001); /* map 0 */
-	OUT_RELOC_PIXMAP(pSrc, 0);
+	OUT_RELOC_PIXMAP(pSrc, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
 
@@ -374,10 +376,10 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(16);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 6);
 	OUT_BATCH(0x00000003); /* map 0,1 */
-	OUT_RELOC_PIXMAP(pSrc, 0);
+	OUT_RELOC_PIXMAP(pSrc, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
-	OUT_RELOC_PIXMAP(pMask, 0);
+	OUT_RELOC_PIXMAP(pMask, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[4]);
 	OUT_BATCH(pI830->mapstate[5]);
 
@@ -398,7 +400,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
 		  BUF_3D_PITCH(dst_pitch));
-	OUT_RELOC_PIXMAP(pDst, 0);
+	OUT_RELOC_PIXMAP(pDst, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_BATCH(dst_format);

@@ -849,7 +849,7 @@ i830_update_front_offset(ScrnInfoPtr pScrn)
    /* If we are still in ScreenInit, there is no screen pixmap to be updated
     * yet.  We'll fix it up at CreateScreenResources.
     */
-   if (!pI830->starting) {
+   if (!pI830->starting && pI830->accel != ACCEL_UXA) {
       if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
 				       -1, -1, -1, -1, -1,
 				       (pointer)(pI830->FbBase +
@@ -876,6 +876,10 @@ i830CreateScreenResources(ScreenPtr pScreen)
 
    i830_update_front_offset(pScrn);
 
+#ifdef I830_USE_UXA
+   if (pI830->accel == ACCEL_UXA)
+      i830_uxa_create_screen_resources(pScreen);
+#endif
    return TRUE;
 }
 
@@ -2534,6 +2538,8 @@ I830BlockHandler(int i,
 #endif
     }
 
+    if (pI830->accel == ACCEL_UXA)
+	i830_uxa_block_handler (pScreen);
     /*
      * Check for FIFO underruns at block time (which amounts to just
      * periodically).  If this happens, it means our DSPARB or some other
@@ -2774,12 +2780,13 @@ i830_fake_fence_wait(void *priv, unsigned int fence)
    return 0;
 }
 
-static void
+void
 i830_init_bufmgr(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   assert(pI830->FbBase != NULL);
+   if (pI830->bufmgr) return;
+
    if (pI830->memory_manager) {
       int batch_size;
 
@@ -2792,6 +2799,7 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
       pI830->bufmgr = intel_bufmgr_gem_init(pI830->drmSubFD, batch_size);
       intel_bufmgr_gem_enable_reuse(pI830->bufmgr);
    } else {
+      assert(pI830->FbBase != NULL);
       pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
 					     pI830->FbBase +
 					     pI830->fake_bufmgr_mem->offset,
@@ -3412,7 +3420,7 @@ I830LeaveVT(int scrnIndex, int flags)
    }
 #endif /* XF86DRI */
 
-   if (pI830->useEXA && IS_I965G(pI830))
+   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) && IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
    if (pI830->AccelInfoRec)
@@ -3465,7 +3473,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    intel_batch_init(pScrn);
 
-   if (pI830->useEXA && IS_I965G(pI830))
+   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) && IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (i830_check_error_state(pScrn)) {

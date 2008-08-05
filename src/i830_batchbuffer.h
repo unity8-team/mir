@@ -74,12 +74,24 @@ intel_batch_emit_reloc (I830Ptr  pI830,
 }
 
 static inline void
-intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap, uint32_t delta)
+intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
+			      uint32_t read_domains, uint32_t write_domain,
+			      uint32_t delta)
 {
+#if I830_USE_UXA
+    dri_bo *bo = i830_uxa_get_pixmap_bo(pPixmap);
+#endif
+    uint32_t offset;
     assert(pI830->batch_ptr != NULL);
     assert(intel_batch_space(pI830) >= 4);
-    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) =
-	intel_get_pixmap_offset(pPixmap) + delta;
+#if I830_USE_UXA
+    if (bo) {
+	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
+	return;
+    }
+#endif
+    offset = intel_get_pixmap_offset(pPixmap);
+    *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = offset + delta;
     pI830->batch_used += 4;
 }
 
@@ -88,8 +100,8 @@ intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap, uint32_t delta)
 #define OUT_RELOC(bo, read_domains, write_domains, delta) \
 	intel_batch_emit_reloc (pI830, bo, read_domains, write_domains, delta)
 
-#define OUT_RELOC_PIXMAP(pPixmap, delta)	\
-	intel_batch_emit_reloc_pixmap(pI830, pPixmap, delta)
+#define OUT_RELOC_PIXMAP(pPixmap, reads, write, delta)	\
+	intel_batch_emit_reloc_pixmap(pI830, pPixmap, reads, write, delta)
 
 union intfloat {
 	float f;

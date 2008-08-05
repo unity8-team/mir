@@ -67,7 +67,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
 {
-#ifdef I830_USE_EXA
+#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
