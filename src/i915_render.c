@@ -322,8 +322,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
     Bool is_affine_src, is_affine_mask;
     Bool is_nearest = FALSE;
 
-    return FALSE;
-
     i830_exa_check_pitch_3d(pSrc);
     if (pMask)
 	i830_exa_check_pitch_3d(pMask);

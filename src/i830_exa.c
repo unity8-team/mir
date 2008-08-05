@@ -179,7 +179,6 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long pitch;
 
-    I830FALLBACK("solid");
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
@@ -266,7 +265,6 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    I830FALLBACK("copy");
     if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
@@ -560,10 +558,10 @@ i830_uxa_prepare_access (PixmapPtr pixmap, int index)
     dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
 
     if (bo) {
+	intel_batch_flush(xf86Screens[pixmap->drawable.pScreen->myNum]);
 	if (dri_bo_map (bo, index == UXA_PREPARE_DEST) != 0)
 	    return FALSE;
-	assert (pixmap->devPrivate.ptr == bo->virtual);
-	pixmap->devPrivate.ptr = bo->virtual;
+        pixmap->devPrivate.ptr = bo->virtual;
     }
     return TRUE;
 }
@@ -597,9 +595,9 @@ i830_uxa_finish_access (PixmapPtr pixmap, int index)
 }
 
 static Bool
-i830_uxa_pixmap_is_offscreen(PixmapPtr pPixmap)
+i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-    return i830_uxa_get_pixmap_bo (pPixmap) != NULL;
+    return i830_uxa_get_pixmap_bo (pixmap) != NULL;
 }
 
 static PixmapPtr
@@ -667,9 +665,6 @@ void i830_uxa_create_screen_resources(ScreenPtr pScreen)
 
     if (bo != NULL) {
 	PixmapPtr   pixmap = pScreen->GetScreenPixmap(pScreen);
-	dri_bo_map (bo, i830->front_buffer->alignment);
-	pixmap->devPrivate.ptr = bo->virtual;
-	dri_bo_unmap (bo);
 	i830_uxa_set_pixmap_bo (pixmap, bo);
     }
 }
