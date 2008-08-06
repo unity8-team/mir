@@ -1582,11 +1582,11 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #ifdef I830_USE_XAA
       pI830->accel = ACCEL_XAA;
 #endif
-#ifdef I830_USE_EXA
-      pI830->accel = ACCEL_EXA;
-#endif
 #ifdef I830_USE_UXA
       pI830->accel = ACCEL_UXA;
+#endif
+#ifdef I830_USE_EXA
+      pI830->accel = ACCEL_EXA;
 #endif
 #if I830_USE_XAA + I830_USE_EXA + I830_USE_UXA >= 2
        from = X_DEFAULT;
