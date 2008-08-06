@@ -508,6 +508,8 @@ uxa_poly_point(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
     }
 
     prect = xalloc(sizeof(xRectangle) * npt);
+    if (!prect)
+	return;
     for (i = 0; i < npt; i++) {
 	prect[i].x = ppt[i].x;
 	prect[i].y = ppt[i].y;
@@ -543,6 +545,8 @@ uxa_poly_lines(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
     }
 
     prect = xalloc(sizeof(xRectangle) * (npt - 1));
+    if (!prect)
+	return;
     x1 = ppt[0].x;
     y1 = ppt[0].y;
     /* If we have any non-horizontal/vertical, fall back. */
@@ -612,6 +616,8 @@ uxa_poly_segment (DrawablePtr pDrawable, GCPtr pGC, int nseg,
     }
 
     prect = xalloc(sizeof(xRectangle) * nseg);
+    if (!prect)
+	return;
     for (i = 0; i < nseg; i++) {
 	if (pSeg[i].x1 < pSeg[i].x2) {
 	    prect[i].x = pSeg[i].x1;
