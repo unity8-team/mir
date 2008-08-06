@@ -2759,13 +2759,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    RADEONSetupGenericConnectors(pScrn);
     }
 
-    if (!pRADEONEnt->HasCRTC2) {
-	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA)
-		info->BiosConnector[i].DACType = DAC_PRIMARY;
-	}
-    }
-
     /* parse connector table option */
     optstr = (char *)xf86GetOptValString(info->Options, OPTION_CONNECTORTABLE);
 
