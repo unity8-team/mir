@@ -68,26 +68,6 @@ typedef struct _UxaDriver {
      */
     int flags;
 
-    /** @{ */
-    /**
-     * max_x controls the X coordinate limitation for rendering from the card.
-     * The driver should never receive a request for rendering beyond max_x
-     * in the X direction from the origin of a pixmap.
-     */
-    int max_x;
-
-    /**
-     * max_y controls the Y coordinate limitation for rendering from the card.
-     * The driver should never receive a request for rendering beyond max_y
-     * in the Y direction from the origin of a pixmap.
-     */
-    int max_y;
-    /** @} */
-
-    /* private */
-    Bool	      needsSync;
-    int               lastMarker;
-
     /** @name solid
      * @{
      */
@@ -509,36 +489,6 @@ typedef struct _UxaDriver {
      *
      */
     Bool	(*pixmap_is_offscreen)(PixmapPtr pPix);
-
-    /**
-     * max_pitch_pixels controls the pitch limitation for rendering from
-     * the card.
-     * The driver should never receive a request for rendering a pixmap
-     * that has a pitch (in pixels) beyond max_pitch_pixels.
-     *
-     * Setting this field is optional -- if your hardware doesn't have
-     * a pitch limitation in pixels, don't set this. If neither this value
-     * nor max_pitch_bytes is set, then max_pitch_pixels is set to max_x.
-     * If set, it must not be smaller than max_x.
-     *
-     * @sa max_pitch_bytes
-     */
-    int max_pitch_pixels;
-
-    /**
-     * max_pitch_bytes controls the pitch limitation for rendering from
-     * the card.
-     * The driver should never receive a request for rendering a pixmap
-     * that has a pitch (in bytes) beyond max_pitch_bytes.
-     *
-     * Setting this field is optional -- if your hardware doesn't have
-     * a pitch limitation in bytes, don't set this.
-     * If set, it must not be smaller than max_x * 4.
-     * There's no default value for max_pitch_bytes.
-     *
-     * @sa max_pitch_pixels
-     */
-    int max_pitch_bytes;
 
     /** @} */
 } uxa_driver_t;

@@ -720,9 +720,6 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->uxa_major = 1;
     i830->uxa_driver->uxa_minor = 0;
 
-    i830->uxa_driver->max_x = i830->accel_max_x;
-    i830->uxa_driver->max_y = i830->accel_max_y;
-
     /* Solid fill */
     i830->uxa_driver->prepare_solid = I830EXAPrepareSolid;
     i830->uxa_driver->solid = I830EXASolid;

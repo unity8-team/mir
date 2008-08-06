@@ -408,20 +408,6 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 	return FALSE;
     }
 
-    /* If the driver doesn't set any max pitch values, we'll just assume
-     * that there's a limitation by pixels, and that it's the same as
-     * maxX.
-     *
-     * We want max_pitch_pixels or max_pitch_bytes to be set so we can check
-     * pixmaps against the max pitch in uxaCreatePixmap() -- it matters
-     * whether a pixmap is rejected because of its pitch or
-     * because of its width.
-     */
-    if (!uxa_driver->max_pitch_pixels && !uxa_driver->max_pitch_bytes)
-    {
-        uxa_driver->max_pitch_pixels = uxa_driver->max_x;
-    }
-
 #ifdef RENDER
     ps = GetPictureScreenIfSet(screen);
 #endif
