@@ -196,9 +196,10 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.0])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [libdrm xf86driproto glproto])
+        PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.4.0],[DRI_MM=yes], [DRI_MM=no])
@@ -208,17 +209,6 @@ if test "$DRI" = yes; then
 	if test "$have_damage_h" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
-
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"
-	AC_CHECK_TYPE(drm_i915_flip_t,
-		      [AC_DEFINE(HAVE_I915_FLIP, 1,
-			         [Have drm_i915_flip_t and related definitions])],
-		      [], [
-#include <inttypes.h>
-#include <i915_drm.h>
-])
-	CFLAGS="$save_CFLAGS"
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
@@ -261,6 +251,7 @@ XORG_CHECK_LINUXDOC
 
 AC_OUTPUT([
 	Makefile
+	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
 	src/bios_reader/Makefile

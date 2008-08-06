@@ -69,9 +69,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef XF86DRI
 #include "xf86drm.h"
-#ifdef XF86DRI_MM
-#include "xf86mm.h"
-#endif
 #include "sarea.h"
 #define _XF86DRI_SERVER_
 #include "dri.h"
@@ -81,11 +78,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "damage.h"
 #endif
 #endif
+#include "dri_bufmgr.h"
+#include "intel_bufmgr.h"
+#include "i915_drm.h"
 
 #ifdef I830_USE_EXA
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
 unsigned long long I830TexOffsetStart(PixmapPtr pPix);
+#endif
+
+#ifdef I830_USE_UXA
+#include "uxa.h"
+Bool i830_uxa_init(ScreenPtr pScreen);
+dri_bo *i830_uxa_get_pixmap_bo (PixmapPtr pixmap);
+void i830_uxa_create_screen_resources(ScreenPtr pScreen);
+void i830_uxa_block_handler (ScreenPtr pScreen);
 #endif
 
 #ifdef I830_USE_XAA
@@ -95,7 +103,6 @@ Bool I830XAAInit(ScreenPtr pScreen);
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
 #include "common.h"
-#include "i830_ring.h"
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
@@ -194,10 +201,10 @@ struct _i830_memory {
     i830_memory *prev;
     /** @} */
 
-#ifdef XF86DRI_MM
-    drmBO bo;
+    dri_bo *bo;
+    uint32_t alignment;
+    uint32_t gem_name;
     Bool lifetime_fixed_offset;
-#endif
 };
 
 typedef struct {
@@ -355,6 +362,14 @@ enum backlight_control {
     BCM_KERNEL,
 };
 
+typedef enum accel_method {
+    ACCEL_UNINIT = 0,
+    ACCEL_NONE,
+    ACCEL_XAA,
+    ACCEL_EXA,
+    ACCEL_UXA
+} accel_method_t;
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -398,6 +413,8 @@ typedef struct _I830Rec {
    i830_memory *exa_offscreen;
    i830_memory *gen4_render_state_mem;
 #endif
+   i830_memory *fake_bufmgr_mem;
+
    /* Regions allocated either from the above pools, or from agpgart. */
    I830RingBuffer *LpRing;
 
@@ -407,6 +424,17 @@ typedef struct _I830Rec {
    unsigned int ring_used;
    /** Offset in the ring for the next DWORD emit */
    uint32_t ring_next;
+
+   dri_bufmgr *bufmgr;
+
+   uint8_t *batch_ptr;
+   /** Byte offset in batch_ptr for the next dword to be emitted. */
+   unsigned int batch_used;
+   /** Position in batch_ptr at the start of the current BEGIN_BATCH */
+   unsigned int batch_emit_start;
+   /** Number of bytes to be emitted in the current BEGIN_BATCH. */
+   uint32_t batch_emitting;
+   dri_bo *batch_bo;
 
 #ifdef I830_XV
    /* For Xvideo */
@@ -445,6 +473,8 @@ typedef struct _I830Rec {
 #endif
 #endif
 
+   Bool need_mi_flush;
+
    Bool NeedRingBufferLow;
    Bool allowPageFlip;
    Bool TripleBuffer;
@@ -481,8 +511,7 @@ typedef struct _I830Rec {
 
    Bool fence_used[FENCE_NEW_NR];
 
-   Bool useEXA;
-   Bool noAccel;
+   accel_method_t accel;
    Bool SWCursor;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
@@ -503,8 +532,19 @@ typedef struct _I830Rec {
 
 #ifdef I830_USE_EXA
    ExaDriverPtr	EXADriverPtr;
+#endif
+#ifdef I830_USE_UXA
+   uxa_driver_t *uxa_driver;
+   Bool need_flush;
+   Bool need_sync;
+#endif
+#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
 #endif
+   int accel_pixmap_pitch_alignment;
+   int accel_pixmap_offset_alignment;
+   int accel_max_x;
+   int accel_max_y;
 
    I830WriteIndexedByteFunc writeControl;
    I830ReadIndexedByteFunc readControl;
@@ -676,6 +716,12 @@ typedef struct _I830Rec {
 #define I830_SELECT_DEPTH	2
 #define I830_SELECT_THIRD	3
 
+unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
+unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
+
+/* Batchbuffer support macros and functions */
+#include "i830_batchbuffer.h"
+
 /* I830 specific functions */
 extern int I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis);
 extern void I830SetPIOAccess(I830Ptr pI830);
@@ -747,8 +793,6 @@ extern Bool I830DRISetHWS(ScrnInfoPtr pScrn);
 extern Bool I830DRIInstIrqHandler(ScrnInfoPtr pScrn);
 #endif
 
-unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
-unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -783,6 +827,7 @@ Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_pwrctx(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
+void i830_init_bufmgr(ScrnInfoPtr pScrn);
 #ifdef INTEL_XVMC
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
@@ -885,7 +930,7 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
     /* fbc depends on tiled surface. And we don't support tiled
      * front buffer with XAA now.
      */
-    if (!pI830->tiling || (IS_I965G(pI830) && !pI830->useEXA))
+    if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel <= ACCEL_XAA))
 	return FALSE;
     return TRUE;
 }
@@ -902,13 +947,6 @@ Bool i830_pixmap_tiled(PixmapPtr p);
     uint32_t pitch = intel_get_pixmap_pitch(p);\
     if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
 } while(0)
-
-/* Batchbuffer compatibility handling */
-#define BEGIN_BATCH(n) BEGIN_LP_RING(n)
-#define ENSURE_BATCH(n)
-#define OUT_BATCH(d) OUT_RING(d)
-#define OUT_BATCH_F(x) OUT_RING_F(x)
-#define ADVANCE_BATCH() ADVANCE_LP_RING()
 
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];

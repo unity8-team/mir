@@ -405,7 +405,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Current active ring head address: 
  */
-#define ACTHD                 0x2074
+#define ACTHD_I965                 0x2074
+#define ACTHD			   0x20C8
 
 /* Current primary/secondary DMA fetch addresses:
  */
@@ -490,6 +491,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   - new bits for i810
  *   - new register hwstam (mask)
  */
+#define HWS_PGA		     0x2080
 #define PWRCTXA		     0x2088 /* 965GM+ only */
 #define   PWRCTX_EN	     (1<<0)
 #define HWSTAM               0x2098 /* p290 */
@@ -2416,6 +2418,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_NOOP_ID_MASK			(1<<22 - 1)
 
 #define STATE3D_COLOR_FACTOR	((0x3<<29)|(0x1d<<24)|(0x01<<16))
+
+/* Batch */
+#define MI_BATCH_BUFFER		((0x30 << 23) | 1)
+#define MI_BATCH_BUFFER_START	(0x31 << 23)
+#define MI_BATCH_BUFFER_END	(0xA << 23)
+#define MI_BATCH_NON_SECURE		(1)
+#define MI_BATCH_NON_SECURE_I965	(1 << 8)
 
 /* STATE3D_FOG_MODE stuff */
 #define ENABLE_FOG_SOURCE	(1<<27)

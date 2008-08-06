@@ -43,11 +43,13 @@ struct idle_flags {
 };
 
 struct idle_flags i915_idle_flags[] = {
+#if 0
     {IDCT_DONE, "IDCT"},
     {IQ_DONE, "IQ"},
     {PR_DONE, "PR"},
     {VLD_DONE, "VLD"},
     {IP_DONE, "IP"},
+#endif
     {FBC_DONE, "FBC"},
     {BINNER_DONE, "BINNER"},
     {SF_DONE, "SF"},
@@ -66,7 +68,9 @@ struct idle_flags i915_idle_flags[] = {
     {PS_DONE, "PS"},
     {CC_DONE, "CC"},
     {MAP_FILTER_DONE, "map filter"},
+#if 0
     {MAP_L2_IDLE, "map L2"},
+#endif
 
     {0, "total"},
     {0, "other"},
@@ -105,8 +109,8 @@ setup_other_flags(I830Ptr pI830,
 	other_idle_flags &= ~idle_flags[i].instdone_flag;
 	total_idle_flags |= idle_flags[i].instdone_flag;
     }
-    idle_flags[i - 1].instdone_flag = total_idle_flags;
-    idle_flags[i].instdone_flag = other_idle_flags;
+    idle_flags[idle_flag_count - 2].instdone_flag = total_idle_flags;
+    idle_flags[idle_flag_count - 1].instdone_flag = other_idle_flags;
 }
 
 int main(int argc, char **argv)

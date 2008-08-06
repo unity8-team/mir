@@ -88,3 +88,4 @@ typedef struct _scrn {
 char *XNFprintf(const char *format, ...);
 void xf86DrvMsg(int scrnIndex, int severity, const char *format, ...);
 void i830DumpRegs(ScrnInfoPtr pScrn);
+void intel_i830rec_init(I830Ptr pI830);

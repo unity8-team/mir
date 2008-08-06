@@ -54,21 +54,25 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
+#include <errno.h>
+
 #include "xf86.h"
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
 #include "i830_debug.h"
+#include "i830_ring.h"
+#include "i915_drm.h"
 
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
 {
+#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef I830_USE_EXA
-    if (pI830->useEXA)
+    if (pI830->accel == ACCEL_EXA)
 	return exaGetPixmapOffset(pPix);
 #endif
     return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
@@ -77,17 +81,15 @@ intel_get_pixmap_offset(PixmapPtr pPix)
 unsigned long
 intel_get_pixmap_pitch(PixmapPtr pPix)
 {
+#ifdef I830_USE_EXA
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-#ifdef I830_USE_EXA
-    if (pI830->useEXA)
+    if (pI830->accel == ACCEL_EXA)
 	return exaGetPixmapPitch(pPix);
 #endif
-#ifdef I830_USE_XAA
     return (unsigned long)pPix->devKind;
-#endif
 }
 
 int
@@ -147,6 +149,9 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 #ifdef I830_USE_EXA
 	 pI830->EXADriverPtr = NULL;
 #endif
+#ifdef I830_USE_UXA
+	pI830->uxa_driver = NULL;
+#endif
 	 FatalError("lockup\n");
       }
 
@@ -168,12 +173,11 @@ void
 I830Sync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
 
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
-   if (pI830->noAccel)
+   if (pI830->accel == ACCEL_NONE)
        return;
 
 #ifdef XF86DRI
@@ -186,24 +190,40 @@ I830Sync(ScrnInfoPtr pScrn)
 
    if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
 
-   if (IS_I965G(pI830))
-      flags = 0;
+   I830EmitFlush(pScrn);
 
-   /* Send a flush instruction and then wait till the ring is empty.
-    * This is stronger than waiting for the blitter to finish as it also
-    * flushes the internal graphics caches.
-    */
-   
-   {
-      BEGIN_BATCH(2);
-      OUT_BATCH(MI_FLUSH | flags);
-      OUT_BATCH(MI_NOOP);		/* pad to quadword */
-      ADVANCE_BATCH();
+   intel_batch_flush(pScrn);
+
+   if (pI830->directRenderingEnabled) {
+       struct drm_i915_irq_emit emit;
+       struct drm_i915_irq_wait wait;
+       int ret;
+
+       /* Most of the uses of I830Sync while using GEM should actually be
+	* using set_domain on a specific buffer.  We're not there yet, so fake
+	* it up using irq_emit/wait.  It's still better than spinning on
+	* register reads for idle.
+	*/
+       emit.irq_seq = &wait.irq_seq;
+       ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_EMIT, &emit,
+			    sizeof(emit));
+       if (ret != 0)
+	   FatalError("Failure to emit IRQ: %s\n", strerror(-ret));
+
+       do {
+	   ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_WAIT, &wait,
+				 sizeof(wait));
+       } while (ret == -EINTR);
+
+       if (ret != 0)
+	   FatalError("Failure to wait for IRQ: %s\n", strerror(-ret));
+
+       if (!pI830->memory_manager)
+	   i830_refresh_ring(pScrn);
+   } else {
+       i830_wait_ring_idle(pScrn);
    }
 
-   i830_wait_ring_idle(pScrn);
-
-   pI830->LpRing->space = pI830->LpRing->mem->size - 8;
    pI830->nextColorExpandBuf = 0;
 }
 
@@ -259,15 +279,73 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
 Bool
 I830AccelInit(ScreenPtr pScreen)
 {
-#ifdef I830_USE_EXA
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->useEXA)
+    /* Limits are described in the BLT engine chapter under Graphics Data Size
+     * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
+     * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
+     *
+     * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
+     *
+     * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
+     * i965 limits 3D surface to 4kB-aligned offset if tiled.
+     * i965 limits 3D surfaces to w,h of ?,8192.
+     * i965 limits 3D surface to pitch of 1B - 128kB.
+     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
+     * i965 limits 3D surface pitch alignment to 512B if tiled.
+     * i965 limits 3D destination drawing rect to w,h of 8192,8192.
+     *
+     * i915 limits 3D textures to 4B-aligned offset if un-tiled.
+     * i915 limits 3D textures to ~4kB-aligned offset if tiled.
+     * i915 limits 3D textures to width,height of 2048,2048.
+     * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
+     * i915 limits 3D destination to ~4kB-aligned offset if tiled.
+     * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+     * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
+     * i915 limits 3D destination to POT aligned pitch if tiled.
+     * i915 limits 3D destination drawing rect to w,h of 2048,2048.
+     *
+     * i845 limits 3D textures to 4B-aligned offset if un-tiled.
+     * i845 limits 3D textures to ~4kB-aligned offset if tiled.
+     * i845 limits 3D textures to width,height of 2048,2048.
+     * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
+     * i845 limits 3D destination to 4B-aligned offset if un-tiled.
+     * i845 limits 3D destination to ~4kB-aligned offset if tiled.
+     * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
+     * i845 limits 3D destination drawing rect to w,h of 2048,2048.
+     *
+     * For the tiled issues, the only tiled buffer we draw to should be
+     * the front, which will have an appropriate pitch/offset already set up,
+     * so EXA doesn't need to worry.
+     */
+    if (IS_I965G(pI830)) {
+	pI830->accel_pixmap_offset_alignment = 4 * 2;
+	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_max_x = 8192;
+	pI830->accel_max_y = 8192;
+    } else {
+	pI830->accel_pixmap_offset_alignment = 4;
+	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_max_x = 2048;
+	pI830->accel_max_y = 2048;
+    }
+    switch (pI830->accel) {
+#ifdef I830_USE_UXA
+    case ACCEL_UXA:
+	return i830_uxa_init(pScreen);
+#endif
+#ifdef I830_USE_EXA
+    case ACCEL_EXA:
 	return I830EXAInit(pScreen);
 #endif
 #ifdef I830_USE_XAA
-    return I830XAAInit(pScreen);
+    case ACCEL_XAA:
+	return I830XAAInit(pScreen);
 #endif
+    case ACCEL_UNINIT:
+    case ACCEL_NONE:
+	break;
+    }
     return FALSE;
 }

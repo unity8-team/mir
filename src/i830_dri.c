@@ -65,6 +65,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -82,23 +85,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 
 #include "i915_drm.h"
-
-/* This block and the corresponding configure test can be removed when
- * libdrm >= 2.3.1 is required.
- */
-#ifndef HAVE_I915_FLIP
-
-#define DRM_VBLANK_FLIP 0x8000000
-
-typedef struct drm_i915_flip {
-   int pipes;
-} drm_i915_flip_t;
-
-#undef DRM_IOCTL_I915_FLIP
-#define DRM_IOCTL_I915_FLIP DRM_IOW(DRM_COMMAND_BASE + DRM_I915_FLIP, \
-				    drm_i915_flip_t)
-
-#endif
 
 #include "dristruct.h"
 
@@ -172,22 +158,31 @@ I830InitDma(ScrnInfoPtr pScrn)
    memset(&info, 0, sizeof(drmI830Init));
    info.func = I830_INIT_DMA;
 
-   info.ring_start = ring->mem->offset + pI830->LinearAddr;
-   info.ring_end = ring->mem->end + pI830->LinearAddr;
-   info.ring_size = ring->mem->size;
+   /* Initialize fields that are used in the absence of GEM */
+   if (!pI830->memory_manager) {
+       info.ring_start = ring->mem->offset + pI830->LinearAddr;
+       info.ring_end = ring->mem->end + pI830->LinearAddr;
+       info.ring_size = ring->mem->size;
 
-   info.mmio_offset = (unsigned int)pI830DRI->regs;
+       /* Not used as of the middle of GEM development. */
+       info.mmio_offset = (unsigned int)pI830DRI->regs;
+
+       /* Not used as of before GEM development */
+       info.front_offset = pI830->front_buffer->offset;
+       info.back_offset = pI830->back_buffer->offset;
+       info.depth_offset = pI830->depth_buffer->offset;
+       info.pitch = pScrn->displayWidth;
+       info.back_pitch = pScrn->displayWidth;
+       info.depth_pitch = pScrn->displayWidth;
+       info.w = pScrn->virtualX;
+       info.h = pScrn->virtualY;
+   }
+
 
    info.sarea_priv_offset = sizeof(XF86DRISAREARec);
 
-   info.front_offset = pI830->front_buffer->offset;
-   info.back_offset = pI830->back_buffer->offset;
-   info.depth_offset = pI830->depth_buffer->offset;
-   info.w = pScrn->virtualX;
-   info.h = pScrn->virtualY;
-   info.pitch = pScrn->displayWidth;
-   info.back_pitch = pScrn->displayWidth;
-   info.depth_pitch = pScrn->displayWidth;
+   /* This should probably have been moved alongside offset/pitch in the sarea.
+    */
    info.cpp = pI830->cpp;
 
    if (drmCommandWrite(pI830->drmSubFD, DRM_I830_INIT,
@@ -594,7 +589,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
-      if (pI830->useEXA)
+      if (pI830->accel == ACCEL_EXA)
 	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
 #endif
 
@@ -796,17 +791,20 @@ I830DRIDoMappings(ScreenPtr pScreen)
    xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
 	      (int)pI830DRI->regs);
 
-   if (drmAddMap(pI830->drmSubFD,
-		 (drm_handle_t)pI830->LpRing->mem->offset + pI830->LinearAddr,
-		 pI830->LpRing->mem->size, DRM_AGP, 0,
-		 (drmAddress) &pI830->ring_map) < 0) {
-      xf86DrvMsg(pScreen->myNum, X_ERROR,
-		 "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
+   if (!pI830->memory_manager) {
+       if (drmAddMap(pI830->drmSubFD,
+		     (drm_handle_t)pI830->LpRing->mem->offset +
+		     pI830->LinearAddr,
+		     pI830->LpRing->mem->size, DRM_AGP, 0,
+		     (drmAddress) &pI830->ring_map) < 0) {
+	   xf86DrvMsg(pScreen->myNum, X_ERROR,
+		      "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
+	   DRICloseScreen(pScreen);
+	   return FALSE;
+       }
+       xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
+		  (int)pI830->ring_map);
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
-	      (int)pI830->ring_map);
 
    if (!I830InitDma(pScrn)) {
       DRICloseScreen(pScreen);
@@ -957,6 +955,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
       xfree(pI830->pVisualConfigs);
    if (pI830->pVisualConfigsPriv)
       xfree(pI830->pVisualConfigsPriv);
+   pI830->directRenderingEnabled = FALSE;
 }
 
 static Bool
@@ -1071,9 +1070,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;
-      i830_refresh_ring(pScrn);
-
-      I830EmitFlush(pScrn);
+      if (!pI830->memory_manager)
+	  i830_refresh_ring(pScrn);
 
 #ifdef DAMAGE
       if (!pI830->pDamage && pI830->allowPageFlip) {
@@ -1127,8 +1125,6 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 	 }
       }
 #endif
-
-      I830EmitFlush(pScrn);
 
 #ifdef DAMAGE
       /* Try flipping back to the front page if necessary */
@@ -1515,6 +1511,27 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
 }
 #endif /* DRI_SUPPORTS_CLIP_NOTIFY */
 
+static int
+i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
+{
+    if (mem && mem->bo)
+    {
+	if (!mem->gem_name)
+	{
+	    int ret;
+	    ret = intel_bo_flink(mem->bo, &mem->gem_name);
+	    if (ret != 0)
+	    {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed to name buffer %d\n", -errno);
+		return -1;
+	    }
+	}
+	return mem->gem_name;
+    }
+    return -1;
+}
+
 /**
  * Update the SAREA fields with current buffer information.
  *
@@ -1546,20 +1563,10 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->log_tex_granularity = pI830->TexGranularity;
 
-   sarea->front_bo_handle = -1;
-   sarea->back_bo_handle = -1;
-   sarea->third_bo_handle = -1;
-   sarea->depth_bo_handle = -1;
-#ifdef XF86DRI_MM
-   if (pI830->front_buffer->bo.size)
-       sarea->front_bo_handle = pI830->front_buffer->bo.handle;
-   if (pI830->back_buffer->bo.size)
-       sarea->back_bo_handle = pI830->back_buffer->bo.handle;
-   if (pI830->third_buffer != NULL && pI830->third_buffer->bo.size)
-       sarea->third_bo_handle = pI830->third_buffer->bo.handle;
-   if (pI830->depth_buffer->bo.size)
-       sarea->depth_bo_handle = pI830->depth_buffer->bo.handle;
-#endif
+   sarea->front_bo_handle = i830_name_buffer (pScrn, pI830->front_buffer);
+   sarea->back_bo_handle = i830_name_buffer (pScrn, pI830->back_buffer);
+   sarea->third_bo_handle = i830_name_buffer (pScrn, pI830->third_buffer);
+   sarea->depth_bo_handle = i830_name_buffer (pScrn, pI830->depth_buffer);
 
    /* The rotation is now handled entirely by the X Server, so just leave the
     * DRI unaware.
@@ -1755,7 +1762,8 @@ I830DRILock(ScrnInfoPtr pScrn)
    if (pI830->directRenderingEnabled && !pI830->LockHeld) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       pI830->LockHeld = 1;
-      i830_refresh_ring(pScrn);
+      if (!pI830->memory_manager)
+	  i830_refresh_ring(pScrn);
       return TRUE;
    }
    else

@@ -1,4 +1,4 @@
-noinst_PROGRAMS = intel_reg_dumper intel_idle intel_stepping intel_hotplug
+noinst_PROGRAMS = intel_reg_dumper intel_idle intel_stepping intel_statuspage intel_hotplug
 
 intel_reg_dumper_SOURCES = \
 	main.c \
@@ -21,10 +21,16 @@ intel_hotplug_SOURCES = \
 intel_stepping_SOURCES = \
 	stepping.c
 
+intel_statuspage_SOURCES = \
+	statuspage.c \
+	reg_dumper.h \
+	util.c
+
 intel_hotplug_LDADD = $(PCIACCESS_LIBS)
 intel_reg_dumper_LDADD = $(PCIACCESS_LIBS)
 intel_idle_LDADD = $(PCIACCESS_LIBS)
 intel_stepping_LDADD = $(PCIACCESS_LIBS)
+intel_statuspage_LDADD = $(PCIACCESS_LIBS)
 
 AM_CFLAGS = $(PCIACCESS_CFLAGS) $(WARN_CFLAGS) \
 	-I$(srcdir)/.. -DREG_DUMPER

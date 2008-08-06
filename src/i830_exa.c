@@ -42,6 +42,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define ALWAYS_SYNC		0
+#define ALWAYS_FLUSH		0
 
 #ifdef DEBUG_I830FALLBACK
 #define I830FALLBACK(s, arg...)				\
@@ -121,6 +122,21 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     return FALSE;
 }
 
+static unsigned long
+i830_pixmap_pitch(PixmapPtr pixmap)
+{
+    return pixmap->devKind;
+}
+
+static int
+i830_pixmap_pitch_is_aligned(PixmapPtr pixmap)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    return i830_pixmap_pitch(pixmap) % pI830->accel_pixmap_pitch_alignment == 0;
+}
+
 static Bool
 i830_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 {
@@ -162,7 +178,7 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset, pitch;
+    unsigned long pitch;
 
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
@@ -172,12 +188,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
     i830_exa_check_pitch_2d(pPixmap);
 
-    offset = exaGetPixmapOffset(pPixmap);
-    pitch = exaGetPixmapPitch(pPixmap);
+    pitch = i830_pixmap_pitch(pPixmap);
 
-    if (offset % pI830->EXADriverPtr->pixmapOffsetAlign != 0)
-	I830FALLBACK("pixmap offset not aligned");
-    if (pitch % pI830->EXADriverPtr->pixmapPitchAlign != 0)
+    if (!i830_pixmap_pitch_is_aligned(pPixmap))
 	I830FALLBACK("pixmap pitch not aligned");
 
     pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16 ;
@@ -202,11 +215,10 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long offset, pitch;
+    unsigned long pitch;
     uint32_t cmd;
 
-    offset = exaGetPixmapOffset(pPixmap);
-    pitch = exaGetPixmapPitch(pPixmap);
+    pitch = i830_pixmap_pitch(pPixmap);
 
     {
 	BEGIN_BATCH(6);
@@ -227,7 +239,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	OUT_BATCH(pI830->BR[13] | pitch);
 	OUT_BATCH((y1 << 16) | (x1 & 0xffff));
 	OUT_BATCH((y2 << 16) | (x2 & 0xffff));
-	OUT_BATCH(offset);
+	OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 	OUT_BATCH(pI830->BR[16]);
 	ADVANCE_BATCH();
     }
@@ -236,10 +248,15 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 I830EXADoneSolid(PixmapPtr pPixmap)
 {
-#if ALWAYS_SYNC
+#if ALWAYS_SYNC || ALWAYS_FLUSH || 1
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
+#if ALWAYS_FLUSH || 1
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
     I830Sync(pScrn);
+#endif
 #endif
 }
 
@@ -285,15 +302,13 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t cmd;
     int dst_x2, dst_y2;
-    unsigned int dst_off, dst_pitch, src_off, src_pitch;
+    unsigned int dst_pitch, src_pitch;
 
     dst_x2 = dst_x1 + w;
     dst_y2 = dst_y1 + h;
 
-    dst_off = exaGetPixmapOffset(pDstPixmap);
-    dst_pitch = exaGetPixmapPitch(pDstPixmap);
-    src_off = exaGetPixmapOffset(pI830->pSrcPixmap);
-    src_pitch = exaGetPixmapPitch(pI830->pSrcPixmap);
+    dst_pitch = i830_pixmap_pitch(pDstPixmap);
+    src_pitch = i830_pixmap_pitch(pI830->pSrcPixmap);
 
     {
 	BEGIN_BATCH(8);
@@ -322,10 +337,10 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 	OUT_BATCH(pI830->BR[13] | dst_pitch);
 	OUT_BATCH((dst_y1 << 16) | (dst_x1 & 0xffff));
 	OUT_BATCH((dst_y2 << 16) | (dst_x2 & 0xffff));
-	OUT_BATCH(dst_off);
+	OUT_RELOC_PIXMAP(pDstPixmap, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 	OUT_BATCH((src_y1 << 16) | (src_x1 & 0xffff));
 	OUT_BATCH(src_pitch);
-	OUT_BATCH(src_off);
+	OUT_RELOC_PIXMAP(pI830->pSrcPixmap, I915_GEM_DOMAIN_RENDER, 0, 0);
 
 	ADVANCE_BATCH();
     }
@@ -334,10 +349,36 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 static void
 I830EXADoneCopy(PixmapPtr pDstPixmap)
 {
-#if ALWAYS_SYNC
+#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 
+#if ALWAYS_FLUSH
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
     I830Sync(pScrn);
+#endif
+#endif
+}
+
+
+/**
+ * Do any cleanup from the Composite operation.
+ *
+ * This is shared between i830 through i965.
+ */
+void
+i830_done_composite(PixmapPtr pDst)
+{
+#if ALWAYS_SYNC || ALWAYS_FLUSH
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+
+#if ALWAYS_FLUSH
+    intel_batch_flush(pScrn);
+#endif
+#if ALWAYS_SYNC
+    I830Sync(pScrn);
+#endif
 #endif
 }
 
@@ -436,7 +477,7 @@ I830EXAInit(ScreenPtr pScreen)
 
     pI830->EXADriverPtr = exaDriverAlloc();
     if (pI830->EXADriverPtr == NULL) {
-	pI830->noAccel = TRUE;
+	pI830->accel = ACCEL_NONE;
 	return FALSE;
     }
     memset(pI830->EXADriverPtr, 0, sizeof(*pI830->EXADriverPtr));
@@ -472,55 +513,10 @@ I830EXAInit(ScreenPtr pScreen)
 	    pI830->EXADriverPtr->offScreenBase,
 	    pI830->EXADriverPtr->memorySize);
 
-
-    /* Limits are described in the BLT engine chapter under Graphics Data Size
-     * Limitations, and the descriptions of SURFACE_STATE, 3DSTATE_BUFFER_INFO,
-     * 3DSTATE_DRAWING_RECTANGLE, 3DSTATE_MAP_INFO, and 3DSTATE_MAP_INFO.
-     *
-     * i845 through i965 limits 2D rendering to 65536 lines and pitch of 32768.
-     *
-     * i965 limits 3D surface to (2*element size)-aligned offset if un-tiled.
-     * i965 limits 3D surface to 4kB-aligned offset if tiled.
-     * i965 limits 3D surfaces to w,h of ?,8192.
-     * i965 limits 3D surface to pitch of 1B - 128kB.
-     * i965 limits 3D surface pitch alignment to 1 or 2 times the element size.
-     * i965 limits 3D surface pitch alignment to 512B if tiled.
-     * i965 limits 3D destination drawing rect to w,h of 8192,8192.
-     *
-     * i915 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i915 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i915 limits 3D textures to width,height of 2048,2048.
-     * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
-     * i915 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
-     * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
-     * i915 limits 3D destination to POT aligned pitch if tiled.
-     * i915 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * i845 limits 3D textures to 4B-aligned offset if un-tiled.
-     * i845 limits 3D textures to ~4kB-aligned offset if tiled.
-     * i845 limits 3D textures to width,height of 2048,2048.
-     * i845 limits 3D textures to pitch of 4B - 8kB, in dwords.
-     * i845 limits 3D destination to 4B-aligned offset if un-tiled.
-     * i845 limits 3D destination to ~4kB-aligned offset if tiled.
-     * i845 limits 3D destination to pitch of 8B - 8kB, in dwords.
-     * i845 limits 3D destination drawing rect to w,h of 2048,2048.
-     *
-     * For the tiled issues, the only tiled buffer we draw to should be
-     * the front, which will have an appropriate pitch/offset already set up,
-     * so EXA doesn't need to worry.
-     */
-    if (IS_I965G(pI830)) {
-	pI830->EXADriverPtr->pixmapOffsetAlign = 4 * 2;
-	pI830->EXADriverPtr->pixmapPitchAlign = 16;
-	pI830->EXADriverPtr->maxX = 8192;
-	pI830->EXADriverPtr->maxY = 8192;
-    } else {
-	pI830->EXADriverPtr->pixmapOffsetAlign = 4;
-	pI830->EXADriverPtr->pixmapPitchAlign = 16;
-	pI830->EXADriverPtr->maxX = 2048;
-	pI830->EXADriverPtr->maxY = 2048;
-    }
+    pI830->EXADriverPtr->pixmapOffsetAlign = pI830->accel_pixmap_offset_alignment;
+    pI830->EXADriverPtr->pixmapPitchAlign = pI830->accel_pixmap_pitch_alignment;
+    pI830->EXADriverPtr->maxX = pI830->accel_max_x;
+    pI830->EXADriverPtr->maxY = pI830->accel_max_y;
 
     /* Sync */
     pI830->EXADriverPtr->WaitMarker = I830EXASync;
@@ -564,12 +560,212 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->EXADriverPtr->exa_minor = 0;
 	if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
 	    xfree(pI830->EXADriverPtr);
-	    pI830->noAccel = TRUE;
+	    pI830->accel = ACCEL_NONE;
 	    return FALSE;
 	}
     }
 
     I830SelectBuffer(pScrn, I830_SELECT_FRONT);
+
+    return TRUE;
+}
+
+static DevPrivateKey	uxa_pixmap_key = &uxa_pixmap_key;
+
+static void
+i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
+{
+    dixSetPrivate(&pixmap->devPrivates, uxa_pixmap_key, bo);
+}
+
+dri_bo *
+i830_uxa_get_pixmap_bo (PixmapPtr pixmap)
+{
+    return dixLookupPrivate(&pixmap->devPrivates, uxa_pixmap_key);
+}
+
+static Bool
+i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
+{
+    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
+
+    if (bo) {
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	I830Ptr i830 = I830PTR(scrn);
+	
+	intel_batch_flush(scrn);
+	if (i830->need_sync) {
+	    I830Sync(scrn);
+	    i830->need_sync = FALSE;
+	}
+	if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
+	    return FALSE;
+        pixmap->devPrivate.ptr = bo->virtual;
+    }
+    return TRUE;
+}
+
+static void
+i830_uxa_finish_access (PixmapPtr pixmap)
+{
+    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
+
+    if (bo) {
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+	I830Ptr i830 = I830PTR(scrn);
+	
+	dri_bo_unmap (bo);
+	pixmap->devPrivate.ptr = NULL;
+	if (bo == i830->front_buffer->bo)
+	    i830->need_flush = TRUE;
+    }
+}
+
+void
+i830_uxa_block_handler (ScreenPtr screen)
+{
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+
+    if (i830->need_flush) {
+	dri_bo_wait_rendering (i830->front_buffer->bo);
+	i830->need_flush = FALSE;
+    }
+}
+
+static Bool
+i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
+{
+    return i830_uxa_get_pixmap_bo (pixmap) != NULL;
+}
+
+static PixmapPtr
+i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usage)
+{
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+    dri_bo *bo;
+    int stride;
+    PixmapPtr pixmap;
+    
+    if (w > 32767 || h > 32767)
+	return NullPixmap;
+
+    pixmap = fbCreatePixmap (screen, 0, 0, depth, usage);
+    
+    if (w && h)
+    {
+	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
+			  i830->accel_pixmap_pitch_alignment);
+    
+	bo = dri_bo_alloc (i830->bufmgr, "pixmap", stride * h, 
+			   i830->accel_pixmap_offset_alignment);
+	if (!bo) {
+	    fbDestroyPixmap (pixmap);
+	    return NullPixmap;
+	}
+	
+	screen->ModifyPixmapHeader (pixmap, w, h, 0, 0, stride, NULL);
+    
+	i830_uxa_set_pixmap_bo (pixmap, bo);
+    }
+
+    return pixmap;
+}
+
+static Bool
+i830_uxa_destroy_pixmap (PixmapPtr pixmap)
+{
+    if (pixmap->refcnt == 1) {
+	dri_bo  *bo = i830_uxa_get_pixmap_bo (pixmap);
+    
+	if (bo)
+	    dri_bo_unreference (bo);
+    }
+    fbDestroyPixmap (pixmap);
+    return TRUE;
+}
+
+void i830_uxa_create_screen_resources(ScreenPtr pScreen)
+{
+    ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+    dri_bo *bo = i830->front_buffer->bo;
+
+    if (bo != NULL) {
+	PixmapPtr   pixmap = pScreen->GetScreenPixmap(pScreen);
+	i830_uxa_set_pixmap_bo (pixmap, bo);
+    }
+}
+
+Bool
+i830_uxa_init (ScreenPtr pScreen)
+{
+    ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+
+    if (!dixRequestPrivate(uxa_pixmap_key, 0))
+	return FALSE;
+    
+    i830->uxa_driver = uxa_driver_alloc();
+    if (i830->uxa_driver == NULL) {
+	i830->accel = ACCEL_NONE;
+	return FALSE;
+    }
+    memset(i830->uxa_driver, 0, sizeof(*i830->uxa_driver));
+
+    i830->bufferOffset = 0;
+    i830->uxa_driver->uxa_major = 1;
+    i830->uxa_driver->uxa_minor = 0;
+
+    /* Solid fill */
+    i830->uxa_driver->prepare_solid = I830EXAPrepareSolid;
+    i830->uxa_driver->solid = I830EXASolid;
+    i830->uxa_driver->done_solid = I830EXADoneSolid;
+
+    /* Copy */
+    i830->uxa_driver->prepare_copy = I830EXAPrepareCopy;
+    i830->uxa_driver->copy = I830EXACopy;
+    i830->uxa_driver->done_copy = I830EXADoneCopy;
+
+    /* Composite */
+    if (!IS_I9XX(i830)) {
+    	i830->uxa_driver->check_composite = i830_check_composite;
+    	i830->uxa_driver->prepare_composite = i830_prepare_composite;
+    	i830->uxa_driver->composite = i830_composite;
+    	i830->uxa_driver->done_composite = i830_done_composite;
+    } else if (IS_I915G(i830) || IS_I915GM(i830) ||
+	       IS_I945G(i830) || IS_I945GM(i830) || IS_G33CLASS(i830))
+    {
+	i830->uxa_driver->check_composite = i915_check_composite;
+   	i830->uxa_driver->prepare_composite = i915_prepare_composite;
+    	i830->uxa_driver->composite = i830_composite;
+    	i830->uxa_driver->done_composite = i830_done_composite;
+    } else {
+ 	i830->uxa_driver->check_composite = i965_check_composite;
+ 	i830->uxa_driver->prepare_composite = i965_prepare_composite;
+ 	i830->uxa_driver->composite = i965_composite;
+ 	i830->uxa_driver->done_composite = i830_done_composite;
+    }
+
+    i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
+    i830->uxa_driver->finish_access = i830_uxa_finish_access;
+    i830->uxa_driver->pixmap_is_offscreen = i830_uxa_pixmap_is_offscreen;
+
+    if(!uxa_driver_init(pScreen, i830->uxa_driver)) {
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "UXA initialization failed\n");
+	xfree(i830->uxa_driver);
+	i830->accel = ACCEL_NONE;
+	return FALSE;
+    }
+
+    pScreen->CreatePixmap = i830_uxa_create_pixmap;
+    pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
+
+    I830SelectBuffer(scrn, I830_SELECT_FRONT);
 
     return TRUE;
 }
