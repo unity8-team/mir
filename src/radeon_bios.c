@@ -467,8 +467,8 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	info->BiosConnector[index].ddc_i2c.mask_data_reg = RADEON_GPIOPAD_MASK;
 	info->BiosConnector[index].ddc_i2c.put_clk_reg = RADEON_GPIOPAD_EN;
 	info->BiosConnector[index].ddc_i2c.put_data_reg = RADEON_GPIOPAD_EN;
-	info->BiosConnector[index].ddc_i2c.get_clk_reg = RADEON_GPIOPAD_MASK;
-	info->BiosConnector[index].ddc_i2c.get_data_reg = RADEON_GPIOPAD_MASK;
+	info->BiosConnector[index].ddc_i2c.get_clk_reg = RADEON_LCD_GPIO_Y_REG;
+	info->BiosConnector[index].ddc_i2c.get_data_reg = RADEON_LCD_GPIO_Y_REG;
     }
 
     /* Certain IBM chipset RN50s have a BIOS reporting two VGAs,
