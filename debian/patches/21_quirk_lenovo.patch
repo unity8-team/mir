@@ -10,12 +10,3 @@ diff -Nurp xserver-xorg-video-intel-2.3.2-1ubuntu2-patched/src/i830_quirks.c xse
      /* Lenovo T61 has no TV output */
      { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
      /* Lenovo 3000 v200 */
-@@ -267,6 +269,8 @@ static i830_quirk i830_quirk_list[] = {
- 
-     /* HP Compaq 6730s has no TV output */
-     { PCI_CHIP_IGD_GM, 0x103c, 0x30e8, quirk_ignore_tv },
-+    /* HP Pavilion ze4944ea needs pipe A force quirk (See LP: #242389) */
-+    { PCI_CHIP_IGD_GM, 0x103c, 0x3084, quirk_pipea_force },
- 
-     /* Thinkpad G40 needs pipe A force quirk (See LP: #240457) */
-     { PCI_CHIP_I855_GM, 0x1014, 0x0543, quirk_pipea_force },

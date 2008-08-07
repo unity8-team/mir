@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.3.2,
+        2.4.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -37,6 +37,7 @@ AM_MAINTAINER_MODE
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
+DOLT
 AC_PROG_CC
 AM_PROG_CC_C_O
 

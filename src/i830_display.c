@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sys/ioctl.h>
 
 #include "xf86.h"
 #include "i830.h"
@@ -667,7 +668,7 @@ i830_enable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (IS_IGD_GM(pI830))
+    if (IS_GM45(pI830))
 	return i830_enable_fb_compression2(crtc);
 
     i830_enable_fb_compression_8xx(crtc);
@@ -679,7 +680,7 @@ i830_disable_fb_compression(xf86CrtcPtr crtc)
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (IS_IGD_GM(pI830))
+    if (IS_GM45(pI830))
 	return i830_disable_fb_compression2(crtc);
 
     i830_disable_fb_compression_8xx(crtc);
@@ -692,6 +693,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     I830Ptr pI830 = I830PTR(pScrn);
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
+    unsigned long uncompressed_size;
     int plane = (intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB);
     int i, count = 0;
 
@@ -723,12 +725,56 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
 	  pScrn->bitsPerPixel == 32)) /* mode_set dtrt if fbc is in use */
 	return FALSE;
 
+    /* Can't cache more lines than we can track */
+    if (crtc->mode.VDisplay > FBC_LL_SIZE)
+	return FALSE;
+
+    /*
+     * Make sure the compressor doesn't go past the end of our compressed
+     * buffer if the uncompressed size is large.
+     */
+    uncompressed_size = crtc->mode.HDisplay * crtc->mode.VDisplay *
+	pI830->cpp;
+    if (pI830->compressed_front_buffer->size < uncompressed_size)
+	return FALSE;
+
     /*
      * No checks for pixel multiply, incl. horizontal, or interlaced modes
      * since they're currently unused.
      */
     return TRUE;
 }
+
+#if defined(DRM_IOCTL_MODESET_CTL) && defined(XF86DRI)
+static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+    struct drm_modeset_ctl modeset;
+
+    modeset.crtc = intel_crtc->plane;
+
+    /*
+     * DPMS will be called many times (especially off), but we only
+     * want to catch the transition from on->off and off->on.
+     */
+    if (pre && intel_crtc->dpms_mode != DPMSModeOff) {
+	/* On -> off is a pre modeset */
+	modeset.cmd = _DRM_PRE_MODESET;
+	ioctl(pI830->drmSubFD, DRM_IOCTL_MODESET_CTL, &modeset);
+    } else if (!pre && intel_crtc->dpms_mode == DPMSModeOff) {
+	/* Off -> on means post modeset */
+	modeset.cmd = _DRM_POST_MODESET;
+	ioctl(pI830->drmSubFD, DRM_IOCTL_MODESET_CTL, &modeset);
+    }
+}
+#else
+static void i830_modeset_ctl(xf86CrtcPtr crtc, int dpms_state)
+{
+    return;
+}
+#endif /* DRM_IOCTL_MODESET_CTL && XF86DRI */
 
 /**
  * Sets the power management mode of the pipe and plane.
@@ -797,8 +843,10 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Reenable compression if needed */
 	if (i830_use_fb_compression(crtc))
 	    i830_enable_fb_compression(crtc);
+	i830_modeset_ctl(crtc, 0);
 	break;
     case DPMSModeOff:
+	i830_modeset_ctl(crtc, 1);
 	/* Shut off compression if in use */
 	if (i830_use_fb_compression(crtc))
 	    i830_disable_fb_compression(crtc);
@@ -1045,6 +1093,79 @@ i830_panel_fitter_pipe(I830Ptr pI830)
 }
 
 /**
+ * Sets up the DSPARB register to split the display fifo appropriately between
+ * the display planes.
+ *
+ * Adjusting this register requires that the planes be off.
+ */
+static void
+i830_update_dsparb(ScrnInfoPtr pScrn)
+{
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+   I830Ptr pI830 = I830PTR(pScrn);
+   uint32_t dspacntr, dspbcntr;
+   int total_hdisplay = 0, planea_hdisplay = 0, planeb_hdisplay = 0;
+   int fifo_entries = 0, planea_entries = 0, planeb_entries = 0, i;
+
+   dspacntr = INREG(DSPACNTR);
+   dspbcntr = INREG(DSPBCNTR);
+
+   /* Disable planes since DSPARB can only be updated when they're
+    * off.
+    */
+   OUTREG(DSPACNTR, dspacntr & ~DISPLAY_PLANE_ENABLE);
+   OUTREG(DSPBCNTR, dspbcntr & ~DISPLAY_PLANE_ENABLE);
+   i830WaitForVblank(pScrn);
+
+   /*
+    * FIFO entries will be split based on programmed modes
+    */
+   if (IS_I965GM(pI830) || IS_GM45(pI830))
+       fifo_entries = 127;
+   else if (IS_I9XX(pI830))
+       fifo_entries = 95;
+   else if (IS_MOBILE(pI830)) {
+       fifo_entries = 255;
+   } else {
+	/* The 845/865 only have a AEND field.  Though the field size would
+	* allow 128 entries, the 865 rendered the cursor wrong then.
+	* The BIOS set it up for 96.
+	*/
+	fifo_entries = 95;
+   }
+
+   for (i = 0; i < xf86_config->num_crtc; i++) {
+      xf86CrtcPtr crtc = xf86_config->crtc[i];
+      I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
+      if (crtc->enabled) {
+	  total_hdisplay += crtc->mode.HDisplay;
+	  if (intel_crtc->plane == 0)
+	      planea_hdisplay = crtc->mode.HDisplay;
+	  else
+	      planeb_hdisplay = crtc->mode.HDisplay;
+      }
+   }
+
+   planea_entries = fifo_entries * planea_hdisplay / total_hdisplay;
+   planeb_entries = fifo_entries * planeb_hdisplay / total_hdisplay;
+
+   if (IS_I9XX(pI830))
+       OUTREG(DSPARB,
+	      ((planea_entries + planeb_entries) << DSPARB_CSTART_SHIFT) |
+	      (planea_entries << DSPARB_BSTART_SHIFT));
+   else if (IS_MOBILE(pI830))
+       OUTREG(DSPARB,
+	      ((planea_entries + planeb_entries) << DSPARB_BEND_SHIFT) |
+	      (planea_entries << DSPARB_AEND_SHIFT));
+   else
+       OUTREG(DSPARB, planea_entries << DSPARB_AEND_SHIFT);
+
+   OUTREG(DSPACNTR, dspacntr);
+   OUTREG(DSPBCNTR, dspbcntr);
+   i830WaitForVblank(pScrn);
+}
+
+/**
  * Sets up registers for the given mode/adjusted_mode pair.
  *
  * The clocks, CRTCs and outputs attached to this CRTC must be off.
@@ -1079,7 +1200,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dspstride_reg = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
     int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
-    int i;
+    int pipestat_reg = (pipe == 0) ? PIPEASTAT : PIPEBSTAT;
+    int i, num_outputs = 0;
     int refclk;
     intel_clock_t clock;
     uint32_t dpll = 0, fp = 0, dspcntr, pipeconf, lvds_bits = 0;
@@ -1102,7 +1224,10 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    lvds_bits = intel_output->lvds_bits;
 	    break;
 	case I830_OUTPUT_SDVO:
+	case I830_OUTPUT_HDMI:
 	    is_sdvo = TRUE;
+	    if (intel_output->needs_tv_clock)
+		is_tv = TRUE;
 	    break;
 	case I830_OUTPUT_DVO_TMDS:
 	case I830_OUTPUT_DVO_LVDS:
@@ -1116,9 +1241,19 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    is_crt = TRUE;
 	    break;
 	}
+
+	num_outputs++;
     }
 
-    if (IS_I9XX(pI830)) {
+    if (num_outputs > 1)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "clone detected, disabling SSC\n");
+
+    /* Don't use SSC when cloned */
+    if (is_lvds && pI830->lvds_use_ssc && num_outputs < 2) {
+	refclk = pI830->lvds_ssc_freq * 1000;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "using SSC reference clock of %d MHz\n", refclk / 1000);
+    } else if (IS_I9XX(pI830)) {
 	refclk = 96000;
     } else {
 	refclk = 48000;
@@ -1147,7 +1282,8 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	if (is_sdvo)
 	{
 	    dpll |= DPLL_DVO_HIGH_SPEED;
-	    if (IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830))
+	    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)) &&
+		!is_tv)
 	    {
 		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
@@ -1170,7 +1306,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
 	    break;
 	}
-	if (IS_I965G(pI830))
+	if (IS_I965G(pI830) && !IS_GM45(pI830))
 	    dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
     } else {
 	if (is_lvds) {
@@ -1185,16 +1321,16 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
     }
 
-    if (is_tv)
+    if (is_sdvo && is_tv)
+	dpll |= PLL_REF_INPUT_TVCLKINBC;
+    else if (is_tv)
     {
 	/* XXX: just matching BIOS for now */
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 	dpll |= 3;
     }
-#if 0
-    else if (is_lvds)
+    else if (is_lvds && pI830->lvds_use_ssc && num_outputs < 2)
 	dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
-#endif
     else
 	dpll |= PLL_REF_INPUT_DREFCLK;
 
@@ -1373,6 +1509,11 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
+
+    i830_update_dsparb(pScrn);
+
+    /* Clear any FIFO underrun status that may have occurred normally */
+    OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);
 }
 
 

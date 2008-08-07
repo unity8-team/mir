@@ -4,13 +4,13 @@ Priority: optional
 Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
 Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>, Brice Goglin <bgoglin@debian.org>
-Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>=2:1.4.1~git20080131-1ubuntu4), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1-1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev, dpkg-dev (>= 1.14.16)
+Build-Depends: debhelper (>= 5), quilt, pkg-config, xserver-xorg-dev (>= 2:1.4.99.905), x11proto-gl-dev, x11proto-video-dev, libgl1-mesa-dev | libgl-dev, libxvmc-dev (>= 1:1.0.1), x11proto-core-dev, x11proto-fonts-dev, x11proto-randr-dev (>= 1.2), x11proto-render-dev, x11proto-xinerama-dev, libdrm-dev (>= 2.2) [!hurd-i386], x11proto-xf86dri-dev, libpciaccess-dev (>= 0.8.0+git20071002), dpkg-dev (>= 1.14.16), automake, libtool, xutils-dev
 Standards-Version: 3.7.3
 Vcs-Git: git://git.debian.org/git/pkg-xorg/driver/xserver-xorg-video-intel
 Vcs-Browser: http://git.debian.org/?p=pkg-xorg/driver/xserver-xorg-video-intel.git
 
 Package: xserver-xorg-video-intel
-Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 lpia netbsd-i386
+Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386 lpia
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${xserver:Depends}
 Provides: ${xviddriver:Provides}
 Replaces: xserver-xorg (<< 6.8.2-35), xserver-xorg-video-i810 (<< 2:1.9.91-1), xserver-xorg-video-i810-modesetting, xserver-xorg-video-intel-modesetting, xserver-xorg-driver-i810
@@ -31,7 +31,7 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package is built from the X.org xf86-video-intel driver module.
 
 Package: xserver-xorg-video-intel-dbg
-Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 lpia netbsd-i386
+Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386
 Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
 Priority: extra
 Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)

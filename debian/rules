@@ -10,13 +10,14 @@
 include debian/xsfbs/xsfbs.mk
 
 CFLAGS = -Wall -g
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
 	CFLAGS += -O2
 endif
-ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
-	INSTALL_PROGRAM += -s
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	MAKEFLAGS += -j$(NUMJOBS)
 endif
 
 DEB_HOST_ARCH      ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
@@ -31,18 +32,24 @@ endif
 # kbd_drv.a isn't phenomenally useful; kbd_drv.so more so
 confflags += --disable-static
 
-build: patch build-stamp
-build-stamp:
+configure: $(STAMP_DIR)/patch
 	dh_testdir
+	autoreconf -vfi
 
+obj-$(DEB_BUILD_GNU_TYPE)/config.status: configure
+	dh_testdir
 	test -d obj-$(DEB_BUILD_GNU_TYPE) || mkdir obj-$(DEB_BUILD_GNU_TYPE)
 	cd obj-$(DEB_BUILD_GNU_TYPE) && \
 	../configure --prefix=/usr --mandir=\$${prefix}/share/man \
 	             --infodir=\$${prefix}/share/info $(confflags) \
 	             CFLAGS="$(CFLAGS)" 
-	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE)
 
-	touch build-stamp
+.PHONY: build
+build: build-stamp
+build-stamp: obj-$(DEB_BUILD_GNU_TYPE)/config.status
+	dh_testdir
+	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE)
+	>$@
 
 clean: xsfclean
 	dh_testdir
@@ -54,6 +61,9 @@ clean: xsfclean
 	rm -f conftest* */conftest*
 	rm -rf autom4te.cache */autom4te.cache
 	rm -rf obj-*
+	rm -f $$(find -name Makefile.in)
+	rm -f compile config.guess config.sub configure depcomp install-sh
+	rm -f ltmain.sh missing INSTALL aclocal.m4 config.h.in mkinstalldirs
 
 	dh_clean
 
@@ -64,8 +74,8 @@ install: build
 	dh_installdirs
 
 	cd obj-$(DEB_BUILD_GNU_TYPE) && $(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
-#	install -d $(CURDIR)/debian/tmp/usr/bin
-#	install -m 755 obj-$(DEB_BUILD_GNU_TYPE)/src/reg_dumper/intel_reg_dumper $(CURDIR)/debian/tmp/usr/bin/
+	install -d $(CURDIR)/debian/tmp/usr/bin
+	install -m 755 obj-$(DEB_BUILD_GNU_TYPE)/src/reg_dumper/intel_reg_dumper $(CURDIR)/debian/tmp/usr/bin/
 
 # Build architecture-dependent files here.
 binary-arch: DH_OPTIONS=-s

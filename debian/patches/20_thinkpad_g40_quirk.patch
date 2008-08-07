@@ -16,12 +16,3 @@ diff -Nurp xserver-xorg-video-intel-2.3.1-patched/src/i830_quirks.c xserver-xorg
      { PCI_CHIP_I855_GM, 0x1028, 0x0139, quirk_pipea_force },
      /* Dell Latitude D500 needs pipe A force quirk */
      { PCI_CHIP_I855_GM, 0x1028, 0x0152, quirk_pipea_force },
-@@ -278,8 +282,6 @@ static i830_quirk i830_quirk_list[] = {
-     { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
-     /* Toshiba Protege R-205, S-209 needs pipe A force quirk */
-     { PCI_CHIP_I915_GM, 0x1179, 0x0001, quirk_pipea_force },
--    /* Intel 855GM hardware (See LP: #216490) */
--    { PCI_CHIP_I855_GM, 0x1028, 0x00c8, quirk_pipea_force },
- 
-     /* ThinkPad X40 needs pipe A force quirk */
-     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
