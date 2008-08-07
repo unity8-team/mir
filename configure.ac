@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.3.2,
+        2.4.0,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -37,6 +37,7 @@ AM_MAINTAINER_MODE
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
+DOLT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
@@ -200,7 +201,7 @@ if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [libdrm xf86driproto glproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
-	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.3.1],[DRI_MM=yes], [DRI_MM=no])
+	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.4.0],[DRI_MM=yes], [DRI_MM=no])
 	if test "x$DRI_MM" = xyes; then
 		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
 	fi

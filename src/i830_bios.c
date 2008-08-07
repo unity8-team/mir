@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define _PARSE_EDID_
 #include "xf86.h"
@@ -67,6 +68,32 @@ i830DumpBIOSToFile(ScrnInfoPtr pScrn, unsigned char *bios)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Wrote BIOS contents to %s\n",
 	       filename);
     fclose(f);
+}
+
+static void *
+find_section(struct bdb_header *bdb, int section_id)
+{
+	unsigned char *base = (unsigned char *)bdb;
+	int index = 0;
+	uint16_t total, current_size;
+	unsigned char current_id;
+
+	/* skip to first section */
+	index += bdb->header_size;
+	total = bdb->bdb_size;
+
+	/* walk the sections looking for section_id */
+	while (index < total) {
+		current_id = *(base + index);
+		index++;
+		current_size = *((uint16_t *)(base + index));
+		index += 2;
+		if (current_id == section_id)
+			return base + index;
+		index += current_size;
+	}
+
+	return NULL;
 }
 
 /**
@@ -124,6 +151,70 @@ i830_bios_get (ScrnInfoPtr pScrn)
     }
 
     return bios;
+}
+
+void
+i830_bios_get_ssc(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct vbt_header *vbt;
+    struct bdb_header *bdb;
+    struct bdb_general_features *bdb_features;
+    int vbt_off, bdb_off;
+    unsigned char *bios;
+
+    bios = i830_bios_get(pScrn);
+
+    if (bios == NULL)
+	return;
+
+    vbt_off = INTEL_BIOS_16(0x1a);
+    vbt = (struct vbt_header *)(bios + vbt_off);
+    bdb_off = vbt_off + vbt->bdb_offset;
+    bdb = (struct bdb_header *)(bios + bdb_off);
+
+    bdb_features = find_section(bdb, BDB_GENERAL_FEATURES);
+    if (!bdb_features)
+	return;
+
+    pI830->lvds_use_ssc = bdb_features->enable_ssc;
+    if (pI830->lvds_use_ssc) {
+	if (IS_I855(pI830))
+	    pI830->lvds_ssc_freq = bdb_features->ssc_freq ? 66 : 48;
+	else
+	    pI830->lvds_ssc_freq = bdb_features->ssc_freq ? 100 : 96;
+    }
+
+    xfree(bios);
+}
+
+void
+i830_bios_get_tv(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct vbt_header *vbt;
+    struct bdb_header *bdb;
+    struct bdb_general_features *bdb_features;
+    int vbt_off, bdb_off;
+    unsigned char *bios;
+
+    bios = i830_bios_get(pScrn);
+
+    if (bios == NULL)
+	return;
+
+    vbt_off = INTEL_BIOS_16(0x1a);
+    vbt = (struct vbt_header *)(bios + vbt_off);
+    bdb_off = vbt_off + vbt->bdb_offset;
+    bdb = (struct bdb_header *)(bios + bdb_off);
+
+    bdb_features = find_section(bdb, BDB_GENERAL_FEATURES);
+    if (!bdb_features)
+	return;
+
+    pI830->tv_present = bdb_features->int_tv_support;
+
+    xfree(bios);
 }
 
 /**
@@ -270,7 +361,7 @@ i830_bios_get_aim_data_block (ScrnInfoPtr pScrn, int aim, int data_block)
     aim_off = vbt->aim_offset[aim];
     if (!aim_off)
     {
-	xfree (bios);
+	free (bios);
 	return NULL;
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "aim_off %d\n", aim_off);
@@ -284,15 +375,15 @@ i830_bios_get_aim_data_block (ScrnInfoPtr pScrn, int aim, int data_block)
 	    unsigned char   *aim = malloc (aimdb_block->aimdb_size + sizeof (struct aimdb_block));
 	    if (!aim)
 	    {
-		xfree (bios);
+		free (bios);
 		return NULL;
 	    }
 	    memcpy (aim, aimdb_block, aimdb_block->aimdb_size + sizeof (struct aimdb_block));
-	    xfree (bios);
+	    free (bios);
 	    return aim;
 	}
 	bdb_off += aimdb_block->aimdb_size + sizeof (struct aimdb_block);
     }
-    xfree (bios);
+    free (bios);
     return NULL;
 }
