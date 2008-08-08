@@ -266,6 +266,26 @@ radeon_read_unposted_bios(ScrnInfoPtr pScrn)
     return ret;
 }
 
+Bool
+radeon_card_posted(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info     = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t reg;
+
+    if (IS_AVIVO_VARIANT) {
+	reg = INREG(AVIVO_D1CRTC_CONTROL) | INREG(AVIVO_D2CRTC_CONTROL);
+	if (reg & AVIVO_CRTC_EN)
+	    return TRUE;
+    } else {
+	reg = INREG(RADEON_CRTC_GEN_CNTL) | INREG(RADEON_CRTC2_GEN_CNTL);
+	if (reg & RADEON_CRTC_EN)
+	    return TRUE;
+    }
+
+    return FALSE;
+}
+
 /* Read the Video BIOS block and the FP registers (if applicable). */
 Bool
 RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
@@ -273,7 +293,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     int tmp;
     unsigned short dptr;
-    Bool unposted = FALSE;
+    Bool posted = TRUE;
 
 #ifdef XSERVER_LIBPCIACCESS
     int size = info->PciInfo->rom_size > RADEON_VBIOS_SIZE ? info->PciInfo->rom_size : RADEON_VBIOS_SIZE;
@@ -292,7 +312,7 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 			 RADEON_VBIOS_SIZE);
 	} else if (!radeon_read_bios(pScrn)) {
 	    (void)radeon_read_unposted_bios(pScrn);
-	    unposted = TRUE;
+	    posted = FALSE;
 	}
     }
 
@@ -387,22 +407,11 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
      * so let's work around this for now by only POSTing if none of the
      * CRTCs are enabled
      */
-    if (unposted && info->VBIOS) {	
-	    unsigned char *RADEONMMIO = info->MMIO;
-	    uint32_t reg;
-
-	    if (IS_AVIVO_VARIANT) {
-		    reg = INREG(AVIVO_D1CRTC_CONTROL) | INREG(AVIVO_D2CRTC_CONTROL);
-		    if (reg & AVIVO_CRTC_EN)
-			    unposted = FALSE;
-	    } else {
-		    reg = INREG(RADEON_CRTC_GEN_CNTL) | INREG(RADEON_CRTC2_GEN_CNTL);
-		    if (reg & RADEON_CRTC_EN)
-			    unposted = FALSE;
-	    }
+    if ((!posted) && info->VBIOS) {
+	posted = radeon_card_posted(pScrn);
     }
 
-    if (unposted && info->VBIOS) {
+    if ((!posted) && info->VBIOS) {
 	if (info->IsAtomBios) {
 	    if (!rhdAtomASICInit(info->atomBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,

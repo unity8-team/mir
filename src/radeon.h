@@ -901,6 +901,7 @@ extern Bool RADEONGetTMDSInfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetTVInfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn);
+extern Bool radeon_card_posted(ScrnInfoPtr pScrn);
 
 /* radeon_commonfuncs.c */
 #ifdef XF86DRI

@@ -5384,26 +5384,18 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t mem_size;
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
     int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONEnterVT\n");
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	mem_size = INREG(R600_CONFIG_MEMSIZE);
-    else
-	mem_size = INREG(RADEON_CONFIG_MEMSIZE);
-
-    if (mem_size == 0) { /* Softboot V_BIOS */
+    if (!radeon_card_posted(pScrn)) { /* Softboot V_BIOS */
 	if (info->IsAtomBios) {
 	    rhdAtomASICInit(info->atomBIOS);
 	} else {
 	    xf86Int10InfoPtr pInt;
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "zero MEMSIZE, probably at D3cold. Re-POSTing via int10.\n");
+
 	    pInt = xf86InitInt10 (info->pEnt->index);
 	    if (pInt) {
 		pInt->num = 0xe6;
