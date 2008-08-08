@@ -101,6 +101,10 @@ if test x$DRI = xauto; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
+	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include "stdint.h"])
+	if test "x$DRM_MODE" = xyes; then
+	   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+	fi
 
         if test "$have_dri_h" = yes -a \
                 "$have_sarea_h" = yes -a \

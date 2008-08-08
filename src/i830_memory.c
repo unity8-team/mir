@@ -184,7 +184,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	if (!pI830->gtt_acquired)
 	    return TRUE;
 
-	if (mem->key != -1 && 
+	if (mem->key != -1 &&
 	    !xf86BindGARTMemory(pScrn->scrnIndex, mem->key, mem->agp_offset))
 	{
 	    return FALSE;
@@ -193,7 +193,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
     }
 
-    if (mem->tiling != TILE_NONE) {
+    if (mem->tiling != TILE_NONE && pI830->use_drm_mode) {
 	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
 					mem->allocated_size, mem->tiling);
     }
@@ -204,10 +204,12 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 static Bool
 i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
+
     if (mem == NULL || !mem->bound)
 	return TRUE;
 
-    if (mem->tiling != TILE_NONE)
+    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
 #ifdef XF86DRI
@@ -460,22 +462,24 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 				   ALIGN_BOTH_ENDS | NEED_NON_STOLEN);
 
 	if (pI830->memory_manager != NULL) {
-	    struct drm_i915_gem_init init;
-	    int ret;
+	    if (!pI830->use_drm_mode) {
+		struct drm_i915_gem_init init;
+		int ret;
 
-	    init.gtt_start = pI830->memory_manager->offset;
-	    init.gtt_end = pI830->memory_manager->offset +
-		pI830->memory_manager->size;
+		init.gtt_start = pI830->memory_manager->offset;
+		init.gtt_end = pI830->memory_manager->offset +
+		    pI830->memory_manager->size;
 
-	    /* Tell the kernel to manage it */
-	    ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_INIT, &init);
-	    if (ret != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to initialize kernel memory manager\n");
-		i830_free_memory(pScrn, pI830->memory_manager);
-		pI830->memory_manager = NULL;
+		/* Tell the kernel to manage it */
+		ret = ioctl(pI830->drmSubFD, DRM_IOCTL_I915_GEM_INIT, &init);
+		if (ret != 0) {
+		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			       "Failed to initialize kernel memory manager\n");
+		    i830_free_memory(pScrn, pI830->memory_manager);
+		    pI830->memory_manager = NULL;
+		}
+		i830_init_bufmgr(pScrn);
 	    }
-	    i830_init_bufmgr(pScrn);
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to allocate space for kernel memory manager\n");
@@ -800,8 +804,9 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 #ifdef XF86DRI
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->memory_manager && !(flags & NEED_PHYSICAL_ADDR) &&
-	!(flags & NEED_LIFETIME_FIXED))
+    if (pI830->use_drm_mode || (pI830->memory_manager &&
+				!(flags & NEED_PHYSICAL_ADDR) &&
+				!(flags & NEED_LIFETIME_FIXED)))
     {
 	return i830_allocate_memory_bo(pScrn, name, size, alignment, flags);
     } else
@@ -1025,6 +1030,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int flags = 0;
+    int mem_space = DRM_BO_FLAG_MEM_TT;
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled)
@@ -1044,6 +1050,10 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 		   "Failed to allocate Overlay register space.\n");
 	/* This failure isn't fatal. */
     }
+
+    if (flags & NEED_PHYSICAL_ADDR)
+	if (pI830->use_drm_mode)
+	    mem_space = DRM_BO_FLAG_MEM_VRAM;
 
     return TRUE;
 }
@@ -1122,7 +1132,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     /* We'll allocate the fb such that the root window will fit regardless of
      * rotation.
      */
-    if (pScrn->virtualX > pScrn->virtualY)
+    if (!pI830->use_drm_mode && pScrn->virtualX > pScrn->virtualY)
 	fb_height = pScrn->virtualX;
     else
 	fb_height = pScrn->virtualY;
@@ -1186,7 +1196,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
      * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
      * buffers.
      */
-    if (pI830->accel <= ACCEL_XAA && IS_I965G(pI830))
+    if ((pI830->accel <= ACCEL_XAA && IS_I965G(pI830)) || pI830->use_drm_mode)
 	tiling = FALSE;
     else
 	tiling = pI830->tiling;
@@ -1215,8 +1225,14 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	return NULL;
     }
 
-    if (pI830->FbBase)
+    if (pI830->use_drm_mode) {
+#ifdef XF86DRM_MODE
+        drmmode_set_fb(pScrn, &pI830->drmmode, pScrn->virtualX, fb_height,
+		       pScrn->displayWidth * pI830->cpp, &front_buffer->bo);
+#endif
+    } else if (pI830->FbBase)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
+
     return front_buffer;
 }
 
@@ -1225,9 +1241,14 @@ i830_allocate_cursor_buffers(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
+    int flags;
     int i;
     long size;
+
+    if (pI830->use_drm_mode)
+	pI830->CursorNeedsPhysical = FALSE;
+
+    flags = pI830->CursorNeedsPhysical ? NEED_PHYSICAL_ADDR : 0;
 
     /* Try to allocate one big blob for our cursor memory.  This works
      * around a limitation in the FreeBSD AGP driver that allows only one
@@ -1341,18 +1362,20 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     unsigned int pitch = pScrn->displayWidth * pI830->cpp;
     long size;
 
-    if (!pI830->StolenOnly &&
-	(!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "AGP GART support is either not available or cannot "
-		   "be used.\n"
-		   "\tMake sure your kernel has agpgart support or has\n"
-		   "\tthe agpgart module loaded.\n");
-	return FALSE;
-    }
+    if (!pI830->use_drm_mode) {
+	if (!pI830->StolenOnly &&
+	    (!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "AGP GART support is either not available or cannot "
+		       "be used.\n"
+		       "\tMake sure your kernel has agpgart support or has\n"
+		       "\tthe agpgart module loaded.\n");
+	    return FALSE;
+	}
 
-    /* Allocate the ring buffer first, so it ends up in stolen mem. */
-    i830_allocate_ringbuffer(pScrn);
+	/* Allocate the ring buffer first, so it ends up in stolen mem. */
+	i830_allocate_ringbuffer(pScrn);
+    }
 
     if (pI830->fb_compression)
 	i830_setup_fb_compression(pScrn);
@@ -1950,13 +1973,15 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
     if (pI830->StolenOnly == TRUE || pI830->memory_list == NULL)
 	return TRUE;
 
-    if (xf86AgpGARTSupported() && !pI830->gtt_acquired) {
+    if (pI830->use_drm_mode || (xf86AgpGARTSupported() &&
+				!pI830->gtt_acquired)) {
 	i830_memory *mem;
 
-	if (!xf86AcquireGART(pScrn->scrnIndex))
-	    return FALSE;
-
-	pI830->gtt_acquired = TRUE;
+	if (!pI830->use_drm_mode) {
+	    if (!xf86AcquireGART(pScrn->scrnIndex))
+		return FALSE;
+	    pI830->gtt_acquired = TRUE;
+	}
 
 	for (mem = pI830->memory_list->next; mem->next != NULL;
 	     mem = mem->next)
@@ -1971,7 +1996,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 		FatalError("Couldn't bind memory for BO %s\n", mem->name);
 	}
     }
-    if (!pI830->SWCursor)
+    if (!pI830->SWCursor && !pI830->use_drm_mode)
 	i830_update_cursor_offsets(pScrn);
 
     return TRUE;
@@ -1986,7 +2011,8 @@ i830_unbind_all_memory(ScrnInfoPtr pScrn)
     if (pI830->StolenOnly == TRUE)
 	return TRUE;
 
-    if (xf86AgpGARTSupported() && pI830->gtt_acquired) {
+    if (pI830->use_drm_mode || (xf86AgpGARTSupported() &&
+				pI830->gtt_acquired)) {
 	i830_memory *mem;
 
 	for (mem = pI830->memory_list->next; mem->next != NULL;
@@ -2002,10 +2028,12 @@ i830_unbind_all_memory(ScrnInfoPtr pScrn)
 		i830_unbind_memory(pScrn, mem);
 	}
 
-	pI830->gtt_acquired = FALSE;
+	if (!pI830->use_drm_mode) {
+	    pI830->gtt_acquired = FALSE;
 
-	if (!xf86ReleaseGART(pScrn->scrnIndex))
-	    return FALSE;
+	    if (!xf86ReleaseGART(pScrn->scrnIndex))
+		return FALSE;
+	}
     }
 
     return TRUE;
@@ -2056,4 +2084,119 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 
     return TRUE;
 }
+#endif
+
+#ifdef XF86DRI_MM
+#if 0
+static i830_memory *
+i830_allocate_framebuffer_new(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox)
+{
+    unsigned int pitch = pScrn->displayWidth * pI830->cpp;
+    unsigned long minspace, avail;
+    int cacheLines;
+    int align;
+    long size, fb_height;
+    char *name;
+    int flags;
+    i830_memory *front_buffer = NULL;
+    Bool tiling;
+
+    flags = ALLOW_SHARING;
+
+    /* Clear everything first. */
+    memset(FbMemBox, 0, sizeof(*FbMemBox));
+
+    fb_height = pScrn->virtualY;
+
+    FbMemBox->x1 = 0;
+    FbMemBox->x2 = pScrn->displayWidth;
+    FbMemBox->y1 = 0;
+    FbMemBox->y2 = fb_height;
+
+    /* Calculate how much framebuffer memory to allocate.  For the
+     * initial allocation, calculate a reasonable minimum.  This is
+     * enough for the virtual screen size, plus some pixmap cache
+     * space if we're using XAA.
+     */
+    minspace = pitch * pScrn->virtualY;
+    avail = pScrn->videoRam * 1024;
+    cacheLines = 0;
+
+    size = pitch * (fb_height + cacheLines);
+    size = ROUND_TO_PAGE(size);
+
+    name = "front buffer";
+
+    /* Front buffer tiling has to be disabled with G965 XAA because some of the
+     * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
+     * buffers.
+     */
+    if (!(pI830->accel == ACCEL_EXA) && IS_I965G(pI830))
+	tiling = FALSE;
+    else
+	tiling = pI830->tiling;
+
+    if (pI830->use_drm_mode)
+      tiling = FALSE;
+
+    /* Attempt to allocate it tiled first if we have page flipping on. */
+    if (tiling && IsTileable(pScrn, pitch)) {
+	/* XXX: probably not the case on 965 */
+	if (IS_I9XX(pI830))
+	    align = MB(1);
+	else
+	    align = KB(512);
+	front_buffer = i830_allocate_memory_tiled(pScrn, name, size,
+						  pitch, align, flags,
+						  TILE_XMAJOR);
+    }
+
+    /* If not, attempt it linear */
+    if (front_buffer == NULL) {
+	front_buffer = i830_allocate_memory(pScrn, name, size, KB(64), flags);
+    }
+
+    if (front_buffer == NULL) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
+		   "framebuffer. Is your VideoRAM set too low?\n");
+
+	return NULL;
+    }
+
+    return front_buffer;
+}
+#endif
+uint32_t
+i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
+{
+    return 0;
+
+#if 0
+    I830Ptr pI830 = I830PTR(pScrn);
+    i830_memory *old_buffer;
+
+    pScrn->virtualX = width;
+    pScrn->virtualY = height;
+    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
+
+    *pitch = pScrn->displayWidth * pI830->cpp;
+
+    old_buffer = pI830->front_buffer;
+
+    pI830->front_buffer =
+	i830_allocate_framebuffer_new(pScrn, pI830, &pI830->FbMemBox);
+
+    ErrorF("old front size %08lx, new front size %08lx\n",
+	   old_buffer->bo->size, pI830->front_buffer->bo->size);
+    ErrorF("old front offset %08lx, new front offset %08lx\n",
+	   old_buffer->bo->offset, pI830->front_buffer->bo->offset);
+
+    i830_free_memory(pScrn, old_buffer);
+
+    i830_update_front_offset(pScrn);
+
+    return pI830->front_buffer->bo->handle;
+#endif
+}
+
 #endif

@@ -2394,7 +2394,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     /* fixup pointers */
 #ifdef INTEL_XVMC
     if (id == FOURCC_XVMC && IS_I915(pI830)) {
-	pPriv->YBuf0offset = (uint32_t)buf;
+	pPriv->YBuf0offset = (uint32_t)((uint64_t)buf);
 	pPriv->VBuf0offset = pPriv->YBuf0offset + (dstPitch2 * height);
 	pPriv->UBuf0offset = pPriv->VBuf0offset + (dstPitch * height / 2);
 	destId = FOURCC_YV12;

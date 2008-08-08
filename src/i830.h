@@ -77,6 +77,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef DAMAGE
 #include "damage.h"
 #endif
+#include "drmmode_display.h"
 #endif
 #include "dri_bufmgr.h"
 #include "intel_bufmgr.h"
@@ -702,6 +703,12 @@ typedef struct _I830Rec {
 
    enum last_3d *last_3d;
 
+   Bool use_drm_mode;
+#ifdef XF86DRM_MODE
+   drmmode_rec drmmode;
+   int drm_mm_init;
+#endif
+
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
    unsigned int quirk_flag;
@@ -832,7 +839,9 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
 #endif
-
+extern void i830_update_front_offset(ScrnInfoPtr pScrn);
+extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
+				   int *pitch);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,

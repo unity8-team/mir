@@ -370,7 +370,9 @@ extern int I810_DEBUG;
 /* mark chipsets without overlay hw */
 #define OVERLAY_NOEXIST(pI810) (IS_GM45(pI810) || IS_G4X(pI810))
 /* chipsets require graphics mem for hardware status page */
-#define HWS_NEED_GFX(pI810) (IS_G33CLASS(pI810) || IS_GM45(pI810) || IS_G4X(pI810))
+#define HWS_NEED_GFX(pI810) (!pI810->use_drm_mode && \
+			     (IS_G33CLASS(pI810) || IS_GM45(pI810) || \
+			      IS_G4X(pI810)))
 /* chipsets require status page in non stolen memory */
 #define HWS_NEED_NONSTOLEN(pI810) (IS_GM45(pI810) || IS_G4X(pI810))
 #define SUPPORTS_INTEGRATED_HDMI(pI810) (IS_GM45(pI810) || IS_G4X(pI810))

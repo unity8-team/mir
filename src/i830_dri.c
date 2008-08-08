@@ -766,20 +766,22 @@ I830InitTextureHeap(ScrnInfoPtr pScrn)
    }
 }
 
-/**
- * Sets up mappings for static, lifetime-fixed allocations, and inital SAREA
- * setup.
+/*
+ * Map registers & ring buffer
  */
-Bool
-I830DRIDoMappings(ScreenPtr pScreen)
+static Bool
+I830DRIMapHW(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
    DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
    I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
-   drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
-   DPRINTF(PFX, "I830DRIDoMappings\n");
+   /* Kernel deals with direct hw access in this case */
+   if (pI830->use_drm_mode)
+       return TRUE;
+
+   DPRINTF(PFX, "I830DRIMapHW\n");
    pI830DRI->regsSize = I830_REG_SIZE;
    if (drmAddMap(pI830->drmSubFD, (drm_handle_t)pI830->MMIOAddr,
 		 pI830DRI->regsSize, DRM_REGISTERS, 0,
@@ -804,6 +806,27 @@ I830DRIDoMappings(ScreenPtr pScreen)
        }
        xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
 		  (int)pI830->ring_map);
+   }
+
+   return TRUE;
+}
+
+/**
+ * Sets up mappings for static, lifetime-fixed allocations, and inital SAREA
+ * setup.
+ */
+Bool
+I830DRIDoMappings(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+   DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
+   I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
+   drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
+
+   if (!I830DRIMapHW(pScreen)) {
+       DRICloseScreen(pScreen);
+       return FALSE;
    }
 
    if (!I830InitDma(pScrn)) {
