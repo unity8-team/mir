@@ -433,7 +433,7 @@ static Bool RADEONGetATOMConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
     if (!info->VBIOS) return FALSE;
-    
+
     if (RADEONGetATOMConnectorInfoFromBIOSObject(pScrn))
 	return TRUE;
 
@@ -468,14 +468,18 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	info->BiosConnector[index].ddc_i2c.valid = TRUE;
 	info->BiosConnector[index].ddc_i2c.mask_clk_mask = (0x20 << 8);
 	info->BiosConnector[index].ddc_i2c.mask_data_mask = 0x80;
+	info->BiosConnector[index].ddc_i2c.a_clk_mask = (0x20 << 8);
+	info->BiosConnector[index].ddc_i2c.a_data_mask = 0x80;
 	info->BiosConnector[index].ddc_i2c.put_clk_mask = (0x20 << 8);
 	info->BiosConnector[index].ddc_i2c.put_data_mask = 0x80;
 	info->BiosConnector[index].ddc_i2c.get_clk_mask = (0x20 << 8);
 	info->BiosConnector[index].ddc_i2c.get_data_mask = 0x80;
 	info->BiosConnector[index].ddc_i2c.mask_clk_reg = RADEON_GPIOPAD_MASK;
 	info->BiosConnector[index].ddc_i2c.mask_data_reg = RADEON_GPIOPAD_MASK;
-	info->BiosConnector[index].ddc_i2c.put_clk_reg = RADEON_GPIOPAD_A;
-	info->BiosConnector[index].ddc_i2c.put_data_reg = RADEON_GPIOPAD_A;
+	info->BiosConnector[index].ddc_i2c.a_clk_reg = RADEON_GPIOPAD_A;
+	info->BiosConnector[index].ddc_i2c.a_data_reg = RADEON_GPIOPAD_A;
+	info->BiosConnector[index].ddc_i2c.put_clk_reg = RADEON_GPIOPAD_EN;
+	info->BiosConnector[index].ddc_i2c.put_data_reg = RADEON_GPIOPAD_EN;
 	info->BiosConnector[index].ddc_i2c.get_clk_reg = RADEON_LCD_GPIO_Y_REG;
 	info->BiosConnector[index].ddc_i2c.get_data_reg = RADEON_LCD_GPIO_Y_REG;
     }
@@ -645,10 +649,10 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			    break;
 			case DDC_LCD:
 			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_LCD_GPIO_MASK);
-			    info->BiosConnector[4].ddc_i2c.mask_clk_mask =
-				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
-			    info->BiosConnector[4].ddc_i2c.mask_data_mask =
-				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.mask_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.mask_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.a_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.a_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    info->BiosConnector[4].ddc_i2c.put_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
 			    info->BiosConnector[4].ddc_i2c.put_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    info->BiosConnector[4].ddc_i2c.get_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
@@ -656,10 +660,10 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			    break;
 			case DDC_GPIO:
 			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_MDGPIO_EN_REG);
-			    info->BiosConnector[4].ddc_i2c.mask_clk_mask =
-				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
-			    info->BiosConnector[4].ddc_i2c.mask_data_mask =
-				RADEON_BIOS32(tmp0 + 0x03) | RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.mask_clk_mask =  RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.mask_data_mask = RADEON_BIOS32(tmp0 + 0x07);
+			    info->BiosConnector[4].ddc_i2c.a_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
+			    info->BiosConnector[4].ddc_i2c.a_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    info->BiosConnector[4].ddc_i2c.put_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
 			    info->BiosConnector[4].ddc_i2c.put_data_mask = RADEON_BIOS32(tmp0 + 0x07);
 			    info->BiosConnector[4].ddc_i2c.get_clk_mask = RADEON_BIOS32(tmp0 + 0x03);
@@ -1194,12 +1198,16 @@ RADEONLookupI2CBlock(ScrnInfoPtr pScrn, int id)
 
 		i2c.mask_clk_mask = (1 << clock_shift);
 		i2c.mask_data_mask = (1 << data_shift);
+		i2c.a_clk_mask = (1 << clock_shift);
+		i2c.a_data_mask = (1 << data_shift);
 		i2c.put_clk_mask = (1 << clock_shift);
 		i2c.put_data_mask = (1 << data_shift);
 		i2c.get_clk_mask = (1 << clock_shift);
 		i2c.get_data_mask = (1 << data_shift);
 		i2c.mask_clk_reg = reg;
 		i2c.mask_data_reg = reg;
+		i2c.a_clk_reg = reg;
+		i2c.a_data_reg = reg;
 		i2c.put_clk_reg = reg;
 		i2c.put_data_reg = reg;
 		i2c.get_clk_reg = reg;

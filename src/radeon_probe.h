@@ -166,6 +166,8 @@ typedef struct
     Bool   valid;
     uint32_t mask_clk_reg;
     uint32_t mask_data_reg;
+    uint32_t a_clk_reg;
+    uint32_t a_data_reg;
     uint32_t put_clk_reg;
     uint32_t put_data_reg;
     uint32_t get_clk_reg;
@@ -176,6 +178,8 @@ typedef struct
     uint32_t put_data_mask;
     uint32_t get_clk_mask;
     uint32_t get_data_mask;
+    uint32_t a_clk_mask;
+    uint32_t a_data_mask;
 } RADEONI2CBusRec, *RADEONI2CBusPtr;
 
 typedef struct _RADEONCrtcPrivateRec {

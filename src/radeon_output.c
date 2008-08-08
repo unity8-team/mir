@@ -173,9 +173,6 @@ static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
 
 static void RADEONUpdatePanelSize(xf86OutputPtr output);
 static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-#define AVIVO_I2C_DISABLE 0
-#define AVIVO_I2C_ENABLE 1
-static Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state);
 
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
@@ -215,88 +212,6 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 
 }
 
-static xf86MonPtr
-radeon_do_ddc(xf86OutputPtr output)
-{
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t DDCReg;
-    xf86MonPtr MonInfo = NULL;
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i, j;
-
-    if (radeon_output->pI2CBus) {
-	DDCReg = radeon_output->ddc_i2c.mask_clk_reg;
-
-	if (IS_AVIVO_VARIANT) {
-	    AVIVOI2CDoLock(output, AVIVO_I2C_ENABLE);
-	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	    AVIVOI2CDoLock(output, AVIVO_I2C_DISABLE);
-	} else if ((DDCReg == RADEON_LCD_GPIO_MASK) || (DDCReg == RADEON_MDGPIO_EN_REG)) {
-	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	} else {
-	    OUTREG(DDCReg, INREG(DDCReg) &
-		   (uint32_t)~(RADEON_GPIO_A_0 | RADEON_GPIO_A_1));
-
-	    /* For some old monitors (like Compaq Presario FP500), we need
-	     * following process to initialize/stop DDC
-	     */
-	    OUTREG(DDCReg, INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-	    for (j = 0; j < 3; j++) {
-		OUTREG(DDCReg,
-		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-		usleep(13000);
-
-		OUTREG(DDCReg,
-		       INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-		for (i = 0; i < 10; i++) {
-		    usleep(15000);
-		    if (INREG(DDCReg) & RADEON_GPIO_Y_1)
-			break;
-		}
-		if (i == 10) continue;
-
-		usleep(15000);
-
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-		usleep(15000);
-
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-		usleep(15000);
-		OUTREG(DDCReg,
-		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-		usleep(15000);
-
-		MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-		usleep(15000);
-		OUTREG(DDCReg,
-		       INREG(DDCReg) & ~(RADEON_GPIO_EN_1));
-		for (i = 0; i < 5; i++) {
-		    usleep(15000);
-		    if (INREG(DDCReg) & RADEON_GPIO_Y_1)
-			break;
-		}
-		usleep(15000);
-		OUTREG(DDCReg,
-		       INREG(DDCReg) & ~(RADEON_GPIO_EN_0));
-		usleep(15000);
-
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_1);
-		OUTREG(DDCReg, INREG(DDCReg) | RADEON_GPIO_EN_0);
-		usleep(15000);
-		if (MonInfo)  break;
-	    }
-	    OUTREG(DDCReg, INREG(DDCReg) &
-		   ~(RADEON_GPIO_EN_0 | RADEON_GPIO_EN_1));
-	}
-    }
-
-    return MonInfo;
-}
-
 static RADEONMonitorType
 radeon_ddc_connected(xf86OutputPtr output)
 {
@@ -306,8 +221,11 @@ radeon_ddc_connected(xf86OutputPtr output)
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    if (radeon_output->pI2CBus)
-	MonInfo = radeon_do_ddc(output);
+    if (radeon_output->pI2CBus) {
+	RADEONI2CDoLock(output, TRUE);
+	MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+	RADEONI2CDoLock(output, FALSE);
+    }
     if (MonInfo) {
 	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
 	    xf86OutputSetEDID(output, MonInfo);
@@ -319,13 +237,14 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    MonType = MT_DFP;
 	else if (radeon_output->type == OUTPUT_DP)
 	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_DVI_I && (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
+	else if (radeon_output->type == OUTPUT_DVI_I &&
+		 (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
 	    MonType = MT_DFP;
 	else
 	    MonType = MT_CRT;
     } else
 	MonType = MT_NONE;
-    
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Output: %s, Detected Monitor Type: %d\n", output->name, MonType);
 
@@ -1699,8 +1618,8 @@ Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
 }
 #endif
 
-static
-Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state)
+Bool
+RADEONI2CDoLock(xf86OutputPtr output, int lock_state)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -1709,19 +1628,29 @@ Bool AVIVOI2CDoLock(xf86OutputPtr output, int lock_state)
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t temp;
 
+    if (lock_state) {
+	temp = INREG(pRADEONI2CBus->a_clk_reg);
+	temp &= ~(pRADEONI2CBus->a_clk_mask);
+	OUTREG(pRADEONI2CBus->a_clk_reg, temp);
+
+	temp = INREG(pRADEONI2CBus->a_data_reg);
+	temp &= ~(pRADEONI2CBus->a_data_mask);
+	OUTREG(pRADEONI2CBus->a_data_reg, temp);
+    }
+
     temp = INREG(pRADEONI2CBus->mask_clk_reg);
-    if (lock_state == AVIVO_I2C_ENABLE)
-	temp |= (pRADEONI2CBus->put_clk_mask);
+    if (lock_state)
+	temp |= (pRADEONI2CBus->mask_clk_mask);
     else
-	temp &= ~(pRADEONI2CBus->put_clk_mask);
+	temp &= ~(pRADEONI2CBus->mask_clk_mask);
     OUTREG(pRADEONI2CBus->mask_clk_reg, temp);
     temp = INREG(pRADEONI2CBus->mask_clk_reg);
 
     temp = INREG(pRADEONI2CBus->mask_data_reg);
-    if (lock_state == AVIVO_I2C_ENABLE)
-	temp |= (pRADEONI2CBus->put_data_mask);
+    if (lock_state)
+	temp |= (pRADEONI2CBus->mask_data_mask);
     else
-	temp &= ~(pRADEONI2CBus->put_data_mask);
+	temp &= ~(pRADEONI2CBus->mask_data_mask);
     OUTREG(pRADEONI2CBus->mask_data_reg, temp);
     temp = INREG(pRADEONI2CBus->mask_data_reg);
 
@@ -1803,8 +1732,10 @@ legacy_setup_i2c_bus(int ddc_line)
 {
     RADEONI2CBusRec i2c;
 
-    i2c.mask_clk_mask = RADEON_GPIO_EN_1 | RADEON_GPIO_Y_1;
-    i2c.mask_data_mask =  RADEON_GPIO_EN_0 | RADEON_GPIO_Y_0;
+    i2c.mask_clk_mask = RADEON_GPIO_EN_1;
+    i2c.mask_data_mask = RADEON_GPIO_EN_0;
+    i2c.a_clk_mask = RADEON_GPIO_A_1;
+    i2c.a_data_mask = RADEON_GPIO_A_0;
     i2c.put_clk_mask = RADEON_GPIO_EN_1;
     i2c.put_data_mask = RADEON_GPIO_EN_0;
     i2c.get_clk_mask = RADEON_GPIO_Y_1;
@@ -1813,6 +1744,8 @@ legacy_setup_i2c_bus(int ddc_line)
 	(ddc_line == RADEON_MDGPIO_EN_REG)) {
 	i2c.mask_clk_reg = ddc_line;
 	i2c.mask_data_reg = ddc_line;
+	i2c.a_clk_reg = ddc_line;
+	i2c.a_data_reg = ddc_line;
 	i2c.put_clk_reg = ddc_line;
 	i2c.put_data_reg = ddc_line;
 	i2c.get_clk_reg = ddc_line + 4;
@@ -1820,6 +1753,8 @@ legacy_setup_i2c_bus(int ddc_line)
     } else {
 	i2c.mask_clk_reg = ddc_line;
 	i2c.mask_data_reg = ddc_line;
+	i2c.a_clk_reg = ddc_line;
+	i2c.a_data_reg = ddc_line;
 	i2c.put_clk_reg = ddc_line;
 	i2c.put_data_reg = ddc_line;
 	i2c.get_clk_reg = ddc_line;
@@ -1846,6 +1781,8 @@ atom_setup_i2c_bus(int ddc_line)
 	i2c.get_data_mask = (1 << 18);
 	i2c.mask_clk_mask = (1 << 19);
 	i2c.mask_data_mask = (1 << 18);
+	i2c.a_clk_mask = (1 << 19);
+	i2c.a_data_mask = (1 << 18);
     } else {
 	i2c.put_clk_mask = (1 << 0);
 	i2c.put_data_mask = (1 << 8);
@@ -1853,9 +1790,13 @@ atom_setup_i2c_bus(int ddc_line)
 	i2c.get_data_mask = (1 << 8);
 	i2c.mask_clk_mask = (1 << 0);
 	i2c.mask_data_mask = (1 << 8);
+	i2c.a_clk_mask = (1 << 0);
+	i2c.a_data_mask = (1 << 8);
     }
     i2c.mask_clk_reg = ddc_line;
     i2c.mask_data_reg = ddc_line;
+    i2c.a_clk_reg = ddc_line + 0x4;
+    i2c.a_data_reg = ddc_line + 0x4;
     i2c.put_clk_reg = ddc_line + 0x8;
     i2c.put_data_reg = ddc_line + 0x8;
     i2c.get_clk_reg = ddc_line + 0xc;
@@ -2694,7 +2635,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt  = RADEONEntPriv(pScrn);
     xf86OutputPtr output;
     char *optstr;
     int i = 0;

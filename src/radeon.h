@@ -1014,6 +1014,8 @@ extern void RADEONPrintPortMap(ScrnInfoPtr pScrn);
 extern void RADEONSetOutputType(ScrnInfoPtr pScrn,
 				RADEONOutputPrivatePtr radeon_output);
 extern Bool RADEONSetupConnectors(ScrnInfoPtr pScrn);
+extern Bool RADEONI2CDoLock(xf86OutputPtr output, Bool lock_state);
+
 
 /* radeon_tv.c */
 extern void RADEONSaveTVRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);

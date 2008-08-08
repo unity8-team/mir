@@ -1415,12 +1415,16 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
     i2c.put_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
     i2c.get_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
     i2c.get_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
+    i2c.a_clk_reg = le16_to_cpu(gpio.usClkA_RegisterIndex) * 4;
+    i2c.a_data_reg = le16_to_cpu(gpio.usDataA_RegisterIndex) * 4;
     i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
     i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
     i2c.put_clk_mask = (1 << gpio.ucClkEnShift);
     i2c.put_data_mask = (1 << gpio.ucDataEnShift);
     i2c.get_clk_mask = (1 << gpio.ucClkY_Shift);
     i2c.get_data_mask = (1 <<  gpio.ucDataY_Shift);
+    i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
+    i2c.a_data_mask = (1 <<  gpio.ucDataA_Shift);
     i2c.valid = TRUE;
 
 #if 0
@@ -1430,16 +1434,16 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
     ErrorF("put_data_reg: 0x%x\n", gpio.usDataEnRegisterIndex * 4);
     ErrorF("get_clk_reg: 0x%x\n", gpio.usClkY_RegisterIndex * 4);
     ErrorF("get_data_reg: 0x%x\n", gpio.usDataY_RegisterIndex * 4);
-    ErrorF("other_clk_reg: 0x%x\n", gpio.usClkA_RegisterIndex * 4);
-    ErrorF("other_data_reg: 0x%x\n", gpio.usDataA_RegisterIndex * 4);
+    ErrorF("a_clk_reg: 0x%x\n", gpio.usClkA_RegisterIndex * 4);
+    ErrorF("a_data_reg: 0x%x\n", gpio.usDataA_RegisterIndex * 4);
     ErrorF("mask_clk_mask: %d\n", gpio.ucClkMaskShift);
     ErrorF("mask_data_mask: %d\n", gpio.ucDataMaskShift);
     ErrorF("put_clk_mask: %d\n", gpio.ucClkEnShift);
     ErrorF("put_data_mask: %d\n", gpio.ucDataEnShift);
     ErrorF("get_clk_mask: %d\n", gpio.ucClkY_Shift);
     ErrorF("get_data_mask: %d\n", gpio.ucDataY_Shift);
-    ErrorF("other_clk_mask: %d\n", gpio.ucClkA_Shift);
-    ErrorF("other_data_mask: %d\n", gpio.ucDataA_Shift);
+    ErrorF("a_clk_mask: %d\n", gpio.ucClkA_Shift);
+    ErrorF("a_data_mask: %d\n", gpio.ucDataA_Shift);
 #endif
 
     return i2c;
@@ -1461,7 +1465,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     atomDataTablesPtr atomDataPtr;
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
     ATOM_INTEGRATED_SYSTEM_INFO_V2 *igp_obj = NULL;
-    int i, j, ddc_line = 0;
+    int i, j;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
