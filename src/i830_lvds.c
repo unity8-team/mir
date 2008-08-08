@@ -1213,7 +1213,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
     DisplayModePtr	    modes, scan;
-    DisplayModePtr	    lvds_ddc_mode;
+    DisplayModePtr	    lvds_ddc_mode = NULL;
     struct i830_lvds_priv   *dev_priv;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_LVDS)
