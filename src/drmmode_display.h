@@ -29,11 +29,12 @@
 
 #ifdef XF86DRM_MODE
 
+#include "dri_bufmgr.h"
 #include "xf86drmMode.h"
 
 typedef struct {
   int fd;
-  int fb_id;
+  uint32_t fb_id;
   drmModeResPtr mode_res;
   drmModeFBPtr mode_fb;
   int cpp;
@@ -63,7 +64,7 @@ typedef struct {
 
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char *driver_name, int cpp);
 //extern Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, dri_bufmgr *bufmgr);
-extern void drmmode_set_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int width, int height, int pitch, uint32_t handle);
+extern void drmmode_set_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int width, int height, int pitch, dri_bo *bo);
 //extern Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo);
 extern void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, void *ptr, uint32_t handle);
 #endif

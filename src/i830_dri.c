@@ -159,7 +159,7 @@ I830InitDma(ScrnInfoPtr pScrn)
    info.func = I830_INIT_DMA;
 
    /* Initialize fields that are used in the absence of GEM */
-   if (!pI830->memory_manager) {
+   if (!pI830->memory_manager && !pI830->use_drm_mode) {
        info.ring_start = ring->mem->offset + pI830->LinearAddr;
        info.ring_end = ring->mem->end + pI830->LinearAddr;
        info.ring_size = ring->mem->size;

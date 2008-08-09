@@ -30,7 +30,7 @@
 #endif
 
 #ifdef XF86DRM_MODE
-#include "radeon.h"
+#include "i830.h"
 #include "sarea.h"
 
 static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height);
@@ -208,9 +208,6 @@ static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
-	int ret;
 	void *ptr;
 
 	/* cursor should be mapped already */
@@ -246,7 +243,6 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int ret;
 	int size;
 	unsigned long rotate_pitch;
 
@@ -309,7 +305,6 @@ static void
 drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	if (rotate_pixmap)
 	    FreeScratchPixmapHeader(rotate_pixmap);
@@ -354,9 +349,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 {
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
-	int cursor_size = 64 * 64 * 4;
-	uint32_t mask;
-	int ret;
 
 	crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
 	if (crtc == NULL)
@@ -604,15 +596,16 @@ Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, dri_bufmgr *bufm
 }
 #endif
 
-void drmmode_set_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height, int pitch, uint32_t handle)
+void drmmode_set_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width, int height, int pitch, dri_bo *bo)
 {
 	int ret;
 
 	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch, handle, &drmmode->fb_id);
+			   scrn->bitsPerPixel, pitch, bo->handle,
+			   &drmmode->fb_id);
 
 	if (ret) {
-		ErrorF("Failed to add fb\n");
+		ErrorF("Failed to add fb: %s\n", strerror(-ret));
 	}
 
 	drmmode->mode_fb = drmModeGetFB(drmmode->fd, drmmode->fb_id);

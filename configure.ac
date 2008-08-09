@@ -85,12 +85,16 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
+drm_cflags=$(pkg-config --cflags libdrm)
 
 # Checks for libraries.
 
 # Checks for header files.
 AC_HEADER_STDC
 
+save_CFLAGS="$CFLAGS"
+CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
+CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI = xauto; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
@@ -101,7 +105,9 @@ if test x$DRI = xauto; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
-	AC_CHECK_HEADER(xf86drmMode.h,[DRM_MODE=yes],[DRM_MODE=no],[#include "stdint.h"])
+	AC_CHECK_HEADER(xf86drmMode.h,
+			[DRM_MODE=yes],[DRM_MODE=no]
+			[#include "stdint.h"])
 	if test "x$DRM_MODE" = xyes; then
 	   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 	fi
@@ -116,8 +122,6 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
-save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS"
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],

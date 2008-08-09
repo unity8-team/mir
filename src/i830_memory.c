@@ -741,6 +741,8 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
     mem->bo = dri_bo_alloc (pI830->bufmgr, name, size, align);
 
+    ErrorF("alloc'd bo for %s\n", name);
+
     if (!mem->bo) {
 	xfree(mem->name);
 	xfree(mem);
@@ -757,7 +759,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	mem->lifetime_fixed_offset = TRUE;
 
     /* Bind it if we currently control the VT */
-    if (pScrn->vtSema) {
+    if (pScrn->vtSema || pI830->use_drm_mode) {
 	if (!i830_bind_memory(pScrn, mem)) {
 	    dri_bo_unreference (mem->bo);
 	    xfree(mem->name);
@@ -1227,8 +1229,10 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 
     if (pI830->use_drm_mode) {
 #ifdef XF86DRM_MODE
+	ErrorF("setting kernel fb to new front buffer\n");
+	ErrorF("front_buffer->bo->size: %ld\n", front_buffer->bo->size);
         drmmode_set_fb(pScrn, &pI830->drmmode, pScrn->virtualX, fb_height,
-		       pScrn->displayWidth * pI830->cpp, &front_buffer->bo);
+		       pScrn->displayWidth * pI830->cpp, front_buffer->bo);
 #endif
     } else if (pI830->FbBase)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
@@ -1986,12 +1990,14 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 	for (mem = pI830->memory_list->next; mem->next != NULL;
 	     mem = mem->next)
 	{
-	    if (!i830_bind_memory(pScrn, mem)) {
+	    if (!mem->bound && !i830_bind_memory(pScrn, mem)) {
 		/* This shouldn't happen */
 		FatalError("Couldn't bind memory for %s\n", mem->name);
 	    }
 	}
 	for (mem = pI830->bo_list; mem != NULL; mem = mem->next) {
+	    if (mem->bound)
+		continue;
 	    if (!mem->lifetime_fixed_offset && !i830_bind_memory(pScrn, mem))
 		FatalError("Couldn't bind memory for BO %s\n", mem->name);
 	}

@@ -1668,7 +1668,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     pI830->directRenderingDisabled = FALSE;
     pI830->allocate_classic_textures = FALSE;
 
-    I830InitBufMgr(pScrn);
+    i830_init_bufmgr(pScrn);
 #endif
 
     return TRUE;
@@ -1860,7 +1860,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!xf86SetDefaultVisual(pScrn, -1))
       return FALSE;
 
-   hwp = VGAHWPTR(pScrn);
+   if (!pI830->use_drm_mode)
+       hwp = VGAHWPTR(pScrn);
+
    pI830->cpp = pScrn->bitsPerPixel / 8;
 
    pI830->preinit = TRUE;
@@ -1873,9 +1875,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 
    I830PreInitCrtcConfig(pScrn);
 
-   if (pI830->use_drm_mode && !I830DrmModeInit(pScrn))
-       return FALSE;
-   else if (!I830AccelMethodInit(pScrn))
+   if (pI830->use_drm_mode) {
+       if (!I830DrmModeInit(pScrn))
+	   return FALSE;
+   } else if (!I830AccelMethodInit(pScrn))
        return FALSE;
 
    I830XvInit(pScrn);
@@ -2910,9 +2913,10 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->bufmgr) return;
+   if (pI830->bufmgr)
+       return;
 
-   if (pI830->memory_manager) {
+   if (pI830->memory_manager || pI830->use_drm_mode) {
       int batch_size;
 
       batch_size = 4096 * 4;
@@ -3093,30 +3097,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (pI830->use_drm_mode) {
 #ifdef XF86DRM_MODE
-       uint64_t size;
-       int ret;
-       ret = drmMMInfo(pI830->drmSubFD, DRM_BO_MEM_VRAM, &size);
-       if (ret) {
-         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                     "Kernel memory manager has no VRAM allocation\n");
-          return FALSE;
-       }
-       pI830->stolen_size = size * GTT_PAGE_SIZE;
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                 "Kernel stolen allocator is %dkb\n",
-		  pI830->stolen_size / KB(1));
-
-       ret = drmMMInfo(pI830->drmSubFD, DRM_BO_MEM_TT, &size);
-       if (ret) {
-          xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                     "Kernel memory manager has no TT allocation\n");
-          return FALSE;
-       }
-       pScrn->videoRam = (size * GTT_PAGE_SIZE) / KB(1);
-       xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                 "Kernel AGP allocator is %dkb\n", pScrn->videoRam);
+       pI830->stolen_size = 0;
+       pScrn->videoRam = ~0UL / KB(1);
 #endif
-    } else {
+   } else {
        I830AdjustMemory(pScreen);
    }
 
@@ -3308,7 +3292,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
        if (!I830MapMem(pScrn))
  	   return FALSE;
-
        pScrn->memPhysBase = (unsigned long)pI830->FbBase;
    }
 
@@ -3443,7 +3426,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef I830_XV
    /* Init video */
-   if (pI830->XvEnabled)
+   if (pI830->XvEnabled && !pI830->use_drm_mode)
       I830InitVideo(pScreen);
 #endif
 
@@ -3682,7 +3665,6 @@ I830EnterVT(int scrnIndex, int flags)
 
        if (pI830->power_context)
 	   OUTREG(PWRCTXA, pI830->power_context->offset | PWRCTX_EN);
-
        /* Clear the framebuffer */
        memset(pI830->FbBase + pScrn->fbOffset, 0,
 	      pScrn->virtualY * pScrn->displayWidth * pI830->cpp);
