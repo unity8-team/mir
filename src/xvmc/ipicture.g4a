@@ -169,5 +169,5 @@ mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
 mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
 send (16) 0 acc0<1>UW g1<8,8,1>UW write(2, 0, 2, 0) mlen 3 rlen 0 { align1 };
 
-send (16) 0 null g0<8,8,1>UW 
+send (16) 0 acc0<1>UW g0<8,8,1>UW 
 	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};

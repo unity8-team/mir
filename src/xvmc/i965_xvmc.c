@@ -408,7 +408,7 @@ static void vfe_state(struct media_state *media_state)
 	state->vfe1.num_urb_entries = 1; 
 	/* XXX TODO */
 	/* should carefully caculate those values for performance */
-	state->vfe1.urb_entry_alloc_size = 18; 
+	state->vfe1.urb_entry_alloc_size = 2; 
 	state->vfe1.max_threads = 15; 
 	state->vfe2.interface_descriptor_base = 
 		media_state->interface_descriptor_offset[0] >> 4;
