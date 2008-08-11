@@ -37,6 +37,7 @@
 
 #include "i830.h"
 #include "i830_video.h"
+#include "i830_hwmc.h"
 #include "brw_defines.h"
 #include "brw_structs.h"
 #include <string.h>
@@ -248,6 +249,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	src_pitch[0] = video_pitch;
 	n_src_surf = 1;
 	break;
+#ifdef INTEL_XVMC
+    case FOURCC_XVMC:
+#endif
     case FOURCC_I420:
     case FOURCC_YV12:
 	src_surf_format = BRW_SURFACEFORMAT_R8_UNORM;

@@ -230,13 +230,10 @@ static int put_image(ScrnInfoPtr pScrn,
 	struct intel_xvmc_command *cmd = (struct intel_xvmc_command *)buf;
 	if (id == FOURCC_XVMC) {
 	    buf = pI830->FbBase + cmd->surf_offset;
-	    XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-		    drw_w, drw_h, FOURCC_I420, buf, width, height, sync, clipBoxes,
-		    data, pDraw);
-	}else
-	    XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
-		    drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
-		    data, pDraw);
+	}
+	XvPutImage(pScrn, src_x, src_y, drw_x, drw_y, src_w, src_h,
+		drw_w, drw_h, id, buf, width, height, sync, clipBoxes,
+		data, pDraw);
 	return Success;
 }
 
