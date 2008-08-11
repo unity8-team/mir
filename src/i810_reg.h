@@ -2822,4 +2822,6 @@ typedef enum {
 #define DPFC_STATUS2		0x3214
 #define DPFC_FENCE_YOFF		0x3218
 
+#define PEG_BAND_GAP_DATA	0x14d68
+
 #endif /* _I810_REG_H */
