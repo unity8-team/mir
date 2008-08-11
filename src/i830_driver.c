@@ -971,7 +971,7 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
 
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
-    if (IS_GM45(pI830)) {
+    if (IS_GM45(pI830) || IS_G4X(pI830)) {
 	OUTREG(RENCLK_GATE_D1, 0);
 	OUTREG(RENCLK_GATE_D2, 0);
 	OUTREG(RAMCLK_GATE_D, 0);
