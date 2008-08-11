@@ -252,6 +252,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_R600_940B, "ATI FireGL V8600" },
   { PCI_CHIP_R600_940F, "ATI FireGL V7600" },
   { PCI_CHIP_RV770_9440, "ATI Radeon 4800 Series" },
+  { PCI_CHIP_RV770_9441, "ATI Radeon HD 4870 x2" },
   { PCI_CHIP_RV770_9442, "ATI Radeon 4800 Series" },
   { PCI_CHIP_RV610_94C0, "ATI RV610" },
   { PCI_CHIP_RV610_94C1, "ATI Radeon HD 2400 XT" },

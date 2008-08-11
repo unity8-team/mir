@@ -333,6 +333,7 @@
 "0x940B","R600_940B","R600",,,,,,"ATI FireGL V8600"
 "0x940F","R600_940F","R600",,,,,,"ATI FireGL V7600"
 "0x9440","RV770_9440","RV770",,,,,,"ATI Radeon 4800 Series"
+"0x9441","RV770_9441","RV770",,,,,,"ATI Radeon HD 4870 x2"
 "0x9442","RV770_9442","RV770",,,,,,"ATI Radeon 4800 Series"
 "0x94C0","RV610_94C0","RV610",,,,,,"ATI RV610"
 "0x94C1","RV610_94C1","RV610",,,,,,"ATI Radeon HD 2400 XT"
