@@ -1448,9 +1448,13 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     render_state = pI830->gen4_render_state;
 
     render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
-    render_state->card_state = (gen4_state_t *)
-	(pI830->FbBase + render_state->card_state_offset);
 
+    if (dri_bo_map(pI830->gen4_render_state_mem->bo, 1)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to map gen4 state\n");
+	return;
+    }
+
+    render_state->card_state = pI830->gen4_render_state_mem->bo->virtual;
     gen4_state_init(render_state);
 }
 
@@ -1462,6 +1466,8 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+    dri_bo_unmap(pI830->gen4_render_state_mem->bo);
+    dri_bo_unreference(pI830->gen4_render_state_mem->bo);
     pI830->gen4_render_state->card_state = NULL;
 }
 
