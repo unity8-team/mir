@@ -220,7 +220,7 @@ I830Sync(ScrnInfoPtr pScrn)
 
        if (!pI830->memory_manager)
 	   i830_refresh_ring(pScrn);
-   } else {
+   } else if (!pI830->use_drm_mode) {
        i830_wait_ring_idle(pScrn);
    }
 
