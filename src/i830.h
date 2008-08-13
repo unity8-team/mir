@@ -726,6 +726,10 @@ typedef struct _I830Rec {
 unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
 unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 
+struct i830_exa_pixmap_priv {
+    dri_bo *bo;
+};
+
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
 

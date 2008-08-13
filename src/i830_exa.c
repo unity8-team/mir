@@ -467,92 +467,147 @@ i830_transform_is_affine (PictTransformPtr t)
 
 static DevPrivateKey exa_pixmap_key = &exa_pixmap_key;
 
-static void
-i830_exa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
+static void *
+I830EXACreatePixmap(ScreenPtr screen, int size, int align)
 {
-    dixSetPrivate(&pixmap->devPrivates, exa_pixmap_key, bo);
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+    struct i830_exa_pixmap_priv *new_priv;
+
+    new_priv = xcalloc(1, sizeof(struct i830_exa_pixmap_priv));
+    if (!new_priv)
+        return NULL;
+
+    if (size == 0)
+	return new_priv;
+
+    new_priv->bo = dri_bo_alloc(i830->bufmgr, "pixmap", size,
+				i830->accel_pixmap_offset_alignment);
+    if (!new_priv->bo) {
+	xfree(new_priv);
+	return NULL;
+    }
+
+    return new_priv;
 }
 
-dri_bo *
-i830_exa_get_pixmap_bo (PixmapPtr pixmap)
+static void
+I830EXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 {
-    return dixLookupPrivate(&pixmap->devPrivates, exa_pixmap_key);
+    struct i830_exa_pixmap_priv *priv = driverPriv;
+
+    if (priv->bo)
+	dri_bo_unreference(priv->bo);
+    xfree(priv);
+}
+
+static Bool I830EXAPixmapIsOffscreen(PixmapPtr pPix)
+{
+    struct i830_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
+
+    if (driver_priv && driver_priv->bo)
+	return TRUE;
+
+    return FALSE;
 }
 
 static Bool I830EXAPrepareAccess(PixmapPtr pPix, int index)
 {
-    dri_bo *bo = i830_exa_get_pixmap_bo(pPix);
+    ScreenPtr screen = pPix->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+    struct i830_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
 
-    if (bo) {
-	ScreenPtr screen = pPix->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
-
-	intel_batch_flush(scrn);
-	if (i830->need_sync) {
-	    I830Sync(scrn);
-	    i830->need_sync = FALSE;
-	}
-	if (dri_bo_map(bo, 1))
-	    return FALSE;
-        pPix->devPrivate.ptr = bo->virtual;
+    if (!driver_priv) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: no driver private?\n",
+		   __FUNCTION__);
+	return FALSE;
     }
+
+    if (!driver_priv->bo) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: no buffer object?\n",
+		   __FUNCTION__);
+	return TRUE;
+    }
+
+    intel_batch_flush(scrn);
+    if (i830->need_sync) {
+	I830Sync(scrn);
+	i830->need_sync = FALSE;
+    }
+    if (dri_bo_map(driver_priv->bo, 1)) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
+		   __FUNCTION__);
+	return FALSE;
+    }
+    pPix->devPrivate.ptr = driver_priv->bo->virtual;
+
     return TRUE;
 }
 
 static void I830EXAFinishAccess(PixmapPtr pPix, int index)
 {
-    dri_bo *bo = i830_exa_get_pixmap_bo(pPix);
+    ScreenPtr screen = pPix->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+    struct i830_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
 
-    if (bo) {
-	ScreenPtr screen = pPix->drawable.pScreen;
-	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
-	I830Ptr i830 = I830PTR(scrn);
-
-	dri_bo_unmap(bo);
-	pPix->devPrivate.ptr = NULL;
-	if (bo == i830->front_buffer->bo)
-	    i830->need_flush = TRUE;
+    if (!driver_priv) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: no driver private?\n",
+		   __FUNCTION__);
+	return;
     }
+
+    if (!driver_priv->bo) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: no buffer object?\n",
+		   __FUNCTION__);
+	return;
+    }
+
+    dri_bo_unmap(driver_priv->bo);
+    pPix->devPrivate.ptr = NULL;
+    if (driver_priv->bo == i830->front_buffer->bo)
+	i830->need_flush = TRUE;
 }
-#if 0
-static Bool I830EXAModifyPixmapHeader(PixmapPtr pPixmap, int width, int height,
+
+static Bool I830EXAModifyPixmapHeader(PixmapPtr pPix, int width, int height,
 				      int depth, int bitsPerPixel, int devKind,
 				      pointer pPixData)
 {
-    ScreenPtr	pScreen = pPixmap->drawable.pScreen;
+    ScreenPtr	pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    dri_bo *bo = i830_exa_get_pixmap_bo(pPixmap);
+    struct i830_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
+
+    if (!driver_priv)
+	return FALSE;
 
     if (pI830->use_drm_mode &&
 	drmmode_is_rotate_pixmap(pScrn, pPixData, &driver_priv->bo)) {
 	/* this is a rotate pixmap */
-	dri_bo_unmap(bo);
-	dri_bo_reference(bo);
-        miModifyPixmapHeader(pPixmap, width, height, depth,
+	dri_bo_unmap(driver_priv->bo);
+	dri_bo_reference(driver_priv->bo);
+        miModifyPixmapHeader(pPix, width, height, depth,
 			     bitsPerPixel, devKind, NULL);
     }
 
     if (pPixData == pI830->FbBase + pScrn->fbOffset) {
-	/* this is the front buffer pixmap so set it up as such..*/
-        driver_priv->flags |= I830_EXA_PIXMAP_IS_FRONTBUFFER;
-
-	ErrorF("FRONTBUFFER HANDLE CHANGING %p\n", driver_priv->bo);
-	/* get a reference to the front buffer handle */
 	if (driver_priv->bo)
 		dri_bo_unreference(driver_priv->bo);
-	bo = intel_ttm_bo_create_from_handle(pI830->bufmgr, "front",
-					     pI830->front_buffer->bo->handle);
+	driver_priv->bo =
+	    intel_bo_gem_create_from_name(pI830->bufmgr, "front",
+					  pI830->front_buffer->gem_name);
+	if (!driver_priv->bo)
+	    return FALSE;
 
-	miModifyPixmapHeader(pPixmap, width, height, depth,
+	miModifyPixmapHeader(pPix, width, height, depth,
 			     bitsPerPixel, devKind, NULL);
 
 	return TRUE;
     }
     return FALSE;
 }
-#endif
+
 
 Bool
 I830EXAInit(ScreenPtr pScreen)
@@ -598,6 +653,12 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS | EXA_HANDLES_PIXMAPS;
 	pI830->EXADriverPtr->PrepareAccess = I830EXAPrepareAccess;
 	pI830->EXADriverPtr->FinishAccess = I830EXAFinishAccess;
+#if EXA_VERSION_MINOR >= 4
+	pI830->EXADriverPtr->CreatePixmap = I830EXACreatePixmap;
+	pI830->EXADriverPtr->DestroyPixmap = I830EXADestroyPixmap;
+	pI830->EXADriverPtr->PixmapIsOffscreen = I830EXAPixmapIsOffscreen;
+	pI830->EXADriverPtr->ModifyPixmapHeader = I830EXAModifyPixmapHeader;
+#endif
     }
 
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, "
@@ -645,7 +706,8 @@ I830EXAInit(ScreenPtr pScreen)
  	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     }
 #if EXA_VERSION_MINOR >= 2
-    pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
+    if (!pI830->use_drm_mode)
+	pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
 #endif
 
     if(!exaDriverInit(pScreen, pI830->EXADriverPtr)) {
