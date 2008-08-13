@@ -92,9 +92,12 @@ unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #ifdef I830_USE_UXA
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
-dri_bo *i830_uxa_get_pixmap_bo (PixmapPtr pixmap);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
 void i830_uxa_block_handler (ScreenPtr pScreen);
+#endif
+
+#if defined(I830_USE_UXA) || defined(I830_USE_EXA)
+dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
 #endif
 
 #ifdef I830_USE_XAA

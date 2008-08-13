@@ -735,15 +735,27 @@ i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
 }
 
 dri_bo *
-i830_uxa_get_pixmap_bo (PixmapPtr pixmap)
+i830_get_pixmap_bo(PixmapPtr pixmap)
 {
-    return dixLookupPrivate(&pixmap->devPrivates, uxa_pixmap_key);
+    ScreenPtr screen = pixmap->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
+    I830Ptr i830 = I830PTR(scrn);
+
+    if (i830->accel == ACCEL_UXA) {
+	return dixLookupPrivate(&pixmap->devPrivates, uxa_pixmap_key);
+    } else if (i830->accel == ACCEL_EXA) {
+	struct i830_exa_pixmap_priv *driver_priv =
+	    exaGetPixmapDriverPrivate(pixmap);
+	return driver_priv ? driver_priv->bo : NULL;
+    }
+
+    return NULL;
 }
 
 static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
-    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
+    dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
 	ScreenPtr screen = pixmap->drawable.pScreen;
@@ -765,7 +777,7 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 static void
 i830_uxa_finish_access (PixmapPtr pixmap)
 {
-    dri_bo *bo = i830_uxa_get_pixmap_bo (pixmap);
+    dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
 	ScreenPtr screen = pixmap->drawable.pScreen;
@@ -794,7 +806,7 @@ i830_uxa_block_handler (ScreenPtr screen)
 static Bool
 i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
-    return i830_uxa_get_pixmap_bo (pixmap) != NULL;
+    return i830_get_pixmap_bo (pixmap) != NULL;
 }
 
 static PixmapPtr
@@ -835,7 +847,7 @@ static Bool
 i830_uxa_destroy_pixmap (PixmapPtr pixmap)
 {
     if (pixmap->refcnt == 1) {
-	dri_bo  *bo = i830_uxa_get_pixmap_bo (pixmap);
+	dri_bo  *bo = i830_get_pixmap_bo (pixmap);
     
 	if (bo)
 	    dri_bo_unreference (bo);
