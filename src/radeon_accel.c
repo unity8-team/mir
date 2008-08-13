@@ -469,23 +469,6 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	 | RADEON_GMC_CLR_CMP_CNTL_DIS
 	 | RADEON_GMC_DST_PITCH_OFFSET_CNTL);
 
-#ifdef XF86DRI
-    info->sc_left         = 0x00000000;
-    info->sc_right        = RADEON_DEFAULT_SC_RIGHT_MAX;
-    info->sc_top          = 0x00000000;
-    info->sc_bottom       = RADEON_DEFAULT_SC_BOTTOM_MAX;
-
-    info->re_top_left     = 0x00000000;
-    if (info->ChipFamily <= CHIP_FAMILY_RV280)
-	info->re_width_height = ((0x7ff << RADEON_RE_WIDTH_SHIFT) |
-				 (0x7ff << RADEON_RE_HEIGHT_SHIFT));
-    else
-	info->re_width_height = ((8191 << R300_SCISSOR_X_SHIFT) |
-				 (8191 << R300_SCISSOR_Y_SHIFT));
-
-    info->aux_sc_cntl     = 0x00000000;
-#endif
-
     RADEONEngineRestore(pScrn);
 }
 

@@ -670,17 +670,6 @@ typedef struct {
     FBAreaPtr         depthTexArea;
 #endif
 
-				/* Saved scissor values */
-    uint32_t          sc_left;
-    uint32_t          sc_right;
-    uint32_t          sc_top;
-    uint32_t          sc_bottom;
-
-    uint32_t          re_top_left;
-    uint32_t          re_width_height;
-
-    uint32_t          aux_sc_cntl;
-
     int               irq;
 
     Bool              DMAForXv;
@@ -1095,18 +1084,6 @@ do {									\
 	    info->needCacheFlush = FALSE;				\
 	}								\
 	RADEON_WAIT_UNTIL_IDLE();					\
-        if (info->ChipFamily <= CHIP_FAMILY_RV280) {                    \
-	    BEGIN_RING(6);						\
-	    OUT_RING_REG(RADEON_RE_TOP_LEFT,     info->re_top_left);	\
-	    OUT_RING_REG(RADEON_RE_WIDTH_HEIGHT, info->re_width_height); \
-	    OUT_RING_REG(RADEON_AUX_SC_CNTL,     info->aux_sc_cntl);	\
-	    ADVANCE_RING();						\
-        } else {                                                        \
-            BEGIN_RING(4);                                              \
-            OUT_RING_REG(R300_SC_SCISSOR0, info->re_top_left);          \
-	    OUT_RING_REG(R300_SC_SCISSOR1, info->re_width_height);      \
-            ADVANCE_RING();                                             \
-	}                                                               \
 	info->CPInUse = TRUE;						\
     }									\
 } while (0)
