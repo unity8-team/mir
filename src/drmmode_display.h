@@ -33,23 +33,21 @@
 #include "xf86drmMode.h"
 
 typedef struct {
-  int fd;
-  uint32_t fb_id;
-  drmModeResPtr mode_res;
-  drmModeFBPtr mode_fb;
-  int cpp;
-  //  dri_bufmgr *bufmgr;
-
-  uint32_t (*create_new_fb)(ScrnInfoPtr pScrn, int width, int height, int *pitch);
+    int fd;
+    uint32_t fb_id;
+    drmModeResPtr mode_res;
+    drmModeFBPtr mode_fb;
+    int cpp;
+    uint32_t (*create_new_fb)(ScrnInfoPtr pScrn, int width, int height,
+			      int *pitch);
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
 
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
-    uint32_t cursor_handle;
-    void *cursor_map;
-  //    dri_bo *rotate_bo;
+    dri_bo *cursor;
+    dri_bo *rotate_bo;
     int rotate_fb_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
@@ -62,10 +60,14 @@ typedef struct {
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 
-extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId, char *driver_name, int cpp);
-//extern Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, dri_bufmgr *bufmgr);
-extern void drmmode_set_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int width, int height, int pitch, dri_bo *bo);
-//extern Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo);
-extern void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, void *ptr, uint32_t handle);
-#endif
-#endif
+extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
+			     char *busId, char *driver_name, int cpp);
+extern void drmmode_set_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int width,
+			   int height, int pitch, dri_bo *bo);
+extern Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
+				     dri_bo **bo);
+extern void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id,
+			       void *ptr, uint32_t handle);
+#endif /* XF86DRM_MODE */
+
+#endif /* DRMMODE_DISPLAY_H */
