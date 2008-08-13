@@ -1878,8 +1878,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
-   } else if (!I830AccelMethodInit(pScrn))
-       return FALSE;
+   } else {
+       if (!I830AccelMethodInit(pScrn))
+	   return FALSE;
+   }
 
    I830XvInit(pScrn);
 
@@ -2661,9 +2663,6 @@ I830BlockHandler(int i,
 #endif
 
        pI830->need_mi_flush = FALSE;
-#ifdef XF86DRI
-       drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
-#endif
     }
 
     if (pI830->accel == ACCEL_UXA)
@@ -2675,7 +2674,7 @@ I830BlockHandler(int i,
      * (except for mode setting, where it may occur naturally).
      * Check & ack the condition.
      */
-    if (pScrn->vtSema && !DSPARB_HWCONTROL(pI830)) {
+    if (!pI830->use_drm_mode && pScrn->vtSema && !DSPARB_HWCONTROL(pI830)) {
 	if (xf86_config->crtc[0]->enabled &&
 		(INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
@@ -3641,7 +3640,8 @@ I830EnterVT(int scrnIndex, int flags)
 
    intel_batch_init(pScrn);
 
-   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) && IS_I965G(pI830))
+   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) &&
+       IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (!pI830->use_drm_mode) {
