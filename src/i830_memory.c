@@ -193,7 +193,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 	mem->bound = TRUE;
     }
 
-    if (mem->tiling != TILE_NONE && pI830->use_drm_mode) {
+    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode) {
 	mem->fence_nr = i830_set_tiling(pScrn, mem->offset, mem->pitch,
 					mem->allocated_size, mem->tiling);
     }
@@ -740,8 +740,6 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
     }
 
     mem->bo = dri_bo_alloc (pI830->bufmgr, name, size, align);
-
-    ErrorF("alloc'd bo for %s\n", name);
 
     if (!mem->bo) {
 	xfree(mem->name);
