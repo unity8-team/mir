@@ -858,7 +858,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
 
 	/* May need to leave pipe A on */
-	if ((pipe != 0) || (!pI830->quirk_flag & QUIRK_PIPEA_FORCE))
+	if ((pipe != 0) || !(pI830->quirk_flag & QUIRK_PIPEA_FORCE))
 	{
 		/* Disable display plane */
 		temp = INREG(dspcntr_reg);
