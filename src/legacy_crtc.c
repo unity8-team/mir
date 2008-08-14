@@ -1705,9 +1705,14 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int i = 0;
     double dot_clock = 0;
-    int pll_flags = RADEON_PLL_LEGACY | RADEON_PLL_PREFER_LOW_REF_DIV;
+    int pll_flags = RADEON_PLL_LEGACY;
     Bool update_tv_routing = FALSE;
     Bool tilingChanged = FALSE;
+
+    if (adjusted_mode->Clock > 120000) /* range limits??? */
+	pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+    else
+	pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
     if (info->allowColorTiling) {
 	radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
