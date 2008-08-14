@@ -2586,6 +2586,7 @@ RADEONDisplayVideo(
     RADEONOutputPrivatePtr radeon_output;
     xf86OutputPtr output;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    int base_offset;
 
     is_rgb=0; is_planar=0;
     switch(id){
@@ -2714,6 +2715,22 @@ RADEONDisplayVideo(
         h_inc_uv = h_inc;
         }
 #endif
+
+    /* Make the overlay base address as close to the buffers as possible to
+     * prevent the buffer offsets from exceeding the hardware limit of 128 MB.
+     * The base address must be aligned to a multiple of 4 MB.
+     */
+    base_offset = ((info->fbLocation +
+		    min(offset1, min(offset2, min(offset3, min(offset4,
+			min(offset5, offset6)))))) & (~0 << 22)) -
+	info->fbLocation;
+
+    offset1 -= base_offset;
+    offset2 -= base_offset;
+    offset3 -= base_offset;
+    offset4 -= base_offset;
+    offset5 -= base_offset;
+    offset6 -= base_offset;
 
     /* keep everything in 16.16 */
 
@@ -2846,6 +2863,10 @@ RADEONDisplayVideo(
 	src_w >>= 1;
     OUTREG(RADEON_OV0_P2_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     OUTREG(RADEON_OV0_P3_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
+    if (info->ModeReg->ov0_base_addr != (info->fbLocation + base_offset)) {
+	info->ModeReg->ov0_base_addr = info->fbLocation + base_offset;
+	OUTREG(RADEON_OV0_BASE_ADDR, info->ModeReg->ov0_base_addr);
+    }
     OUTREG(RADEON_OV0_VID_BUF0_BASE_ADRS, offset1);
     OUTREG(RADEON_OV0_VID_BUF1_BASE_ADRS, offset2);
     OUTREG(RADEON_OV0_VID_BUF2_BASE_ADRS, offset3);
