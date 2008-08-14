@@ -88,22 +88,6 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 	}
 }
 
-static CARD32 rectFormat(DrawablePtr pDrawable)
-{
-	switch(pDrawable->bitsPerPixel) {
-	case 32:
-	case 24:
-		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
-		break;
-	case 16:
-		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A16R5G6B5;
-		break;
-	default:
-		return NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8;
-		break;
-	}
-}
-
 /* EXA acceleration hooks */
 static void NVExaWaitMarker(ScreenPtr pScreen, int marker)
 {
@@ -152,9 +136,13 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	OUT_PIXMAPl(chan, pPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
-	OUT_RING  (chan, rectFormat(&pPixmap->drawable));
+	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
-	OUT_RING  (chan, fg);
+	if (pPixmap->drawable.bitsPerPixel == 16)
+		/* convert to 32bpp */
+		OUT_RING (chan, ((fg&0x1F)<<3) | ((fg&0x7E0)<<5) | ((fg&0xF100)<<8));
+	else
+		OUT_RING (chan, fg);
 
 	return TRUE;
 }
@@ -237,74 +225,6 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *blit = pNv->NvImageBlit;
 
-	/* We want to catch people who have this bug, to find a decent fix */
-#if 0
-	/* Now check whether we have the same values for srcY and dstY and
-	   whether the used chipset is buggy. Currently we flag all of G70
-	   cards as buggy, which is probably much to broad. KoalaBR 
-	   16 is an abritrary threshold. It should define the maximum number
-	   of lines between dstY and srcY  If the number of lines is below
-	   we guess, that the bug won't trigger...
-	 */
-	if ( ((abs(srcY - dstY)< 16)||(abs(srcX-dstX)<16)) &&
-		((((pNv->Chipset & 0xfff0) == CHIPSET_G70) ||
-		 ((pNv->Chipset & 0xfff0) == CHIPSET_G71) ||
-		 ((pNv->Chipset & 0xfff0) == CHIPSET_G72) ||
-		 ((pNv->Chipset & 0xfff0) == CHIPSET_G73) ||
-		 ((pNv->Chipset & 0xfff0) == CHIPSET_C512))) )
-	{
-		int dx=abs(srcX - dstX),dy=abs(srcY - dstY);
-		// Ok, let's do it manually unless someone comes up with a better idea
-		// 1. If dstY and srcY are really the same, do a copy rowwise
-		if (dy<dx) {
-			int i,xpos,inc;
-			NVDEBUG("ExaCopy: Lines identical:\n");
-			if (srcX>=dstX) {
-				xpos=0;
-				inc=1;
-			} else {
-				xpos=width-1;
-				inc=-1;
-			}
-			for (i = 0; i < width; i++) {
-				BEGIN_RING(chan, blit,
-					   NV_IMAGE_BLIT_POINT_IN, 3);
-				OUT_RING  (chan, (srcY << 16) | (srcX+xpos));
-				OUT_RING  (chan, (dstY << 16) | (dstX+xpos));
-				OUT_RING  (chan, (height  << 16) | 1);
-				xpos+=inc;
-			}
-		} else {
-			// 2. Otherwise we will try a line by line copy in the hope to avoid
-			//    the card's bug.
-			int i,ypos,inc;
-			NVDEBUG("ExaCopy: Lines nearly the same srcY=%d, dstY=%d:\n", srcY, dstY);
-			if (srcY>=dstY) {
-				ypos=0;
-				inc=1;
-			} else {
-				ypos=height-1;
-				inc=-1;
-			}
-			for (i = 0; i < height; i++) {
-				BEGIN_RING(chan, blit,
-					   NV_IMAGE_BLIT_POINT_IN, 3);
-				OUT_RING  (chan, ((srcY+ypos) << 16) | srcX);
-				OUT_RING  (chan, ((dstY+ypos) << 16) | dstX);
-				OUT_RING  (chan, (1  << 16) | width);
-				ypos+=inc;
-			}
-		} 
-	} else {
-		NVDEBUG("ExaCopy: Using default path\n");
-		BEGIN_RING(chan, blit, NV_IMAGE_BLIT_POINT_IN, 3);
-		OUT_RING  (chan, (srcY << 16) | srcX);
-		OUT_RING  (chan, (dstY << 16) | dstX);
-		OUT_RING  (chan, (height  << 16) | width);
-	}
-#endif /* 0 */
-
-	NVDEBUG("ExaCopy: Using default path\n");
 	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_POINT_IN, 3);
 	OUT_RING  (chan, (srcY << 16) | srcX);
 	OUT_RING  (chan, (dstY << 16) | dstX);
