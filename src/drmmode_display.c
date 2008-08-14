@@ -216,16 +216,13 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	I830Ptr pI830 = I830PTR(pScrn);
-	void *ptr;
+	int ret;
 
 	/* cursor should be mapped already */
-	if (dri_bo_map(pI830->cursor_mem->bo, 1))
+	ret = dri_bo_subdata(pI830->cursor_mem->bo, 0, 64*64*4, image);
+	if (ret)
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-			   "failed to map cursor");
-
-	ptr = pI830->cursor_mem->bo->virtual;
-
-	memcpy (ptr, image, 64 * 64 * 4);
+			   "failed to set cursor: %s", strerror(-ret));
 
 	return;
 }
