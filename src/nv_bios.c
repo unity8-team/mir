@@ -3129,8 +3129,6 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 	uint8_t lvds_ver, headerlen, recordlen;
 	uint16_t lvdsofs;
 
-	bios->fp.strapping = (nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
-
 	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to LVDS manufacturer table invalid\n");
@@ -3145,10 +3143,10 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 
 	switch (lvds_ver) {
 	case 0x0a:	/* pre NV40 */
-		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + bios->fp.strapping];
+		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + (bios->fp.strapping & 0xf)];
 
 		/* adjust some things if straps are invalid (implies the panel has EDID) */
-		if (bios->fp.strapping == 0xf) {
+		if ((bios->fp.strapping & 0xf) == 0xf) {
 			bios->data[fpp->fpxlatetableptr + 0xf] = 0xf;
 			lvdsmanufacturerindex = bios->fp.if_is_24bit ? 2 : 0;
 			/* nvidia set the high nibble of (cr57=f, cr58) to
@@ -3160,7 +3158,7 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 
 		break;
 	case 0x30:	/* NV4x */
-		lvdsmanufacturerindex = bios->fp.strapping;
+		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x1f) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3305,6 +3303,22 @@ void run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int p
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 	rundigitaloutscript(pScrn, scriptptr, dcbent, head);
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
+}
+
+static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
+{
+	/* the fp strap is normally dictated by the "User Strap" in
+	 * PEXTDEV_BOOT_0[20:16], but when bit 2 of the Internal_Flags struct
+	 * at 0x48 is set, the user strap gets overriden by the PCI subsystem
+	 * ID during POST, but not before the previous user strap has been
+	 * committed to CR58 for CR57=0xf on head A, which may be read and used
+	 * instead
+	 */
+
+	if (bios->data[0x48] & 0x4)
+		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
+
+	return ((nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
 }
 
 static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
@@ -3721,6 +3735,7 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 
 	/* no idea if it's still called the LVDS manufacturer table, but the concept's close enough */
 	bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+	bios->fp.strapping = get_fp_strap(pScrn, bios);
 
 	parse_lvds_manufacturer_table_init(pScrn, bios, fpp);
 
@@ -4038,6 +4053,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	if (!(bios->feature_byte & FEATURE_MOBILE))
 		return;
 
+	bios->fp.strapping = get_fp_strap(pScrn, bios);
 	parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
 	parse_fp_mode_table(pScrn, bios, &fpp);
 }
