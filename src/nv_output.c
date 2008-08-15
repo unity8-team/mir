@@ -539,8 +539,14 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		}
 	}
 
-	if (nv_output->type == OUTPUT_LVDS)
-		setup_edid_dual_link_lvds(pScrn, nv_output->native_mode->Clock);
+	if (nv_output->type == OUTPUT_LVDS) {
+		static bool dual_link_correction_done = false;
+
+		if (!dual_link_correction_done) {
+			parse_lvds_manufacturer_table(pScrn, &NVPTR(pScrn)->VBIOS, nv_output->native_mode->Clock);
+			dual_link_correction_done = true;
+		}
+	}
 
 	return ddc_modes;
 }

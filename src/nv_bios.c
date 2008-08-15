@@ -2993,31 +2993,76 @@ void call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enu
 struct fppointers {
 	uint16_t fptablepointer;
 	uint16_t fpxlatetableptr;
-	uint16_t fpxlatemanufacturertableptr;
 	int xlatwidth;
 };
+
+struct lvdstableheader {
+	uint8_t lvds_ver, headerlen, recordlen;
+};
+
+static void parse_lvds_manufacturer_table_header(ScrnInfoPtr pScrn, bios_t *bios, struct lvdstableheader *lth)
+{
+	/* BMP version (0xa) LVDS table has a simple header of version and
+	 * record length. The BIT LVDS table has the typical BIT table header:
+	 * version byte, header length byte, record length byte, and a byte for
+	 * the maximum number of records that can be held in the table */
+
+	uint8_t lvds_ver, headerlen, recordlen;
+
+	memset(lth, 0, sizeof(struct lvdstableheader));
+
+	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Pointer to LVDS manufacturer table invalid\n");
+		return;
+	}
+
+	lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
+
+	switch (lvds_ver) {
+	case 0x0a:	/* pre NV40 */
+		headerlen = 2;
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
+		break;
+	case 0x30:	/* NV4x */
+	case 0x40:	/* G80/G90 */
+		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
+		if (headerlen < 0x1f) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "LVDS table header not understood\n");
+			return;
+		}
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
+		break;
+	default:
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "LVDS table revision %d.%d not currently supported\n",
+			   lvds_ver >> 4, lvds_ver & 0xf);
+		return;
+	}
+
+	lth->lvds_ver = lvds_ver;
+	lth->headerlen = headerlen;
+	lth->recordlen = recordlen;
+}
 
 static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
 {
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ofs;
+	struct lvdstableheader lth;
 	uint16_t modeofs;
 	DisplayModePtr mode;
 
-	if (fpp->fptablepointer == 0x0 || fpp->fpxlatetableptr == 0x0) {
+	if (fpp->fptablepointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Pointers to flat panel table invalid\n");
+			   "Pointer to flat panel table invalid\n");
 		return;
 	}
 
 	fptable = &bios->data[fpp->fptablepointer];
-
 	fptable_ver = fptable[0];
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Found flat panel mode table revision %d.%d\n",
-		   fptable_ver >> 4, fptable_ver & 0xf);
 
 	switch (fptable_ver) {
 	/* BMP version 0x5.0x11 BIOSen have version 1 like tables, but no version field,
@@ -3046,7 +3091,27 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "FP Table revision not currently supported\n");
+			   "FP table revision %d.%d not currently supported\n",
+			   fptable_ver >> 4, fptable_ver & 0xf);
+		return;
+	}
+
+	parse_lvds_manufacturer_table_header(pScrn, bios, &lth);
+
+	switch (lth.lvds_ver) {
+	case 0x0a:
+		/* make sure to match the 0xff strapping check below */
+		if ((bios->fp.strapping & 0xf) == 0xf)
+			bios->data[fpp->fpxlatetableptr + 0xf] = 0xf;
+		break;
+	case 0x30:
+	case 0x40:
+		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + lth.headerlen + 1;
+		fpp->xlatwidth = lth.recordlen;
+	}
+	if (fpp->fpxlatetableptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Pointer to flat panel xlat table invalid\n");
 		return;
 	}
 
@@ -3104,103 +3169,81 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	bios->fp.native_mode = mode;
 }
 
-static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
+void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, int pxclk)
 {
-	/* The LVDS table changed considerably with BIT bioses. Previously
-	 * there was a header of version and record length, followed by several
-	 * records, indexed by a seperate xlat table, indexed in turn by the fp
-	 * strap in EXTDEV_BOOT. Each record had a config byte, followed by 6
-	 * script numbers for use by INIT_SUB which controlled panel init and
-	 * power, and finally a dword of ms to sleep between power off and on
+	/* The LVDS table header is (mostly) described in
+	 * parse_lvds_manufacturer_table_header(): the BIT header additionally
+	 * contains the dual-link transition pxclk (in 10s kHz), at byte 5 - if
+	 * straps are not being used for the panel, this specifies the frequency
+	 * at which modes should be set up in the dual link style.
+	 *
+	 * Following the header, the BMP (ver 0xa) table has several records,
+	 * indexed by a seperate xlat table, indexed in turn by the fp strap in
+	 * EXTDEV_BOOT. Each record had a config byte, followed by 6 script
+	 * numbers for use by INIT_SUB which controlled panel init and power,
+	 * and finally a dword of ms to sleep between power off and on
 	 * operations.
 	 *
-	 * The BIT LVDS table has the typical BIT table header: version byte,
-	 * header length byte, record length byte, and a byte for the maximum
-	 * number of records that can be held in the table. At byte 5 in the
-	 * header is the dual-link transition pxclk (in 10s kHz) - if straps
-	 * are not being used for the panel, this specifies the frequency at
-	 * which modes should be set up in the dual link style.
+	 * In the BIT versions, the table following the header serves as an
+	 * integrated config and xlat table: the records in the table are
+	 * indexed by the FP strap nibble in EXTDEV_BOOT, and each record has
+	 * two bytes - the first as a config byte, the second for indexing the
+	 * fp mode table pointed to by the BIT 'D' table
 	 *
-	 * The table following the header serves as an integrated config and
-	 * xlat table: the records in the table are indexed by the FP strap
-	 * nibble in EXTDEV_BOOT, and each record has two bytes - the first as
-	 * a config byte, the second for indexing the fp mode table pointed to
-	 * by the BIT 'D' table
+	 * Due to the stage at which DDC is used in X's DDX design, the EDID res
+	 * for a panel isn't known at init, so the tests against the pixel clock
+	 * in the EDID case for selection of the correct table entry and setting
+	 * of the dual link flag cannot be done until later - this function may
+	 * be called at runtime with a non-zero pxclk argument to perform these
+	 * tests.
 	 */
 
 	unsigned int lvdsmanufacturerindex = 0;
-	uint8_t lvds_ver, headerlen, recordlen;
+	struct lvdstableheader lth;
 	uint16_t lvdsofs;
 
-	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Pointer to LVDS manufacturer table invalid\n");
+	parse_lvds_manufacturer_table_header(pScrn, bios, &lth);
+
+	switch (lth.lvds_ver) {
+	case 0:		/* header parsing failed */
 		return;
-	}
-
-	lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Found LVDS manufacturer table revision %d.%d\n",
-		   lvds_ver >> 4, lvds_ver & 0xf);
-
-	switch (lvds_ver) {
 	case 0x0a:	/* pre NV40 */
-		lvdsmanufacturerindex = bios->data[fpp->fpxlatemanufacturertableptr + (bios->fp.strapping & 0xf)];
+		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + (bios->fp.strapping & 0xf)];
 
-		/* adjust some things if straps are invalid (implies the panel has EDID) */
-		if ((bios->fp.strapping & 0xf) == 0xf) {
-			bios->data[fpp->fpxlatetableptr + 0xf] = 0xf;
+		/* we're done if this isn't the EDID panel case */
+		if (pxclk == 0 || (bios->fp.strapping & 0xf) != 0xf)
+			break;
+
+		/* change in behaviour guessed at nv30; see datapoints below */
+		if (bios->chip_version < 0x30) {
+			/* nv17 behaviour */
 			lvdsmanufacturerindex = bios->fp.if_is_24bit ? 2 : 0;
-			/* nvidia set the high nibble of (cr57=f, cr58) to
-			 * lvdsmanufacturerindex in this case; we don't */
+			if (pxclk >= bios->fp.duallink_transition_clk)
+				lvdsmanufacturerindex++;
+		} else {
+			/* nv31, nv34 behaviour */
+			lvdsmanufacturerindex = 0;
+			if (pxclk >= bios->fp.duallink_transition_clk)
+				lvdsmanufacturerindex = 2;
+			if (pxclk >= 140000)
+				lvdsmanufacturerindex = 3;
 		}
 
-		headerlen = 2;
-		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
-
+		/* nvidia set the high nibble of (cr57=f, cr58) to
+		 * lvdsmanufacturerindex in this case; we don't */
 		break;
 	case 0x30:	/* NV4x */
 		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
-		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
-		if (headerlen < 0x1f) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "LVDS table header not understood\n");
-			return;
-		}
-		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
 		break;
 	case 0x40:	/* G80/G90 */
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "LVDS table revision not currently supported\n");
-		return;
-
-		/* This is all based on guesses and getting something sensible. */
-		/* Analysis of a bios only revealed that the clock multiplier/dividers are stored in ramin. */
-		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
-		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
-
-		/* Bail out if different from the known situation. */
-		if (headerlen != 7 || recordlen != 2) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "LVDS table header not understood\n");
-			return;
-		}
-
-		/* I had a few bios' to work with one had a compatible mode in slot 14, the other were ddc (=15) candidates. */
-		/* I noticed the first had a value 0x21 and the other 2 had 0x23, which seems reasonable considering the recordlen of 2. */ 
-		/* I had to add 2 to the offset for some reason, and 1 more to get to the index instead of the flags. */
-		/* I was unable to find an equivalent to the old fp strapping. */
-		uint8_t offset = bios->data[bios->fp.lvdsmanufacturerpointer + 6];
-		bios->fp.strapping = lvdsmanufacturerindex = bios->data[bios->fp.lvdsmanufacturerpointer + 2 + offset + 1];
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "LVDS table revision not currently supported\n");
 		return;
 	}
 
-	lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + headerlen + recordlen * lvdsmanufacturerindex;
-	switch (lvds_ver) {
+	lvdsofs = bios->fp.xlated_entry = bios->fp.lvdsmanufacturerpointer + lth.headerlen + lth.recordlen * lvdsmanufacturerindex;
+	switch (lth.lvds_ver) {
 	case 0x0a:
 		bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
@@ -3223,43 +3266,16 @@ static void parse_lvds_manufacturer_table_init(ScrnInfoPtr pScrn, bios_t *bios, 
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
-		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
-		fpp->xlatwidth = recordlen;
-		break;
-	case 0x40:
-		/* I have no clue what the flags mean, bit 1 seems common though. */
-		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + headerlen + 1;
-		fpp->xlatwidth = recordlen;
 		break;
 	}
-}
 
-void setup_edid_dual_link_lvds(ScrnInfoPtr pScrn, int pxclk)
-{
-	/* Due to the stage at which DDC is used, the EDID res for a panel isn't
-	 * known at init, so the dual link flag (which tests against a
-	 * transition frequency) cannot be set until later
-	 *
-	 * Here the flag and the LVDS script set pointer are updated (only once
-	 * per driver incarnation)
-	 *
-	 * This function should *not* be called in the case where the panel
-	 * config is set by the straps
-	 */
-
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	static bool dual_link_correction_done = false;
-
-	if ((bios->fp.strapping & 0xf) != 0xf || dual_link_correction_done)
-		return;
-	dual_link_correction_done = true;
-
-	if (pxclk >= bios->fp.duallink_transition_clk) {
-		bios->fp.dual_link = true;
-		/* move to (entry + 1) for BMP bioses (BIT doesn't use this) */
-		bios->fp.xlated_entry += bios->data[bios->fp.lvdsmanufacturerpointer + 1];
-	} else
-		bios->fp.dual_link = false;
+	/* set dual_link flag for EDID case */
+	if ((bios->fp.strapping & 0xf) == 0xf && pxclk) {
+		if (pxclk >= bios->fp.duallink_transition_clk)
+			bios->fp.dual_link = true;
+		else
+			bios->fp.dual_link = false;
+	}
 }
 
 void run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk)
@@ -3613,7 +3629,7 @@ static int parse_bit_C_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	return 1;
 }
 
-static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
+static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* Parses the flat panel table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
@@ -3622,14 +3638,17 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
+	struct fppointers fpp;
+
 	if (bitentry->length != 4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT display table\n");
 		return 0;
 	}
 
-	fpp->fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
+	memset(&fpp, 0, sizeof(struct fppointers));
+	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
-	parse_fp_mode_table(pScrn, bios, fpp);
+	parse_fp_mode_table(pScrn, bios, &fpp);
 
 	return 1;
 }
@@ -3723,7 +3742,7 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	return 1;
 }
 
-static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry, struct fppointers *fpp)
+static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* Parses the LVDS table segment that the bit entry points to.
 	 * Starting at bitentry->offset:
@@ -3740,7 +3759,7 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 	bios->fp.strapping = get_fp_strap(pScrn, bios);
 
-	parse_lvds_manufacturer_table_init(pScrn, bios, fpp);
+	parse_lvds_manufacturer_table(pScrn, bios, 0);
 
 	return 1;
 }
@@ -3830,9 +3849,6 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t 
 	char parseorder[] = "iCMILDT";
 	bit_entry_t bitentry;
 	int i, j, offset;
-	struct fppointers fpp;
-
-	memset(&fpp, 0, sizeof(struct fppointers));
 
 	for (i = 0; i < sizeof(parseorder); i++) {
 		for (j = 0, offset = bitoffset + 6; j < entries; j++, offset += 6) {
@@ -3850,7 +3866,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t 
 				break;
 			case 'D':
 				if (bios->feature_byte & FEATURE_MOBILE)
-					parse_bit_display_tbl_entry(pScrn, bios, &bitentry, &fpp);
+					parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			case 'I':
 				parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
@@ -3861,7 +3877,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t 
 				break;
 			case 'L':
 				if (bios->feature_byte & FEATURE_MOBILE)
-					parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry, &fpp);
+					parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			case 'M': /* memory? */
 				parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
@@ -4034,7 +4050,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	}
 	if (bmplength > 120) {
 		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 117])));
-		fpp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 119])));
+		bios->fp.fpxlatemanufacturertableptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 119])));
 	}
 	if (bmplength > 143)
 		bios->pll_limit_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 142])));
@@ -4057,7 +4073,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 		return;
 
 	bios->fp.strapping = get_fp_strap(pScrn, bios);
-	parse_lvds_manufacturer_table_init(pScrn, bios, &fpp);
+	parse_lvds_manufacturer_table(pScrn, bios, 0);
 	parse_fp_mode_table(pScrn, bios, &fpp);
 }
 
