@@ -1510,9 +1510,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_LVDSFIXEDMODE, TRUE)) {
-      pI830->skip_panel_detect = TRUE;
-   } else {
       pI830->skip_panel_detect = FALSE;
+   } else {
+      pI830->skip_panel_detect = TRUE;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))

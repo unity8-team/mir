@@ -1255,7 +1255,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
      */
     I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOC, "LVDSDDC_C");
 
-    if (!pI830->skip_panel_detect) {
+    if (pI830->skip_panel_detect) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Skipping any attempt to determine panel fixed mode.\n");
 	goto found_mode;
