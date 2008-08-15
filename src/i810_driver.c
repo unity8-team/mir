@@ -1064,7 +1064,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* after xf86ProcessOptions,
     * because it is controlled by options [no]vbe and [no]ddc
     */
-   pScrn->monitor->DDC = I810DoDDC(pScrn, pI810->pEnt->index);
+   I810DoDDC(pScrn, pI810->pEnt->index);
 
    /* We have to use PIO to probe, because we haven't mapped yet */
    I810SetPIOAccess(pI810);
