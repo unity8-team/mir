@@ -824,11 +824,9 @@ i830_lvds_destroy (xf86OutputPtr output)
     I830Ptr	pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
 
-    if (pI830->lvds_fixed_mode)
-    {
-        xf86DeleteMode (&pI830->lvds_fixed_mode, pI830->lvds_fixed_mode);
+    xf86DeleteMode (&pI830->lvds_fixed_mode, pI830->lvds_fixed_mode);
+    if (intel_output)
 	xfree (intel_output);
-    }
 }
 
 #ifdef RANDR_12_INTERFACE
