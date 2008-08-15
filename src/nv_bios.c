@@ -84,7 +84,7 @@ static bool nv_cksum(const uint8_t *data, unsigned int length)
 	return false;
 }
 
-static int NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
+static int score_vbios(ScrnInfoPtr pScrn, const uint8_t *data)
 {
 	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
@@ -105,13 +105,9 @@ static int NVValidVBIOS(ScrnInfoPtr pScrn, const uint8_t *data)
 	return 2;
 }
 
-static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
+static void load_vbios_prom(NVPtr pNv, uint8_t *data)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	int i;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Attempting to locate BIOS image in PROM\n");
 
 	/* enable ROM access */
 	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED);
@@ -127,14 +123,10 @@ static void NVShadowVBIOS_PROM(ScrnInfoPtr pScrn, uint8_t *data)
 	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 }
 
-static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
+static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	uint32_t old_bar0_pramin = 0;
 	int i;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Attempting to locate BIOS image in PRAMIN\n");
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		uint32_t vbios_vram = (NV_RD32(pNv->REGS, 0x619f04) & ~0xff) << 8;
@@ -153,13 +145,8 @@ static void NVShadowVBIOS_PRAMIN(ScrnInfoPtr pScrn, uint8_t *data)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
 }
 
-static void NVVBIOS_PCIROM(ScrnInfoPtr pScrn, uint8_t *data)
+static void load_vbios_pci(NVPtr pNv, uint8_t *data)
 {
-	NVPtr pNv = NVPTR(pScrn);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Attempting to use PCI ROM BIOS image\n");
-
 #if XSERVER_LIBPCIACCESS
 	pci_device_read_rom(pNv->PciInfo, data);
 #else
@@ -169,19 +156,35 @@ static void NVVBIOS_PCIROM(ScrnInfoPtr pScrn, uint8_t *data)
 
 static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 {
-	NVShadowVBIOS_PROM(pScrn, data);
-	if (NVValidVBIOS(pScrn, data) == 2)
-		return true;
-
-	NVShadowVBIOS_PRAMIN(pScrn, data);
-	if (NVValidVBIOS(pScrn, data))
-		return true;
-
+	NVPtr pNv = NVPTR(pScrn);
+	struct methods {
+		const char desc[8];
+		void (*loadbios)(NVPtr, uint8_t *);
+		int score;
+	} method[] = {
+		{ "PROM", load_vbios_prom },
+		{ "PRAMIN", load_vbios_pramin },
 #ifndef __powerpc__
-	NVVBIOS_PCIROM(pScrn, data);
-	if (NVValidVBIOS(pScrn, data))
-		return true;
+		{ "PCI ROM", load_vbios_pci }
 #endif
+	};
+	int i;
+
+	for (i = 0; i < sizeof(method) / sizeof(struct methods); i++) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Attempting to load BIOS image from %s\n", method[i].desc);
+		method[i].loadbios(pNv, data);
+		if ((method[i].score = score_vbios(pScrn, data)) == 2)
+			return true;
+	}
+
+	for (i = 0; i < sizeof(method) / sizeof(struct methods); i++)
+		if (method[i].score == 1) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "Using BIOS image from %s\n", method[i].desc);
+			method[i].loadbios(pNv, data);
+			return true;
+		}
 
 	return false;
 }
