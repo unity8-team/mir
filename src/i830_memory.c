@@ -1030,7 +1030,6 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int flags = 0;
-    int mem_space = DRM_BO_FLAG_MEM_TT;
 
     /* Only allocate if overlay is going to be enabled. */
     if (!pI830->XvEnabled)
@@ -1053,7 +1052,7 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 
     if (flags & NEED_PHYSICAL_ADDR)
 	if (pI830->use_drm_mode)
-	    mem_space = DRM_BO_FLAG_MEM_VRAM;
+	    ; /* need physical addr */
 
     return TRUE;
 }
