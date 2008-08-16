@@ -926,6 +926,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	bool is_fp = false;
 	bool is_lvds = false;
+	uint32_t mode_ratio, panel_ratio;
 	int i;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
@@ -1029,45 +1030,40 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	/* This can override HTOTAL and VTOTAL */
 	regp->debug_2 = 0;
 
-	if (nv_output->scaling_mode == SCALE_ASPECT) {
-		/* Use 20.12 fixed point format to avoid floats */
-		uint32_t panel_ratio = (1 << 12) * nv_output->fpWidth / nv_output->fpHeight;
-		uint32_t aspect_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
-		uint32_t h_scale = (1 << 12) * mode->HDisplay / nv_output->fpWidth;
-		uint32_t v_scale = (1 << 12) * mode->VDisplay / nv_output->fpHeight;
-		#define ONE_TENTH ((1 << 12) / 10)
+	/* Use 20.12 fixed point format to avoid floats */
+	mode_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
+	panel_ratio = (1 << 12) * adjusted_mode->HDisplay / adjusted_mode->VDisplay;
+	/* if ratios are equal, SCALE_ASPECT will automatically (and correctly)
+	 * get treated the same as SCALE_FULLSCREEN */
+	if (nv_output->scaling_mode == SCALE_ASPECT && mode_ratio != panel_ratio) {
+		uint32_t diff, scale;
 
-		/* GPU scaling happens automatically at a ratio of 1.33 */
-		/* A 1280x1024 panel has a ratio of 1.25, we don't want to scale that at 4:3 resolutions */
-		if (h_scale != (1 << 12) && (panel_ratio > aspect_ratio + ONE_TENTH)) {
-			uint32_t diff;
+		if (mode_ratio < panel_ratio) {
+			/* vertical needs to expand to glass size (automatic)
+			 * horizontal needs to be scaled at vertical scale factor
+			 * to maintain aspect */
+	
+			scale = (1 << 12) * mode->VDisplay / adjusted_mode->VDisplay;
+			regp->debug_1 = 1 << 12 | ((scale >> 1) & 0xfff);
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires vertical black bars.\n");
-
-			/* Scaling in both directions needs to the same */
-			h_scale = v_scale;
-
-			/* Set a new horizontal scale factor and enable testmode (bit12) */
-			regp->debug_1 = ((h_scale >> 1) & 0xfff) | (1 << 12);
-
-			diff = nv_output->fpWidth - (((1 << 12) * mode->HDisplay)/h_scale);
+			/* restrict area of screen used, horizontally */
+			diff = adjusted_mode->HDisplay -
+			       adjusted_mode->VDisplay * mode_ratio / (1 << 12);
 			regp->fp_horiz_regs[REG_DISP_VALID_START] += diff / 2;
 			regp->fp_horiz_regs[REG_DISP_VALID_END] -= diff / 2;
 		}
 
-		/* Same scaling, just for panels with aspect ratios smaller than 1 */
-		if (v_scale != (1 << 12) && (panel_ratio < aspect_ratio - ONE_TENTH)) {
-			uint32_t diff;
+		if (mode_ratio > panel_ratio) {
+			/* horizontal needs to expand to glass size (automatic)
+			 * vertical needs to be scaled at horizontal scale factor
+			 * to maintain aspect */
 
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Maintaining aspect ratio requires horizontal black bars.\n");
-
-			/* Scaling in both directions needs to the same */
-			v_scale = h_scale;
-
-			/* Set a new vertical scale factor and enable testmode (bit28) */
-			regp->debug_1 = (((v_scale >> 1) & 0xfff) << 16) | (1 << (12 + 16));
-
-			diff = nv_output->fpHeight - (((1 << 12) * mode->VDisplay)/v_scale);
+			scale = (1 << 12) * mode->HDisplay / adjusted_mode->HDisplay;
+			regp->debug_1 = 1 << 28 | ((scale >> 1) & 0xfff) << 16;
+			
+			/* restrict area of screen used, vertically */
+			diff = adjusted_mode->VDisplay -
+			       (1 << 12) * adjusted_mode->HDisplay / mode_ratio;
 			regp->fp_vert_regs[REG_DISP_VALID_START] += diff / 2;
 			regp->fp_vert_regs[REG_DISP_VALID_END] -= diff / 2;
 		}
