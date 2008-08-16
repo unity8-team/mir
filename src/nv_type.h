@@ -303,6 +303,8 @@ typedef struct {
 	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
 
+	uint8_t digital_min_front_porch;
+
 	struct {
 		DisplayModePtr native_mode;
 		uint8_t *edid;

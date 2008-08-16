@@ -3091,10 +3091,8 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		headerlen = fptable[1];
 		recordlen = fptable[2];
 		fpentries = fptable[3];
-		/* fptable[4] is the minimum RAMDAC_FP_HCRTC->RAMDAC_FP_HSYNC_START gap.
-		 * Only seen 0x4b (=75) which is what is used in nv_crtc.c anyway,
-		 * so we're not using this table value for now
-		 */
+		/* fptable[4] is the minimum RAMDAC_FP_HCRTC->RAMDAC_FP_HSYNC_START gap */
+		bios->digital_min_front_porch = fptable[4];
 		ofs = 0;
 		break;
 	default:
@@ -3103,6 +3101,10 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 			   fptable_ver >> 4, fptable_ver & 0xf);
 		return;
 	}
+
+	/* non mobile only needs to set digital_min_front_porch */
+	if (!(bios->feature_byte & FEATURE_MOBILE))
+		return;
 
 	parse_lvds_manufacturer_table_header(pScrn, bios, &lth);
 
@@ -3918,8 +3920,7 @@ static void parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t 
 				parse_bit_C_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			case 'D':
-				if (bios->feature_byte & FEATURE_MOBILE)
-					parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
+				parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			case 'I':
 				parse_bit_init_tbl_entry(pScrn, bios, &bitentry);
@@ -3994,6 +3995,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	pNv->dcb_table.i2c_read[0] = 0x3e;
 	pNv->dcb_table.i2c_write[1] = 0x37;
 	pNv->dcb_table.i2c_read[1] = 0x36;
+	bios->digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
 	bios->fp.duallink_transition_clk = 90000;
