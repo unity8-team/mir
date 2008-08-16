@@ -1006,10 +1006,12 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) /* seems to be used almost always */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-	else if (nv_output->scaling_mode == SCALE_PANEL || nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
+	else if (nv_output->scaling_mode == SCALE_PANEL ||
+		 nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 	/* This is also true for panel scaling, so we must put the panel scale check first */
-	else if (mode->Clock == adjusted_mode->Clock) /* native mode */
+	else if (mode->HDisplay == adjusted_mode->HDisplay &&
+		 mode->VDisplay == adjusted_mode->VDisplay) /* native mode */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
 	else /* gpu needs to scale */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
