@@ -497,7 +497,7 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	/* typically only LVDS will hit this code path. */
 	if (!ddc_modes)
-		if (pNv->VBIOS.fp.native_mode)
+		if (pNv->VBIOS.fp.native_mode && nv_output->output->type == OUTPUT_LVDS)
 			ddc_modes = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
 
 	if (!ddc_modes && nv_output->output->type == OUTPUT_LVDS) {

@@ -3025,9 +3025,17 @@ static void parse_lvds_manufacturer_table_header(ScrnInfoPtr pScrn, bios_t *bios
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		break;
 	case 0x30:	/* NV4x */
-	case 0x40:	/* G80/G90 */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x1f) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "LVDS table header not understood\n");
+			return;
+		}
+		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
+		break;
+	case 0x40:	/* G80/G90 */
+		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
+		if (headerlen < 0x7) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "LVDS table header not understood\n");
 			return;
@@ -3115,8 +3123,38 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 		return;
 	}
 
-	fpindex = bios->data[fpp->fpxlatetableptr + bios->fp.strapping * fpp->xlatwidth];
-	bios->fp.strapping |= fpindex << 4;
+	/* Query all modes and find one with a matching clock. */
+	/* Note that this only serves as a backup solution if ddc fails. */
+	if (lth.lvds_ver == 0x40) {
+		uint32_t clock, needed_clock;
+		int i, index = 0xF, matches = 0;
+		needed_clock = nv32_rd(pScrn, 0x00616404) & 0xFFFFF;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS clock seems to be %d KHz.\n", needed_clock);
+
+		for (i = 0; i < fpentries; i++) {
+			modeofs = headerlen + recordlen * i;
+			clock = le16_to_cpu(*(uint16_t *)&fptable[modeofs]) * 10;
+			if (clock == needed_clock) {
+				matches++;
+				index = i;
+			}
+		}
+
+		if (matches == 1)
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found a mode with matching clock\n");
+		else
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found %d modes, this is not useful\n", matches);
+
+		if (matches != 1)
+			index = 0xF;
+
+		fpindex = bios->data[fpp->fpxlatetableptr + index * fpp->xlatwidth];
+		bios->fp.strapping = ((fpindex & 0xF) << 4) | (fpindex & 0xF);
+	} else {
+		fpindex = bios->data[fpp->fpxlatetableptr + bios->fp.strapping * fpp->xlatwidth];
+		bios->fp.strapping |= fpindex << 4;
+	}
+
 	if (fpindex > fpentries) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Bad flat panel table index\n");
@@ -3236,6 +3274,8 @@ void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, int pxclk)
 		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
 		break;
 	case 0x40:	/* G80/G90 */
+		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
+		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "LVDS table revision not currently supported\n");
@@ -3265,6 +3305,11 @@ void parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, int pxclk)
 		bios->fp.reset_after_pclk_change = true;
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
+		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
+		break;
+	case 0x40:
+		/* fairly sure, but not 100% */
+		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 		break;
 	}
@@ -3333,6 +3378,14 @@ static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
 	 * committed to CR58 for CR57=0xf on head A, which may be read and used
 	 * instead
 	 */
+
+	/* Now comes the G80/G90 story, i've only got one hint.
+	 * I can read back the clock freq from register 0x00616404.
+	 * So for the moment just write 0xF here.
+	 */
+
+	if (bios->chip_version >= 0x80)
+		return 0xF;
 
 	if (bios->data[0x48] & 0x4)
 		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
