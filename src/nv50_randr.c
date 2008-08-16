@@ -496,9 +496,12 @@ nv50_output_get_modes(xf86OutputPtr output)
 		nv_output->output->crtc->native_mode = NULL;
 
 	/* typically only LVDS will hit this code path. */
-	if (!ddc_modes)
-		if (pNv->VBIOS.fp.native_mode && nv_output->output->type == OUTPUT_LVDS)
+	if (!ddc_modes) {
+		if (pNv->VBIOS.fp.native_mode && nv_output->output->type == OUTPUT_LVDS) {
 			ddc_modes = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LVDS: Using a bios mode, which should work, if it doesn't please report.\n");
+		}
+	}
 
 	if (!ddc_modes && nv_output->output->type == OUTPUT_LVDS) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS and no modes found, bailing out.\n");
