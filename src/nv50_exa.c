@@ -161,7 +161,7 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
 		return;
 	} else {
-		OUT_RING  (chan, NV50_2D_OPERATION_ROP_AND);
+		OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY_PREMULT);
 	}
 
 	BEGIN_RING(chan, eng2d, NV50_2D_PATTERN_FORMAT, 2);
@@ -202,6 +202,8 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 		NOUVEAU_FALLBACK("rect format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
+	if (pdpix->drawable.depth == 32 && !(alu == GXcopy && planemask == ~0))
+		NOUVEAU_FALLBACK("32bpp + ROP\n");
 	NV50EXASetROP(pdpix, alu, planemask);
 
 	BEGIN_RING(chan, eng2d, 0x580, 3);
