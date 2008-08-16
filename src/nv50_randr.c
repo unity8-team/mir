@@ -778,5 +778,13 @@ nv50_output_create(ScrnInfoPtr pScrn)
 
 		output->possible_crtcs = nv_output->output->allowed_crtc;
 		output->possible_clones = 0;
+
+		if (nv_output->output->type == OUTPUT_TMDS || nv_output->output->type == OUTPUT_LVDS) {
+			output->doubleScanAllowed = false;
+			output->interlaceAllowed = false;
+		} else {
+			output->doubleScanAllowed = true;
+			output->interlaceAllowed = true;
+		}
 	}
 }
