@@ -768,17 +768,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	switch (pScrn->depth) {
 		case 24:
 		case 15:
-			regp->general = 0x00100100;
+			regp->general = 0x00100130;
 			break;
-		case 32:
 		case 16:
-		case 8:
 		default:
-			regp->general = 0x00101100;
+			regp->general = 0x00101130;
 			break;
 	}
-	if (pScrn->depth != 8)
-		regp->general |= 0x30; /* enable palette mode */
 	if (pNv->alphaCursor)
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
 		regp->general |= 1 << 29;
@@ -989,8 +985,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
-	if (pScrn->depth > 8)
-		nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_pll(crtc, &pNv->ModeReg);
 

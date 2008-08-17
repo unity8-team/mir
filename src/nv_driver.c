@@ -1161,12 +1161,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	} else {
 		/* Check that the returned depth is one we support */
 		switch (pScrn->depth) {
-			case 8:
-			case 15:
 			case 16:
 			case 24:
 				/* OK */
 				break;
+			case 15: /* 15 may get done one day, so leave any code for it in place */
 			default:
 				NVPreInitFail("Given depth (%d) is not supported by this driver\n",
 					pScrn->depth);
@@ -1178,25 +1177,18 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * This must happen after pScrn->display has been set because
 	 * xf86SetWeight references it.
 	 */
-	if (pScrn->depth > 8) {
-		/* The defaults are OK for us */
-		rgb zeros = {0, 0, 0};
+	/* The defaults are OK for us */
+	rgb rgbzeros = {0, 0, 0};
 
-		if (!xf86SetWeight(pScrn, zeros, zeros)) {
-			NVPreInitFail("\n");
-		}
-	}
-
-	if (!xf86SetDefaultVisual(pScrn, -1)) {
+	if (!xf86SetWeight(pScrn, rgbzeros, rgbzeros))
 		NVPreInitFail("\n");
-	} else {
-		/* We don't currently support DirectColor at > 8bpp */
-		if (pScrn->depth > 8 && (pScrn->defaultVisual != TrueColor)) {
-			NVPreInitFail("Given default visual"
-				" (%s) is not supported at depth %d\n",
-				xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
-		}
-	}
+
+	if (!xf86SetDefaultVisual(pScrn, -1))
+		NVPreInitFail("\n");
+	/* We don't support DirectColor */
+	else if (pScrn->defaultVisual != TrueColor)
+		NVPreInitFail("Given default visual (%s) is not supported at depth %d\n",
+			      xf86GetVisualName(pScrn->defaultVisual), pScrn->depth);
 
 	/* The vgahw module should be loaded here when needed */
 	if (!xf86LoadSubModule(pScrn, "vgahw")) {
@@ -1223,10 +1215,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		return FALSE;
 	memcpy(pNv->Options, NVOptions, sizeof(NVOptions));
 	xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, pNv->Options);
-
-	/* Set the bits per RGB for 8bpp mode */
-	if (pScrn->depth == 8)
-		pScrn->rgbBits = 8;
 
 	from = X_DEFAULT;
 
@@ -1482,9 +1470,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * If the driver can do gamma correction, it should call xf86SetGamma()
 	 * here.
 	 */
-	Gamma zeros = {0.0, 0.0, 0.0};
+	Gamma gammazeros = {0.0, 0.0, 0.0};
 
-	if (!xf86SetGamma(pScrn, zeros))
+	if (!xf86SetGamma(pScrn, gammazeros))
 		NVPreInitFail("\n");
 
 	/*
