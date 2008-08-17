@@ -470,7 +470,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 		xf86OutputPtr output = xf86_config->output[i];
 		NVOutputPrivatePtr nv_output = output->driver_private;
 
-		if (output->crtc == crtc && (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS))
+		if (output->crtc == crtc && (nv_output->dcb->type == OUTPUT_LVDS ||
+					     nv_output->dcb->type == OUTPUT_TMDS))
 			fp_output = true;
 	}
 
@@ -737,9 +738,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		xf86OutputPtr output = xf86_config->output[i];
 		NVOutputPrivatePtr nv_output = output->driver_private;
 
-		if (output->crtc == crtc && nv_output->type == OUTPUT_LVDS)
+		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_LVDS)
 			lvds_output = true;
-		if (output->crtc == crtc && nv_output->type == OUTPUT_TMDS)
+		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_TMDS)
 			tmds_output = true;
 	}
 
@@ -934,9 +935,9 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		/* assuming one fp output per crtc seems ok */
 		nv_output = output->driver_private;
 
-		if (output->crtc == crtc && nv_output->type == OUTPUT_LVDS)
+		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_LVDS)
 			is_lvds = true;
-		if (is_lvds || (output->crtc == crtc && nv_output->type == OUTPUT_TMDS)) {
+		if (is_lvds || (output->crtc == crtc && nv_output->dcb->type == OUTPUT_TMDS)) {
 			is_fp = true;
 			break;
 		}

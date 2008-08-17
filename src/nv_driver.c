@@ -1980,7 +1980,7 @@ NVRestore(ScrnInfoPtr pScrn)
 				if (!modes) /* no modes means no restore */
 					continue;
 
-				if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS)
+				if (nv_output->dcb->type == OUTPUT_TMDS || nv_output->dcb->type == OUTPUT_LVDS)
 					is_fp = TRUE;
 
 				if (console->vga_mode) {
@@ -2040,7 +2040,7 @@ NVRestore(ScrnInfoPtr pScrn)
 				mode->PrivSize = NV_MODE_PRIVATE_SIZE;
 
 				uint8_t scale_backup = nv_output->scaling_mode;
-				if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
+				if (nv_output->dcb->type == OUTPUT_LVDS || nv_output->dcb->type == OUTPUT_TMDS)
 					nv_output->scaling_mode = SCALE_FULLSCREEN;
 
 				NVRestoreConsole(output, mode);
