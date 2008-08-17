@@ -28,8 +28,6 @@
 
 #include "xf86drm.h"
 
-extern DisplayModePtr xf86ModesAdd(DisplayModePtr Modes, DisplayModePtr Additions);
-
 /*
  * Forward definitions for the functions that make up the driver.
  */
@@ -744,6 +742,7 @@ NVEnterVT(int scrnIndex, int flags)
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
+
 	return TRUE;
 }
 
@@ -778,8 +777,6 @@ NVLeaveVT(int scrnIndex, int flags)
 		NVLockUnlock(pScrn, 1);
 }
 
-
-
 static void 
 NVBlockHandler (
 	int i, 
@@ -801,7 +798,6 @@ NVBlockHandler (
 
 	if (pNv->VideoTimerCallback) 
 		(*pNv->VideoTimerCallback)(pScrnInfo, currentTime.milliseconds);
-
 }
 
 
@@ -1007,7 +1003,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	ClockRangePtr clockRanges;
 	const char *s;
 	int config_mon_rates = FALSE;
-	int num_crtc;
 
 	if (flags & PROBE_DETECT) {
 		EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
@@ -1432,9 +1427,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
 	}
 
-	if (NVPreInitDRI(pScrn) == FALSE) {
+	if (NVPreInitDRI(pScrn) == FALSE)
 		NVPreInitFail("\n");
-	}
 
 	if (!pNv->randr12_enable) {
 		if ((pScrn->monitor->nHsync == 0) && 
@@ -1462,8 +1456,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			NV50OutputSetup(pScrn);
 		}
 
-		num_crtc = pNv->twoHeads ? 2 : 1;
-		for (i = 0; i < num_crtc; i++) {
+		for (i = 0; i <= pNv->twoHeads; i++) {
 			if (pNv->Architecture == NV_ARCH_50)
 				nv50_crtc_init(pScrn, i);
 			else
@@ -1489,14 +1482,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	 * If the driver can do gamma correction, it should call xf86SetGamma()
 	 * here.
 	 */
+	Gamma zeros = {0.0, 0.0, 0.0};
 
-	{
-		Gamma zeros = {0.0, 0.0, 0.0};
-
-		if (!xf86SetGamma(pScrn, zeros)) {
-			NVPreInitFail("\n");
-		}
-	}
+	if (!xf86SetGamma(pScrn, zeros))
+		NVPreInitFail("\n");
 
 	/*
 	 * Setup the ClockRanges, which describe what clock ranges are available,
@@ -1590,10 +1579,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		 * are not pre-initialised at all.
 		 */
 		xf86SetCrtcForModes(pScrn, 0);
-	}
 
-	if (pScrn->modes == NULL) {
-		NVPreInitFail("No valid modes found\n");
+		if (pScrn->modes == NULL)
+			NVPreInitFail("No valid modes found\n");
 	}
 
 	/* Set the current mode to the first in the list */
@@ -1605,15 +1593,13 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	/* Set display resolution */
 	xf86SetDpi(pScrn, 0, 0);
 
-
 	/*
 	 * XXX This should be taken into account in some way in the mode valdation
 	 * section.
 	 */
 
-	if (xf86LoadSubModule(pScrn, "fb") == NULL) {
+	if (xf86LoadSubModule(pScrn, "fb") == NULL)
 		NVPreInitFail("\n");
-	}
 
 	xf86LoaderReqSymLists(fbSymbols, NULL);
 
@@ -2323,9 +2309,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		pScrn->DriverFunc = NVDriverFunc;
 
 	/* Report any unused options (only for the first generation) */
-	if (serverGeneration == 1) {
+	if (serverGeneration == 1)
 		xf86ShowUnusedOptions(pScrn->scrnIndex, pScrn->options);
-	}
 
 	return TRUE;
 }
