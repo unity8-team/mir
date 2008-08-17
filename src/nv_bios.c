@@ -3374,11 +3374,11 @@ void run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int p
 static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	/* the fp strap is normally dictated by the "User Strap" in
-	 * PEXTDEV_BOOT_0[20:16], but when bit 2 of the Internal_Flags struct
-	 * at 0x48 is set, the user strap gets overriden by the PCI subsystem
-	 * ID during POST, but not before the previous user strap has been
-	 * committed to CR58 for CR57=0xf on head A, which may be read and used
-	 * instead
+	 * PEXTDEV_BOOT_0[20:16], but on BMP cards when bit 2 of the
+	 * Internal_Flags struct at 0x48 is set, the user strap gets overriden
+	 * by the PCI subsystem ID during POST, but not before the previous user
+	 * strap has been committed to CR58 for CR57=0xf on head A, which may be
+	 * read and used instead
 	 */
 
 	/* Now comes the G80/G90 story, i've only got one hint.
@@ -3389,7 +3389,7 @@ static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
 	if (bios->chip_version >= 0x80)
 		return 0xF;
 
-	if (bios->data[0x48] & 0x4)
+	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
 		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
 
 	return ((nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
