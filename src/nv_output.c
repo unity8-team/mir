@@ -215,7 +215,7 @@ static void nv_output_save(xf86OutputPtr output)
 		nv_output->restore.head = nv_get_digital_bound_head(pNv, nv_output->dcb->or);
 }
 
-uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
+static uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct pll_lims pll_lim;

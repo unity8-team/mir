@@ -61,7 +61,7 @@ static uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg)
 	return NVReadCRTC(pNv, nv_crtc->head, reg);
 }
 
-void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
+static void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -79,7 +79,7 @@ static uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg)
 	return NVReadRAMDAC(pNv, nv_crtc->head, reg);
 }
 
-void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
+static void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
@@ -304,9 +304,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		bpp = pScrn->depth;
 	else
 		bpp = 32;
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		bpp = pNv->console_mode[nv_crtc->head].bpp;
-	}
 
 	pixelDepth = (bpp + 1)/8;
 
@@ -340,23 +337,13 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			nv30UpdateArbitrationSettings(pNv, &arbitration0,
 						      &arbitration1);
 
-		if (!NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-			regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
-			regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
-			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
-		} else {
-			regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x0;
-			regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0x0;
-			regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x0;
-		}
+		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
+		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
+		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
+
 		if (mode->Flags & V_DBLSCAN)
 			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
-	}
-
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		/* This is a bit of a guess. */
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] |= 0xB8;
 	}
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = arbitration0;
@@ -364,13 +351,8 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	if (pNv->Architecture >= NV_ARCH_30)
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = arbitration1 >> 8;
 
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((mode->CrtcHDisplay/16) & 0x700) >> 3;
-	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((mode->CrtcHDisplay*bpp)/64) & 0x700) >> 3;
-	} else { /* framebuffer can be larger than crtc scanout area. */
-		regp->CRTC[NV_VGA_CRTCX_REPAINT0] = (((pScrn->displayWidth/8) * pixelDepth) & 0x700) >> 3;
-	}
+	/* framebuffer can be larger than crtc scanout area. */
+	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((pScrn->displayWidth / 8 * pixelDepth) & 0x700) >> 3;
 }
 
 static void
@@ -446,7 +428,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-	int depth = pScrn->depth;
 
 	/* Calculate our timings */
 	int horizDisplay	= (mode->CrtcHDisplay >> 3) 	- 1;
@@ -474,10 +455,6 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 					     nv_output->dcb->type == OUTPUT_TMDS))
 			fp_output = true;
 	}
-
-	/* This is pitch/memory size related. */
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE))
-		depth = pNv->console_mode[nv_crtc->head].bpp;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Mode clock: %d\n", mode->Clock);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Adjusted mode clock: %d\n", adjusted_mode->Clock);
@@ -545,30 +522,13 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	*/
 	regp->Sequencer[0] = 0x00;
 	/* 0x20 disables the sequencer */
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		if (mode->HDisplay == 720) {
-			regp->Sequencer[1] = 0x21; /* enable 9/8 mode */
-		} else {
-			regp->Sequencer[1] = 0x20;
-		}
-	} else {
-		if (mode->Flags & V_CLKDIV2) {
-			regp->Sequencer[1] = 0x29;
-		} else {
-			regp->Sequencer[1] = 0x21;
-		}
-	}
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->Sequencer[2] = 0x03; /* select 2 out of 4 planes */
-	} else {
-		regp->Sequencer[2] = 0x0F;
-	}
+	if (mode->Flags & V_CLKDIV2)
+		regp->Sequencer[1] = 0x29;
+	else
+		regp->Sequencer[1] = 0x21;
+	regp->Sequencer[2] = 0x0F;
 	regp->Sequencer[3] = 0x00;                     /* Font select */
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->Sequencer[4] = 0x02;
-	} else {
-		regp->Sequencer[4] = 0x0E;                             /* Misc */
-	}
+	regp->Sequencer[4] = 0x0E;                             /* Misc */
 
 	/*
 	* CRTC Controller
@@ -593,46 +553,24 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->CRTC[NV_VGA_CRTCX_PRROWSCN]  = 0x00;
 	regp->CRTC[NV_VGA_CRTCX_MAXSCLIN]  = SetBitField(vertBlankStart,9:9,5:5)
 				| SetBit(6)
-				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00)
-				| (NVMatchModePrivate(mode, NV_MODE_VGA) ? 0xF : 0x00); /* 8x15 chars */
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) { /* Were do these cursor offsets come from? */
-		regp->CRTC[NV_VGA_CRTCX_VGACURSTART] = 0xD; /* start scanline */
-		regp->CRTC[NV_VGA_CRTCX_VGACUREND] = 0xE; /* end scanline */
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_VGACURSTART] = 0x00;
-		regp->CRTC[NV_VGA_CRTCX_VGACUREND] = 0x00;
-	}
+				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
+	regp->CRTC[NV_VGA_CRTCX_VGACURSTART] = 0x00;
+	regp->CRTC[NV_VGA_CRTCX_VGACUREND] = 0x00;
 	regp->CRTC[NV_VGA_CRTCX_FBSTADDH] = 0x00;
 	regp->CRTC[NV_VGA_CRTCX_FBSTADDL] = 0x00;
 	regp->CRTC[0xe] = 0x00;
 	regp->CRTC[0xf] = 0x00;
 	regp->CRTC[NV_VGA_CRTCX_VSYNCS] = Set8Bits(vertStart);
 	/* What is the meaning of bit5, it is empty in the vga spec. */
-	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) |
-									(NVMatchModePrivate(mode, NV_MODE_VGA) ? 0 : SetBit(5));
+	regp->CRTC[NV_VGA_CRTCX_VSYNCE] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
 	regp->CRTC[NV_VGA_CRTCX_VDISPE] = Set8Bits(vertDisplay);
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->CRTC[NV_VGA_CRTCX_PITCHL] = (mode->CrtcHDisplay/16);
-	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((mode->CrtcHDisplay*depth)/64);
-	} else { /* framebuffer can be larger than crtc scanout area. */
-		regp->CRTC[NV_VGA_CRTCX_PITCHL] = ((pScrn->displayWidth/8)*(pScrn->bitsPerPixel/8));
-	}
-	if (depth == 4) { /* How can these values be calculated? */
-		regp->CRTC[NV_VGA_CRTCX_UNDERLINE] = 0x1F;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_UNDERLINE] = 0x00;
-	}
+	/* framebuffer can be larger than crtc scanout area. */
+	regp->CRTC[NV_VGA_CRTCX_PITCHL] = pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8;
+	regp->CRTC[NV_VGA_CRTCX_UNDERLINE] = 0x00;
 	regp->CRTC[NV_VGA_CRTCX_VBLANKS] = Set8Bits(vertBlankStart);
 	regp->CRTC[NV_VGA_CRTCX_VBLANKE] = Set8Bits(vertBlankEnd);
 	/* 0x80 enables the sequencer, we don't want that */
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xA3 & ~0x80;
-	} else if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xE3 & ~0x80;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xC3 & ~0x80;
-	}
+	regp->CRTC[NV_VGA_CRTCX_MODECTL] = 0xC3 & ~0x80;
 	regp->CRTC[NV_VGA_CRTCX_LINECOMP] = 0xff;
 
 	/* 
@@ -671,15 +609,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->Graphics[2] = 0x00;
 	regp->Graphics[3] = 0x00;
 	regp->Graphics[4] = 0x00;
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->Graphics[5] = 0x10;
-		regp->Graphics[6] = 0x0E; /* map 32k mem */
-		regp->Graphics[7] = 0x00;
-	} else {
-		regp->Graphics[5] = 0x40; /* 256 color mode */
-		regp->Graphics[6] = 0x05; /* map 64k mem + graphic mode */
-		regp->Graphics[7] = 0x0F;
-	}
+	regp->Graphics[5] = 0x40; /* 256 color mode */
+	regp->Graphics[6] = 0x05; /* map 64k mem + graphic mode */
+	regp->Graphics[7] = 0x0F;
 	regp->Graphics[8] = 0xFF;
 
 	regp->Attribute[0]  = 0x00; /* standard colormap translation */
@@ -698,19 +630,11 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->Attribute[13] = 0x0D;
 	regp->Attribute[14] = 0x0E;
 	regp->Attribute[15] = 0x0F;
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->Attribute[16] = 0x0C; /* Line Graphics Enable + Blink enable */
-	} else {
-		regp->Attribute[16] = 0x01; /* Enable graphic mode */
-	}
+	regp->Attribute[16] = 0x01; /* Enable graphic mode */
 	/* Non-vga */
 	regp->Attribute[17] = 0x00;
 	regp->Attribute[18] = 0x0F; /* enable all color planes */
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->Attribute[19] = 0x08; /* shift bits by 8 */
-	} else {
-		regp->Attribute[19] = 0x00;
-	}
+	regp->Attribute[19] = 0x00;
 	regp->Attribute[20] = 0x00;
 }
 
@@ -776,14 +700,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->cursorConfig = 0x0;
 	if(mode->Flags & V_DBLSCAN)
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
-	if (pNv->alphaCursor && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->cursorConfig |= 	(NV_CRTC_CURSOR_CONFIG_32BPP |
-							NV_CRTC_CURSOR_CONFIG_64PIXELS |
-							NV_CRTC_CURSOR_CONFIG_64LINES |
-							NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND);
-	} else {
+	if (pNv->alphaCursor) {
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32BPP |
+				      NV_CRTC_CURSOR_CONFIG_64PIXELS |
+				      NV_CRTC_CURSOR_CONFIG_64LINES |
+				      NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND;
+	} else
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32LINES;
-	}
 
 	/* Unblock some timings */
 	regp->CRTC[NV_VGA_CRTCX_FP_HTIMING] = 0;
@@ -794,23 +717,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_VGA_CRTCX_26] = 0x20;
 
 	/* 0x00 is disabled, 0x11 is lvds, 0x22 crt and 0x88 tmds */
-	if (lvds_output) {
+	if (lvds_output)
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x11;
-	} else if (tmds_output) {
+	else if (tmds_output)
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x88;
-	} else {
+	else
 		regp->CRTC[NV_VGA_CRTCX_3B] = 0x22;
-	}
 
 	/* These values seem to vary */
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_VGA_CRTCX_SCRATCH4] = savep->CRTC[NV_VGA_CRTCX_SCRATCH4];
 
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->CRTC[NV_VGA_CRTCX_45] = 0x0;
-	} else {
-		regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
-	}
+	regp->CRTC[NV_VGA_CRTCX_45] = 0x80;
 
 	/* What does this do?:
 	 * bit0: crtc0
@@ -818,32 +736,21 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	 * bit7: (only in X)
 	 */
 	if (nv_crtc->head == 0)
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x1;
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x81;
 	else 
-		regp->CRTC[NV_VGA_CRTCX_4B] = 0x0;
+		regp->CRTC[NV_VGA_CRTCX_4B] = 0x80;
 
 	if (lvds_output)
 		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x40;
 
-	if (!NVMatchModePrivate(mode, NV_MODE_VGA))
-		regp->CRTC[NV_VGA_CRTCX_4B] |= 0x80;
+	/* The blob seems to take the current value from crtc 0, add 4 to that
+	 * and reuse the old value for crtc 1 */
+	regp->CRTC[NV_VGA_CRTCX_52] = pNv->SavedReg.crtc_reg[0].CRTC[NV_VGA_CRTCX_52];
+	if (!nv_crtc->head)
+		regp->CRTC[NV_VGA_CRTCX_52] += 4;
 
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) { /* we need consistent restore. */
-		regp->CRTC[NV_VGA_CRTCX_52] = savep->CRTC[NV_VGA_CRTCX_52];
-	} else {
-		/* The blob seems to take the current value from crtc 0, add 4 to that and reuse the old value for crtc 1.*/
-		regp->CRTC[NV_VGA_CRTCX_52] = pNv->SavedReg.crtc_reg[0].CRTC[NV_VGA_CRTCX_52];
-		if (!nv_crtc->head)
-			regp->CRTC[NV_VGA_CRTCX_52] += 4;
-	}
-
-	if (NVMatchModePrivate(mode, NV_MODE_VGA)) {
-		regp->unk830 = 0;
-		regp->unk834 = 0;
-	} else {
-		regp->unk830 = mode->CrtcVDisplay - 3;
-		regp->unk834 = mode->CrtcVDisplay - 1;
-	}
+	regp->unk830 = mode->CrtcVDisplay - 3;
+	regp->unk834 = mode->CrtcVDisplay - 1;
 
 	if (pNv->twoHeads)
 		/* This is what the blob does */
@@ -855,11 +762,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	if (pNv->twoHeads)
 		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT);
 
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
-		regp->config = 0x0; /* VGA mode */
-	} else {
-		regp->config = 0x2; /* HSYNC mode */
-	}
+	regp->config = 0x2; /* HSYNC mode */
 
 	/* Some misc regs */
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -878,17 +781,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		/* Only bit that bios and blob set. */
 		regp->nv10_cursync = (1 << 25);
 
-	uint8_t depth;
-	/* This is mode related, not pitch. */
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE))
-		depth = pNv->console_mode[nv_crtc->head].depth;
-	else
-		depth = pScrn->depth;
-
-	switch (depth) {
-		case 4:
-			regp->general = 0x00000100;
-			break;
+	switch (pScrn->depth) {
 		case 24:
 		case 15:
 			regp->general = 0x00100100;
@@ -900,13 +793,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 			regp->general = 0x00101100;
 			break;
 	}
-	if (depth > 8 && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (pScrn->depth != 8)
 		regp->general |= 0x30; /* enable palette mode */
-	}
-	if (pNv->alphaCursor && !NVMatchModePrivate(mode, NV_MODE_CONSOLE)) {
+	if (pNv->alphaCursor)
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
-		regp->general |= (1<<29);
-	}
+		regp->general |= 1 << 29;
 
 	/* Some values the blob sets */
 	regp->unk_a20 = 0x0;
@@ -1006,10 +897,8 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (adjusted_mode->Flags & V_PHSYNC)
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
 
-	if (NVMatchModePrivate(mode, NV_MODE_CONSOLE)) /* seems to be used almost always */
-		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_SCALE;
-	else if (nv_output->scaling_mode == SCALE_PANEL ||
-		 nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
+	if (nv_output->scaling_mode == SCALE_PANEL ||
+	    nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 	/* This is also true for panel scaling, so we must put the panel scale check first */
 	else if (mode->HDisplay == adjusted_mode->HDisplay &&
@@ -1145,7 +1034,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
-	NVCrtcSetBase(crtc, x, y, NVMatchModePrivate(mode, NV_MODE_CONSOLE));
+	NVCrtcSetBase(crtc, x, y);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* turn on LFB swapping */
@@ -1863,30 +1752,21 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	}
 }
 
-void
-NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore)
+void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
 	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
-	uint32_t start = 0;
+	uint32_t start = (y * pScrn->displayWidth + x) * pScrn->bitsPerPixel / 8;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCrtcSetBase is called with coordinates: x: %d y: %d\n", x, y);
-
-	if (bios_restore) {
-		start = pNv->console_mode[nv_crtc->head].fb_start;
-	} else {
-		start += ((y * pScrn->displayWidth + x) * (pScrn->bitsPerPixel/8));
-		if (crtc->rotatedData != NULL) { /* we do not exist on the real framebuffer */
+	if (crtc->rotatedData != NULL) /* we do not exist on the real framebuffer */
 #if NOUVEAU_EXA_PIXMAPS
-			start = nv_crtc->shadow->offset;
+		start = nv_crtc->shadow->offset;
 #else
-			start = pNv->FB->offset + nv_crtc->shadow->offset; /* We do exist relative to the framebuffer */
+		start = pNv->FB->offset + nv_crtc->shadow->offset; /* We do exist relative to the framebuffer */
 #endif
-		} else {
-			start += pNv->FB->offset;
-		}
-	}
+	else
+		start += pNv->FB->offset;
 
 	/* 30 bits addresses in 32 bits according to haiku */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_START, start & 0xfffffffc);

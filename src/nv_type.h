@@ -346,16 +346,6 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
-typedef struct {
-	Bool vga_mode;
-	uint8_t depth; /* mode related */
-	uint8_t bpp; /* pitch related */
-	uint16_t x_res;
-	uint16_t y_res;
-	Bool enabled;
-	uint32_t fb_start;
-} NVConsoleMode;
-
 typedef struct _NVRec *NVPtr;
 typedef struct _NVRec {
     RIVA_HW_STATE       SavedReg;
@@ -469,7 +459,6 @@ typedef struct _NVRec {
 
 	Bool randr12_enable;
 	Bool kms_enable;
-	Bool new_restore;
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
 
@@ -483,8 +472,6 @@ typedef struct _NVRec {
 		unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
 		unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
 	} dcb_table;
-
-	NVConsoleMode console_mode[2];
 
 	nouveauCrtcPtr crtc[2];
 	nouveauOutputPtr output; /* this a linked list. */

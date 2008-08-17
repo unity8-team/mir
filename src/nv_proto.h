@@ -11,7 +11,6 @@ PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
 
 /* in nv_driver.c */
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
-Bool NVMatchModePrivate(DisplayModePtr mode, uint32_t flags);
 
 /* in nv_dri.c */
 Bool NVDRIScreenInit(ScrnInfoPtr pScrn);
@@ -83,15 +82,12 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1
 bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
 
 /* nv_crtc.c */
-void NVCrtcSetBase (xf86CrtcPtr crtc, int x, int y, Bool bios_restore);
+void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
-void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
-void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val);
 
 /* nv_output.c */
 void NvSetupOutputs(ScrnInfoPtr pScrn);
-uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc);
 
 /* nv_hw.c */
 uint32_t NVRead(NVPtr pNv, uint32_t reg);

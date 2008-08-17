@@ -10,11 +10,6 @@
 #define NV_DPMS_CLEARED 0x80
 
 typedef enum {
-	NV_MODE_CONSOLE = (1 << 0),
-	NV_MODE_VGA = (1 << 1)
-} NVModePriv;
-
-typedef enum {
     OPTION_SW_CURSOR,
     OPTION_HW_CURSOR,
     OPTION_NOACCEL,
@@ -30,7 +25,6 @@ typedef enum {
     OPTION_CMDBUF_SIZE,
     OPTION_RANDR12,
     OPTION_SCALING_MODE,
-    OPTION_NEW_RESTORE,
     OPTION_KMS,
 } NVOpts;
 
@@ -51,7 +45,6 @@ static const OptionInfoRec NVOptions[] = {
     { OPTION_CMDBUF_SIZE,	"CBSize",	OPTV_INTEGER,	{0}, FALSE },
     { OPTION_RANDR12,	"Randr12",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_SCALING_MODE,	"ScalingMode",	OPTV_STRING,	{0}, FALSE },
-    { OPTION_NEW_RESTORE,	"NewRestore",	OPTV_BOOLEAN,	{0}, FALSE },
     { OPTION_KMS,	"KMS",	OPTV_BOOLEAN,	{0}, FALSE },
     { -1,                       NULL,           OPTV_NONE,      {0}, FALSE }
 };

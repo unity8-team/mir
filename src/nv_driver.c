@@ -645,9 +645,8 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 		xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 		xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;
 
-		if (crtc && crtc->enabled) {
-			NVCrtcSetBase(crtc, x, y, FALSE);
-		}
+		if (crtc && crtc->enabled)
+			NVCrtcSetBase(crtc, x, y);
 	} else {
 		int startAddr;
 		startAddr = (((y*pScrn->displayWidth)+x)*(pScrn->bitsPerPixel/8));
@@ -1261,15 +1260,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	}
 	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
 
-	pNv->new_restore = FALSE;
-
-	if (pNv->randr12_enable) {
-		if (xf86ReturnOptValBool(pNv->Options, OPTION_NEW_RESTORE, FALSE)) {
-			pNv->new_restore = TRUE;
-		}
-		xf86DrvMsg(pScrn->scrnIndex, from, "New (experimental) restore support %sabled\n", pNv->new_restore ? "en" : "dis");
-	}
-
 	pNv->HWCursor = TRUE;
 	/*
 	 * The preferred method is to use the "hw cursor" option as a tri-state
@@ -1839,251 +1829,36 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     return TRUE;
 }
 
-#define NV_MODE_PRIVATE_ID 0x4F37ED65
-#define NV_MODE_PRIVATE_SIZE 2
-
-/* 
- * Match a private mode flag in a special function.
- * I don't want ugly casting all over the code.
- */
-Bool
-NVMatchModePrivate(DisplayModePtr mode, uint32_t flags)
-{
-	if (!mode)
-		return FALSE;
-	if (!mode->Private)
-		return FALSE;
-	if (mode->PrivSize != NV_MODE_PRIVATE_SIZE)
-		return FALSE;
-	if (mode->Private[0] != NV_MODE_PRIVATE_ID)
-		return FALSE;
-
-	if (mode->Private[1] & flags)
-		return TRUE;
-
-	return FALSE;
-}
-
-static void
-NVRestoreConsole(xf86OutputPtr output, DisplayModePtr mode)
-{
-	if (!output->crtc)
-		return;
-
-	xf86CrtcPtr crtc = output->crtc;
-	Bool need_unlock;
-
-	if (!crtc->enabled)
-		return;
-
-	xf86SetModeCrtc(mode, INTERLACE_HALVE_V);
-	DisplayModePtr adjusted_mode = xf86DuplicateMode(mode);
-
-	/* Sequence mimics a normal modeset. */
-	output->funcs->dpms(output, DPMSModeOff);
-	crtc->funcs->dpms(crtc, DPMSModeOff);
-	need_unlock = crtc->funcs->lock(crtc);
-	output->funcs->mode_fixup(output, mode, adjusted_mode);
-	crtc->funcs->mode_fixup(crtc, mode, adjusted_mode);
-	output->funcs->prepare(output);
-	crtc->funcs->prepare(crtc);
-	/* Always use offset (0,0). */
-	crtc->funcs->mode_set(crtc, mode, adjusted_mode, 0, 0);
-	output->funcs->mode_set(output, mode, adjusted_mode);
-	crtc->funcs->commit(crtc);
-	output->funcs->commit(output);
-	if (need_unlock)
-		crtc->funcs->unlock(crtc);
-	/* Always turn on outputs afterwards. */
-	output->funcs->dpms(output, DPMSModeOn);
-	crtc->funcs->dpms(crtc, DPMSModeOn);
-
-	/* Free mode. */
-	xfree(adjusted_mode);
-}
-
-#define MODEPREFIX(name) NULL, NULL, name, 0,M_T_DRIVER
-#define MODESUFFIX   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,FALSE,FALSE,0,NULL,0,0.0,0.0
-
-/* hblankstart: 648, hblankend: 792, vblankstart: 407, vblankend: 442 for 640x400 */
-static DisplayModeRec VGAModes[2] = {
-	{ MODEPREFIX("640x400"),    28320, /*25175,*/ 640,  680,  776,  800, 0,  400,  412,  414,  449, 0, V_NHSYNC | V_PVSYNC, MODESUFFIX }, /* 640x400 */
-	{ MODEPREFIX("720x400"),    28320,  720,  738,  846,  900, 0,  400,  412,  414,  449, 0, V_NHSYNC | V_PVSYNC, MODESUFFIX }, /* 720x400@70Hz */
-};
-
 /*
  * Restore the initial (text) mode.
  */
 static void 
 NVRestore(ScrnInfoPtr pScrn)
 {
-	vgaHWPtr hwp = VGAHWPTR(pScrn);
-	vgaRegPtr vgaReg = &hwp->SavedReg;
 	NVPtr pNv = NVPTR(pScrn);
-	NVRegPtr nvReg = &pNv->SavedReg;
 
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-		RIVA_HW_STATE *state = &pNv->ModeReg;
 		int i;
 
-		/* Let's wipe some state regs */
-		state->crtc_reg[0].vpll_a = 0;
-		state->crtc_reg[0].vpll_b = 0;
-		state->crtc_reg[1].vpll_a = 0;
-		state->crtc_reg[1].vpll_b = 0;
-		state->pllsel = 0;
+		for (i = 0; i < xf86_config->num_crtc; i++)
+			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 
-		if (pNv->new_restore) { /* new style restore. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-			}
+		for (i = 0; i < xf86_config->num_output; i++)
+			xf86_config->output[i]->funcs->restore(xf86_config->output[i]);
 
-			/* Reset some values according to stored console value, to avoid confusion later on. */
-			/* Otherwise we end up with corrupted terminals. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcPrivatePtr nv_crtc = xf86_config->crtc[i]->driver_private;
-				RIVA_HW_STATE *state = &pNv->SavedReg;
-				NVCrtcRegPtr savep = &state->crtc_reg[nv_crtc->head];
-				uint8_t pixelDepth = pNv->console_mode[nv_crtc->head].depth/8;
-				/* restore PIXEL value */
-				uint32_t pixel = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_PIXEL) & ~(0xF);
-				pixel |= (pixelDepth > 2) ? 3 : pixelDepth;
-				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_PIXEL, pixel);
-				/* restore HDisplay and VDisplay */
-				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_HDISPE, (pNv->console_mode[nv_crtc->head].x_res)/8 - 1);
-				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_VDISPE, (pNv->console_mode[nv_crtc->head].y_res) - 1);
-				/* restore CR52 */
-				NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_52, savep->CRTC[NV_VGA_CRTCX_52]);
-				/* restore crtc base */
-				NVCrtcWriteCRTC(xf86_config->crtc[i], NV_CRTC_START, pNv->console_mode[nv_crtc->head].fb_start);
-				/* Restore general control */
-				NVCrtcWriteRAMDAC(xf86_config->crtc[i], NV_RAMDAC_GENERAL_CONTROL, savep->general);
-				/* Restore CR5758 */
-				if (pNv->NVArch >= 0x17 && pNv->twoHeads)
-					for (i = 0; i < 0x10; i++)
-						NVWriteVgaCrtc5758(pNv, nv_crtc->head, i, savep->CR58[i]);
-			}
+		for (i = 0; i < xf86_config->num_crtc; i++)
+			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 
-			/* Restore outputs when enabled. */
-			for (i = 0; i < xf86_config->num_output; i++) {
-				xf86OutputPtr output = xf86_config->output[i];
-				if (!xf86_config->output[i]->crtc) /* not enabled? */
-					continue;
+		nv_save_restore_vga_fonts(pScrn, 0);
 
-				NVOutputPrivatePtr nv_output = output->driver_private;
-				Bool is_fp = FALSE;
-				DisplayModePtr mode = NULL;
-				DisplayModePtr good_mode = NULL;
-				NVConsoleMode *console = &pNv->console_mode[i];
-				DisplayModePtr modes = output->probed_modes;
-				if (!modes) /* no modes means no restore */
-					continue;
-
-				if (nv_output->dcb->type == OUTPUT_TMDS || nv_output->dcb->type == OUTPUT_LVDS)
-					is_fp = TRUE;
-
-				if (console->vga_mode) {
-					/* We support 640x400 and 720x400 vga modes. */
-					if (console->x_res == 720)
-						good_mode = &VGAModes[1];
-					else
-						good_mode = &VGAModes[0];
-					if (!good_mode) /* No suitable mode found. */
-						continue;
-				} else {
-					NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
-					uint32_t old_clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, nv_crtc->head);
-					uint32_t clock_diff = 0xFFFFFFFF;
-					for (mode = modes; mode != NULL; mode = mode->next) {
-						/* We only have the first 8 bits of y_res - 1. */
-						/* And it's sometimes bogus. */
-						if (is_fp || !console->enabled) { /* digital outputs are run at their native clock */
-							if (mode->HDisplay == console->x_res) {
-								if (!good_mode) /* Pick any match, in case we don't find a 60.0 Hz mode. */
-									good_mode = mode;
-								/* Pick a 60.0 Hz mode if there is one. */
-								if (mode->VRefresh > 59.95 && mode->VRefresh < 60.05) {
-									good_mode = mode;
-									break;
-								}
-							}
-						} else {
-							if (mode->HDisplay == console->x_res) {
-								int temp_diff = mode->Clock - old_clock;
-								if (temp_diff < 0)
-									temp_diff *= -1;
-								if (temp_diff < clock_diff) { /* converge on the closest mode */
-									clock_diff = temp_diff;
-									good_mode = mode;
-								}
-							}
-						}
-					}
-					if (!good_mode) /* No suitable mode found. */
-						continue;
-				}
-
-				mode = xf86DuplicateMode(good_mode);
-
-				INT32 *nv_mode = xnfcalloc(sizeof(INT32)*NV_MODE_PRIVATE_SIZE, 1);
-
-				/* A semi-unique identifier to avoid using other privates. */
-				nv_mode[0] = NV_MODE_PRIVATE_ID;
-
-				if (console->vga_mode)
-					nv_mode[1] |= NV_MODE_VGA;
-
-				nv_mode[1] |= NV_MODE_CONSOLE;
-
-				mode->Private = nv_mode;
-				mode->PrivSize = NV_MODE_PRIVATE_SIZE;
-
-				uint8_t scale_backup = nv_output->scaling_mode;
-				if (nv_output->dcb->type == OUTPUT_LVDS || nv_output->dcb->type == OUTPUT_TMDS)
-					nv_output->scaling_mode = SCALE_FULLSCREEN;
-
-				NVRestoreConsole(output, mode);
-
-				/* Restore value, so we reenter X properly. */
-				nv_output->scaling_mode = scale_backup;
-
-				xfree(mode->Private);
-				xfree(mode);
-			}
-
-			/* Force hide the cursor. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				xf86_config->crtc[i]->funcs->hide_cursor(xf86_config->crtc[i]);
-			}
-
-			/* Lock the crtc's. */
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
-			}
-
-			/* Let's clean our slate once again, so we always rewrite vpll's upon returning to X. */
-			state->crtc_reg[0].vpll_a = 0;
-			state->crtc_reg[0].vpll_b = 0;
-			state->crtc_reg[1].vpll_a = 0;
-			state->crtc_reg[1].vpll_b = 0;
-			state->pllsel = 0;
-		} else {
-			for (i = 0; i < xf86_config->num_crtc; i++)
-				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-
-			for (i = 0; i < xf86_config->num_output; i++)
-				xf86_config->output[i]->funcs->restore(xf86_config->output[i]);
-
-			for (i = 0; i < xf86_config->num_crtc; i++)
-				xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
-
-			nv_save_restore_vga_fonts(pScrn, 0);
-
-			for (i = 0; i < xf86_config->num_crtc; i++)
-				NVCrtcLockUnlock(xf86_config->crtc[i], 1);
-		}
+		for (i = 0; i < xf86_config->num_crtc; i++)
+			NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 	} else {
+		vgaHWPtr hwp = VGAHWPTR(pScrn);
+		vgaRegPtr vgaReg = &hwp->SavedReg;
+		NVRegPtr nvReg = &pNv->SavedReg;
+
 		NVLockUnlock(pScrn, 0);
 
 		if(pNv->twoHeads) {
@@ -2097,7 +1872,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		vgaHWProtect(pScrn, FALSE);
 	}
 
-	if (pNv->twoHeads && !pNv->new_restore) {
+	if (pNv->twoHeads) {
 		NVSetOwner(pScrn, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
@@ -2267,7 +2042,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	int ret;
 	VisualPtr visual;
 	unsigned char *FBStart;
-	int width, height, displayWidth, shadowHeight, i;
+	int width, height, displayWidth, shadowHeight;
 
 	/* 
 	 * First get the ScrnInfoRec
@@ -2324,64 +2099,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		pScrn->memPhysBase = pNv->VRAMPhysical;
 		pScrn->fbOffset = 0;
-
-		/* Gather some misc info before the randr stuff kicks in */
-		for (i = 0; i <= pNv->twoHeads; i++) {
-			if (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf) { /* framebuffer mode */
-				pNv->console_mode[i].vga_mode = FALSE;
-				uint8_t var = NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_PIXEL) & 0xf;
-				Bool filled = (NVReadRAMDAC(pNv, i, NV_RAMDAC_GENERAL_CONTROL) & 0x1000);
-				switch (var){
-					case 3:
-						if (filled)
-							pNv->console_mode[i].depth = 32;
-						else
-							pNv->console_mode[i].depth = 24;
-						/* This is pitch related. */
-						pNv->console_mode[i].bpp = 32;
-						break;
-					case 2:
-						if (filled)
-							pNv->console_mode[i].depth = 16;
-						else
-							pNv->console_mode[i].depth = 15;
-						/* This is pitch related. */
-						pNv->console_mode[i].bpp = 16;
-						break;
-					case 1:
-						/* 8bit mode is always filled? */
-						pNv->console_mode[i].depth = 8;
-						/* This is pitch related. */
-						pNv->console_mode[i].bpp = 8;
-					default:
-						break;
-				}
-			} else { /* vga mode */
-				pNv->console_mode[i].vga_mode = TRUE;
-				pNv->console_mode[i].bpp = 4;
-				pNv->console_mode[i].depth = 4;
-			}
-
-			pNv->console_mode[i].x_res = (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_HDISPE) + 1) * 8;
-			pNv->console_mode[i].y_res = (NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_VDISPE) + 1); /* NV_VGA_CRTCX_VDISPE only contains the lower 8 bits. */
-
-			pNv->console_mode[i].fb_start = NVReadCRTC(pNv, i, NV_CRTC_START);
-
-			pNv->console_mode[i].enabled = FALSE;
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC %d: Console mode: %dx%d depth: %d bpp: %d crtc_start: 0x%X.\n", i, pNv->console_mode[i].x_res, pNv->console_mode[i].y_res, pNv->console_mode[i].depth, pNv->console_mode[i].bpp, pNv->console_mode[i].fb_start);
-		}
-
-		/* Check if crtc's were enabled. */
-		if (NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL) {
-			pNv->console_mode[0].enabled = TRUE;
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 0 was enabled.\n");
-		}
-
-		if (NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT) & NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2) {
-			pNv->console_mode[1].enabled = TRUE;
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CRTC 1 was enabled.\n");
-		}
 
 		if (!NVEnterVT(scrnIndex, 0))
 			return FALSE;
