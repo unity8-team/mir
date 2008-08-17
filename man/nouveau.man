@@ -82,22 +82,12 @@ Enable or disable use of an OS-specific fb interface (and is not supported
 on all OSs).  See fbdevhw(__drivermansuffix__) for further information.
 Default: off.
 .TP
-.BI "Option \*qCrtcNumber\*q \*q" integer \*q
-Many graphics cards with NVIDIA chips have two video outputs.  
-The driver attempts to autodetect
-which one the monitor is connected to.  In the case that autodetection picks
-the wrong one, this option may be used to force usage of a particular output. 
-The options are "0" or "1".
-Default: autodetected.
-.TP
 .BI "Option \*qFlatPanel\*q \*q" boolean \*q
 The driver usually can autodetect the presence of a digital flat panel.  In
 the case that this fails, this option can be used to force the driver to 
 treat the attached device as a digital flat panel.  With this 
 driver, a digital flat panel will work only if it was POSTed by the BIOS, 
-that is, the computer
-must have booted to the panel.  If you have a dual head card
-you may also need to set the option CrtcNumber described above.
+that is, the computer must have booted to the panel.
 Default: autodetected.
 .TP
 .BI "Option \*qFPDither\*q \*q" boolean \*q
