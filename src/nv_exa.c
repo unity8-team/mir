@@ -104,7 +104,7 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *rect = pNv->NvRectangle;
-	unsigned int fmt, pitch;
+	unsigned int fmt, pitch, color;
 
 	planemask |= ~0 << pPixmap->drawable.bitsPerPixel;
 	if (planemask != ~0 || alu != GXcopy) {
@@ -122,6 +122,15 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 		return FALSE;
 	pitch = exaGetPixmapPitch(pPixmap);
 
+	if (pPixmap->drawable.bitsPerPixel == 16) {
+		/* convert to 32bpp */
+		uint32_t r =  (fg&0x1F)          * 255 / 31;
+		uint32_t g = ((fg&0x7E0) >> 5)   * 255 / 63;
+		uint32_t b = ((fg&0xF100) >> 11) * 255 / 31;
+		color = b<<16 | g<<8 | r;
+	} else 
+		color = fg;
+
 	/* When SURFACE_FORMAT_A8R8G8B8 is used with GDI_RECTANGLE_TEXT, the 
 	 * alpha channel gets forced to 0xFF for some reason.  We're using 
 	 * SURFACE_FORMAT_Y32 as a workaround
@@ -138,11 +147,7 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
 	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
-	if (pPixmap->drawable.bitsPerPixel == 16)
-		/* convert to 32bpp */
-		OUT_RING (chan, ((fg&0x1F)<<3) | ((fg&0x7E0)<<5) | ((fg&0xF100)<<8));
-	else
-		OUT_RING (chan, fg);
+	OUT_RING (chan, color);
 
 	return TRUE;
 }
@@ -431,6 +436,9 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		return FALSE;
 
 	if (h > 1024)
+		return FALSE;
+
+	if (line_len<4)
 		return FALSE;
 
 	switch (cpp) {
