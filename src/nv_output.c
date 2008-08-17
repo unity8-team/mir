@@ -221,7 +221,9 @@ static uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, 
 	struct pll_lims pll_lim;
 	uint32_t vplla = state->crtc_reg[crtc].vpll_a;
 	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
-	bool nv40_single = pNv->Architecture == 0x40 && ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) || (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
+	bool nv40_single = pNv->Architecture == 0x40 &&
+			   ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) ||
+			    (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
 
 	if (!get_pll_limits(pScrn, crtc ? VPLL2 : VPLL1, &pll_lim))
 		return 0;
@@ -234,17 +236,21 @@ static void nv_output_restore(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	NVOutputPrivatePtr nv_output = output->driver_private;
+	int head = nv_output->restore.head;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
 
 	if (pNv->twoHeads && nv_output->dcb->type == OUTPUT_ANALOG)
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output), nv_output->restore.output);
+		NVWriteRAMDAC(pNv, 0,
+			      NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(output),
+			      nv_output->restore.output);
 	if (nv_output->dcb->type == OUTPUT_LVDS)
-		call_lvds_script(pScrn, nv_output->dcb, nv_output->restore.head, LVDS_PANEL_ON, nv_output->native_mode->Clock);
+		call_lvds_script(pScrn, nv_output->dcb, head, LVDS_PANEL_ON,
+				 nv_output->native_mode->Clock);
 	if (nv_output->dcb->type == OUTPUT_TMDS) {
-		uint32_t clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, nv_output->restore.head);
+		int clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, head);
 
-		run_tmds_table(pScrn, nv_output->dcb, nv_output->restore.head, clock);
+		run_tmds_table(pScrn, nv_output->dcb, head, clock);
 	}
 
 	nv_output->last_dpms = NV_DPMS_CLEARED;
