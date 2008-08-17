@@ -239,12 +239,10 @@ typedef enum {
 } ValidOutputResource;
 
 typedef struct _NVOutputPrivateRec {
-	uint8_t last_dpms; /* pre-NV50 */
+	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	NVOutputType type;
 	struct dcb_entry *dcb;
-	uint32_t fpWidth;
-	uint32_t fpHeight;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
 	bool dithering;

@@ -268,7 +268,8 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 	}
 	if (nv_output->type == OUTPUT_LVDS || nv_output->type == OUTPUT_TMDS)
 		/* No modes > panel's native res */
-		if (mode->HDisplay > nv_output->fpWidth || mode->VDisplay > nv_output->fpHeight)
+		if (mode->HDisplay > nv_output->native_mode->HDisplay ||
+		    mode->VDisplay > nv_output->native_mode->VDisplay)
 			return MODE_PANEL;
 	if (nv_output->type == OUTPUT_TMDS) {
 		if (nv_output->dcb->duallink_possible) {
@@ -496,21 +497,21 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 	ddc_modes = xf86OutputGetEDIDModes(output);
 
 	if (nv_output->type == OUTPUT_TMDS || nv_output->type == OUTPUT_LVDS) {
+		int max_h_active = 0, max_v_active = 0;
 		int i;
 		DisplayModePtr mode;
 
-		nv_output->fpHeight = nv_output->fpWidth = 0;
 		for (i = 0; i < DET_TIMINGS; i++) {
 			/* We only look at detailed timings atm */
 			if (mon->det_mon[i].type != DT)
 				continue;
 			/* Selecting only based on width ok? */
-			if (mon->det_mon[i].section.d_timings.h_active > nv_output->fpWidth) {
-				nv_output->fpWidth = mon->det_mon[i].section.d_timings.h_active;
-				nv_output->fpHeight = mon->det_mon[i].section.d_timings.v_active;
+			if (mon->det_mon[i].section.d_timings.h_active > max_h_active) {
+				max_h_active = mon->det_mon[i].section.d_timings.h_active;
+				max_v_active = mon->det_mon[i].section.d_timings.v_active;
 			}
 		}
-		if (!(nv_output->fpWidth && nv_output->fpHeight)) {
+		if (!(max_h_active && max_v_active)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No EDID detailed timings available, bailing out.\n");
 			return NULL;
 		}
@@ -521,8 +522,8 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		}
 
 		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-			if (mode->HDisplay == nv_output->fpWidth &&
-				mode->VDisplay == nv_output->fpHeight) {
+			if (mode->HDisplay == max_h_active &&
+				mode->VDisplay == max_v_active) {
 				/* Take the preferred mode when it exists. */
 				if (mode->type & M_T_PREFERRED) {
 					nv_output->native_mode = xf86DuplicateMode(mode);
@@ -867,12 +868,6 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 		edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 		return nv_output_get_modes(output, edid_mon);
 	}
-
-	nv_output->fpWidth = pNv->VBIOS.fp.native_mode->HDisplay;
-	nv_output->fpHeight = pNv->VBIOS.fp.native_mode->VDisplay;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %u x %u\n",
-		nv_output->fpWidth, nv_output->fpHeight);
 
 	if (nv_output->native_mode)
 		xfree(nv_output->native_mode);
