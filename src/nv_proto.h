@@ -67,7 +67,6 @@ void NVSetStartAddress(NVPtr,CARD32);
 
 /* in nv_shadow.c */
 void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
-void NVRefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVRefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVRefreshArea32(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 void NVPointerMoved(int index, int x, int y);

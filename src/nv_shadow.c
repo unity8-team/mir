@@ -73,57 +73,6 @@ NVPointerMoved(int index, int x, int y)
 }
 
 void
-NVRefreshArea8(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
-{
-    NVPtr pNv = NVPTR(pScrn);
-    int count, width, height, y1, y2, dstPitch, srcPitch;
-    CARD8 *dstPtr, *srcPtr, *src;
-    CARD32 *dst;
-
-    if(!pNv->Rotate) {
-       NVRefreshArea(pScrn, num, pbox);
-       return;
-    }
-
-    dstPitch = pScrn->displayWidth;
-    srcPitch = -pNv->Rotate * pNv->ShadowPitch;
-
-    while(num--) {
-	width = pbox->x2 - pbox->x1;
-	y1 = pbox->y1 & ~3;
-	y2 = (pbox->y2 + 3) & ~3;
-	height = (y2 - y1) >> 2;  /* in dwords */
-
-	if(pNv->Rotate == 1) {
-	    dstPtr = pNv->FB->map + 
-			(pbox->x1 * dstPitch) + pScrn->virtualX - y2;
-	    srcPtr = pNv->ShadowPtr + ((1 - y2) * srcPitch) + pbox->x1;
-	} else {
-	    dstPtr = pNv->FB->map + 
-			((pScrn->virtualY - pbox->x2) * dstPitch) + y1;
-	    srcPtr = pNv->ShadowPtr + (y1 * srcPitch) + pbox->x2 - 1;
-	}
-
-	while(width--) {
-	    src = srcPtr;
-	    dst = (CARD32*)dstPtr;
-	    count = height;
-	    while(count--) {
-		*(dst++) = src[0] | (src[srcPitch] << 8) | 
-					(src[srcPitch * 2] << 16) | 
-					(src[srcPitch * 3] << 24);
-		src += srcPitch * 4;
-	    }
-	    srcPtr += pNv->Rotate;
-	    dstPtr += dstPitch;
-	}
-
-	pbox++;
-    }
-} 
-
-
-void
 NVRefreshArea16(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 {
     NVPtr pNv = NVPTR(pScrn);

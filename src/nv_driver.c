@@ -2167,7 +2167,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 
 	switch (pScrn->bitsPerPixel) {
-		case 8:
 		case 16:
 		case 32:
 			ret = fbScreenInit(pScreen, FBStart, width, height,
@@ -2184,18 +2183,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!ret)
 		return FALSE;
 
-	if (pScrn->bitsPerPixel > 8) {
-		/* Fixup RGB ordering */
-		visual = pScreen->visuals + pScreen->numVisuals;
-		while (--visual >= pScreen->visuals) {
-			if ((visual->class | DynamicClass) == DirectColor) {
-				visual->offsetRed = pScrn->offset.red;
-				visual->offsetGreen = pScrn->offset.green;
-				visual->offsetBlue = pScrn->offset.blue;
-				visual->redMask = pScrn->mask.red;
-				visual->greenMask = pScrn->mask.green;
-				visual->blueMask = pScrn->mask.blue;
-			}
+	/* Fixup RGB ordering */
+	visual = pScreen->visuals + pScreen->numVisuals;
+	while (--visual >= pScreen->visuals) {
+		if ((visual->class | DynamicClass) == DirectColor) {
+			visual->offsetRed = pScrn->offset.red;
+			visual->offsetGreen = pScrn->offset.green;
+			visual->offsetBlue = pScrn->offset.blue;
+			visual->redMask = pScrn->mask.red;
+			visual->greenMask = pScrn->mask.green;
+			visual->blueMask = pScrn->mask.blue;
 		}
 	}
 
@@ -2282,7 +2279,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 				pScrn->PointerMoved = NVPointerMoved;
 
 			switch(pScrn->bitsPerPixel) {
-				case 8:	refreshArea = NVRefreshArea8;	break;
 				case 16:	refreshArea = NVRefreshArea16;	break;
 				case 32:	refreshArea = NVRefreshArea32;	break;
 			}
