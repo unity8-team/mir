@@ -220,8 +220,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
 	Bool nv4x_single_stage_pll_mode = FALSE;
-
-	int bpp, pixelDepth;
 	uint32_t arbitration0, arbitration1;
 
 	if (!get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
@@ -299,24 +297,13 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 
-	/* This is pitch related, not mode related. */
-	if (pScrn->depth < 24)
-		bpp = pScrn->depth;
-	else
-		bpp = 32;
-
-	pixelDepth = (bpp + 1)/8;
-
 	if (pNv->Architecture == NV_ARCH_04) {
-		nv4UpdateArbitrationSettings(VClk, pixelDepth * 8,
+		nv4UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
 					     &arbitration0, &arbitration1, pNv);
 
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
-		if (mode->Flags & V_DBLSCAN)
-			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
 	} else {
 		uint32_t CursorStart = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
 
@@ -326,11 +313,11 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			arbitration1 = 0x0480;
 		} else if (((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
 			 ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2))
-			nForceUpdateArbitrationSettings(VClk, pixelDepth * 8,
+			nForceUpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
 							&arbitration0,
 							&arbitration1, pNv);
 		else if (pNv->Architecture < NV_ARCH_30)
-			nv10UpdateArbitrationSettings(VClk, pixelDepth * 8,
+			nv10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
 						      &arbitration0,
 						      &arbitration1, pNv);
 		else
@@ -340,19 +327,15 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
 		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
 		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
-
-		if (mode->Flags & V_DBLSCAN)
-			regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
-		regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
 	}
+
+	if (mode->Flags & V_DBLSCAN)
+		regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = arbitration0;
 	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = arbitration1 & 0xff;
 	if (pNv->Architecture >= NV_ARCH_30)
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = arbitration1 >> 8;
-
-	/* framebuffer can be larger than crtc scanout area. */
-	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((pScrn->displayWidth / 8 * pixelDepth) & 0x700) >> 3;
 }
 
 static void
@@ -504,15 +487,14 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 			VDisplay *= 2;
 		if (mode->VScan > 1)
 			VDisplay *= mode->VScan;
-		if (VDisplay < 400) {
+		if (VDisplay < 400)
 			regp->MiscOutReg = 0xA3;		/* +hsync -vsync */
-		} else if (VDisplay < 480) {
+		else if (VDisplay < 480)
 			regp->MiscOutReg = 0x63;		/* -hsync +vsync */
-		} else if (VDisplay < 768) {
+		else if (VDisplay < 768)
 			regp->MiscOutReg = 0xE3;		/* -hsync -vsync */
-		} else {
+		else
 			regp->MiscOutReg = 0x23;		/* +hsync +vsync */
-		}
 	}
 
 	regp->MiscOutReg |= (mode->ClockIndex & 0x03) << 2;
@@ -577,6 +559,9 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	 * Some extended CRTC registers (they are not saved with the rest of the vga regs).
 	 */
 
+	/* framebuffer can be larger than crtc scanout area. */
+	regp->CRTC[NV_VGA_CRTCX_REPAINT0] = ((pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8) & 0x700) >> 3;
+	regp->CRTC[NV_VGA_CRTCX_REPAINT1] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
 	regp->CRTC[NV_VGA_CRTCX_LSR] = SetBitField(horizBlankEnd,6:6,4:4)
 				| SetBitField(vertBlankStart,10:10,3:3)
 				| SetBitField(vertStart,10:10,2:2)
@@ -597,9 +582,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 		horizTotal = (horizTotal >> 1) & ~1;
 		regp->CRTC[NV_VGA_CRTCX_INTERLACE] = Set8Bits(horizTotal);
 		regp->CRTC[NV_VGA_CRTCX_HEB] |= SetBitField(horizTotal,8:8,4:4);
-	} else {
+	} else
 		regp->CRTC[NV_VGA_CRTCX_INTERLACE] = 0xff;  /* interlace off */
-	}
 
 	/*
 	* Graphics Display Controller
@@ -855,26 +839,6 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
 	regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
 
-#if 0
-	ErrorF("Horizontal:\n");
-	ErrorF("REG_DISP_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_END]);
-	ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_horiz_regs[REG_DISP_TOTAL]);
-	ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_horiz_regs[REG_DISP_CRTC]);
-	ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_START]);
-	ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_SYNC_END]);
-	ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_START]);
-	ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_horiz_regs[REG_DISP_VALID_END]);
-
-	ErrorF("Vertical:\n");
-	ErrorF("REG_DISP_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_END]);
-	ErrorF("REG_DISP_TOTAL: 0x%X\n", regp->fp_vert_regs[REG_DISP_TOTAL]);
-	ErrorF("REG_DISP_CRTC: 0x%X\n", regp->fp_vert_regs[REG_DISP_CRTC]);
-	ErrorF("REG_DISP_SYNC_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_START]);
-	ErrorF("REG_DISP_SYNC_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_SYNC_END]);
-	ErrorF("REG_DISP_VALID_START: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_START]);
-	ErrorF("REG_DISP_VALID_END: 0x%X\n", regp->fp_vert_regs[REG_DISP_VALID_END]);
-#endif
-
 	/*
 	* bit0: positive vsync
 	* bit4: positive hsync
@@ -884,7 +848,6 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit28: fp display enable bit
 	* bit31: set for dual link LVDS
-	* nv10reg contains a few more things, but i don't quite get what it all means.
 	*/
 
 	regp->fp_control = (savep->fp_control & 0x04100000) |
@@ -984,9 +947,8 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			}
 			regp->dither = savep->dither;
 		}
-	} else {
+	} else
 		regp->dither = savep->dither;
-	}
 }
 
 /**
@@ -1495,11 +1457,10 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 		if (pNv->Architecture == NV_ARCH_40) {
 			uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_900);
-			if (regp->config == 0x2) { /* enhanced "horizontal only" non-vga mode */
+			if (regp->config == 0x2) /* enhanced "horizontal only" non-vga mode */
 				NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 | 0x10000);
-			} else {
+			else
 				NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 & ~0x10000);
-			}
 		}
 	}
 
@@ -1727,9 +1688,9 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_A34, regp->unk_a34);
 	}
 
-	if (pNv->NVArch == 0x11) {
+	if (pNv->NVArch == 0x11)
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_DITHER_NV11, regp->dither);
-	} else if (pNv->twoHeads) {
+	else if (pNv->twoHeads) {
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DITHER, regp->dither);
 		for (i = 0; i < 3; i++) {
 			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_850 + i * 4, regp->dither_regs[i]);
