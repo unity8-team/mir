@@ -138,7 +138,7 @@ struct bdb_general_definitions {
 	unsigned char dev3[33];
 	unsigned char dev4[33];
 	/* may be another device block here on some platforms */
-};
+} __attribute__((packed));
 
 #define LVDS_CAP_EDID			(1 << 6)
 #define LVDS_CAP_DITHER			(1 << 5)
