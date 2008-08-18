@@ -168,7 +168,6 @@ typedef struct _nv_crtc_reg
 	uint32_t nv10_cursync;
 	uint32_t fp_control;
 	uint32_t dither;
-	bool vpll_changed;
 	uint32_t vpll_a;
 	uint32_t vpll_b;
 } NVCrtcRegRec, *NVCrtcRegPtr;
