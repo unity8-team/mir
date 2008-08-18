@@ -1360,7 +1360,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 		crtcfuncs.load_cursor_image = nv_crtc_load_cursor_image;
 		crtcfuncs.load_cursor_argb = NULL;
 	}
-	if (pNv->NoAccel || (pNv->Architecture == NV_ARCH_04)) {
+	if (pNv->NoAccel) {
 		crtcfuncs.shadow_create = NULL;
 		crtcfuncs.shadow_allocate = NULL;
 		crtcfuncs.shadow_destroy = NULL;
