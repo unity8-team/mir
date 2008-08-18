@@ -152,13 +152,13 @@ struct bdb_lvds_options {
     uint8_t panel_type;
     uint8_t rsvd1;
     /* LVDS capabilities, stored in a dword */
-    uint8_t rsvd2:1;
-    uint8_t lvds_edid:1;
-    uint8_t pixel_dither:1;
-    uint8_t pfit_ratio_auto:1;
-    uint8_t pfit_gfx_mode_enhanced:1;
-    uint8_t pfit_text_mode_enhanced:1;
     uint8_t pfit_mode:2;
+    uint8_t pfit_text_mode_enhanced:1;
+    uint8_t pfit_gfx_mode_enhanced:1;
+    uint8_t pfit_ratio_auto:1;
+    uint8_t pixel_dither:1;
+    uint8_t lvds_edid:1;
+    uint8_t rsvd2:1;
     uint8_t rsvd4;
 } __attribute__((packed));
 
