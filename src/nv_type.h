@@ -411,10 +411,8 @@ typedef struct _NVRec {
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
     xf86CursorInfoPtr   CursorInfoRec;
-    void		(*PointerMoved)(int index, int x, int y);
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
-    int			Rotate;
     /* Cursor */
     CARD32              curFg, curBg;
     CARD32              curImage[256];
@@ -452,7 +450,6 @@ typedef struct _NVRec {
 
     Bool                WaitVSyncPossible;
     Bool                BlendingPossible;
-    Bool                RandRRotation;
     DRIInfoPtr          pDRIInfo;
     drmVersionPtr       pLibDRMVersion;
     drmVersionPtr       pKernelDRMVersion;

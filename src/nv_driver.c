@@ -51,8 +51,6 @@ static void    NVAdjustFrame(int scrnIndex, int x, int y, int flags);
 static void    NVFreeScreen(int scrnIndex, int flags);
 static ModeStatus NVValidMode(int scrnIndex, DisplayModePtr mode,
 			      Bool verbose, int flags);
-static Bool    NVDriverFunc(ScrnInfoPtr pScrnInfo, xorgDriverFuncOp op,
-			      pointer data);
 
 /* Internally used functions */
 
@@ -620,10 +618,8 @@ NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->randr12_enable) {
-		/* No rotation support for the moment */
+	if (pNv->randr12_enable)
 		return xf86SetSingleMode(pScrn, mode, RR_Rotate_0);
-	}
 
 	return NVModeInit(xf86Screens[scrnIndex], mode);
 }
@@ -1001,7 +997,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	MessageType from;
 	int i, max_width, max_height;
 	ClockRangePtr clockRanges;
-	const char *s;
 	int config_mon_rates = FALSE;
 
 	if (flags & PROBE_DETECT) {
@@ -1234,13 +1229,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (pNv->kms_enable)
 		xf86DrvMsg(pScrn->scrnIndex, from, "NV50 Kernel modesetting enabled\n");
 
-	if (pNv->Architecture == NV_ARCH_50) {
-		pNv->randr12_enable = TRUE;
-	} else {
-		pNv->randr12_enable = true;
-		if (!xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
-			pNv->randr12_enable = false;
-	}
+	pNv->randr12_enable = true;
+	if (pNv->Architecture != NV_ARCH_50 && !xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
+		pNv->randr12_enable = false;
 	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
 
 	pNv->HWCursor = TRUE;
@@ -1274,41 +1265,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		pNv->NoAccel = TRUE;
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
-	}
-
-	pNv->Rotate = 0;
-	pNv->RandRRotation = FALSE;
-	/*
-	 * Rotation with a randr-1.2 driver happens at a different level, so ignore these options.
-	 */
-	if ((s = xf86GetOptValString(pNv->Options, OPTION_ROTATE)) && !pNv->randr12_enable) {
-		if(!xf86NameCmp(s, "CW")) {
-			pNv->ShadowFB = TRUE;
-			pNv->NoAccel = TRUE;
-			pNv->HWCursor = FALSE;
-			pNv->Rotate = 1;
-			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
-				"Rotating screen clockwise - acceleration disabled\n");
-		} else if(!xf86NameCmp(s, "CCW")) {
-			pNv->ShadowFB = TRUE;
-			pNv->NoAccel = TRUE;
-			pNv->HWCursor = FALSE;
-			pNv->Rotate = -1;
-			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
-				"Rotating screen counter clockwise - acceleration disabled\n");
-		} else if(!xf86NameCmp(s, "RandR")) {
-			pNv->ShadowFB = TRUE;
-			pNv->NoAccel = TRUE;
-			pNv->HWCursor = FALSE;
-			pNv->RandRRotation = TRUE;
-			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-				"Using RandR rotation - acceleration disabled\n");
-		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, 
-				"\"%s\" is not a valid value for Option \"Rotate\"\n", s);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
-				"Valid options are \"CW\", \"CCW\", and \"RandR\"\n");
-		}
 	}
 
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
@@ -2016,7 +1972,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	int ret;
 	VisualPtr visual;
 	unsigned char *FBStart;
-	int width, height, displayWidth, shadowHeight;
+	int displayWidth;
 
 	/* 
 	 * First get the ScrnInfoRec
@@ -2111,39 +2067,21 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * pScreen fields.
 	 */
 
-	width = pScrn->virtualX;
-	height = pScrn->virtualY;
-	displayWidth = pScrn->displayWidth;
-
-	if(pNv->Rotate) {
-		height = pScrn->virtualX;
-		width = pScrn->virtualY;
-	}
-
-	/* If RandR rotation is enabled, leave enough space in the
-	 * framebuffer for us to rotate the screen dimensions without
-	 * changing the pitch.
-	 */
-	if(pNv->RandRRotation) {
-		shadowHeight = max(width, height);
-	} else {
-		shadowHeight = height;
-	}
-
 	if (pNv->ShadowFB) {
-		pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * width);
-		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * shadowHeight);
+		pNv->ShadowPitch = BitmapBytePad(pScrn->bitsPerPixel * pScrn->virtualX);
+		pNv->ShadowPtr = xalloc(pNv->ShadowPitch * pScrn->virtualY);
 		displayWidth = pNv->ShadowPitch / (pScrn->bitsPerPixel >> 3);
 		FBStart = pNv->ShadowPtr;
 	} else {
 		pNv->ShadowPtr = NULL;
+		displayWidth = pScrn->displayWidth;
 		FBStart = pNv->FB->map;
 	}
 
 	switch (pScrn->bitsPerPixel) {
 		case 16:
 		case 32:
-			ret = fbScreenInit(pScreen, FBStart, width, height,
+			ret = fbScreenInit(pScreen, FBStart, pScrn->virtualX, pScrn->virtualY,
 				pScrn->xDpi, pScrn->yDpi,
 				displayWidth, pScrn->bitsPerPixel);
 			break;
@@ -2221,9 +2159,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 		if (!xf86CrtcScreenInit(pScreen))
 			return FALSE;
-
-		pNv->PointerMoved = pScrn->PointerMoved;
-		pScrn->PointerMoved = NVPointerMoved;
 	}
 
 	/* Initialise default colourmap */
@@ -2244,27 +2179,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			return FALSE;
 	}
 
-	if(pNv->ShadowFB) {
-		RefreshAreaFuncPtr refreshArea = NVRefreshArea;
-
-		if (pNv->Rotate || pNv->RandRRotation) {
-			pNv->PointerMoved = pScrn->PointerMoved;
-			if (pNv->Rotate)
-				pScrn->PointerMoved = NVPointerMoved;
-
-			switch(pScrn->bitsPerPixel) {
-				case 16:	refreshArea = NVRefreshArea16;	break;
-				case 32:	refreshArea = NVRefreshArea32;	break;
-			}
-			if(!pNv->RandRRotation) {
-				xf86DisableRandR();
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					"Driver rotation enabled, RandR disabled\n");
-			}
-		}
-
-		ShadowFBInit(pScreen, refreshArea);
-	}
+	if (pNv->ShadowFB)
+		ShadowFBInit(pScreen, NVRefreshArea);
 
 	if (!pNv->randr12_enable) {
 		if(pNv->FlatPanel) {
@@ -2277,8 +2193,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	pScrn->memPhysBase = pNv->VRAMPhysical;
 	pScrn->fbOffset = 0;
 
-	if (pNv->Rotate == 0 && !pNv->RandRRotation)
-		NVInitVideo(pScreen);
+	NVInitVideo(pScreen);
 
 	pScreen->SaveScreen = NVSaveScreen;
 
@@ -2288,13 +2203,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
 	pNv->BlockHandler = pScreen->BlockHandler;
 	pScreen->BlockHandler = NVBlockHandler;
-
-	/* Install our DriverFunc.  We have to do it this way instead of using the
-	 * HaveDriverFuncs argument to xf86AddDriver, because InitOutput clobbers
-	 * pScrn->DriverFunc 
-	 */
-	if (!pNv->randr12_enable)
-		pScrn->DriverFunc = NVDriverFunc;
 
 	/* Report any unused options (only for the first generation) */
 	if (serverGeneration == 1)
@@ -2360,64 +2268,4 @@ NVSave(ScrnInfoPtr pScrn)
 
 		NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 	}
-}
-
-static Bool
-NVRandRGetInfo(ScrnInfoPtr pScrn, Rotation *rotations)
-{
-    NVPtr pNv = NVPTR(pScrn);
-
-    if(pNv->RandRRotation)
-       *rotations = RR_Rotate_0 | RR_Rotate_90 | RR_Rotate_270;
-    else
-       *rotations = RR_Rotate_0;
-
-    return TRUE;
-}
-
-static Bool
-NVRandRSetConfig(ScrnInfoPtr pScrn, xorgRRConfig *config)
-{
-    NVPtr pNv = NVPTR(pScrn);
-
-    switch(config->rotation) {
-        case RR_Rotate_0:
-            pNv->Rotate = 0;
-            pScrn->PointerMoved = pNv->PointerMoved;
-            break;
-
-        case RR_Rotate_90:
-            pNv->Rotate = -1;
-            pScrn->PointerMoved = NVPointerMoved;
-            break;
-
-        case RR_Rotate_270:
-            pNv->Rotate = 1;
-            pScrn->PointerMoved = NVPointerMoved;
-            break;
-
-        default:
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                    "Unexpected rotation in NVRandRSetConfig!\n");
-            pNv->Rotate = 0;
-            pScrn->PointerMoved = pNv->PointerMoved;
-            return FALSE;
-    }
-
-    return TRUE;
-}
-
-static Bool
-NVDriverFunc(ScrnInfoPtr pScrn, xorgDriverFuncOp op, pointer data)
-{
-    switch(op) {
-       case RR_GET_INFO:
-          return NVRandRGetInfo(pScrn, (Rotation*)data);
-       case RR_SET_CONFIG:
-          return NVRandRSetConfig(pScrn, (xorgRRConfig*)data);
-       default:
-          return FALSE;
-    }
-
-    return FALSE;
 }
