@@ -1115,6 +1115,9 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	if (ret < 0)
 	    return FALSE;
 
+	if (dev_priv->fitting_mode == ret)
+	    return TRUE;
+
 	dev_priv->fitting_mode = ret;
 
 	if (output->crtc) {
