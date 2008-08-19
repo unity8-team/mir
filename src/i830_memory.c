@@ -1447,7 +1447,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	return FALSE;
 
 #ifdef I830_USE_EXA
-    if (pI830->accel == ACCEL_EXA) {
+    if (pI830->accel == ACCEL_EXA && !pI830->use_drm_mode) {
 	if (pI830->exa_offscreen == NULL) {
 	    /* Default EXA to having 3 screens worth of offscreen memory space
 	     * (for pixmaps).
