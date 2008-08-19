@@ -3448,11 +3448,15 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (pI830->directRenderingEnabled) {
       pI830->directRenderingOpen = TRUE;
       xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Enabled\n");
-   } else {
+   } else if (!pI830->use_drm_mode) {
       if (pI830->directRenderingDisabled)
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Disabled\n");
       else
 	 xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Failed\n");
+   } else {
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		  "failed to enable direct rendering, aborting\n");
+       return FALSE;
    }
 #else
    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "direct rendering: Not available\n");
