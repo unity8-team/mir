@@ -824,11 +824,9 @@ i830_lvds_destroy (xf86OutputPtr output)
     I830Ptr	pI830 = I830PTR(pScrn);
     I830OutputPrivatePtr    intel_output = output->driver_private;
 
-    if (pI830->lvds_fixed_mode)
-    {
-        xf86DeleteMode (&pI830->lvds_fixed_mode, pI830->lvds_fixed_mode);
+    xf86DeleteMode (&pI830->lvds_fixed_mode, pI830->lvds_fixed_mode);
+    if (intel_output)
 	xfree (intel_output);
-    }
 }
 
 #ifdef RANDR_12_INTERFACE
@@ -1117,6 +1115,9 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	if (ret < 0)
 	    return FALSE;
 
+	if (dev_priv->fitting_mode == ret)
+	    return TRUE;
+
 	dev_priv->fitting_mode = ret;
 
 	if (output->crtc) {
@@ -1213,7 +1214,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     xf86OutputPtr	    output;
     I830OutputPrivatePtr    intel_output;
     DisplayModePtr	    modes, scan;
-    DisplayModePtr	    lvds_ddc_mode;
+    DisplayModePtr	    lvds_ddc_mode = NULL;
     struct i830_lvds_priv   *dev_priv;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_LVDS)
@@ -1255,7 +1256,7 @@ i830_lvds_init(ScrnInfoPtr pScrn)
      */
     I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOC, "LVDSDDC_C");
 
-    if (!pI830->skip_panel_detect) {
+    if (pI830->skip_panel_detect) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Skipping any attempt to determine panel fixed mode.\n");
 	goto found_mode;

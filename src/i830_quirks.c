@@ -315,6 +315,7 @@ static i830_quirk i830_quirk_list[] = {
 
     /* 855 & before need to leave pipe A & dpll A up */
     { PCI_CHIP_I855_GM, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
+    { PCI_CHIP_845_G, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
 
     { 0, 0, 0, NULL },
 };

@@ -140,6 +140,15 @@ i830_hdmi_detect(xf86OutputPtr output)
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t temp, bit;
 
+    /* For G4X, PEG_BAND_GAP_DATA 3:0 must first be written 0xd.
+     * Failure to do so will result in spurious interrupts being
+     * generated on the port when a cable is not attached.
+     */
+    if (IS_G4X(pI830)) {
+	temp = INREG(PEG_BAND_GAP_DATA);
+	OUTREG(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
+    }
+
     temp = INREG(PORT_HOTPLUG_EN);
 
     OUTREG(PORT_HOTPLUG_EN,
