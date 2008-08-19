@@ -254,4 +254,125 @@ struct vch_bdb_22 {
 
 int i830_bios_init(ScrnInfoPtr pScrn);
 
+/*
+ * Driver<->VBIOS interaction occurs through scratch bits in
+ * GR18 & SWF*.
+ */
+
+/* GR18 bits are set on display switch and hotkey events */
+#define GR18_DRIVER_SWITCH_EN	(1<<7) /* 0: VBIOS control, 1: driver control */
+#define GR18_HOTKEY_MASK	0x78 /* See also SWF4 15:0 */
+#define   GR18_HK_NONE		(0x0<<3)
+#define   GR18_HK_LFP_STRETCH	(0x1<<3)
+#define   GR18_HK_TOGGLE_DISP	(0x2<<3)
+#define   GR18_HK_DISP_SWITCH	(0x4<<3) /* see SWF14 15:0 for what to enable */
+#define   GR18_HK_POPUP_DISABLED (0x6<<3)
+#define   GR18_HK_POPUP_ENABLED	(0x7<<3)
+#define   GR18_HK_PFIT		(0x8<<3)
+#define   GR18_HK_APM_CHANGE	(0xa<<3)
+#define   GR18_HK_MULTIPLE	(0xc<<3)
+#define GR18_USER_INT_EN	(1<<2)
+#define GR18_A0000_FLUSH_EN	(1<<1)
+#define GR18_SMM_EN		(1<<0)
+
+/* Set by driver, cleared by VBIOS */
+#define SWF00_YRES_SHIFT	16
+#define SWF00_XRES_SHIFT	0
+#define SWF00_RES_MASK		0xffff
+
+/* Set by VBIOS at boot time and driver at runtime */
+#define SWF01_TV2_FORMAT_SHIFT	8
+#define SWF01_TV1_FORMAT_SHIFT	0
+#define SWF01_TV_FORMAT_MASK	0xffff
+
+#define SWF10_VBIOS_BLC_I2C_EN	(1<<29)
+#define SWF10_GTT_OVERRIDE_EN	(1<<28)
+#define SWF10_LFP_DPMS_OVR	(1<<27) /* override DPMS on display switch */
+#define SWF10_ACTIVE_TOGGLE_LIST_MASK (7<<24)
+#define   SWF10_OLD_TOGGLE	0x0
+#define   SWF10_TOGGLE_LIST_1	0x1
+#define   SWF10_TOGGLE_LIST_2	0x2
+#define   SWF10_TOGGLE_LIST_3	0x3
+#define   SWF10_TOGGLE_LIST_4	0x4
+#define SWF10_PANNING_EN	(1<<23)
+#define SWF10_DRIVER_LOADED	(1<<22)
+#define SWF10_EXTENDED_DESKTOP	(1<<21)
+#define SWF10_EXCLUSIVE_MODE	(1<<20)
+#define SWF10_OVERLAY_EN	(1<<19)
+#define SWF10_PLANEB_HOLDOFF	(1<<18)
+#define SWF10_PLANEA_HOLDOFF	(1<<17)
+#define SWF10_VGA_HOLDOFF	(1<<16)
+#define SWF10_ACTIVE_DISP_MASK	0xffff
+#define   SWF10_PIPEB_LFP2	(1<<15)
+#define   SWF10_PIPEB_EFP2	(1<<14)
+#define   SWF10_PIPEB_TV2	(1<<13)
+#define   SWF10_PIPEB_CRT2	(1<<12)
+#define   SWF10_PIPEB_LFP	(1<<11)
+#define   SWF10_PIPEB_EFP	(1<<10)
+#define   SWF10_PIPEB_TV	(1<<9)
+#define   SWF10_PIPEB_CRT	(1<<8)
+#define   SWF10_PIPEA_LFP2	(1<<7)
+#define   SWF10_PIPEA_EFP2	(1<<6)
+#define   SWF10_PIPEA_TV2	(1<<5)
+#define   SWF10_PIPEA_CRT2	(1<<4)
+#define   SWF10_PIPEA_LFP	(1<<3)
+#define   SWF10_PIPEA_EFP	(1<<2)
+#define   SWF10_PIPEA_TV	(1<<1)
+#define   SWF10_PIPEA_CRT	(1<<0)
+
+#define SWF11_MEMORY_SIZE_SHIFT	16
+#define SWF11_SV_TEST_EN	(1<<15)
+#define SWF11_IS_AGP		(1<<14)
+#define SWF11_DISPLAY_HOLDOFF	(1<<13)
+#define SWF11_DPMS_REDUCED	(1<<12)
+#define SWF11_IS_VBE_MODE	(1<<11)
+#define SWF11_PIPEB_ACCESS	(1<<10) /* 0 here means pipe a */
+#define SWF11_DPMS_MASK		0x07
+#define   SWF11_DPMS_OFF	(1<<2)
+#define   SWF11_DPMS_SUSPEND	(1<<1)
+#define   SWF11_DPMS_STANDBY	(1<<0)
+#define   SWF11_DPMS_ON		0
+
+#define SWF14_GFX_PFIT_EN	(1<<31)
+#define SWF14_TEXT_PFIT_EN	(1<<30)
+#define SWF14_LID_STATUS_CLOSED	(1<<29) /* 0 here means open */
+#define SWF14_POPUP_EN		(1<<28)
+#define SWF14_DISPLAY_HOLDOFF	(1<<27)
+#define SWF14_DISP_DETECT_EN	(1<<26)
+#define SWF14_DOCKING_STATUS_DOCKED (1<<25) /* 0 here means undocked */
+#define SWF14_DRIVER_STATUS	(1<<24)
+#define SWF14_OS_TYPE_WIN9X	(1<<23)
+#define SWF14_OS_TYPE_WINNT	(1<<22)
+/* 21:19 rsvd */
+#define SWF14_PM_TYPE_MASK	0x00070000
+#define   SWF14_PM_ACPI_VIDEO	(0x4 << 16)
+#define   SWF14_PM_ACPI		(0x3 << 16)
+#define   SWF14_PM_APM_12	(0x2 << 16)
+#define   SWF14_PM_APM_11	(0x1 << 16)
+#define SWF14_HK_REQUEST_MASK	0x0000ffff /* see GR18 6:3 for event type */
+          /* if GR18 indicates a display switch */
+#define   SWF14_DS_PIPEB_LFP2_EN (1<<15)
+#define   SWF14_DS_PIPEB_EFP2_EN (1<<14)
+#define   SWF14_DS_PIPEB_TV2_EN  (1<<13)
+#define   SWF14_DS_PIPEB_CRT2_EN (1<<12)
+#define   SWF14_DS_PIPEB_LFP_EN  (1<<11)
+#define   SWF14_DS_PIPEB_EFP_EN  (1<<10)
+#define   SWF14_DS_PIPEB_TV_EN   (1<<9)
+#define   SWF14_DS_PIPEB_CRT_EN  (1<<8)
+#define   SWF14_DS_PIPEA_LFP2_EN (1<<7)
+#define   SWF14_DS_PIPEA_EFP2_EN (1<<6)
+#define   SWF14_DS_PIPEA_TV2_EN  (1<<5)
+#define   SWF14_DS_PIPEA_CRT2_EN (1<<4)
+#define   SWF14_DS_PIPEA_LFP_EN  (1<<3)
+#define   SWF14_DS_PIPEA_EFP_EN  (1<<2)
+#define   SWF14_DS_PIPEA_TV_EN   (1<<1)
+#define   SWF14_DS_PIPEA_CRT_EN  (1<<0)
+          /* if GR18 indicates a panel fitting request */
+#define   SWF14_PFIT_EN		(1<<0) /* 0 means disable */
+          /* if GR18 indicates an APM change request */
+#define   SWF14_APM_HIBERNATE	0x4
+#define   SWF14_APM_SUSPEND	0x3
+#define   SWF14_APM_STANDBY	0x1
+#define   SWF14_APM_RESTORE	0x0
+
 #endif /* _I830_BIOS_H_ */
