@@ -450,11 +450,12 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 Status XvMCDestroyContext(Display *display, XvMCContext *context)
 {
     Status ret;
-    int screen = DefaultScreen(display);
+    int screen;
 
     if (!display || !context)
         return XvMCBadContext;
 
+    screen = DefaultScreen(display);
     ret = (xvmc_driver->destroy_context)(display, context);
     if (ret) {
 	XVMC_ERR("destroy context fail\n");
