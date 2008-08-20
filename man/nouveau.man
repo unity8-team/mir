@@ -99,6 +99,11 @@ The options are "fullscreen", "aspect", "noscale" and "panel". Default: "aspect"
 .TP
 .BI "Option \*qShadowFB\*q \*q" boolean \*q
 Enable or disable use of the shadow framebuffer layer.  Default: off.
+.TP
+.BI "Option \*qPrepareFinishAccess\*q \*q" boolean \*q
+Enable or disable use of PrepareFinishAccess hooks in exa, this should only be disabled if
+the xserver aborts saying that PrepareAccess failed on a pinned pixmap.
+This is bug that has been fixed in more recent xservers.  Default: on.
 .SH "SEE ALSO"
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS

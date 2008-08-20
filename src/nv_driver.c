@@ -1215,15 +1215,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	pNv->kms_enable = false;
 #ifdef XF86DRM_MODE
-	if (pNv->Architecture == NV_ARCH_50) {
-		Bool val;
-		/* use default */
+	if (pNv->Architecture == NV_ARCH_50)
 		pNv->kms_enable = nouveau_kernel_modesetting_enabled(pScrn);
-		/* allow override */
-		if (xf86GetOptValBool(pNv->Options, OPTION_KMS, &val)) {
-			pNv->kms_enable = val;
-		}
-	}
 #endif /* XF86DRM_MODE */
 
 	if (pNv->kms_enable)

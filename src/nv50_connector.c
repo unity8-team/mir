@@ -29,7 +29,6 @@ static xf86MonPtr
 NV50ConnectorGetEDID(nouveauConnectorPtr connector)
 {
 	ScrnInfoPtr pScrn = connector->scrn;
-	NVPtr pNv = NVPTR(pScrn);
 
 	return xf86DoEDID_DDC2(pScrn->scrnIndex, connector->pDDCBus);
 }

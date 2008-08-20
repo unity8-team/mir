@@ -92,6 +92,17 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	return TRUE;
 }
 
+static void NV50EXASetClip(PixmapPtr ppix, int x, int y, int w, int h)
+{
+	NV50EXA_LOCALS(ppix);
+
+	BEGIN_RING(chan, eng2d, NV50_2D_CLIP_X, 4);
+	OUT_RING  (chan, x);
+	OUT_RING  (chan, y);
+	OUT_RING  (chan, w);
+	OUT_RING  (chan, h);
+}
+
 static Bool
 NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 {
@@ -126,13 +137,8 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	OUT_PIXMAPh(chan, ppix, 0, bo_flags);
 	OUT_PIXMAPl(chan, ppix, 0, bo_flags);
 
-	if (is_src == 0) {
-		BEGIN_RING(chan, eng2d, NV50_2D_CLIP_X, 4);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, 0);
-		OUT_RING  (chan, ppix->drawable.width);
-		OUT_RING  (chan, ppix->drawable.height);
-	}
+	if (is_src == 0)
+		NV50EXASetClip(ppix, 0, 0, ppix->drawable.width, ppix->drawable.height);
 
 	return TRUE;
 }
@@ -295,6 +301,9 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 		NOUVEAU_FALLBACK("hostdata format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
+
+	/* If the pitch isn't aligned to a dword, then you can get corruption at the end of a line. */
+	NV50EXASetClip(pdpix, x, y, w, h);
 
 	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
 	OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
