@@ -682,7 +682,7 @@ typedef struct _I830Rec {
    uint32_t savePP_ON;
    uint32_t savePP_OFF;
    uint32_t savePP_CONTROL;
-   uint32_t savePP_CYCLE;
+   uint32_t savePP_DIVISOR;
    uint32_t savePFIT_CONTROL;
    uint32_t savePaletteA[256];
    uint32_t savePaletteB[256];

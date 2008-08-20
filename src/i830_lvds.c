@@ -449,10 +449,10 @@ i830_lvds_save (xf86OutputPtr output)
 
     if (IS_I965GM(pI830) || IS_GM45(pI830))
 	pI830->saveBLC_PWM_CTL2 = INREG(BLC_PWM_CTL2);
-    pI830->savePP_ON = INREG(LVDSPP_ON);
-    pI830->savePP_OFF = INREG(LVDSPP_OFF);
+    pI830->savePP_ON = INREG(PP_ON_DELAYS);
+    pI830->savePP_OFF = INREG(PP_OFF_DELAYS);
     pI830->savePP_CONTROL = INREG(PP_CONTROL);
-    pI830->savePP_CYCLE = INREG(PP_CYCLE);
+    pI830->savePP_DIVISOR = INREG(PP_DIVISOR);
     pI830->saveBLC_PWM_CTL = INREG(BLC_PWM_CTL);
     if ((INREG(PP_CONTROL) & POWER_TARGET_ON) && !dev_priv->dpmsoff) 
 	dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
@@ -467,9 +467,9 @@ i830_lvds_restore(xf86OutputPtr output)
     if (IS_I965GM(pI830) || IS_GM45(pI830))
 	OUTREG(BLC_PWM_CTL2, pI830->saveBLC_PWM_CTL2);
     OUTREG(BLC_PWM_CTL, pI830->saveBLC_PWM_CTL);
-    OUTREG(LVDSPP_ON, pI830->savePP_ON);
-    OUTREG(LVDSPP_OFF, pI830->savePP_OFF);
-    OUTREG(PP_CYCLE, pI830->savePP_CYCLE);
+    OUTREG(PP_ON_DELAYS, pI830->savePP_ON);
+    OUTREG(PP_OFF_DELAYS, pI830->savePP_OFF);
+    OUTREG(PP_DIVISOR, pI830->savePP_DIVISOR);
     OUTREG(PP_CONTROL, pI830->savePP_CONTROL);
     if (pI830->savePP_CONTROL & POWER_TARGET_ON)
 	i830SetLVDSPanelPower(output, TRUE);

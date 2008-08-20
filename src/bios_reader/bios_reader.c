@@ -198,11 +198,22 @@ static void dump_lvds_data(void *data, unsigned char *base)
 	if (i == panel_type)
 	    marker = '*';
 	else
-	    marker = ' ';
+	    continue;
 
 	printf("%c\tpanel type %02i: %dx%d clock %d\n", marker,
 	       i, lfp_data->fp_timing.x_res, lfp_data->fp_timing.y_res,
 	       _PIXEL_CLOCK(timing_data));
+	printf("\t\tinfo:\n");
+	printf("\t\t  LVDS: 0x%08lx\n", 
+	       (unsigned long)lfp_data->fp_timing.lvds_reg_val);
+	printf("\t\t  PP_ON_DELAYS: 0x%08lx\n",
+	       (unsigned long)lfp_data->fp_timing.pp_on_reg_val);
+	printf("\t\t  PP_OFF_DELAYS: 0x%08lx\n",
+	       (unsigned long)lfp_data->fp_timing.pp_off_reg_val);
+	printf("\t\t  PP_DIVISOR: 0x%08lx\n",
+	       (unsigned long)lfp_data->fp_timing.pp_cycle_reg_val);
+	printf("\t\t  PFIT: 0x%08lx\n",
+	       (unsigned long)lfp_data->fp_timing.pfit_reg_val);
 	printf("\t\ttimings: %d %d %d %d %d %d %d %d\n",
 	       _H_ACTIVE(timing_data),
 	       _H_BLANK(timing_data),

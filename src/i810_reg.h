@@ -899,9 +899,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define POWER_DOWN_ON_RESET			(1 << 1)
 # define POWER_TARGET_ON			(1 << 0)
 
-#define LVDSPP_ON       0x61208
-#define LVDSPP_OFF      0x6120c
-#define PP_CYCLE        0x61210
+#define PP_ON_DELAYS	0x61208
+#define PP_OFF_DELAYS	0x6120c
+#define PP_DIVISOR	0x61210
 
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
