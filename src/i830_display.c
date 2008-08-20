@@ -1102,21 +1102,15 @@ i830_update_dsparb(ScrnInfoPtr pScrn)
 {
    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   uint32_t dspacntr, dspbcntr;
    int total_hdisplay = 0, planea_hdisplay = 0, planeb_hdisplay = 0;
    int fifo_entries = 0, planea_entries = 0, planeb_entries = 0, i;
 
-   dspacntr = INREG(DSPACNTR);
-   dspbcntr = INREG(DSPBCNTR);
+   if ((INREG(DSPACNTR) & DISPLAY_PLANE_ENABLE) &&
+       (INREG(DSPBCNTR) & DISPLAY_PLANE_ENABLE))
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		  "tried to update DSPARB with both planes enabled!\n");
 
-   /* Disable planes since DSPARB can only be updated when they're
-    * off.
-    */
-   OUTREG(DSPACNTR, dspacntr & ~DISPLAY_PLANE_ENABLE);
-   OUTREG(DSPBCNTR, dspbcntr & ~DISPLAY_PLANE_ENABLE);
-   i830WaitForVblank(pScrn);
-
-   /*
+  /*
     * FIFO entries will be split based on programmed modes
     */
    if (IS_I965GM(pI830) || IS_GM45(pI830))
@@ -1158,10 +1152,6 @@ i830_update_dsparb(ScrnInfoPtr pScrn)
 	      (planea_entries << DSPARB_AEND_SHIFT));
    else
        OUTREG(DSPARB, planea_entries << DSPARB_AEND_SHIFT);
-
-   OUTREG(DSPACNTR, dspacntr);
-   OUTREG(DSPBCNTR, dspbcntr);
-   i830WaitForVblank(pScrn);
 }
 
 /**
