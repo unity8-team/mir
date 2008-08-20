@@ -2264,8 +2264,8 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 
 	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
 	info->BiosConnector[1].DACType = DAC_PRIMARY;
-	info->BiosConnector[1].TMDSType = TMDS_INT;
-	info->BiosConnector[1].ConnectorType = CONNECTOR_DVI_I;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
 	info->BiosConnector[1].valid = TRUE;
 
 	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
