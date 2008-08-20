@@ -999,8 +999,8 @@ i830_lvds_create_resources(xf86OutputPtr output)
      * Panel fitting control
      */
 
-    /* XXX Disable panel fitting setting on pre-915. */
-    if (!IS_I9XX(pI830))
+    /* Disable panel fitting setting on untested pre-915 chips */
+    if (!IS_I9XX(pI830) && !(pI830->quirk_flag & QUIRK_PFIT_SAFE))
 	return;
 
     panel_fitting_atom = MakeAtom(PANEL_FITTING_NAME,

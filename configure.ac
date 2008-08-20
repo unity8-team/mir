@@ -96,7 +96,7 @@ save_CFLAGS="$CFLAGS"
 CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
 CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
 AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI = xauto; then
+if test x$DRI != xno; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
                       [have_dri_h="yes"], [have_dri_h="no"])
         AC_CHECK_FILE([${sdkdir}/sarea.h],
@@ -111,7 +111,9 @@ if test x$DRI = xauto; then
 	if test "x$DRM_MODE" = xyes; then
 	   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 	fi
-
+fi
+AC_MSG_CHECKING([whether to include DRI support])
+if test x$DRI = xauto; then
         if test "$have_dri_h" = yes -a \
                 "$have_sarea_h" = yes -a \
                 "$have_dristruct_h" = yes; then

@@ -162,6 +162,15 @@ static void i830_dmi_dump(void)
 }
 
 /*
+ * Old chips have undocumented panel fitting registers.  Some of them actually
+ * work; this quirk indicates that.
+ */
+static void quirk_pfit_safe (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_PFIT_SAFE;
+}
+
+/*
  * Some machines hose the display regs regardless of the ACPI DOS
  * setting, so we need to reset modes at ACPI event time.
  */
@@ -292,6 +301,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x10cf, 0x1215, quirk_pipea_force },
     /* HP Pavilion ze4944ea needs pipe A force quirk (See LP: #242389) */
     { PCI_CHIP_I855_GM, 0x103c, 0x3084, quirk_pipea_force },
+
+    { PCI_CHIP_I855_GM, 0x161f, 0x2030, quirk_pfit_safe },
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
