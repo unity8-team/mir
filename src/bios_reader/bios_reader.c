@@ -284,7 +284,7 @@ int main(int argc, char **argv)
     dump_general_features(find_section(bdb, BDB_GENERAL_FEATURES));
     dump_general_definitions(find_section(bdb, BDB_GENERAL_DEFINITIONS));
     dump_lvds_options(find_section(bdb, BDB_LVDS_OPTIONS));
-    dump_lvds_data(find_section(bdb, BDB_LVDS_LFP_DATA), bdb);
+    dump_lvds_data(find_section(bdb, BDB_LVDS_LFP_DATA), (unsigned char *)bdb);
 
     return 0;
 }

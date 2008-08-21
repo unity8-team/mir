@@ -51,11 +51,13 @@ static uint32_t read32(void *base, int reg)
     return *addr;
 }
 
+#if 0
 static void write32(void *base, int reg, uint32_t val)
 {
     uint32_t *addr = (uint32_t *)((unsigned char *)(base) + reg);
     *addr = val;
 }
+#endif
 
 static void usage(void)
 {
