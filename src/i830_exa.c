@@ -467,6 +467,8 @@ i830_transform_is_affine (PictTransformPtr t)
 
 static DevPrivateKey exa_pixmap_key = &exa_pixmap_key;
 
+#ifdef XF86DRM_MODE
+
 static void *
 I830EXACreatePixmap(ScreenPtr screen, int size, int align)
 {
@@ -608,6 +610,7 @@ static Bool I830EXAModifyPixmapHeader(PixmapPtr pPix, int width, int height,
     return FALSE;
 }
 
+#endif /* XF86DRM_MODE */
 
 Bool
 I830EXAInit(ScreenPtr pScreen)
@@ -650,6 +653,7 @@ I830EXAInit(ScreenPtr pScreen)
 	}
 	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
     } else {
+#ifdef XF86DRM_MODE
 	pI830->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS | EXA_HANDLES_PIXMAPS;
 	pI830->EXADriverPtr->PrepareAccess = I830EXAPrepareAccess;
 	pI830->EXADriverPtr->FinishAccess = I830EXAFinishAccess;
@@ -659,6 +663,7 @@ I830EXAInit(ScreenPtr pScreen)
 	pI830->EXADriverPtr->PixmapIsOffscreen = I830EXAPixmapIsOffscreen;
 	pI830->EXADriverPtr->ModifyPixmapHeader = I830EXAModifyPixmapHeader;
 #endif
+#endif /* XF86DRM_MODE */
     }
 
     DPRINTF(PFX, "EXA Mem: memoryBase 0x%x, end 0x%x, offscreen base 0x%x, "
