@@ -183,18 +183,37 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 	OUT_RING  (chan, 1);
 
-	if(planemask != ~0) {
+	/* I observed incorrect rendering and found this in a fifo trace. */
+	/* It fixed the one test-case i had, so i'm happy. */
+	if (pdpix->drawable.depth == 32)
+		rop &= 0xF0;
+
+	/* There are 16 alu's. pNv->currentRop stores: */
+	/* 0-15: planemask == ~0 && bpp != 32 */
+	/* 16-31: planemask == ~0 && bpp == 32 */
+	/* 32-47: planemask != ~0 */
+	if (planemask != ~0) {
 		NV50EXASetPattern(pdpix, 0, planemask, ~0, ~0);
 		rop = (rop & 0xf0) | 0x0a;
-	} else
-	if((pNv->currentRop & 0x0f) == 0x0a) {
-		NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
-	}
 
-	if (pNv->currentRop != rop) {
-		BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
-		OUT_RING  (chan, rop);
-		pNv->currentRop = rop;
+		if (pNv->currentRop != (alu + 32)) {
+			BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
+			OUT_RING  (chan, rop);
+			pNv->currentRop = alu + 32;
+		}
+	} else {
+		/* This makes no sense for planemask != ~0, as that already masks with 0xA. */
+		if (pdpix->drawable.depth == 32)
+			alu += 16;
+
+		if (pNv->currentRop != alu) {
+			if (pNv->currentRop >= 32)
+				NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
+
+			BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
+			OUT_RING  (chan, rop);
+			pNv->currentRop = alu;
+		}
 	}
 }
 
@@ -204,12 +223,12 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	NV50EXA_LOCALS(pdpix);
 	uint32_t fmt;
 
+	planemask |= ~0 << pdpix->drawable.bitsPerPixel;
+
 	if (!NV50EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	if (pdpix->drawable.depth == 32 && !(alu == GXcopy && planemask == ~0))
-		NOUVEAU_FALLBACK("32bpp + ROP\n");
 	NV50EXASetROP(pdpix, alu, planemask);
 
 	BEGIN_RING(chan, eng2d, 0x580, 3);
@@ -245,6 +264,8 @@ NV50EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 		   int alu, Pixel planemask)
 {
 	NV50EXA_LOCALS(pdpix);
+
+	planemask |= ~0 << pdpix->drawable.bitsPerPixel;
 
 	if (!NV50EXAAcquireSurface2D(pspix, 1))
 		NOUVEAU_FALLBACK("src pixmap\n");
