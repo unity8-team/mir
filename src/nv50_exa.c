@@ -508,7 +508,7 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 			 NV50TIC_0_0_FMT_8);
 		break;
 	default:
-		NOUVEAU_FALLBACK("invalid picture format\n");
+		NOUVEAU_FALLBACK("invalid picture format, this SHOULD NOT HAPPEN. Expect trouble.\n");
 	}
 	OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
@@ -600,7 +600,7 @@ NV50EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 		}
 	}
 
-	if (b->src_alpha && component_alpha) {
+	if (b->src_alpha && (component_alpha || ppict->format == PICT_a8)) {
 		if (dblend == BF(SRC_ALPHA))
 			dblend = BF(SRC_COLOR);
 		else
@@ -608,7 +608,7 @@ NV50EXABlend(PixmapPtr ppix, PicturePtr ppict, int op, int component_alpha)
 			dblend = BF(ONE_MINUS_SRC_COLOR);
 	}
 
-	if (b->src_blend == BF(ONE) && b->dst_blend == BF(ZERO)) {
+	if (sblend == BF(ONE) && dblend == BF(ZERO)) {
 		BEGIN_RING(chan, tesla, NV50TCL_BLEND_ENABLE(0), 1);
 		OUT_RING  (chan, 0);
 	} else {
@@ -642,7 +642,7 @@ NV50EXACheckComposite(int op,
 		if (pmpict->componentAlpha &&
 		    PICT_FORMAT_RGB(pmpict->format) &&
 		    NV50EXABlendOp[op].src_alpha &&
-		    NV50EXABlendOp[op].src_blend != 0x4000)
+		    NV50EXABlendOp[op].src_blend != BF(ZERO))
 			NOUVEAU_FALLBACK("component-alpha not supported\n");
 
 		if (!NV50EXACheckTexture(pmpict))
