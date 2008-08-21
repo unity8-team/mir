@@ -709,6 +709,9 @@ NV50EXAPrepareComposite(int op,
 	BEGIN_RING(chan, tesla, 0x1458, 1);
 	OUT_RING  (chan, 0x203);
 
+	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
+	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
+
 	return TRUE;
 }
 
@@ -754,8 +757,6 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 			 state->unit[0].width, state->unit[0].height,
 			 &sX3, &sY3);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
-	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
 	if (state->have_mask) {
 		float mX0, mX1, mX2, mX3, mY0, mY1, mY2, mY3;
 
@@ -782,12 +783,14 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 		VTX1s(pNv, sX2, sY2, dX1, dY1);
 		VTX1s(pNv, sX3, sY3, dX0, dY1);
 	}
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
-	OUT_RING  (chan, 0);
 }
 
 void
 NV50EXADoneComposite(PixmapPtr pdpix)
 {
+	NV50EXA_LOCALS(pdpix);
+
+	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
+	OUT_RING  (chan, 0);
 }
 
