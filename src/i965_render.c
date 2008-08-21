@@ -1441,6 +1441,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state;
+    int ret;
 
     if (pI830->gen4_render_state == NULL)
 	pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
@@ -1448,8 +1449,19 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     render_state = pI830->gen4_render_state;
 
     render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
-    render_state->card_state = (gen4_state_t *)
-	(pI830->FbBase + render_state->card_state_offset);
+
+    if (pI830->gen4_render_state_mem->bo) {
+	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
+	if (ret) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to map gen4 state\n");
+	    return;
+	}
+	render_state->card_state = pI830->gen4_render_state_mem->bo->virtual;
+    } else {
+	render_state->card_state = (gen4_state_t *)
+	    (pI830->FbBase + render_state->card_state_offset);
+    }
 
     gen4_state_init(render_state);
 }
@@ -1462,6 +1474,10 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+    if (pI830->gen4_render_state_mem->bo) {
+	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
+	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
+    }
     pI830->gen4_render_state->card_state = NULL;
 }
 

@@ -52,6 +52,7 @@ struct pci_info_rec {
 typedef struct _i830 {
     /* Fields in common with the real pI830 */
     struct pci_info_rec *PciInfo;
+    Bool use_drm_mode;
 
     /* Fields used for setting up reg_dumper */
     struct pci_device *pci_dev;

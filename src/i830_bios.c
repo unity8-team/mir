@@ -180,10 +180,16 @@ i830_bios_init(ScrnInfoPtr pScrn)
     int vbt_off, bdb_off;
     unsigned char *bios;
     vbeInfoPtr	pVbe;
+    pointer pVBEModule = NULL;
 
     bios = xalloc(INTEL_VBIOS_SIZE);
     if (bios == NULL)
 	return -1;
+
+    /* Load vbe module */
+    if (!(pVBEModule = xf86LoadSubModule(pScrn, "vbe")))
+	return FALSE;
+    xf86LoaderReqSymLists(I810vbeSymbols, NULL);
 
     pVbe = VBEInit(NULL, pI830->pEnt->index);
     if (pVbe != NULL) {

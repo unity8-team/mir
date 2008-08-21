@@ -77,6 +77,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef DAMAGE
 #include "damage.h"
 #endif
+#include "drmmode_display.h"
 #endif
 #include "dri_bufmgr.h"
 #include "intel_bufmgr.h"
@@ -91,9 +92,12 @@ unsigned long long I830TexOffsetStart(PixmapPtr pPix);
 #ifdef I830_USE_UXA
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
-dri_bo *i830_uxa_get_pixmap_bo (PixmapPtr pixmap);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
 void i830_uxa_block_handler (ScreenPtr pScreen);
+#endif
+
+#if defined(I830_USE_UXA) || defined(I830_USE_EXA)
+dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
 #endif
 
 #ifdef I830_USE_XAA
@@ -702,6 +706,12 @@ typedef struct _I830Rec {
 
    enum last_3d *last_3d;
 
+   Bool use_drm_mode;
+#ifdef XF86DRM_MODE
+   drmmode_rec drmmode;
+   int drm_mm_init;
+#endif
+
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
    unsigned int quirk_flag;
@@ -718,6 +728,10 @@ typedef struct _I830Rec {
 
 unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
 unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
+
+struct i830_exa_pixmap_priv {
+    dri_bo *bo;
+};
 
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
@@ -832,7 +846,9 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
 #endif
-
+extern void i830_update_front_offset(ScrnInfoPtr pScrn);
+extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
+				   int *pitch);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
