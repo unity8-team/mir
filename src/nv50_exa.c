@@ -792,5 +792,7 @@ NV50EXADoneComposite(PixmapPtr pdpix)
 
 	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
 	OUT_RING  (chan, 0);
+
+	FIRE_RING (chan);
 }
 

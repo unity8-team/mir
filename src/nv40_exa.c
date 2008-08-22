@@ -543,6 +543,8 @@ NV40EXADoneComposite(PixmapPtr pdPix)
 
 	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
 	OUT_RING  (chan, NV40TCL_BEGIN_END_STOP);
+
+	FIRE_RING (chan);
 }
 
 #define NV40TCL_CHIPSET_4X_MASK 0x00000baf

@@ -596,6 +596,8 @@ NV30EXADoneComposite(PixmapPtr pdPix)
 
 	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
 	OUT_RING  (chan, 0);
+
+	FIRE_RING (chan);
 }
 
 Bool
