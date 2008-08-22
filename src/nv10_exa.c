@@ -870,8 +870,6 @@ void NV10DoneComposite (PixmapPtr pDst)
 	OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_STOP);
 
 	FIRE_RING (chan);
-
-	exaMarkSync(pDst->drawable.pScreen);
 }
 
 
