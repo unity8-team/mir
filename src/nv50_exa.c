@@ -22,6 +22,7 @@
  */
 
 #include "nv_include.h"
+#include "nv_rop.h"
 
 #include "nv50_accel.h"
 #include "nv50_texture.h"
@@ -157,10 +158,22 @@ NV50EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 
 extern const int NVCopyROP[16];
 static void
-NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
+NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask, bool solid)
 {
 	NV50EXA_LOCALS(pdpix);
-	int rop = NVCopyROP[alu];
+	int rop;
+
+	if (solid) {
+		if (planemask != ~0)
+			rop = NVROP[alu].solid_planemask;
+		else
+			rop = NVROP[alu].solid;
+	} else {
+		if (planemask != ~0)
+			rop = NVROP[alu].copy_planemask;
+		else
+			rop = NVROP[alu].copy;
+	}
 
 	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
 	if (alu == GXcopy && planemask == ~0) {
@@ -183,37 +196,28 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 	OUT_RING  (chan, 1);
 
-	/* I observed incorrect rendering and found this in a fifo trace. */
-	/* It fixed the one test-case i had, so i'm happy. */
-	if (pdpix->drawable.depth == 32)
-		rop &= 0xF0;
+	/* There are 16 alu's.
+	 * 0-15: copy
+	 * 16-31: solid
+	 * 32-47: copy_planemask
+	 * 48-63: solid_planemask
+	 */
 
-	/* There are 16 alu's. pNv->currentRop stores: */
-	/* 0-15: planemask == ~0 && bpp != 32 */
-	/* 16-31: planemask == ~0 && bpp == 32 */
-	/* 32-47: planemask != ~0 */
+	if (solid)
+		alu += 16;
+
 	if (planemask != ~0) {
+		alu += 32;
 		NV50EXASetPattern(pdpix, 0, planemask, ~0, ~0);
-		rop = (rop & 0xf0) | 0x0a;
-
-		if (pNv->currentRop != (alu + 32)) {
-			BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
-			OUT_RING  (chan, rop);
-			pNv->currentRop = alu + 32;
-		}
 	} else {
-		/* This makes no sense for planemask != ~0, as that already masks with 0xA. */
-		if (pdpix->drawable.depth == 32)
-			alu += 16;
+		if (pNv->currentRop > 31)
+			NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
+	}
 
-		if (pNv->currentRop != alu) {
-			if (pNv->currentRop >= 32)
-				NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
-
-			BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
-			OUT_RING  (chan, rop);
-			pNv->currentRop = alu;
-		}
+	if (pNv->currentRop != alu) {
+		BEGIN_RING(chan, eng2d, NV50_2D_ROP, 1);
+		OUT_RING  (chan, rop);
+		pNv->currentRop = alu;
 	}
 }
 
@@ -229,7 +233,7 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 		NOUVEAU_FALLBACK("rect format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	NV50EXASetROP(pdpix, alu, planemask);
+	NV50EXASetROP(pdpix, alu, planemask, true);
 
 	BEGIN_RING(chan, eng2d, 0x580, 3);
 	OUT_RING  (chan, 4);
@@ -271,7 +275,7 @@ NV50EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 		NOUVEAU_FALLBACK("src pixmap\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	NV50EXASetROP(pdpix, alu, planemask);
+	NV50EXASetROP(pdpix, alu, planemask, false);
 
 	return TRUE;
 }
