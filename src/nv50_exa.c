@@ -156,7 +156,6 @@ NV50EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 	OUT_RING  (chan, pat1);
 }
 
-extern const int NVCopyROP[16];
 static void
 NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask, bool solid)
 {
