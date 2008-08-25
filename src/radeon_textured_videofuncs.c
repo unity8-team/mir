@@ -327,11 +327,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	/* Position and one set of 2 texture coordinates */
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
 	if (pPriv->bicubic_enabled) {
-	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT) |
-			(2 << R300_TEX_1_COMP_CNT_SHIFT));
-	} else {
+	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
+						   (2 << R300_TEX_1_COMP_CNT_SHIFT)));
+	} else
 	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT));
-	}
+
 	OUT_VIDEO_REG(R300_US_OUT_FMT_0, output_fmt);
 	FINISH_VIDEO();
 
@@ -407,8 +407,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* 4 components: 2 for tex0 and 2 for tex1 */
 		OUT_VIDEO_REG(R300_RS_COUNT,
-			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-			   R300_RS_COUNT_HIRES_EN));
+			      ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			       R300_RS_COUNT_HIRES_EN));
 
 		/* R300_INST_COUNT_RS - highest RS instruction used */
 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
@@ -418,9 +418,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* FP length. */
 		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
-							R500_US_CODE_END_ADDR(13)));
+						  R500_US_CODE_END_ADDR(13)));
 		OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
-							R500_US_CODE_RANGE_SIZE(13)));
+						   R500_US_CODE_RANGE_SIZE(13)));
 
 		/* Prepare for FP emission. */
 		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
@@ -436,309 +436,309 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* TEX temp2, input1.xxxx, tex1, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(1) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(1) |
-						   R500_TEX_SRC_S_SWIZ_R |
-						   R500_TEX_SRC_T_SWIZ_R |
-						   R500_TEX_SRC_R_SWIZ_R |
-						   R500_TEX_SRC_Q_SWIZ_R |
-						   R500_TEX_DST_ADDR(2) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_R |
+						       R500_TEX_SRC_T_SWIZ_R |
+						       R500_TEX_SRC_R_SWIZ_R |
+						       R500_TEX_SRC_Q_SWIZ_R |
+						       R500_TEX_DST_ADDR(2) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* TEX temp5, input1.yyyy, tex1, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(1) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_SEM_ACQUIRE |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_SEM_ACQUIRE |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(1) |
-						   R500_TEX_SRC_S_SWIZ_G |
-						   R500_TEX_SRC_T_SWIZ_G |
-						   R500_TEX_SRC_R_SWIZ_G |
-						   R500_TEX_SRC_Q_SWIZ_G |
-						   R500_TEX_DST_ADDR(5) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_G |
+						       R500_TEX_SRC_T_SWIZ_G |
+						       R500_TEX_SRC_R_SWIZ_G |
+						       R500_TEX_SRC_Q_SWIZ_G |
+						       R500_TEX_DST_ADDR(5) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* MUL temp4, const0.x0x0, temp2.yyxx */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-						   R500_RGB_ADDR0_CONST |
-						   R500_RGB_ADDR1(2)));
+						       R500_RGB_ADDR0_CONST |
+						       R500_RGB_ADDR1(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-						   R500_ALPHA_ADDR0_CONST |
-						   R500_ALPHA_ADDR1(2)));
+						       R500_ALPHA_ADDR0_CONST |
+						       R500_ALPHA_ADDR1(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
-						   R500_ALU_RGB_R_SWIZ_A_R |
-						   R500_ALU_RGB_G_SWIZ_A_0 |
-						   R500_ALU_RGB_B_SWIZ_A_R |
-						   R500_ALU_RGB_SEL_B_SRC1 |
-						   R500_ALU_RGB_R_SWIZ_B_G |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_R));
+						       R500_ALU_RGB_R_SWIZ_A_R |
+						       R500_ALU_RGB_G_SWIZ_A_0 |
+						       R500_ALU_RGB_B_SWIZ_A_R |
+						       R500_ALU_RGB_SEL_B_SRC1 |
+						       R500_ALU_RGB_R_SWIZ_B_G |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(4) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC0 |
-						   R500_ALPHA_SWIZ_A_0 |
-						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_R));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC0 |
+						       R500_ALPHA_SWIZ_A_0 |
+						       R500_ALPHA_SEL_B_SRC1 |
+						       R500_ALPHA_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(4) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_R_SWIZ_0 |
-						   R500_ALU_RGBA_G_SWIZ_0 |
-						   R500_ALU_RGBA_B_SWIZ_0 |
-						   R500_ALU_RGBA_A_SWIZ_0));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_R_SWIZ_0 |
+						       R500_ALU_RGBA_G_SWIZ_0 |
+						       R500_ALU_RGBA_B_SWIZ_0 |
+						       R500_ALU_RGBA_A_SWIZ_0));
 
 		/* MAD temp3, const0.0y0y, temp5.xxxx, temp4 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-						   R500_RGB_ADDR0_CONST |
-						   R500_RGB_ADDR1(5) |
-						   R500_RGB_ADDR2(4)));
+						       R500_RGB_ADDR0_CONST |
+						       R500_RGB_ADDR1(5) |
+						       R500_RGB_ADDR2(4)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-						   R500_ALPHA_ADDR0_CONST |
-						   R500_ALPHA_ADDR1(5) |
-						   R500_ALPHA_ADDR2(4)));
+						       R500_ALPHA_ADDR0_CONST |
+						       R500_ALPHA_ADDR1(5) |
+						       R500_ALPHA_ADDR2(4)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
-						   R500_ALU_RGB_R_SWIZ_A_0 |
-						   R500_ALU_RGB_G_SWIZ_A_G |
-						   R500_ALU_RGB_B_SWIZ_A_0 |
-						   R500_ALU_RGB_SEL_B_SRC1 |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_R |
-						   R500_ALU_RGB_B_SWIZ_B_R));
+						       R500_ALU_RGB_R_SWIZ_A_0 |
+						       R500_ALU_RGB_G_SWIZ_A_G |
+						       R500_ALU_RGB_B_SWIZ_A_0 |
+						       R500_ALU_RGB_SEL_B_SRC1 |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_R |
+						       R500_ALU_RGB_B_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(3) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC0 |
-						   R500_ALPHA_SWIZ_A_G |
-						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_R));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC0 |
+						       R500_ALPHA_SWIZ_A_G |
+						       R500_ALPHA_SEL_B_SRC1 |
+						       R500_ALPHA_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(3) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC2 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_B |
-						   R500_ALU_RGBA_A_SWIZ_A));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC2 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_B |
+						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* ADD temp3, temp3, input0.xyxy */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR1(3) |
-						   R500_RGB_ADDR2(0)));
+						       R500_RGB_ADDR2(0)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR1(3) |
-						   R500_ALPHA_ADDR2(0)));
+						       R500_ALPHA_ADDR2(0)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_R_SWIZ_A_1 |
-						   R500_ALU_RGB_G_SWIZ_A_1 |
-						   R500_ALU_RGB_B_SWIZ_A_1 |
-						   R500_ALU_RGB_SEL_B_SRC1 |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B));
+						       R500_ALU_RGB_G_SWIZ_A_1 |
+						       R500_ALU_RGB_B_SWIZ_A_1 |
+						       R500_ALU_RGB_SEL_B_SRC1 |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(3) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SWIZ_A_1 |
-						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SWIZ_A_1 |
+						       R500_ALPHA_SEL_B_SRC1 |
+						       R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(3) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC2 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_R |
-						   R500_ALU_RGBA_A_SWIZ_G));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC2 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_R |
+						       R500_ALU_RGBA_A_SWIZ_G));
 
 		/* TEX temp1, temp3.zwxy, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(3) |
-						   R500_TEX_SRC_S_SWIZ_B |
-						   R500_TEX_SRC_T_SWIZ_A |
-						   R500_TEX_SRC_R_SWIZ_R |
-						   R500_TEX_SRC_Q_SWIZ_G |
-						   R500_TEX_DST_ADDR(1) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_B |
+						       R500_TEX_SRC_T_SWIZ_A |
+						       R500_TEX_SRC_R_SWIZ_R |
+						       R500_TEX_SRC_Q_SWIZ_G |
+						       R500_TEX_DST_ADDR(1) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* TEX temp3, temp3.xyzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_SEM_ACQUIRE |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_SEM_ACQUIRE |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(3) |
-						   R500_TEX_SRC_S_SWIZ_R |
-						   R500_TEX_SRC_T_SWIZ_G |
-						   R500_TEX_SRC_R_SWIZ_B |
-						   R500_TEX_SRC_Q_SWIZ_A |
-						   R500_TEX_DST_ADDR(3) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_R |
+						       R500_TEX_SRC_T_SWIZ_G |
+						       R500_TEX_SRC_R_SWIZ_B |
+						       R500_TEX_SRC_Q_SWIZ_A |
+						       R500_TEX_DST_ADDR(3) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* MAD temp4, const1.0y0y, temp5.yyyy, temp4 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-						   R500_RGB_ADDR0_CONST |
-						   R500_RGB_ADDR1(5) |
-						   R500_RGB_ADDR2(4)));
+						       R500_RGB_ADDR0_CONST |
+						       R500_RGB_ADDR1(5) |
+						       R500_RGB_ADDR2(4)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-						   R500_ALPHA_ADDR0_CONST |
-						   R500_ALPHA_ADDR1(5) |
-						   R500_ALPHA_ADDR2(4)));
+						       R500_ALPHA_ADDR0_CONST |
+						       R500_ALPHA_ADDR1(5) |
+						       R500_ALPHA_ADDR2(4)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
-						   R500_ALU_RGB_R_SWIZ_A_0 |
-						   R500_ALU_RGB_G_SWIZ_A_G |
-						   R500_ALU_RGB_B_SWIZ_A_0 |
-						   R500_ALU_RGB_SEL_B_SRC1 |
-						   R500_ALU_RGB_R_SWIZ_B_G |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_G));
+						       R500_ALU_RGB_R_SWIZ_A_0 |
+						       R500_ALU_RGB_G_SWIZ_A_G |
+						       R500_ALU_RGB_B_SWIZ_A_0 |
+						       R500_ALU_RGB_SEL_B_SRC1 |
+						       R500_ALU_RGB_R_SWIZ_B_G |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_G));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(4) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC0 |
-						   R500_ALPHA_SWIZ_A_G |
-						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_G));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC0 |
+						       R500_ALPHA_SWIZ_A_G |
+						       R500_ALPHA_SEL_B_SRC1 |
+						       R500_ALPHA_SWIZ_B_G));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(4) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC2 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_B |
-						   R500_ALU_RGBA_A_SWIZ_A));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC2 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_B |
+						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* ADD temp0, temp4, input0.xyxy */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR1(4) |
-						   R500_RGB_ADDR2(0)));
+						       R500_RGB_ADDR2(0)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR1(4) |
-						   R500_ALPHA_ADDR2(0)));
+						       R500_ALPHA_ADDR2(0)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_R_SWIZ_A_1 |
-						   R500_ALU_RGB_G_SWIZ_A_1 |
-						   R500_ALU_RGB_B_SWIZ_A_1 |
-						   R500_ALU_RGB_SEL_B_SRC1 |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B));
+						       R500_ALU_RGB_G_SWIZ_A_1 |
+						       R500_ALU_RGB_B_SWIZ_A_1 |
+						       R500_ALU_RGB_SEL_B_SRC1 |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(0) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SWIZ_A_1 |
-						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SWIZ_A_1 |
+						       R500_ALPHA_SEL_B_SRC1 |
+						       R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(0) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC2 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_R |
-						   R500_ALU_RGBA_A_SWIZ_G));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC2 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_R |
+						       R500_ALU_RGBA_A_SWIZ_G));
 
 		/* TEX temp4, temp0.zwzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
-						   R500_TEX_SRC_S_SWIZ_B |
-						   R500_TEX_SRC_T_SWIZ_A |
-						   R500_TEX_SRC_R_SWIZ_B |
-						   R500_TEX_SRC_Q_SWIZ_A |
-						   R500_TEX_DST_ADDR(4) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_B |
+						       R500_TEX_SRC_T_SWIZ_A |
+						       R500_TEX_SRC_R_SWIZ_B |
+						       R500_TEX_SRC_Q_SWIZ_A |
+						       R500_TEX_DST_ADDR(4) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* TEX temp0, temp0.xyzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
 						   R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-						   R500_TEX_INST_LD |
-						   R500_TEX_SEM_ACQUIRE |
-						   R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_SEM_ACQUIRE |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
-						   R500_TEX_SRC_S_SWIZ_R |
-						   R500_TEX_SRC_T_SWIZ_G |
-						   R500_TEX_SRC_R_SWIZ_B |
-						   R500_TEX_SRC_Q_SWIZ_A |
-						   R500_TEX_DST_ADDR(0) |
-						   R500_TEX_DST_R_SWIZ_R |
-						   R500_TEX_DST_G_SWIZ_G |
-						   R500_TEX_DST_B_SWIZ_B |
-						   R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_R |
+						       R500_TEX_SRC_T_SWIZ_G |
+						       R500_TEX_SRC_R_SWIZ_B |
+						       R500_TEX_SRC_Q_SWIZ_A |
+						       R500_TEX_DST_ADDR(0) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
@@ -747,122 +747,122 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		 * - PRESUB temps, temp1 - temp3
 		 * - MAD temp2.zzzz, temps, temp3 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(3) |
-						   R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
-						   R500_RGB_ADDR1(1) |
-						   R500_RGB_ADDR2(2)));
+						       R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
+						       R500_RGB_ADDR1(1) |
+						       R500_RGB_ADDR2(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(3) |
-						   R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
-						   R500_ALPHA_ADDR1(1) |
-						   R500_ALPHA_ADDR2(2)));
+						       R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
+						       R500_ALPHA_ADDR1(1) |
+						       R500_ALPHA_ADDR2(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC2 |
-						   R500_ALU_RGB_R_SWIZ_A_B |
-						   R500_ALU_RGB_G_SWIZ_A_B |
-						   R500_ALU_RGB_B_SWIZ_A_B |
-						   R500_ALU_RGB_SEL_B_SRCP |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B));
+						       R500_ALU_RGB_R_SWIZ_A_B |
+						       R500_ALU_RGB_G_SWIZ_A_B |
+						       R500_ALU_RGB_B_SWIZ_A_B |
+						       R500_ALU_RGB_SEL_B_SRCP |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(3) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC2 |
-						   R500_ALPHA_SWIZ_A_B |
-						   R500_ALPHA_SEL_B_SRCP |
-						   R500_ALPHA_SWIZ_B_A));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC2 |
+						       R500_ALPHA_SWIZ_A_B |
+						       R500_ALPHA_SEL_B_SRCP |
+						       R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(3) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC0 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_B |
-						   R500_ALU_RGBA_A_SWIZ_A));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC0 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_B |
+						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* LRP temp0, temp2.zzzz, temp4, temp0 ->
 		 * - PRESUB temps, temp4 - temp1
 		 * - MAD temp2.zzzz, temps, temp0 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-						   R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
-						   R500_RGB_ADDR1(4) |
-						   R500_RGB_ADDR2(2)));
+						       R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
+						       R500_RGB_ADDR1(4) |
+						       R500_RGB_ADDR2(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-						   R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
-						   R500_ALPHA_ADDR1(4) |
-						   R500_ALPHA_ADDR2(2)));
+						       R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
+						       R500_ALPHA_ADDR1(4) |
+						       R500_ALPHA_ADDR2(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC2 |
-						   R500_ALU_RGB_R_SWIZ_A_B |
-						   R500_ALU_RGB_G_SWIZ_A_B |
-						   R500_ALU_RGB_B_SWIZ_A_B |
-						   R500_ALU_RGB_SEL_B_SRCP |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B));
+						       R500_ALU_RGB_R_SWIZ_A_B |
+						       R500_ALU_RGB_G_SWIZ_A_B |
+						       R500_ALU_RGB_B_SWIZ_A_B |
+						       R500_ALU_RGB_SEL_B_SRCP |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(0) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC2 |
-						   R500_ALPHA_SWIZ_A_B |
-						   R500_ALPHA_SEL_B_SRCP |
-						   R500_ALPHA_SWIZ_B_A));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC2 |
+						       R500_ALPHA_SWIZ_A_B |
+						       R500_ALPHA_SEL_B_SRCP |
+						       R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(0) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC0 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_B |
-						   R500_ALU_RGBA_A_SWIZ_A));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC0 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_B |
+						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* LRP output, temp5.zzzz, temp3, temp0 ->
 		 * - PRESUB temps, temp3 - temp0
 		 * - MAD temp5.zzzz, temps, temp0 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
-						   R500_INST_LAST |
-						   R500_INST_TEX_SEM_WAIT |
-						   R500_INST_RGB_WMASK_R |
-						   R500_INST_RGB_WMASK_G |
-						   R500_INST_RGB_WMASK_B |
-						   R500_INST_ALPHA_WMASK |
-						   R500_INST_RGB_OMASK_R |
-						   R500_INST_RGB_OMASK_G |
-						   R500_INST_RGB_OMASK_B |
-						   R500_INST_ALPHA_OMASK));
+						       R500_INST_LAST |
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK |
+						       R500_INST_RGB_OMASK_R |
+						       R500_INST_RGB_OMASK_G |
+						       R500_INST_RGB_OMASK_B |
+						       R500_INST_ALPHA_OMASK));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-						   R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
-						   R500_RGB_ADDR1(3) |
-						   R500_RGB_ADDR2(5)));
+						       R500_RGB_SRCP_OP_RGB1_MINUS_RGB0 |
+						       R500_RGB_ADDR1(3) |
+						       R500_RGB_ADDR2(5)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-						   R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
-						   R500_ALPHA_ADDR1(3) |
-						   R500_ALPHA_ADDR2(5)));
+						       R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
+						       R500_ALPHA_ADDR1(3) |
+						       R500_ALPHA_ADDR2(5)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC2 |
-						   R500_ALU_RGB_R_SWIZ_A_B |
-						   R500_ALU_RGB_G_SWIZ_A_B |
-						   R500_ALU_RGB_B_SWIZ_A_B |
-						   R500_ALU_RGB_SEL_B_SRCP |
-						   R500_ALU_RGB_R_SWIZ_B_R |
-						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B));
+						       R500_ALU_RGB_R_SWIZ_A_B |
+						       R500_ALU_RGB_G_SWIZ_A_B |
+						       R500_ALU_RGB_B_SWIZ_A_B |
+						       R500_ALU_RGB_SEL_B_SRCP |
+						       R500_ALU_RGB_R_SWIZ_B_R |
+						       R500_ALU_RGB_G_SWIZ_B_G |
+						       R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(0) |
-						   R500_ALPHA_OP_MAD |
-						   R500_ALPHA_SEL_A_SRC2 |
-						   R500_ALPHA_SWIZ_A_B |
-						   R500_ALPHA_SEL_B_SRCP |
-						   R500_ALPHA_SWIZ_B_A));
+						       R500_ALPHA_OP_MAD |
+						       R500_ALPHA_SEL_A_SRC2 |
+						       R500_ALPHA_SWIZ_A_B |
+						       R500_ALPHA_SEL_B_SRCP |
+						       R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(0) |
-						   R500_ALU_RGBA_OP_MAD |
-						   R500_ALU_RGBA_SEL_C_SRC0 |
-						   R500_ALU_RGBA_R_SWIZ_R |
-						   R500_ALU_RGBA_G_SWIZ_G |
-						   R500_ALU_RGBA_B_SWIZ_B |
-						   R500_ALU_RGBA_A_SWIZ_A));
+						       R500_ALU_RGBA_OP_MAD |
+						       R500_ALU_RGBA_SEL_C_SRC0 |
+						       R500_ALU_RGBA_R_SWIZ_R |
+						       R500_ALU_RGBA_G_SWIZ_G |
+						       R500_ALU_RGBA_B_SWIZ_B |
+						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* Shader constants. */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, (1 << 16));
@@ -890,9 +890,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* FP length. */
 		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
-							R500_US_CODE_END_ADDR(1)));
+						  R500_US_CODE_END_ADDR(1)));
 		OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
-							R500_US_CODE_RANGE_SIZE(1)));
+						   R500_US_CODE_RANGE_SIZE(1)));
 
 		/* Prepare for FP emission. */
 		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
@@ -900,74 +900,74 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* tex inst */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
-							R500_INST_TEX_SEM_WAIT |
-							R500_INST_RGB_WMASK_R |
-							R500_INST_RGB_WMASK_G |
-							R500_INST_RGB_WMASK_B |
-							R500_INST_ALPHA_WMASK |
-							R500_INST_RGB_CLAMP |
-							R500_INST_ALPHA_CLAMP));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_RGB_WMASK_R |
+						       R500_INST_RGB_WMASK_G |
+						       R500_INST_RGB_WMASK_B |
+						       R500_INST_ALPHA_WMASK |
+						       R500_INST_RGB_CLAMP |
+						       R500_INST_ALPHA_CLAMP));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
-							R500_TEX_INST_LD |
-							R500_TEX_SEM_ACQUIRE |
-							R500_TEX_IGNORE_UNCOVERED));
+						       R500_TEX_INST_LD |
+						       R500_TEX_SEM_ACQUIRE |
+						       R500_TEX_IGNORE_UNCOVERED));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
-							R500_TEX_SRC_S_SWIZ_R |
-							R500_TEX_SRC_T_SWIZ_G |
-							R500_TEX_DST_ADDR(0) |
-							R500_TEX_DST_R_SWIZ_R |
-							R500_TEX_DST_G_SWIZ_G |
-							R500_TEX_DST_B_SWIZ_B |
-							R500_TEX_DST_A_SWIZ_A));
+						       R500_TEX_SRC_S_SWIZ_R |
+						       R500_TEX_SRC_T_SWIZ_G |
+						       R500_TEX_DST_ADDR(0) |
+						       R500_TEX_DST_R_SWIZ_R |
+						       R500_TEX_DST_G_SWIZ_G |
+						       R500_TEX_DST_B_SWIZ_B |
+						       R500_TEX_DST_A_SWIZ_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
-							R500_DX_S_SWIZ_R |
-							R500_DX_T_SWIZ_R |
-							R500_DX_R_SWIZ_R |
-							R500_DX_Q_SWIZ_R |
-							R500_DY_ADDR(0) |
-							R500_DY_S_SWIZ_R |
-							R500_DY_T_SWIZ_R |
-							R500_DY_R_SWIZ_R |
-							R500_DY_Q_SWIZ_R));
+						       R500_DX_S_SWIZ_R |
+						       R500_DX_T_SWIZ_R |
+						       R500_DX_R_SWIZ_R |
+						       R500_DX_Q_SWIZ_R |
+						       R500_DY_ADDR(0) |
+						       R500_DY_S_SWIZ_R |
+						       R500_DY_T_SWIZ_R |
+						       R500_DY_R_SWIZ_R |
+						       R500_DY_Q_SWIZ_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 		/* ALU inst */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
-							R500_INST_TEX_SEM_WAIT |
-							R500_INST_LAST |
-							R500_INST_RGB_OMASK_R |
-							R500_INST_RGB_OMASK_G |
-							R500_INST_RGB_OMASK_B |
-							R500_INST_ALPHA_OMASK |
-							R500_INST_RGB_CLAMP |
-							R500_INST_ALPHA_CLAMP));
+						       R500_INST_TEX_SEM_WAIT |
+						       R500_INST_LAST |
+						       R500_INST_RGB_OMASK_R |
+						       R500_INST_RGB_OMASK_G |
+						       R500_INST_RGB_OMASK_B |
+						       R500_INST_ALPHA_OMASK |
+						       R500_INST_RGB_CLAMP |
+						       R500_INST_ALPHA_CLAMP));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
-							R500_RGB_ADDR1(0) |
-							R500_RGB_ADDR1_CONST |
-							R500_RGB_ADDR2(0) |
-							R500_RGB_ADDR2_CONST));
+						       R500_RGB_ADDR1(0) |
+						       R500_RGB_ADDR1_CONST |
+						       R500_RGB_ADDR2(0) |
+						       R500_RGB_ADDR2_CONST));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
-							R500_ALPHA_ADDR1(0) |
-							R500_ALPHA_ADDR1_CONST |
-							R500_ALPHA_ADDR2(0) |
-							R500_ALPHA_ADDR2_CONST));
+						       R500_ALPHA_ADDR1(0) |
+						       R500_ALPHA_ADDR1_CONST |
+						       R500_ALPHA_ADDR2(0) |
+						       R500_ALPHA_ADDR2_CONST));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
-							R500_ALU_RGB_R_SWIZ_A_R |
-							R500_ALU_RGB_G_SWIZ_A_G |
-							R500_ALU_RGB_B_SWIZ_A_B |
-							R500_ALU_RGB_SEL_B_SRC0 |
-							R500_ALU_RGB_R_SWIZ_B_1 |
-							R500_ALU_RGB_B_SWIZ_B_1 |
-							R500_ALU_RGB_G_SWIZ_B_1));
+						       R500_ALU_RGB_R_SWIZ_A_R |
+						       R500_ALU_RGB_G_SWIZ_A_G |
+						       R500_ALU_RGB_B_SWIZ_A_B |
+						       R500_ALU_RGB_SEL_B_SRC0 |
+						       R500_ALU_RGB_R_SWIZ_B_1 |
+						       R500_ALU_RGB_B_SWIZ_B_1 |
+						       R500_ALU_RGB_G_SWIZ_B_1));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
-							R500_ALPHA_SWIZ_A_A |
-							R500_ALPHA_SWIZ_B_1));
+						       R500_ALPHA_SWIZ_A_A |
+						       R500_ALPHA_SWIZ_B_1));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
-							R500_ALU_RGBA_R_SWIZ_0 |
-							R500_ALU_RGBA_G_SWIZ_0 |
-							R500_ALU_RGBA_B_SWIZ_0 |
-							R500_ALU_RGBA_A_SWIZ_0));
+						       R500_ALU_RGBA_R_SWIZ_0 |
+						       R500_ALU_RGBA_G_SWIZ_0 |
+						       R500_ALU_RGBA_B_SWIZ_0 |
+						       R500_ALU_RGBA_A_SWIZ_0));
 		FINISH_VIDEO();
 	    }
 	}
