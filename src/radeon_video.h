@@ -15,6 +15,8 @@
 
 #include "bicubic_table.h"
 
+#define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
+
 /* Xvideo port struct */
 typedef struct {
    uint32_t	 transform_index;

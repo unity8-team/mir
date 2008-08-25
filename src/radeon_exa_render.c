@@ -1419,7 +1419,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 
 	/* setup the rasterizer, load FS */
-	BEGIN_ACCEL(9);
+	BEGIN_ACCEL(10);
 	if (pMask) {
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
@@ -1461,6 +1461,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_RGBA_OUT));
 	}
 
+	OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	/* shader output swizzling */
 	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
@@ -1474,7 +1475,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	 * R300_ALU_RGB_OMASK - output components to write
 	 * R300_ALU_RGB_TARGET_A - render target
 	 */
-	OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR_0,
+	OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(0),
 		      (R300_ALU_RGB_ADDR0(0) |
 		       R300_ALU_RGB_ADDR1(1) |
 		       R300_ALU_RGB_ADDR2(0) |
@@ -1486,7 +1487,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	/* RGB inst
 	 * ALU operation
 	 */
-	OUT_ACCEL_REG(R300_US_ALU_RGB_INST_0,
+	OUT_ACCEL_REG(R300_US_ALU_RGB_INST(0),
 		      (R300_ALU_RGB_SEL_A(src_color) |
 		       R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
 		       R300_ALU_RGB_SEL_B(mask_color) |
@@ -1503,7 +1504,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	 * R300_ALU_ALPHA_OMASK - output components to write
 	 * R300_ALU_ALPHA_TARGET_A - render target
 	 */
-	OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR_0,
+	OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(0),
 		      (R300_ALU_ALPHA_ADDR0(0) |
 		       R300_ALU_ALPHA_ADDR1(1) |
 		       R300_ALU_ALPHA_ADDR2(0) |
@@ -1514,7 +1515,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	/* Alpha inst
 	 * ALU operation
 	 */
-	OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST_0,
+	OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(0),
 		      (R300_ALU_ALPHA_SEL_A(src_alpha) |
 		       R300_ALU_ALPHA_MOD_A(R300_ALU_ALPHA_MOD_NOP) |
 		       R300_ALU_ALPHA_SEL_B(mask_alpha) |
@@ -1633,7 +1634,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    break;
 	}
 
-	BEGIN_ACCEL(6);
+	BEGIN_ACCEL(7);
 	if (pMask) {
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
@@ -1662,12 +1663,13 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
 	}
 
+	OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 	FINISH_ACCEL();
 
 	if (pMask) {
 	    BEGIN_ACCEL(19);
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 	    /* tex inst for src texture */
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_RGB_WMASK_R |
@@ -1739,7 +1741,7 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 	} else {
 	    BEGIN_ACCEL(13);
-	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, 0);
+	    OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 	    /* tex inst for src texture */
 	    OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |

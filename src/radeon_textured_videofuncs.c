@@ -100,7 +100,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     uint32_t dst_offset, dst_pitch, dst_format;
     uint32_t txenable, colorpitch;
     uint32_t blendcntl;
-    int dstxoff, dstyoff, pixel_shift;
+    int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
     VIDEO_PREAMBLE();
@@ -144,6 +144,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		  RADEON_WAIT_DMA_GUI_IDLE);
     FINISH_VIDEO();
 
+    if (pPriv->bicubic_enabled)
+	vtx_count = VTX_DWORD_COUNT_FILTER;
+    else
+	vtx_count = VTX_DWORD_COUNT;
+
     if (IS_R300_3D || IS_R500_3D) {
 	uint32_t output_fmt;
 
@@ -181,16 +186,17 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
 
 	txformat0 = ((((pPriv->w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
-		     (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT));
-
-	txformat0 |= R300_TXPITCH_EN;
+		     (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
+		     R300_TXPITCH_EN);
 
 	info->texW[0] = pPriv->w;
 	info->texH[0] = pPriv->h;
 
 	txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
-		    R300_TX_MAG_FILTER_LINEAR | R300_TX_MIN_FILTER_LINEAR);
+		    R300_TX_MAG_FILTER_LINEAR |
+		    R300_TX_MIN_FILTER_LINEAR |
+		    (0 << R300_TX_ID_SHIFT));
 
 	/* pitch is in pixels */
 	txpitch = pPriv->src_pitch / 2;
@@ -217,19 +223,19 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	if (pPriv->bicubic_enabled) {
 		/* Size is 128x1 */
-		txformat0 = (0x7f << R300_TXWIDTH_SHIFT) |
-			(0x0 << R300_TXHEIGHT_SHIFT) |
-			R300_TXPITCH_EN;
+		txformat0 = ((0x7f << R300_TXWIDTH_SHIFT) |
+			     (0x0 << R300_TXHEIGHT_SHIFT) |
+			     R300_TXPITCH_EN);
 		/* Format is 32-bit floats, 4bpp */
 		txformat1 = R300_EASY_TX_FORMAT(Z, Y, X, W, FL_R16G16B16A16);
 		/* Pitch is 127 (128-1) */
 		txpitch = 0x7f;
 		/* Tex filter */
-		txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
-			R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP) |
-			R300_TX_MIN_FILTER_NEAREST |
-			R300_TX_MAG_FILTER_NEAREST |
-			(1 << R300_TX_ID_SHIFT);
+		txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
+			    R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP) |
+			    R300_TX_MIN_FILTER_NEAREST |
+			    R300_TX_MAG_FILTER_NEAREST |
+			    (1 << R300_TX_ID_SHIFT));
 
 		BEGIN_VIDEO(6);
 		OUT_VIDEO_REG(R300_TX_FILTER0_1, txfilter);
@@ -272,64 +278,64 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	 */
 	if (pPriv->bicubic_enabled) {
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
-		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
-		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
-		       (0 << R300_DST_VEC_LOC_0_SHIFT) |
-		       R300_SIGNED_0 |
-		       (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
-		       (0 << R300_SKIP_DWORDS_1_SHIFT) |
-		       (6 << R300_DST_VEC_LOC_1_SHIFT) |
-		       R300_SIGNED_1));
+			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
+			   (0 << R300_SKIP_DWORDS_0_SHIFT) |
+			   (0 << R300_DST_VEC_LOC_0_SHIFT) |
+			   R300_SIGNED_0 |
+			   (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
+			   (0 << R300_SKIP_DWORDS_1_SHIFT) |
+			   (6 << R300_DST_VEC_LOC_1_SHIFT) |
+			   R300_SIGNED_1));
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_1,
-		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_2_SHIFT) |
-		       (0 << R300_SKIP_DWORDS_2_SHIFT) |
-		       (7 << R300_DST_VEC_LOC_2_SHIFT) |
-		       R300_LAST_VEC_2 |
-		       R300_SIGNED_2));
+			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_2_SHIFT) |
+			   (0 << R300_SKIP_DWORDS_2_SHIFT) |
+			   (7 << R300_DST_VEC_LOC_2_SHIFT) |
+			   R300_LAST_VEC_2 |
+			   R300_SIGNED_2));
 	} else {
 	    OUT_VIDEO_REG(R300_VAP_PROG_STREAM_CNTL_0,
-		      ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
-		       (0 << R300_SKIP_DWORDS_0_SHIFT) |
-		       (0 << R300_DST_VEC_LOC_0_SHIFT) |
-		       R300_SIGNED_0 |
-		       (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
-		       (0 << R300_SKIP_DWORDS_1_SHIFT) |
-		       (6 << R300_DST_VEC_LOC_1_SHIFT) |
-		       R300_LAST_VEC_1 |
-		       R300_SIGNED_1));
+			  ((R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_0_SHIFT) |
+			   (0 << R300_SKIP_DWORDS_0_SHIFT) |
+			   (0 << R300_DST_VEC_LOC_0_SHIFT) |
+			   R300_SIGNED_0 |
+			   (R300_DATA_TYPE_FLOAT_2 << R300_DATA_TYPE_1_SHIFT) |
+			   (0 << R300_SKIP_DWORDS_1_SHIFT) |
+			   (6 << R300_DST_VEC_LOC_1_SHIFT) |
+			   R300_LAST_VEC_1 |
+			   R300_SIGNED_1));
 	}
 
 	/* load the vertex shader
 	 * We pre-load vertex programs in RADEONInit3DEngine():
-	 * - exa no mask/Xv bicubic
-	 * - exa mask
+	 * - exa mask/Xv bicubic
+	 * - exa no mask
 	 * - Xv
 	 * Here we select the offset of the vertex program we want to use
 	 */
 	if (info->has_tcl) {
 	    if (pPriv->bicubic_enabled) {
 		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
-			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (2 << R300_PVS_LAST_INST_SHIFT)));
+			      ((0 << R300_PVS_FIRST_INST_SHIFT) |
+			       (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			       (2 << R300_PVS_LAST_INST_SHIFT)));
 		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			      (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	    } else {
 		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
-			  ((5 << R300_PVS_FIRST_INST_SHIFT) |
-			   (6 << R300_PVS_XYZW_VALID_INST_SHIFT) |
-			   (6 << R300_PVS_LAST_INST_SHIFT)));
+			      ((5 << R300_PVS_FIRST_INST_SHIFT) |
+			       (6 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			       (6 << R300_PVS_LAST_INST_SHIFT)));
 		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_1,
-			  (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+			      (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
 	    }
 	}
 
 	/* Position and one set of 2 texture coordinates */
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
-	if (pPriv->bicubic_enabled) {
+	if (pPriv->bicubic_enabled)
 	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, ((2 << R300_TEX_0_COMP_CNT_SHIFT) |
 						   (2 << R300_TEX_1_COMP_CNT_SHIFT)));
-	} else
+	else
 	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT));
 
 	OUT_VIDEO_REG(R300_US_OUT_FMT_0, output_fmt);
@@ -337,13 +343,15 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	/* setup pixel shader */
 	if (IS_R300_3D) {
-	    BEGIN_VIDEO(8);
+	    BEGIN_VIDEO(9);
 	    /* 2 components: 2 for tex0 */
 	    OUT_VIDEO_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
 			   R300_RS_COUNT_HIRES_EN));
 	    /* R300_INST_COUNT_RS - highest RS instruction used */
 	    OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+
+	    OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* highest temp used */
 
 	    OUT_VIDEO_REG(R300_US_CODE_OFFSET,
 			  (R300_ALU_CODE_OFFSET(0) |
@@ -414,7 +422,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 
 		/* Pixel stack frame size. */
-		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(5));
+		OUT_VIDEO_REG(R300_US_PIXSIZE, 5);
 
 		/* FP length. */
 		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
@@ -424,7 +432,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* Prepare for FP emission. */
 		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
-		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 		FINISH_VIDEO();
 
 		BEGIN_VIDEO(89);
@@ -865,7 +873,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						       R500_ALU_RGBA_A_SWIZ_A));
 
 		/* Shader constants. */
-		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, (1 << 16));
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_CONST_INDEX(0));
 
 		/* const0 = {1 / texture[0].width, 0, 0, 0} */
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->w));
@@ -879,14 +887,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		BEGIN_VIDEO(19);
 		/* 2 components: 2 for tex0 */
 		OUT_VIDEO_REG(R300_RS_COUNT,
-				((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-				R300_RS_COUNT_HIRES_EN));
+			      ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			       R300_RS_COUNT_HIRES_EN));
 
 		/* R300_INST_COUNT_RS - highest RS instruction used */
 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
 
 		/* Pixel stack frame size. */
-		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(2));
+		OUT_VIDEO_REG(R300_US_PIXSIZE, 0); /* highest temp used */
 
 		/* FP length. */
 		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
@@ -896,7 +904,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* Prepare for FP emission. */
 		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
-		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
 
 		/* tex inst */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
@@ -972,7 +980,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    }
 	}
 
-	BEGIN_VIDEO(5);
+	BEGIN_VIDEO(6);
 	OUT_VIDEO_REG(R300_TX_INVALTAGS, 0);
 	OUT_VIDEO_REG(R300_TX_ENABLE, txenable);
 
@@ -982,13 +990,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	blendcntl = RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO;
 	/* no need to enable blending */
 	OUT_VIDEO_REG(R300_RB3D_BLENDCNTL, blendcntl);
-	FINISH_VIDEO();
 
-	BEGIN_VIDEO(1);
-	if (pPriv->bicubic_enabled)
-	    OUT_VIDEO_REG(R300_VAP_VTX_SIZE, VTX_DWORD_COUNT_FILTER);
-	else
-	    OUT_VIDEO_REG(R300_VAP_VTX_SIZE, VTX_DWORD_COUNT);
+	OUT_VIDEO_REG(R300_VAP_VTX_SIZE, vtx_count);
 	FINISH_VIDEO();
 
     } else {
@@ -1023,15 +1026,15 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	BEGIN_VIDEO(5);
 
 	OUT_VIDEO_REG(RADEON_PP_CNTL,
-		    RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
+		      RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
 	OUT_VIDEO_REG(RADEON_RB3D_CNTL,
-		    dst_format | RADEON_ALPHA_BLEND_ENABLE);
+		      dst_format | RADEON_ALPHA_BLEND_ENABLE);
 	OUT_VIDEO_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
 
 	OUT_VIDEO_REG(RADEON_RB3D_COLORPITCH, colorpitch);
 
 	OUT_VIDEO_REG(RADEON_RB3D_BLENDCNTL,
-		    RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO);
+		      RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO);
 
 	FINISH_VIDEO();
 
@@ -1048,37 +1051,37 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	    OUT_VIDEO_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
 	    OUT_VIDEO_REG(R200_SE_VTX_FMT_1,
-			(2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
+			  (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
 
 	    OUT_VIDEO_REG(R200_PP_TXFILTER_0,
-			R200_MAG_FILTER_LINEAR |
-			R200_MIN_FILTER_LINEAR |
-			R200_CLAMP_S_CLAMP_LAST |
-			R200_CLAMP_T_CLAMP_LAST |
-			R200_YUV_TO_RGB);
+			  R200_MAG_FILTER_LINEAR |
+			  R200_MIN_FILTER_LINEAR |
+			  R200_CLAMP_S_CLAMP_LAST |
+			  R200_CLAMP_T_CLAMP_LAST |
+			  R200_YUV_TO_RGB);
 	    OUT_VIDEO_REG(R200_PP_TXFORMAT_0, txformat);
 	    OUT_VIDEO_REG(R200_PP_TXFORMAT_X_0, 0);
 	    OUT_VIDEO_REG(R200_PP_TXSIZE_0,
-			(pPriv->w - 1) |
-			((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+			  (pPriv->w - 1) |
+			  ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	    OUT_VIDEO_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
 
 	    OUT_VIDEO_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
 
 	    OUT_VIDEO_REG(R200_PP_TXCBLEND_0,
-			R200_TXC_ARG_A_ZERO |
-			R200_TXC_ARG_B_ZERO |
-			R200_TXC_ARG_C_R0_COLOR |
-			R200_TXC_OP_MADD);
+			  R200_TXC_ARG_A_ZERO |
+			  R200_TXC_ARG_B_ZERO |
+			  R200_TXC_ARG_C_R0_COLOR |
+			  R200_TXC_OP_MADD);
 	    OUT_VIDEO_REG(R200_PP_TXCBLEND2_0,
-			R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
+			  R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
 	    OUT_VIDEO_REG(R200_PP_TXABLEND_0,
-			R200_TXA_ARG_A_ZERO |
-			R200_TXA_ARG_B_ZERO |
-			R200_TXA_ARG_C_R0_ALPHA |
-			R200_TXA_OP_MADD);
+			  R200_TXA_ARG_A_ZERO |
+			  R200_TXA_ARG_B_ZERO |
+			  R200_TXA_ARG_C_R0_ALPHA |
+			  R200_TXA_OP_MADD);
 	    OUT_VIDEO_REG(R200_PP_TXABLEND2_0,
-			R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
+			  R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
 	    FINISH_VIDEO();
 	} else {
 
@@ -1087,35 +1090,35 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	    BEGIN_VIDEO(8);
 
-	    OUT_VIDEO_REG(RADEON_SE_VTX_FMT, RADEON_SE_VTX_FMT_XY |
-			RADEON_SE_VTX_FMT_ST0);
+	    OUT_VIDEO_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
+					      RADEON_SE_VTX_FMT_ST0));
 
 	    OUT_VIDEO_REG(RADEON_PP_TXFILTER_0,
-			RADEON_MAG_FILTER_LINEAR |
-			RADEON_MIN_FILTER_LINEAR |
-			RADEON_CLAMP_S_CLAMP_LAST |
-			RADEON_CLAMP_T_CLAMP_LAST |
-			RADEON_YUV_TO_RGB);
+			  RADEON_MAG_FILTER_LINEAR |
+			  RADEON_MIN_FILTER_LINEAR |
+			  RADEON_CLAMP_S_CLAMP_LAST |
+			  RADEON_CLAMP_T_CLAMP_LAST |
+			  RADEON_YUV_TO_RGB);
 	    OUT_VIDEO_REG(RADEON_PP_TXFORMAT_0, txformat);
 	    OUT_VIDEO_REG(RADEON_PP_TXOFFSET_0, pPriv->src_offset);
 	    OUT_VIDEO_REG(RADEON_PP_TXCBLEND_0,
-			RADEON_COLOR_ARG_A_ZERO |
-			RADEON_COLOR_ARG_B_ZERO |
-			RADEON_COLOR_ARG_C_T0_COLOR |
-			RADEON_BLEND_CTL_ADD |
-			RADEON_CLAMP_TX);
+			  RADEON_COLOR_ARG_A_ZERO |
+			  RADEON_COLOR_ARG_B_ZERO |
+			  RADEON_COLOR_ARG_C_T0_COLOR |
+			  RADEON_BLEND_CTL_ADD |
+			  RADEON_CLAMP_TX);
 	    OUT_VIDEO_REG(RADEON_PP_TXABLEND_0,
-			RADEON_ALPHA_ARG_A_ZERO |
-			RADEON_ALPHA_ARG_B_ZERO |
-			RADEON_ALPHA_ARG_C_T0_ALPHA |
-			RADEON_BLEND_CTL_ADD |
-			RADEON_CLAMP_TX);
+			  RADEON_ALPHA_ARG_A_ZERO |
+			  RADEON_ALPHA_ARG_B_ZERO |
+			  RADEON_ALPHA_ARG_C_T0_ALPHA |
+			  RADEON_BLEND_CTL_ADD |
+			  RADEON_CLAMP_TX);
 
 	    OUT_VIDEO_REG(RADEON_PP_TEX_SIZE_0,
-			(pPriv->w - 1) |
-			((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+			  (pPriv->w - 1) |
+			  ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
 	    OUT_VIDEO_REG(RADEON_PP_TEX_PITCH_0,
-			pPriv->src_pitch - 32);
+			  pPriv->src_pitch - 32);
 	    FINISH_VIDEO();
 	}
     }
@@ -1154,9 +1157,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 #ifdef ACCEL_CP
 	if (info->ChipFamily < CHIP_FAMILY_R200) {
-	    BEGIN_RING(3 * VTX_DWORD_COUNT + 3);
+	    BEGIN_RING(3 * vtx_count + 3);
 	    OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
-				3 * VTX_DWORD_COUNT + 1));
+				3 * vtx_count + 1));
 	    OUT_RING(RADEON_CP_VC_FRMT_XY |
 		     RADEON_CP_VC_FRMT_ST0);
 	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
@@ -1165,43 +1168,34 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		     RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else {
-	    if (IS_R300_3D || IS_R500_3D) {
-	        if (pPriv->bicubic_enabled)
-		    BEGIN_RING(4 * VTX_DWORD_COUNT_FILTER + 4);
-		else
-		    BEGIN_RING(4 * VTX_DWORD_COUNT + 4);
-	    } else
-		BEGIN_RING(4 * VTX_DWORD_COUNT + 2);
-	    if (pPriv->bicubic_enabled)
-	        OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-				4 * VTX_DWORD_COUNT_FILTER));
+	    if (IS_R300_3D || IS_R500_3D)
+		BEGIN_RING(4 * vtx_count + 4);
 	    else
-	        OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-				4 * VTX_DWORD_COUNT));
+		BEGIN_RING(4 * vtx_count + 2);
+	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+				4 * vtx_count));
 	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
 		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		     (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	}
 #else /* ACCEL_CP */
-	if (pPriv->bicubic_enabled)
-	    BEGIN_VIDEO(2 + VTX_DWORD_COUNT_FILTER * 4);
-	else if (IS_R300_3D || IS_R500_3D)
-	    BEGIN_VIDEO(2 + VTX_DWORD_COUNT * 4);
+	if (IS_R300_3D || IS_R500_3D)
+	    BEGIN_VIDEO(2 + vtx_count * 4);
 	else if (info->ChipFamily < CHIP_FAMILY_R200)
-	    BEGIN_VIDEO(1 + VTX_DWORD_COUNT * 3);
+	    BEGIN_VIDEO(1 + vtx_count * 3);
 	else
-	    BEGIN_VIDEO(1 + VTX_DWORD_COUNT * 4);
+	    BEGIN_VIDEO(1 + vtx_count * 4);
 
-	if (info->ChipFamily < CHIP_FAMILY_R200) {
+	if (info->ChipFamily < CHIP_FAMILY_R200)
 	    OUT_VIDEO_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
 					      RADEON_VF_RADEON_MODE |
 					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-	} else {
+	else
 	    OUT_VIDEO_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
 					      (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
-	}
+
 #endif
 	if (pPriv->bicubic_enabled) {
 		VTX_OUT_FILTER((float)dstX,                       (float)dstY,

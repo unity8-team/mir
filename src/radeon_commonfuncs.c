@@ -219,7 +219,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 	/* pre-load the vertex shaders */
 	if (info->has_tcl) {
-	    /* exa mask shader program */
+	    /* exa mask/Xv bicubic shader program */
 	    BEGIN_ACCEL(13);
 	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, 0);
 	    /* PVS inst 0 */
@@ -499,14 +499,14 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	if (IS_R300_3D) {
 	    BEGIN_ACCEL(2);
 	    /* tex inst for src texture */
-	    OUT_ACCEL_REG(R300_US_TEX_INST_0,
+	    OUT_ACCEL_REG(R300_US_TEX_INST(0),
 			  (R300_TEX_SRC_ADDR(0) |
 			   R300_TEX_DST_ADDR(0) |
 			   R300_TEX_ID(0) |
 			   R300_TEX_INST(R300_TEX_INST_LD)));
 
 	    /* tex inst for mask texture */
-	    OUT_ACCEL_REG(R300_US_TEX_INST_1,
+	    OUT_ACCEL_REG(R300_US_TEX_INST(1),
 			  (R300_TEX_SRC_ADDR(1) |
 			   R300_TEX_DST_ADDR(1) |
 			   R300_TEX_ID(1) |
@@ -515,9 +515,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	}
 
 	if (IS_R300_3D) {
-	    BEGIN_ACCEL(9);
+	    BEGIN_ACCEL(8);
 	    OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
 			  (R300_ALU_START(0) |
 			   R300_ALU_SIZE(0) |
@@ -534,9 +533,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(0)));
 	} else {
-	    BEGIN_ACCEL(7);
+	    BEGIN_ACCEL(6);
 	    OUT_ACCEL_REG(R300_US_CONFIG, R500_ZERO_TIMES_ANYTHING_EQUALS_ZERO);
-	    OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	    OUT_ACCEL_REG(R500_US_FC_CTRL, 0);
 	}
 	OUT_ACCEL_REG(R300_US_W_FMT, 0);

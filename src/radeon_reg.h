@@ -4258,7 +4258,7 @@
 #define R300_PVS_SRC_ADDR_SEL(x)                        (x << 29)
 #define R300_PVS_SRC_ADDR_MODE_1                        (1 << 31)
 
-#define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22DC
+#define R300_VAP_PVS_FLOW_CNTL_OPC		        0x22dc
 #define R300_VAP_OUT_VTX_FMT_0			        0x2090
 #       define R300_VTX_POS_PRESENT                     (1 << 0)
 #       define R300_VTX_COLOR_0_PRESENT                 (1 << 1)
@@ -4806,10 +4806,11 @@
 
 /* R500 US has to be loaded through an index/data pair */
 #define R500_GA_US_VECTOR_INDEX				0x4250
-#   define R500_US_VECTOR_INDEX(x)			(x << 0)
 #   define R500_US_VECTOR_TYPE_INST			(0 << 16)
 #   define R500_US_VECTOR_TYPE_CONST			(1 << 16)
 #   define R500_US_VECTOR_CLAMP				(1 << 17)
+#   define R500_US_VECTOR_INST_INDEX(x)			((x) | R500_US_VECTOR_TYPE_INST)
+#   define R500_US_VECTOR_CONST_INDEX(x)		((x) | R500_US_VECTOR_TYPE_CONST)
 #define R500_GA_US_VECTOR_DATA				0x4254
 
 /*

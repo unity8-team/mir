@@ -342,7 +342,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
-    {XvSettable | XvGettable, -1, 1, "XV_BICUBIC"},
+    {XvSettable | XvGettable, 0, 1, "XV_BICUBIC"},
     {0, 0, 0, NULL}
 };
 
@@ -389,9 +389,7 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	/* -1 -> set default */
-	pPriv->bicubic_enabled = (value == -1) ?
-	    (info->ChipFamily >= CHIP_FAMILY_RV515) : value;
+	pPriv->bicubic_enabled = ClipValue (value, 0, 1);
     else
 	return BadMatch;
 
@@ -431,8 +429,13 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    adapt->nAttributes = NUM_ATTRIBUTES;
-    adapt->pAttributes = Attributes;
+    if (IS_R500_3D) {
+	adapt->nAttributes = NUM_ATTRIBUTES;
+	adapt->pAttributes = Attributes;
+    } else {
+	adapt->nAttributes = 0;
+	adapt->pAttributes = NULL;
+    }
     adapt->pImages = Images;
     adapt->nImages = NUM_IMAGES;
     adapt->PutVideo = NULL;

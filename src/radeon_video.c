@@ -89,10 +89,6 @@ static void RADEON_MSP_SetEncoding(RADEONPortPrivPtr pPriv);
 static void RADEON_TDA9885_SetEncoding(RADEONPortPrivPtr pPriv);
 static void RADEON_FI1236_SetEncoding(RADEONPortPrivPtr pPriv);
 
-
-
-#define ClipValue(v,min,max) ((v) < (min) ? (min) : (v) > (max) ? (max) : (v))
-
 static Atom xvBrightness, xvColorKey, xvSaturation, xvDoubleBuffer;
 static Atom xvRedIntensity, xvGreenIntensity, xvBlueIntensity;
 static Atom xvContrast, xvHue, xvColor, xvAutopaintColorkey, xvSetDefaults;
