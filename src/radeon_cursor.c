@@ -335,21 +335,23 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
     height      = ((size_bytes * xf86_config->num_crtc) + width_bytes - 1) / width_bytes;
     int align = IS_AVIVO_VARIANT ? 4096 : 256;
 
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-	xf86CrtcPtr crtc = xf86_config->crtc[c];
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    if (!info->useEXA) {
+	for (c = 0; c < xf86_config->num_crtc; c++) {
+	    xf86CrtcPtr crtc = xf86_config->crtc[c];
+	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
-	radeon_crtc->cursor_offset =
-	    radeon_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
+	    radeon_crtc->cursor_offset =
+		radeon_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
 
-	if (radeon_crtc->cursor_offset == 0)
-	    return FALSE;
+	    if (radeon_crtc->cursor_offset == 0)
+		return FALSE;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Will use %d kb for hardware cursor %d at offset 0x%08x\n",
-		   (size_bytes * xf86_config->num_crtc) / 1024,
-		   c,
-		   (unsigned int)radeon_crtc->cursor_offset);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "Will use %d kb for hardware cursor %d at offset 0x%08x\n",
+		       (size_bytes * xf86_config->num_crtc) / 1024,
+		       c,
+		       (unsigned int)radeon_crtc->cursor_offset);
+	}
     }
 
     return xf86_cursors_init (pScreen, CURSOR_WIDTH, CURSOR_HEIGHT,
