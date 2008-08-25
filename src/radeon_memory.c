@@ -6,7 +6,6 @@
 /* Driver data structures */
 #include "radeon.h"
 
-
 /* Allocates memory, either by resizing the allocation pointed to by mem_struct,
  * or by freeing mem_struct (if non-NULL) and allocating a new space.  The size
  * is measured in bytes, and the offset from the beginning of card space is
@@ -20,9 +19,10 @@ radeon_allocate_memory(ScrnInfoPtr pScrn,
 {
     ScreenPtr pScreen;
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    int offset = 0;
+    uint32_t offset = 0;
 
     pScreen = screenInfo.screens[pScrn->scrnIndex];
+
 #ifdef USE_EXA
     if (info->useEXA) {
 	ExaOffscreenArea *area = *mem_struct;

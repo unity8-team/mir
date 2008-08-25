@@ -184,6 +184,7 @@ typedef struct
 
 typedef struct _RADEONCrtcPrivateRec {
     void *crtc_rotate_mem;
+    void *cursor_mem;
     int crtc_id;
     int binding;
     uint32_t cursor_offset;
