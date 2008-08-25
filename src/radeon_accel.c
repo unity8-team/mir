@@ -130,9 +130,9 @@ void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
 
     for (;;) {
 	for (i = 0; i < RADEON_TIMEOUT; i++) {
-	    info->fifo_slots =
+	    info->accel_state->fifo_slots =
 		INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK;
-	    if (info->fifo_slots >= entries) return;
+	    if (info->accel_state->fifo_slots >= entries) return;
 	}
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "FIFO timed out: %u entries, stat=0x%08x\n",
@@ -324,8 +324,8 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
      * in the wrong place (happened).
      */
     RADEONWaitForFifo(pScrn, 2);
-    OUTREG(RADEON_DST_PITCH_OFFSET, info->dst_pitch_offset);
-    OUTREG(RADEON_SRC_PITCH_OFFSET, info->dst_pitch_offset);
+    OUTREG(RADEON_DST_PITCH_OFFSET, info->accel_state->dst_pitch_offset);
+    OUTREG(RADEON_SRC_PITCH_OFFSET, info->accel_state->dst_pitch_offset);
 
     RADEONWaitForFifo(pScrn, 1);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
@@ -343,7 +343,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
     OUTREG(RADEON_DEFAULT_SC_BOTTOM_RIGHT, (RADEON_DEFAULT_SC_RIGHT_MAX
 					    | RADEON_DEFAULT_SC_BOTTOM_MAX));
     RADEONWaitForFifo(pScrn, 1);
-    OUTREG(RADEON_DP_GUI_MASTER_CNTL, (info->dp_gui_master_cntl
+    OUTREG(RADEON_DP_GUI_MASTER_CNTL, (info->accel_state->dp_gui_master_cntl
 				       | RADEON_GMC_BRUSH_SOLID_COLOR
 				       | RADEON_GMC_SRC_DATATYPE_COLOR));
 
@@ -356,7 +356,7 @@ void RADEONEngineRestore(ScrnInfoPtr pScrn)
 
     RADEONWaitForIdleMMIO(pScrn);
 
-    info->XInited3D = FALSE;
+    info->accel_state->XInited3D = FALSE;
 }
 
 /* Initialize the acceleration hardware */
@@ -384,9 +384,9 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to determine num pipes from DRM, falling back to "
 		       "manual look-up!\n");
-	    info->num_gb_pipes = 0;
+	    info->accel_state->num_gb_pipes = 0;
 	} else {
-	    info->num_gb_pipes = num_pipes;
+	    info->accel_state->num_gb_pipes = num_pipes;
 	}
     }
 #endif
@@ -399,34 +399,34 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||
 	(info->ChipFamily == CHIP_FAMILY_RS480) ||
 	IS_R500_3D) {
-	if (info->num_gb_pipes == 0) {
+	if (info->accel_state->num_gb_pipes == 0) {
 	    uint32_t gb_pipe_sel = INREG(R400_GB_PIPE_SELECT);
 
-	    info->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+	    info->accel_state->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
 	    if (IS_R500_3D)
 		OUTPLL(pScrn, R500_DYN_SCLK_PWMEM_PIPE, (1 | ((gb_pipe_sel >> 8) & 0xf) << 4));
 	}
     } else {
-	if (info->num_gb_pipes == 0) {
+	if (info->accel_state->num_gb_pipes == 0) {
 	    if ((info->ChipFamily == CHIP_FAMILY_R300) ||
 		(info->ChipFamily == CHIP_FAMILY_R350)) {
 		/* R3xx chips */
-		info->num_gb_pipes = 2;
+		info->accel_state->num_gb_pipes = 2;
 	    } else {
 		/* RV3xx chips */
-		info->num_gb_pipes = 1;
+		info->accel_state->num_gb_pipes = 1;
 	    }
 	}
     }
 
     if (IS_R300_3D || IS_R500_3D)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "num pipes is %d\n", info->num_gb_pipes);
+		   "num quad-pipes is %d\n", info->accel_state->num_gb_pipes);
 
     if (IS_R300_3D || IS_R500_3D) {
 	uint32_t gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
 
-	switch(info->num_gb_pipes) {
+	switch(info->accel_state->num_gb_pipes) {
 	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
 	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
 	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
@@ -446,11 +446,11 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONEngineReset(pScrn);
 
     switch (info->CurrentLayout.pixel_code) {
-    case 8:  info->datatype = 2; break;
-    case 15: info->datatype = 3; break;
-    case 16: info->datatype = 4; break;
-    case 24: info->datatype = 5; break;
-    case 32: info->datatype = 6; break;
+    case 8:  info->accel_state->datatype = 2; break;
+    case 15: info->accel_state->datatype = 3; break;
+    case 16: info->accel_state->datatype = 4; break;
+    case 24: info->accel_state->datatype = 5; break;
+    case 32: info->accel_state->datatype = 6; break;
     default:
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "Unknown depth/bpp = %d/%d (code = %d)\n",
@@ -458,14 +458,14 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 		       info->CurrentLayout.bitsPerPixel,
 		       info->CurrentLayout.pixel_code);
     }
-    info->pitch = ((info->CurrentLayout.displayWidth / 8) *
-		   (info->CurrentLayout.pixel_bytes == 3 ? 3 : 1));
+    info->accel_state->pitch = ((info->CurrentLayout.displayWidth / 8) *
+				(info->CurrentLayout.pixel_bytes == 3 ? 3 : 1));
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Pitch for acceleration = %d\n", info->pitch);
+		   "Pitch for acceleration = %d\n", info->accel_state->pitch);
 
-    info->dp_gui_master_cntl =
-	((info->datatype << RADEON_GMC_DST_DATATYPE_SHIFT)
+    info->accel_state->dp_gui_master_cntl =
+	((info->accel_state->datatype << RADEON_GMC_DST_DATATYPE_SHIFT)
 	 | RADEON_GMC_CLR_CMP_CNTL_DIS
 	 | RADEON_GMC_DST_PITCH_OFFSET_CNTL);
 
@@ -947,7 +947,7 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     if (!info->useEXA) {
 	XAAInfoRecPtr  a;
 
-	if (!(a = info->accel = XAACreateInfoRec())) {
+	if (!(a = info->accel_state->accel = XAACreateInfoRec())) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAACreateInfoRec Error\n");
 	    return FALSE;
 	}
@@ -985,7 +985,7 @@ void RADEONInit3DEngine(ScrnInfoPtr pScrn)
 #endif
 	RADEONInit3DEngineMMIO(pScrn);
 
-    info->XInited3D = TRUE;
+    info->accel_state->XInited3D = TRUE;
 }
 
 #ifdef USE_XAA

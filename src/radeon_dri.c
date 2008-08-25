@@ -363,7 +363,7 @@ static void RADEONEnterServer(ScreenPtr pScreen)
 
     pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
     if (pSAREAPriv->ctxOwner != DRIGetContext(pScrn->pScreen)) {
-	info->XInited3D = FALSE;
+	info->accel_state->XInited3D = FALSE;
 	info->cp->needCacheFlush = (info->ChipFamily >= CHIP_FAMILY_R300);
     }
 
@@ -417,7 +417,7 @@ static void RADEONLeaveServer(ScreenPtr pScreen)
     RADEONCP_RELEASE(pScrn, info);
 
 #ifdef USE_EXA
-    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
+    info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 #endif
 }
 
@@ -641,12 +641,12 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
     }
 
     /* pretty much a hack. */
-    info->dst_pitch_offset = info->backPitchOffset;
+    info->accel_state->dst_pitch_offset = info->backPitchOffset;
     if (info->tilingEnabled)
-       info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
+       info->accel_state->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
 
-    (*info->accel->SetupForScreenToScreenCopy)(pScrn, xdir, ydir, GXcopy,
-					       (uint32_t)(-1), -1);
+    (*info->accel_state->accel->SetupForScreenToScreenCopy)(pScrn, xdir, ydir, GXcopy,
+							    (uint32_t)(-1), -1);
 
     for (; nbox-- ; pbox++) {
 	int  xa    = pbox->x1;
@@ -664,10 +664,10 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	if (w <= 0) continue;
 	if (h <= 0) continue;
 
-	(*info->accel->SubsequentScreenToScreenCopy)(pScrn,
-						     xa, ya,
-						     destx, desty,
-						     w, h);
+	(*info->accel_state->accel->SubsequentScreenToScreenCopy)(pScrn,
+								  xa, ya,
+								  destx, desty,
+								  w, h);
 
 	if (info->depthMoves) {
 	    RADEONScreenToScreenCopyDepth(pScrn,
@@ -677,14 +677,14 @@ static void RADEONDRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 	}
     }
 
-    info->dst_pitch_offset = info->frontPitchOffset;;
+    info->accel_state->dst_pitch_offset = info->frontPitchOffset;;
 
     xfree(pptNew2);
     xfree(pboxNew2);
     xfree(pptNew1);
     xfree(pboxNew1);
 
-    info->accel->NeedToSync = TRUE;
+    info->accel_state->accel->NeedToSync = TRUE;
 #endif /* USE_XAA */
 }
 
@@ -1239,7 +1239,7 @@ static void RADEONDRICPInit(ScrnInfoPtr pScrn)
     RADEONCP_START(pScrn, info);
 #ifdef USE_XAA
     if (!info->useEXA)
-	info->dst_pitch_offset = info->frontPitchOffset;
+	info->accel_state->dst_pitch_offset = info->frontPitchOffset;
 #endif
 }
 
@@ -1926,7 +1926,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 	RADEONGetPixmapOffsetPitch(pPix, &src_pitch_offset);
 	dst_pitch_offset = src_pitch_offset + (info->backOffset >> 10);
 	RADEONGetDatatypeBpp(pScrn->bitsPerPixel, &datatype);
-	info->xdir = info->ydir = 1;
+	info->accel_state->xdir = info->accel_state->ydir = 1;
 
 	RADEONDoPrepareCopyCP(pScrn, src_pitch_offset, dst_pitch_offset, datatype,
 			      GXcopy, ~0);
@@ -1936,13 +1936,14 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 #ifdef USE_XAA
     if (!info->useEXA) {
 	/* Make sure accel has been properly inited */
-	if (info->accel == NULL || info->accel->SetupForScreenToScreenCopy == NULL)
+	if (info->accel_state->accel == NULL ||
+	    info->accel_state->accel->SetupForScreenToScreenCopy == NULL)
 	    goto out;
 	if (info->tilingEnabled)
-	    info->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
-	(*info->accel->SetupForScreenToScreenCopy)(pScrn,
-						   1, 1, GXcopy,
-						   (uint32_t)(-1), -1);
+	    info->accel_state->dst_pitch_offset |= RADEON_DST_TILE_MACRO;
+	(*info->accel_state->accel->SetupForScreenToScreenCopy)(pScrn,
+								1, 1, GXcopy,
+								(uint32_t)(-1), -1);
     }
 #endif
 
@@ -1959,18 +1960,18 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
 
 #ifdef USE_XAA
 	    if (!info->useEXA) {
-		(*info->accel->SubsequentScreenToScreenCopy)(pScrn, xa, ya,
-							     xa + info->backX,
-							     ya + info->backY,
-							     xb - xa + 1,
-							     yb - ya + 1);
+		(*info->accel_state->accel->SubsequentScreenToScreenCopy)(pScrn, xa, ya,
+									  xa + info->backX,
+									  ya + info->backY,
+									  xb - xa + 1,
+									  yb - ya + 1);
 	    }
 #endif
 	}
     }
 
 #ifdef USE_XAA
-    info->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
+    info->accel_state->dst_pitch_offset &= ~RADEON_DST_TILE_MACRO;
 #endif
 
 out:

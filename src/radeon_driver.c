@@ -1174,7 +1174,6 @@ static Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
 
     xf86PrintDepthBpp(pScrn);
 
-    info->fifo_slots                 = 0;
     info->pix24bpp                   = xf86GetBppFromDepth(pScrn,
 							   pScrn->depth);
     info->CurrentLayout.bitsPerPixel = pScrn->bitsPerPixel;
@@ -1907,20 +1906,6 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
             return FALSE;
     }
 
-
-    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
-	(info->ChipFamily == CHIP_FAMILY_RS200) ||
-	(info->ChipFamily == CHIP_FAMILY_RS300) ||
-	(info->ChipFamily == CHIP_FAMILY_RS400) ||
-	(info->ChipFamily == CHIP_FAMILY_RS480) ||
-	(info->ChipFamily == CHIP_FAMILY_RS600) ||
-	(info->ChipFamily == CHIP_FAMILY_RS690) ||
-	(info->ChipFamily == CHIP_FAMILY_RS740))
-	info->has_tcl = FALSE;
-    else {
-	info->has_tcl = TRUE;
-    }
-
     return TRUE;
 }
 
@@ -1973,6 +1958,25 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 #if defined(USE_EXA) && defined(USE_XAA)
     char *optstr;
 #endif
+
+    if (!(info->accel_state = xcalloc(1, sizeof(struct radeon_accel_state)))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Unable to allocate accel_state rec!\n");
+	return FALSE;
+    }
+    info->accel_state->fifo_slots                 = 0;
+
+    if ((info->ChipFamily == CHIP_FAMILY_RS100) ||
+	(info->ChipFamily == CHIP_FAMILY_RS200) ||
+	(info->ChipFamily == CHIP_FAMILY_RS300) ||
+	(info->ChipFamily == CHIP_FAMILY_RS400) ||
+	(info->ChipFamily == CHIP_FAMILY_RS480) ||
+	(info->ChipFamily == CHIP_FAMILY_RS600) ||
+	(info->ChipFamily == CHIP_FAMILY_RS690) ||
+	(info->ChipFamily == CHIP_FAMILY_RS740))
+	info->accel_state->has_tcl = FALSE;
+    else {
+	info->accel_state->has_tcl = TRUE;
+    }
 
     info->useEXA = FALSE;
 
@@ -3097,12 +3101,12 @@ static void RADEONBlockHandler(int i, pointer blockData,
 	(*info->VideoTimerCallback)(pScrn, currentTime.milliseconds);
 
 #if defined(RENDER) && defined(USE_XAA)
-    if(info->RenderCallback)
-	(*info->RenderCallback)(pScrn);
+    if(info->accel_state->RenderCallback)
+	(*info->accel_state->RenderCallback)(pScrn);
 #endif
 
 #ifdef USE_EXA
-    info->engineMode = EXA_ENGINEMODE_UNKNOWN;
+    info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 #endif
 }
 
@@ -3195,7 +3199,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     info->accelOn      = FALSE;
 #ifdef USE_XAA
-    info->accel        = NULL;
+    info->accel_state->accel        = NULL;
 #endif
 #ifdef XF86DRI
     pScrn->fbOffset    = info->frontOffset;
@@ -3397,8 +3401,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	return FALSE;
 #endif
 
-    info->dst_pitch_offset = (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
-			       << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
+    info->accel_state->dst_pitch_offset =
+	(((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
+	  << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
 
     /* Setup DRI after visuals have been established, but before fbScreenInit is
      * called.  fbScreenInit will eventually call the driver's InitGLXVisuals
@@ -3930,7 +3935,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	else
 	    info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
 
-	info->dst_pitch_offset =
+	info->accel_state->dst_pitch_offset =
 	    (((pScrn->displayWidth * info->CurrentLayout.pixel_bytes / 64)
 	      << 22) | ((info->fbLocation + pScrn->fbOffset) >> 10));
 	RADEONInitMemMapRegisters(pScrn, save, info);
@@ -5578,9 +5583,9 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 #endif
 
 #ifdef USE_XAA
-    if(!info->useEXA && info->RenderTex) {
-        xf86FreeOffscreenLinear(info->RenderTex);
-        info->RenderTex = NULL;
+    if(!info->useEXA && info->accel_state->RenderTex) {
+        xf86FreeOffscreenLinear(info->accel_state->RenderTex);
+        info->accel_state->RenderTex = NULL;
     }
 #endif /* USE_XAA */
 
@@ -5591,21 +5596,21 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Disposing accel...\n");
 #ifdef USE_EXA
-    if (info->exa) {
+    if (info->accel_state->exa) {
 	exaDriverFini(pScreen);
-	xfree(info->exa);
-	info->exa = NULL;
+	xfree(info->accel_state->exa);
+	info->accel_state->exa = NULL;
     }
 #endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA) {
-	if (info->accel)
-		XAADestroyInfoRec(info->accel);
-	info->accel = NULL;
+	if (info->accel_state->accel)
+		XAADestroyInfoRec(info->accel_state->accel);
+	info->accel_state->accel = NULL;
 
-	if (info->scratch_save)
-	    xfree(info->scratch_save);
-	info->scratch_save = NULL;
+	if (info->accel_state->scratch_save)
+	    xfree(info->accel_state->scratch_save);
+	info->accel_state->scratch_save = NULL;
     }
 #endif /* USE_XAA */
 

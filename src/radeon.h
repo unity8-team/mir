@@ -435,6 +435,87 @@ struct radeon_cp {
     };
 #endif
 
+struct radeon_accel_state {
+    /* common accel data */
+    int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
+				/* Computed values for Radeon */
+    int               pitch;
+    int               datatype;
+    uint32_t          dp_gui_master_cntl;
+    uint32_t          dp_gui_master_cntl_clip;
+    uint32_t          trans_color;
+				/* Saved values for ScreenToScreenCopy */
+    int               xdir;
+    int               ydir;
+    uint32_t          dst_pitch_offset;
+
+    /* render accel */
+    unsigned short    texW[2];
+    unsigned short    texH[2];
+    Bool              XInited3D; /* X itself has the 3D context */
+    int               num_gb_pipes;
+    Bool              has_tcl;
+
+#ifdef USE_EXA
+    /* EXA */
+    ExaDriverPtr      exa;
+    int               exaSyncMarker;
+    int               exaMarkerSynced;
+    int               engineMode;
+#define EXA_ENGINEMODE_UNKNOWN 0
+#define EXA_ENGINEMODE_2D      1
+#define EXA_ENGINEMODE_3D      2
+#endif
+
+#ifdef USE_XAA
+    /* XAA */
+    XAAInfoRecPtr     accel;
+				/* ScanlineScreenToScreenColorExpand support */
+    unsigned char     *scratch_buffer[1];
+    unsigned char     *scratch_save;
+    int               scanline_x;
+    int               scanline_y;
+    int               scanline_w;
+    int               scanline_h;
+    int               scanline_h_w;
+    int               scanline_words;
+    int               scanline_direct;
+    int               scanline_bpp;     /* Only used for ImageWrite */
+    int               scanline_fg;
+    int               scanline_bg;
+    int               scanline_hpass;
+    int               scanline_x1clip;
+    int               scanline_x2clip;
+				/* Saved values for DashedTwoPointLine */
+    int               dashLen;
+    uint32_t          dashPattern;
+    int               dash_fg;
+    int               dash_bg;
+
+    FBLinearPtr       RenderTex;
+    void              (*RenderCallback)(ScrnInfoPtr);
+    Time              RenderTimeout;
+    /*
+     * XAAForceTransBlit is used to change the behavior of the XAA
+     * SetupForScreenToScreenCopy function, to make it DGA-friendly.
+     */
+    Bool              XAAForceTransBlit;
+#endif
+#ifdef XF86DRI
+				/* Saved scissor values */
+    uint32_t          sc_left;
+    uint32_t          sc_right;
+    uint32_t          sc_top;
+    uint32_t          sc_bottom;
+
+    uint32_t          re_top_left;
+    uint32_t          re_width_height;
+
+    uint32_t          aux_sc_cntl;
+#endif
+
+};
+
 typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
@@ -501,20 +582,12 @@ typedef struct {
 
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 
+    struct radeon_accel_state *accel_state;
+
 #ifdef USE_EXA
-    ExaDriverPtr      exa;
-    int               exaSyncMarker;
-    int               exaMarkerSynced;
-    int               engineMode;
-#define EXA_ENGINEMODE_UNKNOWN 0
-#define EXA_ENGINEMODE_2D      1
-#define EXA_ENGINEMODE_3D      2
 #ifdef XF86DRI
     Bool              accelDFS;
 #endif
-#endif
-#ifdef USE_XAA
-    XAAInfoRecPtr     accel;
 #endif
     Bool              accelOn;
     xf86CursorInfoPtr cursor;
@@ -526,52 +599,8 @@ typedef struct {
     int               cursor_fg;
     int               cursor_bg;
 
-#ifdef USE_XAA
-    /*
-     * XAAForceTransBlit is used to change the behavior of the XAA
-     * SetupForScreenToScreenCopy function, to make it DGA-friendly.
-     */
-    Bool              XAAForceTransBlit;
-#endif
-
-    int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
     Bool              dac6bits;         /* Use 6 bit DAC?                    */
-
-				/* Computed values for Radeon */
-    int               pitch;
-    int               datatype;
-    uint32_t          dp_gui_master_cntl;
-    uint32_t          dp_gui_master_cntl_clip;
-    uint32_t          trans_color;
-
-				/* Saved values for ScreenToScreenCopy */
-    int               xdir;
-    int               ydir;
-
-#ifdef USE_XAA
-				/* ScanlineScreenToScreenColorExpand support */
-    unsigned char     *scratch_buffer[1];
-    unsigned char     *scratch_save;
-    int               scanline_x;
-    int               scanline_y;
-    int               scanline_w;
-    int               scanline_h;
-    int               scanline_h_w;
-    int               scanline_words;
-    int               scanline_direct;
-    int               scanline_bpp;     /* Only used for ImageWrite */
-    int               scanline_fg;
-    int               scanline_bg;
-    int               scanline_hpass;
-    int               scanline_x1clip;
-    int               scanline_x2clip;
-#endif
-				/* Saved values for DashedTwoPointLine */
-    int               dashLen;
-    uint32_t          dashPattern;
-    int               dash_fg;
-    int               dash_bg;
 
     DGAModePtr        DGAModes;
     int               numDGAModes;
@@ -580,7 +609,7 @@ typedef struct {
     DGAFunctionRec    DGAFuncs;
 
     RADEONFBLayout    CurrentLayout;
-    uint32_t          dst_pitch_offset;
+
 #ifdef XF86DRI
     Bool              noBackBuffer;	
     Bool              directRenderingEnabled;
@@ -728,13 +757,6 @@ typedef struct {
 
     /* Render */
     Bool              RenderAccel;
-    unsigned short    texW[2];
-    unsigned short    texH[2];
-#ifdef USE_XAA
-    FBLinearPtr       RenderTex;
-    void              (*RenderCallback)(ScrnInfoPtr);
-    Time              RenderTimeout;
-#endif
 
     /* general */
     Bool              showCache;
@@ -747,9 +769,6 @@ typedef struct {
 #ifdef USE_XAA
     XF86ModReqInfo    xaaReq;
 #endif
-
-    /* X itself has the 3D context */
-    Bool              XInited3D;
 
     DisplayModePtr currentMode, savedCurrentMode;
 
@@ -805,15 +824,13 @@ typedef struct {
     Bool              r600_shadow_fb;
     void *fb_shadow;
 
-    int num_gb_pipes;
-    Bool has_tcl;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
 do {									\
-    if (info->fifo_slots < entries)					\
+    if (info->accel_state->fifo_slots < entries)			\
 	RADEONWaitForFifoFunction(pScrn, entries);			\
-    info->fifo_slots -= entries;					\
+    info->accel_state->fifo_slots -= entries;				\
 } while (0)
 
 /* legacy_crtc.c */
@@ -1258,7 +1275,7 @@ static __inline__ void RADEON_MARK_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 #endif
 #ifdef USE_XAA
     if (!info->useEXA)
-	SET_SYNC_FLAG(info->accel);
+	SET_SYNC_FLAG(info->accel_state->accel);
 #endif
 }
 
@@ -1269,8 +1286,8 @@ static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 	exaWaitSync(pScrn->pScreen);
 #endif
 #ifdef USE_XAA
-    if (!info->useEXA && info->accel)
-	info->accel->Sync(pScrn);
+    if (!info->useEXA && info->accel_state->accel)
+	info->accel_state->accel->Sync(pScrn);
 #endif
 }
 

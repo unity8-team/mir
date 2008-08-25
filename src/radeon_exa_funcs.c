@@ -65,7 +65,7 @@ FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
 
     TRACE;
 
-    return ++info->exaSyncMarker;
+    return ++info->accel_state->exaSyncMarker;
 }
 
 static void
@@ -76,12 +76,12 @@ FUNC_NAME(RADEONSync)(ScreenPtr pScreen, int marker)
 
     TRACE;
 
-    if (info->exaMarkerSynced != marker) {
+    if (info->accel_state->exaMarkerSynced != marker) {
 	FUNC_NAME(RADEONWaitForIdle)(pScrn);
-	info->exaMarkerSynced = marker;
+	info->accel_state->exaMarkerSynced = marker;
     }
 
-    RADEONPTR(pScrn)->engineMode = EXA_ENGINEMODE_UNKNOWN;
+    RADEONPTR(pScrn)->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 }
 
 static Bool
@@ -172,8 +172,8 @@ FUNC_NAME(RADEONDoPrepareCopy)(ScrnInfoPtr pScrn, uint32_t src_pitch_offset,
 	RADEON_GMC_CLR_CMP_CNTL_DIS);
     OUT_ACCEL_REG(RADEON_DP_WRITE_MASK, planemask);
     OUT_ACCEL_REG(RADEON_DP_CNTL,
-	((info->xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
-	 (info->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
+	((info->accel_state->xdir >= 0 ? RADEON_DST_X_LEFT_TO_RIGHT : 0) |
+	 (info->accel_state->ydir >= 0 ? RADEON_DST_Y_TOP_TO_BOTTOM : 0)));
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     OUT_ACCEL_REG(RADEON_SRC_PITCH_OFFSET, src_pitch_offset);
     FINISH_ACCEL();
@@ -190,8 +190,8 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
 
     TRACE;
 
-    info->xdir = xdir;
-    info->ydir = ydir;
+    info->accel_state->xdir = xdir;
+    info->accel_state->ydir = ydir;
 
     if (pDst->drawable.bitsPerPixel == 24)
 	RADEON_FALLBACK(("24bpp unsupported"));
@@ -219,11 +219,11 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 
     TRACE;
 
-    if (info->xdir < 0) {
+    if (info->accel_state->xdir < 0) {
 	srcX += w - 1;
 	dstX += w - 1;
     }
-    if (info->ydir < 0) {
+    if (info->accel_state->ydir < 0) {
 	srcY += h - 1;
 	dstY += h - 1;
     }
@@ -476,7 +476,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	drmCommandWriteRead(info->drmFD, DRM_RADEON_INDIRECT,
 			    &indirect, sizeof(drmRadeonIndirect));
 
-	info->exaMarkerSynced = info->exaSyncMarker;
+	info->accel_state->exaMarkerSynced = info->accel_state->exaSyncMarker;
 
 	return TRUE;
     }
@@ -522,35 +522,35 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 {
     RINFO_FROM_SCREEN(pScreen);
 
-    if (info->exa == NULL) {
+    if (info->accel_state->exa == NULL) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map not set up\n");
 	return FALSE;
     }
 
-    info->exa->exa_major = EXA_VERSION_MAJOR;
-    info->exa->exa_minor = EXA_VERSION_MINOR;
+    info->accel_state->exa->exa_major = EXA_VERSION_MAJOR;
+    info->accel_state->exa->exa_minor = EXA_VERSION_MINOR;
 
-    info->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
-    info->exa->Solid = FUNC_NAME(RADEONSolid);
-    info->exa->DoneSolid = FUNC_NAME(RADEONDoneSolid);
+    info->accel_state->exa->PrepareSolid = FUNC_NAME(RADEONPrepareSolid);
+    info->accel_state->exa->Solid = FUNC_NAME(RADEONSolid);
+    info->accel_state->exa->DoneSolid = FUNC_NAME(RADEONDoneSolid);
 
-    info->exa->PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
-    info->exa->Copy = FUNC_NAME(RADEONCopy);
-    info->exa->DoneCopy = FUNC_NAME(RADEONDoneCopy);
+    info->accel_state->exa->PrepareCopy = FUNC_NAME(RADEONPrepareCopy);
+    info->accel_state->exa->Copy = FUNC_NAME(RADEONCopy);
+    info->accel_state->exa->DoneCopy = FUNC_NAME(RADEONDoneCopy);
 
-    info->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
-    info->exa->WaitMarker = FUNC_NAME(RADEONSync);
-    info->exa->UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
-    info->exa->DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);
+    info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
+    info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
+    info->accel_state->exa->UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
+    info->accel_state->exa->DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    info->exa->PrepareAccess = RADEONPrepareAccess;
-    info->exa->FinishAccess = RADEONFinishAccess;
+    info->accel_state->exa->PrepareAccess = RADEONPrepareAccess;
+    info->accel_state->exa->FinishAccess = RADEONFinishAccess;
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
-    info->exa->flags = EXA_OFFSCREEN_PIXMAPS;
-    info->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
-    info->exa->pixmapPitchAlign = 64;
+    info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
+    info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
+    info->accel_state->exa->pixmapPitchAlign = 64;
 
 #ifdef RENDER
     if (info->RenderAccel) {
@@ -565,11 +565,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R300/R400/R500 type cards.\n");
-		info->exa->CheckComposite = R300CheckComposite;
-		info->exa->PrepareComposite =
+		info->accel_state->exa->CheckComposite = R300CheckComposite;
+		info->accel_state->exa->PrepareComposite =
 		    FUNC_NAME(R300PrepareComposite);
-		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	    } else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA Composite requires CP on R5xx/IGP\n");
 	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) ||
@@ -578,19 +578,19 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		   (info->ChipFamily == CHIP_FAMILY_R200)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R200 type cards.\n");
-		info->exa->CheckComposite = R200CheckComposite;
-		info->exa->PrepareComposite =
+		info->accel_state->exa->CheckComposite = R200CheckComposite;
+		info->accel_state->exa->PrepareComposite =
 		    FUNC_NAME(R200PrepareComposite);
-		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R100 type cards.\n");
-		info->exa->CheckComposite = R100CheckComposite;
-		info->exa->PrepareComposite =
+		info->accel_state->exa->CheckComposite = R100CheckComposite;
+		info->accel_state->exa->PrepareComposite =
 		    FUNC_NAME(R100PrepareComposite);
-		info->exa->Composite = FUNC_NAME(RadeonComposite);
-		info->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
+		info->accel_state->exa->Composite = FUNC_NAME(RadeonComposite);
+		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	}
     }
 #endif
@@ -598,17 +598,17 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 #if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
 
-    info->exa->maxPitchBytes = 16320;
-    info->exa->maxX = 8192;
+    info->accel_state->exa->maxPitchBytes = 16320;
+    info->accel_state->exa->maxX = 8192;
 #else
-    info->exa->maxX = 16320 / 4;
+    info->accel_state->exa->maxX = 16320 / 4;
 #endif
-    info->exa->maxY = 8192;
+    info->accel_state->exa->maxY = 8192;
 
     RADEONEngineInit(pScrn);
 
-    if (!exaDriverInit(pScreen, info->exa)) {
-	xfree(info->exa);
+    if (!exaDriverInit(pScreen, info->accel_state->exa)) {
+	xfree(info->accel_state->exa);
 	return FALSE;
     }
     exaMarkSync(pScreen);

@@ -127,7 +127,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     dstyoff = 0;
 #endif
 
-    if (!info->XInited3D)
+    if (!info->accel_state->XInited3D)
 	RADEONInit3DEngine(pScrn);
 
     /* we can probably improve this */
@@ -189,8 +189,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		     (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
 		     R300_TXPITCH_EN);
 
-	info->texW[0] = pPriv->w;
-	info->texH[0] = pPriv->h;
+	info->accel_state->texW[0] = pPriv->w;
+	info->accel_state->texH[0] = pPriv->h;
 
 	txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
@@ -251,7 +251,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
 
 	/* setup the VAP */
-	if (info->has_tcl) {
+	if (info->accel_state->has_tcl) {
 	    if (pPriv->bicubic_enabled)
 		BEGIN_ACCEL(7);
 	    else
@@ -312,7 +312,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	 * - Xv
 	 * Here we select the offset of the vertex program we want to use
 	 */
-	if (info->has_tcl) {
+	if (info->accel_state->has_tcl) {
 	    if (pPriv->bicubic_enabled) {
 		OUT_ACCEL_REG(R300_VAP_PVS_CODE_CNTL_0,
 			      ((0 << R300_PVS_FIRST_INST_SHIFT) |
@@ -1044,8 +1044,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    (info->ChipFamily == CHIP_FAMILY_RS300) ||
 	    (info->ChipFamily == CHIP_FAMILY_R200)) {
 
-	    info->texW[0] = pPriv->w;
-	    info->texH[0] = pPriv->h;
+	    info->accel_state->texW[0] = pPriv->w;
+	    info->accel_state->texH[0] = pPriv->h;
 
 	    BEGIN_ACCEL(12);
 
@@ -1085,8 +1085,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    FINISH_ACCEL();
 	} else {
 
-	    info->texW[0] = 1;
-	    info->texH[0] = 1;
+	    info->accel_state->texW[0] = 1;
+	    info->accel_state->texH[0] = 1;
 
 	    BEGIN_ACCEL(8);
 
@@ -1199,28 +1199,28 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 #endif
 	if (pPriv->bicubic_enabled) {
 		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
+		xFixedToFloat(srcTopLeft.x) / info->accel_state->texW[0],      xFixedToFloat(srcTopLeft.y) / info->accel_state->texH[0],
 		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5);
 		VTX_OUT_FILTER((float)dstX,                       (float)(dstY + dsth),
-		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
+		xFixedToFloat(srcBottomLeft.x) / info->accel_state->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->accel_state->texH[0],
 		xFixedToFloat(srcBottomLeft.x) + 0.5,             xFixedToFloat(srcBottomLeft.y) + 0.5);
 		VTX_OUT_FILTER((float)(dstX + dstw),              (float)(dstY + dsth),
-		xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
+		xFixedToFloat(srcBottomRight.x) / info->accel_state->texW[0],  xFixedToFloat(srcBottomRight.y) / info->accel_state->texH[0],
 		xFixedToFloat(srcBottomRight.x) + 0.5,            xFixedToFloat(srcBottomRight.y) + 0.5);
 		VTX_OUT_FILTER((float)(dstX + dstw),              (float)dstY,
-		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
+		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0],
 		xFixedToFloat(srcTopRight.x) + 0.5,               xFixedToFloat(srcTopRight.y) + 0.5);
 	} else {
 		if (info->ChipFamily >= CHIP_FAMILY_R200) {
 			VTX_OUT((float)dstX,                              (float)dstY,
-			xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
+			xFixedToFloat(srcTopLeft.x) / info->accel_state->texW[0],      xFixedToFloat(srcTopLeft.y) / info->accel_state->texH[0]);
 		}
 		VTX_OUT((float)dstX,                              (float)(dstY + dsth),
-		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
+		xFixedToFloat(srcBottomLeft.x) / info->accel_state->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->accel_state->texH[0]);
 		VTX_OUT((float)(dstX + dstw),                     (float)(dstY + dsth),
-		xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0]);
+		xFixedToFloat(srcBottomRight.x) / info->accel_state->texW[0],  xFixedToFloat(srcBottomRight.y) / info->accel_state->texH[0]);
 		VTX_OUT((float)(dstX + dstw),                     (float)dstY,
-		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0]);
+		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0]);
 	}
 
 	if (IS_R300_3D || IS_R500_3D)

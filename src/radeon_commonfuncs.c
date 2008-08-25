@@ -58,7 +58,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
     uint32_t gb_tile_config, su_reg_dest, vap_cntl;
     ACCEL_PREAMBLE();
 
-    info->texW[0] = info->texH[0] = info->texW[1] = info->texH[1] = 1;
+    info->accel_state->texW[0] = info->accel_state->texH[0] =
+	info->accel_state->texW[1] = info->accel_state->texH[1] = 1;
 
     if (IS_R300_3D || IS_R500_3D) {
 
@@ -70,7 +71,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16 | R300_SUBPIXEL_1_16);
 
-	switch(info->num_gb_pipes) {
+	switch(info->accel_state->num_gb_pipes) {
 	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
 	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
 	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
@@ -87,7 +88,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
 
 	if (IS_R500_3D) {
-	    su_reg_dest = ((1 << info->num_gb_pipes) - 1);
+	    su_reg_dest = ((1 << info->accel_state->num_gb_pipes) - 1);
 	    BEGIN_ACCEL(2);
 	    OUT_ACCEL_REG(R500_SU_REG_DEST, su_reg_dest);
 	    OUT_ACCEL_REG(R500_VAP_INDEX_OFFSET, 0);
@@ -146,7 +147,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
 
 	/* setup the VAP */
-	if (info->has_tcl)
+	if (info->accel_state->has_tcl)
 	    vap_cntl = ((5 << R300_PVS_NUM_SLOTS_SHIFT) |
 			(5 << R300_PVS_NUM_CNTLRS_SHIFT) |
 			(9 << R300_VF_MAX_VTX_NUM_SHIFT));
@@ -170,14 +171,14 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	else
 	    vap_cntl |= (4 << R300_PVS_NUM_FPUS_SHIFT);
 
-	if (info->has_tcl)
+	if (info->accel_state->has_tcl)
 	    BEGIN_ACCEL(15);
 	else
 	    BEGIN_ACCEL(9);
 	OUT_ACCEL_REG(R300_VAP_VTX_STATE_CNTL, 0);
 	OUT_ACCEL_REG(R300_VAP_PVS_STATE_FLUSH_REG, 0);
 
-	if (info->has_tcl)
+	if (info->accel_state->has_tcl)
 	    OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, 0);
 	else
 	    OUT_ACCEL_REG(R300_VAP_CNTL_STATUS, R300_PVS_BYPASS);
@@ -207,7 +208,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 		       ((R300_WRITE_ENA_X | R300_WRITE_ENA_Y | R300_WRITE_ENA_Z | R300_WRITE_ENA_W)
 			<< R300_WRITE_ENA_2_SHIFT)));
 
-	if (info->has_tcl) {
+	if (info->accel_state->has_tcl) {
 	    OUT_ACCEL_REG(R300_VAP_PVS_FLOW_CNTL_OPC, 0);
 	    OUT_ACCEL_REG(R300_VAP_GB_VERT_CLIP_ADJ, 0x3f800000);
 	    OUT_ACCEL_REG(R300_VAP_GB_VERT_DISC_ADJ, 0x3f800000);
@@ -218,7 +219,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	FINISH_ACCEL();
 
 	/* pre-load the vertex shaders */
-	if (info->has_tcl) {
+	if (info->accel_state->has_tcl) {
 	    /* exa mask/Xv bicubic shader program */
 	    BEGIN_ACCEL(13);
 	    OUT_ACCEL_REG(R300_VAP_PVS_VECTOR_INDX_REG, 0);
