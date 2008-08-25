@@ -434,7 +434,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		 * Note: In order to avoid buggies with temps and multiple
 		 * inputs, all temps are offset by 2. temp0 -> register2. */
 
-		/* TEX temp0, input1.xxxx, tex1, 1D */
+		/* TEX temp2, input1.xxxx, tex1, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -456,7 +456,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* TEX temp1, input1.yyyy, tex1, 1D */
+		/* TEX temp5, input1.yyyy, tex1, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -480,7 +480,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* MUL temp2, const0, temp0.yyyy */
+		/* MUL temp4, const0.x0x0, temp2.yyxx */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -514,7 +514,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_0 |
 						   R500_ALU_RGBA_A_SWIZ_0));
 
-		/* MAD temp2, const1, temp1.xxxx, temp2 */
+		/* MAD temp3, const0.0y0y, temp5.xxxx, temp4 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -550,7 +550,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* ADD temp2, temp2, input0 */
+		/* ADD temp3, temp4, input0.xyxy */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -580,7 +580,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_R |
 						   R500_ALU_RGBA_A_SWIZ_G));
 
-		/* TEX temp3, temp3, tex0, 1D */
+		/* TEX temp1, temp3.zwxy, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -603,7 +603,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* TEX temp2, temp2, tex0, 1D */
+		/* TEX temp3, temp3.xyzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -628,7 +628,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* MAD temp4, const1, temp1.yyyy, temp2 */
+		/* MAD temp4, const1.0y0y, temp5.yyyy, temp4 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -664,7 +664,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* ADD temp4, temp4, input0 */
+		/* ADD temp4, temp4, input0.xyxy */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -694,7 +694,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_R |
 						   R500_ALU_RGBA_A_SWIZ_G));
 
-		/* TEX temp5, temp5, tex0, 1D */
+		/* TEX temp4, temp0.zwzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -718,7 +718,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* TEX temp4, temp4, tex0, 1D */
+		/* TEX temp0, temp0.xyzw, tex0, 1D */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -743,9 +743,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* LRP temp3, temp1.zzzz, temp3, temp5 ->
-		 * - PRESUB temps, temp3 - temp5
-		 * - MAD temp1.zzzz, temps, temp5 */
+		/* LRP temp3, temp2.zzzz, temp1, temp3 ->
+		 * - PRESUB temps, temp1 - temp3
+		 * - MAD temp2.zzzz, temps, temp3 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -781,9 +781,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* LRP temp2, temp1.zzzz, temp2, temp4 ->
-		 * - PRESUB temps, temp2 - temp4
-		 * - MAD temp1.zzzz, temps, temp4 */
+		/* LRP temp0, temp2.zzzz, temp4, temp0 ->
+		 * - PRESUB temps, temp4 - temp1
+		 * - MAD temp2.zzzz, temps, temp0 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_TEX_SEM_WAIT |
 						   R500_INST_RGB_WMASK_R |
@@ -820,9 +820,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* LRP output, temp0.zzzz, temp3, temp2 ->
-		 * - PRESUB temps, temp3 - temp2
-		 * - MAD temp0.zzzz, temps, temp2 */
+		/* LRP output, temp5.zzzz, temp3, temp0 ->
+		 * - PRESUB temps, temp3 - temp0
+		 * - MAD temp5.zzzz, temps, temp0 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
 						   R500_INST_LAST |
 						   R500_INST_TEX_SEM_WAIT |
