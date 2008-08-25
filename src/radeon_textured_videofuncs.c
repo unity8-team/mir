@@ -1491,9 +1491,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
 		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
 		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5);
-		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5);
 		VTX_OUT_FILTER((float)dstX,                       (float)(dstY + dsth),
 		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
 		xFixedToFloat(srcBottomLeft.x) + 0.5,             xFixedToFloat(srcBottomLeft.y) + 0.5);
@@ -1505,11 +1502,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		xFixedToFloat(srcTopRight.x) + 0.5,               xFixedToFloat(srcTopRight.y) + 0.5);
 	} else {
 		if (info->ChipFamily >= CHIP_FAMILY_R200) {
-			VTX_OUT((float)dstX,                              (float)(dstY + dsth),
+			VTX_OUT((float)dstX,                              (float)dstY,
 			xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
 		}
-		VTX_OUT((float)dstX,                              (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0]);
 		VTX_OUT((float)dstX,                              (float)(dstY + dsth),
 		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0]);
 		VTX_OUT((float)(dstX + dstw),                     (float)(dstY + dsth),
