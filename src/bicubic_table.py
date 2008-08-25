@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-def texgen():
+def texgen(pix):
 
  tex = []
 
- for i in range(0,512,4):
+ for i in range(0,pix,4):
 
-  a = i / 512.0
+  a = i / float(pix)
   a2 = a ** 2
   a3 = a ** 3
 
@@ -27,12 +27,17 @@ def printrow(l, offset):
  seq = [ str(i) for i in l[offset:offset+4] ]
  return "\t" + ", ".join(seq) + ","
 
-l = texgen()
+def maketable(pix):
 
-print "static const float bicubic_tex_128[] = {"
+ l = texgen(pix)
 
-for i in range(0, 512, 4):
+ print "static const float bicubic_tex_" + str(pix) + "[] = {"
 
- print printrow(l, i)
+ for i in range(0, pix, 4):
 
-print "\t0 };"
+  print printrow(l, i)
+
+ print "\t0 };\n"
+
+maketable(512)
+maketable(2048)

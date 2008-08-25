@@ -207,7 +207,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
 					&pPriv->bicubic_memory,
-					sizeof(bicubic_tex_128));
+					sizeof(bicubic_tex_512));
 	pPriv->bicubic_src_offset = pPriv->bicubic_offset + info->fbLocation + pScrn->fbOffset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;
@@ -283,7 +283,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* Upload bicubic filter tex */
     if (pPriv->bicubic_enabled)
-	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_128, (uint8_t *)(info->FB + pPriv->bicubic_offset), 2048, 2048, 1, 512, 4);
+	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, (uint8_t *)(info->FB + pPriv->bicubic_offset), 2048, 2048, 1, 512, 4);
 
     /* update cliplist */
     if (!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
