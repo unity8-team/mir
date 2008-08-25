@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import struct
+
 def texgen(pix):
 
  tex = []
@@ -24,14 +26,14 @@ def texgen(pix):
 
 def printrow(l, offset):
 
- seq = [ str(i) for i in l[offset:offset+4] ]
+ seq = [ hex(struct.unpack('<I',struct.pack('f',i))[0]) for i in l[offset:offset+4] ]
  return "\t" + ", ".join(seq) + ","
 
 def maketable(pix):
 
  l = texgen(pix)
 
- print "static const float bicubic_tex_" + str(pix) + "[] = {"
+ print "static const uint32_t bicubic_tex_" + str(pix) + "[] = {"
 
  for i in range(0, pix, 4):
 
