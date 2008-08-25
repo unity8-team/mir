@@ -29,10 +29,10 @@ def printrow(l, offset):
 
 l = texgen()
 
-print "const float[] bicubic_tex = {"
+print "static const float bicubic_tex_128[] = {"
 
 for i in range(0, 512, 4):
 
  print printrow(l, i)
 
-print "\tNULL }"
+print "\t0 };"
