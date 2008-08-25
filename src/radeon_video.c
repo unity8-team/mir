@@ -3261,6 +3261,10 @@ RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now)
 		    RADEONFreeMemory(pScrn, pPriv->video_memory);
 		    pPriv->video_memory = NULL;
 		}
+		if (pPriv->bicubic_memory != NULL) {
+		    RADEONFreeMemory(pScrn, pPriv->bicubic_memory);
+		    pPriv->bicubic_memory = NULL;
+		}
 		pPriv->videoStatus = 0;
 		info->VideoTimerCallback = NULL;
 	    }

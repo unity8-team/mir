@@ -221,13 +221,18 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			(0x0 << R300_TXHEIGHT_SHIFT) |
 			R300_TXPITCH_EN;
 		/* Format is 32-bit floats, 4bpp */
-		txformat1 = R300_TX_FORMAT_FL_R32G32B32A32;
+		txformat1 = R300_EASY_TX_FORMAT(Z, Y, X, W, FL_R32G32B32A32);
 		/* Pitch is 127 (128-1) */
 		txpitch = 0x7f;
+		/* Tex filter */
+		txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
+			R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP) |
+			R300_TX_MAG_FILTER_NEAREST |
+			R300_TX_MAG_FILTER_NEAREST |
+			(1 << R300_TX_ID_SHIFT);
 
 		BEGIN_VIDEO(6);
-		/* No filtering */
-		OUT_VIDEO_REG(R300_TX_FILTER0_1, 0);
+		OUT_VIDEO_REG(R300_TX_FILTER0_1, txfilter);
 		OUT_VIDEO_REG(R300_TX_FILTER1_1, 0);
 		OUT_VIDEO_REG(R300_TX_FORMAT0_1, txformat0);
 		OUT_VIDEO_REG(R300_TX_FORMAT1_1, txformat1);
@@ -397,18 +402,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			   R300_ALU_ALPHA_CLAMP));
 	    FINISH_VIDEO();
 	} else {
-	    /* These are the same whether or not bicubic is enabled! */
-	    BEGIN_VIDEO(4);
-	    OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
-						R500_US_CODE_END_ADDR(1)));
-	    OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
-						R500_US_CODE_RANGE_SIZE(1)));
-	    OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
-	    OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
-	    FINISH_VIDEO();
-
 	    if (pPriv->bicubic_enabled) {
-		BEGIN_VIDEO(3);
+		BEGIN_VIDEO(7);
 
 		/* 4 components: 2 for tex0 and 2 for tex1 */
 		OUT_VIDEO_REG(R300_RS_COUNT,
@@ -420,6 +415,16 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* Pixel stack frame size. */
 		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(15));
+
+		/* FP length. */
+		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
+							R500_US_CODE_END_ADDR(22)));
+		OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
+							R500_US_CODE_RANGE_SIZE(22)));
+
+		/* Prepare for FP emission. */
+		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
 		FINISH_VIDEO();
 
 		BEGIN_VIDEO(141);
@@ -1108,8 +1113,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 
 		FINISH_VIDEO();
+
 	    } else {
-		BEGIN_VIDEO(14);
+		BEGIN_VIDEO(19);
 		/* 2 components: 2 for tex0 */
 		OUT_VIDEO_REG(R300_RS_COUNT,
 				((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1117,6 +1123,19 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		/* R300_INST_COUNT_RS - highest RS instruction used */
 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+
+		/* Pixel stack frame size. */
+		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(2));
+
+		/* FP length. */
+		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
+							R500_US_CODE_END_ADDR(1)));
+		OUT_VIDEO_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
+							R500_US_CODE_RANGE_SIZE(1)));
+
+		/* Prepare for FP emission. */
+		OUT_VIDEO_REG(R500_US_CODE_OFFSET, 0);
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, 0);
 
 		/* tex inst */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
@@ -1426,19 +1445,19 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	if (pPriv->bicubic_enabled) {
 		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
 		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-		xFixedToFloat(srcTopLeft.x) / 128,                xFixedToFloat(srcTopLeft.y) / 1));
+		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5));
 		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
 		xFixedToFloat(srcTopLeft.x) / info->texW[0],      xFixedToFloat(srcTopLeft.y) / info->texH[0],
-		xFixedToFloat(srcTopLeft.x) / 128,                xFixedToFloat(srcTopLeft.y) / 1);
+		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5);
 		VTX_OUT_FILTER((float)dstX,                       (float)(dstY + dsth),
 		xFixedToFloat(srcBottomLeft.x) / info->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->texH[0],
-		xFixedToFloat(srcBottomLeft.x) / 128,             xFixedToFloat(srcBottomLeft.y) / 1);
+		xFixedToFloat(srcBottomLeft.x) + 0.5,             xFixedToFloat(srcBottomLeft.y) + 0.5);
 		VTX_OUT_FILTER((float)(dstX + dstw),              (float)(dstY + dsth),
 		xFixedToFloat(srcBottomRight.x) / info->texW[0],  xFixedToFloat(srcBottomRight.y) / info->texH[0],
-		xFixedToFloat(srcBottomRight.x) / 128,            xFixedToFloat(srcBottomRight.y) / 1);
+		xFixedToFloat(srcBottomRight.x) + 0.5,            xFixedToFloat(srcBottomRight.y) + 0.5);
 		VTX_OUT_FILTER((float)(dstX + dstw),              (float)dstY,
 		xFixedToFloat(srcTopRight.x) / info->texW[0],     xFixedToFloat(srcTopRight.y) / info->texH[0],
-		xFixedToFloat(srcTopRight.x) / 128,               xFixedToFloat(srcTopRight.y) / 1);
+		xFixedToFloat(srcTopRight.x) + 0.5,               xFixedToFloat(srcTopRight.y) + 0.5);
 	} else {
 		if (info->ChipFamily >= CHIP_FAMILY_R200)
 			VTX_OUT((float)dstX,                              (float)(dstY + dsth),

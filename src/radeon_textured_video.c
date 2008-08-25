@@ -280,7 +280,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* Upload bicubic filter tex */
     if (pPriv->bicubic_enabled)
-	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_128, (uint8_t *)(info->FB + pPriv->bicubic_offset), 128, 128, 1, 128, 4);
+	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_128, (uint8_t *)(info->FB + pPriv->bicubic_offset), 2048, 2048, 1, 512, 4);
 
     /* update cliplist */
     if (!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
