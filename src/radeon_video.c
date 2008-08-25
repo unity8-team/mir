@@ -1614,13 +1614,12 @@ RADEONSetupImageVideo(ScreenPtr pScreen)
 
     pPriv->textured = FALSE;
 
-    if(pPriv->theatre != NULL) 
-    {
+    if(pPriv->theatre != NULL) {
 	/* video decoder is present, extend capabilities */
        adapt->nEncodings = 13;
        adapt->pEncodings = InputVideoEncodings;
        adapt->type |= XvVideoMask;
-       adapt->nAttributes = NUM_DEC_ATTRIBUTES;    
+       adapt->nAttributes = NUM_DEC_ATTRIBUTES;
        adapt->PutVideo = RADEONPutVideo;
     }
 
@@ -1636,8 +1635,19 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
   unsigned char *RADEONMMIO = info->MMIO;
   RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
 
-    if (pPriv->textured)
-	return;
+  if (pPriv->textured) {
+      if (cleanup) {
+	  if (pPriv->bicubic_memory != NULL) {
+	      radeon_free_memory(pScrn, pPriv->bicubic_memory);
+	      pPriv->bicubic_memory = NULL;
+	  }
+	  if (pPriv->video_memory != NULL) {
+	      radeon_free_memory(pScrn, pPriv->video_memory);
+	      pPriv->video_memory = NULL;
+	  }
+      }
+      return;
+  }
 
   REGION_EMPTY(pScrn->pScreen, &pPriv->clip);
 
@@ -1659,10 +1669,6 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
      if (pPriv->video_memory != NULL) {
 	 radeon_free_memory(pScrn, pPriv->video_memory);
 	 pPriv->video_memory = NULL;
-     }
-     if (pPriv->bicubic_memory != NULL) {
-	 RADEONFreeMemory(pScrn, pPriv->bicubic_memory);
-	 pPriv->bicubic_memory = NULL;
      }
      pPriv->videoStatus = 0;
   } else {
@@ -3128,10 +3134,6 @@ RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now)
 		if (pPriv->video_memory != NULL) {
 		    radeon_free_memory(pScrn, pPriv->video_memory);
 		    pPriv->video_memory = NULL;
-		}
-		if (pPriv->bicubic_memory != NULL) {
-		    RADEONFreeMemory(pScrn, pPriv->bicubic_memory);
-		    pPriv->bicubic_memory = NULL;
 		}
 		pPriv->videoStatus = 0;
 		info->VideoTimerCallback = NULL;

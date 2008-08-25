@@ -213,9 +213,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (!IS_R500_3D)
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
-	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
-					&pPriv->bicubic_memory,
-					sizeof(bicubic_tex_512));
+	pPriv->bicubic_offset = radeon_allocate_memory(pScrn,
+						       &pPriv->bicubic_memory,
+						       sizeof(bicubic_tex_512), 64);
 	pPriv->bicubic_src_offset = pPriv->bicubic_offset + info->fbLocation + pScrn->fbOffset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;
