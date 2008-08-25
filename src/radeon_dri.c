@@ -364,7 +364,7 @@ static void RADEONEnterServer(ScreenPtr pScreen)
     pSAREAPriv = DRIGetSAREAPrivate(pScrn->pScreen);
     if (pSAREAPriv->ctxOwner != DRIGetContext(pScrn->pScreen)) {
 	info->XInited3D = FALSE;
-	info->needCacheFlush = (info->ChipFamily >= CHIP_FAMILY_R300);
+	info->cp->needCacheFlush = (info->ChipFamily >= CHIP_FAMILY_R300);
     }
 
 #ifdef DAMAGE
@@ -1106,7 +1106,7 @@ static int RADEONDRIKernelInit(RADEONInfoPtr info, ScreenPtr pScreen)
     drmInfo.cp_mode             = RADEON_CSQ_PRIBM_INDBM;
     drmInfo.gart_size           = info->gartSize*1024*1024;
     drmInfo.ring_size           = info->ringSize*1024*1024;
-    drmInfo.usec_timeout        = info->CPusecTimeout;
+    drmInfo.usec_timeout        = info->cp->CPusecTimeout;
 
     drmInfo.fb_bpp              = info->CurrentLayout.pixel_code;
     drmInfo.depth_bpp           = (info->depthBits - 8) * 2;
@@ -1897,7 +1897,7 @@ static void RADEONDRIRefreshArea(ScrnInfoPtr pScrn, RegionPtr pReg)
     RegionRec region;
     BoxPtr pbox;
 
-    if (!info->directRenderingInited || !info->CPStarted)
+    if (!info->directRenderingInited || !info->cp->CPStarted)
 	return;
 
     /* Don't want to do this when no 3d is active and pages are

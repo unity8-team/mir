@@ -624,8 +624,8 @@ drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn)
 void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
 {
     RADEONInfoPtr      info   = RADEONPTR(pScrn);
-    drmBufPtr          buffer = info->indirectBuffer;
-    int                start  = info->indirectStart;
+    drmBufPtr          buffer = info->cp->indirectBuffer;
+    int                start  = info->cp->indirectStart;
     drmRadeonIndirect  indirect;
 
     if (!buffer) return;
@@ -645,14 +645,14 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
 			&indirect, sizeof(drmRadeonIndirect));
 
     if (discard) {
-	info->indirectBuffer = RADEONCPGetBuffer(pScrn);
-	info->indirectStart  = 0;
+	info->cp->indirectBuffer = RADEONCPGetBuffer(pScrn);
+	info->cp->indirectStart  = 0;
     } else {
 	/* Start on a double word boundary */
-	info->indirectStart  = buffer->used = (buffer->used + 7) & ~7;
+	info->cp->indirectStart  = buffer->used = (buffer->used + 7) & ~7;
 	if (RADEON_VERBOSE) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "   Starting at %d\n",
-		       info->indirectStart);
+		       info->cp->indirectStart);
 	}
     }
 }
@@ -661,12 +661,12 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
 void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr      info   = RADEONPTR(pScrn);
-    drmBufPtr          buffer = info->indirectBuffer;
-    int                start  = info->indirectStart;
+    drmBufPtr          buffer = info->cp->indirectBuffer;
+    int                start  = info->cp->indirectStart;
     drmRadeonIndirect  indirect;
 
-    info->indirectBuffer = NULL;
-    info->indirectStart  = 0;
+    info->cp->indirectBuffer = NULL;
+    info->cp->indirectStart  = 0;
 
     if (!buffer) return;
 

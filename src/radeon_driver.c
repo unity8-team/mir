@@ -2107,10 +2107,16 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 
     info->directRenderingEnabled = FALSE;
     info->directRenderingInited = FALSE;
-    info->CPInUse = FALSE;
-    info->CPStarted = FALSE;
     info->pLibDRMVersion = NULL;
     info->pKernelDRMVersion = NULL;
+
+    if (!(info->cp = xcalloc(1, sizeof(struct radeon_cp)))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,"Unable to allocate cp rec!\n");
+	return FALSE;
+    }
+    info->cp->CPInUse = FALSE;
+    info->cp->CPStarted = FALSE;
+    info->cp->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
 
    if (xf86IsEntityShared(info->pEnt->index)) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -2193,7 +2199,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->bufSize       = RADEON_DEFAULT_BUFFER_SIZE;
     info->gartTexSize   = RADEON_DEFAULT_GART_TEX_SIZE;
     info->pciAperSize   = RADEON_DEFAULT_PCI_APER_SIZE;
-    info->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
+    info->cp->CPusecTimeout = RADEON_DEFAULT_CP_TIMEOUT;
 
     if ((xf86GetOptValInteger(info->Options,
 			     OPTION_GART_SIZE, (int *)&(info->gartSize))) ||
@@ -2271,7 +2277,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     info->gartTexSize = info->gartSize - (info->ringSize + info->bufSize);
 
     if (xf86GetOptValInteger(info->Options, OPTION_USEC_TIMEOUT,
-			     &(info->CPusecTimeout))) {
+			     &(info->cp->CPusecTimeout))) {
 	/* This option checked by the RADEON DRM kernel module */
     }
 
@@ -3008,7 +3014,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     int c;
 
 #ifdef XF86DRI
-    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
+    if (info->cp->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
 
     if (info->accelOn && pScrn->pScreen)
@@ -3072,7 +3078,7 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
     }
 
 #ifdef XF86DRI
-    if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
+    if (info->cp->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
 #endif
 }
 
@@ -5111,7 +5117,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
     Bool           tilingOld   = info->tilingEnabled;
     Bool           ret;
 #ifdef XF86DRI
-    Bool           CPStarted   = info->CPStarted;
+    Bool           CPStarted   = info->cp->CPStarted;
 
     if (CPStarted) {
 	DRILock(pScrn->pScreen, 0);
@@ -5356,7 +5362,7 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     xf86CrtcPtr	crtc = output->crtc;
 
 #ifdef XF86DRI
-    if (info->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
+    if (info->cp->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
 
     if (info->accelOn)
@@ -5373,7 +5379,7 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
 
 
 #ifdef XF86DRI
-	if (info->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
+	if (info->cp->CPStarted && pScrn->pScreen) DRIUnlock(pScrn->pScreen);
 #endif
 }
 

@@ -413,6 +413,28 @@ typedef struct {
     int singledac;
 } RADEONCardInfo;
 
+#ifdef XF86DRI
+struct radeon_cp {
+    Bool              CPRuns;           /* CP is running */
+    Bool              CPInUse;          /* CP has been used by X server */
+    Bool              CPStarted;        /* CP has started */
+    int               CPMode;           /* CP mode that server/clients use */
+    int               CPFifoSize;       /* Size of the CP command FIFO */
+    int               CPusecTimeout;    /* CP timeout in usecs */
+    Bool              needCacheFlush;
+
+    /* CP accleration */
+    drmBufPtr         indirectBuffer;
+    int               indirectStart;
+
+    /* Debugging info for BEGIN_RING/ADVANCE_RING pairs. */
+    int               dma_begin_count;
+    char              *dma_debug_func;
+    int               dma_debug_lineno;
+
+    };
+#endif
+
 typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
@@ -600,12 +622,7 @@ typedef struct {
 
     uint32_t          pciCommand;
 
-    Bool              CPRuns;           /* CP is running */
-    Bool              CPInUse;          /* CP has been used by X server */
-    Bool              CPStarted;        /* CP has started */
-    int               CPFifoSize;       /* Size of the CP command FIFO */
-    int               CPusecTimeout;    /* CP timeout in usecs */
-    Bool              needCacheFlush;
+    struct radeon_cp  *cp;
 
 				/* CP ring buffer data */
     unsigned long     ringStart;        /* Offset into GART space */
@@ -636,10 +653,6 @@ typedef struct {
     int               gartTexSize;       /* Size of GART tex space (in MB) */
     drmAddress        gartTex;           /* Map */
     int               log2GARTTexGran;
-
-				/* CP accleration */
-    drmBufPtr         indirectBuffer;
-    int               indirectStart;
 
 				/* DRI screen private data */
     int               fbX;
@@ -683,10 +696,6 @@ typedef struct {
     int               perctx_sarea_size;
 #endif
 
-    /* Debugging info for BEGIN_RING/ADVANCE_RING pairs. */
-    int               dma_begin_count;
-    char              *dma_debug_func;
-    int               dma_debug_lineno;
 #endif /* XF86DRI */
 
 				/* XVideo */
@@ -1043,32 +1052,32 @@ do {									\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
 		   "%s: CP start %d\n", __FUNCTION__, _ret);		\
     }									\
-    info->CPStarted = TRUE;                                             \
+    info->cp->CPStarted = TRUE;                                         \
 } while (0)
 
 #define RADEONCP_RELEASE(pScrn, info)					\
 do {									\
-    if (info->CPInUse) {						\
+    if (info->cp->CPInUse) {						\
 	RADEON_PURGE_CACHE();						\
 	RADEON_WAIT_UNTIL_IDLE();					\
 	RADEONCPReleaseIndirect(pScrn);					\
-	info->CPInUse = FALSE;						\
+	info->cp->CPInUse = FALSE;				        \
     }									\
 } while (0)
 
 #define RADEONCP_STOP(pScrn, info)					\
 do {									\
     int _ret;								\
-     if (info->CPStarted) {						\
+     if (info->cp->CPStarted) {						\
         _ret = RADEONCPStop(pScrn, info);				\
         if (_ret) {							\
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,			\
 		   "%s: CP stop %d\n", __FUNCTION__, _ret);		\
         }								\
-        info->CPStarted = FALSE;                                        \
+        info->cp->CPStarted = FALSE;                                    \
    }									\
     RADEONEngineRestore(pScrn);						\
-    info->CPRuns = FALSE;						\
+    info->cp->CPRuns = FALSE;						\
 } while (0)
 
 #define RADEONCP_RESET(pScrn, info)					\
@@ -1082,14 +1091,14 @@ do {									\
 
 #define RADEONCP_REFRESH(pScrn, info)					\
 do {									\
-    if (!info->CPInUse) {						\
-	if (info->needCacheFlush) {					\
+    if (!info->cp->CPInUse) {						\
+	if (info->cp->needCacheFlush) {					\
 	    RADEON_PURGE_CACHE();					\
 	    RADEON_PURGE_ZCACHE();					\
-	    info->needCacheFlush = FALSE;				\
+	    info->cp->needCacheFlush = FALSE;				\
 	}								\
 	RADEON_WAIT_UNTIL_IDLE();					\
-	info->CPInUse = TRUE;						\
+	info->cp->CPInUse = TRUE;					\
     }									\
 } while (0)
 
@@ -1113,33 +1122,33 @@ do {									\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "BEGIN_RING(%d) in %s\n", (unsigned int)n, __FUNCTION__);\
     }									\
-    if (++info->dma_begin_count != 1) {					\
+    if (++info->cp->dma_begin_count != 1) {				\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
 		   "BEGIN_RING without end at %s:%d\n",			\
-		   info->dma_debug_func, info->dma_debug_lineno);	\
-	info->dma_begin_count = 1;					\
+		   info->cp->dma_debug_func, info->cp->dma_debug_lineno);	\
+	info->cp->dma_begin_count = 1;					\
     }									\
-    info->dma_debug_func = __FILE__;					\
-    info->dma_debug_lineno = __LINE__;					\
-    if (!info->indirectBuffer) {					\
-	info->indirectBuffer = RADEONCPGetBuffer(pScrn);		\
-	info->indirectStart = 0;					\
-    } else if (info->indirectBuffer->used + (n) * (int)sizeof(uint32_t) >	\
-	       info->indirectBuffer->total) {				\
+    info->cp->dma_debug_func = __FILE__;				\
+    info->cp->dma_debug_lineno = __LINE__;				\
+    if (!info->cp->indirectBuffer) {					\
+	info->cp->indirectBuffer = RADEONCPGetBuffer(pScrn);		\
+	info->cp->indirectStart = 0;					\
+    } else if (info->cp->indirectBuffer->used + (n) * (int)sizeof(uint32_t) >	\
+	       info->cp->indirectBuffer->total) {		        \
 	RADEONCPFlushIndirect(pScrn, 1);				\
     }									\
     __expected = n;							\
-    __head = (pointer)((char *)info->indirectBuffer->address +		\
-		       info->indirectBuffer->used);			\
+    __head = (pointer)((char *)info->cp->indirectBuffer->address +	\
+		       info->cp->indirectBuffer->used);			\
     __count = 0;							\
 } while (0)
 
 #define ADVANCE_RING() do {						\
-    if (info->dma_begin_count-- != 1) {					\
+    if (info->cp->dma_begin_count-- != 1) {				\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
 		   "ADVANCE_RING without begin at %s:%d\n",		\
 		   __FILE__, __LINE__);					\
-	info->dma_begin_count = 0;					\
+	info->cp->dma_begin_count = 0;					\
     }									\
     if (__count != __expected) {					\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
@@ -1149,11 +1158,11 @@ do {									\
     if (RADEON_VERBOSE) {						\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "ADVANCE_RING() start: %d used: %d count: %d\n",	\
-		   info->indirectStart,					\
-		   info->indirectBuffer->used,				\
+		   info->cp->indirectStart,				\
+		   info->cp->indirectBuffer->used,			\
 		   __count * (int)sizeof(uint32_t));			\
     }									\
-    info->indirectBuffer->used += __count * (int)sizeof(uint32_t);	\
+    info->cp->indirectBuffer->used += __count * (int)sizeof(uint32_t);	\
 } while (0)
 
 #define OUT_RING(x) do {						\
@@ -1175,7 +1184,7 @@ do {									\
     if (RADEON_VERBOSE)							\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "FLUSH_RING in %s\n", __FUNCTION__);			\
-    if (info->indirectBuffer) {						\
+    if (info->cp->indirectBuffer) {					\
 	RADEONCPFlushIndirect(pScrn, 0);				\
     }									\
 } while (0)

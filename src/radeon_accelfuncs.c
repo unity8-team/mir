@@ -666,7 +666,7 @@ FUNC_NAME(RADEONSubsequentColor8x8PatternFillRect)(ScrnInfoPtr pScrn,
 #endif
 
 #ifdef ACCEL_CP
-#define CP_BUFSIZE (info->indirectBuffer->total/4-10)
+#define CP_BUFSIZE (info->cp->indirectBuffer->total/4-10)
 
 /* Helper function to write out a HOSTDATA_BLT packet into the indirect
  * buffer and set the XAA scratch buffer address appropriately.
