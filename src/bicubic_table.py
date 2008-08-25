@@ -15,7 +15,7 @@ def texgen(pix):
   w2 = 1 / 6.0 * (-3 * a3 + 3 * a2 + 3 * a + 1)
   w3 = 1 / 6.0 * a3
 
-  tex.append(1 - (w1 / (w0 + w1)) + a)
+  tex.append(-(1 - (w1 / (w0 + w1)) + a))
   tex.append(1 + (w3 / (w2 + w3)) - a)
   tex.append(w0 + w1)
   tex.append(w2 + w3)

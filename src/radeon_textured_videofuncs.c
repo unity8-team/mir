@@ -414,7 +414,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 
 		/* Pixel stack frame size. */
-		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(8));
+		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(12));
 
 		/* FP length. */
 		OUT_VIDEO_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
@@ -518,7 +518,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_0 |
 						   R500_ALU_RGBA_A_SWIZ_0));
 
-		/* MUL temp3, const0, -temp0.xxxx */
+		/* MUL temp3, const0, temp0.xxxx */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -537,15 +537,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_R |
-						   R500_ALU_RGB_B_SWIZ_B_R |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(5) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SEL_A_SRC0 |
 						   R500_ALPHA_SWIZ_A_A |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_R |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(5) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_R_SWIZ_0 |
@@ -625,7 +623,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* MAD temp2, const1, -temp1.xxxx, temp2 */
+		/* MAD temp2, const1, temp1.xxxx, temp2 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -646,15 +644,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_R |
-						   R500_ALU_RGB_B_SWIZ_B_R |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(4) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SEL_A_SRC0 |
 						   R500_ALPHA_SWIZ_A_A |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_R |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(4) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -663,7 +659,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* MAD temp3, const1, -temp1.xxxx, temp3 */
+		/* MAD temp3, const1, temp1.xxxx, temp3 */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -684,15 +680,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_R |
-						   R500_ALU_RGB_B_SWIZ_B_R |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(5) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SEL_A_SRC0 |
 						   R500_ALPHA_SWIZ_A_A |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_R |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_R));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(5) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -717,14 +711,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(4) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SWIZ_A_1 |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(4) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -749,14 +741,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(5) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SWIZ_A_1 |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(5) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -781,14 +771,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(6) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SWIZ_A_1 |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(6) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -813,14 +801,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGB_SEL_B_SRC1 |
 						   R500_ALU_RGB_R_SWIZ_B_R |
 						   R500_ALU_RGB_G_SWIZ_B_G |
-						   R500_ALU_RGB_B_SWIZ_B_B |
-						   R500_ALU_RGB_MOD_B_NEG));
+						   R500_ALU_RGB_B_SWIZ_B_B));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDRD(7) |
 						   R500_ALPHA_OP_MAD |
 						   R500_ALPHA_SWIZ_A_1 |
 						   R500_ALPHA_SEL_B_SRC1 |
-						   R500_ALPHA_SWIZ_B_A |
-						   R500_ALPHA_MOD_B_NEG));
+						   R500_ALPHA_SWIZ_B_A));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_ADDRD(7) |
 						   R500_ALU_RGBA_OP_MAD |
 						   R500_ALU_RGBA_SEL_C_SRC2 |
@@ -1056,13 +1042,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, (1 << 16));
 
 		/* const0 = {1 / texture[0].width, 0, 0, 0} */
-		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (-1.0/(float)pPriv->w));
+		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->w));
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		/* const1 = {0, 1 / -texture[0].height, 0, 0) */
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
-		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (-1.0/(float)pPriv->h));
+		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->h));
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 
