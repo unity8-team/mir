@@ -106,7 +106,6 @@ static Atom xvEncoding, xvFrequency, xvVolume, xvMute,
 	     
 static Atom xvOvAlpha, xvGrAlpha, xvAlphaMode;
 
-
 #define GET_PORT_PRIVATE(pScrn) \
    (RADEONPortPrivPtr)((RADEONPTR(pScrn))->adaptor->pPortPrivates[0].ptr)
 
@@ -1703,9 +1702,6 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
     Bool		setAlpha = FALSE;
     unsigned char *RADEONMMIO = info->MMIO;
 
-    if (pPriv->textured)
-	return BadMatch;
-
     RADEON_SYNC(info, pScrn);
 
 #define RTFSaturation(a)   (1.0 + ((a)*1.0)/1000.0)
@@ -1932,7 +1928,7 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 	if(pPriv->fi1236!=NULL){
 		xf86_fi1236_dump_status(pPriv->fi1236);
 		}
-   } 
+   }
    else if(attribute == xvAdjustment) 
    {
   	pPriv->adjustment=value;
@@ -1976,9 +1972,6 @@ RADEONGetPortAttribute(ScrnInfoPtr  pScrn,
 {
     RADEONInfoPtr	info = RADEONPTR(pScrn);
     RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
-
-    if (pPriv->textured)
-	return BadMatch;
 
     if (info->accelOn) RADEON_SYNC(info, pScrn);
 

@@ -93,6 +93,7 @@ static __inline__ uint32_t F_TO_DW(float val)
 #undef VIDEO_PREAMBLE
 #undef BEGIN_VIDEO
 #undef OUT_VIDEO_REG
+#undef OUT_VIDEO_REG_F
 #undef FINISH_VIDEO
 
 #ifdef XF86DRI
@@ -103,6 +104,7 @@ static __inline__ uint32_t F_TO_DW(float val)
     RADEONCP_REFRESH(pScrn, info)
 #define BEGIN_VIDEO(n)		BEGIN_RING(2*(n))
 #define OUT_VIDEO_REG(reg, val)	OUT_RING_REG(reg, val)
+#define OUT_VIDEO_REG_F(reg, val)	OUT_VIDEO_REG(reg, F_TO_DW(val))
 #define FINISH_VIDEO()		ADVANCE_RING()
 #define OUT_VIDEO_RING_F(x) OUT_RING(F_TO_DW(x))
 
@@ -200,7 +202,8 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Bicubic filter loading */
-    pPriv->bicubic_enabled = IS_R500_3D;
+    if (!IS_R500_3D)
+	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
 					&pPriv->bicubic_memory,
@@ -335,11 +338,15 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
     {15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 0
+#define NUM_ATTRIBUTES 1
 
-static XF86AttributeRec Attributes[NUM_ATTRIBUTES] =
+static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
+    {XvSettable | XvGettable, -1, 1, "XV_BICUBIC"},
+    {0, 0, 0, NULL}
 };
+
+static Atom xvBicubic;
 
 #define NUM_IMAGES 4
 
@@ -350,6 +357,46 @@ static XF86ImageRec Images[NUM_IMAGES] =
     XVIMAGE_I420,
     XVIMAGE_UYVY
 };
+
+int
+RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
+		       Atom	    attribute,
+		       INT32	    *value,
+		       pointer	    data)
+{
+    RADEONInfoPtr	info = RADEONPTR(pScrn);
+    RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
+
+    if (info->accelOn) RADEON_SYNC(info, pScrn);
+
+    if (attribute == xvBicubic)
+	*value = pPriv->bicubic_enabled ? 1 : 0;
+    else
+	return BadMatch;
+
+    return Success;
+}
+
+int
+RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
+		       Atom	    attribute,
+		       INT32	    value,
+		       pointer	    data)
+{
+    RADEONInfoPtr	info = RADEONPTR(pScrn);
+    RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
+
+    RADEON_SYNC(info, pScrn);
+
+    if (attribute == xvBicubic)
+	/* -1 -> set default (disable for RV515 and punier) */
+	pPriv->bicubic_enabled = (value == -1) ?
+	    (info->ChipFamily >= CHIP_FAMILY_RV530) : value;
+    else
+	return BadMatch;
+
+    return Success;
+}
 
 XF86VideoAdaptorPtr
 RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
@@ -365,6 +412,8 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 		    (sizeof(RADEONPortPrivRec) + sizeof(DevUnion)));
     if (adapt == NULL)
 	return NULL;
+
+    xvBicubic         = MAKE_ATOM("XV_BICUBIC");
 
     adapt->type = XvWindowMask | XvInputMask | XvImageMask;
     adapt->flags = 0;
@@ -391,8 +440,8 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     adapt->GetVideo = NULL;
     adapt->GetStill = NULL;
     adapt->StopVideo = RADEONStopVideo;
-    adapt->SetPortAttribute = RADEONSetPortAttribute;
-    adapt->GetPortAttribute = RADEONGetPortAttribute;
+    adapt->SetPortAttribute = RADEONSetTexPortAttribute;
+    adapt->GetPortAttribute = RADEONGetTexPortAttribute;
     adapt->QueryBestSize = RADEONQueryBestSize;
     adapt->PutImage = RADEONPutImageTextured;
     adapt->ReputImage = NULL;
@@ -405,6 +454,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->videoStatus = 0;
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
+	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_RV530);
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);

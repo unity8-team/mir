@@ -15,20 +15,6 @@
 
 #include "bicubic_table.h"
 
-/*
- * This function takes a float and packs it into a uint32_t. Thanks, Mesa!
- */
-static inline uint32_t r300PackFloat32(float fl)
-{
-	union {
-		float fl;
-		uint32_t u;
-	} u;
-
-	u.fl = fl;
-	return u.u;
-}
-
 /* Xvideo port struct */
 typedef struct {
    uint32_t	 transform_index;
@@ -127,7 +113,6 @@ typedef struct {
     int w, h;
     int drw_x, drw_y;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
-
 
 void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
