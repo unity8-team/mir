@@ -197,14 +197,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
        dstPitch = (dstPitch + 15) & ~15;
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
-	RADEONFreeMemory(pScrn, pPriv->video_memory);
+	radeon_free_memory(pScrn, pPriv->video_memory);
 	pPriv->video_memory = NULL;
     }
 
     if (pPriv->video_memory == NULL) {
-	pPriv->video_offset = RADEONAllocateMemory(pScrn,
-						       &pPriv->video_memory,
-						       size * 2);
+	pPriv->video_offset = radeon_allocate_memory(pScrn,
+						     &pPriv->video_memory,
+						     size * 2, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
     }

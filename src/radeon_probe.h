@@ -183,12 +183,7 @@ typedef struct
 } RADEONI2CBusRec, *RADEONI2CBusPtr;
 
 typedef struct _RADEONCrtcPrivateRec {
-#ifdef USE_XAA
-    FBLinearPtr rotate_mem_xaa;
-#endif
-#ifdef USE_EXA
-    ExaOffscreenArea *rotate_mem_exa;
-#endif
+    void *crtc_rotate_mem;
     int crtc_id;
     int binding;
     uint32_t cursor_offset;

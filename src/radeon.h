@@ -1068,6 +1068,16 @@ extern void RADEONUpdateHVPosition(xf86OutputPtr output, DisplayModePtr mode);
 extern void RADEONInitVideo(ScreenPtr pScreen);
 extern void RADEONResetVideo(ScrnInfoPtr pScrn);
 
+/* radeon_memory.c */
+extern uint32_t
+radeon_allocate_memory(ScrnInfoPtr pScrn,
+		       void **mem_struct,
+		       int size,
+		       int align);
+extern void
+radeon_free_memory(ScrnInfoPtr pScrn,
+		   void *mem_struct);
+
 #ifdef XF86DRI
 #  ifdef USE_XAA
 /* radeon_accelfuncs.c */

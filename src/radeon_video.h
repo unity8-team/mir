@@ -86,9 +86,6 @@ typedef struct {
    xf86CrtcPtr   desired_crtc;
 
    int           size;
-#ifdef USE_EXA
-   ExaOffscreenArea *off_screen;
-#endif
 
    void         *video_memory;
    int           video_offset;
@@ -121,11 +118,6 @@ void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
 void RADEONVIP_init(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONVIP_reset(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
-
-uint32_t
-RADEONAllocateMemory(ScrnInfoPtr pScrn, void **mem_struct, int size);
-void
-RADEONFreeMemory(ScrnInfoPtr pScrn, void *mem_struct);
 
 int  RADEONSetPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int  RADEONGetPortAttribute(ScrnInfoPtr, Atom ,INT32 *, pointer);
