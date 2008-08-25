@@ -227,7 +227,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		/* Tex filter */
 		txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP) |
 			R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP) |
-			R300_TX_MAG_FILTER_NEAREST |
+			R300_TX_MIN_FILTER_NEAREST |
 			R300_TX_MAG_FILTER_NEAREST |
 			(1 << R300_TX_ID_SHIFT);
 
@@ -1147,7 +1147,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, (1 << 16));
 
 		/* const0 = {1 / texture[0].width, 0, 0, 0} */
-		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->w));
+		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, (-1.0/(float)pPriv->w));
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
