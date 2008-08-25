@@ -1147,13 +1147,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_INDEX, (1 << 16));
 
 		/* const0 = {1 / texture[0].width, 0, 0, 0} */
-		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (uint32_t)(1/pPriv->w));
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, r300PackFloat32(1.0/(float)pPriv->w));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 		/* const1 = {0, 1 / -texture[0].height, 0, 0) */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
-		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (uint32_t)(-1/pPriv->h));
+		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, r300PackFloat32(-1.0/(float)pPriv->h));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, 0x0);
 
