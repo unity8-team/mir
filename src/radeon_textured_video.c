@@ -200,7 +200,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Bicubic filter loading */
-    pPriv->bicubic_enabled = TRUE;
+    pPriv->bicubic_enabled = IS_R500_3D;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
 					&pPriv->bicubic_memory,

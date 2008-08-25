@@ -247,23 +247,36 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	/* load the vertex shader
 	 * We pre-load vertex programs in RADEONInit3DEngine():
-	 * - exa no mask
+	 * - exa no mask/Xv bicubic
 	 * - exa mask
 	 * - Xv
 	 * Here we select the offset of the vertex program we want to use
 	 */
 	if (info->has_tcl) {
-	    OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
+	    if (pPriv->bicubic_enabled) {
+		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
+			  ((0 << R300_PVS_FIRST_INST_SHIFT) |
+			   (2 << R300_PVS_XYZW_VALID_INST_SHIFT) |
+			   (2 << R300_PVS_LAST_INST_SHIFT)));
+		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_1,
+			  (2 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+	    } else {
+		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_0,
 			  ((5 << R300_PVS_FIRST_INST_SHIFT) |
 			   (6 << R300_PVS_XYZW_VALID_INST_SHIFT) |
 			   (6 << R300_PVS_LAST_INST_SHIFT)));
-	    OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_1,
+		OUT_VIDEO_REG(R300_VAP_PVS_CODE_CNTL_1,
 			  (6 << R300_PVS_LAST_VTX_SRC_INST_SHIFT));
+	    }
 	}
 
 	/* Position and one set of 2 texture coordinates */
 	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_0, R300_VTX_POS_PRESENT);
-	OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT));
+	if (pPriv->bicubic_enabled)
+	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT) |
+			(2 << R300_TEX_1_COMP_CNT_SHIFT));
+	else
+	    OUT_VIDEO_REG(R300_VAP_OUT_VTX_FMT_1, (2 << R300_TEX_0_COMP_CNT_SHIFT));
 	OUT_VIDEO_REG(R300_US_OUT_FMT_0, output_fmt);
 	FINISH_VIDEO();
 
@@ -345,19 +358,15 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    FINISH_VIDEO();
 
 	    if (pPriv->bicubic_enabled) {
-		BEGIN_VIDEO(142);
-		/* This one's set in RADEONInit3DEngine, but we need to set
-		 * it again, in order to enable all four components! */
-// 		OUT_VIDEO_REG(R500_RS_IP_1, ((2 << R500_RS_IP_TEX_PTR_S_SHIFT) |
-// 					 (3 << R500_RS_IP_TEX_PTR_T_SHIFT) |
-// 					 (4 << R500_RS_IP_TEX_PTR_R_SHIFT) |
-// 					 (5 << R500_RS_IP_TEX_PTR_Q_SHIFT)));
-		/* 6 tex components; 2 from tex0 and all four from tex1 */
-// 		OUT_VIDEO_REG(R300_RS_COUNT,
-// 			((6 << R300_RS_COUNT_IT_COUNT_SHIFT) |
-// 			R300_RS_COUNT_HIRES_EN));
-// 		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) |
-// 			R300_TX_OFFSET_RS(6));
+		BEGIN_VIDEO(144);
+
+		/* 4 components: 2 for tex0 and 2 for tex1 */
+		OUT_VIDEO_REG(R300_RS_COUNT,
+			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			   R300_RS_COUNT_HIRES_EN));
+
+		/* R300_INST_COUNT_RS - highest RS instruction used */
+		OUT_VIDEO_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(1) | R300_TX_OFFSET_RS(6));
 
 		/* Pixel stack frame size. */
 		OUT_VIDEO_REG(R500_US_PIXSIZE, R500_PIX_SIZE(16));
