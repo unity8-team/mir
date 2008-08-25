@@ -221,7 +221,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			(0x0 << R300_TXHEIGHT_SHIFT) |
 			R300_TXPITCH_EN;
 		/* Format is 32-bit floats, 4bpp */
-		txformat1 = R300_EASY_TX_FORMAT(Z, Y, X, W, FL_R32G32B32A32);
+		txformat1 = R300_EASY_TX_FORMAT(Z, Y, X, W, FL_R16G16B16A16);
 		/* Pitch is 127 (128-1) */
 		txpitch = 0x7f;
 		/* Tex filter */
