@@ -79,7 +79,7 @@
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
 #include "radeon_dri.h"
-#include "radeon_sarea.h"
+#include "radeon_drm.h"
 #include "sarea.h"
 #endif
 
@@ -3952,7 +3952,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
 #ifdef USE_EXA
     if (info->accelDFS)
     {
-	drmRadeonGetParam gp;
+	drm_radeon_getparam_t gp;
 	int gart_base;
 
 	memset(&gp, 0, sizeof(gp));
@@ -4043,8 +4043,8 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
     }   
 #ifdef XF86DRI
     if (info->directRenderingInited) {
-	drmRadeonSurfaceFree drmsurffree;
-	drmRadeonSurfaceAlloc drmsurfalloc;
+	drm_radeon_surface_free_t drmsurffree;
+	drm_radeon_surface_alloc_t drmsurfalloc;
 	int retvalue;
 	int depthCpp = (info->dri->depthBits - 8) / 4;
 	int depth_width_bytes = pScrn->displayWidth * depthCpp;
@@ -4117,7 +4117,7 @@ void RADEONChangeSurfaces(ScrnInfoPtr pScrn)
 	    (!((info->ChipFamily == CHIP_FAMILY_RV100) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS100) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS200)))) {
-	    drmRadeonSurfaceAlloc drmsurfalloc;
+	    drm_radeon_surface_alloc_t drmsurfalloc;
 	    drmsurfalloc.size = depthBufferSize;
 	    drmsurfalloc.address = info->dri->depthOffset;
             if (IS_R300_VARIANT || IS_AVIVO_VARIANT)
@@ -5144,7 +5144,7 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
         info->tilingEnabled = (mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
 #ifdef XF86DRI	
 	if (info->directRenderingEnabled && (info->tilingEnabled != tilingOld)) {
-	    RADEONSAREAPrivPtr pSAREAPriv;
+	    drm_radeon_sarea_t *pSAREAPriv;
 	  if (RADEONDRISetParam(pScrn, RADEON_SETPARAM_SWITCH_TILING, (info->tilingEnabled ? 1 : 0)) < 0)
   	      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			 "[drm] failed changing tiling status\n");
@@ -5254,7 +5254,7 @@ void RADEONDoAdjustFrame(ScrnInfoPtr pScrn, int x, int y, Bool crtc2)
     unsigned char *RADEONMMIO = info->MMIO;
     int            Base, reg, regcntl, crtcoffsetcntl, xytilereg, crtcxytile = 0;
 #ifdef XF86DRI
-    RADEONSAREAPrivPtr pSAREAPriv;
+    drm_radeon_sarea_t *pSAREAPriv;
     XF86DRISAREAPtr pSAREA;
 #endif
 
@@ -5517,10 +5517,10 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 
 	/* Make sure 3D clients will re-upload textures to video RAM */
 	if (info->dri->textureSize) {
-	    RADEONSAREAPrivPtr pSAREAPriv =
-		(RADEONSAREAPrivPtr)DRIGetSAREAPrivate(pScrn->pScreen);
-	    drmTextureRegionPtr list = pSAREAPriv->texList[0];
-	    int age = ++pSAREAPriv->texAge[0];
+	    drm_radeon_sarea_t *pSAREAPriv =
+		(drm_radeon_sarea_t*)DRIGetSAREAPrivate(pScrn->pScreen);
+	    drmTextureRegionPtr list = pSAREAPriv->tex_list[0];
+	    int age = ++pSAREAPriv->tex_age[0];
 
 	    i = 0;
 

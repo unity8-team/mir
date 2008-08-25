@@ -47,6 +47,9 @@
 				/* Driver data structures */
 #include "radeon.h"
 #include "radeon_probe.h"
+#ifdef XF86DRI
+#include "radeon_drm.h"
+#endif
 
 				/* X and server generic header files */
 #include "xf86.h"

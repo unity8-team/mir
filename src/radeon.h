@@ -72,9 +72,10 @@
 				/* DRI support */
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
-#include "radeon_dripriv.h"
 #include "dri.h"
 #include "GL/glxint.h"
+#include "xf86drm.h"
+
 #ifdef DAMAGE
 #include "damage.h"
 #include "globals.h"
@@ -433,6 +434,21 @@ struct radeon_cp {
     int               dma_debug_lineno;
 
     };
+
+typedef struct {
+    /* Nothing here yet */
+    int dummy;
+} RADEONConfigPrivRec, *RADEONConfigPrivPtr;
+
+typedef struct {
+#ifdef PER_CONTEXT_SAREA
+    drm_context_t ctx_id;
+    drm_handle_t sarea_handle;
+#else
+    /* Nothing here yet */
+    int dummy;
+#endif
+} RADEONDRIContextRec, *RADEONDRIContextPtr;
 
 struct radeon_dri {
     Bool              noBackBuffer;
