@@ -439,8 +439,6 @@ struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
 				/* Computed values for Radeon */
-    int               pitch;
-    int               datatype;
     uint32_t          dp_gui_master_cntl;
     uint32_t          dp_gui_master_cntl_clip;
     uint32_t          trans_color;
@@ -465,6 +463,16 @@ struct radeon_accel_state {
 #define EXA_ENGINEMODE_UNKNOWN 0
 #define EXA_ENGINEMODE_2D      1
 #define EXA_ENGINEMODE_3D      2
+
+    Bool              is_transform[2];
+    PictTransform     *transform[2];
+    Bool              has_mask;
+    /* Whether we are tiling horizontally and vertically */
+    Bool              need_src_tile_x;
+    Bool              need_src_tile_y;
+    /* Size of tiles ... set to 65536x65536 if not tiling in that direction */
+    Bool              src_tile_width;
+    Bool              src_tile_height;
 #endif
 
 #ifdef USE_XAA
@@ -500,18 +508,6 @@ struct radeon_accel_state {
      * SetupForScreenToScreenCopy function, to make it DGA-friendly.
      */
     Bool              XAAForceTransBlit;
-#endif
-#ifdef XF86DRI
-				/* Saved scissor values */
-    uint32_t          sc_left;
-    uint32_t          sc_right;
-    uint32_t          sc_top;
-    uint32_t          sc_bottom;
-
-    uint32_t          re_top_left;
-    uint32_t          re_width_height;
-
-    uint32_t          aux_sc_cntl;
 #endif
 
 };
