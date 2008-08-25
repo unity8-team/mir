@@ -244,7 +244,7 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
         drmsurfalloc.size = size;
 	drmsurfalloc.flags = flags | 1; /* bogus pitch to please DRM */
 
-        rc = drmCommandWrite(info->drmFD, DRM_RADEON_SURF_ALLOC,
+        rc = drmCommandWrite(info->dri->drmFD, DRM_RADEON_SURF_ALLOC,
 			     &drmsurfalloc, sizeof(drmsurfalloc));
 	if (rc < 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -283,7 +283,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 	drmRadeonSurfaceFree drmsurffree;
 
 	drmsurffree.address = offset;
-	drmCommandWrite(info->drmFD, DRM_RADEON_SURF_FREE,
+	drmCommandWrite(info->dri->drmFD, DRM_RADEON_SURF_FREE,
 			&drmsurffree, sizeof(drmsurffree));
 	swapper_surfaces[index] = 0;
 	return;
@@ -444,21 +444,21 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 
 #if defined(XF86DRI)
     if (info->directRenderingEnabled) {
-	int depthCpp = (info->depthBits - 8) / 4, l, next, depth_size;
+	int depthCpp = (info->dri->depthBits - 8) / 4, l, next, depth_size;
 
-	info->frontOffset = 0;
-	info->frontPitch = pScrn->displayWidth;
+	info->dri->frontOffset = 0;
+	info->dri->frontPitch = pScrn->displayWidth;
 
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Will use %d kb for front buffer at offset 0x%08x\n",
-	       screen_size / 1024, info->frontOffset);
+	       screen_size / 1024, info->dri->frontOffset);
 	RADEONDRIAllocatePCIGARTTable(pScreen);
 	
 	if (info->cardType==CARD_PCIE)
 	  xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		     "Will use %d kb for PCI GART at offset 0x%08x\n",
-		     info->pciGartSize / 1024,
-		     (int)info->pciGartOffset);
+		     info->dri->pciGartSize / 1024,
+		     (int)info->dri->pciGartOffset);
 
 	/* Reserve a static area for the back buffer the same size as the
 	 * visible screen.  XXX: This would be better initialized in ati_dri.c
@@ -466,49 +466,49 @@ Bool RADEONSetupMemEXA (ScreenPtr pScreen)
 	 * don't last through VT switches, while the kernel's understanding of
 	 * offscreen locations does.
 	 */
-	info->backPitch = pScrn->displayWidth;
+	info->dri->backPitch = pScrn->displayWidth;
 	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_BUFFER_ALIGN);
-	if (!info->noBackBuffer &&
+	if (!info->dri->noBackBuffer &&
 	    next + screen_size <= info->accel_state->exa->memorySize)
 	{
-	    info->backOffset = next;
+	    info->dri->backOffset = next;
 	    info->accel_state->exa->offScreenBase = next + screen_size;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Will use %d kb for back buffer at offset 0x%08x\n",
-		       screen_size / 1024, info->backOffset);
+		       screen_size / 1024, info->dri->backOffset);
 	}
 
 	/* Reserve the static depth buffer, and adjust pitch and height to
 	 * handle tiling.
 	 */
-	info->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
-	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->depthPitch * depthCpp;
+	info->dri->depthPitch = RADEON_ALIGN(pScrn->displayWidth, 32);
+	depth_size = RADEON_ALIGN(pScrn->virtualY, 16) * info->dri->depthPitch * depthCpp;
 	next = RADEON_ALIGN(info->accel_state->exa->offScreenBase, RADEON_BUFFER_ALIGN);
 	if (next + depth_size <= info->accel_state->exa->memorySize)
 	{
-	    info->depthOffset = next;
+	    info->dri->depthOffset = next;
 	    info->accel_state->exa->offScreenBase = next + depth_size;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Will use %d kb for depth buffer at offset 0x%08x\n",
-		       depth_size / 1024, info->depthOffset);
+		       depth_size / 1024, info->dri->depthOffset);
 	}
 	
-	info->textureSize *= (info->accel_state->exa->memorySize -
-			      info->accel_state->exa->offScreenBase) / 100;
+	info->dri->textureSize *= (info->accel_state->exa->memorySize -
+				   info->accel_state->exa->offScreenBase) / 100;
 
-	l = RADEONLog2(info->textureSize / RADEON_NR_TEX_REGIONS);
+	l = RADEONLog2(info->dri->textureSize / RADEON_NR_TEX_REGIONS);
 	if (l < RADEON_LOG_TEX_GRANULARITY)
 	    l = RADEON_LOG_TEX_GRANULARITY;
-	info->textureSize = (info->textureSize >> l) << l;
-	if (info->textureSize >= 512 * 1024) {
-	    info->textureOffset = info->accel_state->exa->offScreenBase;
-	    info->accel_state->exa->offScreenBase += info->textureSize;
+	info->dri->textureSize = (info->dri->textureSize >> l) << l;
+	if (info->dri->textureSize >= 512 * 1024) {
+	    info->dri->textureOffset = info->accel_state->exa->offScreenBase;
+	    info->accel_state->exa->offScreenBase += info->dri->textureSize;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		       "Will use %d kb for textures at offset 0x%08x\n",
-		       info->textureSize / 1024, info->textureOffset);
+		       info->dri->textureSize / 1024, info->dri->textureOffset);
 	} else {
 	    /* Minimum texture size is for 2 256x256x32bpp textures */
-	    info->textureSize = 0;
+	    info->dri->textureSize = 0;
 	}
     } else
 #endif /* XF86DRI */

@@ -631,7 +631,7 @@ radeon_crtc_modeset_ioctl(xf86CrtcPtr crtc, Bool post)
     modeset.crtc = radeon_crtc->crtc_id;
     modeset.cmd = post ? _DRM_POST_MODESET : _DRM_PRE_MODESET;
 
-    ioctl(info->drmFD, DRM_IOCTL_MODESET_CTL, &modeset);
+    ioctl(info->dri->drmFD, DRM_IOCTL_MODESET_CTL, &modeset);
 #endif
 }
 
@@ -761,7 +761,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 
     save->crtc_offset      = pScrn->fbOffset;
 #ifdef XF86DRI
-    if (info->allowPageFlip)
+    if (info->dri && info->dri->allowPageFlip)
 	save->crtc_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
     else
 #endif
@@ -854,7 +854,7 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 	pSAREA->frame.height = pScrn->frameY1 - y + 1;
 
 	if (pSAREAPriv->pfCurrentPage == 1) {
-	    Base += info->backOffset - info->frontOffset;
+	    Base += info->dri->backOffset - info->dri->frontOffset;
 	}
     }
 #endif
@@ -981,7 +981,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
      */
     save->crtc2_offset      = pScrn->fbOffset;
 #ifdef XF86DRI
-    if (info->allowPageFlip)
+    if (info->dri && info->dri->allowPageFlip)
 	save->crtc2_offset_cntl = RADEON_CRTC_OFFSET_FLIP_CNTL;
     else
 #endif
@@ -1068,7 +1068,7 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 	pSAREAPriv->crtc2_base = Base;
 
 	if (pSAREAPriv->pfCurrentPage == 1) {
-	    Base += info->backOffset - info->frontOffset;
+	    Base += info->dri->backOffset - info->dri->frontOffset;
 	}
     }
 #endif
@@ -1460,7 +1460,7 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
     } else {
 #ifdef XF86DRI
 	if (info->directRenderingEnabled)
-	    sclk_eff = info->sclk - (info->agpMode * 50.0 / 3.0);
+	    sclk_eff = info->sclk - (info->dri->agpMode * 50.0 / 3.0);
 	else
 #endif
 	    sclk_eff = info->sclk;

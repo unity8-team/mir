@@ -401,7 +401,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	int swap = RADEON_HOST_DATA_SWAP_NONE, wpass = w * bpp / 8;
 	int hpass = min(h, scratch->total/2 / scratch_pitch);
 	uint32_t scratch_pitch_offset = scratch_pitch << 16
-				    | (info->gartLocation + info->bufStart
+				    | (info->gartLocation + info->dri->bufStart
 				       + scratch->idx * scratch->total) >> 10;
 	drmRadeonIndirect indirect;
 	ACCEL_PREAMBLE();
@@ -450,7 +450,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	     * we'd really need is a way to reliably wait for the host interface
 	     * to be done with pushing the data to the host.
 	     */
-	    while ((drmCommandNone(info->drmFD, DRM_RADEON_CP_IDLE) == -EBUSY)
+	    while ((drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_IDLE) == -EBUSY)
 		   && (i++ < RADEON_TIMEOUT))
 		;
 
@@ -473,7 +473,7 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 	indirect.start = indirect.end = 0;
 	indirect.discard = 1;
 
-	drmCommandWriteRead(info->drmFD, DRM_RADEON_INDIRECT,
+	drmCommandWriteRead(info->dri->drmFD, DRM_RADEON_INDIRECT,
 			    &indirect, sizeof(drmRadeonIndirect));
 
 	info->accel_state->exaMarkerSynced = info->accel_state->exaSyncMarker;

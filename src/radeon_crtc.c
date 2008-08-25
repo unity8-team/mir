@@ -492,7 +492,7 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 	    return NULL;
 	}
 #ifdef XF86DRI
-	rotate_offset = info->frontOffset +
+	rotate_offset = info->dri->frontOffset +
 	    radeon_crtc->rotate_mem_xaa->offset * cpp;
 #endif
     }

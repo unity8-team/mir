@@ -694,7 +694,7 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 
 	for (;;) {
 	    do {
-		ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_IDLE);
+		ret = drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_IDLE);
 		if (ret && ret != -EBUSY) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			       "%s: CP idle %d\n", __FUNCTION__, ret);

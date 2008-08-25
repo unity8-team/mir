@@ -433,6 +433,118 @@ struct radeon_cp {
     int               dma_debug_lineno;
 
     };
+
+struct radeon_dri {
+    Bool              noBackBuffer;
+
+    Bool              newMemoryMap;
+    drmVersionPtr     pLibDRMVersion;
+    drmVersionPtr     pKernelDRMVersion;
+    DRIInfoPtr        pDRIInfo;
+    int               drmFD;
+    int               numVisualConfigs;
+    __GLXvisualConfig *pVisualConfigs;
+    RADEONConfigPrivPtr pVisualConfigsPriv;
+    Bool             (*DRICloseScreen)(int, ScreenPtr);
+
+    drm_handle_t      fbHandle;
+
+    drmSize           registerSize;
+    drm_handle_t      registerHandle;
+
+    drmSize           pciSize;
+    drm_handle_t      pciMemHandle;
+    unsigned char     *PCI;             /* Map */
+
+    Bool              depthMoves;       /* Enable depth moves -- slow! */
+    Bool              allowPageFlip;    /* Enable 3d page flipping */
+#ifdef DAMAGE
+    DamagePtr         pDamage;
+    RegionRec         driRegion;
+#endif
+    Bool              have3DWindows;    /* Are there any 3d clients? */
+
+    int               pciAperSize;
+    drmSize           gartSize;
+    drm_handle_t      agpMemHandle;     /* Handle from drmAgpAlloc */
+    unsigned long     gartOffset;
+    unsigned char     *AGP;             /* Map */
+    int               agpMode;
+
+    uint32_t          pciCommand;
+
+    /* CP ring buffer data */
+    unsigned long     ringStart;        /* Offset into GART space */
+    drm_handle_t      ringHandle;       /* Handle from drmAddMap */
+    drmSize           ringMapSize;      /* Size of map */
+    int               ringSize;         /* Size of ring (in MB) */
+    drmAddress        ring;             /* Map */
+    int               ringSizeLog2QW;
+
+    unsigned long     ringReadOffset;   /* Offset into GART space */
+    drm_handle_t      ringReadPtrHandle; /* Handle from drmAddMap */
+    drmSize           ringReadMapSize;  /* Size of map */
+    drmAddress        ringReadPtr;      /* Map */
+
+    /* CP vertex/indirect buffer data */
+    unsigned long     bufStart;         /* Offset into GART space */
+    drm_handle_t      bufHandle;        /* Handle from drmAddMap */
+    drmSize           bufMapSize;       /* Size of map */
+    int               bufSize;          /* Size of buffers (in MB) */
+    drmAddress        buf;              /* Map */
+    int               bufNumBufs;       /* Number of buffers */
+    drmBufMapPtr      buffers;          /* Buffer map */
+
+    /* CP GART Texture data */
+    unsigned long     gartTexStart;      /* Offset into GART space */
+    drm_handle_t      gartTexHandle;     /* Handle from drmAddMap */
+    drmSize           gartTexMapSize;    /* Size of map */
+    int               gartTexSize;       /* Size of GART tex space (in MB) */
+    drmAddress        gartTex;           /* Map */
+    int               log2GARTTexGran;
+
+    /* DRI screen private data */
+    int               fbX;
+    int               fbY;
+    int               backX;
+    int               backY;
+    int               depthX;
+    int               depthY;
+
+    int               frontOffset;
+    int               frontPitch;
+    int               backOffset;
+    int               backPitch;
+    int               depthOffset;
+    int               depthPitch;
+    int               depthBits;
+    int               textureOffset;
+    int               textureSize;
+    int               log2TexGran;
+
+    int               pciGartSize;
+    uint32_t          pciGartOffset;
+    void              *pciGartBackup;
+
+    int               irq;
+
+#ifdef PER_CONTEXT_SAREA
+    int               perctx_sarea_size;
+#endif
+
+#ifdef USE_XAA
+    uint32_t          frontPitchOffset;
+    uint32_t          backPitchOffset;
+    uint32_t          depthPitchOffset;
+
+    /* offscreen memory management */
+    int               backLines;
+    FBAreaPtr         backArea;
+    int               depthTexLines;
+    FBAreaPtr         depthTexArea;
+#endif
+
+};
 #endif
 
 struct radeon_accel_state {
@@ -578,17 +690,7 @@ typedef struct {
 
     Bool              PaletteSavedOnVT; /* Palette saved on last VT switch   */
 
-    struct radeon_accel_state *accel_state;
-
-#ifdef USE_EXA
-#ifdef XF86DRI
-    Bool              accelDFS;
-#endif
-#endif
-    Bool              accelOn;
     xf86CursorInfoPtr cursor;
-    Bool              allowColorTiling;
-    Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
 #ifdef ARGB_CURSOR
     Bool	      cursor_argb;
 #endif
@@ -607,121 +709,30 @@ typedef struct {
     RADEONFBLayout    CurrentLayout;
 
 #ifdef XF86DRI
-    Bool              noBackBuffer;	
     Bool              directRenderingEnabled;
     Bool              directRenderingInited;
-    Bool              newMemoryMap;
-    drmVersionPtr     pLibDRMVersion;
-    drmVersionPtr     pKernelDRMVersion;
-    DRIInfoPtr        pDRIInfo;
-    int               drmFD;
-    int               numVisualConfigs;
-    __GLXvisualConfig *pVisualConfigs;
-    RADEONConfigPrivPtr pVisualConfigsPriv;
-    Bool             (*DRICloseScreen)(int, ScreenPtr);
-
-    drm_handle_t      fbHandle;
-
-    drmSize           registerSize;
-    drm_handle_t      registerHandle;
-
     RADEONCardType    cardType;            /* Current card is a PCI card */
-    drmSize           pciSize;
-    drm_handle_t      pciMemHandle;
-    unsigned char     *PCI;             /* Map */
-
-    Bool              depthMoves;       /* Enable depth moves -- slow! */
-    Bool              allowPageFlip;    /* Enable 3d page flipping */
-#ifdef DAMAGE
-    DamagePtr         pDamage;
-    RegionRec         driRegion;
-#endif
-    Bool              have3DWindows;    /* Are there any 3d clients? */
-
-    int               pciAperSize;
-    drmSize           gartSize;
-    drm_handle_t      agpMemHandle;     /* Handle from drmAgpAlloc */
-    unsigned long     gartOffset;
-    unsigned char     *AGP;             /* Map */
-    int               agpMode;
-
-    uint32_t          pciCommand;
-
     struct radeon_cp  *cp;
-
-				/* CP ring buffer data */
-    unsigned long     ringStart;        /* Offset into GART space */
-    drm_handle_t      ringHandle;       /* Handle from drmAddMap */
-    drmSize           ringMapSize;      /* Size of map */
-    int               ringSize;         /* Size of ring (in MB) */
-    drmAddress        ring;             /* Map */
-    int               ringSizeLog2QW;
-
-    unsigned long     ringReadOffset;   /* Offset into GART space */
-    drm_handle_t      ringReadPtrHandle; /* Handle from drmAddMap */
-    drmSize           ringReadMapSize;  /* Size of map */
-    drmAddress        ringReadPtr;      /* Map */
-
-				/* CP vertex/indirect buffer data */
-    unsigned long     bufStart;         /* Offset into GART space */
-    drm_handle_t      bufHandle;        /* Handle from drmAddMap */
-    drmSize           bufMapSize;       /* Size of map */
-    int               bufSize;          /* Size of buffers (in MB) */
-    drmAddress        buf;              /* Map */
-    int               bufNumBufs;       /* Number of buffers */
-    drmBufMapPtr      buffers;          /* Buffer map */
-
-				/* CP GART Texture data */
-    unsigned long     gartTexStart;      /* Offset into GART space */
-    drm_handle_t      gartTexHandle;     /* Handle from drmAddMap */
-    drmSize           gartTexMapSize;    /* Size of map */
-    int               gartTexSize;       /* Size of GART tex space (in MB) */
-    drmAddress        gartTex;           /* Map */
-    int               log2GARTTexGran;
-
-				/* DRI screen private data */
-    int               fbX;
-    int               fbY;
-    int               backX;
-    int               backY;
-    int               depthX;
-    int               depthY;
-
-    int               frontOffset;
-    int               frontPitch;
-    int               backOffset;
-    int               backPitch;
-    int               depthOffset;
-    int               depthPitch;
-    int               depthBits;
-    int               textureOffset;
-    int               textureSize;
-    int               log2TexGran;
-
-    int               pciGartSize;
-    uint32_t          pciGartOffset;
-    void              *pciGartBackup;
-#ifdef USE_XAA
-    uint32_t          frontPitchOffset;
-    uint32_t          backPitchOffset;
-    uint32_t          depthPitchOffset;
-
-				/* offscreen memory management */
-    int               backLines;
-    FBAreaPtr         backArea;
-    int               depthTexLines;
-    FBAreaPtr         depthTexArea;
+    struct radeon_dri  *dri;
+#ifdef USE_EXA
+    Bool              accelDFS;
 #endif
-
-    int               irq;
-
     Bool              DMAForXv;
-
-#ifdef PER_CONTEXT_SAREA
-    int               perctx_sarea_size;
-#endif
-
 #endif /* XF86DRI */
+
+    /* accel */
+    Bool              RenderAccel; /* Render */
+    Bool              allowColorTiling;
+    Bool              tilingEnabled; /* mirror of sarea->tiling_enabled */
+    struct radeon_accel_state *accel_state;
+    Bool              accelOn;
+    Bool              useEXA;
+#ifdef USE_EXA
+    XF86ModReqInfo    exaReq;
+#endif
+#ifdef USE_XAA
+    XF86ModReqInfo    xaaReq;
+#endif
 
 				/* XVideo */
     XF86VideoAdaptorPtr adaptor;
@@ -751,20 +762,9 @@ typedef struct {
     int overlay_scaler_buffer_width;
     int ecp_div;
 
-    /* Render */
-    Bool              RenderAccel;
-
     /* general */
     Bool              showCache;
     OptionInfoPtr     Options;
-
-    Bool              useEXA;
-#ifdef USE_EXA
-    XF86ModReqInfo    exaReq;
-#endif
-#ifdef USE_XAA
-    XF86ModReqInfo    xaaReq;
-#endif
 
     DisplayModePtr currentMode, savedCurrentMode;
 
@@ -1060,7 +1060,7 @@ extern void RADEONAccelInitCP(ScreenPtr pScreen, XAAInfoRecPtr a);
 
 #define RADEONCP_START(pScrn, info)					\
 do {									\
-    int _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_START);	\
+    int _ret = drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_START);	\
     if (_ret) {								\
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,				\
 		   "%s: CP start %d\n", __FUNCTION__, _ret);		\
@@ -1095,7 +1095,7 @@ do {									\
 
 #define RADEONCP_RESET(pScrn, info)					\
 do {									\
-	int _ret = drmCommandNone(info->drmFD, DRM_RADEON_CP_RESET);	\
+	int _ret = drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_RESET);	\
 	if (_ret) {							\
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,			\
 		       "%s: CP reset %d\n", __FUNCTION__, _ret);	\
