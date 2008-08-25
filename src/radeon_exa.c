@@ -234,7 +234,7 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
     }
 #if defined(XF86DRI)
     if (info->directRenderingEnabled && info->allowColorTiling) {
-	drmRadeonSurfaceAlloc drmsurfalloc;
+	struct drm_radeon_surface_alloc drmsurfalloc;
 	int rc;
 
         drmsurfalloc.address = offset;
@@ -277,7 +277,7 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
         return;
 #if defined(XF86DRI)
     if (info->directRenderingEnabled && info->allowColorTiling) {
-	drmRadeonSurfaceFree drmsurffree;
+	struct drm_radeon_surface_free drmsurffree;
 
 	drmsurffree.address = offset;
 	drmCommandWrite(info->dri->drmFD, DRM_RADEON_SURF_FREE,
