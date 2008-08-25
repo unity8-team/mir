@@ -13,6 +13,8 @@
 
 #include "xf86Crtc.h"
 
+#include "bicubic_table.h"
+
 /* Xvideo port struct */
 typedef struct {
    uint32_t	 transform_index;
@@ -37,7 +39,7 @@ typedef struct {
    uint32_t      radeon_N;
    uint32_t      i2c_status;
    uint32_t      i2c_cntl;
-   
+
    FI1236Ptr     fi1236;
    uint8_t       tuner_type;
    MSP3430Ptr    msp3430;
@@ -46,7 +48,7 @@ typedef struct {
 
    /* VIP bus and devices */
    GENERIC_BUS_Ptr  VIP;
-   TheatrePtr       theatre;   
+   TheatrePtr       theatre;
 
    Bool          video_stream_active;
    int           encoding;
@@ -56,7 +58,7 @@ typedef struct {
    int           sap_channel;
    int           v;
    uint32_t      adjustment; /* general purpose variable */
-   
+
 #define METHOD_BOB      0
 #define METHOD_SINGLE   1
 #define METHOD_WEAVE    2
@@ -88,6 +90,11 @@ typedef struct {
 
    void         *video_memory;
    int           video_offset;
+
+   /* bicubic filtering */
+   void         *bicubic_memory;
+   int           bicubic_offset;
+   Bool          bicubic_enabled;
 
    Atom          device_id, location_id, instance_id;
 

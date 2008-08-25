@@ -199,6 +199,15 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    return BadAlloc;
     }
 
+    /* Bicubic filter loading */
+    if (pPriv->bicubic_memory == NULL) {
+	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
+					&pPriv->bicubic_memory,
+					sizeof(bicubic_tex_128));
+	if (pPriv->bicubic_offset == 0)
+		pPriv->bicubic_enabled = FALSE;
+    }
+
     if (pDraw->type == DRAWABLE_WINDOW)
 	pPriv->pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr)pDraw);
     else

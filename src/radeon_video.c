@@ -1678,6 +1678,10 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
 	 RADEONFreeMemory(pScrn, pPriv->video_memory);
 	 pPriv->video_memory = NULL;
      }
+     if (pPriv->bicubic_memory != NULL) {
+	 RADEONFreeMemory(pScrn, pPriv->bicubic_memory);
+	 pPriv->bicubic_memory = NULL;
+     }
      pPriv->videoStatus = 0;
   } else {
      if(pPriv->videoStatus & CLIENT_VIDEO_ON) {
