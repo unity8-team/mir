@@ -4346,6 +4346,7 @@
 
 #define R300_TX_INVALTAGS				0x4100
 #define R300_TX_FILTER0_0				0x4400
+#define R300_TX_FILTER0_1				0x4404
 #       define R300_TX_CLAMP_S(x)                       (x << 0)
 #       define R300_TX_CLAMP_T(x)                       (x << 3)
 #       define R300_TX_CLAMP_R(x)                       (x << 6)
@@ -4363,7 +4364,9 @@
 #       define R300_TX_MIN_FILTER_LINEAR                (2 << 11)
 #       define R300_TX_ID_SHIFT                         28
 #define R300_TX_FILTER1_0				0x4440
+#define R300_TX_FILTER1_1				0x4444
 #define R300_TX_FORMAT0_0				0x4480
+#define R300_TX_FORMAT0_1				0x4484
 #       define R300_TXWIDTH_SHIFT                       0
 #       define R300_TXHEIGHT_SHIFT                      11
 #       define R300_NUM_LEVELS_SHIFT                    26
@@ -4371,6 +4374,7 @@
 #       define R300_TXPROJECTED                         (1 << 30)
 #       define R300_TXPITCH_EN                          (1 << 31)
 #define R300_TX_FORMAT1_0				0x44c0
+#define R300_TX_FORMAT1_1				0x44c4
 #	define R300_TX_FORMAT_X8		    0x0
 #	define R300_TX_FORMAT_X16		    0x1
 #	define R300_TX_FORMAT_Y4X4		    0x2
@@ -4444,10 +4448,12 @@
 #       define R300_TX_FORMAT_SWAP_YUV                 (1 << 24)
 
 #define R300_TX_FORMAT2_0				0x4500
+#define R300_TX_FORMAT2_1				0x4504
 #       define R500_TXWIDTH_11                          (1 << 15)
 #       define R500_TXHEIGHT_11                         (1 << 16)
 
 #define R300_TX_OFFSET_0				0x4540
+#define R300_TX_OFFSET_1				0x4544
 #       define R300_ENDIAN_SWAP_16_BIT                  (1 << 0)
 #       define R300_ENDIAN_SWAP_32_BIT                  (2 << 0)
 #       define R300_ENDIAN_SWAP_HALF_DWORD              (3 << 0)

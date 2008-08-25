@@ -95,6 +95,7 @@ typedef struct {
    void         *bicubic_memory;
    int           bicubic_offset;
    Bool          bicubic_enabled;
+   uint32_t      bicubic_src_offset;
 
    Atom          device_id, location_id, instance_id;
 

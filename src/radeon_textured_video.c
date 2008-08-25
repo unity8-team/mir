@@ -205,6 +205,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	pPriv->bicubic_offset = RADEONAllocateMemory(pScrn,
 					&pPriv->bicubic_memory,
 					sizeof(bicubic_tex_128));
+	pPriv->bicubic_src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;
     }
