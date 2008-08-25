@@ -352,6 +352,7 @@ do {									\
 #undef ACCEL_PREAMBLE
 #undef BEGIN_ACCEL
 #undef OUT_ACCEL_REG
+#undef OUT_ACCEL_REG_F
 #undef FINISH_ACCEL
 
 #ifdef XF86DRI
@@ -370,6 +371,13 @@ do {									\
 #include "radeon_exa_render.c"
 #endif
 #include "radeon_exa_funcs.c"
+
+#undef ACCEL_CP
+#undef ACCEL_PREAMBLE
+#undef BEGIN_ACCEL
+#undef OUT_ACCEL_REG
+#undef FINISH_ACCEL
+#undef OUT_RING_F
 
 #endif /* XF86DRI */
 

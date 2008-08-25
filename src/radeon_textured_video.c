@@ -81,34 +81,42 @@ static __inline__ uint32_t F_TO_DW(float val)
 }
 
 #define ACCEL_MMIO
-#define VIDEO_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
-#define BEGIN_VIDEO(n)		RADEONWaitForFifo(pScrn, (n))
-#define OUT_VIDEO_REG(reg, val)	OUTREG(reg, val)
-#define OUT_VIDEO_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
-#define FINISH_VIDEO()
+#define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
+#define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
+#define OUT_ACCEL_REG(reg, val)	OUTREG(reg, val)
+#define OUT_ACCEL_REG_F(reg, val) OUTREG(reg, F_TO_DW(val))
+#define FINISH_ACCEL()
 
 #include "radeon_textured_videofuncs.c"
 
 #undef ACCEL_MMIO
-#undef VIDEO_PREAMBLE
-#undef BEGIN_VIDEO
-#undef OUT_VIDEO_REG
-#undef OUT_VIDEO_REG_F
-#undef FINISH_VIDEO
+#undef ACCEL_PREAMBLE
+#undef BEGIN_ACCEL
+#undef OUT_ACCEL_REG
+#undef OUT_ACCEL_REG_F
+#undef FINISH_ACCEL
 
 #ifdef XF86DRI
 
 #define ACCEL_CP
-#define VIDEO_PREAMBLE()						\
+#define ACCEL_PREAMBLE()						\
     RING_LOCALS;							\
     RADEONCP_REFRESH(pScrn, info)
-#define BEGIN_VIDEO(n)		BEGIN_RING(2*(n))
-#define OUT_VIDEO_REG(reg, val)	OUT_RING_REG(reg, val)
-#define OUT_VIDEO_REG_F(reg, val)	OUT_VIDEO_REG(reg, F_TO_DW(val))
-#define FINISH_VIDEO()		ADVANCE_RING()
-#define OUT_VIDEO_RING_F(x) OUT_RING(F_TO_DW(x))
+#define BEGIN_ACCEL(n)		BEGIN_RING(2*(n))
+#define OUT_ACCEL_REG(reg, val)	OUT_RING_REG(reg, val)
+#define OUT_ACCEL_REG_F(reg, val)	OUT_ACCEL_REG(reg, F_TO_DW(val))
+#define FINISH_ACCEL()		ADVANCE_RING()
+#define OUT_RING_F(x) OUT_RING(F_TO_DW(x))
 
 #include "radeon_textured_videofuncs.c"
+
+#undef ACCEL_CP
+#undef ACCEL_PREAMBLE
+#undef BEGIN_ACCEL
+#undef OUT_ACCEL_REG
+#undef OUT_ACCEL_REG_F
+#undef FINISH_ACCEL
+#undef OUT_RING_F
 
 #endif /* XF86DRI */
 
