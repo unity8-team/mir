@@ -389,9 +389,9 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	/* -1 -> set default (disable for RV515 and punier) */
+	/* -1 -> set default */
 	pPriv->bicubic_enabled = (value == -1) ?
-	    (info->ChipFamily == CHIP_FAMILY_R580) : value;
+	    (info->ChipFamily >= CHIP_FAMILY_RV515) : value;
     else
 	return BadMatch;
 
@@ -454,7 +454,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->videoStatus = 0;
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
-	pPriv->bicubic_enabled = (info->ChipFamily == CHIP_FAMILY_R580);
+	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_RV515);
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
