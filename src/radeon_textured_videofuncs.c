@@ -664,7 +664,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R500_ALU_RGBA_B_SWIZ_B |
 						   R500_ALU_RGBA_A_SWIZ_A));
 
-		/* ADD temp4, temp4, input0.xyxy */
+		/* ADD temp0, temp4, input0.xyxy */
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						   R500_INST_RGB_WMASK_R |
 						   R500_INST_RGB_WMASK_G |
@@ -758,7 +758,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(3) |
 						   R500_ALPHA_SRCP_OP_A1_MINUS_A0 |
 						   R500_ALPHA_ADDR1(1) |
-						   R500_ALPHA_ADDR1(2)));
+						   R500_ALPHA_ADDR2(2)));
 		OUT_VIDEO_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC2 |
 						   R500_ALU_RGB_R_SWIZ_A_B |
 						   R500_ALU_RGB_G_SWIZ_A_B |
