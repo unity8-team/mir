@@ -3786,9 +3786,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       I830LeaveVT(scrnIndex, 0);
    }
 
-   dri_bufmgr_destroy(pI830->bufmgr);
-   pI830->bufmgr = NULL;
-
    if (pI830->devicesTimer)
       TimerCancel(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
@@ -3828,6 +3825,10 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    xf86_cursors_fini (pScreen);
 
    i830_allocator_fini(pScrn);
+
+   dri_bufmgr_destroy(pI830->bufmgr);
+   pI830->bufmgr = NULL;
+
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
 #ifdef DAMAGE
