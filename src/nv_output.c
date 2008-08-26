@@ -46,7 +46,7 @@
 
 static int nv_output_ramdac_offset(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	int offset = 0;
 
 	if (nv_output->dcb->or & (8 | OUTPUT_C))
@@ -59,22 +59,22 @@ static int nv_output_ramdac_offset(xf86OutputPtr output)
 
 static void dpms_update_fp_control(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	NVPtr pNv = NVPTR(output->scrn);
-	NVCrtcPrivatePtr nv_crtc;
+	struct nouveau_crtc *nv_crtc;
 	NVCrtcRegPtr regp;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(output->scrn);
 	int i;
 
 	if (mode == DPMSModeOn) {
-		nv_crtc = output->crtc->driver_private;
+		nv_crtc = to_nouveau_crtc(output->crtc);
 		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 		nv_crtc->fp_users |= 1 << nv_output->dcb->index;
 		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control & ~0x20000022);
 	} else
 		for (i = 0; i <= pNv->twoHeads; i++) {
-			nv_crtc = xf86_config->crtc[i]->driver_private;
+			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
 			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 			nv_crtc->fp_users &= ~(1 << nv_output->dcb->index);
@@ -91,7 +91,7 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output);
 static void
 nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
@@ -108,7 +108,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 		int pclk = nv_output->native_mode->Clock;
 
 		if (crtc)
-			head = ((NVCrtcPrivatePtr)crtc->driver_private)->head;
+			head = to_nouveau_crtc(crtc)->head;
 
 		if (mode == DPMSModeOn)
 			call_lvds_script(pScrn, nv_output->dcb, head, LVDS_PANEL_ON, pclk);
@@ -130,7 +130,7 @@ nv_lvds_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_analog_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 
@@ -155,7 +155,7 @@ nv_analog_output_dpms(xf86OutputPtr output, int mode)
 static void
 nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 
@@ -168,11 +168,11 @@ nv_tmds_output_dpms(xf86OutputPtr output, int mode)
 	dpms_update_fp_control(output, mode);
 
 	if (nv_output->dcb->location != LOC_ON_CHIP) {
-		NVCrtcPrivatePtr nv_crtc;
+		struct nouveau_crtc *nv_crtc;
 		int i;
 
 		if (mode == DPMSModeOn) {
-			nv_crtc = output->crtc->driver_private;
+			nv_crtc = to_nouveau_crtc(output->crtc);
 			NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_LCD,
 				       pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_VGA_CRTCX_LCD]);
 		} else
@@ -186,7 +186,7 @@ static void nv_output_save(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_save is called.\n");
 
@@ -216,7 +216,7 @@ static void nv_output_restore(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	int head = nv_output->restore.head;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
@@ -239,7 +239,7 @@ static void nv_output_restore(xf86OutputPtr output)
 
 static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	NVPtr pNv = NVPTR(output->scrn);
 
 	if (!output->doubleScanAllowed && mode->Flags & V_DBLSCAN)
@@ -275,7 +275,7 @@ static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_fixup is called.\n");
@@ -305,10 +305,10 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
 
@@ -332,7 +332,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 static xf86MonPtr
 nv_get_edid(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	xf86MonPtr ddc_mon;
 
 	if (nv_output->pDDCBus == NULL)
@@ -372,7 +372,7 @@ static Bool
 nv_load_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t testval, regoffset = nv_output_ramdac_offset(output);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput, saved_rtest_ctrl, temp;
@@ -475,7 +475,7 @@ static DisplayModePtr
 nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 {
 	ScrnInfoPtr pScrn = output->scrn;
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	DisplayModePtr ddc_modes;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_modes is called.\n");
@@ -559,24 +559,25 @@ nv_output_get_ddc_modes(xf86OutputPtr output)
 static void
 nv_output_destroy (xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_destroy is called.\n");
 
-	if (nv_output) {
-		if (nv_output->native_mode)
-			xfree(nv_output->native_mode);
-		xfree(output->driver_private);
-	}
+	if (!nv_output)
+		return;
+
+	if (nv_output->native_mode)
+		xfree(nv_output->native_mode);
+	xfree(nv_output);
 }
 
 static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	NVPtr pNv = NVPTR(output->scrn);
 	NVRegPtr state = &pNv->ModeReg;
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 	uint32_t bits1618 = nv_output->dcb->or & OUTPUT_A ? 0x10000 : 0x40000;
 
 	if (nv_output->dcb->location != LOC_ON_CHIP)
@@ -617,10 +618,10 @@ static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
-	NVCrtcPrivatePtr nv_crtc = output->crtc->driver_private;
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
@@ -652,8 +653,8 @@ nv_output_commit(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86CrtcPtr crtc = output->crtc;
-	NVOutputPrivatePtr nv_output = output->driver_private;
-	NVCrtcPrivatePtr nv_crtc = crtc->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_commit is called.\n");
 
@@ -698,7 +699,7 @@ static Atom dithering_atom;
 static void
 nv_digital_output_create_resources(xf86OutputPtr output)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	INT32 dithering_range[2] = { 0, 1 };
 	int error, i;
@@ -762,7 +763,7 @@ static Bool
 nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 
 	if (property == scaling_mode_atom) {
 		int32_t ret;
@@ -819,7 +820,7 @@ nv_lvds_output_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_detect is called.\n");
 
@@ -838,7 +839,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	NVOutputPrivatePtr nv_output = output->driver_private;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	DisplayModePtr modes;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_get_modes is called.\n");
@@ -885,11 +886,11 @@ nv_add_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, const xf86OutputFuncs
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
-	NVOutputPrivatePtr nv_output;
+	struct nouveau_output *nv_output;
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
 		return;
-	if (!(nv_output = xnfcalloc(sizeof(NVOutputPrivateRec), 1)))
+	if (!(nv_output = xnfcalloc(sizeof (struct nouveau_output), 1)))
 		return;
 
 	output->driver_private = nv_output;
