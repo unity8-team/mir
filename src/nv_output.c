@@ -329,43 +329,32 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(output), 0x00100000);
 }
 
-static xf86MonPtr
-nv_get_edid(xf86OutputPtr output)
-{
-	struct nouveau_output *nv_output = to_nouveau_output(output);
-	xf86MonPtr ddc_mon;
-
-	if (nv_output->pDDCBus == NULL)
-		return NULL;
-
-	ddc_mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
-	if (!ddc_mon)
-		return NULL;
-
-	if (ddc_mon->features.input_type && nv_output->dcb->type == OUTPUT_ANALOG)
-		goto invalid;
-
-	if (!ddc_mon->features.input_type && (nv_output->dcb->type == OUTPUT_TMDS ||
-					      nv_output->dcb->type == OUTPUT_LVDS))
-		goto invalid;
-
-	return ddc_mon;
-
-invalid:
-	xfree(ddc_mon);
-	return NULL;
-}
-
 static Bool
 nv_ddc_detect(xf86OutputPtr output)
 {
-	xf86MonPtr m = nv_get_edid(output);
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 
-	if (m == NULL)
+	if (nv_output->pDDCBus == NULL)
 		return FALSE;
 
-	xfree(m);
+	nv_output->mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
+	xf86OutputSetEDID(output, nv_output->mon);
+	if (nv_output->mon == NULL)
+		return FALSE;
+
+	if (nv_output->mon->features.input_type && nv_output->dcb->type == OUTPUT_ANALOG)
+		goto invalid;
+
+	if (!nv_output->mon->features.input_type && (nv_output->dcb->type == OUTPUT_TMDS ||
+					      nv_output->dcb->type == OUTPUT_LVDS))
+		goto invalid;
+
 	return TRUE;
+
+invalid:
+	xf86OutputSetEDID(output, NULL);
+	nv_output->mon = NULL;
+	return FALSE;
 }
 
 static Bool
@@ -472,61 +461,70 @@ nv_analog_output_detect(xf86OutputPtr output)
 }
 
 static DisplayModePtr
-nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
+get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 {
 	ScrnInfoPtr pScrn = output->scrn;
 	struct nouveau_output *nv_output = to_nouveau_output(output);
-	DisplayModePtr ddc_modes;
+	int max_h_active = 0, max_v_active = 0;
+	int i;
+	DisplayModePtr mode;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_modes is called.\n");
+	for (i = 0; i < DET_TIMINGS; i++) {
+		/* We only look at detailed timings atm */
+		if (nv_output->mon->det_mon[i].type != DT)
+			continue;
+		/* Selecting only based on width ok? */
+		if (nv_output->mon->det_mon[i].section.d_timings.h_active > max_h_active) {
+			max_h_active = nv_output->mon->det_mon[i].section.d_timings.h_active;
+			max_v_active = nv_output->mon->det_mon[i].section.d_timings.v_active;
+		}
+	}
+	if (!(max_h_active && max_v_active)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No EDID detailed timings available, bailing out.\n");
+		return NULL;
+	}
 
-	xf86OutputSetEDID(output, mon);
+	if (nv_output->native_mode) {
+		xfree(nv_output->native_mode);
+		nv_output->native_mode = NULL;
+	}
 
-	ddc_modes = xf86OutputGetEDIDModes(output);
-
-	if (nv_output->dcb->type == OUTPUT_TMDS || nv_output->dcb->type == OUTPUT_LVDS) {
-		int max_h_active = 0, max_v_active = 0;
-		int i;
-		DisplayModePtr mode;
-
-		for (i = 0; i < DET_TIMINGS; i++) {
-			/* We only look at detailed timings atm */
-			if (mon->det_mon[i].type != DT)
-				continue;
-			/* Selecting only based on width ok? */
-			if (mon->det_mon[i].section.d_timings.h_active > max_h_active) {
-				max_h_active = mon->det_mon[i].section.d_timings.h_active;
-				max_v_active = mon->det_mon[i].section.d_timings.v_active;
+	for (mode = edid_modes; mode != NULL; mode = mode->next) {
+		if (mode->HDisplay == max_h_active &&
+			mode->VDisplay == max_v_active) {
+			/* Take the preferred mode when it exists. */
+			if (mode->type & M_T_PREFERRED) {
+				nv_output->native_mode = xf86DuplicateMode(mode);
+				break;
 			}
-		}
-		if (!(max_h_active && max_v_active)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No EDID detailed timings available, bailing out.\n");
-			return NULL;
-		}
-
-		if (nv_output->native_mode) {
-			xfree(nv_output->native_mode);
-			nv_output->native_mode = NULL;
-		}
-
-		for (mode = ddc_modes; mode != NULL; mode = mode->next) {
-			if (mode->HDisplay == max_h_active &&
-				mode->VDisplay == max_v_active) {
-				/* Take the preferred mode when it exists. */
-				if (mode->type & M_T_PREFERRED) {
-					nv_output->native_mode = xf86DuplicateMode(mode);
-					break;
-				}
-				/* Find the highest refresh mode otherwise. */
-				if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh)) {
-					if (nv_output->native_mode)
-						xfree(nv_output->native_mode);
-					mode->type |= M_T_PREFERRED;
-					nv_output->native_mode = xf86DuplicateMode(mode);
-				}
+			/* Find the highest refresh mode otherwise. */
+			if (!nv_output->native_mode || (mode->VRefresh > nv_output->native_mode->VRefresh)) {
+				if (nv_output->native_mode)
+					xfree(nv_output->native_mode);
+				mode->type |= M_T_PREFERRED;
+				nv_output->native_mode = xf86DuplicateMode(mode);
 			}
 		}
 	}
+
+	return nv_output->native_mode;
+}
+
+static DisplayModePtr
+nv_output_get_edid_modes(xf86OutputPtr output)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	struct nouveau_output *nv_output = to_nouveau_output(output);
+	DisplayModePtr edid_modes;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_edid_modes is called.\n");
+
+	if (!(edid_modes = xf86OutputGetEDIDModes(output)))
+		return NULL;
+
+	if (nv_output->dcb->type == OUTPUT_TMDS || nv_output->dcb->type == OUTPUT_LVDS)
+		if (!get_native_mode_from_edid(output, edid_modes))
+			return NULL;
 
 	if (nv_output->dcb->type == OUTPUT_LVDS) {
 		static bool dual_link_correction_done = false;
@@ -537,23 +535,7 @@ nv_output_get_modes(xf86OutputPtr output, xf86MonPtr mon)
 		}
 	}
 
-	return ddc_modes;
-}
-
-static DisplayModePtr
-nv_output_get_ddc_modes(xf86OutputPtr output)
-{
-	xf86MonPtr ddc_mon;
-	ScrnInfoPtr pScrn = output->scrn;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_ddc_modes is called.\n");
-
-	ddc_mon = nv_get_edid(output);
-
-	if (ddc_mon == NULL)
-		return NULL;
-
-	return nv_output_get_modes(output, ddc_mon);
+	return edid_modes;
 }
 
 static void
@@ -567,6 +549,8 @@ nv_output_destroy (xf86OutputPtr output)
 	if (!nv_output)
 		return;
 
+	if (nv_output->mon)
+		xfree(nv_output->mon);
 	if (nv_output->native_mode)
 		xfree(nv_output->native_mode);
 	xfree(nv_output);
@@ -671,7 +655,7 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
     .detect = nv_analog_output_detect,
-    .get_modes = nv_output_get_ddc_modes,
+    .get_modes = nv_output_get_edid_modes,
     .destroy = nv_output_destroy,
     .prepare = nv_output_prepare,
     .commit = nv_output_commit,
@@ -807,7 +791,7 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
 	.detect = nv_tmds_output_detect,
-	.get_modes = nv_output_get_ddc_modes,
+	.get_modes = nv_output_get_edid_modes,
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
@@ -828,8 +812,12 @@ nv_lvds_output_detect(xf86OutputPtr output)
 		return XF86OutputStatusConnected;
 	if (nv_output->dcb->lvdsconf.use_straps_for_mode && pNv->VBIOS.fp.native_mode)
 		return XF86OutputStatusConnected;
-	if (pNv->VBIOS.fp.edid)
+	if (pNv->VBIOS.fp.edid) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Will use hardcoded BIOS FP EDID\n");
+		nv_output->mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
+		xf86OutputSetEDID(output, nv_output->mon);
 		return XF86OutputStatusConnected;
+	}
 
 	return XF86OutputStatusDisconnected;
 }
@@ -844,19 +832,11 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_get_modes is called.\n");
 
-	if ((modes = nv_output_get_ddc_modes(output)))
+	if ((modes = nv_output_get_edid_modes(output)))
 		return modes;
 
-	if (!nv_output->dcb->lvdsconf.use_straps_for_mode || pNv->VBIOS.fp.native_mode == NULL) {
-		xf86MonPtr edid_mon;
-
-		if (!pNv->VBIOS.fp.edid)
-			return NULL;
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using hardcoded BIOS FP EDID\n");
-		edid_mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
-		return nv_output_get_modes(output, edid_mon);
-	}
+	if (!nv_output->dcb->lvdsconf.use_straps_for_mode || pNv->VBIOS.fp.native_mode == NULL)
+		return NULL;
 
 	if (nv_output->native_mode)
 		xfree(nv_output->native_mode);

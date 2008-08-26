@@ -239,6 +239,7 @@ typedef enum {
 } ValidOutputResource;
 
 struct nouveau_output {
+	xf86MonPtr mon;
 	uint8_t last_dpms;
 	I2CBusPtr pDDCBus;
 	struct dcb_entry *dcb;
