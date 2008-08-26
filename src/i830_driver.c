@@ -973,7 +973,7 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
 
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
-    if (IS_GM45(pI830)) {
+    if (IS_GM45(pI830) || IS_G4X(pI830)) {
 	OUTREG(RENCLK_GATE_D1, 0);
 	OUTREG(RENCLK_GATE_D2, 0);
 	OUTREG(RAMCLK_GATE_D, 0);
@@ -1503,9 +1503,9 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_LVDSFIXEDMODE, TRUE)) {
-      pI830->lvds_fixed_mode = TRUE;
+      pI830->skip_panel_detect = FALSE;
    } else {
-      pI830->lvds_fixed_mode = FALSE;
+      pI830->skip_panel_detect = TRUE;
    }
 
    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
@@ -1634,6 +1634,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    } 
    
 #endif
+
+   if (i830_bios_init(pScrn))
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "VBIOS initialization failed.\n");
 
    I830PreInitDDC(pScrn);
    for (i = 0; i < num_pipe; i++) {
@@ -2018,7 +2022,8 @@ SaveHWState(ScrnInfoPtr pScrn)
    }
 
    /* Save video mode information for native mode-setting. */
-   pI830->saveDSPARB = INREG(DSPARB);
+   if (!DSPARB_HWCONTROL(pI830))
+       pI830->saveDSPARB = INREG(DSPARB);
 
    pI830->saveDSPACNTR = INREG(DSPACNTR);
    pI830->savePIPEACONF = INREG(PIPEACONF);
@@ -2161,7 +2166,8 @@ RestoreHWState(ScrnInfoPtr pScrn)
    if (!IS_I830(pI830) && !IS_845G(pI830))
      OUTREG(PFIT_CONTROL, pI830->savePFIT_CONTROL);
 
-   OUTREG(DSPARB, pI830->saveDSPARB);
+   if (!DSPARB_HWCONTROL(pI830))
+       OUTREG(DSPARB, pI830->saveDSPARB);
 
    OUTREG(DSPCLK_GATE_D, pI830->saveDSPCLK_GATE_D);
    OUTREG(RENCLK_GATE_D1, pI830->saveRENCLK_GATE_D1);
@@ -2512,7 +2518,7 @@ I830BlockHandler(int i,
      * (except for mode setting, where it may occur naturally).
      * Check & ack the condition.
      */
-    if (pScrn->vtSema) {
+    if (pScrn->vtSema && !DSPARB_HWCONTROL(pI830)) {
 	if (xf86_config->crtc[0]->enabled &&
 		(INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");

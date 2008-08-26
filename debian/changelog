@@ -1,3 +1,34 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu1) intrepid; urgency=low
+
+  * New upstream version, this is basically version 2.4.2. (LP: #260603)
+  * Merge with debian experimental. Remaining changes:
+    - debian/patches
+      + 20_thinkpad_g40_quirk.patch:
+        Quirk for IBM Thinkpad G40
+      + 21_quirk_lenovo.patch:
+        Pipe-A quirks for Lenovo ThinkPad T60
+    - debian/control:
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+  * Disable 01_fix_compiz_video.diff, since it appears to be obsolete
+    by now.
+  * Drop 05_intel_exa_force_greedy.patch, since it was not used (crash)
+    and the option doesn't seem to improve the performance anymore.
+  * Disable 11_textured_video_option.patch for now, textured video seems
+    to work just fine now.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 26 Aug 2008 14:19:55 +0300
+
+xserver-xorg-video-intel (2:2.4.1-1) experimental; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release.
+
+  [ Julien Cristau ]
+  * Pull from 2.4-branch HEAD as of August 24th.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 24 Aug 2008 18:28:32 +0200
+
 xserver-xorg-video-intel (2:2.4.0-1ubuntu1) intrepid; urgency=low
 
   * Merge with debian experimental.

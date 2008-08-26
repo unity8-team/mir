@@ -92,7 +92,7 @@ binary-arch: build install serverabi
 	dh_compress
 	dh_fixperms
 	dh_makeshlibs
-	dh_shlibdeps
+	dh_shlibdeps -- --warnings=6
 	dh_installdeb
 	dh_gencontrol
 	dh_md5sums

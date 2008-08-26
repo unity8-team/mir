@@ -271,8 +271,6 @@ static i830_quirk i830_quirk_list[] = {
 
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
-    /* HP Pavilion ze4944ea needs pipe A force quirk (See LP: #242389) */
-    { PCI_CHIP_GM45_GM, 0x103c, 0x3084, quirk_pipea_force },
 
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
@@ -292,6 +290,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x1028, 0x00c8, quirk_pipea_force },
     /* Intel 855GM hardware (See Novell Bugzilla #406123) */
     { PCI_CHIP_I855_GM, 0x10cf, 0x1215, quirk_pipea_force },
+    /* HP Pavilion ze4944ea needs pipe A force quirk (See LP: #242389) */
+    { PCI_CHIP_I855_GM, 0x103c, 0x3084, quirk_pipea_force },
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
@@ -315,6 +315,7 @@ static i830_quirk i830_quirk_list[] = {
 
     /* 855 & before need to leave pipe A & dpll A up */
     { PCI_CHIP_I855_GM, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
+    { PCI_CHIP_845_G, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
 
     { 0, 0, 0, NULL },
 };

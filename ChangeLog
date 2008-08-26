@@ -1,3 +1,212 @@
+commit 48d4b0ae50affd7fa442271046eefba74de7ff2c
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Wed Aug 20 15:06:36 2008 -0700
+
+    Don't disable planes in i830_update_dsparb
+    
+    We need to program DSPARB with only one plane enabled at most, and that's
+    guaranteed to be the case when we're called during mode set, so just assert
+    that case but otherwise leave the planes alone to avoid flicker on active
+    displays during output detection for example.
+    
+    Fixes bug #17050.
+    (cherry picked from commit 5af504166f14f4401818f3b7c27ac2ccba7b9ff5)
+
+commit 7fbbafc8fc2b027ec12215ce13d814e339d01a68
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Wed Aug 20 15:33:59 2008 +0800
+
+    Don't skip the checks for DRI headers with --enable-dri
+    (cherry picked from commit 5eccb5ec7ea78b5800f98decd4216d39b9ebe5ec)
+
+commit dc295d2b3cbdc5b4ca1f46b1c5a8e5f83faeb878
+Author: Zou Nan hai <nanhai.zou@intel.com>
+Date:   Tue Aug 19 16:27:12 2008 +0800
+
+      Fix from He Shuang(shuang.he@intel.com),
+      XvMCDestroyContext to check pointer valid
+    (cherry picked from commit 385dc85881c56e218e7d17d7e1d022568aa29cfb)
+
+commit 70e85e6ce4cd53ab4685440605fcfe65995cb2e4
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Aug 18 12:53:33 2008 -0700
+
+    Remove unused VBIOS flag defines
+    
+    We just use the structure definitions now.
+    (cherry picked from commit 078a59dd48ed00a6512d155883956c18752da9ce)
+
+commit 76b19eaaf591f7f55aaa00cf0fd90d9574c500d2
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Aug 18 12:51:31 2008 -0700
+
+    Pack bdb_general_definitions block
+    
+    More correct & consistent with other definitions.
+    (cherry picked from commit 7048141254b7c1948fe77b1742b463f8723610d8)
+
+commit d5fd845aab4074ed6d0950551e007ea43fd2d0df
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Tue Aug 19 07:30:01 2008 +0800
+
+    Fix reverted LVDS bios capability dword definition
+    
+    Issue found by Peter Clifton.
+    (cherry picked from commit 0e6759bb6ad7293b6447bd20e3d7d8fdee46aba7)
+
+commit 4281b0116b8aa7201f523c21abf91f63e12cbccf
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Aug 15 13:05:06 2008 +0800
+
+    Bump version 2.4.1
+
+commit 01bbdbc6d83a526654abf501bd6cd203f8373774
+Author: Alan Coopersmith <alan.coopersmith@sun.com>
+Date:   Thu Jul 31 20:02:21 2008 -0700
+
+    Man page typo fixes
+    (cherry picked from commit 27e9506fda86e90fd67de1715fa32d23aaa8a683)
+
+commit 4ac91c2eb6b539fa23d218ca714cadf998ae8eb6
+Author: Jesse Barnes <jbarnes@eee.(none)>
+Date:   Thu Jul 31 19:21:36 2008 -0700
+
+    Update man page
+    
+    Add example dual head config, add info on bug reporting.
+    (cherry picked from commit da2eb83fb9a52291ea98f3285aee7bee2d55e0ca)
+
+commit 280be2a193063c9e2f062cbab9fa967a408dc290
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Aug 15 10:10:43 2008 +0800
+
+    Always check and free driver private in LVDS destroy
+    (cherry picked from commit ed7269e0a377b3135b06cacecc59119f06958feb)
+
+commit 1f558fab4eef3b54de4853bc5247fbd0d24b68bf
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Fri Aug 15 10:02:44 2008 +0800
+
+    Make skip_panel_detect clear for its meaning
+    (cherry picked from commit f4cb9a135dca9279af8186a9b18bf62ef7351019)
+
+commit 532e47a4a169e829ad34fdc8bb85e4eb81721af3
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Thu Aug 14 16:02:37 2008 -0700
+
+    Fix pipe A force quirk
+    
+    Last commit introduced a logic buglet, we went from (foo & BLAH) -> (!foo &
+    BLAH) rather than !(foo & BLAH), so fix it up to make my laptop work again.
+    (cherry picked from commit 22918f62c89a4314fb5d01c58f22fee5b9a15a27)
+
+commit ac740398569dfa02d3d26a2abeb5c848717e6c03
+Author: Olivier Fourdan <ofourdan@redhat.com>
+Date:   Mon Aug 11 12:07:32 2008 -0400
+
+    Fix DPMS off in the presence of the pipe A quirk.
+    
+    Still turn off the VGA plane, and also handle the DRI path at the end.
+    (cherry picked from commit 9ec36e0c8bd8a4bd7c40569412fc1a21219b5af9)
+
+commit 9b03fd49b0f27c9add19dece55d00a58ed73c978
+Author: Olivier Fourdan <ofourdan@redhat.com>
+Date:   Mon Aug 11 11:30:51 2008 -0400
+
+    Apply pipe A quirk to 845 as well.
+    (cherry picked from commit 445c2e9ef8fc1d49bbb03e07bf36e0339be16a80)
+
+commit d1b47cf0cb66fb1b7c991fbd4f4518c6ccdbc643
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Aug 8 16:35:25 2008 -0700
+
+    Set lvds_ddc_mode before use to avoid a segfault on mac mini.
+    (cherry picked from commit fe90c0522f65f60c4c431787c889b7fb639ab61b)
+
+commit 86b10601e8798974240ae17539b413c1798d34e1
+Author: Jesse Barnes <jbarnes@jbarnes-t61.(none)>
+Date:   Tue Aug 5 13:37:38 2008 -0700
+
+    Reorganize VBIOS code
+    
+    Make VBT parsing happen at driver init time rather than in each output init
+    function, to save time and better separate VBIOS code into i830_bios.[ch].  The
+    changes end up touching the output files due to field name changes, and allow
+    us to reorder & simplify our LFP mode detection code.
+    (cherry picked from commit a21d4794b6812ce05d08f06dc47b26c4fb1c1fef)
+
+commit 81bd24d8b1a3cdb8a539f4ca0c5f546e4c8070ed
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Aug 11 15:16:44 2008 +0800
+
+    Fix possible spurious interrupts in hotplug detect on 4 series chip
+    (cherry picked from commit d592eabc806b752053ade3c18e9dd8e0f39b45a3)
+
+commit 02844d4dc0995f07dd438997ecc39bd9e3c4779b
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Mon Aug 11 15:16:09 2008 +0800
+
+    Disable display clock gating for 4 series chips
+    (cherry picked from commit d0018a96064ee0adfe87c2d50c341bf7d2e45eb0)
+
+commit 2b0705993a151b24c82d7955eed1c9c17ee0d8bd
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Aug 6 16:19:29 2008 +0800
+
+    Fix SDVO HDMI encoding detect (#16920)
+    
+    Check return value of get supported encode command and current
+    encoding mode, which could be DVI or HDMI.
+    (cherry picked from commit f91134795b545c8baebf218975b261c76a0e5873)
+
+commit 6aeea1a7abd05745fab666b8fadab94caed6d53a
+Author: Julien Cristau <jcristau@debian.org>
+Date:   Mon Aug 4 12:18:12 2008 +0200
+
+    Fix up the HP Pavilion ze4944ea quirk
+    
+    The chip is 855GM, not GM45.
+    (cherry picked from commit 1a59cc6b9acf312de1755d67757bf7f1967342e4)
+
+commit dbb288d55a071a44eed1c9e21f5f835f416327be
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jul 31 16:59:43 2008 +0800
+
+    Fix SDVO reg definition
+    
+    Remove wrong set tv resolution command, adding HDMI regs in dump.
+    (cherry picked from commit 76eb8e6f1f0c6962b23550564f4273f392567857)
+
+commit 01bbbd8c6c73229b5cb0c88e8eb2ac9b49a5dad8
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Thu Jul 31 13:13:45 2008 +0800
+
+    Don't program dsparb on new Intel chip
+    
+    On new chip, DSPARB is controlled by hardware only.
+
+commit 42e96f1d02ef6d842db6ba68353558a11d7d66e9
+Author: Tomas Carnecky <tom@dbservice.com>
+Date:   Sun Jun 15 14:27:16 2008 +0200
+
+    Reorder visuals reported by the intel driver
+    
+    The root window visual can not be changed. Neither at runtime nor
+    through the configuration file. The xserver simply selects the first one
+    that matches the class (usually TrueColor). I need a root window visual
+    with stencil buffer because my compiz plugin uses the it for some
+    operations. This patch reorders the visuals that the 3D driver reports
+    and puts the one with stencil (and depth) bits as first.
+    (cherry picked from commit 42fb06f3f14fbec070350cf48361be4a0be0af04)
+
+commit c0c63c9d8329d93288dc12a05fe0ba3cf71fd5af
+Author: Jesse Barnes <jbarnes@hobbes.lan>
+Date:   Thu Jul 31 13:07:20 2008 -0700
+
+    Update DSPARB while planes are still off
+    
+    This avoids the flickering people reported in the 2.4.0 release.
+
 commit f3b72c59e5000bcdb07cbdf080e09c55b9826eff
 Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
 Date:   Wed Jul 23 16:02:02 2008 +0800
