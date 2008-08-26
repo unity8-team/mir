@@ -330,34 +330,6 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 }
 
 static Bool
-nv_ddc_detect(xf86OutputPtr output)
-{
-	struct nouveau_output *nv_output = to_nouveau_output(output);
-
-	if (nv_output->pDDCBus == NULL)
-		return FALSE;
-
-	nv_output->mon = xf86OutputGetEDID(output, nv_output->pDDCBus);
-	xf86OutputSetEDID(output, nv_output->mon);
-	if (nv_output->mon == NULL)
-		return FALSE;
-
-	if (nv_output->mon->features.input_type && nv_output->dcb->type == OUTPUT_ANALOG)
-		goto invalid;
-
-	if (!nv_output->mon->features.input_type && (nv_output->dcb->type == OUTPUT_TMDS ||
-					      nv_output->dcb->type == OUTPUT_LVDS))
-		goto invalid;
-
-	return TRUE;
-
-invalid:
-	xf86OutputSetEDID(output, NULL);
-	nv_output->mon = NULL;
-	return FALSE;
-}
-
-static Bool
 nv_load_detect(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
@@ -427,35 +399,45 @@ nv_load_detect(xf86OutputPtr output)
 }
 
 static xf86OutputStatus
-nv_tmds_output_detect(xf86OutputPtr output)
+nv_output_detect(xf86OutputPtr output)
 {
-	ScrnInfoPtr pScrn = output->scrn;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_tmds_output_detect is called.\n");
-
-	if (nv_ddc_detect(output))
-		return XF86OutputStatusConnected;
-
-	return XF86OutputStatusDisconnected;
-}
-
-
-static xf86OutputStatus
-nv_analog_output_detect(xf86OutputPtr output)
-{
+	struct nouveau_output *nv_output = to_nouveau_output(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_analog_output_detect is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_detect is called.\n");
 
-	if (nv_ddc_detect(output))
-		return XF86OutputStatusConnected;
+	if (nv_output->pDDCBus) {
+		if ((nv_output->mon = xf86OutputGetEDID(output, nv_output->pDDCBus)) &&
+		    ((nv_output->mon->features.input_type && nv_output->dcb->type == OUTPUT_ANALOG) ||
+		     (!nv_output->mon->features.input_type && nv_output->dcb->type == OUTPUT_TMDS))) {
+			xfree(nv_output->mon);
+			nv_output->mon = NULL;
+		}
+		xf86OutputSetEDID(output, nv_output->mon);
+		if (nv_output->mon)
+			return XF86OutputStatusConnected;
+	}
 
-	/* we don't have a load det function for early cards */
-	if (!pNv->twoHeads || pNv->NVArch == 0x11)
-		return XF86OutputStatusUnknown;
-	else if (pNv->twoHeads && nv_load_detect(output))
-		return XF86OutputStatusConnected;
+	if (nv_output->dcb->type == OUTPUT_ANALOG) {
+		/* we don't have a load det function for early cards */
+		if (!pNv->twoHeads || pNv->NVArch == 0x11)
+			return XF86OutputStatusUnknown;
+		else if (pNv->twoHeads && nv_load_detect(output))
+			return XF86OutputStatusConnected;
+	} else if (nv_output->dcb->type == OUTPUT_LVDS) {
+		if (nv_output->dcb->lvdsconf.use_straps_for_mode &&
+		    pNv->VBIOS.fp.native_mode)
+			return XF86OutputStatusConnected;
+		if (pNv->VBIOS.fp.edid) {
+			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				   "Will use hardcoded BIOS FP EDID\n");
+			nv_output->mon = xf86InterpretEDID(pScrn->scrnIndex,
+							   pNv->VBIOS.fp.edid);
+			xf86OutputSetEDID(output, nv_output->mon);
+			return XF86OutputStatusConnected;
+		}
+	}
 
 	return XF86OutputStatusDisconnected;
 }
@@ -654,7 +636,7 @@ static const xf86OutputFuncsRec nv_analog_output_funcs = {
     .mode_valid = nv_output_mode_valid,
     .mode_fixup = nv_output_mode_fixup,
     .mode_set = nv_output_mode_set,
-    .detect = nv_analog_output_detect,
+    .detect = nv_output_detect,
     .get_modes = nv_output_get_edid_modes,
     .destroy = nv_output_destroy,
     .prepare = nv_output_prepare,
@@ -790,7 +772,7 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
-	.detect = nv_tmds_output_detect,
+	.detect = nv_output_detect,
 	.get_modes = nv_output_get_edid_modes,
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
@@ -798,29 +780,6 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.create_resources = nv_digital_output_create_resources,
 	.set_property = nv_digital_output_set_property,
 };
-
-static xf86OutputStatus
-nv_lvds_output_detect(xf86OutputPtr output)
-{
-	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_output *nv_output = to_nouveau_output(output);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_detect is called.\n");
-
-	if (nv_ddc_detect(output))
-		return XF86OutputStatusConnected;
-	if (nv_output->dcb->lvdsconf.use_straps_for_mode && pNv->VBIOS.fp.native_mode)
-		return XF86OutputStatusConnected;
-	if (pNv->VBIOS.fp.edid) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Will use hardcoded BIOS FP EDID\n");
-		nv_output->mon = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
-		xf86OutputSetEDID(output, nv_output->mon);
-		return XF86OutputStatusConnected;
-	}
-
-	return XF86OutputStatusDisconnected;
-}
 
 static DisplayModePtr
 nv_lvds_output_get_modes(xf86OutputPtr output)
@@ -852,7 +811,7 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
-	.detect = nv_lvds_output_detect,
+	.detect = nv_output_detect,
 	.get_modes = nv_lvds_output_get_modes,
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
