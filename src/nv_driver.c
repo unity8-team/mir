@@ -992,7 +992,6 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
-	xf86CrtcConfigPtr xf86_config;
 	NVPtr pNv;
 	MessageType from;
 	int i, max_width, max_height;
@@ -1359,8 +1358,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (pNv->randr12_enable) {
 		/* Allocate an xf86CrtcConfig */
 		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
-		xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
 	}
 

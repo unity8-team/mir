@@ -44,25 +44,6 @@
 #include "xf86Crtc.h"
 #include "nv_include.h"
 
-const char *OutputType[] = {
-    "None",
-    "VGA",
-    "DVI",
-    "LVDS",
-    "S-video",
-    "Composite",
-};
-
-const char *MonTypeName[7] = {
-    "AUTO",
-    "NONE",
-    "CRT",
-    "LVDS",
-    "TMDS",
-    "CTV",
-    "STV"
-};
-
 static int nv_output_ramdac_offset(xf86OutputPtr output)
 {
 	NVOutputPrivatePtr nv_output = output->driver_private;
