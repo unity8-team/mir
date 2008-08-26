@@ -292,6 +292,7 @@
 #define NV_RAMDAC_GENERAL_CONTROL	0x00680600
 #define NV_RAMDAC_TEST_CONTROL		0x00680608
 #define NV_RAMDAC_TEST_DATA		0x00680610
+#define NV_RAMDAC_630			0x00680630
 /* This register is similar to TEST_CONTROL in the style of values */
 #define NV_RAMDAC_670			0x00680670
 

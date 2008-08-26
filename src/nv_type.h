@@ -156,6 +156,7 @@ typedef struct _nv_crtc_reg
 
 	/* These are former output regs, but are believed to be crtc related */
 	uint32_t general;
+	uint32_t unk_630;
 	uint32_t debug_0;
 	uint32_t debug_1;
 	uint32_t debug_2;

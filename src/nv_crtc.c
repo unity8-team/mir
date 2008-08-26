@@ -768,6 +768,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
 		regp->general |= 1 << 29;
 
+	regp->unk_630 = 0; /* turn off green mode (tv test pattern?) */
+
 	/* Some values the blob sets */
 	regp->unk_a20 = 0x0;
 	regp->unk_a24 = 0xfffff;
@@ -1607,6 +1609,8 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->general = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_GENERAL_CONTROL);
 
 	if (pNv->twoHeads) {
+		if (pNv->NVArch >= 0x17)
+			regp->unk_630 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_630);
 		regp->fp_control	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_CONTROL);
 		regp->debug_0	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_0);
 		regp->debug_1	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_1);
@@ -1655,6 +1659,8 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 
 	if (pNv->twoHeads) {
+		if (pNv->NVArch >= 0x17)
+			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_630, regp->unk_630);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_CONTROL, regp->fp_control);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);
