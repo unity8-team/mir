@@ -854,44 +854,43 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
-	/* May need to leave pipe A on */
-	if ((pipe == 0) && (pI830->quirk_flag & QUIRK_PIPEA_FORCE))
-	    return;
-
 	/* Disable the VGA plane that we never use */
 	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
 
-	/* Disable display plane */
-	temp = INREG(dspcntr_reg);
-	if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+	/* May need to leave pipe A on */
+	if ((pipe != 0) || !(pI830->quirk_flag & QUIRK_PIPEA_FORCE))
 	{
-	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-	    /* Flush the plane changes */
-	    OUTREG(dspbase_reg, INREG(dspbase_reg));
-	    POSTING_READ(dspbase_reg);
+		/* Disable display plane */
+		temp = INREG(dspcntr_reg);
+		if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+		{
+		    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+		    /* Flush the plane changes */
+		    OUTREG(dspbase_reg, INREG(dspbase_reg));
+		    POSTING_READ(dspbase_reg);
+		}
+
+		if (!IS_I9XX(pI830)) {
+		    /* Wait for vblank for the disable to take effect */
+		    i830WaitForVblank(pScrn);
+		}
+
+		/* Next, disable display pipes */
+		temp = INREG(pipeconf_reg);
+		if ((temp & PIPEACONF_ENABLE) != 0) {
+		    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
+		    POSTING_READ(pipeconf_reg);
+		}
+
+		/* Wait for vblank for the disable to take effect. */
+		i830WaitForVblank(pScrn);
+
+		temp = INREG(dpll_reg);
+		if ((temp & DPLL_VCO_ENABLE) != 0) {
+		    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
+		    POSTING_READ(dpll_reg);
+		}
 	}
-
-	if (!IS_I9XX(pI830)) {
-	    /* Wait for vblank for the disable to take effect */
-	    i830WaitForVblank(pScrn);
-	}
-
-	/* Next, disable display pipes */
-	temp = INREG(pipeconf_reg);
-	if ((temp & PIPEACONF_ENABLE) != 0) {
-	    OUTREG(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
-	    POSTING_READ(pipeconf_reg);
-	}
-
-	/* Wait for vblank for the disable to take effect. */
-	i830WaitForVblank(pScrn);
-
-	temp = INREG(dpll_reg);
-	if ((temp & DPLL_VCO_ENABLE) != 0) {
-	    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
-	    POSTING_READ(dpll_reg);
-	}
-
 	/* Wait for the clocks to turn off. */
 	usleep(150);
 	break;
@@ -1477,6 +1476,9 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     /* Wait for the clocks to stabilize. */
     usleep(150);
 
+    if (!DSPARB_HWCONTROL(pI830))
+	i830_update_dsparb(pScrn);
+
     OUTREG(htot_reg, (adjusted_mode->CrtcHDisplay - 1) |
 	((adjusted_mode->CrtcHTotal - 1) << 16));
     OUTREG(hblank_reg, (adjusted_mode->CrtcHBlankStart - 1) |
@@ -1509,8 +1511,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
-
-    i830_update_dsparb(pScrn);
 
     /* Clear any FIFO underrun status that may have occurred normally */
     OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);

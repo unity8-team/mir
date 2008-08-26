@@ -79,6 +79,11 @@ struct i830_sdvo_priv {
     Bool is_tv;
 
     /**
+     * This is set if we treat the device as HDMI, instead of DVI.
+     */
+    Bool is_hdmi;
+
+    /**
      * Returned SDTV resolutions allowed for the current format, if the
      * device reported it.
      */
@@ -228,23 +233,30 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_POWER_STATES),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODER_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODER_POWER_STATE),
-    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
     /* HDMI op code */
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPP_ENCODE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_PIXEL_REPLI),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_PIXEL_REPLI),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_COLORIMETRY_CAP),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_COLORIMETRY),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_COLORIMETRY),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_AUDIO_ENCRYPT_PREFER),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_AUDIO_STAT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_AUDIO_STAT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_INDEX),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HBUF_INDEX),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_INFO),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_AV_SPLIT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HBUF_AV_SPLIT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_TXRATE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HBUF_TXRATE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_HBUF_DATA),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_DATA),
 };
 
 static I2CSlaveAddr slaveAddr;
@@ -763,7 +775,7 @@ i830_sdvo_get_supp_encode(xf86OutputPtr output, struct i830_sdvo_encode *encode)
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_SUPP_ENCODE, NULL, 0);
     status = i830_sdvo_read_response(output, encode, sizeof(*encode));
-    if (status != SDVO_CMD_STATUS_SUCCESS) {
+    if (status != SDVO_CMD_STATUS_SUCCESS) { /* non-support means DVI */
 	memset(encode, 0, sizeof(*encode));
 	return FALSE;
     }
@@ -1027,7 +1039,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
 
-    if (dev_priv->encode.hdmi_rev)
+    if (dev_priv->is_hdmi)
 	i830_sdvo_set_avi_infoframe(output, mode);
 
     i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
@@ -1715,6 +1727,22 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     dev_priv->ddc_bus = 1 << num_bits;
 }
 
+static Bool
+i830_sdvo_get_digital_encoding_mode(xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
+    uint8_t status;
+
+    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_ENCODE, NULL, 0);
+    status = i830_sdvo_read_response(output, &dev_priv->is_hdmi, 1);
+    if (status != SDVO_CMD_STATUS_SUCCESS)
+	return FALSE;
+    return TRUE;
+}
+
 Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 {
@@ -1842,8 +1870,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
 
-	i830_sdvo_get_supp_encode(output, &dev_priv->encode);
-	if (dev_priv->encode.hdmi_rev != 0) {
+	if (i830_sdvo_get_supp_encode(output, &dev_priv->encode) &&
+		i830_sdvo_get_digital_encoding_mode(output) &&
+		dev_priv->is_hdmi) {
 	    /* enable hdmi encoding mode if supported */
 	    i830_sdvo_set_encode(output, SDVO_ENCODE_HDMI);
 	    i830_sdvo_set_colorimetry(output, SDVO_COLORIMETRY_RGB256);

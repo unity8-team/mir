@@ -1716,7 +1716,6 @@ i830_tv_init(ScrnInfoPtr pScrn)
 	    (tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
 	return;
 
-    i830_bios_get_tv(pScrn);
     if (!pI830->tv_present) /* VBIOS claims no TV connector */
 	return;
 
