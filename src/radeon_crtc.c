@@ -465,8 +465,10 @@ radeon_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data
     if (rotate_pixmap)
 	FreeScratchPixmapHeader(rotate_pixmap);
 
-    if (data)
+    if (data) {
 	radeon_free_memory(pScrn, radeon_crtc->crtc_rotate_mem);
+	radeon_crtc->crtc_rotate_mem = NULL;
+    }
 
 }
 

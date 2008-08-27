@@ -3228,6 +3228,7 @@ RADEONFreeSurface(
     if(pPriv->isOn)
 	RADEONStopSurface(surface);
     radeon_free_memory(pScrn, pPriv->surface_memory);
+    pPriv->surface_memory = NULL;
     xfree(surface->pitches);
     xfree(surface->offsets);
     xfree(surface->devPrivate.ptr);
