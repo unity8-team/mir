@@ -465,8 +465,6 @@ i830_transform_is_affine (PictTransformPtr t)
     return t->matrix[2][0] == 0 && t->matrix[2][1] == 0;
 }
 
-static DevPrivateKey exa_pixmap_key = &exa_pixmap_key;
-
 #ifdef XF86DRM_MODE
 
 static void *
@@ -617,9 +615,6 @@ I830EXAInit(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-
-    if (!dixRequestPrivate(exa_pixmap_key, 0))
-	return FALSE;
 
     pI830->EXADriverPtr = exaDriverAlloc();
     if (pI830->EXADriverPtr == NULL) {
