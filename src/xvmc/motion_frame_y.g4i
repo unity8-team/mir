@@ -37,38 +37,20 @@
  * }	 
  */
 
-/* if ((mv[0]&1) == 1) { */
 	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
-	(f0) jmpi L1;
-	/* if ((mv[1] & 1 == 1) { */
+	(f0) jmpi LL1;
 	and.z (1) null mv2<1,1,1>UD 1UD {align1};	
-	(f0) jmpi L2;
-	/* 10x16 media read */
-	mov (1) g2.8<1>UD 0x009000fUD  {align1}; 
-	include(`media_read_avg_x1y1.g4i')
-	jmpi L3;
-	/* } else { */
-L2:
-	/* 8x16 media read */
-	mov (1) g2.8<1>UD 0x007000fUD  {align1};
-	include(`media_read_avg_x1y0.g4i')
-	/* } */
-L3:
-	jmpi L5;
-/* } else {*/
-L1:
-       	/* if (mv[1] & 1 == 1) { */
-	and.z (1) null mv1<1,1,1>UD 0UD {align1};	
-	/* jump to L4 */
-	(f0) jmpi L4;
-	/* 10x16 media read */
-	mov (1) g2.8<1>UD 0x009000fUD  {align1};
-	include(`media_read_avg_x0y1.g4i')
-      	/* } else { */ 
-L4:
-	/* 8x16 media read */
-	mov (1) g2.8<1>UD 0x007000fUD  {align1};
-	include(`media_read.g4i')
-/* } */
-L5:
-mov (1) g2.8<1>UD 0x0070007UD  {align1};
+	(f0) jmpi LL2;
+	include(`read_frame_x1y1_y.g4i')
+	jmpi LL5;
+LL2:
+	include(`read_frame_x1y0_y.g4i')
+	jmpi LL5;
+LL1:
+	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
+	(f0) jmpi LL4;
+	include(`read_frame_x0y1_y.g4i')
+LL4:
+	include(`read_frame_x0y0_y.g4i')
+LL5:
+

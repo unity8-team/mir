@@ -1,0 +1,107 @@
+/*
+ * Copyright © 2008 Intel Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Author:
+ *    Zou Nan hai <nanhai.zou@intel.com>
+ *    Zhang Hua jun <huajun.zhang@intel.com>
+ *    Xing Dong sheng <dongsheng.xing@intel.com>
+ *
+ */
+mov (1) g115.8<1>UD 0x07000FUD {align1}; // 8*16/32=4
+send (16) 0 g86.0<1>UW g115<8,8,1>UW read(surface_u, 2, 0, 2) mlen 1 rlen 4 {align1};//U
+send (16) 0 g91.0<1>UW g115<8,8,1>UW read(surface_v, 2, 0, 2) mlen 1 rlen 4 {align1};//V
+and (1) g2.24<1>UD g115.0<1,1,1>UD 3UD {align1};
+mul (1) g2.24<1>UD g2.24<1,1,1>UD 17UD {align1};
+jmpi g2.24<1,1,1>D;
+
+avg.sat (8) g78.0<1>UW g86.0<8,8,1>UB g86.1<8,8,1>UB {align1};
+avg.sat (8) g78.16<1>UW g86.16<8,8,1>UB g86.17<8,8,1>UB {align1};
+avg.sat (8) g79.0<1>UW g87.0<8,8,1>UB g87.1<8,8,1>UB {align1};
+avg.sat (8) g79.16<1>UW g87.16<8,8,1>UB g87.17<8,8,1>UB {align1};
+avg.sat (8) g80.0<1>UW g88.0<8,8,1>UB g88.1<8,8,1>UB {align1};
+avg.sat (8) g80.16<1>UW g88.16<8,8,1>UB g88.17<8,8,1>UB {align1};
+avg.sat (8) g81.0<1>UW g89.0<8,8,1>UB g89.1<8,8,1>UB {align1};
+avg.sat (8) g81.16<1>UW g89.16<8,8,1>UB g89.17<8,8,1>UB {align1};
+avg.sat (8) g82.0<1>UW g91.0<8,8,1>UB g91.1<8,8,1>UB {align1};
+avg.sat (8) g82.16<1>UW g91.16<8,8,1>UB g91.17<8,8,1>UB {align1};
+avg.sat (8) g83.0<1>UW g92.0<8,8,1>UB g92.1<8,8,1>UB {align1};
+avg.sat (8) g83.16<1>UW g92.16<8,8,1>UB g92.17<8,8,1>UB {align1};
+avg.sat (8) g84.0<1>UW g93.0<8,8,1>UB g93.1<8,8,1>UB {align1};
+avg.sat (8) g84.16<1>UW g93.16<8,8,1>UB g93.17<8,8,1>UB {align1};
+avg.sat (8) g85.0<1>UW g94.0<8,8,1>UB g94.1<8,8,1>UB {align1};
+avg.sat (8) g85.16<1>UW g94.16<8,8,1>UB g94.17<8,8,1>UB {align1};
+jmpi out;
+
+avg.sat (8) g78.0<1>UW g86.1<8,8,1>UB g86.2<8,8,1>UB {align1};
+avg.sat (8) g78.16<1>UW g86.17<8,8,1>UB g86.18<8,8,1>UB {align1};
+avg.sat (8) g79.0<1>UW g87.1<8,8,1>UB g87.2<8,8,1>UB {align1};
+avg.sat (8) g79.16<1>UW g87.17<8,8,1>UB g87.18<8,8,1>UB {align1};
+avg.sat (8) g80.0<1>UW g88.1<8,8,1>UB g88.2<8,8,1>UB {align1};
+avg.sat (8) g80.16<1>UW g88.17<8,8,1>UB g88.18<8,8,1>UB {align1};
+avg.sat (8) g81.0<1>UW g89.1<8,8,1>UB g89.2<8,8,1>UB {align1};
+avg.sat (8) g81.16<1>UW g89.17<8,8,1>UB g89.18<8,8,1>UB {align1};
+avg.sat (8) g82.0<1>UW g91.1<8,8,1>UB g91.2<8,8,1>UB {align1};
+avg.sat (8) g82.16<1>UW g91.17<8,8,1>UB g91.18<8,8,1>UB {align1};
+avg.sat (8) g83.0<1>UW g92.1<8,8,1>UB g92.2<8,8,1>UB {align1};
+avg.sat (8) g83.16<1>UW g92.17<8,8,1>UB g92.18<8,8,1>UB {align1};
+avg.sat (8) g84.0<1>UW g93.1<8,8,1>UB g93.2<8,8,1>UB {align1};
+avg.sat (8) g84.16<1>UW g93.17<8,8,1>UB g93.18<8,8,1>UB {align1};
+avg.sat (8) g85.0<1>UW g94.1<8,8,1>UB g94.2<8,8,1>UB {align1};
+avg.sat (8) g85.16<1>UW g94.17<8,8,1>UB g94.18<8,8,1>UB {align1};
+jmpi out;
+
+avg.sat (8) g78.0<1>UW g86.2<8,8,1>UB g86.3<8,8,1>UB {align1};
+avg.sat (8) g78.16<1>UW g86.18<8,8,1>UB g86.19<8,8,1>UB {align1};
+avg.sat (8) g79.0<1>UW g87.2<8,8,1>UB g87.3<8,8,1>UB {align1};
+avg.sat (8) g79.16<1>UW g87.18<8,8,1>UB g87.19<8,8,1>UB {align1};
+avg.sat (8) g80.0<1>UW g88.2<8,8,1>UB g88.3<8,8,1>UB {align1};
+avg.sat (8) g80.16<1>UW g88.18<8,8,1>UB g88.19<8,8,1>UB {align1};
+avg.sat (8) g81.0<1>UW g89.2<8,8,1>UB g89.3<8,8,1>UB {align1};
+avg.sat (8) g81.16<1>UW g89.18<8,8,1>UB g89.19<8,8,1>UB {align1};
+avg.sat (8) g82.0<1>UW g91.2<8,8,1>UB g91.3<8,8,1>UB {align1};
+avg.sat (8) g82.16<1>UW g91.18<8,8,1>UB g91.19<8,8,1>UB {align1};
+avg.sat (8) g83.0<1>UW g92.2<8,8,1>UB g92.3<8,8,1>UB {align1};
+avg.sat (8) g83.16<1>UW g92.18<8,8,1>UB g92.19<8,8,1>UB {align1};
+avg.sat (8) g84.0<1>UW g93.2<8,8,1>UB g93.3<8,8,1>UB {align1};
+avg.sat (8) g84.16<1>UW g93.18<8,8,1>UB g93.19<8,8,1>UB {align1};
+avg.sat (8) g85.0<1>UW g94.2<8,8,1>UB g94.3<8,8,1>UB {align1};
+avg.sat (8) g85.16<1>UW g94.18<8,8,1>UB g94.19<8,8,1>UB {align1};
+jmpi out;
+
+avg.sat (8) g78.0<1>UW g86.3<8,8,1>UB g86.4<8,8,1>UB {align1};
+avg.sat (8) g78.16<1>UW g86.19<8,8,1>UB g86.20<8,8,1>UB {align1};
+avg.sat (8) g79.0<1>UW g87.3<8,8,1>UB g87.4<8,8,1>UB {align1};
+avg.sat (8) g79.16<1>UW g87.19<8,8,1>UB g87.20<8,8,1>UB {align1};
+avg.sat (8) g80.0<1>UW g88.3<8,8,1>UB g88.4<8,8,1>UB {align1};
+avg.sat (8) g80.16<1>UW g88.19<8,8,1>UB g88.20<8,8,1>UB {align1};
+avg.sat (8) g81.0<1>UW g89.3<8,8,1>UB g89.4<8,8,1>UB {align1};
+avg.sat (8) g81.16<1>UW g89.19<8,8,1>UB g89.20<8,8,1>UB {align1};
+avg.sat (8) g82.0<1>UW g91.3<8,8,1>UB g91.4<8,8,1>UB {align1};
+avg.sat (8) g82.16<1>UW g91.19<8,8,1>UB g91.20<8,8,1>UB {align1};
+avg.sat (8) g83.0<1>UW g92.3<8,8,1>UB g92.4<8,8,1>UB {align1};
+avg.sat (8) g83.16<1>UW g92.19<8,8,1>UB g92.20<8,8,1>UB {align1};
+avg.sat (8) g84.0<1>UW g93.3<8,8,1>UB g93.4<8,8,1>UB {align1};
+avg.sat (8) g84.16<1>UW g93.19<8,8,1>UB g93.20<8,8,1>UB {align1};
+avg.sat (8) g85.0<1>UW g94.3<8,8,1>UB g94.4<8,8,1>UB {align1};
+avg.sat (8) g85.16<1>UW g94.19<8,8,1>UB g94.20<8,8,1>UB {align1};
+
+out:

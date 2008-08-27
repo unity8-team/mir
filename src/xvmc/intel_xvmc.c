@@ -450,12 +450,11 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 Status XvMCDestroyContext(Display *display, XvMCContext *context)
 {
     Status ret;
-    int screen;
+    int screen = DefaultScreen(display);
 
     if (!display || !context)
         return XvMCBadContext;
 
-    screen = DefaultScreen(display);
     ret = (xvmc_driver->destroy_context)(display, context);
     if (ret) {
 	XVMC_ERR("destroy context fail\n");
@@ -745,19 +744,23 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
 	intel_surf->gc = XCreateGC(display, draw, 0, NULL);
     }
     intel_surf->last_draw = draw;
-
     /* fill intel_surf->data */
+    if (0)
+    {
+	drmVBlank vbl;
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+	vbl.request.sequence = 1;
+	drmWaitVBlank(xvmc_driver->fd, &vbl);
+    }
     ret = (xvmc_driver->put_surface)(display, surface, draw, srcx, srcy,
 	    srcw, srch, destx, desty, destw, desth, flags, &intel_surf->data);
     if (ret) {
 	XVMC_ERR("put surface fail\n");
 	return ret;
     }
-
     ret = XvPutImage(display, context->port, draw, intel_surf->gc,
 	    intel_surf->image, srcx, srcy, srcw, srch, destx, desty,
 	    destw, desth);
-
     return ret;
 }
 

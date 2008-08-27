@@ -31,17 +31,18 @@
 #include "intel_batchbuffer.h"
 #include "i965_hwmc.h"
 #define BATCH_STRUCT(x) intelBatchbufferData(&x, sizeof(x), 0)
-#define URB_SIZE	256	/* XXX */
+#define URB_SIZE     256        /* XXX */
 enum interface {
-    INTRA_INTERFACE,		/* non field intra */
-    NULL_INTERFACE,		/* fill with white, do nothing, for debug */
-    FORWARD_INTERFACE,		/* non field forward predict */
-    BACKWARD_INTERFACE,		/* non field backward predict */
-    F_B_INTERFACE,		/* non field forward and backward predict */
-    FIELD_INTRA_INTERFACE,	/* field intra */
-    FIELD_FORWARD_INTERFACE,	/* field forward predict */
-    FIELD_BACKWARD_INTERFACE,	/* field backward predict */
-    FIELD_F_B_INTERFACE		/* field forward and backward predict */
+    INTRA_INTERFACE,            /* non field intra */
+    NULL_INTERFACE,             /* fill with white, do nothing, for debug */
+    FORWARD_INTERFACE,          /* non field forward predict */
+    BACKWARD_INTERFACE,         /* non field backward predict */
+    F_B_INTERFACE,              /* non field forward and backward predict */
+    FIELD_INTRA_INTERFACE,      /* field intra */
+    FIELD_FORWARD_INTERFACE,    /* field forward predict */
+    FIELD_BACKWARD_INTERFACE,   /* field backward predict */
+    FIELD_F_B_INTERFACE,        /* field forward and backward predict */
+    DUAL_PRIME_INTERFACE
 };
 
 static const uint32_t ipicture_kernel_static[][4] = {
@@ -50,14 +51,26 @@ static const uint32_t ipicture_kernel_static[][4] = {
 static const uint32_t null_kernel_static[][4] = {
 	#include "null.g4b"
 };
-static const uint32_t forward_kernel_static[][4] = {
-	#include "forward.g4b"
+static const uint32_t frame_forward_kernel_static[][4] = {
+	#include "frame_forward.g4b"
 };
-static const uint32_t backward_kernel_static[][4] = {
-	#include "backward.g4b"
+static const uint32_t frame_backward_kernel_static[][4] = {
+	#include "frame_backward.g4b"
 };
-static const uint32_t f_b_kernel_static[][4] = {
-	#include "f_b.g4b"
+static const uint32_t frame_f_b_kernel_static[][4] = {
+	#include "frame_f_b.g4b"
+}; 
+static const uint32_t field_forward_kernel_static[][4] = {
+	#include "field_forward.g4b"
+};
+static const uint32_t field_backward_kernel_static[][4] = {
+	#include "field_backward.g4b"
+};
+static const uint32_t field_f_b_kernel_static[][4] = {
+	#include "field_f_b.g4b"
+}; 
+static const uint32_t dual_prime_kernel_static[][4]= {
+	#include "dual_prime.g4b"
 }; 
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
@@ -73,22 +86,23 @@ static const uint32_t f_b_kernel_static[][4] = {
 #define DESCRIPTOR_NUM 12
 
 struct media_state {
-	unsigned long state_base;
-	void 	      *state_ptr;
-	unsigned int  binding_table_entry_count;
-	unsigned long vfe_state_offset;
-	unsigned long interface_descriptor_offset[DESCRIPTOR_NUM];
-	unsigned long ipicture_kernel_offset;
-	unsigned long forward_kernel_offset;
-	unsigned long backward_kernel_offset;
-	unsigned long f_b_kernel_offset;
-	unsigned long ipicture_field_kernel_offset;
-	unsigned long forward_field_kernel_offset;
-	unsigned long backward_field_kernel_offset;
-	unsigned long f_b_field_kernel_offset;
-	unsigned long null_kernel_offset;
-	unsigned long surface_offsets[MAX_SURFACE_NUM];
-	unsigned long binding_table_offset;
+    unsigned long state_base;
+    void 	      *state_ptr;
+    unsigned int  binding_table_entry_count;
+    unsigned long vfe_state_offset;
+    unsigned long interface_descriptor_offset[DESCRIPTOR_NUM];
+    unsigned long ipicture_kernel_offset;
+    unsigned long frame_forward_kernel_offset;
+    unsigned long frame_backward_kernel_offset;
+    unsigned long frame_f_b_kernel_offset;
+    unsigned long ipicture_field_kernel_offset;
+    unsigned long field_forward_kernel_offset;
+    unsigned long field_backward_kernel_offset;
+    unsigned long field_f_b_kernel_offset;
+    unsigned long dual_prime_kernel_offset;
+    unsigned long null_kernel_offset;
+    unsigned long surface_offsets[MAX_SURFACE_NUM];
+    unsigned long binding_table_offset;
 };
 struct media_state media_state;
 
@@ -108,13 +122,15 @@ static Status destroy_context(Display *display, XvMCContext *context)
     struct i965_xvmc_context *private_context;
     private_context = context->privData;
     unmap_buffer(&private_context->static_buffer);
+    unmap_buffer(&private_context->blocks);
+
     Xfree(private_context);
     return Success;
 }
 
 static Status create_surface(Display *display,
-        XvMCContext *context, XvMCSurface *surface, int priv_count,
-        CARD32 *priv_data)
+	XvMCContext *context, XvMCSurface *surface, int priv_count,
+	CARD32 *priv_data)
 {
     struct i965_xvmc_surface *priv_surface = 
 	(struct i965_xvmc_surface *)priv_data;
@@ -288,7 +304,7 @@ static void setup_blocks(struct media_state *media_state,
 }
 
 /* setup state base address */
-static void state_base_address()
+static void state_base_address(int offset)
 {
     BATCH_LOCALS;
     BEGIN_BATCH(6);
@@ -297,7 +313,7 @@ static void state_base_address()
     OUT_BATCH(0 | BASE_ADDRESS_MODIFY); 
     OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
     OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
-    OUT_BATCH(0 | BASE_ADDRESS_MODIFY);
+    OUT_BATCH((0xFFFFF<<12) | BASE_ADDRESS_MODIFY);
     ADVANCE_BATCH();
 }
 
@@ -311,15 +327,15 @@ static void pipeline_select()
 }
 
 /* kick media object to gpu */
-static void send_media_object(XvMCMacroBlock *mb, enum interface interface)
+static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface interface)
 {
     BATCH_LOCALS;
-    BEGIN_BATCH(12);
-    OUT_BATCH(BRW_MEDIA_OBJECT|10);
+    BEGIN_BATCH(18);
+    OUT_BATCH(BRW_MEDIA_OBJECT|16);
     OUT_BATCH(interface);
-    OUT_BATCH(0);
-    OUT_BATCH(0);
-    OUT_BATCH(mb->x<<4);
+    OUT_BATCH(128*6);
+    OUT_BATCH(offset);
+    OUT_BATCH(mb->x<<4);                 //g1.0
     OUT_BATCH(mb->y<<4);
     OUT_BATCH(2*(mb->index<<6));
     OUT_BATCH(mb->coded_block_pattern);
@@ -327,6 +343,12 @@ static void send_media_object(XvMCMacroBlock *mb, enum interface interface)
     OUT_BATCH(mb->PMV[0][0][1]);
     OUT_BATCH(mb->PMV[0][1][0]);
     OUT_BATCH(mb->PMV[0][1][1]);
+    OUT_BATCH(mb->PMV[1][0][0]);         //g2.0
+    OUT_BATCH(mb->PMV[1][0][1]);
+    OUT_BATCH(mb->PMV[1][1][0]);
+    OUT_BATCH(mb->PMV[1][1][1]);
+    OUT_BATCH(mb->dct_type);
+    OUT_BATCH(mb->motion_vertical_field_select);
     ADVANCE_BATCH();
 }
 
@@ -334,11 +356,72 @@ static void send_media_object(XvMCMacroBlock *mb, enum interface interface)
 static void vertex_cache()
 {
     BATCH_LOCALS;
-    BEGIN_BATCH(3);
+    BEGIN_BATCH(5);
     OUT_BATCH((0x22<<23)|1);
     OUT_BATCH(0x2124);
     OUT_BATCH(0x10000000);
+    OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE);
+    OUT_BATCH(MI_NOOP);
     ADVANCE_BATCH();
+}
+
+static void vertex_buffer(int offset, int num_blocks)
+{
+    struct brw_vertex_element_packet vep;
+    struct brw_vb_array_state vbp;
+    struct brw_3d_primitive prim_packet;
+
+    memset(&vep, 0, sizeof(vep));
+    memset(&vbp, 0, sizeof(vbp));
+    memset(&prim_packet, 0, sizeof(prim_packet));
+
+    vep.ve[0].ve0.vertex_buffer_index = 0;
+    vep.ve[0].ve0.valid = 1;
+    vep.ve[0].ve0.src_format = 0x2;
+    vep.ve[0].ve0.src_offset = 0x0;
+
+    vep.ve[0].ve1.dst_offset = 0x0;
+    vep.ve[0].ve1.vfcomponent0 = 0x1;
+    vep.ve[0].ve1.vfcomponent1 = 0x1;
+    vep.ve[0].ve1.vfcomponent2 = 0x1;
+    vep.ve[0].ve1.vfcomponent3 = 0x1;
+
+    vep.ve[1].ve0.vertex_buffer_index = 0;
+    vep.ve[1].ve0.valid = 1;
+    vep.ve[1].ve0.src_format = 0x2;
+    vep.ve[1].ve0.src_offset = 0x10;
+
+    vep.ve[1].ve1.dst_offset = 0x10;
+    vep.ve[1].ve1.vfcomponent0 = 0x1;
+    vep.ve[1].ve1.vfcomponent1 = 0x1;
+    vep.ve[1].ve1.vfcomponent2 = 0x1;
+    vep.ve[1].ve1.vfcomponent3 = 0x1;
+
+    vep.header.length = (1 + 2 * sizeof(vep.ve[0])/4) - 2;
+    vep.header.opcode = CMD_VERTEX_ELEMENT;
+    intelBatchbufferData(&vep, 4*(vep.header.length+2), 0);
+
+    vbp.vb[0].vb0.pitch = 0x20;
+    vbp.vb[0].vb0.access_type = BRW_VERTEXBUFFER_ACCESS_VERTEXDATA;
+    vbp.vb[0].max_index = 0;
+    vbp.vb[0].start_addr = offset;
+    vbp.header.length = (1 + 1* 4) - 2;
+    vbp.header.opcode = CMD_VERTEX_BUFFER;
+    intelBatchbufferData(&vep, 4*(vbp.header.length+2), 0);
+
+    prim_packet.header.opcode = CMD_3D_PRIM;
+    prim_packet.header.length = sizeof(prim_packet)/4 - 2;
+    prim_packet.header.pad = 0;
+    prim_packet.header.topology = 0x1;
+    prim_packet.header.indexed = 0;
+
+    prim_packet.verts_per_instance = num_blocks*4;
+    prim_packet.start_vert_location = 0;
+    prim_packet.instance_count = 1;
+    prim_packet.start_instance_location = 0;
+    prim_packet.base_vert_location = 0;
+
+    intelBatchbufferData(&prim_packet, sizeof(prim_packet), 0);
 }
 
 static void binding_tables(struct media_state *media_state)
@@ -353,15 +436,19 @@ static void binding_tables(struct media_state *media_state)
 
 static void media_kernels(struct media_state *media_state)
 {
-  	void *kernel; 
+	void *kernel; 
 #define LOAD_KERNEL(name) kernel = media_state->state_ptr +\
 	(media_state->name##_kernel_offset - media_state->state_base);\
 	memcpy(kernel, name##_kernel_static, sizeof(name##_kernel_static));
 	LOAD_KERNEL(ipicture);
 	LOAD_KERNEL(null);
-	LOAD_KERNEL(forward);
-	LOAD_KERNEL(backward);
-	LOAD_KERNEL(f_b);
+	LOAD_KERNEL(frame_forward);
+	LOAD_KERNEL(field_forward);
+	LOAD_KERNEL(frame_backward);
+	LOAD_KERNEL(field_backward);
+	LOAD_KERNEL(frame_f_b);
+	LOAD_KERNEL(field_f_b);
+	LOAD_KERNEL(dual_prime);
 }
 
 static void setup_interface(struct media_state *media_state, 
@@ -385,16 +472,24 @@ static void setup_interface(struct media_state *media_state,
 
 static void interface_descriptor(struct media_state *media_state)
 {
-    setup_interface(media_state, INTRA_INTERFACE, 
-	    media_state->ipicture_kernel_offset);
-    setup_interface(media_state, NULL_INTERFACE, 
-	    media_state->null_kernel_offset);
-    setup_interface(media_state, FORWARD_INTERFACE, 
-	    media_state->forward_kernel_offset);
-    setup_interface(media_state, BACKWARD_INTERFACE, 
-	    media_state->backward_kernel_offset);
-    setup_interface(media_state, F_B_INTERFACE, 
-	    media_state->f_b_kernel_offset);
+	setup_interface(media_state, INTRA_INTERFACE, 
+		media_state->ipicture_kernel_offset);
+	setup_interface(media_state, NULL_INTERFACE, 
+		media_state->null_kernel_offset);
+	setup_interface(media_state, FORWARD_INTERFACE, 
+		media_state->frame_forward_kernel_offset);
+	setup_interface(media_state, FIELD_FORWARD_INTERFACE, 
+		media_state->field_forward_kernel_offset);
+	setup_interface(media_state, BACKWARD_INTERFACE, 
+		media_state->frame_backward_kernel_offset);
+	setup_interface(media_state, FIELD_BACKWARD_INTERFACE, 
+		media_state->field_backward_kernel_offset);
+	setup_interface(media_state, F_B_INTERFACE, 
+		media_state->frame_f_b_kernel_offset);
+	setup_interface(media_state, FIELD_F_B_INTERFACE, 
+		media_state->field_f_b_kernel_offset);
+	setup_interface(media_state, DUAL_PRIME_INTERFACE,
+		media_state->dual_prime_kernel_offset);
 }
 
 static void vfe_state(struct media_state *media_state)
@@ -409,7 +504,7 @@ static void vfe_state(struct media_state *media_state)
 	/* XXX TODO */
 	/* should carefully caculate those values for performance */
 	state->vfe1.urb_entry_alloc_size = 2; 
-	state->vfe1.max_threads = 15; 
+	state->vfe1.max_threads = 31; 
 	state->vfe2.interface_descriptor_base = 
 		media_state->interface_descriptor_offset[0] >> 4;
 }
@@ -437,20 +532,31 @@ static void calc_state_layouts(struct media_state *media_state)
     media_state->ipicture_kernel_offset = 
 	ALIGN(media_state->surface_offsets[MAX_SURFACE_NUM - 1] 
 		+ sizeof(struct brw_surface_state) , 64);
-    media_state->forward_kernel_offset = 
+    media_state->frame_forward_kernel_offset = 
 	ALIGN(media_state->ipicture_kernel_offset + 
 		sizeof(ipicture_kernel_static), 64);
-    media_state->backward_kernel_offset = 
-	ALIGN(media_state->forward_kernel_offset + 
-		sizeof(forward_kernel_static), 64);
-    media_state->f_b_kernel_offset = 
-	ALIGN(media_state->backward_kernel_offset + 
-		sizeof(backward_kernel_static), 64);
+    media_state->field_forward_kernel_offset = 
+	ALIGN(media_state->frame_forward_kernel_offset + 
+		sizeof(frame_forward_kernel_static), 64);
+    media_state->frame_backward_kernel_offset = 
+	ALIGN(media_state->field_forward_kernel_offset + 
+		sizeof(field_forward_kernel_static), 64);
+    media_state->field_backward_kernel_offset = 
+	ALIGN(media_state->frame_backward_kernel_offset + 
+		sizeof(frame_backward_kernel_static), 64);
+    media_state->frame_f_b_kernel_offset = 
+	ALIGN(media_state->field_backward_kernel_offset + 
+		sizeof(field_backward_kernel_static), 64);
+    media_state->field_f_b_kernel_offset = 
+	ALIGN(media_state->frame_f_b_kernel_offset + 
+		sizeof(frame_f_b_kernel_static), 64);
     media_state->null_kernel_offset =
-	ALIGN(media_state->f_b_kernel_offset +
-		sizeof(f_b_kernel_static), 64);
+	ALIGN(media_state->field_f_b_kernel_offset +
+		sizeof(field_f_b_kernel_static), 64);
+    media_state->dual_prime_kernel_offset =
+	ALIGN(media_state->null_kernel_offset +
+		sizeof(null_kernel_static), 64);
 }
-
 
 static Status render_surface(Display *display, 
 	XvMCContext *context,
@@ -466,7 +572,7 @@ static Status render_surface(Display *display,
 {
 
     intel_xvmc_context_ptr intel_ctx;
-    int i;
+    int i, j;
     struct i965_xvmc_context *i965_ctx;
     XvMCMacroBlock *mb;
     struct i965_xvmc_surface *priv_target_surface = 
@@ -475,7 +581,7 @@ static Status render_surface(Display *display,
 	past_surface?past_surface->privData:0;
     struct i965_xvmc_surface *priv_future_surface = 
 	future_surface?future_surface->privData:0;
-
+    unsigned short *block_ptr;
     intel_ctx = intel_xvmc_find_context(context->context_id);
     i965_ctx = context->privData;
     if (!intel_ctx) {
@@ -489,23 +595,53 @@ static Status render_surface(Display *display,
 	    future_surface?priv_future_surface->buffer.offset:0, 
 	    context->width, context->height);
 
-    /* copy correction data */
-    if(map_buffer(&i965_ctx->blocks))
-	return BadAlloc;
+    block_ptr = i965_ctx->blocks.ptr;
     for (i = first_macroblock; 
 	    i < num_macroblocks + first_macroblock; i++) {
-	short *p = i965_ctx->blocks.ptr;
+	unsigned short *mb_block_ptr;
 	mb = &macroblock_array->macro_blocks[i];
-	memcpy(&p[(mb->index<<6)], 
-		&blocks->blocks[(mb->index<<6)], 
-		mb_bytes_420[mb->coded_block_pattern]);
+	mb_block_ptr = &blocks->blocks[(mb->index<<6)];
+	if (mb->coded_block_pattern & 0x20)  {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+
+	if (mb->coded_block_pattern & 0x10)  {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j + 8, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+	block_ptr += 2*64;
+	if (mb->coded_block_pattern & 0x08)  {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+
+	if (mb->coded_block_pattern & 0x04)  {
+	    for (j = 0; j < 8; j++)
+		memcpy(block_ptr + 16*j + 8, mb_block_ptr + 8*j, 16);	
+	    mb_block_ptr += 64;
+	}
+
+	block_ptr += 2*64;
+	if (mb->coded_block_pattern & 0x2) {
+	    memcpy(block_ptr, mb_block_ptr, 128);
+	    mb_block_ptr += 64;
+	}
+
+	block_ptr += 64;
+	if (mb->coded_block_pattern & 0x1) 
+	    memcpy(block_ptr, mb_block_ptr, 128);
+	block_ptr += 64;
     }
-    unmap_buffer(&i965_ctx->blocks);
 
     {
+	int block_offset = i965_ctx->blocks.offset;
 	LOCK_HARDWARE(intel_ctx->hw_context);
 	vertex_cache();
-	state_base_address();
+	state_base_address(block_offset);
 	flush();	
 	clear_sf_state();
 	clear_urb_state();
@@ -513,30 +649,42 @@ static Status render_surface(Display *display,
 	urb_layout();	
 	media_state_pointers(&media_state);
 	cs_urb_layout();
+//	vertex_buffer(i965_ctx->blocks.offset, num_macroblocks);
+
 	for (i = first_macroblock; 
-		i < num_macroblocks + first_macroblock; i++) {
+		i < num_macroblocks + first_macroblock; 
+		i++, block_offset += 128*6) {
 	    mb = &macroblock_array->macro_blocks[i];
-	    if (mb->dct_type == XVMC_DCT_TYPE_FIELD) {
-		/* TODO */
-		XVMC_ERR("FIELD DCT not support yet\n");
-		continue;
-	    }
-	    if ((mb->motion_type & 3) == XVMC_PREDICTION_DUAL_PRIME) {
-		/* TODO */
-		XVMC_ERR("DUAL PRIME not support yet\n");
-		continue;
-	    }
+
 	    if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
-		send_media_object(mb, INTRA_INTERFACE);
-	    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD))
-	    {
-		if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))
-		    send_media_object(mb, F_B_INTERFACE);
-		else
-		    send_media_object(mb, FORWARD_INTERFACE);
-	    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
-	    {
-		send_media_object(mb, BACKWARD_INTERFACE);
+		send_media_object(mb, block_offset, INTRA_INTERFACE);
+	    } else {
+		if (((mb->motion_type & 3) == XVMC_PREDICTION_FRAME)) {
+		    if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD))
+		    {
+			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))
+			    send_media_object(mb, block_offset, F_B_INTERFACE);
+			else
+			    send_media_object(mb, block_offset, FORWARD_INTERFACE);
+		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
+		    {
+			send_media_object(mb, block_offset, BACKWARD_INTERFACE);
+		    }
+		} else if ((mb->motion_type & 3) == XVMC_PREDICTION_FIELD) {
+		    if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD))
+		    {
+			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))	
+			    send_media_object(mb, block_offset, FIELD_F_B_INTERFACE);
+			else 
+
+			    send_media_object(mb, block_offset, FIELD_FORWARD_INTERFACE);
+		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
+		    {
+			send_media_object(mb, block_offset, FIELD_BACKWARD_INTERFACE);
+		    }
+		}else {
+		    send_media_object(mb, block_offset, DUAL_PRIME_INTERFACE);
+		}
 	    }
 	}
 	intelFlushBatch(TRUE);
@@ -546,33 +694,35 @@ static Status render_surface(Display *display,
 }
 
 static Status put_surface(Display *display,XvMCSurface *surface,
-                      Drawable draw, short srcx, short srcy,
-                      unsigned short srcw, unsigned short srch,
-                      short destx, short desty,
-                      unsigned short destw, unsigned short desth,
-                      int flags, struct intel_xvmc_command *data)
+	Drawable draw, short srcx, short srcy,
+	unsigned short srcw, unsigned short srch,
+	short destx, short desty,
+	unsigned short destw, unsigned short desth,
+	int flags, struct intel_xvmc_command *data)
 {
 	struct i965_xvmc_surface *private_surface =
-            surface->privData;
+		surface->privData;
 
-        data->surf_offset = private_surface->buffer.offset;
+	data->surf_offset = private_surface->buffer.offset;
 	return Success;
 }
 
 static Status get_surface_status(Display *display,
-        XvMCSurface *surface, int *stats)
+	XvMCSurface *surface, int *stats)
 {
-	*stats = 0;
-	return 0;
+    *stats = 0;
+    return 0;
 }
 
 static Status create_context(Display *display, XvMCContext *context,
-        int priv_count, CARD32 *priv_data)
+	int priv_count, CARD32 *priv_data)
 {
     struct i965_xvmc_context *i965_ctx;
     i965_ctx = (struct i965_xvmc_context *)priv_data;
     context->privData = i965_ctx;
     if (map_buffer(&i965_ctx->static_buffer))
+	return BadAlloc;
+    if(map_buffer(&i965_ctx->blocks))
 	return BadAlloc;
     {
 	media_state.state_base = i965_ctx->static_buffer.offset;

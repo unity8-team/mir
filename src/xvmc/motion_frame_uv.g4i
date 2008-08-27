@@ -22,27 +22,24 @@
  *
  * Author:
  *    Zou Nan hai <nanhai.zou@intel.com>
- */
-
-/* average consider satuate 
- * f = (f1 + f2 + 1)/2;
- */
-mov(16) g6.0<1>UW g4.0<16,16,1>UB {align1};
-mov(16) g7.0<1>UW g4.16<16,16,1>UB {align1};
-mov(16) g8.0<1>UW g5.0<16,16,1>UB {align1};
-mov(16) g9.0<1>UW g5.16<16,16,1>UB {align1};
-
-add(16) g6.0<1>UW g6.0<16,16,1>UW  g10.0<16,16,1>UB {align1};
-add(16) g7.0<1>UW g7.0<16,16,1>UW  g10.16<16,16,1>UB {align1};
-add(16) g8.0<1>UW g8.0<16,16,1>UW  g11.0<16,16,1>UB  {align1};
-add(16) g9.0<1>UW g9.0<16,16,1>UW  g11.16<16,16,1>UB {align1};
-
-shr.sat(16) g6.0<2>UB g6.0<16,16,1>UW 1UW {align1};
-shr.sat(16) g7.0<2>UB g7.0<16,16,1>UW 1UW {align1};
-shr.sat(16) g8.0<2>UB g8.0<16,16,1>UW 1UW {align1};
-shr.sat(16) g9.0<2>UB g9.0<16,16,1>UW 1UW {align1};
-
-mov(16) g4.0<1>UB g6.0<16,16,2>UB{align1};
-mov(16) g4.16<1>UB g7.0<16,16,2>UB{align1};
-mov(16) g5.0<1>UB g8.0<16,16,2>UB{align1};
-mov(16) g5.16<1>UB g9.0<16,16,2>UB{align1};
+ *    Zhang Hua jun <huajun.zhang@intel.com>
+ *    Xing Dong sheng <dongsheng.xing@intel.com>
+ */  
+ 
+ 	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
+	(f0) jmpi LL1;
+	and.z (1) null mv2<1,1,1>UD 1UD {align1};	
+	(f0) jmpi LL2;
+	include(`read_frame_x1y1_uv.g4i')
+	jmpi LL5;
+LL2:
+	include(`read_frame_x1y0_uv.g4i')
+	jmpi LL5;
+LL1:
+	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
+	(f0) jmpi LL4;
+	include(`read_frame_x0y1_uv.g4i')
+	jmpi LL5;
+LL4:
+	include(`read_frame_x0y0_uv.g4i')
+LL5:

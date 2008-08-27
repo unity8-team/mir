@@ -22,152 +22,93 @@
  *
  * Author:
  *    Zou Nan hai <nanhai.zou@intel.com>
+ *    Zhang Hua jun <huajun.zhang@intel.com>
+ *    Xing Dong sheng <dongsheng.xing@intel.com>
  *
  */
-
-/* intra coded block
- * should fix 8 DWORD issue later
- */
-mov (8) g3.0<1>UD g1.0<8,8,1>UD {align1};
-mov(1) g1.8<1>UD 0x0070007UD  { align1 };
-mov (2) g1.0<1>UD g3.0<2,2,1>UD {align1};
-
-add (1) g2.4<1>UD g3.8<1,1,1>UD 0UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-
-
+mov (8) g115.0<1>UD g1.0<8,8,1>UD {align1};
+mov (1) g1.8<1>UD 0x00F000FUD {align1};
+mov.sat (16) g3.0<2>UB g3.0<16,16,1>W {align1};
 mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
 mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
 mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
 mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1};
-mov (16) g8.16<1>UB g5.0<16,16,2>UB{align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1};
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1};
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
+mov.sat (16) g8.0<2>UB g8.0<16,16,1>W {align1};
+mov.sat (16) g9.0<2>UB g9.0<16,16,1>W {align1};
+mov.sat (16) g10.0<2>UB g10.0<16,16,1>W {align1};
+mov.sat (16) g11.0<2>UB g11.0<16,16,1>W {align1};
+mov.sat (16) g12.0<2>UB g12.0<16,16,1>W {align1};
+mov.sat (16) g13.0<2>UB g13.0<16,16,1>W {align1};
+mov.sat (16) g14.0<2>UB g14.0<16,16,1>W {align1};
+mov.sat (16) g15.0<2>UB g15.0<16,16,1>W {align1};
+mov.sat (16) g16.0<2>UB g16.0<16,16,1>W {align1};
+mov.sat (16) g17.0<2>UB g17.0<16,16,1>W {align1};
+mov.sat (16) g18.0<2>UB g18.0<16,16,1>W {align1};
 
-send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 { align1 };
+and.nz (1) null g2.16<1,1,1>UD 0x1UD{align1};
+(f0) jmpi field_dct;
+//Frame IDCT
+mov (16) m1.0<1>UB g3.0<16,16,2>UB {align1};
+mov (16) m1.16<1>UB g4.0<16,16,2>UB {align1};
+mov (16) m2.0<1>UB g5.0<16,16,2>UB {align1};
+mov (16) m2.16<1>UB g6.0<16,16,2>UB {align1};
+mov (16) m3.0<1>UB g7.0<16,16,2>UB {align1};
+mov (16) m3.16<1>UB g8.0<16,16,2>UB {align1};
+mov (16) m4.0<1>UB g9.0<16,16,2>UB {align1};
+mov (16) m4.16<1>UB g10.0<16,16,2>UB {align1};
+mov (16) m5.0<1>UB g11.0<16,16,2>UB {align1};
+mov (16) m5.16<1>UB g12.0<16,16,2>UB {align1};
+mov (16) m6.0<1>UB g13.0<16,16,2>UB {align1};
+mov (16) m6.16<1>UB g14.0<16,16,2>UB {align1};
+mov (16) m7.0<1>UB g15.0<16,16,2>UB {align1};
+mov (16) m7.16<1>UB g16.0<16,16,2>UB {align1};
+mov (16) m8.0<1>UB g17.0<16,16,2>UB {align1};
+mov (16) m8.16<1>UB g18.0<16,16,2>UB {align1};
+jmpi write_back;
 
-add (1) g2.4<1>UD g3.8<1,1,1>UD 128UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+field_dct:
+//Field IDCT
+mov (16) m1.0<1>UB g3.0<16,16,2>UB {align1};
+mov (16) m1.16<1>UB g11.0<16,16,2>UB {align1};
+mov (16) m2.0<1>UB g4.0<16,16,2>UB {align1};
+mov (16) m2.16<1>UB g12.0<16,16,2>UB {align1};
+mov (16) m3.0<1>UB g5.0<16,16,2>UB {align1};
+mov (16) m3.16<1>UB g13.0<16,16,2>UB {align1};
+mov (16) m4.0<1>UB g6.0<16,16,2>UB {align1};
+mov (16) m4.16<1>UB g14.0<16,16,2>UB {align1};
+mov (16) m5.0<1>UB g7.0<16,16,2>UB {align1};
+mov (16) m5.16<1>UB g15.0<16,16,2>UB {align1};
+mov (16) m6.0<1>UB g8.0<16,16,2>UB {align1};
+mov (16) m6.16<1>UB g16.0<16,16,2>UB {align1};
+mov (16) m7.0<1>UB g9.0<16,16,2>UB {align1};
+mov (16) m7.16<1>UB g17.0<16,16,2>UB {align1};
+mov (16) m8.0<1>UB g10.0<16,16,2>UB {align1};
+mov (16) m8.16<1>UB g18.0<16,16,2>UB {align1};
 
-mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
-mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
-mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
-mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1};
-mov (16) g8.16<1>UB g5.0<16,16,2>UB {align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1 };
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
-
-add (1) g1.0<1>UD g3.0<1,1,1>UD 0x8UD {align1};
-mov (1) g1.4<1>UD g3.4<1,1,1>UD {align1};
-send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 { align1 };
-
-add (1) g2.4<1>UD g3.8<1,1,1>UD 256UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-
-mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
-mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
-mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
-mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1 };
-mov (16) g8.16<1>UB g5.0<16,16,2>UB {align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1 };
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
-
-add (1) g1.4<1>UD g3.4<1,1,1>UD 0x8UD {align1};
-mov (1) g1.0<1>UD g3.0<1,1,1>UD {align1};
-send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 { align1 };
-
-add (1) g2.4<1>UD g3.8<1,1,1>UD 384UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-
-mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
-mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
-mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
-mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1 };
-mov (16) g8.16<1>UB g5.0<16,16,2>UB {align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1 };
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
-
-add (1) g1.0<1>UD g3.0<1,1,1>UD 8D {align1};
-add (1) g1.4<1>UD g3.4<1,1,1>UD 8D {align1};
-send (16) 0 acc0<1>UW g1<8,8,1>UW write(0, 0, 2, 0) mlen 3 rlen 0 { align1 };
-
-add (1) g2.4<1>UD g3.8<1,1,1>UD 512UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-
-mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
-mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
-mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
-mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1 };
-mov (16) g8.16<1>UB g5.0<16,16,2>UB {align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1 };
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
-
-shr (2) g1.0<1>UD g3.0<2,2,1>UD 1D {align1};
+write_back:
+send (16) 0 acc0<1>UW g1<8,8,1>UW write(0,0,2,0) mlen 9 rlen 0 {align1};
+//U
+mov (1) g1.8<1>UD 0x0070007UD  { align1 };
+shr (2) g1.0<1>UD g115.0<2,2,1>UD 1D {align1};
+mov.sat (16) g19.0<2>UB g19.0<16,16,1>W {align1};
+mov.sat (16) g20.0<2>UB g20.0<16,16,1>W {align1};
+mov.sat (16) g21.0<2>UB g21.0<16,16,1>W {align1};
+mov.sat (16) g22.0<2>UB g22.0<16,16,1>W {align1};
+mov (16) m1.0<1>UB g19.0<16,16,2>UB {align1};
+mov (16) m1.16<1>UB g20.0<16,16,2>UB {align1};
+mov (16) m2.0<1>UB g21.0<16,16,2>UB {align1};
+mov (16) m2.16<1>UB g22.0<16,16,2>UB {align1};
 send (16) 0 acc0<1>UW g1<8,8,1>UW write(1, 0, 2, 0) mlen 3 rlen 0 { align1 };
-
-
-add (1) g2.4<1>UD g3.8<1,1,1>UD 640UD{align1};
-send (16) 0 g4.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g5.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g6.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-add (1) g2.4<1>UD g2.4<1,1,1>UD 32UD {align1};
-send (16) 0 g7.0<1>UD g2<8,8,1>UW read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
-
-mov.sat (16) g4.0<2>UB g4.0<16,16,1>W {align1};
-mov.sat (16) g5.0<2>UB g5.0<16,16,1>W {align1};
-mov.sat (16) g6.0<2>UB g6.0<16,16,1>W {align1};
-mov.sat (16) g7.0<2>UB g7.0<16,16,1>W {align1};
-
-mov (16) g8.0<1>UB g4.0<16,16,2>UB {align1 };
-mov (16) g8.16<1>UB g5.0<16,16,2>UB {align1};
-mov (16) g9.0<1>UB g6.0<16,16,2>UB {align1 };
-mov (16) g9.16<1>UB g7.0<16,16,2>UB {align1 };
-mov (16) m1<1>UD g8.0<8,8,1>UD {align1 compr};
+//V
+mov.sat (16) g23.0<2>UB g23.0<16,16,1>W {align1};
+mov.sat (16) g24.0<2>UB g24.0<16,16,1>W {align1};
+mov.sat (16) g25.0<2>UB g25.0<16,16,1>W {align1};
+mov.sat (16) g26.0<2>UB g26.0<16,16,1>W {align1};
+mov (16) m1.0<1>UB g23.0<16,16,2>UB {align1};
+mov (16) m1.16<1>UB g24.0<16,16,2>UB {align1};
+mov (16) m2.0<1>UB g25.0<16,16,2>UB {align1};
+mov (16) m2.16<1>UB g26.0<16,16,2>UB {align1};
 send (16) 0 acc0<1>UW g1<8,8,1>UW write(2, 0, 2, 0) mlen 3 rlen 0 { align1 };
 
-send (16) 0 acc0<1>UW g0<8,8,1>UW 
-	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};
+send (16) 0 acc0<1>UW g0<8,8,1>UW
+        thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};
