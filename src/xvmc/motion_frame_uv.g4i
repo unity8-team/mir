@@ -36,7 +36,7 @@ LL2:
 	include(`read_frame_x1y0_uv.g4i')
 	jmpi LL5;
 LL1:
-	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
+	and.z (1) null mv2<1,1,1>UD 1UD {align1};	
 	(f0) jmpi LL4;
 	include(`read_frame_x0y1_uv.g4i')
 	jmpi LL5;

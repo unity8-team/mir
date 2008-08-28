@@ -352,78 +352,6 @@ static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface int
     ADVANCE_BATCH();
 }
 
-/* do not use vertex cache for media object indirect data*/
-static void vertex_cache()
-{
-    BATCH_LOCALS;
-    BEGIN_BATCH(5);
-    OUT_BATCH((0x22<<23)|1);
-    OUT_BATCH(0x2124);
-    OUT_BATCH(0x10000000);
-    OUT_BATCH(MI_FLUSH | MI_WRITE_DIRTY_STATE);
-    OUT_BATCH(MI_NOOP);
-    ADVANCE_BATCH();
-}
-
-static void vertex_buffer(int offset, int num_blocks)
-{
-    struct brw_vertex_element_packet vep;
-    struct brw_vb_array_state vbp;
-    struct brw_3d_primitive prim_packet;
-
-    memset(&vep, 0, sizeof(vep));
-    memset(&vbp, 0, sizeof(vbp));
-    memset(&prim_packet, 0, sizeof(prim_packet));
-
-    vep.ve[0].ve0.vertex_buffer_index = 0;
-    vep.ve[0].ve0.valid = 1;
-    vep.ve[0].ve0.src_format = 0x2;
-    vep.ve[0].ve0.src_offset = 0x0;
-
-    vep.ve[0].ve1.dst_offset = 0x0;
-    vep.ve[0].ve1.vfcomponent0 = 0x1;
-    vep.ve[0].ve1.vfcomponent1 = 0x1;
-    vep.ve[0].ve1.vfcomponent2 = 0x1;
-    vep.ve[0].ve1.vfcomponent3 = 0x1;
-
-    vep.ve[1].ve0.vertex_buffer_index = 0;
-    vep.ve[1].ve0.valid = 1;
-    vep.ve[1].ve0.src_format = 0x2;
-    vep.ve[1].ve0.src_offset = 0x10;
-
-    vep.ve[1].ve1.dst_offset = 0x10;
-    vep.ve[1].ve1.vfcomponent0 = 0x1;
-    vep.ve[1].ve1.vfcomponent1 = 0x1;
-    vep.ve[1].ve1.vfcomponent2 = 0x1;
-    vep.ve[1].ve1.vfcomponent3 = 0x1;
-
-    vep.header.length = (1 + 2 * sizeof(vep.ve[0])/4) - 2;
-    vep.header.opcode = CMD_VERTEX_ELEMENT;
-    intelBatchbufferData(&vep, 4*(vep.header.length+2), 0);
-
-    vbp.vb[0].vb0.pitch = 0x20;
-    vbp.vb[0].vb0.access_type = BRW_VERTEXBUFFER_ACCESS_VERTEXDATA;
-    vbp.vb[0].max_index = 0;
-    vbp.vb[0].start_addr = offset;
-    vbp.header.length = (1 + 1* 4) - 2;
-    vbp.header.opcode = CMD_VERTEX_BUFFER;
-    intelBatchbufferData(&vep, 4*(vbp.header.length+2), 0);
-
-    prim_packet.header.opcode = CMD_3D_PRIM;
-    prim_packet.header.length = sizeof(prim_packet)/4 - 2;
-    prim_packet.header.pad = 0;
-    prim_packet.header.topology = 0x1;
-    prim_packet.header.indexed = 0;
-
-    prim_packet.verts_per_instance = num_blocks*4;
-    prim_packet.start_vert_location = 0;
-    prim_packet.instance_count = 1;
-    prim_packet.start_instance_location = 0;
-    prim_packet.base_vert_location = 0;
-
-    intelBatchbufferData(&prim_packet, sizeof(prim_packet), 0);
-}
-
 static void binding_tables(struct media_state *media_state)
 {
     unsigned int *binding_table;
@@ -640,7 +568,6 @@ static Status render_surface(Display *display,
     {
 	int block_offset = i965_ctx->blocks.offset;
 	LOCK_HARDWARE(intel_ctx->hw_context);
-	vertex_cache();
 	state_base_address(block_offset);
 	flush();	
 	clear_sf_state();
@@ -649,7 +576,6 @@ static Status render_surface(Display *display,
 	urb_layout();	
 	media_state_pointers(&media_state);
 	cs_urb_layout();
-//	vertex_buffer(i965_ctx->blocks.offset, num_macroblocks);
 
 	for (i = first_macroblock; 
 		i < num_macroblocks + first_macroblock; 
