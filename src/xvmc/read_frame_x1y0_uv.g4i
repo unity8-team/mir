@@ -26,6 +26,8 @@
  *    Xing Dong sheng <dongsheng.xing@intel.com>
  *
  */
+
+mov (1) g2.8<1>UD 0x007000FUD {align1};
 and (1) g2.24<1>UD g2.0<1,1,1>UD 0x3UD {align1};
 send (16) 0 g86.0<1>UW g2<8,8,1>UW read(input_surface1, 2, 0, 2) mlen 1 rlen 4 {align1};
 send (16) 0 g90.0<1>UW g2<8,8,1>UW read(input_surface2, 2, 0, 2) mlen 1 rlen 4 {align1};
@@ -70,5 +72,4 @@ avg.sat (16) g48.0<1>UW g90.3<16,8,1>UB g90.4<16,8,1>UB{align1};
 avg.sat (16) g49.0<1>UW g91.3<16,8,1>UB g91.4<16,8,1>UB{align1};
 avg.sat (16) g50.0<1>UW g92.3<16,8,1>UB g92.4<16,8,1>UB{align1};
 avg.sat (16) g51.0<1>UW g93.3<16,8,1>UB g93.4<16,8,1>UB{align1};
-
 out:
