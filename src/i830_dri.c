@@ -88,6 +88,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "dristruct.h"
 
+#ifdef DRI2
+#include "dri2.h"
+#endif
+
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
 static Bool I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
 			      drm_context_t hwContext, void *pVisualConfigPriv,
@@ -934,12 +938,14 @@ Bool
 I830DRIResume(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
 
    DPRINTF(PFX, "I830DRIResume\n");
 
    I830ResumeDma(pScrn);
 
-   I830DRIInstIrqHandler(pScrn);
+   if (!pI830->memory_manager)
+      I830DRIInstIrqHandler(pScrn);
 
    return TRUE;
 }
@@ -957,7 +963,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
    REGION_UNINIT(pScreen, &pI830->driRegion);
 #endif
 
-   if (pI830DRI->irq) {
+   if (!pI830->memory_manager && pI830DRI->irq) {
        drmCtlUninstHandler(pI830->drmSubFD);
        pI830DRI->irq = 0;
    }
@@ -978,7 +984,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
       xfree(pI830->pVisualConfigs);
    if (pI830->pVisualConfigsPriv)
       xfree(pI830->pVisualConfigsPriv);
-   pI830->directRenderingEnabled = FALSE;
+   pI830->directRenderingType = DRI_NONE;
 }
 
 static Bool
@@ -1756,7 +1762,7 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
     if (!pI830->want_vblank_interrupts)
 	on = FALSE;
 
-    if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
+    if (pI830->directRenderingType == DRI_XF86DRI && pI830->drmMinor >= 5) {
 	if (on) {
 	    if (xf86_config->num_crtc > 1 && xf86_config->crtc[1]->enabled)
 		if (pI830->drmMinor >= 6)
@@ -1782,7 +1788,7 @@ I830DRILock(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->directRenderingEnabled && !pI830->LockHeld) {
+   if (pI830->directRenderingType == DRI_XF86DRI && !pI830->LockHeld) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       pI830->LockHeld = 1;
       if (!pI830->memory_manager)
@@ -1800,8 +1806,165 @@ I830DRIUnlock(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->directRenderingEnabled && pI830->LockHeld) {
+   if (pI830->directRenderingType == DRI_XF86DRI && pI830->LockHeld) {
       DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
       pI830->LockHeld = 0;
    }
 }
+
+#ifdef DRI2
+
+typedef struct {
+    PixmapPtr pPixmap;
+} I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
+
+static DRI2BufferPtr
+I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    DRI2BufferPtr buffers;
+    dri_bo *bo;
+    int i, depth, width, cpp;
+    I830DRI2BufferPrivatePtr privates;
+    PixmapPtr pPixmap, pDepthPixmap;
+
+    buffers = xcalloc(count, sizeof *buffers);
+    if (buffers == NULL)
+	return NULL;
+    privates = xcalloc(count, sizeof *privates);
+    if (privates == NULL) {
+	xfree(buffers);
+	return NULL;
+    }	
+
+    /* The byte rowstride for 3D buffers must be a multiple of 64 bytes. */
+    cpp = pDraw->bitsPerPixel / 8;
+    width = ((pDraw->width * cpp + 63) & ~63) / cpp;
+
+    pDepthPixmap = NULL;
+    for (i = 0; i < count; i++) {
+	if (attachments[i] == DRI2_BUFFER_FRONT_LEFT) {
+	    if (pDraw->type == DRAWABLE_PIXMAP)
+		pPixmap = (PixmapPtr) pDraw;
+	    else
+		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	    pPixmap->refcnt++;
+	} else if (attachments[i] == DRI2_BUFFER_STENCIL && pDepthPixmap) {
+	    pPixmap = pDepthPixmap;
+	    pPixmap->refcnt++;
+	} else {
+	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
+					      width,
+					      pDraw->height, 
+					      pDraw->depth, 0);
+	}
+
+	if (attachments[i] == DRI2_BUFFER_DEPTH)
+	    pDepthPixmap = pPixmap;
+
+	buffers[i].attachment = attachments[i];
+	buffers[i].pitch = pPixmap->devKind;
+	buffers[i].cpp = pPixmap->drawable.bitsPerPixel / 8;
+	buffers[i].driverPrivate = &privates[i];
+	buffers[i].flags = 0; /* not tiled */
+	privates[i].pPixmap = pPixmap;
+
+	bo = i830_get_pixmap_bo (pPixmap);
+	if (intel_bo_flink(bo, &buffers[i].name) != 0) {
+	    /* failed to name buffer */
+	}
+
+    }
+
+    return buffers;
+}
+
+static void
+I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    I830DRI2BufferPrivatePtr private;
+    int i;
+
+    for (i = 0; i < count; i++)
+    {
+	private = buffers[i].driverPrivate;
+	(*pScreen->DestroyPixmap)(private->pPixmap);
+    }
+
+    if (buffers)
+    {
+	xfree(buffers[0].driverPrivate);
+	xfree(buffers);
+    }
+}
+
+static void
+I830DRI2SwapBuffers(DrawablePtr pDraw, DRI2BufferPtr pSrcBuffer,
+		    int x, int y, int width, int height)
+{
+    I830DRI2BufferPrivatePtr private = pSrcBuffer->driverPrivate;
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    PixmapPtr pPixmap = private->pPixmap;
+    GCPtr pGC;
+
+    pGC = GetScratchGC(pDraw->depth, pScreen);
+    ValidateGC(pDraw, pGC);
+    (*pGC->ops->CopyArea)(&pPixmap->drawable,
+			  pDraw, pGC, x, y, width, height, x, y);
+    FreeScratchGC(pGC);
+    
+    /* We can't rely on getting into the block handler before the DRI
+     * client gets to run again so flush now. */
+    intel_batch_flush(pScrn);
+    I830EmitFlush(pScrn);
+    pI830->need_mi_flush = FALSE;
+#if ALWAYS_SYNC
+    I830Sync(pScrn);
+#endif
+    drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
+}
+
+Bool I830DRI2ScreenInit(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    DRI2InfoRec info;
+    char busId[64];
+
+    if (pI830->accel != ACCEL_UXA) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
+	return FALSE;
+    }
+
+    sprintf(busId, "PCI:%d:%d:%d",
+	    ((pI830->PciInfo->domain << 8) | pI830->PciInfo->bus),
+	    pI830->PciInfo->dev, pI830->PciInfo->func);
+
+    info.driverName = IS_I965G(pI830) ? "i965" : "i915";
+    info.version = 1;
+    info.fd = drmOpen(info.driverName, busId);
+    if (info.fd < 0)
+	return FALSE;
+
+    info.CreateBuffers = I830DRI2CreateBuffers;
+    info.DestroyBuffers = I830DRI2DestroyBuffers;
+    info.SwapBuffers = I830DRI2SwapBuffers;
+
+    pI830->drmSubFD = info.fd;
+
+    return DRI2ScreenInit(pScreen, &info);
+}
+
+void I830DRI2CloseScreen(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    DRI2CloseScreen(pScreen);
+    pI830->directRenderingType = DRI_NONE;
+}
+
+#endif

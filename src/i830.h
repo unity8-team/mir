@@ -374,6 +374,13 @@ typedef enum accel_method {
     ACCEL_UXA
 } accel_method_t;
 
+enum dri_type {
+    DRI_DISABLED,
+    DRI_NONE,
+    DRI_XF86DRI,
+    DRI_DRI2
+};
+
 typedef struct _I830Rec {
    unsigned char *MMIOBase;
    unsigned char *GTTBase;
@@ -577,8 +584,7 @@ typedef struct _I830Rec {
    /* 965 render acceleration state */
    struct gen4_render_state *gen4_render_state;
 
-   Bool directRenderingDisabled;	/* DRI disabled in PreInit. */
-   Bool directRenderingEnabled;		/* DRI enabled this generation. */
+   enum dri_type directRenderingType;	/* DRI enabled this generation. */
 
 #ifdef XF86DRI
    Bool directRenderingOpen;
@@ -805,6 +811,11 @@ extern Bool I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on);
 extern Bool i830_update_dri_buffers(ScrnInfoPtr pScrn);
 extern Bool I830DRISetHWS(ScrnInfoPtr pScrn);
 extern Bool I830DRIInstIrqHandler(ScrnInfoPtr pScrn);
+#endif
+
+#ifdef DRI2
+Bool I830DRI2ScreenInit(ScreenPtr pScreen);
+void I830DRI2CloseScreen(ScreenPtr pScreen);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);

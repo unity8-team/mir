@@ -903,6 +903,7 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->copy = I830EXACopy;
     i830->uxa_driver->done_copy = I830EXADoneCopy;
 
+#if 0
     /* Composite */
     if (!IS_I9XX(i830)) {
     	i830->uxa_driver->check_composite = i830_check_composite;
@@ -922,6 +923,7 @@ i830_uxa_init (ScreenPtr pScreen)
  	i830->uxa_driver->composite = i965_composite;
  	i830->uxa_driver->done_composite = i830_done_composite;
     }
+#endif
 
     i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
     i830->uxa_driver->finish_access = i830_uxa_finish_access;

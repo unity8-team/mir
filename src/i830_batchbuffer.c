@@ -120,7 +120,7 @@ intel_batch_flush(ScrnInfoPtr pScrn)
     } else {
 	dri_process_relocs(pI830->batch_bo);
 
-	if (pI830->directRenderingEnabled) {
+	if (pI830->directRenderingType > DRI_NONE) {
 	    struct drm_i915_batchbuffer batch;
 	    int ret;
 

@@ -138,7 +138,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 #ifdef XF86DRI
-	 if (pI830->directRenderingEnabled) {
+	 if (pI830->directRenderingType == DRI_XF86DRI) {
 	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
 	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
 	 }
@@ -183,7 +183,7 @@ I830Sync(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    /* VT switching tries to do this.
     */
-   if (!pI830->LockHeld && pI830->directRenderingEnabled) {
+   if (!pI830->LockHeld && pI830->directRenderingType == DRI_XF86DRI) {
       return;
    }
 #endif
@@ -194,7 +194,7 @@ I830Sync(ScrnInfoPtr pScrn)
 
    intel_batch_flush(pScrn);
 
-   if (pI830->directRenderingEnabled) {
+   if (pI830->directRenderingType > DRI_NONE) {
        struct drm_i915_irq_emit emit;
        struct drm_i915_irq_wait wait;
        int ret;
