@@ -333,7 +333,7 @@ static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface int
     BEGIN_BATCH(18);
     OUT_BATCH(BRW_MEDIA_OBJECT|16);
     OUT_BATCH(interface);
-    OUT_BATCH(128*6);
+    OUT_BATCH(6*128);
     OUT_BATCH(offset);
     OUT_BATCH(mb->x<<4);                 //g1.0
     OUT_BATCH(mb->y<<4);
@@ -516,7 +516,6 @@ static Status render_surface(Display *display,
 	XVMC_ERR("Can't find intel xvmc context\n");
 	return BadValue;
     }
-
     setup_surfaces(&media_state, 
 	    priv_target_surface->buffer.offset, 
 	    past_surface? priv_past_surface->buffer.offset:0, 

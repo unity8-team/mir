@@ -28,11 +28,12 @@
  */
 mov (1) g2.8<1>UD 0x007001FUD {align1};
 send (16) 0 g98.0<1>UW g2<8,8,1>UW read(input_surface, 2, 0, 2) mlen 1 rlen 8 {align1};
-add (1) g2.4<1>UD g2.4<1,1,1>UD 8UD {align1};
-send (16) 0 g106.0<1>UW g2<8,8,1>UW read(input_surface, 2, 0, 2) mlen 1 rlen 8 {align1};
 
 and (1) g2.24<1>UD g2.0<1,1,1>UD 3UD {align1};
 mul(1) g2.24<1>UD g2.24<1,1,1>UD 17D {align1};
+add (1) g2.4<1>UD g2.4<1,1,1>UD 8UD {align1};
+send (16) 0 g106.0<1>UW g2<8,8,1>UW read(input_surface, 2, 0, 2) mlen 1 rlen 8 {align1};
+
 jmpi g2.24<1,1,1>D;
 
 avg.sat (16) g28.0<1>UW g98.0<16,16,1>UB g98.1<16,16,1>UB {align1};

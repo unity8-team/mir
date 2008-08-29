@@ -27,80 +27,48 @@
  *
  */
 mov (1) g115.8<1>UD 0x7000FUD {align1}; // 8*16/32=4
-send (16) 0 g86.0<1>UW g115<8,8,1>UW read(surface_u, 2, 0, 2) mlen 1 rlen 4 {align1};//U
-send (16) 0 g91.0<1>UW g115<8,8,1>UW read(surface_v, 2, 0, 2) mlen 1 rlen 4 {align1};//V
+send (16) 0 g86.0<1>UW g115<16,8,1>UW read(surface_u, 2, 0, 2) mlen 1 rlen 4 {align1};//U
+send (16) 0 g91.0<1>UW g115<16,8,1>UW read(surface_v, 2, 0, 2) mlen 1 rlen 4 {align1};//V
 and (1) g2.24<1>UD g115.0<1,1,1>UD 3UD {align1};
-mul (1) g2.24<1>UD g2.24<1,1,1>UD 17UD {align1};
+mul (1) g2.24<1>UD g2.24<1,1,1>UD 9UD {align1};
 jmpi g2.24<1,1,1>D;
 
-mov (8) g78.0<1>UW g86.0<8,8,1>UB {align1};
-mov (8) g78.16<1>UW g86.16<8,8,1>UB {align1};
-mov (8) g79.0<1>UW g87.0<8,8,1>UB {align1};
-mov (8) g79.16<1>UW g87.16<8,8,1>UB {align1};
-mov (8) g80.0<1>UW g88.0<8,8,1>UB {align1};
-mov (8) g80.16<1>UW g88.16<8,8,1>UB {align1};
-mov (8) g81.0<1>UW g89.0<8,8,1>UB {align1};
-mov (8) g81.16<1>UW g89.16<8,8,1>UB {align1};
-mov (8) g82.0<1>UW g91.0<8,8,1>UB {align1};
-mov (8) g82.16<1>UW g91.16<8,8,1>UB {align1};
-mov (8) g83.0<1>UW g92.0<8,8,1>UB {align1};
-mov (8) g83.16<1>UW g92.16<8,8,1>UB {align1};
-mov (8) g84.0<1>UW g93.0<8,8,1>UB {align1};
-mov (8) g84.16<1>UW g93.16<8,8,1>UB {align1};
-mov (8) g85.0<1>UW g94.0<8,8,1>UB {align1};
-mov (8) g85.16<1>UW g94.16<8,8,1>UB {align1};
+mov (16) g78.0<1>UW g86.0<16,8,1>UB {align1};
+mov (16) g79.0<1>UW g87.0<16,8,1>UB {align1};
+mov (16) g80.0<1>UW g88.0<16,8,1>UB {align1};
+mov (16) g81.0<1>UW g89.0<16,8,1>UB {align1};
+mov (16) g82.0<1>UW g91.0<16,8,1>UB {align1};
+mov (16) g83.0<1>UW g92.0<16,8,1>UB {align1};
+mov (16) g84.0<1>UW g93.0<16,8,1>UB {align1};
+mov (16) g85.0<1>UW g94.0<16,8,1>UB {align1};
 jmpi out;
 
-mov (8) g78.0<1>UW g86.1<8,8,1>UB {align1};
-mov (8) g78.16<1>UW g86.17<8,8,1>UB {align1};
-mov (8) g79.0<1>UW g87.1<8,8,1>UB {align1};
-mov (8) g79.16<1>UW g87.17<8,8,1>UB {align1};
-mov (8) g80.0<1>UW g88.1<8,8,1>UB {align1};
-mov (8) g80.16<1>UW g88.17<8,8,1>UB {align1};
-mov (8) g81.0<1>UW g89.1<8,8,1>UB {align1};
-mov (8) g81.16<1>UW g89.17<8,8,1>UB {align1};
-mov (8) g82.0<1>UW g91.1<8,8,1>UB {align1};
-mov (8) g82.16<1>UW g91.17<8,8,1>UB {align1};
-mov (8) g83.0<1>UW g92.1<8,8,1>UB {align1};
-mov (8) g83.16<1>UW g92.17<8,8,1>UB {align1};
-mov (8) g84.0<1>UW g93.1<8,8,1>UB {align1};
-mov (8) g84.16<1>UW g93.17<8,8,1>UB {align1};
-mov (8) g85.0<1>UW g94.1<8,8,1>UB {align1};
-mov (8) g85.16<1>UW g94.17<8,8,1>UB {align1};
+mov (16) g78.0<1>UW g86.1<16,8,1>UB {align1};
+mov (16) g79.0<1>UW g87.1<16,8,1>UB {align1};
+mov (16) g80.0<1>UW g88.1<16,8,1>UB {align1};
+mov (16) g81.0<1>UW g89.1<16,8,1>UB {align1};
+mov (16) g82.0<1>UW g91.1<16,8,1>UB {align1};
+mov (16) g83.0<1>UW g92.1<16,8,1>UB {align1};
+mov (16) g84.0<1>UW g93.1<16,8,1>UB {align1};
+mov (16) g85.0<1>UW g94.1<16,8,1>UB {align1};
 jmpi out;
 
-mov (8) g78.0<1>UW g86.2<8,8,1>UB {align1};
-mov (8) g78.16<1>UW g86.18<8,8,1>UB {align1};
-mov (8) g79.0<1>UW g87.2<8,8,1>UB {align1};
-mov (8) g79.16<1>UW g87.18<8,8,1>UB {align1};
-mov (8) g80.0<1>UW g88.2<8,8,1>UB {align1};
-mov (8) g80.16<1>UW g88.18<8,8,1>UB {align1};
-mov (8) g81.0<1>UW g89.2<8,8,1>UB {align1};
-mov (8) g81.16<1>UW g89.18<8,8,1>UB {align1};
-mov (8) g82.0<1>UW g91.2<8,8,1>UB {align1};
-mov (8) g82.16<1>UW g91.18<8,8,1>UB {align1};
-mov (8) g83.0<1>UW g92.2<8,8,1>UB {align1};
-mov (8) g83.16<1>UW g92.18<8,8,1>UB {align1};
-mov (8) g84.0<1>UW g93.2<8,8,1>UB {align1};
-mov (8) g84.16<1>UW g93.18<8,8,1>UB {align1};
-mov (8) g85.0<1>UW g94.2<8,8,1>UB {align1};
-mov (8) g85.16<1>UW g94.18<8,8,1>UB {align1};
+mov (16) g78.0<1>UW g86.2<16,8,1>UB {align1};
+mov (16) g79.0<1>UW g87.2<16,8,1>UB {align1};
+mov (16) g80.0<1>UW g88.2<16,8,1>UB {align1};
+mov (16) g81.0<1>UW g89.2<16,8,1>UB {align1};
+mov (16) g82.0<1>UW g91.2<16,8,1>UB {align1};
+mov (16) g83.0<1>UW g92.2<16,8,1>UB {align1};
+mov (16) g84.0<1>UW g93.2<16,8,1>UB {align1};
+mov (16) g85.0<1>UW g94.2<16,8,1>UB {align1};
 jmpi out;
 
-mov (8) g78.0<1>UW g86.3<8,8,1>UB {align1};
-mov (8) g78.16<1>UW g86.19<8,8,1>UB {align1};
-mov (8) g79.0<1>UW g87.3<8,8,1>UB {align1};
-mov (8) g79.16<1>UW g87.19<8,8,1>UB {align1};
-mov (8) g80.0<1>UW g88.3<8,8,1>UB {align1};
-mov (8) g80.16<1>UW g88.19<8,8,1>UB {align1};
-mov (8) g81.0<1>UW g89.3<8,8,1>UB {align1};
-mov (8) g81.16<1>UW g89.19<8,8,1>UB {align1};
-mov (8) g82.0<1>UW g91.3<8,8,1>UB {align1};
-mov (8) g82.16<1>UW g91.19<8,8,1>UB {align1};
-mov (8) g83.0<1>UW g92.3<8,8,1>UB {align1};
-mov (8) g83.16<1>UW g92.19<8,8,1>UB {align1};
-mov (8) g84.0<1>UW g93.3<8,8,1>UB {align1};
-mov (8) g84.16<1>UW g93.19<8,8,1>UB {align1};
-mov (8) g85.0<1>UW g94.3<8,8,1>UB {align1};
-mov (8) g85.16<1>UW g94.19<8,8,1>UB {align1};
+mov (16) g78.0<1>UW g86.3<16,8,1>UB {align1};
+mov (16) g79.0<1>UW g87.3<16,8,1>UB {align1};
+mov (16) g80.0<1>UW g88.3<16,8,1>UB {align1};
+mov (16) g81.0<1>UW g89.3<16,8,1>UB {align1};
+mov (16) g82.0<1>UW g91.3<16,8,1>UB {align1};
+mov (16) g83.0<1>UW g92.3<16,8,1>UB {align1};
+mov (16) g84.0<1>UW g93.3<16,8,1>UB {align1};
+mov (16) g85.0<1>UW g94.3<16,8,1>UB {align1};
 out:

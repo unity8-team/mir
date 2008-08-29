@@ -34,7 +34,6 @@ add (1) g2.4<1>UD g2.4<1,1,1>UD 8UD {align1};
 send (16) 0 g90.0<1>UW g2<8,8,1>UW read(input_surface1, 2, 0, 2) mlen 1 rlen 1 {align1};
 send (16) 0 g98.0<1>UW g2<8,8,1>UW read(input_surface2, 2, 0, 2) mlen 1 rlen 1 {align1};
 mov (1) g2.8<1>UD 0x007000fUD  {align1};
-add (1) g2.4<1>UD g2.4<1,1,1>UD -8D {align1};
 mul(1) g2.24<1>UD g2.24<1,1,1>UD 0x9UD {align1};
 jmpi g2.24<1,1,1>D;
 

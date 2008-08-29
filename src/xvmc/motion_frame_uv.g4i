@@ -25,7 +25,6 @@
  *    Zhang Hua jun <huajun.zhang@intel.com>
  *    Xing Dong sheng <dongsheng.xing@intel.com>
  */  
- 
  	and.z (1) null mv1<1,1,1>UD 1UD {align1};	
 	(f0) jmpi LL1;
 	and.z (1) null mv2<1,1,1>UD 1UD {align1};	
