@@ -39,7 +39,7 @@
 #include "dixfontstr.h"
 #include "uxa.h"
 
-DevPrivateKey uxa_screen_key = &uxa_screen_key;
+int uxa_screen_index;
 
 /**
  * uxa_get_drawable_pixmap() returns a backing pixmap for a given drawable.
@@ -422,7 +422,7 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 
     uxa_screen->info = uxa_driver;
 
-    dixSetPrivate(&screen->devPrivates, uxa_screen_key, uxa_screen);
+    dixSetPrivate(&screen->devPrivates, &uxa_screen_index, uxa_screen);
 
 //    exaDDXDriverInit(screen);
 

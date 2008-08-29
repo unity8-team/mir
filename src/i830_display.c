@@ -753,6 +753,9 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     struct drm_modeset_ctl modeset;
 
+    if (!pI830->directRenderingEnabled)
+      return;
+
     modeset.crtc = intel_crtc->plane;
 
     /*
