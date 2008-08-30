@@ -157,22 +157,15 @@ NV50EXASetPattern(PixmapPtr pdpix, int col0, int col1, int pat0, int pat1)
 }
 
 static void
-NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask, bool solid)
+NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 {
 	NV50EXA_LOCALS(pdpix);
 	int rop;
 
-	if (solid) {
-		if (planemask != ~0)
-			rop = NVROP[alu].solid_planemask;
-		else
-			rop = NVROP[alu].solid;
-	} else {
-		if (planemask != ~0)
-			rop = NVROP[alu].copy_planemask;
-		else
-			rop = NVROP[alu].copy;
-	}
+	if (planemask != ~0)
+		rop = NVROP[alu].copy_planemask;
+	else
+		rop = NVROP[alu].copy;
 
 	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
 	if (alu == GXcopy && planemask == ~0) {
@@ -197,19 +190,14 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask, bool solid)
 
 	/* There are 16 alu's.
 	 * 0-15: copy
-	 * 16-31: solid
-	 * 32-47: copy_planemask
-	 * 48-63: solid_planemask
+	 * 16-31: copy_planemask
 	 */
 
-	if (solid)
-		alu += 16;
-
 	if (planemask != ~0) {
-		alu += 32;
+		alu += 16;
 		NV50EXASetPattern(pdpix, 0, planemask, ~0, ~0);
 	} else {
-		if (pNv->currentRop > 31)
+		if (pNv->currentRop > 15)
 			NV50EXASetPattern(pdpix, ~0, ~0, ~0, ~0);
 	}
 
@@ -226,13 +214,13 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	NV50EXA_LOCALS(pdpix);
 	uint32_t fmt;
 
-	planemask |= ~0 << pdpix->drawable.bitsPerPixel;
+	planemask |= ~0 << pScrn->depth;
 
 	if (!NV50EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	NV50EXASetROP(pdpix, alu, planemask, true);
+	NV50EXASetROP(pdpix, alu, planemask);
 
 	BEGIN_RING(chan, eng2d, 0x580, 3);
 	OUT_RING  (chan, 4);
@@ -268,13 +256,13 @@ NV50EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 {
 	NV50EXA_LOCALS(pdpix);
 
-	planemask |= ~0 << pdpix->drawable.bitsPerPixel;
+	planemask |= ~0 << pScrn->depth;
 
 	if (!NV50EXAAcquireSurface2D(pspix, 1))
 		NOUVEAU_FALLBACK("src pixmap\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
-	NV50EXASetROP(pdpix, alu, planemask, false);
+	NV50EXASetROP(pdpix, alu, planemask);
 
 	return TRUE;
 }

@@ -297,11 +297,11 @@
 static struct {
 	int copy;
 	int copy_planemask;
-	int solid;
-	int solid_planemask;
+	int pattern;
+	int pattern_planemask;
 } NVROP[] = {
 	{ ROP_0,    ROP_0,       ROP_0,    ROP_DPna    }, /* GXclear        */
-	{ ROP_DSa,  ROP_DSPnoa,  ROP_DPa,  ROP_DPSnoa  }, /* Gxand          */
+	{ ROP_DSa,  ROP_DSPnoa,  ROP_DPa,  ROP_DPSnoa  }, /* GXand          */
 	{ ROP_SDna, ROP_DPSnaon, ROP_PDna, ROP_DSPnaon }, /* GXandReverse   */
 	{ ROP_S,    ROP_DPSDxax, ROP_P,    ROP_DSPDxax }, /* GXcopy         */
 	{ ROP_DSna, ROP_DPSana,  ROP_DPna, ROP_DPSana  }, /* GXandInverted  */
