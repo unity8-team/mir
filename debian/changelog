@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu2) intrepid; urgency=low
+
+  * 22_no_pipe_for_hotplug_detection.patch: Don't allocate a pipe for
+    hotplug detection. (LP: #256142)
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Tue, 02 Sep 2008 16:13:52 +0300
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu1) intrepid; urgency=low
 
   * New upstream version, this is basically version 2.4.2. (LP: #260603)

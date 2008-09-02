@@ -3,3 +3,4 @@
 #11_textured_video_option.patch
 20_thinkpad_g40_quirk.patch
 21_quirk_lenovo.patch
+22_no_pipe_for_hotplug_detection.patch
