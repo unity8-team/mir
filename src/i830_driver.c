@@ -3296,7 +3296,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        pI830->directRenderingType = DRI_NONE;
 
    /* If we failed for any reason, free DRI memory. */
-   if (!pI830->directRenderingType != DRI_XF86DRI &&
+   if (pI830->directRenderingType != DRI_XF86DRI &&
        pI830->back_buffer != NULL)
        i830_free_3d_memory(pScrn);
 
