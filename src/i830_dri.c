@@ -1575,6 +1575,9 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
 
+   if (pI830->directRenderingType == DRI_DRI2)
+       return TRUE;
+
    sarea->width = pScreen->width;
    sarea->height = pScreen->height;
    sarea->pitch = pScrn->displayWidth;
@@ -1671,6 +1674,9 @@ static Bool
 i830_update_dri_mappings(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 {
    I830Ptr pI830 = I830PTR(pScrn);
+
+   if (pI830->directRenderingType == DRI_DRI2)
+       return TRUE;
 
    if (!i830_do_addmap(pScrn, pI830->front_buffer, &sarea->front_handle,
 		       &sarea->front_size, &sarea->front_offset)) {
