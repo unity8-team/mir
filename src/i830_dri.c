@@ -1576,7 +1576,7 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    I830Ptr pI830 = I830PTR(pScrn);
 
    if (pI830->directRenderingType == DRI_DRI2)
-       return TRUE;
+       return;
 
    sarea->width = pScreen->width;
    sarea->height = pScreen->height;
@@ -1921,12 +1921,17 @@ I830DRI2SwapBuffers(DrawablePtr pDraw, DRI2BufferPtr pSrcBuffer,
     (*pGC->ops->CopyArea)(&pPixmap->drawable,
 			  pDraw, pGC, x, y, width, height, x, y);
     FreeScratchGC(pGC);
-    
+
+    /* Emit a flush of the rendering cache, or on the 965 and beyond
+     * rendering results may not hit the framebuffer until significantly
+     * later.
+     */
+    I830EmitFlush(pScrn);
+    pI830->need_mi_flush = FALSE;
+
     /* We can't rely on getting into the block handler before the DRI
      * client gets to run again so flush now. */
     intel_batch_flush(pScrn);
-    I830EmitFlush(pScrn);
-    pI830->need_mi_flush = FALSE;
 #if ALWAYS_SYNC
     I830Sync(pScrn);
 #endif
