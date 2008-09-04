@@ -302,6 +302,7 @@ I830AccelInit(ScreenPtr pScreen)
      * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
      * i915 limits 3D destination to ~4kB-aligned offset if tiled.
      * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+     * i915 limits 3D destination to pitch 64B-aligned if used with depth.
      * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
      * i915 limits 3D destination to POT aligned pitch if tiled.
      * i915 limits 3D destination drawing rect to w,h of 2048,2048.
@@ -326,7 +327,7 @@ I830AccelInit(ScreenPtr pScreen)
 	pI830->accel_max_y = 8192;
     } else {
 	pI830->accel_pixmap_offset_alignment = 4;
-	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_pixmap_pitch_alignment = 64;
 	pI830->accel_max_x = 2048;
 	pI830->accel_max_y = 2048;
     }

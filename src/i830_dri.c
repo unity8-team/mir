@@ -1830,7 +1830,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
     ScreenPtr pScreen = pDraw->pScreen;
     DRI2BufferPtr buffers;
     dri_bo *bo;
-    int i, depth, width, cpp;
+    int i;
     I830DRI2BufferPrivatePtr privates;
     PixmapPtr pPixmap, pDepthPixmap;
 
@@ -1841,11 +1841,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
     if (privates == NULL) {
 	xfree(buffers);
 	return NULL;
-    }	
-
-    /* The byte rowstride for 3D buffers must be a multiple of 64 bytes. */
-    cpp = pDraw->bitsPerPixel / 8;
-    width = ((pDraw->width * cpp + 63) & ~63) / cpp;
+    }
 
     pDepthPixmap = NULL;
     for (i = 0; i < count; i++) {
@@ -1860,9 +1856,9 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	    pPixmap->refcnt++;
 	} else {
 	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
-					      width,
-					      pDraw->height, 
-					      pDraw->depth, 0);
+					       pDraw->width,
+					       pDraw->height,
+					       pDraw->depth, 0);
 	}
 
 	if (attachments[i] == DRI2_BUFFER_DEPTH)
