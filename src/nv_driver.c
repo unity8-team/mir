@@ -477,9 +477,9 @@ static Bool NVPciProbe (	DriverPtr 		drv,
 
 	pci_device_unmap_range(dev, (void *) regs, 0x90000);
 
-	/* Currently NV04 up to NV98 is known. */
-	/* Using 0x9F as upper bound for some margin. */
-	if (architecture >= 0x04 && architecture <= 0x9F) {
+	/* Currently NV04 up to NVAA is known. */
+	/* Using 0xAF as upper bound for some margin. */
+	if (architecture >= 0x04 && architecture <= 0xAF) {
 
 		/* At this stage the pci_id should be ok, so we generate this
 		 * to avoid list duplication */
