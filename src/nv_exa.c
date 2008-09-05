@@ -885,8 +885,8 @@ NVExaInit(ScreenPtr pScreen)
 	{
 		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
-		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->displayWidth * pScrn->virtualY * 
-			(pScrn->bitsPerPixel / 8), pNv->EXADriverPtr->pixmapOffsetAlign);
+		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) 
+			* (pScrn->bitsPerPixel / 8);
 		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
 #if EXA_VERSION_MINOR >= 2
 		pNv->EXADriverPtr->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
