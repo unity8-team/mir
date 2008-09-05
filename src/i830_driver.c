@@ -3528,7 +3528,7 @@ I830LeaveVT(int scrnIndex, int flags)
    pI830->leaving = TRUE;
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
@@ -3787,7 +3787,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    if (!pI830->use_drm_mode) {
@@ -3936,7 +3936,7 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
       /* If we had status checking turned on, turn it off now */
       if (pI830->checkDevices) {
          if (pI830->devicesTimer)
-            TimerCancel(pI830->devicesTimer);
+            TimerFree(pI830->devicesTimer);
          pI830->devicesTimer = NULL;
          pI830->checkDevices = FALSE; 
       }
