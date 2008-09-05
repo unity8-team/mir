@@ -620,7 +620,7 @@ I830InitVideo(ScreenPtr pScreen)
     }
 
     /* Set up overlay video if we can do it at this depth. */
-    if (!IS_IGD_GM(pI830) && pScrn->bitsPerPixel != 8 &&
+    if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8 &&
 	    pI830->overlay_regs != NULL)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);

@@ -34,6 +34,7 @@
 #  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 #  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
@@ -67,7 +68,7 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-mkinstalldirs = $(install_sh) -d
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -76,7 +77,8 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(intel_drv_ladir)"
+am__installdirs = "$(DESTDIR)$(intel_drv_ladir)" \
+	"$(DESTDIR)$(pcidatadir)"
 intel_drv_laLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(intel_drv_la_LTLIBRARIES)
 intel_drv_la_LIBADD =
@@ -141,6 +143,8 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	install-pdf-recursive install-ps-recursive install-recursive \
 	installcheck-recursive installdirs-recursive pdf-recursive \
 	ps-recursive uninstall-recursive
+pcidataDATA_INSTALL = $(INSTALL_DATA)
+DATA = $(pcidata_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
@@ -401,6 +405,8 @@ EXTRA_DIST = \
 
 @HAVE_GEN4ASM_TRUE@SUFFIXES = .g4a .g4b
 @HAVE_GEN4ASM_TRUE@BUILT_SOURCES = $(INTEL_G4B)
+pcidatadir = $(datadir)/xserver-xorg/pci
+pcidata_DATA = intel.ids
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -601,6 +607,23 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
+install-pcidataDATA: $(pcidata_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(pcidatadir)" || $(MKDIR_P) "$(DESTDIR)$(pcidatadir)"
+	@list='$(pcidata_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f=$(am__strip_dir) \
+	  echo " $(pcidataDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(pcidatadir)/$$f'"; \
+	  $(pcidataDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(pcidatadir)/$$f"; \
+	done
+
+uninstall-pcidataDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(pcidata_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(pcidatadir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(pcidatadir)/$$f"; \
+	done
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
@@ -778,10 +801,10 @@ distdir: $(DISTFILES)
 check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-recursive
-all-am: Makefile $(LTLIBRARIES)
+all-am: Makefile $(LTLIBRARIES) $(DATA)
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(intel_drv_ladir)"; do \
+	for dir in "$(DESTDIR)$(intel_drv_ladir)" "$(DESTDIR)$(pcidatadir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -832,7 +855,8 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-data-local install-intel_drv_laLTLIBRARIES
+install-data-am: install-data-local install-intel_drv_laLTLIBRARIES \
+	install-pcidataDATA
 
 install-dvi: install-dvi-recursive
 
@@ -868,7 +892,8 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-intel_drv_laLTLIBRARIES uninstall-local
+uninstall-am: uninstall-intel_drv_laLTLIBRARIES uninstall-local \
+	uninstall-pcidataDATA
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) install-am \
 	install-strip
@@ -882,13 +907,14 @@ uninstall-am: uninstall-intel_drv_laLTLIBRARIES uninstall-local
 	install-data-am install-data-local install-dvi install-dvi-am \
 	install-exec install-exec-am install-html install-html-am \
 	install-info install-info-am install-intel_drv_laLTLIBRARIES \
-	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs installdirs-am maintainer-clean \
+	install-man install-pcidataDATA install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs installdirs-am maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-recursive uninstall uninstall-am \
-	uninstall-intel_drv_laLTLIBRARIES uninstall-local
+	uninstall-intel_drv_laLTLIBRARIES uninstall-local \
+	uninstall-pcidataDATA
 
 @HAVE_GEN4ASM_TRUE@.g4a.g4b:
 @HAVE_GEN4ASM_TRUE@	m4 -s $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
@@ -903,6 +929,9 @@ install-data-local: install-intel_drv_laLTLIBRARIES
 
 uninstall-local:
 	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)
+
+intel.ids : common.h
+	awk '/^#define PCI_CHIP/ {print $$3 }' $(srcdir)/common.h | grep -vE '0x2A42|0x2E02|0x2E22|0x2E12' | sed 's/^0x/8086/' > intel.ids
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -1,0 +1,87 @@
+From a0ed2f2b652ba077d7638a6e5b5bd9fa99318c5d Mon Sep 17 00:00:00 2001
+From: Julien Cristau <jcristau@debian.org>
+Date: Fri, 29 Aug 2008 19:10:57 +0200
+Subject: [PATCH] Add a renderaccel option, to toggle composite acceleration
+
+Disable it by default on 965+
+
+Index: xserver-xorg-video-intel/src/i830.h
+===================================================================
+--- xserver-xorg-video-intel.orig/src/i830.h
++++ xserver-xorg-video-intel/src/i830.h
+@@ -486,6 +486,7 @@
+    Bool useEXA;
+    Bool noAccel;
+    Bool SWCursor;
++   Bool render_accel;
+ #ifdef I830_USE_XAA
+    XAAInfoRecPtr AccelInfoRec;
+ 
+Index: xserver-xorg-video-intel/src/i830_driver.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/i830_driver.c
++++ xserver-xorg-video-intel/src/i830_driver.c
+@@ -317,6 +317,7 @@
+ #ifdef INTEL_XVMC
+    OPTION_XVMC,
+ #endif
++   OPTION_RENDERACCEL,
+ } I830Opts;
+ 
+ static OptionInfoRec I830Options[] = {
+@@ -345,6 +346,7 @@
+ #ifdef INTEL_XVMC
+    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
+ #endif
++   {OPTION_RENDERACCEL, "RenderAccel",	OPTV_BOOLEAN,	{0},	TRUE},
+    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
+ };
+ /* *INDENT-ON* */
+@@ -1583,6 +1585,17 @@
+ 		  pI830->useEXA ? "EXA" : "XAA");
+    }
+ 
++   if (pI830->useEXA) {
++       pI830->render_accel = !IS_I965G(pI830);
++       from = X_DEFAULT;
++
++       if (xf86GetOptValBool(pI830->Options, OPTION_RENDERACCEL,
++			     &pI830->render_accel))
++	   from = X_CONFIG;
++       xf86DrvMsg(pScrn->scrnIndex, from, "%sabling EXA render acceleration\n",
++		  pI830->render_accel ? "En" : "Dis");
++   }
++
+    if (xf86ReturnOptValBool(pI830->Options, OPTION_SW_CURSOR, FALSE)) {
+       pI830->SWCursor = TRUE;
+    }
+Index: xserver-xorg-video-intel/src/i830_exa.c
+===================================================================
+--- xserver-xorg-video-intel.orig/src/i830_exa.c
++++ xserver-xorg-video-intel/src/i830_exa.c
+@@ -556,6 +556,10 @@
+  	pI830->EXADriverPtr->Composite = i965_composite;
+  	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
+     }
++    if (!pI830->render_accel) {
++	pI830->EXADriverPtr->CheckComposite = NULL;
++	pI830->EXADriverPtr->PrepareComposite = NULL;
++    }
+ #if EXA_VERSION_MINOR >= 2
+     pI830->EXADriverPtr->PixmapIsOffscreen = i830_exa_pixmap_is_offscreen;
+ #endif
+Index: xserver-xorg-video-intel/man/intel.man
+===================================================================
+--- xserver-xorg-video-intel.orig/man/intel.man
++++ xserver-xorg-video-intel/man/intel.man
+@@ -90,6 +90,10 @@
+ .BI "Option \*qDRI\*q \*q" boolean \*q
+ Disable or enable DRI support.
+ Default: DRI is enabled for configurations where it is supported.
++.TP
++.BI "Option \*qRenderAccel\*q \*q" boolean \*q
++This option controls whether EXA composite acceleration is enabled.
++Default: disabled on i965 and higher.
+ 
+ .PP
+ The following driver

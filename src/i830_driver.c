@@ -251,7 +251,10 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_G33_G,		"G33"},
    {PCI_CHIP_Q35_G,		"Q35"},
    {PCI_CHIP_Q33_G,		"Q33"},
-   {PCI_CHIP_IGD_GM,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_GM45_GM,		"Mobile Intel® GM45 Express Chipset"},
+   {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
+   {PCI_CHIP_G45_G,		"G45/G43"},
+   {PCI_CHIP_Q45_G,		"Q45/Q43"},
    {-1,				NULL}
 };
 
@@ -275,7 +278,10 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_G33_G,		PCI_CHIP_G33_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q35_G,		PCI_CHIP_Q35_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q33_G,		PCI_CHIP_Q33_G,		RES_SHARED_VGA},
-   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_GM45_GM,		PCI_CHIP_GM45_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
+   {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
+   {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -511,6 +517,10 @@ I830DetectMemory(ScrnInfoPtr pScrn)
     */
    range = gtt_size + 4;
 
+   /* new 4 series hardware has seperate GTT stolen with GFX stolen */
+   if (IS_G4X(pI830))
+       range = 0;
+
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
       case I855_GMCH_GMS_STOLEN_1M:
@@ -543,6 +553,22 @@ I830DetectMemory(ScrnInfoPtr pScrn)
       case G33_GMCH_GMS_STOLEN_256M:
 	 if (IS_I9XX(pI830))
 	     memsize = MB(256) - KB(range);
+	 break;
+      case INTEL_GMCH_GMS_STOLEN_96M:
+	 if (IS_I9XX(pI830))
+	     memsize = MB(96) - KB(range);
+	 break;
+      case INTEL_GMCH_GMS_STOLEN_160M:
+	 if (IS_I9XX(pI830))
+	     memsize = MB(160) - KB(range);
+	 break;
+      case INTEL_GMCH_GMS_STOLEN_224M:
+	 if (IS_I9XX(pI830))
+	     memsize = MB(224) - KB(range);
+	 break;
+      case INTEL_GMCH_GMS_STOLEN_352M:
+	 if (IS_I9XX(pI830))
+	     memsize = MB(352) - KB(range);
 	 break;
       }
    } else {
@@ -627,7 +653,7 @@ I830MapMMIO(ScrnInfoPtr pScrn)
 
       if (IS_I965G(pI830)) 
       {
-	 if (IS_IGD_GM(pI830)) {
+	 if (IS_GM45(pI830) || IS_G4X(pI830)) {
 	     gttaddr = pI830->MMIOAddr + MB(2);
 	     pI830->GTTMapSize = MB(2);
 	 } else {
@@ -903,7 +929,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
    } else {
       i830_dvo_init(pScrn);
    }
-   if (IS_I9XX(pI830) && !IS_I915G(pI830))
+   if (IS_I9XX(pI830) && IS_MOBILE(pI830))
       i830_tv_init(pScrn);
    
    for (o = 0; o < config->num_output; o++)
@@ -936,7 +962,7 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
 
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
-    if (IS_IGD_GM(pI830)) {
+    if (IS_GM45(pI830)) {
 	OUTREG(RENCLK_GATE_D1, 0);
 	OUTREG(RENCLK_GATE_D2, 0);
 	OUTREG(RAMCLK_GATE_D, 0);
@@ -1181,8 +1207,17 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     case PCI_CHIP_Q33_G:
 	chipname = "Q33";
 	break;
-    case PCI_CHIP_IGD_GM:
+    case PCI_CHIP_GM45_GM:
+	chipname = "Mobile Intel® GM45 Express Chipset";
+	break;
+    case PCI_CHIP_IGD_E_G:
 	chipname = "Intel Integrated Graphics Device";
+	break;
+    case PCI_CHIP_G45_G:
+	chipname = "G45/G43";
+	break;
+    case PCI_CHIP_Q45_G:
+	chipname = "Q45/Q43";
 	break;
    default:
 	chipname = "unknown chipset";
@@ -2069,7 +2104,7 @@ SaveHWState(ScrnInfoPtr pScrn)
       pI830->saveRAMCLK_GATE_D = INREG(RAMCLK_GATE_D);
    }
 
-   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+   if (IS_I965GM(pI830) || IS_GM45(pI830))
       pI830->savePWRCTXA = INREG(PWRCTXA);
 
    if (IS_MOBILE(pI830) && !IS_I830(pI830))
@@ -2137,7 +2172,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(RAMCLK_GATE_D, pI830->saveRAMCLK_GATE_D);
    }
 
-   if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+   if (IS_I965GM(pI830) || IS_GM45(pI830))
       OUTREG(PWRCTXA, pI830->savePWRCTXA);
 
    /*
@@ -2527,7 +2562,7 @@ i830_try_memory_allocation(ScrnInfoPtr pScrn)
     if (!i830_allocate_2d_memory(pScrn))
 	goto failed;
 
-    if (IS_I965GM(pI830) || IS_IGD_GM(pI830))
+    if (IS_I965GM(pI830) || IS_GM45(pI830))
 	if (!i830_allocate_pwrctx(pScrn))
 	    goto failed;
 
@@ -2790,7 +2825,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    /* Enable FB compression if possible */
    if (i830_fb_compression_supported(pI830) && !IS_I965GM(pI830)
-	   && !IS_IGD_GM(pI830))
+	   && !IS_GM45(pI830))
        pI830->fb_compression = TRUE;
    else
        pI830->fb_compression = FALSE;
@@ -2901,7 +2936,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "needs 2D acceleration.\n");
 	 pI830->XvEnabled = FALSE;
       }
-      if (!IS_IGD_GM(pI830) && pI830->overlay_regs == NULL) {
+      if (!OVERLAY_NOEXIST(pI830) && pI830->overlay_regs == NULL) {
 	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		     "Disabling Xv because the overlay register buffer "
 		      "allocation failed.\n");
@@ -2941,7 +2976,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     *       alone in that case.
     * Also make sure the DRM can handle the swap.
     */
-   if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) && !IS_IGD_GM(pI830) &&
+   if (I830LVDSPresent(pScrn) && !IS_I965GM(pI830) && !IS_GM45(pI830) &&
        (!pI830->directRenderingEnabled ||
 	(pI830->directRenderingEnabled && pI830->drmMinor >= 10))) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "adjusting plane->pipe mappings "
