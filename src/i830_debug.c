@@ -48,6 +48,32 @@
 #define DEBUGSTRING(func) static char *func(I830Ptr pI830, int reg, \
 					    uint32_t val)
 
+DEBUGSTRING(i830_16bit_func)
+{
+    return XNFprintf("0x%04x", (uint16_t)val);
+}
+
+DEBUGSTRING(i830_debug_chdecmisc)
+{
+    char *enhmodesel = NULL;
+
+    switch ((val >> 5) & 3) {
+    case 1: enhmodesel = "XOR bank/rank"; break;
+    case 2: enhmodesel = "swap bank"; break;
+    case 3: enhmodesel = "XOR bank"; break;
+    case 0: enhmodesel = "none"; break;
+    }
+
+    return XNFprintf("%s, ch2 enh %sabled, ch1 enh %sabled, ch0 enh %sabled, "
+		     "flex %sabled, ep %spresent",
+		     enhmodesel,
+		     (val & (1 << 4)) ? "en" : "dis",
+		     (val & (1 << 3)) ? "en" : "dis",
+		     (val & (1 << 2)) ? "en" : "dis",
+		     (val & (1 << 1)) ? "en" : "dis",
+		     (val & (1 << 0)) ? "" : "not ");
+}
+
 DEBUGSTRING(i830_debug_xyminus1)
 {
     return XNFprintf("%d, %d", (val & 0xffff) + 1,
@@ -481,6 +507,8 @@ DEBUGSTRING(i810_debug_fence_new)
 
 #define DEFINEREG(reg) \
 	{ reg, #reg, NULL, 0 }
+#define DEFINEREG_16BIT(reg) \
+	{ reg, #reg, i830_16bit_func, 0 }
 #define DEFINEREG2(reg, func) \
 	{ reg, #reg, func, 0 }
 
@@ -490,6 +518,20 @@ static struct i830SnapshotRec {
     char *(*debug_output)(I830Ptr pI830, int reg, uint32_t val);
     uint32_t val;
 } i830_snapshot[] = {
+    DEFINEREG2(CHDECMISC, i830_debug_chdecmisc),
+    DEFINEREG_16BIT(C0DRB0),
+    DEFINEREG_16BIT(C0DRB1),
+    DEFINEREG_16BIT(C0DRB2),
+    DEFINEREG_16BIT(C0DRB3),
+    DEFINEREG_16BIT(C1DRB0),
+    DEFINEREG_16BIT(C1DRB1),
+    DEFINEREG_16BIT(C1DRB2),
+    DEFINEREG_16BIT(C1DRB3),
+    DEFINEREG_16BIT(C0DRA01),
+    DEFINEREG_16BIT(C0DRA23),
+    DEFINEREG_16BIT(C1DRA01),
+    DEFINEREG_16BIT(C1DRA23),
+
     DEFINEREG2(VCLK_DIVISOR_VGA0, i830_debug_fp),
     DEFINEREG2(VCLK_DIVISOR_VGA1, i830_debug_fp),
     DEFINEREG2(VCLK_POST_DIV, i830_debug_vga_pd),
