@@ -834,6 +834,11 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
+   if (pI830->memory_manager == NULL)
+       intel_bufmgr_fake_set_last_dispatch(pI830->bufmgr,
+					   (volatile unsigned int *)
+					   &sarea->last_dispatch);
+
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;
