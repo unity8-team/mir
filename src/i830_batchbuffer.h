@@ -68,8 +68,8 @@ intel_batch_emit_reloc (I830Ptr  pI830,
 {
     assert(intel_batch_space(pI830) >= 4);
     *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = bo->offset + delta;
-    intel_bo_emit_reloc (pI830->batch_bo, read_domains, write_domains, delta,
-			 pI830->batch_used, bo);
+    dri_bo_emit_reloc(pI830->batch_bo, read_domains, write_domains, delta,
+		      pI830->batch_used, bo);
     pI830->batch_used += 4;
 }
 

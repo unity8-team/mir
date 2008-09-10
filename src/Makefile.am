@@ -39,7 +39,7 @@ intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
 intel_drv_la_LIBADD = -lm ../uxa/libuxa.la
 if XSERVER_LIBPCIACCESS
-intel_drv_la_LIBADD += @PCIACCESS_LIBS@
+intel_drv_la_LIBADD += @PCIACCESS_LIBS@ @DRM_LIBS@ -ldrm_intel
 endif
 
 XMODE_SRCS=\

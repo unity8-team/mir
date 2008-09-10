@@ -79,7 +79,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include "drmmode_display.h"
 #endif
-#include "dri_bufmgr.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 

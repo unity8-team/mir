@@ -1542,7 +1542,7 @@ i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 	if (!mem->gem_name)
 	{
 	    int ret;
-	    ret = intel_bo_flink(mem->bo, &mem->gem_name);
+	    ret = dri_bo_flink(mem->bo, &mem->gem_name);
 	    if (ret != 0)
 	    {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
