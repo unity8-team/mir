@@ -293,6 +293,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x1028, 0x014f, quirk_pipea_force },
     /* Dell Inspiron 510m needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
+    /* Toshiba Satellite A30 needs pipe A force quirk */
+    { PCI_CHIP_I855_GM, 0x1179, 0xff00 , quirk_pipea_force },
     /* Toshiba Protege R-205, S-209 needs pipe A force quirk */
     { PCI_CHIP_I915_GM, 0x1179, 0x0001, quirk_pipea_force },
     /* Intel 855GM hardware (See LP: #216490) */

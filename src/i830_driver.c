@@ -2895,39 +2895,6 @@ i830_memory_init(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
-/**
- * Returns a cookie to be waited on.  This is just a stub implementation, and
- * should be hooked up to the emit/wait irq functions when available (DRI
- * enabled).
- */
-static unsigned int
-i830_fake_fence_emit(void *priv)
-{
-   static unsigned int fence = 0;
-
-   /* Match DRM in not using half the range. The fake bufmgr relies on this. */
-   if (++fence >= 0x8000000)
-      fence = 1;
-
-   return fence;
-}
-
-/**
- * Waits on a cookie representing a request to be passed.
- *
- * Stub implementation that should be replaced with DRM functions when
- * available.
- */
-static int
-i830_fake_fence_wait(void *priv, unsigned int fence)
-{
-   ScrnInfoPtr pScrn = priv;
-
-   i830_wait_ring_idle(pScrn);
-
-   return 0;
-}
-
 void
 i830_init_bufmgr(ScrnInfoPtr pScrn)
 {
@@ -2949,13 +2916,12 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
       intel_bufmgr_gem_enable_reuse(pI830->bufmgr);
    } else {
       assert(pI830->FbBase != NULL);
-      pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
+      pI830->bufmgr = intel_bufmgr_fake_init(pI830->drmSubFD,
+					     pI830->fake_bufmgr_mem->offset,
 					     pI830->FbBase +
 					     pI830->fake_bufmgr_mem->offset,
 					     pI830->fake_bufmgr_mem->size,
-					     i830_fake_fence_emit,
-					     i830_fake_fence_wait,
-					     pScrn);
+					     NULL);
    }
 }
 
@@ -3543,7 +3509,7 @@ I830LeaveVT(int scrnIndex, int flags)
    pI830->leaving = TRUE;
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
@@ -3718,8 +3684,8 @@ I830EnterVT(int scrnIndex, int flags)
        /* HW status is fixed, we need to set it up before any drm
 	* operation which accessing that page, like irq install, etc.
 	*/
-       if (pI830->starting) {
-	   if (pI830->hw_status != NULL && !I830DRISetHWS(pScrn)) {
+       if (pI830->starting && !pI830->memory_manager) {
+	   if (!I830DRISetHWS(pScrn)) {
 		   xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Fail to setup hardware status page.\n");
 		   I830DRICloseScreen(pScrn->pScreen);
@@ -3803,7 +3769,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    if (!pI830->use_drm_mode) {
@@ -3960,7 +3926,7 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
       /* If we had status checking turned on, turn it off now */
       if (pI830->checkDevices) {
          if (pI830->devicesTimer)
-            TimerCancel(pI830->devicesTimer);
+            TimerFree(pI830->devicesTimer);
          pI830->devicesTimer = NULL;
          pI830->checkDevices = FALSE; 
       }

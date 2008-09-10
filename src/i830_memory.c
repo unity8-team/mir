@@ -167,7 +167,7 @@ i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 
 #ifdef XF86DRI
     if (mem->bo != NULL) {
-	if (intel_bo_pin (mem->bo, mem->alignment) != 0) {
+	if (dri_bo_pin(mem->bo, mem->alignment) != 0) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Failed to pin %s: %s\n",
 		       mem->name, strerror(errno));
@@ -214,7 +214,7 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 
 #ifdef XF86DRI
     if (mem->bo != NULL) {
-	if (intel_bo_unpin (mem->bo) == 0) {
+	if (dri_bo_unpin(mem->bo) == 0) {
 	    mem->bound = FALSE;
 	    /* Give buffer obviously wrong offset/end until it's re-pinned. */
 	    mem->offset = -1;
@@ -899,7 +899,7 @@ i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
 	else
 	    tiling_mode = I915_TILING_Y;
 
-	ret = intel_bo_set_tiling (mem->bo, &tiling_mode);
+	ret = dri_bo_set_tiling(mem->bo, &tiling_mode);
 	if (ret != 0 || tiling_mode == I915_TILING_NONE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to set tiling on %s: %s\n",
