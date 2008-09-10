@@ -289,7 +289,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 			BEGIN_RING(chan, m2mf, 0x0200, 6);
 			OUT_RING  (chan, 0);
 			OUT_RING  (chan, 0);
-			OUT_RING  (chan, exaGetPixmapPitch(pspix));
+			OUT_RING  (chan, pspix->drawable.width * cpp);
 			OUT_RING  (chan, pspix->drawable.height);
 			OUT_RING  (chan, 1);
 			OUT_RING  (chan, 0);
@@ -535,7 +535,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			BEGIN_RING(chan, m2mf, 0x021c, 6);
 			OUT_RING  (chan, 0);
 			OUT_RING  (chan, 0);
-			OUT_RING  (chan, exaGetPixmapPitch(pdpix));
+			OUT_RING  (chan, pdpix->drawable.width * cpp);
 			OUT_RING  (chan, pdpix->drawable.height);
 			OUT_RING  (chan, 1);
 			OUT_RING  (chan, 0);
@@ -863,17 +863,27 @@ NVExaInit(ScreenPtr pScreen)
 
 	pNv->EXADriverPtr->exa_major = EXA_VERSION_MAJOR;
 	pNv->EXADriverPtr->exa_minor = EXA_VERSION_MINOR;
+	pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 
-	if (pNv->Architecture < NV_ARCH_50)
+	if (pNv->Architecture < NV_ARCH_50) {
 		pNv->EXADriverPtr->pixmapOffsetAlign = 256; 
-	else
-		pNv->EXADriverPtr->pixmapOffsetAlign = 65536; /* fuck me! */
+	} else {
+		/* Workaround some corruption issues caused by exa's
+		 * offscreen memory allocation no understanding G8x/G9x
+		 * memory layout.  This is terrible, but it should
+		 * prevent all but the most unlikely cases from occuring.
+		 *
+		 * See http://nouveau.freedesktop.org/wiki/NV50Support for
+		 * a far better fix until the ng branch is ready to be used.
+		 */
+		pNv->EXADriverPtr->pixmapOffsetAlign = 65536;
+		pNv->EXADriverPtr->flags |= EXA_OFFSCREEN_ALIGN_POT;
+	}
 	pNv->EXADriverPtr->pixmapPitchAlign = 64;
 
 #if NOUVEAU_EXA_PIXMAPS
 	if (NOUVEAU_EXA_PIXMAPS) {
-		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS |
-					   EXA_HANDLES_PIXMAPS;
+		pNv->EXADriverPtr->flags |= EXA_HANDLES_PIXMAPS;
 		pNv->EXADriverPtr->PrepareAccess = NVExaPrepareAccess;
 		pNv->EXADriverPtr->FinishAccess = NVExaFinishAccess;
 		pNv->EXADriverPtr->PixmapIsOffscreen = NVExaPixmapIsOffscreen;
@@ -883,7 +893,6 @@ NVExaInit(ScreenPtr pScreen)
 	} else
 #endif
 	{
-		pNv->EXADriverPtr->flags = EXA_OFFSCREEN_PIXMAPS;
 		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
 		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) 
 			* (pScrn->bitsPerPixel / 8);
