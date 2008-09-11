@@ -1877,7 +1877,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	privates[i].pPixmap = pPixmap;
 
 	bo = i830_get_pixmap_bo (pPixmap);
-	if (intel_bo_flink(bo, &buffers[i].name) != 0) {
+	if (dri_bo_flink(bo, &buffers[i].name) != 0) {
 	    /* failed to name buffer */
 	}
 
