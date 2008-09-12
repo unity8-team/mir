@@ -1450,7 +1450,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 
     render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
 
-    if (pI830->gen4_render_state_mem->bo) {
+    if (pI830->use_drm_mode) {
 	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
 	if (ret) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -1474,7 +1474,7 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->gen4_render_state_mem->bo) {
+    if (pI830->use_drm_mode) {
 	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
 	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
     }
