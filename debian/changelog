@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu4) intrepid; urgency=low
+
+  * 23_quirks_studiohybrid_eeepc_and_w251u.patch:
+    - Fix blank screen on startup on Asus Eee PC due to LVDS
+      misconfiguration (LP: #233787)
+    - Fix blank screen on startup on Dell Studio Hybrid due to LVDS
+      misconfiguration (LP: #267945)
+    - Fix crash on lid close on Gigabyte W251U - pipeA quirk (LP: #244242)
+
+ -- Bryce Harrington <bryce@bryceharrington.org>  Fri, 12 Sep 2008 00:53:01 +0000
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu3) intrepid; urgency=low
 
   * Rebuild against the new xserver-xorg-dev.
