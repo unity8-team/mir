@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu3) intrepid; urgency=low
+
+  * Rebuild against the new xserver-xorg-dev.
+
+ -- Timo Aaltonen <tepsipakki@ubuntu.com>  Fri, 12 Sep 2008 01:09:40 +0300
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu2) intrepid; urgency=low
 
   * 22_no_pipe_for_hotplug_detection.patch: Don't allocate a pipe for
