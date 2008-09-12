@@ -79,7 +79,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include "drmmode_display.h"
 #endif
-#include "dri_bufmgr.h"
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
@@ -934,7 +933,8 @@ i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
+   if (pI830->accel != ACCEL_NONE)
+       I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)

@@ -254,6 +254,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
+   {PCI_CHIP_G41_G,		"G41"},
    {-1,				NULL}
 };
 
@@ -281,6 +282,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -1266,6 +1268,9 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	break;
     case PCI_CHIP_Q45_G:
 	chipname = "Q45/Q43";
+	break;
+    case PCI_CHIP_G41_G:
+	chipname = "G41";
 	break;
    default:
 	chipname = "unknown chipset";
@@ -2886,39 +2891,6 @@ i830_memory_init(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
-/**
- * Returns a cookie to be waited on.  This is just a stub implementation, and
- * should be hooked up to the emit/wait irq functions when available (DRI
- * enabled).
- */
-static unsigned int
-i830_fake_fence_emit(void *priv)
-{
-   static unsigned int fence = 0;
-
-   /* Match DRM in not using half the range. The fake bufmgr relies on this. */
-   if (++fence >= 0x8000000)
-      fence = 1;
-
-   return fence;
-}
-
-/**
- * Waits on a cookie representing a request to be passed.
- *
- * Stub implementation that should be replaced with DRM functions when
- * available.
- */
-static int
-i830_fake_fence_wait(void *priv, unsigned int fence)
-{
-   ScrnInfoPtr pScrn = priv;
-
-   i830_wait_ring_idle(pScrn);
-
-   return 0;
-}
-
 void
 i830_init_bufmgr(ScrnInfoPtr pScrn)
 {
@@ -2940,13 +2912,12 @@ i830_init_bufmgr(ScrnInfoPtr pScrn)
       intel_bufmgr_gem_enable_reuse(pI830->bufmgr);
    } else {
       assert(pI830->FbBase != NULL);
-      pI830->bufmgr = intel_bufmgr_fake_init(pI830->fake_bufmgr_mem->offset,
+      pI830->bufmgr = intel_bufmgr_fake_init(pI830->drmSubFD,
+					     pI830->fake_bufmgr_mem->offset,
 					     pI830->FbBase +
 					     pI830->fake_bufmgr_mem->offset,
 					     pI830->fake_bufmgr_mem->size,
-					     i830_fake_fence_emit,
-					     i830_fake_fence_wait,
-					     pScrn);
+					     NULL);
    }
 }
 
@@ -3043,6 +3014,23 @@ I830SwapPipes(ScrnInfoPtr pScrn)
 	   else if (intel_crtc->pipe == 1)
 	       intel_crtc->plane = 0;
       }
+   }
+}
+
+static void
+i830_disable_render_standby(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   uint32_t render_standby;
+
+   /* Render Standby might cause hang issue, try always disable it.*/
+   if (IS_I965GM(pI830) || IS_GM45(pI830)) {
+       render_standby = INREG(MCHBAR_RENDER_STANDBY);
+       if (render_standby & RENDER_STANDBY_ENABLE) {
+	   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disable render standby.\n");
+	   OUTREG(MCHBAR_RENDER_STANDBY,
+		   (render_standby & (~RENDER_STANDBY_ENABLE)));
+       }
    }
 }
 
@@ -3325,6 +3313,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    i830_init_bufmgr(pScrn);
 
+   i830_disable_render_standby(pScrn);
+
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
    if (pI830->accel <= ACCEL_XAA) {
@@ -3528,7 +3518,7 @@ I830LeaveVT(int scrnIndex, int flags)
    pI830->leaving = TRUE;
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
@@ -3702,8 +3692,8 @@ I830EnterVT(int scrnIndex, int flags)
        /* HW status is fixed, we need to set it up before any drm
 	* operation which accessing that page, like irq install, etc.
 	*/
-       if (pI830->starting) {
-	   if (pI830->hw_status != NULL && !I830DRISetHWS(pScrn)) {
+       if (pI830->starting && !pI830->memory_manager) {
+	   if (!I830DRISetHWS(pScrn)) {
 		   xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Fail to setup hardware status page.\n");
 		   I830DRICloseScreen(pScrn->pScreen);
@@ -3786,11 +3776,8 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
       I830LeaveVT(scrnIndex, 0);
    }
 
-   dri_bufmgr_destroy(pI830->bufmgr);
-   pI830->bufmgr = NULL;
-
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    if (!pI830->use_drm_mode) {
@@ -3828,6 +3815,10 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    xf86_cursors_fini (pScreen);
 
    i830_allocator_fini(pScrn);
+
+   dri_bufmgr_destroy(pI830->bufmgr);
+   pI830->bufmgr = NULL;
+
 #ifdef XF86DRI
    if (pI830->directRenderingOpen) {
 #ifdef DAMAGE
@@ -3935,7 +3926,7 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
       /* If we had status checking turned on, turn it off now */
       if (pI830->checkDevices) {
          if (pI830->devicesTimer)
-            TimerCancel(pI830->devicesTimer);
+            TimerFree(pI830->devicesTimer);
          pI830->devicesTimer = NULL;
          pI830->checkDevices = FALSE; 
       }

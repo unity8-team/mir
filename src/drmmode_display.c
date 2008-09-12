@@ -505,7 +505,7 @@ const char *output_names[] = { "None",
 			       "DVI",
 			       "DVI",
 			       "DVI",
-			       "Composite"
+			       "Composite",
 			       "TV",
 			       "LVDS",
 			       "CTV",

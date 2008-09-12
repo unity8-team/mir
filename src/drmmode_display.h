@@ -29,7 +29,7 @@
 
 #ifdef XF86DRM_MODE
 
-#include "dri_bufmgr.h"
+#include "intel_bufmgr.h"
 #include "xf86drmMode.h"
 
 typedef struct {

@@ -113,6 +113,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define COLEXP_RESERVED        0x30
 #define BITBLT_STATUS          0x01
 
+#define CHDECMISC	0x10111
+#define C0DRB0			0x10200
+#define C0DRB1			0x10202
+#define C0DRB2			0x10204
+#define C0DRB3			0x10206
+#define C0DRA01			0x10208
+#define C0DRA23			0x1020a
+#define C1DRB0			0x10600
+#define C1DRB1			0x10602
+#define C1DRB2			0x10604
+#define C1DRB3			0x10606
+#define C1DRA01			0x10608
+#define C1DRA23			0x1060a
+
 /* p375. 
  */
 #define DISPLAY_CNTL       0x70008
@@ -2823,5 +2837,8 @@ typedef enum {
 #define DPFC_FENCE_YOFF		0x3218
 
 #define PEG_BAND_GAP_DATA	0x14d68
+
+#define MCHBAR_RENDER_STANDBY	0x111B8
+#define RENDER_STANDBY_ENABLE	(1 << 30)
 
 #endif /* _I810_REG_H */

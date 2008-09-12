@@ -41,10 +41,13 @@ than has been pre-allocated at boot time by the BIOS.  This is usually
 achieved with an "agpgart" or "agp" kernel driver.  Linux, FreeBSD, OpenBSD,
 NetBSD, and Solaris have such kernel drivers available.
 .PP
-By default, the i810 will use 8 megabytes
-of system memory for graphics.  For the 830M and later, the driver will
-automatically size its memory allocation according to the features it will
-support.  Therefore, the
+By default, the i810/i815 will use 8 MB of system memory for graphics if AGP
+allocable memory is < 128 MB, 16 MB if < 192 MB or 24 MB if higher. Use the
+.B VideoRam
+option to change the default value.
+.PP
+For the 830M and later, the driver will automatically size its memory
+allocation according to the features it will support.  Therefore, the
 .B VideoRam
 option, which in the past had been necessary to allow more than some small
 amount of memory to be allocated, is now ignored.
@@ -109,6 +112,12 @@ Default: 8-bits per RGB for 8-bit modes.
 This option enables XvMC.  The integer parameter specifies the number of
 surfaces to use.  Valid values are 6 and 7.
 Default: XvMC is disabled.
+.TP
+.BI "VideoRam " integer
+This option specifies the amount of system memory to use for graphics, in KB.
+The default is 8192 if AGP allocable memory is < 128 MB, 16384 if < 192 MB,
+24576 if higher. DRI require at least a value of 16384. Higher values may give
+better 3D performance, at expense of available system memory.
 
 .PP
 The following driver

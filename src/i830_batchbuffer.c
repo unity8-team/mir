@@ -39,6 +39,65 @@
 #include "i830_ring.h"
 #include "i915_drm.h"
 
+static int
+intel_nondrm_exec(dri_bo *bo, unsigned int used, void *priv)
+{
+    ScrnInfoPtr pScrn = priv;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    BEGIN_LP_RING(2);
+    OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
+    OUT_RING(bo->offset);
+    ADVANCE_LP_RING();
+
+    return 0;
+}
+
+static int
+intel_nondrm_exec_i830(dri_bo *bo, unsigned int used, void *priv)
+{
+    ScrnInfoPtr pScrn = priv;
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    BEGIN_LP_RING(4);
+    OUT_RING(MI_BATCH_BUFFER);
+    OUT_RING(bo->offset);
+    OUT_RING(bo->offset + pI830->batch_used - 4);
+    OUT_RING(MI_NOOP);
+
+    return 0;
+}
+
+/**
+ * Creates a fence value representing a request to be passed.
+ *
+ * Stub implementation that should be avoided when DRM functions are available.
+ */
+static unsigned int
+intel_nondrm_emit(void *priv)
+{
+    static unsigned int fence = 0;
+
+    /* Match DRM in not using half the range. The fake bufmgr relies on this. */
+    if (++fence >= 0x8000000)
+	fence = 1;
+
+    return fence;
+}
+
+/**
+ * Waits on a fence representing a request to be passed.
+ *
+ * Stub implementation that should be avoided when DRM functions are available.
+ */
+static void
+intel_nondrm_wait(unsigned int fence, void *priv)
+{
+    ScrnInfoPtr pScrn = priv;
+
+    i830_wait_ring_idle(pScrn);
+}
+
 static void
 intel_next_batch(ScrnInfoPtr pScrn)
 {
@@ -64,6 +123,22 @@ intel_batch_init(ScrnInfoPtr pScrn)
     pI830->batch_emitting = 0;
 
     intel_next_batch(pScrn);
+
+    if (!pI830->directRenderingEnabled) {
+	if (IS_I830(pI830) || IS_845G(pI830)) {
+	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
+						intel_nondrm_exec_i830,
+						pScrn);
+	} else {
+	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
+						intel_nondrm_exec,
+						pScrn);
+	}
+	intel_bufmgr_fake_set_fence_callback(pI830->bufmgr,
+					     intel_nondrm_emit,
+					     intel_nondrm_wait,
+					     pScrn);
+    }
 }
 
 void
@@ -81,6 +156,7 @@ void
 intel_batch_flush(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    int ret;
 
     if (pI830->batch_used == 0)
 	return;
@@ -98,63 +174,9 @@ intel_batch_flush(ScrnInfoPtr pScrn)
     dri_bo_unmap(pI830->batch_bo);
     pI830->batch_ptr = NULL;
 
-    if (pI830->memory_manager) {
-	struct drm_i915_gem_execbuffer *exec;
-	int ret;
-
-	exec = dri_process_relocs(pI830->batch_bo);
-
-	exec->batch_start_offset = 0;
-	exec->batch_len = pI830->batch_used;
-	exec->cliprects_ptr = 0;
-	exec->num_cliprects = 0;
-	exec->DR1 = 0;
-	exec->DR4 = 0xffffffff;
-
-	do {
-	    ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GEM_EXECBUFFER,
-				      exec, sizeof(*exec));
-	} while (ret == -EINTR);
-	if (ret != 0)
-	    FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
-    } else {
-	dri_process_relocs(pI830->batch_bo);
-
-	if (pI830->directRenderingEnabled) {
-	    struct drm_i915_batchbuffer batch;
-	    int ret;
-
-	    batch.start = pI830->batch_bo->offset;
-	    batch.used = pI830->batch_used;
-	    batch.cliprects = NULL;
-	    batch.num_cliprects = 0;
-	    batch.DR1 = 0;
-	    batch.DR4 = 0xffffffff;
-
-	    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_BATCHBUFFER,
-				  &batch, sizeof(batch));
-	    if (ret != 0)
-		FatalError("Failed to submit batchbuffer: %s\n", strerror(errno));
-
-	    i830_refresh_ring(pScrn);
-	} else {
-	    if (!IS_I830(pI830) && !IS_845G(pI830)) {
-		BEGIN_LP_RING(2);
-		OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
-		OUT_RING(pI830->batch_bo->offset);
-		ADVANCE_LP_RING();
-	    } else {
-		BEGIN_LP_RING(4);
-		OUT_RING(MI_BATCH_BUFFER);
-		OUT_RING(pI830->batch_bo->offset);
-		OUT_RING(pI830->batch_bo->offset + pI830->batch_used - 4);
-		OUT_RING(MI_NOOP);
-		ADVANCE_LP_RING();
-	    }
-	}
-    }
-
-    dri_post_submit(pI830->batch_bo);
+    ret = dri_bo_exec(pI830->batch_bo, pI830->batch_used, NULL, 0, 0xffffffff);
+    if (ret != 0)
+	FatalError("Failed to submit batchbuffer: %s\n", strerror(-ret));
 
     dri_bo_unreference(pI830->batch_bo);
     intel_next_batch(pScrn);

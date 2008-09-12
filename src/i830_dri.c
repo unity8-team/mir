@@ -834,6 +834,11 @@ I830DRIDoMappings(ScreenPtr pScreen)
       return FALSE;
    }
 
+   if (pI830->memory_manager == NULL)
+       intel_bufmgr_fake_set_last_dispatch(pI830->bufmgr,
+					   (volatile unsigned int *)
+					   &sarea->last_dispatch);
+
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;
@@ -1542,7 +1547,7 @@ i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
 	if (!mem->gem_name)
 	{
 	    int ret;
-	    ret = intel_bo_flink(mem->bo, &mem->gem_name);
+	    ret = dri_bo_flink(mem->bo, &mem->gem_name);
 	    if (ret != 0)
 	    {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

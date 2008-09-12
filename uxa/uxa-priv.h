@@ -155,8 +155,8 @@ typedef struct {
     (PixmapWidthPaddingInfo[d].padRoundUp+1)))
 #endif
 
-extern DevPrivateKey uxa_screen_key;
-#define uxa_get_screen(s) ((uxa_screen_t *)dixLookupPrivate(&(s)->devPrivates, uxa_screen_key))
+extern int uxa_screen_index;
+#define uxa_get_screen(s) ((uxa_screen_t *)dixLookupPrivate(&(s)->devPrivates, &uxa_screen_index))
 
 /** Align an offset to an arbitrary alignment */
 #define UXA_ALIGN(offset, align) (((offset) + (align) - 1) - \
