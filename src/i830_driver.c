@@ -1715,7 +1715,7 @@ I830XvInit(ScrnInfoPtr pScrn)
 #endif
 #ifdef INTEL_XVMC
     pI830->XvMCEnabled = FALSE;
-    from =  (!pI830->directRenderingType != DRI_DISABLED &&
+    from =  (pI830->directRenderingType != DRI_DISABLED &&
 	     xf86GetOptValBool(pI830->Options, OPTION_XVMC,
 			       &pI830->XvMCEnabled)) ? X_CONFIG : X_DEFAULT;
     xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
@@ -1731,7 +1731,7 @@ I830DriOptsInit(ScrnInfoPtr pScrn)
     MessageType from = X_PROBED;
 
     pI830->allowPageFlip = FALSE;
-    from = (!pI830->directRenderingType != DRI_DISABLED &&
+    from = (pI830->directRenderingType != DRI_DISABLED &&
 	    xf86GetOptValBool(pI830->Options, OPTION_PAGEFLIP,
 			      &pI830->allowPageFlip)) ? X_CONFIG : X_DEFAULT;
 
@@ -1739,7 +1739,7 @@ I830DriOptsInit(ScrnInfoPtr pScrn)
 	       pI830->allowPageFlip ? "" : " not");
 
     pI830->TripleBuffer = FALSE;
-    from =  (!pI830->directRenderingType != DRI_DISABLED &&
+    from =  (pI830->directRenderingType != DRI_DISABLED &&
 	     xf86GetOptValBool(pI830->Options, OPTION_TRIPLEBUFFER,
 			       &pI830->TripleBuffer)) ? X_CONFIG : X_DEFAULT;
 
@@ -2008,7 +2008,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #if defined(XF86DRI)
    /* Load the dri module if requested. */
    if (xf86ReturnOptValBool(pI830->Options, OPTION_DRI, FALSE) &&
-       !pI830->directRenderingType != DRI_DISABLED) {
+       pI830->directRenderingType != DRI_DISABLED) {
       if (xf86LoadSubModule(pScrn, "dri")) {
 	 xf86LoaderReqSymLists(I810driSymbols, I810drmSymbols, NULL);
       }
