@@ -631,20 +631,6 @@ nv_output_commit(xf86OutputPtr output)
 	output->funcs->dpms(output, DPMSModeOn);
 }
 
-static const xf86OutputFuncsRec nv_analog_output_funcs = {
-    .dpms = nv_output_dpms,
-    .save = nv_output_save,
-    .restore = nv_output_restore,
-    .mode_valid = nv_output_mode_valid,
-    .mode_fixup = nv_output_mode_fixup,
-    .mode_set = nv_output_mode_set,
-    .detect = nv_output_detect,
-    .get_modes = nv_output_get_edid_modes,
-    .destroy = nv_output_destroy,
-    .prepare = nv_output_prepare,
-    .commit = nv_output_commit,
-};
-
 /*
  * Several scaling modes exist, let the user choose.
  */
@@ -665,12 +651,16 @@ static Atom scaling_mode_atom;
 static Atom dithering_atom;
 
 static void
-nv_digital_output_create_resources(xf86OutputPtr output)
+nv_output_create_resources(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	INT32 dithering_range[2] = { 0, 1 };
 	int error, i;
+
+	/* no properties for vga */
+	if (nv_encoder->dcb->type == OUTPUT_ANALOG)
+		return;
 
 	/*
 	 * Setup scaling mode property.
@@ -728,7 +718,7 @@ nv_digital_output_create_resources(xf86OutputPtr output)
 }
 
 static Bool
-nv_digital_output_set_property(xf86OutputPtr output, Atom property,
+nv_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
@@ -767,7 +757,7 @@ nv_digital_output_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
 }
 
-static const xf86OutputFuncsRec nv_tmds_output_funcs = {
+static const xf86OutputFuncsRec nv_output_funcs = {
 	.dpms = nv_output_dpms,
 	.save = nv_output_save,
 	.restore = nv_output_restore,
@@ -779,8 +769,8 @@ static const xf86OutputFuncsRec nv_tmds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 };
 
 static DisplayModePtr
@@ -818,8 +808,8 @@ static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.destroy = nv_output_destroy,
 	.prepare = nv_output_prepare,
 	.commit = nv_output_commit,
-	.create_resources = nv_digital_output_create_resources,
-	.set_property = nv_digital_output_set_property,
+	.create_resources = nv_output_create_resources,
+	.set_property = nv_output_set_property,
 };
 
 static void
@@ -900,11 +890,11 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
-			nv_add_output(pScrn, dcbent, &nv_analog_output_funcs, outputname);
+			nv_add_output(pScrn, dcbent, &nv_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "DVI-D-%d", dvid_count++);
-			nv_add_output(pScrn, dcbent, &nv_tmds_output_funcs, outputname);
+			nv_add_output(pScrn, dcbent, &nv_output_funcs, outputname);
 			break;
 		case OUTPUT_TV:
 			sprintf(outputname, "TV-%d", tv_count++);
