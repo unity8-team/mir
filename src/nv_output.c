@@ -44,6 +44,8 @@
 #include "xf86Crtc.h"
 #include "nv_include.h"
 
+#define MULTIPLE_ENCODERS(e) (e & (e - 1))
+
 static int nv_output_ramdac_offset(struct nouveau_encoder *nv_encoder)
 {
 	int offset = 0;
@@ -867,45 +869,56 @@ nv_add_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, const xf86OutputFuncs
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int i, i2c_count[MAX_NUM_DCB_ENTRIES];
+	uint16_t connectors[0x10];
 	struct dcb_entry *dcbent;
-	char outputname[20];
-	int vga_count = 0, tv_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
+	int i, vga_count = 0, dvia_count = 0, dvid_count = 0, lvds_count = 0;
 
 	if (!(pNv->encoders = xnfcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
 		return;
+
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
-	memset(i2c_count, 0, sizeof(i2c_count));
-	for (i = 0 ; i < pNv->dcb_table.entries; i++)
-		i2c_count[pNv->dcb_table.entry[i].i2c_index]++;
+	memset(connectors, 0, sizeof (connectors));
 
 	for (i = 0; i < pNv->dcb_table.entries; i++) {
 		dcbent = &pNv->dcb_table.entry[i];
 
-		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, heads: %d, or: %d\n", i, dcbent->type, dcbent->heads, dcbent->or);
+		if (dcbent->type == OUTPUT_TV)
+			continue;
+		if (dcbent->type > 3) {
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", dcbent->type);
+			continue;
+		}
+
+		connectors[dcbent->i2c_index] |= 1 << i;
+	}
+
+	for (i = 0; i < pNv->dcb_table.entries; i++) {
+		int i2c_index = pNv->dcb_table.entry[i].i2c_index;
+		uint16_t encoders = connectors[i2c_index];
+		char outputname[20];
+		xf86OutputFuncsRec const *funcs = &nv_output_funcs;
+
+		if (!encoders)
+			continue;
+
+		dcbent = &pNv->dcb_table.entry[i];
 
 		switch (dcbent->type) {
 		case OUTPUT_ANALOG:
-			if (i2c_count[dcbent->i2c_index] == 1)
+			if (!MULTIPLE_ENCODERS(encoders))
 				sprintf(outputname, "VGA-%d", vga_count++);
 			else
 				sprintf(outputname, "DVI-A-%d", dvia_count++);
-			nv_add_output(pScrn, dcbent, &nv_output_funcs, outputname);
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "DVI-D-%d", dvid_count++);
-			nv_add_output(pScrn, dcbent, &nv_output_funcs, outputname);
-			break;
-		case OUTPUT_TV:
-			sprintf(outputname, "TV-%d", tv_count++);
 			break;
 		case OUTPUT_LVDS:
 			sprintf(outputname, "LVDS-%d", lvds_count++);
-			nv_add_output(pScrn, dcbent, &nv_lvds_output_funcs, outputname);
-			break;
-		default:
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", dcbent->type);
+			funcs = &nv_lvds_output_funcs;
 			break;
 		}
+
+		nv_add_output(pScrn, dcbent, funcs, outputname);
 	}
 }
