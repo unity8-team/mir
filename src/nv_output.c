@@ -401,22 +401,22 @@ nv_load_detect(xf86OutputPtr output)
 static xf86OutputStatus
 nv_output_detect(xf86OutputPtr output)
 {
-	struct nouveau_output *nv_output = to_nouveau_output(output);
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_detect is called.\n");
 
-	if (nv_output->pDDCBus) {
-		if ((nv_output->mon = xf86OutputGetEDID(output, nv_output->pDDCBus)) &&
-		    ((nv_output->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_ANALOG) ||
-		     (!nv_output->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_TMDS))) {
-			xfree(nv_output->mon);
-			nv_output->mon = NULL;
+	if (nv_connector->pDDCBus) {
+		if ((nv_connector->mon = xf86OutputGetEDID(output, nv_connector->pDDCBus)) &&
+		    ((nv_connector->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_ANALOG) ||
+		     (!nv_connector->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_TMDS))) {
+			xfree(nv_connector->mon);
+			nv_connector->mon = NULL;
 		}
-		xf86OutputSetEDID(output, nv_output->mon);
-		if (nv_output->mon)
+		xf86OutputSetEDID(output, nv_connector->mon);
+		if (nv_connector->mon)
 			return XF86OutputStatusConnected;
 	}
 
@@ -433,9 +433,9 @@ nv_output_detect(xf86OutputPtr output)
 		if (pNv->VBIOS.fp.edid) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Will use hardcoded BIOS FP EDID\n");
-			nv_output->mon = xf86InterpretEDID(pScrn->scrnIndex,
+			nv_connector->mon = xf86InterpretEDID(pScrn->scrnIndex,
 							   pNv->VBIOS.fp.edid);
-			xf86OutputSetEDID(output, nv_output->mon);
+			xf86OutputSetEDID(output, nv_connector->mon);
 			return XF86OutputStatusConnected;
 		}
 	}
@@ -446,21 +446,21 @@ nv_output_detect(xf86OutputPtr output)
 static DisplayModePtr
 get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 {
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
-	struct nouveau_output *nv_output = to_nouveau_output(output);
 	int max_h_active = 0, max_v_active = 0;
 	int i;
 	DisplayModePtr mode;
 
 	for (i = 0; i < DET_TIMINGS; i++) {
 		/* We only look at detailed timings atm */
-		if (nv_output->mon->det_mon[i].type != DT)
+		if (nv_connector->mon->det_mon[i].type != DT)
 			continue;
 		/* Selecting only based on width ok? */
-		if (nv_output->mon->det_mon[i].section.d_timings.h_active > max_h_active) {
-			max_h_active = nv_output->mon->det_mon[i].section.d_timings.h_active;
-			max_v_active = nv_output->mon->det_mon[i].section.d_timings.v_active;
+		if (nv_connector->mon->det_mon[i].section.d_timings.h_active > max_h_active) {
+			max_h_active = nv_connector->mon->det_mon[i].section.d_timings.h_active;
+			max_v_active = nv_connector->mon->det_mon[i].section.d_timings.v_active;
 		}
 	}
 	if (!(max_h_active && max_v_active)) {
@@ -525,21 +525,21 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 static void
 nv_output_destroy (xf86OutputPtr output)
 {
-	struct nouveau_output *nv_output = to_nouveau_output(output);
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_destroy is called.\n");
 
-	if (!nv_output)
+	if (!nv_connector)
 		return;
 
-	if (nv_output->mon)
-		xfree(nv_output->mon);
+	if (nv_connector->mon)
+		xfree(nv_connector->mon);
 	nv_encoder = to_nouveau_encoder(output);
 	if (nv_encoder->native_mode)
 		xfree(nv_encoder->native_mode);
-	xfree(nv_output);
+	xfree(nv_connector);
 }
 
 static void nv_digital_output_prepare_sel_clk(xf86OutputPtr output)
@@ -829,20 +829,20 @@ nv_add_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, const xf86OutputFuncs
 {
 	NVPtr pNv = NVPTR(pScrn);
 	xf86OutputPtr output;
-	struct nouveau_output *nv_output;
+	struct nouveau_connector *nv_connector;
 	struct nouveau_encoder *nv_encoder = &pNv->encoders[dcbent->index];
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
 		return;
-	if (!(nv_output = xnfcalloc(sizeof (struct nouveau_output), 1)))
+	if (!(nv_connector = xnfcalloc(sizeof (struct nouveau_connector), 1)))
 		return;
 
-	output->driver_private = nv_output;
+	output->driver_private = nv_connector;
 
 	if (dcbent->i2c_index < 0xf && pNv->pI2CBus[dcbent->i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[dcbent->i2c_index], pNv->dcb_table.i2c_read[dcbent->i2c_index], xstrdup(outputname));
-	nv_output->nv_encoder = nv_encoder;
-	nv_output->pDDCBus = pNv->pI2CBus[dcbent->i2c_index];
+	nv_connector->pDDCBus = pNv->pI2CBus[dcbent->i2c_index];
+	nv_connector->nv_encoder = nv_encoder;
 	nv_encoder->dcb = dcbent;
 	nv_encoder->last_dpms = NV_DPMS_CLEARED;
 

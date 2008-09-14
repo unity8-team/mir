@@ -247,15 +247,15 @@ struct nouveau_encoder {
 	NVOutputRegRec restore;
 };
 
-struct nouveau_output {
+struct nouveau_connector {
 	xf86MonPtr mon;
 	I2CBusPtr pDDCBus;
 	struct nouveau_encoder *nv_encoder;
 };
 
+#define to_nouveau_connector(x) ((struct nouveau_connector *)(x)->driver_private)
 #define to_nouveau_crtc(x) ((struct nouveau_crtc *)(x)->driver_private)
-#define to_nouveau_encoder(x) ((struct nouveau_output *)(x)->driver_private)->nv_encoder
-#define to_nouveau_output(x) ((struct nouveau_output *)(x)->driver_private)
+#define to_nouveau_encoder(x) ((struct nouveau_connector *)(x)->driver_private)->nv_encoder
 
 /* changing these requires matching changes to reg tables in nv_get_clock */
 #define MAX_PLL_TYPES	4
