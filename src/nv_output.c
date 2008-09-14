@@ -939,6 +939,8 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 			sprintf(outputname, "LVDS-%d", lvds_count++);
 			funcs = &nv_lvds_output_funcs;
 			break;
+		default:
+			continue;
 		}
 
 		nv_add_output(pScrn, dcbent, funcs, outputname);
