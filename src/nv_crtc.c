@@ -421,10 +421,10 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
-		struct nouveau_output *nv_output = to_nouveau_output(output);
+		struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 
-		if (output->crtc == crtc && (nv_output->dcb->type == OUTPUT_LVDS ||
-					     nv_output->dcb->type == OUTPUT_TMDS))
+		if (output->crtc == crtc && (nv_encoder->dcb->type == OUTPUT_LVDS ||
+					     nv_encoder->dcb->type == OUTPUT_TMDS))
 			fp_output = true;
 	}
 
@@ -633,11 +633,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
-		struct nouveau_output *nv_output = to_nouveau_output(output);
+		struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 
-		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_LVDS)
+		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_LVDS)
 			lvds_output = true;
-		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_TMDS)
+		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_TMDS)
 			tmds_output = true;
 	}
 
@@ -785,7 +785,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
-	struct nouveau_output *nv_output = NULL;
+	struct nouveau_encoder *nv_encoder = NULL;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	bool is_fp = false;
 	bool is_lvds = false;
@@ -795,11 +795,11 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		/* assuming one fp output per crtc seems ok */
-		nv_output = to_nouveau_output(output);
+		nv_encoder = to_nouveau_encoder(output);
 
-		if (output->crtc == crtc && nv_output->dcb->type == OUTPUT_LVDS)
+		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_LVDS)
 			is_lvds = true;
-		if (is_lvds || (output->crtc == crtc && nv_output->dcb->type == OUTPUT_TMDS)) {
+		if (is_lvds || (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_TMDS)) {
 			is_fp = true;
 			break;
 		}
@@ -847,8 +847,8 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (adjusted_mode->Flags & V_PHSYNC)
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
 
-	if (nv_output->scaling_mode == SCALE_PANEL ||
-	    nv_output->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
+	if (nv_encoder->scaling_mode == SCALE_PANEL ||
+	    nv_encoder->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
 	/* This is also true for panel scaling, so we must put the panel scale check first */
 	else if (mode->HDisplay == adjusted_mode->HDisplay &&
@@ -875,7 +875,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	panel_ratio = (1 << 12) * adjusted_mode->HDisplay / adjusted_mode->VDisplay;
 	/* if ratios are equal, SCALE_ASPECT will automatically (and correctly)
 	 * get treated the same as SCALE_FULLSCREEN */
-	if (nv_output->scaling_mode == SCALE_ASPECT && mode_ratio != panel_ratio) {
+	if (nv_encoder->scaling_mode == SCALE_ASPECT && mode_ratio != panel_ratio) {
 		uint32_t diff, scale;
 
 		if (mode_ratio < panel_ratio) {
@@ -912,7 +912,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	/* Flatpanel support needs at least a NV10 */
 	if (pNv->twoHeads) {
 		/* Output property. */
-		if (nv_output && nv_output->dithering) {
+		if (nv_encoder && nv_encoder->dithering) {
 			if (pNv->NVArch == 0x11)
 				regp->dither = savep->dither | 0x00010000;
 			else {

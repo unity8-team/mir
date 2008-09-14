@@ -238,10 +238,8 @@ typedef enum {
 	OUTPUT_C = (1 << 2)
 } ValidOutputResource;
 
-struct nouveau_output {
-	xf86MonPtr mon;
+struct nouveau_encoder {
 	uint8_t last_dpms;
-	I2CBusPtr pDDCBus;
 	struct dcb_entry *dcb;
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
@@ -249,7 +247,14 @@ struct nouveau_output {
 	NVOutputRegRec restore;
 };
 
+struct nouveau_output {
+	xf86MonPtr mon;
+	I2CBusPtr pDDCBus;
+	struct nouveau_encoder *nv_encoder;
+};
+
 #define to_nouveau_crtc(x) ((struct nouveau_crtc *)(x)->driver_private)
+#define to_nouveau_encoder(x) ((struct nouveau_output *)(x)->driver_private)->nv_encoder
 #define to_nouveau_output(x) ((struct nouveau_output *)(x)->driver_private)
 
 /* changing these requires matching changes to reg tables in nv_get_clock */
@@ -462,6 +467,7 @@ typedef struct _NVRec {
 	Bool kms_enable;
 
 	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
+	struct nouveau_encoder *encoders;
 
 #ifdef XF86DRM_MODE
 	void *drmmode; /* for KMS */
