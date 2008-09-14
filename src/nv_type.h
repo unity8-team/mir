@@ -109,6 +109,7 @@ typedef enum
 	OUTPUT_TMDS = 2,
 	OUTPUT_LVDS = 3,
 	OUTPUT_TV = 1,
+	OUTPUT_ANY = 5,
 } NVOutputType;
 
 /* NV50 */
@@ -250,6 +251,7 @@ struct nouveau_encoder {
 struct nouveau_connector {
 	xf86MonPtr mon;
 	I2CBusPtr pDDCBus;
+	uint16_t possible_encoders;
 	struct nouveau_encoder *nv_encoder;
 };
 

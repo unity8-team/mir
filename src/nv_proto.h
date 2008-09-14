@@ -83,6 +83,8 @@ void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
 
 /* nv_output.c */
+void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
+void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 
 /* nv_hw.c */

@@ -45,6 +45,9 @@
 #include "nv_include.h"
 
 #define MULTIPLE_ENCODERS(e) (e & (e - 1))
+#define FOR_EACH_ENCODER_IN_CONNECTOR(i, c, e)	for (i = 0; i < pNv->dcb_table.entries;	i++)	\
+							if (c->possible_encoders & (1 << i) &&	\
+							    (e = &pNv->encoders[i]))
 
 static int nv_output_ramdac_offset(struct nouveau_encoder *nv_encoder)
 {
@@ -177,23 +180,32 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 
 static void nv_output_dpms(xf86OutputPtr output, int mode)
 {
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	xf86CrtcPtr crtc = output->crtc;
+	NVPtr pNv = NVPTR(pScrn);
+	int i;
 	void (* const encoder_dpms[4])(ScrnInfoPtr, struct nouveau_encoder *, xf86CrtcPtr, int) =
 		/* index matches DCB type */
 		{ vga_encoder_dpms, NULL, tmds_encoder_dpms, lvds_encoder_dpms };
 
+	struct nouveau_encoder *nv_encoder_i;
+	FOR_EACH_ENCODER_IN_CONNECTOR(i, nv_connector, nv_encoder_i)
+		if (nv_encoder_i != nv_encoder)
+			encoder_dpms[nv_encoder_i->dcb->type](pScrn, nv_encoder_i, crtc, DPMSModeOff);
+
 	encoder_dpms[nv_encoder->dcb->type](pScrn, nv_encoder, crtc, mode);
 }
 
-static void nv_output_save(xf86OutputPtr output)
+void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_save is called.\n");
+	if (!nv_encoder->dcb)	/* uninitialised encoder */
+		return;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_encoder_save is called.\n");
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		nv_encoder->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder));
@@ -217,14 +229,15 @@ static uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, 
 	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single, pll_lim.refclk);
 }
 
-static void nv_output_restore(xf86OutputPtr output)
+void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	int head = nv_encoder->restore.head;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_restore is called.\n");
+	if (!nv_encoder->dcb)	/* uninitialised encoder */
+		return;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_encoder_restore is called.\n");
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		NVWriteRAMDAC(pNv, 0,
@@ -407,43 +420,53 @@ nv_output_detect(xf86OutputPtr output)
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	struct nouveau_encoder *nv_encoder;
+	xf86OutputStatus ret = XF86OutputStatusDisconnected;
+
+	struct nouveau_encoder *find_encoder_by_type(NVOutputType type)
+	{
+		int i;
+		for (i = 0; i < pNv->dcb_table.entries; i++)
+			if (nv_connector->possible_encoders & (1 << i) &&
+			    (type == OUTPUT_ANY || pNv->encoders[i].dcb->type == type))
+				return &pNv->encoders[i];
+		return NULL;
+	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_detect is called.\n");
 
-	if (nv_connector->pDDCBus) {
-		if ((nv_connector->mon = xf86OutputGetEDID(output, nv_connector->pDDCBus)) &&
-		    ((nv_connector->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_ANALOG) ||
-		     (!nv_connector->mon->features.input_type && nv_encoder->dcb->type == OUTPUT_TMDS))) {
-			xfree(nv_connector->mon);
-			nv_connector->mon = NULL;
-		}
-		xf86OutputSetEDID(output, nv_connector->mon);
-		if (nv_connector->mon)
-			return XF86OutputStatusConnected;
-	}
-
-	if (nv_encoder->dcb->type == OUTPUT_ANALOG) {
+	if (nv_connector->pDDCBus &&
+	    (nv_connector->mon = xf86OutputGetEDID(output, nv_connector->pDDCBus),
+	     xf86OutputSetEDID(output, nv_connector->mon), nv_connector->mon)) {
+		if (MULTIPLE_ENCODERS(nv_connector->possible_encoders)) {
+			if (nv_connector->mon->features.input_type)
+				nv_encoder = find_encoder_by_type(OUTPUT_TMDS);
+			else
+				nv_encoder = find_encoder_by_type(OUTPUT_ANALOG);
+		} else
+			nv_encoder = find_encoder_by_type(OUTPUT_ANY);
+		ret = XF86OutputStatusConnected;
+	} else if ((nv_encoder = find_encoder_by_type(OUTPUT_ANALOG))) {
 		/* we don't have a load det function for early cards */
 		if (!pNv->twoHeads || pNv->NVArch == 0x11)
-			return XF86OutputStatusUnknown;
+			ret = XF86OutputStatusUnknown;
 		else if (pNv->twoHeads && nv_load_detect(pScrn, nv_encoder))
-			return XF86OutputStatusConnected;
-	} else if (nv_encoder->dcb->type == OUTPUT_LVDS) {
+			ret = XF86OutputStatusConnected;
+	} else if ((nv_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
 		if (nv_encoder->dcb->lvdsconf.use_straps_for_mode &&
 		    pNv->VBIOS.fp.native_mode)
-			return XF86OutputStatusConnected;
+			ret = XF86OutputStatusConnected;
 		if (pNv->VBIOS.fp.edid) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Will use hardcoded BIOS FP EDID\n");
 			nv_connector->mon = xf86InterpretEDID(pScrn->scrnIndex,
 							   pNv->VBIOS.fp.edid);
 			xf86OutputSetEDID(output, nv_connector->mon);
-			return XF86OutputStatusConnected;
+			ret = XF86OutputStatusConnected;
 		}
 	}
 
-	return XF86OutputStatusDisconnected;
+	return ret;
 }
 
 static DisplayModePtr
@@ -531,6 +554,8 @@ nv_output_destroy (xf86OutputPtr output)
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
+	NVPtr pNv = NVPTR(output->scrn);
+	int i;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_destroy is called.\n");
 
@@ -539,9 +564,9 @@ nv_output_destroy (xf86OutputPtr output)
 
 	if (nv_connector->mon)
 		xfree(nv_connector->mon);
-	nv_encoder = to_nouveau_encoder(output);
-	if (nv_encoder->native_mode)
-		xfree(nv_encoder->native_mode);
+	FOR_EACH_ENCODER_IN_CONNECTOR(i, nv_connector, nv_encoder)
+		if (nv_encoder->native_mode)
+			xfree(nv_encoder->native_mode);
 	xfree(nv_connector);
 }
 
@@ -761,8 +786,6 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 
 static const xf86OutputFuncsRec nv_output_funcs = {
 	.dpms = nv_output_dpms,
-	.save = nv_output_save,
-	.restore = nv_output_restore,
 	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
@@ -800,8 +823,6 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 static const xf86OutputFuncsRec nv_lvds_output_funcs = {
 	.dpms = nv_output_dpms,
-	.save = nv_output_save,
-	.restore = nv_output_restore,
 	.mode_valid = nv_output_mode_valid,
 	.mode_fixup = nv_output_mode_fixup,
 	.mode_set = nv_output_mode_set,
@@ -832,6 +853,7 @@ nv_add_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, const xf86OutputFuncs
 	if (dcbent->i2c_index < 0xf && pNv->pI2CBus[dcbent->i2c_index] == NULL)
 		NV_I2CInit(pScrn, &pNv->pI2CBus[dcbent->i2c_index], pNv->dcb_table.i2c_read[dcbent->i2c_index], xstrdup(outputname));
 	nv_connector->pDDCBus = pNv->pI2CBus[dcbent->i2c_index];
+	nv_connector->possible_encoders = 1 << dcbent->index;
 	nv_connector->nv_encoder = nv_encoder;
 	nv_encoder->dcb = dcbent;
 	nv_encoder->last_dpms = NV_DPMS_CLEARED;

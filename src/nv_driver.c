@@ -1764,8 +1764,8 @@ NVRestore(ScrnInfoPtr pScrn)
 		for (i = 0; i < xf86_config->num_crtc; i++)
 			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 
-		for (i = 0; i < xf86_config->num_output; i++)
-			xf86_config->output[i]->funcs->restore(xf86_config->output[i]);
+		for (i = 0; i < pNv->dcb_table.entries; i++)
+			nv_encoder_restore(pScrn, &pNv->encoders[i]);
 
 		for (i = 0; i < xf86_config->num_crtc; i++)
 			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
@@ -2239,14 +2239,11 @@ NVSave(ScrnInfoPtr pScrn)
 
 		nv_save_restore_vga_fonts(pScrn, 1);
 
-		for (i = 0; i < xf86_config->num_crtc; i++) {
+		for (i = 0; i < xf86_config->num_crtc; i++)
 			xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
-		}
 
-		for (i = 0; i < xf86_config->num_output; i++) {
-			xf86_config->output[i]->funcs->save(xf86_config->
-							    output[i]);
-		}
+		for (i = 0; i < pNv->dcb_table.entries; i++)
+			nv_encoder_save(pScrn, &pNv->encoders[i]);
 	} else {
 		vgaHWPtr pVga = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &pVga->SavedReg;
