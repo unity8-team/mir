@@ -32,10 +32,19 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	unsigned class;
 	int i;
 
-	if ((pNv->NVArch & 0xf0) == 0x50)
+	switch (pNv->NVArch & 0xf0) {
+	case 0x50:
 		class = 0x5097;
-	else
+		break;
+	case 0x80:
+	case 0x90:
 		class = 0x8297;
+		break;
+	case 0xa0:
+	default:
+		class = 0x8397;
+		break;
+	}
 
 	if (!pNv->Nv3D) {
 		if (nouveau_grobj_alloc(pNv->chan, Nv3D, class, &pNv->Nv3D))
