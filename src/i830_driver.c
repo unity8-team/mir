@@ -3693,7 +3693,7 @@ I830EnterVT(int scrnIndex, int flags)
 	* operation which accessing that page, like irq install, etc.
 	*/
        if (pI830->starting && !pI830->memory_manager) {
-	   if (!I830DRISetHWS(pScrn)) {
+	   if (pI830->hw_status != NULL && !I830DRISetHWS(pScrn)) {
 		   xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Fail to setup hardware status page.\n");
 		   I830DRICloseScreen(pScrn->pScreen);
