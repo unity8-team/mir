@@ -3254,6 +3254,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+   if (!pI830->use_drm_mode) {
+      DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
+      if (!I830MapMem(pScrn))
+	 return FALSE;
+      pScrn->memPhysBase = (unsigned long)pI830->FbBase;
+   }
+   i830_init_bufmgr(pScrn);
+
 #ifdef XF86DRI
    /*
     * Setup DRI after visuals have been established, but before fbScreenInit
@@ -3287,13 +3295,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	      pI830->allowPageFlip ? "en" : "dis");
 #endif
 
-   if (!pI830->use_drm_mode) {
-       DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
-       if (!I830MapMem(pScrn))
- 	   return FALSE;
-       pScrn->memPhysBase = (unsigned long)pI830->FbBase;
-   }
-
    if (I830IsPrimary(pScrn)) {
         pScrn->fbOffset = pI830->front_buffer->offset;
    } else {
@@ -3310,8 +3311,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        if (!vgaHWMapMem(pScrn))
 	   return FALSE;
    }
-
-   i830_init_bufmgr(pScrn);
 
    i830_disable_render_standby(pScrn);
 
