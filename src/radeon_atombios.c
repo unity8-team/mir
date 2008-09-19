@@ -1734,6 +1734,21 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* Funky macbooks */
+    if ((info->Chipset == PCI_CHIP_RV530_71C5) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x106b) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0080)) {
+	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_D) &&
+	    (info->BiosConnector[index].TMDSType == TMDS_EXT)) {
+	    info->BiosConnector[index].valid = FALSE;
+	}
+	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_D) &&
+	    (info->BiosConnector[index].DACType == DAC_NONE)) {
+	    info->BiosConnector[index].DACType = DAC_TVDAC;
+	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
+	}
+    }
+
 }
 
 Bool
