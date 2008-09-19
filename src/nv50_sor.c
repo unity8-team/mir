@@ -29,7 +29,14 @@
 static int
 NV50SorModeValid(nouveauOutputPtr output, DisplayModePtr mode)
 {
-	if (mode->Clock > 165000) /* no dual link until we figure it out completely */
+	int high_limit;
+
+	if (output->type == OUTPUT_LVDS)
+		high_limit = 400000;
+	else
+		high_limit = 165000; /* no dual link dvi until we figure it out completely */
+
+	if (mode->Clock > high_limit)
 		return MODE_CLOCK_HIGH;
 
 	if (mode->Clock < 25000)
