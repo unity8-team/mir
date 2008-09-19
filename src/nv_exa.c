@@ -804,27 +804,6 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 	return FALSE;
 }
 
-static Bool
-nouveau_exa_prepare_access(PixmapPtr ppix, int index)
-{
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	unsigned long offset = exaGetPixmapOffset(ppix);
-
-	if (pNv->Architecture < NV_ARCH_50) /* not tiled */
-		return TRUE;
-
-	if (offset < pNv->EXADriverPtr->offScreenBase) /* not tiled */
-		return TRUE;
-
-	return FALSE; /* cannot cpu access tiled memory */
-}
-
-static void
-nouveau_exa_finish_access(PixmapPtr ppix, int index)
-{
-}
-
 #endif /* !NOUVEAU_EXA_PIXMAPS */
 
 Bool
@@ -897,28 +876,6 @@ NVExaInit(ScreenPtr pScreen)
 		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) 
 			* (pScrn->bitsPerPixel / 8);
 		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
-#if EXA_VERSION_MINOR >= 2
-		pNv->EXADriverPtr->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
-		/* Needed to avoid cpu access on offscreen memory. */
-		/* Can be disabled because of a bug that exists in a lot of xserver's. */
-		/* It caused the xserver to exit when failing PrepareAccess on non-PINNED memory. */
-		/* While it allowed pinned memory to migrated. This bug had existed for about 3 years. */
-		/* Any server-1.5-branch or master xserver after 18-08-2008 doesn't have this bug. */
-		if (pNv->Architecture >= NV_ARCH_50) {
-			pNv->EXADriverPtr->PrepareAccess = nouveau_exa_prepare_access;
-			pNv->EXADriverPtr->FinishAccess = nouveau_exa_finish_access;
-
-			if (!xf86ReturnOptValBool(pNv->Options, OPTION_PREP_FIN_ACCESS, TRUE)) {
-				pNv->EXADriverPtr->PrepareAccess = NULL;
-				pNv->EXADriverPtr->FinishAccess = NULL;
-			} 
-
-			if (pNv->EXADriverPtr->PrepareAccess)
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PrepareAccess and FinishAccess hooks added\n");
-			else 
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "PrepareAccess and FinishAccess hooks NOT added\n");
-		}
-#endif
 	}
 
 	if (pNv->Architecture >= NV_ARCH_50) {
