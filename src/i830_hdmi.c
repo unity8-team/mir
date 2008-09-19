@@ -139,6 +139,8 @@ i830_hdmi_detect(xf86OutputPtr output)
     struct i830_hdmi_priv *dev_priv = intel_output->dev_priv;
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t temp, bit;
+    xf86OutputStatus status;
+    xf86MonPtr edid_mon;
 
     /* For G4X, PEG_BAND_GAP_DATA 3:0 must first be written 0xd.
      * Failure to do so will result in spurious interrupts being
@@ -171,9 +173,15 @@ i830_hdmi_detect(xf86OutputPtr output)
     }
 
     if ((INREG(PORT_HOTPLUG_STAT) & bit) != 0)
-	return XF86OutputStatusConnected;
+	status = XF86OutputStatusConnected;
     else
 	return XF86OutputStatusDisconnected;
+
+    edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+    if (!edid_mon || !DIGITAL(edid_mon->features.input_type))
+	status = XF86OutputStatusDisconnected;
+    xfree(edid_mon);
+    return status;
 }
 
 static void
