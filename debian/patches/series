@@ -5,3 +5,4 @@
 21_quirk_lenovo.patch
 22_no_pipe_for_hotplug_detection.patch
 23_quirks_studiohybrid_eeepc_and_w251u.patch
+24_no_render_suspend

@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu5) intrepid; urgency=low
+
+  * 24_no_render_suspend:
+    - Fix blank screen and crash on startup with x4500 (LP: #265119)
+
+ -- Christopher James Halse Rogers (RAOF) <chalserogers@gmail.com>  Fri, 19 Sep 2008 14:00:28 +1000
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu4) intrepid; urgency=low
 
   * 23_quirks_studiohybrid_eeepc_and_w251u.patch:
