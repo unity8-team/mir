@@ -1738,17 +1738,15 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
     if ((info->Chipset == PCI_CHIP_RV530_71C5) &&
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x106b) &&
 	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0080)) {
-	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I) &&
-	    (info->BiosConnector[index].TMDSType == TMDS_EXT)) {
+	if ((index == ATOM_DEVICE_CRT1_INDEX) ||
+	    (index == ATOM_DEVICE_CRT2_INDEX) ||
+	    (index == ATOM_DEVICE_DFP2_INDEX))
 	    info->BiosConnector[index].valid = FALSE;
-	}
-	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I) &&
-	    (info->BiosConnector[index].DACType == DAC_NONE)) {
+
+	if (index == ATOM_DEVICE_DFP1_INDEX) {
 	    info->BiosConnector[index].DACType = DAC_TVDAC;
 	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 	}
-	if (info->BiosConnector[index].ConnectorType == CONNECTOR_VGA)
-	    info->BiosConnector[index].valid = FALSE;
     }
 
 }
