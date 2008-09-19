@@ -1747,6 +1747,8 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].DACType = DAC_TVDAC;
 	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 	}
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_VGA)
+	    info->BiosConnector[index].valid = FALSE;
     }
 
 }
