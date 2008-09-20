@@ -1336,10 +1336,9 @@ uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 		bpp = 8;
 
 	/* Alignment requirements taken from the Haiku driver */
-	if (pNv->Architecture == NV_ARCH_04 || pNv->NoAccel) /* CRTC only case */
-		/* Apparently a hardware bug on some hardware makes this 128 instead of 64 */
+	if (pNv->Architecture == NV_ARCH_04)
 		mask = 128 / bpp - 1;
-	else /* Accel case */
+	else
 		mask = 512 / bpp - 1;
 
 	return (width + mask) & ~mask;
