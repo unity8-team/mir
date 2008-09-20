@@ -473,10 +473,10 @@ nv_output_detect(xf86OutputPtr output)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_detect is called.\n");
 
 	if (nv_connector->pDDCBus &&
-	    (nv_connector->mon = xf86OutputGetEDID(output, nv_connector->pDDCBus),
-	     xf86OutputSetEDID(output, nv_connector->mon), nv_connector->mon)) {
+	    (nv_connector->edid = xf86OutputGetEDID(output, nv_connector->pDDCBus),
+	     xf86OutputSetEDID(output, nv_connector->edid), nv_connector->edid)) {
 		if (MULTIPLE_ENCODERS(nv_connector->possible_encoders)) {
-			if (nv_connector->mon->features.input_type)
+			if (nv_connector->edid->features.input_type)
 				nv_encoder = find_encoder_by_type(OUTPUT_TMDS);
 			else
 				nv_encoder = find_encoder_by_type(OUTPUT_ANALOG);
@@ -496,9 +496,9 @@ nv_output_detect(xf86OutputPtr output)
 		if (pNv->VBIOS.fp.edid) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Will use hardcoded BIOS FP EDID\n");
-			nv_connector->mon = xf86InterpretEDID(pScrn->scrnIndex,
+			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex,
 							   pNv->VBIOS.fp.edid);
-			xf86OutputSetEDID(output, nv_connector->mon);
+			xf86OutputSetEDID(output, nv_connector->edid);
 			ret = XF86OutputStatusConnected;
 		}
 	}
@@ -521,12 +521,12 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 
 	for (i = 0; i < DET_TIMINGS; i++) {
 		/* We only look at detailed timings atm */
-		if (nv_connector->mon->det_mon[i].type != DT)
+		if (nv_connector->edid->det_mon[i].type != DT)
 			continue;
 		/* Selecting only based on width ok? */
-		if (nv_connector->mon->det_mon[i].section.d_timings.h_active > max_h_active) {
-			max_h_active = nv_connector->mon->det_mon[i].section.d_timings.h_active;
-			max_v_active = nv_connector->mon->det_mon[i].section.d_timings.v_active;
+		if (nv_connector->edid->det_mon[i].section.d_timings.h_active > max_h_active) {
+			max_h_active = nv_connector->edid->det_mon[i].section.d_timings.h_active;
+			max_v_active = nv_connector->edid->det_mon[i].section.d_timings.v_active;
 		}
 	}
 	if (!(max_h_active && max_v_active)) {
@@ -570,7 +570,7 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_edid_modes is called.\n");
 
 	if (!(edid_modes = xf86OutputGetEDIDModes(output)))
-		return NULL;
+		return edid_modes;
 
 	if (nv_encoder->dcb->type == OUTPUT_TMDS || nv_encoder->dcb->type == OUTPUT_LVDS)
 		if (!get_native_mode_from_edid(output, edid_modes))
@@ -602,8 +602,8 @@ nv_output_destroy (xf86OutputPtr output)
 	if (!nv_connector)
 		return;
 
-	if (nv_connector->mon)
-		xfree(nv_connector->mon);
+	if (nv_connector->edid)
+		xfree(nv_connector->edid);
 	FOR_EACH_ENCODER_IN_CONNECTOR(i, nv_connector, nv_encoder)
 		if (nv_encoder->native_mode)
 			xfree(nv_encoder->native_mode);

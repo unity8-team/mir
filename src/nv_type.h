@@ -249,7 +249,7 @@ struct nouveau_encoder {
 };
 
 struct nouveau_connector {
-	xf86MonPtr mon;
+	xf86MonPtr edid;
 	I2CBusPtr pDDCBus;
 	uint16_t possible_encoders;
 	struct nouveau_encoder *nv_encoder;
