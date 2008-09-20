@@ -4325,7 +4325,10 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			/* invent a DVI-A output, by copying the fields of the DVI-D output
 			 * reported to work by math_b on an NV20(!) */
 			memcpy(&entry[1], &entry[0], sizeof(struct dcb_entry));
+			entry[1].index = ++index;
 			entry[1].type = OUTPUT_ANALOG;
+			ErrorF("Concocting additional DCB entry for analogue
+				encoder on DVI output\n");
 			pNv->dcb_table.entries++;
 		}
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
@@ -4487,7 +4490,8 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (connection == 0x00000000) /* seen on an NV11 with DCB v1.5 */
 			break;
 
-		ErrorF("Raw DCB entry %d: %08x %08x\n", i, connection, config);
+		ErrorF("Raw DCB entry %d: %08x %08x\n",
+		       pNv->dcb_table.entries, connection, config);
 		if (!parse_dcb_entry(pScrn, pNv->dcb_table.entries, dcb_version, i2ctabptr, connection, config))
 			break;
 	}
