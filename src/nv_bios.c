@@ -4327,8 +4327,8 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			memcpy(&entry[1], &entry[0], sizeof(struct dcb_entry));
 			entry[1].index = ++index;
 			entry[1].type = OUTPUT_ANALOG;
-			ErrorF("Concocting additional DCB entry for analogue
-				encoder on DVI output\n");
+			ErrorF("Concocting additional DCB entry for analogue "
+			       "encoder on DVI output\n");
 			pNv->dcb_table.entries++;
 		}
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
