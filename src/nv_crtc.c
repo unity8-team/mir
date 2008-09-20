@@ -1099,6 +1099,11 @@ static void nv_crtc_commit(xf86CrtcPtr crtc)
 	}
 }
 
+static void nv_crtc_destroy(xf86CrtcPtr crtc)
+{
+	xfree(to_nouveau_crtc(crtc));
+}
+
 static Bool nv_crtc_lock(xf86CrtcPtr crtc)
 {
 	return FALSE;
@@ -1122,29 +1127,25 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	case 15:
 		/* R5G5B5 */
 		/* We've got 5 bit (32 values) colors and 256 registers for each color */
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < 32; i++)
 			for (j = 0; j < 8; j++) {
 				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
 				regp->DAC[(i*8 + j) * 3 + 1] = green[i] >> 8;
 				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
 			}
-		}
 		break;
 	case 16:
 		/* R5G6B5 */
 		/* First deal with the 5 bit colors */
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < 32; i++)
 			for (j = 0; j < 8; j++) {
 				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
 				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
 			}
-		}
 		/* Now deal with the 6 bit color */
-		for (i = 0; i < 64; i++) {
-			for (j = 0; j < 4; j++) {
+		for (i = 0; i < 64; i++)
+			for (j = 0; j < 4; j++)
 				regp->DAC[(i*4 + j) * 3 + 1] = green[i] >> 8;
-			}
-		}
 		break;
 	default:
 		/* R8G8B8 */
@@ -1316,7 +1317,7 @@ static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.mode_set = nv_crtc_mode_set,
 	.prepare = nv_crtc_prepare,
 	.commit = nv_crtc_commit,
-	.destroy = NULL, /* XXX */
+	.destroy = nv_crtc_destroy,
 	.lock = nv_crtc_lock,
 	.unlock = nv_crtc_unlock,
 	.set_cursor_colors = NULL, /* Alpha cursors do not need this */
