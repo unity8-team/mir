@@ -6,3 +6,4 @@
 22_no_pipe_for_hotplug_detection.patch
 23_quirks_studiohybrid_eeepc_and_w251u.patch
 24_no_render_suspend
+25_quirk_nc6110.patch
