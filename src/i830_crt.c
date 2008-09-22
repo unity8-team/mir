@@ -410,6 +410,49 @@ i830_crt_get_crtc(xf86OutputPtr output)
 }
 #endif
 
+static xf86MonPtr
+i830_get_edid(xf86OutputPtr output, int gpio_reg, char *gpio_str)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    xf86MonPtr		    edid_mon = NULL;
+
+    /* Set up the DDC bus. */
+    if (gpio_reg != GPIOA)
+	I830I2CInit(output->scrn, &intel_output->pDDCBus, gpio_reg, gpio_str);
+
+    edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+
+    if (!edid_mon || DIGITAL(edid_mon->features.input_type)) {
+	xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+	if (edid_mon) {
+	    xfree(edid_mon);
+	    edid_mon = NULL;
+	}
+    }
+    return edid_mon;
+}
+
+static DisplayModePtr
+i830_crt_get_modes (xf86OutputPtr output)
+{
+    DisplayModePtr	    modes;
+    xf86MonPtr		    edid_mon = NULL;
+
+    /* Try to probe normal CRT port, and also digital port for output
+       in DVI-I mode. */
+    if ((edid_mon = i830_get_edid(output, GPIOA, "CRTDDC_A")))
+	goto found;
+    if ((edid_mon = i830_get_edid(output, GPIOD, "CRTDDC_D")))
+	goto found;
+    if ((edid_mon = i830_get_edid(output, GPIOE, "CRTDDC_E")))
+	goto found;
+found:
+    xf86OutputSetEDID (output, edid_mon);
+
+    modes = xf86OutputGetEDIDModes (output);
+    return modes;
+}
+
 static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .dpms = i830_crt_dpms,
     .save = i830_crt_save,
@@ -420,7 +463,7 @@ static const xf86OutputFuncsRec i830_crt_output_funcs = {
     .mode_set = i830_crt_mode_set,
     .commit = i830_output_commit,
     .detect = i830_crt_detect,
-    .get_modes = i830_ddc_get_modes,
+    .get_modes = i830_crt_get_modes,
     .destroy = i830_crt_destroy,
 #ifdef RANDR_GET_CRTC_INTERFACE
     .get_crtc = i830_crt_get_crtc,

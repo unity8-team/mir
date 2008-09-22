@@ -2245,12 +2245,16 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
-    /* Clamp dst width & height to 7x of src (overlay limit) */
-    if(drw_w > (src_w * 7))
-	drw_w = src_w * 7;
+    if (!pPriv->textured) {
+        /* If dst width and height are less than 1/8th the src size, the
+         * src/dst scale factor becomes larger than 8 and doesn't fit in
+         * the scale register. */
+        if(src_w >= (drw_w * 8))
+            drw_w = src_w/7;
 
-    if(drw_h > (src_h * 7))
-	drw_h = src_h * 7;
+        if(src_h >= (drw_h * 8))
+            drw_h = src_h/7;
+    }
 
     /* Clip */
     x1 = src_x;
