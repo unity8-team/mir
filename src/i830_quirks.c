@@ -281,6 +281,8 @@ static i830_quirk i830_quirk_list[] = {
     /* Samsung Q45 has no TV output */
     { PCI_CHIP_I965_GM, 0x144d, 0xc510, quirk_ignore_tv },
 
+    /* HP Compaq nx6110 has no TV output */
+    { PCI_CHIP_I915_GM, 0x103c, 0x099c, quirk_ignore_tv },
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
 
