@@ -27,21 +27,25 @@
  *
  */
 
-and (1) g1.4<1>UD g1.4<1,1,1>UD 0xFFFFFFFEUD {align1};
+//and (1) g1.4<1>UD g1.4<1,1,1>UD 0xFFFFFFFEUD {align1};
 mov (8) g76.0<1>UD g1.0<8,8,1>UD {align1};
-mov (8) g77.0<1>UD g2.0<8,8,1>UD {align1};
 mov (8) g115.0<1>UD g1.0<8,8,1>UD {align1};
 mov (8) g116.0<1>UD g1.0<8,8,1>UD {align1};
 mov(1) g115.8<1>UD 0x007001fUD  { align1 };
-mov(1) g1.8<1>UD 0x007000fUD  { align1 };
-/*Y buffer Top Field 1*/
-asr (2) g115.16<1>D g1.16<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+//mov(1) g1.8<1>UD 0x007000fUD  { align1 };
+
+/*first vector---Y---top*/
+//and.nz (1) null g1.31<1,1,1>UB 1UW {align1};
+asr (2) g115.14<1>W g1.14<2,2,1>W 1W {align1};
+add (2) g115.0<1>D g116.0<2,2,1>D g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
+//and.nz (1) null g1.31<1,1,1>UB 1UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
+//add (1) g115.4<1>UD g115.4<1,1,1>UD 0UD {align1};
 mov(1) g115.8<1>UD 0x1fUD  { align1 }; //read 1 line, 32 columns.
 define(`surface',`4')
-define(`mv1',`g1.16')
-define(`mv2',`g1.20')
+define(`mv1',`g1.14')
+define(`mv2',`g1.16')
 include(`motion_field_y.g4i')
 mov (8) g52.0<1>UD g96.0<8,8,1>UD {align1};
 mov (8) g54.0<1>UD g97.0<8,8,1>UD {align1};
@@ -51,15 +55,18 @@ mov (8) g60.0<1>UD g100.0<8,8,1>UD {align1};
 mov (8) g62.0<1>UD g101.0<8,8,1>UD {align1};
 mov (8) g64.0<1>UD g102.0<8,8,1>UD {align1};
 mov (8) g66.0<1>UD g103.0<8,8,1>UD {align1};
-/*Y buffer Bottom Field 1*/
-asr (2) g115.16<1>D g1.24<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+
+/*first vector---Y---bottom*/
+asr (2) g115.14<1>W g1.18<2,2,1>W 1W {align1};
+add (2) g115.0<1>UD g116.0<2,2,1>UD g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
-add (1) g115.4<1>D g115.4<1,1,1>D 1D {align1};
+//and.nz (1) null g1.31<1,1,1>UB 1UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
+add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 mov(1) g115.8<1>UD 0x1fUD { align1 }; //read 1 line, 32 columns.
 define(`surface',`4')
-define(`mv1',`g1.24')
-define(`mv2',`g1.28')
+define(`mv1',`g1.18')
+define(`mv2',`g1.20')
 include(`motion_field_y.g4i')
 mov (8) g53.0<1>UD g96.0<8,8,1>UD {align1};
 mov (8) g55.0<1>UD g97.0<8,8,1>UD {align1};
@@ -70,18 +77,18 @@ mov (8) g63.0<1>UD g101.0<8,8,1>UD {align1};
 mov (8) g65.0<1>UD g102.0<8,8,1>UD {align1};
 mov (8) g67.0<1>UD g103.0<8,8,1>UD {align1};
 
-/*U buffer, V buffer Top Field 1*/
+/*first vector---UV---top*/
 mov(1) g115.8<1>UD 0x007000fUD  { align1 };
-mov(1) g1.8<1>UD 0x0070007UD  { align1 };
-asr (2) g115.0<1>D g116.0<1,1,1>D 1D {align1}; // x/=2 y/=2 
+asr (2) g115.0<1>UD g116.0<1,1,1>UD 1UD {align1}; // x/=2 y/=2 
+asr (2) g115.14<1>W g1.14<2,2,1>W 2W {align1};   // vector/=4
+add (2) g115.0<1>UD g115.0<2,2,1>UD g115.14<2,2,1>W {align1}; // (x,y)+=vector
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-asr (2) g115.16<1>D g1.16<2,2,1>D 2D {align1};   // vector/=4
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1}; // (x,y)+=vector
-and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
+//and.nz (1) null g1.31<1,1,1>UB 1UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 define(`surface_u',`5')
 define(`surface_v',`6')
-define(`mv1',`g1.16')
-define(`mv2',`g1.20')
+define(`mv1',`g1.14')
+define(`mv2',`g1.16')
 include(`motion_field_uv.g4i')
 mov (8) g68.0<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g69.0<1>UW g79.0<8,8,1>UW {align1};
@@ -91,17 +98,20 @@ mov (8) g72.0<1>UW g82.0<8,8,1>UW {align1};
 mov (8) g73.0<1>UW g83.0<8,8,1>UW {align1};
 mov (8) g74.0<1>UW g84.0<8,8,1>UW {align1};
 mov (8) g75.0<1>UW g85.0<8,8,1>UW {align1};
-/*U buffer, V buffer Bottom Field 1*/
-asr (2) g115.0<1>D g116.0<1,1,1>D 1D {align1}; // x/=2 y/=2 
+
+
+/*first vector---UV---bottom*/
+asr (2) g115.0<1>UD g116.0<1,1,1>UD 1UD {align1}; // x/=2 y/=2 
+asr (2) g115.14<1>W g1.18<2,2,1>W 2W {align1};   // vector/=4
+add (2) g115.0<1>UD g115.0<2,2,1>UD g115.14<2,2,1>W {align1}; // (x,y)+=vector
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-asr (2) g115.16<1>D g1.24<2,2,1>D 2D {align1};   // vector/=4
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1}; // (x,y)+=vector
-and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-add (1) g115.4<1>D g115.4<1,1,1>D 1D {align1};
+//and.nz (1) null g1.31<1,1,1>UB 1UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
+add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 define(`surface_u',`5')
 define(`surface_v',`6')
-define(`mv1',`g1.24')
-define(`mv2',`g1.28')
+define(`mv1',`g1.18')
+define(`mv2',`g1.20')
 include(`motion_field_uv.g4i')
 mov (8) g68.16<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g69.16<1>UW g79.0<8,8,1>UW {align1};
@@ -111,24 +121,26 @@ mov (8) g72.16<1>UW g82.0<8,8,1>UW {align1};
 mov (8) g73.16<1>UW g83.0<8,8,1>UW {align1};
 mov (8) g74.16<1>UW g84.0<8,8,1>UW {align1};
 mov (8) g75.16<1>UW g85.0<8,8,1>UW {align1};
-/*Y buffer Top Field 2*/
-mov(8) g1.0<1>UD g116.0<8,8,1>UD {align1};
-mov(1) g115.8<1>UD 0x007001fUD  { align1 };
-mov(1) g1.8<1>UD 0x007000fUD  { align1 };
 
-cmp.g (1) null g1.16<1,1,1>D 0D {align1};
-(f0) add (1) g2.0<1>D g2.0<1,1,1>D 1D {align1};
-cmp.g (1) null g1.20<1,1,1>D 0D {align1};
-(f0) add (1) g2.4<1>D g2.4<1,1,1>D 2D {align1};
 
-asr (2) g115.16<1>D g2.0<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+
+/*second vector---Y---top*/
+//mov(1) g115.8<1>UD 0x007001fUD  { align1 };
+//mov(1) g1.8<1>UD 0x007000fUD  { align1 };
+//cmp.g (1) null g1.14<1,1,1>W 0W {align1};
+//(f0) add (1) g1.22<1>W g1.22<1,1,1>W 1W {align1};
+//cmp.g (1) null g1.16<1,1,1>W 0W {align1};
+//(f0) add (1) g1.24<1>W g1.24<1,1,1>W 10W {align1};
+asr (2) g115.14<1>W g1.22<2,2,1>W 1W {align1};
+add (2) g115.0<1>UD g116.0<2,2,1>UD g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
-add (1) g115.4<1>D g115.4<1,1,1>D 2D {align1};
+//and.nz (1) null g1.31<1,1,1>UB 4UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
+add (1) g115.4<1>UD g115.4<1,1,1>UD 1D {align1};
 mov(1) g115.8<1>UD 0x1fUD  { align1 }; //read 1 line, 32 columns.
 define(`surface',`4')
-define(`mv1',`g2.0')
-define(`mv2',`g2.4')
+define(`mv1',`g1.22')
+define(`mv2',`g1.24')
 include(`motion_field_y.g4i')
 mov (8) g28.0<1>UD g96.0<8,8,1>UD {align1};
 mov (8) g30.0<1>UD g97.0<8,8,1>UD {align1};
@@ -138,20 +150,21 @@ mov (8) g36.0<1>UD g100.0<8,8,1>UD {align1};
 mov (8) g38.0<1>UD g101.0<8,8,1>UD {align1};
 mov (8) g40.0<1>UD g102.0<8,8,1>UD {align1};
 mov (8) g42.0<1>UD g103.0<8,8,1>UD {align1};
-/*Y buffer Bottom Field 2*/
 
-cmp.g (1) null g1.16<1,1,1>D 0D {align1};
-(f0) add (1) g2.8<1>D g2.8<1,1,1>D 1D {align1};
-cmp.g (1) null g1.20<1,1,1>D 0D {align1};
-(f0) add (1) g2.12<1>D g2.12<1,1,1>D 2D {align1};
-
-asr (2) g115.16<1>D g2.8<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+/*second vector---Y---bottom*/
+//cmp.g (1) null g1.18<1,1,1>W 0W {align1};
+//(f0) add (1) g1.26<1>W g1.26<1,1,1>W 1W {align1};
+cmp.g (1) null g1.20<1,1,1>W 0W {align1};
+(f0) add (1) g1.28<1>W g1.28<1,1,1>W 5W {align1};
+asr (2) g115.14<1>W g1.26<2,2,1>W 1W {align1};
+add (2) g115.0<1>UD g116.0<2,2,1>UD g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
+//and.nz (1)null g1.31<1,1,1>UB 4UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 mov(1) g115.8<1>UD 0x1fUD  { align1 }; //read 1 line, 32 columns.
 define(`surface',`4')
-define(`mv1',`g2.8')
-define(`mv2',`g2.12')
+define(`mv1',`g1.26')
+define(`mv2',`g1.28')
 include(`motion_field_y.g4i')
 
 avg.sat (16) g28.0<1>UW g52.0<16,16,1>UW g28.0<16,16,1>UW {align1};
@@ -171,18 +184,19 @@ avg.sat (16) g41.0<1>UW g65.0<16,16,1>UW g102.0<16,16,1>UW {align1};
 avg.sat (16) g42.0<1>UW g66.0<16,16,1>UW g42.0<16,16,1>UW {align1};
 avg.sat (16) g43.0<1>UW g67.0<16,16,1>UW g103.0<16,16,1>UW {align1};
 
-/*U buffer, V buffer Top Field 2*/
+/*second vector---UV---top*/
 mov(1) g115.8<1>UD 0x007000fUD  { align1 };
-asr (2) g115.0<1>D g116.0<1,1,1>D 1D {align1}; // x/=2 y/=2 
+asr (2) g115.0<1>UD g116.0<1,1,1>UD 1UD {align1}; // x/=2 y/=2 
+asr (2) g115.14<1>W g1.22<2,2,1>W 2W {align1};   // vector/=4
+add (2) g115.0<1>UD g115.0<2,2,1>UD g115.14<2,2,1>W {align1}; // (x,y)+=vector
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-asr (2) g115.16<1>D g2.0<2,2,1>D 1D {align1};   // vector/=4
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1}; // (x,y)+=vector
-and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-add (1) g115.4<1>D g115.4<1,1,1>D 1D {align1};
+//and.nz (1) null g1.31<1,1,1>UB 4UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
+add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 define(`surface_u',`5')
 define(`surface_v',`6')
-define(`mv1',`g2.0')
-define(`mv2',`g2.4')
+define(`mv1',`g1.22')
+define(`mv2',`g1.24')
 include(`motion_field_uv.g4i')
 mov (8) g44.0<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g45.0<1>UW g79.0<8,8,1>UW {align1};
@@ -192,16 +206,18 @@ mov (8) g48.0<1>UW g82.0<8,8,1>UW {align1};
 mov (8) g49.0<1>UW g83.0<8,8,1>UW {align1};
 mov (8) g50.0<1>UW g84.0<8,8,1>UW {align1};
 mov (8) g51.0<1>UW g85.0<8,8,1>UW {align1};
-/*U buffer, V buffer Bottom Field 2*/
-asr (2) g115.0<1>D g116.0<1,1,1>D 1D {align1}; // x/=2 y/=2 
+
+/*second vector---UV---bottom*/
+asr (2) g115.0<1>UD g116.0<1,1,1>UD 1UD {align1}; // x/=2 y/=2 
+asr (2) g115.14<1>W g1.26<2,2,1>W 2W {align1};   // vector/=4
+add (2) g115.0<1>UD g115.0<2,2,1>UD g115.14<2,2,1>W {align1}; // (x,y)+=vector
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
-asr (2) g115.16<1>D g2.8<2,2,1>D 2D {align1};   // vector/=4
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1}; // (x,y)+=vector
-and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};  // cut y
+//and.nz (1) null g1.31<1,1,1>UB 4UW {align1};
+//(f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 define(`surface_u',`5')
 define(`surface_v',`6')
-define(`mv1',`g2.8')
-define(`mv2',`g2.12')
+define(`mv1',`g1.26')
+define(`mv2',`g1.28')
 include(`motion_field_uv.g4i')
 mov (8) g44.16<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g45.16<1>UW g79.0<8,8,1>UW {align1};
@@ -222,5 +238,5 @@ avg.sat (16) g50.0<1>UW g74.0<16,16,1>UW g50.0<16,16,1>UW {align1};
 avg.sat (16) g51.0<1>UW g75.0<16,16,1>UW g51.0<16,16,1>UW {align1};
 include(`addidct.g4i')
 
-send (16) 0 acc0<1>UW g0<8,8,1>UW 
-	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};
+//send (16) 0 acc0<1>UW g0<8,8,1>UW 
+//	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};

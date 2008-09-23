@@ -330,25 +330,29 @@ static void pipeline_select()
 static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface interface)
 {
     BATCH_LOCALS;
-    BEGIN_BATCH(18);
-    OUT_BATCH(BRW_MEDIA_OBJECT|16);
+    BEGIN_BATCH(13);
+    OUT_BATCH(BRW_MEDIA_OBJECT|11);
     OUT_BATCH(interface);
     OUT_BATCH(6*128);
     OUT_BATCH(offset);
+    
     OUT_BATCH(mb->x<<4);                 //g1.0
     OUT_BATCH(mb->y<<4);
-    OUT_BATCH(2*(mb->index<<6));
-    OUT_BATCH(mb->coded_block_pattern);
-    OUT_BATCH(mb->PMV[0][0][0]);
-    OUT_BATCH(mb->PMV[0][0][1]);
-    OUT_BATCH(mb->PMV[0][1][0]);
-    OUT_BATCH(mb->PMV[0][1][1]);
-    OUT_BATCH(mb->PMV[1][0][0]);         //g2.0
-    OUT_BATCH(mb->PMV[1][0][1]);
-    OUT_BATCH(mb->PMV[1][1][0]);
-    OUT_BATCH(mb->PMV[1][1][1]);
-    OUT_BATCH(mb->dct_type);
-    OUT_BATCH(mb->motion_vertical_field_select);
+    OUT_BATCH(2*(mb->index<<6));               //g1.8
+    OUT_BATCH_SHORT(mb->coded_block_pattern);  //g1.12
+    OUT_BATCH_SHORT(mb->PMV[0][0][0]);         //g1.14
+    OUT_BATCH_SHORT(mb->PMV[0][0][1]);         //g1.16
+    OUT_BATCH_SHORT(mb->PMV[0][1][0]);         //g1.18
+    OUT_BATCH_SHORT(mb->PMV[0][1][1]);         //g1.20
+    
+    OUT_BATCH_SHORT(mb->PMV[1][0][0]);         //g1.22 
+    OUT_BATCH_SHORT(mb->PMV[1][0][1]);         //g1.24
+    OUT_BATCH_SHORT(mb->PMV[1][1][0]);         //g1.26
+    OUT_BATCH_SHORT(mb->PMV[1][1][1]);         //g1.28
+    OUT_BATCH_CHAR(mb->dct_type);              //g1.30
+    OUT_BATCH_CHAR(mb->motion_vertical_field_select);//g1.31
+    
+    OUT_BATCH(0xffffffff);
     ADVANCE_BATCH();
 }
 
@@ -583,12 +587,14 @@ static Status render_surface(Display *display,
 
 	    if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
 		send_media_object(mb, block_offset, INTRA_INTERFACE);
+		//send_media_object(mb, block_offset, NULL_INTERFACE);
 	    } else {
 		if (((mb->motion_type & 3) == XVMC_PREDICTION_FRAME)) {
 		    if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD))
 		    {
 			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))
 			    send_media_object(mb, block_offset, F_B_INTERFACE);
+			//	send_media_object(mb, block_offset, NULL_INTERFACE);
 			else
 			    send_media_object(mb, block_offset, FORWARD_INTERFACE);
 		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
@@ -600,12 +606,15 @@ static Status render_surface(Display *display,
 		    {
 			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))	
 			    send_media_object(mb, block_offset, FIELD_F_B_INTERFACE);
+			    //send_media_object(mb, block_offset, NULL_INTERFACE);
 			else 
 
 			    send_media_object(mb, block_offset, FIELD_FORWARD_INTERFACE);
+			    //send_media_object(mb, block_offset, NULL_INTERFACE);
 		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
 		    {
 			send_media_object(mb, block_offset, FIELD_BACKWARD_INTERFACE);
+			//send_media_object(mb, block_offset, NULL_INTERFACE);
 		    }
 		}else {
 		    send_media_object(mb, block_offset, DUAL_PRIME_INTERFACE);

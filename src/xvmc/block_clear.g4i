@@ -25,7 +25,7 @@
  *
  */
 
-and.nz (1) null g76.12<1,1,1>UD 0x20UD {align1};
+and.nz (1) null g76.12<1,1,1>UW 0x20UW {align1};
 (f0) jmpi next_block;
 mov (8) g3.0<1>UW 0UW {align1}; 
 mov (8) g4.0<1>UW 0UW {align1}; 
@@ -37,7 +37,7 @@ mov (8) g9.0<1>UW 0UW {align1};
 mov (8) g10.0<1>UW 0UW {align1}; 
 next_block:
 
-and.nz (1) null g1.12<1,1,1>UD 0x10UD {align1};
+and.nz (1) null g1.12<1,1,1>UW 0x10UW {align1};
 (f0) jmpi next_field;
 mov (8) g3.16<1>UW 0UW {align1}; 
 mov (8) g4.16<1>UW 0UW {align1}; 
@@ -48,7 +48,7 @@ mov (8) g8.16<1>UW 0UW {align1};
 mov (8) g9.16<1>UW 0UW {align1}; 
 mov (8) g10.16<1>UW 0UW {align1}; 
 next_field:
-and.nz (1) null g1.12<1,1,1>UD 0x8UD {align1};
+and.nz (1) null g1.12<1,1,1>UW 0x8UW {align1};
 (f0) jmpi next_field;
 mov (8) g11.0<1>UW 0UW {align1}; 
 mov (8) g12.0<1>UW 0UW {align1}; 
@@ -59,7 +59,7 @@ mov (8) g16.0<1>UW 0UW {align1};
 mov (8) g17.0<1>UW 0UW {align1}; 
 mov (8) g18.0<1>UW 0UW {align1}; 
 next_field:
-and.nz (1) null g1.12<1,1,1>UD 0x4UD {align1};
+and.nz (1) null g1.12<1,1,1>UW 0x4UW {align1};
 (f0) jmpi next_field;
 mov (8) g11.16<1>UW 0UW {align1}; 
 mov (8) g12.16<1>UW 0UW {align1}; 
@@ -71,7 +71,7 @@ mov (8) g17.16<1>UW 0UW {align1};
 mov (8) g18.16<1>UW 0UW {align1}; 
 next_field:
 
-and.nz (1) null g1.12<1,1,1>UD 0x2UD {align1};
+and.nz (1) null g1.12<1,1,1>UW 0x2UW {align1};
 (f0) jmpi next_field;
 mov (16) g19.0<1>UW 0UW {align1}; 
 mov (16) g20.0<1>UW 0UW {align1}; 
@@ -79,7 +79,7 @@ mov (16) g21.0<1>UW 0UW {align1};
 mov (16) g22.0<1>UW 0UW {align1}; 
 next_field:
 
-and.nz (1) null g1.12<1,1,1>UD 0x1UD {align1};
+and.nz (1) null g1.12<1,1,1>UW 0x1UW {align1};
 (f0) jmpi next_field;
 mov (16) g23.0<1>UW 0UW {align1}; 
 mov (16) g24.0<1>UW 0UW {align1}; 

@@ -27,6 +27,11 @@ extern int VERBOSE;
         batch_ptr += 2;                                                 \
     } while (0)
 
+#define OUT_BATCH_CHAR(n)                                               \
+	do {                                                                \
+		*(char *)batch_ptr = (n);                                       \
+		batch_ptr ++;                                                   \
+	} while (0)
 #define ADVANCE_BATCH()                                                  \
     do {                                                                 \
         xvmc_driver->batch.space -= (batch_ptr - xvmc_driver->batch.ptr);\

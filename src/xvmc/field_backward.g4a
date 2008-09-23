@@ -27,7 +27,7 @@
  *
  */
 mov (8) g76.0<1>UD g1.0<8,8,1>UD {align1};
-mov (8) g77.0<1>UD g2.0<8,8,1>UD {align1};
+//mov (8) g77.0<1>UD g2.0<8,8,1>UD {align1};
 
 include(`block_clear.g4i')
 
@@ -36,16 +36,17 @@ mov (8) g116.0<1>UD g1.0<8,8,1>UD {align1};
 /*Y buffer*/
 mov(1) g115.8<1>UD 0x007001fUD  { align1 };
 mov(1) g1.8<1>UD 0x007000fUD  { align1 };
-/*Top Field*/
-asr (2) g115.16<1>D g1.24<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+/*first vector*/
+asr (2) g115.14<1>W g1.18<2,2,1>W 1W {align1};
+add (2) g115.0<1>D g116.0<2,2,1>D g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
 mov(1) g115.8<1>UD 0x1fUD  { align1 }; //read 1 line, 32 columns.
-and.nz (1) null g2.20<1,1,1>UD 0x2UD {align1};
+
+and.nz (1) null g1.31<1,1,1>UB 0x2UW {align1};
 (f0) add (1) g115.4<1>D g115.4<1,1,1>D 1D {align1};
 define(`surface',`7')
-define(`mv1',`g1.24')
-define(`mv2',`g1.28')
+define(`mv1',`g1.18')
+define(`mv2',`g1.20')
 include(`motion_field_y.g4i')
 mov (8) g28.0<1>UD g96.0<8,8,1>UD {align1};
 mov (8) g30.0<1>UD g97.0<8,8,1>UD {align1};
@@ -55,16 +56,17 @@ mov (8) g36.0<1>UD g100.0<8,8,1>UD {align1};
 mov (8) g38.0<1>UD g101.0<8,8,1>UD {align1};
 mov (8) g40.0<1>UD g102.0<8,8,1>UD {align1};
 mov (8) g42.0<1>UD g103.0<8,8,1>UD {align1};
-/*Bottom Field*/
-asr (2) g115.16<1>D g2.8<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g116.0<2,2,1>D g115.16<2,2,1>D {align1};
+/*second vector*/
+asr (2) g115.14<1>W g1.26<2,2,1>W 1W {align1};
+add (2) g115.0<1>D g116.0<2,2,1>D g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
 mov(1) g115.8<1>UD 0x1fUD  { align1 }; //read 1 line, 32 columns.
-and.nz (1) null g2.20<1,1,1>UD 0x8UD {align1};
+
+and.nz (1) null g1.31<1,1,1>UB 0x8UW {align1};
 (f0) add (1) g115.4<1>D g115.4<1,1,1>D 1D {align1};
 define(`surface',`7')
-define(`mv1',`g2.8')
-define(`mv2',`g2.12')
+define(`mv1',`g1.26')
+define(`mv2',`g1.28')
 include(`motion_field_y.g4i')
 mov (8) g29.0<1>UD g96.0<8,8,1>UD {align1};
 mov (8) g31.0<1>UD g97.0<8,8,1>UD {align1};
@@ -76,17 +78,18 @@ mov (8) g41.0<1>UD g102.0<8,8,1>UD {align1};
 mov (8) g43.0<1>UD g103.0<8,8,1>UD {align1};
 /*U buffer, V buffer*/
 mov(1) g115.8<1>UD 0x007000fUD  { align1 };
-/*Top Field*/
-asr (2) g115.16<1>D g1.24<2,2,1>D 2D {align1};
+/*first vector*/
+asr (2) g115.14<1>W g1.18<2,2,1>W 2W {align1};
 asr (2) g115.0<1>D g116.0<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1};
+add (2) g115.0<1>D g115.0<2,2,1>D g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
-and.nz (1) null g2.20<1,1,1>UD 0x1UD {align1};
+
+and.nz (1) null g1.31<1,1,1>UB 0x2UW {align1};
 (f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
 define(`surface_u',`8')
 define(`surface_v',`9')
-define(`mv1',`g1.24')
-define(`mv2',`g1.28')
+define(`mv1',`g1.18')
+define(`mv2',`g1.20')
 include(`motion_field_uv.g4i')
 mov (8) g44.0<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g45.0<1>UW g79.0<8,8,1>UW {align1};
@@ -96,15 +99,16 @@ mov (8) g48.0<1>UW g82.0<8,8,1>UW {align1};
 mov (8) g49.0<1>UW g83.0<8,8,1>UW {align1};
 mov (8) g50.0<1>UW g84.0<8,8,1>UW {align1};
 mov (8) g51.0<1>UW g85.0<8,8,1>UW {align1};
-/*Bottom Field*/
-asr (2) g115.16<1>D g2.8<2,2,1>D 2D {align1};
+/*second vector*/
+asr (2) g115.14<1>W g1.26<2,2,1>W 2W {align1};
 asr (2) g115.0<1>D g116.0<2,2,1>D 1D {align1};
-add (2) g115.0<1>D g115.0<2,2,1>D g115.16<2,2,1>D {align1};
+add (2) g115.0<1>D g115.0<2,2,1>D g115.14<2,2,1>W {align1};
 and (1) g115.4<1>UD g115.4<1,1,1>UD 0xFFFFFFFEUD {align1};
-and.nz (1) null g2.20<1,1,1>UD 0x1UD {align1};
+
+and.nz (1) null g1.31<1,1,1>UB 0x8UW {align1};
 (f0) add (1) g115.4<1>UD g115.4<1,1,1>UD 1UD {align1};
-define(`mv1',`g2.8')
-define(`mv2',`g2.12')
+define(`mv1',`g1.26')
+define(`mv2',`g1.28')
 include(`motion_field_uv.g4i')
 mov (8) g44.16<1>UW g78.0<8,8,1>UW {align1};
 mov (8) g45.16<1>UW g79.0<8,8,1>UW {align1};
@@ -116,5 +120,5 @@ mov (8) g50.16<1>UW g84.0<8,8,1>UW {align1};
 mov (8) g51.16<1>UW g85.0<8,8,1>UW {align1};
 
 include(`addidct.g4i')
-send (16) 0 acc0<1>UW g0<8,8,1>UW 
-	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};
+//send (16) 0 acc0<1>UW g0<8,8,1>UW 
+//	thread_spawner(0, 0, 0) mlen 1 rlen 0 { align1 EOT};

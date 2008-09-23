@@ -45,7 +45,7 @@ mov.sat (16) g16.0<2>UB g16.0<16,16,1>W {align1};
 mov.sat (16) g17.0<2>UB g17.0<16,16,1>W {align1};
 mov.sat (16) g18.0<2>UB g18.0<16,16,1>W {align1};
 
-and.nz (1) null g2.16<1,1,1>UD 0x1UD{align1};
+and.nz (1) null g1.30<1,1,1>UB 0x1UW{align1};
 (f0) jmpi field_dct;
 //Frame IDCT
 mov (16) m1.0<1>UB g3.0<16,16,2>UB {align1};

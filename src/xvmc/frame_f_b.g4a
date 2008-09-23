@@ -35,7 +35,7 @@
 
 //Save payload
 mov (8) g76.0<1>UD g1.0<8,8,1>UD {align1};
-mov (8) g77.0<1>UD g2.0<8,8,1>UD {align1};
+//mov (8) g77.0<1>UD g2.0<8,8,1>UD {align1};
 include(`block_clear.g4i')
 
 mov (8) g115.0<1>UD g1.0<8,8,1>UD {align1};
@@ -43,11 +43,11 @@ mov (1) g1.8<1>UD 0x0070007UD  {align1};
 mov (8) g2.0<1>UD g1.0<8,8,1>UD {align1};
 /* Y */
 //Forward
-asr (2) g1.16<1>D g115.16<2,2,1>D 1D {align1};
-add (2) g2.0<1>UD g115.0<2,2,1>UD g1.16<2,2,1>D{align1};
+asr (2) g1.14<1>W g115.14<2,2,1>W 1W {align1};
+add (2) g2.0<1>UD g115.0<2,2,1>UD g1.14<2,2,1>W {align1};
 define(`input_surface',	`4')
-define(`mv1',	`g115.16')
-define(`mv2',	`g115.20')
+define(`mv1',	`g115.14')
+define(`mv2',	`g115.16')
 include(`motion_frame_y.g4i')
 mov (16) g52.0<1>UD g28.0<16,16,1>UD {align1 compr};
 mov (16) g54.0<1>UD g30.0<16,16,1>UD {align1 compr};
@@ -58,11 +58,11 @@ mov (16) g62.0<1>UD g38.0<16,16,1>UD {align1 compr};
 mov (16) g64.0<1>UD g40.0<16,16,1>UD {align1 compr};
 mov (16) g66.0<1>UD g42.0<16,16,1>UD {align1 compr};
 //Backward
-asr (2) g1.16<1>D g115.24<2,2,1>D 1D {align1};
-add (2) g2.0<1>UD g115.0<2,2,1>UD g1.16<2,2,1>D{align1};
+asr (2) g1.14<1>W g115.18<2,2,1>W 1W {align1};
+add (2) g2.0<1>UD g115.0<2,2,1>UD g1.14<2,2,1>W {align1};
 define(`input_surface',	`7')
-define(`mv1',	`g115.24')
-define(`mv2',	`g115.28')
+define(`mv1',	`g115.18')
+define(`mv2',	`g115.20')
 include(`motion_frame_y.g4i')
 
 //Average
@@ -83,17 +83,17 @@ avg.sat (16) g41.0<1>UW g41.0<16,16,1>UW g65.0<16,16,1>UW {align1};
 avg.sat (16) g42.0<1>UW g42.0<16,16,1>UW g66.0<16,16,1>UW {align1};
 avg.sat (16) g43.0<1>UW g43.0<16,16,1>UW g67.0<16,16,1>UW {align1};
 
-/* U */
+/* UV */
 //Forward
 shr (2) g1.0<1>UD g115.0<2,2,1>UD 1UD {align1};
-asr (2) g115.16<1>D g115.16<2,2,1>D 1D {align1};
-asr (2) g1.16<1>D g115.16<2,2,1>D 1D {align1};
-add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D {align1};
+asr (2) g115.14<1>W g115.14<2,2,1>W 1W {align1};
+asr (2) g1.14<1>W g115.14<2,2,1>W 1W {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.14<2,2,1>W {align1};
 
 define(`input_surface1',	`5')
 define(`input_surface2',	`6')
-define(`mv1',	`g115.16')
-define(`mv2',	`g115.20')
+define(`mv1',	`g115.14')
+define(`mv2',	`g115.16')
 mov (1) g2.8<1>UD 0x007000fUD  {align1};
 include(`motion_frame_uv.g4i')
 mov (16) g122.0<1>UB g44.0<16,16,2>UB {align1};
@@ -105,13 +105,13 @@ mov (16) g124.16<1>UB g49.0<16,16,2>UB {align1};
 mov (16) g125.0<1>UB g50.0<16,16,2>UB {align1};
 mov (16) g125.16<1>UB g51.0<16,16,2>UB {align1};
 //Backward
-asr (2) g115.24<1>D g115.24<2,2,1>D 1D {align1};
-asr (2) g1.16<1>D g115.24<2,2,1>D 1D {align1};
-add (2) g2.0<1>UD g1.0<2,2,1>UD g1.16<2,2,1>D{align1};
+asr (2) g115.18<1>W g115.18<2,2,1>W 1W {align1};
+asr (2) g1.14<1>W g115.18<2,2,1>W 1W {align1};
+add (2) g2.0<1>UD g1.0<2,2,1>UD g1.14<2,2,1>W {align1};
 define(`input_surface1',	`8')
 define(`input_surface2',	`9')
-define(`mv1',	`g115.24')
-define(`mv2',	`g115.28')
+define(`mv1',	`g115.18')
+define(`mv2',	`g115.20')
 mov (1) g2.8<1>UD 0x007000fUD  {align1};
 include(`motion_frame_uv.g4i')
 

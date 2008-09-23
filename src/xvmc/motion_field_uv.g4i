@@ -26,9 +26,9 @@
  *    Xing Dong sheng <dongsheng.xing@intel.com>
  *
  */
-       and.z (1) null mv1<1,1,1>UD 1UD {align1};       
+       and.z (1) null mv1<1,1,1>UW 2UW {align1};       
        (f0) jmpi L1;
-       and.z (1) null mv2<1,1,1>UD 2UD {align1};       
+       and.z (1) null mv2<1,1,1>UW 2UW {align1};       
        (f0) jmpi L2;
        include(`read_field_x1y1_uv.g4i')
        jmpi L5;
@@ -36,7 +36,7 @@ L2:
        include(`read_field_x1y0_uv.g4i')
        jmpi L5;
 L1:
-       and.z (1) null mv2<1,1,1>UD 1UD {align1};       
+       and.z (1) null mv2<1,1,1>UW 2UW {align1};       
        (f0) jmpi L4;
        include(`read_field_x0y1_uv.g4i')
        jmpi L5;
