@@ -72,6 +72,27 @@ static const uint32_t field_f_b_kernel_static[][4] = {
 static const uint32_t dual_prime_kernel_static[][4]= {
 	#include "dual_prime.g4b"
 }; 
+static const uint32_t frame_forward_igd_kernel_static[][4] = {
+	#include "frame_forward_igd.g4b"
+};
+static const uint32_t frame_backward_igd_kernel_static[][4] = {
+	#include "frame_backward_igd.g4b"
+};
+static const uint32_t frame_f_b_igd_kernel_static[][4] = {
+	#include "frame_f_b_igd.g4b"
+}; 
+static const uint32_t field_forward_igd_kernel_static[][4] = {
+	#include "field_forward_igd.g4b"
+};
+static const uint32_t field_backward_igd_kernel_static[][4] = {
+	#include "field_backward_igd.g4b"
+};
+static const uint32_t field_f_b_igd_kernel_static[][4] = {
+	#include "field_f_b_igd.g4b"
+}; 
+static const uint32_t dual_prime_igd_kernel_static[][4]= {
+	#include "dual_prime_igd.g4b"
+}; 
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
@@ -103,6 +124,7 @@ struct media_state {
     unsigned long null_kernel_offset;
     unsigned long surface_offsets[MAX_SURFACE_NUM];
     unsigned long binding_table_offset;
+    unsigned int  is_igd_gm:1;
 };
 struct media_state media_state;
 
@@ -318,11 +340,14 @@ static void state_base_address(int offset)
 }
 
 /* select media pipeline */
-static void pipeline_select()
+static void pipeline_select(struct media_state *media_state)
 {
     BATCH_LOCALS;
     BEGIN_BATCH(1);
-    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
+    if (media_state->is_igd_gm)
+	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
+    else
+	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
     ADVANCE_BATCH();
 }
 
@@ -372,15 +397,30 @@ static void media_kernels(struct media_state *media_state)
 #define LOAD_KERNEL(name) kernel = media_state->state_ptr +\
 	(media_state->name##_kernel_offset - media_state->state_base);\
 	memcpy(kernel, name##_kernel_static, sizeof(name##_kernel_static));
+#define LOAD_KERNEL_IGD(name) kernel = media_state->state_ptr +\
+	(media_state->name##_kernel_offset - media_state->state_base);\
+	memcpy(kernel, name##_igd_kernel_static, sizeof(name##_igd_kernel_static));
+
 	LOAD_KERNEL(ipicture);
 	LOAD_KERNEL(null);
-	LOAD_KERNEL(frame_forward);
-	LOAD_KERNEL(field_forward);
-	LOAD_KERNEL(frame_backward);
-	LOAD_KERNEL(field_backward);
-	LOAD_KERNEL(frame_f_b);
-	LOAD_KERNEL(field_f_b);
-	LOAD_KERNEL(dual_prime);
+	if (media_state->is_igd_gm) {
+		LOAD_KERNEL_IGD(frame_forward);
+		LOAD_KERNEL_IGD(field_forward);
+		LOAD_KERNEL_IGD(frame_backward);
+		LOAD_KERNEL_IGD(field_backward);
+		LOAD_KERNEL_IGD(frame_f_b);
+		LOAD_KERNEL_IGD(field_f_b);
+		LOAD_KERNEL_IGD(dual_prime);
+
+	}else {
+		LOAD_KERNEL(frame_forward);
+		LOAD_KERNEL(field_forward);
+		LOAD_KERNEL(frame_backward);
+		LOAD_KERNEL(field_backward);
+		LOAD_KERNEL(frame_f_b);
+		LOAD_KERNEL(field_f_b);
+		LOAD_KERNEL(dual_prime);
+	}
 }
 
 static void setup_interface(struct media_state *media_state, 
@@ -464,30 +504,55 @@ static void calc_state_layouts(struct media_state *media_state)
     media_state->ipicture_kernel_offset = 
 	ALIGN(media_state->surface_offsets[MAX_SURFACE_NUM - 1] 
 		+ sizeof(struct brw_surface_state) , 64);
+
     media_state->frame_forward_kernel_offset = 
-	ALIGN(media_state->ipicture_kernel_offset + 
-		sizeof(ipicture_kernel_static), 64);
-    media_state->field_forward_kernel_offset = 
-	ALIGN(media_state->frame_forward_kernel_offset + 
-		sizeof(frame_forward_kernel_static), 64);
-    media_state->frame_backward_kernel_offset = 
-	ALIGN(media_state->field_forward_kernel_offset + 
-		sizeof(field_forward_kernel_static), 64);
-    media_state->field_backward_kernel_offset = 
-	ALIGN(media_state->frame_backward_kernel_offset + 
-		sizeof(frame_backward_kernel_static), 64);
-    media_state->frame_f_b_kernel_offset = 
-	ALIGN(media_state->field_backward_kernel_offset + 
-		sizeof(field_backward_kernel_static), 64);
-    media_state->field_f_b_kernel_offset = 
-	ALIGN(media_state->frame_f_b_kernel_offset + 
-		sizeof(frame_f_b_kernel_static), 64);
-    media_state->null_kernel_offset =
-	ALIGN(media_state->field_f_b_kernel_offset +
-		sizeof(field_f_b_kernel_static), 64);
-    media_state->dual_prime_kernel_offset =
-	ALIGN(media_state->null_kernel_offset +
-		sizeof(null_kernel_static), 64);
+	    ALIGN(media_state->ipicture_kernel_offset + 
+			    sizeof(ipicture_kernel_static), 64);
+    if(!media_state->is_igd_gm) {
+	    media_state->field_forward_kernel_offset = 
+		    ALIGN(media_state->frame_forward_kernel_offset + 
+				    sizeof(frame_forward_kernel_static), 64);
+	    media_state->frame_backward_kernel_offset = 
+		    ALIGN(media_state->field_forward_kernel_offset + 
+				    sizeof(field_forward_kernel_static), 64);
+	    media_state->field_backward_kernel_offset = 
+		    ALIGN(media_state->frame_backward_kernel_offset + 
+				    sizeof(frame_backward_kernel_static), 64);
+	    media_state->frame_f_b_kernel_offset = 
+		    ALIGN(media_state->field_backward_kernel_offset + 
+				    sizeof(field_backward_kernel_static), 64);
+	    media_state->field_f_b_kernel_offset = 
+		    ALIGN(media_state->frame_f_b_kernel_offset + 
+				    sizeof(frame_f_b_kernel_static), 64);
+	    media_state->null_kernel_offset =
+		    ALIGN(media_state->field_f_b_kernel_offset +
+				    sizeof(field_f_b_kernel_static), 64);
+	    media_state->dual_prime_kernel_offset =
+		    ALIGN(media_state->null_kernel_offset +
+				    sizeof(null_kernel_static), 64);
+    } else {
+	    media_state->field_forward_kernel_offset = 
+		    ALIGN(media_state->frame_forward_kernel_offset + 
+				    sizeof(frame_forward_igd_kernel_static), 64);
+	    media_state->frame_backward_kernel_offset = 
+		    ALIGN(media_state->field_forward_kernel_offset + 
+				    sizeof(field_forward_igd_kernel_static), 64);
+	    media_state->field_backward_kernel_offset = 
+		    ALIGN(media_state->frame_backward_kernel_offset + 
+				    sizeof(frame_backward_igd_kernel_static), 64);
+	    media_state->frame_f_b_kernel_offset = 
+		    ALIGN(media_state->field_backward_kernel_offset + 
+				    sizeof(field_backward_igd_kernel_static), 64);
+	    media_state->field_f_b_kernel_offset = 
+		    ALIGN(media_state->frame_f_b_kernel_offset + 
+				    sizeof(frame_f_b_igd_kernel_static), 64);
+	    media_state->null_kernel_offset =
+		    ALIGN(media_state->field_f_b_kernel_offset +
+				    sizeof(field_f_b_igd_kernel_static), 64);
+	    media_state->dual_prime_kernel_offset =
+		    ALIGN(media_state->null_kernel_offset +
+				    sizeof(null_kernel_static), 64);
+    }
 }
 
 static Status render_surface(Display *display, 
@@ -575,7 +640,7 @@ static Status render_surface(Display *display,
 	flush();	
 	clear_sf_state();
 	clear_urb_state();
-	pipeline_select();
+	pipeline_select(&media_state);
 	urb_layout();	
 	media_state_pointers(&media_state);
 	cs_urb_layout();
@@ -661,6 +726,7 @@ static Status create_context(Display *display, XvMCContext *context,
     {
 	media_state.state_base = i965_ctx->static_buffer.offset;
 	media_state.state_ptr = i965_ctx->static_buffer.ptr;
+	media_state.is_igd_gm = i965_ctx->is_igd_gm;
 	media_state.binding_table_entry_count = MAX_SURFACE_NUM;
 	calc_state_layouts(&media_state);
 	vfe_state(&media_state);

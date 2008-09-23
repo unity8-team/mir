@@ -29,6 +29,13 @@ libIntelXvMC_la_LDFLAGS = -version-number 1:0:0
 libIntelXvMC_la_LIBADD = @DRI_LIBS@
 
 INTEL_G4A =                         \
+        dual_prime_igd.g4a              \
+        field_backward_igd.g4a          \
+        field_f_b_igd.g4a               \
+        field_forward_igd.g4a           \
+        frame_backward_igd.g4a          \
+        frame_f_b_igd.g4a               \
+        frame_forward_igd.g4a           \
         dual_prime.g4a              \
         field_backward.g4a          \
         field_f_b.g4a               \
@@ -41,7 +48,7 @@ INTEL_G4A =                         \
 
 INTEL_G4I =                                      \
         addidct.g4i                              \
-        block_clear.g4i                              \
+        block_clear.g4i                          \
         read_frame_x0y0_y.g4i                    \
         read_frame_x0y1_y.g4i                    \
         read_frame_x1y0_y.g4i                    \
@@ -50,6 +57,14 @@ INTEL_G4I =                                      \
         read_frame_x0y1_uv.g4i                   \
         read_frame_x1y0_uv.g4i                   \
         read_frame_x1y1_uv.g4i                   \
+        read_frame_x0y0_y_igd.g4i                    \
+        read_frame_x0y1_y_igd.g4i                    \
+        read_frame_x1y0_y_igd.g4i                    \
+        read_frame_x1y1_y_igd.g4i                    \
+        read_frame_x0y0_uv_igd.g4i                   \
+        read_frame_x0y1_uv_igd.g4i                   \
+        read_frame_x1y0_uv_igd.g4i                   \
+        read_frame_x1y1_uv_igd.g4i                   \
         motion_frame_y.g4i                       \
         motion_frame_uv.g4i                      \
         read_field_x0y0_y.g4i                    \
@@ -60,6 +75,14 @@ INTEL_G4I =                                      \
         read_field_x0y1_uv.g4i                   \
         read_field_x1y0_uv.g4i                   \
         read_field_x1y1_uv.g4i                   \
+        read_field_x0y0_y_igd.g4i                    \
+        read_field_x0y1_y_igd.g4i                    \
+        read_field_x1y0_y_igd.g4i                    \
+        read_field_x1y1_y_igd.g4i                    \
+        read_field_x0y0_uv_igd.g4i                   \
+        read_field_x0y1_uv_igd.g4i                   \
+        read_field_x1y0_uv_igd.g4i                   \
+        read_field_x1y1_uv_igd.g4i                   \
         motion_field_y.g4i                       \
         motion_field_uv.g4i
 
@@ -71,6 +94,13 @@ INTEL_G4B =                         \
         frame_backward.g4b          \
         frame_f_b.g4b               \
         frame_forward.g4b           \
+        dual_prime_igd.g4b              \
+        field_backward_igd.g4b          \
+        field_f_b_igd.g4b               \
+        field_forward_igd.g4b           \
+        frame_backward_igd.g4b          \
+        frame_f_b_igd.g4b               \
+        frame_forward_igd.g4b           \
         ipicture.g4b                \
         null.g4b
 

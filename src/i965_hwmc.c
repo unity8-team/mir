@@ -124,6 +124,7 @@ static int create_context(ScrnInfoPtr pScrn,
 		return BadAlloc;
 	}
 
+	private_context->is_igd_gm = IS_IGD_GM(I830);
 	private_context->comm.type = xvmc_driver->flag;
 	private_context->comm.sarea_size = driinfo->SAREASize;
 	private_context->comm.batchbuffer.offset = xvmc_driver->batch->offset;

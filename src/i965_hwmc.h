@@ -20,4 +20,5 @@ struct i965_xvmc_context {
     struct 	drm_memory_block static_buffer;
     struct 	drm_memory_block blocks;
     struct 	i965_xvmc_surface *surfaces[I965_MAX_SURFACES];
+    unsigned    int is_igd_gm:1;
 };
