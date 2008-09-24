@@ -224,7 +224,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     if (IS_AVIVO_VARIANT) {
 	uint32_t temp;
 
-	if (mode->Clock > 120000) /* range limits??? */
+	if (mode->Clock > 200000) /* range limits??? */
 	    pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 	else
 	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;

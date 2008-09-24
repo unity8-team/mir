@@ -1708,7 +1708,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     Bool update_tv_routing = FALSE;
     Bool tilingChanged = FALSE;
 
-    if (adjusted_mode->Clock > 120000) /* range limits??? */
+    if (adjusted_mode->Clock > 200000) /* range limits??? */
 	pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
     else
 	pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
