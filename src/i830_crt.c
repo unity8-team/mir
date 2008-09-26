@@ -161,6 +161,14 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
     uint32_t	temp;
     const int	timeout_ms = 1000;
     int		starttime, curtime;
+    int		tries = 1;
+
+    /* On 4 series, CRT detect sequence need to be done twice for safe. */
+    if (IS_G4X(pI830))
+	tries = 2;
+
+retry:
+    tries--;
 
     temp = INREG(PORT_HOTPLUG_EN);
 
@@ -172,6 +180,9 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
 	if ((INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT) == 0)
 	    break;
     }
+
+    if (tries > 0)
+	goto retry;
 
     if ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
 	CRT_HOTPLUG_MONITOR_COLOR)
