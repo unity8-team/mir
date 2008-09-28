@@ -25,6 +25,58 @@
  *
  */
 
+and.nz (1) null g2.0<1,1,1>UD 0x1UD{align1};
+(f0) jmpi direct_idct;
+add (1) g2.8<1>UD g76.8<1,1,1>UD 0UD{align1};
+send (16) 0 g3.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g4.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g5.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g6.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g7.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g8.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g9.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g10.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g11.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g12.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g13.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g14.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g15.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g16.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g17.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g18.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g19.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g20.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g21.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g22.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g23<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g24.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g25.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+add (1) g2.8<1>UD g2.8<1,1,1>UD 32UD {align1};
+send (16) 0 g26.0<1>UD g2<16,16,1>UD read(3, 0, 2, 0) mlen 1 rlen 1 { align1 };
+direct_idct:
+
 and.nz (1) null g76.12<1,1,1>UW 0x20UW {align1};
 (f0) jmpi next_block;
 mov (8) g3.0<1>UW 0UW {align1}; 

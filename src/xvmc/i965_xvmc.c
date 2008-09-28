@@ -125,6 +125,7 @@ struct media_state {
     unsigned long surface_offsets[MAX_SURFACE_NUM];
     unsigned long binding_table_offset;
     unsigned int  is_igd_gm:1;
+    unsigned int  is_965_q:1;
 };
 struct media_state media_state;
 
@@ -358,12 +359,17 @@ static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface int
     BEGIN_BATCH(13);
     OUT_BATCH(BRW_MEDIA_OBJECT|11);
     OUT_BATCH(interface);
-    OUT_BATCH(6*128);
-    OUT_BATCH(offset);
+    if (media_state.is_965_q) {
+	OUT_BATCH(0);
+	OUT_BATCH(0);
+    }else {
+	OUT_BATCH(6*128);
+	OUT_BATCH(offset);
+    }
     
     OUT_BATCH(mb->x<<4);                 //g1.0
     OUT_BATCH(mb->y<<4);
-    OUT_BATCH(2*(mb->index<<6));               //g1.8
+    OUT_BATCH(offset);               //g1.8
     OUT_BATCH_SHORT(mb->coded_block_pattern);  //g1.12
     OUT_BATCH_SHORT(mb->PMV[0][0][0]);         //g1.14
     OUT_BATCH_SHORT(mb->PMV[0][0][1]);         //g1.16
@@ -377,7 +383,10 @@ static void send_media_object(XvMCMacroBlock *mb, int offset, enum interface int
     OUT_BATCH_CHAR(mb->dct_type);              //g1.30
     OUT_BATCH_CHAR(mb->motion_vertical_field_select);//g1.31
     
-    OUT_BATCH(0xffffffff);
+    if (media_state.is_965_q) 
+	OUT_BATCH(0x0);
+    else
+	OUT_BATCH(0xffffffff);
     ADVANCE_BATCH();
 }
 
@@ -634,7 +643,8 @@ static Status render_surface(Display *display,
     }
 
     {
-	int block_offset = i965_ctx->blocks.offset;
+	int block_offset;
+	block_offset = media_state.is_965_q?0:i965_ctx->blocks.offset;
 	LOCK_HARDWARE(intel_ctx->hw_context);
 	state_base_address(block_offset);
 	flush();	
@@ -652,14 +662,12 @@ static Status render_surface(Display *display,
 
 	    if (mb->macroblock_type & XVMC_MB_TYPE_INTRA) {
 		send_media_object(mb, block_offset, INTRA_INTERFACE);
-		//send_media_object(mb, block_offset, NULL_INTERFACE);
 	    } else {
 		if (((mb->motion_type & 3) == XVMC_PREDICTION_FRAME)) {
 		    if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_FORWARD))
 		    {
 			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))
 			    send_media_object(mb, block_offset, F_B_INTERFACE);
-			//	send_media_object(mb, block_offset, NULL_INTERFACE);
 			else
 			    send_media_object(mb, block_offset, FORWARD_INTERFACE);
 		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
@@ -671,15 +679,12 @@ static Status render_surface(Display *display,
 		    {
 			if (((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD)))	
 			    send_media_object(mb, block_offset, FIELD_F_B_INTERFACE);
-			    //send_media_object(mb, block_offset, NULL_INTERFACE);
 			else 
 
 			    send_media_object(mb, block_offset, FIELD_FORWARD_INTERFACE);
-			    //send_media_object(mb, block_offset, NULL_INTERFACE);
 		    } else if ((mb->macroblock_type&XVMC_MB_TYPE_MOTION_BACKWARD))
 		    {
 			send_media_object(mb, block_offset, FIELD_BACKWARD_INTERFACE);
-			//send_media_object(mb, block_offset, NULL_INTERFACE);
 		    }
 		}else {
 		    send_media_object(mb, block_offset, DUAL_PRIME_INTERFACE);
@@ -727,6 +732,7 @@ static Status create_context(Display *display, XvMCContext *context,
 	media_state.state_base = i965_ctx->static_buffer.offset;
 	media_state.state_ptr = i965_ctx->static_buffer.ptr;
 	media_state.is_igd_gm = i965_ctx->is_igd_gm;
+	media_state.is_965_q = i965_ctx->is_965_q;
 	media_state.binding_table_entry_count = MAX_SURFACE_NUM;
 	calc_state_layouts(&media_state);
 	vfe_state(&media_state);
