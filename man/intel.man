@@ -222,6 +222,12 @@ information.
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 Default: Disabled.
+.TP
+.BI "Option \*qForceSDVODetect\*q \*q" boolean \*q
+Instead of depending on SDVO detect status bit to initialize SDVO outputs,
+this option trys to ignore that status bit and try to probe on all SDVO
+ports anyway. Try this if some output is not detected on your ADD2 card.
+Use of this option will slow down your startup time. Default: Disabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

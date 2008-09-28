@@ -316,6 +316,7 @@ typedef enum {
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
+   OPTION_FORCE_SDVO_DETECT,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -342,6 +343,7 @@ static OptionInfoRec I830Options[] = {
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
+   {OPTION_FORCE_SDVO_DETECT, "ForceSDVODetect", OPTV_BOOLEAN,  {0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -915,14 +917,14 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      if (INREG(SDVOB) & SDVO_DETECTED) {
+      if ((INREG(SDVOB) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOB);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
 	    i830_hdmi_init(pScrn, SDVOB);
       }
 
-      if (INREG(SDVOC) & SDVO_DETECTED) {
+      if ((INREG(SDVOC) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOC);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
@@ -1463,6 +1465,12 @@ I830GetEarlyOptions(ScrnInfoPtr pScrn)
 
     if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
 	pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
+
+    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCE_SDVO_DETECT, FALSE)) {
+	pI830->force_sdvo_detect = TRUE;
+    } else {
+	pI830->force_sdvo_detect = FALSE;
+    }
 
     return TRUE;
 }

@@ -714,6 +714,10 @@ typedef struct _I830Rec {
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
    unsigned int quirk_flag;
+
+   /* User option to ignore SDVO detect bit status, in case some outputs
+      not detected on SDVO, so let driver try its best. */
+   Bool force_sdvo_detect;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
