@@ -203,7 +203,7 @@ dnl Use lots of warning flags with GCC
 WARN_CFLAGS=""
 
 if test "x$GCC" = "xyes"; then
-	WARN_CFLAGS="-Wall -Werror -Wpointer-arith -Wstrict-prototypes \
+	WARN_CFLAGS="-Wall -Wpointer-arith -Wstrict-prototypes \
 	-Wmissing-prototypes -Wmissing-declarations \
 	-Wnested-externs -fno-strict-aliasing"
 fi
