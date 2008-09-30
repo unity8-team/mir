@@ -316,6 +316,7 @@ typedef enum {
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
+   OPTION_FORCE_SDVO_DETECT,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -342,6 +343,7 @@ static OptionInfoRec I830Options[] = {
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
+   {OPTION_FORCE_SDVO_DETECT, "ForceSDVODetect", OPTV_BOOLEAN,  {0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -915,14 +917,14 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      if (INREG(SDVOB) & SDVO_DETECTED) {
+      if ((INREG(SDVOB) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOB);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
 	    i830_hdmi_init(pScrn, SDVOB);
       }
 
-      if (INREG(SDVOC) & SDVO_DETECTED) {
+      if ((INREG(SDVOC) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOC);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
@@ -965,12 +967,18 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
     if (IS_GM45(pI830) || IS_G4X(pI830)) {
+	uint32_t dspclk_gate;
 	OUTREG(RENCLK_GATE_D1, 0);
-	OUTREG(RENCLK_GATE_D2, 0);
+	OUTREG(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
+		GS_UNIT_CLOCK_GATE_DISABLE |
+		CL_UNIT_CLOCK_GATE_DISABLE);
 	OUTREG(RAMCLK_GATE_D, 0);
-	OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE |
-	       OVRUNIT_CLOCK_GATE_DISABLE |
-	       OVCUNIT_CLOCK_GATE_DISABLE);
+	dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
+	    OVRUNIT_CLOCK_GATE_DISABLE |
+	    OVCUNIT_CLOCK_GATE_DISABLE;
+	if (IS_GM45(pI830))
+	    dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
+	OUTREG(DSPCLK_GATE_D, dspclk_gate);
     } else if (IS_I965GM(pI830)) {
 	OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 	OUTREG(RENCLK_GATE_D2, 0);
@@ -1457,6 +1465,12 @@ I830GetEarlyOptions(ScrnInfoPtr pScrn)
 
     if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
 	pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
+
+    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCE_SDVO_DETECT, FALSE)) {
+	pI830->force_sdvo_detect = TRUE;
+    } else {
+	pI830->force_sdvo_detect = FALSE;
+    }
 
     return TRUE;
 }
@@ -2359,12 +2373,15 @@ RestoreHWState(ScrnInfoPtr pScrn)
    /* If the pipe A PLL is active, we can restore the pipe & plane config */
    if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
    {
+      OUTREG(FPA0, pI830->saveFPA0);
       OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
+      POSTING_READ(DPLL_A);
       usleep(150);
    }
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
+   POSTING_READ(DPLL_A);
    i830_dpll_settle();
    if (IS_I965G(pI830))
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
@@ -2420,12 +2437,15 @@ RestoreHWState(ScrnInfoPtr pScrn)
       /* If the pipe B PLL is active, we can restore the pipe & plane config */
       if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
       {
+	 OUTREG(FPB0, pI830->saveFPB0);
 	 OUTREG(DPLL_B, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
+	 POSTING_READ(DPLL_B);
 	 usleep(150);
       }
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
+      POSTING_READ(DPLL_B);
       i830_dpll_settle();
       if (IS_I965G(pI830))
 	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
@@ -3038,7 +3058,7 @@ static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
    ScrnInfoPtr pScrn;
-   vgaHWPtr hwp;
+   vgaHWPtr hwp = NULL;
    I830Ptr pI830;
    VisualPtr visual;
    I830Ptr pI8301 = NULL;

@@ -668,6 +668,10 @@ uxa_glyphs_intersect(int nlist, GlyphListPtr list, GlyphPtr *glyphs)
 
     x = 0;
     y = 0;
+    extents.x1 = 0;
+    extents.y1 = 0;
+    extents.x2 = 0;
+    extents.y2 = 0;
     while (nlist--) {
        x += list->xOff;
        y += list->yOff;

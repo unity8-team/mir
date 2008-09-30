@@ -857,27 +857,31 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
-	/* Disable the VGA plane that we never use */
-	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+	/* 
+	 * The documentation says :
+	 * - Disable planes (VGA or hires)
+	 * - Disable pipe
+	 * - Disable VGA display
+	 */
+
+	/* Disable display plane */
+	temp = INREG(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+	{
+	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	    POSTING_READ(dspbase_reg);
+	}
+
+	if (!IS_I9XX(pI830)) {
+	    /* Wait for vblank for the disable to take effect */
+	    i830WaitForVblank(pScrn);
+	}
 
 	/* May need to leave pipe A on */
 	if ((pipe != 0) || !(pI830->quirk_flag & QUIRK_PIPEA_FORCE))
 	{
-		/* Disable display plane */
-		temp = INREG(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0)
-		{
-		    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-		    /* Flush the plane changes */
-		    OUTREG(dspbase_reg, INREG(dspbase_reg));
-		    POSTING_READ(dspbase_reg);
-		}
-
-		if (!IS_I9XX(pI830)) {
-		    /* Wait for vblank for the disable to take effect */
-		    i830WaitForVblank(pScrn);
-		}
-
 		/* Next, disable display pipes */
 		temp = INREG(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
@@ -893,9 +897,15 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 		    POSTING_READ(dpll_reg);
 		}
+
+		/* Wait for the clocks to turn off. */
+		usleep(150);
 	}
-	/* Wait for the clocks to turn off. */
-	usleep(150);
+
+	/* Disable the VGA plane that we never use. */
+	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+	i830WaitForVblank(pScrn);
+
 	break;
     }
 

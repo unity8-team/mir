@@ -59,41 +59,65 @@ struct _fake_i830 *pI830 = &I830;
 
 #define YESNO(val) ((val) ? "yes" : "no")
 
+struct bdb_block {
+    uint8_t id;
+    uint16_t size;
+    void *data;
+};
+
+struct bdb_header *bdb;
 static int tv_present;
 static int lvds_present;
 static int panel_type;
 
-static void *find_section(struct bdb_header *bdb, int section_id)
+static struct bdb_block *find_section(int section_id)
 {
-	unsigned char *base = (unsigned char *)bdb;
-	int index = 0;
-	uint16_t total, current_size;
-	unsigned char current_id;
+    struct bdb_block *block;
+    unsigned char *base = (unsigned char *)bdb;
+    int index = 0;
+    uint16_t total, current_size;
+    unsigned char current_id;
 
-	/* skip to first section */
-	index += bdb->header_size;
-	total = bdb->bdb_size;
+    /* skip to first section */
+    index += bdb->header_size;
+    total = bdb->bdb_size;
 
-	/* walk the sections looking for section_id */
-	while (index < total) {
-		current_id = *(base + index);
-		index++;
-		current_size = *((uint16_t *)(base + index));
-		index += 2;
-		if (current_id == section_id)
-			return base + index;
-		index += current_size;
+    block = malloc(sizeof(*block));
+    if (!block) {
+	fprintf(stderr, "out of memory\n");
+	exit(-1);
+    }
+
+    /* walk the sections looking for section_id */
+    while (index < total) {
+	current_id = *(base + index);
+	index++;
+	current_size = *((uint16_t *)(base + index));
+	index += 2;
+	if (current_id == section_id) {
+	    block->id = current_id;
+	    block->size = current_size;
+	    block->data = base + index;
+	    return block;
 	}
+	index += current_size;
+    }
 
-	return NULL;
+    free(block);
+    return NULL;
 }
 
-static void dump_general_features(void *data)
+static void dump_general_features(void)
 {
-    struct bdb_general_features *features = data;
+    struct bdb_general_features *features;
+    struct bdb_block *block;
 
-    if (!data)
+    block = find_section(BDB_GENERAL_FEATURES);
+
+    if (!block)
 	return;
+
+    features = block->data;
 
     printf("General features block:\n");
 
@@ -133,15 +157,23 @@ static void dump_general_features(void *data)
 
     tv_present = 1; /* should be based on whether TV DAC exists */
     lvds_present = 1; /* should be based on IS_MOBILE() */
+
+    free(block);
 }
 
-static void dump_general_definitions(void *data)
+static void dump_general_definitions(void)
 {
-    struct bdb_general_definitions *defs = data;
-    unsigned char *lvds_data = defs->tv_or_lvds_info;
+    struct bdb_block *block;
+    struct bdb_general_definitions *defs;
+    unsigned char *lvds_data;
 
-    if (!data)
+    block = find_section(BDB_GENERAL_DEFINITIONS);
+
+    if (!block)
 	return;
+
+    defs = block->data;
+    lvds_data = defs->tv_or_lvds_info;
 
     printf("General definitions block:\n");
 
@@ -157,14 +189,21 @@ static void dump_general_definitions(void *data)
 	lvds_data += 33;
     if (lvds_present)
 	printf("\tLFP DDC GMBUS addr: 0x%02x\n", lvds_data[19]);
+
+    free(block);
 }
 
-static void dump_lvds_options(void *data)
+static void dump_lvds_options(void)
 {
-    struct bdb_lvds_options *options = data;
+    struct bdb_block *block;
+    struct bdb_lvds_options *options;
 
-    if (!data)
+    block = find_section(BDB_LVDS_OPTIONS);
+
+    if (!block)
 	return;
+
+    options = block->data;
 
     printf("LVDS options block:\n");
 
@@ -178,19 +217,51 @@ static void dump_lvds_options(void *data)
     printf("\tPFIT enhanced text mode: %s\n",
 	   YESNO(options->pfit_text_mode_enhanced));
     printf("\tPFIT mode: %d\n", options->pfit_mode);
+
+    free(block);
 }
 
-static void dump_lvds_data(void *data, unsigned char *base)
+static void dump_lvds_ptr_data(void)
 {
-    struct bdb_lvds_lfp_data *lvds_data = data;
-    int i;
+    struct bdb_block *block;
+    struct bdb_lvds_lfp_data_ptrs *ptrs;
+    struct lvds_fp_timing *fp_timing;
 
-    if (!data)
+    block = find_section(BDB_LVDS_LFP_DATA_PTRS);
+    if (!block)
 	return;
 
-    printf("LVDS panel data block (preferred block marked with '*'):\n");
+    ptrs = block->data;
+    fp_timing =	(struct lvds_fp_timing *)((uint8_t *)bdb +
+					  ptrs->ptr[panel_type].fp_timing_offset);
 
-    for (i = 0; i < 16; i++) {
+    printf("LVDS timing pointer data:\n");
+    printf("  Number of entries: %d\n", ptrs->lvds_entries);
+
+    printf("\tpanel type %02i: %dx%d\n", panel_type, fp_timing->x_res,
+	   fp_timing->y_res);
+
+    free(block);
+}
+
+static void dump_lvds_data(void)
+{
+    struct bdb_block *block;
+    struct bdb_lvds_lfp_data *lvds_data;
+    int num_entries;
+    int i;
+
+    block = find_section(BDB_LVDS_LFP_DATA);
+    if (!block)
+	return;
+
+    lvds_data = block->data;
+    num_entries = block->size / sizeof(struct bdb_lvds_lfp_data_entry);
+
+    printf("LVDS panel data block (preferred block marked with '*'):\n");
+    printf("  Number of entries: %d\n", num_entries);
+
+    for (i = 0; i < num_entries; i++) {
 	struct bdb_lvds_lfp_data_entry *lfp_data = &lvds_data->data[i];
 	uint8_t *timing_data = (uint8_t *)&lfp_data->dvo_timing;
 	char marker;
@@ -198,13 +269,13 @@ static void dump_lvds_data(void *data, unsigned char *base)
 	if (i == panel_type)
 	    marker = '*';
 	else
-	    continue;
+	    marker = ' ';
 
 	printf("%c\tpanel type %02i: %dx%d clock %d\n", marker,
 	       i, lfp_data->fp_timing.x_res, lfp_data->fp_timing.y_res,
 	       _PIXEL_CLOCK(timing_data));
 	printf("\t\tinfo:\n");
-	printf("\t\t  LVDS: 0x%08lx\n", 
+	printf("\t\t  LVDS: 0x%08lx\n",
 	       (unsigned long)lfp_data->fp_timing.lvds_reg_val);
 	printf("\t\t  PP_ON_DELAYS: 0x%08lx\n",
 	       (unsigned long)lfp_data->fp_timing.pp_on_reg_val);
@@ -224,14 +295,13 @@ static void dump_lvds_data(void *data, unsigned char *base)
 	       _V_SYNC_OFF(timing_data),
 	       _V_SYNC_WIDTH(timing_data));
     }
-
+    free(block);
 }
 
 int main(int argc, char **argv)
 {
     int fd;
     struct vbt_header *vbt = NULL;
-    struct bdb_header *bdb;
     int vbt_off, bdb_off, i;
     char *filename = "bios";
     struct stat finfo;
@@ -240,7 +310,7 @@ int main(int argc, char **argv)
 	printf("usage: %s <rom file>\n", argv[0]);
 	return 1;
     }
-	
+
     filename = argv[1];
 
     fd = open(filename, O_RDONLY);
@@ -281,10 +351,11 @@ int main(int argc, char **argv)
     printf("BDB sig: %16s\n", bdb->signature);
     printf("BDB vers: %d.%d\n", bdb->version / 100, bdb->version % 100);
 
-    dump_general_features(find_section(bdb, BDB_GENERAL_FEATURES));
-    dump_general_definitions(find_section(bdb, BDB_GENERAL_DEFINITIONS));
-    dump_lvds_options(find_section(bdb, BDB_LVDS_OPTIONS));
-    dump_lvds_data(find_section(bdb, BDB_LVDS_LFP_DATA), (unsigned char *)bdb);
+    dump_general_features();
+    dump_general_definitions();
+    dump_lvds_options();
+    dump_lvds_data();
+    dump_lvds_ptr_data();
 
     return 0;
 }
