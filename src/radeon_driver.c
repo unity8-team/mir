@@ -5519,7 +5519,7 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 	if (info->dri->textureSize) {
 	    drm_radeon_sarea_t *pSAREAPriv =
 		(drm_radeon_sarea_t*)DRIGetSAREAPrivate(pScrn->pScreen);
-	    drmTextureRegionPtr list = pSAREAPriv->tex_list[0];
+	    struct drm_tex_region *list = pSAREAPriv->tex_list[0];
 	    int age = ++pSAREAPriv->tex_age[0];
 
 	    i = 0;

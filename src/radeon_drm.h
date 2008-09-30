@@ -543,8 +543,9 @@ typedef struct drm_radeon_init {
 	unsigned int depth_bpp;
 	unsigned int depth_offset, depth_pitch;
 
-	unsigned long fb_offset DEPRECATED;	/* deprecated, driver asks hardware */
-	unsigned long mmio_offset DEPRECATED;	/* deprecated, driver asks hardware */
+	/* DEPRECATED commented out below to allow for -Werror build */
+	unsigned long fb_offset /*DEPRECATED*/;	/* deprecated, driver asks hardware */
+	unsigned long mmio_offset /*DEPRECATED*/;	/* deprecated, driver asks hardware */
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
