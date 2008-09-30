@@ -3058,7 +3058,7 @@ static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
    ScrnInfoPtr pScrn;
-   vgaHWPtr hwp;
+   vgaHWPtr hwp = NULL;
    I830Ptr pI830;
    VisualPtr visual;
    I830Ptr pI8301 = NULL;
