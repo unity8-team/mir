@@ -2425,6 +2425,7 @@ RADEONDisplayVideo(
     xf86CrtcPtr crtc,
     RADEONPortPrivPtr pPriv,
     int id,
+    int base_offset,
     int offset1, int offset2,
     int offset3, int offset4,
     int offset5, int offset6,
@@ -2464,7 +2465,6 @@ RADEONDisplayVideo(
     RADEONOutputPrivatePtr radeon_output;
     xf86OutputPtr output;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-    int base_offset;
 
     is_rgb=0; is_planar=0;
     switch(id){
@@ -2598,9 +2598,7 @@ RADEONDisplayVideo(
      * prevent the buffer offsets from exceeding the hardware limit of 128 MB.
      * The base address must be aligned to a multiple of 4 MB.
      */
-    base_offset = ((info->fbLocation +
-		    min(offset1, min(offset2, min(offset3, min(offset4,
-			min(offset5, offset6)))))) & (~0 << 22)) -
+    base_offset = ((info->fbLocation + base_offset) & (~0 << 22)) -
 	info->fbLocation;
 
     offset1 -= base_offset;
@@ -2742,6 +2740,8 @@ RADEONDisplayVideo(
     OUTREG(RADEON_OV0_P2_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     OUTREG(RADEON_OV0_P3_X_START_END, (src_w + leftuv - 1) | (leftuv << 16));
     if (info->ModeReg->ov0_base_addr != (info->fbLocation + base_offset)) {
+	ErrorF("Changing OV0_BASE_ADDR from 0x%08x to 0x%08x\n",
+	       info->ModeReg->ov0_base_addr, info->fbLocation + base_offset);
 	info->ModeReg->ov0_base_addr = info->fbLocation + base_offset;
 	OUTREG(RADEON_OV0_BASE_ADDR, info->ModeReg->ov0_base_addr);
     }
@@ -3049,9 +3049,10 @@ RADEONPutImage(
 
     /* FIXME: someone should look at these offsets, I don't think it makes sense how
               they are handled throughout the source. */
-    RADEONDisplayVideo(pScrn, crtc, pPriv, idconv, offset, offset + d2line, offset + d3line,
-		     offset, offset + d2line, offset + d3line, width, height, dstPitch,
-		     xa, xb, ya, &dstBox, src_w, src_h, drw_w, drw_h, METHOD_BOB);
+    RADEONDisplayVideo(pScrn, crtc, pPriv, idconv, pPriv->video_offset, offset,
+		       offset + d2line, offset + d3line, offset, offset + d2line,
+		       offset + d3line, width, height, dstPitch, xa, xb, ya,
+		       &dstBox, src_w, src_h, drw_w, drw_h, METHOD_BOB);
 
     pPriv->videoStatus = CLIENT_VIDEO_ON;
 
@@ -3317,8 +3318,9 @@ RADEONDisplaySurface(
 		       surface->offsets[0], surface->offsets[0],
 		       surface->offsets[0], surface->offsets[0],
 		       surface->offsets[0], surface->offsets[0],
-		       surface->width, surface->height, surface->pitches[0],
-		       xa, xb, ya, &dstBox, src_w, src_h, drw_w, drw_h, METHOD_BOB);
+		       surface->offsets[0], surface->width, surface->height,
+		       surface->pitches[0], xa, xb, ya, &dstBox, src_w, src_h,
+		       drw_w, drw_h, METHOD_BOB);
 
     if (portPriv->autopaint_colorkey)
 	xf86XVFillKeyHelper(pScrn->pScreen, portPriv->colorKey, clipBoxes);
@@ -3605,10 +3607,12 @@ RADEONPutVideo(
 	    RADEONFillKeyHelper(pDraw, pPriv->colorKey, clipBoxes);
    }
 
-   RADEONDisplayVideo(pScrn, crtc, pPriv, id, offset1+top*srcPitch, offset2+top*srcPitch,
-		offset3+top*srcPitch, offset4+top*srcPitch, offset1+top*srcPitch,
-		offset2+top*srcPitch, width, height, dstPitch*mult/2,
-                     xa, xb, ya, &dstBox, src_w, src_h*mult/2, drw_w, drw_h, pPriv->overlay_deinterlacing_method);
+   RADEONDisplayVideo(pScrn, crtc, pPriv, id, pPriv->video_offset,
+		      offset1+top*srcPitch, offset2+top*srcPitch,
+		      offset3+top*srcPitch, offset4+top*srcPitch,
+		      offset1+top*srcPitch, offset2+top*srcPitch, width, height,
+		      dstPitch*mult/2, xa, xb, ya, &dstBox, src_w, src_h*mult/2,
+		      drw_w, drw_h, pPriv->overlay_deinterlacing_method);
 
    RADEONWaitForFifo(pScrn, 1);
    OUTREG(RADEON_OV0_REG_LOAD_CNTL,  RADEON_REG_LD_CTL_LOCK);
