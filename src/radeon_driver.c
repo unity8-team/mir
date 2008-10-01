@@ -3514,24 +3514,11 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 
     pScrn->vtSema = TRUE;
 
-    /* XXX
-     * Unless we set an initial mode here, RADEONDRIKernelInit() hangs in the ioctl
-     * to initialize the CP.  However, we need to init the CP for accel or initial
-     * rotation fails so we set the mode now, then call xf86SetDesiredModes() after
-     * accel is initialized to set the proper rotation, etc.
+    /* restore the memory map here otherwise we may get a hang when
+     * initializing the drm below
      */
-    {
-	xf86CrtcConfigPtr       config = XF86_CRTC_CONFIG_PTR(pScrn);
-	int i;
-	for (i = 0; i < config->num_crtc; i++) {
-	    xf86CrtcPtr crtc = config->crtc[i];
-	    if (crtc->enabled)
-		xf86CrtcSetMode (crtc, &crtc->desiredMode, RR_Rotate_0,
-				 crtc->desiredX, crtc->desiredY);
-	}
-    }
-
-    RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
+    RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
+    RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
 
     /* Backing store setup */
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
