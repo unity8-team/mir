@@ -209,7 +209,7 @@ static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    if (pPict->repeat && pPict->repeatType > RepeatReflect)
+    if (pPict->repeatType > RepeatReflect)
 	I830FALLBACK("extended repeat (%d) not supported\n",
 		     pPict->repeatType);
 
@@ -840,11 +840,8 @@ sampler_state_filter_from_picture (int filter)
 }
 
 static sampler_state_extend_t
-sampler_state_extend_from_picture (int repeat, int repeat_type)
+sampler_state_extend_from_picture (int repeat_type)
 {
-    if (repeat == 0)
-	return SAMPLER_STATE_EXTEND_NONE;
-
     switch (repeat_type) {
     case RepeatNone:
 	return SAMPLER_STATE_EXTEND_NONE;
@@ -1029,8 +1026,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
 	I830FALLBACK ("Bad src filter 0x%x\n", pSrcPicture->filter);
-    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeat,
-						    pSrcPicture->repeatType);
+    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeatType);
     if (src_extend < 0)
 	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
 
@@ -1038,8 +1034,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	mask_filter = sampler_state_filter_from_picture (pMaskPicture->filter);
 	if (mask_filter < 0)
 	    I830FALLBACK ("Bad mask filter 0x%x\n", pMaskPicture->filter);
-	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeat,
-							 pMaskPicture->repeatType);
+	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeatType);
 	if (mask_extend < 0)
 	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeatType);
     } else {
