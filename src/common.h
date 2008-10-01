@@ -81,8 +81,6 @@ extern void I830InitpScrn(ScrnInfoPtr pScrn);
 extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
-extern const char *I810int10Symbols[];
-extern const char *I810vbeSymbols[];
 extern const char *I810ddcSymbols[];
 extern const char *I810fbSymbols[];
 extern const char *I810xaaSymbols[];
@@ -105,21 +103,6 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define WaitRingFunc I810WaitLpRing
 #define RecPtr pI810
 #endif
-
-/* BIOS debug macro */
-#define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
-   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
-   if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state before execution\n");		\
-      PrintErrorState(pScrn);						\
-   }									\
-   xf86ExecX86int10(pInt);						\
-   if(I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state after execution\n");			\
-      usleep(50000);							\
-      PrintErrorState(pScrn);						\
-   }									\
-} while (0)
 
 static inline void memset_volatile(volatile void *b, int c, size_t len)
 {

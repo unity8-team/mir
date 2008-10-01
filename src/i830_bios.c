@@ -47,9 +47,6 @@
 				 (bios[_addr + 2] << 16)	\
 				 (bios[_addr + 3] << 24))
 
-/* XXX */
-#define INTEL_VBIOS_SIZE (64 * 1024)
-
 static void *
 find_section(struct bdb_header *bdb, int section_id)
 {
@@ -180,34 +177,34 @@ i830_bios_init(ScrnInfoPtr pScrn)
     struct bdb_header *bdb;
     int vbt_off, bdb_off;
     unsigned char *bios;
-    vbeInfoPtr	pVbe;
-    pointer pVBEModule = NULL;
+    int ret;
+    int size;
 
-    bios = xalloc(INTEL_VBIOS_SIZE);
+#if XSERVER_LIBPCIACCESS
+    size = pI830->PciInfo->rom_size;
+#else
+#define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
+    size = INTEL_VBIOS_SIZE;
+#endif
+    if (size == 0)
+	return -1;
+    bios = xalloc(size);
     if (bios == NULL)
 	return -1;
 
-    /* Load vbe module */
-    if (!(pVBEModule = xf86LoadSubModule(pScrn, "vbe")))
-	return FALSE;
-    xf86LoaderReqSymLists(I810vbeSymbols, NULL);
-
-    pVbe = VBEInit(NULL, pI830->pEnt->index);
-    if (pVbe != NULL) {
-	memcpy(bios, xf86int10Addr(pVbe->pInt10,
-				   pVbe->pInt10->BIOSseg << 4),
-	       INTEL_VBIOS_SIZE);
-	vbeFree (pVbe);
-    } else {
 #if XSERVER_LIBPCIACCESS
-	pci_device_read_rom (pI830->PciInfo, bios);
+    ret = pci_device_read_rom (pI830->PciInfo, bios);
+    if (ret != 0)
+	return -1;
 #else
-	xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, INTEL_VBIOS_SIZE);
+    /* xf86ReadPciBIOS returns the length read */
+    ret = xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, size);
+    if (ret <= 0)
+	return -1;
 #endif
-    }
 
     vbt_off = INTEL_BIOS_16(0x1a);
-    if (vbt_off >= INTEL_VBIOS_SIZE) {
+    if (vbt_off >= size) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
 		   vbt_off);
 	xfree(bios);
