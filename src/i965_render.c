@@ -828,9 +828,12 @@ sampler_state_filter_from_picture (int filter)
 }
 
 static sampler_state_extend_t
-sampler_state_extend_from_picture (int repeat)
+sampler_state_extend_from_picture (int repeat, int repeat_type)
 {
-    switch (repeat) {
+    if (repeat == 0)
+	return SAMPLER_STATE_EXTEND_NONE;
+
+    switch (repeat_type) {
     case RepeatNone:
 	return SAMPLER_STATE_EXTEND_NONE;
     case RepeatNormal:
@@ -1010,17 +1013,19 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
 	I830FALLBACK ("Bad src filter 0x%x\n", pSrcPicture->filter);
-    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeat);
+    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeat,
+						    pSrcPicture->repeatType);
     if (src_extend < 0)
-	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeat);
+	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
 
     if (pMaskPicture) {
 	mask_filter = sampler_state_filter_from_picture (pMaskPicture->filter);
 	if (mask_filter < 0)
 	    I830FALLBACK ("Bad mask filter 0x%x\n", pMaskPicture->filter);
-	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeat);
+	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeat,
+							 pMaskPicture->repeatType);
 	if (mask_extend < 0)
-	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeat);
+	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeatType);
     } else {
 	mask_filter = SAMPLER_STATE_FILTER_NEAREST;
 	mask_extend = SAMPLER_STATE_EXTEND_NONE;
