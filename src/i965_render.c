@@ -209,7 +209,7 @@ static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+    if (pPict->repeat && pPict->repeatType > RepeatReflect)
 	I830FALLBACK("extended repeat (%d) not supported\n",
 		     pPict->repeatType);
 
@@ -427,6 +427,8 @@ typedef enum {
 typedef enum {
     SAMPLER_STATE_EXTEND_NONE,
     SAMPLER_STATE_EXTEND_REPEAT,
+    SAMPLER_STATE_EXTEND_PAD,
+    SAMPLER_STATE_EXTEND_REFLECT,
     SAMPLER_STATE_EXTEND_COUNT
 } sampler_state_extend_t;
 
@@ -595,6 +597,16 @@ sampler_state_init (struct brw_sampler_state *sampler_state,
 	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
+	break;
+    case SAMPLER_STATE_EXTEND_PAD:
+	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	break;
+    case SAMPLER_STATE_EXTEND_REFLECT:
+	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
 	break;
     }
 
@@ -838,6 +850,10 @@ sampler_state_extend_from_picture (int repeat, int repeat_type)
 	return SAMPLER_STATE_EXTEND_NONE;
     case RepeatNormal:
 	return SAMPLER_STATE_EXTEND_REPEAT;
+    case RepeatPad:
+	return SAMPLER_STATE_EXTEND_PAD;
+    case RepeatReflect:
+	return SAMPLER_STATE_EXTEND_REFLECT;
     default:
 	return -1;
     }
