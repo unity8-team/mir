@@ -1304,7 +1304,7 @@ static __inline__ void RADEON_MARK_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)
 {
 #ifdef USE_EXA
-    if (info->useEXA)
+    if (info->useEXA && pScrn->pScreen)
 	exaWaitSync(pScrn->pScreen);
 #endif
 #ifdef USE_XAA

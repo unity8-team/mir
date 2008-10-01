@@ -3311,7 +3311,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONInitMemoryMap(pScrn);
 
     /* empty the surfaces */
-    {
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
 	unsigned char *RADEONMMIO = info->MMIO;
 	unsigned int j;
 	for (j = 0; j < 8; j++) {
@@ -3449,13 +3449,13 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "[drm] failed to enable new memory map\n");
 		RADEONDRICloseScreen(pScreen);
-		info->directRenderingEnabled = FALSE;		
+		info->directRenderingEnabled = FALSE;
 	}
     }
 #endif
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "Initializing fb layer\n");
-    
+
     if (info->r600_shadow_fb) {
 	info->fb_shadow = xcalloc(1,
 				  pScrn->displayWidth * pScrn->virtualY *
@@ -3509,16 +3509,27 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 	else if (strcmp(s, "BGR") == 0) subPixelOrder = SubPixelHorizontalBGR;
 	else if (strcmp(s, "NONE") == 0) subPixelOrder = SubPixelNone;
 	PictureSetSubpixelOrder (pScreen, subPixelOrder);
-    } 
+    }
 #endif
 
     pScrn->vtSema = TRUE;
 
-    /* xf86CrtcRotate() accesses pScrn->pScreen */
-    pScrn->pScreen = pScreen;
-
-    if (!xf86SetDesiredModes (pScrn))
-	return FALSE;
+    /* XXX
+     * Unless we set an initial mode here, RADEONDRIKernelInit() hangs in the ioctl
+     * to initialize the CP.  However, we need to init the CP for accel or initial
+     * rotation fails so we set the mode now, then call xf86SetDesiredModes() after
+     * accel is initialized to set the proper rotation, etc.
+     */
+    {
+	xf86CrtcConfigPtr       config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int i;
+	for (i = 0; i < config->num_crtc; i++) {
+	    xf86CrtcPtr crtc = config->crtc[i];
+	    if (crtc->enabled)
+		xf86CrtcSetMode (crtc, &crtc->desiredMode, RR_Rotate_0,
+				 crtc->desiredX, crtc->desiredY);
+	}
+    }
 
     RADEONSaveScreen(pScreen, SCREEN_SAVER_ON);
 
@@ -3651,6 +3662,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
             return FALSE;
         }
     }
+
+    /* set the modes with desired rotation, etc. */
+    if (!xf86SetDesiredModes (pScrn))
+	return FALSE;
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
