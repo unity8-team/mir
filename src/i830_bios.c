@@ -159,6 +159,8 @@ parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
     }
 }
 
+#define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
+
 /**
  * i830_bios_init - map VBIOS, find VBT
  *
@@ -182,25 +184,35 @@ i830_bios_init(ScrnInfoPtr pScrn)
 
 #if XSERVER_LIBPCIACCESS
     size = pI830->PciInfo->rom_size;
+    if (size == 0) {
+	size = INTEL_VBIOS_SIZE;
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "libpciaccess reported 0 rom size, guessing %dkB\n",
+		   size / 1024);
+    }
 #else
-#define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
     size = INTEL_VBIOS_SIZE;
 #endif
-    if (size == 0)
-	return -1;
     bios = xalloc(size);
     if (bios == NULL)
 	return -1;
 
 #if XSERVER_LIBPCIACCESS
     ret = pci_device_read_rom (pI830->PciInfo, bios);
-    if (ret != 0)
+    if (ret != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                  "libpciaccess failed to read %dkB video BIOS: %s\n",
+                  size / 1024, strerror(-ret));
+	xfree (bios);
 	return -1;
+    }
 #else
     /* xf86ReadPciBIOS returns the length read */
     ret = xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, size);
-    if (ret <= 0)
+    if (ret <= 0) {
+	xfree (bios);
 	return -1;
+    }
 #endif
 
     vbt_off = INTEL_BIOS_16(0x1a);
