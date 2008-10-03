@@ -283,7 +283,8 @@ The default value is
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
 Enable page flipping for 3D acceleration. This will increase performance
 but not work correctly in some rare cases, hence the default is
-.B off.
+.B off.  
+It is currently only supported on r4xx and older hardware.
 .TP
 .BI "Option \*qForceMinDotClock\*q \*q" frequency \*q
 Override minimum dot clock. Some Radeon BIOSes report a minimum dot
@@ -297,10 +298,9 @@ parameter may be specified as a float value with standard suffixes like
 "k", "kHz", "M", "MHz".
 .TP
 .BI "Option \*qRenderAccel\*q \*q" boolean \*q
-Enables or disables hardware Render acceleration.  This driver does not
-support component alpha (subpixel) rendering.  It is only supported on
-Radeon series up to and including 9200 (9500/9700 and newer
-unsupported).  The default is to
+Enables or disables hardware Render acceleration.  It is supported on
+Radeon series up to and including r5xx for EXA and up to and 
+including r2xx for XAA.  The default is to
 .B enable
 Render acceleration.
 .TP
