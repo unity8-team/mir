@@ -180,6 +180,8 @@ typedef struct
     uint32_t get_data_mask;
     uint32_t a_clk_mask;
     uint32_t a_data_mask;
+    int hw_line;
+    Bool hw_capable;
 } RADEONI2CBusRec, *RADEONI2CBusPtr;
 
 typedef struct _RADEONCrtcPrivateRec {

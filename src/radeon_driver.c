@@ -498,7 +498,7 @@ static Bool RADEONUnmapMem(ScrnInfoPtr pScrn)
 void RADEONPllErrataAfterIndex(RADEONInfoPtr info)
 {
     unsigned char *RADEONMMIO = info->MMIO;
-	
+
     if (!(info->ChipErrata & CHIP_ERRATA_PLL_DUMMYREADS))
 	return;
 

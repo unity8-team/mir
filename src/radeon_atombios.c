@@ -1386,6 +1386,58 @@ const int object_connector_convert[] =
       CONNECTOR_DISPLAY_PORT,
     };
 
+xf86MonPtr radeon_atom_get_edid(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    READ_EDID_FROM_HW_I2C_DATA_PS_ALLOCATION edid_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+    int i2c_clock = 50;
+    int engine_clk = info->sclk * 100;
+    int prescale;
+    unsigned char *edid;
+    xf86MonPtr mon = NULL;
+
+    if (!radeon_output->ddc_i2c.hw_capable)
+	return mon;
+
+    if (info->atomBIOS->fbBase)
+	edid = (unsigned char *)info->FB + info->atomBIOS->fbBase;
+    else if (info->atomBIOS->scratchBase)
+	edid = (unsigned char *)info->atomBIOS->scratchBase;
+    else
+	return mon;
+
+    memset(edid, 0, ATOM_EDID_RAW_DATASIZE);
+
+    if (info->ChipFamily == CHIP_FAMILY_R520)
+	prescale = (127 << 8) + (engine_clk * 10) / (4 * 127 * i2c_clock);
+    else if (info->ChipFamily < CHIP_FAMILY_R600)
+	prescale = (((engine_clk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+    else
+	prescale = (info->pll.reference_freq * 10) / i2c_clock;
+
+    edid_data.usPrescale = prescale;
+    edid_data.usVRAMAddress = 0;
+    edid_data.ucSlaveAddr = 0xa0;
+    edid_data.ucLineNumber = radeon_output->ddc_i2c.hw_line;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, ReadEDIDFromHWAssistedI2C);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &edid_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS)
+	ErrorF("Atom Get EDID success\n");
+    else
+	ErrorF("Atom Get EDID failed\n");
+
+    if (edid[1] == 0xff)
+	mon = xf86InterpretEDID(output->scrn->scrnIndex, edid);
+
+    return mon;
+
+}
 
 static RADEONI2CBusRec
 RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
@@ -1425,9 +1477,15 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
     i2c.get_data_mask = (1 <<  gpio.ucDataY_Shift);
     i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
     i2c.a_data_mask = (1 <<  gpio.ucDataA_Shift);
+    i2c.hw_line = gpio.sucI2cId.sbfAccess.bfI2C_LineMux;
+    i2c.hw_capable = gpio.sucI2cId.sbfAccess.bfHW_Capable;
     i2c.valid = TRUE;
 
 #if 0
+    ErrorF("id: %d\n", id);
+    ErrorF("hw capable: %d\n", gpio.sucI2cId.sbfAccess.bfHW_Capable);
+    ErrorF("hw engine id: %d\n", gpio.sucI2cId.sbfAccess.bfHW_EngineID);
+    ErrorF("line mux %d\n", gpio.sucI2cId.sbfAccess.bfI2C_LineMux);
     ErrorF("mask_clk_reg: 0x%x\n", gpio.usClkMaskRegisterIndex * 4);
     ErrorF("mask_data_reg: 0x%x\n", gpio.usDataMaskRegisterIndex * 4);
     ErrorF("put_clk_reg: 0x%x\n", gpio.usClkEnRegisterIndex * 4);
