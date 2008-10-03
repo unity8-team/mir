@@ -254,6 +254,42 @@ i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
     if (!i965_get_dest_format(pDstPicture, &tmp1))
 	I830FALLBACK("Get Color buffer format\n");
 
+    /* There's an infelicity of the 965 with respect to implementing
+     * RepeatNone for a source picture without alpha. The hardware's
+     * CLAMP_BORDER mode in this case doesn't match what Render, (and
+     * everyone, really), wants. Render expects that samples outside
+     * the bounds of the source picture will be transparent, but the
+     * hardware is documented as follows:
+     *
+     *     For surface formats with one or more channels missing, the
+     *     value from the border color is not used for the missing
+     *     channels, resulting in these channels resulting in the
+     *     overall default value (0 for colors and 1 for alpha)
+     *     regardless of whether border color is chosen.
+     *
+     *     [Intel 965 PRM; Volume 4; Section 4.7.4 SAMPLER_BORDER_COLOR_STATE]
+     *
+     * It's that hard-coding of "1 for alpha" that kills us.  Until we
+     * figure out a way to get the hardware to do what we want, we'll
+     * fall back to software. We fall back only if the operator uses
+     * the source alpha, the source format has no alpha, and there's
+     * a transform.
+     *
+     * For more complicated scenarios where there's a transform, but
+     * it won't actually result in any sampling outside the source
+     * picture, we'll have to rely on a higher layer,
+     * (ReduceCompositeOp in render/picture.c), that actually has
+     * access to the coordinates, to simplify the operator from Over
+     * to Source, for example.
+     */
+    if (i965_blend_op[op].src_alpha &&
+	(PICT_FORMAT_A(pSrcPicture->format) == 0) &&
+	pSrcPicture->transform)
+    {
+	I830FALLBACK("No support for alpha (RepeatNone) for an RGB-only picture\n");
+    }
+
+
     return TRUE;
 
 }
