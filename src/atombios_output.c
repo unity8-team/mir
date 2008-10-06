@@ -346,6 +346,8 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 		    disp_data2.ucTemporal = PANEL_ENCODER_TEMPORAL_DITHER_EN;
 		    if (radeon_output->lvds_misc & (1 << 1))
 			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_DITHER_DEPTH;
+		    if (((radeon_output->lvds_misc >> 2) & 0x3) == 4)
+			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 		}
 	    } else {
 		if (mode->Clock > 165000)
