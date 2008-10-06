@@ -975,30 +975,9 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 
     if (!info->VBIOS) return FALSE;
 
-    if (info->IsAtomBios) {
-	if((tmp = RADEON_BIOS16 (info->MasterDataStart + 16))) {
-
-	    radeon_output->PanelXRes = RADEON_BIOS16(tmp+6);
-	    radeon_output->PanelYRes = RADEON_BIOS16(tmp+10);
-	    radeon_output->DotClock   = RADEON_BIOS16(tmp+4)*10;
-	    radeon_output->HBlank     = RADEON_BIOS16(tmp+8);
-	    radeon_output->HOverPlus  = RADEON_BIOS16(tmp+14);
-	    radeon_output->HSyncWidth = RADEON_BIOS16(tmp+16);
-	    radeon_output->VBlank     = RADEON_BIOS16(tmp+12);
-	    radeon_output->VOverPlus  = RADEON_BIOS16(tmp+18);
-	    radeon_output->VSyncWidth = RADEON_BIOS16(tmp+20);
-	    radeon_output->PanelPwrDly = RADEON_BIOS16(tmp+40);
-
-	    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
-		radeon_output->PanelPwrDly = 2000;
-
-	    radeon_output->Flags = 0;
-	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "No LVDS Info Table found in BIOS!\n");
-	    return FALSE;
-	}
-    } else {
+    if (info->IsAtomBios)
+	return RADEONGetATOMLVDSInfo(output);
+    else {
 
 	tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
 
@@ -1021,7 +1000,7 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
 	    radeon_output->PanelYRes = RADEON_BIOS16(tmp+27);
 	    xf86DrvMsg(0, X_INFO, "Panel Size from BIOS: %dx%d\n",
 		       radeon_output->PanelXRes, radeon_output->PanelYRes);
-	
+
 	    radeon_output->PanelPwrDly = RADEON_BIOS16(tmp+44);
 	    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
 		radeon_output->PanelPwrDly = 2000;

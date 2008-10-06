@@ -125,6 +125,9 @@ atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, int enable);
 extern Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output);
 
+extern Bool
+RADEONGetATOMLVDSInfo(xf86OutputPtr output);
+
 extern int
 atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 

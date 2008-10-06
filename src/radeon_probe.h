@@ -237,8 +237,10 @@ typedef struct _RADEONOutputPrivateRec {
     int               VSyncWidth;
     int               VBlank;
     int               Flags;            /* Saved copy of mode flags          */
-    int               PanelPwrDly;
     int               DotClock;
+    int               PanelPwrDly;
+    int               lvds_misc;
+    int               lvds_ss_id;
     RADEONTMDSPll     tmds_pll[4];
     RADEONRMXType     rmx_type;
     /* dvo */

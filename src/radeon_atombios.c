@@ -1668,6 +1668,71 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 }
 
 Bool
+RADEONGetATOMLVDSInfo(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    atomDataTablesPtr atomDataPtr;
+    uint8_t crev, frev;
+
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+
+    if (!rhdAtomGetTableRevisionAndSize(
+	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->LVDS_Info.base),
+	    &frev,&crev,NULL)) {
+	return FALSE;
+    }
+
+    switch (crev) {
+    case 1:
+	radeon_output->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHActive);
+	radeon_output->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVActive);
+	radeon_output->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usPixClk) * 10;
+	radeon_output->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHBlanking_Time);
+	radeon_output->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncOffset);
+	radeon_output->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncWidth);
+	radeon_output->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVBlanking_Time);
+	radeon_output->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncOffset);
+	radeon_output->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncWidth);
+	radeon_output->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->usOffDelayInMs);
+	radeon_output->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info->ucLVDS_Misc;
+	radeon_output->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info->ucSS_Id;
+	break;
+    case 2:
+	radeon_output->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHActive);
+	radeon_output->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVActive);
+	radeon_output->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usPixClk) * 10;
+	radeon_output->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHBlanking_Time);
+	radeon_output->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncOffset);
+	radeon_output->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncWidth);
+	radeon_output->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVBlanking_Time);
+	radeon_output->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncOffset);
+	radeon_output->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncWidth);
+	radeon_output->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->usOffDelayInMs);
+	radeon_output->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucLVDS_Misc;
+	radeon_output->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucSS_Id;
+	break;
+    }
+
+    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
+	radeon_output->PanelPwrDly = 2000;
+
+    radeon_output->Flags = 0;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+	       "LVDS Info:\n"
+	       "XRes: %d, YRes: %d, DotClock: %d\n"
+	       "HBlank: %d, HOverPlus: %d, HSyncWidth: %d\n"
+	       "VBlank: %d, VOverPlus: %d, VSyncWidth: %d\n",
+	       radeon_output->PanelXRes, radeon_output->PanelYRes, radeon_output->DotClock,
+	       radeon_output->HBlank, radeon_output->HOverPlus, radeon_output->HSyncWidth,
+	       radeon_output->VBlank, radeon_output->VOverPlus, radeon_output->VSyncWidth);
+
+    return TRUE;
+}
+
+Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;

@@ -206,7 +206,8 @@ atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
 int
 atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
@@ -218,7 +219,7 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     else
 	disp_data.sXTmdsEncoder.ucMisc = 0;
 
-    if (!info->dac6bits)
+    if (pScrn->rgbBits == 8)
 	disp_data.sXTmdsEncoder.ucMisc |= (1 << 1);
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
@@ -264,84 +265,107 @@ atombios_output_ddia_setup(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 static int
-atombios_output_tmds1_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr mode)
 {
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    TMDS1_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = 1;
-    if (mode->Clock > 165000)
-	disp_data.ucMisc = 1;
-    else
-	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS1EncoderControl);
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output TMDS1 setup success\n");
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output TMDS1 setup failed\n");
-    return ATOM_NOT_IMPLEMENTED;
-
-}
-
-static int
-atombios_output_tmds2_setup(xf86OutputPtr output, DisplayModePtr mode)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    TMDS2_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = 1;
-    if (mode->Clock > 165000)
-	disp_data.ucMisc = 1;
-    else
-	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output TMDS2 setup success\n");
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output TMDS2 setup failed\n");
-    return ATOM_NOT_IMPLEMENTED;
-}
-
-static int
-atombios_output_lvds_setup(xf86OutputPtr output, DisplayModePtr mode)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
     LVDS_ENCODER_CONTROL_PS_ALLOCATION disp_data;
+    LVDS_ENCODER_CONTROL_PS_ALLOCATION_V2 disp_data2;
     AtomBiosArgRec data;
     unsigned char *space;
+    int index;
+    int major, minor;
 
-    disp_data.ucAction = 1;
-    if (mode->Clock > 165000)
-	disp_data.ucMisc = 1;
-    else
-	disp_data.ucMisc = 0;
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
+    switch (device) {
+    case ATOM_DEVICE_DFP1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, TMDS1EncoderControl);
+	break;
+    case ATOM_DEVICE_LCD1_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
+	break;
+    case ATOM_DEVICE_DFP3_SUPPORT:
+	index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
+	break;
+    default:
+	return ATOM_NOT_IMPLEMENTED;
+	break;
+    }
+
+    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
+
+    /*ErrorF("table is %d %d\n", major, minor);*/
+    switch (major) {
+    case 0:
+    case 1:
+	switch (minor) {
+	case 1:
+	    disp_data.ucMisc = 0;
+	    disp_data.ucAction = PANEL_ENCODER_ACTION_ENABLE;
+	    if (radeon_output->type == OUTPUT_HDMI)
+		disp_data.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
+	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
+	    if (device == ATOM_DEVICE_DFP1_SUPPORT) {
+		if (radeon_output->lvds_misc & (1 << 0))
+		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
+		if (radeon_output->lvds_misc & (1 << 1))
+		    disp_data.ucMisc |= (1 << 1);
+	    } else {
+		if (mode->Clock > 165000)
+		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
+		if (pScrn->rgbBits == 8)
+		    disp_data.ucMisc |= (1 << 1);
+	    }
+	    data.exec.pspace = &disp_data;
+	    break;
+	case 2:
+	case 3:
+	    disp_data2.ucMisc = 0;
+	    disp_data2.ucAction = PANEL_ENCODER_ACTION_ENABLE;
+	    if (minor == 3) {
+		if (radeon_output->coherent_mode) {
+		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_COHERENT;
+		    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "Coherent Mode enabled\n");
+		}
+	    }
+	    if (radeon_output->type == OUTPUT_HDMI)
+		disp_data2.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
+	    disp_data2.ucTruncate = 0;
+	    disp_data2.ucSpatial = 0;
+	    disp_data2.ucTemporal = 0;
+	    disp_data2.ucFRC = 0;
+	    if (device == ATOM_DEVICE_DFP1_SUPPORT) {
+		if (radeon_output->lvds_misc & (1 << 0))
+		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
+		if (radeon_output->lvds_misc & (1 << 5)) {
+		    disp_data2.ucSpatial = PANEL_ENCODER_SPATIAL_DITHER_EN;
+		    if (radeon_output->lvds_misc & (1 << 1))
+			disp_data2.ucSpatial |= PANEL_ENCODER_SPATIAL_DITHER_DEPTH;
+		}
+		if (radeon_output->lvds_misc & (1 << 6)) {
+		    disp_data2.ucTemporal = PANEL_ENCODER_TEMPORAL_DITHER_EN;
+		    if (radeon_output->lvds_misc & (1 << 1))
+			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_DITHER_DEPTH;
+		}
+	    } else {
+		if (mode->Clock > 165000)
+		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
+	    }
+	    data.exec.pspace = &disp_data2;
+	    break;
+	}
+	break;
+    }
+
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output LVDS setup success\n");
+	ErrorF("Output digital setup success\n");
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output LVDS setup failed\n");
+    ErrorF("Output digital setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 }
 
@@ -597,34 +621,6 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     ErrorF("scaler %d setup failed\n", radeon_crtc->crtc_id);
     return ATOM_NOT_IMPLEMENTED;
-
-}
-
-static void
-dfp_disable_dither(xf86OutputPtr output, int device)
-{
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
-    switch (device) {
-    case ATOM_DEVICE_DFP1_SUPPORT:
-	OUTREG(AVIVO_TMDSA_BIT_DEPTH_CONTROL, 0); /* TMDSA */
-	break;
-    case ATOM_DEVICE_DFP2_SUPPORT:
-	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS740))
-	    OUTREG(AVIVO_DDIA_BIT_DEPTH_CONTROL, 0); /* DDIA */
-	else
-	    OUTREG(AVIVO_DVOA_BIT_DEPTH_CONTROL, 0); /* DVO */
-	break;
-    /*case ATOM_DEVICE_LCD1_SUPPORT:*/ /* LVDS panels need dither enabled */
-    case ATOM_DEVICE_DFP3_SUPPORT:
-	OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, 0); /* LVTMA */
-	break;
-    default:
-	break;
-    }
 
 }
 
@@ -920,10 +916,8 @@ atombios_output_mode_set(xf86OutputPtr output,
 	    if (IS_DCE3_VARIANT) {
 		atombios_output_dig1_setup(output, adjusted_mode);
 		atombios_output_dig1_transmitter_setup(output, adjusted_mode);
-	    } else {
-		atombios_output_tmds1_setup(output, adjusted_mode);
-		dfp_disable_dither(output, ATOM_DEVICE_DFP1_SUPPORT);
-	    }
+	    } else
+		atombios_output_digital_setup(output, ATOM_DEVICE_DFP1_SUPPORT, adjusted_mode);
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
 		// fix me
@@ -934,26 +928,21 @@ atombios_output_mode_set(xf86OutputPtr output,
 		    atombios_output_ddia_setup(output, adjusted_mode);
 		else
 		    atombios_external_tmds_setup(output, adjusted_mode);
-		dfp_disable_dither(output, ATOM_DEVICE_DFP2_SUPPORT);
 	    }
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
 		atombios_output_dig2_setup(output, adjusted_mode);
 		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
-	    } else {
-		atombios_output_tmds2_setup(output, adjusted_mode);
-		dfp_disable_dither(output, ATOM_DEVICE_DFP3_SUPPORT);
-	    }
+	    } else
+		atombios_output_digital_setup(output, ATOM_DEVICE_DFP3_SUPPORT, adjusted_mode);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
 	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
 		atombios_output_dig2_setup(output, adjusted_mode);
 		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
-	    } else {
-		atombios_output_lvds_setup(output, adjusted_mode);
-		dfp_disable_dither(output, ATOM_DEVICE_LCD1_SUPPORT);
-	    }
+	    } else
+		atombios_output_digital_setup(output, ATOM_DEVICE_LCD1_SUPPORT, adjusted_mode);
 	}
     } else if ((radeon_output->MonType == MT_CTV) ||
 	       (radeon_output->MonType == MT_STV) ||

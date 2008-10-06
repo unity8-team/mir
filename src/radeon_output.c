@@ -1146,8 +1146,7 @@ radeon_create_resources(xf86OutputPtr output)
 	}
     }
 
-    if (IS_DCE3_VARIANT &&
-	(OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI))) {
+    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
 	coherent_mode_atom = MAKE_ATOM("coherent_mode");
 
 	range[0] = 0; /* off */
