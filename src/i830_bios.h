@@ -117,9 +117,96 @@ struct bdb_general_features {
 	unsigned char rsvd11:6; /* finish byte */
 } __attribute__((packed));
 
+#define GPIO_PIN_NONE		0x00 /* "N/A" */
+#define	GPIO_PIN_I2C		0x01 /* "I2C GPIO pins" */
+#define	GPIO_PIN_CRT_DDC	0x02 /* "Analog CRT DDC GPIO pins" */
+/* 915+ */
+#define	GPIO_PIN_LVDS		0x03 /* "Integrated LVDS DDC GPIO pins" */
+#define	GPIO_PIN_SDVO_I2C	0x05 /* "sDVO I2C GPIO pins" */
+#define	GPIO_PIN_SDVO_DDC1	0x1D /* "SDVO DDC1 GPIO pins" */
+#define	GPIO_PIN_SDVO_DDC2	0x2D /* "SDVO DDC2 GPIO pins" */
+/* pre-915 */
+#define	GPIO_PIN_DVI_LVDS	0x03 /* "DVI/LVDS DDC GPIO pins" */
+#define	GPIO_PIN_ADD_I2C	0x05 /* "ADDCARD I2C GPIO pins" */
+#define	GPIO_PIN_ADD_DDC	0x04 /* "ADDCARD DDC GPIO pins" */
+#define	GPIO_PIN_ADD_DDC_I2C	0x06 /* "ADDCARD DDC/I2C GPIO pins" */
+
+/* Pre 915 */
+#define DEVICE_TYPE_NONE	0x00
+#define DEVICE_TYPE_CRT		0x01
+#define DEVICE_TYPE_TV		0x09
+#define DEVICE_TYPE_EFP		0x12
+#define DEVICE_TYPE_LFP		0x22
+/* On 915+ */
+#define DEVICE_TYPE_CRT_DPMS		0x6001
+#define DEVICE_TYPE_CRT_DPMS_HOTPLUG	0x4001
+#define DEVICE_TYPE_TV_COMPOSITE	0x0209
+#define DEVICE_TYPE_TV_MACROVISION	0x0289
+#define DEVICE_TYPE_TV_RF_COMPOSITE	0x020c
+#define DEVICE_TYPE_TV_SVIDEO_COMPOSITE	0x0609
+#define DEVICE_TYPE_TV_SCART		0x0209
+#define DEVICE_TYPE_TV_CODEC_HOTPLUG_PWR 0x6009
+#define DEVICE_TYPE_EFP_HOTPLUG_PWR	0x6012
+#define DEVICE_TYPE_EFP_DVI_HOTPLUG_PWR	0x6052
+#define DEVICE_TYPE_EFP_DVI_I		0x6053
+#define DEVICE_TYPE_EFP_DVI_D_DUAL	0x6152
+#define DEVICE_TYPE_EFP_DVI_D_HDCP	0x60d2
+#define DEVICE_TYPE_OPENLDI_HOTPLUG_PWR	0x6062
+#define DEVICE_TYPE_OPENLDI_DUALPIX	0x6162
+#define DEVICE_TYPE_LFP_PANELLINK	0x5012
+#define DEVICE_TYPE_LFP_CMOS_PWR	0x5042
+#define DEVICE_TYPE_LFP_LVDS_PWR	0x5062
+#define DEVICE_TYPE_LFP_LVDS_DUAL	0x5162
+#define DEVICE_TYPE_LFP_LVDS_DUAL_HDCP	0x51e2
+
+#define DEVICE_CFG_NONE		0x00
+#define DEVICE_CFG_12BIT_DVOB	0x01
+#define DEVICE_CFG_12BIT_DVOC	0x02
+#define DEVICE_CFG_24BIT_DVOBC	0x09
+#define DEVICE_CFG_24BIT_DVOCB	0x0a
+#define DEVICE_CFG_DUAL_DVOB	0x11
+#define DEVICE_CFG_DUAL_DVOC	0x12
+#define DEVICE_CFG_DUAL_DVOBC	0x13
+#define DEVICE_CFG_DUAL_LINK_DVOBC 0x19
+#define DEVICE_CFG_DUAL_LINK_DVOCB 0x1a
+
+#define DEVICE_WIRE_NONE 	0x00
+#define DEVICE_WIRE_DVOB	0x01
+#define DEVICE_WIRE_DVOC	0x02
+#define DEVICE_WIRE_DVOBC	0x03
+#define DEVICE_WIRE_DVOBB	0x05
+#define DEVICE_WIRE_DVOCC	0x06
+#define DEVICE_WIRE_DVOB_MASTER	0x0d
+#define DEVICE_WIRE_DVOC_MASTER	0x0e
+
+#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOB	0x01
+#define DEVICE_PORT_DVOC	0x02
+
+struct child_device_config {
+    uint16_t handle;
+    uint16_t device_type; /* See DEVICE_TYPE_* above */
+    uint8_t device_id[10];
+    uint16_t addin_offset;
+    uint8_t dvo_port; /* See DEVICE_PORT_* above */
+    uint8_t i2c_pin;
+    uint8_t slave_addr;
+    uint8_t ddc_pin;
+    uint16_t edid_ptr;
+    uint8_t dvo_cfg; /* See DEVICE_CFG_* above */
+    uint8_t dvo2_port;
+    uint8_t i2c2_pin;
+    uint8_t slave2_addr;
+    uint8_t ddc2_pin;
+    uint8_t capabilities;
+    uint8_t dvo_wiring; /* See DEVICE_WIRE_* above */
+    uint8_t dvo2_wiring;
+    uint16_t extended_type;
+    uint8_t dvo_function;
+} __attribute__((packed));
+
 struct bdb_general_definitions {
-	/* DDC GPIO */
-	unsigned char crt_ddc_gmbus_pin;
+	unsigned char crt_ddc_gmbus_pin; /* see GPIO_PIN_* above */
 
 	/* DPMS bits */
 	unsigned char dpms_acpi:1;
@@ -131,13 +218,23 @@ struct bdb_general_definitions {
 	unsigned char boot_display[2];
 	unsigned char child_dev_size;
 
-	/* device info */
-	unsigned char tv_or_lvds_info[33];
-	unsigned char dev1[33];
-	unsigned char dev2[33];
-	unsigned char dev3[33];
-	unsigned char dev4[33];
+	/*
+	 * Device info:
+	 * If TV is present, it'll be at devices[0]
+	 * LVDS will be next, either devices[0] or [1], if present
+	 * Max total will be 6, but could be as few as 4 if both
+	 * TV and LVDS are missing, so be careful when interpreting
+	 * [4] and [5].
+	 */
+	struct child_device_config devices[6];
 	/* may be another device block here on some platforms */
+} __attribute__((packed));
+
+#define DEVICE_CHILD_SIZE 7
+
+struct bdb_child_devices {
+    uint8_t child_structure_size;
+    struct child_device_config children[DEVICE_CHILD_SIZE];
 } __attribute__((packed));
 
 struct bdb_lvds_options {
@@ -152,6 +249,16 @@ struct bdb_lvds_options {
     uint8_t lvds_edid:1;
     uint8_t rsvd2:1;
     uint8_t rsvd4;
+} __attribute__((packed));
+
+/* 915+ only */
+struct bdb_tv_features {
+    /* need to verify bit ordering */
+    uint16_t under_over_scan_via_yprpb:2;
+    uint16_t rsvd1:10;
+    uint16_t under_over_scan_via_dvi:2;
+    uint16_t add_overscan_mode:1;
+    uint16_t rsvd2:1;
 } __attribute__((packed));
 
 struct lvds_fp_timing {
@@ -223,6 +330,40 @@ struct bdb_lvds_lfp_data {
     struct bdb_lvds_lfp_data_entry data[16];
 } __attribute__((packed));
 
+#define BACKLIGHT_TYPE_NONE 0
+#define BACKLIGHT_TYPE_I2C 1
+#define BACKLIGHT_TYPE_PWM 2
+
+#define BACKLIGHT_GMBUS_100KHZ	0
+#define BACKLIGHT_GMBUS_50KHZ	1
+#define BACKLIGHT_GMBUS_400KHZ	2
+#define BACKLIGHT_GMBUS_1MHZ	3
+
+struct backlight_info {
+    uint8_t inverter_type:2; /* see BACKLIGHT_TYPE_* above */
+    uint8_t inverter_polarity:1; /* 1 means 0 is max, 255 is min */
+    uint8_t gpio_pins:3; /* see GPIO_PIN_* above */
+    uint8_t gmbus_speed:2;
+    uint16_t pwm_frequency; /* in Hz */
+    uint8_t min_brightness;
+    /* Next two are only for 915+ systems */
+    uint8_t i2c_addr;
+    uint8_t i2c_cmd;
+} __attribute((packed));
+
+struct bdb_backlight_control {
+    uint8_t row_size;
+    struct backlight_info lfps[16];
+} __attribute__((packed));
+
+struct bdb_bia {
+    uint8_t bia_enable:1;
+    uint8_t bia_level:3;
+    uint8_t rsvd1:3;
+    uint8_t als_enable:1;
+    uint8_t als_response_data[20];
+} __attribute((packed));
+
 struct aimdb_header {
     char    signature[16];
     char    oem_device[20];
@@ -257,6 +398,19 @@ int i830_bios_init(ScrnInfoPtr pScrn);
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in
  * GR18 & SWF*.
+ *
+ * The VBIOS/firmware will signal to the gfx driver through the ASLE interrupt
+ * (visible in the interupt regs at bit 0) when it wants something done.
+ *
+ * Pre-965:
+ * The gfx driver can make calls to the VBIOS/firmware through an SMI request,
+ * generated by writing to offset 0xe0 of the device's config space (see the
+ * publically available 915 PRM for details).
+ *
+ * 965 and above:
+ * IGD OpRegion requests to the VBIOS/firmware are made using SWSCI, which can
+ * be triggered by writing to offset 0xe4 (see the publically available
+ * 965 graphics PRM for details).
  */
 
 /* GR18 bits are set on display switch and hotkey events */
@@ -335,7 +489,7 @@ int i830_bios_init(ScrnInfoPtr pScrn);
 
 #define SWF14_GFX_PFIT_EN	(1<<31)
 #define SWF14_TEXT_PFIT_EN	(1<<30)
-#define SWF14_LID_STATUS_CLOSED	(1<<29) /* 0 here means open */
+#define SWF14_LID_SWITCH_EN	(1<<29)
 #define SWF14_POPUP_EN		(1<<28)
 #define SWF14_DISPLAY_HOLDOFF	(1<<27)
 #define SWF14_DISP_DETECT_EN	(1<<26)

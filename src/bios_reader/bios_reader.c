@@ -165,7 +165,9 @@ static void dump_general_definitions(void)
 {
     struct bdb_block *block;
     struct bdb_general_definitions *defs;
-    unsigned char *lvds_data;
+    struct child_device_config *child;
+    int i;
+    char child_id[11];
 
     block = find_section(BDB_GENERAL_DEFINITIONS);
 
@@ -173,7 +175,6 @@ static void dump_general_definitions(void)
 	return;
 
     defs = block->data;
-    lvds_data = defs->tv_or_lvds_info;
 
     printf("General definitions block:\n");
 
@@ -185,10 +186,53 @@ static void dump_general_definitions(void)
     printf("\tBoot display type: 0x%02x%02x\n", defs->boot_display[1],
 	   defs->boot_display[0]);
     printf("\tTV data block present: %s\n", YESNO(tv_present));
-    if (tv_present)
-	lvds_data += 33;
-    if (lvds_present)
-	printf("\tLFP DDC GMBUS addr: 0x%02x\n", lvds_data[19]);
+    for (i = 0; i < 4; i++) {
+	child = &defs->devices[i];
+	if (!child->device_type) {
+	    printf("\tChild device %d not present\n", i);
+	    continue;
+	}
+	strncpy(child_id, (char *)child->device_id, 10);
+	child_id[10] = 0;
+	printf("\tChild %d device info:\n", i);
+	printf("\t\tSignature: %s\n", child_id);
+	printf("\t\tAIM offset: %d\n", child->addin_offset);
+	printf("\t\tDVO port: 0x%02x\n", child->dvo_port);
+    }
+
+    free(block);
+}
+
+static void dump_child_devices(void)
+{
+    struct bdb_block *block;
+    struct bdb_child_devices *child_devs;
+    struct child_device_config *child;
+    int i;
+
+    block = find_section(BDB_CHILD_DEVICE_TABLE);
+    if (!block) {
+	printf("No child device table found\n");
+	return;
+    }
+
+    child_devs = block->data;
+
+    printf("Child devices block:\n");
+    for (i = 0; i < DEVICE_CHILD_SIZE; i++) {
+	child = &child_devs->children[i];
+	/* Skip nonexistent children */
+	if (!child->device_type)
+	    continue;
+	printf("\tChild device %d\n", i);
+	printf("\t\tType: 0x%04x\n", child->device_type);
+	printf("\t\tDVO port: 0x%02x\n", child->dvo_port);
+	printf("\t\tI2C pin: 0x%02x\n", child->i2c_pin);
+	printf("\t\tSlave addr: 0x%02x\n", child->slave_addr);
+	printf("\t\tDDC pin: 0x%02x\n", child->ddc_pin);
+	printf("\t\tDVO config: 0x%02x\n", child->dvo_cfg);
+	printf("\t\tDVO wiring: 0x%02x\n", child->dvo_wiring);
+    }
 
     free(block);
 }
@@ -199,9 +243,10 @@ static void dump_lvds_options(void)
     struct bdb_lvds_options *options;
 
     block = find_section(BDB_LVDS_OPTIONS);
-
-    if (!block)
+    if (!block) {
+	printf("No LVDS options block\n");
 	return;
+    }
 
     options = block->data;
 
@@ -228,8 +273,10 @@ static void dump_lvds_ptr_data(void)
     struct lvds_fp_timing *fp_timing;
 
     block = find_section(BDB_LVDS_LFP_DATA_PTRS);
-    if (!block)
+    if (!block) {
+	printf("No LFP data pointers block\n");
 	return;
+    }
 
     ptrs = block->data;
     fp_timing =	(struct lvds_fp_timing *)((uint8_t *)bdb +
@@ -252,8 +299,10 @@ static void dump_lvds_data(void)
     int i;
 
     block = find_section(BDB_LVDS_LFP_DATA);
-    if (!block)
+    if (!block) {
+	printf("No LVDS data block\n");
 	return;
+    }
 
     lvds_data = block->data;
     num_entries = block->size / sizeof(struct bdb_lvds_lfp_data_entry);
@@ -305,6 +354,8 @@ int main(int argc, char **argv)
     int vbt_off, bdb_off, i;
     char *filename = "bios";
     struct stat finfo;
+    struct bdb_block *block;
+    char signature[17];
 
     if (argc != 2) {
 	printf("usage: %s <rom file>\n", argv[0]);
@@ -348,11 +399,24 @@ int main(int argc, char **argv)
 
     bdb_off = vbt_off + vbt->bdb_offset;
     bdb = (struct bdb_header *)(pI830->VBIOS + bdb_off);
-    printf("BDB sig: %16s\n", bdb->signature);
+    strncpy(signature, (char *)bdb->signature, 16);
+    signature[16] = 0;
+    printf("BDB sig: %s\n", signature);
     printf("BDB vers: %d.%d\n", bdb->version / 100, bdb->version % 100);
+
+    printf("Available sections: ");
+    for (i = 0; i < 256; i++) {
+	block = find_section(i);
+	if (!block)
+	    continue;
+	printf("%d ", i);
+	free(block);
+    }
+    printf("\n");
 
     dump_general_features();
     dump_general_definitions();
+//    dump_child_devices();
     dump_lvds_options();
     dump_lvds_data();
     dump_lvds_ptr_data();
