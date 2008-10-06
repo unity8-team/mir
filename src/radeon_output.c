@@ -1158,7 +1158,7 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 
-	data = 1; /* use coherent mode by default */
+	data = 0; /* coherent mode off by default */
 
 	err = RRChangeOutputProperty(output->randr_output, coherent_mode_atom,
 				     XA_INTEGER, 32, PropModeReplace, 1, &data,
