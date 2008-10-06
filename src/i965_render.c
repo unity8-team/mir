@@ -496,8 +496,8 @@ typedef struct _gen4_state {
 					  [SAMPLER_STATE_FILTER_COUNT]
 					  [SAMPLER_STATE_EXTEND_COUNT][2];
 
-    struct brw_sampler_default_color sampler_default_color;
-    PAD64 (brw_sampler_default_color, 0);
+    struct brw_sampler_border_color sampler_border_color;
+    PAD64 (brw_sampler_border_color, 0);
 
     /* Index by [src_blend][dst_blend] */
     brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
@@ -566,13 +566,13 @@ static void
 sampler_state_init (struct brw_sampler_state *sampler_state,
 		    sampler_state_filter_t filter,
 		    sampler_state_extend_t extend,
-		    int default_color_offset)
+		    int border_color_offset)
 {
     /* PS kernel use this sampler */
     memset(sampler_state, 0, sizeof(*sampler_state));
 
     sampler_state->ss0.lod_preclamp = 1; /* GL mode */
-    sampler_state->ss0.default_color_mode = 0; /* GL mode */
+    sampler_state->ss0.border_color_mode = 0; /* GL mode */
 
     switch(filter) {
     default:
@@ -610,8 +610,8 @@ sampler_state_init (struct brw_sampler_state *sampler_state,
 	break;
     }
 
-    assert((default_color_offset & 31) == 0);
-    sampler_state->ss2.default_color_pointer = default_color_offset >> 5;
+    assert((border_color_offset & 31) == 0);
+    sampler_state->ss2.border_color_pointer = border_color_offset >> 5;
 
     sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 }
@@ -735,12 +735,12 @@ gen4_state_init (struct gen4_render_state *render_state)
     card_state->vs_state.vs6.vert_cache_disable = 1;
 
     /* Set up the sampler default color (always transparent black) */
-    memset(&card_state->sampler_default_color, 0,
-	   sizeof(card_state->sampler_default_color));
-    card_state->sampler_default_color.color[0] = 0.0; /* R */
-    card_state->sampler_default_color.color[1] = 0.0; /* G */
-    card_state->sampler_default_color.color[2] = 0.0; /* B */
-    card_state->sampler_default_color.color[3] = 0.0; /* A */
+    memset(&card_state->sampler_border_color, 0,
+	   sizeof(card_state->sampler_border_color));
+    card_state->sampler_border_color.color[0] = 0.0; /* R */
+    card_state->sampler_border_color.color[1] = 0.0; /* G */
+    card_state->sampler_border_color.color[2] = 0.0; /* B */
+    card_state->sampler_border_color.color[3] = 0.0; /* A */
 
     card_state->cc_viewport.min_depth = -1.e35;
     card_state->cc_viewport.max_depth = 1.e35;
@@ -760,12 +760,12 @@ gen4_state_init (struct gen4_render_state *render_state)
 					i, j,
 					state_base_offset +
 					offsetof (gen4_state_t,
-						  sampler_default_color));
+						  sampler_border_color));
 		    sampler_state_init (&card_state->sampler_state[i][j][k][l][1],
 					k, l,
 					state_base_offset +
 					offsetof (gen4_state_t,
-						  sampler_default_color));
+						  sampler_border_color));
 		}
 	    }
 	}

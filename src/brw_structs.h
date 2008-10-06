@@ -840,7 +840,7 @@ struct brw_wm_unit_state
    float global_depth_offset_scale;   
 };
 
-struct brw_sampler_default_color {
+struct brw_sampler_border_color {
    float color[4];
 };
 
@@ -857,7 +857,7 @@ struct brw_sampler_state
       unsigned int base_level:5; 
       unsigned int pad:1;
       unsigned int lod_preclamp:1; 
-      unsigned int default_color_mode:1; 
+      unsigned int border_color_mode:1; 
       unsigned int pad0:1;
       unsigned int disable:1; 
    } ss0;
@@ -876,7 +876,7 @@ struct brw_sampler_state
    struct
    {
       unsigned int pad:5;
-      unsigned int default_color_pointer:27; 
+      unsigned int border_color_pointer:27; 
    } ss2;
    
    struct
