@@ -496,8 +496,8 @@ typedef struct _gen4_state {
 					  [SAMPLER_STATE_FILTER_COUNT]
 					  [SAMPLER_STATE_EXTEND_COUNT][2];
 
-    struct brw_sampler_border_color sampler_border_color;
-    PAD64 (brw_sampler_border_color, 0);
+    struct brw_sampler_legacy_border_color sampler_border_color;
+    PAD64 (brw_sampler_legacy_border_color, 0);
 
     /* Index by [src_blend][dst_blend] */
     brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
@@ -572,7 +572,10 @@ sampler_state_init (struct brw_sampler_state *sampler_state,
     memset(sampler_state, 0, sizeof(*sampler_state));
 
     sampler_state->ss0.lod_preclamp = 1; /* GL mode */
-    sampler_state->ss0.border_color_mode = 0; /* GL mode */
+
+    /* We use the legacy mode to get the semantics specified by
+     * the Render extension. */
+    sampler_state->ss0.border_color_mode = BRW_BORDER_COLOR_MODE_LEGACY;
 
     switch(filter) {
     default:
@@ -734,13 +737,13 @@ gen4_state_init (struct gen4_render_state *render_state)
     card_state->vs_state.vs6.vs_enable = 0;
     card_state->vs_state.vs6.vert_cache_disable = 1;
 
-    /* Set up the sampler default color (always transparent black) */
+    /* Set up the sampler border color (always transparent black) */
     memset(&card_state->sampler_border_color, 0,
 	   sizeof(card_state->sampler_border_color));
-    card_state->sampler_border_color.color[0] = 0.0; /* R */
-    card_state->sampler_border_color.color[1] = 0.0; /* G */
-    card_state->sampler_border_color.color[2] = 0.0; /* B */
-    card_state->sampler_border_color.color[3] = 0.0; /* A */
+    card_state->sampler_border_color.color[0] = 0; /* R */
+    card_state->sampler_border_color.color[1] = 0; /* G */
+    card_state->sampler_border_color.color[2] = 0; /* B */
+    card_state->sampler_border_color.color[3] = 0; /* A */
 
     card_state->cc_viewport.min_depth = -1.e35;
     card_state->cc_viewport.max_depth = 1.e35;
