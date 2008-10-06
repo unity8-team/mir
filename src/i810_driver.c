@@ -342,14 +342,6 @@ const char *I810ddcSymbols[] = {
    NULL
 };
 
-const char *I810int10Symbols[] = {
-   "xf86ExecX86int10",
-   "xf86InitInt10",
-   "xf86Int10AllocPages",
-   "xf86int10Addr",
-   NULL
-};
-
 const char *I810xaaSymbols[] = {
    "XAACreateInfoRec",
    "XAADestroyInfoRec",
@@ -518,7 +510,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 #endif
 			I810shadowFBSymbols,
 			I810vbeSymbols, vbeOptionalSymbols,
-			I810ddcSymbols, I810int10Symbols, NULL);
+			I810ddcSymbols, NULL);
 
       /*
        * The return value must be non-NULL on success even though there

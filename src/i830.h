@@ -56,8 +56,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
-#include "xf86int10.h"
-#include "vbe.h"
 #include "vgaHW.h"
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"

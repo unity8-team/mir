@@ -191,7 +191,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dixstruct.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
-#include "vbe.h"
 #include "shadow.h"
 #include "i830.h"
 #include "i830_display.h"
@@ -441,9 +440,6 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    uint16_t gmch_ctrl;
    int memsize = 0, gtt_size;
    int range;
-#if 0
-   VbeInfoBlock *vbeInfo;
-#endif
 
 #if XSERVER_LIBPCIACCESS
    struct pci_device *bridge = intel_host_bridge ();
@@ -1419,11 +1415,6 @@ I830LoadSyms(ScrnInfoPtr pScrn)
 
     if (pI830->use_drm_mode)
 	return TRUE;
-
-    /* Load int10 module */
-    if (!xf86LoadSubModule(pScrn, "int10"))
-	return FALSE;
-    xf86LoaderReqSymLists(I810int10Symbols, NULL);
 
     /* The vgahw module should be loaded here when needed */
     if (!xf86LoadSubModule(pScrn, "vgahw"))

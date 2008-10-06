@@ -47,7 +47,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
-#include "xf86int10.h"
 #include "vbe.h"
 #include "vgaHW.h"
 
@@ -275,6 +274,8 @@ typedef struct _I810Rec {
    Bool have3DWindows;
    int  drmMinor;
 } I810Rec;
+
+extern const char *I810vbeSymbols[];
 
 #define I810PTR(p) ((I810Ptr)((p)->driverPrivate))
 
