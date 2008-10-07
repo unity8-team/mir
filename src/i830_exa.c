@@ -726,6 +726,10 @@ I830EXAInit(ScreenPtr pScreen)
     return TRUE;
 }
 
+#ifdef I830_USE_UXA
+static int uxa_pixmap_index;
+#endif
+
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
 {
@@ -750,7 +754,6 @@ i830_get_pixmap_bo(PixmapPtr pixmap)
 }
 
 #if defined(I830_USE_UXA)
-static int uxa_pixmap_index;
 
 static void
 i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
