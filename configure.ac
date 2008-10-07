@@ -84,6 +84,8 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(UXA, [xorg-server >= 1.5], [BUILD_UXA=yes], [BUILD_UXA=no])
+
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 drm_cflags=$(pkg-config --cflags libdrm)
 
@@ -108,6 +110,8 @@ if test x$DRI != xno; then
 	AC_CHECK_HEADER(xf86drmMode.h,
 			[DRM_MODE=yes],[DRM_MODE=no]
 			[#include "stdint.h"])
+	dnl exaGetPixmapDriverPrivate required for DRM_MODE.
+	PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
 	if test "x$DRM_MODE" = xyes; then
 	   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 	fi
@@ -123,6 +127,11 @@ if test x$DRI = xauto; then
         fi
 fi
 AC_MSG_RESULT([$DRI])
+
+AM_CONDITIONAL(BUILD_UXA, test $BUILD_UXA = yes)
+if test "$BUILD_UXA" = yes; then
+	AC_DEFINE(I830_USE_UXA, 1, [UMA Acceleration Architecture support])
+fi
 
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,

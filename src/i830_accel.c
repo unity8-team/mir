@@ -331,9 +331,13 @@ I830AccelInit(ScreenPtr pScreen)
 	pI830->accel_max_y = 2048;
     }
     switch (pI830->accel) {
-#ifdef I830_USE_UXA
     case ACCEL_UXA:
+#ifdef I830_USE_UXA
 	return i830_uxa_init(pScreen);
+#else
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "UXA not built in, falling back to EXA.\n");
+	return I830EXAInit(pScreen);
 #endif
 #ifdef I830_USE_EXA
     case ACCEL_EXA:

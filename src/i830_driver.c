@@ -2693,8 +2693,10 @@ I830BlockHandler(int i,
        pI830->need_mi_flush = FALSE;
     }
 
+#ifdef I830_USE_UXA
     if (pI830->accel == ACCEL_UXA)
 	i830_uxa_block_handler (pScreen);
+#endif
     /*
      * Check for FIFO underruns at block time (which amounts to just
      * periodically).  If this happens, it means our DSPARB or some other
