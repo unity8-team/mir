@@ -201,9 +201,8 @@ static Bool i915_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
-	I830FALLBACK("extended repeat (%d) not supported\n",
-		     pPict->repeatType);
+    if (pPict->repeatType > RepeatReflect)
+        I830FALLBACK("Unsupported picture repeat %d\n", pPict->repeatType);
 
     if (pPict->filter != PictFilterNearest &&
         pPict->filter != PictFilterBilinear)
@@ -252,7 +251,7 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
     I830Ptr pI830 = I830PTR(pScrn);
     uint32_t format, pitch, filter;
     int w, h, i;
-    uint32_t wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+    uint32_t wrap_mode;
 
     pitch = intel_get_pixmap_pitch(pPix);
     w = pPict->pDrawable->width;
@@ -270,8 +269,22 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	I830FALLBACK("unknown texture format\n");
     format = i915_tex_formats[i].card_fmt;
 
-    if (pPict->repeat)
+    switch (pPict->repeatType) {
+    case RepeatNone:
+	wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+	break;
+    case RepeatNormal:
 	wrap_mode = TEXCOORDMODE_WRAP;
+	break;
+    case RepeatPad:
+	wrap_mode = TEXCOORDMODE_CLAMP_EDGE;
+	break;
+    case RepeatReflect:
+	wrap_mode = TEXCOORDMODE_MIRROR;
+	break;
+    default:
+	FatalError("Unkown repeat type %d\n", pPict->repeatType);
+    }
 
     switch (pPict->filter) {
     case PictFilterNearest:
