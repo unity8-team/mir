@@ -29,7 +29,9 @@
 #define _I830_BIOS_H_
 
 #include <stdint.h>
+#ifndef REG_DUMPER
 #include <xf86str.h>
+#endif
 
 struct vbt_header {
     char signature[20];			/**< Always starts with 'VBT$' */
@@ -393,7 +395,9 @@ struct vch_bdb_22 {
     struct vch_panel_data   panels[16];
 } __attribute__((packed));
 
+#ifndef REG_DUMPER
 int i830_bios_init(ScrnInfoPtr pScrn);
+#endif
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

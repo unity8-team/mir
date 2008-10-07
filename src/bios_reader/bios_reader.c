@@ -38,6 +38,9 @@
 
 #include "../i830_bios.h"
 
+typedef uint8_t CARD8;
+typedef uint16_t CARD16;
+typedef uint32_t CARD32;
 #define _PARSE_EDID_
 #include "edid.h"
 
