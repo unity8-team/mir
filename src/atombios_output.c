@@ -278,13 +278,13 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
     int major, minor;
 
     switch (device) {
-    case ATOM_DEVICE_DFP1_SUPPORT:
+    case ATOM_DEVICE_DFP1_INDEX:
 	index = GetIndexIntoMasterTable(COMMAND, TMDS1EncoderControl);
 	break;
-    case ATOM_DEVICE_LCD1_SUPPORT:
+    case ATOM_DEVICE_LCD1_INDEX:
 	index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
 	break;
-    case ATOM_DEVICE_DFP3_SUPPORT:
+    case ATOM_DEVICE_DFP3_INDEX:
 	index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
 	break;
     default:
@@ -305,7 +305,7 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 	    if (radeon_output->type == OUTPUT_HDMI)
 		disp_data.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-	    if (device == ATOM_DEVICE_DFP1_SUPPORT) {
+	    if (device == ATOM_DEVICE_LCD1_INDEX) {
 		if (radeon_output->lvds_misc & (1 << 0))
 		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 		if (radeon_output->lvds_misc & (1 << 1))
@@ -334,7 +334,7 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 	    disp_data2.ucSpatial = 0;
 	    disp_data2.ucTemporal = 0;
 	    disp_data2.ucFRC = 0;
-	    if (device == ATOM_DEVICE_DFP1_SUPPORT) {
+	    if (device == ATOM_DEVICE_LCD1_INDEX) {
 		if (radeon_output->lvds_misc & (1 << 0))
 		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 		if (radeon_output->lvds_misc & (1 << 5)) {
@@ -919,7 +919,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 		atombios_output_dig1_setup(output, adjusted_mode);
 		atombios_output_dig1_transmitter_setup(output, adjusted_mode);
 	    } else
-		atombios_output_digital_setup(output, ATOM_DEVICE_DFP1_SUPPORT, adjusted_mode);
+		atombios_output_digital_setup(output, ATOM_DEVICE_DFP1_INDEX, adjusted_mode);
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
 		// fix me
@@ -936,7 +936,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 		atombios_output_dig2_setup(output, adjusted_mode);
 		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
 	    } else
-		atombios_output_digital_setup(output, ATOM_DEVICE_DFP3_SUPPORT, adjusted_mode);
+		atombios_output_digital_setup(output, ATOM_DEVICE_DFP3_INDEX, adjusted_mode);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
 	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
@@ -944,7 +944,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 		atombios_output_dig2_setup(output, adjusted_mode);
 		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
 	    } else
-		atombios_output_digital_setup(output, ATOM_DEVICE_LCD1_SUPPORT, adjusted_mode);
+		atombios_output_digital_setup(output, ATOM_DEVICE_LCD1_INDEX, adjusted_mode);
 	}
     } else if ((radeon_output->MonType == MT_CTV) ||
 	       (radeon_output->MonType == MT_STV) ||
