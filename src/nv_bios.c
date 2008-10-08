@@ -4569,7 +4569,8 @@ static void read_bios_edid(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found EDID in BIOS\n");
 
-	bios->fp.edid = xalloc(EDID1_LEN);
+	if (!(bios->fp.edid = xalloc(EDID1_LEN)))
+		return;
 	for (i = 0; i < EDID1_LEN; i++)
 		bios->fp.edid[i] = bios->data[offset + i];
 }
@@ -4579,7 +4580,8 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	memset(&pNv->VBIOS, 0, sizeof(bios_t));
-	pNv->VBIOS.data = xalloc(NV_PROM_SIZE);
+	if (!(pNv->VBIOS.data = xalloc(NV_PROM_SIZE)))
+		return false;
 
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,

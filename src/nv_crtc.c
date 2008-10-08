@@ -1337,11 +1337,14 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 		crtcfuncs.shadow_destroy = NULL;
 	}
 	
-	crtc = xf86CrtcCreate(pScrn, &crtcfuncs);
-	if (crtc == NULL)
+	if (!(crtc = xf86CrtcCreate(pScrn, &crtcfuncs)))
 		return;
 
-	nv_crtc = xnfcalloc (sizeof (struct nouveau_crtc), 1);
+	if (!(nv_crtc = xcalloc(1, sizeof (struct nouveau_crtc)))) {
+		xf86CrtcDestroy(crtc);
+		return;
+	}
+
 	nv_crtc->head = crtc_num;
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 

@@ -657,7 +657,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
 		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control & ~0x20000022);
 	} else
-		for (i = 0; i <= pNv->twoHeads; i++) {
+		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
 			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
@@ -894,8 +894,10 @@ nv_add_connector(ScrnInfoPtr pScrn, int i2c_index, int encoders, const xf86Outpu
 
 	if (!(output = xf86OutputCreate(pScrn, output_funcs, outputname)))
 		return;
-	if (!(nv_connector = xnfcalloc(sizeof (struct nouveau_connector), 1)))
+	if (!(nv_connector = xcalloc(1, sizeof (struct nouveau_connector)))) {
+		xf86OutputDestroy(output);
 		return;
+	}
 
 	output->driver_private = nv_connector;
 
@@ -911,7 +913,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	struct dcb_entry *dcbent;
 	int i, vga_count = 0, dvid_count = 0, dvii_count = 0, lvds_count = 0;
 
-	if (!(pNv->encoders = xnfcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
+	if (!(pNv->encoders = xcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
 		return;
 
 	memset(connectors, 0, sizeof (connectors));
