@@ -22,8 +22,6 @@
  */
 
 #include "nv_include.h"
-#include "nv_local.h"
-#include "compiler.h"
 
 uint32_t NVRead(NVPtr pNv, uint32_t reg)
 {

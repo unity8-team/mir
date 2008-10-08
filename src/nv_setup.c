@@ -21,7 +21,6 @@
  */
 
 #include "nv_include.h"
-#include "nvreg.h"
 
 /*
  * Override VGA I/O routines.

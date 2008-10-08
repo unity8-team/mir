@@ -23,24 +23,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <assert.h>
-#include "xf86.h"
-#include "os.h"
-#include "mibank.h"
-#include "globals.h"
-#include "xf86.h"
-#include "xf86Priv.h"
-#include "xf86DDC.h"
-#include "mipointer.h"
-#include "windowstr.h"
-#include <randrstr.h>
-#include <X11/extensions/render.h>
-
-#include "xf86Crtc.h"
 #include "nv_include.h"
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);

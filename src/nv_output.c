@@ -24,24 +24,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "xf86.h"
-#include "os.h"
-#include "mibank.h"
-#include "globals.h"
-#include "xf86.h"
-#include "xf86Priv.h"
-#include "xf86DDC.h"
-#include "mipointer.h"
-#include "windowstr.h"
-#include <randrstr.h>
-#include <X11/extensions/render.h>
-#include "X11/Xatom.h"
-
-#include "xf86Crtc.h"
+#include <X11/Xatom.h>
 #include "nv_include.h"
 
 #define MULTIPLE_ENCODERS(e) (e & (e - 1))
@@ -284,10 +267,9 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 		if (nv_encoder->dcb->duallink_possible) {
 			if (mode->Clock > 330000) /* 2x165 MHz */
 				return MODE_CLOCK_HIGH;
-		} else {
+		} else
 			if (mode->Clock > 165000) /* 165 MHz */
 				return MODE_CLOCK_HIGH;
-		}
 	}
 
 	return MODE_OK;
@@ -496,8 +478,7 @@ nv_output_detect(xf86OutputPtr output)
 		if (pNv->VBIOS.fp.edid) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Will use hardcoded BIOS FP EDID\n");
-			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex,
-							   pNv->VBIOS.fp.edid);
+			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 			xf86OutputSetEDID(output, nv_connector->edid);
 			ret = XF86OutputStatusConnected;
 		}
