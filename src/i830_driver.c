@@ -1895,6 +1895,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
+   if (i830_bios_init(pScrn))
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		  "VBIOS initialization failed.\n");
+
    I830PreInitCrtcConfig(pScrn);
 
    if (pI830->use_drm_mode) {
@@ -1913,10 +1917,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        PreInitCleanup(pScrn);
        return FALSE;
    }
-
-   if (i830_bios_init(pScrn))
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		  "VBIOS initialization failed.\n");
 
    /*
     * XXX If we knew the pre-initialised GTT format for certain, we could
