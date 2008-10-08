@@ -244,7 +244,7 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	struct nouveau_encoder *nv_encoder = to_nouveau_connector(output)->detected_encoder;
 	NVPtr pNv = NVPTR(output->scrn);
 
 	if (!output->doubleScanAllowed && mode->Flags & V_DBLSCAN)
@@ -279,6 +279,17 @@ static Bool
 nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
 {
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
+
+	if (nv_connector->nv_encoder != nv_connector->detected_encoder) {
+		nv_connector->nv_encoder = nv_connector->detected_encoder;
+		if (output->randr_output) {
+			RRDeleteOutputProperty(output->randr_output, dithering_atom);
+			RRDeleteOutputProperty(output->randr_output, scaling_mode_atom);
+			output->funcs->create_resources(output);
+		}
+	}
+
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
 
@@ -401,17 +412,17 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 }
 
 static void
-update_output_fields(xf86OutputPtr output, struct nouveau_encoder *nv_encoder)
+update_output_fields(xf86OutputPtr output, struct nouveau_encoder *det_encoder)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	NVPtr pNv = NVPTR(output->scrn);
 
-	if (nv_connector->nv_encoder == nv_encoder)
+	if (nv_connector->detected_encoder == det_encoder)
 		return;
 
-	nv_connector->nv_encoder = nv_encoder;
-	output->possible_crtcs = nv_encoder->dcb->heads;
-	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS) {
+	nv_connector->detected_encoder = det_encoder;
+	output->possible_crtcs = det_encoder->dcb->heads;
+	if (det_encoder->dcb->type == OUTPUT_LVDS || det_encoder->dcb->type == OUTPUT_TMDS) {
 		output->doubleScanAllowed = false;
 		output->interlaceAllowed = false;
 	} else {
@@ -425,12 +436,6 @@ update_output_fields(xf86OutputPtr output, struct nouveau_encoder *nv_encoder)
 		else
 			output->interlaceAllowed = true;
 	}
-
-	if (output->randr_output) {
-		RRDeleteOutputProperty(output->randr_output, dithering_atom);
-		RRDeleteOutputProperty(output->randr_output, scaling_mode_atom);
-		output->funcs->create_resources(output);
-	}
 }
 
 static xf86OutputStatus
@@ -439,7 +444,7 @@ nv_output_detect(xf86OutputPtr output)
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_encoder *nv_encoder;
+	struct nouveau_encoder *det_encoder;
 	xf86OutputStatus ret = XF86OutputStatusDisconnected;
 
 	struct nouveau_encoder *find_encoder_by_type(NVOutputType type)
@@ -459,20 +464,20 @@ nv_output_detect(xf86OutputPtr output)
 	     xf86OutputSetEDID(output, nv_connector->edid), nv_connector->edid)) {
 		if (MULTIPLE_ENCODERS(nv_connector->possible_encoders)) {
 			if (nv_connector->edid->features.input_type)
-				nv_encoder = find_encoder_by_type(OUTPUT_TMDS);
+				det_encoder = find_encoder_by_type(OUTPUT_TMDS);
 			else
-				nv_encoder = find_encoder_by_type(OUTPUT_ANALOG);
+				det_encoder = find_encoder_by_type(OUTPUT_ANALOG);
 		} else
-			nv_encoder = find_encoder_by_type(OUTPUT_ANY);
+			det_encoder = find_encoder_by_type(OUTPUT_ANY);
 		ret = XF86OutputStatusConnected;
-	} else if ((nv_encoder = find_encoder_by_type(OUTPUT_ANALOG))) {
+	} else if ((det_encoder = find_encoder_by_type(OUTPUT_ANALOG))) {
 		/* we don't have a load det function for early cards */
 		if (!pNv->twoHeads || pNv->NVArch == 0x11)
 			ret = XF86OutputStatusUnknown;
-		else if (pNv->twoHeads && nv_load_detect(pScrn, nv_encoder))
+		else if (pNv->twoHeads && nv_load_detect(pScrn, det_encoder))
 			ret = XF86OutputStatusConnected;
-	} else if ((nv_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
-		if (nv_encoder->dcb->lvdsconf.use_straps_for_mode &&
+	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
+		if (det_encoder->dcb->lvdsconf.use_straps_for_mode &&
 		    pNv->VBIOS.fp.native_mode)
 			ret = XF86OutputStatusConnected;
 		if (pNv->VBIOS.fp.edid) {
@@ -485,7 +490,7 @@ nv_output_detect(xf86OutputPtr output)
 	}
 
 	if (ret != XF86OutputStatusDisconnected)
-		update_output_fields(output, nv_encoder);
+		update_output_fields(output, det_encoder);
 
 	return ret;
 }
@@ -494,7 +499,7 @@ static DisplayModePtr
 get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	int max_h_active = 0, max_v_active = 0;
 	int i;
@@ -544,7 +549,8 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 static DisplayModePtr
 nv_output_get_edid_modes(xf86OutputPtr output)
 {
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
+	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	DisplayModePtr edid_modes;
 
@@ -828,7 +834,8 @@ static const xf86OutputFuncsRec nv_output_funcs = {
 static DisplayModePtr
 nv_lvds_output_get_modes(xf86OutputPtr output)
 {
-	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
+	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	DisplayModePtr modes;
