@@ -197,14 +197,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
        dstPitch = (dstPitch + 15) & ~15;
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
-	radeon_free_memory(pScrn, pPriv->video_memory);
+	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
 	pPriv->video_memory = NULL;
     }
 
     if (pPriv->video_memory == NULL) {
-	pPriv->video_offset = radeon_allocate_memory(pScrn,
-						     &pPriv->video_memory,
-						     size * 2, 64);
+	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
+						            &pPriv->video_memory,
+						            size * 2, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
     }
@@ -213,9 +213,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (!IS_R500_3D)
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
-	pPriv->bicubic_offset = radeon_allocate_memory(pScrn,
-						       &pPriv->bicubic_memory,
-						       sizeof(bicubic_tex_512), 64);
+	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
+						              &pPriv->bicubic_memory,
+						              sizeof(bicubic_tex_512), 64);
 	pPriv->bicubic_src_offset = pPriv->bicubic_offset + info->fbLocation + pScrn->fbOffset;
 	if (pPriv->bicubic_offset == 0)
 		pPriv->bicubic_enabled = FALSE;

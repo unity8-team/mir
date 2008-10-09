@@ -88,7 +88,7 @@ radeon_drv_la_LTLIBRARIES = radeon_drv.la
 radeon_drv_la_LDFLAGS = -module -avoid-version
 radeon_drv_ladir = @moduledir@/drivers
 radeon_drv_la_SOURCES = \
-	radeon_accel.c radeon_cursor.c radeon_dga.c radeon_memory.c \
+	radeon_accel.c radeon_cursor.c radeon_dga.c radeon_legacy_memory.c \
 	radeon_driver.c radeon_video.c radeon_bios.c radeon_mm_i2c.c \
 	radeon_vip.c radeon_misc.c radeon_probe.c \
 	legacy_crtc.c legacy_output.c \

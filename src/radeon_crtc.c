@@ -418,7 +418,7 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
      * setter for offscreen area locking in EXA currently.  So, we just
      * allocate offscreen memory and fake up a pixmap header for it.
      */
-    rotate_offset = radeon_allocate_memory(pScrn, &radeon_crtc->crtc_rotate_mem, size, align);
+    rotate_offset = radeon_legacy_allocate_memory(pScrn, &radeon_crtc->crtc_rotate_mem, size, align);
     if (rotate_offset == 0)
 	return NULL;
 
@@ -466,7 +466,7 @@ radeon_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data
 	FreeScratchPixmapHeader(rotate_pixmap);
 
     if (data) {
-	radeon_free_memory(pScrn, radeon_crtc->crtc_rotate_mem);
+	radeon_legacy_free_memory(pScrn, radeon_crtc->crtc_rotate_mem);
 	radeon_crtc->crtc_rotate_mem = NULL;
     }
 

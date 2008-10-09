@@ -341,7 +341,7 @@ Bool RADEONCursorInit(ScreenPtr pScreen)
 	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
 	    radeon_crtc->cursor_offset =
-		radeon_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
+		radeon_legacy_allocate_memory(pScrn, &radeon_crtc->cursor_mem, size_bytes, align);
 
 	    if (radeon_crtc->cursor_offset == 0)
 		return FALSE;

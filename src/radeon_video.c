@@ -1638,11 +1638,11 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
   if (pPriv->textured) {
       if (cleanup) {
 	  if (pPriv->bicubic_memory != NULL) {
-	      radeon_free_memory(pScrn, pPriv->bicubic_memory);
+	      radeon_legacy_free_memory(pScrn, pPriv->bicubic_memory);
 	      pPriv->bicubic_memory = NULL;
 	  }
 	  if (pPriv->video_memory != NULL) {
-	      radeon_free_memory(pScrn, pPriv->video_memory);
+	      radeon_legacy_free_memory(pScrn, pPriv->video_memory);
 	      pPriv->video_memory = NULL;
 	  }
       }
@@ -1667,7 +1667,7 @@ RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
         if(pPriv->i2c != NULL) RADEON_board_setmisc(pPriv);
      }
      if (pPriv->video_memory != NULL) {
-	 radeon_free_memory(pScrn, pPriv->video_memory);
+	 radeon_legacy_free_memory(pScrn, pPriv->video_memory);
 	 pPriv->video_memory = NULL;
      }
      pPriv->videoStatus = 0;
@@ -2937,9 +2937,9 @@ RADEONPutImage(
    if (idconv == FOURCC_YV12 || id == FOURCC_I420) {
       new_size += (dstPitch >> 1) * ((height + 1) & ~1);
    }
-   pPriv->video_offset = radeon_allocate_memory(pScrn, &pPriv->video_memory,
-						(pPriv->doubleBuffer ?
-						 (new_size * 2) : new_size), 64);
+   pPriv->video_offset = radeon_legacy_allocate_memory(pScrn, &pPriv->video_memory,
+						       (pPriv->doubleBuffer ?
+						       (new_size * 2) : new_size), 64);
    if (pPriv->video_offset == 0)
       return BadAlloc;
 
@@ -3133,7 +3133,7 @@ RADEONVideoTimerCallback(ScrnInfoPtr pScrn, Time now)
 	} else {  /* FREE_TIMER */
 	    if(pPriv->freeTime < now) {
 		if (pPriv->video_memory != NULL) {
-		    radeon_free_memory(pScrn, pPriv->video_memory);
+		    radeon_legacy_free_memory(pScrn, pPriv->video_memory);
 		    pPriv->video_memory = NULL;
 		}
 		pPriv->videoStatus = 0;
@@ -3168,7 +3168,7 @@ RADEONAllocateSurface(
     pitch = ((w << 1) + 15) & ~15;
     size = pitch * h;
 
-    offset = radeon_allocate_memory(pScrn, &surface_memory, size, 64);
+    offset = radeon_legacy_allocate_memory(pScrn, &surface_memory, size, 64);
     if (offset == 0)
 	return BadAlloc;
 
@@ -3176,18 +3176,18 @@ RADEONAllocateSurface(
     surface->height = h;
 
     if(!(surface->pitches = xalloc(sizeof(int)))) {
-	radeon_free_memory(pScrn, surface_memory);
+	radeon_legacy_free_memory(pScrn, surface_memory);
 	return BadAlloc;
     }
     if(!(surface->offsets = xalloc(sizeof(int)))) {
 	xfree(surface->pitches);
-	radeon_free_memory(pScrn, surface_memory);
+	radeon_legacy_free_memory(pScrn, surface_memory);
 	return BadAlloc;
     }
     if(!(pPriv = xalloc(sizeof(OffscreenPrivRec)))) {
 	xfree(surface->pitches);
 	xfree(surface->offsets);
-	radeon_free_memory(pScrn, surface_memory);
+	radeon_legacy_free_memory(pScrn, surface_memory);
 	return BadAlloc;
     }
 
@@ -3228,7 +3228,7 @@ RADEONFreeSurface(
 
     if(pPriv->isOn)
 	RADEONStopSurface(surface);
-    radeon_free_memory(pScrn, pPriv->surface_memory);
+    radeon_legacy_free_memory(pScrn, pPriv->surface_memory);
     pPriv->surface_memory = NULL;
     xfree(surface->pitches);
     xfree(surface->offsets);
@@ -3504,9 +3504,9 @@ RADEONPutVideo(
    if (pPriv->capture_vbi_data)
       alloc_size += 2 * 2 * vbi_line_width * 21;
 
-   pPriv->video_offset = radeon_allocate_memory(pScrn, &pPriv->video_memory,
-						(pPriv->doubleBuffer ?
-						 (new_size * 2) : new_size), 64);
+   pPriv->video_offset = radeon_legacy_allocate_memory(pScrn, &pPriv->video_memory,
+						      (pPriv->doubleBuffer ?
+						      (new_size * 2) : new_size), 64);
    if (pPriv->video_offset == 0)
       return BadAlloc;
 

@@ -12,7 +12,7 @@
  * returned.
  */
 uint32_t
-radeon_allocate_memory(ScrnInfoPtr pScrn,
+radeon_legacy_allocate_memory(ScrnInfoPtr pScrn,
 		       void **mem_struct,
 		       int size,
 		       int align)
@@ -90,7 +90,7 @@ radeon_allocate_memory(ScrnInfoPtr pScrn,
 }
 
 void
-radeon_free_memory(ScrnInfoPtr pScrn,
+radeon_legacy_free_memory(ScrnInfoPtr pScrn,
 		   void *mem_struct)
 {
     ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
