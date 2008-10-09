@@ -258,8 +258,6 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
-    /* Lenovo T61 has no TV output */
-    { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
     /* Lenovo 3000 v200 */
     { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
 
