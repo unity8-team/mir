@@ -45,9 +45,11 @@ intel_nondrm_exec(dri_bo *bo, unsigned int used, void *priv)
     ScrnInfoPtr pScrn = priv;
     I830Ptr pI830 = I830PTR(pScrn);
 
-    BEGIN_LP_RING(2);
+    BEGIN_LP_RING(4);
     OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
     OUT_RING(bo->offset);
+    OUT_RING(MI_NOOP);
+    OUT_RING(MI_NOOP);
     ADVANCE_LP_RING();
 
     return 0;
