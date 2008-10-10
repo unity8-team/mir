@@ -23,6 +23,8 @@
 #define PCI_DEV_READ_LONG(_device, _offset, _dest_ptr) (pci_device_cfg_read_u32(_device, _dest_ptr, _offset))
 #define PCI_DEV_WRITE_LONG(_device, _offset, _src) (pci_device_cfg_write_u32(_device, _src, _offset))
 
+#define PCI_SLOT_READ_LONG(_slot, _offset) __extension__ ({ uint32_t _pci_slot_read_ret; pci_device_cfg_read_u32(pci_device_find_by_slot(0, 0, 0, _slot), &_pci_slot_read_ret, _offset); _pci_slot_read_ret; })
+
 #else /* PRE_PCIACCESS */
 
 #define PCI_DEV_VENDOR_ID(_device) ((_device)->vendor)
@@ -40,6 +42,8 @@
 
 #define PCI_DEV_READ_LONG(_device, _offset, _dest_ptr) (*(_dest_ptr) = pciReadLong(PCI_DEV_TAG(_device), _offset))
 #define PCI_DEV_WRITE_LONG(_device, _offset, _src) (pciWriteLong(PCI_DEV_TAG(_device), _offset, _src))
+
+#define PCI_SLOT_READ_LONG(_slot, _offset) (pciReadLong(pciTag(0, 0, _slot), _offset))
 
 #endif /* XSERVER_LIBPCIACCESS */
 

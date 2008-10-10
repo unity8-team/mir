@@ -265,39 +265,40 @@ static void nv4GetConfig (NVPtr pNv)
 	pNv->MaxVClockFreqKHz = 350000;
 }
 
-static void nv10GetConfig (NVPtr pNv)
+static void nForce_check_dimms(ScrnInfoPtr pScrn)
 {
+	uint16_t mem_ctrlr_pciid = PCI_SLOT_READ_LONG(3, 0x00) >> 16;
+
+	if ((mem_ctrlr_pciid == 0x1a9) || (mem_ctrlr_pciid == 0x1ab) || (mem_ctrlr_pciid == 0x1ed)) {
+		uint32_t dimm[3];
+
+		dimm[0] = (PCI_SLOT_READ_LONG(2, 0x40) >> 8) & 0x4f;
+		dimm[1] = (PCI_SLOT_READ_LONG(2, 0x44) >> 8) & 0x4f;
+		dimm[2] = (PCI_SLOT_READ_LONG(2, 0x48) >> 8) & 0x4f;
+
+		if (dimm[0] + dimm[1] != dimm[2])
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "Your nForce DIMMs are not arranged in optimal banks!\n");
+	}
+}
+
+static void nv10GetConfig(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
 	uint32_t implementation = pNv->Chipset & 0x0ff0;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	if (!(nvReadMC(pNv, 0x0004) & 0x01000001))
-		xf86DrvMsg(0, X_ERROR, "Card is in big endian mode, something is very wrong !\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Card is in big endian mode, something is very wrong !\n");
 #endif
 
 	if (implementation == CHIPSET_NFORCE) {
-		uint32_t amt;
-#ifdef XSERVER_LIBPCIACCESS
-		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
-		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(match);
-		/* assume one device to exist */
-		struct pci_device *device = pci_device_next(iterator);
-		PCI_DEV_READ_LONG(device, 0x7c, &amt);
-#else
-		amt = pciReadLong(pciTag(0, 0, 1), 0x7C);
-#endif /* XSERVER_LIBPCIACCESS */
-		pNv->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
+		pNv->RamAmountKBytes = (((PCI_SLOT_READ_LONG(1, 0x7c) >> 6) & 31) + 1) * 1024;
+		nForce_check_dimms(pScrn);
 	} else if (implementation == CHIPSET_NFORCE2) {
-		uint32_t amt; 
-#ifdef XSERVER_LIBPCIACCESS
-		const struct pci_slot_match match[] = { {0, 0, 0, 1, 0} };
-		struct pci_device_iterator *iterator = pci_slot_match_iterator_create(match);
-		/* assume one device to exist */
-		struct pci_device *device = pci_device_next(iterator);
-		PCI_DEV_READ_LONG(device, 0x84, &amt);
-#else
-		amt = pciReadLong(pciTag(0, 0, 1), 0x84);
-#endif /* XSERVER_LIBPCIACCESS */
-		pNv->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
+		pNv->RamAmountKBytes = (((PCI_SLOT_READ_LONG(1, 0x84) >> 4) & 127) + 1) * 1024;
+		nForce_check_dimms(pScrn);
 	} else
 		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_020C) & 0xFFF00000) >> 10;
 
@@ -514,7 +515,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	if (pNv->Architecture == NV_ARCH_04)
 		nv4GetConfig(pNv);
 	else
-		nv10GetConfig(pNv);
+		nv10GetConfig(pScrn);
 
     if (!pNv->randr12_enable) {
       

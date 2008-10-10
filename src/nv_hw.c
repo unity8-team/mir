@@ -773,98 +773,28 @@ void nv30UpdateArbitrationSettings(NVPtr pNv, unsigned *burst, unsigned *lwm)
 	*lwm = graphics_lwm >> 3;
 }
 
-#ifdef XSERVER_LIBPCIACCESS
-
-struct pci_device GetDeviceByPCITAG(uint32_t bus, uint32_t dev, uint32_t func)
-{
-	const struct pci_slot_match match[] = { {0, bus, dev, func, 0} };
-	struct pci_device_iterator *iterator;
-	struct pci_device *device;
-
-	/* assume one device to exist */
-	iterator = pci_slot_match_iterator_create(match);
-	device = pci_device_next(iterator);
-
-	return *device;
-}
-
-#endif /* XSERVER_LIBPCIACCESS */
-
 void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
 {
 	nv10_fifo_info fifo_data;
 	nv10_sim_state sim_data;
-	unsigned int MClk, NVClk, memctrl;
-#ifdef XSERVER_LIBPCIACCESS
-	struct pci_device tmp;
-#endif
+	unsigned int MClk, NVClk;
 
 	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
-		unsigned int uMClkPostDiv;
+		uint32_t uMClkPostDiv = (PCI_SLOT_READ_LONG(3, 0x6c) >> 8) & 0xf;
 
-#ifdef XSERVER_LIBPCIACCESS
-		tmp = GetDeviceByPCITAG(0, 0, 3);
-		PCI_DEV_READ_LONG(&tmp, 0x6C, &(uMClkPostDiv));
-		uMClkPostDiv = (uMClkPostDiv >> 8) & 0xf;
-#else
-		uMClkPostDiv = (pciReadLong(pciTag(0, 0, 3), 0x6C) >> 8) & 0xf;
-#endif
 		if (!uMClkPostDiv)
 			uMClkPostDiv = 4;
 		MClk = 400000 / uMClkPostDiv;
-	} else {
-#ifdef XSERVER_LIBPCIACCESS
-		tmp = GetDeviceByPCITAG(0, 0, 5);
-		PCI_DEV_READ_LONG(&tmp, 0x4C, &(MClk));
-		MClk /= 1000;
-#else
-		MClk = pciReadLong(pciTag(0, 0, 5), 0x4C) / 1000;
-#endif
-	}
+	} else
+		MClk = PCI_SLOT_READ_LONG(5, 0x4c) / 1000;
 
 	NVClk = nv_get_clock(pNv, NVPLL);
 
 	sim_data.pix_bpp = (char)pixelDepth;
 	sim_data.enable_video = 0;
 	sim_data.enable_mp = 0;
-#ifdef XSERVER_LIBPCIACCESS
-	tmp = GetDeviceByPCITAG(0, 0, 1);
-	PCI_DEV_READ_LONG(&tmp, 0x7C, &(sim_data.memory_type));
-	sim_data.memory_type = (sim_data.memory_type >> 12) & 1;
-#else
-	sim_data.memory_type = (pciReadLong(pciTag(0, 0, 1), 0x7C) >> 12) & 1;
-#endif
+	sim_data.memory_type = (PCI_SLOT_READ_LONG(1, 0x7c) >> 12) & 1;
 	sim_data.memory_width = 64;
-
-#ifdef XSERVER_LIBPCIACCESS
-	/* This offset is 0, is this even usefull? */
-	tmp = GetDeviceByPCITAG(0, 0, 3);
-	PCI_DEV_READ_LONG(&tmp, 0x00, &(memctrl));
-	memctrl >>= 16;
-#else
-	memctrl = pciReadLong(pciTag(0, 0, 3), 0x00) >> 16;
-#endif
-
-	if ((memctrl == 0x1a9) || (memctrl == 0x1ab) || (memctrl == 0x1ed)) {
-		uint32_t dimm[3];
-#ifdef XSERVER_LIBPCIACCESS
-		tmp = GetDeviceByPCITAG(0, 0, 2);
-		PCI_DEV_READ_LONG(&tmp, 0x40, &(dimm[0]));
-		PCI_DEV_READ_LONG(&tmp, 0x44, &(dimm[1]));
-		PCI_DEV_READ_LONG(&tmp, 0x48, &(dimm[2]));
-		int i;
-		for (i = 0; i < 3; i++)
-			dimm[i] = (dimm[i] >> 8) & 0x4F;
-#else
-		dimm[0] = (pciReadLong(pciTag(0, 0, 2), 0x40) >> 8) & 0x4F;
-		dimm[1] = (pciReadLong(pciTag(0, 0, 2), 0x44) >> 8) & 0x4F;
-		dimm[2] = (pciReadLong(pciTag(0, 0, 2), 0x48) >> 8) & 0x4F;
-#endif
-
-		if (dimm[0] + dimm[1] != dimm[2])
-			ErrorF("WARNING: your nForce DIMMs are not arranged in optimal banks!\n");
-	}
-
 	sim_data.mem_latency = 3;
 	sim_data.mem_aligned = 1;
 	sim_data.mem_page_miss = 10;
