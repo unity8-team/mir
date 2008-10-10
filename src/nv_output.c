@@ -50,7 +50,8 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t testval, regoffset = nv_output_ramdac_offset(nv_encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput, saved_rtest_ctrl, temp;
-	int present = 0;
+	int head, present = 0;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
 #define RGB_TEST_DATA(r,g,b) (r << 0 | g << 10 | b << 20)
 	testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
@@ -73,26 +74,29 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	usleep(4000);
 
 	saved_routput = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
-	/* nv driver and nv31 use 0xfffffeee
-	 * nv34 and 6600 use 0xfffffece */
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, saved_routput & 0xfffffece);
+	head = (saved_routput & 0x100) >> 8;
+	/* if there's a spare crtc, using it will minimise flicker for the case
+	 * where the in-use crtc is in use by an off-chip tmds encoder */
+	if (xf86_config->crtc[head]->enabled && !xf86_config->crtc[head ^ 1]->enabled)
+		head ^= 1;
+	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset,
+		      (saved_routput & 0xfffffece) | head << 8);
 	usleep(1000);
 
 	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
 
-	/* no regoffset on purpose */
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
-	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
+	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
 	usleep(1000);
 
 	present = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset) & (1 << 28);
 
-	/* no regoffset on purpose */
-	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_DATA, 0);
+	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA, 0);
 
 	/* bios does something more complex for restoring, but I think this is good enough */
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, saved_routput);
@@ -610,11 +614,25 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
 
-	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
+	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG) {
+		uint32_t dac_offset = nv_output_ramdac_offset(nv_encoder);
+		uint32_t otherdac;
+		int i;
+
 		/* bit 16-19 are bits that are set on some G70 cards,
 		 * but don't seem to have much effect */
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder),
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset,
 			      nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE);
+		/* force any other vga encoders to bind to the other crtc */
+		for (i = 0; i < pNv->dcb_table.entries; i++)
+			if (i != nv_encoder->dcb->index && pNv->encoders[i].dcb &&
+			    pNv->encoders[i].dcb->type == OUTPUT_ANALOG) {
+				dac_offset = nv_output_ramdac_offset(&pNv->encoders[i]);
+				otherdac = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset);
+				NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset,
+					      (otherdac & ~0x100) | (nv_crtc->head ^ 1) << 8);
+			}
+	}
 	if (nv_encoder->dcb->type == OUTPUT_TMDS)
 		run_tmds_table(pScrn, nv_encoder->dcb, nv_crtc->head, adjusted_mode->Clock);
 	else if (nv_encoder->dcb->type == OUTPUT_LVDS)
@@ -632,8 +650,7 @@ nv_output_commit(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
-	xf86CrtcPtr crtc = output->crtc;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_commit is called.\n");
 
