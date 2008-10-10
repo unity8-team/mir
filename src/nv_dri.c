@@ -427,13 +427,15 @@ void NVDRICloseScreen(ScrnInfoPtr pScrn)
 	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	/* close fifo channel so it won't fail on open for next server generation. */ 
-	nouveau_channel_free(&pNv->chan);
-
-	/* this may not work for kernel modesetting, so i'm leaving a note. */
 	nouveau_device_close(&pNv->dev);
 
 	DRICloseScreen(pScreen);
+
+	/* The channel should have been removed from the drm side, that still leaves a memory leak though. */
+	if (pNv->chan) {
+		free(pNv->chan);
+		pNv->chan = NULL;
+	}
 
 	if (pNv->pDRIInfo) {
 		if (pNv->pDRIInfo->devPrivate) {
