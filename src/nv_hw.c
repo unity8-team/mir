@@ -345,6 +345,15 @@ static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
 	uint32_t reg1;
 	struct pll_lims pll_lim;
 
+	if (plltype == MPLL && (pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
+		uint32_t mpllP = (PCI_SLOT_READ_LONG(3, 0x6c) >> 8) & 0xf;
+
+		if (!mpllP)
+			mpllP = 4;
+		return 400000 / mpllP;
+	} else if (plltype == MPLL && (pNv->Chipset & 0xff0) == CHIPSET_NFORCE2)
+		return PCI_SLOT_READ_LONG(5, 0x4c) / 1000;
+
 	if (pNv->Architecture < NV_ARCH_40)
 		reg1 = nv04_regs[plltype];
 	else
@@ -374,52 +383,28 @@ static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
 *                                                                            *
 \****************************************************************************/
 
-typedef struct {
+struct nv_fifo_info {
 	int graphics_lwm;
 	int video_lwm;
 	int graphics_burst_size;
 	int video_burst_size;
 	int valid;
-} nv4_fifo_info;
+};
 
-typedef struct {
+struct nv_sim_state {
 	int pclk_khz;
 	int mclk_khz;
 	int nvclk_khz;
-	char mem_page_miss;
-	char mem_latency;
-	int memory_width;
-	char enable_video;
-	char gr_during_vid;
-	char pix_bpp;
-	char mem_aligned;
+	int pix_bpp;
 	char enable_mp;
-} nv4_sim_state;
+	char enable_video;
+	int mem_page_miss;
+	int mem_latency;
+	int memory_type;
+	int memory_width;
+};
 
-typedef struct {
-	int graphics_lwm;
-	int video_lwm;
-	int graphics_burst_size;
-	int video_burst_size;
-	int valid;
-} nv10_fifo_info;
-
-typedef struct {
-	uint32_t pclk_khz;
-	uint32_t mclk_khz;
-	uint32_t nvclk_khz;
-	uint8_t mem_page_miss;
-	uint8_t mem_latency;
-	uint32_t memory_type;
-	uint32_t memory_width;
-	uint8_t enable_video;
-	uint8_t gr_during_vid;
-	uint8_t pix_bpp;
-	uint8_t mem_aligned;
-	uint8_t enable_mp;
-} nv10_sim_state;
-
-static void nv4CalcArbitration(nv4_fifo_info *fifo, nv4_sim_state *arb)
+static void nv4CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *arb)
 {
 	int pagemiss, cas, width, video_enable, bpp;
 	int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
@@ -527,38 +512,7 @@ static void nv4CalcArbitration(nv4_fifo_info *fifo, nv4_sim_state *arb)
 	}
 }
 
-void nv4UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
-{
-	nv4_fifo_info fifo_data;
-	nv4_sim_state sim_data;
-	unsigned int MClk, NVClk, cfg1;
-
-	MClk = nv_get_clock(pNv, MPLL);
-	NVClk = nv_get_clock(pNv, NVPLL);
-
-	cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
-	sim_data.pix_bpp = (char)pixelDepth;
-	sim_data.enable_video = 0;
-	sim_data.enable_mp = 0;
-	sim_data.memory_width = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
-	sim_data.mem_latency = cfg1 & 0xf;
-	sim_data.mem_aligned = 1;
-	sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
-	sim_data.gr_during_vid = 0;
-	sim_data.pclk_khz = VClk;
-	sim_data.mclk_khz = MClk;
-	sim_data.nvclk_khz = NVClk;
-	nv4CalcArbitration(&fifo_data, &sim_data);
-	if (fifo_data.valid) {
-		int b = fifo_data.graphics_burst_size >> 4;
-		*burst = 0;
-		while (b >>= 1)
-			(*burst)++;
-		*lwm = fifo_data.graphics_lwm >> 3;
-	}
-}
-
-static void nv10CalcArbitration(nv10_fifo_info *fifo, nv10_sim_state *arb)
+static void nv10CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *arb)
 {
 	int pagemiss, width, video_enable, bpp;
 	int nvclks, mclks, pclks, vpagemiss, crtpagemiss;
@@ -728,27 +682,39 @@ static void nv10CalcArbitration(nv10_fifo_info *fifo, nv10_sim_state *arb)
 	}
 }
 
-void nv10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
+void nv4_10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
 {
-	nv10_fifo_info fifo_data;
-	nv10_sim_state sim_data;
+	struct nv_fifo_info fifo_data;
+	struct nv_sim_state sim_data;
 	int MClk = nv_get_clock(pNv, MPLL);
 	int NVClk = nv_get_clock(pNv, NVPLL);
 	uint32_t cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
 
-	sim_data.pix_bpp = (char)pixelDepth;
-	sim_data.enable_video = 1;
-	sim_data.enable_mp = 0;
-	sim_data.memory_type = nvReadFB(pNv, NV_PFB_CFG0) & 0x1;
-	sim_data.memory_width = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
-	sim_data.mem_latency = cfg1 & 0xf;
-	sim_data.mem_aligned = 1;
-	sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
-	sim_data.gr_during_vid = 0;
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
 	sim_data.nvclk_khz = NVClk;
-	nv10CalcArbitration(&fifo_data, &sim_data);
+	sim_data.pix_bpp = (char)pixelDepth;
+	sim_data.enable_mp = 0;
+	if ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE ||
+	    (pNv->Chipset & 0xffff) == CHIPSET_NFORCE2) {
+		sim_data.enable_video = 0;
+		sim_data.memory_type = (PCI_SLOT_READ_LONG(1, 0x7c) >> 12) & 1;
+		sim_data.memory_width = 64;
+		sim_data.mem_latency = 3;
+		sim_data.mem_page_miss = 10;
+	} else {
+		sim_data.enable_video = (pNv->Architecture != NV_ARCH_04);
+		sim_data.memory_type = nvReadFB(pNv, NV_PFB_CFG0) & 0x1;
+		sim_data.memory_width = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
+		sim_data.mem_latency = cfg1 & 0xf;
+		sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
+	}
+
+	if (pNv->Architecture == NV_ARCH_04)
+		nv4CalcArbitration(&fifo_data, &sim_data);
+	else
+		nv10CalcArbitration(&fifo_data, &sim_data);
+
 	if (fifo_data.valid) {
 		int b = fifo_data.graphics_burst_size >> 4;
 		*burst = 0;
@@ -771,47 +737,6 @@ void nv30UpdateArbitrationSettings(NVPtr pNv, unsigned *burst, unsigned *lwm)
 	while (burst_size >>= 1)
 		(*burst)++;
 	*lwm = graphics_lwm >> 3;
-}
-
-void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
-{
-	nv10_fifo_info fifo_data;
-	nv10_sim_state sim_data;
-	unsigned int MClk, NVClk;
-
-	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
-		uint32_t uMClkPostDiv = (PCI_SLOT_READ_LONG(3, 0x6c) >> 8) & 0xf;
-
-		if (!uMClkPostDiv)
-			uMClkPostDiv = 4;
-		MClk = 400000 / uMClkPostDiv;
-	} else
-		MClk = PCI_SLOT_READ_LONG(5, 0x4c) / 1000;
-
-	NVClk = nv_get_clock(pNv, NVPLL);
-
-	sim_data.pix_bpp = (char)pixelDepth;
-	sim_data.enable_video = 0;
-	sim_data.enable_mp = 0;
-	sim_data.memory_type = (PCI_SLOT_READ_LONG(1, 0x7c) >> 12) & 1;
-	sim_data.memory_width = 64;
-	sim_data.mem_latency = 3;
-	sim_data.mem_aligned = 1;
-	sim_data.mem_page_miss = 10;
-	sim_data.gr_during_vid = 0;
-	sim_data.pclk_khz = VClk;
-	sim_data.mclk_khz = MClk;
-	sim_data.nvclk_khz = NVClk;
-
-	nv10CalcArbitration(&fifo_data, &sim_data);
-
-	if (fifo_data.valid) {
-		int b = fifo_data.graphics_burst_size >> 4;
-		*burst = 0;
-		while (b >>= 1)
-			(*burst)++;
-		*lwm = fifo_data.graphics_lwm >> 3;
-	}
 }
 
 /****************************************************************************\
@@ -945,7 +870,7 @@ void NVCalcStateExt (
     switch (pNv->Architecture)
     {
         case NV_ARCH_04:
-            nv4UpdateArbitrationSettings(VClk, 
+            nv4_10UpdateArbitrationSettings(VClk,
                                          pixelDepth * 8, 
                                         &(state->arbitration0),
                                         &(state->arbitration1),
@@ -968,17 +893,8 @@ void NVCalcStateExt (
             {
                 state->arbitration0 = 128; 
                 state->arbitration1 = 0x0480; 
-            } else
-            if(((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
-               ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2))
-            {
-                nForceUpdateArbitrationSettings(VClk,
-                                          pixelDepth * 8,
-                                         &(state->arbitration0),
-                                         &(state->arbitration1),
-                                          pNv);
             } else if(pNv->Architecture < NV_ARCH_30) {
-                nv10UpdateArbitrationSettings(VClk, 
+                nv4_10UpdateArbitrationSettings(VClk,
                                           pixelDepth * 8, 
                                          &(state->arbitration0),
                                          &(state->arbitration1),

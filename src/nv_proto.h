@@ -116,22 +116,14 @@ void NVSetOwner(ScrnInfoPtr pScrn, int head);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank);
 int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk);
-void nForceUpdateArbitrationSettings (unsigned VClk, unsigned pixelDepth,
-				      unsigned     *burst, unsigned     *lwm,
-				      NVPtr        pNv);
 void nv30UpdateArbitrationSettings (NVPtr        pNv,
 				    unsigned     *burst,
 				    unsigned     *lwm);
-void nv10UpdateArbitrationSettings (unsigned      VClk, 
+void nv4_10UpdateArbitrationSettings (unsigned      VClk,
 				    unsigned      pixelDepth, 
 				    unsigned     *burst,
 				    unsigned     *lwm,
 				    NVPtr        pNv);
-void nv4UpdateArbitrationSettings (unsigned      VClk, 
-				   unsigned      pixelDepth, 
-				   unsigned     *burst,
-				   unsigned     *lwm,
-				   NVPtr        pNv);
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 

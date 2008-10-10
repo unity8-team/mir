@@ -269,7 +269,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 
 	if (pNv->Architecture == NV_ARCH_04) {
-		nv4UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
+		nv4_10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
 					     &arbitration0, &arbitration1, pNv);
 
 		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
@@ -282,13 +282,8 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		    ((pNv->Chipset & 0xfff0) == CHIPSET_C512)) {
 			arbitration0 = 128;
 			arbitration1 = 0x0480;
-		} else if (((pNv->Chipset & 0xffff) == CHIPSET_NFORCE) ||
-			 ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE2))
-			nForceUpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
-							&arbitration0,
-							&arbitration1, pNv);
-		else if (pNv->Architecture < NV_ARCH_30)
-			nv10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
+		} else if (pNv->Architecture < NV_ARCH_30)
+			nv4_10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
 						      &arbitration0,
 						      &arbitration1, pNv);
 		else
