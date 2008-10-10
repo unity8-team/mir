@@ -82,7 +82,7 @@ nouveau_device_close(struct nouveau_device **userdev)
 {
 	struct nouveau_device_priv *nv;
 
-	if (userdev || !*userdev)
+	if (!userdev || !*userdev)
 		return;
 	nv = (struct nouveau_device_priv *)*userdev;
 	*userdev = NULL;

@@ -830,9 +830,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		}
 	}
 
-	if (pNv->pInt10)
-		xf86FreeInt10(pNv->pInt10);
-
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
 	NVDRICloseScreen(pScrn);
@@ -880,6 +877,13 @@ NVFreeScreen(int scrnIndex, int flags)
 	 * This only gets called when a screen is being deleted.  It does not
 	 * get called routinely at the end of a server generation.
 	*/
+	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+	NVPtr pNv = NVPTR(pScrn);
+
+	/* Free this here and not in CloseScreen, as it's needed after the first server generation. */
+	if (pNv->pInt10)
+		xf86FreeInt10(pNv->pInt10);
+
 	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
 		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
 	NVFreeRec(xf86Screens[scrnIndex]);

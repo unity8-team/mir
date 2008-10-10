@@ -109,7 +109,6 @@ nouveau_channel_free(struct nouveau_channel **userchan)
 		struct drm_nouveau_channel_free cf;
 
 		nv = nouveau_device((*userchan)->device);
-		*userchan = NULL;
 
 		FIRE_RING_CH(*userchan);
 
@@ -123,6 +122,7 @@ nouveau_channel_free(struct nouveau_channel **userchan)
 		drmCommandWrite(nv->fd, DRM_NOUVEAU_CHANNEL_FREE,
 				&cf, sizeof(cf));
 		free(chan);
+		*userchan = NULL;
 	}
 }
 

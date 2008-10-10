@@ -248,7 +248,9 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 #ifdef XF86DRM_MODE
 	if (!pNv->drmmode) /* drmmode still needs the file descriptor */
 #endif
+	{
 		drmClose(fd);
+	}
 
 	if (pNv->pKernelDRMVersion == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -306,7 +308,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 
 	drm_page_size = getpagesize();
 	if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
-	
+
 	pNv->pDRIInfo                        = pDRIInfo;
 	pDRIInfo->drmDriverName              = "nouveau";
 	pDRIInfo->clientDriverName           = "nouveau";
@@ -374,8 +376,8 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	/* turn on need_close, so we explictly drmClose() on exit */
-	if (nouveau_device_open_existing(&pNv->dev, 1, drm_fd, 0)) {
+	/* need_close = 0, because DRICloseScreen() will handle the closing. */
+	if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR, "Error creating device\n");
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
@@ -425,7 +427,21 @@ void NVDRICloseScreen(ScrnInfoPtr pScrn)
 	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	DRICloseScreen(pScreen);
+	/* close fifo channel so it won't fail on open for next server generation. */ 
+	nouveau_channel_free(&pNv->chan);
+
+	/* this may not work for kernel modesetting, so i'm leaving a note. */
 	nouveau_device_close(&pNv->dev);
+
+	DRICloseScreen(pScreen);
+
+	if (pNv->pDRIInfo) {
+		if (pNv->pDRIInfo->devPrivate) {
+			xfree(pNv->pDRIInfo->devPrivate);
+			pNv->pDRIInfo->devPrivate = NULL;
+		}
+		DRIDestroyInfoRec(pNv->pDRIInfo);
+		pNv->pDRIInfo = NULL;
+	}
 }
 
