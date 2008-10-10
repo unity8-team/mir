@@ -64,6 +64,7 @@ intel_nondrm_exec_i830(dri_bo *bo, unsigned int used, void *priv)
     OUT_RING(bo->offset);
     OUT_RING(bo->offset + pI830->batch_used - 4);
     OUT_RING(MI_NOOP);
+    ADVANCE_LP_RING();
 
     return 0;
 }
