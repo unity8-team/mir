@@ -330,41 +330,18 @@ Bool NVCursorInitRandr12(ScreenPtr pScreen)
 	return xf86_cursors_init(pScreen, cursor_size, cursor_size, flags);
 }
 
-void nv_crtc_fix_nv40_hw_cursor(ScrnInfoPtr pScrn, uint8_t head)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	volatile uint32_t curpos = NVReadRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS, curpos);
-}
-
-void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	int curctl1 = NVReadVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1);
-
-	if (show)
-		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 | 1);
-	else
-		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 & ~1);
-
-	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
-		nv_crtc_fix_nv40_hw_cursor(pScrn, head);
-}
-
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
 
-	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, TRUE);
+	nv_show_cursor(NVPTR(crtc->scrn), nv_crtc->head, true);
 }
 
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
 
-	nv_crtc_show_hide_cursor(pScrn, nv_crtc->head, FALSE);
+	nv_show_cursor(NVPTR(crtc->scrn), nv_crtc->head, false);
 }
 
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)

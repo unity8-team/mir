@@ -1439,9 +1439,9 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL0, regp->CRTC[NV_VGA_CRTCX_CURCTL0]);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, regp->CRTC[NV_VGA_CRTCX_CURCTL1]);
-	if (pNv->Architecture == NV_ARCH_40) /* HW bug */
-		nv_crtc_fix_nv40_hw_cursor(pScrn, nv_crtc->head);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL2, regp->CRTC[NV_VGA_CRTCX_CURCTL2]);
+	if (pNv->Architecture == NV_ARCH_40)
+		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_INTERLACE, regp->CRTC[NV_VGA_CRTCX_INTERLACE]);
 
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_26, regp->CRTC[NV_VGA_CRTCX_26]);

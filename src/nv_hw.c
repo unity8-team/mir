@@ -291,6 +291,30 @@ void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)
 	NVVgaSeqReset(pNv, head, FALSE);
 }
 
+void nv_fix_nv40_hw_cursor(NVPtr pNv, int head)
+{
+	/* on some nv40 (such as the "true" (in the NV_PFB_BOOT_0 sense) nv40,
+	 * the gf6800gt) a hardware bug requires a write to PRAMDAC_CURSOR_POS
+	 * for changes to the CRTC CURCTL regs to take effect, whether changing
+	 * the pixmap location, or just showing/hiding the cursor
+	 */
+	volatile uint32_t curpos = NVReadRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_CURSOR_POS, curpos);
+}
+
+void nv_show_cursor(NVPtr pNv, int head, bool show)
+{
+	int curctl1 = NVReadVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1);
+
+	if (show)
+		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 | 1);
+	else
+		NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_CURCTL1, curctl1 & ~1);
+
+	if (pNv->Architecture == NV_ARCH_40)
+		nv_fix_nv40_hw_cursor(pNv, head);
+}
+
 int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk)
 {
 	int M1, N1, M2 = 1, N2 = 1, log2P;

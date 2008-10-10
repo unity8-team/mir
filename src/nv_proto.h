@@ -48,8 +48,6 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg);
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image);
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
-void nv_crtc_fix_nv40_hw_cursor(ScrnInfoPtr pScrn, uint8_t head);
-void nv_crtc_show_hide_cursor(ScrnInfoPtr pScrn, uint8_t head, Bool show);
 
 /* in nv_dma.c */
 void  NVSync(ScrnInfoPtr pScrn);
@@ -115,6 +113,8 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect);
 void NVSetOwner(ScrnInfoPtr pScrn, int head);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank);
+void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);
+void nv_show_cursor(NVPtr pNv, int head, bool show);
 int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk);
 void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8_t *burst, uint16_t *lwm);
 void nv30UpdateArbitrationSettings(uint8_t *burst, uint16_t *lwm);
