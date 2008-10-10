@@ -195,10 +195,10 @@ typedef struct _riva_hw_state
 	uint32_t fifo;
 	uint32_t pixel;
 	uint32_t horiz;
-	uint32_t arbitration0;
-	uint32_t arbitration1;
-	uint32_t pll;
-	uint32_t pllB;
+	uint8_t arbitration0;
+	uint16_t arbitration1;
+	CARD32 pll;
+	CARD32 pllB;
 	uint32_t vpll;
 	uint32_t vpll2;
 	uint32_t vpllB;

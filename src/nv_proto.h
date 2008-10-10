@@ -60,7 +60,7 @@ Bool NVExaInit(ScreenPtr pScreen);
 Bool NVExaPixmapIsOnscreen(PixmapPtr pPixmap);
 
 /* in nv_hw.c */
-void NVCalcStateExt(NVPtr,struct _riva_hw_state *,int,int,int,int,int,int);
+void NVCalcStateExt(ScrnInfoPtr,struct _riva_hw_state *,int,int,int,int,int,int);
 void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);
 void NVUnloadStateExt(NVPtr,struct _riva_hw_state *);
 void NVSetStartAddress(NVPtr,CARD32);
@@ -116,14 +116,8 @@ void NVSetOwner(ScrnInfoPtr pScrn, int head);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank);
 int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk);
-void nv30UpdateArbitrationSettings (NVPtr        pNv,
-				    unsigned     *burst,
-				    unsigned     *lwm);
-void nv4_10UpdateArbitrationSettings (unsigned      VClk,
-				    unsigned      pixelDepth, 
-				    unsigned     *burst,
-				    unsigned     *lwm,
-				    NVPtr        pNv);
+void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8_t *burst, uint16_t *lwm);
+void nv30UpdateArbitrationSettings(uint8_t *burst, uint16_t *lwm);
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 

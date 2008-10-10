@@ -182,7 +182,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     if(pNv->Architecture >= NV_ARCH_10)
 	pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
 
-    NVCalcStateExt(pNv, 
+    NVCalcStateExt(pScrn,
                     nvReg,
                     i,
                     pScrn->displayWidth,

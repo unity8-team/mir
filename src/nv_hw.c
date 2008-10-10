@@ -682,8 +682,9 @@ static void nv10CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *
 	}
 }
 
-void nv4_10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *burst, unsigned *lwm, NVPtr pNv)
+void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8_t *burst, uint16_t *lwm)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
 	int MClk = nv_get_clock(pNv, MPLL);
@@ -693,7 +694,7 @@ void nv4_10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
 	sim_data.nvclk_khz = NVClk;
-	sim_data.pix_bpp = (char)pixelDepth;
+	sim_data.pix_bpp = bpp;
 	sim_data.enable_mp = 0;
 	if ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE ||
 	    (pNv->Chipset & 0xffff) == CHIPSET_NFORCE2) {
@@ -724,7 +725,7 @@ void nv4_10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	}
 }
 
-void nv30UpdateArbitrationSettings(NVPtr pNv, unsigned *burst, unsigned *lwm)
+void nv30UpdateArbitrationSettings(uint8_t *burst, uint16_t *lwm)
 {
 	unsigned int fifo_size, burst_size, graphics_lwm;
 
@@ -839,7 +840,7 @@ static void CalcVClock2Stage (
  * mode state structure.
  */
 void NVCalcStateExt (
-    NVPtr pNv,
+    ScrnInfoPtr pScrn,
     RIVA_HW_STATE *state,
     int            bpp,
     int            width,
@@ -849,6 +850,7 @@ void NVCalcStateExt (
     int		   flags 
 )
 {
+	NVPtr pNv = NVPTR(pScrn);
     int pixelDepth, VClk = 0;
 	CARD32 CursorStart;
 
@@ -870,11 +872,10 @@ void NVCalcStateExt (
     switch (pNv->Architecture)
     {
         case NV_ARCH_04:
-            nv4_10UpdateArbitrationSettings(VClk,
+            nv4_10UpdateArbitrationSettings(pScrn, VClk,
                                          pixelDepth * 8, 
                                         &(state->arbitration0),
-                                        &(state->arbitration1),
-                                         pNv);
+                                        &(state->arbitration1));
             state->cursor0  = 0x00;
             state->cursor1  = 0xbC;
 	    if (flags & V_DBLSCAN)
@@ -894,14 +895,12 @@ void NVCalcStateExt (
                 state->arbitration0 = 128; 
                 state->arbitration1 = 0x0480; 
             } else if(pNv->Architecture < NV_ARCH_30) {
-                nv4_10UpdateArbitrationSettings(VClk,
+                nv4_10UpdateArbitrationSettings(pScrn, VClk,
                                           pixelDepth * 8, 
                                          &(state->arbitration0),
-                                         &(state->arbitration1),
-                                          pNv);
+                                         &(state->arbitration1));
             } else {
-                nv30UpdateArbitrationSettings(pNv,
-                                         &(state->arbitration0),
+                nv30UpdateArbitrationSettings(&(state->arbitration0),
                                          &(state->arbitration1));
             }
             CursorStart = pNv->Cursor->offset;

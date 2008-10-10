@@ -195,7 +195,9 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
 	Bool nv4x_single_stage_pll_mode = FALSE;
-	uint32_t arbitration0, arbitration1;
+	uint8_t arbitration0;
+	uint16_t arbitration1;
+	uint32_t cursor_start;
 
 	if (!get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
@@ -268,40 +270,32 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 
-	if (pNv->Architecture == NV_ARCH_04) {
-		nv4_10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
-					     &arbitration0, &arbitration1, pNv);
-
-		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x00;
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = 0xbC;
-		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = 0x00000000;
-	} else {
-		uint32_t CursorStart = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
-
-		if (((pNv->Chipset & 0xfff0) == CHIPSET_C51) ||
-		    ((pNv->Chipset & 0xfff0) == CHIPSET_C512)) {
-			arbitration0 = 128;
-			arbitration1 = 0x0480;
-		} else if (pNv->Architecture < NV_ARCH_30)
-			nv4_10UpdateArbitrationSettings(VClk, pScrn->bitsPerPixel,
-						      &arbitration0,
-						      &arbitration1, pNv);
-		else
-			nv30UpdateArbitrationSettings(pNv, &arbitration0,
-						      &arbitration1);
-
-		regp->CRTC[NV_VGA_CRTCX_CURCTL0] = 0x80 | (CursorStart >> 17);
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (CursorStart >> 11) << 2;
-		regp->CRTC[NV_VGA_CRTCX_CURCTL2] = CursorStart >> 24;
-	}
-
-	if (mode->Flags & V_DBLSCAN)
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
+	if (pNv->Architecture < NV_ARCH_30)
+		nv4_10UpdateArbitrationSettings(pScrn, VClk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
+	else if ((pNv->Chipset & 0xfff0) == CHIPSET_C51 ||
+		 (pNv->Chipset & 0xfff0) == CHIPSET_C512) {
+		arbitration0 = 128;
+		arbitration1 = 0x0480;
+	} else
+		nv30UpdateArbitrationSettings(&arbitration0, &arbitration1);
 
 	regp->CRTC[NV_VGA_CRTCX_FIFO0] = arbitration0;
 	regp->CRTC[NV_VGA_CRTCX_FIFO_LWM] = arbitration1 & 0xff;
 	if (pNv->Architecture >= NV_ARCH_30)
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = arbitration1 >> 8;
+
+	if (pNv->Architecture == NV_ARCH_04)
+		cursor_start = 0x5E00 << 2;
+	else
+		cursor_start = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
+
+	regp->CRTC[NV_VGA_CRTCX_CURCTL0] = cursor_start >> 17;
+	if (pNv->Architecture != NV_ARCH_04)
+		regp->CRTC[NV_VGA_CRTCX_CURCTL0] |= 0x80;
+	regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (cursor_start >> 11) << 2;
+	if (mode->Flags & V_DBLSCAN)
+		regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
+	regp->CRTC[NV_VGA_CRTCX_CURCTL2] = cursor_start >> 24;
 }
 
 static void
