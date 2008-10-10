@@ -26,5 +26,5 @@ EXTRA_DIST = README.NV1 ChangeLog
 # Always regenerate the changelog
 CLEANFILES = ChangeLog
 ChangeLog: FORCE
-	git-log > ChangeLog
+	git log > ChangeLog
 FORCE:
