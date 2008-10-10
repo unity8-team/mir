@@ -214,10 +214,15 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 #define IO_FLAG_CONDITION_SIZE	9
 #define MEM_INIT_SIZE		66
 
+static void nv_usleep(int time)
+{
+	usleep(time);
+}
+
 static void still_alive(void)
 {
 //	sync();
-//	usleep(2000);
+//	nv_usleep(2000);
 }
 
 static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
@@ -734,7 +739,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	nv32_wr(pScrn, reg, (oldpll & 0xffff0000) | NM);
 
 	/* wait a bit */
-	usleep(64000);
+	nv_usleep(64000);
 	nv32_rd(pScrn, reg);
 
 	/* then write P as well */
@@ -1676,7 +1681,7 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 			if (DEBUGLEVEL >= 6)
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 					   "0x%04X: Condition not met, sleeping for 2ms\n", offset);
-			usleep(2000);
+			nv_usleep(2000);
 		} else {
 			if (DEBUGLEVEL >= 6)
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1940,7 +1945,7 @@ static bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, 0);
 	nv32_wr(pScrn, reg, value1);
 
-	usleep(10);
+	nv_usleep(10);
 
 	nv32_wr(pScrn, reg, value2);
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, pci_nv_19);
@@ -2312,7 +2317,7 @@ static bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: Sleeping for 0x%04X microseconds\n", offset, time);
 
-	usleep(time);
+	nv_usleep(time);
 
 	return true;
 }
@@ -2872,7 +2877,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *d
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
-		usleep(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
+		nv_usleep(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET && ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329))
