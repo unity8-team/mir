@@ -419,16 +419,15 @@ typedef struct {
 	uint8_t enable_mp;
 } nv10_sim_state;
 
-static void nv4CalcArbitration(nv4_fifo_info * fifo, nv4_sim_state * arb)
+static void nv4CalcArbitration(nv4_fifo_info *fifo, nv4_sim_state *arb)
 {
-	int data, pagemiss, cas, width, video_enable, bpp;
+	int pagemiss, cas, width, video_enable, bpp;
 	int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
 	int found, mclk_extra, mclk_loop, cbs, m1, p1;
 	int mclk_freq, pclk_freq, nvclk_freq, mp_enable;
 	int us_m, us_n, us_p, video_drain_rate, crtc_drain_rate;
 	int vpm_us, us_video, vlwm, video_fill_us, cpm_us, us_crt, clwm;
 
-	fifo->valid = 1;
 	pclk_freq = arb->pclk_khz;
 	mclk_freq = arb->mclk_khz;
 	nvclk_freq = arb->nvclk_khz;
@@ -477,7 +476,7 @@ static void nv4CalcArbitration(nv4_fifo_info * fifo, nv4_sim_state * arb)
 			vpagemiss = 2;
 			vpagemiss += 1;
 			crtpagemiss = 2;
-			vpm_us = (vpagemiss * pagemiss) * 1000 * 1000 / mclk_freq;
+			vpm_us = vpagemiss * pagemiss * 1000 * 1000 / mclk_freq;
 			if (nvclk_freq * 2 > mclk_freq * width)
 				video_fill_us = cbs * 1000 * 1000 / 16 / nvclk_freq;
 			else
@@ -510,38 +509,20 @@ static void nv4CalcArbitration(nv4_fifo_info * fifo, nv4_sim_state * arb)
 		m1 = clwm + cbs - 512;
 		p1 = m1 * pclk_freq / mclk_freq;
 		p1 = p1 * bpp / 8;
-		if ((p1 < m1) && (m1 > 0)) {
+		if ((p1 < m1 && m1 > 0) ||
+		    (video_enable && (clwm > 511 || vlwm > 255)) ||
+		    (!video_enable && clwm > 519)) {
 			fifo->valid = 0;
-			found = 0;
-			if (mclk_extra == 0)
-				found = 1;
+			found = !mclk_extra;
 			mclk_extra--;
-		} else if (video_enable) {
-			if ((clwm > 511) || (vlwm > 255)) {
-				fifo->valid = 0;
-				found = 0;
-				if (mclk_extra == 0)
-					found = 1;
-				mclk_extra--;
-			}
-		} else {
-			if (clwm > 519) {
-				fifo->valid = 0;
-				found = 0;
-				if (mclk_extra == 0)
-					found = 1;
-				mclk_extra--;
-			}
 		}
 		if (clwm < 384)
 			clwm = 384;
 		if (vlwm < 128)
 			vlwm = 128;
-		data = (int)(clwm);
-		fifo->graphics_lwm = data;
+		fifo->graphics_lwm = clwm;
 		fifo->graphics_burst_size = 128;
-		data = (int)((vlwm + 15));
-		fifo->video_lwm = data;
+		fifo->video_lwm = vlwm + 15;
 		fifo->video_burst_size = vbs;
 	}
 }
@@ -560,9 +541,9 @@ void nv4UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *
 	sim_data.enable_video = 0;
 	sim_data.enable_mp = 0;
 	sim_data.memory_width = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
-	sim_data.mem_latency = (char)cfg1 & 0x0F;
+	sim_data.mem_latency = cfg1 & 0xf;
 	sim_data.mem_aligned = 1;
-	sim_data.mem_page_miss = (char)(((cfg1 >> 4) & 0x0F) + ((cfg1 >> 31) & 0x01));
+	sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
 	sim_data.gr_during_vid = 0;
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
@@ -577,9 +558,9 @@ void nv4UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned *
 	}
 }
 
-static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
+static void nv10CalcArbitration(nv10_fifo_info *fifo, nv10_sim_state *arb)
 {
-	int data, pagemiss, width, video_enable, bpp;
+	int pagemiss, width, video_enable, bpp;
 	int nvclks, mclks, pclks, vpagemiss, crtpagemiss;
 	int nvclk_fill;
 	int found, mclk_extra, mclk_loop, cbs, m1;
@@ -592,7 +573,6 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 	int min_mclk_extra;
 	int us_min_mclk_extra;
 
-	fifo->valid = 1;
 	pclk_freq = arb->pclk_khz;	/* freq in KHz */
 	mclk_freq = arb->mclk_khz;
 	nvclk_freq = arb->nvclk_khz;
@@ -602,35 +582,29 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 	bpp = arb->pix_bpp;
 	mp_enable = arb->enable_mp;
 	clwm = 0;
-
 	cbs = 512;
-
 	pclks = 4;	/* lwm detect. */
-
 	nvclks = 3;	/* lwm -> sync. */
 	nvclks += 2;	/* fbi bus cycles (1 req + 1 busy) */
-
 	mclks = 1;	/* 2 edge sync.  may be very close to edge so just put one. */
-
 	mclks += 1;	/* arb_hp_req */
 	mclks += 5;	/* ap_hp_req   tiling pipeline */
-
 	mclks += 2;	/* tc_req     latency fifo */
 	mclks += 2;	/* fb_cas_n_  memory request to fbio block */
 	mclks += 7;	/* sm_d_rdv   data returned from fbio block */
 
 	/* fb.rd.d.Put_gc   need to accumulate 256 bits for read */
-	if (arb->memory_type == 0)
+	if (arb->memory_type == 0) {
 		if (arb->memory_width == 64)	/* 64 bit bus */
 			mclks += 4;
 		else
 			mclks += 2;
-	else if (arb->memory_width == 64)	/* 64 bit bus */
+	} else if (arb->memory_width == 64)	/* 64 bit bus */
 		mclks += 2;
 	else
 		mclks += 1;
 
-	if ((!video_enable) && (arb->memory_width == 128)) {
+	if (!video_enable && arb->memory_width == 128) {
 		mclk_extra = (bpp == 32) ? 31 : 42;	/* Margin of error */
 		min_mclk_extra = 17;
 	} else {
@@ -674,15 +648,14 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 			if (mp_enable)
 				crtpagemiss += 1;	/* if MA0 conflict */
 
-			vpm_us = (vpagemiss * pagemiss) * 1000 * 1000 / mclk_freq;
+			vpm_us = vpagemiss * pagemiss * 1000 * 1000 / mclk_freq;
 
 			us_video = vpm_us + vus_m;	/* Video has separate read return path */
 
 			cpm_us = crtpagemiss * pagemiss * 1000 * 1000 / mclk_freq;
 			us_crt = us_video	/* Wait for video */
-			    + cpm_us	/* CRT Page miss */
-			    + us_m + us_n + us_p	/* other latency */
-			    ;
+				 + cpm_us	/* CRT Page miss */
+				 + us_m + us_n + us_p;	/* other latency */
 
 			clwm = us_crt * crtc_drain_rate / (1000 * 1000);
 			clwm++;	/* fixed point <= float_point - 1.  Fixes that */
@@ -702,8 +675,7 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 			if (width == 1) {
 				nvclk_fill = nvclk_freq * 8;
 				if (crtc_drain_rate * 100 >= nvclk_fill * 102)
-					clwm = 0xfff;	/*Large number to fail */
-
+					clwm = 0xfff;	/* Large number to fail */
 				else if (crtc_drain_rate * 100 >= nvclk_fill * 98) {
 					clwm = 1024;
 					cbs = 512;
@@ -712,10 +684,10 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 		}
 
 		/*
-		   Overfill check:
+		 * Overfill check:
 		 */
 
-		clwm_rnd_down = ((int)clwm / 8) * 8;
+		clwm_rnd_down = (clwm / 8) * 8;
 		if (clwm_rnd_down < clwm)
 			clwm += 8;
 
@@ -726,34 +698,29 @@ static void nv10CalcArbitration(nv10_fifo_info * fifo, nv10_sim_state * arb)
 		p1clk = m2us * pclk_freq / (1000 * 1000);
 		p2 = p1clk * bpp / 8;	/* bytes drained. */
 
-		if ((p2 < m1) && (m1 > 0)) {
+		if (p2 < m1 && m1 > 0) {
 			fifo->valid = 0;
 			found = 0;
 			if (min_mclk_extra == 0) {
-				if (cbs <= 32) {
-					found = 1;	/* Can't adjust anymore! */
-				} else {
-					cbs = cbs / 2;	/* reduce the burst size */
-				}
-			} else {
-				min_mclk_extra--;
-			}
-		} else {
-			if (clwm > 1023) {	/* Have some margin */
-				fifo->valid = 0;
-				found = 0;
-				if (min_mclk_extra == 0)
+				if (cbs <= 32)
 					found = 1;	/* Can't adjust anymore! */
 				else
-					min_mclk_extra--;
-			}
+					cbs = cbs / 2;	/* reduce the burst size */
+			} else
+				min_mclk_extra--;
+		} else if (clwm > 1023) {	/* Have some margin */
+			fifo->valid = 0;
+			found = 0;
+			if (min_mclk_extra == 0)
+				found = 1;	/* Can't adjust anymore! */
+			else
+				min_mclk_extra--;
 		}
 
 		if (clwm < (1024 - cbs + 8))
 			clwm = 1024 - cbs + 8;
-		data = (int)(clwm);
-		/*  printf("CRT LWM: %f bytes, prog: 0x%x, bs: 256\n", clwm, data ); */
-		fifo->graphics_lwm = data;
+		/*  printf("CRT LWM: prog: 0x%x, bs: 256\n", clwm); */
+		fifo->graphics_lwm = clwm;
 		fifo->graphics_burst_size = cbs;
 
 		fifo->video_lwm = 1024;
@@ -765,20 +732,18 @@ void nv10UpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigned 
 {
 	nv10_fifo_info fifo_data;
 	nv10_sim_state sim_data;
-	unsigned int MClk, NVClk, cfg1;
+	int MClk = nv_get_clock(pNv, MPLL);
+	int NVClk = nv_get_clock(pNv, NVPLL);
+	uint32_t cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
 
-	MClk = nv_get_clock(pNv, MPLL);
-	NVClk = nv_get_clock(pNv, NVPLL);
-
-	cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
 	sim_data.pix_bpp = (char)pixelDepth;
 	sim_data.enable_video = 1;
 	sim_data.enable_mp = 0;
-	sim_data.memory_type = (nvReadFB(pNv, NV_PFB_CFG0) & 0x01) ? 1 : 0;
+	sim_data.memory_type = nvReadFB(pNv, NV_PFB_CFG0) & 0x1;
 	sim_data.memory_width = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
-	sim_data.mem_latency = (char)cfg1 & 0x0F;
+	sim_data.mem_latency = cfg1 & 0xf;
 	sim_data.mem_aligned = 1;
-	sim_data.mem_page_miss = (char)(((cfg1 >> 4) & 0x0F) + ((cfg1 >> 31) & 0x01));
+	sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
 	sim_data.gr_during_vid = 0;
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
@@ -834,7 +799,7 @@ void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	struct pci_device tmp;
 #endif
 
-	if ((pNv->Chipset & 0x0FF0) == CHIPSET_NFORCE) {
+	if ((pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
 		unsigned int uMClkPostDiv;
 
 #ifdef XSERVER_LIBPCIACCESS
@@ -858,6 +823,7 @@ void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	}
 
 	NVClk = nv_get_clock(pNv, NVPLL);
+
 	sim_data.pix_bpp = (char)pixelDepth;
 	sim_data.enable_video = 0;
 	sim_data.enable_mp = 0;
@@ -879,7 +845,7 @@ void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	memctrl = pciReadLong(pciTag(0, 0, 3), 0x00) >> 16;
 #endif
 
-	if ((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
+	if ((memctrl == 0x1a9) || (memctrl == 0x1ab) || (memctrl == 0x1ed)) {
 		uint32_t dimm[3];
 #ifdef XSERVER_LIBPCIACCESS
 		tmp = GetDeviceByPCITAG(0, 0, 2);
@@ -887,18 +853,16 @@ void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 		PCI_DEV_READ_LONG(&tmp, 0x44, &(dimm[1]));
 		PCI_DEV_READ_LONG(&tmp, 0x48, &(dimm[2]));
 		int i;
-		for (i = 0; i < 3; i++) {
+		for (i = 0; i < 3; i++)
 			dimm[i] = (dimm[i] >> 8) & 0x4F;
-		}
 #else
 		dimm[0] = (pciReadLong(pciTag(0, 0, 2), 0x40) >> 8) & 0x4F;
 		dimm[1] = (pciReadLong(pciTag(0, 0, 2), 0x44) >> 8) & 0x4F;
 		dimm[2] = (pciReadLong(pciTag(0, 0, 2), 0x48) >> 8) & 0x4F;
 #endif
 
-		if ((dimm[0] + dimm[1]) != dimm[2]) {
-			ErrorF("WARNING: " "your nForce DIMMs are not arranged in optimal banks!\n");
-		}
+		if (dimm[0] + dimm[1] != dimm[2])
+			ErrorF("WARNING: your nForce DIMMs are not arranged in optimal banks!\n");
 	}
 
 	sim_data.mem_latency = 3;
@@ -908,7 +872,9 @@ void nForceUpdateArbitrationSettings(unsigned VClk, unsigned pixelDepth, unsigne
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
 	sim_data.nvclk_khz = NVClk;
+
 	nv10CalcArbitration(&fifo_data, &sim_data);
+
 	if (fifo_data.valid) {
 		int b = fifo_data.graphics_burst_size >> 4;
 		*burst = 0;
