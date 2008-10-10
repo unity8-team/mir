@@ -183,7 +183,33 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 }
 
-/* Calculate extended mode parameters (SVGA) and save in a mode state structure */
+static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
+{
+	NVPtr pNv = NVPTR(crtc->scrn);
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	uint32_t cursor_start;
+	uint8_t *CRTC = pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC;
+
+	if (pNv->Architecture == NV_ARCH_04)
+		cursor_start = 0x5E00 << 2;
+	else
+		cursor_start = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
+
+	CRTC[NV_VGA_CRTCX_CURCTL0] = cursor_start >> 17;
+	if (pNv->Architecture != NV_ARCH_04)
+		CRTC[NV_VGA_CRTCX_CURCTL0] |= 0x80;
+	CRTC[NV_VGA_CRTCX_CURCTL1] = (cursor_start >> 11) << 2;
+	if (crtc->mode.Flags & V_DBLSCAN)
+		CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
+	CRTC[NV_VGA_CRTCX_CURCTL2] = cursor_start >> 24;
+
+	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL0, CRTC[NV_VGA_CRTCX_CURCTL0]);
+	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL1, CRTC[NV_VGA_CRTCX_CURCTL1]);
+	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_CURCTL2, CRTC[NV_VGA_CRTCX_CURCTL2]);
+	if (pNv->Architecture == NV_ARCH_40)
+		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
+}
+
 static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -197,7 +223,6 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	Bool nv4x_single_stage_pll_mode = FALSE;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
-	uint32_t cursor_start;
 
 	if (!get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
@@ -284,18 +309,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	if (pNv->Architecture >= NV_ARCH_30)
 		regp->CRTC[NV_VGA_CRTCX_FIFO_LWM_NV30] = arbitration1 >> 8;
 
-	if (pNv->Architecture == NV_ARCH_04)
-		cursor_start = 0x5E00 << 2;
-	else
-		cursor_start = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
-
-	regp->CRTC[NV_VGA_CRTCX_CURCTL0] = cursor_start >> 17;
-	if (pNv->Architecture != NV_ARCH_04)
-		regp->CRTC[NV_VGA_CRTCX_CURCTL0] |= 0x80;
-	regp->CRTC[NV_VGA_CRTCX_CURCTL1] = (cursor_start >> 11) << 2;
-	if (mode->Flags & V_DBLSCAN)
-		regp->CRTC[NV_VGA_CRTCX_CURCTL1] |= 2;
-	regp->CRTC[NV_VGA_CRTCX_CURCTL2] = cursor_start >> 24;
+	nv_crtc_cursor_set(crtc);
 }
 
 static void
