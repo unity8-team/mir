@@ -337,9 +337,9 @@ static int nv_decode_pll_lowregs(uint32_t Pval, uint32_t NMNM, int refclk)
 	return (N1 * N2 * refclk / (M1 * M2)) >> log2P;
 }
 
-
-static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
+static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_RAMDAC_NVPLL, NV_RAMDAC_MPLL, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
 	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000, 0x4020, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
 	uint32_t reg1;
@@ -359,11 +359,8 @@ static int nv_get_clock(NVPtr pNv, enum pll_types plltype)
 	else
 		reg1 = nv40_regs[plltype];
 
-	/* XXX no pScrn. CrystalFreqKHz is good enough for current nv_get_clock users though
 	if (!get_pll_limits(pScrn, plltype, &pll_lim))
 		return 0;
-	*/
-	pll_lim.refclk = pNv->CrystalFreqKHz;
 
 	if (reg1 <= 0x405c)
 		return nv_decode_pll_lowregs(nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4), pll_lim.refclk);
@@ -388,7 +385,7 @@ struct nv_fifo_info {
 	int video_lwm;
 	int graphics_burst_size;
 	int video_burst_size;
-	int valid;
+	bool valid;
 };
 
 struct nv_sim_state {
@@ -396,8 +393,8 @@ struct nv_sim_state {
 	int mclk_khz;
 	int nvclk_khz;
 	int pix_bpp;
-	char enable_mp;
-	char enable_video;
+	bool enable_mp;
+	bool enable_video;
 	int mem_page_miss;
 	int mem_latency;
 	int memory_type;
@@ -449,7 +446,7 @@ static void nv4CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *a
 	found = 0;
 	vbs = 0;
 	while (found != 1) {
-		fifo->valid = 1;
+		fifo->valid = true;
 		found = 1;
 		mclk_loop = mclks + mclk_extra;
 		us_m = mclk_loop * 1000 * 1000 / mclk_freq;
@@ -497,7 +494,7 @@ static void nv4CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *a
 		if ((p1 < m1 && m1 > 0) ||
 		    (video_enable && (clwm > 511 || vlwm > 255)) ||
 		    (!video_enable && clwm > 519)) {
-			fifo->valid = 0;
+			fifo->valid = false;
 			found = !mclk_extra;
 			mclk_extra--;
 		}
@@ -580,7 +577,7 @@ static void nv10CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *
 	pclks += 0;
 	found = 0;
 	while (found != 1) {
-		fifo->valid = 1;
+		fifo->valid = true;
 		found = 1;
 		mclk_loop = mclks + mclk_extra;
 		us_m = mclk_loop * 1000 * 1000 / mclk_freq;	/* Mclk latency in us */
@@ -653,7 +650,7 @@ static void nv10CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *
 		p2 = p1clk * bpp / 8;	/* bytes drained. */
 
 		if (p2 < m1 && m1 > 0) {
-			fifo->valid = 0;
+			fifo->valid = false;
 			found = 0;
 			if (min_mclk_extra == 0) {
 				if (cbs <= 32)
@@ -663,7 +660,7 @@ static void nv10CalcArbitration(struct nv_fifo_info *fifo, struct nv_sim_state *
 			} else
 				min_mclk_extra--;
 		} else if (clwm > 1023) {	/* Have some margin */
-			fifo->valid = 0;
+			fifo->valid = false;
 			found = 0;
 			if (min_mclk_extra == 0)
 				found = 1;	/* Can't adjust anymore! */
@@ -687,18 +684,18 @@ void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8
 	NVPtr pNv = NVPTR(pScrn);
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
-	int MClk = nv_get_clock(pNv, MPLL);
-	int NVClk = nv_get_clock(pNv, NVPLL);
+	int MClk = nv_get_clock(pScrn, MPLL);
+	int NVClk = nv_get_clock(pScrn, NVPLL);
 	uint32_t cfg1 = nvReadFB(pNv, NV_PFB_CFG1);
 
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
 	sim_data.nvclk_khz = NVClk;
 	sim_data.pix_bpp = bpp;
-	sim_data.enable_mp = 0;
+	sim_data.enable_mp = false;
 	if ((pNv->Chipset & 0xffff) == CHIPSET_NFORCE ||
 	    (pNv->Chipset & 0xffff) == CHIPSET_NFORCE2) {
-		sim_data.enable_video = 0;
+		sim_data.enable_video = false;
 		sim_data.memory_type = (PCI_SLOT_READ_LONG(1, 0x7c) >> 12) & 1;
 		sim_data.memory_width = 64;
 		sim_data.mem_latency = 3;
