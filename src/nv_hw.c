@@ -250,13 +250,10 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect)
 	NVSetEnablePalette(pNv, head, protect);
 }
 
-void NVSetOwner(ScrnInfoPtr pScrn, int head)
+void NVSetOwner(NVPtr pNv, int head)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	/* CRTCX_OWNER is always changed on CRTC0 */
 	NVWriteVgaCrtc(pNv, 0, NV_VGA_CRTCX_OWNER, head * 0x3);
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting owner: 0x%X.\n", head * 0x3);
 }
 
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
@@ -273,13 +270,12 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_VSYNCE, cr11);
 }
 
-void NVBlankScreen(ScrnInfoPtr pScrn, int head, bool blank)
+void NVBlankScreen(NVPtr pNv, int head, bool blank)
 {
 	unsigned char seq1;
-	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->twoHeads)
-		NVSetOwner(pScrn, head);
+		NVSetOwner(pNv, head);
 
 	seq1 = NVReadVgaSeq(pNv, head, 0x1);
 
@@ -1157,8 +1153,8 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%sing VGA fonts\n", save ? "Sav" : "Restor");
 	if (pNv->twoHeads)
-		NVBlankScreen(pScrn, 1, true);
-	NVBlankScreen(pScrn, 0, true);
+		NVBlankScreen(pNv, 1, true);
+	NVBlankScreen(pNv, 0, true);
 
 	/* save control regs */
 	misc = NVReadPVIO(pNv, 0, VGA_MISC_OUT_R);
@@ -1218,6 +1214,6 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 	NVWriteVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE, seq4);
 
 	if (pNv->twoHeads)
-		NVBlankScreen(pScrn, 1, false);
-	NVBlankScreen(pScrn, 0, false);
+		NVBlankScreen(pNv, 1, false);
+	NVBlankScreen(pNv, 0, false);
 }

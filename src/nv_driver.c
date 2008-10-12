@@ -1797,7 +1797,7 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->twoHeads) {
-		NVSetOwner(pScrn, 0);	/* move to head A to set owner */
+		NVSetOwner(pNv, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
 		NVWriteVgaCrtc(pNv, 0, NV_VGA_CRTCX_OWNER, pNv->vtOWNER);
@@ -2220,7 +2220,7 @@ NVSaveScreen(ScreenPtr pScreen, int mode)
 		
 		if (xf86_config->crtc[i]->enabled) {
 		    struct nouveau_crtc *nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
-		    NVBlankScreen(pScrn, nv_crtc->head, !on);
+		    NVBlankScreen(pNv, nv_crtc->head, !on);
 		}
 	    }
 	    

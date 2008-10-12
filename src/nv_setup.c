@@ -479,14 +479,14 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			else {
 				uint8_t slaved_on_A, slaved_on_B;
 
-				NVSetOwner(pScrn, 1);
+				NVSetOwner(pNv, 1);
 				NVLockVgaCrtc(pNv, 1, false);
 
 				slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_PIXEL) & 0x80;
 				if (slaved_on_B)
 					tvB = !(NVReadVgaCrtc(pNv, 1, NV_VGA_CRTCX_LCD) & 0x01);
 
-				NVSetOwner(pScrn, 0);
+				NVSetOwner(pNv, 0);
 				NVLockVgaCrtc(pNv, 0, false);
 
 				slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_VGA_CRTCX_PIXEL) & 0x80;

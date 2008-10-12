@@ -73,11 +73,10 @@ static void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(crtc->scrn);
 
 	if (pNv->twoHeads)
-		NVSetOwner(pScrn, nv_crtc->head);
+		NVSetOwner(pNv, nv_crtc->head);
 	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
@@ -329,7 +328,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	nv_crtc->last_dpms = mode;
 
 	if (pNv->twoHeads)
-		NVSetOwner(pScrn, nv_crtc->head);
+		NVSetOwner(pNv, nv_crtc->head);
 
 	crtc1A = NVReadVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_REPAINT1) & ~0xC0;
 	switch(mode) {
@@ -945,7 +944,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Mode on CRTC %d\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
 	if (pNv->twoHeads)
-		NVSetOwner(pScrn, nv_crtc->head);
+		NVSetOwner(pNv, nv_crtc->head);
 
 	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
 
@@ -1050,7 +1049,7 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 		exaWaitSync(pScrn->pScreen);
 	}
 
-	NVBlankScreen(pScrn, nv_crtc->head, true);
+	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, 0x1); /* Go to non-vga mode/out of enhanced mode */
