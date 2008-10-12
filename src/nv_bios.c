@@ -44,6 +44,8 @@
 #define BIOSLOG(sip, fmt, arg...)
 #define LOG_OLD_VALUE(x)
 
+#define BIOS_USLEEP(n) usleep(n)
+
 static int crtchead = 0;
 
 /* this will need remembering across a suspend */
@@ -214,15 +216,10 @@ static void parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offse
 #define IO_FLAG_CONDITION_SIZE	9
 #define MEM_INIT_SIZE		66
 
-static void nv_usleep(int time)
-{
-	usleep(time);
-}
-
 static void still_alive(void)
 {
 //	sync();
-//	nv_usleep(2000);
+//	BIOS_USLEEP(2000);
 }
 
 static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
@@ -717,7 +714,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	nv32_wr(pScrn, reg, (oldpll & 0xffff0000) | NM);
 
 	/* wait a bit */
-	nv_usleep(64000);
+	BIOS_USLEEP(64000);
 	nv32_rd(pScrn, reg);
 
 	/* then write P as well */
@@ -1353,11 +1350,9 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 
 	if (mlv >= 0x80) {
 		/* here we assume that the DCB table has already been parsed */
-		uint8_t dcb_entry;
+		uint8_t dcb_entry = NVReadVgaCrtc5758(NVPTR(pScrn), crtchead, 0);
 		int dacoffset;
-		/* This register needs to be written to set index for reading CR58 */
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
-		dcb_entry = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58);
+
 		if (dcb_entry > pNv->dcb_table.entries) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "CR58 doesn't have a valid DCB entry currently (%02X)\n", dcb_entry);
@@ -1614,7 +1609,7 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 
 		if (data != cmpval) {
 			BIOSLOG(pScrn, "0x%04X: Condition not met, sleeping for 2ms\n", offset);
-			nv_usleep(2000);
+			BIOS_USLEEP(2000);
 		} else {
 			BIOSLOG(pScrn, "0x%04X: Condition met, continuing\n", offset);
 			break;
@@ -1867,7 +1862,7 @@ static bool init_reset(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, 0);
 	nv32_wr(pScrn, reg, value1);
 
-	nv_usleep(10);
+	BIOS_USLEEP(10);
 
 	nv32_wr(pScrn, reg, value2);
 	nv32_wr(pScrn, NV_PBUS_PCI_NV_19, pci_nv_19);
@@ -2223,7 +2218,7 @@ static bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 
 	BIOSLOG(pScrn, "0x%04X: Sleeping for 0x%04X microseconds\n", offset, time);
 
-	nv_usleep(time);
+	BIOS_USLEEP(time);
 
 	return true;
 }
@@ -2739,8 +2734,7 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dc
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
 	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
 		       head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_57, 0);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_58, dcbent->index);
+	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
 	link_head_and_output(pScrn, dcbent, head);
@@ -2760,7 +2754,7 @@ static void call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *d
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
-		nv_usleep(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
+		BIOS_USLEEP(le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.xlated_entry + 7]));
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET && ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0329))

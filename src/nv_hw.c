@@ -130,14 +130,14 @@ uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index)
 
 void NVWriteVgaCrtc5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	NVWriteVgaCrtc(pNv, head, 0x57, index);
-	NVWriteVgaCrtc(pNv, head, 0x58, value);
+	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_57, index);
+	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_58, value);
 }
 
 uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
 {
-	NVWriteVgaCrtc(pNv, head, 0x57, index);
-	return NVReadVgaCrtc(pNv, head, 0x58);
+	NVWriteVgaCrtc(pNv, head, NV_VGA_CRTCX_57, index);
+	return NVReadVgaCrtc(pNv, head, NV_VGA_CRTCX_58);
 }
 
 uint8_t NVReadPVIO(NVPtr pNv, int head, uint16_t port)
