@@ -78,7 +78,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 /* nv_crtc.c */
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock);
+void NVCrtcLockUnlock(xf86CrtcPtr crtc, bool lock);
 
 /* nv_output.c */
 void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);

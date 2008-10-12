@@ -44,7 +44,7 @@ static int nv_output_ramdac_offset(struct nouveau_encoder *nv_encoder)
 	return offset;
 }
 
-static Bool
+static bool
 nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -109,10 +109,10 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 	if (present) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_encoder->dcb->or));
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static void

@@ -26,7 +26,7 @@
 #include "nv_include.h"
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool override);
+static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
@@ -70,7 +70,7 @@ static void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 	NVWriteRAMDAC(pNv, nv_crtc->head, reg, val);
 }
 
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, Bool lock)
+void NVCrtcLockUnlock(xf86CrtcPtr crtc, bool lock)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
@@ -219,7 +219,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	struct pll_lims pll_lim;
 	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
-	Bool nv4x_single_stage_pll_mode = FALSE;
+	bool nv4x_single_stage_pll_mode = false;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
 
@@ -228,7 +228,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 
 	if (pNv->twoStagePLL || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
 		if (dot_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
-			nv4x_single_stage_pll_mode = TRUE;
+			nv4x_single_stage_pll_mode = true;
 			/* Turn the second set of divider and multiplier off */
 			/* Bogus data, the same nvidia uses */
 			NM2 = 0x11f;
@@ -959,7 +959,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_ext(crtc, &pNv->ModeReg, FALSE);
+	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_pll(crtc, &pNv->ModeReg);
@@ -989,7 +989,7 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_save is called for CRTC %d.\n", nv_crtc->head);
 
 	/* We just came back from terminal, so unlock */
-	NVCrtcLockUnlock(crtc, FALSE);
+	NVCrtcLockUnlock(crtc, false);
 
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
@@ -1017,11 +1017,11 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_crtc_restore is called for CRTC %d.\n", nv_crtc->head);
 
 	/* Just to be safe */
-	NVCrtcLockUnlock(crtc, FALSE);
+	NVCrtcLockUnlock(crtc, false);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_ext(crtc, &pNv->SavedReg, TRUE);
+	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_pll(crtc, &pNv->SavedReg);
@@ -1359,7 +1359,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 		regp->DAC[(i*3)+2] = i;
 	}
 
-	NVCrtcLockUnlock(crtc, FALSE);
+	NVCrtcLockUnlock(crtc, false);
 }
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1391,7 +1391,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	NVSetEnablePalette(pNv, nv_crtc->head, false);
 }
 
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool override)
+static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
@@ -1468,21 +1468,18 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state, Bool 
 	}
 	/* NV11 and NV20 stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
-		if (override)
-			for (i = 0; i < 0x10; i++)
-				NVWriteVgaCrtc5758(pNv, nv_crtc->head, i, regp->CR58[i]);
-
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_FP_HTIMING, regp->CRTC[NV_VGA_CRTCX_FP_HTIMING]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_FP_VTIMING, regp->CRTC[NV_VGA_CRTCX_FP_VTIMING]);
 
+		for (i = 0; i < 0x10; i++)
+			NVWriteVgaCrtc5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_59, regp->CRTC[NV_VGA_CRTCX_59]);
 
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_85, regp->CRTC[NV_VGA_CRTCX_85]);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_86, regp->CRTC[NV_VGA_CRTCX_86]);
 	}
 
-	if (override)
-		NVCrtcWriteCRTC(crtc, NV_CRTC_START, regp->fb_start);
+	NVCrtcWriteCRTC(crtc, NV_CRTC_START, regp->fb_start);
 
 	/* Setting 1 on this value gives you interrupts for every vblank period. */
 	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_EN_0, 0);
@@ -1705,7 +1702,9 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 		start += pNv->FB->offset;
 
 	/* 30 bits addresses in 32 bits according to haiku */
-	NVCrtcWriteCRTC(crtc, NV_CRTC_START, start & 0xfffffffc);
+	start &= ~3;
+	pNv->ModeReg.crtc_reg[nv_crtc->head].fb_start = start;
+	NVCrtcWriteCRTC(crtc, NV_CRTC_START, start);
 
 	crtc->x = x;
 	crtc->y = y;

@@ -279,12 +279,12 @@ void NVBlankScreen(NVPtr pNv, int head, bool blank)
 
 	seq1 = NVReadVgaSeq(pNv, head, 0x1);
 
-	NVVgaSeqReset(pNv, head, TRUE);
+	NVVgaSeqReset(pNv, head, true);
 	if (blank)
 		NVWriteVgaSeq(pNv, head, 0x1, seq1 | 0x20);
 	else
 		NVWriteVgaSeq(pNv, head, 0x1, seq1 & ~0x20);
-	NVVgaSeqReset(pNv, head, FALSE);
+	NVVgaSeqReset(pNv, head, false);
 }
 
 void nv_fix_nv40_hw_cursor(NVPtr pNv, int head)
