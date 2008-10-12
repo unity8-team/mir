@@ -161,8 +161,6 @@ nv_output_detect(xf86OutputPtr output)
 		return NULL;
 	}
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_detect is called.\n");
-
 	if (nv_connector->pDDCBus &&
 	    (nv_connector->edid = xf86OutputGetEDID(output, nv_connector->pDDCBus),
 	     xf86OutputSetEDID(output, nv_connector->edid), nv_connector->edid)) {
@@ -218,7 +216,8 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 		}
 	}
 	if (!(max_h_active && max_v_active)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No EDID detailed timings available, bailing out.\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "No EDID detailed timings available for finding native mode\n");
 		return NULL;
 	}
 
@@ -256,8 +255,6 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	DisplayModePtr edid_modes;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_get_edid_modes is called.\n");
-
 	if (!(edid_modes = xf86OutputGetEDIDModes(output)))
 		return edid_modes;
 
@@ -279,8 +276,6 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	DisplayModePtr modes;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_get_modes is called.\n");
 
 	/* panels only have one mode, and it doesn't change */
 	if (nv_encoder->native_mode)
@@ -331,7 +326,7 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 static void
-nv_output_destroy (xf86OutputPtr output)
+nv_output_destroy(xf86OutputPtr output)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder;
@@ -339,7 +334,7 @@ nv_output_destroy (xf86OutputPtr output)
 	NVPtr pNv = NVPTR(output->scrn);
 	int i;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_destroy is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "%s called\n", __func__);
 
 	if (!nv_connector)
 		return;
@@ -499,9 +494,6 @@ nv_output_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	}
 
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	ScrnInfoPtr pScrn = output->scrn;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_fixup is called.\n");
 
 	/* For internal panels and gpu scaling on DVI we need the native mode */
 	if (nv_encoder->dcb->type == OUTPUT_LVDS ||
@@ -569,12 +561,9 @@ static void
 nv_output_prepare(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(output->scrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_prepare is called.\n");
 
 	output->funcs->dpms(output, DPMSModeOff);
 
@@ -606,7 +595,8 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_mode_set is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "%s called for encoder %d\n", __func__, nv_encoder->dcb->index);
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG) {
 		uint32_t dac_offset = nv_output_ramdac_offset(nv_encoder);
@@ -646,11 +636,9 @@ nv_output_commit(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_output_commit is called.\n");
+	output->funcs->dpms(output, DPMSModeOn);
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_encoder->dcb->or));
-
-	output->funcs->dpms(output, DPMSModeOn);
 }
 
 static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
@@ -686,11 +674,12 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "lvds_encoder_dpms is called with mode %d\n", mode);
-
 	if (nv_encoder->last_dpms == mode)
 		return;
 	nv_encoder->last_dpms = mode;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Setting dpms mode %d on lvds encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
 		/* when removing an output, crtc may not be set, but PANEL_OFF must still be run */
@@ -722,11 +711,12 @@ vga_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crtc
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vga_encoder_dpms is called with mode %d\n", mode);
-
 	if (nv_encoder->last_dpms == mode)
 		return;
 	nv_encoder->last_dpms = mode;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Setting dpms mode %d on vga encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
 	if (pNv->twoHeads) {
 		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder));
@@ -745,11 +735,12 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "tmds_encoder_dpms is called with mode %d\n", mode);
-
 	if (nv_encoder->last_dpms == mode)
 		return;
 	nv_encoder->last_dpms = mode;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Setting dpms mode %d on tmds encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
 
@@ -812,8 +803,6 @@ void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	if (!nv_encoder->dcb)	/* uninitialised encoder */
 		return;
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_encoder_save is called.\n");
-
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		nv_encoder->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder));
 	if (nv_encoder->dcb->type == OUTPUT_TMDS || nv_encoder->dcb->type == OUTPUT_LVDS)
@@ -827,8 +816,6 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 	if (!nv_encoder->dcb)	/* uninitialised encoder */
 		return;
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_encoder_restore is called.\n");
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		NVWriteRAMDAC(pNv, 0,
