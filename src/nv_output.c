@@ -185,8 +185,6 @@ nv_output_detect(xf86OutputPtr output)
 		    pNv->VBIOS.fp.native_mode)
 			ret = XF86OutputStatusConnected;
 		if (pNv->VBIOS.fp.edid) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Will use hardcoded BIOS FP EDID\n");
 			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 			xf86OutputSetEDID(output, nv_connector->edid);
 			ret = XF86OutputStatusConnected;
@@ -267,14 +265,8 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 		if (!get_native_mode_from_edid(output, edid_modes))
 			return NULL;
 
-	if (nv_encoder->dcb->type == OUTPUT_LVDS) {
-		static bool dual_link_correction_done = false;
-
-		if (!dual_link_correction_done) {
-			parse_lvds_manufacturer_table(pScrn, &NVPTR(pScrn)->VBIOS, nv_encoder->native_mode->Clock);
-			dual_link_correction_done = true;
-		}
-	}
+	if (nv_encoder->dcb->type == OUTPUT_LVDS)
+		parse_lvds_manufacturer_table(pScrn, &NVPTR(pScrn)->VBIOS, nv_encoder->native_mode->Clock);
 
 	return edid_modes;
 }
@@ -290,14 +282,16 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_lvds_output_get_modes is called.\n");
 
+	/* panels only have one mode, and it doesn't change */
+	if (nv_encoder->native_mode)
+		return xf86DuplicateMode(nv_encoder->native_mode);
+
 	if ((modes = nv_output_get_edid_modes(output)))
 		return modes;
 
 	if (!nv_encoder->dcb->lvdsconf.use_straps_for_mode || pNv->VBIOS.fp.native_mode == NULL)
 		return NULL;
 
-	if (nv_encoder->native_mode)
-		xfree(nv_encoder->native_mode);
 	nv_encoder->native_mode = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
 
 	return xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
