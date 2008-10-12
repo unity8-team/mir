@@ -244,8 +244,6 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
-		return 1;
 	/* maybe a little large, but it will do for the moment. */
 	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, 0x1000, 0xEFFF))
 		return 1;
@@ -266,6 +264,8 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	if (WITHIN(reg,NV_PEXTDEV_OFFSET,NV_PEXTDEV_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE * 2))
+		return 1;
+	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE * 2))
 		return 1;
@@ -3200,7 +3200,6 @@ static void parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointe
 	 * bytes 38-39 relate to spread spectrum settings
 	 * bytes 40-43 are something to do with PWM */
 
-	mode->prev = mode->next = NULL;
 	mode->status = MODE_OK;
 	mode->type = M_T_DRIVER | M_T_PREFERRED;
 	xf86SetModeDefaultName(mode);
