@@ -338,13 +338,19 @@ i830_crt_detect_load (xf86CrtcPtr	    crtc,
 static Bool
 i830_crt_detect_ddc(xf86OutputPtr output)
 {
+    ScrnInfoPtr		    pScrn = output->scrn;
     I830OutputPrivatePtr    i830_output = output->driver_private;
+    Bool detect;
 
     /* CRT should always be at 0, but check anyway */
     if (i830_output->type != I830_OUTPUT_ANALOG)
 	return FALSE;
 
-    return xf86I2CProbeAddress(i830_output->pDDCBus, 0x00A0);
+    I830I2CInit(pScrn, &i830_output->pDDCBus, GPIOA, "CRTDDC_A");
+    detect = xf86I2CProbeAddress(i830_output->pDDCBus, 0x00A0);
+    xf86DestroyI2CBusRec(i830_output->pDDCBus, TRUE, TRUE);
+
+    return detect;
 }
 
 /**
@@ -428,18 +434,19 @@ i830_get_edid(xf86OutputPtr output, int gpio_reg, char *gpio_str)
     xf86MonPtr		    edid_mon = NULL;
 
     /* Set up the DDC bus. */
-    if (gpio_reg != GPIOA)
-	I830I2CInit(output->scrn, &intel_output->pDDCBus, gpio_reg, gpio_str);
+    I830I2CInit(output->scrn, &intel_output->pDDCBus, gpio_reg, gpio_str);
 
     edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
 
     if (!edid_mon || DIGITAL(edid_mon->features.input_type)) {
 	xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+	intel_output->pDDCBus = NULL;
 	if (edid_mon) {
 	    xfree(edid_mon);
 	    edid_mon = NULL;
 	}
     }
+
     return edid_mon;
 }
 
@@ -448,6 +455,7 @@ i830_crt_get_modes (xf86OutputPtr output)
 {
     DisplayModePtr	    modes;
     xf86MonPtr		    edid_mon = NULL;
+    I830OutputPrivatePtr    intel_output = output->driver_private;
 
     /* Try to probe normal CRT port, and also digital port for output
        in DVI-I mode. */
@@ -458,6 +466,11 @@ i830_crt_get_modes (xf86OutputPtr output)
     if ((edid_mon = i830_get_edid(output, GPIOE, "CRTDDC_E")))
 	goto found;
 found:
+    /* Destroy DDC bus after probe, so every other new probe will
+       scan all ports again */
+    if (intel_output->pDDCBus)
+	xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
+
     xf86OutputSetEDID (output, edid_mon);
 
     modes = xf86OutputGetEDIDModes (output);
@@ -509,7 +522,4 @@ i830_crt_init(ScrnInfoPtr pScrn)
     output->driver_private = i830_output;
     output->interlaceAllowed = FALSE;
     output->doubleScanAllowed = FALSE;
-
-    /* Set up the DDC bus. */
-    I830I2CInit(pScrn, &i830_output->pDDCBus, GPIOA, "CRTDDC_A");
 }
