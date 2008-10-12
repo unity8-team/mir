@@ -757,7 +757,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
 
     mem->name = xstrdup(name);
-    if (name == NULL) {
+    if (mem->name == NULL) {
 	xfree(mem);
 	return NULL;
     }
