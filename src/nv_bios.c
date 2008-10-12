@@ -86,18 +86,13 @@ static bool nv_cksum(const uint8_t *data, unsigned int length)
 
 static int score_vbios(ScrnInfoPtr pScrn, const uint8_t *data)
 {
-	/* check for BIOS signature */
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "... BIOS signature not found\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "... BIOS signature not found\n");
 		return 0;
 	}
 
 	if (nv_cksum(data, data[2] * 512)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "... BIOS checksum invalid\n");
-		/* probably ought to set a do_not_execute flag for table parsing here,
-		 * assuming most BIOSen are valid */
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "... BIOS checksum invalid\n");
 		return 1;
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "... appears to be valid\n");
@@ -187,6 +182,8 @@ static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 			method[i].loadbios(pNv, data);
 			return true;
 		}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid BIOS image found\n");
 
 	return false;
 }
@@ -899,7 +896,7 @@ static void setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
 		if (NM2 == 0xdead) {
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				   "Could not find a suitable set of coefficients, giving up\n");
+				   "Could not find a suitable set of PLL coefficients, giving up\n");
 			return;
 		}
 		if (reg > 0x405c)
@@ -2785,8 +2782,8 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	init_exec_t iexec = {true, false};
 
 	while ((table = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i]))))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "0x%04X: Parsing init table %d\n", table, i / 2);
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+			   "Parsing VBIOS init table %d at offset 0x%04X\n", i / 2, table);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "0x%04X: ------ EXECUTING FOLLOWING COMMANDS ------\n", table);
 
@@ -3440,13 +3437,8 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pointer to PLL limits table invalid\n");
 			return false;
 		}
-	} else {
+	} else
 		pll_lim_ver = bios->data[bios->pll_limit_tbl_ptr];
-
-		if (DEBUGLEVEL >= 7)
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Found PLL limits table version 0x%X\n", pll_lim_ver);
-	}
 
 	crystal_strap_mask = 1 << 6;
         /* open coded pNv->twoHeads test */
@@ -3475,7 +3467,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "PLL limits table revision not currently supported\n");
+			   "PLL limits table revision 0x%X not currently supported\n", pll_lim_ver);
 		return false;
 	}
 
@@ -3758,7 +3750,7 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	uint8_t dacversion, dacheaderlen;
 
 	if (bitentry->length < 6) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "BIT i table not long enough for BIOS version and feature byte\n");
 		return 0;
 	}
@@ -3792,9 +3784,7 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 			   "DAC load detection comparison table version %d.%d not known\n",
 			   dacversion >> 4, dacversion & 0xf);
 		return 0;
-	} else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "DAC load detection comparison table version %x found\n", dacversion);
+	}
 
 	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + dacheaderlen])));
 
@@ -3886,8 +3876,12 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 		return 0;
 	}
 
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found TMDS table revision %d.%d\n",
-		   bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+	/* nv50+ has v2.0, but we don't parse it atm */
+	if (bios->data[tmdstableptr] != 0x11) {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "TMDS table revision %d.%d not currently supported\n",
+			   bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
+		return 0;
+	}
 
 	/* These two scripts are odd: they don't seem to get run even when they are not stubbed */
 	script1 = le16_to_cpu(*((uint16_t *)&bios->data[tmdstableptr + 7]));
@@ -4052,7 +4046,7 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 
 	/* checksum */
 	if (nv_cksum(bios->data + offset, 8)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Bad BMP checksum\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad BMP checksum\n");
 		return;
 	}
 
@@ -4329,8 +4323,8 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			memcpy(&entry[1], &entry[0], sizeof(struct dcb_entry));
 			entry[1].index = ++index;
 			entry[1].type = OUTPUT_ANALOG;
-			ErrorF("Concocting additional DCB entry for analogue "
-			       "encoder on DVI output\n");
+			xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
+				   "Concocting additional DCB entry for analogue encoder on DVI output\n");
 			pNv->dcb_table.entries++;
 		}
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
@@ -4343,7 +4337,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 		 */
 		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
 		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	}
@@ -4426,7 +4420,7 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	/* get DCB version */
 	dcb_version = dcbtable[0];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Display Configuration Block version %d.%d found\n",
+		   "Found Display Configuration Block version %d.%d\n",
 		   dcb_version >> 4, dcb_version & 0xf);
 
 	if (dcb_version >= 0x20) { /* NV17+ */
@@ -4438,10 +4432,6 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			recordlength = dcbtable[3];
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[4]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[6]);
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "DCB header length %d, with %d possible entries\n",
-				   headerlen, entries);
 		} else {
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[4]);
@@ -4492,8 +4482,9 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		if (connection == 0x00000000) /* seen on an NV11 with DCB v1.5 */
 			break;
 
-		ErrorF("Raw DCB entry %d: %08x %08x\n",
-		       pNv->dcb_table.entries, connection, config);
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "Raw DCB entry %d: %08x %08x\n",
+			   pNv->dcb_table.entries, connection, config);
+
 		if (!parse_dcb_entry(pScrn, pNv->dcb_table.entries, dcb_version, i2ctabptr, connection, config))
 			break;
 	}
@@ -4586,8 +4577,6 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 		return false;
 
 	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No valid BIOS image found\n");
 		xfree(pNv->VBIOS.data);
 		return false;
 	}
@@ -4656,9 +4645,7 @@ unsigned int NVParseBios(ScrnInfoPtr pScrn)
 	if (!NVRunVBIOSInit(pScrn))
 		return 0;
 
-	if (parse_dcb_table(pScrn, &pNv->VBIOS))
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found %d entries in DCB\n", pNv->dcb_table.entries);
+	parse_dcb_table(pScrn, &pNv->VBIOS);
 
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
