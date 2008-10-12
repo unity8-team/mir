@@ -264,39 +264,6 @@ static XF86ModuleVersionInfo nouveauVersRec =
 
 _X_EXPORT XF86ModuleData nouveauModuleData = { &nouveauVersRec, nouveauSetup, NULL };
 
-static Bool
-NVGetRec(ScrnInfoPtr pScrn)
-{
-    /*
-     * Allocate an NVRec, and hook it into pScrn->driverPrivate.
-     * pScrn->driverPrivate is initialised to NULL, so we can check if
-     * the allocation has already been done.
-     */
-    if (pScrn->driverPrivate != NULL)
-        return TRUE;
-
-    pScrn->driverPrivate = xnfcalloc(sizeof(NVRec), 1);
-    /* Initialise it */
-
-    return TRUE;
-}
-
-static void
-NVFreeRec(ScrnInfoPtr pScrn)
-{
-	if (pScrn->driverPrivate == NULL)
-		return;
-	NVPtr pNv = NVPTR(pScrn);
-	if (pNv->Architecture == NV_ARCH_50 && !pNv->kms_enable) {
-		NV50ConnectorDestroy(pScrn);
-		NV50OutputDestroy(pScrn);
-		NV50CrtcDestroy(pScrn);
-	}
-	xfree(pScrn->driverPrivate);
-	pScrn->driverPrivate = NULL;
-}
-
-
 static pointer
 nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
@@ -876,17 +843,29 @@ NVFreeScreen(int scrnIndex, int flags)
 	/*
 	 * This only gets called when a screen is being deleted.  It does not
 	 * get called routinely at the end of a server generation.
-	*/
+	 */
+
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
+
+	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
+		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
+
+	if (!pNv)
+		return;
+
+	if (pNv->Architecture == NV_ARCH_50 && !pNv->kms_enable) {
+		NV50ConnectorDestroy(pScrn);
+		NV50OutputDestroy(pScrn);
+		NV50CrtcDestroy(pScrn);
+	}
 
 	/* Free this here and not in CloseScreen, as it's needed after the first server generation. */
 	if (pNv->pInt10)
 		xf86FreeInt10(pNv->pInt10);
 
-	if (xf86LoaderCheckSymbol("vgaHWFreeHWRec"))
-		vgaHWFreeHWRec(xf86Screens[scrnIndex]);
-	NVFreeRec(xf86Screens[scrnIndex]);
+	xfree(pScrn->driverPrivate);
+	pScrn->driverPrivate = NULL;
 }
 
 
@@ -986,9 +965,7 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 
 #define NVPreInitFail(fmt, args...) do {                                    \
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "%d: "fmt, __LINE__, ##args); \
-	if (pNv->pInt10)                                                    \
-		xf86FreeInt10(pNv->pInt10);                                 \
-	NVFreeRec(pScrn);                                                   \
+	NVFreeScreen(pScrn->scrnIndex, 0);                                  \
 	return FALSE;                                                       \
 } while(0)
 
@@ -1038,9 +1015,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		return FALSE;
 
 	/* Allocate the NVRec driverPrivate */
-	if (!NVGetRec(pScrn)) {
+	if (!(pScrn->driverPrivate = xnfcalloc(1, sizeof(NVRec))))
 		return FALSE;
-	}
 	pNv = NVPTR(pScrn);
 
 	/* Get the entity, and make sure it is PCI. */
