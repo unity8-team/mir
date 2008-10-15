@@ -248,10 +248,10 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 I830EXADoneSolid(PixmapPtr pPixmap)
 {
-#if ALWAYS_SYNC || ALWAYS_FLUSH || 1
+#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
-#if ALWAYS_FLUSH || 1
+#if ALWAYS_FLUSH
     intel_batch_flush(pScrn);
 #endif
 #if ALWAYS_SYNC
