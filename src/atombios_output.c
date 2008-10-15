@@ -43,6 +43,8 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
+#include "ati_pciids_gen.h"
+
 static int
 atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -894,6 +896,30 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
     return;
 }
 
+static void
+atombios_apply_output_quirks(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    /* Funky macbooks */
+    if ((info->Chipset == PCI_CHIP_RV530_71C5) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x106b) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0080)) {
+	if (radeon_output->MonType == MT_LCD) {
+	    if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
+		uint32_t lvtma_bit_depth_control = INREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL);
+
+		lvtma_bit_depth_control &= ~AVIVO_LVTMA_BIT_DEPTH_CONTROL_TRUNCATE_EN;
+		lvtma_bit_depth_control &= ~AVIVO_LVTMA_BIT_DEPTH_CONTROL_SPATIAL_DITHER_EN;
+
+		OUTREG(AVIVO_LVTMA_BIT_DEPTH_CONTROL, lvtma_bit_depth_control);
+	    }
+	}
+    }
+}
+
 void
 atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr mode,
@@ -955,7 +981,7 @@ atombios_output_mode_set(xf86OutputPtr output,
 	    atombios_output_dac2_setup(output, adjusted_mode);
 	atombios_output_tv1_setup(output, adjusted_mode);
     }
-
+    atombios_apply_output_quirks(output);
 }
 
 static AtomBiosResult
