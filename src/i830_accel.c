@@ -322,7 +322,7 @@ I830AccelInit(ScreenPtr pScreen)
      */
     if (IS_I965G(pI830)) {
 	pI830->accel_pixmap_offset_alignment = 4 * 2;
-	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_pixmap_pitch_alignment = 64;
 	pI830->accel_max_x = 8192;
 	pI830->accel_max_y = 8192;
     } else {

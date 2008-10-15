@@ -593,6 +593,7 @@ typedef struct _I830Rec {
    I830ConfigPrivPtr pVisualConfigsPriv;
    drm_handle_t buffer_map;
    drm_handle_t ring_map;
+   char deviceName[64];
 #endif
 
    /* Broken-out options. */

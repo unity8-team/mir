@@ -1661,8 +1661,8 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     char *bus_id;
     char *s;
 
-    /* Default to EXA but allow override */
-    pI830->accel = ACCEL_EXA;
+    /* Default to UXA but allow override */
+    pI830->accel = ACCEL_UXA;
 
     if ((s = (char *)xf86GetOptValString(pI830->Options, OPTION_ACCELMETHOD))) {
 	if (!xf86NameCmp(s, "EXA"))
@@ -1670,7 +1670,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 	else if (!xf86NameCmp(s, "UXA"))
 	    pI830->accel = ACCEL_UXA;
 	else
-	    pI830->accel = ACCEL_EXA;
+	    pI830->accel = ACCEL_UXA;
     }
 
     bus_id = DRICreatePCIBusID(pI830->PciInfo);
@@ -1688,7 +1688,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     pI830->drmSubFD = pI830->drmmode.fd;
     xfree(bus_id);
 
-    pI830->directRenderingDisabled = FALSE;
+    pI830->directRenderingType = DRI_DRI2;
     pI830->allocate_classic_textures = FALSE;
 
     i830_init_bufmgr(pScrn);

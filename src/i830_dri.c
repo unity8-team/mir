@@ -68,6 +68,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -1850,13 +1852,13 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 
     pDepthPixmap = NULL;
     for (i = 0; i < count; i++) {
-	if (attachments[i] == DRI2_BUFFER_FRONT_LEFT) {
+	if (attachments[i] == DRI2BufferFrontLeft) {
 	    if (pDraw->type == DRAWABLE_PIXMAP)
 		pPixmap = (PixmapPtr) pDraw;
 	    else
 		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
 	    pPixmap->refcnt++;
-	} else if (attachments[i] == DRI2_BUFFER_STENCIL && pDepthPixmap) {
+	} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
 	    pPixmap = pDepthPixmap;
 	    pPixmap->refcnt++;
 	} else {
@@ -1866,7 +1868,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 					       pDraw->depth, 0);
 	}
 
-	if (attachments[i] == DRI2_BUFFER_DEPTH)
+	if (attachments[i] == DRI2BufferDepth)
 	    pDepthPixmap = pPixmap;
 
 	buffers[i].attachment = attachments[i];
@@ -1907,20 +1909,24 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 }
 
 static void
-I830DRI2SwapBuffers(DrawablePtr pDraw, DRI2BufferPtr pSrcBuffer,
-		    int x, int y, int width, int height)
+I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
+		   DRI2BufferPtr pDestBuffer, DRI2BufferPtr pSrcBuffer)
 {
     I830DRI2BufferPrivatePtr private = pSrcBuffer->driverPrivate;
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     PixmapPtr pPixmap = private->pPixmap;
+    RegionPtr pCopyClip;
     GCPtr pGC;
 
     pGC = GetScratchGC(pDraw->depth, pScreen);
+    pCopyClip = REGION_CREATE(pScreen, NULL, 0);
+    REGION_COPY(pScreen, pCopyClip, pRegion);
+    (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
     ValidateGC(pDraw, pGC);
     (*pGC->ops->CopyArea)(&pPixmap->drawable,
-			  pDraw, pGC, x, y, width, height, x, y);
+			  pDraw, pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
     FreeScratchGC(pGC);
 
     /* Emit a flush of the rendering cache, or on the 965 and beyond
@@ -1944,26 +1950,61 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     DRI2InfoRec info;
-    char busId[64];
+    char *p, *busId, buf[64];
+    int fd, i, cmp;
 
     if (pI830->accel != ACCEL_UXA) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
 	return FALSE;
     }
 
-    sprintf(busId, "PCI:%d:%d:%d",
-	    ((pI830->PciInfo->domain << 8) | pI830->PciInfo->bus),
-	    pI830->PciInfo->dev, pI830->PciInfo->func);
+    sprintf(buf, "pci:%04x:%02x:%02x.%d",
+	    pI830->PciInfo->domain,
+	    pI830->PciInfo->bus,
+	    pI830->PciInfo->dev,
+	    pI830->PciInfo->func);
+
+    info.fd = drmOpen("i915", buf);
+    if (info.fd < 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
+	return FALSE;
+    }
+
+    /* The whole drmOpen thing is a fiasco and we need to find a way
+     * back to just using open(2).  For now, however, lets just make
+     * things worse with even more ad hoc directory walking code to
+     * discover the device file name. */
+
+    p = pI830->deviceName;
+    for (i = 0; i < DRM_MAX_MINOR; i++) {
+	sprintf(p, DRM_DEV_NAME, DRM_DIR_NAME, i);
+	fd = open(p, O_RDWR);
+	if (fd < 0)
+	    continue;
+
+	busId = drmGetBusid(fd);
+	close(fd);
+	if (busId == NULL)
+	    continue;
+
+	cmp = strcmp(busId, buf);
+	drmFree(busId);
+	if (cmp == 0)
+	    break;
+    }
+    if (i == DRM_MAX_MINOR) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "DRI2: failed to open drm device\n");
+	return FALSE;
+    }
 
     info.driverName = IS_I965G(pI830) ? "i965" : "i915";
+    info.deviceName = p;
     info.version = 1;
-    info.fd = drmOpen(info.driverName, busId);
-    if (info.fd < 0)
-	return FALSE;
 
     info.CreateBuffers = I830DRI2CreateBuffers;
     info.DestroyBuffers = I830DRI2DestroyBuffers;
-    info.SwapBuffers = I830DRI2SwapBuffers;
+    info.CopyRegion = I830DRI2CopyRegion;
 
     pI830->drmSubFD = info.fd;
 
