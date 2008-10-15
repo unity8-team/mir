@@ -56,8 +56,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaa.h"
 #include "xf86Cursor.h"
 #include "xf86xv.h"
-#include "xf86int10.h"
-#include "vbe.h"
 #include "vgaHW.h"
 #include "xf86Crtc.h"
 #include "xf86RandR12.h"
@@ -720,6 +718,10 @@ typedef struct _I830Rec {
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
    unsigned int quirk_flag;
+
+   /* User option to ignore SDVO detect bit status, in case some outputs
+      not detected on SDVO, so let driver try its best. */
+   Bool force_sdvo_detect;
 } I830Rec;
 
 #define I830PTR(p) ((I830Ptr)((p)->driverPrivate))
@@ -958,6 +960,13 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
      * front buffer with XAA now.
      */
     if (!pI830->tiling || (IS_I965G(pI830) && pI830->accel <= ACCEL_XAA))
+	return FALSE;
+    /* We have not gotten FBC to work consistently on 965GM. Our best
+     * working theory right now is that FBC simply isn't reliable on
+     * that device. See this bug report for more details:
+     * https://bugs.freedesktop.org/show_bug.cgi?id=16257
+     */
+    if (IS_I965GM(pI830))
 	return FALSE;
     return TRUE;
 }

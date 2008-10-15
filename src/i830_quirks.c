@@ -229,6 +229,9 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I965_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0x8086, 0x1999, quirk_ignore_lvds },
 
+    /* Cappuccino SlimPRO SP625F, bz #11368 */
+    { PCI_CHIP_I855_GM, 0x8086, 0x3582, quirk_ignore_lvds },
+
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
 
@@ -255,8 +258,6 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
-    /* Lenovo T61 has no TV output */
-    { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
     /* Lenovo 3000 v200 */
     { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
 
@@ -278,6 +279,8 @@ static i830_quirk i830_quirk_list[] = {
     /* Samsung Q45 has no TV output */
     { PCI_CHIP_I965_GM, 0x144d, 0xc510, quirk_ignore_tv },
 
+    /* HP Compaq nx6110 has no TV output */
+    { PCI_CHIP_I915_GM, 0x103c, 0x099c, quirk_ignore_tv },
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
 

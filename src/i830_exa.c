@@ -726,13 +726,9 @@ I830EXAInit(ScreenPtr pScreen)
     return TRUE;
 }
 
+#ifdef I830_USE_UXA
 static int uxa_pixmap_index;
-
-static void
-i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
-{
-    dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
-}
+#endif
 
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
@@ -741,15 +737,28 @@ i830_get_pixmap_bo(PixmapPtr pixmap)
     ScrnInfoPtr scrn = xf86Screens[screen->myNum];
     I830Ptr i830 = I830PTR(scrn);
 
+#ifdef I830_USE_UXA
     if (i830->accel == ACCEL_UXA) {
 	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
-    } else if (i830->accel == ACCEL_EXA) {
+    }
+#endif
+#ifdef XF86DRM_MODE
+    if (i830->accel == ACCEL_EXA) {
 	struct i830_exa_pixmap_priv *driver_priv =
 	    exaGetPixmapDriverPrivate(pixmap);
 	return driver_priv ? driver_priv->bo : NULL;
     }
+#endif
 
     return NULL;
+}
+
+#if defined(I830_USE_UXA)
+
+static void
+i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
+{
+    dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
 }
 
 static Bool
@@ -939,6 +948,7 @@ i830_uxa_init (ScreenPtr pScreen)
 
     return TRUE;
 }
+#endif /* I830_USE_UXA */
 
 #ifdef XF86DRI
 

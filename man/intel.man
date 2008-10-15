@@ -25,7 +25,7 @@ the 830M and later.
 .B intel
 supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
 865G, 915G, 915GM, 945G, 945GM, 965G, 965Q, 946GZ, 965GM, 945GME,
-G33, Q33, and Q35 chipsets.
+G33, Q33, Q35, G35, GM45, G45, Q45, G43 and G41 chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
@@ -222,6 +222,12 @@ information.
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 Default: Disabled.
+.TP
+.BI "Option \*qForceSDVODetect\*q \*q" boolean \*q
+Instead of depending on SDVO detect status bit to initialize SDVO outputs,
+this option trys to ignore that status bit and try to probe on all SDVO
+ports anyway. Try this if some output is not detected on your ADD2 card.
+Use of this option will slow down your startup time. Default: Disabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

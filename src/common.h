@@ -81,8 +81,6 @@ extern void I830InitpScrn(ScrnInfoPtr pScrn);
 extern int I830EntityIndex;
 extern const char *I810vgahwSymbols[];
 extern const char *I810ramdacSymbols[];
-extern const char *I810int10Symbols[];
-extern const char *I810vbeSymbols[];
 extern const char *I810ddcSymbols[];
 extern const char *I810fbSymbols[];
 extern const char *I810xaaSymbols[];
@@ -105,21 +103,6 @@ extern void I830DPRINTF_stub(const char *filename, int line,
 #define WaitRingFunc I810WaitLpRing
 #define RecPtr pI810
 #endif
-
-/* BIOS debug macro */
-#define xf86ExecX86int10_wrapper(pInt, pScrn) do {			\
-   ErrorF("Executing (ax == 0x%x) BIOS call at %s:%d\n", pInt->ax, __FILE__, __LINE__);	\
-   if (I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state before execution\n");		\
-      PrintErrorState(pScrn);						\
-   }									\
-   xf86ExecX86int10(pInt);						\
-   if(I810_DEBUG & DEBUG_VERBOSE_BIOS) {				\
-      ErrorF("Checking Error state after execution\n");			\
-      usleep(50000);							\
-      PrintErrorState(pScrn);						\
-   }									\
-} while (0)
 
 static inline void memset_volatile(volatile void *b, int c, size_t len)
 {
@@ -323,6 +306,11 @@ extern int I810_DEBUG;
 #define PCI_CHIP_Q45_G_BRIDGE	0x2E10
 #endif
 
+#ifndef PCI_CHIP_G41_G
+#define PCI_CHIP_G41_G		0x2E32
+#define PCI_CHIP_G41_G_BRIDGE	0x2E30
+#endif
+
 #if XSERVER_LIBPCIACCESS
 #define I810_MEMBASE(p,n) (p)->regions[(n)].base_addr
 #define VENDOR_ID(p)      (p)->vendor_id
@@ -355,7 +343,7 @@ extern int I810_DEBUG;
 #define IS_I945G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_G)
 #define IS_I945GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I945_GME)
 #define IS_GM45(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_GM45_GM)
-#define IS_G4X(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_E_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q45_G)
+#define IS_G4X(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_IGD_E_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_Q45_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G41_G)
 #define IS_I965GM(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME)
 #define IS_I965G(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G35_G || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_Q || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I946_GZ || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GM || DEVICE_ID(pI810->PciInfo) == PCI_CHIP_I965_GME || IS_GM45(pI810) || IS_G4X(pI810))
 #define IS_G33CLASS(pI810) (DEVICE_ID(pI810->PciInfo) == PCI_CHIP_G33_G ||\

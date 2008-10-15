@@ -2245,12 +2245,16 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
     }
 
-    /* Clamp dst width & height to 7x of src (overlay limit) */
-    if(drw_w > (src_w * 7))
-	drw_w = src_w * 7;
+    if (!pPriv->textured) {
+        /* If dst width and height are less than 1/8th the src size, the
+         * src/dst scale factor becomes larger than 8 and doesn't fit in
+         * the scale register. */
+        if(src_w >= (drw_w * 8))
+            drw_w = src_w/7;
 
-    if(drw_h > (src_h * 7))
-	drw_h = src_h * 7;
+        if(src_h >= (drw_h * 8))
+            drw_h = src_h/7;
+    }
 
     /* Clip */
     x1 = src_x;
@@ -2394,7 +2398,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     /* fixup pointers */
 #ifdef INTEL_XVMC
     if (id == FOURCC_XVMC && IS_I915(pI830)) {
-	pPriv->YBuf0offset = (uint32_t)((uint64_t)buf);
+	pPriv->YBuf0offset = (uint32_t)((uintptr_t)buf);
 	pPriv->VBuf0offset = pPriv->YBuf0offset + (dstPitch2 * height);
 	pPriv->UBuf0offset = pPriv->VBuf0offset + (dstPitch * height / 2);
 	destId = FOURCC_YV12;

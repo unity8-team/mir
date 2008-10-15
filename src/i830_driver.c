@@ -191,7 +191,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dixstruct.h"
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
-#include "vbe.h"
 #include "shadow.h"
 #include "i830.h"
 #include "i830_display.h"
@@ -254,6 +253,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
+   {PCI_CHIP_G41_G,		"G41"},
    {-1,				NULL}
 };
 
@@ -281,6 +281,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -314,6 +315,7 @@ typedef enum {
 #ifdef INTEL_XVMC
    OPTION_XVMC,
 #endif
+   OPTION_FORCE_SDVO_DETECT,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -340,6 +342,7 @@ static OptionInfoRec I830Options[] = {
 #ifdef INTEL_XVMC
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
+   {OPTION_FORCE_SDVO_DETECT, "ForceSDVODetect", OPTV_BOOLEAN,  {0},	FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -437,9 +440,6 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    uint16_t gmch_ctrl;
    int memsize = 0, gtt_size;
    int range;
-#if 0
-   VbeInfoBlock *vbeInfo;
-#endif
 
 #if XSERVER_LIBPCIACCESS
    struct pci_device *bridge = intel_host_bridge ();
@@ -502,8 +502,8 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    range = gtt_size + 4;
 
    /* new 4 series hardware has seperate GTT stolen with GFX stolen */
-   if (IS_G4X(pI830))
-       range = 0;
+   if (IS_G4X(pI830) || IS_GM45(pI830))
+       range = 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
@@ -913,14 +913,14 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      if (INREG(SDVOB) & SDVO_DETECTED) {
+      if ((INREG(SDVOB) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOB);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
 	    i830_hdmi_init(pScrn, SDVOB);
       }
 
-      if (INREG(SDVOC) & SDVO_DETECTED) {
+      if ((INREG(SDVOC) & SDVO_DETECTED) || pI830->force_sdvo_detect) {
 	 Bool found = i830_sdvo_init(pScrn, SDVOC);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
@@ -963,12 +963,18 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
     if (IS_GM45(pI830) || IS_G4X(pI830)) {
+	uint32_t dspclk_gate;
 	OUTREG(RENCLK_GATE_D1, 0);
-	OUTREG(RENCLK_GATE_D2, 0);
+	OUTREG(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
+		GS_UNIT_CLOCK_GATE_DISABLE |
+		CL_UNIT_CLOCK_GATE_DISABLE);
 	OUTREG(RAMCLK_GATE_D, 0);
-	OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE |
-	       OVRUNIT_CLOCK_GATE_DISABLE |
-	       OVCUNIT_CLOCK_GATE_DISABLE);
+	dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
+	    OVRUNIT_CLOCK_GATE_DISABLE |
+	    OVCUNIT_CLOCK_GATE_DISABLE;
+	if (IS_GM45(pI830))
+	    dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
+	OUTREG(DSPCLK_GATE_D, dspclk_gate);
     } else if (IS_I965GM(pI830)) {
 	OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 	OUTREG(RENCLK_GATE_D2, 0);
@@ -1267,6 +1273,9 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
     case PCI_CHIP_Q45_G:
 	chipname = "Q45/Q43";
 	break;
+    case PCI_CHIP_G41_G:
+	chipname = "G41";
+	break;
    default:
 	chipname = "unknown chipset";
 	break;
@@ -1407,11 +1416,6 @@ I830LoadSyms(ScrnInfoPtr pScrn)
     if (pI830->use_drm_mode)
 	return TRUE;
 
-    /* Load int10 module */
-    if (!xf86LoadSubModule(pScrn, "int10"))
-	return FALSE;
-    xf86LoaderReqSymLists(I810int10Symbols, NULL);
-
     /* The vgahw module should be loaded here when needed */
     if (!xf86LoadSubModule(pScrn, "vgahw"))
 	return FALSE;
@@ -1452,6 +1456,12 @@ I830GetEarlyOptions(ScrnInfoPtr pScrn)
 
     if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCEENABLEPIPEA, FALSE))
 	pI830->quirk_flag |= QUIRK_PIPEA_FORCE;
+
+    if (xf86ReturnOptValBool(pI830->Options, OPTION_FORCE_SDVO_DETECT, FALSE)) {
+	pI830->force_sdvo_detect = TRUE;
+    } else {
+	pI830->force_sdvo_detect = FALSE;
+    }
 
     return TRUE;
 }
@@ -1886,6 +1896,10 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    if (!i830_detect_chipset(pScrn))
        return FALSE;
 
+   if (i830_bios_init(pScrn))
+       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		  "VBIOS initialization failed.\n");
+
    I830PreInitCrtcConfig(pScrn);
 
    if (pI830->use_drm_mode) {
@@ -1904,10 +1918,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        PreInitCleanup(pScrn);
        return FALSE;
    }
-
-   if (i830_bios_init(pScrn))
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		  "VBIOS initialization failed.\n");
 
    /*
     * XXX If we knew the pre-initialised GTT format for certain, we could
@@ -2363,12 +2373,15 @@ RestoreHWState(ScrnInfoPtr pScrn)
    /* If the pipe A PLL is active, we can restore the pipe & plane config */
    if (pI830->saveDPLL_A & DPLL_VCO_ENABLE)
    {
+      OUTREG(FPA0, pI830->saveFPA0);
       OUTREG(DPLL_A, pI830->saveDPLL_A & ~DPLL_VCO_ENABLE);
+      POSTING_READ(DPLL_A);
       usleep(150);
    }
    OUTREG(FPA0, pI830->saveFPA0);
    OUTREG(FPA1, pI830->saveFPA1);
    OUTREG(DPLL_A, pI830->saveDPLL_A);
+   POSTING_READ(DPLL_A);
    i830_dpll_settle();
    if (IS_I965G(pI830))
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
@@ -2424,12 +2437,15 @@ RestoreHWState(ScrnInfoPtr pScrn)
       /* If the pipe B PLL is active, we can restore the pipe & plane config */
       if (pI830->saveDPLL_B & DPLL_VCO_ENABLE)
       {
+	 OUTREG(FPB0, pI830->saveFPB0);
 	 OUTREG(DPLL_B, pI830->saveDPLL_B & ~DPLL_VCO_ENABLE);
+	 POSTING_READ(DPLL_B);
 	 usleep(150);
       }
       OUTREG(FPB0, pI830->saveFPB0);
       OUTREG(FPB1, pI830->saveFPB1);
       OUTREG(DPLL_B, pI830->saveDPLL_B);
+      POSTING_READ(DPLL_B);
       i830_dpll_settle();
       if (IS_I965G(pI830))
 	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
@@ -2686,8 +2702,10 @@ I830BlockHandler(int i,
        pI830->need_mi_flush = FALSE;
     }
 
+#ifdef I830_USE_UXA
     if (pI830->accel == ACCEL_UXA)
 	i830_uxa_block_handler (pScreen);
+#endif
     /*
      * Check for FIFO underruns at block time (which amounts to just
      * periodically).  If this happens, it means our DSPARB or some other
@@ -3021,11 +3039,28 @@ I830SwapPipes(ScrnInfoPtr pScrn)
    }
 }
 
+static void
+i830_disable_render_standby(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   uint32_t render_standby;
+
+   /* Render Standby might cause hang issue, try always disable it.*/
+   if (IS_I965GM(pI830) || IS_GM45(pI830)) {
+       render_standby = INREG(MCHBAR_RENDER_STANDBY);
+       if (render_standby & RENDER_STANDBY_ENABLE) {
+	   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disable render standby.\n");
+	   OUTREG(MCHBAR_RENDER_STANDBY,
+		   (render_standby & (~RENDER_STANDBY_ENABLE)));
+       }
+   }
+}
+
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
    ScrnInfoPtr pScrn;
-   vgaHWPtr hwp;
+   vgaHWPtr hwp = NULL;
    I830Ptr pI830;
    VisualPtr visual;
    I830Ptr pI8301 = NULL;
@@ -3242,6 +3277,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    }
 #endif
 
+   if (!pI830->use_drm_mode) {
+      DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
+      if (!I830MapMem(pScrn))
+	 return FALSE;
+      pScrn->memPhysBase = (unsigned long)pI830->FbBase;
+   }
+   i830_init_bufmgr(pScrn);
+
 #ifdef XF86DRI
    /*
     * Setup DRI after visuals have been established, but before fbScreenInit
@@ -3275,13 +3318,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	      pI830->allowPageFlip ? "en" : "dis");
 #endif
 
-   if (!pI830->use_drm_mode) {
-       DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
-       if (!I830MapMem(pScrn))
- 	   return FALSE;
-       pScrn->memPhysBase = (unsigned long)pI830->FbBase;
-   }
-
    if (I830IsPrimary(pScrn)) {
         pScrn->fbOffset = pI830->front_buffer->offset;
    } else {
@@ -3299,7 +3335,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   return FALSE;
    }
 
-   i830_init_bufmgr(pScrn);
+   i830_disable_render_standby(pScrn);
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
@@ -3685,7 +3721,7 @@ I830EnterVT(int scrnIndex, int flags)
 	* operation which accessing that page, like irq install, etc.
 	*/
        if (pI830->starting && !pI830->memory_manager) {
-	   if (!I830DRISetHWS(pScrn)) {
+	   if (pI830->hw_status != NULL && !I830DRISetHWS(pScrn)) {
 		   xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Fail to setup hardware status page.\n");
 		   I830DRICloseScreen(pScrn->pScreen);

@@ -158,6 +158,29 @@ i830_get_fence_size(ScrnInfoPtr pScrn, unsigned long size)
 }
 
 static Bool
+i830_check_display_stride(ScrnInfoPtr pScrn, int stride, Bool tiling)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int limit = KB(32);
+
+    /* 8xx spec has always 8K limit, but tests show larger limit in
+       non-tiling mode, which makes large monitor work. */
+    if ((IS_845G(pI830) || IS_I85X(pI830)) && tiling)
+	limit = KB(8);
+
+    if (IS_I915(pI830) && tiling)
+	limit = KB(8);
+
+    if (IS_I965G(pI830) && tiling)
+	limit = KB(16);
+
+    if (stride <= limit)
+	return TRUE;
+    else
+	return FALSE;
+}
+
+static Bool
 i830_bind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
 {
     I830Ptr pI830 = I830PTR(pScrn);
@@ -736,7 +759,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	return NULL;
 
     mem->name = xstrdup(name);
-    if (name == NULL) {
+    if (mem->name == NULL) {
 	xfree(mem);
 	return NULL;
     }
@@ -1201,6 +1224,12 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	tiling = FALSE;
     else
 	tiling = pI830->tiling;
+
+    if (!i830_check_display_stride(pScrn, pitch, tiling)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Front buffer stride %d kB "
+		"exceed display limit\n", pitch/1024);
+	return NULL;
+    }
 
     /* Attempt to allocate it tiled first if we have page flipping on. */
     if (tiling && IsTileable(pScrn, pitch)) {

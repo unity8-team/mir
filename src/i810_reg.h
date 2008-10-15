@@ -1167,6 +1167,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define I965_DM_CLOCK_GATE_DISABLE		(1 << 0)
 
 #define RENCLK_GATE_D2		0x6208
+#define VF_UNIT_CLOCK_GATE_DISABLE		(1 << 9)
+#define GS_UNIT_CLOCK_GATE_DISABLE		(1 << 7)
+#define CL_UNIT_CLOCK_GATE_DISABLE		(1 << 6)
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
@@ -2837,5 +2840,8 @@ typedef enum {
 #define DPFC_FENCE_YOFF		0x3218
 
 #define PEG_BAND_GAP_DATA	0x14d68
+
+#define MCHBAR_RENDER_STANDBY	0x111B8
+#define RENDER_STANDBY_ENABLE	(1 << 30)
 
 #endif /* _I810_REG_H */
