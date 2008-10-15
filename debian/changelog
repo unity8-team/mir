@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu7) intrepid; urgency=low
+
+  * Drop Vcs-* as we're not using these repos for -intel.
+
+ -- Loic Minier <lool@dooz.org>  Wed, 15 Oct 2008 13:24:36 +0200
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu6) intrepid; urgency=low
 
   * 25_quirks_nx6110.patch:
