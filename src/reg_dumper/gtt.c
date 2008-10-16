@@ -36,22 +36,42 @@
 #include "reg_dumper.h"
 #include "../i810_reg.h"
 
-#define INGTT(offset) INREG(gtt_base + (offset) / (KB(4) / 4))
+#define INGTT(offset) (*(volatile uint32_t *)(gtt + (offset) / (KB(4) / 4)))
 
 int main(int argc, char **argv)
 {
 	I830Rec i830;
 	I830Ptr pI830 = &i830;
-	int gtt_base, start, aper_size;
+	int start, aper_size;
+	unsigned char *gtt;
+
 	intel_i830rec_init(pI830);
 
-	if (IS_G4X(pI830) || IS_GM45(pI830))
-		gtt_base = MB(2);
-	else {
+	if (!IS_I9XX(pI830)) {
 		printf("Unsupported chipset for gtt dumper\n");
+		exit(1);
 	}
 
-	aper_size = MB(256);
+	if (IS_G4X(pI830) || IS_GM45(pI830))
+		gtt = (unsigned char *)(pI830->mmio + MB(2));
+	else if (IS_I965G(pI830))
+		gtt = (unsigned char *)(pI830->mmio + KB(512));
+	else {
+		/* 915/945 chips has GTT range in bar 3*/
+		int err = 0;
+		err = pci_device_map_range (pI830->pci_dev,
+				pI830->pci_dev->regions[3].base_addr,
+				pI830->pci_dev->regions[3].size,
+				PCI_DEV_MAP_FLAG_WRITABLE,
+				(void **)&gtt);
+		if (err != 0) {
+			fprintf(stderr, "mapping GTT bar failed\n");
+			exit(1);
+		}
+	}
+
+	aper_size = pI830->pci_dev->regions[2].size;
+
 	for (start = 0; start < aper_size; start += KB(4)) {
 		uint32_t start_pte = INGTT(start);
 		uint32_t end;
