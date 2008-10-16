@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu8) intrepid; urgency=low
+
+  * 26_i830-use-lfp-data-ptrs.patch:
+    - Fixes fatal server error "Couldn't find PLL settings for mode"
+      on a 855GM chipset, due to having an inaccurate VBT LFP_DATA
+      section from the BIOS parser.  This pulls the info from a
+      different (more trustworthy) version of the data structure.
+      (LP: #274045)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 16 Oct 2008 12:38:19 -0700
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu7) intrepid; urgency=low
 
   * Drop Vcs-* as we're not using these repos for -intel.
