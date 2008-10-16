@@ -3546,8 +3546,10 @@ I830LeaveVT(int scrnIndex, int flags)
    if (pI830->directRenderingOpen) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
 
-      I830DRISetVBlankInterrupt (pScrn, FALSE);
-      drmCtlUninstHandler(pI830->drmSubFD);
+      if (!pI830->memory_manager) {
+	  I830DRISetVBlankInterrupt (pScrn, FALSE);
+	  drmCtlUninstHandler(pI830->drmSubFD);
+      }
    }
 #endif
 

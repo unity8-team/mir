@@ -939,12 +939,14 @@ Bool
 I830DRIResume(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
 
    DPRINTF(PFX, "I830DRIResume\n");
 
    I830ResumeDma(pScrn);
 
-   I830DRIInstIrqHandler(pScrn);
+   if (!pI830->memory_manager)
+       I830DRIInstIrqHandler(pScrn);
 
    return TRUE;
 }
