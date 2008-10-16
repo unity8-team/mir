@@ -1495,7 +1495,9 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
     intel_output = crt->driver_private;
     if (intel_output->type == I830_OUTPUT_ANALOG &&
 	crt->funcs->detect(crt) == XF86OutputStatusDisconnected) {
+	I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOA, "CRTDDC_A");
 	edid_mon = xf86OutputGetEDID(crt, intel_output->pDDCBus);
+	xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
     }
     if (edid_mon) {
 	xf86OutputSetEDID(output, edid_mon);
