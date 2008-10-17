@@ -314,7 +314,7 @@ I830SetupForSolidFill(ScrnInfoPtr pScrn, int color, int rop,
 	       color, rop, planemask);
 
     if (IS_I965G(pI830) && I830CheckTiling(pScrn)) {
-	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 4;
+	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 2;
     } else {
 	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
     }
@@ -385,7 +385,7 @@ I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir, int ydir, int rop,
 	       xdir, ydir, rop, planemask, transparency_color);
 
     if (IS_I965G(pI830) && I830CheckTiling(pScrn)) {
-	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 4;
+	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 2;
     } else {
 	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
     }
@@ -468,7 +468,7 @@ I830SetupForMono8x8PatternFill(ScrnInfoPtr pScrn, int pattx, int patty,
     pI830->BR[19] = fg;
 
     if (IS_I965G(pI830) && I830CheckTiling(pScrn)) {
-	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 4;
+	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 2;
     } else {
 	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
     }
@@ -565,7 +565,7 @@ I830SetupForScanlineCPUToScreenColorExpandFill(ScrnInfoPtr pScrn,
 
     /* Fill out register values */
     if (IS_I965G(pI830) && I830CheckTiling(pScrn)) {
-	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 4;
+	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 2;
     } else {
 	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
     }
@@ -671,7 +671,7 @@ I830SetupForScanlineImageWrite(ScrnInfoPtr pScrn, int rop,
 
     /* Fill out register values */
     if (IS_I965G(pI830) && I830CheckTiling(pScrn)) {
-	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 4;
+	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp) >> 2;
     } else {
 	pI830->BR[13] = (pScrn->displayWidth * pI830->cpp);
     }
