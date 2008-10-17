@@ -1193,47 +1193,42 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   BoxPtr pbox = REGION_RECTS(prgn);
-   int nbox = REGION_NUM_RECTS(prgn);
+   BoxPtr pbox;
+   int nbox;
+   int buffer, first_buffer, last_buffer;
 
+   return;
    if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("I830DRIInitBuffers\n");
 
-   I830SetupForSolidFill(pScrn, 0, GXcopy, -1);
-   while (nbox--) {
-      I830SelectBuffer(pScrn, I830_SELECT_BACK);
-      I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
-				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+   first_buffer = I830_SELECT_BACK;
+   last_buffer = I830_SELECT_DEPTH;
+   if (I830PTR(pScrn)->third_buffer)
+      last_buffer = I830_SELECT_THIRD;
 
-      if (I830PTR(pScrn)->third_buffer) {
-	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+   for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
+      pbox = REGION_RECTS(prgn);
+      nbox = REGION_NUM_RECTS(prgn);
+
+      if (!I830SelectBuffer(pScrn, buffer))
+	 continue;
+
+      if (buffer == I830_SELECT_DEPTH) {
+	 switch (pScrn->bitsPerPixel) {
+	 case 16:
+	    I830SetupForSolidFill(pScrn, 0xffff, GXcopy, -1);
+	    break;
+	 case 32:
+	    I830SetupForSolidFill(pScrn, 0xffffff, GXcopy, -1);
+	    break;
+	 }
+      } else
+	 I830SetupForSolidFill(pScrn, 0, GXcopy, -1);
+      while (nbox--) {
 	 I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
 				     pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+	 pbox++;
       }
-
-      pbox++;
-   }
-
-   /* Clear the depth buffer - uses 0xffff rather than 0.
-    */
-   pbox = REGION_RECTS(prgn);
-   nbox = REGION_NUM_RECTS(prgn);
-
-   I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
-
-   switch (pScrn->bitsPerPixel) {
-   case 16:
-      I830SetupForSolidFill(pScrn, 0xffff, GXcopy, -1);
-      break;
-   case 32:
-      I830SetupForSolidFill(pScrn, 0xffffff, GXcopy, -1);
-      break;
-   }
-
-   while (nbox--) {
-      I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
-				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
-      pbox++;
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
@@ -1274,6 +1269,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
    int dx = pParent->drawable.x - ptOldOrg.x;
    int dy = pParent->drawable.y - ptOldOrg.y;
+   int buffer, first_buffer, last_buffer;
 
    /* If the copy will overlap in Y, reverse the order */
    if (dy > 0) {
@@ -1355,44 +1351,47 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    /* SelectBuffer isn't really a good concept for the i810.
     */
    I830EmitFlush(pScrn);
-   I830SetupForScreenToScreenCopy(pScrn, xdir, ydir, GXcopy, -1, -1);
-   for (; nbox--; pbox++) {
+   first_buffer = I830_SELECT_BACK;
+   last_buffer = I830_SELECT_DEPTH;
+   if (pI830->third_buffer)
+      last_buffer = I830_SELECT_THIRD;
 
-      int x1 = pbox->x1;
-      int y1 = pbox->y1;
-      int destx = x1 + dx;
-      int desty = y1 + dy;
-      int w = pbox->x2 - x1 + 1;
-      int h = pbox->y2 - y1 + 1;
-
-      if (destx < 0)
-	 x1 -= destx, w += destx, destx = 0;
-      if (desty < 0)
-	 y1 -= desty, h += desty, desty = 0;
-      if (destx + w > screenwidth)
-	 w = screenwidth - destx;
-      if (desty + h > screenheight)
-	 h = screenheight - desty;
-      if (w <= 0)
+   for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
+      if (!I830SelectBuffer(pScrn, buffer))
 	 continue;
-      if (h <= 0)
-	 continue;
+      I830SetupForScreenToScreenCopy(pScrn, xdir, ydir, GXcopy, -1, -1);
+      pbox = REGION_RECTS(prgnSrc);
+      nbox = REGION_NUM_RECTS(prgnSrc);
+      for (; nbox--; pbox++) {
 
-      if (I810_DEBUG & DEBUG_VERBOSE_DRI)
-	 ErrorF("MoveBuffers %d,%d %dx%d dx: %d dy: %d\n",
-		x1, y1, w, h, dx, dy);
+	 int x1 = pbox->x1;
+	 int y1 = pbox->y1;
+	 int destx = x1 + dx;
+	 int desty = y1 + dy;
+	 int w = pbox->x2 - x1 + 1;
+	 int h = pbox->y2 - y1 + 1;
 
-      I830SelectBuffer(pScrn, I830_SELECT_BACK);
-      I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      if (pI830->third_buffer) {
-	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+	 if (destx < 0)
+	    x1 -= destx, w += destx, destx = 0;
+	 if (desty < 0)
+	    y1 -= desty, h += desty, desty = 0;
+	 if (destx + w > screenwidth)
+	    w = screenwidth - destx;
+	 if (desty + h > screenheight)
+	    h = screenheight - desty;
+	 if (w <= 0)
+	    continue;
+	 if (h <= 0)
+	    continue;
+
+	 if (I810_DEBUG & DEBUG_VERBOSE_DRI)
+	    ErrorF("MoveBuffers %d,%d %dx%d dx: %d dy: %d\n",
+		   x1, y1, w, h, dx, dy);
+
 	 I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
       }
-      if (!IS_I965G(pI830)) {
-         I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
-         I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      }
    }
+
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
    I830EmitFlush(pScrn);
 
