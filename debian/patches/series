@@ -8,3 +8,4 @@
 24_no_render_suspend
 25_quirk_nc6110.patch
 26_i830-use-lfp-data-ptrs.patch
+27_disable_fbc_on_965.patch

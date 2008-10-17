@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu9) intrepid; urgency=low
+
+  * 27_disable_fbc_on_965.patch:
+    - Works around issue where flash videos freeze after playing for a few
+      moments on i965 chipset, by disabling Frame Buffer Compression, which
+      is not working reliably on this chipset.  It can be re-enabled via the
+      FrameBufferCompression option for testing purposes.
+      (LP: #275285)
+  
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 17 Oct 2008 18:11:03 -0700
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu8) intrepid; urgency=low
 
   * 26_i830-use-lfp-data-ptrs.patch:
