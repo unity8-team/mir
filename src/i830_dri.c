@@ -1197,7 +1197,6 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
    int nbox;
    int buffer, first_buffer, last_buffer;
 
-   return;
    if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("I830DRIInitBuffers\n");
 
