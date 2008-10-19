@@ -442,8 +442,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	has_dri = TRUE;
     }
 
-    if (pI830->directRenderingEnabled &&
-	xf86LoaderCheckSymbol ("drmCommandWriteRead"))
+    if (pI830->directRenderingEnabled)
     {
 	has_gem = FALSE;
 	gp.param = I915_PARAM_HAS_GEM;
