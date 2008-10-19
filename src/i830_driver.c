@@ -2674,17 +2674,21 @@ I830BlockHandler(int i,
     pScreen->BlockHandler = I830BlockHandler;
 
     if (pScrn->vtSema && pI830->accel != ACCEL_NONE) {
+       Bool flushed = FALSE;
        /* Emit a flush of the rendering cache, or on the 965 and beyond
 	* rendering results may not hit the framebuffer until significantly
 	* later.
 	*/
        if (pI830->accel != ACCEL_NONE && (pI830->need_mi_flush || pI830->batch_used))
+       {
+	  flushed = TRUE;
 	  I830EmitFlush(pScrn);
+       }
 
        /* Flush the batch, so that any rendering is executed in a timely
 	* fashion.
 	*/
-       intel_batch_flush(pScrn);
+       intel_batch_flush(pScrn, flushed);
 #ifdef XF86DRI
        if (pI830->memory_manager)
 	 drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);

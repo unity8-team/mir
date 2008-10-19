@@ -192,7 +192,7 @@ I830Sync(ScrnInfoPtr pScrn)
 
    I830EmitFlush(pScrn);
 
-   intel_batch_flush(pScrn);
+   intel_batch_flush(pScrn, TRUE);
 
    if (pI830->directRenderingEnabled) {
        struct drm_i915_irq_emit emit;
@@ -237,9 +237,8 @@ I830EmitFlush(ScrnInfoPtr pScrn)
       flags = 0;
 
    {
-       BEGIN_BATCH(2);
+       BEGIN_BATCH(1);
        OUT_BATCH(MI_FLUSH | flags);
-       OUT_BATCH(MI_NOOP);		/* pad to quadword */
        ADVANCE_BATCH();
    }
 }

@@ -156,7 +156,7 @@ intel_batch_teardown(ScrnInfoPtr pScrn)
 }
 
 void
-intel_batch_flush(ScrnInfoPtr pScrn)
+intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int ret;
@@ -164,6 +164,17 @@ intel_batch_flush(ScrnInfoPtr pScrn)
     if (pI830->batch_used == 0)
 	return;
 
+    /* If we're not using GEM, then emit a flush after each batch buffer */
+    if (pI830->memory_manager == NULL && !flushed) {
+	int flags = MI_WRITE_DIRTY_STATE | MI_INVALIDATE_MAP_CACHE;
+
+	if (IS_I965G(pI830))
+	    flags = 0;
+
+	*(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_FLUSH | flags;
+	pI830->batch_used += 4;
+    }
+	
     /* Emit a padding dword if we aren't going to be quad-word aligned. */
     if ((pI830->batch_used & 4) == 0) {
 	*(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = MI_NOOP;
@@ -188,5 +199,6 @@ intel_batch_flush(ScrnInfoPtr pScrn)
      * blockhandler.  We could set this less often, but it's probably not worth
      * the work.
      */
-    pI830->need_mi_flush = TRUE;
+    if (pI830->memory_manager != NULL)
+	pI830->need_mi_flush = TRUE;
 }
