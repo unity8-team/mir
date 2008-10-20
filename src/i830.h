@@ -679,7 +679,7 @@ extern Bool I830CursorInit(ScreenPtr pScreen);
 extern void IntelEmitInvarientState(ScrnInfoPtr pScrn);
 extern void I830EmitInvarientState(ScrnInfoPtr pScrn);
 extern void I915EmitInvarientState(ScrnInfoPtr pScrn);
-extern void I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
+extern Bool I830SelectBuffer(ScrnInfoPtr pScrn, int buffer);
 void i830_update_cursor_offsets(ScrnInfoPtr pScrn);
 
 /* CRTC-based cursor functions */
@@ -872,6 +872,13 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
      * front buffer with XAA now.
      */
     if (!pI830->tiling || (IS_I965G(pI830) && !pI830->useEXA))
+	return FALSE;
+    /* We have not gotten FBC to work consistently on 965GM. Our best
+     * working theory right now is that FBC simply isn't reliable on
+     * that device. See this bug report for more details:
+     * https://bugs.freedesktop.org/show_bug.cgi?id=16257
+     */
+    if (IS_I965GM(pI830))
 	return FALSE;
     return TRUE;
 }

@@ -255,6 +255,7 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
+   {PCI_CHIP_G41_G,		"G41"},
    {-1,				NULL}
 };
 
@@ -282,6 +283,7 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
    {-1,				-1,			RES_UNDEFINED}
 };
 
@@ -518,8 +520,8 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    range = gtt_size + 4;
 
    /* new 4 series hardware has seperate GTT stolen with GFX stolen */
-   if (IS_G4X(pI830))
-       range = 0;
+   if (IS_G4X(pI830) || IS_GM45(pI830))
+       range = 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
       switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
@@ -962,13 +964,19 @@ i830_init_clock_gating(ScrnInfoPtr pScrn)
 
     /* Disable clock gating reported to work incorrectly according to the specs.
      */
-    if (IS_GM45(pI830)) {
+    if (IS_GM45(pI830) || IS_G4X(pI830)) {
+	uint32_t dspclk_gate;
 	OUTREG(RENCLK_GATE_D1, 0);
-	OUTREG(RENCLK_GATE_D2, 0);
+	OUTREG(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
+		GS_UNIT_CLOCK_GATE_DISABLE |
+		CL_UNIT_CLOCK_GATE_DISABLE);
 	OUTREG(RAMCLK_GATE_D, 0);
-	OUTREG(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE |
-	       OVRUNIT_CLOCK_GATE_DISABLE |
-	       OVCUNIT_CLOCK_GATE_DISABLE);
+	dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
+	    OVRUNIT_CLOCK_GATE_DISABLE |
+	    OVCUNIT_CLOCK_GATE_DISABLE;
+	if (IS_GM45(pI830))
+	    dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
+	OUTREG(DSPCLK_GATE_D, dspclk_gate);
     } else if (IS_I965GM(pI830)) {
 	OUTREG(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 	OUTREG(RENCLK_GATE_D2, 0);
@@ -1218,6 +1226,9 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	break;
     case PCI_CHIP_Q45_G:
 	chipname = "Q45/Q43";
+	break;
+    case PCI_CHIP_G41_G:
+	chipname = "G41";
 	break;
    default:
 	chipname = "unknown chipset";
@@ -2687,6 +2698,23 @@ i830_memory_init(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
+static void
+i830_disable_render_standby(ScrnInfoPtr pScrn)
+{
+   I830Ptr pI830 = I830PTR(pScrn);
+   uint32_t render_standby;
+
+   /* Render Standby might cause hang issue, try always disable it.*/
+   if (IS_I965GM(pI830) || IS_GM45(pI830)) {
+       render_standby = INREG(MCHBAR_RENDER_STANDBY);
+       if (render_standby & RENDER_STANDBY_ENABLE) {
+	   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disable render standby.\n");
+	   OUTREG(MCHBAR_RENDER_STANDBY,
+		   (render_standby & (~RENDER_STANDBY_ENABLE)));
+       }
+   }
+}
+
 static Bool
 I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
@@ -3023,6 +3051,8 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!vgaHWMapMem(pScrn))
       return FALSE;
 
+   i830_disable_render_standby(pScrn);
+
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
    if (!pI830->useEXA) {
@@ -3222,7 +3252,7 @@ I830LeaveVT(int scrnIndex, int flags)
    pI830->leaving = TRUE;
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    i830SetHotkeyControl(pScrn, HOTKEY_BIOS_SWITCH);
@@ -3455,7 +3485,7 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
    }
 
    if (pI830->devicesTimer)
-      TimerCancel(pI830->devicesTimer);
+      TimerFree(pI830->devicesTimer);
    pI830->devicesTimer = NULL;
 
    DPRINTF(PFX, "\nUnmapping memory\n");
@@ -3591,7 +3621,7 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
       /* If we had status checking turned on, turn it off now */
       if (pI830->checkDevices) {
          if (pI830->devicesTimer)
-            TimerCancel(pI830->devicesTimer);
+            TimerFree(pI830->devicesTimer);
          pI830->devicesTimer = NULL;
          pI830->checkDevices = FALSE; 
       }

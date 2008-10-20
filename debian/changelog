@@ -1,3 +1,50 @@
+xserver-xorg-video-intel (2:2.3.2-2+lenny5) unstable; urgency=low
+
+  * Cherry-pick some more patches from upstream git:
+    - Disable display clock gating for 4 series chips
+    - Pipe A force quirk for Toshiba Satellite A30.
+    - i830: Fix timer leak
+      TimerCancel just cancels the timer: it still leaves the TimerRec intact
+      and unfreed.
+    - Disable render standby
+      Render standby is known to cause possible hang issue on some mobile
+      chips, so always disable it.
+    - Add support for G41 chipset
+      G41 is another 4 series chipset like G45/43.
+    - Add Cappuccino SlimPRO SP625F to no LVDS quirks list
+      Looks like this platform might contain VBTs that indicate an LFP is
+      present even though it isn't.  Intended to fix bz #11368.
+    - Add TV out quirk for HP Compaq nx6110
+      Adds a TV out quirk for HP Compaq nx6110.  Fixes bz #17683.
+    - Do force CRT detect sequence twice on 4 series chipset
+    - Render register clock gating disable fix on 4 series chipset
+    - Disable frame buffer compression by default for GM965.
+      We haven't found a way to make FBC work reliably with GM965 yet, (it
+      often fails to notice CPU writes). This appears to be a specific problem
+      with this device, (as we haven't gotten similar bug reports for
+      subsequent devices such as GM45). So FBC is now disabled by default for
+      GM965 but can still be enabled with the FrameBufferCompression option
+      for experimenting/debugging
+    - Fix broken stolen memory counting on G4X (closes: #502387).
+      On the GM45 we were assuming too little stolen memory (mostly harmless,
+      except when it wasn't, until the AGP fix), and on the G45 we were
+      assuming too much stolen memory, which was quite harmful when we touched
+      the page that didn't get mapped.
+    - XAA tiling support was mis-computing adjusted pitch (>>4 instead of >>2)
+      This may well explain why XAA never worked well on tiled front buffers;
+      tiled buffers require a different pitch programming on 965 than
+      non-tiled buffers, in dwords rather than bytes
+    - Handle differently tiled front/back/depth/third in DRI window management
+      When moving or clearing the extra buffer contents associated with DRI
+      windows, the XAA code needs to see which buffer is being manipulated in
+      the Setup functions to program the tiling values correctly. Calling
+      I830SelectBuffer and not then calling I830Setup... would result in
+      mis-tiled rendering
+  * Adjust patch 01_gen_pci_ids.diff to exclude G41 as well, so vesa is chosen
+    by default.  The intel driver can still be selected in xorg.conf.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 20 Oct 2008 20:28:39 +0200
+
 xserver-xorg-video-intel (2:2.3.2-2+lenny4) unstable; urgency=low
 
   * Kill 02_xaa_by_default_on_i965.diff.  Switching to XAA breaks Xvideo,

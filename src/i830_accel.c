@@ -224,7 +224,7 @@ I830EmitFlush(ScrnInfoPtr pScrn)
    }
 }
 
-void
+Bool
 I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
 {
    I830Ptr pI830 = I830PTR(pScrn);
@@ -233,12 +233,18 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
 #ifdef XF86DRI
    case I830_SELECT_BACK:
       pI830->bufferOffset = pI830->back_buffer->offset;
+      if (pI830->back_buffer->tiling == TILE_YMAJOR)
+	 return FALSE;
       break;
    case I830_SELECT_THIRD:
       pI830->bufferOffset = pI830->third_buffer->offset;
+      if (pI830->third_buffer->tiling == TILE_YMAJOR)
+	 return FALSE;
       break;
    case I830_SELECT_DEPTH:
       pI830->bufferOffset = pI830->depth_buffer->offset;
+      if (pI830->depth_buffer->tiling == TILE_YMAJOR)
+	 return FALSE;
       break;
 #endif
    default:
@@ -250,6 +256,7 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
    if (I810_DEBUG & DEBUG_VERBOSE_ACCEL)
       ErrorF("I830SelectBuffer %d --> offset %x\n",
 	     buffer, pI830->bufferOffset);
+   return TRUE;
 }
 
 /* The following function sets up the supported acceleration. Call it
