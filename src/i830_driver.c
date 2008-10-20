@@ -306,9 +306,7 @@ typedef enum {
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
-#ifdef XF86DRI
-   OPTION_INTELTEXPOOL,
-#endif
+   OPTION_LEGACY3D,
    OPTION_LVDSFIXEDMODE,
    OPTION_TRIPLEBUFFER,
    OPTION_FORCEENABLEPIPEA,
@@ -334,7 +332,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
 #ifdef XF86DRI
-   {OPTION_INTELTEXPOOL,"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
+   {OPTION_LEGACY3D,	"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
 #endif
    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
@@ -1567,22 +1565,8 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 	}
 
 	if (!pI830->directRenderingDisabled) {
-	    pI830->allocate_classic_textures = TRUE;
-
-	    from = X_PROBED;
-
-#ifdef XF86DRI_MM
-	    if (!IS_I965G(pI830)) {
-		Bool tmp;
-
-		if (xf86GetOptValBool(pI830->Options,
-				      OPTION_INTELTEXPOOL, &tmp)) {
-		    from = X_CONFIG;
-		    if (!tmp)
-			pI830->allocate_classic_textures = FALSE;
-		}
-	    }
-#endif /* XF86DRI_MM */
+	   pI830->allocate_classic_textures =
+	      xf86ReturnOptValBool(pI830->Options, OPTION_LEGACY3D, TRUE);
 	}
     }
 #endif /* XF86DRI */
