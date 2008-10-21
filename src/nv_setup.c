@@ -372,12 +372,12 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
 
 	/* 8 bit registers */
-	pNv->PCIO0    = (uint8_t *)pNv->REGS + NV_PCIO0_OFFSET;
-	pNv->PDIO0    = (uint8_t *)pNv->REGS + NV_PDIO0_OFFSET;
-	pNv->PVIO0    = (uint8_t *)pNv->REGS + NV_PVIO0_OFFSET;
-	pNv->PCIO1    = pNv->PCIO0 + NV_PCIO_SIZE;
-	pNv->PDIO1    = pNv->PDIO0 + NV_PDIO_SIZE;
-	pNv->PVIO1    = pNv->PVIO0 + NV_PVIO_SIZE;
+	pNv->PCIO0    = (uint8_t *)pNv->REGS + NV_PRMCIO0_OFFSET;
+	pNv->PDIO0    = (uint8_t *)pNv->REGS + NV_PRMDIO0_OFFSET;
+	pNv->PVIO0    = (uint8_t *)pNv->REGS + NV_PRMVIO0_OFFSET;
+	pNv->PCIO1    = pNv->PCIO0 + NV_PRMCIO_SIZE;
+	pNv->PDIO1    = pNv->PDIO0 + NV_PRMDIO_SIZE;
+	pNv->PVIO1    = pNv->PVIO0 + NV_PRMVIO_SIZE;
 
 	pNv->alphaCursor = (pNv->NVArch >= 0x11);
 

@@ -50,12 +50,12 @@
 #define NV_PPM_OFFSET               0x0000A000
 #define NV_PPM_SIZE                 0x00001000
 
-#define NV_PVGA_OFFSET              0x000A0000
-#define NV_PVGA_SIZE                0x00020000
+#define NV_PRMVGA_OFFSET            0x000A0000
+#define NV_PRMVGA_SIZE              0x00020000
 
-#define NV_PVIO0_OFFSET             0x000C0000
-#define NV_PVIO_SIZE                0x00002000
-#define NV_PVIO1_OFFSET             0x000C2000
+#define NV_PRMVIO0_OFFSET           0x000C0000
+#define NV_PRMVIO_SIZE              0x00002000
+#define NV_PRMVIO1_OFFSET           0x000C2000
 
 #define NV_PFB_OFFSET               0x00100000
 #define NV_PFB_SIZE                 0x00001000
@@ -75,9 +75,9 @@
 #define NV_PCRTC0_OFFSET            0x00600000
 #define NV_PCRTC0_SIZE              0x00002000 /* empirical */
 
-#define NV_PCIO0_OFFSET             0x00601000
-#define NV_PCIO_SIZE                0x00002000
-#define NV_PCIO1_OFFSET             0x00603000
+#define NV_PRMCIO0_OFFSET           0x00601000
+#define NV_PRMCIO_SIZE              0x00002000
+#define NV_PRMCIO1_OFFSET           0x00603000
 
 #define NV50_DISPLAY_OFFSET           0x00610000
 #define NV50_DISPLAY_SIZE             0x0000FFFF
@@ -85,9 +85,9 @@
 #define NV_PRAMDAC0_OFFSET          0x00680000
 #define NV_PRAMDAC0_SIZE            0x00002000
 
-#define NV_PDIO0_OFFSET             0x00681000
-#define NV_PDIO_SIZE                0x00002000
-#define NV_PDIO1_OFFSET             0x00683000
+#define NV_PRMDIO0_OFFSET           0x00681000
+#define NV_PRMDIO_SIZE              0x00002000
+#define NV_PRMDIO1_OFFSET           0x00683000
 
 #define NV_PRAMIN_OFFSET            0x00700000
 #define NV_PRAMIN_SIZE              0x00100000

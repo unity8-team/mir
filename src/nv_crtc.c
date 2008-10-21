@@ -1340,7 +1340,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	int i;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 
-	NVWritePVIO(pNv, nv_crtc->head, VGA_MISC_OUT_W, regp->MiscOutReg);
+	NVWritePRMVIO(pNv, nv_crtc->head, VGA_MISC_OUT_W, regp->MiscOutReg);
 
 	for (i = 0; i < 5; i++)
 		NVWriteVgaSeq(pNv, nv_crtc->head, i, regp->Sequencer[i]);
@@ -1464,7 +1464,7 @@ static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	int i;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 
-	regp->MiscOutReg = NVReadPVIO(pNv, nv_crtc->head, VGA_MISC_OUT_R);
+	regp->MiscOutReg = NVReadPRMVIO(pNv, nv_crtc->head, VGA_MISC_OUT_R);
 
 	for (i = 0; i < 25; i++)
 		regp->CRTC[i] = NVReadVgaCrtc(pNv, nv_crtc->head, i);
@@ -1684,7 +1684,7 @@ static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
-	uint32_t mmiobase = nv_crtc->head ? NV_PDIO1_OFFSET : NV_PDIO0_OFFSET;
+	uint32_t mmiobase = nv_crtc->head ? NV_PRMDIO1_OFFSET : NV_PRMDIO0_OFFSET;
 	int i;
 
 	VGA_WR08(pNv->REGS, VGA_DAC_MASK + mmiobase, 0xff);
@@ -1701,7 +1701,7 @@ static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
-	uint32_t mmiobase = nv_crtc->head ? NV_PDIO1_OFFSET : NV_PDIO0_OFFSET;
+	uint32_t mmiobase = nv_crtc->head ? NV_PRMDIO1_OFFSET : NV_PRMDIO0_OFFSET;
 	int i;
 
 	VGA_WR08(pNv->REGS, VGA_DAC_MASK + mmiobase, 0xff);

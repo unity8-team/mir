@@ -281,8 +281,8 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 static bool nv_valid_idx_port(ScrnInfoPtr pScrn, uint16_t port)
 {
 	/* if adding more ports here, the read/write functions below will need
-	 * updating so that the correct mmio range (PCIO, PDIO, PVIO) is used
-	 * for the port in question
+	 * updating so that the correct mmio range (PRMCIO, PRMDIO, PRMVIO) is
+	 * used for the port in question
 	 */
 	if (port == CRTC_INDEX_COLOR)
 		return true;
@@ -298,8 +298,8 @@ static bool nv_valid_idx_port(ScrnInfoPtr pScrn, uint16_t port)
 static bool nv_valid_port(ScrnInfoPtr pScrn, uint16_t port)
 {
 	/* if adding more ports here, the read/write functions below will need
-	 * updating so that the correct mmio range (PCIO, PDIO, PVIO) is used
-	 * for the port in question
+	 * updating so that the correct mmio range (PRMCIO, PRMDIO, PRMVIO) is
+	 * used for the port in question
 	 */
 	if (port == VGA_ENABLE)
 		return true;
@@ -417,7 +417,7 @@ static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 	if (!nv_valid_port(pScrn, port))
 		return 0;
 
-	data = NVReadPVIO(pNv, crtchead, port);
+	data = NVReadPRMVIO(pNv, crtchead, port);
 
 	BIOSLOG(pScrn, "	IO read:  Port: 0x%04X, Head: 0x%02X, Data: 0x%02X\n",
 		port, crtchead, data);
@@ -438,7 +438,7 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		NVWritePVIO(pNv, crtchead, port, data);
+		NVWritePRMVIO(pNv, crtchead, port, data);
 	}
 }
 
