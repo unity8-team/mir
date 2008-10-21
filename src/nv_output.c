@@ -572,18 +572,18 @@ nv_output_prepare(xf86OutputPtr output)
 		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, nv_crtc->head);
 
 	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f etc.) which we don't alter */
-	if (!(regp->CRTC[NV_VGA_CRTCX_LCD] & 0x44)) {
+	if (!(regp->CRTC[NV_CIO_CRE_LCD__INDEX] & 0x44)) {
 		if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS) {
-			regp->CRTC[NV_VGA_CRTCX_LCD] &= ~0x30;
-			regp->CRTC[NV_VGA_CRTCX_LCD] |= 0x3;
+			regp->CRTC[NV_CIO_CRE_LCD__INDEX] &= ~0x30;
+			regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= 0x3;
 			if (nv_crtc->head == 0)
-				regp->CRTC[NV_VGA_CRTCX_LCD] |= 0x8;
+				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= 0x8;
 			else
-				regp->CRTC[NV_VGA_CRTCX_LCD] &= ~0x8;
+				regp->CRTC[NV_CIO_CRE_LCD__INDEX] &= ~0x8;
 			if (nv_encoder->dcb->location != LOC_ON_CHIP)
-				regp->CRTC[NV_VGA_CRTCX_LCD] |= (nv_encoder->dcb->or << 4) & 0x30;
+				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= (nv_encoder->dcb->or << 4) & 0x30;
 		} else
-			regp->CRTC[NV_VGA_CRTCX_LCD] = 0;
+			regp->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
 	}
 }
 
@@ -750,12 +750,12 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 
 		if (mode == DPMSModeOn) {
 			nv_crtc = to_nouveau_crtc(crtc);
-			NVWriteVgaCrtc(pNv, nv_crtc->head, NV_VGA_CRTCX_LCD,
-				       pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_VGA_CRTCX_LCD]);
+			NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_LCD__INDEX,
+				       pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_CIO_CRE_LCD__INDEX]);
 		} else
 			for (i = 0; i <= pNv->twoHeads; i++)
-				NVWriteVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD,
-					       NVReadVgaCrtc(pNv, i, NV_VGA_CRTCX_LCD) & ~((nv_encoder->dcb->or << 4) & 0x30));
+				NVWriteVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX,
+					       NVReadVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX) & ~((nv_encoder->dcb->or << 4) & 0x30));
 	}
 }
 

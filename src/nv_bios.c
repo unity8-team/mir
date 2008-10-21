@@ -35,8 +35,8 @@
 
 /* FIXME: put these somewhere */
 #define SEQ_INDEX VGA_SEQ_INDEX
-#define NV_VGA_CRTCX_OWNER_HEADA 0x0
-#define NV_VGA_CRTCX_OWNER_HEADB 0x3
+#define NV_CIO_CRE_44_HEADA 0x0
+#define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10
 
 //#define BIOSLOG(sip, fmt, arg...) xf86DrvMsg(sip->scrnIndex, X_INFO, fmt, ##arg)
@@ -385,12 +385,12 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 		return;
 
 	/* The current head is maintained in a file scope variable crtchead.
-	 * We trap changes to CRTCX_OWNER and update the head variable
-	 * and hence the register set written.
-	 * As CRTCX_OWNER only exists on CRTC0, we update crtchead to head0
-	 * in advance of the write, and to head1 after the write
+	 * We trap changes to CR44 and update the head variable and hence the
+	 * register set written.
+	 * As CR44 only exists on CRTC0, we update crtchead to head0 in advance
+	 * of the write, and to head1 after the write
 	 */
-	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data != NV_VGA_CRTCX_OWNER_HEADB)
+	if (port == CRTC_INDEX_COLOR && index == NV_CIO_CRE_44 && data != NV_CIO_CRE_44_HEADB)
 		crtchead = 0;
 
 	LOG_OLD_VALUE(nv_idx_port_rd(pScrn, port, index));
@@ -405,7 +405,7 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 			NVWriteVgaCrtc(pNv, crtchead, index, data);
 	}
 
-	if (port == CRTC_INDEX_COLOR && index == NV_VGA_CRTCX_OWNER && data == NV_VGA_CRTCX_OWNER_HEADB)
+	if (port == CRTC_INDEX_COLOR && index == NV_CIO_CRE_44 && data == NV_CIO_CRE_44_HEADB)
 		crtchead = 1;
 }
 
@@ -1887,7 +1887,7 @@ static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
 	uint16_t seqtbloffs = bios->legacy.sdr_seq_tbl_ptr, meminitdata = meminitoffs + 6;
 	uint32_t reg, data;
 
@@ -1939,7 +1939,7 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
 	int clock;
 
 	if (bios->major_version > 2)
@@ -1975,7 +1975,7 @@ static bool init_configure_preinit(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	if (bios->major_version > 2)
 		return false;
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_SCRATCH4, cr3c);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX, cr3c);
 
 	return true;
 }
@@ -2732,8 +2732,8 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dc
 	init_exec_t iexec = {true, false};
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_OWNER,
-		       head ? NV_VGA_CRTCX_OWNER_HEADB : NV_VGA_CRTCX_OWNER_HEADA);
+	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_44,
+		       head ? NV_CIO_CRE_44_HEADB : NV_CIO_CRE_44_HEADA);
 	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
@@ -3465,7 +3465,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 
 			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) ||
 			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
-				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_VGA_CRTCX_REVISION) < 0xa3)
+				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
 					pll_lim->refclk = 25000;
