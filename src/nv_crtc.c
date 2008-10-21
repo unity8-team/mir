@@ -187,10 +187,10 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 
 	CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] = cursor_start >> 17;
 	if (pNv->Architecture != NV_ARCH_04)
-		CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] |= 0x80;
+		CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] |= NV_CIO_CRE_HCUR_ASI;
 	CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] = (cursor_start >> 11) << 2;
 	if (crtc->mode.Flags & V_DBLSCAN)
-		CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |= 2;
+		CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |= NV_CIO_CRE_HCUR_ADDR1_CUR_DBL;
 	CRTC[NV_CIO_CRE_HCUR_ADDR2_INDEX] = cursor_start >> 24;
 
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_HCUR_ADDR0_INDEX, CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX]);
@@ -351,8 +351,8 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	NVVgaSeqReset(pNv, nv_crtc->head, true);
 	/* Each head has it's own sequencer, so we can turn it off when we want */
-	seq1 |= (NVReadVgaSeq(pNv, nv_crtc->head, 0x01) & ~0x20);
-	NVWriteVgaSeq(pNv, nv_crtc->head, 0x1, seq1);
+	seq1 |= (NVReadVgaSeq(pNv, nv_crtc->head, NV_VIO_SR_CLOCK_INDEX) & ~0x20);
+	NVWriteVgaSeq(pNv, nv_crtc->head, NV_VIO_SR_CLOCK_INDEX, seq1);
 	crtc17 |= (NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_MODE_INDEX) & ~0x80);
 	usleep(10000);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_MODE_INDEX, crtc17);
@@ -463,15 +463,15 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	/*
 	* Time Sequencer
 	*/
-	regp->Sequencer[0] = 0x00;
+	regp->Sequencer[NV_VIO_SR_RESET_INDEX] = 0x00;
 	/* 0x20 disables the sequencer */
 	if (mode->Flags & V_CLKDIV2)
-		regp->Sequencer[1] = 0x29;
+		regp->Sequencer[NV_VIO_SR_CLOCK_INDEX] = 0x29;
 	else
-		regp->Sequencer[1] = 0x21;
-	regp->Sequencer[2] = 0x0F;
-	regp->Sequencer[3] = 0x00;                     /* Font select */
-	regp->Sequencer[4] = 0x0E;                             /* Misc */
+		regp->Sequencer[NV_VIO_SR_CLOCK_INDEX] = 0x21;
+	regp->Sequencer[NV_VIO_SR_PLANE_MASK_INDEX] = 0x0F;
+	regp->Sequencer[NV_VIO_SR_CHAR_MAP_INDEX] = 0x00;
+	regp->Sequencer[NV_VIO_SR_MEM_MODE_INDEX] = 0x0E;
 
 	/*
 	* CRTC Controller
@@ -496,13 +496,13 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->CRTC[NV_CIO_CR_RSAL_INDEX]  = 0x00;
 	regp->CRTC[NV_CIO_CR_CELL_HT_INDEX]  = SetBitField(vertBlankStart,9:9,5:5)
 				| SetBit(6)
-				| ((mode->Flags & V_DBLSCAN) ? 0x80 : 0x00);
+				| (mode->Flags & V_DBLSCAN) * NV_CIO_CR_CELL_HT_SCANDBL;
 	regp->CRTC[NV_CIO_CR_CURS_ST_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_CURS_END_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_SA_HI_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_SA_LO_INDEX] = 0x00;
-	regp->CRTC[0xe] = 0x00;
-	regp->CRTC[0xf] = 0x00;
+	regp->CRTC[NV_CIO_CR_TCOFF_HI_INDEX] = 0x00;
+	regp->CRTC[NV_CIO_CR_TCOFF_LO_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_VRS_INDEX] = Set8Bits(vertStart);
 	/* What is the meaning of bit5, it is empty in the vga spec. */
 	regp->CRTC[NV_CIO_CR_VRE_INDEX] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
@@ -548,15 +548,15 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	/*
 	* Graphics Display Controller
 	*/
-	regp->Graphics[0] = 0x00;
-	regp->Graphics[1] = 0x00;
-	regp->Graphics[2] = 0x00;
-	regp->Graphics[3] = 0x00;
-	regp->Graphics[4] = 0x00;
-	regp->Graphics[5] = 0x40; /* 256 color mode */
-	regp->Graphics[6] = 0x05; /* map 64k mem + graphic mode */
-	regp->Graphics[7] = 0x0F;
-	regp->Graphics[8] = 0xFF;
+	regp->Graphics[NV_VIO_GX_SR_INDEX] = 0x00;
+	regp->Graphics[NV_VIO_GX_SREN_INDEX] = 0x00;
+	regp->Graphics[NV_VIO_GX_CCOMP_INDEX] = 0x00;
+	regp->Graphics[NV_VIO_GX_ROP_INDEX] = 0x00;
+	regp->Graphics[NV_VIO_GX_READ_MAP_INDEX] = 0x00;
+	regp->Graphics[NV_VIO_GX_MODE_INDEX] = 0x40; /* 256 color mode */
+	regp->Graphics[NV_VIO_GX_MISC_INDEX] = 0x05; /* map 64k mem + graphic mode */
+	regp->Graphics[NV_VIO_GX_DONT_CARE_INDEX] = 0x0F;
+	regp->Graphics[NV_VIO_GX_BIT_MASK_INDEX] = 0xFF;
 
 	regp->Attribute[0]  = 0x00; /* standard colormap translation */
 	regp->Attribute[1]  = 0x01;
@@ -574,12 +574,12 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->Attribute[13] = 0x0D;
 	regp->Attribute[14] = 0x0E;
 	regp->Attribute[15] = 0x0F;
-	regp->Attribute[16] = 0x01; /* Enable graphic mode */
+	regp->Attribute[NV_CIO_AR_MODE_INDEX] = 0x01; /* Enable graphic mode */
 	/* Non-vga */
-	regp->Attribute[17] = 0x00;
-	regp->Attribute[18] = 0x0F; /* enable all color planes */
-	regp->Attribute[19] = 0x00;
-	regp->Attribute[20] = 0x00;
+	regp->Attribute[NV_CIO_AR_OSCAN_INDEX] = 0x00;
+	regp->Attribute[NV_CIO_AR_PLANE_INDEX] = 0x0F; /* enable all color planes */
+	regp->Attribute[NV_CIO_AR_HPP_INDEX] = 0x00;
+	regp->Attribute[NV_CIO_AR_CSEL_INDEX] = 0x00;
 }
 
 /**
@@ -706,7 +706,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	if (pNv->twoHeads)
 		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT);
 
-	regp->config = 0x2; /* HSYNC mode */
+	regp->config = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -957,10 +957,8 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	/* turn on LFB swapping */
 	{
-		unsigned char tmp;
-
-		tmp = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RCR);
-		tmp |= (1 << 7);
+		uint8_t tmp = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RCR);
+		tmp |= NV_CIO_CRE_RCR_ENDIAN_BIG;
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RCR, tmp);
 	}
 #endif
@@ -1032,7 +1030,7 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
-	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, 0x1); /* Go to non-vga mode/out of enhanced mode */
+	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (pNv->Architecture == NV_ARCH_40) {
 		uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_900);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 & ~0x10000);
@@ -1346,7 +1344,7 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		NVWriteVgaSeq(pNv, nv_crtc->head, i, regp->Sequencer[i]);
 
 	/* Ensure CRTC registers 0-7 are unlocked by clearing bit 7 of CRTC[17] */
-	NVWriteVgaCrtc(pNv, nv_crtc->head, 17, regp->CRTC[17] & ~0x80);
+	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_VRE_INDEX, regp->CRTC[NV_CIO_CR_VRE_INDEX] & ~0x80);
 
 	for (i = 0; i < 25; i++)
 		NVWriteVgaCrtc(pNv, nv_crtc->head, i, regp->CRTC[i]);
@@ -1398,7 +1396,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 		if (pNv->Architecture == NV_ARCH_40) {
 			uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_900);
-			if (regp->config == 0x2) /* enhanced "horizontal only" non-vga mode */
+			if (regp->config == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
 				NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 | 0x10000);
 			else
 				NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 & ~0x10000);

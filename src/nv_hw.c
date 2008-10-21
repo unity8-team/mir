@@ -220,19 +220,19 @@ uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index)
 
 void NVVgaSeqReset(NVPtr pNv, int head, bool start)
 {
-	NVWriteVgaSeq(pNv, head, 0x0, start ? 0x1 : 0x3);
+	NVWriteVgaSeq(pNv, head, NV_VIO_SR_RESET_INDEX, start ? 0x1 : 0x3);
 }
 
 void NVVgaProtect(NVPtr pNv, int head, bool protect)
 {
-	uint8_t seq1 = NVReadVgaSeq(pNv, head, 0x1);
+	uint8_t seq1 = NVReadVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX);
 
 	if (protect) {
 		NVVgaSeqReset(pNv, head, true);
-		NVWriteVgaSeq(pNv, head, 0x01, seq1 | 0x20);
+		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 | 0x20);
 	} else {
 		/* Reenable sequencer, then turn on screen */
-		NVWriteVgaSeq(pNv, head, 0x01, seq1 & ~0x20);   /* reenable display */
+		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 & ~0x20);   /* reenable display */
 		NVVgaSeqReset(pNv, head, false);
 	}
 	NVSetEnablePalette(pNv, head, protect);
@@ -248,7 +248,8 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 {
 	uint8_t cr11;
 
-	NVWriteVgaCrtc(pNv, head, NV_CIO_SR_LOCK_INDEX, lock ? 0x99 : 0x57);
+	NVWriteVgaCrtc(pNv, head, NV_CIO_SR_LOCK_INDEX,
+		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 
 	cr11 = NVReadVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX);
 	if (lock)
@@ -265,13 +266,13 @@ void NVBlankScreen(NVPtr pNv, int head, bool blank)
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, head);
 
-	seq1 = NVReadVgaSeq(pNv, head, 0x1);
+	seq1 = NVReadVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX);
 
 	NVVgaSeqReset(pNv, head, true);
 	if (blank)
-		NVWriteVgaSeq(pNv, head, 0x1, seq1 | 0x20);
+		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 | 0x20);
 	else
-		NVWriteVgaSeq(pNv, head, 0x1, seq1 & ~0x20);
+		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 & ~0x20);
 	NVVgaSeqReset(pNv, head, false);
 }
 
@@ -291,9 +292,11 @@ void nv_show_cursor(NVPtr pNv, int head, bool show)
 	int curctl1 = NVReadVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX);
 
 	if (show)
-		NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, curctl1 | 1);
+		NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX,
+			       curctl1 | NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 	else
-		NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, curctl1 & ~1);
+		NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX,
+			       curctl1 & ~NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 
 	if (pNv->Architecture == NV_ARCH_40)
 		nv_fix_nv40_hw_cursor(pNv, head);
@@ -1127,7 +1130,7 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 	int i;
 
 	NVSetEnablePalette(pNv, 0, true);
-	graphicsmode = NVReadVgaAttr(pNv, 0, 0x10) & 1;
+	graphicsmode = NVReadVgaAttr(pNv, 0, NV_CIO_AR_MODE_INDEX) & 1;
 	NVSetEnablePalette(pNv, 0, false);
 
 	if (graphicsmode)	/* graphics mode => framebuffer => no need to save */

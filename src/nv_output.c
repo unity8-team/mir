@@ -59,7 +59,8 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 		testval = pNv->VBIOS.dactestval;
 
 	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl & ~0x00010000);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset,
+		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
 
 	if (pNv->NVArch >= 0x17) {
 		saved_powerctrl_2 = nvReadMC(pNv, NV_PBUS_POWERCTRL_2);
@@ -87,15 +88,19 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
 
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA, 1 << 31 | testval);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA,
+		      NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK | testval);
 	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL,
+		      temp | NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	usleep(1000);
 
-	present = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset) & (1 << 28);
+	present = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset) &
+			NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI;
 
 	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL, temp & 0xffffefff);
+	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL,
+		      temp & ~NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA, 0);
 
 	/* bios does something more complex for restoring, but I think this is good enough */
@@ -654,7 +659,8 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control & ~0x20000022);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL,
+			      regp->fp_control & ~NV_PRAMDAC_FP_TG_CONTROL_OFF);
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
@@ -663,7 +669,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!nv_crtc->fp_users) {
 				/* cut the FP output */
-				regp->fp_control |= 0x20000022;
+				regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_OFF;
 				NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control);
 			}
 		}

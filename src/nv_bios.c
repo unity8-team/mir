@@ -33,7 +33,7 @@
 #endif
 
 
-/* FIXME: put these somewhere */
+/* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10
@@ -1402,7 +1402,7 @@ static bool init_tmds(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	if (!(reg = get_tmds_index_reg(pScrn, mlv)))
 		return false;
 
-	nv32_wr(pScrn, reg, tmdsaddr | 0x10000);
+	nv32_wr(pScrn, reg, tmdsaddr | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 	value = (nv32_rd(pScrn, reg + 4) & mask) | data;
 	nv32_wr(pScrn, reg + 4, value);
 	nv32_wr(pScrn, reg, tmdsaddr);
@@ -1893,7 +1893,8 @@ static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 	if (bios->major_version > 2)
 		return false;
 
-	nv_idx_port_wr(pScrn, NV_VIO_SRX, 0x01, nv_idx_port_rd(pScrn, NV_VIO_SRX, 0x01) | 0x20);
+	nv_idx_port_wr(pScrn, NV_VIO_SRX, NV_VIO_SR_CLOCK_INDEX,
+		       nv_idx_port_rd(pScrn, NV_VIO_SRX, NV_VIO_SR_CLOCK_INDEX) | 0x20);
 
 	if (bios->data[meminitoffs] & 1)
 		seqtbloffs = bios->legacy.ddr_seq_tbl_ptr;
@@ -3865,10 +3866,10 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 
 	/* load needed defaults in case we can't parse this info */
-	pNv->dcb_table.i2c_write[0] = 0x3f;
-	pNv->dcb_table.i2c_read[0] = 0x3e;
-	pNv->dcb_table.i2c_write[1] = 0x37;
-	pNv->dcb_table.i2c_read[1] = 0x36;
+	pNv->dcb_table.i2c_write[0] = NV_CIO_CRE_DDC_WR__INDEX;
+	pNv->dcb_table.i2c_read[0] = NV_CIO_CRE_DDC_STATUS__INDEX;
+	pNv->dcb_table.i2c_write[1] = NV_CIO_CRE_DDC0_WR__INDEX;
+	pNv->dcb_table.i2c_read[1] = NV_CIO_CRE_DDC0_STATUS__INDEX;
 	bios->digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;

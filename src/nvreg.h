@@ -120,14 +120,23 @@
 #define NV_PRMVIO_MISC__WRITE		0x000c03c2
 #define NV_PRMVIO_SRX			0x000c03c4
 #define NV_PRMVIO_SR			0x000c03c5
+	#define NV_VIO_SR_RESET_INDEX		0x00
+	#define NV_VIO_SR_CLOCK_INDEX		0x01
 	#define NV_VIO_SR_PLANE_MASK_INDEX	0x02
+	#define NV_VIO_SR_CHAR_MAP_INDEX	0x03
 	#define NV_VIO_SR_MEM_MODE_INDEX	0x04
 #define NV_PRMVIO_MISC__READ		0x000c03cc
 #define NV_PRMVIO_GRX			0x000c03ce
 #define NV_PRMVIO_GX			0x000c03cf
+	#define NV_VIO_GX_SR_INDEX		0x00
+	#define NV_VIO_GX_SREN_INDEX		0x01
+	#define NV_VIO_GX_CCOMP_INDEX		0x02
+	#define NV_VIO_GX_ROP_INDEX		0x03
 	#define NV_VIO_GX_READ_MAP_INDEX	0x04
 	#define NV_VIO_GX_MODE_INDEX		0x05
 	#define NV_VIO_GX_MISC_INDEX		0x06
+	#define NV_VIO_GX_DONT_CARE_INDEX	0x07
+	#define NV_VIO_GX_BIT_MASK_INDEX	0x08
 
 #define NV_PFB_BOOT_0			0x00100000
 #define NV_PFB_CFG0			0x00100200
@@ -156,6 +165,8 @@
 #define NV_CRTC_INTR_EN_0		0x00600140
 #define NV_CRTC_START			0x00600800
 #define NV_CRTC_CONFIG			0x00600804
+	#define NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA	1
+	#define NV_PCRTC_CONFIG_START_ADDRESS_HSYNC	2
 #define NV_CRTC_CURSOR_ADDRESS		0x0060080C
 #define NV_CRTC_CURSOR_CONFIG		0x00600810
 #	define NV_CRTC_CURSOR_CONFIG_ENABLE		(1 << 0)
@@ -180,6 +191,11 @@
 #define NV_PRMCIO_ARX			0x006013c0
 #define NV_PRMCIO_AR__WRITE		0x006013c0
 #define NV_PRMCIO_AR__READ		0x006013c1
+	#define	NV_CIO_AR_MODE_INDEX		0x10
+	#define NV_CIO_AR_OSCAN_INDEX		0x11
+	#define NV_CIO_AR_PLANE_INDEX		0x12
+	#define NV_CIO_AR_HPP_INDEX		0x13
+	#define NV_CIO_AR_CSEL_INDEX		0x14
 #define NV_PRMCIO_CRX__COLOR		0x006013d4
 #define NV_PRMCIO_CR__COLOR		0x006013d5
 	/* Standard VGA CRTC registers */
@@ -193,10 +209,13 @@
 	#define NV_CIO_CR_OVL_INDEX		0x07	/* overflow bits */
 	#define NV_CIO_CR_RSAL_INDEX		0x08	/* normally "preset row scan" */
 	#define NV_CIO_CR_CELL_HT_INDEX		0x09	/* cell height?! normally "max scan line" */
+		#define NV_CIO_CR_CELL_HT_SCANDBL	0x80
 	#define NV_CIO_CR_CURS_ST_INDEX		0x0a	/* cursor start */
 	#define NV_CIO_CR_CURS_END_INDEX	0x0b	/* cursor end */
 	#define NV_CIO_CR_SA_HI_INDEX		0x0c	/* screen start address high */
 	#define NV_CIO_CR_SA_LO_INDEX		0x0d	/* screen start address low */
+	#define NV_CIO_CR_TCOFF_HI_INDEX	0x0e	/* cursor offset high */
+	#define NV_CIO_CR_TCOFF_LO_INDEX	0x0f	/* cursor offset low */
 	#define NV_CIO_CR_VRS_INDEX		0x10	/* vertical retrace start */
 	#define NV_CIO_CR_VRE_INDEX		0x11	/* vertical retrace end */
 	#define NV_CIO_CR_VDE_INDEX		0x12	/* vertical display end */
@@ -212,6 +231,8 @@
 	#define NV_CIO_CRE_FF_INDEX		0x1b	/* fifo control */
 	#define NV_CIO_CRE_ENH_INDEX		0x1c	/* enhanced? */
 	#define NV_CIO_SR_LOCK_INDEX		0x1f	/* crtc lock */
+		#define	NV_CIO_SR_UNLOCK_RW_VALUE	0x57
+		#define	NV_CIO_SR_LOCK_VALUE		0x99
 	#define NV_CIO_CRE_FFLWM__INDEX		0x20	/* fifo low water mark */
 	#define NV_CIO_CRE_21			0x21	/* referred to by some .scp as `shadow lock' */
 	#define NV_CIO_CRE_LSR_INDEX		0x25	/* ? */
@@ -221,15 +242,24 @@
 	#define NV_CIO_CRE_HEB__INDEX		0x2d	/* horizontal extra bits? */
 	#define NV_CIO_CRE_HCUR_ADDR2_INDEX	0x2f	/* cursor */
 	#define NV_CIO_CRE_HCUR_ADDR0_INDEX	0x30		/* pixmap */
+		#define NV_CIO_CRE_HCUR_ASI		0x80
 	#define NV_CIO_CRE_HCUR_ADDR1_INDEX	0x31			/* address */
+		#define NV_CIO_CRE_HCUR_ADDR1_CUR_DBL	0x02
+		#define NV_CIO_CRE_HCUR_ADDR1_ENABLE	0x01
 	#define NV_CIO_CRE_LCD__INDEX		0x33
+		#define NV_CIO_CRE_LCD_LCD_SELECT	0x01
+	#define NV_CIO_CRE_DDC0_STATUS__INDEX	0x36
+	#define NV_CIO_CRE_DDC0_WR__INDEX	0x37
 	#define NV_CIO_CRE_ILACE__INDEX		0x39	/* interlace */
 	#define NV_CIO_CRE_SCRATCH3__INDEX	0x3b
 	#define NV_CIO_CRE_SCRATCH4__INDEX	0x3c
+	#define NV_CIO_CRE_DDC_STATUS__INDEX	0x3e
+	#define NV_CIO_CRE_DDC_WR__INDEX	0x3f
 	#define NV_CIO_CRE_EBR_INDEX		0x41	/* extra bits ? (vertical) */
 	#define NV_CIO_CRE_44			0x44	/* head control */
 	#define NV_CIO_CRE_CSB			0x45
 	#define NV_CIO_CRE_RCR			0x46
+		#define NV_CIO_CRE_RCR_ENDIAN_BIG	0x80;
 	#define NV_CIO_CRE_47			0x47	/* extended fifo lwm, used on nv30+ */
 	#define NV_CIO_CRE_4B			0x4b	/* given patterns in 0x[2-3][a-c] regs, probably scratch 6 */
 	#define NV_CIO_CRE_52			0x52
@@ -308,7 +338,11 @@
 #define NV_RAMDAC_594			0x00680594
 #define NV_RAMDAC_GENERAL_CONTROL	0x00680600
 #define NV_RAMDAC_TEST_CONTROL		0x00680608
+	#define NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED	(1 << 12)
+	#define NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF	(1 << 16)
+	#define NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI	(1 << 28)
 #define NV_RAMDAC_TEST_DATA		0x00680610
+	#define NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK	(1 << 31)
 #define NV_RAMDAC_630			0x00680630
 /* This register is similar to TEST_CONTROL in the style of values */
 #define NV_RAMDAC_670			0x00680670
@@ -366,6 +400,9 @@
 #	define NV_RAMDAC_FP_CONTROL_WIDTH_12			(1 << 24)
 #	define NV_RAMDAC_FP_CONTROL_DISPEN_POS			(1 << 28)
 #	define NV_RAMDAC_FP_CONTROL_DISPEN_DISABLE		(2 << 28)
+	#define NV_PRAMDAC_FP_TG_CONTROL_OFF		(NV_RAMDAC_FP_CONTROL_DISPEN_DISABLE |	\
+							 NV_RAMDAC_FP_CONTROL_HSYNC_DISABLE |	\
+							 NV_RAMDAC_FP_CONTROL_VSYNC_DISABLE)
 #define NV_RAMDAC_FP_850		0x00680850
 #define NV_RAMDAC_FP_85C		0x0068085c
 
@@ -386,6 +423,7 @@
 #define NV30_RAMDAC_894			0x00680894
 #define NV30_RAMDAC_89C			0x0068089C
 
+/* see NV_PRAMDAC_INDIR_TMDS in rules.xml */
 #define NV_RAMDAC_FP_TMDS_CONTROL	0x006808b0
 #	define NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE	(1<<16)
 #define NV_RAMDAC_FP_TMDS_DATA		0x006808b4

@@ -484,14 +484,14 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
 				slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
 				if (slaved_on_B)
-					tvB = !(NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_LCD__INDEX) & 0x01);
+					tvB = !(NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
 
 				NVSetOwner(pNv, 0);
 				NVLockVgaCrtc(pNv, 0, false);
 
 				slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
 				if (slaved_on_A)
-					tvA = !(NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_LCD__INDEX) & 0x01);
+					tvA = !(NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
 
 				if (slaved_on_A && !tvA)
 					pNv->vtOWNER = 0x0;
