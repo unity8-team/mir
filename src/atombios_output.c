@@ -332,6 +332,7 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 	    }
 	    if (radeon_output->type == OUTPUT_HDMI)
 		disp_data2.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
+	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    disp_data2.ucTruncate = 0;
 	    disp_data2.ucSpatial = 0;
 	    disp_data2.ucTemporal = 0;
