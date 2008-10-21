@@ -98,20 +98,16 @@ void nv_write_tmds(NVPtr pNv, int or, int dl, uint8_t address, uint8_t data)
 
 void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
 	DDXMMIOH("NVWriteVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, value);
-	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
-	NV_WR08(pNv->REGS, CRTC_DATA_COLOR + mmiobase, value);
+	NV_WR08(pNv->REGS, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
+	NV_WR08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
 }
 
 uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
-	NV_WR08(pNv->REGS, CRTC_INDEX_COLOR + mmiobase, index);
-	DDXMMIOH("NVReadVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase));
-	return NV_RD08(pNv->REGS, CRTC_DATA_COLOR + mmiobase);
+	NV_WR08(pNv->REGS, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
+	DDXMMIOH("NVReadVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE));
+	return NV_RD08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
 }
 
 /* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
@@ -140,94 +136,86 @@ uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
 	return NVReadVgaCrtc(pNv, head, NV_CIO_CRE_58);
 }
 
-uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint16_t port)
+uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint32_t reg)
 {
 	/* Only NV4x have two pvio ranges */
-	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PRMVIO1_OFFSET : NV_PRMVIO0_OFFSET;
+	if (head && pNv->Architecture == NV_ARCH_40)
+		reg += NV_PRMVIO_SIZE;
 
-	DDXMMIOH("NVReadPRMVIO: head %d reg %08x val %02x\n", head, port + mmiobase, NV_RD08(pNv->REGS, port + mmiobase));
-	return NV_RD08(pNv->REGS, port + mmiobase);
+	DDXMMIOH("NVReadPRMVIO: head %d reg %08x val %02x\n", head, reg, NV_RD08(pNv->REGS, reg));
+	return NV_RD08(pNv->REGS, reg);
 }
 
-void NVWritePRMVIO(NVPtr pNv, int head, uint16_t port, uint8_t value)
+void NVWritePRMVIO(NVPtr pNv, int head, uint32_t reg, uint8_t value)
 {
 	/* Only NV4x have two pvio ranges */
-	uint32_t mmiobase = (head && pNv->Architecture == NV_ARCH_40) ? NV_PRMVIO1_OFFSET : NV_PRMVIO0_OFFSET;
+	if (head && pNv->Architecture == NV_ARCH_40)
+		reg += NV_PRMVIO_SIZE;
 
-	DDXMMIOH("NVWritePRMVIO: head %d reg %08x val %02x\n", head, port + mmiobase, value);
-	NV_WR08(pNv->REGS, port + mmiobase, value);
+	DDXMMIOH("NVWritePRMVIO: head %d reg %08x val %02x\n", head, reg, value);
+	NV_WR08(pNv->REGS, reg, value);
 }
 
 void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	NVWritePRMVIO(pNv, head, VGA_SEQ_INDEX, index);
-	NVWritePRMVIO(pNv, head, VGA_SEQ_DATA, value);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_SRX, index);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_SR, value);
 }
 
 uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index)
 {
-	NVWritePRMVIO(pNv, head, VGA_SEQ_INDEX, index);
-	return NVReadPRMVIO(pNv, head, VGA_SEQ_DATA);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_SRX, index);
+	return NVReadPRMVIO(pNv, head, NV_PRMVIO_SR);
 }
 
 void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	NVWritePRMVIO(pNv, head, VGA_GRAPH_INDEX, index);
-	NVWritePRMVIO(pNv, head, VGA_GRAPH_DATA, value);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_GRX, index);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_GX, value);
 }
 
 uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index)
 {
-	NVWritePRMVIO(pNv, head, VGA_GRAPH_INDEX, index);
-	return NVReadPRMVIO(pNv, head, VGA_GRAPH_DATA);
+	NVWritePRMVIO(pNv, head, NV_PRMVIO_GRX, index);
+	return NVReadPRMVIO(pNv, head, NV_PRMVIO_GX);
 }
-
-#define CRTC_IN_STAT_1 0x3da
 
 void NVSetEnablePalette(NVPtr pNv, int head, bool enable)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
-	VGA_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
-	VGA_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, enable ? 0 : 0x20);
+	VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	VGA_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
 }
 
 static bool NVGetEnablePalette(NVPtr pNv, int head)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
-	VGA_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
-	return !(VGA_RD08(pNv->REGS, VGA_ATTR_INDEX + mmiobase) & 0x20);
+	VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	return !(VGA_RD08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
 }
 
 void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
 	if (NVGetEnablePalette(pNv, head))
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
+	NV_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	DDXMMIOH("NVWriteVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, value);
-	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
-	NV_WR08(pNv->REGS, VGA_ATTR_DATA_W + mmiobase, value);
+	NV_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
+	NV_WR08(pNv->REGS, NV_PRMCIO_AR__WRITE + head * NV_PRMCIO_SIZE, value);
 }
 
 uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index)
 {
-	uint32_t mmiobase = head ? NV_PRMCIO1_OFFSET : NV_PRMCIO0_OFFSET;
-
 	if (NVGetEnablePalette(pNv, head))
 		index &= ~0x20;
 	else
 		index |= 0x20;
 
-	NV_RD08(pNv->REGS, CRTC_IN_STAT_1 + mmiobase);
-	NV_WR08(pNv->REGS, VGA_ATTR_INDEX + mmiobase, index);
-	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase));
-	return NV_RD08(pNv->REGS, VGA_ATTR_DATA_R + mmiobase);
+	NV_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
+	NV_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
+	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE));
+	return NV_RD08(pNv->REGS, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE);
 }
 
 void NVVgaSeqReset(NVPtr pNv, int head, bool start)
@@ -1131,12 +1119,6 @@ uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
 	return (width + mask) & ~mask;
 }
 
-#define VGA_SEQ_PLANE_WRITE     0x02
-#define VGA_SEQ_MEMORY_MODE     0x04
-#define VGA_GFX_PLANE_READ      0x04
-#define VGA_GFX_MODE            0x05
-#define VGA_GFX_MISC            0x06
-
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -1157,21 +1139,21 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 	NVBlankScreen(pNv, 0, true);
 
 	/* save control regs */
-	misc = NVReadPRMVIO(pNv, 0, VGA_MISC_OUT_R);
-	seq2 = NVReadVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE);
-	seq4 = NVReadVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE);
-	gr4 = NVReadVgaGr(pNv, 0, VGA_GFX_PLANE_READ);
-	gr5 = NVReadVgaGr(pNv, 0, VGA_GFX_MODE);
-	gr6 = NVReadVgaGr(pNv, 0, VGA_GFX_MISC);
+	misc = NVReadPRMVIO(pNv, 0, NV_PRMVIO_MISC__READ);
+	seq2 = NVReadVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX);
+	seq4 = NVReadVgaSeq(pNv, 0, NV_VIO_SR_MEM_MODE_INDEX);
+	gr4 = NVReadVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX);
+	gr5 = NVReadVgaGr(pNv, 0, NV_VIO_GX_MODE_INDEX);
+	gr6 = NVReadVgaGr(pNv, 0, NV_VIO_GX_MISC_INDEX);
 
-	NVWritePRMVIO(pNv, 0, VGA_MISC_OUT_W, 0x67);
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE, 0x6);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_MODE, 0x0);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_MISC, 0x5);
+	NVWritePRMVIO(pNv, 0, NV_PRMVIO_MISC__WRITE, 0x67);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_MEM_MODE_INDEX, 0x6);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_MODE_INDEX, 0x0);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_MISC_INDEX, 0x5);
 
 	/* store font in plane 0 */
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x1);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x0);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX, 0x1);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX, 0x0);
 	for (i = 0; i < 16384; i++)
 		if (save)
 			pNv->saved_vga_font[0][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
@@ -1179,8 +1161,8 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[0][i]);
 
 	/* store font in plane 1 */
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x2);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x1);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX, 0x2);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX, 0x1);
 	for (i = 0; i < 16384; i++)
 		if (save)
 			pNv->saved_vga_font[1][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
@@ -1188,8 +1170,8 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[1][i]);
 
 	/* store font in plane 2 */
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x4);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x2);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX, 0x4);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX, 0x2);
 	for (i = 0; i < 16384; i++)
 		if (save)
 			pNv->saved_vga_font[2][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
@@ -1197,8 +1179,8 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[2][i]);
 
 	/* store font in plane 3 */
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, 0x8);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, 0x3);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX, 0x8);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX, 0x3);
 	for (i = 0; i < 16384; i++)
 		if (save)
 			pNv->saved_vga_font[3][i] = MMIO_IN32(pNv->FB_BAR, i * 4);
@@ -1206,12 +1188,12 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 			MMIO_OUT32(pNv->FB_BAR, i * 4, pNv->saved_vga_font[3][i]);
 
 	/* restore control regs */
-	NVWritePRMVIO(pNv, 0, VGA_MISC_OUT_W, misc);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_PLANE_READ, gr4);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_MODE, gr5);
-	NVWriteVgaGr(pNv, 0, VGA_GFX_MISC, gr6);
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_PLANE_WRITE, seq2);
-	NVWriteVgaSeq(pNv, 0, VGA_SEQ_MEMORY_MODE, seq4);
+	NVWritePRMVIO(pNv, 0, NV_PRMVIO_MISC__WRITE, misc);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_READ_MAP_INDEX, gr4);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_MODE_INDEX, gr5);
+	NVWriteVgaGr(pNv, 0, NV_VIO_GX_MISC_INDEX, gr6);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_PLANE_MASK_INDEX, seq2);
+	NVWriteVgaSeq(pNv, 0, NV_VIO_SR_MEM_MODE_INDEX, seq4);
 
 	if (pNv->twoHeads)
 		NVBlankScreen(pNv, 1, false);

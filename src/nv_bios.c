@@ -34,7 +34,6 @@
 
 
 /* FIXME: put these somewhere */
-#define SEQ_INDEX VGA_SEQ_INDEX
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10
@@ -284,9 +283,9 @@ static bool nv_valid_idx_port(ScrnInfoPtr pScrn, uint16_t port)
 	 * updating so that the correct mmio range (PRMCIO, PRMDIO, PRMVIO) is
 	 * used for the port in question
 	 */
-	if (port == CRTC_INDEX_COLOR)
+	if (port == NV_CIO_CRX__COLOR)
 		return true;
-	if (port == SEQ_INDEX)
+	if (port == NV_VIO_SRX)
 		return true;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -301,7 +300,7 @@ static bool nv_valid_port(ScrnInfoPtr pScrn, uint16_t port)
 	 * updating so that the correct mmio range (PRMCIO, PRMDIO, PRMVIO) is
 	 * used for the port in question
 	 */
-	if (port == VGA_ENABLE)
+	if (port == NV_VIO_VSE2)
 		return true;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -366,9 +365,9 @@ static uint8_t nv_idx_port_rd(ScrnInfoPtr pScrn, uint16_t port, uint8_t index)
 	if (!nv_valid_idx_port(pScrn, port))
 		return 0;
 
-	if (port == SEQ_INDEX)
+	if (port == NV_VIO_SRX)
 		data = NVReadVgaSeq(pNv, crtchead, index);
-	else	/* assume CRTC_INDEX_COLOR */
+	else	/* assume NV_CIO_CRX__COLOR */
 		data = NVReadVgaCrtc(pNv, crtchead, index);
 
 	BIOSLOG(pScrn, "	Indexed IO read:  Port: 0x%04X, Index: 0x%02X, Head: 0x%02X, Data: 0x%02X\n",
@@ -390,7 +389,7 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 	 * As CR44 only exists on CRTC0, we update crtchead to head0 in advance
 	 * of the write, and to head1 after the write
 	 */
-	if (port == CRTC_INDEX_COLOR && index == NV_CIO_CRE_44 && data != NV_CIO_CRE_44_HEADB)
+	if (port == NV_CIO_CRX__COLOR && index == NV_CIO_CRE_44 && data != NV_CIO_CRE_44_HEADB)
 		crtchead = 0;
 
 	LOG_OLD_VALUE(nv_idx_port_rd(pScrn, port, index));
@@ -399,13 +398,13 @@ static void nv_idx_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t index, uint
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		if (port == SEQ_INDEX)
+		if (port == NV_VIO_SRX)
 			NVWriteVgaSeq(pNv, crtchead, index, data);
-		else	/* assume CRTC_INDEX_COLOR */
+		else	/* assume NV_CIO_CRX__COLOR */
 			NVWriteVgaCrtc(pNv, crtchead, index, data);
 	}
 
-	if (port == CRTC_INDEX_COLOR && index == NV_CIO_CRE_44 && data == NV_CIO_CRE_44_HEADB)
+	if (port == NV_CIO_CRX__COLOR && index == NV_CIO_CRE_44 && data == NV_CIO_CRE_44_HEADB)
 		crtchead = 1;
 }
 
@@ -417,7 +416,7 @@ static uint8_t nv_port_rd(ScrnInfoPtr pScrn, uint16_t port)
 	if (!nv_valid_port(pScrn, port))
 		return 0;
 
-	data = NVReadPRMVIO(pNv, crtchead, port);
+	data = NVReadPRMVIO(pNv, crtchead, NV_PRMVIO0_OFFSET + port);
 
 	BIOSLOG(pScrn, "	IO read:  Port: 0x%04X, Head: 0x%02X, Data: 0x%02X\n",
 		port, crtchead, data);
@@ -438,7 +437,7 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 
 	if (pNv->VBIOS.execute) {
 		still_alive();
-		NVWritePRMVIO(pNv, crtchead, port, data);
+		NVWritePRMVIO(pNv, crtchead, NV_PRMVIO0_OFFSET + port, data);
 	}
 }
 
@@ -1481,16 +1480,16 @@ static bool init_cr_idx_adr_latch(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offs
 	BIOSLOG(pScrn, "0x%04X: Index1: 0x%02X, Index2: 0x%02X, BaseAddr: 0x%02X, Count: 0x%02X\n",
 		offset, crtcindex1, crtcindex2, baseaddr, count);
 
-	oldaddr = nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex1);
+	oldaddr = nv_idx_port_rd(pScrn, NV_CIO_CRX__COLOR, crtcindex1);
 
 	for (i = 0; i < count; i++) {
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, baseaddr + i);
+		nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, crtcindex1, baseaddr + i);
 
 		data = bios->data[offset + 5 + i];
-		nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex2, data);
+		nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, crtcindex2, data);
 	}
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex1, oldaddr);
+	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, crtcindex1, oldaddr);
 
 	return true;
 }
@@ -1519,8 +1518,8 @@ static bool init_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_
 	BIOSLOG(pScrn, "0x%04X: Index: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 		offset, crtcindex, mask, data);
 
-	value = (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, crtcindex) & mask) | data;
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, value);
+	value = (nv_idx_port_rd(pScrn, NV_CIO_CRX__COLOR, crtcindex) & mask) | data;
+	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, crtcindex, value);
 
 	return true;
 }
@@ -1542,7 +1541,7 @@ static bool init_zm_cr(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_ex
 	if (!iexec->execute)
 		return true;
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, crtcindex, data);
+	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, crtcindex, data);
 
 	return true;
 }
@@ -1824,12 +1823,12 @@ static bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	/* no iexec->execute check by design */
 
 	/* on every card I've seen, this step gets done for us earlier in the init scripts
-	uint8_t crdata = nv_idx_port_rd(pScrn, SEQ_INDEX, 0x01);
-	nv_idx_port_wr(pScrn, SEQ_INDEX, 0x01, crdata | 0x20);
+	uint8_t crdata = nv_idx_port_rd(pScrn, NV_VIO_SRX, 0x01);
+	nv_idx_port_wr(pScrn, NV_VIO_SRX, 0x01, crdata | 0x20);
 	*/
 
 	/* this also has probably been done in the scripts, but an mmio trace of
-	 * s3 resume shows nvidia doing it anyway (unlike the SEQ_INDEX write)
+	 * s3 resume shows nvidia doing it anyway (unlike the NV_VIO_SRX write)
 	 */
 	nv32_wr(pScrn, NV_PFB_REFCTRL, NV_PFB_REFCTRL_VALID_1);
 
@@ -1887,14 +1886,14 @@ static bool init_configure_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
 	uint16_t seqtbloffs = bios->legacy.sdr_seq_tbl_ptr, meminitdata = meminitoffs + 6;
 	uint32_t reg, data;
 
 	if (bios->major_version > 2)
 		return false;
 
-	nv_idx_port_wr(pScrn, SEQ_INDEX, 0x01, nv_idx_port_rd(pScrn, SEQ_INDEX, 0x01) | 0x20);
+	nv_idx_port_wr(pScrn, NV_VIO_SRX, 0x01, nv_idx_port_rd(pScrn, NV_VIO_SRX, 0x01) | 0x20);
 
 	if (bios->data[meminitoffs] & 1)
 		seqtbloffs = bios->legacy.ddr_seq_tbl_ptr;
@@ -1939,7 +1938,7 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 
 	/* no iexec->execute check by design */
 
-	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
+	uint16_t meminitoffs = bios->legacy.mem_init_tbl_ptr + MEM_INIT_SIZE * (nv_idx_port_rd(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_SCRATCH4__INDEX) >> 4);
 	int clock;
 
 	if (bios->major_version > 2)
@@ -1975,7 +1974,7 @@ static bool init_configure_preinit(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	if (bios->major_version > 2)
 		return false;
 
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_SCRATCH4__INDEX, cr3c);
+	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_SCRATCH4__INDEX, cr3c);
 
 	return true;
 }
@@ -2732,7 +2731,7 @@ static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dc
 	init_exec_t iexec = {true, false};
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
-	nv_idx_port_wr(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_44,
+	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_44,
 		       head ? NV_CIO_CRE_44_HEADB : NV_CIO_CRE_44_HEADA);
 	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
@@ -3465,7 +3464,7 @@ bool get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pl
 
 			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) ||
 			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
-				if (nv_idx_port_rd(pScrn, CRTC_INDEX_COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
+				if (nv_idx_port_rd(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
 					pll_lim->refclk = 25000;
