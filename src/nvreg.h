@@ -236,7 +236,7 @@
 	#define NV_CIO_CRE_FFLWM__INDEX		0x20	/* fifo low water mark */
 	#define NV_CIO_CRE_21			0x21	/* referred to by some .scp as `shadow lock' */
 	#define NV_CIO_CRE_LSR_INDEX		0x25	/* ? */
-	#define NV_CIO_CR_ARX_INDEX		0x26	/* attribute index? */
+	#define NV_CIO_CR_ARX_INDEX		0x26	/* attribute index -- ro copy of 0x60.3c0 */
 	#define NV_CIO_CRE_CHIP_ID_INDEX	0x27	/* chip revision */
 	#define NV_CIO_CRE_PIXEL_INDEX		0x28
 	#define NV_CIO_CRE_HEB__INDEX		0x2d	/* horizontal extra bits? */

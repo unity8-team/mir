@@ -656,10 +656,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_CIO_CRE_53] = 0;
 	regp->CRTC[NV_CIO_CRE_54] = 0;
 
-	/* What is the purpose of this register? */
-	/* 0x14 may be disabled? */
-	regp->CRTC[NV_CIO_CR_ARX_INDEX] = 0x20;
-
 	/* 0x00 is disabled, 0x11 is lvds, 0x22 crt and 0x88 tmds */
 	if (lvds_output)
 		regp->CRTC[NV_CIO_CRE_SCRATCH3__INDEX] = 0x11;
@@ -1343,9 +1339,6 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	for (i = 0; i < 5; i++)
 		NVWriteVgaSeq(pNv, nv_crtc->head, i, regp->Sequencer[i]);
 
-	/* Ensure CRTC registers 0-7 are unlocked by clearing bit 7 of CRTC[17] */
-	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_VRE_INDEX, regp->CRTC[NV_CIO_CR_VRE_INDEX] & ~0x80);
-
 	for (i = 0; i < 25; i++)
 		NVWriteVgaCrtc(pNv, nv_crtc->head, i, regp->CRTC[i]);
 
@@ -1425,7 +1418,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_ILACE__INDEX, regp->CRTC[NV_CIO_CRE_ILACE__INDEX]);
 
-	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_ARX_INDEX, regp->CRTC[NV_CIO_CR_ARX_INDEX]);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_SCRATCH3__INDEX, regp->CRTC[NV_CIO_CRE_SCRATCH3__INDEX]);
 	NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_SCRATCH4__INDEX, regp->CRTC[NV_CIO_CRE_SCRATCH4__INDEX]);
 	if (pNv->Architecture >= NV_ARCH_10) {
@@ -1524,7 +1516,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	regp->gpio = NVCrtcReadCRTC(crtc, NV_CRTC_GPIO);
 	regp->config = NVCrtcReadCRTC(crtc, NV_CRTC_CONFIG);
 
-	regp->CRTC[NV_CIO_CR_ARX_INDEX] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CR_ARX_INDEX);
 	regp->CRTC[NV_CIO_CRE_SCRATCH3__INDEX] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_SCRATCH3__INDEX);
 	regp->CRTC[NV_CIO_CRE_SCRATCH4__INDEX] = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_SCRATCH4__INDEX);
 	if (pNv->Architecture >= NV_ARCH_10) {
