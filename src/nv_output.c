@@ -907,14 +907,12 @@ nv_add_connector(ScrnInfoPtr pScrn, int i2c_index, int encoders, const xf86Outpu
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	uint16_t connectors[0x10];
+	uint16_t connectors[0x10] = { 0 };
 	struct dcb_entry *dcbent;
 	int i, vga_count = 0, dvid_count = 0, dvii_count = 0, lvds_count = 0;
 
 	if (!(pNv->encoders = xcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
 		return;
-
-	memset(connectors, 0, sizeof (connectors));
 
 	for (i = 0; i < pNv->dcb_table.entries; i++) {
 		dcbent = &pNv->dcb_table.entry[i];

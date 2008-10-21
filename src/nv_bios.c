@@ -3569,14 +3569,13 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
-	struct fppointers fpp;
+	struct fppointers fpp = { 0 };
 
 	if (bitentry->length != 4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT display table\n");
 		return 0;
 	}
 
-	memset(&fpp, 0, sizeof(struct fppointers));
 	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
 	parse_fp_mode_table(pScrn, bios, &fpp);
@@ -3863,10 +3862,8 @@ static void parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int of
 	NVPtr pNv = NVPTR(pScrn);
 	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
-	struct fppointers fpp;
+	struct fppointers fpp = { 0 };
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
-
-	memset(&fpp, 0, sizeof(struct fppointers));
 
 	/* load needed defaults in case we can't parse this info */
 	pNv->dcb_table.i2c_write[0] = 0x3f;
@@ -4324,9 +4321,8 @@ static unsigned int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			return 0;
 		}
 	} else if (dcb_version >= 0x14) { /* some NV15/16, and NV11+ */
-		char sig[8];
+		char sig[8] = { 0 };
 
-		memset(sig, 0, 8);
 		strncpy(sig, (char *)&dcbtable[-7], 7);
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		recordlength = 10;
