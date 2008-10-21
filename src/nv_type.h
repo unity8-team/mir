@@ -419,7 +419,6 @@ typedef struct _NVRec {
     volatile CARD8 *PDIO0;
     volatile CARD8 *PDIO1;
 
-    unsigned int SaveGeneration;
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
     xf86CursorInfoPtr   CursorInfoRec;

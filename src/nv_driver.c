@@ -678,10 +678,7 @@ NVEnterVT(int scrnIndex, int flags)
 			}
 
 			/* Save the current state */
-			if (pNv->SaveGeneration != serverGeneration) {
-				pNv->SaveGeneration = serverGeneration;
-				NVSave(pScrn);
-			}
+			NVSave(pScrn);
 
 			for (i = 0; i < xf86_config->num_crtc; i++) {
 				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
@@ -800,6 +797,7 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVUnmapMem(pScrn);
 	vgaHWUnmapMem(pScrn);
 	NVDRICloseScreen(pScrn);
+	xf86_cursors_fini(pScreen);
 	if (pNv->CursorInfoRec)
 		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
 	if (pNv->ShadowPtr) {
