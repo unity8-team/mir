@@ -706,11 +706,10 @@ wm_state_init (struct brw_wm_unit_state *wm_state,
  * Called at EnterVT to fill in our state buffer with any static information.
  */
 static void
-gen4_state_init (struct gen4_render_state *render_state)
+gen4_static_state_init (gen4_static_state_t *static_state,
+			uint32_t state_base_offset)
 {
     int i, j, k, l;
-    gen4_static_state_t *static_state = render_state->static_state;
-    uint32_t state_base_offset = render_state->static_state_offset;
 
 #define KERNEL_COPY(kernel) \
     memcpy(static_state->kernel, kernel ## _static, sizeof(kernel ## _static))
@@ -1481,7 +1480,8 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 	    (pI830->FbBase + render_state->static_state_offset);
     }
 
-    gen4_state_init(render_state);
+    gen4_static_state_init(render_state->static_state,
+			   render_state->static_state_offset);
 }
 
 /**
