@@ -686,6 +686,8 @@ NVEnterVT(int scrnIndex, int flags)
 
 			if (!xf86SetDesiredModes(pScrn))
 				return FALSE;
+
+			NVAccelCommonInit(pScrn);
 		} else {
 			if (!NVModeInit(pScrn, pScrn->currentMode))
 				return FALSE;
@@ -2085,7 +2087,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->NoAccel) {
 		if (!NVExaInit(pScreen))
 			return FALSE;
-		NVAccelCommonInit(pScrn);
 	} else if (pNv->VRAMPhysicalSize / 2 < NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) * (pScrn->bitsPerPixel >> 3)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "The virtual screen size's resolution is too big for the video RAM framebuffer at this colour depth.\n");
 		return FALSE;
