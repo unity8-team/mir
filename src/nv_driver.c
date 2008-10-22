@@ -2014,6 +2014,15 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
 		pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	} else {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+		int i;
+
+		/* need to point to new screen on server regeneration */
+		for (i = 0; i < xf86_config->num_crtc; i++)
+			xf86_config->crtc[i]->scrn = pScrn;
+		for (i = 0; i < xf86_config->num_output; i++)
+			xf86_config->output[i]->scrn = pScrn;
+
 		pScrn->memPhysBase = pNv->VRAMPhysical;
 		pScrn->fbOffset = 0;
 

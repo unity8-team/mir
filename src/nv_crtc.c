@@ -1152,6 +1152,11 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 
 	offset = nv_crtc->shadow->map;
 #else
+	if (!pScreen) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Can't allocate shadow memory for rotated CRTC at server regeneration\n");
+		return NULL;
+	}
 	nv_crtc->shadow = exaOffscreenAlloc(pScreen, size, align, TRUE, NULL, NULL);
 	if (nv_crtc->shadow == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
