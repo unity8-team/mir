@@ -115,6 +115,13 @@ nouveau_channel_free(struct nouveau_channel **userchan)
 		if (chan->relocs)
 			free(chan->relocs);
 
+		if (chan->pushbuf)
+			drmUnmap(chan->pushbuf, chan->drm.cmdbuf_size);
+		if (chan->notifier_block)
+			drmUnmap(chan->notifier_block, chan->drm.notifier_size);
+		if (chan->user)
+			drmUnmap((void *)chan->user, chan->drm.ctrl_size);
+
 		nouveau_grobj_free(&chan->base.vram);
 		nouveau_grobj_free(&chan->base.gart);
 
