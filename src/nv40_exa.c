@@ -558,7 +558,8 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	uint32_t class = 0, chipset;
 	int i;
 
-	NV40EXAHackupA8Shaders(pScrn);
+	if (!nv40_fp_map_a8[0])
+		NV40EXAHackupA8Shaders(pScrn);
 
 	chipset = (nvReadMC(pNv, NV_PMC_BOOT_0) >> 20) & 0xff;
 

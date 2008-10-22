@@ -609,7 +609,8 @@ NVAccelInitNV30TCL(ScrnInfoPtr pScrn)
 	uint32_t class = 0, chipset;
 	int i;
 
-	NV30EXAHackupA8Shaders(pScrn);
+	if (!nv40_fp_map_a8[0])
+		NV30EXAHackupA8Shaders(pScrn);
 
 #define NV30TCL_CHIPSET_3X_MASK 0x00000003
 #define NV35TCL_CHIPSET_3X_MASK 0x000001e0
