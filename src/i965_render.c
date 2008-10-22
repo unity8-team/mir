@@ -707,7 +707,7 @@ wm_state_init (struct brw_wm_unit_state *wm_state,
  */
 static void
 gen4_static_state_init (gen4_static_state_t *static_state,
-			uint32_t state_base_offset)
+			uint32_t static_state_offset)
 {
     int i, j, k, l;
 
@@ -747,10 +747,10 @@ gen4_static_state_init (gen4_static_state_t *static_state,
     static_state->cc_viewport.max_depth = 1.e35;
 
     sf_state_init (&static_state->sf_state,
-		   state_base_offset +
+		   static_state_offset +
 		   offsetof (gen4_static_state_t, sf_kernel));
     sf_state_init (&static_state->sf_state_mask,
-		   state_base_offset +
+		   static_state_offset +
 		   offsetof (gen4_static_state_t, sf_kernel_mask));
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
@@ -759,12 +759,12 @@ gen4_static_state_init (gen4_static_state_t *static_state,
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
 		    sampler_state_init (&static_state->sampler_state[i][j][k][l][0],
 					i, j,
-					state_base_offset +
+					static_state_offset +
 					offsetof (gen4_static_state_t,
 						  sampler_border_color));
 		    sampler_state_init (&static_state->sampler_state[i][j][k][l][1],
 					k, l,
-					state_base_offset +
+					static_state_offset +
 					offsetof (gen4_static_state_t,
 						  sampler_border_color));
 		}
@@ -776,7 +776,7 @@ gen4_static_state_init (gen4_static_state_t *static_state,
     for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 	for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
 	    cc_state_init (&static_state->cc_state[i][j].state, i, j,
-			   state_base_offset +
+			   static_state_offset +
 			   offsetof (gen4_static_state_t, cc_viewport));
 	}
     }
@@ -784,12 +784,12 @@ gen4_static_state_init (gen4_static_state_t *static_state,
 #define SETUP_WM_STATE(kernel, has_mask)				\
     wm_state_init(&static_state->wm_state_ ## kernel [i][j][k][l],	\
 		  has_mask,						\
-		  state_base_offset + offsetof(gen4_static_state_t,	\
-					       wm_scratch),		\
-		  state_base_offset + offsetof(gen4_static_state_t,	\
-					       ps_kernel_ ## kernel),	\
-		  state_base_offset + offsetof(gen4_static_state_t,	\
-					       sampler_state[i][j][k][l]));
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 wm_scratch),		\
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 ps_kernel_ ## kernel),	\
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 sampler_state[i][j][k][l]));
 
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
