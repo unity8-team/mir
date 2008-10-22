@@ -446,13 +446,12 @@ typedef struct brw_surface_state_padded {
  * Gen4 rendering state buffer structure.
  *
  * Ideally this structure would contain static data for all of the
- * combinations of state that we use for Render acceleration, and another
- * buffer would be the use-and-throw-away surface and vertex data.  See the
- * intel-batchbuffer branch for an implementation of that.  For now, it
- * has the static program data, and then a changing buffer containing all
- * the rest.
+ * combinations of state that we use for Render acceleration, and
+ * another buffer would contain the dynamic surface state, binding
+ * table, and vertex data. We'll be moving to that organization soon,
+ * so we use that naming already.
  */
-typedef struct _gen4_state {
+typedef struct _gen4_static_state {
     uint8_t wm_scratch[128 * PS_MAX_THREADS];
 
     KERNEL_DECL (sip_kernel);
@@ -506,12 +505,12 @@ typedef struct _gen4_state {
     PAD64 (brw_cc_viewport, 0);
 
     float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
-} gen4_state_t;
+} gen4_static_state_t;
 
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
-    gen4_state_t *card_state;
-    uint32_t card_state_offset;
+    gen4_static_state_t *static_state;
+    uint32_t static_state_offset;
 
     int binding_table_index;
     int surface_state_index;
@@ -710,11 +709,11 @@ static void
 gen4_state_init (struct gen4_render_state *render_state)
 {
     int i, j, k, l;
-    gen4_state_t *card_state = render_state->card_state;
-    uint32_t state_base_offset = render_state->card_state_offset;
+    gen4_static_state_t *static_state = render_state->static_state;
+    uint32_t state_base_offset = render_state->static_state_offset;
 
 #define KERNEL_COPY(kernel) \
-    memcpy(card_state->kernel, kernel ## _static, sizeof(kernel ## _static))
+    memcpy(static_state->kernel, kernel ## _static, sizeof(kernel ## _static))
 
     KERNEL_COPY (sip_kernel);
     KERNEL_COPY (sf_kernel);
@@ -730,44 +729,44 @@ gen4_state_init (struct gen4_render_state *render_state)
 #undef KERNEL_COPY
 
     /* Set up the vertex shader to be disabled (passthrough) */
-    memset(&card_state->vs_state, 0, sizeof(card_state->vs_state));
-    card_state->vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
-    card_state->vs_state.thread4.urb_entry_allocation_size =
+    memset(&static_state->vs_state, 0, sizeof(static_state->vs_state));
+    static_state->vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
+    static_state->vs_state.thread4.urb_entry_allocation_size =
 	URB_VS_ENTRY_SIZE - 1;
-    card_state->vs_state.vs6.vs_enable = 0;
-    card_state->vs_state.vs6.vert_cache_disable = 1;
+    static_state->vs_state.vs6.vs_enable = 0;
+    static_state->vs_state.vs6.vert_cache_disable = 1;
 
     /* Set up the sampler border color (always transparent black) */
-    memset(&card_state->sampler_border_color, 0,
-	   sizeof(card_state->sampler_border_color));
-    card_state->sampler_border_color.color[0] = 0; /* R */
-    card_state->sampler_border_color.color[1] = 0; /* G */
-    card_state->sampler_border_color.color[2] = 0; /* B */
-    card_state->sampler_border_color.color[3] = 0; /* A */
+    memset(&static_state->sampler_border_color, 0,
+	   sizeof(static_state->sampler_border_color));
+    static_state->sampler_border_color.color[0] = 0; /* R */
+    static_state->sampler_border_color.color[1] = 0; /* G */
+    static_state->sampler_border_color.color[2] = 0; /* B */
+    static_state->sampler_border_color.color[3] = 0; /* A */
 
-    card_state->cc_viewport.min_depth = -1.e35;
-    card_state->cc_viewport.max_depth = 1.e35;
+    static_state->cc_viewport.min_depth = -1.e35;
+    static_state->cc_viewport.max_depth = 1.e35;
 
-    sf_state_init (&card_state->sf_state,
+    sf_state_init (&static_state->sf_state,
 		   state_base_offset +
-		   offsetof (gen4_state_t, sf_kernel));
-    sf_state_init (&card_state->sf_state_mask,
+		   offsetof (gen4_static_state_t, sf_kernel));
+    sf_state_init (&static_state->sf_state_mask,
 		   state_base_offset +
-		   offsetof (gen4_state_t, sf_kernel_mask));
+		   offsetof (gen4_static_state_t, sf_kernel_mask));
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-		    sampler_state_init (&card_state->sampler_state[i][j][k][l][0],
+		    sampler_state_init (&static_state->sampler_state[i][j][k][l][0],
 					i, j,
 					state_base_offset +
-					offsetof (gen4_state_t,
+					offsetof (gen4_static_state_t,
 						  sampler_border_color));
-		    sampler_state_init (&card_state->sampler_state[i][j][k][l][1],
+		    sampler_state_init (&static_state->sampler_state[i][j][k][l][1],
 					k, l,
 					state_base_offset +
-					offsetof (gen4_state_t,
+					offsetof (gen4_static_state_t,
 						  sampler_border_color));
 		}
 	    }
@@ -777,20 +776,20 @@ gen4_state_init (struct gen4_render_state *render_state)
 
     for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 	for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
-	    cc_state_init (&card_state->cc_state[i][j].state, i, j,
+	    cc_state_init (&static_state->cc_state[i][j].state, i, j,
 			   state_base_offset +
-			   offsetof (gen4_state_t, cc_viewport));
+			   offsetof (gen4_static_state_t, cc_viewport));
 	}
     }
 
 #define SETUP_WM_STATE(kernel, has_mask)				\
-    wm_state_init(&card_state->wm_state_ ## kernel [i][j][k][l],	\
+    wm_state_init(&static_state->wm_state_ ## kernel [i][j][k][l],	\
 		  has_mask,						\
-		  state_base_offset + offsetof(gen4_state_t,		\
+		  state_base_offset + offsetof(gen4_static_state_t,	\
 					       wm_scratch),		\
-		  state_base_offset + offsetof(gen4_state_t,		\
+		  state_base_offset + offsetof(gen4_static_state_t,	\
 					       ps_kernel_ ## kernel),	\
-		  state_base_offset + offsetof(gen4_state_t,		\
+		  state_base_offset + offsetof(gen4_static_state_t,	\
 					       sampler_state[i][j][k][l]));
 
 
@@ -871,7 +870,7 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_state_t *card_state = render_state->card_state;
+    gen4_static_state_t *static_state = render_state->static_state;
     struct brw_surface_state local_ss;
     uint32_t offset;
 
@@ -913,7 +912,7 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
 
     memcpy(ss, &local_ss, sizeof(local_ss));
 
-    offset = (char *)ss - (char *)card_state;
+    offset = (char *)ss - (char *)static_state;
     assert((offset & 31) == 0);
 
     return offset;
@@ -927,7 +926,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_state_t *card_state = render_state->card_state;
+    gen4_static_state_t *static_state = render_state->static_state;
     struct brw_surface_state_padded *ss;
     uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
@@ -985,9 +984,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 			&src_blend, &dst_blend);
 
     if ((render_state->binding_table_index + 3 >=
-	 ARRAY_SIZE(card_state->binding_table)) ||
+	 ARRAY_SIZE(static_state->binding_table)) ||
 	(render_state->surface_state_index + 3 >=
-	 ARRAY_SIZE(card_state->surface_state)))
+	 ARRAY_SIZE(static_state->surface_state)))
     {
 	i830WaitSync(pScrn);
 	render_state->binding_table_index = 0;
@@ -995,9 +994,9 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	render_state->vb_offset = 0;
     }
 
-    binding_table = card_state->binding_table +
+    binding_table = static_state->binding_table +
 	render_state->binding_table_index;
-    ss = card_state->surface_state + render_state->surface_state_index;
+    ss = static_state->surface_state + render_state->surface_state_index;
     /* We only use 2 or 3 entries, but the table has to be 32-byte
      * aligned.
      */
@@ -1083,7 +1082,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, sip_kernel));
+	OUT_BATCH(state_base_offset + offsetof(gen4_static_state_t, sip_kernel));
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
     }
@@ -1124,17 +1123,17 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set the pointers to the 3d pipeline state */
 	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-	assert((offsetof(gen4_state_t, vs_state) & 31) == 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, vs_state));
+	assert((offsetof(gen4_static_state_t, vs_state) & 31) == 0);
+	OUT_BATCH(state_base_offset + offsetof(gen4_static_state_t, vs_state));
 	OUT_BATCH(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
 	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
 
 	if (pMask) {
 	    sf_state_offset = state_base_offset +
-		offsetof(gen4_state_t, sf_state_mask);
+		offsetof(gen4_static_state_t, sf_state_mask);
 	} else {
 	    sf_state_offset = state_base_offset +
-		offsetof(gen4_state_t, sf_state);
+		offsetof(gen4_static_state_t, sf_state);
 	}
 	assert((sf_state_offset & 31) == 0);
 	OUT_BATCH(sf_state_offset);
@@ -1142,7 +1141,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	/* Shorthand for long array lookup */
 #define OUT_WM_KERNEL(kernel) do {					\
     uint32_t offset = state_base_offset +				\
-	offsetof(gen4_state_t,						\
+	offsetof(gen4_static_state_t,					\
 		 wm_state_ ## kernel					\
 		 [src_filter]						\
 		 [src_extend]						\
@@ -1182,10 +1181,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 #undef OUT_WM_KERNEL
 
 	/* 64 byte aligned */
-	assert((offsetof(gen4_state_t,
+	assert((offsetof(gen4_static_state_t,
 			 cc_state[src_blend][dst_blend]) & 63) == 0);
 	OUT_BATCH(state_base_offset +
-		  offsetof(gen4_state_t, cc_state[src_blend][dst_blend]));
+		  offsetof(gen4_static_state_t, cc_state[src_blend][dst_blend]));
 
 	/* URB fence */
 	OUT_BATCH(BRW_URB_FENCE |
@@ -1289,12 +1288,12 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
+    gen4_static_state_t *static_state = pI830->gen4_render_state->static_state;
     struct gen4_render_state *render_state = pI830->gen4_render_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-    float *vb = card_state->vb;
+    float *vb = static_state->vb;
     int i;
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
@@ -1371,7 +1370,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(card_state->vb)) {
+    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(static_state->vb)) {
 	i830WaitSync(pScrn);
 	render_state->vb_offset = 0;
     }
@@ -1418,7 +1417,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
-    assert (i * 4 <= sizeof(card_state->vb));
+    assert (i * 4 <= sizeof(static_state->vb));
 
     BEGIN_BATCH(12);
     OUT_BATCH(MI_FLUSH);
@@ -1427,7 +1426,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb) +
+    OUT_BATCH(render_state->static_state_offset + offsetof(gen4_static_state_t, vb) +
 	      render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
@@ -1467,7 +1466,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 
     render_state = pI830->gen4_render_state;
 
-    render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
+    render_state->static_state_offset = pI830->gen4_render_state_mem->offset;
 
     if (pI830->use_drm_mode) {
 	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
@@ -1476,10 +1475,10 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 		       "Failed to map gen4 state\n");
 	    return;
 	}
-	render_state->card_state = pI830->gen4_render_state_mem->bo->virtual;
+	render_state->static_state = pI830->gen4_render_state_mem->bo->virtual;
     } else {
-	render_state->card_state = (gen4_state_t *)
-	    (pI830->FbBase + render_state->card_state_offset);
+	render_state->static_state = (gen4_static_state_t *)
+	    (pI830->FbBase + render_state->static_state_offset);
     }
 
     gen4_state_init(render_state);
@@ -1497,11 +1496,11 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
 	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
     }
-    pI830->gen4_render_state->card_state = NULL;
+    pI830->gen4_render_state->static_state = NULL;
 }
 
 unsigned int
 gen4_render_state_size(ScrnInfoPtr pScrn)
 {
-    return sizeof(gen4_state_t);
+    return sizeof(gen4_static_state_t);
 }
