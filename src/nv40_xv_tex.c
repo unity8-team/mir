@@ -88,27 +88,26 @@ static void compute_filter_table(int8_t *t) {
 	}
 }
 
-static struct nouveau_bo *table_mem = NULL;
 static void
 NV40_LoadFilterTable(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (!table_mem) {
+	if (!pNv->xv_filtertable_mem) {
 		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
-				0, TABLE_SIZE*sizeof(float)*4, &table_mem)) {
+				   0, TABLE_SIZE*sizeof(float)*4, &pNv->xv_filtertable_mem)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				"Couldn't alloc filter table!\n");
 			return;
 		}
 
-		if (nouveau_bo_map(table_mem, NOUVEAU_BO_RDWR)) {
+		if (nouveau_bo_map(pNv->xv_filtertable_mem, NOUVEAU_BO_RDWR)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Couldn't map filter table!\n");
 			return;
 		}
 
-		int8_t *t=table_mem->map;
+		int8_t *t=pNv->xv_filtertable_mem->map;
 		compute_filter_table(t);
 	}
 }
@@ -290,7 +289,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 
 	NV40_LoadFilterTable(pScrn);
 
-	NV40VideoTexture(pScrn, table_mem, 0, TABLE_SIZE, 1, 0 , 0);
+	NV40VideoTexture(pScrn, pNv->xv_filtertable_mem, 0, TABLE_SIZE, 1, 0 , 0);
 	NV40VideoTexture(pScrn, src, src_offset, src_w, src_h, src_pitch, 1);
 	/* We've got NV12 format, which means half width and half height texture of chroma channels. */
 	NV40VideoTexture(pScrn, src, src_offset2, src_w/2, src_h/2, src_pitch, 2);

@@ -359,7 +359,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
  * @param pScrn screen whose port wants to free memory
  * @param pPriv port to free memory of
  */
-static void
+void
 NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
 	if(pPriv->video_mem) {

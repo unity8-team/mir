@@ -549,3 +549,10 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+void NVAccelFree(NVPtr pNv)
+{
+	if (pNv->tesla_scratch)
+		nouveau_bo_del(&pNv->tesla_scratch);
+	if (pNv->shader_mem)
+		nouveau_bo_del(&pNv->shader_mem);
+}

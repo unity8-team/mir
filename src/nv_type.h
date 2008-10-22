@@ -518,6 +518,7 @@ typedef struct _NVRec {
 	struct nouveau_grobj *Nv3D;
 	struct nouveau_bo *tesla_scratch;
 	struct nouveau_bo *shader_mem;
+	struct nouveau_bo *xv_filtertable_mem;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

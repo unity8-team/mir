@@ -796,7 +796,10 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		}
 	}
 
+	NVAccelFree(pNv);
 	NVUnmapMem(pScrn);
+	nouveau_channel_free(&pNv->chan);
+
 	vgaHWUnmapMem(pScrn);
 	NVDRICloseScreen(pScrn);
 	xf86_cursors_fini(pScreen);
@@ -1660,6 +1663,14 @@ static Bool
 NVUnmapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+
+	nouveau_bo_del(&pNv->xv_filtertable_mem);
+	if (pNv->blitAdaptor)
+		NVFreePortMemory(pScrn, GET_BLIT_PRIVATE(pNv));
+	if (pNv->textureAdaptor[0])
+		NVFreePortMemory(pScrn, pNv->textureAdaptor[0]->pPortPrivates[0].ptr);
+	if (pNv->textureAdaptor[1])
+		NVFreePortMemory(pScrn, pNv->textureAdaptor[1]->pPortPrivates[0].ptr);
 
 	nouveau_bo_del(&pNv->FB);
 	nouveau_bo_del(&pNv->GART);
