@@ -1287,8 +1287,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    gen4_static_state_t *static_state = pI830->gen4_render_state->static_state;
     struct gen4_render_state *render_state = pI830->gen4_render_state;
+    gen4_static_state_t *static_state = render_state->static_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
