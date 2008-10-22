@@ -957,9 +957,12 @@ static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
 static Bool
 nv_xf86crtc_resize(ScrnInfoPtr pScrn, int width, int height)
 {
+#if 0
+	do not change virtual* for now, as it breaks multihead server regeneration
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "nv_xf86crtc_resize is called with %dx%d resolution.\n", width, height);
 	pScrn->virtualX = width;
 	pScrn->virtualY = height;
+#endif
 	return TRUE;
 }
 
