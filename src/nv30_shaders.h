@@ -42,6 +42,8 @@ typedef struct nv_shader {
 	uint32_t data[NV_SHADER_MAX_PROGRAM_LENGTH];
 } nv_shader_t;
 
+void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset);
+void NV40_UploadVtxProg(NVPtr pNv, nv_shader_t *shader, int *hw_id);
 void NV40_LoadVtxProg(ScrnInfoPtr pScrn, nv_shader_t *shader);
 void NV40_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader);
 void NV30_LoadFragProg(ScrnInfoPtr pScrn, nv_shader_t *shader);

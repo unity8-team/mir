@@ -556,7 +556,7 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *curie;
 	uint32_t class = 0, chipset;
-	int i;
+	int next_hw_id = 0, next_hw_offset = 0, i;
 
 	if (!nv40_fp_map_a8[0])
 		NV40EXAHackupA8Shaders(pScrn);
@@ -584,6 +584,22 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 			return FALSE;
 	}
 	curie = pNv->Nv3D;
+
+	if (!pNv->shader_mem) {
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART,
+				   0, 0x1000, &pNv->shader_mem)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't alloc fragprog buffer!\n");
+			nouveau_grobj_free(&pNv->Nv3D);
+			return FALSE;
+		}
+		if (nouveau_bo_map(pNv->shader_mem, NOUVEAU_BO_RDWR)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Couldn't map fragprog buffer!\n");
+			nouveau_grobj_free(&pNv->Nv3D);
+			return FALSE;
+		}
+	}
 
 	BEGIN_RING(chan, curie, NV40TCL_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
@@ -688,6 +704,15 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, (4095 << 16));
 	OUT_RING  (chan, (4095 << 16));
 
+	NV40_UploadVtxProg(pNv, &nv40_vp_exa_render, &next_hw_id);
+	for (i = 0; i < NV40EXA_FPID_MAX; i++) {
+		NV30_UploadFragProg(pNv, nv40_fp_map[i], &next_hw_offset);
+		NV30_UploadFragProg(pNv, nv40_fp_map_a8[i], &next_hw_offset);
+	}
+
+	NV40_UploadVtxProg(pNv, &nv40_vp_video, &next_hw_id);
+	NV30_UploadFragProg(pNv, &nv40_fp_yv12_bicubic, &next_hw_offset);
+	NV30_UploadFragProg(pNv, &nv30_fp_yv12_bilinear, &next_hw_offset);
+
 	return TRUE;
 }
-
