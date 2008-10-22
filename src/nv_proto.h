@@ -35,6 +35,7 @@ void NVInitVideo(ScreenPtr);
 void NVWaitVSync(ScrnInfoPtr pScrn, int crtc);
 void NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
 unsigned int nv_window_belongs_to_crtc(ScrnInfoPtr, int, int, int, int);
+void NVXvDMANotifiersRealFree(void);
 void NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
 
 /* in nv_setup.c */

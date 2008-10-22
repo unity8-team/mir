@@ -551,6 +551,28 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 
 void NVAccelFree(NVPtr pNv)
 {
+	if (pNv->NoAccel)
+		return;
+
+	nouveau_grobj_free(&pNv->NvNull);
+	nouveau_notifier_free(&pNv->notify0);
+	if (pNv->Architecture < NV_ARCH_50) {
+		nouveau_grobj_free(&pNv->NvContextSurfaces);
+		nouveau_grobj_free(&pNv->NvContextBeta1);
+		nouveau_grobj_free(&pNv->NvContextBeta4);
+		nouveau_grobj_free(&pNv->NvImagePattern);
+		nouveau_grobj_free(&pNv->NvRop);
+		nouveau_grobj_free(&pNv->NvRectangle);
+		nouveau_grobj_free(&pNv->NvImageBlit);
+		nouveau_grobj_free(&pNv->NvScaledImage);
+		nouveau_grobj_free(&pNv->NvClipRectangle);
+		nouveau_grobj_free(&pNv->NvImageFromCpu);
+	} else
+		nouveau_grobj_free(&pNv->Nv2D);
+	nouveau_grobj_free(&pNv->NvMemFormat);
+
+	nouveau_grobj_free(&pNv->Nv3D);
+
 	if (pNv->tesla_scratch)
 		nouveau_bo_del(&pNv->tesla_scratch);
 	if (pNv->shader_mem)
