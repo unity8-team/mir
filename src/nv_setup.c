@@ -349,7 +349,7 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 		pNv->RamAmountKBytes = (((PCI_SLOT_READ_LONG(1, 0x84) >> 4) & 127) + 1) * 1024;
 		nForce_check_dimms(pScrn);
 	} else
-		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_020C) & 0xFFF00000) >> 10;
+		pNv->RamAmountKBytes = (nvReadFB(pNv, NV_PFB_CSTATUS) & 0xFFF00000) >> 10;
 
 	if (pNv->RamAmountKBytes > 256*1024)
 		pNv->RamAmountKBytes = 256*1024;

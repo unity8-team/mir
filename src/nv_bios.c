@@ -1778,7 +1778,7 @@ static bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	 *
 	 * This opcode is meant to set NV_PFB_CFG0 (0x100200) appropriately so
 	 * that the hardware can correctly calculate how much VRAM it has
-	 * (and subsequently report that value in 0x10020C)
+	 * (and subsequently report that value in NV_PFB_CSTATUS (0x10020C))
 	 *
 	 * The implementation of this opcode in general consists of two parts:
 	 * 1) determination of the memory bus width
@@ -1789,8 +1789,8 @@ static bool init_compute_mem(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	 * read back correctly. This then affects bits 4-7 of NV_PFB_CFG0
 	 *
 	 * 2) is done by a cunning combination of writes to an offset slightly
-	 * less than the maximum memory reported by 0x10020C, then seeing if
-	 * the test pattern can be read back. This then affects bits 12-15 of
+	 * less than the maximum memory reported by NV_PFB_CSTATUS, then seeing
+	 * if the test pattern can be read back. This then affects bits 12-15 of
 	 * NV_PFB_CFG0
 	 *
 	 * In this context a "cunning combination" may include multiple reads
