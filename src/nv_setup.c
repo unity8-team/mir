@@ -247,7 +247,7 @@ static void store_initial_head_owner(ScrnInfoPtr pScrn)
 
 	/* reading CR44 is broken on nv11, so we attempt to infer it */
 	if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
-		pNv->vtOWNER = 0x04;
+		pNv->vtOWNER = 0x4;
 	else {
 		uint8_t slaved_on_A, slaved_on_B;
 		bool tvA, tvB = false;

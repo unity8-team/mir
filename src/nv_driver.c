@@ -1952,21 +1952,13 @@ NVDPMSSet(ScrnInfoPtr pScrn, int PowerManagementMode, int flags)
 static Bool
 NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 {
-	ScrnInfoPtr pScrn;
-	vgaHWPtr hwp;
-	NVPtr pNv;
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	vgaHWPtr hwp = VGAHWPTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 	VisualPtr visual;
 	unsigned char *FBStart;
 	int displayWidth;
-
-	/* 
-	 * First get the ScrnInfoRec
-	 */
-	pScrn = xf86Screens[pScreen->myNum];
-
-	hwp = VGAHWPTR(pScrn);
-	pNv = NVPTR(pScrn);
 
 	/* Map the VGA memory when the primary video */
 	if (pNv->Primary) {
@@ -2208,27 +2200,26 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 static Bool
 NVSaveScreen(ScreenPtr pScreen, int mode)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    NVPtr pNv = NVPTR(pScrn);
-    int i;
-    Bool on = xf86IsUnblank(mode);
-    
-    if (pNv->randr12_enable) {
-    	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	if (pScrn->vtSema && pNv->Architecture < NV_ARCH_50) {
-	    for (i = 0; i < xf86_config->num_crtc; i++) {
-		
-		if (xf86_config->crtc[i]->enabled) {
-		    struct nouveau_crtc *nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
-		    NVBlankScreen(pNv, nv_crtc->head, !on);
-		}
-	    }
-	    
-	}
-	return TRUE;
-    }
+	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	bool on = xf86IsUnblank(mode);
+	int i;
 
-	return vgaHWSaveScreen(pScreen, mode);
+	if (!pNv->randr12_enable)
+		return vgaHWSaveScreen(pScreen, mode);
+
+	if (pScrn->vtSema && pNv->Architecture < NV_ARCH_50) {
+		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
+		for (i = 0; i < xf86_config->num_crtc; i++) {
+			struct nouveau_crtc *nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
+
+			if (xf86_config->crtc[i]->enabled)
+				NVBlankScreen(pNv, nv_crtc->head, !on);
+		}
+	}
+
+	return TRUE;
 }
 
 static void

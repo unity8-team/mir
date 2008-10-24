@@ -288,8 +288,8 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 void NVLockVgaCrtcs(NVPtr pNv, bool lock)
 {
 	NVLockVgaCrtc(pNv, 0, lock);
-	/* NV11 has independently lockable crtcs */
-	if (pNv->NVArch == 0x11)
+	/* NV11 has independently lockable crtcs, except when tied */
+	if (pNv->NVArch == 0x11 && !(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28)))
 		NVLockVgaCrtc(pNv, 1, lock);
 }
 
