@@ -285,6 +285,14 @@ void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 	NVWriteVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX, cr11);
 }
 
+void NVLockVgaCrtcs(NVPtr pNv, bool lock)
+{
+	NVLockVgaCrtc(pNv, 0, lock);
+	/* NV11 has independently lockable crtcs */
+	if (pNv->NVArch == 0x11)
+		NVLockVgaCrtc(pNv, 1, lock);
+}
+
 void NVBlankScreen(NVPtr pNv, int head, bool blank)
 {
 	unsigned char seq1;

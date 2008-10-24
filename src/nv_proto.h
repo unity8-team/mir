@@ -115,6 +115,7 @@ void NVVgaSeqReset(NVPtr pNv, int head, bool start);
 void NVVgaProtect(NVPtr pNv, int head, bool protect);
 void NVSetOwner(NVPtr pNv, int owner);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
+void NVLockVgaCrtcs(NVPtr pNv, bool lock);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);
 void nv_show_cursor(NVPtr pNv, int head, bool show);

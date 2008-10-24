@@ -236,6 +236,55 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
     return MonInfo;
 }
 
+static void store_initial_head_owner(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->NVArch != 0x11) {
+		pNv->vtOWNER = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44);
+		goto ownerknown;
+	}
+
+	/* reading CR44 is broken on nv11, so we attempt to infer it */
+	if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
+		pNv->vtOWNER = 0x04;
+	else {
+		uint8_t slaved_on_A, slaved_on_B;
+		bool tvA, tvB = false;
+
+		NVLockVgaCrtcs(pNv, false);
+
+		slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
+		if (slaved_on_B)
+			tvB = !(NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
+
+		slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
+		if (slaved_on_A)
+			tvA = !(NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
+
+		NVLockVgaCrtcs(pNv, true);
+
+		if (slaved_on_A && !tvA)
+			pNv->vtOWNER = 0x0;
+		else if (slaved_on_B && !tvB)
+			pNv->vtOWNER = 0x3;
+		else if (slaved_on_A)
+			pNv->vtOWNER = 0x0;
+		else if (slaved_on_B)
+			pNv->vtOWNER = 0x3;
+		else
+			pNv->vtOWNER = 0x0;
+	}
+
+ownerknown:
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
+
+	/* we need to ensure the heads are not tied henceforth, or reading any
+	 * 8 bit reg on head B will fail
+	 * setting a single arbitrary head solves that */
+	NVSetOwner(pNv, 0);
+}
+
 static void nv4GetConfig (NVPtr pNv)
 {
 	uint32_t reg_FB0 = nvReadFB(pNv, NV_PFB_BOOT_0);
@@ -471,46 +520,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 
 	pNv->Television = FALSE;
 
-	if (pNv->twoHeads) {
-		pNv->vtOWNER = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44);
-		if (pNv->NVArch == 0x11) {	/* reading OWNER is broken on nv11 */
-			if (nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28))	/* heads tied, restore both */
-				pNv->vtOWNER = 0x04;
-			else {
-				uint8_t slaved_on_A, slaved_on_B;
-
-				NVLockVgaCrtc(pNv, 1, false);
-
-				slaved_on_B = NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
-				if (slaved_on_B)
-					tvB = !(NVReadVgaCrtc(pNv, 1, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
-
-				NVLockVgaCrtc(pNv, 0, false);
-
-				slaved_on_A = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
-				if (slaved_on_A)
-					tvA = !(NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_LCD__INDEX) & NV_CIO_CRE_LCD_LCD_SELECT);
-
-				if (slaved_on_A && !tvA)
-					pNv->vtOWNER = 0x0;
-				else if (slaved_on_B && !tvB)
-					pNv->vtOWNER = 0x3;
-				else if (slaved_on_A)
-					pNv->vtOWNER = 0x0;
-				else if (slaved_on_B)
-					pNv->vtOWNER = 0x3;
-				else
-					pNv->vtOWNER = 0x0;
-			}
-		}
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initial CRTC_OWNER is %d\n", pNv->vtOWNER);
-
-		/* we need to ensure the heads are not tied henceforth, or
-		 * reading any 8 bit reg on head B will fail
-		 * setting a single arbitrary head solves that */
-		NVSetOwner(pNv, 0);
-	}
+	if (pNv->twoHeads)
+		store_initial_head_owner(pScrn);
 
 	/* Parse the bios to initialize the card */
 	NVParseBios(pScrn);
