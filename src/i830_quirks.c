@@ -255,6 +255,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I965_GM, 0x1028, 0x0286, quirk_ignore_tv },
     /* Dell Vostro A840 (LP: #235155) */
     { PCI_CHIP_I965_GM, 0x1028, 0x0298, quirk_ignore_tv },
+    /* Dell Studio Hybrid */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0279, quirk_ignore_lvds },
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
