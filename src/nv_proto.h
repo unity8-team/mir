@@ -113,7 +113,7 @@ void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index);
 void NVVgaSeqReset(NVPtr pNv, int head, bool start);
 void NVVgaProtect(NVPtr pNv, int head, bool protect);
-void NVSetOwner(NVPtr pNv, int head);
+void NVSetOwner(NVPtr pNv, int owner);
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);

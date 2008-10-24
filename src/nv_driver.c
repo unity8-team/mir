@@ -1793,7 +1793,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		NVSetOwner(pNv, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
-		NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_44, pNv->vtOWNER);
+		NVSetOwner(pNv, pNv->vtOWNER);
 		NVLockVgaCrtc(pNv, 0, true);
 	}
 }

@@ -238,10 +238,20 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect)
 	NVSetEnablePalette(pNv, head, protect);
 }
 
-void NVSetOwner(NVPtr pNv, int head)
+/* owner parameter is slightly abused:
+ * 0 and 1 are treated as head values and so the set value is (owner * 3)
+ * other values are treated as literal values to set
+ */
+void NVSetOwner(NVPtr pNv, int owner)
 {
+	if (owner == 1)
+		owner *= 3;
 	/* CR44 is always changed on CRTC0 */
-	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_44, head * 0x3);
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_44, owner);
+	if (pNv->NVArch == 0x11) {	/* set me harder */
+		NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_2E, owner);
+		NVWriteVgaCrtc(pNv, 0, NV_CIO_CRE_2E, owner);
+	}
 }
 
 void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)

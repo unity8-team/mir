@@ -240,6 +240,7 @@
 	#define NV_CIO_CRE_CHIP_ID_INDEX	0x27	/* chip revision */
 	#define NV_CIO_CRE_PIXEL_INDEX		0x28
 	#define NV_CIO_CRE_HEB__INDEX		0x2d	/* horizontal extra bits? */
+	#define NV_CIO_CRE_2E			0x2e	/* some scratch or dummy reg to force writes to sink in */
 	#define NV_CIO_CRE_HCUR_ADDR2_INDEX	0x2f	/* cursor */
 	#define NV_CIO_CRE_HCUR_ADDR0_INDEX	0x30		/* pixmap */
 		#define NV_CIO_CRE_HCUR_ASI		0x80
