@@ -138,7 +138,8 @@ uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
 
 uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint32_t reg)
 {
-	/* Only NV4x have two pvio ranges */
+	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
+	 * NVSetOwner for the relevant head to be programmed */
 	if (head && pNv->Architecture == NV_ARCH_40)
 		reg += NV_PRMVIO_SIZE;
 
@@ -148,7 +149,8 @@ uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint32_t reg)
 
 void NVWritePRMVIO(NVPtr pNv, int head, uint32_t reg, uint8_t value)
 {
-	/* Only NV4x have two pvio ranges */
+	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
+	 * NVSetOwner for the relevant head to be programmed */
 	if (head && pNv->Architecture == NV_ARCH_40)
 		reg += NV_PRMVIO_SIZE;
 
@@ -238,7 +240,21 @@ void NVVgaProtect(NVPtr pNv, int head, bool protect)
 	NVSetEnablePalette(pNv, head, protect);
 }
 
-/* owner parameter is slightly abused:
+/* CR44 takes values 0 (head A), 3 (head B) and 4 (heads tied)
+ * it affects only the 8 bit vga io regs, which we access using mmio at
+ * 0xc{0,2}3c*, 0x60{1,3}3*, and 0x68{1,3}3d*
+ * in general, the set value of cr44 does not matter: reg access works as
+ * expected and values can be set for the appropriate head by using a 0x2000
+ * offset as required
+ * however:
+ * a) pre nv40, the head B range of PRMVIO regs at 0xc23c* was not exposed and
+ *    cr44 must be set to 0 or 3 for accessing values on the correct head
+ *    through the common 0xc03c* addresses
+ * b) in tied mode (4) head B is programmed to the values set on head A, and
+ *    access using the head B addresses can have strange results, ergo we leave
+ *    tied mode in init once we know to what cr44 should be restored on exit
+ *
+ * the owner parameter is slightly abused:
  * 0 and 1 are treated as head values and so the set value is (owner * 3)
  * other values are treated as literal values to set
  */
@@ -1138,6 +1154,9 @@ void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
 	bool graphicsmode;
 	uint8_t misc, gr4, gr5, gr6, seq2, seq4;
 	int i;
+
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, 0);
 
 	NVSetEnablePalette(pNv, 0, true);
 	graphicsmode = NVReadVgaAttr(pNv, 0, NV_CIO_AR_MODE_INDEX) & 1;

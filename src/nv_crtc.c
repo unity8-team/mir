@@ -75,8 +75,6 @@ void NVCrtcLockUnlock(xf86CrtcPtr crtc, bool lock)
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
 
-	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
 	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
 }
 
@@ -927,9 +925,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, adjusted_mode);
 
-	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
-
 	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
 
 	/* calculated in output_prepare, nv40 needs it written before calculating PLLs */
@@ -962,9 +957,11 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 static void nv_crtc_save(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(crtc->scrn);
+
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, nv_crtc->head);
 
 	/* We just came back from terminal, so unlock */
 	NVCrtcLockUnlock(crtc, false);
@@ -983,17 +980,14 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 
 static void nv_crtc_restore(xf86CrtcPtr crtc)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
-	RIVA_HW_STATE *state;
-	NVCrtcRegPtr savep;
-
-	state = &pNv->SavedReg;
-	savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
+	NVPtr pNv = NVPTR(crtc->scrn);
 
 	/* Just to be safe */
 	NVCrtcLockUnlock(crtc, false);
+
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, nv_crtc->head);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
@@ -1011,6 +1005,9 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, nv_crtc->head);
 
 	/* Just in case */
 	NVCrtcLockUnlock(crtc, 0);
@@ -1511,10 +1508,8 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 			regp->unk850 = NVCrtcReadCRTC(crtc, NV_CRTC_0850);
 			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_CRTC_GPIO_EXT);
 		}
-		if (pNv->twoHeads) {
+		if (pNv->twoHeads)
 			regp->head = NVCrtcReadCRTC(crtc, NV_CRTC_FSEL);
-			regp->crtcOwner = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_44);
-		}
 		regp->cursorConfig = NVCrtcReadCRTC(crtc, NV_CRTC_CURSOR_CONFIG);
 	}
 

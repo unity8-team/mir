@@ -1790,7 +1790,6 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->twoHeads) {
-		NVSetOwner(pNv, 0);	/* move to head A to set owner */
 		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
 		NVSetOwner(pNv, pNv->vtOWNER);
