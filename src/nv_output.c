@@ -796,7 +796,7 @@ static uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, 
 			   ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) ||
 			    (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
 
-	if (!get_pll_limits(pScrn, crtc ? VPLL2 : VPLL1, &pll_lim))
+	if (get_pll_limits(pScrn, crtc ? VPLL2 : VPLL1, &pll_lim))
 		return 0;
 
 	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single, pll_lim.refclk);

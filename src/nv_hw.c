@@ -404,7 +404,7 @@ static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 	else
 		reg1 = nv40_regs[plltype];
 
-	if (!get_pll_limits(pScrn, plltype, &pll_lim))
+	if (get_pll_limits(pScrn, plltype, &pll_lim))
 		return 0;
 
 	if (reg1 <= 0x405c)
