@@ -447,7 +447,31 @@ static void nv_port_wr(ScrnInfoPtr pScrn, uint16_t port, uint8_t data)
 	}
 }
 
-static bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
+static bool bios_condition_met(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
+{
+	/* The condition table entry has 4 bytes for the address of the
+	 * register to check, 4 bytes for a mask to apply to the register and
+	 * 4 for a test comparison value
+	 */
+
+	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
+	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
+	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
+	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
+	uint32_t data;
+
+	BIOSLOG(pScrn, "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X\n",
+		offset, cond, reg, mask);
+
+       	data = nv32_rd(pScrn, reg) & mask;
+
+	BIOSLOG(pScrn, "0x%04X: Checking if 0x%08X equals 0x%08X\n",
+		offset, data, cmpval);
+
+	return (data == cmpval);
+}
+
+static bool io_flag_condition_met(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
 {
 	/* The IO flag condition entry has 2 bytes for the CRTC port; 1 byte
 	 * for the CRTC index; 1 byte for the mask to apply to the value
@@ -478,10 +502,7 @@ static bool io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, 
 
 	BIOSLOG(pScrn, "0x%04X: Checking if 0x%02X equals 0x%02X\n", offset, data, cmpval);
 
-	if (data == cmpval)
-		return true;
-
-	return false;
+	return (data == cmpval);
 }
 
 int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bestNM, int *bestlog2P)
@@ -1075,7 +1096,7 @@ static bool init_io_restrict_pll(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	freq = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 12 + config * 2])));
 
 	if (io_flag_condition_idx > 0) {
-		if (io_flag_condition(pScrn, bios, offset, io_flag_condition_idx)) {
+		if (io_flag_condition_met(pScrn, bios, offset, io_flag_condition_idx)) {
 			BIOSLOG(pScrn, "0x%04X: Condition fulfilled -- frequency doubled\n", offset);
 			freq *= 2;
 		} else
@@ -1190,7 +1211,7 @@ static bool init_io_flag_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t off
 	if (!iexec->execute)
 		return true;
 
-	if (io_flag_condition(pScrn, bios, offset, cond))
+	if (io_flag_condition_met(pScrn, bios, offset, cond))
 		BIOSLOG(pScrn, "0x%04X: Condition fulfilled -- continuing to execute\n", offset);
 	else {
 		BIOSLOG(pScrn, "0x%04X: Condition not fulfilled -- skipping following commands\n", offset);
@@ -1574,8 +1595,6 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 	 * offset + 2  (8 bit): retries / 50
 	 *
 	 * Check condition "condition number" in the condition table.
-	 * The condition table entry has 4 bytes for the address of the
-	 * register to check, 4 bytes for a mask and 4 for a test value.
 	 * Bios code then sleeps for 2ms if the condition is not met, and
 	 * repeats up to "retries" times, but on one C51 this has proved
 	 * insufficient.  In mmiotraces the driver sleeps for 20ms, so we do
@@ -1584,37 +1603,26 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 	 */
 
 	uint8_t cond = bios->data[offset + 1];
-	uint16_t retries = bios->data[offset + 2];
-	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
-	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
-	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
-	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
-	uint32_t data = 0;
+	uint16_t retries = bios->data[offset + 2] * 50;
 
 	if (!iexec->execute)
 		return true;
 
-	retries *= 50;
 	if (retries > 100)
 		retries = 100;
 
-	BIOSLOG(pScrn, "0x%04X: Cond: 0x%02X, Retries: 0x%02X\n", offset, cond, retries);
+	BIOSLOG(pScrn, "0x%04X: Condition: 0x%02X, Retries: 0x%02X\n", offset, cond, retries);
 
-	for (; retries > 0; retries--) {
-		data = nv32_rd(pScrn, reg) & mask;
-
-		BIOSLOG(pScrn, "0x%04X: Checking if 0x%08X equals 0x%08X\n", offset, data, cmpval);
-
-		if (data != cmpval) {
-			BIOSLOG(pScrn, "0x%04X: Condition not met, sleeping for 20ms\n", offset);
-			BIOS_USLEEP(20000);
-		} else {
+	for (; retries > 0; retries--)
+		if (bios_condition_met(pScrn, bios, offset, cond)) {
 			BIOSLOG(pScrn, "0x%04X: Condition met, continuing\n", offset);
 			break;
+		} else {
+			BIOSLOG(pScrn, "0x%04X: Condition not met, sleeping for 20ms\n", offset);
+			BIOS_USLEEP(20000);
 		}
-	}
 
-	if (data != cmpval) {
+	if (!bios_condition_met(pScrn, bios, offset, cond)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "0x%04X: Condition still not met after %dms, skiping following opcodes\n",
 			   offset, 20 * retries);
@@ -2232,30 +2240,18 @@ static bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	 * offset + 1  (8 bit): condition number
 	 *
 	 * Check condition "condition number" in the condition table.
-	 * The condition table entry has 4 bytes for the address of the
-	 * register to check, 4 bytes for a mask and 4 for a test value.
 	 * If condition not met skip subsequent opcodes until condition is
 	 * inverted (INIT_NOT), or we hit INIT_RESUME
 	 */
 
 	uint8_t cond = bios->data[offset + 1];
-	uint16_t condptr = bios->condition_tbl_ptr + cond * CONDITION_SIZE;
-	uint32_t reg = le32_to_cpu(*((uint32_t *)(&bios->data[condptr])));
-	uint32_t mask = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 4])));
-	uint32_t cmpval = le32_to_cpu(*((uint32_t *)(&bios->data[condptr + 8])));
-	uint32_t data;
 
 	if (!iexec->execute)
 		return true;
 
-	BIOSLOG(pScrn, "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X, Cmpval: 0x%08X\n",
-		offset, cond, reg, mask, cmpval);
+	BIOSLOG(pScrn, "0x%04X: Condition: 0x%02X\n", offset, cond);
 
-	data = nv32_rd(pScrn, reg) & mask;
-
-	BIOSLOG(pScrn, "0x%04X: Checking if 0x%08X equals 0x%08X\n", offset, data, cmpval);
-
-	if (data == cmpval)
+	if (bios_condition_met(pScrn, bios, offset, cond))
 		BIOSLOG(pScrn, "0x%04X: Condition fulfilled -- continuing to execute\n", offset);
 	else {
 		BIOSLOG(pScrn, "0x%04X: Condition not fulfilled -- skipping following commands\n", offset);
