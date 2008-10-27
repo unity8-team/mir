@@ -535,7 +535,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
       
 	NVSelectHeadRegisters(pScrn, 0);
 	
-	NVLockUnlock(pScrn, 0);
+	NVLockVgaCrtcs(pNv, false);
 	
 	NVI2CInit(pScrn);
 	
@@ -601,7 +601,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    
 	    nvWriteCurVGA(pNv, NV_CIO_CRE_44, 3);
 	    NVSelectHeadRegisters(pScrn, 1);
-	    NVLockUnlock(pScrn, 0);
 	    
 	    slaved_on_B = nvReadCurVGA(pNv, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
 	    if(slaved_on_B) {
@@ -610,7 +609,6 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    
 	    nvWriteCurVGA(pNv, NV_CIO_CRE_44, 0);
 	    NVSelectHeadRegisters(pScrn, 0);
-	    NVLockUnlock(pScrn, 0);
 	    
 	    slaved_on_A = nvReadCurVGA(pNv, NV_CIO_CRE_PIXEL_INDEX) & 0x80;
 	    if(slaved_on_A) {

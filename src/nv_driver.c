@@ -667,8 +667,6 @@ NVEnterVT(int scrnIndex, int flags)
 	if (!pNv->kms_enable) {
 		if (pNv->randr12_enable) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
-			xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-			int i;
 			pScrn->vtSema = TRUE;
 
 			if (pNv->Architecture == NV_ARCH_50) {
@@ -679,10 +677,6 @@ NVEnterVT(int scrnIndex, int flags)
 
 			/* Save the current state */
 			NVSave(pScrn);
-
-			for (i = 0; i < xf86_config->num_crtc; i++) {
-				NVCrtcLockUnlock(xf86_config->crtc[i], 0);
-			}
 
 			if (!xf86SetDesiredModes(pScrn))
 				return FALSE;
@@ -735,8 +729,6 @@ NVLeaveVT(int scrnIndex, int flags)
 	}
 
 	NVRestore(pScrn);
-	if (!pNv->randr12_enable)
-		NVLockUnlock(pScrn, 1);
 }
 
 static void 
@@ -791,8 +783,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCloseScreen is called.\n");
 			NVSync(pScrn);
 			NVRestore(pScrn);
-			if (!pNv->randr12_enable)
-				NVLockUnlock(pScrn, 1);
 		}
 	}
 
@@ -1384,9 +1374,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 				nv_crtc_init(pScrn, i);
 		}
 
-		if (pNv->Architecture < NV_ARCH_50)
+		if (pNv->Architecture < NV_ARCH_50) {
+			NVLockVgaCrtcs(pNv, false);
 			NvSetupOutputs(pScrn);
-		else
+		} else
 			nv50_output_create(pScrn); /* create randr-1.2 "outputs". */
 
 		if (!xf86InitialConfiguration(pScrn, FALSE))
@@ -1712,11 +1703,8 @@ NVModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
     if(!NVDACInit(pScrn, mode))
         return FALSE;
 
-    NVLockUnlock(pScrn, 0);
-    if(pNv->twoHeads) {
+    if (pNv->twoHeads)
         nvWriteCurVGA(pNv, NV_CIO_CRE_44, nvReg->crtcOwner);
-        NVLockUnlock(pScrn, 0);
-    }
 
     /* Program the registers */
     vgaHWProtect(pScrn, TRUE);
@@ -1752,12 +1740,11 @@ NVRestore(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
+	NVLockVgaCrtcs(pNv, false);
+
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
-
-		for (i = 0; i < xf86_config->num_crtc; i++)
-			NVCrtcLockUnlock(xf86_config->crtc[i], 0);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring encoders\n");
 		for (i = 0; i < pNv->dcb_table.entries; i++)
@@ -1768,20 +1755,13 @@ NVRestore(ScrnInfoPtr pScrn)
 			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 
 		nv_save_restore_vga_fonts(pScrn, 0);
-
-		for (i = 0; i < xf86_config->num_crtc; i++)
-			NVCrtcLockUnlock(xf86_config->crtc[i], 1);
 	} else {
 		vgaHWPtr hwp = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &hwp->SavedReg;
 		NVRegPtr nvReg = &pNv->SavedReg;
 
-		NVLockUnlock(pScrn, 0);
-
-		if(pNv->twoHeads) {
+		if (pNv->twoHeads)
 			nvWriteCurVGA(pNv, NV_CIO_CRE_44, pNv->crtc_active[1] * 0x3);
-			NVLockUnlock(pScrn, 0);
-		}
 
 		/* Only restore text mode fonts/text for the primary card */
 		vgaHWProtect(pScrn, TRUE);
@@ -1790,11 +1770,11 @@ NVRestore(ScrnInfoPtr pScrn)
 	}
 
 	if (pNv->twoHeads) {
-		NVLockVgaCrtc(pNv, 0, false);
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring CRTC_OWNER to %d.\n", pNv->vtOWNER);
 		NVSetOwner(pNv, pNv->vtOWNER);
-		NVLockVgaCrtc(pNv, 0, true);
 	}
+
+	NVLockVgaCrtcs(pNv, true);
 }
 
 static void
@@ -2228,6 +2208,8 @@ NVSave(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	NVRegPtr nvReg = &pNv->SavedReg;
 
+	NVLockVgaCrtcs(pNv, false);
+
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
@@ -2244,11 +2226,8 @@ NVSave(ScrnInfoPtr pScrn)
 	} else {
 		vgaHWPtr pVga = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &pVga->SavedReg;
-		NVLockUnlock(pScrn, 0);
-		if (pNv->twoHeads) {
+		if (pNv->twoHeads)
 			nvWriteCurVGA(pNv, NV_CIO_CRE_44, pNv->crtc_active[1] * 0x3);
-			NVLockUnlock(pScrn, 0);
-		}
 
 		NVDACSave(pScrn, vgaReg, nvReg, pNv->Primary);
 	}

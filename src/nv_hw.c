@@ -270,7 +270,7 @@ void NVSetOwner(NVPtr pNv, int owner)
 	}
 }
 
-void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
+static void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 {
 	uint8_t cr11;
 

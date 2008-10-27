@@ -81,7 +81,6 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 /* nv_crtc.c */
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, bool lock);
 
 /* nv_output.c */
 void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
@@ -114,7 +113,6 @@ uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index);
 void NVVgaSeqReset(NVPtr pNv, int head, bool start);
 void NVVgaProtect(NVPtr pNv, int head, bool protect);
 void NVSetOwner(NVPtr pNv, int owner);
-void NVLockVgaCrtc(NVPtr pNv, int head, bool lock);
 void NVLockVgaCrtcs(NVPtr pNv, bool lock);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);

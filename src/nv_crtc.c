@@ -70,14 +70,6 @@ static void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
 	NVWriteRAMDAC(pNv, nv_crtc->head, reg, val);
 }
 
-void NVCrtcLockUnlock(xf86CrtcPtr crtc, bool lock)
-{
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(crtc->scrn);
-
-	NVLockVgaCrtc(pNv, nv_crtc->head, lock);
-}
-
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
 /* gpu pll: 0x4000 + 0x4004
@@ -963,9 +955,6 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
 
-	/* We just came back from terminal, so unlock */
-	NVCrtcLockUnlock(crtc, false);
-
 	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
@@ -982,9 +971,6 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
-
-	/* Just to be safe */
-	NVCrtcLockUnlock(crtc, false);
 
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
@@ -1008,9 +994,6 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
-
-	/* Just in case */
-	NVCrtcLockUnlock(crtc, 0);
 
 	crtc->funcs->dpms(crtc, DPMSModeOff);
 
@@ -1324,8 +1307,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 		regp->DAC[(i*3)+1] = i;
 		regp->DAC[(i*3)+2] = i;
 	}
-
-	NVCrtcLockUnlock(crtc, false);
 }
 
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)

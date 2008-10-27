@@ -523,7 +523,6 @@ typedef struct _NVRec {
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
 
 #define NVShowHideCursor(pScrn, show) nv_show_cursor(NVPTR(pScrn), NVPTR(pScrn)->cur_head, show)
-#define NVLockUnlock(pScrn, lock) NVLockVgaCrtc(NVPTR(pScrn), NVPTR(pScrn)->cur_head, lock)
 
 #define nvReadCurVGA(pNv, reg) NVReadVgaCrtc(pNv, pNv->cur_head, reg)
 #define nvWriteCurVGA(pNv, reg, val) NVWriteVgaCrtc(pNv, pNv->cur_head, reg, val)
