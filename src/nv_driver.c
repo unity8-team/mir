@@ -623,7 +623,6 @@ NV50AcquireDisplay(ScrnInfoPtr pScrn)
 		return FALSE;
 	if (!NV50CursorAcquire(pScrn))
 		return FALSE;
-	xf86SetDesiredModes(pScrn);
 
 	return TRUE;
 }
@@ -664,37 +663,28 @@ NVEnterVT(int scrnIndex, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (!pNv->kms_enable) {
-		if (pNv->randr12_enable) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
-			pScrn->vtSema = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
-			if (pNv->Architecture == NV_ARCH_50) {
-				if (!NV50AcquireDisplay(pScrn))
-					return FALSE;
-				return TRUE;
-			}
+	if (!pNv->kms_enable && pNv->randr12_enable)
+		NVSave(pScrn);
 
-			/* Save the current state */
-			NVSave(pScrn);
-
-			if (!xf86SetDesiredModes(pScrn))
-				return FALSE;
-
-			NVAccelCommonInit(pScrn);
-		} else {
-			if (!NVModeInit(pScrn, pScrn->currentMode))
-				return FALSE;
-
-			NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-		}
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
-		if (!xf86SetDesiredModes(pScrn)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "xf86SetDesiredModes failed\n");
+	if (!pNv->randr12_enable) {
+		if (!NVModeInit(pScrn, pScrn->currentMode))
 			return FALSE;
-		}
+		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	} else {
+		pScrn->vtSema = TRUE;
+
+		if (!pNv->kms_enable && pNv->Architecture == NV_ARCH_50)
+			if (!NV50AcquireDisplay(pScrn))
+				return FALSE;
+
+		if (!xf86SetDesiredModes(pScrn))
+			return FALSE;
 	}
+
+	if (!pNv->NoAccel)
+		NVAccelCommonInit(pScrn);
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
@@ -770,7 +760,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pScrn->vtSema) {
-		pScrn->vtSema = FALSE;
 #ifdef XF86DRM_MODE
 		if (pNv->kms_enable) {
 			NVSync(pScrn);
@@ -1974,17 +1963,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 #endif
 
-	if (!pNv->randr12_enable) {
-		/* Save the current state */
-		NVSave(pScrn);
-		/* Initialise the first mode */
-		if (!NVModeInit(pScrn, pScrn->currentMode))
-			return FALSE;
-
-		/* Darken the screen for aesthetic reasons and set the viewport */
-		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
-		pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-	} else {
+	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
 
@@ -1993,15 +1972,29 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			xf86_config->crtc[i]->scrn = pScrn;
 		for (i = 0; i < xf86_config->num_output; i++)
 			xf86_config->output[i]->scrn = pScrn;
-
-		pScrn->memPhysBase = pNv->VRAMPhysical;
-		pScrn->fbOffset = 0;
-
-		if (!NVEnterVT(scrnIndex, 0))
-			return FALSE;
-		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
 	}
 
+	if (!pNv->kms_enable)
+		NVSave(pScrn);
+
+	if (!pNv->randr12_enable) {
+		if (!NVModeInit(pScrn, pScrn->currentMode))
+			return FALSE;
+		pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
+	} else {
+		pScrn->vtSema = TRUE;
+
+		if (!pNv->kms_enable && pNv->Architecture == NV_ARCH_50)
+			if (!NV50AcquireDisplay(pScrn))
+				return FALSE;
+
+		if (!xf86SetDesiredModes(pScrn))
+			return FALSE;
+	}
+
+	/* Darken the screen for aesthetic reasons */
+	if (!pNv->kms_enable)
+		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
 
 	/*
 	 * The next step is to setup the screen's visuals, and initialise the
@@ -2207,6 +2200,9 @@ NVSave(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	NVRegPtr nvReg = &pNv->SavedReg;
+
+	if (pNv->Architecture == NV_ARCH_50)
+		return;
 
 	NVLockVgaCrtcs(pNv, false);
 
