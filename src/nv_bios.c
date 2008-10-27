@@ -1576,7 +1576,10 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 	 * Check condition "condition number" in the condition table.
 	 * The condition table entry has 4 bytes for the address of the
 	 * register to check, 4 bytes for a mask and 4 for a test value.
-	 * If condition not met sleep for 2ms, and repeat upto "retries" times.
+	 * Bios code then sleeps for 2ms if the condition is not met, and
+	 * repeats up to "retries" times, but on one C51 this has proved
+	 * insufficient.  In mmiotraces the driver sleeps for 20ms, so we do
+	 * this, and bail after "retries" times, or 2s, whichever is less.
 	 * If still not met after retries, clear execution flag for this table.
 	 */
 
@@ -1592,6 +1595,8 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 		return true;
 
 	retries *= 50;
+	if (retries > 100)
+		retries = 100;
 
 	BIOSLOG(pScrn, "0x%04X: Cond: 0x%02X, Retries: 0x%02X\n", offset, cond, retries);
 
@@ -1601,8 +1606,8 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 		BIOSLOG(pScrn, "0x%04X: Checking if 0x%08X equals 0x%08X\n", offset, data, cmpval);
 
 		if (data != cmpval) {
-			BIOSLOG(pScrn, "0x%04X: Condition not met, sleeping for 2ms\n", offset);
-			BIOS_USLEEP(2000);
+			BIOSLOG(pScrn, "0x%04X: Condition not met, sleeping for 20ms\n", offset);
+			BIOS_USLEEP(20000);
 		} else {
 			BIOSLOG(pScrn, "0x%04X: Condition met, continuing\n", offset);
 			break;
@@ -1610,7 +1615,9 @@ static bool init_condition_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset
 	}
 
 	if (data != cmpval) {
-		BIOSLOG(pScrn, "0x%04X: Condition still not met, skiping following opcodes\n", offset);
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "0x%04X: Condition still not met after %dms, skiping following opcodes\n",
+			   offset, 20 * retries);
 		iexec->execute = false;
 	}
 
