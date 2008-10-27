@@ -1060,48 +1060,47 @@ static void nv_crtc_unlock(xf86CrtcPtr crtc)
 {
 }
 
+#define DEPTH_SHIFT(val, w) ((val << (8 - w)) | (val >> ((w << 1) - 8)))
+
 static void
 nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 					int size)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
-	int i, j;
+	NVPtr pNv = NVPTR(crtc->scrn);
+	struct rgb { uint8_t r, g, b; } __attribute__((packed)) *rgbs;
+	int i;
 
-	switch (pScrn->depth) {
+	rgbs = (struct rgb *)pNv->ModeReg.crtc_reg[nv_crtc->head].DAC;
+
+	switch (crtc->scrn->depth) {
 	case 15:
 		/* R5G5B5 */
-		/* We've got 5 bit (32 values) colors and 256 registers for each color */
-		for (i = 0; i < 32; i++)
-			for (j = 0; j < 8; j++) {
-				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
-				regp->DAC[(i*8 + j) * 3 + 1] = green[i] >> 8;
-				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
-			}
+		/* spread 5 bits per colour (32 colours) over 256 (per colour) registers */
+		for (i = 0; i < 32; i++) {
+			rgbs[DEPTH_SHIFT(i, 5)].r = red[i] >> 8;
+			rgbs[DEPTH_SHIFT(i, 5)].g = green[i] >> 8;
+			rgbs[DEPTH_SHIFT(i, 5)].b = blue[i] >> 8;
+		}
 		break;
 	case 16:
 		/* R5G6B5 */
-		/* First deal with the 5 bit colors */
-		for (i = 0; i < 32; i++)
-			for (j = 0; j < 8; j++) {
-				regp->DAC[(i*8 + j) * 3 + 0] = red[i] >> 8;
-				regp->DAC[(i*8 + j) * 3 + 2] = blue[i] >> 8;
+		for (i = 0; i < 64; i++) {
+			/* set 64 regs for green's 6 bits of colour */
+			rgbs[DEPTH_SHIFT(i, 6)].g = green[i] >> 8;
+			if (i < 32) {
+				rgbs[DEPTH_SHIFT(i, 5)].r = red[i] >> 8;
+				rgbs[DEPTH_SHIFT(i, 5)].b = blue[i] >> 8;
 			}
-		/* Now deal with the 6 bit color */
-		for (i = 0; i < 64; i++)
-			for (j = 0; j < 4; j++)
-				regp->DAC[(i*4 + j) * 3 + 1] = green[i] >> 8;
+		}
 		break;
 	default:
 		/* R8G8B8 */
 		for (i = 0; i < 256; i++) {
-			regp->DAC[i * 3] = red[i] >> 8;
-			regp->DAC[(i * 3) + 1] = green[i] >> 8;
-			regp->DAC[(i * 3) + 2] = blue[i] >> 8;
+			rgbs[i].r = red[i] >> 8;
+			rgbs[i].g = green[i] >> 8;
+			rgbs[i].b = blue[i] >> 8;
 		}
-		break;
 	}
 
 	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
