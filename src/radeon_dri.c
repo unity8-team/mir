@@ -719,6 +719,41 @@ static void RADEONDRIInitGARTValues(RADEONInfoPtr info)
     info->dri->log2GARTTexGran  = l;
 }
 
+/* AGP Mode Quirk List - Certain hostbridge/gfx-card combos don't work with
+ * the standard AGPMode settings, so we detect and handle these
+ * on a case-by-base basis with quirks.  To see if an AGPMode is valid, test
+ * it by setting Option "AGPMode" "1" (or "2", or "4" or "8"). */
+typedef struct {
+    unsigned int hostbridgeVendor;
+    unsigned int hostbridgeDevice;
+    unsigned int chipVendor;
+    unsigned int chipDevice;
+    unsigned int subsysVendor;
+    unsigned int subsysDevice;
+    unsigned int defaultMode;
+} radeon_agpmode_quirk, *radeon_agpmode_quirk_ptr;
+
+/* Keep sorted by hostbridge vendor and device */
+static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
+
+    /* Intel 82865G/PE/P DRAM Controller/Host-Hub / Mobility 9800 Needs AGPMode 4 (deb #462590) */
+    { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x4a4e,  PCI_VENDOR_DELL,0x5106,  4 },
+    /* Intel 82855PM Processor to I/O Controller / Mobility M6 LY Needs AGPMode 1 (deb #467235) */
+    { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4c59,  0x1014,0x052f,   1},
+    /* Intel 82830 830 Chipset Host Bridge / Mobility M6 LY Needs AGPMode 2 (fdo #17360)*/
+    { PCI_VENDOR_INTEL,0x3575,  PCI_VENDOR_ATI,0x4c59,  PCI_VENDOR_DELL,0x00e3,  2 },
+    /* Intel 82852/82855 host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (deb #467460) */
+    { PCI_VENDOR_INTEL,0x3580,  PCI_VENDOR_ATI,0x4e50,  0x1025,0x0061,  1 },
+
+    /* ASRock K7VT4A+ AGP 8x / ATI Radeon 9250 AGP Needs AGPMode 4 (LP: #133192) */
+    { 0x1849,0x3189,            PCI_VENDOR_ATI,0x5960,  0x1787, 0x5960,          4},
+
+    /* VIA VT8377 Host Bridge / R200 QM [Radeon 9100] Needs AGPMode 4 (deb #461144) */
+    { 0x1106,0x3189,            PCI_VENDOR_ATI,0x514d,  0x174b,0x7149,           4 },
+
+    { 0, 0, 0, 0, 0, 0, 0 },
+};
+
 /* Set AGP transfer mode according to requests and constraints */
 static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 {
@@ -739,6 +774,21 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
 	if (agp_status & RADEON_AGP_4X_MODE) defaultMode = 4;
 	else if (agp_status & RADEON_AGP_2X_MODE) defaultMode = 2;
 	else defaultMode = 1;
+    }
+
+    /* Apply AGPMode Quirks */
+    radeon_agpmode_quirk_ptr p = radeon_agpmode_quirk_list;
+    while (p && p->chipDevice != 0) {
+        if (vendor == p->hostbridgeVendor &&
+            device == p->hostbridgeDevice &&
+            PCI_DEV_VENDOR_ID(info->PciInfo) == p->chipVendor &&
+            PCI_DEV_DEVICE_ID(info->PciInfo) == p->chipDevice &&
+            PCI_SUB_VENDOR_ID(info->PciInfo) == p->subsysVendor &&
+            PCI_SUB_DEVICE_ID(info->PciInfo) == p->subsysDevice)
+        {
+            defaultMode = p->defaultMode;
+        }
+        ++p;
     }
 
     from = X_DEFAULT;
