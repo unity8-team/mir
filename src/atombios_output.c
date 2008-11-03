@@ -375,6 +375,20 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 }
 
 static int
+atombios_maybe_hdmi_mode(xf86OutputPtr output)
+{
+#ifndef EDID_COMPLETE_RAWDATA
+    /* there's no getting this right unless we have complete EDID */
+    return ATOM_ENCODER_MODE_HDMI;
+#else
+    if (output && xf86MonitorIsHDMI(output->MonInfo))
+	return ATOM_ENCODER_MODE_HDMI;
+
+    return ATOM_ENCODER_MODE_DVI;
+#endif
+}
+
+static int
 atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -405,7 +419,7 @@ atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
     if (OUTPUT_IS_DVI)
 	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DVI;
     else if (radeon_output->type == OUTPUT_HDMI)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_HDMI;
+	disp_data.ucEncoderMode = atombios_maybe_hdmi_mode(output);
     else if (radeon_output->type == OUTPUT_DP)
 	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DP;
     else if (radeon_output->type == OUTPUT_LVDS)
@@ -514,7 +528,7 @@ atombios_output_dig2_setup(xf86OutputPtr output, DisplayModePtr mode)
     if (OUTPUT_IS_DVI)
 	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DVI;
     else if (radeon_output->type == OUTPUT_HDMI)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_HDMI;
+	disp_data.ucEncoderMode = atombios_maybe_hdmi_mode(output);
     else if (radeon_output->type == OUTPUT_DP)
 	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DP;
     else if (radeon_output->type == OUTPUT_LVDS)
@@ -858,7 +872,8 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		if (OUTPUT_IS_DVI)
 		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DVI;
 		else if (radeon_output->type == OUTPUT_HDMI)
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_HDMI;
+		    crtc_src_param2.ucEncodeMode =
+			atombios_maybe_hdmi_mode(output);
 		else if (radeon_output->type == OUTPUT_DP)
 		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DP;
 	    } else if (radeon_output->MonType == MT_LCD) {
