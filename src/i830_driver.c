@@ -301,7 +301,6 @@ typedef enum {
    OPTION_XVIDEO,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
-   OPTION_CHECKDEVICES,
    OPTION_MODEDEBUG,
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
@@ -326,7 +325,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-   {OPTION_CHECKDEVICES, "CheckDevices",OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
@@ -357,7 +355,6 @@ const char *i830_output_type_names[] = {
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830EnterVT(int scrnIndex, int flags);
-static CARD32 I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg);
 static Bool SaveHWState(ScrnInfoPtr pScrn);
 static Bool RestoreHWState(ScrnInfoPtr pScrn);
 
@@ -1609,27 +1606,6 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 
     /* XXX This should go away, replaced by xf86Crtc.c support for it */
     pI830->rotation = RR_Rotate_0;
-
-    /*
-     * Let's setup the mobile systems to check the lid status
-     */
-    if (IS_MOBILE(pI830)) {
-	pI830->checkDevices = TRUE;
-
-	if (!xf86ReturnOptValBool(pI830->Options, OPTION_CHECKDEVICES, TRUE)) {
-	    pI830->checkDevices = FALSE;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitoring connected displays disabled\n");
-	} else
-	    if (pI830->entityPrivate && !I830IsPrimary(pScrn) &&
-		!I830PTR(pI830->entityPrivate->pScrn_1)->checkDevices) {
-		/* If checklid is off, on the primary head, then
-		 * turn it off on the secondary*/
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitoring connected displays disabled\n");
-		pI830->checkDevices = FALSE;
-	    } else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Monitoring connected displays enabled\n");
-    } else
-	pI830->checkDevices = FALSE;
 
     pI830->stolen_size = I830DetectMemory(pScrn);
 
@@ -3738,15 +3714,13 @@ I830EnterVT(int scrnIndex, int flags)
    }
 #endif
 
-   /* Set the hotkey to just notify us.  We can check its results periodically
-    * in the CheckDevicesTimer.  Eventually we want the kernel to just hand us
-    * an input event when someone presses the button, but for now we just have
-    * to poll.
+   /* Set the hotkey to just notify us.  We could check its results
+    * periodically and attempt to do something, but it seems like we basically
+    * never get results when we should, and this should all be better handled
+    * through ACPI putting the key events out through evdev and your desktop
+    * environment picking it up.
     */
    i830SetHotkeyControl(pScrn, HOTKEY_DRIVER_NOTIFY);
-
-   if (pI830->checkDevices)
-      pI830->devicesTimer = TimerSet(NULL, 0, 1000, I830CheckDevicesTimer, pScrn);
 
    /* Mark 3D state as being clobbered and setup the basics */
    *pI830->last_3d = LAST_3D_OTHER;
@@ -3925,21 +3899,11 @@ I830PMEvent(int scrnIndex, pmEvent event, Bool undo)
       break;
    /* This is currently used for ACPI */
    case XF86_APM_CAPABILITY_CHANGED:
-#if 0
-      /* If we had status checking turned on, turn it off now */
-      if (pI830->checkDevices) {
-         if (pI830->devicesTimer)
-            TimerFree(pI830->devicesTimer);
-         pI830->devicesTimer = NULL;
-         pI830->checkDevices = FALSE; 
-      }
-#endif
       if (!I830IsPrimary(pScrn))
          return TRUE;
 
       ErrorF("I830PMEvent: Capability change\n");
 
-      I830CheckDevicesTimer(NULL, 0, pScrn);
       SaveScreens(SCREEN_SAVER_FORCER, ScreenSaverReset);
       if (pI830->quirk_flag & QUIRK_RESET_MODES)
 	 xf86SetDesiredModes(pScrn);
@@ -4003,44 +3967,6 @@ i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
    }
 }
 #endif
-
-static CARD32
-I830CheckDevicesTimer(OsTimerPtr timer, CARD32 now, pointer arg)
-{
-   ScrnInfoPtr pScrn = (ScrnInfoPtr) arg;
-   I830Ptr pI830 = I830PTR(pScrn);
-   uint8_t gr18;
-
-   if (!pScrn->vtSema)
-      return 1000;
-
-#if 0
-   i830MonitorDetectDebugger(pScrn);
-#endif
-
-   /* Check for a hotkey press report from the BIOS. */
-   gr18 = pI830->readControl(pI830, GRX, 0x18);
-   if ((gr18 & (HOTKEY_TOGGLE | HOTKEY_SWITCH)) != 0) {
-      /* The user has pressed the hotkey requesting a toggle or switch.
-       * Re-probe our connected displays and turn on whatever we find.
-       *
-       * In the future, we want the hotkey to dump down to a user app which
-       * implements a sensible policy using RandR-1.2.  For now, all we get
-       * is this.
-       */
-      
-      xf86ProbeOutputModes (pScrn, 0, 0);
-      xf86SetScrnInfoModes (pScrn);
-      xf86DiDGAReInit (pScrn->pScreen);
-      xf86SwitchMode(pScrn->pScreen, pScrn->currentMode);
-
-      /* Clear the BIOS's hotkey press flags */
-      gr18 &= ~(HOTKEY_TOGGLE | HOTKEY_SWITCH);
-      pI830->writeControl(pI830, GRX, 0x18, gr18);
-   }
-
-   return 1000;
-}
 
 void
 i830WaitSync(ScrnInfoPtr pScrn)

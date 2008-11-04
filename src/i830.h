@@ -603,8 +603,6 @@ typedef struct _I830Rec {
 
    Bool StolenOnly;
 
-   Bool checkDevices;
-
    /* Driver phase/state information */
    Bool preinit;
    Bool starting;
