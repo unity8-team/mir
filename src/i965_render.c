@@ -520,12 +520,24 @@ typedef struct gen4_dynamic_state_state {
     float vb[VERTEX_BUFFER_SIZE];
 } gen4_dynamic_state;
 
+typedef struct gen4_composite_op {
+    int		op;
+    PicturePtr	source_picture;
+    PicturePtr	mask_picture;
+    PicturePtr	dest_picture;
+    PixmapPtr	source;
+    PixmapPtr	mask;
+    PixmapPtr	dest;
+} gen4_composite_op;
+
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
     gen4_static_state_t *static_state;
     uint32_t static_state_offset;
 
     dri_bo* dynamic_state_bo;
+
+    gen4_composite_op composite_op;
 
     int binding_table_index;
     int surface_state_index;
@@ -934,7 +946,8 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
 
 
 static Bool
-_allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice);
+_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn,
+					   Bool check_twice);
 
 /* Allocate the dynamic state needed for a composite operation,
  * flushing the current batch if needed to create sufficient space.
@@ -943,17 +956,23 @@ _allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice);
  * operation still can't fit with an empty batch. Otherwise, returns
  * TRUE.
  */
-static Bool _allocate_dynamic_state_check_twice (ScrnInfoPtr pScrn) {
-     return _allocate_dynamic_state_internal (pScrn, TRUE);
+static Bool
+_emit_batch_header_for_composite_check_twice (ScrnInfoPtr pScrn)
+{
+     return _emit_batch_header_for_composite_internal (pScrn, TRUE);
 }
 
 /* Allocate the dynamic state needed for a composite operation,
  * flushing the current batch if needed to create sufficient space.
+ *
+ * See _emit_batch_header_for_composite_check_twice for a safer
+ * version, (but this version is fine if the safer version has
+ * previously been called for the same composite operation).
  */
 static void
-_allocate_dynamic_state (ScrnInfoPtr pScrn)
+_emit_batch_header_for_composite (ScrnInfoPtr pScrn)
 {
-    _allocate_dynamic_state_internal (pScrn, FALSE);
+    _emit_batch_header_for_composite_internal (pScrn, FALSE);
 }
 
 /* Number of buffer object in our call to check_aperture_size:
@@ -964,10 +983,33 @@ _allocate_dynamic_state (ScrnInfoPtr pScrn)
 #define NUM_BO 2
 
 static Bool
-_allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice)
+_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_static_state_t *static_state = render_state->static_state;
+    gen4_composite_op *composite_op = &render_state->composite_op;
+    int op = composite_op->op;
+    PicturePtr pSrcPicture = composite_op->source_picture;
+    PicturePtr pMaskPicture = composite_op->mask_picture;
+    PicturePtr pDstPicture = composite_op->dest_picture;
+    PixmapPtr pSrc = composite_op->source;
+    PixmapPtr pMask = composite_op->mask;
+    PixmapPtr pDst = composite_op->dest;
+    struct brw_surface_state_padded *ss;
+    uint32_t sf_state_offset;
+    sampler_state_filter_t src_filter, mask_filter;
+    sampler_state_extend_t src_extend, mask_extend;
+    Bool is_affine_src, is_affine_mask, is_affine;
+    int urb_vs_start, urb_vs_size;
+    int urb_gs_start, urb_gs_size;
+    int urb_clip_start, urb_clip_size;
+    int urb_sf_start, urb_sf_size;
+    int urb_cs_start, urb_cs_size;
+    char *state_base;
+    int state_base_offset;
+    uint32_t src_blend, dst_blend;
+    uint32_t *binding_table;
     dri_bo *bo_table[NUM_BO];
 
     if (render_state->dynamic_state_bo == NULL) {
@@ -994,40 +1036,6 @@ _allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice)
 	    }
 	}
     }
-
-    return TRUE;
-}
-#undef NUM_BO
-
-Bool
-i965_prepare_composite(int op, PicturePtr pSrcPicture,
-		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
-		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_static_state_t *static_state = render_state->static_state;
-    struct brw_surface_state_padded *ss;
-    uint32_t sf_state_offset;
-    sampler_state_filter_t src_filter, mask_filter;
-    sampler_state_extend_t src_extend, mask_extend;
-    Bool is_affine_src, is_affine_mask, is_affine;
-    int urb_vs_start, urb_vs_size;
-    int urb_gs_start, urb_gs_size;
-    int urb_clip_start, urb_clip_size;
-    int urb_sf_start, urb_sf_size;
-    int urb_cs_start, urb_cs_size;
-    char *state_base;
-    int state_base_offset;
-    uint32_t src_blend, dst_blend;
-    uint32_t *binding_table;
-    Bool success;
-
-    /* Fallback if we can't make this operation fit. */
-    success = _allocate_dynamic_state_check_twice (pScrn);
-    if (! success)
-	return FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -1368,6 +1376,29 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 #endif
     return TRUE;
 }
+#undef NUM_BO
+
+Bool
+i965_prepare_composite(int op, PicturePtr pSrcPicture,
+		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
+		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_composite_op *composite_op = &render_state->composite_op;
+
+    composite_op->op = op;
+    composite_op->source_picture = pSrcPicture;
+    composite_op->mask_picture = pMaskPicture;
+    composite_op->dest_picture = pDstPicture;
+    composite_op->source = pSrc;
+    composite_op->mask = pMask;
+    composite_op->dest = pDst;
+
+    /* Fallback if we can't make this operation fit. */
+    return _emit_batch_header_for_composite_check_twice (pScrn);
+}
 
 void
 i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
@@ -1457,13 +1488,13 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    /* Arrange for a dynamic_state buffer object with sufficient space
-     * for our vertices. */
+    /* If the vertex buffer is too full, then we flush and re-emit all
+     * necessary state into the batch for the composite operation. */
     if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE > VERTEX_BUFFER_SIZE) {
 	dri_bo_unreference (render_state->dynamic_state_bo);
 	render_state->dynamic_state_bo = NULL;
 	render_state->vb_offset = 0;
-	_allocate_dynamic_state (pScrn);
+	_emit_batch_header_for_composite (pScrn);
     }
 
     /* Map the dynamic_state buffer object so we can write to the
