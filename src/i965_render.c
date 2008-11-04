@@ -59,8 +59,14 @@ do { 							\
 } while(0)
 #endif
 
-#define MAX_VERTEX_PER_COMPOSITE    24
-#define MAX_VERTEX_BUFFERS	    256
+/* 24 = 4 vertices/composite * 3 texcoords/vertex * 2 floats/texcoord
+ *
+ * This is an upper-bound based on the case of a non-affine
+ * transformation and with a mask, but useful for sizing all cases for
+ * simplicity.
+ */
+#define VERTEX_FLOATS_PER_COMPOSITE	24
+#define VERTEX_BUFFER_SIZE		(256 * VERTEX_FLOATS_PER_COMPOSITE)
 
 struct blendinfo {
     Bool dst_alpha;
@@ -445,11 +451,16 @@ typedef struct brw_surface_state_padded {
 /**
  * Gen4 rendering state buffer structure.
  *
- * Ideally this structure would contain static data for all of the
- * combinations of state that we use for Render acceleration, and
- * another buffer would contain the dynamic surface state, binding
- * table, and vertex data. We'll be moving to that organization soon,
- * so we use that naming already.
+ * This structure contains static data for all of the combinations of
+ * state that we use for Render acceleration.
+ *
+ * Meanwhile, gen4_dynamic_state_t should contain all dynamic data,
+ * but we're still in the process of migrating some data out of
+ * gen4_static_state_t to gen4_dynamic_state_t. Things remaining to be
+ * migrated include
+ *
+ *	surface_state
+ *	binding_table
  */
 typedef struct _gen4_static_state {
     uint8_t wm_scratch[128 * PS_MAX_THREADS];
@@ -503,14 +514,18 @@ typedef struct _gen4_static_state {
 				     [BRW_BLENDFACTOR_COUNT];
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
-
-    float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
 } gen4_static_state_t;
+
+typedef struct gen4_dynamic_state_state {
+    float vb[VERTEX_BUFFER_SIZE];
+} gen4_dynamic_state;
 
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
     gen4_static_state_t *static_state;
     uint32_t static_state_offset;
+
+    dri_bo* dynamic_state_bo;
 
     int binding_table_index;
     int surface_state_index;
@@ -917,6 +932,73 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     return offset;
 }
 
+
+static Bool
+_allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice);
+
+/* Allocate the dynamic state needed for a composite operation,
+ * flushing the current batch if needed to create sufficient space.
+ *
+ * Even after flushing we check again and return FALSE if the
+ * operation still can't fit with an empty batch. Otherwise, returns
+ * TRUE.
+ */
+static Bool _allocate_dynamic_state_check_twice (ScrnInfoPtr pScrn) {
+     return _allocate_dynamic_state_internal (pScrn, TRUE);
+}
+
+/* Allocate the dynamic state needed for a composite operation,
+ * flushing the current batch if needed to create sufficient space.
+ */
+static void
+_allocate_dynamic_state (ScrnInfoPtr pScrn)
+{
+    _allocate_dynamic_state_internal (pScrn, FALSE);
+}
+
+/* Number of buffer object in our call to check_aperture_size:
+ *
+ *	batch_bo
+ *	dynamic_state_bo
+ */
+#define NUM_BO 2
+
+static Bool
+_allocate_dynamic_state_internal (ScrnInfoPtr pScrn, Bool check_twice)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    dri_bo *bo_table[NUM_BO];
+
+    if (render_state->dynamic_state_bo == NULL) {
+	render_state->dynamic_state_bo = dri_bo_alloc (pI830->bufmgr, "vb",
+						       sizeof (gen4_dynamic_state),
+						       4096);
+    }
+
+    bo_table[0] = pI830->batch_bo;
+    bo_table[1] = render_state->dynamic_state_bo;
+
+    /* If this command won't fit in the current batch, flush. */
+    if (dri_bufmgr_check_aperture_space (bo_table, NUM_BO) < 0) {
+	intel_batch_flush (pScrn, FALSE);
+
+	if (check_twice) {
+	    /* If the command still won't fit in an empty batch, then it's
+	     * just plain too big for the hardware---fallback to software.
+	     */
+	    if (dri_bufmgr_check_aperture_space (bo_table, NUM_BO) < 0) {
+		dri_bo_unreference (render_state->dynamic_state_bo);
+		render_state->dynamic_state_bo = NULL;
+		return FALSE;
+	    }
+	}
+    }
+
+    return TRUE;
+}
+#undef NUM_BO
+
 Bool
 i965_prepare_composite(int op, PicturePtr pSrcPicture,
 		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
@@ -940,6 +1022,12 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     int state_base_offset;
     uint32_t src_blend, dst_blend;
     uint32_t *binding_table;
+    Bool success;
+
+    /* Fallback if we can't make this operation fit. */
+    success = _allocate_dynamic_state_check_twice (pScrn);
+    if (! success)
+	return FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -1288,11 +1376,11 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state = pI830->gen4_render_state;
-    gen4_static_state_t *static_state = render_state->static_state;
+    gen4_dynamic_state *dynamic_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-    float *vb = static_state->vb;
+    float *vb;
     int i;
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
@@ -1369,10 +1457,20 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(static_state->vb)) {
-	i830WaitSync(pScrn);
+    /* Arrange for a dynamic_state buffer object with sufficient space
+     * for our vertices. */
+    if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE > VERTEX_BUFFER_SIZE) {
+	dri_bo_unreference (render_state->dynamic_state_bo);
+	render_state->dynamic_state_bo = NULL;
 	render_state->vb_offset = 0;
+	_allocate_dynamic_state (pScrn);
     }
+
+    /* Map the dynamic_state buffer object so we can write to the
+     * vertex buffer within it. */
+    dri_bo_map (render_state->dynamic_state_bo, 1);
+    dynamic_state = render_state->dynamic_state_bo->virtual;
+    vb = dynamic_state->vb;
 
     i = render_state->vb_offset;
     /* rect (x2,y2) */
@@ -1416,7 +1514,9 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
-    assert (i * 4 <= sizeof(static_state->vb));
+    assert (i <= VERTEX_BUFFER_SIZE);
+
+    dri_bo_unmap (render_state->dynamic_state_bo);
 
     BEGIN_BATCH(12);
     OUT_BATCH(MI_FLUSH);
@@ -1425,7 +1525,8 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_BATCH(render_state->static_state_offset + offsetof(gen4_static_state_t, vb) +
+    OUT_RELOC(render_state->dynamic_state_bo, I915_GEM_DOMAIN_VERTEX, 0,
+	      offsetof(gen4_dynamic_state, vb) +
 	      render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
