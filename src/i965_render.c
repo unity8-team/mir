@@ -453,14 +453,6 @@ typedef struct brw_surface_state_padded {
  *
  * This structure contains static data for all of the combinations of
  * state that we use for Render acceleration.
- *
- * Meanwhile, gen4_render_state_t should contain all dynamic data,
- * but we're still in the process of migrating some data out of
- * gen4_static_state_t to gen4_render_state_t. Things remaining to be
- * migrated include
- *
- *	surface_state
- *	binding_table
  */
 typedef struct _gen4_static_state {
     uint8_t wm_scratch[128 * PS_MAX_THREADS];
@@ -493,10 +485,6 @@ typedef struct _gen4_static_state {
     WM_STATE_DECL (maskca_srcalpha_projective);
     WM_STATE_DECL (masknoca_affine);
     WM_STATE_DECL (masknoca_projective);
-
-    uint32_t binding_table[128];
-
-    struct brw_surface_state_padded surface_state[32];
 
     /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
      * the structs happen to add to 32 bytes.
@@ -537,8 +525,6 @@ struct gen4_render_state {
 
     gen4_composite_op composite_op;
 
-    int binding_table_index;
-    int surface_state_index;
     int vb_offset;
     int vertex_size;
 };
@@ -883,20 +869,15 @@ sampler_state_extend_from_picture (int repeat_type)
 }
 
 /**
- * Sets up the common fields for a surface state buffer for the given picture
- * in the surface state buffer at index, and returns the offset within the
- * state buffer for this entry.
+ * Sets up the common fields for a surface state buffer for the given
+ * picture in the given surface state buffer.
  */
-static unsigned int
-i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
+static void
+i965_set_picture_surface_state(struct brw_surface_state *ss,
 			       PicturePtr pPicture, PixmapPtr pPixmap,
 			       Bool is_dst)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_static_state_t *static_state = render_state->static_state;
     struct brw_surface_state local_ss;
-    uint32_t offset;
 
     /* Since ss is a pointer to WC memory, do all of our bit operations
      * into a local temporary first.
@@ -935,11 +916,6 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap) ? 1 : 0;
 
     memcpy(ss, &local_ss, sizeof(local_ss));
-
-    offset = (char *)ss - (char *)static_state;
-    assert((offset & 31) == 0);
-
-    return offset;
 }
 
 
@@ -985,7 +961,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_static_state_t *static_state = render_state->static_state;
     gen4_composite_op *composite_op = &render_state->composite_op;
     int op = composite_op->op;
     PicturePtr pSrcPicture = composite_op->source_picture;
@@ -1009,6 +984,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     uint32_t src_blend, dst_blend;
     uint32_t *binding_table;
     dri_bo *bo_table[NUM_BO];
+    dri_bo *binding_table_bo, *surface_state_bo;
 
     if (render_state->vertex_buffer_bo == NULL) {
 	render_state->vertex_buffer_bo = dri_bo_alloc (pI830->bufmgr, "vb",
@@ -1076,47 +1052,51 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
 
-    if ((render_state->binding_table_index + 3 >=
-	 ARRAY_SIZE(static_state->binding_table)) ||
-	(render_state->surface_state_index + 3 >=
-	 ARRAY_SIZE(static_state->surface_state)))
-    {
-	i830WaitSync(pScrn);
-	render_state->binding_table_index = 0;
-	render_state->surface_state_index = 0;
-	render_state->vb_offset = 0;
-    }
+    binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
+				     3 * sizeof (uint32_t), 4096);
+    dri_bo_map (binding_table_bo, 1);
+    binding_table = binding_table_bo->virtual;
 
-    binding_table = static_state->binding_table +
-	render_state->binding_table_index;
-    ss = static_state->surface_state + render_state->surface_state_index;
-    /* We only use 2 or 3 entries, but the table has to be 32-byte
-     * aligned.
-     */
-    render_state->binding_table_index += 8;
-    render_state->surface_state_index += (pMask != NULL) ? 3 : 2;
+    surface_state_bo = dri_bo_alloc (pI830->bufmgr, "surface_state",
+				     3 * sizeof (brw_surface_state_padded),
+				     4096);
+    dri_bo_map (surface_state_bo, 1);
+    ss = surface_state_bo->virtual;
 
     /* Set up and bind the state buffer for the destination surface */
-    binding_table[0] = state_base_offset +
-	i965_set_picture_surface_state(pScrn,
-				       &ss[0].state,
-				       pDstPicture, pDst, TRUE);
+    i965_set_picture_surface_state(&ss[0].state,
+				   pDstPicture, pDst, TRUE);
+    binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       0 * sizeof (brw_surface_state_padded),
+		       0 * sizeof (uint32_t),
+		       surface_state_bo);
 
     /* Set up and bind the source surface state buffer */
-    binding_table[1] = state_base_offset +
-	i965_set_picture_surface_state(pScrn,
-				       &ss[1].state,
-				       pSrcPicture, pSrc, FALSE);
+    i965_set_picture_surface_state(&ss[1].state,
+				   pSrcPicture, pSrc, FALSE);
+    binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       1 * sizeof (brw_surface_state_padded),
+		       1 * sizeof (uint32_t),
+		       surface_state_bo);
+
     if (pMask) {
 	/* Set up and bind the mask surface state buffer */
-	binding_table[2] = state_base_offset +
-	    i965_set_picture_surface_state(pScrn,
-					   &ss[2].state,
-					   pMaskPicture, pMask,
-					   FALSE);
+	i965_set_picture_surface_state(&ss[2].state,
+				       pMaskPicture, pMask,
+				       FALSE);
+	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			   2 * sizeof (brw_surface_state_padded),
+			   2 * sizeof (uint32_t),
+			   surface_state_bo);
     } else {
 	binding_table[2] = 0;
     }
+
+    dri_bo_unmap (binding_table_bo);
+    dri_bo_unmap (surface_state_bo);
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
@@ -1197,8 +1177,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 	OUT_BATCH(0); /* clip */
 	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
-	assert((((unsigned char *)binding_table - pI830->FbBase) & 31) == 0);
-	OUT_BATCH((unsigned char *)binding_table - pI830->FbBase);
+	OUT_RELOC(binding_table_bo, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
@@ -1372,6 +1351,10 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     ErrorF("try to sync to show any errors...\n");
     I830Sync(pScrn);
 #endif
+
+    dri_bo_unreference (binding_table_bo);
+    dri_bo_unreference (surface_state_bo);
+
     return TRUE;
 }
 #undef NUM_BO
