@@ -554,6 +554,7 @@ typedef struct _I830Rec {
 
    Bool XvDisabled;			/* Xv disabled in PreInit. */
    Bool XvEnabled;			/* Xv enabled for this generation. */
+   Bool XvPreferOverlay;
 
 #ifdef I830_XV
    int colorKey;

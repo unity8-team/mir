@@ -134,6 +134,15 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
+.BI "Option \*qXvPreferOverlay\*q \*q" boolean \*q
+Make hardware overlay be the first XV adaptor.
+The overlay behaves incorrectly in the presence of compositing, but some prefer
+it due to it syncing to vblank in the absence of compositing.  While most
+XV-using applications have options to select which XV adaptor to use, this
+option can be used to place the overlay first for applications which don't
+have options for selecting adaptors.
+Default: Textured video adaptor is preferred.
+.TP
 .BI "Option \*qLegacy3D\*q \*q" boolean \*q
 Enable support for the non-GEM mode of the 3D driver on i830 and newer.
 This will allocate a large static area for older Mesa to use for its texture

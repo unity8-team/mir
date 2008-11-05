@@ -313,6 +313,7 @@ typedef enum {
    OPTION_XVMC,
 #endif
    OPTION_FORCE_SDVO_DETECT,
+   OPTION_PREFER_OVERLAY,
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
@@ -339,6 +340,7 @@ static OptionInfoRec I830Options[] = {
    {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
 #endif
    {OPTION_FORCE_SDVO_DETECT, "ForceSDVODetect", OPTV_BOOLEAN,  {0},	FALSE},
+   {OPTION_PREFER_OVERLAY, "XvPreferOverlay", OPTV_BOOLEAN, {0}, FALSE},
    {-1,			NULL,		OPTV_NONE,	{0},	FALSE}
 };
 /* *INDENT-ON* */
@@ -1664,6 +1666,8 @@ I830XvInit(ScrnInfoPtr pScrn)
 
     pI830->XvDisabled =
 	!xf86ReturnOptValBool(pI830->Options, OPTION_XVIDEO, TRUE);
+
+   pI830->XvPreferOverlay = xf86ReturnOptValBool(pI830->Options, OPTION_PREFER_OVERLAY, FALSE);
 
 #ifdef I830_XV
     if (xf86GetOptValInteger(pI830->Options, OPTION_VIDEO_KEY,
