@@ -142,11 +142,11 @@ i830_hdmi_detect(xf86OutputPtr output)
     xf86OutputStatus status;
     xf86MonPtr edid_mon;
 
-    /* For G4X, PEG_BAND_GAP_DATA 3:0 must first be written 0xd.
+    /* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written 0xd.
      * Failure to do so will result in spurious interrupts being
      * generated on the port when a cable is not attached.
      */
-    if (IS_G4X(pI830)) {
+    if (IS_G4X(pI830) && !IS_GM45(pI830)) {
 	temp = INREG(PEG_BAND_GAP_DATA);
 	OUTREG(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
     }

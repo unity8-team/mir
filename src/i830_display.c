@@ -1126,7 +1126,7 @@ i830_update_dsparb(ScrnInfoPtr pScrn)
   /*
     * FIFO entries will be split based on programmed modes
     */
-   if (IS_I965GM(pI830) || IS_GM45(pI830))
+   if (IS_I965GM(pI830))
        fifo_entries = 127;
    else if (IS_I9XX(pI830))
        fifo_entries = 95;

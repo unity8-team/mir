@@ -1143,7 +1143,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
         BEGIN_BATCH(12);
 
         /* Match Mesa driver setup */
-	if (IS_GM45(pI830) || IS_G4X(pI830))
+	if (IS_G4X(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
