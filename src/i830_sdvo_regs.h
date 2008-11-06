@@ -422,6 +422,97 @@ struct i830_sdvo_sdtv_resolution_reply {
     unsigned int pad:5;
 } __attribute__((packed));
 
+/* Get supported resolution with squire pixel aspect ratio that can be
+   scaled for the requested HDTV format */
+#define SDVO_CMD_GET_SCALED_HDTV_RESOLUTION_SUPPORT		0x85
+
+struct i830_sdvo_hdtv_resolution_request {
+    unsigned int hdtv_std_smpte_240m_1080i_59:1;
+    unsigned int hdtv_std_smpte_240m_1080i_60:1;
+    unsigned int hdtv_std_smpte_260m_1080i_59:1;
+    unsigned int hdtv_std_smpte_260m_1080i_60:1;
+    unsigned int hdtv_std_smpte_274m_1080i_50:1;
+    unsigned int hdtv_std_smpte_274m_1080i_59:1;
+    unsigned int hdtv_std_smpte_274m_1080i_60:1;
+    unsigned int hdtv_std_smpte_274m_1080p_23:1;
+
+    unsigned int hdtv_std_smpte_274m_1080p_24:1;
+    unsigned int hdtv_std_smpte_274m_1080p_25:1;
+    unsigned int hdtv_std_smpte_274m_1080p_29:1;
+    unsigned int hdtv_std_smpte_274m_1080p_30:1;
+    unsigned int hdtv_std_smpte_274m_1080p_50:1;
+    unsigned int hdtv_std_smpte_274m_1080p_59:1;
+    unsigned int hdtv_std_smpte_274m_1080p_60:1;
+    unsigned int hdtv_std_smpte_295m_1080i_50:1;
+
+    unsigned int hdtv_std_smpte_295m_1080p_50:1;
+    unsigned int hdtv_std_smpte_296m_720p_59:1;
+    unsigned int hdtv_std_smpte_296m_720p_60:1;
+    unsigned int hdtv_std_smpte_296m_720p_50:1;
+    unsigned int hdtv_std_smpte_293m_480p_59:1;
+    unsigned int hdtv_std_smpte_170m_480i_59:1;
+    unsigned int hdtv_std_iturbt601_576i_50:1;
+    unsigned int hdtv_std_iturbt601_576p_50:1;
+
+    unsigned int hdtv_std_eia_7702a_480i_60:1;
+    unsigned int hdtv_std_eia_7702a_480p_60:1;
+    unsigned int pad:6;
+} __attribute__((packed));
+
+struct i830_sdvo_hdtv_resolution_reply {
+    unsigned int res_640x480:1;
+    unsigned int res_800x600:1;
+    unsigned int res_1024x768:1;
+    unsigned int res_1280x960:1;
+    unsigned int res_1400x1050:1;
+    unsigned int res_1600x1200:1;
+    unsigned int res_1920x1440:1;
+    unsigned int res_2048x1536:1;
+
+    unsigned int res_2560x1920:1;
+    unsigned int res_3200x2400:1;
+    unsigned int res_3840x2880:1;
+    unsigned int pad1:5;
+
+    unsigned int res_848x480:1;
+    unsigned int res_1064x600:1;
+    unsigned int res_1280x720:1;
+    unsigned int res_1360x768:1;
+    unsigned int res_1704x960:1;
+    unsigned int res_1864x1050:1;
+    unsigned int res_1920x1080:1;
+    unsigned int res_2128x1200:1;
+
+    unsigned int res_2560x1400:1;
+    unsigned int res_2728x1536:1;
+    unsigned int res_3408x1920:1;
+    unsigned int res_4264x2400:1;
+    unsigned int res_5120x2880:1;
+    unsigned int pad2:3;
+
+    unsigned int res_768x480:1;
+    unsigned int res_960x600:1;
+    unsigned int res_1152x720:1;
+    unsigned int res_1124x768:1;
+    unsigned int res_1536x960:1;
+    unsigned int res_1680x1050:1;
+    unsigned int res_1728x1080:1;
+    unsigned int res_1920x1200:1;
+
+    unsigned int res_2304x1440:1;
+    unsigned int res_2456x1536:1;
+    unsigned int res_3072x1920:1;
+    unsigned int res_3840x2400:1;
+    unsigned int res_4608x2880:1;
+    unsigned int pad3:3;
+
+    unsigned int res_1280x1024:1;
+    unsigned int pad4:7;
+
+    unsigned int res_1280x768:1;
+    unsigned int pad5:7;
+} __attribute__((packed));
+
 #define SDVO_CMD_GET_SUPPORTED_POWER_STATES		0x2a
 #define SDVO_CMD_GET_ENCODER_POWER_STATE		0x2b
 #define SDVO_CMD_SET_ENCODER_POWER_STATE		0x2c
