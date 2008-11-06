@@ -50,8 +50,8 @@ struct i830_sdvo_caps {
     uint8_t vendor_id;
     uint8_t device_id;
     uint8_t device_rev_id;
-    uint8_t sdvo_version_major;
     uint8_t sdvo_version_minor;
+    uint8_t sdvo_version_major;
     unsigned int sdvo_input_count:2;
     unsigned int smooth_scaling:1;
     unsigned int sharp_scaling:1;
