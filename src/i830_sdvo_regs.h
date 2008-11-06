@@ -513,13 +513,29 @@ struct i830_sdvo_hdtv_resolution_reply {
     unsigned int pad5:7;
 } __attribute__((packed));
 
+/* Get supported power state returns info for encoder and monitor, rely on
+   last SetTargetInput and SetTargetOutput calls */
 #define SDVO_CMD_GET_SUPPORTED_POWER_STATES		0x2a
-#define SDVO_CMD_GET_ENCODER_POWER_STATE		0x2b
+/* Get power state returns info for encoder and monitor, rely on last
+   SetTargetInput and SetTargetOutput calls */
+#define SDVO_CMD_GET_POWER_STATE			0x2b
+/* Set encoder power state */
 #define SDVO_CMD_SET_ENCODER_POWER_STATE		0x2c
 # define SDVO_ENCODER_STATE_ON					(1 << 0)
 # define SDVO_ENCODER_STATE_STANDBY				(1 << 1)
 # define SDVO_ENCODER_STATE_SUSPEND				(1 << 2)
 # define SDVO_ENCODER_STATE_OFF					(1 << 3)
+# define SDVO_MONITOR_STATE_ON					(1 << 4)
+# define SDVO_MONITOR_STATE_STANDBY				(1 << 5)
+# define SDVO_MONITOR_STATE_SUSPEND				(1 << 6)
+# define SDVO_MONITOR_STATE_OFF					(1 << 7)
+
+/* Set display power state */
+#define SDVO_CMD_SET_DISPLAY_POWER_STATE		0x7d
+# define SDVO_DISPLAY_STATE_ON				(1 << 0)
+# define SDVO_DISPLAY_STATE_STANDBY			(1 << 1)
+# define SDVO_DISPLAY_STATE_SUSPEND			(1 << 2)
+# define SDVO_DISPLAY_STATE_OFF				(1 << 3)
 
 #define SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS		0x84
 struct i830_sdvo_enhancements_reply {
