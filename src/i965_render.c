@@ -860,11 +860,15 @@ sampler_state_extend_from_picture (int repeat_type)
  * picture in the given surface state buffer.
  */
 static void
-i965_set_picture_surface_state(struct brw_surface_state *ss,
+i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
 			       PicturePtr pPicture, PixmapPtr pPixmap,
 			       Bool is_dst)
 {
+    struct brw_surface_state_padded *ss;
     struct brw_surface_state local_ss;
+    dri_bo *pixmap_bo = i830_get_pixmap_bo(pPixmap);
+
+    ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
     /* Since ss is a pointer to WC memory, do all of our bit operations
      * into a local temporary first.
@@ -892,7 +896,10 @@ i965_set_picture_surface_state(struct brw_surface_state *ss,
     local_ss.ss0.vert_line_stride_ofs = 0;
     local_ss.ss0.mipmap_layout_mode = 0;
     local_ss.ss0.render_cache_read_mode = 0;
-    local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
+    if (pixmap_bo != NULL)
+	local_ss.ss1.base_addr = pixmap_bo->offset;
+    else
+	local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
 
     local_ss.ss2.mip_count = 0;
     local_ss.ss2.render_target_rotation = 0;
@@ -903,6 +910,23 @@ i965_set_picture_surface_state(struct brw_surface_state *ss,
     local_ss.ss3.tiled_surface = i830_pixmap_tiled(pPixmap) ? 1 : 0;
 
     memcpy(ss, &local_ss, sizeof(local_ss));
+
+    if (pixmap_bo != NULL) {
+	uint32_t write_domain, read_domains;
+
+	if (is_dst) {
+	    write_domain = I915_GEM_DOMAIN_RENDER;
+	    read_domains = I915_GEM_DOMAIN_RENDER;
+	} else {
+	    write_domain = 0;
+	    read_domains = I915_GEM_DOMAIN_SAMPLER;
+	}
+	dri_bo_emit_reloc(ss_bo, read_domains, write_domain,
+			  0,
+			  ss_index * sizeof(*ss) +
+			  offsetof(struct brw_surface_state, ss1),
+			  pixmap_bo);
+    }
 }
 
 
@@ -956,7 +980,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     PixmapPtr pSrc = composite_op->source;
     PixmapPtr pMask = composite_op->mask;
     PixmapPtr pDst = composite_op->dest;
-    struct brw_surface_state_padded *ss;
     uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
@@ -1039,29 +1062,36 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
 
-    binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
-				     3 * sizeof (uint32_t), 4096);
-    dri_bo_map (binding_table_bo, 1);
-    binding_table = binding_table_bo->virtual;
-
+    /* Set up the surface states. */
     surface_state_bo = dri_bo_alloc (pI830->bufmgr, "surface_state",
 				     3 * sizeof (brw_surface_state_padded),
 				     4096);
     dri_bo_map (surface_state_bo, 1);
-    ss = surface_state_bo->virtual;
-
-    /* Set up and bind the state buffer for the destination surface */
-    i965_set_picture_surface_state(&ss[0].state,
+    /* Set up the state buffer for the destination surface */
+    i965_set_picture_surface_state(surface_state_bo, 0,
 				   pDstPicture, pDst, TRUE);
+    /* Set up the source surface state buffer */
+    i965_set_picture_surface_state(surface_state_bo, 1,
+				   pSrcPicture, pSrc, FALSE);
+    if (pMask) {
+	/* Set up the mask surface state buffer */
+	i965_set_picture_surface_state(surface_state_bo, 2,
+				       pMaskPicture, pMask,
+				       FALSE);
+    }
+    dri_bo_unmap (surface_state_bo);
+
+    /* Set up the binding table of surface indices to surface state. */
+    binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
+				     3 * sizeof (uint32_t), 4096);
+    dri_bo_map (binding_table_bo, 1);
+    binding_table = binding_table_bo->virtual;
     binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
     dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
 		       0 * sizeof (brw_surface_state_padded),
 		       0 * sizeof (uint32_t),
 		       surface_state_bo);
 
-    /* Set up and bind the source surface state buffer */
-    i965_set_picture_surface_state(&ss[1].state,
-				   pSrcPicture, pSrc, FALSE);
     binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
     dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
 		       1 * sizeof (brw_surface_state_padded),
@@ -1069,10 +1099,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 		       surface_state_bo);
 
     if (pMask) {
-	/* Set up and bind the mask surface state buffer */
-	i965_set_picture_surface_state(&ss[2].state,
-				       pMaskPicture, pMask,
-				       FALSE);
 	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
 	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
 			   2 * sizeof (brw_surface_state_padded),
@@ -1081,9 +1107,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     } else {
 	binding_table[2] = 0;
     }
-
     dri_bo_unmap (binding_table_bo);
-    dri_bo_unmap (surface_state_bo);
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
