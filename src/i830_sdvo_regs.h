@@ -566,7 +566,7 @@ struct i830_sdvo_enhancements_reply {
 #define SDVO_CMD_GET_MAX_2D_FLICKER_FITER		0x52
 #define SDVO_CMD_GET_MAX_SATURATION			0x55
 #define SDVO_CMD_GET_MAX_HUE				0x58
-#define SDVO_CMD_GET_MAX_BRIGHTNESS			0x5c
+#define SDVO_CMD_GET_MAX_BRIGHTNESS			0x5b
 #define SDVO_CMD_GET_MAX_CONTRAST			0x5e
 #define SDVO_CMD_GET_MAX_OVERSCAN_H			0x61
 #define SDVO_CMD_GET_MAX_OVERSCAN_V			0x64
@@ -580,8 +580,8 @@ struct i830_sdvo_enhancement_limits_reply {
     uint16_t default_value;
 } __attribute__((packed));
 
-#define SDVO_CMD_GET_FLICKER_FITER			0x4d
-#define SDVO_CMD_SET_FLICKER_FITER			0x4e
+#define SDVO_CMD_GET_FLICKER_FILTER			0x4e
+#define SDVO_CMD_SET_FLICKER_FILTER			0x4f
 #define SDVO_CMD_GET_ADAPTIVE_FLICKER_FITER		0x50
 #define SDVO_CMD_SET_ADAPTIVE_FLICKER_FITER		0x51
 #define SDVO_CMD_GET_2D_FLICKER_FITER			0x53
