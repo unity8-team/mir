@@ -225,7 +225,7 @@ typedef struct {
 const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-M",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -253,8 +253,8 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  20800,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
 	.sc_reset	= TV_SC_RESET_EVERY_4,
 	.pal_burst	= FALSE,
@@ -276,7 +276,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-443",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -304,10 +304,10 @@ const static tv_mode_t tv_modes[] = {
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
-	.sc_reset   = TV_SC_RESET_EVERY_8,
-	.pal_burst  = TRUE,
+	.dda2_inc       =   4093,       .dda2_size      =  27456,
+	.dda3_inc       =    310,       .dda3_size      =    525,
+	.sc_reset   = TV_SC_RESET_NEVER,
+	.pal_burst  = FALSE,
 
 	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
 	.composite_color = {
@@ -326,7 +326,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-J",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -354,8 +354,8 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  20800,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
 	.sc_reset	= TV_SC_RESET_EVERY_4,
 	.pal_burst	= FALSE,
@@ -377,7 +377,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "PAL-M",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -405,11 +405,11 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=    7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  16704,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
-	.sc_reset	= TV_SC_RESET_EVERY_4,
-	.pal_burst  = FALSE,
+	.sc_reset	= TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE,
 
 	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
 	.composite_color = {
@@ -429,7 +429,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL-N",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -458,9 +458,9 @@ const static tv_mode_t tv_modes[] = {
 
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
-	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
+	.dda1_inc       =    135,
+	.dda2_inc       =  23578,       .dda2_size      =  27648,
+	.dda3_inc       =    134,       .dda3_size      =    625,
 	.sc_reset   = TV_SC_RESET_EVERY_8,
 	.pal_burst  = TRUE,
 
@@ -482,7 +482,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -510,8 +510,8 @@ const static tv_mode_t tv_modes[] = {
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
+	.dda2_inc       =   4122,       .dda2_size      =  27648,
+	.dda3_inc       =     67,       .dda3_size      =    625,
 	.sc_reset   = TV_SC_RESET_EVERY_8,
 	.pal_burst  = TRUE,
 
