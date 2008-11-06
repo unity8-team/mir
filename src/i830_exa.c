@@ -37,25 +37,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include <string.h>
 
-#ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 1
-#endif
-
 #define ALWAYS_SYNC		0
 #define ALWAYS_FLUSH		0
-
-#ifdef DEBUG_I830FALLBACK
-#define I830FALLBACK(s, arg...)				\
-do {							\
-	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
-	return FALSE;					\
-} while(0)
-#else
-#define I830FALLBACK(s, arg...) 			\
-do { 							\
-	return FALSE;					\
-} while(0)
-#endif
 
 const int I830CopyROP[16] =
 {

@@ -42,23 +42,6 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
-#ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 1
-#endif
-
-#ifdef DEBUG_I830FALLBACK
-#define I830FALLBACK(s, arg...)				\
-do {							\
-	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
-	return FALSE;					\
-} while(0)
-#else
-#define I830FALLBACK(s, arg...) 			\
-do { 							\
-	return FALSE;					\
-} while(0)
-#endif
-
 /* 24 = 4 vertices/composite * 3 texcoords/vertex * 2 floats/texcoord
  *
  * This is an upper-bound based on the case of a non-affine
@@ -167,6 +150,8 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 
 static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -198,6 +183,7 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 
 static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -232,6 +218,7 @@ Bool
 i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
     uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
