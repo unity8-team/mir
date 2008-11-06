@@ -1577,7 +1577,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
 /** Bits that must be preserved by software */
-# define TV_CTL_SAVE			((3 << 8) | (3 << 6))
+# define TV_CTL_SAVE			((1 << 11) | (3 << 9) | (7 << 6) | 0xf)
 # define TV_FUSE_STATE_MASK		(3 << 4)
 /** Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)

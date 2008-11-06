@@ -1042,7 +1042,8 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     if (!tv_mode)
 	return;	/* can't happen (mode_prepare prevents this) */
 
-    tv_ctl = 0;
+    tv_ctl = INREG(TV_CTL);
+    tv_ctl &= TV_CTL_SAVE;
 
     switch (dev_priv->type) {
 	default:
