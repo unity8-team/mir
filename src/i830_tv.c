@@ -487,7 +487,7 @@ const static tv_mode_t tv_modes[] = {
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
 
-	.hsync_end	= 64,		    .hblank_end		= 128,
+	.hsync_end	= 64,		    .hblank_end		= 142,
 	.hblank_start	= 844,	    .htotal		= 863,
 
 	.progressive	= FALSE,    .trilevel_sync = FALSE,
@@ -548,7 +548,7 @@ const static tv_mode_t tv_modes[] = {
 	.veq_ena        = FALSE,
 
 	.vi_end_f1      = 44,               .vi_end_f2          = 44,
-	.nbr_end        = 496,
+	.nbr_end        = 479,
 
 	.burst_ena      = FALSE,
 
@@ -572,7 +572,7 @@ const static tv_mode_t tv_modes[] = {
 	.veq_ena        = FALSE,
 
 	.vi_end_f1      = 44,               .vi_end_f2          = 44,
-	.nbr_end        = 496,
+	.nbr_end        = 479,
 
 	.burst_ena      = FALSE,
 
@@ -733,7 +733,7 @@ const static tv_mode_t tv_modes[] = {
 	.component_only = 1,
 
 	.hsync_end      = 88,               .hblank_end         = 235,
-	.hblank_start   = 2155,             .htotal             = 2200,
+	.hblank_start   = 2155,             .htotal             = 2201,
 
 	.progressive    = FALSE,	    .trilevel_sync = TRUE,
 
