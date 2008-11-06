@@ -144,7 +144,7 @@ static const uint32_t filter_table[] = {
     0x2EC03C80, 0x320029C0, 0x3D403080, 0x29402F00,
     0x308031C0, 0x2F203DC0, 0x31802900, 0x3E8030C0,
     0x28802F40, 0x30C03140, 0x2F203F40, 0x31402840,
-    0x28003100, 0x28002F00, 0x00003100, 0x36403000, 
+    0x28003100, 0x28002F00, 0x00003100, 0x36403000,
     0x2D002CC0, 0x30003640, 0x2D0036C0,
     0x35C02CC0, 0x37403000, 0x2C802D40, 0x30003540,
     0x2D8037C0, 0x34C02C40, 0x38403000, 0x2BC02E00,
@@ -215,7 +215,7 @@ typedef struct {
  *
  * The constants below were all computed using a 107.520MHz clock
  */
- 
+
 /**
  * Register programming values for TV modes.
  *
@@ -225,7 +225,7 @@ typedef struct {
 const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-M",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -239,7 +239,7 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,		    .veq_start_f1	= 0,
 	.veq_start_f2	= 1,		    .veq_len		= 18,
 
 	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
@@ -249,7 +249,7 @@ const static tv_mode_t tv_modes[] = {
 	.hburst_start	= 72,		    .hburst_len		= 34,
 	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
-	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240,
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
@@ -276,7 +276,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-443",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -289,7 +289,7 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1 = 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,		    .veq_start_f1	= 0,
 	.veq_start_f2	= 1,		    .veq_len		= 18,
 
 	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
@@ -299,7 +299,7 @@ const static tv_mode_t tv_modes[] = {
 	.hburst_start	= 72,		    .hburst_len		= 34,
 	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
-	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240,
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
@@ -326,7 +326,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-J",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -340,7 +340,7 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1	= 6,	    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,	    .veq_start_f1	= 0,
 	.veq_start_f2 = 1,	    .veq_len		= 18,
 
 	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
@@ -350,7 +350,7 @@ const static tv_mode_t tv_modes[] = {
 	.hburst_start	= 72,		    .hburst_len		= 34,
 	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
-	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240,
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
@@ -377,7 +377,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "PAL-M",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -391,7 +391,7 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1	= 6,		    .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,		    .veq_start_f1	= 0,
 	.veq_start_f2	= 1,		    .veq_len		= 18,
 
 	.vi_end_f1	= 20,		    .vi_end_f2		= 21,
@@ -401,7 +401,7 @@ const static tv_mode_t tv_modes[] = {
 	.hburst_start	= 72,		    .hburst_len		= 34,
 	.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 	.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
-	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240, 
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 240,
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
@@ -429,7 +429,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL-N",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -443,17 +443,17 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1	= 6,	   .vsync_start_f2	= 7,
 	.vsync_len	= 6,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,		    .veq_start_f1	= 0,
 	.veq_start_f2	= 1,		    .veq_len		= 18,
 
 	.vi_end_f1	= 24,		    .vi_end_f2		= 25,
 	.nbr_end	= 286,
 
 	.burst_ena	= TRUE,
-	.hburst_start = 73,	    	    .hburst_len		= 34,
+	.hburst_start = 73,		    .hburst_len		= 34,
 	.vburst_start_f1 = 8,	    .vburst_end_f1	= 285,
 	.vburst_start_f2 = 8,	    .vburst_end_f2	= 286,
-	.vburst_start_f3 = 9,	    .vburst_end_f3	= 286, 
+	.vburst_start_f3 = 9,	    .vburst_end_f3	= 286,
 	.vburst_start_f4 = 9,	    .vburst_end_f4	= 285,
 
 
@@ -482,7 +482,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL",
-	.clock		= 107520,	
+	.clock		= 107520,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -495,7 +495,7 @@ const static tv_mode_t tv_modes[] = {
 	.vsync_start_f1	= 5,	    .vsync_start_f2	= 6,
 	.vsync_len	= 5,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 0,
+	.veq_ena	= TRUE,	    .veq_start_f1	= 0,
 	.veq_start_f2	= 1,	    .veq_len		= 15,
 
 	.vi_end_f1	= 24,		    .vi_end_f2		= 25,
@@ -505,7 +505,7 @@ const static tv_mode_t tv_modes[] = {
 	.hburst_start	= 73,		    .hburst_len		= 32,
 	.vburst_start_f1 = 8,		    .vburst_end_f1	= 285,
 	.vburst_start_f2 = 8,		    .vburst_end_f2	= 286,
-	.vburst_start_f3 = 9,		    .vburst_end_f3	= 286, 
+	.vburst_start_f3 = 9,		    .vburst_end_f3	= 286,
 	.vburst_start_f4 = 9,		    .vburst_end_f4	= 285,
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
@@ -532,7 +532,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "480p@59.94Hz",
-	.clock 	= 107520,	
+	.clock		= 107520,
 	.refresh	= 59.94,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
@@ -540,7 +540,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 64,               .hblank_end         = 122,
 	.hblank_start   = 842,              .htotal             = 857,
 
-	.progressive    = TRUE,.trilevel_sync = FALSE,
+	.progressive    = TRUE,		    .trilevel_sync = FALSE,
 
 	.vsync_start_f1 = 12,               .vsync_start_f2     = 12,
 	.vsync_len      = 12,
@@ -556,7 +556,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "480p@60Hz",
-	.clock 	= 107520,	
+	.clock		= 107520,
 	.refresh	= 60.0,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
@@ -564,7 +564,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 64,               .hblank_end         = 122,
 	.hblank_start   = 842,              .htotal             = 856,
 
-	.progressive    = TRUE,.trilevel_sync = FALSE,
+	.progressive    = TRUE,		    .trilevel_sync = FALSE,
 
 	.vsync_start_f1 = 12,               .vsync_start_f2     = 12,
 	.vsync_len      = 12,
@@ -580,7 +580,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "576p",
-	.clock 	= 107520,	
+	.clock		= 107520,
 	.refresh	= 50.0,
 	.oversample     = TV_OVERSAMPLE_4X,
 	.component_only = 1,
@@ -588,7 +588,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 64,               .hblank_end         = 139,
 	.hblank_start   = 859,              .htotal             = 863,
 
-	.progressive    = TRUE,		.trilevel_sync = FALSE,
+	.progressive    = TRUE,		    .trilevel_sync = FALSE,
 
 	.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
 	.vsync_len      = 10,
@@ -604,7 +604,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "720p@60Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 60.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -612,7 +612,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 80,               .hblank_end         = 300,
 	.hblank_start   = 1580,             .htotal             = 1649,
 
-	.progressive    = TRUE, 	    .trilevel_sync = TRUE,
+	.progressive    = TRUE,		    .trilevel_sync = TRUE,
 
 	.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
 	.vsync_len      = 10,
@@ -628,7 +628,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "720p@59.94Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 59.94,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -636,7 +636,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 80,               .hblank_end         = 300,
 	.hblank_start   = 1580,             .htotal             = 1651,
 
-	.progressive    = TRUE, 	    .trilevel_sync = TRUE,
+	.progressive    = TRUE,		    .trilevel_sync = TRUE,
 
 	.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
 	.vsync_len      = 10,
@@ -652,7 +652,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "720p@50Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 50.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -660,7 +660,7 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 80,               .hblank_end         = 300,
 	.hblank_start   = 1580,             .htotal             = 1979,
 
-	.progressive    = TRUE, 	        .trilevel_sync = TRUE,
+	.progressive    = TRUE,	            .trilevel_sync = TRUE,
 
 	.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
 	.vsync_len      = 10,
@@ -677,7 +677,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "1080i@50Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 25.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -685,14 +685,13 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 88,               .hblank_end         = 235,
 	.hblank_start   = 2155,             .htotal             = 2639,
 
-	.progressive    = FALSE, 	    .trilevel_sync = TRUE,
+	.progressive    = FALSE,	    .trilevel_sync = TRUE,
 
-	.vsync_start_f1 = 4,              .vsync_start_f2     = 5,
+	.vsync_start_f1 = 4,                .vsync_start_f2     = 5,
 	.vsync_len      = 10,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 4,
-	.veq_start_f2   = 4,	    .veq_len		= 10,
-
+	.veq_ena	= TRUE,		    .veq_start_f1	= 4,
+	.veq_start_f2   = 4,		    .veq_len		= 10,
 
 	.vi_end_f1      = 21,           .vi_end_f2          = 22,
 	.nbr_end        = 539,
@@ -703,7 +702,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "1080i@60Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 30.0,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -711,14 +710,13 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 88,               .hblank_end         = 235,
 	.hblank_start   = 2155,             .htotal             = 2199,
 
-	.progressive    = FALSE, 	    .trilevel_sync = TRUE,
+	.progressive    = FALSE,	    .trilevel_sync = TRUE,
 
-	.vsync_start_f1 = 4,               .vsync_start_f2     = 5,
+	.vsync_start_f1 = 4,                .vsync_start_f2     = 5,
 	.vsync_len      = 10,
 
-	.veq_ena	= TRUE,		    .veq_start_f1    	= 4,
+	.veq_ena	= TRUE,		    .veq_start_f1	= 4,
 	.veq_start_f2	= 4,		    .veq_len		= 10,
-
 
 	.vi_end_f1      = 21,               .vi_end_f2          = 22,
 	.nbr_end        = 539,
@@ -729,7 +727,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name       = "1080i@59.94Hz",
-	.clock		= 148800,	
+	.clock		= 148800,
 	.refresh	= 29.97,
 	.oversample     = TV_OVERSAMPLE_2X,
 	.component_only = 1,
@@ -737,16 +735,16 @@ const static tv_mode_t tv_modes[] = {
 	.hsync_end      = 88,               .hblank_end         = 235,
 	.hblank_start   = 2155,             .htotal             = 2200,
 
-	.progressive    = FALSE, 	    .trilevel_sync = TRUE,
+	.progressive    = FALSE,	    .trilevel_sync = TRUE,
 
-	.vsync_start_f1 = 4,            .vsync_start_f2    = 5,
+	.vsync_start_f1 = 4,                .vsync_start_f2     = 5,
 	.vsync_len      = 10,
 
 	.veq_ena	= TRUE,		    .veq_start_f1	= 4,
-	.veq_start_f2 = 4,	    	    .veq_len = 10,
+	.veq_start_f2 = 4,		    .veq_len = 10,
 
 
-	.vi_end_f1      = 21,           .vi_end_f2         	= 22,
+	.vi_end_f1      = 21,               .vi_end_f2		= 22,
 	.nbr_end        = 539,
 
 	.burst_ena      = FALSE,
@@ -758,7 +756,7 @@ const static tv_mode_t tv_modes[] = {
 #define NUM_TV_MODES sizeof(tv_modes) / sizeof (tv_modes[0])
 
 static const video_levels_t component_level = {
-	.blank = 279, .black = 279 
+	.blank = 279, .black = 279, .burst = 0,
 };
 
 static const color_conversion_t sdtv_component_color = {
@@ -929,8 +927,8 @@ static const tv_mode_t *
 i830_tv_mode_lookup (char *tv_format)
 {
     int			    i;
-    
-    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++) 
+
+    for (i = 0; i < sizeof(tv_modes) / sizeof (tv_modes[0]); i++)
     {
 	const tv_mode_t	*tv_mode = &tv_modes[i];
 
@@ -953,7 +951,7 @@ static int
 i830_tv_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
     const tv_mode_t	*tv_mode = i830_tv_mode_find (output);
-    
+
     if (tv_mode && fabs (tv_mode->refresh - xf86ModeVRefresh (mode)) < 1.0)
 	return MODE_OK;
     return MODE_CLOCK_RANGE;
@@ -971,8 +969,8 @@ i830_tv_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
     if (!tv_mode)
 	return FALSE;
-    
-    for (i = 0; i < xf86_config->num_output; i++) 
+
+    for (i = 0; i < xf86_config->num_output; i++)
     {
 	xf86OutputPtr other_output = xf86_config->output[i];
 
@@ -1040,10 +1038,10 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     const video_levels_t	*video_levels;
     const color_conversion_t	*color_conversion;
     Bool burst_ena;
-    
+
     if (!tv_mode)
 	return;	/* can't happen (mode_prepare prevents this) */
-    
+
     tv_ctl = 0;
 
     switch (dev_priv->type) {
@@ -1207,7 +1205,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	i830WaitForVblank(pScrn);
 
 	/* Filter ctl must be set before TV_WIN_SIZE */
-	OUTREG(TV_FILTER_CTL_1, TV_AUTO_SCALE); 
+	OUTREG(TV_FILTER_CTL_1, TV_AUTO_SCALE);
 	xsize = tv_mode->hblank_start - tv_mode->hblank_end;
 	if (tv_mode->progressive)
 	    ysize = tv_mode->nbr_end + 1;
@@ -1216,9 +1214,9 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
 	xpos += dev_priv->margin[TV_MARGIN_LEFT];
 	ypos += dev_priv->margin[TV_MARGIN_TOP];
-	xsize -= (dev_priv->margin[TV_MARGIN_LEFT] + 
+	xsize -= (dev_priv->margin[TV_MARGIN_LEFT] +
 		  dev_priv->margin[TV_MARGIN_RIGHT]);
-	ysize -= (dev_priv->margin[TV_MARGIN_TOP] + 
+	ysize -= (dev_priv->margin[TV_MARGIN_TOP] +
 		  dev_priv->margin[TV_MARGIN_BOTTOM]);
 	OUTREG(TV_WIN_POS, (xpos<<16)|ypos);
 	OUTREG(TV_WIN_SIZE, (xsize<<16)|ysize);
@@ -1227,7 +1225,7 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	OUTREG(dspcntr_reg, dspcntr);
 	/* Flush the plane changes */
 	OUTREG(dspbase_reg, INREG(dspbase_reg));
-    } 	
+    }
 
     j = 0;
     for (i = 0; i < 60; i++)
@@ -1381,7 +1379,7 @@ i830_tv_detect(xf86OutputPtr output)
 	i830_tv_format_configure_property (output);
 #endif
     }
-	
+
     switch (type) {
     case TV_TYPE_NONE:
         return XF86OutputStatusDisconnected;
@@ -1394,8 +1392,8 @@ i830_tv_detect(xf86OutputPtr output)
 
 static struct input_res {
     char *name;
-    int w, h;	
-} input_res_table[] = 
+    int w, h;
+} input_res_table[] =
 {
 	{"640x480", 640, 480},
 	{"800x600", 800, 600},
@@ -1425,16 +1423,16 @@ i830_tv_get_modes(xf86OutputPtr output)
 	struct input_res *input = &input_res_table[j];
 	unsigned int hactive_s = input->w;
 	unsigned int vactive_s = input->h;
-	
+
 	if (tv_mode->max_srcw && input->w > tv_mode->max_srcw)
 	    continue;
 
-	if (input->w > 1024 && (!tv_mode->progressive 
+	if (input->w > 1024 && (!tv_mode->progressive
 				&& !tv_mode->component_only))
 	    continue;
 
 	mode_ptr = xnfcalloc(1, sizeof(DisplayModeRec));
-    	mode_ptr->name = xnfalloc(strlen(input->name) + 1);
+	mode_ptr->name = xnfalloc(strlen(input->name) + 1);
 	strcpy (mode_ptr->name, input->name);
 
 	mode_ptr->HDisplay = hactive_s;
@@ -1451,17 +1449,17 @@ i830_tv_get_modes(xf86OutputPtr output)
 	    mode_ptr->VSyncEnd = mode_ptr->VSyncStart  + 1;
 	mode_ptr->VTotal = vactive_s + 33;
 
-	mode_ptr->Clock = (int) (tv_mode->refresh * 
-				 mode_ptr->VTotal * 
+	mode_ptr->Clock = (int) (tv_mode->refresh *
+				 mode_ptr->VTotal *
 				 mode_ptr->HTotal / 1000.0);
-	
+
 	mode_ptr->type = M_T_DRIVER;
 	mode_ptr->next = ret;
 	mode_ptr->prev = NULL;
 	if (ret != NULL)
 	    ret->prev = mode_ptr;
 	ret = mode_ptr;
-    } 
+    }
 
     return ret;
 }
@@ -1499,7 +1497,6 @@ i830_tv_format_set_property (xf86OutputPtr output)
     return err == Success;
 }
 
-    
 /**
  * Configure the TV_FORMAT property to list only supported formats
  *
@@ -1515,16 +1512,16 @@ i830_tv_format_configure_property (xf86OutputPtr output)
     Atom		    current_atoms[NUM_TV_MODES];
     int			    num_atoms = 0;
     int			    i;
-    
+
     if (!output->randr_output)
 	return Success;
 
     for (i = 0; i < NUM_TV_MODES; i++)
 	if (!tv_modes[i].component_only || dev_priv->type == TV_TYPE_COMPONENT)
 	    current_atoms[num_atoms++] = tv_format_name_atoms[i];
-    
+
     return RRConfigureOutputProperty(output->randr_output, tv_format_atom,
-				     TRUE, FALSE, FALSE, 
+				     TRUE, FALSE, FALSE,
 				     num_atoms, (INT32 *) current_atoms);
 }
 
@@ -1573,7 +1570,7 @@ i830_tv_create_resources(xf86OutputPtr output)
 	range[1] = 100;
 	err = RRConfigureOutputProperty(output->randr_output, margin_atoms[i],
 				    TRUE, TRUE, FALSE, 2, range);
-    
+
 	if (err != 0)
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "RRConfigureOutputProperty error, %d\n", err);
@@ -1595,8 +1592,8 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 		       RRPropertyValuePtr value)
 {
     int	i;
-    
-    if (property == tv_format_atom) 
+
+    if (property == tv_format_atom)
     {
 	I830OutputPrivatePtr    intel_output = output->driver_private;
 	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
@@ -1609,7 +1606,7 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 
 	memcpy (&atom, value->data, 4);
 	name = NameForAtom (atom);
-	
+
 	val = xalloc (strlen (name) + 1);
 	if (!val)
 	    return FALSE;
@@ -1652,7 +1649,7 @@ i830_tv_get_crtc(xf86OutputPtr output)
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
     int pipe = !!(INREG(TV_CTL) & TV_ENC_PIPEB_SELECT);
-   
+
     return i830_pipe_to_crtc(pScrn, pipe);
 }
 #endif
@@ -1712,7 +1709,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
      * bit, (either as a 0 or a 1), assume it doesn't really
      * exist
      */
-    if ((tv_dac_on & TVDAC_STATE_CHG_EN) == 0 || 
+    if ((tv_dac_on & TVDAC_STATE_CHG_EN) == 0 ||
 	    (tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
 	return;
 
@@ -1739,24 +1736,24 @@ i830_tv_init(ScrnInfoPtr pScrn)
     dev_priv->type = TV_TYPE_UNKNOWN;
 
     dev_priv->tv_format = NULL;
-    
+
     /* BIOS margin values */
     dev_priv->margin[TV_MARGIN_LEFT] = 54;
     dev_priv->margin[TV_MARGIN_TOP] = 36;
     dev_priv->margin[TV_MARGIN_RIGHT] = 46;
     dev_priv->margin[TV_MARGIN_BOTTOM] = 37;
-    
+
     if (output->conf_monitor)
     {
 	char	*tv_format;
-	
+
 	tv_format = xf86findOptionValue (output->conf_monitor->mon_option_lst, "TV Format");
 	if (tv_format)
 	    dev_priv->tv_format = xstrdup (tv_format);
     }
     if (!dev_priv->tv_format)
 	dev_priv->tv_format = xstrdup (tv_modes[0].name);
-    
+
     output->driver_private = intel_output;
     output->interlaceAllowed = FALSE;
     output->doubleScanAllowed = FALSE;
