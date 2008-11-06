@@ -615,10 +615,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
     }
 
     /* check LVDS table */
-    /* RS4xx can be mobile or desktop so check the connectors */
-    if (info->IsMobility ||
-	info->ChipFamily == CHIP_FAMILY_RS400 ||
-	info->ChipFamily == CHIP_FAMILY_RS480) {
+    /* IGP can be mobile or desktop so check the connectors */
+    if (info->IsMobility || info->IsIGP) {
 	offset = RADEON_BIOS16(info->ROMHeaderStart + 0x40);
 	if (offset) {
 	    info->BiosConnector[4].valid = TRUE;
