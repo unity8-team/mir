@@ -210,7 +210,8 @@ struct i830_sdvo_in_out_map {
 struct i830_sdvo_get_interrupt_event_source_response {
     uint16_t interrupt_status;
     unsigned int ambient_light_interrupt:1;
-    unsigned int pad:7;
+    unsigned int hdmi_audio_encrypt_change:1;
+    unsigned int pad:6;
 } __attribute__((packed));
 
 /**
