@@ -337,15 +337,15 @@ struct i830_sdvo_tv_format {
     unsigned int hdtv_std_smpte_240m_1080i_60:1;
     unsigned int hdtv_std_smpte_260m_1080i_59:1;
     unsigned int hdtv_std_smpte_260m_1080i_60:1;
-    unsigned int hdtv_std_smpte_270m_1080i_50:1;
-
     unsigned int hdtv_std_smpte_274m_1080i_50:1;
+
     unsigned int hdtv_std_smpte_274m_1080i_59:1;
     unsigned int hdtv_std_smpte_274m_1080i_60:1;
     unsigned int hdtv_std_smpte_274m_1080p_23:1;
     unsigned int hdtv_std_smpte_274m_1080p_24:1;
     unsigned int hdtv_std_smpte_274m_1080p_25:1;
     unsigned int hdtv_std_smpte_274m_1080p_29:1;
+    unsigned int hdtv_std_smpte_274m_1080p_30:1;
     unsigned int hdtv_std_smpte_274m_1080p_50:1;
 
     unsigned int hdtv_std_smpte_274m_1080p_59:1;
@@ -357,7 +357,7 @@ struct i830_sdvo_tv_format {
     unsigned int hdtv_std_smpte_296m_720p_50:1;
     unsigned int hdtv_std_smpte_293m_480p_59:1;
 
-    unsigned int hdtv_std_smpte_270m_480i_59:1;
+    unsigned int hdtv_std_smpte_170m_480i_59:1;
     unsigned int hdtv_std_iturbt601_576i_50:1;
     unsigned int hdtv_std_iturbt601_576p_50:1;
     unsigned int hdtv_std_eia_7702a_480i_60:1;
@@ -386,7 +386,17 @@ struct i830_sdvo_sdtv_resolution_request {
     unsigned int pal_n:1;
     unsigned int pal_nc:1;
     unsigned int pal_60:1;
+    unsigned int secam_b:1;
+    unsigned int secam_d:1;
+    unsigned int secam_g:1;
+    unsigned int secam_k:1;
+
+    unsigned int secam_k1:1;
+    unsigned int secam_l:1;
+    unsigned int secam_60:1;
+    unsigned int pad:5;
 } __attribute__((packed));
+
 struct i830_sdvo_sdtv_resolution_reply {
     unsigned int res_320x200:1;
     unsigned int res_320x240:1;
@@ -402,6 +412,7 @@ struct i830_sdvo_sdtv_resolution_reply {
     unsigned int res_720x480:1;
     unsigned int res_720x540:1;
     unsigned int res_720x576:1;
+    unsigned int res_768x576:1;
     unsigned int res_800x600:1;
     unsigned int res_832x624:1;
 
