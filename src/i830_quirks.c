@@ -335,6 +335,9 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
     { PCI_CHIP_845_G, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
 
+    /* Asus Eee Box has no LVDS */
+    { PCI_CHIP_I945_GME, 0x1043, 0x1252, quirk_ignore_lvds },
+
     { 0, 0, 0, NULL },
 };
 
