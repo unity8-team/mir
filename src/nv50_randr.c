@@ -468,10 +468,12 @@ nv50_output_detect(xf86OutputPtr output)
 		}
 	}
 
-	if (ddc_mon || detect_present)
+	if (ddc_mon || detect_present) {
+		free(ddc_mon);
 		return XF86OutputStatusConnected;
-	else
+	} else {
 		return XF86OutputStatusDisconnected;
+	}
 }
 
 static DisplayModePtr
