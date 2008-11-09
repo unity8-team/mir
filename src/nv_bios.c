@@ -3558,6 +3558,46 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 	return 0;
 }
 
+static int parse_bit_A_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
+{
+	/* Parses the load detect values for g80 cards.
+	 *
+	 * offset + 0 (16 bits): loadval table pointer
+	 */
+
+	uint16_t load_table_ptr;
+	uint8_t version, headerlen, entrylen, num_entries;
+
+	if (bitentry->length != 3) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT A table\n");
+		return -EINVAL;
+	}
+
+	load_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
+
+	version = bios->data[load_table_ptr];
+
+	if (version != 0x10) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "BIT loadval table version %d.%d not supported\n",
+			version >> 4, version & 0xF);
+		return -EINVAL;
+	}
+
+	headerlen = bios->data[load_table_ptr + 1];
+	entrylen = bios->data[load_table_ptr + 2];
+	num_entries = bios->data[load_table_ptr + 3];
+
+	if (headerlen != 4 || entrylen != 4 || num_entries != 2) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT loadval table\n");
+		return -EINVAL;
+	}
+
+	/* First entry is normal dac, 2nd tv-out perhaps? */
+	bios->dactestval = le32_to_cpu(*((uint32_t *)&bios->data[load_table_ptr + headerlen])) & 0x3FF;
+
+	return 0;
+}
+
 static int parse_bit_C_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* offset + 8  (16 bits): PLL limits table pointer
@@ -3789,7 +3829,7 @@ static int parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t b
 {
 	int entries = bios->data[bitoffset + 4];
 	/* parse i first, I next (which needs C & M before it), and L before D */
-	char parseorder[] = "iCMILDT";
+	char parseorder[] = "iCMILDTA";
 	bit_entry_t bitentry;
 	int i, j, offset, ret;
 
@@ -3804,6 +3844,9 @@ static int parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t b
 				continue;
 
 			switch (bitentry.id[0]) {
+			case 'A':
+				parse_bit_A_tbl_entry(pScrn, bios, &bitentry);
+				break;
 			case 'C':
 				if ((ret = parse_bit_C_tbl_entry(pScrn, bios, &bitentry)))
 					return ret;
