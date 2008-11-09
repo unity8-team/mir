@@ -121,34 +121,38 @@ NV50DacDetect (nouveauOutputPtr output)
 	NVPtr pNv = NVPTR(pScrn);
 	const int scrnIndex = pScrn->scrnIndex;
 	int sigstate;
-	uint32_t load, tmp, tmp2;
-
-	xf86DrvMsg(scrnIndex, X_PROBED, "Trying load detection on VGA%i ... ",
-		NV50OrOffset(output));
+	uint32_t load, dactestval, tmp;
 
 	NVWrite(pNv, NV50_DAC0_CLK_CTRL1 + NV50OrOffset(output) * 0x800, 0x00000001);
-	tmp2 = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
+	tmp = NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800);
 
 	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, NV50_DAC_DPMS_CTRL_DEFAULT_STATE | NV50_DAC_DPMS_CTRL_PENDING);
 	while (NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_DAC_DPMS_CTRL_PENDING);
-	/* The blob seems to try various patterns after each other. */
-	tmp = (pNv->NVArch == 0x50) ? 420 : 340;
-	NVWrite(pNv, NV50_DAC0_LOAD_CTRL + NV50OrOffset(output) * 0x800, tmp | NV50_DAC_LOAD_CTRL_ACTIVE);
+
+	dactestval = 340;
+	if (pNv->VBIOS.dactestval) {
+		dactestval = pNv->VBIOS.dactestval;
+		xf86DrvMsg(scrnIndex, X_INFO, "Using bios provided load value of %d\n", dactestval);
+	} else {
+		xf86DrvMsg(scrnIndex, X_INFO, "Using default load value of %d\n", dactestval);
+	}
+
+	NVWrite(pNv, NV50_DAC0_LOAD_CTRL + NV50OrOffset(output) * 0x800, dactestval | NV50_DAC_LOAD_CTRL_ACTIVE);
 	/* Why is this needed, load detect is almost instantanious and seemingly reliable for me. */
 	sigstate = xf86BlockSIGIO();
 	usleep(45000);
 	xf86UnblockSIGIO(sigstate);
 	load = NVRead(pNv, NV50_DAC0_LOAD_CTRL + NV50OrOffset(output) * 0x800);
 	NVWrite(pNv, NV50_DAC0_LOAD_CTRL + NV50OrOffset(output) * 0x800, 0);
-	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, NV50_DAC_DPMS_CTRL_PENDING | tmp2);
+	NVWrite(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800, NV50_DAC_DPMS_CTRL_PENDING | tmp);
 
 	// Use this DAC if all three channels show load.
 	if ((load & NV50_DAC_LOAD_CTRL_PRESENT) == NV50_DAC_LOAD_CTRL_PRESENT) {
-		xf86ErrorF("found one!\n");
+		xf86DrvMsg(scrnIndex, X_PROBED, "Load present on DAC-%i\n", NV50OrOffset(output));
 		return TRUE;
 	}
 
-	xf86ErrorF("nothing.\n");
+	xf86DrvMsg(scrnIndex, X_PROBED, "No Load present on DAC-%i\n", NV50OrOffset(output));
 	return FALSE;
 }
 
