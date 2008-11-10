@@ -188,13 +188,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	break;
     }
 
-#ifdef XF86DRI
-   if (info->directRenderingEnabled && info->DMAForXv)
-       /* The upload blit only supports multiples of 64 bytes */
-       dstPitch = (dstPitch + 63) & ~63;
-   else
-#endif
-       dstPitch = (dstPitch + 15) & ~15;
+   dstPitch = (dstPitch + 63) & ~63;
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
 	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
