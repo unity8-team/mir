@@ -303,5 +303,6 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RS780_9611, "ATI Radeon 3100 Graphics" },
   { PCI_CHIP_RS780_9612, "ATI Radeon HD 3200 Graphics" },
   { PCI_CHIP_RS780_9613, "ATI Radeon 3100 Graphics" },
+  { PCI_CHIP_RS780_9614, "ATI Radeon HD 3300 Graphics" },
   { -1,                 NULL }
 };
