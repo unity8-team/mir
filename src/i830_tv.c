@@ -1180,9 +1180,14 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    (i830_float_to_csc(color_conversion->bv) << 16) |
 	    (i830_float_to_luma(color_conversion->av)));
 
-    /* 2.6 fixed point value for contrast and saturation modifier,
-       use 1 as default */
-    OUTREG(TV_CLR_KNOBS, 0x00404000);
+    if (IS_I965G(pI830)) {
+	/* 2.6 fixed point value for contrast and saturation modifier,
+	   use 1 as default */
+	OUTREG(TV_CLR_KNOBS, 0x00404000);
+    } else {
+	/* 915/945 uses 2 bits exponent and 6 bits mantissa format */
+	OUTREG(TV_CLR_KNOBS, 0x00606000);
+    }
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 		(video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     {
