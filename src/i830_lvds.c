@@ -1377,11 +1377,9 @@ found_mode:
     dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
 
     /*
-     * Default to filling the whole screen if the mode is less than the
-     * native size. (Change default to origin FULL mode, i8xx can only work
-     * in that mode for now.)
+     * Avoid munging the aspect ratio by default.
      */
-    dev_priv->fitting_mode = FULL;
+    dev_priv->fitting_mode = FULL_ASPECT;
 
     return;
 
