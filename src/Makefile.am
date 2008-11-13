@@ -37,12 +37,12 @@ AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = -lm -ldrm_intel
+intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel
 if BUILD_UXA
 intel_drv_la_LIBADD += ../uxa/libuxa.la
 endif
 if XSERVER_LIBPCIACCESS
-intel_drv_la_LIBADD += @PCIACCESS_LIBS@ @DRM_LIBS@
+intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 endif
 
 XMODE_SRCS=\
