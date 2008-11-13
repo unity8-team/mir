@@ -80,6 +80,10 @@ i830_hdmi_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	SDVO_BORDER_ENABLE |
 	SDVO_VSYNC_ACTIVE_HIGH |
 	SDVO_HSYNC_ACTIVE_HIGH;
+
+    if (dev_priv->has_hdmi_sink)
+	    sdvox |= SDVO_AUDIO_ENABLE;
+
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
