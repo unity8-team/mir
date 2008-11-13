@@ -1019,7 +1019,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
-    uint32_t sdvox;
+    uint32_t sdvox = 0;
     int sdvo_pixel_multiply;
     struct i830_sdvo_in_out_map in_out;
     struct i830_sdvo_dtd input_dtd;
@@ -1041,8 +1041,10 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
 
-    if (dev_priv->is_hdmi)
+    if (dev_priv->is_hdmi) {
 	i830_sdvo_set_avi_infoframe(output, mode);
+	sdvox |= SDVO_AUDIO_ENABLE;
+    }
 
     i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
@@ -1090,11 +1092,11 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     /* Set the SDVO control regs. */
     if (IS_I965G(pI830)) {
-	sdvox = SDVO_BORDER_ENABLE |
+	sdvox |= SDVO_BORDER_ENABLE |
 		SDVO_VSYNC_ACTIVE_HIGH |
 		SDVO_HSYNC_ACTIVE_HIGH;
     } else {
-	sdvox = INREG(dev_priv->output_device);
+	sdvox |= INREG(dev_priv->output_device);
 	switch (dev_priv->output_device) {
 	case SDVOB:
 	    sdvox &= SDVOB_PRESERVE_MASK;
