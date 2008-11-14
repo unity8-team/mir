@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.4.1-1ubuntu11) jaunty; urgency=low
+
+  * Re-enable 11_textured_video_option.patch, but change logic so it is
+    enabled by default.  This allows people seeing issues with it to
+    turn it off if they wish.  (LP: #278318)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 14 Nov 2008 14:55:33 -0800
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu10) intrepid; urgency=low
 
   * 28_stolen_memory_counting_g4x.patch:

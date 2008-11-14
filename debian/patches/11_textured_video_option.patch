@@ -21,7 +21,9 @@ to be able to turn textured video off.
  src/i830_video.c  |    3 ++-
  3 files changed, 8 insertions(+), 2 deletions(-)
 
-[Updated to apply to the 2.3.1 driver -- bryce 6/12/08]
+[Updated to apply to the 2.3.1 driver -- bryce Jun 12, 2008]
+[Altered to default to 'true' so "TexturedVideo" is on by default, but can
+ be disabled if desired -- bryce Nov 12, 2008]
 
 diff -Nurp xserver-xorg-video-intel-2.3.1-1ubuntu1~bwh3-patched/src/i830.h xserver-xorg-video-intel-2.3.1-1ubuntu1~bwh3-working/src/i830.h
 --- xserver-xorg-video-intel-2.3.1-1ubuntu1~bwh3-patched/src/i830.h	2008-06-12 16:03:38.000000000 -0700
@@ -49,7 +51,7 @@ diff -Nurp xserver-xorg-video-intel-2.3.1-1ubuntu1~bwh3-patched/src/i830_driver.
     {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
     {OPTION_TRIPLEBUFFER, "TripleBuffer", OPTV_BOOLEAN,	{0},	FALSE},
     {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
-+   {OPTION_TEXTURED_VIDEO, "TexturedVideo", OPTV_BOOLEAN, {0}, FALSE},
++   {OPTION_TEXTURED_VIDEO, "TexturedVideo", OPTV_BOOLEAN, {0}, TRUE},
  #ifdef INTEL_XVMC
     {OPTION_XVMC,	"XvMC",		OPTV_BOOLEAN,	{0},	TRUE},
  #endif
@@ -57,7 +59,7 @@ diff -Nurp xserver-xorg-video-intel-2.3.1-1ubuntu1~bwh3-patched/src/i830_driver.
     pI830->XvDisabled =
  	!xf86ReturnOptValBool(pI830->Options, OPTION_XVIDEO, TRUE);
  
-+   pI830->TexturedXvEnabled = OVERLAY_NOEXIST(pI830) || xf86ReturnOptValBool(pI830->Options, OPTION_TEXTURED_VIDEO, FALSE);
++   pI830->TexturedXvEnabled = OVERLAY_NOEXIST(pI830) || xf86ReturnOptValBool(pI830->Options, OPTION_TEXTURED_VIDEO, TRUE);
 +
  #ifdef I830_XV
     if (xf86GetOptValInteger(pI830->Options, OPTION_VIDEO_KEY,
