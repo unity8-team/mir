@@ -158,39 +158,55 @@ i830_crt_detect_hotplug(xf86OutputPtr output)
 {
     ScrnInfoPtr	pScrn = output->scrn;
     I830Ptr	pI830 = I830PTR(pScrn);
-    uint32_t	temp;
+    uint32_t	hotplug_en, temp;
     const int	timeout_ms = 1000;
     int		starttime, curtime;
     int		tries = 1;
+    int		try;
 
-    /* On 4 series, CRT detect sequence need to be done twice for safe. */
-    if (IS_G4X(pI830))
+    /* On 4 series desktop, CRT detect sequence need to be done twice
+     * to get a reliable result. */
+    if (IS_G4X(pI830) && !IS_GM45(pI830))
 	tries = 2;
+    else
+	tries = 1;
 
-retry:
-    tries--;
+    hotplug_en = INREG(PORT_HOTPLUG_EN);
 
-    temp = INREG(PORT_HOTPLUG_EN);
+    hotplug_en &= ~CRT_HOTPLUG_MASK;
 
-    OUTREG(PORT_HOTPLUG_EN, temp | CRT_HOTPLUG_FORCE_DETECT | (1 << 5));
+    /* This starts the detection sequence */
+    hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
-    for (curtime = starttime = GetTimeInMillis();
-	 (curtime - starttime) < timeout_ms; curtime = GetTimeInMillis())
-    {
-	if ((INREG(PORT_HOTPLUG_EN) & CRT_HOTPLUG_FORCE_DETECT) == 0)
-	    break;
+    /* GM45 requires a longer activation period to reliably
+     * detect CRT
+     */
+    if (IS_GM45(pI830))
+	hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
+
+    /* Use the default voltage value */
+    hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
+
+    for (try = 0; try < tries; try++) {
+	/* turn FORCE_DETECT on */
+	OUTREG(PORT_HOTPLUG_EN, hotplug_en);
+
+	/* wait for FORCE_DETECT to go off */
+	for (curtime = starttime = GetTimeInMillis();
+	     (curtime - starttime) < timeout_ms;
+	     curtime = GetTimeInMillis())
+	{
+	    temp = INREG(PORT_HOTPLUG_EN);
+
+	    if ((temp & CRT_HOTPLUG_FORCE_DETECT) == 0)
+		break;
+	}
     }
 
-    if (tries > 0)
-	goto retry;
-
-    if ((INREG(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
-	CRT_HOTPLUG_MONITOR_COLOR)
-    {
-	return TRUE;
-    } else {
-	return FALSE;
-    }
+    /* Check the status to see if both blue and green are on now */
+    temp = INREG(PORT_HOTPLUG_STAT);
+    return ((temp & CRT_HOTPLUG_MONITOR_MASK) ==
+	    CRT_HOTPLUG_MONITOR_COLOR);
 }
 
 /**

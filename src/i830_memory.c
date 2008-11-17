@@ -393,6 +393,7 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     int dri_major, dri_minor, dri_patch;
     struct drm_i915_getparam gp;
     int has_gem;
+    int has_dri;
 #endif
 
     start = xcalloc(1, sizeof(*start));
@@ -431,23 +432,33 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     pI830->memory_list = start;
 
 #ifdef XF86DRI
-    if (pI830->directRenderingType == DRI_XF86DRI)
+    has_gem = FALSE;
+    has_dri = FALSE;
+    
+    if (pI830->directRenderingType == DRI_XF86DRI &&
+	xf86LoaderCheckSymbol ("DRIQueryVersion"))
+    {
 	DRIQueryVersion(&dri_major, &dri_minor, &dri_patch);
+	has_dri = TRUE;
+    }
 
-    has_gem = 0;
-    gp.param = I915_PARAM_HAS_GEM;
-    gp.value = &has_gem;
-
-    (void)drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GETPARAM,
-			      &gp, sizeof(gp));
+    if (pI830->directRenderingType >= DRI_XF86DRI)
+    {
+	has_gem = FALSE;
+	gp.param = I915_PARAM_HAS_GEM;
+	gp.value = &has_gem;
+    
+	(void)drmCommandWriteRead(pI830->drmSubFD, DRM_I915_GETPARAM,
+				  &gp, sizeof(gp));
+    }
 
     /* Now that we have our manager set up, initialize the kernel MM if
      * possible, covering almost all of the aperture.  We need libdri interface
      * 5.4 or newer so we can rely on the lock being held after DRIScreenInit,
      * rather than after DRIFinishScreenInit.
      */
-    if ((pI830->directRenderingType == DRI_XF86DRI && has_gem &&
-	 (dri_major > 5 || (dri_major == 5 && dri_minor >= 4))) ||
+    if ((pI830->directRenderingType == DRI_XF86DRI && has_gem && has_dri &&
+	(dri_major > 5 || (dri_major == 5 && dri_minor >= 4))) ||
 	(pI830->directRenderingType == DRI_DRI2 && has_gem))
     {
 	int mmsize;

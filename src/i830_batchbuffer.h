@@ -34,7 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 void intel_batch_init(ScrnInfoPtr pScrn);
 void intel_batch_teardown(ScrnInfoPtr pScrn);
-void intel_batch_flush(ScrnInfoPtr pScrn);
+void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed);
 
 static inline int
 intel_batch_space(I830Ptr pI830)
@@ -47,7 +47,7 @@ intel_batch_require_space(ScrnInfoPtr pScrn, I830Ptr pI830, GLuint sz)
 {
     assert(sz < pI830->batch_bo->size - 8);
     if (intel_batch_space(pI830) < sz)
-	intel_batch_flush(pScrn);
+	intel_batch_flush(pScrn, FALSE);
 }
 
 static inline void
@@ -119,8 +119,8 @@ do {									\
     if (pI830->batch_emitting != 0)					\
 	FatalError("%s: BEGIN_BATCH called without closing "		\
 		   "ADVANCE_BATCH\n", __FUNCTION__);			\
+    intel_batch_require_space(pScrn, pI830, (n) * 4);			\
     pI830->batch_emitting = (n) * 4;					\
-    intel_batch_require_space(pScrn, pI830, pI830->batch_emitting);	\
     pI830->batch_emit_start = pI830->batch_used;			\
 } while (0)
 
@@ -140,7 +140,7 @@ do {									\
 		   pI830->batch_emitting);				\
     if ((pI830->batch_emitting > 8) && (I810_DEBUG & DEBUG_ALWAYS_SYNC)) { \
 	/* Note: not actually syncing, just flushing each batch. */	\
-	intel_batch_flush(pScrn);					\
+	intel_batch_flush(pScrn, FALSE);					\
     }									\
     pI830->batch_emitting = 0;						\
 } while (0)

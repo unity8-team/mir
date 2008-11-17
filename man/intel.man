@@ -134,28 +134,22 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
+.BI "Option \*qXvPreferOverlay\*q \*q" boolean \*q
+Make hardware overlay be the first XV adaptor.
+The overlay behaves incorrectly in the presence of compositing, but some prefer
+it due to it syncing to vblank in the absence of compositing.  While most
+XV-using applications have options to select which XV adaptor to use, this
+option can be used to place the overlay first for applications which don't
+have options for selecting adaptors.
+Default: Textured video adaptor is preferred.
+.TP
 .BI "Option \*qLegacy3D\*q \*q" boolean \*q
-Enable support for the legacy i915_dri.so 3D driver.
-This will, among other things, make the 2D driver tell libGL to
-load the 3D driver i915_dri.so instead of the newer i915tex_dri.so.
-This option is only used for chipsets in the range i830-i945.
-Default for i830-i945 series: Enabled.
-Default for i810: The option is not used.
-Default for i965: The option is always true.
-.TP
-.BI "Option \*qAperTexSize\*q \*q" integer \*q
-Give the size in kiB of the AGP aperture area that is reserved for the
-DRM memory manager present in i915 drm from version 1.7.0 and upwards,
-and that is used with the 3D driver in Mesa from version 6.5.2 and
-upwards. If the size is set too high to make room for pre-allocated
-VideoRam, the driver will try to reduce it automatically. If you use only
-older Mesa or DRM versions, you may set this value to zero, and
-activate the legacy texture pool (see 
-.B "Option \*qLegacy3D\*q"
-). If you run 3D programs with large texture memory requirements, you might
-gain some performance by increasing this value.
-Default: 32768.
-.TP
+Enable support for the non-GEM mode of the 3D driver on i830 and newer.
+This will allocate a large static area for older Mesa to use for its texture
+pool.  On systems with a working GEM environment, this can be disabled to
+increase the memory pool available to other graphics tasks.
+Default for i830 and newer: Enabled.
+Default for i810: this option is not used.
 .BI "Option \*qPageFlip\*q \*q" boolean \*q
 Enable support for page flipping. This should improve 3D performance at the
 potential cost of worse performance with mixed 2D/3D. Also note that this gives
@@ -185,6 +179,12 @@ Default: "EXA".
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
+Default: Disabled
+.TP
+.BI "Option \*qFallbackDebug\*q \*q" boolean \*q
+Enable printing of debugging information on acceleration fallbacks to the
+server log.
+Default: Disabled
 .TP
 .BI "Option \*qForceEnablePipeA\*q \*q" boolean \*q
 Force the driver to leave pipe A enabled.  May be necessary in configurations

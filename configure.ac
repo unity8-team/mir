@@ -75,6 +75,11 @@ AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
               [XVMC="$enableval"],
               [XVMC=auto])
 
+AC_ARG_ENABLE(kms, AC_HELP_STRING([--enable-kms],
+                                  [Enable kernel mode setting support [[default=no]]]),
+              [KMS="$enableval"],
+              [KMS=no])
+
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -107,13 +112,15 @@ if test x$DRI != xno; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
-	AC_CHECK_HEADER(xf86drmMode.h,
-			[DRM_MODE=yes],[DRM_MODE=no]
-			[#include "stdint.h"])
-	dnl exaGetPixmapDriverPrivate required for DRM_MODE.
-	PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
-	if test "x$DRM_MODE" = xyes; then
-	   	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+	if test x$KMS != xno; then
+		AC_CHECK_HEADER(xf86drmMode.h,
+				[DRM_MODE=yes],[DRM_MODE=no]
+				[#include "stdint.h"])
+		dnl exaGetPixmapDriverPrivate required for DRM_MODE.
+		PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
+		if test "x$DRM_MODE" = xyes; then
+	   		AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+		fi
 	fi
 fi
 AC_MSG_CHECKING([whether to include DRI support])

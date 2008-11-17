@@ -1242,7 +1242,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define SDVOC_HOTPLUG_INT_EN			(1 << 25)
 # define TV_HOTPLUG_INT_EN			(1 << 18)
 # define CRT_HOTPLUG_INT_EN			(1 << 9)
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_32	(0 << 8)
+/* must use period 64 on GM45 according to docs */
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_64	(1 << 8)
+# define CRT_HOTPLUG_DAC_ON_TIME_2M		(0 << 7)
+# define CRT_HOTPLUG_DAC_ON_TIME_4M		(1 << 7)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_40		(0 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_50		(1 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_60		(2 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_70		(3 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_MASK	(3 << 5)
+# define CRT_HOTPLUG_DETECT_DELAY_1G		(0 << 4)
+# define CRT_HOTPLUG_DETECT_DELAY_2G		(1 << 4)
 # define CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
+# define CRT_HOTPLUG_MASK			(0x3fc)	/* Bits 9-2 */
 
 #define PORT_HOTPLUG_STAT	0x61114
 # define HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
@@ -1577,7 +1592,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
 /** Bits that must be preserved by software */
-# define TV_CTL_SAVE			((3 << 8) | (3 << 6))
+# define TV_CTL_SAVE			((1 << 11) | (3 << 9) | (7 << 6) | 0xf)
 # define TV_FUSE_STATE_MASK		(3 << 4)
 /** Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)

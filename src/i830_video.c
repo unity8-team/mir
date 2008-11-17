@@ -611,7 +611,6 @@ I830InitVideo(ScreenPtr pScreen)
     {
 	texturedAdaptor = I830SetupImageVideoTextured(pScreen);
 	if (texturedAdaptor != NULL) {
-	    adaptors[num_adaptors++] = texturedAdaptor;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up textured video\n");
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -625,7 +624,6 @@ I830InitVideo(ScreenPtr pScreen)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 	if (overlayAdaptor != NULL) {
-	    adaptors[num_adaptors++] = overlayAdaptor;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up overlay video\n");
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -633,6 +631,16 @@ I830InitVideo(ScreenPtr pScreen)
 	}
 	I830InitOffscreenImages(pScreen);
     }
+
+    if (overlayAdaptor && pI830->XvPreferOverlay)
+       adaptors[num_adaptors++] = overlayAdaptor;
+
+    if (texturedAdaptor)
+       adaptors[num_adaptors++] = texturedAdaptor;
+
+    if (overlayAdaptor && !pI830->XvPreferOverlay)
+       adaptors[num_adaptors++] = overlayAdaptor;
+
 #ifdef INTEL_XVMC
     if (intel_xvmc_probe(pScrn)) {
 	if (texturedAdaptor)

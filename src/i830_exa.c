@@ -37,25 +37,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include <string.h>
 
-#ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 1
-#endif
-
 #define ALWAYS_SYNC		0
 #define ALWAYS_FLUSH		0
-
-#ifdef DEBUG_I830FALLBACK
-#define I830FALLBACK(s, arg...)				\
-do {							\
-	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
-	return FALSE;					\
-} while(0)
-#else
-#define I830FALLBACK(s, arg...) 			\
-do { 							\
-	return FALSE;					\
-} while(0)
-#endif
 
 const int I830CopyROP[16] =
 {
@@ -248,11 +231,11 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 I830EXADoneSolid(PixmapPtr pPixmap)
 {
-#if ALWAYS_SYNC || ALWAYS_FLUSH || 1
+#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
-#if ALWAYS_FLUSH || 1
-    intel_batch_flush(pScrn);
+#if ALWAYS_FLUSH
+    intel_batch_flush(pScrn, FALSE);
 #endif
 #if ALWAYS_SYNC
     I830Sync(pScrn);
@@ -353,7 +336,7 @@ I830EXADoneCopy(PixmapPtr pDstPixmap)
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 
 #if ALWAYS_FLUSH
-    intel_batch_flush(pScrn);
+    intel_batch_flush(pScrn, FALSE);
 #endif
 #if ALWAYS_SYNC
     I830Sync(pScrn);
@@ -374,7 +357,7 @@ i830_done_composite(PixmapPtr pDst)
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 
 #if ALWAYS_FLUSH
-    intel_batch_flush(pScrn);
+    intel_batch_flush(pScrn, FALSE);
 #endif
 #if ALWAYS_SYNC
     I830Sync(pScrn);
@@ -530,7 +513,7 @@ static Bool I830EXAPrepareAccess(PixmapPtr pPix, int index)
 	return TRUE;
     }
 
-    intel_batch_flush(scrn);
+    intel_batch_flush(scrn, FALSE);
     if (i830->need_sync) {
 	I830Sync(scrn);
 	i830->need_sync = FALSE;
@@ -771,7 +754,7 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 	
-	intel_batch_flush(scrn);
+	intel_batch_flush(scrn, FALSE);
 	if (i830->need_sync) {
 	    I830Sync(scrn);
 	    i830->need_sync = FALSE;
