@@ -260,7 +260,7 @@
 	#define NV_CIO_CRE_44			0x44	/* head control */
 	#define NV_CIO_CRE_CSB			0x45
 	#define NV_CIO_CRE_RCR			0x46
-		#define NV_CIO_CRE_RCR_ENDIAN_BIG	0x80;
+		#define NV_CIO_CRE_RCR_ENDIAN_BIG	0x80
 	#define NV_CIO_CRE_47			0x47	/* extended fifo lwm, used on nv30+ */
 	#define NV_CIO_CRE_4B			0x4b	/* given patterns in 0x[2-3][a-c] regs, probably scratch 6 */
 	#define NV_CIO_CRE_52			0x52

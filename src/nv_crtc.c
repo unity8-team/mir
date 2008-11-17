@@ -499,7 +499,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->CRTC[NV_CIO_CR_RSAL_INDEX]  = 0x00;
 	regp->CRTC[NV_CIO_CR_CELL_HT_INDEX]  = SetBitField(vertBlankStart,9:9,5:5)
 				| SetBit(6)
-				| (mode->Flags & V_DBLSCAN) * NV_CIO_CR_CELL_HT_SCANDBL;
+				| ((mode->Flags & V_DBLSCAN) ? NV_CIO_CR_CELL_HT_SCANDBL : 0);
 	regp->CRTC[NV_CIO_CR_CURS_ST_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_CURS_END_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_SA_HI_INDEX] = 0x00;
