@@ -278,17 +278,26 @@ NV50CrtcBlank(nouveauCrtcPtr crtc, Bool blanked)
 		if (pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_BLANK);
 	} else {
-		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, crtc->front_buffer->offset >> 8);
+		/* The bufmgr hands addresses in GPU VM, CRTC wants physical
+		 * addresses.  VRAM is currently mapped at 512MiB in the VM,
+		 * so adjust here before poking the CRTCs.
+		 */
+		uint32_t fb = crtc->front_buffer->offset - 0x20000000;
+		uint32_t clut =
+			(crtc->index ? (pNv->CLUT1->offset - 0x20000000) :
+			 	       (pNv->CLUT0->offset - 0x20000000));
+		uint32_t cursor =
+			(crtc->index ? (pNv->Cursor2->offset - 0x20000000) :
+			 	       (pNv->Cursor->offset - 0x20000000));
+
+		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, fb >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
 		NVWrite(pNv, NV50_DISPLAY_UNK_380, 0);
 		/* RAM is clamped to 256 MiB. */
 		NVWrite(pNv, NV50_DISPLAY_RAM_AMOUNT, pNv->RamAmountKBytes * 1024 - 1);
 		NVWrite(pNv, NV50_DISPLAY_UNK_388, 0x150000);
 		NVWrite(pNv, NV50_DISPLAY_UNK_38C, 0);
-		if (crtc->index == 1)
-			NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor2->offset >> 8);
-		else
-			NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, pNv->Cursor->offset >> 8);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CURSOR_OFFSET, cursor >> 8);
 		if(pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_UNBLANK);
 
@@ -298,10 +307,7 @@ NV50CrtcBlank(nouveauCrtcPtr crtc, Bool blanked)
 		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_MODE, 
 			pScrn->depth == 8 ? NV50_CRTC0_CLUT_MODE_OFF : NV50_CRTC0_CLUT_MODE_ON);
 		/* Each CRTC has it's own CLUT. */
-		if (crtc->index == 1)
-			NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT1->offset >> 8);
-		else
-			NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, pNv->CLUT0->offset >> 8);
+		NV50CrtcCommand(crtc, NV50_CRTC0_CLUT_OFFSET, clut >> 8);
 		if (pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK1, NV84_CRTC0_BLANK_UNK1_UNBLANK);
 		NV50CrtcCommand(crtc, NV50_CRTC0_BLANK_CTRL, NV50_CRTC0_BLANK_CTRL_UNBLANK);
