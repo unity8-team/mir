@@ -4065,7 +4065,10 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	bios->fp.strapping = get_fp_strap(pScrn, bios);
 	if ((ret = parse_lvds_manufacturer_table(pScrn, bios, 0)))
 		return ret;
+#ifndef __powerpc__
 	return parse_fp_mode_table(pScrn, bios, &fpp);
+#endif
+	return 0;
 }
 
 static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
