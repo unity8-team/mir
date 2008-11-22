@@ -156,7 +156,7 @@ nv_output_detect(xf86OutputPtr output)
 	struct nouveau_encoder *det_encoder;
 	xf86OutputStatus ret = XF86OutputStatusDisconnected;
 
-	struct nouveau_encoder *find_encoder_by_type(NVOutputType type)
+	struct nouveau_encoder *find_encoder_by_type(enum nouveau_encoder_type type)
 	{
 		int i;
 		for (i = 0; i < pNv->dcb_table.entries; i++)
@@ -268,7 +268,7 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 			return NULL;
 
 	if (nv_encoder->dcb->type == OUTPUT_LVDS)
-		parse_lvds_manufacturer_table(pScrn, &NVPTR(pScrn)->VBIOS, nv_encoder->native_mode->Clock);
+		parse_lvds_manufacturer_table(pScrn, nv_encoder->native_mode->Clock);
 
 	return edid_modes;
 }

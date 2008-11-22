@@ -29,6 +29,7 @@ nouveau_drv_la_LDFLAGS = -module -avoid-version
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
+			 nouveau_bios.h \
 			 nouveau_device.c nouveau_device.h nouveau_drmif.h \
 			 nouveau_channel.c nouveau_channel.h \
 			 nouveau_grobj.c nouveau_grobj.h \

@@ -24,7 +24,6 @@
 
 #include "nv_include.h"
 
-
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 #define bswap_16 bswap16
 #define bswap_32 bswap32
@@ -32,6 +31,7 @@
 #include <byteswap.h>
 #endif
 
+typedef struct nouveau_bios bios_t;
 
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
@@ -3103,7 +3103,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointer
 	return 0;
 }
 
-int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, int pxclk)
+int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 {
 	/* The LVDS table header is (mostly) described in
 	 * parse_lvds_manufacturer_table_header(): the BIT header additionally
@@ -3132,6 +3132,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, bios_t *bios, int pxclk)
 	 * tests.
 	 */
 
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	unsigned int lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
 	uint16_t lvdsofs;
@@ -3740,7 +3741,7 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 	bios->fp.strapping = get_fp_strap(pScrn, bios);
 
-	return parse_lvds_manufacturer_table(pScrn, bios, 0);
+	return parse_lvds_manufacturer_table(pScrn, 0);
 }
 
 static int parse_bit_M_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -4063,7 +4064,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 		return 0;
 
 	bios->fp.strapping = get_fp_strap(pScrn, bios);
-	if ((ret = parse_lvds_manufacturer_table(pScrn, bios, 0)))
+	if ((ret = parse_lvds_manufacturer_table(pScrn, 0)))
 		return ret;
 #ifndef __powerpc__
 	return parse_fp_mode_table(pScrn, bios, &fpp);

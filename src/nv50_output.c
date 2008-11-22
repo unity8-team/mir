@@ -156,7 +156,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	if (output->type == OUTPUT_LVDS) {
 		/* now fpindex should be known, so reread the table here. */
 		/* not that we do a lot with the information. */
-		parse_lvds_manufacturer_table(pScrn, &pNv->VBIOS, 0);
+		parse_lvds_manufacturer_table(pScrn, 0);
 	}
 
 	/* This needs to be handled in the same way as pre-NV5x on the long run. */
