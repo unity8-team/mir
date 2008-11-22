@@ -270,6 +270,14 @@ void NVSetOwner(NVPtr pNv, int owner)
 	}
 }
 
+bool nv_heads_tied(NVPtr pNv)
+{
+	if (pNv->NVArch == 0x11)
+		return !!(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28));
+
+	return (NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44) == 0x4);
+}
+
 static void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 {
 	uint8_t cr11;
@@ -285,12 +293,16 @@ static void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
 	NVWriteVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX, cr11);
 }
 
-void NVLockVgaCrtcs(NVPtr pNv, bool lock)
+bool NVLockVgaCrtcs(NVPtr pNv, bool lock)
 {
+	bool waslocked = !NVReadVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX);
+
 	NVLockVgaCrtc(pNv, 0, lock);
 	/* NV11 has independently lockable crtcs, except when tied */
 	if (pNv->NVArch == 0x11 && !(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28)))
 		NVLockVgaCrtc(pNv, 1, lock);
+
+	return waslocked;
 }
 
 void NVBlankScreen(NVPtr pNv, int head, bool blank)

@@ -147,6 +147,27 @@ update_output_fields(xf86OutputPtr output, struct nouveau_encoder *det_encoder)
 	}
 }
 
+static bool edid_sink_connected(xf86OutputPtr output)
+{
+	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
+	NVPtr pNv = NVPTR(output->scrn);
+	bool waslocked = NVLockVgaCrtcs(pNv, false);
+	bool wastied = nv_heads_tied(pNv);
+
+	if (wastied)
+		NVSetOwner(pNv, 0);	/* necessary? */
+
+	nv_connector->edid = xf86OutputGetEDID(output, nv_connector->pDDCBus);
+	xf86OutputSetEDID(output, nv_connector->edid);
+
+	if (wastied)
+		NVSetOwner(pNv, 0x4);
+	if (waslocked)
+		NVLockVgaCrtcs(pNv, true);
+
+	return !!nv_connector->edid;
+}
+
 static xf86OutputStatus
 nv_output_detect(xf86OutputPtr output)
 {
@@ -166,9 +187,7 @@ nv_output_detect(xf86OutputPtr output)
 		return NULL;
 	}
 
-	if (nv_connector->pDDCBus &&
-	    (nv_connector->edid = xf86OutputGetEDID(output, nv_connector->pDDCBus),
-	     xf86OutputSetEDID(output, nv_connector->edid), nv_connector->edid)) {
+	if (nv_connector->pDDCBus && edid_sink_connected(output)) {
 		if (MULTIPLE_ENCODERS(nv_connector->possible_encoders)) {
 			if (nv_connector->edid->features.input_type)
 				det_encoder = find_encoder_by_type(OUTPUT_TMDS);
