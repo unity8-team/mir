@@ -1688,6 +1688,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     info->IsDellServer = FALSE;
     info->HasSingleDAC = FALSE;
     info->InternalTVOut = TRUE;
+    info->get_hardcoded_edid_from_bios = FALSE;
 
     for (i = 0; i < sizeof(RADEONCards) / sizeof(RADEONCardInfo); i++) {
 	if (info->Chipset == RADEONCards[i].pci_device_id) {
@@ -1705,6 +1706,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     switch (info->Chipset) {
     case PCI_CHIP_RN50_515E:  /* RN50 is based on the RV100 but 3D isn't guaranteed to work.  YMMV. */
     case PCI_CHIP_RN50_5969:
+	/* Some Sun servers have a hardcoded edid so KVMs work properly */
+	if ((PCI_SUB_VENDOR_ID(info->PciInfo) == 0x108e) &&
+	    (PCI_SUB_DEVICE_ID(info->PciInfo) == 0x4133))
+	    info->get_hardcoded_edid_from_bios = TRUE;
     case PCI_CHIP_RV100_QY:
     case PCI_CHIP_RV100_QZ:
 	/* DELL triple-head configuration. */

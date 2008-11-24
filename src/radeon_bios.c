@@ -1053,39 +1053,27 @@ Bool RADEONGetLVDSInfoFromBIOS (xf86OutputPtr output)
     return TRUE;
 }
 
-Bool RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output)
+xf86MonPtr RADEONGetHardCodedEDIDFromBIOS (xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned long tmp;
-    char EDID[256];
+    unsigned char edid[256];
+    xf86MonPtr mon = NULL;
 
-    if (!info->VBIOS) return FALSE;
+    if (!info->VBIOS)
+	return mon;
 
-    if (info->IsAtomBios) {
-	/* Not yet */
-	return FALSE;
-    } else {
-	if (!(tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x4c))) {
-	    return FALSE;
+    if (!info->IsAtomBios) {
+	tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x4c);
+	if (tmp) {
+	    memcpy(edid, (unsigned char*)(info->VBIOS + tmp), 256);
+	    if (edid[1] == 0xff)
+		mon = xf86InterpretEDID(output->scrn->scrnIndex, edid);
 	}
-
-	memcpy(EDID, (char*)(info->VBIOS + tmp), 256);
-
-	radeon_output->DotClock = (*(uint16_t*)(EDID+54)) * 10;
-	radeon_output->PanelXRes = (*(uint8_t*)(EDID+56)) + ((*(uint8_t*)(EDID+58))>>4)*256;
-	radeon_output->HBlank = (*(uint8_t*)(EDID+57)) + ((*(uint8_t*)(EDID+58)) & 0xf)*256;
-	radeon_output->HOverPlus = (*(uint8_t*)(EDID+62)) + ((*(uint8_t*)(EDID+65)>>6)*256);
-	radeon_output->HSyncWidth = (*(uint8_t*)(EDID+63)) + (((*(uint8_t*)(EDID+65)>>4) & 3)*256);
-	radeon_output->PanelYRes = (*(uint8_t*)(EDID+59)) + ((*(uint8_t*)(EDID+61))>>4)*256;
-	radeon_output->VBlank = ((*(uint8_t*)(EDID+60)) + ((*(uint8_t*)(EDID+61)) & 0xf)*256);
-	radeon_output->VOverPlus = (((*(uint8_t*)(EDID+64))>>4) + (((*(uint8_t*)(EDID+65)>>2) & 3)*16));
-	radeon_output->VSyncWidth = (((*(uint8_t*)(EDID+64)) & 0xf) + ((*(uint8_t*)(EDID+65)) & 3)*256);
-	radeon_output->Flags      = V_NHSYNC | V_NVSYNC; /**(uint8_t*)(EDID+71);*/
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Hardcoded EDID data will be used for TMDS panel\n");
     }
-    return TRUE;
+
+    return mon;
 }
 
 Bool RADEONGetTMDSInfoFromBIOS (xf86OutputPtr output)

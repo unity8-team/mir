@@ -836,6 +836,9 @@ typedef struct {
     Bool              r600_shadow_fb;
     void *fb_shadow;
 
+    /* some server chips have a hardcoded edid in the bios so that they work with KVMs */
+    Bool get_hardcoded_edid_from_bios;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -926,7 +929,7 @@ extern Bool RADEONGetClockInfoFromBIOS(ScrnInfoPtr pScrn);
 extern Bool RADEONGetConnectorInfoFromBIOS(ScrnInfoPtr pScrn);
 extern Bool RADEONGetDAC2InfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetExtTMDSInfoFromBIOS(xf86OutputPtr output);
-extern Bool RADEONGetHardCodedEDIDFromBIOS(xf86OutputPtr output);
+extern xf86MonPtr RADEONGetHardCodedEDIDFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn);
 extern Bool RADEONGetLVDSInfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetTMDSInfoFromBIOS(xf86OutputPtr output);

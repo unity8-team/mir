@@ -229,7 +229,14 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    (radeon_output->ddc_i2c.mask_clk_reg == RADEON_GPIO_VGA_DDC) &&
 	    info->IsAtomBios)
 	    MonInfo = radeon_atom_get_edid(output);
-	else {
+	else if (info->get_hardcoded_edid_from_bios) {
+	    MonInfo = RADEONGetHardCodedEDIDFromBIOS(output);
+	    if (MonInfo == NULL) {
+		RADEONI2CDoLock(output, TRUE);
+		MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
+		RADEONI2CDoLock(output, FALSE);
+	    }
+	} else {
 	    RADEONI2CDoLock(output, TRUE);
 	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
 	    RADEONI2CDoLock(output, FALSE);
