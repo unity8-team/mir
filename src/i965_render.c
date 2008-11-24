@@ -1010,6 +1010,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 	intel_batch_flush (pScrn, FALSE);
 
 	if (check_twice) {
+	    bo_table[0] = pI830->batch_bo; /* get refreshed batch_bo */
 	    /* If the command still won't fit in an empty batch, then it's
 	     * just plain too big for the hardware---fallback to software.
 	     */
