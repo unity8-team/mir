@@ -472,7 +472,7 @@ radeon_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data
 
 }
 
-static const xf86CrtcFuncsRec radeon_crtc_funcs = {
+static xf86CrtcFuncsRec radeon_crtc_funcs = {
     .dpms = radeon_crtc_dpms,
     .save = NULL, /* XXX */
     .restore = NULL, /* XXX */
@@ -535,6 +535,13 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info = RADEONPTR(pScrn);
+
+    if ((info->ChipFamily < CHIP_FAMILY_R600) &&
+	(!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE))) {
+	radeon_crtc_funcs.shadow_create = radeon_crtc_shadow_create;
+	radeon_crtc_funcs.shadow_allocate = radeon_crtc_shadow_allocate;
+	radeon_crtc_funcs.shadow_destroy = radeon_crtc_shadow_destroy;
+    }
 
     if (mask & 1) {
 	if (pRADEONEnt->Controller[0])
