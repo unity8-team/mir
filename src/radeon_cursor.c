@@ -221,9 +221,7 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	OUTREG(AVIVO_D1CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
 	avivo_lock_cursor(crtc, FALSE);
     } else {
-	if (mode->Flags & V_INTERLACE)
-	    y /= 2;
-	else if (mode->Flags & V_DBLSCAN)
+	if (mode->Flags & V_DBLSCAN)
 	    y *= 2;
 
 	if (crtc_id == 0) {

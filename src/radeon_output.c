@@ -477,6 +477,12 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
     radeon_output->Flags &= ~RADEON_USE_RMX;
 
+    /* 
+     *  Refresh the Crtc values without INTERLACE_HALVE_V 
+     *  Should we use output->scrn->adjustFlags like xf86RandRModeConvert() does? 
+     */
+    xf86SetModeCrtc(adjusted_mode, 0);
+
     /* decide if we are using RMX */
     if ((radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
 	&& radeon_output->rmx_type != RMX_OFF) {
@@ -536,7 +542,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     if (IS_AVIVO_VARIANT) {
 	/* hw bug */
 	if ((mode->Flags & V_INTERLACE)
-	    && (mode->CrtcVSyncStart < (mode->CrtcVDisplay + 2)))
+	    && (adjusted_mode->CrtcVSyncStart < (adjusted_mode->CrtcVDisplay + 2)))
 	    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + 2;
     }
 
