@@ -1774,14 +1774,14 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     if (dev->BiosBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "BIOS address override, using 0x%08lx instead of 0x%08lx\n",
-		   dev->BiosBase,
-		   info->BIOSAddr);
+		   (unsigned long)dev->BiosBase,
+		   (unsigned long)info->BIOSAddr);
 	info->BIOSAddr = dev->BiosBase;
 	from           = X_CONFIG;
     }
     if (info->BIOSAddr) {
 	xf86DrvMsg(pScrn->scrnIndex, from,
-		   "BIOS at 0x%08lx\n", info->BIOSAddr);
+		   "BIOS at 0x%08lx\n", (unsigned long)info->BIOSAddr);
     }
 #endif
 
@@ -2750,7 +2750,8 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->MMIOAddr = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & ~0xffULL;
     info->MMIOSize = PCI_REGION_SIZE(info->PciInfo, 2);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TOTO SAYS %016llx\n", 
-		(unsigned long long)info->PciInfo->regions[2].base_addr);
+		(unsigned long long)PCI_REGION_BASE(info->PciInfo,
+		2, REGION_MEM));
     if (info->pEnt->device->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
 		   "MMIO address override, using 0x%08lx instead of 0x%016llx\n",

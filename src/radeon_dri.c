@@ -925,7 +925,8 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[agp] %d kB allocated with handle 0x%08x\n",
-	       info->dri->gartSize*1024, info->dri->agpMemHandle);
+	       info->dri->gartSize*1024,
+	       (unsigned int)info->dri->agpMemHandle);
 
     if (drmAgpBind(info->dri->drmFD,
 		   info->dri->agpMemHandle, info->dri->gartOffset) < 0) {
@@ -942,7 +943,8 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[agp] ring handle = 0x%08x\n", info->dri->ringHandle);
+	       "[agp] ring handle = 0x%08x\n",
+	       (unsigned int)info->dri->ringHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->ringHandle, info->dri->ringMapSize,
 	       &info->dri->ring) < 0) {
@@ -961,7 +963,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[agp] ring read ptr handle = 0x%08x\n",
-	       info->dri->ringReadPtrHandle);
+	       (unsigned int)info->dri->ringReadPtrHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->ringReadPtrHandle, info->dri->ringReadMapSize,
 	       &info->dri->ringReadPtr) < 0) {
@@ -981,7 +983,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[agp] vertex/indirect buffers handle = 0x%08x\n",
-	       info->dri->bufHandle);
+	       (unsigned int)info->dri->bufHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->bufHandle, info->dri->bufMapSize,
 	       &info->dri->buf) < 0) {
@@ -1001,7 +1003,7 @@ static Bool RADEONDRIAgpInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[agp] GART texture map handle = 0x%08x\n",
-	       info->dri->gartTexHandle);
+	       (unsigned int)info->dri->gartTexHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->gartTexHandle, info->dri->gartTexMapSize,
 	       &info->dri->gartTex) < 0) {
@@ -1034,7 +1036,8 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
 	       "[pci] %d kB allocated with handle 0x%08x\n",
-	       info->dri->gartSize*1024, info->dri->pciMemHandle);
+	       info->dri->gartSize*1024,
+	       (unsigned int)info->dri->pciMemHandle);
 
     RADEONDRIInitGARTValues(info);
 
@@ -1045,7 +1048,8 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[pci] ring handle = 0x%08x\n", info->dri->ringHandle);
+	       "[pci] ring handle = 0x%08x\n",
+	       (unsigned int)info->dri->ringHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->ringHandle, info->dri->ringMapSize,
 	       &info->dri->ring) < 0) {
@@ -1067,7 +1071,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[pci] ring read ptr handle = 0x%08x\n",
-	       info->dri->ringReadPtrHandle);
+	       (unsigned int)info->dri->ringReadPtrHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->ringReadPtrHandle, info->dri->ringReadMapSize,
 	       &info->dri->ringReadPtr) < 0) {
@@ -1090,7 +1094,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[pci] vertex/indirect buffers handle = 0x%08x\n",
-	       info->dri->bufHandle);
+	       (unsigned int)info->dri->bufHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->bufHandle, info->dri->bufMapSize,
 	       &info->dri->buf) < 0) {
@@ -1113,7 +1117,7 @@ static Bool RADEONDRIPciInit(RADEONInfoPtr info, ScreenPtr pScreen)
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
  	       "[pci] GART texture map handle = 0x%08x\n",
-	       info->dri->gartTexHandle);
+	       (unsigned int)info->dri->gartTexHandle);
 
     if (drmMap(info->dri->drmFD, info->dri->gartTexHandle, info->dri->gartTexMapSize,
 	       &info->dri->gartTex) < 0) {
@@ -1140,7 +1144,8 @@ static Bool RADEONDRIMapInit(RADEONInfoPtr info, ScreenPtr pScreen)
 	return FALSE;
     }
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[drm] register handle = 0x%08x\n", info->dri->registerHandle);
+	       "[drm] register handle = 0x%08x\n",
+	       (unsigned int)info->dri->registerHandle);
 
     return TRUE;
 }
