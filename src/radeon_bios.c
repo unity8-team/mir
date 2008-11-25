@@ -98,7 +98,7 @@ radeon_read_bios(ScrnInfoPtr pScrn)
 }
 
 static Bool
-radeon_read_unposted_bios(ScrnInfoPtr pScrn)
+radeon_read_disabled_bios(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
@@ -293,7 +293,6 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
     RADEONInfoPtr info     = RADEONPTR(pScrn);
     int tmp;
     unsigned short dptr;
-    Bool posted = TRUE;
 
 #ifdef XSERVER_LIBPCIACCESS
     int size = info->PciInfo->rom_size > RADEON_VBIOS_SIZE ? info->PciInfo->rom_size : RADEON_VBIOS_SIZE;
@@ -310,10 +309,8 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
 	    info->BIOSAddr = pInt10->BIOSseg << 4;
 	    (void)memcpy(info->VBIOS, xf86int10Addr(pInt10, info->BIOSAddr),
 			 RADEON_VBIOS_SIZE);
-	} else if (!radeon_read_bios(pScrn)) {
-	    (void)radeon_read_unposted_bios(pScrn);
-	    posted = FALSE;
-	}
+	} else if (!radeon_read_bios(pScrn))
+	    (void)radeon_read_disabled_bios(pScrn);
     }
 
     if (info->VBIOS[0] != 0x55 || info->VBIOS[1] != 0xaa) {
@@ -407,17 +404,14 @@ RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr  pInt10)
      * so let's work around this for now by only POSTing if none of the
      * CRTCs are enabled
      */
-    if ((!posted) && info->VBIOS) {
-	posted = radeon_card_posted(pScrn);
-    }
-
-    if ((!posted) && info->VBIOS) {
+    if ((!radeon_card_posted(pScrn)) && info->VBIOS) {
 	if (info->IsAtomBios) {
 	    if (!rhdAtomASICInit(info->atomBIOS))
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "%s: AsicInit failed.\n",__func__);
 	} else {
 #if 0
+	    /* FIX ME */
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Attempting to POST via legacy BIOS tables\n");
 	    RADEONGetBIOSInitTableOffsets(pScrn);
 	    RADEONPostCardFromBIOSTables(pScrn);
