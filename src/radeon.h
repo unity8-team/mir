@@ -648,9 +648,9 @@ typedef struct {
     RADEONChipFamily  ChipFamily;
     RADEONErrata      ChipErrata;
 
-    unsigned long     LinearAddr;       /* Frame buffer physical address     */
-    unsigned long     MMIOAddr;         /* MMIO region physical address      */
-    unsigned long     BIOSAddr;         /* BIOS physical address             */
+    unsigned long long     LinearAddr;       /* Frame buffer physical address     */
+    unsigned long long     MMIOAddr;         /* MMIO region physical address      */
+    unsigned long long     BIOSAddr;         /* BIOS physical address             */
     uint32_t          fbLocation;
     uint32_t          gartLocation;
     uint32_t          mc_fb_location;

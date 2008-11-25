@@ -429,7 +429,7 @@ static Bool RADEONMapFB(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Map: 0x%08lx, 0x%08lx\n", info->LinearAddr, info->FbMapSize);
+		   "Map: 0x%016llx, 0x%08lx\n", info->LinearAddr, info->FbMapSize);
 
 #ifndef XSERVER_LIBPCIACCESS
 
@@ -1750,11 +1750,11 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     }
 
     from               = X_PROBED;
-    info->LinearAddr   = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & ~0x1ffffffUL;
+    info->LinearAddr   = PCI_REGION_BASE(info->PciInfo, 0, REGION_MEM) & ~0x1ffffffULL;
     pScrn->memPhysBase = info->LinearAddr;
     if (dev->MemBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Linear address override, using 0x%016lx instead of 0x%016lx\n",
+		   "Linear address override, using 0x%016lx instead of 0x%016llx\n",
 		   dev->MemBase,
 		   info->LinearAddr);
 	info->LinearAddr = dev->MemBase;
@@ -1765,7 +1765,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 	return FALSE;
     }
     xf86DrvMsg(pScrn->scrnIndex, from,
-	       "Linear framebuffer at 0x%016lx\n", info->LinearAddr);
+	       "Linear framebuffer at 0x%016llx\n", info->LinearAddr);
 
 #ifndef XSERVER_LIBPCIACCESS
 				/* BIOS */
@@ -2747,11 +2747,13 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     info->PciTag  = pciTag(PCI_DEV_BUS(info->PciInfo),
 			   PCI_DEV_DEV(info->PciInfo),
 			   PCI_DEV_FUNC(info->PciInfo));
-    info->MMIOAddr = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & ~0xffUL;
+    info->MMIOAddr = PCI_REGION_BASE(info->PciInfo, 2, REGION_MEM) & ~0xffULL;
     info->MMIOSize = PCI_REGION_SIZE(info->PciInfo, 2);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TOTO SAYS %016llx\n", 
+		(unsigned long long)info->PciInfo->regions[2].base_addr);
     if (info->pEnt->device->IOBase) {
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG,
-		   "MMIO address override, using 0x%08lx instead of 0x%08lx\n",
+		   "MMIO address override, using 0x%08lx instead of 0x%016llx\n",
 		   info->pEnt->device->IOBase,
 		   info->MMIOAddr);
 	info->MMIOAddr = info->pEnt->device->IOBase;
@@ -2760,7 +2762,7 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
 	goto fail1;
     }
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "MMIO registers at 0x%016lx: size %ldKB\n", info->MMIOAddr, info->MMIOSize / 1024);
+	       "MMIO registers at 0x%016llx: size %ldKB\n", info->MMIOAddr, info->MMIOSize / 1024);
 
     if(!RADEONMapMMIO(pScrn)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
