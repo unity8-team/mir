@@ -1509,8 +1509,11 @@ RADEONLookupGPIOLineForDDC(ScrnInfoPtr pScrn, uint8_t id)
 
 static RADEONI2CBusRec
 rhdAtomParseI2CRecord(ScrnInfoPtr pScrn, atomBiosHandlePtr handle,
-			ATOM_I2C_RECORD *Record)
+		      ATOM_I2C_RECORD *Record, int i)
 {
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+    info->BiosConnector[i].i2c_line_mux = Record->sucI2cId.bfI2C_LineMux;
     return RADEONLookupGPIOLineForDDC(pScrn, Record->sucI2cId.bfI2C_LineMux);
 }
 
@@ -1664,7 +1667,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    switch (Record->ucRecordType) {
 		case ATOM_I2C_RECORD_TYPE:
 		    info->BiosConnector[i].ddc_i2c = rhdAtomParseI2CRecord(pScrn, info->atomBIOS,
-									   (ATOM_I2C_RECORD *)Record);
+									   (ATOM_I2C_RECORD *)Record, i);
 		    break;
 		case ATOM_HPD_INT_RECORD_TYPE:
 		    break;
@@ -1676,6 +1679,20 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		((char *)Record + Record->ucRecordSize);
 	}
     }
+
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	if (info->BiosConnector[i].valid) {
+	    for (j = 0; j < ATOM_MAX_SUPPORTED_DEVICE; j++) {
+		if (info->BiosConnector[j].valid && (i != j) ) {
+		    if (info->BiosConnector[i].i2c_line_mux == info->BiosConnector[j].i2c_line_mux) {
+			info->BiosConnector[i].shared_ddc = TRUE;
+			info->BiosConnector[j].shared_ddc = TRUE;
+		    }
+		}
+	    }
+	}
+    }
+
     return TRUE;
 }
 
@@ -1929,6 +1946,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 #endif
 
 	info->BiosConnector[i].valid = TRUE;
+	info->BiosConnector[i].shared_ddc = FALSE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
 	info->BiosConnector[i].devices = (1 << i);
 	info->BiosConnector[i].ConnectorType = ci.sucConnectorInfo.sbfAccess.bfConnectorType;
@@ -2028,6 +2046,9 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
 			    info->BiosConnector[i].valid = FALSE;
+			} else {
+			    info->BiosConnector[i].shared_ddc = TRUE;
+			    info->BiosConnector[j].shared_ddc = TRUE;
 			}
 			/* other possible combos?  */
 		    }

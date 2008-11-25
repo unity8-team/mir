@@ -208,6 +208,8 @@ typedef struct {
     int hpd_mask;
     RADEONI2CBusRec ddc_i2c;
     int igp_lane_info;
+    Bool shared_ddc;
+    int i2c_line_mux;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -267,6 +269,7 @@ typedef struct _RADEONOutputPrivateRec {
     int               output_id;
     int               devices;
     Bool enabled;
+    Bool shared_ddc;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

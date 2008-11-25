@@ -243,8 +243,6 @@ radeon_ddc_connected(xf86OutputPtr output)
 	}
     }
     if (MonInfo) {
-	if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
-	    xf86OutputSetEDID(output, MonInfo);
 	if (radeon_output->type == OUTPUT_LVDS)
 	    MonType = MT_LCD;
 	else if (radeon_output->type == OUTPUT_DVI_D)
@@ -258,6 +256,24 @@ radeon_ddc_connected(xf86OutputPtr output)
 	    MonType = MT_DFP;
 	else
 	    MonType = MT_CRT;
+
+	if (radeon_output->shared_ddc) {
+	    if (radeon_output->type == OUTPUT_VGA) {
+		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and VGA */
+		    MonType = MT_NONE;
+		else
+		    MonType = MT_CRT;
+	    } else {
+		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI/HDMI/etc. */
+		    MonType = MT_DFP;
+		else
+		    MonType = MT_NONE;
+	    }
+	}
+
+	if (MonType != MT_NONE)
+	    if (!xf86ReturnOptValBool(info->Options, OPTION_IGNORE_EDID, FALSE))
+		xf86OutputSetEDID(output, MonInfo);
     } else
 	MonType = MT_NONE;
 
@@ -2667,6 +2683,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
      */
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	info->BiosConnector[i].valid = FALSE;
+	info->BiosConnector[i].shared_ddc = FALSE;
 	info->BiosConnector[i].ddc_i2c.valid = FALSE;
 	info->BiosConnector[i].DACType = DAC_NONE;
 	info->BiosConnector[i].TMDSType = TMDS_NONE;
@@ -2790,6 +2807,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->output_id = info->BiosConnector[i].output_id;
 	    radeon_output->ddc_i2c = info->BiosConnector[i].ddc_i2c;
 	    radeon_output->igp_lane_info = info->BiosConnector[i].igp_lane_info;
+	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
