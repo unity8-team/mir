@@ -156,6 +156,7 @@ static const struct pci_id_match intel_device_match[] = {
    INTEL_DEVICE_MATCH (PCI_CHIP_IGD_E_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_G45_G, 0 ),
    INTEL_DEVICE_MATCH (PCI_CHIP_Q45_G, 0 ),
+   INTEL_DEVICE_MATCH (PCI_CHIP_G41_G, 0 ),
     { 0, 0, 0 },
 };
 
@@ -212,6 +213,7 @@ static SymTabRec I810Chipsets[] = {
    {PCI_CHIP_IGD_E_G,		"Intel Integrated Graphics Device"},
    {PCI_CHIP_G45_G,		"G45/G43"},
    {PCI_CHIP_Q45_G,		"Q45/Q43"},
+   {PCI_CHIP_G41_G,		"G41"},
    {-1,				NULL}
 };
 
@@ -245,6 +247,7 @@ static PciChipsets I810PciChipsets[] = {
    {PCI_CHIP_IGD_E_G,		PCI_CHIP_IGD_E_G,	RES_SHARED_VGA},
    {PCI_CHIP_G45_G,		PCI_CHIP_G45_G,		RES_SHARED_VGA},
    {PCI_CHIP_Q45_G,		PCI_CHIP_Q45_G,		RES_SHARED_VGA},
+   {PCI_CHIP_G41_G,		PCI_CHIP_G41_G,		RES_SHARED_VGA},
    {-1,				-1, RES_UNDEFINED }
 };
 
@@ -336,14 +339,6 @@ static const char *vbeOptionalSymbols[] = {
 const char *I810ddcSymbols[] = {
    "xf86PrintEDID",
    "xf86SetDDCproperties",
-   NULL
-};
-
-const char *I810int10Symbols[] = {
-   "xf86ExecX86int10",
-   "xf86InitInt10",
-   "xf86Int10AllocPages",
-   "xf86int10Addr",
    NULL
 };
 
@@ -515,7 +510,7 @@ i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 #endif
 			I810shadowFBSymbols,
 			I810vbeSymbols, vbeOptionalSymbols,
-			I810ddcSymbols, I810int10Symbols, NULL);
+			I810ddcSymbols, NULL);
 
       /*
        * The return value must be non-NULL on success even though there
@@ -812,6 +807,7 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_IGD_E_G:
 	    case PCI_CHIP_G45_G:
 	    case PCI_CHIP_Q45_G:
+	    case PCI_CHIP_G41_G:
     	       xf86SetEntitySharable(usedChips[i]);
 
     	       /* Allocate an entity private if necessary */		
@@ -1064,7 +1060,7 @@ I810PreInit(ScrnInfoPtr pScrn, int flags)
    /* after xf86ProcessOptions,
     * because it is controlled by options [no]vbe and [no]ddc
     */
-   pScrn->monitor->DDC = I810DoDDC(pScrn, pI810->pEnt->index);
+   I810DoDDC(pScrn, pI810->pEnt->index);
 
    /* We have to use PIO to probe, because we haven't mapped yet */
    I810SetPIOAccess(pI810);

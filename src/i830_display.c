@@ -428,14 +428,14 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	if (!sPriv)
 	    return;
 
-	switch (plane) {
+	switch (pipe) {
 	case 0:
-	    sPriv->planeA_x = x;
-	    sPriv->planeA_y = y;
+	    sPriv->pipeA_x = x;
+	    sPriv->pipeA_y = y;
 	    break;
 	case 1:
-	    sPriv->planeB_x = x;
-	    sPriv->planeB_y = y;
+	    sPriv->pipeB_x = x;
+	    sPriv->pipeB_y = y;
 	    break;
 	default:
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -753,7 +753,10 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     struct drm_modeset_ctl modeset;
 
-    modeset.crtc = intel_crtc->plane;
+    if (!pI830->directRenderingEnabled)
+      return;
+
+    modeset.crtc = intel_crtc->pipe;
 
     /*
      * DPMS will be called many times (especially off), but we only
@@ -854,27 +857,31 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	/* Give the overlay scaler a chance to disable if it's on this pipe */
 	i830_crtc_dpms_video(crtc, FALSE);
 
-	/* Disable the VGA plane that we never use */
-	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+	/* 
+	 * The documentation says :
+	 * - Disable planes (VGA or hires)
+	 * - Disable pipe
+	 * - Disable VGA display
+	 */
+
+	/* Disable display plane */
+	temp = INREG(dspcntr_reg);
+	if ((temp & DISPLAY_PLANE_ENABLE) != 0)
+	{
+	    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
+	    /* Flush the plane changes */
+	    OUTREG(dspbase_reg, INREG(dspbase_reg));
+	    POSTING_READ(dspbase_reg);
+	}
+
+	if (!IS_I9XX(pI830)) {
+	    /* Wait for vblank for the disable to take effect */
+	    i830WaitForVblank(pScrn);
+	}
 
 	/* May need to leave pipe A on */
 	if ((pipe != 0) || !(pI830->quirk_flag & QUIRK_PIPEA_FORCE))
 	{
-		/* Disable display plane */
-		temp = INREG(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0)
-		{
-		    OUTREG(dspcntr_reg, temp & ~DISPLAY_PLANE_ENABLE);
-		    /* Flush the plane changes */
-		    OUTREG(dspbase_reg, INREG(dspbase_reg));
-		    POSTING_READ(dspbase_reg);
-		}
-
-		if (!IS_I9XX(pI830)) {
-		    /* Wait for vblank for the disable to take effect */
-		    i830WaitForVblank(pScrn);
-		}
-
 		/* Next, disable display pipes */
 		temp = INREG(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
@@ -890,9 +897,15 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		    OUTREG(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 		    POSTING_READ(dpll_reg);
 		}
+
+		/* Wait for the clocks to turn off. */
+		usleep(150);
 	}
-	/* Wait for the clocks to turn off. */
-	usleep(150);
+
+	/* Disable the VGA plane that we never use. */
+	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
+	i830WaitForVblank(pScrn);
+
 	break;
     }
 
@@ -908,14 +921,14 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if (!sPriv)
 	    return;
 
-	switch (plane) {
+	switch (pipe) {
 	case 0:
-	    sPriv->planeA_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->planeA_h = enabled ? crtc->mode.VDisplay : 0;
+	    sPriv->pipeA_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->pipeA_h = enabled ? crtc->mode.VDisplay : 0;
 	    break;
 	case 1:
-	    sPriv->planeB_w = enabled ? crtc->mode.HDisplay : 0;
-	    sPriv->planeB_h = enabled ? crtc->mode.VDisplay : 0;
+	    sPriv->pipeB_w = enabled ? crtc->mode.HDisplay : 0;
+	    sPriv->pipeB_h = enabled ? crtc->mode.VDisplay : 0;
 	    break;
 	default:
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -1102,24 +1115,18 @@ i830_update_dsparb(ScrnInfoPtr pScrn)
 {
    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr pI830 = I830PTR(pScrn);
-   uint32_t dspacntr, dspbcntr;
    int total_hdisplay = 0, planea_hdisplay = 0, planeb_hdisplay = 0;
    int fifo_entries = 0, planea_entries = 0, planeb_entries = 0, i;
 
-   dspacntr = INREG(DSPACNTR);
-   dspbcntr = INREG(DSPBCNTR);
+   if ((INREG(DSPACNTR) & DISPLAY_PLANE_ENABLE) &&
+       (INREG(DSPBCNTR) & DISPLAY_PLANE_ENABLE))
+       xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		  "tried to update DSPARB with both planes enabled!\n");
 
-   /* Disable planes since DSPARB can only be updated when they're
-    * off.
-    */
-   OUTREG(DSPACNTR, dspacntr & ~DISPLAY_PLANE_ENABLE);
-   OUTREG(DSPBCNTR, dspbcntr & ~DISPLAY_PLANE_ENABLE);
-   i830WaitForVblank(pScrn);
-
-   /*
+  /*
     * FIFO entries will be split based on programmed modes
     */
-   if (IS_I965GM(pI830) || IS_GM45(pI830))
+   if (IS_I965GM(pI830))
        fifo_entries = 127;
    else if (IS_I9XX(pI830))
        fifo_entries = 95;
@@ -1158,10 +1165,6 @@ i830_update_dsparb(ScrnInfoPtr pScrn)
 	      (planea_entries << DSPARB_AEND_SHIFT));
    else
        OUTREG(DSPARB, planea_entries << DSPARB_AEND_SHIFT);
-
-   OUTREG(DSPACNTR, dspacntr);
-   OUTREG(DSPBCNTR, dspbcntr);
-   i830WaitForVblank(pScrn);
 }
 
 /**

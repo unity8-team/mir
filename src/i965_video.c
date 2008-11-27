@@ -254,7 +254,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	ps_kernel_static = &ps_kernel_planar_static[0][0];
 	ps_kernel_static_size = sizeof (ps_kernel_planar_static);
 	src_width[1] = src_width[0] = width;
-	src_width[1] = src_height[0] = height;
+	src_height[1] = src_height[0] = height;
 	src_pitch[1] = src_pitch[0] = video_pitch * 2;
 	src_width[4] = src_width[5] = src_width[2] = src_width[3] = width / 2;
 	src_height[4] = src_height[5] = src_height[2] = src_height[3] = height / 2;
@@ -584,7 +584,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     {
 	BEGIN_BATCH(12);
 	/* Match Mesa driver setup */
-	if (IS_GM45(pI830) || IS_G4X(pI830))
+	if (IS_G4X(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);

@@ -25,7 +25,7 @@ the 830M and later.
 .B intel
 supports the i810, i810-DC100, i810e, i815, i830M, 845G, 852GM, 855GM,
 865G, 915G, 915GM, 945G, 945GM, 965G, 965Q, 946GZ, 965GM, 945GME,
-G33, Q33, and Q35 chipsets.
+G33, Q33, Q35, G35, GM45, G45, Q45, G43 and G41 chipsets.
 
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
@@ -41,10 +41,13 @@ than has been pre-allocated at boot time by the BIOS.  This is usually
 achieved with an "agpgart" or "agp" kernel driver.  Linux, FreeBSD, OpenBSD,
 NetBSD, and Solaris have such kernel drivers available.
 .PP
-By default, the i810 will use 8 megabytes
-of system memory for graphics.  For the 830M and later, the driver will
-automatically size its memory allocation according to the features it will
-support.  Therefore, the
+By default, the i810/i815 will use 8 MB of system memory for graphics if AGP
+allocable memory is < 128 MB, 16 MB if < 192 MB or 24 MB if higher. Use the
+.B VideoRam
+option to change the default value.
+.PP
+For the 830M and later, the driver will automatically size its memory
+allocation according to the features it will support.  Therefore, the
 .B VideoRam
 option, which in the past had been necessary to allow more than some small
 amount of memory to be allocated, is now ignored.
@@ -109,6 +112,12 @@ Default: 8-bits per RGB for 8-bit modes.
 This option enables XvMC.  The integer parameter specifies the number of
 surfaces to use.  Valid values are 6 and 7.
 Default: XvMC is disabled.
+.TP
+.BI "VideoRam " integer
+This option specifies the amount of system memory to use for graphics, in KB.
+The default is 8192 if AGP allocable memory is < 128 MB, 16384 if < 192 MB,
+24576 if higher. DRI require at least a value of 16384. Higher values may give
+better 3D performance, at expense of available system memory.
 
 .PP
 The following driver
@@ -125,28 +134,22 @@ other drivers.
 Disable or enable XVideo support.
 Default: XVideo is enabled for configurations where it is supported.
 .TP
+.BI "Option \*qXvPreferOverlay\*q \*q" boolean \*q
+Make hardware overlay be the first XV adaptor.
+The overlay behaves incorrectly in the presence of compositing, but some prefer
+it due to it syncing to vblank in the absence of compositing.  While most
+XV-using applications have options to select which XV adaptor to use, this
+option can be used to place the overlay first for applications which don't
+have options for selecting adaptors.
+Default: Textured video adaptor is preferred.
+.TP
 .BI "Option \*qLegacy3D\*q \*q" boolean \*q
-Enable support for the legacy i915_dri.so 3D driver.
-This will, among other things, make the 2D driver tell libGL to
-load the 3D driver i915_dri.so instead of the newer i915tex_dri.so.
-This option is only used for chipsets in the range i830-i945.
-Default for i830-i945 series: Enabled.
-Default for i810: The option is not used.
-Default for i965: The option is always true.
-.TP
-.BI "Option \*qAperTexSize\*q \*q" integer \*q
-Give the size in kiB of the AGP aperture area that is reserved for the
-DRM memory manager present in i915 drm from version 1.7.0 and upwards,
-and that is used with the 3D driver in Mesa from version 6.5.2 and
-upwards. If the size is set too high to make room for pre-allocated
-VideoRam, the driver will try to reduce it automatically. If you use only
-older Mesa or DRM versions, you may set this value to zero, and
-activate the legacy texture pool (see 
-.B "Option \*qLegacy3D\*q"
-). If you run 3D programs with large texture memory requirements, you might
-gain some performance by increasing this value.
-Default: 32768.
-.TP
+Enable support for the non-GEM mode of the 3D driver on i830 and newer.
+This will allocate a large static area for older Mesa to use for its texture
+pool.  On systems with a working GEM environment, this can be disabled to
+increase the memory pool available to other graphics tasks.
+Default for i830 and newer: Enabled.
+Default for i810: this option is not used.
 .BI "Option \*qPageFlip\*q \*q" boolean \*q
 Enable support for page flipping. This should improve 3D performance at the
 potential cost of worse performance with mixed 2D/3D. Also note that this gives
@@ -176,6 +179,12 @@ Default: "EXA".
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
+Default: Disabled
+.TP
+.BI "Option \*qFallbackDebug\*q \*q" boolean \*q
+Enable printing of debugging information on acceleration fallbacks to the
+server log.
+Default: Disabled
 .TP
 .BI "Option \*qForceEnablePipeA\*q \*q" boolean \*q
 Force the driver to leave pipe A enabled.  May be necessary in configurations
@@ -213,6 +222,12 @@ information.
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
 Default: Disabled.
+.TP
+.BI "Option \*qForceSDVODetect\*q \*q" boolean \*q
+Instead of depending on SDVO detect status bit to initialize SDVO outputs,
+this option trys to ignore that status bit and try to probe on all SDVO
+ports anyway. Try this if some output is not detected on your ADD2 card.
+Use of this option will slow down your startup time. Default: Disabled.
 
 .SH OUTPUT CONFIGURATION
 On 830M and better chipsets, the driver supports runtime configuration of

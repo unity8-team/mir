@@ -35,23 +35,6 @@
 #include "i915_reg.h"
 #include "i915_3d.h"
 
-#ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 1
-#endif
-
-#ifdef DEBUG_I830FALLBACK
-#define I830FALLBACK(s, arg...)				\
-do {							\
-	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
-	return FALSE;					\
-} while(0)
-#else
-#define I830FALLBACK(s, arg...) 			\
-do { 							\
-	return FALSE;					\
-} while(0)
-#endif
-
 struct formatinfo {
     int fmt;
     uint32_t card_fmt;
@@ -155,6 +138,8 @@ static uint32_t i915_get_blend_cntl(int op, PicturePtr pMask,
 
 static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -184,6 +169,7 @@ static Bool i915_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 
 static Bool i915_check_composite_texture(PicturePtr pPict, int unit)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -201,9 +187,8 @@ static Bool i915_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
-	I830FALLBACK("extended repeat (%d) not supported\n",
-		     pPict->repeatType);
+    if (pPict->repeatType > RepeatReflect)
+        I830FALLBACK("Unsupported picture repeat %d\n", pPict->repeatType);
 
     if (pPict->filter != PictFilterNearest &&
         pPict->filter != PictFilterBilinear)
@@ -216,6 +201,7 @@ Bool
 i915_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
     uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
@@ -250,11 +236,10 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t format, offset, pitch, filter;
+    uint32_t format, pitch, filter;
     int w, h, i;
-    uint32_t wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+    uint32_t wrap_mode;
 
-    offset = intel_get_pixmap_offset(pPix);
     pitch = intel_get_pixmap_pitch(pPix);
     w = pPict->pDrawable->width;
     h = pPict->pDrawable->height;
@@ -271,8 +256,22 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
 	I830FALLBACK("unknown texture format\n");
     format = i915_tex_formats[i].card_fmt;
 
-    if (pPict->repeat)
+    switch (pPict->repeatType) {
+    case RepeatNone:
+	wrap_mode = TEXCOORDMODE_CLAMP_BORDER;
+	break;
+    case RepeatNormal:
 	wrap_mode = TEXCOORDMODE_WRAP;
+	break;
+    case RepeatPad:
+	wrap_mode = TEXCOORDMODE_CLAMP_EDGE;
+	break;
+    case RepeatReflect:
+	wrap_mode = TEXCOORDMODE_MIRROR;
+	break;
+    default:
+	FatalError("Unkown repeat type %d\n", pPict->repeatType);
+    }
 
     switch (pPict->filter) {
     case PictFilterNearest:
@@ -288,7 +287,7 @@ i915_texture_setup(PicturePtr pPict, PixmapPtr pPix, int unit)
         I830FALLBACK("Bad filter 0x%x\n", pPict->filter);
     }
 
-    pI830->mapstate[unit * 3 + 0] = offset;
+    pI830->mapstate[unit * 3 + 0] = 0; /* offset filled in at emit time */
     pI830->mapstate[unit * 3 + 1] = format |
 	MS3_USE_FENCE_REGS |
 	((pPix->drawable.height - 1) << MS3_HEIGHT_SHIFT) |
@@ -316,7 +315,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t dst_format, dst_offset, dst_pitch;
+    uint32_t dst_format, dst_pitch;
     uint32_t blendctl;
     int out_reg = FS_OC;
     FS_LOCALS(20);
@@ -333,7 +332,6 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i915_get_dest_format(pDstPicture, &dst_format))
 	return FALSE;
-    dst_offset = intel_get_pixmap_offset(pDst);
     dst_pitch = intel_get_pixmap_pitch(pDst);
 
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
@@ -362,7 +360,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(10);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 3);
 	OUT_BATCH(0x00000001); /* map 0 */
-	OUT_BATCH(pI830->mapstate[0]);
+	OUT_RELOC_PIXMAP(pSrc, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
 
@@ -376,10 +374,10 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	BEGIN_BATCH(16);
 	OUT_BATCH(_3DSTATE_MAP_STATE | 6);
 	OUT_BATCH(0x00000003); /* map 0,1 */
-	OUT_BATCH(pI830->mapstate[0]);
+	OUT_RELOC_PIXMAP(pSrc, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[1]);
 	OUT_BATCH(pI830->mapstate[2]);
-	OUT_BATCH(pI830->mapstate[3]);
+	OUT_RELOC_PIXMAP(pMask, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 	OUT_BATCH(pI830->mapstate[4]);
 	OUT_BATCH(pI830->mapstate[5]);
 
@@ -400,7 +398,7 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
 	OUT_BATCH(BUF_3D_ID_COLOR_BACK| BUF_3D_USE_FENCE|
 		  BUF_3D_PITCH(dst_pitch));
-	OUT_BATCH(BUF_3D_ADDR(dst_offset));
+	OUT_RELOC_PIXMAP(pDst, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
 
 	OUT_BATCH(_3DSTATE_DST_BUF_VARS_CMD);
 	OUT_BATCH(dst_format);

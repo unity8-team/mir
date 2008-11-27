@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.4.1,
+        2.5.1,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -75,6 +75,11 @@ AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
               [XVMC="$enableval"],
               [XVMC=auto])
 
+AC_ARG_ENABLE(kms, AC_HELP_STRING([--enable-kms],
+                                  [Enable kernel mode setting support [[default=no]]]),
+              [KMS="$enableval"],
+              [KMS=no])
+
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -84,15 +89,21 @@ XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
 PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(UXA, [xorg-server >= 1.5], [BUILD_UXA=yes], [BUILD_UXA=no])
+
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
+drm_cflags=$(pkg-config --cflags libdrm)
 
 # Checks for libraries.
 
 # Checks for header files.
 AC_HEADER_STDC
 
+save_CFLAGS="$CFLAGS"
+CFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
+CPPFLAGS="$XORG_CFLAGS $DRI_CFLAGS $drm_cflags"
 AC_MSG_CHECKING([whether to include DRI support])
-if test x$DRI = xauto; then
+if test x$DRI != xno; then
         AC_CHECK_FILE([${sdkdir}/dri.h],
                       [have_dri_h="yes"], [have_dri_h="no"])
         AC_CHECK_FILE([${sdkdir}/sarea.h],
@@ -101,7 +112,19 @@ if test x$DRI = xauto; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
-
+	if test x$KMS != xno; then
+		AC_CHECK_HEADER(xf86drmMode.h,
+				[DRM_MODE=yes],[DRM_MODE=no]
+				[#include "stdint.h"])
+		dnl exaGetPixmapDriverPrivate required for DRM_MODE.
+		PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
+		if test "x$DRM_MODE" = xyes; then
+	   		AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
+		fi
+	fi
+fi
+AC_MSG_CHECKING([whether to include DRI support])
+if test x$DRI = xauto; then
         if test "$have_dri_h" = yes -a \
                 "$have_sarea_h" = yes -a \
                 "$have_dristruct_h" = yes; then
@@ -112,8 +135,11 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
-save_CFLAGS="$CFLAGS"
-CFLAGS="$XORG_CFLAGS"
+AM_CONDITIONAL(BUILD_UXA, test $BUILD_UXA = yes)
+if test "$BUILD_UXA" = yes; then
+	AC_DEFINE(I830_USE_UXA, 1, [UMA Acceleration Architecture support])
+fi
+
 AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
@@ -173,6 +199,8 @@ else
 fi
 
 AC_SUBST([XMODES_CFLAGS])
+UXA_CFLAGS='-I$(top_srcdir)/uxa'
+AC_SUBST([UXA_CFLAGS])
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
@@ -196,9 +224,10 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.0])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
-        PKG_CHECK_MODULES(DRI, [libdrm xf86driproto glproto])
+        PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
 	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.4.0],[DRI_MM=yes], [DRI_MM=no])
@@ -208,17 +237,6 @@ if test "$DRI" = yes; then
 	if test "$have_damage_h" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
-
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="$XORG_CFLAGS $DRI_CFLAGS"
-	AC_CHECK_TYPE(drm_i915_flip_t,
-		      [AC_DEFINE(HAVE_I915_FLIP, 1,
-			         [Have drm_i915_flip_t and related definitions])],
-		      [], [
-#include <inttypes.h>
-#include <i915_drm.h>
-])
-	CFLAGS="$save_CFLAGS"
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
@@ -261,6 +279,7 @@ XORG_CHECK_LINUXDOC
 
 AC_OUTPUT([
 	Makefile
+	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
 	src/bios_reader/Makefile
