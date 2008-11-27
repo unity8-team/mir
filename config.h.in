@@ -14,9 +14,6 @@
 /* have new FreeShadow API */
 #undef HAVE_FREE_SHADOW
 
-/* Have drm_i915_flip_t and related definitions */
-#undef HAVE_I915_FLIP
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -49,6 +46,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* UMA Acceleration Architecture support */
+#undef I830_USE_UXA
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
@@ -97,6 +97,9 @@
 
 /* Extended DRI memory management */
 #undef XF86DRI_MM
+
+/* DRM kernel modesetting */
+#undef XF86DRM_MODE
 
 /* X server has built-in mode code */
 #undef XMODES

@@ -130,7 +130,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    OUT_BATCH(_3DSTATE_BUF_INFO_CMD);
    OUT_BATCH(BUF_3D_ID_COLOR_BACK | BUF_3D_USE_FENCE |
 	     BUF_3D_PITCH(intel_get_pixmap_pitch(pPixmap)));
-   OUT_BATCH(BUF_3D_ADDR(intel_get_pixmap_offset(pPixmap)));
+   OUT_RELOC_PIXMAP(pPixmap, I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER, 0);
    ADVANCE_BATCH();
 
    if (!planar) {

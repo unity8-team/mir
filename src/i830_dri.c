@@ -65,6 +65,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <errno.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -82,23 +85,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_dri.h"
 
 #include "i915_drm.h"
-
-/* This block and the corresponding configure test can be removed when
- * libdrm >= 2.3.1 is required.
- */
-#ifndef HAVE_I915_FLIP
-
-#define DRM_VBLANK_FLIP 0x8000000
-
-typedef struct drm_i915_flip {
-   int pipes;
-} drm_i915_flip_t;
-
-#undef DRM_IOCTL_I915_FLIP
-#define DRM_IOCTL_I915_FLIP DRM_IOW(DRM_COMMAND_BASE + DRM_I915_FLIP, \
-				    drm_i915_flip_t)
-
-#endif
 
 #include "dristruct.h"
 
@@ -172,22 +158,31 @@ I830InitDma(ScrnInfoPtr pScrn)
    memset(&info, 0, sizeof(drmI830Init));
    info.func = I830_INIT_DMA;
 
-   info.ring_start = ring->mem->offset + pI830->LinearAddr;
-   info.ring_end = ring->mem->end + pI830->LinearAddr;
-   info.ring_size = ring->mem->size;
+   /* Initialize fields that are used in the absence of GEM */
+   if (!pI830->memory_manager && !pI830->use_drm_mode) {
+       info.ring_start = ring->mem->offset + pI830->LinearAddr;
+       info.ring_end = ring->mem->end + pI830->LinearAddr;
+       info.ring_size = ring->mem->size;
 
-   info.mmio_offset = (unsigned int)pI830DRI->regs;
+       /* Not used as of the middle of GEM development. */
+       info.mmio_offset = (unsigned int)pI830DRI->regs;
+
+       /* Not used as of before GEM development */
+       info.front_offset = pI830->front_buffer->offset;
+       info.back_offset = pI830->back_buffer->offset;
+       info.depth_offset = pI830->depth_buffer->offset;
+       info.pitch = pScrn->displayWidth;
+       info.back_pitch = pScrn->displayWidth;
+       info.depth_pitch = pScrn->displayWidth;
+       info.w = pScrn->virtualX;
+       info.h = pScrn->virtualY;
+   }
+
 
    info.sarea_priv_offset = sizeof(XF86DRISAREARec);
 
-   info.front_offset = pI830->front_buffer->offset;
-   info.back_offset = pI830->back_buffer->offset;
-   info.depth_offset = pI830->depth_buffer->offset;
-   info.w = pScrn->virtualX;
-   info.h = pScrn->virtualY;
-   info.pitch = pScrn->displayWidth;
-   info.back_pitch = pScrn->displayWidth;
-   info.depth_pitch = pScrn->displayWidth;
+   /* This should probably have been moved alongside offset/pitch in the sarea.
+    */
    info.cpp = pI830->cpp;
 
    if (drmCommandWrite(pI830->drmSubFD, DRM_I830_INIT,
@@ -594,7 +589,7 @@ I830DRIScreenInit(ScreenPtr pScreen)
 
 #if DRIINFO_MAJOR_VERSION > 5 || \
     (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 3)
-      if (pI830->useEXA)
+      if (pI830->accel == ACCEL_EXA)
 	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
 #endif
 
@@ -771,6 +766,51 @@ I830InitTextureHeap(ScrnInfoPtr pScrn)
    }
 }
 
+/*
+ * Map registers & ring buffer
+ */
+static Bool
+I830DRIMapHW(ScreenPtr pScreen)
+{
+   ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
+   DRIInfoPtr pDRIInfo = pI830->pDRIInfo;
+   I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
+
+   /* Kernel deals with direct hw access in this case */
+   if (pI830->use_drm_mode)
+       return TRUE;
+
+   DPRINTF(PFX, "I830DRIMapHW\n");
+   pI830DRI->regsSize = I830_REG_SIZE;
+   if (drmAddMap(pI830->drmSubFD, (drm_handle_t)pI830->MMIOAddr,
+		 pI830DRI->regsSize, DRM_REGISTERS, 0,
+		 (drmAddress) &pI830DRI->regs) < 0) {
+      xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
+      DRICloseScreen(pScreen);
+      return FALSE;
+   }
+   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
+	      (int)pI830DRI->regs);
+
+   if (!pI830->memory_manager) {
+       if (drmAddMap(pI830->drmSubFD,
+		     (drm_handle_t)pI830->LpRing->mem->offset +
+		     pI830->LinearAddr,
+		     pI830->LpRing->mem->size, DRM_AGP, 0,
+		     (drmAddress) &pI830->ring_map) < 0) {
+	   xf86DrvMsg(pScreen->myNum, X_ERROR,
+		      "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
+	   DRICloseScreen(pScreen);
+	   return FALSE;
+       }
+       xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
+		  (int)pI830->ring_map);
+   }
+
+   return TRUE;
+}
+
 /**
  * Sets up mappings for static, lifetime-fixed allocations, and inital SAREA
  * setup.
@@ -784,34 +824,20 @@ I830DRIDoMappings(ScreenPtr pScreen)
    I830DRIPtr pI830DRI = pDRIInfo->devPrivate;
    drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
-   DPRINTF(PFX, "I830DRIDoMappings\n");
-   pI830DRI->regsSize = I830_REG_SIZE;
-   if (drmAddMap(pI830->drmSubFD, (drm_handle_t)pI830->MMIOAddr,
-		 pI830DRI->regsSize, DRM_REGISTERS, 0,
-		 (drmAddress) &pI830DRI->regs) < 0) {
-      xf86DrvMsg(pScreen->myNum, X_ERROR, "[drm] drmAddMap(regs) failed\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
+   if (!I830DRIMapHW(pScreen)) {
+       DRICloseScreen(pScreen);
+       return FALSE;
    }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] Registers = 0x%08x\n",
-	      (int)pI830DRI->regs);
-
-   if (drmAddMap(pI830->drmSubFD,
-		 (drm_handle_t)pI830->LpRing->mem->offset + pI830->LinearAddr,
-		 pI830->LpRing->mem->size, DRM_AGP, 0,
-		 (drmAddress) &pI830->ring_map) < 0) {
-      xf86DrvMsg(pScreen->myNum, X_ERROR,
-		 "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
-      DRICloseScreen(pScreen);
-      return FALSE;
-   }
-   xf86DrvMsg(pScreen->myNum, X_INFO, "[drm] ring buffer = 0x%08x\n",
-	      (int)pI830->ring_map);
 
    if (!I830InitDma(pScrn)) {
       DRICloseScreen(pScreen);
       return FALSE;
    }
+
+   if (pI830->memory_manager == NULL)
+       intel_bufmgr_fake_set_last_dispatch(pI830->bufmgr,
+					   (volatile unsigned int *)
+					   &sarea->last_dispatch);
 
    /* init to zero to be safe */
    sarea->front_handle = 0;
@@ -913,12 +939,14 @@ Bool
 I830DRIResume(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+   I830Ptr pI830 = I830PTR(pScrn);
 
    DPRINTF(PFX, "I830DRIResume\n");
 
    I830ResumeDma(pScrn);
 
-   I830DRIInstIrqHandler(pScrn);
+   if (!pI830->memory_manager)
+       I830DRIInstIrqHandler(pScrn);
 
    return TRUE;
 }
@@ -957,6 +985,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
       xfree(pI830->pVisualConfigs);
    if (pI830->pVisualConfigsPriv)
       xfree(pI830->pVisualConfigsPriv);
+   pI830->directRenderingEnabled = FALSE;
 }
 
 static Bool
@@ -996,26 +1025,35 @@ static void
 I830DRIDoRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox, uint32_t dst)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   int i, cmd, br13 = (pScrn->displayWidth * pI830->cpp) | (0xcc << 16);
+   unsigned int i, cmd, pitch, flags;
+
+   pitch = pScrn->displayWidth * pI830->cpp;
+   flags = 0xcc << 16; /* ROP_S */
 
    if (pScrn->bitsPerPixel == 32) {
       cmd = (XY_SRC_COPY_BLT_CMD | XY_SRC_COPY_BLT_WRITE_ALPHA |
 	     XY_SRC_COPY_BLT_WRITE_RGB);
-      br13 |= 3 << 24;
+      flags |= 3 << 24;
    } else {
       cmd = (XY_SRC_COPY_BLT_CMD);
-      br13 |= 1 << 24;
+      flags |= 1 << 24;
+   }
+
+   /* We can assume tiled buffers if page flipping is on */
+   if (IS_I965G(pI830)) {
+       cmd |= XY_SRC_COPY_BLT_DST_TILED | XY_SRC_COPY_BLT_SRC_TILED;
+       pitch >>= 2;
    }
 
    for (i = 0 ; i < num ; i++, pbox++) {
       BEGIN_BATCH(8);
       OUT_BATCH(cmd);
-      OUT_BATCH(br13);
+      OUT_BATCH(flags | pitch);
       OUT_BATCH((pbox->y1 << 16) | pbox->x1);
       OUT_BATCH((pbox->y2 << 16) | pbox->x2);
       OUT_BATCH(dst);
       OUT_BATCH((pbox->y1 << 16) | pbox->x1);
-      OUT_BATCH(br13 & 0xffff);
+      OUT_BATCH(pitch);
       OUT_BATCH(pI830->front_buffer->offset);
       ADVANCE_BATCH();
    }
@@ -1062,9 +1100,8 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (!pScrn->vtSema)
      	 return;
       pI830->LockHeld = 1;
-      i830_refresh_ring(pScrn);
-
-      I830EmitFlush(pScrn);
+      if (!pI830->memory_manager)
+	  i830_refresh_ring(pScrn);
 
 #ifdef DAMAGE
       if (!pI830->pDamage && pI830->allowPageFlip) {
@@ -1119,8 +1156,6 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       }
 #endif
 
-      I830EmitFlush(pScrn);
-
 #ifdef DAMAGE
       /* Try flipping back to the front page if necessary */
       if (sPriv && !sPriv->pf_enabled && sPriv->pf_current_page != 0) {
@@ -1158,47 +1193,41 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 {
    ScreenPtr pScreen = pWin->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   BoxPtr pbox = REGION_RECTS(prgn);
-   int nbox = REGION_NUM_RECTS(prgn);
+   BoxPtr pbox;
+   int nbox;
+   int buffer, first_buffer, last_buffer;
 
    if (I810_DEBUG & DEBUG_VERBOSE_DRI)
       ErrorF("I830DRIInitBuffers\n");
 
-   I830SetupForSolidFill(pScrn, 0, GXcopy, -1);
-   while (nbox--) {
-      I830SelectBuffer(pScrn, I830_SELECT_BACK);
-      I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
-				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+   first_buffer = I830_SELECT_BACK;
+   last_buffer = I830_SELECT_DEPTH;
+   if (I830PTR(pScrn)->third_buffer)
+      last_buffer = I830_SELECT_THIRD;
 
-      if (I830PTR(pScrn)->third_buffer) {
-	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+   for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
+      pbox = REGION_RECTS(prgn);
+      nbox = REGION_NUM_RECTS(prgn);
+
+      if (!I830SelectBuffer(pScrn, buffer))
+	 continue;
+
+      if (buffer == I830_SELECT_DEPTH) {
+	 switch (pScrn->bitsPerPixel) {
+	 case 16:
+	    I830SetupForSolidFill(pScrn, 0xffff, GXcopy, -1);
+	    break;
+	 case 32:
+	    I830SetupForSolidFill(pScrn, 0xffffff, GXcopy, -1);
+	    break;
+	 }
+      } else
+	 I830SetupForSolidFill(pScrn, 0, GXcopy, -1);
+      while (nbox--) {
 	 I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
 				     pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
+	 pbox++;
       }
-
-      pbox++;
-   }
-
-   /* Clear the depth buffer - uses 0xffff rather than 0.
-    */
-   pbox = REGION_RECTS(prgn);
-   nbox = REGION_NUM_RECTS(prgn);
-
-   I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
-
-   switch (pScrn->bitsPerPixel) {
-   case 16:
-      I830SetupForSolidFill(pScrn, 0xffff, GXcopy, -1);
-      break;
-   case 32:
-      I830SetupForSolidFill(pScrn, 0xffffff, GXcopy, -1);
-      break;
-   }
-
-   while (nbox--) {
-      I830SubsequentSolidFillRect(pScrn, pbox->x1, pbox->y1,
-				  pbox->x2 - pbox->x1, pbox->y2 - pbox->y1);
-      pbox++;
    }
 
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
@@ -1239,6 +1268,7 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 
    int dx = pParent->drawable.x - ptOldOrg.x;
    int dy = pParent->drawable.y - ptOldOrg.y;
+   int buffer, first_buffer, last_buffer;
 
    /* If the copy will overlap in Y, reverse the order */
    if (dy > 0) {
@@ -1320,44 +1350,47 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    /* SelectBuffer isn't really a good concept for the i810.
     */
    I830EmitFlush(pScrn);
-   I830SetupForScreenToScreenCopy(pScrn, xdir, ydir, GXcopy, -1, -1);
-   for (; nbox--; pbox++) {
+   first_buffer = I830_SELECT_BACK;
+   last_buffer = I830_SELECT_DEPTH;
+   if (pI830->third_buffer)
+      last_buffer = I830_SELECT_THIRD;
 
-      int x1 = pbox->x1;
-      int y1 = pbox->y1;
-      int destx = x1 + dx;
-      int desty = y1 + dy;
-      int w = pbox->x2 - x1 + 1;
-      int h = pbox->y2 - y1 + 1;
-
-      if (destx < 0)
-	 x1 -= destx, w += destx, destx = 0;
-      if (desty < 0)
-	 y1 -= desty, h += desty, desty = 0;
-      if (destx + w > screenwidth)
-	 w = screenwidth - destx;
-      if (desty + h > screenheight)
-	 h = screenheight - desty;
-      if (w <= 0)
+   for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
+      if (!I830SelectBuffer(pScrn, buffer))
 	 continue;
-      if (h <= 0)
-	 continue;
+      I830SetupForScreenToScreenCopy(pScrn, xdir, ydir, GXcopy, -1, -1);
+      pbox = REGION_RECTS(prgnSrc);
+      nbox = REGION_NUM_RECTS(prgnSrc);
+      for (; nbox--; pbox++) {
 
-      if (I810_DEBUG & DEBUG_VERBOSE_DRI)
-	 ErrorF("MoveBuffers %d,%d %dx%d dx: %d dy: %d\n",
-		x1, y1, w, h, dx, dy);
+	 int x1 = pbox->x1;
+	 int y1 = pbox->y1;
+	 int destx = x1 + dx;
+	 int desty = y1 + dy;
+	 int w = pbox->x2 - x1 + 1;
+	 int h = pbox->y2 - y1 + 1;
 
-      I830SelectBuffer(pScrn, I830_SELECT_BACK);
-      I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      if (pI830->third_buffer) {
-	 I830SelectBuffer(pScrn, I830_SELECT_THIRD);
+	 if (destx < 0)
+	    x1 -= destx, w += destx, destx = 0;
+	 if (desty < 0)
+	    y1 -= desty, h += desty, desty = 0;
+	 if (destx + w > screenwidth)
+	    w = screenwidth - destx;
+	 if (desty + h > screenheight)
+	    h = screenheight - desty;
+	 if (w <= 0)
+	    continue;
+	 if (h <= 0)
+	    continue;
+
+	 if (I810_DEBUG & DEBUG_VERBOSE_DRI)
+	    ErrorF("MoveBuffers %d,%d %dx%d dx: %d dy: %d\n",
+		   x1, y1, w, h, dx, dy);
+
 	 I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
       }
-      if (!IS_I965G(pI830)) {
-         I830SelectBuffer(pScrn, I830_SELECT_DEPTH);
-         I830SubsequentScreenToScreenCopy(pScrn, x1, y1, destx, desty, w, h);
-      }
    }
+
    I830SelectBuffer(pScrn, I830_SELECT_FRONT);
    I830EmitFlush(pScrn);
 
@@ -1472,14 +1505,14 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
       unsigned numvisible[2] = { 0, 0 };
       int i, j;
 
-      crtcBox[0].x1 = sPriv->planeA_x;
-      crtcBox[0].y1 = sPriv->planeA_y;
-      crtcBox[0].x2 = crtcBox[0].x1 + sPriv->planeA_w;
-      crtcBox[0].y2 = crtcBox[0].y1 + sPriv->planeA_h;
-      crtcBox[1].x1 = sPriv->planeB_x;
-      crtcBox[1].y1 = sPriv->planeB_y;
-      crtcBox[1].x2 = crtcBox[1].x1 + sPriv->planeB_w;
-      crtcBox[1].y2 = crtcBox[1].y1 + sPriv->planeB_h;
+      crtcBox[0].x1 = sPriv->pipeA_x;
+      crtcBox[0].y1 = sPriv->pipeA_y;
+      crtcBox[0].x2 = crtcBox[0].x1 + sPriv->pipeA_w;
+      crtcBox[0].y2 = crtcBox[0].y1 + sPriv->pipeA_h;
+      crtcBox[1].x1 = sPriv->pipeB_x;
+      crtcBox[1].y1 = sPriv->pipeB_y;
+      crtcBox[1].x2 = crtcBox[1].x1 + sPriv->pipeB_w;
+      crtcBox[1].y2 = crtcBox[1].y1 + sPriv->pipeB_h;
 
       for (i = 0; i < 2; i++) {
 	 for (j = 0; j < num; j++) {
@@ -1505,6 +1538,27 @@ I830DRIClipNotify(ScreenPtr pScreen, WindowPtr *ppWin, int num)
    I830DRISetPfMask(pScreen, pfMask);
 }
 #endif /* DRI_SUPPORTS_CLIP_NOTIFY */
+
+static int
+i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
+{
+    if (mem && mem->bo)
+    {
+	if (!mem->gem_name)
+	{
+	    int ret;
+	    ret = dri_bo_flink(mem->bo, &mem->gem_name);
+	    if (ret != 0)
+	    {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] failed to name buffer %d\n", -errno);
+		return -1;
+	    }
+	}
+	return mem->gem_name;
+    }
+    return -1;
+}
 
 /**
  * Update the SAREA fields with current buffer information.
@@ -1537,20 +1591,10 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->log_tex_granularity = pI830->TexGranularity;
 
-   sarea->front_bo_handle = -1;
-   sarea->back_bo_handle = -1;
-   sarea->third_bo_handle = -1;
-   sarea->depth_bo_handle = -1;
-#ifdef XF86DRI_MM
-   if (pI830->front_buffer->bo.size)
-       sarea->front_bo_handle = pI830->front_buffer->bo.handle;
-   if (pI830->back_buffer->bo.size)
-       sarea->back_bo_handle = pI830->back_buffer->bo.handle;
-   if (pI830->third_buffer != NULL && pI830->third_buffer->bo.size)
-       sarea->third_bo_handle = pI830->third_buffer->bo.handle;
-   if (pI830->depth_buffer->bo.size)
-       sarea->depth_bo_handle = pI830->depth_buffer->bo.handle;
-#endif
+   sarea->front_bo_handle = i830_name_buffer (pScrn, pI830->front_buffer);
+   sarea->back_bo_handle = i830_name_buffer (pScrn, pI830->back_buffer);
+   sarea->third_bo_handle = i830_name_buffer (pScrn, pI830->third_buffer);
+   sarea->depth_bo_handle = i830_name_buffer (pScrn, pI830->depth_buffer);
 
    /* The rotation is now handled entirely by the X Server, so just leave the
     * DRI unaware.
@@ -1746,7 +1790,8 @@ I830DRILock(ScrnInfoPtr pScrn)
    if (pI830->directRenderingEnabled && !pI830->LockHeld) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       pI830->LockHeld = 1;
-      i830_refresh_ring(pScrn);
+      if (!pI830->memory_manager)
+	  i830_refresh_ring(pScrn);
       return TRUE;
    }
    else

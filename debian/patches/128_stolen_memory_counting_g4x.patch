@@ -18,18 +18,15 @@ replaced with the constant scratch page.
 (cherry picked from commit 4dd00681dd0f9fce8dfd4592b46418edbbd2eeb4)
 ---
 
-diff --git a/src/i830_driver.c b/src/i830_driver.c
-index 5269871..a9f4478 100644
---- a/src/i830_driver.c
-+++ b/src/i830_driver.c
-@@ -520,8 +520,8 @@ I830DetectMemory(ScrnInfoPtr pScrn)
+diff -Nurp xserver-xorg-video-intel-2.5.1-1ubuntu1/src/i830_driver.c working/src/i830_driver.c
+--- xserver-xorg-video-intel-2.5.1-1ubuntu1/src/i830_driver.c	2008-11-26 15:53:48.000000000 -0800
++++ working/src/i830_driver.c	2008-11-27 13:20:37.000000000 -0800
+@@ -504,7 +504,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
     range = gtt_size + 4;
  
     /* new 4 series hardware has seperate GTT stolen with GFX stolen */
 -   if (IS_G4X(pI830))
--       range = 0;
-+   if (IS_G4X(pI830) || IS_GM45(pI830))
-+       range = 4;
++   if (IS_G4X(pI830) IS_GM45(pI830))
+        range = 4;
  
     if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
-       switch (gmch_ctrl & I855_GMCH_GMS_MASK) {

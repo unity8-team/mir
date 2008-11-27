@@ -99,20 +99,8 @@ binary-arch: build install serverabi
 	dh_builddeb
 
 # Build architecture-independent files here.
-binary-indep: DH_OPTIONS=-i
-binary-indep: build install
-	dh_testdir
-	dh_testroot
-
-	dh_installdocs
-	dh_installchangelogs ChangeLog
-	dh_link
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+binary-indep:
+	# nothing to do
 
 binary: binary-indep binary-arch
 .PHONY: build clean binary-indep binary-arch binary install

@@ -231,10 +231,12 @@ const static struct _sdvo_cmd_name {
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_TV_FORMAT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_TV_FORMAT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_POWER_STATES),
-    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_ENCODER_POWER_STATE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_ENCODER_POWER_STATE),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_DISPLAY_POWER_STATE),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_SET_CONTROL_BUS_SWITCH),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT),
+    SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SCALED_HDTV_RESOLUTION_SUPPORT),
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS),
     /* HDMI op code */
     SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_SUPP_ENCODE),
@@ -1417,6 +1419,7 @@ i830_sdvo_dump_device(xf86OutputPtr output)
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_TV_FORMATS);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_TV_FORMAT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT);
+    i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SCALED_HDTV_RESOLUTION_SUPPORT);
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPPORTED_ENHANCEMENTS);
 
     i830_sdvo_dump_cmd(output, SDVO_CMD_GET_SUPP_ENCODE);
@@ -1495,7 +1498,9 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
     intel_output = crt->driver_private;
     if (intel_output->type == I830_OUTPUT_ANALOG &&
 	crt->funcs->detect(crt) == XF86OutputStatusDisconnected) {
+	I830I2CInit(pScrn, &intel_output->pDDCBus, GPIOA, "CRTDDC_A");
 	edid_mon = xf86OutputGetEDID(crt, intel_output->pDDCBus);
+	xf86DestroyI2CBusRec(intel_output->pDDCBus, TRUE, TRUE);
     }
     if (edid_mon) {
 	xf86OutputSetEDID(output, edid_mon);

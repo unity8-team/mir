@@ -42,23 +42,6 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
-#ifdef I830DEBUG
-#define DEBUG_I830FALLBACK 1
-#endif
-
-#ifdef DEBUG_I830FALLBACK
-#define I830FALLBACK(s, arg...)				\
-do {							\
-	DPRINTF(PFX, "EXA fallback: " s "\n", ##arg); 	\
-	return FALSE;					\
-} while(0)
-#else
-#define I830FALLBACK(s, arg...) 			\
-do { 							\
-	return FALSE;					\
-} while(0)
-#endif
-
 #define MAX_VERTEX_PER_COMPOSITE    24
 #define MAX_VERTEX_BUFFERS	    256
 
@@ -161,6 +144,8 @@ static void i965_get_blend_cntl(int op, PicturePtr pMask, uint32_t dst_format,
 
 static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
+
     switch (pDstPicture->format) {
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
@@ -192,6 +177,7 @@ static Bool i965_get_dest_format(PicturePtr pDstPicture, uint32_t *dst_format)
 
 static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pPict->pDrawable->pScreen->myNum];
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
     int i;
@@ -209,7 +195,7 @@ static Bool i965_check_composite_texture(PicturePtr pPict, int unit)
         I830FALLBACK("Unsupported picture format 0x%x\n",
 		     (int)pPict->format);
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+    if (pPict->repeatType > RepeatReflect)
 	I830FALLBACK("extended repeat (%d) not supported\n",
 		     pPict->repeatType);
 
@@ -226,6 +212,7 @@ Bool
 i965_check_composite(int op, PicturePtr pSrcPicture, PicturePtr pMaskPicture,
 		     PicturePtr pDstPicture)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pDstPicture->pDrawable->pScreen->myNum];
     uint32_t tmp1;
 
     /* Check for unsupported compositing operations. */
@@ -427,6 +414,8 @@ typedef enum {
 typedef enum {
     SAMPLER_STATE_EXTEND_NONE,
     SAMPLER_STATE_EXTEND_REPEAT,
+    SAMPLER_STATE_EXTEND_PAD,
+    SAMPLER_STATE_EXTEND_REFLECT,
     SAMPLER_STATE_EXTEND_COUNT
 } sampler_state_extend_t;
 
@@ -494,8 +483,8 @@ typedef struct _gen4_state {
 					  [SAMPLER_STATE_FILTER_COUNT]
 					  [SAMPLER_STATE_EXTEND_COUNT][2];
 
-    struct brw_sampler_default_color sampler_default_color;
-    PAD64 (brw_sampler_default_color, 0);
+    struct brw_sampler_legacy_border_color sampler_border_color;
+    PAD64 (brw_sampler_legacy_border_color, 0);
 
     /* Index by [src_blend][dst_blend] */
     brw_cc_unit_state_padded cc_state[BRW_BLENDFACTOR_COUNT]
@@ -564,13 +553,16 @@ static void
 sampler_state_init (struct brw_sampler_state *sampler_state,
 		    sampler_state_filter_t filter,
 		    sampler_state_extend_t extend,
-		    int default_color_offset)
+		    int border_color_offset)
 {
     /* PS kernel use this sampler */
     memset(sampler_state, 0, sizeof(*sampler_state));
 
     sampler_state->ss0.lod_preclamp = 1; /* GL mode */
-    sampler_state->ss0.default_color_mode = 0; /* GL mode */
+
+    /* We use the legacy mode to get the semantics specified by
+     * the Render extension. */
+    sampler_state->ss0.border_color_mode = BRW_BORDER_COLOR_MODE_LEGACY;
 
     switch(filter) {
     default:
@@ -596,10 +588,20 @@ sampler_state_init (struct brw_sampler_state *sampler_state,
 	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_WRAP;
 	break;
+    case SAMPLER_STATE_EXTEND_PAD:
+	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+	break;
+    case SAMPLER_STATE_EXTEND_REFLECT:
+	sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+	sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+	sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_MIRROR;
+	break;
     }
 
-    assert((default_color_offset & 31) == 0);
-    sampler_state->ss2.default_color_pointer = default_color_offset >> 5;
+    assert((border_color_offset & 31) == 0);
+    sampler_state->ss2.border_color_pointer = border_color_offset >> 5;
 
     sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
 }
@@ -722,13 +724,13 @@ gen4_state_init (struct gen4_render_state *render_state)
     card_state->vs_state.vs6.vs_enable = 0;
     card_state->vs_state.vs6.vert_cache_disable = 1;
 
-    /* Set up the sampler default color (always transparent black) */
-    memset(&card_state->sampler_default_color, 0,
-	   sizeof(card_state->sampler_default_color));
-    card_state->sampler_default_color.color[0] = 0.0; /* R */
-    card_state->sampler_default_color.color[1] = 0.0; /* G */
-    card_state->sampler_default_color.color[2] = 0.0; /* B */
-    card_state->sampler_default_color.color[3] = 0.0; /* A */
+    /* Set up the sampler border color (always transparent black) */
+    memset(&card_state->sampler_border_color, 0,
+	   sizeof(card_state->sampler_border_color));
+    card_state->sampler_border_color.color[0] = 0; /* R */
+    card_state->sampler_border_color.color[1] = 0; /* G */
+    card_state->sampler_border_color.color[2] = 0; /* B */
+    card_state->sampler_border_color.color[3] = 0; /* A */
 
     card_state->cc_viewport.min_depth = -1.e35;
     card_state->cc_viewport.max_depth = 1.e35;
@@ -748,12 +750,12 @@ gen4_state_init (struct gen4_render_state *render_state)
 					i, j,
 					state_base_offset +
 					offsetof (gen4_state_t,
-						  sampler_default_color));
+						  sampler_border_color));
 		    sampler_state_init (&card_state->sampler_state[i][j][k][l][1],
 					k, l,
 					state_base_offset +
 					offsetof (gen4_state_t,
-						  sampler_default_color));
+						  sampler_border_color));
 		}
 	    }
 	}
@@ -828,13 +830,17 @@ sampler_state_filter_from_picture (int filter)
 }
 
 static sampler_state_extend_t
-sampler_state_extend_from_picture (int repeat)
+sampler_state_extend_from_picture (int repeat_type)
 {
-    switch (repeat) {
+    switch (repeat_type) {
     case RepeatNone:
 	return SAMPLER_STATE_EXTEND_NONE;
     case RepeatNormal:
 	return SAMPLER_STATE_EXTEND_REPEAT;
+    case RepeatPad:
+	return SAMPLER_STATE_EXTEND_PAD;
+    case RepeatReflect:
+	return SAMPLER_STATE_EXTEND_REFLECT;
     default:
 	return -1;
     }
@@ -1010,17 +1016,17 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
 	I830FALLBACK ("Bad src filter 0x%x\n", pSrcPicture->filter);
-    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeat);
+    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeatType);
     if (src_extend < 0)
-	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeat);
+	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
 
     if (pMaskPicture) {
 	mask_filter = sampler_state_filter_from_picture (pMaskPicture->filter);
 	if (mask_filter < 0)
 	    I830FALLBACK ("Bad mask filter 0x%x\n", pMaskPicture->filter);
-	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeat);
+	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeatType);
 	if (mask_extend < 0)
-	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeat);
+	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeatType);
     } else {
 	mask_filter = SAMPLER_STATE_FILTER_NEAREST;
 	mask_extend = SAMPLER_STATE_EXTEND_NONE;
@@ -1041,7 +1047,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
         BEGIN_BATCH(12);
 
         /* Match Mesa driver setup */
-	if (IS_GM45(pI830) || IS_G4X(pI830))
+	if (IS_G4X(pI830))
 	    OUT_BATCH(NEW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
 	else
 	    OUT_BATCH(BRW_PIPELINE_SELECT | PIPELINE_SELECT_3D);
@@ -1431,26 +1437,6 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);
 #endif
-    /* we must be sure that the pipeline is flushed before next exa draw,
-       because that will be new state, binding state and instructions*/
-    {
-	BEGIN_BATCH(4);
-	OUT_BATCH(BRW_PIPE_CONTROL |
-		  BRW_PIPE_CONTROL_NOWRITE |
-		  BRW_PIPE_CONTROL_WC_FLUSH |
-		  BRW_PIPE_CONTROL_IS_FLUSH |
-		  (1 << 10) |  /* XXX texture cache flush for BLC/CTG */
-		  2);
-	OUT_BATCH(0); /* Destination address */
-	OUT_BATCH(0); /* Immediate data low DW */
-	OUT_BATCH(0); /* Immediate data high DW */
-	ADVANCE_BATCH();
-    }
-
-    /* Mark sync so we can wait for it before setting up the VB on the next
-     * rectangle.
-     */
-    i830MarkSync(pScrn);
 }
 
 /**
@@ -1461,6 +1447,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state;
+    int ret;
 
     if (pI830->gen4_render_state == NULL)
 	pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
@@ -1468,8 +1455,19 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     render_state = pI830->gen4_render_state;
 
     render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
-    render_state->card_state = (gen4_state_t *)
-	(pI830->FbBase + render_state->card_state_offset);
+
+    if (pI830->use_drm_mode) {
+	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
+	if (ret) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to map gen4 state\n");
+	    return;
+	}
+	render_state->card_state = pI830->gen4_render_state_mem->bo->virtual;
+    } else {
+	render_state->card_state = (gen4_state_t *)
+	    (pI830->FbBase + render_state->card_state_offset);
+    }
 
     gen4_state_init(render_state);
 }
@@ -1482,6 +1480,10 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+    if (pI830->use_drm_mode) {
+	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
+	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
+    }
     pI830->gen4_render_state->card_state = NULL;
 }
 

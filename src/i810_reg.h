@@ -113,6 +113,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define COLEXP_RESERVED        0x30
 #define BITBLT_STATUS          0x01
 
+#define CHDECMISC	0x10111
+#define C0DRB0			0x10200
+#define C0DRB1			0x10202
+#define C0DRB2			0x10204
+#define C0DRB3			0x10206
+#define C0DRA01			0x10208
+#define C0DRA23			0x1020a
+#define C1DRB0			0x10600
+#define C1DRB1			0x10602
+#define C1DRB2			0x10604
+#define C1DRB3			0x10606
+#define C1DRA01			0x10608
+#define C1DRA23			0x1060a
+
 /* p375. 
  */
 #define DISPLAY_CNTL       0x70008
@@ -405,7 +419,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Current active ring head address: 
  */
-#define ACTHD                 0x2074
+#define ACTHD_I965                 0x2074
+#define ACTHD			   0x20C8
 
 /* Current primary/secondary DMA fetch addresses:
  */
@@ -490,6 +505,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   - new bits for i810
  *   - new register hwstam (mask)
  */
+#define HWS_PGA		     0x2080
 #define PWRCTXA		     0x2088 /* 965GM+ only */
 #define   PWRCTX_EN	     (1<<0)
 #define HWSTAM               0x2098 /* p290 */
@@ -897,9 +913,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define POWER_DOWN_ON_RESET			(1 << 1)
 # define POWER_TARGET_ON			(1 << 0)
 
-#define LVDSPP_ON       0x61208
-#define LVDSPP_OFF      0x6120c
-#define PP_CYCLE        0x61210
+#define PP_ON_DELAYS	0x61208
+#define PP_OFF_DELAYS	0x6120c
+#define PP_DIVISOR	0x61210
 
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
@@ -1151,6 +1167,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define I965_DM_CLOCK_GATE_DISABLE		(1 << 0)
 
 #define RENCLK_GATE_D2		0x6208
+#define VF_UNIT_CLOCK_GATE_DISABLE		(1 << 9)
+#define GS_UNIT_CLOCK_GATE_DISABLE		(1 << 7)
+#define CL_UNIT_CLOCK_GATE_DISABLE		(1 << 6)
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
@@ -1223,7 +1242,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define SDVOC_HOTPLUG_INT_EN			(1 << 25)
 # define TV_HOTPLUG_INT_EN			(1 << 18)
 # define CRT_HOTPLUG_INT_EN			(1 << 9)
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_32	(0 << 8)
+/* must use period 64 on GM45 according to docs */
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_64	(1 << 8)
+# define CRT_HOTPLUG_DAC_ON_TIME_2M		(0 << 7)
+# define CRT_HOTPLUG_DAC_ON_TIME_4M		(1 << 7)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_40		(0 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_50		(1 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_60		(2 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_70		(3 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_MASK	(3 << 5)
+# define CRT_HOTPLUG_DETECT_DELAY_1G		(0 << 4)
+# define CRT_HOTPLUG_DETECT_DELAY_2G		(1 << 4)
 # define CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
+# define CRT_HOTPLUG_MASK			(0x3fc)	/* Bits 9-2 */
 
 #define PORT_HOTPLUG_STAT	0x61114
 # define HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
@@ -1558,7 +1592,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
 /** Bits that must be preserved by software */
-# define TV_CTL_SAVE			((3 << 8) | (3 << 6))
+# define TV_CTL_SAVE			((1 << 11) | (3 << 9) | (7 << 6) | 0xf)
 # define TV_FUSE_STATE_MASK		(3 << 4)
 /** Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)
@@ -2417,6 +2451,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define STATE3D_COLOR_FACTOR	((0x3<<29)|(0x1d<<24)|(0x01<<16))
 
+/* Batch */
+#define MI_BATCH_BUFFER		((0x30 << 23) | 1)
+#define MI_BATCH_BUFFER_START	(0x31 << 23)
+#define MI_BATCH_BUFFER_END	(0xA << 23)
+#define MI_BATCH_NON_SECURE		(1)
+#define MI_BATCH_NON_SECURE_I965	(1 << 8)
+
 /* STATE3D_FOG_MODE stuff */
 #define ENABLE_FOG_SOURCE	(1<<27)
 #define ENABLE_FOG_CONST	(1<<24)
@@ -2814,5 +2855,8 @@ typedef enum {
 #define DPFC_FENCE_YOFF		0x3218
 
 #define PEG_BAND_GAP_DATA	0x14d68
+
+#define MCHBAR_RENDER_STANDBY	0x111B8
+#define RENDER_STANDBY_ENABLE	(1 << 30)
 
 #endif /* _I810_REG_H */

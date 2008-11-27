@@ -162,6 +162,15 @@ static void i830_dmi_dump(void)
 }
 
 /*
+ * Old chips have undocumented panel fitting registers.  Some of them actually
+ * work; this quirk indicates that.
+ */
+static void quirk_pfit_safe (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_PFIT_SAFE;
+}
+
+/*
  * Some machines hose the display regs regardless of the ACPI DOS
  * setting, so we need to reset modes at ACPI event time.
  */
@@ -220,6 +229,9 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I965_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0x8086, 0x1999, quirk_ignore_lvds },
 
+    /* Cappuccino SlimPRO SP625F, bz #11368 */
+    { PCI_CHIP_I855_GM, 0x8086, 0x3582, quirk_ignore_lvds },
+
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
 
@@ -243,11 +255,11 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I965_GM, 0x1028, 0x0286, quirk_ignore_tv },
     /* Dell Vostro A840 (LP: #235155) */
     { PCI_CHIP_I965_GM, 0x1028, 0x0298, quirk_ignore_tv },
+    /* Dell Studio Hybrid */
+    { PCI_CHIP_I965_GM, 0x1028, 0x0279, quirk_ignore_lvds },
 
     /* Lenovo Napa TV (use dmi)*/
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
-    /* Lenovo T61 has no TV output */
-    { PCI_CHIP_I965_GM, 0x17aa, 0x20b5, quirk_ignore_tv },
     /* Lenovo 3000 v200 */
     { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
 
@@ -269,6 +281,8 @@ static i830_quirk i830_quirk_list[] = {
     /* Samsung Q45 has no TV output */
     { PCI_CHIP_I965_GM, 0x144d, 0xc510, quirk_ignore_tv },
 
+    /* HP Compaq nx6110 has no TV output */
+    { PCI_CHIP_I915_GM, 0x103c, 0x099c, quirk_ignore_tv },
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
 
@@ -284,6 +298,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x1028, 0x014f, quirk_pipea_force },
     /* Dell Inspiron 510m needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1028, 0x0164, quirk_pipea_force },
+    /* Toshiba Satellite A30 needs pipe A force quirk */
+    { PCI_CHIP_I855_GM, 0x1179, 0xff00 , quirk_pipea_force },
     /* Toshiba Protege R-205, S-209 needs pipe A force quirk */
     { PCI_CHIP_I915_GM, 0x1179, 0x0001, quirk_pipea_force },
     /* Intel 855GM hardware (See LP: #216490) */
@@ -292,6 +308,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I855_GM, 0x10cf, 0x1215, quirk_pipea_force },
     /* HP Pavilion ze4944ea needs pipe A force quirk (See LP: #242389) */
     { PCI_CHIP_I855_GM, 0x103c, 0x3084, quirk_pipea_force },
+
+    { PCI_CHIP_I855_GM, 0x161f, 0x2030, quirk_pfit_safe },
 
     /* ThinkPad X40 needs pipe A force quirk */
     { PCI_CHIP_I855_GM, 0x1014, 0x0557, quirk_pipea_force },
@@ -316,6 +334,9 @@ static i830_quirk i830_quirk_list[] = {
     /* 855 & before need to leave pipe A & dpll A up */
     { PCI_CHIP_I855_GM, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
     { PCI_CHIP_845_G, SUBSYS_ANY, SUBSYS_ANY, quirk_pipea_force },
+
+    /* Asus Eee Box has no LVDS */
+    { PCI_CHIP_I945_GME, 0x1043, 0x1252, quirk_ignore_lvds },
 
     { 0, 0, 0, NULL },
 };

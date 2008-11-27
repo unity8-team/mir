@@ -1,3 +1,47 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu1) jaunty; urgency=low
+
+  * Merge with debian experimental.  Remaining changes:
+    - debian/control:
+      + Change the maintainer address.
+      + Add lpia to the list of architectures.
+      + Drop Vcs-* as we're not using these repos for -intel.
+    - debian/patches:
+      + Renumber Ubuntu patches +100
+      + 101_quirk_quanta_w251u.patch
+      + 111_textured_video_option.patch
+      + 128_stolen_memory_counting_g4x.patch
+  * Drop 01_fix_compiz_video.diff.  Was already disabled in Ubuntu previously
+  * Drop 05_intel_exa_force_greedy.patch.  Should no longer be necessary.
+  * Drop patches already upstream:
+    - 20_thinkpad_g40_quirk.patch
+    - 21_quirk_lenovo.patch
+    - 22_no_pipe_for_hotplug_detection.patch
+    - 23_quirks_studiohybrid_eeepc_and_w251u.patch
+    - 24_no_render_suspend
+    - 25_quirk_nc6110.patch
+    - 26_i830-use-lfp-data-ptrs.patch
+    - 27_disable_fbc_on_965.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Thu, 27 Nov 2008 10:46:18 -0800
+
+xserver-xorg-video-intel (2:2.5.1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Wrap build-deps in debian/control.
+  * Build depend on libdrm-dev on all archs, since it's now required, and bump
+    the build dep to 2.4.1.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 23 Nov 2008 17:02:31 +0100
+
+xserver-xorg-video-intel (2:2.4.2-1) experimental; urgency=low
+
+  * Drop the xserver-xorg-video-i810 transitional package.
+  * Build against xorg-server 1.5.
+  * New upstream release (no changes from the previous snapshot other than the
+    version number).
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 04 Sep 2008 02:49:59 +0200
+
 xserver-xorg-video-intel (2:2.4.1-1ubuntu11) jaunty; urgency=low
 
   * Re-enable 11_textured_video_option.patch, but change logic so it is

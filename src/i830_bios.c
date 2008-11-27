@@ -47,9 +47,6 @@
 				 (bios[_addr + 2] << 16)	\
 				 (bios[_addr + 3] << 24))
 
-/* XXX */
-#define INTEL_VBIOS_SIZE (64 * 1024)
-
 static void *
 find_section(struct bdb_header *bdb, int section_id)
 {
@@ -88,8 +85,8 @@ static void
 parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 {
     struct bdb_lvds_options *lvds_options;
-    struct bdb_lvds_lfp_data *lvds_lfp_data;
-    struct bdb_lvds_lfp_data_entry *entry;
+    struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
+    int timing_offset;
     DisplayModePtr fixed_mode;
     unsigned char *timing_ptr;
 
@@ -104,12 +101,13 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     if (lvds_options->panel_type == 0xff)
 	return;
 
-    lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
-    if (!lvds_lfp_data)
+    lvds_lfp_data_ptrs = find_section(bdb, BDB_LVDS_LFP_DATA_PTRS);
+    if (!lvds_lfp_data_ptrs)
 	return;
 
-    entry = &lvds_lfp_data->data[lvds_options->panel_type];
-    timing_ptr = (unsigned char *)&entry->dvo_timing;
+    timing_offset =
+	lvds_lfp_data_ptrs->ptr[lvds_options->panel_type].dvo_timing_offset;
+    timing_ptr = (unsigned char *)bdb + timing_offset;
 
     fixed_mode = xnfalloc(sizeof(DisplayModeRec));
     memset(fixed_mode, 0, sizeof(*fixed_mode));
@@ -161,6 +159,8 @@ parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
     }
 }
 
+#define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
+
 /**
  * i830_bios_init - map VBIOS, find VBT
  *
@@ -179,28 +179,44 @@ i830_bios_init(ScrnInfoPtr pScrn)
     struct bdb_header *bdb;
     int vbt_off, bdb_off;
     unsigned char *bios;
-    vbeInfoPtr	pVbe;
+    int ret;
+    int size;
 
-    bios = xalloc(INTEL_VBIOS_SIZE);
+#if XSERVER_LIBPCIACCESS
+    size = pI830->PciInfo->rom_size;
+    if (size == 0) {
+	size = INTEL_VBIOS_SIZE;
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "libpciaccess reported 0 rom size, guessing %dkB\n",
+		   size / 1024);
+    }
+#else
+    size = INTEL_VBIOS_SIZE;
+#endif
+    bios = xalloc(size);
     if (bios == NULL)
 	return -1;
 
-    pVbe = VBEInit(NULL, pI830->pEnt->index);
-    if (pVbe != NULL) {
-	memcpy(bios, xf86int10Addr(pVbe->pInt10,
-				   pVbe->pInt10->BIOSseg << 4),
-	       INTEL_VBIOS_SIZE);
-	vbeFree (pVbe);
-    } else {
 #if XSERVER_LIBPCIACCESS
-	pci_device_read_rom (pI830->PciInfo, bios);
-#else
-	xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, INTEL_VBIOS_SIZE);
-#endif
+    ret = pci_device_read_rom (pI830->PciInfo, bios);
+    if (ret != 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                  "libpciaccess failed to read %dkB video BIOS: %s\n",
+                  size / 1024, strerror(-ret));
+	xfree (bios);
+	return -1;
     }
+#else
+    /* xf86ReadPciBIOS returns the length read */
+    ret = xf86ReadPciBIOS(0, pI830->PciTag, 0, bios, size);
+    if (ret <= 0) {
+	xfree (bios);
+	return -1;
+    }
+#endif
 
     vbt_off = INTEL_BIOS_16(0x1a);
-    if (vbt_off >= INTEL_VBIOS_SIZE) {
+    if (vbt_off >= size) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Bad VBT offset: 0x%x\n",
 		   vbt_off);
 	xfree(bios);
