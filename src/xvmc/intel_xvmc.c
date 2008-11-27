@@ -341,6 +341,8 @@ Status XvMCCreateContext(Display *display, XvPortID port,
 		xvmc_driver = &i915_xvmc_mc_driver;
 		break;
 	    case XVMC_I965_MPEG2_MC:
+		xvmc_driver = &i965_xvmc_mc_driver;
+		break;
 	    case XVMC_I945_MPEG2_VLD:
 	    case XVMC_I965_MPEG2_VLD:
 	    default:
@@ -578,12 +580,13 @@ Status XvMCCreateBlocks(Display *display, XvMCContext *context,
                         unsigned int num_blocks,
                         XvMCBlockArray *block)
 {
+    Status ret;
     if (!display || !context || !num_blocks || !block)
         return BadValue;
 
     memset(block, 0, sizeof(XvMCBlockArray));
 
-    if (!(block->blocks = (short *)malloc(num_blocks << 6 * sizeof(short))))
+    if (!(block->blocks = (short *)malloc((num_blocks << 6) * sizeof(short))))
         return BadAlloc;
 
     block->num_blocks = num_blocks;
@@ -598,6 +601,7 @@ Status XvMCCreateBlocks(Display *display, XvMCContext *context,
  */
 Status XvMCDestroyBlocks(Display *display, XvMCBlockArray *block)
 {
+    Status ret;
     if (!display || !block)
         return BadValue;
 
@@ -750,19 +754,23 @@ Status XvMCPutSurface(Display *display,XvMCSurface *surface,
 	intel_surf->gc = XCreateGC(display, draw, 0, NULL);
     }
     intel_surf->last_draw = draw;
-
     /* fill intel_surf->data */
+    if (0)
+    {
+	drmVBlank vbl;
+	vbl.request.type = DRM_VBLANK_RELATIVE;
+	vbl.request.sequence = 1;
+	drmWaitVBlank(xvmc_driver->fd, &vbl);
+    }
     ret = (xvmc_driver->put_surface)(display, surface, draw, srcx, srcy,
 	    srcw, srch, destx, desty, destw, desth, flags, &intel_surf->data);
     if (ret) {
 	XVMC_ERR("put surface fail\n");
 	return ret;
     }
-
     ret = XvPutImage(display, context->port, draw, intel_surf->gc,
 	    intel_surf->image, srcx, srcy, srcw, srch, destx, desty,
 	    destw, desth);
-
     return ret;
 }
 

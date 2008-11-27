@@ -2301,6 +2301,8 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
 #ifdef INTEL_XVMC
     case FOURCC_XVMC:
+	srcPitch = (width + 0x3) & ~0x3;
+	srcPitch2 = ((width >> 1) + 0x3) & ~0x3;
 	break;
 #endif
     case FOURCC_UYVY:
@@ -2459,6 +2461,13 @@ I830PutImage(ScrnInfoPtr pScrn,
 	break;
 #ifdef INTEL_XVMC
     case FOURCC_XVMC:
+	if (pPriv->rotation != RR_Rotate_0) {
+	    top &= ~1;
+	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	    I830CopyPlanarData(pScrn, pPriv, buf, srcPitch, srcPitch2, dstPitch,
+		    height, top, left, nlines, npixels, id);
+	}
+
 	break;
 #endif
     default:
@@ -2499,6 +2508,14 @@ I830PutImage(ScrnInfoPtr pScrn,
 	    i830_fill_colorkey (pScreen, pPriv->colorKey, clipBoxes);
 	}
     } else if (IS_I965G(pI830)) {
+
+#ifdef INTEL_XVMC
+	if (id == FOURCC_XVMC && pPriv->rotation == RR_Rotate_0) {
+	    pPriv->YBuf0offset = buf -  pI830->FbBase;
+	    pPriv->UBuf0offset = pPriv->YBuf0offset + height*width; 
+	    pPriv->VBuf0offset = pPriv->UBuf0offset + height*width/4; 
+	}
+#endif
 	I965DisplayVideoTextured(pScrn, pPriv, destId, clipBoxes, width, height,
 				 dstPitch, x1, y1, x2, y2,
 				 src_w, src_h, drw_w, drw_h, pPixmap);
