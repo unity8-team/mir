@@ -533,6 +533,9 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
+    if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
+        RADEON_FALLBACK("Can't dst alpha blend A8\n");
+
     if (pMask)
 	info->accel_state->has_mask = TRUE;
     else
@@ -832,6 +835,9 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
+
+    if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
+        RADEON_FALLBACK("Can't dst alpha blend A8\n");
 
     if (pMask)
 	info->accel_state->has_mask = TRUE;
