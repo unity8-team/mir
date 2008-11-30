@@ -544,8 +544,8 @@ typedef struct drm_radeon_init {
 	unsigned int depth_offset, depth_pitch;
 
 	/* DEPRECATED commented out below to allow for -Werror build */
-	unsigned long fb_offset /*DEPRECATED*/;	/* deprecated, driver asks hardware */
-	unsigned long mmio_offset /*DEPRECATED*/;	/* deprecated, driver asks hardware */
+	unsigned long fb_offset;	/* deprecated, driver asks hardware */
+	unsigned long mmio_offset;	/* deprecated, driver asks hardware */
 	unsigned long ring_offset;
 	unsigned long ring_rptr_offset;
 	unsigned long buffers_offset;
@@ -581,7 +581,7 @@ typedef struct drm_radeon_clear {
 	unsigned int clear_depth;
 	unsigned int color_mask;
 	unsigned int depth_mask;	/* misnamed field:  should be stencil */
-	drm_radeon_clear_rect_t __user *depth_boxes;
+	drm_radeon_clear_rect_t  *depth_boxes;
 } drm_radeon_clear_t;
 
 typedef struct drm_radeon_vertex {
@@ -607,9 +607,9 @@ typedef struct drm_radeon_vertex2 {
 	int idx;		/* Index of vertex buffer */
 	int discard;		/* Client finished with buffer? */
 	int nr_states;
-	drm_radeon_state_t __user *state;
+	drm_radeon_state_t  *state;
 	int nr_prims;
-	drm_radeon_prim_t __user *prim;
+	drm_radeon_prim_t  *prim;
 } drm_radeon_vertex2_t;
 
 /* v1.3 - obsoletes drm_radeon_vertex2
@@ -624,15 +624,15 @@ typedef struct drm_radeon_vertex2 {
  */
 typedef struct drm_radeon_cmd_buffer {
 	int bufsz;
-	char __user *buf;
+	char  *buf;
 	int nbox;
-	struct drm_clip_rect __user *boxes;
+	struct drm_clip_rect  *boxes;
 } drm_radeon_cmd_buffer_t;
 
 typedef struct drm_radeon_tex_image {
 	unsigned int x, y;	/* Blit coordinates */
 	unsigned int width, height;
-	const void __user *data;
+	const void  *data;
 } drm_radeon_tex_image_t;
 
 typedef struct drm_radeon_texture {
@@ -641,11 +641,11 @@ typedef struct drm_radeon_texture {
 	int format;
 	int width;		/* Texture image coordinates */
 	int height;
-	drm_radeon_tex_image_t __user *image;
+	drm_radeon_tex_image_t  *image;
 } drm_radeon_texture_t;
 
 typedef struct drm_radeon_stipple {
-	unsigned int __user *mask;
+	unsigned int  *mask;
 } drm_radeon_stipple_t;
 
 typedef struct drm_radeon_indirect {
@@ -686,7 +686,7 @@ typedef struct drm_radeon_indirect {
 
 typedef struct drm_radeon_getparam {
 	int param;
-	void __user *value;
+	void  *value;
 } drm_radeon_getparam_t;
 
 /* 1.6: Set up a memory manager for regions of shared memory:
@@ -698,7 +698,7 @@ typedef struct drm_radeon_mem_alloc {
 	int region;
 	int alignment;
 	int size;
-	int __user *region_offset;	/* offset from start of fb or GART */
+	int  *region_offset;	/* offset from start of fb or GART */
 } drm_radeon_mem_alloc_t;
 
 typedef struct drm_radeon_mem_free {
@@ -715,7 +715,7 @@ typedef struct drm_radeon_mem_init_heap {
 /* 1.6: Userspace can request & wait on irq's:
  */
 typedef struct drm_radeon_irq_emit {
-	int __user *irq_seq;
+	int  *irq_seq;
 } drm_radeon_irq_emit_t;
 
 typedef struct drm_radeon_irq_wait {
