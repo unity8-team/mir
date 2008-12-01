@@ -922,7 +922,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						       R500_ALU_RGBA_B_SWIZ_R |
 						       R500_ALU_RGBA_A_SWIZ_G));
 
-		/* TEX temp1, temp3.zwxy, tex0, 1D */
+		/* TEX temp1, temp3.zwxy, tex0, 2D */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						       R500_INST_RGB_WMASK_R |
 						       R500_INST_RGB_WMASK_G |
@@ -945,7 +945,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* TEX temp3, temp3.xyzw, tex0, 1D */
+		/* TEX temp3, temp3.xyzw, tex0, 2D */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						       R500_INST_TEX_SEM_WAIT |
 						       R500_INST_RGB_WMASK_R |
@@ -970,7 +970,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* MAD temp4, const1.0y0y, temp5.yyyy, temp4 */
+		/* MAD temp4, const0.0y0y, temp5.yyyy, temp4 */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
 						       R500_INST_RGB_WMASK_R |
 						       R500_INST_RGB_WMASK_G |
@@ -1036,7 +1036,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						       R500_ALU_RGBA_B_SWIZ_R |
 						       R500_ALU_RGBA_A_SWIZ_G));
 
-		/* TEX temp4, temp0.zwzw, tex0, 1D */
+		/* TEX temp4, temp0.zwzw, tex0, 2D */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						       R500_INST_TEX_SEM_WAIT |
 						       R500_INST_RGB_WMASK_R |
@@ -1060,7 +1060,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
-		/* TEX temp0, temp0.xyzw, tex0, 1D */
+		/* TEX temp0, temp0.xyzw, tex0, 2D */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
 						       R500_INST_TEX_SEM_WAIT |
 						       R500_INST_RGB_WMASK_R |
@@ -1209,7 +1209,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		/* Shader constants. */
 		OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_CONST_INDEX(0));
 
-		/* const0 = {1 / texture[0].width, 0, 0, 0} */
+		/* const0 = {1 / texture[0].width, 1 / texture[0].height, 0, 0} */
 		OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->w));
 		OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, (1.0/(float)pPriv->h));
 		OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, 0x0);
