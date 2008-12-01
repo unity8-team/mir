@@ -507,6 +507,16 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* r200 card with primary dac routed to both VGA and DVI - disable load detection 
+     * otherwise you end up detecing load if either port is attached
+     */
+    if (info->Chipset == PCI_CHIP_R200_QL &&
+	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1569 &&
+	PCI_SUB_DEVICE_ID(info->PciInfo) == 0x514c &&
+	info->BiosConnector[index].DACType == DAC_PRIMARY) {
+	info->BiosConnector[index].load_detection = FALSE;
+    }
+
 }
 
 static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
@@ -585,6 +595,11 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[i].TMDSType = TMDS_EXT;
 	    else
 		info->BiosConnector[i].TMDSType = TMDS_INT;
+
+	    if (info->BiosConnector[i].DACType == DAC_TVDAC)
+		info->BiosConnector[i].load_detection = FALSE;
+	    else
+		info->BiosConnector[i].load_detection = TRUE;
 
 	    RADEONApplyLegacyQuirks(pScrn, i);
 
@@ -668,9 +683,8 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LCD DDC Info Table found!\n");
 		    }
 		}
-	    } else {
+	    } else
 		info->BiosConnector[4].ddc_i2c.valid = FALSE;
-	    }
 	}
     }
 
@@ -683,6 +697,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		/* assume s-video for now */
 		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
 		info->BiosConnector[5].DACType = DAC_TVDAC;
+		info->BiosConnector[5].load_detection = FALSE;
 		info->BiosConnector[5].TMDSType = TMDS_NONE;
 		info->BiosConnector[5].ddc_i2c.valid = FALSE;
 	    }

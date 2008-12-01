@@ -1946,6 +1946,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 #endif
 
 	info->BiosConnector[i].valid = TRUE;
+	info->BiosConnector[i].load_detection = TRUE;
 	info->BiosConnector[i].shared_ddc = FALSE;
 	info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux;
 	info->BiosConnector[i].devices = (1 << i);
@@ -2018,9 +2019,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 		    info->BiosConnector[i].hpd_mask = 0;
 		    break;
 	    }
-	} else {
+	} else
 	    info->BiosConnector[i].hpd_mask = 0;
-	}
 
 	RADEONApplyATOMQuirks(pScrn, i);
 

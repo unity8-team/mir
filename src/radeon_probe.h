@@ -210,6 +210,7 @@ typedef struct {
     int igp_lane_info;
     Bool shared_ddc;
     int i2c_line_mux;
+    Bool load_detection;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
