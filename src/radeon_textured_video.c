@@ -204,7 +204,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Bicubic filter loading */
-    if (!IS_R500_3D)
+    if (!IS_R500_3D && !IS_R300_3D)
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
@@ -459,7 +459,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->videoStatus = 0;
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
-	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_RV515);
+	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_R300);
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
