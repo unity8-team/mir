@@ -80,6 +80,32 @@ static __inline__ uint32_t F_TO_DW(float val)
     return tmp.l;
 }
 
+/* Borrowed from Mesa */
+static __inline__ uint32_t F_TO_24(float val)
+{
+	float mantissa;
+	int exponent;
+	uint32_t float24 = 0;
+
+	if (val == 0.0)
+		return 0;
+
+	mantissa = frexpf(val, &exponent);
+
+	/* Handle -ve */
+	if (mantissa < 0) {
+		float24 |= (1 << 23);
+		mantissa = mantissa * -1.0;
+	}
+	/* Handle exponent, bias of 63 */
+	exponent += 62;
+	float24 |= (exponent << 16);
+	/* Kill 7 LSB of mantissa */
+	float24 |= (F_TO_DW(mantissa) & 0x7FFFFF) >> 7;
+
+	return float24;
+}
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))

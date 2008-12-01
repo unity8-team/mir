@@ -90,45 +90,6 @@ do {								\
 
 #endif /* !ACCEL_CP */
 
-#ifndef __FLOAT_TO_S16E7__
-#define __FLOAT_TO_S16E7__
-
-static int float_to_s16e7(float in)
-{
-	union {
-		float f;
-		int i;
-	} x;
-
-	int s, e, f, out; // sign, exponent, fraction
-
-	x.f = in;
-	s = (x.i & (1 << 31)) >> 31;
-	e = (x.i & 0x7f800000) >> 23;
-	f = (x.i & 0x007fffff);
-
-	/* unbias the exponent */
-	e = e - 127;
-	if (e < -63)
-		e = -63;
-	else if (e > 63)
-		e = 63;
-
-	e += 63;
-
-	/* prepend implicit 1 to fraction */
-	f |= (1 << 23);
-	/* cut mantissa to 16 bits */
-	f = (f & 0xffff80) >> 8;
-
-	out = s;
-	out = (out << 7) | e;
-	out = (out << 16) | f;
-
-	return out;
-}
-#endif
-
 static void
 FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 {
@@ -710,13 +671,13 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A)));
 
 		/* Shader constants. */
-		OUT_ACCEL_REG(R300_US_ALU_CONST_R(0), float_to_s16e7(1.0/(float)pPriv->w));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_R(0), F_TO_24(1.0/(float)pPriv->w));
 		OUT_ACCEL_REG(R300_US_ALU_CONST_G(0), 0);
 		OUT_ACCEL_REG(R300_US_ALU_CONST_B(0), 0);
 		OUT_ACCEL_REG(R300_US_ALU_CONST_A(0), 0);
 
 		OUT_ACCEL_REG(R300_US_ALU_CONST_R(1), 0);
-		OUT_ACCEL_REG(R300_US_ALU_CONST_G(1), float_to_s16e7(1.0/(float)pPriv->h));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_G(1), F_TO_24(1.0/(float)pPriv->h));
 		OUT_ACCEL_REG(R300_US_ALU_CONST_B(1), 0);
 		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), 0);
 
