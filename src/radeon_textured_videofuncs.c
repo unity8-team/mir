@@ -681,9 +681,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_CONST_B(1), 0);
 		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), 0);
 
-		FINISH_VIDEO();
+		FINISH_ACCEL();
 		} else {
-		BEGIN_VIDEO(8);
+		BEGIN_ACCEL(8);
 	    /* 2 components: 2 for tex0 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |

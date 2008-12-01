@@ -230,7 +230,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Bicubic filter loading */
-    if (!IS_R500_3D && !IS_R300_3D)
+    if (!(IS_R300_3D || IS_R500_3D))
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
@@ -457,13 +457,8 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R500_3D) {
-	adapt->nAttributes = NUM_ATTRIBUTES;
-	adapt->pAttributes = Attributes;
-    } else {
-	adapt->nAttributes = 0;
-	adapt->pAttributes = NULL;
-    }
+    adapt->pAttributes = Attributes;
+    adapt->nAttributes = NUM_ATTRIBUTES;
     adapt->pImages = Images;
     adapt->nImages = NUM_IMAGES;
     adapt->PutVideo = NULL;
