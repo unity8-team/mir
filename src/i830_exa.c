@@ -35,6 +35,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "xaarop.h"
 #include "i830.h"
 #include "i810_reg.h"
+#include "i915_drm.h"
 #include <string.h>
 
 #define ALWAYS_SYNC		0
@@ -94,6 +95,21 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long offset;
+    dri_bo *bo;
+
+    bo = i830_get_pixmap_bo(pPixmap);
+    if (bo != NULL) {
+	uint32_t tiling_mode, swizzle_mode;
+	int ret;
+
+	ret = drm_intel_bo_get_tiling(bo, &tiling_mode, &swizzle_mode);
+	if (ret != 0) {
+	    FatalError("Couldn't get tiling on bo %p: %s\n",
+		       bo, strerror(-ret));
+	}
+
+	return tiling_mode != I915_TILING_NONE;
+    }
 
     offset = intel_get_pixmap_offset(pPixmap);
     if (offset == pI830->front_buffer->offset &&
@@ -747,6 +763,8 @@ i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
 static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -755,13 +773,23 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	I830Ptr i830 = I830PTR(scrn);
 	
 	intel_batch_flush(scrn, FALSE);
+	/* XXX: dri_bo_map should handle syncing for us, what's the deal? */
 	if (i830->need_sync) {
 	    I830Sync(scrn);
 	    i830->need_sync = FALSE;
 	}
-	if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
-	    return FALSE;
-        pixmap->devPrivate.ptr = bo->virtual;
+
+	/* For tiled front buffer, short-circuit to the GTT mapping. */
+	if (i830_pixmap_tiled(pixmap)) {
+	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+
+	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
+	} else {
+	    if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
+		return FALSE;
+
+	    pixmap->devPrivate.ptr = bo->virtual;
+	}
     }
     return TRUE;
 }
@@ -775,8 +803,10 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
-	
-	dri_bo_unmap (bo);
+
+	if (!i830_pixmap_tiled(pixmap))
+	    dri_bo_unmap(bo);
+
 	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
 	    i830->need_flush = TRUE;

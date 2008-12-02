@@ -224,7 +224,7 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.0])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.2])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
