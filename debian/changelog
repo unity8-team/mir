@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu3) jaunty; urgency=low
+
+  * 102_quirk_hp_2730p.patch: pipea quirk for hp 2730p (LP: #291555)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 02 Dec 2008 11:47:28 -0800
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu2) jaunty; urgency=low
 
   * Drop 128_stolen_memory_counting_g4x.patch (already upstream)
