@@ -2131,7 +2131,6 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 }
 #endif
 
-#ifdef XF86DRI_MM
 #if 0
 static i830_memory *
 i830_allocate_framebuffer_new(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox)
@@ -2243,5 +2242,3 @@ i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
     return pI830->front_buffer->bo->handle;
 #endif
 }
-
-#endif
