@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu2) jaunty; urgency=low
+
+  * Drop 128_stolen_memory_counting_g4x.patch (already upstream)
+  * Refresh and re-enable 111_textured_video_option.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 02 Dec 2008 09:13:34 -0800
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu1) jaunty; urgency=low
 
   * Merge with debian experimental.  Remaining changes:
@@ -8,8 +15,8 @@ xserver-xorg-video-intel (2:2.5.1-1ubuntu1) jaunty; urgency=low
     - debian/patches:
       + Renumber Ubuntu patches +100
       + 101_quirk_quanta_w251u.patch
-      + 111_textured_video_option.patch
-      + 128_stolen_memory_counting_g4x.patch
+      + 111_textured_video_option.patch (disabled)
+      + 128_textured_video_option.patch (disabled)
   * Drop 01_fix_compiz_video.diff.  Was already disabled in Ubuntu previously
   * Drop 05_intel_exa_force_greedy.patch.  Should no longer be necessary.
   * Drop patches already upstream:

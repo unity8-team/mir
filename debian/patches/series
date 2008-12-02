@@ -1,4 +1,3 @@
 01_gen_pci_ids.diff
 101_quirk_quanta_w251u.patch
-#111_textured_video_option.patch
-#128_stolen_memory_counting_g4x.patch
+111_textured_video_option.patch
