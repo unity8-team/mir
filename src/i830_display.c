@@ -422,7 +422,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     }
 
 #ifdef XF86DRI
-    if (pI830->directRenderingEnabled) {
+    if (pI830->directRenderingType == DRI_XF86DRI) {
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
 
 	if (!sPriv)
@@ -745,7 +745,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     return TRUE;
 }
 
-#if defined(DRM_IOCTL_MODESET_CTL) && defined(XF86DRI)
+#if defined(DRM_IOCTL_MODESET_CTL) && (defined(XF86DRI) || defined(DRI2))
 static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -753,7 +753,7 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     struct drm_modeset_ctl modeset;
 
-    if (!pI830->directRenderingEnabled)
+    if (pI830->directRenderingType <= DRI_NONE)
       return;
 
     modeset.crtc = intel_crtc->pipe;
@@ -777,7 +777,7 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int dpms_state)
 {
     return;
 }
-#endif /* DRM_IOCTL_MODESET_CTL && XF86DRI */
+#endif /* DRM_IOCTL_MODESET_CTL && (XF86DRI || DRI2) */
 
 /**
  * Sets the power management mode of the pipe and plane.
@@ -912,7 +912,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     intel_crtc->dpms_mode = mode;
 
 #ifdef XF86DRI
-    if (pI830->directRenderingEnabled) {
+    if (pI830->directRenderingType == DRI_XF86DRI) {
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
 	Bool enabled = crtc->enabled && mode != DPMSModeOff;
 

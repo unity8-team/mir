@@ -435,14 +435,14 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     has_gem = FALSE;
     has_dri = FALSE;
     
-    if (pI830->directRenderingEnabled &&
+    if (pI830->directRenderingType == DRI_XF86DRI &&
 	xf86LoaderCheckSymbol ("DRIQueryVersion"))
     {
 	DRIQueryVersion(&dri_major, &dri_minor, &dri_patch);
 	has_dri = TRUE;
     }
 
-    if (pI830->directRenderingEnabled)
+    if (pI830->directRenderingType >= DRI_XF86DRI)
     {
 	has_gem = FALSE;
 	gp.param = I915_PARAM_HAS_GEM;
@@ -457,8 +457,9 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
      * 5.4 or newer so we can rely on the lock being held after DRIScreenInit,
      * rather than after DRIFinishScreenInit.
      */
-    if (pI830->directRenderingEnabled && has_gem && has_dri &&
-	(dri_major > 5 || (dri_major == 5 && dri_minor >= 4)))
+    if ((pI830->directRenderingType == DRI_XF86DRI && has_gem && has_dri &&
+	(dri_major > 5 || (dri_major == 5 && dri_minor >= 4))) ||
+	(pI830->directRenderingType == DRI_DRI2 && has_gem))
     {
 	int mmsize;
 

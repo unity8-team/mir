@@ -138,7 +138,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
 #ifdef XF86DRI
-	 if (pI830->directRenderingEnabled) {
+	 if (pI830->directRenderingType == DRI_XF86DRI) {
 	    DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
 	    DRICloseScreen(screenInfo.screens[pScrn->scrnIndex]);
 	 }
@@ -183,7 +183,7 @@ I830Sync(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
    /* VT switching tries to do this.
     */
-   if (!pI830->LockHeld && pI830->directRenderingEnabled) {
+   if (!pI830->LockHeld && pI830->directRenderingType == DRI_XF86DRI) {
       return;
    }
 #endif
@@ -194,7 +194,7 @@ I830Sync(ScrnInfoPtr pScrn)
 
    intel_batch_flush(pScrn, TRUE);
 
-   if (pI830->directRenderingEnabled) {
+   if (pI830->directRenderingType > DRI_NONE) {
        struct drm_i915_irq_emit emit;
        struct drm_i915_irq_wait wait;
        int ret;
@@ -308,6 +308,7 @@ I830AccelInit(ScreenPtr pScreen)
      * i915 limits 3D textures to pitch of 16B - 8kB, in dwords.
      * i915 limits 3D destination to ~4kB-aligned offset if tiled.
      * i915 limits 3D destination to pitch of 16B - 8kB, in dwords, if un-tiled.
+     * i915 limits 3D destination to pitch 64B-aligned if used with depth.
      * i915 limits 3D destination to pitch of 512B - 8kB, in tiles, if tiled.
      * i915 limits 3D destination to POT aligned pitch if tiled.
      * i915 limits 3D destination drawing rect to w,h of 2048,2048.
@@ -327,12 +328,12 @@ I830AccelInit(ScreenPtr pScreen)
      */
     if (IS_I965G(pI830)) {
 	pI830->accel_pixmap_offset_alignment = 4 * 2;
-	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_pixmap_pitch_alignment = 64;
 	pI830->accel_max_x = 8192;
 	pI830->accel_max_y = 8192;
     } else {
 	pI830->accel_pixmap_offset_alignment = 4;
-	pI830->accel_pixmap_pitch_alignment = 16;
+	pI830->accel_pixmap_pitch_alignment = 64;
 	pI830->accel_max_x = 2048;
 	pI830->accel_max_y = 2048;
     }
