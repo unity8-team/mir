@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu4) jaunty; urgency=low
+
+  * Drop 111_textured_video_option.patch.  XvPreferOverlay (commit
+    24c34f02) now provides an equivalent capability for turning textured
+    video off, making this patch redundant.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 02 Dec 2008 12:47:10 -0800
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu3) jaunty; urgency=low
 
   * 102_quirk_hp_2730p.patch: pipea quirk for hp 2730p (LP: #291555)

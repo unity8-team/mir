@@ -1,4 +1,3 @@
 01_gen_pci_ids.diff
 101_quirk_quanta_w251u.patch
 102_quirk_hp_2730p.patch
-111_textured_video_option.patch
