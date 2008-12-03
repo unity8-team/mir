@@ -1901,6 +1901,11 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	}
     }
 
+    /* BIOSes seem to report DAC on HDMI - they hurt me with their lies */
+    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+    	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+	info->BiosConnector[index].DACType = DAC_NONE;
+    }
 }
 
 Bool
