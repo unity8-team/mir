@@ -559,6 +559,8 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
 
+    RADEON_SWITCH_TO_3D();
+
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
@@ -570,8 +572,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     } else {
 	info->accel_state->is_transform[1] = FALSE;
     }
-
-    RADEON_SWITCH_TO_3D();
 
     BEGIN_ACCEL(8);
     OUT_ACCEL_REG(RADEON_PP_CNTL, pp_cntl);
@@ -860,6 +860,8 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, FALSE, TRUE))
 	return FALSE;
 
+    RADEON_SWITCH_TO_3D();
+
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
@@ -871,8 +873,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     } else {
 	info->accel_state->is_transform[1] = FALSE;
     }
-
-    RADEON_SWITCH_TO_3D();
 
     BEGIN_ACCEL(11);
 
@@ -1224,6 +1224,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     if (!RADEONSetupSourceTile(pSrcPicture, pSrc, TRUE, FALSE))
 	return FALSE;
 
+    RADEON_SWITCH_TO_3D();
+
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     txenable = R300_TEX_0_ENABLE;
@@ -1235,8 +1237,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     } else {
 	info->accel_state->is_transform[1] = FALSE;
     }
-
-    RADEON_SWITCH_TO_3D();
 
     /* setup the VAP */
     if (info->accel_state->has_tcl) {
@@ -1845,11 +1845,16 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     FINISH_ACCEL();
 
+    BEGIN_ACCEL(1);
+    if (info->accel_state->has_mask)
+	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 6);
+    else
+	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 4);
+    FINISH_ACCEL();
+
     return TRUE;
 }
 
-#define VTX_COUNT_MASK 6
-#define VTX_COUNT 4
 
 #ifdef ACCEL_CP
 
@@ -1955,15 +1960,9 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
     }
 
     if (info->accel_state->has_mask)
-	vtx_count = VTX_COUNT_MASK;
+	vtx_count = 6;
     else
-	vtx_count = VTX_COUNT;
-
-    if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_ACCEL(1);
-	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, vtx_count);
-	FINISH_ACCEL();
-    }
+	vtx_count = 4;
 
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {
@@ -2127,7 +2126,8 @@ static void FUNC_NAME(RadeonDoneComposite)(PixmapPtr pDst)
     ENTER_DRAW(0);
 
     if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_ACCEL(2);
+	BEGIN_ACCEL(3);
+	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
     } else
 	BEGIN_ACCEL(1);

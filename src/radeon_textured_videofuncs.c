@@ -45,9 +45,6 @@
 #endif
 #endif
 
-#define VTX_DWORD_COUNT_FILTER 6
-#define VTX_DWORD_COUNT 4
-
 #ifdef ACCEL_CP
 
 #define VTX_OUT_FILTER(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
@@ -145,9 +142,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     FINISH_ACCEL();
 
     if (pPriv->bicubic_enabled)
-	vtx_count = VTX_DWORD_COUNT_FILTER;
+	vtx_count = 6;
     else
-	vtx_count = VTX_DWORD_COUNT;
+	vtx_count = 4;
 
     if (IS_R300_3D || IS_R500_3D) {
 	uint32_t output_fmt;
@@ -1237,7 +1234,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     }
 
     if (IS_R300_3D || IS_R500_3D) {
-	BEGIN_ACCEL(2);
+	BEGIN_ACCEL(3);
+	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_RB3D_DC_FLUSH_ALL);
     } else
 	BEGIN_ACCEL(1);
