@@ -527,9 +527,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     TRACE;
 
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
-
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
@@ -560,6 +557,9 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 	return FALSE;
 
     RADEON_SWITCH_TO_3D();
+
+    if (!info->accel_state->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -830,9 +830,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
-
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
@@ -861,6 +858,9 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	return FALSE;
 
     RADEON_SWITCH_TO_3D();
+
+    if (!info->accel_state->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -1194,9 +1194,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
     TRACE;
 
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
-
     if (!R300GetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
@@ -1225,6 +1222,9 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	return FALSE;
 
     RADEON_SWITCH_TO_3D();
+
+    if (!info->accel_state->XInited3D)
+	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;

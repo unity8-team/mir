@@ -124,22 +124,28 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     dstyoff = 0;
 #endif
 
+#ifdef USE_EXA
+    if (info->useEXA) {
+	RADEON_SWITCH_TO_3D();
+    } else
+#endif
+	{
+	    BEGIN_ACCEL(2);
+	    if (IS_R300_3D || IS_R500_3D)
+		OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
+	    else
+		OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
+	    /* We must wait for 3d to idle, in case source was just written as a dest. */
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+			  RADEON_WAIT_HOST_IDLECLEAN |
+			  RADEON_WAIT_2D_IDLECLEAN |
+			  RADEON_WAIT_3D_IDLECLEAN |
+			  RADEON_WAIT_DMA_GUI_IDLE);
+	    FINISH_ACCEL();
+	}
+
     if (!info->accel_state->XInited3D)
 	RADEONInit3DEngine(pScrn);
-
-    /* we can probably improve this */
-    BEGIN_ACCEL(2);
-    if (IS_R300_3D || IS_R500_3D)
-	OUT_ACCEL_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D);
-    else
-	OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
-    /* We must wait for 3d to idle, in case source was just written as a dest. */
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-		  RADEON_WAIT_HOST_IDLECLEAN |
-		  RADEON_WAIT_2D_IDLECLEAN |
-		  RADEON_WAIT_3D_IDLECLEAN |
-		  RADEON_WAIT_DMA_GUI_IDLE);
-    FINISH_ACCEL();
 
     if (pPriv->bicubic_enabled)
 	vtx_count = 6;
