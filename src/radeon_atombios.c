@@ -1517,6 +1517,51 @@ rhdAtomParseI2CRecord(ScrnInfoPtr pScrn, atomBiosHandlePtr handle,
     return RADEONLookupGPIOLineForDDC(pScrn, Record->sucI2cId.bfI2C_LineMux);
 }
 
+static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+
+    /* Asus M2A-VM HDMI board lists the DVI port as HDMI */
+    if ((info->Chipset == PCI_CHIP_RS690_791E) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x826d)) {
+	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) &&
+	    (info->BiosConnector[index].TMDSType == TMDS_LVTMA)) {
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+	}
+    }
+
+    /* Falcon NW laptop lists vga ddc line for LVDS */
+    if ((info->Chipset == PCI_CHIP_RV410_5653) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1462) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0291)) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_LVDS) {
+	    info->BiosConnector[index].ddc_i2c.valid = FALSE;
+	}
+    }
+
+    /* Funky macbooks */
+    if ((info->Chipset == PCI_CHIP_RV530_71C5) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x106b) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0080)) {
+	if ((index == ATOM_DEVICE_CRT1_INDEX) ||
+	    (index == ATOM_DEVICE_CRT2_INDEX) ||
+	    (index == ATOM_DEVICE_DFP2_INDEX))
+	    info->BiosConnector[index].valid = FALSE;
+
+	if (index == ATOM_DEVICE_DFP1_INDEX) {
+	    info->BiosConnector[index].DACType = DAC_TVDAC;
+	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
+	}
+    }
+
+    /* BIOSes seem to report DAC on HDMI - they hurt me with their lies */
+    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+    	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+	info->BiosConnector[index].DACType = DAC_NONE;
+    }
+}
+
 Bool
 RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 {
@@ -1678,6 +1723,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    Record = (ATOM_COMMON_RECORD_HEADER*)
 		((char *)Record + Record->ucRecordSize);
 	}
+
+	RADEONApplyATOMQuirks(pScrn, i);
     }
 
     for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
@@ -1863,50 +1910,7 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     return TRUE;
 }
 
-static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
-{
-    RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    /* Asus M2A-VM HDMI board lists the DVI port as HDMI */
-    if ((info->Chipset == PCI_CHIP_RS690_791E) &&
-	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
-	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x826d)) {
-	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) &&
-	    (info->BiosConnector[index].TMDSType == TMDS_LVTMA)) {
-	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
-	}
-    }
-
-    /* Falcon NW laptop lists vga ddc line for LVDS */
-    if ((info->Chipset == PCI_CHIP_RV410_5653) &&
-	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1462) &&
-	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0291)) {
-	if (info->BiosConnector[index].ConnectorType == CONNECTOR_LVDS) {
-	    info->BiosConnector[index].ddc_i2c.valid = FALSE;
-	}
-    }
-
-    /* Funky macbooks */
-    if ((info->Chipset == PCI_CHIP_RV530_71C5) &&
-	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x106b) &&
-	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0080)) {
-	if ((index == ATOM_DEVICE_CRT1_INDEX) ||
-	    (index == ATOM_DEVICE_CRT2_INDEX) ||
-	    (index == ATOM_DEVICE_DFP2_INDEX))
-	    info->BiosConnector[index].valid = FALSE;
-
-	if (index == ATOM_DEVICE_DFP1_INDEX) {
-	    info->BiosConnector[index].DACType = DAC_TVDAC;
-	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
-	}
-    }
-
-    /* BIOSes seem to report DAC on HDMI - they hurt me with their lies */
-    if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
-    	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
-	info->BiosConnector[index].DACType = DAC_NONE;
-    }
-}
 
 Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
