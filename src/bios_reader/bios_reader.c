@@ -38,6 +38,7 @@
 
 #include "../i830_bios.h"
 
+#include <X11/Xfuncproto.h>
 typedef uint8_t CARD8;
 typedef uint16_t CARD16;
 typedef uint32_t CARD32;
