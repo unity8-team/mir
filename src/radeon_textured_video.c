@@ -229,9 +229,20 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    return BadAlloc;
     }
 
-    /* Bicubic filter loading */
+    /* Bicubic filter setup */
+    pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
     if (!(IS_R300_3D || IS_R500_3D))
 	pPriv->bicubic_enabled = FALSE;
+    if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
+	/*
+	 * Applying the bicubic filter with a scale of less than 200%
+	 * results in a blurred picture, so disable the filter.
+	 */
+	if ((src_w > drw_w / 2) || (src_h > drw_h / 2))
+	    pPriv->bicubic_enabled = FALSE;
+    }
+
+    /* Bicubic filter loading */
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
 						              &pPriv->bicubic_memory,
@@ -370,7 +381,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
-    {XvSettable | XvGettable, 0, 1, "XV_BICUBIC"},
+    {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {0, 0, 0, NULL}
 };
 
@@ -398,7 +409,7 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
     if (info->accelOn) RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	*value = pPriv->bicubic_enabled ? 1 : 0;
+	*value = pPriv->bicubic_state;
     else
 	return BadMatch;
 
@@ -417,7 +428,7 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	pPriv->bicubic_enabled = ClipValue (value, 0, 1);
+	pPriv->bicubic_state = ClipValue (value, 0, 2);
     else
 	return BadMatch;
 
@@ -480,7 +491,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->videoStatus = 0;
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
-	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_R300);
+	pPriv->bicubic_state = BICUBIC_AUTO;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
