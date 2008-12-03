@@ -1318,8 +1318,10 @@ do {									\
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
-	if (flush && info->directRenderingEnabled)                      \
+	if (flush && info->directRenderingEnabled) {			\
 	    RADEONCPFlushIndirect(pScrn, 1);                            \
+	    RADEONInit3DEngine(pScrn);                                  \
+	}                                                               \
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
 #else

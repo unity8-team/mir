@@ -142,10 +142,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			  RADEON_WAIT_3D_IDLECLEAN |
 			  RADEON_WAIT_DMA_GUI_IDLE);
 	    FINISH_ACCEL();
-	}
 
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
+	    if (!info->accel_state->XInited3D)
+		RADEONInit3DEngine(pScrn);
+	}
 
     if (pPriv->bicubic_enabled)
 	vtx_count = 6;

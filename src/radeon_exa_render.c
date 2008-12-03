@@ -558,9 +558,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
 
     RADEON_SWITCH_TO_3D();
 
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
-
     if (!FUNC_NAME(R100TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
     pp_cntl = RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE;
@@ -858,9 +855,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
 	return FALSE;
 
     RADEON_SWITCH_TO_3D();
-
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R200TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
@@ -1222,9 +1216,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	return FALSE;
 
     RADEON_SWITCH_TO_3D();
-
-    if (!info->accel_state->XInited3D)
-	RADEONInit3DEngine(pScrn);
 
     if (!FUNC_NAME(R300TextureSetup)(pSrcPicture, pSrc, 0))
 	return FALSE;
