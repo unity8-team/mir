@@ -295,39 +295,40 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
 
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
+#ifdef XF86DRI
 #define RADEON_SWITCH_TO_2D()						\
 do {									\
-	uint32_t wait_until = 0;			\
-	BEGIN_ACCEL(1);							\
+	uint32_t flush = 0;                                             \
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_2D_IDLECLEAN;	\
 	case EXA_ENGINEMODE_3D:						\
-	    wait_until |= RADEON_WAIT_3D_IDLECLEAN;			\
+	    flush = 1;                                                  \
 	case EXA_ENGINEMODE_2D:						\
 	    break;							\
 	}								\
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, wait_until);			\
-	FINISH_ACCEL();							\
+	if (flush)                                                      \
+	    RADEONCPFlushIndirect(pScrn, 1);                            \
         info->accel_state->engineMode = EXA_ENGINEMODE_2D;              \
 } while (0);
 
 #define RADEON_SWITCH_TO_3D()						\
 do {									\
-	uint32_t wait_until = 0;			\
-	BEGIN_ACCEL(1);							\
+	uint32_t flush = 0;						\
 	switch (info->accel_state->engineMode) {			\
 	case EXA_ENGINEMODE_UNKNOWN:					\
-	    wait_until |= RADEON_WAIT_HOST_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN;	\
 	case EXA_ENGINEMODE_2D:						\
-	    wait_until |= RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE;		\
+	    flush = 1;                                                  \
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
-	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, wait_until);			\
-	FINISH_ACCEL();							\
+	if (flush)                                                      \
+	    RADEONCPFlushIndirect(pScrn, 1);                            \
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
+#else
+#define RADEON_SWITCH_TO_2D()
+#define RADEON_SWITCH_TO_3D()
+#endif
 
 #define ENTER_DRAW(x) TRACE
 #define LEAVE_DRAW(x) TRACE
