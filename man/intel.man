@@ -296,7 +296,7 @@ Integrated TV output.  Available properties include:
 .B BOTTOM, RIGHT, TOP, LEFT
 - margins
 .TP 2
-Adjusting these properties allows you to control the placement of your TV output buffer on the screen.
+Adjusting these properties allows you to control the placement of your TV output buffer on the screen. The options with the same name can also be set in xorg.conf with integer value.
 
 .PP
 .B TV_FORMAT

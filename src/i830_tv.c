@@ -1691,6 +1691,8 @@ i830_tv_init(ScrnInfoPtr pScrn)
     I830OutputPrivatePtr    intel_output;
     struct i830_tv_priv	    *dev_priv;
     uint32_t		    tv_dac_on, tv_dac_off, save_tv_dac;
+    char                    *mon_option_lst = NULL;
+    char		    *tv_format = NULL;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_TV)
 	return;
@@ -1745,21 +1747,23 @@ i830_tv_init(ScrnInfoPtr pScrn)
 
     dev_priv->tv_format = NULL;
 
-    /* BIOS margin values */
-    dev_priv->margin[TV_MARGIN_LEFT] = 54;
-    dev_priv->margin[TV_MARGIN_TOP] = 36;
-    dev_priv->margin[TV_MARGIN_RIGHT] = 46;
-    dev_priv->margin[TV_MARGIN_BOTTOM] = 37;
-
     if (output->conf_monitor)
-    {
-	char	*tv_format;
+	mon_option_lst = output->conf_monitor->mon_option_lst;
 
-	tv_format = xf86findOptionValue (output->conf_monitor->mon_option_lst, "TV Format");
-	if (tv_format)
-	    dev_priv->tv_format = xstrdup (tv_format);
-    }
-    if (!dev_priv->tv_format)
+     /* BIOS margin values */
+    dev_priv->margin[TV_MARGIN_LEFT] = xf86SetIntOption (mon_option_lst,
+	    "Left", 54);
+    dev_priv->margin[TV_MARGIN_TOP] = xf86SetIntOption (mon_option_lst,
+	    "Top", 36);
+    dev_priv->margin[TV_MARGIN_RIGHT] = xf86SetIntOption (mon_option_lst,
+	    "Right", 46);
+    dev_priv->margin[TV_MARGIN_BOTTOM] = xf86SetIntOption (mon_option_lst,
+	    "Bottom", 37);
+
+    tv_format = xf86findOptionValue (mon_option_lst, "TV Format");
+    if (tv_format)
+	dev_priv->tv_format = xstrdup (tv_format);
+    else
 	dev_priv->tv_format = xstrdup (tv_modes[0].name);
 
     output->driver_private = intel_output;
