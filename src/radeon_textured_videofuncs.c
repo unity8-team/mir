@@ -394,7 +394,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_TEX_SRC_ADDR(1) |
 						   R300_TEX_DST_ADDR(2)));
 
-		/* MAD temp1.r, temp1.ggg0, 1.0, 0.0 */
+		/* MOV temp1.r, temp1.ggg0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(0), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_GGG) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
@@ -417,7 +417,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_TEX_SRC_ADDR(1) |
 						   R300_TEX_DST_ADDR(1)));
 
-		/* MAD temp3.rg, temp2.ggg0, const0.rgb0, 0.0 */
+		/* MUL temp3.rg, temp2.ggg0, const0.rgb0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(1), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_GGG) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
@@ -434,7 +434,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
 		
 
-		/* MAD temp2.rg, temp2.rrr0, const0.rgb, 0.0 */
+		/* MUL temp2.rg, temp2.rrr0, const0.rgb */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(2), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RRR) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
@@ -518,7 +518,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(6), (R300_ALU_ALPHA_ADDRD(1) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
 
-		/* MAD temp1.rg, temp0.rgb0, 1.0, temp1.rgb0 */
+		/* ADD temp1.rg, temp0.rgb0, temp1.rgb0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(7), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
@@ -534,7 +534,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(7), (R300_ALU_ALPHA_ADDRD(1) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
 
-		/* MAD temp2.rg, temp0.rgb0, 1.0, temp3.rgb0 */
+		/* ADD temp2.rg, temp0.rgb0, temp3.rgb0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(8), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
@@ -550,7 +550,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(8), (R300_ALU_ALPHA_ADDRD(2) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
 
-		/* MAD temp3.rg, temp0.rgb0, 1.0, temp5.rgb0 */
+		/* ADD temp3.rg, temp0.rgb0, temp5.rgb0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(9), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
@@ -566,7 +566,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(9), (R300_ALU_ALPHA_ADDRD(3) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
 
-		/* MAD temp0.rg, temp0.rgb0, 1.0, temp4.rgb0 */
+		/* ADD temp0.rg, temp0.rgb0, temp4.rgb0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(10), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_1_0) |
@@ -608,7 +608,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_TEX_SRC_ADDR(0) |
 						   R300_TEX_DST_ADDR(0)));
 
-		/* MAD temp3.rgba, temp1.bbbb, srcp(temp4.rgba - temp3.rgba), temp3.rgba */
+		/* LRP temp3, temp1.bbbb, temp4, temp3 ->
+		 * - PRESUB temps, temp4 - temp3
+		 * - MAD temp3, temp1.bbbb, temps, temp3 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(11), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC2_BBB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRCP_RGB) |
@@ -629,7 +631,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_ALPHA_ADDRD(3) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A)));
 
-		/* MAD temp0.rgba, temp1.bbbb, srcp(temp5.rgba - temp0.rgba), temp0.rgba   NOP*/
+		/* LRP temp0, temp1.bbbb, temp5, temp0 ->
+		 * - PRESUB temps, temp5 - temp0
+		 * - MAD temp0, temp1.bbbb, temps, temp0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(12), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC2_BBB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRCP_RGB) |
@@ -651,7 +655,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_ALPHA_ADDRD(0) |
 						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_A)));
 
-		/* MAD output, temp2.bbbb, srcp(temp3.rgba - temp0.rgba), temp0.rgba */
+		/* LRP output, temp2.bbbb, temp3, temp0 ->
+		 * - PRESUB temps, temp3 - temp0
+		 * - MAD output, temp2.bbbb, temps, temp0 */
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(13), (R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
 						   R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC2_BBB) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRCP_RGB) |
