@@ -1833,6 +1833,8 @@ static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 {
     ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     DRI2BufferPtr buffers;
     dri_bo *bo;
     int i;
@@ -1860,10 +1862,32 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	    pPixmap = pDepthPixmap;
 	    pPixmap->refcnt++;
 	} else {
+	    uint32_t tiling = I915_TILING_NONE;
+
 	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
 					       pDraw->width,
 					       pDraw->height,
 					       pDraw->depth, 0);
+	    switch (attachments[i]) {
+	    case DRI2BufferDepth:
+		if (IS_I965G(pI830))
+		    tiling = I915_TILING_Y;
+		else
+		    tiling = I915_TILING_X;
+		break;
+	    case DRI2BufferFakeFrontLeft:
+	    case DRI2BufferFakeFrontRight:
+	    case DRI2BufferBackLeft:
+	    case DRI2BufferBackRight:
+		    tiling = I915_TILING_X;
+		break;
+	    }
+
+	    if (tiling != I915_TILING_NONE) {
+		bo = i830_get_pixmap_bo(pPixmap);
+		drm_intel_bo_set_tiling(bo, &tiling,
+					pDraw->width * pDraw->bitsPerPixel / 8);
+	    }
 	}
 
 	if (attachments[i] == DRI2BufferDepth)
