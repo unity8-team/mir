@@ -1303,7 +1303,7 @@ do {									\
 	case EXA_ENGINEMODE_2D:						\
 	    break;							\
 	}								\
-	if (flush)                                                      \
+	if (flush && info->directRenderingEnabled)                      \
 	    RADEONCPFlushIndirect(pScrn, 1);                            \
         info->accel_state->engineMode = EXA_ENGINEMODE_2D;              \
 } while (0);
@@ -1318,7 +1318,7 @@ do {									\
 	case EXA_ENGINEMODE_3D:						\
 	    break;							\
 	}								\
-	if (flush)                                                      \
+	if (flush && info->directRenderingEnabled)                      \
 	    RADEONCPFlushIndirect(pScrn, 1);                            \
         info->accel_state->engineMode = EXA_ENGINEMODE_3D;              \
 } while (0);
