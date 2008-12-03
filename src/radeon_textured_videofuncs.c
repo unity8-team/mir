@@ -683,7 +683,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 		FINISH_ACCEL();
 	    } else {
-		BEGIN_ACCEL(8);
+		BEGIN_ACCEL(11);
 		/* 2 components: 2 for tex0 */
 		OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -692,6 +692,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
 
 		OUT_ACCEL_REG(R300_US_PIXSIZE, 0); /* highest temp used */
+
+		/* Indirection levels */
+		OUT_ACCEL_REG(R300_US_CONFIG, ((0 << R300_NLEVEL_SHIFT) |
+							R300_FIRST_TEX));
 
 		OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
 						   R300_ALU_CODE_SIZE(1) |
@@ -704,7 +708,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_TEX_SIZE(0) |
 						   R300_RGBA_OUT));
 
-		/* tex inst is preloaded in RADEONInit3DEngine() */
+		/* tex inst */
+		OUT_ACCEL_REG(R300_US_TEX_INST_0, (R300_TEX_SRC_ADDR(0) |
+						  R300_TEX_DST_ADDR(0) |
+						  R300_TEX_ID(0) |
+						  R300_TEX_INST(R300_TEX_INST_LD)));
 
 		/* ALU inst */
 		/* RGB */
