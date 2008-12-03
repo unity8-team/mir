@@ -366,20 +366,21 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 							R300_TEX_CODE_OFFSET(0) |
 							R300_TEX_CODE_SIZE(6)));
 
-		OUT_ACCEL_REG(R300_US_CODE_ADDR_3, (R300_ALU_START(0) |
-							R300_ALU_SIZE(1) |
-							R300_TEX_START(0) |
-							R300_TEX_SIZE(1)));
-		OUT_ACCEL_REG(R300_US_CODE_ADDR_2, (R300_ALU_START(1) |
-							R300_ALU_SIZE(10) |
-							R300_TEX_START(1) |
-							R300_TEX_SIZE(1)));
-		OUT_ACCEL_REG(R300_US_CODE_ADDR_1, (R300_ALU_START(11) |
-							R300_ALU_SIZE(3) |
-							R300_TEX_START(2) |
-							R300_TEX_SIZE(4) |
-							R300_RGBA_OUT));
+		/* Nodes are allocated highest first, but executed lowest first */
 		OUT_ACCEL_REG(R300_US_CODE_ADDR_0, 0);
+		OUT_ACCEL_REG(R300_US_CODE_ADDR_1, (R300_ALU_START(0) |
+							R300_ALU_SIZE(0) |
+							R300_TEX_START(0) |
+							R300_TEX_SIZE(0)));
+		OUT_ACCEL_REG(R300_US_CODE_ADDR_2, (R300_ALU_START(1) |
+							R300_ALU_SIZE(9) |
+							R300_TEX_START(1) |
+							R300_TEX_SIZE(0)));
+		OUT_ACCEL_REG(R300_US_CODE_ADDR_3, (R300_ALU_START(11) |
+							R300_ALU_SIZE(2) |
+							R300_TEX_START(2) |
+							R300_TEX_SIZE(3) |
+							R300_RGBA_OUT));
 
 		/* ** BICUBIC FP ** */
 
