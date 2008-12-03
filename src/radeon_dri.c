@@ -744,6 +744,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { PCI_VENDOR_INTEL,0x3575,  PCI_VENDOR_ATI,0x4c59,  PCI_VENDOR_DELL,0x00e3,  2 },
     /* Intel 82852/82855 host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (deb #467460) */
     { PCI_VENDOR_INTEL,0x3580,  PCI_VENDOR_ATI,0x4e50,  0x1025,0x0061,  1 },
+    /* Intel 82852/82855 host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (lp #203007) */
+    { PCI_VENDOR_INTEL,0x3580,  PCI_VENDOR_ATI,0x4e50,  0x1025,0x0064,  1 },
     /* Intel 82852/82855 host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (lp #141551) */
     { PCI_VENDOR_INTEL,0x3580,  PCI_VENDOR_ATI,0x4e50,  0x1043,0x1942,  1 },
     /* Intel 82852/82855 host bridge / Mobility FireGL 9000 R250 Needs AGPMode 1 (lp #296617) */
