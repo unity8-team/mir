@@ -934,12 +934,10 @@ i830_uxa_init (ScreenPtr pScreen)
     	i830->uxa_driver->composite = i830_composite;
     	i830->uxa_driver->done_composite = i830_done_composite;
     } else {
-#if 0
  	i830->uxa_driver->check_composite = i965_check_composite;
  	i830->uxa_driver->prepare_composite = i965_prepare_composite;
  	i830->uxa_driver->composite = i965_composite;
  	i830->uxa_driver->done_composite = i830_done_composite;
-#endif
     }
 
     i830->uxa_driver->prepare_access = i830_uxa_prepare_access;
