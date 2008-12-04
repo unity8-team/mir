@@ -400,7 +400,8 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
 	 * they'll always re-maximize the brightness.
 	 */
 	if (!(INREG(PP_CONTROL) & POWER_TARGET_ON) &&
-	    dev_priv->backlight_duty_cycle == 0)
+	    dev_priv->backlight_duty_cycle == 0 &&
+	    pI830->backlight_control_method < BCM_KERNEL)
 	    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
