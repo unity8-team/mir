@@ -257,8 +257,6 @@ if test "$XVMC" = yes; then
     	AC_SUBST([XVMCLIB_CFLAGS])
 fi
 
-AC_DEFINE(DRI2, 1,[Enable DRI2 code])
-
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])
 AC_SUBST([WARN_CFLAGS])
