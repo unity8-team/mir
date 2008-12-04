@@ -956,7 +956,8 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->crtc_pitch |= save->crtc_pitch << 16;
 
     save->crtc_gui_trig_vline = ((0 << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-				 (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT));
+				 (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+				 RADEON_CRTC_GUI_TRIG_VLINE_INV);
 
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg->dac2_cntl;
@@ -1150,7 +1151,8 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->crtc2_pitch |= save->crtc2_pitch << 16;
 
     save->crtc2_gui_trig_vline = ((0 << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
-				  (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT));
+				  (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+				  RADEON_CRTC_GUI_TRIG_VLINE_INV);
 
     /* check to see if TV DAC is enabled for another crtc and keep it enabled */
     if (save->crtc2_gen_cntl & RADEON_CRTC2_CRT2_ON)

@@ -2290,6 +2290,14 @@
 #       define R200_VTX_STQ3_D3D		0x00400000
 #       define R200_VTX_STQ4_D3D		0x01000000
 #       define R200_VTX_STQ5_D3D		0x04000000
+#define R200_RE_SCISSOR_TL_0			0x1cd8
+#define R200_RE_SCISSOR_BR_0			0x1cdc
+#define R200_RE_SCISSOR_TL_1			0x1ce0
+#define R200_RE_SCISSOR_BR_1			0x1ce4
+#define R200_RE_SCISSOR_TL_2			0x1ce8
+#define R200_RE_SCISSOR_BR_2			0x1cec
+#       define R200_SCISSOR_X_SHIFT		0
+#       define R200_SCISSOR_Y_SHIFT		16
 #define RADEON_SE_CNTL_STATUS               0x2140
 #       define RADEON_VC_NO_SWAP            (0 << 0)
 #       define RADEON_VC_16BIT_SWAP         (1 << 0)
@@ -2589,6 +2597,13 @@
 #       define R200_VC_NO_SWAP			(0 << 0)
 #       define R200_VC_16BIT_SWAP		(1 << 0)
 #       define R200_VC_32BIT_SWAP		(2 << 0)
+#define R200_RE_AUX_SCISSOR_CNTL		0x26f0
+#       define R200_EXCLUSIVE_SCISSOR_0		0x01000000
+#       define R200_EXCLUSIVE_SCISSOR_1		0x02000000
+#       define R200_EXCLUSIVE_SCISSOR_2		0x04000000
+#       define R200_SCISSOR_ENABLE_0		0x10000000
+#       define R200_SCISSOR_ENABLE_1		0x20000000
+#       define R200_SCISSOR_ENABLE_2		0x40000000
 #define R200_PP_TXFILTER_0			0x2c00 
 #define R200_PP_TXFILTER_1			0x2c20
 #define R200_PP_TXFILTER_2			0x2c40

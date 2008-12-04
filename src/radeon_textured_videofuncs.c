@@ -1475,6 +1475,44 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
     }
 
+    /*
+     * Rendering of the actual polygon is done in two different
+     * ways depending on chip generation:
+     *
+     * < R300:
+     *
+     *     These chips can render a rectangle in one pass, so
+     *     handling is pretty straight-forward.
+     *
+     * >= R300:
+     *
+     *     These chips can accept a quad, but will render it as
+     *     two triangles which results in a diagonal tear. Instead
+     *     We render a single, large triangle and use the scissor
+     *     functionality to restrict it to the desired rectangle.
+     */
+
+    if (IS_R300_3D || IS_R500_3D) {
+	/*
+	 * Set up the scissor area to that of the output size.
+	 */
+
+	BEGIN_ACCEL(2);
+	if (IS_R300_3D) {
+	    /* R300 has an offset */
+	    OUT_ACCEL_REG(R300_SC_SCISSOR0, (((pPriv->drw_x + 1088) << R300_SCISSOR_X_SHIFT) |
+					     ((pPriv->drw_y + 1088) << R300_SCISSOR_Y_SHIFT)));
+	    OUT_ACCEL_REG(R300_SC_SCISSOR1, (((pPriv->drw_x + pPriv->dst_w + 1088 - 1) << R300_SCISSOR_X_SHIFT) |
+					     ((pPriv->drw_y + pPriv->dst_h + 1088 - 1) << R300_SCISSOR_Y_SHIFT)));
+	} else {
+	    OUT_ACCEL_REG(R300_SC_SCISSOR0, (((pPriv->drw_x) << R300_SCISSOR_X_SHIFT) |
+					     ((pPriv->drw_y) << R300_SCISSOR_Y_SHIFT)));
+	    OUT_ACCEL_REG(R300_SC_SCISSOR1, (((pPriv->drw_x + pPriv->dst_w - 1) << R300_SCISSOR_X_SHIFT) |
+					     ((pPriv->drw_y + pPriv->dst_h - 1) << R300_SCISSOR_Y_SHIFT)));
+	}
+	FINISH_ACCEL();
+    }
+
     FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
 				  radeon_covering_crtc_num(pScrn,
 							   pPriv->drw_x,
@@ -1486,7 +1524,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
-	xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
 	dstw = pBox->x2 - pBox->x1;
@@ -1499,16 +1536,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
-
-	srcTopLeft.x     = IntToxFixed(srcX);
-	srcTopLeft.y     = IntToxFixed(srcY);
-	srcTopRight.x    = IntToxFixed(srcX + srcw);
-	srcTopRight.y    = IntToxFixed(srcY);
-	srcBottomLeft.x  = IntToxFixed(srcX);
-	srcBottomLeft.y  = IntToxFixed(srcY + srch);
-	srcBottomRight.x = IntToxFixed(srcX + srcw);
-	srcBottomRight.y = IntToxFixed(srcY + srch);
-
 
 #if 0
 	ErrorF("dst: %d, %d, %d, %d\n", dstX, dstY, dstw, dsth);
@@ -1528,12 +1555,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		     RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else if (IS_R300_3D || IS_R500_3D) {
-		BEGIN_RING(4 * vtx_count + 4);
-		OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-				    4 * vtx_count));
-		OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
-			 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-			 (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+	    BEGIN_RING(3 * vtx_count + 4);
+	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
+				3 * vtx_count));
+	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_LIST |
+		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else {
 	    BEGIN_RING(3 * vtx_count + 2);
 	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
@@ -1544,7 +1571,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
 #else /* ACCEL_CP */
 	if (IS_R300_3D || IS_R500_3D)
-	    BEGIN_ACCEL(2 + vtx_count * 4);
+	    BEGIN_ACCEL(2 + vtx_count * 3);
 	else
 	    BEGIN_ACCEL(1 + vtx_count * 3);
 
@@ -1554,9 +1581,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 					      RADEON_VF_RADEON_MODE |
 					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
 	else if (IS_R300_3D || IS_R500_3D)
-	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
+	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
-					      (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
+					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
 	else
 	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
@@ -1564,29 +1591,43 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
 #endif
 	if (pPriv->bicubic_enabled) {
-		VTX_OUT_FILTER((float)dstX,                       (float)dstY,
-		xFixedToFloat(srcTopLeft.x) / info->accel_state->texW[0],      xFixedToFloat(srcTopLeft.y) / info->accel_state->texH[0],
-		xFixedToFloat(srcTopLeft.x) + 0.5,                xFixedToFloat(srcTopLeft.y) + 0.5);
-		VTX_OUT_FILTER((float)dstX,                       (float)(dstY + dsth),
-		xFixedToFloat(srcBottomLeft.x) / info->accel_state->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->accel_state->texH[0],
-		xFixedToFloat(srcBottomLeft.x) + 0.5,             xFixedToFloat(srcBottomLeft.y) + 0.5);
-		VTX_OUT_FILTER((float)(dstX + dstw),              (float)(dstY + dsth),
-		xFixedToFloat(srcBottomRight.x) / info->accel_state->texW[0],  xFixedToFloat(srcBottomRight.y) / info->accel_state->texH[0],
-		xFixedToFloat(srcBottomRight.x) + 0.5,            xFixedToFloat(srcBottomRight.y) + 0.5);
-		VTX_OUT_FILTER((float)(dstX + dstw),              (float)dstY,
-		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0],
-		xFixedToFloat(srcTopRight.x) + 0.5,               xFixedToFloat(srcTopRight.y) + 0.5);
+		/*
+		 * This code is only executed on >= R200, so we don't
+		 * have to deal with the legacy handling.
+		 */
+		VTX_OUT_FILTER((float)dstX,                                    (float)dstY,
+			(float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0],
+			(float)srcX + 0.5,                                     (float)srcY + 0.5);
+		VTX_OUT_FILTER((float)dstX,                                    (float)(dstY + dsth * 2),
+			(float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0],
+			(float)srcX + 0.5,                                     (float)(srcY + srch * 2) + 0.5);
+		VTX_OUT_FILTER((float)(dstX + dstw * 2),                       (float)dstY,
+			(float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
+			(float)(srcX + srcw * 2) + 0.5,                        (float)srcY + 0.5);
 	} else {
 		if (IS_R300_3D || IS_R500_3D) {
-			VTX_OUT((float)dstX,                              (float)dstY,
-			xFixedToFloat(srcTopLeft.x) / info->accel_state->texW[0],      xFixedToFloat(srcTopLeft.y) / info->accel_state->texH[0]);
+			/*
+			 * Render a big, scissored triangle. This means
+			 * doubling the triangle size and adjusting
+			 * texture coordinates.
+			 */
+			VTX_OUT((float)dstX,                                           (float)dstY,
+				(float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0]);
+			VTX_OUT((float)dstX,                                           (float)(dstY + dsth * 2),
+				(float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0]);
+			VTX_OUT((float)(dstX + dstw * 2),                              (float)dstY,
+				(float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+		} else {
+			/*
+			 * Just render a quad (using three coords).
+			 */
+			VTX_OUT((float)dstX,                                       (float)(dstY + dsth),
+				(float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
+			VTX_OUT((float)(dstX + dstw),                              (float)(dstY + dsth),
+				(float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
+			VTX_OUT((float)(dstX + dstw),                              (float)dstY,
+				(float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
 		}
-		VTX_OUT((float)dstX,                              (float)(dstY + dsth),
-		xFixedToFloat(srcBottomLeft.x) / info->accel_state->texW[0],   xFixedToFloat(srcBottomLeft.y) / info->accel_state->texH[0]);
-		VTX_OUT((float)(dstX + dstw),                     (float)(dstY + dsth),
-		xFixedToFloat(srcBottomRight.x) / info->accel_state->texW[0],  xFixedToFloat(srcBottomRight.y) / info->accel_state->texH[0]);
-		VTX_OUT((float)(dstX + dstw),                     (float)dstY,
-		xFixedToFloat(srcTopRight.x) / info->accel_state->texW[0],     xFixedToFloat(srcTopRight.y) / info->accel_state->texH[0]);
 	}
 
 	if (IS_R300_3D || IS_R500_3D)

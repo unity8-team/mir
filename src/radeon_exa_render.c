@@ -1864,6 +1864,14 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	FINISH_ACCEL();
     }
 
+    /* Clear out scissoring */
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(R300_SC_SCISSOR0, ((0 << R300_SCISSOR_X_SHIFT) |
+				     (0 << R300_SCISSOR_Y_SHIFT)));
+    OUT_ACCEL_REG(R300_SC_SCISSOR1, ((8191 << R300_SCISSOR_X_SHIFT) |
+				     (8191 << R300_SCISSOR_Y_SHIFT)));
+    FINISH_ACCEL();
+
     BEGIN_ACCEL(3);
 
     OUT_ACCEL_REG(R300_RB3D_COLOROFFSET0, dst_offset);
