@@ -80,6 +80,32 @@ static __inline__ uint32_t F_TO_DW(float val)
     return tmp.l;
 }
 
+/* Borrowed from Mesa */
+static __inline__ uint32_t F_TO_24(float val)
+{
+	float mantissa;
+	int exponent;
+	uint32_t float24 = 0;
+
+	if (val == 0.0)
+		return 0;
+
+	mantissa = frexpf(val, &exponent);
+
+	/* Handle -ve */
+	if (mantissa < 0) {
+		float24 |= (1 << 23);
+		mantissa = mantissa * -1.0;
+	}
+	/* Handle exponent, bias of 63 */
+	exponent += 62;
+	float24 |= (exponent << 16);
+	/* Kill 7 LSB of mantissa */
+	float24 |= (F_TO_DW(mantissa) & 0x7FFFFF) >> 7;
+
+	return float24;
+}
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
@@ -203,9 +229,20 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    return BadAlloc;
     }
 
-    /* Bicubic filter loading */
-    if (!IS_R500_3D)
+    /* Bicubic filter setup */
+    pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
+    if (!(IS_R300_3D || IS_R500_3D))
 	pPriv->bicubic_enabled = FALSE;
+    if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
+	/*
+	 * Applying the bicubic filter with a scale of less than 200%
+	 * results in a blurred picture, so disable the filter.
+	 */
+	if ((src_w > drw_w / 2) || (src_h > drw_h / 2))
+	    pPriv->bicubic_enabled = FALSE;
+    }
+
+    /* Bicubic filter loading */
     if (pPriv->bicubic_memory == NULL && pPriv->bicubic_enabled) {
 	pPriv->bicubic_offset = radeon_legacy_allocate_memory(pScrn,
 						              &pPriv->bicubic_memory,
@@ -344,7 +381,7 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
-    {XvSettable | XvGettable, 0, 1, "XV_BICUBIC"},
+    {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {0, 0, 0, NULL}
 };
 
@@ -372,7 +409,7 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
     if (info->accelOn) RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	*value = pPriv->bicubic_enabled ? 1 : 0;
+	*value = pPriv->bicubic_state;
     else
 	return BadMatch;
 
@@ -391,7 +428,7 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
     RADEON_SYNC(info, pScrn);
 
     if (attribute == xvBicubic)
-	pPriv->bicubic_enabled = ClipValue (value, 0, 1);
+	pPriv->bicubic_state = ClipValue (value, 0, 2);
     else
 	return BadMatch;
 
@@ -431,13 +468,8 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R500_3D) {
-	adapt->nAttributes = NUM_ATTRIBUTES;
-	adapt->pAttributes = Attributes;
-    } else {
-	adapt->nAttributes = 0;
-	adapt->pAttributes = NULL;
-    }
+    adapt->pAttributes = Attributes;
+    adapt->nAttributes = NUM_ATTRIBUTES;
     adapt->pImages = Images;
     adapt->nImages = NUM_IMAGES;
     adapt->PutVideo = NULL;
@@ -459,7 +491,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->videoStatus = 0;
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
-	pPriv->bicubic_enabled = (info->ChipFamily >= CHIP_FAMILY_RV515);
+	pPriv->bicubic_state = BICUBIC_AUTO;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
