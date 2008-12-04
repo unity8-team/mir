@@ -1413,8 +1413,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 
 
 	/* setup the rasterizer, load FS */
-	BEGIN_ACCEL(10);
 	if (pMask) {
+	    BEGIN_ACCEL(16);
 	    /* 4 components: 2 for tex0, 2 for tex1 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((4 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1434,7 +1434,10 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(1) |
 			   R300_RGBA_OUT));
+
+
 	} else {
+	    BEGIN_ACCEL(15);
 	    /* 2 components: 2 for tex0 */
 	    OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -1453,14 +1456,45 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 			   R300_TEX_START(0) |
 			   R300_TEX_SIZE(0) |
 			   R300_RGBA_OUT));
+
 	}
+
+	OUT_ACCEL_REG(R300_US_CONFIG, (0 << R300_NLEVEL_SHIFT) | R300_FIRST_TEX);
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_0,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_1,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
+	OUT_ACCEL_REG(R300_US_CODE_ADDR_2,
+		      (R300_ALU_START(0) |
+		       R300_ALU_SIZE(0) |
+		       R300_TEX_START(0) |
+		       R300_TEX_SIZE(0)));
 
 	OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
 	/* shader output swizzling */
 	OUT_ACCEL_REG(R300_US_OUT_FMT_0, output_fmt);
 
-	/* tex inst for src texture is pre-loaded in RADEONInit3DEngine() */
-	/* tex inst for mask texture is pre-loaded in RADEONInit3DEngine() */
+	/* tex inst for src texture */
+	OUT_ACCEL_REG(R300_US_TEX_INST(0),
+		      (R300_TEX_SRC_ADDR(0) |
+		       R300_TEX_DST_ADDR(0) |
+		       R300_TEX_ID(0) |
+		       R300_TEX_INST(R300_TEX_INST_LD)));
+
+	if (pMask) {
+	    /* tex inst for mask texture */
+	    OUT_ACCEL_REG(R300_US_TEX_INST(1),
+			  (R300_TEX_SRC_ADDR(1) |
+			   R300_TEX_DST_ADDR(1) |
+			   R300_TEX_ID(1) |
+			   R300_TEX_INST(R300_TEX_INST_LD)));
+	}
 
 	/* RGB inst
 	 * temp addresses for texture inputs
