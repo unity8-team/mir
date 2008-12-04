@@ -858,13 +858,15 @@ uxa_glyphs (CARD8 	 op,
 	}
 	list++;
     }
-    
-    if (maskFormat)
-	uxa_glyphs_to_mask(pMask, &buffer);
-    else
-	uxa_glyphs_to_dst(op, pSrc, pDst, &buffer,
-		       xSrc, ySrc, xDst, yDst);
-    
+
+    if (buffer.count) {
+	if (maskFormat)
+	    uxa_glyphs_to_mask(pMask, &buffer);
+	else
+	    uxa_glyphs_to_dst(op, pSrc, pDst, &buffer,
+			      xSrc, ySrc, xDst, yDst);
+    }
+
     if (maskFormat)
     {
 	x = extents.x1;
