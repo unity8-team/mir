@@ -117,6 +117,8 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     FINISH_ACCEL();
 
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix));
+
     return TRUE;
 }
 
@@ -205,6 +207,8 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
     FUNC_NAME(RADEONDoPrepareCopy)(pScrn, src_pitch_offset, dst_pitch_offset,
 				   datatype, rop, planemask);
 
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
+
     return TRUE;
 }
 
@@ -264,7 +268,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
     unsigned int   hpass;
     uint32_t	   buf_pitch, dst_pitch_off;
 #endif
-#if X_BYTE_ORDER == X_BIG_ENDIAN 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     unsigned char *RADEONMMIO = info->MMIO;
     unsigned int swapper = info->ModeReg->surface_cntl &
 	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
@@ -284,6 +288,9 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 	ACCEL_PREAMBLE();
 
 	RADEON_SWITCH_TO_2D();
+
+	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
+
 	while ((buf = RADEONHostDataBlit(pScrn,
 					 cpp, w, dst_pitch_off, &buf_pitch,
 					 x, &y, (unsigned int*)&h, &hpass)) != 0) {

@@ -401,6 +401,9 @@
 #       define RADEON_CRTC_H_CUTOFF_ACTIVE_EN (1<<4)
 #       define RADEON_CRTC_V_CUTOFF_ACTIVE_EN (1<<5)
 #define RADEON_CRTC_GUI_TRIG_VLINE          0x0218
+#       define RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT  0
+#       define RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT    16
+#       define RADEON_CRTC_GUI_TRIG_VLINE_INV          (1 << 15)
 #define RADEON_CRTC_H_SYNC_STRT_WID         0x0204
 #       define RADEON_CRTC_H_SYNC_STRT_PIX        (0x07  <<  0)
 #       define RADEON_CRTC_H_SYNC_STRT_CHAR       (0x3ff <<  3)
@@ -3619,6 +3622,10 @@
 #define AVIVO_D1MODE_DATA_FORMAT                0x6528
 #       define AVIVO_D1MODE_INTERLEAVE_EN       (1 << 0)
 #define AVIVO_D1MODE_DESKTOP_HEIGHT             0x652c
+#define AVIVO_D1MODE_VLINE_START_END            0x6538
+#       define AVIVO_D1MODE_VLINE_START_SHIFT   0
+#       define AVIVO_D1MODE_VLINE_END_SHIFT     16
+#       define AVIVO_D1MODE_VLINE_INV           (1 << 31)
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580
 #define AVIVO_D1MODE_VIEWPORT_SIZE              0x6584
 #define AVIVO_D1MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6588

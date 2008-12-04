@@ -133,8 +133,10 @@ RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC_V_TOTAL_DISP,    restore->crtc_v_total_disp);
     OUTREG(RADEON_CRTC_V_SYNC_STRT_WID, restore->crtc_v_sync_strt_wid);
 
+    OUTREG(RADEON_CRTC_GUI_TRIG_VLINE,  restore->crtc_gui_trig_vline);
+
     if (IS_R300_VARIANT)
-	OUTREG(R300_CRTC_TILE_X0_Y0, restore->crtc_tile_x0_y0);
+	OUTREG(R300_CRTC_TILE_X0_Y0,    restore->crtc_tile_x0_y0);
     OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
     OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
 
@@ -177,11 +179,13 @@ RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC2_V_TOTAL_DISP,    restore->crtc2_v_total_disp);
     OUTREG(RADEON_CRTC2_V_SYNC_STRT_WID, restore->crtc2_v_sync_strt_wid);
 
+    OUTREG(RADEON_CRTC2_GUI_TRIG_VLINE,  restore->crtc2_gui_trig_vline);
+
     OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
     OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
 
     if (IS_R300_VARIANT)
-	OUTREG(R300_CRTC2_TILE_X0_Y0, restore->crtc2_tile_x0_y0);
+	OUTREG(R300_CRTC2_TILE_X0_Y0,    restore->crtc2_tile_x0_y0);
     OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
     OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
 
@@ -518,6 +522,8 @@ RADEONSaveCrtcRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc_v_total_disp    = INREG(RADEON_CRTC_V_TOTAL_DISP);
     save->crtc_v_sync_strt_wid = INREG(RADEON_CRTC_V_SYNC_STRT_WID);
 
+    save->crtc_gui_trig_vline  = INREG(RADEON_CRTC_GUI_TRIG_VLINE);
+
     save->crtc_offset          = INREG(RADEON_CRTC_OFFSET);
     save->crtc_offset_cntl     = INREG(RADEON_CRTC_OFFSET_CNTL);
     save->crtc_pitch           = INREG(RADEON_CRTC_PITCH);
@@ -553,6 +559,9 @@ RADEONSaveCrtc2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save)
     save->crtc2_h_sync_strt_wid = INREG(RADEON_CRTC2_H_SYNC_STRT_WID);
     save->crtc2_v_total_disp    = INREG(RADEON_CRTC2_V_TOTAL_DISP);
     save->crtc2_v_sync_strt_wid = INREG(RADEON_CRTC2_V_SYNC_STRT_WID);
+
+    save->crtc2_gui_trig_vline  = INREG(RADEON_CRTC2_GUI_TRIG_VLINE);
+
     save->crtc2_offset          = INREG(RADEON_CRTC2_OFFSET);
     save->crtc2_offset_cntl     = INREG(RADEON_CRTC2_OFFSET_CNTL);
     save->crtc2_pitch           = INREG(RADEON_CRTC2_PITCH);
@@ -946,6 +955,9 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 			 (pScrn->bitsPerPixel * 8));
     save->crtc_pitch |= save->crtc_pitch << 16;
 
+    save->crtc_gui_trig_vline = ((0 << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+				 (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT));
+
     if (info->IsDellServer) {
 	save->dac2_cntl = info->SavedReg->dac2_cntl;
 	save->tv_dac_cntl = info->SavedReg->tv_dac_cntl;
@@ -1136,6 +1148,9 @@ RADEONInitCrtc2Registers(xf86CrtcPtr crtc, RADEONSavePtr save,
     save->crtc2_pitch  = ((pScrn->displayWidth * pScrn->bitsPerPixel) +
 			  ((pScrn->bitsPerPixel * 8) -1)) / (pScrn->bitsPerPixel * 8);
     save->crtc2_pitch |= save->crtc2_pitch << 16;
+
+    save->crtc2_gui_trig_vline = ((0 << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+				  (mode->CrtcVDisplay << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT));
 
     /* check to see if TV DAC is enabled for another crtc and keep it enabled */
     if (save->crtc2_gen_cntl & RADEON_CRTC2_CRT2_ON)

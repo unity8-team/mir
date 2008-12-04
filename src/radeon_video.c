@@ -105,7 +105,6 @@ static Atom xvOvAlpha, xvGrAlpha, xvAlphaMode;
 #define GET_PORT_PRIVATE(pScrn) \
    (RADEONPortPrivPtr)((RADEONPTR(pScrn))->adaptor->pPortPrivates[0].ptr)
 
-#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
 static void
 radeon_box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 {
@@ -136,6 +135,37 @@ radeon_box_area(BoxPtr box)
     return (int) (box->x2 - box->x1) * (int) (box->y2 - box->y1);
 }
 
+int
+radeon_covering_crtc_num(ScrnInfoPtr pScrn,
+			 int x1, int x2, int y1, int y2,
+			 xf86CrtcPtr desired)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			coverage, best_coverage;
+    int			c, best_crtc = 0;
+    BoxRec		box, crtc_box, cover_box;
+
+    box.x1 = x1;
+    box.x2 = x2;
+    box.y1 = y1;
+    box.y2 = y2;
+    best_coverage = 0;
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+	radeon_crtc_box(crtc, &crtc_box);
+	radeon_box_intersect(&cover_box, &crtc_box, &box);
+	coverage = radeon_box_area(&cover_box);
+	if (coverage && crtc == desired) {
+	    return c;
+	} else if (coverage > best_coverage) {
+	    best_crtc = c;
+	    best_coverage = coverage;
+	}
+    }
+    return best_crtc;
+}
+
+#ifndef HAVE_XF86CRTCCLIPVIDEOHELPER
 static xf86CrtcPtr
 radeon_covering_crtc(ScrnInfoPtr pScrn,
 		     BoxPtr	box,

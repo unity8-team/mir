@@ -941,8 +941,10 @@ extern Bool radeon_card_posted(ScrnInfoPtr pScrn);
 /* radeon_commonfuncs.c */
 #ifdef XF86DRI
 extern void RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
+extern void RADEONWaitForVLineCP(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc);
 #endif
 extern void RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
+extern void RADEONWaitForVLineMMIO(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc);
 
 /* radeon_crtc.c */
 extern void radeon_crtc_dpms(xf86CrtcPtr crtc, int mode);

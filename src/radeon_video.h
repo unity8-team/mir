@@ -117,6 +117,11 @@ typedef struct {
     int drw_x, drw_y;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
+int
+radeon_covering_crtc_num(ScrnInfoPtr pScrn,
+                         int x1, int x2, int y1, int y2,
+                         xf86CrtcPtr desired);
+
 void RADEONInitI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 void RADEONResetI2C(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 

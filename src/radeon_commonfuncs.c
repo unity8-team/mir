@@ -632,6 +632,39 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 }
 
+/* inserts a wait for vline in the command stream */
+void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    uint32_t offset;
+    ACCEL_PREAMBLE();
+
+    if ((crtc < 0) || (crtc > 1))
+	return;
+
+    if (!xf86_config->crtc[crtc]->enabled)
+	return;
+
+#ifdef USE_EXA
+    if (info->useEXA)
+	offset = exaGetPixmapOffset(pPix);
+    else
+#endif
+	offset = pPix->devPrivate.ptr - info->FB;
+
+    /* if drawing to front buffer */
+    if (offset == 0) {
+	BEGIN_ACCEL(1);
+	if (crtc == 0)
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_FE_CRTC_VLINE |
+					      RADEON_ENG_DISPLAY_SELECT_CRTC0));
+	else
+	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_FE_CRTC_VLINE |
+					      RADEON_ENG_DISPLAY_SELECT_CRTC1));
+	FINISH_ACCEL();
+    }
+}
 
 /* MMIO:
  *

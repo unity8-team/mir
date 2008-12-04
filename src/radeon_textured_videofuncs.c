@@ -1475,6 +1475,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
     }
 
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
+				  radeon_covering_crtc_num(pScrn,
+							   pPriv->drw_x,
+							   pPriv->drw_x + pPriv->dst_w,
+							   pPriv->drw_y,
+							   pPriv->drw_y + pPriv->dst_h,
+							   pPriv->desired_crtc));
+
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;

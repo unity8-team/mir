@@ -192,6 +192,33 @@ Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
 	return RADEONGetOffsetPitch(pPix, bpp, pitch_offset, offset, pitch);
 }
 
+/*
+ * Used for vblank render stalling.
+ * Ideally we'd have one pixmap per crtc.
+ * syncing per-blit is unrealistic so,
+ * we sync to whichever crtc has a larger area.
+ */
+int RADEONBiggerCrtcArea(PixmapPtr pPix)
+{
+    ScrnInfoPtr pScrn =  xf86Screens[pPix->drawable.pScreen->myNum];
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int c, crtc_num = -1, area = 0;
+
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[c];
+
+	if (!crtc->enabled)
+	    continue;
+
+	if ((crtc->mode.HDisplay * crtc->mode.VDisplay) > area) {
+	    area = crtc->mode.HDisplay * crtc->mode.VDisplay;
+	    crtc_num = c;
+	}
+    }
+
+    return crtc_num;
+}
+
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 
 static unsigned long swapper_surfaces[3];

@@ -624,6 +624,8 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
 
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
+
     return TRUE;
 }
 
@@ -929,6 +931,8 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
+
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
 
     return TRUE;
 }
@@ -1876,6 +1880,8 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
     else
 	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 4);
     FINISH_ACCEL();
+
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
 
     return TRUE;
 }
