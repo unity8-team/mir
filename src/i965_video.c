@@ -301,6 +301,85 @@ i965_post_draw_debug(ScrnInfoPtr scrn)
 #endif
 }
 
+static void
+i965_set_dst_surface_state(ScrnInfoPtr scrn,
+			   struct brw_surface_state *dest_surf_state,
+			   PixmapPtr pixmap)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+
+    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
+    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+    dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
+    if (pI830->cpp == 2) {
+	dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
+    } else {
+	dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
+    }
+    dest_surf_state->ss0.writedisable_alpha = 0;
+    dest_surf_state->ss0.writedisable_red = 0;
+    dest_surf_state->ss0.writedisable_green = 0;
+    dest_surf_state->ss0.writedisable_blue = 0;
+    dest_surf_state->ss0.color_blend = 1;
+    dest_surf_state->ss0.vert_line_stride = 0;
+    dest_surf_state->ss0.vert_line_stride_ofs = 0;
+    dest_surf_state->ss0.mipmap_layout_mode = 0;
+    dest_surf_state->ss0.render_cache_read_mode = 0;
+
+    dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pixmap);
+    dest_surf_state->ss2.height = scrn->virtualY - 1;
+    dest_surf_state->ss2.width = scrn->virtualX - 1;
+    dest_surf_state->ss2.mip_count = 0;
+    dest_surf_state->ss2.render_target_rotation = 0;
+    dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pixmap) - 1;
+    dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pixmap);
+    dest_surf_state->ss3.tile_walk = 0; /* TileX */
+}
+
+static void
+i965_set_src_surface_state(ScrnInfoPtr scrn,
+			      struct brw_surface_state *src_surf_state,
+			      uint32_t src_offset,
+			      int src_width,
+			      int src_height,
+			      int src_pitch,
+			      uint32_t src_surf_format)
+{
+    /* Set up the source surface state buffer */
+    memset(src_surf_state, 0, sizeof(struct brw_surface_state));
+    src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
+    src_surf_state->ss0.surface_format = src_surf_format;
+    src_surf_state->ss0.writedisable_alpha = 0;
+    src_surf_state->ss0.writedisable_red = 0;
+    src_surf_state->ss0.writedisable_green = 0;
+    src_surf_state->ss0.writedisable_blue = 0;
+    src_surf_state->ss0.color_blend = 1;
+    src_surf_state->ss0.vert_line_stride = 0;
+    src_surf_state->ss0.vert_line_stride_ofs = 0;
+    src_surf_state->ss0.mipmap_layout_mode = 0;
+    src_surf_state->ss0.render_cache_read_mode = 0;
+
+    src_surf_state->ss1.base_addr = src_offset;
+    src_surf_state->ss2.width = src_width - 1;
+    src_surf_state->ss2.height = src_height - 1;
+    src_surf_state->ss2.mip_count = 0;
+    src_surf_state->ss2.render_target_rotation = 0;
+    src_surf_state->ss3.pitch = src_pitch - 1;
+}
+
+static void
+i965_set_sampler_state(ScrnInfoPtr scrn,
+		       struct brw_sampler_state *sampler_state)
+{
+    memset(sampler_state, 0, sizeof(struct brw_sampler_state));
+
+    sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
+    sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
+    sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+    sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+    sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+}
+
 void
 I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
@@ -318,9 +397,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int urb_clip_start, urb_clip_size;
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
-    struct brw_surface_state *dest_surf_state;
-    struct brw_surface_state *src_surf_state[6];
-    struct brw_sampler_state *src_sampler_state[6];
     struct brw_vs_unit_state *vs_state;
     struct brw_sf_unit_state *sf_state;
     struct brw_wm_unit_state *wm_state;
@@ -454,7 +530,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
     /* And then the general state: */
     dest_surf_offset = ALIGN(next_offset, 32);
-    next_offset = dest_surf_offset + sizeof(*dest_surf_state);
+    next_offset = dest_surf_offset + sizeof(struct brw_surface_state);
     
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
 	src_surf_offset[src_surf] = ALIGN(next_offset, 32);
@@ -488,13 +564,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     sip_kernel = (void *)(state_base + sip_kernel_offset);
 
     cc_viewport = (void *)(state_base + cc_viewport_offset);
-    dest_surf_state = (void *)(state_base + dest_surf_offset);
-    
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++) 
-    {
-	src_surf_state[src_surf] = (void *)(state_base + src_surf_offset[src_surf]);
-	src_sampler_state[src_surf] = (void *)(state_base + src_sampler_offset[src_surf]);
-    }
     binding_table = (void *)(state_base + binding_table_offset);
     vb = (void *)(state_base + vb_offset);
 
@@ -579,58 +648,18 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     /* Upload system kernel */
     memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
 
-    /* Set up the state buffer for the destination surface */
-    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
-    dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
-    dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
-    if (pI830->cpp == 2) {
-	dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B5G6R5_UNORM;
-    } else {
-	dest_surf_state->ss0.surface_format = BRW_SURFACEFORMAT_B8G8R8A8_UNORM;
-    }
-    dest_surf_state->ss0.writedisable_alpha = 0;
-    dest_surf_state->ss0.writedisable_red = 0;
-    dest_surf_state->ss0.writedisable_green = 0;
-    dest_surf_state->ss0.writedisable_blue = 0;
-    dest_surf_state->ss0.color_blend = 1;
-    dest_surf_state->ss0.vert_line_stride = 0;
-    dest_surf_state->ss0.vert_line_stride_ofs = 0;
-    dest_surf_state->ss0.mipmap_layout_mode = 0;
-    dest_surf_state->ss0.render_cache_read_mode = 0;
-
-    dest_surf_state->ss1.base_addr = intel_get_pixmap_offset(pPixmap);
-    dest_surf_state->ss2.height = pScrn->virtualY - 1;
-    dest_surf_state->ss2.width = pScrn->virtualX - 1;
-    dest_surf_state->ss2.mip_count = 0;
-    dest_surf_state->ss2.render_target_rotation = 0;
-    dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pPixmap) - 1;
-    dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pPixmap);
-    dest_surf_state->ss3.tile_walk = 0; /* TileX */
+    i965_set_dst_surface_state(pScrn, (void *)(state_base + dest_surf_offset),
+			       pPixmap);
 
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-    {
-	/* Set up the source surface state buffer */
-	memset(src_surf_state[src_surf], 0, sizeof(struct brw_surface_state));
-	src_surf_state[src_surf]->ss0.surface_type = BRW_SURFACE_2D;
-	src_surf_state[src_surf]->ss0.surface_format = src_surf_format;
-	src_surf_state[src_surf]->ss0.writedisable_alpha = 0;
-	src_surf_state[src_surf]->ss0.writedisable_red = 0;
-	src_surf_state[src_surf]->ss0.writedisable_green = 0;
-	src_surf_state[src_surf]->ss0.writedisable_blue = 0;
-	src_surf_state[src_surf]->ss0.color_blend = 1;
-	src_surf_state[src_surf]->ss0.vert_line_stride = 0;
-	src_surf_state[src_surf]->ss0.vert_line_stride_ofs = 0;
-	src_surf_state[src_surf]->ss0.mipmap_layout_mode = 0;
-	src_surf_state[src_surf]->ss0.render_cache_read_mode = 0;
-    
-	src_surf_state[src_surf]->ss1.base_addr = src_surf_base[src_surf];
-	src_surf_state[src_surf]->ss2.width = src_width[src_surf] - 1;
-	src_surf_state[src_surf]->ss2.height = src_height[src_surf] - 1;
-	src_surf_state[src_surf]->ss2.mip_count = 0;
-	src_surf_state[src_surf]->ss2.render_target_rotation = 0;
-	src_surf_state[src_surf]->ss3.pitch = src_pitch[src_surf] - 1;
-    }
-    /* FIXME: account for tiling if we ever do it */
+	i965_set_src_surface_state(pScrn,
+				   (void *)(state_base +
+					    src_surf_offset[src_surf]),
+				   src_surf_base[src_surf],
+				   src_width[src_surf],
+				   src_height[src_surf],
+				   src_pitch[src_surf],
+				   src_surf_format);
 
     /* Set up a binding table for our two surfaces.  Only the PS will use it */
     /* XXX: are these offset from the right place? */
@@ -639,17 +668,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
 	binding_table[1 + src_surf] = state_base_offset + src_surf_offset[src_surf];
 
-    /* Set up the packed YUV source sampler.  Doesn't do colorspace conversion.
-     */
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-    {
-	memset(src_sampler_state[src_surf], 0, sizeof(struct brw_sampler_state));
-	src_sampler_state[src_surf]->ss0.min_filter = BRW_MAPFILTER_LINEAR;
-	src_sampler_state[src_surf]->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
-	src_sampler_state[src_surf]->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
-	src_sampler_state[src_surf]->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
-	src_sampler_state[src_surf]->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
-    }
+	i965_set_sampler_state(pScrn, (void *)(state_base +
+					       src_sampler_offset[src_surf]));
 
     /* Set up the vertex shader to be disabled (passthrough) */
     memset(vs_state, 0, sizeof(*vs_state));
