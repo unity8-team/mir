@@ -442,7 +442,6 @@ typedef struct {
     uint32_t          crtc_h_sync_strt_wid;
     uint32_t          crtc_v_total_disp;
     uint32_t          crtc_v_sync_strt_wid;
-    uint32_t          crtc_gui_trig_vline;
     uint32_t          crtc_offset;
     uint32_t          crtc_offset_cntl;
     uint32_t          crtc_pitch;
@@ -464,7 +463,6 @@ typedef struct {
     uint32_t          crtc2_h_sync_strt_wid;
     uint32_t          crtc2_v_total_disp;
     uint32_t          crtc2_v_sync_strt_wid;
-    uint32_t          crtc2_gui_trig_vline;
     uint32_t          crtc2_offset;
     uint32_t          crtc2_offset_cntl;
     uint32_t          crtc2_pitch;

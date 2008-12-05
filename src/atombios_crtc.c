@@ -511,11 +511,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	else
 	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
 		   0);
-
-	OUTREG(AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
-	       (((0) << AVIVO_D1MODE_VLINE_START_SHIFT) |
-		((mode->VDisplay) << AVIVO_D1MODE_VLINE_END_SHIFT) |
-		AVIVO_D1MODE_VLINE_INV));
     }
 
     atombios_crtc_set_pll(crtc, adjusted_mode, pll_flags);

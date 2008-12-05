@@ -636,7 +636,8 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 }
 
 /* inserts a wait for vline in the command stream */
-void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc)
+void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
+	int crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -644,6 +645,9 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc)
     ACCEL_PREAMBLE();
 
     if ((crtc < 0) || (crtc > 1))
+	return;
+
+    if (stop < start)
 	return;
 
     if (!xf86_config->crtc[crtc]->enabled)
@@ -657,16 +661,45 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix, int crtc)
 	offset = pPix->devPrivate.ptr - info->FB;
 
     /* if drawing to front buffer */
-    if (offset == 0) {
-	BEGIN_ACCEL(1);
+    if (offset != 0)
+	return;
+
+    start = max(start, 0);
+    stop = max(stop, xf86_config->crtc[crtc]->mode.VDisplay);
+
+    if (start > xf86_config->crtc[crtc]->mode.VDisplay)
+	return;
+
+    BEGIN_ACCEL(2);
+
+    if (IS_AVIVO_VARIANT) {
+	RADEONCrtcPrivatePtr radeon_crtc = xf86_config->crtc[crtc]->driver_private;
+
+	OUT_ACCEL_REG(AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
+		      ((start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+		       (stop << AVIVO_D1MODE_VLINE_END_SHIFT) |
+		       AVIVO_D1MODE_VLINE_INV));
+    } else {
 	if (crtc == 0)
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					      RADEON_ENG_DISPLAY_SELECT_CRTC0));
+	    OUT_ACCEL_REG(RADEON_CRTC_GUI_TRIG_VLINE,
+			  ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+			   (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+			   RADEON_CRTC_GUI_TRIG_VLINE_INV));
 	else
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
-					      RADEON_ENG_DISPLAY_SELECT_CRTC1));
-	FINISH_ACCEL();
+	    OUT_ACCEL_REG(RADEON_CRTC2_GUI_TRIG_VLINE,
+			  ((start << RADEON_CRTC_GUI_TRIG_VLINE_START_SHIFT) |
+			   (stop << RADEON_CRTC_GUI_TRIG_VLINE_END_SHIFT) |
+			   RADEON_CRTC_GUI_TRIG_VLINE_INV));
     }
+
+    if (crtc == 0)
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+					  RADEON_ENG_DISPLAY_SELECT_CRTC0));
+    else
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
+					  RADEON_ENG_DISPLAY_SELECT_CRTC1));
+
+    FINISH_ACCEL();
 }
 
 /* MMIO:

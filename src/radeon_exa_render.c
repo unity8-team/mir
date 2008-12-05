@@ -624,8 +624,6 @@ static Bool FUNC_NAME(R100PrepareComposite)(int op,
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
-
     return TRUE;
 }
 
@@ -931,8 +929,6 @@ static Bool FUNC_NAME(R200PrepareComposite)(int op, PicturePtr pSrcPicture,
     blendcntl = RADEONGetBlendCntl(op, pMaskPicture, pDstPicture->format);
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL, blendcntl);
     FINISH_ACCEL();
-
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
 
     return TRUE;
 }
@@ -1889,8 +1885,6 @@ static Bool FUNC_NAME(R300PrepareComposite)(int op, PicturePtr pSrcPicture,
 	OUT_ACCEL_REG(R300_VAP_VTX_SIZE, 4);
     FINISH_ACCEL();
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
-
     return TRUE;
 }
 
@@ -2002,6 +1996,8 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
 	vtx_count = 6;
     else
 	vtx_count = 4;
+
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h);
 
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {

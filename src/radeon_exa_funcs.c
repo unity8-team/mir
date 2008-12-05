@@ -117,8 +117,6 @@ FUNC_NAME(RADEONPrepareSolid)(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     OUT_ACCEL_REG(RADEON_DST_PITCH_OFFSET, dst_pitch_offset);
     FINISH_ACCEL();
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix));
-
     return TRUE;
 }
 
@@ -130,6 +128,8 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     ACCEL_PREAMBLE();
 
     TRACE;
+
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix), y1, y2);
 
     BEGIN_ACCEL(2);
     OUT_ACCEL_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
@@ -207,8 +207,6 @@ FUNC_NAME(RADEONPrepareCopy)(PixmapPtr pSrc,   PixmapPtr pDst,
     FUNC_NAME(RADEONDoPrepareCopy)(pScrn, src_pitch_offset, dst_pitch_offset,
 				   datatype, rop, planemask);
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
-
     return TRUE;
 }
 
@@ -231,6 +229,8 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 	srcY += h - 1;
 	dstY += h - 1;
     }
+
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h);
 
     BEGIN_ACCEL(3);
 
@@ -289,7 +289,7 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 
 	RADEON_SWITCH_TO_2D();
 
-	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst));
+	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), y, y + h);
 
 	while ((buf = RADEONHostDataBlit(pScrn,
 					 cpp, w, dst_pitch_off, &buf_pitch,

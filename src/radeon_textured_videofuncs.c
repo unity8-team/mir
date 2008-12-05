@@ -1519,7 +1519,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 							   pPriv->drw_x + pPriv->dst_w,
 							   pPriv->drw_y,
 							   pPriv->drw_y + pPriv->dst_h,
-							   pPriv->desired_crtc));
+							   pPriv->desired_crtc),
+				  pPriv->drw_y,
+				  pPriv->drw_y + pPriv->dst_h);
 
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
