@@ -577,6 +577,7 @@ typedef struct _I830Rec {
       drm_intel_bo *gen4_cc_bo;
       drm_intel_bo *gen4_cc_vp_bo;
       drm_intel_bo *gen4_sampler_bo;
+      drm_intel_bo *gen4_sip_kernel_bo;
    } video;
 #endif
 
