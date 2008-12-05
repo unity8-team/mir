@@ -343,12 +343,19 @@ intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
     return target_bo->offset + target_offset;
 }
 
-static void
-i965_set_dst_surface_state(ScrnInfoPtr scrn,
-			   struct brw_surface_state *dest_surf_state,
-			   PixmapPtr pixmap)
+static drm_intel_bo *
+i965_create_dst_surface_state(ScrnInfoPtr scrn,
+			      PixmapPtr pixmap)
 {
     I830Ptr pI830 = I830PTR(scrn);
+    struct brw_surface_state *dest_surf_state;
+    drm_intel_bo *surf_bo;
+
+    surf_bo = drm_intel_bo_alloc(pI830->bufmgr,
+				    "textured video surface state",
+				    4096, 4096);
+    drm_intel_bo_map(surf_bo, TRUE);
+    dest_surf_state = surf_bo->virtual;
 
     memset(dest_surf_state, 0, sizeof(*dest_surf_state));
     dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
@@ -376,17 +383,29 @@ i965_set_dst_surface_state(ScrnInfoPtr scrn,
     dest_surf_state->ss3.pitch = intel_get_pixmap_pitch(pixmap) - 1;
     dest_surf_state->ss3.tiled_surface = i830_pixmap_tiled(pixmap);
     dest_surf_state->ss3.tile_walk = 0; /* TileX */
+
+    drm_intel_bo_unmap(surf_bo);
+    return surf_bo;
 }
 
-static void
-i965_set_src_surface_state(ScrnInfoPtr scrn,
-			      struct brw_surface_state *src_surf_state,
+static drm_intel_bo *
+i965_create_src_surface_state(ScrnInfoPtr scrn,
 			      uint32_t src_offset,
 			      int src_width,
 			      int src_height,
 			      int src_pitch,
 			      uint32_t src_surf_format)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *surface_bo;
+    struct brw_surface_state *src_surf_state;
+
+    surface_bo = drm_intel_bo_alloc(pI830->bufmgr,
+				    "textured video surface state",
+				    4096, 4096);
+    drm_intel_bo_map(surface_bo, TRUE);
+    src_surf_state = surface_bo->virtual;
+
     /* Set up the source surface state buffer */
     memset(src_surf_state, 0, sizeof(struct brw_surface_state));
     src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
@@ -407,6 +426,34 @@ i965_set_src_surface_state(ScrnInfoPtr scrn,
     src_surf_state->ss2.mip_count = 0;
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
+
+    drm_intel_bo_unmap(surface_bo);
+    return surface_bo;
+}
+
+static drm_intel_bo *
+i965_create_binding_table(ScrnInfoPtr scrn, drm_intel_bo **surf_bos, int n_surf)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *bind_bo;
+    uint32_t *binding_table;
+    int i;
+
+    /* Set up a binding table for our surfaces.  Only the PS will use it */
+
+    bind_bo = drm_intel_bo_alloc(pI830->bufmgr,
+				 "textured video binding table",
+				 4096, 4096);
+    drm_intel_bo_map(bind_bo, TRUE);
+    binding_table = bind_bo->virtual;
+
+    for (i = 0; i < n_surf; i++)
+	binding_table[i] = intel_emit_reloc(bind_bo, i * sizeof(uint32_t),
+					    surf_bos[i], 0,
+					    I915_GEM_DOMAIN_INSTRUCTION, 0);
+
+    drm_intel_bo_unmap(bind_bo);
+    return bind_bo;
 }
 
 static drm_intel_bo *
@@ -662,20 +709,14 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
     float src_scale_x, src_scale_y;
-    uint32_t *binding_table;
-    int dest_surf_offset, src_surf_offset[6];
-    int binding_table_offset;
-    int next_offset, total_state_size;
-    char *state_base;
-    int state_base_offset;
-    int src_surf;
+    int src_surf, i;
     int n_src_surf;
     uint32_t	src_surf_format;
     uint32_t	src_surf_base[6];
     int		src_width[6];
     int		src_height[6];
     int		src_pitch[6];
-    int wm_binding_table_entries;
+    drm_intel_bo *bind_bo, *surf_bos[7];
 
 #if 0
     ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
@@ -733,44 +774,13 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     default:
 	return;
     }    
-    wm_binding_table_entries = 1 + n_src_surf;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_VIDEO;
 
-    next_offset = 0;
-
-    /* Set up our layout of state in framebuffer: */
-    /* And then the general state: */
-    dest_surf_offset = ALIGN(next_offset, 32);
-    next_offset = dest_surf_offset + sizeof(struct brw_surface_state);
-    
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
-	src_surf_offset[src_surf] = ALIGN(next_offset, 32);
-	next_offset = src_surf_offset[src_surf] + sizeof(struct brw_surface_state);
-    }
-    
-    binding_table_offset = ALIGN(next_offset, 32);
-    next_offset = binding_table_offset + (wm_binding_table_entries * 4);
-
-    /* Allocate an area in framebuffer for our state layout we just set up */
-    total_state_size = next_offset;
-    assert (total_state_size < BRW_LINEAR_EXTRA);
-
-    /*
-     * Use the extra space allocated at the end of the Xv buffer
-     */
-    state_base_offset = pPriv->extra_offset;
-    state_base_offset = ALIGN(state_base_offset, 64);
-
-    state_base = (char *)(pI830->FbBase + state_base_offset);
-
-    binding_table = (void *)(state_base + binding_table_offset);
-
 #if 0
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
     ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
-    ErrorF("binding table: 0x%08x\n", state_base_offset + binding_table_offset);
 #endif
 
     urb_vs_start = 0;
@@ -790,24 +800,22 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
      */
 
     /* Upload kernels */
-    i965_set_dst_surface_state(pScrn, (void *)(state_base +
-					       dest_surf_offset),
-			       pPixmap);
+    surf_bos[0] = i965_create_dst_surface_state(pScrn, pPixmap);
 
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-	i965_set_src_surface_state(pScrn,
-				   (void *)(state_base +
-					    src_surf_offset[src_surf]),
-				   src_surf_base[src_surf],
-				   src_width[src_surf],
-				   src_height[src_surf],
-				   src_pitch[src_surf],
-				   src_surf_format);
-
-    /* Set up a binding table for our surfaces.  Only the PS will use it */
-    binding_table[0] = state_base_offset + dest_surf_offset;
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-	binding_table[1 + src_surf] = state_base_offset + src_surf_offset[src_surf];
+    for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
+	surf_bos[src_surf + 1] =
+	    i965_create_src_surface_state(pScrn,
+					  src_surf_base[src_surf],
+					  src_width[src_surf],
+					  src_height[src_surf],
+					  src_pitch[src_surf],
+					  src_surf_format);
+    }
+    bind_bo = i965_create_binding_table(pScrn, surf_bos, n_src_surf + 1);
+    for (i = 0; i < n_src_surf + 1; i++) {
+	drm_intel_bo_unreference(surf_bos[i]);
+	surf_bos[i] = NULL;
+    }
 
     if (pI830->video.gen4_sampler_bo == NULL)
 	pI830->video.gen4_sampler_bo = i965_create_sampler_state(pScrn);
@@ -900,7 +908,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        OUT_BATCH(0); /* clip */
        OUT_BATCH(0); /* sf */
        /* Only the PS uses the binding table */
-       OUT_BATCH(state_base_offset + binding_table_offset); /* ps */
+       OUT_RELOC(bind_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+       drm_intel_bo_unreference(bind_bo);
 
        /* Blend constant color (magenta is fun) */
        OUT_BATCH(BRW_3DSTATE_CONSTANT_COLOR | 3);
