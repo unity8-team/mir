@@ -1676,6 +1676,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+    		if (info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A ||
+	   	    info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)
+		    break;
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
@@ -1687,6 +1690,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+    		if (info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A ||
+	   	    info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)
+		    break;
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
