@@ -205,7 +205,8 @@ typedef enum {
     OPTION_TVSTD,
     OPTION_IGNORE_LID_STATUS,
     OPTION_DEFAULT_TVDAC_ADJ,
-    OPTION_INT10
+    OPTION_INT10,
+    OPTION_EXA_VSYNC
 } RADEONOpts;
 
 
@@ -601,6 +602,8 @@ struct radeon_accel_state {
     /* Size of tiles ... set to 65536x65536 if not tiling in that direction */
     Bool              src_tile_width;
     Bool              src_tile_height;
+
+    Bool              vsync;
 #endif
 
 #ifdef USE_XAA
@@ -942,11 +945,11 @@ extern Bool radeon_card_posted(ScrnInfoPtr pScrn);
 #ifdef XF86DRI
 extern void RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 extern void RADEONWaitForVLineCP(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop);
+	int crtc, int start, int stop, int enable);
 #endif
 extern void RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 extern void RADEONWaitForVLineMMIO(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop);
+	int crtc, int start, int stop, int enable);
 
 /* radeon_crtc.c */
 extern void radeon_crtc_dpms(xf86CrtcPtr crtc, int mode);

@@ -381,11 +381,21 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
+    {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {0, 0, 0, NULL}
+};
+
+#define NUM_ATTRIBUTES_R300 2
+
+static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
+{
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
+    {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
     {0, 0, 0, NULL}
 };
 
 static Atom xvBicubic;
+static Atom xvVSync;
 
 #define NUM_IMAGES 4
 
@@ -410,6 +420,8 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
 
     if (attribute == xvBicubic)
 	*value = pPriv->bicubic_state;
+    else if (attribute == xvVSync)
+	*value = pPriv->vsync;
     else
 	return BadMatch;
 
@@ -429,6 +441,8 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 
     if (attribute == xvBicubic)
 	pPriv->bicubic_state = ClipValue (value, 0, 2);
+    else if (attribute == xvVSync)
+	pPriv->vsync = ClipValue (value, 0, 1);
     else
 	return BadMatch;
 
@@ -451,6 +465,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	return NULL;
 
     xvBicubic         = MAKE_ATOM("XV_BICUBIC");
+    xvVSync           = MAKE_ATOM("XV_VSYNC");
 
     adapt->type = XvWindowMask | XvInputMask | XvImageMask;
     adapt->flags = 0;
@@ -468,8 +483,13 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    adapt->pAttributes = Attributes;
-    adapt->nAttributes = NUM_ATTRIBUTES;
+    if (IS_R300_3D || IS_R500_3D) {
+	adapt->pAttributes = Attributes_r300;
+	adapt->nAttributes = NUM_ATTRIBUTES_R300;
+    } else {
+	adapt->pAttributes = Attributes;
+	adapt->nAttributes = NUM_ATTRIBUTES;
+    }
     adapt->pImages = Images;
     adapt->nImages = NUM_IMAGES;
     adapt->PutVideo = NULL;
@@ -492,6 +512,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->currentBuffer = 0;
 	pPriv->doubleBuffer = 0;
 	pPriv->bicubic_state = BICUBIC_AUTO;
+	pPriv->vsync = TRUE;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);

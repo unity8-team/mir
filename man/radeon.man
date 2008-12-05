@@ -516,6 +516,12 @@ This option allows you to disable int10 initialization.  Set this to
 False if you are experiencing a hang when initializing a secondary card.
 The default is
 .B on. 
+.BI "Option \*qEXAVSync\*q \*q" boolean \*q
+This option attempts to avoid tearing by stalling the engine until the display
+controller has passed the destination region.  It reduces tearing at the cost
+of performance.
+The default is
+.B off.
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
