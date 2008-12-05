@@ -568,6 +568,11 @@ typedef struct _I830Rec {
    XF86VideoAdaptorPtr adaptor;
    ScreenBlockHandlerProcPtr BlockHandler;
    Bool *overlayOn;
+
+   struct {
+      drm_intel_bo *gen4_cc_bo;
+      drm_intel_bo *gen4_cc_vp_bo;
+   } video;
 #endif
 
    /* EXA render state */

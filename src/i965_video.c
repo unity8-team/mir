@@ -326,6 +326,23 @@ i965_post_draw_debug(ScrnInfoPtr scrn)
 #define URB_CS_ENTRIES	      0
 #define URB_CS_ENTRY_SIZE     0
 
+/**
+ * Little wrapper around drm_intel_bo_reloc to return the initial value you
+ * should stuff into the relocation entry.
+ *
+ * If only we'd done this before settling on the library API.
+ */
+static uint32_t
+intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
+		 drm_intel_bo *target_bo, uint32_t target_offset,
+		 uint32_t read_domains, uint32_t write_domain)
+{
+    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
+			    read_domains, write_domain);
+
+    return target_bo->offset + target_offset;
+}
+
 static void
 i965_set_dst_surface_state(ScrnInfoPtr scrn,
 			   struct brw_surface_state *dest_surf_state,
@@ -484,18 +501,40 @@ i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
     wm_state->wm5.early_depth_test = 1;
 }
 
-static void
-i965_set_cc_vp_state(ScrnInfoPtr scrn, struct brw_cc_viewport *cc_viewport)
+static drm_intel_bo *
+i965_create_cc_vp_state(ScrnInfoPtr scrn)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *cc_vp_bo;
+    struct brw_cc_viewport *cc_viewport;
+
+    cc_vp_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video cc viewport",
+				  4096, 4096);
+    drm_intel_bo_map(cc_vp_bo, TRUE);
+    cc_viewport = cc_vp_bo->virtual;
+
     memset (cc_viewport, 0, sizeof (*cc_viewport));
     cc_viewport->min_depth = -1.e35;
     cc_viewport->max_depth = 1.e35;
+
+    drm_intel_bo_unmap(cc_vp_bo);
+    return cc_vp_bo;
 }
 
-static void
-i965_set_cc_state(ScrnInfoPtr scnr, struct brw_cc_unit_state *cc_state,
-		  uint32_t cc_viewport_offset)
+static drm_intel_bo *
+i965_create_cc_state(ScrnInfoPtr scrn)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *cc_bo, *cc_vp_bo;
+    struct brw_cc_unit_state *cc_state;
+
+    cc_vp_bo = i965_create_cc_vp_state(scrn);
+
+    cc_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video cc state",
+			       4096, 4096);
+    drm_intel_bo_map(cc_bo, TRUE);
+    cc_state = cc_bo->virtual;
+
     /* Color calculator state */
     memset(cc_state, 0, sizeof(*cc_state));
     cc_state->cc0.stencil_enable = 0;   /* disable stencil */
@@ -504,13 +543,21 @@ i965_set_cc_state(ScrnInfoPtr scnr, struct brw_cc_unit_state *cc_state,
     cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
     cc_state->cc3.blend_enable = 0;     /* disable color blend */
     cc_state->cc3.alpha_test = 0;       /* disable alpha test */
-    cc_state->cc4.cc_viewport_state_offset = cc_viewport_offset >> 5;
+    cc_state->cc4.cc_viewport_state_offset =
+	intel_emit_reloc(cc_bo, offsetof(struct brw_cc_unit_state, cc4),
+			 cc_vp_bo, 0,
+			 I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
     cc_state->cc5.dither_enable = 0;    /* disable dither */
     cc_state->cc5.logicop_func = 0xc;   /* WHITE */
     cc_state->cc5.statistics_enable = 1;
     cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
     cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
     cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
+
+    drm_intel_bo_unmap(cc_bo);
+
+    drm_intel_bo_unreference(cc_vp_bo);
+    return cc_bo;
 }
 
 void
@@ -534,7 +581,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     uint32_t *binding_table;
     Bool first_output = TRUE;
     int dest_surf_offset, src_surf_offset[6], sampler_offset[6], vs_offset;
-    int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
+    int sf_offset, wm_offset, vb_offset;
     int wm_scratch_offset;
     int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
     int binding_table_offset;
@@ -631,8 +678,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     next_offset = wm_offset + sizeof(struct brw_wm_unit_state);
     wm_scratch_offset = ALIGN(next_offset, 1024);
     next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
-    cc_offset = ALIGN(next_offset, 32);
-    next_offset = cc_offset + sizeof(struct brw_cc_unit_state);
 
     sf_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
@@ -640,8 +685,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     next_offset = ps_kernel_offset + ps_kernel_static_size;
     sip_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
-    cc_viewport_offset = ALIGN(next_offset, 32);
-    next_offset = cc_viewport_offset + sizeof(struct brw_cc_viewport);
 
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {    
 	sampler_offset[src_surf] = ALIGN(next_offset, 32);
@@ -682,11 +725,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     ErrorF("vs:            0x%08x\n", state_base_offset + vs_offset);
     ErrorF("wm:            0x%08x\n", state_base_offset + wm_offset);
     ErrorF("sf:            0x%08x\n", state_base_offset + sf_offset);
-    ErrorF("cc:            0x%08x\n", state_base_offset + cc_offset);
     ErrorF("sf kernel:     0x%08x\n", state_base_offset + sf_kernel_offset);
     ErrorF("ps kernel:     0x%08x\n", state_base_offset + ps_kernel_offset);
     ErrorF("sip kernel:    0x%08x\n", state_base_offset + sip_kernel_offset);
-    ErrorF("cc_vp:         0x%08x\n", state_base_offset + cc_viewport_offset);
     ErrorF("src sampler:   0x%08x\n", state_base_offset + sampler_offset);
     ErrorF("vb:            0x%08x\n", state_base_offset + vb_offset);
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
@@ -749,9 +790,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 		      state_base_offset + wm_scratch_offset,
 		      state_base_offset + sampler_offset[0],
 		      n_src_surf);
-    i965_set_cc_vp_state(pScrn, (void *)(state_base + cc_viewport_offset));
-    i965_set_cc_state(pScrn, (void *)(state_base + cc_offset),
-		      state_base_offset + cc_viewport_offset);
+
+    if (pI830->video.gen4_cc_bo == NULL)
+	pI830->video.gen4_cc_bo = i965_create_cc_state(pScrn);
 
     {
 	BEGIN_BATCH(2);
@@ -852,7 +893,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        OUT_BATCH(BRW_CLIP_DISABLE);
        OUT_BATCH(state_base_offset + sf_offset);  /* 32 byte aligned */
        OUT_BATCH(state_base_offset + wm_offset);  /* 32 byte aligned */
-       OUT_BATCH(state_base_offset + cc_offset);  /* 64 byte aligned */
+       OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 
        /* URB fence */
        OUT_BATCH(BRW_URB_FENCE |
@@ -987,4 +1028,15 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif
+}
+
+void
+i965_free_video(ScrnInfoPtr scrn)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+
+    drm_intel_bo_unreference(pI830->video.gen4_cc_bo);
+    pI830->video.gen4_cc_bo = NULL;
+    drm_intel_bo_unreference(pI830->video.gen4_cc_vp_bo);
+    pI830->video.gen4_cc_vp_bo = NULL;
 }

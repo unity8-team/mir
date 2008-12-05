@@ -3818,6 +3818,10 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    i830_allocator_fini(pScrn);
 
+#ifdef I830_XV
+   i965_free_video(pScrn);
+#endif
+
    dri_bufmgr_destroy(pI830->bufmgr);
    pI830->bufmgr = NULL;
 
