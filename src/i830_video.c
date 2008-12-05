@@ -2223,7 +2223,7 @@ I830PutImage(ScrnInfoPtr pScrn,
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int pitchAlignMask;
-    int alloc_size, extraLinear;
+    int alloc_size;
     xf86CrtcPtr	crtc;
 
     if (pPriv->textured)
@@ -2370,15 +2370,9 @@ I830PutImage(ScrnInfoPtr pScrn,
     ErrorF("srcPitch: %d, dstPitch: %d, size: %d\n", srcPitch, dstPitch, size);
 #endif
 
-    if (IS_I965G(pI830))
-	extraLinear = BRW_LINEAR_EXTRA;
-    else
-	extraLinear = 0;
-
     alloc_size = size;
     if (pPriv->doubleBuffer)
 	alloc_size *= 2;
-    alloc_size += extraLinear;
 
     if (pPriv->buf) {
 	/* Wait for any previous acceleration to the buffer to have completed.
@@ -2401,9 +2395,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 
     if (pPriv->buf == NULL)
 	return BadAlloc;
-
-    pPriv->extra_offset = pPriv->buf->offset +
-    (pPriv->doubleBuffer ? size * 2 : size);
 
     /* fixup pointers */
 #ifdef INTEL_XVMC
