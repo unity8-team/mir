@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu5) jaunty; urgency=low
+
+  * Add explicit Depends for libdrm-intel1 (LP: #303177)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 05 Dec 2008 20:03:20 +0000
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu4) jaunty; urgency=low
 
   * Drop 111_textured_video_option.patch.  XvPreferOverlay (commit
