@@ -323,7 +323,7 @@ uxa_try_driver_composite_rects(CARD8		    op,
     int src_off_x, src_off_y, dst_off_x, dst_off_y;
     PixmapPtr pSrcPix, pDstPix;
 
-    if (!uxa_screen->info->prepare_composite)
+    if (!uxa_screen->info->prepare_composite || uxa_screen->swappedOut)
 	return -1;
 
     if (uxa_screen->info->check_composite &&

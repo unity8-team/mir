@@ -310,6 +310,22 @@ uxa_bitmap_to_region(PixmapPtr pPix)
   return ret;
 }
 
+static void
+uxa_xorg_enable_disable_fb_access (int index, Bool enable)
+{
+    ScreenPtr screen = screenInfo.screens[index];
+    uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+    if (!enable && uxa_screen->disableFbCount++ == 0)
+	uxa_screen->swappedOut = TRUE;
+
+    if (enable && --uxa_screen->disableFbCount == 0)
+	uxa_screen->swappedOut = FALSE;
+
+    if (uxa_screen->SavedEnableDisableFBAccess)
+       uxa_screen->SavedEnableDisableFBAccess(index, enable);
+}
+
 /**
  * uxa_close_screen() unwraps its wrapped screen functions and tears down UXA's
  * screen private, before calling down to the next CloseSccreen.
@@ -318,6 +334,7 @@ static Bool
 uxa_close_screen(int i, ScreenPtr pScreen)
 {
     uxa_screen_t	*uxa_screen = uxa_get_screen(pScreen);
+    ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 #ifdef RENDER
     PictureScreenPtr	ps = GetPictureScreenIfSet(pScreen);
 #endif
@@ -333,6 +350,7 @@ uxa_close_screen(int i, ScreenPtr pScreen)
     pScreen->CopyWindow = uxa_screen->SavedCopyWindow;
     pScreen->ChangeWindowAttributes = uxa_screen->SavedChangeWindowAttributes;
     pScreen->BitmapToRegion = uxa_screen->SavedBitmapToRegion;
+    scrn->EnableDisableFBAccess = uxa_screen->SavedEnableDisableFBAccess;
 #ifdef RENDER
     if (ps) {
 	ps->Composite = uxa_screen->SavedComposite;
@@ -378,6 +396,7 @@ Bool
 uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 {
     uxa_screen_t	*uxa_screen;
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 #ifdef RENDER
     PictureScreenPtr	ps;
 #endif
@@ -449,6 +468,9 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 
     uxa_screen->SavedBitmapToRegion = screen->BitmapToRegion;
     screen->BitmapToRegion = uxa_bitmap_to_region;
+
+    uxa_screen->SavedEnableDisableFBAccess = scrn->EnableDisableFBAccess;
+    scrn->EnableDisableFBAccess = uxa_xorg_enable_disable_fb_access;
 
 #ifdef RENDER
     if (ps) {
