@@ -301,6 +301,31 @@ i965_post_draw_debug(ScrnInfoPtr scrn)
 #endif
 }
 
+/* For 3D, the VS must have 8, 12, 16, 24, or 32 VUEs allocated to it.
+ * A VUE consists of a 256-bit vertex header followed by the vertex data,
+ * which in our case is 4 floats (128 bits), thus a single 512-bit URB
+ * entry.
+ */
+#define URB_VS_ENTRIES	      8
+#define URB_VS_ENTRY_SIZE     1
+
+#define URB_GS_ENTRIES	      0
+#define URB_GS_ENTRY_SIZE     0
+
+#define URB_CLIP_ENTRIES      0
+#define URB_CLIP_ENTRY_SIZE   0
+
+/* The SF kernel we use outputs only 4 256-bit registers, leading to an
+ * entry size of 2 512-bit URBs.  We don't need to have many entries to
+ * output as we're generally working on large rectangles and don't care
+ * about having WM threads running on different rectangles simultaneously.
+ */
+#define URB_SF_ENTRIES	      1
+#define URB_SF_ENTRY_SIZE     2
+
+#define URB_CS_ENTRIES	      0
+#define URB_CS_ENTRY_SIZE     0
+
 static void
 i965_set_dst_surface_state(ScrnInfoPtr scrn,
 			   struct brw_surface_state *dest_surf_state,
@@ -380,6 +405,114 @@ i965_set_sampler_state(ScrnInfoPtr scrn,
     sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 }
 
+static void
+i965_set_vs_state(ScrnInfoPtr scrn, struct brw_vs_unit_state *vs_state)
+{
+    /* Set up the vertex shader to be disabled (passthrough) */
+    memset(vs_state, 0, sizeof(*vs_state));
+    vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
+    vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
+    vs_state->vs6.vs_enable = 0;
+    vs_state->vs6.vert_cache_disable = 1;
+}
+
+static void
+i965_set_sf_state(ScrnInfoPtr scrn, struct brw_sf_unit_state *sf_state,
+		  uint32_t sf_kernel_offset)
+{
+    /* Set up the SF kernel to do coord interp: for each attribute,
+     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
+     * back to SF which then hands pixels off to WM.
+     */
+    memset(sf_state, 0, sizeof(*sf_state));
+    sf_state->thread0.kernel_start_pointer = sf_kernel_offset >> 6;
+    sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
+    sf_state->sf1.single_program_flow = 1; /* XXX */
+    sf_state->sf1.binding_table_entry_count = 0;
+    sf_state->sf1.thread_priority = 0;
+    sf_state->sf1.floating_point_mode = 0; /* Mesa does this */
+    sf_state->sf1.illegal_op_exception_enable = 1;
+    sf_state->sf1.mask_stack_exception_enable = 1;
+    sf_state->sf1.sw_exception_enable = 1;
+    sf_state->thread2.per_thread_scratch_space = 0;
+    /* scratch space is not used in our kernel */
+    sf_state->thread2.scratch_space_base_pointer = 0;
+    sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
+    sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
+    sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
+    sf_state->thread3.urb_entry_read_offset = 0;
+    sf_state->thread3.dispatch_grf_start_reg = 3;
+    sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
+    sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
+    sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
+    sf_state->thread4.stats_enable = 1;
+    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
+    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
+    sf_state->sf6.scissor = 0;
+    sf_state->sf7.trifan_pv = 2;
+    sf_state->sf6.dest_org_vbias = 0x8;
+    sf_state->sf6.dest_org_hbias = 0x8;
+}
+
+static void
+i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
+		  uint32_t ps_kernel_offset, uint32_t wm_scratch_offset,
+		  uint32_t sampler_offset, int n_src_surf)
+{
+    memset(wm_state, 0, sizeof (*wm_state));
+    wm_state->thread0.kernel_start_pointer = ps_kernel_offset >> 6;
+    wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
+    wm_state->thread1.single_program_flow = 1; /* XXX */
+    wm_state->thread1.binding_table_entry_count = 1 + n_src_surf;
+    /* Though we never use the scratch space in our WM kernel, it has to be
+     * set, and the minimum allocation is 1024 bytes.
+     */
+    wm_state->thread2.scratch_space_base_pointer = wm_scratch_offset >> 10;
+    wm_state->thread2.per_thread_scratch_space = 0; /* 1024 bytes */
+    wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
+    wm_state->thread3.const_urb_entry_read_length = 0;
+    wm_state->thread3.const_urb_entry_read_offset = 0;
+    wm_state->thread3.urb_entry_read_length = 1; /* XXX */
+    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
+    wm_state->wm4.stats_enable = 1;
+    wm_state->wm4.sampler_state_pointer = sampler_offset >> 5;
+    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+    wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
+    wm_state->wm5.thread_dispatch_enable = 1;
+    wm_state->wm5.enable_16_pix = 1;
+    wm_state->wm5.enable_8_pix = 0;
+    wm_state->wm5.early_depth_test = 1;
+}
+
+static void
+i965_set_cc_vp_state(ScrnInfoPtr scrn, struct brw_cc_viewport *cc_viewport)
+{
+    memset (cc_viewport, 0, sizeof (*cc_viewport));
+    cc_viewport->min_depth = -1.e35;
+    cc_viewport->max_depth = 1.e35;
+}
+
+static void
+i965_set_cc_state(ScrnInfoPtr scnr, struct brw_cc_unit_state *cc_state,
+		  uint32_t cc_viewport_offset)
+{
+    /* Color calculator state */
+    memset(cc_state, 0, sizeof(*cc_state));
+    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
+    cc_state->cc2.depth_test = 0;       /* disable depth test */
+    cc_state->cc2.logicop_enable = 1;   /* enable logic op */
+    cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
+    cc_state->cc3.blend_enable = 0;     /* disable color blend */
+    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
+    cc_state->cc4.cc_viewport_state_offset = cc_viewport_offset >> 5;
+    cc_state->cc5.dither_enable = 0;    /* disable dither */
+    cc_state->cc5.logicop_func = 0xc;   /* WHITE */
+    cc_state->cc5.statistics_enable = 1;
+    cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
+    cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
+    cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
+}
+
 void
 I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
@@ -397,19 +530,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int urb_clip_start, urb_clip_size;
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
-    struct brw_vs_unit_state *vs_state;
-    struct brw_sf_unit_state *sf_state;
-    struct brw_wm_unit_state *wm_state;
-    struct brw_cc_unit_state *cc_state;
-    struct brw_cc_viewport *cc_viewport;
-    struct brw_instruction *sf_kernel;
-    struct brw_instruction *ps_kernel;
-    struct brw_instruction *sip_kernel;
-    float *vb;
     float src_scale_x, src_scale_y;
     uint32_t *binding_table;
     Bool first_output = TRUE;
-    int dest_surf_offset, src_surf_offset[6], src_sampler_offset[6], vs_offset;
+    int dest_surf_offset, src_surf_offset[6], sampler_offset[6], vs_offset;
     int sf_offset, wm_offset, cc_offset, vb_offset, cc_viewport_offset;
     int wm_scratch_offset;
     int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
@@ -500,15 +624,15 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
     /* Set up our layout of state in framebuffer.  First the general state: */
     vs_offset = ALIGN(next_offset, 64);
-    next_offset = vs_offset + sizeof(*vs_state);
+    next_offset = vs_offset + sizeof(struct brw_vs_unit_state);
     sf_offset = ALIGN(next_offset, 32);
-    next_offset = sf_offset + sizeof(*sf_state);
+    next_offset = sf_offset + sizeof(struct brw_sf_unit_state);
     wm_offset = ALIGN(next_offset, 32);
-    next_offset = wm_offset + sizeof(*wm_state);
+    next_offset = wm_offset + sizeof(struct brw_wm_unit_state);
     wm_scratch_offset = ALIGN(next_offset, 1024);
     next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
     cc_offset = ALIGN(next_offset, 32);
-    next_offset = cc_offset + sizeof(*cc_state);
+    next_offset = cc_offset + sizeof(struct brw_cc_unit_state);
 
     sf_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
@@ -517,11 +641,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     sip_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
     cc_viewport_offset = ALIGN(next_offset, 32);
-    next_offset = cc_viewport_offset + sizeof(*cc_viewport);
+    next_offset = cc_viewport_offset + sizeof(struct brw_cc_viewport);
 
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {    
-	src_sampler_offset[src_surf] = ALIGN(next_offset, 32);
-	next_offset = src_sampler_offset[src_surf] + sizeof(struct brw_sampler_state);
+	sampler_offset[src_surf] = ALIGN(next_offset, 32);
+	next_offset = sampler_offset[src_surf] + sizeof(struct brw_sampler_state);
     }
     
     /* Align VB to native size of elements, for safety */
@@ -551,21 +675,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     state_base_offset = ALIGN(state_base_offset, 64);
 
     state_base = (char *)(pI830->FbBase + state_base_offset);
-    /* Set up our pointers to state structures in framebuffer.  It would
-     * probably be a good idea to fill these structures out in system memory
-     * and then dump them there, instead.
-     */
-    vs_state = (void *)(state_base + vs_offset);
-    sf_state = (void *)(state_base + sf_offset);
-    wm_state = (void *)(state_base + wm_offset);
-    cc_state = (void *)(state_base + cc_offset);
-    sf_kernel = (void *)(state_base + sf_kernel_offset);
-    ps_kernel = (void *)(state_base + ps_kernel_offset);
-    sip_kernel = (void *)(state_base + sip_kernel_offset);
 
-    cc_viewport = (void *)(state_base + cc_viewport_offset);
     binding_table = (void *)(state_base + binding_table_offset);
-    vb = (void *)(state_base + vb_offset);
 
 #if 0
     ErrorF("vs:            0x%08x\n", state_base_offset + vs_offset);
@@ -576,37 +687,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     ErrorF("ps kernel:     0x%08x\n", state_base_offset + ps_kernel_offset);
     ErrorF("sip kernel:    0x%08x\n", state_base_offset + sip_kernel_offset);
     ErrorF("cc_vp:         0x%08x\n", state_base_offset + cc_viewport_offset);
-    ErrorF("src sampler:   0x%08x\n", state_base_offset + src_sampler_offset);
+    ErrorF("src sampler:   0x%08x\n", state_base_offset + sampler_offset);
     ErrorF("vb:            0x%08x\n", state_base_offset + vb_offset);
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
     ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
     ErrorF("binding table: 0x%08x\n", state_base_offset + binding_table_offset);
 #endif
-
-    /* For 3D, the VS must have 8, 12, 16, 24, or 32 VUEs allocated to it.
-     * A VUE consists of a 256-bit vertex header followed by the vertex data,
-     * which in our case is 4 floats (128 bits), thus a single 512-bit URB
-     * entry.
-     */
-#define URB_VS_ENTRIES	      8
-#define URB_VS_ENTRY_SIZE     1
-
-#define URB_GS_ENTRIES	      0
-#define URB_GS_ENTRY_SIZE     0
-
-#define URB_CLIP_ENTRIES      0
-#define URB_CLIP_ENTRY_SIZE   0
-
-    /* The SF kernel we use outputs only 4 256-bit registers, leading to an
-     * entry size of 2 512-bit URBs.  We don't need to have many entries to
-     * output as we're generally working on large rectangles and don't care
-     * about having WM threads running on different rectangles simultaneously.
-     */
-#define URB_SF_ENTRIES	      1
-#define URB_SF_ENTRY_SIZE     2
-
-#define URB_CS_ENTRIES	      0
-#define URB_CS_ENTRY_SIZE     0
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -624,31 +710,16 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
      * I830PutImage.
      */
 
-    memset (cc_viewport, 0, sizeof (*cc_viewport));
-    cc_viewport->min_depth = -1.e35;
-    cc_viewport->max_depth = 1.e35;
+    /* Upload kernels */
+    memcpy(state_base + sip_kernel_offset, sip_kernel_static,
+	   sizeof(sip_kernel_static));
+    memcpy(state_base + sf_kernel_offset, sf_kernel_static,
+	   sizeof(sf_kernel_static));
+    memcpy(state_base + ps_kernel_offset, ps_kernel_static,
+	   ps_kernel_static_size);
 
-    /* Color calculator state */
-    memset(cc_state, 0, sizeof(*cc_state));
-    cc_state->cc0.stencil_enable = 0;   /* disable stencil */
-    cc_state->cc2.depth_test = 0;       /* disable depth test */
-    cc_state->cc2.logicop_enable = 1;   /* enable logic op */
-    cc_state->cc3.ia_blend_enable = 1;  /* blend alpha just like colors */
-    cc_state->cc3.blend_enable = 0;     /* disable color blend */
-    cc_state->cc3.alpha_test = 0;       /* disable alpha test */
-    cc_state->cc4.cc_viewport_state_offset = (state_base_offset +
-					      cc_viewport_offset) >> 5;
-    cc_state->cc5.dither_enable = 0;    /* disable dither */
-    cc_state->cc5.logicop_func = 0xc;   /* WHITE */
-    cc_state->cc5.statistics_enable = 1;
-    cc_state->cc5.ia_blend_function = BRW_BLENDFUNCTION_ADD;
-    cc_state->cc5.ia_src_blend_factor = BRW_BLENDFACTOR_ONE;
-    cc_state->cc5.ia_dest_blend_factor = BRW_BLENDFACTOR_ONE;
-
-    /* Upload system kernel */
-    memcpy (sip_kernel, sip_kernel_static, sizeof (sip_kernel_static));
-
-    i965_set_dst_surface_state(pScrn, (void *)(state_base + dest_surf_offset),
+    i965_set_dst_surface_state(pScrn, (void *)(state_base +
+					       dest_surf_offset),
 			       pPixmap);
 
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
@@ -661,87 +732,26 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 				   src_pitch[src_surf],
 				   src_surf_format);
 
-    /* Set up a binding table for our two surfaces.  Only the PS will use it */
-    /* XXX: are these offset from the right place? */
+    for (src_surf = 0; src_surf < n_src_surf; src_surf++)
+	i965_set_sampler_state(pScrn, (void *)(state_base +
+					       sampler_offset[src_surf]));
+
+    /* Set up a binding table for our surfaces.  Only the PS will use it */
     binding_table[0] = state_base_offset + dest_surf_offset;
-    
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
 	binding_table[1 + src_surf] = state_base_offset + src_surf_offset[src_surf];
 
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-	i965_set_sampler_state(pScrn, (void *)(state_base +
-					       src_sampler_offset[src_surf]));
-
-    /* Set up the vertex shader to be disabled (passthrough) */
-    memset(vs_state, 0, sizeof(*vs_state));
-    vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
-    vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
-    vs_state->vs6.vs_enable = 0;
-    vs_state->vs6.vert_cache_disable = 1;
-
-    /* Set up the SF kernel to do coord interp: for each attribute,
-     * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
-     * back to SF which then hands pixels off to WM.
-     */
-
-    memcpy (sf_kernel, sf_kernel_static, sizeof (sf_kernel_static));
-    memset(sf_state, 0, sizeof(*sf_state));
-    sf_state->thread0.kernel_start_pointer =
-	(state_base_offset + sf_kernel_offset) >> 6;
-    sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
-    sf_state->sf1.single_program_flow = 1; /* XXX */
-    sf_state->sf1.binding_table_entry_count = 0;
-    sf_state->sf1.thread_priority = 0;
-    sf_state->sf1.floating_point_mode = 0; /* Mesa does this */
-    sf_state->sf1.illegal_op_exception_enable = 1;
-    sf_state->sf1.mask_stack_exception_enable = 1;
-    sf_state->sf1.sw_exception_enable = 1;
-    sf_state->thread2.per_thread_scratch_space = 0;
-    /* scratch space is not used in our kernel */
-    sf_state->thread2.scratch_space_base_pointer = 0;
-    sf_state->thread3.const_urb_entry_read_length = 0; /* no const URBs */
-    sf_state->thread3.const_urb_entry_read_offset = 0; /* no const URBs */
-    sf_state->thread3.urb_entry_read_length = 1; /* 1 URB per vertex */
-    sf_state->thread3.urb_entry_read_offset = 0;
-    sf_state->thread3.dispatch_grf_start_reg = 3;
-    sf_state->thread4.max_threads = SF_MAX_THREADS - 1;
-    sf_state->thread4.urb_entry_allocation_size = URB_SF_ENTRY_SIZE - 1;
-    sf_state->thread4.nr_urb_entries = URB_SF_ENTRIES;
-    sf_state->thread4.stats_enable = 1;
-    sf_state->sf5.viewport_transform = FALSE; /* skip viewport */
-    sf_state->sf6.cull_mode = BRW_CULLMODE_NONE;
-    sf_state->sf6.scissor = 0;
-    sf_state->sf7.trifan_pv = 2;
-    sf_state->sf6.dest_org_vbias = 0x8;
-    sf_state->sf6.dest_org_hbias = 0x8;
-
-    memcpy (ps_kernel, ps_kernel_static, ps_kernel_static_size);
-    memset (wm_state, 0, sizeof (*wm_state));
-    wm_state->thread0.kernel_start_pointer =
-	(state_base_offset + ps_kernel_offset) >> 6;
-    wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
-    wm_state->thread1.single_program_flow = 1; /* XXX */
-    wm_state->thread1.binding_table_entry_count = 1 + n_src_surf;
-    /* Though we never use the scratch space in our WM kernel, it has to be
-     * set, and the minimum allocation is 1024 bytes.
-     */
-    wm_state->thread2.scratch_space_base_pointer = (state_base_offset +
-						    wm_scratch_offset) >> 10;
-    wm_state->thread2.per_thread_scratch_space = 0; /* 1024 bytes */
-    wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
-    wm_state->thread3.const_urb_entry_read_length = 0;
-    wm_state->thread3.const_urb_entry_read_offset = 0;
-    wm_state->thread3.urb_entry_read_length = 1; /* XXX */
-    wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
-    wm_state->wm4.stats_enable = 1;
-    wm_state->wm4.sampler_state_pointer = (state_base_offset +
-					   src_sampler_offset[0]) >> 5;
-    wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
-    wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
-    wm_state->wm5.thread_dispatch_enable = 1;
-    wm_state->wm5.enable_16_pix = 1;
-    wm_state->wm5.enable_8_pix = 0;
-    wm_state->wm5.early_depth_test = 1;
+    i965_set_vs_state(pScrn, (void *)(state_base + vs_offset));
+    i965_set_sf_state(pScrn, (void *)(state_base + sf_offset),
+		      state_base_offset + sf_kernel_offset);
+    i965_set_wm_state(pScrn, (void *)(state_base + wm_offset),
+		      state_base_offset + ps_kernel_offset,
+		      state_base_offset + wm_scratch_offset,
+		      state_base_offset + sampler_offset[0],
+		      n_src_surf);
+    i965_set_cc_vp_state(pScrn, (void *)(state_base + cc_viewport_offset));
+    i965_set_cc_state(pScrn, (void *)(state_base + cc_offset),
+		      state_base_offset + cc_viewport_offset);
 
     {
 	BEGIN_BATCH(2);
@@ -925,6 +935,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	int box_x2 = pbox->x2;
 	int box_y2 = pbox->y2;
 	int i;
+	float *vb;
 
 	if (!first_output) {
 	    /* Since we use the same little vertex buffer over and over, sync
@@ -935,6 +946,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 	pbox++;
 
+	vb = (void *)(state_base + vb_offset);
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
 	vb[i++] = (box_y2 - dyo) * src_scale_y;
