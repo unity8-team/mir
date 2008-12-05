@@ -515,7 +515,8 @@ The default is
 This option allows you to disable int10 initialization.  Set this to 
 False if you are experiencing a hang when initializing a secondary card.
 The default is
-.B on. 
+.B on.
+.TP 
 .BI "Option \*qEXAVSync\*q \*q" boolean \*q
 This option attempts to avoid tearing by stalling the engine until the display
 controller has passed the destination region.  It reduces tearing at the cost
