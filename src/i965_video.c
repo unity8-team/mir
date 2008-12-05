@@ -663,12 +663,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int urb_cs_start, urb_cs_size;
     float src_scale_x, src_scale_y;
     uint32_t *binding_table;
-    Bool first_output = TRUE;
     int dest_surf_offset, src_surf_offset[6];
-    int vb_offset;
     int binding_table_offset;
     int next_offset, total_state_size;
-    int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
     char *state_base;
     int state_base_offset;
     int src_surf;
@@ -744,10 +741,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     next_offset = 0;
 
     /* Set up our layout of state in framebuffer: */
-    /* Align VB to native size of elements, for safety */
-    vb_offset = ALIGN(next_offset, 8);
-    next_offset = vb_offset + vb_size;
-
     /* And then the general state: */
     dest_surf_offset = ALIGN(next_offset, 32);
     next_offset = dest_surf_offset + sizeof(struct brw_surface_state);
@@ -775,7 +768,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     binding_table = (void *)(state_base + binding_table_offset);
 
 #if 0
-    ErrorF("vb:            0x%08x\n", state_base_offset + vb_offset);
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
     ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
     ErrorF("binding table: 0x%08x\n", state_base_offset + binding_table_offset);
@@ -888,7 +880,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     /* brw_debug (pScrn, "after base address modify"); */
 
     {
-       BEGIN_BATCH(42);
+       BEGIN_BATCH(38);
        /* Enable VF statistics */
        OUT_BATCH(BRW_3DSTATE_VF_STATISTICS | 1);
 
@@ -966,15 +958,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        OUT_BATCH(((URB_CS_ENTRY_SIZE - 1) << 4) |
 		 (URB_CS_ENTRIES << 0));
 
-       /* Set up the pointer to our vertex buffer */
-       OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 2);
-       /* four 32-bit floats per vertex */
-       OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
-		 VB0_VERTEXDATA |
-		 ((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
-       OUT_BATCH(state_base_offset + vb_offset);
-       OUT_BATCH(3); /* four corners to our rectangle */
-
        /* Set up our vertex elements, sourced from the single vertex buffer. */
        OUT_BATCH(BRW_3DSTATE_VERTEX_ELEMENTS | 3);
        /* offset 0: X,Y -> {X, Y, 1.0, 1.0} */
@@ -1028,18 +1011,16 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	int box_x2 = pbox->x2;
 	int box_y2 = pbox->y2;
 	int i;
+	drm_intel_bo *vb_bo;
 	float *vb;
-
-	if (!first_output) {
-	    /* Since we use the same little vertex buffer over and over, sync
-	     * for subsequent rectangles.
-	     */
-	    i830WaitSync(pScrn);
-	}
 
 	pbox++;
 
-	vb = (void *)(state_base + vb_offset);
+	vb_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video vb",
+				   4096, 4096);
+	drm_intel_bo_map(vb_bo, TRUE);
+
+	vb = vb_bo->virtual;
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
 	vb[i++] = (box_y2 - dyo) * src_scale_y;
@@ -1056,9 +1037,20 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	vb[i++] = (float) box_x1 + pix_xoff;
 	vb[i++] = (float) box_y1 + pix_yoff;
 
+	drm_intel_bo_unmap(vb_bo);
+
 	i965_pre_draw_debug(pScrn);
 
-	BEGIN_BATCH(6);
+	BEGIN_BATCH(10);
+	/* Set up the pointer to our vertex buffer */
+	OUT_BATCH(BRW_3DSTATE_VERTEX_BUFFERS | 2);
+	/* four 32-bit floats per vertex */
+	OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
+		  VB0_VERTEXDATA |
+		  ((4 * 4) << VB0_BUFFER_PITCH_SHIFT));
+	OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, 0);
+	OUT_BATCH(3); /* four corners to our rectangle */
+
 	OUT_BATCH(BRW_3DPRIMITIVE |
 		  BRW_3DPRIMITIVE_VERTEX_SEQUENTIAL |
 		  (_3DPRIM_RECTLIST << BRW_3DPRIMITIVE_TOPOLOGY_SHIFT) |
@@ -1071,12 +1063,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	OUT_BATCH(0); /* index buffer offset, ignored */
 	ADVANCE_BATCH();
 
-	i965_post_draw_debug(pScrn);
+	drm_intel_bo_unreference(vb_bo);
 
-	first_output = FALSE;
-	i830MarkSync(pScrn);
+	i965_post_draw_debug(pScrn);
     }
 
+    i830MarkSync(pScrn);
 #if WATCH_STATS
     i830_dump_error_state(pScrn);
 #endif
