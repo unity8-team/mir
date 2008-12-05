@@ -185,6 +185,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     if (pPixmap->drawable.bitsPerPixel == 24)
 	I830FALLBACK("solid 24bpp unsupported!\n");
 
+    if (pPixmap->drawable.bitsPerPixel < 8)
+	I830FALLBACK("under 8bpp pixmaps unsupported\n");
+
     i830_exa_check_pitch_2d(pPixmap);
 
     pitch = i830_pixmap_pitch(pPixmap);
@@ -272,6 +275,9 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 
     if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
+
+    if (pDstPixmap->drawable.bitsPerPixel < 8)
+	I830FALLBACK("under 8bpp pixmaps unsupported\n");
 
     i830_exa_check_pitch_2d(pSrcPixmap);
     i830_exa_check_pitch_2d(pDstPixmap);
