@@ -409,10 +409,19 @@ i965_set_src_surface_state(ScrnInfoPtr scrn,
     src_surf_state->ss3.pitch = src_pitch - 1;
 }
 
-static void
-i965_set_sampler_state(ScrnInfoPtr scrn,
-		       struct brw_sampler_state *sampler_state)
+static drm_intel_bo *
+i965_create_sampler_state(ScrnInfoPtr scrn)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *sampler_bo;
+    struct brw_sampler_state *sampler_state;
+
+    sampler_bo = drm_intel_bo_alloc(pI830->bufmgr,
+				    "textured video sampler state",
+				    4096, 4096);
+    drm_intel_bo_map(sampler_bo, TRUE);
+    sampler_state = sampler_bo->virtual;
+
     memset(sampler_state, 0, sizeof(struct brw_sampler_state));
 
     sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
@@ -420,6 +429,9 @@ i965_set_sampler_state(ScrnInfoPtr scrn,
     sampler_state->ss1.r_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
     sampler_state->ss1.s_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
     sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
+
+    drm_intel_bo_unmap(sampler_bo);
+    return sampler_bo;
 }
 
 static drm_intel_bo *
@@ -443,6 +455,20 @@ i965_create_vs_state(ScrnInfoPtr scrn)
 
     drm_intel_bo_unmap(vs_bo);
     return vs_bo;
+}
+
+static drm_intel_bo *
+i965_create_program(ScrnInfoPtr scrn, const uint32_t *program,
+		    unsigned int program_size)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *prog_bo;
+
+    prog_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video program",
+				 program_size, 4096);
+    drm_intel_bo_subdata(prog_bo, 0, program_size, program);
+
+    return prog_bo;
 }
 
 static drm_intel_bo *
@@ -494,16 +520,37 @@ i965_create_sf_state(ScrnInfoPtr scrn, uint32_t sf_kernel_offset)
     return sf_bo;
 }
 
-static void
-i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
-		  uint32_t ps_kernel_offset,
-		  uint32_t sampler_offset, int n_src_surf)
+static drm_intel_bo *
+i965_create_wm_state(ScrnInfoPtr scrn, drm_intel_bo *sampler_bo, Bool is_packed)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *wm_bo, *kernel_bo;
+    struct brw_wm_unit_state *wm_state;
+
+    if (is_packed) {
+	kernel_bo = i965_create_program(scrn, &ps_kernel_packed_static[0][0],
+					sizeof(ps_kernel_packed_static));
+    } else {
+	kernel_bo = i965_create_program(scrn, &ps_kernel_planar_static[0][0],
+					sizeof(ps_kernel_planar_static));
+    }
+
+    wm_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video wm state",
+			       4096, 4096);
+    drm_intel_bo_map(wm_bo, TRUE);
+    wm_state = wm_bo->virtual;
+
     memset(wm_state, 0, sizeof (*wm_state));
-    wm_state->thread0.kernel_start_pointer = ps_kernel_offset >> 6;
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
+    wm_state->thread0.kernel_start_pointer =
+	intel_emit_reloc(wm_bo, offsetof(struct brw_wm_unit_state, thread0),
+			 kernel_bo, wm_state->thread0.grf_reg_count << 1,
+			 I915_GEM_DOMAIN_INSTRUCTION, 0) >> 6;
     wm_state->thread1.single_program_flow = 1; /* XXX */
-    wm_state->thread1.binding_table_entry_count = 1 + n_src_surf;
+    if (is_packed)
+	wm_state->thread1.binding_table_entry_count = 2;
+    else
+	wm_state->thread1.binding_table_entry_count = 7;
     /* Though we never use the scratch space in our WM kernel, it has to be
      * set, and the minimum allocation is 1024 bytes.
      */
@@ -515,13 +562,21 @@ i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
     wm_state->thread3.urb_entry_read_length = 1; /* XXX */
     wm_state->thread3.urb_entry_read_offset = 0; /* XXX */
     wm_state->wm4.stats_enable = 1;
-    wm_state->wm4.sampler_state_pointer = sampler_offset >> 5;
+    wm_state->wm4.sampler_state_pointer =
+	intel_emit_reloc(wm_bo, offsetof(struct brw_wm_unit_state, wm4),
+			 sampler_bo, 0,
+			 I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
     wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
     wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
     wm_state->wm5.thread_dispatch_enable = 1;
     wm_state->wm5.enable_16_pix = 1;
     wm_state->wm5.enable_8_pix = 0;
     wm_state->wm5.early_depth_test = 1;
+
+    drm_intel_bo_unreference(kernel_bo);
+
+    drm_intel_bo_unmap(wm_bo);
+    return wm_bo;
 }
 
 static drm_intel_bo *
@@ -603,9 +658,9 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     float src_scale_x, src_scale_y;
     uint32_t *binding_table;
     Bool first_output = TRUE;
-    int dest_surf_offset, src_surf_offset[6], sampler_offset[6];
-    int wm_offset, vb_offset;
-    int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
+    int dest_surf_offset, src_surf_offset[6];
+    int vb_offset;
+    int sf_kernel_offset, sip_kernel_offset;
     int binding_table_offset;
     int next_offset, total_state_size;
     int vb_size = (4 * 4) * 4; /* 4 DWORDS per vertex */
@@ -619,8 +674,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     int		src_height[6];
     int		src_pitch[6];
     int wm_binding_table_entries;
-    const uint32_t	*ps_kernel_static;
-    int		ps_kernel_static_size;
 
 #if 0
     ErrorF("BroadwaterDisplayVideoTextured: %dx%d (pitch %d)\n", width, height,
@@ -650,16 +703,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     case FOURCC_UYVY:
 	src_surf_format = BRW_SURFACEFORMAT_YCRCB_SWAPY;
 	n_src_surf = 1;
-	ps_kernel_static = &ps_kernel_packed_static[0][0];
-	ps_kernel_static_size = sizeof (ps_kernel_packed_static);
 	src_width[0] = width;
 	src_height[0] = height;
 	src_pitch[0] = video_pitch;
 	break;
     case FOURCC_YUY2:
 	src_surf_format = BRW_SURFACEFORMAT_YCRCB_NORMAL;
-	ps_kernel_static = &ps_kernel_packed_static[0][0];
-	ps_kernel_static_size = sizeof (ps_kernel_packed_static);
 	src_width[0] = width;
 	src_height[0] = height;
 	src_pitch[0] = video_pitch;
@@ -671,8 +720,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     case FOURCC_I420:
     case FOURCC_YV12:
 	src_surf_format = BRW_SURFACEFORMAT_R8_UNORM;
-	ps_kernel_static = &ps_kernel_planar_static[0][0];
-	ps_kernel_static_size = sizeof (ps_kernel_planar_static);
 	src_width[1] = src_width[0] = width;
 	src_height[1] = src_height[0] = height;
 	src_pitch[1] = src_pitch[0] = video_pitch * 2;
@@ -692,21 +739,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     next_offset = 0;
 
     /* Set up our layout of state in framebuffer.  First the general state: */
-    wm_offset = ALIGN(next_offset, 32);
-    next_offset = wm_offset + sizeof(struct brw_wm_unit_state);
-
     sf_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
-    ps_kernel_offset = ALIGN(next_offset, 64);
-    next_offset = ps_kernel_offset + ps_kernel_static_size;
     sip_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sip_kernel_offset + sizeof (sip_kernel_static);
 
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++) {    
-	sampler_offset[src_surf] = ALIGN(next_offset, 32);
-	next_offset = sampler_offset[src_surf] + sizeof(struct brw_sampler_state);
-    }
-    
     /* Align VB to native size of elements, for safety */
     vb_offset = ALIGN(next_offset, 8);
     next_offset = vb_offset + vb_size;
@@ -738,11 +775,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     binding_table = (void *)(state_base + binding_table_offset);
 
 #if 0
-    ErrorF("wm:            0x%08x\n", state_base_offset + wm_offset);
     ErrorF("sf kernel:     0x%08x\n", state_base_offset + sf_kernel_offset);
-    ErrorF("ps kernel:     0x%08x\n", state_base_offset + ps_kernel_offset);
     ErrorF("sip kernel:    0x%08x\n", state_base_offset + sip_kernel_offset);
-    ErrorF("src sampler:   0x%08x\n", state_base_offset + sampler_offset);
     ErrorF("vb:            0x%08x\n", state_base_offset + vb_offset);
     ErrorF("dst surf:      0x%08x\n", state_base_offset + dest_surf_offset);
     ErrorF("src surf:      0x%08x\n", state_base_offset + src_surf_offset);
@@ -770,8 +804,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	   sizeof(sip_kernel_static));
     memcpy(state_base + sf_kernel_offset, sf_kernel_static,
 	   sizeof(sf_kernel_static));
-    memcpy(state_base + ps_kernel_offset, ps_kernel_static,
-	   ps_kernel_static_size);
 
     i965_set_dst_surface_state(pScrn, (void *)(state_base +
 					       dest_surf_offset),
@@ -787,14 +819,13 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 				   src_pitch[src_surf],
 				   src_surf_format);
 
-    for (src_surf = 0; src_surf < n_src_surf; src_surf++)
-	i965_set_sampler_state(pScrn, (void *)(state_base +
-					       sampler_offset[src_surf]));
-
     /* Set up a binding table for our surfaces.  Only the PS will use it */
     binding_table[0] = state_base_offset + dest_surf_offset;
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
 	binding_table[1 + src_surf] = state_base_offset + src_surf_offset[src_surf];
+
+    if (pI830->video.gen4_sampler_bo == NULL)
+	pI830->video.gen4_sampler_bo = i965_create_sampler_state(pScrn);
 
     if (pI830->video.gen4_vs_bo == NULL)
 	pI830->video.gen4_vs_bo = i965_create_vs_state(pScrn);
@@ -802,10 +833,14 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	pI830->video.gen4_sf_bo = i965_create_sf_state(pScrn,
 						       state_base_offset +
 						       sf_kernel_offset);
-    i965_set_wm_state(pScrn, (void *)(state_base + wm_offset),
-		      state_base_offset + ps_kernel_offset,
-		      state_base_offset + sampler_offset[0],
-		      n_src_surf);
+    if (pI830->video.gen4_wm_packed_bo == NULL) {
+	pI830->video.gen4_wm_packed_bo =
+	    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo, TRUE);
+    }
+    if (pI830->video.gen4_wm_planar_bo == NULL) {
+	pI830->video.gen4_wm_planar_bo =
+	    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo, FALSE);
+    }
 
     if (pI830->video.gen4_cc_bo == NULL)
 	pI830->video.gen4_cc_bo = i965_create_cc_state(pScrn);
@@ -908,7 +943,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
        /* disable CLIP, resulting in passthrough */
        OUT_BATCH(BRW_CLIP_DISABLE);
        OUT_RELOC(pI830->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
-       OUT_BATCH(state_base_offset + wm_offset);  /* 32 byte aligned */
+       if (n_src_surf == 1)
+	   OUT_RELOC(pI830->video.gen4_wm_packed_bo,
+		     I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
+       else
+	   OUT_RELOC(pI830->video.gen4_wm_planar_bo,
+		     I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
        OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 
        /* URB fence */
@@ -1057,6 +1097,12 @@ i965_free_video(ScrnInfoPtr scrn)
     pI830->video.gen4_sf_bo = NULL;
     drm_intel_bo_unreference(pI830->video.gen4_cc_bo);
     pI830->video.gen4_cc_bo = NULL;
+    drm_intel_bo_unreference(pI830->video.gen4_wm_packed_bo);
+    pI830->video.gen4_wm_packed_bo = NULL;
+    drm_intel_bo_unreference(pI830->video.gen4_wm_planar_bo);
+    pI830->video.gen4_wm_planar_bo = NULL;
     drm_intel_bo_unreference(pI830->video.gen4_cc_vp_bo);
     pI830->video.gen4_cc_vp_bo = NULL;
+    drm_intel_bo_unreference(pI830->video.gen4_sampler_bo);
+    pI830->video.gen4_sampler_bo = NULL;
 }
