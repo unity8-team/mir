@@ -570,6 +570,8 @@ typedef struct _I830Rec {
    Bool *overlayOn;
 
    struct {
+      drm_intel_bo *gen4_vs_bo;
+      drm_intel_bo *gen4_sf_bo;
       drm_intel_bo *gen4_cc_bo;
       drm_intel_bo *gen4_cc_vp_bo;
    } video;

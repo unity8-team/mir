@@ -422,21 +422,41 @@ i965_set_sampler_state(ScrnInfoPtr scrn,
     sampler_state->ss1.t_wrap_mode = BRW_TEXCOORDMODE_CLAMP;
 }
 
-static void
-i965_set_vs_state(ScrnInfoPtr scrn, struct brw_vs_unit_state *vs_state)
+static drm_intel_bo *
+i965_create_vs_state(ScrnInfoPtr scrn)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *vs_bo;
+    struct brw_vs_unit_state *vs_state;
+
+    vs_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video vs state",
+			       4096, 4096);
+    drm_intel_bo_map(vs_bo, TRUE);
+    vs_state = vs_bo->virtual;
+
     /* Set up the vertex shader to be disabled (passthrough) */
     memset(vs_state, 0, sizeof(*vs_state));
     vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
     vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
     vs_state->vs6.vs_enable = 0;
     vs_state->vs6.vert_cache_disable = 1;
+
+    drm_intel_bo_unmap(vs_bo);
+    return vs_bo;
 }
 
-static void
-i965_set_sf_state(ScrnInfoPtr scrn, struct brw_sf_unit_state *sf_state,
-		  uint32_t sf_kernel_offset)
+static drm_intel_bo *
+i965_create_sf_state(ScrnInfoPtr scrn, uint32_t sf_kernel_offset)
 {
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *sf_bo;
+    struct brw_sf_unit_state *sf_state;
+
+    sf_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video sf state",
+			       4096, 4096);
+    drm_intel_bo_map(sf_bo, TRUE);
+    sf_state = sf_bo->virtual;
+
     /* Set up the SF kernel to do coord interp: for each attribute,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
      * back to SF which then hands pixels off to WM.
@@ -469,6 +489,9 @@ i965_set_sf_state(ScrnInfoPtr scrn, struct brw_sf_unit_state *sf_state,
     sf_state->sf7.trifan_pv = 2;
     sf_state->sf6.dest_org_vbias = 0x8;
     sf_state->sf6.dest_org_hbias = 0x8;
+
+    drm_intel_bo_unmap(sf_bo);
+    return sf_bo;
 }
 
 static void
@@ -580,8 +603,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     float src_scale_x, src_scale_y;
     uint32_t *binding_table;
     Bool first_output = TRUE;
-    int dest_surf_offset, src_surf_offset[6], sampler_offset[6], vs_offset;
-    int sf_offset, wm_offset, vb_offset;
+    int dest_surf_offset, src_surf_offset[6], sampler_offset[6];
+    int wm_offset, vb_offset;
     int wm_scratch_offset;
     int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
     int binding_table_offset;
@@ -670,10 +693,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     next_offset = 0;
 
     /* Set up our layout of state in framebuffer.  First the general state: */
-    vs_offset = ALIGN(next_offset, 64);
-    next_offset = vs_offset + sizeof(struct brw_vs_unit_state);
-    sf_offset = ALIGN(next_offset, 32);
-    next_offset = sf_offset + sizeof(struct brw_sf_unit_state);
     wm_offset = ALIGN(next_offset, 32);
     next_offset = wm_offset + sizeof(struct brw_wm_unit_state);
     wm_scratch_offset = ALIGN(next_offset, 1024);
@@ -722,9 +741,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     binding_table = (void *)(state_base + binding_table_offset);
 
 #if 0
-    ErrorF("vs:            0x%08x\n", state_base_offset + vs_offset);
     ErrorF("wm:            0x%08x\n", state_base_offset + wm_offset);
-    ErrorF("sf:            0x%08x\n", state_base_offset + sf_offset);
     ErrorF("sf kernel:     0x%08x\n", state_base_offset + sf_kernel_offset);
     ErrorF("ps kernel:     0x%08x\n", state_base_offset + ps_kernel_offset);
     ErrorF("sip kernel:    0x%08x\n", state_base_offset + sip_kernel_offset);
@@ -782,9 +799,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     for (src_surf = 0; src_surf < n_src_surf; src_surf++)
 	binding_table[1 + src_surf] = state_base_offset + src_surf_offset[src_surf];
 
-    i965_set_vs_state(pScrn, (void *)(state_base + vs_offset));
-    i965_set_sf_state(pScrn, (void *)(state_base + sf_offset),
-		      state_base_offset + sf_kernel_offset);
+    if (pI830->video.gen4_vs_bo == NULL)
+	pI830->video.gen4_vs_bo = i965_create_vs_state(pScrn);
+    if (pI830->video.gen4_sf_bo == NULL)
+	pI830->video.gen4_sf_bo = i965_create_sf_state(pScrn,
+						       state_base_offset +
+						       sf_kernel_offset);
     i965_set_wm_state(pScrn, (void *)(state_base + wm_offset),
 		      state_base_offset + ps_kernel_offset,
 		      state_base_offset + wm_scratch_offset,
@@ -886,12 +906,12 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
        /* Set the pointers to the 3d pipeline state */
        OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-       OUT_BATCH(state_base_offset + vs_offset);  /* 32 byte aligned */
+       OUT_RELOC(pI830->video.gen4_vs_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
        /* disable GS, resulting in passthrough */
        OUT_BATCH(BRW_GS_DISABLE);
        /* disable CLIP, resulting in passthrough */
        OUT_BATCH(BRW_CLIP_DISABLE);
-       OUT_BATCH(state_base_offset + sf_offset);  /* 32 byte aligned */
+       OUT_RELOC(pI830->video.gen4_sf_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
        OUT_BATCH(state_base_offset + wm_offset);  /* 32 byte aligned */
        OUT_RELOC(pI830->video.gen4_cc_bo, I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 
@@ -1035,6 +1055,10 @@ i965_free_video(ScrnInfoPtr scrn)
 {
     I830Ptr pI830 = I830PTR(scrn);
 
+    drm_intel_bo_unreference(pI830->video.gen4_vs_bo);
+    pI830->video.gen4_vs_bo = NULL;
+    drm_intel_bo_unreference(pI830->video.gen4_sf_bo);
+    pI830->video.gen4_sf_bo = NULL;
     drm_intel_bo_unreference(pI830->video.gen4_cc_bo);
     pI830->video.gen4_cc_bo = NULL;
     drm_intel_bo_unreference(pI830->video.gen4_cc_vp_bo);
