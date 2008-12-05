@@ -154,6 +154,153 @@ brw_debug (ScrnInfoPtr pScrn, char *when)
 #define WATCH_WIZ 0
 #define WATCH_STATS 0
 
+static void
+i965_pre_draw_debug(ScrnInfoPtr scrn)
+{
+#if 0
+    I830Ptr pI830 = I830PTR(scrn);
+#endif
+
+#if 0
+    ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
+	    INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
+	    INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
+
+    OUTREG(BRW_VF_CTL,
+	   BRW_VF_CTL_SNAPSHOT_MUX_SELECT_THREADID |
+	   BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX |
+	   BRW_VF_CTL_SNAPSHOT_ENABLE);
+    OUTREG(BRW_VF_STRG_VAL, 0);
+#endif
+
+#if 0
+    OUTREG(BRW_VS_CTL,
+	   BRW_VS_CTL_SNAPSHOT_ALL_THREADS |
+	   BRW_VS_CTL_SNAPSHOT_MUX_VALID_COUNT |
+	   BRW_VS_CTL_THREAD_SNAPSHOT_ENABLE);
+
+    OUTREG(BRW_VS_STRG_VAL, 0);
+#endif
+
+#if WATCH_SF
+    OUTREG(BRW_SF_CTL,
+	   BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_COUNT |
+	   BRW_SF_CTL_SNAPSHOT_ALL_THREADS |
+	   BRW_SF_CTL_THREAD_SNAPSHOT_ENABLE);
+    OUTREG(BRW_SF_STRG_VAL, 0);
+#endif
+
+#if WATCH_WIZ
+    OUTREG(BRW_WIZ_CTL,
+	   BRW_WIZ_CTL_SNAPSHOT_MUX_SUBSPAN_INSTANCE |
+	   BRW_WIZ_CTL_SNAPSHOT_ALL_THREADS |
+	   BRW_WIZ_CTL_SNAPSHOT_ENABLE);
+    OUTREG(BRW_WIZ_STRG_VAL,
+	   (box_x1) | (box_y1 << 16));
+#endif
+
+#if 0
+    OUTREG(BRW_TS_CTL,
+	   BRW_TS_CTL_SNAPSHOT_MESSAGE_ERROR |
+	   BRW_TS_CTL_SNAPSHOT_ALL_CHILD_THREADS |
+	   BRW_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS |
+	   BRW_TS_CTL_SNAPSHOT_ENABLE);
+#endif
+}
+
+static void
+i965_post_draw_debug(ScrnInfoPtr scrn)
+{
+#if 0
+    I830Ptr pI830 = I830PTR(scrn);
+#endif
+
+#if 0
+    for (j = 0; j < 100000; j++) {
+	ctl = INREG(BRW_VF_CTL);
+	if (ctl & BRW_VF_CTL_SNAPSHOT_COMPLETE)
+	    break;
+    }
+
+    rdata = INREG(BRW_VF_RDATA);
+    OUTREG(BRW_VF_CTL, 0);
+    ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
+#endif
+
+#if 0
+    for (j = 0; j < 1000000; j++) {
+	ctl = INREG(BRW_VS_CTL);
+	if (ctl & BRW_VS_CTL_SNAPSHOT_COMPLETE)
+	    break;
+    }
+
+    rdata = INREG(BRW_VS_RDATA);
+    for (k = 0; k <= 3; k++) {
+	OUTREG(BRW_VS_CTL,
+	       BRW_VS_CTL_SNAPSHOT_COMPLETE |
+	       (k << 8));
+	rdata = INREG(BRW_VS_RDATA);
+	ErrorF ("VS_CTL: 0x%08x VS_RDATA(%d): 0x%08x\n", ctl, k, rdata);
+    }
+
+    OUTREG(BRW_VS_CTL, 0);
+#endif
+
+#if WATCH_SF
+    for (j = 0; j < 1000000; j++) {
+	ctl = INREG(BRW_SF_CTL);
+	if (ctl & BRW_SF_CTL_SNAPSHOT_COMPLETE)
+	    break;
+    }
+
+    for (k = 0; k <= 7; k++) {
+	OUTREG(BRW_SF_CTL,
+	       BRW_SF_CTL_SNAPSHOT_COMPLETE |
+	       (k << 8));
+	rdata = INREG(BRW_SF_RDATA);
+	ErrorF("SF_CTL: 0x%08x SF_RDATA(%d): 0x%08x\n", ctl, k, rdata);
+    }
+
+    OUTREG(BRW_SF_CTL, 0);
+#endif
+
+#if WATCH_WIZ
+    for (j = 0; j < 100000; j++) {
+	ctl = INREG(BRW_WIZ_CTL);
+	if (ctl & BRW_WIZ_CTL_SNAPSHOT_COMPLETE)
+	    break;
+    }
+
+    rdata = INREG(BRW_WIZ_RDATA);
+    OUTREG(BRW_WIZ_CTL, 0);
+    ErrorF("WIZ_CTL: 0x%08x WIZ_RDATA: 0x%08x\n", ctl, rdata);
+#endif
+
+#if 0
+    for (j = 0; j < 100000; j++) {
+	ctl = INREG(BRW_TS_CTL);
+	if (ctl & BRW_TS_CTL_SNAPSHOT_COMPLETE)
+	    break;
+    }
+
+    rdata = INREG(BRW_TS_RDATA);
+    OUTREG(BRW_TS_CTL, 0);
+    ErrorF("TS_CTL: 0x%08x TS_RDATA: 0x%08x\n", ctl, rdata);
+
+    ErrorF("after EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
+	   INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
+	   INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
+#endif
+
+#if 0
+    for (j = 0; j < 256; j++) {
+	OUTREG(BRW_TD_CTL, j << BRW_TD_CTL_MUX_SHIFT);
+	rdata = INREG(BRW_TD_RDATA);
+	ErrorF ("TD_RDATA(%d): 0x%08x\n", j, rdata);
+    }
+#endif
+}
+
 void
 I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 			 RegionPtr dstRegion,
@@ -783,51 +930,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	vb[i++] = (float) box_x1 + pix_xoff;
 	vb[i++] = (float) box_y1 + pix_yoff;
 
-#if 0
-	ErrorF ("before EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
-		INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
-		INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
-
-	OUTREG(BRW_VF_CTL,
-	       BRW_VF_CTL_SNAPSHOT_MUX_SELECT_THREADID |
-	       BRW_VF_CTL_SNAPSHOT_TYPE_VERTEX_INDEX |
-	       BRW_VF_CTL_SNAPSHOT_ENABLE);
-	OUTREG(BRW_VF_STRG_VAL, 0);
-#endif
-
-#if 0
-	OUTREG(BRW_VS_CTL,
-	       BRW_VS_CTL_SNAPSHOT_ALL_THREADS |
-	       BRW_VS_CTL_SNAPSHOT_MUX_VALID_COUNT |
-	       BRW_VS_CTL_THREAD_SNAPSHOT_ENABLE);
-
-	OUTREG(BRW_VS_STRG_VAL, 0);
-#endif
-
-#if WATCH_SF
-	OUTREG(BRW_SF_CTL,
-	       BRW_SF_CTL_SNAPSHOT_MUX_VERTEX_COUNT |
-	       BRW_SF_CTL_SNAPSHOT_ALL_THREADS |
-	       BRW_SF_CTL_THREAD_SNAPSHOT_ENABLE);
-	OUTREG(BRW_SF_STRG_VAL, 0);
-#endif
-
-#if WATCH_WIZ
-	OUTREG(BRW_WIZ_CTL,
-	       BRW_WIZ_CTL_SNAPSHOT_MUX_SUBSPAN_INSTANCE |
-	       BRW_WIZ_CTL_SNAPSHOT_ALL_THREADS |
-	       BRW_WIZ_CTL_SNAPSHOT_ENABLE);
-	OUTREG(BRW_WIZ_STRG_VAL,
-	       (box_x1) | (box_y1 << 16));
-#endif
-
-#if 0
-	OUTREG(BRW_TS_CTL,
-	       BRW_TS_CTL_SNAPSHOT_MESSAGE_ERROR |
-	       BRW_TS_CTL_SNAPSHOT_ALL_CHILD_THREADS |
-	       BRW_TS_CTL_SNAPSHOT_ALL_ROOT_THREADS |
-	       BRW_TS_CTL_SNAPSHOT_ENABLE);
-#endif
+	i965_pre_draw_debug(pScrn);
 
 	BEGIN_BATCH(6);
 	OUT_BATCH(BRW_3DPRIMITIVE |
@@ -842,90 +945,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	OUT_BATCH(0); /* index buffer offset, ignored */
 	ADVANCE_BATCH();
 
-#if 0
-	for (j = 0; j < 100000; j++) {
-	    ctl = INREG(BRW_VF_CTL);
-	    if (ctl & BRW_VF_CTL_SNAPSHOT_COMPLETE)
-		break;
-	}
+	i965_post_draw_debug(pScrn);
 
-	rdata = INREG(BRW_VF_RDATA);
-	OUTREG(BRW_VF_CTL, 0);
-	ErrorF ("VF_CTL: 0x%08x VF_RDATA: 0x%08x\n", ctl, rdata);
-#endif
-
-#if 0
-	for (j = 0; j < 1000000; j++) {
-	    ctl = INREG(BRW_VS_CTL);
-	    if (ctl & BRW_VS_CTL_SNAPSHOT_COMPLETE)
-		break;
-	}
-
-	rdata = INREG(BRW_VS_RDATA);
-	for (k = 0; k <= 3; k++) {
-	    OUTREG(BRW_VS_CTL,
-		   BRW_VS_CTL_SNAPSHOT_COMPLETE |
-		   (k << 8));
-	    rdata = INREG(BRW_VS_RDATA);
-	    ErrorF ("VS_CTL: 0x%08x VS_RDATA(%d): 0x%08x\n", ctl, k, rdata);
-	}
-
-	OUTREG(BRW_VS_CTL, 0);
-#endif
-
-#if WATCH_SF
-	for (j = 0; j < 1000000; j++) {
-	    ctl = INREG(BRW_SF_CTL);
-	    if (ctl & BRW_SF_CTL_SNAPSHOT_COMPLETE)
-		break;
-	}
-
-	for (k = 0; k <= 7; k++) {
-	    OUTREG(BRW_SF_CTL,
-		   BRW_SF_CTL_SNAPSHOT_COMPLETE |
-		   (k << 8));
-	    rdata = INREG(BRW_SF_RDATA);
-	    ErrorF("SF_CTL: 0x%08x SF_RDATA(%d): 0x%08x\n", ctl, k, rdata);
-	}
-
-	OUTREG(BRW_SF_CTL, 0);
-#endif
-
-#if WATCH_WIZ
-	for (j = 0; j < 100000; j++) {
-	    ctl = INREG(BRW_WIZ_CTL);
-	    if (ctl & BRW_WIZ_CTL_SNAPSHOT_COMPLETE)
-		break;
-	}
-
-	rdata = INREG(BRW_WIZ_RDATA);
-	OUTREG(BRW_WIZ_CTL, 0);
-	ErrorF("WIZ_CTL: 0x%08x WIZ_RDATA: 0x%08x\n", ctl, rdata);
-#endif
-
-#if 0
-	for (j = 0; j < 100000; j++) {
-	    ctl = INREG(BRW_TS_CTL);
-	    if (ctl & BRW_TS_CTL_SNAPSHOT_COMPLETE)
-		break;
-	}
-
-	rdata = INREG(BRW_TS_RDATA);
-	OUTREG(BRW_TS_CTL, 0);
-	ErrorF("TS_CTL: 0x%08x TS_RDATA: 0x%08x\n", ctl, rdata);
-
-	ErrorF("after EU_ATT 0x%08x%08x EU_ATT_DATA 0x%08x%08x\n",
-	       INREG(BRW_EU_ATT_1), INREG(BRW_EU_ATT_0),
-	       INREG(BRW_EU_ATT_DATA_1), INREG(BRW_EU_ATT_DATA_0));
-#endif
-
-#if 0
-	for (j = 0; j < 256; j++) {
-	    OUTREG(BRW_TD_CTL, j << BRW_TD_CTL_MUX_SHIFT);
-	    rdata = INREG(BRW_TD_RDATA);
-	    ErrorF ("TD_RDATA(%d): 0x%08x\n", j, rdata);
-	}
-#endif
 	first_output = FALSE;
 	i830MarkSync(pScrn);
     }
