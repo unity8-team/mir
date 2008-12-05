@@ -1475,6 +1475,17 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
     }
 
+    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
+				  radeon_covering_crtc_num(pScrn,
+							   pPriv->drw_x,
+							   pPriv->drw_x + pPriv->dst_w,
+							   pPriv->drw_y,
+							   pPriv->drw_y + pPriv->dst_h,
+							   pPriv->desired_crtc),
+				  pPriv->drw_y,
+				  pPriv->drw_y + pPriv->dst_h,
+				  pPriv->vsync);
+
     /*
      * Rendering of the actual polygon is done in two different
      * ways depending on chip generation:
@@ -1491,38 +1502,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
      *     We render a single, large triangle and use the scissor
      *     functionality to restrict it to the desired rectangle.
      */
-
-    if (IS_R300_3D || IS_R500_3D) {
-	/*
-	 * Set up the scissor area to that of the output size.
-	 */
-
-	BEGIN_ACCEL(2);
-	if (IS_R300_3D) {
-	    /* R300 has an offset */
-	    OUT_ACCEL_REG(R300_SC_SCISSOR0, (((pPriv->drw_x + 1088) << R300_SCISSOR_X_SHIFT) |
-					     ((pPriv->drw_y + 1088) << R300_SCISSOR_Y_SHIFT)));
-	    OUT_ACCEL_REG(R300_SC_SCISSOR1, (((pPriv->drw_x + pPriv->dst_w + 1088 - 1) << R300_SCISSOR_X_SHIFT) |
-					     ((pPriv->drw_y + pPriv->dst_h + 1088 - 1) << R300_SCISSOR_Y_SHIFT)));
-	} else {
-	    OUT_ACCEL_REG(R300_SC_SCISSOR0, (((pPriv->drw_x) << R300_SCISSOR_X_SHIFT) |
-					     ((pPriv->drw_y) << R300_SCISSOR_Y_SHIFT)));
-	    OUT_ACCEL_REG(R300_SC_SCISSOR1, (((pPriv->drw_x + pPriv->dst_w - 1) << R300_SCISSOR_X_SHIFT) |
-					     ((pPriv->drw_y + pPriv->dst_h - 1) << R300_SCISSOR_Y_SHIFT)));
-	}
-	FINISH_ACCEL();
-    }
-
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPixmap,
-				  radeon_covering_crtc_num(pScrn,
-							   pPriv->drw_x,
-							   pPriv->drw_x + pPriv->dst_w,
-							   pPriv->drw_y,
-							   pPriv->drw_y + pPriv->dst_h,
-							   pPriv->desired_crtc),
-				  pPriv->drw_y,
-				  pPriv->drw_y + pPriv->dst_h,
-				  pPriv->vsync);
 
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
@@ -1544,6 +1523,27 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	ErrorF("dst: %d, %d, %d, %d\n", dstX, dstY, dstw, dsth);
 	ErrorF("src: %d, %d, %d, %d\n", srcX, srcY, srcw, srch);
 #endif
+
+	if (IS_R300_3D || IS_R500_3D) {
+	    /*
+	     * Set up the scissor area to that of the output size.
+	     */
+
+	    BEGIN_ACCEL(2);
+	    if (IS_R300_3D) {
+		/* R300 has an offset */
+		OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX + 1088) << R300_SCISSOR_X_SHIFT) |
+						 ((dstY + 1088) << R300_SCISSOR_Y_SHIFT)));
+		OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw + 1088 - 1) << R300_SCISSOR_X_SHIFT) |
+						 ((dstY + dsth + 1088 - 1) << R300_SCISSOR_Y_SHIFT)));
+	    } else {
+		OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX) << R300_SCISSOR_X_SHIFT) |
+						 ((dstY) << R300_SCISSOR_Y_SHIFT)));
+		OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw - 1) << R300_SCISSOR_X_SHIFT) |
+						 ((dstY + dsth - 1) << R300_SCISSOR_Y_SHIFT)));
+	    }
+	    FINISH_ACCEL();
+	}
 
 #ifdef ACCEL_CP
 	if (info->ChipFamily < CHIP_FAMILY_R200) {
