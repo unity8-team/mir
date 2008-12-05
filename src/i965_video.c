@@ -496,7 +496,7 @@ i965_create_sf_state(ScrnInfoPtr scrn, uint32_t sf_kernel_offset)
 
 static void
 i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
-		  uint32_t ps_kernel_offset, uint32_t wm_scratch_offset,
+		  uint32_t ps_kernel_offset,
 		  uint32_t sampler_offset, int n_src_surf)
 {
     memset(wm_state, 0, sizeof (*wm_state));
@@ -507,7 +507,7 @@ i965_set_wm_state(ScrnInfoPtr scrn, struct brw_wm_unit_state *wm_state,
     /* Though we never use the scratch space in our WM kernel, it has to be
      * set, and the minimum allocation is 1024 bytes.
      */
-    wm_state->thread2.scratch_space_base_pointer = wm_scratch_offset >> 10;
+    wm_state->thread2.scratch_space_base_pointer = 0;
     wm_state->thread2.per_thread_scratch_space = 0; /* 1024 bytes */
     wm_state->thread3.dispatch_grf_start_reg = 3; /* XXX */
     wm_state->thread3.const_urb_entry_read_length = 0;
@@ -605,7 +605,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     Bool first_output = TRUE;
     int dest_surf_offset, src_surf_offset[6], sampler_offset[6];
     int wm_offset, vb_offset;
-    int wm_scratch_offset;
     int sf_kernel_offset, ps_kernel_offset, sip_kernel_offset;
     int binding_table_offset;
     int next_offset, total_state_size;
@@ -695,8 +694,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     /* Set up our layout of state in framebuffer.  First the general state: */
     wm_offset = ALIGN(next_offset, 32);
     next_offset = wm_offset + sizeof(struct brw_wm_unit_state);
-    wm_scratch_offset = ALIGN(next_offset, 1024);
-    next_offset = wm_scratch_offset + 1024 * PS_MAX_THREADS;
 
     sf_kernel_offset = ALIGN(next_offset, 64);
     next_offset = sf_kernel_offset + sizeof (sf_kernel_static);
@@ -807,7 +804,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 						       sf_kernel_offset);
     i965_set_wm_state(pScrn, (void *)(state_base + wm_offset),
 		      state_base_offset + ps_kernel_offset,
-		      state_base_offset + wm_scratch_offset,
 		      state_base_offset + sampler_offset[0],
 		      n_src_surf);
 
