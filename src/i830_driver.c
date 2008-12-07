@@ -1475,9 +1475,6 @@ I830PreInitCrtcConfig(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     int max_width, max_height;
 
-    if (pI830->use_drm_mode)
-	return;
-
     /* check quirks */
     i830_fixup_devices(pScrn);
 
@@ -1869,14 +1866,13 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		  "VBIOS initialization failed.\n");
 
-   I830PreInitCrtcConfig(pScrn);
-
    if (pI830->use_drm_mode) {
        if (!I830DrmModeInit(pScrn))
 	   return FALSE;
    } else {
-       if (!I830AccelMethodInit(pScrn))
-	   return FALSE;
+      I830PreInitCrtcConfig(pScrn);
+      if (!I830AccelMethodInit(pScrn))
+         return FALSE;
    }
 
    I830XvInit(pScrn);
