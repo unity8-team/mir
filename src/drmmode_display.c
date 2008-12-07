@@ -146,6 +146,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
+	crtc->transformPresent = FALSE;
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
@@ -166,7 +167,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		output_count++;
 	}
 
-	if (!xf86CrtcRotate(crtc, mode, rotation)) {
+	if (!xf86CrtcRotate(crtc)) {
 		goto done;
 	}
 
