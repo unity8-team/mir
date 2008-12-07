@@ -1652,7 +1652,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     pI830->drmSubFD = pI830->drmmode.fd;
     xfree(bus_id);
 
-    pI830->directRenderingType = DRI_DRI2;
+    pI830->directRenderingType = DRI_NONE;
     pI830->allocate_classic_textures = FALSE;
 
     i830_init_bufmgr(pScrn);
