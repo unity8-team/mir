@@ -1930,7 +1930,7 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
     }
 }
 
-static unsigned int
+static void
 I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 		   DRI2BufferPtr pDestBuffer, DRI2BufferPtr pSrcBuffer)
 {
@@ -1966,7 +1966,6 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
 #endif
     drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
 
-    return 1;
 }
 
 Bool I830DRI2ScreenInit(ScreenPtr pScreen)
