@@ -1691,7 +1691,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
     I830OutputPrivatePtr    intel_output;
     struct i830_tv_priv	    *dev_priv;
     uint32_t		    tv_dac_on, tv_dac_off, save_tv_dac;
-    char                    *mon_option_lst = NULL;
+    XF86OptionPtr	    mon_option_lst = NULL;
     char		    *tv_format = NULL;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_TV)
