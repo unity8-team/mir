@@ -1635,8 +1635,10 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
 
-    if (render_state->vertex_buffer_bo)
+    if (render_state->vertex_buffer_bo) {
 	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+    }
 
     if (pI830->use_drm_mode) {
 	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
