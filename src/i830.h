@@ -538,6 +538,8 @@ typedef struct _I830Rec {
 #endif
    CloseScreenProcPtr CloseScreen;
 
+   void (*batch_flush_notify)(ScrnInfoPtr pScrn);
+
 #ifdef I830_USE_EXA
    ExaDriverPtr	EXADriverPtr;
 #endif
@@ -943,6 +945,9 @@ Bool i965_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
 void i965_composite(PixmapPtr pDst, int srcX, int srcY,
 		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+
+void
+i965_batch_flush_notify(ScrnInfoPtr pScrn);
 
 Bool
 i830_get_transformed_coordinates(int x, int y, PictTransformPtr transform,

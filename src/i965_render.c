@@ -1000,6 +1000,7 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 	render_state->vertex_buffer_bo = dri_bo_alloc (pI830->bufmgr, "vb",
 						       sizeof (gen4_vertex_buffer),
 						       4096);
+	render_state->vb_offset = 0;
     }
 
     bo_table[0] = pI830->batch_bo;
@@ -1480,14 +1481,21 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
+    /* We're about to do a BEGIN_BATCH(12) for the vertex setup. And
+     * we first need to ensure that that's not going to cause a flush
+     * since we need to not flush between setting up our vertices in
+     * the VB and emitting them into the batch. */
+    intel_batch_require_space(pScrn, pI830, 12 * 4);
+
     /* If the vertex buffer is too full, then we flush and re-emit all
      * necessary state into the batch for the composite operation. */
     if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE > VERTEX_BUFFER_SIZE) {
 	dri_bo_unreference (render_state->vertex_buffer_bo);
 	render_state->vertex_buffer_bo = NULL;
-	render_state->vb_offset = 0;
-	_emit_batch_header_for_composite (pScrn);
     }
+
+    if (render_state->vertex_buffer_bo == NULL)
+	_emit_batch_header_for_composite (pScrn);
 
     /* Map the vertex_buffer buffer object so we can write to it. */
     dri_bo_map (render_state->vertex_buffer_bo, 1);
@@ -1569,6 +1577,19 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ErrorF("sync after 3dprimitive\n");
     I830Sync(pScrn);
 #endif
+}
+
+void
+i965_batch_flush_notify(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state = pI830->gen4_render_state;
+
+    /* Once a batch is emitted, we never want to map again any buffer
+     * object being referenced by that batch, (which would be very
+     * expensive). */
+    dri_bo_unreference (render_state->vertex_buffer_bo);
+    render_state->vertex_buffer_bo = NULL;
 }
 
 /**

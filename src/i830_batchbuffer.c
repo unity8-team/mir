@@ -201,4 +201,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
      */
     if (pI830->memory_manager != NULL)
 	pI830->need_mi_flush = TRUE;
+
+    if (pI830->batch_flush_notify)
+	pI830->batch_flush_notify (pScrn);
 }
