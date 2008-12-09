@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -95,6 +96,15 @@ static char *backlight_interfaces[] = {
 #define BACKLIGHT_VALUE_LEN 10
 
 static int backlight_index;
+
+enum lid_status {
+    LID_UNKNOWN = -1,
+    LID_OPEN,
+    LID_CLOSE,
+};
+
+#define ACPI_BUTTON "/proc/acpi/button/"
+#define ACPI_LID "/proc/acpi/button/lid/"
 
 static Bool
 i830_kernel_backlight_available(xf86OutputPtr output)
@@ -373,6 +383,105 @@ i830_lvds_get_backlight_max_kernel(xf86OutputPtr output)
 out_err:
     close(fd);
     return 0;
+}
+
+/**
+ *  Get lid state from ACPI button driver
+ */
+static int
+i830_lvds_acpi_lid_open(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    int fd;
+    DIR *button_dir;
+    DIR *lid_dir;
+    struct dirent *lid_dent;
+    char *state_name;
+    char state[64];
+    enum lid_status ret = LID_UNKNOWN;
+
+    button_dir = opendir(ACPI_BUTTON);
+    /* If acpi button driver is not loaded, bypass ACPI check method */
+    if (button_dir == NULL)
+	goto out;
+    closedir(button_dir);
+
+    lid_dir = opendir(ACPI_LID);
+
+    /* if acpi button loaded, but no lid device, assume no panel */
+    if (lid_dir == NULL) {
+	ret = LID_CLOSE;
+	goto out;
+    }
+
+    while (1) {
+	lid_dent = readdir(lid_dir);
+	if (lid_dent == NULL) {
+	    /* no LID object */
+	    closedir(lid_dir);
+	    goto out;
+	}
+	if (strcmp(lid_dent->d_name, ".") &&
+		strcmp(lid_dent->d_name, "..")) {
+	    closedir(lid_dir);
+	    break;
+	}
+    }
+    state_name = malloc(strlen(ACPI_LID) + strlen(lid_dent->d_name) + 7);
+    memset(state_name, 0, sizeof(state_name));
+    strcat(state_name, ACPI_LID);
+    strcat(state_name, lid_dent->d_name);
+    strcat(state_name, "/state");
+
+    if ((fd = open(state_name, O_RDONLY)) == -1) {
+	free(state_name);
+	goto out;
+    }
+    free(state_name);
+    if (read(fd, state, 64) == -1) {
+	close(fd);
+	goto out;
+    }
+    close(fd);
+    if (strstr(state, "open"))
+	ret = LID_OPEN;
+    else if (strstr(state, "closed"))
+	ret = LID_CLOSE;
+    else /* "unsupported" */
+	ret = LID_UNKNOWN;
+
+out:
+    if (pI830->debug_modes && (ret != LID_UNKNOWN))
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"LID switch detect %s with ACPI button\n",
+		ret ? "closed" : "open");
+
+    return ret;
+}
+
+/**
+ * Get LID switch close state from SWF
+ */
+static Bool
+i830_lvds_swf_lid_close(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t swf14 = INREG(SWF14);
+    Bool ret;
+
+    if (swf14 & SWF14_LID_SWITCH_EN)
+	ret = TRUE;
+    else
+	ret = FALSE;
+
+    if (pI830->debug_modes)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"LID switch detect %s with SWF14 0x%8x\n",
+		ret ? "closed" : "open", swf14);
+
+    return ret;
 }
 
 /**
@@ -765,13 +874,21 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
 /**
  * Detect the LVDS connection.
- *
- * This always returns OUTPUT_STATUS_CONNECTED.  This output should only have
- * been set up if the LVDS was actually connected anyway.
  */
 static xf86OutputStatus
 i830_lvds_detect(xf86OutputPtr output)
 {
+    enum lid_status lid;
+
+    lid = i830_lvds_acpi_lid_open(output);
+    if (lid == LID_OPEN)
+	return XF86OutputStatusConnected;
+    else if (lid == LID_CLOSE)
+	return XF86OutputStatusDisconnected;
+
+    if (i830_lvds_swf_lid_close(output))
+	return XF86OutputStatusDisconnected;
+
     return XF86OutputStatusConnected;
 }
 
