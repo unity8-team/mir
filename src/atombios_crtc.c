@@ -221,6 +221,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     unsigned char *space;
     RADEONSavePtr save = info->ModeReg;
 
+    memset(&spc_param, 0, sizeof(spc_param));
     if (IS_AVIVO_VARIANT) {
 	uint32_t temp;
 
