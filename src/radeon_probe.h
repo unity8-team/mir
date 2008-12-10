@@ -41,9 +41,6 @@
 #include "xf86DDC.h"
 #include "randrstr.h"
 
-#define _XF86MISC_SERVER_
-#include <X11/extensions/xf86misc.h>
-
 #include "xf86Crtc.h"
 
 #ifdef USE_EXA
