@@ -2363,6 +2363,31 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[2].ddc_i2c.valid = FALSE;
 	info->BiosConnector[2].valid = TRUE;
 	return TRUE;
+    case RADEON_MAC_EMAC:
+	/* eMac G4 800/1.0 with radeon 7500, no EDID on internal monitor
+	 * later eMac's (G4 1.25/1.42) with radeon 9200 and 9600 may have
+	 * different ddc setups.  need to verify
+	 */
+	info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
+	info->BiosConnector[0].DACType = DAC_PRIMARY;
+	info->BiosConnector[0].TMDSType = TMDS_NONE;
+	info->BiosConnector[0].ConnectorType = CONNECTOR_VGA;
+	info->BiosConnector[0].valid = TRUE;
+
+	info->BiosConnector[1].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
+	info->BiosConnector[1].DACType = DAC_TVDAC;
+	info->BiosConnector[1].load_detection = FALSE;
+	info->BiosConnector[1].TMDSType = TMDS_NONE;
+	info->BiosConnector[1].ConnectorType = CONNECTOR_VGA;
+	info->BiosConnector[1].valid = TRUE;
+
+	info->BiosConnector[2].ConnectorType = CONNECTOR_STV;
+	info->BiosConnector[2].DACType = DAC_TVDAC;
+	info->BiosConnector[2].load_detection = FALSE;
+	info->BiosConnector[2].TMDSType = TMDS_NONE;
+	info->BiosConnector[2].ddc_i2c.valid = FALSE;
+	info->BiosConnector[2].valid = TRUE;
+	return TRUE;
     default:
 	return FALSE;
     }
@@ -2543,7 +2568,7 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
      * Unforunately, there doesn't seem to be any good way to figure it out.
      */
 
-    /* 
+    /*
      * PowerBook5,[1-5]: external tmds, single-link
      * PowerBook5,[789]: external tmds, dual-link
      * PowerBook5,6:     external tmds, single-link or dual-link
@@ -2600,6 +2625,9 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 		    break;
 		} else if (strstr(cpuline, "iMac G5 (iSight)")) {
 		    ret = RADEON_MAC_IMAC_G5_ISIGHT;
+		    break;
+		} else if (strstr(cpuline, "eMac")) {
+		    ret = RADEON_MAC_EMAC;
 		    break;
 		}
 
@@ -2728,6 +2756,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    info->MacModel = RADEON_MAC_MINI_EXTERNAL;
 	else if (!strncmp("imac-g5-isight", optstr, strlen("imac-g5-isight")))
 	    info->MacModel = RADEON_MAC_IMAC_G5_ISIGHT;
+	else if (!strncmp("emac", optstr, strlen("emac")))
+	    info->MacModel = RADEON_MAC_EMAC;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid Mac Model: %s\n", optstr);
 	}

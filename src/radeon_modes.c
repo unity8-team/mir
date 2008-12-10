@@ -186,6 +186,46 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
     return new;
 }
 
+#if defined(__powerpc__)
+/* Apple eMacs need special modes for the internal CRT, e.g.,
+ * Modeline "640x480"    62.12   640  680  752  864  480 481 484  521 +HSync +Vsync
+ * Modeline "800x600"    76.84   800  848  936 1072  600 601 604  640 +HSync +Vsync
+ * Modeline "1024x768"   99.07  1024 1088 1200 1376  768 769 772  809 +HSync +Vsync
+ * Modeline "1152x864"  112.36  1152 1224 1352 1552  864 865 868  905 +HSync +Vsync
+ * Modeline "1280x960"  124.54  1280 1368 1504 1728  960 961 964 1001 +HSync +Vsync
+ */
+static DisplayModePtr RADEONeMacNativeMode(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    DisplayModePtr new = NULL;
+
+    new = xnfcalloc(1, sizeof (DisplayModeRec));
+    if (new) {
+	new->name       = xnfalloc(strlen("1024x768") + 1);
+	new->name       = "1024x768";
+	new->HDisplay   = 1024;
+	new->HSyncStart = 1088;
+	new->HSyncEnd   = 1200;
+	new->HTotal     = 1376;
+
+	new->VDisplay   = 768;
+	new->VSyncStart = 769;
+	new->VSyncEnd   = 772;
+	new->VTotal     = 809;
+
+	new->Clock      = 99070;
+	new->Flags      = 0;
+	new->type       = M_T_DRIVER | M_T_PREFERRED;
+	new->next       = NULL;
+	new->prev       = NULL;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Added native eMac 1024x768 mode\n");
+
+    return new;
+}
+#endif
+
 /* this function is basically a hack to add the screen modes */
 static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 {
@@ -284,6 +324,12 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 	} else {
 	    if (output->MonInfo)
 		modes = xf86OutputGetEDIDModes (output);
+#if defined(__powerpc__)
+	    if ((info->MacModel == RADEON_MAC_EMAC) &&
+		(radeon_output->DACType == DAC_PRIMARY) &&
+		(modes == NULL))
+		modes = RADEONeMacNativeMode(output);
+#endif
 	    if (modes == NULL) {
 		if ((radeon_output->type == OUTPUT_LVDS) && info->IsAtomBios) {
 		    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex,

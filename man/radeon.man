@@ -477,6 +477,8 @@ mini                 \-\- mini-external alias
 .br
 imac-g5-isight       \-\- iMac G5 iSight
 .br
+emac                 \-\- eMac G4
+.br
 The default value is
 .B undefined.
 .TP
