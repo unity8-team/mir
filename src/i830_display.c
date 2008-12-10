@@ -1638,6 +1638,13 @@ i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
     }
 }
 
+#if RANDR_13_INTERFACE
+static void
+i830_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
+{
+    i830PipeSetBase(crtc, x, y);
+}
+#endif
 
 void
 i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
@@ -1959,6 +1966,9 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
 /*    .load_cursor_image = i830_crtc_load_cursor_image, */
     .load_cursor_argb = i830_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
+#if RANDR_13_INTERFACE
+    .set_origin = i830_crtc_set_origin,
+#endif
 };
 
 void
