@@ -492,16 +492,15 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
-	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, x);
-	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, y);
-	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, x + mode->HDisplay);
-	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, y + mode->VDisplay);
+	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
+	OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, pScrn->virtualX);
+	OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, pScrn->virtualY);
 	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
-	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
-	       		mode->VDisplay);
+	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset, mode->VDisplay);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);

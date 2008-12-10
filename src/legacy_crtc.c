@@ -103,6 +103,31 @@ RADEONRestoreCommonRegisters(ScrnInfoPtr pScrn,
     }
 }
 
+void
+RADEONRestoreCrtcBase(ScrnInfoPtr pScrn,
+		      RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC_TILE_X0_Y0,    restore->crtc_tile_x0_y0);
+    OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
+    OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
+}
+
+void
+RADEONRestoreCrtc2Base(ScrnInfoPtr pScrn,
+		       RADEONSavePtr restore)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (IS_R300_VARIANT)
+	OUTREG(R300_CRTC2_TILE_X0_Y0,    restore->crtc2_tile_x0_y0);
+    OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
+    OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
+}
 
 /* Write CRTC registers */
 void
@@ -133,10 +158,7 @@ RADEONRestoreCrtcRegisters(ScrnInfoPtr pScrn,
     OUTREG(RADEON_CRTC_V_TOTAL_DISP,    restore->crtc_v_total_disp);
     OUTREG(RADEON_CRTC_V_SYNC_STRT_WID, restore->crtc_v_sync_strt_wid);
 
-    if (IS_R300_VARIANT)
-	OUTREG(R300_CRTC_TILE_X0_Y0,    restore->crtc_tile_x0_y0);
-    OUTREG(RADEON_CRTC_OFFSET_CNTL,     restore->crtc_offset_cntl);
-    OUTREG(RADEON_CRTC_OFFSET,          restore->crtc_offset);
+    RADEONRestoreCrtcBase(pScrn, restore);
 
     OUTREG(RADEON_CRTC_PITCH,           restore->crtc_pitch);
     OUTREG(RADEON_DISP_MERGE_CNTL,      restore->disp_merge_cntl);
@@ -180,10 +202,7 @@ RADEONRestoreCrtc2Registers(ScrnInfoPtr pScrn,
     OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   restore->fp_h2_sync_strt_wid);
     OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   restore->fp_v2_sync_strt_wid);
 
-    if (IS_R300_VARIANT)
-	OUTREG(R300_CRTC2_TILE_X0_Y0,    restore->crtc2_tile_x0_y0);
-    OUTREG(RADEON_CRTC2_OFFSET_CNTL,     restore->crtc2_offset_cntl);
-    OUTREG(RADEON_CRTC2_OFFSET,          restore->crtc2_offset);
+    RADEONRestoreCrtc2Base(pScrn, restore);
 
     OUTREG(RADEON_CRTC2_PITCH,           restore->crtc2_pitch);
     OUTREG(RADEON_DISP2_MERGE_CNTL,      restore->disp2_merge_cntl);
@@ -749,8 +768,7 @@ RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save)
 
 }
 
-
-static Bool
+void
 RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 		   int x, int y)
 {
@@ -863,8 +881,6 @@ RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
 #endif
     save->crtc_offset = Base;
 
-    return TRUE;
-
 }
 
 /* Define CRTC registers for requested video mode */
@@ -968,7 +984,7 @@ RADEONInitCrtcRegisters(xf86CrtcPtr crtc, RADEONSavePtr save,
 }
 
 
-static Bool
+void
 RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 		    int x, int y)
 {
@@ -1077,7 +1093,6 @@ RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
 #endif
     save->crtc2_offset = Base;
 
-    return TRUE;
 }
 
 

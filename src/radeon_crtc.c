@@ -472,6 +472,54 @@ radeon_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data
 
 }
 
+#if XF86_CRTC_VERSION >= 2
+#include "radeon_atombios.h"
+
+extern AtomBiosResult
+atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
+extern void
+RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
+		   int x, int y);
+extern void
+RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
+		    int x, int y);
+extern void
+RADEONRestoreCrtcBase(ScrnInfoPtr pScrn,
+		      RADEONSavePtr restore);
+extern void
+RADEONRestoreCrtc2Base(ScrnInfoPtr pScrn,
+		       RADEONSavePtr restore);
+
+static void
+radeon_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (IS_AVIVO_VARIANT) {
+	atombios_lock_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
+	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
+	atombios_lock_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
+    } else {
+	switch (radeon_crtc->crtc_id) {
+	case 0:
+	    RADEONInitCrtcBase(crtc, info->ModeReg, x, y);
+	    RADEONRestoreCrtcBase(pScrn, info->ModeReg);
+	    break;
+	case 1:
+	    RADEONInitCrtc2Base(crtc, info->ModeReg, x, y);
+	    RADEONRestoreCrtc2Base(pScrn, info->ModeReg);
+	    break;
+	default:
+	    break;
+	}
+    }
+}
+#endif
+
+
 static xf86CrtcFuncsRec radeon_crtc_funcs = {
     .dpms = radeon_crtc_dpms,
     .save = NULL, /* XXX */
@@ -492,6 +540,9 @@ static xf86CrtcFuncsRec radeon_crtc_funcs = {
     .hide_cursor = radeon_crtc_hide_cursor,
     .load_cursor_argb = radeon_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
+#if XF86_CRTC_VERSION >= 2
+    .set_origin = radeon_crtc_set_origin,
+#endif
 };
 
 void
