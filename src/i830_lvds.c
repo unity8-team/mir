@@ -409,11 +409,9 @@ i830_lvds_acpi_lid_open(xf86OutputPtr output)
 
     lid_dir = opendir(ACPI_LID);
 
-    /* if acpi button loaded, but no lid device, assume no panel */
-    if (lid_dir == NULL) {
-	ret = LID_CLOSE;
+    /* no acpi lid object found */
+    if (lid_dir == NULL)
 	goto out;
-    }
 
     while (1) {
 	lid_dent = readdir(lid_dir);
