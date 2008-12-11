@@ -194,6 +194,11 @@ static void quirk_ignore_lvds (I830Ptr pI830)
     pI830->quirk_flag |= QUIRK_IGNORE_LVDS;
 }
 
+static void quirk_ignore_crt (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_IGNORE_CRT;
+}
+
 static void quirk_mac_mini (I830Ptr pI830)
 {
     pI830->quirk_flag |= QUIRK_IGNORE_MACMINI_LVDS;
@@ -318,6 +323,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
     /* Sony vaio VGN-SZ4MN (See LP: #212163) */
     { PCI_CHIP_I830_M, 0x104d, 0x81e6, quirk_pipea_force },
+    /* Sony VGC-LT71DB has no VGA output (bug #17395) */
+    { PCI_CHIP_I965_GM, 0x104d, 0x9018, quirk_ignore_crt },
 
     /* Ordi Enduro UW31 (See LP: #152416) */
     { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },

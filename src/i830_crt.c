@@ -517,6 +517,9 @@ i830_crt_init(ScrnInfoPtr pScrn)
     I830OutputPrivatePtr    i830_output;
     I830Ptr		    pI830 = I830PTR(pScrn);
 
+    if (pI830->quirk_flag & QUIRK_IGNORE_CRT)
+	return;
+
     output = xf86OutputCreate (pScrn, &i830_crt_output_funcs, "VGA");
     if (!output)
 	return;
