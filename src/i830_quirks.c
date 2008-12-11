@@ -326,6 +326,9 @@ static i830_quirk i830_quirk_list[] = {
     /* Sony VGC-LT71DB has no VGA output (bug #17395) */
     { PCI_CHIP_I965_GM, 0x104d, 0x9018, quirk_ignore_crt },
 
+    /* Quanta Gigabyte W251U (See LP: #244242) */
+    { PCI_CHIP_I945_GM, 0x152d, 0x0755, quirk_pipea_force },
+
     /* Ordi Enduro UW31 (See LP: #152416) */
     { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },
 
