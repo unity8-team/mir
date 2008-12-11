@@ -176,6 +176,7 @@ static void flush()
     struct brw_mi_flush flush;
     memset(&flush, 0, sizeof(flush));
     flush.opcode = CMD_MI_FLUSH;
+    flush.flags = (1<<1);
     BATCH_STRUCT(flush);
 }
 
