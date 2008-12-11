@@ -287,6 +287,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I915_GM, 0x103c, 0x099c, quirk_ignore_tv },
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
+    /* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
+    { PCI_CHIP_GM45_GM, 0x103c, 0x30eb, quirk_pipea_force },
 
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
