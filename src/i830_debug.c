@@ -492,16 +492,22 @@ DEBUGSTRING(i830_debug_dspclk_gate_d)
 		      OVLUNIT);
 }
 
-#if 0
-DEBUGSTRING(i810_debug_fence_new)
+#if 1
+DEBUGSTRING(i810_debug_fence_start)
 {
-    char *enable = (val & FENCE_VALID) ? "enabled" : "disabled";
+    char *enable = (val & FENCE_VALID) ? " enabled" : "disabled";
     char format = (val & I965_FENCE_Y_MAJOR) ? 'Y' : 'X';
     int pitch = ((val & 0xffc) >> 2) * 128;
     unsigned int offset = val & 0xfffff000;
 
-    return XNFprintf("%s, %c tile walk, %d pitch, 0x%08x offset",
+    return XNFprintf("%s, %c tile walk, %4d pitch, 0x%08x start",
 		     enable, format, pitch, offset);
+}
+DEBUGSTRING(i810_debug_fence_end)
+{
+    unsigned int end = val & 0xfffff000;
+
+    return XNFprintf("                                   0x%08x end", end);
 }
 #endif
 
@@ -698,23 +704,26 @@ static struct i830SnapshotRec {
     DEFINEREG(DPD_AUX_CH_DATA4),
     DEFINEREG(DPD_AUX_CH_DATA5),
 
-#if 0
-    DEFINEREG2(FENCE_NEW + 0, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 8, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 16, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 24, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 32, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 40, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 48, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 56, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 64, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 72, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 80, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 88, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 96, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 104, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 112, i810_debug_fence_new),
-    DEFINEREG2(FENCE_NEW + 120, i810_debug_fence_new),
+#define DEFINEFENCE(i) \
+	{ FENCE_NEW+i*8, "FENCE START " #i, i810_debug_fence_start, 0 }, \
+	{ FENCE_NEW+i*8+4, "FENCE END " #i, i810_debug_fence_end, 0 }
+#if 1
+    DEFINEFENCE(0),
+    DEFINEFENCE(1),
+    DEFINEFENCE(2),
+    DEFINEFENCE(3),
+    DEFINEFENCE(4),
+    DEFINEFENCE(5),
+    DEFINEFENCE(6),
+    DEFINEFENCE(7),
+    DEFINEFENCE(8),
+    DEFINEFENCE(9),
+    DEFINEFENCE(10),
+    DEFINEFENCE(11),
+    DEFINEFENCE(12),
+    DEFINEFENCE(13),
+    DEFINEFENCE(14),
+    DEFINEFENCE(15),
 #endif
 };
 #undef DEFINEREG
