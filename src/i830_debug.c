@@ -1762,7 +1762,7 @@ i830_check_error_state(ScrnInfoPtr pScrn)
 	errors++;
     }
     temp = INREG(LP_RING + RING_LEN);
-    if (temp & 1) {
+    if (!pI830->memory_manager && (temp & 1)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		   "PRB0_CTL (0x%08lx) indicates ring buffer enabled\n", temp);
 	errors++;
