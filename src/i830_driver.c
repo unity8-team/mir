@@ -1557,21 +1557,14 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 	pI830->directRenderingType = DRI_DISABLED;
 
 #ifdef XF86DRI
-    if (pI830->directRenderingType == DRI_XF86DRI) {
-	if ((pI830->accel == ACCEL_NONE) || pI830->SWCursor) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
-		       "needs HW cursor and 2D acceleration.\n");
-	    pI830->directRenderingType = DRI_DISABLED;
-	} else if (pScrn->depth != 16 && pScrn->depth != 24) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
-		       "runs only at depths 16 and 24.\n");
-	    pI830->directRenderingType = DRI_DISABLED;
-	}
-
-	if (pI830->directRenderingType == DRI_XF86DRI) {
-	   pI830->allocate_classic_textures =
-	      xf86ReturnOptValBool(pI830->Options, OPTION_LEGACY3D, TRUE);
-	}
+    if (pI830->accel == ACCEL_NONE) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+		"needs 2D acceleration.\n");
+	pI830->directRenderingType = DRI_DISABLED;
+    } else if (pScrn->depth != 16 && pScrn->depth != 24) {
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "DRI is disabled because it "
+		"runs only at depths 16 and 24.\n");
+	pI830->directRenderingType = DRI_DISABLED;
     }
 #endif /* XF86DRI */
 
@@ -1690,14 +1683,6 @@ I830XvInit(ScrnInfoPtr pScrn)
     }
     xf86DrvMsg(pScrn->scrnIndex, from, "video overlay key set to 0x%x\n",
 	       pI830->colorKey);
-#endif
-#ifdef INTEL_XVMC
-    pI830->XvMCEnabled = FALSE;
-    from =  (pI830->directRenderingType != DRI_DISABLED &&
-	     xf86GetOptValBool(pI830->Options, OPTION_XVMC,
-			       &pI830->XvMCEnabled)) ? X_CONFIG : X_DEFAULT;
-    xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
-	       pI830->XvMCEnabled ? "en" : "dis");
 #endif
 }
 
@@ -3105,8 +3090,16 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* If DRI hasn't been explicitly disabled, try to initialize it.
     * It will be used by the memory allocator.
     */
+   if (pI830->directRenderingType == DRI_NONE && pI830->SWCursor)
+       pI830->directRenderingType = DRI_DISABLED;
+
    if (pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
        pI830->directRenderingType = DRI_XF86DRI;
+
+   if (pI830->directRenderingType == DRI_XF86DRI) {
+       pI830->allocate_classic_textures =
+	   xf86ReturnOptValBool(pI830->Options, OPTION_LEGACY3D, TRUE);
+   }
 #endif
 
    /* Enable tiling by default */
@@ -3262,7 +3255,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     * is called.   fbScreenInit will eventually call into the drivers
     * InitGLXVisuals call back.
     */
-
    if (pI830->directRenderingType == DRI_XF86DRI) {
       if (pI830->accel == ACCEL_NONE || pI830->SWCursor || (pI830->StolenOnly && I830IsPrimary(pScrn))) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DRI is disabled because it "
@@ -3426,6 +3418,14 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
 #ifdef I830_XV
+#ifdef INTEL_XVMC
+    pI830->XvMCEnabled = FALSE;
+    from =  (pI830->directRenderingType == DRI_XF86DRI &&
+	     xf86GetOptValBool(pI830->Options, OPTION_XVMC,
+			       &pI830->XvMCEnabled)) ? X_CONFIG : X_DEFAULT;
+    xf86DrvMsg(pScrn->scrnIndex, from, "Intel XvMC decoder %sabled\n",
+	       pI830->XvMCEnabled ? "en" : "dis");
+#endif
    /* Init video */
    if (pI830->XvEnabled && !pI830->use_drm_mode)
       I830InitVideo(pScreen);
