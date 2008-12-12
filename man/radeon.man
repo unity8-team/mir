@@ -454,8 +454,8 @@ The default is
 .br
 Used to specify Mac models for connector tables and quirks.  If you have
 a powerbook or mini with DVI that does not work properly, try the alternate
- options as Apple does not seem to provide a good way of knowing whether
- they use internal or external TMDS for DVI.  Only valid on PowerPC.
+options as Apple does not seem to provide a good way of knowing whether
+they use internal or external TMDS for DVI.  Only valid on PowerPC.
 .br
 ibook                \-\- ibooks
 .br
