@@ -422,7 +422,6 @@ i830_lvds_acpi_lid_open(xf86OutputPtr output)
 	}
 	if (strcmp(lid_dent->d_name, ".") &&
 		strcmp(lid_dent->d_name, "..")) {
-	    closedir(lid_dir);
 	    break;
 	}
     }
@@ -431,6 +430,8 @@ i830_lvds_acpi_lid_open(xf86OutputPtr output)
     strcat(state_name, ACPI_LID);
     strcat(state_name, lid_dent->d_name);
     strcat(state_name, "/state");
+
+    closedir(lid_dir);
 
     if ((fd = open(state_name, O_RDONLY)) == -1) {
 	free(state_name);
