@@ -254,12 +254,6 @@ PCIE   \-\- PCI Express (falls back to PCI at present)
 .br
 The default is
 .B auto detect.
-.TP 
-.BI "Option \*qDDCMode\*q \*q" boolean \*q
-Force to use the modes queried from the connected monitor.
-.br
-The default is
-.B off.
 .TP
 .BI "Option \*qDisplayPriority\*q \*q" string \*q
 .br

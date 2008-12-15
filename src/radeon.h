@@ -165,7 +165,6 @@ typedef enum {
     OPTION_ACCEL_DFS,
 #endif
 #endif
-    OPTION_DDC_MODE,
     OPTION_IGNORE_EDID,
     OPTION_DISP_PRIORITY,
     OPTION_PANEL_SIZE,
