@@ -2134,9 +2134,9 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
    if (xf86IsEntityShared(info->pEnt->index)) {
         xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                    "Direct Rendering Disabled -- "
-                   "Dual-head configuration is not working with "
+                   "Zaphod Dual-head configuration is not working with "
                    "DRI at present.\n"
-                   "Please use the radeon MergedFB option if you "
+                   "Please use the xrandr 1.2 if you "
                    "want Dual-head with DRI.\n");
         return FALSE;
     }
