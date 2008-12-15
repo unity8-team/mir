@@ -13,14 +13,44 @@ radeon \- ATI RADEON video driver
 .fi
 .SH DESCRIPTION
 .B radeon
-is an __xservername__ driver for ATI RADEON based video cards.  It contains
-full support for 8, 15, 16 and 24 bit pixel depths, dual-head setup,
-flat panel, hardware 2D acceleration, hardware 3D acceleration, hardware cursor, 
-XV extension, and the Xinerama extension.
+is an __xservername__ driver for ATI RADEON based video cards with the
+following features:
+.PP
+.PD 0
+.TP 2
+\(bu
+Full support for 8, 15, 16 and 24 bit pixel depths;
+.TP
+\(bu
+RandR 1.2 and RandR 1.3 support;
+.TP
+\(bu
+TV Out support (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx);
+.TP
+\(bu
+Full EXA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx);
+.TP
+\(bu
+Full XAA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx. XAA Render
+acceleration supported only on R/RV100, R/RV/RS2xx and RS300);
+.TP
+\(bu
+Textured XVideo acceleration (not supported on R/RV6xx and R/RV/RS7xx.
+Bicubic filtering only available on R/RV3xx, R/RV/RS4xx, R/RV5xx, and RS690);
+.TP
+\(bu
+Overlay XVideo acceleration (only on R/RV/RS1xx, R/RV/RS2xx,
+R/RV/RS3xx, R/RV/RS4xx);
+.TP
+\(bu
+3D acceleration (not supported on R/RV6xx and R/RV/RS7xx);
+.PD
 .SH SUPPORTED HARDWARE
 The
 .B radeon
-driver supports PCI and AGP video cards based on the following ATI chips
+driver supports PCI, AGP, and PCIE video cards based on the following ATI chips:
+.PP
+.PD 0
 .TP 12
 .B R100
 Radeon 7200
@@ -103,8 +133,8 @@ Radeon X1600/X1650/X1700
 .B RV570/R580
 Radeon X1900/X1950
 .TP 12
-.B RS600/RS690
-Radeon X1200
+.B RS600/RS690/RS740
+Radeon X1200, X2100
 .TP 12
 .B R600
 Radeon HD 2900
@@ -119,8 +149,11 @@ Radeon HD 3850/3870
 Radeon HD 3450/3470
 .TP 12
 .B RS780
-Radeon HD 3200
-
+Radeon HD 3100/3200/3300
+.TP 12
+.B RV770
+Radeon HD 4850/4870
+.PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
 details.  This section only covers configuration details specific to this
@@ -249,9 +282,7 @@ The default value is
 Frame buffer can be addressed either in linear or tiled mode. Tiled mode can provide
 significant performance benefits with 3D applications, for 2D it shouldn't matter
 much. Tiling will be disabled if the virtual x resolution exceeds 2048 (3968 for R300 
-and above), if option
-.B UseFBDev
-is used, or (if DRI is enabled) the drm module is too old.
+and above), or if DRI is enabled the drm module is too old.
 .br
 If this option is enabled, a new dri driver is required for direct rendering too.
 .br
@@ -271,7 +302,7 @@ The default value is
 Should only be used when driver cannot detect the correct panel size.
 Apply to both desktop (TMDS) and laptop (LVDS) digital panels.
 When a valid panel size is specified, the timings collected from
-DDC and BIOS will not be used. If you have a panel with timings 
+DDC and BIOS will not be used. If you have a panel with timings
 different from that of a standard VESA mode, you have to provide
 this information through the Modeline.
 .br
@@ -283,8 +314,8 @@ The default value is
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
 Enable page flipping for 3D acceleration. This will increase performance
 but not work correctly in some rare cases, hence the default is
-.B off.  
-It is currently only supported on r4xx and older hardware.
+.B off.
+It is currently only supported on R/RV/RS4xx and older hardware.
 .TP
 .BI "Option \*qForceMinDotClock\*q \*q" frequency \*q
 Override minimum dot clock. Some Radeon BIOSes report a minimum dot
@@ -298,9 +329,9 @@ parameter may be specified as a float value with standard suffixes like
 "k", "kHz", "M", "MHz".
 .TP
 .BI "Option \*qRenderAccel\*q \*q" boolean \*q
-Enables or disables hardware Render acceleration.  It is supported on
-Radeon series up to and including r5xx for EXA and up to and 
-including r2xx for XAA.  The default is to
+Enables or disables hardware Render acceleration.  It is supported on all
+Radeon cards when using EXA acceleration and on Radeon R/RV/RS1xx,
+R/RV/RS2xx and RS300 when usig XAA.  The default is to
 .B enable
 Render acceleration.
 .TP
@@ -369,7 +400,7 @@ This option is intended to be used in following cases:
 .br
 3. Adjust to one display type in dual-head clone mode setup.
 .br
-4. Get better performance with Render acceleration on 
+4. Get better performance with Render acceleration on
 digital panels (use NONE setting).
 .br
 The default is 
@@ -379,8 +410,8 @@ for CRT,
 for digital panels
 .TP
 .BI "Option \*qDynamicClocks\*q \*q" boolean \*q
-Enable dynamic clock scaling.  The on-chip clocks will scale dynamically 
-based on usage. This can help reduce heat and increase battery 
+Enable dynamic clock scaling.  The on-chip clocks will scale dynamically
+based on usage. This can help reduce heat and increase battery
 life by reducing power usage.  Some users report reduced 3D performance
 with this enabled.  The default is
 .B off.
@@ -398,7 +429,7 @@ on other architectures.
 .TP
 .BI "Option \*qReverseDDC\*q \*q" boolean \*q
 When BIOS connector informations aren't available, use this option to
-reverse the mapping of the 2 main DDC ports. Use this if the X serve
+reverse the mapping of the 2 main DDC ports. Use this if the X server
 obviously detects the wrong display for each connector. This is
 typically needed on the Radeon 9600 cards bundled with Apple G5s. The
 default is
@@ -414,30 +445,30 @@ The default is
 .B on.
 .TP
 .BI "Option \*qTVDACLoadDetect\*q \*q" boolean \*q
-Enable load detection on the TV DAC.  The TV DAC is used to drive both 
-TV-OUT and analog monitors. Load detection is often unreliable in the 
+Enable load detection on the TV DAC.  The TV DAC is used to drive both
+TV-OUT and analog monitors. Load detection is often unreliable in the
 TV DAC so it is disabled by default.
 The default is
 .B off.
 .TP
 .BI "Option \*qDefaultTMDSPLL\*q \*q" boolean \*q
 Use the default driver provided TMDS PLL values rather than the ones
-provided by the bios. This option has no effect on Mac cards.  Enable 
-this option if you are having problems with a DVI monitor using the 
+provided by the bios. This option has no effect on Mac cards.  Enable
+this option if you are having problems with a DVI monitor using the
 internal TMDS controller.
 The default is
 .B off.
 .TP
 .BI "Option \*qDefaultTVDACAdj\*q \*q" boolean \*q
 Use the default driver provided TVDAC Adj values rather than the ones
-provided by the bios. This option has no effect on Mac cards.  Enable 
-this option if you are having problems with a washed out display on 
+provided by the bios. This option has no effect on Mac cards.  Enable
+this option if you are having problems with a washed out display on
 the secondary DAC.
 The default is
 .B off.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
-Enable DRI support.  This option allows you to enable to disable the DRI.  
+Enable DRI support.  This option allows you to enable to disable the DRI.
 The default is
 .B off 
 for RN50/ES1000 and
@@ -446,7 +477,7 @@ for others.
 .TP
 .BI "Option \*qDefaultConnectorTable\*q \*q" boolean \*q
 Enable this option to skip the BIOS connector table parsing and use the
-driver defaults for each chip.  
+driver defaults for each chip.
 The default is
 .B off 
 .TP
@@ -514,7 +545,7 @@ The default is
 .B on. 
 .TP
 .BI "Option \*qInt10\*q \*q" boolean \*q
-This option allows you to disable int10 initialization.  Set this to 
+This option allows you to disable int10 initialization.  Set this to
 False if you are experiencing a hang when initializing a secondary card.
 The default is
 .B on.
