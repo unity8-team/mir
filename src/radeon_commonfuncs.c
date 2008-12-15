@@ -750,6 +750,9 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 		   INREG(RADEON_RBBM_STATUS));
 #endif
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+      return;
+
     /* Wait for the engine to go idle */
     RADEONWaitForFifoFunction(pScrn, 64);
 

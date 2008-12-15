@@ -156,6 +156,9 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     int            i;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+        return;
+
     if (info->ChipFamily <= CHIP_FAMILY_RV280) {
 	OUTREGP(RADEON_RB3D_DSTCACHE_CTLSTAT,
 		RADEON_RB3D_DC_FLUSH_ALL,
@@ -195,6 +198,8 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     uint32_t       rbbm_soft_reset;
     uint32_t       host_path_cntl;
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+        return;
     /* The following RBBM_SOFT_RESET sequence can help un-wedge
      * an R300 after the command processor got stuck.
      */
