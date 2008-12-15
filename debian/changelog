@@ -1,3 +1,9 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu6) jaunty; urgency=low
+
+  * Rebuild against the new xserver
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Mon, 15 Dec 2008 10:19:55 +0200
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu5) jaunty; urgency=low
 
   * Add explicit Depends for libdrm-intel1 (LP: #303177)
