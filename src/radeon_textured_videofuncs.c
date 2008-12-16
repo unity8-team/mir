@@ -1486,22 +1486,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 				  pPriv->drw_y + pPriv->dst_h,
 				  pPriv->vsync);
 
-    /*
-     * Rendering of the actual polygon is done in two different
-     * ways depending on chip generation:
-     *
-     * < R300:
-     *
-     *     These chips can render a rectangle in one pass, so
-     *     handling is pretty straight-forward.
-     *
-     * >= R300:
-     *
-     *     These chips can accept a quad, but will render it as
-     *     two triangles which results in a diagonal tear. Instead
-     *     We render a single, large triangle and use the scissor
-     *     functionality to restrict it to the desired rectangle.
-     */
+    BEGIN_ACCEL(2);
+    OUT_ACCEL_REG(R300_SC_SCISSOR0, ((0 << R300_SCISSOR_X_SHIFT) |
+				     (0 << R300_SCISSOR_Y_SHIFT)));
+    OUT_ACCEL_REG(R300_SC_SCISSOR1, ((8191 << R300_SCISSOR_X_SHIFT) |
+				     (8191 << R300_SCISSOR_Y_SHIFT)));
+    FINISH_ACCEL();
 
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
@@ -1524,27 +1514,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	ErrorF("src: %d, %d, %d, %d\n", srcX, srcY, srcw, srch);
 #endif
 
-	if (IS_R300_3D || IS_R500_3D) {
-	    /*
-	     * Set up the scissor area to that of the output size.
-	     */
-
-	    BEGIN_ACCEL(2);
-	    if (IS_R300_3D) {
-		/* R300 has an offset */
-		OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX + 1088) << R300_SCISSOR_X_SHIFT) |
-						 ((dstY + 1088) << R300_SCISSOR_Y_SHIFT)));
-		OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw + 1088 - 1) << R300_SCISSOR_X_SHIFT) |
-						 ((dstY + dsth + 1088 - 1) << R300_SCISSOR_Y_SHIFT)));
-	    } else {
-		OUT_ACCEL_REG(R300_SC_SCISSOR0, (((dstX) << R300_SCISSOR_X_SHIFT) |
-						 ((dstY) << R300_SCISSOR_Y_SHIFT)));
-		OUT_ACCEL_REG(R300_SC_SCISSOR1, (((dstX + dstw - 1) << R300_SCISSOR_X_SHIFT) |
-						 ((dstY + dsth - 1) << R300_SCISSOR_Y_SHIFT)));
-	    }
-	    FINISH_ACCEL();
-	}
-
 #ifdef ACCEL_CP
 	if (info->ChipFamily < CHIP_FAMILY_R200) {
 	    BEGIN_RING(3 * vtx_count + 3);
@@ -1558,12 +1527,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		     RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else if (IS_R300_3D || IS_R500_3D) {
-	    BEGIN_RING(3 * vtx_count + 4);
+	    BEGIN_RING(4 * vtx_count + 4);
 	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
-				3 * vtx_count));
-	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_TRI_LIST |
+				4 * vtx_count));
+	    OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_QUAD_LIST |
 		     RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		     (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
+		     (4 << RADEON_CP_VC_CNTL_NUM_SHIFT));
 	} else {
 	    BEGIN_RING(3 * vtx_count + 2);
 	    OUT_RING(CP_PACKET3(R200_CP_PACKET3_3D_DRAW_IMMD_2,
@@ -1574,7 +1543,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	}
 #else /* ACCEL_CP */
 	if (IS_R300_3D || IS_R500_3D)
-	    BEGIN_ACCEL(2 + vtx_count * 3);
+	    BEGIN_ACCEL(2 + vtx_count * 4);
 	else
 	    BEGIN_ACCEL(1 + vtx_count * 3);
 
@@ -1584,9 +1553,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 					      RADEON_VF_RADEON_MODE |
 					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
 	else if (IS_R300_3D || IS_R500_3D)
-	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_TRIANGLE_LIST |
+	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_QUAD_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
-					      (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
+					      (4 << RADEON_VF_NUM_VERTICES_SHIFT)));
 	else
 	    OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
 					      RADEON_VF_PRIM_WALK_DATA |
@@ -1595,31 +1564,31 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 #endif
 	if (pPriv->bicubic_enabled) {
 		/*
-		 * This code is only executed on >= R200, so we don't
+		 * This code is only executed on >= R300, so we don't
 		 * have to deal with the legacy handling.
 		 */
-		VTX_OUT_FILTER((float)dstX,                                    (float)dstY,
-			(float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0],
-			(float)srcX + 0.5,                                     (float)srcY + 0.5);
-		VTX_OUT_FILTER((float)dstX,                                    (float)(dstY + dsth * 2),
-			(float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0],
-			(float)srcX + 0.5,                                     (float)(srcY + srch * 2) + 0.5);
-		VTX_OUT_FILTER((float)(dstX + dstw * 2),                       (float)dstY,
-			(float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
-			(float)(srcX + srcw * 2) + 0.5,                        (float)srcY + 0.5);
+		VTX_OUT_FILTER((float)dstX,                                       (float)dstY,
+			       (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0],
+			       (float)srcX + 0.5,                                 (float)srcY + 0.5);
+		VTX_OUT_FILTER((float)dstX,                                       (float)(dstY + dsth),
+			       (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0],
+			       (float)srcX + 0.5,                                 (float)(srcY + srch) + 0.5);
+		VTX_OUT_FILTER((float)(dstX + dstw),                              (float)(dstY + dsth),
+			       (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0],
+			       (float)(srcX + srcw) + 0.5,                        (float)(srcY + srch) + 0.5);
+		VTX_OUT_FILTER((float)(dstX + dstw),                              (float)dstY,
+			       (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
+			       (float)(srcX + srcw) + 0.5,                        (float)srcY + 0.5);
 	} else {
 		if (IS_R300_3D || IS_R500_3D) {
-			/*
-			 * Render a big, scissored triangle. This means
-			 * doubling the triangle size and adjusting
-			 * texture coordinates.
-			 */
 			VTX_OUT((float)dstX,                                           (float)dstY,
 				(float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0]);
-			VTX_OUT((float)dstX,                                           (float)(dstY + dsth * 2),
-				(float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0]);
-			VTX_OUT((float)(dstX + dstw * 2),                              (float)dstY,
-				(float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+			VTX_OUT((float)dstX,                                           (float)(dstY + dsth),
+				(float)srcX / info->accel_state->texW[0],              (float)(srcY + srch) / info->accel_state->texH[0]);
+			VTX_OUT((float)(dstX + dstw),                                  (float)(dstY + dsth),
+				(float)(srcX + srcw) / info->accel_state->texW[0],     (float)(srcY + srch) / info->accel_state->texH[0]);
+			VTX_OUT((float)(dstX + dstw),                                  (float)dstY,
+				(float)(srcX + srcw) / info->accel_state->texW[0],     (float)srcY / info->accel_state->texH[0]);
 		} else {
 			/*
 			 * Just render a quad (using three coords).
