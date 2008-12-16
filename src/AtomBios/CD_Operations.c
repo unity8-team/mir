@@ -618,7 +618,13 @@ VOID ProcessCompare(PARSER_TEMP_DATA STACK_BASED * pParserTempData)
 VOID ProcessClear(PARSER_TEMP_DATA STACK_BASED * pParserTempData)
 {
     pParserTempData->DestData32=GetDestination[pParserTempData->ParametersType.Destination](pParserTempData);
-    pParserTempData->DestData32 &= ~(AlignmentMask[pParserTempData->CD_Mask.SrcAlignment] << SourceAlignmentShift[pParserTempData->CD_Mask.SrcAlignment]);
+
+    if (pParserTempData->ParametersType.Destination == 0 &&
+	pParserTempData->Multipurpose.CurrentPort == ATI_RegsPort &&
+	pParserTempData->Index == 0) {
+        pParserTempData->DestData32 &= 0xffffffff;
+    } else
+        pParserTempData->DestData32 &= ~(AlignmentMask[pParserTempData->CD_Mask.SrcAlignment] << SourceAlignmentShift[pParserTempData->CD_Mask.SrcAlignment]);
     PutDataFunctions[pParserTempData->ParametersType.Destination](pParserTempData);
 
 }
