@@ -1660,6 +1660,26 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		    info->BiosConnector[i].TMDSType = TMDS_UNIPHY;
 		}
 		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+		if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
+		else {
+		    if (num == 1)
+			info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP3_INDEX);
+		    else
+			info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP4_INDEX);
+		    info->BiosConnector[i].TMDSType = TMDS_UNIPHY1;
+		}
+		break;
+
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_LCD1_INDEX);
+		else {
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP5_INDEX);
+		    info->BiosConnector[i].TMDSType = TMDS_UNIPHY2;
+		}
+		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 		info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_DFP2_INDEX);
