@@ -389,23 +389,35 @@ atombios_maybe_hdmi_mode(xf86OutputPtr output)
 }
 
 static int
-atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_dig_encoder_setup(xf86OutputPtr output, int device, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DIG_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    int index;
 
-    disp_data.ucAction = 1;
+    if (radeon_crtc->crtc_id)
+	index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+    else
+	index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+
+    disp_data.ucAction = ATOM_ENABLE;
     disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER1;
-    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
-	if (radeon_output->coherent_mode) {
-	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG1: Coherent Mode enabled\n");
-	} else
-	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG1: Coherent Mode disabled\n");
+
+    switch (device) {
+    case ATOM_DEVICE_DFP1_INDEX:
+	disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER1;
+	break;
+    case ATOM_DEVICE_LCD1_INDEX:
+    case ATOM_DEVICE_DFP3_INDEX:
+	disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER2;
+	break;
+    default:
+	return ATOM_NOT_IMPLEMENTED;
+	break;
     }
 
     if (mode->Clock > 165000) {
@@ -425,32 +437,62 @@ atombios_output_dig1_setup(xf86OutputPtr output, DisplayModePtr mode)
     else if (radeon_output->type == OUTPUT_LVDS)
 	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_LVDS;
 
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG1 setup success\n");
+	ErrorF("Output DIG%d setup success\n", radeon_crtc->crtc_id + 1);
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DIG1 setup failed\n");
+    ErrorF("Output DIG%d setup failed\n", radeon_crtc->crtc_id + 1);
     return ATOM_NOT_IMPLEMENTED;
 
 }
 
 static int
-atombios_output_dig1_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_dig_transmitter_setup(xf86OutputPtr output, int device, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DIG_TRANSMITTER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    int index, num = 0;
+
+    switch (device) {
+    case ATOM_DEVICE_DFP1_INDEX:
+	index = GetIndexIntoMasterTable(COMMAND, DIG1TransmitterControl);
+	num = 1;
+	break;
+    case ATOM_DEVICE_LCD1_INDEX:
+    case ATOM_DEVICE_DFP3_INDEX:
+	index = GetIndexIntoMasterTable(COMMAND, DIG2TransmitterControl);
+	num = 2;
+	break;
+    default:
+	return ATOM_NOT_IMPLEMENTED;
+	break;
+    }
 
     disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
     disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
+    disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
+
+    if (radeon_crtc->crtc_id)
+	disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+    else
+	disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+
+    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
+	if (radeon_output->coherent_mode) {
+	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG%d transmitter: Coherent Mode enabled\n", num);
+	} else
+	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG%d transmitter: Coherent Mode disabled\n", num);
+    }
 
     if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
 	if (mode->Clock > 165000) {
@@ -483,125 +525,16 @@ atombios_output_dig1_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode
 
     radeon_output->transmitter_config = disp_data.ucConfig;
 
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DIG1TransmitterControl);
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG1 transmitter setup success\n");
+	ErrorF("Output DIG%d transmitter setup success\n", num);
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DIG1 transmitter setup failed\n");
-    return ATOM_NOT_IMPLEMENTED;
-
-}
-
-static int
-atombios_output_dig2_setup(xf86OutputPtr output, DisplayModePtr mode)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    DIG_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = 1;
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER2;
-    if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
-	if (radeon_output->coherent_mode) {
-	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG2: Coherent Mode enabled\n");
-	} else
-	    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG2: Coherent Mode disabled\n");
-    }
-
-    if (mode->Clock > 165000) {
-	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
-	disp_data.ucLaneNum = 8;
-    } else {
-	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
-	disp_data.ucLaneNum = 4;
-    }
-
-    if (OUTPUT_IS_DVI)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DVI;
-    else if (radeon_output->type == OUTPUT_HDMI)
-	disp_data.ucEncoderMode = atombios_maybe_hdmi_mode(output);
-    else if (radeon_output->type == OUTPUT_DP)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DP;
-    else if (radeon_output->type == OUTPUT_LVDS)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_LVDS;
-
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG2 setup success\n");
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output DIG2 setup failed\n");
-    return ATOM_NOT_IMPLEMENTED;
-
-}
-
-static int
-atombios_output_dig2_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    DIG_TRANSMITTER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    disp_data.ucConfig = ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER | ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-
-    if (info->IsIGP && (radeon_output->TMDSType == TMDS_UNIPHY)) {
-	if (mode->Clock > 165000) {
-	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-				   ATOM_TRANSMITTER_CONFIG_LINKA_B);
-	    /* guess */
-	    if (radeon_output->igp_lane_info & 0x3)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
-	    else if (radeon_output->igp_lane_info & 0xc)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
-	} else {
-	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA;
-	    if (radeon_output->igp_lane_info & 0x1)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-	    else if (radeon_output->igp_lane_info & 0x2)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
-	    else if (radeon_output->igp_lane_info & 0x4)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
-	    else if (radeon_output->igp_lane_info & 0x8)
-		disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
-	}
-    } else {
-	if (mode->Clock > 165000)
-	    disp_data.ucConfig |= (ATOM_TRANSMITTER_CONFIG_8LANE_LINK |
-				   ATOM_TRANSMITTER_CONFIG_LINKA_B |
-				   ATOM_TRANSMITTER_CONFIG_LANE_0_7);
-	else
-	    disp_data.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA | ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-    }
-
-    radeon_output->transmitter_config = disp_data.ucConfig;
-
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DIG2TransmitterControl);
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG2 transmitter setup success\n");
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output DIG2 transmitter setup failed\n");
+    ErrorF("Output DIG%d transmitter setup failed\n", num);
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -958,8 +891,8 @@ atombios_output_mode_set(xf86OutputPtr output,
     } else if (radeon_output->MonType == MT_DFP) {
 	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
-		atombios_output_dig1_setup(output, adjusted_mode);
-		atombios_output_dig1_transmitter_setup(output, adjusted_mode);
+		atombios_output_dig_encoder_setup(output, ATOM_DEVICE_DFP1_INDEX, adjusted_mode);
+		atombios_output_dig_transmitter_setup(output, ATOM_DEVICE_DFP1_INDEX, adjusted_mode);
 	    } else
 		atombios_output_digital_setup(output, ATOM_DEVICE_DFP1_INDEX, adjusted_mode);
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
@@ -975,16 +908,16 @@ atombios_output_mode_set(xf86OutputPtr output,
 	    }
 	} else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
-		atombios_output_dig2_setup(output, adjusted_mode);
-		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
+		atombios_output_dig_encoder_setup(output, ATOM_DEVICE_DFP3_INDEX, adjusted_mode);
+		atombios_output_dig_transmitter_setup(output, ATOM_DEVICE_DFP3_INDEX, adjusted_mode);
 	    } else
 		atombios_output_digital_setup(output, ATOM_DEVICE_DFP3_INDEX, adjusted_mode);
 	}
     } else if (radeon_output->MonType == MT_LCD) {
 	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
 	    if (IS_DCE3_VARIANT) {
-		atombios_output_dig2_setup(output, adjusted_mode);
-		atombios_output_dig2_transmitter_setup(output, adjusted_mode);
+		atombios_output_dig_encoder_setup(output, ATOM_DEVICE_LCD1_INDEX, adjusted_mode);
+		atombios_output_dig_transmitter_setup(output, ATOM_DEVICE_LCD1_INDEX, adjusted_mode);
 	    } else
 		atombios_output_digital_setup(output, ATOM_DEVICE_LCD1_INDEX, adjusted_mode);
 	}
