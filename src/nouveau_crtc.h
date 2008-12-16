@@ -39,6 +39,16 @@ typedef struct nouveauCrtc {
 	uint32_t x; /* relative to the frontbuffer */
 	uint32_t y;
 
+	/* Gamma */
+	struct nouveau_bo *lut;
+	struct {
+		uint16_t red;
+		uint16_t green;
+		uint16_t blue;
+		uint16_t unused;
+	} lut_values[256];
+	bool lut_values_valid;
+
 	/* Options and some state. */
 	Bool modeset_lock;
 	Bool dithering;

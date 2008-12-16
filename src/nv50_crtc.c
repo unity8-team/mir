@@ -283,9 +283,7 @@ NV50CrtcBlank(nouveauCrtcPtr crtc, Bool blanked)
 		 * so adjust here before poking the CRTCs.
 		 */
 		uint32_t fb = crtc->front_buffer->offset - 0x20000000;
-		uint32_t clut =
-			(crtc->index ? (pNv->CLUT1->offset - 0x20000000) :
-			 	       (pNv->CLUT0->offset - 0x20000000));
+		uint32_t clut = crtc->lut->offset - 0x20000000;
 		uint32_t cursor =
 			(crtc->index ? (pNv->Cursor2->offset - 0x20000000) :
 			 	       (pNv->Cursor->offset - 0x20000000));
@@ -461,54 +459,49 @@ NV50CrtcGammaSet(nouveauCrtcPtr crtc, uint16_t *red, uint16_t *green, uint16_t *
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcGammaSet is called for %s.\n", crtc->index ? "CRTC1" : "CRTC0");
-
-	NVPtr pNv = NVPTR(pScrn);
 	uint32_t index, i;
-	void * CLUT = NULL;
-
-	/* Each CRTC has it's own CLUT. */
-	if (crtc->index == 1)
-		CLUT = pNv->CLUT1->map;
-	else
-		CLUT = pNv->CLUT0->map;
-
-	volatile struct {
-		unsigned short red, green, blue, unused;
-	} *lut = (void *) CLUT;
 
 	switch (pScrn->depth) {
 	case 15:
 		/* R5G5B5 */
 		for (i = 0; i < 32; i++) {
 			index = NV50_LUT_INDEX(i, 5);
-			lut[index].red = red[i] >> 2;
-			lut[index].green = green[i] >> 2;
-			lut[index].blue = blue[i] >> 2;
+			crtc->lut_values[index].red = red[i] >> 2;
+			crtc->lut_values[index].green = green[i] >> 2;
+			crtc->lut_values[index].blue = blue[i] >> 2;
 		}
 		break;
 	case 16:
 		/* R5G6B5 */
 		for (i = 0; i < 32; i++) {
 			index = NV50_LUT_INDEX(i, 5);
-			lut[index].red = red[i] >> 2;
-			lut[index].blue = blue[i] >> 2;
+			crtc->lut_values[index].red = red[i] >> 2;
+			crtc->lut_values[index].blue = blue[i] >> 2;
 		}
 
 		/* Green has an extra bit. */
 		for (i = 0; i < 64; i++) {
 			index = NV50_LUT_INDEX(i, 6);
-			lut[index].green = green[i] >> 2;
+			crtc->lut_values[index].green = green[i] >> 2;
 		}
 		break;
 	default:
 		/* R8G8B8 */
 		for (i = 0; i < 256; i++) {
-			lut[i].red = red[i] >> 2;
-			lut[i].green = green[i] >> 2;
-			lut[i].blue = blue[i] >> 2;
+			crtc->lut_values[i].red = red[i] >> 2;
+			crtc->lut_values[i].green = green[i] >> 2;
+			crtc->lut_values[i].blue = blue[i] >> 2;
 		}
 		break;
 	}
+
+	crtc->lut_values_valid = true;
+
+	/* This is pre-init, we don't have access to the lut bo now. */
+	if (!crtc->lut)
+		return;
+
+	memcpy(crtc->lut->map, crtc->lut_values, 4*256*sizeof(uint16_t));
 }
 
 void

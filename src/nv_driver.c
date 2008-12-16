@@ -1608,32 +1608,35 @@ NVMapMem(ScrnInfoPtr pScrn)
 		}
 	}
 
-	if (pNv->Architecture >= NV_ARCH_50) {
-		/* Both CRTC's have a CLUT. */
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-				   0, 0x1000, &pNv->CLUT0)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed to allocate memory for CLUT0\n");
-			return FALSE;
-		}
-
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-				   0, 0x1000, &pNv->CLUT1)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Failed to allocate memory for CLUT1\n");
-			return FALSE;
-		}
-	}
-
 	if ((pNv->FB && nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR)) ||
 	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
-	    (pNv->CLUT0 && nouveau_bo_map(pNv->CLUT0, NOUVEAU_BO_RDWR)) ||
-	    (pNv->CLUT1 && nouveau_bo_map(pNv->CLUT1, NOUVEAU_BO_RDWR)) ||
 	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR) ||
 	    (pNv->randr12_enable && nouveau_bo_map(pNv->Cursor2, NOUVEAU_BO_RDWR))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to map pinned buffers\n");
 		return FALSE;
+	}
+
+	/* This is not the ideal solution, but significant changes are needed otherwise. */
+	/* Ideally you do this once upon preinit, but drm is closed between screen inits. */
+	if (pNv->Architecture == NV_ARCH_50) {
+		int i;
+
+		for(i = 0; i < 2; i++) {
+			nouveauCrtcPtr crtc = pNv->crtc[i];
+			if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+				   0, 0x1000, &crtc->lut)) {
+				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Failed to allocate memory for lut %d\n", i);
+				return FALSE;
+			}
+
+			nouveau_bo_map(crtc->lut, NOUVEAU_BO_RDWR);
+
+			/* Copy the last known values. */
+			if (crtc->lut_values_valid)
+				memcpy(crtc->lut->map, crtc->lut_values, 4*256*sizeof(uint16_t));
+		}
 	}
 
 	return TRUE;
@@ -1662,8 +1665,17 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	if (pNv->randr12_enable) {
 		nouveau_bo_del(&pNv->Cursor2);
 	}
-	nouveau_bo_del(&pNv->CLUT0);
-	nouveau_bo_del(&pNv->CLUT1);
+
+	/* Again not the most ideal way. */
+	if (pNv->Architecture == NV_ARCH_50) {
+		int i;
+
+		for(i = 0; i < 2; i++) {
+			nouveauCrtcPtr crtc = pNv->crtc[i];
+			nouveau_bo_del(&crtc->lut);
+			crtc->lut = NULL;
+		}
+	}
 
 	return TRUE;
 }

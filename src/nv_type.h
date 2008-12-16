@@ -256,8 +256,6 @@ typedef struct _NVRec {
     struct nouveau_bo * shadow[2]; /* for easy acces by exa */
     struct nouveau_bo * Cursor;
     struct nouveau_bo * Cursor2;
-    struct nouveau_bo * CLUT0;	/* NV50 only */
-    struct nouveau_bo * CLUT1;	/* NV50 only */
     struct nouveau_bo * GART;
 
     struct nouveau_bios	VBIOS;
