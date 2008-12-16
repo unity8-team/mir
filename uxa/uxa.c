@@ -237,9 +237,16 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 	changes &= ~GCTile;
     }
 
-    uxa_prepare_access_gc(pGC);
-    fbValidateGC (pGC, changes, pDrawable);
-    uxa_finish_access_gc(pGC);
+    if (changes & GCStipple && pGC->stipple) {
+	/* We can't inline stipple handling like we do for GCTile because it sets
+	 * fbgc privates.
+	 */
+	uxa_prepare_access(&pGC->stipple->drawable, UXA_ACCESS_RW);
+	fbValidateGC (pGC, changes, pDrawable);
+	uxa_finish_access(&pGC->stipple->drawable);
+    } else {
+	fbValidateGC (pGC, changes, pDrawable);
+    }
 
     pGC->ops = (GCOps *) &uxa_ops;
 }
