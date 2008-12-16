@@ -622,7 +622,7 @@ VOID ProcessClear(PARSER_TEMP_DATA STACK_BASED * pParserTempData)
     if (pParserTempData->ParametersType.Destination == 0 &&
 	pParserTempData->Multipurpose.CurrentPort == ATI_RegsPort &&
 	pParserTempData->Index == 0) {
-        pParserTempData->DestData32 &= 0xffffffff;
+        pParserTempData->DestData32 = 0;
     } else
         pParserTempData->DestData32 &= ~(AlignmentMask[pParserTempData->CD_Mask.SrcAlignment] << SourceAlignmentShift[pParserTempData->CD_Mask.SrcAlignment]);
     PutDataFunctions[pParserTempData->ParametersType.Destination](pParserTempData);
