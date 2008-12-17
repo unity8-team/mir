@@ -843,19 +843,24 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
     AtomBiosArgRec data;
     unsigned char *space;
     unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t temp;
+    uint32_t temp, reg;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	reg = R600_BIOS_3_SCRATCH;
+    else
+	reg = RADEON_BIOS_3_SCRATCH;
 
     //fix up scratch reg handling
     temp = INREG(R600_BIOS_3_SCRATCH);
     if ((radeon_output->MonType == MT_CTV) ||
 	(radeon_output->MonType == MT_STV))
-	OUTREG(R600_BIOS_3_SCRATCH, (ATOM_S3_TV1_ACTIVE |
-				     (radeon_crtc->crtc_id << 18)));
+	OUTREG(reg, (ATOM_S3_TV1_ACTIVE |
+		     (radeon_crtc->crtc_id << 18)));
     else if (radeon_output->MonType == MT_CV)
-	OUTREG(R600_BIOS_3_SCRATCH, (ATOM_S3_CV_ACTIVE |
-				     (radeon_crtc->crtc_id << 24)));
+	OUTREG(reg, (ATOM_S3_CV_ACTIVE |
+		     (radeon_crtc->crtc_id << 24)));
     else
-	OUTREG(R600_BIOS_3_SCRATCH, 0);
+	OUTREG(reg, 0);
 
     memset(&disp_data, 0, sizeof(disp_data));
 
@@ -869,13 +874,13 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 
-	OUTREG(R600_BIOS_3_SCRATCH, temp);
+	OUTREG(reg, temp);
 
 	ErrorF("crtc %d YUV %s setup success\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
 	return ATOM_SUCCESS;
     }
 
-    OUTREG(R600_BIOS_3_SCRATCH, temp);
+    OUTREG(reg, temp);
 
     ErrorF("crtc %d YUV %s setup failed\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
     return ATOM_NOT_IMPLEMENTED;
