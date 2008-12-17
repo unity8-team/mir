@@ -1944,6 +1944,12 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
 	crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
 	crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
 	*pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+
+	if (index == 1) {
+		/* PAL timings appear to have wrong values for totals */
+		crtc_timing->usH_Total -= 1;
+		crtc_timing->usV_Total -= 1;
+	}
 	break;
     case 2:
 	tv_info_v1_2 = atomDataPtr->AnalogTV_Info.AnalogTV_Info_v1_2;
