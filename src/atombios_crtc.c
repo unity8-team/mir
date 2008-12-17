@@ -325,13 +325,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
 		else if (radeon_output->DACType == DAC_TVDAC)
 		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_TV;
 	    } else if (radeon_output->MonType == MT_CV) {
 		if (radeon_output->DACType == DAC_PRIMARY)
 		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
 		else if (radeon_output->DACType == DAC_TVDAC)
 		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_CV;
 	    }
 
 	    ptr = &spc_param;
