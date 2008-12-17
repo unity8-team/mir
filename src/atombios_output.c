@@ -833,26 +833,29 @@ static void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
     OUTREG(0x657C,0xBF008900);
 }
 
-static void atom_enable_yuv_transform(xf86OutputPtr output, Bool enable)
-{
-    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-
-    if (enable)
-	OUTREG(AVIVO_D1GRPH_COLOR_MATRIX_TRANSFORMATION_CNTL + radeon_crtc->crtc_offset, 0x1);
-    else
-	OUTREG(AVIVO_D1GRPH_COLOR_MATRIX_TRANSFORMATION_CNTL + radeon_crtc->crtc_offset, 0x0);
-}
-
 static int
 atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 {
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     ENABLE_YUV_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t temp;
+
+    //fix up scratch reg handling
+    temp = INREG(R600_BIOS_3_SCRATCH);
+    if ((radeon_output->MonType == MT_CTV) ||
+	(radeon_output->MonType == MT_STV))
+	OUTREG(R600_BIOS_3_SCRATCH, (ATOM_S3_TV1_ACTIVE |
+				     (radeon_crtc->crtc_id << 18)));
+    else if (radeon_output->MonType == MT_CV)
+	OUTREG(R600_BIOS_3_SCRATCH, (ATOM_S3_CV_ACTIVE |
+				     (radeon_crtc->crtc_id << 24)));
+    else
+	OUTREG(R600_BIOS_3_SCRATCH, 0);
 
     memset(&disp_data, 0, sizeof(disp_data));
 
@@ -866,13 +869,15 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
 
-	atom_enable_yuv_transform(output, enable);
+	OUTREG(R600_BIOS_3_SCRATCH, temp);
 
-	ErrorF("YUV %d setup success\n", radeon_crtc->crtc_id);
+	ErrorF("crtc %d YUV %s setup success\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("YUV %d setup failed\n", radeon_crtc->crtc_id);
+    OUTREG(R600_BIOS_3_SCRATCH, temp);
+
+    ErrorF("crtc %d YUV %s setup failed\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
     return ATOM_NOT_IMPLEMENTED;
 
 }
