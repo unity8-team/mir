@@ -292,12 +292,6 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
 
     intel_xvmc_debug_init();
 
-    /* Open DRI Device */
-    if((fd = drmOpen("i915", NULL)) < 0) {
-        XVMC_ERR("DRM Device could not be opened.");
-        return BadValue;
-    }
-
     /*
        Width, Height, and flags are checked against surface_type_id
        and port for validity inside the X server, no need to check
@@ -358,8 +352,6 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
 	return BadValue;
     }
 
-    xvmc_driver->fd = fd;
-
     XVMC_INFO("decoder type is %s", intel_xvmc_decoder_string(comm->type));
 
     xvmc_driver->sarea_size = comm->sarea_size;
@@ -389,6 +381,16 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
 	XFree(priv_data);
         return BadValue;
     }
+
+    /* Open DRI Device */
+    if((fd = drmOpen("i915", curBusID)) < 0) {
+        XVMC_ERR("DRM Device could not be opened.");
+        XFree(priv_data);
+        XFree(curBusID);
+        return BadValue;
+    }
+
+    xvmc_driver->fd = fd;
 
     strncpy(xvmc_driver->busID, curBusID, 20);
     xvmc_driver->busID[20] = '\0';
