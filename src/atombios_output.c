@@ -603,7 +603,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int device, DisplayM
 
 }
 
-void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
+static void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -833,6 +833,49 @@ void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
     OUTREG(0x657C,0xBF008900);
 }
 
+static void atom_enable_yuv_transform(xf86OutputPtr output, Bool enable)
+{
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    if (enable)
+	OUTREG(AVIVO_D1GRPH_COLOR_MATRIX_TRANSFORMATION_CNTL + radeon_crtc->crtc_offset, 0x1);
+    else
+	OUTREG(AVIVO_D1GRPH_COLOR_MATRIX_TRANSFORMATION_CNTL + radeon_crtc->crtc_offset, 0x0);
+}
+
+static int
+atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
+{
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    ENABLE_YUV_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    memset(&disp_data, 0, sizeof(disp_data));
+
+    if (enable)
+	disp_data.ucEnable = ATOM_ENABLE;
+    disp_data.ucCRTC = radeon_crtc->crtc_id;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableYUV);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+
+	atom_enable_yuv_transform(output, enable);
+
+	ErrorF("YUV %d setup success\n", radeon_crtc->crtc_id);
+	return ATOM_SUCCESS;
+    }
+
+    ErrorF("YUV %d setup failed\n", radeon_crtc->crtc_id);
+    return ATOM_NOT_IMPLEMENTED;
+
+}
 
 static int
 atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
@@ -1246,6 +1289,12 @@ atombios_output_mode_set(xf86OutputPtr output,
 
     atombios_output_scaler_setup(output, mode);
     atombios_set_output_crtc_source(output);
+    if ((radeon_output->MonType == MT_CTV) ||
+	(radeon_output->MonType == MT_STV) ||
+	(radeon_output->MonType == MT_CV))
+	atombios_output_yuv_setup(output, TRUE);
+    else
+	atombios_output_yuv_setup(output, FALSE);
 
     if (radeon_output->MonType == MT_CRT) {
        if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT ||
