@@ -1591,7 +1591,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 				(float)(srcX + srcw) / info->accel_state->texW[0],     (float)srcY / info->accel_state->texH[0]);
 		} else {
 			/*
-			 * Just render a quad (using three coords).
+			 * Just render a rect (using three coords).
 			 */
 			VTX_OUT((float)dstX,                                       (float)(dstY + dsth),
 				(float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
