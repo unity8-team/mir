@@ -947,11 +947,18 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->fp_gen_cntl &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
 
+    save->fp_gen_cntl &= ~(RADEON_FP_RMX_HVSYNC_CONTROL_EN |
+			   RADEON_FP_DFP_SYNC_SEL |
+			   RADEON_FP_CRT_SYNC_SEL |
+			   RADEON_FP_CRTC_LOCK_8DOT |
+			   RADEON_FP_USE_SHADOW_EN |
+			   RADEON_FP_CRTC_USE_SHADOW_VEND |
+			   RADEON_FP_CRT_SYNC_ALT);
+
     if (pScrn->rgbBits == 8)
 	save->fp_gen_cntl |= RADEON_FP_PANEL_FORMAT;  /* 24 bit format */
     else
 	save->fp_gen_cntl &= ~RADEON_FP_PANEL_FORMAT;/* 18 bit format */
-
 
     if (IsPrimary) {
 	if ((IS_R300_VARIANT) || (info->ChipFamily == CHIP_FAMILY_R200)) {
@@ -961,7 +968,7 @@ RADEONInitFPRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	    else
 		save->fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
 	} else
-	    save->fp_gen_cntl |= RADEON_FP_SEL_CRTC1;
+	    save->fp_gen_cntl &= ~RADEON_FP_SEL_CRTC2;
     } else {
 	if ((IS_R300_VARIANT) || (info->ChipFamily == CHIP_FAMILY_R200)) {
 	    save->fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
@@ -1037,16 +1044,14 @@ RADEONInitFP2Registers(xf86OutputPtr output, RADEONSavePtr save,
 		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
 	    else
 		save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
-	} else {
+	} else
 	    save->fp2_gen_cntl &= ~RADEON_FP2_SRC_SEL_CRTC2;
-	}
     } else {
 	if ((info->ChipFamily == CHIP_FAMILY_R200) || IS_R300_VARIANT) {
 	    save->fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
 	    save->fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
-	} else {
+	} else
 	    save->fp2_gen_cntl |= RADEON_FP2_SRC_SEL_CRTC2;
-	}
     }
 
     if ((info->ChipFamily == CHIP_FAMILY_RS400) ||
