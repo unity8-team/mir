@@ -946,11 +946,11 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
 	    } else if (OUTPUT_IS_TV) {
 		if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-		    crtc_src_param2.ucEncoderID = ATOM_DEVICE_TV1_INDEX;
+		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_TV;
 	    } else if (radeon_output->MonType == MT_CV) {
 		if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-		    crtc_src_param2.ucEncoderID = ATOM_DEVICE_CV_INDEX;
+		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CV;
 	    }
 
