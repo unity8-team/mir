@@ -1916,7 +1916,7 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize(
 	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->AnalogTV_Info.base),
-	    &frev,&crev,NULL)) {
+	    &crev,&frev,NULL)) {
 	return FALSE;
     }
 
