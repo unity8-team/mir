@@ -851,7 +851,7 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 	reg = RADEON_BIOS_3_SCRATCH;
 
     //fix up scratch reg handling
-    temp = INREG(R600_BIOS_3_SCRATCH);
+    temp = INREG(reg);
     if ((radeon_output->MonType == MT_CTV) ||
 	(radeon_output->MonType == MT_STV))
 	OUTREG(reg, (ATOM_S3_TV1_ACTIVE |
