@@ -321,7 +321,7 @@ rhdAtomAnalyzeMasterDataTable(unsigned char *base,
     SET_DATA_TABLE(DAC_Info);
     SET_DATA_TABLE_VERS(LVDS_Info);
     SET_DATA_TABLE(TMDS_Info);
-    SET_DATA_TABLE(AnalogTV_Info);
+    SET_DATA_TABLE_VERS(AnalogTV_Info);
     SET_DATA_TABLE_VERS(SupportedDevicesInfo);
     SET_DATA_TABLE(GPIO_I2C_Info);
     SET_DATA_TABLE(VRAM_UsageByFirmware);
@@ -1842,7 +1842,7 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     ATOM_ANALOG_TV_INFO *tv_info;
 
-    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;
+    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info.AnalogTV_Info;
 
     if (!tv_info)
 	return FALSE;
@@ -1909,29 +1909,63 @@ RADEONATOMGetTVTimings(ScrnInfoPtr pScrn, int index, SET_CRTC_TIMING_PARAMETERS_
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     ATOM_ANALOG_TV_INFO *tv_info;
+    ATOM_ANALOG_TV_INFO_V1_2 *tv_info_v1_2;
+    ATOM_DTD_FORMAT *dtd_timings;
+    atomDataTablesPtr atomDataPtr;
+    uint8_t crev, frev;
 
-    tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info;
-
-    if (index > MAX_SUPPORTED_TV_TIMING)
+    atomDataPtr = info->atomBIOS->atomDataPtr;
+    if (!rhdAtomGetTableRevisionAndSize(
+	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->AnalogTV_Info.base),
+	    &frev,&crev,NULL)) {
 	return FALSE;
+    }
 
-    crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
-    crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
-    crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
-    crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
+    switch(crev) {
+    case 1:
+	tv_info = atomDataPtr->AnalogTV_Info.AnalogTV_Info;
+	
+	if (index > MAX_SUPPORTED_TV_TIMING)
+	    return FALSE;
+	
+	crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
+	crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
+	crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
+	crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
+	
+	crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
+	crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
+	crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
+	crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
 
-    crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
-    crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
-    crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
-    crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
+	crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
 
-    crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
+	crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
+	crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
+	crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
+	crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
+	*pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+	break;
+    case 2:
+	tv_info_v1_2 = atomDataPtr->AnalogTV_Info.AnalogTV_Info_v1_2;
+	if (index > MAX_SUPPORTED_TV_TIMING_V1_2)
+	    return FALSE;
 
-    crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
-    crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
-    crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
-    crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
-    *pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+	dtd_timings = &tv_info_v1_2->aModeTimings[index];
+	crtc_timing->usH_Total = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHBlanking_Time);
+	crtc_timing->usH_Disp = le16_to_cpu(dtd_timings->usHActive);
+	crtc_timing->usH_SyncStart = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHSyncOffset);
+	crtc_timing->usH_SyncWidth = le16_to_cpu(dtd_timings->usHSyncWidth);
+
+	crtc_timing->usV_Total = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVBlanking_Time);
+	crtc_timing->usV_Disp = le16_to_cpu(dtd_timings->usVActive);
+	crtc_timing->usV_SyncStart = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVSyncOffset);
+	crtc_timing->usV_SyncWidth = le16_to_cpu(dtd_timings->usVSyncWidth);
+
+	crtc_timing->susModeMiscInfo.usAccess = le16_to_cpu(dtd_timings->susModeMiscInfo.usAccess);
+	*pixel_clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+	break;
+    }
 
     return TRUE;
 }

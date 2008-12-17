@@ -199,7 +199,11 @@ typedef struct _atomDataTables
         ATOM_LVDS_INFO_V12              *LVDS_Info_v12;
     } LVDS_Info;
     ATOM_TMDS_INFO                      *TMDS_Info;
-    ATOM_ANALOG_TV_INFO                 *AnalogTV_Info;
+    union {
+	void                            *base;
+	ATOM_ANALOG_TV_INFO             *AnalogTV_Info;
+	ATOM_ANALOG_TV_INFO_V1_2        *AnalogTV_Info_v1_2;
+    } AnalogTV_Info;
     union {
         void                            *base;
         ATOM_SUPPORTED_DEVICES_INFO     *SupportedDevicesInfo;
