@@ -429,23 +429,7 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
     if (OUTPUT_IS_TV) {
 	/* FIXME: Update when more modes are added */
 	if (IS_AVIVO_VARIANT) {
-	    int max_v;
-
-	    /* tv-scaler can scale horizontal width
-	     * but frame ends must match tv_pll
-	     * for now cap v size
-	     */
-	    if (radeon_output->tvStd == TV_STD_NTSC ||
-		radeon_output->tvStd == TV_STD_NTSC_J ||
-		radeon_output->tvStd == TV_STD_PAL_M)
-		max_v = 480;
-	    else
-		max_v = 600;
-
-	    if (pMode->VDisplay == max_v)
-		return MODE_OK;
-	    else
-		return MODE_CLOCK_RANGE;
+	    return MODE_OK;
 	} else {
 	    if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
 		return MODE_OK;
