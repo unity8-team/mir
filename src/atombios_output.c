@@ -613,9 +613,44 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
+    memset(&disp_data, 0, sizeof(disp_data));
+
     disp_data.ucScaler = radeon_crtc->crtc_id;
 
-    if (radeon_output->Flags & RADEON_USE_RMX) {
+    if (OUTPUT_IS_TV) {
+	switch (radeon_output->tvStd) {
+	case TV_STD_NTSC:
+	    disp_data.ucTVStandard = ATOM_TV_NTSC;
+	    break;
+	case TV_STD_PAL:
+	    disp_data.ucTVStandard = ATOM_TV_PAL;
+	    break;
+	case TV_STD_PAL_M:
+	    disp_data.ucTVStandard = ATOM_TV_PALM;
+	    break;
+	case TV_STD_PAL_60:
+	    disp_data.ucTVStandard = ATOM_TV_PAL60;
+	    break;
+	case TV_STD_NTSC_J:
+	    disp_data.ucTVStandard = ATOM_TV_NTSCJ;
+	    break;
+	case TV_STD_SCART_PAL:
+	    disp_data.ucTVStandard = ATOM_TV_PAL; /* ??? */
+	    break;
+	case TV_STD_SECAM:
+	    disp_data.ucTVStandard = ATOM_TV_SECAM;
+	    break;
+	case TV_STD_PAL_CN:
+	    disp_data.ucTVStandard = ATOM_TV_PALCN;
+	    break;
+	default:
+	    disp_data.ucTVStandard = ATOM_TV_NTSC;
+	    break;
+	}
+	disp_data.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
+        ErrorF("Using TV scaler %x %x\n", disp_data.ucTVStandard, disp_data.ucEnable);
+
+    } else if (radeon_output->Flags & RADEON_USE_RMX) {
 	ErrorF("Using RMX\n");
 	if (radeon_output->rmx_type == RMX_FULL)
 	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
