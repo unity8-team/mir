@@ -1702,8 +1702,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    //info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
-		    info->BiosConnector[i].valid = FALSE;
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT1_INDEX);
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
@@ -1716,8 +1715,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    //info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
-		    info->BiosConnector[i].valid = FALSE;
+		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
