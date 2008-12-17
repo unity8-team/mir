@@ -62,11 +62,6 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucDacStandard = ATOM_DAC1_CV;
     else if (OUTPUT_IS_TV) {
 	switch (radeon_output->tvStd) {
-	case TV_STD_NTSC:
-	case TV_STD_NTSC_J:
-	case TV_STD_PAL_60:
-	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
-	    break;
 	case TV_STD_PAL:
 	case TV_STD_PAL_M:
 	case TV_STD_SCART_PAL:
@@ -74,6 +69,9 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	case TV_STD_PAL_CN:
 	    disp_data.ucDacStandard = ATOM_DAC1_PAL;
 	    break;
+	case TV_STD_NTSC:
+	case TV_STD_NTSC_J:
+	case TV_STD_PAL_60:
 	default:
 	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
 	    break;

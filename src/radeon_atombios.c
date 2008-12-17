@@ -1848,10 +1848,6 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
 	return FALSE;
 
     switch(tv_info->ucTV_BootUpDefaultStandard) {
-    case NTSC_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_NTSC;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
-	break;
     case NTSCJ_SUPPORT:
 	radeon_output->default_tvStd = TV_STD_NTSC_J;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC-J\n");
@@ -1867,6 +1863,11 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
     case PAL60_SUPPORT:
 	radeon_output->default_tvStd = TV_STD_PAL_60;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-60\n");
+	break;
+    default:
+    case NTSC_SUPPORT:
+	radeon_output->default_tvStd = TV_STD_NTSC;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
 	break;
     }
 
