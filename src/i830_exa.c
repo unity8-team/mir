@@ -785,17 +785,11 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	/* For tiled front buffer, short-circuit to the GTT mapping. */
-	if (i830_pixmap_tiled(pixmap)) {
-	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	if (drm_intel_bo_pin(bo, 4096) != 0)
+	    return FALSE;
 
-	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
-	} else {
-	    if (dri_bo_map (bo, access == UXA_ACCESS_RW) != 0)
-		return FALSE;
-
-	    pixmap->devPrivate.ptr = bo->virtual;
-	}
+	drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
     }
     return TRUE;
 }
@@ -810,8 +804,7 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	if (!i830_pixmap_tiled(pixmap))
-	    dri_bo_unmap(bo);
+	drm_intel_bo_unpin(bo);
 
 	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
