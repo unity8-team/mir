@@ -254,9 +254,10 @@ NV50CrtcSetFB(nouveauCrtcPtr crtc, struct nouveau_bo * buffer)
 static void 
 NV50CrtcSetFBOffset(nouveauCrtcPtr crtc, uint32_t x, uint32_t y)
 {
-	/* For the moment the actual hardware settings stays in ModeSet(). */
 	crtc->x = x;
 	crtc->y = y;
+
+	NV50CrtcCommand(crtc, NV50_CRTC0_FB_POS, (crtc->y << 16) | (crtc->x));
 }
 
 static void 

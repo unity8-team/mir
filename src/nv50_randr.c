@@ -283,6 +283,19 @@ nv50_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	pNv->shadow[nv_crtc->crtc->index] = NULL;
 }
 
+#if XF86_CRTC_VERSION >= 2
+static void
+nv50_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	NV50CrtcPrivatePtr nv_crtc = crtc->driver_private;
+
+	nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
+
+	NV50DisplayCommand(pScrn, NV50_UPDATE_DISPLAY, 0);
+}
+#endif
+
 static void
 nv50_crtc_destroy(xf86CrtcPtr crtc)
 {
@@ -308,6 +321,9 @@ static const xf86CrtcFuncsRec nv50_crtc_funcs = {
 	.hide_cursor = nv50_crtc_hide_cursor,
 	.load_cursor_argb = nv50_crtc_load_cursor_argb,
 	.destroy = nv50_crtc_destroy,
+#if XF86_CRTC_VERSION >= 2
+	.set_origin = nv50_crtc_set_origin,
+#endif
 };
 
 void
