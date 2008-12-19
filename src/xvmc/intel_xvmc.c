@@ -757,13 +757,6 @@ _X_EXPORT Status XvMCPutSurface(Display *display,XvMCSurface *surface,
     }
     intel_surf->last_draw = draw;
     /* fill intel_surf->data */
-    if (1)
-    {
-	drmVBlank vbl;
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	vbl.request.sequence = 1;
-	drmWaitVBlank(xvmc_driver->fd, &vbl);
-    }
     ret = (xvmc_driver->put_surface)(display, surface, draw, srcx, srcy,
 	    srcw, srch, destx, desty, destw, desth, flags, &intel_surf->data);
     if (ret) {
