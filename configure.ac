@@ -248,6 +248,7 @@ if test "$XVMC" = yes && test "$DRI" = no; then
 fi
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB, [xvmc], [XVMC=yes], [XVMC=no])
+	PKG_CHECK_MODULES(XEXT, [xext])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])

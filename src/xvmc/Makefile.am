@@ -7,7 +7,7 @@ libI810XvMC_la_SOURCES = I810XvMC.c \
 libI810XvMC_la_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	-I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 libI810XvMC_la_LDFLAGS = -version-number 1:0:0
-libI810XvMC_la_LIBADD = @DRI_LIBS@ 
+libI810XvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@
 
 libIntelXvMC_la_SOURCES = intel_xvmc.c \
         intel_xvmc.h                   \
@@ -27,7 +27,7 @@ libIntelXvMC_la_SOURCES = intel_xvmc.c \
 libIntelXvMC_la_CFLAGS = @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@XVMCLIB_CFLAGS@ -I$(top_srcdir)/src -DTRUE=1 -DFALSE=0
 libIntelXvMC_la_LDFLAGS = -version-number 1:0:0
-libIntelXvMC_la_LIBADD = @DRI_LIBS@
+libIntelXvMC_la_LIBADD = @DRI_LIBS@ @DRM_LIBS@ @XVMCLIB_LIBS@ @XEXT_LIBS@ -lpthread
 
 INTEL_G4A =                         \
         dual_prime_igd.g4a              \
