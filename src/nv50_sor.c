@@ -167,6 +167,29 @@ NV50SorDetect(nouveauOutputPtr output)
 	return FALSE;
 }
 
+static nouveauCrtcPtr
+NV50SorGetCurrentCrtc(nouveauOutputPtr output)
+{
+	ScrnInfoPtr pScrn = output->scrn;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50SorGetCurrentCrtc is called.\n");
+
+	NVPtr pNv = NVPTR(pScrn);
+	uint32_t mode_ctrl = NVRead(pNv, NV50_SOR0_MODE_CTRL_VAL + NV50OrOffset(output) * 0x8);
+
+	/* 
+	 * MODE_CTRL values only contain one instance of crtc0 and of crtc1.
+	 * This is because we disconnect outputs upon modeset.
+	 * Crtc might be off even if we get a positive return.
+	 * But we are still associated with that crtc.
+	 */
+	if (mode_ctrl & NV50_SOR_MODE_CTRL_CRTC0)
+		return pNv->crtc[0];
+	else if (mode_ctrl & NV50_SOR_MODE_CTRL_CRTC1)
+		return pNv->crtc[1];
+
+	return NULL;
+}
+
 void
 NV50SorSetFunctionPointers(nouveauOutputPtr output)
 {
@@ -179,6 +202,7 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
 	output->Sense = NV50SorSense;
 	output->Detect = NV50SorDetect;
 	output->SetPowerMode = NV50SorSetPowerMode;
+	output->GetCurrentCrtc = NV50SorGetCurrentCrtc;
 }
 
 /*

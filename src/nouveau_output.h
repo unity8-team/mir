@@ -59,6 +59,9 @@ typedef struct nouveauOutput {
 
 	void (*SetPowerMode) (nouveauOutputPtr output, int mode);
 
+	/* Get the last associated crtc of the output. */
+	nouveauCrtcPtr (*GetCurrentCrtc) (nouveauOutputPtr output);
+
 	void (*Save) (nouveauOutputPtr output);
 	void (*Load) (nouveauOutputPtr output);
 } nouveauOutputRec;
