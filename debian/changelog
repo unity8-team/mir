@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.5.1-1ubuntu7) jaunty; urgency=low
+
+  * Also add lpia in the Architecture list of the -dbg package to clear it off
+    jaunty_outdate.txt (we have the -dbg on other arches anyway).
+
+ -- Loic Minier <lool@dooz.org>  Sat, 20 Dec 2008 21:38:09 +0100
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu6) jaunty; urgency=low
 
   * Rebuild against the new xserver

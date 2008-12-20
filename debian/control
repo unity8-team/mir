@@ -49,7 +49,7 @@ Description: X.Org X server -- Intel i8xx, i9xx display driver
  This package is built from the X.org xf86-video-intel driver module.
 
 Package: xserver-xorg-video-intel-dbg
-Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386
+Architecture: amd64 hurd-i386 i386 kfreebsd-i386 kfreebsd-amd64 netbsd-i386 lpia
 Depends: xserver-xorg-video-intel (= ${binary:Version}), ${shlibs:Depends}
 Priority: extra
 Description: X.Org X server -- Intel i8xx, i9xx display driver (debug symbols)
