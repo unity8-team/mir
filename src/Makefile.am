@@ -130,18 +130,16 @@ EXTRA_DIST = \
 	radeon_textured_videofuncs.c \
 	ati.h \
 	ativersion.h \
+	bicubic_table.h \
 	generic_bus.h \
-	radeon_common.h \
 	radeon_commonfuncs.c \
 	radeon_dri.h \
-	radeon_dripriv.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
 	radeon.h \
 	radeon_macros.h \
 	radeon_probe.h \
 	radeon_reg.h \
-	radeon_sarea.h \
 	radeon_version.h \
 	radeon_video.h \
 	radeon_tv.h \
