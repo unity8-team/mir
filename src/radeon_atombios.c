@@ -1572,6 +1572,10 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
     ATOM_INTEGRATED_SYSTEM_INFO_V2 *igp_obj = NULL;
     int i, j;
+    Bool enable_tv = FALSE;
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_ATOM_TVOUT, FALSE))
+	enable_tv = TRUE;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
     if (!rhdAtomGetTableRevisionAndSize((ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->Object_Header), &crev, &frev, &size))
@@ -1702,7 +1706,10 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    if (enable_tv)
+		    	info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    else
+		    	info->BiosConnector[i].valid = FALSE;
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT1_INDEX);
 		info->BiosConnector[i].DACType = DAC_PRIMARY;
@@ -1715,7 +1722,10 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		if (info->BiosConnector[i].ConnectorType == CONNECTOR_DIN ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_STV ||
 		    info->BiosConnector[i].ConnectorType == CONNECTOR_CTV)
-		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    if (enable_tv)
+		        info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_TV1_INDEX);
+		    else
+		    	info->BiosConnector[i].valid = FALSE;
 		else
 		    info->BiosConnector[i].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
 		info->BiosConnector[i].DACType = DAC_TVDAC;
@@ -1978,6 +1988,10 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     atomDataTablesPtr atomDataPtr;
     uint8_t crev, frev;
     int i, j;
+    Bool enable_tv = FALSE;
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_ATOM_TVOUT, FALSE))
+	enable_tv = TRUE;
 
     atomDataPtr = info->atomBIOS->atomDataPtr;
 
@@ -1998,20 +2012,16 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 
-#if 1
-	if (i == ATOM_DEVICE_CV_INDEX) {
+	if (!enable_tv && (i == ATOM_DEVICE_CV_INDEX)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
 	    info->BiosConnector[i].valid = FALSE;
 	    continue;
 	}
-#endif
-#if 1
-	if (i == ATOM_DEVICE_TV1_INDEX) {
+	if (!enable_tv && (i == ATOM_DEVICE_TV1_INDEX)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping TV-Out\n");
 	    info->BiosConnector[i].valid = FALSE;
 	    continue;
 	}
-#endif
 
 	info->BiosConnector[i].valid = TRUE;
 	info->BiosConnector[i].load_detection = TRUE;
