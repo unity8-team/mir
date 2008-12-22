@@ -192,6 +192,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_DEFAULT_TVDAC_ADJ, "DefaultTVDACAdj", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_INT10,             "Int10",           OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_EXA_VSYNC,         "EXAVSync",        OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_ATOM_TVOUT,	"ATOMTVOut",	   OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 

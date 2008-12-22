@@ -550,6 +550,12 @@ controller has passed the destination region.  It reduces tearing at the cost
 of performance.
 The default is
 .B off.
+.TP 
+.BI "Option \*qATOMTvOut\*q \*q" boolean \*q
+This option enables experimental TV-out support for r500 and r600 atombios chips.
+tv-out is experimental and may not function on these chips as well as hoped for.
+The default is
+.B off.
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

@@ -62,11 +62,6 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucDacStandard = ATOM_DAC1_CV;
     else if (OUTPUT_IS_TV) {
 	switch (radeon_output->tvStd) {
-	case TV_STD_NTSC:
-	case TV_STD_NTSC_J:
-	case TV_STD_PAL_60:
-	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
-	    break;
 	case TV_STD_PAL:
 	case TV_STD_PAL_M:
 	case TV_STD_SCART_PAL:
@@ -74,6 +69,9 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	case TV_STD_PAL_CN:
 	    disp_data.ucDacStandard = ATOM_DAC1_PAL;
 	    break;
+	case TV_STD_NTSC:
+	case TV_STD_NTSC_J:
+	case TV_STD_PAL_60:
 	default:
 	    disp_data.ucDacStandard = ATOM_DAC1_NTSC;
 	    break;
@@ -615,9 +613,44 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
+    memset(&disp_data, 0, sizeof(disp_data));
+
     disp_data.ucScaler = radeon_crtc->crtc_id;
 
-    if (radeon_output->Flags & RADEON_USE_RMX) {
+    if (OUTPUT_IS_TV) {
+	switch (radeon_output->tvStd) {
+	case TV_STD_NTSC:
+	    disp_data.ucTVStandard = ATOM_TV_NTSC;
+	    break;
+	case TV_STD_PAL:
+	    disp_data.ucTVStandard = ATOM_TV_PAL;
+	    break;
+	case TV_STD_PAL_M:
+	    disp_data.ucTVStandard = ATOM_TV_PALM;
+	    break;
+	case TV_STD_PAL_60:
+	    disp_data.ucTVStandard = ATOM_TV_PAL60;
+	    break;
+	case TV_STD_NTSC_J:
+	    disp_data.ucTVStandard = ATOM_TV_NTSCJ;
+	    break;
+	case TV_STD_SCART_PAL:
+	    disp_data.ucTVStandard = ATOM_TV_PAL; /* ??? */
+	    break;
+	case TV_STD_SECAM:
+	    disp_data.ucTVStandard = ATOM_TV_SECAM;
+	    break;
+	case TV_STD_PAL_CN:
+	    disp_data.ucTVStandard = ATOM_TV_PALCN;
+	    break;
+	default:
+	    disp_data.ucTVStandard = ATOM_TV_NTSC;
+	    break;
+	}
+	disp_data.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
+        ErrorF("Using TV scaler %x %x\n", disp_data.ucTVStandard, disp_data.ucEnable);
+
+    } else if (radeon_output->Flags & RADEON_USE_RMX) {
 	ErrorF("Using RMX\n");
 	if (radeon_output->rmx_type == RMX_FULL)
 	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
@@ -812,8 +845,8 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	/*ErrorF("AGD: cv dpms\n");*/
 	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
 	    atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-    } else if (0 /*radeon_output->MonType == MT_STV ||
-		   radeon_output->MonType == MT_CTV*/) {
+    } else if (radeon_output->MonType == MT_STV ||
+	       radeon_output->MonType == MT_CTV) {
 	/*ErrorF("AGD: tv dpms\n");*/
 	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
 	    atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
@@ -913,11 +946,11 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
 	    } else if (OUTPUT_IS_TV) {
 		if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-		    crtc_src_param2.ucEncoderID = ATOM_DEVICE_TV1_INDEX;
+		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_TV;
 	    } else if (radeon_output->MonType == MT_CV) {
 		if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-		    crtc_src_param2.ucEncoderID = ATOM_DEVICE_CV_INDEX;
+		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CV;
 	    }
 
