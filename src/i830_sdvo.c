@@ -947,7 +947,6 @@ static void i830_sdvo_set_avi_infoframe(xf86OutputPtr output,
 	.len = DIP_LEN_AVI,
     };
 
-    avi_if.u.avi.PR = i830_sdvo_get_pixel_multiplier(mode) - 1;
     avi_if.checksum = i830_sdvo_calc_hbuf_csum((uint8_t *)&avi_if,
 					4 + avi_if.len);
     i830_sdvo_set_hdmi_buf(output, 1, (uint8_t *)&avi_if, 4 + avi_if.len,
