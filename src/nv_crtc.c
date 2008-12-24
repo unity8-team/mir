@@ -1274,6 +1274,9 @@ static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.shadow_create = nv_crtc_shadow_create,
 	.shadow_allocate = nv_crtc_shadow_allocate,
 	.shadow_destroy = nv_crtc_shadow_destroy,
+#ifdef RANDR_13_INTERFACE
+	.set_origin = NVCrtcSetBase,
+#endif
 };
 
 void
