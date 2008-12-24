@@ -1349,6 +1349,145 @@ static bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	return true;
 }
 
+static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index);
+
+static int
+create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I2CDevPtr *newdev)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	int ret;
+	I2CDevPtr i2cdev;
+
+	if (i2c_index == 0xff) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I2C index == 0xff case not implemented\n");
+		return -ENOSYS;
+	}
+
+	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
+		return ret;
+
+	if (!(i2cdev = xf86CreateI2CDevRec())) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I2C device allocation failed\n");
+		return -ENOMEM;
+	}
+	i2cdev->DevName = "init script device";
+	i2cdev->SlaveAddr = address;
+	i2cdev->pI2CBus = pNv->dcb_table.i2c[i2c_index].chan;
+	if (!xf86I2CDevInit(i2cdev)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't add I2C device\n");
+		return -EINVAL;
+	}
+
+	*newdev = i2cdev;
+
+	return 0;
+}
+
+static bool init_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_I2C_BYTE   opcode: 0x4C ('L')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (8 bit): count
+	 * offset + 4  (8 bit): I2C register 1
+	 * offset + 5  (8 bit): mask 1
+	 * offset + 6  (8 bit): data 1
+	 * ...
+	 *
+	 * For each of "count" registers given by "I2C register n" on the device
+	 * addressed by "I2C slave address" on the I2C bus given by
+	 * "DCB I2C table entry index", read the register, AND the result with
+	 * "mask n" and OR it with "data n" before writing it back to the device
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t count = bios->data[offset + 3];
+	I2CDevPtr i2cdev;
+	int i;
+
+	if (!iexec->execute)
+		return true;
+
+	BIOSLOG(pScrn, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X, Count: 0x%02X\n",
+		offset, i2c_index, i2c_address, count);
+
+	if (create_i2c_device(pScrn, bios, i2c_index, i2c_address, &i2cdev))
+		return false;
+
+	for (i = 0; i < count; i++) {
+		uint8_t i2c_reg = bios->data[offset + 4 + i * 3];
+		uint8_t mask = bios->data[offset + 5 + i * 3];
+		uint8_t data = bios->data[offset + 6 + i * 3];
+		uint8_t value;
+
+		xf86I2CReadByte(i2cdev, i2c_reg, &value);
+
+		BIOSLOG(pScrn, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
+			offset, i2c_reg, value, mask, data);
+
+		value = (value & mask) | data;
+
+		if (bios->execute)
+			xf86I2CWriteByte(i2cdev, i2c_reg, value);
+	}
+
+	xf86DestroyI2CDevRec(i2cdev, TRUE);
+
+	return true;
+}
+
+static bool init_zm_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_ZM_I2C_BYTE   opcode: 0x4D ('M')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (8 bit): count
+	 * offset + 4  (8 bit): I2C register 1
+	 * offset + 5  (8 bit): data 1
+	 * ...
+	 *
+	 * For each of "count" registers given by "I2C register n" on the device
+	 * addressed by "I2C slave address" on the I2C bus given by
+	 * "DCB I2C table entry index", set the register to "data n"
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t count = bios->data[offset + 3];
+	I2CDevPtr i2cdev;
+	int i;
+
+	if (!iexec->execute)
+		return true;
+
+	BIOSLOG(pScrn, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X, Count: 0x%02X\n",
+		offset, i2c_index, i2c_address, count);
+
+	if (create_i2c_device(pScrn, bios, i2c_index, i2c_address, &i2cdev))
+		return false;
+
+	for (i = 0; i < count; i++) {
+		uint8_t i2c_reg = bios->data[offset + 4 + i * 3];
+		uint8_t data = bios->data[offset + 5 + i * 3];
+
+		BIOSLOG(pScrn, "0x%04X: I2CReg: 0x%02X, Data: 0x%02X\n",
+			offset, i2c_reg, data);
+
+		if (bios->execute)
+			if (!xf86I2CWriteByte(i2cdev, i2c_reg, data))
+				break;
+	}
+
+	xf86DestroyI2CDevRec(i2cdev, TRUE);
+
+	return true;
+}
+
 static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 {
 	/* For mlv < 0x80, it is an index into a table of TMDS base addresses
@@ -2559,8 +2698,8 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_INDEX_ADDRESS_LATCHED"        , 0x49, 18      , 17      , 2       , init_idx_addr_latched           },
 	{ "INIT_IO_RESTRICT_PLL2"             , 0x4A, 11      , 6       , 4       , init_io_restrict_pll2           },
 	{ "INIT_PLL2"                         , 0x4B, 9       , 0       , 0       , init_pll2                       },
-/*	{ "INIT_I2C_BYTE"                     , 0x4C, x       , x       , x       , init_i2c_byte                   }, */
-/*	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, x       , x       , x       , init_zm_i2c_byte                }, */
+	{ "INIT_I2C_BYTE"                     , 0x4C, 4       , 3       , 3       , init_i2c_byte                   },
+	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, 4       , 3       , 2       , init_zm_i2c_byte                },
 /*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
 	{ "INIT_TMDS"                         , 0x4F, 5       , 0       , 0       , init_tmds                       },
 	{ "INIT_ZM_TMDS_GROUP"                , 0x50, 3       , 2       , 2       , init_zm_tmds_group              },
@@ -4088,7 +4227,7 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 }
 
 static int
-read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, int index)
+read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int index)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint8_t *i2ctable = &pNv->VBIOS.data[i2ctabptr];
@@ -4150,6 +4289,42 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, uint8_t dcb_version, uint16_t i2ctabptr, i
 	pNv->dcb_table.i2c[index].write = i2ctable[headerlen + recordoffset + wrofs + 4 * index];
 
 	return 0;
+}
+
+static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
+	uint8_t dcb_version = bios->data[dcbptr];
+	uint16_t i2ctabptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + ((dcb_version < 0x30) ? 2 : 4)]);
+	int ret;
+	char adaptorname[11];
+
+	if (pNv->dcb_table.i2c[index].chan)
+		return 0;
+
+	if (!dcbptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "No Display Configuration Block pointer found\n");
+		return -EINVAL;
+	}
+	if (dcb_version < 0x12) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DCB table not version 1.2 or greater\n");
+		return -ENOSYS;
+	}
+	if (!i2ctabptr) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "No pointer to DCB I2C port table\n");
+		return -EINVAL;
+	}
+
+	if ((ret = read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, index)))
+		return ret;
+
+	snprintf(adaptorname, 11, "DCB-I2C-%d", index);
+
+	return NV_I2CInit(pScrn, &pNv->dcb_table.i2c[index].chan, &pNv->dcb_table.i2c[index], xstrdup(adaptorname));
 }
 
 static bool
