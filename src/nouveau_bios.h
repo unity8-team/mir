@@ -45,6 +45,12 @@ struct dcb_entry {
 	};
 };
 
+struct dcb_i2c_entry {
+	uint8_t port_type;
+	uint8_t read, write;
+	I2CBusPtr chan;
+};
+
 enum nouveau_encoder_type
 {
 	/* 0-3 match DCB types */

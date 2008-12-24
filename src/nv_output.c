@@ -925,7 +925,7 @@ nv_add_connector(ScrnInfoPtr pScrn, int i2c_index, int encoders, const xf86Outpu
 	output->driver_private = nv_connector;
 
 	if (i2c_index < 0xf)
-		NV_I2CInit(pScrn, &nv_connector->pDDCBus, pNv->dcb_table.i2c_read[i2c_index], xstrdup(outputname));
+		NV_I2CInit(pScrn, &nv_connector->pDDCBus, &pNv->dcb_table.i2c[i2c_index], xstrdup(outputname));
 	nv_connector->possible_encoders = encoders;
 }
 

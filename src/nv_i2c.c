@@ -36,14 +36,15 @@ static void
 NVI2CGetBits(I2CBusPtr b, int *clock, int *data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	struct dcb_i2c_entry *dcb_i2c = b->DriverPrivate.ptr;
 	unsigned char val;
 
 	/* Get the result. */
 	/* Doing this on head 0 seems fine. */
-	if (pNv->VBIOS.chip_version == 0x51)
-		val = NVReadCRTC(pNv, 0, b->DriverPrivate.uval) >> 16;
+	if (dcb_i2c->port_type == 4)	/* C51 */
+		val = NVReadCRTC(pNv, 0, 0x600800 + dcb_i2c->read) >> 16;
 	else
-		val = NVReadVgaCrtc(pNv, 0, b->DriverPrivate.uval);
+		val = NVReadVgaCrtc(pNv, 0, dcb_i2c->read);
 
 	*clock = (val & DDC_SCL_READ_MASK) != 0;
 	*data  = (val & DDC_SDA_READ_MASK) != 0;
@@ -53,13 +54,14 @@ static void
 NVI2CPutBits(I2CBusPtr b, int clock, int data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	struct dcb_i2c_entry *dcb_i2c = b->DriverPrivate.ptr;
 	uint32_t val;
 
 	/* Doing this on head 0 seems fine. */
-	if (pNv->VBIOS.chip_version == 0x51)
-		val = NVReadCRTC(pNv, 0, b->DriverPrivate.uval);
+	if (dcb_i2c->port_type == 4)	/* C51 */
+		val = NVReadCRTC(pNv, 0, 0x600800 + dcb_i2c->write);
 	else
-		val = NVReadVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1);
+		val = NVReadVgaCrtc(pNv, 0, dcb_i2c->write);
 
 	val = (val & ~0xf) | 1;
 
@@ -74,10 +76,10 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 		val &= ~DDC_SDA_WRITE_MASK;
 
 	/* Doing this on head 0 seems fine. */
-	if (pNv->VBIOS.chip_version == 0x51)
-		NVWriteCRTC(pNv, 0, b->DriverPrivate.uval, val);
+	if (dcb_i2c->port_type == 4)	/* C51 */
+		NVWriteCRTC(pNv, 0, 0x600800 + dcb_i2c->write, val);
 	else
-		NVWriteVgaCrtc(pNv, 0, b->DriverPrivate.uval + 1, val);
+		NVWriteVgaCrtc(pNv, 0, dcb_i2c->write, val);
 }
 
 static uint32_t NV50_GetI2CPort(ScrnInfoPtr pScrn, int index)
@@ -115,33 +117,36 @@ static uint32_t NV50_GetI2CPort(ScrnInfoPtr pScrn, int index)
 static void NV50_I2CPutBits(I2CBusPtr b, int clock, int data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	struct dcb_i2c_entry *dcb_i2c = b->DriverPrivate.ptr;
 
-	NVWrite(pNv, NV50_GetI2CPort(xf86Screens[b->scrnIndex], b->DriverPrivate.val), (4 | clock | data << 1));
+	NVWrite(pNv, NV50_GetI2CPort(xf86Screens[b->scrnIndex], dcb_i2c->write), (4 | clock | data << 1));
 }
 
 static void NV50_I2CGetBits(I2CBusPtr b, int *clock, int *data)
 {
 	NVPtr pNv = NVPTR(xf86Screens[b->scrnIndex]);
+	struct dcb_i2c_entry *dcb_i2c = b->DriverPrivate.ptr;
 	unsigned char val;
 
-	val = NVRead(pNv, NV50_GetI2CPort(xf86Screens[b->scrnIndex], b->DriverPrivate.val));
+	val = NVRead(pNv, NV50_GetI2CPort(xf86Screens[b->scrnIndex], dcb_i2c->read));
 	*clock = !!(val & 1);
 	*data = !!(val & 2);
 }
 
-Bool
-NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
+int
+NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, struct dcb_i2c_entry *dcb_i2c, char *name)
 {
 	I2CBusPtr pI2CBus;
-	NVPtr pNv = NVPTR(pScrn);
 
-	pI2CBus = xf86CreateI2CBusRec();
-	if(!pI2CBus)
-		return FALSE;
+	if (dcb_i2c->chan)
+		goto initialized;
+
+	if (!(pI2CBus = xf86CreateI2CBusRec()))
+		return -ENOMEM;
 
 	pI2CBus->BusName    = name;
 	pI2CBus->scrnIndex  = pScrn->scrnIndex;
-	if (pNv->Architecture == NV_ARCH_50) {
+	if (dcb_i2c->port_type == 5) {	/* NV50 */
 		pI2CBus->I2CPutBits = NV50_I2CPutBits;
 		pI2CBus->I2CGetBits = NV50_I2CGetBits;
 		/* Could this be used for the rest as well? */
@@ -155,16 +160,16 @@ NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name)
 		pI2CBus->I2CGetBits = NVI2CGetBits;
 		pI2CBus->AcknTimeout = 5;
 	}
-
-	if (pNv->VBIOS.chip_version == 0x51)
-		pI2CBus->DriverPrivate.uval = 0x600800 + i2c_reg;
-	else
-		pI2CBus->DriverPrivate.uval = i2c_reg;
+	pI2CBus->DriverPrivate.ptr = dcb_i2c;
 
 	if (!xf86I2CBusInit(pI2CBus))
-		return FALSE;
+		return -EINVAL;
 
-	*bus_ptr = pI2CBus;
-	return TRUE;
+	dcb_i2c->chan = pI2CBus;
+
+initialized:
+	*bus_ptr = dcb_i2c->chan;
+
+	return 0;
 }
 

@@ -125,7 +125,7 @@ uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 
 /* in nv_i2c.c */
-Bool NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg, char *name);
+int NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, struct dcb_i2c_entry *dcb_i2c, char *name);
 
 /* in nv04_video_overlay.c */
 void NV04PutOverlayImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int,

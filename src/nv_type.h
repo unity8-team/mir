@@ -341,8 +341,7 @@ typedef struct _NVRec {
 	struct {
 		int entries;
 		struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
-		unsigned char i2c_read[MAX_NUM_DCB_ENTRIES];
-		unsigned char i2c_write[MAX_NUM_DCB_ENTRIES];
+		struct dcb_i2c_entry i2c[MAX_NUM_DCB_ENTRIES];
 	} dcb_table;
 
 	nouveauCrtcPtr crtc[2];

@@ -77,7 +77,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	pNv->connector[bus]->name = xstrdup(connector_name);
 
 	if (i2c_index < 0x10 && pNv->pI2CBus[i2c_index] == NULL)
-		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], pNv->dcb_table.i2c_read[i2c_index], xstrdup(connector_name));
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], &pNv->dcb_table.i2c[i2c_index], xstrdup(connector_name));
 
 	pNv->connector[bus]->i2c_index = i2c_index;
 	pNv->connector[bus]->pDDCBus = pNv->pI2CBus[i2c_index];
