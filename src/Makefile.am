@@ -134,6 +134,7 @@ EXTRA_DIST = \
 	generic_bus.h \
 	radeon_commonfuncs.c \
 	radeon_dri.h \
+	radeon_drm.h \
 	radeon_exa_render.c \
 	radeon_exa_funcs.c \
 	radeon.h \
