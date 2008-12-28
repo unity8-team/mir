@@ -55,15 +55,15 @@ nouveau_dma_channel_init(struct nouveau_channel *userchan)
 	for (i = 0; i < RING_SKIPS; i++)
 		chan->pushbuf[i] = 0x00000000;
 }
-/* Reduce the cost of a very short wait, we're still burning cpu though. */
-/* Also take the odd case into account that t_start is really 0. */
+/* Reduce the cost of a very short wait, we're still burning cpu though. 
+ * It also makes nouveau_dma_wait very visible during profiling.
+ */
 #define CHECK_TIMEOUT() do {										\
-	if (counter < 0xFFFFFFFF) {										\
-		counter++;												\
-	} else if (!t_start) {												\
+	if (counter == 0) {												\
 		t_start = NOUVEAU_TIME_MSEC();								\
-		if (!t_start)												\
-			t_start++;											\
+		counter++;												\
+	} else if (counter < 0xFFFFFFF) {									\
+		counter++;												\
 	} else if ((NOUVEAU_TIME_MSEC() - t_start) > NOUVEAU_DMA_TIMEOUT) {	\
 		return - EBUSY;											\
 	}															\
