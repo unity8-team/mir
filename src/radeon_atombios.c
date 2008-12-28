@@ -2052,8 +2052,9 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	else if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
 		 (info->ChipFamily == CHIP_FAMILY_RS690) ||
 		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
-	    /* IGP DFP ports use non-standard gpio entries */
-	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
+	    /* IGP DVI ports use non-standard gpio entries - HDMI appears to
+	     * possibly be okay - radeonhd channel Dec 29th 2008 */
+	    if (i == ATOM_DEVICE_DFP2_INDEX)
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
 	    else
