@@ -1530,6 +1530,13 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
 	}
     }
+    /* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
+    if ((info->Chipset == PCI_CHIP_RS600_7941) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x147b) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x2412)) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_DVI_I)
+	    info->BiosConnector[index].valid = FALSE;
+    }
 
     /* Falcon NW laptop lists vga ddc line for LVDS */
     if ((info->Chipset == PCI_CHIP_RV410_5653) &&
