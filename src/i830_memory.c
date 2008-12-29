@@ -1074,8 +1074,11 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     if (OVERLAY_NOEXIST(pI830))
 	return TRUE;
 
-    if (!OVERLAY_NOPHYSICAL(pI830))
+    if (!OVERLAY_NOPHYSICAL(pI830)) {
+	if (pI830->use_drm_mode)
+            return TRUE;
 	flags |= NEED_PHYSICAL_ADDR;
+    }
 
     pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
 					       OVERLAY_SIZE, GTT_PAGE_SIZE,
