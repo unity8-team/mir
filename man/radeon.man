@@ -25,14 +25,17 @@ Full support for 8, 15, 16 and 24 bit pixel depths;
 RandR 1.2 and RandR 1.3 support;
 .TP
 \(bu
-TV Out support (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx);
+TV-out support (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx. Experimental
+support on R/RV5xx, R/RV6xx, and R/RV7xx through the
+.B ATOMTvOut
+option);
 .TP
 \(bu
 Full EXA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx);
 .TP
 \(bu
 Full XAA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx. XAA Render
-acceleration supported only on R/RV100, R/RV/RS2xx and RS300);
+acceleration supported only on R/RV100, R/RV/RS2xx and RS3xx);
 .TP
 \(bu
 Textured XVideo acceleration (not supported on R/RV6xx and R/RV/RS7xx.
@@ -150,6 +153,12 @@ Radeon HD 3450/3470
 .TP 12
 .B RS780
 Radeon HD 3100/3200/3300
+.TP 12
+.B RV710
+Radeon HD 4350/4550
+.TP 12
+.B RV730
+Radeon HD 4650/4670
 .TP 12
 .B RV770
 Radeon HD 4850/4870
@@ -325,7 +334,7 @@ parameter may be specified as a float value with standard suffixes like
 .BI "Option \*qRenderAccel\*q \*q" boolean \*q
 Enables or disables hardware Render acceleration.  It is supported on all
 Radeon cards when using EXA acceleration and on Radeon R/RV/RS1xx,
-R/RV/RS2xx and RS300 when usig XAA.  The default is to
+R/RV/RS2xx and RS3xx when usig XAA.  The default is to
 .B enable
 Render acceleration.
 .TP
@@ -552,8 +561,9 @@ The default is
 .B off.
 .TP 
 .BI "Option \*qATOMTvOut\*q \*q" boolean \*q
-This option enables experimental TV-out support for r500 and r600 atombios chips.
-tv-out is experimental and may not function on these chips as well as hoped for.
+This option enables experimental TV-out support for R/RV5xx, R/RV6xx, and R/RV7xx
+atombios chips. TV-out is experimental and may not function on these chips as
+well as hoped for.
 The default is
 .B off.
 
