@@ -346,7 +346,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->exa_offscreen = NULL;
     pI830->gen4_render_state_mem = NULL;
     pI830->overlay_regs = NULL;
-    pI830->logical_context = NULL;
     pI830->power_context = NULL;
 #ifdef XF86DRI
     pI830->back_buffer = NULL;
