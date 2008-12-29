@@ -1644,8 +1644,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	for (j = 0; j < SrcDstTable->ucNumberOfSrc; j++) {
 	    uint8_t sobj_id;
 
-	    sobj_id = (SrcDstTable->usSrcObjectID[j] & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
-	    ErrorF("src object id %04x %d\n", SrcDstTable->usSrcObjectID[j], sobj_id);
+	    sobj_id = (le16_to_cpu(SrcDstTable->usSrcObjectID[j]) & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	    ErrorF("src object id %04x %d\n", le16_to_cpu(SrcDstTable->usSrcObjectID[j]), sobj_id);
 
 	    switch(sobj_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
