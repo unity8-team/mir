@@ -2339,6 +2339,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       OUTREG(DPLL_A_MD, pI830->saveDPLL_A_MD);
    else
       OUTREG(DPLL_A, pI830->saveDPLL_A);
+   POSTING_READ(DPLL_A);
    i830_dpll_settle();
 
    /* Restore mode config */
@@ -2362,6 +2363,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    }
 
    OUTREG(PIPEACONF, pI830->savePIPEACONF);
+   POSTING_READ(PIPEACONF);
    i830WaitForVblank(pScrn);
 
    /*
@@ -2374,12 +2376,14 @@ RestoreHWState(ScrnInfoPtr pScrn)
        DISPPLANE_SEL_PIPE_A) {
        OUTREG(DSPACNTR, pI830->saveDSPACNTR);
        OUTREG(DSPABASE, INREG(DSPABASE));
+       POSTING_READ(DSPABASE);
        i830WaitForVblank(pScrn);
    }
    if ((pI830->saveDSPBCNTR & DISPPLANE_SEL_PIPE_MASK) ==
        DISPPLANE_SEL_PIPE_A) {
        OUTREG(DSPBCNTR, pI830->saveDSPBCNTR);
        OUTREG(DSPBBASE, INREG(DSPBBASE));
+       POSTING_READ(DSPBBASE);
        i830WaitForVblank(pScrn);
    }
 
@@ -2403,6 +2407,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
 	 OUTREG(DPLL_B_MD, pI830->saveDPLL_B_MD);
       else
 	 OUTREG(DPLL_B, pI830->saveDPLL_B);
+      POSTING_READ(DPLL_B);
       i830_dpll_settle();
    
       /* Restore mode config */
@@ -2425,6 +2430,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
       }
 
       OUTREG(PIPEBCONF, pI830->savePIPEBCONF);
+      POSTING_READ(PIPEBCONF);
       i830WaitForVblank(pScrn);
 
       /*
