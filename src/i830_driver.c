@@ -3587,7 +3587,7 @@ I830LeaveVT(int scrnIndex, int flags)
       i830_unbind_all_memory(pScrn);
 
 #ifdef XF86DRI
-   if (pI830->memory_manager) {
+   if (pI830->memory_manager && !pI830->use_drm_mode) {
       int ret;
 
       /* Tell the kernel to evict all buffer objects and block GTT usage while
@@ -3630,7 +3630,7 @@ I830EnterVT(int scrnIndex, int flags)
    pI830->leaving = FALSE;
 
 #ifdef XF86DRI
-   if (pI830->memory_manager) {
+   if (pI830->memory_manager && !pI830->use_drm_mode) {
       int ret;
 
       /* Tell the kernel that we're back in control and ready for GTT
