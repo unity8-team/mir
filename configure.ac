@@ -113,11 +113,9 @@ if test x$DRI != xno; then
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
 	if test x$KMS != xno; then
-		AC_CHECK_HEADER(xf86drmMode.h,
-				[DRM_MODE=yes],[DRM_MODE=no]
-				[#include "stdint.h"])
 		dnl exaGetPixmapDriverPrivate required for DRM_MODE.
-		PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
+		PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5],
+					    [DRM_MODE=yes], [DRM_MODE=no])
 		if test "x$DRM_MODE" = xyes; then
 	   		AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 		fi
@@ -224,7 +222,7 @@ if test "x$GCC" = "xyes"; then
 	-Wnested-externs -fno-strict-aliasing"
 fi
 
-PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.2])
+PKG_CHECK_MODULES(DRM, [libdrm >= 2.4.3])
 AM_CONDITIONAL(DRI, test x$DRI = xyes)
 if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
