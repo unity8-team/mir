@@ -530,6 +530,52 @@ struct i830_sdvo_hdtv_resolution_reply {
 # define SDVO_MONITOR_STATE_SUSPEND				(1 << 6)
 # define SDVO_MONITOR_STATE_OFF					(1 << 7)
 
+#define SDVO_CMD_GET_MAX_PANEL_POWER_SEQUENCING		0x2d
+#define SDVO_CMD_GET_PANEL_POWER_SEQUENCING		0x2e
+#define SDVO_CMD_SET_PANEL_POWER_SEQUENCING		0x2f
+/**
+ * The panel power sequencing parameters are in units of milliseconds.
+ * The high fields are bits 8:9 of the 10-bit values.
+ */
+struct sdvo_panel_power_sequencing {
+    uint8_t t0;
+    uint8_t t1;
+    uint8_t t2;
+    uint8_t t3;
+    uint8_t t4;
+
+    unsigned int t0_high:2;
+    unsigned int t1_high:2;
+    unsigned int t2_high:2;
+    unsigned int t3_high:2;
+
+    unsigned int t4_high:2;
+    unsigned int pad:6;
+} __attribute__((packed));
+
+#define SDVO_CMD_GET_MAX_BACKLIGHT_LEVEL		0x30
+struct sdvo_max_backlight_reply {
+    uint8_t max_value;
+    uint8_t default_value;
+} __attribute__((packed));
+
+#define SDVO_CMD_GET_BACKLIGHT_LEVEL			0x31
+#define SDVO_CMD_SET_BACKLIGHT_LEVEL			0x32
+
+#define SDVO_CMD_GET_AMBIENT_LIGHT			0x33
+struct sdvo_get_ambient_light_reply {
+    uint16_t trip_low;
+    uint16_t trip_high;
+    uint16_t value;
+} __attribute__((packed));
+#define SDVO_CMD_SET_AMBIENT_LIGHT			0x34
+struct sdvo_set_ambient_light_reply {
+    uint16_t trip_low;
+    uint16_t trip_high;
+    unsigned int enable:1;
+    unsigned int pad:7;
+} __attribute__((packed));
+
 /* Set display power state */
 #define SDVO_CMD_SET_DISPLAY_POWER_STATE		0x7d
 # define SDVO_DISPLAY_STATE_ON				(1 << 0)
@@ -579,6 +625,15 @@ struct i830_sdvo_enhancement_limits_reply {
     uint16_t max_value;
     uint16_t default_value;
 } __attribute__((packed));
+
+#define SDVO_CMD_GET_LVDS_PANEL_INFORMATION		0x7f
+#define SDVO_CMD_SET_LVDS_PANEL_INFORMATION		0x80
+# define SDVO_LVDS_COLOR_DEPTH_18			(0 << 0)
+# define SDVO_LVDS_COLOR_DEPTH_24			(1 << 0)
+# define SDVO_LVDS_CONNECTOR_SPWG			(0 << 2)
+# define SDVO_LVDS_CONNECTOR_OPENLDI			(1 << 2)
+# define SDVO_LVDS_SINGLE_CHANNEL			(0 << 4)
+# define SDVO_LVDS_DUAL_CHANNEL				(1 << 4)
 
 #define SDVO_CMD_GET_FLICKER_FILTER			0x4e
 #define SDVO_CMD_SET_FLICKER_FILTER			0x4f
