@@ -107,12 +107,6 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #include "i830_sdvo.h"
 #include "i2c_vid.h"
 
-/* I830 Video support */
-#define NEED_REPLIES				/* ? */
-#define EXTENSION_PROC_ARGS void *
-#include "extnsionst.h" 			/* required */
-#include <X11/extensions/panoramiXproto.h> 	/* required */
-
 /*
  * The mode handling is based upon the VESA driver written by
  * Paulo César Pereira de Andrade <pcpa@conectiva.com.br>.
