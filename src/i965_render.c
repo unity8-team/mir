@@ -1015,11 +1015,8 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 	    /* If the command still won't fit in an empty batch, then it's
 	     * just plain too big for the hardware---fallback to software.
 	     */
-	    if (dri_bufmgr_check_aperture_space (bo_table, NUM_BO) < 0) {
-		dri_bo_unreference (render_state->vertex_buffer_bo);
-		render_state->vertex_buffer_bo = NULL;
+	    if (dri_bufmgr_check_aperture_space (bo_table, 1) < 0)
 		return FALSE;
-	    }
 	}
     }
 
@@ -1588,8 +1585,10 @@ i965_batch_flush_notify(ScrnInfoPtr pScrn)
     /* Once a batch is emitted, we never want to map again any buffer
      * object being referenced by that batch, (which would be very
      * expensive). */
-    dri_bo_unreference (render_state->vertex_buffer_bo);
-    render_state->vertex_buffer_bo = NULL;
+    if (render_state->vertex_buffer_bo) {
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+    }
 }
 
 /**
