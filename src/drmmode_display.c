@@ -148,7 +148,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,5,99,0,0)
 	crtc->transformPresent = FALSE;
+#endif
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
