@@ -540,7 +540,7 @@ static Bool I830EXAPrepareAccess(PixmapPtr pPix, int index)
 	I830Sync(scrn);
 	i830->need_sync = FALSE;
     }
-    if (dri_gem_bo_map_gtt(driver_priv->bo)) {
+    if (drm_intel_gem_bo_map_gtt(driver_priv->bo)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
 		   __FUNCTION__);
 	return FALSE;
