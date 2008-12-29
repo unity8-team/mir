@@ -237,6 +237,7 @@ static void quirk_broken_acpi_lid (I830Ptr pI830)
 /* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
+    { PCI_CHIP_I915_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I945_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0x8086, 0x1999, quirk_ignore_lvds },
