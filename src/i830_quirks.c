@@ -227,6 +227,13 @@ static void quirk_ivch_dvob (I830Ptr pI830)
 	pI830->quirk_flag |= QUIRK_IVCH_NEED_DVOB;
 }
 
+/* For broken hw/bios for incorrect acpi _LID state that
+   can't be fixed with customed DSDT or other way */
+static void quirk_broken_acpi_lid (I830Ptr pI830)
+{
+	pI830->quirk_flag |= QUIRK_BROKEN_ACPI_LID;
+}
+
 /* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
@@ -346,6 +353,9 @@ static i830_quirk i830_quirk_list[] = {
 
     /* Asus Eee Box has no LVDS */
     { PCI_CHIP_I945_GME, 0x1043, 0x1252, quirk_ignore_lvds },
+
+    /* #19239: Mirrus Centrino laptop */
+    { PCI_CHIP_I915_GM, 0x1584, 0x9800, quirk_broken_acpi_lid },
 
     { 0, 0, 0, NULL },
 };

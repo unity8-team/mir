@@ -1035,6 +1035,7 @@ extern const int I830CopyROP[16];
 #define QUIRK_RESET_MODES		0x00000020
 #define QUIRK_PFIT_SAFE			0x00000040
 #define QUIRK_IGNORE_CRT		0x00000080
+#define QUIRK_BROKEN_ACPI_LID		0x00000100
 extern void i830_fixup_devices(ScrnInfoPtr);
 
 #endif /* _I830_H_ */

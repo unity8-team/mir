@@ -401,6 +401,9 @@ i830_lvds_acpi_lid_open(xf86OutputPtr output)
     char state[64];
     enum lid_status ret = LID_UNKNOWN;
 
+    if (pI830->quirk_flag & QUIRK_BROKEN_ACPI_LID)
+	goto out;
+
     button_dir = opendir(ACPI_BUTTON);
     /* If acpi button driver is not loaded, bypass ACPI check method */
     if (button_dir == NULL)
