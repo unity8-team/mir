@@ -1904,6 +1904,14 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
+    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS0) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
+    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS1) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
     }
     else
     {
