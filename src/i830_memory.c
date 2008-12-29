@@ -1434,15 +1434,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	pI830->SWCursor = TRUE;
     }
 
-    /* Space for the X Server's 3D context.  32k is fine for right now. */
-    pI830->logical_context = i830_allocate_memory(pScrn, "logical 3D context",
-						  KB(32), GTT_PAGE_SIZE, 0);
-    if (pI830->logical_context == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Failed to allocate logical context space.\n");
-	return FALSE;
-    }
-
     if (pI830->memory_manager == NULL) {
 	pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
 						      MB(1), GTT_PAGE_SIZE, 0);

@@ -452,8 +452,6 @@ typedef struct _I830Rec {
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
 
-   i830_memory *logical_context;
-
    i830_memory *power_context;
 
 #ifdef XF86DRI

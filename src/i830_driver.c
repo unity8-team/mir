@@ -2604,17 +2604,6 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
    if (*pI830->last_3d != LAST_3D_OTHER)
       return;
 
-   ctx_addr = pI830->logical_context->offset;
-   assert((pI830->logical_context->offset & 2047) == 0);
-   {
-      BEGIN_BATCH(2);
-      OUT_BATCH(MI_SET_CONTEXT);
-      OUT_BATCH(pI830->logical_context->offset |
-		CTXT_NO_RESTORE |
-		CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
-      ADVANCE_BATCH();
-   }
-
    if (!IS_I965G(pI830))
    {
       if (IS_I9XX(pI830))
