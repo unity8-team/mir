@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 
+#include "xorgVersion.h"
+
 #ifdef XF86DRM_MODE
 #include "i830.h"
 #include "sarea.h"
@@ -167,9 +169,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		output_count++;
 	}
 
-	if (!xf86CrtcRotate(crtc)) {
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
+	if (!xf86CrtcRotate(crtc, mode, rotation))
 		goto done;
-	}
+#else
+	if (!xf86CrtcRotate(crtc))
+		goto done;
+#endif
 
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
