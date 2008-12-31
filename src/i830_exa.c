@@ -785,11 +785,15 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	if (drm_intel_bo_pin(bo, 4096) != 0)
-	    return FALSE;
-
-	drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
-	pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
+	if (drm_intel_bo_pin(bo, 4096) != 0) {
+	    /* happen in vt switched */
+	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
+		return FALSE;
+	    pixmap->devPrivate.ptr = bo->virtual;
+	} else {
+	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
+	}
     }
     return TRUE;
 }
@@ -804,7 +808,10 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	drm_intel_bo_unpin(bo);
+	if (bo->virtual)
+	    dri_bo_unmap(bo);
+	else
+	    drm_intel_bo_unpin(bo);
 
 	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
