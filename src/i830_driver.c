@@ -2495,10 +2495,6 @@ RestoreHWState(ScrnInfoPtr pScrn)
        OUTREG(FBC_CONTROL, pI830->saveFBC_CONTROL);
    }
 
-   /* Clear any FIFO underrun status that may have occurred normally */
-   OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
-   OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
-
    vgaHWRestore(pScrn, vgaReg, VGA_SR_FONTS);
    vgaHWLock(hwp);
 
@@ -2619,7 +2615,6 @@ I830BlockHandler(int i,
     ScreenPtr pScreen = screenInfo.screens[i];
     ScrnInfoPtr pScrn = xf86Screens[i];
     I830Ptr pI830 = I830PTR(pScrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
     pScreen->BlockHandler = pI830->BlockHandler;
 
@@ -2656,26 +2651,6 @@ I830BlockHandler(int i,
     if (pI830->accel == ACCEL_UXA)
 	i830_uxa_block_handler (pScreen);
 #endif
-    /*
-     * Check for FIFO underruns at block time (which amounts to just
-     * periodically).  If this happens, it means our DSPARB or some other
-     * memory arbitration setting is wrong for the current configuration
-     * (except for mode setting, where it may occur naturally).
-     * Check & ack the condition.
-     */
-    if (!pI830->use_drm_mode && pScrn->vtSema && !DSPARB_HWCONTROL(pI830)) {
-	if (xf86_config->crtc[0]->enabled &&
-		(INREG(PIPEASTAT) & FIFO_UNDERRUN)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe A!\n");
-	    OUTREG(PIPEASTAT, INREG(PIPEASTAT) | FIFO_UNDERRUN);
-	}
-	if (xf86_config->num_crtc > 1 &&
-		xf86_config->crtc[1]->enabled &&
-		(INREG(PIPEBSTAT) & FIFO_UNDERRUN)) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "underrun on pipe B!\n");
-	    OUTREG(PIPEBSTAT, INREG(PIPEBSTAT) | FIFO_UNDERRUN);
-	}
-    }
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
