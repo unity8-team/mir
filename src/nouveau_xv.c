@@ -814,13 +814,19 @@ NV_set_dimensions(ScrnInfoPtr pScrn, int action_flags, INT32 *xa, INT32 *xb,
 }
 
 static int
-NV_calculate_pitches_and_mem_size(int action_flags, int *srcPitch,
+NV_calculate_pitches_and_mem_size(NVPtr pNv, int action_flags, int *srcPitch,
 				  int *srcPitch2, int *dstPitch, int *s2offset,
-				  int *s3offset, int *newFBSize, int *newTTSize,
+				  int *s3offset, int *uv_offset,
+				  int *newFBSize, int *newTTSize,
 				  int *line_len, int npixels, int nlines,
 				  int width, int height)
 {
 	int tmp;
+
+	if (pNv->Architecture >= NV_ARCH_50) {
+		npixels = (npixels + 7) & ~7;
+		nlines = (nlines + 7) & ~7;
+	}
 
 	if (action_flags & IS_YV12) {
 		*srcPitch = (width + 3) & ~3;	/* of luma */
@@ -829,8 +835,9 @@ NV_calculate_pitches_and_mem_size(int action_flags, int *srcPitch,
 		*s3offset = (*srcPitch2 * (height >> 1)) + *s2offset;
 		*dstPitch = (npixels + 63) & ~63; /*luma and chroma pitch*/
 		*line_len = npixels;
-		*newFBSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
-		*newTTSize = nlines * *dstPitch + (nlines >> 1) * *dstPitch;
+		*uv_offset = nlines * *dstPitch;
+		*newFBSize = *uv_offset + (nlines >> 1) * *dstPitch;
+		*newTTSize = *uv_offset + (nlines >> 1) * *dstPitch;
 	} else
 	if (action_flags & IS_YUY2) {
 		*srcPitch = width << 1; /* one luma, one chroma per pixel */
@@ -853,6 +860,7 @@ NV_calculate_pitches_and_mem_size(int action_flags, int *srcPitch,
 		*line_len = npixels << 1;
 		*newFBSize = nlines * *dstPitch;
 		*newTTSize = nlines * *line_len;
+		*uv_offset = 0;
 	}
 
 	if (action_flags & SWAP_UV)  {
@@ -1035,8 +1043,8 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	INT32 xa = 0, xb = 0, ya = 0, yb = 0;
 	/* size to allocate in VRAM and in GART respectively */
 	int newFBSize = 0, newTTSize = 0;
-	/* card VRAM offset, source offsets for U and V planes */
-	int offset = 0, s2offset = 0, s3offset = 0;
+	/* card VRAM offsets, source offsets for U and V planes */
+	int offset = 0, uv_offset = 0, s2offset = 0, s3offset = 0;
 	/* source pitch, source pitch of U and V planes in case of YV12,
 	 * VRAM destination pitch
 	 */
@@ -1070,9 +1078,10 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			      &npixels, &nlines, clipBoxes, width, height))
 		return Success;
 
-	if (NV_calculate_pitches_and_mem_size(action_flags, &srcPitch,
+	if (NV_calculate_pitches_and_mem_size(pNv, action_flags, &srcPitch,
 					      &srcPitch2, &dstPitch, &s2offset,
-					      &s3offset, &newFBSize, &newTTSize,
+					      &s3offset, &uv_offset,
+					      &newFBSize, &newTTSize,
 					      &line_len, npixels, nlines,
 					      width, height))
 		return BadImplementation;
@@ -1270,7 +1279,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 			OUT_RELOCl(chan, destination_buffer, line_len * nlines,
 				   NOUVEAU_BO_GART | NOUVEAU_BO_RD);
 			OUT_RELOCl(chan, pPriv->video_mem,
-				   offset + dstPitch * nlines,
+				   offset + uv_offset,
 				   NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 			OUT_RING  (chan, line_len);
 			OUT_RING  (chan, dstPitch);
@@ -1433,15 +1442,8 @@ CPU_copy:
 					    src_w, src_h, drw_w, drw_h,
 					    clipBoxes);
 		} else {
-			unsigned uvoffset;
-
-			if (action_flags & (IS_YUY2 | CONVERT_TO_YUY2))
-				uvoffset = 0;
-			else
-				uvoffset = offset + nlines * dstPitch;
-
 			NV10PutOverlayImage(pScrn, pPriv->video_mem, offset,
-					    uvoffset, id, dstPitch, &dstBox,
+					    uv_offset, id, dstPitch, &dstBox,
 					    0, 0, xb, yb,
 					    npixels, nlines, src_w, src_h,
 					    drw_w, drw_h, clipBoxes);
@@ -1454,8 +1456,7 @@ CPU_copy:
 
 		if (pNv->Architecture == NV_ARCH_30) {
 			ret = NV30PutTextureImage(pScrn, pPriv->video_mem,
-						  offset,
-						  offset + nlines * dstPitch,
+						  offset, uv_offset,
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
 						  src_w, src_h, drw_w, drw_h,
@@ -1463,8 +1464,7 @@ CPU_copy:
 		} else
 		if (pNv->Architecture == NV_ARCH_40) {
 			ret = NV40PutTextureImage(pScrn, pPriv->video_mem, 
-						  offset,
-						  offset + nlines * dstPitch,
+						  offset, uv_offset,
 						  id, dstPitch, &dstBox, 0, 0,
 						  xb, yb, npixels, nlines,
 						  src_w, src_h, drw_w, drw_h,
@@ -1472,8 +1472,7 @@ CPU_copy:
 		} else
 		if (pNv->Architecture == NV_ARCH_50) {
 			ret = nv50_xv_image_put(pScrn, pPriv->video_mem,
-						offset,
-						offset + nlines * dstPitch,
+						offset, uv_offset,
 						id, dstPitch, &dstBox, 0, 0,
 						xb, yb, npixels, nlines,
 						src_w, src_h, drw_w, drw_h,
