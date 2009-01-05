@@ -356,8 +356,14 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 	    }
 	    data.exec.pspace = &disp_data2;
 	    break;
+	default:
+	    ErrorF("Unknown table version\n");
+	    exit(-1);
 	}
 	break;
+    default:
+	ErrorF("Unknown table version\n");
+	exit(-1);
     }
 
     data.exec.index = index;
@@ -479,7 +485,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int device, DisplayM
     int major, minor;
 
     memset(&disp_data,0, sizeof(disp_data));
-    if (IS_DCE32_VARIANT) 
+    if (IS_DCE32_VARIANT)
 	index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
     else {
 	switch (device) {
@@ -874,7 +880,7 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
     /*ErrorF("select crtc source table is %d %d\n", major, minor);*/
 
     switch(major) {
-    case 1: {
+    case 1:
 	switch(minor) {
 	case 0:
 	case 1:
@@ -959,9 +965,9 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    break;
 	}
 	break;
-    }
     default:
-	break;
+	ErrorF("Unknown table version\n");
+	exit(-1);
     }
 
     data.exec.index = index;
