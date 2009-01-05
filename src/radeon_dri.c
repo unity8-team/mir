@@ -866,10 +866,12 @@ static Bool RADEONSetAgpMode(RADEONInfoPtr info, ScreenPtr pScreen)
     } /* Don't mention this otherwise, so that people don't get funny ideas */
 
     xf86DrvMsg(pScreen->myNum, X_INFO,
-	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x]\n",
+	       "[agp] Mode 0x%08lx [AGP 0x%04x/0x%04x; Card 0x%04x/0x%04x 0x%04x/0x%04x]\n",
 	       mode, vendor, device,
 	       PCI_DEV_VENDOR_ID(info->PciInfo),
-	       PCI_DEV_DEVICE_ID(info->PciInfo));
+	       PCI_DEV_DEVICE_ID(info->PciInfo),
+	       PCI_SUB_VENDOR_ID(info->PciInfo),
+	       PCI_SUB_DEVICE_ID(info->PciInfo));
 
     if (drmAgpEnable(info->dri->drmFD, mode) < 0) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "[agp] AGP not enabled\n");
