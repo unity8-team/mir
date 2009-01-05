@@ -298,6 +298,7 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
     switch (major) {
     case 0:
     case 1:
+    case 2:
 	switch (minor) {
 	case 1:
 	    disp_data.ucMisc = 0;
