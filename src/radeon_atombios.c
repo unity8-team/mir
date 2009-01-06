@@ -1666,43 +1666,52 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		    else
 			info->BiosConnector[i].linkb = FALSE;
 
-		    /* dac/tmds type */
-		    if (path->usDeviceTag != ATOM_DEVICE_LCD1_SUPPORT) {
-			switch(enc_obj_id) {
-			case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-			    info->BiosConnector[i].TMDSType = TMDS_INT;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		    switch(enc_obj_id) {
+		    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+			info->BiosConnector[i].LVDSType = LVDS_INT;
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+			info->BiosConnector[i].TMDSType = TMDS_INT;
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY;
+			else
 			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY1;
+			else
 			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY1;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY2;
+			else
 			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY2;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-			    info->BiosConnector[i].TMDSType = TMDS_EXT;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
+		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+			info->BiosConnector[i].TMDSType = TMDS_EXT;
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
+			    info->BiosConnector[i].LVDSType = LVDS_LVTMA;
+			else
 			    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_DAC1:
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-			    info->BiosConnector[i].DACType = DAC_PRIMARY;
-			    break;
-			case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-			    info->BiosConnector[i].DACType = DAC_TVDAC;
-			    break;
-			}
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+			info->BiosConnector[i].DACType = DAC_PRIMARY;
+			break;
+		    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
+		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+			info->BiosConnector[i].DACType = DAC_TVDAC;
+			break;
 		    }
-		    break;
 		}
 	    }
 
@@ -2062,6 +2071,14 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
 	else
 	    info->BiosConnector[i].TMDSType = TMDS_NONE;
+
+	if (i == ATOM_DEVICE_LCD1_INDEX) {
+	    if (IS_AVIVO_VARIANT)
+		info->BiosConnector[i].LVDSType = LVDS_LVTMA;
+	    else
+		info->BiosConnector[i].LVDSType = LVDS_INT;
+	} else
+	    info->BiosConnector[i].LVDSType = LVDS_NONE;
 
 	/* Always set the connector type to VGA for CRT1/CRT2. if they are
 	 * shared with a DVI port, we'll pick up the DVI connector below when we

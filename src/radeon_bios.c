@@ -632,6 +632,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    info->BiosConnector[4].ConnectorType = CONNECTOR_LVDS;
 	    info->BiosConnector[4].DACType = DAC_NONE;
 	    info->BiosConnector[4].TMDSType = TMDS_NONE;
+	    info->BiosConnector[4].LVDSType = LVDS_INT;
 	    info->BiosConnector[4].ddc_i2c.valid = FALSE;
 
 	    tmp = RADEON_BIOS16(info->ROMHeaderStart + 0x42);

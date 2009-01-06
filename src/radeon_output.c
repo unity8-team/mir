@@ -48,18 +48,6 @@
 #include "radeon_tv.h"
 #include "radeon_atombios.h"
 
-const char *MonTypeName[10] = {
-  "AUTO",
-  "NONE",
-  "CRT",
-  "LVDS",
-  "TMDS",
-  "CTV",
-  "STV",
-  "CV",
-  "HDMI",
-  "DP"
-};
 
 const RADEONMonitorType MonTypeID[10] = {
   MT_UNKNOWN, /* this is just a dummy value for AUTO DETECTION */
@@ -74,13 +62,24 @@ const RADEONMonitorType MonTypeID[10] = {
   MT_DP
 };
 
-const char *TMDSTypeName[6] = {
+const char *TMDSTypeName[8] = {
   "None",
   "Internal",
   "External",
   "LVTMA",
   "DDIA",
   "UNIPHY"
+  "UNIPHY1"
+  "UNIPHY2"
+};
+
+const char *LVDSTypeName[6] = {
+  "None",
+  "Internal",
+  "LVTMA",
+  "UNIPHY"
+  "UNIPHY1"
+  "UNIPHY2"
 };
 
 const char *DACTypeName[4] = {
@@ -201,12 +200,12 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	radeon_output = output->driver_private;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "Port%d:\n Monitor   -- %s\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n DDC Type  -- 0x%x\n", 
+		   "Port%d:\n Connector -- %s\n DAC Type  -- %s\n TMDS Type -- %s\n LVDS Type -- %s\n DDC Type  -- 0x%x\n", 
 		   o,
-		   MonTypeName[radeon_output->MonType+1],
 		   ConnectorTypeName[radeon_output->ConnectorType],
 		   DACTypeName[radeon_output->DACType],
 		   TMDSTypeName[radeon_output->TMDSType],
+		   LVDSTypeName[radeon_output->LVDSType],
 		   (unsigned int)radeon_output->ddc_i2c.mask_clk_reg);
     }
 
@@ -2859,6 +2858,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
 	    radeon_output->load_detection = info->BiosConnector[i].load_detection;
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
+
+	    radeon_output->LVDSType = info->BiosConnector[i].LVDSType;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
