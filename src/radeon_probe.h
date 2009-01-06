@@ -210,6 +210,8 @@ typedef struct {
     Bool shared_ddc;
     int i2c_line_mux;
     Bool load_detection;
+    Bool linkb;
+    uint16_t connector_object;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -264,6 +266,7 @@ typedef struct _RADEONOutputPrivateRec {
     int transmitter_config;
     Bool coherent_mode;
     int igp_lane_info;
+    Bool linkb;
 
     char              *name;
     int               output_id;

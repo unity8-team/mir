@@ -2858,6 +2858,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->igp_lane_info = info->BiosConnector[i].igp_lane_info;
 	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
 	    radeon_output->load_detection = info->BiosConnector[i].load_detection;
+	    radeon_output->linkb = info->BiosConnector[i].linkb;
 
 	    if (radeon_output->ConnectorType == CONNECTOR_DVI_D)
 		radeon_output->DACType = DAC_NONE;
