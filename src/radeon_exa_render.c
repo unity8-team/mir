@@ -324,7 +324,7 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict, int unit)
      * see 197a62704742a4a19736c2637ac92d1dc5ab34ed
      */
 
-    if ((w > 2048) || (h > 2048))
+    if ((w > 2047) || (h > 2047))
 	RADEON_FALLBACK(("Picture w/h too large (%dx%d)\n", w, h));
 
     for (i = 0; i < sizeof(R100TexFormats) / sizeof(R100TexFormats[0]); i++) {
