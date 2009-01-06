@@ -1130,7 +1130,7 @@ IsTileable(ScrnInfoPtr pScrn, int pitch)
  * \param pI830 I830Ptr for the screen being allocated.
  * \param FbMemBox
  */
-static i830_memory *
+i830_memory *
 i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 			  Bool secondary)
 {
@@ -1152,10 +1152,14 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
     /* We'll allocate the fb such that the root window will fit regardless of
      * rotation.
      */
-    if (!pI830->use_drm_mode && pScrn->virtualX > pScrn->virtualY)
-	fb_height = pScrn->virtualX;
-    else
-	fb_height = pScrn->virtualY;
+    fb_height = pScrn->virtualY;
+    if (!pI830->can_resize)
+    {
+	if (!pI830->use_drm_mode && pScrn->virtualX > pScrn->virtualY)
+	    fb_height = pScrn->virtualX;
+	else
+	    fb_height = pScrn->virtualY;
+    }
 
     FbMemBox->x1 = 0;
     FbMemBox->x2 = pScrn->displayWidth;
@@ -2115,114 +2119,8 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 }
 #endif
 
-#if 0
-static i830_memory *
-i830_allocate_framebuffer_new(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox)
-{
-    unsigned int pitch = pScrn->displayWidth * pI830->cpp;
-    unsigned long minspace, avail;
-    int cacheLines;
-    int align;
-    long size, fb_height;
-    char *name;
-    int flags;
-    i830_memory *front_buffer = NULL;
-    Bool tiling;
-
-    flags = ALLOW_SHARING;
-
-    /* Clear everything first. */
-    memset(FbMemBox, 0, sizeof(*FbMemBox));
-
-    fb_height = pScrn->virtualY;
-
-    FbMemBox->x1 = 0;
-    FbMemBox->x2 = pScrn->displayWidth;
-    FbMemBox->y1 = 0;
-    FbMemBox->y2 = fb_height;
-
-    /* Calculate how much framebuffer memory to allocate.  For the
-     * initial allocation, calculate a reasonable minimum.  This is
-     * enough for the virtual screen size, plus some pixmap cache
-     * space if we're using XAA.
-     */
-    minspace = pitch * pScrn->virtualY;
-    avail = pScrn->videoRam * 1024;
-    cacheLines = 0;
-
-    size = pitch * (fb_height + cacheLines);
-    size = ROUND_TO_PAGE(size);
-
-    name = "front buffer";
-
-    /* Front buffer tiling has to be disabled with G965 XAA because some of the
-     * acceleration operations (non-XY COLOR_BLT) can't be done to tiled
-     * buffers.
-     */
-    if (!(pI830->accel == ACCEL_EXA) && IS_I965G(pI830))
-	tiling = FALSE;
-    else
-	tiling = pI830->tiling;
-
-    if (pI830->use_drm_mode)
-      tiling = FALSE;
-
-    /* Attempt to allocate it tiled first if we have page flipping on. */
-    if (tiling && IsTileable(pScrn, pitch)) {
-	/* XXX: probably not the case on 965 */
-	if (IS_I9XX(pI830))
-	    align = MB(1);
-	else
-	    align = KB(512);
-	front_buffer = i830_allocate_memory_tiled(pScrn, name, size,
-						  pitch, align, flags,
-						  TILE_XMAJOR);
-    }
-
-    /* If not, attempt it linear */
-    if (front_buffer == NULL) {
-	front_buffer = i830_allocate_memory(pScrn, name, size, KB(64), flags);
-    }
-
-    if (front_buffer == NULL) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate "
-		   "framebuffer. Is your VideoRAM set too low?\n");
-
-	return NULL;
-    }
-
-    return front_buffer;
-}
-#endif
 uint32_t
 i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
 {
     return 0;
-
-#if 0
-    I830Ptr pI830 = I830PTR(pScrn);
-    i830_memory *old_buffer;
-
-    pScrn->virtualX = width;
-    pScrn->virtualY = height;
-    pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
-
-    *pitch = pScrn->displayWidth * pI830->cpp;
-
-    old_buffer = pI830->front_buffer;
-
-    pI830->front_buffer =
-	i830_allocate_framebuffer_new(pScrn, pI830, &pI830->FbMemBox);
-
-    ErrorF("old front size %08lx, new front size %08lx\n",
-	   old_buffer->bo->size, pI830->front_buffer->bo->size);
-    ErrorF("old front offset %08lx, new front offset %08lx\n",
-	   old_buffer->bo->offset, pI830->front_buffer->bo->offset);
-
-    i830_free_memory(pScrn, old_buffer);
-
-    i830_update_front_offset(pScrn);
-
-    return pI830->front_buffer->bo->handle;
-#endif
 }

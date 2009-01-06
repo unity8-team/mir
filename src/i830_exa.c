@@ -758,6 +758,32 @@ i830_get_pixmap_bo(PixmapPtr pixmap)
     return NULL;
 }
 
+void
+i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr i830 = I830PTR(pScrn);
+    dri_bo  *old_bo = i830_get_pixmap_bo (pixmap);
+
+    if (old_bo)
+	dri_bo_unreference (old_bo);
+#if I830_USE_UXA
+    if (i830->accel == ACCEL_UXA) {
+	dri_bo_reference(bo);
+	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
+    }
+#endif
+#ifdef XF86DRM_MODE
+    if (i830->accel == ACCEL_EXA) {
+	struct i830_exa_pixmap_priv *driver_priv =
+	    exaGetPixmapDriverPrivate(pixmap);
+	if (driver_priv) {
+	    dri_bo_reference(bo);
+	    driver_priv->bo = bo;
+	}
+    }
+#endif
+}
 #if defined(I830_USE_UXA)
 
 static void
@@ -893,6 +919,7 @@ void i830_uxa_create_screen_resources(ScreenPtr pScreen)
     if (bo != NULL) {
 	PixmapPtr   pixmap = pScreen->GetScreenPixmap(pScreen);
 	i830_uxa_set_pixmap_bo (pixmap, bo);
+	dri_bo_reference(bo);
     }
 }
 

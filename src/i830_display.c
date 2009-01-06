@@ -387,12 +387,14 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
     int pipe = intel_crtc->pipe;
     int plane = intel_crtc->plane;
-    unsigned long Start, Offset;
+    unsigned long Start, Offset, Stride;
     int dspbase = (plane == 0 ? DSPABASE : DSPBBASE);
     int dspsurf = (plane == 0 ? DSPASURF : DSPBSURF);
     int dsptileoff = (plane == 0 ? DSPATILEOFF : DSPBTILEOFF);
+    int dspstride = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
 
     Offset = ((y * pScrn->displayWidth + x) * pI830->cpp);
+    Stride = pScrn->displayWidth * pI830->cpp;
     if (pI830->front_buffer == NULL) {
 	/* During startup we may be called as part of monitor detection while
 	 * there is no memory allocation done, so just supply a dummy base
@@ -403,6 +405,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	/* offset is done by shadow painting code, not here */
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
 	Offset = 0;
+	Stride = intel_crtc->rotate_mem->pitch;
     } else if (I830IsPrimary(pScrn)) {
 	Start = pI830->front_buffer->offset;
     } else {
@@ -410,6 +413,10 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	Start = pI8301->front_buffer_2->offset;
     }
 
+    crtc->x = x;
+    crtc->y = y;
+
+    OUTREG(dspstride, Stride);
     if (IS_I965G(pI830)) {
         OUTREG(dspbase, Offset);
 	POSTING_READ(dspbase);
@@ -1199,7 +1206,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int vsync_reg = (pipe == 0) ? VSYNC_A : VSYNC_B;
     int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
     int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
-    int dspstride_reg = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
     int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
     int i, num_outputs = 0;
@@ -1494,7 +1500,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	((adjusted_mode->CrtcVBlankEnd - 1) << 16));
     OUTREG(vsync_reg, (adjusted_mode->CrtcVSyncStart - 1) |
 	((adjusted_mode->CrtcVSyncEnd - 1) << 16));
-    OUTREG(dspstride_reg, pScrn->displayWidth * pI830->cpp);
     /* pipesrc and dspsize control the size that is scaled from, which should
      * always be the user's requested size.
      */
@@ -1640,9 +1645,27 @@ i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 static void
 i830_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
 {
-    i830PipeSetBase(crtc, x, y);
+    if (crtc->enabled)
+	i830PipeSetBase(crtc, x, y);
 }
 #endif
+
+/* The screen bo has changed, reset each active crtc to point at
+ * the same location that it currently points at, but in the new bo
+ */
+void
+i830_set_new_crtc_bo(ScrnInfoPtr pScrn)
+{
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int			i;
+
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+	if (crtc->enabled && !crtc->transform_in_use)
+	    i830PipeSetBase(crtc, crtc->x, crtc->y);
+    }
+}
 
 void
 i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)

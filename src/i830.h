@@ -95,6 +95,7 @@ void i830_uxa_block_handler (ScreenPtr pScreen);
 
 #if defined(I830_USE_UXA) || defined(I830_USE_EXA)
 dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
+void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
 #endif
 
 #ifdef I830_USE_XAA
@@ -267,6 +268,8 @@ typedef struct _I830CrtcPrivateRec {
     
     int			    dpms_mode;
     
+    int			    x, y;
+
     /* Lookup table values to be set when the CRTC is enabled */
     uint8_t lut_r[256], lut_g[256], lut_b[256];
 
@@ -467,6 +470,8 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool allocate_classic_textures;
+
+   Bool can_resize;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
@@ -906,6 +911,10 @@ Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+
+i830_memory *
+i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
+			  Bool secondary);
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
