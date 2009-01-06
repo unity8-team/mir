@@ -690,91 +690,44 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 }
 
 static AtomBiosResult
-atombios_display_device_control(atomBiosHandlePtr atomBIOS, int device, Bool state)
+atombios_display_device_control(atomBiosHandlePtr atomBIOS, int index, Bool state)
 {
     DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
 
     disp_data.ucAction = state;
-    data.exec.index = device;
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output %d %s success\n", device, state? "enable":"disable");
+	ErrorF("Output %d %s success\n", index, state? "enable":"disable");
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output %d %s failed\n", device, state? "enable":"disable");
+    ErrorF("Output %d %s failed\n", index, state? "enable":"disable");
     return ATOM_NOT_IMPLEMENTED;
 }
 
-static void
-atombios_device_dpms(xf86OutputPtr output, int device, int mode)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    int index = 0;
-
-    switch (device) {
-    case ATOM_DEVICE_CRT1_SUPPORT:
-    case ATOM_DEVICE_CRT2_SUPPORT:
-	if (radeon_output->DACType == DAC_PRIMARY)
-	    index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
-	else if (radeon_output->DACType == DAC_TVDAC)
-	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
-	break;
-    case ATOM_DEVICE_DFP1_SUPPORT:
-	index = GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl);
-	break;
-    case ATOM_DEVICE_DFP2_SUPPORT:
-	index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
-	break;
-    case ATOM_DEVICE_DFP3_SUPPORT:
-	index = GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl);
-	break;
-    case ATOM_DEVICE_LCD1_SUPPORT:
-	index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
-	break;
-    case ATOM_DEVICE_TV1_SUPPORT:
-	if (IS_DCE3_VARIANT)
-	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
-	else
-	    index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
-	break;
-    case ATOM_DEVICE_CV_SUPPORT:
-	if (IS_DCE3_VARIANT)
-	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
-	else
-	    index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
-	break;
-    default:
-	return;
-    }
-
-    switch (mode) {
-    case DPMSModeOn:
-	atombios_display_device_control(info->atomBIOS, index, ATOM_ENABLE);
-	break;
-    case DPMSModeStandby:
-    case DPMSModeSuspend:
-    case DPMSModeOff:
-	atombios_display_device_control(info->atomBIOS, index, ATOM_DISABLE);
-	break;
-    }
-}
-
 static int
-atombios_output_dig_dpms(xf86OutputPtr output, int mode, int block)
+atombios_dig_dpms(xf86OutputPtr output, int mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DIG_TRANSMITTER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    int block;
 
     memset(&disp_data, 0, sizeof(disp_data));
+
+    if ((radeon_output->MonType == MT_LCD) ||
+	(radeon_output->TMDSType == TMDS_LVTMA))
+	block = 2;
+    else
+	block = 1;
+
     switch (mode) {
     case DPMSModeOn:
 	disp_data.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT;
@@ -790,8 +743,7 @@ atombios_output_dig_dpms(xf86OutputPtr output, int mode, int block)
 
     if (IS_DCE32_VARIANT) {
 	data.exec.index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
-    }
-    else {
+    } else {
 	if (block == 1)
 	    data.exec.index = GetIndexIntoMasterTable(COMMAND, DIG1TransmitterControl);
 	else
@@ -810,6 +762,57 @@ atombios_output_dig_dpms(xf86OutputPtr output, int mode, int block)
 
 }
 
+static void
+atombios_device_dpms(xf86OutputPtr output, int mode)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    int index = 0;
+
+    if (radeon_output->MonType == MT_CRT) {
+	if (radeon_output->DACType == DAC_PRIMARY)
+	    index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
+	else if (radeon_output->DACType == DAC_TVDAC)
+	    index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
+	else
+	    return;
+    } else if (radeon_output->MonType == MT_DFP) {
+	switch (radeon_output->TMDSType) {
+	case TMDS_INT:
+	    index = GetIndexIntoMasterTable(COMMAND, TMDSAOutputControl);
+	    break;
+	case TMDS_EXT:
+	case TMDS_DDIA:
+	    index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
+	    break;
+	case TMDS_LVTMA:
+	    index = GetIndexIntoMasterTable(COMMAND, LVTMAOutputControl);
+	    break;
+	default:
+	    return;
+	}
+    } else if (radeon_output->MonType == MT_LCD) {
+	index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
+    } else if (radeon_output->MonType == MT_STV ||
+               radeon_output->MonType == MT_CTV) {
+	index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
+    } else if (radeon_output->MonType == MT_CV) {
+	index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
+    } else
+	return;
+
+    switch (mode) {
+    case DPMSModeOn:
+	atombios_display_device_control(info->atomBIOS, index, ATOM_ENABLE);
+	break;
+    case DPMSModeStandby:
+    case DPMSModeSuspend:
+    case DPMSModeOff:
+	atombios_display_device_control(info->atomBIOS, index, ATOM_DISABLE);
+	break;
+    }
+}
+
 void
 atombios_output_dpms(xf86OutputPtr output, int mode)
 {
@@ -817,54 +820,18 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
 
     /*ErrorF("output dpms %d\n", mode);*/
-
-    if (radeon_output->MonType == MT_LCD) {
-	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT) {
-	    if (IS_DCE3_VARIANT)
-		atombios_output_dig_dpms(output, mode, 2);
+    if (IS_DCE3_VARIANT) {
+	if (radeon_output->MonType == MT_LCD)
+	    atombios_dig_dpms(output, mode);
+	else if (radeon_output->MonType == MT_DFP) {
+	    if (radeon_output->TMDSType >= TMDS_LVTMA)
+		atombios_dig_dpms(output, mode);
 	    else
-		atombios_device_dpms(output, ATOM_DEVICE_LCD1_SUPPORT, mode);
-	}
-    } else if (radeon_output->MonType == MT_DFP) {
-	/*ErrorF("tmds dpms\n");*/
-	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT) {
-	    if (IS_DCE3_VARIANT)
-		atombios_output_dig_dpms(output, mode, 1);
-	    else
-		atombios_device_dpms(output, ATOM_DEVICE_DFP1_SUPPORT, mode);
-	} else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT) {
-	    if (IS_DCE32_VARIANT)
-		atombios_output_dig_dpms(output, mode, 2);
-	    else if (IS_DCE3_VARIANT)
-		return; // fixme
-	    else
-		atombios_device_dpms(output, ATOM_DEVICE_DFP2_SUPPORT, mode);
-	} else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT) {
-	    if (IS_DCE3_VARIANT)
-		atombios_output_dig_dpms(output, mode, 0);
-	    else
-		atombios_device_dpms(output, ATOM_DEVICE_DFP3_SUPPORT, mode);
-	} else if (radeon_output->devices & ATOM_DEVICE_DFP4_SUPPORT) {
-	    atombios_output_dig_dpms(output, mode, 1);
-	} else if (radeon_output->devices & ATOM_DEVICE_DFP5_SUPPORT) {
-	    atombios_output_dig_dpms(output, mode, 2);
-	}
-    } else if (radeon_output->MonType == MT_CRT) {
-	/*ErrorF("AGD: dac dpms\n");*/
-	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
-	    atombios_device_dpms(output, ATOM_DEVICE_CRT1_SUPPORT, mode);
-	else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
-	    atombios_device_dpms(output, ATOM_DEVICE_CRT2_SUPPORT, mode);
-    } else if (radeon_output->MonType == MT_CV) {
-	/*ErrorF("AGD: cv dpms\n");*/
-	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-	    atombios_device_dpms(output, ATOM_DEVICE_CV_SUPPORT, mode);
-    } else if (radeon_output->MonType == MT_STV ||
-	       radeon_output->MonType == MT_CTV) {
-	/*ErrorF("AGD: tv dpms\n");*/
-	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-	    atombios_device_dpms(output, ATOM_DEVICE_TV1_SUPPORT, mode);
-    }
+		atombios_device_dpms(output, mode);
+	} else
+	    atombios_device_dpms(output, mode);
+    } else
+	atombios_device_dpms(output, mode);
 
 }
 
