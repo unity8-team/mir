@@ -1065,7 +1065,13 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     surface_state_bo = dri_bo_alloc (pI830->bufmgr, "surface_state",
 				     3 * sizeof (brw_surface_state_padded),
 				     4096);
-    dri_bo_map (surface_state_bo, 1);
+    if (dri_bo_map (surface_state_bo, 1) != 0) {
+	dri_bo_unreference (surface_state_bo);
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+
+	return FALSE;
+    }
     /* Set up the state buffer for the destination surface */
     i965_set_picture_surface_state(surface_state_bo, 0,
 				   pDstPicture, pDst, TRUE);
@@ -1083,7 +1089,15 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     /* Set up the binding table of surface indices to surface state. */
     binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
 				     3 * sizeof (uint32_t), 4096);
-    dri_bo_map (binding_table_bo, 1);
+    if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(binding_table_bo);
+	dri_bo_unreference(surface_state_bo);
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+
+	return FALSE;
+    }
+
     binding_table = binding_table_bo->virtual;
     binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
     dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
@@ -1495,7 +1509,9 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	_emit_batch_header_for_composite (pScrn);
 
     /* Map the vertex_buffer buffer object so we can write to it. */
-    dri_bo_map (render_state->vertex_buffer_bo, 1);
+    if (dri_bo_map (render_state->vertex_buffer_bo, 1) != 0)
+	return;		/* XXX what else to do here? */
+
     vb = render_state->vertex_buffer_bo->virtual;
 
     i = render_state->vb_offset;

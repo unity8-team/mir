@@ -343,6 +343,25 @@ intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
     return target_bo->offset + target_offset;
 }
 
+static int
+intel_alloc_and_map(I830Ptr i830, char *name, int size,
+		    drm_intel_bo **bop, void *virtualp)
+{
+    drm_intel_bo    *bo;
+
+    bo = drm_intel_bo_alloc(i830->bufmgr, name, size, 4096);
+    if (!bo)
+	return -1;
+    if (drm_intel_bo_map(bo, TRUE) != 0) {
+	drm_intel_bo_unreference(bo);
+	return -1;
+    }
+    *bop = bo;
+    *(void **) virtualp = bo->virtual;
+    memset (bo->virtual, 0, size);
+    return 0;
+}
+
 static drm_intel_bo *
 i965_create_dst_surface_state(ScrnInfoPtr scrn,
 			      PixmapPtr pixmap)
@@ -352,13 +371,10 @@ i965_create_dst_surface_state(ScrnInfoPtr scrn,
     drm_intel_bo *pixmap_bo = i830_get_pixmap_bo(pixmap);
     drm_intel_bo *surf_bo;
 
-    surf_bo = drm_intel_bo_alloc(pI830->bufmgr,
-				    "textured video surface state",
-				    4096, 4096);
-    drm_intel_bo_map(surf_bo, TRUE);
-    dest_surf_state = surf_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video surface state", 4096,
+			    &surf_bo, &dest_surf_state) != 0)
+	return NULL;
 
-    memset(dest_surf_state, 0, sizeof(*dest_surf_state));
     dest_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     dest_surf_state->ss0.data_return_format = BRW_SURFACERETURNFORMAT_FLOAT32;
     if (pI830->cpp == 2) {
@@ -408,14 +424,11 @@ i965_create_src_surface_state(ScrnInfoPtr scrn,
     drm_intel_bo *surface_bo;
     struct brw_surface_state *src_surf_state;
 
-    surface_bo = drm_intel_bo_alloc(pI830->bufmgr,
-				    "textured video surface state",
-				    4096, 4096);
-    drm_intel_bo_map(surface_bo, TRUE);
-    src_surf_state = surface_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video surface state", 4096,
+			    &surface_bo, &src_surf_state) != 0)
+	return NULL;
 
     /* Set up the source surface state buffer */
-    memset(src_surf_state, 0, sizeof(struct brw_surface_state));
     src_surf_state->ss0.surface_type = BRW_SURFACE_2D;
     src_surf_state->ss0.surface_format = src_surf_format;
     src_surf_state->ss0.writedisable_alpha = 0;
@@ -449,11 +462,9 @@ i965_create_binding_table(ScrnInfoPtr scrn, drm_intel_bo **surf_bos, int n_surf)
 
     /* Set up a binding table for our surfaces.  Only the PS will use it */
 
-    bind_bo = drm_intel_bo_alloc(pI830->bufmgr,
-				 "textured video binding table",
-				 4096, 4096);
-    drm_intel_bo_map(bind_bo, TRUE);
-    binding_table = bind_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video binding table", 4096,
+			    &bind_bo, &binding_table) != 0)
+	return NULL;
 
     for (i = 0; i < n_surf; i++)
 	binding_table[i] = intel_emit_reloc(bind_bo, i * sizeof(uint32_t),
@@ -471,13 +482,9 @@ i965_create_sampler_state(ScrnInfoPtr scrn)
     drm_intel_bo *sampler_bo;
     struct brw_sampler_state *sampler_state;
 
-    sampler_bo = drm_intel_bo_alloc(pI830->bufmgr,
-				    "textured video sampler state",
-				    4096, 4096);
-    drm_intel_bo_map(sampler_bo, TRUE);
-    sampler_state = sampler_bo->virtual;
-
-    memset(sampler_state, 0, sizeof(struct brw_sampler_state));
+    if (intel_alloc_and_map(pI830, "textured video sampler state", 4096,
+			    &sampler_bo, &sampler_state) != 0)
+	return NULL;
 
     sampler_state->ss0.min_filter = BRW_MAPFILTER_LINEAR;
     sampler_state->ss0.mag_filter = BRW_MAPFILTER_LINEAR;
@@ -496,13 +503,11 @@ i965_create_vs_state(ScrnInfoPtr scrn)
     drm_intel_bo *vs_bo;
     struct brw_vs_unit_state *vs_state;
 
-    vs_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video vs state",
-			       4096, 4096);
-    drm_intel_bo_map(vs_bo, TRUE);
-    vs_state = vs_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video vs state", 4096,
+			    &vs_bo, &vs_state) != 0)
+	return NULL;
 
     /* Set up the vertex shader to be disabled (passthrough) */
-    memset(vs_state, 0, sizeof(*vs_state));
     vs_state->thread4.nr_urb_entries = URB_VS_ENTRIES;
     vs_state->thread4.urb_entry_allocation_size = URB_VS_ENTRY_SIZE - 1;
     vs_state->vs6.vs_enable = 0;
@@ -521,6 +526,9 @@ i965_create_program(ScrnInfoPtr scrn, const uint32_t *program,
 
     prog_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video program",
 				 program_size, 4096);
+    if (!prog_bo)
+	return NULL;
+
     drm_intel_bo_subdata(prog_bo, 0, program_size, program);
 
     return prog_bo;
@@ -536,16 +544,20 @@ i965_create_sf_state(ScrnInfoPtr scrn)
     kernel_bo = i965_create_program(scrn, &sf_kernel_static[0][0],
 				    sizeof(sf_kernel_static));
 
-    sf_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video sf state",
-			       4096, 4096);
-    drm_intel_bo_map(sf_bo, TRUE);
-    sf_state = sf_bo->virtual;
+    if (!kernel_bo)
+	return NULL;
+
+    if (intel_alloc_and_map(pI830, "textured video sf state", 4096,
+			    &sf_bo, &sf_state) != 0)
+    {
+	drm_intel_bo_unreference(kernel_bo);
+	return NULL;
+    }
 
     /* Set up the SF kernel to do coord interp: for each attribute,
      * calculate dA/dx and dA/dy.  Hand these interpolation coefficients
      * back to SF which then hands pixels off to WM.
      */
-    memset(sf_state, 0, sizeof(*sf_state));
     sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
     sf_state->thread0.kernel_start_pointer =
 	intel_emit_reloc(sf_bo, offsetof(struct brw_sf_unit_state, thread0),
@@ -595,13 +607,15 @@ i965_create_wm_state(ScrnInfoPtr scrn, drm_intel_bo *sampler_bo, Bool is_packed)
 	kernel_bo = i965_create_program(scrn, &ps_kernel_planar_static[0][0],
 					sizeof(ps_kernel_planar_static));
     }
+    if (!kernel_bo)
+	return NULL;
 
-    wm_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video wm state",
-			       4096, 4096);
-    drm_intel_bo_map(wm_bo, TRUE);
-    wm_state = wm_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video wm state", sizeof (*wm_state),
+			    &wm_bo, &wm_state)) {
+	drm_intel_bo_unreference(kernel_bo);
+	return NULL;
+    }
 
-    memset(wm_state, 0, sizeof (*wm_state));
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
     wm_state->thread0.kernel_start_pointer =
 	intel_emit_reloc(wm_bo, offsetof(struct brw_wm_unit_state, thread0),
@@ -647,12 +661,10 @@ i965_create_cc_vp_state(ScrnInfoPtr scrn)
     drm_intel_bo *cc_vp_bo;
     struct brw_cc_viewport *cc_viewport;
 
-    cc_vp_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video cc viewport",
-				  4096, 4096);
-    drm_intel_bo_map(cc_vp_bo, TRUE);
-    cc_viewport = cc_vp_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video cc viewport", 4096,
+			    &cc_vp_bo, &cc_viewport) != 0)
+	return NULL;
 
-    memset (cc_viewport, 0, sizeof (*cc_viewport));
     cc_viewport->min_depth = -1.e35;
     cc_viewport->max_depth = 1.e35;
 
@@ -668,11 +680,14 @@ i965_create_cc_state(ScrnInfoPtr scrn)
     struct brw_cc_unit_state *cc_state;
 
     cc_vp_bo = i965_create_cc_vp_state(scrn);
+    if (!cc_vp_bo)
+	return NULL;
 
-    cc_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video cc state",
-			       4096, 4096);
-    drm_intel_bo_map(cc_bo, TRUE);
-    cc_state = cc_bo->virtual;
+    if (intel_alloc_and_map(pI830, "textured video cc state", sizeof(*cc_state),
+			    &cc_bo, &cc_state) != 0) {
+	drm_intel_bo_unreference(cc_vp_bo);
+	return NULL;
+    }
 
     /* Color calculator state */
     memset(cc_state, 0, sizeof(*cc_state));
@@ -809,44 +824,84 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
     /* Upload kernels */
     surf_bos[0] = i965_create_dst_surface_state(pScrn, pPixmap);
+    if (!surf_bos[0])
+	return;
 
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
-	surf_bos[src_surf + 1] =
+	drm_intel_bo *surf_bo =
 	    i965_create_src_surface_state(pScrn,
 					  src_surf_base[src_surf],
 					  src_width[src_surf],
 					  src_height[src_surf],
 					  src_pitch[src_surf],
 					  src_surf_format);
+	if (!surf_bo) {
+	    int	q;
+	    for(q = 0; q < src_surf + 1; q++)
+		drm_intel_bo_unreference(surf_bos[q]);
+	    return;
+	}
+	surf_bos[src_surf + 1] = surf_bo;
     }
     bind_bo = i965_create_binding_table(pScrn, surf_bos, n_src_surf + 1);
     for (i = 0; i < n_src_surf + 1; i++) {
 	drm_intel_bo_unreference(surf_bos[i]);
 	surf_bos[i] = NULL;
     }
+    if (!bind_bo)
+	return;
 
     if (pI830->video.gen4_sampler_bo == NULL)
 	pI830->video.gen4_sampler_bo = i965_create_sampler_state(pScrn);
-    if (pI830->video.gen4_sip_kernel_bo == NULL)
+    if (pI830->video.gen4_sip_kernel_bo == NULL) {
 	pI830->video.gen4_sip_kernel_bo =
 	    i965_create_program(pScrn, &sip_kernel_static[0][0],
 				sizeof(sip_kernel_static));
+	if (!pI830->video.gen4_sip_kernel_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
+    }
 
-    if (pI830->video.gen4_vs_bo == NULL)
+    if (pI830->video.gen4_vs_bo == NULL) {
 	pI830->video.gen4_vs_bo = i965_create_vs_state(pScrn);
-    if (pI830->video.gen4_sf_bo == NULL)
+	if (!pI830->video.gen4_vs_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
+    }
+    if (pI830->video.gen4_sf_bo == NULL) {
 	pI830->video.gen4_sf_bo = i965_create_sf_state(pScrn);
+	if (!pI830->video.gen4_sf_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
+    }
     if (pI830->video.gen4_wm_packed_bo == NULL) {
 	pI830->video.gen4_wm_packed_bo =
 	    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo, TRUE);
+	if (!pI830->video.gen4_wm_packed_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
     }
+
     if (pI830->video.gen4_wm_planar_bo == NULL) {
 	pI830->video.gen4_wm_planar_bo =
 	    i965_create_wm_state(pScrn, pI830->video.gen4_sampler_bo, FALSE);
+	if (!pI830->video.gen4_wm_planar_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
     }
 
-    if (pI830->video.gen4_cc_bo == NULL)
+    if (pI830->video.gen4_cc_bo == NULL) {
 	pI830->video.gen4_cc_bo = i965_create_cc_state(pScrn);
+	if (!pI830->video.gen4_cc_bo) {
+	    drm_intel_bo_unreference(bind_bo);
+	    return;
+	}
+    }
 
     {
 	BEGIN_BATCH(2);
@@ -1033,11 +1088,10 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
 	pbox++;
 
-	vb_bo = drm_intel_bo_alloc(pI830->bufmgr, "textured video vb",
-				   4096, 4096);
-	drm_intel_bo_map(vb_bo, TRUE);
+	if (intel_alloc_and_map(pI830, "textured video vb", 4096,
+				&vb_bo, &vb) != 0)
+	    break;
 
-	vb = vb_bo->virtual;
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
 	vb[i++] = (box_y2 - dyo) * src_scale_y;
