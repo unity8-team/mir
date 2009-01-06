@@ -112,7 +112,9 @@ intel_next_batch(ScrnInfoPtr pScrn)
     else
 	pI830->batch_bo = dri_bo_alloc(pI830->bufmgr, "batch", 4096 * 4, 4096);
 
-    dri_bo_map(pI830->batch_bo, 1);
+    if (dri_bo_map(pI830->batch_bo, 1) != 0)
+	FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
+
     pI830->batch_used = 0;
     pI830->batch_ptr = pI830->batch_bo->virtual;
 }
