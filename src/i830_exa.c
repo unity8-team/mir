@@ -811,14 +811,15 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	if (drm_intel_bo_pin(bo, 4096) != 0) {
-	    /* happen in vt switched */
+	if (pScrn->vtSema && !pI830->use_drm_mode) {
+	    if (drm_intel_bo_pin(bo, 4096) != 0)
+		return FALSE;
+	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
+	} else {
 	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
 		return FALSE;
 	    pixmap->devPrivate.ptr = bo->virtual;
-	} else {
-	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
-	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
 	}
     }
     return TRUE;
@@ -827,6 +828,8 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 static void
 i830_uxa_finish_access (PixmapPtr pixmap)
 {
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -834,10 +837,10 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	if (bo->virtual)
-	    dri_bo_unmap(bo);
-	else
+	if (pScrn->vtSema && !pI830->use_drm_mode)
 	    drm_intel_bo_unpin(bo);
+	else
+	    dri_bo_unmap(bo);
 
 	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
