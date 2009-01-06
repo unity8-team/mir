@@ -2389,8 +2389,9 @@ I830PutImage(ScrnInfoPtr pScrn,
     }
 
     if (pPriv->buf == NULL) {
-	pPriv->buf = i830_allocate_memory(pScrn, "xv buffer", alloc_size, 16,
-					  0);
+	pPriv->buf = i830_allocate_memory(pScrn, "xv buffer",
+					  alloc_size, 0, 16,
+					  0, TILE_NONE);
     }
 
     if (pPriv->buf == NULL)
@@ -2724,7 +2725,7 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
     fbpitch = pI830->cpp * pScrn->displayWidth;
     size = pitch * h;
 
-    pPriv->buf = i830_allocate_memory(pScrn, "xv surface buffer", size, 16, 0);
+    pPriv->buf = i830_allocate_memory(pScrn, "xv surface buffer", size, 0, 16, 0, TILE_NONE);
     if (pPriv->buf == NULL) {
 	xfree(surface->pitches);
 	xfree(surface->offsets);

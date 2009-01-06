@@ -49,7 +49,7 @@ static int alloc_drm_memory_tiled(ScrnInfoPtr pScrn,
 	char *name, size_t size, unsigned long pitch, unsigned long alignment)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    if ((mem->buffer = i830_allocate_memory_tiled(pScrn, 
+    if ((mem->buffer = i830_allocate_memory(pScrn,
 	    name, size, pitch,
 	    GTT_PAGE_SIZE, ALIGN_BOTH_ENDS, TILE_XMAJOR)) == NULL) {
 	ErrorF("Fail to alloc \n");
@@ -75,8 +75,8 @@ static int alloc_drm_memory(ScrnInfoPtr pScrn,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     if ((mem->buffer = i830_allocate_memory(pScrn, 
-	    name, size, 
-	    GTT_PAGE_SIZE, ALIGN_BOTH_ENDS)) == NULL) {
+	    name, size, PITCH_NONE, GTT_PAGE_SIZE,
+	    ALIGN_BOTH_ENDS, TILE_NONE)) == NULL) {
 	ErrorF("Fail to alloc \n");
 	return BadAlloc;
     }

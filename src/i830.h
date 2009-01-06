@@ -141,6 +141,8 @@ enum tile_format {
     TILE_YMAJOR
 };
 
+#define PITCH_NONE 0
+
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
 struct _i830_memory {
@@ -843,13 +845,9 @@ Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr pScrn);
 i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
-				   unsigned long size, unsigned long alignment,
-				   int flags);
-i830_memory *i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
-					unsigned long size,
-					unsigned long pitch,
-					unsigned long alignment, int flags,
-					enum tile_format tile_format);
+				   unsigned long size, unsigned long pitch,
+				   unsigned long alignment, int flags,
+				   enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
@@ -869,6 +867,13 @@ extern void i830_update_front_offset(ScrnInfoPtr pScrn);
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
+
+Bool
+i830_tiled_width(I830Ptr i830, int *width, int cpp);
+
+int
+i830_pad_drawable_width(int width, int cpp);
+
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);

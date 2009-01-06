@@ -1571,12 +1571,14 @@ i830_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
     unsigned long rotate_pitch;
     int align = KB(4), size;
 
-    rotate_pitch = pScrn->displayWidth * pI830->cpp;
+    width = i830_pad_drawable_width(width, pI830->cpp);
+    rotate_pitch = width * pI830->cpp;
     size = rotate_pitch * height;
 
     assert(intel_crtc->rotate_mem == NULL);
     intel_crtc->rotate_mem = i830_allocate_memory(pScrn, "rotated crtc",
-						  size, align, 0);
+						  size, rotate_pitch, align,
+						  0, TILE_NONE);
     if (intel_crtc->rotate_mem == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't allocate shadow memory for rotated CRTC\n");
@@ -1595,13 +1597,13 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned long rotate_pitch;
+    int rotate_pitch;
     PixmapPtr rotate_pixmap;
 
     if (!data)
 	data = i830_crtc_shadow_allocate (crtc, width, height);
     
-    rotate_pitch = pScrn->displayWidth * pI830->cpp;
+    rotate_pitch = i830_pad_drawable_width(width, pI830->cpp) * pI830->cpp;
 
     rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					   width, height,
