@@ -312,6 +312,8 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 		if (radeon_output->lvds_misc & (1 << 1))
 		    disp_data.ucMisc |= (1 << 1);
 	    } else {
+		if (radeon_output->linkb)
+		    disp_data.ucMisc |= PANEL_ENCODER_MISC_TMDS_LINKB;
 		if (mode->Clock > 165000)
 		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 		if (pScrn->rgbBits == 8)
@@ -352,6 +354,8 @@ atombios_output_digital_setup(xf86OutputPtr output, int device, DisplayModePtr m
 			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 		}
 	    } else {
+		if (radeon_output->linkb)
+		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_TMDS_LINKB;
 		if (mode->Clock > 165000)
 		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 	    }
@@ -441,7 +445,10 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, int device, DisplayModeP
 	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
 	disp_data.ucLaneNum = 8;
     } else {
-	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
+	if (radeon_output->linkb)
+	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
+	else
+	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
 	disp_data.ucLaneNum = 4;
     }
 
