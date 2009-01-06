@@ -188,7 +188,8 @@ uxa_do_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth, int x, int y,
 	    int	dstXoff, dstYoff;
 
 	    if (!access_prepared) {
-		uxa_prepare_access(pDrawable, UXA_ACCESS_RW);
+		if (!uxa_prepare_access(pDrawable, UXA_ACCESS_RW))
+		    return FALSE;
 		access_prepared = TRUE;
 	    }
 
@@ -237,7 +238,8 @@ uxa_do_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth,
 	if (!pPixmap)
 	    return FALSE;
 
-        uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
+        if (!uxa_prepare_access (pDrawable, UXA_ACCESS_RW))
+	    return FALSE;
 	fbCopyArea((DrawablePtr)pPixmap, pDrawable, pGC, sx, sy, sw, sh, dx, dy);
 	uxa_finish_access(pDrawable);
 
@@ -262,7 +264,8 @@ uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, unsigned int form
 {
     if (!uxa_do_shm_put_image(pDrawable, pGC, depth, format, w, h, sx, sy, sw, sh,
 			      dx, dy, data)) {
-	uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
+	if (!uxa_prepare_access (pDrawable, UXA_ACCESS_RW))
+	    return;
 	fbShmPutImage(pDrawable, pGC, depth, format, w, h, sx, sy, sw, sh, dx, dy,
 		      data);
 	uxa_finish_access(pDrawable);
@@ -468,12 +471,14 @@ fallback:
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pSrcDrawable, pDstDrawable,
 		  uxa_drawable_location(pSrcDrawable),
 		  uxa_drawable_location(pDstDrawable)));
-    uxa_prepare_access (pDstDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access (pSrcDrawable, UXA_ACCESS_RO);
-    fbCopyNtoN (pSrcDrawable, pDstDrawable, pGC, pbox, nbox, dx, dy, reverse,
-		upsidedown, bitplane, closure);
-    uxa_finish_access (pSrcDrawable);
-    uxa_finish_access (pDstDrawable);
+    if (uxa_prepare_access (pDstDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access (pSrcDrawable, UXA_ACCESS_RO)) {
+	    fbCopyNtoN (pSrcDrawable, pDstDrawable, pGC, pbox, nbox, dx, dy,
+			reverse, upsidedown, bitplane, closure);
+	    uxa_finish_access (pSrcDrawable);
+	}
+	uxa_finish_access (pDstDrawable);
+    }
 }
 
 RegionPtr
@@ -1024,9 +1029,10 @@ fallback:
     UXA_FALLBACK(("from %p (%c)\n", pDrawable,
 		  uxa_drawable_location(pDrawable)));
 
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RO);
-    fbGetImage (pDrawable, x, y, w, h, format, planeMask, d);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RO)) {
+	fbGetImage (pDrawable, x, y, w, h, format, planeMask, d);
+	uxa_finish_access (pDrawable);
+    }
 
    return;
 }

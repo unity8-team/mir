@@ -182,14 +182,14 @@ typedef struct {
   */
 void exaDDXDriverInit (ScreenPtr pScreen);
 
-void
+Bool
 uxa_prepare_access_window(WindowPtr pWin);
 
 void
 uxa_finish_access_window(WindowPtr pWin);
 
 /* uxa-unaccel.c */
-void
+Bool
 uxa_prepare_access_gc(GCPtr pGC);
 
 void
@@ -351,7 +351,7 @@ uxa_check_composite (CARD8      op,
 #endif
 
 /* uxa.c */
-void
+Bool
 uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access);
 
 void
