@@ -68,18 +68,18 @@ const char *TMDSTypeName[8] = {
   "External",
   "LVTMA",
   "DDIA",
-  "UNIPHY"
-  "UNIPHY1"
-  "UNIPHY2"
+  "UNIPHY",
+  "UNIPHY1",
+  "UNIPHY2",
 };
 
 const char *LVDSTypeName[6] = {
   "None",
   "Internal",
   "LVTMA",
-  "UNIPHY"
-  "UNIPHY1"
-  "UNIPHY2"
+  "UNIPHY",
+  "UNIPHY1",
+  "UNIPHY2",
 };
 
 const char *DACTypeName[4] = {
