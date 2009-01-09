@@ -412,7 +412,7 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 }
 
 static Bool
-NV50EXACheckTexture(PicturePtr ppict)
+NV50EXACheckTexture(PicturePtr ppict, int op)
 {
 	if (ppict->pDrawable->width > 8192 ||
 	    ppict->pDrawable->height > 8192)
@@ -439,6 +439,13 @@ NV50EXACheckTexture(PicturePtr ppict)
 	default:
 		NOUVEAU_FALLBACK("picture filter %d\n", ppict->filter);
 	}
+
+	/* Opengl and Render disagree on what should be sampled outside an XRGB texture (with no repeating).
+	 * Opengl has a hardcoded alpha value of 1.0, while render expects 0.0.
+	 * We assume that clipping is done for untranformed sources.
+	 */
+	if (NV50EXABlendOp[op].src_alpha && !ppict->repeat && ppict->transform && PICT_FORMAT_A(ppict->format) == 0)
+		NOUVEAU_FALLBACK("REPEAT_NONE unsupported for XRGB source\n");
 
 	return TRUE;
 }
@@ -626,7 +633,7 @@ NV50EXACheckComposite(int op,
 	if (!NV50EXACheckRenderTarget(pdpict))
 		NOUVEAU_FALLBACK("render target invalid\n");
 
-	if (!NV50EXACheckTexture(pspict))
+	if (!NV50EXACheckTexture(pspict, op))
 		NOUVEAU_FALLBACK("src picture invalid\n");
 
 	if (pmpict) {
@@ -636,7 +643,7 @@ NV50EXACheckComposite(int op,
 		    NV50EXABlendOp[op].src_blend != BF(ZERO))
 			NOUVEAU_FALLBACK("component-alpha not supported\n");
 
-		if (!NV50EXACheckTexture(pmpict))
+		if (!NV50EXACheckTexture(pmpict, op))
 			NOUVEAU_FALLBACK("mask picture invalid\n");
 	}
 
