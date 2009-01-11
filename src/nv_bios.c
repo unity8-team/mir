@@ -1354,11 +1354,10 @@ static bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index);
 
 static int
-create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I2CDevPtr *newdev)
+create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I2CDevRec *i2cdev)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
-	I2CDevPtr i2cdev;
 
 	if (i2c_index == 0xff) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I2C index == 0xff case not implemented\n");
@@ -1368,19 +1367,14 @@ create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I
 	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
 		return ret;
 
-	if (!(i2cdev = xf86CreateI2CDevRec())) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I2C device allocation failed\n");
-		return -ENOMEM;
-	}
+	memset(i2cdev, 0, sizeof(I2CDevRec));
 	i2cdev->DevName = "init script device";
-	i2cdev->SlaveAddr = address;
 	i2cdev->pI2CBus = pNv->dcb_table.i2c[i2c_index].chan;
+	i2cdev->SlaveAddr = address;
 	if (!xf86I2CDevInit(i2cdev)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't add I2C device\n");
 		return -EINVAL;
 	}
-
-	*newdev = i2cdev;
 
 	return 0;
 }
@@ -1407,7 +1401,7 @@ static bool init_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2];
 	uint8_t count = bios->data[offset + 3];
-	I2CDevPtr i2cdev;
+	I2CDevRec i2cdev;
 	int i;
 
 	if (!iexec->execute)
@@ -1425,7 +1419,7 @@ static bool init_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 		uint8_t data = bios->data[offset + 6 + i * 3];
 		uint8_t value;
 
-		xf86I2CReadByte(i2cdev, i2c_reg, &value);
+		xf86I2CReadByte(&i2cdev, i2c_reg, &value);
 
 		BIOSLOG(pScrn, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, Mask: 0x%02X, Data: 0x%02X\n",
 			offset, i2c_reg, value, mask, data);
@@ -1433,10 +1427,10 @@ static bool init_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 		value = (value & mask) | data;
 
 		if (bios->execute)
-			xf86I2CWriteByte(i2cdev, i2c_reg, value);
+			xf86I2CWriteByte(&i2cdev, i2c_reg, value);
 	}
 
-	xf86DestroyI2CDevRec(i2cdev, TRUE);
+	xf86DestroyI2CDevRec(&i2cdev, FALSE);
 
 	return true;
 }
@@ -1461,7 +1455,7 @@ static bool init_zm_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2];
 	uint8_t count = bios->data[offset + 3];
-	I2CDevPtr i2cdev;
+	I2CDevRec i2cdev;
 	int i;
 
 	if (!iexec->execute)
@@ -1481,11 +1475,11 @@ static bool init_zm_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 			offset, i2c_reg, data);
 
 		if (bios->execute)
-			if (!xf86I2CWriteByte(i2cdev, i2c_reg, data))
+			if (!xf86I2CWriteByte(&i2cdev, i2c_reg, data))
 				break;
 	}
 
-	xf86DestroyI2CDevRec(i2cdev, TRUE);
+	xf86DestroyI2CDevRec(&i2cdev, FALSE);
 
 	return true;
 }
@@ -4700,13 +4694,9 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	memset(&pNv->VBIOS, 0, sizeof(bios_t));
-	if (!(pNv->VBIOS.data = xalloc(NV_PROM_SIZE)))
-		return false;
 
-	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data)) {
-		xfree(pNv->VBIOS.data);
+	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data))
 		return false;
-	}
 
 	pNv->VBIOS.length = pNv->VBIOS.data[2] * 512;
 	if (pNv->VBIOS.length > NV_PROM_SIZE)

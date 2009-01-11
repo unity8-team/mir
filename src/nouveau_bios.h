@@ -24,6 +24,8 @@
 #ifndef __NOUVEAU_BIOS_H__
 #define __NOUVEAU_BIOS_H__
 
+#include "nvreg.h"
+
 #define MAX_NUM_DCB_ENTRIES 16
 
 #define LOC_ON_CHIP 0
@@ -107,7 +109,7 @@ struct pll_lims {
 };
 
 struct nouveau_bios {
-	uint8_t *data;
+	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;
 	bool execute;
 
