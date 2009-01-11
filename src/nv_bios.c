@@ -38,10 +38,12 @@ typedef struct nouveau_bios bios_t;
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10
 
-//#define BIOSLOG(sip, fmt, arg...) xf86DrvMsg(sip->scrnIndex, X_INFO, fmt, ##arg)
-//#define LOG_OLD_VALUE(x) x
+#if 0
+#define BIOSLOG(sip, fmt, arg...) xf86DrvMsg(sip->scrnIndex, X_INFO, fmt, ##arg)
+#else
 #define BIOSLOG(sip, fmt, arg...)
-#define LOG_OLD_VALUE(x)
+#endif
+#define LOG_OLD_VALUE(x) //x
 
 #define BIOS_USLEEP(n) usleep(n)
 
@@ -3715,12 +3717,17 @@ static int parse_bit_A_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 
 	load_table_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
 
+	if (load_table_ptr == 0x0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pointer to BIT loadval table invalid\n");
+		return -EINVAL;
+	}
+
 	version = bios->data[load_table_ptr];
 
 	if (version != 0x10) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "BIT loadval table version %d.%d not supported\n",
 			version >> 4, version & 0xF);
-		return -EINVAL;
+		return -ENOSYS;
 	}
 
 	headerlen = bios->data[load_table_ptr + 1];
