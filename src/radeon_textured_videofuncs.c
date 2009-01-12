@@ -1529,7 +1529,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 #endif
 
 	if (IS_R300_3D || IS_R500_3D) {
-	    if (IS_R300_3D && ((dstw > 1440) || (dsth > 1440)))
+	    if (IS_R300_3D && ((dstw+dsth) > 2880))
 		use_quad = TRUE;
 	    /*
 	     * Set up the scissor area to that of the output size.
@@ -1634,39 +1634,43 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			       (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
 			       (float)(srcX + srcw) + 0.5,                        (float)srcY + 0.5);
 	    } else {
-		VTX_OUT_FILTER((float)dstX,                                    (float)dstY,
-			       (float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0],
-			       (float)srcX + 0.5,                                     (float)srcY + 0.5);
-		VTX_OUT_FILTER((float)dstX,                                    (float)(dstY + dsth * 2),
-			       (float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0],
-			       (float)srcX + 0.5,                                     (float)(srcY + srch * 2) + 0.5);
-		VTX_OUT_FILTER((float)(dstX + dstw * 2),                       (float)dstY,
-			       (float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
-			       (float)(srcX + srcw * 2) + 0.5,                        (float)srcY + 0.5);
+		VTX_OUT_FILTER((float)dstX,                                       (float)dstY,
+			       (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0],
+			       (float)srcX + 0.5,                                 (float)srcY + 0.5);
+		VTX_OUT_FILTER((float)dstX,                                       (float)(dstY + dstw + dsth),
+			       (float)srcX / info->accel_state->texW[0],          ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0],
+			       (float)srcX + 0.5,                                 (float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0) + 0.5);
+		VTX_OUT_FILTER((float)(dstX + dstw + dsth),                       (float)dstY,
+			       ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
+			                                                          (float)srcY / info->accel_state->texH[0],
+			       (float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0) + 0.5,
+			                                                          (float)srcY + 0.5);
 	    }
 	} else {
 	    if (IS_R300_3D || IS_R500_3D) {
 		if (use_quad) {
-		    VTX_OUT((float)dstX,                                           (float)dstY,
-			    (float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0]);
-		    VTX_OUT((float)dstX,                                           (float)(dstY + dsth),
-			    (float)srcX / info->accel_state->texW[0],              (float)(srcY + srch) / info->accel_state->texH[0]);
-		    VTX_OUT((float)(dstX + dstw),                                  (float)(dstY + dsth),
-			    (float)(srcX + srcw) / info->accel_state->texW[0],     (float)(srcY + srch) / info->accel_state->texH[0]);
-		    VTX_OUT((float)(dstX + dstw),                                  (float)dstY,
-			    (float)(srcX + srcw) / info->accel_state->texW[0],     (float)srcY / info->accel_state->texH[0]);
+		    VTX_OUT((float)dstX,                                       (float)dstY,
+			    (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0]);
+		    VTX_OUT((float)dstX,                                       (float)(dstY + dsth),
+			    (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
+		    VTX_OUT((float)(dstX + dstw),                              (float)(dstY + dsth),
+			    (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
+		    VTX_OUT((float)(dstX + dstw),                              (float)dstY,
+			    (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
 		} else {
 		    /*
 		     * Render a big, scissored triangle. This means
-		     * doubling the triangle size and adjusting
+		     * increasing the triangle size and adjusting
 		     * texture coordinates.
 		     */
-		    VTX_OUT((float)dstX,                                           (float)dstY,
-			    (float)srcX / info->accel_state->texW[0],              (float)srcY / info->accel_state->texH[0]);
-		    VTX_OUT((float)dstX,                                           (float)(dstY + dsth * 2),
-			    (float)srcX / info->accel_state->texW[0],              (float)(srcY + srch * 2) / info->accel_state->texH[0]);
-		    VTX_OUT((float)(dstX + dstw * 2),                              (float)dstY,
-			    (float)(srcX + srcw * 2) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+		    VTX_OUT((float)dstX,                              (float)dstY,
+			    (float)srcX / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+		    VTX_OUT((float)dstX,                              (float)(dstY + dsth + dstw),
+			    (float)srcX / info->accel_state->texW[0], ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0]);
+			    
+		    VTX_OUT((float)(dstX + dstw + dsth),              (float)dstY,
+			    ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
+			                                              (float)srcY / info->accel_state->texH[0]);
 		}
 	    } else {
 		/*
