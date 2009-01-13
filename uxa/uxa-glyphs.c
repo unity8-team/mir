@@ -140,6 +140,8 @@ uxa_unrealize_glyph_caches(ScreenPtr    pScreen,
     }
 }
 
+#define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
+
 /* All caches for a single format share a single pixmap for glyph storage,
  * allowing mixing glyphs of different sizes without paying a penalty
  * for switching between source pixmaps. (Note that for a size of font
@@ -158,6 +160,7 @@ uxa_realize_glyph_caches(ScreenPtr    pScreen,
     PictFormatPtr   pPictFormat;
     PixmapPtr	    pPixmap;
     PicturePtr	    pPicture;
+    CARD32          component_alpha;
     int		    height;
     int		    i;
     int		    error;
@@ -190,8 +193,10 @@ uxa_realize_glyph_caches(ScreenPtr    pScreen,
     if (!pPixmap)
 	return FALSE;
 
+    component_alpha = NeedsComponent(pPictFormat->format);
     pPicture = CreatePicture(0, &pPixmap->drawable, pPictFormat,
-			     0, 0, serverClient, &error);
+			     CPComponentAlpha, &component_alpha, serverClient,
+			     &error);
 
     (*pScreen->DestroyPixmap) (pPixmap); /* picture holds a refcount */
 
@@ -728,8 +733,6 @@ uxa_glyphs_intersect(int nlist, GlyphListPtr list, GlyphPtr *glyphs)
 
     return FALSE;
 }
-
-#define NeedsComponent(f) (PICT_FORMAT_A(f) != 0 && PICT_FORMAT_RGB(f) != 0)
 
 void
 uxa_glyphs (CARD8 	 op,
