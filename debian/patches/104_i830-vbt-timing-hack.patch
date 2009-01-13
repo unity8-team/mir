@@ -1,0 +1,20 @@
+diff --git a/src/i830_bios.c b/src/i830_bios.c
+index 72408f0..f727cdd 100644
+--- a/src/i830_bios.c
++++ b/src/i830_bios.c
+@@ -124,13 +124,13 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
+ 	_H_SYNC_OFF(timing_ptr);
+     fixed_mode->HSyncEnd   = fixed_mode->HSyncStart +
+ 	_H_SYNC_WIDTH(timing_ptr);
+-    fixed_mode->HTotal     = fixed_mode->HDisplay +
++    fixed_mode->HTotal     = fixed_mode->HSyncEnd +
+ 	_H_BLANK(timing_ptr);
+     fixed_mode->VSyncStart = fixed_mode->VDisplay +
+ 	_V_SYNC_OFF(timing_ptr);
+     fixed_mode->VSyncEnd   = fixed_mode->VSyncStart +
+ 	_V_SYNC_WIDTH(timing_ptr);
+-    fixed_mode->VTotal     = fixed_mode->VDisplay +
++    fixed_mode->VTotal     = fixed_mode->VSyncEnd +
+ 	_V_BLANK(timing_ptr);
+     fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
+     fixed_mode->type       = M_T_PREFERRED;
