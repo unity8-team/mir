@@ -907,6 +907,36 @@ i830_lvds_get_modes(xf86OutputPtr output)
     DisplayModePtr	    modes;
 
     edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+
+    /* Our LVDS scaler can hit any size, so mark the EDID data as
+     * supporting continuous timings
+     */
+    if (edid_mon) {
+	int i, j = -1;
+	edid_mon->features.msc |= 0x1;
+
+	/* Either find a DS_RANGES block, or replace a DS_VENDOR block,
+	 * smashing it into a DS_RANGES block with wide open refresh to
+	 * match all default modes
+	 */
+	for (i = 0; i < sizeof (edid_mon->det_mon) / sizeof (edid_mon->det_mon[0]); i++)
+	{
+	    if (edid_mon->det_mon[i].type >= DS_VENDOR && j == -1)
+		j = i;
+	    if (edid_mon->det_mon[i].type == DS_RANGES) {
+		j = i;
+		break;
+	    }
+	}
+	if (j != -1) {
+	    struct monitor_ranges   *ranges = &edid_mon->det_mon[j].section.ranges;
+	    edid_mon->det_mon[j].type = DS_RANGES;
+	    ranges->min_v = 0;
+	    ranges->max_v = 200;
+	    ranges->min_h = 0;
+	    ranges->max_h = 200;
+	}
+    }
     xf86OutputSetEDID (output, edid_mon);
     
     modes = xf86OutputGetEDIDModes (output);
