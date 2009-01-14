@@ -423,7 +423,8 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 			for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
 				/* I suspect NV11 is the only card needing cursor byteswapping. */
 				#if X_BYTE_ORDER == X_BIG_ENDIAN
-					*dst++ = BYTE_SWAP_32(*src++);
+					*dst++ = BYTE_SWAP_32(*src);
+					src++;
 				#else
 					*dst++ = *src++;
 				#endif
