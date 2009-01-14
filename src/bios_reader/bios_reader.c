@@ -299,6 +299,9 @@ static void dump_lvds_data(void)
     struct bdb_lvds_lfp_data *lvds_data;
     int num_entries;
     int i;
+    int hdisplay, hsyncstart, hsyncend, htotal;
+    int vdisplay, vsyncstart, vsyncend, vtotal;
+    float clock;
 
     block = find_section(BDB_LVDS_LFP_DATA);
     if (!block) {
@@ -322,6 +325,17 @@ static void dump_lvds_data(void)
 	else
 	    marker = ' ';
 
+	hdisplay   = _H_ACTIVE(timing_data);
+	hsyncstart = hdisplay + _H_SYNC_OFF(timing_data);
+	hsyncend   = hsyncstart + _H_SYNC_WIDTH(timing_data);
+	htotal     = hdisplay + _H_BLANK(timing_data);
+
+	vdisplay   = _V_ACTIVE(timing_data);
+	vsyncstart = vdisplay + _V_SYNC_OFF(timing_data);
+	vsyncend   = vsyncstart + _V_SYNC_WIDTH(timing_data);
+	vtotal     = vdisplay + _V_BLANK(timing_data);
+	clock      = _PIXEL_CLOCK(timing_data) / 1000;
+
 	printf("%c\tpanel type %02i: %dx%d clock %d\n", marker,
 	       i, lfp_data->fp_timing.x_res, lfp_data->fp_timing.y_res,
 	       _PIXEL_CLOCK(timing_data));
@@ -336,15 +350,11 @@ static void dump_lvds_data(void)
 	       (unsigned long)lfp_data->fp_timing.pp_cycle_reg_val);
 	printf("\t\t  PFIT: 0x%08lx\n",
 	       (unsigned long)lfp_data->fp_timing.pfit_reg_val);
-	printf("\t\ttimings: %d %d %d %d %d %d %d %d\n",
-	       _H_ACTIVE(timing_data),
-	       _H_BLANK(timing_data),
-	       _H_SYNC_OFF(timing_data),
-	       _H_SYNC_WIDTH(timing_data),
-	       _V_ACTIVE(timing_data),
-	       _V_BLANK(timing_data),
-	       _V_SYNC_OFF(timing_data),
-	       _V_SYNC_WIDTH(timing_data));
+	printf("\t\ttimings: %d %d %d %d %d %d %d %d %.2f (%s)\n",
+	       hdisplay, hsyncstart, hsyncend, htotal,
+	       vdisplay, vsyncstart, vsyncend, vtotal, clock,
+	       (hsyncend > htotal || vsyncend > vtotal) ?
+	       "BAD!" : "good");
     }
     free(block);
 }
