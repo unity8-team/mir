@@ -786,6 +786,37 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int dpms_state)
 }
 #endif /* DRM_IOCTL_MODESET_CTL && (XF86DRI || DRI2) */
 
+static void
+i830_disable_vga_plane (xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t vgacntrl = INREG(VGACNTRL);
+    uint8_t sr01;
+
+    if (vgacntrl & VGA_DISP_DISABLE)
+	return;
+
+    /*
+       Set bit 5 of SR01;
+       Wait 30us;
+       */
+    OUTREG8(SRX, 1);
+    sr01 = INREG8(SRX + 1);
+    OUTREG8(SRX + 1, sr01 | (1 << 5));
+    usleep(30);
+
+    vgacntrl |= VGA_DISP_DISABLE;
+
+    /* disable center mode */
+    if (IS_I9XX(pI830))
+	vgacntrl &= ~(3 << 24);
+
+    OUTREG(VGACNTRL, vgacntrl);
+    i830WaitForVblank(pScrn);
+
+}
+
 /**
  * Sets the power management mode of the pipe and plane.
  *
@@ -910,8 +941,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	}
 
 	/* Disable the VGA plane that we never use. */
-	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
-	i830WaitForVblank(pScrn);
+	i830_disable_vga_plane (crtc);
 
 	break;
     }
