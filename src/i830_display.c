@@ -1601,6 +1601,7 @@ static PixmapPtr
 i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     I830Ptr pI830 = I830PTR(pScrn);
     int rotate_pitch;
     PixmapPtr rotate_pixmap;
@@ -1621,6 +1622,8 @@ i830_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Couldn't allocate shadow pixmap for rotated CRTC\n");
     }
+    if (intel_crtc->rotate_mem && intel_crtc->rotate_mem->bo)
+	i830_set_pixmap_bo(rotate_pixmap, intel_crtc->rotate_mem->bo);
     return rotate_pixmap;
 }
 
