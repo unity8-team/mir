@@ -205,7 +205,7 @@ I830Sync(ScrnInfoPtr pScrn)
 	* register reads for idle.
 	*/
        emit.irq_seq = &wait.irq_seq;
-       ret = drmCommandWrite(pI830->drmSubFD, DRM_I830_IRQ_EMIT, &emit,
+       ret = drmCommandWriteRead(pI830->drmSubFD, DRM_I830_IRQ_EMIT, &emit,
 			    sizeof(emit));
        if (ret != 0)
 	   FatalError("Failure to emit IRQ: %s\n", strerror(-ret));
