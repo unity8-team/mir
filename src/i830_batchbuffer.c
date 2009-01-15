@@ -117,6 +117,12 @@ intel_next_batch(ScrnInfoPtr pScrn)
 
     pI830->batch_used = 0;
     pI830->batch_ptr = pI830->batch_bo->virtual;
+
+    /* If we are using DRI2, we don't know when another client has executed,
+     * so we have to reinitialize our 3D state per batch.
+     */
+    if (pI830->directRenderingType == DRI2)
+	*pI830->last_3d = LAST_3D_OTHER;
 }
 
 void
