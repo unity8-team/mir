@@ -403,10 +403,21 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
     int index;
     int major, minor;
 
-    if (radeon_crtc->crtc_id)
-	index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-    else
-	index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+    if (IS_DCE32_VARIANT) {
+	if (radeon_crtc->crtc_id)
+	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+	else
+	    index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+    } else {
+	if (radeon_output->type == OUTPUT_LVDS)
+	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+	else {
+	    if (radeon_output->TMDSType == TMDS_LVTMA)
+		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+	    else
+		index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+	}
+    }
 
     atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
@@ -568,10 +579,14 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 	disp_data.v1.usPixelClock = cpu_to_le16((mode->Clock) / 10);
 
-	if (radeon_crtc->crtc_id)
+	if (radeon_output->type == OUTPUT_LVDS)
 	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-	else
-	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+	else {
+	    if (radeon_output->TMDSType == TMDS_LVTMA)
+		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+	    else
+		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+	}
 
 	if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
 	    if (radeon_output->coherent_mode) {
@@ -919,11 +934,18 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DAC2_ENCODER_ID;
 	    } else if (radeon_output->MonType == MT_DFP) {
 		if (IS_DCE3_VARIANT) {
-		    /* we route digital encoders using the CRTC ids */
-		    if (radeon_crtc->crtc_id)
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
-		    else
-			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		    if (IS_DCE32_VARIANT) {
+			/* we route digital encoders using the CRTC ids */
+			if (radeon_crtc->crtc_id)
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+			else
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		    } else {
+			if (radeon_output->TMDSType == TMDS_LVTMA)
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+			else
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		    }
 		} else {
 		    if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
 			crtc_src_param2.ucEncoderID = ATOM_DEVICE_DFP1_INDEX;
@@ -940,8 +962,19 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		else if (radeon_output->type == OUTPUT_DP)
 		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DP;
 	    } else if (radeon_output->MonType == MT_LCD) {
-		if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
-		    crtc_src_param2.ucEncoderID = ATOM_DEVICE_LCD1_INDEX;
+		if (IS_DCE3_VARIANT) {
+		    if (IS_DCE32_VARIANT) {
+			/* we route digital encoders using the CRTC ids */
+			if (radeon_crtc->crtc_id)
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+			else
+			    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
+		    } else
+			crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+		} else {
+		    if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+			crtc_src_param2.ucEncoderID = ATOM_DEVICE_LCD1_INDEX;
+		}
 		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
 	    } else if (OUTPUT_IS_TV) {
 		if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
