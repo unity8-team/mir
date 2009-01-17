@@ -442,6 +442,10 @@ typedef struct _I830Rec {
    /** Number of bytes to be emitted in the current BEGIN_BATCH. */
    uint32_t batch_emitting;
    dri_bo *batch_bo;
+   /** Whether we're in a section of code that can't tolerate flushing */
+   Bool in_batch_atomic;
+   /** Ending batch_used that was verified by i830_start_batch_atomic() */
+   int batch_atomic_limit;
 
 #ifdef I830_XV
    /* For Xvideo */
@@ -590,6 +594,15 @@ typedef struct _I830Rec {
    /* i915 EXA render state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
+
+   struct {
+      int op;
+      PicturePtr pSrcPicture, pMaskPicture, pDstPicture;
+      PixmapPtr pSrc, pMask, pDst;
+      uint32_t dst_format;
+      Bool is_nearest;
+      Bool needs_emit;
+   } i915_render_state;
 
    /* 965 render acceleration state */
    struct gen4_render_state *gen4_render_state;
@@ -940,6 +953,9 @@ Bool i915_check_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 Bool i915_prepare_composite(int op, PicturePtr pSrc, PicturePtr pMask,
 			    PicturePtr pDst, PixmapPtr pSrcPixmap,
 			    PixmapPtr pMaskPixmap, PixmapPtr pDstPixmap);
+void i915_composite(PixmapPtr pDst, int srcX, int srcY,
+		    int maskX, int maskY, int dstX, int dstY, int w, int h);
+void i915_batch_flush_notify(ScrnInfoPtr pScrn);
 /* i965_render.c */
 unsigned int gen4_render_state_size(ScrnInfoPtr pScrn);
 void gen4_render_state_init(ScrnInfoPtr pScrn);

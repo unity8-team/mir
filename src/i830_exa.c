@@ -702,7 +702,7 @@ I830EXAInit(ScreenPtr pScreen)
     {
 	pI830->EXADriverPtr->CheckComposite = i915_check_composite;
    	pI830->EXADriverPtr->PrepareComposite = i915_prepare_composite;
-    	pI830->EXADriverPtr->Composite = i830_composite;
+	pI830->EXADriverPtr->Composite = i915_composite;
     	pI830->EXADriverPtr->DoneComposite = i830_done_composite;
     } else {
  	pI830->EXADriverPtr->CheckComposite = i965_check_composite;
@@ -967,7 +967,7 @@ i830_uxa_init (ScreenPtr pScreen)
     {
 	i830->uxa_driver->check_composite = i915_check_composite;
    	i830->uxa_driver->prepare_composite = i915_prepare_composite;
-    	i830->uxa_driver->composite = i830_composite;
+	i830->uxa_driver->composite = i915_composite;
     	i830->uxa_driver->done_composite = i830_done_composite;
     } else {
  	i830->uxa_driver->check_composite = i965_check_composite;
