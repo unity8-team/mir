@@ -177,7 +177,7 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     disp_data.sXTmdsEncoder.ucEnable = ATOM_ENABLE;
 
     if (mode->Clock > 165000)
-	disp_data.sXTmdsEncoder.ucMisc = 1;
+	disp_data.sXTmdsEncoder.ucMisc = PANEL_ENCODER_MISC_DUAL;
 
     if (pScrn->rgbBits == 8)
 	disp_data.sXTmdsEncoder.ucMisc |= (1 << 1);
