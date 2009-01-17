@@ -46,15 +46,23 @@
 #include "ati_pciids_gen.h"
 
 static int
-atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    int index;
 
-    disp_data.ucAction = 1;
+    memset(&disp_data,0, sizeof(disp_data));
+
+    if (radeon_output->DACType == DAC_PRIMARY)
+	index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
+    else
+	index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
+
+    disp_data.ucAction = ATOM_ENABLE;
 
     if (radeon_output->MonType == MT_CRT)
 	disp_data.ucDacStandard = ATOM_DAC1_PS2;
@@ -77,74 +85,24 @@ atombios_output_dac1_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    break;
 	}
     }
-
     disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
+
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC1 setup success\n");
+	ErrorF("Output DAC setup success\n");
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DAC1 setup failed\n");
+    ErrorF("Output DAC setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
 
 static int
-atombios_output_dac2_setup(xf86OutputPtr output, DisplayModePtr mode)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
-    DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
-    AtomBiosArgRec data;
-    unsigned char *space;
-
-    disp_data.ucAction = 1;
-
-    if (radeon_output->MonType == MT_CRT)
-	disp_data.ucDacStandard = ATOM_DAC2_PS2;
-    else if (radeon_output->MonType == MT_CV)
-	disp_data.ucDacStandard = ATOM_DAC2_CV;
-    else if (OUTPUT_IS_TV) {
-	switch (radeon_output->tvStd) {
-	case TV_STD_NTSC:
-	case TV_STD_NTSC_J:
-	case TV_STD_PAL_60:
-	    disp_data.ucDacStandard = ATOM_DAC2_NTSC;
-	    break;
-	case TV_STD_PAL:
-	case TV_STD_PAL_M:
-	case TV_STD_SCART_PAL:
-	case TV_STD_SECAM:
-	case TV_STD_PAL_CN:
-	    disp_data.ucDacStandard = ATOM_DAC2_PAL;
-	    break;
-	default:
-	    disp_data.ucDacStandard = ATOM_DAC2_NTSC;
-	    break;
-	}
-    }
-
-    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC2 setup success\n");
-	return ATOM_SUCCESS;
-    }
-
-    ErrorF("Output DAC2 setup failed\n");
-    return ATOM_NOT_IMPLEMENTED;
-
-}
-
-static int
-atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
+atombios_output_tv_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
@@ -152,7 +110,9 @@ atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
-    disp_data.sTVEncoder.ucAction = 1;
+    memset(&disp_data,0, sizeof(disp_data));
+
+    disp_data.sTVEncoder.ucAction = ATOM_ENABLE;
 
     if (radeon_output->MonType == MT_CV)
 	disp_data.sTVEncoder.ucTvStandard = ATOM_TV_CV;
@@ -194,11 +154,11 @@ atombios_output_tv1_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output TV1 setup success\n");
+	ErrorF("Output TV setup success\n");
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output TV1 setup failed\n");
+    ErrorF("Output TV setup failed\n");
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -212,12 +172,12 @@ atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
-    disp_data.sXTmdsEncoder.ucEnable = 1;
+    memset(&disp_data,0, sizeof(disp_data));
+
+    disp_data.sXTmdsEncoder.ucEnable = ATOM_ENABLE;
 
     if (mode->Clock > 165000)
 	disp_data.sXTmdsEncoder.ucMisc = 1;
-    else
-	disp_data.sXTmdsEncoder.ucMisc = 0;
 
     if (pScrn->rgbBits == 8)
 	disp_data.sXTmdsEncoder.ucMisc |= (1 << 1);
@@ -243,13 +203,13 @@ atombios_output_ddia_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
+    memset(&disp_data,0, sizeof(disp_data));
+
     disp_data.sDVOEncoder.ucAction = ATOM_ENABLE;
     disp_data.sDVOEncoder.usPixelClock = cpu_to_le16(mode->Clock / 10);
 
     if (mode->Clock > 165000)
 	disp_data.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = PANEL_ENCODER_MISC_DUAL;
-    else
-	disp_data.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = 0;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
     data.exec.dataSpace = (void *)&space;
@@ -276,6 +236,9 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
     unsigned char *space;
     int index;
     int major, minor;
+
+    memset(&disp_data,0, sizeof(disp_data));
+    memset(&disp_data2,0, sizeof(disp_data2));
 
     if (radeon_output->type == OUTPUT_LVDS)
 	index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
@@ -403,6 +366,8 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
     int index;
     int major, minor;
 
+    memset(&disp_data,0, sizeof(disp_data));
+
     if (IS_DCE32_VARIANT) {
 	if (radeon_crtc->crtc_id)
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
@@ -503,6 +468,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
     int major, minor;
 
     memset(&disp_data,0, sizeof(disp_data));
+
     if (IS_DCE32_VARIANT)
 	index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
     else {
@@ -1044,18 +1010,12 @@ atombios_output_mode_set(xf86OutputPtr output,
     atombios_set_output_crtc_source(output);
 
     if (radeon_output->MonType == MT_CRT) {
-	if (radeon_output->DACType == DAC_PRIMARY)
-	    atombios_output_dac1_setup(output, adjusted_mode);
-	else if (radeon_output->DACType == DAC_TVDAC)
-	    atombios_output_dac2_setup(output, adjusted_mode);
+	atombios_output_dac_setup(output, adjusted_mode);
     } else if ((radeon_output->MonType == MT_CTV) ||
 	       (radeon_output->MonType == MT_STV) ||
 	       (radeon_output->MonType == MT_CV)) {
-	if (radeon_output->DACType == DAC_PRIMARY)
-	    atombios_output_dac1_setup(output, adjusted_mode);
-	else if (radeon_output->DACType == DAC_TVDAC)
-	    atombios_output_dac2_setup(output, adjusted_mode);
-	atombios_output_tv1_setup(output, adjusted_mode);
+	atombios_output_dac_setup(output, adjusted_mode);
+	atombios_output_tv_setup(output, adjusted_mode);
     } else {
 	if (IS_DCE3_VARIANT) {
 	    atombios_output_dig_encoder_setup(output, adjusted_mode);
