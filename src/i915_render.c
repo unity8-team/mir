@@ -542,7 +542,7 @@ i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    intel_batch_start_atomic(pScrn, 100);
+    intel_batch_start_atomic(pScrn, 150);
 
     if (pI830->i915_render_state.needs_emit)
 	i915_emit_composite_setup(pScrn);
