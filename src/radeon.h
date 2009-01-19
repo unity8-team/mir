@@ -805,6 +805,7 @@ typedef struct {
 
     Bool want_vblank_interrupts;
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
+    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
     RADEONBIOSInitTable BiosTable;
 
     /* save crtc state for console restore */

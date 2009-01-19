@@ -52,6 +52,9 @@
 
 extern DriverRec RADEON;
 
+#define RADEON_MAX_CRTC 2
+#define RADEON_MAX_BIOS_CONNECTOR 16
+
 typedef enum
 {
     MT_UNKNOWN = -1,
@@ -207,6 +210,11 @@ typedef struct _RADEONCrtcPrivateRec {
     Bool enabled;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
+typedef struct _radeon_encoder {
+    uint16_t encoder_id;
+    void *dev_priv;
+} radeon_encoder_rec, *radeon_encoder_ptr;
+
 typedef struct {
     RADEONDacType DACType;
     RADEONTmdsType TMDSType;
@@ -223,6 +231,7 @@ typedef struct {
     Bool load_detection;
     Bool linkb;
     uint16_t connector_object;
+    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -234,12 +243,10 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONDviType DVIType;
     RADEONTmdsType TMDSType;
     RADEONLvdsType LVDSType;
-    RADEONConnectorType ConnectorType;
     RADEONMonitorType MonType;
     int crtc_num;
     int DDCReg;
-    I2CBusPtr         pI2CBus;
-    RADEONI2CBusRec   ddc_i2c;
+
     uint32_t          ps2_tvdac_adj;
     uint32_t          pal_tvdac_adj;
     uint32_t          ntsc_tvdac_adj;
@@ -282,9 +289,26 @@ typedef struct _RADEONOutputPrivateRec {
 
     char              *name;
     int               output_id;
-    int               devices;
+    //int               devices;
     Bool enabled;
+
+    // re-org
+    uint16_t connector_id;
+    uint32_t devices;
+    uint32_t active_device;
+    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
+    //RADEONConnectorType connector_type;
+    RADEONConnectorType ConnectorType;
+    // DDC info
+    I2CBusPtr         pI2CBus;
+    RADEONI2CBusRec   ddc_i2c;
+    // router info
+    // HDP info
+    // shared_ddc
     Bool shared_ddc;
+    // cvtv pin
+    // preferred mode
+
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {
@@ -587,9 +611,6 @@ typedef struct {
     uint16_t          v_code_timing[MAX_V_CODE_TIMING_LEN];
 
 } RADEONSaveRec, *RADEONSavePtr;
-
-#define RADEON_MAX_CRTC 2
-#define RADEON_MAX_BIOS_CONNECTOR 16
 
 typedef struct
 {

@@ -2712,7 +2712,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     xf86OutputPtr output;
     char *optstr;
-    int i = 0;
+    int i, j;
     int num_vga = 0;
     int num_dvi = 0;
     int num_hdmi = 0;
@@ -2722,6 +2722,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
      * The information should be correct even on a OEM card.
      */
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	info->encoders[i] = NULL;
+	for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++)
+	    info->BiosConnector[i].encoders[j] = NULL;
 	info->BiosConnector[i].valid = FALSE;
 	info->BiosConnector[i].load_detection = TRUE;
 	info->BiosConnector[i].shared_ddc = FALSE;
@@ -2858,6 +2861,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
 	    radeon_output->load_detection = info->BiosConnector[i].load_detection;
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
+	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
+	    for (j = 0; j < RADEON_MAX_BIOS_CONNECTOR; j++)
+		radeon_output->encoders[j] = info->BiosConnector[i].encoders[j];
 
 	    radeon_output->LVDSType = info->BiosConnector[i].LVDSType;
 

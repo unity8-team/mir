@@ -1569,6 +1569,44 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
     }
 }
 
+uint32_t
+radeon_get_device_index(uint32_t device_support)
+{
+    uint32_t device_index = 0;
+
+    if (device_support == 0)
+	return 0;
+
+    while ((device_support & 1) == 0) {
+	device_support >>= 1;
+	device_index++;
+    }
+    return device_index;
+}
+
+radeon_encoder_ptr
+radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_support)
+{
+    RADEONInfoPtr info = RADEONPTR (pScrn);
+    uint32_t device_index = radeon_get_device_index(device_support);
+
+    if (device_support == 0)
+	return NULL;
+
+    if (info->encoders[device_index] != NULL)
+	return info->encoders[device_index];
+    else {
+	info->encoders[device_index] = (radeon_encoder_ptr)xcalloc(1,sizeof(radeon_encoder_rec));
+	if (info->encoders[device_index] != NULL) {
+	    info->encoders[device_index]->encoder_id = encoder_id;
+	    // add dev_priv stuff
+	    return info->encoders[device_index];
+	} else
+	    return NULL;
+    }
+
+}
+
 Bool
 RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 {
@@ -1665,6 +1703,9 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 			info->BiosConnector[i].linkb = TRUE;
 		    else
 			info->BiosConnector[i].linkb = FALSE;
+
+		    info->BiosConnector[i].encoders[radeon_get_device_index(path->usDeviceTag)] =
+			radeon_add_encoder(pScrn, enc_obj_id, path->usDeviceTag);
 
 		    switch(enc_obj_id) {
 		    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
