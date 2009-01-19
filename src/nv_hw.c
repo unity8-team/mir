@@ -354,7 +354,7 @@ int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_s
 	M1 = pll1 & 0xff;
 	N1 = (pll1 >> 8) & 0xff;
 	log2P = (pll1 >> 16) & 0x7; /* never more than 6, and nv30/35 only uses 3 bits */
-	if (pNv->twoStagePLL && pll2 & NV31_RAMDAC_ENABLE_VCO2 && !force_single) {
+	if (pNv->two_reg_pll && pll2 & NV31_RAMDAC_ENABLE_VCO2 && !force_single) {
 		M2 = pll2 & 0xff;
 		N2 = (pll2 >> 8) & 0xff;
 	} else if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
@@ -420,7 +420,7 @@ static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 
 	if (reg1 <= 0x405c)
 		return nv_decode_pll_lowregs(nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4), pll_lim.refclk);
-	if (pNv->twoStagePLL) {
+	if (pNv->two_reg_pll) {
 		bool nv40_single = pNv->Architecture == 0x40 && ((plltype == VPLL1 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL1_ACTIVE) || (plltype == VPLL2 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL2_ACTIVE));
 
 		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)), nv40_single, pll_lim.refclk);
@@ -917,7 +917,7 @@ void NVCalcStateExt (
      * Extended RIVA registers.
      */
     pixelDepth = (bpp + 1)/8;
-    if(pNv->twoStagePLL)
+    if(pNv->two_reg_pll)
         CalcVClock2Stage(dotClock, &VClk, &state->pll, &state->pllB, pNv);
     else
         CalcVClock(dotClock, &VClk, &state->pll, pNv);
@@ -1066,7 +1066,7 @@ void NVLoadStateExt (
        NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, state->vpll);
        if(pNv->twoHeads)
           NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, state->vpll2);
-       if(pNv->twoStagePLL) {
+       if(pNv->two_reg_pll) {
           NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, state->vpllB);
           NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, state->vpll2B);
        }
@@ -1105,7 +1105,7 @@ void NVUnloadStateExt
     state->vpll         = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
     if(pNv->twoHeads)
        state->vpll2     = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
-    if(pNv->twoStagePLL) {
+    if(pNv->two_reg_pll) {
         state->vpllB    = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
         state->vpll2B   = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
     }

@@ -309,7 +309,7 @@ typedef struct _NVRec {
     Bool                alphaCursor;
     unsigned char       DDCBase;
     Bool                twoHeads;
-    Bool                twoStagePLL;
+    bool                two_reg_pll;
     Bool                fpScaler;
     int                 fpWidth;
     int                 fpHeight;

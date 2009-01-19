@@ -327,7 +327,7 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 		return MODE_NO_INTERLACE;
 
 	if (nv_encoder->dcb->type == OUTPUT_ANALOG) {
-		if (mode->Clock > (pNv->twoStagePLL ? 400000 : 350000))
+		if (mode->Clock > (pNv->two_reg_pll ? 400000 : 350000))
 			return MODE_CLOCK_HIGH;
 		if (mode->Clock < 12000)
 			return MODE_CLOCK_LOW;

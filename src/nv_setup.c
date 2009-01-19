@@ -361,7 +361,7 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 
 	pNv->CURSOR           = NULL;  /* can't set this here */
 	pNv->MinVClockFreqKHz = 12000;
-	pNv->MaxVClockFreqKHz = pNv->twoStagePLL ? 400000 : 350000;
+	pNv->MaxVClockFreqKHz = pNv->two_reg_pll ? 400000 : 350000;
 }
 
 void
@@ -439,7 +439,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && implementation != CHIPSET_NV11);
 
 	/* nv30 and nv35 have two stage PLLs, but use only one register; they are dealt with separately */
-	pNv->twoStagePLL = (implementation == CHIPSET_NV31) ||
+	pNv->two_reg_pll = (implementation == CHIPSET_NV31) ||
 			   (implementation == CHIPSET_NV36) ||
 			   (pNv->Architecture >= NV_ARCH_40);
 

@@ -119,11 +119,11 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	if (nv_crtc->head) {
 		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
-		if (pNv->twoStagePLL)
+		if (pNv->two_reg_pll)
 			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
 	} else {
 		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
-		if (pNv->twoStagePLL)
+		if (pNv->two_reg_pll)
 			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
 	}
 	if (pNv->twoHeads)
@@ -156,11 +156,11 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	if (nv_crtc->head) {
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, regp->vpll_a);
-		if (pNv->twoStagePLL)
+		if (pNv->two_reg_pll)
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, regp->vpll_b);
 	} else {
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, regp->vpll_a);
-		if (pNv->twoStagePLL)
+		if (pNv->two_reg_pll)
 			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, regp->vpll_b);
 	}
 
@@ -220,7 +220,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	if (get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
 
-	if (pNv->twoStagePLL || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
+	if (pNv->two_reg_pll || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
 		if (dot_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
 			nv4x_single_stage_pll_mode = true;
 			/* Turn the second set of divider and multiplier off */
@@ -283,7 +283,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 	}
 
-	if ((!pNv->twoStagePLL && pNv->NVArch != 0x30 && pNv->NVArch != 0x35) || nv4x_single_stage_pll_mode)
+	if ((!pNv->two_reg_pll && pNv->NVArch != 0x30 && pNv->NVArch != 0x35) || nv4x_single_stage_pll_mode)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
