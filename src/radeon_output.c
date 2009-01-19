@@ -356,6 +356,49 @@ RADEONConnectorFindMonitor(xf86OutputPtr output)
 	}
     }
 
+    if (radeon_output->MonType == MT_DFP) {
+	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP2_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP3_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP4_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP4_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP5_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP5_SUPPORT;
+	else
+	    radeon_output->active_device = 0;
+    } else if (radeon_output->MonType == MT_CRT) {
+	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CRT1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CRT2_SUPPORT;
+	else
+	    radeon_output->active_device = 0;
+    } else if (radeon_output->MonType == MT_LCD) {
+	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_LCD2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD2_SUPPORT;
+	else
+	    radeon_output->active_device = 0;
+    } else if ((radeon_output->MonType == MT_STV) ||
+	       (radeon_output->MonType == MT_CTV)){
+	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_TV1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_TV2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_TV2_SUPPORT;
+	else
+	    radeon_output->active_device = 0;
+    } else if (radeon_output->MonType == MT_CV) {
+	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CV_SUPPORT;
+	else
+	    radeon_output->active_device = 0;
+    } else
+	radeon_output->active_device = 0;
+
     /* update panel info for RMX */
     if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
 	RADEONUpdatePanelSize(output);
