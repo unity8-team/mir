@@ -249,32 +249,27 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->vpll_a = g70_pll_special_bits << 28 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
-	if (pNv->NVArch > 0x40 && !using_two_pll_stages) {
-		if (nv_crtc->head == 0)
-			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
-		else
-			state->reg580 |= NV_RAMDAC_580_VPLL2_ACTIVE;
-	} else {
-		if (nv_crtc->head == 0)
-			state->reg580 &= ~NV_RAMDAC_580_VPLL1_ACTIVE;
-		else
-			state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
-	}
-
-	/* again nv40 and some nv43 act more like nv3x as described above */
-	if (pNv->NVArch < 0x41)
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL |
-				 NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL;
 	/* The blob uses this always, so let's do the same */
 	if (pNv->Architecture == NV_ARCH_40)
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
 
-	if (nv_crtc->head == 1) {
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
-	} else {
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
+	/* again nv40 and some nv43 act more like nv3x as described above */
+	if (pNv->NVArch < 0x41)
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL |
+				 NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
+
+	state->pllsel |= (nv_crtc->head ? NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2 |
+					  NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2 :
+					  NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL |
+					  NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2);
+
+	if (pNv->NVArch >= 0x40) {
+		if (using_two_pll_stages)
+			state->reg580 &= (nv_crtc->head ? ~NV_RAMDAC_580_VPLL2_ACTIVE :
+							  ~NV_RAMDAC_580_VPLL1_ACTIVE);
+		else
+			state->reg580 |= (nv_crtc->head ? NV_RAMDAC_580_VPLL2_ACTIVE :
+							  NV_RAMDAC_580_VPLL1_ACTIVE);
 	}
 
 	if (using_two_pll_stages)
