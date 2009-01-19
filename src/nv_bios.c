@@ -129,7 +129,7 @@ static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 	uint32_t old_bar0_pramin = 0;
 	int i;
 
-	if (pNv->Architecture >= NV_ARCH_50) {
+	if (pNv->VBIOS.chip_version >= 0x80) {
 		uint32_t vbios_vram = (NV_RD32(pNv->REGS, 0x619f04) & ~0xff) << 8;
 
 		if (!vbios_vram)
@@ -142,7 +142,7 @@ static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 	for (i = 0; i < NV_PROM_SIZE; i++)
 		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET + i);
 
-	if (pNv->Architecture >= NV_ARCH_50)
+	if (pNv->VBIOS.chip_version >= 0x80)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
 }
 
@@ -2743,24 +2743,25 @@ static unsigned int get_init_table_entry_length(bios_t *bios, unsigned int offse
 	return itbl_entry[i].length + bios->data[offset + itbl_entry[i].length_offset]*itbl_entry[i].length_multiplier;
 }
 
+#define MAX_TABLE_OPS 1000
+
 static int parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset, init_exec_t *iexec)
 {
-	/* Parses all commands in a init table. */
-
-	/* We start out executing all commands found in the
-	 * init table. Some op codes may change the status
-	 * of this variable to SKIP, which will cause
-	 * the following op codes to perform no operation until
-	 * the value is changed back to EXECUTE.
+	/* Parses all commands in an init table.
+	 *
+	 * We start out executing all commands found in the init table. Some
+	 * opcodes may change the status of iexec->execute to SKIP, which will
+	 * cause the following opcodes to perform no operation until the value
+	 * is changed back to EXECUTE.
 	 */
-	unsigned char id;
-	int i;
 
-	int count=0;
+	int count = 0, i;
+	uint8_t id;
+
 	/* Loop until INIT_DONE causes us to break out of the loop
 	 * (or until offset > bios length just in case... )
-	 * (and no more than 10000 iterations just in case... ) */
-	while ((offset < bios->length) && (count++ < 10000)) {
+	 * (and no more than MAX_TABLE_OPS iterations, just in case... ) */
+	while ((offset < bios->length) && (count++ < MAX_TABLE_OPS)) {
 		id = bios->data[offset];
 
 		/* Find matching id in itbl_entry */
@@ -2787,6 +2788,15 @@ static int parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset
 		 */
 		offset += get_init_table_entry_length(bios, offset, i);
 	}
+
+	if (offset >= bios->length)
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Offset 0x%04X greater than known bios image length."
+			   "  Corrupt image?\n", offset);
+	if (count >= MAX_TABLE_OPS)
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "More than %d opcodes to a table is unlikely, "
+			   "is the bios image corrupt?\n", MAX_TABLE_OPS);
 
 	return 0;
 }
