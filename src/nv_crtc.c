@@ -264,16 +264,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
 
 	if (nv_crtc->head == 1) {
-		if (!nv4x_single_stage_pll_mode)
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
-		else
-			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2;
 	} else {
-		if (!nv4x_single_stage_pll_mode)
-			state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
-		else
-			state->pllsel &= ~NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
+		state->pllsel |= NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2;
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 	}
 
