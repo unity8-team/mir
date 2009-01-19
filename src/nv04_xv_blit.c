@@ -136,7 +136,7 @@ NVPutBlitImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
                 OUT_RING  (chan, NV04_SCALED_IMAGE_FROM_MEMORY_OPERATION_SRCCOPY);
         } else {
                 BEGIN_RING(chan, sifm,
-				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 2);
+				 NV04_SCALED_IMAGE_FROM_MEMORY_COLOR_FORMAT, 1);
                 OUT_RING  (chan, src_format);
         }
 
