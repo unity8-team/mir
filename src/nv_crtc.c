@@ -211,30 +211,36 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	RIVA_HW_STATE *state = &pNv->ModeReg;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	struct pll_lims pll_lim;
-	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
+	bool using_two_pll_stages = false;
+	/* nvidia uses 0x11f as bogus data when running in single stage mode */
+	int NM1 = 0xbeef, NM2 = 0x11f, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
-	bool nv4x_single_stage_pll_mode = false;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
 
 	if (get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
 
-	if (pNv->two_reg_pll || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
-		if (dot_clock < pll_lim.vco1.maxfreq && pNv->NVArch > 0x40) { /* use a single VCO */
-			nv4x_single_stage_pll_mode = true;
-			/* Turn the second set of divider and multiplier off */
-			/* Bogus data, the same nvidia uses */
-			NM2 = 0x11f;
-			VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
-		} else
-			VClk = getMNP_double(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
+	/* for newer nv4x the blob uses only the first stage of the vpll below a
+	 * certain clock.  for a certain nv4b this is 150MHz.  since the max
+	 * output frequency of the first stage for this card is 300MHz, it is
+	 * assumed the threshold is given by vco1 maxfreq/2
+	 */
+	/* for early nv4x, specifically nv40 and *some* nv43 (devids 0 and 6,
+	 * not 8, others unknown), the blob always uses both plls.  no problem
+	 * has yet been observed in allowing the use a single stage pll on all
+	 * nv43 however.  the behaviour of single stage use is untested on nv40
+	 */
+	if ((pNv->two_reg_pll || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) &&
+	    (pNv->NVArch < 0x41 || dot_clock > (pll_lim.vco1.maxfreq / 2))) {
+		using_two_pll_stages = true;
+		VClk = getMNP_double(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
 	} else
 		VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
 
 	/* magic bits set by the blob (but not the bios), purpose unknown */
 	if (pNv->NVArch == 0x46 || pNv->NVArch == 0x49 || pNv->NVArch == 0x4b)
-		g70_pll_special_bits = (nv4x_single_stage_pll_mode ? 0x4 : 0xc);
+		g70_pll_special_bits = (using_two_pll_stages ? 0xc : 0x4);
 
 	if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35)
 		/* See nvregisters.xml for details. */
@@ -243,7 +249,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		regp->vpll_a = g70_pll_special_bits << 28 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
-	if (nv4x_single_stage_pll_mode) {
+	if (pNv->NVArch > 0x40 && !using_two_pll_stages) {
 		if (nv_crtc->head == 0)
 			state->reg580 |= NV_RAMDAC_580_VPLL1_ACTIVE;
 		else
@@ -255,7 +261,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 			state->reg580 &= ~NV_RAMDAC_580_VPLL2_ACTIVE;
 	}
 
-	/* The NV40 seems to have more similarities to NV3x than other NV4x */
+	/* again nv40 and some nv43 act more like nv3x as described above */
 	if (pNv->NVArch < 0x41)
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL |
 				 NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL;
@@ -271,10 +277,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL;
 	}
 
-	if ((!pNv->two_reg_pll && pNv->NVArch != 0x30 && pNv->NVArch != 0x35) || nv4x_single_stage_pll_mode)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
-	else
+	if (using_two_pll_stages)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
+	else
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 
 	if (pNv->Architecture < NV_ARCH_30)
 		nv4_10UpdateArbitrationSettings(pScrn, VClk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
