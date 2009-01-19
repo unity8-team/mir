@@ -232,21 +232,15 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	} else
 		VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
 
-	/* Are these all the (relevant) G70 cards? */
-	if (pNv->NVArch == 0x4B || pNv->NVArch == 0x46 || pNv->NVArch == 0x47 || pNv->NVArch == 0x49) {
-		/* This is a big guess, but should be reasonable until we can narrow it down. */
-		/* What exactly are the purpose of the upper 2 bits of pll_a and pll_b? */
-		if (nv4x_single_stage_pll_mode)
-			g70_pll_special_bits = 0x1;
-		else
-			g70_pll_special_bits = 0x3;
-	}
+	/* magic bits set by the blob (but not the bios), purpose unknown */
+	if (pNv->NVArch == 0x46 || pNv->NVArch == 0x49 || pNv->NVArch == 0x4b)
+		g70_pll_special_bits = (nv4x_single_stage_pll_mode ? 0x4 : 0xc);
 
 	if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35)
 		/* See nvregisters.xml for details. */
 		regp->vpll_a = (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | log2P << 16 | NV30_RAMDAC_ENABLE_VCO2 | (NM2 & 7) << 4 | NM1;
 	else
-		regp->vpll_a = g70_pll_special_bits << 30 | log2P << 16 | NM1;
+		regp->vpll_a = g70_pll_special_bits << 28 | log2P << 16 | NM1;
 	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
 
 	if (nv4x_single_stage_pll_mode) {
