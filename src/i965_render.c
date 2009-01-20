@@ -506,6 +506,7 @@ typedef struct gen4_composite_op {
     sampler_state_filter_t mask_filter;
     sampler_state_extend_t src_extend;
     sampler_state_extend_t mask_extend;
+    Bool is_affine;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -941,10 +942,8 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     struct gen4_render_state *render_state= pI830->gen4_render_state;
     gen4_composite_op *composite_op = &render_state->composite_op;
     int op = composite_op->op;
-    PicturePtr pSrcPicture = composite_op->source_picture;
     PicturePtr pMaskPicture = composite_op->mask_picture;
     PicturePtr pDstPicture = composite_op->dest_picture;
-    PixmapPtr pSrc = composite_op->source;
     PixmapPtr pMask = composite_op->mask;
     PixmapPtr pDst = composite_op->dest;
     uint32_t sf_state_offset;
@@ -952,7 +951,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     sampler_state_filter_t mask_filter = composite_op->mask_filter;
     sampler_state_extend_t src_extend = composite_op->src_extend;
     sampler_state_extend_t mask_extend = composite_op->mask_extend;
-    Bool is_affine_src, is_affine_mask, is_affine;
+    Bool is_affine = composite_op->is_affine;
     int urb_vs_start, urb_vs_size;
     int urb_gs_start, urb_gs_size;
     int urb_clip_start, urb_clip_size;
@@ -972,26 +971,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
-
-    pI830->scale_units[0][0] = pSrc->drawable.width;
-    pI830->scale_units[0][1] = pSrc->drawable.height;
-
-    pI830->transform[0] = pSrcPicture->transform;
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-
-    if (!pMask) {
-	pI830->transform[1] = NULL;
-	pI830->scale_units[1][0] = -1;
-	pI830->scale_units[1][1] = -1;
-	is_affine_mask = TRUE;
-    } else {
-	pI830->transform[1] = pMaskPicture->transform;
-	pI830->scale_units[1][0] = pMask->drawable.width;
-	pI830->scale_units[1][1] = pMask->drawable.height;
-	is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-    }
-
-    is_affine = is_affine_src && is_affine_mask;
 
     state_base_offset = pI830->gen4_render_state_mem->offset;
     assert((state_base_offset & 63) == 0);
@@ -1372,6 +1351,25 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    I830FALLBACK("Couldn't fit render operation in aperture\n");
     }
 
+    pI830->scale_units[0][0] = pSrc->drawable.width;
+    pI830->scale_units[0][1] = pSrc->drawable.height;
+
+    pI830->transform[0] = pSrcPicture->transform;
+    composite_op->is_affine =
+	i830_transform_is_affine(pI830->transform[0]);
+
+    if (!pMask) {
+	pI830->transform[1] = NULL;
+	pI830->scale_units[1][0] = -1;
+	pI830->scale_units[1][1] = -1;
+    } else {
+	pI830->transform[1] = pMaskPicture->transform;
+	pI830->scale_units[1][0] = pMask->drawable.width;
+	pI830->scale_units[1][1] = pMask->drawable.height;
+	composite_op->is_affine |=
+	    i830_transform_is_affine(pI830->transform[1]);
+    }
+
     i965_emit_composite_state(pScrn);
 
     return TRUE;
@@ -1385,15 +1383,11 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state = pI830->gen4_render_state;
     Bool has_mask;
-    Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
     int i;
     float *vb;
+    Bool is_affine = render_state->composite_op.is_affine;
 
-    is_affine_src = i830_transform_is_affine (pI830->transform[0]);
-    is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
-    is_affine = is_affine_src && is_affine_mask;
-    
     if (is_affine)
     {
 	if (!i830_get_transformed_coordinates(srcX, srcY,
