@@ -520,6 +520,8 @@ struct gen4_render_state {
 
     int vb_offset;
     int vertex_size;
+
+    Bool needs_state_emit;
 };
 
 /**
@@ -962,12 +964,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     uint32_t src_blend, dst_blend;
     dri_bo *binding_table_bo = composite_op->binding_table_bo;
 
-    if (render_state->vertex_buffer_bo == NULL) {
-	render_state->vertex_buffer_bo = dri_bo_alloc (pI830->bufmgr, "vb",
-						       sizeof (gen4_vertex_buffer),
-						       4096);
-	render_state->vb_offset = 0;
-    }
+    render_state->needs_state_emit = FALSE;
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -1370,9 +1367,42 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	    i830_transform_is_affine(pI830->transform[1]);
     }
 
-    i965_emit_composite_state(pScrn);
+    render_state->needs_state_emit = TRUE;
 
     return TRUE;
+}
+
+static drm_intel_bo *
+i965_get_vb_space(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state = pI830->gen4_render_state;
+
+    /* If the vertex buffer is too full, then we free the old and a new one
+     * gets made.
+     */
+    if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE >
+	VERTEX_BUFFER_SIZE) {
+	drm_intel_bo_unreference(render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+    }
+
+    /* Alloc a new vertex buffer if necessary. */
+    if (render_state->vertex_buffer_bo == NULL) {
+	render_state->vertex_buffer_bo = drm_intel_bo_alloc(pI830->bufmgr, "vb",
+							    sizeof(gen4_vertex_buffer),
+							    4096);
+	render_state->vb_offset = 0;
+    }
+
+    /* Map the vertex_buffer buffer object so we can write to it. */
+    if (drm_intel_bo_map(render_state->vertex_buffer_bo, 1) != 0) {
+	ErrorF("i965_get_vb_space(): couldn't map vb\n");
+	return NULL;
+    }
+
+    drm_intel_bo_reference(render_state->vertex_buffer_bo);
+    return render_state->vertex_buffer_bo;
 }
 
 void
@@ -1385,6 +1415,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     Bool has_mask;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
     int i;
+    drm_intel_bo *vb_bo;
     float *vb;
     Bool is_affine = render_state->composite_op.is_affine;
 
@@ -1458,30 +1489,10 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    /* We're about to do a BEGIN_BATCH(12) for the vertex setup. And
-     * we first need to ensure that that's not going to cause a flush
-     * since we need to not flush between setting up our vertices in
-     * the VB and emitting them into the batch. */
-    intel_batch_require_space(pScrn, pI830, 12 * 4);
-
-    /* If the vertex buffer is too full, then we flush and re-emit all
-     * necessary state into the batch for the composite operation. */
-    if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE > VERTEX_BUFFER_SIZE) {
-	dri_bo_unreference (render_state->vertex_buffer_bo);
-	render_state->vertex_buffer_bo = NULL;
-    }
-
-    if (!i965_composite_check_aperture(pScrn))
-	intel_batch_flush(pScrn, FALSE);
-    if (render_state->vertex_buffer_bo == NULL)
-	i965_emit_composite_state(pScrn);
-
-    /* Map the vertex_buffer buffer object so we can write to it. */
-    if (dri_bo_map (render_state->vertex_buffer_bo, 1) != 0)
-	return;		/* XXX what else to do here? */
-
-    vb = render_state->vertex_buffer_bo->virtual;
-
+    vb_bo = i965_get_vb_space(pScrn);
+    if (vb_bo == NULL)
+	return;
+    vb = vb_bo->virtual;
     i = render_state->vb_offset;
     /* rect (x2,y2) */
     vb[i++] = (float)(dstX + w);
@@ -1525,8 +1536,14 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	    vb[i++] = mask_w[0];
     }
     assert (i <= VERTEX_BUFFER_SIZE);
+    drm_intel_bo_unmap(vb_bo);
 
-    dri_bo_unmap (render_state->vertex_buffer_bo);
+    if (!i965_composite_check_aperture(pScrn))
+	intel_batch_flush(pScrn, FALSE);
+
+    intel_batch_start_atomic(pScrn, 200);
+    if (render_state->needs_state_emit)
+	i965_emit_composite_state(pScrn);
 
     BEGIN_BATCH(12);
     OUT_BATCH(MI_FLUSH);
@@ -1535,8 +1552,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_RELOC(render_state->vertex_buffer_bo, I915_GEM_DOMAIN_VERTEX, 0,
-	      render_state->vb_offset * 4);
+    OUT_RELOC(vb_bo, I915_GEM_DOMAIN_VERTEX, 0, render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
 
@@ -1553,6 +1569,9 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     ADVANCE_BATCH();
 
     render_state->vb_offset = i;
+    drm_intel_bo_unreference(vb_bo);
+
+    intel_batch_end_atomic(pScrn);
 
 #ifdef I830DEBUG
     ErrorF("sync after 3dprimitive\n");
@@ -1573,6 +1592,8 @@ i965_batch_flush_notify(ScrnInfoPtr pScrn)
 	dri_bo_unreference (render_state->vertex_buffer_bo);
 	render_state->vertex_buffer_bo = NULL;
     }
+
+    render_state->needs_state_emit = TRUE;
 }
 
 /**
