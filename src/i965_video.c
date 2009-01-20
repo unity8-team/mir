@@ -1057,8 +1057,6 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	}
     }
 
-    i965_emit_video_setup(pScrn, bind_bo, n_src_surf);
-
    /* Set up the offset for translating from the given region (in screen
     * coordinates) to the backing pixmap.
     */
@@ -1087,12 +1085,25 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	int i;
 	drm_intel_bo *vb_bo;
 	float *vb;
+	drm_intel_bo *bo_table[] = {
+	    NULL, /* vb_bo */
+	    pI830->batch_bo,
+	    bind_bo,
+	    pI830->video.gen4_sampler_bo,
+	    pI830->video.gen4_sip_kernel_bo,
+	    pI830->video.gen4_vs_bo,
+	    pI830->video.gen4_sf_bo,
+	    pI830->video.gen4_wm_packed_bo,
+	    pI830->video.gen4_wm_planar_bo,
+	    pI830->video.gen4_cc_bo,
+	};
 
 	pbox++;
 
 	if (intel_alloc_and_map(pI830, "textured video vb", 4096,
 				&vb_bo, &vb) != 0)
 	    break;
+	bo_table[0] = vb_bo;
 
 	i = 0;
 	vb[i++] = (box_x2 - dxo) * src_scale_x;
@@ -1113,6 +1124,18 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	drm_intel_bo_unmap(vb_bo);
 
 	i965_pre_draw_debug(pScrn);
+
+	/* If this command won't fit in the current batch, flush.
+	 * Assume that it does after being flushed.
+	 */
+	if (drm_intel_bufmgr_check_aperture_space(bo_table,
+						  ARRAY_SIZE(bo_table)) < 0) {
+	    intel_batch_flush(pScrn, FALSE);
+	}
+
+	intel_batch_start_atomic(pScrn, 100);
+
+	i965_emit_video_setup(pScrn, bind_bo, n_src_surf);
 
 	BEGIN_BATCH(10);
 	/* Set up the pointer to our vertex buffer */
@@ -1135,6 +1158,8 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	OUT_BATCH(0); /* start instance location */
 	OUT_BATCH(0); /* index buffer offset, ignored */
 	ADVANCE_BATCH();
+
+	intel_batch_end_atomic(pScrn);
 
 	drm_intel_bo_unreference(vb_bo);
 
