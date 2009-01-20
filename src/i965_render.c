@@ -1395,12 +1395,6 @@ i965_get_vb_space(ScrnInfoPtr pScrn)
 	render_state->vb_offset = 0;
     }
 
-    /* Map the vertex_buffer buffer object so we can write to it. */
-    if (drm_intel_bo_map(render_state->vertex_buffer_bo, 1) != 0) {
-	ErrorF("i965_get_vb_space(): couldn't map vb\n");
-	return NULL;
-    }
-
     drm_intel_bo_reference(render_state->vertex_buffer_bo);
     return render_state->vertex_buffer_bo;
 }
@@ -1416,7 +1410,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
     int i;
     drm_intel_bo *vb_bo;
-    float *vb;
+    float vb[18];
     Bool is_affine = render_state->composite_op.is_affine;
 
     if (is_affine)
@@ -1492,8 +1486,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     vb_bo = i965_get_vb_space(pScrn);
     if (vb_bo == NULL)
 	return;
-    vb = vb_bo->virtual;
-    i = render_state->vb_offset;
+    i = 0;
     /* rect (x2,y2) */
     vb[i++] = (float)(dstX + w);
     vb[i++] = (float)(dstY + h);
@@ -1536,7 +1529,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	    vb[i++] = mask_w[0];
     }
     assert (i <= VERTEX_BUFFER_SIZE);
-    drm_intel_bo_unmap(vb_bo);
+    drm_intel_bo_subdata(vb_bo, render_state->vb_offset * 4, i * 4, vb);
 
     if (!i965_composite_check_aperture(pScrn))
 	intel_batch_flush(pScrn, FALSE);
@@ -1568,7 +1561,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH(0); /* index buffer offset, ignored */
     ADVANCE_BATCH();
 
-    render_state->vb_offset = i;
+    render_state->vb_offset += i;
     drm_intel_bo_unreference(vb_bo);
 
     intel_batch_end_atomic(pScrn);
