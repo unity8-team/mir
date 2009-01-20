@@ -351,7 +351,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->power_context = NULL;
 #ifdef XF86DRI
     pI830->back_buffer = NULL;
-    pI830->third_buffer = NULL;
     pI830->depth_buffer = NULL;
     pI830->textures = NULL;
 #endif
@@ -367,8 +366,6 @@ i830_free_3d_memory(ScrnInfoPtr pScrn)
 #ifdef XF86DRI
     i830_free_memory(pScrn, pI830->back_buffer);
     pI830->back_buffer = NULL;
-    i830_free_memory(pScrn, pI830->third_buffer);
-    pI830->third_buffer = NULL;
     i830_free_memory(pScrn, pI830->depth_buffer);
     pI830->depth_buffer = NULL;
     i830_free_memory(pScrn, pI830->textures);
@@ -1752,14 +1749,6 @@ i830_allocate_3d_memory(ScrnInfoPtr pScrn)
 
     if (!i830_allocate_backbuffer(pScrn, &pI830->back_buffer, "back buffer"))
 	return FALSE;
-
-    if (pI830->TripleBuffer && !i830_allocate_backbuffer(pScrn,
-							 &pI830->third_buffer,
-							 "third buffer")) {
-       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		  "Failed to allocate third buffer, triple buffering "
-		  "inactive\n");
-    }
 
     if (!i830_allocate_depthbuffer(pScrn))
 	return FALSE;

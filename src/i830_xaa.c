@@ -292,12 +292,6 @@ I830CheckTiling(ScrnInfoPtr pScrn)
    {
        return TRUE;
    }
-   if (pI830->third_buffer != NULL &&
-       pI830->bufferOffset == pI830->third_buffer->offset &&
-       pI830->third_buffer->tiling != TILE_NONE)
-   {
-       return TRUE;
-   }
 #endif
 
    return FALSE;

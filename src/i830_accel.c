@@ -255,11 +255,6 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
       if (pI830->back_buffer->tiling == TILE_YMAJOR)
 	 return FALSE;
       break;
-   case I830_SELECT_THIRD:
-      pI830->bufferOffset = pI830->third_buffer->offset;
-      if (pI830->third_buffer->tiling == TILE_YMAJOR)
-	 return FALSE;
-      break;
    case I830_SELECT_DEPTH:
       pI830->bufferOffset = pI830->depth_buffer->offset;
       if (pI830->depth_buffer->tiling == TILE_YMAJOR)

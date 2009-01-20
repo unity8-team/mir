@@ -465,7 +465,6 @@ typedef struct _I830Rec {
 
 #ifdef XF86DRI
    i830_memory *back_buffer;
-   i830_memory *third_buffer;
    i830_memory *depth_buffer;
    i830_memory *textures;		/**< Compatibility texture memory */
    i830_memory *memory_manager;		/**< DRI memory manager aperture */
@@ -488,7 +487,6 @@ typedef struct _I830Rec {
 
    Bool NeedRingBufferLow;
    Bool allowPageFlip;
-   Bool TripleBuffer;
    Bool tiling;
    Bool fb_compression;
 

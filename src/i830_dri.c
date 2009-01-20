@@ -848,7 +848,6 @@ I830DRIDoMappings(ScreenPtr pScreen)
    /* init to zero to be safe */
    sarea->front_handle = 0;
    sarea->back_handle = 0;
-   sarea->third_handle = 0;
    sarea->depth_handle = 0;
    sarea->tex_handle = 0;
 
@@ -1079,10 +1078,6 @@ I830DRIRefreshArea (ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 
    I830DRIDoRefreshArea(pScrn, num, pbox, pI830->back_buffer->offset);
 
-   if (pI830->third_buffer) {
-      I830DRIDoRefreshArea(pScrn, num, pbox, pI830->third_buffer->offset);
-   }
-
    DamageEmpty(pI830->pDamage);
 }
 #endif
@@ -1169,14 +1164,14 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
 
 	 if (sPriv->pf_current_page & (0x3 << 2)) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & 0x3;
-	    sPriv->pf_current_page |= (sPriv->third_handle ? 2 : 1) << 2;
+	    sPriv->pf_current_page |= 1 << 2;
 
 	    flip.pipes |= 0x2;
 	 }
 
 	 if (sPriv->pf_current_page & 0x3) {
 	    sPriv->pf_current_page = sPriv->pf_current_page & (0x3 << 2);
-	    sPriv->pf_current_page |= sPriv->third_handle ? 2 : 1;
+	    sPriv->pf_current_page |= 1;
 
 	    flip.pipes |= 0x1;
 	 }
@@ -1208,8 +1203,6 @@ I830DRIInitBuffers(WindowPtr pWin, RegionPtr prgn, CARD32 index)
 
    first_buffer = I830_SELECT_BACK;
    last_buffer = I830_SELECT_DEPTH;
-   if (I830PTR(pScrn)->third_buffer)
-      last_buffer = I830_SELECT_THIRD;
 
    for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
       pbox = REGION_RECTS(prgn);
@@ -1358,8 +1351,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
    I830EmitFlush(pScrn);
    first_buffer = I830_SELECT_BACK;
    last_buffer = I830_SELECT_DEPTH;
-   if (pI830->third_buffer)
-      last_buffer = I830_SELECT_THIRD;
 
    for (buffer = first_buffer; buffer <= last_buffer; buffer++) {
       if (!I830SelectBuffer(pScrn, buffer))
@@ -1591,10 +1582,6 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->front_tiled = (pI830->front_buffer->tiling != TILE_NONE);
    sarea->back_tiled = (pI830->back_buffer->tiling != TILE_NONE);
-   if (pI830->third_buffer != NULL)
-       sarea->third_tiled = (pI830->third_buffer->tiling != TILE_NONE);
-   else
-       sarea->third_tiled = FALSE;
    sarea->depth_tiled = (pI830->depth_buffer->tiling != TILE_NONE);
    sarea->rotated_tiled = FALSE;
 
@@ -1602,7 +1589,6 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 
    sarea->front_bo_handle = i830_name_buffer (pScrn, pI830->front_buffer);
    sarea->back_bo_handle = i830_name_buffer (pScrn, pI830->back_buffer);
-   sarea->third_bo_handle = i830_name_buffer (pScrn, pI830->third_buffer);
    sarea->depth_bo_handle = i830_name_buffer (pScrn, pI830->depth_buffer);
 
    /* The rotation is now handled entirely by the X Server, so just leave the
@@ -1695,17 +1681,9 @@ i830_update_dri_mappings(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
        return FALSE;
    }
 
-   if (pI830->third_buffer) {
-       if (!i830_do_addmap(pScrn, pI830->third_buffer, &sarea->third_handle,
-			   &sarea->third_size, &sarea->third_offset)) {
-	   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DRI.\n");
-	   return FALSE;
-       }
-   } else {
-       sarea->third_handle = 0;
-       sarea->third_offset = 0;
-       sarea->third_size = 0;
-   }
+   sarea->third_handle = 0;
+   sarea->third_offset = 0;
+   sarea->third_size = 0;
 
    if (!i830_do_addmap(pScrn, pI830->depth_buffer, &sarea->depth_handle,
 		       &sarea->depth_size, &sarea->depth_offset)) {
