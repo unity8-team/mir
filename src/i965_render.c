@@ -502,6 +502,10 @@ typedef struct gen4_composite_op {
     PixmapPtr	mask;
     PixmapPtr	dest;
     drm_intel_bo *binding_table_bo;
+    sampler_state_filter_t src_filter;
+    sampler_state_filter_t mask_filter;
+    sampler_state_extend_t src_extend;
+    sampler_state_extend_t mask_extend;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -982,8 +986,10 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     PixmapPtr pMask = composite_op->mask;
     PixmapPtr pDst = composite_op->dest;
     uint32_t sf_state_offset;
-    sampler_state_filter_t src_filter, mask_filter;
-    sampler_state_extend_t src_extend, mask_extend;
+    sampler_state_filter_t src_filter = composite_op->src_filter;
+    sampler_state_filter_t mask_filter = composite_op->mask_filter;
+    sampler_state_extend_t src_extend = composite_op->src_extend;
+    sampler_state_extend_t mask_extend = composite_op->mask_extend;
     Bool is_affine_src, is_affine_mask, is_affine;
     int urb_vs_start, urb_vs_size;
     int urb_gs_start, urb_gs_size;
@@ -1060,25 +1066,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
-
-    src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
-    if (src_filter < 0)
-	I830FALLBACK ("Bad src filter 0x%x\n", pSrcPicture->filter);
-    src_extend = sampler_state_extend_from_picture (pSrcPicture->repeatType);
-    if (src_extend < 0)
-	I830FALLBACK ("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
-
-    if (pMaskPicture) {
-	mask_filter = sampler_state_filter_from_picture (pMaskPicture->filter);
-	if (mask_filter < 0)
-	    I830FALLBACK ("Bad mask filter 0x%x\n", pMaskPicture->filter);
-	mask_extend = sampler_state_extend_from_picture (pMaskPicture->repeatType);
-	if (mask_extend < 0)
-	    I830FALLBACK ("Bad mask repeat 0x%x\n", pMaskPicture->repeatType);
-    } else {
-	mask_filter = SAMPLER_STATE_FILTER_NEAREST;
-	mask_extend = SAMPLER_STATE_EXTEND_NONE;
-    }
 
     /* Begin the long sequence of commands needed to set up the 3D
      * rendering pipe
@@ -1331,6 +1318,27 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     uint32_t *binding_table;
     drm_intel_bo *binding_table_bo, *surface_state_bo;
 
+    if (composite_op->src_filter < 0)
+	I830FALLBACK("Bad src filter 0x%x\n", pSrcPicture->filter);
+    composite_op->src_extend =
+	sampler_state_extend_from_picture(pSrcPicture->repeatType);
+    if (composite_op->src_extend < 0)
+	I830FALLBACK("Bad src repeat 0x%x\n", pSrcPicture->repeatType);
+
+    if (pMaskPicture) {
+	composite_op->mask_filter =
+	    sampler_state_filter_from_picture(pMaskPicture->filter);
+	if (composite_op->mask_filter < 0)
+	    I830FALLBACK("Bad mask filter 0x%x\n", pMaskPicture->filter);
+	composite_op->mask_extend =
+	    sampler_state_extend_from_picture(pMaskPicture->repeatType);
+	if (composite_op->mask_extend < 0)
+	    I830FALLBACK("Bad mask repeat 0x%x\n", pMaskPicture->repeatType);
+    } else {
+	composite_op->mask_filter = SAMPLER_STATE_FILTER_NEAREST;
+	composite_op->mask_extend = SAMPLER_STATE_EXTEND_NONE;
+    }
+
     /* Set up the surface states. */
     surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
 				    3 * sizeof (brw_surface_state_padded),
@@ -1394,6 +1402,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     composite_op->dest = pDst;
     drm_intel_bo_unreference(composite_op->binding_table_bo);
     composite_op->binding_table_bo = binding_table_bo;
+    composite_op->src_filter =
+	sampler_state_filter_from_picture(pSrcPicture->filter);
 
     /* Fallback if we can't make this operation fit. */
     return _emit_batch_header_for_composite_check_twice (pScrn);
