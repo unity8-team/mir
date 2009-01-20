@@ -501,6 +501,7 @@ typedef struct gen4_composite_op {
     PixmapPtr	source;
     PixmapPtr	mask;
     PixmapPtr	dest;
+    drm_intel_bo *binding_table_bo;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -992,9 +993,8 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     char *state_base;
     int state_base_offset;
     uint32_t src_blend, dst_blend;
-    uint32_t *binding_table;
     dri_bo *bo_table[NUM_BO];
-    dri_bo *binding_table_bo, *surface_state_bo;
+    dri_bo *binding_table_bo = composite_op->binding_table_bo;
 
     if (render_state->vertex_buffer_bo == NULL) {
 	render_state->vertex_buffer_bo = dri_bo_alloc (pI830->bufmgr, "vb",
@@ -1060,67 +1060,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
-
-    /* Set up the surface states. */
-    surface_state_bo = dri_bo_alloc (pI830->bufmgr, "surface_state",
-				     3 * sizeof (brw_surface_state_padded),
-				     4096);
-    if (dri_bo_map (surface_state_bo, 1) != 0) {
-	dri_bo_unreference (surface_state_bo);
-	dri_bo_unreference (render_state->vertex_buffer_bo);
-	render_state->vertex_buffer_bo = NULL;
-
-	return FALSE;
-    }
-    /* Set up the state buffer for the destination surface */
-    i965_set_picture_surface_state(surface_state_bo, 0,
-				   pDstPicture, pDst, TRUE);
-    /* Set up the source surface state buffer */
-    i965_set_picture_surface_state(surface_state_bo, 1,
-				   pSrcPicture, pSrc, FALSE);
-    if (pMask) {
-	/* Set up the mask surface state buffer */
-	i965_set_picture_surface_state(surface_state_bo, 2,
-				       pMaskPicture, pMask,
-				       FALSE);
-    }
-    dri_bo_unmap (surface_state_bo);
-
-    /* Set up the binding table of surface indices to surface state. */
-    binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
-				     3 * sizeof (uint32_t), 4096);
-    if (dri_bo_map (binding_table_bo, 1) != 0) {
-	dri_bo_unreference(binding_table_bo);
-	dri_bo_unreference(surface_state_bo);
-	dri_bo_unreference (render_state->vertex_buffer_bo);
-	render_state->vertex_buffer_bo = NULL;
-
-	return FALSE;
-    }
-
-    binding_table = binding_table_bo->virtual;
-    binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-		       0 * sizeof (brw_surface_state_padded),
-		       0 * sizeof (uint32_t),
-		       surface_state_bo);
-
-    binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-		       1 * sizeof (brw_surface_state_padded),
-		       1 * sizeof (uint32_t),
-		       surface_state_bo);
-
-    if (pMask) {
-	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-			   2 * sizeof (brw_surface_state_padded),
-			   2 * sizeof (uint32_t),
-			   surface_state_bo);
-    } else {
-	binding_table[2] = 0;
-    }
-    dri_bo_unmap (binding_table_bo);
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
@@ -1376,9 +1315,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     I830Sync(pScrn);
 #endif
 
-    dri_bo_unreference (binding_table_bo);
-    dri_bo_unreference (surface_state_bo);
-
     return TRUE;
 }
 #undef NUM_BO
@@ -1392,6 +1328,62 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
     gen4_composite_op *composite_op = &render_state->composite_op;
+    uint32_t *binding_table;
+    drm_intel_bo *binding_table_bo, *surface_state_bo;
+
+    /* Set up the surface states. */
+    surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
+				    3 * sizeof (brw_surface_state_padded),
+				    4096);
+    if (dri_bo_map(surface_state_bo, 1) != 0)
+	return FALSE;
+    /* Set up the state buffer for the destination surface */
+    i965_set_picture_surface_state(surface_state_bo, 0,
+				   pDstPicture, pDst, TRUE);
+    /* Set up the source surface state buffer */
+    i965_set_picture_surface_state(surface_state_bo, 1,
+				   pSrcPicture, pSrc, FALSE);
+    if (pMask) {
+	/* Set up the mask surface state buffer */
+	i965_set_picture_surface_state(surface_state_bo, 2,
+				       pMaskPicture, pMask,
+				       FALSE);
+    }
+    dri_bo_unmap(surface_state_bo);
+
+    /* Set up the binding table of surface indices to surface state. */
+    binding_table_bo = dri_bo_alloc(pI830->bufmgr, "binding_table",
+				    3 * sizeof(uint32_t), 4096);
+    if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(surface_state_bo);
+	return FALSE;
+    }
+
+    binding_table = binding_table_bo->virtual;
+    binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       0 * sizeof (brw_surface_state_padded),
+		       0 * sizeof (uint32_t),
+		       surface_state_bo);
+
+    binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       1 * sizeof (brw_surface_state_padded),
+		       1 * sizeof (uint32_t),
+		       surface_state_bo);
+
+    if (pMask) {
+	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			   2 * sizeof (brw_surface_state_padded),
+			   2 * sizeof (uint32_t),
+			   surface_state_bo);
+    } else {
+	binding_table[2] = 0;
+    }
+    dri_bo_unmap(binding_table_bo);
+    /* All refs to surface_state are now contained in binding_table_bo. */
+    drm_intel_bo_unreference(surface_state_bo);
 
     composite_op->op = op;
     composite_op->source_picture = pSrcPicture;
@@ -1400,6 +1392,8 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     composite_op->source = pSrc;
     composite_op->mask = pMask;
     composite_op->dest = pDst;
+    drm_intel_bo_unreference(composite_op->binding_table_bo);
+    composite_op->binding_table_bo = binding_table_bo;
 
     /* Fallback if we can't make this operation fit. */
     return _emit_batch_header_for_composite_check_twice (pScrn);
