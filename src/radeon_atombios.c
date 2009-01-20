@@ -2050,7 +2050,11 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
     case ATOM_DEVICE_CV_SUPPORT:
 	switch (dac) {
 	case 1:
-	    if (IS_AVIVO_VARIANT)
+	    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
+		(info->ChipFamily == CHIP_FAMILY_RS400) ||
+		(info->ChipFamily == CHIP_FAMILY_RS480))
+		ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
+	    else if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
 	    else
 		ret = ENCODER_OBJECT_ID_INTERNAL_DAC1;
@@ -2058,8 +2062,12 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	case 2:
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-	    else
-		ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
+	    else {
+		if (info->ChipFamily == CHIP_FAMILY_R200)
+		    ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+		else
+		    ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
+	    }
 	    break;
 	case 3:
 	    if (IS_AVIVO_VARIANT)
@@ -2076,7 +2084,11 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    ret = ENCODER_OBJECT_ID_INTERNAL_LVDS;
 	break;
     case ATOM_DEVICE_DFP1_SUPPORT:
-	if (IS_AVIVO_VARIANT)
+	if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS400) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS480))
+	    ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
+	else if (IS_AVIVO_VARIANT)
 	    ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1;
 	else
 	    ret = ENCODER_OBJECT_ID_INTERNAL_TMDS1;
