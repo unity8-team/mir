@@ -934,46 +934,8 @@ i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
     }
 }
 
-
-static Bool
-_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn,
-					   Bool check_twice);
-
-/* Allocate the dynamic state needed for a composite operation,
- * flushing the current batch if needed to create sufficient space.
- *
- * Even after flushing we check again and return FALSE if the
- * operation still can't fit with an empty batch. Otherwise, returns
- * TRUE.
- */
-static Bool
-_emit_batch_header_for_composite_check_twice (ScrnInfoPtr pScrn)
-{
-     return _emit_batch_header_for_composite_internal (pScrn, TRUE);
-}
-
-/* Allocate the dynamic state needed for a composite operation,
- * flushing the current batch if needed to create sufficient space.
- *
- * See _emit_batch_header_for_composite_check_twice for a safer
- * version, (but this version is fine if the safer version has
- * previously been called for the same composite operation).
- */
 static void
-_emit_batch_header_for_composite (ScrnInfoPtr pScrn)
-{
-    _emit_batch_header_for_composite_internal (pScrn, FALSE);
-}
-
-/* Number of buffer object in our call to check_aperture_size:
- *
- *	batch_bo
- *	vertex_buffer_bo
- */
-#define NUM_BO 2
-
-static Bool
-_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
+i965_emit_composite_state(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
@@ -999,7 +961,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     char *state_base;
     int state_base_offset;
     uint32_t src_blend, dst_blend;
-    dri_bo *bo_table[NUM_BO];
     dri_bo *binding_table_bo = composite_op->binding_table_bo;
 
     if (render_state->vertex_buffer_bo == NULL) {
@@ -1007,23 +968,6 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
 						       sizeof (gen4_vertex_buffer),
 						       4096);
 	render_state->vb_offset = 0;
-    }
-
-    bo_table[0] = pI830->batch_bo;
-    bo_table[1] = render_state->vertex_buffer_bo;
-
-    /* If this command won't fit in the current batch, flush. */
-    if (dri_bufmgr_check_aperture_space (bo_table, NUM_BO) < 0) {
-	intel_batch_flush (pScrn, FALSE);
-
-	if (check_twice) {
-	    bo_table[0] = pI830->batch_bo; /* get refreshed batch_bo */
-	    /* If the command still won't fit in an empty batch, then it's
-	     * just plain too big for the hardware---fallback to software.
-	     */
-	    if (dri_bufmgr_check_aperture_space (bo_table, 1) < 0)
-		return FALSE;
-	}
     }
 
     IntelEmitInvarientState(pScrn);
@@ -1301,10 +1245,27 @@ _emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
     ErrorF("try to sync to show any errors...\n");
     I830Sync(pScrn);
 #endif
-
-    return TRUE;
 }
-#undef NUM_BO
+
+/**
+ * Returns whether the current set of composite state plus vertex buffer is
+ * expected to fit in the aperture.
+ */
+static Bool
+i965_composite_check_aperture(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_composite_op *composite_op = &render_state->composite_op;
+    drm_intel_bo *bo_table[] = {
+	pI830->batch_bo,
+	composite_op->binding_table_bo,
+	render_state->vertex_buffer_bo,
+    };
+
+    return drm_intel_bufmgr_check_aperture_space(bo_table,
+						 ARRAY_SIZE(bo_table)) == 0;
+}
 
 Bool
 i965_prepare_composite(int op, PicturePtr pSrcPicture,
@@ -1405,8 +1366,15 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     composite_op->src_filter =
 	sampler_state_filter_from_picture(pSrcPicture->filter);
 
-    /* Fallback if we can't make this operation fit. */
-    return _emit_batch_header_for_composite_check_twice (pScrn);
+    if (!i965_composite_check_aperture(pScrn)) {
+	intel_batch_flush(pScrn, FALSE);
+	if (!i965_composite_check_aperture(pScrn))
+	    I830FALLBACK("Couldn't fit render operation in aperture\n");
+    }
+
+    i965_emit_composite_state(pScrn);
+
+    return TRUE;
 }
 
 void
@@ -1509,8 +1477,10 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	render_state->vertex_buffer_bo = NULL;
     }
 
+    if (!i965_composite_check_aperture(pScrn))
+	intel_batch_flush(pScrn, FALSE);
     if (render_state->vertex_buffer_bo == NULL)
-	_emit_batch_header_for_composite (pScrn);
+	i965_emit_composite_state(pScrn);
 
     /* Map the vertex_buffer buffer object so we can write to it. */
     if (dri_bo_map (render_state->vertex_buffer_bo, 1) != 0)
