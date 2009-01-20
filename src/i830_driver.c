@@ -323,7 +323,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_PAGEFLIP,	"PageFlip",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -1794,24 +1793,6 @@ I830XvInit(ScrnInfoPtr pScrn)
 #endif
 }
 
-static void
-I830DriOptsInit(ScrnInfoPtr pScrn)
-{
-#ifdef XF86DRI
-    I830Ptr pI830 = I830PTR(pScrn);
-    MessageType from = X_PROBED;
-
-    pI830->allowPageFlip = FALSE;
-    from = (pI830->directRenderingType != DRI_DISABLED &&
-	    xf86GetOptValBool(pI830->Options, OPTION_PAGEFLIP,
-			      &pI830->allowPageFlip)) ? X_CONFIG : X_DEFAULT;
-
-    xf86DrvMsg(pScrn->scrnIndex, from, "Will%s try to enable page flipping\n",
-	       pI830->allowPageFlip ? "" : " not");
-
-#endif /* XF86DRI */
-}
-
 /**
  * This is called per zaphod head (so usually just once) to do initialization
  * before the Screen is created.
@@ -1964,8 +1945,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    I830XvInit(pScrn);
-
-   I830DriOptsInit(pScrn);
 
    if (!xf86SetGamma(pScrn, zeros)) {
        PreInitCleanup(pScrn);
@@ -2879,11 +2858,6 @@ i830_memory_init(ScrnInfoPtr pScrn)
 
     /* If tiling fails we have to disable page flipping & FBC */
     pScrn->displayWidth = savedDisplayWidth;
-    if (pI830->allowPageFlip)
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Couldn't allocate tiled memory, page flipping "
-		"disabled\n");
-    pI830->allowPageFlip = FALSE;
     if (pI830->fb_compression)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		"Couldn't allocate tiled memory, fb compression "
@@ -3312,11 +3286,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    if (!pI830->use_drm_mode)
        I830SwapPipes(pScrn);
-#endif
-
-#ifdef XF86DRI
-   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Page Flipping %sabled\n",
-	      pI830->allowPageFlip ? "en" : "dis");
 #endif
 
    if (I830IsPrimary(pScrn)) {
@@ -3871,15 +3840,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 #ifdef XF86DRI
    if (pI830->directRenderingOpen &&
        pI830->directRenderingType == DRI_XF86DRI) {
-#ifdef DAMAGE
-      if (pI830->pDamage) {
-	 PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
-
-	 DamageUnregister(&pPix->drawable, pI830->pDamage);
-	 DamageDestroy(pI830->pDamage);
-	 pI830->pDamage = NULL;
-      }
-#endif
       pI830->directRenderingOpen = FALSE;
       I830DRICloseScreen(pScreen);
    }

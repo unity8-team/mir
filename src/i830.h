@@ -72,9 +72,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dri.h"
 #include "GL/glxint.h"
 #include "i830_dri.h"
-#ifdef DAMAGE
-#include "damage.h"
-#endif
 #include "drmmode_display.h"
 #endif
 #include "intel_bufmgr.h"
@@ -477,16 +474,11 @@ typedef struct _I830Rec {
    Bool can_resize;
 
    Bool want_vblank_interrupts;
-#ifdef DAMAGE
-   DamagePtr pDamage;
-   RegionRec driRegion;
-#endif
 #endif
 
    Bool need_mi_flush;
 
    Bool NeedRingBufferLow;
-   Bool allowPageFlip;
    Bool tiling;
    Bool fb_compression;
 
