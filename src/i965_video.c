@@ -326,23 +326,6 @@ i965_post_draw_debug(ScrnInfoPtr scrn)
 #define URB_CS_ENTRIES	      0
 #define URB_CS_ENTRY_SIZE     0
 
-/**
- * Little wrapper around drm_intel_bo_reloc to return the initial value you
- * should stuff into the relocation entry.
- *
- * If only we'd done this before settling on the library API.
- */
-static uint32_t
-intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
-		 drm_intel_bo *target_bo, uint32_t target_offset,
-		 uint32_t read_domains, uint32_t write_domain)
-{
-    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
-			    read_domains, write_domain);
-
-    return target_bo->offset + target_offset;
-}
-
 static int
 intel_alloc_and_map(I830Ptr i830, char *name, int size,
 		    drm_intel_bo **bop, void *virtualp)

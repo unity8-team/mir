@@ -1360,24 +1360,24 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     }
 
     binding_table = binding_table_bo->virtual;
-    binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-		       0 * sizeof (brw_surface_state_padded),
-		       0 * sizeof (uint32_t),
-		       surface_state_bo);
+    binding_table[0] = intel_emit_reloc(binding_table_bo,
+					0 * sizeof(uint32_t),
+					surface_state_bo,
+					0 * sizeof(brw_surface_state_padded),
+					I915_GEM_DOMAIN_INSTRUCTION, 0);
 
-    binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-		       1 * sizeof (brw_surface_state_padded),
-		       1 * sizeof (uint32_t),
-		       surface_state_bo);
+    binding_table[1] = intel_emit_reloc(binding_table_bo,
+					1 * sizeof(uint32_t),
+					surface_state_bo,
+					1 * sizeof(brw_surface_state_padded),
+					I915_GEM_DOMAIN_INSTRUCTION, 0);
 
     if (pMask) {
-	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
-	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
-			   2 * sizeof (brw_surface_state_padded),
-			   2 * sizeof (uint32_t),
-			   surface_state_bo);
+	binding_table[2] = intel_emit_reloc(binding_table_bo,
+					    2 * sizeof(uint32_t),
+					    surface_state_bo,
+					    2 * sizeof(brw_surface_state_padded),
+					    I915_GEM_DOMAIN_INSTRUCTION, 0);
     } else {
 	binding_table[2] = 0;
     }

@@ -1023,6 +1023,23 @@ Bool i830_pixmap_tiled(PixmapPtr p);
     if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
 } while(0)
 
+/**
+ * Little wrapper around drm_intel_bo_reloc to return the initial value you
+ * should stuff into the relocation entry.
+ *
+ * If only we'd done this before settling on the library API.
+ */
+static inline uint32_t
+intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
+		 drm_intel_bo *target_bo, uint32_t target_offset,
+		 uint32_t read_domains, uint32_t write_domain)
+{
+    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
+			    read_domains, write_domain);
+
+    return target_bo->offset + target_offset;
+}
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 
