@@ -1588,30 +1588,40 @@ radeon_encoder_ptr
 radeon_get_encoder(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info = RADEONPTR(output->scrn);
 
-    return radeon_output->encoders[radeon_get_device_index(radeon_output->active_device)];
+    return info->encoders[radeon_get_device_index(radeon_output->active_device)];
 
 }
 
-radeon_encoder_ptr
+Bool
 radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_support)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
     uint32_t device_index = radeon_get_device_index(device_support);
+    int i;
 
     if (device_support == 0)
-	return NULL;
+	return FALSE;
 
     if (info->encoders[device_index] != NULL)
-	return info->encoders[device_index];
+	return TRUE;
     else {
+	/* look for the encoder */
+	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	    if ((info->encoders[i] != NULL) && (info->encoders[i]->encoder_id == encoder_id)) {
+		info->encoders[device_index] = info->encoders[i];
+		return TRUE;
+	    }
+	}
+
 	info->encoders[device_index] = (radeon_encoder_ptr)xcalloc(1,sizeof(radeon_encoder_rec));
 	if (info->encoders[device_index] != NULL) {
 	    info->encoders[device_index]->encoder_id = encoder_id;
 	    // add dev_priv stuff
-	    return info->encoders[device_index];
+	    return TRUE;
 	} else
-	    return NULL;
+	    return FALSE;
     }
 
 }
@@ -1626,7 +1636,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
     ATOM_DISPLAY_OBJECT_PATH_TABLE *path_obj;
     ATOM_INTEGRATED_SYSTEM_INFO_V2 *igp_obj = NULL;
-    int i, j, k, path_size, device_support;
+    int i, j, path_size, device_support;
     Bool enable_tv = FALSE;
 
     if (xf86ReturnOptValBool(info->Options, OPTION_ATOM_TVOUT, FALSE))
@@ -1713,8 +1723,8 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		    else
 			info->BiosConnector[i].linkb = FALSE;
 
-		    info->BiosConnector[i].encoders[radeon_get_device_index(path->usDeviceTag)] =
-			radeon_add_encoder(pScrn, enc_obj_id, path->usDeviceTag);
+		    if (!radeon_add_encoder(pScrn, enc_obj_id, path->usDeviceTag))
+			return FALSE;
 
 		    switch(enc_obj_id) {
 		    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
@@ -1811,10 +1821,6 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 			else
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
-			for (k = 0; k < ATOM_MAX_SUPPORTED_DEVICE; k++) {
-			    if (info->BiosConnector[j].encoders[k])
-				info->BiosConnector[i].encoders[k] = info->BiosConnector[j].encoders[k];
-			}
 			info->BiosConnector[j].valid = FALSE;
 		    }
 		}
@@ -2186,11 +2192,11 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    info->BiosConnector[i].ddc_i2c =
 		RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 
-	info->BiosConnector[i].encoders[radeon_get_device_index((1 << i))] =
-	    radeon_add_encoder(pScrn,
-			       radeon_get_encoder_id_from_supported_device(pScrn, (1 << i),
-					     ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC),
-			       (i << 1));
+	if (!radeon_add_encoder(pScrn,
+			   radeon_get_encoder_id_from_supported_device(pScrn, (1 << i),
+					  ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC),
+				(i << 1)))
+	    return FALSE;
 
 	if (i == ATOM_DEVICE_DFP1_INDEX)
 	    info->BiosConnector[i].TMDSType = TMDS_INT;
@@ -2260,7 +2266,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
-			    info->BiosConnector[i].encoders[j] = info->BiosConnector[j].encoders[j];
 			    info->BiosConnector[j].valid = FALSE;
 			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
 			     (j == ATOM_DEVICE_DFP2_INDEX) ||
@@ -2268,7 +2273,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
 			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
-			    info->BiosConnector[i].encoders[j] = info->BiosConnector[j].encoders[j];
 			    info->BiosConnector[i].valid = FALSE;
 			} else {
 			    info->BiosConnector[i].shared_ddc = TRUE;

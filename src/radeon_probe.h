@@ -231,7 +231,6 @@ typedef struct {
     Bool load_detection;
     Bool linkb;
     uint16_t connector_object;
-    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
@@ -296,7 +295,6 @@ typedef struct _RADEONOutputPrivateRec {
     uint16_t connector_id;
     uint32_t devices;
     uint32_t active_device;
-    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
     //RADEONConnectorType connector_type;
     RADEONConnectorType ConnectorType;
     // DDC info
