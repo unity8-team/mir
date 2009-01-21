@@ -1326,8 +1326,10 @@ static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	for (i = 0; i < 5; i++)
 		NVWriteVgaSeq(pNv, nv_crtc->head, i, regp->Sequencer[i]);
 
+	nv_lock_vga_crtc_base(pNv, nv_crtc->head, false);
 	for (i = 0; i < 25; i++)
 		crtc_wr_cio_state(crtc, regp, i);
+	nv_lock_vga_crtc_base(pNv, nv_crtc->head, true);
 
 	for (i = 0; i < 9; i++)
 		NVWriteVgaGr(pNv, nv_crtc->head, i, regp->Graphics[i]);

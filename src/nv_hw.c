@@ -278,29 +278,34 @@ bool nv_heads_tied(NVPtr pNv)
 	return (NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44) == 0x4);
 }
 
-static void NVLockVgaCrtc(NVPtr pNv, int head, bool lock)
+/* makes cr0-7 on the specified head read-only */
+bool nv_lock_vga_crtc_base(NVPtr pNv, int head, bool lock)
 {
-	uint8_t cr11;
+	uint8_t cr11 = NVReadVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX);
+	bool waslocked = cr11 & 0x80;
 
-	NVWriteVgaCrtc(pNv, head, NV_CIO_SR_LOCK_INDEX,
-		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
-
-	cr11 = NVReadVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX);
 	if (lock)
 		cr11 |= 0x80;
 	else
 		cr11 &= ~0x80;
 	NVWriteVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX, cr11);
+
+	return waslocked;
 }
 
+/* renders the extended crtc regs (cr19+) on all crtcs impervious:
+ * immutable and unreadable
+ */
 bool NVLockVgaCrtcs(NVPtr pNv, bool lock)
 {
 	bool waslocked = !NVReadVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX);
 
-	NVLockVgaCrtc(pNv, 0, lock);
-	/* NV11 has independently lockable crtcs, except when tied */
+	NVWriteVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX,
+		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
+	/* NV11 has independently lockable extended crtcs, except when tied */
 	if (pNv->NVArch == 0x11 && !(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28)))
-		NVLockVgaCrtc(pNv, 1, lock);
+		NVWriteVgaCrtc(pNv, 1, NV_CIO_SR_LOCK_INDEX,
+			       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 
 	return waslocked;
 }
