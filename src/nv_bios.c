@@ -129,7 +129,7 @@ static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 	uint32_t old_bar0_pramin = 0;
 	int i;
 
-	if (pNv->VBIOS.chip_version >= 0x80) {
+	if (pNv->Architecture >= NV_ARCH_50) {
 		uint32_t vbios_vram = (NV_RD32(pNv->REGS, 0x619f04) & ~0xff) << 8;
 
 		if (!vbios_vram)
@@ -142,7 +142,7 @@ static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 	for (i = 0; i < NV_PROM_SIZE; i++)
 		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET + i);
 
-	if (pNv->VBIOS.chip_version >= 0x80)
+	if (pNv->Architecture >= NV_ARCH_50)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
 }
 
