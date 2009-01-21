@@ -390,12 +390,6 @@ static const uint32_t ps_kernel_masknoca_projective_static [][4] = {
 #include "exa_wm_write.g4b"
 };
 
-/**
- * Storage for the static kernel data with template name, rounded to 64 bytes.
- */
-#define KERNEL_DECL(template) \
-    uint32_t template [((sizeof (template ## _static) + 63) & ~63) / 16][4];
-
 #define WM_STATE_DECL(kernel) \
     struct brw_wm_unit_state wm_state_ ## kernel[SAMPLER_STATE_FILTER_COUNT] \
 						[SAMPLER_STATE_EXTEND_COUNT] \
@@ -484,18 +478,6 @@ struct gen4_cc_unit_state {
  * state that we use for Render acceleration.
  */
 typedef struct _gen4_static_state {
-    KERNEL_DECL (sip_kernel);
-    KERNEL_DECL (sf_kernel);
-    KERNEL_DECL (sf_kernel_mask);
-    KERNEL_DECL (ps_kernel_nomask_affine);
-    KERNEL_DECL (ps_kernel_nomask_projective);
-    KERNEL_DECL (ps_kernel_maskca_affine);
-    KERNEL_DECL (ps_kernel_maskca_projective);
-    KERNEL_DECL (ps_kernel_maskca_srcalpha_affine);
-    KERNEL_DECL (ps_kernel_maskca_srcalpha_projective);
-    KERNEL_DECL (ps_kernel_masknoca_affine);
-    KERNEL_DECL (ps_kernel_masknoca_projective);
-
     /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
      * the structs happen to add to 32 bytes.
      */
@@ -542,6 +524,7 @@ struct gen4_render_state {
 			     [SAMPLER_STATE_EXTEND_COUNT];
     drm_intel_bo *wm_kernel_bo[WM_KERNEL_COUNT];
 
+    drm_intel_bo *sip_kernel_bo;
     dri_bo* vertex_buffer_bo;
 
     gen4_composite_op composite_op;
@@ -560,7 +543,7 @@ struct gen4_render_state {
  * back to SF which then hands pixels off to WM.
  */
 static drm_intel_bo *
-gen4_create_sf_state(ScrnInfoPtr scrn, int kernel_offset)
+gen4_create_sf_state(ScrnInfoPtr scrn, drm_intel_bo *kernel_bo)
 {
     I830Ptr pI830 = I830PTR(scrn);
     struct brw_sf_unit_state *sf_state;
@@ -573,6 +556,11 @@ gen4_create_sf_state(ScrnInfoPtr scrn, int kernel_offset)
 
     memset(sf_state, 0, sizeof(*sf_state));
     sf_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(SF_KERNEL_NUM_GRF);
+    sf_state->thread0.kernel_start_pointer =
+	intel_emit_reloc(sf_state_bo,
+			 offsetof(struct brw_sf_unit_state, thread0),
+			 kernel_bo, sf_state->thread0.grf_reg_count << 1,
+			 I915_GEM_DOMAIN_INSTRUCTION, 0) >> 6;
     sf_state->sf1.single_program_flow = 1;
     sf_state->sf1.binding_table_entry_count = 0;
     sf_state->sf1.thread_priority = 0;
@@ -599,9 +587,6 @@ gen4_create_sf_state(ScrnInfoPtr scrn, int kernel_offset)
     sf_state->sf7.trifan_pv = 2;
     sf_state->sf6.dest_org_vbias = 0x8;
     sf_state->sf6.dest_org_hbias = 0x8;
-
-    assert((kernel_offset & 63) == 0);
-    sf_state->thread0.kernel_start_pointer = kernel_offset >> 6;
 
     drm_intel_bo_unmap(sf_state_bo);
 
@@ -847,14 +832,6 @@ gen4_static_state_init (gen4_static_state_t *static_state,
 {
     int i, j, k, l;
 
-#define KERNEL_COPY(kernel) \
-    memcpy(static_state->kernel, kernel ## _static, sizeof(kernel ## _static))
-
-    KERNEL_COPY (sip_kernel);
-    KERNEL_COPY (sf_kernel);
-    KERNEL_COPY (sf_kernel_mask);
-#undef KERNEL_COPY
-
     /* Set up the sampler border color (always transparent black) */
     memset(&static_state->sampler_border_color, 0,
 	   sizeof(static_state->sampler_border_color));
@@ -1024,8 +1001,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     int urb_clip_start, urb_clip_size;
     int urb_sf_start, urb_sf_size;
     int urb_cs_start, urb_cs_size;
-    char *state_base;
-    int state_base_offset;
     uint32_t src_blend, dst_blend;
     dri_bo *binding_table_bo = composite_op->binding_table_bo;
     wm_kernel_t wm_kernel;
@@ -1034,10 +1009,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
-
-    state_base_offset = pI830->gen4_render_state_mem->offset;
-    assert((state_base_offset & 63) == 0);
-    state_base = (char *)(pI830->FbBase + state_base_offset);
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;
@@ -1091,7 +1062,8 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_static_state_t, sip_kernel));
+	OUT_RELOC(render_state->sip_kernel_bo,
+		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
     }
@@ -1651,6 +1623,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     uint32_t static_state_offset;
     int ret;
     int i, j, k, l, m;
+    drm_intel_bo *sf_kernel_bo, *sf_kernel_mask_bo;
 
     if (pI830->gen4_render_state == NULL)
 	pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
@@ -1676,15 +1649,21 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 			   render_state->static_state_offset);
 
     render_state->vs_state_bo = gen4_create_vs_unit_state(pScrn);
+
     /* Set up the two SF states (one for blending with a mask, one without) */
-    render_state->sf_state_bo =
-	gen4_create_sf_state(pScrn, static_state_offset +
-			     offsetof(gen4_static_state_t,
-				      sf_kernel));
-    render_state->sf_mask_state_bo =
-	gen4_create_sf_state(pScrn, static_state_offset +
-			     offsetof(gen4_static_state_t,
-				      sf_kernel_mask));
+    sf_kernel_bo = intel_bo_alloc_for_data(pScrn,
+					   sf_kernel_static,
+					   sizeof(sf_kernel_static),
+					   "sf kernel");
+    sf_kernel_mask_bo = intel_bo_alloc_for_data(pScrn,
+						sf_kernel_mask_static,
+						sizeof(sf_kernel_mask_static),
+						"sf mask kernel");
+    render_state->sf_state_bo = gen4_create_sf_state(pScrn, sf_kernel_bo);
+    render_state->sf_mask_state_bo = gen4_create_sf_state(pScrn,
+							  sf_kernel_mask_bo);
+    drm_intel_bo_unreference(sf_kernel_bo);
+    drm_intel_bo_unreference(sf_kernel_mask_bo);
 
     for (m = 0; m < WM_KERNEL_COUNT; m++) {
 	render_state->wm_kernel_bo[m] =
@@ -1717,6 +1696,10 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     }
 
     render_state->cc_state_bo = gen4_create_cc_unit_state(pScrn);
+    render_state->sip_kernel_bo = intel_bo_alloc_for_data(pScrn,
+							  sip_kernel_static,
+							  sizeof(sip_kernel_static),
+							  "sip kernel");
 }
 
 /**
@@ -1751,6 +1734,8 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 	drm_intel_bo_unreference(render_state->wm_kernel_bo[i]);
 	render_state->wm_kernel_bo[i] = NULL;
     }
+    drm_intel_bo_unreference(render_state->sip_kernel_bo);
+    render_state->sip_kernel_bo = NULL;
 }
 
 unsigned int
