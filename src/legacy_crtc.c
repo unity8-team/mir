@@ -1743,10 +1743,10 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
 	if (output->crtc == crtc) {
-	    if (radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT |
-						 ATOM_DEVICE_DFP_SUPPORT))
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT |
+						ATOM_DEVICE_DFP_SUPPORT))
 		pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
-	    if (radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT))
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
 		pll_flags |= (RADEON_PLL_USE_BIOS_DIVS | RADEON_PLL_USE_REF_DIV);
 	}
     }
@@ -1791,7 +1791,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
 	if (output->crtc == crtc) {
-	    if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		switch (radeon_crtc->crtc_id) {
 		case 0:
 		    RADEONAdjustCrtcRegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);
