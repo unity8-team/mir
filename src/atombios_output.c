@@ -74,9 +74,9 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.ucAction = ATOM_ENABLE;
 
-    if (radeon_output->active_device && (ATOM_DEVICE_CRT_SUPPORT))
+    if (radeon_output->active_device & (ATOM_DEVICE_CRT_SUPPORT))
 	disp_data.ucDacStandard = ATOM_DAC1_PS2;
-    else if (radeon_output->active_device && (ATOM_DEVICE_CV_SUPPORT))
+    else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 	disp_data.ucDacStandard = ATOM_DAC1_CV;
     else {
 	switch (radeon_output->tvStd) {
@@ -124,7 +124,7 @@ atombios_output_tv_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.sTVEncoder.ucAction = ATOM_ENABLE;
 
-    if (radeon_output->active_device && (ATOM_DEVICE_CV_SUPPORT))
+    if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 	disp_data.sTVEncoder.ucTvStandard = ATOM_TV_CV;
     else {
 	switch (radeon_output->tvStd) {
@@ -264,7 +264,7 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	if (radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT))
+	if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
 	    index = GetIndexIntoMasterTable(COMMAND, LVDSEncoderControl);
 	else
 	    index = GetIndexIntoMasterTable(COMMAND, TMDS2EncoderControl);
@@ -285,7 +285,7 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    if (radeon_output->type == OUTPUT_HDMI)
 		disp_data.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
-	    if (radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT)) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 		if (radeon_output->lvds_misc & (1 << 0))
 		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 		if (radeon_output->lvds_misc & (1 << 1))
@@ -317,7 +317,7 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    disp_data2.ucSpatial = 0;
 	    disp_data2.ucTemporal = 0;
 	    disp_data2.ucFRC = 0;
-	    if (radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT)) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 		if (radeon_output->lvds_misc & (1 << 0))
 		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 		if (radeon_output->lvds_misc & (1 << 5)) {

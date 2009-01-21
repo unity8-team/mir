@@ -763,7 +763,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    RADEONDacPowerSet(pScrn, bEnable, TRUE);
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-	    if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		ErrorF("enable TV\n");
 		info->output_tv1 |= (1 << o);
 		tmp = INREG(RADEON_TV_MASTER_CNTL);
@@ -861,11 +861,11 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		tmp &= ~RADEON_CRTC_CRT_ON;
 		OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
 		save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
-		RADEONDacPowerSet(pScrn, bEnable, (radeon_output->DACType == DAC_PRIMARY));
+		RADEONDacPowerSet(pScrn, bEnable, TRUE);
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-	    if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		ErrorF("disable TV\n");
 		info->output_tv1 &= ~(1 << o);
 		tv_dac_change = 2;
@@ -1197,8 +1197,11 @@ RADEONInitRMXRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->fp_horz_vert_active = 0;
 
-    if ((radeon_output->active_device && (ATOM_DEVICE_LCD_SUPPORT)) ||
-	(radeon_output->active_device && (ATOM_DEVICE_DFP_SUPPORT))) {
+    if ((radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) ||
+	(radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT))) {
+
+	ErrorF("RMX for DFP/LCD\n");
+
 	if (radeon_output->PanelXRes == 0 || radeon_output->PanelYRes == 0) {
 	    Hscale = FALSE;
 	    Vscale = FALSE;
@@ -1409,6 +1412,7 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	return;
 
     if (radeon_crtc->crtc_id == 0) {
+	ErrorF("set RMX\n");
 	is_primary = TRUE;
 	RADEONInitRMXRegisters(output, info->ModeReg, adjusted_mode);
 	RADEONRestoreRMXRegisters(pScrn, info->ModeReg);
@@ -1454,7 +1458,7 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONRestoreDACRegisters(pScrn, info->ModeReg);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-	if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 	    ErrorF("set TV\n");
 	    RADEONInitTVRegisters(output, info->ModeReg, adjusted_mode, is_primary);
 	    RADEONRestoreDACRegisters(pScrn, info->ModeReg);
