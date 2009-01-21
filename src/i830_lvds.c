@@ -917,6 +917,11 @@ static void fill_detailed_block(struct detailed_monitor_section *det_mon,
         timing->misc |= 0x01;
 }
 
+/* X Server pre-1.5 compatibility */
+#ifndef DS_VENDOR
+#define DS_VENDOR 0x101
+#endif
+
 /**
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
