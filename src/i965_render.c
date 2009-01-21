@@ -315,8 +315,6 @@ static const uint32_t sf_kernel_mask_static[][4] = {
 /* ps kernels */
 #define PS_KERNEL_NUM_GRF   32
 #define PS_MAX_THREADS	    48
-#define PS_SCRATCH_SPACE    1024
-#define PS_SCRATCH_SPACE_LOG	0   /* log2 (PS_SCRATCH_SPACE) - 10  (1024 is 0, 2048 is 1) */
 
 static const uint32_t ps_kernel_nomask_affine_static [][4] = {
 #include "exa_wm_xy.g4b"
@@ -442,8 +440,6 @@ typedef struct brw_surface_state_padded {
  * state that we use for Render acceleration.
  */
 typedef struct _gen4_static_state {
-    uint8_t wm_scratch[128 * PS_MAX_THREADS];
-
     KERNEL_DECL (sip_kernel);
     KERNEL_DECL (sf_kernel);
     KERNEL_DECL (sf_kernel_mask);
@@ -662,7 +658,6 @@ cc_state_init (struct brw_cc_unit_state *cc_state,
 static void
 wm_state_init (struct brw_wm_unit_state *wm_state,
 	       Bool has_mask,
-	       int scratch_offset,
 	       int kernel_offset,
 	       int sampler_state_offset)
 {
@@ -670,10 +665,10 @@ wm_state_init (struct brw_wm_unit_state *wm_state,
     wm_state->thread0.grf_reg_count = BRW_GRF_BLOCKS(PS_KERNEL_NUM_GRF);
     wm_state->thread1.single_program_flow = 0;
 
-    assert((scratch_offset & 1023) == 0);
-    wm_state->thread2.scratch_space_base_pointer = scratch_offset >> 10;
+    /* scratch space is not used in our kernel */
+    wm_state->thread2.scratch_space_base_pointer = 0;
+    wm_state->thread2.per_thread_scratch_space = 0;
 
-    wm_state->thread2.per_thread_scratch_space = PS_SCRATCH_SPACE_LOG;
     wm_state->thread3.const_urb_entry_read_length = 0;
     wm_state->thread3.const_urb_entry_read_offset = 0;
 
@@ -790,8 +785,6 @@ gen4_static_state_init (gen4_static_state_t *static_state,
 #define SETUP_WM_STATE(kernel, has_mask)				\
     wm_state_init(&static_state->wm_state_ ## kernel [i][j][k][l],	\
 		  has_mask,						\
-		  static_state_offset + offsetof(gen4_static_state_t,	\
-						 wm_scratch),		\
 		  static_state_offset + offsetof(gen4_static_state_t,	\
 						 ps_kernel_ ## kernel),	\
 		  static_state_offset + offsetof(gen4_static_state_t,	\
