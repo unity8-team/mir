@@ -3581,7 +3581,6 @@ I830LeaveVT(int scrnIndex, int flags)
 	*/
        if (!pI830->memory_manager)
 	   intel_bufmgr_fake_evict_all(pI830->bufmgr);
-       intel_batch_teardown(pScrn);
 
        if (!pI830->memory_manager)
 	   i830_stop_ring(pScrn, TRUE);
@@ -3591,6 +3590,8 @@ I830LeaveVT(int scrnIndex, int flags)
 	   i830DumpRegs (pScrn);
        }
    }
+
+   intel_batch_teardown(pScrn);
 
    if (I830IsPrimary(pScrn))
       i830_unbind_all_memory(pScrn);
