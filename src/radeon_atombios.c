@@ -2198,7 +2198,7 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	if (!radeon_add_encoder(pScrn,
 			   radeon_get_encoder_id_from_supported_device(pScrn, (1 << i),
 					  ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC),
-				(i << 1)))
+				(1 << i)))
 	    return FALSE;
 
 	if (i == ATOM_DEVICE_DFP1_INDEX)
