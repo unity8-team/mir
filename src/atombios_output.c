@@ -377,6 +377,49 @@ atombios_maybe_hdmi_mode(xf86OutputPtr output)
 }
 
 static int
+atombios_get_encoder_mode(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    /* DVI should really be atombios_maybe_hdmi_mode() as well */
+    switch (radeon_output->ConnectorType) {
+    case CONNECTOR_DVI_I:
+	if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT))
+	    return ATOM_ENCODER_MODE_DVI;
+	else
+	    return ATOM_ENCODER_MODE_CRT;
+	break;
+    case CONNECTOR_DVI_D:
+    default:
+	return ATOM_ENCODER_MODE_DVI;
+	break;
+    case CONNECTOR_HDMI_TYPE_A:
+    case CONNECTOR_HDMI_TYPE_B:
+	return atombios_maybe_hdmi_mode(output);
+	break;
+    case CONNECTOR_LVDS:
+	return ATOM_ENCODER_MODE_LVDS;
+	break;
+    case CONNECTOR_DISPLAY_PORT:
+	return ATOM_ENCODER_MODE_DP;
+	break;
+    case CONNECTOR_DVI_A:
+    case CONNECTOR_VGA:
+    case CONNECTOR_STV:
+    case CONNECTOR_CTV:
+    case CONNECTOR_DIN:
+	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
+	    return ATOM_ENCODER_MODE_TV;
+	else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
+	    return ATOM_ENCODER_MODE_CV;
+	else
+	    return ATOM_ENCODER_MODE_CRT;
+	break;
+    }
+
+}
+
+static int
 atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -457,14 +500,7 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 	disp_data.ucLaneNum = 4;
     }
 
-    if (OUTPUT_IS_DVI)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DVI;
-    else if (radeon_output->type == OUTPUT_HDMI)
-	disp_data.ucEncoderMode = atombios_maybe_hdmi_mode(output);
-    else if (radeon_output->type == OUTPUT_DP)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_DP;
-    else if (radeon_output->type == OUTPUT_LVDS)
-	disp_data.ucEncoderMode = ATOM_ENCODER_MODE_LVDS;
+    disp_data.ucEncoderMode = atombios_get_encoder_mode(output);
 
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
@@ -744,9 +780,9 @@ atombios_dig_dpms(xf86OutputPtr output, int mode)
 
     disp_data.ucConfig = radeon_output->transmitter_config;
 
-    if (IS_DCE32_VARIANT) {
+    if (IS_DCE32_VARIANT)
 	data.exec.index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
-    } else {
+    else {
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -891,10 +927,14 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	    break;
 	case 2:
 	    crtc_src_param2.ucCRTC = radeon_crtc->crtc_id;
+	    crtc_src_param2.ucEncodeMode = atombios_get_encoder_mode(output);
 	    switch (radeon_encoder->encoder_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-
+		if (IS_DCE3_VARIANT)
+		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+		else
+		    crtc_src_param2.ucEncoderID = radeon_get_device_index(radeon_output->active_device);
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
@@ -906,23 +946,11 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 			crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
 		} else
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-		if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
-		else {
-		    if (OUTPUT_IS_DVI)
-			crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DVI;
-		    else if (radeon_output->type == OUTPUT_HDMI)
-			crtc_src_param2.ucEncodeMode =
-			    atombios_maybe_hdmi_mode(output);
-		    else if (radeon_output->type == OUTPUT_DP)
-			crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DP;
-		}
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 	    case ENCODER_OBJECT_ID_INTERNAL_DDI:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 		crtc_src_param2.ucEncoderID = radeon_get_device_index(radeon_output->active_device);
-		crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DVI;
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
@@ -931,43 +959,24 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 		else
 		    crtc_src_param2.ucEncoderID = radeon_get_device_index(radeon_output->active_device);
-		if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_LVDS;
-		else {
-		    if (OUTPUT_IS_DVI)
-			crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DVI;
-		    else if (radeon_output->type == OUTPUT_HDMI)
-			crtc_src_param2.ucEncodeMode =
-			    atombios_maybe_hdmi_mode(output);
-		    else if (radeon_output->type == OUTPUT_DP)
-			crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_DP;
-		}
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
+		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
 		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_TV;
-		} else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT)) {
+		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CV;
-		} else {
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CRT;
+		else
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DAC1_ENCODER_ID;
-		}
 		break;
 	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
+		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
 		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_TV;
-		} else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT)) {
+		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		    crtc_src_param2.ucEncoderID = ASIC_INT_TV_ENCODER_ID;
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CV;
-		} else {
-		    crtc_src_param2.ucEncodeMode = ATOM_ENCODER_MODE_CRT;
+		else
 		    crtc_src_param2.ucEncoderID = ASIC_INT_DAC2_ENCODER_ID;
-		}
 		break;
 	    }
 	    data.exec.pspace = &crtc_src_param2;
