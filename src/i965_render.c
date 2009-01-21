@@ -471,25 +471,6 @@ struct gen4_cc_unit_state {
 				     [BRW_BLENDFACTOR_COUNT];
 };
 
-/**
- * Gen4 rendering state buffer structure.
- *
- * This structure contains static data for all of the combinations of
- * state that we use for Render acceleration.
- */
-typedef struct _gen4_static_state {
-    /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
-     * the structs happen to add to 32 bytes.
-     */
-    struct brw_sampler_state sampler_state[SAMPLER_STATE_FILTER_COUNT]
-					  [SAMPLER_STATE_EXTEND_COUNT]
-					  [SAMPLER_STATE_FILTER_COUNT]
-					  [SAMPLER_STATE_EXTEND_COUNT][2];
-
-    struct brw_sampler_legacy_border_color sampler_border_color;
-    PAD64 (brw_sampler_legacy_border_color, 0);
-} gen4_static_state_t;
-
 typedef float gen4_vertex_buffer[VERTEX_BUFFER_SIZE];
 
 typedef struct gen4_composite_op {
@@ -510,9 +491,6 @@ typedef struct gen4_composite_op {
 
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
-    gen4_static_state_t *static_state;
-    uint32_t static_state_offset;
-
     drm_intel_bo *vs_state_bo;
     drm_intel_bo *sf_state_bo;
     drm_intel_bo *sf_mask_state_bo;
@@ -593,12 +571,36 @@ gen4_create_sf_state(ScrnInfoPtr scrn, drm_intel_bo *kernel_bo)
     return sf_state_bo;
 }
 
+static drm_intel_bo *
+sampler_border_color_create(ScrnInfoPtr scrn)
+{
+    struct brw_sampler_legacy_border_color sampler_border_color;
+
+    /* Set up the sampler border color (always transparent black) */
+    memset(&sampler_border_color, 0, sizeof(sampler_border_color));
+    sampler_border_color.color[0] = 0; /* R */
+    sampler_border_color.color[1] = 0; /* G */
+    sampler_border_color.color[2] = 0; /* B */
+    sampler_border_color.color[3] = 0; /* A */
+
+    return intel_bo_alloc_for_data(scrn,
+				   &sampler_border_color,
+				   sizeof(sampler_border_color),
+				   "gen4 render sampler border color");
+}
+
 static void
-sampler_state_init (struct brw_sampler_state *sampler_state,
+sampler_state_init (drm_intel_bo *sampler_state_bo,
+		    struct brw_sampler_state *sampler_state,
 		    sampler_state_filter_t filter,
 		    sampler_state_extend_t extend,
-		    int border_color_offset)
+		    drm_intel_bo *border_color_bo)
 {
+    uint32_t sampler_state_offset;
+
+    sampler_state_offset = (char *)sampler_state -
+	(char *)sampler_state_bo->virtual;
+
     /* PS kernel use this sampler */
     memset(sampler_state, 0, sizeof(*sampler_state));
 
@@ -644,10 +646,45 @@ sampler_state_init (struct brw_sampler_state *sampler_state,
 	break;
     }
 
-    assert((border_color_offset & 31) == 0);
-    sampler_state->ss2.border_color_pointer = border_color_offset >> 5;
+    sampler_state->ss2.border_color_pointer =
+	intel_emit_reloc(sampler_state_bo, sampler_state_offset +
+			 offsetof(struct brw_sampler_state, ss2),
+			 border_color_bo, 0,
+			 I915_GEM_DOMAIN_SAMPLER, 0) >> 5;
 
     sampler_state->ss3.chroma_key_enable = 0; /* disable chromakey */
+}
+
+static drm_intel_bo *
+gen4_create_sampler_state(ScrnInfoPtr scrn,
+			  sampler_state_filter_t src_filter,
+			  sampler_state_extend_t src_extend,
+			  sampler_state_filter_t mask_filter,
+			  sampler_state_extend_t mask_extend,
+			  drm_intel_bo *border_color_bo)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *sampler_state_bo;
+    struct brw_sampler_state *sampler_state;
+
+    sampler_state_bo = drm_intel_bo_alloc(pI830->bufmgr, "gen4 sampler state",
+					  sizeof(struct brw_sampler_state) * 2,
+					  4096);
+    drm_intel_bo_map(sampler_state_bo, TRUE);
+    sampler_state = sampler_state_bo->virtual;
+
+    sampler_state_init(sampler_state_bo,
+		       &sampler_state[0],
+		       src_filter, src_extend,
+		       border_color_bo);
+    sampler_state_init(sampler_state_bo,
+		       &sampler_state[1],
+		       mask_filter, mask_extend,
+		       border_color_bo);
+
+    drm_intel_bo_unmap(sampler_state_bo);
+
+    return sampler_state_bo;
 }
 
 static void
@@ -697,7 +734,7 @@ cc_state_init (drm_intel_bo *cc_state_bo,
 static drm_intel_bo *
 gen4_create_wm_state(ScrnInfoPtr scrn,
 		     Bool has_mask, drm_intel_bo *kernel_bo,
-		     uint32_t sampler_state_offset)
+		     drm_intel_bo *sampler_bo)
 {
     I830Ptr pI830 = I830PTR(scrn);
     struct brw_wm_unit_state *wm_state;
@@ -716,7 +753,7 @@ gen4_create_wm_state(ScrnInfoPtr scrn,
                          kernel_bo, wm_state->thread0.grf_reg_count << 1,
                          I915_GEM_DOMAIN_INSTRUCTION, 0) >> 6;
 
-   wm_state->thread1.single_program_flow = 0;
+    wm_state->thread1.single_program_flow = 0;
 
     /* scratch space is not used in our kernel */
     wm_state->thread2.scratch_space_base_pointer = 0;
@@ -730,9 +767,13 @@ gen4_create_wm_state(ScrnInfoPtr scrn,
     wm_state->thread3.dispatch_grf_start_reg = 3; /* must match kernel */
 
     wm_state->wm4.stats_enable = 1;  /* statistic */
-    assert((sampler_state_offset & 31) == 0);
-    wm_state->wm4.sampler_state_pointer = sampler_state_offset >> 5;
     wm_state->wm4.sampler_count = 1; /* 1-4 samplers used */
+    wm_state->wm4.sampler_state_pointer =
+	intel_emit_reloc(wm_state_bo, offsetof(struct brw_wm_unit_state, wm4),
+			 sampler_bo,
+			 wm_state->wm4.stats_enable +
+			 (wm_state->wm4.sampler_count << 2),
+			 I915_GEM_DOMAIN_INSTRUCTION, 0) >> 5;
     wm_state->wm5.max_threads = PS_MAX_THREADS - 1;
     wm_state->wm5.transposed_urb_read = 0;
     wm_state->wm5.thread_dispatch_enable = 1;
@@ -821,43 +862,6 @@ gen4_create_cc_unit_state(ScrnInfoPtr scrn)
     drm_intel_bo_unreference(cc_vp_bo);
 
     return cc_state_bo;
-}
-
-/**
- * Called at EnterVT to fill in our state buffer with any static information.
- */
-static void
-gen4_static_state_init (gen4_static_state_t *static_state,
-			uint32_t static_state_offset)
-{
-    int i, j, k, l;
-
-    /* Set up the sampler border color (always transparent black) */
-    memset(&static_state->sampler_border_color, 0,
-	   sizeof(static_state->sampler_border_color));
-    static_state->sampler_border_color.color[0] = 0; /* R */
-    static_state->sampler_border_color.color[1] = 0; /* G */
-    static_state->sampler_border_color.color[2] = 0; /* B */
-    static_state->sampler_border_color.color[3] = 0; /* A */
-
-    for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
-	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
-	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
-		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-		    sampler_state_init (&static_state->sampler_state[i][j][k][l][0],
-					i, j,
-					static_state_offset +
-					offsetof (gen4_static_state_t,
-						  sampler_border_color));
-		    sampler_state_init (&static_state->sampler_state[i][j][k][l][1],
-					k, l,
-					static_state_offset +
-					offsetof (gen4_static_state_t,
-						  sampler_border_color));
-		}
-	    }
-	}
-    }
 }
 
 static uint32_t 
@@ -1620,33 +1624,15 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state;
-    uint32_t static_state_offset;
-    int ret;
     int i, j, k, l, m;
     drm_intel_bo *sf_kernel_bo, *sf_kernel_mask_bo;
+    drm_intel_bo *border_color_bo;
 
     if (pI830->gen4_render_state == NULL)
 	pI830->gen4_render_state = calloc(sizeof(*render_state), 1);
 
     render_state = pI830->gen4_render_state;
-
-    render_state->static_state_offset = pI830->gen4_render_state_mem->offset;
-    static_state_offset = render_state->static_state_offset;
-
-    if (pI830->use_drm_mode) {
-	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
-	if (ret) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "Failed to map gen4 state\n");
-	    return;
-	}
-	render_state->static_state = pI830->gen4_render_state_mem->bo->virtual;
-    } else {
-	render_state->static_state = (gen4_static_state_t *)
-	    (pI830->FbBase + render_state->static_state_offset);
-    }
-    gen4_static_state_init(render_state->static_state,
-			   render_state->static_state_offset);
+    render_state->vb_offset = 0;
 
     render_state->vs_state_bo = gen4_create_vs_unit_state(pScrn);
 
@@ -1675,25 +1661,32 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
     /* Set up the WM states: each filter/extend type for source and mask, per
      * kernel.
      */
+    border_color_bo = sampler_border_color_create(pScrn);
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-		    for (m = 0; m < WM_KERNEL_COUNT; m++) {
-			uint32_t sampler_offset = static_state_offset +
-			    offsetof(gen4_static_state_t,
-				     sampler_state[i][j][k][l]);
+		    drm_intel_bo *sampler_state_bo;
 
+		    sampler_state_bo =
+			gen4_create_sampler_state(pScrn,
+						  i, j,
+						  k, l,
+						  border_color_bo);
+
+		    for (m = 0; m < WM_KERNEL_COUNT; m++) {
 			render_state->wm_state_bo[m][i][j][k][l] =
 			    gen4_create_wm_state(pScrn,
 						 wm_kernels[m].has_mask,
 						 render_state->wm_kernel_bo[m],
-						 sampler_offset);
+						 sampler_state_bo);
 		    }
+		    drm_intel_bo_unreference(sampler_state_bo);
 		}
 	    }
 	}
     }
+    drm_intel_bo_unreference(border_color_bo);
 
     render_state->cc_state_bo = gen4_create_cc_unit_state(pScrn);
     render_state->sip_kernel_bo = intel_bo_alloc_for_data(pScrn,
@@ -1717,11 +1710,6 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 	render_state->vertex_buffer_bo = NULL;
     }
 
-    if (pI830->use_drm_mode) {
-	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
-	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
-    }
-    render_state->static_state = NULL;
     drm_intel_bo_unreference(render_state->vs_state_bo);
     render_state->vs_state_bo = NULL;
     drm_intel_bo_unreference(render_state->sf_state_bo);
@@ -1736,10 +1724,4 @@ gen4_render_state_cleanup(ScrnInfoPtr pScrn)
     }
     drm_intel_bo_unreference(render_state->sip_kernel_bo);
     render_state->sip_kernel_bo = NULL;
-}
-
-unsigned int
-gen4_render_state_size(ScrnInfoPtr pScrn)
-{
-    return sizeof(gen4_static_state_t);
 }

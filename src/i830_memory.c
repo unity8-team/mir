@@ -65,7 +65,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * - HW cursor block (either one block or four)
  * - Overlay registers
  * - XAA linear allocator (optional)
- * - EXA 965 state buffer
  * - XAA scratch (screen 1)
  * - XAA scratch (screen 2, only in zaphod mode)
  * - Front buffer (screen 1, more is better for XAA)
@@ -346,7 +345,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->xaa_scratch = NULL;
     pI830->xaa_scratch_2 = NULL;
     pI830->exa_offscreen = NULL;
-    pI830->gen4_render_state_mem = NULL;
     pI830->overlay_regs = NULL;
     pI830->power_context = NULL;
 #ifdef XF86DRI
@@ -1433,22 +1431,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	if (pI830->fake_bufmgr_mem == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 		       "Failed to allocate fake bufmgr space.\n");
-	    return FALSE;
-	}
-    }
-
-    /* even in XAA, 965G needs state mem buffer for rendering */
-    if (IS_I965G(pI830) && pI830->accel != ACCEL_NONE &&
-	pI830->gen4_render_state_mem == NULL)
-    {
-	pI830->gen4_render_state_mem =
-	    i830_allocate_memory(pScrn, "exa G965 state buffer",
-				 gen4_render_state_size(pScrn),
-				 PITCH_NONE,
-				 GTT_PAGE_SIZE, 0, TILE_NONE);
-	if (pI830->gen4_render_state_mem == NULL) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "Failed to allocate exa state buffer for 965.\n");
 	    return FALSE;
 	}
     }

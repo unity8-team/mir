@@ -415,7 +415,6 @@ typedef struct _I830Rec {
    i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
-   i830_memory *gen4_render_state_mem;
 #endif
    i830_memory *fake_bufmgr_mem;
 
