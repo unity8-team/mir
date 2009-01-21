@@ -2055,6 +2055,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
     case ATOM_DEVICE_CRT2_SUPPORT:
     case ATOM_DEVICE_CV_SUPPORT:
 	switch (dac) {
+	    // primary dac
 	case 1:
 	    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
 		(info->ChipFamily == CHIP_FAMILY_RS400) ||
@@ -2065,6 +2066,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    else
 		ret = ENCODER_OBJECT_ID_INTERNAL_DAC1;
 	    break;
+	    // secondary dac
 	case 2:
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
@@ -2075,6 +2077,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 		    ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
 	    }
 	    break;
+	    // external dac
 	case 3:
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
