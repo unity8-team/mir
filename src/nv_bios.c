@@ -4620,15 +4620,10 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	return 0;
 }
 
-static int load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
+static int load_nv17_hwsq_ucode_entry(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
 {
-	/* BMP based cards, from NV17, need a microcode loading to correctly
-	 * control the GPIO etc for LVDS panels
-	 *
-	 * BIT based cards seem to do this directly in the init scripts
-	 *
-	 * The microcode entries are found by the "HWSQ" signature.
-	 * The header following has the number of entries, and the entry size
+	/* The header following the "HWSQ" signature has the number of entries,
+	 * and the entry size
 	 *
 	 * An entry consists of a dword to write to the sequencer control reg
 	 * (0x00001304), followed by the ucode bytes, written sequentially,
@@ -4668,6 +4663,28 @@ static int load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios, uint16_
 	nv32_wr(pScrn, NV_PBUS_DEBUG_4, nv32_rd(pScrn, NV_PBUS_DEBUG_4) | 0x18);
 
 	return 0;
+}
+
+static int load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, bios_t *bios)
+{
+	/* BMP based cards, from NV17, need a microcode loading to correctly
+	 * control the GPIO etc for LVDS panels
+	 *
+	 * BIT based cards seem to do this directly in the init scripts
+	 *
+	 * The microcode entries are found by the "HWSQ" signature.
+	 */
+
+	const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
+	int hwsq_offset;
+
+	if (!(hwsq_offset = findstr(bios->data, bios->length, hwsq_signature,
+				    sizeof(hwsq_signature))))
+		return 0;
+
+	/* always use entry 0? */
+	return load_nv17_hwsq_ucode_entry(pScrn, bios,
+					  hwsq_offset + sizeof(hwsq_signature), 0);
 }
 
 static int read_bios_edid(ScrnInfoPtr pScrn)
@@ -4717,27 +4734,22 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
+	struct nouveau_bios *bios = &NVPTR(pScrn)->VBIOS;
 	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
+	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
 	int offset, ret;
 
 	NVLockVgaCrtcs(pNv, false);
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, crtchead);
 
-	if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bit_signature, sizeof(bit_signature)))) {
+	if ((offset = findstr(bios->data, bios->length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
-		ret = parse_bit_structure(pScrn, &pNv->VBIOS, offset + 6);
-	} else if ((offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, bmp_signature, sizeof(bmp_signature)))) {
-		const uint8_t hwsq_signature[] = { 'H', 'W', 'S', 'Q' };
-		int hwsq_offset;
-
-		if ((hwsq_offset = findstr(pNv->VBIOS.data, pNv->VBIOS.length, hwsq_signature, sizeof(hwsq_signature))))
-			/* always use entry 0? */
-			load_nv17_hw_sequencer_ucode(pScrn, &pNv->VBIOS, hwsq_offset + sizeof(hwsq_signature), 0);
-
+		ret = parse_bit_structure(pScrn, bios, offset + 6);
+	} else if ((offset = findstr(bios->data, bios->length, bmp_signature, sizeof(bmp_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
-		ret = parse_bmp_structure(pScrn, &pNv->VBIOS, offset);
+		load_nv17_hw_sequencer_ucode(pScrn, bios);
+		ret = parse_bmp_structure(pScrn, bios, offset);
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "No known BIOS signature found\n");
