@@ -138,6 +138,9 @@ struct nouveau_bios {
 	struct {
 		DisplayModePtr native_mode;
 		uint8_t *edid;
+		uint16_t fptablepointer;	/* also used by tmds */
+		uint16_t fpxlatetableptr;
+		int xlatwidth;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t fpxlatemanufacturertableptr;
 		uint16_t xlated_entry;

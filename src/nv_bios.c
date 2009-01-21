@@ -3034,12 +3034,6 @@ int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum
 	return ret;
 }
 
-struct fppointers {
-	uint16_t fptablepointer;
-	uint16_t fpxlatetableptr;
-	int xlatwidth;
-};
-
 struct lvdstableheader {
 	uint8_t lvds_ver, headerlen, recordlen;
 };
@@ -3100,7 +3094,7 @@ static int parse_lvds_manufacturer_table_header(ScrnInfoPtr pScrn, bios_t *bios,
 	return 0;
 }
 
-static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointers *fpp)
+static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
@@ -3109,13 +3103,13 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointer
 	uint16_t modeofs;
 	DisplayModePtr mode;
 
-	if (fpp->fptablepointer == 0x0) {
+	if (bios->fp.fptablepointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel table invalid\n");
 		return -EINVAL;
 	}
 
-	fptable = &bios->data[fpp->fptablepointer];
+	fptable = &bios->data[bios->fp.fptablepointer];
 	fptable_ver = fptable[0];
 
 	switch (fptable_ver) {
@@ -3159,14 +3153,14 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointer
 	case 0x0a:
 		/* make sure to match the 0xff strapping check below */
 		if ((bios->fp.strapping & 0xf) == 0xf)
-			bios->data[fpp->fpxlatetableptr + 0xf] = 0xf;
+			bios->data[bios->fp.fpxlatetableptr + 0xf] = 0xf;
 		break;
 	case 0x30:
 	case 0x40:
-		fpp->fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + lth.headerlen + 1;
-		fpp->xlatwidth = lth.recordlen;
+		bios->fp.fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + lth.headerlen + 1;
+		bios->fp.xlatwidth = lth.recordlen;
 	}
-	if (fpp->fpxlatetableptr == 0x0) {
+	if (bios->fp.fpxlatetableptr == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel xlat table invalid\n");
 		return -EINVAL;
@@ -3197,10 +3191,10 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios, struct fppointer
 		if (matches != 1)
 			index = 0xF;
 
-		fpindex = bios->data[fpp->fpxlatetableptr + index * fpp->xlatwidth];
+		fpindex = bios->data[bios->fp.fpxlatetableptr + index * bios->fp.xlatwidth];
 		bios->fp.strapping = ((fpindex & 0xF) << 4) | (fpindex & 0xF);
 	} else {
-		fpindex = bios->data[fpp->fpxlatetableptr + bios->fp.strapping * fpp->xlatwidth];
+		fpindex = bios->data[bios->fp.fpxlatetableptr + bios->fp.strapping * bios->fp.xlatwidth];
 		bios->fp.strapping |= fpindex << 4;
 	}
 
@@ -3806,16 +3800,14 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 	 * offset + 2  (16 bits): mode table pointer
 	 */
 
-	struct fppointers fpp = { 0 };
-
 	if (bitentry->length != 4) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Do not understand BIT display table\n");
 		return -EINVAL;
 	}
 
-	fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
+	bios->fp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
-	return parse_fp_mode_table(pScrn, bios, &fpp);
+	return parse_fp_mode_table(pScrn, bios);
 }
 
 static int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -4089,7 +4081,6 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	NVPtr pNv = NVPTR(pScrn);
 	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
-	struct fppointers fpp = { 0 };
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 	int ret;
 
@@ -4200,9 +4191,9 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 		bios->fp.if_is_24bit = bios->data[offset + 95] & 1;
 	}
 	if (bmplength > 108) {
-		fpp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 105])));
-		fpp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 107])));
-		fpp.xlatwidth = 1;
+		bios->fp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 105])));
+		bios->fp.fpxlatetableptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 107])));
+		bios->fp.xlatwidth = 1;
 	}
 	if (bmplength > 120) {
 		bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 117])));
@@ -4225,7 +4216,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	if ((ret = parse_lvds_manufacturer_table(pScrn, 0)))
 		return ret;
 #ifndef __powerpc__
-	return parse_fp_mode_table(pScrn, bios, &fpp);
+	return parse_fp_mode_table(pScrn, bios);
 #endif
 	return 0;
 }
