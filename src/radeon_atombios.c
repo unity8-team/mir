@@ -2071,9 +2071,9 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
 	    else {
-		if (info->ChipFamily == CHIP_FAMILY_R200)
+		/*if (info->ChipFamily == CHIP_FAMILY_R200)
 		    ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
-		else
+		    else*/
 		    ret = ENCODER_OBJECT_ID_INTERNAL_DAC2;
 	    }
 	    break;
