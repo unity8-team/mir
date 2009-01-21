@@ -120,6 +120,7 @@ struct nouveau_bios {
 
 	uint32_t dactestval;
 
+	bool old_style_init;
 	uint16_t init_script_tbls_ptr;
 	uint16_t extra_init_script_tbl_ptr;
 	uint16_t macro_index_tbl_ptr;

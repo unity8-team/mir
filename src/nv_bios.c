@@ -2809,6 +2809,15 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	uint16_t table;
 	init_exec_t iexec = {true, false};
 
+	if (bios->old_style_init) {
+		if (bios->init_script_tbls_ptr)
+			parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
+		if (bios->extra_init_script_tbl_ptr)
+			parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
+
+		return;
+	}
+
 	while ((table = le16_to_cpu(*((uint16_t *)(&bios->data[bios->init_script_tbls_ptr + i]))))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 			   "Parsing VBIOS init table %d at offset 0x%04X\n", i / 2, table);
@@ -3454,6 +3463,28 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 		   bios->data[offset + 1], bios->data[offset]);
 }
 
+static void parse_script_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
+{
+	/* Parses the init table segment for pointers used in script execution.
+	 *
+	 * offset + 0  (16 bits): init script tables pointer
+	 * offset + 2  (16 bits): macro index table pointer
+	 * offset + 4  (16 bits): macro table pointer
+	 * offset + 6  (16 bits): condition table pointer
+	 * offset + 8  (16 bits): io condition table pointer
+	 * offset + 10 (16 bits): io flag condition table pointer
+	 * offset + 12 (16 bits): init function table pointer
+	 */
+
+	bios->init_script_tbls_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset])));
+	bios->macro_index_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 2])));
+	bios->macro_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 4])));
+	bios->condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 6])));
+	bios->io_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 8])));
+	bios->io_flag_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 10])));
+	bios->init_function_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 12])));
+}
+
 int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim)
 {
 	/* PLL limits table
@@ -3790,16 +3821,8 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 static int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
 {
 	/* Parses the init table segment that the bit entry points to.
-	 * Starting at bitentry->offset: 
 	 * 
-	 * offset + 0  (16 bits): init script tables pointer
-	 * offset + 2  (16 bits): macro index table pointer
-	 * offset + 4  (16 bits): macro table pointer
-	 * offset + 6  (16 bits): condition table pointer
-	 * offset + 8  (16 bits): io condition table pointer
-	 * offset + 10 (16 bits): io flag condition table pointer
-	 * offset + 12 (16 bits): init function table pointer
-	 *
+	 * See parse_script_table_pointers for layout
 	 */
 
 	if (bitentry->length < 14) {
@@ -3807,13 +3830,7 @@ static int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 		return -EINVAL;
 	}
 
-	bios->init_script_tbls_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
-	bios->macro_index_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
-	bios->macro_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 4])));
-	bios->condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 6])));
-	bios->io_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 8])));
-	bios->io_flag_condition_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 10])));
-	bios->init_function_tbl_ptr = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 12])));
+	parse_script_table_pointers(pScrn, bios, bitentry->offset);
 
 	return 0;
 }
@@ -4057,7 +4074,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	 * offset +  67: maximum internal PLL frequency (single stage PLL)
 	 * offset +  71: minimum internal PLL frequency (single stage PLL)
 	 *
-	 * offset +  75: script table pointers, as for parse_bit_init_tbl_entry
+	 * offset +  75: script table pointers, as described in parse_script_table_pointers
 	 *
 	 * offset +  89: TMDS single link output A table pointer
 	 * offset +  91: TMDS single link output B table pointer
@@ -4144,6 +4161,8 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 
 	parse_bios_version(pScrn, bios, offset + 10);
 
+	if (bmp_version_major < 5 || bmp_version_minor < 0x10)
+		bios->old_style_init = true;
 	legacy_scripts_offset = offset + 18;
 	if (bmp_version_major < 2)
 		legacy_scripts_offset -= 4;
@@ -4171,12 +4190,8 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
 		bios->fminvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 71]));
 	}
-	if (bmplength > 88) {
-		bit_entry_t initbitentry;
-		initbitentry.length = 14;
-		initbitentry.offset = offset + 75;
-		parse_bit_init_tbl_entry(pScrn, bios, &initbitentry);
-	}
+	if (bmplength > 88)
+		parse_script_table_pointers(pScrn, bios, offset + 75);
 	if (bmplength > 94) {
 		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 89]));
 		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 91]));
@@ -4200,14 +4215,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 		bios->fp.duallink_transition_clk = le16_to_cpu(*((uint16_t *)&bios->data[offset + 156])) * 10;
 
 	/* want pll_limit_tbl_ptr set (if available) before init is run */
-	if (bmp_version_major < 5 || bmp_version_minor < 0x10) {
-		init_exec_t iexec = {true, false};
-		if (bios->init_script_tbls_ptr)
-			parse_init_table(pScrn, bios, bios->init_script_tbls_ptr, &iexec);
-		if (bios->extra_init_script_tbl_ptr)
-			parse_init_table(pScrn, bios, bios->extra_init_script_tbl_ptr, &iexec);
-	} else
-		parse_init_tables(pScrn, bios);
+	parse_init_tables(pScrn, bios);
 
 	/* If it's not a laptop, you probably don't care about fptables */
 	if (!(bios->feature_byte & FEATURE_MOBILE))
