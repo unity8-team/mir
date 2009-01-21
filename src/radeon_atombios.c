@@ -1601,8 +1601,10 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
     uint32_t device_index = radeon_get_device_index(device_support);
     int i;
 
-    if (device_support == 0)
+    if (device_support == 0) {
+	ErrorF("device support == 0\n");
 	return FALSE;
+    }
 
     if (info->encoders[device_index] != NULL)
 	return TRUE;
@@ -1620,8 +1622,10 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
 	    info->encoders[device_index]->encoder_id = encoder_id;
 	    // add dev_priv stuff
 	    return TRUE;
-	} else
+	} else {
+	    ErrorF("xalloc failed\n");
 	    return FALSE;
+	}
     }
 
 }
@@ -2057,6 +2061,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	switch (dac) {
 	    // primary dac
 	case 1:
+	    ErrorF("adding primary dac\n");
 	    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
 		(info->ChipFamily == CHIP_FAMILY_RS400) ||
 		(info->ChipFamily == CHIP_FAMILY_RS480))
@@ -2068,6 +2073,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    break;
 	    // secondary dac
 	case 2:
+	    ErrorF("adding tv dac\n");
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
 	    else {
@@ -2079,6 +2085,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    break;
 	    // external dac
 	case 3:
+	    ErrorF("adding external dac\n");
 	    if (IS_AVIVO_VARIANT)
 		ret = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
 	    else
@@ -2087,12 +2094,14 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	}
 	break;
     case ATOM_DEVICE_LCD1_SUPPORT:
+	ErrorF("adding LVDS\n");
 	if (IS_AVIVO_VARIANT)
 	    ret = ENCODER_OBJECT_ID_INTERNAL_LVTM1;
 	else
 	    ret = ENCODER_OBJECT_ID_INTERNAL_LVDS;
 	break;
     case ATOM_DEVICE_DFP1_SUPPORT:
+	ErrorF("adding FP1\n");
 	if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS400) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS480))
@@ -2104,6 +2113,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	break;
     case ATOM_DEVICE_LCD2_SUPPORT:
     case ATOM_DEVICE_DFP2_SUPPORT:
+	ErrorF("adding FP2\n");
 	if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS690) ||
 	    (info->ChipFamily == CHIP_FAMILY_RS740))
@@ -2114,6 +2124,7 @@ radeon_get_encoder_id_from_supported_device(ScrnInfoPtr pScrn, uint32_t supporte
 	    ret = ENCODER_OBJECT_ID_INTERNAL_DVO1;
 	break;
     case ATOM_DEVICE_DFP3_SUPPORT:
+	ErrorF("adding FP3\n");
 	ret = ENCODER_OBJECT_ID_INTERNAL_LVTM1;
 	break;
     }

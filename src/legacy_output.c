@@ -708,6 +708,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	/*ErrorF("enable montype: %d\n", radeon_output->MonType);*/
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	    ErrorF("enable LVDS\n");
 	    info->output_lcd1 |= (1 << o);
 	    tmp = INREG(RADEON_LVDS_GEN_CNTL);
 	    tmp |= (RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
@@ -718,6 +719,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    save->lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	    ErrorF("enable FP1\n");
 	    info->output_dfp1 |= (1 << o);
 	    tmp = INREG(RADEON_FP_GEN_CNTL);
 	    tmp |= (RADEON_FP_FPON | RADEON_FP_TMDS_EN);
@@ -733,6 +735,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	    ErrorF("enable FP2\n");
 	    info->output_dfp2 |= (1 << o);
 	    tmp = INREG(RADEON_FP2_GEN_CNTL);
 	    tmp &= ~RADEON_FP2_BLANK_EN;
@@ -751,6 +754,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+	    ErrorF("enable primary dac\n");
 	    info->output_crt1 |= (1 << o);
 	    tmp = INREG(RADEON_CRTC_EXT_CNTL);
 	    tmp |= RADEON_CRTC_CRT_ON;
@@ -760,6 +764,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+		ErrorF("enable TV\n");
 		info->output_tv1 |= (1 << o);
 		tmp = INREG(RADEON_TV_MASTER_CNTL);
 		tmp |= RADEON_TV_ON;
@@ -767,6 +772,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		tv_dac_change = 2;
 		radeon_output->tv_on = TRUE;
 	    } else {
+		ErrorF("enable TVDAC\n");
 		info->output_crt2 |= (1 << o);
 		if (info->ChipFamily == CHIP_FAMILY_R200) {
 		    tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -787,6 +793,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	/*ErrorF("disable montype: %d\n", radeon_output->MonType);*/
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	    ErrorF("disable LVDS\n");
 	    info->output_lcd1 &= ~(1 << o);
 	    if (!info->output_lcd1) {
 		unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
@@ -808,6 +815,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	    ErrorF("disable FP1\n");
 	    info->output_dfp1 &= ~(1 << o);
 	    if (!info->output_dfp1) {
 		tmp = INREG(RADEON_FP_GEN_CNTL);
@@ -825,6 +833,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	    ErrorF("disable FP2\n");
 	    info->output_dfp2 &= ~(1 << o);
 	    if (!info->output_dfp2) {
 		tmp = INREG(RADEON_FP2_GEN_CNTL);
@@ -845,6 +854,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    }
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+	    ErrorF("disable primary dac\n");
 	    info->output_crt1 &= ~(1 << o);
 	    if (!info->output_crt1) {
 		tmp = INREG(RADEON_CRTC_EXT_CNTL);
@@ -856,6 +866,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	    if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
+		ErrorF("disable TV\n");
 		info->output_tv1 &= ~(1 << o);
 		tv_dac_change = 2;
 		if (!info->output_tv1) {
@@ -865,6 +876,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		    radeon_output->tv_on = FALSE;
 		}
 	    } else {
+		ErrorF("disable TVDAC\n");
 		info->output_crt2 &= ~(1 << o);
 		tv_dac_change = 1;
 		if (!info->output_crt2) {
@@ -1391,26 +1403,31 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     xf86CrtcPtr	crtc = output->crtc;
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
+    Bool is_primary = FALSE;
 
     if (radeon_encoder == NULL)
 	return;
 
     if (radeon_crtc->crtc_id == 0) {
+	is_primary = TRUE;
 	RADEONInitRMXRegisters(output, info->ModeReg, adjusted_mode);
 	RADEONRestoreRMXRegisters(pScrn, info->ModeReg);
     }
 
     switch (radeon_encoder->encoder_id) {
     case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-	RADEONInitLVDSRegisters(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	ErrorF("set LVDS\n");
+	RADEONInitLVDSRegisters(output, info->ModeReg, adjusted_mode, is_primary);
 	RADEONRestoreLVDSRegisters(pScrn, info->ModeReg);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-	RADEONInitFPRegisters(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	ErrorF("set FP1\n");
+	RADEONInitFPRegisters(output, info->ModeReg, adjusted_mode, is_primary);
 	RADEONRestoreFPRegisters(pScrn, info->ModeReg);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DVO1:
-	RADEONInitFP2Registers(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	ErrorF("set FP2\n");
+	RADEONInitFP2Registers(output, info->ModeReg, adjusted_mode, is_primary);
 	if (info->IsAtomBios) {
 	    unsigned char *RADEONMMIO = info->MMIO;
 	    uint32_t fp2_gen_cntl;
@@ -1432,16 +1449,19 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	}
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC1:
-	RADEONInitDACRegisters(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	ErrorF("set primary dac\n");
+	RADEONInitDACRegisters(output, info->ModeReg, adjusted_mode, is_primary);
 	RADEONRestoreDACRegisters(pScrn, info->ModeReg);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	if (radeon_output->active_device && (ATOM_DEVICE_TV_SUPPORT)) {
-	    RADEONInitTVRegisters(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	    ErrorF("set TV\n");
+	    RADEONInitTVRegisters(output, info->ModeReg, adjusted_mode, is_primary);
 	    RADEONRestoreDACRegisters(pScrn, info->ModeReg);
 	    RADEONRestoreTVRegisters(pScrn, info->ModeReg);
 	} else {
-	    RADEONInitDAC2Registers(output, info->ModeReg, adjusted_mode, radeon_crtc->crtc_id);
+	    ErrorF("set TVDAC\n");
+	    RADEONInitDAC2Registers(output, info->ModeReg, adjusted_mode, is_primary);
 	    RADEONRestoreDACRegisters(pScrn, info->ModeReg);
 	}
 	break;
