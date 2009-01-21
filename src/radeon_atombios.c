@@ -2299,6 +2299,12 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	}
     }
 
+    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
+	if (info->encoders[i] != NULL) {
+	    ErrorF("encoder: 0x%x\n", info->encoders[i]->encoder_id);
+	}
+    }
+
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
     for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
 	if (info->BiosConnector[i].valid) {
