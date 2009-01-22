@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.3.2-2+lenny6) unstable; urgency=high
+
+  * Remove the Cappuccino SlimPRO SP625F quirk added in -2+lenny5.
+    There are machines with the same subdevice ids and an LVDS output
+    (closes: #512595).  Thanks, Kushal Koolwal!
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 22 Jan 2009 03:49:01 +0100
+
 xserver-xorg-video-intel (2:2.3.2-2+lenny5) unstable; urgency=low
 
   * Cherry-pick some more patches from upstream git:
