@@ -49,8 +49,9 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 {
    I830Ptr pI830 = I830PTR(pScrn);
    uint32_t format, ms3, s5;
-   BoxPtr pbox;
-   int nbox, dxo, dyo, pix_xoff, pix_yoff;
+   BoxPtr pbox = REGION_RECTS(dstRegion);
+   int nbox = REGION_NUM_RECTS(dstRegion);
+   int dxo, dyo, pix_xoff, pix_yoff;
    Bool planar;
 
 #if 0
@@ -71,6 +72,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
       ErrorF("Unknown format 0x%x\n", id);
       return;
    }
+
+   intel_batch_start_atomic(pScrn, 200 + 20 * nbox);
 
    IntelEmitInvarientState(pScrn);
    *pI830->last_3d = LAST_3D_VIDEO;
@@ -362,8 +365,6 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    dxo = dstRegion->extents.x1;
    dyo = dstRegion->extents.y1;
 
-   pbox = REGION_RECTS(dstRegion);
-   nbox = REGION_NUM_RECTS(dstRegion);
    while (nbox--)
    {
       int box_x1 = pbox->x1;
@@ -411,6 +412,8 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 
       ADVANCE_BATCH();
    }
+
+   intel_batch_end_atomic(pScrn);
 
    i830MarkSync(pScrn);
 }

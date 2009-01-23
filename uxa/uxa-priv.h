@@ -31,6 +31,7 @@
 #else
 #include <xorg-server.h>
 #endif
+#include "xf86.h"
 
 #include "uxa.h"
 
@@ -117,6 +118,7 @@ typedef struct {
 
 #define UXA_NUM_GLYPH_CACHES 4
 
+typedef void (*EnableDisableFBAccessProcPtr)(int, Bool);
 typedef struct {
     uxa_driver_t		*info;
     CreateGCProcPtr 		 SavedCreateGC;
@@ -135,7 +137,8 @@ typedef struct {
     TrapezoidsProcPtr            SavedTrapezoids;
     AddTrapsProcPtr		 SavedAddTraps;
 #endif
-  
+    EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
+
     Bool			 swappedOut;
     unsigned			 disableFbCount;
     unsigned			 offScreenCounter;
@@ -179,14 +182,14 @@ typedef struct {
   */
 void exaDDXDriverInit (ScreenPtr pScreen);
 
-void
+Bool
 uxa_prepare_access_window(WindowPtr pWin);
 
 void
 uxa_finish_access_window(WindowPtr pWin);
 
 /* uxa-unaccel.c */
-void
+Bool
 uxa_prepare_access_gc(GCPtr pGC);
 
 void
@@ -348,7 +351,7 @@ uxa_check_composite (CARD8      op,
 #endif
 
 /* uxa.c */
-void
+Bool
 uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access);
 
 void

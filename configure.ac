@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-intel],
-        2.5.1,
+        2.6.1,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-intel)
 
@@ -75,11 +75,6 @@ AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
               [XVMC="$enableval"],
               [XVMC=auto])
 
-AC_ARG_ENABLE(kms, AC_HELP_STRING([--enable-kms],
-                                  [Enable kernel mode setting support [[default=no]]]),
-              [KMS="$enableval"],
-              [KMS=no])
-
 # Checks for extensions
 XORG_DRIVER_CHECK_EXT(XINERAMA, xineramaproto)
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
@@ -112,16 +107,6 @@ if test x$DRI != xno; then
                       [have_dristruct_h="yes"], [have_dristruct_h="no"])
 	AC_CHECK_FILE([${sdkdir}/damage.h],
                       [have_damage_h="yes"], [have_damage_h="no"])
-	if test x$KMS != xno; then
-		AC_CHECK_HEADER(xf86drmMode.h,
-				[DRM_MODE=yes],[DRM_MODE=no]
-				[#include "stdint.h"])
-		dnl exaGetPixmapDriverPrivate required for DRM_MODE.
-		PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5], [], [DRM_MODE=no])
-		if test "x$DRM_MODE" = xyes; then
-	   		AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
-		fi
-	fi
 fi
 AC_MSG_CHECKING([whether to include DRI support])
 if test x$DRI = xauto; then
@@ -230,13 +215,16 @@ if test "$DRI" = yes; then
         PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
         AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
         AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
-	PKG_CHECK_MODULES(DRI_MM, [libdrm >= 2.4.0],[DRI_MM=yes], [DRI_MM=no])
-	if test "x$DRI_MM" = xyes; then
-		AC_DEFINE(XF86DRI_MM,1,[Extended DRI memory management])
-	fi
 	if test "$have_damage_h" = yes; then
 		AC_DEFINE(DAMAGE,1,[Use Damage extension])
 	fi
+fi
+
+dnl exaGetPixmapDriverPrivate required for DRM_MODE.
+PKG_CHECK_MODULES(DRM_MODE, [xorg-server >= 1.5],
+		  [DRM_MODE=yes], [DRM_MODE=no])
+if test "x$DRM_MODE" = xyes; then
+	AC_DEFINE(XF86DRM_MODE,1,[DRM kernel modesetting])
 fi
 
 AM_CONDITIONAL(VIDEO_DEBUG, test x$VIDEO_DEBUG = xyes)
@@ -252,6 +240,7 @@ if test "$XVMC" = yes && test "$DRI" = no; then
 fi
 if test "$XVMC" = yes; then
 	PKG_CHECK_MODULES(XVMCLIB, [xvmc], [XVMC=yes], [XVMC=no])
+	PKG_CHECK_MODULES(XEXT, [xext])
 fi
 AC_MSG_CHECKING([whether to include XvMC support])
 AC_MSG_RESULT([$XVMC])
@@ -260,7 +249,6 @@ if test "$XVMC" = yes; then
 	AC_DEFINE(ENABLE_XVMC,1,[Enable XvMC support])
     	AC_SUBST([XVMCLIB_CFLAGS])
 fi
-
 
 AC_SUBST([DRI_CFLAGS])
 AC_SUBST([XORG_CFLAGS])

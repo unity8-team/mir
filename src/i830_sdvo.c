@@ -947,7 +947,6 @@ static void i830_sdvo_set_avi_infoframe(xf86OutputPtr output,
 	.len = DIP_LEN_AVI,
     };
 
-    avi_if.u.avi.PR = i830_sdvo_get_pixel_multiplier(mode) - 1;
     avi_if.checksum = i830_sdvo_calc_hbuf_csum((uint8_t *)&avi_if,
 					4 + avi_if.len);
     i830_sdvo_set_hdmi_buf(output, 1, (uint8_t *)&avi_if, 4 + avi_if.len,
@@ -1019,7 +1018,7 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
     xf86CrtcPtr	    crtc = output->crtc;
     I830CrtcPrivatePtr	    intel_crtc = crtc->driver_private;
-    uint32_t sdvox;
+    uint32_t sdvox = 0;
     int sdvo_pixel_multiply;
     struct i830_sdvo_in_out_map in_out;
     struct i830_sdvo_dtd input_dtd;
@@ -1041,8 +1040,10 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 			&in_out, sizeof(in_out));
     status = i830_sdvo_read_response(output, NULL, 0);
 
-    if (dev_priv->is_hdmi)
+    if (dev_priv->is_hdmi) {
 	i830_sdvo_set_avi_infoframe(output, mode);
+	sdvox |= SDVO_AUDIO_ENABLE;
+    }
 
     i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
@@ -1090,11 +1091,11 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 
     /* Set the SDVO control regs. */
     if (IS_I965G(pI830)) {
-	sdvox = SDVO_BORDER_ENABLE |
+	sdvox |= SDVO_BORDER_ENABLE |
 		SDVO_VSYNC_ACTIVE_HIGH |
 		SDVO_HSYNC_ACTIVE_HIGH;
     } else {
-	sdvox = INREG(dev_priv->output_device);
+	sdvox |= INREG(dev_priv->output_device);
 	switch (dev_priv->output_device) {
 	case SDVOB:
 	    sdvox &= SDVOB_PRESERVE_MASK;
@@ -1903,6 +1904,14 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
 	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="VGA";
+    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS0) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
+    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS1) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
+        output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
     }
     else
     {

@@ -140,7 +140,7 @@ uxa_get_offscreen_pixmap (DrawablePtr drawable, int *xp, int *yp)
  * It deals with waiting for synchronization with the card, determining if
  * PrepareAccess() is necessary, and working around PrepareAccess() failure.
  */
-void
+Bool
 uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access)
 {
     ScreenPtr	    pScreen = pDrawable->pScreen;
@@ -149,10 +149,11 @@ uxa_prepare_access(DrawablePtr pDrawable, uxa_access_t access)
     Bool	    offscreen = uxa_pixmap_is_offscreen(pPixmap);
 
     if (!offscreen)
-	return;
+	return TRUE;
 
     if (uxa_screen->info->prepare_access)
-	(*uxa_screen->info->prepare_access) (pPixmap, access);
+	return (*uxa_screen->info->prepare_access) (pPixmap, access);
+    return TRUE;
 }
 
 /**
@@ -209,10 +210,11 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 		 * allocated pixmap.  This isn't a problem yet, since we don't
 		 * put pixmaps in FB until at least one accelerated UXA op.
 		 */
-		uxa_prepare_access(&pOldTile->drawable, UXA_ACCESS_RO);
-		pNewTile = fb24_32ReformatTile (pOldTile,
-						pDrawable->bitsPerPixel);
-		uxa_finish_access(&pOldTile->drawable);
+		if (uxa_prepare_access(&pOldTile->drawable, UXA_ACCESS_RO)) {
+		    pNewTile = fb24_32ReformatTile (pOldTile,
+						    pDrawable->bitsPerPixel);
+		    uxa_finish_access(&pOldTile->drawable);
+		}
 	    }
 	    if (pNewTile)
 	    {
@@ -227,9 +229,10 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 	if (!pGC->tileIsPixel && FbEvenTile (pGC->tile.pixmap->drawable.width *
 					     pDrawable->bitsPerPixel))
 	{
-	    uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RW);
-	    fbPadPixmap (pGC->tile.pixmap);
-	    uxa_finish_access(&pGC->tile.pixmap->drawable);
+	    if (uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RW)) {
+		fbPadPixmap (pGC->tile.pixmap);
+		uxa_finish_access(&pGC->tile.pixmap->drawable);
+	    }
 	}
 	/* Mask out the GCTile change notification, now that we've done FB's
 	 * job for it.
@@ -237,9 +240,16 @@ uxa_validate_gc (GCPtr pGC, unsigned long changes, DrawablePtr pDrawable)
 	changes &= ~GCTile;
     }
 
-    uxa_prepare_access_gc(pGC);
-    fbValidateGC (pGC, changes, pDrawable);
-    uxa_finish_access_gc(pGC);
+    if (changes & GCStipple && pGC->stipple) {
+	/* We can't inline stipple handling like we do for GCTile because it sets
+	 * fbgc privates.
+	 */
+	uxa_prepare_access(&pGC->stipple->drawable, UXA_ACCESS_RW);
+	fbValidateGC (pGC, changes, pDrawable);
+	uxa_finish_access(&pGC->stipple->drawable);
+    } else {
+	fbValidateGC (pGC, changes, pDrawable);
+    }
 
     pGC->ops = (GCOps *) &uxa_ops;
 }
@@ -269,14 +279,22 @@ uxa_create_gc (GCPtr pGC)
     return TRUE;
 }
 
-void
+Bool
 uxa_prepare_access_window(WindowPtr pWin)
 {
-    if (pWin->backgroundState == BackgroundPixmap) 
-        uxa_prepare_access(&pWin->background.pixmap->drawable, UXA_ACCESS_RO);
+    if (pWin->backgroundState == BackgroundPixmap) {
+        if (!uxa_prepare_access(&pWin->background.pixmap->drawable, UXA_ACCESS_RO))
+	    return FALSE;
+    }
 
-    if (pWin->borderIsPixel == FALSE)
-        uxa_prepare_access(&pWin->border.pixmap->drawable, UXA_ACCESS_RO);
+    if (pWin->borderIsPixel == FALSE) {
+        if (!uxa_prepare_access(&pWin->border.pixmap->drawable, UXA_ACCESS_RO)) {
+	    if (pWin->backgroundState == BackgroundPixmap)
+		uxa_finish_access(&pWin->background.pixmap->drawable);
+	    return FALSE;
+	}
+    }
+    return TRUE;
 }
 
 void
@@ -294,7 +312,8 @@ uxa_change_window_attributes(WindowPtr pWin, unsigned long mask)
 {
     Bool ret;
 
-    uxa_prepare_access_window(pWin);
+    if (!uxa_prepare_access_window(pWin))
+	return FALSE;
     ret = fbChangeWindowAttributes(pWin, mask);
     uxa_finish_access_window(pWin);
     return ret;
@@ -304,10 +323,27 @@ static RegionPtr
 uxa_bitmap_to_region(PixmapPtr pPix)
 {
   RegionPtr ret;
-  uxa_prepare_access(&pPix->drawable, UXA_ACCESS_RO);
+  if (!uxa_prepare_access(&pPix->drawable, UXA_ACCESS_RO))
+    return NULL;
   ret = fbPixmapToRegion(pPix);
   uxa_finish_access(&pPix->drawable);
   return ret;
+}
+
+static void
+uxa_xorg_enable_disable_fb_access (int index, Bool enable)
+{
+    ScreenPtr screen = screenInfo.screens[index];
+    uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+    if (!enable && uxa_screen->disableFbCount++ == 0)
+	uxa_screen->swappedOut = TRUE;
+
+    if (enable && --uxa_screen->disableFbCount == 0)
+	uxa_screen->swappedOut = FALSE;
+
+    if (uxa_screen->SavedEnableDisableFBAccess)
+       uxa_screen->SavedEnableDisableFBAccess(index, enable);
 }
 
 /**
@@ -318,6 +354,7 @@ static Bool
 uxa_close_screen(int i, ScreenPtr pScreen)
 {
     uxa_screen_t	*uxa_screen = uxa_get_screen(pScreen);
+    ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
 #ifdef RENDER
     PictureScreenPtr	ps = GetPictureScreenIfSet(pScreen);
 #endif
@@ -333,6 +370,7 @@ uxa_close_screen(int i, ScreenPtr pScreen)
     pScreen->CopyWindow = uxa_screen->SavedCopyWindow;
     pScreen->ChangeWindowAttributes = uxa_screen->SavedChangeWindowAttributes;
     pScreen->BitmapToRegion = uxa_screen->SavedBitmapToRegion;
+    scrn->EnableDisableFBAccess = uxa_screen->SavedEnableDisableFBAccess;
 #ifdef RENDER
     if (ps) {
 	ps->Composite = uxa_screen->SavedComposite;
@@ -378,6 +416,7 @@ Bool
 uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 {
     uxa_screen_t	*uxa_screen;
+    ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 #ifdef RENDER
     PictureScreenPtr	ps;
 #endif
@@ -449,6 +488,9 @@ uxa_driver_init(ScreenPtr screen, uxa_driver_t *uxa_driver)
 
     uxa_screen->SavedBitmapToRegion = screen->BitmapToRegion;
     screen->BitmapToRegion = uxa_bitmap_to_region;
+
+    uxa_screen->SavedEnableDisableFBAccess = scrn->EnableDisableFBAccess;
+    scrn->EnableDisableFBAccess = uxa_xorg_enable_disable_fb_access;
 
 #ifdef RENDER
     if (ps) {

@@ -59,7 +59,6 @@ typedef struct {
    Time offTime;
    Time freeTime;
    i830_memory *buf; /** YUV data buffer */
-   unsigned int extra_offset;
 
    Bool overlayOK;
    int oneLineMode;
@@ -70,11 +69,6 @@ typedef struct {
 
 #define GET_PORT_PRIVATE(pScrn) \
    (I830PortPrivPtr)((I830PTR(pScrn))->adaptor->pPortPrivates[0].ptr)
-
-/*
- * Broadwater requires a bit of extra video memory for state information
- */
-#define BRW_LINEAR_EXTRA	(36*1024)
 
 void I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 			      int id, RegionPtr dstRegion, short width,
@@ -94,3 +88,4 @@ void I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
 void I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 			   pointer pReadmask);
+void i965_free_video(ScrnInfoPtr scrn);

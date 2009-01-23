@@ -1,14 +1,14 @@
 Source: xserver-xorg-video-intel
 Section: x11
 Priority: optional
-Maintainer: Ubuntu Core Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Maintainer: Ubuntu X-SWAT <ubuntu-x@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian X Strike Force <debian-x@lists.debian.org>
 Uploaders: David Nusinow <dnusinow@debian.org>, Drew Parsons <dparsons@debian.org>, Julien Cristau <jcristau@debian.org>, Brice Goglin <bgoglin@debian.org>
 Build-Depends:
  debhelper (>= 5),
  quilt,
  pkg-config,
- xserver-xorg-dev (>= 2:1.5),
+ xserver-xorg-dev (>= 2:1.5.99.901),
  x11proto-gl-dev,
  x11proto-video-dev,
  libgl1-mesa-dev | libgl-dev,
@@ -18,7 +18,8 @@ Build-Depends:
  x11proto-randr-dev (>= 1.2),
  x11proto-render-dev,
  x11proto-xinerama-dev,
- libdrm-dev (>= 2.4.1), libdrm-intel1,
+ libdrm-dev (>= 2.4.3),
+ libdrm-intel1,
  x11proto-xf86dri-dev,
  libpciaccess-dev (>= 0.8.0+git20071002),
  dpkg-dev (>= 1.14.17),

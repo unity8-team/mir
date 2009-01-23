@@ -112,9 +112,17 @@ intel_next_batch(ScrnInfoPtr pScrn)
     else
 	pI830->batch_bo = dri_bo_alloc(pI830->bufmgr, "batch", 4096 * 4, 4096);
 
-    dri_bo_map(pI830->batch_bo, 1);
+    if (dri_bo_map(pI830->batch_bo, 1) != 0)
+	FatalError("Failed to map batchbuffer: %s\n", strerror(errno));
+
     pI830->batch_used = 0;
     pI830->batch_ptr = pI830->batch_bo->virtual;
+
+    /* If we are using DRI2, we don't know when another client has executed,
+     * so we have to reinitialize our 3D state per batch.
+     */
+    if (pI830->directRenderingType == DRI_DRI2)
+	*pI830->last_3d = LAST_3D_OTHER;
 }
 
 void
@@ -127,7 +135,7 @@ intel_batch_init(ScrnInfoPtr pScrn)
 
     intel_next_batch(pScrn);
 
-    if (!pI830->directRenderingEnabled) {
+    if (pI830->directRenderingType <= DRI_NONE) {
 	if (IS_I830(pI830) || IS_845G(pI830)) {
 	    intel_bufmgr_fake_set_exec_callback(pI830->bufmgr,
 						intel_nondrm_exec_i830,
@@ -201,4 +209,7 @@ intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed)
      */
     if (pI830->memory_manager != NULL)
 	pI830->need_mi_flush = TRUE;
+
+    if (pI830->batch_flush_notify)
+	pI830->batch_flush_notify (pScrn);
 }

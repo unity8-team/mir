@@ -194,6 +194,11 @@ static void quirk_ignore_lvds (I830Ptr pI830)
     pI830->quirk_flag |= QUIRK_IGNORE_LVDS;
 }
 
+static void quirk_ignore_crt (I830Ptr pI830)
+{
+    pI830->quirk_flag |= QUIRK_IGNORE_CRT;
+}
+
 static void quirk_mac_mini (I830Ptr pI830)
 {
     pI830->quirk_flag |= QUIRK_IGNORE_MACMINI_LVDS;
@@ -225,12 +230,10 @@ static void quirk_ivch_dvob (I830Ptr pI830)
 /* keep this list sorted by OEM, then by chip ID */
 static i830_quirk i830_quirk_list[] = {
     /* Aopen mini pc */
+    { PCI_CHIP_I915_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I945_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0xa0a0, SUBSYS_ANY, quirk_ignore_lvds },
     { PCI_CHIP_I965_GM, 0x8086, 0x1999, quirk_ignore_lvds },
-
-    /* Cappuccino SlimPRO SP625F, bz #11368 */
-    { PCI_CHIP_I855_GM, 0x8086, 0x3582, quirk_ignore_lvds },
 
     /* Apple Mac mini has no lvds, but macbook pro does */
     { PCI_CHIP_I945_GM, 0x8086, 0x7270, quirk_mac_mini },
@@ -285,6 +288,8 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I915_GM, 0x103c, 0x099c, quirk_ignore_tv },
     /* HP Compaq 6730s has no TV output */
     { PCI_CHIP_GM45_GM, 0x103c, 0x30e8, quirk_ignore_tv },
+    /* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
+    { PCI_CHIP_GM45_GM, 0x103c, 0x30eb, quirk_pipea_force },
 
     /* Thinkpad R31 needs pipe A force quirk */
     { PCI_CHIP_I830_M, 0x1014, 0x0505, quirk_pipea_force },
@@ -321,6 +326,11 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I830_M, 0x104d, 0x8100, quirk_ivch_dvob },
     /* Sony vaio VGN-SZ4MN (See LP: #212163) */
     { PCI_CHIP_I830_M, 0x104d, 0x81e6, quirk_pipea_force },
+    /* Sony VGC-LT71DB has no VGA output (bug #17395) */
+    { PCI_CHIP_I965_GM, 0x104d, 0x9018, quirk_ignore_crt },
+
+    /* Quanta Gigabyte W251U (See LP: #244242) */
+    { PCI_CHIP_I945_GM, 0x152d, 0x0755, quirk_pipea_force },
 
     /* Ordi Enduro UW31 (See LP: #152416) */
     { PCI_CHIP_I945_GM, 0x1584, 0x9900, quirk_ignore_tv },

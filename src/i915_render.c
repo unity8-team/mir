@@ -315,39 +315,69 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    uint32_t dst_format, dst_pitch;
-    uint32_t blendctl;
-    int out_reg = FS_OC;
-    FS_LOCALS(20);
-    Bool is_affine_src, is_affine_mask;
-    Bool is_nearest = FALSE;
 
     i830_exa_check_pitch_3d(pSrc);
     if (pMask)
 	i830_exa_check_pitch_3d(pMask);
     i830_exa_check_pitch_3d(pDst);
 
-    IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_RENDER;
-
-    if (!i915_get_dest_format(pDstPicture, &dst_format))
+    if (!i915_get_dest_format(pDstPicture,
+			      &pI830->i915_render_state.dst_format))
 	return FALSE;
-    dst_pitch = intel_get_pixmap_pitch(pDst);
 
+    pI830->i915_render_state.is_nearest = FALSE;
     if (!i915_texture_setup(pSrcPicture, pSrc, 0))
 	I830FALLBACK("fail to setup src texture\n");
     if (pSrcPicture->filter == PictFilterNearest)
-	is_nearest = TRUE;
+	pI830->i915_render_state.is_nearest = TRUE;
     if (pMask != NULL) {
 	if (!i915_texture_setup(pMaskPicture, pMask, 1))
 	    I830FALLBACK("fail to setup mask texture\n");
 	if (pMaskPicture->filter == PictFilterNearest)
-	    is_nearest = TRUE;
+	    pI830->i915_render_state.is_nearest = TRUE;
     } else {
 	pI830->transform[1] = NULL;
 	pI830->scale_units[1][0] = -1;
 	pI830->scale_units[1][1] = -1;
     }
+
+    pI830->i915_render_state.op = op;
+    pI830->i915_render_state.pSrcPicture = pSrcPicture;
+    pI830->i915_render_state.pMaskPicture = pMaskPicture;
+    pI830->i915_render_state.pDstPicture = pDstPicture;
+    pI830->i915_render_state.pSrc = pSrc;
+    pI830->i915_render_state.pMask = pMask;
+    pI830->i915_render_state.pDst = pDst;
+    pI830->i915_render_state.needs_emit = TRUE;
+
+    return TRUE;
+}
+
+static void
+i915_emit_composite_setup(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    int op = pI830->i915_render_state.op;
+    PicturePtr pSrcPicture = pI830->i915_render_state.pSrcPicture;
+    PicturePtr pMaskPicture = pI830->i915_render_state.pMaskPicture;
+    PicturePtr pDstPicture = pI830->i915_render_state.pDstPicture;
+    PixmapPtr pSrc = pI830->i915_render_state.pSrc;
+    PixmapPtr pMask = pI830->i915_render_state.pMask;
+    PixmapPtr pDst = pI830->i915_render_state.pDst;
+    uint32_t dst_format = pI830->i915_render_state.dst_format, dst_pitch;
+    uint32_t blendctl;
+    int out_reg = FS_OC;
+    FS_LOCALS(20);
+    Bool is_affine_src, is_affine_mask;
+    Bool is_nearest = pI830->i915_render_state.is_nearest;
+
+    pI830->i915_render_state.needs_emit = FALSE;
+
+    IntelEmitInvarientState(pScrn);
+    *pI830->last_3d = LAST_3D_RENDER;
+
+    dst_pitch = intel_get_pixmap_pitch(pDst);
+
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
 
@@ -503,6 +533,29 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 	i915_fs_mov(FS_OC, i915_fs_operand(out_reg, W, W, W, W));
 
     FS_END();
+}
 
-    return TRUE;
+void
+i915_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
+	       int dstX, int dstY, int w, int h)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    intel_batch_start_atomic(pScrn, 150);
+
+    if (pI830->i915_render_state.needs_emit)
+	i915_emit_composite_setup(pScrn);
+
+    i830_composite(pDst, srcX, srcY, maskX, maskY, dstX, dstY, w, h);
+
+    intel_batch_end_atomic(pScrn);
+}
+
+void
+i915_batch_flush_notify(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    pI830->i915_render_state.needs_emit = TRUE;
 }

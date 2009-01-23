@@ -42,8 +42,14 @@
 #include "brw_defines.h"
 #include "brw_structs.h"
 
-#define MAX_VERTEX_PER_COMPOSITE    24
-#define MAX_VERTEX_BUFFERS	    256
+/* 24 = 4 vertices/composite * 3 texcoords/vertex * 2 floats/texcoord
+ *
+ * This is an upper-bound based on the case of a non-affine
+ * transformation and with a mask, but useful for sizing all cases for
+ * simplicity.
+ */
+#define VERTEX_FLOATS_PER_COMPOSITE	24
+#define VERTEX_BUFFER_SIZE		(256 * VERTEX_FLOATS_PER_COMPOSITE)
 
 struct blendinfo {
     Bool dst_alpha;
@@ -432,14 +438,10 @@ typedef struct brw_surface_state_padded {
 /**
  * Gen4 rendering state buffer structure.
  *
- * Ideally this structure would contain static data for all of the
- * combinations of state that we use for Render acceleration, and another
- * buffer would be the use-and-throw-away surface and vertex data.  See the
- * intel-batchbuffer branch for an implementation of that.  For now, it
- * has the static program data, and then a changing buffer containing all
- * the rest.
+ * This structure contains static data for all of the combinations of
+ * state that we use for Render acceleration.
  */
-typedef struct _gen4_state {
+typedef struct _gen4_static_state {
     uint8_t wm_scratch[128 * PS_MAX_THREADS];
 
     KERNEL_DECL (sip_kernel);
@@ -471,10 +473,6 @@ typedef struct _gen4_state {
     WM_STATE_DECL (masknoca_affine);
     WM_STATE_DECL (masknoca_projective);
 
-    uint32_t binding_table[128];
-
-    struct brw_surface_state_padded surface_state[32];
-
     /* Index by [src_filter][src_extend][mask_filter][mask_extend].  Two of
      * the structs happen to add to 32 bytes.
      */
@@ -491,17 +489,29 @@ typedef struct _gen4_state {
 				     [BRW_BLENDFACTOR_COUNT];
     struct brw_cc_viewport cc_viewport;
     PAD64 (brw_cc_viewport, 0);
+} gen4_static_state_t;
 
-    float vb[MAX_VERTEX_PER_COMPOSITE * MAX_VERTEX_BUFFERS];
-} gen4_state_t;
+typedef float gen4_vertex_buffer[VERTEX_BUFFER_SIZE];
+
+typedef struct gen4_composite_op {
+    int		op;
+    PicturePtr	source_picture;
+    PicturePtr	mask_picture;
+    PicturePtr	dest_picture;
+    PixmapPtr	source;
+    PixmapPtr	mask;
+    PixmapPtr	dest;
+} gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
 struct gen4_render_state {
-    gen4_state_t *card_state;
-    uint32_t card_state_offset;
+    gen4_static_state_t *static_state;
+    uint32_t static_state_offset;
 
-    int binding_table_index;
-    int surface_state_index;
+    dri_bo* vertex_buffer_bo;
+
+    gen4_composite_op composite_op;
+
     int vb_offset;
     int vertex_size;
 };
@@ -694,14 +704,13 @@ wm_state_init (struct brw_wm_unit_state *wm_state,
  * Called at EnterVT to fill in our state buffer with any static information.
  */
 static void
-gen4_state_init (struct gen4_render_state *render_state)
+gen4_static_state_init (gen4_static_state_t *static_state,
+			uint32_t static_state_offset)
 {
     int i, j, k, l;
-    gen4_state_t *card_state = render_state->card_state;
-    uint32_t state_base_offset = render_state->card_state_offset;
 
 #define KERNEL_COPY(kernel) \
-    memcpy(card_state->kernel, kernel ## _static, sizeof(kernel ## _static))
+    memcpy(static_state->kernel, kernel ## _static, sizeof(kernel ## _static))
 
     KERNEL_COPY (sip_kernel);
     KERNEL_COPY (sf_kernel);
@@ -717,44 +726,44 @@ gen4_state_init (struct gen4_render_state *render_state)
 #undef KERNEL_COPY
 
     /* Set up the vertex shader to be disabled (passthrough) */
-    memset(&card_state->vs_state, 0, sizeof(card_state->vs_state));
-    card_state->vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
-    card_state->vs_state.thread4.urb_entry_allocation_size =
+    memset(&static_state->vs_state, 0, sizeof(static_state->vs_state));
+    static_state->vs_state.thread4.nr_urb_entries = URB_VS_ENTRIES;
+    static_state->vs_state.thread4.urb_entry_allocation_size =
 	URB_VS_ENTRY_SIZE - 1;
-    card_state->vs_state.vs6.vs_enable = 0;
-    card_state->vs_state.vs6.vert_cache_disable = 1;
+    static_state->vs_state.vs6.vs_enable = 0;
+    static_state->vs_state.vs6.vert_cache_disable = 1;
 
     /* Set up the sampler border color (always transparent black) */
-    memset(&card_state->sampler_border_color, 0,
-	   sizeof(card_state->sampler_border_color));
-    card_state->sampler_border_color.color[0] = 0; /* R */
-    card_state->sampler_border_color.color[1] = 0; /* G */
-    card_state->sampler_border_color.color[2] = 0; /* B */
-    card_state->sampler_border_color.color[3] = 0; /* A */
+    memset(&static_state->sampler_border_color, 0,
+	   sizeof(static_state->sampler_border_color));
+    static_state->sampler_border_color.color[0] = 0; /* R */
+    static_state->sampler_border_color.color[1] = 0; /* G */
+    static_state->sampler_border_color.color[2] = 0; /* B */
+    static_state->sampler_border_color.color[3] = 0; /* A */
 
-    card_state->cc_viewport.min_depth = -1.e35;
-    card_state->cc_viewport.max_depth = 1.e35;
+    static_state->cc_viewport.min_depth = -1.e35;
+    static_state->cc_viewport.max_depth = 1.e35;
 
-    sf_state_init (&card_state->sf_state,
-		   state_base_offset +
-		   offsetof (gen4_state_t, sf_kernel));
-    sf_state_init (&card_state->sf_state_mask,
-		   state_base_offset +
-		   offsetof (gen4_state_t, sf_kernel_mask));
+    sf_state_init (&static_state->sf_state,
+		   static_state_offset +
+		   offsetof (gen4_static_state_t, sf_kernel));
+    sf_state_init (&static_state->sf_state_mask,
+		   static_state_offset +
+		   offsetof (gen4_static_state_t, sf_kernel_mask));
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
 	for (j = 0; j < SAMPLER_STATE_EXTEND_COUNT; j++) {
 	    for (k = 0; k < SAMPLER_STATE_FILTER_COUNT; k++) {
 		for (l = 0; l < SAMPLER_STATE_EXTEND_COUNT; l++) {
-		    sampler_state_init (&card_state->sampler_state[i][j][k][l][0],
+		    sampler_state_init (&static_state->sampler_state[i][j][k][l][0],
 					i, j,
-					state_base_offset +
-					offsetof (gen4_state_t,
+					static_state_offset +
+					offsetof (gen4_static_state_t,
 						  sampler_border_color));
-		    sampler_state_init (&card_state->sampler_state[i][j][k][l][1],
+		    sampler_state_init (&static_state->sampler_state[i][j][k][l][1],
 					k, l,
-					state_base_offset +
-					offsetof (gen4_state_t,
+					static_state_offset +
+					offsetof (gen4_static_state_t,
 						  sampler_border_color));
 		}
 	    }
@@ -764,21 +773,21 @@ gen4_state_init (struct gen4_render_state *render_state)
 
     for (i = 0; i < BRW_BLENDFACTOR_COUNT; i++) {
 	for (j = 0; j < BRW_BLENDFACTOR_COUNT; j++) {
-	    cc_state_init (&card_state->cc_state[i][j].state, i, j,
-			   state_base_offset +
-			   offsetof (gen4_state_t, cc_viewport));
+	    cc_state_init (&static_state->cc_state[i][j].state, i, j,
+			   static_state_offset +
+			   offsetof (gen4_static_state_t, cc_viewport));
 	}
     }
 
 #define SETUP_WM_STATE(kernel, has_mask)				\
-    wm_state_init(&card_state->wm_state_ ## kernel [i][j][k][l],	\
+    wm_state_init(&static_state->wm_state_ ## kernel [i][j][k][l],	\
 		  has_mask,						\
-		  state_base_offset + offsetof(gen4_state_t,		\
-					       wm_scratch),		\
-		  state_base_offset + offsetof(gen4_state_t,		\
-					       ps_kernel_ ## kernel),	\
-		  state_base_offset + offsetof(gen4_state_t,		\
-					       sampler_state[i][j][k][l]));
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 wm_scratch),		\
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 ps_kernel_ ## kernel),	\
+		  static_state_offset + offsetof(gen4_static_state_t,	\
+						 sampler_state[i][j][k][l]));
 
 
     for (i = 0; i < SAMPLER_STATE_FILTER_COUNT; i++) {
@@ -847,20 +856,19 @@ sampler_state_extend_from_picture (int repeat_type)
 }
 
 /**
- * Sets up the common fields for a surface state buffer for the given picture
- * in the surface state buffer at index, and returns the offset within the
- * state buffer for this entry.
+ * Sets up the common fields for a surface state buffer for the given
+ * picture in the given surface state buffer.
  */
-static unsigned int
-i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
+static void
+i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
 			       PicturePtr pPicture, PixmapPtr pPixmap,
 			       Bool is_dst)
 {
-    I830Ptr pI830 = I830PTR(pScrn);
-    struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_state_t *card_state = render_state->card_state;
+    struct brw_surface_state_padded *ss;
     struct brw_surface_state local_ss;
-    uint32_t offset;
+    dri_bo *pixmap_bo = i830_get_pixmap_bo(pPixmap);
+
+    ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
     /* Since ss is a pointer to WC memory, do all of our bit operations
      * into a local temporary first.
@@ -888,7 +896,10 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
     local_ss.ss0.vert_line_stride_ofs = 0;
     local_ss.ss0.mipmap_layout_mode = 0;
     local_ss.ss0.render_cache_read_mode = 0;
-    local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
+    if (pixmap_bo != NULL)
+	local_ss.ss1.base_addr = pixmap_bo->offset;
+    else
+	local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
 
     local_ss.ss2.mip_count = 0;
     local_ss.ss2.render_target_rotation = 0;
@@ -900,22 +911,75 @@ i965_set_picture_surface_state(ScrnInfoPtr pScrn, struct brw_surface_state *ss,
 
     memcpy(ss, &local_ss, sizeof(local_ss));
 
-    offset = (char *)ss - (char *)card_state;
-    assert((offset & 31) == 0);
+    if (pixmap_bo != NULL) {
+	uint32_t write_domain, read_domains;
 
-    return offset;
+	if (is_dst) {
+	    write_domain = I915_GEM_DOMAIN_RENDER;
+	    read_domains = I915_GEM_DOMAIN_RENDER;
+	} else {
+	    write_domain = 0;
+	    read_domains = I915_GEM_DOMAIN_SAMPLER;
+	}
+	dri_bo_emit_reloc(ss_bo, read_domains, write_domain,
+			  0,
+			  ss_index * sizeof(*ss) +
+			  offsetof(struct brw_surface_state, ss1),
+			  pixmap_bo);
+    }
 }
 
-Bool
-i965_prepare_composite(int op, PicturePtr pSrcPicture,
-		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
-		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+
+static Bool
+_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn,
+					   Bool check_twice);
+
+/* Allocate the dynamic state needed for a composite operation,
+ * flushing the current batch if needed to create sufficient space.
+ *
+ * Even after flushing we check again and return FALSE if the
+ * operation still can't fit with an empty batch. Otherwise, returns
+ * TRUE.
+ */
+static Bool
+_emit_batch_header_for_composite_check_twice (ScrnInfoPtr pScrn)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+     return _emit_batch_header_for_composite_internal (pScrn, TRUE);
+}
+
+/* Allocate the dynamic state needed for a composite operation,
+ * flushing the current batch if needed to create sufficient space.
+ *
+ * See _emit_batch_header_for_composite_check_twice for a safer
+ * version, (but this version is fine if the safer version has
+ * previously been called for the same composite operation).
+ */
+static void
+_emit_batch_header_for_composite (ScrnInfoPtr pScrn)
+{
+    _emit_batch_header_for_composite_internal (pScrn, FALSE);
+}
+
+/* Number of buffer object in our call to check_aperture_size:
+ *
+ *	batch_bo
+ *	vertex_buffer_bo
+ */
+#define NUM_BO 2
+
+static Bool
+_emit_batch_header_for_composite_internal (ScrnInfoPtr pScrn, Bool check_twice)
+{
     I830Ptr pI830 = I830PTR(pScrn);
     struct gen4_render_state *render_state= pI830->gen4_render_state;
-    gen4_state_t *card_state = render_state->card_state;
-    struct brw_surface_state_padded *ss;
+    gen4_composite_op *composite_op = &render_state->composite_op;
+    int op = composite_op->op;
+    PicturePtr pSrcPicture = composite_op->source_picture;
+    PicturePtr pMaskPicture = composite_op->mask_picture;
+    PicturePtr pDstPicture = composite_op->dest_picture;
+    PixmapPtr pSrc = composite_op->source;
+    PixmapPtr pMask = composite_op->mask;
+    PixmapPtr pDst = composite_op->dest;
     uint32_t sf_state_offset;
     sampler_state_filter_t src_filter, mask_filter;
     sampler_state_extend_t src_extend, mask_extend;
@@ -929,6 +993,32 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     int state_base_offset;
     uint32_t src_blend, dst_blend;
     uint32_t *binding_table;
+    dri_bo *bo_table[NUM_BO];
+    dri_bo *binding_table_bo, *surface_state_bo;
+
+    if (render_state->vertex_buffer_bo == NULL) {
+	render_state->vertex_buffer_bo = dri_bo_alloc (pI830->bufmgr, "vb",
+						       sizeof (gen4_vertex_buffer),
+						       4096);
+	render_state->vb_offset = 0;
+    }
+
+    bo_table[0] = pI830->batch_bo;
+    bo_table[1] = render_state->vertex_buffer_bo;
+
+    /* If this command won't fit in the current batch, flush. */
+    if (dri_bufmgr_check_aperture_space (bo_table, NUM_BO) < 0) {
+	intel_batch_flush (pScrn, FALSE);
+
+	if (check_twice) {
+	    bo_table[0] = pI830->batch_bo; /* get refreshed batch_bo */
+	    /* If the command still won't fit in an empty batch, then it's
+	     * just plain too big for the hardware---fallback to software.
+	     */
+	    if (dri_bufmgr_check_aperture_space (bo_table, 1) < 0)
+		return FALSE;
+	}
+    }
 
     IntelEmitInvarientState(pScrn);
     *pI830->last_3d = LAST_3D_RENDER;
@@ -971,47 +1061,66 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     i965_get_blend_cntl(op, pMaskPicture, pDstPicture->format,
 			&src_blend, &dst_blend);
 
-    if ((render_state->binding_table_index + 3 >=
-	 ARRAY_SIZE(card_state->binding_table)) ||
-	(render_state->surface_state_index + 3 >=
-	 ARRAY_SIZE(card_state->surface_state)))
-    {
-	i830WaitSync(pScrn);
-	render_state->binding_table_index = 0;
-	render_state->surface_state_index = 0;
-	render_state->vb_offset = 0;
+    /* Set up the surface states. */
+    surface_state_bo = dri_bo_alloc (pI830->bufmgr, "surface_state",
+				     3 * sizeof (brw_surface_state_padded),
+				     4096);
+    if (dri_bo_map (surface_state_bo, 1) != 0) {
+	dri_bo_unreference (surface_state_bo);
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+
+	return FALSE;
+    }
+    /* Set up the state buffer for the destination surface */
+    i965_set_picture_surface_state(surface_state_bo, 0,
+				   pDstPicture, pDst, TRUE);
+    /* Set up the source surface state buffer */
+    i965_set_picture_surface_state(surface_state_bo, 1,
+				   pSrcPicture, pSrc, FALSE);
+    if (pMask) {
+	/* Set up the mask surface state buffer */
+	i965_set_picture_surface_state(surface_state_bo, 2,
+				       pMaskPicture, pMask,
+				       FALSE);
+    }
+    dri_bo_unmap (surface_state_bo);
+
+    /* Set up the binding table of surface indices to surface state. */
+    binding_table_bo = dri_bo_alloc (pI830->bufmgr, "binding_table",
+				     3 * sizeof (uint32_t), 4096);
+    if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(binding_table_bo);
+	dri_bo_unreference(surface_state_bo);
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+
+	return FALSE;
     }
 
-    binding_table = card_state->binding_table +
-	render_state->binding_table_index;
-    ss = card_state->surface_state + render_state->surface_state_index;
-    /* We only use 2 or 3 entries, but the table has to be 32-byte
-     * aligned.
-     */
-    render_state->binding_table_index += 8;
-    render_state->surface_state_index += (pMask != NULL) ? 3 : 2;
+    binding_table = binding_table_bo->virtual;
+    binding_table[0] = 0 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       0 * sizeof (brw_surface_state_padded),
+		       0 * sizeof (uint32_t),
+		       surface_state_bo);
 
-    /* Set up and bind the state buffer for the destination surface */
-    binding_table[0] = state_base_offset +
-	i965_set_picture_surface_state(pScrn,
-				       &ss[0].state,
-				       pDstPicture, pDst, TRUE);
+    binding_table[1] = 1 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+    dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+		       1 * sizeof (brw_surface_state_padded),
+		       1 * sizeof (uint32_t),
+		       surface_state_bo);
 
-    /* Set up and bind the source surface state buffer */
-    binding_table[1] = state_base_offset +
-	i965_set_picture_surface_state(pScrn,
-				       &ss[1].state,
-				       pSrcPicture, pSrc, FALSE);
     if (pMask) {
-	/* Set up and bind the mask surface state buffer */
-	binding_table[2] = state_base_offset +
-	    i965_set_picture_surface_state(pScrn,
-					   &ss[2].state,
-					   pMaskPicture, pMask,
-					   FALSE);
+	binding_table[2] = 2 * sizeof (brw_surface_state_padded) + surface_state_bo->offset;
+	dri_bo_emit_reloc (binding_table_bo, I915_GEM_DOMAIN_INSTRUCTION, 0,
+			   2 * sizeof (brw_surface_state_padded),
+			   2 * sizeof (uint32_t),
+			   surface_state_bo);
     } else {
 	binding_table[2] = 0;
     }
+    dri_bo_unmap (binding_table_bo);
 
     src_filter = sampler_state_filter_from_picture (pSrcPicture->filter);
     if (src_filter < 0)
@@ -1070,7 +1179,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set system instruction pointer */
 	OUT_BATCH(BRW_STATE_SIP | 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, sip_kernel));
+	OUT_BATCH(state_base_offset + offsetof(gen4_static_state_t, sip_kernel));
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
     }
@@ -1092,8 +1201,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	OUT_BATCH(0); /* clip */
 	OUT_BATCH(0); /* sf */
 	/* Only the PS uses the binding table */
-	assert((((unsigned char *)binding_table - pI830->FbBase) & 31) == 0);
-	OUT_BATCH((unsigned char *)binding_table - pI830->FbBase);
+	OUT_RELOC(binding_table_bo, I915_GEM_DOMAIN_SAMPLER, 0, 0);
 
 	/* The drawing rectangle clipping is always on.  Set it to values that
 	 * shouldn't do any clipping.
@@ -1111,17 +1219,17 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 
 	/* Set the pointers to the 3d pipeline state */
 	OUT_BATCH(BRW_3DSTATE_PIPELINED_POINTERS | 5);
-	assert((offsetof(gen4_state_t, vs_state) & 31) == 0);
-	OUT_BATCH(state_base_offset + offsetof(gen4_state_t, vs_state));
+	assert((offsetof(gen4_static_state_t, vs_state) & 31) == 0);
+	OUT_BATCH(state_base_offset + offsetof(gen4_static_state_t, vs_state));
 	OUT_BATCH(BRW_GS_DISABLE);   /* disable GS, resulting in passthrough */
 	OUT_BATCH(BRW_CLIP_DISABLE); /* disable CLIP, resulting in passthrough */
 
 	if (pMask) {
 	    sf_state_offset = state_base_offset +
-		offsetof(gen4_state_t, sf_state_mask);
+		offsetof(gen4_static_state_t, sf_state_mask);
 	} else {
 	    sf_state_offset = state_base_offset +
-		offsetof(gen4_state_t, sf_state);
+		offsetof(gen4_static_state_t, sf_state);
 	}
 	assert((sf_state_offset & 31) == 0);
 	OUT_BATCH(sf_state_offset);
@@ -1129,7 +1237,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	/* Shorthand for long array lookup */
 #define OUT_WM_KERNEL(kernel) do {					\
     uint32_t offset = state_base_offset +				\
-	offsetof(gen4_state_t,						\
+	offsetof(gen4_static_state_t,					\
 		 wm_state_ ## kernel					\
 		 [src_filter]						\
 		 [src_extend]						\
@@ -1169,10 +1277,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 #undef OUT_WM_KERNEL
 
 	/* 64 byte aligned */
-	assert((offsetof(gen4_state_t,
+	assert((offsetof(gen4_static_state_t,
 			 cc_state[src_blend][dst_blend]) & 63) == 0);
 	OUT_BATCH(state_base_offset +
-		  offsetof(gen4_state_t, cc_state[src_blend][dst_blend]));
+		  offsetof(gen4_static_state_t, cc_state[src_blend][dst_blend]));
 
 	/* URB fence */
 	OUT_BATCH(BRW_URB_FENCE |
@@ -1267,7 +1375,34 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     ErrorF("try to sync to show any errors...\n");
     I830Sync(pScrn);
 #endif
+
+    dri_bo_unreference (binding_table_bo);
+    dri_bo_unreference (surface_state_bo);
+
     return TRUE;
+}
+#undef NUM_BO
+
+Bool
+i965_prepare_composite(int op, PicturePtr pSrcPicture,
+		       PicturePtr pMaskPicture, PicturePtr pDstPicture,
+		       PixmapPtr pSrc, PixmapPtr pMask, PixmapPtr pDst)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+    gen4_composite_op *composite_op = &render_state->composite_op;
+
+    composite_op->op = op;
+    composite_op->source_picture = pSrcPicture;
+    composite_op->mask_picture = pMaskPicture;
+    composite_op->dest_picture = pDstPicture;
+    composite_op->source = pSrc;
+    composite_op->mask = pMask;
+    composite_op->dest = pDst;
+
+    /* Fallback if we can't make this operation fit. */
+    return _emit_batch_header_for_composite_check_twice (pScrn);
 }
 
 void
@@ -1276,13 +1411,12 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    gen4_state_t *card_state = pI830->gen4_render_state->card_state;
     struct gen4_render_state *render_state = pI830->gen4_render_state;
     Bool has_mask;
     Bool is_affine_src, is_affine_mask, is_affine;
     float src_x[3], src_y[3], src_w[3], mask_x[3], mask_y[3], mask_w[3];
-    float *vb = card_state->vb;
     int i;
+    float *vb;
 
     is_affine_src = i830_transform_is_affine (pI830->transform[0]);
     is_affine_mask = i830_transform_is_affine (pI830->transform[1]);
@@ -1358,10 +1492,27 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	}
     }
 
-    if (render_state->vb_offset + MAX_VERTEX_PER_COMPOSITE >= ARRAY_SIZE(card_state->vb)) {
-	i830WaitSync(pScrn);
-	render_state->vb_offset = 0;
+    /* We're about to do a BEGIN_BATCH(12) for the vertex setup. And
+     * we first need to ensure that that's not going to cause a flush
+     * since we need to not flush between setting up our vertices in
+     * the VB and emitting them into the batch. */
+    intel_batch_require_space(pScrn, pI830, 12 * 4);
+
+    /* If the vertex buffer is too full, then we flush and re-emit all
+     * necessary state into the batch for the composite operation. */
+    if (render_state->vb_offset + VERTEX_FLOATS_PER_COMPOSITE > VERTEX_BUFFER_SIZE) {
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
     }
+
+    if (render_state->vertex_buffer_bo == NULL)
+	_emit_batch_header_for_composite (pScrn);
+
+    /* Map the vertex_buffer buffer object so we can write to it. */
+    if (dri_bo_map (render_state->vertex_buffer_bo, 1) != 0)
+	return;		/* XXX what else to do here? */
+
+    vb = render_state->vertex_buffer_bo->virtual;
 
     i = render_state->vb_offset;
     /* rect (x2,y2) */
@@ -1405,7 +1556,9 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 	if (!is_affine)
 	    vb[i++] = mask_w[0];
     }
-    assert (i * 4 <= sizeof(card_state->vb));
+    assert (i <= VERTEX_BUFFER_SIZE);
+
+    dri_bo_unmap (render_state->vertex_buffer_bo);
 
     BEGIN_BATCH(12);
     OUT_BATCH(MI_FLUSH);
@@ -1414,7 +1567,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
     OUT_BATCH((0 << VB0_BUFFER_INDEX_SHIFT) |
 	      VB0_VERTEXDATA |
 	      (render_state->vertex_size << VB0_BUFFER_PITCH_SHIFT));
-    OUT_BATCH(render_state->card_state_offset + offsetof(gen4_state_t, vb) +
+    OUT_RELOC(render_state->vertex_buffer_bo, I915_GEM_DOMAIN_VERTEX, 0,
 	      render_state->vb_offset * 4);
     OUT_BATCH(3);
     OUT_BATCH(0); // ignore for VERTEXDATA, but still there
@@ -1439,6 +1592,21 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 #endif
 }
 
+void
+i965_batch_flush_notify(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state = pI830->gen4_render_state;
+
+    /* Once a batch is emitted, we never want to map again any buffer
+     * object being referenced by that batch, (which would be very
+     * expensive). */
+    if (render_state->vertex_buffer_bo) {
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+    }
+}
+
 /**
  * Called at EnterVT so we can set up our offsets into the state buffer.
  */
@@ -1454,7 +1622,7 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 
     render_state = pI830->gen4_render_state;
 
-    render_state->card_state_offset = pI830->gen4_render_state_mem->offset;
+    render_state->static_state_offset = pI830->gen4_render_state_mem->offset;
 
     if (pI830->use_drm_mode) {
 	ret = dri_bo_map(pI830->gen4_render_state_mem->bo, 1);
@@ -1463,13 +1631,14 @@ gen4_render_state_init(ScrnInfoPtr pScrn)
 		       "Failed to map gen4 state\n");
 	    return;
 	}
-	render_state->card_state = pI830->gen4_render_state_mem->bo->virtual;
+	render_state->static_state = pI830->gen4_render_state_mem->bo->virtual;
     } else {
-	render_state->card_state = (gen4_state_t *)
-	    (pI830->FbBase + render_state->card_state_offset);
+	render_state->static_state = (gen4_static_state_t *)
+	    (pI830->FbBase + render_state->static_state_offset);
     }
 
-    gen4_state_init(render_state);
+    gen4_static_state_init(render_state->static_state,
+			   render_state->static_state_offset);
 }
 
 /**
@@ -1479,16 +1648,22 @@ void
 gen4_render_state_cleanup(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
+    struct gen4_render_state *render_state= pI830->gen4_render_state;
+
+    if (render_state->vertex_buffer_bo) {
+	dri_bo_unreference (render_state->vertex_buffer_bo);
+	render_state->vertex_buffer_bo = NULL;
+    }
 
     if (pI830->use_drm_mode) {
 	dri_bo_unmap(pI830->gen4_render_state_mem->bo);
 	dri_bo_unreference(pI830->gen4_render_state_mem->bo);
     }
-    pI830->gen4_render_state->card_state = NULL;
+    render_state->static_state = NULL;
 }
 
 unsigned int
 gen4_render_state_size(ScrnInfoPtr pScrn)
 {
-    return sizeof(gen4_state_t);
+    return sizeof(gen4_static_state_t);
 }

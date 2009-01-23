@@ -68,6 +68,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "xf86.h"
 #include "xf86_OSproc.h"
@@ -87,6 +89,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #include "dristruct.h"
+
+#ifdef DRI2
+#include "dri2.h"
+#endif
 
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
 static Bool I830CreateContext(ScreenPtr pScreen, VisualPtr visual,
@@ -964,7 +970,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
    REGION_UNINIT(pScreen, &pI830->driRegion);
 #endif
 
-   if (pI830DRI->irq) {
+   if (!pI830->memory_manager && pI830DRI->irq) {
        drmCtlUninstHandler(pI830->drmSubFD);
        pI830DRI->irq = 0;
    }
@@ -985,7 +991,7 @@ I830DRICloseScreen(ScreenPtr pScreen)
       xfree(pI830->pVisualConfigs);
    if (pI830->pVisualConfigsPriv)
       xfree(pI830->pVisualConfigsPriv);
-   pI830->directRenderingEnabled = FALSE;
+   pI830->directRenderingType = DRI_NONE;
 }
 
 static Bool
@@ -1574,6 +1580,9 @@ i830_update_sarea(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
    ScreenPtr pScreen = pScrn->pScreen;
    I830Ptr pI830 = I830PTR(pScrn);
 
+   if (pI830->directRenderingType == DRI_DRI2)
+       return;
+
    sarea->width = pScreen->width;
    sarea->height = pScreen->height;
    sarea->pitch = pScrn->displayWidth;
@@ -1671,6 +1680,9 @@ i830_update_dri_mappings(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
+   if (pI830->directRenderingType == DRI_DRI2)
+       return TRUE;
+
    if (!i830_do_addmap(pScrn, pI830->front_buffer, &sarea->front_handle,
 		       &sarea->front_size, &sarea->front_offset)) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DRI.\n");
@@ -1761,7 +1773,7 @@ I830DRISetVBlankInterrupt (ScrnInfoPtr pScrn, Bool on)
     if (!pI830->want_vblank_interrupts)
 	on = FALSE;
 
-    if (pI830->directRenderingEnabled && pI830->drmMinor >= 5) {
+    if (pI830->directRenderingType == DRI_XF86DRI && pI830->drmMinor >= 5) {
 	if (on) {
 	    if (xf86_config->num_crtc > 1 && xf86_config->crtc[1]->enabled)
 		if (pI830->drmMinor >= 6)
@@ -1787,7 +1799,7 @@ I830DRILock(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->directRenderingEnabled && !pI830->LockHeld) {
+   if (pI830->directRenderingType == DRI_XF86DRI && !pI830->LockHeld) {
       DRILock(screenInfo.screens[pScrn->scrnIndex], 0);
       pI830->LockHeld = 1;
       if (!pI830->memory_manager)
@@ -1805,8 +1817,239 @@ I830DRIUnlock(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->directRenderingEnabled && pI830->LockHeld) {
+   if (pI830->directRenderingType == DRI_XF86DRI && pI830->LockHeld) {
       DRIUnlock(screenInfo.screens[pScrn->scrnIndex]);
       pI830->LockHeld = 0;
    }
 }
+
+#ifdef DRI2
+
+typedef struct {
+    PixmapPtr pPixmap;
+} I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
+
+static DRI2BufferPtr
+I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    DRI2BufferPtr buffers;
+    dri_bo *bo;
+    int i;
+    I830DRI2BufferPrivatePtr privates;
+    PixmapPtr pPixmap, pDepthPixmap;
+
+    buffers = xcalloc(count, sizeof *buffers);
+    if (buffers == NULL)
+	return NULL;
+    privates = xcalloc(count, sizeof *privates);
+    if (privates == NULL) {
+	xfree(buffers);
+	return NULL;
+    }
+
+    pDepthPixmap = NULL;
+    for (i = 0; i < count; i++) {
+	if (attachments[i] == DRI2BufferFrontLeft) {
+	    if (pDraw->type == DRAWABLE_PIXMAP)
+		pPixmap = (PixmapPtr) pDraw;
+	    else
+		pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	    pPixmap->refcnt++;
+	} else if (attachments[i] == DRI2BufferStencil && pDepthPixmap) {
+	    pPixmap = pDepthPixmap;
+	    pPixmap->refcnt++;
+	} else {
+	    uint32_t tiling = I915_TILING_NONE;
+
+	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
+					       pDraw->width,
+					       pDraw->height,
+					       pDraw->depth, 0);
+	    switch (attachments[i]) {
+	    case DRI2BufferDepth:
+		if (IS_I965G(pI830))
+		    tiling = I915_TILING_Y;
+		else
+		    tiling = I915_TILING_X;
+		break;
+	    case DRI2BufferFakeFrontLeft:
+	    case DRI2BufferFakeFrontRight:
+	    case DRI2BufferBackLeft:
+	    case DRI2BufferBackRight:
+		    tiling = I915_TILING_X;
+		break;
+	    }
+
+	    /* Disable tiling on 915-class 3D for now.  Because the 2D blitter
+	     * requires fence regs to operate, and they're not being managed
+	     * by the kernel yet, we don't want to expose tiled buffers to the
+	     * 3D client as it'll just render incorrectly if it pays attention
+	     * to our tiling bits at all.
+	     */
+	    if (!IS_I965G(pI830))
+		tiling = I915_TILING_NONE;
+
+	    if (tiling != I915_TILING_NONE) {
+		bo = i830_get_pixmap_bo(pPixmap);
+		drm_intel_bo_set_tiling(bo, &tiling,
+					pDraw->width * pDraw->bitsPerPixel / 8);
+	    }
+	}
+
+	if (attachments[i] == DRI2BufferDepth)
+	    pDepthPixmap = pPixmap;
+
+	buffers[i].attachment = attachments[i];
+	buffers[i].pitch = pPixmap->devKind;
+	buffers[i].cpp = pPixmap->drawable.bitsPerPixel / 8;
+	buffers[i].driverPrivate = &privates[i];
+	buffers[i].flags = 0; /* not tiled */
+	privates[i].pPixmap = pPixmap;
+
+	bo = i830_get_pixmap_bo (pPixmap);
+	if (dri_bo_flink(bo, &buffers[i].name) != 0) {
+	    /* failed to name buffer */
+	}
+
+    }
+
+    return buffers;
+}
+
+static void
+I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    I830DRI2BufferPrivatePtr private;
+    int i;
+
+    for (i = 0; i < count; i++)
+    {
+	private = buffers[i].driverPrivate;
+	(*pScreen->DestroyPixmap)(private->pPixmap);
+    }
+
+    if (buffers)
+    {
+	xfree(buffers[0].driverPrivate);
+	xfree(buffers);
+    }
+}
+
+static void
+I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
+		   DRI2BufferPtr pDestBuffer, DRI2BufferPtr pSrcBuffer)
+{
+    I830DRI2BufferPrivatePtr private = pSrcBuffer->driverPrivate;
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    PixmapPtr pPixmap = private->pPixmap;
+    RegionPtr pCopyClip;
+    GCPtr pGC;
+
+    pGC = GetScratchGC(pDraw->depth, pScreen);
+    pCopyClip = REGION_CREATE(pScreen, NULL, 0);
+    REGION_COPY(pScreen, pCopyClip, pRegion);
+    (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
+    ValidateGC(pDraw, pGC);
+    (*pGC->ops->CopyArea)(&pPixmap->drawable,
+			  pDraw, pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
+    FreeScratchGC(pGC);
+
+    /* Emit a flush of the rendering cache, or on the 965 and beyond
+     * rendering results may not hit the framebuffer until significantly
+     * later.
+     */
+    I830EmitFlush(pScrn);
+    pI830->need_mi_flush = FALSE;
+
+    /* We can't rely on getting into the block handler before the DRI
+     * client gets to run again so flush now. */
+    intel_batch_flush(pScrn, TRUE);
+#if ALWAYS_SYNC
+    I830Sync(pScrn);
+#endif
+    drmCommandNone(pI830->drmSubFD, DRM_I915_GEM_THROTTLE);
+
+}
+
+Bool I830DRI2ScreenInit(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    DRI2InfoRec info;
+    char *p, *busId, buf[64];
+    int fd, i, cmp;
+
+    if (pI830->accel != ACCEL_UXA) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
+	return FALSE;
+    }
+
+    sprintf(buf, "pci:%04x:%02x:%02x.%d",
+	    pI830->PciInfo->domain,
+	    pI830->PciInfo->bus,
+	    pI830->PciInfo->dev,
+	    pI830->PciInfo->func);
+
+    info.fd = drmOpen("i915", buf);
+    if (info.fd < 0) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
+	return FALSE;
+    }
+
+    /* The whole drmOpen thing is a fiasco and we need to find a way
+     * back to just using open(2).  For now, however, lets just make
+     * things worse with even more ad hoc directory walking code to
+     * discover the device file name. */
+
+    p = pI830->deviceName;
+    for (i = 0; i < DRM_MAX_MINOR; i++) {
+	sprintf(p, DRM_DEV_NAME, DRM_DIR_NAME, i);
+	fd = open(p, O_RDWR);
+	if (fd < 0)
+	    continue;
+
+	busId = drmGetBusid(fd);
+	close(fd);
+	if (busId == NULL)
+	    continue;
+
+	cmp = strcmp(busId, buf);
+	drmFree(busId);
+	if (cmp == 0)
+	    break;
+    }
+    if (i == DRM_MAX_MINOR) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "DRI2: failed to open drm device\n");
+	return FALSE;
+    }
+
+    info.driverName = IS_I965G(pI830) ? "i965" : "i915";
+    info.deviceName = p;
+    info.version = 1;
+
+    info.CreateBuffers = I830DRI2CreateBuffers;
+    info.DestroyBuffers = I830DRI2DestroyBuffers;
+    info.CopyRegion = I830DRI2CopyRegion;
+
+    pI830->drmSubFD = info.fd;
+
+    return DRI2ScreenInit(pScreen, &info);
+}
+
+void I830DRI2CloseScreen(ScreenPtr pScreen)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    DRI2CloseScreen(pScreen);
+    pI830->directRenderingType = DRI_NONE;
+}
+
+#endif

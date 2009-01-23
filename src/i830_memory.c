@@ -435,14 +435,14 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
     has_gem = FALSE;
     has_dri = FALSE;
     
-    if (pI830->directRenderingEnabled &&
+    if (pI830->directRenderingType == DRI_XF86DRI &&
 	xf86LoaderCheckSymbol ("DRIQueryVersion"))
     {
 	DRIQueryVersion(&dri_major, &dri_minor, &dri_patch);
 	has_dri = TRUE;
     }
 
-    if (pI830->directRenderingEnabled)
+    if (pI830->directRenderingType >= DRI_XF86DRI)
     {
 	has_gem = FALSE;
 	gp.param = I915_PARAM_HAS_GEM;
@@ -457,8 +457,9 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
      * 5.4 or newer so we can rely on the lock being held after DRIScreenInit,
      * rather than after DRIFinishScreenInit.
      */
-    if (pI830->directRenderingEnabled && has_gem && has_dri &&
-	(dri_major > 5 || (dri_major == 5 && dri_minor >= 4)))
+    if ((pI830->directRenderingType == DRI_XF86DRI && has_gem && has_dri &&
+	(dri_major > 5 || (dri_major == 5 && dri_minor >= 4))) ||
+	(pI830->directRenderingType == DRI_DRI2 && has_gem))
     {
 	int mmsize;
 
@@ -1073,8 +1074,11 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
     if (OVERLAY_NOEXIST(pI830))
 	return TRUE;
 
-    if (!OVERLAY_NOPHYSICAL(pI830))
+    if (!OVERLAY_NOPHYSICAL(pI830)) {
+	if (pI830->use_drm_mode)
+            return TRUE;
 	flags |= NEED_PHYSICAL_ADDR;
+    }
 
     pI830->overlay_regs = i830_allocate_memory(pScrn, "overlay registers",
 					       OVERLAY_SIZE, GTT_PAGE_SIZE,
@@ -2130,7 +2134,6 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 }
 #endif
 
-#ifdef XF86DRI_MM
 #if 0
 static i830_memory *
 i830_allocate_framebuffer_new(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox)
@@ -2242,5 +2245,3 @@ i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
     return pI830->front_buffer->bo->handle;
 #endif
 }
-
-#endif

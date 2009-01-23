@@ -1,3 +1,49 @@
+xserver-xorg-video-intel (2:2.6.1-1ubuntu1) jaunty; urgency=low
+
+  * Merge with Debian experimental, remaining changes:
+    - debian/control:
+      + Add lpia to the list of architectures.
+      + Drop Vcs-* as we're not using these repos for -intel.
+    - debian/patches:
+      + 103_quirk_intel_mb890.patch
+        Add ignore lvds quirk for mb890 motherboards to fix issue where
+        display shows all in one color. (LP: 305269)
+      + 104_i830-vbt-timing-hack.patch
+        Adjust h and vblank end to fix issue on Dell Studio 15 and
+        other similar hardware. Fixes issue where X comes up with an
+        unusable white screen on the LVDS. (LP: 297245)
+  * Add 105_no_modesetting.diff
+    - 2.6.28 doesn't ship drm headers that support modesetting, so
+      disable it for the driver to build.
+  * Add 106_remove_triple_buffering.diff
+    - Obsolete code, prerequisite for the next patch.
+  * Add 107_remove_pageflipping.diff
+    - Remove pageflipping support. It never got in the kernel drm code,
+      so without this the build fails.
+
+ -- Timo Aaltonen <tjaalton@ubuntu.com>  Fri, 23 Jan 2009 10:41:27 +0200
+
+xserver-xorg-video-intel (2:2.6.1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Build against xserver 1.6 rc1.
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 22 Jan 2009 00:18:25 +0100
+
+xserver-xorg-video-intel (2:2.6.0-1) experimental; urgency=low
+
+  * New upstream release.
+
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 15 Jan 2009 10:54:17 +0100
+
+xserver-xorg-video-intel (2:2.5.99.2-1) experimental; urgency=low
+
+  * New upstream release.
+    + doesn't crash on EnterVT with libdrm 2.4.3 (closes: #511263)
+  * Update libdrm-dev build-dep to 2.4.3.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 14 Jan 2009 08:08:20 +0100
+
 xserver-xorg-video-intel (2:2.5.1-1ubuntu9) jaunty; urgency=low
 
   * i830-vbt-timing-hack.patch: Adjust h and vblank end to fix issue on
