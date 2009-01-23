@@ -3108,14 +3108,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	}
     }
 
-    /* clear the enable masks */
-    info->output_crt1 = 0;
-    info->output_crt2 = 0;
-    info->output_dfp1 = 0;
-    info->output_dfp2 = 0;
-    info->output_lcd1 = 0;
-    info->output_tv1 = 0;
-
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    RADEONOutputPrivatePtr radeon_output;

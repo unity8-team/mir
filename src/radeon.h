@@ -793,15 +793,12 @@ typedef struct {
     DisplayModePtr currentMode, savedCurrentMode;
 
     /* special handlings for DELL triple-head server */
-    Bool              IsDellServer; 
+    Bool              IsDellServer;
 
     Bool              VGAAccess;
 
     int               MaxSurfaceWidth;
     int               MaxLines;
-
-    uint32_t          tv_dac_adj;
-    uint32_t          tv_dac_enable_mask;
 
     Bool want_vblank_interrupts;
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
@@ -813,7 +810,6 @@ typedef struct {
     Bool              crtc2_on;
 
     Bool              InternalTVOut;
-    int               tvdac_use_count;
 
 #if defined(__powerpc__)
     RADEONMacModel    MacModel;
@@ -823,14 +819,6 @@ typedef struct {
     atomBiosHandlePtr atomBIOS;
     unsigned long FbFreeStart, FbFreeSize;
     unsigned char*      BIOSCopy;
-
-    /* output enable masks for outputs shared across connectors */
-    int output_crt1;
-    int output_crt2;
-    int output_dfp1;
-    int output_dfp2;
-    int output_lcd1;
-    int output_tv1;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
