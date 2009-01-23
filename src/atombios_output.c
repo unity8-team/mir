@@ -819,6 +819,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     AtomBiosArgRec data;
     unsigned char *space;
     int index = 0;
+    Bool is_dig = FALSE;
 
     if (radeon_encoder == NULL)
         return;
@@ -831,8 +832,8 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-	(void)atombios_dig_dpms(output, mode);
-	return;
+    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	is_dig = TRUE;
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DVO1:
     case ENCODER_OBJECT_ID_INTERNAL_DDI:
@@ -843,7 +844,6 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
 	    index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
 	else
@@ -871,24 +871,44 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 
     switch (mode) {
     case DPMSModeOn:
-	disp_data.ucAction = ATOM_ENABLE;
+	if (is_dig)
+	    (void)atombios_dig_dpms(output, mode);
+	else {
+	    disp_data.ucAction = ATOM_ENABLE;
+	    data.exec.index = index;
+	    data.exec.dataSpace = (void *)&space;
+	    data.exec.pspace = &disp_data;
+
+	    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS)
+		ErrorF("Output %d enable success\n", index);
+	    else
+		ErrorF("Output %d enable failed\n", index);
+	}
+	radeon_encoder->use_count++;
 	break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	disp_data.ucAction = ATOM_DISABLE;
+	if (radeon_encoder->use_count < 2) {
+	    if (is_dig)
+		(void)atombios_dig_dpms(output, mode);
+	    else {
+		disp_data.ucAction = ATOM_DISABLE;
+		data.exec.index = index;
+		data.exec.dataSpace = (void *)&space;
+		data.exec.pspace = &disp_data;
+
+		if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data)
+		    == ATOM_SUCCESS)
+		    ErrorF("Output %d disable success\n", index);
+		else
+		    ErrorF("Output %d disable failed\n", index);
+	    }
+	}
+	if (radeon_encoder->use_count > 0)
+	    radeon_encoder->use_count--;
 	break;
     }
-
-    data.exec.index = index;
-    data.exec.dataSpace = (void *)&space;
-    data.exec.pspace = &disp_data;
-
-    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output %d %s success\n", index, disp_data.ucAction? "enable":"disable");
-    }
-
-    ErrorF("Output %d %s failed\n", index, disp_data.ucAction? "enable":"disable");
 }
 
 static void
