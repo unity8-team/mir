@@ -225,7 +225,7 @@ typedef struct {
 const static tv_mode_t tv_modes[] = {
     {
 	.name		= "NTSC-M",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -253,8 +253,8 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  20800,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
 	.sc_reset	= TV_SC_RESET_EVERY_4,
 	.pal_burst	= FALSE,
@@ -276,7 +276,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-443",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -304,10 +304,10 @@ const static tv_mode_t tv_modes[] = {
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
-	.sc_reset   = TV_SC_RESET_EVERY_8,
-	.pal_burst  = TRUE,
+	.dda2_inc       =   4093,       .dda2_size      =  27456,
+	.dda3_inc       =    310,       .dda3_size      =    525,
+	.sc_reset   = TV_SC_RESET_NEVER,
+	.pal_burst  = FALSE,
 
 	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
 	.composite_color = {
@@ -326,7 +326,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "NTSC-J",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -354,8 +354,8 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=   7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  20800,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
 	.sc_reset	= TV_SC_RESET_EVERY_4,
 	.pal_burst	= FALSE,
@@ -377,7 +377,7 @@ const static tv_mode_t tv_modes[] = {
     },
     {
 	.name		= "PAL-M",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 29.97,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -405,11 +405,11 @@ const static tv_mode_t tv_modes[] = {
 	.vburst_start_f4 = 10,		    .vburst_end_f4	= 240,
 
 	/* desired 3.5800000 actual 3.5800000 clock 107.52 */
-	.dda1_inc	=    136,
-	.dda2_inc	=    7624,	    .dda2_size		=  20013,
+	.dda1_inc	=    135,
+	.dda2_inc	=  16704,	    .dda2_size		=  27456,
 	.dda3_inc	=      0,	    .dda3_size		=      0,
-	.sc_reset	= TV_SC_RESET_EVERY_4,
-	.pal_burst  = FALSE,
+	.sc_reset	= TV_SC_RESET_EVERY_8,
+	.pal_burst  = TRUE,
 
 	.composite_levels = { .blank = 225, .black = 267, .burst = 113 },
 	.composite_color = {
@@ -429,7 +429,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL-N",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -458,9 +458,9 @@ const static tv_mode_t tv_modes[] = {
 
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
-	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
+	.dda1_inc       =    135,
+	.dda2_inc       =  23578,       .dda2_size      =  27648,
+	.dda3_inc       =    134,       .dda3_size      =    625,
 	.sc_reset   = TV_SC_RESET_EVERY_8,
 	.pal_burst  = TRUE,
 
@@ -482,7 +482,7 @@ const static tv_mode_t tv_modes[] = {
     {
 	/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 	.name	    = "PAL",
-	.clock		= 107520,
+	.clock		= 108000,
 	.refresh	= 25.0,
 	.oversample	= TV_OVERSAMPLE_8X,
 	.component_only = 0,
@@ -510,8 +510,8 @@ const static tv_mode_t tv_modes[] = {
 
 	/* desired 4.4336180 actual 4.4336180 clock 107.52 */
 	.dda1_inc       =    168,
-	.dda2_inc       =  18557,       .dda2_size      =  20625,
-	.dda3_inc       =      0,       .dda3_size      =      0,
+	.dda2_inc       =   4122,       .dda2_size      =  27648,
+	.dda3_inc       =     67,       .dda3_size      =    625,
 	.sc_reset   = TV_SC_RESET_EVERY_8,
 	.pal_burst  = TRUE,
 
@@ -1180,9 +1180,14 @@ i830_tv_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    (i830_float_to_csc(color_conversion->bv) << 16) |
 	    (i830_float_to_luma(color_conversion->av)));
 
-    /* 2.6 fixed point value for contrast and saturation modifier,
-       use 1 as default */
-    OUTREG(TV_CLR_KNOBS, 0x00404000);
+    if (IS_I965G(pI830)) {
+	/* 2.6 fixed point value for contrast and saturation modifier,
+	   use 1 as default */
+	OUTREG(TV_CLR_KNOBS, 0x00404000);
+    } else {
+	/* 915/945 uses 2 bits exponent and 6 bits mantissa format */
+	OUTREG(TV_CLR_KNOBS, 0x00606000);
+    }
     OUTREG(TV_CLR_LEVEL, ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 		(video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
     {
@@ -1686,6 +1691,8 @@ i830_tv_init(ScrnInfoPtr pScrn)
     I830OutputPrivatePtr    intel_output;
     struct i830_tv_priv	    *dev_priv;
     uint32_t		    tv_dac_on, tv_dac_off, save_tv_dac;
+    XF86OptionPtr	    mon_option_lst = NULL;
+    char		    *tv_format = NULL;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_TV)
 	return;
@@ -1740,21 +1747,23 @@ i830_tv_init(ScrnInfoPtr pScrn)
 
     dev_priv->tv_format = NULL;
 
-    /* BIOS margin values */
-    dev_priv->margin[TV_MARGIN_LEFT] = 54;
-    dev_priv->margin[TV_MARGIN_TOP] = 36;
-    dev_priv->margin[TV_MARGIN_RIGHT] = 46;
-    dev_priv->margin[TV_MARGIN_BOTTOM] = 37;
-
     if (output->conf_monitor)
-    {
-	char	*tv_format;
+	mon_option_lst = output->conf_monitor->mon_option_lst;
 
-	tv_format = xf86findOptionValue (output->conf_monitor->mon_option_lst, "TV Format");
-	if (tv_format)
-	    dev_priv->tv_format = xstrdup (tv_format);
-    }
-    if (!dev_priv->tv_format)
+     /* BIOS margin values */
+    dev_priv->margin[TV_MARGIN_LEFT] = xf86SetIntOption (mon_option_lst,
+	    "Left", 54);
+    dev_priv->margin[TV_MARGIN_TOP] = xf86SetIntOption (mon_option_lst,
+	    "Top", 36);
+    dev_priv->margin[TV_MARGIN_RIGHT] = xf86SetIntOption (mon_option_lst,
+	    "Right", 46);
+    dev_priv->margin[TV_MARGIN_BOTTOM] = xf86SetIntOption (mon_option_lst,
+	    "Bottom", 37);
+
+    tv_format = xf86findOptionValue (mon_option_lst, "TV Format");
+    if (tv_format)
+	dev_priv->tv_format = xstrdup (tv_format);
+    else
 	dev_priv->tv_format = xstrdup (tv_modes[0].name);
 
     output->driver_private = intel_output;

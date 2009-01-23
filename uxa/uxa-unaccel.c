@@ -41,13 +41,19 @@
  * 1bpp and never in fb, so we don't worry about them.
  * We should worry about them for completeness sake and going forward.
  */
-void
+Bool
 uxa_prepare_access_gc(GCPtr pGC)
 {
     if (pGC->stipple)
-        uxa_prepare_access(&pGC->stipple->drawable, UXA_ACCESS_RO);
+        if (!uxa_prepare_access(&pGC->stipple->drawable, UXA_ACCESS_RO))
+	    return FALSE;
     if (pGC->fillStyle == FillTiled)
-	uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RO);
+	if (!uxa_prepare_access(&pGC->tile.pixmap->drawable, UXA_ACCESS_RO)) {
+	    if (pGC->stipple)
+		uxa_finish_access(&pGC->stipple->drawable);
+	    return FALSE;
+	}
+    return TRUE;
 }
 
 /**
@@ -75,11 +81,13 @@ uxa_check_fill_spans (DrawablePtr pDrawable, GCPtr pGC, int nspans,
 		   DDXPointPtr ppt, int *pwidth, int fSorted)
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access_gc (pGC);
-    fbFillSpans (pDrawable, pGC, nspans, ppt, pwidth, fSorted);
-    uxa_finish_access_gc (pGC);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access_gc (pGC)) {
+	    fbFillSpans (pDrawable, pGC, nspans, ppt, pwidth, fSorted);
+	    uxa_finish_access_gc (pGC);
+	}
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -87,9 +95,10 @@ uxa_check_set_spans (DrawablePtr pDrawable, GCPtr pGC, char *psrc,
 		 DDXPointPtr ppt, int *pwidth, int nspans, int fSorted)
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    fbSetSpans (pDrawable, pGC, psrc, ppt, pwidth, nspans, fSorted);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	fbSetSpans (pDrawable, pGC, psrc, ppt, pwidth, nspans, fSorted);
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -98,25 +107,27 @@ uxa_check_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth,
 		 char *bits)
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    fbPutImage (pDrawable, pGC, depth, x, y, w, h, leftPad, format, bits);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	fbPutImage (pDrawable, pGC, depth, x, y, w, h, leftPad, format, bits);
+	uxa_finish_access (pDrawable);
+    }
 }
 
 RegionPtr
 uxa_check_copy_area (DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
-		 int srcx, int srcy, int w, int h, int dstx, int dsty)
+		     int srcx, int srcy, int w, int h, int dstx, int dsty)
 {
-    RegionPtr ret;
+    RegionPtr ret = NULL;
 
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pSrc, pDst,
 		  uxa_drawable_location(pSrc), uxa_drawable_location(pDst)));
-    uxa_prepare_access (pDst, UXA_ACCESS_RW);
-    uxa_prepare_access (pSrc, UXA_ACCESS_RO);
-    ret = fbCopyArea (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty);
-    uxa_finish_access (pSrc);
-    uxa_finish_access (pDst);
-
+    if (uxa_prepare_access (pDst, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access (pSrc, UXA_ACCESS_RO)) {
+	    ret = fbCopyArea (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty);
+	    uxa_finish_access (pSrc);
+	}
+	uxa_finish_access (pDst);
+    }
     return ret;
 }
 
@@ -125,17 +136,18 @@ uxa_check_copy_plane (DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 		  int srcx, int srcy, int w, int h, int dstx, int dsty,
 		  unsigned long bitPlane)
 {
-    RegionPtr ret;
+    RegionPtr ret = NULL;
 
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pSrc, pDst,
 		  uxa_drawable_location(pSrc), uxa_drawable_location(pDst)));
-    uxa_prepare_access (pDst, UXA_ACCESS_RW);
-    uxa_prepare_access (pSrc, UXA_ACCESS_RO);
-    ret = fbCopyPlane (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty,
-		       bitPlane);
-    uxa_finish_access (pSrc);
-    uxa_finish_access (pDst);
-
+    if (uxa_prepare_access (pDst, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access (pSrc, UXA_ACCESS_RO)) {
+	    ret = fbCopyPlane (pSrc, pDst, pGC, srcx, srcy, w, h, dstx, dsty,
+			       bitPlane);
+	    uxa_finish_access (pSrc);
+	}
+	uxa_finish_access (pDst);
+    }
     return ret;
 }
 
@@ -144,9 +156,10 @@ uxa_check_poly_point (DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
 		  DDXPointPtr pptInit)
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    fbPolyPoint (pDrawable, pGC, mode, npt, pptInit);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	fbPolyPoint (pDrawable, pGC, mode, npt, pptInit);
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -158,11 +171,13 @@ uxa_check_poly_lines (DrawablePtr pDrawable, GCPtr pGC,
 		  pGC->lineWidth, mode, npt));
 
     if (pGC->lineWidth == 0) {
-	uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-	uxa_prepare_access_gc (pGC);
-	fbPolyLine (pDrawable, pGC, mode, npt, ppt);
-	uxa_finish_access_gc (pGC);
-	uxa_finish_access (pDrawable);
+	if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	    if (uxa_prepare_access_gc (pGC)) {
+		fbPolyLine (pDrawable, pGC, mode, npt, ppt);
+		uxa_finish_access_gc (pGC);
+	    }
+	    uxa_finish_access (pDrawable);
+	}
 	return;
     }
     /* fb calls mi functions in the lineWidth != 0 case. */
@@ -176,11 +191,13 @@ uxa_check_poly_segment (DrawablePtr pDrawable, GCPtr pGC,
     UXA_FALLBACK(("to %p (%c) width %d, count %d\n", pDrawable,
 		  uxa_drawable_location(pDrawable), pGC->lineWidth, nsegInit));
     if (pGC->lineWidth == 0) {
-	uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-	uxa_prepare_access_gc (pGC);
-	fbPolySegment (pDrawable, pGC, nsegInit, pSegInit);
-	uxa_finish_access_gc (pGC);
-	uxa_finish_access (pDrawable);
+	if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	    if (uxa_prepare_access_gc (pGC)) {
+		fbPolySegment (pDrawable, pGC, nsegInit, pSegInit);
+		uxa_finish_access_gc (pGC);
+	    }
+	    uxa_finish_access (pDrawable);
+	}
 	return;
     }
     /* fb calls mi functions in the lineWidth != 0 case. */
@@ -200,11 +217,13 @@ uxa_check_poly_arc (DrawablePtr pDrawable, GCPtr pGC,
 #if 0
     if (pGC->lineWidth == 0)
     {
-	uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-	uxa_prepare_access_gc (pGC);
-	fbPolyArc (pDrawable, pGC, narcs, pArcs);
-	uxa_finish_access_gc (pGC);
-	uxa_finish_access (pDrawable);
+	if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	    if (uxa_prepare_access_gc (pGC)) {
+		fbPolyArc (pDrawable, pGC, narcs, pArcs);
+		uxa_finish_access_gc (pGC);
+	    }
+	    uxa_finish_access (pDrawable);
+	}
 	return;
     }
 #endif
@@ -217,11 +236,13 @@ uxa_check_poly_fill_rect (DrawablePtr pDrawable, GCPtr pGC,
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
 
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access_gc (pGC);
-    fbPolyFillRect (pDrawable, pGC, nrect, prect);
-    uxa_finish_access_gc (pGC);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access_gc (pGC)) {
+	    fbPolyFillRect (pDrawable, pGC, nrect, prect);
+	    uxa_finish_access_gc (pGC);
+	}
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -231,11 +252,13 @@ uxa_check_image_glyph_blt (DrawablePtr pDrawable, GCPtr pGC,
 {
     UXA_FALLBACK(("to %p (%c)\n", pDrawable,
 		  uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access_gc (pGC);
-    fbImageGlyphBlt (pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
-    uxa_finish_access_gc (pGC);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access_gc (pGC)) {
+	    fbImageGlyphBlt (pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
+	    uxa_finish_access_gc (pGC);
+	}
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -245,11 +268,13 @@ uxa_check_poly_glyph_blt (DrawablePtr pDrawable, GCPtr pGC,
 {
     UXA_FALLBACK(("to %p (%c), style %d alu %d\n", pDrawable,
 		  uxa_drawable_location(pDrawable), pGC->fillStyle, pGC->alu));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access_gc (pGC);
-    fbPolyGlyphBlt (pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
-    uxa_finish_access_gc (pGC);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access_gc (pGC)) {
+	    fbPolyGlyphBlt (pDrawable, pGC, x, y, nglyph, ppci, pglyphBase);
+	    uxa_finish_access_gc (pGC);
+	}
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -260,13 +285,16 @@ uxa_check_push_pixels (GCPtr pGC, PixmapPtr pBitmap,
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pBitmap, pDrawable,
 		  uxa_drawable_location(&pBitmap->drawable),
 		  uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RW);
-    uxa_prepare_access (&pBitmap->drawable, UXA_ACCESS_RO);
-    uxa_prepare_access_gc (pGC);
-    fbPushPixels (pGC, pBitmap, pDrawable, w, h, x, y);
-    uxa_finish_access_gc (pGC);
-    uxa_finish_access (&pBitmap->drawable);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
+	if (uxa_prepare_access (&pBitmap->drawable, UXA_ACCESS_RO)) {
+	    if (uxa_prepare_access_gc (pGC)) {
+		fbPushPixels (pGC, pBitmap, pDrawable, w, h, x, y);
+		uxa_finish_access_gc (pGC);
+	    }
+	    uxa_finish_access (&pBitmap->drawable);
+	}
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -278,9 +306,10 @@ uxa_check_get_spans (DrawablePtr pDrawable,
 		 char *pdstStart)
 {
     UXA_FALLBACK(("from %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
-    uxa_prepare_access (pDrawable, UXA_ACCESS_RO);
-    fbGetSpans (pDrawable, wMax, ppt, pwidth, nspans, pdstStart);
-    uxa_finish_access (pDrawable);
+    if (uxa_prepare_access (pDrawable, UXA_ACCESS_RO)) {
+	fbGetSpans (pDrawable, wMax, ppt, pwidth, nspans, pdstStart);
+	uxa_finish_access (pDrawable);
+    }
 }
 
 void
@@ -300,28 +329,34 @@ uxa_check_composite (CARD8      op,
     UXA_FALLBACK(("from picts %p/%p to pict %p\n",
 		 pSrc, pMask, pDst));
 
-    uxa_prepare_access (pDst->pDrawable, UXA_ACCESS_RW);
-    if (pSrc->pDrawable != NULL)
-	uxa_prepare_access (pSrc->pDrawable, UXA_ACCESS_RO);
-    if (pMask && pMask->pDrawable != NULL)
-	uxa_prepare_access (pMask->pDrawable, UXA_ACCESS_RO);
-    fbComposite (op,
-                 pSrc,
-                 pMask,
-                 pDst,
-                 xSrc,
-                 ySrc,
-                 xMask,
-                 yMask,
-                 xDst,
-                 yDst,
-                 width,
-                 height);
-    if (pMask && pMask->pDrawable != NULL)
-	uxa_finish_access (pMask->pDrawable);
-    if (pSrc->pDrawable != NULL)
-	uxa_finish_access (pSrc->pDrawable);
-    uxa_finish_access (pDst->pDrawable);
+    if (uxa_prepare_access (pDst->pDrawable, UXA_ACCESS_RW))
+    {
+	if (pSrc->pDrawable == NULL ||
+	    uxa_prepare_access (pSrc->pDrawable, UXA_ACCESS_RO))
+	{
+	    if (!pMask || pMask->pDrawable == NULL ||
+		uxa_prepare_access (pMask->pDrawable, UXA_ACCESS_RO))
+	    {
+		fbComposite (op,
+			     pSrc,
+			     pMask,
+			     pDst,
+			     xSrc,
+			     ySrc,
+			     xMask,
+			     yMask,
+			     xDst,
+			     yDst,
+			     width,
+			     height);
+		if (pMask && pMask->pDrawable != NULL)
+		    uxa_finish_access (pMask->pDrawable);
+	    }
+	    if (pSrc->pDrawable != NULL)
+		uxa_finish_access (pSrc->pDrawable);
+	}
+	uxa_finish_access (pDst->pDrawable);
+    }
 }
 
 void
@@ -333,9 +368,10 @@ uxa_check_add_traps (PicturePtr	pPicture,
 {
     UXA_FALLBACK(("to pict %p (%c)\n",
 		  uxa_drawable_location(pPicture->pDrawable)));
-    uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW);
-    fbAddTraps (pPicture, x_off, y_off, ntrap, traps);
-    uxa_finish_access(pPicture->pDrawable);
+    if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
+	fbAddTraps (pPicture, x_off, y_off, ntrap, traps);
+	uxa_finish_access(pPicture->pDrawable);
+    }
 }
 
 /**
@@ -350,7 +386,9 @@ uxa_get_pixmap_first_pixel (PixmapPtr pPixmap)
     CARD32 pixel;
     void *fb;
 
-    uxa_prepare_access (&pPixmap->drawable, UXA_ACCESS_RO);
+    if (!uxa_prepare_access (&pPixmap->drawable, UXA_ACCESS_RO))
+	return 0;
+
     fb = pPixmap->devPrivate.ptr;
 
     switch (pPixmap->drawable.bitsPerPixel) {

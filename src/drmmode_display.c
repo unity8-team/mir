@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 
+#include "xorgVersion.h"
+
 #ifdef XF86DRM_MODE
 #include "i830.h"
 #include "sarea.h"
@@ -146,6 +148,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	crtc->x = x;
 	crtc->y = y;
 	crtc->rotation = rotation;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,5,99,0,0)
+	crtc->transformPresent = FALSE;
+#endif
 
 	output_ids = xcalloc(sizeof(uint32_t), xf86_config->num_output);
 	if (!output_ids) {
@@ -166,9 +171,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		output_count++;
 	}
 
-	if (!xf86CrtcRotate(crtc, mode, rotation)) {
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,5,99,0,0)
+	if (!xf86CrtcRotate(crtc, mode, rotation))
 		goto done;
-	}
+#else
+	if (!xf86CrtcRotate(crtc))
+		goto done;
+#endif
 
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
@@ -213,7 +222,6 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	ScrnInfoPtr pScrn = crtc->scrn;
 	I830Ptr pI830 = I830PTR(pScrn);
 	int ret;
@@ -317,21 +325,20 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 static void
 drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
 	if (rotate_pixmap)
 		FreeScratchPixmapHeader(rotate_pixmap);
 
-	if (data) {
 #if 0
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	if (data) {
 		/* Be sure to sync acceleration before the memory gets unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
-#endif
 	}
-
+#endif
 }
 
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
@@ -362,8 +369,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 {
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
-	I830Ptr pI830 = I830PTR(pScrn);
-	int ret;
 
 	crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
 	if (crtc == NULL)
@@ -641,12 +646,12 @@ void drmmode_set_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width,
 
 Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo)
 {
-	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
-	int i;
-
 	return FALSE;
 
 #if 0
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR (pScrn);
+	int i;
+
 	for (i = 0; i < config->num_crtc; i++) {
 		xf86CrtcPtr crtc = config->crtc[i];
 		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;

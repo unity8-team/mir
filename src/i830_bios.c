@@ -109,6 +109,9 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
 	lvds_lfp_data_ptrs->ptr[lvds_options->panel_type].dvo_timing_offset;
     timing_ptr = (unsigned char *)bdb + timing_offset;
 
+    if (pI830->skip_panel_detect)
+	return;
+
     fixed_mode = xnfalloc(sizeof(DisplayModeRec));
     memset(fixed_mode, 0, sizeof(*fixed_mode));
 

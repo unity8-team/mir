@@ -95,9 +95,6 @@
 /* Enable developmental DRI driver support */
 #undef XF86DRI_DEVEL
 
-/* Extended DRI memory management */
-#undef XF86DRI_MM
-
 /* DRM kernel modesetting */
 #undef XF86DRM_MODE
 

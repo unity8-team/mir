@@ -51,6 +51,28 @@ intel_batch_require_space(ScrnInfoPtr pScrn, I830Ptr pI830, GLuint sz)
 }
 
 static inline void
+intel_batch_start_atomic(ScrnInfoPtr pScrn, unsigned int sz)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    assert(!pI830->in_batch_atomic);
+    intel_batch_require_space(pScrn, pI830, sz);
+
+    pI830->in_batch_atomic = TRUE;
+    pI830->batch_atomic_limit = pI830->batch_used + sz * 4;
+}
+
+static inline void
+intel_batch_end_atomic(ScrnInfoPtr pScrn)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    assert(pI830->in_batch_atomic);
+    assert(pI830->batch_used <= pI830->batch_atomic_limit);
+    pI830->in_batch_atomic = FALSE;
+}
+
+static inline void
 intel_batch_emit_dword(I830Ptr pI830, uint32_t dword)
 {
     assert(pI830->batch_ptr != NULL);

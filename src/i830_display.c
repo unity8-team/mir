@@ -422,7 +422,7 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
     }
 
 #ifdef XF86DRI
-    if (pI830->directRenderingEnabled) {
+    if (pI830->directRenderingType == DRI_XF86DRI) {
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
 
 	if (!sPriv)
@@ -745,7 +745,7 @@ i830_use_fb_compression(xf86CrtcPtr crtc)
     return TRUE;
 }
 
-#if defined(DRM_IOCTL_MODESET_CTL) && defined(XF86DRI)
+#if defined(DRM_IOCTL_MODESET_CTL) && (defined(XF86DRI) || defined(DRI2))
 static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -753,7 +753,7 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int pre)
     I830CrtcPrivatePtr intel_crtc = crtc->driver_private;
     struct drm_modeset_ctl modeset;
 
-    if (!pI830->directRenderingEnabled)
+    if (pI830->directRenderingType <= DRI_NONE)
       return;
 
     modeset.crtc = intel_crtc->pipe;
@@ -777,7 +777,38 @@ static void i830_modeset_ctl(xf86CrtcPtr crtc, int dpms_state)
 {
     return;
 }
-#endif /* DRM_IOCTL_MODESET_CTL && XF86DRI */
+#endif /* DRM_IOCTL_MODESET_CTL && (XF86DRI || DRI2) */
+
+static void
+i830_disable_vga_plane (xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    uint32_t vgacntrl = INREG(VGACNTRL);
+    uint8_t sr01;
+
+    if (vgacntrl & VGA_DISP_DISABLE)
+	return;
+
+    /*
+       Set bit 5 of SR01;
+       Wait 30us;
+       */
+    OUTREG8(SRX, 1);
+    sr01 = INREG8(SRX + 1);
+    OUTREG8(SRX + 1, sr01 | (1 << 5));
+    usleep(30);
+
+    vgacntrl |= VGA_DISP_DISABLE;
+
+    /* disable center mode */
+    if (IS_I9XX(pI830))
+	vgacntrl &= ~(3 << 24);
+
+    OUTREG(VGACNTRL, vgacntrl);
+    i830WaitForVblank(pScrn);
+
+}
 
 /**
  * Sets the power management mode of the pipe and plane.
@@ -903,8 +934,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	}
 
 	/* Disable the VGA plane that we never use. */
-	OUTREG(VGACNTRL, VGA_DISP_DISABLE);
-	i830WaitForVblank(pScrn);
+	i830_disable_vga_plane (crtc);
 
 	break;
     }
@@ -912,7 +942,7 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
     intel_crtc->dpms_mode = mode;
 
 #ifdef XF86DRI
-    if (pI830->directRenderingEnabled) {
+    if (pI830->directRenderingType == DRI_XF86DRI) {
 	drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScrn->pScreen);
 	Bool enabled = crtc->enabled && mode != DPMSModeOff;
 
@@ -1202,7 +1232,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     int dspstride_reg = (plane == 0) ? DSPASTRIDE : DSPBSTRIDE;
     int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
     int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
-    int pipestat_reg = (pipe == 0) ? PIPEASTAT : PIPEBSTAT;
     int i, num_outputs = 0;
     int refclk;
     intel_clock_t clock;
@@ -1514,9 +1543,6 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 #endif
     
     i830WaitForVblank(pScrn);
-
-    /* Clear any FIFO underrun status that may have occurred normally */
-    OUTREG(pipestat_reg, INREG(pipestat_reg) | FIFO_UNDERRUN);
 }
 
 
@@ -1638,6 +1664,13 @@ i830_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
     }
 }
 
+#if RANDR_13_INTERFACE
+static void
+i830_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
+{
+    i830PipeSetBase(crtc, x, y);
+}
+#endif
 
 void
 i830DescribeOutputConfiguration(ScrnInfoPtr pScrn)
@@ -1959,6 +1992,9 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
 /*    .load_cursor_image = i830_crtc_load_cursor_image, */
     .load_cursor_argb = i830_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
+#if RANDR_13_INTERFACE
+    .set_origin = i830_crtc_set_origin,
+#endif
 };
 
 void

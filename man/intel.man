@@ -296,7 +296,7 @@ Integrated TV output.  Available properties include:
 .B BOTTOM, RIGHT, TOP, LEFT
 - margins
 .TP 2
-Adjusting these properties allows you to control the placement of your TV output buffer on the screen.
+Adjusting these properties allows you to control the placement of your TV output buffer on the screen. The options with the same name can also be set in xorg.conf with integer value.
 
 .PP
 .B TV_FORMAT
@@ -445,7 +445,7 @@ more information (the xorg@lists.freedesktop.org mailing list is the
 most appropriate place to ask X.Org and driver related questions).
 
 .SH "SEE ALSO"
-__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), xorgconfig(__appmansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
+__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .SH AUTHORS
 Authors include: Keith Whitwell, and also Jonathan Bian, Matthew J Sottek,
 Jeff Hartmann, Mark Vojkovich, Alan Hourihane, H. J. Lu.  830M and 845G

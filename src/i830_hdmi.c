@@ -38,6 +38,8 @@ struct i830_hdmi_priv {
     uint32_t output_reg;
 
     uint32_t save_SDVO;
+
+    Bool has_hdmi_sink;
 };
 
 static int
@@ -78,6 +80,10 @@ i830_hdmi_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	SDVO_BORDER_ENABLE |
 	SDVO_VSYNC_ACTIVE_HIGH |
 	SDVO_HSYNC_ACTIVE_HIGH;
+
+    if (dev_priv->has_hdmi_sink)
+	    sdvox |= SDVO_AUDIO_ENABLE;
+
     if (intel_crtc->pipe == 1)
 	sdvox |= SDVO_PIPE_B_SELECT;
 
@@ -142,6 +148,8 @@ i830_hdmi_detect(xf86OutputPtr output)
     xf86OutputStatus status;
     xf86MonPtr edid_mon;
 
+    dev_priv->has_hdmi_sink = FALSE;
+
     /* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written 0xd.
      * Failure to do so will result in spurious interrupts being
      * generated on the port when a cable is not attached.
@@ -180,6 +188,17 @@ i830_hdmi_detect(xf86OutputPtr output)
     edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
     if (!edid_mon || !DIGITAL(edid_mon->features.input_type))
 	status = XF86OutputStatusDisconnected;
+
+    if (xf86LoaderCheckSymbol("xf86MonitorIsHDMI") &&
+	    xf86MonitorIsHDMI(edid_mon))
+	dev_priv->has_hdmi_sink = TRUE;
+
+    if (pI830->debug_modes)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			"%s monitor detected on HDMI-%d\n",
+			dev_priv->has_hdmi_sink ? "HDMI" : "DVI",
+			(dev_priv->output_reg == SDVOB) ? 1 : 2);
+
     xfree(edid_mon);
     return status;
 }
@@ -232,6 +251,7 @@ i830_hdmi_init(ScrnInfoPtr pScrn, int output_reg)
 
     dev_priv = (struct i830_hdmi_priv *)(intel_output + 1);
     dev_priv->output_reg = output_reg;
+    dev_priv->has_hdmi_sink = FALSE;
 
     intel_output->dev_priv = dev_priv;
     intel_output->type = I830_OUTPUT_HDMI;

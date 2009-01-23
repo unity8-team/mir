@@ -83,6 +83,7 @@ static char *backlight_interfaces[] = {
     "acpi_video1",
     "acpi_video0",
     "fujitsu-laptop",
+    "sony",
     NULL,
 };
 
@@ -400,7 +401,8 @@ i830SetLVDSPanelPower(xf86OutputPtr output, Bool on)
 	 * they'll always re-maximize the brightness.
 	 */
 	if (!(INREG(PP_CONTROL) & POWER_TARGET_ON) &&
-	    dev_priv->backlight_duty_cycle == 0)
+	    dev_priv->backlight_duty_cycle == 0 &&
+	    pI830->backlight_control_method < BCM_KERNEL)
 	    dev_priv->backlight_duty_cycle = dev_priv->backlight_max;
 
 	OUTREG(PP_CONTROL, INREG(PP_CONTROL) | POWER_TARGET_ON);
@@ -774,6 +776,28 @@ i830_lvds_detect(xf86OutputPtr output)
     return XF86OutputStatusConnected;
 }
 
+static void fill_detailed_block(struct detailed_monitor_section *det_mon,
+                                DisplayModePtr mode)
+{
+    struct detailed_timings *timing = &det_mon->section.d_timings;
+    det_mon->type = DT;
+    timing->clock = mode->Clock * 1000;
+    timing->h_active = mode->HDisplay;
+    timing->h_blanking = mode->HTotal - mode->HDisplay;
+    timing->v_active = mode->VDisplay;
+    timing->v_blanking = mode->VTotal - mode->VDisplay;
+    timing->h_sync_off = mode->HSyncStart - mode->HDisplay;
+    timing->h_sync_width = mode->HSyncEnd - mode->HSyncStart;
+    timing->v_sync_off = mode->VSyncStart - mode->VDisplay;
+    timing->v_sync_width = mode->VSyncEnd - mode->VSyncStart;
+
+    if (mode->Flags & V_PVSYNC)
+        timing->misc |= 0x02;
+
+    if (mode->Flags & V_PHSYNC)
+        timing->misc |= 0x01;
+}
+
 /**
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
@@ -787,8 +811,38 @@ i830_lvds_get_modes(xf86OutputPtr output)
     DisplayModePtr	    modes;
 
     edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+
+    /* Our LVDS scaler can hit any size, so mark the EDID data as
+     * supporting continuous timings
+     */
+    if (edid_mon) {
+	int i, j = -1;
+	edid_mon->features.msc |= 0x1;
+
+	/* Either find a DS_RANGES block, or replace a DS_VENDOR block,
+	 * smashing it into a DS_RANGES block with wide open refresh to
+	 * match all default modes
+	 */
+	for (i = 0; i < sizeof (edid_mon->det_mon) / sizeof (edid_mon->det_mon[0]); i++)
+	{
+	    if (edid_mon->det_mon[i].type >= DS_VENDOR && j == -1)
+		j = i;
+	    if (edid_mon->det_mon[i].type == DS_RANGES) {
+		j = i;
+		break;
+	    }
+	}
+	if (j != -1) {
+	    struct monitor_ranges   *ranges = &edid_mon->det_mon[j].section.ranges;
+	    edid_mon->det_mon[j].type = DS_RANGES;
+	    ranges->min_v = 0;
+	    ranges->max_v = 200;
+	    ranges->min_h = 0;
+	    ranges->max_h = 200;
+	}
+    }
     xf86OutputSetEDID (output, edid_mon);
-    
+
     modes = xf86OutputGetEDIDModes (output);
     if (modes != NULL)
 	return modes;
@@ -798,15 +852,35 @@ i830_lvds_get_modes(xf86OutputPtr output)
 	edid_mon = xcalloc (1, sizeof (xf86Monitor));
 	if (edid_mon)
 	{
+	    struct detailed_monitor_section *det_mon = edid_mon->det_mon;
+	    /*support DPM, instead of DPMS*/
+	    edid_mon->features.dpms |= 0x1;
+	    /*defaultly support RGB color display*/
+	    edid_mon->features.display_type |= 0x1;
+	    /*defaultly display support continuous-freqencey*/
+	    edid_mon->features.msc |= 0x1;
+	    /*defaultly  the EDID version is 1.4 */
+	    edid_mon->ver.version = 1;
+	    edid_mon->ver.revision = 4;
+
+	    if (pI830->lvds_fixed_mode != NULL) {
+		/* now we construct new EDID monitor,
+		 *  so filled one detailed timing block
+		 */
+		fill_detailed_block(det_mon, pI830->lvds_fixed_mode);
+		/* the filed timing block should be set preferred*/
+		edid_mon->features.msc |= 0x2;
+		det_mon = det_mon + 1;
+	    }
+
 	    /* Set wide sync ranges so we get all modes
 	     * handed to valid_mode for checking
 	     */
-	    edid_mon->det_mon[0].type = DS_RANGES;
-	    edid_mon->det_mon[0].section.ranges.min_v = 0;
-	    edid_mon->det_mon[0].section.ranges.max_v = 200;
-	    edid_mon->det_mon[0].section.ranges.min_h = 0;
-	    edid_mon->det_mon[0].section.ranges.max_h = 200;
-	    
+	    det_mon->type = DS_RANGES;
+	    det_mon->section.ranges.min_v = 0;
+	    det_mon->section.ranges.max_v = 200;
+	    det_mon->section.ranges.min_h = 0;
+	    det_mon->section.ranges.max_h = 200;
 	    output->MonInfo = edid_mon;
 	}
     }
@@ -1377,11 +1451,9 @@ found_mode:
     dev_priv->backlight_duty_cycle = dev_priv->get_backlight(output);
 
     /*
-     * Default to filling the whole screen if the mode is less than the
-     * native size. (Change default to origin FULL mode, i8xx can only work
-     * in that mode for now.)
+     * Avoid munging the aspect ratio by default.
      */
-    dev_priv->fitting_mode = FULL;
+    dev_priv->fitting_mode = FULL_ASPECT;
 
     return;
 
