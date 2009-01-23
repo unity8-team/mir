@@ -215,6 +215,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output = NULL;
+    radeon_encoder_ptr radeon_encoder = NULL;
 
     void *ptr;
     AtomBiosArgRec data;
@@ -261,12 +262,18 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	output = xf86_config->output[i];
 	if (output->crtc == crtc) {
 	    radeon_output = output->driver_private;
+	    radeon_encoder = radeon_get_encoder(output);
 	    break;
 	}
     }
 
     if (radeon_output == NULL) {
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No output assigned to crtc!\n");
+	return;
+    }
+
+    if (radeon_encoder == NULL) {
+	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No encoder assigned to output!\n");
 	return;
     }
 
@@ -296,57 +303,8 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	    spc3_ptr->ucPostDiv = post_div;
 	    spc3_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc3_ptr->ucMiscInfo = (radeon_crtc->crtc_id << 2);
-
-	    if (radeon_output->MonType == MT_CRT) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_CRT;
-	    } else if (radeon_output->MonType == MT_DFP) {
-		switch (radeon_output->TMDSType) {
-		case TMDS_INT:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1;
-		    break;
-		case TMDS_EXT:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
-		    break;
-		case TMDS_LVTMA:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA;
-		    break;
-		case TMDS_UNIPHY:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_UNIPHY;
-		    break;
-		case TMDS_UNIPHY1:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_UNIPHY1;
-		    break;
-		case TMDS_UNIPHY2:
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_UNIPHY2;
-		    break;
-		default:
-		    ErrorF("Unknown TMDS type: %d!\n", radeon_output->TMDSType);
-		    exit(-1);
-		}
-		if (OUTPUT_IS_DVI)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_DVI;
-		else if (radeon_output->type == OUTPUT_HDMI)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_HDMI;
-		else if (radeon_output->type == OUTPUT_DP)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_DP;
-	    } else if (radeon_output->MonType == MT_LCD) {
-		spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_LVDS;
-	    } else if (OUTPUT_IS_TV) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-	    } else if (radeon_output->MonType == MT_CV) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-	    }
+	    spc3_ptr->ucTransmitterId = radeon_encoder->encoder_id;
+	    spc3_ptr->ucEncoderMode = atombios_get_encoder_mode(output);
 
 	    ptr = &spc_param;
 	    break;

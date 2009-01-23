@@ -571,32 +571,41 @@ legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType found = MT_NONE;
 
-    if (OUTPUT_IS_TV) {
+    if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT)) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
 	    if (radeon_output->type == OUTPUT_STV)
 		found = MT_STV;
 	    else
 		found = MT_CTV;
 	} else {
-	    if (info->InternalTVOut) {
-		if (radeon_output->load_detection)
-		    found = radeon_detect_tv(pScrn);
-		else
-		    found = MT_NONE;
-	    }
+	    if (radeon_output->load_detection)
+		found = radeon_detect_tv(pScrn);
 	}
-    } else {
-	if (radeon_output->DACType == DAC_PRIMARY) {
+    } else if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
+	if (info->encoders[ATOM_DEVICE_CRT2_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_CRT2_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1)) {
 	    if (radeon_output->load_detection)
 		found = radeon_detect_primary_dac(pScrn, TRUE);
-	} else if (radeon_output->DACType == DAC_TVDAC) {
+	} else {
 	    if (radeon_output->load_detection) {
 		if (info->ChipFamily == CHIP_FAMILY_R200)
 		    found = radeon_detect_ext_dac(pScrn);
 		else
 		    found = radeon_detect_tv_dac(pScrn, TRUE);
-	    } else
-		found = MT_NONE;
+	    }
+	}
+    } else if (radeon_output->devices & (ATOM_DEVICE_CRT1_SUPPORT)) {
+	if (info->encoders[ATOM_DEVICE_CRT1_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1)) {
+	    if (radeon_output->load_detection)
+		found = radeon_detect_primary_dac(pScrn, TRUE);
+	} else {
+	    if (radeon_output->load_detection) {
+		if (info->ChipFamily == CHIP_FAMILY_R200)
+		    found = radeon_detect_ext_dac(pScrn);
+		else
+		    found = radeon_detect_tv_dac(pScrn, TRUE);
+	    }
 	}
     }
 
@@ -776,7 +785,7 @@ RADEONEnableDisplay(xf86OutputPtr output, BOOL bEnable)
 		info->output_crt2 |= (1 << o);
 		if (info->ChipFamily == CHIP_FAMILY_R200) {
 		    tmp = INREG(RADEON_FP2_GEN_CNTL);
-		    tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
+	    tmp |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		    OUTREG(RADEON_FP2_GEN_CNTL, tmp);
 		    save->fp2_gen_cntl |= (RADEON_FP2_ON | RADEON_FP2_DVO_EN);
 		} else {

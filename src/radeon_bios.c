@@ -441,16 +441,6 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
 {
     RADEONInfoPtr info = RADEONPTR (pScrn);
 
-    /* For RS300/RS350/RS400 chips, there is no primary DAC. Force VGA port to use TVDAC
-     * Also there is no internal TMDS
-     */
-    if ((info->ChipFamily == CHIP_FAMILY_RS300) ||
-	(info->ChipFamily == CHIP_FAMILY_RS400) ||
-	(info->ChipFamily == CHIP_FAMILY_RS480)) {
-	info->BiosConnector[index].DACType = DAC_TVDAC;
-	info->BiosConnector[index].TMDSType = TMDS_EXT;
-    }
-
     /* XPRESS DDC quirks */
     if ((info->ChipFamily == CHIP_FAMILY_RS400 ||
 	 info->ChipFamily == CHIP_FAMILY_RS480) &&
@@ -513,7 +503,7 @@ static void RADEONApplyLegacyQuirks(ScrnInfoPtr pScrn, int index)
     if (info->Chipset == PCI_CHIP_R200_QL &&
 	PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1569 &&
 	PCI_SUB_DEVICE_ID(info->PciInfo) == 0x514c &&
-	info->BiosConnector[index].DACType == DAC_PRIMARY) {
+	(info->BiosConnector[index].devices & ATOM_DEVICE_CRT1_SUPPORT)) {
 	info->BiosConnector[index].load_detection = FALSE;
     }
 
@@ -544,7 +534,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    case CONNECTOR_PROPRIETARY_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
 		if ((tmp >> 4) & 0x1) {
-		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP2_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 				       radeon_get_encoder_id_from_supported_device(pScrn,
@@ -553,7 +542,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					    ATOM_DEVICE_DFP2_SUPPORT))
 			return FALSE;
 		} else {
-		    info->BiosConnector[i].TMDSType = TMDS_INT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP1_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 					    radeon_get_encoder_id_from_supported_device(pScrn,
@@ -566,7 +554,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    case CONNECTOR_CRT_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_VGA;
 		if (tmp & 0x1) {
-		    info->BiosConnector[i].DACType = DAC_TVDAC;
 		    info->BiosConnector[i].load_detection = FALSE;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_CRT2_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
@@ -576,7 +563,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					    ATOM_DEVICE_CRT2_SUPPORT))
 			return FALSE;
 		} else {
-		    info->BiosConnector[i].DACType = DAC_PRIMARY;
 		    info->BiosConnector[i].load_detection = TRUE;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_CRT1_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
@@ -590,7 +576,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    case CONNECTOR_DVI_I_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_I;
 		if (tmp & 0x1) {
-		    info->BiosConnector[i].DACType = DAC_TVDAC;
 		    info->BiosConnector[i].load_detection = FALSE;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_CRT2_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
@@ -600,7 +585,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					    ATOM_DEVICE_CRT2_SUPPORT))
 			return FALSE;
 		} else {
-		    info->BiosConnector[i].DACType = DAC_PRIMARY;
 		    info->BiosConnector[i].load_detection = TRUE;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_CRT1_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
@@ -611,7 +595,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 			return FALSE;
 		}
 		if ((tmp >> 4) & 0x1) {
-		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP2_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 					    radeon_get_encoder_id_from_supported_device(pScrn,
@@ -620,7 +603,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					    ATOM_DEVICE_DFP2_SUPPORT))
 			return FALSE;
 		} else {
-		    info->BiosConnector[i].TMDSType = TMDS_INT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP1_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 					    radeon_get_encoder_id_from_supported_device(pScrn,
@@ -633,7 +615,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	    case CONNECTOR_DVI_D_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_DVI_D;
 		if ((tmp >> 4) & 0x1) {
-		    info->BiosConnector[i].TMDSType = TMDS_EXT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP2_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 					    radeon_get_encoder_id_from_supported_device(pScrn,
@@ -642,7 +623,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					    ATOM_DEVICE_DFP2_SUPPORT))
 			return FALSE;
 		} else {
-		    info->BiosConnector[i].TMDSType = TMDS_INT;
 		    info->BiosConnector[i].devices |= ATOM_DEVICE_DFP1_SUPPORT;
 		    if (!radeon_add_encoder(pScrn,
 					    radeon_get_encoder_id_from_supported_device(pScrn,
@@ -654,7 +634,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		break;
 	    case CONNECTOR_CTV_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_CTV;
-		info->BiosConnector[i].DACType = DAC_TVDAC;
 		info->BiosConnector[i].load_detection = FALSE;
 		info->BiosConnector[i].devices = ATOM_DEVICE_TV1_SUPPORT;
 		if (!radeon_add_encoder(pScrn,
@@ -666,7 +645,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		break;
 	    case CONNECTOR_STV_LEGACY:
 		info->BiosConnector[i].ConnectorType = CONNECTOR_STV;
-		info->BiosConnector[i].DACType = DAC_TVDAC;
 		info->BiosConnector[i].load_detection = FALSE;
 		info->BiosConnector[i].devices = ATOM_DEVICE_TV1_SUPPORT;
 		if (!radeon_add_encoder(pScrn,
@@ -718,12 +696,9 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		       "Found DFP table, assuming DVI connector\n");
 	    info->BiosConnector[0].valid = TRUE;
 	    info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
-	    info->BiosConnector[0].DACType = DAC_PRIMARY;
 	    info->BiosConnector[0].load_detection = TRUE;
-	    info->BiosConnector[0].TMDSType = TMDS_INT;
 	    info->BiosConnector[0].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_DVI_DDC);
-	    info->BiosConnector[0].TMDSType = TMDS_INT;
-	    info->BiosConnector[0].devices = ATOM_DEVICE_CRT1_SUPPORT | ATOM_DEVICE_DFP1_INDEX;
+	    info->BiosConnector[0].devices = ATOM_DEVICE_CRT1_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
 	    if (!radeon_add_encoder(pScrn,
 				    radeon_get_encoder_id_from_supported_device(pScrn,
 										ATOM_DEVICE_DFP1_SUPPORT,
@@ -747,9 +722,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 	if (offset) {
 	    info->BiosConnector[4].valid = TRUE;
 	    info->BiosConnector[4].ConnectorType = CONNECTOR_LVDS;
-	    info->BiosConnector[4].DACType = DAC_NONE;
-	    info->BiosConnector[4].TMDSType = TMDS_NONE;
-	    info->BiosConnector[4].LVDSType = LVDS_INT;
 	    info->BiosConnector[4].ddc_i2c.valid = FALSE;
 
 	    info->BiosConnector[4].devices = ATOM_DEVICE_LCD1_SUPPORT;
@@ -822,9 +794,7 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		info->BiosConnector[5].valid = TRUE;
 		/* assume s-video for now */
 		info->BiosConnector[5].ConnectorType = CONNECTOR_STV;
-		info->BiosConnector[5].DACType = DAC_TVDAC;
 		info->BiosConnector[5].load_detection = FALSE;
-		info->BiosConnector[5].TMDSType = TMDS_NONE;
 		info->BiosConnector[5].ddc_i2c.valid = FALSE;
 		info->BiosConnector[5].devices = ATOM_DEVICE_TV1_SUPPORT;
 		if (!radeon_add_encoder(pScrn,
@@ -834,15 +804,6 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 					ATOM_DEVICE_TV1_SUPPORT))
 		    return FALSE;
 	    }
-	}
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
-    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
-	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d\n",
-		       i, (unsigned int)info->BiosConnector[i].ddc_i2c.mask_clk_reg, info->BiosConnector[i].DACType,
-		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType);
 	}
     }
 

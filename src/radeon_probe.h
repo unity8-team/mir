@@ -92,36 +92,6 @@ typedef enum
 
 typedef enum
 {
-    DAC_NONE    = 0,
-    DAC_PRIMARY = 1,
-    DAC_TVDAC   = 2,
-    DAC_EXT     = 3
-} RADEONDacType;
-
-typedef enum
-{
-    TMDS_NONE    = 0,
-    TMDS_INT     = 1,
-    TMDS_EXT     = 2,
-    TMDS_LVTMA   = 3,
-    TMDS_DDIA    = 4,
-    TMDS_UNIPHY  = 5,
-    TMDS_UNIPHY1 = 6,
-    TMDS_UNIPHY2 = 7
-} RADEONTmdsType;
-
-typedef enum
-{
-    LVDS_NONE    = 0,
-    LVDS_INT     = 1,
-    LVDS_LVTMA   = 2,
-    LVDS_UNIPHY  = 3,
-    LVDS_UNIPHY1 = 4,
-    LVDS_UNIPHY2 = 5
-} RADEONLvdsType;
-
-typedef enum
-{
     DVI_AUTO,
     DVI_DIGITAL,
     DVI_ANALOG
@@ -216,9 +186,6 @@ typedef struct _radeon_encoder {
 } radeon_encoder_rec, *radeon_encoder_ptr;
 
 typedef struct {
-    RADEONDacType DACType;
-    RADEONTmdsType TMDSType;
-    RADEONLvdsType LVDSType;
     RADEONConnectorType ConnectorType;
     Bool valid;
     int output_id;
@@ -238,10 +205,7 @@ typedef struct _RADEONOutputPrivateRec {
     RADEONOutputType type;
     void *dev_priv;
     uint32_t ddc_line;
-    RADEONDacType DACType;
     RADEONDviType DVIType;
-    RADEONTmdsType TMDSType;
-    RADEONLvdsType LVDSType;
     RADEONMonitorType MonType;
     int crtc_num;
     int DDCReg;

@@ -376,7 +376,7 @@ atombios_maybe_hdmi_mode(xf86OutputPtr output)
 #endif
 }
 
-static int
+int
 atombios_get_encoder_mode(xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
@@ -1088,44 +1088,50 @@ atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
     DAC_LOAD_DETECTION_PS_ALLOCATION dac_data;
     AtomBiosArgRec data;
     unsigned char *space;
+    int major, minor;
+    int index = GetIndexIntoMasterTable(COMMAND, DAC_LoadDetection);
+
+    atombios_get_command_table_version(info->atomBIOS, index, &major, &minor);
 
     dac_data.sDacload.ucMisc = 0;
 
     if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT1_SUPPORT);
-	if (radeon_output->DACType == DAC_PRIMARY)
+	if (info->encoders[ATOM_DEVICE_CRT1_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else if (radeon_output->DACType == DAC_TVDAC)
+	else
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
     } else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT2_SUPPORT);
-	if (radeon_output->DACType == DAC_PRIMARY)
+	if (info->encoders[ATOM_DEVICE_CRT2_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_CRT2_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else if (radeon_output->DACType == DAC_TVDAC)
+	else
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
     } else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CV_SUPPORT);
-	if (radeon_output->DACType == DAC_PRIMARY)
+	if (info->encoders[ATOM_DEVICE_CV_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_CV_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else if (radeon_output->DACType == DAC_TVDAC)
+	else
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
-	if (IS_DCE3_VARIANT)
-	    dac_data.sDacload.ucMisc = 1;
+	if (minor >= 3)
+	    dac_data.sDacload.ucMisc = DAC_LOAD_MISC_YPrPb;
     } else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_TV1_SUPPORT);
-	if (radeon_output->DACType == DAC_PRIMARY)
+	if (info->encoders[ATOM_DEVICE_TV1_INDEX] &&
+	    (info->encoders[ATOM_DEVICE_TV1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
 	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else if (radeon_output->DACType == DAC_TVDAC)
+	else
 	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
-	if (IS_DCE3_VARIANT)
-	    dac_data.sDacload.ucMisc = 1;
     } else {
 	ErrorF("invalid output device for dac detection\n");
 	return ATOM_NOT_IMPLEMENTED;
     }
 
 
-    data.exec.index = GetIndexIntoMasterTable(COMMAND, DAC_LoadDetection);
+    data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
     data.exec.pspace = &dac_data;
 
@@ -1149,7 +1155,7 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
     AtomBiosResult ret;
     uint32_t bios_0_scratch;
 
-    if (OUTPUT_IS_TV) {
+    if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
 	    if (radeon_output->type == OUTPUT_STV)
 		return MT_STV;

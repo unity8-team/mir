@@ -345,7 +345,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 		modes = xf86OutputGetEDIDModes (output);
 #if defined(__powerpc__)
 	    if ((info->MacModel == RADEON_MAC_EMAC) &&
-		(radeon_output->DACType == DAC_PRIMARY) &&
+		(radeon_output->active_device & ATOM_DEVICE_CRT1_SUPPORT) &&
 		(modes == NULL))
 		modes = RADEONeMacModes(output);
 #endif

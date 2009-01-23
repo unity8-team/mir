@@ -1526,7 +1526,7 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
 	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x826d)) {
 	if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) &&
-	    (info->BiosConnector[index].TMDSType == TMDS_LVTMA)) {
+	    (info->BiosConnector[index].devices & ATOM_DEVICE_DFP3_SUPPORT)) {
 	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
 	}
     }
@@ -1557,15 +1557,14 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].valid = FALSE;
 
 	if (index == ATOM_DEVICE_DFP1_INDEX) {
-	    info->BiosConnector[index].DACType = DAC_TVDAC;
-	    info->BiosConnector[index].devices |= (1 << ATOM_DEVICE_CRT2_INDEX);
+	    info->BiosConnector[index].devices |= ATOM_DEVICE_CRT2_SUPPORT;
 	}
     }
 
     /* some BIOSes seem to report DAC on HDMI - they hurt me with their lies */
     if ((info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
     	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
-	info->BiosConnector[index].DACType = DAC_NONE;
+	info->BiosConnector[index].devices &= ~(ATOM_DEVICE_CRT_SUPPORT);
     }
 }
 
@@ -1729,53 +1728,6 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 
 		    if (!radeon_add_encoder(pScrn, enc_obj_id, path->usDeviceTag))
 			return FALSE;
-
-		    switch(enc_obj_id) {
-		    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-			info->BiosConnector[i].LVDSType = LVDS_INT;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-			info->BiosConnector[i].TMDSType = TMDS_INT;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
-			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY;
-			else
-			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
-			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY1;
-			else
-			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY1;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
-			    info->BiosConnector[i].LVDSType = LVDS_UNIPHY2;
-			else
-			    info->BiosConnector[i].TMDSType = TMDS_UNIPHY2;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_TMDS2:
-		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-			info->BiosConnector[i].TMDSType = TMDS_EXT;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-			if (info->BiosConnector[i].ConnectorType == CONNECTOR_LVDS)
-			    info->BiosConnector[i].LVDSType = LVDS_LVTMA;
-			else
-			    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
-		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-			info->BiosConnector[i].DACType = DAC_PRIMARY;
-			break;
-		    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-		    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-			info->BiosConnector[i].DACType = DAC_TVDAC;
-			break;
-		    }
 		}
 	    }
 
@@ -1820,10 +1772,6 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    for (j = 0; j < ATOM_MAX_SUPPORTED_DEVICE; j++) {
 		if (info->BiosConnector[j].valid && (i != j) ) {
 		    if (info->BiosConnector[i].connector_object == info->BiosConnector[j].connector_object) {
-			if (info->BiosConnector[i].devices & (ATOM_DEVICE_CRT_SUPPORT))
-			    info->BiosConnector[i].TMDSType = info->BiosConnector[j].TMDSType;
-			else
-			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
 			info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
 			info->BiosConnector[j].valid = FALSE;
 		    }
@@ -2186,8 +2134,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 
-	info->BiosConnector[i].DACType = ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC;
-
 	/* don't assign a gpio for tv */
 	if ((i == ATOM_DEVICE_TV1_INDEX) ||
 	    (i == ATOM_DEVICE_TV2_INDEX) ||
@@ -2211,28 +2157,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 					  ci.sucConnectorInfo.sbfAccess.bfAssociatedDAC),
 				(1 << i)))
 	    return FALSE;
-
-	if (i == ATOM_DEVICE_DFP1_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_INT;
-	else if (i == ATOM_DEVICE_DFP2_INDEX) {
-	    if ((info->ChipFamily == CHIP_FAMILY_RS600) ||
-		(info->ChipFamily == CHIP_FAMILY_RS690) ||
-		(info->ChipFamily == CHIP_FAMILY_RS740))
-		info->BiosConnector[i].TMDSType = TMDS_DDIA;
-	    else
-		info->BiosConnector[i].TMDSType = TMDS_EXT;
-	} else if (i == ATOM_DEVICE_DFP3_INDEX)
-	    info->BiosConnector[i].TMDSType = TMDS_LVTMA;
-	else
-	    info->BiosConnector[i].TMDSType = TMDS_NONE;
-
-	if (i == ATOM_DEVICE_LCD1_INDEX) {
-	    if (IS_AVIVO_VARIANT)
-		info->BiosConnector[i].LVDSType = LVDS_LVTMA;
-	    else
-		info->BiosConnector[i].LVDSType = LVDS_INT;
-	} else
-	    info->BiosConnector[i].LVDSType = LVDS_NONE;
 
 	/* Always set the connector type to VGA for CRT1/CRT2. if they are
 	 * shared with a DVI port, we'll pick up the DVI connector below when we
@@ -2277,15 +2201,15 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 			if (((i == ATOM_DEVICE_DFP1_INDEX) ||
 			     (i == ATOM_DEVICE_DFP2_INDEX) ||
 			     (i == ATOM_DEVICE_DFP3_INDEX)) &&
-			    ((j == ATOM_DEVICE_CRT1_INDEX) || (j == ATOM_DEVICE_CRT2_INDEX))) {
-			    info->BiosConnector[i].DACType = info->BiosConnector[j].DACType;
+			    ((j == ATOM_DEVICE_CRT1_INDEX) ||
+			     (j == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[i].devices |= info->BiosConnector[j].devices;
 			    info->BiosConnector[j].valid = FALSE;
 			} else if (((j == ATOM_DEVICE_DFP1_INDEX) ||
-			     (j == ATOM_DEVICE_DFP2_INDEX) ||
-			     (j == ATOM_DEVICE_DFP3_INDEX)) &&
-			    ((i == ATOM_DEVICE_CRT1_INDEX) || (i == ATOM_DEVICE_CRT2_INDEX))) {
-			    info->BiosConnector[j].DACType = info->BiosConnector[i].DACType;
+				    (j == ATOM_DEVICE_DFP2_INDEX) ||
+				    (j == ATOM_DEVICE_DFP3_INDEX)) &&
+				   ((i == ATOM_DEVICE_CRT1_INDEX) ||
+				    (i == ATOM_DEVICE_CRT2_INDEX))) {
 			    info->BiosConnector[j].devices |= info->BiosConnector[i].devices;
 			    info->BiosConnector[i].valid = FALSE;
 			} else {
@@ -2302,16 +2226,6 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
     for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
 	if (info->encoders[i] != NULL) {
 	    ErrorF("encoder: 0x%x\n", info->encoders[i]->encoder_id);
-	}
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios Connector table: \n");
-    for (i = 0; i < ATOM_MAX_SUPPORTED_DEVICE; i++) {
-	if (info->BiosConnector[i].valid) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d: DDCType-0x%x, DACType-%d, TMDSType-%d, ConnectorType-%d, hpd_mask-0x%x\n",
-		       i, (unsigned int)info->BiosConnector[i].ddc_i2c.mask_clk_reg, info->BiosConnector[i].DACType,
-		       info->BiosConnector[i].TMDSType, info->BiosConnector[i].ConnectorType,
-		       info->BiosConnector[i].hpd_mask);
 	}
     }
 
