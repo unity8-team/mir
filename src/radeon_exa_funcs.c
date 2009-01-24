@@ -256,31 +256,23 @@ FUNC_NAME(RADEONDoneCopy)(PixmapPtr pDst)
     FINISH_ACCEL();
 }
 
+
+#ifdef ACCEL_CP
+
 static Bool
-FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
-				char *src, int src_pitch)
+RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
+		       char *src, int src_pitch)
 {
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
-    uint8_t	   *dst	     = info->FB + exaGetPixmapOffset(pDst);
-    unsigned int   dst_pitch = exaGetPixmapPitch(pDst);
     unsigned int   bpp	     = pDst->drawable.bitsPerPixel;
-#ifdef ACCEL_CP
     unsigned int   hpass;
     uint32_t	   buf_pitch, dst_pitch_off;
-#endif
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int swapper = info->ModeReg->surface_cntl &
-	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
-	      RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
-#endif
 
     TRACE;
 
     if (bpp < 8)
 	return FALSE;
 
-#ifdef ACCEL_CP
     if (info->directRenderingEnabled &&
 	RADEONGetPixmapOffsetPitch(pDst, &dst_pitch_off)) {
 	uint8_t *buf;
@@ -301,45 +293,11 @@ FUNC_NAME(RADEONUploadToScreen)(PixmapPtr pDst, int x, int y, int w, int h,
 
 	exaMarkSync(pDst->drawable.pScreen);
 	return TRUE;
-  }
-#endif
-
-    /* Do we need that sync here ? probably not .... */
-    exaWaitSync(pDst->drawable.pScreen);
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    switch(bpp) {
-    case 15:
-    case 16:
-	swapper |= RADEON_NONSURF_AP0_SWP_16BPP
-		|  RADEON_NONSURF_AP1_SWP_16BPP;
-	break;
-    case 24:
-    case 32:
-	swapper |= RADEON_NONSURF_AP0_SWP_32BPP
-		|  RADEON_NONSURF_AP1_SWP_32BPP;
-	break;
-    }
-    OUTREG(RADEON_SURFACE_CNTL, swapper);
-#endif
-    w *= bpp / 8;
-    dst += (x * bpp / 8) + (y * dst_pitch);
-
-    while (h--) {
-	memcpy(dst, src, w);
-	src += src_pitch;
-	dst += dst_pitch;
     }
 
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* restore byte swapping */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
-#endif
-
-    return TRUE;
+    return FALSE;
 }
 
-#ifdef ACCEL_CP
 /* Emit blit with arbitrary source and destination offsets and pitches */
 static void
 RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
@@ -372,36 +330,26 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, uint32_t datatype, uint32_t src_pitch_offset,
                   RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_DMA_GUI_IDLE);
     FINISH_ACCEL();
 }
-#endif
+
 
 static Bool
-FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
+RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
 				    char *dst, int dst_pitch)
 {
     RINFO_FROM_SCREEN(pSrc->drawable.pScreen);
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    unsigned char *RADEONMMIO = info->MMIO;
-    unsigned int swapper = info->ModeReg->surface_cntl &
-	    ~(RADEON_NONSURF_AP0_SWP_32BPP | RADEON_NONSURF_AP1_SWP_32BPP |
-	      RADEON_NONSURF_AP0_SWP_16BPP | RADEON_NONSURF_AP1_SWP_16BPP);
-#endif
     uint8_t	  *src	     = info->FB + exaGetPixmapOffset(pSrc);
-    int		   src_pitch = exaGetPixmapPitch(pSrc);
     int		   bpp	     = pSrc->drawable.bitsPerPixel;
-#ifdef ACCEL_CP
     uint32_t datatype, src_pitch_offset, scratch_pitch = (w * bpp/8 + 63) & ~63, scratch_off = 0;
     drmBufPtr scratch;
-#endif
 
     TRACE;
 
-#ifdef ACCEL_CP
     /*
      * Try to accelerate download. Use an indirect buffer as scratch space,
      * blitting the bits to one half while copying them out of the other one and
      * then swapping the halves.
      */
-    if (info->accelDFS && bpp != 24 && RADEONGetDatatypeBpp(bpp, &datatype) &&
+    if (bpp != 24 && RADEONGetDatatypeBpp(bpp, &datatype) &&
 	RADEONGetPixmapOffsetPitch(pSrc, &src_pitch_offset) &&
 	(scratch = RADEONCPGetBuffer(pScrn)))
     {
@@ -487,43 +435,12 @@ FUNC_NAME(RADEONDownloadFromScreen)(PixmapPtr pSrc, int x, int y, int w, int h,
 
 	return TRUE;
     }
-#endif
 
-    /* Can't accelerate download */
-    exaWaitSync(pSrc->drawable.pScreen);
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    switch(bpp) {
-    case 15:
-    case 16:
-	swapper |= RADEON_NONSURF_AP0_SWP_16BPP
-		|  RADEON_NONSURF_AP1_SWP_16BPP;
-	break;
-    case 24:
-    case 32:
-	swapper |= RADEON_NONSURF_AP0_SWP_32BPP
-		|  RADEON_NONSURF_AP1_SWP_32BPP;
-	break;
-    }
-    OUTREG(RADEON_SURFACE_CNTL, swapper);
-#endif
-
-    src += (x * bpp / 8) + (y * src_pitch);
-    w *= bpp / 8;
-
-    while (h--) {
-	memcpy(dst, src, w);
-	src += src_pitch;
-	dst += dst_pitch;
-    }
-
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-    /* restore byte swapping */
-    OUTREG(RADEON_SURFACE_CNTL, info->ModeReg->surface_cntl);
-#endif
-
-    return TRUE;
+    return FALSE;
 }
+
+#endif	/* def ACCEL_CP */
+
 
 Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 {
@@ -547,8 +464,11 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 
     info->accel_state->exa->MarkSync = FUNC_NAME(RADEONMarkSync);
     info->accel_state->exa->WaitMarker = FUNC_NAME(RADEONSync);
-    info->accel_state->exa->UploadToScreen = FUNC_NAME(RADEONUploadToScreen);
-    info->accel_state->exa->DownloadFromScreen = FUNC_NAME(RADEONDownloadFromScreen);
+#ifdef ACCEL_CP
+    info->accel_state->exa->UploadToScreen = RADEONUploadToScreenCP;
+    if (info->accelDFS)
+	info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
+#endif
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess;

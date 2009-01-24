@@ -3361,15 +3361,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 #ifdef USE_EXA
     if (info->useEXA) {
 #ifdef XF86DRI
-	MessageType from = X_DEFAULT;
-
 	if (hasDRI) {
-	    info->accelDFS = info->cardType != CARD_AGP;
-
-	    if (xf86GetOptValInteger(info->Options, OPTION_ACCEL_DFS,
-				     &info->accelDFS)) {
-		from = X_CONFIG;
-	    }
+	    info->accelDFS = xf86ReturnOptValBool(info->Options, OPTION_ACCEL_DFS,
+						  info->cardType != CARD_AGP);
 
 	    /* Reserve approx. half of offscreen memory for local textures by
 	     * default, can be overridden with Option "FBTexPercent".
@@ -3387,10 +3381,6 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
 		}
 	    }
 	}
-
-	xf86DrvMsg(pScrn->scrnIndex, from,
-		   "%ssing accelerated EXA DownloadFromScreen hook\n",
-		   info->accelDFS ? "U" : "Not u");
 #endif /* XF86DRI */
 
 	if (!RADEONSetupMemEXA(pScreen))
