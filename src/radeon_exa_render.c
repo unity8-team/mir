@@ -1984,7 +1984,7 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
     RINFO_FROM_SCREEN(pDst->drawable.pScreen);
     int vtx_count;
     xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
-    xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
+    static xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
     ACCEL_PREAMBLE();
 
     ENTER_DRAW(0);
@@ -2001,31 +2001,32 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
     srcBottomRight.x = IntToxFixed(srcX + w);
     srcBottomRight.y = IntToxFixed(srcY + h);
 
-    maskTopLeft.x     = IntToxFixed(maskX);
-    maskTopLeft.y     = IntToxFixed(maskY);
-    maskTopRight.x    = IntToxFixed(maskX + w);
-    maskTopRight.y    = IntToxFixed(maskY);
-    maskBottomLeft.x  = IntToxFixed(maskX);
-    maskBottomLeft.y  = IntToxFixed(maskY + h);
-    maskBottomRight.x = IntToxFixed(maskX + w);
-    maskBottomRight.y = IntToxFixed(maskY + h);
-
     if (info->accel_state->is_transform[0]) {
 	transformPoint(info->accel_state->transform[0], &srcTopLeft);
 	transformPoint(info->accel_state->transform[0], &srcTopRight);
 	transformPoint(info->accel_state->transform[0], &srcBottomLeft);
 	transformPoint(info->accel_state->transform[0], &srcBottomRight);
     }
-    if (info->accel_state->is_transform[1]) {
-	transformPoint(info->accel_state->transform[1], &maskTopLeft);
-	transformPoint(info->accel_state->transform[1], &maskTopRight);
-	transformPoint(info->accel_state->transform[1], &maskBottomLeft);
-	transformPoint(info->accel_state->transform[1], &maskBottomRight);
-    }
 
-    if (info->accel_state->has_mask)
+    if (info->accel_state->has_mask) {
+	maskTopLeft.x     = IntToxFixed(maskX);
+	maskTopLeft.y     = IntToxFixed(maskY);
+	maskTopRight.x    = IntToxFixed(maskX + w);
+	maskTopRight.y    = IntToxFixed(maskY);
+	maskBottomLeft.x  = IntToxFixed(maskX);
+	maskBottomLeft.y  = IntToxFixed(maskY + h);
+	maskBottomRight.x = IntToxFixed(maskX + w);
+	maskBottomRight.y = IntToxFixed(maskY + h);
+
+	if (info->accel_state->is_transform[1]) {
+	    transformPoint(info->accel_state->transform[1], &maskTopLeft);
+	    transformPoint(info->accel_state->transform[1], &maskTopRight);
+	    transformPoint(info->accel_state->transform[1], &maskBottomLeft);
+	    transformPoint(info->accel_state->transform[1], &maskBottomRight);
+	}
+
 	vtx_count = 6;
-    else
+    } else
 	vtx_count = 4;
 
     FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h, info->accel_state->vsync);
