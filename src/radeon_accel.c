@@ -368,6 +368,7 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     int datatype = 0;
+    info->accel_state->num_gb_pipes = 0;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "EngineInit (%d/%d)\n",
