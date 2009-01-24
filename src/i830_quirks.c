@@ -222,6 +222,20 @@ static void quirk_lenovo_tv_dmi (I830Ptr pI830)
 	pI830->quirk_flag |= QUIRK_IGNORE_TV;
 }
 
+static void quirk_msi_lvds_dmi (I830Ptr pI830)
+{
+   /* MSI IM-945GSE-A has no TV output, nor a LVDS connection.
+    */
+   if (!i830_dmi_data[board_name]) {
+       ErrorF("Failed to load DMI info, MSI LVDS quirk not applied.\n");
+       return;
+   }
+   if (!strncmp(i830_dmi_data[board_name],"A9830IMS",8)) {
+       pI830->quirk_flag |= QUIRK_IGNORE_LVDS;
+       pI830->quirk_flag |= QUIRK_IGNORE_TV;
+   }
+}
+
 static void quirk_ivch_dvob (I830Ptr pI830)
 {
 	pI830->quirk_flag |= QUIRK_IVCH_NEED_DVOB;
@@ -274,6 +288,9 @@ static i830_quirk i830_quirk_list[] = {
     { PCI_CHIP_I945_GM, 0x17aa, SUBSYS_ANY, quirk_lenovo_tv_dmi },
     /* Lenovo 3000 v200 */
     { PCI_CHIP_I965_GM, 0x17aa, 0x3c18, quirk_ignore_tv },
+
+    /* MSI IM-945GSE-A has no LVDS or TV (use dmi) */
+    { PCI_CHIP_I945_GME, 0x8086, 0x27ae, quirk_msi_lvds_dmi },
 
     /* Panasonic Toughbook CF-Y4 has no TV output */
     { PCI_CHIP_I915_GM, 0x10f7, 0x8338, quirk_ignore_tv },
