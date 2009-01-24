@@ -344,6 +344,11 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict, int unit)
 	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
     }
 
+    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+    {
+	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
+    }
+
     return TRUE;
 }
 
@@ -665,6 +670,11 @@ static Bool R200CheckCompositeTexture(PicturePtr pPict, int unit)
     if (pPict->filter != PictFilterNearest &&
 	pPict->filter != PictFilterBilinear)
 	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
+
+    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+    {
+	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
+    }
 
     return TRUE;
 }
@@ -1000,6 +1010,11 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
     if (pPict->transform != 0 && !pPict->repeat && PICT_FORMAT_A(pPict->format) == 0) {
 	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
+    }
+
+    if (pPict->repeat && pPict->repeatType != RepeatNormal)
+    {
+	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
     }
 
     return TRUE;
