@@ -109,27 +109,6 @@ typedef struct {
     uint32_t value;
 }RADEONTMDSPll;
 
-typedef enum
-{
-    OUTPUT_NONE,
-    OUTPUT_VGA,
-    OUTPUT_DVI_I,
-    OUTPUT_DVI_D,
-    OUTPUT_DVI_A,
-    OUTPUT_LVDS,
-    OUTPUT_STV,
-    OUTPUT_CTV,
-    OUTPUT_CV,
-    OUTPUT_HDMI,
-    OUTPUT_DP
-} RADEONOutputType;
-
-#define OUTPUT_IS_DVI ((radeon_output->type == OUTPUT_DVI_D || \
-                        radeon_output->type == OUTPUT_DVI_I || \
-                        radeon_output->type == OUTPUT_DVI_A))
-#define OUTPUT_IS_TV ((radeon_output->type == OUTPUT_STV || \
-                       radeon_output->type == OUTPUT_CTV))
-
 /* standards */
 typedef enum
 {
@@ -202,18 +181,27 @@ typedef struct {
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
-    int num;
-    RADEONOutputType type;
-    void *dev_priv;
-    uint32_t ddc_line;
+    uint16_t connector_id;
+    uint32_t devices;
+    uint32_t active_device;
+    Bool enabled;
+
+    RADEONConnectorType ConnectorType;
     RADEONDviType DVIType;
     RADEONMonitorType MonType;
-    int crtc_num;
-    int DDCReg;
 
+    // DDC info
+    I2CBusPtr         pI2CBus;
+    RADEONI2CBusRec   ddc_i2c;
+    Bool shared_ddc;
+    // router info
+    // HDP info
+
+    // tv dac
     uint32_t          ps2_tvdac_adj;
     uint32_t          pal_tvdac_adj;
     uint32_t          ntsc_tvdac_adj;
+
     /* panel stuff */
     int               PanelXRes;
     int               PanelYRes;
@@ -225,16 +213,24 @@ typedef struct _RADEONOutputPrivateRec {
     int               VBlank;
     int               Flags;            /* Saved copy of mode flags          */
     int               DotClock;
+
+    // lvds
     int               PanelPwrDly;
     int               lvds_misc;
     int               lvds_ss_id;
+
+    // tmds
     RADEONTMDSPll     tmds_pll[4];
+
+    // RMX
     RADEONRMXType     rmx_type;
+
     /* dvo */
     I2CDevPtr         DVOChip;
     RADEONI2CBusRec   dvo_i2c;
     int               dvo_i2c_slave_addr;
     Bool              dvo_duallink;
+
     /* TV out */
     TVStd             default_tvStd;
     TVStd             tvStd;
@@ -245,32 +241,12 @@ typedef struct _RADEONOutputPrivateRec {
     int               SupportedTVStds;
     Bool              tv_on;
     int               load_detection;
+
     /* dig block */
     int transmitter_config;
     Bool coherent_mode;
     int igp_lane_info;
     Bool linkb;
-
-    char              *name;
-    int               output_id;
-    //int               devices;
-    Bool enabled;
-
-    // re-org
-    uint16_t connector_id;
-    uint32_t devices;
-    uint32_t active_device;
-    //RADEONConnectorType connector_type;
-    RADEONConnectorType ConnectorType;
-    // DDC info
-    I2CBusPtr         pI2CBus;
-    RADEONI2CBusRec   ddc_i2c;
-    // router info
-    // HDP info
-    // shared_ddc
-    Bool shared_ddc;
-    // cvtv pin
-    // preferred mode
 
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 

@@ -266,7 +266,7 @@ static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 
 	if (sscanf(ppModeName[i], "%dx%d", &width, &height) != 2) continue;
 
-	if (radeon_output->type == OUTPUT_LVDS) {
+	if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	    /* already added the native mode */
 	    if (width == radeon_output->PanelXRes && height == radeon_output->PanelYRes)
 		continue;
@@ -329,12 +329,12 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
-	if (OUTPUT_IS_TV) {
+	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 	    if (IS_AVIVO_VARIANT)
 		modes = RADEONATOMTVModes(output);
 	    else
 		modes = RADEONTVModes(output);
-	} else if (radeon_output->type == OUTPUT_CV) {
+	} else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT)) {
 	    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex, info->atomBIOS,
 					     ATOMBIOS_GET_CV_MODES, &atomBiosArg);
 	    if (atomBiosResult == ATOM_SUCCESS) {
@@ -350,7 +350,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 		modes = RADEONeMacModes(output);
 #endif
 	    if (modes == NULL) {
-		if ((radeon_output->type == OUTPUT_LVDS) && info->IsAtomBios) {
+		if ((radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) && info->IsAtomBios) {
 		    atomBiosResult = RHDAtomBiosFunc(pScrn->scrnIndex,
 						     info->atomBIOS,
 						     ATOMBIOS_GET_PANEL_EDID, &atomBiosArg);
@@ -361,7 +361,7 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 		    }
 		}
 		if (modes == NULL) {
-		    if (radeon_output->type == OUTPUT_LVDS)
+		    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
 			modes = RADEONFPNativeMode(output);
 		    /* add the screen modes */
 		    RADEONAddScreenModes(output, &modes);

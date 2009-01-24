@@ -573,7 +573,7 @@ legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT)) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
-	    if (radeon_output->type == OUTPUT_STV)
+	    if (radeon_output->ConnectorType == CONNECTOR_STV)
 		found = MT_STV;
 	    else
 		found = MT_CTV;

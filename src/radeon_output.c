@@ -104,8 +104,8 @@ const char *ConnectorTypeName[17] = {
   "DVI-I",
   "DVI-D",
   "DVI-A",
-  "STV",
-  "CTV",
+  "S-video",
+  "Composite",
   "LVDS",
   "Digital",
   "SCART",
@@ -116,20 +116,6 @@ const char *ConnectorTypeName[17] = {
   "DIN",
   "DisplayPort",
   "Unsupported"
-};
-
-const char *OutputType[11] = {
-    "None",
-    "VGA",
-    "DVI",
-    "DVI",
-    "DVI",
-    "LVDS",
-    "S-video",
-    "Composite",
-    "Component",
-    "HDMI",
-    "DisplayPort",
 };
 
 static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
@@ -267,32 +253,40 @@ radeon_ddc_connected(xf86OutputPtr output)
 	}
     }
     if (MonInfo) {
-	if (radeon_output->type == OUTPUT_LVDS)
+	switch (radeon_output->ConnectorType) {
+	case CONNECTOR_LVDS:
 	    MonType = MT_LCD;
-	else if (radeon_output->type == OUTPUT_DVI_D)
-	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_HDMI)
-	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_DP)
-	    MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_DVI_I &&
-		 (MonInfo->rawData[0x14] & 0x80)) /* if it's digital and DVI */
-	    MonType = MT_DFP;
-	else
-	    MonType = MT_CRT;
-
-	if (radeon_output->shared_ddc) {
-	    if (radeon_output->type == OUTPUT_VGA) {
-		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and VGA */
-		    MonType = MT_NONE;
-		else
-		    MonType = MT_CRT;
-	    } else {
+	    break;
+	case CONNECTOR_DVI_D:
+	case CONNECTOR_HDMI_TYPE_A:
+	case CONNECTOR_HDMI_TYPE_B:
+	    if (radeon_output->shared_ddc) {
 		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI/HDMI/etc. */
 		    MonType = MT_DFP;
 		else
 		    MonType = MT_NONE;
-	    }
+	    } else
+		MonType = MT_DFP;
+	    break;
+	case CONNECTOR_DISPLAY_PORT:
+	    MonType = MT_DP;
+	case CONNECTOR_DVI_I:
+	    if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI */
+		MonType = MT_DFP;
+	    else
+		MonType = MT_CRT;
+	    break;
+	case CONNECTOR_VGA:
+	case CONNECTOR_DVI_A:
+	default:
+	    if (radeon_output->shared_ddc) {
+		if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and VGA */
+		    MonType = MT_NONE;
+		else
+		    MonType = MT_CRT;
+	    } else
+		MonType = MT_CRT;
+	    break;
 	}
 
 	if (MonType != MT_NONE)
@@ -363,7 +357,7 @@ RADEONConnectorFindMonitor(xf86OutputPtr output)
     if (radeon_output->MonType == MT_UNKNOWN) {
 	radeon_output->MonType = radeon_ddc_connected(output);
 	if (!radeon_output->MonType) {
-	    if (radeon_output->type == OUTPUT_LVDS) {
+	    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 		if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
 		    radeon_output->MonType = MT_LCD;
 		else
@@ -450,27 +444,9 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	    return MODE_BANDWIDTH;
     }
 
-    if (OUTPUT_IS_TV) {
+    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 	/* FIXME: Update when more modes are added */
-	if (IS_AVIVO_VARIANT) {
-	    int max_v;
-
-	    /* tv-scaler can scale horizontal width
-	     * but frame ends must match tv_pll
-	     * for now cap v size
-	     */
-	    if (radeon_output->tvStd == TV_STD_NTSC ||
-		radeon_output->tvStd == TV_STD_NTSC_J ||
-		radeon_output->tvStd == TV_STD_PAL_M)
-		max_v = 480;
-	    else
-		max_v = 600;
-
-	    if (pMode->VDisplay == max_v)
-		return MODE_OK;
-	    else
-		return MODE_CLOCK_RANGE;
-	} else {
+	if (!info->IsAtomBios) {
 	    if (pMode->HDisplay == 800 && pMode->VDisplay == 600)
 		return MODE_OK;
 	    else
@@ -478,7 +454,7 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	}
     }
 
-    if (radeon_output->type == OUTPUT_LVDS) {
+    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	if (radeon_output->rmx_type == RMX_OFF) {
 	    if (pMode->HDisplay != radeon_output->PanelXRes ||
 		pMode->VDisplay != radeon_output->PanelYRes)
@@ -1031,21 +1007,20 @@ radeon_detect(xf86OutputPtr output)
     if (radeon_output->MonType == MT_NONE &&
 	info->first_load_no_devices) {
 	if (info->IsMobility) {
-	    if (radeon_output->type == OUTPUT_LVDS) {
+	    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 		radeon_output->MonType = MT_LCD;
 		info->first_load_no_devices = FALSE;
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using LVDS default\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using LCD default\n");
 	    }
 	} else {
-	    if (radeon_output->type == OUTPUT_VGA ||
-		radeon_output->type == OUTPUT_DVI_I) {
+	    if (radeon_output->devices & (ATOM_DEVICE_CRT_SUPPORT)) {
 		radeon_output->MonType = MT_CRT;
 		info->first_load_no_devices = FALSE;
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using VGA default\n");
-	    } else if (radeon_output->type == OUTPUT_DVI_D) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using CRT default\n");
+	    } else if (radeon_output->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 		radeon_output->MonType = MT_DFP;
 		info->first_load_no_devices = FALSE;
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using DVI default\n");
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Using DFP default\n");
 	    }
 	}
     }
@@ -1055,27 +1030,37 @@ radeon_detect(xf86OutputPtr output)
     /* set montype so users can force outputs on even if detection fails */
     if (radeon_output->MonType == MT_NONE) {
 	connected = FALSE;
-	if (radeon_output->type == OUTPUT_LVDS)
+	switch (radeon_output->ConnectorType) {
+	case CONNECTOR_LVDS:
 	    radeon_output->MonType = MT_LCD;
-	else if (radeon_output->type == OUTPUT_VGA)
-            radeon_output->MonType = MT_CRT;
-	else if (radeon_output->type == OUTPUT_STV)
-            radeon_output->MonType = MT_STV;
-	else if (radeon_output->type == OUTPUT_CTV)
-            radeon_output->MonType = MT_CTV;
-	else if (radeon_output->type == OUTPUT_CV)
-            radeon_output->MonType = MT_CV;
-	else if (radeon_output->type == OUTPUT_DVI_D)
+	    break;
+	case CONNECTOR_DVI_D:
+	case CONNECTOR_HDMI_TYPE_A:
+	case CONNECTOR_HDMI_TYPE_B:
 	    radeon_output->MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_HDMI)
-	    radeon_output->MonType = MT_DFP;
-	else if (radeon_output->type == OUTPUT_DVI_A)
+	    break;
+	case CONNECTOR_VGA:
+	case CONNECTOR_DVI_A:
+	default:
 	    radeon_output->MonType = MT_CRT;
-	else if (radeon_output->type == OUTPUT_DVI_I) {
+	    break;
+	case CONNECTOR_DVI_I:
 	    if (radeon_output->DVIType == DVI_ANALOG)
 		radeon_output->MonType = MT_CRT;
 	    else if (radeon_output->DVIType == DVI_DIGITAL)
 		radeon_output->MonType = MT_DFP;
+	    break;
+	case CONNECTOR_STV:
+            radeon_output->MonType = MT_STV;
+	    break;
+	case CONNECTOR_CTV:
+            radeon_output->MonType = MT_CTV;
+	    break;
+	case CONNECTOR_DIN:
+            radeon_output->MonType = MT_CV;
+	    break;
+	case CONNECTOR_DISPLAY_PORT:
+	    break;
 	}
     }
 
@@ -1323,7 +1308,7 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the property */
-	if (radeon_output->type == OUTPUT_LVDS)
+	if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))
 	    s = "full";
 	else
 	    s = "off";
@@ -1686,59 +1671,6 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
     .set_property = radeon_set_property,
     .destroy = radeon_destroy
 };
-
-void RADEONSetOutputType(ScrnInfoPtr pScrn, RADEONOutputPrivatePtr radeon_output)
-{
-    RADEONOutputType output = OUTPUT_NONE;
-
-    switch(radeon_output->ConnectorType) {
-    case CONNECTOR_VGA:
-	output = OUTPUT_VGA; break;
-    case CONNECTOR_DVI_I:
-	output = OUTPUT_DVI_I; break;
-    case CONNECTOR_DVI_D:
-	output = OUTPUT_DVI_D; break;
-    case CONNECTOR_DVI_A:
-	output = OUTPUT_DVI_A; break;
-    case CONNECTOR_DIN:
-	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-	    output = OUTPUT_CV;
-	else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-	    output = OUTPUT_STV;
-	break;
-    case CONNECTOR_STV:
-	output = OUTPUT_STV; break;
-    case CONNECTOR_CTV:
-	output = OUTPUT_CTV; break;
-    case CONNECTOR_LVDS:
-	output = OUTPUT_LVDS; break;
-    case CONNECTOR_HDMI_TYPE_A:
-    case CONNECTOR_HDMI_TYPE_B:
-	output = OUTPUT_HDMI; break;
-    case CONNECTOR_DISPLAY_PORT:
-	output = OUTPUT_DP; break;
-    case CONNECTOR_DIGITAL:
-    case CONNECTOR_NONE:
-    case CONNECTOR_UNSUPPORTED:
-    default:
-	output = OUTPUT_NONE; break;
-    }
-    radeon_output->type = output;
-}
-
-#if 0
-static
-Bool AVIVOI2CReset(ScrnInfoPtr pScrn)
-{
-  RADEONInfoPtr info = RADEONPTR(pScrn);
-  unsigned char *RADEONMMIO = info->MMIO;
-
-  OUTREG(AVIVO_I2C_STOP, 1);
-  INREG(AVIVO_I2C_STOP);
-  OUTREG(AVIVO_I2C_STOP, 0x0);
-  return TRUE;
-}
-#endif
 
 Bool
 RADEONI2CDoLock(xf86OutputPtr output, int lock_state)
@@ -3122,7 +3054,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->MonType = MT_UNKNOWN;
 	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
 	    radeon_output->devices = info->BiosConnector[i].devices;
-	    radeon_output->output_id = info->BiosConnector[i].output_id;
 	    radeon_output->ddc_i2c = info->BiosConnector[i].ddc_i2c;
 	    radeon_output->igp_lane_info = info->BiosConnector[i].igp_lane_info;
 	    radeon_output->shared_ddc = info->BiosConnector[i].shared_ddc;
@@ -3130,7 +3061,6 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 
-	    RADEONSetOutputType(pScrn, radeon_output);
 	    if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D) ||
 		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I) ||
 		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
@@ -3156,7 +3086,8 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "HDMI-0");
 		}
 	    } else
-		output = xf86OutputCreate(pScrn, &radeon_output_funcs, OutputType[radeon_output->type]);
+		output = xf86OutputCreate(pScrn, &radeon_output_funcs,
+					  ConnectorTypeName[radeon_output->ConnectorType]);
 
 	    if (!output) {
 		return FALSE;
@@ -3164,10 +3095,10 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    output->driver_private = radeon_output;
 	    output->possible_crtcs = 1;
 	    /* crtc2 can drive LVDS, it just doesn't have RMX */
-	    if (radeon_output->type != OUTPUT_LVDS)
+	    if (!(radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)))
 		output->possible_crtcs |= 2;
 
-	    /* we can clone the DACs, and probably TV-out, 
+	    /* we can clone the DACs, and probably TV-out,
 	       but I'm not sure it's worth the trouble */
 	    output->possible_clones = 0;
 

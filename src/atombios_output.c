@@ -282,7 +282,8 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 	case 1:
 	    disp_data.ucMisc = 0;
 	    disp_data.ucAction = PANEL_ENCODER_ACTION_ENABLE;
-	    if (radeon_output->type == OUTPUT_HDMI)
+	    if ((radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+		(radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_B))
 		disp_data.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
@@ -310,7 +311,8 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 		    xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "Coherent Mode enabled\n");
 		}
 	    }
-	    if (radeon_output->type == OUTPUT_HDMI)
+	    if ((radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
+		(radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_B))
 		disp_data2.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 	    disp_data2.usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    disp_data2.ucTruncate = 0;
@@ -585,7 +587,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    break;
 	}
 
-	if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
+	if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
 	    if (radeon_output->coherent_mode) {
 		disp_data.v2.acConfig.fCoherentMode = 1;
 		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "UNIPHY%d transmitter: Coherent Mode enabled\n",disp_data.v2.acConfig.ucTransmitterSel);
@@ -653,7 +655,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    break;
 	}
 
-	if (OUTPUT_IS_DVI || (radeon_output->type == OUTPUT_HDMI)) {
+	if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
 	    if (radeon_output->coherent_mode) {
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
 		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG%d transmitter: Coherent Mode enabled\n", num);
@@ -694,7 +696,7 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 
     disp_data.ucScaler = radeon_crtc->crtc_id;
 
-    if (OUTPUT_IS_TV) {
+    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 	switch (radeon_output->tvStd) {
 	case TV_STD_NTSC:
 	    disp_data.ucTVStandard = ATOM_TV_NTSC;
@@ -726,7 +728,10 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
 	disp_data.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
         ErrorF("Using TV scaler %x %x\n", disp_data.ucTVStandard, disp_data.ucEnable);
-
+    } else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT)) {
+	disp_data.ucTVStandard = ATOM_TV_CV;
+	disp_data.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
+        ErrorF("Using CV scaler %x %x\n", disp_data.ucTVStandard, disp_data.ucEnable);
     } else if (radeon_output->Flags & RADEON_USE_RMX) {
 	ErrorF("Using RMX\n");
 	if (radeon_output->rmx_type == RMX_FULL)
@@ -1177,7 +1182,7 @@ atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
 
     if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_TVOUT, FALSE)) {
-	    if (radeon_output->type == OUTPUT_STV)
+	    if (radeon_output->ConnectorType == CONNECTOR_STV)
 		return MT_STV;
 	    else
 		return MT_CTV;
