@@ -866,8 +866,7 @@ extern void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
 /* legacy_output.c */
-extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn,
-					   xf86OutputPtr output);
+extern RADEONMonitorType legacy_dac_detect(xf86OutputPtr output);
 extern void legacy_output_dpms(xf86OutputPtr output, int mode);
 extern void legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 				   DisplayModePtr adjusted_mode);

@@ -431,8 +431,7 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
     DIG_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index;
-    int major, minor;
+    int index, major, minor, num = 0;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
@@ -444,17 +443,20 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
 	else
 	    index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+	num = radeon_crtc->crtc_id + 1;
     } else {
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+	    num = 1;
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	    index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+	    num = 2;
 	    break;
 	}
     }
@@ -509,11 +511,11 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DIG%d encoder setup success\n", radeon_crtc->crtc_id + 1);
+	ErrorF("Output DIG%d encoder setup success\n", num);
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DIG%d setup failed\n", radeon_crtc->crtc_id + 1);
+    ErrorF("Output DIG%d setup failed\n", num);
     return ATOM_NOT_IMPLEMENTED;
 
 }
@@ -1073,17 +1075,16 @@ atombios_output_mode_set(xf86OutputPtr output,
     switch (radeon_encoder->encoder_id) {
     case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	atombios_output_digital_setup(output, adjusted_mode);
+	break;
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-	if (IS_DCE3_VARIANT) {
-	    atombios_output_dig_encoder_setup(output, adjusted_mode);
-	    atombios_output_dig_transmitter_setup(output, adjusted_mode);
-	} else
-	    atombios_output_digital_setup(output, adjusted_mode);
+	atombios_output_dig_encoder_setup(output, adjusted_mode);
+	atombios_output_dig_transmitter_setup(output, adjusted_mode);
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DDI:
 	atombios_output_ddia_setup(output, adjusted_mode);
@@ -1097,8 +1098,7 @@ atombios_output_mode_set(xf86OutputPtr output,
     case ENCODER_OBJECT_ID_INTERNAL_DAC2:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 	atombios_output_dac_setup(output, adjusted_mode);
-	if ((radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) ||
-	    (radeon_output->active_device & (ATOM_DEVICE_CRT_SUPPORT)))
+	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 	    atombios_output_tv_setup(output, adjusted_mode);
 	break;
     }
@@ -1171,8 +1171,9 @@ atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
 }
 
 RADEONMonitorType
-atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
+atombios_dac_detect(xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;

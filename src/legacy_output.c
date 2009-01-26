@@ -565,8 +565,9 @@ RADEONCrtIsPhysicallyConnected(ScrnInfoPtr pScrn, int IsCrtDac)
 #endif
 
 RADEONMonitorType
-legacy_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output)
+legacy_dac_detect(xf86OutputPtr output)
 {
+    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info      = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONMonitorType found = MT_NONE;

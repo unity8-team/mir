@@ -48,20 +48,6 @@
 #include "radeon_tv.h"
 #include "radeon_atombios.h"
 
-
-const RADEONMonitorType MonTypeID[10] = {
-  MT_UNKNOWN, /* this is just a dummy value for AUTO DETECTION */
-  MT_NONE,    /* NONE -> NONE */
-  MT_CRT,     /* CRT -> CRT */
-  MT_LCD,     /* Laptop LCDs are driven via LVDS port */
-  MT_DFP,     /* DFPs are driven via TMDS */
-  MT_CTV,     /* CTV -> CTV */
-  MT_STV,     /* STV -> STV */
-  MT_CV,
-  MT_HDMI,
-  MT_DP
-};
-
 const char *encoder_name[33] = {
     "NONE",
     "INTERNAL_LVDS",
@@ -172,7 +158,7 @@ extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
-extern RADEONMonitorType atombios_dac_detect(ScrnInfoPtr pScrn, xf86OutputPtr output);
+extern RADEONMonitorType atombios_dac_detect(xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
@@ -220,6 +206,54 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	ErrorF("  DDC reg: 0x%x\n",(unsigned int)radeon_output->ddc_i2c.mask_clk_reg);
     }
 
+}
+
+static void
+radeon_set_active_device(xf86OutputPtr output)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+    radeon_output->active_device = 0;
+
+    switch (radeon_output->MonType) {
+    case MT_DFP:
+	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP2_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP3_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP4_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP4_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_DFP5_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_DFP5_SUPPORT;
+	break;
+    case MT_CRT:
+	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CRT1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CRT2_SUPPORT;
+	break;
+    case MT_LCD:
+	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_LCD2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_LCD2_SUPPORT;
+	break;
+    case MT_STV:
+    case MT_CTV:
+	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_TV1_SUPPORT;
+	else if (radeon_output->devices & ATOM_DEVICE_TV2_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_TV2_SUPPORT;
+	break;
+    case MT_CV:
+	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
+	    radeon_output->active_device = ATOM_DEVICE_CV_SUPPORT;
+	break;
+    default:
+	radeon_output->active_device = 0;
+    }
 }
 
 static RADEONMonitorType
@@ -348,50 +382,6 @@ RADEONDetectLidStatus(ScrnInfoPtr pScrn)
 #endif /* __powerpc__ */
 
 static void
-RADEONConnectorFindMonitor(xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn        = output->scrn;
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-
-    if (radeon_output->MonType == MT_UNKNOWN) {
-	radeon_output->MonType = radeon_ddc_connected(output);
-	if (!radeon_output->MonType) {
-	    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-		if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
-		    radeon_output->MonType = MT_LCD;
-		else
-#if defined(__powerpc__)
-		    radeon_output->MonType = MT_LCD;
-#else
-		    radeon_output->MonType = RADEONDetectLidStatus(pScrn);
-#endif
-	    } else {
-		if (info->IsAtomBios)
-		    radeon_output->MonType = atombios_dac_detect(pScrn, output);
-		else
-		    radeon_output->MonType = legacy_dac_detect(pScrn, output);
-	    }
-	}
-    }
-
-    /* update panel info for RMX */
-    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
-	RADEONUpdatePanelSize(output);
-
-    /* panel is probably busted or not connected */
-    if ((radeon_output->MonType == MT_LCD) &&
-	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
-	radeon_output->MonType = MT_NONE;
-
-    if (output->MonInfo) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
-		   output->name);
-	xf86PrintEDID( output->MonInfo );
-    }
-}
-
-static void
 radeon_dpms(xf86OutputPtr output, int mode)
 {
     RADEONInfoPtr info = RADEONPTR(output->scrn);
@@ -484,7 +474,7 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
     xf86SetModeCrtc(adjusted_mode, 0);
 
     /* decide if we are using RMX */
-    if ((radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
+    if ((radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT))
 	&& radeon_output->rmx_type != RMX_OFF) {
 	xf86CrtcPtr crtc = output->crtc;
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
@@ -1001,7 +991,39 @@ radeon_detect(xf86OutputPtr output)
 
     radeon_output->MonType = MT_UNKNOWN;
     radeon_bios_output_connected(output, FALSE);
-    RADEONConnectorFindMonitor(output);
+    radeon_output->MonType = radeon_ddc_connected(output);
+    if (!radeon_output->MonType) {
+	if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+	    if (xf86ReturnOptValBool(info->Options, OPTION_IGNORE_LID_STATUS, TRUE))
+		radeon_output->MonType = MT_LCD;
+	    else
+#if defined(__powerpc__)
+		radeon_output->MonType = MT_LCD;
+#else
+	        radeon_output->MonType = RADEONDetectLidStatus(pScrn);
+#endif
+	} else {
+	    if (info->IsAtomBios)
+		radeon_output->MonType = atombios_dac_detect(output);
+	    else
+		radeon_output->MonType = legacy_dac_detect(output);
+	}
+    }
+
+    /* update panel info for RMX */
+    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
+	RADEONUpdatePanelSize(output);
+
+    /* panel is probably busted or not connected */
+    if ((radeon_output->MonType == MT_LCD) &&
+	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
+	radeon_output->MonType = MT_NONE;
+
+    if (output->MonInfo) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
+		   output->name);
+	xf86PrintEDID( output->MonInfo );
+    }
 
     /* nothing connected, light up some defaults so the server comes up */
     if (radeon_output->MonType == MT_NONE &&
@@ -1064,70 +1086,17 @@ radeon_detect(xf86OutputPtr output)
 	}
     }
 
-    if (radeon_output->MonType == MT_DFP) {
-	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_DFP1_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_DFP2_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_DFP3_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_DFP4_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_DFP4_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_DFP5_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_DFP5_SUPPORT;
-	else
-	    radeon_output->active_device = 0;
-    } else if (radeon_output->MonType == MT_CRT) {
-	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_CRT1_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_CRT2_SUPPORT;
-	else
-	    radeon_output->active_device = 0;
-    } else if (radeon_output->MonType == MT_LCD) {
-	if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_LCD1_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_LCD2_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_LCD2_SUPPORT;
-	else
-	    radeon_output->active_device = 0;
-    } else if ((radeon_output->MonType == MT_STV) ||
-	       (radeon_output->MonType == MT_CTV)){
-	if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_TV1_SUPPORT;
-	else if (radeon_output->devices & ATOM_DEVICE_TV2_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_TV2_SUPPORT;
-	else
-	    radeon_output->active_device = 0;
-    } else if (radeon_output->MonType == MT_CV) {
-	if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT)
-	    radeon_output->active_device = ATOM_DEVICE_CV_SUPPORT;
-	else
-	    radeon_output->active_device = 0;
-    } else
-	radeon_output->active_device = 0;
+    radeon_set_active_device(output);
 
-    if (radeon_output->MonType == MT_UNKNOWN) {
-        output->subpixel_order = SubPixelUnknown;
-	return XF86OutputStatusUnknown;
-    } else {
+    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT))
+	output->subpixel_order = SubPixelHorizontalRGB;
+    else
+	output->subpixel_order = SubPixelNone;
 
-      switch(radeon_output->MonType) {
-      case MT_LCD:
-      case MT_DFP:
-	  output->subpixel_order = SubPixelHorizontalRGB;
-	  break;
-      default:
-	  output->subpixel_order = SubPixelNone;
-	  break;
-      }
-
-      if (connected)
-	  return XF86OutputStatusConnected;
-      else
-	  return XF86OutputStatusDisconnected;
-    }
-
+    if (connected)
+	return XF86OutputStatusConnected;
+    else
+	return XF86OutputStatusDisconnected;
 }
 
 static DisplayModePtr
