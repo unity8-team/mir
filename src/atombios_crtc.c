@@ -323,11 +323,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     data.exec.pspace = ptr;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Set CRTC PLL success\n");
+	ErrorF("Set CRTC %d PLL success\n", radeon_crtc->crtc_id);
 	return;
     }
 
-    ErrorF("Set CRTC PLL failed\n");
+    ErrorF("Set CRTC %d PLL failed\n", radeon_crtc->crtc_id);
     return;
 }
 

@@ -59,6 +59,7 @@ const char *encoder_name[33] = {
     "INTERNAL_SDVOB",
     "SI170B",
     "CH7303",
+    "CH7301",
     "INTERNAL_DVO1",
     "EXTERNAL_SDVOA",
     "EXTERNAL_SDVOB",
@@ -182,6 +183,7 @@ void RADEONPrintPortMap(ScrnInfoPtr pScrn)
 	radeon_output = output->driver_private;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Port%d:\n", o);
+	ErrorF("  XRANDR name: %s\n", output->name);
 	ErrorF("  Connector: %s\n", ConnectorTypeName[radeon_output->ConnectorType]);
 	if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT)
 	    ErrorF("  CRT1: %s\n", encoder_name[info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id]);

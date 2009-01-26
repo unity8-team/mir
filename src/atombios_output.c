@@ -54,7 +54,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index;
+    int index, num = 0;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
@@ -65,10 +65,12 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     case ENCODER_OBJECT_ID_INTERNAL_DAC1:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 	index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
+	num = 1;
 	break;
     case ENCODER_OBJECT_ID_INTERNAL_DAC2:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 	index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
+	num = 2;
 	break;
     }
 
@@ -102,11 +104,11 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Output DAC setup success\n");
+	ErrorF("Output DAC%d setup success\n", num);
 	return ATOM_SUCCESS;
     }
 
-    ErrorF("Output DAC setup failed\n");
+    ErrorF("Output DAC%d setup failed\n", num);
     return ATOM_NOT_IMPLEMENTED;
 
 }
