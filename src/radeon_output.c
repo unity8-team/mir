@@ -2071,21 +2071,19 @@ void RADEONInitConnector(xf86OutputPtr output)
     ScrnInfoPtr	    pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
-
-    if (radeon_encoder == NULL)
-	return;
 
     radeon_output->rmx_type = RMX_OFF;
 
     if (!IS_AVIVO_VARIANT) {
-	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DVO1)
+	/* XXX fix me  - move to encoders */
+
+	if (radeon_output->devices & (ATOM_DEVICE_DFP2_SUPPORT))
 	    RADEONGetExtTMDSInfo(output);
 
-	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_TMDS1)
+	if (radeon_output->devices & (ATOM_DEVICE_DFP1_SUPPORT))
 	    RADEONGetTMDSInfo(output);
 
-	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC2) {
+	if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
 	    if (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
 		radeon_output->load_detection = 1;
 	    radeon_output->tv_on = FALSE;
