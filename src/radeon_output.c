@@ -1114,13 +1114,9 @@ radeon_create_resources(xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
     INT32 range[2];
     int data, err;
     const char *s;
-
-    if (radeon_encoder == NULL)
-	return;
 
 #if 0
     /* backlight control */
@@ -1197,7 +1193,7 @@ radeon_create_resources(xf86OutputPtr output)
 	}
     }
 
-    if ((!IS_AVIVO_VARIANT) && (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_TMDS1)) {
+    if ((!IS_AVIVO_VARIANT) && (radeon_output->devices & (ATOM_DEVICE_DFP2_SUPPORT))) {
 	tmds_pll_atom = MAKE_ATOM("tmds_pll");
 
 	err = RRConfigureOutputProperty(output->randr_output, tmds_pll_atom,
