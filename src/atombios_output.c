@@ -45,6 +45,21 @@
 
 #include "ati_pciids_gen.h"
 
+const char *device_name[12] = {
+    "CRT1",
+    "LCD1",
+    "TV1",
+    "DFP1",
+    "CRT2",
+    "LCD2",
+    "TV2",
+    "DFP2",
+    "CV",
+    "DFP3",
+    "DFP4",
+    "DFP5",
+};
+
 static int
 atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -889,9 +904,11 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 	    data.exec.pspace = &disp_data;
 
 	    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS)
-		ErrorF("Output %d enable success\n", index);
+		ErrorF("Output %s enable success\n",
+		       device_name[radeon_get_device_index(radeon_output->active_device)]);
 	    else
-		ErrorF("Output %d enable failed\n", index);
+		ErrorF("Output %s enable failed\n",
+		       device_name[radeon_get_device_index(radeon_output->active_device)]);
 	}
 	radeon_encoder->use_count++;
 	break;
@@ -909,9 +926,11 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 
 		if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data)
 		    == ATOM_SUCCESS)
-		    ErrorF("Output %d disable success\n", index);
+		    ErrorF("Output %s disable success\n",
+			   device_name[radeon_get_device_index(radeon_output->active_device)]);
 		else
-		    ErrorF("Output %d disable failed\n", index);
+		    ErrorF("Output %s disable failed\n",
+			   device_name[radeon_get_device_index(radeon_output->active_device)]);
 	    }
 	}
 	if (radeon_encoder->use_count > 0)
