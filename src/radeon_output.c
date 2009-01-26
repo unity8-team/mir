@@ -48,7 +48,7 @@
 #include "radeon_tv.h"
 #include "radeon_atombios.h"
 
-const char *encoder_name[33] = {
+const char *encoder_name[34] = {
     "NONE",
     "INTERNAL_LVDS",
     "INTERNAL_TMDS1",
@@ -105,56 +105,7 @@ const char *ConnectorTypeName[17] = {
   "Unsupported"
 };
 
-static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
-{
-    {{0, 0}, {0, 0}, {0, 0}, {0, 0}},				/*CHIP_FAMILY_UNKNOW*/
-    {{0, 0}, {0, 0}, {0, 0}, {0, 0}},				/*CHIP_FAMILY_LEGACY*/
-    {{12000, 0xa1b}, {0xffffffff, 0xa3f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RADEON*/
-    {{12000, 0xa1b}, {0xffffffff, 0xa3f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV100*/
-    {{0, 0}, {0, 0}, {0, 0}, {0, 0}},				/*CHIP_FAMILY_RS100*/
-    {{15000, 0xa1b}, {0xffffffff, 0xa3f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV200*/
-    {{12000, 0xa1b}, {0xffffffff, 0xa3f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS200*/
-    {{15000, 0xa1b}, {0xffffffff, 0xa3f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_R200*/
-    {{15500, 0x81b}, {0xffffffff, 0x83f}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV250*/
-    {{0, 0}, {0, 0}, {0, 0}, {0, 0}},				/*CHIP_FAMILY_RS300*/
-    {{13000, 0x400f4}, {15000, 0x400f7}, {0xffffffff, 0x40111}, {0, 0}}, /*CHIP_FAMILY_RV280*/
-    {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R300*/
-    {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R350*/
-    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV350*/
-    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RV380*/
-    {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_R420*/
-    {{0xffffffff, 0xb01cb}, {0, 0}, {0, 0}, {0, 0}},		/*CHIP_FAMILY_RV410*/ /* FIXME: just values from r420 used... */
-    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS400*/ /* FIXME: just values from rv380 used... */
-    {{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/*CHIP_FAMILY_RS480*/ /* FIXME: just values from rv380 used... */
-};
-
-static const uint32_t default_tvdac_adj [CHIP_FAMILY_LAST] =
-{
-    0x00000000,   /* unknown */
-    0x00000000,   /* legacy */
-    0x00000000,   /* r100 */
-    0x00280000,   /* rv100 */
-    0x00000000,   /* rs100 */
-    0x00880000,   /* rv200 */
-    0x00000000,   /* rs200 */
-    0x00000000,   /* r200 */
-    0x00770000,   /* rv250 */
-    0x00290000,   /* rs300 */
-    0x00560000,   /* rv280 */
-    0x00780000,   /* r300 */
-    0x00770000,   /* r350 */
-    0x00780000,   /* rv350 */
-    0x00780000,   /* rv380 */
-    0x01080000,   /* r420 */
-    0x01080000,   /* rv410 */ /* FIXME: just values from r420 used... */
-    0x00780000,   /* rs400 */ /* FIXME: just values from rv380 used... */
-    0x00780000,   /* rs480 */ /* FIXME: just values from rv380 used... */
-};
-
-
 static void RADEONUpdatePanelSize(xf86OutputPtr output);
-static void RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
@@ -163,6 +114,14 @@ extern RADEONMonitorType atombios_dac_detect(xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
+extern void
+RADEONGetExtTMDSInfo(xf86OutputPtr output);
+extern void
+RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
+extern void
+RADEONGetTMDSInfo(xf86OutputPtr output);
+extern void
+RADEONGetTVDacAdjInfo(xf86OutputPtr output);
 static void
 radeon_bios_output_dpms(xf86OutputPtr output, int mode);
 static void
@@ -2033,7 +1992,7 @@ RADEONGetLVDSInfo (xf86OutputPtr output)
 	while(tmp_mode) {
 	    if ((tmp_mode->HDisplay == radeon_output->PanelXRes) &&
 		(tmp_mode->VDisplay == radeon_output->PanelYRes)) {
-		    
+
 		float  refresh =
 		    (float)tmp_mode->Clock * 1000.0 / tmp_mode->HTotal / tmp_mode->VTotal;
 		if ((abs(60.0 - refresh) < 1.0) ||
@@ -2064,36 +2023,6 @@ RADEONGetLVDSInfo (xf86OutputPtr output)
     }
 
     return TRUE;
-}
-
-static void
-RADEONGetTMDSInfoFromTable(xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i;
-
-    for (i=0; i<4; i++) {
-        radeon_output->tmds_pll[i].value = default_tmds_pll[info->ChipFamily][i].value;
-        radeon_output->tmds_pll[i].freq = default_tmds_pll[info->ChipFamily][i].freq;
-    }
-}
-
-static void
-RADEONGetTMDSInfo(xf86OutputPtr output)
-{
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int i;
-
-    for (i=0; i<4; i++) {
-        radeon_output->tmds_pll[i].value = 0;
-        radeon_output->tmds_pll[i].freq = 0;
-    }
-
-    if (!RADEONGetTMDSInfoFromBIOS(output))
-	RADEONGetTMDSInfoFromTable(output);
-
 }
 
 static void
@@ -2137,25 +2066,6 @@ RADEONGetTVInfo(xf86OutputPtr output)
 
 }
 
-static void
-RADEONGetTVDacAdjInfo(xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-
-    if (!RADEONGetDAC2InfoFromBIOS(output)) {
-	radeon_output->ps2_tvdac_adj = default_tvdac_adj[info->ChipFamily];
-	if (info->IsMobility) { /* some mobility chips may different */
-	    if (info->ChipFamily == CHIP_FAMILY_RV250)
-		radeon_output->ps2_tvdac_adj = 0x00880000;
-	}
-	radeon_output->pal_tvdac_adj = radeon_output->ps2_tvdac_adj;
-	radeon_output->ntsc_tvdac_adj = radeon_output->ps2_tvdac_adj;
-    }
-
-}
-
 void RADEONInitConnector(xf86OutputPtr output)
 {
     ScrnInfoPtr	    pScrn = output->scrn;
@@ -2166,48 +2076,30 @@ void RADEONInitConnector(xf86OutputPtr output)
     if (radeon_encoder == NULL)
 	return;
 
-    if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC2) &&
-	xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
-	radeon_output->load_detection = 1;
+    radeon_output->rmx_type = RMX_OFF;
+
+    if (!IS_AVIVO_VARIANT) {
+	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DVO1)
+	    RADEONGetExtTMDSInfo(output);
+
+	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_TMDS1)
+	    RADEONGetTMDSInfo(output);
+
+	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC2) {
+	    if (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
+		radeon_output->load_detection = 1;
+	    radeon_output->tv_on = FALSE;
+	    RADEONGetTVDacAdjInfo(output);
+	}
+    }
 
     if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 	radeon_output->rmx_type = RMX_FULL;
 	RADEONGetLVDSInfo(output);
     }
 
-    radeon_output->rmx_type = RMX_OFF;
-    if ((!info->IsAtomBios) &&
-	(radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DVO1)) {
-	I2CBusPtr pDVOBus;
-
-#if defined(__powerpc__)
-	radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
-	radeon_output->dvo_i2c_slave_addr = 0x70;
-#else
-	if (!RADEONGetExtTMDSInfoFromBIOS(output)) {
-	    radeon_output->dvo_i2c = legacy_setup_i2c_bus(RADEON_GPIO_CRT2_DDC);
-	    radeon_output->dvo_i2c_slave_addr = 0x70;
-	}
-#endif
-	if (RADEONI2CInit(output, &pDVOBus, "DVO", TRUE)) {
-	    radeon_output->DVOChip =
-		RADEONDVODeviceInit(pDVOBus,
-				    radeon_output->dvo_i2c_slave_addr);
-	    if (!radeon_output->DVOChip)
-		xfree(pDVOBus);
-	}
-    }
-
-    if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_TMDS1)
-	RADEONGetTMDSInfo(output);
-
     if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT))
 	RADEONGetTVInfo(output);
-
-    if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC2) {
-	radeon_output->tv_on = FALSE;
-	RADEONGetTVDacAdjInfo(output);
-    }
 
     if (radeon_output->devices & (ATOM_DEVICE_DFP_SUPPORT))
 	radeon_output->coherent_mode = TRUE;
