@@ -55,6 +55,9 @@ static RADEONMonitorType radeon_detect_primary_dac(ScrnInfoPtr pScrn, Bool color
 static RADEONMonitorType radeon_detect_tv_dac(ScrnInfoPtr pScrn, Bool color);
 static RADEONMonitorType radeon_detect_ext_dac(ScrnInfoPtr pScrn);
 
+extern Bool
+RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo);
+
 static const RADEONTMDSPll default_tmds_pll[CHIP_FAMILY_LAST][4] =
 {
     {{0, 0}, {0, 0}, {0, 0}, {0, 0}},				/*CHIP_FAMILY_UNKNOW*/
@@ -823,8 +826,7 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
     RADEONSavePtr save = info->ModeReg;
     unsigned char * RADEONMMIO = info->MMIO;
     unsigned long tmp;
-    RADEONOutputPrivatePtr radeon_output;
-    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
 
     if (radeon_encoder == NULL)

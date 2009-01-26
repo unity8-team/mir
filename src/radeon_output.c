@@ -1679,7 +1679,7 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
 
 }
 
-static Bool
+Bool
 RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
 {
     ScrnInfoPtr pScrn = output->scrn;

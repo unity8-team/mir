@@ -1065,7 +1065,6 @@ atombios_output_mode_set(xf86OutputPtr output,
 			 DisplayModePtr adjusted_mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
 
     if (radeon_encoder == NULL)

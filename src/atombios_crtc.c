@@ -47,6 +47,9 @@
 #include "sarea.h"
 #endif
 
+extern int
+atombios_get_encoder_mode(xf86OutputPtr output);
+
 AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock)
 {
