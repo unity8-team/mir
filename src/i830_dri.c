@@ -1570,7 +1570,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 					       pDraw->depth, 0);
 	    switch (attachments[i]) {
 	    case DRI2BufferDepth:
-		if (IS_I965G(pI830))
+		if (SUPPORTS_YTILING(pI830))
 		    tiling = I915_TILING_Y;
 		else
 		    tiling = I915_TILING_X;
@@ -1583,19 +1583,14 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 		break;
 	    }
 
-	    /* Disable tiling on 915-class 3D for now.  Because the 2D blitter
-	     * requires fence regs to operate, and they're not being managed
-	     * by the kernel yet, we don't want to expose tiled buffers to the
-	     * 3D client as it'll just render incorrectly if it pays attention
-	     * to our tiling bits at all.
-	     */
-	    if (!IS_I965G(pI830))
+	    if (!pI830->tiling ||
+		(!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
 		tiling = I915_TILING_NONE;
 
 	    if (tiling != I915_TILING_NONE) {
 		bo = i830_get_pixmap_bo(pPixmap);
 		drm_intel_bo_set_tiling(bo, &tiling,
-					pDraw->width * pDraw->bitsPerPixel / 8);
+					intel_get_pixmap_pitch(pPixmap));
 	    }
 	}
 

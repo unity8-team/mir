@@ -882,11 +882,25 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     
     if (w && h)
     {
+	unsigned int size;
+
 	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
 			  i830->accel_pixmap_pitch_alignment);
-    
-	bo = dri_bo_alloc (i830->bufmgr, "pixmap", stride * h, 
-			   i830->accel_pixmap_offset_alignment);
+
+	/* Use the I915_FENCE_TILING_X even if it may end up being TILING_Y,
+	 * as it just results in larger alignment.  Really, we need to use the
+	 * usage hint to tell what the pixmap's going to be.
+	 */
+	stride = i830_get_fence_pitch(i830, stride, I915_TILING_X);
+	/* Round the object up to the size of the fence it will live in
+	 * if necessary.  We could potentially make the kernel allocate
+	 * a larger aperture space and just bind the subset of pages in,
+	 * but this is easier and also keeps us out of trouble (as much)
+	 * with drm_intel_bufmgr_check_aperture().
+	 */
+	size = i830_get_fence_size(i830, stride * h);
+
+	bo = dri_bo_alloc (i830->bufmgr, "pixmap", size, 0);
 	if (!bo) {
 	    fbDestroyPixmap (pixmap);
 	    return NullPixmap;
