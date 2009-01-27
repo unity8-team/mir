@@ -1691,7 +1691,17 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	    pI830->PciInfo->dev,
 	    pI830->PciInfo->func);
 
-    info.fd = drmOpen("i915", buf);
+    info.fd = -1;
+
+#ifdef XF86DRM_MODE
+    /* Use the already opened (master) fd from modesetting */
+    if (pI830->use_drm_mode)
+	info.fd = pI830->drmSubFD;
+#endif
+
+    if (info.fd < 0)
+	info.fd = drmOpen("i915", buf);
+
     if (info.fd < 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
 	return FALSE;
