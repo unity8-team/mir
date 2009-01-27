@@ -487,6 +487,7 @@ typedef struct gen4_composite_op {
     sampler_state_extend_t src_extend;
     sampler_state_extend_t mask_extend;
     Bool is_affine;
+    wm_kernel_t wm_kernel;
 } gen4_composite_op;
 
 /** Private data for gen4 render accel implementation. */
@@ -1007,7 +1008,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     int urb_cs_start, urb_cs_size;
     uint32_t src_blend, dst_blend;
     dri_bo *binding_table_bo = composite_op->binding_table_bo;
-    wm_kernel_t wm_kernel;
 
     render_state->needs_state_emit = FALSE;
 
@@ -1118,34 +1118,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 		      I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
 	}
 
-	if (pMask) {
-	    if (pMaskPicture->componentAlpha &&
-		PICT_FORMAT_RGB(pMaskPicture->format))
-	    {
-		if (i965_blend_op[op].src_alpha) {
-		    if (is_affine)
-			wm_kernel = WM_KERNEL_MASKCA_SRCALPHA_AFFINE;
-		    else
-			wm_kernel = WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE;
-		} else {
-		    if (is_affine)
-			wm_kernel = WM_KERNEL_MASKCA_AFFINE;
-		    else
-			wm_kernel = WM_KERNEL_MASKCA_PROJECTIVE;
-		}
-	    } else {
-		if (is_affine)
-		    wm_kernel = WM_KERNEL_MASKNOCA_AFFINE;
-		else
-		    wm_kernel = WM_KERNEL_MASKNOCA_PROJECTIVE;
-	    }
-	} else {
-	    if (is_affine)
-		wm_kernel = WM_KERNEL_NOMASK_AFFINE;
-	    else
-		wm_kernel = WM_KERNEL_NOMASK_PROJECTIVE;
-	}
-	OUT_RELOC(render_state->wm_state_bo[wm_kernel]
+	OUT_RELOC(render_state->wm_state_bo[composite_op->wm_kernel]
 		  [src_filter][src_extend]
 		  [mask_filter][mask_extend],
 		  I915_GEM_DOMAIN_INSTRUCTION, 0, 0);
@@ -1264,6 +1237,16 @@ i965_composite_check_aperture(ScrnInfoPtr pScrn)
 	pI830->batch_bo,
 	composite_op->binding_table_bo,
 	render_state->vertex_buffer_bo,
+	render_state->vs_state_bo,
+	render_state->sf_state_bo,
+	render_state->sf_mask_state_bo,
+	render_state->wm_state_bo[composite_op->wm_kernel]
+				 [composite_op->src_filter]
+				 [composite_op->src_extend]
+				 [composite_op->mask_filter]
+				 [composite_op->mask_extend],
+	render_state->cc_state_bo,
+	render_state->sip_kernel_bo,
     };
 
     return drm_intel_bufmgr_check_aperture_space(bo_table,
@@ -1369,12 +1352,6 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     composite_op->src_filter =
 	sampler_state_filter_from_picture(pSrcPicture->filter);
 
-    if (!i965_composite_check_aperture(pScrn)) {
-	intel_batch_flush(pScrn, FALSE);
-	if (!i965_composite_check_aperture(pScrn))
-	    I830FALLBACK("Couldn't fit render operation in aperture\n");
-    }
-
     pI830->scale_units[0][0] = pSrc->drawable.width;
     pI830->scale_units[0][1] = pSrc->drawable.height;
 
@@ -1392,6 +1369,41 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
 	pI830->scale_units[1][1] = pMask->drawable.height;
 	composite_op->is_affine |=
 	    i830_transform_is_affine(pI830->transform[1]);
+    }
+
+
+    if (pMask) {
+	if (pMaskPicture->componentAlpha &&
+	    PICT_FORMAT_RGB(pMaskPicture->format))
+	{
+	    if (i965_blend_op[op].src_alpha) {
+		if (composite_op->is_affine)
+		    composite_op->wm_kernel = WM_KERNEL_MASKCA_SRCALPHA_AFFINE;
+		else
+		    composite_op->wm_kernel = WM_KERNEL_MASKCA_SRCALPHA_PROJECTIVE;
+	    } else {
+		if (composite_op->is_affine)
+		    composite_op->wm_kernel = WM_KERNEL_MASKCA_AFFINE;
+		else
+		    composite_op->wm_kernel = WM_KERNEL_MASKCA_PROJECTIVE;
+	    }
+	} else {
+	    if (composite_op->is_affine)
+		composite_op->wm_kernel = WM_KERNEL_MASKNOCA_AFFINE;
+	    else
+		composite_op->wm_kernel = WM_KERNEL_MASKNOCA_PROJECTIVE;
+	}
+    } else {
+	if (composite_op->is_affine)
+	    composite_op->wm_kernel = WM_KERNEL_NOMASK_AFFINE;
+	else
+	    composite_op->wm_kernel = WM_KERNEL_NOMASK_PROJECTIVE;
+    }
+
+    if (!i965_composite_check_aperture(pScrn)) {
+	intel_batch_flush(pScrn, FALSE);
+	if (!i965_composite_check_aperture(pScrn))
+	    I830FALLBACK("Couldn't fit render operation in aperture\n");
     }
 
     render_state->needs_state_emit = TRUE;
