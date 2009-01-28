@@ -105,7 +105,6 @@ const char *ConnectorTypeName[17] = {
   "Unsupported"
 };
 
-static void RADEONUpdatePanelSize(xf86OutputPtr output);
 extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr mode,
 				     DisplayModePtr adjusted_mode);
@@ -114,14 +113,6 @@ extern RADEONMonitorType atombios_dac_detect(xf86OutputPtr output);
 extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
-extern void
-RADEONGetExtTMDSInfo(xf86OutputPtr output);
-extern void
-RADEONGetTMDSInfoFromTable(xf86OutputPtr output);
-extern void
-RADEONGetTMDSInfo(xf86OutputPtr output);
-extern void
-RADEONGetTVDacAdjInfo(xf86OutputPtr output);
 static void
 radeon_bios_output_dpms(xf86OutputPtr output, int mode);
 static void
@@ -381,6 +372,7 @@ static int
 radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
@@ -407,12 +399,12 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 
     if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	if (radeon_output->rmx_type == RMX_OFF) {
-	    if (pMode->HDisplay != radeon_output->PanelXRes ||
-		pMode->VDisplay != radeon_output->PanelYRes)
+	    if (pMode->HDisplay != native_mode->PanelXRes ||
+		pMode->VDisplay != native_mode->PanelYRes)
 		return MODE_PANEL;
 	}
-	if (pMode->HDisplay > radeon_output->PanelXRes ||
-	    pMode->VDisplay > radeon_output->PanelYRes)
+	if (pMode->HDisplay > native_mode->PanelXRes ||
+	    pMode->VDisplay > native_mode->PanelYRes)
 	    return MODE_PANEL;
     }
 
@@ -425,12 +417,13 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 {
     RADEONInfoPtr info = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
 
     radeon_output->Flags &= ~RADEON_USE_RMX;
 
-    /* 
-     *  Refresh the Crtc values without INTERLACE_HALVE_V 
-     *  Should we use output->scrn->adjustFlags like xf86RandRModeConvert() does? 
+    /*
+     *  Refresh the Crtc values without INTERLACE_HALVE_V
+     *  Should we use output->scrn->adjustFlags like xf86RandRModeConvert() does?
      */
     xf86SetModeCrtc(adjusted_mode, 0);
 
@@ -441,51 +434,51 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
 	if (IS_AVIVO_VARIANT || radeon_crtc->crtc_id == 0) {
-	    if (mode->HDisplay < radeon_output->PanelXRes ||
-		mode->VDisplay < radeon_output->PanelYRes) {
+	    if (mode->HDisplay < native_mode->PanelXRes ||
+		mode->VDisplay < native_mode->PanelYRes) {
 		radeon_output->Flags |= RADEON_USE_RMX;
 		if (IS_AVIVO_VARIANT) {
 		    /* set to the panel's native mode */
-		    adjusted_mode->HDisplay = radeon_output->PanelXRes;
-		    adjusted_mode->VDisplay = radeon_output->PanelYRes;
-		    adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
-		    adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
-		    adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
-		    adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
+		    adjusted_mode->HDisplay = native_mode->PanelXRes;
+		    adjusted_mode->VDisplay = native_mode->PanelYRes;
+		    adjusted_mode->HTotal = native_mode->PanelXRes + native_mode->HBlank;
+		    adjusted_mode->HSyncStart = native_mode->PanelXRes + native_mode->HOverPlus;
+		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + native_mode->HSyncWidth;
+		    adjusted_mode->VTotal = native_mode->PanelYRes + native_mode->VBlank;
+		    adjusted_mode->VSyncStart = native_mode->PanelYRes + native_mode->VOverPlus;
+		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + native_mode->VSyncWidth;
 		    /* update crtc values */
 		    xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
 		    /* adjust crtc values */
-		    adjusted_mode->CrtcHDisplay = radeon_output->PanelXRes;
-		    adjusted_mode->CrtcVDisplay = radeon_output->PanelYRes;
-		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
-		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
-		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
-		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
-		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+		    adjusted_mode->CrtcHDisplay = native_mode->PanelXRes;
+		    adjusted_mode->CrtcVDisplay = native_mode->PanelYRes;
+		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + native_mode->HBlank;
+		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + native_mode->HOverPlus;
+		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + native_mode->HSyncWidth;
+		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + native_mode->VBlank;
+		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + native_mode->VOverPlus;
+		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + native_mode->VSyncWidth;
 		} else {
 		    /* set to the panel's native mode */
-		    adjusted_mode->HTotal = radeon_output->PanelXRes + radeon_output->HBlank;
-		    adjusted_mode->HSyncStart = radeon_output->PanelXRes + radeon_output->HOverPlus;
-		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + radeon_output->HSyncWidth;
-		    adjusted_mode->VTotal = radeon_output->PanelYRes + radeon_output->VBlank;
-		    adjusted_mode->VSyncStart = radeon_output->PanelYRes + radeon_output->VOverPlus;
-		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + radeon_output->VSyncWidth;
-		    adjusted_mode->Clock = radeon_output->DotClock;
+		    adjusted_mode->HTotal = native_mode->PanelXRes + native_mode->HBlank;
+		    adjusted_mode->HSyncStart = native_mode->PanelXRes + native_mode->HOverPlus;
+		    adjusted_mode->HSyncEnd = adjusted_mode->HSyncStart + native_mode->HSyncWidth;
+		    adjusted_mode->VTotal = native_mode->PanelYRes + native_mode->VBlank;
+		    adjusted_mode->VSyncStart = native_mode->PanelYRes + native_mode->VOverPlus;
+		    adjusted_mode->VSyncEnd = adjusted_mode->VSyncStart + native_mode->VSyncWidth;
+		    adjusted_mode->Clock = native_mode->DotClock;
 		    /* update crtc values */
 		    xf86SetModeCrtc(adjusted_mode, INTERLACE_HALVE_V);
 		    /* adjust crtc values */
-		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + radeon_output->HBlank;
-		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + radeon_output->HOverPlus;
-		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + radeon_output->HSyncWidth;
-		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + radeon_output->VBlank;
-		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + radeon_output->VOverPlus;
-		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + radeon_output->VSyncWidth;
+		    adjusted_mode->CrtcHTotal = adjusted_mode->CrtcHDisplay + native_mode->HBlank;
+		    adjusted_mode->CrtcHSyncStart = adjusted_mode->CrtcHDisplay + native_mode->HOverPlus;
+		    adjusted_mode->CrtcHSyncEnd = adjusted_mode->CrtcHSyncStart + native_mode->HSyncWidth;
+		    adjusted_mode->CrtcVTotal = adjusted_mode->CrtcVDisplay + native_mode->VBlank;
+		    adjusted_mode->CrtcVSyncStart = adjusted_mode->CrtcVDisplay + native_mode->VOverPlus;
+		    adjusted_mode->CrtcVSyncEnd = adjusted_mode->CrtcVSyncStart + native_mode->VSyncWidth;
 		}
-		adjusted_mode->Clock = radeon_output->DotClock;
-		adjusted_mode->Flags = radeon_output->Flags;
+		adjusted_mode->Clock = native_mode->DotClock;
+		adjusted_mode->Flags = native_mode->Flags;
 	    }
 	}
     }
@@ -971,14 +964,18 @@ radeon_detect(xf86OutputPtr output)
 	}
     }
 
-    /* update panel info for RMX */
-    if (radeon_output->MonType == MT_LCD || radeon_output->MonType == MT_DFP)
-	RADEONUpdatePanelSize(output);
+    // if size is zero panel probably broken or not connected
+    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+	radeon_encoder_ptr radeon_encoder = info->encoders[ATOM_DEVICE_LCD1_INDEX];
+	if (radeon_encoder) {
+	    radeon_lvds_ptr lvds = (radeon_lvds_ptr)radeon_encoder->dev_priv;
+	    if (lvds) {
+		if ((lvds->native_mode.PanelXRes == 0) || (lvds->native_mode.PanelYRes == 0))
+		    radeon_output->MonType = MT_NONE;
+	    }
+	}
+    }
 
-    /* panel is probably busted or not connected */
-    if ((radeon_output->MonType == MT_LCD) &&
-	((radeon_output->PanelXRes == 0) || (radeon_output->PanelYRes == 0)))
-	radeon_output->MonType = MT_NONE;
 
     if (output->MonInfo) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EDID data from the display on output: %s ----------------------\n",
@@ -1270,6 +1267,7 @@ radeon_create_resources(xf86OutputPtr output)
     }
 
     if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT)) {
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 	if (!IS_AVIVO_VARIANT) {
 	    tv_hsize_atom = MAKE_ATOM("tv_horizontal_size");
 
@@ -1339,7 +1337,7 @@ radeon_create_resources(xf86OutputPtr output)
 	}
 
 	/* Set the current value of the property */
-	switch (radeon_output->tvStd) {
+	switch (tvout->tvStd) {
 	case TV_STD_PAL:
 	    s = "pal";
 	    break;
@@ -1472,16 +1470,23 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    return FALSE;
 	}
     } else if (property == tmds_pll_atom) {
+	radeon_tmds_ptr tmds = NULL;
 	const char *s;
+
+	if (info->encoders[ATOM_DEVICE_DFP1_INDEX] && info->encoders[ATOM_DEVICE_DFP1_INDEX]->dev_priv)
+	    tmds = (radeon_tmds_ptr)info->encoders[ATOM_DEVICE_DFP1_INDEX]->dev_priv;
+	else
+	    return FALSE;
+
 	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("bios") && !strncmp("bios", s, strlen("bios"))) {
-	    if (!RADEONGetTMDSInfoFromBIOS(output))
-		RADEONGetTMDSInfoFromTable(output);
-	} else if (value->size == strlen("driver") && !strncmp("driver", s, strlen("driver"))) {
-	    RADEONGetTMDSInfoFromTable(output);
-	} else
+	    if (!RADEONGetTMDSInfoFromBIOS(output->scrn, tmds))
+		RADEONGetTMDSInfoFromTable(output->scrn, tmds);
+	} else if (value->size == strlen("driver") && !strncmp("driver", s, strlen("driver")))
+	    RADEONGetTMDSInfoFromTable(output->scrn, tmds);
+	else
 	    return FALSE;
 
 	return radeon_set_mode_for_property(output);
@@ -1502,6 +1507,7 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	} else
 	    return FALSE;
     } else if (property == tv_hsize_atom) {
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
 	    value->size != 1) {
@@ -1512,11 +1518,12 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	if (val < -MAX_H_SIZE || val > MAX_H_SIZE)
 	    return FALSE;
 
-	radeon_output->hSize = val;
-	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
+	tvout->hSize = val;
+	if (tvout->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 
     } else if (property == tv_hpos_atom) {
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
 	    value->size != 1) {
@@ -1527,11 +1534,12 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	if (val < -MAX_H_POSITION || val > MAX_H_POSITION)
 	    return FALSE;
 
-	radeon_output->hPos = val;
-	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
+	tvout->hPos = val;
+	if (tvout->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 
     } else if (property == tv_vpos_atom) {
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 	if (value->type != XA_INTEGER ||
 	    value->format != 32 ||
 	    value->size != 1) {
@@ -1542,38 +1550,39 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	if (val < -MAX_H_POSITION || val > MAX_H_POSITION)
 	    return FALSE;
 
-	radeon_output->vPos = val;
-	if (radeon_output->tv_on && !IS_AVIVO_VARIANT)
+	tvout->vPos = val;
+	if (tvout->tv_on && !IS_AVIVO_VARIANT)
 	    RADEONUpdateHVPosition(output, &output->crtc->mode);
 
     } else if (property == tv_std_atom) {
 	const char *s;
-	TVStd std = radeon_output->tvStd;
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
+	TVStd std = tvout->tvStd;
 
 	if (value->type != XA_STRING || value->format != 8)
 	    return FALSE;
 	s = (char*)value->data;
 	if (value->size == strlen("ntsc") && !strncmp("ntsc", s, strlen("ntsc"))) {
-	    radeon_output->tvStd = TV_STD_NTSC;
+	    tvout->tvStd = TV_STD_NTSC;
 	} else if (value->size == strlen("pal") && !strncmp("pal", s, strlen("pal"))) {
-	    radeon_output->tvStd = TV_STD_PAL;
+	    tvout->tvStd = TV_STD_PAL;
 	} else if (value->size == strlen("pal-m") && !strncmp("pal-m", s, strlen("pal-m"))) {
-	    radeon_output->tvStd = TV_STD_PAL_M;
+	    tvout->tvStd = TV_STD_PAL_M;
 	} else if (value->size == strlen("pal-60") && !strncmp("pal-60", s, strlen("pal-60"))) {
-	    radeon_output->tvStd = TV_STD_PAL_60;
+	    tvout->tvStd = TV_STD_PAL_60;
 	} else if (value->size == strlen("ntsc-j") && !strncmp("ntsc-j", s, strlen("ntsc-j"))) {
-	    radeon_output->tvStd = TV_STD_NTSC_J;
+	    tvout->tvStd = TV_STD_NTSC_J;
 	} else if (value->size == strlen("scart-pal") && !strncmp("scart-pal", s, strlen("scart-pal"))) {
-	    radeon_output->tvStd = TV_STD_SCART_PAL;
+	    tvout->tvStd = TV_STD_SCART_PAL;
 	} else if (value->size == strlen("pal-cn") && !strncmp("pal-cn", s, strlen("pal-cn"))) {
-	    radeon_output->tvStd = TV_STD_PAL_CN;
+	    tvout->tvStd = TV_STD_PAL_CN;
 	} else if (value->size == strlen("secam") && !strncmp("secam", s, strlen("secam"))) {
-	    radeon_output->tvStd = TV_STD_SECAM;
+	    tvout->tvStd = TV_STD_SECAM;
 	} else
 	    return FALSE;
 
 	if (!radeon_set_mode_for_property(output)) {
-	    radeon_output->tvStd = std;
+	    tvout->tvStd = std;
 	    (void)radeon_set_mode_for_property(output);
 	    return FALSE;
 	}
@@ -1676,12 +1685,9 @@ static void RADEONI2CPutBits(I2CBusPtr b, int Clock, int data)
 }
 
 Bool
-RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
+RADEONI2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, char *name, RADEONI2CBusPtr pRADEONI2CBus)
 {
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     I2CBusPtr pI2CBus;
-    RADEONI2CBusPtr pRADEONI2CBus;
 
     pI2CBus = xf86CreateI2CBusRec();
     if (!pI2CBus) return FALSE;
@@ -1691,12 +1697,6 @@ RADEONI2CInit(xf86OutputPtr output, I2CBusPtr *bus_ptr, char *name, Bool dvo)
     pI2CBus->I2CPutBits = RADEONI2CPutBits;
     pI2CBus->I2CGetBits = RADEONI2CGetBits;
     pI2CBus->AcknTimeout = 5;
-
-    if (dvo) {
-	pRADEONI2CBus = &(radeon_output->dvo_i2c);
-    } else {
-	pRADEONI2CBus = &(radeon_output->ddc_i2c);
-    }
 
     pI2CBus->DriverPrivate.ptr = (pointer)pRADEONI2CBus;
 
@@ -1794,267 +1794,41 @@ atom_setup_i2c_bus(int ddc_line)
 }
 
 static void
-RADEONGetPanelInfoFromReg (xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t fp_vert_stretch = INREG(RADEON_FP_VERT_STRETCH);
-    uint32_t fp_horz_stretch = INREG(RADEON_FP_HORZ_STRETCH);
-
-    radeon_output->PanelPwrDly = 200;
-    if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE) {
-	radeon_output->PanelYRes = ((fp_vert_stretch & RADEON_VERT_PANEL_SIZE) >>
-				    RADEON_VERT_PANEL_SHIFT) + 1;
-    } else {
-	radeon_output->PanelYRes = (INREG(RADEON_CRTC_V_TOTAL_DISP)>>16) + 1;
-    }
-    if (fp_horz_stretch & RADEON_HORZ_STRETCH_ENABLE) {
-	radeon_output->PanelXRes = (((fp_horz_stretch & RADEON_HORZ_PANEL_SIZE) >>
-				     RADEON_HORZ_PANEL_SHIFT) + 1) * 8;
-    } else {
-	radeon_output->PanelXRes = ((INREG(RADEON_CRTC_H_TOTAL_DISP)>>16) + 1) * 8;
-    }
-    
-    if ((radeon_output->PanelXRes < 640) || (radeon_output->PanelYRes < 480)) {
-	radeon_output->PanelXRes = 640;
-	radeon_output->PanelYRes = 480;
-    }
-
-    // move this to crtc function
-    if (xf86ReturnOptValBool(info->Options, OPTION_LVDS_PROBE_PLL, TRUE)) {
-           uint32_t ppll_div_sel, ppll_val;
-
-           ppll_div_sel = INREG8(RADEON_CLOCK_CNTL_INDEX + 1) & 0x3;
-	   RADEONPllErrataAfterIndex(info);
-	   ppll_val = INPLL(pScrn, RADEON_PPLL_DIV_0 + ppll_div_sel);
-           if ((ppll_val & 0x000707ff) == 0x1bb)
-		   goto noprobe;
-	   info->FeedbackDivider = ppll_val & 0x7ff;
-	   info->PostDivider = (ppll_val >> 16) & 0x7;
-	   info->RefDivider = info->pll.reference_div;
-	   info->UseBiosDividers = TRUE;
-
-           xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                      "Existing panel PLL dividers will be used.\n");
-    }
- noprobe:
-
-    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, 
-	       "Panel size %dx%d is derived, this may not be correct.\n"
-		   "If not, use PanelSize option to overwrite this setting\n",
-	       radeon_output->PanelXRes, radeon_output->PanelYRes);
-}
-
-/* BIOS may not have right panel size, we search through all supported
- * DDC modes looking for the maximum panel size.
- */
-static void
-RADEONUpdatePanelSize(xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    int             j;
-    /* XXX: fixme */
-    //xf86MonPtr      ddc  = pScrn->monitor->DDC;
-    xf86MonPtr ddc = output->MonInfo;
-    DisplayModePtr  p;
-
-    // crtc should handle?
-    if ((info->UseBiosDividers && radeon_output->DotClock != 0) || (ddc == NULL))
-       return;
-
-    /* Go thru detailed timing table first */
-    for (j = 0; j < 4; j++) {
-	if (ddc->det_mon[j].type == 0) {
-	    struct detailed_timings *d_timings =
-		&ddc->det_mon[j].section.d_timings;
-           int match = 0;
-
-           /* If we didn't get a panel clock or guessed one, try to match the
-            * mode with the panel size. We do that because we _need_ a panel
-            * clock, or ValidateFPModes will fail, even when UseBiosDividers
-            * is set.
-            */
-           if (radeon_output->DotClock == 0 &&
-               radeon_output->PanelXRes == d_timings->h_active &&
-               radeon_output->PanelYRes == d_timings->v_active)
-               match = 1;
-
-           /* If we don't have a BIOS provided panel data with fixed dividers,
-            * check for a larger panel size
-            */
-	    if (radeon_output->PanelXRes < d_timings->h_active &&
-               radeon_output->PanelYRes < d_timings->v_active &&
-               !info->UseBiosDividers)
-               match = 1;
-
-             if (match) {
-		radeon_output->PanelXRes  = d_timings->h_active;
-		radeon_output->PanelYRes  = d_timings->v_active;
-		radeon_output->DotClock   = d_timings->clock / 1000;
-		radeon_output->HOverPlus  = d_timings->h_sync_off;
-		radeon_output->HSyncWidth = d_timings->h_sync_width;
-		radeon_output->HBlank     = d_timings->h_blanking;
-		radeon_output->VOverPlus  = d_timings->v_sync_off;
-		radeon_output->VSyncWidth = d_timings->v_sync_width;
-		radeon_output->VBlank     = d_timings->v_blanking;
-                radeon_output->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
-                switch (d_timings->misc) {
-                case 0: radeon_output->Flags |= V_NHSYNC | V_NVSYNC; break;
-                case 1: radeon_output->Flags |= V_PHSYNC | V_NVSYNC; break;
-                case 2: radeon_output->Flags |= V_NHSYNC | V_PVSYNC; break;
-                case 3: radeon_output->Flags |= V_PHSYNC | V_PVSYNC; break;
-                }
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel infos found from DDC detailed: %dx%d\n",
-                           radeon_output->PanelXRes, radeon_output->PanelYRes);
-	    }
-	}
-    }
-
-    if (info->UseBiosDividers && radeon_output->DotClock != 0)
-       return;
-
-    /* Search thru standard VESA modes from EDID */
-    for (j = 0; j < 8; j++) {
-	if ((radeon_output->PanelXRes < ddc->timings2[j].hsize) &&
-	    (radeon_output->PanelYRes < ddc->timings2[j].vsize)) {
-	    for (p = pScrn->monitor->Modes; p; p = p->next) {
-		if ((ddc->timings2[j].hsize == p->HDisplay) &&
-		    (ddc->timings2[j].vsize == p->VDisplay)) {
-		    float  refresh =
-			(float)p->Clock * 1000.0 / p->HTotal / p->VTotal;
-
-		    if (abs((float)ddc->timings2[j].refresh - refresh) < 1.0) {
-			/* Is this good enough? */
-			radeon_output->PanelXRes  = ddc->timings2[j].hsize;
-			radeon_output->PanelYRes  = ddc->timings2[j].vsize;
-			radeon_output->HBlank     = p->HTotal - p->HDisplay;
-			radeon_output->HOverPlus  = p->HSyncStart - p->HDisplay;
-			radeon_output->HSyncWidth = p->HSyncEnd - p->HSyncStart;
-			radeon_output->VBlank     = p->VTotal - p->VDisplay;
-			radeon_output->VOverPlus  = p->VSyncStart - p->VDisplay;
-			radeon_output->VSyncWidth = p->VSyncEnd - p->VSyncStart;
-			radeon_output->DotClock   = p->Clock;
-                        radeon_output->Flags      = p->Flags;
-                        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel infos found from DDC VESA/EDID: %dx%d\n",
-                                   radeon_output->PanelXRes, radeon_output->PanelYRes);
-		    }
-		}
-	    }
-	}
-    }
-}
-
-static Bool
-RADEONGetLVDSInfo (xf86OutputPtr output)
-{
-    ScrnInfoPtr pScrn = output->scrn;
-    RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    char* s;
-
-    if (!RADEONGetLVDSInfoFromBIOS(output))
-	RADEONGetPanelInfoFromReg(output);
-
-    if ((s = xf86GetOptValString(info->Options, OPTION_PANEL_SIZE))) {
-	radeon_output->PanelPwrDly = 200;
-	if (sscanf (s, "%dx%d", &radeon_output->PanelXRes, &radeon_output->PanelYRes) != 2) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Invalid PanelSize option: %s\n", s);
-	    RADEONGetPanelInfoFromReg(output);
-	}
-    }
-
-    /* The panel size we collected from BIOS may not be the
-     * maximum size supported by the panel.  If not, we update
-     * it now.  These will be used if no matching mode can be
-     * found from EDID data.
-     */
-    RADEONUpdatePanelSize(output);
-
-    if (radeon_output->DotClock == 0) {
-	DisplayModePtr  tmp_mode = NULL;
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "No valid timing info from BIOS.\n");
-	/* No timing information for the native mode,
-	   use whatever specified in the Modeline.
-	   If no Modeline specified, we'll just pick
-	   the VESA mode at 60Hz refresh rate which
-	   is likely to be the best for a flat panel.
-	*/
-	tmp_mode = pScrn->monitor->Modes;
-	while(tmp_mode) {
-	    if ((tmp_mode->HDisplay == radeon_output->PanelXRes) &&
-		(tmp_mode->VDisplay == radeon_output->PanelYRes)) {
-
-		float  refresh =
-		    (float)tmp_mode->Clock * 1000.0 / tmp_mode->HTotal / tmp_mode->VTotal;
-		if ((abs(60.0 - refresh) < 1.0) ||
-		    (tmp_mode->type == 0)) {
-		    radeon_output->HBlank     = tmp_mode->HTotal - tmp_mode->HDisplay;
-		    radeon_output->HOverPlus  = tmp_mode->HSyncStart - tmp_mode->HDisplay;
-		    radeon_output->HSyncWidth = tmp_mode->HSyncEnd - tmp_mode->HSyncStart;
-		    radeon_output->VBlank     = tmp_mode->VTotal - tmp_mode->VDisplay;
-		    radeon_output->VOverPlus  = tmp_mode->VSyncStart - tmp_mode->VDisplay;
-		    radeon_output->VSyncWidth = tmp_mode->VSyncEnd - tmp_mode->VSyncStart;
-		    radeon_output->DotClock   = tmp_mode->Clock;
-		    radeon_output->Flags = 0;
-		    break;
-		}
-	    }
-
-	    tmp_mode = tmp_mode->next;
-
-	    if (tmp_mode == pScrn->monitor->Modes)
-		break;
-	}
-	if ((radeon_output->DotClock == 0) && !output->MonInfo) {
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Panel size is not correctly detected.\n"
-		       "Please try to use PanelSize option for correct settings.\n");
-	    return FALSE;
-	}
-    }
-
-    return TRUE;
-}
-
-static void
 RADEONGetTVInfo(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     char *optstr;
 
-    radeon_output->hPos = 0;
-    radeon_output->vPos = 0;
-    radeon_output->hSize = 0;
+    tvout->hPos = 0;
+    tvout->vPos = 0;
+    tvout->hSize = 0;
+    tvout->tv_on = FALSE;
 
     if (!RADEONGetTVInfoFromBIOS(output)) {
 	/* set some reasonable defaults */
-	radeon_output->default_tvStd = TV_STD_NTSC;
-	radeon_output->tvStd = TV_STD_NTSC;
-	radeon_output->TVRefClk = 27.000000000;
-	radeon_output->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;
+	tvout->default_tvStd = TV_STD_NTSC;
+	tvout->tvStd = TV_STD_NTSC;
+	tvout->TVRefClk = 27.000000000;
+	tvout->SupportedTVStds = TV_STD_NTSC | TV_STD_PAL;
     }
 
     optstr = (char *)xf86GetOptValString(info->Options, OPTION_TVSTD);
     if (optstr) {
 	if (!strncmp("ntsc", optstr, strlen("ntsc")))
-	    radeon_output->tvStd = TV_STD_NTSC;
+	    tvout->tvStd = TV_STD_NTSC;
 	else if (!strncmp("pal", optstr, strlen("pal")))
-	    radeon_output->tvStd = TV_STD_PAL;
+	    tvout->tvStd = TV_STD_PAL;
 	else if (!strncmp("pal-m", optstr, strlen("pal-m")))
-	    radeon_output->tvStd = TV_STD_PAL_M;
+	    tvout->tvStd = TV_STD_PAL_M;
 	else if (!strncmp("pal-60", optstr, strlen("pal-60")))
-	    radeon_output->tvStd = TV_STD_PAL_60;
+	    tvout->tvStd = TV_STD_PAL_60;
 	else if (!strncmp("ntsc-j", optstr, strlen("ntsc-j")))
-	    radeon_output->tvStd = TV_STD_NTSC_J;
+	    tvout->tvStd = TV_STD_NTSC_J;
 	else if (!strncmp("scart-pal", optstr, strlen("scart-pal")))
-	    radeon_output->tvStd = TV_STD_SCART_PAL;
+	    tvout->tvStd = TV_STD_SCART_PAL;
 	else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid TV Standard: %s\n", optstr);
 	}
@@ -2071,25 +1845,10 @@ void RADEONInitConnector(xf86OutputPtr output)
     radeon_output->rmx_type = RMX_OFF;
 
     if (!IS_AVIVO_VARIANT) {
-	/* XXX fix me  - move to encoders */
-
-	if (radeon_output->devices & (ATOM_DEVICE_DFP2_SUPPORT))
-	    RADEONGetExtTMDSInfo(output);
-
-	if (radeon_output->devices & (ATOM_DEVICE_DFP1_SUPPORT))
-	    RADEONGetTMDSInfo(output);
-
 	if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
 	    if (xf86ReturnOptValBool(info->Options, OPTION_TVDAC_LOAD_DETECT, FALSE))
 		radeon_output->load_detection = 1;
-	    radeon_output->tv_on = FALSE;
-	    RADEONGetTVDacAdjInfo(output);
 	}
-    }
-
-    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-	radeon_output->rmx_type = RMX_FULL;
-	RADEONGetLVDSInfo(output);
     }
 
     if (radeon_output->devices & (ATOM_DEVICE_TV_SUPPORT))
@@ -2099,7 +1858,7 @@ void RADEONInitConnector(xf86OutputPtr output)
 	radeon_output->coherent_mode = TRUE;
 
     if (radeon_output->ddc_i2c.valid)
-	RADEONI2CInit(output, &radeon_output->pI2CBus, output->name, FALSE);
+	RADEONI2CInit(pScrn, &radeon_output->pI2CBus, output->name, &radeon_output->ddc_i2c);
 
 }
 

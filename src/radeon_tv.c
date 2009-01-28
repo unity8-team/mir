@@ -23,6 +23,7 @@
 #include "radeon_probe.h"
 #include "radeon_version.h"
 #include "radeon_tv.h"
+#include "radeon_atombios.h"
 
 /**********************************************************************
  *
@@ -597,6 +598,7 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
 				 DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info       = RADEONPTR(output->scrn);
     RADEONPLLPtr pll = &info->pll;
     int restart;
@@ -612,9 +614,9 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     const TVModeConstants *constPtr;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else
@@ -629,20 +631,20 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
     hTotal = constPtr->horTotal;
     vTotal = constPtr->verTotal;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M ||
-        radeon_output->tvStd == TV_STD_PAL_60)
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+        tvout->tvStd == TV_STD_PAL_M ||
+        tvout->tvStd == TV_STD_PAL_60)
 	fTotal = NTSC_TV_VFTOTAL + 1;
     else
 	fTotal = PAL_TV_VFTOTAL + 1;
 
     /* Adjust positions 1&2 in hor. code timing table */
-    hOffset = radeon_output->hPos * H_POS_UNIT;
+    hOffset = tvout->hPos * H_POS_UNIT;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	/* improve image centering */
 	hOffset -= 50;
 	p1 = hor_timing_NTSC[ H_TABLE_POS1 ];
@@ -672,18 +674,18 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
      * Convert vPos TV lines to n. of CRTC pixels
      * Be verrrrry careful when mixing signed & unsigned values in C..
      */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M ||
-	radeon_output->tvStd == TV_STD_PAL_60)
-	vOffset = ((int)(vTotal * hTotal) * 2 * radeon_output->vPos) / (int)(NTSC_TV_LINES_PER_FRAME);
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M ||
+	tvout->tvStd == TV_STD_PAL_60)
+	vOffset = ((int)(vTotal * hTotal) * 2 * tvout->vPos) / (int)(NTSC_TV_LINES_PER_FRAME);
     else
-	vOffset = ((int)(vTotal * hTotal) * 2 * radeon_output->vPos) / (int)(PAL_TV_LINES_PER_FRAME);
+	vOffset = ((int)(vTotal * hTotal) * 2 * tvout->vPos) / (int)(PAL_TV_LINES_PER_FRAME);
 
     restart -= vOffset + hOffset;
 
     ErrorF("computeRestarts: def = %u, h = %d, v = %d, p1=%04x, p2=%04x, restart = %d\n",
-	   constPtr->defRestart , radeon_output->hPos , radeon_output->vPos , p1 , p2 , restart);
+	   constPtr->defRestart , tvout->hPos , tvout->vPos , p1 , p2 , restart);
 
     save->tv_hrestart = restart % hTotal;
     restart /= hTotal;
@@ -696,19 +698,19 @@ static Bool RADEONInitTVRestarts(xf86OutputPtr output, RADEONSavePtr save,
 	   (unsigned)save->tv_hrestart);
 
     /* Compute H_INC from hSize */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M)
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M)
 	hInc = (uint16_t)((int)(constPtr->horResolution * 4096 * NTSC_TV_CLOCK_T) /
-			(radeon_output->hSize * (int)(NTSC_TV_H_SIZE_UNIT) + (int)(NTSC_TV_ZERO_H_SIZE)));
+			(tvout->hSize * (int)(NTSC_TV_H_SIZE_UNIT) + (int)(NTSC_TV_ZERO_H_SIZE)));
     else
 	hInc = (uint16_t)((int)(constPtr->horResolution * 4096 * PAL_TV_CLOCK_T) /
-			(radeon_output->hSize * (int)(PAL_TV_H_SIZE_UNIT) + (int)(PAL_TV_ZERO_H_SIZE)));
+			(tvout->hSize * (int)(PAL_TV_H_SIZE_UNIT) + (int)(PAL_TV_ZERO_H_SIZE)));
 
     save->tv_timing_cntl = (save->tv_timing_cntl & ~RADEON_H_INC_MASK) |
 	((uint32_t)hInc << RADEON_H_INC_SHIFT);
 
-    ErrorF("computeRestarts: hSize=%d,hInc=%u\n" , radeon_output->hSize , hInc);
+    ErrorF("computeRestarts: hSize=%d,hInc=%u\n" , tvout->hSize , hInc);
 
     return hChanged;
 }
@@ -719,6 +721,7 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     RADEONPLLPtr pll = &info->pll;
     unsigned m, n, p;
@@ -728,11 +731,21 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     const TVModeConstants *constPtr;
     const uint16_t *hor_timing;
     const uint16_t *vert_timing;
+    radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
+    radeon_tvdac_ptr tvdac = NULL;
+
+    if (radeon_encoder == NULL)
+	return;
+
+    tvdac = (radeon_tvdac_ptr)radeon_encoder->dev_priv;
+
+    if (tvdac == NULL)
+	return;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else
@@ -764,8 +777,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     if (!IS_R300_VARIANT)
 	save->tv_master_cntl |= RADEON_TVCLK_ALWAYS_ONb;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J)
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J)
 	save->tv_master_cntl |= RADEON_RESTART_PHASE_FIX;
 
     save->tv_modulator_cntl1 = RADEON_SLEW_RATE_LIMIT
@@ -774,13 +787,13 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 	                       | RADEON_UVFLT_EN
 	                       | (6 << RADEON_CY_FILT_BLEND_SHIFT);
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J) {
 	save->tv_modulator_cntl1 |= (0x46 << RADEON_SET_UP_LEVEL_SHIFT)
 	                            | (0x3b << RADEON_BLANK_LEVEL_SHIFT);
 	save->tv_modulator_cntl2 = (-111 & RADEON_TV_U_BURST_LEVEL_MASK) |
 	    ((0 & RADEON_TV_V_BURST_LEVEL_MASK) << RADEON_TV_V_BURST_LEVEL_SHIFT);
-    } else if (radeon_output->tvStd == TV_STD_SCART_PAL) {
+    } else if (tvout->tvStd == TV_STD_SCART_PAL) {
 	save->tv_modulator_cntl1 |= RADEON_ALT_PHASE_EN;
 	save->tv_modulator_cntl2 = (0 & RADEON_TV_U_BURST_LEVEL_MASK) |
 	    ((0 & RADEON_TV_V_BURST_LEVEL_MASK) << RADEON_TV_V_BURST_LEVEL_SHIFT);
@@ -817,10 +830,10 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->tv_sync_size = constPtr->horResolution + 8;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M ||
-	radeon_output->tvStd == TV_STD_PAL_60)
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M ||
+	tvout->tvStd == TV_STD_PAL_60)
 	vert_space = constPtr->verTotal * 2 * 10000 / NTSC_TV_LINES_PER_FRAME;
     else
 	vert_space = constPtr->verTotal * 2 * 10000 / PAL_TV_LINES_PER_FRAME;
@@ -837,10 +850,10 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     else
 	save->tv_vscaler_cntl1 |= (2 << RADEON_Y_DEL_W_SIG_SHIFT);
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-        radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M ||
-        radeon_output->tvStd == TV_STD_PAL_60)
+    if (tvout->tvStd == TV_STD_NTSC ||
+        tvout->tvStd == TV_STD_NTSC_J ||
+        tvout->tvStd == TV_STD_PAL_M ||
+        tvout->tvStd == TV_STD_PAL_60)
 	flicker_removal =
 	    (float) constPtr->verTotal * 2.0 / NTSC_TV_LINES_PER_FRAME + 0.5;
     else
@@ -876,18 +889,18 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     tmp = (tmp << RADEON_UV_OUTPUT_POST_SCALE_SHIFT) | 0x000b0000;
     save->tv_timing_cntl = tmp;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-        radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M ||
-        radeon_output->tvStd == TV_STD_PAL_60)
-	save->tv_dac_cntl = radeon_output->ntsc_tvdac_adj;
+    if (tvout->tvStd == TV_STD_NTSC ||
+        tvout->tvStd == TV_STD_NTSC_J ||
+        tvout->tvStd == TV_STD_PAL_M ||
+        tvout->tvStd == TV_STD_PAL_60)
+	save->tv_dac_cntl = tvdac->ntsc_tvdac_adj;
     else
-	save->tv_dac_cntl = radeon_output->pal_tvdac_adj;
+	save->tv_dac_cntl = tvdac->pal_tvdac_adj;
 
     save->tv_dac_cntl |= (RADEON_TV_DAC_NBLANK | RADEON_TV_DAC_NHOLD);
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J)
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J)
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_NTSC;
     else
 	save->tv_dac_cntl |= RADEON_TV_DAC_STD_PAL;
@@ -907,8 +920,8 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     }
 #endif
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J) {
 	if (pll->reference_freq == 2700) {
 	    m = NTSC_TV_PLL_M_27;
 	    n = NTSC_TV_PLL_N_27;
@@ -948,28 +961,28 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
 
     save->tv_vdisp = constPtr->verResolution - 1;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-        radeon_output->tvStd == TV_STD_NTSC_J ||
-        radeon_output->tvStd == TV_STD_PAL_M ||
-        radeon_output->tvStd == TV_STD_PAL_60)
+    if (tvout->tvStd == TV_STD_NTSC ||
+        tvout->tvStd == TV_STD_NTSC_J ||
+        tvout->tvStd == TV_STD_PAL_M ||
+        tvout->tvStd == TV_STD_PAL_60)
 	save->tv_ftotal = NTSC_TV_VFTOTAL;
     else
 	save->tv_ftotal = PAL_TV_VFTOTAL;
 
     save->tv_vtotal = constPtr->verTotal - 1;
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	hor_timing = hor_timing_NTSC;
     } else {
 	hor_timing = hor_timing_PAL;
     }
 
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M ||
-	radeon_output->tvStd == TV_STD_PAL_60) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M ||
+	tvout->tvStd == TV_STD_PAL_60) {
 	vert_timing = vert_timing_NTSC;
     } else {
 	vert_timing = vert_timing_PAL;
@@ -1049,13 +1062,14 @@ void RADEONAdjustCrtcRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 {
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else
@@ -1089,13 +1103,14 @@ void RADEONAdjustPLLRegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
     unsigned postDiv;
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else
@@ -1151,13 +1166,14 @@ void RADEONAdjustCrtc2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
 {
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else
@@ -1191,13 +1207,14 @@ void RADEONAdjustPLL2RegistersForTV(ScrnInfoPtr pScrn, RADEONSavePtr save,
     unsigned postDiv;
     const TVModeConstants *constPtr;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONPLLPtr pll = &info->pll;
 
     /* FIXME: need to revisit this when we add more modes */
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M) {
+    if (tvout->tvStd == TV_STD_NTSC ||
+	tvout->tvStd == TV_STD_NTSC_J ||
+	tvout->tvStd == TV_STD_PAL_M) {
 	if (pll->reference_freq == 2700)
 	    constPtr = &availableTVModes[0];
 	else

@@ -66,6 +66,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
@@ -96,7 +97,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 	disp_data.ucDacStandard = ATOM_DAC1_CV;
     else {
-	switch (radeon_output->tvStd) {
+	switch (tvout->tvStd) {
 	case TV_STD_PAL:
 	case TV_STD_PAL_M:
 	case TV_STD_SCART_PAL:
@@ -132,6 +133,7 @@ static int
 atombios_output_tv_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     TV_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
@@ -144,7 +146,7 @@ atombios_output_tv_setup(xf86OutputPtr output, DisplayModePtr mode)
     if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
 	disp_data.sTVEncoder.ucTvStandard = ATOM_TV_CV;
     else {
-	switch (radeon_output->tvStd) {
+	switch (tvout->tvStd) {
 	case TV_STD_NTSC:
 	    disp_data.sTVEncoder.ucTvStandard = ATOM_TV_NTSC;
 	    break;
@@ -264,9 +266,17 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
     unsigned char *space;
     int index;
     int major, minor;
+    int lvds_misc = 0;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
+
+    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
+	radeon_lvds_ptr lvds = (radeon_lvds_ptr)radeon_encoder->dev_priv;
+	if (lvds == NULL)
+	    return ATOM_NOT_IMPLEMENTED;
+	lvds_misc = lvds->lvds_misc;
+    }
 
     memset(&disp_data,0, sizeof(disp_data));
     memset(&disp_data2,0, sizeof(disp_data2));
@@ -304,9 +314,9 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 		disp_data.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 	    disp_data.usPixelClock = cpu_to_le16(mode->Clock / 10);
 	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		if (radeon_output->lvds_misc & (1 << 0))
+		if (lvds_misc & (1 << 0))
 		    disp_data.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-		if (radeon_output->lvds_misc & (1 << 1))
+		if (lvds_misc & (1 << 1))
 		    disp_data.ucMisc |= (1 << 1);
 	    } else {
 		if (radeon_output->linkb)
@@ -337,18 +347,18 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    disp_data2.ucTemporal = 0;
 	    disp_data2.ucFRC = 0;
 	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		if (radeon_output->lvds_misc & (1 << 0))
+		if (lvds_misc & (1 << 0))
 		    disp_data2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-		if (radeon_output->lvds_misc & (1 << 5)) {
+		if (lvds_misc & (1 << 5)) {
 		    disp_data2.ucSpatial = PANEL_ENCODER_SPATIAL_DITHER_EN;
-		    if (radeon_output->lvds_misc & (1 << 1))
+		    if (lvds_misc & (1 << 1))
 			disp_data2.ucSpatial |= PANEL_ENCODER_SPATIAL_DITHER_DEPTH;
 		}
-		if (radeon_output->lvds_misc & (1 << 6)) {
+		if (lvds_misc & (1 << 6)) {
 		    disp_data2.ucTemporal = PANEL_ENCODER_TEMPORAL_DITHER_EN;
-		    if (radeon_output->lvds_misc & (1 << 1))
+		    if (lvds_misc & (1 << 1))
 			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_DITHER_DEPTH;
-		    if (((radeon_output->lvds_misc >> 2) & 0x3) == 2)
+		    if (((lvds_misc >> 2) & 0x3) == 2)
 			disp_data2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 		}
 	    } else {
@@ -706,6 +716,7 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     ENABLE_SCALER_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
@@ -716,7 +727,7 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     disp_data.ucScaler = radeon_crtc->crtc_id;
 
     if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
-	switch (radeon_output->tvStd) {
+	switch (tvout->tvStd) {
 	case TV_STD_NTSC:
 	    disp_data.ucTVStandard = ATOM_TV_NTSC;
 	    break;

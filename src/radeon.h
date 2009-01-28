@@ -881,6 +881,12 @@ extern void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 extern void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
+extern void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn, radeon_tvdac_ptr tvdac);
+extern void RADEONGetTMDSInfoFromTable(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
+extern void RADEONGetTMDSInfo(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
+extern void RADEONGetExtTMDSInfo(ScrnInfoPtr pScrn, radeon_dvo_ptr dvo);
+extern void RADEONGetLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds);
+
 /* radeon_accel.c */
 extern Bool RADEONAccelInit(ScreenPtr pScreen);
 extern void RADEONEngineFlush(ScrnInfoPtr pScrn);
@@ -923,12 +929,12 @@ extern Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
 extern Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool RADEONGetClockInfoFromBIOS(ScrnInfoPtr pScrn);
 extern Bool RADEONGetConnectorInfoFromBIOS(ScrnInfoPtr pScrn);
-extern Bool RADEONGetDAC2InfoFromBIOS(xf86OutputPtr output);
-extern Bool RADEONGetExtTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetDAC2InfoFromBIOS(ScrnInfoPtr pScrn, radeon_tvdac_ptr tvdac);
+extern Bool RADEONGetExtTMDSInfoFromBIOS (ScrnInfoPtr pScrn, radeon_dvo_ptr dvo);
 extern xf86MonPtr RADEONGetHardCodedEDIDFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn);
-extern Bool RADEONGetLVDSInfoFromBIOS(xf86OutputPtr output);
-extern Bool RADEONGetTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetLVDSInfoFromBIOS(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds);
+extern Bool RADEONGetTMDSInfoFromBIOS(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
 extern Bool RADEONGetTVInfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn);

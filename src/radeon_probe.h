@@ -165,6 +165,61 @@ typedef struct _radeon_encoder {
     void *dev_priv;
 } radeon_encoder_rec, *radeon_encoder_ptr;
 
+typedef struct _radeon_tvout {
+    /* TV out */
+    TVStd             default_tvStd;
+    TVStd             tvStd;
+    int               hPos;
+    int               vPos;
+    int               hSize;
+    float             TVRefClk;
+    int               SupportedTVStds;
+    Bool              tv_on;
+} radeon_tvout_rec, *radeon_tvout_ptr;
+
+typedef struct _radeon_native_mode {
+    /* panel stuff */
+    int               PanelXRes;
+    int               PanelYRes;
+    int               HOverPlus;
+    int               HSyncWidth;
+    int               HBlank;
+    int               VOverPlus;
+    int               VSyncWidth;
+    int               VBlank;
+    int               Flags;
+    int               DotClock;
+} radeon_native_mode_rec, *radeon_native_mode_ptr;
+
+typedef struct _radeon_tvdac {
+    // tv dac
+    uint32_t          ps2_tvdac_adj;
+    uint32_t          pal_tvdac_adj;
+    uint32_t          ntsc_tvdac_adj;
+} radeon_tvdac_rec, *radeon_tvdac_ptr;
+
+typedef struct _radeon_tmds {
+    // tmds
+    RADEONTMDSPll     tmds_pll[4];
+} radeon_tmds_rec, *radeon_tmds_ptr;
+
+typedef struct _radeon_lvds {
+    // panel mode
+    radeon_native_mode_rec native_mode;
+    // lvds
+    int               PanelPwrDly;
+    int               lvds_misc;
+    int               lvds_ss_id;
+} radeon_lvds_rec, *radeon_lvds_ptr;
+
+typedef struct _radeon_dvo {
+    /* dvo */
+    I2CDevPtr         DVOChip;
+    RADEONI2CBusRec   dvo_i2c;
+    int               dvo_i2c_slave_addr;
+    Bool              dvo_duallink;
+} radeon_dvo_rec, *radeon_dvo_ptr;
+
 typedef struct {
     RADEONConnectorType ConnectorType;
     Bool valid;
@@ -186,6 +241,12 @@ typedef struct _RADEONOutputPrivateRec {
     uint32_t active_device;
     Bool enabled;
 
+    int  load_detection;
+
+    // DVI/HDMI
+    Bool coherent_mode;
+    Bool linkb;
+
     RADEONConnectorType ConnectorType;
     RADEONDviType DVIType;
     RADEONMonitorType MonType;
@@ -197,57 +258,19 @@ typedef struct _RADEONOutputPrivateRec {
     // router info
     // HDP info
 
-    // tv dac
-    uint32_t          ps2_tvdac_adj;
-    uint32_t          pal_tvdac_adj;
-    uint32_t          ntsc_tvdac_adj;
-
-    /* panel stuff */
-    int               PanelXRes;
-    int               PanelYRes;
-    int               HOverPlus;
-    int               HSyncWidth;
-    int               HBlank;
-    int               VOverPlus;
-    int               VSyncWidth;
-    int               VBlank;
-    int               Flags;            /* Saved copy of mode flags          */
-    int               DotClock;
-
-    // lvds
-    int               PanelPwrDly;
-    int               lvds_misc;
-    int               lvds_ss_id;
-
-    // tmds
-    RADEONTMDSPll     tmds_pll[4];
+    // panel mode
+    radeon_native_mode_rec native_mode;
 
     // RMX
     RADEONRMXType     rmx_type;
+    int               Flags;
 
-    /* dvo */
-    I2CDevPtr         DVOChip;
-    RADEONI2CBusRec   dvo_i2c;
-    int               dvo_i2c_slave_addr;
-    Bool              dvo_duallink;
+    //tvout - move to encoder
+    radeon_tvout_rec tvout;
 
-    /* TV out */
-    TVStd             default_tvStd;
-    TVStd             tvStd;
-    int               hPos;
-    int               vPos;
-    int               hSize;
-    float             TVRefClk;
-    int               SupportedTVStds;
-    Bool              tv_on;
-    int               load_detection;
-
-    /* dig block */
+    /* dce 3.x dig block */
     int transmitter_config;
-    Bool coherent_mode;
     int igp_lane_info;
-    Bool linkb;
-
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

@@ -95,35 +95,18 @@ RADEONTVModes(xf86OutputPtr output)
 static DisplayModePtr
 RADEONATOMTVModes(xf86OutputPtr output)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr  last       = NULL;
     DisplayModePtr  new        = NULL;
     DisplayModePtr  first      = NULL;
-    int max_v, i;
+    int i;
     /* Add some common sizes */
     int widths[5] = {640, 720, 800, 848, 1024};
-
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M)
-	max_v = 480;
-    else
-	max_v = 600;
+    int heights[5] = {480, 480, 600, 480, 768};
 
     for (i = 0; i < 5; i++) {
-	new = xf86CVTMode(widths[i], max_v, 60.0, FALSE, FALSE);
+	new = xf86CVTMode(widths[i], heights[i], 60.0, FALSE, FALSE);
 
 	new->type       = M_T_DRIVER;
-
-	if (radeon_output->tvStd == TV_STD_NTSC ||
-	    radeon_output->tvStd == TV_STD_NTSC_J ||
-	    radeon_output->tvStd == TV_STD_PAL_M) {
-	    if (widths[i] == 640)
-		new->type |= M_T_PREFERRED;
-	} else {
-	    if (widths[i] == 800)
-		new->type |= M_T_PREFERRED;
-	}
 
 	new->next       = NULL;
 	new->prev       = last;
@@ -148,28 +131,29 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
     DisplayModePtr  new   = NULL;
     char            stmp[32];
 
-    if (radeon_output->PanelXRes != 0 &&
-	radeon_output->PanelYRes != 0 &&
-	radeon_output->DotClock != 0) {
+    if (native_mode->PanelXRes != 0 &&
+	native_mode->PanelYRes != 0 &&
+	native_mode->DotClock != 0) {
 
 	new             = xnfcalloc(1, sizeof (DisplayModeRec));
-	sprintf(stmp, "%dx%d", radeon_output->PanelXRes, radeon_output->PanelYRes);
+	sprintf(stmp, "%dx%d", native_mode->PanelXRes, native_mode->PanelYRes);
 	new->name       = xnfalloc(strlen(stmp) + 1);
 	strcpy(new->name, stmp);
-	new->HDisplay   = radeon_output->PanelXRes;
-	new->VDisplay   = radeon_output->PanelYRes;
+	new->HDisplay   = native_mode->PanelXRes;
+	new->VDisplay   = native_mode->PanelYRes;
 
-	new->HTotal     = new->HDisplay + radeon_output->HBlank;
-	new->HSyncStart = new->HDisplay + radeon_output->HOverPlus;
-	new->HSyncEnd   = new->HSyncStart + radeon_output->HSyncWidth;
-	new->VTotal     = new->VDisplay + radeon_output->VBlank;
-	new->VSyncStart = new->VDisplay + radeon_output->VOverPlus;
-	new->VSyncEnd   = new->VSyncStart + radeon_output->VSyncWidth;
+	new->HTotal     = new->HDisplay + native_mode->HBlank;
+	new->HSyncStart = new->HDisplay + native_mode->HOverPlus;
+	new->HSyncEnd   = new->HSyncStart + native_mode->HSyncWidth;
+	new->VTotal     = new->VDisplay + native_mode->VBlank;
+	new->VSyncStart = new->VDisplay + native_mode->VOverPlus;
+	new->VSyncEnd   = new->VSyncStart + native_mode->VSyncWidth;
 
-	new->Clock      = radeon_output->DotClock;
+	new->Clock      = native_mode->DotClock;
 	new->Flags      = 0;
 
 	if (new) {
@@ -180,7 +164,7 @@ static DisplayModePtr RADEONFPNativeMode(xf86OutputPtr output)
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Added native panel mode: %dx%d\n",
-		   radeon_output->PanelXRes, radeon_output->PanelYRes);
+		   native_mode->PanelXRes, native_mode->PanelYRes);
     }
 
     return new;
@@ -250,6 +234,7 @@ static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
     DisplayModePtr  last       = NULL;
     DisplayModePtr  new        = NULL;
     DisplayModePtr  first      = NULL;
@@ -268,7 +253,7 @@ static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 
 	if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	    /* already added the native mode */
-	    if (width == radeon_output->PanelXRes && height == radeon_output->PanelYRes)
+	    if (width == native_mode->PanelXRes && height == native_mode->PanelYRes)
 		continue;
 
 	    /* Note: We allow all non-standard modes as long as they do not
@@ -276,13 +261,13 @@ static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 	     * need the internal RMX unit in the video chips (and there is
 	     * only one per card), this will only apply to the primary head.
 	     */
-	    if (width < 320 || width > radeon_output->PanelXRes ||
-		height < 200 || height > radeon_output->PanelYRes) {
+	    if (width < 320 || width > native_mode->PanelXRes ||
+		height < 200 || height > native_mode->PanelYRes) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Mode %s is out of range.\n", ppModeName[i]);
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Valid FP modes must be between 320x200-%dx%d\n",
-			   radeon_output->PanelXRes, radeon_output->PanelYRes);
+			   native_mode->PanelXRes, native_mode->PanelYRes);
 		continue;
 	    }
 	}
@@ -316,6 +301,116 @@ static void RADEONAddScreenModes(xf86OutputPtr output, DisplayModePtr *modeList)
 
 }
 
+/* BIOS may not have right panel size, we search through all supported
+ * DDC modes looking for the maximum panel size.
+ */
+static void
+RADEONUpdatePanelSize(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &radeon_output->native_mode;
+    int             j;
+    xf86MonPtr ddc = output->MonInfo;
+    DisplayModePtr  p;
+
+    // update output's native mode
+    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
+	radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
+	if (radeon_encoder) {
+	    radeon_lvds_ptr lvds = (radeon_lvds_ptr)radeon_encoder->dev_priv;
+	    if (lvds)
+		radeon_output->native_mode = lvds->native_mode;
+	}
+    }
+
+    // crtc should handle?
+    if ((info->UseBiosDividers && native_mode->DotClock != 0) || (ddc == NULL))
+       return;
+
+    /* Go thru detailed timing table first */
+    for (j = 0; j < 4; j++) {
+	if (ddc->det_mon[j].type == 0) {
+	    struct detailed_timings *d_timings =
+		&ddc->det_mon[j].section.d_timings;
+           int match = 0;
+
+           /* If we didn't get a panel clock or guessed one, try to match the
+            * mode with the panel size. We do that because we _need_ a panel
+            * clock, or ValidateFPModes will fail, even when UseBiosDividers
+            * is set.
+            */
+           if (native_mode->DotClock == 0 &&
+               native_mode->PanelXRes == d_timings->h_active &&
+               native_mode->PanelYRes == d_timings->v_active)
+               match = 1;
+
+           /* If we don't have a BIOS provided panel data with fixed dividers,
+            * check for a larger panel size
+            */
+	    if (native_mode->PanelXRes < d_timings->h_active &&
+		native_mode->PanelYRes < d_timings->v_active &&
+		!info->UseBiosDividers)
+		match = 1;
+
+             if (match) {
+		native_mode->PanelXRes  = d_timings->h_active;
+		native_mode->PanelYRes  = d_timings->v_active;
+		native_mode->DotClock   = d_timings->clock / 1000;
+		native_mode->HOverPlus  = d_timings->h_sync_off;
+		native_mode->HSyncWidth = d_timings->h_sync_width;
+		native_mode->HBlank     = d_timings->h_blanking;
+		native_mode->VOverPlus  = d_timings->v_sync_off;
+		native_mode->VSyncWidth = d_timings->v_sync_width;
+		native_mode->VBlank     = d_timings->v_blanking;
+                native_mode->Flags      = (d_timings->interlaced ? V_INTERLACE : 0);
+                switch (d_timings->misc) {
+                case 0: native_mode->Flags |= V_NHSYNC | V_NVSYNC; break;
+                case 1: native_mode->Flags |= V_PHSYNC | V_NVSYNC; break;
+                case 2: native_mode->Flags |= V_NHSYNC | V_PVSYNC; break;
+                case 3: native_mode->Flags |= V_PHSYNC | V_PVSYNC; break;
+                }
+                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel infos found from DDC detailed: %dx%d\n",
+                           native_mode->PanelXRes, native_mode->PanelYRes);
+	    }
+	}
+    }
+
+    if (info->UseBiosDividers && native_mode->DotClock != 0)
+       return;
+
+    /* Search thru standard VESA modes from EDID */
+    for (j = 0; j < 8; j++) {
+	if ((native_mode->PanelXRes < ddc->timings2[j].hsize) &&
+	    (native_mode->PanelYRes < ddc->timings2[j].vsize)) {
+	    for (p = pScrn->monitor->Modes; p; p = p->next) {
+		if ((ddc->timings2[j].hsize == p->HDisplay) &&
+		    (ddc->timings2[j].vsize == p->VDisplay)) {
+		    float  refresh =
+			(float)p->Clock * 1000.0 / p->HTotal / p->VTotal;
+
+		    if (abs((float)ddc->timings2[j].refresh - refresh) < 1.0) {
+			/* Is this good enough? */
+			native_mode->PanelXRes  = ddc->timings2[j].hsize;
+			native_mode->PanelYRes  = ddc->timings2[j].vsize;
+			native_mode->HBlank     = p->HTotal - p->HDisplay;
+			native_mode->HOverPlus  = p->HSyncStart - p->HDisplay;
+			native_mode->HSyncWidth = p->HSyncEnd - p->HSyncStart;
+			native_mode->VBlank     = p->VTotal - p->VDisplay;
+			native_mode->VOverPlus  = p->VSyncStart - p->VDisplay;
+			native_mode->VSyncWidth = p->VSyncEnd - p->VSyncStart;
+			native_mode->DotClock   = p->Clock;
+                        native_mode->Flags      = p->Flags;
+                        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel infos found from DDC VESA/EDID: %dx%d\n",
+                                   native_mode->PanelXRes, native_mode->PanelYRes);
+		    }
+		}
+	    }
+	}
+    }
+}
+
 DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
@@ -325,8 +420,6 @@ RADEONProbeOutputModes(xf86OutputPtr output)
     DisplayModePtr	    modes = NULL;
     AtomBiosArgRec atomBiosArg;
     AtomBiosResult atomBiosResult;
-
-    ErrorF("in RADEONProbeOutputModes\n");
 
     if (output->status == XF86OutputStatusConnected) {
 	if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
@@ -341,6 +434,8 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 		modes = atomBiosArg.modes;
 	    }
 	} else {
+	    if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT))
+		RADEONUpdatePanelSize(output);
 	    if (output->MonInfo)
 		modes = xf86OutputGetEDIDModes (output);
 #if defined(__powerpc__)

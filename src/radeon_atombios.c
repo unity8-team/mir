@@ -77,6 +77,10 @@ rhdAtomCompassionateDataQuery(atomBiosHandlePtr handle,
 			      AtomBiosRequestID func, AtomBiosArgPtr data);
 
 
+static void
+RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds);
+
+
 enum msgDataFormat {
     MSG_FORMAT_NONE,
     MSG_FORMAT_HEX,
@@ -1612,6 +1616,25 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
 	for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	    if ((info->encoders[i] != NULL) && (info->encoders[i]->encoder_id == encoder_id)) {
 		info->encoders[device_index] = info->encoders[i];
+		switch (encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		    if (device_support & ATOM_DEVICE_LCD1_SUPPORT) {
+			if (info->encoders[device_index]->dev_priv == NULL) {
+			    info->encoders[device_index]->dev_priv =
+				(radeon_lvds_ptr)xcalloc(1,sizeof(radeon_lvds_rec));
+			    if (info->encoders[device_index]->dev_priv == NULL) {
+				ErrorF("xalloc failed\n");
+				return FALSE;
+			    } else
+				RADEONGetATOMLVDSInfo(pScrn, (radeon_lvds_ptr)info->encoders[device_index]->dev_priv);
+			}
+		    }
+		    break;
+		}
 		return TRUE;
 	    }
 	}
@@ -1620,7 +1643,66 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
 	if (info->encoders[device_index] != NULL) {
 	    info->encoders[device_index]->encoder_id = encoder_id;
 	    info->encoders[device_index]->use_count = 0;
+	    info->encoders[device_index]->dev_priv = NULL;
 	    // add dev_priv stuff
+	    switch (encoder_id) {
+	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+		    info->encoders[device_index]->dev_priv = (radeon_lvds_ptr)xcalloc(1,sizeof(radeon_lvds_rec));
+		    if (info->encoders[device_index]->dev_priv == NULL) {
+			ErrorF("xalloc failed\n");
+			return FALSE;
+		    } else {
+			if (info->IsAtomBios)
+			    RADEONGetATOMLVDSInfo(pScrn, (radeon_lvds_ptr)info->encoders[device_index]->dev_priv);
+			else
+			    RADEONGetLVDSInfo(pScrn, (radeon_lvds_ptr)info->encoders[device_index]->dev_priv);
+		    }
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
+		if (!IS_AVIVO_VARIANT) {
+		    info->encoders[device_index]->dev_priv = (radeon_tvdac_ptr)xcalloc(1,sizeof(radeon_tvdac_rec));
+		    if (info->encoders[device_index]->dev_priv == NULL) {
+			ErrorF("xalloc failed\n");
+			return FALSE;
+		    } else
+			RADEONGetTVDacAdjInfo(pScrn, (radeon_tvdac_ptr)info->encoders[device_index]->dev_priv);
+		}
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+		if (!IS_AVIVO_VARIANT) {
+		    info->encoders[device_index]->dev_priv = (radeon_tmds_ptr)xcalloc(1,sizeof(radeon_tmds_rec));
+		    if (info->encoders[device_index]->dev_priv == NULL) {
+			ErrorF("xalloc failed\n");
+			return FALSE;
+		    } else
+			RADEONGetTMDSInfo(pScrn, (radeon_tmds_ptr)info->encoders[device_index]->dev_priv);
+		}
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+		if (!IS_AVIVO_VARIANT) {
+		    info->encoders[device_index]->dev_priv = (radeon_dvo_ptr)xcalloc(1,sizeof(radeon_dvo_rec));
+		    if (info->encoders[device_index]->dev_priv == NULL) {
+			ErrorF("xalloc failed\n");
+			return FALSE;
+		    } else
+			RADEONGetExtTMDSInfo(pScrn, (radeon_dvo_ptr)info->encoders[device_index]->dev_priv);
+		}
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+	    case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+		if (device_support & ATOM_DEVICE_LCD1_SUPPORT) {
+		    info->encoders[device_index]->dev_priv = (radeon_lvds_ptr)xcalloc(1,sizeof(radeon_lvds_rec));
+		    if (info->encoders[device_index]->dev_priv == NULL) {
+			ErrorF("xalloc failed\n");
+			return FALSE;
+		    } else
+			RADEONGetATOMLVDSInfo(pScrn, (radeon_lvds_ptr)info->encoders[device_index]->dev_priv);
+		}
+		break;
+	    }
 	    return TRUE;
 	} else {
 	    ErrorF("xalloc failed\n");
@@ -1793,12 +1875,11 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-Bool
-RADEONGetATOMLVDSInfo(xf86OutputPtr output)
+static void
+RADEONGetATOMLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds)
 {
-    ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_native_mode_ptr native_mode = &lvds->native_mode;
     atomDataTablesPtr atomDataPtr;
     uint8_t crev, frev;
 
@@ -1807,55 +1888,52 @@ RADEONGetATOMLVDSInfo(xf86OutputPtr output)
     if (!rhdAtomGetTableRevisionAndSize(
 	    (ATOM_COMMON_TABLE_HEADER *)(atomDataPtr->LVDS_Info.base),
 	    &frev,&crev,NULL)) {
-	return FALSE;
+	return;
     }
 
     switch (crev) {
     case 1:
-	radeon_output->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHActive);
-	radeon_output->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVActive);
-	radeon_output->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usPixClk) * 10;
-	radeon_output->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHBlanking_Time);
-	radeon_output->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncOffset);
-	radeon_output->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncWidth);
-	radeon_output->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVBlanking_Time);
-	radeon_output->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncOffset);
-	radeon_output->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncWidth);
-	radeon_output->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->usOffDelayInMs);
-	radeon_output->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info->ucLVDS_Misc;
-	radeon_output->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info->ucSS_Id;
+	native_mode->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHActive);
+	native_mode->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVActive);
+	native_mode->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usPixClk) * 10;
+	native_mode->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHBlanking_Time);
+	native_mode->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncOffset);
+	native_mode->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usHSyncWidth);
+	native_mode->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVBlanking_Time);
+	native_mode->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncOffset);
+	native_mode->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->sLCDTiming.usVSyncWidth);
+	lvds->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info->usOffDelayInMs);
+	lvds->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info->ucLVDS_Misc;
+	lvds->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info->ucSS_Id;
 	break;
     case 2:
-	radeon_output->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHActive);
-	radeon_output->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVActive);
-	radeon_output->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usPixClk) * 10;
-	radeon_output->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHBlanking_Time);
-	radeon_output->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncOffset);
-	radeon_output->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncWidth);
-	radeon_output->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVBlanking_Time);
-	radeon_output->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncOffset);
-	radeon_output->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncWidth);
-	radeon_output->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->usOffDelayInMs);
-	radeon_output->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucLVDS_Misc;
-	radeon_output->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucSS_Id;
+	native_mode->PanelXRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHActive);
+	native_mode->PanelYRes = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVActive);
+	native_mode->DotClock   = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usPixClk) * 10;
+	native_mode->HBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHBlanking_Time);
+	native_mode->HOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncOffset);
+	native_mode->HSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usHSyncWidth);
+	native_mode->VBlank     = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVBlanking_Time);
+	native_mode->VOverPlus  = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncOffset);
+	native_mode->VSyncWidth = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->sLCDTiming.usVSyncWidth);
+	lvds->PanelPwrDly = le16_to_cpu(atomDataPtr->LVDS_Info.LVDS_Info_v12->usOffDelayInMs);
+	lvds->lvds_misc   =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucLVDS_Misc;
+	lvds->lvds_ss_id  =  atomDataPtr->LVDS_Info.LVDS_Info_v12->ucSS_Id;
 	break;
     }
+    native_mode->Flags = 0;
 
-    if (radeon_output->PanelPwrDly > 2000 || radeon_output->PanelPwrDly < 0)
-	radeon_output->PanelPwrDly = 2000;
-
-    radeon_output->Flags = 0;
+    if (lvds->PanelPwrDly > 2000 || lvds->PanelPwrDly < 0)
+	lvds->PanelPwrDly = 2000;
 
     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	       "LVDS Info:\n"
 	       "XRes: %d, YRes: %d, DotClock: %d\n"
 	       "HBlank: %d, HOverPlus: %d, HSyncWidth: %d\n"
 	       "VBlank: %d, VOverPlus: %d, VSyncWidth: %d\n",
-	       radeon_output->PanelXRes, radeon_output->PanelYRes, radeon_output->DotClock,
-	       radeon_output->HBlank, radeon_output->HOverPlus, radeon_output->HSyncWidth,
-	       radeon_output->VBlank, radeon_output->VOverPlus, radeon_output->VSyncWidth);
-
-    return TRUE;
+	       native_mode->PanelXRes, native_mode->PanelYRes, native_mode->DotClock,
+	       native_mode->HBlank, native_mode->HOverPlus, native_mode->HSyncWidth,
+	       native_mode->VBlank, native_mode->VOverPlus, native_mode->VSyncWidth);
 }
 
 Bool
@@ -1864,6 +1942,7 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    radeon_tvout_ptr tvout = &radeon_output->tvout;
     ATOM_ANALOG_TV_INFO *tv_info;
 
     tv_info = info->atomBIOS->atomDataPtr->AnalogTV_Info.AnalogTV_Info;
@@ -1873,51 +1952,51 @@ RADEONGetATOMTVInfo(xf86OutputPtr output)
 
     switch(tv_info->ucTV_BootUpDefaultStandard) {
     case NTSCJ_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_NTSC_J;
+	tvout->default_tvStd = TV_STD_NTSC_J;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC-J\n");
 	break;
     case PAL_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_PAL;
+	tvout->default_tvStd = TV_STD_PAL;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL\n");
 	break;
     case PALM_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_PAL_M;
+	tvout->default_tvStd = TV_STD_PAL_M;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-M\n");
 	break;
     case PAL60_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_PAL_60;
+	tvout->default_tvStd = TV_STD_PAL_60;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: PAL-60\n");
 	break;
     default:
     case NTSC_SUPPORT:
-	radeon_output->default_tvStd = TV_STD_NTSC;
+	tvout->default_tvStd = TV_STD_NTSC;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Default TV standard: NTSC\n");
 	break;
     }
 
-    radeon_output->tvStd = radeon_output->default_tvStd;
+    tvout->tvStd = tvout->default_tvStd;
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TV standards supported by chip: ");
-    radeon_output->SupportedTVStds = radeon_output->default_tvStd;
+    tvout->SupportedTVStds = tvout->default_tvStd;
     if (tv_info->ucTV_SupportedStandard & NTSC_SUPPORT) {
 	ErrorF("NTSC ");
-	radeon_output->SupportedTVStds |= TV_STD_NTSC;
+	tvout->SupportedTVStds |= TV_STD_NTSC;
     }
     if (tv_info->ucTV_SupportedStandard & NTSCJ_SUPPORT) {
 	ErrorF("NTSC-J ");
-	radeon_output->SupportedTVStds |= TV_STD_NTSC_J;
+	tvout->SupportedTVStds |= TV_STD_NTSC_J;
     }
     if (tv_info->ucTV_SupportedStandard & PAL_SUPPORT) {
 	ErrorF("PAL ");
-	radeon_output->SupportedTVStds |= TV_STD_PAL;
+	tvout->SupportedTVStds |= TV_STD_PAL;
     }
     if (tv_info->ucTV_SupportedStandard & PALM_SUPPORT) {
 	ErrorF("PAL-M ");
-	radeon_output->SupportedTVStds |= TV_STD_PAL_M;
+	tvout->SupportedTVStds |= TV_STD_PAL_M;
     }
     if (tv_info->ucTV_SupportedStandard & PAL60_SUPPORT) {
 	ErrorF("PAL-60 ");
-	radeon_output->SupportedTVStds |= TV_STD_PAL_60;
+	tvout->SupportedTVStds |= TV_STD_PAL_60;
     }
     ErrorF("\n");
 

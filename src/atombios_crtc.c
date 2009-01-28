@@ -361,12 +361,13 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 
 	if (output->crtc == crtc) {
 	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
-		if (radeon_output->tvStd == TV_STD_NTSC ||
-		    radeon_output->tvStd == TV_STD_NTSC_J ||
-		    radeon_output->tvStd == TV_STD_PAL_M)
+		if (tvout->tvStd == TV_STD_NTSC ||
+		    tvout->tvStd == TV_STD_NTSC_J ||
+		    tvout->tvStd == TV_STD_PAL_M)
 		    need_tv_timings = 1;
 		else
 		    need_tv_timings = 2;
