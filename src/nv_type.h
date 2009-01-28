@@ -247,6 +247,8 @@ typedef struct _NVRec {
     unsigned long	VRAMPhysicalSize;
     /* Accesible VRAM size (by the GPU) */
     unsigned long	VRAMSize;
+    /* Mapped VRAM BAR */
+    void *              VRAMMap;
     /* Accessible AGP size */
     unsigned long	AGPSize;
 

@@ -369,6 +369,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	if (!NVDRIInitVisualConfigs(pScreen)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] NVDRIInitVisualConfigs failed.  Disabling DRI.\n");
+		DRICloseScreen(pScreen);
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);
@@ -379,6 +380,7 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	/* need_close = 0, because DRICloseScreen() will handle the closing. */
 	if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR, "Error creating device\n");
+		DRICloseScreen(pScreen);
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);
@@ -394,6 +396,9 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	ScreenPtr      pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr          pNv = NVPTR(pScrn);
 	NOUVEAUDRIPtr  pNOUVEAUDRI;
+
+	if (pNv->NoAccel)
+		return FALSE;
 
 	if (!DRIFinishScreenInit(pScreen)) {
 		return FALSE;
@@ -426,6 +431,9 @@ void NVDRICloseScreen(ScrnInfoPtr pScrn)
 {
 	ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->NoAccel)
+		return;
 
 	nouveau_device_close(&pNv->dev);
 

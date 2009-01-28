@@ -1327,8 +1327,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
 	}
 
-	if (NVPreInitDRI(pScrn) == FALSE)
-		NVPreInitFail("\n");
+	if (!pNv->NoAccel && NVPreInitDRI(pScrn) == FALSE) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DRI pre-initialisation failed.  Setting NoAccel\n");
+		pNv->NoAccel = TRUE;
+	}
 
 	if (!pNv->randr12_enable) {
 		if ((pScrn->monitor->nHsync == 0) && 
@@ -1535,6 +1538,87 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 /*
  * Map the framebuffer and MMIO memory.
  */
+static struct nouveau_bo *
+NVMapMemFakeBO(NVPtr pNv, void *ptr, uint32_t offset, uint32_t size)
+{
+	struct nouveau_bo *bo = calloc(1, sizeof(*bo));
+
+	if (bo) {
+		bo->size = size;
+		bo->map = ptr;
+		bo->offset = offset;
+		if (pNv->Architecture >= NV_ARCH_50)
+			bo->offset += 0x20000000;
+	}
+
+	return bo;
+}
+
+static Bool
+NVMapMemSW(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	unsigned VRAMReserved, Cursor0Offset, Cursor1Offset, CLUTOffset[2];
+	void *map;
+	int i;
+
+	pNv->VRAMSize = pNv->RamAmountKBytes * 1024;
+	VRAMReserved  = pNv->VRAMSize - (1 * 1024 * 1024);
+	pNv->AGPSize = 0;
+#ifdef XSERVER_LIBPCIACCESS
+	pNv->VRAMPhysical = pNv->PciInfo->regions[1].base_addr;
+	pci_device_map_range(pNv->PciInfo, pNv->VRAMPhysical,
+			     pNv->PciInfo->regions[1].size,
+			     PCI_DEV_MAP_FLAG_WRITABLE |
+			     PCI_DEV_MAP_FLAG_WRITE_COMBINE, &map);
+	pNv->VRAMMap = map;
+#else
+	pNv->VRAMPhysical = pNv->PciInfo->memBase[1];
+	pNv->VRAMMap = xf86MapPciMem(pScrn->scrnIndex, VIDMEM_FRAMEBUFFER,
+				     pNv->PciTag, pNv->VRAMPhysical,
+				     pNv->PciInfo->size[1]);
+#endif
+
+	Cursor0Offset = VRAMReserved;
+	Cursor1Offset = Cursor0Offset + (64 * 1024);
+	CLUTOffset[0] = Cursor1Offset + (64 * 1024);
+	CLUTOffset[1] = CLUTOffset[0] + (4 * 1024);
+
+	pNv->FB = NVMapMemFakeBO(pNv, pNv->VRAMMap, 0, pNv->VRAMSize - (1<<20));
+	if (!pNv->FB)
+		return FALSE;
+	pNv->GART = NULL;
+
+	pNv->Cursor = NVMapMemFakeBO(pNv, pNv->VRAMMap + Cursor0Offset,
+				     Cursor0Offset, 64*1024);
+	if (!pNv->Cursor)
+		return FALSE;
+
+	pNv->Cursor2 = NVMapMemFakeBO(pNv, pNv->VRAMMap + Cursor1Offset,
+				      Cursor1Offset, 64*1024);
+	if (!pNv->Cursor2)
+		return FALSE;
+
+	if (pNv->Architecture == NV_ARCH_50) {
+		for(i = 0; i < 2; i++) {
+			nouveauCrtcPtr crtc = pNv->crtc[i];
+
+			crtc->lut = NVMapMemFakeBO(pNv,
+						   pNv->VRAMMap + CLUTOffset[i],
+						   CLUTOffset[i], 0x1000);
+			if (!crtc->lut)
+				return FALSE;
+
+			/* Copy the last known values. */
+			if (crtc->lut_values_valid) {
+				memcpy(crtc->lut->map, crtc->lut_values,
+				       4 * 256 * sizeof(uint16_t));
+			}
+		}
+	}
+
+	return TRUE;
+}
 
 static Bool
 NVMapMem(ScrnInfoPtr pScrn)
@@ -1542,6 +1626,9 @@ NVMapMem(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int gart_scratch_size;
 	uint64_t res;
+
+	if (pNv->NoAccel)
+		return NVMapMemSW(pScrn);
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
 	pNv->VRAMSize=res;
@@ -1659,11 +1746,17 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	if (pNv->textureAdaptor[1])
 		NVFreePortMemory(pScrn, pNv->textureAdaptor[1]->pPortPrivates[0].ptr);
 
-	nouveau_bo_del(&pNv->FB);
-	nouveau_bo_del(&pNv->GART);
-	nouveau_bo_del(&pNv->Cursor);
-	if (pNv->randr12_enable) {
-		nouveau_bo_del(&pNv->Cursor2);
+	if (pNv->NoAccel) {
+		free(pNv->FB); pNv->FB = NULL;
+		free(pNv->Cursor); pNv->Cursor = NULL;
+		free(pNv->Cursor2); pNv->Cursor2 = NULL;
+	} else {
+		nouveau_bo_del(&pNv->FB);
+		nouveau_bo_del(&pNv->GART);
+		nouveau_bo_del(&pNv->Cursor);
+		if (pNv->randr12_enable) {
+			nouveau_bo_del(&pNv->Cursor2);
+		}
 	}
 
 	/* Again not the most ideal way. */
@@ -1672,7 +1765,11 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 
 		for(i = 0; i < 2; i++) {
 			nouveauCrtcPtr crtc = pNv->crtc[i];
-			nouveau_bo_del(&crtc->lut);
+			if (pNv->NoAccel) {
+				free(crtc->lut);
+				crtc->lut = NULL;
+			} else
+				nouveau_bo_del(&crtc->lut);
 			crtc->lut = NULL;
 		}
 	}
@@ -1949,8 +2046,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	}
 
 	/* First init DRI/DRM */
-	if (!NVDRIScreenInit(pScrn))
-		return FALSE;
+	if (!pNv->NoAccel && !NVDRIScreenInit(pScrn)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "DRI initialisation failed.  Setting NoAccel\n");
+		pNv->NoAccel = TRUE;
+	}
 
 	/* Allocate and map memory areas we need */
 	if (!NVMapMem(pScrn))
