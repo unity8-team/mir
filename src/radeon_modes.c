@@ -95,35 +95,18 @@ RADEONTVModes(xf86OutputPtr output)
 static DisplayModePtr
 RADEONATOMTVModes(xf86OutputPtr output)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     DisplayModePtr  last       = NULL;
     DisplayModePtr  new        = NULL;
     DisplayModePtr  first      = NULL;
-    int max_v, i;
+    int i;
     /* Add some common sizes */
-    int widths[5] = {640, 720, 800, 848, 1024};
-
-    if (radeon_output->tvStd == TV_STD_NTSC ||
-	radeon_output->tvStd == TV_STD_NTSC_J ||
-	radeon_output->tvStd == TV_STD_PAL_M)
-	max_v = 480;
-    else
-	max_v = 600;
+    int widths[5] =  {640, 720, 800, 848, 1024};
+    int heights[5] = {480, 480, 600, 480,  768};
 
     for (i = 0; i < 5; i++) {
-	new = xf86CVTMode(widths[i], max_v, 60.0, FALSE, FALSE);
+	new = xf86CVTMode(widths[i], heights[i], 60.0, FALSE, FALSE);
 
 	new->type       = M_T_DRIVER;
-
-	if (radeon_output->tvStd == TV_STD_NTSC ||
-	    radeon_output->tvStd == TV_STD_NTSC_J ||
-	    radeon_output->tvStd == TV_STD_PAL_M) {
-	    if (widths[i] == 640)
-		new->type |= M_T_PREFERRED;
-	} else {
-	    if (widths[i] == 800)
-		new->type |= M_T_PREFERRED;
-	}
 
 	new->next       = NULL;
 	new->prev       = last;

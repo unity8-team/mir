@@ -3593,6 +3593,8 @@
 #       define AVIVO_D1GRPH_UPDATE_LOCK                 (1<<16)
 #define AVIVO_D1GRPH_FLIP_CONTROL                               0x6148
 
+#define AVIVO_D1GRPH_COLOR_MATRIX_TRANSFORMATION_CNTL           0x6380
+
 #define AVIVO_D1CUR_CONTROL                     0x6400
 #       define AVIVO_D1CURSOR_EN           (1<<0)
 #       define AVIVO_D1CURSOR_MODE_SHIFT  8

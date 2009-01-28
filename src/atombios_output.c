@@ -610,6 +610,290 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, int device, DisplayM
 
 }
 
+static void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(0x659C,0x0);
+    OUTREG(0x6594,0x705);
+    OUTREG(0x65A4,0x10001);
+    OUTREG(0x65D8,0x0);
+    OUTREG(0x65B0,0x0);
+    OUTREG(0x65C0,0x0);
+    OUTREG(0x65D4,0x0);
+    OUTREG(0x6578,0x0);
+    OUTREG(0x657C,0x841880A8);
+    OUTREG(0x6578,0x1);
+    OUTREG(0x657C,0x84208680);
+    OUTREG(0x6578,0x2);
+    OUTREG(0x657C,0xBFF880B0);
+    OUTREG(0x6578,0x100);
+    OUTREG(0x657C,0x83D88088);
+    OUTREG(0x6578,0x101);
+    OUTREG(0x657C,0x84608680);
+    OUTREG(0x6578,0x102);
+    OUTREG(0x657C,0xBFF080D0);
+    OUTREG(0x6578,0x200);
+    OUTREG(0x657C,0x83988068);
+    OUTREG(0x6578,0x201);
+    OUTREG(0x657C,0x84A08680);
+    OUTREG(0x6578,0x202);
+    OUTREG(0x657C,0xBFF080F8);
+    OUTREG(0x6578,0x300);
+    OUTREG(0x657C,0x83588058);
+    OUTREG(0x6578,0x301);
+    OUTREG(0x657C,0x84E08660);
+    OUTREG(0x6578,0x302);
+    OUTREG(0x657C,0xBFF88120);
+    OUTREG(0x6578,0x400);
+    OUTREG(0x657C,0x83188040);
+    OUTREG(0x6578,0x401);
+    OUTREG(0x657C,0x85008660);
+    OUTREG(0x6578,0x402);
+    OUTREG(0x657C,0xBFF88150);
+    OUTREG(0x6578,0x500);
+    OUTREG(0x657C,0x82D88030);
+    OUTREG(0x6578,0x501);
+    OUTREG(0x657C,0x85408640);
+    OUTREG(0x6578,0x502);
+    OUTREG(0x657C,0xBFF88180);
+    OUTREG(0x6578,0x600);
+    OUTREG(0x657C,0x82A08018);
+    OUTREG(0x6578,0x601);
+    OUTREG(0x657C,0x85808620);
+    OUTREG(0x6578,0x602);
+    OUTREG(0x657C,0xBFF081B8);
+    OUTREG(0x6578,0x700);
+    OUTREG(0x657C,0x82608010);
+    OUTREG(0x6578,0x701);
+    OUTREG(0x657C,0x85A08600);
+    OUTREG(0x6578,0x702);
+    OUTREG(0x657C,0x800081F0);
+    OUTREG(0x6578,0x800);
+    OUTREG(0x657C,0x8228BFF8);
+    OUTREG(0x6578,0x801);
+    OUTREG(0x657C,0x85E085E0);
+    OUTREG(0x6578,0x802);
+    OUTREG(0x657C,0xBFF88228);
+    OUTREG(0x6578,0x10000);
+    OUTREG(0x657C,0x82A8BF00);
+    OUTREG(0x6578,0x10001);
+    OUTREG(0x657C,0x82A08CC0);
+    OUTREG(0x6578,0x10002);
+    OUTREG(0x657C,0x8008BEF8);
+    OUTREG(0x6578,0x10100);
+    OUTREG(0x657C,0x81F0BF28);
+    OUTREG(0x6578,0x10101);
+    OUTREG(0x657C,0x83608CA0);
+    OUTREG(0x6578,0x10102);
+    OUTREG(0x657C,0x8018BED0);
+    OUTREG(0x6578,0x10200);
+    OUTREG(0x657C,0x8148BF38);
+    OUTREG(0x6578,0x10201);
+    OUTREG(0x657C,0x84408C80);
+    OUTREG(0x6578,0x10202);
+    OUTREG(0x657C,0x8008BEB8);
+    OUTREG(0x6578,0x10300);
+    OUTREG(0x657C,0x80B0BF78);
+    OUTREG(0x6578,0x10301);
+    OUTREG(0x657C,0x85008C20);
+    OUTREG(0x6578,0x10302);
+    OUTREG(0x657C,0x8020BEA0);
+    OUTREG(0x6578,0x10400);
+    OUTREG(0x657C,0x8028BF90);
+    OUTREG(0x6578,0x10401);
+    OUTREG(0x657C,0x85E08BC0);
+    OUTREG(0x6578,0x10402);
+    OUTREG(0x657C,0x8018BE90);
+    OUTREG(0x6578,0x10500);
+    OUTREG(0x657C,0xBFB8BFB0);
+    OUTREG(0x6578,0x10501);
+    OUTREG(0x657C,0x86C08B40);
+    OUTREG(0x6578,0x10502);
+    OUTREG(0x657C,0x8010BE90);
+    OUTREG(0x6578,0x10600);
+    OUTREG(0x657C,0xBF58BFC8);
+    OUTREG(0x6578,0x10601);
+    OUTREG(0x657C,0x87A08AA0);
+    OUTREG(0x6578,0x10602);
+    OUTREG(0x657C,0x8010BE98);
+    OUTREG(0x6578,0x10700);
+    OUTREG(0x657C,0xBF10BFF0);
+    OUTREG(0x6578,0x10701);
+    OUTREG(0x657C,0x886089E0);
+    OUTREG(0x6578,0x10702);
+    OUTREG(0x657C,0x8018BEB0);
+    OUTREG(0x6578,0x10800);
+    OUTREG(0x657C,0xBED8BFE8);
+    OUTREG(0x6578,0x10801);
+    OUTREG(0x657C,0x89408940);
+    OUTREG(0x6578,0x10802);
+    OUTREG(0x657C,0xBFE8BED8);
+    OUTREG(0x6578,0x20000);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20001);
+    OUTREG(0x657C,0x90008000);
+    OUTREG(0x6578,0x20002);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20003);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20100);
+    OUTREG(0x657C,0x80108000);
+    OUTREG(0x6578,0x20101);
+    OUTREG(0x657C,0x8FE0BF70);
+    OUTREG(0x6578,0x20102);
+    OUTREG(0x657C,0xBFE880C0);
+    OUTREG(0x6578,0x20103);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20200);
+    OUTREG(0x657C,0x8018BFF8);
+    OUTREG(0x6578,0x20201);
+    OUTREG(0x657C,0x8F80BF08);
+    OUTREG(0x6578,0x20202);
+    OUTREG(0x657C,0xBFD081A0);
+    OUTREG(0x6578,0x20203);
+    OUTREG(0x657C,0xBFF88000);
+    OUTREG(0x6578,0x20300);
+    OUTREG(0x657C,0x80188000);
+    OUTREG(0x6578,0x20301);
+    OUTREG(0x657C,0x8EE0BEC0);
+    OUTREG(0x6578,0x20302);
+    OUTREG(0x657C,0xBFB082A0);
+    OUTREG(0x6578,0x20303);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20400);
+    OUTREG(0x657C,0x80188000);
+    OUTREG(0x6578,0x20401);
+    OUTREG(0x657C,0x8E00BEA0);
+    OUTREG(0x6578,0x20402);
+    OUTREG(0x657C,0xBF8883C0);
+    OUTREG(0x6578,0x20403);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x20500);
+    OUTREG(0x657C,0x80188000);
+    OUTREG(0x6578,0x20501);
+    OUTREG(0x657C,0x8D00BE90);
+    OUTREG(0x6578,0x20502);
+    OUTREG(0x657C,0xBF588500);
+    OUTREG(0x6578,0x20503);
+    OUTREG(0x657C,0x80008008);
+    OUTREG(0x6578,0x20600);
+    OUTREG(0x657C,0x80188000);
+    OUTREG(0x6578,0x20601);
+    OUTREG(0x657C,0x8BC0BE98);
+    OUTREG(0x6578,0x20602);
+    OUTREG(0x657C,0xBF308660);
+    OUTREG(0x6578,0x20603);
+    OUTREG(0x657C,0x80008008);
+    OUTREG(0x6578,0x20700);
+    OUTREG(0x657C,0x80108000);
+    OUTREG(0x6578,0x20701);
+    OUTREG(0x657C,0x8A80BEB0);
+    OUTREG(0x6578,0x20702);
+    OUTREG(0x657C,0xBF0087C0);
+    OUTREG(0x6578,0x20703);
+    OUTREG(0x657C,0x80008008);
+    OUTREG(0x6578,0x20800);
+    OUTREG(0x657C,0x80108000);
+    OUTREG(0x6578,0x20801);
+    OUTREG(0x657C,0x8920BED0);
+    OUTREG(0x6578,0x20802);
+    OUTREG(0x657C,0xBED08920);
+    OUTREG(0x6578,0x20803);
+    OUTREG(0x657C,0x80008010);
+    OUTREG(0x6578,0x30000);
+    OUTREG(0x657C,0x90008000);
+    OUTREG(0x6578,0x30001);
+    OUTREG(0x657C,0x80008000);
+    OUTREG(0x6578,0x30100);
+    OUTREG(0x657C,0x8FE0BF90);
+    OUTREG(0x6578,0x30101);
+    OUTREG(0x657C,0xBFF880A0);
+    OUTREG(0x6578,0x30200);
+    OUTREG(0x657C,0x8F60BF40);
+    OUTREG(0x6578,0x30201);
+    OUTREG(0x657C,0xBFE88180);
+    OUTREG(0x6578,0x30300);
+    OUTREG(0x657C,0x8EC0BF00);
+    OUTREG(0x6578,0x30301);
+    OUTREG(0x657C,0xBFC88280);
+    OUTREG(0x6578,0x30400);
+    OUTREG(0x657C,0x8DE0BEE0);
+    OUTREG(0x6578,0x30401);
+    OUTREG(0x657C,0xBFA083A0);
+    OUTREG(0x6578,0x30500);
+    OUTREG(0x657C,0x8CE0BED0);
+    OUTREG(0x6578,0x30501);
+    OUTREG(0x657C,0xBF7884E0);
+    OUTREG(0x6578,0x30600);
+    OUTREG(0x657C,0x8BA0BED8);
+    OUTREG(0x6578,0x30601);
+    OUTREG(0x657C,0xBF508640);
+    OUTREG(0x6578,0x30700);
+    OUTREG(0x657C,0x8A60BEE8);
+    OUTREG(0x6578,0x30701);
+    OUTREG(0x657C,0xBF2087A0);
+    OUTREG(0x6578,0x30800);
+    OUTREG(0x657C,0x8900BF00);
+    OUTREG(0x6578,0x30801);
+    OUTREG(0x657C,0xBF008900);
+}
+
+static int
+atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    ENABLE_YUV_PS_ALLOCATION disp_data;
+    AtomBiosArgRec data;
+    unsigned char *space;
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t temp, reg;
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	reg = R600_BIOS_3_SCRATCH;
+    else
+	reg = RADEON_BIOS_3_SCRATCH;
+
+    //fix up scratch reg handling
+    temp = INREG(reg);
+    if ((radeon_output->MonType == MT_CTV) ||
+	(radeon_output->MonType == MT_STV))
+	OUTREG(reg, (ATOM_S3_TV1_ACTIVE |
+		     (radeon_crtc->crtc_id << 18)));
+    else if (radeon_output->MonType == MT_CV)
+	OUTREG(reg, (ATOM_S3_CV_ACTIVE |
+		     (radeon_crtc->crtc_id << 24)));
+    else
+	OUTREG(reg, 0);
+
+    memset(&disp_data, 0, sizeof(disp_data));
+
+    if (enable)
+	disp_data.ucEnable = ATOM_ENABLE;
+    disp_data.ucCRTC = radeon_crtc->crtc_id;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableYUV);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &disp_data;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+
+	OUTREG(reg, temp);
+
+	ErrorF("crtc %d YUV %s setup success\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
+	return ATOM_SUCCESS;
+    }
+
+    OUTREG(reg, temp);
+
+    ErrorF("crtc %d YUV %s setup failed\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
+    return ATOM_NOT_IMPLEMENTED;
+
+}
+
 static int
 atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -673,6 +957,11 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	if (OUTPUT_IS_TV && info->ChipFamily >= CHIP_FAMILY_RV515 && info->ChipFamily <= CHIP_FAMILY_RV570) {
+	    ErrorF("forcing TV scaler\n");
+	    atom_rv515_force_tv_scaler(output->scrn);
+	}
+      
 	ErrorF("scaler %d setup success\n", radeon_crtc->crtc_id);
 	return ATOM_SUCCESS;
     }
@@ -1017,6 +1306,12 @@ atombios_output_mode_set(xf86OutputPtr output,
 
     atombios_output_scaler_setup(output, mode);
     atombios_set_output_crtc_source(output);
+    if ((radeon_output->MonType == MT_CTV) ||
+	(radeon_output->MonType == MT_STV) ||
+	(radeon_output->MonType == MT_CV))
+	atombios_output_yuv_setup(output, TRUE);
+    else
+	atombios_output_yuv_setup(output, FALSE);
 
     if (radeon_output->MonType == MT_CRT) {
        if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT ||

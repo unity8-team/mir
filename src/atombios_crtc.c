@@ -406,11 +406,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	ret = RADEONATOMGetTVTimings(pScrn, need_tv_timings - 1, &crtc_timing, &adjusted_mode->Clock);
 	if (ret == FALSE) {
 	    need_tv_timings = 0;
-	} else {
-	    adjusted_mode->CrtcHDisplay = crtc_timing.usH_Disp;
-	    adjusted_mode->CrtcHTotal = crtc_timing.usH_Total;
-	    adjusted_mode->CrtcVDisplay = crtc_timing.usV_Disp;
-	    adjusted_mode->CrtcVTotal = crtc_timing.usV_Total;
 	}
     }
 
