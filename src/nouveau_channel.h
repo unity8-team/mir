@@ -32,6 +32,7 @@ struct nouveau_channel {
 
 	void *user_private;
 	void (*hang_notify)(struct nouveau_channel *);
+	void (*flush_notify)(struct nouveau_channel *);
 };
 
 #endif
