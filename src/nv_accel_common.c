@@ -504,7 +504,9 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	Bool ret;
-	if(pNv->NoAccel) return TRUE;
+
+	if (pNv->NoAccel)
+		return TRUE;
 
 	/* General engine objects */
 	INIT_CONTEXT_OBJECT(NullObject);
@@ -549,8 +551,10 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
-void NVAccelFree(NVPtr pNv)
+void NVAccelFree(ScrnInfoPtr pScrn)
 {
+	NVPtr pNv = NVPTR(pScrn);
+
 	if (pNv->NoAccel)
 		return;
 
@@ -573,8 +577,6 @@ void NVAccelFree(NVPtr pNv)
 
 	nouveau_grobj_free(&pNv->Nv3D);
 
-	if (pNv->tesla_scratch)
-		nouveau_bo_del(&pNv->tesla_scratch);
-	if (pNv->shader_mem)
-		nouveau_bo_del(&pNv->shader_mem);
+	nouveau_bo_del(&pNv->tesla_scratch);
+	nouveau_bo_del(&pNv->shader_mem);
 }

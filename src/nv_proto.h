@@ -8,7 +8,7 @@ Bool NVAccelCommonInit(ScrnInfoPtr pScrn);
 Bool NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret);
 Bool NVAccelGetCtxSurf2DFormatFromPicture(PicturePtr pPix, int *fmt_ret);
 PixmapPtr NVGetDrawablePixmap(DrawablePtr pDraw);
-void NVAccelFree(NVPtr pNv);
+void NVAccelFree(ScrnInfoPtr pScrn);
 
 /* in nv_driver.c */
 Bool   NVI2CInit(ScrnInfoPtr pScrn);
@@ -32,11 +32,10 @@ Bool   NVDACi2cInit(ScrnInfoPtr pScrn);
 
 /* in nouveau_xv.c */
 void NVInitVideo(ScreenPtr);
+void NVTakedownVideo(ScrnInfoPtr);
 void NVWaitVSync(ScrnInfoPtr pScrn, int crtc);
 void NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
 unsigned int nv_window_belongs_to_crtc(ScrnInfoPtr, int, int, int, int);
-void NVXvDMANotifiersRealFree(void);
-void NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv);
 
 /* in nv_setup.c */
 void   RivaEnterLeave(ScrnInfoPtr pScrn, Bool enter);
@@ -55,6 +54,7 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image);
 /* in nv_dma.c */
 void  NVSync(ScrnInfoPtr pScrn);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
+void  NVTakedownDma(ScrnInfoPtr pScrn);
 
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);

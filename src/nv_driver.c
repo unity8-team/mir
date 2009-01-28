@@ -665,6 +665,20 @@ NVEnterVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
+	NVMapMem(pScrn);
+	if (pNv->Architecture >= NV_ARCH_50 && pNv->EXADriverPtr) {
+		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
+		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
+		struct drm_nouveau_mem_tile t;
+
+		t.offset = nvbo->drm.offset;
+		t.flags  = nvbo->drm.flags | NOUVEAU_MEM_TILE;
+		t.delta  = pNv->EXADriverPtr->offScreenBase;
+		t.size   = pNv->EXADriverPtr->memorySize - 
+			   pNv->EXADriverPtr->offScreenBase;
+		drmCommandWrite(nvdev->fd, DRM_NOUVEAU_MEM_TILE, &t, sizeof(t));
+	}
+
 	if (!pNv->kms_enable && pNv->randr12_enable)
 		NVSave(pScrn);
 
@@ -683,8 +697,10 @@ NVEnterVT(int scrnIndex, int flags)
 			return FALSE;
 	}
 
-	if (!pNv->NoAccel)
+	if (!pNv->NoAccel) {
+		NVInitDma(pScrn);
 		NVAccelCommonInit(pScrn);
+	}
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
@@ -705,10 +721,15 @@ NVLeaveVT(int scrnIndex, int flags)
 {
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
+
 	if (pNv->randr12_enable)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	NVSync(pScrn);
+	NVAccelFree(pScrn);
+	NVTakedownVideo(pScrn);
+	NVTakedownDma(pScrn);
+	NVUnmapMem(pScrn);
 
 	if (pNv->kms_enable)
 		return;
@@ -733,7 +754,7 @@ NVBlockHandler (
 	ScrnInfoPtr pScrnInfo = xf86Screens[i];
 	NVPtr pNv = NVPTR(pScrnInfo);
 
-	if (!pNv->NoAccel)
+	if (pScrnInfo->vtSema && !pNv->NoAccel)
 		FIRE_RING (pNv->chan);
 
 	pScreen->BlockHandler = pNv->BlockHandler;
@@ -775,10 +796,10 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		}
 	}
 
-	NVAccelFree(pNv);
+	NVAccelFree(pScrn);
+	NVTakedownVideo(pScrn);
+	NVTakedownDma(pScrn);
 	NVUnmapMem(pScrn);
-	NVXvDMANotifiersRealFree();
-	nouveau_channel_free(&pNv->chan);
 
 	vgaHWUnmapMem(pScrn);
 	NVDRICloseScreen(pScrn);
@@ -1735,14 +1756,6 @@ static Bool
 NVUnmapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-
-	nouveau_bo_del(&pNv->xv_filtertable_mem);
-	if (pNv->blitAdaptor)
-		NVFreePortMemory(pScrn, GET_BLIT_PRIVATE(pNv));
-	if (pNv->textureAdaptor[0])
-		NVFreePortMemory(pScrn, pNv->textureAdaptor[0]->pPortPrivates[0].ptr);
-	if (pNv->textureAdaptor[1])
-		NVFreePortMemory(pScrn, pNv->textureAdaptor[1]->pPortPrivates[0].ptr);
 
 	if (pNv->NoAccel) {
 		free(pNv->FB); pNv->FB = NULL;

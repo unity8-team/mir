@@ -323,15 +323,16 @@ NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier **ptarget)
 	XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_FREE;
 }
 
-void NVXvDMANotifiersRealFree(void)
+static void NVXvDMANotifiersRealFree(void)
 {
 	int i;
 
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++) {
 		if (XvDMANotifierStatus[i] != XV_DMA_NOTIFIER_NOALLOC) {
 			nouveau_notifier_free(&XvDMANotifiers[i]);
 			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_NOALLOC;
 		}
+	}
 }
 
 static int
@@ -370,7 +371,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
  * @param pScrn screen whose port wants to free memory
  * @param pPriv port to free memory of
  */
-void
+static void
 NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
 	if(pPriv->video_mem) {
@@ -388,7 +389,6 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
 	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[0]);
 	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[1]);
-
 }
 
 /**
@@ -2324,3 +2324,24 @@ NVInitVideo(ScreenPtr pScreen)
 		}
 	}
 }
+
+void
+NVTakedownVideo(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	nouveau_bo_del(&pNv->xv_filtertable_mem);
+	if (pNv->blitAdaptor)
+		NVFreePortMemory(pScrn, GET_BLIT_PRIVATE(pNv));
+	if (pNv->textureAdaptor[0]) {
+		NVFreePortMemory(pScrn,
+				 pNv->textureAdaptor[0]->pPortPrivates[0].ptr);
+	}
+	if (pNv->textureAdaptor[1]) {
+		NVFreePortMemory(pScrn,
+				 pNv->textureAdaptor[1]->pPortPrivates[0].ptr);
+	}
+
+	NVXvDMANotifiersRealFree();
+}
+

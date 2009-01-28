@@ -157,3 +157,16 @@ NVInitDma(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+void
+NVTakedownDma(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (!pNv->chan)
+		return;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Closed GPU channel %d\n", pNv->chan->id);
+	nouveau_channel_free(&pNv->chan);
+}
+
