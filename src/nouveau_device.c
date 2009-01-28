@@ -31,6 +31,7 @@ nouveau_device_open_existing(struct nouveau_device **userdev, int close,
 			     int fd, drm_context_t ctx)
 {
 	struct nouveau_device_priv *nv;
+	int ret;
 
 	if (!userdev || *userdev)
 	    return -EINVAL;
@@ -42,7 +43,11 @@ nouveau_device_open_existing(struct nouveau_device **userdev, int close,
 	nv->ctx = ctx;
 	nv->needs_close = close;
 
-	drmCommandNone(nv->fd, DRM_NOUVEAU_CARD_INIT);
+	ret = drmCommandNone(nv->fd, DRM_NOUVEAU_CARD_INIT);
+	if (ret) {
+		free(nv);
+		return ret;
+	}
 
 	*userdev = &nv->base;
 	return 0;
