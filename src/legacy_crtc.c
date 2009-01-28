@@ -45,6 +45,7 @@
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
+#include "radeon_atombios.h"
 
 #ifdef XF86DRI
 #define _XF86DRI_SERVER_
@@ -1742,9 +1743,10 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
 	if (output->crtc == crtc) {
-	    if (radeon_output->MonType != MT_CRT)
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT |
+						ATOM_DEVICE_DFP_SUPPORT))
 		pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
-	    if (radeon_output->MonType == MT_LCD)
+	    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
 		pll_flags |= (RADEON_PLL_USE_BIOS_DIVS | RADEON_PLL_USE_REF_DIV);
 	}
     }
@@ -1789,7 +1791,7 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
 	if (output->crtc == crtc) {
-	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
+	    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		switch (radeon_crtc->crtc_id) {
 		case 0:
 		    RADEONAdjustCrtcRegistersForTV(pScrn, info->ModeReg, adjusted_mode, output);

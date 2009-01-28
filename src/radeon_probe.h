@@ -52,6 +52,9 @@
 
 extern DriverRec RADEON;
 
+#define RADEON_MAX_CRTC 2
+#define RADEON_MAX_BIOS_CONNECTOR 16
+
 typedef enum
 {
     MT_UNKNOWN = -1,
@@ -89,26 +92,6 @@ typedef enum
 
 typedef enum
 {
-    DAC_NONE    = 0,
-    DAC_PRIMARY = 1,
-    DAC_TVDAC   = 2,
-    DAC_EXT     = 3
-} RADEONDacType;
-
-typedef enum
-{
-    TMDS_NONE    = 0,
-    TMDS_INT     = 1,
-    TMDS_EXT     = 2,
-    TMDS_LVTMA   = 3,
-    TMDS_DDIA    = 4,
-    TMDS_UNIPHY  = 5,
-    TMDS_UNIPHY1 = 6,
-    TMDS_UNIPHY2 = 7
-} RADEONTmdsType;
-
-typedef enum
-{
     DVI_AUTO,
     DVI_DIGITAL,
     DVI_ANALOG
@@ -125,27 +108,6 @@ typedef struct {
     uint32_t freq;
     uint32_t value;
 }RADEONTMDSPll;
-
-typedef enum
-{
-    OUTPUT_NONE,
-    OUTPUT_VGA,
-    OUTPUT_DVI_I,
-    OUTPUT_DVI_D,
-    OUTPUT_DVI_A,
-    OUTPUT_LVDS,
-    OUTPUT_STV,
-    OUTPUT_CTV,
-    OUTPUT_CV,
-    OUTPUT_HDMI,
-    OUTPUT_DP
-} RADEONOutputType;
-
-#define OUTPUT_IS_DVI ((radeon_output->type == OUTPUT_DVI_D || \
-                        radeon_output->type == OUTPUT_DVI_I || \
-                        radeon_output->type == OUTPUT_DVI_A))
-#define OUTPUT_IS_TV ((radeon_output->type == OUTPUT_STV || \
-                       radeon_output->type == OUTPUT_CTV))
 
 /* standards */
 typedef enum
@@ -197,9 +159,68 @@ typedef struct _RADEONCrtcPrivateRec {
     Bool enabled;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
+typedef struct _radeon_encoder {
+    uint16_t encoder_id;
+    int use_count;
+    void *dev_priv;
+} radeon_encoder_rec, *radeon_encoder_ptr;
+
+typedef struct _radeon_tvout {
+    /* TV out */
+    TVStd             default_tvStd;
+    TVStd             tvStd;
+    int               hPos;
+    int               vPos;
+    int               hSize;
+    float             TVRefClk;
+    int               SupportedTVStds;
+    Bool              tv_on;
+} radeon_tvout_rec, *radeon_tvout_ptr;
+
+typedef struct _radeon_native_mode {
+    /* panel stuff */
+    int               PanelXRes;
+    int               PanelYRes;
+    int               HOverPlus;
+    int               HSyncWidth;
+    int               HBlank;
+    int               VOverPlus;
+    int               VSyncWidth;
+    int               VBlank;
+    int               Flags;
+    int               DotClock;
+} radeon_native_mode_rec, *radeon_native_mode_ptr;
+
+typedef struct _radeon_tvdac {
+    // tv dac
+    uint32_t          ps2_tvdac_adj;
+    uint32_t          pal_tvdac_adj;
+    uint32_t          ntsc_tvdac_adj;
+} radeon_tvdac_rec, *radeon_tvdac_ptr;
+
+typedef struct _radeon_tmds {
+    // tmds
+    RADEONTMDSPll     tmds_pll[4];
+} radeon_tmds_rec, *radeon_tmds_ptr;
+
+typedef struct _radeon_lvds {
+    // panel mode
+    radeon_native_mode_rec native_mode;
+    // lvds
+    int               PanelPwrDly;
+    int               lvds_misc;
+    int               lvds_ss_id;
+} radeon_lvds_rec, *radeon_lvds_ptr;
+
+typedef struct _radeon_dvo {
+    /* dvo */
+    I2CDevPtr         DVOChip;
+    RADEONI2CBusRec   dvo_i2c;
+    int               dvo_i2c_slave_addr;
+    Bool              dvo_duallink;
+} radeon_dvo_rec, *radeon_dvo_ptr;
+
 typedef struct {
-    RADEONDacType DACType;
-    RADEONTmdsType TMDSType;
     RADEONConnectorType ConnectorType;
     Bool valid;
     int output_id;
@@ -210,66 +231,46 @@ typedef struct {
     Bool shared_ddc;
     int i2c_line_mux;
     Bool load_detection;
+    Bool linkb;
+    uint16_t connector_object;
 } RADEONBIOSConnector;
 
 typedef struct _RADEONOutputPrivateRec {
-    int num;
-    RADEONOutputType type;
-    void *dev_priv;
-    uint32_t ddc_line;
-    RADEONDacType DACType;
-    RADEONDviType DVIType;
-    RADEONTmdsType TMDSType;
+    uint16_t connector_id;
+    uint32_t devices;
+    uint32_t active_device;
+    Bool enabled;
+
+    int  load_detection;
+
+    // DVI/HDMI
+    Bool coherent_mode;
+    Bool linkb;
+
     RADEONConnectorType ConnectorType;
+    RADEONDviType DVIType;
     RADEONMonitorType MonType;
-    int crtc_num;
-    int DDCReg;
+
+    // DDC info
     I2CBusPtr         pI2CBus;
     RADEONI2CBusRec   ddc_i2c;
-    uint32_t          ps2_tvdac_adj;
-    uint32_t          pal_tvdac_adj;
-    uint32_t          ntsc_tvdac_adj;
-    /* panel stuff */
-    int               PanelXRes;
-    int               PanelYRes;
-    int               HOverPlus;
-    int               HSyncWidth;
-    int               HBlank;
-    int               VOverPlus;
-    int               VSyncWidth;
-    int               VBlank;
-    int               Flags;            /* Saved copy of mode flags          */
-    int               DotClock;
-    int               PanelPwrDly;
-    int               lvds_misc;
-    int               lvds_ss_id;
-    RADEONTMDSPll     tmds_pll[4];
-    RADEONRMXType     rmx_type;
-    /* dvo */
-    I2CDevPtr         DVOChip;
-    RADEONI2CBusRec   dvo_i2c;
-    int               dvo_i2c_slave_addr;
-    Bool              dvo_duallink;
-    /* TV out */
-    TVStd             default_tvStd;
-    TVStd             tvStd;
-    int               hPos;
-    int               vPos;
-    int               hSize;
-    float             TVRefClk;
-    int               SupportedTVStds;
-    Bool              tv_on;
-    int               load_detection;
-    /* dig block */
-    int transmitter_config;
-    Bool coherent_mode;
-    int igp_lane_info;
-
-    char              *name;
-    int               output_id;
-    int               devices;
-    Bool enabled;
     Bool shared_ddc;
+    // router info
+    // HDP info
+
+    // panel mode
+    radeon_native_mode_rec native_mode;
+
+    // RMX
+    RADEONRMXType     rmx_type;
+    int               Flags;
+
+    //tvout - move to encoder
+    radeon_tvout_rec tvout;
+
+    /* dce 3.x dig block */
+    int transmitter_config;
+    int igp_lane_info;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {
@@ -572,9 +573,6 @@ typedef struct {
     uint16_t          v_code_timing[MAX_V_CODE_TIMING_LEN];
 
 } RADEONSaveRec, *RADEONSavePtr;
-
-#define RADEON_MAX_CRTC 2
-#define RADEON_MAX_BIOS_CONNECTOR 16
 
 typedef struct
 {

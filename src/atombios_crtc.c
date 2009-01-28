@@ -47,6 +47,9 @@
 #include "sarea.h"
 #endif
 
+extern int
+atombios_get_encoder_mode(xf86OutputPtr output);
+
 AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock)
 {
@@ -215,6 +218,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output = NULL;
+    radeon_encoder_ptr radeon_encoder = NULL;
 
     void *ptr;
     AtomBiosArgRec data;
@@ -261,12 +265,18 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	output = xf86_config->output[i];
 	if (output->crtc == crtc) {
 	    radeon_output = output->driver_private;
+	    radeon_encoder = radeon_get_encoder(output);
 	    break;
 	}
     }
 
     if (radeon_output == NULL) {
 	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No output assigned to crtc!\n");
+	return;
+    }
+
+    if (radeon_encoder == NULL) {
+	xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR, "No encoder assigned to output!\n");
 	return;
     }
 
@@ -296,41 +306,8 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
 	    spc3_ptr->ucPostDiv = post_div;
 	    spc3_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc3_ptr->ucMiscInfo = (radeon_crtc->crtc_id << 2);
-
-	    if (radeon_output->MonType == MT_CRT) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_CRT;
-	    } else if (radeon_output->MonType == MT_DFP) {
-		if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_UNIPHY;
-		else if (radeon_output->devices & ATOM_DEVICE_DFP2_SUPPORT)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1;
-		else if (radeon_output->devices & ATOM_DEVICE_DFP3_SUPPORT)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA;
-		if (OUTPUT_IS_DVI)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_DVI;
-		else if (radeon_output->type == OUTPUT_HDMI)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_HDMI;
-		else if (radeon_output->type == OUTPUT_DP)
-		    spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_DP;
-	    } else if (radeon_output->MonType == MT_LCD) {
-		if (radeon_output->devices & ATOM_DEVICE_LCD1_SUPPORT)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA;
-		spc3_ptr->ucEncoderMode = ATOM_ENCODER_MODE_LVDS;
-	    } else if (OUTPUT_IS_TV) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-	    } else if (radeon_output->MonType == MT_CV) {
-		if (radeon_output->DACType == DAC_PRIMARY)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1;
-		else if (radeon_output->DACType == DAC_TVDAC)
-		    spc3_ptr->ucTransmitterId = ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2;
-	    }
+	    spc3_ptr->ucTransmitterId = radeon_encoder->encoder_id;
+	    spc3_ptr->ucEncoderMode = atombios_get_encoder_mode(output);
 
 	    ptr = &spc_param;
 	    break;
@@ -349,11 +326,11 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     data.exec.pspace = ptr;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-	ErrorF("Set CRTC PLL success\n");
+	ErrorF("Set CRTC %d PLL success\n", radeon_crtc->crtc_id);
 	return;
     }
 
-    ErrorF("Set CRTC PLL failed\n");
+    ErrorF("Set CRTC %d PLL failed\n", radeon_crtc->crtc_id);
     return;
 }
 
@@ -384,12 +361,13 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     for (i = 0; i < xf86_config->num_output; i++) {
 	xf86OutputPtr output = xf86_config->output[i];
 	RADEONOutputPrivatePtr radeon_output = output->driver_private;
+	radeon_tvout_ptr tvout = &radeon_output->tvout;
 
 	if (output->crtc == crtc) {
 	    if (radeon_output->MonType == MT_STV || radeon_output->MonType == MT_CTV) {
-		if (radeon_output->tvStd == TV_STD_NTSC ||
-		    radeon_output->tvStd == TV_STD_NTSC_J ||
-		    radeon_output->tvStd == TV_STD_PAL_M)
+		if (tvout->tvStd == TV_STD_NTSC ||
+		    tvout->tvStd == TV_STD_NTSC_J ||
+		    tvout->tvStd == TV_STD_PAL_M)
 		    need_tv_timings = 1;
 		else
 		    need_tv_timings = 2;

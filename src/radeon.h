@@ -793,18 +793,16 @@ typedef struct {
     DisplayModePtr currentMode, savedCurrentMode;
 
     /* special handlings for DELL triple-head server */
-    Bool              IsDellServer; 
+    Bool              IsDellServer;
 
     Bool              VGAAccess;
 
     int               MaxSurfaceWidth;
     int               MaxLines;
 
-    uint32_t          tv_dac_adj;
-    uint32_t          tv_dac_enable_mask;
-
     Bool want_vblank_interrupts;
     RADEONBIOSConnector BiosConnector[RADEON_MAX_BIOS_CONNECTOR];
+    radeon_encoder_ptr encoders[RADEON_MAX_BIOS_CONNECTOR];
     RADEONBIOSInitTable BiosTable;
 
     /* save crtc state for console restore */
@@ -812,7 +810,6 @@ typedef struct {
     Bool              crtc2_on;
 
     Bool              InternalTVOut;
-    int               tvdac_use_count;
 
 #if defined(__powerpc__)
     RADEONMacModel    MacModel;
@@ -822,14 +819,6 @@ typedef struct {
     atomBiosHandlePtr atomBIOS;
     unsigned long FbFreeStart, FbFreeSize;
     unsigned char*      BIOSCopy;
-
-    /* output enable masks for outputs shared across connectors */
-    int output_crt1;
-    int output_crt2;
-    int output_dfp1;
-    int output_dfp2;
-    int output_lcd1;
-    int output_tv1;
 
     Rotation rotation;
     void (*PointerMoved)(int, int, int);
@@ -877,8 +866,7 @@ extern void RADEONSavePLLRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONSavePLL2Registers(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
 /* legacy_output.c */
-extern RADEONMonitorType legacy_dac_detect(ScrnInfoPtr pScrn,
-					   xf86OutputPtr output);
+extern RADEONMonitorType legacy_dac_detect(xf86OutputPtr output);
 extern void legacy_output_dpms(xf86OutputPtr output, int mode);
 extern void legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 				   DisplayModePtr adjusted_mode);
@@ -892,6 +880,12 @@ extern void RADEONRestoreLVDSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 extern void RADEONRestoreRMXRegisters(ScrnInfoPtr pScrn, RADEONSavePtr restore);
 extern void RADEONSaveDACRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 extern void RADEONSaveFPRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
+extern void RADEONGetTVDacAdjInfo(ScrnInfoPtr pScrn, radeon_tvdac_ptr tvdac);
+extern void RADEONGetTMDSInfoFromTable(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
+extern void RADEONGetTMDSInfo(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
+extern void RADEONGetExtTMDSInfo(ScrnInfoPtr pScrn, radeon_dvo_ptr dvo);
+extern void RADEONGetLVDSInfo(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds);
 
 /* radeon_accel.c */
 extern Bool RADEONAccelInit(ScreenPtr pScreen);
@@ -935,12 +929,12 @@ extern Bool RADEONSetupMemXAA(int scrnIndex, ScreenPtr pScreen);
 extern Bool RADEONGetBIOSInfo(ScrnInfoPtr pScrn, xf86Int10InfoPtr pInt10);
 extern Bool RADEONGetClockInfoFromBIOS(ScrnInfoPtr pScrn);
 extern Bool RADEONGetConnectorInfoFromBIOS(ScrnInfoPtr pScrn);
-extern Bool RADEONGetDAC2InfoFromBIOS(xf86OutputPtr output);
-extern Bool RADEONGetExtTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetDAC2InfoFromBIOS(ScrnInfoPtr pScrn, radeon_tvdac_ptr tvdac);
+extern Bool RADEONGetExtTMDSInfoFromBIOS (ScrnInfoPtr pScrn, radeon_dvo_ptr dvo);
 extern xf86MonPtr RADEONGetHardCodedEDIDFromBIOS(xf86OutputPtr output);
 extern Bool RADEONGetBIOSInitTableOffsets(ScrnInfoPtr pScrn);
-extern Bool RADEONGetLVDSInfoFromBIOS(xf86OutputPtr output);
-extern Bool RADEONGetTMDSInfoFromBIOS(xf86OutputPtr output);
+extern Bool RADEONGetLVDSInfoFromBIOS(ScrnInfoPtr pScrn, radeon_lvds_ptr lvds);
+extern Bool RADEONGetTMDSInfoFromBIOS(ScrnInfoPtr pScrn, radeon_tmds_ptr tmds);
 extern Bool RADEONGetTVInfoFromBIOS(xf86OutputPtr output);
 extern Bool RADEONInitExtTMDSInfoFromBIOS (xf86OutputPtr output);
 extern Bool RADEONPostCardFromBIOSTables(ScrnInfoPtr pScrn);

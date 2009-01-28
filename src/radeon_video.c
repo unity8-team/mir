@@ -2559,7 +2559,7 @@ RADEONDisplayVideo(
 	    radeon_output = output->driver_private;
 	    if (radeon_output->Flags & RADEON_USE_RMX)
 		v_inc = ((src_h * mode->CrtcVDisplay /
-			  radeon_output->PanelYRes) << v_inc_shift) / drw_h;
+			  radeon_output->native_mode.PanelYRes) << v_inc_shift) / drw_h;
 	    break;
 	}
     }
