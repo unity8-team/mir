@@ -1330,6 +1330,7 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	if (!pNv->NoAccel && NVPreInitDRI(pScrn) == FALSE) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DRI pre-initialisation failed.  Setting NoAccel\n");
+		pNv->ShadowFB = TRUE;
 		pNv->NoAccel = TRUE;
 	}
 
@@ -1523,13 +1524,10 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86LoaderReqSymLists(ramdacSymbols, NULL);
 	}
 
-	/* Load shadowfb if needed */
-	if (pNv->ShadowFB) {
-		if (!xf86LoadSubModule(pScrn, "shadowfb")) {
-			NVPreInitFail("\n");
-		}
-		xf86LoaderReqSymLists(shadowSymbols, NULL);
-	}
+	/* Load shadowfb */
+	if (!xf86LoadSubModule(pScrn, "shadowfb"))
+		NVPreInitFail("\n");
+	xf86LoaderReqSymLists(shadowSymbols, NULL);
 
 	return TRUE;
 }
@@ -2049,6 +2047,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->NoAccel && !NVDRIScreenInit(pScrn)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DRI initialisation failed.  Setting NoAccel\n");
+		pNv->ShadowFB = TRUE;
 		pNv->NoAccel = TRUE;
 	}
 
