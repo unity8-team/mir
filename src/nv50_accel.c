@@ -83,11 +83,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, 0x13bc, 1);
 	OUT_RING  (chan, 0x54);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VP_ADDRESS_HIGH, 2);
-	OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET,
-			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET,
-			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET,
 			 NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
@@ -133,11 +128,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, NV50TCL_VP_START_ID, 1);
 	OUT_RING  (chan, 0);
 
-	BEGIN_RING(chan, tesla, NV50TCL_FP_ADDRESS_HIGH, 2);
-	OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET,
-			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET,
-			 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
 	OUT_RELOCh(chan, pNv->tesla_scratch,
 			 PFP_OFFSET + PFP_S, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
@@ -323,24 +313,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, 0x1988, 2);
 	OUT_RING  (chan, 0x08070407);
 	OUT_RING  (chan, 0x00000008);
-
-	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (chan, 0x00000800);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
-
-	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (chan, 0x00000000);
-	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
-	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, NOUVEAU_BO_VRAM);
-	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 
 	BEGIN_RING(chan, tesla, NV50TCL_VIEWPORT_HORIZ, 2);
 	OUT_RING  (chan, 8192 << NV50TCL_VIEWPORT_HORIZ_W_SHIFT);
