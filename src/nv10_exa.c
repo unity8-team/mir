@@ -275,7 +275,7 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 }
 
 
-Bool NV10CheckComposite(int	op,
+Bool NV10EXACheckComposite(int	op,
 			     PicturePtr pSrcPicture,
 			     PicturePtr pMaskPicture,
 			     PicturePtr pDstPicture)
@@ -606,22 +606,21 @@ NV10StateCompositeReemit(struct nouveau_channel *chan)
 	ScrnInfoPtr pScrn = chan->user_private;
 	NVPtr pNv = NVPTR(pScrn);
 
-	NV10PrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
-			     pNv->pspix, pNv->pmpix, pNv->pdpix);
+	NV10EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
+				pNv->pspix, pNv->pmpix, pNv->pdpix);
 }
 
-Bool NV10PrepareComposite(int	  op,
-			       PicturePtr pSrcPicture,
-			       PicturePtr pMaskPicture,
-			       PicturePtr pDstPicture,
-			       PixmapPtr  pSrc,
-			       PixmapPtr  pMask,
-			       PixmapPtr  pDst)
+Bool NV10EXAPrepareComposite(int op,
+			     PicturePtr pSrcPicture,
+			     PicturePtr pMaskPicture,
+			     PicturePtr pDstPicture,
+			     PixmapPtr  pSrc,
+			     PixmapPtr  pMask,
+			     PixmapPtr  pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *celcius = pNv->Nv3D;
 
 	WAIT_RING(chan, 128);
 
@@ -720,7 +719,7 @@ NV10EXATransformCoord(PictTransformPtr t, int x, int y, float sx, float sy,
 }
 
 
-void NV10Composite(PixmapPtr pDst,
+void NV10EXAComposite(PixmapPtr pDst,
 			int	  srcX,
 			int	  srcY,
 			int	  maskX,
@@ -884,7 +883,7 @@ void NV10Composite(PixmapPtr pDst,
 	OUT_RING  (chan, NV10TCL_VERTEX_BEGIN_END_STOP);
 }
 
-void NV10DoneComposite (PixmapPtr pDst)
+void NV10EXADoneComposite (PixmapPtr pDst)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);

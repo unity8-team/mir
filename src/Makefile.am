@@ -61,6 +61,7 @@ nouveau_drv_la_SOURCES = \
 			 nv_crtc.c \
 			 nv_output.c \
 			 nv_i2c.c \
+			 nv04_exa.c \
 			 nv04_xv_ovl.c \
 			 nv04_xv_blit.c \
 			 nv10_exa.c \

@@ -57,28 +57,16 @@ nv50_xv_check_image_put(PixmapPtr ppix)
 	return TRUE;
 }
 
-int
-nv50_xv_image_put(ScrnInfoPtr pScrn,
-		  struct nouveau_bo *src, int src_offset, int src_offset2,
-		  int id, int src_pitch, BoxPtr dstBox,
-		  int x1, int y1, int x2, int y2,
-		  uint16_t width, uint16_t height,
-		  uint16_t src_w, uint16_t src_h,
-		  uint16_t drw_w, uint16_t drw_h,
-		  RegionPtr clipBoxes, PixmapPtr ppix,
-		  NVPortPrivPtr pPriv)
+static void
+nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
+		   int packed_y, int uv, int src_w, int src_h)
 {
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *tesla = pNv->Nv3D;
 	const unsigned shd_flags = NOUVEAU_BO_RD | NOUVEAU_BO_VRAM;
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
-	float X1, X2, Y1, Y2;
-	BoxPtr pbox;
-	int nbox;
-
-	if (!nv50_xv_check_image_put(ppix))
-		return BadMatch;
 
 	WAIT_RING (chan, 256);
 	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
@@ -117,58 +105,50 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8);
-	OUT_RELOCl(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C1 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_C0 | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	OUT_RELOCl(chan, src,
-			 src_offset2, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w >> 1);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | (src_h >> 1));
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src,
-			 src_offset2, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCh(chan, src, uv, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	} else {
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C0 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_ZERO | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8);
-	OUT_RELOCl(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, src_w);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, NV50TIC_0_0_MAPA_C3 | NV50TIC_0_0_TYPEA_UNORM |
 			 NV50TIC_0_0_MAPR_C1 | NV50TIC_0_0_TYPER_UNORM |
 			 NV50TIC_0_0_MAPG_ZERO | NV50TIC_0_0_TYPEG_UNORM |
 			 NV50TIC_0_0_MAPB_ZERO | NV50TIC_0_0_TYPEB_UNORM |
 			 NV50TIC_0_0_FMT_8_8_8_8);
-	OUT_RELOCl(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, (src_w >> 1));
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | src_h);
 	OUT_RING  (chan, 0x03000000);
-	OUT_RELOCh(chan, src,
-			 src_offset, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCh(chan, src, packed_y, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	}
 
 	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
@@ -224,14 +204,35 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 	BEGIN_RING(chan, tesla, 0x1458, 1);
 	OUT_RING  (chan, 0x203);
 
+}
+
+int
+nv50_xv_image_put(ScrnInfoPtr pScrn,
+		  struct nouveau_bo *src, int packed_y, int uv,
+		  int id, int src_pitch, BoxPtr dstBox,
+		  int x1, int y1, int x2, int y2,
+		  uint16_t width, uint16_t height,
+		  uint16_t src_w, uint16_t src_h,
+		  uint16_t drw_w, uint16_t drw_h,
+		  RegionPtr clipBoxes, PixmapPtr ppix,
+		  NVPortPrivPtr pPriv)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_channel *chan = pNv->chan;
+	struct nouveau_grobj *tesla = pNv->Nv3D;
+	float X1, X2, Y1, Y2;
+	BoxPtr pbox;
+	int nbox;
+
+	if (!nv50_xv_check_image_put(ppix))
+		return BadMatch;
+	nv50_xv_state_emit(ppix, id, src, packed_y, uv, src_w, src_h);
+
 	/* These are fixed point values in the 16.16 format. */
 	X1 = (float)(x1>>16)+(float)(x1&0xFFFF)/(float)0x10000;
 	Y1 = (float)(y1>>16)+(float)(y1&0xFFFF)/(float)0x10000;
 	X2 = (float)(x2>>16)+(float)(x2&0xFFFF)/(float)0x10000;
 	Y2 = (float)(y2>>16)+(float)(y2&0xFFFF)/(float)0x10000;
-
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
-	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
 
 	pbox = REGION_RECTS(clipBoxes);
 	nbox = REGION_NUM_RECTS(clipBoxes);
@@ -250,19 +251,24 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		ty1 = ty1 / src_h;
 		ty2 = ty2 / src_h;
 
+		if (AVAIL_RING(chan) < 64) {
+			nv50_xv_state_emit(ppix, id, src, packed_y, uv,
+					   src_w, src_h);
+		}
+
+		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
+		OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
 		VTX2s(pNv, tx1, ty1, tx1, ty1, sx1, sy1);
 		VTX2s(pNv, tx2, ty1, tx2, ty1, sx2, sy1);
 		VTX2s(pNv, tx2, ty2, tx2, ty2, sx2, sy2);
 		VTX2s(pNv, tx1, ty2, tx1, ty2, sx1, sy2);
+		BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
+		OUT_RING  (chan, 0);
 
 		pbox++;
 	}
 
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
-	OUT_RING  (chan, 0);
-
 	FIRE_RING (chan);
-
 	return Success;
 }
 

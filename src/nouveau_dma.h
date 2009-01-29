@@ -166,5 +166,6 @@ nouveau_dma_bind(struct nouveau_channel *userchan, struct nouveau_grobj *grobj,
 			(ch)->flush_notify((ch));        \
 	}                                                \
 } while(0)
+#define AVAIL_RING(ch) (((struct nouveau_channel_priv *)(ch))->dma.free)
 		
 #endif
