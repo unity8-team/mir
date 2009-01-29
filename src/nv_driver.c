@@ -1656,7 +1656,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
-#if !NOUVEAU_EXA_PIXMAPS
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
 		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for framebuffer!\n");
@@ -1668,7 +1667,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 #ifdef XF86DRM_MODE
 	if (pNv->kms_enable)
 		drmmode_set_fb(pScrn, pNv->drmmode, pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth*(pScrn->bitsPerPixel >> 3), pNv->FB);
-#endif
 #endif
 
 	if (pNv->AGPSize) {
@@ -2075,15 +2073,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		if (!NVAccelCommonInit(pScrn))
 			return FALSE;
 	}
-
-#if NOUVEAU_EXA_PIXMAPS
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			0, NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY, 64) *
-			(pScrn->bitsPerPixel >> 3), &pNv->FB)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for screen pixmap.\n");
-		return FALSE;
-	}
-#endif
 
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);

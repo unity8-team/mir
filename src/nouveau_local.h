@@ -29,14 +29,6 @@
 #define NOUVEAU_PRIVATE _X_HIDDEN
 #define NOUVEAU_PUBLIC _X_EXPORT
 
-#if EXA_VERSION_MINOR >= 4
-#define NOUVEAU_EXA_PIXMAPS 0
-struct nouveau_pixmap {
-	struct nouveau_bo *bo;
-	int mapped;
-};
-#endif
-
 /* Debug output */
 #define NOUVEAU_MSG(fmt,args...) ErrorF(fmt, ##args)
 #define NOUVEAU_ERR(fmt,args...) \
@@ -120,28 +112,6 @@ struct nouveau_pixmap {
 
 
 /* Alternate versions of OUT_RELOCx above, takes pixmaps instead of BOs */
-#if NOUVEAU_EXA_PIXMAPS
-#define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
-	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
-	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCd((chan), pmo, (data), (flags), (vor), (tor));                \
-} while(0)
-#define OUT_PIXMAPo(chan,pm,flags) do {                                        \
-	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
-	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCo((chan), pmo, (flags));                                      \
-} while(0)
-#define OUT_PIXMAPl(chan,pm,delta,flags) do {                                  \
-	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
-	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCl((chan), pmo, (delta), (flags));                             \
-} while(0)
-#define OUT_PIXMAPh(chan,pm,delta,flags) do {                                  \
-	struct nouveau_pixmap *nvpix = exaGetPixmapDriverPrivate((pm));        \
-	struct nouveau_bo *pmo = nvpix->bo;                                    \
-	OUT_RELOCh((chan), pmo, (delta), (flags));                             \
-} while(0)
-#else
 #define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
 	OUT_RELOCd((chan), pNv->FB, (data), (flags), (vor), (tor));            \
 } while(0)
@@ -154,6 +124,5 @@ struct nouveau_pixmap {
 #define OUT_PIXMAPh(chan,pm,delta,flags) do {                                  \
 	OUT_RELOCh((chan), pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));\
 } while(0)
-#endif
 
 #endif

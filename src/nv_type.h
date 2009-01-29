@@ -21,7 +21,6 @@
 #include "nv_pcicompat.h"
 
 #include "nouveau_bios.h"
-#include "nouveau_local.h" /* needed for NOUVEAU_EXA_PIXMAPS */
 
 #include "nouveau_crtc.h"
 #include "nouveau_connector.h"
@@ -194,11 +193,7 @@ typedef struct _riva_hw_state
 struct nouveau_crtc {
 	int head;
 	uint8_t last_dpms;
-#if NOUVEAU_EXA_PIXMAPS
-	struct nouveau_bo *shadow;
-#else
 	ExaOffscreenArea *shadow;
-#endif /* NOUVEAU_EXA_PIXMAPS */
 	int fp_users;
 };
 

@@ -388,43 +388,22 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 static inline void *
 NVExaPixmapMap(PixmapPtr pPix)
 {
-	void *map;
-#if NOUVEAU_EXA_PIXMAPS
-	struct nouveau_pixmap *nvpix;
-
-	nvpix = exaGetPixmapDriverPrivate(pPix);
-	if (!nvpix || !nvpix->bo)
-		return NULL;
-
-	nouveau_bo_map(nvpix->bo, NOUVEAU_BO_RDWR);
-	map = nvpix->bo->map;
-#else
 	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+	void *map;
 
 	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 	map = pNv->FB->map + exaGetPixmapOffset(pPix);
-#endif /* NOUVEAU_EXA_PIXMAPS */
 	return map;
 }
 
 static void
 NVExaPixmapUnmap(PixmapPtr pPix)
 {
-#if NOUVEAU_EXA_PIXMAPS
-	struct nouveau_pixmap *nvpix;
-
-	nvpix = exaGetPixmapDriverPrivate(pPix);
-	if (!nvpix || !nvpix->bo)
-		return NULL;
-
-	nouveau_bo_unmap(nvpix->bo);
-#else
 	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
 	nouveau_bo_unmap(pNv->FB);
-#endif /* NOUVEAU_EXA_PIXMAPS */
 }
 
 static Bool NVDownloadFromScreen(PixmapPtr pSrc,
@@ -726,128 +705,6 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 	return FALSE;
 }
 
-#if NOUVEAU_EXA_PIXMAPS
-static Bool
-NVExaPrepareAccess(PixmapPtr pPix, int index)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-	(void)pNv;
-
-	nvpix = exaGetPixmapDriverPrivate(pPix);
-	if (!nvpix || !nvpix->bo)
-		return FALSE;
-
-	/*XXX: ho hum.. sync if needed */
-
-	if (nvpix->mapped)
-		return TRUE;
-
-	if (nouveau_bo_map(nvpix->bo, NOUVEAU_BO_RDWR))
-		return FALSE;
-	pPix->devPrivate.ptr = nvpix->bo->map;
-	nvpix->mapped = TRUE;
-	return TRUE;
-}
-
-static void
-NVExaFinishAccess(PixmapPtr pPix, int index)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-	(void)pNv;
-
-	nvpix = exaGetPixmapDriverPrivate(pPix);
-	if (!nvpix || !nvpix->bo || !nvpix->mapped)
-		return;
-
-	nouveau_bo_unmap(nvpix->bo);
-	pPix->devPrivate.ptr = NULL;
-	nvpix->mapped = FALSE;
-}
-
-static Bool
-NVExaPixmapIsOffscreen(PixmapPtr pPix)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-	(void)pNv;
-
-	nvpix = exaGetPixmapDriverPrivate(pPix);
-	if (!nvpix || !nvpix->bo)
-		return FALSE;
-
-	return TRUE;
-}
-
-static void *
-NVExaCreatePixmap(ScreenPtr pScreen, int size, int align)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-
-	nvpix = xcalloc(1, sizeof(struct nouveau_pixmap));
-	if (!nvpix)
-		return NULL;
-
-	if (size) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM, 0, size,
-				   &nvpix->bo)) {
-			xfree(nvpix);
-			return NULL;
-		}
-	}
-
-	return nvpix;
-}
-
-static void
-NVExaDestroyPixmap(ScreenPtr pScreen, void *driverPriv)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix = driverPriv;
-
-	if (!driverPriv)
-		return;
-
-	/*XXX: only if pending relocs reference this buffer..*/
-	FIRE_RING (chan);
-
-	nouveau_bo_ref(NULL, &nvpix->bo);
-	xfree(nvpix);
-}
-
-static Bool
-NVExaModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
-			int bitsPerPixel, int devKind, pointer pPixData)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pixmap *nvpix;
-
-	if (pPixData == pNv->FB->map) {
-		nvpix = exaGetPixmapDriverPrivate(pPixmap);
-		if (!nvpix)
-			return FALSE;
-
-		if (nouveau_bo_ref(pNv->dev, pNv->FB->handle, &nvpix->bo))
-			return FALSE;
-
-		miModifyPixmapHeader(pPixmap, width, height, depth,
-				     bitsPerPixel, devKind, NULL);
-		return TRUE;
-	}
-
-	return FALSE;
-}
-#endif
-
-#if !NOUVEAU_EXA_PIXMAPS
 static Bool
 nouveau_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 {
@@ -867,27 +724,15 @@ nouveau_exa_pixmap_is_offscreen(PixmapPtr pPixmap)
 	return FALSE;
 }
 
-#endif /* !NOUVEAU_EXA_PIXMAPS */
-
 Bool
 NVExaPixmapIsOnscreen(PixmapPtr pPixmap)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
-
-#if NOUVEAU_EXA_PIXMAPS
-	struct nouveau_pixmap *nvpix;
-	nvpix = exaGetPixmapDriverPrivate(pPixmap);
-
-	if (nvpix && nvpix->bo == pNv->FB)
-		return TRUE;
-
-#else
 	unsigned long offset = exaGetPixmapOffset(pPixmap);
 
 	if (offset < pNv->EXADriverPtr->offScreenBase)
 		return TRUE;
-#endif /* NOUVEAU_EXA_PIXMAPS */
 
 	return FALSE;
 }
@@ -923,25 +768,13 @@ NVExaInit(ScreenPtr pScreen)
 	}
 	pNv->EXADriverPtr->pixmapPitchAlign = 64;
 
-#if NOUVEAU_EXA_PIXMAPS
-	if (NOUVEAU_EXA_PIXMAPS) {
-		pNv->EXADriverPtr->flags |= EXA_HANDLES_PIXMAPS;
-		pNv->EXADriverPtr->PrepareAccess = NVExaPrepareAccess;
-		pNv->EXADriverPtr->FinishAccess = NVExaFinishAccess;
-		pNv->EXADriverPtr->PixmapIsOffscreen = NVExaPixmapIsOffscreen;
-		pNv->EXADriverPtr->CreatePixmap = NVExaCreatePixmap;
-		pNv->EXADriverPtr->DestroyPixmap = NVExaDestroyPixmap;
-		pNv->EXADriverPtr->ModifyPixmapHeader = NVExaModifyPixmapHeader;
-	} else
-#endif
-	{
-		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
-		nouveau_bo_unmap(pNv->FB);
-		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) 
-			* (pScrn->bitsPerPixel / 8);
-		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 
-	}
+	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
+	pNv->EXADriverPtr->memoryBase = pNv->FB->map;
+	nouveau_bo_unmap(pNv->FB);
+	pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+					   NOUVEAU_ALIGN(pScrn->virtualY, 64) *
+					   (pScrn->bitsPerPixel / 8);
+	pNv->EXADriverPtr->memorySize = pNv->FB->size; 
 
 	if (pNv->Architecture >= NV_ARCH_50) {
 		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
