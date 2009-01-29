@@ -25,28 +25,8 @@
 
 #include "nv_dma.h"
 #include "nv_local.h"
-
+#include "nv_rop.h"
 #include <sys/time.h>
-
-const int NVCopyROP[16] =
-{
-   0x00,            /* GXclear */
-   0x88,            /* GXand */
-   0x44,            /* GXandReverse */
-   0xCC,            /* GXcopy */
-   0x22,            /* GXandInverted */
-   0xAA,            /* GXnoop */
-   0x66,            /* GXxor */
-   0xEE,            /* GXor */
-   0x11,            /* GXnor */
-   0x99,            /* GXequiv */
-   0x55,            /* GXinvert*/
-   0xDD,            /* GXorReverse */
-   0x33,            /* GXcopyInverted */
-   0xBB,            /* GXorInverted */
-   0x77,            /* GXnand */
-   0xFF             /* GXset */
-};
 
 static void 
 NVSetPattern(ScrnInfoPtr pScrn, CARD32 clr0, CARD32 clr1,
@@ -68,22 +48,21 @@ NVSetROP(ScrnInfoPtr pScrn, CARD32 alu, CARD32 planemask)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *objrop = pNv->NvRop;
-	int rop = NVCopyROP[alu] & 0xf0;
-
+	struct nouveau_grobj *rop = pNv->NvRop;
+	
 	if (planemask != ~0) {
 		NVSetPattern(pScrn, 0, planemask, ~0, ~0);
 		if (pNv->currentRop != (alu + 32)) {
-			BEGIN_RING(chan, objrop, NV03_CONTEXT_ROP_ROP, 1);
-			OUT_RING  (chan, rop | 0x0a);
+			BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_ROP, 1);
+			OUT_RING  (chan, NVROP[alu].copy_planemask);
 			pNv->currentRop = alu + 32;
 		}
 	} else
 	if (pNv->currentRop != alu) {
 		if(pNv->currentRop >= 16)
 			NVSetPattern(pScrn, ~0, ~0, ~0, ~0);
-		BEGIN_RING(chan, objrop, NV03_CONTEXT_ROP_ROP, 1);
-		OUT_RING  (chan, rop | (rop >> 4));
+		BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_ROP, 1);
+		OUT_RING  (chan, NVROP[alu].copy);
 		pNv->currentRop = alu;
 	}
 }
