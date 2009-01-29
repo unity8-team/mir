@@ -282,6 +282,7 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 	void *map;
 
+	exaWaitSync(ppix->drawable.pScreen);
 	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 	map = pNv->FB->map + exaGetPixmapOffset(ppix);
 	return map;
@@ -304,6 +305,7 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	int src_pitch, cpp, offset;
 	const char *src;
+	Bool ret;
 
 	src_pitch  = exaGetPixmapPitch(pspix);
 	cpp = pspix->drawable.bitsPerPixel >> 3;
@@ -318,14 +320,9 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	if (!src)
 		return FALSE;
 	src += offset;
-	exaWaitSync(pspix->drawable.pScreen);
-	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp)) {
-		nouveau_exa_pixmap_unmap(pspix);
-		return TRUE;
-	}
+	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
 	nouveau_exa_pixmap_unmap(pspix);
-
-	return FALSE;
+	return ret;
 }
 
 static Bool
@@ -336,6 +333,7 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	int dst_pitch, cpp;
 	char *dst;
+	Bool ret;
 
 	dst_pitch  = exaGetPixmapPitch(pdpix);
 	cpp = pdpix->drawable.bitsPerPixel >> 3;
@@ -369,14 +367,9 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 	if (!dst)
 		return FALSE;
 	dst += (y * dst_pitch) + (x * cpp);
-	exaWaitSync(pdpix->drawable.pScreen);
-	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp)) {
-		nouveau_exa_pixmap_unmap(pdpix);
-		return TRUE;
-	}
+	ret = NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp);
 	nouveau_exa_pixmap_unmap(pdpix);
-
-	return FALSE;
+	return ret;
 }
 
 Bool
