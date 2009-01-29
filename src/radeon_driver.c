@@ -1293,7 +1293,8 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 
     if ((info->ChipFamily != CHIP_FAMILY_RS600) &&
 	(info->ChipFamily != CHIP_FAMILY_RS690) &&
-	(info->ChipFamily != CHIP_FAMILY_RS740)) {
+	(info->ChipFamily != CHIP_FAMILY_RS740) &&
+	(info->ChipFamily != CHIP_FAMILY_RS780)) {
 	if (info->IsIGP)
 	    info->mc_fb_location = INREG(RADEON_NB_TOM);
 	else
