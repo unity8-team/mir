@@ -376,6 +376,16 @@ NV40EXACheckComposite(int op, PicturePtr psPict,
 	return TRUE;
 }
 
+static void
+NV40EXAStateCompositeReemit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV40EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
+				pNv->pspix, pNv->pmpix, pNv->pdpix);
+}
+
 Bool
 NV40EXAPrepareComposite(int op, PicturePtr psPict,
 				PicturePtr pmPict,
@@ -391,6 +401,8 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	nv_pict_op_t *blend;
 	int fpid = NV40EXA_FPID_PASS_COL0;
 	NV40EXA_STATE;
+
+	WAIT_RING(chan, 128);
 
 	blend = NV40_GetPictOpRec(op);
 
@@ -434,9 +446,14 @@ NV40EXAPrepareComposite(int op, PicturePtr psPict,
 	BEGIN_RING(chan, curie, NV40TCL_TEX_CACHE_CTL, 1);
 	OUT_RING  (chan, 1);
 
-	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (chan, NV40TCL_BEGIN_END_TRIANGLES);
-
+	pNv->alu = op;
+	pNv->pspict = psPict;
+	pNv->pmpict = pmPict;
+	pNv->pdpict = pdPict;
+	pNv->pspix = psPix;
+	pNv->pmpix = pmPix;
+	pNv->pdpix = pdPix;
+	chan->flush_notify = NV40EXAStateCompositeReemit;
 	return TRUE;
 }
 
@@ -489,6 +506,8 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	float mX0, mX1, mX2, mY0, mY1, mY2;
 	NV40EXA_STATE;
 
+	WAIT_RING(chan, 64);
+
 	/* We're drawing a triangle, we need to scissor it to a quad. */
 	/* The scissors are here for a good reason, we don't get the full
 	 * image, but just a part.
@@ -497,6 +516,8 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	BEGIN_RING(chan, curie, NV40TCL_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, (width << 16) | dstX);
 	OUT_RING  (chan, (height << 16) | dstY);
+	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (chan, NV40TCL_BEGIN_END_TRIANGLES);
 
 	NV40EXATransformCoord(state->unit[0].transform, srcX, srcY - height,
 			      state->unit[0].width, state->unit[0].height,
@@ -531,6 +552,9 @@ NV40EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX1, sY1, dstX, dstY + height);
 		CV_OUT(sX2, sY2, dstX + 2*width, dstY + height);
 	}
+
+	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
+	OUT_RING  (chan, NV40TCL_BEGIN_END_STOP);
 }
 
 void
@@ -539,10 +563,8 @@ NV40EXADoneComposite(PixmapPtr pdPix)
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *curie = pNv->Nv3D;
 
-	BEGIN_RING(chan, curie, NV40TCL_BEGIN_END, 1);
-	OUT_RING  (chan, NV40TCL_BEGIN_END_STOP);
+	chan->flush_notify = NULL;
 }
 
 #define NV40TCL_CHIPSET_4X_MASK 0x00000baf
