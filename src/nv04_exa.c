@@ -324,6 +324,7 @@ NV04EXAUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	pNv->height_in = pNv->height_out = h;
 	pNv->width_in = iw;
 	pNv->width_out = w;
+	pNv->pdpix = pDst;
 	chan->flush_notify = NV04EXAStateIFCResubmit;
 	NV04EXAStateIFCResubmit(chan);
 
