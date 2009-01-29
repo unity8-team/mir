@@ -915,7 +915,7 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	{
 		PixmapPtr ppix = NVGetDrawablePixmap(pDraw);
 
-		if (!NVExaPixmapIsOnscreen(ppix))
+		if (!nouveau_exa_pixmap_is_onscreen(ppix))
 			*action_flags &= ~USE_OVERLAY;
 	}
 #endif

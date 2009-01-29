@@ -38,7 +38,7 @@ nouveau_drv_la_SOURCES = \
 			 nouveau_bo.c nouveau_bo.h \
 			 nouveau_class.h \
 			 nouveau_local.h \
-			 nouveau_xv.c \
+			 nouveau_exa.c nouveau_xv.c \
 			 nv_accel_common.c \
 			 nv_bios.c \
 			 nv_const.h \
@@ -48,7 +48,6 @@ nouveau_drv_la_SOURCES = \
 			 nv_dma.h \
 			 nv_dri.c \
 			 nv_dri.h \
-			 nv_exa.c \
 			 nv_driver.c \
 			 nv_hw.c \
 			 nv_include.h \

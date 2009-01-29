@@ -269,7 +269,7 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	}
 
 #ifdef COMPOSITE
-	if (!NVExaPixmapIsOnscreen(ppix))
+	if (!nouveau_exa_pixmap_is_onscreen(ppix))
 		redirected = TRUE;
 #endif
 

@@ -56,11 +56,9 @@ void  NVSync(ScrnInfoPtr pScrn);
 Bool  NVInitDma(ScrnInfoPtr pScrn);
 void  NVTakedownDma(ScrnInfoPtr pScrn);
 
-/* in nv_exa.c */
-Bool NVExaInit(ScreenPtr pScreen);
-Bool NVExaPixmapIsOnscreen(PixmapPtr pPixmap);
-Bool NVExaPrepareSolid(PixmapPtr, int, Pixel, Pixel);
-Bool NVExaPrepareCopy(PixmapPtr, PixmapPtr, int, int, int, Pixel);
+/* in nouveau_exa.c */
+Bool nouveau_exa_init(ScreenPtr pScreen);
+Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
 
 /* in nv_hw.c */
 void NVCalcStateExt(ScrnInfoPtr,struct _riva_hw_state *,int,int,int,int,int,int);
@@ -146,13 +144,23 @@ int NVSetBlitPortAttribute(ScrnInfoPtr, Atom, INT32, pointer);
 int NVGetBlitPortAttribute(ScrnInfoPtr, Atom, INT32 *, pointer);
 void NVStopBlitVideo(ScrnInfoPtr, pointer, Bool);
 
+/* in nv04_exa.c */
+Bool NV04EXAPrepareSolid(PixmapPtr, int, Pixel, Pixel);
+void NV04EXASolid(PixmapPtr, int, int, int, int);
+void NV04EXADoneSolid(PixmapPtr);
+Bool NV04EXAPrepareCopy(PixmapPtr, PixmapPtr, int, int, int, Pixel);
+void NV04EXACopy(PixmapPtr, int, int, int, int, int, int);
+void NV04EXADoneCopy(PixmapPtr);
+Bool NV04EXAUploadIFC(ScrnInfoPtr, const char *src, int src_pitch,
+		      PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+
 /* in nv10_exa.c */
 Bool NVAccelInitNV10TCL(ScrnInfoPtr pScrn);
-Bool NV10CheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
-Bool NV10PrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
-				  PixmapPtr, PixmapPtr, PixmapPtr);
-void NV10Composite(PixmapPtr, int, int, int, int, int, int, int, int);
-void NV10DoneComposite(PixmapPtr);
+Bool NV10EXACheckComposite(int, PicturePtr, PicturePtr, PicturePtr);
+Bool NV10EXAPrepareComposite(int, PicturePtr, PicturePtr, PicturePtr,
+			     PixmapPtr, PixmapPtr, PixmapPtr);
+void NV10EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
+void NV10EXADoneComposite(PixmapPtr);
 
 /* in nv10_video_overlay.c */
 void NV10PutOverlayImage(ScrnInfoPtr, struct nouveau_bo *, int, int, int, int,

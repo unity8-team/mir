@@ -269,7 +269,7 @@ NV40PutTextureImage(ScrnInfoPtr pScrn,
 	}
 
 #ifdef COMPOSITE
-	if (!NVExaPixmapIsOnscreen(ppix))
+	if (!nouveau_exa_pixmap_is_onscreen(ppix))
 		redirected = TRUE;
 #endif
 
