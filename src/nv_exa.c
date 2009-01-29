@@ -308,34 +308,11 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned src_pitch = 0, src_offset = 0, linear = 0;
 
-	BEGIN_RING(chan, m2mf, 0x184, 2);
-	OUT_PIXMAPo(chan, pspix,
-		    NOUVEAU_BO_GART | NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
-
 	if (pNv->Architecture < NV_ARCH_50 ||
 	    exaGetPixmapOffset(pspix) < pNv->EXADriverPtr->offScreenBase) {
 		linear     = 1;
 		src_pitch  = exaGetPixmapPitch(pspix);
 		src_offset = (y * src_pitch) + (x * cpp);
-	}
-
-	if (pNv->Architecture >= NV_ARCH_50) {
-		if (linear) {
-			BEGIN_RING(chan, m2mf, 0x0200, 1);
-			OUT_RING  (chan, 1);
-		} else {
-			BEGIN_RING(chan, m2mf, 0x0200, 6);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, pspix->drawable.width * cpp);
-			OUT_RING  (chan, pspix->drawable.height);
-			OUT_RING  (chan, 1);
-			OUT_RING  (chan, 0);
-		}
-
-		BEGIN_RING(chan, m2mf, 0x021c, 1);
-		OUT_RING  (chan, 1);
 	}
 
 	while (h) {
@@ -354,11 +331,29 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		if (line_count > 2047)
 			line_count = 2047;
 
+		WAIT_RING (chan, 32);
+		BEGIN_RING(chan, m2mf, 0x184, 2);
+		OUT_PIXMAPo(chan, pspix,
+			    NOUVEAU_BO_GART | NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+
 		if (pNv->Architecture >= NV_ARCH_50) {
 			if (!linear) {
-				BEGIN_RING(chan, m2mf, 0x0218, 1);
+				BEGIN_RING(chan, m2mf, 0x0200, 7);
+				OUT_RING  (chan, 0);
+				OUT_RING  (chan, 0);
+				OUT_RING  (chan, pspix->drawable.width * cpp);
+				OUT_RING  (chan, pspix->drawable.height);
+				OUT_RING  (chan, 1);
+				OUT_RING  (chan, 0);
 				OUT_RING  (chan, (y << 16) | (x * cpp));
+			} else {
+				BEGIN_RING(chan, m2mf, 0x0200, 1);
+				OUT_RING  (chan, 1);
 			}
+
+			BEGIN_RING(chan, m2mf, 0x021c, 1);
+			OUT_RING  (chan, 1);
 
 			BEGIN_RING(chan, m2mf, 0x238, 2);
 			OUT_PIXMAPh(chan, pspix, src_offset, NOUVEAU_BO_GART |
