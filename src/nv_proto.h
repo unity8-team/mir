@@ -59,6 +59,8 @@ void  NVTakedownDma(ScrnInfoPtr pScrn);
 /* in nv_exa.c */
 Bool NVExaInit(ScreenPtr pScreen);
 Bool NVExaPixmapIsOnscreen(PixmapPtr pPixmap);
+Bool NVExaPrepareSolid(PixmapPtr, int, Pixel, Pixel);
+Bool NVExaPrepareCopy(PixmapPtr, PixmapPtr, int, int, int, Pixel);
 
 /* in nv_hw.c */
 void NVCalcStateExt(ScrnInfoPtr,struct _riva_hw_state *,int,int,int,int,int,int);

@@ -390,6 +390,9 @@ typedef struct _NVRec {
 	Pixel fg_colour;
 	Pixel planemask;
 	int alu;
+	unsigned point_x, point_y;
+	unsigned width_in, width_out;
+	unsigned height_in, height_out;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

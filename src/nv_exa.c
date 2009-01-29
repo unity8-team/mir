@@ -94,10 +94,17 @@ static void NVExaWaitMarker(ScreenPtr pScreen, int marker)
 	NVSync(xf86Screens[pScreen->myNum]);
 }
 
-static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
-			      int   alu,
-			      Pixel planemask,
-			      Pixel fg)
+static void
+NVExaStateSolidResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NVExaPrepareSolid(pNv->pdpix, pNv->alu, pNv->planemask, pNv->fg_colour);
+}
+
+Bool
+NVExaPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -105,6 +112,8 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *rect = pNv->NvRectangle;
 	unsigned int fmt, pitch, color;
+
+	WAIT_RING(chan, 64);
 
 	planemask |= ~0 << pPixmap->drawable.bitsPerPixel;
 	if (planemask != ~0 || alu != GXcopy) {
@@ -149,6 +158,11 @@ static Bool NVExaPrepareSolid(PixmapPtr pPixmap,
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR1_A, 1);
 	OUT_RING (chan, color);
 
+	pNv->pdpix = pPixmap;
+	pNv->alu = alu;
+	pNv->planemask = planemask;
+	pNv->fg_colour = fg;
+	chan->flush_notify = NVExaStateSolidResubmit;
 	return TRUE;
 }
 
@@ -161,6 +175,7 @@ static void NVExaSolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 	int width = x2-x1;
 	int height = y2-y1;
 
+	WAIT_RING (chan, 3);
 	BEGIN_RING(chan, rect,
 		   NV04_GDI_RECTANGLE_TEXT_UNCLIPPED_RECTANGLE_POINT(0), 2);
 	OUT_RING  (chan, (x1 << 16) | y1);
@@ -172,14 +187,24 @@ static void NVExaSolid (PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 
 static void NVExaDoneSolid (PixmapPtr pPixmap)
 {
+	ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	pNv->chan->flush_notify = NULL;
 }
 
-static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
-			     PixmapPtr pDstPixmap,
-			     int       dx,
-			     int       dy,
-			     int       alu,
-			     Pixel     planemask)
+static void
+NVExaStateCopyResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NVExaPrepareCopy(pNv->pspix, pNv->pdpix, 0, 0, pNv->alu, pNv->planemask);
+}
+
+Bool
+NVExaPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
+		 int alu, Pixel planemask)
 {
 	ScrnInfoPtr pScrn = xf86Screens[pSrcPixmap->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
@@ -187,6 +212,8 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *blit = pNv->NvImageBlit;
 	int fmt;
+
+	WAIT_RING(chan, 64);
 
 	if (pSrcPixmap->drawable.bitsPerPixel !=
 			pDstPixmap->drawable.bitsPerPixel)
@@ -214,6 +241,11 @@ static Bool NVExaPrepareCopy(PixmapPtr pSrcPixmap,
 	OUT_PIXMAPl(chan, pSrcPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_PIXMAPl(chan, pDstPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
+	pNv->pspix = pSrcPixmap;
+	pNv->pdpix = pDstPixmap;
+	pNv->alu = alu;
+	pNv->planemask = planemask;
+	chan->flush_notify = NVExaStateCopyResubmit;
 	return TRUE;
 }
 
@@ -230,6 +262,7 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *blit = pNv->NvImageBlit;
 
+	WAIT_RING (chan, 4);
 	BEGIN_RING(chan, blit, NV01_IMAGE_BLIT_POINT_IN, 3);
 	OUT_RING  (chan, (srcY << 16) | srcX);
 	OUT_RING  (chan, (dstY << 16) | dstX);
@@ -239,7 +272,13 @@ static void NVExaCopy(PixmapPtr pDstPixmap,
 		FIRE_RING (chan);
 }
 
-static void NVExaDoneCopy (PixmapPtr pDstPixmap) {}
+static void NVExaDoneCopy (PixmapPtr pDstPixmap)
+{
+	ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	pNv->chan->flush_notify = NULL;
+}
 
 static inline Bool NVAccelMemcpyRect(char *dst, const char *src, int height,
 		       int dst_pitch, int src_pitch, int line_len)
@@ -419,13 +458,35 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 	return FALSE;
 }
 
+static void
+NVExaStateIFCResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
+	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
+	int surf_fmt;
+
+	NVAccelGetCtxSurf2DFormatFromPixmap(pNv->pdpix, &surf_fmt);
+
+	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
+	OUT_RING  (chan, surf_fmt);
+	OUT_RING  (chan, (exaGetPixmapPitch(pNv->pdpix) << 16) |
+			  exaGetPixmapPitch(pNv->pdpix));
+	OUT_PIXMAPl(chan, pNv->pdpix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_PIXMAPl(chan, pNv->pdpix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_POINT, 3);
+	OUT_RING  (chan, (pNv->point_y << 16) | pNv->point_x);
+	OUT_RING  (chan, (pNv->height_out << 16) | pNv->width_out);
+	OUT_RING  (chan, (pNv->height_in << 16) | pNv->width_in);
+}
+
 static inline Bool
 NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch, 
 		 PixmapPtr pDst, int x, int y, int w, int h, int cpp)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *clip = pNv->NvClipRectangle;
 	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
 	int line_len = w * cpp;
@@ -451,12 +512,6 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	if (!NVAccelGetCtxSurf2DFormatFromPixmap(pDst, &surf_fmt))
 		return FALSE;
 
-	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
-	OUT_RING  (chan, surf_fmt);
-	OUT_RING  (chan, (exaGetPixmapPitch(pDst) << 16) | exaGetPixmapPitch(pDst));
-	OUT_PIXMAPl(chan, pDst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_PIXMAPl(chan, pDst, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-
 	/* Pad out input width to cover both COLORA() and COLORB() */
 	iw  = (line_len + 7) & ~7;
 	padbytes = iw - line_len;
@@ -470,14 +525,17 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 	BEGIN_RING(chan, clip, NV01_CONTEXT_CLIP_RECTANGLE_POINT, 2);
 	OUT_RING  (chan, 0x0); 
 	OUT_RING  (chan, 0x7FFF7FFF);
-
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_OPERATION, 2);
 	OUT_RING  (chan, NV01_IMAGE_FROM_CPU_OPERATION_SRCCOPY);
 	OUT_RING  (chan, ifc_fmt);
-	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_POINT, 3);
-	OUT_RING  (chan, (y << 16) | x); /* dst point */
-	OUT_RING  (chan, (h << 16) | w); /* width/height out */
-	OUT_RING  (chan, (h << 16) | iw); /* width/height in */
+
+	pNv->point_x = x;
+	pNv->point_y = y;
+	pNv->height_in = pNv->height_out = h;
+	pNv->width_in = iw;
+	pNv->width_out = w;
+	chan->flush_notify = NVExaStateIFCResubmit;
+	NVExaStateIFCResubmit(chan);
 
 	if (padbytes)
 		h--;
@@ -487,6 +545,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		OUT_RINGp (chan, src, id);
 
 		src += src_pitch;
+		pNv->point_y++;
 	}
 	if (padbytes) {
 		char padding[8];
@@ -497,6 +556,7 @@ NVAccelUploadIFC(ScrnInfoPtr pScrn, const char *src, int src_pitch,
 		OUT_RINGp (chan, padding, aux);
 	}
 
+	chan->flush_notify = NULL;
 	return TRUE;
 }
 
