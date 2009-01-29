@@ -417,6 +417,16 @@ NV30EXACheckComposite(int op, PicturePtr psPict,
 	return TRUE;
 }
 
+static void
+NV30EXAStateCompositeReemit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV30EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
+				pNv->pspix, pNv->pmpix, pNv->pdpix);
+}
+
 Bool
 NV30EXAPrepareComposite(int op, PicturePtr psPict,
 		PicturePtr pmPict,
@@ -432,6 +442,8 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	nv_pict_op_t *blend;
 	int fpid = NV30EXA_FPID_PASS_COL0;
 	NV30EXA_STATE;
+
+	WAIT_RING(chan, 128);
 
 	blend = NV30_GetPictOpRec(op);
 
@@ -483,9 +495,14 @@ NV30EXAPrepareComposite(int op, PicturePtr psPict,
 	BEGIN_RING(chan, rankine, 0x23c, 1);
 	OUT_RING  (chan, pmPict?3:1);
 
-	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
-	OUT_RING  (chan, NV34TCL_VERTEX_BEGIN_END_TRIANGLES);
-
+	pNv->alu = op;
+	pNv->pspict = psPict;
+	pNv->pmpict = pmPict;
+	pNv->pdpict = pdPict;
+	pNv->pspix = psPix;
+	pNv->pmpix = pmPix;
+	pNv->pdpix = pdPix;
+	chan->flush_notify = NV30EXAStateCompositeReemit;
 	return TRUE;
 }
 
@@ -539,12 +556,16 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 	float mX0, mX1, mX2, mY0, mY1, mY2;
 	NV30EXA_STATE;
 
+	WAIT_RING(chan, 64);
+
 	/* We're drawing a triangle, we need to scissor it to a quad. */
 	/* The scissors are here for a good reason, we don't get the full image, but just a part. */
 	/* Handling the cliprects is done for us already. */
 	BEGIN_RING(chan, rankine, NV34TCL_SCISSOR_HORIZ, 2);
 	OUT_RING  (chan, (width << 16) | dstX);
 	OUT_RING  (chan, (height << 16) | dstY);
+	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
+	OUT_RING  (chan, NV34TCL_VERTEX_BEGIN_END_TRIANGLES);
 
 #if 0
 	ErrorF("Composite [%dx%d] (%d,%d)IN(%d,%d)OP(%d,%d)\n",width,height,srcX,srcY,maskX,maskY,dstX,dstY);
@@ -584,6 +605,9 @@ NV30EXAComposite(PixmapPtr pdPix, int srcX , int srcY,
 		CV_OUT(sX1 , sY1 , dstX			,	dstY + height);
 		CV_OUT(sX2 , sY2 , dstX + 2*width	, 	dstY + height);
 	}
+
+	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
+	OUT_RING  (chan, 0);
 }
 
 void
@@ -592,10 +616,8 @@ NV30EXADoneComposite(PixmapPtr pdPix)
 	ScrnInfoPtr pScrn = xf86Screens[pdPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_grobj *rankine = pNv->Nv3D;
 
-	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
-	OUT_RING  (chan, 0);
+	chan->flush_notify = NULL;
 }
 
 Bool
