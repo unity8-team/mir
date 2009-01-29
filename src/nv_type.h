@@ -383,6 +383,13 @@ typedef struct _NVRec {
 	struct nouveau_bo *tesla_scratch;
 	struct nouveau_bo *shader_mem;
 	struct nouveau_bo *xv_filtertable_mem;
+
+	/* Acceleration context */
+	PixmapPtr pspix, pmpix, pdpix;
+	PicturePtr pspict, pmpict, pdpict;
+	Pixel fg_colour;
+	Pixel planemask;
+	int alu;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

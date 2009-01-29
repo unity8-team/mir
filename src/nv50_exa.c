@@ -208,11 +208,23 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 }
 
+static void
+NV50EXAStateSolidResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV50EXAPrepareSolid(pNv->pdpix, pNv->alu, pNv->planemask,
+			    pNv->fg_colour);
+}
+
 Bool
 NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 {
 	NV50EXA_LOCALS(pdpix);
 	uint32_t fmt;
+
+	WAIT_RING(chan, 64);
 
 	if (!NV50EXA2DSurfaceFormat(pdpix, &fmt))
 		NOUVEAU_FALLBACK("rect format\n");
@@ -225,6 +237,11 @@ NV50EXAPrepareSolid(PixmapPtr pdpix, int alu, Pixel planemask, Pixel fg)
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, fg);
 
+	pNv->pdpix = pdpix;
+	pNv->alu = alu;
+	pNv->planemask = planemask;
+	pNv->fg_colour = fg;
+	chan->flush_notify = NV50EXAStateSolidResubmit;
 	return TRUE;
 }
 
@@ -233,6 +250,7 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 {
 	NV50EXA_LOCALS(pdpix);
 
+	WAIT_RING (chan, 5);
 	BEGIN_RING(chan, eng2d, NV50_2D_RECT_X1, 4);
 	OUT_RING  (chan, x1);
 	OUT_RING  (chan, y1);
@@ -246,6 +264,19 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 void
 NV50EXADoneSolid(PixmapPtr pdpix)
 {
+	NV50EXA_LOCALS(pdpix);
+
+	chan->flush_notify = NULL;
+}
+
+static void
+NV50EXAStateCopyResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV50EXAPrepareCopy(pNv->pspix, pNv->pdpix, 0, 0, pNv->alu,
+			   pNv->planemask);
 }
 
 Bool
@@ -254,12 +285,19 @@ NV50EXAPrepareCopy(PixmapPtr pspix, PixmapPtr pdpix, int dx, int dy,
 {
 	NV50EXA_LOCALS(pdpix);
 
+	WAIT_RING(chan, 64);
+
 	if (!NV50EXAAcquireSurface2D(pspix, 1))
 		NOUVEAU_FALLBACK("src pixmap\n");
 	if (!NV50EXAAcquireSurface2D(pdpix, 0))
 		NOUVEAU_FALLBACK("dest pixmap\n");
 	NV50EXASetROP(pdpix, alu, planemask);
 
+	pNv->pspix = pspix;
+	pNv->pdpix = pdpix;
+	pNv->alu = alu;
+	pNv->planemask = planemask;
+	chan->flush_notify = NV50EXAStateCopyResubmit;
 	return TRUE;
 }
 
@@ -270,6 +308,7 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 {
 	NV50EXA_LOCALS(pdpix);
 
+	WAIT_RING (chan, 17);
 	BEGIN_RING(chan, eng2d, 0x0110, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_RING(chan, eng2d, 0x088c, 1);
@@ -295,6 +334,18 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 void
 NV50EXADoneCopy(PixmapPtr pdpix)
 {
+	NV50EXA_LOCALS(pdpix);
+
+	chan->flush_notify = NULL;
+}
+
+static void
+NV50EXAStateSIFCResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV50EXAAcquireSurface2D(pNv->pdpix, 0);
 }
 
 Bool
@@ -304,6 +355,8 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	NV50EXA_LOCALS(pdpix);
 	int line_dwords = (w * cpp + 3) / 4;
 	uint32_t sifc_fmt;
+
+	WAIT_RING(chan, 64);
 
 	if (!NV50EXA2DSurfaceFormat(pdpix, &sifc_fmt))
 		NOUVEAU_FALLBACK("hostdata format\n");
@@ -330,6 +383,9 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, y);
 
+	pNv->pdpix = pdpix;
+	chan->flush_notify = NV50EXAStateSIFCResubmit;
+
 	while (h--) {
 		int count = line_dwords;
 		const char *p = src;
@@ -337,6 +393,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 		while(count) {
 			int size = count > 1792 ? 1792 : count;
 
+			WAIT_RING (chan, size + 1);
 			BEGIN_RING(chan, eng2d,
 					 NV50_2D_SIFC_DATA | 0x40000000, size);
 			OUT_RINGp (chan, p, size);
@@ -348,6 +405,7 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 		src += src_pitch;
 	}
 
+	chan->flush_notify = NULL;
 	return TRUE;
 }
 
@@ -450,11 +508,20 @@ static Bool
 NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 {
 	NV50EXA_LOCALS(ppix);
+	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
 	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
 		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
+	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);
+	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	OUT_RING  (chan, 0x00000800);
+	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
+	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
+	OUT_RING  (chan, (CB_TIC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TIC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 8);
@@ -512,6 +579,14 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	OUT_RING  (chan, 0x03000000);
 	OUT_PIXMAPh(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
+	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
+	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	OUT_RING  (chan, 0x00000000);
+	BEGIN_RING(chan, tesla, NV50TCL_CB_DEF_ADDRESS_HIGH, 3);
+	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
+	OUT_RING  (chan, (CB_TSC << NV50TCL_CB_DEF_SET_BUFFER_SHIFT) | 0x4000);
 	BEGIN_RING(chan, tesla, NV50TCL_CB_ADDR, 1);
 	OUT_RING  (chan, CB_TSC | ((unit * 8) << NV50TCL_CB_ADDR_ID_SHIFT));
 	BEGIN_RING(chan, tesla, NV50TCL_CB_DATA(0) | 0x40000000, 8);
@@ -646,13 +721,25 @@ NV50EXACheckComposite(int op,
 	return TRUE;
 }
 
+static void
+NV50EXAStateCompositeResubmit(struct nouveau_channel *chan)
+{
+	ScrnInfoPtr pScrn = chan->user_private;
+	NVPtr pNv = NVPTR(pScrn);
+
+	NV50EXAPrepareComposite(pNv->alu, pNv->pspict, pNv->pmpict, pNv->pdpict,
+				pNv->pspix, pNv->pmpix, pNv->pdpix);
+}
+
 Bool
 NV50EXAPrepareComposite(int op,
 			PicturePtr pspict, PicturePtr pmpict, PicturePtr pdpict,
 			PixmapPtr pspix, PixmapPtr pmpix, PixmapPtr pdpix)
 {
 	NV50EXA_LOCALS(pspix);
+	const unsigned shd_flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_RD;
 
+	WAIT_RING (chan, 128);
 	BEGIN_RING(chan, eng2d, 0x0110, 1);
 	OUT_RING  (chan, 0);
 
@@ -661,6 +748,13 @@ NV50EXAPrepareComposite(int op,
 
 	NV50EXABlend(pdpix, pdpict, op, pmpict && pmpict->componentAlpha &&
 		     PICT_FORMAT_RGB(pmpict->format));
+
+	BEGIN_RING(chan, tesla, NV50TCL_VP_ADDRESS_HIGH, 2);
+	OUT_RELOCh(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, PVP_OFFSET, shd_flags);
+	BEGIN_RING(chan, tesla, NV50TCL_FP_ADDRESS_HIGH, 2);
+	OUT_RELOCh(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags);
+	OUT_RELOCl(chan, pNv->tesla_scratch, PFP_OFFSET, shd_flags);
 
 	if (pmpict) {
 		if (!NV50EXATexture(pspix, pspict, 0))
@@ -703,9 +797,14 @@ NV50EXAPrepareComposite(int op,
 	BEGIN_RING(chan, tesla, 0x1458, 1);
 	OUT_RING  (chan, 0x203);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
-	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
-
+	pNv->alu = op;
+	pNv->pspict = pspict;
+	pNv->pmpict = pmpict;
+	pNv->pdpict = pdpict;
+	pNv->pspix = pspix;
+	pNv->pmpix = pmpix;
+	pNv->pdpix = pdpix;
+	chan->flush_notify = NV50EXAStateCompositeResubmit;
 	return TRUE;
 }
 
@@ -737,6 +836,10 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	NV50EXA_LOCALS(pdpix);
 	float sX0, sX1, sX2, sX3, sY0, sY1, sY2, sY3;
 	unsigned dX0 = dx, dX1 = dx + w, dY0 = dy, dY1 = dy + h;
+
+	WAIT_RING (chan, 64);
+	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
+	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
 
 	NV50EXATransform(state->unit[0].transform, sx, sy,
 			 state->unit[0].width, state->unit[0].height,
@@ -777,6 +880,9 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 		VTX1s(pNv, sX2, sY2, dX1, dY1);
 		VTX1s(pNv, sX3, sY3, dX0, dY1);
 	}
+
+	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
+	OUT_RING  (chan, 0);
 }
 
 void
@@ -784,7 +890,6 @@ NV50EXADoneComposite(PixmapPtr pdpix)
 {
 	NV50EXA_LOCALS(pdpix);
 
-	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_END, 1);
-	OUT_RING  (chan, 0);
+	chan->flush_notify = NULL;
 }
 

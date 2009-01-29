@@ -197,7 +197,4 @@ nouveau_dma_kickoff(struct nouveau_channel *userchan)
 	NOUVEAU_DMA_BARRIER;
 	*chan->put     = put_offset;
 	NOUVEAU_DMA_BARRIER;
-
-	if (chan->base.flush_notify)
-		chan->base.flush_notify(chan);
 }

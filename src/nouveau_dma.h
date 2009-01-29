@@ -115,10 +115,15 @@ nouveau_dma_begin(struct nouveau_channel *userchan, struct nouveau_grobj *grobj,
 #endif
 
 	if (chan->dma.free < push_size) {
-		if (nouveau_dma_wait(userchan, push_size) &&
+		int wait_size = push_size < 2048 ? 2048 : push_size;
+
+		if (nouveau_dma_wait(userchan, wait_size) &&
 		    userchan->hang_notify) {
 			userchan->hang_notify(userchan);
 		}
+
+		if (chan->base.flush_notify)
+			chan->base.flush_notify(&chan->base);
 	}
 	chan->dma.free -= push_size;
 #ifdef NOUVEAU_DMA_DEBUG
@@ -153,6 +158,13 @@ nouveau_dma_bind(struct nouveau_channel *userchan, struct nouveau_grobj *grobj,
 #define OUT_RINGp_CH(ch,ptr,dwords)  nouveau_dma_outp((ch), (void*)(ptr),      \
 						      (dwords))
 #define FIRE_RING_CH(ch)             nouveau_dma_kickoff((ch))
-#define WAIT_RING_CH(ch,sz)          nouveau_dma_wait((ch), (sz))
+#define WAIT_RING_CH(ch,sz) do {                         \
+	if (nouveau_channel(ch)->dma.free < (sz)) {      \
+		unsigned pp = (sz) < 2048 ? 2048 : (sz); \
+		nouveau_dma_wait((ch), pp);              \
+		if ((ch)->flush_notify)                  \
+			(ch)->flush_notify((ch));        \
+	}                                                \
+} while(0)
 		
 #endif
