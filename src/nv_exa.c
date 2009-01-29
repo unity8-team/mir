@@ -316,8 +316,8 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	}
 
 	while (h) {
-		char *src = pNv->GART->map;
 		int line_count, i;
+		char *src;
 
 		if (h * line_len <= pNv->GART->size) {
 			line_count = h;
@@ -383,6 +383,8 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2000))
 			return FALSE;
 
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
+		src = pNv->GART->map;
 		if (dst_pitch == line_len) {
 			memcpy(dst, src, dst_pitch * line_count);
 			dst += dst_pitch * line_count;
@@ -393,6 +395,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 				dst += dst_pitch;
 			}
 		}
+		nouveau_bo_unmap(pNv->GART);
 
 		if (linear)
 			src_offset += line_count * src_pitch;
@@ -414,13 +417,35 @@ NVExaPixmapMap(PixmapPtr pPix)
 	if (!nvpix || !nvpix->bo)
 		return NULL;
 
+	nouveau_bo_map(nvpix->bo, NOUVEAU_BO_RDWR);
 	map = nvpix->bo->map;
 #else
 	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
+
+	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 	map = pNv->FB->map + exaGetPixmapOffset(pPix);
 #endif /* NOUVEAU_EXA_PIXMAPS */
 	return map;
+}
+
+static void
+NVExaPixmapUnmap(PixmapPtr pPix)
+{
+#if NOUVEAU_EXA_PIXMAPS
+	struct nouveau_pixmap *nvpix;
+
+	nvpix = exaGetPixmapDriverPrivate(pPix);
+	if (!nvpix || !nvpix->bo)
+		return NULL;
+
+	nouveau_bo_unmap(nvpix->bo);
+#else
+	ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	nouveau_bo_unmap(pNv->FB);
+#endif /* NOUVEAU_EXA_PIXMAPS */
 }
 
 static Bool NVDownloadFromScreen(PixmapPtr pSrc,
@@ -447,8 +472,11 @@ static Bool NVDownloadFromScreen(PixmapPtr pSrc,
 		return FALSE;
 	src += offset;
 	exaWaitSync(pSrc->drawable.pScreen);
-	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
+	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp)) {
+		NVExaPixmapUnmap(pSrc);
 		return TRUE;
+	}
+	NVExaPixmapUnmap(pSrc);
 
 	return FALSE;
 }
@@ -575,8 +603,8 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	}
 
 	while (h) {
-		char *dst = pNv->GART->map;
 		int line_count, i;
+		char *dst;
 
 		/* Determine max amount of data we can DMA at once */
 		if (h * line_len <= pNv->GART->size) {
@@ -592,6 +620,8 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			line_count = 2047;
 
 		/* Upload to GART */
+		nouveau_bo_map(pNv->GART, NOUVEAU_BO_WR);
+		dst = pNv->GART->map;
 		if (src_pitch == line_len) {
 			memcpy(dst, src, src_pitch * line_count);
 			src += src_pitch * line_count;
@@ -602,6 +632,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 				dst += line_len;
 			}
 		}
+		nouveau_bo_unmap(pNv->GART);
 
 		WAIT_RING (chan, 32);
 		BEGIN_RING(chan, m2mf, 0x184, 2);
@@ -707,8 +738,11 @@ static Bool NVUploadToScreen(PixmapPtr pDst,
 		return FALSE;
 	dst += (y * dst_pitch) + (x * cpp);
 	exaWaitSync(pDst->drawable.pScreen);
-	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp))
+	if (NVAccelMemcpyRect(dst, src, h, dst_pitch, src_pitch, w*cpp)) {
+		NVExaPixmapUnmap(pDst);
 		return TRUE;
+	}
+	NVExaPixmapUnmap(pDst);
 
 	return FALSE;
 }
@@ -922,7 +956,9 @@ NVExaInit(ScreenPtr pScreen)
 	} else
 #endif
 	{
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 		pNv->EXADriverPtr->memoryBase = pNv->FB->map;
+		nouveau_bo_unmap(pNv->FB);
 		pNv->EXADriverPtr->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) * NOUVEAU_ALIGN(pScrn->virtualY,64) 
 			* (pScrn->bitsPerPixel / 8);
 		pNv->EXADriverPtr->memorySize		= pNv->FB->size; 

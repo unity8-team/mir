@@ -25,11 +25,13 @@
 
 void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset)
 {
-	uint32_t *map = pNv->shader_mem->map + *hw_offset;
 	uint32_t data, i;
+	uint32_t *map;
 
 	shader->hw_id = *hw_offset;
 
+	nouveau_bo_map(pNv->shader_mem, NOUVEAU_BO_WR);
+	map = pNv->shader_mem->map;
 	for (i = 0; i < shader->size; i++) {
 		data = shader->data[i];
 #if (X_BYTE_ORDER != X_LITTLE_ENDIAN)
@@ -37,6 +39,7 @@ void NV30_UploadFragProg(NVPtr pNv, nv_shader_t *shader, int *hw_offset)
 #endif
 		map[i] = data;
 	}
+	nouveau_bo_unmap(pNv->shader_mem);
 
 	*hw_offset += (shader->size * sizeof(uint32_t));
 	*hw_offset = (*hw_offset + 63) & ~63;

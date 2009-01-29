@@ -1714,36 +1714,36 @@ NVMapMem(ScrnInfoPtr pScrn)
 		}
 	}
 
-	if ((pNv->FB && nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR)) ||
-	    (pNv->GART && nouveau_bo_map(pNv->GART, NOUVEAU_BO_RDWR)) ||
-	    nouveau_bo_map(pNv->Cursor, NOUVEAU_BO_RDWR) ||
-	    (pNv->randr12_enable && nouveau_bo_map(pNv->Cursor2, NOUVEAU_BO_RDWR))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to map pinned buffers\n");
-		return FALSE;
-	}
-
-	/* This is not the ideal solution, but significant changes are needed otherwise. */
-	/* Ideally you do this once upon preinit, but drm is closed between screen inits. */
+	/* This is not the ideal solution, but significant changes are needed
+	 * otherwise. Ideally you do this once upon preinit, but drm is
+	 * closed between screen inits.
+	 */
 	if (pNv->Architecture == NV_ARCH_50) {
 		int i;
 
 		for(i = 0; i < 2; i++) {
 			nouveauCrtcPtr crtc = pNv->crtc[i];
-			if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-				   0, 0x1000, &crtc->lut)) {
+
+			if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM |
+					   NOUVEAU_BO_PIN, 0, 0x1000,
+					   &crtc->lut)) {
 				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Failed to allocate memory for lut %d\n", i);
 				return FALSE;
 			}
 
-			nouveau_bo_map(crtc->lut, NOUVEAU_BO_RDWR);
-
 			/* Copy the last known values. */
-			if (crtc->lut_values_valid)
-				memcpy(crtc->lut->map, crtc->lut_values, 4*256*sizeof(uint16_t));
+			if (crtc->lut_values_valid) {
+				nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
+				memcpy(crtc->lut->map, crtc->lut_values,
+				       4 * 256 * sizeof(uint16_t));
+				nouveau_bo_unmap(crtc->lut);
+			}
 		}
 	}
+
+	ErrorF("%p %p %p %p\n",
+	       pNv->FB, pNv->GART, pNv->Cursor, pNv->Cursor2);
 
 	return TRUE;
 }
@@ -2157,7 +2157,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 		FBStart = pNv->FB->map;
+		nouveau_bo_unmap(pNv->FB);
 	}
 
 	switch (pScrn->bitsPerPixel) {

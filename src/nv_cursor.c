@@ -381,6 +381,7 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	struct nouveau_bo *cursor = NULL;
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* save copy of image for color changes */
@@ -388,29 +389,32 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 
 	if (pNv->Architecture >= NV_ARCH_10) {
 		/* Due to legacy code */
-		if (nv_crtc->head == 1)
-			pNv->CURSOR = (CARD32 *) pNv->Cursor2->map;
-		else
-			pNv->CURSOR = (CARD32 *) pNv->Cursor->map;
+		nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+		pNv->CURSOR = cursor->map;
 	}
 
 	/* Eventually this has to be replaced as well */
 	TransformCursor(pNv);
+
+	if (cursor) {
+		nouveau_bo_unmap(cursor);
+		nouveau_bo_ref(NULL, &cursor);
+	}
 }
 
 void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	struct nouveau_bo *cursor = NULL;
 	uint32_t *dst = NULL;
 	uint32_t *src = (uint32_t *)image;
 
-	if (nv_crtc->head == 1) {
-		dst = (uint32_t *) pNv->Cursor2->map;
-	} else {
-		dst = (uint32_t *) pNv->Cursor->map;
-	}
+	nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	dst = cursor->map;
 
 	/* It seems we get premultiplied alpha and the hardware takes non-premultiplied? */
 	/* This is needed, because without bit28 of cursorControl, we use what ever ROP is set currently */
@@ -447,4 +451,6 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 			}
 		}
 	}
+
+	nouveau_bo_unmap(cursor);
 }

@@ -613,12 +613,6 @@ NVAccelInitNV40TCL(ScrnInfoPtr pScrn)
 			nouveau_grobj_free(&pNv->Nv3D);
 			return FALSE;
 		}
-		if (nouveau_bo_map(pNv->shader_mem, NOUVEAU_BO_RDWR)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Couldn't map fragprog buffer!\n");
-			nouveau_grobj_free(&pNv->Nv3D);
-			return FALSE;
-		}
 	}
 
 	BEGIN_RING(chan, curie, NV40TCL_DMA_NOTIFY, 1);

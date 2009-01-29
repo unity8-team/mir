@@ -431,19 +431,17 @@ NV50CrtcSetCursorPosition(nouveauCrtcPtr crtc, int x, int y)
 static void
 NV50CrtcLoadCursor(nouveauCrtcPtr crtc, Bool argb, uint32_t *src)
 {
+	NVPtr pNv = NVPTR(crtc->scrn);
+	struct nouveau_bo *cursor = NULL;
+
 	if (!argb) /* FIXME */
 		return;
 
-	NVPtr pNv = NVPTR(crtc->scrn);
-	uint32_t *dst = NULL;
-
-	if (crtc->index == 1)
-		dst = (uint32_t *) pNv->Cursor2->map;
-	else
-		dst = (uint32_t *) pNv->Cursor->map;
-
+	nouveau_bo_ref(crtc->index ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 	/* Assume cursor is 64x64 */
-	memcpy(dst, src, 64 * 64 * 4);
+	memcpy(cursor->map, src, 64 * 64 * 4);
+	nouveau_bo_unmap(cursor);
 }
 
 /*
@@ -502,7 +500,9 @@ NV50CrtcGammaSet(nouveauCrtcPtr crtc, uint16_t *red, uint16_t *green, uint16_t *
 	if (!crtc->lut)
 		return;
 
+	nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
 	memcpy(crtc->lut->map, crtc->lut_values, 4*256*sizeof(uint16_t));
+	nouveau_bo_unmap(crtc->lut);
 }
 
 void

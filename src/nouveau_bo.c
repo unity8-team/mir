@@ -161,5 +161,13 @@ nouveau_bo_emit_reloc(struct nouveau_channel *userchan, void *ptr,
 void
 nouveau_bo_validate(struct nouveau_channel *userchan)
 {
+	struct nouveau_channel_priv *chan = nouveau_channel(userchan);
+	struct nouveau_bo_reloc *r = chan->relocs;
+	int nr = chan->num_relocs;
+
+	while (nr--) {
+		assert(!r->bo->base.map);
+		r++;
+	}
 }
 
