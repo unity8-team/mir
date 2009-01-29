@@ -27,6 +27,49 @@
 #include "nouveau_dma.h"
 #include "nouveau_local.h"
 
+static void
+nouveau_bo_del(struct nouveau_bo **userbo)
+{
+	struct drm_nouveau_mem_free f;
+	struct nouveau_bo_priv *bo;
+
+	if (!userbo || !*userbo)
+		return;
+	bo = nouveau_bo(*userbo);
+	*userbo = NULL;
+
+	if (--bo->refcount)
+		return;
+
+	if (bo->map) {
+		drmUnmap(bo->map, bo->drm.size);
+		bo->map = NULL;
+	}
+
+	f.flags = bo->drm.flags;
+	f.offset = bo->drm.offset;
+	drmCommandWrite(nouveau_device(bo->base.device)->fd,
+			DRM_NOUVEAU_MEM_FREE, &f, sizeof(f));
+
+	free(bo);
+}
+
+int
+nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pbo)
+{
+	if (!pbo)
+		return -EINVAL;
+
+	if (ref)
+		nouveau_bo(ref)->refcount++;
+
+	if (*pbo)
+		nouveau_bo_del(pbo);
+
+	*pbo = ref;
+	return 0;
+}
+
 int
 nouveau_bo_new(struct nouveau_device *userdev, uint32_t flags, int align,
 	       int size, struct nouveau_bo **userbo)
@@ -75,47 +118,6 @@ nouveau_bo_new(struct nouveau_device *userdev, uint32_t flags, int align,
 	bo->refcount = 1;
 	*userbo = &bo->base;
 	return 0;
-}
-
-int
-nouveau_bo_ref(struct nouveau_device *userdev, uint64_t handle,
-	       struct nouveau_bo **userbo)
-{
-	struct nouveau_bo_priv *bo = (void *)(unsigned long)handle;
-
-	if (!bo || !userbo || *userbo)
-		return -EINVAL;
-
-	bo->refcount++;
-	*userbo = &bo->base;
-	return 0;
-}
-
-void
-nouveau_bo_del(struct nouveau_bo **userbo)
-{
-	struct drm_nouveau_mem_free f;
-	struct nouveau_bo_priv *bo;
-
-	if (!userbo || !*userbo)
-		return;
-	bo = nouveau_bo(*userbo);
-	*userbo = NULL;
-
-	if (--bo->refcount)
-		return;
-
-	if (bo->map) {
-		drmUnmap(bo->map, bo->drm.size);
-		bo->map = NULL;
-	}
-
-	f.flags = bo->drm.flags;
-	f.offset = bo->drm.offset;
-	drmCommandWrite(nouveau_device(bo->base.device)->fd,
-			DRM_NOUVEAU_MEM_FREE, &f, sizeof(f));
-
-	free(bo);
 }
 
 int

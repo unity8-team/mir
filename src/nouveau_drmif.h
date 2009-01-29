@@ -163,10 +163,7 @@ nouveau_bo_new(struct nouveau_device *, uint32_t flags, int align, int size,
 	       struct nouveau_bo **);
 
 NOUVEAU_PRIVATE int
-nouveau_bo_ref(struct nouveau_device *, uint64_t handle, struct nouveau_bo **);
-
-NOUVEAU_PRIVATE void
-nouveau_bo_del(struct nouveau_bo **);
+nouveau_bo_ref(struct nouveau_bo *, struct nouveau_bo **);
 
 NOUVEAU_PRIVATE int
 nouveau_bo_map(struct nouveau_bo *, uint32_t flags);

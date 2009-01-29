@@ -577,6 +577,6 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 
 	nouveau_grobj_free(&pNv->Nv3D);
 
-	nouveau_bo_del(&pNv->tesla_scratch);
-	nouveau_bo_del(&pNv->shader_mem);
+	nouveau_bo_ref(NULL, &pNv->tesla_scratch);
+	nouveau_bo_ref(NULL, &pNv->shader_mem);
 }

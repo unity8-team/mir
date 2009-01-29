@@ -1762,12 +1762,10 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 		free(pNv->Cursor); pNv->Cursor = NULL;
 		free(pNv->Cursor2); pNv->Cursor2 = NULL;
 	} else {
-		nouveau_bo_del(&pNv->FB);
-		nouveau_bo_del(&pNv->GART);
-		nouveau_bo_del(&pNv->Cursor);
-		if (pNv->randr12_enable) {
-			nouveau_bo_del(&pNv->Cursor2);
-		}
+		nouveau_bo_ref(NULL, &pNv->FB);
+		nouveau_bo_ref(NULL, &pNv->GART);
+		nouveau_bo_ref(NULL, &pNv->Cursor);
+		nouveau_bo_ref(NULL, &pNv->Cursor2);
 	}
 
 	/* Again not the most ideal way. */
@@ -1780,7 +1778,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 				free(crtc->lut);
 				crtc->lut = NULL;
 			} else
-				nouveau_bo_del(&crtc->lut);
+				nouveau_bo_ref(NULL, &crtc->lut);
 			crtc->lut = NULL;
 		}
 	}

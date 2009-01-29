@@ -805,7 +805,7 @@ NVExaDestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 	/*XXX: only if pending relocs reference this buffer..*/
 	FIRE_RING (chan);
 
-	nouveau_bo_del(&nvpix->bo);
+	nouveau_bo_ref(NULL, &nvpix->bo);
 	xfree(nvpix);
 }
 

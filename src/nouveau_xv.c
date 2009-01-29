@@ -345,7 +345,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 	if (*pbo) {
 		if ((*pbo)->size >= size)
 			return 0;
-		nouveau_bo_del(pbo);
+		nouveau_bo_ref(NULL, pbo);
 	}
 
 	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
@@ -357,7 +357,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 
 	ret = nouveau_bo_map(*pbo, NOUVEAU_BO_RDWR);
 	if (ret) {
-		nouveau_bo_del(pbo);
+		nouveau_bo_ref(NULL, pbo);
 		return ret;
 	}
 
@@ -374,10 +374,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 static void
 NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
-	if(pPriv->video_mem) {
-		nouveau_bo_del(&pPriv->video_mem);
-		pPriv->video_mem = NULL;
-	}
+	nouveau_bo_ref(NULL, &pPriv->video_mem);
 
 	if (pPriv->TT_mem_chunk[0] && pPriv->DMANotifier[0])
 		nouveau_notifier_wait_status(pPriv->DMANotifier[0], 0, 0, 1000);
@@ -385,8 +382,8 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	if (pPriv->TT_mem_chunk[1] && pPriv->DMANotifier[1])
 		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1000);
 
-	nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
-	nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
+	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
+	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[1]);
 	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[0]);
 	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[1]);
 }
@@ -1145,7 +1142,7 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 						    newTTSize,
 						    &pPriv->TT_mem_chunk[1]);
 			if (ret) {
-				nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
+				nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
 				pPriv->currentHostBuffer =
 					NO_PRIV_HOST_BUFFER_AVAILABLE;
 			}
@@ -1188,9 +1185,9 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 				 */
 				xf86DrvMsg(0, X_ERROR,
 					   "Ran out of Xv notifiers!\n");
-				nouveau_bo_del(&pPriv->TT_mem_chunk[0]);
+				nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
 				pPriv->TT_mem_chunk[0] = NULL;
-				nouveau_bo_del(&pPriv->TT_mem_chunk[1]);
+				nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[1]);
 				pPriv->TT_mem_chunk[1] = NULL;
 				pPriv->currentHostBuffer =
 					NO_PRIV_HOST_BUFFER_AVAILABLE;
@@ -2330,7 +2327,7 @@ NVTakedownVideo(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	nouveau_bo_del(&pNv->xv_filtertable_mem);
+	nouveau_bo_ref(NULL, &pNv->xv_filtertable_mem);
 	if (pNv->blitAdaptor)
 		NVFreePortMemory(pScrn, GET_BLIT_PRIVATE(pNv));
 	if (pNv->textureAdaptor[0]) {

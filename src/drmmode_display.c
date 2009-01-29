@@ -45,7 +45,7 @@ uint32_t drmmode_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pi
 
 	/* temporary hack, allow old framebuffers to continue to exist and idle. */
 	if (pNv->FB_old) {
-		nouveau_bo_del(pNv->FB_old);
+		nouveau_bo_ref(NULL, pNv->FB_old);
 		pNv->FB_old = NULL;
 	}
 
@@ -380,7 +380,7 @@ drmmode_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 	}
 
 	if (drmmode_crtc->shadow)
-		nouveau_bo_del(&drmmode_crtc->shadow);
+		nouveau_bo_ref(NULL, &drmmode_crtc->shadow);
 
 	drmmode_crtc->shadow = NULL;
 

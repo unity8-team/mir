@@ -276,7 +276,7 @@ nv50_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 		pScreen->DestroyPixmap(rotate_pixmap);
 
 	if (nv_crtc->shadow)
-		nouveau_bo_del(&nv_crtc->shadow);
+		nouveau_bo_ref(NULL, &nv_crtc->shadow);
 
 	nv_crtc->shadow = NULL;
 	/* for easy acces by exa */
