@@ -31,6 +31,7 @@ nouveau_device_open_existing(struct nouveau_device **userdev, int close,
 			     int fd, drm_context_t ctx)
 {
 	struct nouveau_device_priv *nv;
+	uint64_t chipset;
 	int ret;
 
 	if (!userdev || *userdev)
@@ -47,6 +48,27 @@ nouveau_device_open_existing(struct nouveau_device **userdev, int close,
 	if (ret) {
 		free(nv);
 		return ret;
+	}
+
+	ret = nouveau_device_get_param(&nv->base,
+				       NOUVEAU_GETPARAM_CHIPSET_ID, &chipset);
+	if (ret) {
+		free(nv);
+		return ret;
+	}
+
+	switch (chipset & 0xf0) {
+	case 0x00:
+	case 0x10:
+	case 0x20:
+	case 0x30:
+	case 0x40:
+	case 0x60:
+		nv->base.vm_vram_base = 0;
+		break;
+	default:
+		nv->base.vm_vram_base = 0x20000000;
+		break;
 	}
 
 	*userdev = &nv->base;

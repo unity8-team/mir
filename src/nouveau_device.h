@@ -24,6 +24,7 @@
 #define __NOUVEAU_DEVICE_H__
 
 struct nouveau_device {
+	uint64_t vm_vram_base;
 };
 
 #endif

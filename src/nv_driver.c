@@ -1561,13 +1561,15 @@ static struct nouveau_bo *
 NVMapMemFakeBO(NVPtr pNv, void *ptr, uint32_t offset, uint32_t size)
 {
 	struct nouveau_bo *bo = calloc(1, sizeof(*bo));
+	struct nouveau_device dev;
+
+	dev.vm_vram_base = 0;
 
 	if (bo) {
+		bo->device = &dev;
 		bo->size = size;
 		bo->map = ptr;
 		bo->offset = offset;
-		if (pNv->Architecture >= NV_ARCH_50)
-			bo->offset += 0x20000000;
 	}
 
 	return bo;

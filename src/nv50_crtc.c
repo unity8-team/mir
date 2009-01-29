@@ -279,15 +279,15 @@ NV50CrtcBlank(nouveauCrtcPtr crtc, Bool blanked)
 		if (pNv->NVArch != 0x50)
 			NV50CrtcCommand(crtc, NV84_CRTC0_BLANK_UNK2, NV84_CRTC0_BLANK_UNK2_BLANK);
 	} else {
-		/* The bufmgr hands addresses in GPU VM, CRTC wants physical
-		 * addresses.  VRAM is currently mapped at 512MiB in the VM,
-		 * so adjust here before poking the CRTCs.
-		 */
-		uint32_t fb = crtc->front_buffer->offset - 0x20000000;
-		uint32_t clut = crtc->lut->offset - 0x20000000;
-		uint32_t cursor =
-			(crtc->index ? (pNv->Cursor2->offset - 0x20000000) :
-			 	       (pNv->Cursor->offset - 0x20000000));
+		struct nouveau_device *dev = crtc->front_buffer->device;
+		uint32_t fb = crtc->front_buffer->offset - dev->vm_vram_base;
+		uint32_t clut = crtc->lut->offset - dev->vm_vram_base;
+		uint32_t cursor;
+		
+		if (crtc->index)
+			cursor = pNv->Cursor2->offset - dev->vm_vram_base;
+		else
+			cursor = pNv->Cursor->offset - dev->vm_vram_base;
 
 		NV50CrtcCommand(crtc, NV50_CRTC0_FB_OFFSET, fb >> 8);
 		NV50CrtcCommand(crtc, 0x864, 0);
