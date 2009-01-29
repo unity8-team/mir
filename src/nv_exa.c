@@ -567,34 +567,11 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned dst_pitch = 0, dst_offset = 0, linear = 0;
 
-	BEGIN_RING(chan, m2mf, 0x184, 2);
-	OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-	OUT_PIXMAPo(chan, pdpix,
-		    NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_WR);
-
 	if (pNv->Architecture < NV_ARCH_50 ||
 	    exaGetPixmapOffset(pdpix) < pNv->EXADriverPtr->offScreenBase) {
 		linear     = 1;
 		dst_pitch  = exaGetPixmapPitch(pdpix);
 		dst_offset = (y * dst_pitch) + (x * cpp);
-	}
-
-	if (pNv->Architecture >= NV_ARCH_50) {
-		BEGIN_RING(chan, m2mf, 0x0200, 1);
-		OUT_RING  (chan, 1);
-
-		if (linear) {
-			BEGIN_RING(chan, m2mf, 0x021c, 1);
-			OUT_RING  (chan, 1);
-		} else {
-			BEGIN_RING(chan, m2mf, 0x021c, 6);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, 0);
-			OUT_RING  (chan, pdpix->drawable.width * cpp);
-			OUT_RING  (chan, pdpix->drawable.height);
-			OUT_RING  (chan, 1);
-			OUT_RING  (chan, 0);
-		}
 	}
 
 	while (h) {
@@ -626,10 +603,28 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			}
 		}
 
+		WAIT_RING (chan, 32);
+		BEGIN_RING(chan, m2mf, 0x184, 2);
+		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
+		OUT_PIXMAPo(chan, pdpix,
+			    NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+
 		if (pNv->Architecture >= NV_ARCH_50) {
+			BEGIN_RING(chan, m2mf, 0x0200, 1);
+			OUT_RING  (chan, 1);
+
 			if (!linear) {
-				BEGIN_RING(chan, m2mf, 0x0234, 1);
+				BEGIN_RING(chan, m2mf, 0x021c, 7);
+				OUT_RING  (chan, 0);
+				OUT_RING  (chan, 0);
+				OUT_RING  (chan, pdpix->drawable.width * cpp);
+				OUT_RING  (chan, pdpix->drawable.height);
+				OUT_RING  (chan, 1);
+				OUT_RING  (chan, 0);
 				OUT_RING  (chan, (y << 16) | (x * cpp));
+			} else {
+				BEGIN_RING(chan, m2mf, 0x021c, 1);
+				OUT_RING  (chan, 1);
 			}
 
 			BEGIN_RING(chan, m2mf, 0x0238, 2);
