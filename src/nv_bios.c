@@ -1468,8 +1468,8 @@ static bool init_zm_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 		return false;
 
 	for (i = 0; i < count; i++) {
-		uint8_t i2c_reg = bios->data[offset + 4 + i * 3];
-		uint8_t data = bios->data[offset + 5 + i * 3];
+		uint8_t i2c_reg = bios->data[offset + 4 + i * 2];
+		uint8_t data = bios->data[offset + 5 + i * 2];
 
 		BIOSLOG(pScrn, "0x%04X: I2CReg: 0x%02X, Data: 0x%02X\n",
 			offset, i2c_reg, data);
