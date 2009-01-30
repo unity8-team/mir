@@ -1,7 +1,7 @@
 /*
  * Copyright 2005-2006 Erik Waling
  * Copyright 2006 Stephane Marchesin
- * Copyright 2007-2008 Stuart Bennett
+ * Copyright 2007-2009 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -4076,55 +4076,58 @@ static int parse_bit_tmds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 	return 0;
 }
 
+struct bit_table {
+	const char id;
+	int (* const parse_fn)(ScrnInfoPtr, bios_t *, bit_entry_t *);
+};
+
+#define BIT_TABLE(id, funcid) ((struct bit_table){ id, parse_bit_##funcid##_tbl_entry })
+
+static int parse_bit_table(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t bitoffset, struct bit_table *table)
+{
+	uint8_t maxentries = bios->data[bitoffset + 4];
+	int i, offset;
+	bit_entry_t bitentry;
+
+	for (i = 0, offset = bitoffset + 6; i < maxentries; i++, offset += 6) {
+		bitentry.id[0] = bios->data[offset];
+
+		if (bitentry.id[0] != table->id)
+			continue;
+
+		bitentry.id[1] = bios->data[offset + 1];
+		bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
+		bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
+
+		return table->parse_fn(pScrn, bios, &bitentry);
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "BIT table '%c' not found\n", table->id);
+
+	return -ENOSYS;
+}
+
 static int parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t bitoffset)
 {
-	int entries = bios->data[bitoffset + 4];
-	/* parse i first, I next (which needs C & M before it), and L before D */
-	char parseorder[] = "iCMILDTA";
-	bit_entry_t bitentry;
-	int i, j, offset, ret;
+	int ret;
 
-	for (i = 0; i < sizeof(parseorder); i++) {
-		for (j = 0, offset = bitoffset + 6; j < entries; j++, offset += 6) {
-			bitentry.id[0] = bios->data[offset];
-			bitentry.id[1] = bios->data[offset + 1];
-			bitentry.length = le16_to_cpu(*((uint16_t *)&bios->data[offset + 2]));
-			bitentry.offset = le16_to_cpu(*((uint16_t *)&bios->data[offset + 4]));
-
-			if (bitentry.id[0] != parseorder[i])
-				continue;
-
-			switch (bitentry.id[0]) {
-			case 'A':
-				parse_bit_A_tbl_entry(pScrn, bios, &bitentry);
-				break;
-			case 'C':
-				if ((ret = parse_bit_C_tbl_entry(pScrn, bios, &bitentry)))
-					return ret;
-				break;
-			case 'D':
-				parse_bit_display_tbl_entry(pScrn, bios, &bitentry);
-				break;
-			case 'I':
-				if ((ret = parse_bit_init_tbl_entry(pScrn, bios, &bitentry)))
-					return ret;
-				break;
-			case 'i': /* info? */
-				if ((ret = parse_bit_i_tbl_entry(pScrn, bios, &bitentry)))
-					return ret;
-				break;
-			case 'L':
-				parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry);
-				break;
-			case 'M': /* memory? */
-				parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
-				break;
-			case 'T':
-				parse_bit_tmds_tbl_entry(pScrn, bios, &bitentry);
-				break;
-			}
-		}
-	}
+	/* the only restriction on parsing order currently is having 'i' first
+	 * for use of bios->*_version or bios->feature_byte while parsing;
+	 * functions shouldn't be actually *doing* anything apart from pulling
+	 * data from the image into the bios struct, thus no interdependencies
+	 */
+	if ((ret = parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('i', i)))) /* info? */
+		return ret;
+	if (bios->major_version >= 0x60) /* g80+ */
+		parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('A', A));
+	if ((ret = parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('C', C))))
+		return ret;
+	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('D', display));
+	if ((ret = parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('I', init))))
+		return ret;
+	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('M', M)); /* memory? */
+	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('L', lvds));
+	parse_bit_table(pScrn, bios, bitoffset, &BIT_TABLE('T', tmds));
 
 	return 0;
 }
