@@ -1351,6 +1351,26 @@ static bool init_pll2(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exe
 	return true;
 }
 
+static int dcb_entry_idx_from_crtchead(ScrnInfoPtr pScrn)
+{
+	/* for the results of this function to be correct, CR44 must have been
+	 * set (using nv_idx_port_wr to set crtchead), CR58 set for CR57 = 0,
+	 * and the DCB table parsed, before the script calling the function is
+	 * run.  run_digital_op_script is example of how to do such setup
+	 */
+
+	uint8_t dcb_entry = NVReadVgaCrtc5758(NVPTR(pScrn), crtchead, 0);
+
+	if (dcb_entry > NVPTR(pScrn)->dcb_table.entries) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "CR58 doesn't have a valid DCB entry currently (%02X)\n",
+			   dcb_entry);
+		dcb_entry = 0x7f;	/* unused / invalid marker */
+	}
+
+	return dcb_entry;
+}
+
 static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index);
 
 static int
@@ -1360,8 +1380,14 @@ create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I
 	int ret;
 
 	if (i2c_index == 0xff) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "I2C index == 0xff case not implemented\n");
-		return -ENOSYS;
+		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
+		int idx = dcb_entry_idx_from_crtchead(pScrn), shift = 0;
+		int default_indices = pNv->dcb_table.i2c_default_indices;
+
+		if (idx != 0x7f && pNv->dcb_table.entry[idx].i2c_upper_default)
+			shift = 4;
+
+		i2c_index = (default_indices >> shift) & 0xf;
 	}
 
 	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
@@ -1498,15 +1524,11 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 	const uint32_t pramdac_table[4] = {0x6808b0, 0x6808b8, 0x6828b0, 0x6828b8};
 
 	if (mlv >= 0x80) {
-		/* here we assume that the DCB table has already been parsed */
-		uint8_t dcb_entry = NVReadVgaCrtc5758(NVPTR(pScrn), crtchead, 0);
-		int dacoffset;
+		int dcb_entry, dacoffset;
 
-		if (dcb_entry > pNv->dcb_table.entries) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "CR58 doesn't have a valid DCB entry currently (%02X)\n", dcb_entry);
+		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
+		if ((dcb_entry = dcb_entry_idx_from_crtchead(pScrn)) == 0x7f)
 			return 0;
-		}
 		dacoffset = pramdac_offset[pNv->dcb_table.entry[dcb_entry].or];
 		if (mlv == 0x81)
 			dacoffset ^= 8;
@@ -2879,7 +2901,7 @@ static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
 	return scriptptr;
 }
 
-static void rundigitaloutscript(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dcb_entry *dcbent, int head)
+static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dcb_entry *dcbent, int head)
 {
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	init_exec_t iexec = {true, false};
@@ -2903,7 +2925,7 @@ static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dc
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return -EINVAL;
 
-	rundigitaloutscript(pScrn, scriptofs, dcbent, head);
+	run_digital_op_script(pScrn, scriptofs, dcbent, head);
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
@@ -2989,7 +3011,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS output init script not found\n");
 		return -ENOENT;
 	}
-	rundigitaloutscript(pScrn, scriptptr, dcbent, head);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head);
 
 	return 0;
 }
@@ -3412,7 +3434,7 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 
 	/* don't let script change pll->head binding */
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
-	rundigitaloutscript(pScrn, scriptptr, dcbent, head);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head);
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 
 	return 0;
@@ -4241,7 +4263,7 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint8_t *i2ctable = &pNv->VBIOS.data[i2ctabptr];
-	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0;
+	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
 	int i2c_entries = MAX_NUM_DCB_ENTRIES;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	uint8_t port_type = 0;
@@ -4257,6 +4279,9 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 		dcb_i2c_ver = i2ctable[0];
 		headerlen = i2ctable[1];
 		i2c_entries = i2ctable[2];
+		entry_len = i2ctable[3];
+		/* XXX this requires a dcb entry calls read_dcb_i2c_entry */
+		pNv->dcb_table.i2c_default_indices = i2ctable[4];
 	}
 	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
 	 * the test below is for DCB 1.2
@@ -4275,14 +4300,14 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 			   index, i2ctable[2]);
 		return -ENOENT;
 	}
-	if (i2ctable[headerlen + 4 * index + 3] == 0xff) {
+	if (i2ctable[headerlen + entry_len * index + 3] == 0xff) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DCB I2C entry invalid\n");
 		return -EINVAL;
 	}
 
 	if (dcb_i2c_ver >= 0x30) {
-		port_type = i2ctable[headerlen + recordoffset + 3 + 4 * index];
+		port_type = i2ctable[headerlen + recordoffset + 3 + entry_len * index];
 
 		/* fixup for chips using same address offset for read and write */
 		if (port_type == 4)	/* seen on C51 */
@@ -4295,8 +4320,8 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 			   "DCB I2C table has port type %d\n", port_type);
 
 	pNv->dcb_table.i2c[index].port_type = port_type;
-	pNv->dcb_table.i2c[index].read = i2ctable[headerlen + recordoffset + rdofs + 4 * index];
-	pNv->dcb_table.i2c[index].write = i2ctable[headerlen + recordoffset + wrofs + 4 * index];
+	pNv->dcb_table.i2c[index].read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
+	pNv->dcb_table.i2c[index].write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
 
 	return 0;
 }
@@ -4404,6 +4429,10 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			/* weird type that appears on g80 mobile bios; nv driver treats it as a terminator */
 			return false;
 		}
+		/* unsure what DCB version introduces this, 3.0? */
+		if (conf & 0x100000)
+			entry->i2c_upper_default = true;
+
 		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&

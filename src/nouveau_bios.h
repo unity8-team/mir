@@ -45,6 +45,7 @@ struct dcb_entry {
 			bool use_power_scripts;
 		} lvdsconf;
 	};
+	bool i2c_upper_default;
 };
 
 struct dcb_i2c_entry {

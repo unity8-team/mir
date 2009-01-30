@@ -338,6 +338,7 @@ typedef struct _NVRec {
 	struct {
 		int entries;
 		struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
+		uint8_t i2c_default_indices;
 		struct dcb_i2c_entry i2c[MAX_NUM_DCB_ENTRIES];
 	} dcb_table;
 
