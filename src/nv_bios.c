@@ -108,20 +108,39 @@ static int score_vbios(ScrnInfoPtr pScrn, const uint8_t *data)
 
 static void load_vbios_prom(NVPtr pNv, uint8_t *data)
 {
+	uint32_t pci_nv_20 = nvReadMC(pNv, NV_PBUS_PCI_NV_20);
+	int pcir_ptr;
 	int i;
 
 	/* enable ROM access */
-	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_DISABLED);
-	for (i = 0; i < NV_PROM_SIZE; i++) {
-		/* according to nvclock, we need that to work around a 6600GT/6800LE bug */
+	nvWriteMC(pNv, NV_PBUS_PCI_NV_20,
+		  pci_nv_20 & ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+
+	/* bail if no rom signature */
+	if (NV_RD08(pNv->REGS, NV_PROM_OFFSET) != 0x55 ||
+	    NV_RD08(pNv->REGS, NV_PROM_OFFSET + 1) != 0xaa)
+		goto out;
+
+	/* additional check (see note below) - read PCI record header */
+	pcir_ptr = NV_RD08(pNv->REGS, NV_PROM_OFFSET + 0x18) |
+		   NV_RD08(pNv->REGS, NV_PROM_OFFSET + 0x19) << 8;
+	if (NV_RD08(pNv->REGS, NV_PROM_OFFSET + pcir_ptr) != 'P' ||
+	    NV_RD08(pNv->REGS, NV_PROM_OFFSET + pcir_ptr + 1) != 'C' ||
+	    NV_RD08(pNv->REGS, NV_PROM_OFFSET + pcir_ptr + 2) != 'I' ||
+	    NV_RD08(pNv->REGS, NV_PROM_OFFSET + pcir_ptr + 3) != 'R')
+		goto out;
+
+	/* on some 6600GT/6800LE prom reads are messed up.  nvclock alleges a
+	 * a good read may be obtained by waiting or re-reading (cargocult: 5x)
+	 * each byte.  we'll hope pramin has something usable instead
+	 */
+	for (i = 0; i < NV_PROM_SIZE; i++)
 		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
-		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
-		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
-		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
-		data[i] = NV_RD08(pNv->REGS, NV_PROM_OFFSET + i);
-	}
+
+out:
 	/* disable ROM access */
-	nvWriteMC(pNv, NV_PBUS_PCI_NV_20, NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+	nvWriteMC(pNv, NV_PBUS_PCI_NV_20,
+		  pci_nv_20 | NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 }
 
 static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
@@ -139,9 +158,15 @@ static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
 		NV_WR32(pNv->REGS, 0x1700, vbios_vram >> 16);
 	}
 
+	/* bail if no rom signature */
+	if (NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET) != 0x55 ||
+	    NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET + 1) != 0xaa)
+		goto out;
+
 	for (i = 0; i < NV_PROM_SIZE; i++)
 		data[i] = NV_RD08(pNv->REGS, NV_PRAMIN_OFFSET + i);
 
+out:
 	if (pNv->Architecture >= NV_ARCH_50)
 		NV_WR32(pNv->REGS, 0x1700, old_bar0_pramin);
 }
