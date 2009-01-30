@@ -234,8 +234,9 @@ static Bool RADEONCheckTexturePOT(PicturePtr pPict, Bool canTile)
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
 
-    if (pPict->repeat && ((w & (w - 1)) != 0 || (h & (h - 1)) != 0) &&
-	!(!pPict->transform && canTile))
+    if (pPict->repeat && pPict->repeatType != RepeatPad &&
+	((w & (w - 1)) != 0 || (h & (h - 1)) != 0) &&
+	!(pPict->repeatType == RepeatNormal && !pPict->transform && canTile))
 	RADEON_FALLBACK(("NPOT repeating %s unsupported (%dx%d), transform=%d\n",
 			 canTile ? "source" : "mask", w, h, pPict->transform != 0));
 
@@ -283,7 +284,7 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
     info->accel_state->need_src_tile_x = info->accel_state->need_src_tile_y = FALSE;
     info->accel_state->src_tile_width = info->accel_state->src_tile_height = 65536; /* "infinite" */
 	    
-    if (pPict->repeat) {
+    if (pPict->repeatType == RepeatNormal) {
 	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
 	
 	int w = pPict->pDrawable->width;
@@ -344,11 +345,6 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict, int unit)
 	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
     }
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
-    {
-	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
-    }
-
     return TRUE;
 }
 
@@ -361,7 +357,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
-    Bool repeat = pPict->repeat &&
+    Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
     ACCEL_PREAMBLE();
@@ -408,8 +404,20 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (repeat)
-      txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
+    switch (pPict->repeatType) {
+    case RepeatNormal:
+	txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
+	break;
+    case RepeatPad:
+	txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
+	break;
+    case RepeatReflect:
+	txfilter |= RADEON_CLAMP_S_MIRROR | RADEON_CLAMP_T_MIRROR;
+	break;
+    case RepeatNone:
+	/* Nothing to do */
+	break;
+    }
 
     BEGIN_ACCEL(5);
     if (unit == 0) {
@@ -671,11 +679,6 @@ static Bool R200CheckCompositeTexture(PicturePtr pPict, int unit)
 	pPict->filter != PictFilterBilinear)
 	RADEON_FALLBACK(("Unsupported filter 0x%x\n", pPict->filter));
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
-    {
-	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
-    }
-
     return TRUE;
 }
 
@@ -688,7 +691,7 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     uint32_t txfilter, txformat, txoffset, txpitch;
     int w = pPict->pDrawable->width;
     int h = pPict->pDrawable->height;
-    Bool repeat = pPict->repeat &&
+    Bool repeat = pPict->repeat && pPict->repeatType != RepeatPad &&
 	!(unit == 0 && (info->accel_state->need_src_tile_x || info->accel_state->need_src_tile_y));
     int i;
     ACCEL_PREAMBLE();
@@ -737,8 +740,20 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    if (repeat)
-      txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
+    switch (pPict->repeatType) {
+    case RepeatNormal:
+	txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
+	break;
+    case RepeatPad:
+	txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
+	break;
+    case RepeatReflect:
+	txfilter |= R200_CLAMP_S_MIRROR | R200_CLAMP_T_MIRROR;
+	break;
+    case RepeatNone:
+	/* Nothing to do */
+	break;
+    }
 
     BEGIN_ACCEL(6);
     if (unit == 0) {
@@ -1012,11 +1027,6 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
-    if (pPict->repeat && pPict->repeatType != RepeatNormal)
-    {
-	RADEON_FALLBACK(("Unsupported repeat type %d\n", pPict->repeat));
-    }
-
     return TRUE;
 }
 
@@ -1076,17 +1086,34 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
     info->accel_state->texW[unit] = w;
     info->accel_state->texH[unit] = h;
 
-    if (pPict->repeat && !(unit == 0 && info->accel_state->need_src_tile_x))
-      txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP);
-    else
-      txfilter = R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL);
+    txfilter = (unit << R300_TX_ID_SHIFT);
 
-    if (pPict->repeat && !(unit == 0 && info->accel_state->need_src_tile_y))
-      txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP);
-    else
-      txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
+    switch (pPict->repeatType) {
+    case RepeatNormal:
+	if (unit != 0 || !info->accel_state->need_src_tile_x)
+	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP);
+	else
+	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL);
 
-    txfilter |= (unit << R300_TX_ID_SHIFT);
+	if (unit != 0 || !info->accel_state->need_src_tile_y)
+	    txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP);
+	else
+	    txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
+
+	break;
+    case RepeatPad:
+	txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
+		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST);
+	break;
+    case RepeatReflect:
+	txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_MIRROR) |
+		    R300_TX_CLAMP_T(R300_TX_CLAMP_MIRROR);
+	break;
+    case RepeatNone:
+	txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
+		    R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
+	break;
+    }
 
     switch (pPict->filter) {
     case PictFilterNearest:
