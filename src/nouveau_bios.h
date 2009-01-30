@@ -170,6 +170,8 @@ struct nouveau_bios {
 		struct {
 			uint8_t crt, tv, panel;
 		} i2c_indices;
+
+		uint16_t lvds_single_a_script_ptr;
 	} legacy;
 };
 

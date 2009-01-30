@@ -3392,7 +3392,9 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		/* change in behaviour guessed at nv30; see datapoints below */
 		if (bios->chip_version < 0x30) {
 			/* nv17 behaviour */
-			lvdsmanufacturerindex = bios->fp.if_is_24bit ? 2 : 0;
+			/* it seems the old style lvds script pointer is reused
+			 * to select 18/24 bit colour depth for EDID panels */
+			lvdsmanufacturerindex = (bios->legacy.lvds_single_a_script_ptr & 1) ? 2 : 0;
 			if (pxclk >= bios->fp.duallink_transition_clk)
 				lvdsmanufacturerindex++;
 		} else {
@@ -4277,9 +4279,10 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	if (bmplength > 94) {
 		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 89]));
 		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 91]));
-		/* it seems the old style lvds script pointer (which I've not observed in use) gets
-		 * reused as the 18/24 bit panel interface default for EDID equipped panels */
-		bios->fp.if_is_24bit = bios->data[offset + 95] & 1;
+		/* never observed in use with lvds scripts, but is reused for
+		 * 18/24 bit panel interface default for EDID equipped panels
+		 * (if_is_24bit not set directly to avoid any oscillation) */
+		bios->legacy.lvds_single_a_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 95]));
 	}
 	if (bmplength > 108) {
 		bios->fp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[offset + 105])));
