@@ -3899,7 +3899,7 @@ static int parse_bit_display_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entr
 
 	bios->fp.fptablepointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset + 2])));
 
-	return parse_fp_mode_table(pScrn, bios);
+	return 0;
 }
 
 static int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -3990,9 +3990,8 @@ static int parse_bit_lvds_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 
 	/* no idea if it's still called the LVDS manufacturer table, but the concept's close enough */
 	bios->fp.lvdsmanufacturerpointer = le16_to_cpu(*((uint16_t *)(&bios->data[bitentry->offset])));
-	bios->fp.strapping = get_fp_strap(pScrn, bios);
 
-	return parse_lvds_manufacturer_table(pScrn, 0);
+	return 0;
 }
 
 static int parse_bit_M_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *bitentry)
@@ -4109,15 +4108,13 @@ static int parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t b
 			case 'I':
 				if ((ret = parse_bit_init_tbl_entry(pScrn, bios, &bitentry)))
 					return ret;
-				parse_init_tables(pScrn, bios);
 				break;
 			case 'i': /* info? */
 				if ((ret = parse_bit_i_tbl_entry(pScrn, bios, &bitentry)))
 					return ret;
 				break;
 			case 'L':
-				if (bios->feature_byte & FEATURE_MOBILE)
-					parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry);
+				parse_bit_lvds_tbl_entry(pScrn, bios, &bitentry);
 				break;
 			case 'M': /* memory? */
 				parse_bit_M_tbl_entry(pScrn, bios, &bitentry);
@@ -4134,7 +4131,7 @@ static int parse_bit_structure(ScrnInfoPtr pScrn, bios_t *bios, const uint16_t b
 
 static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset)
 {
-	/* Parse the BMP structure for useful things
+	/* Parses the BMP structure for useful things, but does not act on them
 	 *
 	 * offset +   5: BMP major version
 	 * offset +   6: BMP minor version
@@ -4174,7 +4171,6 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
-	int ret;
 
 	/* load needed defaults in case we can't parse this info */
 	pNv->dcb_table.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
@@ -4297,19 +4293,6 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	if (bmplength > 157)
 		bios->fp.duallink_transition_clk = le16_to_cpu(*((uint16_t *)&bios->data[offset + 156])) * 10;
 
-	/* want pll_limit_tbl_ptr set (if available) before init is run */
-	parse_init_tables(pScrn, bios);
-
-	/* If it's not a laptop, you probably don't care about fptables */
-	if (!(bios->feature_byte & FEATURE_MOBILE))
-		return 0;
-
-	bios->fp.strapping = get_fp_strap(pScrn, bios);
-	if ((ret = parse_lvds_manufacturer_table(pScrn, 0)))
-		return ret;
-#ifndef __powerpc__
-	return parse_fp_mode_table(pScrn, bios);
-#endif
 	return 0;
 }
 
@@ -4838,16 +4821,11 @@ int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
 	int offset, ret;
 
-	NVLockVgaCrtcs(pNv, false);
-	if (pNv->twoHeads)
-		NVSetOwner(pNv, crtchead);
-
 	if ((offset = findstr(bios->data, bios->length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
 		ret = parse_bit_structure(pScrn, bios, offset + 6);
 	} else if ((offset = findstr(bios->data, bios->length, bmp_signature, sizeof(bmp_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
-		load_nv17_hw_sequencer_ucode(pScrn, bios);
 		ret = parse_bmp_structure(pScrn, bios, offset);
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -4855,6 +4833,33 @@ int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		ret = -ENODEV;
 	}
 
+	if (ret || bios->major_version == 0) /* we don't parse version 0 bios */
+		return ret;
+
+	NVLockVgaCrtcs(pNv, false);
+	if (pNv->twoHeads)
+		NVSetOwner(pNv, crtchead);
+
+	if (bios->major_version < 5)	/* BMP only */
+		load_nv17_hw_sequencer_ucode(pScrn, bios);
+
+	parse_init_tables(pScrn, bios);
+
+	if (bios->feature_byte & FEATURE_MOBILE) {
+		bios->fp.strapping = get_fp_strap(pScrn, bios);
+		if ((ret = parse_lvds_manufacturer_table(pScrn, 0)))
+			goto out;
+	}
+	/* all BIT systems need parse_fp_mode.. for digital_min_front_porch */
+	if (bios->feature_byte & FEATURE_MOBILE || bios->major_version >= 5)
+#ifdef __powerpc__
+		/* PPC cards don't have the fp table; the laptops use DDC */
+		bios->digital_min_front_porch = 0x4b;
+#else
+		ret = parse_fp_mode_table(pScrn, bios);
+#endif
+
+out:
 	NVLockVgaCrtcs(pNv, true);
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, crtchead);
