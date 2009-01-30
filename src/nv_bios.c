@@ -1510,6 +1510,51 @@ static bool init_zm_i2c_byte(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, i
 	return true;
 }
 
+static bool init_zm_i2c(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_ZM_I2C   opcode: 0x4E ('N')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (8 bit): count
+	 * offset + 4  (8 bit): data 1
+	 * ...
+	 *
+	 * Send "count" bytes ("data n") to the device addressed by "I2C slave
+	 * address" on the I2C bus given by "DCB I2C table entry index"
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t count = bios->data[offset + 3];
+	I2CDevRec i2cdev;
+	uint8_t data[UINT8_MAX];
+	int i;
+
+	if (!iexec->execute)
+		return true;
+
+	BIOSLOG(pScrn, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X, Count: 0x%02X\n",
+		offset, i2c_index, i2c_address, count);
+
+	if (create_i2c_device(pScrn, bios, i2c_index, i2c_address, &i2cdev))
+		return false;
+
+	for (i = 0; i < count; i++) {
+		data[i] = bios->data[offset + 4 + i];
+
+		BIOSLOG(pScrn, "0x%04X: Data: 0x%02X\n", offset, data[i]);
+	}
+
+	if (bios->execute)
+		xf86I2CWrite(&i2cdev, data, count);
+
+	xf86DestroyI2CDevRec(&i2cdev, FALSE);
+
+	return true;
+}
+
 static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 {
 	/* For mlv < 0x80, it is an index into a table of TMDS base addresses
@@ -2718,7 +2763,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_PLL2"                         , 0x4B, 9       , 0       , 0       , init_pll2                       },
 	{ "INIT_I2C_BYTE"                     , 0x4C, 4       , 3       , 3       , init_i2c_byte                   },
 	{ "INIT_ZM_I2C_BYTE"                  , 0x4D, 4       , 3       , 2       , init_zm_i2c_byte                },
-/*	{ "INIT_ZM_I2C"                       , 0x4E, x       , x       , x       , init_zm_i2c                     }, */
+	{ "INIT_ZM_I2C"                       , 0x4E, 4       , 3       , 1       , init_zm_i2c                     },
 	{ "INIT_TMDS"                         , 0x4F, 5       , 0       , 0       , init_tmds                       },
 	{ "INIT_ZM_TMDS_GROUP"                , 0x50, 3       , 2       , 2       , init_zm_tmds_group              },
 	{ "INIT_CR_INDEX_ADDRESS_LATCHED"     , 0x51, 5       , 4       , 1       , init_cr_idx_adr_latch           },
