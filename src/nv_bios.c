@@ -4845,19 +4845,19 @@ int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 
 	parse_init_tables(pScrn, bios);
 
-	if (bios->feature_byte & FEATURE_MOBILE) {
-		bios->fp.strapping = get_fp_strap(pScrn, bios);
-		if ((ret = parse_lvds_manufacturer_table(pScrn, 0)))
-			goto out;
-	}
 	/* all BIT systems need parse_fp_mode.. for digital_min_front_porch */
-	if (bios->feature_byte & FEATURE_MOBILE || bios->major_version >= 5)
+	if (bios->feature_byte & FEATURE_MOBILE || bios->major_version >= 5) {
 #ifdef __powerpc__
 		/* PPC cards don't have the fp table; the laptops use DDC */
 		bios->digital_min_front_porch = 0x4b;
 #else
-		ret = parse_fp_mode_table(pScrn, bios);
+		bios->fp.strapping = get_fp_strap(pScrn, bios);
+		if ((ret = parse_fp_mode_table(pScrn, bios)))
+			goto out;
 #endif
+	}
+	if (bios->feature_byte & FEATURE_MOBILE)
+		ret = parse_lvds_manufacturer_table(pScrn, 0);
 
 out:
 	NVLockVgaCrtcs(pNv, true);
