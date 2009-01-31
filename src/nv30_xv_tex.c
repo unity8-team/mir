@@ -107,6 +107,7 @@ NV30_LoadFilterTable(ScrnInfoPtr pScrn)
 
 		int8_t *t=pNv->xv_filtertable_mem->map;
 		compute_filter_table(t);
+		nouveau_bo_unmap(pNv->xv_filtertable_mem);
 	}
 }
 
