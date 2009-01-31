@@ -1593,8 +1593,10 @@ radeon_get_encoder(xf86OutputPtr output)
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info = RADEONPTR(output->scrn);
 
-    return info->encoders[radeon_get_device_index(radeon_output->active_device)];
-
+    if (radeon_output->active_device)
+	return info->encoders[radeon_get_device_index(radeon_output->active_device)];
+    else
+	return NULL;
 }
 
 Bool
