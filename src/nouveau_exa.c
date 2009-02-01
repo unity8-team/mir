@@ -52,8 +52,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned src_pitch = 0, src_offset = 0, linear = 0;
 
-	if (pNv->Architecture < NV_ARCH_50 ||
-	    exaGetPixmapOffset(pspix) < pNv->EXADriverPtr->offScreenBase) {
+	if (pNv->Architecture < NV_ARCH_50) {
 		linear     = 1;
 		src_pitch  = exaGetPixmapPitch(pspix);
 		src_offset = (y * src_pitch) + (x * cpp);
@@ -162,11 +161,12 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned dst_pitch = 0, dst_offset = 0, linear = 0;
 
-	if (pNv->Architecture < NV_ARCH_50 ||
-	    exaGetPixmapOffset(pdpix) < pNv->EXADriverPtr->offScreenBase) {
+	if (pNv->Architecture < NV_ARCH_50) {
 		linear     = 1;
 		dst_pitch  = exaGetPixmapPitch(pdpix);
 		dst_offset = (y * dst_pitch) + (x * cpp);
+	} else {
+		NV50EXADamageSubmit(pdpix, x, y, w, h);
 	}
 
 	while (h) {
@@ -259,6 +259,9 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		h -= line_count;
 		y += line_count;
 	}
+
+	if (pNv->Architecture >= NV_ARCH_50)
+		NV50EXADamageRepair(pdpix);
 
 	return TRUE;
 }
@@ -426,17 +429,6 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->memorySize = pNv->FB->size; 
 
 	if (pNv->Architecture >= NV_ARCH_50) {
-		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
-		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
-		struct drm_nouveau_mem_tile t;
-
-		t.offset = nvbo->drm.offset;
-		t.flags  = nvbo->drm.flags | NOUVEAU_MEM_TILE;
-		t.delta  = exa->offScreenBase;
-		t.size   = exa->memorySize - 
-			   exa->offScreenBase;
-		drmCommandWrite(nvdev->fd, DRM_NOUVEAU_MEM_TILE, &t, sizeof(t));
-
 		exa->maxX = 8192;
 		exa->maxY = 8192;
 	} else

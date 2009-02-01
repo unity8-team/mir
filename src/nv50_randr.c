@@ -99,7 +99,7 @@ nv50_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjuste
 		nv_crtc->crtc->SetFB(nv_crtc->crtc, nv_crtc->shadow);
 		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, 0, 0);
 	} else {
-		nv_crtc->crtc->SetFB(nv_crtc->crtc, pNv->FB);
+		nv_crtc->crtc->SetFB(nv_crtc->crtc, pNv->scanout);
 		nv_crtc->crtc->SetFBOffset(nv_crtc->crtc, x, y);
 	}
 	nv_crtc->crtc->ModeSet(nv_crtc->crtc, mode);

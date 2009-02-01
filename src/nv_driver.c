@@ -666,18 +666,6 @@ NVEnterVT(int scrnIndex, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
 	NVMapMem(pScrn);
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->EXADriverPtr) {
-		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
-		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
-		struct drm_nouveau_mem_tile t;
-
-		t.offset = nvbo->drm.offset;
-		t.flags  = nvbo->drm.flags | NOUVEAU_MEM_TILE;
-		t.delta  = pNv->EXADriverPtr->offScreenBase;
-		t.size   = pNv->EXADriverPtr->memorySize - 
-			   pNv->EXADriverPtr->offScreenBase;
-		drmCommandWrite(nvdev->fd, DRM_NOUVEAU_MEM_TILE, &t, sizeof(t));
-	}
 
 	if (!pNv->kms_enable && pNv->randr12_enable)
 		NVSave(pScrn);
@@ -1647,6 +1635,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	int gart_scratch_size;
 	uint64_t res;
+	uint32_t flags;
 
 	if (pNv->NoAccel)
 		return NVMapMemSW(pScrn);
@@ -1658,14 +1647,38 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
-	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for framebuffer!\n");
-			return FALSE;
+	flags = NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN;
+	if (pNv->Architecture >= NV_ARCH_50)
+		flags |= NOUVEAU_BO_TILED;
+
+	if (nouveau_bo_new(pNv->dev, flags, 0, pNv->VRAMPhysicalSize / 2,
+			   &pNv->FB)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate memory for framebuffer!\n");
+		return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, at offset 0x%X\n",
-		(uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
+		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, "
+		   "at offset 0x%X\n",
+		   (uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
+
+	if (pNv->Architecture >= NV_ARCH_50) {
+		unsigned scanout_size;
+
+		scanout_size = NOUVEAU_ALIGN(pScrn->virtualX, 64) * 4;
+		scanout_size *= (pScrn->bitsPerPixel >> 3);
+		scanout_size *= pScrn->virtualY;
+
+		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+				   0, scanout_size, &pNv->scanout)) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Failed to allocate scanout buffer\n");
+			return FALSE;
+		}
+	} else {
+		nouveau_bo_ref(pNv->FB, &pNv->scanout);
+	}
+
 #ifdef XF86DRM_MODE
 	if (pNv->kms_enable)
 		drmmode_set_fb(pScrn, pNv->drmmode, pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth*(pScrn->bitsPerPixel >> 3), pNv->FB);
@@ -1763,6 +1776,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 		free(pNv->Cursor2); pNv->Cursor2 = NULL;
 	} else {
 		nouveau_bo_ref(NULL, &pNv->FB);
+		nouveau_bo_ref(NULL, &pNv->scanout);
 		nouveau_bo_ref(NULL, &pNv->GART);
 		nouveau_bo_ref(NULL, &pNv->Cursor);
 		nouveau_bo_ref(NULL, &pNv->Cursor2);

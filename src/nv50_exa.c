@@ -117,7 +117,7 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	bo_flags  = NOUVEAU_BO_VRAM;
 	bo_flags |= is_src ? NOUVEAU_BO_RD : NOUVEAU_BO_WR;
 
-	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase) {
+	if (0) {
 		BEGIN_RING(chan, eng2d, mthd, 2);
 		OUT_RING  (chan, fmt);
 		OUT_RING  (chan, 1);
@@ -208,6 +208,84 @@ NV50EXASetROP(PixmapPtr pdpix, int alu, Pixel planemask)
 	}
 }
 
+void
+NV50EXADamageSubmit(PixmapPtr ppix, int x, int y, int w, int h)
+{
+	NV50EXA_LOCALS(ppix);
+	RegionRec region;
+	BoxRec box;
+
+	/* Only need to track damage on root window */
+	if (pNv->Architecture < NV_ARCH_50 ||
+	    exaGetPixmapOffset(ppix) >= pNv->EXADriverPtr->offScreenBase)
+		return;
+
+	box.x1 = x;
+	box.x2 = x + w;
+	box.y1 = y;
+	box.y2 = y + h;
+
+	REGION_INIT(pScreen, &region, &box, 1);
+	REGION_UNION(pScreen, &pNv->fb_damage, &pNv->fb_damage, &region);
+	REGION_UNINIT(pScreen, &region);
+}
+
+void
+NV50EXADamageRepair(PixmapPtr ppix)
+{
+	NV50EXA_LOCALS(ppix);
+	BoxPtr pbox;
+	int nbox;
+	uint32_t fmt;
+
+	pbox = REGION_RECTS(&pNv->fb_damage);
+	nbox = REGION_NUM_RECTS(&pNv->fb_damage);
+	if (!nbox)
+		return;
+
+	NV50EXA2DSurfaceFormat(ppix, &fmt);
+	NV50EXAAcquireSurface2D(ppix, 1);
+
+	BEGIN_RING(chan, eng2d, NV50_2D_DST_FORMAT, 2);
+	OUT_RING  (chan, fmt);
+	OUT_RING  (chan, 1);
+	BEGIN_RING(chan, eng2d, NV50_2D_DST_PITCH, 5);
+	OUT_RING  (chan, NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+			 (pScrn->bitsPerPixel >> 3));
+	OUT_RING  (chan, ppix->drawable.width);
+	OUT_RING  (chan, ppix->drawable.height);
+	OUT_RELOCh(chan, pNv->scanout, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, pNv->scanout, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+
+	BEGIN_RING(chan, eng2d, NV50_2D_CLIP_X, 4);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, 0);
+	OUT_RING  (chan, ppix->drawable.width);
+	OUT_RING  (chan, ppix->drawable.height);
+	BEGIN_RING(chan, eng2d, NV50_2D_OPERATION, 1);
+	OUT_RING  (chan, NV50_2D_OPERATION_SRCCOPY);
+
+	while (nbox--) {
+		BEGIN_RING(chan, eng2d, NV50_2D_BLIT_DST_X, 12);
+		OUT_RING  (chan, pbox->x1);
+		OUT_RING  (chan, pbox->y1);
+		OUT_RING  (chan, pbox->x2 - pbox->x1);
+		OUT_RING  (chan, pbox->y2 - pbox->y1);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, 1);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, pbox->x1);
+		OUT_RING  (chan, 0);
+		OUT_RING  (chan, pbox->y1);
+
+		pbox++;
+	}
+
+	REGION_EMPTY(pScreen, &pNv->fb_damage);
+}
+
 static void
 NV50EXAStateSolidResubmit(struct nouveau_channel *chan)
 {
@@ -250,6 +328,8 @@ NV50EXASolid(PixmapPtr pdpix, int x1, int y1, int x2, int y2)
 {
 	NV50EXA_LOCALS(pdpix);
 
+	NV50EXADamageSubmit(pdpix, x1, y1, x2 - x1, y2 - y1);
+
 	WAIT_RING (chan, 5);
 	BEGIN_RING(chan, eng2d, NV50_2D_RECT_X1, 4);
 	OUT_RING  (chan, x1);
@@ -267,6 +347,7 @@ NV50EXADoneSolid(PixmapPtr pdpix)
 	NV50EXA_LOCALS(pdpix);
 
 	chan->flush_notify = NULL;
+	NV50EXADamageRepair(pdpix);
 }
 
 static void
@@ -308,6 +389,8 @@ NV50EXACopy(PixmapPtr pdpix, int srcX , int srcY,
 {
 	NV50EXA_LOCALS(pdpix);
 
+	NV50EXADamageSubmit(pdpix, dstX, dstY, width, height);
+
 	WAIT_RING (chan, 17);
 	BEGIN_RING(chan, eng2d, 0x0110, 1);
 	OUT_RING  (chan, 0);
@@ -337,6 +420,7 @@ NV50EXADoneCopy(PixmapPtr pdpix)
 	NV50EXA_LOCALS(pdpix);
 
 	chan->flush_notify = NULL;
+	NV50EXADamageRepair(pdpix);
 }
 
 static void
@@ -406,6 +490,9 @@ NV50EXAUploadSIFC(const char *src, int src_pitch,
 	}
 
 	chan->flush_notify = NULL;
+
+	NV50EXADamageSubmit(pdpix, x, y, w, h);
+	NV50EXADamageRepair(pdpix);
 	return TRUE;
 }
 
@@ -436,10 +523,6 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 {
 	NV50EXA_LOCALS(ppix);
 	unsigned format;
-
-	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
-	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
-		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	switch (ppict->format) {
 	case PICT_a8r8g8b8: format = NV50TCL_RT_FORMAT_32BPP; break;
@@ -509,10 +592,6 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 {
 	NV50EXA_LOCALS(ppix);
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
-
-	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
-	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
-		NOUVEAU_FALLBACK("pixmap is scanout buffer\n");
 
 	BEGIN_RING(chan, tesla, NV50TCL_TIC_ADDRESS_HIGH, 3);
 	OUT_RELOCh(chan, pNv->tesla_scratch, TIC_OFFSET, tcb_flags);
@@ -837,6 +916,8 @@ NV50EXAComposite(PixmapPtr pdpix, int sx, int sy, int mx, int my,
 	float sX0, sX1, sX2, sX3, sY0, sY1, sY2, sY3;
 	unsigned dX0 = dx, dX1 = dx + w, dY0 = dy, dY1 = dy + h;
 
+	NV50EXADamageSubmit(pdpix, dx, dy, w, h);
+
 	WAIT_RING (chan, 64);
 	BEGIN_RING(chan, tesla, NV50TCL_VERTEX_BEGIN, 1);
 	OUT_RING  (chan, NV50TCL_VERTEX_BEGIN_QUADS);
@@ -891,5 +972,6 @@ NV50EXADoneComposite(PixmapPtr pdpix)
 	NV50EXA_LOCALS(pdpix);
 
 	chan->flush_notify = NULL;
+	NV50EXADamageRepair(pdpix);
 }
 

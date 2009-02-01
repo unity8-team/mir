@@ -51,9 +51,6 @@ nv50_xv_check_image_put(PixmapPtr ppix)
 		return FALSE;
 	}
 
-	if (exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
-		return FALSE;
-
 	return TRUE;
 }
 
@@ -246,6 +243,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
+		NV50EXADamageSubmit(ppix, sx1, sy1, sx2 - sx1, sy2 - sy1);
 		tx1 = tx1 / src_w;
 		tx2 = tx2 / src_w;
 		ty1 = ty1 / src_h;
@@ -268,6 +266,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		pbox++;
 	}
 
+	NV50EXADamageRepair(ppix);
 	FIRE_RING (chan);
 	return Success;
 }

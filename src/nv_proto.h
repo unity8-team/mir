@@ -222,6 +222,8 @@ void NV50EXAComposite(PixmapPtr, int, int, int, int, int, int, int, int);
 void NV50EXADoneComposite(PixmapPtr);
 Bool NV50EXAUploadSIFC(const char *src, int src_pitch,
 		       PixmapPtr pdPix, int x, int y, int w, int h, int cpp);
+void NV50EXADamageSubmit(PixmapPtr, int x, int y, int w, int h);
+void NV50EXADamageRepair(PixmapPtr);
 
 /* in nv50_display.c */
 Bool NV50DispPreInit(ScrnInfoPtr);
