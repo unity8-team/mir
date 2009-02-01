@@ -907,7 +907,7 @@ NVAccelInitNV10TCL(ScrnInfoPtr pScrn)
 		((chipset & 0xf0) != NV_ARCH_20) )
 		return FALSE;
 
-	if (chipset>=0x20)
+	if (chipset >= 0x20 || chipset == 0x1a)
 		class = NV11TCL;
 	else if (chipset>=0x17)
 		class = NV17TCL;
