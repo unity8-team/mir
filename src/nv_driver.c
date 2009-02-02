@@ -665,9 +665,7 @@ NVEnterVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
-	if (!NVMapMem(pScrn))
-		return FALSE;
-
+	NVMapMem(pScrn);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->EXADriverPtr) {
 		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
 		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
@@ -2150,11 +2148,9 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		pNv->ShadowPtr = NULL;
 		displayWidth = pScrn->displayWidth;
-		if (!pNv->NoAccel)
-			nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 		FBStart = pNv->FB->map;
-		if (!pNv->NoAccel)
-			nouveau_bo_unmap(pNv->FB);
+		nouveau_bo_unmap(pNv->FB);
 	}
 
 	switch (pScrn->bitsPerPixel) {

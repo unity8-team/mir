@@ -389,19 +389,15 @@ void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 
 	if (pNv->Architecture >= NV_ARCH_10) {
 		/* Due to legacy code */
-		if (!pNv->NoAccel) {
-			nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-			nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-		} else {
-			cursor = nv_crtc->head ? pNv->Cursor2 : pNv->Cursor;
-		}
+		nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 		pNv->CURSOR = cursor->map;
 	}
 
 	/* Eventually this has to be replaced as well */
 	TransformCursor(pNv);
 
-	if (cursor && !pNv->NoAccel) {
+	if (cursor) {
 		nouveau_bo_unmap(cursor);
 		nouveau_bo_ref(NULL, &cursor);
 	}
@@ -416,12 +412,8 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	uint32_t *dst = NULL;
 	uint32_t *src = (uint32_t *)image;
 
-	if (!pNv->NoAccel) {
-		nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-	} else {
-		cursor = nv_crtc->head ? pNv->Cursor2 : pNv->Cursor;
-	}
+	nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 	dst = cursor->map;
 
 	/* It seems we get premultiplied alpha and the hardware takes non-premultiplied? */
@@ -460,6 +452,5 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 		}
 	}
 
-	if (!pNv->NoAccel)
-		nouveau_bo_unmap(cursor);
+	nouveau_bo_unmap(cursor);
 }
