@@ -341,6 +341,10 @@ struct avivo_state
     struct avivo_pll_state pll1;
     struct avivo_pll_state pll2;
 
+    struct avivo_pll_state vga25_ppll;
+    struct avivo_pll_state vga28_ppll;
+    struct avivo_pll_state vga41_ppll;
+
     struct avivo_crtc_state crtc1;
     struct avivo_crtc_state crtc2;
 

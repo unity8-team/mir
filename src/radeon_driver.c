@@ -4232,6 +4232,27 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
     state->pll2.pll_cntl = INREG(AVIVO_P2PLL_CNTL);
     state->pll2.int_ss_cntl = INREG(AVIVO_P2PLL_INT_SS_CNTL);
 
+    state->vga25_ppll.ref_div_src = INREG(AVIVO_VGA25_PPLL_REF_DIV_SRC);
+    state->vga25_ppll.ref_div = INREG(AVIVO_VGA25_PPLL_REF_DIV);
+    state->vga25_ppll.fb_div = INREG(AVIVO_VGA25_PPLL_FB_DIV);
+    state->vga25_ppll.post_div_src = INREG(AVIVO_VGA25_PPLL_POST_DIV_SRC);
+    state->vga25_ppll.post_div = INREG(AVIVO_VGA25_PPLL_POST_DIV);
+    state->vga25_ppll.pll_cntl = INREG(AVIVO_VGA25_PPLL_CNTL);
+
+    state->vga28_ppll.ref_div_src = INREG(AVIVO_VGA28_PPLL_REF_DIV_SRC);
+    state->vga28_ppll.ref_div = INREG(AVIVO_VGA28_PPLL_REF_DIV);
+    state->vga28_ppll.fb_div = INREG(AVIVO_VGA28_PPLL_FB_DIV);
+    state->vga28_ppll.post_div_src = INREG(AVIVO_VGA28_PPLL_POST_DIV_SRC);
+    state->vga28_ppll.post_div = INREG(AVIVO_VGA28_PPLL_POST_DIV);
+    state->vga28_ppll.pll_cntl = INREG(AVIVO_VGA28_PPLL_CNTL);
+
+    state->vga41_ppll.ref_div_src = INREG(AVIVO_VGA41_PPLL_REF_DIV_SRC);
+    state->vga41_ppll.ref_div = INREG(AVIVO_VGA41_PPLL_REF_DIV);
+    state->vga41_ppll.fb_div = INREG(AVIVO_VGA41_PPLL_FB_DIV);
+    state->vga41_ppll.post_div_src = INREG(AVIVO_VGA41_PPLL_POST_DIV_SRC);
+    state->vga41_ppll.post_div = INREG(AVIVO_VGA41_PPLL_POST_DIV);
+    state->vga41_ppll.pll_cntl = INREG(AVIVO_VGA41_PPLL_CNTL);
+
     state->crtc1.pll_source = INREG(AVIVO_PCLK_CRTC1_CNTL);
 
     state->crtc1.h_total = INREG(AVIVO_D1CRTC_H_TOTAL);
@@ -4601,6 +4622,28 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 
     OUTREG(AVIVO_PCLK_CRTC1_CNTL, state->crtc1.pll_source);
     OUTREG(AVIVO_PCLK_CRTC2_CNTL, state->crtc2.pll_source);
+
+    /* Set the vga PLL */
+    OUTREG(AVIVO_VGA25_PPLL_REF_DIV_SRC, state->vga25_ppll.ref_div_src);
+    OUTREG(AVIVO_VGA25_PPLL_REF_DIV, state->vga25_ppll.ref_div);
+    OUTREG(AVIVO_VGA25_PPLL_FB_DIV, state->vga25_ppll.fb_div);
+    OUTREG(AVIVO_VGA25_PPLL_POST_DIV_SRC, state->vga25_ppll.post_div_src);
+    OUTREG(AVIVO_VGA25_PPLL_POST_DIV, state->vga25_ppll.post_div);
+    OUTREG(AVIVO_VGA25_PPLL_CNTL, state->vga25_ppll.pll_cntl);
+
+    OUTREG(AVIVO_VGA28_PPLL_REF_DIV_SRC, state->vga28_ppll.ref_div_src);
+    OUTREG(AVIVO_VGA28_PPLL_REF_DIV, state->vga28_ppll.ref_div);
+    OUTREG(AVIVO_VGA28_PPLL_FB_DIV, state->vga28_ppll.fb_div);
+    OUTREG(AVIVO_VGA28_PPLL_POST_DIV_SRC, state->vga28_ppll.post_div_src);
+    OUTREG(AVIVO_VGA28_PPLL_POST_DIV, state->vga28_ppll.post_div);
+    OUTREG(AVIVO_VGA28_PPLL_CNTL, state->vga28_ppll.pll_cntl);
+
+    OUTREG(AVIVO_VGA41_PPLL_REF_DIV_SRC, state->vga41_ppll.ref_div_src);
+    OUTREG(AVIVO_VGA41_PPLL_REF_DIV, state->vga41_ppll.ref_div);
+    OUTREG(AVIVO_VGA41_PPLL_FB_DIV, state->vga41_ppll.fb_div);
+    OUTREG(AVIVO_VGA41_PPLL_POST_DIV_SRC, state->vga41_ppll.post_div_src);
+    OUTREG(AVIVO_VGA41_PPLL_POST_DIV, state->vga41_ppll.post_div);
+    OUTREG(AVIVO_VGA41_PPLL_CNTL, state->vga41_ppll.pll_cntl);
 
     /* Set the CRTC */
     OUTREG(AVIVO_D1CRTC_H_TOTAL, state->crtc1.h_total);
