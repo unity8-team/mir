@@ -437,11 +437,17 @@ NV50CrtcLoadCursor(nouveauCrtcPtr crtc, Bool argb, uint32_t *src)
 	if (!argb) /* FIXME */
 		return;
 
-	nouveau_bo_ref(crtc->index ? pNv->Cursor2 : pNv->Cursor, &cursor);
-	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	if (!pNv->NoAccel) {
+		nouveau_bo_ref(crtc->index ? pNv->Cursor2 : pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	} else {
+		cursor = crtc->index ? pNv->Cursor2 : pNv->Cursor;
+	}
+
 	/* Assume cursor is 64x64 */
 	memcpy(cursor->map, src, 64 * 64 * 4);
-	nouveau_bo_unmap(cursor);
+	if (!pNv->NoAccel)
+		nouveau_bo_unmap(cursor);
 }
 
 /*
@@ -457,6 +463,7 @@ static void
 NV50CrtcGammaSet(nouveauCrtcPtr crtc, uint16_t *red, uint16_t *green, uint16_t *blue, int size)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	NVPtr pNv = NVPTR(pScrn);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NV50CrtcGammaSet is called for %s.\n", crtc->index ? "CRTC1" : "CRTC0");
 	uint32_t index, i;
 
@@ -500,9 +507,11 @@ NV50CrtcGammaSet(nouveauCrtcPtr crtc, uint16_t *red, uint16_t *green, uint16_t *
 	if (!crtc->lut)
 		return;
 
-	nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
+	if (!pNv->NoAccel)
+		nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
 	memcpy(crtc->lut->map, crtc->lut_values, 4*256*sizeof(uint16_t));
-	nouveau_bo_unmap(crtc->lut);
+	if (!pNv->NoAccel)
+		nouveau_bo_unmap(crtc->lut);
 }
 
 void
