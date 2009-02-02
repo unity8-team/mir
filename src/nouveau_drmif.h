@@ -147,6 +147,7 @@ struct nouveau_bo_priv {
 	void *map;
 
 	int refcount;
+	int fake;
 };
 
 struct nouveau_bo_reloc {
@@ -161,6 +162,10 @@ struct nouveau_bo_reloc {
 NOUVEAU_PRIVATE int
 nouveau_bo_new(struct nouveau_device *, uint32_t flags, int align, int size,
 	       struct nouveau_bo **);
+
+NOUVEAU_PRIVATE int
+nouveau_bo_fake(struct nouveau_device *, uint32_t flags, uint64_t offset,
+		int size, void *map, struct nouveau_bo **);
 
 NOUVEAU_PRIVATE int
 nouveau_bo_ref(struct nouveau_bo *, struct nouveau_bo **);

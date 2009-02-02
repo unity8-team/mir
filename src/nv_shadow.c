@@ -36,6 +36,7 @@ NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
     Bpp = pScrn->bitsPerPixel >> 3;
     FBPitch = BitmapBytePad(pScrn->displayWidth * pScrn->bitsPerPixel);
 
+    nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
     while(num--) {
 	width = (pbox->x2 - pbox->x1) * Bpp;
 	height = pbox->y2 - pbox->y1;
@@ -51,4 +52,5 @@ NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 	
 	pbox++;
     }
+    nouveau_bo_unmap(pNv->FB);
 } 

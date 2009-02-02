@@ -41,6 +41,11 @@ nouveau_bo_del(struct nouveau_bo **userbo)
 	if (--bo->refcount)
 		return;
 
+	if (bo->fake) {
+		free(bo);
+		return;
+	}
+
 	if (bo->map) {
 		drmUnmap(bo->map, bo->drm.size);
 		bo->map = NULL;
@@ -67,6 +72,29 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pbo)
 		nouveau_bo_del(pbo);
 
 	*pbo = ref;
+	return 0;
+}
+
+int
+nouveau_bo_fake(struct nouveau_device *userdev, uint32_t flags, uint64_t offset,
+		int size, void *map, struct nouveau_bo **userbo)
+{
+	struct nouveau_bo_priv *bo;
+
+	if (!userdev || !userbo || *userbo)
+		return -EINVAL;
+
+	bo = calloc(1, sizeof(*bo));
+	if (!bo)
+		return -ENOMEM;
+
+	bo->refcount = 1;
+	bo->fake = 1;
+	bo->map = map;
+	bo->base.offset = offset;
+	bo->base.size = size;
+	bo->base.device = userdev;
+	*userbo = &bo->base;
 	return 0;
 }
 

@@ -1557,31 +1557,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 /*
  * Map the framebuffer and MMIO memory.
  */
-static struct nouveau_bo *
-NVMapMemFakeBO(NVPtr pNv, void *ptr, uint32_t offset, uint32_t size)
-{
-	struct nouveau_bo *bo = calloc(1, sizeof(*bo));
-	struct nouveau_device dev;
-
-	dev.vm_vram_base = 0;
-
-	if (bo) {
-		bo->device = &dev;
-		bo->size = size;
-		bo->map = ptr;
-		bo->offset = offset;
-	}
-
-	return bo;
-}
-
 static Bool
 NVMapMemSW(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	unsigned VRAMReserved, Cursor0Offset, Cursor1Offset, CLUTOffset[2];
+	static struct nouveau_device dev;
 	void *map;
-	int i;
+	int ret, i;
+
+	memset(&dev, 0, sizeof(dev));
 
 	pNv->VRAMSize = pNv->RamAmountKBytes * 1024;
 	VRAMReserved  = pNv->VRAMSize - (1 * 1024 * 1024);
@@ -1605,35 +1590,42 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 	CLUTOffset[0] = Cursor1Offset + (64 * 1024);
 	CLUTOffset[1] = CLUTOffset[0] + (4 * 1024);
 
-	pNv->FB = NVMapMemFakeBO(pNv, pNv->VRAMMap, 0, pNv->VRAMSize - (1<<20));
-	if (!pNv->FB)
+	ret = nouveau_bo_fake(&dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			      0, pNv->VRAMSize - (1<<20), pNv->VRAMMap,
+			      &pNv->FB);
+	if (ret)
 		return FALSE;
 	pNv->GART = NULL;
 
-	pNv->Cursor = NVMapMemFakeBO(pNv, pNv->VRAMMap + Cursor0Offset,
-				     Cursor0Offset, 64*1024);
-	if (!pNv->Cursor)
+	ret = nouveau_bo_fake(&dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			      Cursor0Offset, 64*1024,
+			      pNv->VRAMMap + Cursor0Offset, &pNv->Cursor);
+	if (ret)
 		return FALSE;
 
-	pNv->Cursor2 = NVMapMemFakeBO(pNv, pNv->VRAMMap + Cursor1Offset,
-				      Cursor1Offset, 64*1024);
-	if (!pNv->Cursor2)
+	ret = nouveau_bo_fake(&dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
+			      Cursor1Offset, 64*1024,
+			      pNv->VRAMMap + Cursor1Offset, &pNv->Cursor2);
+	if (ret)
 		return FALSE;
 
 	if (pNv->Architecture == NV_ARCH_50) {
 		for(i = 0; i < 2; i++) {
 			nouveauCrtcPtr crtc = pNv->crtc[i];
 
-			crtc->lut = NVMapMemFakeBO(pNv,
-						   pNv->VRAMMap + CLUTOffset[i],
-						   CLUTOffset[i], 0x1000);
-			if (!crtc->lut)
+			ret = nouveau_bo_fake(&dev, NOUVEAU_BO_VRAM |
+					      NOUVEAU_BO_PIN, CLUTOffset[i],
+					      0x1000, pNv->VRAMMap +
+					      CLUTOffset[i], &crtc->lut);
+			if (ret)
 				return FALSE;
 
 			/* Copy the last known values. */
 			if (crtc->lut_values_valid) {
+				nouveau_bo_map(crtc->lut, NOUVEAU_BO_WR);
 				memcpy(crtc->lut->map, crtc->lut_values,
 				       4 * 256 * sizeof(uint16_t));
+				nouveau_bo_unmap(crtc->lut);
 			}
 		}
 	}
@@ -1742,9 +1734,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 		}
 	}
 
-	ErrorF("%p %p %p %p\n",
-	       pNv->FB, pNv->GART, pNv->Cursor, pNv->Cursor2);
-
 	return TRUE;
 }
 
@@ -1758,15 +1747,19 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pNv->NoAccel) {
-		free(pNv->FB); pNv->FB = NULL;
-		free(pNv->Cursor); pNv->Cursor = NULL;
-		free(pNv->Cursor2); pNv->Cursor2 = NULL;
-	} else {
-		nouveau_bo_ref(NULL, &pNv->FB);
-		nouveau_bo_ref(NULL, &pNv->GART);
-		nouveau_bo_ref(NULL, &pNv->Cursor);
-		nouveau_bo_ref(NULL, &pNv->Cursor2);
+#ifdef XSERVER_LIBPCIACCESS
+		pci_device_unmap_range(pNv->PciInfo, pNv->VRAMMap,
+				       pNv->PciInfo->regions[1].size);
+#else
+		xf86UnMapVidMem(-1, (pointer)pNv->VRAMMap,
+				pNv->PciInfo->size[1]);
+#endif
 	}
+
+	nouveau_bo_ref(NULL, &pNv->FB);
+	nouveau_bo_ref(NULL, &pNv->GART);
+	nouveau_bo_ref(NULL, &pNv->Cursor);
+	nouveau_bo_ref(NULL, &pNv->Cursor2);
 
 	/* Again not the most ideal way. */
 	if (pNv->Architecture == NV_ARCH_50) {
@@ -1774,12 +1767,8 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 
 		for(i = 0; i < 2; i++) {
 			nouveauCrtcPtr crtc = pNv->crtc[i];
-			if (pNv->NoAccel) {
-				free(crtc->lut);
-				crtc->lut = NULL;
-			} else
-				nouveau_bo_ref(NULL, &crtc->lut);
-			crtc->lut = NULL;
+
+			nouveau_bo_ref(NULL, &crtc->lut);
 		}
 	}
 
