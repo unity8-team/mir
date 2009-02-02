@@ -132,9 +132,10 @@ static void i830_clear_tiling(ScrnInfoPtr pScrn, unsigned int fence_nr);
 /**
  * Returns the fence size for a tiled area of the given size.
  */
-unsigned long
-i830_get_fence_size(I830Ptr pI830, unsigned long size)
+static unsigned long
+i830_get_fence_size(ScrnInfoPtr pScrn, unsigned long size)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     unsigned long i;
     unsigned long start;
 
@@ -155,43 +156,6 @@ i830_get_fence_size(I830Ptr pI830, unsigned long size)
 
 	return i;
     }
-}
-
-/**
- * On some chips, pitch width has to be a power of two tile width, so
- * calculate that here.
- */
-unsigned long
-i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format)
-{
-    unsigned long i;
-    unsigned long tile_width = (format == I915_TILING_Y) ? 128 : 512;
-
-    if (format == TILE_NONE)
-	return pitch;
-
-    /* 965 is flexible */
-    if (IS_I965G(pI830))
-	return ROUND_TO(pitch, tile_width);
-
-    /* Pre-965 needs power of two tile width */
-    for (i = tile_width; i < pitch; i <<= 1)
-	;
-
-    return i;
-}
-
-/**
- * On some chips, pitch width has to be a power of two tile width, so
- * calculate that here.
- */
-unsigned long
-i830_get_fence_alignment(I830Ptr pI830, unsigned long size)
-{
-    if (IS_I965G(pI830))
-	return 4096;
-    else
-	return i830_get_fence_size(pI830, size);
 }
 
 static Bool
@@ -424,7 +388,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 #ifdef XF86DRI
     int dri_major, dri_minor, dri_patch;
     struct drm_i915_getparam gp;
-    struct drm_i915_setparam sp;
     int has_gem;
     int has_dri;
 #endif
@@ -535,18 +498,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	    if (!pI830->use_drm_mode) {
 		struct drm_i915_gem_init init;
 		int ret;
-
-		sp.param = I915_SETPARAM_NUM_USED_FENCES;
-		if (pI830->use_drm_mode)
-		    sp.value = 0; /* kernel gets them all */
-		else if (pI830->directRenderingType == DRI_XF86DRI)
-		    sp.value = 3; /* front/back/depth */
-		else
-		    sp.value = 2; /* just front for DRI2 (both old & new though) */
-		ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM, &sp,
-				      sizeof(sp));
-		if (ret == 0)
-		    pI830->kernel_exec_fencing = TRUE;
 
 		init.gtt_start = pI830->memory_manager->offset;
 		init.gtt_end = pI830->memory_manager->offset +
@@ -818,7 +769,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 
     /* Only allocate page-sized increments. */
     size = ALIGN(size, GTT_PAGE_SIZE);
-    align = i830_get_fence_alignment(pI830, size);
+    align = ROUND_TO(align, GTT_PAGE_SIZE);
 
     mem = xcalloc(1, sizeof(*mem));
     if (mem == NULL)
@@ -863,7 +814,7 @@ i830_allocate_memory_bo(ScrnInfoPtr pScrn, const char *name,
 	break;
     }
 
-    ret = drm_intel_bo_set_tiling(mem->bo, &bo_tiling_mode, pitch);
+    ret = dri_bo_set_tiling(mem->bo, &bo_tiling_mode);
     if (ret != 0 || (bo_tiling_mode == I915_TILING_NONE && tile_format != TILE_NONE)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Failed to set tiling on %s: %s\n",
@@ -936,8 +887,16 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	}
 
 	/* round to size necessary for the fence register to work */
-	size = i830_get_fence_size(pI830, size);
-	alignment = i830_get_fence_alignment(pI830, size);
+	size = i830_get_fence_size(pScrn, size);
+	if (IS_I965G(pI830)) {
+	    if (alignment < GTT_PAGE_SIZE)
+		alignment = GTT_PAGE_SIZE;
+	} else {
+	    /* The offset has to be aligned to at least the size of the fence
+	     * region.
+	     */
+	    alignment = size;
+	}
     }
 #ifdef XF86DRI
     if (pI830->use_drm_mode || (pI830->memory_manager &&

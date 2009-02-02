@@ -1842,7 +1842,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->SaveGeneration = -1;
    pI830->pEnt = pEnt;
    pI830->use_drm_mode = drm_mode_setting;
-   pI830->kernel_exec_fencing = pI830->use_drm_mode;
 
    if (!I830LoadSyms(pScrn))
        return FALSE;

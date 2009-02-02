@@ -598,12 +598,12 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	I830Ptr     pI830 = I830PTR(scrn);
-	i830_memory *new_front, *old_front = NULL;
+	i830_memory *old_front = NULL;
 	BoxRec	    mem_box;
 	Bool	    tiled, ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
-	int	    i, pitch;
+	int	    i, pitch, old_width, old_height, old_pitch;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
@@ -611,33 +611,37 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (!pI830->can_resize)
 		return FALSE;
 
-	tiled = i830_tiled_width(pI830, &scrn->displayWidth, pI830->cpp);
-	pitch = scrn->displayWidth * pI830->cpp;
+	pitch = i830_pad_drawable_width(width, pI830->cpp);
+	tiled = i830_tiled_width(pI830, &pitch, pI830->cpp);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Allocate new frame buffer %dx%d stride %d\n",
-		   width, height, scrn->displayWidth);
+		   width, height, pitch);
 
-	old_front = pI830->front_buffer;
-	new_front = i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
-	if (!new_front)
-		return FALSE;
-
+	old_width = scrn->virtualX;
+	old_height = scrn->virtualY;
+	old_pitch = scrn->displayWidth;
 	old_fb_id = drmmode->fb_id;
-	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch, new_front->bo->handle,
-			   &drmmode->fb_id);
-	if (ret)
-		ErrorF("Failed to add fb: %s\n", strerror(-ret));
+	old_front = pI830->front_buffer;
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = i830_pad_drawable_width(width, pI830->cpp);
-	pI830->front_buffer = new_front;
-	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), new_front->bo);
+	scrn->displayWidth = pitch;
+	pI830->front_buffer = i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
+	if (!pI830->front_buffer)
+		goto fail;
+
+	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
+			   scrn->bitsPerPixel, pitch * pI830->cpp,
+			   pI830->front_buffer->bo->handle,
+			   &drmmode->fb_id);
+	if (ret)
+		goto fail;
+
+	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), pI830->front_buffer->bo);
 	scrn->fbOffset = pI830->front_buffer->offset;
 
 	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
-				   width, height, -1, -1, pitch, NULL);
+				   width, height, -1, -1, pitch * pI830->cpp, NULL);
 	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
 		   pI830->front_buffer->offset);
 
@@ -657,6 +661,17 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		i830_free_memory(scrn, old_front);
 
 	return TRUE;
+
+ fail:
+	if (pI830->front_buffer)
+		i830_free_memory(scrn, pI830->front_buffer);
+	pI830->front_buffer = old_front;
+	scrn->virtualX = old_width;
+	scrn->virtualY = old_height;
+	scrn->displayWidth = old_pitch;
+	drmmode->fb_id = old_fb_id;
+
+	return FALSE;
 }
 
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {

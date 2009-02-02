@@ -367,8 +367,6 @@ extern int I810_DEBUG;
 #define SUPPORTS_INTEGRATED_HDMI(pI810) (IS_G4X(pI810))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(pI810) (IS_G4X(pI810))
-/* supports Y tiled surfaces (pre-965 Mesa isn't ready yet) */
-#define SUPPORTS_YTILING(pI810) (IS_I965G(pI830))
 
 #define GTT_PAGE_SIZE			KB(4)
 #define ROUND_TO(x, y)			(((x) + (y) - 1) / (y) * (y))
