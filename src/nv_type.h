@@ -249,7 +249,6 @@ typedef struct _NVRec {
 
     /* Various pinned memory regions */
     struct nouveau_bo * FB;
-    struct nouveau_bo * scanout;
     //struct nouveau_bo * FB_old; /* for KMS */
     struct nouveau_bo * shadow[2]; /* for easy acces by exa */
     struct nouveau_bo * Cursor;
@@ -390,7 +389,6 @@ typedef struct _NVRec {
 	unsigned point_x, point_y;
 	unsigned width_in, width_out;
 	unsigned height_in, height_out;
-	RegionRec fb_damage;
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))

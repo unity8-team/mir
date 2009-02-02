@@ -324,7 +324,6 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 8192 << NV50TCL_UNKFF4_W_SHIFT);
 	OUT_RING  (chan, 8192 << NV50TCL_UNKFF8_H_SHIFT);
 
-	REGION_INIT(pScreen, &pNv->fb_damage, NullBox, 0);
 	return TRUE;
 }
 
