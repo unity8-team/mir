@@ -723,6 +723,7 @@ typedef struct _I830Rec {
    enum last_3d *last_3d;
 
    Bool use_drm_mode;
+   Bool kernel_exec_fencing;
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
@@ -911,6 +912,9 @@ extern void i830WaitSync(ScrnInfoPtr pScrn);
 /* i830_memory.c */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
+unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
+unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
+unsigned long i830_get_fence_alignment(I830Ptr pI830, unsigned long size);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
