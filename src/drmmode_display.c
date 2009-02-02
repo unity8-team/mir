@@ -33,25 +33,31 @@
 
 #ifdef XF86DRM_MODE
 #include "i830.h"
-#include "sarea.h"
+#include "intel_bufmgr.h"
+#include "xf86drmMode.h"
 
-static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode,
-			      int width, int height);
+typedef struct {
+    int fd;
+    uint32_t fb_id;
+    drmModeResPtr mode_res;
+    int cpp;
+} drmmode_rec, *drmmode_ptr;
 
-static Bool
-drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
-{
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	drmmode_crtc_private_ptr drmmode_crtc =
-		xf86_config->crtc[0]->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	Bool ret;
+typedef struct {
+    drmmode_ptr drmmode;
+    drmModeCrtcPtr mode_crtc;
+    dri_bo *cursor;
+    dri_bo *rotate_bo;
+    int rotate_fb_id;
+} drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
-	ret = drmmode_resize_fb(scrn, drmmode, width, height);
-	scrn->virtualX = width;
-	scrn->virtualY = height;
-	return ret;
-}
+typedef struct {
+    drmmode_ptr drmmode;
+    int output_id;
+    drmModeConnectorPtr mode_output;
+    drmModeEncoderPtr mode_encoder;
+    drmModePropertyBlobPtr edid_blob;
+} drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
@@ -112,10 +118,6 @@ drmmode_ConvertToKMode(ScrnInfoPtr scrn,
 
 }
 
-static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
-	drmmode_xf86crtc_resize
-};
-
 static void
 drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 {
@@ -126,6 +128,8 @@ static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		       Rotation rotation, int x, int y)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	I830Ptr     pI830 = I830PTR(pScrn);
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
@@ -138,6 +142,19 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int i;
 	int fb_id;
 	struct drm_mode_modeinfo kmode;
+	unsigned int pitch = pScrn->displayWidth * pI830->cpp;
+
+	if (drmmode->fb_id == 0) {
+		ret = drmModeAddFB(drmmode->fd,
+				   pScrn->virtualX, pScrn->virtualY,
+				   pScrn->depth, pScrn->bitsPerPixel,
+				   pitch, pI830->front_buffer->bo->handle,
+				   &drmmode->fb_id);
+		if (ret < 0) {
+			ErrorF("failed to add fb\n");
+			return FALSE;
+		}
+	}
 
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
@@ -185,7 +202,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	fb_id = drmmode->fb_id;
 	if (drmmode_crtc->rotate_fb_id)
 		fb_id = drmmode_crtc->rotate_fb_id;
-	ErrorF("fb id is %d\n", fb_id);
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			     fb_id, x, y, output_ids, output_count, &kmode);
 	if (ret)
@@ -574,24 +590,89 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	return;
 }
 
-Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId,
-		      char *driver_name, int cpp)
+static Bool
+drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
-	xf86CrtcConfigPtr   xf86_config;
-	int i;
-	Bool ret;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	drmmode_crtc_private_ptr
+		    drmmode_crtc = xf86_config->crtc[0]->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	I830Ptr     pI830 = I830PTR(scrn);
+	i830_memory *new_front, *old_front = NULL;
+	BoxRec	    mem_box;
+	Bool	    tiled, ret;
+	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
+	uint32_t    old_fb_id;
+	int	    i, pitch;
 
-	/* Create a bus Id */
-	/* Low level DRM open */
-	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, busId, driver_name);
-	if (!ret) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "[dri] DRIGetVersion failed to open the DRM\n"
-			   "[dri] Disabling DRI.\n");
+	if (scrn->virtualX == width && scrn->virtualY == height)
+		return TRUE;
+
+	if (!pI830->can_resize)
 		return FALSE;
+
+	tiled = i830_tiled_width(pI830, &scrn->displayWidth, pI830->cpp);
+	pitch = scrn->displayWidth * pI830->cpp;
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Allocate new frame buffer %dx%d stride %d\n",
+		   width, height, scrn->displayWidth);
+
+	old_front = pI830->front_buffer;
+	new_front = i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
+	if (!new_front)
+		return FALSE;
+
+	old_fb_id = drmmode->fb_id;
+	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
+			   scrn->bitsPerPixel, pitch, new_front->bo->handle,
+			   &drmmode->fb_id);
+	if (ret)
+		ErrorF("Failed to add fb: %s\n", strerror(-ret));
+
+	scrn->virtualX = width;
+	scrn->virtualY = height;
+	scrn->displayWidth = i830_pad_drawable_width(width, pI830->cpp);
+	pI830->front_buffer = new_front;
+	i830_set_pixmap_bo(screen->GetScreenPixmap(screen), new_front->bo);
+	scrn->fbOffset = pI830->front_buffer->offset;
+
+	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+				   width, height, -1, -1, pitch, NULL);
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
+		   pI830->front_buffer->offset);
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		if (!crtc->enabled)
+			continue;
+
+		drmmode_set_mode_major(crtc, &crtc->mode,
+				       crtc->rotation, crtc->x, crtc->y);
 	}
 
-	drmmode->fd = DRIMasterFD(pScrn);
+	if (old_fb_id)
+		drmModeRmFB(drmmode->fd, old_fb_id);
+	if (old_front)
+		i830_free_memory(scrn, old_front);
+
+	return TRUE;
+}
+
+static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
+	drmmode_xf86crtc_resize
+};
+
+Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp)
+{
+	I830Ptr pI830 = I830PTR(pScrn);
+	xf86CrtcConfigPtr   xf86_config;
+	drmmode_ptr drmmode;
+	int i;
+
+	drmmode = xnfalloc(sizeof *drmmode);
+	drmmode->fd = fd;
+	drmmode->fb_id = 0;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 	xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -609,39 +690,9 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, char *busId,
 	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
 		drmmode_output_init(pScrn, drmmode, i);
 
-	xf86InitialConfiguration(pScrn, FALSE);
+	xf86InitialConfiguration(pScrn, pI830->can_resize);
 
 	return TRUE;
-}
-
-#if 0
-Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
-			dri_bufmgr *bufmgr)
-{
-	drmmode->bufmgr = bufmgr;
-	return TRUE;
-}
-#endif
-
-void drmmode_set_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width,
-		    int height, int pitch, dri_bo *bo)
-{
-	int ret;
-
-	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch, bo->handle,
-			   &drmmode->fb_id);
-
-	if (ret) {
-		ErrorF("Failed to add fb: %s\n", strerror(-ret));
-	}
-
-	drmmode->mode_fb = drmModeGetFB(drmmode->fd, drmmode->fb_id);
-	if (!drmmode->mode_fb)
-		return;
-
-
-	ErrorF("Add fb id %d %d %d\n", drmmode->fb_id, width, height);
 }
 
 Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo)
@@ -668,41 +719,4 @@ Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData, dri_bo **bo)
 #endif
 }
 
-static Bool drmmode_resize_fb(ScrnInfoPtr scrn, drmmode_ptr drmmode, int width,
-			      int height)
-{
-	uint32_t handle;
-	int pitch;
-	int ret;
-
-	return FALSE;
-
-	if (drmmode->mode_fb->width == width &&
-	    drmmode->mode_fb->height == height)
-		return TRUE;
-
-	if (!drmmode->create_new_fb)
-		return FALSE;
-
-	handle = drmmode->create_new_fb(scrn, width, height, &pitch);
-	if (handle == 0)
-		return FALSE;
-
-	ret = drmModeReplaceFB(drmmode->fd, drmmode->fb_id,
-			       width, height,
-			       scrn->depth, scrn->bitsPerPixel, pitch,
-			       handle);
-
-	if (ret)
-		return FALSE;
-
-	drmModeFreeFB(drmmode->mode_fb);
-	drmmode->mode_fb = drmModeGetFB(drmmode->fd, drmmode->fb_id);
-	if (!drmmode->mode_fb)
-		return FALSE;
-
-	return TRUE;
-}
-
 #endif
-

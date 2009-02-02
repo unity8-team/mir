@@ -1292,14 +1292,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
 	return NULL;
     }
 
-    if (pI830->use_drm_mode) {
-#ifdef XF86DRM_MODE
-	ErrorF("setting kernel fb to new front buffer\n");
-	ErrorF("front_buffer->bo->size: %ld\n", front_buffer->bo->size);
-        drmmode_set_fb(pScrn, &pI830->drmmode, pScrn->virtualX, fb_height,
-		       pScrn->displayWidth * pI830->cpp, front_buffer->bo);
-#endif
-    } else if (pI830->FbBase)
+    if (!pI830->use_drm_mode)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
 
     return front_buffer;
@@ -2130,9 +2123,3 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
     return TRUE;
 }
 #endif
-
-uint32_t
-i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height, int *pitch)
-{
-    return 0;
-}

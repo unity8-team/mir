@@ -212,6 +212,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #endif
 
+#ifdef XF86DRM_MODE
+#include <xf86drmMode.h>
+#endif
+
 #ifdef I830_USE_EXA
 const char *I830exaSymbols[] = {
     "exaGetVersion",
@@ -1718,6 +1722,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     char *bus_id;
     char *s;
+    int ret;
 
     /* Default to UXA but allow override */
     pI830->accel = ACCEL_UXA;
@@ -1731,20 +1736,35 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 	    pI830->accel = ACCEL_UXA;
     }
 
+    pI830->can_resize = FALSE;
+    if (pI830->accel == ACCEL_UXA && pI830->directRenderingType != DRI_XF86DRI)
+	pI830->can_resize = TRUE;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Resizable framebuffer: %s (%d %d)\n",
+	       pI830->can_resize ? "available" : "not available",
+	       pI830->directRenderingType, pI830->accel);
+
     bus_id = DRICreatePCIBusID(pI830->PciInfo);
-    if (drmmode_pre_init(pScrn, &pI830->drmmode, bus_id, "i915",
-			 pI830->cpp) == FALSE) {
-	xfree(bus_id);
+
+    /* Create a bus Id */
+    /* Low level DRM open */
+    ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "i915");
+    xfree(bus_id);
+    if (!ret) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "[dri] DRIGetVersion failed to open the DRM\n"
+		       "[dri] Disabling DRI.\n");
+	    return FALSE;
+    }
+
+    pI830->drmSubFD = DRIMasterFD(pScrn);
+    if (drmmode_pre_init(pScrn, pI830->drmSubFD, pI830->cpp) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Kernel modesetting setup failed\n");
 	PreInitCleanup(pScrn);
 	return FALSE;
     }
-
-    pI830->drmmode.create_new_fb = i830_create_new_fb;
-
-    pI830->drmSubFD = pI830->drmmode.fd;
-    xfree(bus_id);
 
     pI830->directRenderingType = DRI_NONE;
     pI830->allocate_classic_textures = FALSE;
