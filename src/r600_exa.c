@@ -91,12 +91,6 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     uint32_t a, r, g, b;
     float ps_alu_consts[4];
 
-    // FIXME
-    // R7xx seems to hang when using PS constants for fg color
-    // sending the color as a vertex attribute works
-    if (info->ChipFamily >= CHIP_FAMILY_RV770)
-	return FALSE;
-
     accel_state->dst_mc_addr = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
     accel_state->dst_size = exaGetPixmapPitch(pPix) * pPix->drawable.height;
     accel_state->dst_pitch = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
@@ -2366,8 +2360,8 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     ps[i++] = CF_ALU_DWORD0(ADDR(2),
 			    KCACHE_BANK0(0),
 			    KCACHE_BANK1(0),
-			    KCACHE_MODE0(0));
-    ps[i++] = CF_ALU_DWORD1(KCACHE_MODE1(0),
+			    KCACHE_MODE0(SQ_CF_KCACHE_NOP));
+    ps[i++] = CF_ALU_DWORD1(KCACHE_MODE1(SQ_CF_KCACHE_NOP),
 			    KCACHE_ADDR0(0),
 			    KCACHE_ADDR1(0),
 			    I_COUNT(4),
@@ -2483,7 +2477,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			 SRC1_NEG(0),
 			 INDEX_MODE(SQ_INDEX_AR_X),
 			 PRED_SEL(SQ_PRED_SEL_OFF),
-			 LAST(0));
+			 LAST(1));
     ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
 			     SRC0_ABS(0),
 			     SRC1_ABS(0),
