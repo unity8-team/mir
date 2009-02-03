@@ -308,7 +308,7 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RV630_958C, "ATI FireGL V5600" },
   { PCI_CHIP_RV630_958D, "ATI FireGL V3600" },
   { PCI_CHIP_RV630_958E, "ATI Radeon HD 2600 LE" },
-  { PCI_CHIP_RV710_9592, "ATI Radeon RV710" },
+  { PCI_CHIP_RV710_9542, "ATI Radeon RV710" },
   { PCI_CHIP_RV620_95C0, "ATI Radeon HD 3470" },
   { PCI_CHIP_RV620_95C2, "ATI Mobility Radeon HD 3430" },
   { PCI_CHIP_RV620_95C4, "ATI Mobility Radeon HD 3400 Series" },
