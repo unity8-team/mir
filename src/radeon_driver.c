@@ -674,8 +674,8 @@ static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_
 	if (mask & LOC_FB)
 	    OUTREG(R700_MC_VM_FB_LOCATION, fb_loc);
 	if (mask & LOC_AGP) {
-	    OUTREG(R600_MC_VM_AGP_BOT, agp_loc);
-	    OUTREG(R600_MC_VM_AGP_TOP, agp_loc_hi);
+	    OUTREG(R700_MC_VM_AGP_BOT, agp_loc);
+	    OUTREG(R700_MC_VM_AGP_TOP, agp_loc_hi);
 	}
     } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (mask & LOC_FB)
@@ -724,8 +724,8 @@ static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_t
 	if (mask & LOC_FB)
 	    *fb_loc = INREG(R700_MC_VM_FB_LOCATION);
 	if (mask & LOC_AGP) {
-	    *agp_loc = INREG(R600_MC_VM_AGP_BOT);
-	    *agp_loc_hi = INREG(R600_MC_VM_AGP_TOP);
+	    *agp_loc = INREG(R700_MC_VM_AGP_BOT);
+	    *agp_loc_hi = INREG(R700_MC_VM_AGP_TOP);
 	}
     } else if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	if (mask & LOC_FB)
@@ -1876,7 +1876,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 
     /* treat PCIE IGP cards as PCI */
     if (info->cardType == CARD_PCIE && info->IsIGP)
-		info->cardType = CARD_PCI;
+	info->cardType = CARD_PCI;
+
+    if ((info->ChipFamily >= CHIP_FAMILY_R600) && info->IsIGP)
+	info->cardType = CARD_PCIE;
 
     if ((s = xf86GetOptValString(info->Options, OPTION_BUS_TYPE))) {
 	if (strcmp(s, "AGP") == 0) {
@@ -1905,6 +1908,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 					     info->Chipset != PCI_CHIP_RN50_5969);
 #endif
 
+#if 0
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
         info->r600_shadow_fb = TRUE;
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1912,6 +1916,7 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
         if (!xf86LoadSubModule(pScrn, "shadow"))
             return FALSE;
     }
+#endif
 
     return TRUE;
 }
@@ -1989,8 +1994,8 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-	    "No acceleration support available on R600 yet.\n");
-	return TRUE;
+	    "Experimental R6xx/R7xx EXA support.\n");
+	info->useEXA = TRUE;
     }
 
     if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
@@ -2336,7 +2341,10 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from, "Page Flipping %sabled%s\n",
 	       info->dri->allowPageFlip ? "en" : "dis", reason);
 
-    info->DMAForXv = TRUE;
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	info->DMAForXv = FALSE;
+    else
+	info->DMAForXv = TRUE;
     from = xf86GetOptValBool(info->Options, OPTION_XV_DMA, &info->DMAForXv)
 	 ? X_CONFIG : X_INFO;
     xf86DrvMsg(pScrn->scrnIndex, from,
@@ -3638,11 +3646,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     RADEONDGAInit(pScreen);
 
     /* Init Xv */
-    if (info->ChipFamily < CHIP_FAMILY_R600) {
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "Initializing Xv\n");
-	RADEONInitVideo(pScreen);
-    }
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing Xv\n");
+    RADEONInitVideo(pScreen);
 
     if (info->r600_shadow_fb == TRUE) {
         if (!shadowSetup(pScreen)) {
@@ -3952,7 +3958,7 @@ static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save)
     }
 
 #ifdef USE_EXA
-    if (info->accelDFS)
+    if (info->accelDFS || (info->ChipFamily >= CHIP_FAMILY_R600))
     {
 	drm_radeon_getparam_t gp;
 	int gart_base;

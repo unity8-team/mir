@@ -3984,6 +3984,9 @@
 #define R600_MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR                    0x2198
 
 #define R700_MC_VM_FB_LOCATION                                     0x2024
+#define R700_MC_VM_AGP_TOP                                         0x2028
+#define R700_MC_VM_AGP_BOT                                         0x202c
+#define R700_MC_VM_AGP_BASE                                        0x2030
 
 #define R600_HDP_NONSURFACE_BASE                                0x2c04
 
@@ -5361,5 +5364,28 @@
 #   define R500_RS_IP_OFFSET_EN 			(1 << 31)
 
 #define R500_DYN_SCLK_PWMEM_PIPE                        0x000d /* PLL */
+
+/* r6xx/r7xx stuff */
+#define R600_GRBM_SOFT_RESET                                    0x8020
+#       define R600_SOFT_RESET_CP                               (1 << 0)
+
+#define R600_WAIT_UNTIL                                  0x8040
+
+#define R600_CP_ME_CNTL                                         0x86d8
+#       define R600_CP_ME_HALT                                  (1 << 28)
+
+#define R600_CP_RB_BASE                                            0xc100
+#define R600_CP_RB_CNTL                                            0xc104
+#       define R600_RB_NO_UPDATE                                   (1 << 27)
+#       define R600_RB_RPTR_WR_ENA                                 (1 << 31)
+#define R600_CP_RB_RPTR_WR                                         0xc108
+#define R600_CP_RB_RPTR_ADDR                                       0xc10c
+#define R600_CP_RB_RPTR_ADDR_HI                                    0xc110
+#define R600_CP_RB_WPTR                                            0xc114
+#define R600_CP_RB_WPTR_ADDR                                       0xc118
+#define R600_CP_RB_WPTR_ADDR_HI                                    0xc11c
+
+#define R600_CP_RB_RPTR                                            0x8700
+#define R600_CP_RB_WPTR_DELAY                                      0x8704
 
 #endif

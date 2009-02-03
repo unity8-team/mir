@@ -78,6 +78,7 @@
 				/* Driver data structures */
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "r600_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_version.h"
@@ -156,9 +157,6 @@ void RADEONEngineFlush(ScrnInfoPtr pScrn)
     unsigned char *RADEONMMIO = info->MMIO;
     int            i;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-        return;
-
     if (info->ChipFamily <= CHIP_FAMILY_RV280) {
 	OUTREGP(RADEON_RB3D_DSTCACHE_CTLSTAT,
 		RADEON_RB3D_DC_FLUSH_ALL,
@@ -198,8 +196,6 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     uint32_t       rbbm_soft_reset;
     uint32_t       host_path_cntl;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-        return;
     /* The following RBBM_SOFT_RESET sequence can help un-wedge
      * an R300 after the command processor got stuck.
      */
@@ -308,6 +304,35 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
     OUTREG(RADEON_CLOCK_CNTL_INDEX, clock_cntl_index);
     RADEONPllErrataAfterIndex(info);
     OUTPLL(pScrn, RADEON_MCLK_CNTL, mclk_cntl);
+}
+
+/* Reset graphics card to known state */
+void R600EngineReset(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t cp_ptr, cp_me_cntl, cp_rb_cntl;
+
+    cp_ptr = INREG(R600_CP_RB_WPTR);
+
+    cp_me_cntl = INREG(R600_CP_ME_CNTL);
+    OUTREG(R600_CP_ME_CNTL, 0x10000000);
+
+    OUTREG(R600_GRBM_SOFT_RESET, 0x7fff);
+    INREG(R600_GRBM_SOFT_RESET);
+    usleep (50);
+    OUTREG(R600_GRBM_SOFT_RESET, 0);
+    INREG(R600_GRBM_SOFT_RESET);
+
+    OUTREG(R600_CP_RB_WPTR_DELAY, 0);
+    cp_rb_cntl = INREG(R600_CP_RB_CNTL);
+    OUTREG(R600_CP_RB_CNTL, 0x80000000);
+
+    OUTREG(R600_CP_RB_RPTR_WR, cp_ptr);
+    OUTREG(R600_CP_RB_WPTR, cp_ptr);
+    OUTREG(R600_CP_RB_CNTL, cp_rb_cntl);
+    OUTREG(R600_CP_ME_CNTL, cp_me_cntl);
+
 }
 
 /* Restore the acceleration hardware to its previous state */
@@ -611,8 +636,12 @@ drmBufPtr RADEONCPGetBuffer(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "GetBuffer timed out, resetting engine...\n");
-	RADEONEngineReset(pScrn);
-	RADEONEngineRestore(pScrn);
+
+	if (info->ChipFamily < CHIP_FAMILY_R600) {
+	    RADEONEngineReset(pScrn);
+	    RADEONEngineRestore(pScrn);
+	} else
+	    R600EngineReset(pScrn);
 
 	/* Always restart the engine when doing CP 2D acceleration */
 	RADEONCP_RESET(pScrn, info);
@@ -627,6 +656,8 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
     drmBufPtr          buffer = info->cp->indirectBuffer;
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
+    RING_LOCALS;
+    RADEONCP_REFRESH(pScrn, info);
 
     if (!buffer) return;
     if (start == buffer->used && !discard) return;
@@ -634,6 +665,14 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
     if (RADEON_VERBOSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Flushing buffer %d\n",
 		   buffer->idx);
+    }
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	while (buffer->used & 0x3c){
+	    BEGIN_RING(1);
+	    OUT_RING(CP_PACKET2()); /* fill up to multiple of 16 dwords */
+	    ADVANCE_RING();
+	}
     }
 
     indirect.idx     = buffer->idx;
@@ -664,6 +703,19 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
     drmBufPtr          buffer = info->cp->indirectBuffer;
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
+    RING_LOCALS;
+    RADEONCP_REFRESH(pScrn, info);
+
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	if (buffer) {
+	    while (buffer->used & 0x3c) {
+		BEGIN_RING(1);
+		OUT_RING(CP_PACKET2()); /* fill up to multiple of 16 dwords */
+		ADVANCE_RING();
+	    }
+	}
+    }
 
     info->cp->indirectBuffer = NULL;
     info->cp->indirectStart  = 0;
@@ -926,26 +978,35 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86Screens[pScreen->myNum];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return FALSE;
-
 #ifdef USE_EXA
     if (info->useEXA) {
 # ifdef XF86DRI
 	if (info->directRenderingEnabled) {
-	    if (!RADEONDrawInitCP(pScreen))
-		return FALSE;
+	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+		if (!R600DrawInit(pScreen))
+		    return FALSE;
+	    } else {
+		if (!RADEONDrawInitCP(pScreen))
+		    return FALSE;
+	    }
 	} else
 # endif /* XF86DRI */
 	{
-	    if (!RADEONDrawInitMMIO(pScreen))
+	    if (info->ChipFamily >= CHIP_FAMILY_R600)
 		return FALSE;
+	    else {
+		if (!RADEONDrawInitMMIO(pScreen))
+		    return FALSE;
+	    }
 	}
     }
 #endif /* USE_EXA */
 #ifdef USE_XAA
     if (!info->useEXA) {
 	XAAInfoRecPtr  a;
+
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    return FALSE;
 
 	if (!(a = info->accel_state->accel = XAACreateInfoRec())) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "XAACreateInfoRec Error\n");

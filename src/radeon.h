@@ -354,6 +354,8 @@ typedef enum {
 
 #define IS_DCE32_VARIANT ((info->ChipFamily >= CHIP_FAMILY_RV730))
 
+#define IS_R600_3D (info->ChipFamily >= CHIP_FAMILY_R600)
+
 #define IS_R500_3D ((info->ChipFamily == CHIP_FAMILY_RV515)  ||  \
 	(info->ChipFamily == CHIP_FAMILY_R520)   ||  \
 	(info->ChipFamily == CHIP_FAMILY_RV530)  ||  \
@@ -569,6 +571,38 @@ struct radeon_dri {
 };
 #endif
 
+#ifdef XF86DRI
+#ifdef USE_EXA
+struct r6xx_solid_vertex {
+    float x;
+    float y;
+};
+
+struct r6xx_copy_vertex {
+    float x;
+    float y;
+    float s;
+    float t;
+};
+
+struct r6xx_comp_vertex {
+    float x;
+    float y;
+    float src_s;
+    float src_t;
+};
+
+struct r6xx_comp_mask_vertex {
+    float x;
+    float y;
+    float src_s;
+    float src_t;
+    float mask_s;
+    float mask_t;
+};
+#endif
+#endif
+
 struct radeon_accel_state {
     /* common accel data */
     int               fifo_slots;       /* Free slots in the FIFO (64 max)   */
@@ -609,6 +643,44 @@ struct radeon_accel_state {
     Bool              src_tile_height;
 
     Bool              vsync;
+
+    drmBufPtr         ib;
+    int               vb_index;
+
+    // shader storage
+    ExaOffscreenArea  *shaders;
+    uint32_t          solid_vs_offset;
+    uint32_t          solid_ps_offset;
+    uint32_t          copy_vs_offset;
+    uint32_t          copy_ps_offset;
+    uint32_t          comp_vs_offset;
+    uint32_t          comp_ps_offset;
+    uint32_t          comp_mask_vs_offset;
+    uint32_t          comp_mask_ps_offset;
+    uint32_t          xv_vs_offset;
+    uint32_t          xv_ps_offset;
+
+    //size/addr stuff
+    uint32_t          src_size[2];
+    uint64_t          src_mc_addr[2];
+    uint32_t          src_pitch[2];
+    uint32_t          dst_size;
+    uint64_t          dst_mc_addr;
+    uint32_t          dst_pitch;
+    uint32_t          vs_size;
+    uint64_t          vs_mc_addr;
+    uint32_t          ps_size;
+    uint64_t          ps_mc_addr;
+    uint32_t          vb_size;
+    uint64_t          vb_mc_addr;
+
+    // UTS/DFS
+    drmBufPtr         scratch;
+
+    // copy
+    Bool              same_surface;
+    int               rop;
+    uint32_t          planemask;
 #endif
 
 #ifdef USE_XAA
@@ -1032,6 +1104,7 @@ extern void RADEONDoPrepareCopyMMIO(ScrnInfoPtr pScrn,
 				    uint32_t dst_pitch_offset,
 				    uint32_t datatype, int rop,
 				    Pixel planemask);
+extern Bool R600DrawInit(ScreenPtr pScreen);
 #endif
 
 #if defined(XF86DRI) && defined(USE_EXA)
@@ -1116,15 +1189,16 @@ do {									\
 #define RADEONCP_STOP(pScrn, info)					\
 do {									\
     int _ret;								\
-     if (info->cp->CPStarted) {						\
+    if (info->cp->CPStarted) {						\
         _ret = RADEONCPStop(pScrn, info);				\
         if (_ret) {							\
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,			\
 		   "%s: CP stop %d\n", __FUNCTION__, _ret);		\
         }								\
         info->cp->CPStarted = FALSE;                                    \
-   }									\
-    RADEONEngineRestore(pScrn);						\
+    }									\
+    if (info->ChipFamily < CHIP_FAMILY_R600)                            \
+        RADEONEngineRestore(pScrn);					\
     info->cp->CPRuns = FALSE;						\
 } while (0)
 
@@ -1240,19 +1314,26 @@ do {									\
 
 #define RADEON_WAIT_UNTIL_2D_IDLE()					\
 do {									\
-    BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));				\
-    OUT_RING((RADEON_WAIT_2D_IDLECLEAN |				\
-	      RADEON_WAIT_HOST_IDLECLEAN));				\
-    ADVANCE_RING();							\
+    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
+	BEGIN_RING(2);                                                  \
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
+	OUT_RING((RADEON_WAIT_2D_IDLECLEAN |                            \
+		  RADEON_WAIT_HOST_IDLECLEAN));                         \
+	ADVANCE_RING();                                                 \
+    }                                                                   \
 } while (0)
 
 #define RADEON_WAIT_UNTIL_3D_IDLE()					\
 do {									\
     BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));				\
-    OUT_RING((RADEON_WAIT_3D_IDLECLEAN |				\
-	      RADEON_WAIT_HOST_IDLECLEAN));				\
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
+	OUT_RING(CP_PACKET0(R600_WAIT_UNTIL, 0));                       \
+	OUT_RING((RADEON_WAIT_3D_IDLECLEAN));                           \
+    } else {                                                            \
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
+	OUT_RING((RADEON_WAIT_3D_IDLECLEAN |                            \
+		  RADEON_WAIT_HOST_IDLECLEAN));                         \
+    }                                                                   \
     ADVANCE_RING();							\
 } while (0)
 
@@ -1263,17 +1344,25 @@ do {									\
 		   "WAIT_UNTIL_IDLE() in %s\n", __FUNCTION__);		\
     }									\
     BEGIN_RING(2);							\
-    OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));				\
-    OUT_RING((RADEON_WAIT_2D_IDLECLEAN |				\
-	      RADEON_WAIT_3D_IDLECLEAN |				\
-	      RADEON_WAIT_HOST_IDLECLEAN));				\
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
+	OUT_RING(CP_PACKET0(R600_WAIT_UNTIL, 0));                       \
+	OUT_RING((RADEON_WAIT_3D_IDLECLEAN));                           \
+    } else {                                                            \
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
+	OUT_RING((RADEON_WAIT_2D_IDLECLEAN |                            \
+                  RADEON_WAIT_3D_IDLECLEAN |                            \
+		  RADEON_WAIT_HOST_IDLECLEAN));                         \
+    }                                                                   \
     ADVANCE_RING();							\
 } while (0)
 
 #define RADEON_PURGE_CACHE()						\
 do {									\
     BEGIN_RING(2);							\
-    if (info->ChipFamily <= CHIP_FAMILY_RV280) {                        \
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
+	OUT_RING(CP_PACKET3(IT_EVENT_WRITE, 0));                        \
+	OUT_RING(CACHE_FLUSH_AND_INV_EVENT);                            \
+    } else if (info->ChipFamily <= CHIP_FAMILY_RV280) {                 \
         OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
         OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);				\
     } else {                                                            \
@@ -1285,15 +1374,17 @@ do {									\
 
 #define RADEON_PURGE_ZCACHE()						\
 do {									\
-    BEGIN_RING(2);							\
-    if (info->ChipFamily <= CHIP_FAMILY_RV280) {                        \
-        OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));		\
-        OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);				\
-    } else {                                                            \
-        OUT_RING(CP_PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));		\
-        OUT_RING(R300_ZC_FLUSH_ALL);					\
+    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
+	BEGIN_RING(2);                                                  \
+	if (info->ChipFamily <= CHIP_FAMILY_RV280) {                    \
+	    OUT_RING(CP_PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));        \
+	    OUT_RING(RADEON_RB3D_ZC_FLUSH_ALL);                         \
+	} else {                                                        \
+	    OUT_RING(CP_PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));          \
+	    OUT_RING(R300_ZC_FLUSH_ALL);                                \
+	}                                                               \
+	ADVANCE_RING();                                                 \
     }                                                                   \
-    ADVANCE_RING();							\
 } while (0)
 
 #endif /* XF86DRI */

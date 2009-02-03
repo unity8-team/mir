@@ -66,7 +66,7 @@ XMODE_SRCS=\
         modes/xf86DiDGA.c
 
 if USE_EXA
-RADEON_EXA_SOURCES = radeon_exa.c
+RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c
 endif
 
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER -DDRIVER_PARSER
@@ -128,6 +128,12 @@ EXTRA_DIST = \
 	radeon_render.c \
 	radeon_accelfuncs.c \
 	radeon_textured_videofuncs.c \
+	r600_reg.h \
+	r600_reg_auto_r6xx.h \
+	r600_reg_r6xx.h \
+	r600_reg_r7xx.h \
+	r600_shader.h \
+	r600_state.h \
 	ati.h \
 	ativersion.h \
 	bicubic_table.h \

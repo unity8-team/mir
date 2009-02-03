@@ -733,8 +733,11 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "Idle timed out, resetting engine...\n");
-	    RADEONEngineReset(pScrn);
-	    RADEONEngineRestore(pScrn);
+	    if (info->ChipFamily < CHIP_FAMILY_R600) {
+		RADEONEngineReset(pScrn);
+		RADEONEngineRestore(pScrn);
+	    } else
+		R600EngineReset(pScrn);
 
 	    /* Always restart the engine when doing CP 2D acceleration */
 	    RADEONCP_RESET(pScrn, info);
@@ -751,7 +754,7 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 #endif
 
     if (info->ChipFamily >= CHIP_FAMILY_R600)
-      return;
+	return;
 
     /* Wait for the engine to go idle */
     RADEONWaitForFifoFunction(pScrn, 64);
