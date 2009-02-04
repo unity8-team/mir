@@ -26,9 +26,6 @@
 #include "compiler.h"
 #include "xf86_OSproc.h"
 
-#define NOUVEAU_PRIVATE _X_HIDDEN
-#define NOUVEAU_PUBLIC _X_EXPORT
-
 /* Debug output */
 #define NOUVEAU_MSG(fmt,args...) ErrorF(fmt, ##args)
 #define NOUVEAU_ERR(fmt,args...) \
@@ -44,74 +41,9 @@
 } while(0)
 #endif
 
-#define NOUVEAU_TIME_MSEC() GetTimeInMillis()
-
 #define NOUVEAU_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 
-/* User FIFO control */
-//#define NOUVEAU_DMA_TRACE
-//#define NOUVEAU_DMA_DEBUG
-#define NOUVEAU_DMA_SUBCHAN_LRU
-#define NOUVEAU_DMA_BARRIER mem_barrier();
-#define NOUVEAU_DMA_TIMEOUT 2000
-
-/* Push buffer access macros */
-#define BEGIN_RING(chan,obj,mthd,size) do {                                    \
-	BEGIN_RING_CH((chan), (obj), (mthd), (size));                          \
-} while(0)
-
-#define OUT_RING(chan,data) do {                                               \
-	OUT_RING_CH((chan), (data));                                           \
-} while(0)
-
-#define OUT_RINGp(chan,src,size) do {                                          \
-	OUT_RINGp_CH((chan), (src), (size));                                   \
-} while(0)
-
-#define OUT_RINGf(chan,data) do {                                              \
-	union { float v; uint32_t u; } c;                                      \
-	c.v = (data);                                                          \
-	OUT_RING((chan), c.u);                                                 \
-} while(0)
-
-#define WAIT_RING(chan,size) do {                                              \
-	WAIT_RING_CH((chan), (size));                                          \
-} while(0)
-
-#define FIRE_RING(chan) do {                                                   \
-	FIRE_RING_CH((chan));                                               \
-} while(0)
-
-#define OUT_RELOC(chan,bo,data,flags,vor,tor) do {                             \
-	struct nouveau_channel_priv *nvchan = nouveau_channel(chan);           \
-	nouveau_bo_emit_reloc((chan), &nvchan->pushbuf[nvchan->dma.cur],       \
-			      (bo), (data), (flags), (vor), (tor));            \
-	OUT_RING((chan), 0);                                                   \
-} while(0)
-
-/* Raw data + flags depending on FB/TT buffer */
-#define OUT_RELOCd(chan,bo,data,flags,vor,tor) do {                            \
-	OUT_RELOC((chan), (bo), (data), (flags) | NOUVEAU_BO_OR, (vor), (tor));\
-} while(0)
-
-/* FB/TT object handle */
-#define OUT_RELOCo(chan,bo,flags) do {                                         \
-	OUT_RELOC((chan), (bo), 0, (flags) | NOUVEAU_BO_OR,                    \
-		  (chan)->vram->handle, (chan)->gart->handle);                 \
-} while(0)
-
-/* Low 32-bits of offset */
-#define OUT_RELOCl(chan,bo,delta,flags) do {                                   \
-	OUT_RELOC((chan), (bo), (delta), (flags) | NOUVEAU_BO_LOW, 0, 0);      \
-} while(0)
-
-/* High 32-bits of offset */
-#define OUT_RELOCh(chan,bo,delta,flags) do {                                   \
-	OUT_RELOC((chan), (bo), (delta), (flags) | NOUVEAU_BO_HIGH, 0, 0);     \
-} while(0)
-
-
-/* Alternate versions of OUT_RELOCx above, takes pixmaps instead of BOs */
+/* Alternate versions of OUT_RELOCx, takes pixmaps instead of BOs */
 #define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
 	OUT_RELOCd((chan), pNv->FB, (data), (flags), (vor), (tor));            \
 } while(0)

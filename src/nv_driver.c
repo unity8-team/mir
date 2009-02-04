@@ -667,16 +667,10 @@ NVEnterVT(int scrnIndex, int flags)
 
 	NVMapMem(pScrn);
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->EXADriverPtr) {
-		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
-		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
-		struct drm_nouveau_mem_tile t;
-
-		t.offset = nvbo->drm.offset;
-		t.flags  = nvbo->drm.flags | NOUVEAU_MEM_TILE;
-		t.delta  = pNv->EXADriverPtr->offScreenBase;
-		t.size   = pNv->EXADriverPtr->memorySize - 
-			   pNv->EXADriverPtr->offScreenBase;
-		drmCommandWrite(nvdev->fd, DRM_NOUVEAU_MEM_TILE, &t, sizeof(t));
+		nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM | NOUVEAU_BO_TILED,
+				pNv->EXADriverPtr->offScreenBase,
+				pNv->EXADriverPtr->memorySize -
+				pNv->EXADriverPtr->offScreenBase);
 	}
 
 	if (!pNv->kms_enable && pNv->randr12_enable)

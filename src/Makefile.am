@@ -23,20 +23,13 @@
 # -avoid-version prevents gratuitous .0.0.0 version numbers on the end
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
-AM_CFLAGS = @XORG_CFLAGS@
+AM_CFLAGS = @XORG_CFLAGS@ @LIBDRM_NOUVEAU_CFLAGS@
 nouveau_drv_la_LTLIBRARIES = nouveau_drv.la
-nouveau_drv_la_LDFLAGS = -module -avoid-version
+nouveau_drv_la_LDFLAGS = -module -avoid-version @LIBDRM_NOUVEAU_LIBS@
 nouveau_drv_ladir = @moduledir@/drivers
 
 nouveau_drv_la_SOURCES = \
 			 nouveau_bios.h \
-			 nouveau_device.c nouveau_device.h nouveau_drmif.h \
-			 nouveau_channel.c nouveau_channel.h \
-			 nouveau_grobj.c nouveau_grobj.h \
-			 nouveau_notifier.c nouveau_notifier.h \
-			 nouveau_dma.c nouveau_dma.h \
-			 nouveau_bo.c nouveau_bo.h \
-			 nouveau_class.h \
 			 nouveau_local.h \
 			 nouveau_exa.c nouveau_xv.c \
 			 nv_accel_common.c \

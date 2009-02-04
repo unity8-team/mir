@@ -65,6 +65,10 @@ XORG_DRIVER_CHECK_EXT(XV, videoproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
+PKG_CHECK_MODULES(LIBDRM_NOUVEAU, libdrm_nouveau)
+AC_SUBST(LIBDRM_NOUVEAU_CFLAGS)
+AC_SUBST(LIBDRM_NOUVEAU_LIBS)
+
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3] xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES)
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 

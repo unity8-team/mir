@@ -124,7 +124,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		BEGIN_RING(chan, m2mf, 0x100, 1);
 		OUT_RING  (chan, 0);
 		FIRE_RING (chan);
-		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2000))
+		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2.0))
 			return FALSE;
 
 		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
@@ -251,7 +251,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		BEGIN_RING(chan, m2mf, 0x100, 1);
 		OUT_RING  (chan, 0);
 		FIRE_RING (chan);
-		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2000))
+		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2.0))
 			return FALSE;
 
 		if (linear)
@@ -426,16 +426,9 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->memorySize = pNv->FB->size; 
 
 	if (pNv->Architecture >= NV_ARCH_50) {
-		struct nouveau_device_priv *nvdev = nouveau_device(pNv->dev);
-		struct nouveau_bo_priv *nvbo = nouveau_bo(pNv->FB);
-		struct drm_nouveau_mem_tile t;
-
-		t.offset = nvbo->drm.offset;
-		t.flags  = nvbo->drm.flags | NOUVEAU_MEM_TILE;
-		t.delta  = exa->offScreenBase;
-		t.size   = exa->memorySize - 
-			   exa->offScreenBase;
-		drmCommandWrite(nvdev->fd, DRM_NOUVEAU_MEM_TILE, &t, sizeof(t));
+		nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM | NOUVEAU_BO_TILED,
+				exa->offScreenBase,
+				exa->memorySize - exa->offScreenBase);
 
 		exa->maxX = 8192;
 		exa->maxY = 8192;

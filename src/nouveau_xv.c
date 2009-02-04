@@ -349,7 +349,7 @@ nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 	}
 
 	if (pNv->Architecture >= NV_ARCH_50 && (flags & NOUVEAU_BO_VRAM))
-		flags |= NOUVEAU_BO_TILE;
+		flags |= NOUVEAU_BO_TILED;
 
 	ret = nouveau_bo_new(pNv->dev, flags | NOUVEAU_BO_PIN, 0, size, pbo);
 	if (ret)
@@ -371,10 +371,10 @@ NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	nouveau_bo_ref(NULL, &pPriv->video_mem);
 
 	if (pPriv->TT_mem_chunk[0] && pPriv->DMANotifier[0])
-		nouveau_notifier_wait_status(pPriv->DMANotifier[0], 0, 0, 1000);
+		nouveau_notifier_wait_status(pPriv->DMANotifier[0], 0, 0, 1.0);
 
 	if (pPriv->TT_mem_chunk[1] && pPriv->DMANotifier[1])
-		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1000);
+		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1.0);
 
 	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
 	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[1]);

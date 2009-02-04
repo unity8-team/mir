@@ -25,44 +25,24 @@
 #include "nv_include.h"
 #include "nvreg.h"
 
-static void NVDumpLockupInfo(NVPtr pNv)
-{
-	struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);
-	int i, start;
-
-	start = ((*chan->get - chan->dma.base) >> 2) - 20;
-	if (start < 0)
-		start = 0;
-
-	xf86DrvMsg(0, X_INFO, "Fifo dump (lockup 0x%04x,0x%04x):\n",
-		   (*chan->get - chan->dma.base) >> 2, chan->dma.put);
-	for(i = start; i < chan->dma.put + 10; i++)
-		xf86DrvMsg(0, X_INFO, "[0x%04x] 0x%08x\n", i, chan->pushbuf[i]);
-	xf86DrvMsg(0, X_INFO, "End of fifo dump\n");
-}
-
 static void
 NVLockedUp(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_channel_priv *chan = nouveau_channel(pNv->chan);
 
 	/* avoid re-entering FatalError on shutdown */
 	if (pNv->LockedUp)
 		return;
 	pNv->LockedUp = TRUE;
 
-	NVDumpLockupInfo(pNv);
-
-	FatalError("DMA queue hang: dmaPut=%x, current=%x, status=%x\n",
-		   chan->dma.put, (*chan->get - chan->dma.base) >> 2,
-		   pNv->PGRAPH[NV_PGRAPH_STATUS/4]);
+	FatalError("Detected GPU lockup\n");
 }
 
 static void
 NVChannelHangNotify(struct nouveau_channel *chan)
 {
 	ScrnInfoPtr pScrn = chan->user_private;
+
 	NVLockedUp(pScrn);
 }
 
@@ -70,21 +50,10 @@ void NVSync(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
-	struct nouveau_channel_priv *nvchan = nouveau_channel(chan);
 	struct nouveau_grobj *gr = pNv->Nv2D ? pNv->Nv2D : pNv->NvImageBlit;
-	int t_start, timeout = 2000;
 
 	if (pNv->NoAccel)
 		return;
-
-	/* Wait for entire FIFO to be processed */
-	t_start = GetTimeInMillis();
-	while((GetTimeInMillis() - t_start) < timeout &&
-	      (((*nvchan->get - nvchan->dma.base) >> 2)!= nvchan->dma.put));
-	if ((GetTimeInMillis() - t_start) >= timeout) {
-		NVLockedUp(pScrn);
-		return;
-	}
 
 	/* Wait for nvchannel to go completely idle */
 	nouveau_notifier_reset(pNv->notify0, 0);
@@ -94,8 +63,7 @@ void NVSync(ScrnInfoPtr pScrn)
 	OUT_RING  (chan, 0);
 	FIRE_RING (chan);
 	if (nouveau_notifier_wait_status(pNv->notify0, 0,
-					 NV_NOTIFY_STATE_STATUS_COMPLETED,
-					 timeout))
+					 NV_NOTIFY_STATE_STATUS_COMPLETED, 2.0))
 		NVLockedUp(pScrn);
 }
 

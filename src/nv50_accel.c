@@ -61,7 +61,7 @@ NVAccelInitNV50TCL(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, tesla, 0x1558, 1);
 	OUT_RING  (chan, 1);
 	BEGIN_RING(chan, tesla, NV50TCL_DMA_NOTIFY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, tesla, NV50TCL_DMA_UNK0(0), NV50TCL_DMA_UNK0__SIZE);
 	for (i = 0; i < NV50TCL_DMA_UNK0__SIZE; i++)
 		OUT_RING  (chan, pNv->chan->vram->handle);

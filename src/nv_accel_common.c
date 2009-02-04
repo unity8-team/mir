@@ -23,20 +23,6 @@
 #include "nv_include.h"
 
 static Bool
-NVAccelInitNullObject(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-	if (!pNv->NvNull) {
-		if (nouveau_grobj_alloc(pNv->chan, NvNullObject, NV01_NULL,
-					&pNv->NvNull))
-			return FALSE;
-	}
-
-	return TRUE;
-}
-
-static Bool
 NVAccelInitDmaNotifier0(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -70,7 +56,7 @@ NVAccelInitContextSurfaces(ScrnInfoPtr pScrn)
 	surf2d = pNv->NvContextSurfaces;
 
 	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_DMA_NOTIFY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, surf2d,
 		   NV04_CONTEXT_SURFACES_2D_DMA_IMAGE_SOURCE, 2);
 	OUT_RING  (chan, pNv->chan->vram->handle);
@@ -192,7 +178,7 @@ NVAccelInitImagePattern(ScrnInfoPtr pScrn)
 	patt = pNv->NvImagePattern;
 
 	BEGIN_RING(chan, patt, NV04_IMAGE_PATTERN_DMA_NOTIFY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, patt, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT, 3);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	OUT_RING  (chan, NV04_IMAGE_PATTERN_MONOCHROME_FORMAT_LE);
@@ -220,7 +206,7 @@ NVAccelInitRasterOp(ScrnInfoPtr pScrn)
 	rop = pNv->NvRop;
 
 	BEGIN_RING(chan, rop, NV03_CONTEXT_ROP_DMA_NOTIFY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 
 	pNv->currentRop = ~0;
 	return TRUE;
@@ -244,7 +230,7 @@ NVAccelInitRectangle(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_DMA_FONTS, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_ROP, 1);
@@ -284,11 +270,11 @@ NVAccelInitImageBlit(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_COLOR_KEY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_CLIP_RECTANGLE, 3);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	OUT_RING  (chan, pNv->NvImagePattern->handle);
 	OUT_RING  (chan, pNv->NvRop->handle);
 	BEGIN_RING(chan, blit, NV04_IMAGE_BLIT_OPERATION, 1);
@@ -338,8 +324,8 @@ NVAccelInitScaledImage(ScrnInfoPtr pScrn)
 			 NV04_SCALED_IMAGE_FROM_MEMORY_DMA_NOTIFY, 7);
 	OUT_RING  (chan, pNv->notify0->handle);
 	OUT_RING  (chan, pNv->chan->vram->handle);
-	OUT_RING  (chan, pNv->NvNull->handle);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	OUT_RING  (chan, pNv->NvContextBeta1->handle);
 	OUT_RING  (chan, pNv->NvContextBeta4->handle);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
@@ -370,7 +356,7 @@ NVAccelInitClipRectangle(ScrnInfoPtr pScrn)
 	clip = pNv->NvClipRectangle;
 
 	BEGIN_RING(chan, clip, NV01_CONTEXT_CLIP_RECTANGLE_DMA_NOTIFY, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 
 	return TRUE;
 }
@@ -436,16 +422,16 @@ NVAccelInitImageFromCpu(ScrnInfoPtr pScrn)
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_DMA_NOTIFY, 1);
 	OUT_RING  (chan, pNv->notify0->handle);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_CLIP_RECTANGLE, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_PATTERN, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_ROP, 1);
-	OUT_RING  (chan, pNv->NvNull->handle);
+	OUT_RING  (chan, chan->nullobj->handle);
 	if (pNv->Architecture >= NV_ARCH_10) {
 		BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_BETA1, 1);
-		OUT_RING  (chan, pNv->NvNull->handle);
+		OUT_RING  (chan, chan->nullobj->handle);
 		BEGIN_RING(chan, ifc, NV05_IMAGE_FROM_CPU_BETA4, 1);
-		OUT_RING  (chan, pNv->NvNull->handle);
+		OUT_RING  (chan, chan->nullobj->handle);
 	}
 	BEGIN_RING(chan, ifc, NV05_IMAGE_FROM_CPU_SURFACE, 1);
 	OUT_RING  (chan, pNv->NvContextSurfaces->handle);
@@ -509,7 +495,6 @@ NVAccelCommonInit(ScrnInfoPtr pScrn)
 		return TRUE;
 
 	/* General engine objects */
-	INIT_CONTEXT_OBJECT(NullObject);
 	INIT_CONTEXT_OBJECT(DmaNotifier0);
 
 	/* 2D engine */
@@ -558,7 +543,6 @@ void NVAccelFree(ScrnInfoPtr pScrn)
 	if (pNv->NoAccel)
 		return;
 
-	nouveau_grobj_free(&pNv->NvNull);
 	nouveau_notifier_free(&pNv->notify0);
 	if (pNv->Architecture < NV_ARCH_50) {
 		nouveau_grobj_free(&pNv->NvContextSurfaces);
