@@ -1194,6 +1194,7 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 
     switch (mode) {
     case DPMSModeOn:
+	radeon_encoder->devices |= radeon_output->active_device;
 	if (is_dig)
 	    (void)atombios_dig_dpms(output, mode);
 	else {
@@ -1209,12 +1210,12 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 		ErrorF("Output %s enable failed\n",
 		       device_name[radeon_get_device_index(radeon_output->active_device)]);
 	}
-	radeon_encoder->use_count++;
 	break;
     case DPMSModeStandby:
     case DPMSModeSuspend:
     case DPMSModeOff:
-	if (radeon_encoder->use_count < 2) {
+	radeon_encoder->devices &= ~(radeon_output->active_device);
+	if (!radeon_encoder->devices) {
 	    if (is_dig)
 		(void)atombios_dig_dpms(output, mode);
 	    else {
@@ -1232,8 +1233,6 @@ atombios_output_dpms(xf86OutputPtr output, int mode)
 			   device_name[radeon_get_device_index(radeon_output->active_device)]);
 	    }
 	}
-	if (radeon_encoder->use_count > 0)
-	    radeon_encoder->use_count--;
 	break;
     }
 }

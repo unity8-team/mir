@@ -1644,7 +1644,7 @@ radeon_add_encoder(ScrnInfoPtr pScrn, uint32_t encoder_id, uint32_t device_suppo
 	info->encoders[device_index] = (radeon_encoder_ptr)xcalloc(1,sizeof(radeon_encoder_rec));
 	if (info->encoders[device_index] != NULL) {
 	    info->encoders[device_index]->encoder_id = encoder_id;
-	    info->encoders[device_index]->use_count = 0;
+	    info->encoders[device_index]->devices = 0;
 	    info->encoders[device_index]->dev_priv = NULL;
 	    // add dev_priv stuff
 	    switch (encoder_id) {

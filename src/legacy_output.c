@@ -903,6 +903,7 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 
     switch(mode) {
     case DPMSModeOn:
+	radeon_encoder->devices |= radeon_output->active_device;
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 	{
@@ -984,35 +985,35 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 	    RADEONDacPowerSet(pScrn, TRUE, FALSE);
 	    break;
 	}
-	radeon_encoder->use_count++;
 	break;
     case DPMSModeOff:
     case DPMSModeSuspend:
     case DPMSModeStandby:
-	switch (radeon_encoder->encoder_id) {
-	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
-	    if (radeon_encoder->use_count < 2) {
-		unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
-		ErrorF("disable LVDS\n");
-		if (info->IsMobility || info->IsIGP) {
-		    /* Asic bug, when turning off LVDS_ON, we have to make sure
-		       RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
-		    */
-		    OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+	radeon_encoder->devices &= ~(radeon_output->active_device);
+	if (!radeon_encoder->devices) {
+	    switch (radeon_encoder->encoder_id) {
+	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+		{
+		    unsigned long tmpPixclksCntl = INPLL(pScrn, RADEON_PIXCLKS_CNTL);
+		    ErrorF("disable LVDS\n");
+		    if (info->IsMobility || info->IsIGP) {
+			/* Asic bug, when turning off LVDS_ON, we have to make sure
+			   RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
+			*/
+			OUTPLLP(pScrn, RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+		    }
+		    tmp = INREG(RADEON_LVDS_GEN_CNTL);
+		    tmp |= RADEON_LVDS_DISPLAY_DIS;
+		    tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
+		    OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
+		    save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
+		    save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
+		    if (info->IsMobility || info->IsIGP) {
+			OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
+		    }
 		}
-		tmp = INREG(RADEON_LVDS_GEN_CNTL);
-		tmp |= RADEON_LVDS_DISPLAY_DIS;
-		tmp &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
-		OUTREG(RADEON_LVDS_GEN_CNTL, tmp);
-		save->lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
-		save->lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN);
-		if (info->IsMobility || info->IsIGP) {
-		    OUTPLL(pScrn, RADEON_PIXCLKS_CNTL, tmpPixclksCntl);
-		}
-	    }
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
-	    if (radeon_encoder->use_count < 2) {
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 		ErrorF("disable FP1\n");
 		tmp = INREG(RADEON_FP_GEN_CNTL);
 		tmp &= ~(RADEON_FP_FPON | RADEON_FP_TMDS_EN);
@@ -1026,10 +1027,8 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 		    save->fp_2nd_gen_cntl &= ~(RS400_FP_2ND_ON |
 					       RS400_TMDS_2ND_EN);
 		}
-	    }
 	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
-	    if (radeon_encoder->use_count < 2) {
+	    case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 		ErrorF("disable FP2\n");
 		tmp = INREG(RADEON_FP2_GEN_CNTL);
 		tmp |= RADEON_FP2_BLANK_EN;
@@ -1046,20 +1045,16 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 		    save->fp2_2_gen_cntl &= ~(RS400_FP2_2_ON | RS400_FP2_2_DVO2_EN);
 		    save->fp2_2_gen_cntl |= RS400_FP2_2_BLANK_EN;
 		}
-	    }
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
-	    if (radeon_encoder->use_count < 2) {
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 		ErrorF("disable primary dac\n");
 		tmp = INREG(RADEON_CRTC_EXT_CNTL);
 		tmp &= ~RADEON_CRTC_CRT_ON;
 		OUTREG(RADEON_CRTC_EXT_CNTL, tmp);
 		save->crtc_ext_cntl &= ~RADEON_CRTC_CRT_ON;
 		RADEONDacPowerSet(pScrn, FALSE, TRUE);
-	    }
-	    break;
-	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
-	    if (radeon_encoder->use_count < 2) {
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		    ErrorF("disable TV\n");
 		    tmp = INREG(RADEON_TV_MASTER_CNTL);
@@ -1081,11 +1076,9 @@ legacy_output_dpms(xf86OutputPtr output, int mode)
 		    }
 		}
 		RADEONDacPowerSet(pScrn, FALSE, FALSE);
+		break;
 	    }
-	    break;
 	}
-	if (radeon_encoder->use_count > 0)
-	    radeon_encoder->use_count--;
 	break;
     }
 }
