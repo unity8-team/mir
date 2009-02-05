@@ -665,14 +665,6 @@ NVEnterVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
-	NVMapMem(pScrn);
-	if (pNv->Architecture >= NV_ARCH_50 && pNv->EXADriverPtr) {
-		nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM | NOUVEAU_BO_TILED,
-				pNv->EXADriverPtr->offScreenBase,
-				pNv->EXADriverPtr->memorySize -
-				pNv->EXADriverPtr->offScreenBase);
-	}
-
 	if (!pNv->kms_enable && pNv->randr12_enable)
 		NVSave(pScrn);
 
@@ -691,10 +683,8 @@ NVEnterVT(int scrnIndex, int flags)
 			return FALSE;
 	}
 
-	if (!pNv->NoAccel) {
-		NVInitDma(pScrn);
+	if (!pNv->NoAccel)
 		NVAccelCommonInit(pScrn);
-	}
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
@@ -720,10 +710,6 @@ NVLeaveVT(int scrnIndex, int flags)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	NVSync(pScrn);
-	NVAccelFree(pScrn);
-	NVTakedownVideo(pScrn);
-	NVTakedownDma(pScrn);
-	NVUnmapMem(pScrn);
 
 	if (pNv->kms_enable)
 		return;
