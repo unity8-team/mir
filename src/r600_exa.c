@@ -719,66 +719,42 @@ R600OverlapCopy(PixmapPtr pDst,
     uint32_t dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     int i;
 
+    R600DoPrepareCopy(pScrn,
+		      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+		      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+		      accel_state->rop, accel_state->planemask);
+
     if (is_overlap(srcX, srcX + w, srcY, srcY + h,
 		   dstX, dstX + w, dstY, dstY + h)) {
 	if (srcY == dstY) { // left/right
 	    if (srcX < dstX) { // right
 		// copy right to left
 		for (i = w; i > 0; i--) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      accel_state->rop, accel_state->planemask);
-
 		    R600AppendCopyVertex(pScrn, srcX + i - 1, srcY, dstX + i - 1, dstY, 1, h);
-		    R600DoCopy(pScrn);
 		}
 	    } else { //left
 		// copy left to right
 		for (i = 0; i < w; i++) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      accel_state->rop, accel_state->planemask);
-
 		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, 1, h);
-		    R600DoCopy(pScrn);
 		}
 	    }
 	} else { //up/down
 	    if (srcY > dstY) { // up
 		// copy top to bottom
 		for (i = 0; i < h; i++) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      accel_state->rop, accel_state->planemask);
-
 		    R600AppendCopyVertex(pScrn, srcX, srcY + i, dstX, dstY + i, w, 1);
-		    R600DoCopy(pScrn);
 		}
 	    } else { // down
 		// copy bottom to top
 		for (i = h; i > 0; i--) {
-		    R600DoPrepareCopy(pScrn,
-				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-				      accel_state->rop, accel_state->planemask);
-
 		    R600AppendCopyVertex(pScrn, srcX, srcY + i - 1, dstX, dstY + i - 1, w, 1);
-		    R600DoCopy(pScrn);
 		}
 	    }
 	}
     } else {
-	R600DoPrepareCopy(pScrn,
-			  dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-			  dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-			  accel_state->rop, accel_state->planemask);
-
 	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
-	R600DoCopy(pScrn);
     }
+    R600DoCopy(pScrn);
 }
 
 static void
