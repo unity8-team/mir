@@ -31,7 +31,6 @@
 #include "dri.h"
 #include "nv_dripriv.h"
 #include "nv_dri.h"
-#include "drmmode_display.h"
 
 static Bool NVCreateContext(ScreenPtr pScreen, VisualPtr visual,
 		drm_context_t hwContext, void *pVisualConfigPriv,
@@ -195,10 +194,8 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 
 #ifdef XF86DRM_MODE
 	/* drm already open */
-	if (pNv->drmmode) {
-		drmmode_ptr drmmode = pNv->drmmode;
-		fd = drmmode->fd;
-	}
+	if (pNv->dev)
+		fd = nouveau_device(pNv->dev)->fd;
 #endif
 
 	{
@@ -295,14 +292,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	int drm_page_size;
 	int drm_fd;
 
-#ifdef XF86DRM_MODE
-	/* drm already open, reuse it */
-	if (pNv->drmmode) {
-		drmmode_ptr drmmode = pNv->drmmode;
-		drm_fd = drmmode->fd;
-	}
-#endif
-
 	if (!NVDRICheckModules(pScrn))
 		return FALSE;
 
@@ -378,14 +367,17 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	}
 
 	/* need_close = 0, because DRICloseScreen() will handle the closing. */
-	if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
-		xf86DrvMsg(pScreen->myNum, X_ERROR, "Error creating device\n");
-		DRICloseScreen(pScreen);
-		xfree(pDRIInfo->devPrivate);
-		pDRIInfo->devPrivate = NULL;
-		DRIDestroyInfoRec(pDRIInfo);
-		pDRIInfo = NULL;
-		return FALSE;
+	if (!pNv->dev) {
+		if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
+			xf86DrvMsg(pScreen->myNum, X_ERROR,
+				   "Error creating device\n");
+			DRICloseScreen(pScreen);
+			xfree(pDRIInfo->devPrivate);
+			pDRIInfo->devPrivate = NULL;
+			DRIDestroyInfoRec(pDRIInfo);
+			pDRIInfo = NULL;
+			return FALSE;
+		}
 	}
 
 	return TRUE;

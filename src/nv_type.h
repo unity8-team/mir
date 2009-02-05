@@ -26,8 +26,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_output.h"
 
-#include "drmmode_display.h"
-
 #define NV_ARCH_03  0x03
 #define NV_ARCH_04  0x04
 #define NV_ARCH_10  0x10

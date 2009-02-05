@@ -75,8 +75,6 @@
 #include "nvreg.h"
 #include "nv50reg.h"
 
-#include "drmmode_display.h"
-
 #include "nouveau_drmif.h"
 #include "nouveau_device.h"
 #include "nouveau_channel.h"

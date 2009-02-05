@@ -3,6 +3,11 @@
 #ifndef __NV_PROTO_H__
 #define __NV_PROTO_H__
 
+/* in drmmode_display.c */
+Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
+			      struct nouveau_bo **);
+
 /* in nv_accel_common.c */
 Bool NVAccelCommonInit(ScrnInfoPtr pScrn);
 Bool NVAccelGetCtxSurf2DFormatFromPixmap(PixmapPtr pPix, int *fmt_ret);

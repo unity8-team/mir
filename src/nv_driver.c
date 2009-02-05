@@ -1314,12 +1314,15 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		char *bus_id;
 		bus_id = DRICreatePCIBusID(pNv->PciInfo);
 
-		pNv->drmmode = calloc(1, sizeof(drmmode_rec));
-		res = drmmode_pre_init(pScrn, bus_id, pNv->drmmode, pScrn->bitsPerPixel >> 3);
-		if (!res) {
-			xfree(bus_id);
+		res = nouveau_device_open(&pNv->dev, bus_id);
+		xfree(bus_id);
+		if (res)
+			NVPreInitFail("Error opening device: %d\n", res);
+
+		res = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
+				       pScrn->bitsPerPixel >> 3);
+		if (res == FALSE)
 			NVPreInitFail("Kernel modesetting failed to initialize\n");
-		}
 	} else
 #endif
 	if (pNv->randr12_enable) {
@@ -1641,10 +1644,6 @@ NVMapMem(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, at offset 0x%X\n",
 		(uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
-#ifdef XF86DRM_MODE
-	if (pNv->kms_enable)
-		drmmode_set_fb(pScrn, pNv->drmmode, pScrn->virtualX, pScrn->virtualY, pScrn->displayWidth*(pScrn->bitsPerPixel >> 3), pNv->FB);
-#endif
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1672,6 +1671,12 @@ NVMapMem(ScrnInfoPtr pScrn)
 			   "GART: Allocated %dMiB as a scratch buffer\n",
 			   (unsigned int)(pNv->GART->size >> 20));
 	}
+
+	/* We don't need to allocate cursors / lut here if we're using
+	 * kernel modesetting
+	 **/
+	if (pNv->kms_enable)
+		return TRUE;
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
 			   64 * 1024, &pNv->Cursor)) {
@@ -1745,7 +1750,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 	nouveau_bo_ref(NULL, &pNv->Cursor2);
 
 	/* Again not the most ideal way. */
-	if (pNv->Architecture == NV_ARCH_50) {
+	if (pNv->Architecture == NV_ARCH_50 && !pNv->kms_enable) {
 		int i;
 
 		for(i = 0; i < 2; i++) {
