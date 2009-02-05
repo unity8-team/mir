@@ -717,8 +717,6 @@ R600OverlapCopy(PixmapPtr pDst,
     struct radeon_accel_state *accel_state = info->accel_state;
     uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     uint32_t dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    struct r6xx_copy_vertex *copy_vb;
-    struct r6xx_copy_vertex vertex[3];
     int i;
 
     if (is_overlap(srcX, srcX + w, srcY, srcY + h,
@@ -732,35 +730,7 @@ R600OverlapCopy(PixmapPtr pDst,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
-		    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
-
-		    vertex[0].x = (float)(dstX + i - 1);
-		    vertex[0].y = (float)dstY;
-		    vertex[0].s = (float)(srcX + i - 1);
-		    vertex[0].t = (float)srcY;
-
-		    vertex[1].x = (float)(dstX + i - 1);
-		    vertex[1].y = (float)(dstY + h);
-		    vertex[1].s = (float)(srcX + i - 1);
-		    vertex[1].t = (float)(srcY + h);
-
-		    vertex[2].x = (float)(dstX + i);
-		    vertex[2].y = (float)(dstY + h);
-		    vertex[2].s = (float)(srcX + i);
-		    vertex[2].t = (float)(srcY + h);
-
-#ifdef SHOW_VERTEXES
-		    ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-		    ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-		    ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-		    // append to vertex buffer
-		    copy_vb[accel_state->vb_index++] = vertex[0];
-		    copy_vb[accel_state->vb_index++] = vertex[1];
-		    copy_vb[accel_state->vb_index++] = vertex[2];
-
-		    // do the blit
+		    R600AppendCopyVertex(pScrn, srcX + i - 1, srcY, dstX + i - 1, dstY, 1, h);
 		    R600DoCopy(pScrn);
 		}
 	    } else { //left
@@ -771,35 +741,7 @@ R600OverlapCopy(PixmapPtr pDst,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
-		    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
-
-		    vertex[0].x = (float)(dstX + i);
-		    vertex[0].y = (float)(dstY);
-		    vertex[0].s = (float)(srcX + i);
-		    vertex[0].t = (float)srcY;
-
-		    vertex[1].x = (float)(dstX + i);
-		    vertex[1].y = (float)(dstY + h);
-		    vertex[1].s = (float)(srcX + i);
-		    vertex[1].t = (float)(srcY + h);
-
-		    vertex[2].x = (float)(dstX + i + 1);
-		    vertex[2].y = (float)(dstY + h);
-		    vertex[2].s = (float)(srcX + i + 1);
-		    vertex[2].t = (float)(srcY + h);
-
-#ifdef SHOW_VERTEXES
-		    ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-		    ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-		    ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-		    // append to vertex buffer
-		    copy_vb[accel_state->vb_index++] = vertex[0];
-		    copy_vb[accel_state->vb_index++] = vertex[1];
-		    copy_vb[accel_state->vb_index++] = vertex[2];
-
-		    // do the blit
+		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, 1, h);
 		    R600DoCopy(pScrn);
 		}
 	    }
@@ -812,35 +754,7 @@ R600OverlapCopy(PixmapPtr pDst,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
-		    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
-
-		    vertex[0].x = (float)dstX;
-		    vertex[0].y = (float)(dstY + i);
-		    vertex[0].s = (float)srcX;
-		    vertex[0].t = (float)(srcY + i);
-
-		    vertex[1].x = (float)dstX;
-		    vertex[1].y = (float)(dstY + i + 1);
-		    vertex[1].s = (float)srcX;
-		    vertex[1].t = (float)(srcY + i + 1);
-
-		    vertex[2].x = (float)(dstX + w);
-		    vertex[2].y = (float)(dstY + i + 1);
-		    vertex[2].s = (float)(srcX + w);
-		    vertex[2].t = (float)(srcY + i + 1);
-
-#ifdef SHOW_VERTEXES
-		    ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-		    ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-		    ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-		    // append to vertex buffer
-		    copy_vb[accel_state->vb_index++] = vertex[0];
-		    copy_vb[accel_state->vb_index++] = vertex[1];
-		    copy_vb[accel_state->vb_index++] = vertex[2];
-
-		    // do the blit
+		    R600AppendCopyVertex(pScrn, srcX, srcY + i, dstX, dstY + i, w, 1);
 		    R600DoCopy(pScrn);
 		}
 	    } else { // down
@@ -851,35 +765,7 @@ R600OverlapCopy(PixmapPtr pDst,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
-		    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
-
-		    vertex[0].x = (float)dstX;
-		    vertex[0].y = (float)(dstY + i - 1);
-		    vertex[0].s = (float)(srcX);
-		    vertex[0].t = (float)(srcY + i - 1);
-
-		    vertex[1].x = (float)dstX;
-		    vertex[1].y = (float)(dstY + i);
-		    vertex[1].s = (float)srcX;
-		    vertex[1].t = (float)srcY + i;
-
-		    vertex[2].x = (float)(dstX + w);
-		    vertex[2].y = (float)(dstY + i);
-		    vertex[2].s = (float)(srcX + w);
-		    vertex[2].t = (float)(srcY + i);
-
-#ifdef SHOW_VERTEXES
-		    ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-		    ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-		    ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-		    // append to vertex buffer
-		    copy_vb[accel_state->vb_index++] = vertex[0];
-		    copy_vb[accel_state->vb_index++] = vertex[1];
-		    copy_vb[accel_state->vb_index++] = vertex[2];
-
-		    // do the blit
+		    R600AppendCopyVertex(pScrn, srcX, srcY + i - 1, dstX, dstY + i - 1, w, 1);
 		    R600DoCopy(pScrn);
 		}
 	    }
@@ -890,35 +776,7 @@ R600OverlapCopy(PixmapPtr pDst,
 			  dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 			  accel_state->rop, accel_state->planemask);
 
-	copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
-
-	vertex[0].x = (float)dstX;
-	vertex[0].y = (float)dstY;
-	vertex[0].s = (float)srcX;
-	vertex[0].t = (float)srcY;
-
-	vertex[1].x = (float)dstX;
-	vertex[1].y = (float)(dstY + h);
-	vertex[1].s = (float)srcX;
-	vertex[1].t = (float)(srcY + h);
-
-	vertex[2].x = (float)(dstX + w);
-	vertex[2].y = (float)(dstY + h);
-	vertex[2].s = (float)(srcX + w);
-	vertex[2].t = (float)(srcY + h);
-
-#ifdef SHOW_VERTEXES
-	ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-	ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-	ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-	// append to vertex buffer
-	copy_vb[accel_state->vb_index++] = vertex[0];
-	copy_vb[accel_state->vb_index++] = vertex[1];
-	copy_vb[accel_state->vb_index++] = vertex[2];
-
-	// do the blit
+	R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, h);
 	R600DoCopy(pScrn);
     }
 }
