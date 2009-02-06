@@ -808,10 +808,6 @@ i830_disable_vga_plane (xf86CrtcPtr crtc)
 
     vgacntrl |= VGA_DISP_DISABLE;
 
-    /* disable center mode */
-    if (IS_I9XX(pI830))
-	vgacntrl &= ~(3 << 24);
-
     OUTREG(VGACNTRL, vgacntrl);
     i830WaitForVblank(pScrn);
 
