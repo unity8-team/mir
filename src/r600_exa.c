@@ -675,6 +675,8 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	accel_state->rop = rop;
 	accel_state->planemask = planemask;
 
+	return FALSE;
+
 #ifdef SHOW_VERTEXES
 	ErrorF("same surface!\n");
 #endif
