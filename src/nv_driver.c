@@ -1685,13 +1685,11 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return FALSE;
 	}
 
-	if (pNv->randr12_enable) {
-		if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-			64 * 1024, &pNv->Cursor2)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				"Failed to allocate memory for hardware cursor\n");
-			return FALSE;
-		}
+	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
+		64 * 1024, &pNv->Cursor2)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			"Failed to allocate memory for hardware cursor\n");
+		return FALSE;
 	}
 
 	/* This is not the ideal solution, but significant changes are needed
