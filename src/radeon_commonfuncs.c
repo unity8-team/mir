@@ -659,7 +659,7 @@ void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
 	return;
 
     start = max(start, 0);
-    stop = max(stop, xf86_config->crtc[crtc]->mode.VDisplay);
+    stop = min(stop, xf86_config->crtc[crtc]->mode.VDisplay);
 
     if (start > xf86_config->crtc[crtc]->mode.VDisplay)
 	return;
