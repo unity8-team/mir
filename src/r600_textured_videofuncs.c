@@ -145,7 +145,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     accel_state->src_size[0] = exaGetPixmapPitch(pPixmap) * pPriv->w;
 
     /* flush texture cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, 512,
+    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
 			accel_state->src_mc_addr[0]);
 
     // Y texture
@@ -365,7 +365,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     wait_3d_idle_clean(pScrn, accel_state->ib);
 
     /* sync destination surface */
-    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit, CB0_DEST_BASE_ENA_bit),
+    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
 			accel_state->dst_size, accel_state->dst_mc_addr);
 
     R600CPFlushIndirect(pScrn, accel_state->ib);
