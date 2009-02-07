@@ -369,12 +369,67 @@ cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_
     ereg  (ib, CP_COHER_SIZE,                       cp_coher_size);
     ereg  (ib, CP_COHER_BASE,                       (mc_addr >> 8));
     pack3 (ib, IT_WAIT_REG_MEM, 6);
-    e32   (ib, 0x00000003);						// ME, Register, EqualTo
-    e32   (ib, CP_COHER_STATUS >> 2);
+    e32   (ib, IT_WAIT_REG | IT_WAIT_EQ);
+    e32   (ib, IT_WAIT_ADDR(CP_COHER_STATUS));
     e32   (ib, 0);
     e32   (ib, 0);							// Ref value
     e32   (ib, STATUS_bit);						// Ref mask
     e32   (ib, 10);							// Wait interval
+}
+
+/* inserts a wait for vline in the command stream */
+void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
+	int crtc, int start, int stop, Bool enable)
+{
+    RADEONInfoPtr  info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    uint32_t offset;
+    RADEONCrtcPrivatePtr radeon_crtc;
+
+    if (!enable)
+        return;
+
+    if ((crtc < 0) || (crtc > 1))
+        return;
+
+    if (stop < start)
+        return;
+
+    if (!xf86_config->crtc[crtc]->enabled)
+        return;
+
+#ifdef USE_EXA
+    if (info->useEXA)
+        offset = exaGetPixmapOffset(pPix);
+    else
+#endif
+        offset = pPix->devPrivate.ptr - info->FB;
+
+    /* if drawing to front buffer */
+    if (offset != 0)
+        return;
+
+    start = max(start, 0);
+    stop = min(stop, xf86_config->crtc[crtc]->mode.VDisplay);
+
+    if (start > xf86_config->crtc[crtc]->mode.VDisplay)
+        return;
+
+    radeon_crtc = xf86_config->crtc[crtc]->driver_private;
+
+    /* set the VLINE range */
+    ereg(ib, AVIVO_D1MODE_VLINE_START_END + radeon_crtc->crtc_offset,
+         (start << AVIVO_D1MODE_VLINE_START_SHIFT) |
+         (stop << AVIVO_D1MODE_VLINE_END_SHIFT));
+
+    /* tell the CP to poll the VLINE state register */
+    pack3 (ib, IT_WAIT_REG_MEM, 6);
+    e32   (ib, IT_WAIT_REG | IT_WAIT_EQ);
+    e32   (ib, IT_WAIT_ADDR(AVIVO_D1MODE_VLINE_STATUS + radeon_crtc->crtc_offset));
+    e32   (ib, 0);
+    e32   (ib, 0);                          // Ref value
+    e32   (ib, AVIVO_D1MODE_VLINE_STAT);    // Mask
+    e32   (ib, 10);                         // Wait interval
 }
 
 void

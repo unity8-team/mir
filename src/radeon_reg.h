@@ -3662,6 +3662,8 @@
 #       define AVIVO_D1MODE_VLINE_START_SHIFT   0
 #       define AVIVO_D1MODE_VLINE_END_SHIFT     16
 #       define AVIVO_D1MODE_VLINE_INV           (1 << 31)
+#define AVIVO_D1MODE_VLINE_STATUS               0x653c
+#       define AVIVO_D1MODE_VLINE_STAT          (1 << 12)
 #define AVIVO_D1MODE_VIEWPORT_START             0x6580
 #define AVIVO_D1MODE_VIEWPORT_SIZE              0x6584
 #define AVIVO_D1MODE_EXT_OVERSCAN_LEFT_RIGHT    0x6588
