@@ -71,6 +71,7 @@
 #define CHIPSET_G73_BRIDGED 0x02E0
 
 
+#undef SetBit /* some input related header also includes a macro called SetBit, which gives a lot of warnings. */
 #define BITMASK(t,b) (((unsigned)(1U << (((t)-(b)+1)))-1)  << (b))
 #define MASKEXPAND(mask) BITMASK(1?mask,0?mask)
 #define SetBF(mask,value) ((value) << (0?mask))

@@ -271,7 +271,7 @@ static void NV10EXAFallbackInfo_real(char * reason, int op, PicturePtr pSrcPictu
 		out+=strlen(out);
 	}
 	strcat(out, "\n");
-	xf86DrvMsg(0, X_INFO, out2);
+	xf86DrvMsg(0, X_INFO, "%s", out2);
 }
 
 
