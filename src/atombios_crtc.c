@@ -455,6 +455,23 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	    x = 0;
 	    y = 0;
 	    fb_location = fb_location + (char *)crtc->rotatedData - (char *)info->FB;
+	    switch (crtc->rotation) {
+	    case RR_Rotate_0:
+	    case RR_Rotate_180:
+		OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, pScrn->virtualX);
+		OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, pScrn->virtualY);
+	    default:
+		break;
+	    case RR_Rotate_90:
+	    case RR_Rotate_270:
+		OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, pScrn->virtualY);
+		OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, pScrn->virtualX);
+		break;
+
+	    }
+	} else {
+	    OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, pScrn->virtualX);
+	    OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, pScrn->virtualY);
 	}
 
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
@@ -465,11 +482,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_X_START + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_Y_START + radeon_crtc->crtc_offset, 0);
-	if (crtc->rotatedData == NULL) {
-	    /* rotation changes the virtualX and virtualY */
-	    OUTREG(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, pScrn->virtualX);
-	    OUTREG(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, pScrn->virtualY);
-	}
 	OUTREG(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset,
 	       crtc->scrn->displayWidth);
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
