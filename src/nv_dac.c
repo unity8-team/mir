@@ -179,9 +179,6 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 	i = pScrn->depth;
     else i = 32;
 
-    if(pNv->Architecture >= NV_ARCH_10)
-	pNv->CURSOR = (CARD32 *)pNv->Cursor->map;
-
     NVCalcStateExt(pScrn,
                     nvReg,
                     i,

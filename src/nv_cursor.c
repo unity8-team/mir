@@ -146,14 +146,26 @@ TransformCursor (NVPtr pNv)
 }
 
 static void
-NVLoadCursorImage( ScrnInfoPtr pScrn, unsigned char *src )
+NVLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
 {
-    NVPtr pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *cursor = NULL;
 
-    /* save copy of image for color changes */
-    memcpy(pNv->curImage, src, (pNv->alphaCursor) ? 1024 : 256);
+	if (pNv->Architecture >= NV_ARCH_10) {
+		nouveau_bo_ref(pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+		pNv->CURSOR = cursor->map;
+	}
 
-    TransformCursor(pNv);
+	/* save copy of image for color changes */
+	memcpy(pNv->curImage, src, (pNv->alphaCursor) ? 1024 : 256);
+
+	TransformCursor(pNv);
+
+	if (cursor) {
+		nouveau_bo_unmap(cursor);
+		nouveau_bo_ref(NULL, &cursor);
+	}
 }
 
 static void
@@ -166,35 +178,48 @@ NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
 static void
 NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    CARD32 fore, back;
+	NVPtr pNv = NVPTR(pScrn);
+	CARD32 fore, back;
 
-    if(pNv->alphaCursor) {
-        fore = ConvertToRGB888(fg);
-        back = ConvertToRGB888(bg);
+	if (pNv->alphaCursor) {
+		fore = ConvertToRGB888(fg);
+		back = ConvertToRGB888(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-        if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-           fore = BYTE_SWAP_32(fore);
-           back = BYTE_SWAP_32(back);
-        }
+		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+			fore = BYTE_SWAP_32(fore);
+			back = BYTE_SWAP_32(back);
+		}
 #endif
-    } else {
-        fore = ConvertToRGB555(fg);
-        back = ConvertToRGB555(bg);
+	} else {
+		fore = ConvertToRGB555(fg);
+		back = ConvertToRGB555(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-        if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-           fore = ((fore & 0xff) << 8) | (fore >> 8);
-           back = ((back & 0xff) << 8) | (back >> 8);
-        }
+		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
+			fore = ((fore & 0xff) << 8) | (fore >> 8);
+			back = ((back & 0xff) << 8) | (back >> 8);
+		}
 #endif
-   }
+	}
 
-    if ((pNv->curFg != fore) || (pNv->curBg != back)) {
-        pNv->curFg = fore;
-        pNv->curBg = back;
-            
-        TransformCursor(pNv);
-    }
+	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
+		struct nouveau_bo *cursor = NULL;
+
+		if (pNv->Architecture >= NV_ARCH_10) {
+			nouveau_bo_ref(pNv->Cursor, &cursor);
+			nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+			pNv->CURSOR = cursor->map;
+		}
+
+		pNv->curFg = fore;
+		pNv->curBg = back;
+
+		TransformCursor(pNv);
+
+		if (cursor) {
+			nouveau_bo_unmap(cursor);
+			nouveau_bo_ref(NULL, &cursor);
+		}
+	}
 }
 
 
@@ -231,11 +256,19 @@ NVUseHWCursorARGB(ScreenPtr pScreen, CursorPtr pCurs)
 static void
 NVLoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    CARD32 *image = pCurs->bits->argb;
-    CARD32 *dst = (CARD32*)pNv->CURSOR;
-    CARD32 alpha, tmp;
-    int x, y, w, h;
+	NVPtr pNv = NVPTR(pScrn);
+	CARD32 *image = pCurs->bits->argb;
+	struct nouveau_bo *cursor = NULL;
+	CARD32 *dst;
+	CARD32 alpha, tmp;
+	int x, y, w, h;
+
+	if (pNv->Architecture >= NV_ARCH_10) {
+		nouveau_bo_ref(pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+		pNv->CURSOR = cursor->map;
+	}
+	dst = (CARD32*)pNv->CURSOR;
 
     w = pCurs->bits->width;
     h = pCurs->bits->height;
@@ -271,8 +304,13 @@ NVLoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
        }
     }
 
-    if(y < MAX_CURSOR_SIZE_ALPHA)
-      memset(dst, 0, MAX_CURSOR_SIZE_ALPHA * (MAX_CURSOR_SIZE_ALPHA - y) * 4);
+	if (y < MAX_CURSOR_SIZE_ALPHA)
+		memset(dst, 0, MAX_CURSOR_SIZE_ALPHA * (MAX_CURSOR_SIZE_ALPHA - y) * 4);
+
+	if (cursor) {
+		nouveau_bo_unmap(cursor);
+		nouveau_bo_ref(NULL, &cursor);
+	}
 }
 #endif
 
@@ -311,8 +349,6 @@ NVCursorInit(ScreenPtr pScreen)
 
     return(xf86InitCursor(pScreen, infoPtr));
 }
-
-#define CURSOR_PTR ((CARD32*)pNv->Cursor->map)
 
 Bool NVCursorInitRandr12(ScreenPtr pScreen)
 {
@@ -370,9 +406,23 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 
 	/* Eventually this must be replaced as well */
 	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
+		struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+		struct nouveau_bo *cursor = NULL;
+
+		if (pNv->Architecture >= NV_ARCH_10) {
+			nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+			nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+			pNv->CURSOR = cursor->map;
+		}
+
 		pNv->curFg = fore;
 		pNv->curBg = back;
 		TransformCursor(pNv);
+
+		if (cursor) {
+			nouveau_bo_unmap(cursor);
+			nouveau_bo_ref(NULL, &cursor);
+		}
 	}
 }
 
