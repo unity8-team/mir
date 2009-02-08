@@ -188,13 +188,9 @@ static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 		void (*loadbios)(NVPtr, uint8_t *);
 		int score;
 	} method[] = {
-#ifndef __powerpc__
 		{ "PROM", load_vbios_prom },
-#endif
 		{ "PRAMIN", load_vbios_pramin },
-#ifndef __powerpc__
 		{ "PCI ROM", load_vbios_pci }
-#endif
 	};
 	int i;
 
