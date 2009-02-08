@@ -152,9 +152,6 @@ struct nouveau_bios {
 		bool if_is_24bit;
 		bool BITbit1;
 		int duallink_transition_clk;
-		/* lower nibble stores PEXTDEV_BOOT_0 strap
-		 * upper nibble stores xlated display strap */
-		uint8_t strapping;
 	} fp;
 
 	struct {

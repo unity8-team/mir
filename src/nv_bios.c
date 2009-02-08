@@ -3207,7 +3207,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
-	int ret, ofs;
+	int ret, ofs, fpstrapping;
 	struct lvdstableheader lth;
 	uint16_t modeofs;
 	DisplayModePtr mode;
@@ -3258,14 +3258,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 	if ((ret = parse_lvds_manufacturer_table_header(pScrn, bios, &lth)))
 		return ret;
 
-	switch (lth.lvds_ver) {
-	case 0x0a:
-		/* make sure to match the 0xff strapping check below */
-		if ((bios->fp.strapping & 0xf) == 0xf)
-			bios->data[bios->fp.fpxlatetableptr + 0xf] = 0xf;
-		break;
-	case 0x30:
-	case 0x40:
+	if (lth.lvds_ver == 0x30 || lth.lvds_ver == 0x40) {
 		bios->fp.fpxlatetableptr = bios->fp.lvdsmanufacturerpointer + lth.headerlen + 1;
 		bios->fp.xlatwidth = lth.recordlen;
 	}
@@ -3274,6 +3267,8 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 			   "Pointer to flat panel xlat table invalid\n");
 		return -EINVAL;
 	}
+
+	fpstrapping = get_fp_strap(pScrn, bios);
 
 	if (lth.lvds_ver == 0x40) {
 		/* Query all modes and find one with a matching clock. */
@@ -3303,11 +3298,9 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 
 		fpindex = bios->data[bios->fp.fpxlatetableptr + index * bios->fp.xlatwidth];
 		/* strapping only set as a hack for DDC test below */
-		bios->fp.strapping = ((fpindex & 0xF) << 4) | (fpindex & 0xF);
-	} else {
-		fpindex = bios->data[bios->fp.fpxlatetableptr + bios->fp.strapping * bios->fp.xlatwidth];
-		bios->fp.strapping |= fpindex << 4;
-	}
+		fpstrapping = fpindex & 0xf;
+	} else
+		fpindex = bios->data[bios->fp.fpxlatetableptr + fpstrapping * bios->fp.xlatwidth];
 
 	if (fpindex > fpentries) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3315,11 +3308,12 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 		return -ENOENT;
 	}
 
-	/* reserved values - means that ddc or hard coded edid should be used */
-	if (bios->fp.strapping == 0xff) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Ignoring FP table\n");
+	/* if either the strap or xlated fpindex value are 0xf there is no
+	 * panel using a strap-derived bios mode present; these values are
+	 * reserved for DDC capable panels
+	 */
+	if (fpstrapping == 0xf || fpindex == 0xf)
 		return 0;
-	}
 
 	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
 		return -ENOMEM;
@@ -3390,7 +3384,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	unsigned int lvdsmanufacturerindex = 0;
+	int fpstrapping = get_fp_strap(pScrn, bios), lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
 	uint16_t lvdsofs;
 	int ret;
@@ -3400,10 +3394,10 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 
 	switch (lth.lvds_ver) {
 	case 0x0a:	/* pre NV40 */
-		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + (bios->fp.strapping & 0xf)];
+		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (pxclk == 0 || (bios->fp.strapping & 0xf) != 0xf)
+		if (pxclk == 0 || fpstrapping != 0xf)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3428,7 +3422,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		break;
 	case 0x30:	/* NV4x */
 	case 0x40:	/* G80/G90 */
-		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
+		lvdsmanufacturerindex = fpstrapping;
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3473,7 +3467,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	}
 
 	/* set dual_link flag for EDID case */
-	if ((bios->fp.strapping & 0xf) == 0xf && pxclk)
+	if (fpstrapping == 0xf && pxclk)
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	return 0;
@@ -4451,6 +4445,12 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 				entry->lvdsconf.use_straps_for_mode = true;
 			if (dcb_version < 0x22) {
 				mask = ~0xd;
+				/* the laptop in bug 14567 lies and claims to
+				 * not use straps when it does, so assume all
+				 * DCB 2.0 laptops use straps, until a broken
+				 * EDID using one is produced
+				 */
+				entry->lvdsconf.use_straps_for_mode = true;
 				/* both 0x4 and 0x8 show up in v2.0 tables; assume they mean
 				 * the same thing, which is probably wrong, but might work */
 				if (conf & 0x4 || conf & 0x8)
@@ -4517,6 +4517,8 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 		switch (entry->type) {
 		case OUTPUT_LVDS:
 			/* this is probably buried in conn's unknown bits */
+			/* this will upset EDID-ful models, if they exist */
+			entry->lvdsconf.use_straps_for_mode = true;
 			entry->lvdsconf.use_power_scripts = true;
 			break;
 		case OUTPUT_TMDS:
@@ -4543,9 +4545,6 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			   "No information in BIOS output table; assuming a CRT output exists\n");
 		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
 	}
-
-	if (entry->type == OUTPUT_LVDS && pNv->VBIOS.fp.strapping != 0xff)
-		entry->lvdsconf.use_straps_for_mode = true;
 
 	pNv->dcb_table.entries++;
 
@@ -4848,7 +4847,6 @@ int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 		/* PPC cards don't have the fp table; the laptops use DDC */
 		bios->digital_min_front_porch = 0x4b;
 #else
-		bios->fp.strapping = get_fp_strap(pScrn, bios);
 		if ((ret = parse_fp_mode_table(pScrn, bios)))
 			goto out;
 #endif
