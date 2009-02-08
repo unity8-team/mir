@@ -158,7 +158,6 @@ static bool edid_sink_connected(xf86OutputPtr output)
 		NVSetOwner(pNv, 0);	/* necessary? */
 
 	nv_connector->edid = xf86OutputGetEDID(output, nv_connector->pDDCBus);
-	xf86OutputSetEDID(output, nv_connector->edid);
 
 	if (wastied)
 		NVSetOwner(pNv, 0x4);
@@ -208,7 +207,6 @@ nv_output_detect(xf86OutputPtr output)
 				ret = XF86OutputStatusConnected;
 		} else if (pNv->VBIOS.fp.ddc_permitted && pNv->VBIOS.fp.edid) {
 			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
-			xf86OutputSetEDID(output, nv_connector->edid);
 			ret = XF86OutputStatusConnected;
 		}
 	}
@@ -276,18 +274,27 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 {
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
-	ScrnInfoPtr pScrn = output->scrn;
+	enum nouveau_encoder_type enctype = nv_encoder->dcb->type;
 	DisplayModePtr edid_modes;
 
+	if (enctype == OUTPUT_LVDS ||
+	    (enctype == OUTPUT_TMDS && nv_encoder->scaling_mode != SCALE_PANEL))
+		/* the digital scaler is not limited to modes given in the EDID,
+		 * so enable the GTF bit in order that the xserver thinks
+		 * continuous timing is available and adds the standard modes
+		 */
+		nv_connector->edid->features.msc |= 1;
+
+	xf86OutputSetEDID(output, nv_connector->edid);
 	if (!(edid_modes = xf86OutputGetEDIDModes(output)))
 		return edid_modes;
 
-	if (nv_encoder->dcb->type == OUTPUT_TMDS || nv_encoder->dcb->type == OUTPUT_LVDS)
+	if (enctype == OUTPUT_LVDS || enctype == OUTPUT_TMDS)
 		if (!get_native_mode_from_edid(output, edid_modes))
 			return NULL;
 
-	if (nv_encoder->dcb->type == OUTPUT_LVDS)
-		parse_lvds_manufacturer_table(pScrn, nv_encoder->native_mode->Clock);
+	if (enctype == OUTPUT_LVDS)
+		parse_lvds_manufacturer_table(output->scrn, nv_encoder->native_mode->Clock);
 
 	return edid_modes;
 }
