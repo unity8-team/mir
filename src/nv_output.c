@@ -203,10 +203,10 @@ nv_output_detect(xf86OutputPtr output)
 		else if (pNv->twoHeads && nv_load_detect(pScrn, det_encoder))
 			ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
-		if (det_encoder->dcb->lvdsconf.use_straps_for_mode &&
-		    pNv->VBIOS.fp.native_mode)
-			ret = XF86OutputStatusConnected;
-		if (pNv->VBIOS.fp.edid) {
+		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
+			if (pNv->VBIOS.fp.native_mode)
+				ret = XF86OutputStatusConnected;
+		} else if (pNv->VBIOS.fp.ddc_permitted && pNv->VBIOS.fp.edid) {
 			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
 			xf86OutputSetEDID(output, nv_connector->edid);
 			ret = XF86OutputStatusConnected;
@@ -299,16 +299,15 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
-	DisplayModePtr modes;
 
 	/* panels only have one mode, and it doesn't change */
 	if (nv_encoder->native_mode)
 		return xf86DuplicateMode(nv_encoder->native_mode);
 
-	if ((modes = nv_output_get_edid_modes(output)))
-		return modes;
+	if (!nv_encoder->dcb->lvdsconf.use_straps_for_mode)
+		return nv_output_get_edid_modes(output);
 
-	if (!nv_encoder->dcb->lvdsconf.use_straps_for_mode || pNv->VBIOS.fp.native_mode == NULL)
+	if (!pNv->VBIOS.fp.native_mode)
 		return NULL;
 
 	nv_encoder->native_mode = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
@@ -979,6 +978,10 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 		case OUTPUT_LVDS:
 			sprintf(outputname, "LVDS-%d", lvds_count++);
 			funcs = &nv_lvds_output_funcs;
+			/* don't create i2c adapter when lvds ddc not allowed */
+			if (dcbent->lvdsconf.use_straps_for_mode ||
+			    !pNv->VBIOS.fp.ddc_permitted)
+				i2c_index = 0xf;
 			break;
 		default:
 			continue;

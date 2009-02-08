@@ -137,6 +137,7 @@ struct nouveau_bios {
 	uint8_t digital_min_front_porch;
 
 	struct {
+		bool ddc_permitted;
 		DisplayModePtr native_mode;
 		uint8_t *edid;
 		uint16_t fptablepointer;	/* also used by tmds */

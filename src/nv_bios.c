@@ -3308,9 +3308,16 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 		return -ENOENT;
 	}
 
+	/* a strap value of 0xf is sufficient to indicate DDC use on BMP era
+	 * cards; nv4x cards need an fpindex of 0xf too
+	 */
+	if (fpstrapping == 0xf &&
+	    (lth.lvds_ver == 0x0a || fpindex == 0xf))
+		bios->fp.ddc_permitted = true;
+
 	/* if either the strap or xlated fpindex value are 0xf there is no
-	 * panel using a strap-derived bios mode present; these values are
-	 * reserved for DDC capable panels
+	 * panel using a strap-derived bios mode present.  this condition
+	 * includes, but is different from, the DDC panel indicator above
 	 */
 	if (fpstrapping == 0xf || fpindex == 0xf)
 		return 0;
@@ -3397,7 +3404,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (pxclk == 0 || fpstrapping != 0xf)
+		if (pxclk == 0 || !bios->fp.ddc_permitted)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3467,7 +3474,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	}
 
 	/* set dual_link flag for EDID case */
-	if (fpstrapping == 0xf && pxclk)
+	if (pxclk && bios->fp.ddc_permitted)
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	return 0;
@@ -4846,6 +4853,7 @@ int NVRunVBIOSInit(ScrnInfoPtr pScrn)
 #ifdef __powerpc__
 		/* PPC cards don't have the fp table; the laptops use DDC */
 		bios->digital_min_front_porch = 0x4b;
+		bios->fp.ddc_permitted = true;
 #else
 		if ((ret = parse_fp_mode_table(pScrn, bios)))
 			goto out;
