@@ -933,14 +933,13 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint16_t connectors[0x10] = { 0 };
-	struct dcb_entry *dcbent;
 	int i, vga_count = 0, dvid_count = 0, dvii_count = 0, lvds_count = 0;
 
 	if (!(pNv->encoders = xcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
 		return;
 
 	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		dcbent = &pNv->dcb_table.entry[i];
+		struct dcb_entry *dcbent = &pNv->dcb_table.entry[i];
 
 		if (dcbent->type == OUTPUT_TV)
 			continue;
@@ -955,7 +954,8 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 	}
 
 	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		int i2c_index = pNv->dcb_table.entry[i].i2c_index;
+		struct dcb_entry *dcbent = &pNv->dcb_table.entry[i];
+		int i2c_index = dcbent->i2c_index;
 		uint16_t encoders = connectors[i2c_index];
 		char outputname[20];
 		xf86OutputFuncsRec const *funcs = &nv_output_funcs;

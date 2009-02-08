@@ -3057,6 +3057,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 			if (bios->fp.BITbit1)
 				clktableptr++;
 		} else {
+			/* using EDID */
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
 
@@ -3186,6 +3187,22 @@ static int parse_lvds_manufacturer_table_header(ScrnInfoPtr pScrn, bios_t *bios,
 	return 0;
 }
 
+static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
+{
+	/* the fp strap is normally dictated by the "User Strap" in
+	 * PEXTDEV_BOOT_0[20:16], but on BMP cards when bit 2 of the
+	 * Internal_Flags struct at 0x48 is set, the user strap gets overriden
+	 * by the PCI subsystem ID during POST, but not before the previous user
+	 * strap has been committed to CR58 for CR57=0xf on head A, which may be
+	 * read and used instead
+	 */
+
+	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
+		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
+
+	return ((nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
+}
+
 static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
 	uint8_t *fptable;
@@ -3258,9 +3275,10 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 		return -EINVAL;
 	}
 
-	/* Query all modes and find one with a matching clock. */
-	/* Note that this only serves as a backup solution if ddc fails. */
 	if (lth.lvds_ver == 0x40) {
+		/* Query all modes and find one with a matching clock. */
+		/* Note that this only serves as a backup solution if ddc fails. */
+
 		uint32_t clock, needed_clock;
 		int i, index = 0xF, matches = 0;
 		needed_clock = nv32_rd(pScrn, 0x00616404) & 0xFFFFF;
@@ -3284,6 +3302,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 			index = 0xF;
 
 		fpindex = bios->data[bios->fp.fpxlatetableptr + index * bios->fp.xlatwidth];
+		/* strapping only set as a hack for DDC test below */
 		bios->fp.strapping = ((fpindex & 0xF) << 4) | (fpindex & 0xF);
 	} else {
 		fpindex = bios->data[bios->fp.fpxlatetableptr + bios->fp.strapping * bios->fp.xlatwidth];
@@ -3364,12 +3383,10 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	 * two bytes - the first as a config byte, the second for indexing the
 	 * fp mode table pointed to by the BIT 'D' table
 	 *
-	 * Due to the stage at which DDC is used in X's DDX design, the EDID res
-	 * for a panel isn't known at init, so the tests against the pixel clock
-	 * in the EDID case for selection of the correct table entry and setting
-	 * of the dual link flag cannot be done until later - this function may
-	 * be called at runtime with a non-zero pxclk argument to perform these
-	 * tests.
+	 * DDC is not used until after card init, so selecting the correct table
+	 * entry and setting the dual link flag for EDID equipped panels,
+	 * requiring tests against the native-mode pixel clock, cannot be done
+	 * until later, when this function should be called with non-zero pxclk
 	 */
 
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
@@ -3410,8 +3427,6 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		 * lvdsmanufacturerindex in this case; we don't */
 		break;
 	case 0x30:	/* NV4x */
-		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
-		break;
 	case 0x40:	/* G80/G90 */
 		lvdsmanufacturerindex = bios->fp.strapping & 0xf;
 		break;
@@ -3442,24 +3457,24 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		/* no sign of the "power off for reset" or "reset for panel on" bits, but it's safer to assume we should */
 		bios->fp.power_off_for_reset = true;
 		bios->fp.reset_after_pclk_change = true;
+		/* it's ok lvdsofs is wrong for nv4x edid case; dual_link is
+		 * over-written, and BITbit1 isn't used */
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
+#if 0	// currently unused
 		break;
 	case 0x40:
 		/* fairly sure, but not 100% */
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 		break;
+#endif
 	}
 
 	/* set dual_link flag for EDID case */
-	if ((bios->fp.strapping & 0xf) == 0xf && pxclk) {
-		if (pxclk >= bios->fp.duallink_transition_clk)
-			bios->fp.dual_link = true;
-		else
-			bios->fp.dual_link = false;
-	}
+	if ((bios->fp.strapping & 0xf) == 0xf && pxclk)
+		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	return 0;
 }
@@ -3510,30 +3525,6 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 
 	return 0;
-}
-
-static int get_fp_strap(ScrnInfoPtr pScrn, bios_t *bios)
-{
-	/* the fp strap is normally dictated by the "User Strap" in
-	 * PEXTDEV_BOOT_0[20:16], but on BMP cards when bit 2 of the
-	 * Internal_Flags struct at 0x48 is set, the user strap gets overriden
-	 * by the PCI subsystem ID during POST, but not before the previous user
-	 * strap has been committed to CR58 for CR57=0xf on head A, which may be
-	 * read and used instead
-	 */
-
-	/* Now comes the G80/G90 story, i've only got one hint.
-	 * I can read back the clock freq from register 0x00616404.
-	 * So for the moment just write 0xF here.
-	 */
-
-	if (bios->chip_version >= 0x80)
-		return 0xF;
-
-	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
-		return (NVReadVgaCrtc5758(NVPTR(pScrn), 0, 0xf) & 0xf);
-
-	return ((nv32_rd(pScrn, NV_PEXTDEV_BOOT_0) >> 16) & 0xf);
 }
 
 static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
