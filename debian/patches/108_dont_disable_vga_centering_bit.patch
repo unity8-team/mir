@@ -1,0 +1,26 @@
+commit 3aa8591abfbe8db0f13912910c850fdd748808df
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Fri Feb 6 09:14:15 2009 +0800
+
+    Don't disable vga centering bit.
+    
+    commit id b9f5915ce812144ffd9d2aa42e8ba856129c35e,
+    which resolved bug #17235, but generate new regression-bug #19715.
+    This patch intends to resolve bug #17235, and avoid regression as well.
+    We have successfully re-tested it for bug #17235 and #19715 respectively.
+
+diff --git a/src/i830_display.c b/src/i830_display.c
+index 7a8e96d..8ecb5e5 100644
+--- a/src/i830_display.c
++++ b/src/i830_display.c
+@@ -808,10 +808,6 @@ i830_disable_vga_plane (xf86CrtcPtr crtc)
+ 
+     vgacntrl |= VGA_DISP_DISABLE;
+ 
+-    /* disable center mode */
+-    if (IS_I9XX(pI830))
+-	vgacntrl &= ~(3 << 24);
+-
+     OUTREG(VGACNTRL, vgacntrl);
+     i830WaitForVblank(pScrn);
+ 

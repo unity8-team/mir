@@ -4,3 +4,4 @@
 105_no_modesetting.diff
 106_remove_triple_buffering.diff
 107_remove_pageflipping.diff
+108_dont_disable_vga_centering_bit.patch

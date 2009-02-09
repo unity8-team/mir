@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.6.1-1ubuntu2) jaunty; urgency=low
+
+  * Add 108_dont_disable_vga_centering_bit.patch.  Cherry-pick from
+    upstream commit 3aa8591abfbe8db0f13912910c850fdd748808df.
+    Don't disable vga centering bit.  Causes failure to display
+    lower resolutions on Eee PCs, etc.
+    (LP: #324913)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 09 Feb 2009 15:20:29 -0800
+
 xserver-xorg-video-intel (2:2.6.1-1ubuntu1) jaunty; urgency=low
 
   * Merge with Debian experimental, remaining changes:
