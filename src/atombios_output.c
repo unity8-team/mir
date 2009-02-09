@@ -70,7 +70,7 @@ atombios_output_dac_setup(xf86OutputPtr output, DisplayModePtr mode)
     DAC_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index, num = 0;
+    int index = 0, num = 0;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
@@ -264,7 +264,7 @@ atombios_output_digital_setup(xf86OutputPtr output, DisplayModePtr mode)
     LVDS_ENCODER_CONTROL_PS_ALLOCATION_V2 disp_data2;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index;
+    int index = 0;
     int major, minor;
     int lvds_misc = 0;
 
@@ -458,7 +458,7 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
     DIG_ENCODER_CONTROL_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index, major, minor, num = 0;
+    int index = 0, major, minor, num = 0;
 
     if (radeon_encoder == NULL)
 	return ATOM_NOT_IMPLEMENTED;
@@ -562,7 +562,7 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
     union dig_transmitter_control disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    int index, num = 0;
+    int index = 0, num = 0;
     int major, minor;
 
     if (radeon_encoder == NULL)
