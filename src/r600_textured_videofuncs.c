@@ -205,7 +205,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	uv_offset = (uv_offset + 255) & ~255;
 
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->src_size[0] / 2,
+			    accel_state->src_size[0] / 4,
 			    accel_state->src_mc_addr[0] + uv_offset);
 
 	tex_res.id                  = 1;
@@ -232,7 +232,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	uv_offset = (uv_offset + 255) & ~255;
 
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->src_size[0] / 2,
+			    accel_state->src_size[0] / 4,
 			    accel_state->src_mc_addr[0] + uv_offset);
 
 	tex_res.id                  = 2;
