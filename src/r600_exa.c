@@ -2077,15 +2077,12 @@ R600WaitforIdlePoll(ScrnInfoPtr pScrn)
 }
 
 static Bool
-R600UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
-		   char *src, int src_pitch)
+R600CopyToVRAM(ScrnInfoPtr pScrn,
+	       char *src, int src_pitch,
+	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,
+	       int x, int y, int w, int h)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
-    uint32_t dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    uint32_t dst_height = pDst->drawable.height;
-    int bpp = pDst->drawable.bitsPerPixel;
     uint32_t scratch_mc_addr;
     int wpass = w * (bpp/8);
     int scratch_pitch_bytes = (wpass + 255) & ~255;
@@ -2146,6 +2143,23 @@ R600UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     R600IBDiscard(pScrn, scratch);
 
     return TRUE;
+}
+
+static Bool
+R600UploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
+		   char *src, int src_pitch)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
+    uint32_t dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
+    uint32_t dst_height = pDst->drawable.height;
+    int bpp = pDst->drawable.bitsPerPixel;
+
+    return R600CopyToVRAM(pScrn,
+			  src, src_pitch,
+			  dst_pitch, dst_mc_addr, dst_height, bpp,
+			  x, y, w, h);
 }
 
 static Bool
