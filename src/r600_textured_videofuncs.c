@@ -108,8 +108,20 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->xv_vs_offset;
-    accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	accel_state->xv_ps_offset;
+
+    switch(pPriv->id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->xv_ps_offset_planar;
+	break;
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+    default:
+	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->xv_ps_offset_nv12;
+	break;
+    }
 
     accel_state->vs_size = 512;
     accel_state->ps_size = 512;
@@ -141,76 +153,182 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     set_alu_consts(pScrn, accel_state->ib, 0, sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
 
     /* Texture */
-    accel_state->src_mc_addr[0] = pPriv->src_offset;
-    accel_state->src_size[0] = exaGetPixmapPitch(pPixmap) * pPriv->w;
+    switch(pPriv->id) {
+    case FOURCC_YV12:
+    case FOURCC_I420:
+	accel_state->src_mc_addr[0] = pPriv->src_offset;
+	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
 
-    /* flush texture cache */
-    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
-			accel_state->src_mc_addr[0]);
+	/* flush texture cache */
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
+			    accel_state->src_mc_addr[0]);
 
-    // Y texture
-    tex_res.id                  = 0;
-    tex_res.w                   = pPriv->w;
-    tex_res.h                   = pPriv->h;
-    tex_res.pitch               = accel_state->src_pitch[0];
-    tex_res.depth               = 0;
-    tex_res.dim                 = SQ_TEX_DIM_2D;
-    tex_res.base                = accel_state->src_mc_addr[0];
-    tex_res.mip_base            = accel_state->src_mc_addr[0];
+	// Y texture
+	tex_res.id                  = 0;
+	tex_res.w                   = pPriv->w;
+	tex_res.h                   = pPriv->h;
+	tex_res.pitch               = accel_state->src_pitch[0];
+	tex_res.depth               = 0;
+	tex_res.dim                 = SQ_TEX_DIM_2D;
+	tex_res.base                = accel_state->src_mc_addr[0];
+	tex_res.mip_base            = accel_state->src_mc_addr[0];
 
-    tex_res.format              = FMT_8;
-    tex_res.dst_sel_x           = SQ_SEL_X; //Y
-    tex_res.dst_sel_y           = SQ_SEL_1;
-    tex_res.dst_sel_z           = SQ_SEL_1;
-    tex_res.dst_sel_w           = SQ_SEL_1;
+	tex_res.format              = FMT_8;
+	tex_res.dst_sel_x           = SQ_SEL_X; //Y
+	tex_res.dst_sel_y           = SQ_SEL_1;
+	tex_res.dst_sel_z           = SQ_SEL_1;
+	tex_res.dst_sel_w           = SQ_SEL_1;
 
-    tex_res.request_size        = 1;
-    tex_res.base_level          = 0;
-    tex_res.last_level          = 0;
-    tex_res.perf_modulation     = 0;
-    tex_res.interlaced          = 0;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	tex_res.request_size        = 1;
+	tex_res.base_level          = 0;
+	tex_res.last_level          = 0;
+	tex_res.perf_modulation     = 0;
+	tex_res.interlaced          = 0;
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
 
-    // UV texture
-    uv_offset = accel_state->src_pitch[0] * pPriv->h;
-    uv_offset = (uv_offset + 255) & ~255;
+	// Y sampler
+	tex_samp.id                 = 0;
+	tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
+	tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
+	tex_samp.clamp_z            = SQ_TEX_WRAP;
 
-    cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			accel_state->src_size[0] / 2,
-			accel_state->src_mc_addr[0] + uv_offset);
+	// xxx: switch to bicubic
+	tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_BILINEAR;
+	tex_samp.xy_min_filter      = SQ_TEX_XY_FILTER_BILINEAR;
 
-    tex_res.id                  = 1;
-    tex_res.format              = FMT_8_8;
-    tex_res.w                   = pPriv->w >> 1;
-    tex_res.h                   = pPriv->h >> 1;
-    tex_res.pitch               = accel_state->src_pitch[0] >> 1;
-    tex_res.dst_sel_x           = SQ_SEL_Y; //V
-    tex_res.dst_sel_y           = SQ_SEL_X; //U
-    tex_res.dst_sel_z           = SQ_SEL_1;
-    tex_res.dst_sel_w           = SQ_SEL_1;
-    tex_res.interlaced          = 0;
-    // XXX tex bases need to be 256B aligned
-    tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
-    tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
-    set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+	tex_samp.z_filter           = SQ_TEX_Z_FILTER_NONE;
+	tex_samp.mip_filter         = 0;			/* no mipmap */
+	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
-    // Y sampler
-    tex_samp.id                 = 0;
-    tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
-    tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
-    tex_samp.clamp_z            = SQ_TEX_WRAP;
+	// U or V texture
+	uv_offset = accel_state->src_pitch[0] * pPriv->h;
+	uv_offset = (uv_offset + 255) & ~255;
 
-    // xxx: switch to bicubic
-    tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_BILINEAR;
-    tex_samp.xy_min_filter      = SQ_TEX_XY_FILTER_BILINEAR;
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
+			    accel_state->src_size[0] / 2,
+			    accel_state->src_mc_addr[0] + uv_offset);
 
-    tex_samp.z_filter           = SQ_TEX_Z_FILTER_NONE;
-    tex_samp.mip_filter         = 0;			/* no mipmap */
-    set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+	tex_res.id                  = 1;
+	tex_res.format              = FMT_8;
+	tex_res.w                   = pPriv->w >> 1;
+	tex_res.h                   = pPriv->h >> 1;
+	tex_res.pitch               = accel_state->src_pitch[0] >> 1;
+	tex_res.dst_sel_x           = SQ_SEL_X; //V or U
+	tex_res.dst_sel_y           = SQ_SEL_1;
+	tex_res.dst_sel_z           = SQ_SEL_1;
+	tex_res.dst_sel_w           = SQ_SEL_1;
+	tex_res.interlaced          = 0;
+	// XXX tex bases need to be 256B aligned
+	tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
+	tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
 
-    // UV sampler
-    tex_samp.id                 = 1;
-    set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+	// U or V sampler
+	tex_samp.id                 = 1;
+	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+
+	// U or V texture
+	uv_offset += ((accel_state->src_pitch[0] >> 1) * (pPriv->h >> 1));
+	uv_offset = (uv_offset + 255) & ~255;
+
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
+			    accel_state->src_size[0] / 2,
+			    accel_state->src_mc_addr[0] + uv_offset);
+
+	tex_res.id                  = 2;
+	tex_res.format              = FMT_8;
+	tex_res.w                   = pPriv->w >> 1;
+	tex_res.h                   = pPriv->h >> 1;
+	tex_res.pitch               = accel_state->src_pitch[0] >> 1;
+	tex_res.dst_sel_x           = SQ_SEL_X; //V or U
+	tex_res.dst_sel_y           = SQ_SEL_1;
+	tex_res.dst_sel_z           = SQ_SEL_1;
+	tex_res.dst_sel_w           = SQ_SEL_1;
+	tex_res.interlaced          = 0;
+	// XXX tex bases need to be 256B aligned
+	tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
+	tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+
+	// UV sampler
+	tex_samp.id                 = 2;
+	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+	break;
+    case FOURCC_UYVY:
+    case FOURCC_YUY2:
+    default:
+	accel_state->src_mc_addr[0] = pPriv->src_offset;
+	accel_state->src_size[0] = accel_state->src_pitch[0] * pPriv->h;
+
+	/* flush texture cache */
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit, accel_state->src_size[0],
+			    accel_state->src_mc_addr[0]);
+
+	// Y texture
+	tex_res.id                  = 0;
+	tex_res.w                   = pPriv->w;
+	tex_res.h                   = pPriv->h;
+	tex_res.pitch               = accel_state->src_pitch[0];
+	tex_res.depth               = 0;
+	tex_res.dim                 = SQ_TEX_DIM_2D;
+	tex_res.base                = accel_state->src_mc_addr[0];
+	tex_res.mip_base            = accel_state->src_mc_addr[0];
+
+	tex_res.format              = FMT_8;
+	tex_res.dst_sel_x           = SQ_SEL_X; //Y
+	tex_res.dst_sel_y           = SQ_SEL_1;
+	tex_res.dst_sel_z           = SQ_SEL_1;
+	tex_res.dst_sel_w           = SQ_SEL_1;
+
+	tex_res.request_size        = 1;
+	tex_res.base_level          = 0;
+	tex_res.last_level          = 0;
+	tex_res.perf_modulation     = 0;
+	tex_res.interlaced          = 0;
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+
+	// Y sampler
+	tex_samp.id                 = 0;
+	tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
+	tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
+	tex_samp.clamp_z            = SQ_TEX_WRAP;
+
+	// xxx: switch to bicubic
+	tex_samp.xy_mag_filter      = SQ_TEX_XY_FILTER_BILINEAR;
+	tex_samp.xy_min_filter      = SQ_TEX_XY_FILTER_BILINEAR;
+
+	tex_samp.z_filter           = SQ_TEX_Z_FILTER_NONE;
+	tex_samp.mip_filter         = 0;			/* no mipmap */
+	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+
+	// UV texture
+	uv_offset = accel_state->src_pitch[0] * pPriv->h;
+	uv_offset = (uv_offset + 255) & ~255;
+
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
+			    accel_state->src_size[0] / 2,
+			    accel_state->src_mc_addr[0] + uv_offset);
+
+	tex_res.id                  = 1;
+	tex_res.format              = FMT_8_8;
+	tex_res.w                   = pPriv->w >> 1;
+	tex_res.h                   = pPriv->h >> 1;
+	tex_res.pitch               = accel_state->src_pitch[0] >> 1;
+	tex_res.dst_sel_x           = SQ_SEL_Y; //V
+	tex_res.dst_sel_y           = SQ_SEL_X; //U
+	tex_res.dst_sel_z           = SQ_SEL_1;
+	tex_res.dst_sel_w           = SQ_SEL_1;
+	tex_res.interlaced          = 0;
+	// XXX tex bases need to be 256B aligned
+	tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
+	tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
+	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
+
+	// UV sampler
+	tex_samp.id                 = 1;
+	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
+	break;
+    }
 
     /* Render setup */
     ereg  (accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));

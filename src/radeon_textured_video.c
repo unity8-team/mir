@@ -154,12 +154,14 @@ static __inline__ uint32_t F_TO_24(float val)
 #endif /* XF86DRI */
 
 static void
-CopyPlanartoNV12(unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
-		 unsigned char *dst,
-		 int srcPitch, int srcPitch2, int dstPitch,
-		 int w, int h)
+R600CopyPlanar(unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
+	       unsigned char *dst,
+	       int srcPitch, int srcPitch2, int dstPitch,
+	       int w, int h)
 {
-    int i, j;
+    int i;
+    int dstPitch2 = dstPitch >> 1;
+    int h2 = h >> 1;
 
     /* Y */
     if (srcPitch == dstPitch) {
@@ -177,21 +179,34 @@ CopyPlanartoNV12(unsigned char *y_src, unsigned char *u_src, unsigned char *v_sr
     if (h & 1)
 	dst += dstPitch;
 
-    /* UV */
-    for (i = 0; i < (h >> 1); i++) {
-	unsigned char *u = u_src;
-	unsigned char *v = v_src;
-	unsigned char *uv = dst;
-
-	for (j = 0; j < w; j++) {
-	    uv[0] = v[j];
-	    uv[1] = u[j];
-	    uv += 2;
-	}
-	dst += dstPitch;
-	u_src += srcPitch2;
-	v_src += srcPitch2;
+    /* V */
+    if (srcPitch2 == dstPitch2) {
+        memcpy(dst, v_src, srcPitch2 * h2);
+	dst += (dstPitch2 * h2);
+    } else {
+	for (i = 0; i < h2; i++) {
+            memcpy(dst, v_src, srcPitch2);
+            v_src += srcPitch2;
+            dst += dstPitch2;
+        }
     }
+
+    /* tex base need 256B alignment */
+    if (h2 & 1)
+	dst += dstPitch2;
+
+    /* U */
+    if (srcPitch2 == dstPitch2) {
+        memcpy(dst, u_src, srcPitch2 * h2);
+	dst += (dstPitch2 * h2);
+    } else {
+	for (i = 0; i < h2; i++) {
+            memcpy(dst, u_src, srcPitch2);
+            u_src += srcPitch2;
+            dst += dstPitch2;
+        }
+    }
+
 }
 
 static void
@@ -392,15 +407,15 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    s2offset = srcPitch * height;
 	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
 	    if (id == FOURCC_YV12)
-		CopyPlanartoNV12(buf, buf + s3offset, buf + s2offset,
-				 pPriv->src_addr,
-				 srcPitch, srcPitch2, pPriv->src_pitch,
-				 width, height);
+		R600CopyPlanar(buf, buf + s3offset, buf + s2offset,
+			       pPriv->src_addr,
+			       srcPitch, srcPitch2, pPriv->src_pitch,
+			       width, height);
 	    else
-		CopyPlanartoNV12(buf, buf + s2offset, buf + s3offset,
-				 pPriv->src_addr,
-				 srcPitch, srcPitch2, pPriv->src_pitch,
-				 width, height);
+		R600CopyPlanar(buf, buf + s2offset, buf + s3offset,
+			       pPriv->src_addr,
+			       srcPitch, srcPitch2, pPriv->src_pitch,
+			       width, height);
 
 	} else {
 	    top &= ~1;
