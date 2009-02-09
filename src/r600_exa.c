@@ -2076,7 +2076,7 @@ R600WaitforIdlePoll(ScrnInfoPtr pScrn)
     return FALSE;
 }
 
-static Bool
+Bool
 R600CopyToVRAM(ScrnInfoPtr pScrn,
 	       char *src, int src_pitch,
 	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,

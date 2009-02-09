@@ -47,6 +47,12 @@
 extern void
 R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
 
+extern Bool
+R600CopyToVRAM(ScrnInfoPtr pScrn,
+	       char *src, int src_pitch,
+	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,
+	       int x, int y, int w, int h);
+
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
 
@@ -154,59 +160,38 @@ static __inline__ uint32_t F_TO_24(float val)
 #endif /* XF86DRI */
 
 static void
-R600CopyPlanar(unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
-	       unsigned char *dst,
+R600CopyPlanar(ScrnInfoPtr pScrn,
+	       unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
+	       uint32_t dst_mc_addr,
 	       int srcPitch, int srcPitch2, int dstPitch,
 	       int w, int h)
 {
-    int i;
     int dstPitch2 = dstPitch >> 1;
     int h2 = h >> 1;
+    int w2 = w >> 1;
+    int v_offset, u_offset;
+    v_offset = dstPitch * h;
+    v_offset = (v_offset + 255) & ~255;
+    u_offset = v_offset + (dstPitch2 * h2);
+    u_offset = (u_offset + 255) & ~255;
 
     /* Y */
-    if (srcPitch == dstPitch) {
-        memcpy(dst, y_src, srcPitch * h);
-	dst += (dstPitch * h);
-    } else {
-	for (i = 0; i < h; i++) {
-            memcpy(dst, y_src, srcPitch);
-            y_src += srcPitch;
-            dst += dstPitch;
-        }
-    }
-
-    /* tex base need 256B alignment */
-    if (h & 1)
-	dst += dstPitch;
+    R600CopyToVRAM(pScrn,
+		   (char *)y_src, srcPitch,
+		   dstPitch, dst_mc_addr, h, 8,
+		   0, 0, w, h);
 
     /* V */
-    if (srcPitch2 == dstPitch2) {
-        memcpy(dst, v_src, srcPitch2 * h2);
-	dst += (dstPitch2 * h2);
-    } else {
-	for (i = 0; i < h2; i++) {
-            memcpy(dst, v_src, srcPitch2);
-            v_src += srcPitch2;
-            dst += dstPitch2;
-        }
-    }
-
-    /* tex base need 256B alignment */
-    if (h2 & 1)
-	dst += dstPitch2;
+    R600CopyToVRAM(pScrn,
+		   (char *)v_src, srcPitch2,
+		   dstPitch2, dst_mc_addr + v_offset, h2, 8,
+		   0, 0, w2, h2);
 
     /* U */
-    if (srcPitch2 == dstPitch2) {
-        memcpy(dst, u_src, srcPitch2 * h2);
-	dst += (dstPitch2 * h2);
-    } else {
-	for (i = 0; i < h2; i++) {
-            memcpy(dst, u_src, srcPitch2);
-            u_src += srcPitch2;
-            dst += dstPitch2;
-        }
-    }
-
+    R600CopyToVRAM(pScrn,
+		   (char *)u_src, srcPitch2,
+		   dstPitch2, dst_mc_addr + u_offset, h2, 8,
+		   0, 0, w2, h2);
 }
 
 static void
@@ -407,13 +392,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    s2offset = srcPitch * height;
 	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
 	    if (id == FOURCC_YV12)
-		R600CopyPlanar(buf, buf + s3offset, buf + s2offset,
-			       pPriv->src_addr,
+		R600CopyPlanar(pScrn, buf, buf + s3offset, buf + s2offset,
+			       pPriv->src_offset,
 			       srcPitch, srcPitch2, pPriv->src_pitch,
 			       width, height);
 	    else
-		R600CopyPlanar(buf, buf + s2offset, buf + s3offset,
-			       pPriv->src_addr,
+		R600CopyPlanar(pScrn, buf, buf + s2offset, buf + s3offset,
+			       pPriv->src_offset,
 			       srcPitch, srcPitch2, pPriv->src_pitch,
 			       width, height);
 
