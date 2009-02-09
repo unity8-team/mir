@@ -770,6 +770,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { 0x1106,0x0691,            PCI_VENDOR_ATI,0x5960,  0x1043,0x0054,           2 },
     /* VIA K8M800 Host Bridge / RV280 [Radeon 9200 PRO] Needs AGPMode 4 (fdo #12544) */
     { 0x1106,0x0204,            PCI_VENDOR_ATI,0x5960,  0x17af,0x2020,           4 },
+    /* VIA KT880 Host Bridge / RV350 [Radeon 9550] Needs AGPMode 4 (fdo #19981) */
+    { 0x1106,0x0269,            PCI_VENDOR_ATI,0x4153,  0x1043,0x003c,           4 },
 
     /* ATI Host Bridge / RV280 [M9+] Needs AGPMode 1 (phoronix forum) */
     { 0x1002,0xcbb2,            PCI_VENDOR_ATI,0x5c61,  0x104d,0x8175,           1 },
