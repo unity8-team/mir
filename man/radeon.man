@@ -34,8 +34,9 @@ option);
 Full EXA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx);
 .TP
 \(bu
-Full XAA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx. XAA Render
-acceleration supported only on R/RV100, R/RV/RS2xx and RS3xx);
+Full XAA 2D acceleration (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx,
+R/RV/RS4xx, R/RV5xx, RS6xx. XAA Render acceleration supported only on R/RV100,
+R/RV/RS2xx and RS3xx);
 .TP
 \(bu
 Textured XVideo acceleration (not supported on R/RV6xx and R/RV/RS7xx.
@@ -79,6 +80,9 @@ Radeon 8500, 9100, FireGL 8800/8700
 .B RV250
 Radeon 9000PRO/9000, M9
 .TP 12
+.B RV280
+Radeon 9200PRO/9200/9200SE/9250, M9+
+.TP 12
 .B RS300
 Radeon 9100 IGP
 .TP 12
@@ -87,9 +91,6 @@ Radeon 9200 IGP
 .TP 12
 .B RS400/RS480
 Radeon XPRESS 200(M)/1100 IGP
-.TP 12
-.B RV280
-Radeon 9200PRO/9200/9200SE/9250, M9+
 .TP 12
 .B R300
 Radeon 9700PRO/9700/9500PRO/9500/9600TX, FireGL X1/Z1
@@ -145,11 +146,11 @@ Radeon HD 2900
 .B RV610/RV630
 Radeon HD 2400/2600
 .TP 12
-.B RV670
-Radeon HD 3850/3870
-.TP 12
 .B RV620/RV635
 Radeon HD 3450/3470
+.TP 12
+.B RV670
+Radeon HD 3850/3870
 .TP 12
 .B RS780
 Radeon HD 3100/3200/3300
@@ -257,7 +258,7 @@ PCI    \-\- PCI bus
 .br
 AGP    \-\- AGP bus
 .br
-PCIE   \-\- PCI Express (falls back to PCI at present)
+PCIE   \-\- PCI Express bus
 .br
 (used only when DRI is enabled)
 .br
@@ -449,7 +450,7 @@ The default is
 .TP
 .BI "Option \*qTVDACLoadDetect\*q \*q" boolean \*q
 Enable load detection on the TV DAC.  The TV DAC is used to drive both
-TV-OUT and analog monitors. Load detection is often unreliable in the
+TV-out and analog monitors. Load detection is often unreliable in the
 TV DAC so it is disabled by default.
 The default is
 .B off.
@@ -537,7 +538,7 @@ The default value is
 .B undefined.
 .TP
 .BI "Option \*qForceTVOut\*q \*q" boolean \*q
-Enable this option to force TV Out to always be detected as attached.
+Enable this option to force TV-out to always be detected as attached.
 The default is
 .B off 
 .TP
@@ -569,6 +570,25 @@ The default is
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
+.IP " 1." 4
+Overview about radeon development code
+.RS 4
+\%http://cgit.freedesktop.org/xorg/driver/xf86-video-ati/
+.RE
+.IP " 2." 4
+Query the bugtracker for radeon bugs
+.RS 4
+.nf
+\%https://bugs.freedesktop.org/query.cgi?\:product=\:xorg&\:component=\:Driver/Radeon
+.fi
+.RE
+.IP " 3." 4
+Submit bugs & patches
+.RS 4
+.nf
+\%https://bugs.freedesktop.org/enter_bug.cgi?\:product=\:xorg&\:component=\:Driver/Radeon
+.fi
+.RE
 .SH AUTHORS
 .nf
 Authors include:
