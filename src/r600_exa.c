@@ -262,6 +262,11 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     struct r6xx_solid_vertex vertex[3];
     struct r6xx_solid_vertex *solid_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
+    if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
+	ErrorF("Ran out of VB space!\n");
+	return;
+    }
+
     vertex[0].x = (float)x1;
     vertex[0].y = (float)y1;
 
@@ -599,6 +604,11 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     struct radeon_accel_state *accel_state = info->accel_state;
     struct r6xx_copy_vertex *copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
     struct r6xx_copy_vertex vertex[3];
+
+    if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
+	ErrorF("Ran out of VB space!\n");
+	return;
+    }
 
     vertex[0].x = (float)dstX;
     vertex[0].y = (float)dstY;
@@ -1901,6 +1911,11 @@ static void R600Composite(PixmapPtr pDst,
 	struct r6xx_comp_mask_vertex vertex[3];
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
+	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
+	    ErrorF("Ran out of VB space!\n");
+	    return;
+	}
+
 	maskTopLeft.x     = IntToxFixed(maskX);
 	maskTopLeft.y     = IntToxFixed(maskY);
 	maskTopRight.x    = IntToxFixed(maskX + w);
@@ -1956,6 +1971,11 @@ static void R600Composite(PixmapPtr pDst,
 	struct r6xx_comp_vertex *comp_vb =
 	    (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 	struct r6xx_comp_vertex vertex[3];
+
+	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
+	    ErrorF("Ran out of VB space!\n");
+	    return;
+	}
 
 	vertex[0].x = (float)dstX;
 	vertex[0].y = (float)dstY;
