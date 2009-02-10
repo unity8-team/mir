@@ -220,17 +220,22 @@ int RADEONBiggerCrtcArea(PixmapPtr pPix)
 }
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-
 static unsigned long swapper_surfaces[3];
+#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
 static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
 {
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t offset = exaGetPixmapOffset(pPix);
     int bpp, soff;
     uint32_t size, flags;
+#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
+    RADEONWaitforIdlePoll(pScrn);
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     /* Front buffer is always set with proper swappers */
     if (offset == 0)
         return TRUE;
@@ -286,11 +291,13 @@ static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
     OUTREG(RADEON_SURFACE0_LOWER_BOUND + soff, offset);
     OUTREG(RADEON_SURFACE0_UPPER_BOUND + soff, offset + size - 1);
     swapper_surfaces[index] = offset;
+#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
     return TRUE;
 }
 
 static void RADEONFinishAccess(PixmapPtr pPix, int index)
 {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     RINFO_FROM_SCREEN(pPix->drawable.pScreen);
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t offset = exaGetPixmapOffset(pPix);
@@ -318,9 +325,9 @@ static void RADEONFinishAccess(PixmapPtr pPix, int index)
     OUTREG(RADEON_SURFACE0_LOWER_BOUND + soff, 0);
     OUTREG(RADEON_SURFACE0_UPPER_BOUND + soff, 0);
     swapper_surfaces[index] = 0;
+#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 }
 
-#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
 #define ENTER_DRAW(x) TRACE
 #define LEAVE_DRAW(x) TRACE

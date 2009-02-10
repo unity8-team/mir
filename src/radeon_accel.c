@@ -472,6 +472,23 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
     RADEONEngineRestore(pScrn);
 }
 
+/* really would be better to wait on a timestamp shadowed in memory,
+ * but this will do for now.
+ */
+Bool
+RADEONWaitforIdlePoll(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t i;
+
+    for (i = 0; i < 1000000; i++) {
+	if ((INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE) == 0)
+	    return TRUE;
+    }
+    return FALSE;
+}
+
 
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()        unsigned char *RADEONMMIO = info->MMIO
@@ -871,6 +888,8 @@ RADEONHostDataBlitCopyPass(
 
     /* RADEONHostDataBlitCopy can return NULL ! */
     if( (dst==NULL) || (src==NULL)) return;
+
+    RADEONWaitforIdlePoll(pScrn);
 
     if ( dstPitch == srcPitch )
     {
