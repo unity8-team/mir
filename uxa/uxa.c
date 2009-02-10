@@ -346,6 +346,14 @@ uxa_xorg_enable_disable_fb_access (int index, Bool enable)
        uxa_screen->SavedEnableDisableFBAccess(index, enable);
 }
 
+void
+uxa_set_fallback_debug (ScreenPtr screen, Bool enable)
+{
+    uxa_screen_t *uxa_screen = uxa_get_screen(screen);
+
+    uxa_screen->fallback_debug = enable;
+}
+
 /**
  * uxa_close_screen() unwraps its wrapped screen functions and tears down UXA's
  * screen private, before calling down to the next CloseSccreen.

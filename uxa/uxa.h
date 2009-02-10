@@ -517,6 +517,9 @@ uxa_driver_fini(ScreenPtr pScreen);
 CARD32
 uxa_get_pixmap_first_pixel (PixmapPtr pPixmap);
 
+void
+uxa_set_fallback_debug (ScreenPtr screen, Bool enable);
+
 /**
  * Returns TRUE if the given planemask covers all the significant bits in the
  * pixel values for pDrawable.

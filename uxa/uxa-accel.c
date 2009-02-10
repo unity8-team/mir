@@ -424,7 +424,8 @@ uxa_copy_n_to_n (DrawablePtr    pSrcDrawable,
 		 Pixel		bitplane,
 		 void		*closure)
 {
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pDstDrawable->pScreen);
+    ScreenPtr       screen = pDstDrawable->pScreen;
+    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
     int		    src_off_x, src_off_y;
     int		    dst_off_x, dst_off_y;
     PixmapPtr	    pSrcPixmap, pDstPixmap;
@@ -988,7 +989,8 @@ void
 uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,
 	       unsigned int format, unsigned long planeMask, char *d)
 {
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pDrawable->pScreen);
+    ScreenPtr       screen = pDrawable->pScreen;
+    uxa_screen_t    *uxa_screen = uxa_get_screen(screen);
     BoxRec	    Box;
     PixmapPtr	    pPix = uxa_get_drawable_pixmap (pDrawable);
     int		    xoff, yoff;

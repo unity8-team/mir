@@ -67,18 +67,14 @@
 #define DEBUG_OFFSCREEN		0
 #define DEBUG_GLYPH_CACHE	0
 
-#if DEBUG_TRACE_FALL
 #define UXA_FALLBACK(x)     					\
-do {								\
+if (uxa_get_screen(screen)->fallback_debug) {			\
 	ErrorF("UXA fallback at %s: ", __FUNCTION__);		\
 	ErrorF x;						\
 } while (0)
 
 char
 uxa_drawable_location(DrawablePtr pDrawable);
-#else
-#define UXA_FALLBACK(x)
-#endif
 
 #if DEBUG_PIXMAP
 #define DBG_PIXMAP(a) ErrorF a
@@ -139,6 +135,7 @@ typedef struct {
 #endif
     EnableDisableFBAccessProcPtr SavedEnableDisableFBAccess;
 
+    Bool			 fallback_debug;
     Bool			 swappedOut;
     unsigned			 disableFbCount;
     unsigned			 offScreenCounter;

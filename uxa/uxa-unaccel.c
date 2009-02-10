@@ -80,6 +80,8 @@ void
 uxa_check_fill_spans (DrawablePtr pDrawable, GCPtr pGC, int nspans,
 		   DDXPointPtr ppt, int *pwidth, int fSorted)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
 	if (uxa_prepare_access_gc (pGC)) {
@@ -94,6 +96,8 @@ void
 uxa_check_set_spans (DrawablePtr pDrawable, GCPtr pGC, char *psrc,
 		 DDXPointPtr ppt, int *pwidth, int nspans, int fSorted)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
 	fbSetSpans (pDrawable, pGC, psrc, ppt, pwidth, nspans, fSorted);
@@ -106,6 +110,8 @@ uxa_check_put_image (DrawablePtr pDrawable, GCPtr pGC, int depth,
 		 int x, int y, int w, int h, int leftPad, int format,
 		 char *bits)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
 	fbPutImage (pDrawable, pGC, depth, x, y, w, h, leftPad, format, bits);
@@ -117,6 +123,7 @@ RegionPtr
 uxa_check_copy_area (DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 		     int srcx, int srcy, int w, int h, int dstx, int dsty)
 {
+    ScreenPtr screen = pSrc->pScreen;
     RegionPtr ret = NULL;
 
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pSrc, pDst,
@@ -136,6 +143,7 @@ uxa_check_copy_plane (DrawablePtr pSrc, DrawablePtr pDst, GCPtr pGC,
 		  int srcx, int srcy, int w, int h, int dstx, int dsty,
 		  unsigned long bitPlane)
 {
+    ScreenPtr screen = pSrc->pScreen;
     RegionPtr ret = NULL;
 
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pSrc, pDst,
@@ -155,6 +163,8 @@ void
 uxa_check_poly_point (DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
 		  DDXPointPtr pptInit)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
 	fbPolyPoint (pDrawable, pGC, mode, npt, pptInit);
@@ -166,6 +176,8 @@ void
 uxa_check_poly_lines (DrawablePtr pDrawable, GCPtr pGC,
 		  int mode, int npt, DDXPointPtr ppt)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c), width %d, mode %d, count %d\n",
 		  pDrawable, uxa_drawable_location(pDrawable),
 		  pGC->lineWidth, mode, npt));
@@ -188,6 +200,8 @@ void
 uxa_check_poly_segment (DrawablePtr pDrawable, GCPtr pGC,
 		    int nsegInit, xSegment *pSegInit)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c) width %d, count %d\n", pDrawable,
 		  uxa_drawable_location(pDrawable), pGC->lineWidth, nsegInit));
     if (pGC->lineWidth == 0) {
@@ -208,6 +222,8 @@ void
 uxa_check_poly_arc (DrawablePtr pDrawable, GCPtr pGC,
 		int narcs, xArc *pArcs)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
 
     /* Disable this as fbPolyArc can call miZeroPolyArc which in turn
@@ -234,6 +250,8 @@ void
 uxa_check_poly_fill_rect (DrawablePtr pDrawable, GCPtr pGC,
 		     int nrect, xRectangle *prect)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
 
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
@@ -250,6 +268,8 @@ uxa_check_image_glyph_blt (DrawablePtr pDrawable, GCPtr pGC,
 		      int x, int y, unsigned int nglyph,
 		      CharInfoPtr *ppci, pointer pglyphBase)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c)\n", pDrawable,
 		  uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
@@ -266,6 +286,8 @@ uxa_check_poly_glyph_blt (DrawablePtr pDrawable, GCPtr pGC,
 		     int x, int y, unsigned int nglyph,
 		     CharInfoPtr *ppci, pointer pglyphBase)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("to %p (%c), style %d alu %d\n", pDrawable,
 		  uxa_drawable_location(pDrawable), pGC->fillStyle, pGC->alu));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RW)) {
@@ -282,6 +304,8 @@ uxa_check_push_pixels (GCPtr pGC, PixmapPtr pBitmap,
 		   DrawablePtr pDrawable,
 		   int w, int h, int x, int y)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("from %p to %p (%c,%c)\n", pBitmap, pDrawable,
 		  uxa_drawable_location(&pBitmap->drawable),
 		  uxa_drawable_location(pDrawable)));
@@ -305,6 +329,8 @@ uxa_check_get_spans (DrawablePtr pDrawable,
 		 int nspans,
 		 char *pdstStart)
 {
+    ScreenPtr screen = pDrawable->pScreen;
+
     UXA_FALLBACK(("from %p (%c)\n", pDrawable, uxa_drawable_location(pDrawable)));
     if (uxa_prepare_access (pDrawable, UXA_ACCESS_RO)) {
 	fbGetSpans (pDrawable, wMax, ppt, pwidth, nspans, pdstStart);
@@ -326,6 +352,8 @@ uxa_check_composite (CARD8      op,
                    CARD16     width,
                    CARD16     height)
 {
+    ScreenPtr screen = pDst->pDrawable->pScreen;
+
     UXA_FALLBACK(("from picts %p/%p to pict %p\n",
 		 pSrc, pMask, pDst));
 
@@ -366,7 +394,9 @@ uxa_check_add_traps (PicturePtr	pPicture,
 		  int		ntrap,
 		  xTrap		*traps)
 {
-    UXA_FALLBACK(("to pict %p (%c)\n",
+    ScreenPtr screen = pPicture->pDrawable->pScreen;
+
+    UXA_FALLBACK(("to pict %p (%c)\n", pPicture,
 		  uxa_drawable_location(pPicture->pDrawable)));
     if (uxa_prepare_access(pPicture->pDrawable, UXA_ACCESS_RW)) {
 	fbAddTraps (pPicture, x_off, y_off, ntrap, traps);
