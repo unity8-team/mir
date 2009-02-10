@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([xf86-video-ati],
-        6.10.99.0,
+        6.10.99.99,
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         xf86-video-ati)
 
