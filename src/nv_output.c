@@ -327,6 +327,12 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 	struct nouveau_encoder *nv_encoder = to_nouveau_connector(output)->detected_encoder;
 	NVPtr pNv = NVPTR(output->scrn);
 
+	/* mode_valid can be called by someone doing addmode on an output
+	 * which is disconnected and so without an encoder; avoid crashing
+	 */
+	if (!nv_encoder)
+		return MODE_ERROR;
+
 	if (!output->doubleScanAllowed && mode->Flags & V_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 	if (!output->interlaceAllowed && mode->Flags & V_INTERLACE)
