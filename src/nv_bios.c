@@ -809,7 +809,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t oldpll2 = !nv3035 ? nv32_rd(pScrn, reg2) : 0;
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
-	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
+	uint32_t saved_powerctrl_1 = 0, savedc040 = 0;
 	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg1);
 	/* nv41+: single stage pll mode if NM2 is zero, or N2 == M2 */
 	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
@@ -823,14 +823,13 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	if (chip_version > 0x40 && single_stage)	/* not on nv40 */
 		/* magic value used by nvidia when in single stage mode */
 		pll2 |= 0x011f;
+	if (chip_version > 0x70)
+		/* magic bits set by the blob (but not the bios) on g71-73 */
+		pll1 = (pll1 & 0x7fffffff) | (single_stage ? 0x4 : 0xc) << 28;
 
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
-	if (reg1 == NV_RAMDAC_NVPLL)
-		maskc040 = ~(3 << 20);
-	else if (reg1 == NV_RAMDAC_MPLL)
-		maskc040 = ~(3 << 22);
 	if (shift_powerctrl_1 >= 0) {
 		saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1,
@@ -839,8 +838,22 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	}
 
 	if (chip_version >= 0x40) {
+		int shift_c040 = 14;
+
+		switch (reg1) {
+		case NV_RAMDAC_MPLL:
+			shift_c040 += 2;
+		case NV_RAMDAC_NVPLL:
+			shift_c040 += 2;
+		case NV_RAMDAC_VPLL2:
+			shift_c040 += 2;
+		case NV_RAMDAC_VPLL:
+			shift_c040 += 2;
+		}
+
 		savedc040 = nv32_rd(pScrn, 0xc040);
-		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
+		if (shift_c040 != 14)
+			nv32_wr(pScrn, 0xc040, savedc040 & ~(3 << shift_c040));
 	}
 
 	if (chip_version > 0x40 &&	/* not on nv40 */
