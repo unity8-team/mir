@@ -76,7 +76,7 @@
 if (uxa_get_screen(screen)->fallback_debug) {			\
 	ErrorF("UXA fallback at %s: ", __FUNCTION__);		\
 	ErrorF x;						\
-} while (0)
+}
 
 char
 uxa_drawable_location(DrawablePtr pDrawable);
