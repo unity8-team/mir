@@ -202,7 +202,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 			accel_state->ps_size, accel_state->ps_mc_addr);
 
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
-    ps_conf.num_gprs            = 4;
+    ps_conf.num_gprs            = 3;
     ps_conf.stack_size          = 0;
     ps_conf.uncached_first_inst = 1;
     ps_conf.clamp_consts        = 0;
