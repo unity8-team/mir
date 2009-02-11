@@ -408,7 +408,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	struct r6xx_copy_vertex vertex[3];
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	    ErrorF("Ran out of VB space!\n");
+	    ErrorF("Xv: Ran out of VB space!\n");
 	    break;
 	}
 

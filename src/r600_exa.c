@@ -263,7 +263,7 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     struct r6xx_solid_vertex *solid_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
     if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
-	ErrorF("Ran out of VB space!\n");
+	ErrorF("Solid: Ran out of VB space!\n");
 	return;
     }
 
@@ -606,7 +606,7 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     struct r6xx_copy_vertex vertex[3];
 
     if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	ErrorF("Ran out of VB space!\n");
+	ErrorF("Copy: Ran out of VB space!\n");
 	return;
     }
 
@@ -1912,7 +1912,7 @@ static void R600Composite(PixmapPtr pDst,
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
 	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
-	    ErrorF("Ran out of VB space!\n");
+	    ErrorF("Composite: Ran out of VB space!\n");
 	    return;
 	}
 
@@ -1973,7 +1973,7 @@ static void R600Composite(PixmapPtr pDst,
 	struct r6xx_comp_vertex vertex[3];
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	    ErrorF("Ran out of VB space!\n");
+	    ErrorF("Composite: Ran out of VB space!\n");
 	    return;
 	}
 
