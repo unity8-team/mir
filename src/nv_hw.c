@@ -386,7 +386,7 @@ static int nv_decode_pll_lowregs(uint32_t Pval, uint32_t NMNM, int refclk)
 	M1 = NMNM & 0xff;
 	N1 = (NMNM >> 8) & 0xff;
 	/* NVPLL and VPLLs use 1 << 8 to indicate single stage mode, MPLL uses 1 << 12 */
-	if (!(Pval & (1 << 8) || Pval & (1 << 12))) {
+	if (!(Pval & 0x1100)) {
 		M2 = (NMNM >> 16) & 0xff;
 		N2 = (NMNM >> 24) & 0xff;
 	}
@@ -426,9 +426,14 @@ static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 	if (reg1 <= 0x405c)
 		return nv_decode_pll_lowregs(nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4), pll_lim.refclk);
 	if (pNv->two_reg_pll) {
-		bool nv40_single = pNv->Architecture == 0x40 && ((plltype == VPLL1 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL1_ACTIVE) || (plltype == VPLL2 && NVReadRAMDAC(pNv, 0, NV_RAMDAC_580) & NV_RAMDAC_580_VPLL2_ACTIVE));
+		uint32_t ramdac580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
+		bool nv40_single = pNv->Architecture == 0x40 &&
+				   ((plltype == VPLL1 && ramdac580 & NV_RAMDAC_580_VPLL1_ACTIVE) ||
+				    (plltype == VPLL2 && ramdac580 & NV_RAMDAC_580_VPLL2_ACTIVE));
 
-		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)), nv40_single, pll_lim.refclk);
+		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1),
+					      nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)),
+					      nv40_single, pll_lim.refclk);
 	}
 	return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), 0, false, pll_lim.refclk);
 }

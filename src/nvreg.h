@@ -157,7 +157,7 @@
 #define NV_PFB_TILE_SIZE_NV40		0x00100604
 
 #define NV_PEXTDEV_BOOT_0		0x00101000
-#	define NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT	(1 << 15)
+#	define NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT	(8 << 12)
 #define NV_PEXTDEV_BOOT_3		0x0010100c
 
 #define NV_CRTC_INTR_0			0x00600100
@@ -173,8 +173,8 @@
 #	define NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN	(1 << 4)
 #	define NV_CRTC_CURSOR_CONFIG_32BPP		(1 << 12)
 #	define NV_CRTC_CURSOR_CONFIG_64PIXELS		(1 << 16)
-#	define NV_CRTC_CURSOR_CONFIG_32LINES		(1 << 25)
-#	define NV_CRTC_CURSOR_CONFIG_64LINES		(1 << 26)
+#	define NV_CRTC_CURSOR_CONFIG_32LINES		(2 << 24)
+#	define NV_CRTC_CURSOR_CONFIG_64LINES		(4 << 24)
 #	define NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND	(1 << 28)
 
 #define NV_CRTC_GPIO			0x00600818
@@ -285,7 +285,7 @@
 #	define NV_RAMDAC_PLL_COEFF_MDIV			0x000000FF
 #	define NV_RAMDAC_PLL_COEFF_NDIV			0x0000FF00
 #	define NV_RAMDAC_PLL_COEFF_PDIV			0x00070000
-#	define NV30_RAMDAC_ENABLE_VCO2			(1 << 7)
+#	define NV30_RAMDAC_ENABLE_VCO2			(8 << 4)
 
 #define NV_RAMDAC_PLL_SELECT		0x0068050c
 /* Without this it will use vpll1 */
@@ -329,7 +329,7 @@
 #define NV_RAMDAC_VPLL_B		0x00680578
 #define NV_RAMDAC_VPLL2_B		0x0068057c
 /* Educated guess, should remain on for NV4x vpll's. */
-#	define NV31_RAMDAC_ENABLE_VCO2			(1 << 31)
+#	define NV31_RAMDAC_ENABLE_VCO2			(8 << 28)
 
 #define NV_RAMDAC_580			0x00680580
 /* This is not always activated, but only when VCLK_RATIO_DB1 is used */
@@ -343,7 +343,7 @@
 	#define NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF	(1 << 16)
 	#define NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI	(1 << 28)
 #define NV_RAMDAC_TEST_DATA		0x00680610
-	#define NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK	(1 << 31)
+	#define NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK	(8 << 28)
 #define NV_RAMDAC_630			0x00680630
 /* This register is similar to TEST_CONTROL in the style of values */
 #define NV_RAMDAC_670			0x00680670
@@ -411,7 +411,7 @@
 #	define NV_RAMDAC_FP_DEBUG_0_XSCALE_ENABLED	(1 << 0)
 #	define NV_RAMDAC_FP_DEBUG_0_YSCALE_ENABLED	(1 << 4)
 /* This doesn't seem to be essential for tmds, but still often set */
-#	define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED	(1 << 7)
+#	define NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED	(8 << 4)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK	(1 << 28)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_TMDS_PLL	(2 << 28)
 #	define NV_RAMDAC_FP_DEBUG_0_PWRDOWN_BOTH	(3 << 28)
