@@ -291,7 +291,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
 	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 								&pPriv->video_memory,
-								size * 2, 512);
+								size * 2, 256);
 	else
 	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
 								&pPriv->video_memory,
