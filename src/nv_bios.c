@@ -90,7 +90,8 @@ static bool nv_cksum(const uint8_t *data, unsigned int length)
 	return false;
 }
 
-static int score_vbios(ScrnInfoPtr pScrn, const uint8_t *data)
+static int
+score_vbios(ScrnInfoPtr pScrn, const uint8_t *data, const bool writeable)
 {
 	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "... BIOS signature not found\n");
@@ -99,11 +100,12 @@ static int score_vbios(ScrnInfoPtr pScrn, const uint8_t *data)
 
 	if (nv_cksum(data, data[2] * 512)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "... BIOS checksum invalid\n");
-		return 1;
+		/* if a ro image is somewhat bad, it's probably all rubbish */
+		return writeable ? 2 : 1;
 	} else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "... appears to be valid\n");
 
-	return 2;
+	return 3;
 }
 
 static void load_vbios_prom(NVPtr pNv, uint8_t *data)
@@ -186,29 +188,35 @@ static bool NVShadowVBIOS(ScrnInfoPtr pScrn, uint8_t *data)
 	struct methods {
 		const char desc[8];
 		void (*loadbios)(NVPtr, uint8_t *);
+		const bool rw;
 		int score;
 	} method[] = {
-		{ "PROM", load_vbios_prom },
-		{ "PRAMIN", load_vbios_pramin },
-		{ "PCI ROM", load_vbios_pci }
+		{ "PROM", load_vbios_prom, false },
+		{ "PRAMIN", load_vbios_pramin, true },
+		{ "PCI ROM", load_vbios_pci, true }
 	};
-	int i;
+	int i, testscore = 3;
 
 	for (i = 0; i < sizeof(method) / sizeof(struct methods); i++) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Attempting to load BIOS image from %s\n", method[i].desc);
+			   "Attempting to load BIOS image from %s\n",
+			   method[i].desc);
+		data[0] = data[1] = 0;	/* avoid reuse of previous image */
 		method[i].loadbios(pNv, data);
-		if ((method[i].score = score_vbios(pScrn, data)) == 2)
+		method[i].score = score_vbios(pScrn, data, method[i].rw);
+		if (method[i].score == testscore)
 			return true;
 	}
 
-	for (i = 0; i < sizeof(method) / sizeof(struct methods); i++)
-		if (method[i].score == 1) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-				   "Using BIOS image from %s\n", method[i].desc);
-			method[i].loadbios(pNv, data);
-			return true;
-		}
+	while (--testscore > 0)
+		for (i = 0; i < sizeof(method) / sizeof(struct methods); i++)
+			if (method[i].score == testscore) {
+				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+					   "Using BIOS image from %s\n",
+					   method[i].desc);
+				method[i].loadbios(pNv, data);
+				return true;
+			}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid BIOS image found\n");
 
