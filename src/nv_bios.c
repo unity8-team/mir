@@ -723,34 +723,51 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	return bestclk;
 }
 
+static int powerctrl_1_shift(int chip_version, int reg)
+{
+	int shift = -4;
+
+	if (chip_version < 0x17 || chip_version == 0x20)
+		return shift;
+
+	switch (reg) {
+	case NV_RAMDAC_VPLL2:
+		shift += 4;
+	case NV_RAMDAC_VPLL:
+		shift += 4;
+	case NV_RAMDAC_MPLL:
+		shift += 4;
+	case NV_RAMDAC_NVPLL:
+		shift += 4;
+	}
+
+	/*
+	 * the shift for vpll regs is only used for nv3x chips with a single
+	 * stage pll
+	 */
+	if (shift > 4 && (chip_version < 0x32 || chip_version == 0x35 ||
+			  chip_version == 0x36 || chip_version >= 0x40))
+		shift = -4;
+
+	return shift;
+}
+
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
 	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
 	uint32_t oldpll = nv32_rd(pScrn, reg);
 	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
 	uint32_t saved_powerctrl_1 = 0;
-	int shift_powerctrl_1 = -4;
+	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg);
 
 	if (oldpll == pll)
 		return;	/* already set */
 
-	/* nv18 doesn't change POWERCTRL_1 for VPLL*; does gf4 need special-casing? */
-	if (chip_version >= 0x17 && chip_version != 0x20) {
-		switch (reg) {
-		case NV_RAMDAC_VPLL2:
-			shift_powerctrl_1 += 4;
-		case NV_RAMDAC_VPLL:
-			shift_powerctrl_1 += 4;
-		case NV_RAMDAC_MPLL:
-			shift_powerctrl_1 += 4;
-		case NV_RAMDAC_NVPLL:
-			shift_powerctrl_1 += 4;
-		}
-
-		if (shift_powerctrl_1 >= 0) {
-			saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
-			nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, (saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) | 1 << shift_powerctrl_1);
-		}
+	if (shift_powerctrl_1 >= 0) {
+		saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
+		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1,
+			(saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) |
+			1 << shift_powerctrl_1);
 	}
 
 	/* write NM first */
@@ -768,6 +785,21 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
 }
 
+static void set_ramdac580(ScrnInfoPtr pScrn, uint32_t reg1, bool single_stage)
+{
+	uint32_t ramdac580 = nv32_rd(pScrn, NV_RAMDAC_580);
+	int head_a = (reg1 == NV_RAMDAC_VPLL);
+
+	if (single_stage)
+		ramdac580 |= head_a ? NV_RAMDAC_580_VPLL1_ACTIVE :
+				    NV_RAMDAC_580_VPLL2_ACTIVE;
+	else
+		ramdac580 &= head_a ? ~NV_RAMDAC_580_VPLL1_ACTIVE :
+				    ~NV_RAMDAC_580_VPLL2_ACTIVE;
+
+	nv32_wr(pScrn, NV_RAMDAC_580, ramdac580);
+}
+
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
 	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
@@ -778,7 +810,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
 	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
-	int shift_powerctrl_1 = -1;
+	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg1);
 	/* nv41+: single stage pll mode if NM2 is zero, or N2 == M2 */
 	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
 
@@ -795,45 +827,34 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
-	if (reg1 == NV_RAMDAC_NVPLL) {
-		shift_powerctrl_1 = 0;
+	if (reg1 == NV_RAMDAC_NVPLL)
 		maskc040 = ~(3 << 20);
-	}
-	if (reg1 == NV_RAMDAC_MPLL) {
-		shift_powerctrl_1 = 4;
+	else if (reg1 == NV_RAMDAC_MPLL)
 		maskc040 = ~(3 << 22);
-	}
 	if (shift_powerctrl_1 >= 0) {
 		saved_powerctrl_1 = nv32_rd(pScrn, NV_PBUS_POWERCTRL_1);
-		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, (saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) | 1 << shift_powerctrl_1);
+		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1,
+			(saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) |
+			1 << shift_powerctrl_1);
 	}
 
 	if (chip_version >= 0x40) {
 		savedc040 = nv32_rd(pScrn, 0xc040);
 		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
-
-		if (chip_version == 0x40 || !single_stage) {
-			if (reg1 == NV_RAMDAC_VPLL)
-				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
-			if (reg1 == NV_RAMDAC_VPLL2)
-				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL2_ACTIVE);
-		} else {
-			if (reg1 == NV_RAMDAC_VPLL)
-				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL1_ACTIVE);
-			if (reg1 == NV_RAMDAC_VPLL2)
-				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL2_ACTIVE);
-		}
 	}
+
+	if (chip_version > 0x40 &&	/* not on nv40 */
+	    (reg1 == NV_RAMDAC_VPLL || reg1 == NV_RAMDAC_VPLL2))
+		set_ramdac580(pScrn, reg1, single_stage);
 
 	if (!nv3035)
 		nv32_wr(pScrn, reg2, pll2);
 	nv32_wr(pScrn, reg1, pll1);
 
-	if (shift_powerctrl_1 >= 0) {
+	if (shift_powerctrl_1 >= 0)
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
-		if (chip_version >= 0x40)
-			nv32_wr(pScrn, 0xc040, savedc040);
-	}
+	if (chip_version >= 0x40)
+		nv32_wr(pScrn, 0xc040, savedc040);
 }
 
 static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, int NM2, int log2P)
