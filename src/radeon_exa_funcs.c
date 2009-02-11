@@ -408,8 +408,6 @@ RADEONDownloadFromScreenCP(PixmapPtr pSrc, int x, int y, int w, int h,
 	    while ((drmCommandNone(info->dri->drmFD, DRM_RADEON_CP_IDLE) == -EBUSY)
 		   && (i++ < RADEON_TIMEOUT))
 		;
-	    /* make sure the engine is idle */
-	    RADEONWaitforIdlePoll(pScrn);
 
 	    /* Kick next blit */
 	    if (hpass)
@@ -472,8 +470,10 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 	info->accel_state->exa->DownloadFromScreen = RADEONDownloadFromScreenCP;
 #endif
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess;
     info->accel_state->exa->FinishAccess = RADEONFinishAccess;
+#endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
     info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;

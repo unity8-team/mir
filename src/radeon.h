@@ -893,7 +893,6 @@ extern void RADEONEngineFlush(ScrnInfoPtr pScrn);
 extern void RADEONEngineInit(ScrnInfoPtr pScrn);
 extern void RADEONEngineReset(ScrnInfoPtr pScrn);
 extern void RADEONEngineRestore(ScrnInfoPtr pScrn);
-extern Bool RADEONWaitforIdlePoll(ScrnInfoPtr pScrn);
 extern uint8_t *RADEONHostDataBlit(ScrnInfoPtr pScrn, unsigned int cpp,
 				 unsigned int w, uint32_t dstPitchOff,
 				 uint32_t *bufPitch, int x, int *y,
