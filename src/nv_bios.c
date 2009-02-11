@@ -946,6 +946,21 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	}
 }
 
+void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+{
+	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
+
+	if (chip_version >= 0x40 || chip_version == 0x30 ||
+	    chip_version == 0x31 || chip_version == 0x35 ||
+	    chip_version == 0x36) {
+		if (reg1 > 0x405c)
+			setPLL_double_highregs(pScrn, reg1, NM1, NM2, log2P);
+		else
+			setPLL_double_lowregs(pScrn, reg1, NM1, NM2, log2P);
+	} else
+		setPLL_single(pScrn, reg1, NM1, log2P);
+}
+
 static int setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
@@ -965,14 +980,10 @@ static int setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 				   "Could not find a suitable set of PLL coefficients, giving up\n");
 			return -ERANGE;
 		}
-		if (reg > 0x405c)
-			setPLL_double_highregs(pScrn, reg, NM1, NM2, log2P);
-		else
-			setPLL_double_lowregs(pScrn, reg, NM1, NM2, log2P);
-	} else {
+	} else
 		getMNP_single(pScrn, &pll_lim, clk, &NM1, &log2P);
-		setPLL_single(pScrn, reg, NM1, log2P);
-	}
+
+	nouveau_bios_setpll(pScrn, reg, NM1, NM2, log2P);
 
 	return 0;
 }

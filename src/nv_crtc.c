@@ -25,6 +25,12 @@
 
 #include "nv_include.h"
 
+struct pll_vals {
+	int NM1;
+	int NM2;
+	int log2P;
+};
+
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
@@ -133,7 +139,7 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		state->reg580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 }
 
-static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
+static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state, struct pll_vals *pllvals)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
@@ -146,6 +152,11 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	if (pNv->twoHeads)
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
 
+	if (pllvals) {
+		uint32_t pllreg = nv_crtc->head ? NV_RAMDAC_VPLL2 : NV_RAMDAC_VPLL;
+
+		nouveau_bios_setpll(pScrn, pllreg, pllvals->NM1, pllvals->NM2, pllvals->log2P);
+	} else {	// XXX wrecked indentation, nm
 	if (pNv->Architecture == NV_ARCH_40) {
 		savedc040 = nvReadMC(pNv, 0xc040);
 
@@ -170,6 +181,7 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		/* We need to wait a while */
 		usleep(5000);
 		nvWriteMC(pNv, 0xc040, savedc040);
+	}
 	}
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_PLL_SELECT %08X\n", state->pllsel);
@@ -203,7 +215,7 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
 }
 
-static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock)
+static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock, struct pll_vals *pllvals)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -212,8 +224,8 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	struct pll_lims pll_lim;
 	bool using_two_pll_stages = false;
-	/* nvidia uses 0x11f as bogus data when running in single stage mode */
-	int NM1 = 0xbeef, NM2 = 0x11f, log2P = 0, VClk = 0;
+	/* NM2 == 0 is used to determine single stage mode on two stage plls */
+	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
 	uint32_t g70_pll_special_bits = 0;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
@@ -276,6 +288,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
+
+	pllvals->NM1 = NM1;
+	pllvals->NM2 = NM2;
+	pllvals->log2P = log2P;
 
 	if (pNv->Architecture < NV_ARCH_30)
 		nv4_10UpdateArbitrationSettings(pScrn, VClk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
@@ -913,6 +929,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(pScrn);
+	struct pll_vals pllvals;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CTRC mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
@@ -926,14 +943,14 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 	nv_crtc_mode_set_regs(crtc, mode);
 	nv_crtc_mode_set_fp_regs(crtc, mode, adjusted_mode);
-	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
+	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock, &pllvals);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_pll(crtc, &pNv->ModeReg);
+	nv_crtc_load_state_pll(crtc, &pNv->ModeReg, &pllvals);
 
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
@@ -982,7 +999,7 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_pll(crtc, &pNv->SavedReg);
+	nv_crtc_load_state_pll(crtc, &pNv->SavedReg, NULL);
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
