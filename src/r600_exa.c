@@ -2259,9 +2259,8 @@ R600MarkSync(ScreenPtr pScreen)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    accel_state->exaSyncMarker++;
+    return ++accel_state->exaSyncMarker;
 
-    return accel_state->exaSyncMarker;
 }
 
 static void
@@ -2271,8 +2270,11 @@ R600Sync(ScreenPtr pScreen, int marker)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
 
-    if (accel_state->exaMarkerSynced != marker)
+    if (accel_state->exaMarkerSynced != marker) {
+	R600WaitforIdlePoll(pScrn);
 	accel_state->exaMarkerSynced = marker;
+    }
+
 }
 
 static Bool
@@ -4161,8 +4163,6 @@ R600PrepareAccess(PixmapPtr pPix, int index)
     ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-
-    R600WaitforIdlePoll(pScrn);
 
     //flush HDP read/write caches
     OUTREG(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
