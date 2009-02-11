@@ -33,13 +33,11 @@
 #ifdef RENDER
 #include "mipict.h"
 
-#if DEBUG_TRACE_FALL
 static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string, int n)
 {
     char format[20];
     char size[20];
     char loc;
-    int temp;
 
     if (!pict) {
 	snprintf(string, n, "None");
@@ -71,7 +69,7 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string, int 
 	break;
     }
 
-    loc = uxa_get_drawable_pixmap(pict->pDrawable, &temp, &temp) ? 's' : 'm';
+    loc = uxa_get_drawable_pixmap(pict->pDrawable) ? 's' : 'm';
 
     snprintf(size, 20, "%dx%d%s", pict->pDrawable->width,
 	     pict->pDrawable->height, pict->repeat ?
@@ -112,7 +110,6 @@ uxa_print_composite_fallback(CARD8 op,
 	   "                    dst  %s, \n",
 	   sop, srcdesc, maskdesc, dstdesc);
 }
-#endif /* DEBUG_TRACE_FALL */
 
 Bool
 uxa_op_reads_destination (CARD8 op)
@@ -775,9 +772,8 @@ uxa_composite(CARD8	op,
     }
 
 fallback:
-#if DEBUG_TRACE_FALL
-    uxa_print_composite_fallback (op, pSrc, pMask, pDst);
-#endif
+    if (uxa_screen->fallback_debug)
+	uxa_print_composite_fallback (op, pSrc, pMask, pDst);
 
     uxa_check_composite (op, pSrc, pMask, pDst, xSrc, ySrc,
 		      xMask, yMask, xDst, yDst, width, height);

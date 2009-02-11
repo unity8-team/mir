@@ -68,13 +68,11 @@ uxa_finish_access_gc(GCPtr pGC)
         uxa_finish_access(&pGC->stipple->drawable);
 }
 
-#if DEBUG_TRACE_FALL
 char
 uxa_drawable_location(DrawablePtr pDrawable)
 {
     return uxa_drawable_is_offscreen(pDrawable) ? 's' : 'm';
 }
-#endif /* DEBUG_TRACE_FALL */
 
 void
 uxa_check_fill_spans (DrawablePtr pDrawable, GCPtr pGC, int nspans,

@@ -1007,7 +1007,7 @@ i830_uxa_init (ScreenPtr pScreen)
 
     I830SelectBuffer(scrn, I830_SELECT_FRONT);
 
-    uxa_set_fallback_debug(pI830->fallback_debug);
+    uxa_set_fallback_debug(pScreen, i830->fallback_debug);
 
     return TRUE;
 }
