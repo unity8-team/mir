@@ -3349,7 +3349,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     ps[i++] = TEX_DWORD_PAD;
 
     // xv ps planar ----------------------------------
-    i = accel_state->xv_ps_offset_planar / 4;
+     i = accel_state->xv_ps_offset_planar / 4;
     // 0
     ps[i++] = CF_DWORD0(ADDR(20));
     ps[i++] = CF_DWORD1(POP_COUNT(0),
@@ -3378,7 +3378,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     // 2
     ps[i++] = CF_ALLOC_IMP_EXP_DWORD0(ARRAY_BASE(CF_PIXEL_MRT0),
 				      TYPE(SQ_EXPORT_PIXEL),
-				      RW_GPR(3),
+				      RW_GPR(2),
 				      RW_REL(ABSOLUTE),
 				      INDEX_GPR(0),
 				      ELEM_SIZE(3));
@@ -3393,7 +3393,107 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 					   CF_INST(SQ_CF_INST_EXPORT_DONE),
 					   WHOLE_QUAD_MODE(0),
 					   BARRIER(1));
+    /* Undo scaling of Y'CbCr values
+     *  Y' is scaled from 16:235
+     *  Cb/Cr are scaled from 16:240
+     */
     // 3 - alu 0
+    // MULADD gpr[1].x gpr[1].x c[3].x c[3].y
+    ps[i++] = ALU_DWORD0(SRC0_SEL(1),
+			 SRC0_REL(ABSOLUTE),
+			 SRC0_ELEM(ELEM_X),
+			 SRC0_NEG(0),
+			 SRC1_SEL(259),
+			 SRC1_REL(ABSOLUTE),
+			 SRC1_ELEM(ELEM_X),
+			 SRC1_NEG(0),
+			 INDEX_MODE(SQ_INDEX_LOOP),
+			 PRED_SEL(SQ_PRED_SEL_OFF),
+			 LAST(0));
+    ps[i++] = ALU_DWORD1_OP3(SRC2_SEL(259),
+			     SRC2_REL(ABSOLUTE),
+			     SRC2_ELEM(ELEM_Y),
+			     SRC2_NEG(0),
+			     ALU_INST(SQ_OP3_INST_MULADD),
+			     BANK_SWIZZLE(SQ_ALU_VEC_012),
+			     DST_GPR(1),
+			     DST_REL(ABSOLUTE),
+			     DST_ELEM(ELEM_X),
+			     CLAMP(1));
+    // 4 - alu 1
+    // MULADD gpr[1].y gpr[1].y c[3].z c[3].w
+    ps[i++] = ALU_DWORD0(SRC0_SEL(1),
+			 SRC0_REL(ABSOLUTE),
+			 SRC0_ELEM(ELEM_Y),
+			 SRC0_NEG(0),
+			 SRC1_SEL(259),
+			 SRC1_REL(ABSOLUTE),
+			 SRC1_ELEM(ELEM_Z),
+			 SRC1_NEG(0),
+			 INDEX_MODE(SQ_INDEX_LOOP),
+			 PRED_SEL(SQ_PRED_SEL_OFF),
+			 LAST(0));
+    ps[i++] = ALU_DWORD1_OP3(SRC2_SEL(259),
+			     SRC2_REL(ABSOLUTE),
+			     SRC2_ELEM(ELEM_W),
+			     SRC2_NEG(0),
+			     ALU_INST(SQ_OP3_INST_MULADD),
+			     BANK_SWIZZLE(SQ_ALU_VEC_012),
+			     DST_GPR(1),
+			     DST_REL(ABSOLUTE),
+			     DST_ELEM(ELEM_Y),
+			     CLAMP(0));
+    // 5 - alu 2
+    // MULADD gpr[1].z gpr[1].z c[3].z c[3].w
+    ps[i++] = ALU_DWORD0(SRC0_SEL(1),
+			 SRC0_REL(ABSOLUTE),
+			 SRC0_ELEM(ELEM_Z),
+			 SRC0_NEG(0),
+			 SRC1_SEL(259),
+			 SRC1_REL(ABSOLUTE),
+			 SRC1_ELEM(ELEM_Z),
+			 SRC1_NEG(0),
+			 INDEX_MODE(SQ_INDEX_LOOP),
+			 PRED_SEL(SQ_PRED_SEL_OFF),
+			 LAST(0));
+    ps[i++] = ALU_DWORD1_OP3(SRC2_SEL(259),
+			     SRC2_REL(ABSOLUTE),
+			     SRC2_ELEM(ELEM_W),
+			     SRC2_NEG(0),
+			     ALU_INST(SQ_OP3_INST_MULADD),
+			     BANK_SWIZZLE(SQ_ALU_VEC_012),
+			     DST_GPR(1),
+			     DST_REL(ABSOLUTE),
+			     DST_ELEM(ELEM_Z),
+			     CLAMP(0));
+    // 6 - alu 3
+    // MOV gpr[1].w 0.0
+    ps[i++] = ALU_DWORD0(SRC0_SEL(SQ_ALU_SRC_0),
+			 SRC0_REL(ABSOLUTE),
+			 SRC0_ELEM(ELEM_X),
+			 SRC0_NEG(0),
+			 SRC1_SEL(SQ_ALU_SRC_0),
+			 SRC1_REL(ABSOLUTE),
+			 SRC1_ELEM(ELEM_X),
+			 SRC1_NEG(0),
+			 INDEX_MODE(SQ_INDEX_LOOP),
+			 PRED_SEL(SQ_PRED_SEL_OFF),
+			 LAST(1));
+    ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
+			     SRC0_ABS(0),
+			     SRC1_ABS(0),
+			     UPDATE_EXECUTE_MASK(0),
+			     UPDATE_PRED(0),
+			     WRITE_MASK(1),
+			     FOG_MERGE(0),
+			     OMOD(SQ_ALU_OMOD_OFF),
+			     ALU_INST(SQ_OP2_INST_DOT4),
+			     BANK_SWIZZLE(SQ_ALU_VEC_102),
+			     DST_GPR(1),
+			     DST_REL(ABSOLUTE),
+			     DST_ELEM(ELEM_W),
+			     CLAMP(0));
+    // 7 - alu 4
     // DP4 gpr[2].x gpr[1].x c[0].x
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3420,7 +3520,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_X),
 			     CLAMP(1));
-    // 4 - alu 1
+    // 8 - alu 5
     // DP4 gpr[2].y gpr[1].y c[0].y
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3447,7 +3547,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Y),
 			     CLAMP(1));
-    // 5 - alu 2
+    // 9 - alu 6
     // DP4 gpr[2].z gpr[1].z c[0].z
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3474,7 +3574,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Z),
 			     CLAMP(1));
-    // 6 - alu 3
+    // 10 - alu 7
     // DP4 gpr[2].w gpr[1].w c[0].w
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3501,7 +3601,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_W),
 			     CLAMP(1));
-    // 7 - alu 4
+    // 11 - alu 8
     // DP4 gpr[2].x gpr[1].x c[1].x
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3528,7 +3628,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_X),
 			     CLAMP(1));
-    // 8 - alu 5
+    // 12 - alu 9
     // DP4 gpr[2].y gpr[1].y c[1].y
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3555,7 +3655,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Y),
 			     CLAMP(1));
-    // 9 - alu 6
+    // 13 - alu 10
     // DP4 gpr[2].z gpr[1].z c[1].z
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3582,7 +3682,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Z),
 			     CLAMP(1));
-    // 10 - alu 7
+    // 14 - alu 11
     // DP4 gpr[2].w gpr[1].w c[1].w
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3609,7 +3709,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_W),
 			     CLAMP(1));
-    // 11 - alu 8
+    // 15 - alu 12
     // DP4 gpr[2].x gpr[1].x c[2].x
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3636,7 +3736,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_X),
 			     CLAMP(1));
-    // 12 - alu 9
+    // 16 - alu 13
     // DP4 gpr[2].y gpr[1].y c[2].y
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3663,7 +3763,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Y),
 			     CLAMP(1));
-    // 13 - alu 10
+    // 17 - alu 14
     // DP4 gpr[2].z gpr[1].z c[2].z
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3690,7 +3790,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_Z),
 			     CLAMP(1));
-    // 14 - alu 11
+    // 18 - alu 15
     // DP4 gpr[2].w gpr[1].w c[2].w
     ps[i++] = ALU_DWORD0(SRC0_SEL(1),
 			 SRC0_REL(ABSOLUTE),
@@ -3717,114 +3817,6 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			     DST_REL(ABSOLUTE),
 			     DST_ELEM(ELEM_W),
 			     CLAMP(1));
-    // 15 - alu 12
-    // MOV gpr[3].x gpr[2].x
-    ps[i++] = ALU_DWORD0(SRC0_SEL(2),
-			 SRC0_REL(ABSOLUTE),
-			 SRC0_ELEM(ELEM_X),
-			 SRC0_NEG(0),
-			 SRC1_SEL(0),
-			 SRC1_REL(ABSOLUTE),
-			 SRC1_ELEM(ELEM_X),
-			 SRC1_NEG(0),
-			 INDEX_MODE(SQ_INDEX_LOOP),
-			 PRED_SEL(SQ_PRED_SEL_OFF),
-			 LAST(0));
-    ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
-			     SRC0_ABS(0),
-			     SRC1_ABS(0),
-			     UPDATE_EXECUTE_MASK(0),
-			     UPDATE_PRED(0),
-			     WRITE_MASK(1),
-			     FOG_MERGE(0),
-			     OMOD(SQ_ALU_OMOD_OFF),
-			     ALU_INST(SQ_OP2_INST_MOV),
-			     BANK_SWIZZLE(SQ_ALU_VEC_210),
-			     DST_GPR(3),
-			     DST_REL(ABSOLUTE),
-			     DST_ELEM(ELEM_X),
-			     CLAMP(0));
-    // 16 - alu 13
-    // MOV gpr[3].y gpr[2].y
-    ps[i++] = ALU_DWORD0(SRC0_SEL(2),
-			 SRC0_REL(ABSOLUTE),
-			 SRC0_ELEM(ELEM_Y),
-			 SRC0_NEG(0),
-			 SRC1_SEL(0),
-			 SRC1_REL(ABSOLUTE),
-			 SRC1_ELEM(ELEM_X),
-			 SRC1_NEG(0),
-			 INDEX_MODE(SQ_INDEX_LOOP),
-			 PRED_SEL(SQ_PRED_SEL_OFF),
-			 LAST(0));
-    ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
-			     SRC0_ABS(0),
-			     SRC1_ABS(0),
-			     UPDATE_EXECUTE_MASK(0),
-			     UPDATE_PRED(0),
-			     WRITE_MASK(1),
-			     FOG_MERGE(0),
-			     OMOD(SQ_ALU_OMOD_OFF),
-			     ALU_INST(SQ_OP2_INST_MOV),
-			     BANK_SWIZZLE(SQ_ALU_VEC_210),
-			     DST_GPR(3),
-			     DST_REL(ABSOLUTE),
-			     DST_ELEM(ELEM_Y),
-			     CLAMP(0));
-    // 17 - alu 14
-    // MOV gpr[3].z gpr[2].z
-    ps[i++] = ALU_DWORD0(SRC0_SEL(2),
-			 SRC0_REL(ABSOLUTE),
-			 SRC0_ELEM(ELEM_Z),
-			 SRC0_NEG(0),
-			 SRC1_SEL(0),
-			 SRC1_REL(ABSOLUTE),
-			 SRC1_ELEM(ELEM_X),
-			 SRC1_NEG(0),
-			 INDEX_MODE(SQ_INDEX_LOOP),
-			 PRED_SEL(SQ_PRED_SEL_OFF),
-			 LAST(0));
-    ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
-			     SRC0_ABS(0),
-			     SRC1_ABS(0),
-			     UPDATE_EXECUTE_MASK(0),
-			     UPDATE_PRED(0),
-			     WRITE_MASK(1),
-			     FOG_MERGE(0),
-			     OMOD(SQ_ALU_OMOD_OFF),
-			     ALU_INST(SQ_OP2_INST_MOV),
-			     BANK_SWIZZLE(SQ_ALU_VEC_210),
-			     DST_GPR(3),
-			     DST_REL(ABSOLUTE),
-			     DST_ELEM(ELEM_Z),
-			     CLAMP(0));
-    // 18 - alu 15
-    // MOV gpr[3].w gpr[2].w
-    ps[i++] = ALU_DWORD0(SRC0_SEL(2),
-			 SRC0_REL(ABSOLUTE),
-			 SRC0_ELEM(ELEM_W),
-			 SRC0_NEG(0),
-			 SRC1_SEL(0),
-			 SRC1_REL(ABSOLUTE),
-			 SRC1_ELEM(ELEM_X),
-			 SRC1_NEG(0),
-			 INDEX_MODE(SQ_INDEX_LOOP),
-			 PRED_SEL(SQ_PRED_SEL_OFF),
-			 LAST(1));
-    ps[i++] = ALU_DWORD1_OP2(info->ChipFamily,
-			     SRC0_ABS(0),
-			     SRC1_ABS(0),
-			     UPDATE_EXECUTE_MASK(0),
-			     UPDATE_PRED(0),
-			     WRITE_MASK(1),
-			     FOG_MERGE(0),
-			     OMOD(SQ_ALU_OMOD_OFF),
-			     ALU_INST(SQ_OP2_INST_MOV),
-			     BANK_SWIZZLE(SQ_ALU_VEC_012),
-			     DST_GPR(3),
-			     DST_REL(ABSOLUTE),
-			     DST_ELEM(ELEM_W),
-			     CLAMP(0));
     // 19 - alignment
     ps[i++] = 0x00000000;
     ps[i++] = 0x00000000;
@@ -3912,6 +3904,150 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			 SRC_SEL_Z(SQ_SEL_0),
 			 SRC_SEL_W(SQ_SEL_1));
     ps[i++] = TEX_DWORD_PAD;
+
+    // comp mask vs ---------------------------------------
+    i = accel_state->comp_mask_vs_offset / 4;
+    //0
+    vs[i++] = CF_DWORD0(ADDR(4));
+    vs[i++] = CF_DWORD1(POP_COUNT(0),
+			CF_CONST(0),
+			COND(SQ_CF_COND_ACTIVE),
+			I_COUNT(3),
+			CALL_COUNT(0),
+			END_OF_PROGRAM(0),
+			VALID_PIXEL_MODE(0),
+			CF_INST(SQ_CF_INST_VTX),
+			WHOLE_QUAD_MODE(0),
+			BARRIER(1));
+    //1 - dst
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD0(ARRAY_BASE(CF_POS0),
+				      TYPE(SQ_EXPORT_POS),
+				      RW_GPR(2),
+				      RW_REL(ABSOLUTE),
+				      INDEX_GPR(0),
+				      ELEM_SIZE(0));
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD1_SWIZ(SRC_SEL_X(SQ_SEL_X),
+					   SRC_SEL_Y(SQ_SEL_Y),
+					   SRC_SEL_Z(SQ_SEL_Z),
+					   SRC_SEL_W(SQ_SEL_W),
+					   R6xx_ELEM_LOOP(0),
+					   BURST_COUNT(1),
+					   END_OF_PROGRAM(0),
+					   VALID_PIXEL_MODE(0),
+					   CF_INST(SQ_CF_INST_EXPORT_DONE),
+					   WHOLE_QUAD_MODE(0),
+					   BARRIER(1));
+    //2 - src
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD0(ARRAY_BASE(0),
+				      TYPE(SQ_EXPORT_PARAM),
+				      RW_GPR(1),
+				      RW_REL(ABSOLUTE),
+				      INDEX_GPR(0),
+				      ELEM_SIZE(0));
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD1_SWIZ(SRC_SEL_X(SQ_SEL_X),
+					   SRC_SEL_Y(SQ_SEL_Y),
+					   SRC_SEL_Z(SQ_SEL_Z),
+					   SRC_SEL_W(SQ_SEL_W),
+					   R6xx_ELEM_LOOP(0),
+					   BURST_COUNT(1),
+					   END_OF_PROGRAM(0),
+					   VALID_PIXEL_MODE(0),
+					   CF_INST(SQ_CF_INST_EXPORT),
+					   WHOLE_QUAD_MODE(0),
+					   BARRIER(0));
+    //3 - mask
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD0(ARRAY_BASE(1),
+				      TYPE(SQ_EXPORT_PARAM),
+				      RW_GPR(0),
+				      RW_REL(ABSOLUTE),
+				      INDEX_GPR(0),
+				      ELEM_SIZE(0));
+    vs[i++] = CF_ALLOC_IMP_EXP_DWORD1_SWIZ(SRC_SEL_X(SQ_SEL_X),
+					   SRC_SEL_Y(SQ_SEL_Y),
+					   SRC_SEL_Z(SQ_SEL_Z),
+					   SRC_SEL_W(SQ_SEL_W),
+					   R6xx_ELEM_LOOP(0),
+					   BURST_COUNT(1),
+					   END_OF_PROGRAM(1),
+					   VALID_PIXEL_MODE(0),
+					   CF_INST(SQ_CF_INST_EXPORT_DONE),
+					   WHOLE_QUAD_MODE(0),
+					   BARRIER(0));
+    //4/5 - dst
+    vs[i++] = VTX_DWORD0(VTX_INST(SQ_VTX_INST_FETCH),
+			 FETCH_TYPE(SQ_VTX_FETCH_VERTEX_DATA),
+			 FETCH_WHOLE_QUAD(0),
+			 BUFFER_ID(0),
+			 SRC_GPR(0),
+			 SRC_REL(ABSOLUTE),
+			 SRC_SEL_X(SQ_SEL_X),
+			 MEGA_FETCH_COUNT(24));
+    vs[i++] = VTX_DWORD1_GPR(DST_GPR(2),
+			     DST_REL(0),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_0),
+			     DST_SEL_W(SQ_SEL_1),
+			     USE_CONST_FIELDS(0),
+			     DATA_FORMAT(FMT_32_32_FLOAT), //xxx
+			     NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), //xxx
+			     FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), //xxx
+			     SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
+    vs[i++] = VTX_DWORD2(OFFSET(0),
+			 ENDIAN_SWAP(ENDIAN_NONE),
+			 CONST_BUF_NO_STRIDE(0),
+			 MEGA_FETCH(1));
+    vs[i++] = VTX_DWORD_PAD;
+    //6/7 - src
+    vs[i++] = VTX_DWORD0(VTX_INST(SQ_VTX_INST_FETCH),
+			 FETCH_TYPE(SQ_VTX_FETCH_VERTEX_DATA),
+			 FETCH_WHOLE_QUAD(0),
+			 BUFFER_ID(0),
+			 SRC_GPR(0),
+			 SRC_REL(ABSOLUTE),
+			 SRC_SEL_X(SQ_SEL_X),
+			 MEGA_FETCH_COUNT(8));
+    vs[i++] = VTX_DWORD1_GPR(DST_GPR(1),
+			     DST_REL(0),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_0),
+			     DST_SEL_W(SQ_SEL_1),
+			     USE_CONST_FIELDS(0),
+			     DATA_FORMAT(FMT_32_32_FLOAT), //xxx
+			     NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), //xxx
+			     FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), //xxx
+			     SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
+    vs[i++] = VTX_DWORD2(OFFSET(8),
+			 ENDIAN_SWAP(ENDIAN_NONE),
+			 CONST_BUF_NO_STRIDE(0),
+			 MEGA_FETCH(0));
+    vs[i++] = VTX_DWORD_PAD;
+    //8/9 - mask
+    vs[i++] = VTX_DWORD0(VTX_INST(SQ_VTX_INST_FETCH),
+			 FETCH_TYPE(SQ_VTX_FETCH_VERTEX_DATA),
+			 FETCH_WHOLE_QUAD(0),
+			 BUFFER_ID(0),
+			 SRC_GPR(0),
+			 SRC_REL(ABSOLUTE),
+			 SRC_SEL_X(SQ_SEL_X),
+			 MEGA_FETCH_COUNT(8));
+    vs[i++] = VTX_DWORD1_GPR(DST_GPR(0),
+			     DST_REL(0),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_0),
+			     DST_SEL_W(SQ_SEL_1),
+			     USE_CONST_FIELDS(0),
+			     DATA_FORMAT(FMT_32_32_FLOAT), //xxx
+			     NUM_FORMAT_ALL(SQ_NUM_FORMAT_NORM), //xxx
+			     FORMAT_COMP_ALL(SQ_FORMAT_COMP_SIGNED), //xxx
+			     SRF_MODE_ALL(SRF_MODE_ZERO_CLAMP_MINUS_ONE));
+    vs[i++] = VTX_DWORD2(OFFSET(16),
+			 ENDIAN_SWAP(ENDIAN_NONE),
+			 CONST_BUF_NO_STRIDE(0),
+			 MEGA_FETCH(0));
+    vs[i++] = VTX_DWORD_PAD;
 
     // comp mask vs ---------------------------------------
     i = accel_state->comp_mask_vs_offset / 4;
