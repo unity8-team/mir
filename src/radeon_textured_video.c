@@ -199,33 +199,17 @@ CopyPackedtoNV12(unsigned char *src, unsigned char *dst,
 		 int srcPitch, int dstPitch,
 		 int w, int h, int id)
 {
-    int i, j;
-    int uv_offset = dstPitch * h;
-    uv_offset = (uv_offset + 255) & ~255;
+    int i;
 
-    // FOURCC_UYVY: U0 Y0 V0 Y1
-    // FOURCC_YUY2: Y0 U0 Y1 V0
-    for (i = 0; i < h; i++) {
-	unsigned char *y = dst;
-	unsigned char *uv = (unsigned char *)dst + uv_offset;
-
-	for (j = 0; j < (w / 2); j++) {
-	    if (id == FOURCC_UYVY) {
-		uv[1] = src[(j * 4) + 0];
-		y[0]  = src[(j * 4) + 1];
-		uv[0] = src[(j * 4) + 2];
-		y[1]  = src[(j * 4) + 3];
-	    } else {
-		y[0]  = src[(j * 4) + 0];
-		uv[1] = src[(j * 4) + 1];
-		y[1]  = src[(j * 4) + 2];
-		uv[0] = src[(j * 4) + 3];
-	    }
-	    y += 2;
-	    uv += 2;
-	}
-	dst += dstPitch;
-	src += srcPitch;
+    if (srcPitch == dstPitch) {
+        memcpy(dst, src, srcPitch * h);
+	dst += (dstPitch * h);
+    } else {
+	for (i = 0; i < h; i++) {
+            memcpy(dst, src, srcPitch);
+            src += srcPitch;
+            dst += dstPitch;
+        }
     }
 }
 
@@ -298,7 +282,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     if (info->ChipFamily >= CHIP_FAMILY_R600)
-	dstPitch = (dstPitch + 511) & ~511;
+	dstPitch = (dstPitch + 255) & ~255;
     else
 	dstPitch = (dstPitch + 63) & ~63;
 

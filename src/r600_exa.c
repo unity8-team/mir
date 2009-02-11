@@ -2305,7 +2305,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     accel_state->comp_mask_vs_offset = 3072;
     accel_state->comp_mask_ps_offset = 3584;
     accel_state->xv_vs_offset = 4096;
-    accel_state->xv_ps_offset_nv12 = 4608;
+    accel_state->xv_ps_offset_packed = 4608;
     accel_state->xv_ps_offset_planar = 5120;
 
     // solid vs ---------------------------------------
@@ -2795,8 +2795,8 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 			 MEGA_FETCH(0));
     vs[i++] = VTX_DWORD_PAD;
 
-    // xv ps nv12 ----------------------------------
-    i = accel_state->xv_ps_offset_nv12 / 4;
+    // xv ps packed ----------------------------------
+    i = accel_state->xv_ps_offset_packed / 4;
     // 0
     ps[i++] = CF_DWORD0(ADDR(20));
     ps[i++] = CF_DWORD1(POP_COUNT(0),
