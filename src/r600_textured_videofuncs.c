@@ -44,63 +44,6 @@
 
 #include "damage.h"
 
-static void
-R600DoneXv(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
-    draw_config_t   draw_conf;
-    vtx_resource_t  vtx_res;
-
-    CLEAR (draw_conf);
-    CLEAR (vtx_res);
-
-    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
-    accel_state->vb_size = accel_state->vb_index * 16;
-
-    /* flush vertex cache */
-    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
-	(info->ChipFamily == CHIP_FAMILY_RV620) ||
-	(info->ChipFamily == CHIP_FAMILY_RS780) ||
-	(info->ChipFamily == CHIP_FAMILY_RV710))
-	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr);
-    else
-	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
-			    accel_state->vb_size, accel_state->vb_mc_addr);
-
-    /* Vertex buffer setup */
-    vtx_res.id              = SQ_VTX_RESOURCE_vs;
-    vtx_res.vtx_size_dw     = 16 / 4;
-    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
-    vtx_res.mem_req_size    = 1;
-    vtx_res.vb_addr         = accel_state->vb_mc_addr;
-    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
-
-    draw_conf.prim_type          = DI_PT_RECTLIST;
-    draw_conf.vgt_draw_initiator = DI_SRC_SEL_AUTO_INDEX;
-    draw_conf.num_instances      = 1;
-    draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
-    draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
-
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_0,            0);	/* ? */
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_1,            0);
-
-    ereg  (accel_state->ib, VGT_MAX_VTX_INDX,                    draw_conf.num_indices);
-    ereg  (accel_state->ib, VGT_MIN_VTX_INDX,                    0);
-    ereg  (accel_state->ib, VGT_INDX_OFFSET,                     0);
-
-    draw_auto(pScrn, accel_state->ib, &draw_conf);
-
-    wait_3d_idle_clean(pScrn, accel_state->ib);
-
-    /* sync destination surface */
-    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
-			accel_state->dst_size, accel_state->dst_mc_addr);
-
-    R600CPFlushIndirect(pScrn, accel_state->ib);
-}
 
 void
 R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
@@ -115,6 +58,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
     shader_config_t vs_conf, ps_conf;
+    draw_config_t   draw_conf;
+    vtx_resource_t  vtx_res;
     int uv_offset;
 
     static float ps_alu_consts[] = {
@@ -135,6 +80,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     CLEAR (tex_samp);
     CLEAR (vs_conf);
     CLEAR (ps_conf);
+    CLEAR (draw_conf);
+    CLEAR (vtx_res);
 
     accel_state->dst_pitch = exaGetPixmapPitch(pPixmap) / (pPixmap->drawable.bitsPerPixel / 8);
     accel_state->src_pitch[0] = pPriv->src_pitch;
@@ -469,9 +416,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	    ErrorF("Xv: Ran out of VB space!\n");
-	    R600DoneXv(pScrn);
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	    accel_state->vb_index = 0;
+	    break;
 	}
 
 	dstX = pBox->x1 + dstxoff;
@@ -516,7 +461,57 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	pBox++;
     }
 
-    R600DoneXv(pScrn);
+    if (accel_state->vb_index == 0) {
+	R600IBDiscard(pScrn, accel_state->ib);
+	DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
+	return;
+    }
+
+    accel_state->vb_mc_addr = info->gartLocation + info->dri->bufStart +
+	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2);
+    accel_state->vb_size = accel_state->vb_index * 16;
+
+    /* flush vertex cache */
+    if ((info->ChipFamily == CHIP_FAMILY_RV610) ||
+	(info->ChipFamily == CHIP_FAMILY_RV620) ||
+	(info->ChipFamily == CHIP_FAMILY_RS780) ||
+	(info->ChipFamily == CHIP_FAMILY_RV710))
+	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
+			    accel_state->vb_size, accel_state->vb_mc_addr);
+    else
+	cp_set_surface_sync(pScrn, accel_state->ib, VC_ACTION_ENA_bit,
+			    accel_state->vb_size, accel_state->vb_mc_addr);
+
+    /* Vertex buffer setup */
+    vtx_res.id              = SQ_VTX_RESOURCE_vs;
+    vtx_res.vtx_size_dw     = 16 / 4;
+    vtx_res.vtx_num_entries = accel_state->vb_size / 4;
+    vtx_res.mem_req_size    = 1;
+    vtx_res.vb_addr         = accel_state->vb_mc_addr;
+    set_vtx_resource        (pScrn, accel_state->ib, &vtx_res);
+
+    draw_conf.prim_type          = DI_PT_RECTLIST;
+    draw_conf.vgt_draw_initiator = DI_SRC_SEL_AUTO_INDEX;
+    draw_conf.num_instances      = 1;
+    draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
+    draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
+
+    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_0,            0);	/* ? */
+    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_1,            0);
+
+    ereg  (accel_state->ib, VGT_MAX_VTX_INDX,                    draw_conf.num_indices);
+    ereg  (accel_state->ib, VGT_MIN_VTX_INDX,                    0);
+    ereg  (accel_state->ib, VGT_INDX_OFFSET,                     0);
+
+    draw_auto(pScrn, accel_state->ib, &draw_conf);
+
+    wait_3d_idle_clean(pScrn, accel_state->ib);
+
+    /* sync destination surface */
+    cp_set_surface_sync(pScrn, accel_state->ib, (CB_ACTION_ENA_bit | CB0_DEST_BASE_ENA_bit),
+			accel_state->dst_size, accel_state->dst_mc_addr);
+
+    R600CPFlushIndirect(pScrn, accel_state->ib);
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }

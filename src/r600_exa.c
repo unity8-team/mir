@@ -41,12 +41,6 @@
 extern PixmapPtr
 RADEONGetDrawablePixmap(DrawablePtr pDrawable);
 
-static void
-R600DoneSolid(PixmapPtr pPix);
-
-static void
-R600DoneComposite(PixmapPtr pDst);
-
 //#define SHOW_VERTEXES
 
 #       define RADEON_ROP3_ZERO             0x00000000
@@ -270,9 +264,7 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
 	ErrorF("Solid: Ran out of VB space!\n");
-	R600DoneSolid(pPix);
-	accel_state->ib = RADEONCPGetBuffer(pScrn);
-	accel_state->vb_index = 0;
+	return;
     }
 
     vertex[0].x = (float)x1;
@@ -615,9 +607,7 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
 
     if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	ErrorF("Copy: Ran out of VB space!\n");
-	R600DoCopy(pScrn);
-	accel_state->ib = RADEONCPGetBuffer(pScrn);
-	accel_state->vb_index = 0;
+	return;
     }
 
     vertex[0].x = (float)dstX;
@@ -1923,9 +1913,7 @@ static void R600Composite(PixmapPtr pDst,
 
 	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
 	    ErrorF("Composite: Ran out of VB space!\n");
-	    R600DoneComposite(pDst);
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	    accel_state->vb_index = 0;
+	    return;
 	}
 
 	maskTopLeft.x     = IntToxFixed(maskX);
@@ -1986,9 +1974,7 @@ static void R600Composite(PixmapPtr pDst,
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	    ErrorF("Composite: Ran out of VB space!\n");
-	    R600DoneComposite(pDst);
-	    accel_state->ib = RADEONCPGetBuffer(pScrn);
-	    accel_state->vb_index = 0;
+	    return;
 	}
 
 	vertex[0].x = (float)dstX;
