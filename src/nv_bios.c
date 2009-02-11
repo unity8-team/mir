@@ -725,7 +725,7 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
+	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
 	uint32_t oldpll = nv32_rd(pScrn, reg);
 	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
 	uint32_t saved_powerctrl_1 = 0;
@@ -735,7 +735,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 		return;	/* already set */
 
 	/* nv18 doesn't change POWERCTRL_1 for VPLL*; does gf4 need special-casing? */
-	if (bios->chip_version >= 0x17 && bios->chip_version != 0x20) {
+	if (chip_version >= 0x17 && chip_version != 0x20) {
 		switch (reg) {
 		case NV_RAMDAC_VPLL2:
 			shift_powerctrl_1 += 4;
@@ -756,8 +756,9 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 	/* write NM first */
 	nv32_wr(pScrn, reg, (oldpll & 0xffff0000) | NM);
 
-	/* wait a bit */
-	BIOS_USLEEP(64000);
+	if (chip_version < 0x17 && chip_version != 0x11)
+		/* wait a bit on older chips */
+		BIOS_USLEEP(64000);
 	nv32_rd(pScrn, reg);
 
 	/* then write P as well */
@@ -769,19 +770,28 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
-	bios_t *bios = &NVPTR(pScrn)->VBIOS;
-	bool nv3035 = bios->chip_version == 0x30 || bios->chip_version == 0x35;
+	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
+	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
-	uint32_t oldpll1 = nv32_rd(pScrn, reg1), oldpll2 = !nv3035 ? nv32_rd(pScrn, reg2) : 0;
+	uint32_t oldpll1 = nv32_rd(pScrn, reg1);
+	uint32_t oldpll2 = !nv3035 ? nv32_rd(pScrn, reg2) : 0;
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
-	uint32_t pll2 = !nv3035 ? (oldpll2 & 0x7fff0000) | 1 << 31 | NM2 : 0;
+	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
 	uint32_t saved_powerctrl_1 = 0, savedc040 = 0, maskc040 = ~0;
 	int shift_powerctrl_1 = -1;
+	/* nv41+: single stage pll mode if NM2 is zero, or N2 == M2 */
 	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
 
-	if (nv3035)
-		pll1 = (pll1 & 0xfcc7ffff) | (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
-	
+	/* model specific additions to generic pll1 and pll2 set up above */
+	if (nv3035) {
+		pll1 = (pll1 & 0xfcc7ffff) | (NM2 & (0x18 << 8)) << 13 |
+		       (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
+		pll2 = 0;
+	}
+	if (chip_version > 0x40 && single_stage)	/* not on nv40 */
+		/* magic value used by nvidia when in single stage mode */
+		pll2 |= 0x011f;
+
 	if (oldpll1 == pll1 && oldpll2 == pll2)
 		return;	/* already set */
 
@@ -798,11 +808,11 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, (saved_powerctrl_1 & ~(0xf << shift_powerctrl_1)) | 1 << shift_powerctrl_1);
 	}
 
-	if (bios->chip_version >= 0x40) {
+	if (chip_version >= 0x40) {
 		savedc040 = nv32_rd(pScrn, 0xc040);
 		nv32_wr(pScrn, 0xc040, savedc040 & maskc040);
 
-		if (!single_stage) {
+		if (chip_version == 0x40 || !single_stage) {
 			if (reg1 == NV_RAMDAC_VPLL)
 				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) & ~NV_RAMDAC_580_VPLL1_ACTIVE);
 			if (reg1 == NV_RAMDAC_VPLL2)
@@ -812,7 +822,6 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL1_ACTIVE);
 			if (reg1 == NV_RAMDAC_VPLL2)
 				nv32_wr(pScrn, NV_RAMDAC_580, nv32_rd(pScrn, NV_RAMDAC_580) | NV_RAMDAC_580_VPLL2_ACTIVE);
-			pll2 |= 0x011f;
 		}
 	}
 
@@ -822,7 +831,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 
 	if (shift_powerctrl_1 >= 0) {
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
-		if (bios->chip_version >= 0x40)
+		if (chip_version >= 0x40)
 			nv32_wr(pScrn, 0xc040, savedc040);
 	}
 }
@@ -831,7 +840,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 {
 	/* When setting PLLs, there is a merry game of disabling and enabling
 	 * various bits of hardware during the process. This function is a
-	 * synthesis of six nv40 traces, nearly each card doing a subtly
+	 * synthesis of six nv4x traces, nearly each card doing a subtly
 	 * different thing. With luck all the necessary bits for each card are
 	 * combined herein. Without luck it deviates from each card's formula
 	 * so as to not work on any :)
