@@ -195,22 +195,18 @@ R600CopyPlanar(ScrnInfoPtr pScrn,
 }
 
 static void
-CopyPackedtoNV12(unsigned char *src, unsigned char *dst,
-		 int srcPitch, int dstPitch,
-		 int w, int h, int id)
+R600CopyPacked(ScrnInfoPtr pScrn,
+	       unsigned char *src, uint32_t dst_mc_addr,
+	       int srcPitch, int dstPitch,
+	       int w, int h)
 {
-    int i;
 
-    if (srcPitch == dstPitch) {
-        memcpy(dst, src, srcPitch * h);
-	dst += (dstPitch * h);
-    } else {
-	for (i = 0; i < h; i++) {
-            memcpy(dst, src, srcPitch);
-            src += srcPitch;
-            dst += dstPitch;
-        }
-    }
+    /* YUV */
+    R600CopyToVRAM(pScrn,
+		   (char *)src, srcPitch,
+		   dstPitch >> 2, dst_mc_addr, h, 32,
+		   0, 0, w >> 1, h);
+
 }
 
 static int
@@ -410,9 +406,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     case FOURCC_YUY2:
     default:
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    CopyPackedtoNV12(buf, pPriv->src_addr,
-			     2 * width, pPriv->src_pitch,
-			     width, height, id);
+	    R600CopyPacked(pScrn, buf, pPriv->src_offset,
+			   2 * width, pPriv->src_pitch,
+			   width, height);
 	} else {
 	    nlines = ((y2 + 0xffff) >> 16) - top;
 	    RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
