@@ -61,7 +61,12 @@
 #endif
 #include "damage.h"
 
-#define DEBUG_TRACE_FALL	0
+/* 1.6 and earlier server compat */
+#ifndef miGetCompositeClip
+#define miCopyRegion fbCopyRegion
+#define miDoCopy fbDoCopy
+#endif
+
 #define DEBUG_MIGRATE		0
 #define DEBUG_PIXMAP		0
 #define DEBUG_OFFSCREEN		0

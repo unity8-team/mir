@@ -493,9 +493,9 @@ uxa_copy_area(DrawablePtr pSrcDrawable, DrawablePtr pDstDrawable, GCPtr pGC,
                                  srcx, srcy, width, height, dstx, dsty);
     }
 
-    return  fbDoCopy (pSrcDrawable, pDstDrawable, pGC,
-                      srcx, srcy, width, height,
-                      dstx, dsty, uxa_copy_n_to_n, 0, NULL);
+    return miDoCopy (pSrcDrawable, pDstDrawable, pGC,
+		     srcx, srcy, width, height,
+		     dstx, dsty, uxa_copy_n_to_n, 0, NULL);
 }
 
 static void
@@ -841,7 +841,7 @@ uxa_copy_window(WindowPtr pWin, DDXPointRec ptOldOrg, RegionPtr prgnSrc)
 			  -pPixmap->screen_x, -pPixmap->screen_y);
 #endif
 
-    fbCopyRegion (&pPixmap->drawable, &pPixmap->drawable,
+    miCopyRegion (&pPixmap->drawable, &pPixmap->drawable,
 		  NULL,
 		  &rgnDst, dx, dy, uxa_copy_n_to_n, 0, NULL);
 
