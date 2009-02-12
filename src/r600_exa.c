@@ -1077,25 +1077,21 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.request_size        = 1;
 
     /* component swizzles */
-    // XXX double check these
     switch (pPict->format) {
     case PICT_a1r5g5b5:
     case PICT_a8r8g8b8:
-	//ErrorF("%s: PICT_a8r8g8b8\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_Z; //R
 	tex_res.dst_sel_y           = SQ_SEL_Y; //G
 	tex_res.dst_sel_z           = SQ_SEL_X; //B
 	tex_res.dst_sel_w           = SQ_SEL_W; //A
 	break;
     case PICT_a8b8g8r8:
-	//ErrorF("%s: PICT_a8b8g8r8\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_X; //R
 	tex_res.dst_sel_y           = SQ_SEL_Y; //G
 	tex_res.dst_sel_z           = SQ_SEL_Z; //B
 	tex_res.dst_sel_w           = SQ_SEL_W; //A
 	break;
     case PICT_x8b8g8r8:
-	//ErrorF("%s: PICT_x8b8g8r8\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_X; //R
 	tex_res.dst_sel_y           = SQ_SEL_Y; //G
 	tex_res.dst_sel_z           = SQ_SEL_Z; //B
@@ -1103,21 +1099,18 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	break;
     case PICT_x1r5g5b5:
     case PICT_x8r8g8b8:
-	//ErrorF("%s: PICT_x8r8g8b8\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_Z; //R
 	tex_res.dst_sel_y           = SQ_SEL_Y; //G
 	tex_res.dst_sel_z           = SQ_SEL_X; //B
 	tex_res.dst_sel_w           = SQ_SEL_1; //A
 	break;
     case PICT_r5g6b5:
-	//ErrorF("%s: PICT_r5g6b5\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_Z; //R
 	tex_res.dst_sel_y           = SQ_SEL_Y; //G
 	tex_res.dst_sel_z           = SQ_SEL_X; //B
 	tex_res.dst_sel_w           = SQ_SEL_1; //A
 	break;
     case PICT_a8:
-	//ErrorF("%s: PICT_a8\n", unit ? "mask" : "src");
 	tex_res.dst_sel_x           = SQ_SEL_0; //R
 	tex_res.dst_sel_y           = SQ_SEL_0; //G
 	tex_res.dst_sel_z           = SQ_SEL_0; //B
@@ -1135,25 +1128,30 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_samp.id                 = unit;
     tex_samp.border_color       = SQ_TEX_BORDER_COLOR_TRANS_BLACK;
 
-    switch (pPict->repeatType) {
-    case RepeatNormal:
-	tex_samp.clamp_x            = SQ_TEX_WRAP;
-	tex_samp.clamp_y            = SQ_TEX_WRAP;
-	break;
-    case RepeatPad:
-	tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
-	tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
-	break;
-    case RepeatReflect:
-	tex_samp.clamp_x            = SQ_TEX_MIRROR;
-	tex_samp.clamp_y            = SQ_TEX_MIRROR;
-	break;
-    case RepeatNone:
+    if (pPict->repeat) {
+	switch (pPict->repeatType) {
+	case RepeatNormal:
+	    tex_samp.clamp_x            = SQ_TEX_WRAP;
+	    tex_samp.clamp_y            = SQ_TEX_WRAP;
+	    break;
+	case RepeatPad:
+	    tex_samp.clamp_x            = SQ_TEX_CLAMP_LAST_TEXEL;
+	    tex_samp.clamp_y            = SQ_TEX_CLAMP_LAST_TEXEL;
+	    break;
+	case RepeatReflect:
+	    tex_samp.clamp_x            = SQ_TEX_MIRROR;
+	    tex_samp.clamp_y            = SQ_TEX_MIRROR;
+	    break;
+	case RepeatNone:
+	    tex_samp.clamp_x            = SQ_TEX_CLAMP_BORDER;
+	    tex_samp.clamp_y            = SQ_TEX_CLAMP_BORDER;
+	    break;
+	default:
+	    RADEON_FALLBACK(("Bad repeat 0x%x\n", pPict->repeatType));
+	}
+    } else {
 	tex_samp.clamp_x            = SQ_TEX_CLAMP_BORDER;
 	tex_samp.clamp_y            = SQ_TEX_CLAMP_BORDER;
-	break;
-    default:
-	RADEON_FALLBACK(("Bad repeat 0x%x\n", pPict->repeatType));
     }
 
     switch (pPict->filter) {
