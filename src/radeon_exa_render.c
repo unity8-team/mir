@@ -284,7 +284,7 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
     info->accel_state->need_src_tile_x = info->accel_state->need_src_tile_y = FALSE;
     info->accel_state->src_tile_width = info->accel_state->src_tile_height = 65536; /* "infinite" */
 	    
-    if (pPict->repeat && pPict->repeatType == RepeatNormal) {
+    if (pPict->repeat && pPict->repeatType != RepeatPad) {
 	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
 	
 	int w = pPict->pDrawable->width;
@@ -297,7 +297,12 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
 	} else {
 	    info->accel_state->need_src_tile_x = (w & (w - 1)) != 0 || badPitch;
 	    info->accel_state->need_src_tile_y = (h & (h - 1)) != 0;
-	    
+
+	    if ((info->accel_state->need_src_tile_x ||
+		 info->accel_state->need_src_tile_y) &&
+		pPict->repeatType != RepeatNormal)
+		RADEON_FALLBACK(("Can only tile RepeatNormal at this time\n"));
+
 	    if (!canTile1d)
 		info->accel_state->need_src_tile_x =
 		    info->accel_state->need_src_tile_y =
