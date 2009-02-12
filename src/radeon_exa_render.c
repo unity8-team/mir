@@ -284,7 +284,7 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
     info->accel_state->need_src_tile_x = info->accel_state->need_src_tile_y = FALSE;
     info->accel_state->src_tile_width = info->accel_state->src_tile_height = 65536; /* "infinite" */
 	    
-    if (pPict->repeatType == RepeatNormal) {
+    if (pPict->repeat && pPict->repeatType == RepeatNormal) {
 	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
 	
 	int w = pPict->pDrawable->width;
@@ -369,7 +369,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad texture offset 0x%x\n", (int)txoffset));
     if ((txpitch & 0x1f) != 0)
 	RADEON_FALLBACK(("Bad texture pitch 0x%x\n", (int)txpitch));
-    
+
     for (i = 0; i < sizeof(R100TexFormats) / sizeof(R100TexFormats[0]); i++)
     {
 	if (R100TexFormats[i].fmt == pPict->format)
@@ -404,19 +404,21 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    switch (pPict->repeatType) {
-    case RepeatNormal:
-	txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
-	break;
-    case RepeatPad:
-	txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
-	break;
-    case RepeatReflect:
-	txfilter |= RADEON_CLAMP_S_MIRROR | RADEON_CLAMP_T_MIRROR;
-	break;
-    case RepeatNone:
-	/* Nothing to do */
-	break;
+    if (repeat) {
+	switch (pPict->repeatType) {
+	case RepeatNormal:
+	    txfilter |= RADEON_CLAMP_S_WRAP | RADEON_CLAMP_T_WRAP;
+	    break;
+	case RepeatPad:
+	    txfilter |= RADEON_CLAMP_S_CLAMP_LAST | RADEON_CLAMP_T_CLAMP_LAST;
+	    break;
+	case RepeatReflect:
+	    txfilter |= RADEON_CLAMP_S_MIRROR | RADEON_CLAMP_T_MIRROR;
+	    break;
+	case RepeatNone:
+	    /* Nothing to do */
+	    break;
+	}
     }
 
     BEGIN_ACCEL(5);
@@ -740,19 +742,21 @@ static Bool FUNC_NAME(R200TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	RADEON_FALLBACK(("Bad filter 0x%x\n", pPict->filter));
     }
 
-    switch (pPict->repeatType) {
-    case RepeatNormal:
-	txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
-	break;
-    case RepeatPad:
-	txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
-	break;
-    case RepeatReflect:
-	txfilter |= R200_CLAMP_S_MIRROR | R200_CLAMP_T_MIRROR;
-	break;
-    case RepeatNone:
-	/* Nothing to do */
-	break;
+    if (repeat) {
+	switch (pPict->repeatType) {
+	case RepeatNormal:
+	    txfilter |= R200_CLAMP_S_WRAP | R200_CLAMP_T_WRAP;
+	    break;
+	case RepeatPad:
+	    txfilter |= R200_CLAMP_S_CLAMP_LAST | R200_CLAMP_T_CLAMP_LAST;
+	    break;
+	case RepeatReflect:
+	    txfilter |= R200_CLAMP_S_MIRROR | R200_CLAMP_T_MIRROR;
+	    break;
+	case RepeatNone:
+	    /* Nothing to do */
+	    break;
+	}
     }
 
     BEGIN_ACCEL(6);
