@@ -750,87 +750,110 @@ R600OverlapCopy(PixmapPtr pDst,
     struct radeon_accel_state *accel_state = info->accel_state;
     uint32_t dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
     uint32_t dst_offset = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
-    int i, chunk;
+    int i, hchunk, vchunk;
 
     if (is_overlap(srcX, srcX + w, srcY, srcY + h,
 		   dstX, dstX + w, dstY, dstY + h)) {
-        /* Diagonally offset overlap is reduced to a horizontal-only offset by first
-         * copying the vertically non-overlapping portion, then adjusting coordinates
+        /* Calculate height/width of non-overlapping area */
+        hchunk = (srcX < dstX) ? (dstX - srcX) : (srcX - dstX);
+        vchunk = (srcY < dstY) ? (dstY - srcY) : (srcY - dstY);
+
+        /* Diagonally offset overlap is reduced to either horizontal or vertical offset-only
+         * by copying a part of the  non-overlapping portion, then adjusting coordinates
+         * Choose horizontal vs vertical to minimize the total number of copy operations
          */
-	if (srcX != dstX) { // left/right or diagonal
-            if (srcY > dstY ) { // diagonal up
-                chunk = srcY - dstY;
-                R600DoPrepareCopy(pScrn,
-                                  dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                  dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                  accel_state->rop, accel_state->planemask);
-                R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, chunk);
-                R600DoCopy(pScrn);
+        if (vchunk != 0 && hchunk != 0) { //diagonal
+            if ((w / hchunk) <= (h / vchunk)) { // reduce to horizontal
+                if (srcY > dstY ) { // diagonal up
+                    R600DoPrepareCopy(pScrn,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      accel_state->rop, accel_state->planemask);
+                    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, w, vchunk);
+                    R600DoCopy(pScrn);
 
-                h = h - chunk;
-                srcY = srcY + chunk;
-                dstY = dstY + chunk;
-            } else if (srcY < dstY) { // diagonal down
-                chunk = dstY - srcY;
-                R600DoPrepareCopy(pScrn,
-                                  dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                  dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
-                                  accel_state->rop, accel_state->planemask);
-                R600AppendCopyVertex(pScrn, srcX, srcY + h - chunk, dstX, dstY + h - chunk, w, chunk);
-                R600DoCopy(pScrn);
+                    srcY = srcY + vchunk;
+                    dstY = dstY + vchunk;
+                } else { // diagonal down
+                    R600DoPrepareCopy(pScrn,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      accel_state->rop, accel_state->planemask);
+                    R600AppendCopyVertex(pScrn, srcX, srcY + h - vchunk, dstX, dstY + h - vchunk, w, vchunk);
+                    R600DoCopy(pScrn);
+                }
+                h = h - vchunk;
+                vchunk = 0;
+            } else { //reduce to vertical
+                if (srcX > dstX ) { // diagonal left
+                    R600DoPrepareCopy(pScrn,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      accel_state->rop, accel_state->planemask);
+                    R600AppendCopyVertex(pScrn, srcX, srcY, dstX, dstY, hchunk, h);
+                    R600DoCopy(pScrn);
 
-                h = h - chunk;
+                    srcX = srcX + hchunk;
+                    dstX = dstX + hchunk;
+                } else { // diagonal right
+                    R600DoPrepareCopy(pScrn,
+                                      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
+                                      accel_state->rop, accel_state->planemask);
+                    R600AppendCopyVertex(pScrn, srcX + w - hchunk, srcY, dstX + w - hchunk, dstY, hchunk, h);
+                    R600DoCopy(pScrn);
+                }
+                w = w - hchunk;
+                hchunk = 0;
             }
+        }
 
+	if (vchunk == 0) { // left/right
 	    if (srcX < dstX) { // right
 		// copy right to left
-                chunk = dstX - srcX;
-		for (i = w; i > 0; i -= chunk) {
+		for (i = w; i > 0; i -= hchunk) {
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
-		    R600AppendCopyVertex(pScrn, srcX + i - chunk, srcY, dstX + i - chunk, dstY, chunk, h);
+		    R600AppendCopyVertex(pScrn, srcX + i - hchunk, srcY, dstX + i - hchunk, dstY, hchunk, h);
 		    R600DoCopy(pScrn);
 		}
 	    } else { //left
 		// copy left to right
-                chunk = srcX - dstX;
-		for (i = 0; i < w; i += chunk) {
+		for (i = 0; i < w; i += hchunk) {
 		    R600DoPrepareCopy(pScrn,
 				      dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
 				      accel_state->rop, accel_state->planemask);
 
-		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, chunk, h);
+		    R600AppendCopyVertex(pScrn, srcX + i, srcY, dstX + i, dstY, hchunk, h);
 		    R600DoCopy(pScrn);
 		}
 	    }
 	} else { //up/down
 	    if (srcY > dstY) { // up
 		// copy top to bottom
-                for (i = 0; i < h; i += chunk) {
-                chunk = srcY - dstY;
+                for (i = 0; i < h; i += vchunk) {
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
 
-                    if (chunk > h - i) chunk = h - i;
-                    R600AppendCopyVertex(pScrn, srcX, srcY + i, dstX, dstY + i, w, chunk);
+                    if (vchunk > h - i) vchunk = h - i;
+                    R600AppendCopyVertex(pScrn, srcX, srcY + i, dstX, dstY + i, w, vchunk);
                     R600DoCopy(pScrn);
                 }
 	    } else { // down
 		// copy bottom to top
-		chunk = dstY - srcY;
-                for (i = h; i > 0; i -= chunk) {
+                for (i = h; i > 0; i -= vchunk) {
                     R600DoPrepareCopy(pScrn,
                                       dst_pitch, pDst->drawable.width, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       dst_pitch, pDst->drawable.height, dst_offset, pDst->drawable.bitsPerPixel,
                                       accel_state->rop, accel_state->planemask);
 
-                    if (chunk > i) chunk = i;
-                    R600AppendCopyVertex(pScrn, srcX, srcY + i - chunk, dstX, dstY + i - chunk, w, chunk);
+                    if (vchunk > i) vchunk = i;
+                    R600AppendCopyVertex(pScrn, srcX, srcY + i - vchunk, dstX, dstY + i - vchunk, w, vchunk);
                     R600DoCopy(pScrn);
                 }
             }
