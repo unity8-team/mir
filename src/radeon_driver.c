@@ -3248,6 +3248,12 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     info->crtc_on = FALSE;
     info->crtc2_on = FALSE;
 
+    /* save the real front buffer size
+     * it changes with randr, rotation, etc.
+     */
+    info->virtualX = pScrn->virtualX;
+    info->virtualY = pScrn->virtualY;
+
     RADEONSave(pScrn);
 
     /* set initial bios scratch reg state */

@@ -836,6 +836,9 @@ typedef struct {
     /* some server chips have a hardcoded edid in the bios so that they work with KVMs */
     Bool get_hardcoded_edid_from_bios;
 
+    int               virtualX;
+    int               virtualY;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
