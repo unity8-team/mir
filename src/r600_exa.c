@@ -2123,23 +2123,6 @@ static void R600DoneComposite(PixmapPtr pDst)
     R600CPFlushIndirect(pScrn, accel_state->ib);
 }
 
-/* really would be better to wait on a timestamp shadowed in memory,
- * but this will do for now.
- */
-static Bool
-R600WaitforIdlePoll(ScrnInfoPtr pScrn)
-{
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t i;
-
-    for (i = 0; i < 1000000; i++) {
-	if ((INREG(GRBM_STATUS) & GUI_ACTIVE_bit) == 0)
-	    return TRUE;
-    }
-    return FALSE;
-}
-
 Bool
 R600CopyToVRAM(ScrnInfoPtr pScrn,
 	       char *src, int src_pitch,
@@ -2186,7 +2169,7 @@ R600CopyToVRAM(ScrnInfoPtr pScrn,
 	    scratch_offset = scratch->total/2 - scratch_offset;
 	    dst = (char *)scratch->address + scratch_offset;
 	    // wait for the engine to be idle
-	    R600WaitforIdlePoll(pScrn);
+	    RADEONWaitForIdleCP(pScrn);
 	    //memcopy from sys to scratch
 	    while (temph--) {
 		memcpy (dst, src, wpass);
@@ -2281,7 +2264,7 @@ R600DownloadFromScreen(PixmapPtr pSrc, int x, int y, int w, int h,
 	}
 
 	// wait for the engine to be idle
-	R600WaitforIdlePoll(pScrn);
+	RADEONWaitForIdleCP(pScrn);
 	//memcopy from scratch to sys
 	while (oldhpass--) {
 	    memcpy (dst, src, wpass);
@@ -2315,7 +2298,7 @@ R600Sync(ScreenPtr pScreen, int marker)
     struct radeon_accel_state *accel_state = info->accel_state;
 
     if (accel_state->exaMarkerSynced != marker) {
-	R600WaitforIdlePoll(pScrn);
+	RADEONWaitForIdleCP(pScrn);
 	accel_state->exaMarkerSynced = marker;
     }
 
