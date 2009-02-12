@@ -520,10 +520,16 @@ extern void ExaOffscreenMarkUsed(PixmapPtr);
 unsigned long long
 RADEONTexOffsetStart(PixmapPtr pPix)
 {
+    RINFO_FROM_SCREEN(pPix->drawable.pScreen);
+    unsigned long long offset;
     exaMoveInPixmap(pPix);
     ExaOffscreenMarkUsed(pPix);
 
-    return RADEONPTR(xf86Screens[pPix->drawable.pScreen->myNum])->fbLocation +
-	exaGetPixmapOffset(pPix);
+    offset = exaGetPixmapOffset(pPix);
+
+    if (offset > info->FbMapSize)
+	return ~0ULL;
+    else
+	return info->fbLocation + offset;
 }
 #endif
