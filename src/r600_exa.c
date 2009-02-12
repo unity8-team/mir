@@ -419,6 +419,9 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->src_size[0] = src_pitch * src_height * (src_bpp/8);
     accel_state->src_mc_addr[0] = src_offset;
     accel_state->src_pitch[0] = src_pitch;
+    accel_state->src_width[0] = src_width;
+    accel_state->src_height[0] = src_height;
+    accel_state->src_bpp[0] = src_bpp;
 
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
@@ -486,6 +489,8 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
     accel_state->dst_mc_addr = dst_offset;
     accel_state->dst_pitch = dst_pitch;
+    accel_state->dst_height = dst_height;
+    accel_state->dst_bpp = dst_bpp;
 
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_pitch;
@@ -602,13 +607,24 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    struct r6xx_copy_vertex *copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+    struct r6xx_copy_vertex *copy_vb;
     struct r6xx_copy_vertex vertex[3];
 
     if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	ErrorF("Copy: Ran out of VB space!\n");
-	return;
+	//ErrorF("Copy: Ran out of VB space!\n");
+	// emit the old VB
+	R600DoCopy(pScrn);
+	// start a new one
+	R600DoPrepareCopy(pScrn,
+			  accel_state->src_pitch[0], accel_state->src_width[0], accel_state->src_height[0],
+			  accel_state->src_mc_addr[0], accel_state->src_bpp[0],
+			  accel_state->dst_pitch, accel_state->dst_height,
+			  accel_state->dst_mc_addr, accel_state->dst_bpp,
+			  accel_state->rop, accel_state->planemask);
+
     }
+
+    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
     vertex[0].x = (float)dstX;
     vertex[0].y = (float)dstY;
@@ -654,6 +670,12 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
     accel_state->src_mc_addr[0] = exaGetPixmapOffset(pSrc) + info->fbLocation + pScrn->fbOffset;
     accel_state->dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
 
+    accel_state->src_width[0] = pSrc->drawable.width;
+    accel_state->src_height[0] = pSrc->drawable.height;
+    accel_state->src_bpp[0] = pSrc->drawable.bitsPerPixel;
+    accel_state->dst_height = pDst->drawable.height;
+    accel_state->dst_bpp = pDst->drawable.bitsPerPixel;
+
     // bad pitch
     if (accel_state->src_pitch[0] & 7)
 	return FALSE;
@@ -680,10 +702,11 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	   pDst->drawable.bitsPerPixel, exaGetPixmapPitch(pDst));
 #endif
 
+    accel_state->rop = rop;
+    accel_state->planemask = planemask;
+
     if (exaGetPixmapOffset(pSrc) == exaGetPixmapOffset(pDst)) {
 	accel_state->same_surface = TRUE;
-	accel_state->rop = rop;
-	accel_state->planemask = planemask;
 
 #ifdef SHOW_VERTEXES
 	ErrorF("same surface!\n");
