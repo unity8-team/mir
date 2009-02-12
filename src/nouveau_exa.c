@@ -52,8 +52,7 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned src_pitch = 0, src_offset = 0, linear = 0;
 
-	if (pNv->Architecture < NV_ARCH_50 ||
-	    exaGetPixmapOffset(pspix) < pNv->EXADriverPtr->offScreenBase) {
+	if (!nouveau_exa_pixmap_is_tiled(pspix)) {
 		linear     = 1;
 		src_pitch  = exaGetPixmapPitch(pspix);
 		src_offset = (y * src_pitch) + (x * cpp);
@@ -162,8 +161,7 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	unsigned line_len = w * cpp;
 	unsigned dst_pitch = 0, dst_offset = 0, linear = 0;
 
-	if (pNv->Architecture < NV_ARCH_50 ||
-	    exaGetPixmapOffset(pdpix) < pNv->EXADriverPtr->offScreenBase) {
+	if (!nouveau_exa_pixmap_is_tiled(pdpix)) {
 		linear     = 1;
 		dst_pitch  = exaGetPixmapPitch(pdpix);
 		dst_offset = (y * dst_pitch) + (x * cpp);
@@ -273,6 +271,19 @@ static void
 nouveau_exa_wait_marker(ScreenPtr pScreen, int marker)
 {
 	NVSync(xf86Screens[pScreen->myNum]);
+}
+
+bool
+nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->Architecture < NV_ARCH_50 ||
+		exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
+		return false;
+
+	return true;
 }
 
 static void *
