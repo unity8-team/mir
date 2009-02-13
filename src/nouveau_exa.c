@@ -117,15 +117,6 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 		OUT_RING  (chan, (1<<8)|1);
 		OUT_RING  (chan, 0);
 
-		nouveau_notifier_reset(pNv->notify0, 0);
-		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, m2mf, 0x100, 1);
-		OUT_RING  (chan, 0);
-		FIRE_RING (chan);
-		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2.0))
-			return FALSE;
-
 		nouveau_bo_map(pNv->GART, NOUVEAU_BO_RD);
 		src = pNv->GART->map;
 		if (dst_pitch == line_len) {
@@ -243,15 +234,6 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		OUT_RING  (chan, (1<<8)|1);
 		OUT_RING  (chan, 0);
 
-		nouveau_notifier_reset(pNv->notify0, 0);
-		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, m2mf, 0x100, 1);
-		OUT_RING  (chan, 0);
-		FIRE_RING (chan);
-		if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 2.0))
-			return FALSE;
-
 		if (linear)
 			dst_offset += line_count * dst_pitch;
 		h -= line_count;
@@ -323,8 +305,10 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	offset = (y * src_pitch) + (x * cpp);
 
 	if (pNv->GART) {
-		if (NVAccelDownloadM2MF(pspix, x, y, w, h, dst, dst_pitch))
+		if (NVAccelDownloadM2MF(pspix, x, y, w, h, dst, dst_pitch)) {
+			exaMarkSync(pspix->drawable.pScreen);
 			return TRUE;
+		}
 	}
 
 	src = nouveau_exa_pixmap_map(pspix);
@@ -369,8 +353,10 @@ nouveau_exa_upload_to_screen(PixmapPtr pdpix, int x, int y, int w, int h,
 
 	/* try gart-based transfer */
 	if (pNv->GART) {
-		if (NVAccelUploadM2MF(pdpix, x, y, w, h, src, src_pitch))
+		if (NVAccelUploadM2MF(pdpix, x, y, w, h, src, src_pitch)) {
+			exaMarkSync(pdpix->drawable.pScreen);
 			return TRUE;
+		}
 	}
 
 	/* fallback to memcpy-based transfer */
