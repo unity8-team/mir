@@ -305,10 +305,8 @@ nouveau_exa_download_from_screen(PixmapPtr pspix, int x, int y, int w, int h,
 	offset = (y * src_pitch) + (x * cpp);
 
 	if (pNv->GART) {
-		if (NVAccelDownloadM2MF(pspix, x, y, w, h, dst, dst_pitch)) {
-			exaMarkSync(pspix->drawable.pScreen);
+		if (NVAccelDownloadM2MF(pspix, x, y, w, h, dst, dst_pitch))
 			return TRUE;
-		}
 	}
 
 	src = nouveau_exa_pixmap_map(pspix);
