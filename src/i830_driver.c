@@ -912,21 +912,21 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
+      Bool found;
       if ((INREG(SDVOB) & SDVO_DETECTED)) {
-	 Bool found = i830_sdvo_init(pScrn, SDVOB);
+	 found = i830_sdvo_init(pScrn, SDVOB);
 
 	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
 	    i830_hdmi_init(pScrn, SDVOB);
       }
 
-      if ((INREG(SDVOC) & SDVO_DETECTED) ||
-	      /* SDVOC detect bit is reserved on 965G/965GM */
-	      (IS_I965G(pI830) && !IS_G4X(pI830))) {
-	 Bool found = i830_sdvo_init(pScrn, SDVOC);
+      if ((INREG(SDVOB) & SDVO_DETECTED))
+	 found = i830_sdvo_init(pScrn, SDVOC);
 
-	 if (!found && SUPPORTS_INTEGRATED_HDMI(pI830))
-	    i830_hdmi_init(pScrn, SDVOC);
-      }
+      if ((INREG(SDVOC) & SDVO_DETECTED) &&
+	    !found && SUPPORTS_INTEGRATED_HDMI(pI830))
+	 i830_hdmi_init(pScrn, SDVOC);
+
    } else {
       i830_dvo_init(pScrn);
    }
