@@ -1377,9 +1377,7 @@ i830_sdvo_ddc_i2c_start(I2CBusPtr b, int timeout)
     xf86OutputPtr	    output = b->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus;
-    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
 
-    i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
     return i2cbus->I2CStart(i2cbus, timeout);
 }
 
@@ -1566,9 +1564,11 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     DisplayModePtr modes = NULL;
     xf86OutputPtr crt;
-    I830OutputPrivatePtr intel_output;
+    I830OutputPrivatePtr intel_output = output->driver_private;
     xf86MonPtr edid_mon = NULL;
-    struct i830_sdvo_priv *dev_priv;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+
+    i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
 
     modes = i830_ddc_get_modes(output);
     if (modes != NULL)
