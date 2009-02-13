@@ -1463,6 +1463,11 @@ create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I
 	NVPtr pNv = NVPTR(pScrn);
 	int ret;
 
+	/* We need a valid pNv->dcb_table.i2c_default_indices. 
+	 * This fake index aborts without error.
+	 */
+	init_dcb_i2c_entry(pScrn, bios, 0xffff);
+
 	if (i2c_index == 0xff) {
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
 		int idx = dcb_entry_idx_from_crtchead(pScrn), shift = 0;
@@ -1472,6 +1477,12 @@ create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I
 			shift = 4;
 
 		i2c_index = (default_indices >> shift) & 0xf;
+	}
+
+	/* Seen on g80+ cards. */
+	if (i2c_index == 0x80) {
+		int default_indices = pNv->dcb_table.i2c_default_indices;
+		i2c_index = default_indices & 0xf;
 	}
 
 	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
@@ -4455,6 +4466,9 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 
 	if (index == 0xf)
 		return 0;
+	/* useful to get pNv->dcb_table.i2c_default_indices inited. */
+	if (index == 0xffff)
+		return -ENOENT;
 	if (index > i2c_entries) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DCB I2C index too big (%d > %d)\n",
@@ -4496,7 +4510,8 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index)
 	int ret;
 	char adaptorname[11];
 
-	if (pNv->dcb_table.i2c[index].chan)
+	/* 0xffff is a fake index for init purposes. */
+	if (index != 0xffff && pNv->dcb_table.i2c[index].chan)
 		return 0;
 
 	if (!dcbptr) {
