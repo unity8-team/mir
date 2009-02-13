@@ -292,6 +292,14 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		if (WITHIN(reg,0x88000,NV_PBUS_SIZE)) /* new PBUS */
 			return 1;
 	}
+	if (pNv->VBIOS.chip_version >= 0x80) {
+		/* No clue what they do, but because they are outside normal ranges we'd
+		 * better list them seperately. */
+		if (reg == 0x00020018 || reg == 0x0002004C || reg == 0x00020060 ||
+			reg == 0x00021218 || reg == 0x0002130C || reg == 0x00089008 ||
+			reg == 0x00089028)
+			return 1;
+	}
 	if (WITHIN(reg,NV_PFB_OFFSET,NV_PFB_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PEXTDEV_OFFSET,NV_PEXTDEV_SIZE))
