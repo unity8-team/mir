@@ -56,22 +56,6 @@
 and attempt no other allocation afterwards (performance reasons) */
 #define NO_PRIV_HOST_BUFFER_AVAILABLE 9999
 
-/* Xv DMA notifiers status tracing */
-enum {
-    XV_DMA_NOTIFIER_NOALLOC=0, //notifier not allocated
-    XV_DMA_NOTIFIER_INUSE=1,
-    XV_DMA_NOTIFIER_FREE=2, //notifier allocated, ready for use
-};
-
-/* We have six notifiers available, they are not allocated at startup */
-static int XvDMANotifierStatus[6] = { XV_DMA_NOTIFIER_NOALLOC,
-				      XV_DMA_NOTIFIER_NOALLOC,
-				      XV_DMA_NOTIFIER_NOALLOC,
-				      XV_DMA_NOTIFIER_NOALLOC,
-				      XV_DMA_NOTIFIER_NOALLOC,
-				      XV_DMA_NOTIFIER_NOALLOC };
-static struct nouveau_notifier *XvDMANotifiers[6];
-
 /* NVPutImage action flags */
 enum {
 	IS_YV12 = 1,
@@ -264,77 +248,6 @@ NVSetPortDefaults (ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 	pPriv->currentHostBuffer	= 0;
 }
 
-/**
- * NVXvDMANotifierAlloc
- * allocates a notifier from the table of 6 we have
- *
- * @return a notifier instance or NULL on error
- */
-static struct nouveau_notifier *
-NVXvDMANotifierAlloc(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_INUSE)
-			continue;
-
-		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_FREE) {
-			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
-			return XvDMANotifiers[i];
-		}
-
-		if (XvDMANotifierStatus[i] == XV_DMA_NOTIFIER_NOALLOC) {
-			if (nouveau_notifier_alloc(pNv->chan,
-						   NvDmaXvNotifier0 + i,
-						   1, &XvDMANotifiers[i]))
-				return NULL;
-			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_INUSE;
-			return XvDMANotifiers[i];
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * NVXvDMANotifierFree
- * frees a notifier from the table of 6 we have
- *
- *
- */
-static void
-NVXvDMANotifierFree(ScrnInfoPtr pScrn, struct nouveau_notifier **ptarget)
-{
-	struct nouveau_notifier *target;
-	int i;
-
-	if (!ptarget || !*ptarget)
-		return;
-	target = *ptarget;
-	*ptarget = NULL;
-
-	for (i = 0; i < 6; i ++) {
-		if (XvDMANotifiers[i] == target)
-			break;
-	}
-
-	XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_FREE;
-}
-
-static void NVXvDMANotifiersRealFree(void)
-{
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		if (XvDMANotifierStatus[i] != XV_DMA_NOTIFIER_NOALLOC) {
-			nouveau_notifier_free(&XvDMANotifiers[i]);
-			XvDMANotifierStatus[i] = XV_DMA_NOTIFIER_NOALLOC;
-		}
-	}
-}
-
 static int
 nouveau_xv_bo_realloc(ScrnInfoPtr pScrn, unsigned flags, unsigned size,
 		      struct nouveau_bo **pbo)
@@ -369,17 +282,8 @@ static void
 NVFreePortMemory(ScrnInfoPtr pScrn, NVPortPrivPtr pPriv)
 {
 	nouveau_bo_ref(NULL, &pPriv->video_mem);
-
-	if (pPriv->TT_mem_chunk[0] && pPriv->DMANotifier[0])
-		nouveau_notifier_wait_status(pPriv->DMANotifier[0], 0, 0, 1.0);
-
-	if (pPriv->TT_mem_chunk[1] && pPriv->DMANotifier[1])
-		nouveau_notifier_wait_status(pPriv->DMANotifier[1], 0, 0, 1.0);
-
 	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
 	nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[1]);
-	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[0]);
-	NVXvDMANotifierFree(pScrn, &pPriv->DMANotifier[1]);
 }
 
 /**
@@ -1149,49 +1053,10 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 	if (pPriv->currentHostBuffer != NO_PRIV_HOST_BUFFER_AVAILABLE) {
 		destination_buffer =
 			pPriv->TT_mem_chunk[pPriv->currentHostBuffer];
-
-		/* We know where we are going to write, but we are not sure
-		 * yet whether we can do it directly, because the card could
-		 * be working on the buffer for the last-but-one frame. So we
-		 * check if we have a notifier ready or not.
-		 *
-		 * If we do, then we must wait for it before overwriting the
-		 * buffer. Else we need one, so we call the Xv notifier
-		 * allocator.
-		 */
-		if (pPriv->DMANotifier[pPriv->currentHostBuffer]) {
-			struct nouveau_notifier *n =
-				pPriv->DMANotifier[pPriv->currentHostBuffer];
-
-			if (nouveau_notifier_wait_status(n, 0, 0, 0))
-				return FALSE;
-		} else {
-			pPriv->DMANotifier[pPriv->currentHostBuffer] =
-				NVXvDMANotifierAlloc(pScrn);
-
-			if (!pPriv->DMANotifier[pPriv->currentHostBuffer]) {
-				/* In case we are out of notifiers (then our
-				 * guy is watching 3 movies at a time!!), we
-				 * fallback on global GART, and free the
-				 * private buffers. I know that's a lot of code
-				 * but I believe it's necessary to properly
-				 * handle all the cases
-				 */
-				xf86DrvMsg(0, X_ERROR,
-					   "Ran out of Xv notifiers!\n");
-				nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[0]);
-				pPriv->TT_mem_chunk[0] = NULL;
-				nouveau_bo_ref(NULL, &pPriv->TT_mem_chunk[1]);
-				pPriv->TT_mem_chunk[1] = NULL;
-				pPriv->currentHostBuffer =
-					NO_PRIV_HOST_BUFFER_AVAILABLE;
-			}
-		}
-	}
-
-	/* Otherwise we fall back on DDX's GARTScratch */
-	if (pPriv->currentHostBuffer == NO_PRIV_HOST_BUFFER_AVAILABLE)
+	} else {
+		/* Otherwise we fall back on DDX's GARTScratch */
 		destination_buffer = pNv->GART;
+	}
 
 	/* If we have no GART at all... */
 	if (!destination_buffer) {
@@ -1297,38 +1162,6 @@ NVPutImage(ScrnInfoPtr pScrn, short src_x, short src_y, short drw_x,
 		OUT_RING  (chan, nlines);
 		OUT_RING  (chan, (1<<8)|1);
 		OUT_RING  (chan, 0);
-
-		if (destination_buffer == pNv->GART) {
-			nouveau_notifier_reset(pNv->notify0, 0);
-		} else {
-			struct nouveau_notifier *n =
-				pPriv->DMANotifier[pPriv->currentHostBuffer];
-
-			nouveau_notifier_reset(n, 0);
-
-			BEGIN_RING(chan, m2mf,
-				   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-			OUT_RING  (chan, n->handle);
-		}
-
-
-		BEGIN_RING(chan, m2mf, NV04_MEMORY_TO_MEMORY_FORMAT_NOTIFY, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, m2mf, 0x100, 1);
-		OUT_RING  (chan, 0);
-
-		/* Put back NvDmaNotifier0 for EXA */
-		BEGIN_RING(chan, m2mf,
-			   NV04_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
-		OUT_RING  (chan, pNv->notify0->handle);
-
-		FIRE_RING (chan);
-
-		if (destination_buffer == pNv->GART) {
-			if (nouveau_notifier_wait_status(pNv->notify0, 0, 0, 0))
-				return FALSE;
-		}
-
 	} else {
 CPU_copy:
 		nouveau_bo_map(pPriv->video_mem, NOUVEAU_BO_WR);
@@ -2340,7 +2173,5 @@ NVTakedownVideo(ScrnInfoPtr pScrn)
 		NVFreePortMemory(pScrn,
 				 pNv->textureAdaptor[1]->pPortPrivates[0].ptr);
 	}
-
-	NVXvDMANotifiersRealFree();
 }
 

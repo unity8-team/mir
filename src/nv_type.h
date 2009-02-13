@@ -447,7 +447,6 @@ typedef struct _NVPortPrivRec {
 	int		offset;
 	struct nouveau_bo *TT_mem_chunk[2];
 	int		currentHostBuffer;
-	struct nouveau_notifier *DMANotifier[2];
 } NVPortPrivRec, *NVPortPrivPtr;
 
 #define GET_OVERLAY_PRIVATE(pNv) \
