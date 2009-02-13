@@ -702,7 +702,7 @@ i830_sdvo_get_dtd_from_mode(struct i830_sdvo_dtd *dtd, DisplayModePtr mode)
     dtd->part1.v_high = (((height >> 8) & 0xf) << 4) |
 	((v_blank_len >> 8) & 0xf);
 
-    dtd->part2.h_sync_off = h_sync_offset;
+    dtd->part2.h_sync_off = h_sync_offset & 0xff;
     dtd->part2.h_sync_width = h_sync_len & 0xff;
     dtd->part2.v_sync_off_width = (v_sync_offset & 0xf) << 4 |
 	(v_sync_len & 0xf);
@@ -724,27 +724,10 @@ i830_sdvo_get_dtd_from_mode(struct i830_sdvo_dtd *dtd, DisplayModePtr mode)
 static void
 i830_sdvo_get_mode_from_dtd(DisplayModePtr mode, struct i830_sdvo_dtd *dtd)
 {
-    uint16_t width, height;
-    uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
-    uint16_t h_sync_offset, v_sync_offset;
-
-    width = mode->CrtcHDisplay;
-    height = mode->CrtcVDisplay;
-
-    /* do some mode translations */
-    h_blank_len = mode->CrtcHBlankEnd - mode->CrtcHBlankStart;
-    h_sync_len = mode->CrtcHSyncEnd - mode->CrtcHSyncStart;
-
-    v_blank_len = mode->CrtcVBlankEnd - mode->CrtcVBlankStart;
-    v_sync_len = mode->CrtcVSyncEnd - mode->CrtcVSyncStart;
-
-    h_sync_offset = mode->CrtcHSyncStart - mode->CrtcHBlankStart;
-    v_sync_offset = mode->CrtcVSyncStart - mode->CrtcVBlankStart;
-
     mode->HDisplay = dtd->part1.h_active;
     mode->HDisplay += ((dtd->part1.h_high >> 4) & 0x0f) << 8;
     mode->HSyncStart = mode->HDisplay + dtd->part2.h_sync_off;
-    mode->HSyncStart += (dtd->part2.sync_off_width_high & 0xa0) << 2;
+    mode->HSyncStart += (dtd->part2.sync_off_width_high & 0xc0) << 2;
     mode->HSyncEnd = mode->HSyncStart + dtd->part2.h_sync_width;
     mode->HSyncEnd += (dtd->part2.sync_off_width_high & 0x30) << 4;
     mode->HTotal = mode->HDisplay + dtd->part1.h_blank;
@@ -754,7 +737,7 @@ i830_sdvo_get_mode_from_dtd(DisplayModePtr mode, struct i830_sdvo_dtd *dtd)
     mode->VDisplay += ((dtd->part1.v_high >> 4) & 0x0f) << 8;
     mode->VSyncStart = mode->VDisplay;
     mode->VSyncStart += (dtd->part2.v_sync_off_width >> 4) & 0xf;
-    mode->VSyncStart += (dtd->part2.sync_off_width_high & 0x0a) << 2;
+    mode->VSyncStart += (dtd->part2.sync_off_width_high & 0x0c) << 2;
     mode->VSyncStart += dtd->part2.v_sync_off_high & 0xc0;
     mode->VSyncEnd = mode->VSyncStart + (dtd->part2.v_sync_off_width & 0xf);
     mode->VSyncEnd += (dtd->part2.sync_off_width_high & 0x3) << 4;
@@ -763,7 +746,7 @@ i830_sdvo_get_mode_from_dtd(DisplayModePtr mode, struct i830_sdvo_dtd *dtd)
 
     mode->Clock = dtd->part1.clock * 10;
 
-    mode->Flags &= (V_PHSYNC | V_PVSYNC);
+    mode->Flags &= ~(V_PHSYNC | V_PVSYNC);
     if (dtd->part2.dtd_flags & 0x2)
 	mode->Flags |= V_PHSYNC;
     if (dtd->part2.dtd_flags & 0x4)
