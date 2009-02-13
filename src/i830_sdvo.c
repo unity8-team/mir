@@ -786,6 +786,24 @@ i830_sdvo_get_supp_encode(xf86OutputPtr output, struct i830_sdvo_encode *encode)
 }
 
 static Bool
+i830_sdvo_get_digital_encoding_mode(xf86OutputPtr output)
+{
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
+    uint8_t status;
+
+    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
+
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_ENCODE, NULL, 0);
+    status = i830_sdvo_read_response(output, &dev_priv->is_hdmi, 1);
+    if (status != SDVO_CMD_STATUS_SUCCESS) {
+	dev_priv->is_hdmi = FALSE;
+	return FALSE;
+    }
+    return TRUE;
+}
+
+static Bool
 i830_sdvo_set_encode(xf86OutputPtr output, uint8_t mode)
 {
     uint8_t status;
@@ -1449,6 +1467,34 @@ i830_sdvo_dump(ScrnInfoPtr pScrn)
     }
 }
 
+static void
+i830_sdvo_set_hdmi_encode (xf86OutputPtr output)
+{
+    /* enable hdmi encoding mode if supported */
+    i830_sdvo_set_encode(output, SDVO_ENCODE_HDMI);
+    i830_sdvo_set_colorimetry(output, SDVO_COLORIMETRY_RGB256);
+}
+
+/**
+ * Determine if current TMDS encoding is HDMI.
+ * Return TRUE if found HDMI encoding is used, otherwise return FALSE.
+ */
+static Bool
+i830_sdvo_check_hdmi_encode (xf86OutputPtr output)
+{
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+
+    if (i830_sdvo_get_supp_encode(output, &dev_priv->encode) &&
+	    i830_sdvo_get_digital_encoding_mode(output) &&
+	    dev_priv->is_hdmi)
+    {
+	i830_sdvo_set_hdmi_encode(output);
+	return TRUE;
+    } else
+	return FALSE;
+}
+
 /**
  * Asks the SDVO device if any displays are currently connected.
  *
@@ -1485,10 +1531,11 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
     xf86OutputPtr crt;
     I830OutputPrivatePtr intel_output;
     xf86MonPtr edid_mon = NULL;
+    struct i830_sdvo_priv *dev_priv;
 
     modes = i830_ddc_get_modes(output);
     if (modes != NULL)
-	return modes;
+	goto check_hdmi;
 
     /* Mac mini hack.  On this device, I get DDC through the analog, which
      * load-detects as disconnected.  I fail to DDC through the SDVO DDC,
@@ -1508,6 +1555,23 @@ i830_sdvo_get_ddc_modes(xf86OutputPtr output)
 	modes = xf86OutputGetEDIDModes(output);
     }
 
+check_hdmi:
+    /* Check if HDMI encode, setup it and set the flag for HDMI audio */
+    intel_output = output->driver_private;
+    dev_priv = intel_output->dev_priv;
+
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+    {
+	if (!i830_sdvo_check_hdmi_encode(output)) {
+	    /* check EDID HDMI info for monitor */
+	    if (output->MonInfo && xf86LoaderCheckSymbol("xf86MonitorIsHDMI")
+		    && xf86MonitorIsHDMI(output->MonInfo)) {
+		dev_priv->is_hdmi = TRUE;
+		i830_sdvo_set_hdmi_encode (output);
+	    } else
+		dev_priv->is_hdmi = FALSE;
+	}
+    }
     return modes;
 }
 
@@ -1733,21 +1797,6 @@ i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv)
     dev_priv->ddc_bus = 1 << num_bits;
 }
 
-static Bool
-i830_sdvo_get_digital_encoding_mode(xf86OutputPtr output)
-{
-    I830OutputPrivatePtr    intel_output = output->driver_private;
-    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
-    uint8_t status;
-
-    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
-
-    i830_sdvo_write_cmd(output, SDVO_CMD_GET_ENCODE, NULL, 0);
-    status = i830_sdvo_read_response(output, &dev_priv->is_hdmi, 1);
-    if (status != SDVO_CMD_STATUS_SUCCESS)
-	return FALSE;
-    return TRUE;
-}
 
 Bool
 i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
@@ -1876,14 +1925,8 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
         output->subpixel_order = SubPixelHorizontalRGB;
 	name_prefix="TMDS";
 
-	if (i830_sdvo_get_supp_encode(output, &dev_priv->encode) &&
-		i830_sdvo_get_digital_encoding_mode(output) &&
-		dev_priv->is_hdmi) {
-	    /* enable hdmi encoding mode if supported */
-	    i830_sdvo_set_encode(output, SDVO_ENCODE_HDMI);
-	    i830_sdvo_set_colorimetry(output, SDVO_COLORIMETRY_RGB256);
+	if (i830_sdvo_check_hdmi_encode (output))
 	    name_prefix = "HDMI";
-	}
     }
     else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
     {
