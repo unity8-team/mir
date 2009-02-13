@@ -957,6 +957,31 @@ static void i830_sdvo_set_avi_infoframe(xf86OutputPtr output,
 			SDVO_HBUF_TX_VSYNC);
 }
 
+static void
+i830_sdvo_set_tv_format(xf86OutputPtr output)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    struct i830_sdvo_tv_format *format, unset;
+    uint8_t status;
+
+    format = &dev_priv->tv_format;
+    memset(&unset, 0, sizeof(unset));
+    if (memcmp(format, &unset, sizeof(*format))) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "%s: Choosing default TV format of NTSC-M\n",
+		   SDVO_NAME(dev_priv));
+	format->ntsc_m = 1;
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, format,
+		sizeof(*format));
+	status = i830_sdvo_read_response(output, NULL, 0);
+	if (status != SDVO_CMD_STATUS_SUCCESS)
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		    "%s: Fail to set TV format\n", SDVO_NAME(dev_priv));
+    }
+}
+
 static Bool
 i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 		     DisplayModePtr adjusted_mode)
@@ -1002,8 +1027,12 @@ i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 	    i830_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
 
+	    xf86SetModeCrtc(adjusted_mode, 0);
+
 	    ErrorF("input modeline:\n");
 	    xf86PrintModeline(0, adjusted_mode);
+	    /* Clock range is required to be in 100-200Mhz */
+	    adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(adjusted_mode);
 	} else {
 	    return FALSE;
 	}
@@ -1049,19 +1078,27 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	sdvox |= SDVO_AUDIO_ENABLE;
     }
 
-    i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
+    /* We have tried to get input timing in mode_fixup, and filled into
+       adjusted_mode */
+    if (dev_priv->is_tv)
+	i830_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+    else
+	i830_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
     /* If it's a TV, we already set the output timing in mode_fixup.
      * Otherwise, the output timing is equal to the input timing.
      */
-    if (!dev_priv->is_tv) {
-	/* Set the output timing to the screen */
-	i830_sdvo_set_target_output(output, dev_priv->controlled_output);
-	i830_sdvo_set_output_timing(output, &input_dtd);
-    }
-
+    i830_sdvo_set_target_output(output, dev_priv->controlled_output);
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);
+
+    if (dev_priv->is_tv)
+	i830_sdvo_set_tv_format(output);
+
+    if (!dev_priv->is_tv) {
+	/* Set the output timing to the screen */
+	i830_sdvo_set_output_timing(output, &input_dtd);
+    }
 
     /* We would like to use i830_sdvo_create_preferred_input_timing() to
      * provide the device with a timing it can support, if it supports that
@@ -1620,10 +1657,9 @@ i830_sdvo_get_tv_mode(DisplayModePtr *head, int width, int height,
 static void
 i830_sdvo_check_tv_format(xf86OutputPtr output)
 {
-    ScrnInfoPtr pScrn = output->scrn;
     I830OutputPrivatePtr intel_output = output->driver_private;
     struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
-    struct i830_sdvo_tv_format format, unset;
+    struct i830_sdvo_tv_format format;
     uint8_t status;
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_TV_FORMAT, NULL, 0);
@@ -1631,19 +1667,6 @@ i830_sdvo_check_tv_format(xf86OutputPtr output)
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return;
 
-    memset(&unset, 0, sizeof(unset));
-    if (memcmp(&format, &unset, sizeof(format))) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "%s: Choosing default TV format of NTSC-M\n",
-		   SDVO_NAME(dev_priv));
-
-	format.ntsc_m = TRUE;
-	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, &format,
-		sizeof(format));
-	status = i830_sdvo_read_response(output, NULL, 0);
-	if (status != SDVO_CMD_STATUS_SUCCESS)
-	    return;
-    }
     memcpy(&dev_priv->tv_format, &format, sizeof(format));
 }
 
