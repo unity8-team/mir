@@ -1635,9 +1635,13 @@ i830_sdvo_check_tv_format(xf86OutputPtr output)
 		   SDVO_NAME(dev_priv));
 
 	format.ntsc_m = TRUE;
-	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, NULL, 0);
+	i830_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, &format,
+		sizeof(format));
 	status = i830_sdvo_read_response(output, NULL, 0);
+	if (status != SDVO_CMD_STATUS_SUCCESS)
+	    return;
     }
+    memcpy(&dev_priv->tv_format, &format, sizeof(format));
 }
 
 static DisplayModePtr
@@ -1647,6 +1651,7 @@ i830_sdvo_get_tv_modes(xf86OutputPtr output)
     struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
     DisplayModePtr modes = NULL;
     struct i830_sdvo_sdtv_resolution_reply *res = &dev_priv->sdtv_resolutions;
+    struct i830_sdvo_sdtv_resolution_request tv_res;
     uint8_t status;
     float refresh = 60; /* XXX */
 
@@ -1654,7 +1659,10 @@ i830_sdvo_get_tv_modes(xf86OutputPtr output)
 
     /* Read the list of supported input resolutions for the selected TV format.
      */
-    i830_sdvo_write_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT, NULL, 0);
+    memset(&tv_res, 0, sizeof(tv_res));
+    memcpy(&tv_res, &dev_priv->tv_format, sizeof(tv_res));
+    i830_sdvo_write_cmd(output, SDVO_CMD_GET_SDTV_RESOLUTION_SUPPORT,
+	    &tv_res, sizeof(tv_res));
     status = i830_sdvo_read_response(output, res, sizeof(*res));
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return NULL;
