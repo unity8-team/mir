@@ -101,6 +101,9 @@ struct i830_sdvo_preferred_input_timing_args {
     uint16_t clock;
     uint16_t width;
     uint16_t height;
+    uint8_t interlace:1;
+    uint8_t scaled:1;
+    uint8_t pad:6;
 } __attribute__((packed));
 
 /* I2C registers for SDVO */

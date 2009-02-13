@@ -594,9 +594,12 @@ i830_sdvo_create_preferred_input_timing(xf86OutputPtr output, uint16_t clock,
     struct i830_sdvo_preferred_input_timing_args args;
     uint8_t status;
 
+    memset(&args, 0, sizeof(args));
     args.clock = clock;
     args.width = width;
     args.height = height;
+    args.interlace = 0;
+    args.scaled = 0;
     i830_sdvo_write_cmd(output, SDVO_CMD_CREATE_PREFERRED_INPUT_TIMING,
 			&args, sizeof(args));
     status = i830_sdvo_read_response(output, NULL, 0);
