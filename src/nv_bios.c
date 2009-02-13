@@ -244,6 +244,7 @@ static int parse_init_table(ScrnInfoPtr pScrn, bios_t *bios, unsigned int offset
 #define MACRO_SIZE		8
 #define CONDITION_SIZE		12
 #define IO_FLAG_CONDITION_SIZE	9
+#define IO_CONDITION_SIZE	5
 #define MEM_INIT_SIZE		66
 
 static void still_alive(void)
@@ -2546,6 +2547,57 @@ static bool init_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, ini
 	return true;
 }
 
+static bool bios_io_condition_met(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, uint8_t cond)
+{
+	/* The io condition table entry holds 2 bytes for the io_port adress,
+	 * 1 byte for the port index, 1 byte for a mask, and 1 byte for a
+	 * comparison value. port_index is written to an io_port, the value is read
+	 * from io_port+1. This value is masked, and then compared to another value.
+	 */
+
+	uint16_t condptr = bios->io_condition_tbl_ptr + cond * IO_CONDITION_SIZE;
+	uint16_t io_port = le16_to_cpu(*((uint16_t *)(&bios->data[condptr])));
+	uint8_t port_index = bios->data[condptr + 2];
+	uint8_t mask = bios->data[condptr + 3];
+	uint8_t cmpval = bios->data[condptr + 4];
+
+	uint8_t data = nv_idx_port_rd(pScrn, io_port, port_index) & mask;
+
+	BIOSLOG(pScrn, "0x%04X: Checking if 0x%02X equals 0x%02X\n",
+		offset, data, cmpval);
+
+	return (data == cmpval);
+}
+
+static bool init_io_condition(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
+{
+	/* INIT_IO_CONDITION  opcode: 0x76
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): condition number
+	 *
+	 * Check condition "condition number" in the io condition table.
+	 * If condition not met skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
+	 */
+
+	uint8_t cond = bios->data[offset + 1];
+
+	if (!iexec->execute)
+		return true;
+
+	BIOSLOG(pScrn, "0x%04X: IO condition: 0x%02X\n", offset, cond);
+
+	if (bios_io_condition_met(pScrn, bios, offset, cond))
+		BIOSLOG(pScrn, "0x%04X: Condition fulfilled -- continuing to execute\n", offset);
+	else {
+		BIOSLOG(pScrn, "0x%04X: Condition not fulfilled -- skipping following commands\n", offset);
+		iexec->execute = false;
+	}
+
+	return true;
+}
+
 static bool init_index_io(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_INDEX_IO   opcode: 0x78 ('x')
@@ -2874,7 +2926,7 @@ static init_tbl_entry_t itbl_entry[] = {
 //	{ "INIT_RAM_CONDITION2"               , 0x73, 9       , 0       , 0       , init_ram_condition2             },
 	{ "INIT_TIME"                         , 0x74, 3       , 0       , 0       , init_time                       },
 	{ "INIT_CONDITION"                    , 0x75, 2       , 0       , 0       , init_condition                  },
-/*	{ "INIT_IO_CONDITION"                 , 0x76, x       , x       , x       , init_io_condition               }, */
+	{ "INIT_IO_CONDITION"                 , 0x76, 2       , 0       , 0       , init_io_condition               },
 	{ "INIT_INDEX_IO"                     , 0x78, 6       , 0       , 0       , init_index_io                   },
 	{ "INIT_PLL"                          , 0x79, 7       , 0       , 0       , init_pll                        },
 	{ "INIT_ZM_REG"                       , 0x7A, 9       , 0       , 0       , init_zm_reg                     },
