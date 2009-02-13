@@ -1507,7 +1507,9 @@ i830_sdvo_check_hdmi_encode (xf86OutputPtr output)
 static xf86OutputStatus
 i830_sdvo_detect(xf86OutputPtr output)
 {
-    uint8_t response[2];
+    I830OutputPrivatePtr intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    uint16_t response;
     uint8_t status;
 
     i830_sdvo_write_cmd(output, SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0);
@@ -1516,10 +1518,22 @@ i830_sdvo_detect(xf86OutputPtr output)
     if (status != SDVO_CMD_STATUS_SUCCESS)
 	return XF86OutputStatusUnknown;
 
-    if (response[0] != 0 || response[1] != 0)
-	return XF86OutputStatusConnected;
-    else
+    if (response == 0)
 	return XF86OutputStatusDisconnected;
+
+    if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+    {
+	xf86MonPtr edid_mon;
+	/* Check EDID in DVI-I case */
+	i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
+	edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
+	if (!edid_mon || !DIGITAL(edid_mon->features.input_type)) {
+	    xfree(edid_mon);
+	    return XF86OutputStatusDisconnected;
+	}
+	xfree(edid_mon);
+    }
+    return XF86OutputStatusConnected;
 }
 
 static DisplayModePtr
