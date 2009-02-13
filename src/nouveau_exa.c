@@ -275,7 +275,6 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 	NVPtr pNv = NVPTR(pScrn);
 	void *map;
 
-	exaWaitSync(ppix->drawable.pScreen);
 	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
 	map = pNv->FB->map + exaGetPixmapOffset(ppix);
 	return map;
