@@ -26,31 +26,41 @@
 #include "shadowfb.h"
 #include "servermd.h"
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 void
 NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox)
 {
-    NVPtr pNv = NVPTR(pScrn);
-    int width, height, Bpp, FBPitch;
-    unsigned char *src, *dst;
+	NVPtr pNv = NVPTR(pScrn);
+	int x1, y1, x2, y2, width, height, cpp, FBPitch, max_height;
+	unsigned char *src, *dst;
    
-    Bpp = pScrn->bitsPerPixel >> 3;
-    FBPitch = BitmapBytePad(pScrn->displayWidth * pScrn->bitsPerPixel);
+	cpp = pScrn->bitsPerPixel >> 3;
+	FBPitch = pScrn->displayWidth * cpp;
+	max_height = pNv->FB->size/FBPitch;
 
-    nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
-    while(num--) {
-	width = (pbox->x2 - pbox->x1) * Bpp;
-	height = pbox->y2 - pbox->y1;
-	src = pNv->ShadowPtr + (pbox->y1 * pNv->ShadowPitch) + 
-						(pbox->x1 * Bpp);
-	dst = pNv->FB->map + (pbox->y1 * FBPitch) + (pbox->x1 * Bpp);
+	nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
+	while(num--) {
+		x1 = MAX(pbox->x1, 0);
+		y1 = MAX(pbox->y1, 0);
+		x2 = MIN(pbox->x2, pScrn->displayWidth);
+		y2 = MIN(pbox->y2, max_height);
+		width = (x2 - x1) * cpp;
+		height = y2 - y1;
 
-	while(height--) {
-	    memcpy(dst, src, width);
-	    dst += FBPitch;
-	    src += pNv->ShadowPitch;
+		if (width > 0 && height > 0) {
+			src = pNv->ShadowPtr + (y1 * pNv->ShadowPitch) + (x1 * cpp);
+			dst = pNv->FB->map + (y1 * FBPitch) + (x1 * cpp);
+
+			while(height--) {
+				memcpy(dst, src, width);
+				dst += FBPitch;
+				src += pNv->ShadowPitch;
+			}
+		}
+
+		pbox++;
 	}
-	
-	pbox++;
-    }
-    nouveau_bo_unmap(pNv->FB);
+	nouveau_bo_unmap(pNv->FB);
 } 
