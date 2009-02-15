@@ -5511,8 +5511,17 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     	if (info->cardType == CARD_PCIE &&
 	    info->dri->pKernelDRMVersion->version_minor >= 19 &&
 	    info->FbSecureSize) {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    unsigned char *RADEONMMIO = info->MMIO;
+	    unsigned int sctrl = INREG(RADEON_SURFACE_CNTL);
+
 	    /* we need to backup the PCIE GART TABLE from fb memory */
+	    OUTREG(RADEON_SURFACE_CNTL, 0);
+#endif
 	    memcpy(info->FB + info->dri->pciGartOffset, info->dri->pciGartBackup, info->dri->pciGartSize);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    OUTREG(RADEON_SURFACE_CNTL, sctrl);
+#endif
     	}
 
 	/* get the DRI back into shape after resume */
@@ -5562,8 +5571,17 @@ void RADEONLeaveVT(int scrnIndex, int flags)
         if (info->cardType == CARD_PCIE &&
 	    info->dri->pKernelDRMVersion->version_minor >= 19 &&
 	    info->FbSecureSize) {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    unsigned char *RADEONMMIO = info->MMIO;
+	    unsigned int sctrl = INREG(RADEON_SURFACE_CNTL);
+
             /* we need to backup the PCIE GART TABLE from fb memory */
+	    OUTREG(RADEON_SURFACE_CNTL, 0);
+#endif
             memcpy(info->dri->pciGartBackup, (info->FB + info->dri->pciGartOffset), info->dri->pciGartSize);
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    OUTREG(RADEON_SURFACE_CNTL, sctrl);
+#endif
         }
 
 	/* Make sure 3D clients will re-upload textures to video RAM */
