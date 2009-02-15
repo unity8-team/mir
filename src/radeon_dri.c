@@ -2295,11 +2295,10 @@ void RADEONDRIAllocatePCIGARTTable(ScreenPtr pScreen)
 int RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    int page_size  = getpagesize();
     int ret_size;
     int num_pages;
 
-    num_pages = (info->dri->pciAperSize * 1024 * 1024) / page_size;
+    num_pages = (info->dri->pciAperSize * 1024 * 1024) / 4096;
     
     ret_size = num_pages * sizeof(unsigned int);
 
