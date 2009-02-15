@@ -26,7 +26,8 @@
 #include "nouveau_output.h"
 #include "nouveau_connector.h"
 
-/* Don't call the directly, only load state should do this on the long run*/
+/* Check if the card wants us to update the any of the video clocks.
+ * Maybe it would be enough to check only after method 0x80? */
 static void 
 NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 {
@@ -37,7 +38,6 @@ NV50CheckWriteVClk(ScrnInfoPtr pScrn)
 		/* An educated guess. */
 		const uint32_t supervisor = NVRead(pNv, NV50_DISPLAY_SUPERVISOR);
 
-		/* Just in case something goes bad, at least you can blindly restart your machine. */
 		if ((GetTimeInMillis() - t_start) > 5000) {
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "NV50CheckWriteVClk() timed out.\n");
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO, "A reboot is probably required now.\n");
