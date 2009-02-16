@@ -184,8 +184,10 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *blit = pNv->NvImageBlit;
-	struct nouveau_bo *bo = nouveau_pixmap_bo(pDstPixmap);
-	unsigned delta = nouveau_pixmap_offset(pDstPixmap);
+	struct nouveau_bo *src_bo = nouveau_pixmap_bo(pSrcPixmap);
+	unsigned src_delta = nouveau_pixmap_offset(pSrcPixmap);
+	struct nouveau_bo *dst_bo = nouveau_pixmap_bo(pDstPixmap);
+	unsigned dst_delta = nouveau_pixmap_offset(pDstPixmap);
 	int fmt;
 
 	WAIT_RING(chan, 64);
@@ -213,8 +215,8 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pDstPixmap) << 16) |
 		   (exaGetPixmapPitch(pSrcPixmap)));
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, src_bo, src_delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, dst_bo, dst_delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	pNv->pspix = pSrcPixmap;
 	pNv->pdpix = pDstPixmap;
