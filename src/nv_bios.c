@@ -5012,6 +5012,11 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		return -ENODEV;
 	if ((ret = nouveau_parse_vbios_struct(pScrn)))
 		return ret;
+	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, &pNv->VBIOS)))
+		return ret;
+
+	if (!pNv->VBIOS.major_version)	/* we don't run version 0 bios */
+		return 0;
 
 	/* these will need remembering across a suspend */
 	saved_nv_pextdev_boot_0 = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
@@ -5022,11 +5027,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 
 	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
-	if (pNv->VBIOS.major_version != 0 && /* we don't run version 0 bios */
-	    (ret = nouveau_run_vbios_init(pScrn)))
-		return ret;
-
-	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, &pNv->VBIOS)))
+	if ((ret = nouveau_run_vbios_init(pScrn)))
 		return ret;
 
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
