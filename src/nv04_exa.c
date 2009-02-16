@@ -79,6 +79,8 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *rect = pNv->NvRectangle;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(pPixmap);
+	unsigned delta = nouveau_pixmap_offset(pPixmap);
 	unsigned int fmt, pitch, color;
 
 	WAIT_RING(chan, 64);
@@ -118,8 +120,8 @@ NV04EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 	BEGIN_RING(chan, surf2d, NV04_CONTEXT_SURFACES_2D_FORMAT, 4);
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (pitch << 16) | pitch);
-	OUT_PIXMAPl(chan, pPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_PIXMAPl(chan, pPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	BEGIN_RING(chan, rect, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT, 1);
 	OUT_RING  (chan, NV04_GDI_RECTANGLE_TEXT_COLOR_FORMAT_A8R8G8B8);
@@ -182,6 +184,8 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *blit = pNv->NvImageBlit;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(pDstPixmap);
+	unsigned delta = nouveau_pixmap_offset(pDstPixmap);
 	int fmt;
 
 	WAIT_RING(chan, 64);
@@ -209,8 +213,8 @@ NV04EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int dx, int dy,
 	OUT_RING  (chan, fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pDstPixmap) << 16) |
 		   (exaGetPixmapPitch(pSrcPixmap)));
-	OUT_PIXMAPl(chan, pSrcPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
-	OUT_PIXMAPl(chan, pDstPixmap, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 
 	pNv->pspix = pSrcPixmap;
 	pNv->pdpix = pDstPixmap;
@@ -255,6 +259,8 @@ NV04EXAStateIFCResubmit(struct nouveau_channel *chan)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_grobj *surf2d = pNv->NvContextSurfaces;
 	struct nouveau_grobj *ifc = pNv->NvImageFromCpu;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(pNv->pdpix);
+	unsigned delta = nouveau_pixmap_offset(pNv->pdpix);
 	int surf_fmt;
 
 	NVAccelGetCtxSurf2DFormatFromPixmap(pNv->pdpix, &surf_fmt);
@@ -263,8 +269,8 @@ NV04EXAStateIFCResubmit(struct nouveau_channel *chan)
 	OUT_RING  (chan, surf_fmt);
 	OUT_RING  (chan, (exaGetPixmapPitch(pNv->pdpix) << 16) |
 			  exaGetPixmapPitch(pNv->pdpix));
-	OUT_PIXMAPl(chan, pNv->pdpix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_PIXMAPl(chan, pNv->pdpix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	BEGIN_RING(chan, ifc, NV01_IMAGE_FROM_CPU_POINT, 3);
 	OUT_RING  (chan, (pNv->point_y << 16) | pNv->point_x);
 	OUT_RING  (chan, (pNv->height_out << 16) | pNv->width_out);

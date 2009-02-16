@@ -280,6 +280,7 @@ typedef struct _NVRec {
 
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
+    Bool		exa_driver_pixmaps;
     xf86CursorInfoPtr   CursorInfoRec;
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
@@ -462,5 +463,42 @@ typedef struct _NVPortPrivRec {
 #define FREE_DELAY      5000
 
 #define TIMER_MASK      (OFF_TIMER | FREE_TIMER)
+
+/* EXA driver-controlled pixmaps */
+struct nouveau_pixmap {
+	struct nouveau_bo *bo;
+};
+
+static inline struct nouveau_pixmap *
+nouveau_pixmap(PixmapPtr ppix)
+{
+	return (struct nouveau_pixmap *)exaGetPixmapDriverPrivate(ppix);
+}
+
+static inline struct nouveau_bo *
+nouveau_pixmap_bo(PixmapPtr ppix)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->exa_driver_pixmaps) {
+		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+		return nvpix ? nvpix->bo : NULL;
+	}
+
+	return pNv->FB;
+}
+
+static inline unsigned
+nouveau_pixmap_offset(PixmapPtr ppix)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->exa_driver_pixmaps)
+		return 0;
+
+	return exaGetPixmapOffset(ppix);
+}
 
 #endif /* __NV_STRUCT_H__ */

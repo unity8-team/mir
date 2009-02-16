@@ -62,13 +62,15 @@ nv50_xv_state_emit(PixmapPtr ppix, int id, struct nouveau_bo *src,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *tesla = pNv->Nv3D;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	unsigned delta = nouveau_pixmap_offset(ppix);
 	const unsigned shd_flags = NOUVEAU_BO_RD | NOUVEAU_BO_VRAM;
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 
 	WAIT_RING (chan, 256);
 	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
-	OUT_PIXMAPh(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	switch (ppix->drawable.depth) {
 	case 32: OUT_RING  (chan, NV50TCL_RT_FORMAT_32BPP); break;
 	case 24: OUT_RING  (chan, NV50TCL_RT_FORMAT_24BPP); break;

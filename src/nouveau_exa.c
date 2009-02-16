@@ -48,14 +48,16 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(pspix);
+	unsigned src_offset = nouveau_pixmap_offset(pspix);
 	unsigned cpp = pspix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned src_pitch = 0, src_offset = 0, linear = 0;
+	unsigned src_pitch = 0, linear = 0;
 
 	if (!nouveau_exa_pixmap_is_tiled(pspix)) {
 		linear     = 1;
 		src_pitch  = exaGetPixmapPitch(pspix);
-		src_offset = (y * src_pitch) + (x * cpp);
+		src_offset += (y * src_pitch) + (x * cpp);
 	}
 
 	while (h) {
@@ -76,8 +78,8 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 
 		WAIT_RING (chan, 32);
 		BEGIN_RING(chan, m2mf, 0x184, 2);
-		OUT_PIXMAPo(chan, pspix,
-			    NOUVEAU_BO_GART | NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+		OUT_RELOCo(chan, bo, NOUVEAU_BO_GART | NOUVEAU_BO_VRAM |
+				 NOUVEAU_BO_RD);
 		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 
 		if (pNv->Architecture >= NV_ARCH_50) {
@@ -99,16 +101,16 @@ NVAccelDownloadM2MF(PixmapPtr pspix, int x, int y, int w, int h,
 			OUT_RING  (chan, 1);
 
 			BEGIN_RING(chan, m2mf, 0x238, 2);
-			OUT_PIXMAPh(chan, pspix, src_offset, NOUVEAU_BO_GART |
-				    NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+			OUT_RELOCh(chan, bo, src_offset, NOUVEAU_BO_GART |
+					 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 			OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
-				   NOUVEAU_BO_WR);
+					 NOUVEAU_BO_WR);
 		}
 
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_PIXMAPl(chan, pspix, src_offset, NOUVEAU_BO_GART |
-			    NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+		OUT_RELOCl(chan, bo, src_offset, NOUVEAU_BO_GART |
+				 NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		OUT_RING  (chan, src_pitch);
 		OUT_RING  (chan, line_len);
@@ -148,14 +150,16 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_channel *chan = pNv->chan;
 	struct nouveau_grobj *m2mf = pNv->NvMemFormat;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(pdpix);
+	unsigned dst_offset = nouveau_pixmap_offset(pdpix);
 	unsigned cpp = pdpix->drawable.bitsPerPixel / 8;
 	unsigned line_len = w * cpp;
-	unsigned dst_pitch = 0, dst_offset = 0, linear = 0;
+	unsigned dst_pitch = 0, linear = 0;
 
 	if (!nouveau_exa_pixmap_is_tiled(pdpix)) {
 		linear     = 1;
 		dst_pitch  = exaGetPixmapPitch(pdpix);
-		dst_offset = (y * dst_pitch) + (x * cpp);
+		dst_offset += (y * dst_pitch) + (x * cpp);
 	}
 
 	while (h) {
@@ -193,8 +197,8 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 		WAIT_RING (chan, 32);
 		BEGIN_RING(chan, m2mf, 0x184, 2);
 		OUT_RELOCo(chan, pNv->GART, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_PIXMAPo(chan, pdpix,
-			    NOUVEAU_BO_VRAM | NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+		OUT_RELOCo(chan, bo, NOUVEAU_BO_VRAM | NOUVEAU_BO_GART |
+				 NOUVEAU_BO_WR);
 
 		if (pNv->Architecture >= NV_ARCH_50) {
 			BEGIN_RING(chan, m2mf, 0x0200, 1);
@@ -217,16 +221,16 @@ NVAccelUploadM2MF(PixmapPtr pdpix, int x, int y, int w, int h,
 			BEGIN_RING(chan, m2mf, 0x0238, 2);
 			OUT_RELOCh(chan, pNv->GART, 0, NOUVEAU_BO_GART |
 				   NOUVEAU_BO_RD);
-			OUT_PIXMAPh(chan, pdpix, dst_offset, NOUVEAU_BO_VRAM | 
-				    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+			OUT_RELOCh(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
+					 NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		}
 
 		/* DMA to VRAM */
 		BEGIN_RING(chan, m2mf,
 			   NV04_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
 		OUT_RELOCl(chan, pNv->GART, 0, NOUVEAU_BO_GART | NOUVEAU_BO_RD);
-		OUT_PIXMAPl(chan, pdpix, dst_offset, NOUVEAU_BO_VRAM |
-			    NOUVEAU_BO_GART | NOUVEAU_BO_WR);
+		OUT_RELOCl(chan, bo, dst_offset, NOUVEAU_BO_VRAM |
+				 NOUVEAU_BO_GART | NOUVEAU_BO_WR);
 		OUT_RING  (chan, line_len);
 		OUT_RING  (chan, dst_pitch);
 		OUT_RING  (chan, line_len);

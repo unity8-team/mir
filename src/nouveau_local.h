@@ -43,18 +43,4 @@
 
 #define NOUVEAU_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 
-/* Alternate versions of OUT_RELOCx, takes pixmaps instead of BOs */
-#define OUT_PIXMAPd(chan,pm,data,flags,vor,tor) do {                           \
-	OUT_RELOCd((chan), pNv->FB, (data), (flags), (vor), (tor));            \
-} while(0)
-#define OUT_PIXMAPo(chan,pm,flags) do {                                        \
-	OUT_RELOCo((chan), pNv->FB, (flags));                                  \
-} while(0)
-#define OUT_PIXMAPl(chan,pm,delta,flags) do {                                  \
-	OUT_RELOCl((chan), pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));\
-} while(0)
-#define OUT_PIXMAPh(chan,pm,delta,flags) do {                                  \
-	OUT_RELOCh((chan), pNv->FB, exaGetPixmapOffset(pm) + (delta), (flags));\
-} while(0)
-
 #endif

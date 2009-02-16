@@ -108,6 +108,8 @@ static Bool
 NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 {
 	NV50EXA_LOCALS(ppix);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	unsigned delta = nouveau_pixmap_offset(ppix);
 	int mthd = is_src ? NV50_2D_SRC_FORMAT : NV50_2D_DST_FORMAT;
 	uint32_t fmt, bo_flags;
 
@@ -135,8 +137,8 @@ NV50EXAAcquireSurface2D(PixmapPtr ppix, int is_src)
 	BEGIN_RING(chan, eng2d, mthd + 0x18, 4);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, ppix->drawable.height);
-	OUT_PIXMAPh(chan, ppix, 0, bo_flags);
-	OUT_PIXMAPl(chan, ppix, 0, bo_flags);
+	OUT_RELOCh(chan, bo, delta, bo_flags);
+	OUT_RELOCl(chan, bo, delta, bo_flags);
 
 	if (is_src == 0)
 		NV50EXASetClip(ppix, 0, 0, ppix->drawable.width, ppix->drawable.height);
@@ -435,6 +437,8 @@ static Bool
 NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 {
 	NV50EXA_LOCALS(ppix);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	unsigned delta = nouveau_pixmap_offset(ppix);
 	unsigned format;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
@@ -451,8 +455,8 @@ NV50EXARenderTarget(PixmapPtr ppix, PicturePtr ppict)
 	}
 
 	BEGIN_RING(chan, tesla, NV50TCL_RT_ADDRESS_HIGH(0), 5);
-	OUT_PIXMAPh(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
-	OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_WR);
 	OUT_RING  (chan, format);
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, 0x00000000);
@@ -508,6 +512,8 @@ static Bool
 NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 {
 	NV50EXA_LOCALS(ppix);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	unsigned delta = nouveau_pixmap_offset(ppix);
 	const unsigned tcb_flags = NOUVEAU_BO_RDWR | NOUVEAU_BO_VRAM;
 
 	/*XXX: Scanout buffer not tiled, someone needs to figure it out */
@@ -571,13 +577,13 @@ NV50EXATexture(PixmapPtr ppix, PicturePtr ppict, unsigned unit)
 	default:
 		NOUVEAU_FALLBACK("invalid picture format, this SHOULD NOT HAPPEN. Expect trouble.\n");
 	}
-	OUT_PIXMAPl(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCl(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 	OUT_RING  (chan, 0xd0005000);
 	OUT_RING  (chan, 0x00300000);
 	OUT_RING  (chan, ppix->drawable.width);
 	OUT_RING  (chan, (1 << NV50TIC_0_5_DEPTH_SHIFT) | ppix->drawable.height);
 	OUT_RING  (chan, 0x03000000);
-	OUT_PIXMAPh(chan, ppix, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
+	OUT_RELOCh(chan, bo, delta, NOUVEAU_BO_VRAM | NOUVEAU_BO_RD);
 
 	BEGIN_RING(chan, tesla, NV50TCL_TSC_ADDRESS_HIGH, 3);
 	OUT_RELOCh(chan, pNv->tesla_scratch, TSC_OFFSET, tcb_flags);
