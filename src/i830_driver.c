@@ -912,7 +912,7 @@ I830SetupOutputs(ScrnInfoPtr pScrn)
       i830_lvds_init(pScrn);
 
    if (IS_I9XX(pI830)) {
-      Bool found;
+      Bool found = FALSE;
       if ((INREG(SDVOB) & SDVO_DETECTED)) {
 	 found = i830_sdvo_init(pScrn, SDVOB);
 
