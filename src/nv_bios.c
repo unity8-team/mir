@@ -4944,28 +4944,32 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 	return true;
 }
 
-int NVRunVBIOSInit(ScrnInfoPtr pScrn)
+int nouveau_parse_vbios_struct(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_bios *bios = &NVPTR(pScrn)->VBIOS;
 	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
-	int offset, ret;
+	int offset;
 
 	if ((offset = findstr(bios->data, bios->length, bit_signature, sizeof(bit_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BIT BIOS found\n");
-		ret = parse_bit_structure(pScrn, bios, offset + 6);
-	} else if ((offset = findstr(bios->data, bios->length, bmp_signature, sizeof(bmp_signature)))) {
+		return parse_bit_structure(pScrn, bios, offset + 6);
+	}
+	if ((offset = findstr(bios->data, bios->length, bmp_signature, sizeof(bmp_signature)))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "BMP BIOS found\n");
-		ret = parse_bmp_structure(pScrn, bios, offset);
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No known BIOS signature found\n");
-		ret = -ENODEV;
+		return parse_bmp_structure(pScrn, bios, offset);
 	}
 
-	if (ret || bios->major_version == 0) /* we don't parse version 0 bios */
-		return ret;
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No known BIOS signature found\n");
+
+	return -ENODEV;
+}
+
+int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bios *bios = &pNv->VBIOS;
+	int ret = 0;
 
 	NVLockVgaCrtcs(pNv, false);
 	if (pNv->twoHeads)
@@ -5006,6 +5010,8 @@ int NVParseBios(ScrnInfoPtr pScrn)
 
 	if (!NVInitVBIOS(pScrn))
 		return -ENODEV;
+	if ((ret = nouveau_parse_vbios_struct(pScrn)))
+		return ret;
 
 	/* these will need remembering across a suspend */
 	saved_nv_pextdev_boot_0 = nv32_rd(pScrn, NV_PEXTDEV_BOOT_0);
@@ -5016,7 +5022,8 @@ int NVParseBios(ScrnInfoPtr pScrn)
 
 	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
-	if ((ret = NVRunVBIOSInit(pScrn)))
+	if (pNv->VBIOS.major_version != 0 && /* we don't run version 0 bios */
+	    (ret = nouveau_run_vbios_init(pScrn)))
 		return ret;
 
 	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, &pNv->VBIOS)))
