@@ -768,6 +768,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { 0x1106,0x3189,            PCI_VENDOR_ATI,0x5964,  0x148c,0x2073,           4 },
     /* VIA VT82C693A Host Bridge / RV280 [Radeon 9200 PRO] Needs AGPMode 2 */
     { 0x1106,0x0691,            PCI_VENDOR_ATI,0x5960,  0x1043,0x0054,           2 },
+    /* VIA VT82C693A Host Bridge / RV280 [Radeon 9200 PRO] Needs AGPMode 2 (deb #515512) */
+    { 0x1106,0x0691,            PCI_VENDOR_ATI,0x5960,  0x1043,0x004c,           2 },
     /* VIA K8M800 Host Bridge / RV280 [Radeon 9200 PRO] Needs AGPMode 4 (fdo #12544) */
     { 0x1106,0x0204,            PCI_VENDOR_ATI,0x5960,  0x17af,0x2020,           4 },
     /* VIA KT880 Host Bridge / RV350 [Radeon 9550] Needs AGPMode 4 (fdo #19981) */
