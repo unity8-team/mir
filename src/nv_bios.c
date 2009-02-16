@@ -1481,6 +1481,8 @@ create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I
 
 		i2c_index = (default_indices >> shift) & 0xf;
 	}
+	if (i2c_index == 0x80)	/* g80+ */
+		i2c_index = pNv->dcb_table.i2c_default_indices & 0xf;
 
 	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
 		return ret;
