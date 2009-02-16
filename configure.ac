@@ -101,9 +101,9 @@ CFLAGS="$CFLAGS $XORG_CFLAGS"
 AC_MSG_CHECKING(for DRM modesetting)
 AC_ARG_WITH(
 	kms,
-	[  --with-kms=yes,no       compile with drm modesetting support (default: no)],
+	[  --with-kms=yes,no       compile with drm modesetting support (default: auto)],
 	kms="$withval",
-	kms="no")
+	kms="yes")
 AC_MSG_RESULT($kms)
 
 if test "x$kms" = xyes; then
