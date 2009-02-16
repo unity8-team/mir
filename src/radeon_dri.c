@@ -736,6 +736,8 @@ typedef struct {
 /* Keep sorted by hostbridge vendor and device */
 static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
 
+    /* Intel E7505 Memory Controller Hub / RV350 AR [Radeon 9600XT] Needs AGPMode 4 (deb #515326) */
+    { PCI_VENDOR_INTEL,0x2550,  PCI_VENDOR_ATI,0x4152,  0x1458,0x4038,  4 },
     /* Intel 82865G/PE/P DRAM Controller/Host-Hub / Mobility 9800 Needs AGPMode 4 (deb #462590) */
     { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x4a4e,  PCI_VENDOR_DELL,0x5106,  4 },
     /* Intel 82855PM Processor to I/O Controller / Mobility M6 LY Needs AGPMode 1 (deb #467235) */
