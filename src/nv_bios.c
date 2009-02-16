@@ -4429,16 +4429,14 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 }
 
 static int
-read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int index)
+read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint8_t *i2ctable, int index, struct dcb_i2c_entry *i2c)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	uint8_t *i2ctable = &pNv->VBIOS.data[i2ctabptr];
 	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
 	int i2c_entries = MAX_NUM_DCB_ENTRIES;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	uint8_t port_type = 0;
 
-	if (!i2ctabptr)
+	if (!i2ctable)
 		return -EINVAL;
 
 	if (dcb_version >= 0x30) {
@@ -4488,23 +4486,24 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "DCB I2C table has port type %d\n", port_type);
 
-	pNv->dcb_table.i2c[index].port_type = port_type;
-	pNv->dcb_table.i2c[index].read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
-	pNv->dcb_table.i2c[index].write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
+	i2c->port_type = port_type;
+	i2c->read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
+	i2c->write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
 
 	return 0;
 }
 
 static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	struct dcb_i2c_entry *i2c = &NVPTR(pScrn)->dcb_table.i2c[index];
 	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
 	uint8_t dcb_version = bios->data[dcbptr];
 	uint16_t i2ctabptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + ((dcb_version < 0x30) ? 2 : 4)]);
+	uint8_t *i2c_table = &bios->data[i2ctabptr];
 	int ret;
 	char adaptorname[11];
 
-	if (pNv->dcb_table.i2c[index].chan)
+	if (i2c->chan)
 		return 0;
 
 	if (!dcbptr) {
@@ -4523,19 +4522,18 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index)
 		return -EINVAL;
 	}
 
-	if ((ret = read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, index)))
+	if ((ret = read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, index, i2c)))
 		return ret;
 
 	snprintf(adaptorname, 11, "DCB-I2C-%d", index);
 
-	return NV_I2CInit(pScrn, &pNv->dcb_table.i2c[index].chan, &pNv->dcb_table.i2c[index], xstrdup(adaptorname));
+	return NV_I2CInit(pScrn, &i2c->chan, i2c, xstrdup(adaptorname));
 }
 
 static bool
-parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ctabptr, uint32_t conn, uint32_t conf)
+parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dcb_version, uint8_t *i2c_table, uint32_t conn, uint32_t conf)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	struct dcb_entry *entry = &pNv->dcb_table.entry[index];
+	struct dcb_entry *entry = &dcb->entry[index];
 
 	memset(entry, 0, sizeof (struct dcb_entry));
 
@@ -4595,7 +4593,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 					   "Unknown LVDS configuration bits, please report\n");
 				/* cause output setting to fail, so message is seen */
-				pNv->dcb_table.entries = 0;
+				dcb->entries = 0;
 				return false;
 			}
 			break;
@@ -4608,7 +4606,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 		if (conf & 0x100000)
 			entry->i2c_upper_default = true;
 
-		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
+		read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, entry->i2c_index, &dcb->i2c[entry->i2c_index]);
 	} else if (dcb_version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
 		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
@@ -4618,7 +4616,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 
 			/* cause output setting to fail for non-TVs, so message is seen */
 			if ((conn & 0xf) != 0x1)
-				pNv->dcb_table.entries = 0;
+				dcb->entries = 0;
 
 			return false;
 		}
@@ -4654,9 +4652,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 			entry[1].type = OUTPUT_ANALOG;
 			xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
 				   "Concocting additional DCB entry for analogue encoder on DVI output\n");
-			pNv->dcb_table.entries++;
+			dcb->entries++;
 		}
-		read_dcb_i2c_entry(pScrn, dcb_version, i2ctabptr, entry->i2c_index);
+		read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, entry->i2c_index, &dcb->i2c[entry->i2c_index]);
 	} else if (dcb_version >= 0x12) {
 		/* v1.2 tables normally have the same 5 entries, which are not
 		 * specific to the card, so use the defaults for a crt */
@@ -4664,39 +4662,41 @@ parse_dcb_entry(ScrnInfoPtr pScrn, int index, uint8_t dcb_version, uint16_t i2ct
 		 * exist (seen on nv11) where the pointer to the table points to the wrong
 		 * place, so for now, we rely on the indices parsed in parse_bmp_structure
 		 */
-		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
+		entry->i2c_index = NVPTR(pScrn)->VBIOS.legacy.i2c_indices.crt;
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
-		entry->i2c_index = pNv->VBIOS.legacy.i2c_indices.crt;
+		entry->i2c_index = NVPTR(pScrn)->VBIOS.legacy.i2c_indices.crt;
 	}
 
-	pNv->dcb_table.entries++;
+	dcb->entries++;
 
 	return true;
 }
 
-void merge_like_dcb_entries(ScrnInfoPtr pScrn)
+void merge_like_dcb_entries(ScrnInfoPtr pScrn, struct parsed_dcb *dcb)
 {
 	/* DCB v2.0 lists each output combination separately.
 	 * Here we merge compatible entries to have fewer outputs, with more options
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
 	int i, newentries = 0;
 
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		struct dcb_entry *ient = &pNv->dcb_table.entry[i];
+	for (i = 0; i < dcb->entries; i++) {
+		struct dcb_entry *ient = &dcb->entry[i];
 		int j;
 
-		for (j = i + 1; j < pNv->dcb_table.entries; j++) {
-			struct dcb_entry *jent = &pNv->dcb_table.entry[j];
+		for (j = i + 1; j < dcb->entries; j++) {
+			struct dcb_entry *jent = &dcb->entry[j];
 
 			if (jent->type == 100) /* already merged entry */
 				continue;
 
 			/* merge heads field when all other fields the same */
-			if (jent->i2c_index == ient->i2c_index && jent->type == ient->type && jent->location == ient->location && jent->or == ient->or) {
+			if (jent->i2c_index == ient->i2c_index &&
+			    jent->type == ient->type &&
+			    jent->location == ient->location &&
+			    jent->or == ient->or) {
 				xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 					   "Merging DCB entries %d and %d\n", i, j);
 				ient->heads |= jent->heads;
@@ -4705,32 +4705,31 @@ void merge_like_dcb_entries(ScrnInfoPtr pScrn)
 		}
 	}
 
-	/* Compact entries merged into others out of dcb_table */
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		if ( pNv->dcb_table.entry[i].type == 100 )
+	/* Compact entries merged into others out of dcb */
+	for (i = 0; i < dcb->entries; i++) {
+		if (dcb->entry[i].type == 100)
 			continue;
 
 		if (newentries != i) {
-			pNv->dcb_table.entry[newentries] = pNv->dcb_table.entry[i];
-			pNv->dcb_table.entry[newentries].index = newentries;
+			dcb->entry[newentries] = dcb->entry[i];
+			dcb->entry[newentries].index = newentries;
 		}
 		newentries++;
 	}
 
-	pNv->dcb_table.entries = newentries;
+	dcb->entries = newentries;
 }
 
-static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
+static int parse_dcb_table(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, bios_t *bios)
 {
-	NVPtr pNv = NVPTR(pScrn);
 	uint16_t dcbptr, i2ctabptr = 0;
-	uint8_t *dcbtable;
+	uint8_t *dcbtable, *i2c_table = NULL;
 	uint8_t dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	bool configblock = true;
 	int recordlength = 8, confofs = 4;
 	int i;
 
-	pNv->dcb_table.entries = 0;
+	dcb->entries = 0;
 
 	/* get the offset from 0x36 */
 	dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
@@ -4739,7 +4738,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No Display Configuration Block pointer found\n");
 		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
-		parse_dcb_entry(pScrn, 0, 0, 0, 0, 0);
+		parse_dcb_entry(pScrn, dcb, 0, 0, 0, 0, 0);
 		return 0;
 	}
 
@@ -4789,15 +4788,18 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 		configblock = false;
 	} else {	/* NV5+, maybe NV4 */
 		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
-		parse_dcb_entry(pScrn, 0, dcb_version, 0, 0, 0);
+		parse_dcb_entry(pScrn, dcb, 0, dcb_version, 0, 0, 0);
 		return 0;
 	}
 
 	if (!i2ctabptr)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No pointer to DCB I2C port table\n");
-	else if (dcb_version >= 0x30)
-		pNv->dcb_table.i2c_default_indices = bios->data[i2ctabptr + 4];
+	else {
+		i2c_table = &bios->data[i2ctabptr];
+		if (dcb_version >= 0x30)
+			dcb->i2c_default_indices = i2c_table[4];
+	}
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
 		entries = MAX_NUM_DCB_ENTRIES;
@@ -4816,9 +4818,9 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "Raw DCB entry %d: %08x %08x\n",
-			   pNv->dcb_table.entries, connection, config);
+			   dcb->entries, connection, config);
 
-		if (!parse_dcb_entry(pScrn, pNv->dcb_table.entries, dcb_version, i2ctabptr, connection, config))
+		if (!parse_dcb_entry(pScrn, dcb, dcb->entries, dcb_version, i2c_table, connection, config))
 			break;
 	}
 
@@ -4826,9 +4828,9 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	 * guarantees dcbent->index is the index of the entry in the rom image
 	 */
 	if (dcb_version < 0x21)
-		merge_like_dcb_entries(pScrn);
+		merge_like_dcb_entries(pScrn, dcb);
 
-	return (pNv->dcb_table.entries ? 0 : -ENXIO);
+	return (dcb->entries ? 0 : -ENXIO);
 }
 
 static int load_nv17_hwsq_ucode_entry(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
@@ -5017,7 +5019,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	if ((ret = NVRunVBIOSInit(pScrn)))
 		return ret;
 
-	if ((ret = parse_dcb_table(pScrn, &pNv->VBIOS)))
+	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, &pNv->VBIOS)))
 		return ret;
 
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
