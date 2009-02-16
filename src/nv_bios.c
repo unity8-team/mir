@@ -3097,6 +3097,7 @@ static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "0x%04X: Parsing digital output script table\n", scriptptr);
 	nv_idx_port_wr(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_44,
 		       head ? NV_CIO_CRE_44_HEADB : NV_CIO_CRE_44_HEADA);
+	/* note: if dcb entries have been merged, index may be misleading */
 	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
@@ -4449,8 +4450,7 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint16_t i2ctabptr, int i
 		headerlen = i2ctable[1];
 		i2c_entries = i2ctable[2];
 		entry_len = i2ctable[3];
-		/* XXX this requires a dcb entry calls read_dcb_i2c_entry */
-		pNv->dcb_table.i2c_default_indices = i2ctable[4];
+		/* [4] is i2c_default_indices, read in parse_dcb_table() */
 	}
 	/* it's your own fault if you call this function on a DCB 1.1 BIOS --
 	 * the test below is for DCB 1.2
@@ -4710,8 +4710,10 @@ void merge_like_dcb_entries(ScrnInfoPtr pScrn)
 		if ( pNv->dcb_table.entry[i].type == 100 )
 			continue;
 
-		if (newentries != i)
-			memcpy(&pNv->dcb_table.entry[newentries], &pNv->dcb_table.entry[i], sizeof(struct dcb_entry));
+		if (newentries != i) {
+			pNv->dcb_table.entry[newentries] = pNv->dcb_table.entry[i];
+			pNv->dcb_table.entry[newentries].index = newentries;
+		}
 		newentries++;
 	}
 
@@ -4794,6 +4796,8 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 	if (!i2ctabptr)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No pointer to DCB I2C port table\n");
+	else if (dcb_version >= 0x30)
+		pNv->dcb_table.i2c_default_indices = bios->data[i2ctabptr + 4];
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
 		entries = MAX_NUM_DCB_ENTRIES;
@@ -4818,9 +4822,13 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 			break;
 	}
 
-	merge_like_dcb_entries(pScrn);
+	/* apart for v2.1+ not being known for requiring merging, this
+	 * guarantees dcbent->index is the index of the entry in the rom image
+	 */
+	if (dcb_version < 0x21)
+		merge_like_dcb_entries(pScrn);
 
-	return 0;
+	return (pNv->dcb_table.entries ? 0 : -ENXIO);
 }
 
 static int load_nv17_hwsq_ucode_entry(ScrnInfoPtr pScrn, bios_t *bios, uint16_t hwsq_offset, int entry)
@@ -5009,7 +5017,8 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	if ((ret = NVRunVBIOSInit(pScrn)))
 		return ret;
 
-	parse_dcb_table(pScrn, &pNv->VBIOS);
+	if ((ret = parse_dcb_table(pScrn, &pNv->VBIOS)))
+		return ret;
 
 	for (i = 0 ; i < pNv->dcb_table.entries; i++)
 		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)

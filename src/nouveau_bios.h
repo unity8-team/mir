@@ -31,7 +31,7 @@
 #define LOC_ON_CHIP 0
 
 struct dcb_entry {
-	int index;
+	int index;	/* may not be raw dcb index if merging has happened */
 	uint8_t type;
 	uint8_t i2c_index;
 	uint8_t heads;
@@ -52,6 +52,13 @@ struct dcb_i2c_entry {
 	uint8_t port_type;
 	uint8_t read, write;
 	I2CBusPtr chan;
+};
+
+struct parsed_dcb {
+	int entries;
+	struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
+	uint8_t i2c_default_indices;
+	struct dcb_i2c_entry i2c[MAX_NUM_DCB_ENTRIES];
 };
 
 enum nouveau_encoder_type
