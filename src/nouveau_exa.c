@@ -23,6 +23,9 @@
 #include "nv_include.h"
 #include "exa.h"
 
+static void *nouveau_exa_pixmap_map(PixmapPtr);
+static void nouveau_exa_pixmap_unmap(PixmapPtr);
+
 static inline Bool
 NVAccelMemcpyRect(char *dst, const char *src, int height, int dst_pitch,
 		  int src_pitch, int line_len)
@@ -259,14 +262,139 @@ nouveau_exa_wait_marker(ScreenPtr pScreen, int marker)
 	NVSync(xf86Screens[pScreen->myNum]);
 }
 
+static Bool
+nouveau_exa_prepare_access(PixmapPtr ppix, int index)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->exa_driver_pixmaps) {
+		void *map = nouveau_exa_pixmap_map(ppix);
+
+		if (!map)
+			return FALSE;
+
+		ppix->devPrivate.ptr = map;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void
+nouveau_exa_finish_access(PixmapPtr ppix, int index)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+
+	if (pNv->exa_driver_pixmaps)
+		nouveau_exa_pixmap_unmap(ppix);
+}
+
+static Bool
+nouveau_exa_pixmap_is_offscreen(PixmapPtr ppix)
+{
+	struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+
+	if (nvpix && nvpix->bo)
+		return TRUE;
+
+	return FALSE;
+}
+
+static void *
+nouveau_exa_create_pixmap(ScreenPtr pScreen, int size, int align)
+{
+	struct nouveau_pixmap *nvpix;
+
+	nvpix = xcalloc(1, sizeof(struct nouveau_pixmap));
+	if (!nvpix)
+		return NULL;
+
+	/* Allocate later when we know width/height */
+	nvpix->size = size;
+	return (void *)nvpix;
+}
+
+static void
+nouveau_exa_destroy_pixmap(ScreenPtr pScreen, void *priv)
+{
+	struct nouveau_pixmap *nvpix = priv;
+
+	if (!nvpix)
+		return;
+
+	nouveau_bo_ref(NULL, &nvpix->bo);
+	xfree(nvpix);
+}
+
+static Bool
+nouveau_exa_modify_pixmap_header(PixmapPtr ppix, int width, int height,
+				 int depth, int bpp, int devkind, pointer data)
+{
+	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
+	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_pixmap *nvpix;
+
+	nvpix = nouveau_pixmap(ppix);
+	if (!nvpix)
+		return FALSE;
+
+	if (data == pNv->FBMap) {
+		if (nouveau_bo_ref(pNv->FB, &nvpix->bo))
+			return FALSE;
+
+		miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind,
+				     data);
+		return TRUE;
+	}
+
+	if (!nvpix->bo && nvpix->size) {
+		uint32_t cpp = ppix->drawable.bitsPerPixel >> 3;
+		/* At some point we should just keep 1bpp pixmaps in sysram */
+		uint32_t flags = NOUVEAU_BO_VRAM;
+		int ret;
+
+		if (pNv->Architecture >= NV_ARCH_50 && cpp) {
+			uint32_t aw = (width + 7) & ~7;
+			uint32_t ah = (height + 7) & ~7;
+
+			flags |= NOUVEAU_BO_TILED;
+
+			devkind = ((aw * cpp) + 63) & ~63;
+			nvpix->size = devkind * ah;
+		}
+
+		ret = nouveau_bo_new(pNv->dev, flags, 0, nvpix->size,
+				     &nvpix->bo);
+		if (ret) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Failed pixmap creation: %d\n", ret);
+			return FALSE;
+		}
+
+		/* We don't want devPrivate.ptr set at all. */
+		miModifyPixmapHeader(ppix, width, height, depth, bpp, devkind,
+				     NULL);
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 bool
 nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
 {
 	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (pNv->exa_driver_pixmaps) {
+		if (!nouveau_pixmap_bo(ppix)->tiled)
+			return false;
+	} else
 	if (pNv->Architecture < NV_ARCH_50 ||
-		exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
+	    exaGetPixmapOffset(ppix) < pNv->EXADriverPtr->offScreenBase)
 		return false;
 
 	return true;
@@ -275,22 +403,42 @@ nouveau_exa_pixmap_is_tiled(PixmapPtr ppix)
 static void *
 nouveau_exa_pixmap_map(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	void *map;
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
+	unsigned delta = nouveau_pixmap_offset(ppix);
 
-	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-	map = pNv->FB->map + exaGetPixmapOffset(ppix);
-	return map;
+	if (bo->tiled) {
+		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+
+		nvpix->linear = xcalloc(1, ppix->devKind * ppix->drawable.height);
+
+		NVAccelDownloadM2MF(ppix, 0, 0, ppix->drawable.width,
+				    ppix->drawable.height, nvpix->linear,
+				    ppix->devKind);
+
+		nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
+		return nvpix->linear;
+	}
+
+	nouveau_bo_map(bo, NOUVEAU_BO_RDWR);
+	return bo->map + delta;
 }
 
 static void
 nouveau_exa_pixmap_unmap(PixmapPtr ppix)
 {
-	ScrnInfoPtr pScrn = xf86Screens[ppix->drawable.pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
+	struct nouveau_bo *bo = nouveau_pixmap_bo(ppix);
 
-	nouveau_bo_unmap(pNv->FB);
+	if (bo->tiled) {
+		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
+
+		NVAccelUploadM2MF(ppix, 0, 0, ppix->drawable.width,
+				  ppix->drawable.height, nvpix->linear,
+				  ppix->devKind);
+
+		xfree(nvpix->linear);
+	}
+
+	nouveau_bo_unmap(bo);
 }
 
 static Bool
@@ -399,35 +547,50 @@ nouveau_exa_init(ScreenPtr pScreen)
 	exa->exa_minor = EXA_VERSION_MINOR;
 	exa->flags = EXA_OFFSCREEN_PIXMAPS;
 
-	if (pNv->Architecture < NV_ARCH_50) {
-		exa->pixmapOffsetAlign = 256; 
-	} else {
-		/* Workaround some corruption issues caused by exa's
-		 * offscreen memory allocation no understanding G8x/G9x
-		 * memory layout.  This is terrible, but it should
-		 * prevent all but the most unlikely cases from occuring.
-		 *
-		 * See http://nouveau.freedesktop.org/wiki/NV50Support for
-		 * a far better fix until the ng branch is ready to be used.
-		 */
-		exa->pixmapOffsetAlign = 65536;
-		exa->flags |= EXA_OFFSCREEN_ALIGN_POT;
-	}
-	exa->pixmapPitchAlign = 64;
+	if (pNv->exa_driver_pixmaps) {
+		exa->flags |= EXA_HANDLES_PIXMAPS;
+		exa->pixmapOffsetAlign = 256;
+		exa->pixmapPitchAlign = 64;
 
-	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
-	exa->memoryBase = pNv->FB->map;
-	nouveau_bo_unmap(pNv->FB);
-	exa->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) *
-					   NOUVEAU_ALIGN(pScrn->virtualY, 64) *
-					   (pScrn->bitsPerPixel / 8);
-	exa->memorySize = pNv->FB->size; 
+		exa->PixmapIsOffscreen = nouveau_exa_pixmap_is_offscreen;
+		exa->PrepareAccess = nouveau_exa_prepare_access;
+		exa->FinishAccess = nouveau_exa_finish_access;
+		exa->CreatePixmap = nouveau_exa_create_pixmap;
+		exa->DestroyPixmap = nouveau_exa_destroy_pixmap;
+		exa->ModifyPixmapHeader = nouveau_exa_modify_pixmap_header;
+	} else {
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
+		exa->memoryBase = pNv->FB->map;
+		nouveau_bo_unmap(pNv->FB);
+		exa->offScreenBase = NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+				     NOUVEAU_ALIGN(pScrn->virtualY, 64) *
+				     (pScrn->bitsPerPixel / 8);
+		exa->memorySize = pNv->FB->size; 
+
+		if (pNv->Architecture < NV_ARCH_50) {
+			exa->pixmapOffsetAlign = 256; 
+		} else {
+			/* Workaround some corruption issues caused by exa's
+			 * offscreen memory allocation no understanding G8x/G9x
+			 * memory layout.  This is terrible, but it should
+			 * prevent all but the most unlikely cases from
+			 * occuring.
+			 *
+			 * See http://nouveau.freedesktop.org/wiki/NV50Support
+			 * for a far better fix until driver pixmaps are ready
+			 * to be used.
+			 */
+			exa->pixmapOffsetAlign = 65536;
+			exa->flags |= EXA_OFFSCREEN_ALIGN_POT;
+
+			nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM |
+					NOUVEAU_BO_TILED, exa->offScreenBase,
+					exa->memorySize - exa->offScreenBase);
+		}
+		exa->pixmapPitchAlign = 64;
+	}
 
 	if (pNv->Architecture >= NV_ARCH_50) {
-		nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM | NOUVEAU_BO_TILED,
-				exa->offScreenBase,
-				exa->memorySize - exa->offScreenBase);
-
 		exa->maxX = 8192;
 		exa->maxY = 8192;
 	} else

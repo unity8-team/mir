@@ -248,6 +248,7 @@ typedef struct _NVRec {
 
     /* Various pinned memory regions */
     struct nouveau_bo * FB;
+    void *              FBMap;
     //struct nouveau_bo * FB_old; /* for KMS */
     struct nouveau_bo * shadow[2]; /* for easy acces by exa */
     struct nouveau_bo * Cursor;
@@ -467,6 +468,8 @@ typedef struct _NVPortPrivRec {
 /* EXA driver-controlled pixmaps */
 struct nouveau_pixmap {
 	struct nouveau_bo *bo;
+	void *linear;
+	unsigned size;
 };
 
 static inline struct nouveau_pixmap *

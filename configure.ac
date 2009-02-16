@@ -69,7 +69,7 @@ PKG_CHECK_MODULES(LIBDRM_NOUVEAU, libdrm_nouveau)
 AC_SUBST(LIBDRM_NOUVEAU_CFLAGS)
 AC_SUBST(LIBDRM_NOUVEAU_LIBS)
 
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3] xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES)
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.4.99.901] xproto fontsproto libdrm xf86driproto $REQUIRED_MODULES)
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 
 # Checks for libraries.

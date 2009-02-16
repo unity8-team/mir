@@ -84,9 +84,8 @@ NV50EXA2DSurfaceFormat(PixmapPtr ppix, uint32_t *fmt)
 	case 24: *fmt = NV50_2D_SRC_FORMAT_24BPP; break;
 	case 32: *fmt = NV50_2D_SRC_FORMAT_32BPP; break;
 	default:
-		 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			    "Unknown surface format for bpp=%d\n",
-			    ppix->drawable.depth);
+		 NOUVEAU_FALLBACK("Unknown surface format for bpp=%d\n",
+				  ppix->drawable.depth);
 		 return FALSE;
 	}
 

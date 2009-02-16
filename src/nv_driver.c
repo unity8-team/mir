@@ -1226,6 +1226,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			"Using \"Shadow Framebuffer\" - acceleration disabled\n");
 	}
 
+	if (xf86ReturnOptValBool(pNv->Options, OPTION_EXA_PIXMAPS, FALSE))
+		pNv->exa_driver_pixmaps = TRUE;
+
 	if(xf86GetOptValInteger(pNv->Options, OPTION_VIDEO_KEY, &(pNv->videoKey))) {
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "video key set to 0x%x\n",
 					pNv->videoKey);
@@ -1623,8 +1626,8 @@ static Bool
 NVMapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	int gart_scratch_size;
 	uint64_t res;
+	int size;
 
 	if (pNv->NoAccel)
 		return NVMapMemSW(pScrn);
@@ -1636,33 +1639,43 @@ NVMapMem(ScrnInfoPtr pScrn)
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_AGP_SIZE, &res);
 	pNv->AGPSize=res;
 
+	if (pNv->exa_driver_pixmaps) {
+		size = NOUVEAU_ALIGN(pScrn->virtualX, 64);
+		size = size * (pScrn->bitsPerPixel >> 3);
+		size = size * pScrn->virtualY;
+	} else {
+		size = pNv->VRAMPhysicalSize / 2;
+	}
+
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-		0, pNv->VRAMPhysicalSize / 2, &pNv->FB)) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to allocate memory for framebuffer!\n");
-			return FALSE;
+			   0, size, &pNv->FB)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to allocate framebuffer memory\n");
+		return FALSE;
 	}
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, at offset 0x%X\n",
-		(uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
+		   "Allocated %dMiB VRAM for framebuffer + offscreen pixmaps, "
+		   "at offset 0x%X\n",
+		   (uint32_t)(pNv->FB->size >> 20), (uint32_t) pNv->FB->offset);
 
 	if (pNv->AGPSize) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "AGPGART: %dMiB available\n",
 			   (unsigned int)(pNv->AGPSize >> 20));
 		if (pNv->AGPSize > (16*1024*1024))
-			gart_scratch_size = 16*1024*1024;
+			size = 16*1024*1024;
 		else
 			/* always leave 512kb for other things like the fifos */
-			gart_scratch_size = pNv->AGPSize - 512*1024;
+			size = pNv->AGPSize - 512*1024;
 	} else {
-		gart_scratch_size = (4 << 20) - (1 << 18) ;
+		size = (4 << 20) - (1 << 18) ;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 			   "GART: PCI DMA - using %dKiB\n",
-			   gart_scratch_size >> 10);
+			   size >> 10);
 	}
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_GART | NOUVEAU_BO_PIN, 0,
-			   gart_scratch_size, &pNv->GART)) {
+			   size, &pNv->GART)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Unable to allocate GART memory\n");
 	}
@@ -2161,6 +2174,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	fbPictureInit (pScreen, 0, 0);
 
 	xf86SetBlackWhitePixels(pScreen);
+
+	nouveau_bo_map(pNv->FB, NOUVEAU_BO_RDWR);
+	pNv->FBMap = pNv->FB->map;
+	nouveau_bo_unmap(pNv->FB);
 
 	if (!pNv->NoAccel) {
 		if (!nouveau_exa_init(pScreen))
