@@ -1267,7 +1267,43 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	case 1:
 	default:
 	    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
-	    crtc_src_param.ucDevice = radeon_get_device_index(radeon_output->active_device);
+	    switch (radeon_encoder->encoder_id) {
+	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+		crtc_src_param.ucDevice = ATOM_DEVICE_DFP1_INDEX;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	    case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		if (radeon_output->active_device & ATOM_DEVICE_LCD1_SUPPORT)
+		    crtc_src_param.ucDevice = ATOM_DEVICE_LCD1_INDEX;
+		else
+		    crtc_src_param.ucDevice = ATOM_DEVICE_DFP3_INDEX;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	    case ENCODER_OBJECT_ID_INTERNAL_DDI:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		crtc_src_param.ucDevice = ATOM_DEVICE_DFP2_INDEX;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC1:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
+		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
+		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
+		else
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT1_INDEX;
+		break;
+	    case ENCODER_OBJECT_ID_INTERNAL_DAC2:
+	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+		if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
+		    crtc_src_param.ucDevice = ATOM_DEVICE_TV1_INDEX;
+		else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CV_INDEX;
+		else
+		    crtc_src_param.ucDevice = ATOM_DEVICE_CRT2_INDEX;
+		break;
+	    }
 	    data.exec.pspace = &crtc_src_param;
 	    /*ErrorF("device sourced: 0x%x\n", crtc_src_param.ucDevice);*/
 	    break;
