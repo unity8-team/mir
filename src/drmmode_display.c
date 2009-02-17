@@ -357,6 +357,17 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 #endif
 }
 
+static void
+drmmode_crtc_gamma_set(xf86CrtcPtr crtc,
+		       CARD16 *red, CARD16 *green, CARD16 *blue, int size)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+
+	drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+			    size, red, green, blue);
+}
+
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.dpms = drmmode_crtc_dpms,
 	.set_mode_major = drmmode_set_mode_major,
@@ -369,8 +380,8 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.shadow_create = drmmode_crtc_shadow_create,
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
+	.gamma_set = drmmode_crtc_gamma_set,
 #if 0
-	.gamma_set = i830_crtc_gamma_set,
 	.shadow_create = i830_crtc_shadow_create,
 	.shadow_allocate = i830_crtc_shadow_allocate,
 	.shadow_destroy = i830_crtc_shadow_destroy,
