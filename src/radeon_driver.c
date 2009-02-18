@@ -5641,6 +5641,8 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 {
     ScrnInfoPtr    pScrn = xf86Screens[scrnIndex];
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
@@ -5649,6 +5651,13 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
      * wrong times, especially if we had DRI, after DRI has been stopped
      */
     info->accelOn = FALSE;
+
+    for (i = 0; i < config->num_crtc; i++) {
+	xf86CrtcPtr crtc = config->crtc[i];
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+	radeon_crtc->initialized = FALSE;
+    }
 
 #ifdef XF86DRI
 #ifdef DAMAGE
