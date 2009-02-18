@@ -2469,13 +2469,9 @@ static int
 radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONInfoPtr info       = RADEONPTR(pScrn);
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     int			o;
     int			index_mask = 0;
-
-    if (IS_DCE3_VARIANT)
-	return index_mask;
 
     /* LVDS is too wacky */
     if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))
