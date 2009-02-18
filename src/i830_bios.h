@@ -395,6 +395,41 @@ struct vch_bdb_22 {
     struct vch_panel_data   panels[16];
 } __attribute__((packed));
 
+#define BDB_DRIVER_NO_LVDS	0
+#define BDB_DRIVER_INTER_LVDS	1
+#define BDB_DRIVER_SDVO_LVDS	2
+#define BDB_DRIVER_ALL_LVDS	3
+
+struct bdb_driver_feature {
+    uint8_t	boot_dev_algorithm:1;
+    uint8_t	block_display_switch:1;
+    uint8_t	allow_display_switch:1;
+    uint8_t	hotplug_dvo:1;
+    uint8_t	dual_view_zoom:1;
+    uint8_t	int15h_hook:1;
+    uint8_t	sprite_in_clone:1;
+    uint8_t	primary_lfp_id:1;
+
+    uint16_t	boot_mode_x;
+    uint16_t	boot_mode_y;
+    uint8_t	boot_mode_bpp;
+    uint8_t	boot_mode_refresh;
+
+    uint16_t	enable_lfp_primary:1;
+    uint16_t	selective_mode_pruning:1;
+    uint16_t	dual_frequency:1;
+    uint16_t	render_clock_freq:1; /* 0: high freq; 1: low freq */
+    uint16_t	nt_clone_support:1;
+    uint16_t	power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
+    uint16_t	sprite_display_assign:1; /* 0: secondary; 1: primary */
+    uint16_t	cui_aspect_scaling:1;
+    uint16_t	preserve_aspect_ratio:1;
+    uint16_t	sdvo_device_power_down:1;
+    uint16_t	crt_hotplug:1;
+    uint16_t	lvds_config:2;
+    uint16_t	reserved:3;
+} __attribute__((packed));
+
 #ifndef REG_DUMPER
 int i830_bios_init(ScrnInfoPtr pScrn);
 #endif

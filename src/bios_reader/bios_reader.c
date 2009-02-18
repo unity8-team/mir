@@ -359,6 +359,64 @@ static void dump_lvds_data(void)
     free(block);
 }
 
+static void dump_driver_feature(void)
+{
+    struct bdb_block *block;
+    struct bdb_driver_feature *feature;
+
+    block = find_section(BDB_DRIVER_FEATURES);
+    if (!block) {
+	printf("No Driver feature data block\n");
+	return;
+    }
+    feature = block->data;
+
+    printf("Driver feature Data Block:\n");
+    printf("\tBoot Device Algorithm: %s\n", feature->boot_dev_algorithm ?
+	    "driver default": "os default");
+    printf("\tBlock display switching when DVD active: %s\n",
+	    YESNO(feature->block_display_switch));
+    printf("\tAllow display switching when in Full Screen DOS: %s\n",
+	    YESNO(feature->allow_display_switch));
+    printf("\tHot Plug DVO: %s\n", YESNO(feature->hotplug_dvo));
+    printf("\tDual View Zoom: %s\n", YESNO(feature->dual_view_zoom));
+    printf("\tDriver INT 15h hook: %s\n", YESNO(feature->int15h_hook));
+    printf("\tEnable Sprite in Clone Mode: %s\n", YESNO(feature->sprite_in_clone));
+    printf("\tUse 00000110h ID for Primary LFP: %s\n", YESNO(feature->primary_lfp_id));
+    printf("\tBoot Mode X: %u\n", feature->boot_mode_x);
+    printf("\tBoot Mode Y: %u\n", feature->boot_mode_y);
+    printf("\tBoot Mode Bpp: %u\n", feature->boot_mode_bpp);
+    printf("\tBoot Mode Refresh: %u\n", feature->boot_mode_refresh);
+    printf("\tEnable LFP as primary: %s\n", YESNO(feature->enable_lfp_primary));
+    printf("\tSelective Mode Pruning: %s\n", YESNO(feature->selective_mode_pruning));
+    printf("\tDual-Frequency Graphics Technology: %s\n", YESNO(feature->dual_frequency));
+    printf("\tDefault Render Clock Frequency: %s\n", feature->render_clock_freq ? "low" : "high");
+    printf("\tNT 4.0 Dual Display Clone Support: %s\n", YESNO(feature->nt_clone_support));
+    printf("\tDefault Power Scheme user interface: %s\n", feature->power_scheme_ui ? "3rd party":"CUI");
+    printf("\tSprite Display Assignment when Overlay is Active in Clone Mode: %s\n",
+	    feature->sprite_display_assign ? "primary" : "secondary");
+    printf("\tDisplay Maintain Aspect Scaling via CUI: %s\n", YESNO(feature->cui_aspect_scaling));
+    printf("\tPreserve Aspect Ratio: %s\n", YESNO(feature->preserve_aspect_ratio));
+    printf("\tEnable SDVO device power down: %s\n", YESNO(feature->sdvo_device_power_down));
+    printf("\tCRT hotplug: %s\n", YESNO(feature->crt_hotplug));
+    printf("\tLVDS config: ");
+    switch (feature->lvds_config) {
+	case BDB_DRIVER_NO_LVDS:
+	    printf("No LVDS\n");
+	    break;
+	case BDB_DRIVER_INTER_LVDS:
+	    printf("Integrated LVDS\n");
+	    break;
+	case BDB_DRIVER_SDVO_LVDS:
+	    printf("SDVO LVDS\n");
+	    break;
+	case BDB_DRIVER_ALL_LVDS:
+	    printf("Both Integrated LVDS and SDVO LVDS\n");
+	    break;
+    }
+    free(block);
+}
+
 int main(int argc, char **argv)
 {
     int fd;
@@ -432,6 +490,8 @@ int main(int argc, char **argv)
     dump_lvds_options();
     dump_lvds_data();
     dump_lvds_ptr_data();
+
+    dump_driver_feature();
 
     return 0;
 }
