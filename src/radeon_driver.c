@@ -3771,9 +3771,10 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    } else {
 		OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location << 16) & 0xff0000);
 	    }
-	    
+
 	    /* Reset the engine and HDP */
-	    RADEONEngineReset(pScrn);
+	    if (info->ChipFamily < CHIP_FAMILY_R600)
+		RADEONEngineReset(pScrn);
 	}
     } else {
 
@@ -5220,7 +5221,8 @@ Bool RADEONSwitchMode(int scrnIndex, DisplayModePtr mode, int flags)
 
     if (info->accelOn) {
         RADEON_SYNC(info, pScrn);
-	RADEONEngineRestore(pScrn);
+	if (info->ChipFamily < CHIP_FAMILY_R600)
+	    RADEONEngineRestore(pScrn);
     }
 
 #ifdef XF86DRI
@@ -5424,6 +5426,10 @@ void RADEONAdjustFrame(int scrnIndex, int x, int y, int flags)
     xf86OutputPtr  output = config->output[config->compat_output];
     xf86CrtcPtr	crtc = output->crtc;
 
+    /* not handled */
+    if (IS_AVIVO_VARIANT)
+	return;
+
 #ifdef XF86DRI
     if (info->cp->CPStarted && pScrn->pScreen) DRILock(pScrn->pScreen, 0);
 #endif
@@ -5527,7 +5533,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     if (info->adaptor)
 	RADEONResetVideo(pScrn);
 
-    if (info->accelOn)
+    if (info->accelOn && (info->ChipFamily < CHIP_FAMILY_R600))
 	RADEONEngineRestore(pScrn);
 
 #ifdef XF86DRI

@@ -1312,9 +1312,8 @@ do {									\
     if (RADEON_VERBOSE)							\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "FLUSH_RING in %s\n", __FUNCTION__);			\
-    if (info->cp->indirectBuffer) {					\
+    if (info->cp->indirectBuffer)					\
 	RADEONCPFlushIndirect(pScrn, 0);				\
-    }									\
 } while (0)
 
 
@@ -1331,16 +1330,13 @@ do {									\
 
 #define RADEON_WAIT_UNTIL_3D_IDLE()					\
 do {									\
-    BEGIN_RING(2);							\
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
-	OUT_RING(CP_PACKET0(R600_WAIT_UNTIL, 0));                       \
-	OUT_RING((RADEON_WAIT_3D_IDLECLEAN));                           \
-    } else {                                                            \
+    if (info->ChipFamily < CHIP_FAMILY_R600) {				\
+	BEGIN_RING(2);							\
 	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
 	OUT_RING((RADEON_WAIT_3D_IDLECLEAN |                            \
 		  RADEON_WAIT_HOST_IDLECLEAN));                         \
+	ADVANCE_RING();							\
     }                                                                   \
-    ADVANCE_RING();							\
 } while (0)
 
 #define RADEON_WAIT_UNTIL_IDLE()					\
@@ -1349,33 +1345,29 @@ do {									\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,				\
 		   "WAIT_UNTIL_IDLE() in %s\n", __FUNCTION__);		\
     }									\
-    BEGIN_RING(2);							\
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
-	OUT_RING(CP_PACKET0(R600_WAIT_UNTIL, 0));                       \
-	OUT_RING((RADEON_WAIT_3D_IDLECLEAN));                           \
-    } else {                                                            \
+    if (info->ChipFamily < CHIP_FAMILY_R600) {                          \
+	BEGIN_RING(2);							\
 	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));                     \
 	OUT_RING((RADEON_WAIT_2D_IDLECLEAN |                            \
                   RADEON_WAIT_3D_IDLECLEAN |                            \
 		  RADEON_WAIT_HOST_IDLECLEAN));                         \
+	ADVANCE_RING();							\
     }                                                                   \
-    ADVANCE_RING();							\
 } while (0)
 
 #define RADEON_PURGE_CACHE()						\
 do {									\
-    BEGIN_RING(2);							\
-    if (info->ChipFamily >= CHIP_FAMILY_R600) {                         \
-	OUT_RING(CP_PACKET3(IT_EVENT_WRITE, 0));                        \
-	OUT_RING(CACHE_FLUSH_AND_INV_EVENT);                            \
-    } else if (info->ChipFamily <= CHIP_FAMILY_RV280) {                 \
-        OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));		\
-        OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);				\
-    } else {                                                            \
-        OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));		\
-        OUT_RING(R300_RB3D_DC_FLUSH_ALL);				\
-    }                                                                   \
-    ADVANCE_RING();							\
+    if (info->ChipFamily < CHIP_FAMILY_R600) {				\
+	BEGIN_RING(2);							\
+	if (info->ChipFamily <= CHIP_FAMILY_RV280) {			\
+	    OUT_RING(CP_PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));	\
+	    OUT_RING(RADEON_RB3D_DC_FLUSH_ALL);				\
+	} else {							\
+	    OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));	\
+	    OUT_RING(R300_RB3D_DC_FLUSH_ALL);				\
+	}								\
+	ADVANCE_RING();							\
+    }									\
 } while (0)
 
 #define RADEON_PURGE_ZCACHE()						\

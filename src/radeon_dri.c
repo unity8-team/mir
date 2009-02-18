@@ -1846,7 +1846,8 @@ void RADEONDRIResume(ScreenPtr pScreen)
 	/* FIXME: return? */
     }
 
-    RADEONEngineRestore(pScrn);
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+	RADEONEngineRestore(pScrn);
 
     RADEONDRICPInit(pScrn);
 }
