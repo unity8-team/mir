@@ -609,6 +609,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	pRADEONEnt->pCrtc[0]->driver_private = pRADEONEnt->Controller[0];
 	pRADEONEnt->Controller[0]->crtc_id = 0;
 	pRADEONEnt->Controller[0]->crtc_offset = 0;
+	pRADEONEnt->Controller[0]->initialized = FALSE;
 	if (info->allowColorTiling)
 	    pRADEONEnt->Controller[0]->can_tile = 1;
 	else
@@ -633,6 +634,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
 	pRADEONEnt->pCrtc[1]->driver_private = pRADEONEnt->Controller[1];
 	pRADEONEnt->Controller[1]->crtc_id = 1;
 	pRADEONEnt->Controller[1]->crtc_offset = AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL;
+	pRADEONEnt->Controller[1]->initialized = FALSE;
 	if (info->allowColorTiling)
 	    pRADEONEnt->Controller[1]->can_tile = 1;
 	else

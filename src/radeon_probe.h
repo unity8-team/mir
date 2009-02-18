@@ -157,6 +157,7 @@ typedef struct _RADEONCrtcPrivateRec {
     uint32_t crtc_offset;
     int can_tile;
     Bool enabled;
+    Bool initialized;
 } RADEONCrtcPrivateRec, *RADEONCrtcPrivatePtr;
 
 typedef struct _radeon_encoder {

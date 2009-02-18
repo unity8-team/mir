@@ -510,10 +510,12 @@ radeon_mode_prepare(xf86OutputPtr output)
 	    xf86CrtcPtr other_crtc = loop_output->crtc;
 	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
 	    if (other_crtc->enabled) {
-		radeon_crtc_dpms(other_crtc, DPMSModeOff);
-		if (IS_AVIVO_VARIANT)
-		    atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 1);
-		radeon_dpms(loop_output, DPMSModeOff);
+		if (other_radeon_crtc->initialized) {
+		    radeon_crtc_dpms(other_crtc, DPMSModeOff);
+		    if (IS_AVIVO_VARIANT)
+			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 1);
+		    radeon_dpms(loop_output, DPMSModeOff);
+		}
 	    }
 	}
     }
@@ -553,10 +555,12 @@ radeon_mode_commit(xf86OutputPtr output)
 	    xf86CrtcPtr other_crtc = loop_output->crtc;
 	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
 	    if (other_crtc->enabled) {
-		radeon_crtc_dpms(other_crtc, DPMSModeOn);
-		if (IS_AVIVO_VARIANT)
-		    atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 0);
-		radeon_dpms(loop_output, DPMSModeOn);
+		if (other_radeon_crtc->initialized) {
+		    radeon_crtc_dpms(other_crtc, DPMSModeOn);
+		    if (IS_AVIVO_VARIANT)
+			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 0);
+		    radeon_dpms(loop_output, DPMSModeOn);
+		}
 	    }
 	}
     }

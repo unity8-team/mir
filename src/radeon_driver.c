@@ -5601,18 +5601,24 @@ void RADEONLeaveVT(int scrnIndex, int flags)
     }
 #endif
 
-#ifndef HAVE_FREE_SHADOW
+
     for (i = 0; i < config->num_crtc; i++) {
 	xf86CrtcPtr crtc = config->crtc[i];
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+	radeon_crtc->initialized = FALSE;
+
+#ifndef HAVE_FREE_SHADOW
 	if (crtc->rotatedPixmap || crtc->rotatedData) {
 	    crtc->funcs->shadow_destroy(crtc, crtc->rotatedPixmap,
 					crtc->rotatedData);
 	    crtc->rotatedPixmap = NULL;
 	    crtc->rotatedData = NULL;
 	}
+#endif
     }
-#else
+
+#ifdef HAVE_FREE_SHADOW
     xf86RotateFreeShadow(pScrn);
 #endif
 

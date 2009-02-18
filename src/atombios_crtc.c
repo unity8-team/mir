@@ -491,6 +491,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     if (info->DispPriority)
 	RADEONInitDispBandwidth(pScrn);
 
+    radeon_crtc->initialized = TRUE;
+
     if (tilingChanged) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
 	/* if this is called during ScreenInit() we don't have pScrn->pScreen yet */

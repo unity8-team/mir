@@ -1832,7 +1832,9 @@ legacy_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	radeon_update_tv_routing(pScrn, info->ModeReg);
 
     if (info->DispPriority)
-        RADEONInitDispBandwidth(pScrn);
+	RADEONInitDispBandwidth(pScrn);
+
+    radeon_crtc->initialized = TRUE;
 
     if (tilingChanged) {
 	/* need to redraw front buffer, I guess this can be considered a hack ? */
