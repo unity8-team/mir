@@ -1337,7 +1337,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	    dpll |= DPLL_DVO_HIGH_SPEED;
 	    if ((IS_I945G(pI830) || IS_I945GM(pI830) || IS_G33CLASS(pI830)))
 	    {
-		int sdvo_pixel_multiply = i830_sdvo_get_pixel_multiplier (adjusted_mode);
+		int sdvo_pixel_multiply = adjusted_mode->Clock / mode->Clock;
 		dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
 	    }
 	}
