@@ -1570,6 +1570,16 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
     	(info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
 	info->BiosConnector[index].devices &= ~(ATOM_DEVICE_CRT_SUPPORT);
     }
+
+    /* ASUS HD 3600 XT board lists the DVI port as HDMI */
+    if ((info->Chipset == PCI_CHIP_RV635_9598) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x1043) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x01da)) {
+	if (info->BiosConnector[index].ConnectorType == CONNECTOR_HDMI_TYPE_B)
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
+    }
+
+
 }
 
 uint32_t
