@@ -3441,7 +3441,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	       pI830->XvMCEnabled ? "en" : "dis");
 #endif
    /* Init video */
-   if (pI830->XvEnabled && !pI830->use_drm_mode)
+   if (pI830->XvEnabled)
       I830InitVideo(pScreen);
 #endif
 

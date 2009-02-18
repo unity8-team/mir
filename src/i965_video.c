@@ -397,6 +397,7 @@ i965_create_dst_surface_state(ScrnInfoPtr scrn,
 
 static drm_intel_bo *
 i965_create_src_surface_state(ScrnInfoPtr scrn,
+			      drm_intel_bo *src_bo,
 			      uint32_t src_offset,
 			      int src_width,
 			      int src_height,
@@ -424,12 +425,17 @@ i965_create_src_surface_state(ScrnInfoPtr scrn,
     src_surf_state->ss0.mipmap_layout_mode = 0;
     src_surf_state->ss0.render_cache_read_mode = 0;
 
-    src_surf_state->ss1.base_addr = src_offset;
     src_surf_state->ss2.width = src_width - 1;
     src_surf_state->ss2.height = src_height - 1;
     src_surf_state->ss2.mip_count = 0;
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
+
+    src_surf_state->ss1.base_addr =
+	intel_emit_reloc(surface_bo,
+			 offsetof(struct brw_surface_state, ss1),
+			 src_bo, src_offset,
+			 I915_GEM_DOMAIN_SAMPLER, 0);
 
     drm_intel_bo_unmap(surface_bo);
     return surface_bo;
@@ -897,11 +903,11 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
 	   video_pitch);
 #endif
 
+#if 0
     /* enable debug */
     OUTREG (INST_PM,
 	    (1 << (16 + 4)) |
 	    (1 << 4));
-#if 0
     ErrorF ("INST_PM 0x%08x\n", INREG(INST_PM));
 #endif
 
@@ -967,6 +973,7 @@ I965DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
     for (src_surf = 0; src_surf < n_src_surf; src_surf++) {
 	drm_intel_bo *surf_bo =
 	    i965_create_src_surface_state(pScrn,
+					  pPriv->buf,
 					  src_surf_base[src_surf],
 					  src_width[src_surf],
 					  src_height[src_surf],

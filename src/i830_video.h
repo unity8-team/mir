@@ -58,7 +58,7 @@ typedef struct {
    uint32_t videoStatus;
    Time offTime;
    Time freeTime;
-   i830_memory *buf; /** YUV data buffer */
+   drm_intel_bo *buf; /** YUV data buffer */
 
    Bool overlayOK;
    int oneLineMode;
