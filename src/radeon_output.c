@@ -1848,7 +1848,10 @@ void RADEONInitConnector(xf86OutputPtr output)
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
 
-    radeon_output->rmx_type = RMX_OFF;
+    if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))
+	radeon_output->rmx_type = RMX_FULL;
+    else
+	radeon_output->rmx_type = RMX_OFF;
 
     if (!IS_AVIVO_VARIANT) {
 	if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
