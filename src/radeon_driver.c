@@ -635,10 +635,13 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, uint32_t data)
 static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	/* no idea where this is on r600 yet */
-	return TRUE;
+	if (INREG(R600_SRBM_STATUS) & 0x3f00)
+	    return FALSE;
+	else
+	    return TRUE;
     } else if (info->ChipFamily == CHIP_FAMILY_RV515) {
 	if (INMC(pScrn, RV515_MC_STATUS) & RV515_MC_STATUS_IDLE)
 	    return TRUE;

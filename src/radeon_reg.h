@@ -3482,6 +3482,8 @@
 #       define R600_CHANSIZE                           (1 << 7)
 #       define R600_CHANSIZE_OVERRIDE                  (1 << 10)
 
+#define R600_SRBM_STATUS			       0x0e50
+
 #define AVIVO_HDP_FB_LOCATION 0x134
 
 #define AVIVO_VGA_RENDER_CONTROL				0x0300
