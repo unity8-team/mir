@@ -1261,8 +1261,8 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t       mem_size;
-    uint32_t       aper_size;
+    uint64_t       mem_size;
+    uint64_t       aper_size;
 
     radeon_read_mc_fb_agp_location(pScrn, LOC_FB | LOC_AGP, &info->mc_fb_location,
 				   &info->mc_agp_location, &info->mc_agp_location_hi);
@@ -1333,12 +1333,14 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 		    aper0_base &= ~(mem_size - 1);
 
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		info->mc_fb_location = (aper0_base >> 24) |
-		    (((aper0_base + mem_size - 1) & 0xff000000U) >> 8);
+		uint64_t mc_fb = ((aper0_base >> 24) & 0xffff) |
+		    (((aper0_base + mem_size - 1) >> 8) & 0xffff0000);
+		info->mc_fb_location = mc_fb & 0xffffffff;
 		ErrorF("mc fb loc is %08x\n", (unsigned int)info->mc_fb_location);
 	    } else {
-		info->mc_fb_location = (aper0_base >> 16) |
+		uint64_t mc_fb = ((aper0_base >> 16) & 0xffff) |
 		    ((aper0_base + mem_size - 1) & 0xffff0000U);
+		info->mc_fb_location = mc_fb & 0xffffffff;
 	    }
 	}
     }
