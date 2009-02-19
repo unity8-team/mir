@@ -1508,6 +1508,9 @@ static uint32_t RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
     info->dri->newMemoryMap = TRUE;
 #endif /* XF86DRI */
 
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	return aper_size;
+
     /* Set HDP_APER_CNTL only on cards that are known not to be broken,
      * that is has the 2nd generation multifunction PCI interface
      */
@@ -1516,7 +1519,7 @@ static uint32_t RADEONGetAccessibleVRAM(ScrnInfoPtr pScrn)
 	info->ChipFamily == CHIP_FAMILY_RV380 ||
 	info->ChipFamily == CHIP_FAMILY_R420 ||
 	info->ChipFamily == CHIP_FAMILY_RV410 ||
-        IS_AVIVO_VARIANT) {
+	IS_AVIVO_VARIANT) {
 	    OUTREGP (RADEON_HOST_PATH_CNTL, RADEON_HDP_APER_CNTL,
 		     ~RADEON_HDP_APER_CNTL);
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -1593,9 +1596,10 @@ static Bool RADEONPreInitVRAM(ScrnInfoPtr pScrn)
     if (pScrn->videoRam > accessible)
 	pScrn->videoRam = accessible;
 
-    if (!IS_AVIVO_VARIANT)
+    if (!IS_AVIVO_VARIANT) {
 	info->MemCntl            = INREG(RADEON_SDRAM_MODE_REG);
-    info->BusCntl            = INREG(RADEON_BUS_CNTL);
+	info->BusCntl            = INREG(RADEON_BUS_CNTL);
+    }
 
     RADEONGetVRamType(pScrn);
 
