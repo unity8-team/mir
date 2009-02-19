@@ -1058,7 +1058,7 @@ set_default_state(ScrnInfoPtr pScrn, drmBufPtr ib)
     fs_setup(pScrn, ib, &fs_conf);
 
     // VGT
-    ereg  (ib, VGT_MAX_VTX_INDX,                    0);
+    ereg  (ib, VGT_MAX_VTX_INDX,                    2048); /* XXX set to a reasonably large number of indices */
     ereg  (ib, VGT_MIN_VTX_INDX,                    0);
     ereg  (ib, VGT_INDX_OFFSET,                     0);
     ereg  (ib, VGT_INSTANCE_STEP_RATE_0,            0);

@@ -79,6 +79,13 @@ uint32_t RADEON_ROP[16] = {
     RADEON_ROP3_ONE,  /* GXset          */
 };
 
+static void
+R600DoneSolid(PixmapPtr pPix);
+
+static void
+R600DoneComposite(PixmapPtr pDst);
+
+
 static Bool
 R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 {
@@ -260,12 +267,15 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
     struct r6xx_solid_vertex vertex[3];
-    struct r6xx_solid_vertex *solid_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+    struct r6xx_solid_vertex *solid_vb;
 
     if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
-	ErrorF("Solid: Ran out of VB space!\n");
-	return;
+	R600DoneSolid(pPix);
+	accel_state->vb_index = 0;
+	accel_state->ib = RADEONCPGetBuffer(pScrn);
     }
+
+    solid_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
     vertex[0].x = (float)x1;
     vertex[0].y = (float)y1;
@@ -334,13 +344,6 @@ R600DoneSolid(PixmapPtr pPix)
     draw_conf.num_instances      = 1;
     draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
     draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
-
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_0,            0);	/* ? */
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_1,            0);
-
-    ereg  (accel_state->ib, VGT_MAX_VTX_INDX,                    draw_conf.num_indices);
-    ereg  (accel_state->ib, VGT_MIN_VTX_INDX,                    0);
-    ereg  (accel_state->ib, VGT_INDX_OFFSET,                     0);
 
     draw_auto(pScrn, accel_state->ib, &draw_conf);
 
@@ -581,13 +584,6 @@ R600DoCopy(ScrnInfoPtr pScrn)
     draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
     draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
 
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_0,            0);	/* ? */
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_1,            0);
-
-    ereg  (accel_state->ib, VGT_MAX_VTX_INDX,                    draw_conf.num_indices);
-    ereg  (accel_state->ib, VGT_MIN_VTX_INDX,                    0);
-    ereg  (accel_state->ib, VGT_INDX_OFFSET,                     0);
-
     draw_auto(pScrn, accel_state->ib, &draw_conf);
 
     wait_3d_idle_clean(pScrn, accel_state->ib);
@@ -611,17 +607,9 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
     struct r6xx_copy_vertex vertex[3];
 
     if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	//ErrorF("Copy: Ran out of VB space!\n");
-	// emit the old VB
 	R600DoCopy(pScrn);
-	// start a new one
-	R600DoPrepareCopy(pScrn,
-			  accel_state->src_pitch[0], accel_state->src_width[0], accel_state->src_height[0],
-			  accel_state->src_mc_addr[0], accel_state->src_bpp[0],
-			  accel_state->dst_pitch, accel_state->dst_height,
-			  accel_state->dst_mc_addr, accel_state->dst_bpp,
-			  accel_state->rop, accel_state->planemask);
-
+	accel_state->vb_index = 0;
+	accel_state->ib = RADEONCPGetBuffer(pScrn);
     }
 
     copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
@@ -1950,15 +1938,17 @@ static void R600Composite(PixmapPtr pDst,
     }
 
     if (accel_state->has_mask) {
-	struct r6xx_comp_mask_vertex *comp_vb =
-	    (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	struct r6xx_comp_mask_vertex *comp_vb;
 	struct r6xx_comp_mask_vertex vertex[3];
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
 	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
-	    ErrorF("Composite: Ran out of VB space!\n");
-	    return;
+	    R600DoneComposite(pDst);
+	    accel_state->vb_index = 0;
+	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
+
+	comp_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
 	maskTopLeft.x     = IntToxFixed(maskX);
 	maskTopLeft.y     = IntToxFixed(maskY);
@@ -2012,14 +2002,16 @@ static void R600Composite(PixmapPtr pDst,
 	comp_vb[accel_state->vb_index++] = vertex[2];
 
     } else {
-	struct r6xx_comp_vertex *comp_vb =
-	    (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	struct r6xx_comp_vertex *comp_vb;
 	struct r6xx_comp_vertex vertex[3];
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
-	    ErrorF("Composite: Ran out of VB space!\n");
-	    return;
+	    R600DoneComposite(pDst);
+	    accel_state->vb_index = 0;
+	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
+
+	comp_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
 	vertex[0].x = (float)dstX;
 	vertex[0].y = (float)dstY;
@@ -2105,13 +2097,6 @@ static void R600DoneComposite(PixmapPtr pDst)
     draw_conf.num_instances      = 1;
     draw_conf.num_indices        = vtx_res.vtx_num_entries / vtx_res.vtx_size_dw;
     draw_conf.index_type         = DI_INDEX_SIZE_16_BIT;
-
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_0,            0);	/* ? */
-    ereg  (accel_state->ib, VGT_INSTANCE_STEP_RATE_1,            0);
-
-    ereg  (accel_state->ib, VGT_MAX_VTX_INDX,                    draw_conf.num_indices);
-    ereg  (accel_state->ib, VGT_MIN_VTX_INDX,                    0);
-    ereg  (accel_state->ib, VGT_INDX_OFFSET,                     0);
 
     draw_auto(pScrn, accel_state->ib, &draw_conf);
 
