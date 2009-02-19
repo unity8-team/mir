@@ -44,7 +44,7 @@
 
 #include "damage.h"
 
-void
+static void
 R600DoneTexturedVideo(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -462,7 +462,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
-	struct r6xx_copy_vertex *xv_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	struct r6xx_copy_vertex *xv_vb;
 	struct r6xx_copy_vertex vertex[3];
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
@@ -470,6 +470,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    accel_state->vb_index = 0;
 	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
+
+	xv_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
