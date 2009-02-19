@@ -5536,6 +5536,9 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     if (info->accelOn && (info->ChipFamily < CHIP_FAMILY_R600))
 	RADEONEngineRestore(pScrn);
 
+    if (info->accelOn && info->accel_state)
+	info->accel_state->XInited3D = FALSE;
+
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
 	RADEONCP_START(pScrn, info);
