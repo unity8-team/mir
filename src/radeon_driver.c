@@ -5049,8 +5049,10 @@ static void RADEONRestore(ScrnInfoPtr pScrn)
 		   "RADEONRestore\n");
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-    RADEONWaitForFifo(pScrn, 1);
-    OUTREG(RADEON_RBBM_GUICNTL, RADEON_HOST_DATA_SWAP_NONE);
+    if (info->ChipFamily < CHIP_FAMILY_R600) {
+	RADEONWaitForFifo(pScrn, 1);
+	OUTREG(RADEON_RBBM_GUICNTL, RADEON_HOST_DATA_SWAP_NONE);
+    }
 #endif
 
     RADEONBlank(pScrn);
