@@ -3040,7 +3040,7 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head)
+static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, bool dl)
 {
 	/* The BIOS scripts don't do this for us, sadly
 	 * Luckily we do know the values ;-)
@@ -3061,7 +3061,7 @@ static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, in
 
 	nv_write_tmds(pNv, dcbent->or, 0, 0x04, tmds04);
 
-	if (dcbent->type == OUTPUT_LVDS && pNv->VBIOS.fp.dual_link)
+	if (dl)	/* dual link */
 		nv_write_tmds(pNv, dcbent->or, 1, 0x04, tmds04 ^ 0x08);
 }
 
@@ -3091,7 +3091,7 @@ static uint16_t clkcmptable(bios_t *bios, uint16_t clktable, int pxclk)
 	return scriptptr;
 }
 
-static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dcb_entry *dcbent, int head)
+static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct dcb_entry *dcbent, int head, bool dl)
 {
 	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	init_exec_t iexec = {true, false};
@@ -3103,7 +3103,7 @@ static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct 
 	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
-	link_head_and_output(pScrn, dcbent, head);
+	link_head_and_output(pScrn, dcbent, head, dl);
 }
 
 static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script)
@@ -3116,7 +3116,7 @@ static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dc
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return -EINVAL;
 
-	run_digital_op_script(pScrn, scriptofs, dcbent, head);
+	run_digital_op_script(pScrn, scriptofs, dcbent, head, bios->fp.dual_link);
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
@@ -3203,7 +3203,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS output init script not found\n");
 		return -ENOENT;
 	}
-	run_digital_op_script(pScrn, scriptptr, dcbent, head);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head, bios->fp.dual_link);
 
 	return 0;
 }
@@ -3643,7 +3643,7 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 
 	/* don't let script change pll->head binding */
 	sel_clk_binding = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
-	run_digital_op_script(pScrn, scriptptr, dcbent, head);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head, pxclk >= 165000);
 	nv32_wr(pScrn, NV_RAMDAC_SEL_CLK, (nv32_rd(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
 
 	return 0;

@@ -762,24 +762,26 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 	struct nouveau_encoder *nv_encoder = NULL;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	bool is_fp = false;
-	bool is_lvds = false;
+	bool dual_link = false;
 	uint32_t mode_ratio, panel_ratio;
 	int i;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
-		xf86OutputPtr output = xf86_config->output[i];
 		/* assuming one fp output per crtc seems ok */
-		nv_encoder = to_nouveau_encoder(output);
+		nv_encoder = to_nouveau_encoder(xf86_config->output[i]);
+		if (xf86_config->output[i]->crtc != crtc)
+			continue;
 
-		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_LVDS)
-			is_lvds = true;
-		if (is_lvds || (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_TMDS)) {
-			is_fp = true;
+		if (nv_encoder->dcb->type == OUTPUT_LVDS) {
+			dual_link = pNv->VBIOS.fp.dual_link;
+			break;
+		}
+		if (nv_encoder->dcb->type == OUTPUT_TMDS) {
+			dual_link = (adjusted_mode->Clock >= 165000);
 			break;
 		}
 	}
-	if (!is_fp)
+	if (i == xf86_config->num_output)
 		return;
 
 	regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
@@ -809,7 +811,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	* bit24: 12/24 bit interface (12bit=on, 24bit=off)
 	* bit26: a bit sometimes seen on some g70 cards
 	* bit28: fp display enable bit
-	* bit31: set for dual link LVDS
+	* bit31: set for dual link
 	*/
 
 	regp->fp_control = (savep->fp_control & 0x04100000) |
@@ -822,10 +824,10 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (adjusted_mode->Flags & V_PHSYNC)
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_HSYNC_POS;
 
+	/* panel scaling first, as native would get set otherwise */
 	if (nv_encoder->scaling_mode == SCALE_PANEL ||
-	    nv_encoder->scaling_mode == SCALE_NOSCALE) /* panel needs to scale */
+	    nv_encoder->scaling_mode == SCALE_NOSCALE)	/* panel handles it */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_CENTER;
-	/* This is also true for panel scaling, so we must put the panel scale check first */
 	else if (mode->HDisplay == adjusted_mode->HDisplay &&
 		 mode->VDisplay == adjusted_mode->VDisplay) /* native mode */
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_MODE_NATIVE;
@@ -835,7 +837,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_WIDTH_12;
 
-	if (is_lvds && pNv->VBIOS.fp.dual_link)
+	if (dual_link)
 		regp->fp_control |= (8 << 28);
 
 	/* Use the generic value, and enable x-scaling, y-scaling, and the TMDS enable bit */

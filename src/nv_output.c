@@ -663,6 +663,10 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0xf0000000);
 	else
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0x00100000);
+
+	/* update fp_control state for any changes made by scripts, for dpms */
+	pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control =
+			NVReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
 }
 
 static void
@@ -681,27 +685,28 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 {
 	NVPtr pNv = NVPTR(pScrn);
 	struct nouveau_crtc *nv_crtc;
-	NVCrtcRegPtr regp;
+	uint32_t *fpc;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int i;
 
 	if (mode == DPMSModeOn) {
 		nv_crtc = to_nouveau_crtc(crtc);
-		regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL,
-			      regp->fp_control & ~NV_PRAMDAC_FP_TG_CONTROL_OFF);
+		*fpc &= ~NV_PRAMDAC_FP_TG_CONTROL_OFF;
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, *fpc);
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
-			regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+			fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!nv_crtc->fp_users) {
 				/* cut the FP output */
-				regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_OFF;
-				NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, regp->fp_control);
+				*fpc |= NV_PRAMDAC_FP_TG_CONTROL_OFF;
+				NVWriteRAMDAC(pNv, nv_crtc->head,
+					      NV_RAMDAC_FP_CONTROL, *fpc);
 			}
 		}
 }
