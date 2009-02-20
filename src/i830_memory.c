@@ -1473,7 +1473,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     /* Allocate overlay register space and optional XAA linear allocator
      * space.  The second head in zaphod mode will share the space.
      */
-    if (I830IsPrimary(pScrn))
+    if (I830IsPrimary(pScrn) && !pI830->use_drm_mode)
 	i830_allocate_overlay(pScrn);
 #endif
 

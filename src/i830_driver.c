@@ -3249,12 +3249,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "needs 2D acceleration.\n");
 	 pI830->XvEnabled = FALSE;
       }
-      if (!OVERLAY_NOEXIST(pI830) && pI830->overlay_regs == NULL) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		     "Disabling Xv because the overlay register buffer "
-		      "allocation failed.\n");
-	 pI830->XvEnabled = FALSE;
-      }
    }
 #endif
 

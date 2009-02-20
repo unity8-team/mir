@@ -648,8 +648,13 @@ I830InitVideo(ScreenPtr pScreen)
     }
 #endif
 
-    if (num_adaptors)
+    if (num_adaptors) {
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Disabling Xv because no adaptors could be initialized.\n");
+	pI830->XvEnabled = FALSE;
+    }
 
 #ifdef INTEL_XVMC
     if (xvmc_status)
