@@ -5368,10 +5368,15 @@
 #define R500_DYN_SCLK_PWMEM_PIPE                        0x000d /* PLL */
 
 /* r6xx/r7xx stuff */
+#define R600_GRBM_STATUS                                   	   0x8010
+#       define R600_CMDFIFO_AVAIL_MASK                             0x1f
+#       define R700_CMDFIFO_AVAIL_MASK                             0xf
+#       define R600_GUI_ACTIVE                                     (1 << 31)
+
 #define R600_GRBM_SOFT_RESET                                    0x8020
 #       define R600_SOFT_RESET_CP                               (1 << 0)
 
-#define R600_WAIT_UNTIL                                  0x8040
+#define R600_WAIT_UNTIL                                         0x8040
 
 #define R600_CP_ME_CNTL                                         0x86d8
 #       define R600_CP_ME_HALT                                  (1 << 28)

@@ -93,6 +93,7 @@
 				/* X and server generic header files */
 #include "xf86.h"
 
+static void R600EngineReset(ScrnInfoPtr pScrn);
 
 #ifdef USE_XAA
 static struct {
@@ -141,6 +142,37 @@ void RADEONWaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
 		   "FIFO timed out, resetting engine...\n");
 	RADEONEngineReset(pScrn);
 	RADEONEngineRestore(pScrn);
+#ifdef XF86DRI
+	if (info->directRenderingEnabled) {
+	    RADEONCP_RESET(pScrn, info);
+	    RADEONCP_START(pScrn, info);
+	}
+#endif
+    }
+}
+
+void R600WaitForFifoFunction(ScrnInfoPtr pScrn, int entries)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    int            i;
+
+    for (;;) {
+	for (i = 0; i < RADEON_TIMEOUT; i++) {
+	    if (info->ChipFamily >= CHIP_FAMILY_RV770)
+		info->accel_state->fifo_slots =
+		    INREG(R600_GRBM_STATUS) & R700_CMDFIFO_AVAIL_MASK;
+	    else
+		info->accel_state->fifo_slots =
+		    INREG(R600_GRBM_STATUS) & R600_CMDFIFO_AVAIL_MASK;
+	    if (info->accel_state->fifo_slots >= entries) return;
+	}
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "FIFO timed out: stat=0x%08x\n",
+		       (unsigned int)INREG(R600_GRBM_STATUS));
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "FIFO timed out, resetting engine...\n");
+	R600EngineReset(pScrn);
 #ifdef XF86DRI
 	if (info->directRenderingEnabled) {
 	    RADEONCP_RESET(pScrn, info);
@@ -307,7 +339,7 @@ void RADEONEngineReset(ScrnInfoPtr pScrn)
 }
 
 /* Reset graphics card to known state */
-void R600EngineReset(ScrnInfoPtr pScrn)
+static void R600EngineReset(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;

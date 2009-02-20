@@ -746,39 +746,56 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
     }
 #endif
 
-#if 0
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "WaitForIdle (entering): %d entries, stat=0x%08x\n",
-		   INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-		   INREG(RADEON_RBBM_STATUS));
-#endif
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	/* Wait for the engine to go idle */
+	if (info->ChipFamily >= CHIP_FAMILY_RV770)
+	    R600WaitForFifoFunction(pScrn, 8);
+	else
+	    R600WaitForFifoFunction(pScrn, 16);
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	return;
-
-    /* Wait for the engine to go idle */
-    RADEONWaitForFifoFunction(pScrn, 64);
-
-    for (;;) {
-	for (i = 0; i < RADEON_TIMEOUT; i++) {
-	    if (!(INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)) {
-		RADEONEngineFlush(pScrn);
-		return;
+	for (;;) {
+	    for (i = 0; i < RADEON_TIMEOUT; i++) {
+		if (!(INREG(R600_GRBM_STATUS) & R600_GUI_ACTIVE))
+		    return;
 	    }
-	}
-	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		       "Idle timed out: %u entries, stat=0x%08x\n",
-		       (unsigned int)INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
-		       (unsigned int)INREG(RADEON_RBBM_STATUS));
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Idle timed out, resetting engine...\n");
-	RADEONEngineReset(pScrn);
-	RADEONEngineRestore(pScrn);
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "Idle timed out: stat=0x%08x\n",
+			   (unsigned int)INREG(R600_GRBM_STATUS));
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Idle timed out, resetting engine...\n");
+	    R600EngineReset(pScrn);
 #ifdef XF86DRI
-	if (info->directRenderingEnabled) {
-	    RADEONCP_RESET(pScrn, info);
-	    RADEONCP_START(pScrn, info);
-	}
+	    if (info->directRenderingEnabled) {
+		RADEONCP_RESET(pScrn, info);
+		RADEONCP_START(pScrn, info);
+	    }
 #endif
+	}
+    } else {
+	/* Wait for the engine to go idle */
+	RADEONWaitForFifoFunction(pScrn, 64);
+
+	for (;;) {
+	    for (i = 0; i < RADEON_TIMEOUT; i++) {
+		if (!(INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_ACTIVE)) {
+		    RADEONEngineFlush(pScrn);
+		    return;
+		}
+	    }
+	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+			   "Idle timed out: %u entries, stat=0x%08x\n",
+			   (unsigned int)INREG(RADEON_RBBM_STATUS) & RADEON_RBBM_FIFOCNT_MASK,
+			   (unsigned int)INREG(RADEON_RBBM_STATUS));
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Idle timed out, resetting engine...\n");
+	    RADEONEngineReset(pScrn);
+	    RADEONEngineRestore(pScrn);
+#ifdef XF86DRI
+	    if (info->directRenderingEnabled) {
+		RADEONCP_RESET(pScrn, info);
+		RADEONCP_START(pScrn, info);
+	    }
+#endif
+	}
     }
 }
