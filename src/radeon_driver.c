@@ -1309,7 +1309,7 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
 	else
 #endif
 	{
-	    uint32_t aper0_base;
+	    uint64_t aper0_base;
 
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		aper0_base = INREG(R600_CONFIG_F0_BASE);
