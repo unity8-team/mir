@@ -1271,7 +1271,8 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   int srcPitch,
 		   int dstPitch, int top, int left, int h, int w)
 {
-    unsigned char *src, *dst;
+    I830Ptr pI830 = I830PTR(pScrn);
+    unsigned char *src, *dst, *dst_base;
     int i,j;
     unsigned char *s;
 
@@ -1283,11 +1284,18 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     src = buf + (top * srcPitch) + (left << 1);
 
-    drm_intel_bo_map(pPriv->buf, TRUE);
+    if (pPriv->textured) {
+	drm_intel_bo_map(pPriv->buf, TRUE);
+	dst_base = pPriv->buf->virtual;
+    } else {
+	drm_intel_gem_bo_start_gtt_access(pPriv->buf, TRUE);
+	dst_base = pI830->FbBase;
+    }
+
     if (pPriv->currentBuf == 0)
-	dst = (unsigned char *) pPriv->buf->virtual + pPriv->YBuf0offset;
+	dst = dst_base + pPriv->YBuf0offset;
     else
-	dst = (unsigned char *) pPriv->buf->virtual + pPriv->YBuf1offset;
+	dst = dst_base + pPriv->YBuf1offset;
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
@@ -1360,7 +1368,9 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	}
 	break;
     }
-    drm_intel_bo_unmap(pPriv->buf);
+
+    if (pPriv->textured)
+	drm_intel_bo_unmap(pPriv->buf);
 }
 
 static void
@@ -1369,8 +1379,9 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   int srcPitch2, int dstPitch, int srcH, int top, int left,
 		   int h, int w, int id)
 {
+    I830Ptr pI830 = I830PTR(pScrn);
     int i, j = 0;
-    unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
+    unsigned char *src1, *src2, *src3, *dst_base, *dst1, *dst2, *dst3;
     unsigned char *s;
     int dstPitch2 = dstPitch << 1;
 
@@ -1387,11 +1398,19 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     ErrorF("src1 is %p, offset is %ld\n", src1,
 	   (unsigned long)src1 - (unsigned long)buf);
 #endif
-    drm_intel_bo_map(pPriv->buf, TRUE);
+
+    if (pPriv->textured) {
+	drm_intel_bo_map(pPriv->buf, TRUE);
+	dst_base = pPriv->buf->virtual;
+    } else {
+	drm_intel_gem_bo_start_gtt_access(pPriv->buf, TRUE);
+	dst_base = pI830->FbBase + pPriv->buf->offset;
+    }
+
     if (pPriv->currentBuf == 0)
-	dst1 = (unsigned char *) pPriv->buf->virtual + pPriv->YBuf0offset;
+	dst1 = dst_base + pPriv->YBuf0offset;
     else
-	dst1 = (unsigned char *) pPriv->buf->virtual + pPriv->YBuf1offset;
+	dst1 = dst_base + pPriv->YBuf1offset;
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
@@ -1441,14 +1460,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 #endif
     if (pPriv->currentBuf == 0) {
 	if (id == FOURCC_I420)
-	    dst2 = (unsigned char *) pPriv->buf->virtual + pPriv->UBuf0offset;
+	    dst2 = dst_base + pPriv->UBuf0offset;
 	else
-	    dst2 = (unsigned char *) pPriv->buf->virtual + pPriv->VBuf0offset;
+	    dst2 = dst_base + pPriv->VBuf0offset;
     } else {
 	if (id == FOURCC_I420)
-	    dst2 = (unsigned char *) pPriv->buf->virtual + pPriv->UBuf1offset;
+	    dst2 = dst_base + pPriv->UBuf1offset;
 	else
-	    dst2 = (unsigned char *) pPriv->buf->virtual + pPriv->VBuf1offset;
+	    dst2 = dst_base + pPriv->VBuf1offset;
     }
 
     switch (pPriv->rotation) {
@@ -1500,14 +1519,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 #endif
     if (pPriv->currentBuf == 0) {
 	if (id == FOURCC_I420)
-	    dst3 = (unsigned char *) pPriv->buf->virtual + pPriv->VBuf0offset;
+	    dst3 = dst_base + pPriv->VBuf0offset;
 	else
-	    dst3 = (unsigned char *) pPriv->buf->virtual + pPriv->UBuf0offset;
+	    dst3 = dst_base + pPriv->UBuf0offset;
     } else {
 	if (id == FOURCC_I420)
-	    dst3 = (unsigned char *) pPriv->buf->virtual + pPriv->VBuf1offset;
+	    dst3 = dst_base + pPriv->VBuf1offset;
 	else
-	    dst3 = (unsigned char *) pPriv->buf->virtual + pPriv->UBuf1offset;
+	    dst3 = dst_base + pPriv->UBuf1offset;
     }
 
     switch (pPriv->rotation) {
@@ -1549,7 +1568,9 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	}
 	break;
     }
-    drm_intel_bo_unmap(pPriv->buf);
+
+    if (pPriv->textured)
+	drm_intel_bo_unmap(pPriv->buf);
 }
 
 typedef struct {
@@ -2410,10 +2431,10 @@ I830PutImage(ScrnInfoPtr pScrn,
 	destId = FOURCC_YV12;
     } else {
 #endif
-	if (!pPriv->textured)
-	    pPriv->YBuf0offset = pPriv->buf->offset;
-	else
+	if (pPriv->textured)
 	    pPriv->YBuf0offset = 0;
+	else
+	    pPriv->YBuf0offset = pPriv->buf->offset;
 
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
