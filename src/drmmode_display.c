@@ -48,7 +48,7 @@ typedef struct {
     drmModeCrtcPtr mode_crtc;
     dri_bo *cursor;
     dri_bo *rotate_bo;
-    int rotate_fb_id;
+    uint32_t rotate_fb_id;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
@@ -277,17 +277,19 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
+	ScrnInfoPtr pScrn = crtc->scrn;
+	I830Ptr pI830 = I830PTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int size;
+	int size, ret;
 	unsigned long rotate_pitch;
 
-	rotate_pitch = crtc->scrn->displayWidth * drmmode->cpp;
+	width = i830_pad_drawable_width(width, drmmode->cpp);
+	rotate_pitch = width * drmmode->cpp;
 	size = rotate_pitch * height;
 
-#if 0
 	drmmode_crtc->rotate_bo =
-		dri_bo_alloc(drmmode->bufmgr, "rotate", size, 4096);
+		drm_intel_bo_alloc(pI830->bufmgr, "rotate", size, 4096);
 
 	if (!drmmode_crtc->rotate_bo) {
 		xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
@@ -295,18 +297,19 @@ drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 		return NULL;
 	}
 
-	dri_bo_map(drmmode_crtc->rotate_bo, 1);
+	drm_intel_gem_bo_map_gtt(drmmode_crtc->rotate_bo);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
 			   crtc->scrn->bitsPerPixel, rotate_pitch,
 			   drmmode_crtc->rotate_bo->handle,
 			   &drmmode_crtc->rotate_fb_id);
-	if (ret)
+	if (ret) {
 		ErrorF("failed to add rotate fb\n");
+		drm_intel_bo_unreference(drmmode_crtc->rotate_bo);
+		return NULL;
+	}
 
 	return drmmode_crtc->rotate_bo->virtual;
-#endif
-	return NULL;
 }
 
 static PixmapPtr
@@ -321,8 +324,8 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 	if (!data)
 		data = drmmode_crtc_shadow_allocate (crtc, width, height);
 
-	rotate_pitch = pScrn->displayWidth * drmmode->cpp;
-
+	rotate_pitch =
+		i830_pad_drawable_width(width, drmmode->cpp) * drmmode->cpp;
 	rotate_pixmap = GetScratchPixmapHeader(pScrn->pScreen,
 					       width, height,
 					       pScrn->depth,
@@ -334,27 +337,32 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
 	}
-	return rotate_pixmap;
 
+	if (drmmode_crtc->rotate_bo)
+		i830_set_pixmap_bo(rotate_pixmap, drmmode_crtc->rotate_bo);
+
+	return rotate_pixmap;
 }
 
 static void
 drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *data)
 {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+
 	if (rotate_pixmap)
 		FreeScratchPixmapHeader(rotate_pixmap);
 
-#if 0
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 	if (data) {
-		/* Be sure to sync acceleration before the memory gets unbound. */
+		/* Be sure to sync acceleration before the memory gets
+		 * unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
+		drm_intel_bo_unmap(drmmode_crtc->rotate_bo);
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}
-#endif
 }
 
 static void
@@ -376,17 +384,10 @@ static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.show_cursor = drmmode_show_cursor,
 	.hide_cursor = drmmode_hide_cursor,
 	.load_cursor_argb = drmmode_load_cursor_argb,
-
 	.shadow_create = drmmode_crtc_shadow_create,
 	.shadow_allocate = drmmode_crtc_shadow_allocate,
 	.shadow_destroy = drmmode_crtc_shadow_destroy,
 	.gamma_set = drmmode_crtc_gamma_set,
-#if 0
-	.shadow_create = i830_crtc_shadow_create,
-	.shadow_allocate = i830_crtc_shadow_allocate,
-	.shadow_destroy = i830_crtc_shadow_destroy,
-	.set_cursor_colors = i830_crtc_set_cursor_colors,
-#endif
 	.destroy = NULL, /* XXX */
 };
 
@@ -637,7 +638,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualX = width;
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch;
-	pI830->front_buffer = i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
+	pI830->front_buffer =
+		i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
 	if (!pI830->front_buffer)
 		goto fail;
 
