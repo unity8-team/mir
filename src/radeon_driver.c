@@ -1347,21 +1347,15 @@ static void RADEONInitMemoryMap(ScrnInfoPtr pScrn)
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	info->fbLocation = (info->mc_fb_location & 0xffff) << 24;
     } else {
-   	info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
+	info->fbLocation = (info->mc_fb_location & 0xffff) << 16;
     }
     /* Just disable the damn AGP apertures for now, it may be
      * re-enabled later by the DRM
      */
-
-    if (IS_AVIVO_VARIANT) {
-	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    OUTREG(R600_HDP_NONSURFACE_BASE, (info->mc_fb_location << 16) & 0xff0000);
-	} else {
-	    OUTREG(AVIVO_HDP_FB_LOCATION, info->mc_fb_location);
-	}
-    	info->mc_agp_location = 0x003f0000;
-    } else
-    	info->mc_agp_location = 0xffffffc0;
+    if (IS_AVIVO_VARIANT)
+	info->mc_agp_location = 0x003f0000;
+    else
+	info->mc_agp_location = 0xffffffc0;
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "RADEONInitMemoryMap() : \n");
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -3780,7 +3774,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	    } else {
 		OUTREG(R600_HDP_NONSURFACE_BASE, (restore->mc_fb_location << 16) & 0xff0000);
 	    }
-	    
+
 	    /* Reset the engine and HDP */
 	    RADEONEngineReset(pScrn);
 	}
