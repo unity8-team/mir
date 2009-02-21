@@ -3304,9 +3304,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   return FALSE;
    }
 
-   if (!pI830->use_drm_mode)
-       i830_disable_render_standby(pScrn);
-
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
    if (pI830->accel <= ACCEL_XAA) {
@@ -3637,6 +3634,9 @@ I830EnterVT(int scrnIndex, int flags)
    }
 
    pI830->leaving = FALSE;
+
+   if (!pI830->use_drm_mode)
+       i830_disable_render_standby(pScrn);
 
 #ifdef XF86DRI
    if (pI830->memory_manager && !pI830->use_drm_mode) {
