@@ -900,7 +900,7 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 	 */
 	size = i830_get_fence_size(i830, stride * h);
 
-	bo = dri_bo_alloc (i830->bufmgr, "pixmap", size, 0);
+	bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
 	if (!bo) {
 	    fbDestroyPixmap (pixmap);
 	    return NullPixmap;
