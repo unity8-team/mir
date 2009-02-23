@@ -2054,6 +2054,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!NVMapMem(pScrn))
 		return FALSE;
 
+	/* Clear the framebuffer, we don't want to see garbage on-screen
+	 * up until X decides to draw something
+	 */
+	if (!pNv->kms_enable) {
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
+		memset(pNv->FB->map, 0, NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+		       pScrn->virtualY * (pScrn->bitsPerPixel >> 3));
+		nouveau_bo_unmap(pNv->FB);
+	}
+
 	if (!pNv->NoAccel) {
 		/* Init DRM - Alloc FIFO */
 		if (!NVInitDma(pScrn))
