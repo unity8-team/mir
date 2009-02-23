@@ -578,7 +578,7 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
 	OUTREG(RS690_MC_INDEX, (addr & RS690_MC_INDEX_MASK));
 	data = INREG(RS690_MC_DATA);
     } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
-	OUTREG(RS600_MC_INDEX, (addr & RS600_MC_INDEX_MASK));
+	OUTREG(RS600_MC_INDEX, ((addr & RS600_MC_ADDR_MASK) | RS600_MC_IND_CITF_ARB0));
 	data = INREG(RS600_MC_DATA);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0x7f0000);
@@ -591,7 +591,7 @@ unsigned RADEONINMC(ScrnInfoPtr pScrn, int addr)
 	OUTREG(R300_MC_IND_INDEX, addr & 0x3f);
 	(void)INREG(R300_MC_IND_INDEX);
 	data = INREG(R300_MC_IND_DATA);
-	
+
 	OUTREG(R300_MC_IND_INDEX, 0);
 	(void)INREG(R300_MC_IND_INDEX);
     }
@@ -612,10 +612,10 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, uint32_t data)
 	OUTREG(RS690_MC_DATA, data);
 	OUTREG(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);
     } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
-	OUTREG(RS600_MC_INDEX, ((addr & RS600_MC_INDEX_MASK) |
-				RS600_MC_INDEX_WR_EN));
+	OUTREG(RS600_MC_INDEX, ((addr & RS600_MC_ADDR_MASK) |
+				RS600_MC_IND_CITF_ARB0 |
+				RS600_MC_IND_WR_EN));
 	OUTREG(RS600_MC_DATA, data);
-	OUTREG(RS600_MC_INDEX, RS600_MC_INDEX_WR_ACK);
     } else if (IS_AVIVO_VARIANT) {
 	OUTREG(AVIVO_MC_INDEX, (addr & 0xff) | 0xff0000);
 	(void)INREG(AVIVO_MC_INDEX);
@@ -648,7 +648,7 @@ static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 	else
 	    return FALSE;
     } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
-	if (INMC(pScrn, RS600_MC_STATUS) & RS600_MC_STATUS_IDLE)
+	if (INMC(pScrn, RS600_MC_STATUS) & RS600_MC_IDLE)
 	    return TRUE;
 	else
 	    return FALSE;
@@ -696,8 +696,8 @@ static void radeon_write_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_
     } else if (info->ChipFamily == CHIP_FAMILY_RS600) {
 	if (mask & LOC_FB)
 	    OUTMC(pScrn, RS600_MC_FB_LOCATION, fb_loc);
-	/*	if (mask & LOC_AGP)
-		OUTMC(pScrn, RS600_MC_AGP_LOCATION, agp_loc);*/
+	if (mask & LOC_AGP)
+	    OUTMC(pScrn, RS600_MC_AGP_LOCATION, agp_loc);
     } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
 	       (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	if (mask & LOC_FB)
@@ -748,7 +748,7 @@ static void radeon_read_mc_fb_agp_location(ScrnInfoPtr pScrn, int mask, uint32_t
 	if (mask & LOC_FB)
 	    *fb_loc = INMC(pScrn, RS600_MC_FB_LOCATION);
 	if (mask & LOC_AGP) {
-	    *agp_loc = 0;//INMC(pScrn, RS600_MC_AGP_LOCATION);
+	    *agp_loc = INMC(pScrn, RS600_MC_AGP_LOCATION);
 	    *agp_loc_hi = 0;
 	}
     } else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
@@ -1880,6 +1880,10 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
     /* treat PCIE IGP cards as PCI */
     if (info->cardType == CARD_PCIE && info->IsIGP)
 		info->cardType = CARD_PCI;
+
+    /* not sure about gart table requirements */
+    if ((info->ChipFamily == CHIP_FAMILY_RS600) && info->IsIGP)
+	info->cardType = CARD_PCIE;
 
     if ((s = xf86GetOptValString(info->Options, OPTION_BUS_TYPE))) {
 	if (strcmp(s, "AGP") == 0) {

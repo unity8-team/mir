@@ -3445,15 +3445,24 @@
 #define RS690_MC_STATUS                         0x90
 #define RS690_MC_STATUS_IDLE                    (1 << 0)
 
-#define RS600_MC_INDEX				0x78
-#	define RS600_MC_INDEX_MASK		0xff
-#	define RS600_MC_INDEX_WR_EN		(1 << 8)
-#	define RS600_MC_INDEX_WR_ACK		0xff
-#define RS600_MC_DATA				0x7c
+#define RS600_MC_INDEX                          0x70
+#	define RS600_MC_ADDR_MASK		0xff
+#       define RS600_MC_IND_SEQ_RBS_0           (1 << 16)
+#       define RS600_MC_IND_SEQ_RBS_1           (1 << 17)
+#       define RS600_MC_IND_SEQ_RBS_2           (1 << 18)
+#       define RS600_MC_IND_SEQ_RBS_3           (1 << 19)
+#       define RS600_MC_IND_AIC_RBS             (1 << 20)
+#       define RS600_MC_IND_CITF_ARB0           (1 << 21)
+#       define RS600_MC_IND_CITF_ARB1           (1 << 22)
+#       define RS600_MC_IND_WR_EN               (1 << 23)
+#define RS600_MC_DATA                           0x74
 
-#define RS600_MC_FB_LOCATION			0xA
-#define RS600_MC_STATUS                         0x0
-#define RS600_MC_STATUS_IDLE                    (1 << 0)
+#define RS600_MC_STATUS			        0x0
+#	define RS600_MC_IDLE		        (1 << 1)
+#define RS600_MC_FB_LOCATION                    0x4
+#define RS600_MC_AGP_LOCATION                   0x5
+#define RS600_AGP_BASE                          0x6
+#define RS600_AGP_BASE2                         0x7
 
 #define AVIVO_MC_INDEX				0x0070
 #define R520_MC_STATUS                          0x00
