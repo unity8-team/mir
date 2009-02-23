@@ -1147,7 +1147,7 @@ radeon_create_resources(xf86OutputPtr output)
     }
 #endif
 
-    if (radeon_output->devices & (ATOM_DEVICE_CRT_SUPPORT)) {
+    if (radeon_output->devices & (ATOM_DEVICE_CRT_SUPPORT | ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) {
 	load_detection_atom = MAKE_ATOM("load_detection");
 
 	range[0] = 0; /* off */
