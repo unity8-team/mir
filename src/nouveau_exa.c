@@ -582,6 +582,8 @@ nouveau_exa_init(ScreenPtr pScreen)
 			 */
 			exa->pixmapOffsetAlign = 65536;
 			exa->flags |= EXA_OFFSCREEN_ALIGN_POT;
+			exa->offScreenBase =
+				NOUVEAU_ALIGN(exa->offScreenBase, 0x10000);
 
 			nouveau_bo_tile(pNv->FB, NOUVEAU_BO_VRAM |
 					NOUVEAU_BO_TILED, exa->offScreenBase,
