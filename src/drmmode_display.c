@@ -766,10 +766,19 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 static Bool
 drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
+	NVPtr pNv = NVPTR(scrn);
+
 	ErrorF("resize called %d %d\n", width, height);
-	scrn->virtualX = width;
-	scrn->virtualY = height;
-	return TRUE;
+
+	if (1 || !pNv->exa_driver_pixmaps) {
+		if (width > scrn->virtualX || height > scrn->virtualY)
+			return FALSE;
+
+		scrn->displayWidth = width;
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
