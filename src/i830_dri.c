@@ -66,6 +66,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -1677,8 +1678,10 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     DRI2InfoRec info;
-    char *p, *busId, buf[64];
+    char *p, buf[64];
     int fd, i, cmp;
+    struct stat sbuf;
+    dev_t d;
 
     if (pI830->accel != ACCEL_UXA) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
@@ -1712,21 +1715,13 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
      * things worse with even more ad hoc directory walking code to
      * discover the device file name. */
 
+    fstat(info.fd, &sbuf);
+    d = sbuf.st_rdev;
+
     p = pI830->deviceName;
     for (i = 0; i < DRM_MAX_MINOR; i++) {
 	sprintf(p, DRM_DEV_NAME, DRM_DIR_NAME, i);
-	fd = open(p, O_RDWR);
-	if (fd < 0)
-	    continue;
-
-	busId = drmGetBusid(fd);
-	close(fd);
-	if (busId == NULL)
-	    continue;
-
-	cmp = strcmp(busId, buf);
-	drmFree(busId);
-	if (cmp == 0)
+	if (stat(p, &sbuf) == 0 && sbuf.st_rdev == d)
 	    break;
     }
     if (i == DRM_MAX_MINOR) {
