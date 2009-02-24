@@ -4425,6 +4425,7 @@ R600DrawInit(ScreenPtr pScreen)
 	return FALSE;
 
     info->accel_state->XInited3D = FALSE;
+    info->accel_state->copy_area = NULL;
 
     if (!R600LoadShaders(pScrn, pScreen))
 	return FALSE;
