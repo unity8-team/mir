@@ -3488,6 +3488,9 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
 
+   if (pI830->use_drm_mode)
+      return;
+
    if (crtc && crtc->enabled)
    {
       /* Sync the engine before adjust frame */
