@@ -61,7 +61,7 @@ typedef struct {
 
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
-			 struct drm_mode_modeinfo *kmode,
+			 drmModeModeInfoPtr kmode,
 			 DisplayModePtr	mode)
 {
 	memset(mode, 0, sizeof(DisplayModeRec));
@@ -93,7 +93,7 @@ drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
 
 static void
 drmmode_ConvertToKMode(ScrnInfoPtr scrn,
-		       struct drm_mode_modeinfo *kmode,
+		       drmModeModeInfoPtr kmode,
 		       DisplayModePtr mode)
 {
 	memset(kmode, 0, sizeof(*kmode));
@@ -141,7 +141,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int ret = TRUE;
 	int i;
 	int fb_id;
-	struct drm_mode_modeinfo kmode;
+	drmModeModeInfo kmode;
 	unsigned int pitch = pScrn->displayWidth * pI830->cpp;
 
 	if (drmmode->fb_id == 0) {
