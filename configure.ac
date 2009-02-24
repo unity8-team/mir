@@ -129,7 +129,7 @@ if test "x$EXA" = xyes; then
         AC_MSG_RESULT(yes)
 
         SAVE_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
+        CPPFLAGS="$CPPFLAGS $XORG_CFLAGS -DEXA_DRIVER_KNOWN_MAJOR=3"
         AC_CHECK_HEADER(exa.h,
                        [have_exa_h="yes"], [have_exa_h="no"])
         CPPFLAGS="$SAVE_CPPFLAGS"
@@ -138,7 +138,7 @@ else
 fi 
 
 SAVE_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
+CPPFLAGS="$CPPFLAGS $XORG_CFLAGS -DEXA_DRIVER_KNOWN_MAJOR=3"
 if test "x$have_exa_h" = xyes; then
         AC_MSG_CHECKING([whether EXA version is at least 2.0.0])
         AC_PREPROC_IFELSE([AC_LANG_PROGRAM([[
@@ -153,6 +153,7 @@ if test "x$have_exa_h" = xyes; then
 
         if test "x$USE_EXA" = xyes; then
                 AC_DEFINE(USE_EXA, 1, [Build support for Exa])
+                AC_DEFINE(EXA_DRIVER_KNOWN_MAJOR, 3, [Major version of EXA we know how to handle])
         fi
 fi
 

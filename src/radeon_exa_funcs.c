@@ -56,8 +56,6 @@
 
 #include "radeon.h"
 
-#include "exa.h"
-
 static int
 FUNC_NAME(RADEONMarkSync)(ScreenPtr pScreen)
 {
