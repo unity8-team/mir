@@ -684,6 +684,7 @@ struct radeon_accel_state {
     drmBufPtr         scratch;
 
     // copy
+    ExaOffscreenArea  *copy_area;
     Bool              same_surface;
     int               rop;
     uint32_t          planemask;
