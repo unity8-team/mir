@@ -93,10 +93,10 @@ void
 radeon_legacy_free_memory(ScrnInfoPtr pScrn,
 		   void *mem_struct)
 {
-    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
     RADEONInfoPtr info = RADEONPTR(pScrn);
-
 #ifdef USE_EXA
+    ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
+
     if (info->useEXA) {
 	ExaOffscreenArea *area = mem_struct;
 
