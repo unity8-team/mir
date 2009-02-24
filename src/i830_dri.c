@@ -1080,7 +1080,6 @@ I830DRIMoveBuffers(WindowPtr pParent, DDXPointRec ptOldOrg,
 {
    ScreenPtr pScreen = pParent->drawable.pScreen;
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-   I830Ptr pI830 = I830PTR(pScrn);
    BoxPtr pboxTmp, pboxNext, pboxBase;
    DDXPointPtr pptTmp, pptNew2 = NULL;
    int xdir, ydir;
@@ -1253,7 +1252,6 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
 {
    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
    I830Ptr pI830 = I830PTR(pScrn);
-   drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
    pI830->want_vblank_interrupts = FALSE;
    I830DRISetVBlankInterrupt(pScrn, FALSE);
@@ -1679,7 +1677,7 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     I830Ptr pI830 = I830PTR(pScrn);
     DRI2InfoRec info;
     char *p, buf[64];
-    int fd, i, cmp;
+    int i;
     struct stat sbuf;
     dev_t d;
 

@@ -2790,9 +2790,6 @@ I830StopSurface(XF86SurfacePtr surface)
 static int
 I830FreeSurface(XF86SurfacePtr surface)
 {
-    ScrnInfoPtr pScrn = surface->pScrn;
-    OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
-
     I830StopSurface(surface);
     xfree(surface->pitches);
     xfree(surface->offsets);
