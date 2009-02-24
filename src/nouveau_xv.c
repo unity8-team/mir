@@ -27,13 +27,14 @@
 
 #include "xf86xv.h"
 #include <X11/extensions/Xv.h>
-#include "exa.h"
 #include "damage.h"
 #include "dixstruct.h"
 #include "fourcc.h"
 
 #include "nv_include.h"
 #include "nv_dma.h"
+
+#include "exa.h"
 
 #include "vl_hwmc.h"
 
