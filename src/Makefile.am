@@ -136,8 +136,7 @@ intel_drv_la_SOURCES = \
 	 i830_render.c \
 	 i915_render.c \
 	 i965_render.c \
-	 drmmode_display.c \
-	 drmmode_display.h
+	 drmmode_display.c
 
 INTEL_G4A =				\
 	packed_yuv_sf.g4a		\
