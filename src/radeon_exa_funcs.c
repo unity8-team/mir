@@ -129,7 +129,8 @@ FUNC_NAME(RADEONSolid)(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 
     TRACE;
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix), y1, y2, info->accel_state->vsync);
+    if (info->accel_state->vsync)
+	FUNC_NAME(RADEONWaitForVLine)(pScrn, pPix, RADEONBiggerCrtcArea(pPix), y1, y2);
 
     BEGIN_ACCEL(2);
     OUT_ACCEL_REG(RADEON_DST_Y_X, (y1 << 16) | x1);
@@ -230,7 +231,8 @@ FUNC_NAME(RADEONCopy)(PixmapPtr pDst,
 	dstY += h - 1;
     }
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h, info->accel_state->vsync);
+    if (info->accel_state->vsync)    
+	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h);
 
     BEGIN_ACCEL(3);
 
@@ -281,7 +283,8 @@ RADEONUploadToScreenCP(PixmapPtr pDst, int x, int y, int w, int h,
 
 	RADEON_SWITCH_TO_2D();
 
-	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), y, y + h, info->accel_state->vsync);
+	if (info->accel_state->vsync)
+	    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), y, y + h);
 
 	while ((buf = RADEONHostDataBlit(pScrn,
 					 cpp, w, dst_pitch_off, &buf_pitch,

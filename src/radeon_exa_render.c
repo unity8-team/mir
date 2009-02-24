@@ -2069,7 +2069,8 @@ static void FUNC_NAME(RadeonCompositeTile)(PixmapPtr pDst,
     } else
 	vtx_count = 4;
 
-    FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h, info->accel_state->vsync);
+    if (info->accel_state->vsync)
+	FUNC_NAME(RADEONWaitForVLine)(pScrn, pDst, RADEONBiggerCrtcArea(pDst), dstY, dstY + h);
 
 #ifdef ACCEL_CP
     if (info->ChipFamily < CHIP_FAMILY_R200) {

@@ -947,11 +947,11 @@ extern Bool radeon_card_posted(ScrnInfoPtr pScrn);
 #ifdef XF86DRI
 extern void RADEONWaitForIdleCP(ScrnInfoPtr pScrn);
 extern void RADEONWaitForVLineCP(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop, int enable);
+	int crtc, int start, int stop);
 #endif
 extern void RADEONWaitForIdleMMIO(ScrnInfoPtr pScrn);
 extern void RADEONWaitForVLineMMIO(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop, int enable);
+	int crtc, int start, int stop);
 
 /* radeon_crtc.c */
 extern void radeon_crtc_dpms(xf86CrtcPtr crtc, int mode);

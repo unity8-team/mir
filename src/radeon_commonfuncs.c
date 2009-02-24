@@ -628,15 +628,12 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 
 /* inserts a wait for vline in the command stream */
 void FUNC_NAME(RADEONWaitForVLine)(ScrnInfoPtr pScrn, PixmapPtr pPix,
-	int crtc, int start, int stop, Bool enable)
+	int crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     uint32_t offset;
     ACCEL_PREAMBLE();
-
-    if (!enable)
-	return;
 
     if ((crtc < 0) || (crtc > 1))
 	return;
