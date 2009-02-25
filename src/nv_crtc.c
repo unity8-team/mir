@@ -116,6 +116,7 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	NVPtr pNv = NVPTR(crtc->scrn);
+	enum pll_types plltype = nv_crtc->head ? VPLL2 : VPLL1;
 
 	if (nv_crtc->head) {
 		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
@@ -126,6 +127,7 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		if (pNv->two_reg_pll)
 			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
 	}
+	nouveau_hw_get_pllvals(crtc->scrn, plltype, &regp->pllvals);
 	if (pNv->twoHeads)
 		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
 	state->pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
@@ -995,7 +997,7 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_pll(crtc, &pNv->SavedReg, NULL);
+	nv_crtc_load_state_pll(crtc, &pNv->SavedReg, &pNv->SavedReg.crtc_reg[nv_crtc->head].pllvals);
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;

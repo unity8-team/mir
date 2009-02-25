@@ -352,59 +352,103 @@ void nv_show_cursor(NVPtr pNv, int head, bool show)
 		nv_fix_nv40_hw_cursor(pNv, head);
 }
 
-int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk)
+static void nouveau_hw_decode_pll(NVPtr pNv, uint32_t reg1,
+				  uint32_t pll1, uint32_t pll2,
+				  struct nouveau_pll_vals *pllvals)
 {
-	int M1, N1, M2 = 1, N2 = 1, log2P;
+	/* to force parsing as single stage (i.e. nv40 vplls) pass pll2 as 0 */
 
-	M1 = pll1 & 0xff;
-	N1 = (pll1 >> 8) & 0xff;
-	log2P = (pll1 >> 16) & 0x7; /* never more than 6, and nv30/35 only uses 3 bits */
-	if (pNv->two_reg_pll && pll2 & NV31_RAMDAC_ENABLE_VCO2 && !force_single) {
-		M2 = pll2 & 0xff;
-		N2 = (pll2 >> 8) & 0xff;
-	} else if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
-		M1 &= 0xf; /* only 4 bits */
-		if (pll1 & NV30_RAMDAC_ENABLE_VCO2) {
-			M2 = (pll1 >> 4) & 0x7;
-			N2 = ((pll2 >> 21) & 0x18) | ((pll2 >> 19) & 0x7);
+	/* log2P is & 0x7 as never more than 6, and nv30/35 only uses 3 bits */
+	pllvals->log2P = (pll1 >> 16) & 0x7;
+	pllvals->N2 = pllvals->M2 = 1;
+
+	if (reg1 <= 0x405c) {
+		pllvals->NM1 = pll2 & 0xffff;
+		/* single stage NVPLL and VPLLs use 1 << 8, MPLL uses 1 << 12 */
+		if (!(pll1 & 0x1100))
+			pllvals->NM2 = pll2 >> 16;
+	} else {
+		pllvals->NM1 = pll1 & 0xffff;
+		if (pNv->two_reg_pll && pll2 & NV31_RAMDAC_ENABLE_VCO2)
+			pllvals->NM2 = pll2 & 0xffff;
+		else if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35) {
+			pllvals->M1 &= 0xf; /* only 4 bits */
+			if (pll1 & NV30_RAMDAC_ENABLE_VCO2) {
+				pllvals->M2 = (pll1 >> 4) & 0x7;
+				pllvals->N2 = ((pll2 >> 21) & 0x18) |
+					      ((pll2 >> 19) & 0x7);
+			}
 		}
 	}
-
-	/* Avoid divide by zero if called at an inappropriate time */
-	if (!M1 || !M2)
-		return 0;
-
-	return (N1 * N2 * refclk / (M1 * M2)) >> log2P;
 }
 
-static int nv_decode_pll_lowregs(uint32_t Pval, uint32_t NMNM, int refclk)
+int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
+			   struct nouveau_pll_vals *pllvals)
 {
-	int M1, N1, M2 = 1, N2 = 1, log2P;
+	NVPtr pNv = NVPTR(pScrn);
+	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_RAMDAC_NVPLL,
+						    NV_RAMDAC_MPLL,
+						    NV_RAMDAC_VPLL,
+						    NV_RAMDAC_VPLL2 };
+	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000,
+						    0x4020,
+						    NV_RAMDAC_VPLL,
+						    NV_RAMDAC_VPLL2 };
+	uint32_t reg1, pll1, pll2 = 0;
+	struct pll_lims pll_lim;
+	int ret;
 
-	log2P = (Pval >> 16) & 0x7;
+	if (pNv->Architecture < NV_ARCH_40)
+		reg1 = nv04_regs[plltype];
+	else
+		reg1 = nv40_regs[plltype];
 
-	M1 = NMNM & 0xff;
-	N1 = (NMNM >> 8) & 0xff;
-	/* NVPLL and VPLLs use 1 << 8 to indicate single stage mode, MPLL uses 1 << 12 */
-	if (!(Pval & 0x1100)) {
-		M2 = (NMNM >> 16) & 0xff;
-		N2 = (NMNM >> 24) & 0xff;
+	pll1 = nvReadMC(pNv, reg1);
+
+	if (reg1 <= 0x405c)
+		pll2 = nvReadMC(pNv, reg1 + 4);
+	else if (pNv->two_reg_pll) {
+		uint32_t reg2 = reg1 + (reg1 == NV_RAMDAC_VPLL2 ? 0x5c : 0x70);
+
+		pll2 = nvReadMC(pNv, reg2);
 	}
 
+	if (pNv->Architecture == 0x40 && reg1 >= NV_RAMDAC_VPLL) {
+		uint32_t ramdac580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
+
+		/* check whether vpll has been forced into single stage mode */
+		if (reg1 == NV_RAMDAC_VPLL) {
+			if (ramdac580 & NV_RAMDAC_580_VPLL1_ACTIVE)
+				pll2 = 0;
+		} else
+			if (ramdac580 & NV_RAMDAC_580_VPLL2_ACTIVE)
+				pll2 = 0;
+	}
+
+	nouveau_hw_decode_pll(pNv, reg1, pll1, pll2, pllvals);
+
+	if ((ret = get_pll_limits(pScrn, plltype, &pll_lim)))
+		return ret;
+
+	pllvals->refclk = pll_lim.refclk;
+
+	return 0;
+}
+
+int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals)
+{
 	/* Avoid divide by zero if called at an inappropriate time */
-	if (!M1 || !M2)
+	if (!pllvals->M1 || !pllvals->M2)
 		return 0;
 
-	return (N1 * N2 * refclk / (M1 * M2)) >> log2P;
+	return (pllvals->N1 * pllvals->N2 * pllvals->refclk /
+		(pllvals->M1 * pllvals->M2) >> pllvals->log2P);
 }
 
 static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	const uint32_t nv04_regs[MAX_PLL_TYPES] = { NV_RAMDAC_NVPLL, NV_RAMDAC_MPLL, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
-	const uint32_t nv40_regs[MAX_PLL_TYPES] = { 0x4000, 0x4020, NV_RAMDAC_VPLL, NV_RAMDAC_VPLL2 };
-	uint32_t reg1;
-	struct pll_lims pll_lim;
+	struct nouveau_pll_vals pllvals;
 
 	if (plltype == MPLL && (pNv->Chipset & 0x0ff0) == CHIPSET_NFORCE) {
 		uint32_t mpllP = (PCI_SLOT_READ_LONG(3, 0x6c) >> 8) & 0xf;
@@ -415,27 +459,9 @@ static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 	} else if (plltype == MPLL && (pNv->Chipset & 0xff0) == CHIPSET_NFORCE2)
 		return PCI_SLOT_READ_LONG(5, 0x4c) / 1000;
 
-	if (pNv->Architecture < NV_ARCH_40)
-		reg1 = nv04_regs[plltype];
-	else
-		reg1 = nv40_regs[plltype];
+	nouveau_hw_get_pllvals(pScrn, plltype, &pllvals);
 
-	if (get_pll_limits(pScrn, plltype, &pll_lim))
-		return 0;
-
-	if (reg1 <= 0x405c)
-		return nv_decode_pll_lowregs(nvReadMC(pNv, reg1), nvReadMC(pNv, reg1 + 4), pll_lim.refclk);
-	if (pNv->two_reg_pll) {
-		uint32_t ramdac580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
-		bool nv40_single = pNv->Architecture == 0x40 &&
-				   ((plltype == VPLL1 && ramdac580 & NV_RAMDAC_580_VPLL1_ACTIVE) ||
-				    (plltype == VPLL2 && ramdac580 & NV_RAMDAC_580_VPLL2_ACTIVE));
-
-		return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1),
-					      nvReadMC(pNv, reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70)),
-					      nv40_single, pll_lim.refclk);
-	}
-	return nv_decode_pll_highregs(pNv, nvReadMC(pNv, reg1), 0, false, pll_lim.refclk);
+	return nouveau_hw_pllvals_to_clk(&pllvals);
 }
 
 /****************************************************************************\

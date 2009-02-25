@@ -822,22 +822,6 @@ static void nv_output_dpms(xf86OutputPtr output, int mode)
 		encoder_dpms[nv_encoder->dcb->type](pScrn, nv_encoder, crtc, mode);
 }
 
-static uint32_t nv_get_clock_from_crtc(ScrnInfoPtr pScrn, RIVA_HW_STATE *state, uint8_t crtc)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	struct pll_lims pll_lim;
-	uint32_t vplla = state->crtc_reg[crtc].vpll_a;
-	uint32_t vpllb = state->crtc_reg[crtc].vpll_b;
-	bool nv40_single = pNv->Architecture == 0x40 &&
-			   ((!crtc && state->reg580 & NV_RAMDAC_580_VPLL1_ACTIVE) ||
-			    (crtc && state->reg580 & NV_RAMDAC_580_VPLL2_ACTIVE));
-
-	if (get_pll_limits(pScrn, crtc ? VPLL2 : VPLL1, &pll_lim))
-		return 0;
-
-	return nv_decode_pll_highregs(pNv, vplla, vpllb, nv40_single, pll_lim.refclk);
-}
-
 void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -867,7 +851,8 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 		call_lvds_script(pScrn, nv_encoder->dcb, head, LVDS_PANEL_ON,
 				 nv_encoder->native_mode->Clock);
 	if (nv_encoder->dcb->type == OUTPUT_TMDS) {
-		int clock = nv_get_clock_from_crtc(pScrn, &pNv->SavedReg, head);
+		int clock = nouveau_hw_pllvals_to_clk
+					(&pNv->SavedReg.crtc_reg[head].pllvals);
 
 		run_tmds_table(pScrn, nv_encoder->dcb, head, clock);
 	}

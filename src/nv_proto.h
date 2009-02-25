@@ -126,7 +126,9 @@ bool NVLockVgaCrtcs(NVPtr pNv, bool lock);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
 void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);
 void nv_show_cursor(NVPtr pNv, int head, bool show);
-int nv_decode_pll_highregs(NVPtr pNv, uint32_t pll1, uint32_t pll2, bool force_single, int refclk);
+int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
+			   struct nouveau_pll_vals *pllvals);
+int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
 void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8_t *burst, uint16_t *lwm);
 void nv30UpdateArbitrationSettings(uint8_t *burst, uint16_t *lwm);
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);

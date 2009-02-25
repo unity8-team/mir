@@ -157,6 +157,7 @@ typedef struct _nv_crtc_reg
 	uint32_t dither;
 	uint32_t vpll_a;
 	uint32_t vpll_b;
+	struct nouveau_pll_vals pllvals;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
 typedef struct _nv_output_reg
