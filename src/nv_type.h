@@ -103,6 +103,24 @@ enum scaling_modes {
 	SCALE_INVALID
 };
 
+struct nouveau_pll_vals {
+	union {
+		struct {
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+			uint8_t N1, M1, N2, M2;
+#else
+			uint8_t M1, N1, M2, N2;
+#endif
+		};
+		struct {
+			uint16_t NM1, NM2;
+		} __attribute__((packed));
+	};
+	int log2P;
+
+	int refclk;
+};
+
 typedef struct _nv_crtc_reg 
 {
 	unsigned char MiscOutReg;     /* */

@@ -25,12 +25,6 @@
 
 #include "nv_include.h"
 
-struct pll_vals {
-	int NM1;
-	int NM2;
-	int log2P;
-};
-
 static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
 static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
@@ -139,7 +133,7 @@ static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		state->reg580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
 }
 
-static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state, struct pll_vals *pllvals)
+static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state, struct nouveau_pll_vals *pllvals)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
@@ -215,7 +209,7 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
 }
 
-static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock, struct pll_vals *pllvals)
+static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock, struct nouveau_pll_vals *pllvals)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -931,7 +925,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(pScrn);
-	struct pll_vals pllvals;
+	struct nouveau_pll_vals pllvals;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CTRC mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
