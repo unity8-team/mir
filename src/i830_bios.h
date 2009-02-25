@@ -396,9 +396,9 @@ struct vch_bdb_22 {
 } __attribute__((packed));
 
 #define BDB_DRIVER_NO_LVDS	0
-#define BDB_DRIVER_INTER_LVDS	1
+#define BDB_DRIVER_INT_LVDS	1
 #define BDB_DRIVER_SDVO_LVDS	2
-#define BDB_DRIVER_ALL_LVDS	3
+#define BDB_DRIVER_EDP		3
 
 struct bdb_driver_feature {
     uint8_t	boot_dev_algorithm:1;

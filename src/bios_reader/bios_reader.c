@@ -404,14 +404,14 @@ static void dump_driver_feature(void)
 	case BDB_DRIVER_NO_LVDS:
 	    printf("No LVDS\n");
 	    break;
-	case BDB_DRIVER_INTER_LVDS:
+	case BDB_DRIVER_INT_LVDS:
 	    printf("Integrated LVDS\n");
 	    break;
 	case BDB_DRIVER_SDVO_LVDS:
 	    printf("SDVO LVDS\n");
 	    break;
-	case BDB_DRIVER_ALL_LVDS:
-	    printf("Both Integrated LVDS and SDVO LVDS\n");
+	case BDB_DRIVER_EDP:
+	    printf("Embedded DisplayPort\n");
 	    break;
     }
     free(block);
