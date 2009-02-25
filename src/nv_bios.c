@@ -794,19 +794,18 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 		nv32_wr(pScrn, NV_PBUS_POWERCTRL_1, saved_powerctrl_1);
 }
 
-static void set_ramdac580(ScrnInfoPtr pScrn, uint32_t reg1, bool single_stage)
+static uint32_t new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 {
-	uint32_t ramdac580 = nv32_rd(pScrn, NV_RAMDAC_580);
-	int head_a = (reg1 == NV_RAMDAC_VPLL);
+	bool head_a = (reg1 == NV_RAMDAC_VPLL);
 
-	if (single_stage)
+	if (ss)	/* single stage pll mode */
 		ramdac580 |= head_a ? NV_RAMDAC_580_VPLL1_ACTIVE :
-				    NV_RAMDAC_580_VPLL2_ACTIVE;
+				      NV_RAMDAC_580_VPLL2_ACTIVE;
 	else
 		ramdac580 &= head_a ? ~NV_RAMDAC_580_VPLL1_ACTIVE :
-				    ~NV_RAMDAC_580_VPLL2_ACTIVE;
+				      ~NV_RAMDAC_580_VPLL2_ACTIVE;
 
-	nv32_wr(pScrn, NV_RAMDAC_580, ramdac580);
+	return ramdac580;
 }
 
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
@@ -818,10 +817,11 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 	uint32_t oldpll2 = !nv3035 ? nv32_rd(pScrn, reg2) : 0;
 	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
 	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
-	uint32_t saved_powerctrl_1 = 0, savedc040 = 0;
-	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg1);
+	uint32_t oldramdac580 = 0, ramdac580 = 0;
 	/* nv41+: single stage pll mode if NM2 is zero, or N2 == M2 */
 	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
+	uint32_t saved_powerctrl_1 = 0, savedc040 = 0;
+	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg1);
 
 	/* model specific additions to generic pll1 and pll2 set up above */
 	if (nv3035) {
@@ -829,9 +829,15 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		       (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
 		pll2 = 0;
 	}
-	if (chip_version > 0x40 && single_stage)	/* not on nv40 */
-		/* magic value used by nvidia when in single stage mode */
-		pll2 |= 0x011f;
+	if (chip_version > 0x40 && reg1 >= NV_RAMDAC_VPLL) { /* not on nv40 */
+		oldramdac580 = nv32_rd(pScrn, NV_RAMDAC_580);
+		ramdac580 = new_ramdac580(reg1, single_stage, oldramdac580);
+		if (oldramdac580 != ramdac580)
+			oldpll1 = ~0;	/* force mismatch */
+		if (single_stage)
+			/* magic value used by nvidia in single stage mode */
+			pll2 |= 0x011f;
+	}
 	if (chip_version > 0x70)
 		/* magic bits set by the blob (but not the bios) on g71-73 */
 		pll1 = (pll1 & 0x7fffffff) | (single_stage ? 0x4 : 0xc) << 28;
@@ -865,9 +871,8 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 			nv32_wr(pScrn, 0xc040, savedc040 & ~(3 << shift_c040));
 	}
 
-	if (chip_version > 0x40 &&	/* not on nv40 */
-	    (reg1 == NV_RAMDAC_VPLL || reg1 == NV_RAMDAC_VPLL2))
-		set_ramdac580(pScrn, reg1, single_stage);
+	if (oldramdac580 != ramdac580)
+		nv32_wr(pScrn, NV_RAMDAC_580, ramdac580);
 
 	if (!nv3035)
 		nv32_wr(pScrn, reg2, pll2);
