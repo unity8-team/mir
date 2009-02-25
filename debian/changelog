@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.6.1-1ubuntu3) jaunty; urgency=low
+
+  * Add 02_i830-fifo-watermark-conservative.patch: Avoid pipe underruns on
+    high graphics activity, which caused flicker and sometimes complete screen
+    corruption. (LP: #311895, fd.o #19304)
+
+ -- Martin Pitt <martin.pitt@ubuntu.com>  Wed, 25 Feb 2009 08:26:35 +0100
+
 xserver-xorg-video-intel (2:2.6.1-1ubuntu2) jaunty; urgency=low
 
   * Add 108_dont_disable_vga_centering_bit.patch.  Cherry-pick from

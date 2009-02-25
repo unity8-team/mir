@@ -1,4 +1,5 @@
 01_gen_pci_ids.diff
+02_i830-fifo-watermark-conservative.patch
 103_quirk_intel_mb890.patch
 104_i830-vbt-timing-hack.patch
 105_no_modesetting.diff
