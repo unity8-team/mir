@@ -2409,18 +2409,31 @@ I830PutImage(ScrnInfoPtr pScrn,
 	pPriv->buf = NULL;
     }
 
-    if (pPriv->buf == NULL) {
-	pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
-					"xv buffer", alloc_size, 4096);
-	if (pPriv->buf == NULL)
-	    return BadAlloc;
-	if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
-	    drm_intel_bo_unreference(pPriv->buf);
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		       "Failed to pin xv buffer\n");
-	    return BadAlloc;
-	}
+#ifdef INTEL_XVMC
+    if (id == FOURCC_XVMC && 
+        pPriv->rotation == RR_Rotate_0) {
+        if (pPriv->buf) {
+            assert(pPriv->textured);
+            drm_intel_bo_unreference(pPriv->buf);
+            pPriv->buf = NULL;
+        }
+    } else {
+#endif
+        if (pPriv->buf == NULL) {
+            pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
+                                         "xv buffer", alloc_size, 4096);
+            if (pPriv->buf == NULL)
+                return BadAlloc;
+            if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
+                drm_intel_bo_unreference(pPriv->buf);
+                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                           "Failed to pin xv buffer\n");
+                return BadAlloc;
+            }
+        }
+#ifdef INTEL_XVMC
     }
+#endif
 
     /* fixup pointers */
 #ifdef INTEL_XVMC

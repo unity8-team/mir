@@ -431,11 +431,15 @@ i965_create_src_surface_state(ScrnInfoPtr scrn,
     src_surf_state->ss2.render_target_rotation = 0;
     src_surf_state->ss3.pitch = src_pitch - 1;
 
-    src_surf_state->ss1.base_addr =
-	intel_emit_reloc(surface_bo,
-			 offsetof(struct brw_surface_state, ss1),
-			 src_bo, src_offset,
-			 I915_GEM_DOMAIN_SAMPLER, 0);
+    if (src_bo) {
+        src_surf_state->ss1.base_addr =
+            intel_emit_reloc(surface_bo,
+                             offsetof(struct brw_surface_state, ss1),
+                             src_bo, src_offset,
+                             I915_GEM_DOMAIN_SAMPLER, 0);
+    } else {
+        src_surf_state->ss1.base_addr = src_offset;
+    }
 
     drm_intel_bo_unmap(surface_bo);
     return surface_bo;
