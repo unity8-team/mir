@@ -619,6 +619,7 @@ typedef struct _I830Rec {
    Bool lvds_dither;
    DisplayModePtr lvds_fixed_mode;
    Bool skip_panel_detect;
+   Bool integrated_lvds; /* LVDS config from driver feature BDB */
 
    Bool tv_present; /* TV connector present (from VBIOS) */
 

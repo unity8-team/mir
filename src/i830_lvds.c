@@ -1415,6 +1415,13 @@ i830_lvds_init(ScrnInfoPtr pScrn)
     DisplayModePtr	    lvds_ddc_mode = NULL;
     struct i830_lvds_priv   *dev_priv;
 
+    if (!pI830->integrated_lvds) {
+	if (pI830->debug_modes)
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "Skipping LVDS from driver feature BDB's LVDS config info.\n");
+	return;
+    }
+
     if (pI830->quirk_flag & QUIRK_IGNORE_LVDS)
 	return;
 

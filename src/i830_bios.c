@@ -168,6 +168,23 @@ parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
     }
 }
 
+static void
+parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
+{
+    struct bdb_driver_feature *feature;
+
+    /* For mobile chip, set default as true */
+    if (IS_MOBILE(pI830))
+	pI830->integrated_lvds = TRUE;
+
+    feature = find_section(bdb, BDB_DRIVER_FEATURES);
+    if (!feature)
+	return;
+
+    if (feature->lvds_config != BDB_DRIVER_INT_LVDS)
+	pI830->integrated_lvds = FALSE;
+}
+
 #define INTEL_VBIOS_SIZE (64 * 1024)	/* XXX */
 
 /**
@@ -246,6 +263,7 @@ i830_bios_init(ScrnInfoPtr pScrn)
 
     parse_general_features(pI830, bdb);
     parse_panel_data(pI830, bdb);
+    parse_driver_feature(pI830, bdb);
 
     xfree(bios);
 
