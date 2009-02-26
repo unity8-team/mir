@@ -1684,6 +1684,10 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
     pI830->can_resize = FALSE;
     if (pI830->accel == ACCEL_UXA && pI830->directRenderingType != DRI_XF86DRI)
 	pI830->can_resize = TRUE;
+#if !defined(DRI2) && defined(XF86DRI)
+    /* Disable resizing so that DRI1 can initialize and give us GEM support. */
+    pI830->can_resize = FALSE;
+#endif
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	       "Resizable framebuffer: %s (%d %d)\n",
