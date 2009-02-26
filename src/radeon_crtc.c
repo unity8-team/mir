@@ -587,8 +587,7 @@ Bool RADEONAllocateControllers(ScrnInfoPtr pScrn, int mask)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info = RADEONPTR(pScrn);
 
-    if ((info->ChipFamily < CHIP_FAMILY_R600) &&
-	(!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE))) {
+    if (!xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
 	radeon_crtc_funcs.shadow_create = radeon_crtc_shadow_create;
 	radeon_crtc_funcs.shadow_allocate = radeon_crtc_shadow_allocate;
 	radeon_crtc_funcs.shadow_destroy = radeon_crtc_shadow_destroy;

@@ -458,7 +458,7 @@ static Bool FUNC_NAME(R100TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
 #ifdef ONLY_ONCE
 
-static PixmapPtr
+PixmapPtr
 RADEONGetDrawablePixmap(DrawablePtr pDrawable)
 {
     if (pDrawable->type == DRAWABLE_WINDOW)

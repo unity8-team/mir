@@ -36,6 +36,7 @@
 
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "r600_reg.h"
 #include "radeon_macros.h"
 #include "radeon_probe.h"
 #include "radeon_video.h"
@@ -43,11 +44,23 @@
 #include <X11/extensions/Xv.h>
 #include "fourcc.h"
 
+extern void
+R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv);
+
+extern Bool
+R600CopyToVRAM(ScrnInfoPtr pScrn,
+	       char *src, int src_pitch,
+	       uint32_t dst_pitch, uint32_t dst_mc_addr, uint32_t dst_height, int bpp,
+	       int x, int y, int w, int h);
+
 #define IMAGE_MAX_WIDTH		2048
 #define IMAGE_MAX_HEIGHT	2048
 
 #define IMAGE_MAX_WIDTH_R500	4096
 #define IMAGE_MAX_HEIGHT_R500	4096
+
+#define IMAGE_MAX_WIDTH_R600	8192
+#define IMAGE_MAX_HEIGHT_R600	8192
 
 static Bool
 RADEONTilingEnabled(ScrnInfoPtr pScrn, PixmapPtr pPix)
@@ -146,6 +159,56 @@ static __inline__ uint32_t F_TO_24(float val)
 
 #endif /* XF86DRI */
 
+static void
+R600CopyPlanar(ScrnInfoPtr pScrn,
+	       unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
+	       uint32_t dst_mc_addr,
+	       int srcPitch, int srcPitch2, int dstPitch,
+	       int w, int h)
+{
+    int dstPitch2 = dstPitch >> 1;
+    int h2 = h >> 1;
+    int w2 = w >> 1;
+    int v_offset, u_offset;
+    v_offset = dstPitch * h;
+    v_offset = (v_offset + 255) & ~255;
+    u_offset = v_offset + (dstPitch2 * h2);
+    u_offset = (u_offset + 255) & ~255;
+
+    /* Y */
+    R600CopyToVRAM(pScrn,
+		   (char *)y_src, srcPitch,
+		   dstPitch, dst_mc_addr, h, 8,
+		   0, 0, w, h);
+
+    /* V */
+    R600CopyToVRAM(pScrn,
+		   (char *)v_src, srcPitch2,
+		   dstPitch2, dst_mc_addr + v_offset, h2, 8,
+		   0, 0, w2, h2);
+
+    /* U */
+    R600CopyToVRAM(pScrn,
+		   (char *)u_src, srcPitch2,
+		   dstPitch2, dst_mc_addr + u_offset, h2, 8,
+		   0, 0, w2, h2);
+}
+
+static void
+R600CopyPacked(ScrnInfoPtr pScrn,
+	       unsigned char *src, uint32_t dst_mc_addr,
+	       int srcPitch, int dstPitch,
+	       int w, int h)
+{
+
+    /* YUV */
+    R600CopyToVRAM(pScrn,
+		   (char *)src, srcPitch,
+		   dstPitch >> 2, dst_mc_addr, h, 32,
+		   0, 0, w >> 1, h);
+
+}
+
 static int
 RADEONPutImageTextured(ScrnInfoPtr pScrn,
 		       short src_x, short src_y,
@@ -214,7 +277,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	break;
     }
 
-   dstPitch = (dstPitch + 63) & ~63;
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	dstPitch = (dstPitch + 255) & ~255;
+    else
+	dstPitch = (dstPitch + 63) & ~63;
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
 	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
@@ -222,16 +288,21 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     if (pPriv->video_memory == NULL) {
-	pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
-						            &pPriv->video_memory,
-						            size * 2, 64);
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
+								&pPriv->video_memory,
+								size * 2, 256);
+	else
+	    pPriv->video_offset = radeon_legacy_allocate_memory(pScrn,
+								&pPriv->video_memory,
+								size * 2, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
     }
 
     /* Bicubic filter setup */
     pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
-    if (!(IS_R300_3D || IS_R500_3D))
+    if (!(IS_R300_3D || IS_R500_3D || IS_R600_3D))
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
 	/*
@@ -280,7 +351,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
 
     pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
-    pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
+    if (info->ChipFamily >= CHIP_FAMILY_R600)
+	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
+    else
+	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
     pPriv->src_pitch = dstPitch;
     pPriv->size = size;
     pPriv->pDraw = pDraw;
@@ -294,29 +368,51 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	top &= ~1;
-	nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	s2offset = srcPitch * height;
-	s3offset = (srcPitch2 * (height >> 1)) + s2offset;
-	top &= ~1;
-	pPriv->src_addr += left << 1;
-	tmp = ((top >> 1) * srcPitch2) + (left >> 1);
-	s2offset += tmp;
-	s3offset += tmp;
-	if (id == FOURCC_I420) {
-	    tmp = s2offset;
-	    s2offset = s3offset;
-	    s3offset = tmp;
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    s2offset = srcPitch * height;
+	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	    if (id == FOURCC_YV12)
+		R600CopyPlanar(pScrn, buf, buf + s3offset, buf + s2offset,
+			       pPriv->src_offset,
+			       srcPitch, srcPitch2, pPriv->src_pitch,
+			       width, height);
+	    else
+		R600CopyPlanar(pScrn, buf, buf + s2offset, buf + s3offset,
+			       pPriv->src_offset,
+			       srcPitch, srcPitch2, pPriv->src_pitch,
+			       width, height);
+
+	} else {
+	    top &= ~1;
+	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	    s2offset = srcPitch * height;
+	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	    top &= ~1;
+	    pPriv->src_addr += left << 1;
+	    tmp = ((top >> 1) * srcPitch2) + (left >> 1);
+	    s2offset += tmp;
+	    s3offset += tmp;
+	    if (id == FOURCC_I420) {
+		tmp = s2offset;
+		s2offset = s3offset;
+		s3offset = tmp;
+	    }
+	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
+				 buf + s2offset, buf + s3offset, pPriv->src_addr,
+				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
 	}
-	RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
-			     buf + s2offset, buf + s3offset, pPriv->src_addr,
-			     srcPitch, srcPitch2, dstPitch, nlines, npixels);
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	nlines = ((y2 + 0xffff) >> 16) - top;
-	RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    R600CopyPacked(pScrn, buf, pPriv->src_offset,
+			   2 * width, pPriv->src_pitch,
+			   width, height);
+	} else {
+	    nlines = ((y2 + 0xffff) >> 16) - top;
+	    RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
+	}
 	break;
     }
 
@@ -340,7 +436,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->h = height;
 
 #ifdef XF86DRI
-    if (info->directRenderingEnabled)
+    if (IS_R600_3D)
+	R600DisplayTexturedVideo(pScrn, pPriv);
+    else if (info->directRenderingEnabled)
 	RADEONDisplayTexturedVideoCP(pScrn, pPriv);
     else
 #endif
@@ -366,6 +464,16 @@ static XF86VideoEncodingRec DummyEncodingR500[1] =
 	0,
 	"XV_IMAGE",
 	IMAGE_MAX_WIDTH_R500, IMAGE_MAX_HEIGHT_R500,
+	{1, 1}
+    }
+};
+
+static XF86VideoEncodingRec DummyEncodingR600[1] =
+{
+    {
+	0,
+	"XV_IMAGE",
+	IMAGE_MAX_WIDTH_R600, IMAGE_MAX_HEIGHT_R600,
 	{1, 1}
     }
 };
@@ -471,7 +579,9 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     adapt->flags = 0;
     adapt->name = "Radeon Textured Video";
     adapt->nEncodings = 1;
-    if (IS_R500_3D)
+    if (IS_R600_3D)
+	adapt->pEncodings = DummyEncodingR600;
+    else if (IS_R500_3D)
 	adapt->pEncodings = DummyEncodingR500;
     else
 	adapt->pEncodings = DummyEncoding;
@@ -483,7 +593,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R300_3D || IS_R500_3D) {
+    if (IS_R300_3D || IS_R500_3D || IS_R600_3D) {
 	adapt->pAttributes = Attributes_r300;
 	adapt->nAttributes = NUM_ATTRIBUTES_R300;
     } else {
