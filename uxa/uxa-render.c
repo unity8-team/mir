@@ -69,7 +69,7 @@ static void uxa_composite_fallback_pict_desc(PicturePtr pict, char *string, int 
 	break;
     }
 
-    loc = uxa_get_drawable_pixmap(pict->pDrawable) ? 's' : 'm';
+    loc = uxa_drawable_is_offscreen(pict->pDrawable) ? 's' : 'm';
 
     snprintf(size, 20, "%dx%d%s", pict->pDrawable->width,
 	     pict->pDrawable->height, pict->repeat ?
