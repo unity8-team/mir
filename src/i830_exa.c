@@ -893,6 +893,12 @@ i830_uxa_block_handler (ScreenPtr screen)
 static Bool
 i830_uxa_pixmap_is_offscreen(PixmapPtr pixmap)
 {
+    ScreenPtr screen = pixmap->drawable.pScreen;
+
+    /* The front buffer is always in memory and pinned */
+    if (screen->GetScreenPixmap(screen) == pixmap)
+	return TRUE;
+
     return i830_get_pixmap_bo (pixmap) != NULL;
 }
 
