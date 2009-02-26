@@ -4430,15 +4430,40 @@ avivo_save(ScrnInfoPtr pScrn, RADEONSavePtr save)
 	    state->aux_cntl2[j] = INREG(i + 0x040);
 	    state->aux_cntl3[j] = INREG(i + 0x400);
 	    state->aux_cntl4[j] = INREG(i + 0x440);
+	    if (IS_DCE32_VARIANT) {
+		state->aux_cntl5[j] = INREG(i + 0x500);
+		state->aux_cntl6[j] = INREG(i + 0x540);
+	    }
 	    j++;
 	}
 
 	j = 0;
 	/* save UNIPHY regs */
-	for (i = 0x7ec0; i <= 0x7edc; i += 4) {
-	    state->uniphy1[j] = INREG(i);
-	    state->uniphy2[j] = INREG(i + 0x100);
-	    j++;
+	if (IS_DCE32_VARIANT) {
+	    for (i = 0x7680; i <= 0x7690; i += 4) {
+		state->uniphy1[j] = INREG(i);
+		state->uniphy2[j] = INREG(i + 0x20);
+		state->uniphy3[j] = INREG(i + 0x400);
+		state->uniphy4[j] = INREG(i + 0x420);
+		state->uniphy5[j] = INREG(i + 0x840);
+		state->uniphy6[j] = INREG(i + 0x940);
+		j++;
+	    }
+	    for (i = 0x7698; i <= 0x769c; i += 4) {
+		state->uniphy1[j] = INREG(i);
+		state->uniphy2[j] = INREG(i + 0x20);
+		state->uniphy3[j] = INREG(i + 0x400);
+		state->uniphy4[j] = INREG(i + 0x420);
+		state->uniphy5[j] = INREG(i + 0x840);
+		state->uniphy6[j] = INREG(i + 0x940);
+		j++;
+	    }
+	} else {
+	    for (i = 0x7ec0; i <= 0x7edc; i += 4) {
+		state->uniphy1[j] = INREG(i);
+		state->uniphy2[j] = INREG(i + 0x100);
+		j++;
+	    }
 	}
 	j = 0;
 	/* save PHY,LINK regs */
@@ -4781,15 +4806,40 @@ avivo_restore(ScrnInfoPtr pScrn, RADEONSavePtr restore)
 	    OUTREG((i + 0x040), state->aux_cntl2[j]);
 	    OUTREG((i + 0x400), state->aux_cntl3[j]);
 	    OUTREG((i + 0x440), state->aux_cntl4[j]);
+	    if (IS_DCE32_VARIANT) {
+		OUTREG((i + 0x500), state->aux_cntl5[j]);
+		OUTREG((i + 0x540), state->aux_cntl6[j]);
+	    }
 	    j++;
 	}
 
 	j = 0;
 	/* save UNIPHY regs */
-	for (i = 0x7ec0; i <= 0x7edc; i += 4) {
-	    OUTREG(i, state->uniphy1[j]);
-	    OUTREG((i + 0x100), state->uniphy2[j]);
-	    j++;
+	if (IS_DCE32_VARIANT) {
+	    for (i = 0x7680; i <= 0x7690; i += 4) {
+		OUTREG(i, state->uniphy1[j]);
+		OUTREG((i + 0x20), state->uniphy2[j]);
+		OUTREG((i + 0x400), state->uniphy3[j]);
+		OUTREG((i + 0x420), state->uniphy4[j]);
+		OUTREG((i + 0x840), state->uniphy5[j]);
+		OUTREG((i + 0x940), state->uniphy6[j]);
+		j++;
+	    }
+	    for (i = 0x7698; i <= 0x769c; i += 4) {
+		OUTREG(i, state->uniphy1[j]);
+		OUTREG((i + 0x20), state->uniphy2[j]);
+		OUTREG((i + 0x400), state->uniphy3[j]);
+		OUTREG((i + 0x420), state->uniphy4[j]);
+		OUTREG((i + 0x840), state->uniphy5[j]);
+		OUTREG((i + 0x940), state->uniphy6[j]);
+		j++;
+	    }
+	} else {
+	    for (i = 0x7ec0; i <= 0x7edc; i += 4) {
+		OUTREG(i, state->uniphy1[j]);
+		OUTREG((i + 0x100), state->uniphy2[j]);
+		j++;
+	    }
 	}
 	j = 0;
 	/* save PHY,LINK regs */
