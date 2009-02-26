@@ -1140,10 +1140,12 @@ i830_pad_drawable_width(int width, int cpp)
 static Bool
 i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
+#ifdef DRI2
     I830Ptr	i830 = I830PTR(scrn);
+    int		old_width = scrn->displayWidth;
+#endif
     int		old_x = scrn->virtualX;
     int		old_y = scrn->virtualY;
-    int		old_width = scrn->displayWidth;
 
     if (old_x == width && old_y == height)
 	return TRUE;

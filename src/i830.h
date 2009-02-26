@@ -975,6 +975,10 @@ i830_get_transformed_coordinates_3d(int x, int y, PictTransformPtr transform,
 
 void i830_enter_render(ScrnInfoPtr);
 
+#ifndef SERVER_1_5
+Bool xf86MonitorIsHDMI(xf86MonPtr mon);
+#endif
+
 static inline void
 i830_wait_ring_idle(ScrnInfoPtr pScrn)
 {

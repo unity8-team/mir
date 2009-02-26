@@ -81,6 +81,22 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
+#ifdef I830_USE_UXA
+static int uxa_pixmap_index;
+#endif
+
+#ifndef SERVER_1_5
+static inline void *dixLookupPrivate(DevUnion **privates, int *key)
+{
+    return (*privates)[*key].ptr;
+}
+
+static inline void dixSetPrivate(DevUnion **privates, int *key, void *val)
+{
+    (*privates)[*key].ptr = val;
+}
+#endif
+
 /**
  * Returns whether a given pixmap is tiled or not.
  *
@@ -761,10 +777,6 @@ I830EXAInit(ScreenPtr pScreen)
     return TRUE;
 }
 
-#ifdef I830_USE_UXA
-static int uxa_pixmap_index;
-#endif
-
 dri_bo *
 i830_get_pixmap_bo(PixmapPtr pixmap)
 {
@@ -841,7 +853,7 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	if (pScrn->vtSema && !pI830->use_drm_mode) {
+	if (pScrn->vtSema && !pI830->use_drm_mode && pI830->memory_manager) {
 	    if (drm_intel_bo_pin(bo, 4096) != 0)
 		return FALSE;
 	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
@@ -867,7 +879,7 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	if (pScrn->vtSema && !pI830->use_drm_mode)
+	if (pScrn->vtSema && !pI830->use_drm_mode && pI830->memory_manager)
 	    drm_intel_bo_unpin(bo);
 	else
 	    dri_bo_unmap(bo);
@@ -914,8 +926,12 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     if (w > 32767 || h > 32767)
 	return NullPixmap;
 
+#ifdef SERVER_1_5
     pixmap = fbCreatePixmap (screen, 0, 0, depth, usage);
-    
+#else
+    pixmap = fbCreatePixmap (screen, 0, 0, depth);
+#endif
+
     if (w && h)
     {
 	unsigned int size;
@@ -950,6 +966,15 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     return pixmap;
 }
 
+
+#ifndef SERVER_1_5
+static PixmapPtr
+i830_uxa_server_14_create_pixmap (ScreenPtr screen, int w, int h, int depth)
+{
+    return i830_uxa_create_pixmap(screen, w, h, depth, 0);
+}
+#endif
+
 static Bool
 i830_uxa_destroy_pixmap (PixmapPtr pixmap)
 {
@@ -982,9 +1007,14 @@ i830_uxa_init (ScreenPtr pScreen)
     ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
     I830Ptr i830 = I830PTR(scrn);
 
+#ifdef SERVER_1_5
     if (!dixRequestPrivate(&uxa_pixmap_index, 0))
 	return FALSE;
-    
+#else
+    if (!AllocatePixmapPrivate(pScreen, uxa_pixmap_index, 0))
+	return FALSE;
+#endif
+
     i830->uxa_driver = uxa_driver_alloc();
     if (i830->uxa_driver == NULL) {
 	i830->accel = ACCEL_NONE;
@@ -1038,7 +1068,11 @@ i830_uxa_init (ScreenPtr pScreen)
 	return FALSE;
     }
 
+#ifdef SERVER_1_5
     pScreen->CreatePixmap = i830_uxa_create_pixmap;
+#else
+    pScreen->CreatePixmap = i830_uxa_server_14_create_pixmap;
+#endif
     pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
     I830SelectBuffer(scrn, I830_SELECT_FRONT);

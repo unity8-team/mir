@@ -26,6 +26,9 @@
 #ifndef UXAPRIV_H
 #define UXAPRIV_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #else
@@ -126,6 +129,10 @@ typedef struct {
     CloseScreenProcPtr 		 SavedCloseScreen;
     GetImageProcPtr 		 SavedGetImage;
     GetSpansProcPtr 		 SavedGetSpans;
+#ifndef SERVER_1_5
+    PaintWindowBackgroundProcPtr SavedPaintWindowBackground;
+    PaintWindowBorderProcPtr	 SavedPaintWindowBorder;
+#endif
     CreatePixmapProcPtr 	 SavedCreatePixmap;
     DestroyPixmapProcPtr 	 SavedDestroyPixmap;
     CopyWindowProcPtr 		 SavedCopyWindow;
@@ -161,7 +168,16 @@ typedef struct {
 #endif
 
 extern int uxa_screen_index;
-#define uxa_get_screen(s) ((uxa_screen_t *)dixLookupPrivate(&(s)->devPrivates, &uxa_screen_index))
+static inline uxa_screen_t *
+uxa_get_screen(ScreenPtr screen)
+{
+#ifdef SERVER_1_5
+    return (uxa_screen_t *)dixLookupPrivate(&screen->devPrivates,
+					    &uxa_screen_index);
+#else
+    return screen->devPrivates[uxa_screen_index].ptr;
+#endif
+}
 
 /** Align an offset to an arbitrary alignment */
 #define UXA_ALIGN(offset, align) (((offset) + (align) - 1) - \
@@ -262,6 +278,8 @@ uxa_check_get_spans (DrawablePtr pDrawable,
 		 int nspans,
 		 char *pdstStart);
 
+void uxa_check_paint_window (WindowPtr pWin, RegionPtr pRegion, int what);
+
 void
 uxa_check_add_traps (PicturePtr	pPicture,
 		  INT16		x_off,
@@ -291,6 +309,8 @@ void
 uxa_shm_put_image(DrawablePtr pDrawable, GCPtr pGC, int depth, unsigned int format,
 	       int w, int h, int sx, int sy, int sw, int sh, int dx, int dy,
 	       char *data);
+
+void uxa_paint_window(WindowPtr pWin, RegionPtr pRegion, int what);
 
 void
 uxa_get_image (DrawablePtr pDrawable, int x, int y, int w, int h,

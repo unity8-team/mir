@@ -31,16 +31,13 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
-	@PCIACCESS_CFLAGS@ @UXA_CFLAGS@ \
-	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA
+	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa \
+	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DI830_USE_UXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
-intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel
-if BUILD_UXA
-intel_drv_la_LIBADD += ../uxa/libuxa.la
-endif
+intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
 if XSERVER_LIBPCIACCESS
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 endif

@@ -20,11 +20,7 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-if BUILD_UXA
-UXA_DIR = uxa
-endif
-
-SUBDIRS = $(UXA_DIR) src man
+SUBDIRS = uxa src man
 
 EXTRA_DIST = README
 DISTCLEANFILES = doltcompile
