@@ -244,6 +244,8 @@ static SymTabRec I830Chipsets[] = {
    {PCI_CHIP_I945_G,		"945G"},
    {PCI_CHIP_I945_GM,		"945GM"},
    {PCI_CHIP_I945_GME,		"945GME"},
+   {PCI_CHIP_IGD_GM,		"IGD"},
+   {PCI_CHIP_IGD_G,		"IGD"},
    {PCI_CHIP_I965_G,		"965G"},
    {PCI_CHIP_G35_G,		"G35"},
    {PCI_CHIP_I965_Q,		"965Q"},
@@ -272,6 +274,8 @@ static PciChipsets I830PciChipsets[] = {
    {PCI_CHIP_I945_G,		PCI_CHIP_I945_G,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GM,		PCI_CHIP_I945_GM,	RES_SHARED_VGA},
    {PCI_CHIP_I945_GME,		PCI_CHIP_I945_GME,	RES_SHARED_VGA},
+   {PCI_CHIP_IGD_GM,		PCI_CHIP_IGD_GM,	RES_SHARED_VGA},
+   {PCI_CHIP_IGD_G,		PCI_CHIP_IGD_G,		RES_SHARED_VGA},
    {PCI_CHIP_I965_G,		PCI_CHIP_I965_G,	RES_SHARED_VGA},
    {PCI_CHIP_G35_G,		PCI_CHIP_G35_G,		RES_SHARED_VGA},
    {PCI_CHIP_I965_Q,		PCI_CHIP_I965_Q,	RES_SHARED_VGA},
@@ -501,7 +505,7 @@ I830DetectMemory(ScrnInfoPtr pScrn)
    range = gtt_size + 4;
 
    /* new 4 series hardware has seperate GTT stolen with GFX stolen */
-   if (IS_G4X(pI830))
+   if (IS_G4X(pI830) || IS_IGD(pI830))
        range = 4;
 
    if (IS_I85X(pI830) || IS_I865G(pI830) || IS_I9XX(pI830)) {
@@ -1329,6 +1333,12 @@ i830_detect_chipset(ScrnInfoPtr pScrn)
 	break;
     case PCI_CHIP_I945_GME:
 	chipname = "945GME";
+	break;
+    case PCI_CHIP_IGD_GM:
+	chipname = "IGD";
+	break;
+    case PCI_CHIP_IGD_G:
+	chipname = "IGD";
 	break;
     case PCI_CHIP_I965_G:
 	chipname = "965G";

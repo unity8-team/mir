@@ -969,6 +969,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_MASK_IGD	0x00ff8000 /* IGD */
 /**
  *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
  * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
@@ -980,6 +981,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 # define DPLL_FPA01_P1_POST_DIV_SHIFT		16
+# define DPLL_FPA01_P1_POST_DIV_SHIFT_IGD	15
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
@@ -1228,10 +1230,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FPB0		0x06048
 #define FPB1		0x0604c
 # define FP_N_DIV_MASK				0x003f0000
+# define FP_N_IGD_DIV_MASK			0x00ff0000
 # define FP_N_DIV_SHIFT				16
 # define FP_M1_DIV_MASK				0x00003f00
 # define FP_M1_DIV_SHIFT			8
 # define FP_M2_DIV_MASK				0x0000003f
+# define FP_M2_IGD_DIV_MASK			0x000000ff
 # define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
