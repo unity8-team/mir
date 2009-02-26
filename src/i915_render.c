@@ -315,6 +315,12 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 {
     ScrnInfoPtr pScrn = xf86Screens[pSrcPicture->pDrawable->pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    drm_intel_bo *bo_table[] = {
+	NULL, /* batch_bo */
+	i830_get_pixmap_bo(pSrc),
+	pMask ? i830_get_pixmap_bo(pMask) : NULL,
+	i830_get_pixmap_bo(pDst),
+    };
 
     i830_exa_check_pitch_3d(pSrc);
     if (pMask)
@@ -323,6 +329,9 @@ i915_prepare_composite(int op, PicturePtr pSrcPicture,
 
     if (!i915_get_dest_format(pDstPicture,
 			      &pI830->i915_render_state.dst_format))
+	return FALSE;
+
+    if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
 	return FALSE;
 
     pI830->i915_render_state.is_nearest = FALSE;

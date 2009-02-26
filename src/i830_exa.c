@@ -121,6 +121,21 @@ i830_pixmap_tiled(PixmapPtr pPixmap)
     return FALSE;
 }
 
+Bool
+i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table, int num_bos)
+{
+    I830Ptr pI830 = I830PTR(pScrn);
+
+    bo_table[0] = pI830->batch_bo;
+    if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0) {
+	intel_batch_flush(pScrn, FALSE);
+	bo_table[0] = pI830->batch_bo;
+	if (drm_intel_bufmgr_check_aperture_space(bo_table, num_bos) != 0)
+	    I830FALLBACK("Couldn't get aperture space for BOs\n");
+    }
+    return TRUE;
+}
+
 static unsigned long
 i830_pixmap_pitch(PixmapPtr pixmap)
 {
@@ -178,6 +193,10 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
     unsigned long pitch;
+    drm_intel_bo *bo_table[] = {
+	NULL, /* batch_bo */
+	i830_get_pixmap_bo(pPixmap),
+    };
 
     if (!EXA_PM_IS_SOLID(&pPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
@@ -194,6 +213,9 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 
     if (!i830_pixmap_pitch_is_aligned(pPixmap))
 	I830FALLBACK("pixmap pitch not aligned");
+
+    if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	return FALSE;
 
     pI830->BR[13] = (I830PatternROP[alu] & 0xff) << 16 ;
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -272,12 +294,20 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
+    drm_intel_bo *bo_table[] = {
+	NULL, /* batch_bo */
+	i830_get_pixmap_bo(pSrcPixmap),
+	i830_get_pixmap_bo(pDstPixmap),
+    };
 
     if (!EXA_PM_IS_SOLID(&pSrcPixmap->drawable, planemask))
 	I830FALLBACK("planemask is not solid");
 
     if (pDstPixmap->drawable.bitsPerPixel < 8)
 	I830FALLBACK("under 8bpp pixmaps unsupported\n");
+
+    if (!i830_get_aperture_space(pScrn, bo_table, ARRAY_SIZE(bo_table)))
+	return FALSE;
 
     i830_exa_check_pitch_2d(pSrcPixmap);
     i830_exa_check_pitch_2d(pDstPixmap);
