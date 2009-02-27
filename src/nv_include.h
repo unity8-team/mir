@@ -66,8 +66,6 @@
 
 #define NV_DMA_DEBUG 0
 
-#define EXA_DRIVER_KNOWN_MAJOR 3
-
 #include "nv_local.h"
 #include "nv_type.h"
 #include "nv_proto.h"
