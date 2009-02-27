@@ -43,6 +43,9 @@
 
 #include "xf86Crtc.h"
 
+#ifdef USE_EXA
+#include "exa.h"
+#endif
 #ifdef USE_XAA
 #include "xaa.h"
 #endif
