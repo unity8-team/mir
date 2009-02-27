@@ -479,6 +479,9 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 #endif /* X_BYTE_ORDER == X_BIG_ENDIAN */
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
+#ifdef EXA_SUPPORTS_PREPARE_AUX
+    info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
+#endif
     info->accel_state->exa->pixmapOffsetAlign = RADEON_BUFFER_ALIGN + 1;
     info->accel_state->exa->pixmapPitchAlign = 64;
 

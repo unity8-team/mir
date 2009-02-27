@@ -4395,6 +4395,9 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreen;
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
+#ifdef EXA_SUPPORTS_PREPARE_AUX
+    info->accel_state->exa->flags |= EXA_SUPPORTS_PREPARE_AUX;
+#endif
     info->accel_state->exa->pixmapOffsetAlign = 256;
     info->accel_state->exa->pixmapPitchAlign = 256;
 

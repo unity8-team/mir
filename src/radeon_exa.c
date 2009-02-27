@@ -222,7 +222,7 @@ int RADEONBiggerCrtcArea(PixmapPtr pPix)
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 
-static unsigned long swapper_surfaces[3];
+static unsigned long swapper_surfaces[6];
 
 static Bool RADEONPrepareAccess(PixmapPtr pPix, int index)
 {
