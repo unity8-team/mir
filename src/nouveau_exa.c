@@ -545,7 +545,7 @@ nouveau_exa_init(ScreenPtr pScreen)
 
 	exa->exa_major = EXA_VERSION_MAJOR;
 	exa->exa_minor = EXA_VERSION_MINOR;
-	exa->flags = EXA_OFFSCREEN_PIXMAPS;
+	exa->flags = EXA_OFFSCREEN_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX;
 
 	if (pNv->exa_driver_pixmaps) {
 		exa->flags |= EXA_HANDLES_PIXMAPS;
