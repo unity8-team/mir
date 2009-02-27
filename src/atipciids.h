@@ -34,6 +34,7 @@
 #define _ATIPCIIDS_H
 
 /* PCI Vendor */
+#define PCI_VENDOR_ASUS			0x1043
 #define PCI_VENDOR_ATI			0x1002
 #define PCI_VENDOR_IBM			0x1014
 #define PCI_VENDOR_AMD			0x1022
