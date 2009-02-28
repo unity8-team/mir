@@ -935,29 +935,38 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     if (w && h)
     {
 	unsigned int size;
+	uint32_t tiling = I915_TILING_NONE;
 
 	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
 			  i830->accel_pixmap_pitch_alignment);
 
-	/* Use the I915_FENCE_TILING_X even if it may end up being TILING_Y,
-	 * as it just results in larger alignment.  Really, we need to use the
-	 * usage hint to tell what the pixmap's going to be.
-	 */
-	stride = i830_get_fence_pitch(i830, stride, I915_TILING_X);
-	/* Round the object up to the size of the fence it will live in
-	 * if necessary.  We could potentially make the kernel allocate
-	 * a larger aperture space and just bind the subset of pages in,
-	 * but this is easier and also keeps us out of trouble (as much)
-	 * with drm_intel_bufmgr_check_aperture().
-	 */
-	size = i830_get_fence_size(i830, stride * h);
+	if (usage == INTEL_CREATE_PIXMAP_TILING_X)
+	    tiling = I915_TILING_X;
+	else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+	    tiling = I915_TILING_Y;
+
+	if (tiling == I915_TILING_NONE) {
+	    size = stride * h;
+	} else {
+	    stride = i830_get_fence_pitch(i830, stride, tiling);
+	    /* Round the object up to the size of the fence it will live in
+	     * if necessary.  We could potentially make the kernel allocate
+	     * a larger aperture space and just bind the subset of pages in,
+	     * but this is easier and also keeps us out of trouble (as much)
+	     * with drm_intel_bufmgr_check_aperture().
+	     */
+	    size = i830_get_fence_size(i830, stride * h);
+	}
 
 	bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
 	if (!bo) {
 	    fbDestroyPixmap (pixmap);
 	    return NullPixmap;
 	}
-	
+
+	if (tiling != I915_TILING_NONE)
+	    drm_intel_bo_set_tiling(bo, &tiling, stride);
+
 	screen->ModifyPixmapHeader (pixmap, w, h, 0, 0, stride, NULL);
     
 	i830_uxa_set_pixmap_bo (pixmap, bo);
@@ -971,6 +980,9 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
 static PixmapPtr
 i830_uxa_server_14_create_pixmap (ScreenPtr screen, int w, int h, int depth)
 {
+    /* For server pre-1.6, we're never allocating DRI2 buffers, so no need for
+     * a hint.
+     */
     return i830_uxa_create_pixmap(screen, w, h, depth, 0);
 }
 #endif

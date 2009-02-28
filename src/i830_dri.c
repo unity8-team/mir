@@ -1561,36 +1561,33 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	    pPixmap = pDepthPixmap;
 	    pPixmap->refcnt++;
 	} else {
-	    uint32_t tiling = I915_TILING_NONE;
+	    unsigned int hint = 0;
 
-	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
-					       pDraw->width,
-					       pDraw->height,
-					       pDraw->depth, 0);
 	    switch (attachments[i]) {
 	    case DRI2BufferDepth:
 		if (SUPPORTS_YTILING(pI830))
-		    tiling = I915_TILING_Y;
+		    hint = INTEL_CREATE_PIXMAP_TILING_Y;
 		else
-		    tiling = I915_TILING_X;
+		    hint = INTEL_CREATE_PIXMAP_TILING_X;
 		break;
 	    case DRI2BufferFakeFrontLeft:
 	    case DRI2BufferFakeFrontRight:
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
-		    tiling = I915_TILING_X;
+		    hint = INTEL_CREATE_PIXMAP_TILING_X;
 		break;
 	    }
 
 	    if (!pI830->tiling ||
 		(!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
-		tiling = I915_TILING_NONE;
+		hint = 0;
 
-	    if (tiling != I915_TILING_NONE) {
-		bo = i830_get_pixmap_bo(pPixmap);
-		drm_intel_bo_set_tiling(bo, &tiling,
-					intel_get_pixmap_pitch(pPixmap));
-	    }
+	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
+					       pDraw->width,
+					       pDraw->height,
+					       pDraw->depth,
+					       hint);
+
 	}
 
 	if (attachments[i] == DRI2BufferDepth)
