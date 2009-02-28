@@ -725,7 +725,7 @@ static void RADEONDRIInitGARTValues(RADEONInfoPtr info)
 /* AGP Mode Quirk List - Certain hostbridge/gfx-card combos don't work with
  * the standard AGPMode settings, so we detect and handle these
  * on a case-by-base basis with quirks.  To see if an AGPMode is valid, test
- * it by setting Option "AGPMode" "1" (or "2", or "4" or "8"). */
+ * it by setting Option "AGPMode" "1" (or "2", or "4", or "8"). */
 typedef struct {
     unsigned int hostbridgeVendor;
     unsigned int hostbridgeDevice;
@@ -743,6 +743,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { PCI_VENDOR_INTEL,0x2550,  PCI_VENDOR_ATI,0x4152,  0x1458,0x4038,           4 },
     /* Intel 82865G/PE/P DRAM Controller/Host-Hub / Mobility 9800 Needs AGPMode 4 (deb #462590) */
     { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x4a4e,  PCI_VENDOR_DELL,0x5106,  4 },
+    /* Intel 82865G/PE/P DRAM Controller/Host-Hub / RV280 [Radeon 9200 SE] Needs AGPMode 4 (lp #300304) */
+    { PCI_VENDOR_INTEL,0x2570,  PCI_VENDOR_ATI,0x5964,  0x148c,0x2073, 4 },
     /* Intel 82855PM Processor to I/O Controller / Mobility M6 LY Needs AGPMode 1 (deb #467235) */
     { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4c59,  PCI_VENDOR_IBM,0x052f,   1 },
     /* Intel 82855PM Processor to I/O Controller / Mobility M9+ Needs AGPMode 8 (phoronix forum) */
