@@ -205,6 +205,7 @@ static void dump_general_definitions(void)
     free(block);
 }
 
+#if 0
 static void dump_child_devices(void)
 {
     struct bdb_block *block;
@@ -238,6 +239,7 @@ static void dump_child_devices(void)
 
     free(block);
 }
+#endif
 
 static void dump_lvds_options(void)
 {

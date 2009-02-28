@@ -1059,7 +1059,7 @@ static Atom panel_fitting_name_atoms[NUM_PANEL_FITTING_TYPES];
 
 
 static int
-i830_backlight_control_lookup(char *name)
+i830_backlight_control_lookup(const char *name)
 {
     int i;
 
@@ -1116,7 +1116,7 @@ i830_lvds_set_backlight_control(xf86OutputPtr output)
 }
 
 static int
-i830_panel_fitting_lookup(char *name)
+i830_panel_fitting_lookup(const char *name)
 {
     int i;
 
@@ -1258,7 +1258,7 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
     } else if (property == backlight_control_atom) {
 	INT32		    	backlight_range[2];
 	Atom			atom;
-	char			*name;
+	const char		*name;
 	int			ret, data;
 
 	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
@@ -1300,7 +1300,7 @@ i830_lvds_set_property(xf86OutputPtr output, Atom property,
 	return TRUE;
     } else if (property == panel_fitting_atom) {
 	Atom			atom;
-	char			*name;
+	const char		*name;
 	int			ret;
 
 	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)

@@ -1606,7 +1606,7 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 	I830OutputPrivatePtr    intel_output = output->driver_private;
 	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
 	Atom			atom;
-	char			*name;
+	const char		*name;
 	char			*val;
 
 	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
