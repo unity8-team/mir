@@ -266,8 +266,7 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
     ScrnInfoPtr pScrn = xf86Screens[pPix->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    struct r6xx_solid_vertex vertex[3];
-    struct r6xx_solid_vertex *solid_vb;
+    float *vb;
 
     if (((accel_state->vb_index + 3) * 8) > (accel_state->ib->total / 2)) {
 	R600DoneSolid(pPix);
@@ -275,27 +274,21 @@ R600Solid(PixmapPtr pPix, int x1, int y1, int x2, int y2)
 	accel_state->ib = RADEONCPGetBuffer(pScrn);
     }
 
-    solid_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+    vb = (pointer)((char*)accel_state->ib->address +
+		   (accel_state->ib->total / 2) +
+		   accel_state->vb_index * 8);
 
-    vertex[0].x = (float)x1;
-    vertex[0].y = (float)y1;
+    vb[0] = (float)x1;
+    vb[1] = (float)y1;
 
-    vertex[1].x = (float)x1;
-    vertex[1].y = (float)y2;
+    vb[2] = (float)x1;
+    vb[3] = (float)y2;
 
-    vertex[2].x = (float)x2;
-    vertex[2].y = (float)y2;
+    vb[4] = (float)x2;
+    vb[5] = (float)y2;
 
-#ifdef SHOW_VERTEXES
-    ErrorF("vertex 0: %f, %f\n", vertex[0].x, vertex[0].y);
-    ErrorF("vertex 1: %f, %f\n", vertex[1].x, vertex[1].y);
-    ErrorF("vertex 2: %f\n", vertex[2].x, vertex[2].y);
-#endif
+    accel_state->vb_index += 3;
 
-    // append to vertex buffer
-    solid_vb[accel_state->vb_index++] = vertex[0];
-    solid_vb[accel_state->vb_index++] = vertex[1];
-    solid_vb[accel_state->vb_index++] = vertex[2];
 }
 
 static void
@@ -603,8 +596,7 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    struct r6xx_copy_vertex *copy_vb;
-    struct r6xx_copy_vertex vertex[3];
+    float *vb;
 
     if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	R600DoCopy(pScrn);
@@ -612,34 +604,26 @@ R600AppendCopyVertex(ScrnInfoPtr pScrn,
 	accel_state->ib = RADEONCPGetBuffer(pScrn);
     }
 
-    copy_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+    vb = (pointer)((char*)accel_state->ib->address +
+		   (accel_state->ib->total / 2) +
+		   accel_state->vb_index * 16);
 
-    vertex[0].x = (float)dstX;
-    vertex[0].y = (float)dstY;
-    vertex[0].s = (float)srcX;
-    vertex[0].t = (float)srcY;
+    vb[0] = (float)dstX;
+    vb[1] = (float)dstY;
+    vb[2] = (float)srcX;
+    vb[3] = (float)srcY;
 
-    vertex[1].x = (float)dstX;
-    vertex[1].y = (float)(dstY + h);
-    vertex[1].s = (float)srcX;
-    vertex[1].t = (float)(srcY + h);
+    vb[4] = (float)dstX;
+    vb[5] = (float)(dstY + h);
+    vb[6] = (float)srcX;
+    vb[7] = (float)(srcY + h);
 
-    vertex[2].x = (float)(dstX + w);
-    vertex[2].y = (float)(dstY + h);
-    vertex[2].s = (float)(srcX + w);
-    vertex[2].t = (float)(srcY + h);
+    vb[8] = (float)(dstX + w);
+    vb[9] = (float)(dstY + h);
+    vb[10] = (float)(srcX + w);
+    vb[11] = (float)(srcY + h);
 
-#ifdef SHOW_VERTEXES
-    ErrorF("vertex 0: %f, %f, %f, %d\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-    ErrorF("vertex 1: %f, %f, %f, %d\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-    ErrorF("vertex 2: %f, %f, %f, %d\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-    // append to vertex buffer
-    copy_vb[accel_state->vb_index++] = vertex[0];
-    copy_vb[accel_state->vb_index++] = vertex[1];
-    copy_vb[accel_state->vb_index++] = vertex[2];
-
+    accel_state->vb_index += 3;
 }
 
 static Bool
@@ -1955,6 +1939,7 @@ static void R600Composite(PixmapPtr pDst,
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
+    float *vb;
     xPointFixed srcTopLeft, srcTopRight, srcBottomLeft, srcBottomRight;
 
     /* ErrorF("R600Composite (%d,%d) (%d,%d) (%d,%d) (%d,%d)\n",
@@ -1978,8 +1963,6 @@ static void R600Composite(PixmapPtr pDst,
     }
 
     if (accel_state->has_mask) {
-	struct r6xx_comp_mask_vertex *comp_vb;
-	struct r6xx_comp_mask_vertex vertex[3];
 	xPointFixed maskTopLeft, maskTopRight, maskBottomLeft, maskBottomRight;
 
 	if (((accel_state->vb_index + 3) * 24) > (accel_state->ib->total / 2)) {
@@ -1988,7 +1971,9 @@ static void R600Composite(PixmapPtr pDst,
 	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
 
-	comp_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	vb = (pointer)((char*)accel_state->ib->address +
+		       (accel_state->ib->total / 2) +
+		       accel_state->vb_index * 24);
 
 	maskTopLeft.x     = IntToxFixed(maskX);
 	maskTopLeft.y     = IntToxFixed(maskY);
@@ -2006,80 +1991,55 @@ static void R600Composite(PixmapPtr pDst,
 	    transformPoint(accel_state->transform[1], &maskBottomRight);
 	}
 
-	vertex[0].x = (float)dstX;
-	vertex[0].y = (float)dstY;
-	vertex[0].src_s = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
-	vertex[0].src_t = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
-	vertex[0].mask_s = xFixedToFloat(maskTopLeft.x) / accel_state->texW[1];
-	vertex[0].mask_t = xFixedToFloat(maskTopLeft.y) / accel_state->texH[1];
+	vb[0] = (float)dstX;
+	vb[1] = (float)dstY;
+	vb[2] = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
+	vb[3] = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
+	vb[4] = xFixedToFloat(maskTopLeft.x) / accel_state->texW[1];
+	vb[5] = xFixedToFloat(maskTopLeft.y) / accel_state->texH[1];
 
-	vertex[1].x = (float)dstX;
-	vertex[1].y = (float)(dstY + h);
-	vertex[1].src_s = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
-	vertex[1].src_t = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
-	vertex[1].mask_s = xFixedToFloat(maskBottomLeft.x) / accel_state->texW[1];
-	vertex[1].mask_t = xFixedToFloat(maskBottomLeft.y) / accel_state->texH[1];
+	vb[6] = (float)dstX;
+	vb[7] = (float)(dstY + h);
+	vb[8] = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
+	vb[9] = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
+	vb[10] = xFixedToFloat(maskBottomLeft.x) / accel_state->texW[1];
+	vb[11] = xFixedToFloat(maskBottomLeft.y) / accel_state->texH[1];
 
-	vertex[2].x = (float)(dstX + w);
-	vertex[2].y = (float)(dstY + h);
-	vertex[2].src_s = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
-	vertex[2].src_t = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
-	vertex[2].mask_s = xFixedToFloat(maskBottomRight.x) / accel_state->texW[1];
-	vertex[2].mask_t = xFixedToFloat(maskBottomRight.y) / accel_state->texH[1];
-
-#ifdef SHOW_VERTEXES
-	ErrorF("vertex 0: %d, %d, %f, %f, %f, %f\n", vertex[0].x, vertex[0].y,
-	       vertex[0].src_s, vertex[0].src_t, vertex[0].mask_s, vertex[0].mask_t);
-	ErrorF("vertex 1: %d, %d, %f, %f, %f, %f\n", vertex[1].x, vertex[1].y,
-	       vertex[1].src_s, vertex[1].src_t, vertex[1].mask_s, vertex[1].mask_t);
-	ErrorF("vertex 2: %d, %d, %f, %f, %f, %f\n", vertex[2].x, vertex[2].y,
-	       vertex[2].src_s, vertex[2].src_t,  vertex[2].mask_s, vertex[2].mask_t);
-#endif
-
-	// append to vertex buffer
-	comp_vb[accel_state->vb_index++] = vertex[0];
-	comp_vb[accel_state->vb_index++] = vertex[1];
-	comp_vb[accel_state->vb_index++] = vertex[2];
+	vb[12] = (float)(dstX + w);
+	vb[13] = (float)(dstY + h);
+	vb[14] = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
+	vb[15] = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
+	vb[16] = xFixedToFloat(maskBottomRight.x) / accel_state->texW[1];
+	vb[17] = xFixedToFloat(maskBottomRight.y) / accel_state->texH[1];
 
     } else {
-	struct r6xx_comp_vertex *comp_vb;
-	struct r6xx_comp_vertex vertex[3];
-
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	    R600DoneComposite(pDst);
 	    accel_state->vb_index = 0;
 	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
 
-	comp_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	vb = (pointer)((char*)accel_state->ib->address +
+		       (accel_state->ib->total / 2) +
+		       accel_state->vb_index * 16);
 
-	vertex[0].x = (float)dstX;
-	vertex[0].y = (float)dstY;
-	vertex[0].src_s = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
-	vertex[0].src_t = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
+	vb[0] = (float)dstX;
+	vb[1] = (float)dstY;
+	vb[2] = xFixedToFloat(srcTopLeft.x) / accel_state->texW[0];
+	vb[3] = xFixedToFloat(srcTopLeft.y) / accel_state->texH[0];
 
-	vertex[1].x = (float)dstX;
-	vertex[1].y = (float)(dstY + h);
-	vertex[1].src_s = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
-	vertex[1].src_t = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
+	vb[4] = (float)dstX;
+	vb[5] = (float)(dstY + h);
+	vb[6] = xFixedToFloat(srcBottomLeft.x) / accel_state->texW[0];
+	vb[7] = xFixedToFloat(srcBottomLeft.y) / accel_state->texH[0];
 
-	vertex[2].x = (float)(dstX + w);
-	vertex[2].y = (float)(dstY + h);
-	vertex[2].src_s = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
-	vertex[2].src_t = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
-
-	// append to vertex buffer
-	comp_vb[accel_state->vb_index++] = vertex[0];
-	comp_vb[accel_state->vb_index++] = vertex[1];
-	comp_vb[accel_state->vb_index++] = vertex[2];
-
-#ifdef SHOW_VERTEXES
-	ErrorF("vertex 0: %d, %d, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].src_s, vertex[0].src_t);
-	ErrorF("vertex 1: %d, %d, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].src_s, vertex[1].src_t);
-	ErrorF("vertex 2: %d, %d, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].src_s, vertex[2].src_t);
-#endif
+	vb[8] = (float)(dstX + w);
+	vb[9] = (float)(dstY + h);
+	vb[10] = xFixedToFloat(srcBottomRight.x) / accel_state->texW[0];
+	vb[11] = xFixedToFloat(srcBottomRight.y) / accel_state->texH[0];
     }
 
+    accel_state->vb_index += 3;
 
 }
 

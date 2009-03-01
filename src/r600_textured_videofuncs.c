@@ -463,8 +463,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
-	struct r6xx_copy_vertex *xv_vb;
-	struct r6xx_copy_vertex vertex[3];
+	float *vb;
 
 	if (((accel_state->vb_index + 3) * 16) > (accel_state->ib->total / 2)) {
 	    R600DoneTexturedVideo(pScrn);
@@ -472,7 +471,9 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    accel_state->ib = RADEONCPGetBuffer(pScrn);
 	}
 
-	xv_vb = (pointer)((char*)accel_state->ib->address + (accel_state->ib->total / 2));
+	vb = (pointer)((char*)accel_state->ib->address +
+		       (accel_state->ib->total / 2) +
+		       accel_state->vb_index * 16);
 
 	dstX = pBox->x1 + dstxoff;
 	dstY = pBox->y1 + dstyoff;
@@ -487,31 +488,22 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
-	vertex[0].x = (float)dstX;
-	vertex[0].y = (float)dstY;
-	vertex[0].s = (float)srcX / pPriv->w;
-	vertex[0].t = (float)srcY / pPriv->h;
+	vb[0] = (float)dstX;
+	vb[1] = (float)dstY;
+	vb[2] = (float)srcX / pPriv->w;
+	vb[3] = (float)srcY / pPriv->h;
 
-	vertex[1].x = (float)dstX;
-	vertex[1].y = (float)(dstY + dsth);
-	vertex[1].s = (float)srcX / pPriv->w;
-	vertex[1].t = (float)(srcY + srch) / pPriv->h;
+	vb[4] = (float)dstX;
+	vb[5] = (float)(dstY + dsth);
+	vb[6] = (float)srcX / pPriv->w;
+	vb[7] = (float)(srcY + srch) / pPriv->h;
 
-	vertex[2].x = (float)(dstX + dstw);
-	vertex[2].y = (float)(dstY + dsth);
-	vertex[2].s = (float)(srcX + srcw) / pPriv->w;
-	vertex[2].t = (float)(srcY + srch) / pPriv->h;
+	vb[8] = (float)(dstX + dstw);
+	vb[9] = (float)(dstY + dsth);
+	vb[10] = (float)(srcX + srcw) / pPriv->w;
+	vb[11] = (float)(srcY + srch) / pPriv->h;
 
-#if 0
-	ErrorF("vertex 0: %f, %f, %f, %f\n", vertex[0].x, vertex[0].y, vertex[0].s, vertex[0].t);
-	ErrorF("vertex 1: %f, %f, %f, %f\n", vertex[1].x, vertex[1].y, vertex[1].s, vertex[1].t);
-	ErrorF("vertex 2: %f, %f, %f, %f\n", vertex[2].x, vertex[2].y, vertex[2].s, vertex[2].t);
-#endif
-
-	// append to vertex buffer
-	xv_vb[accel_state->vb_index++] = vertex[0];
-	xv_vb[accel_state->vb_index++] = vertex[1];
-	xv_vb[accel_state->vb_index++] = vertex[2];
+	accel_state->vb_index += 3;
 
 	pBox++;
     }
