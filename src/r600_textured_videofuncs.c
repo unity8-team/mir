@@ -33,6 +33,7 @@
 #include "exa.h"
 
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "r600_shader.h"
 #include "r600_reg.h"
 #include "r600_state.h"
@@ -161,8 +162,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     set_default_state(pScrn, accel_state->ib);
 
     /* Scissor / viewport */
-    ereg  (accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    ereg  (accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
+    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->xv_vs_offset;
@@ -390,9 +391,9 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
 
     /* Render setup */
-    ereg  (accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));
-    ereg  (accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
-    ereg  (accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
+    EREG(accel_state->ib, CB_SHADER_MASK,                      (0x0f << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    (0xcc << ROP3_shift)); /* copy */
 
     cb_conf.id = 0;
 
@@ -424,28 +425,28 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
 
-    ereg  (accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    ereg  (accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-						 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
+								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     // export tex coords from VS
-    ereg  (accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-    ereg  (accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
-    ereg  (accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-									     (0x03 << DEFAULT_VAL_shift)	|
-									     SEL_CENTROID_bit));
-    ereg  (accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
+								(0x03 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
+    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
 
-    cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap, 
+    cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap,
                        radeon_covering_crtc_num(pScrn,
                                                 pPriv->drw_x,
                                                 pPriv->drw_x + pPriv->dst_w,

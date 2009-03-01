@@ -1,13 +1,10 @@
 #ifndef __R600_STATE_H__
 #define __R600_STATE_H__
 
+
 #include "xf86drm.h"
 
 typedef int bool_t;
-
-/* seriously ?! @#$%% */
-# define uint32_t CARD32
-# define uint64_t CARD64
 
 #define CLEAR(x) memset (&x, 0, sizeof(x))
 
@@ -173,11 +170,65 @@ typedef struct {
     uint32_t num_indices;
 } draw_config_t;
 
-inline void e32(drmBufPtr ib, uint32_t dword);
-inline void efloat(drmBufPtr ib, float f);
-inline void pack3(drmBufPtr ib, int cmd, unsigned num);
-inline void pack0 (drmBufPtr ib, uint32_t reg, int num);
-inline void ereg (drmBufPtr ib, uint32_t reg, uint32_t val);
+#define E32(ib, dword)                                                  \
+do {                                                                    \
+    uint32_t *ib_head = (pointer)(char*)(ib)->address;			\
+    ib_head[(ib)->used >> 2] = (dword);					\
+    (ib)->used += 4;							\
+} while (0)
+
+#define EFLOAT(ib, val)							\
+do {								        \
+    union { float f; uint32_t d; } a;                                   \
+    a.f = (val);								\
+    E32((ib), a.d);							\
+} while (0)
+
+#define PACK3(ib, cmd, num)	       					\
+do {                                                                    \
+    E32((ib), RADEON_CP_PACKET3 | ((cmd) << 8) | ((((num) - 1) & 0x3fff) << 16)); \
+} while (0)
+
+/* write num registers, start at reg */
+/* If register falls in a special area, special commands are issued */
+#define PACK0(ib, reg, num)                                             \
+do {                                                                    \
+    if ((reg) >= SET_CONFIG_REG_offset && (reg) < SET_CONFIG_REG_end) {	\
+	PACK3((ib), IT_SET_CONFIG_REG, (num) + 1);			\
+        E32(ib, ((reg) - SET_CONFIG_REG_offset) >> 2);                  \
+    } else if ((reg) >= SET_CONTEXT_REG_offset && (reg) < SET_CONTEXT_REG_end) { \
+        PACK3((ib), IT_SET_CONTEXT_REG, (num) + 1);			\
+	E32(ib, ((reg) - 0x28000) >> 2);				\
+    } else if ((reg) >= SET_ALU_CONST_offset && (reg) < SET_ALU_CONST_end) { \
+	PACK3((ib), IT_SET_ALU_CONST, (num) + 1);			\
+	E32(ib, ((reg) - SET_ALU_CONST_offset) >> 2);			\
+    } else if ((reg) >= SET_RESOURCE_offset && (reg) < SET_RESOURCE_end) { \
+	PACK3((ib), IT_SET_RESOURCE, num + 1);				\
+	E32((ib), ((reg) - SET_RESOURCE_offset) >> 2);			\
+    } else if ((reg) >= SET_SAMPLER_offset && (reg) < SET_SAMPLER_end) { \
+	PACK3((ib), IT_SET_SAMPLER, (num) + 1);				\
+	E32((ib), (reg - SET_SAMPLER_offset) >> 2);			\
+    } else if ((reg) >= SET_CTL_CONST_offset && (reg) < SET_CTL_CONST_end) { \
+	PACK3((ib), IT_SET_CTL_CONST, (num) + 1);			\
+	E32((ib), ((reg) - SET_CTL_CONST_offset) >> 2);		\
+    } else if ((reg) >= SET_LOOP_CONST_offset && (reg) < SET_LOOP_CONST_end) { \
+	PACK3((ib), IT_SET_LOOP_CONST, (num) + 1);			\
+	E32((ib), ((reg) - SET_LOOP_CONST_offset) >> 2);		\
+    } else if ((reg) >= SET_BOOL_CONST_offset && (reg) < SET_BOOL_CONST_end) { \
+	PACK3((ib), IT_SET_BOOL_CONST, (num) + 1);			\
+	E32((ib), ((reg) - SET_BOOL_CONST_offset) >> 2);		\
+    } else {								\
+	E32((ib), CP_PACKET0 ((reg), (num) - 1));			\
+    }									\
+} while (0)
+
+/* write a single register */
+#define EREG(ib, reg, val)                                              \
+do {								        \
+    PACK0((ib), (reg), 1);						\
+    E32((ib), (val));							\
+} while (0)
+
 void R600CPFlushIndirect(ScrnInfoPtr pScrn, drmBufPtr ib);
 void R600IBDiscard(ScrnInfoPtr pScrn, drmBufPtr ib);
 

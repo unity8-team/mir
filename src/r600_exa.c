@@ -34,6 +34,7 @@
 
 #include "radeon.h"
 #include "radeon_macros.h"
+#include "radeon_reg.h"
 #include "r600_shader.h"
 #include "r600_reg.h"
 #include "r600_state.h"
@@ -134,8 +135,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     set_default_state(pScrn, accel_state->ib);
 
     /* Scissor / viewport */
-    ereg  (accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    ereg  (accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
+    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->solid_vs_offset;
@@ -176,10 +177,9 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	pmask |= 1; //R
     if (pm & 0xff000000)
 	pmask |= 8; //A
-    ereg  (accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
-    ereg  (accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
-    ereg  (accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[alu]);
-
+    EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[alu]);
 
     cb_conf.id = 0;
     cb_conf.w = accel_state->dst_pitch;
@@ -200,28 +200,28 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
 
-    ereg  (accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    ereg  (accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-						 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
+								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     // one unused export from VS (VS_EXPORT_COUNT is zero based, count minus one)
-    ereg  (accel_state->ib, SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
-    ereg  (accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_CONFIG, (0 << VS_EXPORT_COUNT_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
     // no VS exports as PS input (NUM_INTERP is not zero based, no minus one)
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_0,                 (0 << NUM_INTERP_shift));
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 (0 << NUM_INTERP_shift));
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
     // color semantic id 0 -> GPR[0]
-    ereg  (accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
 								  (0x03 << DEFAULT_VAL_shift)	|
 								  FLAT_SHADE_bit		|
 								  SEL_CENTROID_bit));
-    ereg  (accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit | 0);
+    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                FLAT_SHADE_ENA_bit | 0);
 
     // PS alu constants
     if (pPix->drawable.bitsPerPixel == 16) {
@@ -386,8 +386,8 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     set_default_state(pScrn, accel_state->ib);
 
     /* Scissor / viewport */
-    ereg  (accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    ereg  (accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
+    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->copy_vs_offset;
@@ -485,9 +485,9 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
 	pmask |= 1; //R
     if (planemask & 0xff000000)
 	pmask |= 8; //A
-    ereg  (accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
-    ereg  (accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
-    ereg  (accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
+    EREG(accel_state->ib, CB_SHADER_MASK,                      (pmask << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+    EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[rop]);
 
     accel_state->dst_size = dst_pitch * dst_height * (dst_bpp/8);
     accel_state->dst_mc_addr = dst_offset;
@@ -513,27 +513,27 @@ R600DoPrepareCopy(ScrnInfoPtr pScrn,
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
 
-    ereg  (accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    ereg  (accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-						 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
+								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     // export tex coord from VS
-    ereg  (accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
-    ereg  (accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
+    EREG(accel_state->ib, SPI_VS_OUT_ID_0, (0 << SEMANTIC_0_shift));
 
     /* Enabling flat shading needs both FLAT_SHADE_bit in SPI_PS_INPUT_CNTL_x
      * *and* FLAT_SHADE_ENA_bit in SPI_INTERP_CONTROL_0 */
     // input tex coord from VS
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_0,                 ((1 << NUM_INTERP_shift)));
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
     // color semantic id 0 -> GPR[0]
-    ereg  (accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								  (0x01 << DEFAULT_VAL_shift)	|
-								  SEL_CENTROID_bit));
-    ereg  (accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
+								(0x01 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
+    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
     accel_state->vb_index = 0;
 
@@ -1800,8 +1800,8 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     set_default_state(pScrn, accel_state->ib);
 
     /* Scissor / viewport */
-    ereg  (accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
-    ereg  (accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
+    EREG(accel_state->ib, PA_CL_VTE_CNTL,                      VTX_XY_FMT_bit);
+    EREG(accel_state->ib, PA_CL_CLIP_CNTL,                     CLIP_DISABLE_bit);
 
     // fix me if false discard buffer!
     if (!R600TextureSetup(pSrcPicture, pSrc, 0))
@@ -1852,20 +1852,20 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     ps_conf.export_mode         = 2;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
-    ereg  (accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
-    ereg  (accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
+    EREG(accel_state->ib, CB_SHADER_MASK,                      (0xf << OUTPUT0_ENABLE_shift));
+    EREG(accel_state->ib, R7xx_CB_SHADER_CONTROL,              (RT0_ENABLE_bit));
 
     blendcntl = R600GetBlendCntl(op, pMaskPicture, pDstPicture->format);
 
     if (info->ChipFamily == CHIP_FAMILY_R600) {
 	// no per-MRT blend on R600
-	ereg  (accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[3] | (1 << TARGET_BLEND_ENABLE_shift));
-	ereg  (accel_state->ib, CB_BLEND_CONTROL,                    blendcntl);
+	EREG(accel_state->ib, CB_COLOR_CONTROL,                    RADEON_ROP[3] | (1 << TARGET_BLEND_ENABLE_shift));
+	EREG(accel_state->ib, CB_BLEND_CONTROL,                    blendcntl);
     } else {
-	ereg  (accel_state->ib, CB_COLOR_CONTROL,                    (RADEON_ROP[3] |
-								      (1 << TARGET_BLEND_ENABLE_shift) |
-								      PER_MRT_BLEND_bit));
-	ereg  (accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
+	EREG(accel_state->ib, CB_COLOR_CONTROL,                    (RADEON_ROP[3] |
+								    (1 << TARGET_BLEND_ENABLE_shift) |
+								    PER_MRT_BLEND_bit));
+	EREG(accel_state->ib, CB_BLEND0_CONTROL,                   blendcntl);
     }
 
     cb_conf.id = 0;
@@ -1907,39 +1907,39 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blend_clamp = 1;
     set_render_target(pScrn, accel_state->ib, &cb_conf);
 
-    ereg  (accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
-						 (POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
-    ereg  (accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
-						 DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
+    EREG(accel_state->ib, PA_SU_SC_MODE_CNTL,                  (FACE_bit			|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_FRONT_PTYPE_shift)	|
+								(POLYMODE_PTYPE__TRIANGLES << POLYMODE_BACK_PTYPE_shift)));
+    EREG(accel_state->ib, DB_SHADER_CONTROL,                   ((1 << Z_ORDER_shift)		| /* EARLY_Z_THEN_LATE_Z */
+								DUAL_EXPORT_ENABLE_bit)); /* Only useful if no depth export */
 
     /* Interpolator setup */
     if (pMask) {
 	// export 2 tex coords from VS
-	ereg  (accel_state->ib, SPI_VS_OUT_CONFIG, ((2 - 1) << VS_EXPORT_COUNT_shift));
+	EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((2 - 1) << VS_EXPORT_COUNT_shift));
 	// src = semantic id 0; mask = semantic id 1
-	ereg  (accel_state->ib, SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
+	EREG(accel_state->ib, SPI_VS_OUT_ID_0, ((0 << SEMANTIC_0_shift) |
 						  (1 << SEMANTIC_1_shift)));
 	// input 2 tex coords from VS
-	ereg  (accel_state->ib, SPI_PS_IN_CONTROL_0, (2 << NUM_INTERP_shift));
+	EREG(accel_state->ib, SPI_PS_IN_CONTROL_0, (2 << NUM_INTERP_shift));
     } else {
 	// export 1 tex coords from VS
-	ereg  (accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
+	EREG(accel_state->ib, SPI_VS_OUT_CONFIG, ((1 - 1) << VS_EXPORT_COUNT_shift));
 	// src = semantic id 0
-	ereg  (accel_state->ib, SPI_VS_OUT_ID_0,   (0 << SEMANTIC_0_shift));
+	EREG(accel_state->ib, SPI_VS_OUT_ID_0,   (0 << SEMANTIC_0_shift));
 	// input 1 tex coords from VS
-	ereg  (accel_state->ib, SPI_PS_IN_CONTROL_0, (1 << NUM_INTERP_shift));
+	EREG(accel_state->ib, SPI_PS_IN_CONTROL_0, (1 << NUM_INTERP_shift));
     }
-    ereg  (accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
+    EREG(accel_state->ib, SPI_PS_IN_CONTROL_1,                 0);
     // SPI_PS_INPUT_CNTL_0 maps to GPR[0] - load with semantic id 0
-    ereg  (accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
-								  (0x01 << DEFAULT_VAL_shift)	|
-								  SEL_CENTROID_bit));
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (0 <<2),       ((0    << SEMANTIC_shift)	|
+								(0x01 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
     // SPI_PS_INPUT_CNTL_1 maps to GPR[1] - load with semantic id 1
-    ereg  (accel_state->ib, SPI_PS_INPUT_CNTL_0 + (1 <<2),       ((1    << SEMANTIC_shift)	|
-								  (0x01 << DEFAULT_VAL_shift)	|
-								  SEL_CENTROID_bit));
-    ereg  (accel_state->ib, SPI_INTERP_CONTROL_0,                0);
+    EREG(accel_state->ib, SPI_PS_INPUT_CNTL_0 + (1 <<2),       ((1    << SEMANTIC_shift)	|
+								(0x01 << DEFAULT_VAL_shift)	|
+								SEL_CENTROID_bit));
+    EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
     accel_state->vb_index = 0;
 
