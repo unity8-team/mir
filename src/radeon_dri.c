@@ -787,6 +787,9 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     /* ATI Host Bridge / RV280 [M9+] Needs AGPMode 1 (phoronix forum) */
     { PCI_VENDOR_ATI,0xcbb2,    PCI_VENDOR_ATI,0x5c61,  PCI_VENDOR_SONY,0x8175,  1 },
 
+    /* HP Host Bridge / R300 [FireGL X1] Needs AGPMode 2 (fdo #7770) */
+    { PCI_VENDOR_HP,0x122e,    PCI_VENDOR_ATI,0x4e47,  PCI_VENDOR_ATI,0x0152,    2 },
+
     { 0, 0, 0, 0, 0, 0, 0 },
 };
 
