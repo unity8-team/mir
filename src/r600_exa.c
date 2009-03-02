@@ -1122,9 +1122,6 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 
     /* ErrorF("Tex %d setup %dx%d\n", unit, w, h);  */
 
-    accel_state->src_pitch[unit] = exaGetPixmapPitch(pPix) / (pPix->drawable.bitsPerPixel / 8);
-    accel_state->src_size[unit] = exaGetPixmapPitch(pPix) * h;
-    accel_state->src_mc_addr[unit] = exaGetPixmapOffset(pPix) + info->fbLocation + pScrn->fbOffset;
     /* flush texture cache */
     cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			accel_state->src_size[unit], accel_state->src_mc_addr[unit]);
