@@ -255,6 +255,10 @@ ps_setup(ScrnInfoPtr pScrn, drmBufPtr ib, shader_config_t *ps_conf);
 void
 set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *const_buf);
 void
+set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf);
+void
+set_loop_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf);
+void
 set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res);
 void
 set_tex_resource(ScrnInfoPtr pScrn, drmBufPtr ib, tex_resource_t *tex_res);

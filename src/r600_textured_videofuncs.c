@@ -115,7 +115,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     tex_sampler_t   tex_samp;
     shader_config_t vs_conf, ps_conf;
     int uv_offset;
-
+    uint32_t bool_consts[1] = { 0 };
     static float ps_alu_consts[] = {
         1.0,  0.0,      1.4020,   0,  /* r - c[0] */
         1.0, -0.34414, -0.71414,  0,  /* g - c[1] */
@@ -166,17 +166,18 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->xv_vs_offset;
 
+    accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	accel_state->xv_ps_offset;
+
     switch(pPriv->id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	    accel_state->xv_ps_offset_planar;
+	bool_consts[0] = 1;
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	    accel_state->xv_ps_offset_packed;
+	bool_consts[0] = 0;
 	break;
     }
 
@@ -200,14 +201,19 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
     ps_conf.shader_addr         = accel_state->ps_mc_addr;
     ps_conf.num_gprs            = 3;
-    ps_conf.stack_size          = 0;
+    ps_conf.stack_size          = 1;
     ps_conf.uncached_first_inst = 1;
     ps_conf.clamp_consts        = 0;
     ps_conf.export_mode         = 2;
     ps_setup                    (pScrn, accel_state->ib, &ps_conf);
 
     /* PS alu constants */
-    set_alu_consts(pScrn, accel_state->ib, 0, sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
+    set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_ps,
+		   sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
+
+    /* CF bool constants */
+    set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps,
+		    sizeof(bool_consts) / SQ_BOOL_CONST_offset, bool_consts);
 
     /* Texture */
     switch(pPriv->id) {

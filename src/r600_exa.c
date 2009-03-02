@@ -246,7 +246,8 @@ R600PrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
 	ps_alu_consts[2] = (float)b / 255; /* B */
 	ps_alu_consts[3] = (float)a / 255; /* A */
     }
-    set_alu_consts(pScrn, accel_state->ib, 0, sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
+    set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_ps,
+		   sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
 
     accel_state->vb_index = 0;
 
@@ -2027,13 +2028,9 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     accel_state->xv_vs_offset = 4096;
     R600_xv_vs(ChipSet, shader + accel_state->xv_vs_offset / 4);
 
-    /*  xv ps packed --------------------------------------- */
-    accel_state->xv_ps_offset_packed = 4608;
-    R600_xv_ps_packet(ChipSet, shader + accel_state->xv_ps_offset_packed / 4);
-
-    /*  xv ps planar ---------------------------------- */
-    accel_state->xv_ps_offset_planar = 5120;
-    R600_xv_ps_planar(ChipSet, shader + accel_state->xv_ps_offset_planar / 4);
+    /*  xv ps --------------------------------------- */
+    accel_state->xv_ps_offset = 4608;
+    R600_xv_ps(ChipSet, shader + accel_state->xv_ps_offset / 4);
 
     return TRUE;
 }

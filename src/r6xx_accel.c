@@ -433,6 +433,29 @@ set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *co
 }
 
 void
+set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf)
+{
+    int i;
+    const int countreg = count * (SQ_BOOL_CONST_offset >> 2);
+
+    PACK0(ib, SQ_BOOL_CONST + offset * SQ_BOOL_CONST_offset, countreg);
+    for (i = 0; i < countreg; i++)
+	E32(ib, const_buf[i]);
+
+}
+
+void
+set_loop_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf)
+{
+    int i;
+    const int countreg = count * (SQ_LOOP_CONST_offset >> 2);
+
+    PACK0(ib, SQ_LOOP_CONST + offset * SQ_LOOP_CONST_offset, countreg);
+    for (i = 0; i < countreg; i++)
+	E32(ib, const_buf[i]);
+}
+
+void
 set_vtx_resource(ScrnInfoPtr pScrn, drmBufPtr ib, vtx_resource_t *res)
 {
     uint32_t sq_vtx_constant_word2;
