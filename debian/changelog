@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.6.1-1ubuntu4) jaunty; urgency=low
+
+  * Add 110_quirk_hp_mini.patch: Pipe-A quirk for an HP Mini
+  * Renumber patch 02_i830-fifo-watermark-conservative.patch to
+    109_i830-fifo-watermark-conservative.patch
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 02 Mar 2009 21:52:04 -0800
+
 xserver-xorg-video-intel (2:2.6.1-1ubuntu3) jaunty; urgency=low
 
   * Add 02_i830-fifo-watermark-conservative.patch: Avoid pipe underruns on
