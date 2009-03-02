@@ -1397,7 +1397,7 @@ static int dcb_entry_idx_from_crtchead(ScrnInfoPtr pScrn)
 
 	uint8_t dcb_entry = NVReadVgaCrtc5758(NVPTR(pScrn), crtchead, 0);
 
-	if (dcb_entry > NVPTR(pScrn)->dcb_table.entries) {
+	if (dcb_entry > NVPTR(pScrn)->VBIOS.bdcb.dcb.entries) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "CR58 doesn't have a valid DCB entry currently (%02X)\n",
 			   dcb_entry);
@@ -1412,28 +1412,28 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index);
 static int
 create_i2c_device(ScrnInfoPtr pScrn, bios_t *bios, int i2c_index, int address, I2CDevRec *i2cdev)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	struct bios_parsed_dcb *bdcb = &bios->bdcb;
 	int ret;
 
 	if (i2c_index == 0xff) {
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
 		int idx = dcb_entry_idx_from_crtchead(pScrn), shift = 0;
-		int default_indices = pNv->dcb_table.i2c_default_indices;
+		int default_indices = bdcb->i2c_default_indices;
 
-		if (idx != 0x7f && pNv->dcb_table.entry[idx].i2c_upper_default)
+		if (idx != 0x7f && bdcb->dcb.entry[idx].i2c_upper_default)
 			shift = 4;
 
 		i2c_index = (default_indices >> shift) & 0xf;
 	}
 	if (i2c_index == 0x80)	/* g80+ */
-		i2c_index = pNv->dcb_table.i2c_default_indices & 0xf;
+		i2c_index = bdcb->i2c_default_indices & 0xf;
 
 	if ((ret = init_dcb_i2c_entry(pScrn, bios, i2c_index)))
 		return ret;
 
 	memset(i2cdev, 0, sizeof(I2CDevRec));
 	i2cdev->DevName = "init script device";
-	i2cdev->pI2CBus = pNv->dcb_table.i2c[i2c_index].chan;
+	i2cdev->pI2CBus = bdcb->dcb.i2c[i2c_index].chan;
 	i2cdev->SlaveAddr = address;
 	if (!xf86I2CDevInit(i2cdev)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Couldn't add I2C device\n");
@@ -1612,7 +1612,7 @@ static uint32_t get_tmds_index_reg(ScrnInfoPtr pScrn, uint8_t mlv)
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
 		if ((dcb_entry = dcb_entry_idx_from_crtchead(pScrn)) == 0x7f)
 			return 0;
-		dacoffset = pramdac_offset[pNv->dcb_table.entry[dcb_entry].or];
+		dacoffset = pramdac_offset[pNv->VBIOS.bdcb.dcb.entry[dcb_entry].or];
 		if (mlv == 0x81)
 			dacoffset ^= 8;
 		return (0x6808b0 + dacoffset);
@@ -4155,16 +4155,15 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	 * offset + 142: PLL limits table pointer
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
 	uint8_t bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 
 	/* load needed defaults in case we can't parse this info */
-	pNv->dcb_table.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
-	pNv->dcb_table.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
-	pNv->dcb_table.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
-	pNv->dcb_table.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
+	bios->bdcb.dcb.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
+	bios->bdcb.dcb.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
+	bios->bdcb.dcb.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
+	bios->bdcb.dcb.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
 	bios->pub.digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
@@ -4248,10 +4247,10 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
 	bios->legacy.i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
 	bios->legacy.i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
-	pNv->dcb_table.i2c[0].write = bios->data[legacy_i2c_offset + 4];
-	pNv->dcb_table.i2c[0].read = bios->data[legacy_i2c_offset + 5];
-	pNv->dcb_table.i2c[1].write = bios->data[legacy_i2c_offset + 6];
-	pNv->dcb_table.i2c[1].read = bios->data[legacy_i2c_offset + 7];
+	bios->bdcb.dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
+	bios->bdcb.dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
+	bios->bdcb.dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
+	bios->bdcb.dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 67]));
@@ -4367,7 +4366,7 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint8_t *i2ctable, int in
 
 static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, bios_t *bios, int index)
 {
-	struct dcb_i2c_entry *i2c = &NVPTR(pScrn)->dcb_table.i2c[index];
+	struct dcb_i2c_entry *i2c = &bios->bdcb.dcb.i2c[index];
 	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
 	uint8_t dcb_version = bios->data[dcbptr];
 	uint16_t i2ctabptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + ((dcb_version < 0x30) ? 2 : 4)]);
@@ -4592,8 +4591,9 @@ void merge_like_dcb_entries(ScrnInfoPtr pScrn, struct parsed_dcb *dcb)
 	dcb->entries = newentries;
 }
 
-static int parse_dcb_table(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, bios_t *bios)
+static int parse_dcb_table(ScrnInfoPtr pScrn, bios_t *bios)
 {
+	struct parsed_dcb *dcb;
 	uint16_t dcbptr, i2ctabptr = 0;
 	uint8_t *dcbtable, *i2c_table = NULL;
 	uint8_t dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
@@ -4601,6 +4601,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, bios_t *bi
 	int recordlength = 8, confofs = 4;
 	int i;
 
+	dcb = bios->pub.dcb = &bios->bdcb.dcb;
 	dcb->entries = 0;
 
 	/* get the offset from 0x36 */
@@ -4670,7 +4671,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, bios_t *bi
 	else {
 		i2c_table = &bios->data[i2ctabptr];
 		if (dcb_version >= 0x30)
-			dcb->i2c_default_indices = i2c_table[4];
+			bios->bdcb.i2c_default_indices = i2c_table[4];
 	}
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
@@ -4885,7 +4886,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		return -ENODEV;
 	if ((ret = nouveau_parse_vbios_struct(pScrn)))
 		return ret;
-	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, bios)))
+	if ((ret = parse_dcb_table(pScrn, bios)))
 		return ret;
 
 	if (!bios->major_version)	/* we don't run version 0 bios */
@@ -4903,9 +4904,9 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	if ((ret = nouveau_run_vbios_init(pScrn)))
 		return ret;
 
-	for (i = 0 ; i < pNv->dcb_table.entries; i++)
-		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
-			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], nv_get_digital_bound_head(pNv, pNv->dcb_table.entry[i].or), LVDS_INIT, 0);
+	for (i = 0 ; i < bios->bdcb.dcb.entries; i++)
+		if (bios->bdcb.dcb.entry[i].type == OUTPUT_LVDS)
+			call_lvds_script(pScrn, &bios->bdcb.dcb.entry[i], nv_get_digital_bound_head(pNv, bios->bdcb.dcb.entry[i].or), LVDS_INIT, 0);
 
 	if (bios->feature_byte & FEATURE_MOBILE && !bios->pub.fp.native_mode)
 		read_bios_edid(pScrn);

@@ -1842,7 +1842,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		int i;
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring encoders\n");
-		for (i = 0; i < pNv->dcb_table.entries; i++)
+		for (i = 0; i < pNv->vbios->dcb->entries; i++)
 			nv_encoder_restore(pScrn, &pNv->encoders[i]);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Restoring crtcs\n");
@@ -2334,7 +2334,7 @@ NVSave(ScrnInfoPtr pScrn)
 			xf86_config->crtc[i]->funcs->save(xf86_config->crtc[i]);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving encoders\n");
-		for (i = 0; i < pNv->dcb_table.entries; i++)
+		for (i = 0; i < pNv->vbios->dcb->entries; i++)
 			nv_encoder_save(pScrn, &pNv->encoders[i]);
 	} else {
 		vgaHWPtr pVga = VGAHWPTR(pScrn);

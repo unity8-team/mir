@@ -57,8 +57,12 @@ struct dcb_i2c_entry {
 struct parsed_dcb {
 	int entries;
 	struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
-	uint8_t i2c_default_indices;
 	struct dcb_i2c_entry i2c[MAX_NUM_DCB_ENTRIES];
+};
+
+struct bios_parsed_dcb {
+	struct parsed_dcb dcb;
+	uint8_t i2c_default_indices;
 };
 
 enum nouveau_encoder_type
@@ -117,6 +121,8 @@ struct pll_lims {
 };
 
 struct nouveau_bios_info {
+	struct parsed_dcb *dcb;
+
 	uint32_t dactestval;
 
 	uint8_t digital_min_front_porch;
@@ -154,6 +160,8 @@ struct nvbios {
 
 	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
+
+	struct bios_parsed_dcb bdcb;
 
 	struct {
 		uint16_t fptablepointer;	/* also used by tmds */

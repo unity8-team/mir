@@ -356,8 +356,6 @@ typedef struct _NVRec {
 	void *drmmode; /* for KMS */
 #endif
 
-	struct parsed_dcb dcb_table;
-
 	nouveauCrtcPtr crtc[2];
 	nouveauOutputPtr output; /* this a linked list. */
 	/* Assume a connector can exist for each i2c bus. */

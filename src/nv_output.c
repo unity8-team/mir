@@ -28,7 +28,7 @@
 #include "nv_include.h"
 
 #define MULTIPLE_ENCODERS(e) (e & (e - 1))
-#define FOR_EACH_ENCODER_IN_CONNECTOR(i, c, e)	for (i = 0; i < pNv->dcb_table.entries;	i++)	\
+#define FOR_EACH_ENCODER_IN_CONNECTOR(i, c, e)	for (i = 0; i < pNv->vbios->dcb->entries; i++)	\
 							if (c->possible_encoders & (1 << i) &&	\
 							    (e = &pNv->encoders[i]))
 
@@ -179,7 +179,7 @@ nv_output_detect(xf86OutputPtr output)
 	struct nouveau_encoder *find_encoder_by_type(enum nouveau_encoder_type type)
 	{
 		int i;
-		for (i = 0; i < pNv->dcb_table.entries; i++)
+		for (i = 0; i < pNv->vbios->dcb->entries; i++)
 			if (nv_connector->possible_encoders & (1 << i) &&
 			    (type == OUTPUT_ANY || pNv->encoders[i].dcb->type == type))
 				return &pNv->encoders[i];
@@ -644,7 +644,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset,
 			      nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE);
 		/* force any other vga encoders to bind to the other crtc */
-		for (i = 0; i < pNv->dcb_table.entries; i++)
+		for (i = 0; i < pNv->vbios->dcb->entries; i++)
 			if (i != nv_encoder->dcb->index && pNv->encoders[i].dcb &&
 			    pNv->encoders[i].dcb->type == OUTPUT_ANALOG) {
 				dac_offset = nv_output_ramdac_offset(&pNv->encoders[i]);
@@ -927,21 +927,22 @@ nv_add_connector(ScrnInfoPtr pScrn, int i2c_index, int encoders, const xf86Outpu
 	output->driver_private = nv_connector;
 
 	if (i2c_index < 0xf)
-		NV_I2CInit(pScrn, &nv_connector->pDDCBus, &pNv->dcb_table.i2c[i2c_index], xstrdup(outputname));
+		NV_I2CInit(pScrn, &nv_connector->pDDCBus, &pNv->vbios->dcb->i2c[i2c_index], xstrdup(outputname));
 	nv_connector->possible_encoders = encoders;
 }
 
 void NvSetupOutputs(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct parsed_dcb *dcb = pNv->vbios->dcb;
 	uint16_t connectors[0x10] = { 0 };
 	int i, vga_count = 0, dvid_count = 0, dvii_count = 0, lvds_count = 0;
 
-	if (!(pNv->encoders = xcalloc(pNv->dcb_table.entries, sizeof (struct nouveau_encoder))))
+	if (!(pNv->encoders = xcalloc(dcb->entries, sizeof (struct nouveau_encoder))))
 		return;
 
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		struct dcb_entry *dcbent = &pNv->dcb_table.entry[i];
+	for (i = 0; i < dcb->entries; i++) {
+		struct dcb_entry *dcbent = &dcb->entry[i];
 
 		if (dcbent->type == OUTPUT_TV)
 			continue;
@@ -955,8 +956,8 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 		nv_add_encoder(pScrn, dcbent);
 	}
 
-	for (i = 0; i < pNv->dcb_table.entries; i++) {
-		struct dcb_entry *dcbent = &pNv->dcb_table.entry[i];
+	for (i = 0; i < dcb->entries; i++) {
+		struct dcb_entry *dcbent = &dcb->entry[i];
 		int i2c_index = dcbent->i2c_index;
 		uint16_t encoders = connectors[i2c_index];
 		char outputname[20];
@@ -965,7 +966,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 		if (!encoders)
 			continue;
 
-		switch (pNv->dcb_table.entry[i].type) {
+		switch (dcbent->type) {
 		case OUTPUT_ANALOG:
 			if (!MULTIPLE_ENCODERS(encoders))
 				sprintf(outputname, "VGA-%d", vga_count++);

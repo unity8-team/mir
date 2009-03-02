@@ -39,13 +39,13 @@ NV50OrOffset(nouveauOutputPtr output)
 }
 
 static void
-NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count)
+NV50OutputInit(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, char *outputname, int bus_count)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
 
-	int i2c_index = pNv->dcb_table.entry[dcb_entry].i2c_index;
-	int bus = pNv->dcb_table.entry[dcb_entry].bus;
+	int i2c_index = dcbent->i2c_index;
+	int bus = dcbent->bus;
 
 	char connector_name[20];
 
@@ -53,7 +53,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	sprintf(connector_name, "Connector-%d", bus);
 
 	/* Give the connectors better names if possible. */
-	switch (pNv->dcb_table.entry[dcb_entry].type) {
+	switch (dcbent->type) {
 		case OUTPUT_LVDS:
 			sprintf(connector_name, "LVDS-%d", bus);
 			break;
@@ -77,19 +77,19 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	pNv->connector[bus]->name = xstrdup(connector_name);
 
 	if (i2c_index < 0x10 && pNv->pI2CBus[i2c_index] == NULL)
-		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], &pNv->dcb_table.i2c[i2c_index], xstrdup(connector_name));
+		NV_I2CInit(pScrn, &pNv->pI2CBus[i2c_index], &pNv->vbios->dcb->i2c[i2c_index], xstrdup(connector_name));
 
 	pNv->connector[bus]->i2c_index = i2c_index;
 	pNv->connector[bus]->pDDCBus = pNv->pI2CBus[i2c_index];
 
-	if (pNv->dcb_table.entry[dcb_entry].type == OUTPUT_TV)
+	if (dcbent->type == OUTPUT_TV)
 		return; /* unsupported */
 
 	/* Create output. */
 	nouveauOutputPtr output = xnfcalloc(sizeof(nouveauOutputRec), 1);
 	output->name = xstrdup(outputname);
-	output->dcb = &pNv->dcb_table.entry[dcb_entry];
-	output->type = pNv->dcb_table.entry[dcb_entry].type;
+	output->dcb = dcbent;
+	output->type = dcbent->type;
 	output->scrn = pScrn;
 
 	/* Put the output in the connector's list of outputs. */
@@ -175,6 +175,7 @@ void
 NV50OutputSetup(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	struct parsed_dcb *dcb = pNv->vbios->dcb;
 	int i, type, i2c_index, bus, bus_count[0xf];
 	char outputname[20];
 	uint32_t index;
@@ -182,19 +183,21 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(bus_count, 0, sizeof(bus_count));
 
-	for (i = 0 ; i < pNv->dcb_table.entries; i++)
-		bus_count[pNv->dcb_table.entry[i].bus]++;
+	for (i = 0 ; i < dcb->entries; i++)
+		bus_count[dcb->entry[i].bus]++;
 
 	/* we setup the outputs up from the BIOS table */
-	for (i = 0 ; i < pNv->dcb_table.entries; i++) {
-		type = pNv->dcb_table.entry[i].type;
-		i2c_index = pNv->dcb_table.entry[i].i2c_index;
-		bus = pNv->dcb_table.entry[i].bus;
+	for (i = 0 ; i < dcb->entries; i++) {
+		struct dcb_entry *dcbent = &dcb->entry[i];
 
-		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, pNv->dcb_table.entry[i].i2c_index, pNv->dcb_table.entry[i].heads, pNv->dcb_table.entry[i].bus, pNv->dcb_table.entry[i].or);
+		type = dcbent->type;
+		i2c_index = dcbent->i2c_index;
+		bus = dcbent->bus;
+
+		xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DCB entry %d: type: %d, i2c_index: %d, heads: %d, bus: %d, or: %d\n", i, type, dcbent->i2c_index, dcbent->heads, dcbent->bus, dcbent->or);
 
 		/* SOR-0, SOR-1, DAC-0, DAC-1 or DAC-2. */
-		index = ffs(pNv->dcb_table.entry[i].or) - 1;
+		index = ffs(dcbent->or) - 1;
 
 		switch (type) {
 		case OUTPUT_ANALOG:
@@ -215,7 +218,7 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 		}
 
 		if (type < OUTPUT_NONE)
-			NV50OutputInit(pScrn, i, outputname, bus_count[bus]);
+			NV50OutputInit(pScrn, dcbent, outputname, bus_count[bus]);
 	}
 }
 
