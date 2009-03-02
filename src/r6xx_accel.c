@@ -433,26 +433,10 @@ set_alu_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, float *co
 }
 
 void
-set_bool_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf)
+set_bool_const(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, uint32_t val)
 {
-    int i;
-    const int countreg = count * (SQ_BOOL_CONST_offset >> 2);
-
-    PACK0(ib, SQ_BOOL_CONST + offset * SQ_BOOL_CONST_offset, countreg);
-    for (i = 0; i < countreg; i++)
-	E32(ib, const_buf[i]);
-
-}
-
-void
-set_loop_consts(ScrnInfoPtr pScrn, drmBufPtr ib, int offset, int count, uint32_t *const_buf)
-{
-    int i;
-    const int countreg = count * (SQ_LOOP_CONST_offset >> 2);
-
-    PACK0(ib, SQ_LOOP_CONST + offset * SQ_LOOP_CONST_offset, countreg);
-    for (i = 0; i < countreg; i++)
-	E32(ib, const_buf[i]);
+    /* bool order is: ps, vs, gs, ps, vs, gs, ... */
+    EREG(ib, SQ_BOOL_CONST_0 + (offset << 2), val);
 }
 
 void

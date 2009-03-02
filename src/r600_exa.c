@@ -1496,12 +1496,14 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	accel_state->is_transform[1] = FALSE;
     }
 
-    if (pMask != NULL)
-	accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	    accel_state->comp_mask_vs_offset;
+    /* VS bool constant */
+    if (pMask)
+	set_bool_const(pScrn, accel_state->ib, 1, 1);
     else
-	accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
-	    accel_state->comp_vs_offset;
+	set_bool_const(pScrn, accel_state->ib, 1, 0);
+
+    accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	accel_state->comp_vs_offset;
 
     memcpy ((char *)accel_state->ib->address + (accel_state->ib->total / 2) - 256, ps, sizeof(ps));
     accel_state->ps_mc_addr = info->gartLocation + info->dri->bufStart +
@@ -1518,7 +1520,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     vs_conf.shader_addr         = accel_state->vs_mc_addr;
     vs_conf.num_gprs            = 3;
-    vs_conf.stack_size          = 0;
+    vs_conf.stack_size          = 1;
     vs_setup                    (pScrn, accel_state->ib, &vs_conf);
 
     /* flush SQ cache */
@@ -1980,7 +1982,7 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     RADEONChipFamily ChipSet = info->ChipFamily;
     uint32_t *shader;
     /* 512 bytes per shader for now */
-    int size = 512 * 11;
+    int size = 512 * 9;
 
     accel_state->shaders = NULL;
 
@@ -2016,20 +2018,16 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
     accel_state->comp_ps_offset = 2560;
     /*  not yet */
 
-    /*  comp mask vs --------------------------------------- */
-    accel_state->comp_mask_vs_offset = 3072;
-    R600_comp_mask_vs(ChipSet, shader + accel_state->comp_mask_vs_offset / 4);
-
     /*  comp mask ps --------------------------------------- */
-    accel_state->comp_mask_ps_offset = 3584;
+    accel_state->comp_mask_ps_offset = 3072;
     /*  not yet */
 
     /*  xv vs --------------------------------------- */
-    accel_state->xv_vs_offset = 4096;
+    accel_state->xv_vs_offset = 3584;
     R600_xv_vs(ChipSet, shader + accel_state->xv_vs_offset / 4);
 
     /*  xv ps --------------------------------------- */
-    accel_state->xv_ps_offset = 4608;
+    accel_state->xv_ps_offset = 4096;
     R600_xv_ps(ChipSet, shader + accel_state->xv_ps_offset / 4);
 
     return TRUE;

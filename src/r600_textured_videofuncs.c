@@ -115,7 +115,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     tex_sampler_t   tex_samp;
     shader_config_t vs_conf, ps_conf;
     int uv_offset;
-    uint32_t bool_consts[1] = { 0 };
     static float ps_alu_consts[] = {
         1.0,  0.0,      1.4020,   0,  /* r - c[0] */
         1.0, -0.34414, -0.71414,  0,  /* g - c[1] */
@@ -169,15 +168,16 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->xv_ps_offset;
 
+    /* PS bool constant */
     switch(pPriv->id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	bool_consts[0] = 1;
+	set_bool_const(pScrn, accel_state->ib, 0, 1);
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	bool_consts[0] = 0;
+	set_bool_const(pScrn, accel_state->ib, 0, 0);
 	break;
     }
 
@@ -210,10 +210,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     /* PS alu constants */
     set_alu_consts(pScrn, accel_state->ib, SQ_ALU_CONSTANT_ps,
 		   sizeof(ps_alu_consts) / SQ_ALU_CONSTANT_offset, ps_alu_consts);
-
-    /* CF bool constants */
-    set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps,
-		    sizeof(bool_consts) / SQ_BOOL_CONST_offset, bool_consts);
 
     /* Texture */
     switch(pPriv->id) {

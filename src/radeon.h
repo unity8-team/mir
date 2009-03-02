@@ -623,7 +623,6 @@ struct radeon_accel_state {
     uint32_t          copy_ps_offset;
     uint32_t          comp_vs_offset;
     uint32_t          comp_ps_offset;
-    uint32_t          comp_mask_vs_offset;
     uint32_t          comp_mask_ps_offset;
     uint32_t          xv_vs_offset;
     uint32_t          xv_ps_offset;

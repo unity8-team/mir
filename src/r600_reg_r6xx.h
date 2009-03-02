@@ -488,15 +488,6 @@ enum {
     SQ_LOOP_CONST_ps                                      = 0,
     SQ_LOOP_CONST_vs                                      = SQ_LOOP_CONST_ps + SQ_LOOP_CONST_ps_num,
     SQ_LOOP_CONST_gs                                      = SQ_LOOP_CONST_vs + SQ_LOOP_CONST_vs_num,
-    SQ_BOOL_CONST                                         = SQ_BOOL_CONST_0,		/* 32 per PS, VS, GS */
-    SQ_BOOL_CONST_ps_num                                  = 32,
-    SQ_BOOL_CONST_vs_num                                  = 32,
-    SQ_BOOL_CONST_gs_num                                  = 32,
-    SQ_BOOL_CONST_all_num                                 = 96,
-    SQ_BOOL_CONST_offset                                  = 4,
-    SQ_BOOL_CONST_ps                                      = 0,
-    SQ_BOOL_CONST_vs                                      = SQ_BOOL_CONST_ps + SQ_BOOL_CONST_ps_num,
-    SQ_BOOL_CONST_gs                                      = SQ_BOOL_CONST_vs + SQ_BOOL_CONST_vs_num,
 } ;
 
 
