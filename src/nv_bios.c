@@ -258,8 +258,7 @@ static int nv_valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* C51 has misaligned regs on purpose. Marvellous */
-	if ((reg & 0x3 && pNv->VBIOS.chip_version != 0x51) ||
-	    (reg & 0x2 && pNv->VBIOS.chip_version == 0x51)) {
+	if (reg & 0x2 || (reg & 0x1 && pNv->VBIOS.chip_version != 0x51)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "========== misaligned reg 0x%08X ==========\n", reg);
 		return 0;
@@ -503,7 +502,7 @@ static bool bios_condition_met(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset,
 	BIOSLOG(pScrn, "0x%04X: Cond: 0x%02X, Reg: 0x%08X, Mask: 0x%08X\n",
 		offset, cond, reg, mask);
 
-       	data = nv32_rd(pScrn, reg) & mask;
+	data = nv32_rd(pScrn, reg) & mask;
 
 	BIOSLOG(pScrn, "0x%04X: Checking if 0x%08X equals 0x%08X\n",
 		offset, data, cmpval);
@@ -962,11 +961,10 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 
 void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
 {
-	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
+	int cv = NVPTR(pScrn)->VBIOS.chip_version;
 
-	if (chip_version >= 0x40 || chip_version == 0x30 ||
-	    chip_version == 0x31 || chip_version == 0x35 ||
-	    chip_version == 0x36) {
+	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
+	    cv >= 0x40) {
 		if (reg1 > 0x405c)
 			setPLL_double_highregs(pScrn, reg1, NM1, NM2, log2P);
 		else
@@ -979,15 +977,14 @@ static int setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
 	struct pll_lims pll_lim;
-	int ret, NM1 = 0xbeef, NM2 = 0xdead, log2P;
+	int ret, cv = bios->chip_version, NM1 = 0xbeef, NM2 = 0xdead, log2P;
 
 	/* high regs (such as in the mac g5 table) are not -= 4 */
 	if ((ret = get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim)))
 		return ret;
 
-	if (bios->chip_version >= 0x40 || bios->chip_version == 0x30 ||
-	    bios->chip_version == 0x31 || bios->chip_version == 0x35 ||
-	    bios->chip_version == 0x36) {
+	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
+	    cv >= 0x40) {
 		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
 		if (NM2 == 0xdead) {
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -3045,7 +3042,7 @@ static void parse_init_tables(ScrnInfoPtr pScrn, bios_t *bios)
 	}
 }
 
-static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, bool dl)
+static void link_head_and_output(NVPtr pNv, struct dcb_entry *dcbent, int head, bool dl)
 {
 	/* The BIOS scripts don't do this for us, sadly
 	 * Luckily we do know the values ;-)
@@ -3054,7 +3051,6 @@ static void link_head_and_output(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, in
 	 * (for VT restore etc.)
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
 	int ramdac = (dcbent->or & OUTPUT_C) >> 2;
 	uint8_t tmds04 = 0x80;
 
@@ -3108,7 +3104,7 @@ static void run_digital_op_script(ScrnInfoPtr pScrn, uint16_t scriptptr, struct 
 	NVWriteVgaCrtc5758(NVPTR(pScrn), head, 0, dcbent->index);
 	parse_init_table(pScrn, bios, scriptptr, &iexec);
 
-	link_head_and_output(pScrn, dcbent, head, dl);
+	link_head_and_output(NVPTR(pScrn), dcbent, head, dl);
 }
 
 static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script)
@@ -3157,8 +3153,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 	 * of a list of pxclks and script pointers.
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
@@ -3616,8 +3611,7 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	 * ffs(or) == 3, use the second.
 	 */
 
-	NVPtr pNv = NVPTR(pScrn);
-	bios_t *bios = &pNv->VBIOS;
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding;
 
@@ -3669,7 +3663,7 @@ static void parse_bios_version(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
 		   bios->data[offset + 1], bios->data[offset]);
 }
 
-static void parse_script_table_pointers(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset)
+static void parse_script_table_pointers(bios_t *bios, uint16_t offset)
 {
 	/* Parses the init table segment for pointers used in script execution.
 	 *
@@ -3708,12 +3702,12 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 
 	NVPtr pNv = NVPTR(pScrn);
 	bios_t *bios = &pNv->VBIOS;
+	int cv = bios->chip_version, pllindex = 0;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
-	int pllindex = 0;
 	uint32_t crystal_strap_mask, crystal_straps;
 
 	if (!bios->pll_limit_tbl_ptr) {
-		if (bios->chip_version >= 0x40 || bios->chip_version == 0x31 || bios->chip_version == 0x36) {
+		if (cv == 0x31 || cv == 0x36 || cv >= 0x40) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pointer to PLL limits table invalid\n");
 			return -EINVAL;
 		}
@@ -3722,8 +3716,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 
 	crystal_strap_mask = 1 << 6;
         /* open coded pNv->twoHeads test */
-        if (bios->chip_version > 0x10 && bios->chip_version != 0x15 &&
-            bios->chip_version != 0x1a && bios->chip_version != 0x20)
+        if (cv > 0x10 && cv != 0x15 && cv != 0x1a && cv != 0x20)
                 crystal_strap_mask |= 1 << 22;
 	crystal_straps = nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & crystal_strap_mask;
 
@@ -3767,7 +3760,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 
 		/* these values taken from nv30/31/36 */
 		pll_lim->vco1.min_n = 0x1;
-		if (bios->chip_version == 0x36)
+		if (cv == 0x36)
 			pll_lim->vco1.min_n = 0x5;
 		pll_lim->vco1.max_n = 0xff;
 		pll_lim->vco1.min_m = 0x1;
@@ -3779,7 +3772,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		 * save a comparison
 		 */
 		pll_lim->vco2.max_n = 0x28;
-		if (bios->chip_version == 0x30 || bios->chip_version == 0x35)
+		if (cv == 0x30 || cv == 0x35)
 		       /* only 5 bits available for N2 on nv30/35 */
 			pll_lim->vco2.max_n = 0x1f;
 		pll_lim->vco2.min_m = 0x1;
@@ -3858,7 +3851,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 					   "Bits set in PLL configuration byte (%x)\n", bios->data[plloffs + 35]);
 
 		/* C51 special not seen elsewhere */
-		if (bios->chip_version == 0x51 && !pll_lim->refclk) {
+		if (cv == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = nv32_rd(pScrn, NV_RAMDAC_SEL_CLK);
 
 			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) ||
@@ -3885,11 +3878,11 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		pll_lim->vco1.min_m = 0x1;
 		if (crystal_straps == 0) {
 			/* nv05 does this, nv11 doesn't, nv10 unknown */
-			if (bios->chip_version < 0x11)
+			if (cv < 0x11)
 				pll_lim->vco1.min_m = 0x7;
 			pll_lim->vco1.max_m = 0xd;
 		} else {
-			if (bios->chip_version < 0x11)
+			if (cv < 0x11)
 				pll_lim->vco1.min_m = 0x8;
 			pll_lim->vco1.max_m = 0xe;
 		}
@@ -4034,7 +4027,7 @@ static int parse_bit_init_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t
 		return -EINVAL;
 	}
 
-	parse_script_table_pointers(pScrn, bios, bitentry->offset);
+	parse_script_table_pointers(bios, bitentry->offset);
 
 	return 0;
 }
@@ -4393,7 +4386,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 		bios->fminvco = le32_to_cpu(*((uint32_t *)&bios->data[offset + 71]));
 	}
 	if (bmplength > 88)
-		parse_script_table_pointers(pScrn, bios, offset + 75);
+		parse_script_table_pointers(bios, offset + 75);
 	if (bmplength > 94) {
 		bios->tmds.output0_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 89]));
 		bios->tmds.output1_script_ptr = le16_to_cpu(*((uint16_t *)&bios->data[offset + 91]));
@@ -4937,16 +4930,16 @@ static int read_bios_edid(ScrnInfoPtr pScrn)
 
 bool NVInitVBIOS(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &NVPTR(pScrn)->VBIOS;
 
-	memset(&pNv->VBIOS, 0, sizeof(bios_t));
+	memset(bios, 0, sizeof(bios_t));
 
-	if (!NVShadowVBIOS(pScrn, pNv->VBIOS.data))
+	if (!NVShadowVBIOS(pScrn, bios->data))
 		return false;
 
-	pNv->VBIOS.length = pNv->VBIOS.data[2] * 512;
-	if (pNv->VBIOS.length > NV_PROM_SIZE)
-		pNv->VBIOS.length = NV_PROM_SIZE;
+	bios->length = bios->data[2] * 512;
+	if (bios->length > NV_PROM_SIZE)
+		bios->length = NV_PROM_SIZE;
 
 	return true;
 }
@@ -5012,6 +5005,7 @@ out:
 int NVParseBios(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
+	bios_t *bios = &pNv->VBIOS;
 	uint32_t saved_nv_pextdev_boot_0;
 	int i, ret;
 
@@ -5019,10 +5013,10 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		return -ENODEV;
 	if ((ret = nouveau_parse_vbios_struct(pScrn)))
 		return ret;
-	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, &pNv->VBIOS)))
+	if ((ret = parse_dcb_table(pScrn, &pNv->dcb_table, bios)))
 		return ret;
 
-	if (!pNv->VBIOS.major_version)	/* we don't run version 0 bios */
+	if (!bios->major_version)	/* we don't run version 0 bios */
 		return 0;
 
 	/* these will need remembering across a suspend */
@@ -5030,7 +5024,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	saved_nv_pfb_cfg0 = nv32_rd(pScrn, NV_PFB_CFG0);
 
 	/* init script execution disabled */
-	pNv->VBIOS.execute = false;
+	bios->execute = false;
 
 	nv32_wr(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
@@ -5041,11 +5035,11 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
 			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], nv_get_digital_bound_head(pNv, pNv->dcb_table.entry[i].or), LVDS_INIT, 0);
 
-	if (pNv->VBIOS.feature_byte & FEATURE_MOBILE && !pNv->VBIOS.fp.native_mode)
+	if (bios->feature_byte & FEATURE_MOBILE && !bios->fp.native_mode)
 		read_bios_edid(pScrn);
 
 	/* allow subsequent scripts to execute */
-	pNv->VBIOS.execute = true;
+	bios->execute = true;
 
 	return 0;
 }
