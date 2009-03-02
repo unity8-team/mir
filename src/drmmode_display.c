@@ -506,7 +506,27 @@ drmmode_output_destroy(xf86OutputPtr output)
 static void
 drmmode_output_dpms(xf86OutputPtr output, int mode)
 {
-	return;
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmmode_ptr drmmode = drmmode_output->drmmode;
+	int i;
+	drmModePropertyPtr props;
+
+	for (i = 0; i < koutput->count_props; i++) {
+		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		if (!props)
+			continue;
+
+		if (!strcmp(props->name, "DPMS")) {
+                        drmModeConnectorSetProperty(drmmode->fd,
+                                drmmode_output->output_id,
+                                props->prop_id,
+                                mode);
+                        drmModeFreeProperty(props);
+                        return;
+		}
+		drmModeFreeProperty(props);
+	}
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
