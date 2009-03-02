@@ -428,6 +428,12 @@ struct bdb_driver_feature {
     uint16_t	crt_hotplug:1;
     uint16_t	lvds_config:2;
     uint16_t	reserved:3;
+
+    uint8_t	static_display:1;
+    uint8_t	reserved2:7;
+    uint16_t	legacy_crt_max_x;
+    uint16_t	legacy_crt_max_y;
+    uint8_t	legacy_crt_max_refresh;
 } __attribute__((packed));
 
 #ifndef REG_DUMPER

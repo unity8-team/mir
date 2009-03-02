@@ -416,6 +416,10 @@ static void dump_driver_feature(void)
 	    printf("Embedded DisplayPort\n");
 	    break;
     }
+    printf("\tDefine Display statically: %s\n", YESNO(feature->static_display));
+    printf("\tLegacy CRT max X: %d\n", feature->legacy_crt_max_x);
+    printf("\tLegacy CRT max Y: %d\n", feature->legacy_crt_max_y);
+    printf("\tLegacy CRT max refresh: %d\n", feature->legacy_crt_max_refresh);
     free(block);
 }
 
