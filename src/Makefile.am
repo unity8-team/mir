@@ -66,7 +66,7 @@ XMODE_SRCS=\
         modes/xf86DiDGA.c
 
 if USE_EXA
-RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c
+RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c r600_shader.c
 endif
 
 AM_CFLAGS = @XORG_CFLAGS@ @DRI_CFLAGS@ @XMODES_CFLAGS@ -DDISABLE_EASF -DENABLE_ALL_SERVICE_FUNCTIONS -DATOM_BIOS -DATOM_BIOS_PARSER -DDRIVER_PARSER

@@ -29,6 +29,7 @@
 #ifndef __SHADER_H__
 #define __SHADER_H__
 
+#include "radeon.h"
 
 /* Restrictions of ALU instructions
  * order of scalar ops is always x,y,z,w,t(rans), last to be indicated by last==1.
@@ -342,5 +343,25 @@
 	 ((ssx) << 20) | ((ssy) << 23) | ((ssz) << 26) | ((ssw) << 29))
 #define TEX_DWORD_PAD 0x00000000
 
+extern int R600_solid_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int R600_solid_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+
+extern int R600_copy_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int R600_copy_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+
+extern int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader);
+extern int R600_xv_ps_packet(RADEONChipFamily ChipSet, uint32_t* shader);
+extern int R600_xv_ps_planar(RADEONChipFamily ChipSet, uint32_t* shader);
+
+extern int R600_comp_mask_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int R600_comp_mask_ps(RADEONChipFamily ChipSet,
+			     uint32_t* ps,
+			     int src_a, int src_r, int src_g, int src_b,
+			     int mask_a, int mask_r, int mask_g, int mask_b);
+
+extern int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* vs);
+extern int R600_comp_ps(RADEONChipFamily ChipSet,
+			uint32_t* ps,
+			int src_a, int src_r, int src_g, int src_b);
 
 #endif
