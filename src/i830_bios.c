@@ -174,8 +174,12 @@ parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
     struct bdb_driver_feature *feature;
 
     /* For mobile chip, set default as true */
-    if (IS_MOBILE(pI830))
+    if (IS_MOBILE(pI830) && !IS_I830(pI830))
 	pI830->integrated_lvds = TRUE;
+
+    /* skip pre-9xx chips which is broken to parse this block. */
+    if (!IS_I9XX(pI830))
+	return;
 
     feature = find_section(bdb, BDB_DRIVER_FEATURES);
     if (!feature)
