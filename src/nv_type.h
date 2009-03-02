@@ -274,7 +274,8 @@ typedef struct _NVRec {
     struct nouveau_bo * Cursor2;
     struct nouveau_bo * GART;
 
-    struct nouveau_bios	VBIOS;
+    struct nvbios	VBIOS;
+    struct nouveau_bios_info	*vbios;
     Bool                NoAccel;
     Bool                HWCursor;
     Bool                FpScale;

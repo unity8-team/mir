@@ -130,8 +130,8 @@ NV50DacDetect (nouveauOutputPtr output)
 	while (NVRead(pNv, NV50_DAC0_DPMS_CTRL + NV50OrOffset(output) * 0x800) & NV50_DAC_DPMS_CTRL_PENDING);
 
 	dactestval = 340;
-	if (pNv->VBIOS.dactestval) {
-		dactestval = pNv->VBIOS.dactestval;
+	if (pNv->vbios->dactestval) {
+		dactestval = pNv->vbios->dactestval;
 		xf86DrvMsg(scrnIndex, X_INFO, "Using bios provided load value of %d\n", dactestval);
 	} else {
 		xf86DrvMsg(scrnIndex, X_INFO, "Using default load value of %d\n", dactestval);

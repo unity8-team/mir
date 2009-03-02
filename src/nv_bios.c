@@ -31,7 +31,7 @@
 #include <byteswap.h>
 #endif
 
-typedef struct nouveau_bios bios_t;
+typedef struct nvbios bios_t;
 
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
@@ -2989,7 +2989,7 @@ static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dc
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return -EINVAL;
 
-	run_digital_op_script(pScrn, scriptofs, dcbent, head, bios->fp.dual_link);
+	run_digital_op_script(pScrn, scriptofs, dcbent, head, bios->pub.fp.dual_link);
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
@@ -3045,7 +3045,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		break;
 	case LVDS_RESET:
 		if (dcbent->lvdsconf.use_straps_for_mode) {
-			if (bios->fp.dual_link)
+			if (bios->pub.fp.dual_link)
 				clktableptr += 2;
 			if (bios->fp.BITbit1)
 				clktableptr++;
@@ -3054,7 +3054,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
 
-			if (bios->fp.dual_link) {
+			if (bios->pub.fp.dual_link) {
 				clktableptr += 2;
 				fallbackcmpval *= 2;
 			}
@@ -3075,7 +3075,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS output init script not found\n");
 		return -ENOENT;
 	}
-	run_digital_op_script(pScrn, scriptptr, dcbent, head, bios->fp.dual_link);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head, bios->pub.fp.dual_link);
 
 	return 0;
 }
@@ -3234,7 +3234,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 		recordlen = fptable[2];
 		fpentries = fptable[3];
 		/* fptable[4] is the minimum RAMDAC_FP_HCRTC->RAMDAC_FP_HSYNC_START gap */
-		bios->digital_min_front_porch = fptable[4];
+		bios->pub.digital_min_front_porch = fptable[4];
 		ofs = 0;
 		break;
 	default:
@@ -3306,7 +3306,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 	 */
 	if (fpstrapping == 0xf &&
 	    (lth.lvds_ver == 0x0a || fpindex == 0xf))
-		bios->fp.ddc_permitted = true;
+		bios->pub.fp.ddc_permitted = true;
 
 	/* if either the strap or xlated fpindex value are 0xf there is no
 	 * panel using a strap-derived bios mode present.  this condition
@@ -3351,7 +3351,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, bios_t *bios)
 		xf86PrintModeline(pScrn->scrnIndex, mode);
 //	}
 
-	bios->fp.native_mode = mode;
+	bios->pub.fp.native_mode = mode;
 
 	return 0;
 }
@@ -3397,7 +3397,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (pxclk == 0 || !bios->fp.ddc_permitted)
+		if (pxclk == 0 || !bios->pub.fp.ddc_permitted)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3435,9 +3435,9 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	case 0x0a:
 		bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
-		bios->fp.dual_link = bios->data[lvdsofs] & 4;
+		bios->pub.fp.dual_link = bios->data[lvdsofs] & 4;
 		bios->fp.link_c_increment = bios->data[lvdsofs] & 8;
-		bios->fp.if_is_24bit = bios->data[lvdsofs] & 16;
+		bios->pub.fp.if_is_24bit = bios->data[lvdsofs] & 16;
 		break;
 	case 0x30:
 		/* My money would be on there being a 24 bit interface bit in this table,
@@ -3453,7 +3453,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		bios->fp.reset_after_pclk_change = true;
 		/* it's ok lvdsofs is wrong for nv4x edid case; dual_link is
 		 * over-written, and BITbit1 isn't used */
-		bios->fp.dual_link = bios->data[lvdsofs] & 1;
+		bios->pub.fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 #if 0	// currently unused
@@ -3467,8 +3467,8 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	}
 
 	/* set dual_link flag for EDID case */
-	if (pxclk && bios->fp.ddc_permitted)
-		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
+	if (pxclk && bios->pub.fp.ddc_permitted)
+		bios->pub.fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	return 0;
 }
@@ -3846,7 +3846,7 @@ static int parse_bit_A_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 	}
 
 	/* First entry is normal dac, 2nd tv-out perhaps? */
-	bios->dactestval = le32_to_cpu(*((uint32_t *)&bios->data[load_table_ptr + headerlen])) & 0x3FF;
+	bios->pub.dactestval = le32_to_cpu(*((uint32_t *)&bios->data[load_table_ptr + headerlen])) & 0x3FF;
 
 	return 0;
 }
@@ -3955,7 +3955,7 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, bios_t *bios, bit_entry_t *b
 		return -ENOSYS;
 	}
 
-	bios->dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + dacheaderlen])));
+	bios->pub.dactestval = le32_to_cpu(*((uint32_t *)(&bios->data[daccmpoffset + dacheaderlen])));
 
 	return 0;
 }
@@ -4165,7 +4165,7 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, bios_t *bios, unsigned int off
 	pNv->dcb_table.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
 	pNv->dcb_table.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
 	pNv->dcb_table.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
-	bios->digital_min_front_porch = 0x4b;
+	bios->pub.digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
 	bios->fp.duallink_transition_clk = 90000;
@@ -4792,10 +4792,10 @@ static int read_bios_edid(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found EDID in BIOS\n");
 
-	if (!(bios->fp.edid = xalloc(EDID1_LEN)))
+	if (!(bios->pub.fp.edid = xalloc(EDID1_LEN)))
 		return -ENOMEM;
 	for (i = 0; i < EDID1_LEN; i++)
-		bios->fp.edid[i] = bios->data[offset + i];
+		bios->pub.fp.edid[i] = bios->data[offset + i];
 
 	return 0;
 }
@@ -4818,7 +4818,7 @@ bool NVInitVBIOS(ScrnInfoPtr pScrn)
 
 int nouveau_parse_vbios_struct(ScrnInfoPtr pScrn)
 {
-	struct nouveau_bios *bios = &NVPTR(pScrn)->VBIOS;
+	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
 	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
 	int offset;
@@ -4840,7 +4840,7 @@ int nouveau_parse_vbios_struct(ScrnInfoPtr pScrn)
 int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bios *bios = &pNv->VBIOS;
+	struct nvbios *bios = &pNv->VBIOS;
 	int ret = 0;
 
 	NVLockVgaCrtcs(pNv, false);
@@ -4856,8 +4856,8 @@ int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 	if (bios->feature_byte & FEATURE_MOBILE || bios->major_version >= 5) {
 #ifdef __powerpc__
 		/* PPC cards don't have the fp table; the laptops use DDC */
-		bios->digital_min_front_porch = 0x4b;
-		bios->fp.ddc_permitted = true;
+		bios->pub.digital_min_front_porch = 0x4b;
+		bios->pub.fp.ddc_permitted = true;
 #else
 		if ((ret = parse_fp_mode_table(pScrn, bios)))
 			goto out;
@@ -4907,11 +4907,13 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		if (pNv->dcb_table.entry[i].type == OUTPUT_LVDS)
 			call_lvds_script(pScrn, &pNv->dcb_table.entry[i], nv_get_digital_bound_head(pNv, pNv->dcb_table.entry[i].or), LVDS_INIT, 0);
 
-	if (bios->feature_byte & FEATURE_MOBILE && !bios->fp.native_mode)
+	if (bios->feature_byte & FEATURE_MOBILE && !bios->pub.fp.native_mode)
 		read_bios_edid(pScrn);
 
 	/* allow subsequent scripts to execute */
 	bios->execute = true;
+
+	pNv->vbios = &bios->pub;
 
 	return 0;
 }

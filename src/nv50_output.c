@@ -115,7 +115,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 	}
 
 	/* Output property for tmds and lvds. */
-	output->dithering = (pNv->FPDither || (output->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
+	output->dithering = (pNv->FPDither || (output->type == OUTPUT_LVDS && !pNv->vbios->fp.if_is_24bit));
 
 	if (output->type == OUTPUT_LVDS || output->type == OUTPUT_TMDS) {
 		if (pNv->fpScaler) /* GPU Scaling */
@@ -161,7 +161,7 @@ NV50OutputInit(ScrnInfoPtr pScrn, int dcb_entry, char *outputname, int bus_count
 
 	/* This needs to be handled in the same way as pre-NV5x on the long run. */
 	//if (output->type == OUTPUT_LVDS)
-	//	pNv->VBIOS.fp.native_mode = GetLVDSNativeMode(pScrn);
+	//	pNv->vbios->fp.native_mode = GetLVDSNativeMode(pScrn);
 
 	/* Function pointers. */
 	if (output->type == OUTPUT_TMDS || output->type == OUTPUT_LVDS) {

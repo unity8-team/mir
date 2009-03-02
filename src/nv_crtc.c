@@ -769,7 +769,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			continue;
 
 		if (nv_encoder->dcb->type == OUTPUT_LVDS) {
-			dual_link = pNv->VBIOS.fp.dual_link;
+			dual_link = pNv->vbios->fp.dual_link;
 			break;
 		}
 		if (nv_encoder->dcb->type == OUTPUT_TMDS) {
@@ -782,10 +782,10 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 	regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
 	regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
-	if ((adjusted_mode->HSyncStart - adjusted_mode->HDisplay) >= pNv->VBIOS.digital_min_front_porch)
+	if ((adjusted_mode->HSyncStart - adjusted_mode->HDisplay) >= pNv->vbios->digital_min_front_porch)
 		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
 	else
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - pNv->VBIOS.digital_min_front_porch - 1;
+		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - pNv->vbios->digital_min_front_porch - 1;
 	regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
 	regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
 	regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;

@@ -116,7 +116,23 @@ struct pll_lims {
 	int refclk;
 };
 
-struct nouveau_bios {
+struct nouveau_bios_info {
+	uint32_t dactestval;
+
+	uint8_t digital_min_front_porch;
+
+	struct {
+		bool ddc_permitted;
+		DisplayModePtr native_mode;
+		uint8_t *edid;
+		bool dual_link;
+		bool if_is_24bit;
+	} fp;
+};
+
+struct nvbios {
+	struct nouveau_bios_info pub;
+
 	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;
 	bool execute;
@@ -125,8 +141,6 @@ struct nouveau_bios {
 	uint8_t feature_byte;
 
 	uint32_t fmaxvco, fminvco;
-
-	uint32_t dactestval;
 
 	bool old_style_init;
 	uint16_t init_script_tbls_ptr;
@@ -141,12 +155,7 @@ struct nouveau_bios {
 	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
 
-	uint8_t digital_min_front_porch;
-
 	struct {
-		bool ddc_permitted;
-		DisplayModePtr native_mode;
-		uint8_t *edid;
 		uint16_t fptablepointer;	/* also used by tmds */
 		uint16_t fpxlatetableptr;
 		int xlatwidth;
@@ -155,9 +164,7 @@ struct nouveau_bios {
 		uint16_t xlated_entry;
 		bool power_off_for_reset;
 		bool reset_after_pclk_change;
-		bool dual_link;
 		bool link_c_increment;
-		bool if_is_24bit;
 		bool BITbit1;
 		int duallink_transition_clk;
 	} fp;

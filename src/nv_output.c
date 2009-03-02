@@ -55,8 +55,8 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 #define RGB_TEST_DATA(r,g,b) (r << 0 | g << 10 | b << 20)
 	testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
-	if (pNv->VBIOS.dactestval)
-		testval = pNv->VBIOS.dactestval;
+	if (pNv->vbios->dactestval)
+		testval = pNv->vbios->dactestval;
 
 	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset,
@@ -203,10 +203,10 @@ nv_output_detect(xf86OutputPtr output)
 			ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
-			if (pNv->VBIOS.fp.native_mode)
+			if (pNv->vbios->fp.native_mode)
 				ret = XF86OutputStatusConnected;
-		} else if (pNv->VBIOS.fp.ddc_permitted && pNv->VBIOS.fp.edid) {
-			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->VBIOS.fp.edid);
+		} else if (pNv->vbios->fp.ddc_permitted && pNv->vbios->fp.edid) {
+			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->vbios->fp.edid);
 			ret = XF86OutputStatusConnected;
 		}
 	}
@@ -314,12 +314,12 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	if (!nv_encoder->dcb->lvdsconf.use_straps_for_mode)
 		return nv_output_get_edid_modes(output);
 
-	if (!pNv->VBIOS.fp.native_mode)
+	if (!pNv->vbios->fp.native_mode)
 		return NULL;
 
-	nv_encoder->native_mode = xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
+	nv_encoder->native_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
 
-	return xf86DuplicateMode(pNv->VBIOS.fp.native_mode);
+	return xf86DuplicateMode(pNv->vbios->fp.native_mode);
 }
 
 static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
@@ -896,7 +896,7 @@ nv_add_encoder(ScrnInfoPtr pScrn, struct dcb_entry *dcbent)
 
 	nv_encoder->dcb = dcbent;
 	nv_encoder->last_dpms = NV_DPMS_CLEARED;
-	nv_encoder->dithering = (pNv->FPDither || (nv_encoder->dcb->type == OUTPUT_LVDS && !pNv->VBIOS.fp.if_is_24bit));
+	nv_encoder->dithering = (pNv->FPDither || (nv_encoder->dcb->type == OUTPUT_LVDS && !pNv->vbios->fp.if_is_24bit));
 	if (pNv->fpScaler) /* GPU Scaling */
 		nv_encoder->scaling_mode = SCALE_ASPECT;
 	else if (nv_encoder->dcb->type == OUTPUT_LVDS)
@@ -983,7 +983,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 			funcs = &nv_lvds_output_funcs;
 			/* don't create i2c adapter when lvds ddc not allowed */
 			if (dcbent->lvdsconf.use_straps_for_mode ||
-			    !pNv->VBIOS.fp.ddc_permitted)
+			    !pNv->vbios->fp.ddc_permitted)
 				i2c_index = 0xf;
 			break;
 		default:
