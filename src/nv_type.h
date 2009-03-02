@@ -421,20 +421,11 @@ typedef struct _NVRec {
 #define nvReadFB(pNv, reg) DDXMMIOW("nvReadFB: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
 #define nvWriteFB(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteFB: reg %08x val %08x\n", reg, val))
 
-#define nvReadGRAPH(pNv, reg) DDXMMIOW("nvReadGRAPH: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteGRAPH(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteGRAPH: reg %08x val %08x\n", reg, val))
-
 #define nvReadMC(pNv, reg) DDXMMIOW("nvReadMC: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
 #define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteMC: reg %08x val %08x\n", reg, val))
 
-#define nvReadME(pNv, reg) DDXMMIOW("nvReadME: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteME(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteME: reg %08x val %08x\n", reg, val))
-
 #define nvReadEXTDEV(pNv, reg) DDXMMIOW("nvReadEXTDEV: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
 #define nvWriteEXTDEV(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteEXTDEV: reg %08x val %08x\n", reg, val))
-
-#define nvReadTIMER(pNv, reg) DDXMMIOW("nvReadTIMER: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteTIMER(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteTIMER: reg %08x val %08x\n", reg, val))
 
 #define nvReadVIDEO(pNv, reg) DDXMMIOW("nvReadVIDEO: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
 #define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteVIDEO: reg %08x val %08x\n", reg, val))

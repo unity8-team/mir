@@ -999,64 +999,6 @@ static int setPLL(ScrnInfoPtr pScrn, bios_t *bios, uint32_t reg, uint32_t clk)
 	return 0;
 }
 
-#if 0
-static bool init_prog(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
-{
-	/* INIT_PROG   opcode: 0x31
-	 * 
-	 * offset      (8  bit): opcode
-	 * offset + 1  (32 bit): reg
-	 * offset + 5  (32 bit): and mask
-	 * offset + 9  (8  bit): shift right
-	 * offset + 10 (8  bit): number of configurations
-	 * offset + 11 (32 bit): register
-	 * offset + 15 (32 bit): configuration 1
-	 * ...
-	 * 
-	 * Starting at offset + 15 there are "number of configurations"
-	 * 32 bit values. To find out which configuration value to use
-	 * read "CRTC reg" on the CRTC controller with index "CRTC index"
-	 * and bitwise AND this value with "and mask" and then bit shift the
-	 * result "shift right" bits to the right.
-	 * Assign "register" with appropriate configuration value.
-	 */
-
-	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD32 and = *((CARD32 *) (&bios->data[offset + 5]));
-	CARD8 shiftr = *((CARD8 *) (&bios->data[offset + 9]));
-	CARD8 nr = *((CARD8 *) (&bios->data[offset + 10]));
-	CARD32 reg2 = *((CARD32 *) (&bios->data[offset + 11]));
-	CARD8 configuration;
-	CARD32 configval, tmp;
-
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%04X\n", offset, 
-				reg);
-
-		tmp = nv32_rd(pScrn, reg);
-		configuration = (tmp & and) >> shiftr;
-
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONFIGURATION TO USE: 0x%02X\n", 
-				offset, configuration);
-
-		if (configuration <= nr) {
-
-			configval = 
-				*((CARD32 *) (&bios->data[offset + 15 + configuration * 4]));
-
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: REG: 0x%08X, VALUE: 0x%08X\n", offset, 
-					reg2, configval);
-			
-			tmp = nv32_rd(pScrn, reg2);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n",
-				offset, tmp);
-			nv32_wr(pScrn, reg2, configval);
-		}
-	}
-	return true;
-}
-#endif
-
 static bool init_io_restrict_prog(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_IO_RESTRICT_PROG   opcode: 0x32 ('2')
@@ -1964,38 +1906,6 @@ static bool init_zm_reg_sequence(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offse
 	return true;
 }
 
-#if 0
-static bool init_indirect_reg(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
-{
-	/* INIT_INDIRECT_REG opcode: 0x5A
-	 *
-	 * offset      (8  bit): opcode
-	 * offset + 1  (32 bit): register
-	 * offset + 5  (16 bit): adress offset (in bios)
-	 *
-	 * Lookup value at offset data in the bios and write it to reg
-	 */
-	CARD32 reg = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD16 data = le16_to_cpu(*((CARD16 *) (&bios->data[offset + 5])));
-	CARD32 data2 = bios->data[data];
-
-	if (iexec->execute) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-				"0x%04X: REG: 0x%04X, DATA AT: 0x%04X, VALUE IS: 0x%08X\n", 
-				offset, reg, data, data2);
-
-		if (DEBUGLEVEL >= 6) {
-			CARD32 tmpval;
-			tmpval = nv32_rd(pScrn, reg);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CURRENT VALUE IS: 0x%08X\n", offset, tmpval);
-		}
-
-		nv32_wr(pScrn, reg, data2);
-	}
-	return true;
-}
-#endif
-
 static bool init_sub_direct(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_SUB_DIRECT   opcode: 0x5B ('[')
@@ -2470,44 +2380,6 @@ static bool init_resume(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_e
 	return true;
 }
 
-#if 0
-static bool init_ram_condition2(ScrnInfoPtr pScrn, bios_t *bios, CARD16 offset, init_exec_t *iexec)
-{
-	/* INIT_RAM_CONDITION2   opcode: 0x73
-	 * 
-	 * offset      (8  bit): opcode
-	 * offset + 1  (8  bit): and mask
-	 * offset + 2  (8  bit): cmpval
-	 *
-	 * Test if (NV_EXTDEV_BOOT & and mask) matches cmpval
-	 */
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 and = *((CARD32 *) (&bios->data[offset + 1]));
-	CARD32 cmpval = *((CARD32 *) (&bios->data[offset + 5]));
-	CARD32 data;
-
-	if (iexec->execute) {
-		data=(nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT))&and;
-		
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-				"0x%04X: CHECKING IF REGVAL: 0x%08X equals COND: 0x%08X\n",
-				offset, data, cmpval);
-
-		if (data == cmpval) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-					"0x%04X: CONDITION FULFILLED - CONTINUING TO EXECUTE\n",
-					offset);
-		} else {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  "0x%04X: CONDITION IS NOT FULFILLED\n", offset);
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,  
-					"0x%04X: ------ SKIPPING FOLLOWING COMMANDS  ------\n", offset);
-			iexec->execute = false;
-		}
-	}
-	return true;
-}
-#endif
-
 static bool init_time(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init_exec_t *iexec)
 {
 	/* INIT_TIME   opcode: 0x74 ('t')
@@ -2897,7 +2769,7 @@ static bool init_reserved(ScrnInfoPtr pScrn, bios_t *bios, uint16_t offset, init
 
 static init_tbl_entry_t itbl_entry[] = {
 	/* command name                       , id  , length  , offset  , mult    , command handler                 */
-//	{ "INIT_PROG"                         , 0x31, 15      , 10      , 4       , init_prog                       },
+	/* INIT_PROG (0x31, 15, 10, 4) removed due to no example of use */
 	{ "INIT_IO_RESTRICT_PROG"             , 0x32, 11      , 6       , 4       , init_io_restrict_prog           },
 	{ "INIT_REPEAT"                       , 0x33, 2       , 0       , 0       , init_repeat                     },
 	{ "INIT_IO_RESTRICT_PLL"              , 0x34, 12      , 7       , 2       , init_io_restrict_pll            },
@@ -2919,7 +2791,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_ZM_CR_GROUP"                  , 0x54, 2       , 1       , 2       , init_zm_cr_group                },
 	{ "INIT_CONDITION_TIME"               , 0x56, 3       , 0       , 0       , init_condition_time             },
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, 6       , 5       , 4       , init_zm_reg_sequence            },
-//	{ "INIT_INDIRECT_REG"                 , 0x5A, 7       , 0       , 0       , init_indirect_reg               },
+	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, 3       , 0       , 0       , init_sub_direct                 },
 	{ "INIT_COPY_NV_REG"                  , 0x5F, 22      , 0       , 0       , init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, 5       , 0       , 0       , init_zm_index_io                },
@@ -2935,7 +2807,7 @@ static init_tbl_entry_t itbl_entry[] = {
 	{ "INIT_MACRO"                        , 0x6F, 2       , 0       , 0       , init_macro                      },
 	{ "INIT_DONE"                         , 0x71, 1       , 0       , 0       , init_done                       },
 	{ "INIT_RESUME"                       , 0x72, 1       , 0       , 0       , init_resume                     },
-//	{ "INIT_RAM_CONDITION2"               , 0x73, 9       , 0       , 0       , init_ram_condition2             },
+	/* INIT_RAM_CONDITION2 (0x73, 9, 0, 0) removed due to no example of use */
 	{ "INIT_TIME"                         , 0x74, 3       , 0       , 0       , init_time                       },
 	{ "INIT_CONDITION"                    , 0x75, 2       , 0       , 0       , init_condition                  },
 	{ "INIT_IO_CONDITION"                 , 0x76, 2       , 0       , 0       , init_io_condition               },
