@@ -108,7 +108,8 @@ AC_MSG_RESULT($kms)
 
 if test "x$kms" = xyes; then
 	AC_CHECK_HEADER([xf86drmMode.h],[kms=yes],[kms=no],
-		[#include "stdint.h"    ]
+		[#include <stdint.h>
+		 #include <stdlib.h> ]
 	)
 fi
 
