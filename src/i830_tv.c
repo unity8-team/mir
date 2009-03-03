@@ -1605,9 +1605,14 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
     {
 	I830OutputPrivatePtr    intel_output = output->driver_private;
 	struct i830_tv_priv	*dev_priv = intel_output->dev_priv;
+	I830Ptr			pI830 = I830PTR(output->scrn);
 	Atom			atom;
 	const char		*name;
 	char			*val;
+	RRCrtcPtr		randr_crtc;
+	xRRModeInfo		modeinfo;
+	RRModePtr		mode;
+	DisplayModePtr		crtc_mode;
 
 	if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
 	    return FALSE;
@@ -1626,6 +1631,51 @@ i830_tv_set_property(xf86OutputPtr output, Atom property,
 	}
 	xfree (dev_priv->tv_format);
 	dev_priv->tv_format = val;
+
+	if (pI830->starting)
+	    return TRUE;
+
+	/* TV format change will generate new modelines, try
+	   to probe them and update outputs. */
+	xf86ProbeOutputModes(output->scrn, 0, 0);
+	 /* Mirror output modes to scrn mode list */
+	xf86SetScrnInfoModes (output->scrn);
+
+	for (crtc_mode = output->probed_modes; crtc_mode;
+		crtc_mode = crtc_mode->next)
+	{
+	    if (output->crtc->mode.HDisplay == crtc_mode->HDisplay &&
+		    output->crtc->mode.VDisplay == crtc_mode->VDisplay)
+		break;
+	}
+	if (!crtc_mode)
+	    crtc_mode = output->probed_modes;
+
+	xf86CrtcSetMode(output->crtc, crtc_mode, output->crtc->rotation,
+		output->crtc->x, output->crtc->y);
+
+	xf86RandR12TellChanged(output->scrn->pScreen);
+
+	modeinfo.width = crtc_mode->HDisplay;
+	modeinfo.height = crtc_mode->VDisplay;
+	modeinfo.dotClock = crtc_mode->Clock * 1000;
+	modeinfo.hSyncStart = crtc_mode->HSyncStart;
+	modeinfo.hSyncEnd = crtc_mode->HSyncEnd;
+	modeinfo.hTotal = crtc_mode->HTotal;
+	modeinfo.hSkew = crtc_mode->HSkew;
+	modeinfo.vSyncStart = crtc_mode->VSyncStart;
+	modeinfo.vSyncEnd = crtc_mode->VSyncEnd;
+	modeinfo.vTotal = crtc_mode->VTotal;
+	modeinfo.nameLength = strlen(crtc_mode->name);
+	modeinfo.modeFlags = crtc_mode->Flags;
+
+	mode = RRModeGet(&modeinfo, crtc_mode->name);
+	randr_crtc = output->crtc->randr_crtc;
+	if (mode != randr_crtc->mode) {
+	    if (randr_crtc->mode)
+		RRModeDestroy(randr_crtc->mode);
+	    randr_crtc->mode = mode;
+	}
 	return TRUE;
     }
     for (i = 0; i < 4; i++)
