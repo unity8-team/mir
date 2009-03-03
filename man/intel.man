@@ -273,6 +273,30 @@ Integrated TV output.  Available properties include:
 Adjusting these properties allows you to control the placement of your TV output buffer on the screen. The options with the same name can also be set in xorg.conf with integer value.
 
 .PP
+.B BRIGHTNESS
+- TV brightness, range 0-255
+.TP 2
+Adjust TV brightness, default value is 128.
+
+.PP
+.B CONTRAST
+- TV contrast, range 0-255
+.TP 2
+Adjust TV contrast, default value is 1.0 in chipset specific format.
+
+.PP
+.B SATURATION
+- TV saturation, range 0-255
+.TP 2
+Adjust TV saturation, default value is 1.0 in chipset specific format.
+
+.PP
+.B HUE
+- TV hue, range 0-255
+.TP 2
+Adjust TV hue, default value is 0.
+
+.PP
 .B TV_FORMAT
 - output standard
 .TP 2
