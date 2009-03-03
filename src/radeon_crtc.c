@@ -410,6 +410,14 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
     int align = 4096, size;
     int cpp = pScrn->bitsPerPixel / 8;
 
+    /* No rotation without accel */
+    if (((info->ChipFamily >= CHIP_FAMILY_R600) && !info->directRenderingEnabled) ||
+	xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Acceleration required for rotation\n");
+	return NULL;
+    }
+
     rotate_pitch = pScrn->displayWidth * cpp;
     size = rotate_pitch * height;
 
@@ -424,7 +432,7 @@ radeon_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 
     return info->FB + rotate_offset;
 }
-    
+
 /**
  * Creates a pixmap for this CRTC's rotated shadow framebuffer.
  */
