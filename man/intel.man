@@ -278,6 +278,12 @@ Adjusting these properties allows you to control the placement of your TV output
 .TP 2
 This property allows you to control the output standard used on your TV output port.  You can select between NTSC-M, NTSC-443, NTSC-J, PAL-M, PAL-N, and PAL.
 
+.PP
+.B TV_Connector
+- connector type
+.TP 2
+This config option should be added to xorg.conf TV monitor's section, it allows you to control the TV output connector type, which bypass load detect. You can select between S-Video, Composite and Component.
+
 .SS "TMDS-1"
 First DVI SDVO output
 

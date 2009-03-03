@@ -56,6 +56,7 @@ enum tv_margin {
 /** Private structure for the integrated TV support */
 struct i830_tv_priv {
     int type;
+    Bool force_type;
     char *tv_format;
     int margin[4];
     uint32_t save_TV_H_CTL_1;
@@ -1380,6 +1381,13 @@ i830_tv_detect(xf86OutputPtr output)
         i830ReleaseLoadDetectPipe (output, dpms_mode);
     }
 
+    if (dev_priv->force_type) {
+	if (type == TV_TYPE_NONE)
+	    return XF86OutputStatusDisconnected;
+	else
+	    return XF86OutputStatusConnected;
+    }
+
     if (type != dev_priv->type)
     {
 	dev_priv->type = type;
@@ -1743,6 +1751,7 @@ i830_tv_init(ScrnInfoPtr pScrn)
     uint32_t		    tv_dac_on, tv_dac_off, save_tv_dac;
     XF86OptionPtr	    mon_option_lst = NULL;
     char		    *tv_format = NULL;
+    char		    *tv_type = NULL;
 
     if (pI830->quirk_flag & QUIRK_IGNORE_TV)
 	return;
@@ -1810,11 +1819,31 @@ i830_tv_init(ScrnInfoPtr pScrn)
     dev_priv->margin[TV_MARGIN_BOTTOM] = xf86SetIntOption (mon_option_lst,
 	    "Bottom", 37);
 
-    tv_format = xf86findOptionValue (mon_option_lst, "TV Format");
+    tv_format = xf86findOptionValue (mon_option_lst, "TV_Format");
     if (tv_format)
 	dev_priv->tv_format = xstrdup (tv_format);
     else
 	dev_priv->tv_format = xstrdup (tv_modes[0].name);
+
+    tv_type = xf86findOptionValue (mon_option_lst, "TV_Connector");
+    if (tv_type) {
+	dev_priv->force_type = TRUE;
+	if (strcasecmp(tv_type, "S-Video") == 0)
+	    dev_priv->type = TV_TYPE_SVIDEO;
+	else if (strcasecmp(tv_type, "Composite") == 0)
+	    dev_priv->type = TV_TYPE_COMPOSITE;
+	else if (strcasecmp(tv_type, "Component") == 0)
+	    dev_priv->type = TV_TYPE_COMPONENT;
+	else {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "Unknown TV Connector type %s\n", tv_type);
+	    dev_priv->force_type = FALSE;
+	}
+    }
+
+    if (dev_priv->force_type)
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		"Force TV Connector type as %s\n", tv_type);
 
     output->driver_private = intel_output;
     output->interlaceAllowed = FALSE;
