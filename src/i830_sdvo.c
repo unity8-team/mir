@@ -1548,7 +1548,7 @@ i830_sdvo_detect(xf86OutputPtr output)
 	/* Check EDID in DVI-I case */
 	i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
 	edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
-	if (!edid_mon || !DIGITAL(edid_mon->features.input_type)) {
+	if (edid_mon && !DIGITAL(edid_mon->features.input_type)) {
 	    xfree(edid_mon);
 	    return XF86OutputStatusDisconnected;
 	}
