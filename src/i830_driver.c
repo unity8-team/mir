@@ -3536,6 +3536,7 @@ I830LeaveVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr pI830 = I830PTR(pScrn);
+   int ret;
 #ifndef HAVE_FREE_SHADOW
    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
    int o;
@@ -3629,6 +3630,13 @@ I830LeaveVT(int scrnIndex, int flags)
 
    if (pI830->AccelInfoRec)
       pI830->AccelInfoRec->NeedToSync = FALSE;
+
+#ifdef XF86DRI
+   ret = drmDropMaster(pI830->drmSubFD);
+   if (ret)
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "drmDropMaster failed: %s\n", strerror(ret));
+#endif
 }
 
 /*
@@ -3639,8 +3647,16 @@ I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
    I830Ptr  pI830 = I830PTR(pScrn);
+   int ret;
 
    DPRINTF(PFX, "Enter VT\n");
+
+#ifdef XF86DRI
+   ret = drmSetMaster(pI830->drmSubFD);
+   if (ret)
+      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		 "drmDropMaster failed: %s\n", strerror(ret));
+#endif
 
    /*
     * Only save state once per server generation since that's what most
