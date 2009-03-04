@@ -295,9 +295,6 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 		if (!get_native_mode_from_edid(output, edid_modes))
 			return NULL;
 
-	if (enctype == OUTPUT_LVDS)
-		parse_lvds_manufacturer_table(output->scrn, nv_encoder->native_mode->Clock);
-
 	return edid_modes;
 }
 
@@ -308,20 +305,32 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
+	DisplayModeRec *ret_mode = NULL;
 
 	/* panels only have one mode, and it doesn't change */
 	if (nv_encoder->native_mode)
 		return xf86DuplicateMode(nv_encoder->native_mode);
 
-	if (!nv_encoder->dcb->lvdsconf.use_straps_for_mode)
-		return nv_output_get_edid_modes(output);
+	if (nv_encoder->dcb->lvdsconf.use_straps_for_mode) {
+		if (!pNv->vbios->fp.native_mode)
+			return NULL;
 
-	if (!pNv->vbios->fp.native_mode)
+		nv_encoder->native_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
+		ret_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
+	} else
+		ret_mode = nv_output_get_edid_modes(output);
+
+	if (parse_lvds_manufacturer_table(pScrn,
+					  nv_encoder->native_mode->Clock))
 		return NULL;
 
-	nv_encoder->native_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
+	/* because of the pre-existing native mode exit above, this will only
+	 * get run at startup (and before create_resources is called in
+	 * mode_fixup), so subsequent user dither settings are not overridden
+	 */
+	nv_encoder->dithering |= !NVPTR(pScrn)->vbios->fp.if_is_24bit;
 
-	return xf86DuplicateMode(pNv->vbios->fp.native_mode);
+	return ret_mode;
 }
 
 static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
@@ -898,7 +907,7 @@ nv_add_encoder(ScrnInfoPtr pScrn, struct dcb_entry *dcbent)
 
 	nv_encoder->dcb = dcbent;
 	nv_encoder->last_dpms = NV_DPMS_CLEARED;
-	nv_encoder->dithering = (pNv->FPDither || (nv_encoder->dcb->type == OUTPUT_LVDS && !pNv->vbios->fp.if_is_24bit));
+	nv_encoder->dithering = pNv->FPDither;
 	if (pNv->fpScaler) /* GPU Scaling */
 		nv_encoder->scaling_mode = SCALE_ASPECT;
 	else if (nv_encoder->dcb->type == OUTPUT_LVDS)

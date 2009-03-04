@@ -4865,17 +4865,11 @@ int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 		bios->pub.digital_min_front_porch = 0x4b;
 		bios->pub.fp.ddc_permitted = true;
 #else
-		if ((ret = parse_fp_mode_table(pScrn, bios)))
-			goto out;
+		ret = parse_fp_mode_table(pScrn, bios);
 #endif
 	}
-	if (bios->feature_byte & FEATURE_MOBILE)
-		ret = parse_lvds_manufacturer_table(pScrn, 0);
 
-out:
 	NVLockVgaCrtcs(pNv, true);
-	if (pNv->twoHeads)
-		NVSetOwner(pNv, crtchead);
 
 	return ret;
 }
