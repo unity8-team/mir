@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.6.1-1ubuntu5) jaunty; urgency=low
+
+  * Add 111_quirks_march4_sync.patch: Cherrypick from upstream's quirks
+    - Fix LVDS issues on MSI IM-945GSE-A and all GM45 chips
+    - Fix lid close issue on Mirrus Centrino laptop
+    - Fix tv-out issue on HP Compaq nx6310 systems
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 04 Mar 2009 14:46:30 -0800
+
 xserver-xorg-video-intel (2:2.6.1-1ubuntu4) jaunty; urgency=low
 
   * Add 110_quirk_hp_mini.patch: Pipe-A quirk for an HP Mini

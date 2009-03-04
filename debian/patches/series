@@ -7,3 +7,4 @@
 108_dont_disable_vga_centering_bit.patch
 109_i830-fifo-watermark-conservative.patch
 110_quirk_hp_mini.patch
+111_quirks_march4_sync.patch
