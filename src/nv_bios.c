@@ -34,7 +34,7 @@
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
-#define FEATURE_MOBILE 0x10
+#define FEATURE_MOBILE 0x10	/* also FEATURE_QUADRO for BMP */
 
 #if 0
 #define BIOSLOG(sip, fmt, arg...) xf86DrvMsg(sip->scrnIndex, X_INFO, fmt, ##arg)
@@ -3247,8 +3247,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		return -ENOSYS;
 	}
 
-	/* non mobile only needs to set digital_min_front_porch */
-	if (!(bios->feature_byte & FEATURE_MOBILE))
+	if (!bios->is_mobile) /* !mobile only needs digital_min_front_porch */
 		return 0;
 
 	if ((ret = parse_lvds_manufacturer_table_header(pScrn, bios, &lth)))
@@ -3938,8 +3937,11 @@ static int parse_bit_i_tbl_entry(ScrnInfoPtr pScrn, struct nvbios *bios, bit_ent
 
 	parse_bios_version(pScrn, bios, bitentry->offset);
 
-	/* bit 4 seems to indicate a mobile bios, other bits possibly as for BMP feature byte */
+	/* bit 4 seems to indicate a mobile bios (doesn't suffer from BMP's
+	 * Quadro identity crisis), other bits possibly as for BMP feature byte
+	 */
 	bios->feature_byte = bios->data[bitentry->offset + 5];
+	bios->is_mobile = bios->feature_byte & FEATURE_MOBILE;
 
 	if (bitentry->length < 15) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
@@ -4233,8 +4235,10 @@ static int parse_bmp_structure(ScrnInfoPtr pScrn, struct nvbios *bios, unsigned 
 		return -EINVAL;
 	}
 
-	/* bit 4 seems to indicate a mobile bios, bit 5 that the flat panel
-	 * tables are present, and bit 6 a tv bios */
+	/* bit 4 seems to indicate either a mobile bios or a quadro card --
+	 * mobile behaviour consistent (nv11+), quadro only seen nv18gl-nv36gl
+	 * (not nv10gl), bit 5 that the flat panel tables are present, and
+	 * bit 6 a tv bios */
 	bios->feature_byte = bios->data[offset + 9];
 
 	parse_bios_version(pScrn, bios, offset + 10);
@@ -4863,8 +4867,12 @@ int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 
 	parse_init_tables(pScrn, bios);
 
+	if (bios->major_version < 5)
+		/* feature_byte on BMP is poor, but init always sets CR4B */
+		bios->is_mobile = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_4B) & 0x40;
+
 	/* all BIT systems need parse_fp_mode.. for digital_min_front_porch */
-	if (bios->feature_byte & FEATURE_MOBILE || bios->major_version >= 5) {
+	if (bios->is_mobile || bios->major_version >= 5) {
 #ifdef __powerpc__
 		/* PPC cards don't have the fp table; the laptops use DDC */
 		bios->pub.digital_min_front_porch = 0x4b;

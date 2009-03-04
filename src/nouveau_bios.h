@@ -137,6 +137,7 @@ struct nvbios {
 
 	uint8_t major_version, chip_version;
 	uint8_t feature_byte;
+	bool is_mobile;
 
 	uint32_t fmaxvco, fminvco;
 
