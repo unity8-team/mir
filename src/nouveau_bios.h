@@ -130,8 +130,6 @@ struct nouveau_bios_info {
 	struct {
 		bool ddc_permitted;
 		DisplayModePtr native_mode;
-		bool dual_link;
-		bool if_is_24bit;
 	} fp;
 };
 
@@ -171,6 +169,7 @@ struct nvbios {
 		uint16_t xlated_entry;
 		bool power_off_for_reset;
 		bool reset_after_pclk_change;
+		bool dual_link;
 		bool link_c_increment;
 		bool BITbit1;
 		int duallink_transition_clk;

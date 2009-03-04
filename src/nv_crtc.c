@@ -758,7 +758,6 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 	struct nouveau_encoder *nv_encoder = NULL;
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	bool dual_link = false;
 	uint32_t mode_ratio, panel_ratio;
 	int i;
 
@@ -768,14 +767,9 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		if (xf86_config->output[i]->crtc != crtc)
 			continue;
 
-		if (nv_encoder->dcb->type == OUTPUT_LVDS) {
-			dual_link = pNv->vbios->fp.dual_link;
+		if (nv_encoder->dcb->type == OUTPUT_LVDS ||
+		    nv_encoder->dcb->type == OUTPUT_TMDS)
 			break;
-		}
-		if (nv_encoder->dcb->type == OUTPUT_TMDS) {
-			dual_link = (adjusted_mode->Clock >= 165000);
-			break;
-		}
 	}
 	if (i == xf86_config->num_output)
 		return;
@@ -833,7 +827,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_RAMDAC_FP_CONTROL_WIDTH_12;
 
-	if (dual_link)
+	if (nv_encoder->dual_link)
 		regp->fp_control |= (8 << 28);
 
 	/* Use the generic value, and enable x-scaling, y-scaling, and the TMDS enable bit */

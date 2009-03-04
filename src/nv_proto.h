@@ -78,7 +78,7 @@ void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 /* in nv_bios.c */
 int NVParseBios(ScrnInfoPtr pScrn);
 int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk);
-int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk);
+int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *if_is_24bit);
 int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk);
 int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM, int *log2P);
 int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);

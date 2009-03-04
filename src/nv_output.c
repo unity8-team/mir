@@ -294,6 +294,8 @@ nv_output_get_edid_modes(xf86OutputPtr output)
 	if (enctype == OUTPUT_LVDS || enctype == OUTPUT_TMDS)
 		if (!get_native_mode_from_edid(output, edid_modes))
 			return NULL;
+	if (enctype == OUTPUT_TMDS)
+		nv_encoder->dual_link = nv_encoder->native_mode->Clock >= 165000;
 
 	return edid_modes;
 }
@@ -306,6 +308,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	ScrnInfoPtr pScrn = output->scrn;
 	NVPtr pNv = NVPTR(pScrn);
 	DisplayModeRec *ret_mode = NULL;
+	bool dl, if_is_24bit = false;
 
 	/* panels only have one mode, and it doesn't change */
 	if (nv_encoder->native_mode)
@@ -320,15 +323,16 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	} else
 		ret_mode = nv_output_get_edid_modes(output);
 
-	if (parse_lvds_manufacturer_table(pScrn,
-					  nv_encoder->native_mode->Clock))
+	if (nouveau_bios_parse_lvds_table(pScrn, nv_encoder->native_mode->Clock,
+					  &dl, &if_is_24bit))
 		return NULL;
 
 	/* because of the pre-existing native mode exit above, this will only
 	 * get run at startup (and before create_resources is called in
 	 * mode_fixup), so subsequent user dither settings are not overridden
 	 */
-	nv_encoder->dithering |= !NVPTR(pScrn)->vbios->fp.if_is_24bit;
+	nv_encoder->dithering |= !if_is_24bit;
+	nv_encoder->dual_link = dl;
 
 	return ret_mode;
 }

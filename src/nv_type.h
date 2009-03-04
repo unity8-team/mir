@@ -221,6 +221,7 @@ struct nouveau_encoder {
 	DisplayModePtr native_mode;
 	uint8_t scaling_mode;
 	bool dithering;
+	bool dual_link;
 	NVOutputRegRec restore;
 };
 

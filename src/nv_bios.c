@@ -2987,7 +2987,7 @@ static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dc
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
 		return -EINVAL;
 
-	run_digital_op_script(pScrn, scriptofs, dcbent, head, bios->pub.fp.dual_link);
+	run_digital_op_script(pScrn, scriptofs, dcbent, head, bios->fp.dual_link);
 
 	if (script == LVDS_PANEL_OFF)
 		/* off-on delay in ms */
@@ -3043,7 +3043,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		break;
 	case LVDS_RESET:
 		if (dcbent->lvdsconf.use_straps_for_mode) {
-			if (bios->pub.fp.dual_link)
+			if (bios->fp.dual_link)
 				clktableptr += 2;
 			if (bios->fp.BITbit1)
 				clktableptr++;
@@ -3052,7 +3052,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
 			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
 
-			if (bios->pub.fp.dual_link) {
+			if (bios->fp.dual_link) {
 				clktableptr += 2;
 				fallbackcmpval *= 2;
 			}
@@ -3073,7 +3073,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "LVDS output init script not found\n");
 		return -ENOENT;
 	}
-	run_digital_op_script(pScrn, scriptptr, dcbent, head, bios->pub.fp.dual_link);
+	run_digital_op_script(pScrn, scriptptr, dcbent, head, bios->fp.dual_link);
 
 	return 0;
 }
@@ -3361,7 +3361,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	return 0;
 }
 
-int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
+int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *if_is_24bit)
 {
 	/* The LVDS table header is (mostly) described in
 	 * parse_lvds_manufacturer_table_header(): the BIT header additionally
@@ -3440,9 +3440,9 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 	case 0x0a:
 		bios->fp.power_off_for_reset = bios->data[lvdsofs] & 1;
 		bios->fp.reset_after_pclk_change = bios->data[lvdsofs] & 2;
-		bios->pub.fp.dual_link = bios->data[lvdsofs] & 4;
+		bios->fp.dual_link = bios->data[lvdsofs] & 4;
 		bios->fp.link_c_increment = bios->data[lvdsofs] & 8;
-		bios->pub.fp.if_is_24bit = bios->data[lvdsofs] & 16;
+		*if_is_24bit = bios->data[lvdsofs] & 16;
 		break;
 	case 0x30:
 		/* My money would be on there being a 24 bit interface bit in this table,
@@ -3458,7 +3458,7 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 		bios->fp.reset_after_pclk_change = true;
 		/* it's ok lvdsofs is wrong for nv4x edid case; dual_link is
 		 * over-written, and BITbit1 isn't used */
-		bios->pub.fp.dual_link = bios->data[lvdsofs] & 1;
+		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
 		bios->fp.duallink_transition_clk = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
 #if 0	// currently unused
@@ -3473,7 +3473,9 @@ int parse_lvds_manufacturer_table(ScrnInfoPtr pScrn, int pxclk)
 
 	/* set dual_link flag for EDID case */
 	if (pxclk && bios->pub.fp.ddc_permitted)
-		bios->pub.fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
+		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
+
+	*dl = bios->fp.dual_link;
 
 	return 0;
 }
