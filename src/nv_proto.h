@@ -84,6 +84,7 @@ int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM,
 int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
 void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P);
 int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
+uint8_t * nouveau_bios_embedded_edid(ScrnInfoPtr pScrn);
 
 /* nv_crtc.c */
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y);

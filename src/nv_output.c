@@ -205,8 +205,10 @@ nv_output_detect(xf86OutputPtr output)
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
 			if (pNv->vbios->fp.native_mode)
 				ret = XF86OutputStatusConnected;
-		} else if (pNv->vbios->fp.ddc_permitted && pNv->vbios->fp.edid) {
-			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex, pNv->vbios->fp.edid);
+		} else if (pNv->vbios->fp.ddc_permitted &&
+			   nouveau_bios_embedded_edid(pScrn)) {
+			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex,
+							       nouveau_bios_embedded_edid(pScrn));
 			ret = XF86OutputStatusConnected;
 		}
 	}

@@ -4771,16 +4771,19 @@ static int load_nv17_hw_sequencer_ucode(ScrnInfoPtr pScrn, struct nvbios *bios)
 					  hwsq_offset + sizeof(hwsq_signature), 0);
 }
 
-static int read_bios_edid(ScrnInfoPtr pScrn)
+uint8_t * nouveau_bios_embedded_edid(ScrnInfoPtr pScrn)
 {
 	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
 	const uint8_t edid_sig[] = { 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
 	uint16_t offset = 0, newoffset;
-	int searchlen = NV_PROM_SIZE, i;
+	int searchlen = NV_PROM_SIZE;
+
+	if (bios->fp.edid)
+		return bios->fp.edid;
 
 	while (searchlen) {
 		if (!(newoffset = findstr(&bios->data[offset], searchlen, edid_sig, 8)))
-			return -ENOENT;
+			return NULL;
 		offset += newoffset;
 		if (!nv_cksum(&bios->data[offset], EDID1_LEN))
 			break;
@@ -4791,12 +4794,7 @@ static int read_bios_edid(ScrnInfoPtr pScrn)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Found EDID in BIOS\n");
 
-	if (!(bios->pub.fp.edid = xalloc(EDID1_LEN)))
-		return -ENOMEM;
-	for (i = 0; i < EDID1_LEN; i++)
-		bios->pub.fp.edid[i] = bios->data[offset + i];
-
-	return 0;
+	return (bios->fp.edid = &bios->data[offset]);
 }
 
 bool NVInitVBIOS(ScrnInfoPtr pScrn)
@@ -4905,9 +4903,6 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	for (i = 0 ; i < bios->bdcb.dcb.entries; i++)
 		if (bios->bdcb.dcb.entry[i].type == OUTPUT_LVDS)
 			call_lvds_script(pScrn, &bios->bdcb.dcb.entry[i], nv_get_digital_bound_head(pNv, bios->bdcb.dcb.entry[i].or), LVDS_INIT, 0);
-
-	if (bios->feature_byte & FEATURE_MOBILE && !bios->pub.fp.native_mode)
-		read_bios_edid(pScrn);
 
 	/* allow subsequent scripts to execute */
 	bios->execute = true;
