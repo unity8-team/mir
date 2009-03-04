@@ -415,6 +415,83 @@ RADEONUpdatePanelSize(xf86OutputPtr output)
     }
 }
 
+static void fill_detailed_block(struct detailed_monitor_section *det_mon,
+				DisplayModePtr mode)
+{
+    struct detailed_timings *timing = &det_mon->section.d_timings;
+    det_mon->type = DT;
+    timing->clock = mode->Clock * 1000;
+    timing->h_active = mode->HDisplay;
+    timing->h_blanking = mode->HTotal - mode->HDisplay;
+    timing->v_active = mode->VDisplay;
+    timing->v_blanking = mode->VTotal - mode->VDisplay;
+    timing->h_sync_off = mode->HSyncStart - mode->HDisplay;
+    timing->h_sync_width = mode->HSyncEnd - mode->HSyncStart;
+    timing->v_sync_off = mode->VSyncStart - mode->VDisplay;
+    timing->v_sync_width = mode->VSyncEnd - mode->VSyncStart;
+
+    if (mode->Flags & V_PVSYNC)
+	timing->misc |= 0x02;
+
+    if (mode->Flags & V_PHSYNC)
+	timing->misc |= 0x01;
+}
+
+static void
+radeon_lvds_add_fake_edid(xf86OutputPtr output, DisplayModePtr mode)
+{
+    ScrnInfoPtr pScrn = output->scrn;
+    xf86MonPtr edid_mon = NULL;
+
+    if (!output->MonInfo) {
+	edid_mon = xcalloc (1, sizeof (xf86Monitor));
+	if (edid_mon) {
+	    struct detailed_monitor_section *det_mon = edid_mon->det_mon;
+
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Adding fake EDID for LVDS\n");
+
+	    /*support DPM, instead of DPMS*/
+	    edid_mon->features.dpms |= 0x1;
+	    /*default support RGB color display*/
+	    edid_mon->features.display_type |= 0x1;
+	    /*default display support continuous-freqencey*/
+	    edid_mon->features.msc |= 0x1;
+	    /*default the EDID version is 1.4 */
+	    edid_mon->ver.version = 1;
+	    edid_mon->ver.revision = 4;
+
+	    if (mode) {
+		/* now we construct new EDID monitor,
+		 * so filled one detailed timing block
+		 */
+		fill_detailed_block(det_mon, mode);
+		/* the filed timing block should be set preferred*/
+		edid_mon->features.msc |= 0x2;
+		det_mon = det_mon + 1;
+	    }
+
+	    /* Set wide sync ranges so we get all modes
+	     * handed to valid_mode for checking
+	     */
+	    det_mon->type = DS_RANGES;
+	    det_mon->section.ranges.min_v = 0;
+	    det_mon->section.ranges.max_v = 200;
+	    det_mon->section.ranges.min_h = 0;
+	    det_mon->section.ranges.max_h = 200;
+
+	    /* empty edid */
+	    edid_mon->rawData = xcalloc (1, 128);
+
+	    edid_mon->vendor.name[0] = 70;
+	    edid_mon->vendor.name[1] = 65;
+	    edid_mon->vendor.name[2] = 75;
+	    edid_mon->vendor.name[3] = 69;
+
+	    output->MonInfo = edid_mon;
+	}
+    }
+}
+
 DisplayModePtr
 RADEONProbeOutputModes(xf86OutputPtr output)
 {
@@ -460,10 +537,16 @@ RADEONProbeOutputModes(xf86OutputPtr output)
 		    }
 		}
 		if (modes == NULL) {
-		    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		    if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 			modes = RADEONFPNativeMode(output);
+			radeon_lvds_add_fake_edid(output, modes);
+			xfree(modes);
+			modes = xf86OutputGetEDIDModes (output);
+		    }
+
 		    /* add the screen modes */
-		    RADEONAddScreenModes(output, &modes);
+		    if (modes == NULL)
+			RADEONAddScreenModes(output, &modes);
 		}
 	    }
 	}

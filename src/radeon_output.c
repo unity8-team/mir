@@ -208,6 +208,37 @@ radeon_set_active_device(xf86OutputPtr output)
     }
 }
 
+/* X Server pre-1.5 compatibility */
+#ifndef DS_VENDOR
+#define DS_VENDOR 0x101
+#endif
+
+static void radeon_fixup_edid_for_panel(xf86MonPtr edid_mon)
+{
+    int i, j = -1;
+
+    if (edid_mon) {
+	/* mark it to support continous timing so we can add default modes */
+	edid_mon->features.msc |= 0x1;
+	for (i = 0; i < sizeof (edid_mon->det_mon) / sizeof (edid_mon->det_mon[0]); i++) {
+	    if (edid_mon->det_mon[i].type >= DS_VENDOR && j == -1)
+		j = i;
+	    if (edid_mon->det_mon[i].type == DS_RANGES) {
+		j = i;
+		break;
+	    }
+	}
+	if (j != -1) {
+	    struct monitor_ranges   *ranges = &edid_mon->det_mon[j].section.ranges;
+	    edid_mon->det_mon[j].type = DS_RANGES;
+	    ranges->min_v = 0;
+	    ranges->max_v = 200;
+	    ranges->min_h = 0;
+	    ranges->max_h = 200;
+	}
+    }
+}
+
 static RADEONMonitorType
 radeon_ddc_connected(xf86OutputPtr output)
 {
@@ -242,6 +273,7 @@ radeon_ddc_connected(xf86OutputPtr output)
 	switch (radeon_output->ConnectorType) {
 	case CONNECTOR_LVDS:
 	    MonType = MT_LCD;
+	    radeon_fixup_edid_for_panel(MonInfo);
 	    break;
 	case CONNECTOR_DVI_D:
 	case CONNECTOR_HDMI_TYPE_A:
