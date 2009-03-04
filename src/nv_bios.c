@@ -3207,8 +3207,6 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ret, ofs, fpstrapping;
 	struct lvdstableheader lth;
-	uint16_t modeofs;
-	DisplayModePtr mode;
 
 	if (bios->fp.fptablepointer == 0x0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3228,11 +3226,11 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	 * field is 0x0005, and that is in fact what we are reading the first byte of. */
 	case 0x05:	/* some NV10, 11, 15, 16 */
 		recordlen = 42;
-		ofs = 6;
+		ofs = -1;
 		break;
 	case 0x10:	/* some NV15/16, and NV11+ */
 		recordlen = 44;
-		ofs = 7;
+		ofs = 0;
 		break;
 	case 0x20:	/* NV40+ */
 		headerlen = fptable[1];
@@ -3240,7 +3238,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		fpentries = fptable[3];
 		/* fptable[4] is the minimum RAMDAC_FP_HCRTC->RAMDAC_FP_HSYNC_START gap */
 		bios->pub.digital_min_front_porch = fptable[4];
-		ofs = 0;
+		ofs = -7;
 		break;
 	default:
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3273,7 +3271,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		/* Note that this only serves as a backup solution if ddc fails. */
 
 		uint32_t clock, needed_clock;
-		int i, index = 0xF, matches = 0;
+		int i, modeofs, index = 0xF, matches = 0;
 		needed_clock = bios_rd32(pScrn, 0x00616404) & 0xFFFFF;
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "LVDS clock seems to be %d KHz.\n", needed_clock);
 
@@ -3311,7 +3309,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	 */
 	if (fpstrapping == 0xf &&
 	    (lth.lvds_ver == 0x0a || fpindex == 0xf))
-		bios->pub.fp.ddc_permitted = true;
+		bios->pub.fp_ddc_permitted = true;
 
 	/* if either the strap or xlated fpindex value are 0xf there is no
 	 * panel using a strap-derived bios mode present.  this condition
@@ -3320,45 +3318,50 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	if (fpstrapping == 0xf || fpindex == 0xf)
 		return 0;
 
-	if (!(mode = xcalloc(1, sizeof(DisplayModeRec))))
-		return -ENOMEM;
+	bios->fp.mode_ptr = bios->fp.fptablepointer + headerlen +
+			    recordlen * fpindex + ofs;
 
-	modeofs = headerlen + recordlen * fpindex + ofs;
-	mode->Clock = le16_to_cpu(*(uint16_t *)&fptable[modeofs]) * 10;
-	mode->HDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 4] + 1);
-	mode->HSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 10] + 1);
-	mode->HSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 12] + 1);
-	mode->HTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 14] + 1);
-	mode->VDisplay = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 18] + 1);
-	mode->VSyncStart = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 24] + 1);
-	mode->VSyncEnd = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 26] + 1);
-	mode->VTotal = le16_to_cpu(*(uint16_t *)&fptable[modeofs + 28] + 1);
-	mode->Flags |= (fptable[modeofs + 30] & 0x10) ? V_PHSYNC : V_NHSYNC;
-	mode->Flags |= (fptable[modeofs + 30] & 0x1) ? V_PVSYNC : V_NVSYNC;
-
-	/* for version 1.0:
-	 * bytes 1-2 are "panel type", including bits on whether Colour/mono, single/dual link, and type (TFT etc.)
-	 * bytes 3-6 are bits per colour in RGBX
-	 *  9-10 is HActive
-	 * 11-12 is HDispEnd
-	 * 13-14 is HValid Start
-	 * 15-16 is HValid End
-	 * bytes 38-39 relate to spread spectrum settings
-	 * bytes 40-43 are something to do with PWM */
-
-	mode->status = MODE_OK;
-	mode->type = M_T_DRIVER | M_T_PREFERRED;
-	xf86SetModeDefaultName(mode);
-
-//	if (XF86_CRTC_CONFIG_PTR(pScrn)->debug_modes) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Found flat panel mode in BIOS tables:\n");
-		xf86PrintModeline(pScrn->scrnIndex, mode);
-//	}
-
-	bios->pub.fp.native_mode = mode;
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "BIOS FP mode: %dx%d (%dkHz pixel clock)\n",
+		   le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.mode_ptr + 11]) + 1,
+		   le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.mode_ptr + 25]) + 1,
+		   le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.mode_ptr + 7]) * 10);
 
 	return 0;
+}
+
+bool nouveau_bios_fp_mode(ScrnInfoPtr pScrn, DisplayModeRec *mode)
+{
+	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
+	uint8_t *mode_entry = &bios->data[bios->fp.mode_ptr];
+
+	if (!mode)	/* just checking whether we can produce a mode */
+		return bios->fp.mode_ptr;
+
+	memset(mode, 0, sizeof(DisplayModeRec));
+	/* for version 1.0 (version in byte 0):
+	 * bytes 1-2 are "panel type", including bits on whether Colour/mono,
+	 * single/dual link, and type (TFT etc.)
+	 * bytes 3-6 are bits per colour in RGBX */
+	mode->Clock = le16_to_cpu(*(uint16_t *)&mode_entry[7]) * 10;
+	/* bytes 9-10 is HActive */
+	mode->HDisplay = le16_to_cpu(*(uint16_t *)&mode_entry[11]) + 1;
+	/* bytes 13-14 is HValid Start
+	 * bytes 15-16 is HValid End */
+	mode->HSyncStart = le16_to_cpu(*(uint16_t *)&mode_entry[17]) + 1;
+	mode->HSyncEnd = le16_to_cpu(*(uint16_t *)&mode_entry[19]) + 1;
+	mode->HTotal = le16_to_cpu(*(uint16_t *)&mode_entry[21]) + 1;
+	/* bytes 23-24, 27-30 similarly, but vertical */
+	mode->VDisplay = le16_to_cpu(*(uint16_t *)&mode_entry[25]) + 1;
+	mode->VSyncStart = le16_to_cpu(*(uint16_t *)&mode_entry[31]) + 1;
+	mode->VSyncEnd = le16_to_cpu(*(uint16_t *)&mode_entry[33]) + 1;
+	mode->VTotal = le16_to_cpu(*(uint16_t *)&mode_entry[35]) + 1;
+	mode->Flags |= (mode_entry[37] & 0x10) ? V_PHSYNC : V_NHSYNC;
+	mode->Flags |= (mode_entry[37] & 0x1) ? V_PVSYNC : V_NVSYNC;
+	/* bytes 38-39 relate to spread spectrum settings
+	 * bytes 40-43 are something to do with PWM */
+
+	return bios->fp.mode_ptr;
 }
 
 int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *if_is_24bit)
@@ -3402,7 +3405,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (pxclk == 0 || !bios->pub.fp.ddc_permitted)
+		if (pxclk == 0 || !bios->pub.fp_ddc_permitted)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3472,7 +3475,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	}
 
 	/* set dual_link flag for EDID case */
-	if (pxclk && bios->pub.fp.ddc_permitted)
+	if (pxclk && bios->pub.fp_ddc_permitted)
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	*dl = bios->fp.dual_link;
@@ -4865,7 +4868,7 @@ int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 #ifdef __powerpc__
 		/* PPC cards don't have the fp table; the laptops use DDC */
 		bios->pub.digital_min_front_porch = 0x4b;
-		bios->pub.fp.ddc_permitted = true;
+		bios->pub.fp_ddc_permitted = true;
 #else
 		ret = parse_fp_mode_table(pScrn, bios);
 #endif

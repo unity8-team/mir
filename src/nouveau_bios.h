@@ -124,13 +124,8 @@ struct nouveau_bios_info {
 	struct parsed_dcb *dcb;
 
 	uint32_t dactestval;
-
 	uint8_t digital_min_front_porch;
-
-	struct {
-		bool ddc_permitted;
-		DisplayModePtr native_mode;
-	} fp;
+	bool fp_ddc_permitted;
 };
 
 struct nvbios {
@@ -166,6 +161,7 @@ struct nvbios {
 		int xlatwidth;
 		uint16_t lvdsmanufacturerpointer;
 		uint16_t fpxlatemanufacturertableptr;
+		uint16_t mode_ptr;
 		uint16_t xlated_entry;
 		bool power_off_for_reset;
 		bool reset_after_pclk_change;

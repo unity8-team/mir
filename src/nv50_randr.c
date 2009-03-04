@@ -515,8 +515,14 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	/* typically only LVDS will hit this code path. */
 	if (!ddc_modes) {
-		if (pNv->vbios->fp.native_mode && nv_output->output->type == OUTPUT_LVDS) {
-			ddc_modes = xf86DuplicateMode(pNv->vbios->fp.native_mode);
+		DisplayModeRec mode;
+
+		if (nouveau_bios_fp_mode(pScrn, &mode) && nv_output->output->type == OUTPUT_LVDS) {
+			mode.status = MODE_OK;
+			mode.type = M_T_DRIVER | M_T_PREFERRED;
+			xf86SetModeDefaultName(&mode);
+
+			ddc_modes = xf86DuplicateMode(&mode);
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "LVDS: Using a bios mode, which should work, if it doesn't please report.\n");
 		}
 	}

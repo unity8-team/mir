@@ -203,9 +203,9 @@ nv_output_detect(xf86OutputPtr output)
 			ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
-			if (pNv->vbios->fp.native_mode)
+			if (nouveau_bios_fp_mode(pScrn, NULL))
 				ret = XF86OutputStatusConnected;
-		} else if (pNv->vbios->fp.ddc_permitted &&
+		} else if (pNv->vbios->fp_ddc_permitted &&
 			   nouveau_bios_embedded_edid(pScrn)) {
 			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex,
 							       nouveau_bios_embedded_edid(pScrn));
@@ -306,8 +306,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	struct nouveau_connector *nv_connector = to_nouveau_connector(output);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	DisplayModeRec *ret_mode = NULL;
+	DisplayModeRec mode, *ret_mode = NULL;
 	bool dl, if_is_24bit = false;
 
 	/* panels only have one mode, and it doesn't change */
@@ -315,11 +314,15 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 		return xf86DuplicateMode(nv_encoder->native_mode);
 
 	if (nv_encoder->dcb->lvdsconf.use_straps_for_mode) {
-		if (!pNv->vbios->fp.native_mode)
+		if (!nouveau_bios_fp_mode(pScrn, &mode))
 			return NULL;
 
-		nv_encoder->native_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
-		ret_mode = xf86DuplicateMode(pNv->vbios->fp.native_mode);
+		mode.status = MODE_OK;
+		mode.type = M_T_DRIVER | M_T_PREFERRED;
+		xf86SetModeDefaultName(&mode);
+
+		nv_encoder->native_mode = xf86DuplicateMode(&mode);
+		ret_mode = xf86DuplicateMode(&mode);
 	} else
 		ret_mode = nv_output_get_edid_modes(output);
 
@@ -999,7 +1002,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 			funcs = &nv_lvds_output_funcs;
 			/* don't create i2c adapter when lvds ddc not allowed */
 			if (dcbent->lvdsconf.use_straps_for_mode ||
-			    !pNv->vbios->fp.ddc_permitted)
+			    !pNv->vbios->fp_ddc_permitted)
 				i2c_index = 0xf;
 			break;
 		default:
