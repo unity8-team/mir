@@ -417,8 +417,11 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     /* Upload bicubic filter tex */
-    if (pPriv->bicubic_enabled)
-	RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512, (uint8_t *)(info->FB + pPriv->bicubic_offset), 1024, 1024, 1, 512, 2);
+    if (pPriv->bicubic_enabled) {
+	if (info->ChipFamily < CHIP_FAMILY_R600)
+	    RADEONCopyData(pScrn, (uint8_t *)bicubic_tex_512,
+			   (uint8_t *)(info->FB + pPriv->bicubic_offset), 1024, 1024, 1, 512, 2);
+    }
 
     /* update cliplist */
     if (!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
@@ -593,7 +596,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R300_3D || IS_R500_3D || IS_R600_3D) {
+    if (IS_R300_3D || IS_R500_3D) {
 	adapt->pAttributes = Attributes_r300;
 	adapt->nAttributes = NUM_ATTRIBUTES_R300;
     } else {
