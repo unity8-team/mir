@@ -674,18 +674,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	regp->CRTC[NV_CIO_CRE_CSB] = 0x80;
 
-	/* What does this do?:
-	 * bit0: crtc0
-	 * bit6: lvds
-	 * bit7: (only in X)
+	/* probably a scratch reg, but kept for cargo-cult purposes:
+	 * bit0: crtc0?, head A
+	 * bit6: lvds, head A
+	 * bit7: (only in X), head A
 	 */
 	if (nv_crtc->head == 0)
-		regp->CRTC[NV_CIO_CRE_4B] = 0x81;
-	else 
-		regp->CRTC[NV_CIO_CRE_4B] = 0x80;
-
-	if (lvds_output)
-		regp->CRTC[NV_CIO_CRE_4B] |= 0x40;
+		regp->CRTC[NV_CIO_CRE_4B] = savep->CRTC[NV_CIO_CRE_4B] | 0x80;
 
 	/* The blob seems to take the current value from crtc 0, add 4 to that
 	 * and reuse the old value for crtc 1 */
