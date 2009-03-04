@@ -175,6 +175,10 @@ struct nvbios {
 		bool BITbit1;
 		int duallink_transition_clk;
 		uint8_t *edid;
+
+		/* will need resetting after suspend */
+		int last_script_invoc;
+		bool lvds_init_run;
 	} fp;
 
 	struct {

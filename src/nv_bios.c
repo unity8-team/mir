@@ -3032,7 +3032,7 @@ static int run_lvds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head,
 
 	switch (script) {
 	case LVDS_INIT:
-		return 0;
+		return -ENOSYS;
 	case LVDS_BACKLIGHT_ON:
 	case LVDS_PANEL_ON:
 		scriptptr = le16_to_cpu(*(uint16_t *)&bios->data[bios->fp.lvdsmanufacturerpointer + 7 + outputset * 2]);
@@ -3085,14 +3085,20 @@ int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum
 	 * This acts as the demux
 	 */
 
-	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
+	NVPtr pNv = NVPTR(pScrn);
+	struct nvbios *bios = &pNv->VBIOS;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
-	uint32_t sel_clk_binding;
-	static int last_invoc = 0;
+	uint32_t sel_clk_binding, sel_clk;
 	int ret;
 
-	if (last_invoc == (script << 1 | head) || !lvds_ver)
+	if (bios->fp.last_script_invoc == (script << 1 | head) || !lvds_ver ||
+	    (lvds_ver >= 0x30 && script == LVDS_INIT))
 		return 0;
+
+	if (!bios->fp.lvds_init_run) {
+		bios->fp.lvds_init_run = true;
+		call_lvds_script(pScrn, dcbent, head, LVDS_INIT, pxclk);
+	}
 
 	if (script == LVDS_PANEL_ON && bios->fp.reset_after_pclk_change)
 		call_lvds_script(pScrn, dcbent, head, LVDS_RESET, pxclk);
@@ -3109,11 +3115,12 @@ int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum
 	else
 		ret = run_lvds_table(pScrn, dcbent, head, script, pxclk);
 
-	last_invoc = (script << 1 | head);
+	bios->fp.last_script_invoc = (script << 1 | head);
 
-	bios_wr32(pScrn, NV_RAMDAC_SEL_CLK, (bios_rd32(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
+	sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & ~0x50000;
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
-	bios_wr32(pScrn, NV_PBUS_POWERCTRL_2, 0);
+	nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
 	return ret;
 }
@@ -3481,9 +3488,10 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	 * ffs(or) == 3, use the second.
 	 */
 
-	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
+	NVPtr pNv = NVPTR(pScrn);
+	struct nvbios *bios = &pNv->VBIOS;
 	uint16_t clktable = 0, scriptptr;
-	uint32_t sel_clk_binding;
+	uint32_t sel_clk_binding, sel_clk;
 
 	if (dcbent->location != LOC_ON_CHIP)
 		return 0;
@@ -3513,7 +3521,8 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	/* don't let script change pll->head binding */
 	sel_clk_binding = bios_rd32(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
 	run_digital_op_script(pScrn, scriptptr, dcbent, head, pxclk >= 165000);
-	bios_wr32(pScrn, NV_RAMDAC_SEL_CLK, (bios_rd32(pScrn, NV_RAMDAC_SEL_CLK) & ~0x50000) | sel_clk_binding);
+	sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & ~0x50000;
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 
 	return 0;
 }
@@ -4876,7 +4885,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct nvbios *bios = &pNv->VBIOS;
 	uint32_t saved_nv_pextdev_boot_0;
-	int i, ret;
+	int ret;
 
 	if (!NVInitVBIOS(pScrn))
 		return -ENODEV;
@@ -4899,10 +4908,6 @@ int NVParseBios(ScrnInfoPtr pScrn)
 
 	if ((ret = nouveau_run_vbios_init(pScrn)))
 		return ret;
-
-	for (i = 0 ; i < bios->bdcb.dcb.entries; i++)
-		if (bios->bdcb.dcb.entry[i].type == OUTPUT_LVDS)
-			call_lvds_script(pScrn, &bios->bdcb.dcb.entry[i], nv_get_digital_bound_head(pNv, bios->bdcb.dcb.entry[i].or), LVDS_INIT, 0);
 
 	/* allow subsequent scripts to execute */
 	bios->execute = true;
