@@ -3209,9 +3209,16 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	struct lvdstableheader lth;
 
 	if (bios->fp.fptablepointer == 0x0) {
+#ifdef __powerpc__
+		/* Apple cards don't have the fp table; the laptops use DDC */
+		bios->pub.digital_min_front_porch = 0x4b;
+		bios->pub.fp_ddc_permitted = true;
+		return 0;
+#else
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel table invalid\n");
 		return -EINVAL;
+#endif
 	}
 
 	fptable = &bios->data[bios->fp.fptablepointer];
@@ -4871,16 +4878,9 @@ int nouveau_run_vbios_init(ScrnInfoPtr pScrn)
 		/* feature_byte on BMP is poor, but init always sets CR4B */
 		bios->is_mobile = NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_4B) & 0x40;
 
-	/* all BIT systems need parse_fp_mode.. for digital_min_front_porch */
-	if (bios->is_mobile || bios->major_version >= 5) {
-#ifdef __powerpc__
-		/* PPC cards don't have the fp table; the laptops use DDC */
-		bios->pub.digital_min_front_porch = 0x4b;
-		bios->pub.fp_ddc_permitted = true;
-#else
+	/* all BIT systems need p_f_m_t for digital_min_front_porch */
+	if (bios->is_mobile || bios->major_version >= 5)
 		ret = parse_fp_mode_table(pScrn, bios);
-#endif
-	}
 
 	NVLockVgaCrtcs(pNv, true);
 
