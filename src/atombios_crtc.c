@@ -203,7 +203,7 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
 }
 
 void
-atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
+atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     RADEONInfoPtr  info = RADEONPTR(crtc->scrn);
@@ -219,6 +219,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode, int pll_flags)
     xf86OutputPtr output;
     RADEONOutputPrivatePtr radeon_output = NULL;
     radeon_encoder_ptr radeon_encoder = NULL;
+    int pll_flags = 0;
 
     void *ptr;
     AtomBiosArgRec data;
@@ -350,7 +351,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
     Bool tilingChanged = FALSE;
-    int pll_flags = 0;
     memset(&crtc_timing, 0, sizeof(crtc_timing));
 
     if (info->allowColorTiling) {
@@ -373,9 +373,6 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 		    need_tv_timings = 2;
 
 	    }
-
-	    if (radeon_output->MonType == MT_LCD)
-	      pll_flags |= RADEON_PLL_USE_REF_DIV;
 	}
     }
 
@@ -484,7 +481,7 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 		   0);
     }
 
-    atombios_crtc_set_pll(crtc, adjusted_mode, pll_flags);
+    atombios_crtc_set_pll(crtc, adjusted_mode);
 
     atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
