@@ -995,6 +995,61 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 }
 
 static int
+atombios_output_overscan_setup(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adjusted_mode)
+{
+    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
+    SET_CRTC_OVERSCAN_PS_ALLOCATION overscan_param;
+    AtomBiosArgRec data;
+    unsigned char *space;
+    memset(&overscan_param, 0, sizeof(overscan_param));
+
+    overscan_param.usOverscanRight = 0;
+    overscan_param.usOverscanLeft = 0;
+    overscan_param.usOverscanBottom = 0;
+    overscan_param.usOverscanTop = 0;
+    overscan_param.ucCRTC = radeon_crtc->crtc_id;
+
+    if (radeon_output->Flags & RADEON_USE_RMX) {
+	if (radeon_output->rmx_type == RMX_FULL) {
+	    overscan_param.usOverscanRight = 0;
+	    overscan_param.usOverscanLeft = 0;
+	    overscan_param.usOverscanBottom = 0;
+	    overscan_param.usOverscanTop = 0;
+	} else if (radeon_output->rmx_type == RMX_CENTER) {
+	    overscan_param.usOverscanTop = (adjusted_mode->CrtcVDisplay - mode->CrtcVDisplay) / 2;
+	    overscan_param.usOverscanBottom = (adjusted_mode->CrtcVDisplay - mode->CrtcVDisplay) / 2;
+	    overscan_param.usOverscanLeft = (adjusted_mode->CrtcHDisplay - mode->CrtcHDisplay) / 2;
+	    overscan_param.usOverscanRight = (adjusted_mode->CrtcHDisplay - mode->CrtcHDisplay) / 2;
+	} else if (radeon_output->rmx_type == RMX_ASPECT) {
+	    int a1 = mode->CrtcVDisplay * adjusted_mode->CrtcHDisplay;
+	    int a2 = adjusted_mode->CrtcVDisplay * mode->CrtcHDisplay;
+
+	    if (a1 > a2) {
+		overscan_param.usOverscanLeft = (adjusted_mode->CrtcHDisplay - (a2 / mode->CrtcVDisplay)) / 2;
+		overscan_param.usOverscanRight = (adjusted_mode->CrtcHDisplay - (a2 / mode->CrtcVDisplay)) / 2;
+	    } else if (a2 > a1) {
+		overscan_param.usOverscanLeft = (adjusted_mode->CrtcVDisplay - (a1 / mode->CrtcHDisplay)) / 2;
+		overscan_param.usOverscanRight = (adjusted_mode->CrtcVDisplay - (a1 / mode->CrtcHDisplay)) / 2;
+	    }
+	}
+    }
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_OverScan);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &overscan_param;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Set CRTC %d Overscan success\n", radeon_crtc->crtc_id);
+	return ATOM_SUCCESS ;
+    }
+
+    ErrorF("Set CRTC %d Overscan failed\n", radeon_crtc->crtc_id);
+    return ATOM_NOT_IMPLEMENTED;
+}
+
+static int
 atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
@@ -1051,6 +1106,8 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
 	else if (radeon_output->rmx_type == RMX_CENTER)
 	    disp_data.ucEnable = ATOM_SCALER_CENTER;
+	else if (radeon_output->rmx_type == RMX_ASPECT)
+	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
     } else {
 	ErrorF("Not using RMX\n");
 	disp_data.ucEnable = ATOM_SCALER_DISABLE;
@@ -1423,7 +1480,8 @@ atombios_output_mode_set(xf86OutputPtr output,
     if (radeon_encoder == NULL)
         return;
 
-    atombios_output_scaler_setup(output, mode);
+    atombios_output_overscan_setup(output, mode, adjusted_mode);
+    atombios_output_scaler_setup(output, adjusted_mode);
     atombios_set_output_crtc_source(output);
     if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
 	atombios_output_yuv_setup(output, TRUE);

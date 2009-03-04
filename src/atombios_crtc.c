@@ -186,7 +186,7 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
     conv_param.ucOverscanRight		= crtc_param->ucOverscanRight;
     conv_param.ucOverscanLeft		= crtc_param->ucOverscanLeft;
     conv_param.ucOverscanBottom		= crtc_param->ucOverscanBottom;
-    conv_param.ucOverscanTop		= crtc_param->ucOverscanTop; 
+    conv_param.ucOverscanTop		= crtc_param->ucOverscanTop;
     conv_param.ucReserved		= crtc_param->ucReserved;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_Timing);

@@ -1465,6 +1465,11 @@ radeon_set_property(xf86OutputPtr output, Atom property,
 	    radeon_output->rmx_type = RMX_FULL;
 	} else if (value->size == strlen("center") && !strncmp("center", s, strlen("center"))) {
 	    radeon_output->rmx_type = RMX_CENTER;
+	} else if (value->size == strlen("aspect") && !strncmp("aspect", s, strlen("aspect"))) {
+	    if (IS_AVIVO_VARIANT)
+		radeon_output->rmx_type = RMX_ASPECT;
+	    else
+		return FALSE;
 	} else if (value->size == strlen("off") && !strncmp("off", s, strlen("off"))) {
 	    radeon_output->rmx_type = RMX_OFF;
 	} else
