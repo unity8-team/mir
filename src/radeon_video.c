@@ -310,7 +310,7 @@ void RADEONInitVideo(ScreenPtr pScreen)
 	    } else
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up textured video\n");
 	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video requires CP on R5xx/IGP\n");
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video requires CP on R5xx/R6xx/R7xx/IGP\n");
     } else
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Textured video disabled on RV250 due to HW bug\n");
 

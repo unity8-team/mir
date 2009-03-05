@@ -160,11 +160,11 @@ static __inline__ uint32_t F_TO_24(float val)
 #endif /* XF86DRI */
 
 static void
-R600CopyPlanar(ScrnInfoPtr pScrn,
-	       unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
-	       uint32_t dst_mc_addr,
-	       int srcPitch, int srcPitch2, int dstPitch,
-	       int w, int h)
+R600CopyPlanarHW(ScrnInfoPtr pScrn,
+		 unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
+		 uint32_t dst_mc_addr,
+		 int srcPitch, int srcPitch2, int dstPitch,
+		 int w, int h)
 {
     int dstPitch2 = dstPitch >> 1;
     int h2 = h >> 1;
@@ -195,10 +195,10 @@ R600CopyPlanar(ScrnInfoPtr pScrn,
 }
 
 static void
-R600CopyPacked(ScrnInfoPtr pScrn,
-	       unsigned char *src, uint32_t dst_mc_addr,
-	       int srcPitch, int dstPitch,
-	       int w, int h)
+R600CopyPackedHW(ScrnInfoPtr pScrn,
+		 unsigned char *src, uint32_t dst_mc_addr,
+		 int srcPitch, int dstPitch,
+		 int w, int h)
 {
 
     /* YUV */
@@ -207,6 +207,82 @@ R600CopyPacked(ScrnInfoPtr pScrn,
 		   dstPitch >> 2, dst_mc_addr, h, 32,
 		   0, 0, w >> 1, h);
 
+}
+
+static void
+R600CopyPlanarSW(ScrnInfoPtr pScrn,
+		 unsigned char *y_src, unsigned char *u_src, unsigned char *v_src,
+		 unsigned char *dst,
+		 int srcPitch, int srcPitch2, int dstPitch,
+		 int w, int h)
+{
+    int i;
+    int dstPitch2 = dstPitch >> 1;
+    int h2 = h >> 1;
+
+    /* Y */
+    if (srcPitch == dstPitch) {
+        memcpy(dst, y_src, srcPitch * h);
+	dst += (dstPitch * h);
+    } else {
+	for (i = 0; i < h; i++) {
+            memcpy(dst, y_src, srcPitch);
+            y_src += srcPitch;
+            dst += dstPitch;
+        }
+    }
+
+    /* tex base need 256B alignment */
+    if (h & 1)
+	dst += dstPitch;
+
+    /* V */
+    if (srcPitch2 == dstPitch2) {
+        memcpy(dst, v_src, srcPitch2 * h2);
+	dst += (dstPitch2 * h2);
+    } else {
+	for (i = 0; i < h2; i++) {
+            memcpy(dst, v_src, srcPitch2);
+            v_src += srcPitch2;
+            dst += dstPitch2;
+        }
+    }
+
+    /* tex base need 256B alignment */
+    if (h2 & 1)
+	dst += dstPitch2;
+
+    /* U */
+    if (srcPitch2 == dstPitch2) {
+        memcpy(dst, u_src, srcPitch2 * h2);
+	dst += (dstPitch2 * h2);
+    } else {
+	for (i = 0; i < h2; i++) {
+            memcpy(dst, u_src, srcPitch2);
+            u_src += srcPitch2;
+            dst += dstPitch2;
+        }
+    }
+}
+
+static void
+R600CopyPackedSW(ScrnInfoPtr pScrn,
+		 unsigned char *src, unsigned char *dst,
+		 int srcPitch, int dstPitch,
+		 int w, int h)
+{
+    int i;
+
+    if (srcPitch == dstPitch) {
+        memcpy(dst, src, srcPitch * h);
+	dst += (dstPitch * h);
+    } else {
+	for (i = 0; i < h; i++) {
+            memcpy(dst, src, srcPitch);
+            src += srcPitch;
+            dst += dstPitch;
+        }
+    }
 }
 
 static int
@@ -371,17 +447,29 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	    s2offset = srcPitch * height;
 	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
-	    if (id == FOURCC_YV12)
-		R600CopyPlanar(pScrn, buf, buf + s3offset, buf + s2offset,
-			       pPriv->src_offset,
-			       srcPitch, srcPitch2, pPriv->src_pitch,
-			       width, height);
-	    else
-		R600CopyPlanar(pScrn, buf, buf + s2offset, buf + s3offset,
-			       pPriv->src_offset,
-			       srcPitch, srcPitch2, pPriv->src_pitch,
-			       width, height);
-
+	    if (info->DMAForXv) {
+		if (id == FOURCC_YV12)
+		    R600CopyPlanarHW(pScrn, buf, buf + s3offset, buf + s2offset,
+				     pPriv->src_offset,
+				     srcPitch, srcPitch2, pPriv->src_pitch,
+				     width, height);
+		else
+		    R600CopyPlanarHW(pScrn, buf, buf + s2offset, buf + s3offset,
+				     pPriv->src_offset,
+				     srcPitch, srcPitch2, pPriv->src_pitch,
+				     width, height);
+	    } else {
+		if (id == FOURCC_YV12)
+		    R600CopyPlanarSW(pScrn, buf, buf + s3offset, buf + s2offset,
+				     pPriv->src_addr,
+				     srcPitch, srcPitch2, pPriv->src_pitch,
+				     width, height);
+		else
+		    R600CopyPlanarSW(pScrn, buf, buf + s2offset, buf + s3offset,
+				     pPriv->src_addr,
+				     srcPitch, srcPitch2, pPriv->src_pitch,
+				     width, height);
+	    }
 	} else {
 	    top &= ~1;
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
@@ -406,9 +494,14 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     case FOURCC_YUY2:
     default:
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	    R600CopyPacked(pScrn, buf, pPriv->src_offset,
-			   2 * width, pPriv->src_pitch,
-			   width, height);
+	    if (info->DMAForXv)
+		R600CopyPackedHW(pScrn, buf, pPriv->src_offset,
+				 2 * width, pPriv->src_pitch,
+				 width, height);
+	    else
+		R600CopyPackedSW(pScrn, buf, pPriv->src_addr,
+				 2 * width, pPriv->src_pitch,
+				 width, height);
 	} else {
 	    nlines = ((y2 + 0xffff) >> 16) - top;
 	    RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);

@@ -2345,10 +2345,7 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
     xf86DrvMsg(pScrn->scrnIndex, from, "Page Flipping %sabled%s\n",
 	       info->dri->allowPageFlip ? "en" : "dis", reason);
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	info->DMAForXv = FALSE;
-    else
-	info->DMAForXv = TRUE;
+    info->DMAForXv = TRUE;
     from = xf86GetOptValBool(info->Options, OPTION_XV_DMA, &info->DMAForXv)
 	 ? X_CONFIG : X_INFO;
     xf86DrvMsg(pScrn->scrnIndex, from,
