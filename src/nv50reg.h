@@ -50,8 +50,8 @@
 #define NV50_PCONNECTOR_I2C_PORT_1			0x0000e150
 #define NV50_PCONNECTOR_I2C_PORT_2			0x0000e168
 #define NV50_PCONNECTOR_I2C_PORT_3			0x0000e180
-#define NV50_PCONNECTOR_I2C_PORT_4			0x0000e240
-#define NV50_PCONNECTOR_I2C_PORT_5			0x0000e258
+#define NV50_PCONNECTOR_I2C_PORT_4			0x0000e254
+#define NV50_PCONNECTOR_I2C_PORT_5			0x0000e274
 
 /* 0x00610024 is the state register to read, all it's bits also exist in 0x0061002C in the form of interrupt switches. */
 #define NV50_DISPLAY_SUPERVISOR		0x00610024
@@ -137,6 +137,7 @@
 #define NV50_DAC2_MODE_CTRL_VAL					0x00610B68
 #define NV50_SOR0_MODE_CTRL_VAL					0x00610B70
 #define NV50_SOR1_MODE_CTRL_VAL					0x00610B78
+#define NV50_SOR2_MODE_CTRL_VAL					0x00610B80
 
 #define NV50_DAC0_MODE_CTRL2_VAL					0x00610BDC
 #define NV50_DAC1_MODE_CTRL2_VAL					0x00610BE4
@@ -183,6 +184,7 @@
 #define NV50_SOR1_CLK_CTRL2	0x00614B00
 
 #define NV50_DAC2_CLK_CTRL2	0x00615280
+#define NV50_SOR2_CLK_CTRL2	0x00615300
 
 #define NV50_DAC0_DPMS_CTRL	0x0061A004
 	#define	NV50_DAC_DPMS_CTRL_HSYNC_OFF		(1 << 0)
@@ -240,6 +242,16 @@
 
 #define NV50_SOR1_DPMS_STATE	0x0061C830
 
+#define NV50_SOR2_DPMS_CTRL	0x0061D004
+#define NV50_SOR2_CLK_CTRL1	0x0061D008
+/* Seems to be a default state, nothing that can RE'd in any great detail. */
+#define NV50_SOR2_UNK00C		0x0061D00C
+#define NV50_SOR2_UNK010		0x0061D010
+#define NV50_SOR2_UNK014		0x0061D014
+#define NV50_SOR2_UNK018		0x0061D018
+
+#define NV50_SOR2_DPMS_STATE	0x0061D030
+
 /* A few things seem to exist in the 0x0064XXXX range, but not much. */
 /* Each of these corresponds to a range in 0x006102XX. */
 /* The blob writes zero to these regs. */
@@ -287,6 +299,7 @@
 	#define NV50_SOR_MODE_CTRL_NHSYNC			(1 << 12)
 	#define NV50_SOR_MODE_CTRL_NVSYNC			(2 << 12)
 #define NV50_SOR1_MODE_CTRL		0x640
+#define NV50_SOR2_MODE_CTRL		0x680
 
 #define NV50_CRTC0_UNK800			0x800
 #define NV50_CRTC0_CLOCK			0x804

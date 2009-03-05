@@ -54,6 +54,7 @@ NV50DispPreInit(ScrnInfoPtr pScrn)
 	NVWrite(pNv, 0x006101d0 + DAC2 * 0x4, NVRead(pNv, 0x0061a000 + DAC2 * 0x800));
 	NVWrite(pNv, 0x006101e0 + SOR0 * 0x4, NVRead(pNv, 0x0061c000 + SOR0 * 0x800));
 	NVWrite(pNv, 0x006101e0 + SOR1 * 0x4, NVRead(pNv, 0x0061c000 + SOR1 * 0x800));
+	NVWrite(pNv, 0x006101e0 + SOR2 * 0x4, NVRead(pNv, 0x0061c000 + SOR2 * 0x800));
 	/* Maybe TV-out related, or something more generic? */
 	/* These are not in nv, so it must be something nv does not use. */
 	NVWrite(pNv, 0x006101f0 + 0 * 0x4, NVRead(pNv, 0x0061e000 + 0 * 0x800));

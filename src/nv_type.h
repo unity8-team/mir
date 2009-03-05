@@ -92,7 +92,8 @@ typedef enum ORNum {
 	DAC1 = 1,
 	DAC2 = 2,
 	SOR0 = 0,
-	SOR1 = 1
+	SOR1 = 1,
+	SOR2 = 2,
 } ORNum;
 
 enum scaling_modes {
