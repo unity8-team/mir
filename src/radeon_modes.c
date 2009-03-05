@@ -425,10 +425,10 @@ radeon_add_common_modes(xf86OutputPtr output, DisplayModePtr modes)
     DisplayModePtr  first      = NULL;
     int i;
     /* Add some common sizes */
-    int widths[10]  = {640, 800, 1024, 1280, 1280, 1440, 1400, 1680, 1600, 1920};
-    int heights[10] = {480, 600,  768,  960, 1024,  900, 1050, 1050, 1200, 1200};
+    int widths[15]  = {640, 800, 1024, 1152, 1280, 1280, 1280, 1280, 1280, 1440, 1400, 1680, 1600, 1920, 1920};
+    int heights[15] = {480, 600,  768,  768,  720,  800,  854,  960, 1024,  900, 1050, 1050, 1200, 1080, 1200};
 
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 15; i++) {
 	if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	    /* already added the native mode */
 	    if (widths[i] == native_mode->PanelXRes && heights[i] == native_mode->PanelYRes)
