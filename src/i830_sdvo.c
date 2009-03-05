@@ -66,6 +66,14 @@ struct i830_sdvo_priv {
      */
     struct i830_sdvo_caps caps;
 
+    /**
+     * For multiple function SDVO device, this is for current attached outputs.
+     */
+    uint16_t attached_output;
+
+    /* Current output type name */
+    char *name;
+
     /** Pixel clock limitations reported by the SDVO device, in kHz */
     int pixel_clock_min, pixel_clock_max;
 
@@ -1516,6 +1524,135 @@ i830_sdvo_check_hdmi_encode (xf86OutputPtr output)
 	return FALSE;
 }
 
+static void i830_sdvo_select_ddc_bus(struct i830_sdvo_priv *dev_priv);
+
+static Bool
+i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
+{
+    I830OutputPrivatePtr  intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    char                  *name_prefix;
+    char                  *name_suffix;
+
+    if (dev_priv->output_device == SDVOB)
+	name_suffix = "-1";
+    else
+	name_suffix = "-2";
+
+    if (flag & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+    {
+	if (flag & SDVO_OUTPUT_TMDS0)
+	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS0;
+	else
+	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS1;
+	output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="TMDS";
+
+	if (i830_sdvo_check_hdmi_encode (output))
+	    name_prefix = "HDMI";
+    }
+    else if (flag & SDVO_OUTPUT_SVID0)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
+	output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
+	name_prefix="TV";
+	dev_priv->is_tv = TRUE;
+	intel_output->needs_tv_clock = TRUE;
+    }
+    else if (flag & SDVO_OUTPUT_RGB0)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_RGB0;
+	output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="VGA";
+    }
+    else if (flag & SDVO_OUTPUT_RGB1)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
+	output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="VGA";
+    } else if (flag & SDVO_OUTPUT_LVDS0) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
+	output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
+    } else if (flag & SDVO_OUTPUT_LVDS1) {
+	dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
+	output->subpixel_order = SubPixelHorizontalRGB;
+	name_prefix="LVDS";
+    } else {
+	unsigned char	bytes[2];
+
+	dev_priv->controlled_output = 0;
+	memcpy (bytes, &flag, 2);
+	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
+		   "%s: Unknown SDVO output type (0x%02x%02x)\n",
+		   SDVO_NAME(dev_priv),
+		   bytes[0], bytes[1]);
+	name_prefix="Unknown";
+    }
+
+    /* if exist origin name it will be freed in xf86OutputRename() */
+    dev_priv->name = xalloc(strlen(name_prefix) + strlen(name_suffix) + 1);
+    strcpy (dev_priv->name, name_prefix);
+    strcat (dev_priv->name, name_suffix);
+
+    if (!xf86OutputRename (output, dev_priv->name))
+    {
+	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
+		"%s: Failed to rename output to %s\n",
+		SDVO_NAME(dev_priv), dev_priv->name);
+	xf86OutputDestroy (output);
+	return FALSE;
+    }
+
+    /* update randr_output's name */
+    if (output->randr_output) {
+	int nameLength = strlen(dev_priv->name);
+	RROutputPtr randr_output = output->randr_output;
+	char *name = xalloc(nameLength + 1);
+
+	if (name) {
+	    if (randr_output->name != (char *) (randr_output + 1))
+		xfree(randr_output->name);
+	    randr_output->name = name;
+	    randr_output->nameLength = nameLength;
+	    memcpy(randr_output->name, dev_priv->name, nameLength);
+	    randr_output->name[nameLength] = '\0';
+	} else
+	    xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
+		   "%s: Failed to update RandR output name to %s\n",
+		   SDVO_NAME(dev_priv), dev_priv->name);
+    }
+
+    i830_sdvo_select_ddc_bus(dev_priv);
+
+    return TRUE;
+}
+
+static Bool
+i830_sdvo_multifunc_encoder(xf86OutputPtr output)
+{
+    I830OutputPrivatePtr  intel_output = output->driver_private;
+    struct i830_sdvo_priv *dev_priv = intel_output->dev_priv;
+    int caps = 0;
+
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_TMDS0 |
+		SDVO_OUTPUT_TMDS1))
+	caps++;
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_RGB0 |
+		SDVO_OUTPUT_RGB1))
+	caps++;
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_CVBS0 |
+		SDVO_OUTPUT_SVID0 | SDVO_OUTPUT_YPRPB0 |
+		SDVO_OUTPUT_SCART0 | SDVO_OUTPUT_CVBS1 |
+		SDVO_OUTPUT_SVID1 | SDVO_OUTPUT_YPRPB1 |
+		SDVO_OUTPUT_SCART1))
+	caps++;
+    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_LVDS0 |
+		SDVO_OUTPUT_LVDS1))
+	caps++;
+    return (caps > 1);
+}
+
 /**
  * Asks the SDVO device if any displays are currently connected.
  *
@@ -1541,6 +1678,14 @@ i830_sdvo_detect(xf86OutputPtr output)
 
     if (response == 0)
 	return XF86OutputStatusDisconnected;
+
+    if (i830_sdvo_multifunc_encoder(output)) {
+	if (dev_priv->attached_output != response) {
+	    if (!i830_sdvo_output_setup(output, response))
+		return XF86OutputStatusUnknown;
+	    dev_priv->attached_output = response;
+	}
+    }
 
     if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
     {
@@ -1735,10 +1880,18 @@ i830_sdvo_destroy (xf86OutputPtr output)
     if (intel_output)
     {
 	struct i830_sdvo_priv	*dev_priv = intel_output->dev_priv;
-	
+
 	xf86DestroyI2CBusRec (intel_output->pDDCBus, FALSE, FALSE);
 	xf86DestroyI2CDevRec (&dev_priv->d, FALSE);
 	xf86DestroyI2CBusRec (dev_priv->d.pI2CBus, TRUE, TRUE);
+
+	if (output->randr_output) {
+	    RROutputPtr	randr_output = output->randr_output;
+	    if (randr_output->name &&
+		    randr_output->name != (char *) (randr_output + 1))
+		xfree(randr_output->name);
+	}
+
 	xfree (intel_output);
     }
 }
@@ -1838,9 +1991,6 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     int			    i;
     unsigned char	    ch[0x40];
     I2CBusPtr		    i2cbus = NULL, ddcbus;
-    char		    name[60];
-    char		    *name_prefix;
-    char		    *name_suffix;
 
     output = xf86OutputCreate (pScrn, &i830_sdvo_output_funcs,NULL);
     if (!output)
@@ -1880,11 +2030,9 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     if (output_device == SDVOB) {
 	dev_priv->d.DevName = "SDVO Controller B";
 	dev_priv->d.SlaveAddr = 0x70;
-	name_suffix="-1";
     } else {
 	dev_priv->d.DevName = "SDVO Controller C";
 	dev_priv->d.SlaveAddr = 0x72;
-	name_suffix="-2";
     }
     dev_priv->d.pI2CBus = i2cbus;
     dev_priv->d.DriverPrivate.ptr = output;
@@ -1945,70 +2093,17 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     intel_output->pDDCBus = ddcbus;
     intel_output->dev_priv = dev_priv;
 
-    i830_sdvo_get_capabilities(output, &dev_priv->caps);
-
-    if (dev_priv->caps.output_flags & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+    if (!i830_sdvo_get_capabilities(output, &dev_priv->caps))
     {
-	if (dev_priv->caps.output_flags & SDVO_OUTPUT_TMDS0)
-	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS0;
-	else
-	    dev_priv->controlled_output = SDVO_OUTPUT_TMDS1;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="TMDS";
-
-	if (i830_sdvo_check_hdmi_encode (output))
-	    name_prefix = "HDMI";
-    }
-    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
-    {
-	dev_priv->controlled_output = SDVO_OUTPUT_SVID0;
-        output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
-	name_prefix="TV";
-	dev_priv->is_tv = TRUE;
-	intel_output->needs_tv_clock = TRUE;
-    }
-    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
-    {
-	dev_priv->controlled_output = SDVO_OUTPUT_RGB0;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="VGA";
-    }
-    else if (dev_priv->caps.output_flags & SDVO_OUTPUT_RGB1)
-    {
-	dev_priv->controlled_output = SDVO_OUTPUT_RGB1;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="VGA";
-    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS0) {
-	dev_priv->controlled_output = SDVO_OUTPUT_LVDS0;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="LVDS";
-    } else if (dev_priv->caps.output_flags & SDVO_OUTPUT_LVDS1) {
-	dev_priv->controlled_output = SDVO_OUTPUT_LVDS1;
-        output->subpixel_order = SubPixelHorizontalRGB;
-	name_prefix="LVDS";
-    }
-    else
-    {
-	unsigned char	bytes[2];
-
-	dev_priv->controlled_output = 0;
-	memcpy (bytes, &dev_priv->caps.output_flags, 2);
-	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
-		   "%s: Unknown SDVO output type (0x%02x%02x)\n",
-		   SDVO_NAME(dev_priv),
-		   bytes[0], bytes[1]);
-	name_prefix="Unknown";
-    }
-
-    strcpy (name, name_prefix);
-    strcat (name, name_suffix);
-    if (!xf86OutputRename (output, name))
-    {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to get %s capabilities\n",
+		   SDVO_NAME(dev_priv));
 	xf86OutputDestroy (output);
 	return FALSE;
     }
 
-    i830_sdvo_select_ddc_bus(dev_priv);
+    if (!i830_sdvo_output_setup (output, dev_priv->caps.output_flags))
+	return FALSE;
 
     /* Set the input timing to the screen. Assume always input 0. */
     i830_sdvo_set_target_input(output, TRUE, FALSE);
