@@ -372,6 +372,17 @@ NV30PutTextureImage(ScrnInfoPtr pScrn, struct nouveau_bo *src, int src_offset,
 	BEGIN_RING(chan, rankine, NV34TCL_VERTEX_BEGIN_END, 1);
 	OUT_RING  (chan, NV34TCL_VERTEX_BEGIN_END_STOP);
 
+	if (pNv->NVArch == 0x30) {
+		BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_HORIZ, 2);
+		OUT_RING  (chan, 4096 << 16);
+		OUT_RING  (chan, 4096 << 16);
+		BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_CLIP_HORIZ(0), 2);
+		OUT_RING  (chan, 4095 << 16);
+		OUT_RING  (chan, 4095 << 16);
+		BEGIN_RING(chan, rankine, NV34TCL_VIEWPORT_TX_ORIGIN, 1);
+		OUT_RING  (chan, 0);
+	}
+
 	FIRE_RING (chan);
 
 	return Success;
