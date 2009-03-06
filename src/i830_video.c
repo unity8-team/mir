@@ -1032,34 +1032,6 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
     return adapt;
 }
 
-static Bool
-RegionsEqual(RegionPtr A, RegionPtr B)
-{
-    int *dataA, *dataB;
-    int num;
-
-    num = REGION_NUM_RECTS(A);
-    if (num != REGION_NUM_RECTS(B))
-	return FALSE;
-
-    if ((A->extents.x1 != B->extents.x1) ||
-	(A->extents.x2 != B->extents.x2) ||
-	(A->extents.y1 != B->extents.y1) || (A->extents.y2 != B->extents.y2))
-	return FALSE;
-
-    dataA = (int *)REGION_RECTS(A);
-    dataB = (int *)REGION_RECTS(B);
-
-    while (num--) {
-	if ((dataA[0] != dataB[0]) || (dataA[1] != dataB[1]))
-	    return FALSE;
-	dataA += 2;
-	dataB += 2;
-    }
-
-    return TRUE;
-}
-
 static void
 I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
@@ -2528,7 +2500,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 			   drw_w, drw_h);
 	
 	/* update cliplist */
-	if (!RegionsEqual(&pPriv->clip, clipBoxes)) {
+	if (!REGION_EQUAL(pScrn->pScreen, &pPriv->clip, clipBoxes)) {
 	    REGION_COPY(pScrn->pScreen, &pPriv->clip, clipBoxes);
 	    i830_fill_colorkey (pScreen, pPriv->colorKey, clipBoxes);
 	}
