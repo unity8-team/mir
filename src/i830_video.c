@@ -81,10 +81,6 @@
 #include "i915_hwmc.h"
 #endif
 
-#ifndef USE_USLEEP_FOR_VIDEO
-#define USE_USLEEP_FOR_VIDEO 0
-#endif
-
 #define OFF_DELAY 	250		/* milliseconds */
 #define FREE_DELAY 	15000
 
