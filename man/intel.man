@@ -57,10 +57,13 @@ The following driver
 are supported
 .TP
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
-Disable or enable acceleration.  Default: acceleration is enabled.
+Disable or enable acceleration.
+.IP
+Default: acceleration is enabled.
 .TP
 .BI "Option \*qColorKey\*q \*q" integer \*q
 This sets the default pixel value for the YUV video overlay key.
+.IP
 Default: undefined.
 .TP
 .BI "Option \*qCacheLines\*q \*q" integer \*q
@@ -68,6 +71,7 @@ This allows the user to change the amount of graphics memory used for
 2D acceleration and video when XAA acceleration is enabled.  Decreasing this
 amount leaves more for 3D textures.  Increasing it can improve 2D performance
 at the expense of 3D performance.
+.IP
 Default: depends on the resolution, depth, and available video memory.  The
 driver attempts to allocate space for at 3 screenfuls of pixmaps plus an
 HD-sized XV video.  The default used for a specific configuration can be found
@@ -78,16 +82,19 @@ This option controls whether the framebuffer compression feature is enabled.
 If possible, the front buffer will be allocated in a tiled format and compressed
 periodically to save memory bandwidth and power.
 This option is only available on mobile chipsets.
+.IP
 Default: enabled on supported configurations.
 .TP
 .BI "Option \*qTiling\*q \*q" boolean \*q
 This option controls whether memory buffers are allocated in tiled mode.  In
 most cases (especially for complex rendering), tiling dramatically improves
 performance.
+.IP
 Default: enabled.
 .TP
 .BI "Option \*qDRI\*q \*q" boolean \*q
 Disable or enable DRI support.
+.IP
 Default: DRI is enabled for configurations where it is supported.
 
 .PP
@@ -97,19 +104,23 @@ are supported for the i810 and i815 chipsets:
 .TP
 .BI "Option \*qDDC\*q \*q" boolean \*q
 Disable or enable DDC support.
+.IP
 Default: enabled.
 .TP
 .BI "Option \*qDac6Bit\*q \*q" boolean \*q
 Enable or disable 6-bits per RGB for 8-bit modes.
+.IP
 Default: 8-bits per RGB for 8-bit modes.
 .TP
 .BI "Option \*qXvMCSurfaces\*q \*q" integer \*q
 This option enables XvMC.  The integer parameter specifies the number of
 surfaces to use.  Valid values are 6 and 7.
+.IP
 Default: XvMC is disabled.
 .TP
 .BI "VideoRam " integer
 This option specifies the amount of system memory to use for graphics, in KB.
+.IP
 The default is 8192 if AGP allocable memory is < 128 MB, 16384 if < 192 MB,
 24576 if higher. DRI require at least a value of 16384. Higher values may give
 better 3D performance, at expense of available system memory.
@@ -132,6 +143,7 @@ it due to it syncing to vblank in the absence of compositing.  While most
 XV-using applications have options to select which XV adaptor to use, this
 option can be used to place the overlay first for applications which don't
 have options for selecting adaptors.
+.IP
 Default: Textured video adaptor is preferred.
 .TP
 .BI "Option \*qLegacy3D\*q \*q" boolean \*q
@@ -139,22 +151,27 @@ Enable support for the non-GEM mode of the 3D driver on i830 and newer.
 This will allocate a large static area for older Mesa to use for its texture
 pool.  On systems with a working GEM environment, this can be disabled to
 increase the memory pool available to other graphics tasks.
+.IP
 Default for i830 and newer: Enabled.
+.IP
 Default for i810: this option is not used.
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
 XFree86 based acceleration architecture.  EXA is a newer and simpler
 acceleration architecture designed to better accelerate the X Render extension.
+.IP
 Default: "EXA".
 .TP
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
+.IP
 Default: Disabled
 .TP
 .BI "Option \*qFallbackDebug\*q \*q" boolean \*q
 Enable printing of debugging information on acceleration fallbacks to the
 server log.
+.IP
 Default: Disabled
 .TP
 .BI "Option \*qForceEnablePipeA\*q \*q" boolean \*q
@@ -174,7 +191,9 @@ within the X server.  This option instead selects the physical format
 / sequencing of the digital bits sent to the display.  Setting the
 frame buffer color depth is really a matter of preference by the user,
 while setting the pixel format here is a requirement of the connected
-hardware.  Leaving this unset implies the default value of false,
+hardware.
+.IP
+Leaving this unset implies the default value of false,
 which is almost always going to be right choice.  If your
 LVDS-connected display on the other hand is extremely washed out
 (e.g. white on a lighter white), trying this option might clear the
@@ -182,7 +201,9 @@ problem.
 .TP
 .BI "Option \*qLVDSFixedMode\*q \*q" boolean \*q
 Use a fixed set of timings for the LVDS output, independent of normal
-xorg specified timings.  The default value if left unspecified is
+xorg specified timings.
+.IP
+The default value if left unspecified is
 true, which is what you want for a normal LVDS-connected LCD type of
 panel.  If you are not sure about this, leave it at its default, which
 allows the driver to automatically figure out the correct fixed panel
@@ -192,6 +213,7 @@ information.
 .BI "Option \*qXvMC\*q \*q" boolean \*q
 Enable XvMC driver. Current support MPEG2 MC on 915/945 and G33 series.
 User should provide absolute path to libIntelXvMC.so in XvMCConfig file.
+.IP
 Default: Disabled.
 
 .SH OUTPUT CONFIGURATION
