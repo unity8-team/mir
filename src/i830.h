@@ -372,7 +372,6 @@ typedef struct _I830Rec {
 
    unsigned int bufferOffset;		/* for I830SelectBuffer */
    BoxRec FbMemBox;
-   BoxRec FbMemBox2;
    int CacheLines;
 
    /* These are set in PreInit and never changed. */
@@ -900,8 +899,7 @@ Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
 
 i830_memory *
-i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
-			  Bool secondary);
+i830_allocate_framebuffer(ScrnInfoPtr pScrn);
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);

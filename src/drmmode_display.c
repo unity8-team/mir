@@ -632,7 +632,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	I830Ptr     pI830 = I830PTR(scrn);
 	i830_memory *old_front = NULL;
-	BoxRec	    mem_box;
 	Bool	    tiled, ret;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 	uint32_t    old_fb_id;
@@ -659,8 +658,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualX = width;
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch;
-	pI830->front_buffer =
-		i830_allocate_framebuffer(scrn, pI830, &mem_box, FALSE);
+	pI830->front_buffer = i830_allocate_framebuffer(scrn);
 	if (!pI830->front_buffer)
 		goto fail;
 

@@ -1132,7 +1132,6 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
     if (i830->can_resize && i830->front_buffer)
     {
 	i830_memory *new_front, *old_front;
-	BoxRec	    mem_box;
 	Bool	    tiled;
 	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
 
@@ -1142,7 +1141,7 @@ i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		   width, height, scrn->displayWidth);
 	I830Sync(scrn);
 	i830WaitForVblank(scrn);
-	new_front = i830_allocate_framebuffer(scrn, i830, &mem_box, FALSE);
+	new_front = i830_allocate_framebuffer(scrn);
 	if (!new_front) {
 	    scrn->virtualX = old_x;
 	    scrn->virtualY = old_y;
