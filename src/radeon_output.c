@@ -255,7 +255,11 @@ radeon_ddc_connected(xf86OutputPtr output)
 		MonType = MT_DFP;
 	    break;
 	case CONNECTOR_DISPLAY_PORT:
-	    MonType = MT_DP;
+	    /*
+	     * XXX wrong. need to infer based on whether we got DDC from I2C
+	     * or AUXCH.
+	     */
+	    MonType = MT_DFP;
 	case CONNECTOR_DVI_I:
 	    if (MonInfo->rawData[0x14] & 0x80) /* if it's digital and DVI */
 		MonType = MT_DFP;

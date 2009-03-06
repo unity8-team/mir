@@ -430,7 +430,10 @@ atombios_get_encoder_mode(xf86OutputPtr output)
 	return ATOM_ENCODER_MODE_LVDS;
 	break;
     case CONNECTOR_DISPLAY_PORT:
-	return ATOM_ENCODER_MODE_DP;
+	if (radeon_output->MonType == MT_DP)
+	    return ATOM_ENCODER_MODE_DP;
+	else
+	    return atombios_maybe_hdmi_mode(output);
 	break;
     case CONNECTOR_DVI_A:
     case CONNECTOR_VGA:
