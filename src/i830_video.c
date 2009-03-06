@@ -2138,7 +2138,6 @@ i830_clip_video_helper (ScrnInfoPtr pScrn,
      */
     if (crtc_ret)
     {
-	I830Ptr		pI830 = I830PTR(pScrn);
 	BoxRec		crtc_box;
 	xf86CrtcPtr	crtc = i830_covering_crtc (pScrn, dst,
 						   pPriv->desired_crtc,
