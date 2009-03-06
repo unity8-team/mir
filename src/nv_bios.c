@@ -35,6 +35,7 @@
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10	/* also FEATURE_QUADRO for BMP */
+#define LEGACY_I2C_CRT 0x80
 
 #if 0
 #define BIOSLOG(sip, fmt, arg...) xf86DrvMsg(sip->scrnIndex, X_INFO, fmt, ##arg)
@@ -4552,15 +4553,15 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 	} else if (dcb_version >= 0x12) {
 		/* v1.2 tables normally have the same 5 entries, which are not
 		 * specific to the card, so use the defaults for a crt */
-		/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can handle, but cards
-		 * exist (seen on nv11) where the pointer to the table points to the wrong
-		 * place, so for now, we rely on the indices parsed in parse_bmp_structure
+		/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can
+		 * handle, but cards exist (nv11 in #14821) with a bad i2c table
+		 * pointer, so use the indices parsed in parse_bmp_structure
 		 */
-		entry->i2c_index = NVPTR(pScrn)->VBIOS.legacy.i2c_indices.crt;
+		entry->i2c_index = LEGACY_I2C_CRT;
 	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
 			   "No information in BIOS output table; assuming a CRT output exists\n");
-		entry->i2c_index = NVPTR(pScrn)->VBIOS.legacy.i2c_indices.crt;
+		entry->i2c_index = LEGACY_I2C_CRT;
 	}
 
 	dcb->entries++;
@@ -4727,6 +4728,16 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		merge_like_dcb_entries(pScrn, dcb);
 
 	return (dcb->entries ? 0 : -ENXIO);
+}
+
+static void fixup_legacy_i2c(struct nvbios *bios)
+{
+	struct parsed_dcb *dcb = &bios->bdcb.dcb;
+	int i;
+
+	for (i = 0; i < dcb->entries; i++)
+		if (dcb->entry[i].i2c_index == LEGACY_I2C_CRT)
+			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.crt;
 }
 
 static int load_nv17_hwsq_ucode_entry(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t hwsq_offset, int entry)
@@ -4900,6 +4911,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		return ret;
 	if ((ret = parse_dcb_table(pScrn, bios)))
 		return ret;
+	fixup_legacy_i2c(bios);
 
 	if (!bios->major_version)	/* we don't run version 0 bios */
 		return 0;
