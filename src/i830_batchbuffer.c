@@ -159,6 +159,7 @@ intel_batch_teardown(ScrnInfoPtr pScrn)
 
     if (pI830->batch_ptr != NULL) {
 	dri_bo_unmap(pI830->batch_bo);
+	dri_bo_unreference(pI830->batch_bo);
 	pI830->batch_ptr = NULL;
     }
 }
