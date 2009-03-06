@@ -146,7 +146,7 @@ static Bool
 I830InitDma(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830RingBuffer *ring = pI830->LpRing;
+   I830RingBuffer *ring = &pI830->ring;
    I830DRIPtr pI830DRI = (I830DRIPtr) pI830->pDRIInfo->devPrivate;
    drmI830Init info;
 
@@ -773,9 +773,9 @@ I830DRIMapHW(ScreenPtr pScreen)
 
    if (!pI830->memory_manager) {
        if (drmAddMap(pI830->drmSubFD,
-		     (drm_handle_t)pI830->LpRing->mem->offset +
+		     (drm_handle_t)pI830->ring.mem->offset +
 		     pI830->LinearAddr,
-		     pI830->LpRing->mem->size, DRM_AGP, 0,
+		     pI830->ring.mem->size, DRM_AGP, 0,
 		     (drmAddress) &pI830->ring_map) < 0) {
 	   xf86DrvMsg(pScreen->myNum, X_ERROR,
 		      "[drm] drmAddMap(ring_map) failed. Disabling DRI\n");
@@ -1004,7 +1004,7 @@ I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
       if (I810_DEBUG & DEBUG_VERBOSE_DRI)
 	 ErrorF("i830DRISwapContext (in)\n");
 
-      *pI830->last_3d = LAST_3D_OTHER;
+      pI830->last_3d = LAST_3D_OTHER;
 
       if (!pScrn->vtSema)
      	 return;

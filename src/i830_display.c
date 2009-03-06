@@ -469,11 +469,8 @@ i830PipeSetBase(xf86CrtcPtr crtc, int x, int y)
 	Start = (char *)crtc->rotatedData - (char *)pI830->FbBase;
 	Offset = 0;
 	Stride = intel_crtc->rotate_mem->pitch;
-    } else if (I830IsPrimary(pScrn)) {
-	Start = pI830->front_buffer->offset;
     } else {
-	I830Ptr pI8301 = I830PTR(pI830->entityPrivate->pScrn_1);
-	Start = pI8301->front_buffer_2->offset;
+	Start = pI830->front_buffer->offset;
     }
 
     crtc->x = x;

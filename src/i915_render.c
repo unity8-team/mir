@@ -383,7 +383,7 @@ i915_emit_composite_setup(ScrnInfoPtr pScrn)
     pI830->i915_render_state.needs_emit = FALSE;
 
     IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_RENDER;
+    pI830->last_3d = LAST_3D_RENDER;
 
     dst_pitch = intel_get_pixmap_pitch(pDst);
 

@@ -448,7 +448,7 @@ i830_overlay_on(ScrnInfoPtr pScrn)
     I830PortPrivPtr	pPriv = pI830->adaptor->pPortPrivates[0].ptr;
     Bool		deactivate = FALSE;
     
-    if (*pI830->overlayOn)
+    if (pI830->overlayOn)
 	return;
 
     /*
@@ -482,7 +482,7 @@ i830_overlay_on(ScrnInfoPtr pScrn)
 	i830_pipe_a_require_deactivate (pScrn);
 
     OVERLAY_DEBUG("overlay_on\n");
-    *pI830->overlayOn = TRUE;
+    pI830->overlayOn = TRUE;
 
     overlay->OCMD |= OVERLAY_ENABLE;
 }
@@ -494,7 +494,7 @@ i830_overlay_continue(ScrnInfoPtr pScrn, Bool update_filter)
     uint32_t		flip_addr;
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
 
-    if (!*pI830->overlayOn)
+    if (!pI830->overlayOn)
 	return;
 
     if (OVERLAY_NOPHYSICAL(pI830))
@@ -520,7 +520,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     I830OverlayRegPtr	overlay = I830OVERLAYREG(pI830);
 
-    if (!*pI830->overlayOn)
+    if (!pI830->overlayOn)
 	return;
 
     /*
@@ -558,7 +558,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 	ADVANCE_BATCH();
 	i830WaitSync(pScrn);
     }
-    *pI830->overlayOn = FALSE;
+    pI830->overlayOn = FALSE;
     OVERLAY_DEBUG("overlay_off\n");
 }
 
@@ -1068,7 +1068,6 @@ static void
 I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 {
     I830PortPrivPtr pPriv = (I830PortPrivPtr) data;
-    I830Ptr pI830 = I830PTR(pScrn);
 
     if (pPriv->textured)
 	return;
@@ -1080,8 +1079,6 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
     if (shutdown) {
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
 	    i830_overlay_off(pScrn);
-	    if (pI830->entityPrivate)
-		pI830->entityPrivate->XvInUse = -1;
 	}
 	if (!pPriv->textured)
 	    drm_intel_bo_unpin(pPriv->buf);
@@ -1197,7 +1194,7 @@ I830SetPortAttribute(ScrnInfoPtr pScrn,
 	if ((value < 0) || (value > 1))
 	    return BadValue;
 	/* Do not allow buffer change while playing video */
-	if(!*pI830->overlayOn)
+	if(!pI830->overlayOn)
 	    pPriv->doubleBuffer = value;
     } else
 	return BadMatch;
@@ -2277,22 +2274,6 @@ I830PutImage(ScrnInfoPtr pScrn,
 	   drw_w, drw_h, width, height);
 #endif
 
-    if (pI830->entityPrivate) {
-	if (pI830->entityPrivate->XvInUse != -1 &&
-	    pI830->entityPrivate->XvInUse != i830_crtc_pipe (pPriv->current_crtc)) {
-#ifdef PANORAMIX
-	    if (!noPanoramiXExtension) {
-		return Success; /* faked for trying to share it */
-	    } else
-#endif
-	    {
-		return BadAlloc;
-	    }
-	}
-
-	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pPriv->current_crtc);;
-    }
-
     if (!pPriv->textured) {
         /* If dst width and height are less than 1/8th the src size, the
          * src/dst scale factor becomes larger than 8 and doesn't fit in
@@ -2485,7 +2466,7 @@ I830PutImage(ScrnInfoPtr pScrn,
 #endif
 
     /* Pick the idle buffer */
-    if (!pPriv->textured && *pI830->overlayOn && pPriv->doubleBuffer)
+    if (!pPriv->textured && pI830->overlayOn && pPriv->doubleBuffer)
 	pPriv->currentBuf = !((INREG(DOVSTA) & OC_BUF) >> 20);
 
     /* copy data */
@@ -2761,9 +2742,6 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 
 		pPriv->videoStatus = FREE_TIMER;
 		pPriv->freeTime = now + FREE_DELAY;
-
-		if (pI830->entityPrivate)
-		    pI830->entityPrivate->XvInUse = -1;
 	    }
 	} else {				/* FREE_TIMER */
 	    if (pPriv->freeTime < now) {
@@ -2847,14 +2825,9 @@ I830StopSurface(XF86SurfacePtr surface)
     ScrnInfoPtr pScrn = surface->pScrn;
 
     if (pPriv->isOn) {
-	I830Ptr pI830 = I830PTR(pScrn);
-
 	OVERLAY_DEBUG("StopSurface\n");
 
 	i830_overlay_off (pScrn);
-
-	if (pI830->entityPrivate)
-	    pI830->entityPrivate->XvInUse = -1;
 
 	pPriv->isOn = FALSE;
     }
@@ -2903,22 +2876,6 @@ I830DisplaySurface(XF86SurfacePtr surface,
 
     OVERLAY_DEBUG("I830DisplaySurface\n");
 
-    if (pI830->entityPrivate) {
-	if (pI830->entityPrivate->XvInUse != -1 &&
-	    pI830->entityPrivate->XvInUse != i830_crtc_pipe (pI830Priv->current_crtc)) {
-#ifdef PANORAMIX
-	    if (!noPanoramiXExtension) {
-		return Success; /* faked for trying to share it */
-	    } else
-#endif
-	    {
-		return BadAlloc;
-	    }
-	}
-
-	pI830->entityPrivate->XvInUse = i830_crtc_pipe (pI830Priv->current_crtc);
-    }
-
     x1 = src_x;
     x2 = src_x + src_w;
     y1 = src_y;
@@ -2939,7 +2896,7 @@ I830DisplaySurface(XF86SurfacePtr surface,
     pI830Priv->YBuf1offset = pI830Priv->YBuf0offset;
 
     /* Pick the idle buffer */
-    if (!pI830Priv->textured && *pI830->overlayOn && pI830Priv->doubleBuffer) 
+    if (!pI830Priv->textured && pI830->overlayOn && pI830Priv->doubleBuffer)
 	pI830Priv->currentBuf = !((INREG(DOVSTA) & OC_BUF) >> 20);
 
     i830_display_video(pScrn, crtc, surface->id, surface->width, surface->height,

@@ -96,7 +96,7 @@ int
 I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   I830RingBuffer *ring = pI830->LpRing;
+   I830RingBuffer *ring = &pI830->ring;
    int iters = 0;
    unsigned int start = 0;
    unsigned int now = 0;
@@ -187,8 +187,6 @@ I830Sync(ScrnInfoPtr pScrn)
       return;
    }
 #endif
-
-   if (pI830->entityPrivate && !pI830->entityPrivate->RingRunning) return;
 
    I830EmitFlush(pScrn);
 

@@ -1481,9 +1481,9 @@ i830_valid_chain (ScrnInfoPtr pScrn, unsigned int ring, unsigned int end)
     
     head = (INREG (LP_RING + RING_HEAD)) & I830_HEAD_MASK;
     tail = INREG (LP_RING + RING_TAIL) & I830_TAIL_MASK;
-    mask = pI830->LpRing->tail_mask;
+    mask = pI830->ring.tail_mask;
     
-    virt = pI830->LpRing->virtual_start;
+    virt = pI830->ring.virtual_start;
     ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d\n",
 	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2);
 
@@ -1581,9 +1581,9 @@ i830_dump_ring(ScrnInfoPtr pScrn, uint32_t acthd)
     
     head = (INREG (LP_RING + RING_HEAD)) & I830_HEAD_MASK;
     tail = INREG (LP_RING + RING_TAIL) & I830_TAIL_MASK;
-    mask = pI830->LpRing->tail_mask;
+    mask = pI830->ring.tail_mask;
     
-    virt = pI830->LpRing->virtual_start;
+    virt = pI830->ring.virtual_start;
     ErrorF ("Ring at virtual %p head 0x%x tail 0x%x count %d acthd 0x%x\n",
 	    virt, head, tail, (((tail + mask + 1) - head) & mask) >> 2, acthd);
 
@@ -1728,8 +1728,6 @@ i830_check_error_state(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     int errors = 0;
     unsigned long temp, head, tail;
-
-    if (!I830IsPrimary(pScrn)) return TRUE;
 
     temp = INREG16(ESR);
     if (temp != 0) {

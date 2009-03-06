@@ -76,7 +76,7 @@ I915DisplayVideoTextured(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv, int id,
    intel_batch_start_atomic(pScrn, 200 + 20 * nbox);
 
    IntelEmitInvarientState(pScrn);
-   *pI830->last_3d = LAST_3D_VIDEO;
+   pI830->last_3d = LAST_3D_VIDEO;
 
    BEGIN_BATCH(20);
 

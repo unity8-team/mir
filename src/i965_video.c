@@ -718,7 +718,7 @@ i965_emit_video_setup(ScrnInfoPtr pScrn, drm_intel_bo *bind_bo, int n_src_surf)
     int urb_cs_start, urb_cs_size;
 
     IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_VIDEO;
+    pI830->last_3d = LAST_3D_VIDEO;
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;

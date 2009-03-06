@@ -1012,7 +1012,7 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
     render_state->needs_state_emit = FALSE;
 
     IntelEmitInvarientState(pScrn);
-    *pI830->last_3d = LAST_3D_RENDER;
+    pI830->last_3d = LAST_3D_RENDER;
 
     urb_vs_start = 0;
     urb_vs_size = URB_VS_ENTRIES * URB_VS_ENTRY_SIZE;

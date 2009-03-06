@@ -377,9 +377,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
 	pI830->cursor_mem_argb[p] = NULL;
     }
     pI830->front_buffer = NULL;
-    pI830->front_buffer_2 = NULL;
     pI830->xaa_scratch = NULL;
-    pI830->xaa_scratch_2 = NULL;
     pI830->exa_offscreen = NULL;
     pI830->overlay_regs = NULL;
     pI830->power_context = NULL;
@@ -388,7 +386,7 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
     pI830->depth_buffer = NULL;
     pI830->textures = NULL;
 #endif
-    pI830->LpRing->mem = NULL;
+    pI830->ring.mem = NULL;
     pI830->fake_bufmgr_mem = NULL;
 }
 
@@ -1054,23 +1052,23 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->accel == ACCEL_NONE || pI830->memory_manager || pI830->LpRing->mem != NULL)
+    if (pI830->accel == ACCEL_NONE || pI830->memory_manager || pI830->ring.mem != NULL)
 	return TRUE;
 
     /* We don't have any mechanism in the DRM yet to alert it that we've moved
      * the ringbuffer since init time, so allocate it fixed for its lifetime.
      */
-    pI830->LpRing->mem = i830_allocate_memory(pScrn, "ring buffer",
-					      PRIMARY_RINGBUFFER_SIZE, PITCH_NONE,
-					      GTT_PAGE_SIZE,
-					      NEED_LIFETIME_FIXED, TILE_NONE);
-    if (pI830->LpRing->mem == NULL) {
+    pI830->ring.mem = i830_allocate_memory(pScrn, "ring buffer",
+					   PRIMARY_RINGBUFFER_SIZE, PITCH_NONE,
+					   GTT_PAGE_SIZE,
+					   NEED_LIFETIME_FIXED, TILE_NONE);
+    if (pI830->ring.mem == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Failed to allocate Ring Buffer space\n");
 	return FALSE;
     }
 
-    pI830->LpRing->tail_mask = pI830->LpRing->mem->size - 1;
+    pI830->ring.tail_mask = pI830->ring.mem->size - 1;
     return TRUE;
 }
 
@@ -1473,20 +1471,10 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     /* Allocate overlay register space and optional XAA linear allocator
      * space.  The second head in zaphod mode will share the space.
      */
-    if (I830IsPrimary(pScrn) && !pI830->use_drm_mode)
+    if (!pI830->use_drm_mode)
 	i830_allocate_overlay(pScrn);
 #endif
 
-    if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2) {
-	I830EntPtr pI830Ent = pI830->entityPrivate;
-	I830Ptr pI8302 = I830PTR(pI830Ent->pScrn_2);
-
-	pI830->front_buffer_2 =
-	    i830_allocate_framebuffer(pI830Ent->pScrn_2, pI8302,
-				      &pI830->FbMemBox2, TRUE);
-	if (pI830->front_buffer_2 == NULL)
-	    return FALSE;
-    }
     pI830->front_buffer =
 	i830_allocate_framebuffer(pScrn, pI830, &pI830->FbMemBox, FALSE);
     if (pI830->front_buffer == NULL)
@@ -1541,30 +1529,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to allocate scratch buffer space\n");
 		return FALSE;
-	    }
-	}
-
-	/* Let's allocate another scratch buffer for the second head */
-	/* Again, this code won't execute on the dry run pass */
-	if (pI830->entityPrivate && pI830->entityPrivate->pScrn_2)
-	{
-	    pI830->xaa_scratch_2 =
-		i830_allocate_memory(pScrn, "xaa scratch 2",
-				     MAX_SCRATCH_BUFFER_SIZE, PITCH_NONE,
-				     GTT_PAGE_SIZE, NEED_LIFETIME_FIXED,
-				     TILE_NONE);
-	    if (pI830->xaa_scratch_2 == NULL) {
-		pI830->xaa_scratch_2 =
-		    i830_allocate_memory(pScrn, "xaa scratch 2",
-					 MIN_SCRATCH_BUFFER_SIZE, PITCH_NONE,
-					 GTT_PAGE_SIZE, NEED_LIFETIME_FIXED,
-					 TILE_NONE);
-		if (pI830->xaa_scratch_2 == NULL) {
-		    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			       "Failed to allocate secondary scratch "
-			       "buffer space\n");
-		    return FALSE;
-		}
 	    }
 	}
     }

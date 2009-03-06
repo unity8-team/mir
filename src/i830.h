@@ -212,17 +212,6 @@ typedef struct {
    int space;
 } I830RingBuffer;
 
-typedef struct {
-   int            lastInstance;
-   int            refCount;
-   ScrnInfoPtr    pScrn_1;
-   ScrnInfoPtr    pScrn_2;
-   int            RingRunning;
-#ifdef I830_XV
-   int            XvInUse;
-#endif
-} I830EntRec, *I830EntPtr;
-
 /* store information about an Ixxx DVO */
 /* The i830->i865 use multiple DVOs with multiple i2cs */
 /* the i915, i945 have a single sDVO i2c bus - which is different */
@@ -381,9 +370,6 @@ typedef struct _I830Rec {
    unsigned char *FbBase;
    int cpp;
 
-   I830EntPtr entityPrivate;	
-   int init;
-
    unsigned int bufferOffset;		/* for I830SelectBuffer */
    BoxRec FbMemBox;
    BoxRec FbMemBox2;
@@ -404,7 +390,6 @@ typedef struct _I830Rec {
    int gtt_acquired;		/**< whether we currently own the AGP */
 
    i830_memory *front_buffer;
-   i830_memory *front_buffer_2;
    i830_memory *compressed_front_buffer;
    i830_memory *compressed_ll_buffer;
    /* One big buffer for all cursors for kernels that support this */
@@ -413,14 +398,13 @@ typedef struct _I830Rec {
    i830_memory *cursor_mem_classic[2];
    i830_memory *cursor_mem_argb[2];
    i830_memory *xaa_scratch;
-   i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
 #endif
    i830_memory *fake_bufmgr_mem;
 
    /* Regions allocated either from the above pools, or from agpgart. */
-   I830RingBuffer *LpRing;
+   I830RingBuffer ring;
 
    /** Number of bytes being emitted in the current BEGIN_LP_RING */
    unsigned int ring_emitting;
@@ -562,7 +546,7 @@ typedef struct _I830Rec {
    int colorKey;
    XF86VideoAdaptorPtr adaptor;
    ScreenBlockHandlerProcPtr BlockHandler;
-   Bool *overlayOn;
+   Bool overlayOn;
 
    struct {
       drm_intel_bo *gen4_vs_bo;
@@ -723,7 +707,7 @@ typedef struct _I830Rec {
    uint32_t saveRAMCLK_GATE_D;
    uint32_t savePWRCTXA;
 
-   enum last_3d *last_3d;
+   enum last_3d last_3d;
 
    Bool use_drm_mode;
    Bool kernel_exec_fencing;
@@ -875,7 +859,6 @@ Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
 extern void i830_update_front_offset(ScrnInfoPtr pScrn);
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
-extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
 
 Bool
 i830_tiled_width(I830Ptr i830, int *width, int cpp);
@@ -985,7 +968,7 @@ i830_wait_ring_idle(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    if (pI830->accel != ACCEL_NONE)
-       I830WaitLpRing(pScrn, pI830->LpRing->mem->size - 8, 0);
+       I830WaitLpRing(pScrn, pI830->ring.mem->size - 8, 0);
 }
 
 static inline int i830_fb_compression_supported(I830Ptr pI830)

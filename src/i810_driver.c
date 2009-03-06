@@ -620,8 +620,6 @@ static Bool intel_pci_probe (DriverPtr		driver,
 {
     ScrnInfoPtr	    scrn = NULL;
     EntityInfoPtr   entity;
-    I830EntPtr	    i830_ent = NULL;
-    DevUnion	    *private;
 
     scrn = xf86ConfigPciEntity (scrn, 0, entity_num, I810PciChipsets,
 				NULL,
@@ -651,44 +649,7 @@ static Bool intel_pci_probe (DriverPtr		driver,
 	    scrn->ValidMode = I810ValidMode;
 	    break;
 #endif
-	case PCI_CHIP_845_G:
-	case PCI_CHIP_I865_G:
-	    /*
-	     * These two chips have only one pipe, and
-	     * cannot do dual-head
-	     */
-	    I830InitpScrn(scrn);
-	    break;
 	default:
-	    /*
-	     * Everything else is an i830-ish dual-pipe chip
-	     */
-	    xf86SetEntitySharable(entity_num);
-
-	    /* Allocate an entity private if necessary */		
-	    if (I830EntityIndex < 0)					
-		I830EntityIndex = xf86AllocateEntityPrivateIndex();	
-
-	    private = xf86GetEntityPrivate(scrn->entityList[0],
-					   I830EntityIndex);	
-	    i830_ent = private->ptr;
-	    if (!i830_ent)
-	    {
-		private->ptr = xnfcalloc(sizeof(I830EntRec), 1);
-		i830_ent = private->ptr;
-		i830_ent->lastInstance = -1;
-	    }
-
-	    /*
-	     * Set the entity instance for this instance of the driver.
-	     * For dual head per card, instance 0 is the "master"
-	     * instance, driving the primary head, and instance 1 is
-	     * the "slave".
-	     */
-	    i830_ent->lastInstance++;
-	    xf86SetEntityInstanceForScreen(scrn,			
-					   scrn->entityList[0],
-					   i830_ent->lastInstance);	
 	    I830InitpScrn(scrn);
 	    break;
 	}
@@ -708,7 +669,6 @@ static Bool
 I810Probe(DriverPtr drv, int flags)
 {
    int i, numUsed, numDevSections, *usedChips;
-   I830EntPtr pI830Ent = NULL;					
    DevUnion *pPriv;						
    GDevPtr *devSections;
    Bool foundScreen = FALSE;
@@ -790,8 +750,6 @@ I810Probe(DriverPtr drv, int flags)
 	    switch (pEnt->chipset) {
 	    case PCI_CHIP_845_G:
 	    case PCI_CHIP_I865_G:
-	       I830InitpScrn(pScrn);
-               break;
 	    case PCI_CHIP_I830_M:
 	    case PCI_CHIP_I855_GM:
 	    case PCI_CHIP_I915_G:
@@ -816,31 +774,6 @@ I810Probe(DriverPtr drv, int flags)
 	    case PCI_CHIP_G45_G:
 	    case PCI_CHIP_Q45_G:
 	    case PCI_CHIP_G41_G:
-    	       xf86SetEntitySharable(usedChips[i]);
-
-    	       /* Allocate an entity private if necessary */		
-    	       if (I830EntityIndex < 0)					
-		  I830EntityIndex = xf86AllocateEntityPrivateIndex();	
-
-    	       pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
-						I830EntityIndex);	
-    	       if (!pPriv->ptr) {
-		  pPriv->ptr = xnfcalloc(sizeof(I830EntRec), 1);
-		  pI830Ent = pPriv->ptr;
-		  pI830Ent->lastInstance = -1;
-    	       } else {
-		   pI830Ent = pPriv->ptr;
-    	       }
-
-    	       /*
-		* Set the entity instance for this instance of the driver.
-     	        * For dual head per card, instance 0 is the "master"
-     	        * instance, driving the primary head, and instance 1 is
-     	        * the "slave".
-     	        */
-    	       pI830Ent->lastInstance++;
-               xf86SetEntityInstanceForScreen(pScrn,			
-			pScrn->entityList[0], pI830Ent->lastInstance);	
 	       I830InitpScrn(pScrn);
 	       break;
 #ifndef I830_ONLY
