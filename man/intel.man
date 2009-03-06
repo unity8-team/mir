@@ -156,9 +156,12 @@ Default for i830 and newer: Enabled.
 .IP
 Default for i810: this option is not used.
 .BI "Option \*qAccelMethod\*q \*q" string \*q
-Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
-XFree86 based acceleration architecture.  EXA is a newer and simpler
+Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
+XFree86 based acceleration architecture.  EXA is a simpler
 acceleration architecture designed to better accelerate the X Render extension.
+UXA is a newer acceleration architecture built from the EXA acceleration
+code but taking advantage of kernel memory management to provide simpler,
+faster code.
 .IP
 Default: "EXA".
 .TP
