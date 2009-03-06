@@ -403,6 +403,13 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	}
     }
 
+    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT &&
+	radeon_output->MonType == MT_DFP) {
+	/* DP to DVI converter, single-link only */
+	if (pMode->Clock > 165000)
+	    return MODE_CLOCK_HIGH;
+    }
+
     if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
 	if (radeon_output->rmx_type == RMX_OFF) {
 	    if (pMode->HDisplay != native_mode->PanelXRes ||
