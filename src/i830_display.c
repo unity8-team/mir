@@ -1085,6 +1085,11 @@ i830_crtc_commit (xf86CrtcPtr crtc)
     /* Reenable FB compression if possible */
     if (i830_use_fb_compression(crtc))
 	i830_enable_fb_compression(crtc);
+
+#ifdef XF86DRI
+    /* Tell DRI1 the news about new output config */
+    i830_update_dri_buffers(crtc->scrn);
+#endif
 }
 
 void

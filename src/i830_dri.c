@@ -1387,9 +1387,6 @@ i830_update_dri_mappings(ScrnInfoPtr pScrn, drmI830Sarea *sarea)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   if (pI830->directRenderingType == DRI_DRI2)
-       return TRUE;
-
    if (!i830_do_addmap(pScrn, pI830->front_buffer, &sarea->front_handle,
 		       &sarea->front_size, &sarea->front_offset)) {
        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Disabling DRI.\n");
@@ -1447,8 +1444,14 @@ Bool
 i830_update_dri_buffers(ScrnInfoPtr pScrn)
 {
    ScreenPtr pScreen = pScrn->pScreen;
-   drmI830Sarea *sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
+   I830Ptr pI830 = I830PTR(pScrn);
+   drmI830Sarea *sarea;
    Bool success;
+
+   if (pI830->directRenderingType == DRI_DRI2)
+       return TRUE;
+
+   sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
 
    success = i830_update_dri_mappings(pScrn, sarea);
    if (!success)
