@@ -1688,6 +1688,9 @@ i830_allocate_pwrctx(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
+    if (pI830->use_drm_mode)
+	return TRUE;
+
     pI830->power_context = i830_allocate_memory(pScrn, "power context",
 						PWRCTX_SIZE, PITCH_NONE,
 						GTT_PAGE_SIZE,
