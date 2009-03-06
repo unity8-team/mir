@@ -819,6 +819,8 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 	{
 		PixmapPtr ppix = NVGetDrawablePixmap(pDraw);
 
+		/* this is whether ppix is in the viewable fb, not related to
+		   the EXA "offscreen" stuff */
 		if (!nouveau_exa_pixmap_is_onscreen(ppix))
 			*action_flags &= ~USE_OVERLAY;
 	}
@@ -1248,6 +1250,16 @@ CPU_copy:
 
 		/* Ensure pixmap is in offscreen memory */
 		exaMoveInPixmap(ppix);
+
+		/* check if it made it offscreen */
+#if NOUVEAU_EXA_PIXMAPS
+		if (!pNv->EXADriverPtr->PixmapIsOffscreen(ppix))
+#else
+		if (exaGetPixmapOffset(ppix) >= pNv->EXADriverPtr->memorySize)
+#endif
+			/* we lost, insufficient space probably */
+			return BadAlloc;
+
 		ExaOffscreenMarkUsed(ppix);
 
 #ifdef COMPOSITE
