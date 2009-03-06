@@ -2573,31 +2573,24 @@ static bool init_8e(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t offset, ini
 	 * cleared.
 	 */
 
-	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
-	uint16_t init8etblptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + 10]);
-	uint8_t headerlen = bios->data[init8etblptr + 1];
-	uint8_t entries = bios->data[init8etblptr + 2];
-	uint8_t recordlen = bios->data[init8etblptr + 3];
+	uint8_t headerlen = bios->data[bios->bdcb.init8e_table_ptr + 1];
+	uint8_t entries = bios->data[bios->bdcb.init8e_table_ptr + 2];
+	uint8_t recordlen = bios->data[bios->bdcb.init8e_table_ptr + 3];
 	int i;
 
-	if (!dcbptr) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No Display Configuration Block pointer found\n");
-		return false;
-	}
-	if (bios->data[dcbptr] != 0x40) {
+	if (bios->bdcb.version != 0x40) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DCB table not version 4.0\n");
 		return false;
 	}
-	if (!init8etblptr) {
+	if (!bios->bdcb.init8e_table_ptr) {
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Invalid pointer to INIT_8E table\n");
 		return false;
 	}
 
 	for (i = 0; i < entries; i++) {
-		uint32_t entry = le32_to_cpu(*(uint32_t *)&bios->data[init8etblptr + headerlen + recordlen * i]);
+		uint32_t entry = le32_to_cpu(*(uint32_t *)&bios->data[bios->bdcb.init8e_table_ptr + headerlen + recordlen * i]);
 		int shift = (entry & 0x1f) * 4;
 		uint32_t mask;
 		uint32_t reg = 0xe104;
@@ -4391,33 +4384,24 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint8_t *i2ctable, int in
 static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, struct nvbios *bios, int index)
 {
 	struct dcb_i2c_entry *i2c = &bios->bdcb.dcb.i2c[index];
-	uint16_t dcbptr = le16_to_cpu(*(uint16_t *)&bios->data[0x36]);
-	uint8_t dcb_version = bios->data[dcbptr];
-	uint16_t i2ctabptr = le16_to_cpu(*(uint16_t *)&bios->data[dcbptr + ((dcb_version < 0x30) ? 2 : 4)]);
-	uint8_t *i2c_table = &bios->data[i2ctabptr];
 	int ret;
 	char adaptorname[11];
 
 	if (i2c->chan)
 		return 0;
 
-	if (!dcbptr) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No Display Configuration Block pointer found\n");
-		return -EINVAL;
-	}
-	if (dcb_version < 0x12) {
+	if (bios->bdcb.version < 0x12) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "DCB table not version 1.2 or greater\n");
 		return -ENOSYS;
 	}
-	if (!i2ctabptr) {
+	if (!bios->bdcb.i2c_table) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No pointer to DCB I2C port table\n");
+			   "No parsed DCB I2C port table\n");
 		return -EINVAL;
 	}
 
-	if ((ret = read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, index, i2c)))
+	if ((ret = read_dcb_i2c_entry(pScrn, bios->bdcb.version, bios->bdcb.i2c_table, index, i2c)))
 		return ret;
 
 	snprintf(adaptorname, 11, "DCB-I2C-%d", index);
@@ -4426,9 +4410,9 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, struct nvbios *bios, int index)
 }
 
 static bool
-parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dcb_version, uint8_t *i2c_table, uint32_t conn, uint32_t conf)
+parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint32_t conn, uint32_t conf)
 {
-	struct dcb_entry *entry = &dcb->entry[index];
+	struct dcb_entry *entry = &bdcb->dcb.entry[index];
 
 	memset(entry, 0, sizeof (struct dcb_entry));
 
@@ -4442,7 +4426,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 	entry->or = 1;
 	entry->duallink_possible = false;
 
-	if (dcb_version >= 0x20) {
+	if (bdcb->version >= 0x20) {
 		entry->type = conn & 0xf;
 		entry->i2c_index = (conn >> 4) & 0xf;
 		entry->heads = (conn >> 8) & 0xf;
@@ -4461,7 +4445,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 			uint32_t mask;
 			if (conf & 0x1)
 				entry->lvdsconf.use_straps_for_mode = true;
-			if (dcb_version < 0x22) {
+			if (bdcb->version < 0x22) {
 				mask = ~0xd;
 				/* the laptop in bug 14567 lies and claims to
 				 * not use straps when it does, so assume all
@@ -4480,7 +4464,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 			}
 			if (conf & mask) {
 				/* I'm bored of getting this reported; left as a reminder for someone to fix it */
-				if (dcb_version >= 0x40) {
+				if (bdcb->version >= 0x40) {
 					xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 						   "G80+ LVDS not initialized by driver; ignoring conf bits\n");
 					break;
@@ -4488,7 +4472,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 					   "Unknown LVDS configuration bits, please report\n");
 				/* cause output setting to fail, so message is seen */
-				dcb->entries = 0;
+				bdcb->dcb.entries = 0;
 				return false;
 			}
 			break;
@@ -4501,8 +4485,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 		if (conf & 0x100000)
 			entry->i2c_upper_default = true;
 
-		read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, entry->i2c_index, &dcb->i2c[entry->i2c_index]);
-	} else if (dcb_version >= 0x14 ) {
+		read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
+				   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
+	} else if (bdcb->version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
 		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
 		    conn != 0xf2045f14 && conn != 0xf2205004) {
@@ -4511,7 +4496,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 
 			/* cause output setting to fail for non-TVs, so message is seen */
 			if ((conn & 0xf) != 0x1)
-				dcb->entries = 0;
+				bdcb->dcb.entries = 0;
 
 			return false;
 		}
@@ -4547,10 +4532,11 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 			entry[1].type = OUTPUT_ANALOG;
 			xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
 				   "Concocting additional DCB entry for analogue encoder on DVI output\n");
-			dcb->entries++;
+			bdcb->dcb.entries++;
 		}
-		read_dcb_i2c_entry(pScrn, dcb_version, i2c_table, entry->i2c_index, &dcb->i2c[entry->i2c_index]);
-	} else if (dcb_version >= 0x12) {
+		read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
+				   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
+	} else if (bdcb->version >= 0x12) {
 		/* v1.2 tables normally have the same 5 entries, which are not
 		 * specific to the card, so use the defaults for a crt */
 		/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can
@@ -4564,7 +4550,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb, int index, uint8_t dc
 		entry->i2c_index = LEGACY_I2C_CRT;
 	}
 
-	dcb->entries++;
+	bdcb->dcb.entries++;
 
 	return true;
 }
@@ -4617,15 +4603,16 @@ void merge_like_dcb_entries(ScrnInfoPtr pScrn, struct parsed_dcb *dcb)
 
 static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 {
+	struct bios_parsed_dcb *bdcb = &bios->bdcb;
 	struct parsed_dcb *dcb;
 	uint16_t dcbptr, i2ctabptr = 0;
-	uint8_t *dcbtable, *i2c_table = NULL;
-	uint8_t dcb_version, headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
+	uint8_t *dcbtable;
+	uint8_t headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
 	bool configblock = true;
 	int recordlength = 8, confofs = 4;
 	int i;
 
-	dcb = bios->pub.dcb = &bios->bdcb.dcb;
+	dcb = bios->pub.dcb = &bdcb->dcb;
 	dcb->entries = 0;
 
 	/* get the offset from 0x36 */
@@ -4635,27 +4622,30 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No Display Configuration Block pointer found\n");
 		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
-		parse_dcb_entry(pScrn, dcb, 0, 0, 0, 0, 0);
+		parse_dcb_entry(pScrn, bdcb, 0, 0, 0);
 		return 0;
 	}
 
 	dcbtable = &bios->data[dcbptr];
 
 	/* get DCB version */
-	dcb_version = dcbtable[0];
+	bdcb->version = dcbtable[0];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Found Display Configuration Block version %d.%d\n",
-		   dcb_version >> 4, dcb_version & 0xf);
+		   bdcb->version >> 4, bdcb->version & 0xf);
 
-	if (dcb_version >= 0x20) { /* NV17+ */
+	if (bdcb->version >= 0x20) { /* NV17+ */
 		uint32_t sig;
 
-		if (dcb_version >= 0x30) { /* NV40+ */
+		if (bdcb->version >= 0x30) { /* NV40+ */
 			headerlen = dcbtable[1];
 			entries = dcbtable[2];
 			recordlength = dcbtable[3];
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[4]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[6]);
+			if (bdcb->version == 0x40)	/* G80 */
+				bdcb->init8e_table_ptr =
+					le16_to_cpu(*(uint16_t *)&dcbtable[10]);
 		} else {
 			i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 			sig = le32_to_cpu(*(uint32_t *)&dcbtable[4]);
@@ -4667,7 +4657,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 				   "Bad Display Configuration Block signature (%08X)\n", sig);
 			return -EINVAL;
 		}
-	} else if (dcb_version >= 0x14) { /* some NV15/16, and NV11+ */
+	} else if (bdcb->version >= 0x14) { /* some NV15/16, and NV11+ */
 		char sig[8] = { 0 };
 
 		strncpy(sig, (char *)&dcbtable[-7], 7);
@@ -4680,12 +4670,12 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 				   "Bad Display Configuration Block signature (%s)\n", sig);
 			return -EINVAL;
 		}
-	} else if (dcb_version >= 0x12) { /* some NV6/10, and NV15+ */
+	} else if (bdcb->version >= 0x12) { /* some NV6/10, and NV15+ */
 		i2ctabptr = le16_to_cpu(*(uint16_t *)&dcbtable[2]);
 		configblock = false;
 	} else {	/* NV5+, maybe NV4 */
 		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
-		parse_dcb_entry(pScrn, dcb, 0, dcb_version, 0, 0, 0);
+		parse_dcb_entry(pScrn, bdcb, 0, 0, 0);
 		return 0;
 	}
 
@@ -4693,9 +4683,9 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "No pointer to DCB I2C port table\n");
 	else {
-		i2c_table = &bios->data[i2ctabptr];
-		if (dcb_version >= 0x30)
-			bios->bdcb.i2c_default_indices = i2c_table[4];
+		bdcb->i2c_table = &bios->data[i2ctabptr];
+		if (bdcb->version >= 0x30)
+			bdcb->i2c_default_indices = bdcb->i2c_table[4];
 	}
 
 	if (entries >= MAX_NUM_DCB_ENTRIES)
@@ -4717,14 +4707,14 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "Raw DCB entry %d: %08x %08x\n",
 			   dcb->entries, connection, config);
 
-		if (!parse_dcb_entry(pScrn, dcb, dcb->entries, dcb_version, i2c_table, connection, config))
+		if (!parse_dcb_entry(pScrn, bdcb, dcb->entries, connection, config))
 			break;
 	}
 
 	/* apart for v2.1+ not being known for requiring merging, this
 	 * guarantees dcbent->index is the index of the entry in the rom image
 	 */
-	if (dcb_version < 0x21)
+	if (bdcb->version < 0x21)
 		merge_like_dcb_entries(pScrn, dcb);
 
 	return (dcb->entries ? 0 : -ENXIO);

@@ -61,7 +61,12 @@ struct parsed_dcb {
 };
 
 struct bios_parsed_dcb {
+	uint8_t version;
+
 	struct parsed_dcb dcb;
+
+	uint16_t init8e_table_ptr;
+	uint8_t *i2c_table;
 	uint8_t i2c_default_indices;
 };
 
