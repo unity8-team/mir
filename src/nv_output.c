@@ -186,6 +186,11 @@ nv_output_detect(xf86OutputPtr output)
 		return NULL;
 	}
 
+	/* if an LVDS output was ever connected it remains so */
+	if (nv_connector->detected_encoder &&
+	    nv_connector->detected_encoder->dcb->type == OUTPUT_LVDS)
+		return XF86OutputStatusConnected;
+
 	if (nv_connector->pDDCBus && edid_sink_connected(output)) {
 		if (MULTIPLE_ENCODERS(nv_connector->possible_encoders)) {
 			if (nv_connector->edid->features.input_type)
