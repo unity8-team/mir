@@ -1915,17 +1915,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
        return FALSE;
    }
 
-   /*
-    * XXX If we knew the pre-initialised GTT format for certain, we could
-    * probably figure out the physical address even in the StolenOnly case.
-    */
-   if (pI830->StolenOnly && pI830->CursorNeedsPhysical &&
-	      !pI830->SWCursor) {
-      xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
-		 "HW Cursor disabled because it needs agpgart memory.\n");
-      pI830->SWCursor = TRUE;
-   }
-
    if (pScrn->modes == NULL) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
       PreInitCleanup(pScrn);
@@ -2874,25 +2863,19 @@ I830AdjustMemory(ScreenPtr pScreen)
    /* Limit videoRam to how much we might be able to allocate from AGP */
    sys_mem = I830CheckAvailableMemory(pScrn);
    if (sys_mem == -1) {
-      if (pScrn->videoRam > pI830->stolen_size / KB(1)) {
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "/dev/agpgart is either not available, or no memory "
+		 "is available\nfor allocation.  Please enable agpgart\n.");
+      pScrn->videoRam = pI830->stolen_size / KB(1);
+   }
+   if (sys_mem + (pI830->stolen_size / 1024) < pScrn->videoRam) {
+      pScrn->videoRam = sys_mem + (pI830->stolen_size / 1024);
+      from = X_PROBED;
+      if (sys_mem + (pI830->stolen_size / 1024) <
+	  pI830->pEnt->device->videoRam) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		    "/dev/agpgart is either not available, or no memory "
-		    "is available\nfor allocation.  "
-		    "Using pre-allocated memory only.\n");
-	 pScrn->videoRam = pI830->stolen_size / KB(1);
-      }
-      pI830->StolenOnly = TRUE;
-   } else {
-      if (sys_mem + (pI830->stolen_size / 1024) < pScrn->videoRam) {
-	 pScrn->videoRam = sys_mem + (pI830->stolen_size / 1024);
-	 from = X_PROBED;
-	 if (sys_mem + (pI830->stolen_size / 1024) <
-	     pI830->pEnt->device->videoRam)
-	 {
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		       "VideoRAM reduced to %d kByte "
-		       "(limited to available sysmem)\n", pScrn->videoRam);
-	 }
+		    "VideoRAM reduced to %d kByte "
+		    "(limited to available sysmem)\n", pScrn->videoRam);
       }
    }
 
@@ -3135,9 +3118,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 #ifdef I830_XV
    pI830->XvEnabled = !pI830->XvDisabled;
    if (pI830->XvEnabled) {
-      if (pI830->accel == ACCEL_NONE || pI830->StolenOnly) {
+      if (pI830->accel == ACCEL_NONE) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
-		    "needs 2D accel and AGPGART.\n");
+		    "needs 2D acceleration.\n");
 	 pI830->XvEnabled = FALSE;
       }
    }
@@ -3179,9 +3162,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     * InitGLXVisuals call back.
     */
    if (pI830->directRenderingType == DRI_XF86DRI) {
-      if (pI830->accel == ACCEL_NONE || pI830->SWCursor || pI830->StolenOnly) {
+      if (pI830->accel == ACCEL_NONE || pI830->SWCursor) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DRI is disabled because it "
-		    "needs HW cursor, 2D accel and AGPGART.\n");
+		    "needs HW cursor and 2D accel.\n");
 	 pI830->directRenderingType = DRI_NONE;
       }
    }

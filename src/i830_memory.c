@@ -1431,8 +1431,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     long size;
 
     if (!pI830->use_drm_mode) {
-	if (!pI830->StolenOnly &&
-	    (!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex))) {
+	if (!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		       "AGP GART support is either not available or cannot "
 		       "be used.\n"
@@ -1970,7 +1969,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->StolenOnly == TRUE || pI830->memory_list == NULL)
+    if (pI830->memory_list == NULL)
 	return TRUE;
 
     if (pI830->use_drm_mode || (xf86AgpGARTSupported() &&
@@ -2009,9 +2008,6 @@ Bool
 i830_unbind_all_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-
-    if (pI830->StolenOnly == TRUE)
-	return TRUE;
 
     if (pI830->use_drm_mode || (xf86AgpGARTSupported() &&
 				pI830->gtt_acquired)) {

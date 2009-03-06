@@ -609,8 +609,6 @@ typedef struct _I830Rec {
 
    Bool tv_present; /* TV connector present (from VBIOS) */
 
-   Bool StolenOnly;
-
    /* Driver phase/state information */
    Bool preinit;
    Bool starting;
