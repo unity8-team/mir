@@ -304,7 +304,6 @@ typedef enum {
    OPTION_NOACCEL,
    OPTION_CACHE_LINES,
    OPTION_DRI,
-   OPTION_XVIDEO,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
    OPTION_MODEDEBUG,
@@ -326,7 +325,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
-   {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_MODEDEBUG,	"ModeDebug",	OPTV_BOOLEAN,	{0},	FALSE},
@@ -1763,9 +1761,6 @@ I830XvInit(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     MessageType from = X_PROBED;
 
-    pI830->XvDisabled =
-	!xf86ReturnOptValBool(pI830->Options, OPTION_XVIDEO, TRUE);
-
    pI830->XvPreferOverlay = xf86ReturnOptValBool(pI830->Options, OPTION_PREFER_OVERLAY, FALSE);
 
 #ifdef I830_XV
@@ -3076,7 +3071,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
      * Set this so that the overlay allocation is factored in when
      * appropriate.
      */
-    pI830->XvEnabled = !pI830->XvDisabled;
+    pI830->XvEnabled = TRUE;
 #endif
 
 
@@ -3105,13 +3100,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
       return FALSE;
 
 #ifdef I830_XV
-   pI830->XvEnabled = !pI830->XvDisabled;
-   if (pI830->XvEnabled) {
-      if (pI830->accel == ACCEL_NONE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
-		    "needs 2D acceleration.\n");
-	 pI830->XvEnabled = FALSE;
-      }
+   if (pI830->accel == ACCEL_NONE) {
+      xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
+		 "needs 2D acceleration.\n");
+      pI830->XvEnabled = FALSE;
    }
 #else
    pI830->XvEnabled = FALSE;
@@ -3125,16 +3117,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	   pI830->accel = ACCEL_NONE;
       }
    }
-
-#ifdef I830_XV
-   if (pI830->XvEnabled) {
-      if (pI830->accel == ACCEL_NONE) {
-	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Disabling Xv because it "
-		    "needs 2D acceleration.\n");
-	 pI830->XvEnabled = FALSE;
-      }
-   }
-#endif
 
    if (!pI830->use_drm_mode) {
       DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");

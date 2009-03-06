@@ -125,10 +125,6 @@ This is the same as the
 option described above.  It is provided for compatibility with most
 other drivers.
 .TP
-.BI "Option \*qXVideo\*q \*q" boolean \*q
-Disable or enable XVideo support.
-Default: XVideo is enabled for configurations where it is supported.
-.TP
 .BI "Option \*qXvPreferOverlay\*q \*q" boolean \*q
 Make hardware overlay be the first XV adaptor.
 The overlay behaves incorrectly in the presence of compositing, but some prefer
