@@ -2505,6 +2505,14 @@ radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
     return index_mask;
 }
 
+static xf86OutputPtr
+RADEONOutputCreate(ScrnInfoPtr pScrn, const char *name, int i)
+{
+    char buf[32];
+    sprintf(buf, name, i);
+    return xf86OutputCreate(pScrn, &radeon_output_funcs, buf);
+}
+
 /*
  * initialise the static data sos we don't have to re-do at randr change */
 Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
@@ -2517,6 +2525,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     int num_vga = 0;
     int num_dvi = 0;
     int num_hdmi = 0;
+    int num_dp = 0;
 
     /* We first get the information about all connectors from BIOS.
      * This is how the card is phyiscally wired up.
@@ -2653,15 +2662,18 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 
     for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
-	    if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D) ||
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I) ||
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
+	    RADEONConnectorType conntype = info->BiosConnector[i].ConnectorType;
+	    if ((conntype == CONNECTOR_DVI_D) ||
+		(conntype == CONNECTOR_DVI_I) ||
+		(conntype == CONNECTOR_DVI_A)) {
 		num_dvi++;
-	    } else if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA) {
+	    } else if (conntype == CONNECTOR_VGA) {
 		num_vga++;
-	    } else if ((info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
-		       (info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
+	    } else if ((conntype == CONNECTOR_HDMI_TYPE_A) ||
+		       (conntype == CONNECTOR_HDMI_TYPE_B)) {
 		num_hdmi++;
+	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
+		num_dp++;
 	    }
 	}
     }
@@ -2669,8 +2681,9 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
     for (i = 0 ; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
 	if (info->BiosConnector[i].valid) {
 	    RADEONOutputPrivatePtr radeon_output;
+	    RADEONConnectorType conntype = info->BiosConnector[i].ConnectorType;
 
-	    if (info->BiosConnector[i].ConnectorType == CONNECTOR_NONE)
+	    if (conntype == CONNECTOR_NONE)
 		continue;
 
 	    radeon_output = xnfcalloc(sizeof(RADEONOutputPrivateRec), 1);
@@ -2678,7 +2691,7 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 		return FALSE;
 	    }
 	    radeon_output->MonType = MT_UNKNOWN;
-	    radeon_output->ConnectorType = info->BiosConnector[i].ConnectorType;
+	    radeon_output->ConnectorType = conntype;
 	    radeon_output->devices = info->BiosConnector[i].devices;
 	    radeon_output->ddc_i2c = info->BiosConnector[i].ddc_i2c;
 	    radeon_output->igp_lane_info = info->BiosConnector[i].igp_lane_info;
@@ -2687,33 +2700,21 @@ Bool RADEONSetupConnectors(ScrnInfoPtr pScrn)
 	    radeon_output->linkb = info->BiosConnector[i].linkb;
 	    radeon_output->connector_id = info->BiosConnector[i].connector_object;
 
-	    if ((info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_D) ||
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_I) ||
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_DVI_A)) {
-		if (num_dvi > 1) {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-1");
-		    num_dvi--;
-		} else {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "DVI-0");
-		}
-	    } else if (info->BiosConnector[i].ConnectorType == CONNECTOR_VGA) {
-		if (num_vga > 1) {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-1");
-		    num_vga--;
-		} else {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "VGA-0");
-		}
-	    } else if ((info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_A) ||
-		(info->BiosConnector[i].ConnectorType == CONNECTOR_HDMI_TYPE_B)) {
-		if (num_hdmi > 1) {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "HDMI-1");
-		    num_hdmi--;
-		} else {
-		    output = xf86OutputCreate(pScrn, &radeon_output_funcs, "HDMI-0");
-		}
-	    } else
-		output = xf86OutputCreate(pScrn, &radeon_output_funcs,
-					  ConnectorTypeName[radeon_output->ConnectorType]);
+	    if ((conntype == CONNECTOR_DVI_D) ||
+		(conntype == CONNECTOR_DVI_I) ||
+		(conntype == CONNECTOR_DVI_A)) {
+		output = RADEONOutputCreate(pScrn, "DVI-%d", --num_dvi);
+	    } else if (conntype == CONNECTOR_VGA) {
+		output = RADEONOutputCreate(pScrn, "VGA-%d", --num_vga);
+	    } else if ((conntype == CONNECTOR_HDMI_TYPE_A) ||
+		       (conntype == CONNECTOR_HDMI_TYPE_B)) {
+		output = RADEONOutputCreate(pScrn, "HDMI-%d", --num_hdmi);
+	    } else if (conntype == CONNECTOR_DISPLAY_PORT) {
+		output = RADEONOutputCreate(pScrn, "DisplayPort-%d", --num_dp);
+	    } else {
+		output = RADEONOutputCreate(pScrn,
+					    ConnectorTypeName[conntype], 0);
+	    }
 
 	    if (!output) {
 		return FALSE;
