@@ -1448,11 +1448,10 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	i830_setup_fb_compression(pScrn);
 
     /* Next, allocate other fixed-size allocations we have. */
-    if (!pI830->SWCursor && !i830_allocate_cursor_buffers(pScrn)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "Disabling HW cursor because the cursor memory "
-		   "allocation failed.\n");
-	pI830->SWCursor = TRUE;
+    if (!i830_allocate_cursor_buffers(pScrn)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Failed to allocate HW cursor space.\n");
+	return FALSE;
     }
 
     if (pI830->memory_manager == NULL) {
@@ -1997,7 +1996,7 @@ i830_bind_all_memory(ScrnInfoPtr pScrn)
 		FatalError("Couldn't bind memory for BO %s\n", mem->name);
 	}
     }
-    if (!pI830->SWCursor && !pI830->use_drm_mode)
+    if (!pI830->use_drm_mode)
 	i830_update_cursor_offsets(pScrn);
 
     return TRUE;

@@ -59,11 +59,6 @@ are supported
 .BI "Option \*qNoAccel\*q \*q" boolean \*q
 Disable or enable acceleration.  Default: acceleration is enabled.
 .TP
-.BI "Option \*qSWCursor\*q \*q" boolean \*q
-Disable or enable software cursor.  Default: software cursor is disable
-and a hardware cursor is used for configurations where the hardware cursor
-is available.
-.TP
 .BI "Option \*qColorKey\*q \*q" integer \*q
 This sets the default pixel value for the YUV video overlay key.
 Default: undefined.

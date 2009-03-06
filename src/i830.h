@@ -497,7 +497,6 @@ typedef struct _I830Rec {
    Bool fence_used[FENCE_NEW_NR];
 
    accel_method_t accel;
-   Bool SWCursor;
 #ifdef I830_USE_XAA
    XAAInfoRecPtr AccelInfoRec;
 

@@ -302,7 +302,6 @@ static PciChipsets I830PciChipsets[] = {
 typedef enum {
    OPTION_ACCELMETHOD,
    OPTION_NOACCEL,
-   OPTION_SW_CURSOR,
    OPTION_CACHE_LINES,
    OPTION_DRI,
    OPTION_XVIDEO,
@@ -325,7 +324,6 @@ typedef enum {
 static OptionInfoRec I830Options[] = {
    {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
-   {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
@@ -1503,6 +1501,10 @@ I830LoadSyms(ScrnInfoPtr pScrn)
 	return FALSE;
     xf86LoaderReqSymLists(I810vgahwSymbols, NULL);
 
+    if (!xf86LoadSubModule(pScrn, "ramdac"))
+       return FALSE;
+    xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
+
     return TRUE;
 }
 
@@ -1620,10 +1622,6 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 #endif
 	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
 		   accel_name[pI830->accel]);
-    }
-
-    if (xf86ReturnOptValBool(pI830->Options, OPTION_SW_CURSOR, FALSE)) {
-	pI830->SWCursor = TRUE;
     }
 
     pI830->directRenderingType = DRI_NONE;
@@ -1973,13 +1971,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
    default:
       break;
-   }
-   if (!pI830->SWCursor) {
-      if (!xf86LoadSubModule(pScrn, "ramdac")) {
-	 PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-      xf86LoaderReqSymLists(I810ramdacSymbols, NULL);
    }
 
    if (!pI830->use_drm_mode) {
@@ -3032,8 +3023,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* If DRI hasn't been explicitly disabled, try to initialize it.
     * It will be used by the memory allocator.
     */
-   if (pI830->directRenderingType == DRI_NONE && pI830->SWCursor)
-       pI830->directRenderingType = DRI_DISABLED;
    if (!pI830->can_resize && pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
        pI830->directRenderingType = DRI_XF86DRI;
 
@@ -3162,9 +3151,9 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     * InitGLXVisuals call back.
     */
    if (pI830->directRenderingType == DRI_XF86DRI) {
-      if (pI830->accel == ACCEL_NONE || pI830->SWCursor) {
+      if (pI830->accel == ACCEL_NONE) {
 	 xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "DRI is disabled because it "
-		    "needs HW cursor and 2D accel.\n");
+		    "needs 2D acceleration.\n");
 	 pI830->directRenderingType = DRI_NONE;
       }
    }
@@ -3257,13 +3246,10 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    xf86SetSilkenMouse(pScreen);
    miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
-   if (!pI830->SWCursor) {
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
-      if (!I830CursorInit(pScreen))
-	 xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		    "Hardware cursor initialization failed\n");
-   } else
-      xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing SW Cursor!\n");
+   xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Initializing HW Cursor\n");
+   if (!I830CursorInit(pScreen))
+      xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		 "Hardware cursor initialization failed\n");
 
 #ifdef XF86DRI
    /* Must be called before EnterVT, so we can acquire the DRI lock when
@@ -3571,8 +3557,7 @@ I830EnterVT(int scrnIndex, int flags)
 	   i830_stop_ring(pScrn, FALSE);
 	   i830_start_ring(pScrn);
        }
-       if (!pI830->SWCursor)
-	   I830InitHWCursor(pScrn);
+       I830InitHWCursor(pScrn);
 
        /* Tell the BIOS that we're in control of mode setting now. */
        i830_init_bios_control(pScrn);
