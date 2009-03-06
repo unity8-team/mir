@@ -305,7 +305,6 @@ typedef enum {
    OPTION_SW_CURSOR,
    OPTION_CACHE_LINES,
    OPTION_DRI,
-   OPTION_PAGEFLIP,
    OPTION_XVIDEO,
    OPTION_VIDEO_KEY,
    OPTION_COLOR_KEY,
@@ -316,7 +315,6 @@ typedef enum {
    OPTION_TILING,
    OPTION_LEGACY3D,
    OPTION_LVDSFIXEDMODE,
-   OPTION_TRIPLEBUFFER,
    OPTION_FORCEENABLEPIPEA,
 #ifdef INTEL_XVMC
    OPTION_XVMC,
@@ -2877,7 +2875,7 @@ i830_memory_init(ScrnInfoPtr pScrn)
 	}
     }
 
-    /* If tiling fails we have to disable page flipping & FBC */
+    /* If tiling fails we have to disable FBC */
     pScrn->displayWidth = savedDisplayWidth;
     if (pI830->fb_compression)
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
