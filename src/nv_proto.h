@@ -77,13 +77,12 @@ void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 
 /* in nv_bios.c */
 int NVParseBios(ScrnInfoPtr pScrn);
+int nouveau_bios_getmnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
+void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P);
 int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk);
 bool nouveau_bios_fp_mode(ScrnInfoPtr pScrn, DisplayModeRec *mode);
 int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *if_is_24bit);
 int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int pxclk);
-int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM, int *log2P);
-int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *NM1, int *NM2, int *log2P);
-void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P);
 int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll_lim);
 uint8_t * nouveau_bios_embedded_edid(ScrnInfoPtr pScrn);
 

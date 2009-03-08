@@ -565,7 +565,8 @@ static bool io_condition_met(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t of
 	return (data == cmpval);
 }
 
-int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bestNM, int *bestlog2P)
+static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
+			 int *bestNM, int *bestlog2P)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
@@ -658,7 +659,8 @@ int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	return bestclk;
 }
 
-int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bestNM1, int *bestNM2, int *bestlog2P)
+static int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
+			 int *bestNM1, int *bestNM2, int *bestlog2P)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -750,6 +752,23 @@ int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, int *bes
 	}
 
 	return bestclk;
+}
+
+int nouveau_bios_getmnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
+			int *NM1, int *NM2, int *log2P)
+{
+	int outclk;
+
+	if (!pll_lim->vco2.maxfreq)
+		outclk = getMNP_single(pScrn, pll_lim, clk, NM1, log2P);
+	else
+		outclk = getMNP_double(pScrn, pll_lim, clk, NM1, NM2, log2P);
+
+	if (!outclk)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Could not find a compatible set of PLL values\n");
+
+	return outclk;
 }
 
 static int powerctrl_1_shift(int chip_version, int reg)
@@ -998,22 +1017,15 @@ static int setPLL(ScrnInfoPtr pScrn, struct nvbios *bios, uint32_t reg, uint32_t
 {
 	/* clk in kHz */
 	struct pll_lims pll_lim;
-	int ret, cv = bios->chip_version, NM1 = 0xbeef, NM2 = 0xdead, log2P;
+	int ret, NM1, NM2, log2P;
 
 	/* high regs (such as in the mac g5 table) are not -= 4 */
 	if ((ret = get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim)))
 		return ret;
 
-	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
-	    cv >= 0x40) {
-		getMNP_double(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
-		if (NM2 == 0xdead) {
-			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-				   "Could not find a suitable set of PLL coefficients, giving up\n");
-			return -ERANGE;
-		}
-	} else
-		getMNP_single(pScrn, &pll_lim, clk, &NM1, &log2P);
+	clk = nouveau_bios_getmnp(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
+	if (!clk)
+		return -ERANGE;
 
 	nouveau_bios_setpll(pScrn, reg, NM1, NM2, log2P);
 
@@ -3536,7 +3548,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 {
 	/* PLL limits table
 	 *
-	 * Version 0x10: NV31
+	 * Version 0x10: NV30, NV31
 	 * One byte header (version), one record of 24 bytes
 	 * Version 0x11: NV36 - Not implemented
 	 * Seems to have same record style as 0x10, but 3 records rather than 1
@@ -3554,7 +3566,8 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 	uint32_t crystal_strap_mask, crystal_straps;
 
 	if (!bios->pll_limit_tbl_ptr) {
-		if (cv == 0x31 || cv == 0x36 || cv >= 0x40) {
+		if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
+		    cv >= 0x40) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Pointer to PLL limits table invalid\n");
 			return -EINVAL;
 		}

@@ -221,7 +221,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	struct pll_lims pll_lim;
 	bool using_two_pll_stages = false;
 	/* NM2 == 0 is used to determine single stage mode on two stage plls */
-	int NM1 = 0xbeef, NM2 = 0, log2P = 0, VClk = 0;
+	int NM1, NM2 = 0, log2P, vclk;
 	uint32_t g70_pll_special_bits = 0;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
@@ -240,11 +240,14 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	 * nv43 however.  the behaviour of single stage use is untested on nv40
 	 */
 	if ((pNv->two_reg_pll || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) &&
-	    (pNv->NVArch < 0x41 || dot_clock > (pll_lim.vco1.maxfreq / 2))) {
+	    (pNv->NVArch < 0x41 || dot_clock > (pll_lim.vco1.maxfreq / 2)))
 		using_two_pll_stages = true;
-		VClk = getMNP_double(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
-	} else
-		VClk = getMNP_single(pScrn, &pll_lim, dot_clock, &NM1, &log2P);
+	else if (pNv->NVArch > 0x40)
+		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
+
+	vclk = nouveau_bios_getmnp(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
+	if (!vclk)
+		return;
 
 	/* magic bits set by the blob (but not the bios), purpose unknown */
 	if (pNv->NVArch == 0x46 || pNv->NVArch == 0x49 || pNv->NVArch == 0x4b)
@@ -290,7 +293,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	pllvals->log2P = log2P;
 
 	if (pNv->Architecture < NV_ARCH_30)
-		nv4_10UpdateArbitrationSettings(pScrn, VClk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
+		nv4_10UpdateArbitrationSettings(pScrn, vclk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
 	else if ((pNv->Chipset & 0xfff0) == CHIPSET_C51 ||
 		 (pNv->Chipset & 0xfff0) == CHIPSET_C512) {
 		arbitration0 = 128;
