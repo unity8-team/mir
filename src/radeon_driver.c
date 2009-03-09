@@ -1991,7 +1991,7 @@ static Bool RADEONPreInitAccel(ScrnInfoPtr pScrn)
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
 	xf86DrvMsg(pScrn->scrnIndex, X_DEFAULT,
-	    "Experimental R6xx/R7xx EXA support.\n");
+	    "Will attempt to use R6xx/R7xx EXA support if DRI is enabled.\n");
 	info->useEXA = TRUE;
     }
 
