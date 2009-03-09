@@ -41,6 +41,9 @@ struct dcb_entry {
 	bool duallink_possible;
 	union {
 		struct {
+			int maxfreq;
+		} crtconf;
+		struct {
 			bool use_straps_for_mode;
 			bool use_power_scripts;
 		} lvdsconf;

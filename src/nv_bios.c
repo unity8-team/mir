@@ -4453,6 +4453,14 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 			entry->duallink_possible = true;
 
 		switch (entry->type) {
+		case OUTPUT_ANALOG:
+			/* although the rest of a CRT conf dword is usually
+			 * zeros, mac biosen have stuff there so we must mask
+			 */
+			entry->crtconf.maxfreq = (bdcb->version < 0x30) ?
+						 (conf & 0xffff) * 10 :
+						 (conf & 0xff) * 10000;
+			break;
 		case OUTPUT_LVDS:
 			{
 			uint32_t mask;
@@ -4531,6 +4539,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		entry->or = entry->heads;
 
 		switch (entry->type) {
+		case OUTPUT_ANALOG:
+			entry->crtconf.maxfreq = (conf & 0xffff) * 10;
+			break;
 		case OUTPUT_LVDS:
 			/* this is probably buried in conn's unknown bits */
 			/* this will upset EDID-ful models, if they exist */
@@ -4540,7 +4551,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		case OUTPUT_TMDS:
 			/* invent a DVI-A output, by copying the fields of the DVI-D output
 			 * reported to work by math_b on an NV20(!) */
-			memcpy(&entry[1], &entry[0], sizeof(struct dcb_entry));
+			entry[1] = entry[0];
 			entry[1].index = ++index;
 			entry[1].type = OUTPUT_ANALOG;
 			xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,

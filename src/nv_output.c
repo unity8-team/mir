@@ -348,7 +348,6 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_connector(output)->detected_encoder;
-	NVPtr pNv = NVPTR(output->scrn);
 
 	/* mode_valid can be called by someone doing addmode on an output
 	 * which is disconnected and so without an encoder; avoid crashing
@@ -362,10 +361,12 @@ static int nv_output_mode_valid(xf86OutputPtr output, DisplayModePtr mode)
 		return MODE_NO_INTERLACE;
 
 	if (nv_encoder->dcb->type == OUTPUT_ANALOG) {
-		if (mode->Clock > (pNv->two_reg_pll ? 400000 : 350000))
-			return MODE_CLOCK_HIGH;
-		if (mode->Clock < 12000)
-			return MODE_CLOCK_LOW;
+		if (nv_encoder->dcb->crtconf.maxfreq) {
+			if (mode->Clock > nv_encoder->dcb->crtconf.maxfreq)
+				return MODE_CLOCK_HIGH;
+		} else
+			if (mode->Clock > 350000)
+				return MODE_CLOCK_HIGH;
 	}
 	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS)
 		/* No modes > panel's native res */
