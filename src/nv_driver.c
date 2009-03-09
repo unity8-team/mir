@@ -2099,8 +2099,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			if (!NV50AcquireDisplay(pScrn))
 				return FALSE;
 
+		pNv->allow_dpms = FALSE;
 		if (!xf86SetDesiredModes(pScrn))
 			return FALSE;
+		pNv->allow_dpms = TRUE;
 	}
 
 	/* Darken the screen for aesthetic reasons */

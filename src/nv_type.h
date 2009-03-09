@@ -356,6 +356,7 @@ typedef struct _NVRec {
 
 #ifdef XF86DRM_MODE
 	void *drmmode; /* for KMS */
+	Bool allow_dpms;
 #endif
 
 	nouveauCrtcPtr crtc[2];
