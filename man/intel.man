@@ -461,7 +461,7 @@ You can use the "xvattr" tool to query/set those attributes at runtime.
 .SS "XV_SYNC_TO_VBLANK"
 XV_SYNC_TO_VBLANK is used to control whether textured adapter synchronizes 
 the screen update to the vblank to eliminate tearing. It has three 
-values 'auto'(-1), 'off'(0) and 'auto'(1). 'off' means never sync, 'on' means 
+values 'auto'(-1), 'off'(0) and 'on(1). 'off' means never sync, 'on' means 
 always sync, no matter what size, and 'auto' means sync if the Xv image is 
 more than quarter of the pixels on the screen. The default is 'auto'(-1).
 
