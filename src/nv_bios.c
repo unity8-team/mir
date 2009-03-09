@@ -804,7 +804,9 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 {
 	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
 	uint32_t oldpll = bios_rd32(pScrn, reg);
+	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
 	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
+	int newN = NM >> 8, newM = NM & 0xff;
 	uint32_t saved_powerctrl_1 = 0;
 	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg);
 
@@ -818,15 +820,19 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 			1 << shift_powerctrl_1);
 	}
 
-	/* write NM first */
-	bios_wr32(pScrn, reg, (oldpll & 0xffff0000) | NM);
+	if (oldM && newM && (oldN / oldM < newN / newM))
+		/* upclock -- write new post divider first */
+		bios_wr32(pScrn, reg, log2P << 16 | (oldpll & 0xffff));
+	else
+		/* downclock -- write new NM first */
+		bios_wr32(pScrn, reg, (oldpll & 0xffff0000) | NM);
 
 	if (chip_version < 0x17 && chip_version != 0x11)
 		/* wait a bit on older chips */
 		BIOS_USLEEP(64000);
 	bios_rd32(pScrn, reg);
 
-	/* then write P as well */
+	/* then write the other half as well */
 	bios_wr32(pScrn, reg, pll);
 
 	if (shift_powerctrl_1 >= 0)
