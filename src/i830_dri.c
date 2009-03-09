@@ -1448,7 +1448,7 @@ i830_update_dri_buffers(ScrnInfoPtr pScrn)
    drmI830Sarea *sarea;
    Bool success;
 
-   if (pI830->directRenderingType == DRI_DRI2)
+   if (pI830->directRenderingType != DRI_XF86DRI)
        return TRUE;
 
    sarea = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
