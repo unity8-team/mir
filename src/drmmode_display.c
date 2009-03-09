@@ -370,8 +370,6 @@ drmmode_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	int ret;
 
-	return;
-
 	ret = drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				  size, red, green, blue);
 	if (ret != 0) {
