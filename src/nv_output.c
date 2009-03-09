@@ -423,12 +423,10 @@ static const struct {
 static Atom dithering_atom;
 #define DITHERING_MODE_NAME "DITHERING"
 
-static void
-nv_output_create_resources(xf86OutputPtr output)
+static void nv_output_create_resources(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	ScrnInfoPtr pScrn = output->scrn;
-	INT32 dithering_range[2] = { 0, 1 };
 	int error, i;
 
 	/* may be called before encoder is picked, resources will be created
@@ -441,59 +439,37 @@ nv_output_create_resources(xf86OutputPtr output)
 	if (nv_encoder->dcb->type == OUTPUT_ANALOG)
 		return;
 
-	/*
-	 * Setup scaling mode property.
-	 */
-	scaling_mode_atom = MakeAtom(SCALING_MODE_NAME, sizeof(SCALING_MODE_NAME) - 1, TRUE);
-
-	error = RRConfigureOutputProperty(output->randr_output,
-					scaling_mode_atom, TRUE, FALSE, FALSE,
-					0, NULL);
-
-	if (error != 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"RRConfigureOutputProperty error, %d\n", error);
-	}
-
-	char *existing_scale_name = NULL;
+	/* Panel scaling mode property */
+	char *cur_scale_str = NULL;
 	for (i = 0; scaling_mode[i].name; i++)
 		if (scaling_mode[i].mode == nv_encoder->scaling_mode)
-			existing_scale_name = scaling_mode[i].name;
+			cur_scale_str = scaling_mode[i].name;
 
-	error = RRChangeOutputProperty(output->randr_output, scaling_mode_atom,
-					XA_STRING, 8, PropModeReplace, 
-					strlen(existing_scale_name),
-					existing_scale_name, FALSE, TRUE);
-
-	if (error != 0) {
+	scaling_mode_atom = MakeAtom(SCALING_MODE_NAME, sizeof(SCALING_MODE_NAME) - 1, TRUE);
+	if ((error = RRConfigureOutputProperty(output->randr_output, scaling_mode_atom,
+					       TRUE, FALSE, FALSE, 0, NULL)))
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to set scaling mode, %d\n", error);
-	}
-
-	/*
-	 * Setup dithering property.
-	 */
-	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
-
-	error = RRConfigureOutputProperty(output->randr_output,
-					dithering_atom, TRUE, TRUE, FALSE,
-					2, dithering_range);
-
-	if (error != 0) {
+			   "Scaling mode property creation failed: %d\n", error);
+	if ((error = RRChangeOutputProperty(output->randr_output, scaling_mode_atom, XA_STRING, 8,
+					    PropModeReplace, strlen(cur_scale_str), cur_scale_str,
+					    FALSE, TRUE)))
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"RRConfigureOutputProperty error, %d\n", error);
-	}
+			   "Failed to set scaling mode property: %d\n", error);
 
+	/* Panel dithering property */
+	INT32 dithering_range[2] = { 0, 1 };
 	/* promote bool into int32 to make RandR DIX and big endian happy */
-	int32_t existing_dither = nv_encoder->dithering;
-	error = RRChangeOutputProperty(output->randr_output, dithering_atom,
-					XA_INTEGER, 32, PropModeReplace, 1,
-					&existing_dither, FALSE, TRUE);
+	int32_t cur_dither = nv_encoder->dithering;
 
-	if (error != 0) {
+	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
+	if ((error = RRConfigureOutputProperty(output->randr_output, dithering_atom,
+					       TRUE, TRUE, FALSE, 2, dithering_range)))
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"Failed to set dithering mode, %d\n", error);
-	}
+			   "Dithering property creation failed: %d\n", error);
+	if ((error = RRChangeOutputProperty(output->randr_output, dithering_atom, XA_INTEGER, 32,
+					    PropModeReplace, 1,	&cur_dither, FALSE, TRUE)))
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Failed to set dithering property: %d\n", error);
 
 	RRPostPendingProperties(output->randr_output);
 }
