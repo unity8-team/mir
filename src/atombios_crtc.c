@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright © 2007 Red Hat, Inc.
  * Copyright 2007  Advanced Micro Devices, Inc.
  *
@@ -469,6 +469,8 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
 	OUTREG(AVIVO_D1MODE_DESKTOP_HEIGHT + radeon_crtc->crtc_offset, mode->VDisplay);
+	x &= ~3;
+	y &= ~1;
 	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (mode->HDisplay << 16) | mode->VDisplay);

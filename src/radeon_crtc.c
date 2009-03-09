@@ -507,6 +507,8 @@ radeon_crtc_set_origin(xf86CrtcPtr crtc, int x, int y)
     unsigned char *RADEONMMIO = info->MMIO;
 
     if (IS_AVIVO_VARIANT) {
+	x &= ~3;
+	y &= ~1;
 	atombios_lock_crtc(info->atomBIOS, radeon_crtc->crtc_id, 1);
 	OUTREG(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset, (x << 16) | y);
 	atombios_lock_crtc(info->atomBIOS, radeon_crtc->crtc_id, 0);
