@@ -206,7 +206,8 @@ typedef enum {
     OPTION_DEFAULT_TVDAC_ADJ,
     OPTION_INT10,
     OPTION_EXA_VSYNC,
-    OPTION_ATOM_TVOUT
+    OPTION_ATOM_TVOUT,
+    OPTION_R4XX_ATOM
 } RADEONOpts;
 
 
@@ -883,6 +884,8 @@ typedef struct {
 
     int               virtualX;
     int               virtualY;
+
+    Bool              r4xx_atom;
 
 } RADEONInfoRec, *RADEONInfoPtr;
 

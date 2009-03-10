@@ -567,6 +567,11 @@ atombios chips. TV-out is experimental and may not function on these chips as
 well as hoped for.
 The default is
 .B off.
+.TP 
+.BI "Option \*qR4xxATOM\*q \*q" boolean \*q
+This option enables modesetting on R/RV4xx chips using atombios.
+The default is
+.B off.
 
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)

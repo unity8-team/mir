@@ -346,7 +346,7 @@ radeon_dpms(xf86OutputPtr output, int mode)
     if ((mode == DPMSModeOn) && radeon_output->enabled)
 	return;
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_AVIVO_VARIANT || info->r4xx_atom) {
 	atombios_output_dpms(output, mode);
     } else {
 	legacy_output_dpms(output, mode);
@@ -523,7 +523,7 @@ radeon_mode_prepare(xf86OutputPtr output)
 	    if (other_crtc->enabled) {
 		if (other_radeon_crtc->initialized) {
 		    radeon_crtc_dpms(other_crtc, DPMSModeOff);
-		    if (IS_AVIVO_VARIANT)
+		    if (IS_AVIVO_VARIANT || info->r4xx_atom)
 			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 1);
 		    radeon_dpms(loop_output, DPMSModeOff);
 		}
@@ -543,7 +543,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 {
     RADEONInfoPtr info = RADEONPTR(output->scrn);
 
-    if (IS_AVIVO_VARIANT)
+    if (IS_AVIVO_VARIANT || info->r4xx_atom)
 	atombios_output_mode_set(output, mode, adjusted_mode);
     else
 	legacy_output_mode_set(output, mode, adjusted_mode);
@@ -568,7 +568,7 @@ radeon_mode_commit(xf86OutputPtr output)
 	    if (other_crtc->enabled) {
 		if (other_radeon_crtc->initialized) {
 		    radeon_crtc_dpms(other_crtc, DPMSModeOn);
-		    if (IS_AVIVO_VARIANT)
+		    if (IS_AVIVO_VARIANT || info->r4xx_atom)
 			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 0);
 		    radeon_dpms(loop_output, DPMSModeOn);
 		}

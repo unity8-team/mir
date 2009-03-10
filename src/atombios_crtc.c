@@ -50,6 +50,23 @@
 extern int
 atombios_get_encoder_mode(xf86OutputPtr output);
 
+extern void
+RADEONInitCrtcBase(xf86CrtcPtr crtc, RADEONSavePtr save,
+		   int x, int y);
+extern void
+RADEONInitCrtc2Base(xf86CrtcPtr crtc, RADEONSavePtr save,
+		    int x, int y);
+extern void
+RADEONRestoreCrtcBase(ScrnInfoPtr pScrn,
+		      RADEONSavePtr restore);
+extern void
+RADEONRestoreCrtc2Base(ScrnInfoPtr pScrn,
+		       RADEONSavePtr restore);
+extern void
+RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info);
+extern void
+RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save);
+
 AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock)
 {
@@ -202,6 +219,37 @@ atombios_set_crtc_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_TIMING_PARAMETERS_
     return ATOM_NOT_IMPLEMENTED;
 }
 
+static AtomBiosResult
+atombios_set_crtc_dtd_timing(atomBiosHandlePtr atomBIOS, SET_CRTC_USING_DTD_TIMING_PARAMETERS *crtc_param)
+{
+    AtomBiosArgRec data;
+    unsigned char *space;
+    SET_CRTC_USING_DTD_TIMING_PARAMETERS conv_param;
+
+    conv_param.usH_Size        = cpu_to_le16(crtc_param->usH_Size);
+    conv_param.usH_Blanking_Time= cpu_to_le16(crtc_param->usH_Blanking_Time);
+    conv_param.usV_Size        = cpu_to_le16(crtc_param->usV_Size);
+    conv_param.usV_Blanking_Time= cpu_to_le16(crtc_param->usV_Blanking_Time);
+    conv_param.usH_SyncOffset= cpu_to_le16(crtc_param->usH_SyncOffset);
+    conv_param.usH_SyncWidth= cpu_to_le16(crtc_param->usH_SyncWidth);
+    conv_param.usV_SyncOffset= cpu_to_le16(crtc_param->usV_SyncOffset);
+    conv_param.usV_SyncWidth= cpu_to_le16(crtc_param->usV_SyncWidth);
+    conv_param.susModeMiscInfo.usAccess = cpu_to_le16(crtc_param->susModeMiscInfo.usAccess);
+    conv_param.ucCRTC= crtc_param->ucCRTC;
+
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, SetCRTC_UsingDTDTiming);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &conv_param;
+
+    if (RHDAtomBiosFunc(atomBIOS->scrnIndex, atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	ErrorF("Set DTD CRTC Timing success\n");
+	return ATOM_SUCCESS ;
+    }
+
+    ErrorF("Set DTD CRTC Timing failed\n");
+    return ATOM_NOT_IMPLEMENTED;
+}
+
 void
 atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 {
@@ -220,24 +268,18 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     RADEONOutputPrivatePtr radeon_output = NULL;
     radeon_encoder_ptr radeon_encoder = NULL;
     int pll_flags = 0;
+    uint32_t temp;
 
     void *ptr;
     AtomBiosArgRec data;
     unsigned char *space;
-    RADEONSavePtr save = info->ModeReg;
 
     memset(&spc_param, 0, sizeof(spc_param));
     if (IS_AVIVO_VARIANT) {
-	uint32_t temp;
-
 	if (IS_DCE3_VARIANT && mode->Clock > 200000) /* range limits??? */
 	    pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 	else
 	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
-
-
-	RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, pll_flags);
-	sclock = temp;
 
 	/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
 	if (radeon_crtc->crtc_id == 0) {
@@ -248,11 +290,29 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    OUTREG(AVIVO_P2PLL_INT_SS_CNTL, temp & ~1);
 	}
     } else {
-	sclock = save->dot_clock_freq;
-	fb_div = save->feedback_div;
-	post_div = save->post_div;
-	ref_div = save->ppll_ref_div;
+	pll_flags |= RADEON_PLL_LEGACY;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+	    xf86OutputPtr output = xf86_config->output[i];
+	    RADEONOutputPrivatePtr radeon_output = output->driver_private;
+
+	    if (output->crtc == crtc) {
+		if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT |
+						    ATOM_DEVICE_DFP_SUPPORT))
+		    pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
+		if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		    pll_flags |= (RADEON_PLL_USE_BIOS_DIVS | RADEON_PLL_USE_REF_DIV);
+	    }
+	}
+
+	if (mode->Clock > 200000) /* range limits??? */
+	    pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+	else
+	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
     }
+
+    RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, pll_flags);
+    sclock = temp;
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) Clock: mode %d, PLL %lu\n",
@@ -350,8 +410,10 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
     int need_tv_timings = 0;
     int i, ret;
     SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
+    SET_CRTC_USING_DTD_TIMING_PARAMETERS crtc_dtd_timing;
     Bool tilingChanged = FALSE;
     memset(&crtc_timing, 0, sizeof(crtc_timing));
+    memset(&crtc_dtd_timing, 0, sizeof(crtc_dtd_timing));
 
     if (info->allowColorTiling) {
         radeon_crtc->can_tile = (adjusted_mode->Flags & (V_DBLSCAN | V_INTERLACE)) ? FALSE : TRUE;
@@ -410,6 +472,36 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	if (adjusted_mode->Flags & V_DBLSCAN)
 	    crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
 
+	if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0)) {
+	    crtc_dtd_timing.ucCRTC = radeon_crtc->crtc_id;
+	    crtc_dtd_timing.usH_Size = adjusted_mode->CrtcHDisplay;
+	    crtc_dtd_timing.usV_Size = adjusted_mode->CrtcVDisplay;
+	    crtc_dtd_timing.usH_Blanking_Time = adjusted_mode->CrtcHBlankEnd - adjusted_mode->CrtcHDisplay;
+	    crtc_dtd_timing.usV_Blanking_Time = adjusted_mode->CrtcVBlankEnd - adjusted_mode->CrtcVDisplay;
+	    crtc_dtd_timing.usH_SyncOffset = adjusted_mode->CrtcHSyncStart - adjusted_mode->CrtcHDisplay;
+	    crtc_dtd_timing.usV_SyncOffset = adjusted_mode->CrtcVSyncStart - adjusted_mode->CrtcVDisplay;
+	    crtc_dtd_timing.usH_SyncWidth = adjusted_mode->CrtcHSyncEnd - adjusted_mode->CrtcHSyncStart;
+	    crtc_dtd_timing.usV_SyncWidth = adjusted_mode->CrtcVSyncEnd - adjusted_mode->CrtcVSyncStart;
+	    ErrorF("%d %d %d %d %d %d %d %d\n", crtc_dtd_timing.usH_Size, crtc_dtd_timing.usH_SyncOffset,
+		   crtc_dtd_timing.usH_SyncWidth, crtc_dtd_timing.usH_Blanking_Time,
+		   crtc_dtd_timing.usV_Size, crtc_dtd_timing.usV_SyncOffset,
+		   crtc_dtd_timing.usV_SyncWidth, crtc_dtd_timing.usV_Blanking_Time);
+
+	    if (adjusted_mode->Flags & V_NVSYNC)
+		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
+
+	    if (adjusted_mode->Flags & V_NHSYNC)
+		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
+
+	    if (adjusted_mode->Flags & V_CSYNC)
+		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
+
+	    if (adjusted_mode->Flags & V_INTERLACE)
+		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+
+	    if (adjusted_mode->Flags & V_DBLSCAN)
+		crtc_dtd_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+	}
     }
 
     ErrorF("Mode %dx%d - %d %d %d\n", adjusted_mode->CrtcHDisplay, adjusted_mode->CrtcVDisplay,
@@ -417,6 +509,11 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     RADEONInitMemMapRegisters(pScrn, info->ModeReg, info);
     RADEONRestoreMemMapRegisters(pScrn, info->ModeReg);
+
+    atombios_crtc_set_pll(crtc, adjusted_mode);
+    atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
+    if (!IS_AVIVO_VARIANT && (radeon_crtc->crtc_id == 0))
+	atombios_set_crtc_dtd_timing(info->atomBIOS, &crtc_dtd_timing);
 
     if (IS_AVIVO_VARIANT) {
 	uint32_t fb_format;
@@ -481,11 +578,56 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	else
 	    OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
 		   0);
+    } else {
+	int format = 0;
+	uint32_t crtc_gen_cntl, crtc2_gen_cntl, crtc_pitch;
+
+
+	RADEONInitCommonRegisters(info->ModeReg, info);
+	RADEONInitSurfaceCntl(crtc, info->ModeReg);
+	ErrorF("restore common\n");
+	RADEONRestoreCommonRegisters(pScrn, info->ModeReg);
+
+	switch (info->CurrentLayout.pixel_code) {
+	case 4:  format = 1; break;
+	case 8:  format = 2; break;
+	case 15: format = 3; break;      /*  555 */
+	case 16: format = 4; break;      /*  565 */
+	case 24: format = 5; break;      /*  RGB */
+	case 32: format = 6; break;      /* xRGB */
+	default:
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Unsupported pixel depth (%d)\n",
+		       info->CurrentLayout.bitsPerPixel);
+	}
+
+	crtc_pitch  = (((pScrn->displayWidth * pScrn->bitsPerPixel) +
+			((pScrn->bitsPerPixel * 8) -1)) /
+		       (pScrn->bitsPerPixel * 8));
+	crtc_pitch |= crtc_pitch << 16;
+
+	switch (radeon_crtc->crtc_id) {
+	case 0:
+	    ErrorF("init crtc1\n");
+	    crtc_gen_cntl = INREG(RADEON_CRTC_GEN_CNTL) & 0xfffff0ff;
+	    crtc_gen_cntl |= (format << 8);
+	    OUTREG(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
+	    OUTREG(RADEON_CRTC_PITCH, crtc_pitch);
+	    RADEONInitCrtcBase(crtc, info->ModeReg, x, y);
+	    RADEONRestoreCrtcBase(pScrn, info->ModeReg);
+	    break;
+	case 1:
+	    crtc2_gen_cntl = INREG(RADEON_CRTC2_GEN_CNTL) & 0xfffff0ff;
+	    crtc2_gen_cntl |= (format << 8);
+	    OUTREG(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+	    OUTREG(RADEON_CRTC2_PITCH, crtc_pitch);
+	    RADEONInitCrtc2Base(crtc, info->ModeReg, x, y);
+	    RADEONRestoreCrtc2Base(pScrn, info->ModeReg);
+	    OUTREG(RADEON_FP_H2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_H_SYNC_STRT_WID));
+	    OUTREG(RADEON_FP_V2_SYNC_STRT_WID,   INREG(RADEON_CRTC2_V_SYNC_STRT_WID));
+	    break;
+	}
     }
-
-    atombios_crtc_set_pll(crtc, adjusted_mode);
-
-    atombios_set_crtc_timing(info->atomBIOS, &crtc_timing);
 
     if (info->DispPriority)
 	RADEONInitDispBandwidth(pScrn);

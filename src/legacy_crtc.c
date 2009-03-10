@@ -714,7 +714,7 @@ legacy_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 
 /* Define common registers for requested video mode */
-static void
+void
 RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 {
     save->ovr_clr            = 0;
@@ -745,7 +745,7 @@ RADEONInitCommonRegisters(RADEONSavePtr save, RADEONInfoPtr info)
 	save->bus_cntl |= RADEON_BUS_RD_DISCARD_EN;
 }
 
-static void
+void
 RADEONInitSurfaceCntl(xf86CrtcPtr crtc, RADEONSavePtr save)
 {
     save->surface_cntl = 0;

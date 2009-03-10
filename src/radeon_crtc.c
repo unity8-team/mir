@@ -77,7 +77,7 @@ radeon_crtc_dpms(xf86CrtcPtr crtc, int mode)
     if ((mode == DPMSModeOn) && radeon_crtc->enabled)
 	return;
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_AVIVO_VARIANT || info->r4xx_atom) {
 	atombios_crtc_dpms(crtc, mode);
     } else {
 
@@ -271,7 +271,7 @@ radeon_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    if (IS_AVIVO_VARIANT) {
+    if (IS_AVIVO_VARIANT || info->r4xx_atom) {
 	atombios_crtc_mode_set(crtc, mode, adjusted_mode, x, y);
     } else {
 	legacy_crtc_mode_set(crtc, mode, adjusted_mode, x, y);

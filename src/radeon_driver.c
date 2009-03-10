@@ -193,6 +193,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_INT10,             "Int10",           OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_EXA_VSYNC,         "EXAVSync",        OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ATOM_TVOUT,	"ATOMTVOut",	   OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_R4XX_ATOM,	        "R4xxATOM",	   OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1914,6 +1915,13 @@ static Bool RADEONPreInitChipType(ScrnInfoPtr pScrn)
 					     info->Chipset != PCI_CHIP_RN50_515E &&
 					     info->Chipset != PCI_CHIP_RN50_5969);
 #endif
+
+    info->r4xx_atom = FALSE;
+    if (((info->ChipFamily == CHIP_FAMILY_R420) || (info->ChipFamily == CHIP_FAMILY_RV410)) &&
+	xf86ReturnOptValBool(info->Options, OPTION_R4XX_ATOM, FALSE)) {
+	info->r4xx_atom = TRUE;
+	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Using ATOMBIOS for R4xx chip\n");
+    }
 
     return TRUE;
 }

@@ -1063,6 +1063,9 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
     AtomBiosArgRec data;
     unsigned char *space;
 
+    if (!IS_AVIVO_VARIANT && radeon_crtc->crtc_id)
+	return ATOM_SUCCESS;
+
     memset(&disp_data, 0, sizeof(disp_data));
 
     disp_data.ucScaler = radeon_crtc->crtc_id;
@@ -1113,7 +1116,10 @@ atombios_output_scaler_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    disp_data.ucEnable = ATOM_SCALER_EXPANSION;
     } else {
 	ErrorF("Not using RMX\n");
-	disp_data.ucEnable = ATOM_SCALER_DISABLE;
+	if (IS_AVIVO_VARIANT)
+	    disp_data.ucEnable = ATOM_SCALER_DISABLE;
+	else
+	    disp_data.ucEnable = ATOM_SCALER_CENTER;
     }
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
@@ -1326,7 +1332,10 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	case 0:
 	case 1:
 	default:
-	    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+	    if (IS_AVIVO_VARIANT)
+		crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+	    else
+		crtc_src_param.ucCRTC = radeon_crtc->crtc_id << 2;
 	    switch (radeon_encoder->encoder_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -1468,7 +1477,7 @@ atombios_apply_output_quirks(xf86OutputPtr output, DisplayModePtr mode)
     }
 
     /* set scaler clears this on some chips */
-    if (mode->Flags & V_INTERLACE)
+    if (IS_AVIVO_VARIANT && (mode->Flags & V_INTERLACE))
 	OUTREG(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, AVIVO_D1MODE_INTERLEAVE_EN);
 }
 
@@ -1479,17 +1488,20 @@ atombios_output_mode_set(xf86OutputPtr output,
 {
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     radeon_encoder_ptr radeon_encoder = radeon_get_encoder(output);
-
+    RADEONInfoPtr info       = RADEONPTR(output->scrn);
     if (radeon_encoder == NULL)
         return;
 
     atombios_output_overscan_setup(output, mode, adjusted_mode);
     atombios_output_scaler_setup(output, adjusted_mode);
     atombios_set_output_crtc_source(output);
-    if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
-	atombios_output_yuv_setup(output, TRUE);
-    else
-	atombios_output_yuv_setup(output, FALSE);
+
+    if (IS_AVIVO_VARIANT) {
+	if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
+	    atombios_output_yuv_setup(output, TRUE);
+	else
+	    atombios_output_yuv_setup(output, FALSE);
+    }
 
     switch (radeon_encoder->encoder_id) {
     case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
