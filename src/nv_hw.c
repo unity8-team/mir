@@ -435,14 +435,13 @@ int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
 	return 0;
 }
 
-int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals)
+int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pv)
 {
 	/* Avoid divide by zero if called at an inappropriate time */
-	if (!pllvals->M1 || !pllvals->M2)
+	if (!pv->M1 || !pv->M2)
 		return 0;
 
-	return (pllvals->N1 * pllvals->N2 * pllvals->refclk /
-		(pllvals->M1 * pllvals->M2) >> pllvals->log2P);
+	return (pv->N1 * pv->N2 * pv->refclk / (pv->M1 * pv->M2) >> pv->log2P);
 }
 
 static int nv_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)

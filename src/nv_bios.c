@@ -940,9 +940,11 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	 */
 
 	uint32_t Preg = NMNMreg - 4;
+	bool mpll = Preg == 0x4020;
 	uint32_t oldPval = bios_rd32(pScrn, Preg);
 	uint32_t NMNM = NM2 << 16 | NM1;
-	uint32_t Pval = (oldPval & ((Preg == 0x4020) ? ~(0x11 << 16) : ~(1 << 16))) | 0xc << 28 | log2P << 16;
+	uint32_t Pval = (oldPval & (mpll ? ~(0x11 << 16) : ~(1 << 16))) |
+			0xc << 28 | log2P << 16;
 	uint32_t saved4600 = 0;
 	/* some cards have different maskc040s */
 	uint32_t maskc040 = ~(3 << 14), savedc040;
@@ -956,7 +958,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	if (Preg == 0x4058)
 		maskc040 = ~(0xc << 24);
 
-	if (Preg == 0x4020) {
+	if (mpll) {
 		struct pll_lims pll_lim;
 		uint8_t Pval2;
 
@@ -972,11 +974,11 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		bios_wr32(pScrn, 0x4600, saved4600 | 8 << 28);
 	}
 	if (single_stage)
-		Pval |= (Preg == 0x4020) ? 1 << 12 : 1 << 8;
+		Pval |= mpll ? 1 << 12 : 1 << 8;
 
 	bios_wr32(pScrn, Preg, oldPval | 1 << 28);
 	bios_wr32(pScrn, Preg, Pval & ~(4 << 28));
-	if (Preg == 0x4020) {
+	if (mpll) {
 		Pval |= 8 << 20;
 		bios_wr32(pScrn, 0x4020, Pval & ~(0xc << 28));
 		bios_wr32(pScrn, 0x4038, Pval & ~(0xc << 28));
@@ -990,7 +992,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		bios_wr32(pScrn, 0x403c, NMNM);
 
 	bios_wr32(pScrn, Preg, Pval);
-	if (Preg == 0x4020) {
+	if (mpll) {
 		Pval &= ~(8 << 20);
 		bios_wr32(pScrn, 0x4020, Pval);
 		bios_wr32(pScrn, 0x4038, Pval);
@@ -999,7 +1001,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 
 	bios_wr32(pScrn, 0xc040, savedc040);
 
-	if (Preg == 0x4020) {
+	if (mpll) {
 		bios_wr32(pScrn, 0x4020, Pval & ~(1 << 28));
 		bios_wr32(pScrn, 0x4038, Pval & ~(1 << 28));
 	}
@@ -4517,7 +4519,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 	} else if (bdcb->version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
 		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
-		    conn != 0xf2045f14 && conn != 0xf2205004) {
+		    conn != 0xf2045f14 && conn != 0xf207df14 && conn != 0xf2205004) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
 
