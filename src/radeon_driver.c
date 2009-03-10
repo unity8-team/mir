@@ -2147,24 +2147,15 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
         return FALSE;
 
     if (info->Chipset == PCI_CHIP_RN50_515E ||
-	info->Chipset == PCI_CHIP_RN50_5969 ||
-	info->ChipFamily >= CHIP_FAMILY_R600) {
+	info->Chipset == PCI_CHIP_RN50_5969) {
 	if (xf86ReturnOptValBool(info->Options, OPTION_DRI, FALSE)) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Direct rendering for RN50/R600 forced on -- "
+		"Direct rendering for RN50 forced on -- "
 		"This is NOT officially supported at the hardware level "
 		"and may cause instability or lockups\n");
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"Direct rendering not officially supported on RN50/R600\n");
-
-	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		info->r600_shadow_fb = TRUE;
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "using shadow framebuffer\n");
-		if (!xf86LoadSubModule(pScrn, "shadow"))
-		    info->r600_shadow_fb = FALSE;
-	    }
+		"Direct rendering not officially supported on RN50\n");
 	    return FALSE;
 	}
     }
@@ -2896,6 +2887,16 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
      */
     info->directRenderingEnabled = RADEONPreInitDRI(pScrn);
 #endif
+    if (!info->directRenderingEnabled) {
+	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	    info->r600_shadow_fb = TRUE;
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "using shadow framebuffer\n");
+	    if (!xf86LoadSubModule(pScrn, "shadow"))
+		info->r600_shadow_fb = FALSE;
+	}
+    }
+
     if (!RADEONPreInitVRAM(pScrn))
 	goto fail;
 
