@@ -407,27 +407,59 @@ nv_output_destroy(xf86OutputPtr output)
 	xfree(nv_connector);
 }
 
-static Atom scaling_mode_atom;
-#define SCALING_MODE_NAME "SCALING_MODE"
-static const struct {
-	char *name;
-	enum scaling_modes mode;
-} scaling_mode[] = {
-	{ "panel", SCALE_PANEL },
-	{ "fullscreen", SCALE_FULLSCREEN },
-	{ "aspect", SCALE_ASPECT },
-	{ "noscale", SCALE_NOSCALE },
-	{ NULL, SCALE_INVALID}
-};
+static char * get_current_scaling_name(enum scaling_modes mode)
+{
+	static const struct {
+		char *name;
+		enum scaling_modes mode;
+	} scaling_mode[] = {
+		{ "panel", SCALE_PANEL },
+		{ "fullscreen", SCALE_FULLSCREEN },
+		{ "aspect", SCALE_ASPECT },
+		{ "noscale", SCALE_NOSCALE },
+		{ NULL, SCALE_INVALID }
+	};
+	int i;
 
-static Atom dithering_atom;
-#define DITHERING_MODE_NAME "DITHERING"
+	for (i = 0; scaling_mode[i].name; i++)
+		if (scaling_mode[i].mode == mode)
+			return scaling_mode[i].name;
+
+	return NULL;
+}
+
+static int nv_output_create_prop(xf86OutputPtr output, char *name, Atom *atom,
+				 INT32 *rangevals, INT32 cur_val, char *cur_str, Bool do_mode_set)
+{
+	int ret = -ENOMEM;
+	Bool range = rangevals ? TRUE : FALSE;
+
+	if ((*atom = MakeAtom(name, strlen(name), TRUE)) == BAD_RESOURCE)
+		goto fail;
+	if ((ret = RRConfigureOutputProperty(output->randr_output, *atom,
+					     do_mode_set, range, FALSE, range ? 2 : 0, rangevals)))
+		goto fail;
+	if (range)
+		ret = RRChangeOutputProperty(output->randr_output, *atom, XA_INTEGER, 32,
+					     PropModeReplace, 1, &cur_val, FALSE, do_mode_set);
+	else
+		ret = RRChangeOutputProperty(output->randr_output, *atom, XA_STRING, 8,
+					     PropModeReplace, strlen(cur_str), cur_str,
+					     FALSE, do_mode_set);
+
+fail:
+	if (ret)
+		xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+			   "Creation of %s property failed: %d\n", name, ret);
+
+	return ret;
+}
+
+static Atom dithering_atom, scaling_mode_atom;
 
 static void nv_output_create_resources(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	ScrnInfoPtr pScrn = output->scrn;
-	int error, i;
 
 	/* may be called before encoder is picked, resources will be created
 	 * by update_output_fields()
@@ -435,43 +467,12 @@ static void nv_output_create_resources(xf86OutputPtr output)
 	if (!nv_encoder)
 		return;
 
-	/* no properties for vga */
-	if (nv_encoder->dcb->type == OUTPUT_ANALOG)
-		return;
-
-	/* Panel scaling mode property */
-	char *cur_scale_str = NULL;
-	for (i = 0; scaling_mode[i].name; i++)
-		if (scaling_mode[i].mode == nv_encoder->scaling_mode)
-			cur_scale_str = scaling_mode[i].name;
-
-	scaling_mode_atom = MakeAtom(SCALING_MODE_NAME, sizeof(SCALING_MODE_NAME) - 1, TRUE);
-	if ((error = RRConfigureOutputProperty(output->randr_output, scaling_mode_atom,
-					       TRUE, FALSE, FALSE, 0, NULL)))
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Scaling mode property creation failed: %d\n", error);
-	if ((error = RRChangeOutputProperty(output->randr_output, scaling_mode_atom, XA_STRING, 8,
-					    PropModeReplace, strlen(cur_scale_str), cur_scale_str,
-					    FALSE, TRUE)))
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to set scaling mode property: %d\n", error);
-
-	/* Panel dithering property */
-	INT32 dithering_range[2] = { 0, 1 };
-	/* promote bool into int32 to make RandR DIX and big endian happy */
-	int32_t cur_dither = nv_encoder->dithering;
-
-	dithering_atom = MakeAtom(DITHERING_MODE_NAME, sizeof(DITHERING_MODE_NAME) - 1, TRUE);
-	if ((error = RRConfigureOutputProperty(output->randr_output, dithering_atom,
-					       TRUE, TRUE, FALSE, 2, dithering_range)))
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Dithering property creation failed: %d\n", error);
-	if ((error = RRChangeOutputProperty(output->randr_output, dithering_atom, XA_INTEGER, 32,
-					    PropModeReplace, 1,	&cur_dither, FALSE, TRUE)))
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Failed to set dithering property: %d\n", error);
-
-	RRPostPendingProperties(output->randr_output);
+	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS) {
+		nv_output_create_prop(output, "DITHERING", &dithering_atom,
+				      (INT32 []){ 0, 1 }, nv_encoder->dithering, NULL, TRUE);
+		nv_output_create_prop(output, "SCALING_MODE", &scaling_mode_atom,
+				      NULL, 0, get_current_scaling_name(nv_encoder->scaling_mode), TRUE);
+	}
 }
 
 static Bool
