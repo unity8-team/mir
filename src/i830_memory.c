@@ -1445,7 +1445,7 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 
     if (pI830->memory_manager == NULL) {
 	pI830->fake_bufmgr_mem = i830_allocate_memory(pScrn, "fake bufmgr",
-						      MB(1), PITCH_NONE, GTT_PAGE_SIZE, 0,
+						      MB(8), PITCH_NONE, GTT_PAGE_SIZE, 0,
 						      TILE_NONE);
 	if (pI830->fake_bufmgr_mem == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
