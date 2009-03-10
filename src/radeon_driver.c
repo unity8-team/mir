@@ -348,7 +348,39 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 /* Free our private RADEONInfoRec */
 static void RADEONFreeRec(ScrnInfoPtr pScrn)
 {
+    RADEONInfoPtr  info;
+    int i;
+
     if (!pScrn || !pScrn->driverPrivate) return;
+
+    info = RADEONPTR(pScrn);
+
+    if (info->cp) {
+	xfree(info->cp);
+	info->cp = NULL;
+    }
+
+    if (info->dri) {
+	xfree(info->dri);
+	info->dri = NULL;
+    }
+
+    if (info->accel_state) {
+	xfree(info->accel_state);
+	info->accel_state = NULL;
+    }
+
+    for (i = 0; i < RADEON_MAX_BIOS_CONNECTOR; i++) {
+	if (info->encoders[i]) {
+	    if (info->encoders[i]->dev_priv) {
+		xfree(info->encoders[i]->dev_priv);
+		info->encoders[i]->dev_priv = NULL;
+	    }
+	    xfree(info->encoders[i]);
+	    info->encoders[i]= NULL;
+	}
+    }
+
     xfree(pScrn->driverPrivate);
     pScrn->driverPrivate = NULL;
 }
