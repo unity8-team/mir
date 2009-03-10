@@ -2181,11 +2181,6 @@ static Bool RADEONPreInitDRI(ScrnInfoPtr pScrn)
 	return FALSE;
     }
 
-    if (!(info->dri = xcalloc(1, sizeof(struct radeon_dri)))) {
-	ErrorF("Unable to allocate dri rec!\n");
-	return FALSE;
-    }
-
     info->dri->pLibDRMVersion = NULL;
     info->dri->pKernelDRMVersion = NULL;
 
