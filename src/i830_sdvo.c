@@ -1039,8 +1039,13 @@ i830_sdvo_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 
 	    ErrorF("input modeline:\n");
 	    xf86PrintModeline(0, adjusted_mode);
+
+	    /* adjust origin mode's clock for current input,
+	       for correct pixel mulitiplier setting. */
+	    mode->Clock = adjusted_mode->Clock;
+
 	    /* Clock range is required to be in 100-200Mhz */
-	    adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(adjusted_mode);
+	    adjusted_mode->Clock *= i830_sdvo_get_pixel_multiplier(mode);
 	} else {
 	    return FALSE;
 	}
