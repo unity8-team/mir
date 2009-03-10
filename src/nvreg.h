@@ -258,7 +258,7 @@
 	#define NV_CIO_CRE_DDC_WR__INDEX	0x3f
 	#define NV_CIO_CRE_EBR_INDEX		0x41	/* extra bits ? (vertical) */
 	#define NV_CIO_CRE_44			0x44	/* head control */
-	#define NV_CIO_CRE_CSB			0x45
+	#define NV_CIO_CRE_CSB			0x45	/* colour saturation b...? */
 	#define NV_CIO_CRE_RCR			0x46
 		#define NV_CIO_CRE_RCR_ENDIAN_BIG	0x80
 	#define NV_CIO_CRE_47			0x47	/* extended fifo lwm, used on nv30+ */
@@ -269,6 +269,7 @@
 	#define NV_CIO_CRE_57			0x57	/* index reg for cr58 */
 	#define NV_CIO_CRE_58			0x58	/* data reg for cr57 */
 	#define NV_CIO_CRE_59			0x59
+	#define NV_CIO_CRE_5B			0x5B	/* newer colour saturation reg */
 	#define NV_CIO_CRE_85			0x85
 	#define NV_CIO_CRE_86			0x86
 #define NV_PRMCIO_INP0__COLOR		0x006013da
@@ -345,6 +346,7 @@
 #define NV_RAMDAC_TEST_DATA		0x00680610
 	#define NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK	(8 << 28)
 #define NV_RAMDAC_630			0x00680630
+#define NV_RAMDAC_634			0x00680634
 /* This register is similar to TEST_CONTROL in the style of values */
 #define NV_RAMDAC_670			0x00680670
 

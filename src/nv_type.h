@@ -144,6 +144,7 @@ typedef struct _nv_crtc_reg
 	/* These are former output regs, but are believed to be crtc related */
 	uint32_t general;
 	uint32_t unk_630;
+	uint32_t unk_634;
 	uint32_t debug_0;
 	uint32_t debug_1;
 	uint32_t debug_2;
@@ -214,6 +215,7 @@ struct nouveau_crtc {
 	uint8_t last_dpms;
 	ExaOffscreenArea *shadow;
 	int fp_users;
+	int saturation, sharpness;
 };
 
 struct nouveau_encoder {

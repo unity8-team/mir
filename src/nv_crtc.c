@@ -83,6 +83,33 @@ static void crtc_wr_cio_state(xf86CrtcPtr crtc, NVCrtcRegPtr crtcstate, int inde
 		       crtcstate->CRTC[index]);
 }
 
+void nv_crtc_set_digital_vibrance(xf86CrtcPtr crtc, int level)
+{
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	NVPtr pNv = NVPTR(crtc->scrn);
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+
+	regp->CRTC[NV_CIO_CRE_CSB] = nv_crtc->saturation = level;
+	if (nv_crtc->saturation && pNv->NVArch >= 0x17 && pNv->NVArch != 0x20) {
+		regp->CRTC[NV_CIO_CRE_CSB] = 0x80;
+		regp->CRTC[NV_CIO_CRE_5B] = nv_crtc->saturation << 2;
+		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_5B);
+	}
+	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_CSB);
+}
+
+void nv_crtc_set_image_sharpening(xf86CrtcPtr crtc, int level)
+{
+	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
+	NVCrtcRegPtr regp = &NVPTR(crtc->scrn)->ModeReg.crtc_reg[nv_crtc->head];
+
+	nv_crtc->sharpness = level;
+	if (level < 0)	/* blur is in hw range 0x3f -> 0x20 */
+		level += 0x40;
+	regp->unk_634 = level;
+	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_634, regp->unk_634);
+}
+
 /* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
 /* They are only valid for NV4x, appearantly reordered for NV5x */
 /* gpu pll: 0x4000 + 0x4004
@@ -675,7 +702,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* This register seems to be used by the bios to make certain decisions on some G70 cards? */
 	regp->CRTC[NV_CIO_CRE_SCRATCH4__INDEX] = savep->CRTC[NV_CIO_CRE_SCRATCH4__INDEX];
 
-	regp->CRTC[NV_CIO_CRE_CSB] = 0x80;
+	nv_crtc_set_digital_vibrance(crtc, nv_crtc->saturation);
 
 	/* probably a scratch reg, but kept for cargo-cult purposes:
 	 * bit0: crtc0?, head A
@@ -738,6 +765,8 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->general |= 1 << 29;
 
 	regp->unk_630 = 0; /* turn off green mode (tv test pattern?) */
+
+	nv_crtc_set_image_sharpening(crtc, nv_crtc->sharpness);
 
 	/* Some values the blob sets */
 	regp->unk_a20 = 0x0;
@@ -1430,6 +1459,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		for (i = 0; i < 0x10; i++)
 			NVWriteVgaCrtc5758(pNv, nv_crtc->head, i, regp->CR58[i]);
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_59);
+		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_5B);
 
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_85);
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_86);
@@ -1520,12 +1550,13 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	}
 	/* NV11 and NV20 don't have this, they stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
-		for (i = 0; i < 0x10; i++)
-			regp->CR58[i] = NVReadVgaCrtc5758(pNv, nv_crtc->head, i);
-
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_59);
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_53);
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_54);
+
+		for (i = 0; i < 0x10; i++)
+			regp->CR58[i] = NVReadVgaCrtc5758(pNv, nv_crtc->head, i);
+		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_59);
+		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_5B);
 
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_85);
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_86);
@@ -1549,6 +1580,8 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	if (pNv->twoHeads) {
 		if (pNv->NVArch >= 0x17)
 			regp->unk_630 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_630);
+		if (pNv->NVArch >= 0x30)
+			regp->unk_634 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_634);
 		regp->fp_control	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_CONTROL);
 		regp->debug_0	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_0);
 		regp->debug_1	= NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_1);
@@ -1599,6 +1632,8 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	if (pNv->twoHeads) {
 		if (pNv->NVArch >= 0x17)
 			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_630, regp->unk_630);
+		if (pNv->NVArch >= 0x30)
+			NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_634, regp->unk_634);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_CONTROL, regp->fp_control);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_0, regp->debug_0);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DEBUG_1, regp->debug_1);

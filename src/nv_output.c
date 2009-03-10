@@ -436,6 +436,8 @@ static int nv_output_create_prop(xf86OutputPtr output, char *name, Atom *atom,
 
 	if ((*atom = MakeAtom(name, strlen(name), TRUE)) == BAD_RESOURCE)
 		goto fail;
+	if (RRQueryOutputProperty(output->randr_output, *atom))
+		return 0;	/* already exists */
 	if ((ret = RRConfigureOutputProperty(output->randr_output, *atom,
 					     do_mode_set, range, FALSE, range ? 2 : 0, rangevals)))
 		goto fail;
@@ -456,10 +458,12 @@ fail:
 }
 
 static Atom dithering_atom, scaling_mode_atom;
+static Atom dv_atom, sharpness_atom;
 
 static void nv_output_create_resources(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	int arch = NVPTR(output->scrn)->NVArch;
 
 	/* may be called before encoder is picked, resources will be created
 	 * by update_output_fields()
@@ -473,6 +477,18 @@ static void nv_output_create_resources(xf86OutputPtr output)
 		nv_output_create_prop(output, "SCALING_MODE", &scaling_mode_atom,
 				      NULL, 0, get_current_scaling_name(nv_encoder->scaling_mode), TRUE);
 	}
+	if (arch >= 0x11 && output->crtc) {
+		struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
+		INT32 dv_range[2] = { 0, (arch < 0x17 || arch == 0x20) ? 3 : 63 };
+		/* unsure of correct condition here: blur works on my nv34, but not on my nv31 */
+		INT32 is_range[2] = { arch > 0x31 ? -32 : 0, 31 };
+
+		nv_output_create_prop(output, "DIGITAL_VIBRANCE", &dv_atom,
+				      dv_range, nv_crtc->saturation, NULL, FALSE);
+		if (arch >= 0x30)
+			nv_output_create_prop(output, "IMAGE_SHARPENING", &sharpness_atom,
+					      is_range, nv_crtc->sharpness, NULL, FALSE);
+	}
 }
 
 static Bool
@@ -480,6 +496,7 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+	int arch = NVPTR(output->scrn)->NVArch;
 
 	if (property == scaling_mode_atom) {
 		int32_t ret;
@@ -510,6 +527,23 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		nv_encoder->dithering = val;
+	} else if (output->crtc && (property == dv_atom || property == sharpness_atom)) {
+		int32_t val = *(int32_t *) value->data;
+
+		if (value->type != XA_INTEGER || value->format != 32)
+			return FALSE;
+
+		if (property == dv_atom) {
+			if (val < 0 || val > ((arch < 0x17 || arch == 0x20) ? 3 : 63))
+				return FALSE;
+
+			nv_crtc_set_digital_vibrance(output->crtc, val);
+		} else {
+			if (val < (arch > 0x31 ? -32 : 0) || val > 31)
+				return FALSE;
+
+			nv_crtc_set_image_sharpening(output->crtc, val);
+		}
 	}
 
 	return TRUE;

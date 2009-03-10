@@ -87,6 +87,8 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 uint8_t * nouveau_bios_embedded_edid(ScrnInfoPtr pScrn);
 
 /* nv_crtc.c */
+void nv_crtc_set_digital_vibrance(xf86CrtcPtr crtc, int level);
+void nv_crtc_set_image_sharpening(xf86CrtcPtr crtc, int level);
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y);
 void nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num);
 
