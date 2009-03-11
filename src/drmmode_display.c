@@ -62,6 +62,8 @@ typedef struct {
     drmModePropertyBlobPtr edid_blob;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
+static void drmmode_output_dpms(xf86OutputPtr output, int mode);
+
 static void
 drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
 			 struct drm_mode_modeinfo *kmode,
@@ -211,6 +213,16 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			   "failed to set mode: %s", strerror(-ret));
 	else
 		ret = TRUE;
+
+	/* Work around some xserver stupidity */
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+
+		if (output->crtc != crtc)
+			continue;
+
+		drmmode_output_dpms(output, DPMSModeOn);
+	}
 
 done:
 	if (!ret) {
