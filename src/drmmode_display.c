@@ -698,10 +698,9 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 			    RRPropertyValuePtr value)
 {
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
-	drmModeConnectorPtr koutput = drmmode_output->mode_output;
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 	drmModePropertyPtr props;
-	int mode, i, ret;
+	int mode, ret;
 
 	if (property == scaling_mode_atom) {
 		if (value->type != XA_STRING || value->format != 8)
@@ -712,20 +711,15 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		if (mode == -1)
 			return FALSE;
 
-		for (i = 0; i < koutput->count_props; i++) {
-			props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		props = drmmode_output_property_find(output, DRM_MODE_PROP_ENUM,
+						     "scaling mode");
+		if (!props)
+			return FALSE;
 
-			if (!props || !(props->flags & DRM_MODE_PROP_ENUM))
-				continue;
-			
-			if (strcmp(props->name, "scaling mode"))
-				continue;
-
-			ret = drmModeConnectorSetProperty(drmmode->fd,
-							  drmmode_output->output_id,
-							  props->prop_id, mode);
-			return ret == 0;
-		}
+		ret = drmModeConnectorSetProperty(drmmode->fd,
+						  drmmode_output->output_id,
+						  props->prop_id, mode);
+		return ret == 0;
 	} else
 	if (property == dithering_atom) {
 		if (value->type != XA_STRING || value->format != 8)
@@ -736,20 +730,15 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		if (mode == -1)
 			return FALSE;
 
-		for (i = 0; i < koutput->count_props; i++) {
-			props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		props = drmmode_output_property_find(output, DRM_MODE_PROP_ENUM,
+						     "dithering");
+		if (!props)
+			return FALSE;
 
-			if (!props || !(props->flags & DRM_MODE_PROP_ENUM))
-				continue;
-			
-			if (strcmp(props->name, "dithering"))
-				continue;
-
-			ret = drmModeConnectorSetProperty(drmmode->fd,
-							  drmmode_output->output_id,
-							  props->prop_id, mode);
-			return ret == 0;
-		}
+		ret = drmModeConnectorSetProperty(drmmode->fd,
+						  drmmode_output->output_id,
+						  props->prop_id, mode);
+		return ret == 0;
 	}
 
 	return FALSE;
