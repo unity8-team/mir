@@ -560,68 +560,107 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 /*
  * Several scaling modes exist, let the user choose.
  */
-static const struct {
+struct drmmode_enum {
 	char *name;
-	int mode;
-} scaling_mode[] = {
+	int value;
+};
+
+static struct drmmode_enum scaling_mode[] = {
 	{ "non-gpu", DRM_MODE_SCALE_NON_GPU },
 	{ "fullscreen", DRM_MODE_SCALE_FULLSCREEN },
 	{ "aspect", DRM_MODE_SCALE_ASPECT },
 	{ "noscale", DRM_MODE_SCALE_NO_SCALE },
-	{ NULL, 0xFFFF /* invalid */ }
+	{ NULL, -1 /* invalid */ }
 };
 static Atom scaling_mode_atom;
 
-static const struct {
-	char *name;
-	int mode;
-} dithering_mode[] = {
+static struct drmmode_enum dithering_mode[] = {
 	{ "off", DRM_MODE_DITHERING_OFF },
 	{ "on", DRM_MODE_DITHERING_ON },
-	{ NULL, 0xFFFF /* invalid */ }
+	{ NULL, -1 /* invalid */ }
 };
 static Atom dithering_atom;
 
 static int
-drmmode_scaling_mode_lookup(char *name, int size)
-{
-	int i;
-
-	/* for when name is zero terminated */
-	if (size < 0)
+drmmode_enum_lookup_value(struct drmmode_enum *ptr, char *name, int size) {
+	if (size == 0)
 		size = strlen(name);
 
-	for (i = 0; scaling_mode[i].name; i++)
-		/* We're getting non-terminated strings */
-		if (strlen(scaling_mode[i].name) >= size &&
-				!strncasecmp(name, scaling_mode[i].name, size))
-			break;
+	while (ptr->name) {
+		if (!strcmp(name, ptr->name))
+			return ptr->value;
+		ptr++;
+	}
 
-	return scaling_mode[i].mode;
+	return -1;
 }
 
-static int
-drmmode_dithering_lookup(char *name, int size)
+static char *
+drmmode_enum_lookup_name(struct drmmode_enum *ptr, int value)
 {
+	while (ptr->name) {
+		if (ptr->value == value)
+			return ptr->name;
+		ptr++;
+	}
+
+	return NULL;
+}
+
+drmModePropertyPtr
+drmmode_output_property_find(xf86OutputPtr output, uint32_t type,
+			     const char *name)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmmode_ptr drmmode = drmmode_output->drmmode;
+	drmModePropertyPtr props;
 	int i;
 
-	/* for when name is zero terminated */
-	if (size < 0)
-		size = strlen(name);
+	for (i = 0; i < koutput->count_props; i++) {
+		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
 
-	for (i = 0; dithering_mode[i].name; i++)
-		/* We're getting non-terminated strings */
-		if (strlen(dithering_mode[i].name) >= size &&
-				!strncasecmp(name, dithering_mode[i].name, size))
+		if (!props || !(props->flags & type))
+			continue;
+		
+		if (!strcmp(props->name, name))
+			return props;
+	}
+
+	return NULL;
+}
+
+static const char *
+drmmode_output_property_string(xf86OutputPtr output, struct drmmode_enum *ptr,
+			       const char *prop)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	drmModeConnectorPtr koutput = drmmode_output->mode_output;
+	drmModePropertyPtr props;
+	const char *name;
+	int i;
+
+	props = drmmode_output_property_find(output, DRM_MODE_PROP_ENUM, prop);
+	if (!props)
+		return "unknown_prop";
+
+	for (i = 0; i < koutput->count_props; i++) {
+		if (koutput->props[i] == props->prop_id)
 			break;
+	}
 
-	return dithering_mode[i].mode;
+	if (koutput->props[i] != props->prop_id)
+		return "unknown_output_prop";
+
+	name = drmmode_enum_lookup_name(ptr, koutput->prop_values[i]);
+	return name ? name : "unknown_enum";
 }
 
 static void
 drmmode_output_create_resources(xf86OutputPtr output)
 {
 	ScrnInfoPtr pScrn = output->scrn;
+	const char *name;
 	int ret;
 
 	scaling_mode_atom = MakeAtom("SCALING_MODE", 12, TRUE);
@@ -634,12 +673,24 @@ drmmode_output_create_resources(xf86OutputPtr output)
 			   "Error creating SCALING_MODE property: %d\n", ret);
 	}
 
+	name = drmmode_output_property_string(output, scaling_mode,
+					      "scaling mode");
+	RRChangeOutputProperty(output->randr_output, scaling_mode_atom,
+			       XA_STRING, 8, PropModeReplace, strlen(name),
+			       (char *)name, FALSE, FALSE);
+
 	ret = RRConfigureOutputProperty(output->randr_output, dithering_atom,
 					FALSE, FALSE, FALSE, 0, NULL);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Error creating DITHERING property: %d\n", ret);
 	}
+
+	name = drmmode_output_property_string(output, dithering_mode,
+					      "dithering");
+	RRChangeOutputProperty(output->randr_output, dithering_atom,
+			       XA_STRING, 8, PropModeReplace, strlen(name),
+			       (char *)name, FALSE, FALSE);
 }
 
 static Bool
@@ -656,8 +707,9 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		if (value->type != XA_STRING || value->format != 8)
 			return FALSE;
 
-		mode = drmmode_scaling_mode_lookup(value->data, value->size);
-		if (mode == 0xFFFF)
+		mode = drmmode_enum_lookup_value(scaling_mode, value->data,
+						 value->size);
+		if (mode == -1)
 			return FALSE;
 
 		for (i = 0; i < koutput->count_props; i++) {
@@ -679,8 +731,9 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		if (value->type != XA_STRING || value->format != 8)
 			return FALSE;
 
-		mode = drmmode_dithering_lookup(value->data, value->size);
-		if (mode == 0xFFFF)
+		mode = drmmode_enum_lookup_value(dithering_mode, value->data,
+						 value->size);
+		if (mode == -1)
 			return FALSE;
 
 		for (i = 0; i < koutput->count_props; i++) {
