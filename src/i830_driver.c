@@ -311,7 +311,6 @@ typedef enum {
    OPTION_LVDS24BITMODE,
    OPTION_FBC,
    OPTION_TILING,
-   OPTION_LEGACY3D,
    OPTION_LVDSFIXEDMODE,
    OPTION_FORCEENABLEPIPEA,
 #ifdef INTEL_XVMC
@@ -332,9 +331,6 @@ static OptionInfoRec I830Options[] = {
    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
-#ifdef XF86DRI
-   {OPTION_LEGACY3D,	"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
-#endif
    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
 #ifdef INTEL_XVMC
@@ -3019,11 +3015,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     */
    if (!pI830->can_resize && pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
        pI830->directRenderingType = DRI_XF86DRI;
-
-   if (pI830->directRenderingType == DRI_XF86DRI) {
-       pI830->allocate_classic_textures =
-	   xf86ReturnOptValBool(pI830->Options, OPTION_LEGACY3D, TRUE);
-   }
 #endif
 
    /* Enable tiling by default */

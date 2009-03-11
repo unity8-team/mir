@@ -504,9 +504,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	    mmsize -= ROUND_TO_PAGE(3 * pScrn->displayWidth * pI830->cpp *
 				    pScrn->virtualY);
 	}
-	/* Classic textures are fixed. */
-	if (pI830->allocate_classic_textures)
-	    mmsize -= MB(32);
 	/* Overlay and cursors, if physical, need to be allocated outside
 	 * of the kernel memory manager.
 	 */
@@ -566,6 +563,8 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	    i830_free_memory(pScrn, pI830->memory_manager);
 	    pI830->memory_manager = NULL;
 	}
+    } else {
+	pI830->allocate_classic_textures = TRUE;
     }
 #endif /* XF86DRI */
 

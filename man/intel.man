@@ -146,15 +146,6 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
-.BI "Option \*qLegacy3D\*q \*q" boolean \*q
-Enable support for the non-GEM mode of the 3D driver on i830 and newer.
-This will allocate a large static area for older Mesa to use for its texture
-pool.  On systems with a working GEM environment, this can be disabled to
-increase the memory pool available to other graphics tasks.
-.IP
-Default for i830 and newer: Enabled.
-.IP
-Default for i810: this option is not used.
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
 XFree86 based acceleration architecture.  EXA is a simpler
