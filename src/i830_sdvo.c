@@ -1544,6 +1544,10 @@ i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
     else
 	name_suffix = "-2";
 
+    /* clear up privates */
+    dev_priv->is_tv = FALSE;
+    intel_output->needs_tv_clock = FALSE;
+
     if (flag & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
     {
 	if (flag & SDVO_OUTPUT_TMDS0)
