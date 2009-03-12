@@ -326,9 +326,9 @@
 #define COORD_TYPE_W(x)     (x)
 #define TEX_UNNORMALIZED                0
 #define TEX_NORMALIZED                  1
-#define OFFSET_X(x)     (x)
-#define OFFSET_Y(x)     (x)
-#define OFFSET_Z(x)     (x)
+#define OFFSET_X(x) (((int)(x) * 2) & 0x1f) /* 4:1-bits 2's-complement fixed-point: [-8.0..7.5] */
+#define OFFSET_Y(x) (((int)(x) * 2) & 0x1f)
+#define OFFSET_Z(x) (((int)(x) * 2) & 0x1f)
 #define SAMPLER_ID(x)     (x)
 
 // R7xx has an additional parameter ALT_CONST. We always expose it, but ALT_CONST is R7xx only
