@@ -2327,8 +2327,11 @@ int RADEONDRIGetPciAperTableSize(ScrnInfoPtr pScrn)
     int num_pages;
 
     num_pages = (info->dri->pciAperSize * 1024 * 1024) / 4096;
-    
-    ret_size = num_pages * sizeof(unsigned int);
+
+    if (info->ChipFamily < CHIP_FAMILY_R600)
+        ret_size = num_pages * sizeof(unsigned int);
+    else
+        ret_size = num_pages * sizeof(uint64_t);
 
     return ret_size;
 }
