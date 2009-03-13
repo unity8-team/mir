@@ -189,46 +189,23 @@ static Bool NVDRIInitVisualConfigs(ScreenPtr pScreen)
 Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	char *busId;
-	int fd = 0;
+	int errmaj, errmin;
+	pointer ret;
 
-#ifdef XF86DRM_MODE
-	/* drm already open */
-	if (pNv->dev)
-		fd = nouveau_device(pNv->dev)->fd;
-#endif
-
-	{
-		pointer ret;
-		int errmaj, errmin;
-
-		ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL,
-				    NULL, &errmaj, &errmin);
-		if (!ret) {
-			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-					"error %d\n", errmaj);
-			LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
-		}
-
-		if (!ret && errmaj != LDR_ONCEONLY)
-			return FALSE;
+	ret = LoadSubModule(pScrn->module, "dri", NULL, NULL, NULL,
+			    NULL, &errmaj, &errmin);
+	if (!ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+				"error %d\n", errmaj);
+		LoaderErrorMsg(pScrn->name, "dri", errmaj, errmin);
 	}
+
+	if (!ret && errmaj != LDR_ONCEONLY)
+		return FALSE;
 
 	xf86LoaderReqSymLists(drmSymbols, NULL);
 	xf86LoaderReqSymLists(driSymbols, NULL);
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Loaded DRI module\n");
-
-	if (!fd) {
-		busId = DRICreatePCIBusID(pNv->PciInfo);
-
-		fd = drmOpen("nouveau", busId);
-		xfree(busId);
-	}
-	if (fd < 0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"[dri] Failed to open the DRM\n");
-		return FALSE;
-	}
 
 	/* Check the lib version */
 	if (xf86LoaderCheckSymbol("drmGetLibVersion"))
@@ -238,31 +215,6 @@ Bool NVDRIGetVersion(ScrnInfoPtr pScrn)
 		"NVDRIGetVersion failed because libDRM is really "
 		"way to old to even get a version number out of it.\n"
 		"[dri] Disabling DRI.\n");
-		return FALSE;
-	}
-
-	pNv->pKernelDRMVersion = drmGetVersion(fd);
-#ifdef XF86DRM_MODE
-	if (!pNv->drmmode) /* drmmode still needs the file descriptor */
-#endif
-	{
-		drmClose(fd);
-	}
-
-	if (pNv->pKernelDRMVersion == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"failed to get DRM version\n");
-		return FALSE;
-	}
-	
-	/* temporary lock step versioning */
-#if NOUVEAU_DRM_HEADER_PATCHLEVEL != 12
-#error nouveau_drm.h does not match expected patchlevel, update libdrm.
-#endif
-	if (pNv->pKernelDRMVersion->version_patchlevel !=
-			NOUVEAU_DRM_HEADER_PATCHLEVEL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			"wrong DRM version\n");
 		return FALSE;
 	}
 
@@ -290,7 +242,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	ScreenPtr pScreen;
 	pScreen = screenInfo.screens[pScrn->scrnIndex];
 	int drm_page_size;
-	int drm_fd;
 
 	if (!NVDRICheckModules(pScrn))
 		return FALSE;
@@ -298,7 +249,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	drm_page_size = getpagesize();
 	if (!(pDRIInfo = DRICreateInfoRec())) return FALSE;
 
-	pNv->pDRIInfo                        = pDRIInfo;
 	pDRIInfo->drmDriverName              = "nouveau";
 	pDRIInfo->clientDriverName           = "nouveau";
 	pDRIInfo->busIdString                = DRICreatePCIBusID(pNv->PciInfo);
@@ -307,15 +257,10 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->ddxDriverMinorVersion      = NV_MINOR_VERSION;
 	pDRIInfo->ddxDriverPatchVersion      = NV_PATCHLEVEL;
 
-	/*
-	 * We set the FB to be in the higher half of VRAM. If we don't, any
-	 * VRAM allocations before the FB is mapped will change that map
-	 * and we fail.
-	 * We should detect when the DRM decides to change the FB area
-	 * but we currently don't know how to.
-	 */
-	pDRIInfo->frameBufferSize            = pNv->VRAMPhysicalSize / 2;
-	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical;
+	pDRIInfo->frameBufferSize            = pNv->FB->size;
+	pDRIInfo->frameBufferPhysicalAddress = (void *)pNv->VRAMPhysical +
+					       (pNv->FB->offset -
+						pNv->dev->vm_vram_base);
 	pDRIInfo->frameBufferStride          = pScrn->displayWidth * pScrn->bitsPerPixel/8;
 
 	pDRIInfo->ddxDrawableTableEntry      = 1;
@@ -323,7 +268,6 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 
 	if (!(pNOUVEAUDRI = (NOUVEAUDRIPtr)xcalloc(sizeof(NOUVEAUDRIRec), 1))) {
 		DRIDestroyInfoRec(pDRIInfo);
-		pNv->pDRIInfo = NULL;
 		return FALSE;
 	}
 	pDRIInfo->devPrivate                 = pNOUVEAUDRI; 
@@ -345,41 +289,27 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->createDummyCtx     = FALSE;
 	pDRIInfo->createDummyCtxPriv = FALSE;
 
-	if (!DRIScreenInit(pScreen, pDRIInfo, &drm_fd)) {
+	if (!DRIScreenInit(pScreen, pDRIInfo, &nouveau_device(pNv->dev)->fd)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] DRIScreenInit failed.  Disabling DRI.\n");
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);
-		pDRIInfo = NULL;
 		return FALSE;
 	}
 
 	if (!NVDRIInitVisualConfigs(pScreen)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
-				"[dri] NVDRIInitVisualConfigs failed.  Disabling DRI.\n");
+			   "[dri] NVDRIInitVisualConfigs failed."
+			   "  Disabling DRI.\n");
 		DRICloseScreen(pScreen);
 		xfree(pDRIInfo->devPrivate);
 		pDRIInfo->devPrivate = NULL;
 		DRIDestroyInfoRec(pDRIInfo);
-		pDRIInfo = NULL;
 		return FALSE;
 	}
 
-	/* need_close = 0, because DRICloseScreen() will handle the closing. */
-	if (!pNv->dev) {
-		if (nouveau_device_open_existing(&pNv->dev, 0, drm_fd, 0)) {
-			xf86DrvMsg(pScreen->myNum, X_ERROR,
-				   "Error creating device\n");
-			DRICloseScreen(pScreen);
-			xfree(pDRIInfo->devPrivate);
-			pDRIInfo->devPrivate = NULL;
-			DRIDestroyInfoRec(pDRIInfo);
-			pDRIInfo = NULL;
-			return FALSE;
-		}
-	}
-
+	pNv->pDRIInfo = pDRIInfo;
 	return TRUE;
 }
 
@@ -389,12 +319,8 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	NVPtr          pNv = NVPTR(pScrn);
 	NOUVEAUDRIPtr  pNOUVEAUDRI;
 
-	if (pNv->NoAccel)
+	if (!pNv->pDRIInfo || !DRIFinishScreenInit(pScreen))
 		return FALSE;
-
-	if (!DRIFinishScreenInit(pScreen)) {
-		return FALSE;
-	}
 
 	pNOUVEAUDRI 			= (NOUVEAUDRIPtr)pNv->pDRIInfo->devPrivate;
 

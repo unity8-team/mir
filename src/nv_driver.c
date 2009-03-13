@@ -886,54 +886,6 @@ Bool NVI2CInit(ScrnInfoPtr pScrn)
 	return false;
 }
 
-#ifdef XF86DRM_MODE
-static bool nouveau_kernel_modesetting_enabled(ScrnInfoPtr pScrn)
-{
-#if XSERVER_LIBPCIACCESS
-	struct pci_device *PciInfo;
-#else
-	pciVideoPtr PciInfo;
-#endif
-	EntityInfoPtr pEnt;
-	char *busIdString;
-	int ret;
-
-	pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
-	PciInfo = xf86GetPciInfoForEntity(pEnt->index);
-
-	busIdString = DRICreatePCIBusID(PciInfo);
-
-	ret = drmCheckModesettingSupported(busIdString);
-	xfree(busIdString);
-	if (ret)
-		return FALSE;
-
-	return TRUE;
-}
-#else
-#define nouveau_kernel_modesetting_enabled(x) FALSE
-#endif
-
-static Bool NVPreInitDRI(ScrnInfoPtr pScrn)
-{
-	NVPtr pNv = NVPTR(pScrn);
-
-    	if (!NVDRIGetVersion(pScrn))
-		return FALSE;
-
- 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		"[dri] Found DRI library version %d.%d.%d and kernel"
-		" module version %d.%d.%d\n",
-		pNv->pLibDRMVersion->version_major,
-		pNv->pLibDRMVersion->version_minor,
-		pNv->pLibDRMVersion->version_patchlevel,
-		pNv->pKernelDRMVersion->version_major,
-		pNv->pKernelDRMVersion->version_minor,
-		pNv->pKernelDRMVersion->version_patchlevel);
-
-	return TRUE;
-}
-
 static Bool
 nv_xf86crtc_resize(ScrnInfoPtr pScrn, int width, int height)
 {
@@ -956,15 +908,78 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 	return FALSE;                                                       \
 } while(0)
 
+static Bool
+NVPreInitDRM(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+	drmVersion *version;
+	char *bus_id;
+	int ret;
+
+	/* Load the kernel module, and open the DRM */
+	bus_id = DRICreatePCIBusID(pNv->PciInfo);
+	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "nouveau");
+	if (!ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] error opening the drm\n");
+		xfree(bus_id);
+		return FALSE;
+	}
+
+	/* Check the version reported by the kernel module.  In theory we
+	 * shouldn't have to do this, as libdrm_nouveau will do its own checks.
+	 * But, we're currently using the kernel patchlevel to also version
+	 * the DRI interface.
+	 */
+	version = drmGetVersion(DRIMasterFD(pScrn));
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "[drm] nouveau interface version: %d.%d.%d\n",
+		   version->version_major, version->version_minor,
+		   version->version_patchlevel);
+
+	ret = !(version->version_patchlevel == NOUVEAU_DRM_HEADER_PATCHLEVEL);
+	drmFree(version);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] wrong version, expecting 0.0.%d\n",
+			   NOUVEAU_DRM_HEADER_PATCHLEVEL);
+		xfree(bus_id);
+		return FALSE;
+	}
+
+	/* Initialise libdrm_nouveau */
+	ret = nouveau_device_open_existing(&pNv->dev, 0, DRIMasterFD(pScrn), 0);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[drm] error creating device, setting NoAccel\n");
+		xfree(bus_id);
+		return FALSE;
+	}
+
+	/* Check if KMS is enabled before we do anything, we don't want to
+	 * go stomping on registers behind its back
+	 */
+#ifdef XF86DRM_MODE
+	pNv->kms_enable = !drmCheckModesettingSupported(bus_id);
+#endif
+	xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
+		   "[drm] kernel modesetting %s\n", pNv->kms_enable ?
+		   "in use" : "not available");
+
+	xfree(bus_id);
+	return TRUE;
+}
+
 /* Mandatory */
 Bool
 NVPreInit(ScrnInfoPtr pScrn, int flags)
 {
 	NVPtr pNv;
 	MessageType from;
-	int i, max_width, max_height;
 	ClockRangePtr clockRanges;
+	int max_width, max_height;
 	int config_mon_rates = FALSE;
+	int ret, i;
 
 	if (flags & PROBE_DETECT) {
 		EntityInfoPtr pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
@@ -1090,6 +1105,16 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 #endif
 	}
 
+	/* Attempt to initialise the kernel module, if we fail this we'll
+	 * fallback to limited functionality.
+	 */
+	if (!NVPreInitDRM(pScrn)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
+			   "Failing back to NoAccel mode\n");
+		pNv->NoAccel = TRUE;
+		pNv->ShadowFB = TRUE;
+	}
+
 	/* Save current console video mode */
 	if (pNv->Architecture >= NV_ARCH_50 && pNv->pInt10 && !pNv->kms_enable) {
 		const xf86Int10InfoPtr pInt10 = pNv->pInt10;
@@ -1179,15 +1204,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 	from = X_DEFAULT;
 
-	pNv->kms_enable = false;
-#ifdef XF86DRM_MODE
-	if (pNv->Architecture == NV_ARCH_50)
-		pNv->kms_enable = nouveau_kernel_modesetting_enabled(pScrn);
-#endif /* XF86DRM_MODE */
-
-	if (pNv->kms_enable)
-		xf86DrvMsg(pScrn->scrnIndex, from, "NV50 Kernel modesetting enabled\n");
-
 	pNv->randr12_enable = true;
 	if (pNv->Architecture != NV_ARCH_50 && !xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
 		pNv->randr12_enable = false;
@@ -1215,10 +1231,12 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Flat panel scaling %s\n",
 			pNv->FpScale ? "on" : "off");
 	}
+
 	if (xf86ReturnOptValBool(pNv->Options, OPTION_NOACCEL, FALSE)) {
 		pNv->NoAccel = TRUE;
 		xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Acceleration disabled\n");
 	}
+
 	if (xf86ReturnOptValBool(pNv->Options, OPTION_SHADOW_FB, FALSE)) {
 		pNv->ShadowFB = TRUE;
 		pNv->NoAccel = TRUE;
@@ -1313,18 +1331,9 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 
 #ifdef XF86DRM_MODE
 	if (pNv->kms_enable){
-		int res = 0;
-		char *bus_id;
-		bus_id = DRICreatePCIBusID(pNv->PciInfo);
-
-		res = nouveau_device_open(&pNv->dev, bus_id);
-		xfree(bus_id);
-		if (res)
-			NVPreInitFail("Error opening device: %d\n", res);
-
-		res = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
+		ret = drmmode_pre_init(pScrn, nouveau_device(pNv->dev)->fd,
 				       pScrn->bitsPerPixel >> 3);
-		if (res == FALSE)
+		if (ret == FALSE)
 			NVPreInitFail("Kernel modesetting failed to initialize\n");
 	} else
 #endif
@@ -1332,13 +1341,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		/* Allocate an xf86CrtcConfig */
 		xf86CrtcConfigInit(pScrn, &nv_xf86crtc_config_funcs);
 		xf86CrtcSetSizeRange(pScrn, 320, 200, max_width, max_height);
-	}
-
-	if (!pNv->NoAccel && NVPreInitDRI(pScrn) == FALSE) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "DRI pre-initialisation failed.  Setting NoAccel\n");
-		pNv->ShadowFB = TRUE;
-		pNv->NoAccel = TRUE;
 	}
 
 	if (!pNv->randr12_enable) {
@@ -1629,7 +1631,7 @@ NVMapMem(ScrnInfoPtr pScrn)
 	uint64_t res;
 	int size;
 
-	if (pNv->NoAccel)
+	if (!pNv->dev)
 		return NVMapMemSW(pScrn);
 
 	nouveau_device_get_param(pNv->dev, NOUVEAU_GETPARAM_FB_SIZE, &res);
@@ -1745,7 +1747,7 @@ NVUnmapMem(ScrnInfoPtr pScrn)
 {
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->NoAccel) {
+	if (!pNv->dev) {
 #ifdef XSERVER_LIBPCIACCESS
 		pci_device_unmap_range(pNv->PciInfo, pNv->VRAMMap,
 				       pNv->PciInfo->regions[1].size);
@@ -2042,19 +2044,13 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 			return FALSE;
 	}
 
-	/* First init DRI/DRM */
-	if (!pNv->NoAccel && !NVDRIScreenInit(pScrn)) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "DRI initialisation failed.  Setting NoAccel\n");
-		pNv->ShadowFB = TRUE;
-		pNv->NoAccel = TRUE;
-	}
-
 	/* Allocate and map memory areas we need */
 	if (!NVMapMem(pScrn))
 		return FALSE;
 
 	if (!pNv->NoAccel) {
+		NVDRIScreenInit(pScrn);
+
 		/* Init DRM - Alloc FIFO */
 		if (!NVInitDma(pScrn))
 			return FALSE;

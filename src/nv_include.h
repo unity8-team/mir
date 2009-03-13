@@ -74,6 +74,7 @@
 #include "nouveau_class.h"
 #include "nvreg.h"
 #include "nv50reg.h"
+#include "sarea.h"
 
 #include "nouveau_drmif.h"
 #include "nouveau_device.h"
