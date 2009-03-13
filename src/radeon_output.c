@@ -403,11 +403,21 @@ radeon_mode_valid(xf86OutputPtr output, DisplayModePtr pMode)
 	}
     }
 
-    if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT &&
-	radeon_output->MonType == MT_DFP) {
-	/* DP to DVI converter, single-link only */
-	if (pMode->Clock > 165000)
+    /* single link DVI check */
+    if (pMode->Clock > 165000 && radeon_output->MonType == MT_DFP) {
+	/* DP->DVI converter */
+	if (radeon_output->ConnectorType == CONNECTOR_DISPLAY_PORT)
 	    return MODE_CLOCK_HIGH;
+
+	/* XXX some HDMI can do better than 165MHz on a link */
+	if (radeon_output->ConnectorType == CONNECTOR_HDMI_TYPE_A)
+	    return MODE_CLOCK_HIGH;
+
+	/* XXX some R300 and R400 can actually do this */
+	if (!IS_AVIVO_VARIANT)
+	    return MODE_CLOCK_HIGH;
+
+	/* XXX and some AVIVO can't */
     }
 
     if (radeon_output->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
