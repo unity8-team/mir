@@ -451,6 +451,42 @@ atombios_get_encoder_mode(xf86OutputPtr output)
 
 }
 
+static const int dp_clocks[] = {
+    16200,
+    27000,
+    32400,
+    54000,
+    0,
+    0,
+    64800,
+    108000,
+};
+static const int num_dp_clocks = sizeof(dp_clocks) / sizeof(int);
+
+static int
+dp_lanes_for_mode_clock(int mode_clock)
+{
+    int i;
+    
+    for (i = 0; i < num_dp_clocks; i++)
+	if (dp_clocks[i] > (mode_clock / 10))
+	    return (i / 2) + 1;
+
+    return 0;
+}
+
+static int
+dp_link_clock_for_mode_clock(int mode_clock)
+{
+    int i;
+
+    for (i = 0; i < num_dp_clocks; i++)
+	if (dp_clocks[i] > (mode_clock / 10))
+	    return (dp_clocks[i % 2]);
+
+    return 0;
+}
+
 static int
 atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 {
@@ -510,9 +546,11 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     } else {
 	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	    disp_data.ucConfig = ATOM_ENCODER_CONFIG_UNIPHY;
+	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    disp_data.ucConfig = ATOM_ENCODER_CONFIG_TRANSMITTER1;
 	    break;
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
@@ -523,7 +561,19 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     }
 
-    if (mode->Clock > 165000) {
+    disp_data.ucEncoderMode = atombios_get_encoder_mode(output);
+
+    if (disp_data.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+	if (radeon_output->linkb)
+	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
+	else
+	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
+
+	if (dp_link_clock_for_mode_clock(mode->Clock) == 27000)
+	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
+
+	disp_data.ucLaneNum = dp_lanes_for_mode_clock(mode->Clock);
+    } else if (mode->Clock > 165000) {
 	disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA_B;
 	disp_data.ucLaneNum = 8;
     } else {
@@ -531,10 +581,9 @@ atombios_output_dig_encoder_setup(xf86OutputPtr output, DisplayModePtr mode)
 	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKB;
 	else
 	    disp_data.ucConfig |= ATOM_ENCODER_CONFIG_LINKA;
+
 	disp_data.ucLaneNum = 4;
     }
-
-    disp_data.ucEncoderMode = atombios_get_encoder_mode(output);
 
     data.exec.index = index;
     data.exec.dataSpace = (void *)&space;
@@ -595,7 +644,11 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
     disp_data.v1.ucAction = ATOM_TRANSMITTER_ACTION_ENABLE;
 
     if (IS_DCE32_VARIANT) {
-	if (mode->Clock > 165000) {
+	if (radeon_output->MonType == MT_DP) {
+	    disp_data.v2.usPixelClock =
+		cpu_to_le16(dp_link_clock_for_mode_clock(mode->Clock));
+	    disp_data.v2.acConfig.fDPConnector = 1;
+	} else if (mode->Clock > 165000) {
 	    disp_data.v2.usPixelClock = cpu_to_le16((mode->Clock * 10 * 2) / 100);
 	    disp_data.v2.acConfig.fDualLinkConnector = 1;
 	} else {
@@ -628,12 +681,27 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
     } else {
 	disp_data.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
-	disp_data.v1.usPixelClock = cpu_to_le16((mode->Clock) / 10);
+
+	if (radeon_output->MonType == MT_DP)
+	    disp_data.v1.usPixelClock =
+		cpu_to_le16(dp_link_clock_for_mode_clock(mode->Clock));
+	else
+	    disp_data.v1.usPixelClock = cpu_to_le16((mode->Clock) / 10);
 
 	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	    if (radeon_output->MonType == MT_DP) {
+		if (radeon_output->linkb)
+		    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB
+					| ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+		else
+		    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKA
+					| ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
+		break;
+	    };
+	    /* else, fall through */
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	    disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 	    if (info->IsIGP) {
 		if (mode->Clock > 165000) {
@@ -688,11 +756,15 @@ atombios_output_dig_transmitter_setup(xf86OutputPtr output, DisplayModePtr mode)
 	}
 
 	if (radeon_output->active_device & (ATOM_DEVICE_DFP_SUPPORT)) {
-	    if (radeon_output->coherent_mode) {
+	    if (radeon_output->coherent_mode &&
+		radeon_output->MonType != MT_DP) {
 		disp_data.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_COHERENT;
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG%d transmitter: Coherent Mode enabled\n", num);
-	    } else
-		xf86DrvMsg(output->scrn->scrnIndex, X_INFO, "DIG%d transmitter: Coherent Mode disabled\n", num);
+		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+			"DIG%d transmitter: Coherent Mode enabled\n", num);
+	    } else {
+		xf86DrvMsg(output->scrn->scrnIndex, X_INFO,
+			"DIG%d transmitter: Coherent Mode disabled\n", num);
+	    }
 	}
     }
     radeon_output->transmitter_config = disp_data.v1.ucConfig;

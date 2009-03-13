@@ -168,6 +168,7 @@ radeon_set_active_device(xf86OutputPtr output)
     radeon_output->active_device = 0;
 
     switch (radeon_output->MonType) {
+    case MT_DP:
     case MT_DFP:
 	if (radeon_output->devices & ATOM_DEVICE_DFP1_SUPPORT)
 	    radeon_output->active_device = ATOM_DEVICE_DFP1_SUPPORT;
@@ -204,6 +205,7 @@ radeon_set_active_device(xf86OutputPtr output)
 	    radeon_output->active_device = ATOM_DEVICE_CV_SUPPORT;
 	break;
     default:
+	ErrorF("Unhandled monitor type %d\n", radeon_output->MonType);
 	radeon_output->active_device = 0;
     }
 }
@@ -1067,6 +1069,7 @@ radeon_detect(xf86OutputPtr output)
             radeon_output->MonType = MT_CV;
 	    break;
 	case CONNECTOR_DISPLAY_PORT:
+	    radeon_output->MonType = MT_DP;
 	    break;
 	}
     }
