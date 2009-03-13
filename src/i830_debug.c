@@ -53,6 +53,33 @@ DEBUGSTRING(i830_16bit_func)
     return XNFprintf("0x%04x", (uint16_t)val);
 }
 
+DEBUGSTRING(i830_debug_dcc)
+{
+    char *addressing = NULL;
+
+    if (!IS_MOBILE(pI830))
+	return NULL;
+
+    if (IS_I965G(pI830)) {
+	if (val & (1 << 1))
+	    addressing = "dual channel interleaved";
+	else
+	    addressing = "single or dual channel asymmetric";
+    } else {
+	switch (val & 3) {
+	case 0: addressing = "single channel"; break;
+	case 1: addressing = "dual channel asymmetric"; break;
+	case 2: addressing = "dual channel interleaved"; break;
+	case 3: addressing = "unknown channel layout"; break;
+	}
+    }
+
+    return XNFprintf("%s, XOR randomization: %sabled, XOR bit: %d",
+		     addressing,
+		     (val & (1 << 10)) ? "dis" : "en",
+		     (val & (1 << 9)) ? 17 : 11);
+}
+
 DEBUGSTRING(i830_debug_chdecmisc)
 {
     char *enhmodesel = NULL;
@@ -559,6 +586,7 @@ static struct i830SnapshotRec {
     char *(*debug_output)(I830Ptr pI830, int reg, uint32_t val);
     uint32_t val;
 } i830_snapshot[] = {
+    DEFINEREG2(DCC, i830_debug_dcc),
     DEFINEREG2(CHDECMISC, i830_debug_chdecmisc),
     DEFINEREG_16BIT(C0DRB0),
     DEFINEREG_16BIT(C0DRB1),
