@@ -1382,7 +1382,7 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	dst_base = pPriv->buf->virtual;
     } else {
 	drm_intel_gem_bo_start_gtt_access(pPriv->buf, TRUE);
-	dst_base = pI830->FbBase + pPriv->buf->offset;
+	dst_base = pI830->FbBase;
     }
 
     if (pPriv->currentBuf == 0)
