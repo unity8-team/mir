@@ -1703,12 +1703,8 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     pI830->accel = ACCEL_UXA;
 
     if ((s = (char *)xf86GetOptValString(pI830->Options, OPTION_ACCELMETHOD))) {
-	if (!xf86NameCmp(s, "EXA"))
-	    pI830->accel = ACCEL_EXA;
-	else if (!xf86NameCmp(s, "UXA"))
-	    pI830->accel = ACCEL_UXA;
-	else
-	    pI830->accel = ACCEL_UXA;
+	if (xf86NameCmp(s, "UXA"))
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "kernel mode setting active,overridding accelmethod and using UXA\n");
     }
 
     pI830->can_resize = FALSE;
