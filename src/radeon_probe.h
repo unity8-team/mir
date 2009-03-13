@@ -153,7 +153,7 @@ typedef struct _RADEONCrtcPrivateRec {
     int binding;
     uint32_t cursor_offset;
     /* Lookup table values to be set when the CRTC is enabled */
-    uint8_t lut_r[256], lut_g[256], lut_b[256];
+    uint16_t lut_r[256], lut_g[256], lut_b[256];
 
     uint32_t crtc_offset;
     int can_tile;

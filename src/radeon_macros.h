@@ -102,15 +102,10 @@ do {									\
 #define OUTPAL_NEXT(r, g, b)						\
 do {									\
     if (IS_AVIVO_VARIANT) {                                             \
-        OUTREG(AVIVO_DC_LUT_30_COLOR, ((r) << 22) | ((g) << 12) | ((b) << 2));	\
-    } else {                                                               \
-        OUTREG(RADEON_PALETTE_DATA, ((r) << 16) | ((g) << 8) | (b));	\
+        OUTREG(AVIVO_DC_LUT_30_COLOR, ((r) << 20) | ((g) << 10) | (b));	\
+    } else {                                                            \
+        OUTREG(RADEON_PALETTE_30_DATA, ((r) << 20) | ((g) << 10) | (b)); \
     }								        \
-} while (0)
-
-#define OUTPAL_NEXT_uint32_t(v)						\
-do {									\
-    OUTREG(RADEON_PALETTE_DATA, (v & 0x00ffffff));			\
 } while (0)
 
 #define OUTPAL(idx, r, g, b)						\
@@ -133,7 +128,7 @@ do {									\
     if (IS_AVIVO_VARIANT) {                                             \
         INREG(AVIVO_DC_LUT_30_COLOR);                                   \
     } else {                                                            \
-        INREG(RADEON_PALETTE_DATA);                                     \
+        INREG(RADEON_PALETTE_30_DATA);                                  \
     }								        \
 } while (0)
 

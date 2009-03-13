@@ -3122,9 +3122,9 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 	  RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
 	  for (i = 0 ; i < 256; i++) {
-	      lut_r[i] = radeon_crtc->lut_r[i] << 8;
-	      lut_g[i] = radeon_crtc->lut_g[i] << 8;
-	      lut_b[i] = radeon_crtc->lut_b[i] << 8;
+	      lut_r[i] = radeon_crtc->lut_r[i] << 6;
+	      lut_g[i] = radeon_crtc->lut_g[i] << 6;
+	      lut_b[i] = radeon_crtc->lut_b[i] << 6;
 	  }
 
 	  switch (info->CurrentLayout.depth) {
@@ -3132,9 +3132,9 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 	      for (i = 0; i < numColors; i++) {
 		  index = indices[i];
 		  for (j = 0; j < 8; j++) {
-		      lut_r[index * 8 + j] = colors[index].red << 8;
-		      lut_g[index * 8 + j] = colors[index].green << 8;
-		      lut_b[index * 8 + j] = colors[index].blue << 8;
+		      lut_r[index * 8 + j] = colors[index].red << 6;
+		      lut_g[index * 8 + j] = colors[index].green << 6;
+		      lut_b[index * 8 + j] = colors[index].blue << 6;
 		  }
 	      }
 	  case 16:
@@ -3143,21 +3143,21 @@ static void RADEONLoadPalette(ScrnInfoPtr pScrn, int numColors,
 
 		  if (i <= 31) {
 		      for (j = 0; j < 8; j++) {
-			  lut_r[index * 8 + j] = colors[index].red << 8;
-			  lut_b[index * 8 + j] = colors[index].blue << 8;
+			  lut_r[index * 8 + j] = colors[index].red << 6;
+			  lut_b[index * 8 + j] = colors[index].blue << 6;
 		      }
 		  }
-		  
+
 		  for (j = 0; j < 4; j++) {
-		      lut_g[index * 4 + j] = colors[index].green << 8;
+		      lut_g[index * 4 + j] = colors[index].green << 6;
 		  }
 	      }
 	  default:
 	      for (i = 0; i < numColors; i++) {
 		  index = indices[i];
-		  lut_r[index] = colors[index].red << 8;
-		  lut_g[index] = colors[index].green << 8;
-		  lut_b[index] = colors[index].blue << 8;
+		  lut_r[index] = colors[index].red << 6;
+		  lut_g[index] = colors[index].green << 6;
+		  lut_b[index] = colors[index].blue << 6;
 	      }
 	      break;
 	  }
@@ -3749,7 +3749,8 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
                    "Initializing color map\n");
     if (!miCreateDefColormap(pScreen)) return FALSE;
-    if (!xf86HandleColormaps(pScreen, 256, info->dac6bits ? 6 : 8,
+    /* all radeons support 10 bit CLUTs */
+    if (!xf86HandleColormaps(pScreen, 256, 10,
 			     RADEONLoadPalette, NULL,
 			     CMAP_PALETTED_TRUECOLOR
 #if 0 /* This option messes up text mode! (eich@suse.de) */
