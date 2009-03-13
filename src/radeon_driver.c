@@ -122,6 +122,9 @@ static void RADEONSetDynamicClock(ScrnInfoPtr pScrn, int mode);
 static void RADEONForceSomeClocks(ScrnInfoPtr pScrn);
 static void RADEONSaveMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 
+static void
+RADEONSaveBIOSRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
+
 #ifdef XF86DRI
 static void RADEONAdjustMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save);
 #endif
@@ -2916,6 +2919,9 @@ Bool RADEONPreInit(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitBIOS(pScrn, pInt10))
 	goto fail;
 
+    /* Save BIOS scratch registers */
+    RADEONSaveBIOSRegisters(pScrn, info->SavedReg);
+
 #ifdef XF86DRI
     /* PreInit DRI first of all since we need that for getting a proper
      * memory map
@@ -5138,7 +5144,6 @@ static void RADEONSave(ScrnInfoPtr pScrn)
 	    RADEONSaveTVRegisters(pScrn, save);
     }
 
-    RADEONSaveBIOSRegisters(pScrn, save);
     if (info->ChipFamily < CHIP_FAMILY_R600)
         RADEONSaveSurfaces(pScrn, save);
 
