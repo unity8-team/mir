@@ -309,15 +309,12 @@ cp_set_surface_sync(ScrnInfoPtr pScrn, drmBufPtr ib, uint32_t sync_type, uint32_
 
 /* inserts a wait for vline in the command stream */
 void cp_wait_vline_sync(ScrnInfoPtr pScrn, drmBufPtr ib, PixmapPtr pPix,
-	int crtc, int start, int stop, Bool enable)
+	int crtc, int start, int stop)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr  xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     uint32_t offset;
     RADEONCrtcPrivatePtr radeon_crtc;
-
-    if (!enable)
-        return;
 
     if ((crtc < 0) || (crtc > 1))
         return;

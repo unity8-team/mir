@@ -446,16 +446,16 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     EREG(accel_state->ib, SPI_INTERP_CONTROL_0,                0);
 
 
-    cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap,
-                       radeon_covering_crtc_num(pScrn,
-                                                pPriv->drw_x,
-                                                pPriv->drw_x + pPriv->dst_w,
-                                                pPriv->drw_y,
-                                                pPriv->drw_y + pPriv->dst_h,
-                                                pPriv->desired_crtc),
-                       pPriv->drw_y,
-                       pPriv->drw_y + pPriv->dst_h,
-                       pPriv->vsync);
+    if (pPriv->vsync)
+	cp_wait_vline_sync(pScrn, accel_state->ib, pPixmap,
+			   radeon_covering_crtc_num(pScrn,
+						    pPriv->drw_x,
+						    pPriv->drw_x + pPriv->dst_w,
+						    pPriv->drw_y,
+						    pPriv->drw_y + pPriv->dst_h,
+						    pPriv->desired_crtc),
+			   pPriv->drw_y,
+			   pPriv->drw_y + pPriv->dst_h);
 
 
     accel_state->vb_index = 0;
