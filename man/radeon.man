@@ -31,7 +31,7 @@ support on R/RV5xx, R/RV6xx, and R/RV7xx through the
 option);
 .TP
 \(bu
-Full EXA 2D acceleration (not supported on R/RV6xx and R/RV/RS7xx);
+Full EXA 2D acceleration;
 .TP
 \(bu
 Full XAA 2D acceleration (only on R/RV/RS1xx, R/RV/RS2xx, R/RV/RS3xx,
@@ -39,8 +39,8 @@ R/RV/RS4xx, R/RV5xx, RS6xx. XAA Render acceleration supported only on R/RV100,
 R/RV/RS2xx and RS3xx);
 .TP
 \(bu
-Textured XVideo acceleration (not supported on R/RV6xx and R/RV/RS7xx.
-Bicubic filtering only available on R/RV3xx, R/RV/RS4xx, R/RV5xx, and RS690);
+Textured XVideo acceleration including anti-tearing support (Bicubic filtering
+only available on R/RV3xx, R/RV/RS4xx, R/RV5xx, and RS6xx);
 .TP
 \(bu
 Overlay XVideo acceleration (only on R/RV/RS1xx, R/RV/RS2xx,
@@ -138,7 +138,7 @@ Radeon X1600/X1650/X1700
 Radeon X1900/X1950
 .TP 12
 .B RS600/RS690/RS740
-Radeon X1200, X2100
+Radeon X1200/X1250/X2100
 .TP 12
 .B R600
 Radeon HD 2900
@@ -491,6 +491,7 @@ Used to specify Mac models for connector tables and quirks.  If you have
 a powerbook or mini with DVI that does not work properly, try the alternate
 options as Apple does not seem to provide a good way of knowing whether
 they use internal or external TMDS for DVI.  Only valid on PowerPC.
+On Linux, the driver will attempt to detect the MacModel automatically.
 .br
 ibook                \-\- ibooks
 .br
@@ -500,15 +501,9 @@ powerbook-internal   \-\- Powerbooks with integrated DVI
 .br
 powerbook-vga        \-\- Powerbooks with VGA rather than DVI
 .br
-powerbook-duallink   \-\- powerbook-external alias
-.br
-powerbook            \-\- powerbook-internal alias
-.br
 mini-external        \-\- Mac Mini with external DVI
 .br
 mini-internal        \-\- Mac Mini with integrated DVI
-.br
-mini                 \-\- mini-external alias
 .br
 imac-g5-isight       \-\- iMac G5 iSight
 .br
@@ -557,7 +552,7 @@ The default is
 .BI "Option \*qEXAVSync\*q \*q" boolean \*q
 This option attempts to avoid tearing by stalling the engine until the display
 controller has passed the destination region.  It reduces tearing at the cost
-of performance.
+of performance and has been know to cause instability on some chips.
 The default is
 .B off.
 .TP 
