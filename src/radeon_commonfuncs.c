@@ -744,6 +744,9 @@ void FUNC_NAME(RADEONWaitForIdle)(ScrnInfoPtr pScrn)
 #endif
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	if (!info->accelOn)
+	    return;
+
 	/* Wait for the engine to go idle */
 	if (info->ChipFamily >= CHIP_FAMILY_RV770)
 	    R600WaitForFifoFunction(pScrn, 8);
