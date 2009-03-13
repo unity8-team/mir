@@ -34,6 +34,11 @@ AM_INIT_AUTOMAKE([dist-bzip2])
 
 AM_MAINTAINER_MODE
 
+AC_CONFIG_FILES([
+	shave
+	shave-libtool
+])
+
 # Checks for programs.
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
@@ -258,6 +263,8 @@ XORG_MANPAGE_SECTIONS
 XORG_RELEASE_VERSION
 
 XORG_CHECK_LINUXDOC
+
+SHAVE_INIT([.], [enable])
 
 AC_OUTPUT([
 	Makefile
