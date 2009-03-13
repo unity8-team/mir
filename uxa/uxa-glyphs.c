@@ -353,9 +353,7 @@ uxa_glyph_cache_hash_remove(uxa_glyph_cache_t *cache,
 #define CACHE_Y(pos) (cache->yOffset + ((pos) / cache->columns) * cache->glyphHeight)
 
 /* The most efficient thing to way to upload the glyph to the screen
- * is to use the UploadToScreen() driver hook; this allows us to
- * pipeline glyph uploads and to avoid creating offscreen pixmaps for
- * glyphs that we'll never use again.
+ * is to use CopyArea; uxa pixmaps are always offscreen.
  */
 static Bool
 uxa_glyph_cache_upload_glyph(ScreenPtr		    pScreen,
@@ -363,37 +361,23 @@ uxa_glyph_cache_upload_glyph(ScreenPtr		    pScreen,
 			     int		    pos,
 			     GlyphPtr		    pGlyph)
 {
-    uxa_screen_t    *uxa_screen = uxa_get_screen(pScreen);
     PicturePtr	    pGlyphPicture = GlyphPicture(pGlyph)[pScreen->myNum];
     PixmapPtr	    pGlyphPixmap = (PixmapPtr)pGlyphPicture->pDrawable;
     PixmapPtr	    pCachePixmap = (PixmapPtr)cache->picture->pDrawable;
-    int		    cacheXoff, cacheYoff;
-
-    if (!uxa_screen->info->put_image || uxa_screen->swappedOut)
-	return FALSE;
-
-    /* If the glyph pixmap is already uploaded, no point in doing
-     * things this way */
-    if (uxa_pixmap_is_offscreen(pGlyphPixmap))
-	return FALSE;
+    GCPtr	    pGC;
 
     /* UploadToScreen only works if bpp match */
     if (pGlyphPixmap->drawable.bitsPerPixel != pCachePixmap->drawable.bitsPerPixel)
 	return FALSE;
 
-    pCachePixmap = uxa_get_offscreen_pixmap ((DrawablePtr)pCachePixmap, &cacheXoff, &cacheYoff);
-    if (!pCachePixmap)
-	return FALSE;
-
-    if (!uxa_screen->info->put_image(pCachePixmap,
-				     CACHE_X(pos) + cacheXoff,
-				     CACHE_Y(pos) + cacheYoff,
-				     pGlyph->info.width,
-				     pGlyph->info.height,
-				     (char *)pGlyphPixmap->devPrivate.ptr,
-				     pGlyphPixmap->devKind))
-	return FALSE;
-
+    pGC = GetScratchGC(pCachePixmap->drawable.depth, pScreen);
+    ValidateGC(&pCachePixmap->drawable, pGC);
+    (void) uxa_copy_area (&pGlyphPixmap->drawable,
+			  &pCachePixmap->drawable,
+			  pGC,
+			  0, 0, pGlyph->info.width, pGlyph->info.height,
+			  CACHE_X(pos), CACHE_Y(pos));
+    FreeScratchGC (pGC);
     return TRUE;
 }
 

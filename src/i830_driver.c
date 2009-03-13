@@ -1939,11 +1939,16 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
       int errmaj, errmin;
 
       memset(&req, 0, sizeof(req));
+#if EXA_VERSION_MAJOR == 3
+      req.majorversion = 3;
+      req.minorversion = 0;
+#else
       req.majorversion = 2;
 #if EXA_VERSION_MINOR >= 2
       req.minorversion = 2;
 #else
       req.minorversion = 1;
+#endif
 #endif
       if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
 		&errmaj, &errmin)) {
