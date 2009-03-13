@@ -1084,6 +1084,7 @@ extern void RADEONDoPrepareCopyMMIO(ScrnInfoPtr pScrn,
 				    uint32_t datatype, int rop,
 				    Pixel planemask);
 extern Bool R600DrawInit(ScreenPtr pScreen);
+extern Bool R600LoadShaders(ScrnInfoPtr pScrn);
 #endif
 
 #if defined(XF86DRI) && defined(USE_EXA)

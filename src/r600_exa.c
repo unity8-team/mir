@@ -1963,12 +1963,11 @@ R600Sync(ScreenPtr pScreen, int marker)
 }
 
 static Bool
-R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
+R600AllocShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct radeon_accel_state *accel_state = info->accel_state;
-    RADEONChipFamily ChipSet = info->ChipFamily;
-    uint32_t *shader;
+
     /* 512 bytes per shader for now */
     int size = 512 * 9;
 
@@ -1979,6 +1978,16 @@ R600LoadShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 
     if (accel_state->shaders == NULL)
 	return FALSE;
+    return TRUE;
+}
+
+Bool
+R600LoadShaders(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    struct radeon_accel_state *accel_state = info->accel_state;
+    RADEONChipFamily ChipSet = info->ChipFamily;
+    uint32_t *shader;
 
     shader = (pointer)((char *)info->FB + accel_state->shaders->offset);
 
@@ -2117,7 +2126,10 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->XInited3D = FALSE;
     info->accel_state->copy_area = NULL;
 
-    if (!R600LoadShaders(pScrn, pScreen))
+    if (!R600AllocShaders(pScrn, pScreen))
+	return FALSE;
+
+    if (!R600LoadShaders(pScrn))
 	return FALSE;
 
     exaMarkSync(pScreen);

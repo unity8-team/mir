@@ -5663,6 +5663,8 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
     if (info->directRenderingEnabled) {
+        if (info->ChipFamily >= CHIP_FAMILY_R600)
+		R600LoadShaders(pScrn);
 	RADEONCP_START(pScrn, info);
 	DRIUnlock(pScrn->pScreen);
     }
