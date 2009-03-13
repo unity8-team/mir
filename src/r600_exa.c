@@ -2109,11 +2109,8 @@ R600DrawInit(ScreenPtr pScreen)
 #endif
     info->accel_state->exa->maxY = 8192;
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_EXA_VSYNC, FALSE)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA VSync enabled\n");
-	info->accel_state->vsync = TRUE;
-    } else
-	info->accel_state->vsync = FALSE;
+    /* not supported yet */
+    info->accel_state->vsync = FALSE;
 
     if (!exaDriverInit(pScreen, info->accel_state->exa)) {
 	xfree(info->accel_state->exa);
