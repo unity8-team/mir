@@ -153,14 +153,17 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	RIVA_HW_STATE *state = &pNv->ModeReg;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+	struct nouveau_pll_vals *pv = &regp->pllvals;
 	struct pll_lims pll_lim;
-	/* NM2 == 0 is used to determine single stage mode on two stage plls */
-	int NM1, NM2 = 0, log2P, vclk;
+	int vclk;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
 
 	if (get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
+
+	/* NM2 == 0 is used to determine single stage mode on two stage plls */
+	pv->NM2 = 0;
 
 	/* for newer nv4x the blob uses only the first stage of the vpll below a
 	 * certain clock.  for a certain nv4b this is 150MHz.  since the max
@@ -175,8 +178,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	if (pNv->NVArch > 0x40 && dot_clock <= (pll_lim.vco1.maxfreq / 2))
 		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
 
-	vclk = nouveau_bios_getmnp(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
-	if (!vclk)
+	if (!(vclk = nouveau_bios_getmnp(pScrn, &pll_lim, dot_clock, pv)))
 		return;
 
 	/* The blob uses this always, so let's do the same */
@@ -191,14 +193,10 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 					  NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL |
 					  NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2);
 
-	if (NM2)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
+	if (pv->NM2)
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", pv->N1, pv->N2, pv->M1, pv->M2, pv->log2P);
 	else
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
-
-	regp->pllvals.NM1 = NM1;
-	regp->pllvals.NM2 = NM2;
-	regp->pllvals.log2P = log2P;
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", pv->N1, pv->M1, pv->log2P);
 
 	if (pNv->Architecture < NV_ARCH_30)
 		nv4_10UpdateArbitrationSettings(pScrn, vclk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
@@ -1494,14 +1492,13 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	uint32_t pllreg = nv_crtc->head ? NV_RAMDAC_VPLL2 : NV_RAMDAC_VPLL;
-	struct nouveau_pll_vals *pllvals = &regp->pllvals;
 	int i;
 
 	/* This sequence is important, the NV28 is very sensitive in this area. */
 	/* Keep pllsel last and sel_clk first. */
 	if (pNv->twoHeads)
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
-	nouveau_bios_setpll(pScrn, pllreg, pllvals->NM1, pllvals->NM2, pllvals->log2P);
+	nouveau_bios_setpll(pScrn, pllreg, &regp->pllvals);
 	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_GENERAL_CONTROL, regp->general);

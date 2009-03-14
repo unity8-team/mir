@@ -566,7 +566,7 @@ static bool io_condition_met(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t of
 }
 
 static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			 int *bestNM, int *bestlog2P)
+			 struct nouveau_pll_vals *bestpv)
 {
 	/* Find M, N and P for a single stage PLL
 	 *
@@ -648,8 +648,9 @@ static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 			if (delta < bestdelta) {
 				bestdelta = delta;
 				bestclk = calcclk;
-				*bestNM = N << 8 | M;
-				*bestlog2P = log2P;
+				bestpv->N1 = N;
+				bestpv->M1 = M;
+				bestpv->log2P = log2P;
 				if (delta == 0)	/* except this one */
 					return bestclk;
 			}
@@ -660,7 +661,7 @@ static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 }
 
 static int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			 int *bestNM1, int *bestNM2, int *bestlog2P)
+			 struct nouveau_pll_vals *bestpv)
 {
 	/* Find M, N and P for a two stage PLL
 	 *
@@ -741,9 +742,11 @@ static int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 				if (delta < bestdelta) {
 					bestdelta = delta;
 					bestclk = calcclkout;
-					*bestNM1 = N1 << 8 | M1;
-					*bestNM2 = N2 << 8 | M2;
-					*bestlog2P = log2P;
+					bestpv->N1 = N1;
+					bestpv->M1 = M1;
+					bestpv->N2 = N2;
+					bestpv->M2 = M2;
+					bestpv->log2P = log2P;
 					if (delta == 0)	/* except this one */
 						return bestclk;
 				}
@@ -755,14 +758,14 @@ static int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 }
 
 int nouveau_bios_getmnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			int *NM1, int *NM2, int *log2P)
+			struct nouveau_pll_vals *pv)
 {
 	int outclk;
 
 	if (!pll_lim->vco2.maxfreq)
-		outclk = getMNP_single(pScrn, pll_lim, clk, NM1, log2P);
+		outclk = getMNP_single(pScrn, pll_lim, clk, pv);
 	else
-		outclk = getMNP_double(pScrn, pll_lim, clk, NM1, NM2, log2P);
+		outclk = getMNP_double(pScrn, pll_lim, clk, pv);
 
 	if (!outclk)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -800,13 +803,13 @@ static int powerctrl_1_shift(int chip_version, int reg)
 	return shift;
 }
 
-static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
+static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg,
+			  struct nouveau_pll_vals *pv)
 {
 	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
 	uint32_t oldpll = bios_rd32(pScrn, reg);
 	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
-	uint32_t pll = (oldpll & 0xfff80000) | log2P << 16 | NM;
-	int newN = NM >> 8, newM = NM & 0xff;
+	uint32_t pll = (oldpll & 0xfff80000) | pv->log2P << 16 | pv->NM1;
 	uint32_t saved_powerctrl_1 = 0;
 	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg);
 
@@ -820,12 +823,12 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg, int NM, int log2P)
 			1 << shift_powerctrl_1);
 	}
 
-	if (oldM && newM && (oldN / oldM < newN / newM))
+	if (oldM && pv->M1 && (oldN / oldM < pv->N1 / pv->M1))
 		/* upclock -- write new post divider first */
-		bios_wr32(pScrn, reg, log2P << 16 | (oldpll & 0xffff));
+		bios_wr32(pScrn, reg, pv->log2P << 16 | (oldpll & 0xffff));
 	else
 		/* downclock -- write new NM first */
-		bios_wr32(pScrn, reg, (oldpll & 0xffff0000) | NM);
+		bios_wr32(pScrn, reg, (oldpll & 0xffff0000) | pv->NM1);
 
 	if (chip_version < 0x17 && chip_version != 0x11)
 		/* wait a bit on older chips */
@@ -853,25 +856,25 @@ static uint32_t new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 	return ramdac580;
 }
 
-static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1,
+				   struct nouveau_pll_vals *pv)
 {
 	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
 	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
 	uint32_t oldpll1 = bios_rd32(pScrn, reg1);
 	uint32_t oldpll2 = !nv3035 ? bios_rd32(pScrn, reg2) : 0;
-	uint32_t pll1 = (oldpll1 & 0xfff80000) | log2P << 16 | NM1;
-	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | NM2;
+	uint32_t pll1 = (oldpll1 & 0xfff80000) | pv->log2P << 16 | pv->NM1;
+	uint32_t pll2 = (oldpll2 & 0x7fff0000) | 1 << 31 | pv->NM2;
 	uint32_t oldramdac580 = 0, ramdac580 = 0;
-	/* nv41+: single stage pll mode if NM2 is zero, or N2 == M2 */
-	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
+	bool single_stage = !pv->NM2 || pv->N2 == pv->M2;	/* nv41+ only */
 	uint32_t saved_powerctrl_1 = 0, savedc040 = 0;
 	int shift_powerctrl_1 = powerctrl_1_shift(chip_version, reg1);
 
 	/* model specific additions to generic pll1 and pll2 set up above */
 	if (nv3035) {
-		pll1 = (pll1 & 0xfcc7ffff) | (NM2 & (0x18 << 8)) << 13 |
-		       (NM2 & (0x7 << 8)) << 11 | 8 << 4 | (NM2 & 7) << 4;
+		pll1 = (pll1 & 0xfcc7ffff) | (pv->N2 & 0x18) << 21 |
+		       (pv->N2 & 0x7) << 19 | 8 << 4 | (pv->M2 & 7) << 4;
 		pll2 = 0;
 	}
 	if (chip_version > 0x40 && reg1 >= NV_RAMDAC_VPLL) { /* not on nv40 */
@@ -929,7 +932,8 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, in
 		bios_wr32(pScrn, 0xc040, savedc040);
 }
 
-static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, int NM2, int log2P)
+static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg,
+				  struct nouveau_pll_vals *pv)
 {
 	/* When setting PLLs, there is a merry game of disabling and enabling
 	 * various bits of hardware during the process. This function is a
@@ -942,13 +946,13 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	uint32_t Preg = NMNMreg - 4;
 	bool mpll = Preg == 0x4020;
 	uint32_t oldPval = bios_rd32(pScrn, Preg);
-	uint32_t NMNM = NM2 << 16 | NM1;
+	uint32_t NMNM = pv->NM2 << 16 | pv->NM1;
 	uint32_t Pval = (oldPval & (mpll ? ~(0x11 << 16) : ~(1 << 16))) |
-			0xc << 28 | log2P << 16;
+			0xc << 28 | pv->log2P << 16;
 	uint32_t saved4600 = 0;
 	/* some cards have different maskc040s */
 	uint32_t maskc040 = ~(3 << 14), savedc040;
-	bool single_stage = !NM2 || (((NM2 >> 8) & 0xff) == (NM2 & 0xff));
+	bool single_stage = !pv->NM2 || pv->N2 == pv->M2;
 
 	if (bios_rd32(pScrn, NMNMreg) == NMNM && (oldPval & 0xc0070000) == Pval)
 		return;
@@ -965,7 +969,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 		if (get_pll_limits(pScrn, Preg, &pll_lim))
 			return;
 
-		Pval2 = log2P + pll_lim.log2p_bias;
+		Pval2 = pv->log2P + pll_lim.log2p_bias;
 		if (Pval2 > pll_lim.max_log2p_bias)
 			Pval2 = pll_lim.max_log2p_bias;
 		Pval |= 1 << 28 | Pval2 << 20;
@@ -1007,35 +1011,36 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg, int NM1, 
 	}
 }
 
-void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, int NM1, int NM2, int log2P)
+void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1,
+			 struct nouveau_pll_vals *pv)
 {
 	int cv = NVPTR(pScrn)->VBIOS.chip_version;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {
 		if (reg1 > 0x405c)
-			setPLL_double_highregs(pScrn, reg1, NM1, NM2, log2P);
+			setPLL_double_highregs(pScrn, reg1, pv);
 		else
-			setPLL_double_lowregs(pScrn, reg1, NM1, NM2, log2P);
+			setPLL_double_lowregs(pScrn, reg1, pv);
 	} else
-		setPLL_single(pScrn, reg1, NM1, log2P);
+		setPLL_single(pScrn, reg1, pv);
 }
 
 static int setPLL(ScrnInfoPtr pScrn, struct nvbios *bios, uint32_t reg, uint32_t clk)
 {
 	/* clk in kHz */
 	struct pll_lims pll_lim;
-	int ret, NM1, NM2, log2P;
+	int ret;
+	struct nouveau_pll_vals pllvals;
 
 	/* high regs (such as in the mac g5 table) are not -= 4 */
 	if ((ret = get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim)))
 		return ret;
 
-	clk = nouveau_bios_getmnp(pScrn, &pll_lim, clk, &NM1, &NM2, &log2P);
-	if (!clk)
+	if (!(clk = nouveau_bios_getmnp(pScrn, &pll_lim, clk, &pllvals)))
 		return -ERANGE;
 
-	nouveau_bios_setpll(pScrn, reg, NM1, NM2, log2P);
+	nouveau_bios_setpll(pScrn, reg, &pllvals);
 
 	return 0;
 }

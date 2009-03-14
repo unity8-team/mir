@@ -201,12 +201,13 @@ NV50CrtcSetPixelClock(nouveauCrtcPtr crtc, int clock)
 
 	/* I don't know why exactly, but these were in my table. */
 	uint32_t pll_reg = crtc->index ? NV50_CRTC1_CLK_CTRL1 : NV50_CRTC0_CLK_CTRL1;
-
-	int NM1 = 0xbeef, NM2 = 0xdead, log2P;
 	struct pll_lims pll_lim;
+	struct nouveau_pll_vals pllvals;
+
 	get_pll_limits(pScrn, pll_reg, &pll_lim);
+
 	/* NV5x hardware doesn't seem to support a single vco mode, otherwise the blob is hiding it well. */
-	if (!nouveau_bios_getmnp(pScrn, &pll_lim, clock, &NM1, &NM2, &log2P))
+	if (!nouveau_bios_getmnp(pScrn, &pll_lim, clock, &pllvals))
 		return;
 
 	uint32_t reg1 = NVRead(pNv, pll_reg + 4);
@@ -221,13 +222,8 @@ NV50CrtcSetPixelClock(nouveauCrtcPtr crtc, int clock)
 	reg1 &= 0xff00ff00;
 	reg2 &= 0x8000ff00;
 
-	uint8_t N1 = (NM1 >> 8) & 0xFF;
-	uint8_t M1 = NM1 & 0xFF;
-	uint8_t N2 = (NM2 >> 8) & 0xFF;
-	uint8_t M2 = NM2 & 0xFF;
-
-	reg1 |= (M1 << 16) | N1;
-	reg2 |= (log2P << 28) | (M2 << 16) | N2;
+	reg1 |= (pllvals.M1 << 16) | pllvals.N1;
+	reg2 |= (pllvals.log2P << 28) | (pllvals.M2 << 16) | pllvals.N2;
 
 	NVWrite(pNv, pll_reg + 4, reg1);
 	NVWrite(pNv, pll_reg + 8, reg2);
