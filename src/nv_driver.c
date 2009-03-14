@@ -783,7 +783,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 	vgaHWUnmapMem(pScrn);
 	NVDRICloseScreen(pScrn);
-	xf86_cursors_fini(pScreen);
+	if (pNv->randr12_enable)
+		xf86_cursors_fini(pScreen);
 	if (pNv->CursorInfoRec)
 		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
 	if (pNv->ShadowPtr) {
