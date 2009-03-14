@@ -1019,30 +1019,11 @@ static void atom_rv515_force_tv_scaler(ScrnInfoPtr pScrn)
 static int
 atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
 {
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
     RADEONInfoPtr info       = RADEONPTR(output->scrn);
     RADEONCrtcPrivatePtr radeon_crtc = output->crtc->driver_private;
     ENABLE_YUV_PS_ALLOCATION disp_data;
     AtomBiosArgRec data;
     unsigned char *space;
-    unsigned char *RADEONMMIO = info->MMIO;
-    uint32_t temp, reg;
-
-    if (info->ChipFamily >= CHIP_FAMILY_R600)
-	reg = R600_BIOS_3_SCRATCH;
-    else
-	reg = RADEON_BIOS_3_SCRATCH;
-
-    //fix up scratch reg handling
-    temp = INREG(reg);
-    if (radeon_output->active_device & (ATOM_DEVICE_TV_SUPPORT))
-	OUTREG(reg, (ATOM_S3_TV1_ACTIVE |
-		     (radeon_crtc->crtc_id << 18)));
-    else if (radeon_output->active_device & (ATOM_DEVICE_CV_SUPPORT))
-	OUTREG(reg, (ATOM_S3_CV_ACTIVE |
-		     (radeon_crtc->crtc_id << 24)));
-    else
-	OUTREG(reg, 0);
 
     memset(&disp_data, 0, sizeof(disp_data));
 
@@ -1055,14 +1036,9 @@ atombios_output_yuv_setup(xf86OutputPtr output, Bool enable)
     data.exec.pspace = &disp_data;
 
     if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
-
-	OUTREG(reg, temp);
-
 	ErrorF("crtc %d YUV %s setup success\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
 	return ATOM_SUCCESS;
     }
-
-    OUTREG(reg, temp);
 
     ErrorF("crtc %d YUV %s setup failed\n", radeon_crtc->crtc_id, enable ? "enable" : "disable");
     return ATOM_NOT_IMPLEMENTED;
