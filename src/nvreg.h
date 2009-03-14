@@ -228,6 +228,7 @@
 	/* Extended VGA CRTC registers */
 	#define NV_CIO_CRE_RPC0_INDEX		0x19	/* repaint control 0 */
 	#define NV_CIO_CRE_RPC1_INDEX		0x1a	/* repaint control 1 */
+		#define NV_CIO_CRE_RPC1_LARGE		0x04
 	#define NV_CIO_CRE_FF_INDEX		0x1b	/* fifo control */
 	#define NV_CIO_CRE_ENH_INDEX		0x1c	/* enhanced? */
 	#define NV_CIO_SR_LOCK_INDEX		0x1f	/* crtc lock */
@@ -263,7 +264,7 @@
 		#define NV_CIO_CRE_RCR_ENDIAN_BIG	0x80
 	#define NV_CIO_CRE_47			0x47	/* extended fifo lwm, used on nv30+ */
 	#define NV_CIO_CRE_4B			0x4b	/* given patterns in 0x[2-3][a-c] regs, probably scratch 6 */
-	#define NV_CIO_CRE_52			0x52
+	#define NV_CIO_CRE_TVOUT_LATENCY	0x52
 	#define NV_CIO_CRE_53			0x53	/* `fp_htiming' according to Haiku */
 	#define NV_CIO_CRE_54			0x54	/* `fp_vtiming' according to Haiku */
 	#define NV_CIO_CRE_57			0x57	/* index reg for cr58 */

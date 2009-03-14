@@ -355,6 +355,7 @@ nv_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
 
+	/* nv4ref indicates these two RPC1 bits inhibit h/v sync */
 	crtc1A = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RPC1_INDEX) & ~0xC0;
 	switch(mode) {
 		case DPMSModeStandby:
@@ -555,7 +556,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 
 	/* framebuffer can be larger than crtc scanout area. */
 	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] = ((pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8) & 0x700) >> 3;
-	regp->CRTC[NV_CIO_CRE_RPC1_INDEX] = mode->CrtcHDisplay < 1280 ? 0x04 : 0x00;
+	regp->CRTC[NV_CIO_CRE_RPC1_INDEX] = mode->CrtcHDisplay < 1280 ?
+					    NV_CIO_CRE_RPC1_LARGE : 0x00;
 	regp->CRTC[NV_CIO_CRE_LSR_INDEX] = SetBitField(horizBlankEnd,6:6,4:4)
 				| SetBitField(vertBlankStart,10:10,3:3)
 				| SetBitField(vertStart,10:10,2:2)
@@ -714,9 +716,9 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	/* The blob seems to take the current value from crtc 0, add 4 to that
 	 * and reuse the old value for crtc 1 */
-	regp->CRTC[NV_CIO_CRE_52] = pNv->SavedReg.crtc_reg[0].CRTC[NV_CIO_CRE_52];
+	regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] = pNv->SavedReg.crtc_reg[0].CRTC[NV_CIO_CRE_TVOUT_LATENCY];
 	if (!nv_crtc->head)
-		regp->CRTC[NV_CIO_CRE_52] += 4;
+		regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] += 4;
 
 	regp->unk830 = mode->CrtcVDisplay - 3;
 	regp->unk834 = mode->CrtcVDisplay - 1;
@@ -740,7 +742,7 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (pScrn->depth + 1) / 8;
-	/* Enable slaved mode */
+	/* Enable slaved mode (called MODE_TV in nv4ref.h) */
 	if (lvds_output || tmds_output)
 		regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (1 << 7);
 
@@ -1449,7 +1451,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_EBR_INDEX);
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_CSB);
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_4B);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_52);
+		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_TVOUT_LATENCY);
 	}
 	/* NV11 and NV20 stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
@@ -1546,7 +1548,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_EBR_INDEX);
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_CSB);
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_4B);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_52);
+		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_TVOUT_LATENCY);
 	}
 	/* NV11 and NV20 don't have this, they stop at 0x52. */
 	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {

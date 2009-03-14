@@ -125,7 +125,7 @@ struct nouveau_pll_vals {
 typedef struct _nv_crtc_reg 
 {
 	unsigned char MiscOutReg;     /* */
-	uint8_t CRTC[0xff];
+	uint8_t CRTC[0x9f];
 	uint8_t CR58[0x10];
 	uint8_t Sequencer[5];
 	uint8_t Graphics[9];
