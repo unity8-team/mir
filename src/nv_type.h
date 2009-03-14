@@ -156,8 +156,6 @@ typedef struct _nv_crtc_reg
 	uint32_t nv10_cursync;
 	uint32_t fp_control;
 	uint32_t dither;
-	uint32_t vpll_a;
-	uint32_t vpll_b;
 	struct nouveau_pll_vals pllvals;
 } NVCrtcRegRec, *NVCrtcRegPtr;
 
@@ -192,7 +190,6 @@ typedef struct _riva_hw_state
 	uint32_t vpll2B;
 	uint32_t pllsel;
 	uint32_t sel_clk;
-	uint32_t reg580;
 	uint32_t general;
 	uint32_t crtcOwner;
 	uint32_t head;

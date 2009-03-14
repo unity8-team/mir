@@ -110,106 +110,19 @@ void nv_crtc_set_image_sharpening(xf86CrtcPtr crtc, int level)
 	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_634, regp->unk_634);
 }
 
-/* Even though they are not yet used, i'm adding some notes about some of the 0x4000 regs */
-/* They are only valid for NV4x, appearantly reordered for NV5x */
-/* gpu pll: 0x4000 + 0x4004
- * unknown pll: 0x4008 + 0x400c
+/* NV4x 0x40.. pll notes:
+ * gpu pll: 0x4000 + 0x4004
+ * ?gpu? pll: 0x4008 + 0x400c
  * vpll1: 0x4010 + 0x4014
  * vpll2: 0x4018 + 0x401c
- * unknown pll: 0x4020 + 0x4024
- * unknown pll: 0x4038 + 0x403c
- * Some of the unknown's are probably memory pll's.
- * The vpll's use two set's of multipliers and dividers. I refer to them as a and b.
- * 1 and 2 refer to the registers of each pair. There is only one post divider.
- * Logic: clock = reference_clock * ((n(a) * n(b))/(m(a) * m(b))) >> p
- * 1) bit 0-7: familiar values, but redirected from were? (similar to PLL_SETUP_CONTROL)
- *     bit8: A switch that turns of the second divider and multiplier off.
- *     bit12: Also a switch, i haven't seen it yet.
- *     bit16-19: p-divider
- *     but 28-31: Something related to the mode that is used (see bit8).
- * 2) bit0-7: m-divider (a)
- *     bit8-15: n-multiplier (a)
- *     bit16-23: m-divider (b)
- *     bit24-31: n-multiplier (b)
+ * mpll: 0x4020 + 0x4024
+ * mpll: 0x4038 + 0x403c
+ *
+ * the first register of each pair has some unknown details:
+ * bits 0-7: redirected values from elsewhere? (similar to PLL_SETUP_CONTROL?)
+ * bits 20-23: (mpll) something to do with post divider?
+ * bits 28-31: related to single stage mode? (bit 8/12)
  */
-
-/* Modifying the gpu pll for example requires:
- * - Disable value 0x333 (inverse AND mask) on the 0xc040 register.
- * This is not needed for the vpll's which have their own bits.
- */
-
-static void nv_crtc_save_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-	NVPtr pNv = NVPTR(crtc->scrn);
-	enum pll_types plltype = nv_crtc->head ? VPLL2 : VPLL1;
-
-	if (nv_crtc->head) {
-		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2);
-		if (pNv->two_reg_pll)
-			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B);
-	} else {
-		regp->vpll_a = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
-		if (pNv->two_reg_pll)
-			regp->vpll_b = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
-	}
-	nouveau_hw_get_pllvals(crtc->scrn, plltype, &regp->pllvals);
-	if (pNv->twoHeads)
-		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
-	state->pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
-	if (pNv->Architecture == NV_ARCH_40)
-		state->reg580 = NVReadRAMDAC(pNv, 0, NV_RAMDAC_580);
-}
-
-static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state, struct nouveau_pll_vals *pllvals)
-{
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	uint32_t savedc040 = 0;
-
-	/* This sequence is important, the NV28 is very sensitive in this area. */
-	/* Keep pllsel last and sel_clk first. */
-	if (pNv->twoHeads)
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
-
-	if (pllvals) {
-		uint32_t pllreg = nv_crtc->head ? NV_RAMDAC_VPLL2 : NV_RAMDAC_VPLL;
-
-		nouveau_bios_setpll(pScrn, pllreg, pllvals->NM1, pllvals->NM2, pllvals->log2P);
-	} else {	// XXX wrecked indentation, nm
-	if (pNv->Architecture == NV_ARCH_40) {
-		savedc040 = nvReadMC(pNv, 0xc040);
-
-		/* for vpll1 change bits 16 and 17 are disabled */
-		/* for vpll2 change bits 18 and 19 are disabled */
-		nvWriteMC(pNv, 0xc040, savedc040 & ~(3 << (16 + nv_crtc->head * 2)));
-	}
-
-	if (nv_crtc->head) {
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2, regp->vpll_a);
-		if (pNv->two_reg_pll)
-			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL2_B, regp->vpll_b);
-	} else {
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL, regp->vpll_a);
-		if (pNv->two_reg_pll)
-			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B, regp->vpll_b);
-	}
-
-	if (pNv->Architecture == NV_ARCH_40) {
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_580, state->reg580);
-
-		/* We need to wait a while */
-		usleep(5000);
-		nvWriteMC(pNv, 0xc040, savedc040);
-	}
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Writing NV_RAMDAC_PLL_SELECT %08X\n", state->pllsel);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
-}
 
 static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 {
@@ -233,7 +146,7 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 		nv_fix_nv40_hw_cursor(pNv, head);
 }
 
-static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock, struct nouveau_pll_vals *pllvals)
+static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);
@@ -241,10 +154,8 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	RIVA_HW_STATE *state = &pNv->ModeReg;
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	struct pll_lims pll_lim;
-	bool using_two_pll_stages = false;
 	/* NM2 == 0 is used to determine single stage mode on two stage plls */
 	int NM1, NM2 = 0, log2P, vclk;
-	uint32_t g70_pll_special_bits = 0;
 	uint8_t arbitration0;
 	uint16_t arbitration1;
 
@@ -261,58 +172,33 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	 * has yet been observed in allowing the use a single stage pll on all
 	 * nv43 however.  the behaviour of single stage use is untested on nv40
 	 */
-	if ((pNv->two_reg_pll || pNv->NVArch == 0x30 || pNv->NVArch == 0x35) &&
-	    (pNv->NVArch < 0x41 || dot_clock > (pll_lim.vco1.maxfreq / 2)))
-		using_two_pll_stages = true;
-	else if (pNv->NVArch > 0x40)
+	if (pNv->NVArch > 0x40 && dot_clock <= (pll_lim.vco1.maxfreq / 2))
 		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
 
 	vclk = nouveau_bios_getmnp(pScrn, &pll_lim, dot_clock, &NM1, &NM2, &log2P);
 	if (!vclk)
 		return;
 
-	/* magic bits set by the blob (but not the bios), purpose unknown */
-	if (pNv->NVArch == 0x46 || pNv->NVArch == 0x49 || pNv->NVArch == 0x4b)
-		g70_pll_special_bits = (using_two_pll_stages ? 0xc : 0x4);
-
-	if (pNv->NVArch == 0x30 || pNv->NVArch == 0x35)
-		/* See nvregisters.xml for details. */
-		regp->vpll_a = (NM2 & (0x18 << 8)) << 13 | (NM2 & (0x7 << 8)) << 11 | log2P << 16 | NV30_RAMDAC_ENABLE_VCO2 | (NM2 & 7) << 4 | NM1;
-	else
-		regp->vpll_a = g70_pll_special_bits << 28 | log2P << 16 | NM1;
-	regp->vpll_b = NV31_RAMDAC_ENABLE_VCO2 | NM2;
-
 	/* The blob uses this always, so let's do the same */
 	if (pNv->Architecture == NV_ARCH_40)
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_USE_VPLL2_TRUE;
-
 	/* again nv40 and some nv43 act more like nv3x as described above */
 	if (pNv->NVArch < 0x41)
 		state->pllsel |= NV_RAMDAC_PLL_SELECT_PLL_SOURCE_MPLL |
 				 NV_RAMDAC_PLL_SELECT_PLL_SOURCE_NVPLL;
-
 	state->pllsel |= (nv_crtc->head ? NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL2 |
 					  NV_RAMDAC_PLL_SELECT_VCLK2_RATIO_DB2 :
 					  NV_RAMDAC_PLL_SELECT_PLL_SOURCE_VPLL |
 					  NV_RAMDAC_PLL_SELECT_VCLK_RATIO_DB2);
 
-	if (pNv->NVArch >= 0x40) {
-		if (using_two_pll_stages)
-			state->reg580 &= (nv_crtc->head ? ~NV_RAMDAC_580_VPLL2_ACTIVE :
-							  ~NV_RAMDAC_580_VPLL1_ACTIVE);
-		else
-			state->reg580 |= (nv_crtc->head ? NV_RAMDAC_580_VPLL2_ACTIVE :
-							  NV_RAMDAC_580_VPLL1_ACTIVE);
-	}
-
-	if (using_two_pll_stages)
+	if (NM2)
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n1 %d n2 %d m1 %d m2 %d log2p %d\n", NM1 >> 8, NM2 >> 8, NM1 & 0xff, NM2 & 0xff, log2P);
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", NM1 >> 8, NM1 & 0xff, log2P);
 
-	pllvals->NM1 = NM1;
-	pllvals->NM2 = NM2;
-	pllvals->log2P = log2P;
+	regp->pllvals.NM1 = NM1;
+	regp->pllvals.NM2 = NM2;
+	regp->pllvals.log2P = log2P;
 
 	if (pNv->Architecture < NV_ARCH_30)
 		nv4_10UpdateArbitrationSettings(pScrn, vclk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
@@ -938,7 +824,6 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_pll_vals pllvals;
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "CTRC mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, mode);
@@ -952,14 +837,13 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 	nv_crtc_mode_set_regs(crtc, mode);
 	nv_crtc_mode_set_fp_regs(crtc, mode, adjusted_mode);
-	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock, &pllvals);
+	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
 
 	NVVgaProtect(pNv, nv_crtc->head, true);
 	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
 	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_pll(crtc, &pNv->ModeReg, &pllvals);
 
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
@@ -987,10 +871,8 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
-	nv_crtc_save_state_pll(crtc, &pNv->SavedReg);
 
 	/* init some state to saved value */
-	pNv->ModeReg.reg580 = pNv->SavedReg.reg580;
 	pNv->ModeReg.sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
 	pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_CIO_CRE_LCD__INDEX] = pNv->SavedReg.crtc_reg[nv_crtc->head].CRTC[NV_CIO_CRE_LCD__INDEX];
 }
@@ -1008,7 +890,6 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_palette(crtc, &pNv->SavedReg);
 	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_pll(crtc, &pNv->SavedReg, &pNv->SavedReg.crtc_reg[nv_crtc->head].pllvals);
 	NVVgaProtect(pNv, nv_crtc->head, false);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
@@ -1555,10 +1436,14 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp;
+	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+	enum pll_types plltype = nv_crtc->head ? VPLL2 : VPLL1;
 	int i;
 
-	regp = &state->crtc_reg[nv_crtc->head];
+	nouveau_hw_get_pllvals(crtc->scrn, plltype, &regp->pllvals);
+	if (pNv->twoHeads)
+		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
+	state->pllsel = NVReadRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT);
 
 	regp->general = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_GENERAL_CONTROL);
 
@@ -1607,10 +1492,17 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	NVPtr pNv = NVPTR(pScrn);    
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp;
+	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
+	uint32_t pllreg = nv_crtc->head ? NV_RAMDAC_VPLL2 : NV_RAMDAC_VPLL;
+	struct nouveau_pll_vals *pllvals = &regp->pllvals;
 	int i;
 
-	regp = &state->crtc_reg[nv_crtc->head];
+	/* This sequence is important, the NV28 is very sensitive in this area. */
+	/* Keep pllsel last and sel_clk first. */
+	if (pNv->twoHeads)
+		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, state->sel_clk);
+	nouveau_bios_setpll(pScrn, pllreg, pllvals->NM1, pllvals->NM2, pllvals->log2P);
+	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_PLL_SELECT, state->pllsel);
 
 	NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_GENERAL_CONTROL, regp->general);
 

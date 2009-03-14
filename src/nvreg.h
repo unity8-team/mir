@@ -528,10 +528,4 @@
 #define NV_PVIDEO_BLUE_CSC_OFFSET	0x00680288
 #define NV_PVIDEO_CSC_ADJUST		0x0068028c
 
-/* These are the real registers, not the redirected ones */
-#define NV40_VCLK1_A			0x4010
-#define NV40_VCLK1_B			0x4014
-#define NV40_VCLK2_A			0x4018
-#define NV40_VCLK2_B			0x401c
-
 #endif
