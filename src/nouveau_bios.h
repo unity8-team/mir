@@ -122,7 +122,6 @@ struct pll_lims {
 		uint8_t max_n;
 	} vco1, vco2;
 
-	uint8_t unk1c;
 	uint8_t max_log2p_bias;
 	uint8_t log2p_bias;
 	int refclk;
