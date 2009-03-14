@@ -796,25 +796,25 @@ radeon_bios_output_crtc(xf86OutputPtr output)
 	    save->bios_3_scratch &= ~ATOM_S3_TV1_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 18);
 	} else if (radeon_output->active_device & ATOM_DEVICE_CV_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_CV_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_CV_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 24);
 	} else if (radeon_output->active_device & ATOM_DEVICE_CRT1_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_CRT1_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_CRT1_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 16);
 	} else if (radeon_output->active_device & ATOM_DEVICE_CRT2_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_CRT2_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_CRT2_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 20);
 	} else if (radeon_output->active_device & ATOM_DEVICE_LCD1_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_LCD1_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_LCD1_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 17);
 	} else if (radeon_output->active_device & ATOM_DEVICE_DFP1_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_DFP1_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_DFP1_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 19);
 	} else if (radeon_output->active_device & ATOM_DEVICE_DFP2_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_DFP2_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_DFP2_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 23);
 	} else if (radeon_output->active_device & ATOM_DEVICE_DFP3_SUPPORT) {
-	    save->bios_2_scratch &= ~ATOM_S3_DFP3_CRTC_ACTIVE;
+	    save->bios_3_scratch &= ~ATOM_S3_DFP3_CRTC_ACTIVE;
 	    save->bios_3_scratch |= (radeon_crtc->crtc_id << 25);
 	}
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
