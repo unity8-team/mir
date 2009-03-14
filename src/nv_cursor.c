@@ -150,42 +150,31 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 	dst = cursor->map;
 
-	if (pNv->NVArch != 0x11)
-		/* the blob uses non-premultiplied alpha mode for cursors on
-		 * most hardware, so here the multiplication is undone...
+	/* nv11+ supports premultiplied (PM), or non-premultiplied (NPM) alpha
+	 * cursors (though NPM in combination with fp dithering may not work on
+	 * nv11, from "nv" driver history)
+	 * NPM mode needs NV_PCRTC_CURSOR_CONFIG_ALPHA_BLEND set and is what the
+	 * blob uses, however we get given PM cursors so we use PM mode
+	 */
+	for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
+		/* hw gets unhappy if alpha <= rgb values.  for a PM image "less
+		 * than" shouldn't happen; fix "equal to" case by adding one to
+		 * alpha channel (slightly inaccurate, but so is attempting to
+		 * get back to NPM images, due to limits of integer precision)
 		 */
-		for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
-			alpha = *src >> 24;
-			if (alpha == 0x0 || alpha == 0xff)
-				*dst++ = *src;
-			else
-				*dst++ = (alpha << 24)					      |
-					 ((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000) |
-					 ((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00) |
-					 ((((*src & 0xff) * 0xff) / alpha) 	& 0x000000ff);
-			src++;
-		}
-	else
-		/* use premultiplied alpha directly for NV11 (on-GPU blending
-		 * apparently has issues in combination with fp dithering)
-		 */
-		for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
-			alpha = (*src >> 24);
-			if (alpha == 0xff)
-				tmp = *src;
-			else
-				/* hw gets unhappy if alpha <= rgb values.  objecting to "less
-				 * than" is reasonable (as cursor images are premultiplied),
-				 * but fix "equal to" case by adding one to alpha channel
-				 */
-				tmp = ((alpha + 1) << 24) | (*src & 0xffffff);
+		alpha = (*src >> 24);
+		if (alpha == 0xff)
+			/* alpha == max(r,g,b) fortunately works ok for 0xff */
+			tmp = *src;
+		else
+			tmp = ((alpha + 1) << 24) | (*src & 0xffffff);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-			*dst++ = lswapl(tmp);
-#else
-			*dst++ = tmp;
+		if (pNv->NVArch == 0x11)
+			tmp = lswapl(tmp);
 #endif
-			src++;
-		}
+		*dst++ = tmp;
+		src++;
+	}
 
 	nouveau_bo_unmap(cursor);
 	nouveau_bo_ref(NULL, &cursor);

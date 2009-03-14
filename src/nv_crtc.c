@@ -676,8 +676,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_64LINES |
 				      NV_CRTC_CURSOR_CONFIG_64PIXELS |
 				      NV_CRTC_CURSOR_CONFIG_32BPP;
-		if (pNv->NVArch != 0x11)
-			regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND;
 	} else
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32LINES;
 	if (mode->Flags & V_DBLSCAN)
@@ -1287,10 +1285,11 @@ static const xf86CrtcFuncsRec nv_crtc_funcs = {
 	.destroy = nv_crtc_destroy,
 	.lock = nv_crtc_lock,
 	.unlock = nv_crtc_unlock,
-	.set_cursor_colors = NULL, /* Alpha cursors do not need this */
+	.set_cursor_colors = nv_crtc_set_cursor_colors,
 	.set_cursor_position = nv_crtc_set_cursor_position,
 	.show_cursor = nv_crtc_show_cursor,
 	.hide_cursor = nv_crtc_hide_cursor,
+	.load_cursor_image = nv_crtc_load_cursor_image,
 	.load_cursor_argb = nv_crtc_load_cursor_argb,
 	.gamma_set = nv_crtc_gamma_set,
 	.shadow_create = nv_crtc_shadow_create,
@@ -1313,11 +1312,8 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtcfuncs = nv_crtc_funcs;
 
-	if (!pNv->alphaCursor) {
-		crtcfuncs.set_cursor_colors = nv_crtc_set_cursor_colors;
-		crtcfuncs.load_cursor_image = nv_crtc_load_cursor_image;
+	if (!pNv->alphaCursor)
 		crtcfuncs.load_cursor_argb = NULL;
-	}
 	if (pNv->NoAccel) {
 		crtcfuncs.shadow_create = NULL;
 		crtcfuncs.shadow_allocate = NULL;
