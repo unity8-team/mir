@@ -132,7 +132,6 @@ typedef struct _nv_crtc_reg
 	uint8_t Attribute[21];
 	unsigned char DAC[768];       /* Internal Colorlookuptable */
 	uint32_t cursorConfig;
-	uint32_t gpio;
 	uint32_t gpio_ext;
 	uint32_t unk830;
 	uint32_t unk834;

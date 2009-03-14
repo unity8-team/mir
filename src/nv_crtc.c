@@ -671,13 +671,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	/* ADDRESS_SPACE_PNVM is the same as setting HCUR_ASI */
-	regp->cursorConfig = NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
-	if (pNv->alphaCursor) {
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_64LINES |
-				      NV_CRTC_CURSOR_CONFIG_64PIXELS |
-				      NV_CRTC_CURSOR_CONFIG_32BPP;
-	} else
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32LINES;
+	regp->cursorConfig = NV_CRTC_CURSOR_CONFIG_64LINES |
+			     NV_CRTC_CURSOR_CONFIG_64PIXELS |
+			     NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
+	if (pNv->alphaCursor)
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32BPP;
 	if (mode->Flags & V_DBLSCAN)
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
 
@@ -719,9 +717,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	if (pNv->twoHeads)
 		/* This is what the blob does */
 		regp->unk850 = NVReadCRTC(pNv, 0, NV_CRTC_0850);
-
-	/* Never ever modify gpio, unless you know very well what you're doing */
-	regp->gpio = NVReadCRTC(pNv, 0, NV_CRTC_GPIO);
 
 	if (pNv->twoHeads)
 		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT);
@@ -1414,7 +1409,6 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	}
 
 	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, regp->config);
-	NVCrtcWriteCRTC(crtc, NV_CRTC_GPIO, regp->gpio);
 
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC1_INDEX);
@@ -1529,7 +1523,6 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		regp->cursorConfig = NVCrtcReadCRTC(crtc, NV_CRTC_CURSOR_CONFIG);
 	}
 
-	regp->gpio = NVCrtcReadCRTC(crtc, NV_CRTC_GPIO);
 	regp->config = NVCrtcReadCRTC(crtc, NV_CRTC_CONFIG);
 
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH3__INDEX);

@@ -37,9 +37,9 @@
 #define NV04_CURSOR_SIZE 32
 #define NV04_CURSOR_PIXELS (NV04_CURSOR_SIZE * NV04_CURSOR_SIZE)
 
-/* limit nv10/11 <-FIXME cursors to 64x64 (ARGB8) (we could go to 64x255) */
-#define NV1x_CURSOR_SIZE 64
-#define NV1x_CURSOR_PIXELS (NV1x_CURSOR_SIZE * NV1x_CURSOR_SIZE)
+/* limit nv10 cursors to 64x64 (ARGB8) (we could go to 64x255) */
+#define NV10_CURSOR_SIZE 64
+#define NV10_CURSOR_PIXELS (NV10_CURSOR_SIZE * NV10_CURSOR_SIZE)
 
 #define SOURCE_MASK_INTERLEAVE 32
 #define TRANSPARENT_PIXEL   0
@@ -79,7 +79,7 @@ static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 {
 	uint16_t *tmp;
 	struct nouveau_bo *cursor = NULL;
-	int px = pNv->NVArch >= 0x10 ? NV1x_CURSOR_PIXELS : NV04_CURSOR_PIXELS;
+	int px = pNv->NVArch >= 0x10 ? NV10_CURSOR_PIXELS : NV04_CURSOR_PIXELS;
 
 	if (!(tmp = xcalloc(px, 4)))
 		return;
@@ -131,7 +131,7 @@ void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
-	int sz = (pNv->NVArch >= 0x10 ? NV1x_CURSOR_PIXELS : NV04_CURSOR_PIXELS) / 4;
+	int sz = (pNv->NVArch >= 0x10 ? NV10_CURSOR_PIXELS : NV04_CURSOR_PIXELS) / 4;
 
 	/* save copy of image for colour changes */
 	memcpy(pNv->curImage, image, sz);
@@ -156,7 +156,7 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 	 * NPM mode needs NV_PCRTC_CURSOR_CONFIG_ALPHA_BLEND set and is what the
 	 * blob uses, however we get given PM cursors so we use PM mode
 	 */
-	for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
+	for (i = 0; i < NV10_CURSOR_PIXELS; i++) {
 		/* hw gets unhappy if alpha <= rgb values.  for a PM image "less
 		 * than" shouldn't happen; fix "equal to" case by adding one to
 		 * alpha channel (slightly inaccurate, but so is attempting to
@@ -206,7 +206,7 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 Bool NVCursorInitRandr12(ScreenPtr pScreen)
 {
 	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
-	int size = pNv->alphaCursor ? NV1x_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	int size = pNv->NVArch >= 0x10 ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
 		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
 		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0);

@@ -178,6 +178,7 @@
 #	define NV_CRTC_CURSOR_CONFIG_64LINES		(4 << 24)
 #	define NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND	(1 << 28)
 
+/* note: PCRTC_GPIO is not available on nv10, and in fact aliases 0x600810 */
 #define NV_CRTC_GPIO			0x00600818
 #define NV_CRTC_GPIO_EXT		0x0060081c
 #define NV_CRTC_0830			0x00600830
