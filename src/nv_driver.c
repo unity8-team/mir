@@ -871,20 +871,12 @@ NVValidMode(int scrnIndex, DisplayModePtr mode, Bool verbose, int flags)
 
 Bool NVI2CInit(ScrnInfoPtr pScrn)
 {
-	NVPtr pNv = NVPTR(pScrn);
+	xf86LoaderReqSymLists(i2cSymbols,NULL);
+	xf86LoaderReqSymLists(ddcSymbols, NULL);
 
-	if (xf86LoadSubModule(pScrn, "i2c") && xf86LoadSubModule(pScrn, "ddc")) {
-		xf86LoaderReqSymLists(i2cSymbols,NULL);
-		xf86LoaderReqSymLists(ddcSymbols, NULL);
-
-		/* randr-1.2 clients have their DDCs initialized elsewhere */
-		if (!pNv->randr12_enable)
-			return NVDACi2cInit(pScrn);
-		return true;
-	} else
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		"Couldn't load i2c and ddc modules.  DDC probing can't be done\n");
-	return false;
+	if (!NVPTR(pScrn)->randr12_enable)
+		return NVDACi2cInit(pScrn);
+	return TRUE;
 }
 
 static Bool
