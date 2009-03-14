@@ -3225,14 +3225,18 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	if (bios->fp.fptablepointer == 0x0) {
 #ifdef __powerpc__
 		/* Apple cards don't have the fp table; the laptops use DDC */
-		bios->pub.digital_min_front_porch = 0x4b;
 		bios->pub.fp_ddc_permitted = true;
-		return 0;
+		goto missingok;
 #else
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel table invalid\n");
+		if (bios->chip_version == 0x67)	/* sigh, IGPs */
+			goto missingok;
 		return -EINVAL;
 #endif
+missingok:
+		bios->pub.digital_min_front_porch = 0x4b;
+		return 0;
 	}
 
 	fptable = &bios->data[bios->fp.fptablepointer];
