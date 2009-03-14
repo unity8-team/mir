@@ -3425,7 +3425,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (pxclk == 0 || !bios->pub.fp_ddc_permitted)
+		if (!bios->pub.fp_ddc_permitted)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3495,7 +3495,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	}
 
 	/* set dual_link flag for EDID case */
-	if (pxclk && bios->pub.fp_ddc_permitted)
+	if (bios->pub.fp_ddc_permitted)
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	*dl = bios->fp.dual_link;
