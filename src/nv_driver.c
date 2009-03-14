@@ -1552,8 +1552,8 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 #endif
 
 	Cursor0Offset = VRAMReserved;
-	Cursor1Offset = Cursor0Offset + (64 * 1024);
-	CLUTOffset[0] = Cursor1Offset + (64 * 1024);
+	Cursor1Offset = Cursor0Offset + (64 * 64 * 4);
+	CLUTOffset[0] = Cursor1Offset + (64 * 64 * 4);
 	CLUTOffset[1] = CLUTOffset[0] + (4 * 1024);
 
 	ret = nouveau_bo_fake(&dev, 0, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
@@ -1565,14 +1565,14 @@ NVMapMemSW(ScrnInfoPtr pScrn)
 
 	ret = nouveau_bo_fake(&dev, Cursor0Offset,
 			      NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			      64*1024, pNv->VRAMMap + Cursor0Offset,
+			      64 * 64 * 4, pNv->VRAMMap + Cursor0Offset,
 			      &pNv->Cursor);
 	if (ret)
 		return FALSE;
 
 	ret = nouveau_bo_fake(&dev, Cursor1Offset,
 			      NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN,
-			      64*1024, pNv->VRAMMap + Cursor1Offset,
+			      64 * 64 * 4, pNv->VRAMMap + Cursor1Offset,
 			      &pNv->Cursor2);
 	if (ret)
 		return FALSE;
@@ -1672,14 +1672,14 @@ NVMapMem(ScrnInfoPtr pScrn)
 		return TRUE;
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-			   64 * 1024, &pNv->Cursor)) {
+			   64 * 64 * 4, &pNv->Cursor)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Failed to allocate memory for hardware cursor\n");
 		return FALSE;
 	}
 
 	if (nouveau_bo_new(pNv->dev, NOUVEAU_BO_VRAM | NOUVEAU_BO_PIN, 0,
-		64 * 1024, &pNv->Cursor2)) {
+		64 * 64 * 4, &pNv->Cursor2)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			"Failed to allocate memory for hardware cursor\n");
 		return FALSE;
