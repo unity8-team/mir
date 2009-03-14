@@ -77,7 +77,7 @@ nv_cursor_convert_cursor(int px, uint32_t *src, uint16_t *dst, int bpp, uint32_t
 
 static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 {
-	uint32_t *tmp;
+	uint16_t *tmp;
 	struct nouveau_bo *cursor = NULL;
 	int px = pNv->NVArch >= 0x10 ? NV1x_CURSOR_PIXELS : NV04_CURSOR_PIXELS;
 
@@ -86,21 +86,17 @@ static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 
 	/* convert to colour cursor */
 	if (pNv->alphaCursor)
-		nv_cursor_convert_cursor(px, pNv->curImage, (uint16_t *)tmp, 32, pNv->curFg, pNv->curBg);
+		nv_cursor_convert_cursor(px, pNv->curImage, tmp, 32, pNv->curFg, pNv->curBg);
 	else
-		nv_cursor_convert_cursor(px, pNv->curImage, (uint16_t *)tmp, 16, pNv->curFg, pNv->curBg);
+		nv_cursor_convert_cursor(px, pNv->curImage, tmp, 16, pNv->curFg, pNv->curBg);
 
-	if (pNv->Architecture >= NV_ARCH_10) {
-		nouveau_bo_ref(head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	nouveau_bo_ref(head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 
-		memcpy(cursor->map, tmp, px * 4);
+	memcpy(cursor->map, tmp, px * 4);
 
-		nouveau_bo_unmap(cursor);
-		nouveau_bo_ref(NULL, &cursor);
-	} else
-		for (i = 0; i < (px / 2); i++)
-			pNv->CURSOR[i] = tmp[i];
+	nouveau_bo_unmap(cursor);
+	nouveau_bo_ref(NULL, &cursor);
 
 	xfree(tmp);
 }

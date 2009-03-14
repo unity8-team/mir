@@ -214,18 +214,13 @@ static void nv_crtc_load_state_pll(xf86CrtcPtr crtc, RIVA_HW_STATE *state, struc
 static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 {
 	NVPtr pNv = NVPTR(crtc->scrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	uint32_t cursor_start;
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	int head = to_nouveau_crtc(crtc)->head;
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[head];
+	uint32_t cursor_start = head ? pNv->Cursor2->offset :
+				       pNv->Cursor->offset;
 
-	if (pNv->Architecture == NV_ARCH_04)
-		cursor_start = 0x5E00 << 2;
-	else
-		cursor_start = nv_crtc->head ? pNv->Cursor2->offset : pNv->Cursor->offset;
-
-	regp->CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] = cursor_start >> 17;
-	if (pNv->Architecture != NV_ARCH_04)
-		regp->CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] |= NV_CIO_CRE_HCUR_ASI;
+	regp->CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] = NV_CIO_CRE_HCUR_ASI |
+						  (cursor_start >> 17);
 	regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] = (cursor_start >> 11) << 2;
 	if (crtc->mode.Flags & V_DBLSCAN)
 		regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |= NV_CIO_CRE_HCUR_ADDR1_CUR_DBL;
@@ -235,7 +230,7 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR1_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR2_INDEX);
 	if (pNv->Architecture == NV_ARCH_40)
-		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
+		nv_fix_nv40_hw_cursor(pNv, head);
 }
 
 static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int dot_clock, struct nouveau_pll_vals *pllvals)

@@ -309,7 +309,6 @@ static void nv4GetConfig (NVPtr pNv)
 		}
 
 	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & 0x00000040) ? 14318 : 13500;
-	pNv->CURSOR         = &(pNv->PRAMIN[0x5E00]);
 	pNv->MinVClockFreqKHz = 12000;
 	pNv->MaxVClockFreqKHz = 350000;
 }
@@ -359,7 +358,6 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 		if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
 			pNv->CrystalFreqKHz = 27000;
 
-	pNv->CURSOR           = NULL;  /* can't set this here */
 	pNv->MinVClockFreqKHz = 12000;
 	pNv->MaxVClockFreqKHz = pNv->two_reg_pll ? 400000 : 350000;
 }
@@ -417,8 +415,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	pci_device_map_range(pNv->PciInfo, pNv->VRAMPhysical, 0x10000, PCI_DEV_MAP_FLAG_WRITABLE, (void *)&pNv->FB_BAR);
 #endif /* XSERVER_LIBPCIACCESS */
 
-	pNv->PRAMIN   = pNv->REGS + (NV_PRAMIN_OFFSET/4);
-	pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
+	//pNv->PGRAPH   = pNv->REGS + (NV_PGRAPH_OFFSET/4);
 
 	/* 8 bit registers */
 	pNv->PCIO0    = (uint8_t *)pNv->REGS + NV_PRMCIO0_OFFSET;
