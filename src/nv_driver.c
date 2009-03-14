@@ -163,13 +163,6 @@ static const char *exaSymbols[] = {
     NULL
 };
 
-static const char *ramdacSymbols[] = {
-    "xf86CreateCursorInfoRec",
-    "xf86DestroyCursorInfoRec",
-    "xf86InitCursor",
-    NULL
-};
-
 static const char *ddcSymbols[] = {
     "xf86PrintEDID",
     "xf86DoEDID_DDC2",
@@ -286,7 +279,7 @@ nouveauSetup(pointer module, pointer opts, int *errmaj, int *errmin)
 		 * might refer to.
 		 */
 		LoaderRefSymLists(vgahwSymbols, exaSymbols, fbSymbols,
-				ramdacSymbols, shadowSymbols, drmSymbols, 
+				shadowSymbols, drmSymbols,
 				i2cSymbols, ddcSymbols, vbeSymbols,
 				int10Symbols, NULL);
 
@@ -785,8 +778,6 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVDRICloseScreen(pScrn);
 	if (pNv->randr12_enable)
 		xf86_cursors_fini(pScreen);
-	if (pNv->CursorInfoRec)
-		xf86DestroyCursorInfoRec(pNv->CursorInfoRec);
 	if (pNv->ShadowPtr) {
 		xfree(pNv->ShadowPtr);
 		pNv->ShadowPtr = NULL;
@@ -1215,6 +1206,8 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 		from = X_CONFIG;
 		pNv->HWCursor = FALSE;
 	}
+	if (!pNv->randr12_enable)
+		pNv->HWCursor = FALSE;
 	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s cursor\n",
 		pNv->HWCursor ? "HW" : "SW");
 
@@ -1516,14 +1509,6 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 			NVPreInitFail("\n");
 		}
 		xf86LoaderReqSymLists(exaSymbols, NULL);
-	}
-
-	/* Load ramdac if needed */
-	if (pNv->HWCursor) {
-		if (!xf86LoadSubModule(pScrn, "ramdac")) {
-			NVPreInitFail("\n");
-		}
-		xf86LoaderReqSymLists(ramdacSymbols, NULL);
 	}
 
 	/* Load shadowfb */
@@ -2207,9 +2192,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Must follow software cursor initialization.
 	 */
 	if (pNv->HWCursor) { 
-		if (pNv->Architecture < NV_ARCH_50 && !pNv->randr12_enable)
-			ret = NVCursorInit(pScreen);
-		else if (pNv->Architecture < NV_ARCH_50 && pNv->randr12_enable)
+		if (pNv->Architecture < NV_ARCH_50)
 			ret = NVCursorInitRandr12(pScreen);
 		else
 			ret = NV50CursorInit(pScreen);

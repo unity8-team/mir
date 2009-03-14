@@ -306,12 +306,11 @@ typedef struct _NVRec {
     uint8_t cur_head;
     ExaDriverPtr	EXADriverPtr;
     Bool		exa_driver_pixmaps;
-    xf86CursorInfoPtr   CursorInfoRec;
     ScreenBlockHandlerProcPtr BlockHandler;
     CloseScreenProcPtr  CloseScreen;
     /* Cursor */
-    CARD32              curFg, curBg;
-    CARD32              curImage[256];
+	uint32_t	curFg, curBg;
+	uint32_t	curImage[256];
     /* I2C / DDC */
     xf86Int10InfoPtr    pInt10;
     unsigned            Int10Mode;
@@ -410,8 +409,6 @@ typedef struct _NVRec {
 } NVRec;
 
 #define NVPTR(p) ((NVPtr)((p)->driverPrivate))
-
-#define NVShowHideCursor(pScrn, show) nv_show_cursor(NVPTR(pScrn), NVPTR(pScrn)->cur_head, show)
 
 #define nvReadCurVGA(pNv, reg) NVReadVgaCrtc(pNv, pNv->cur_head, reg)
 #define nvWriteCurVGA(pNv, reg, val) NVWriteVgaCrtc(pNv, pNv->cur_head, reg, val)

@@ -1,6 +1,7 @@
 /*
  * Copyright 2003 NVIDIA, Corporation
  * Copyright 2007 Maarten Maathuis
+ * Copyright 2009 Stuart Bennett
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,347 +24,175 @@
 
 #include "nv_include.h"
 
-#include "cursorstr.h"
-
-/****************************************************************************\
-*                                                                            *
-*                          HW Cursor Entrypoints                             *
-*                                                                            *
-\****************************************************************************/
-
-#define CURSOR_X_SHIFT 0
 #define CURSOR_Y_SHIFT 16
 #define CURSOR_POS_MASK 0xffff
 
+#define TO_ARGB1555(c) (0x8000			|	/* Mask bit */	\
+			((c & 0xf80000) >> 9 )	|	/* Red      */	\
+			((c & 0xf800) >> 6 )	|	/* Green    */	\
+			((c & 0xf8) >> 3 ))		/* Blue     */
+#define TO_ARGB8888(c) (0xff000000 | c)
+
+/* nv04 cursor max dimensions of 32x32 (A1R5G5B5) */
+#define NV04_CURSOR_SIZE 32
+#define NV04_CURSOR_PIXELS (NV04_CURSOR_SIZE * NV04_CURSOR_SIZE)
+
+/* limit nv10/11 <-FIXME cursors to 64x64 (ARGB8) (we could go to 64x255) */
+#define NV1x_CURSOR_SIZE 64
+#define NV1x_CURSOR_PIXELS (NV1x_CURSOR_SIZE * NV1x_CURSOR_SIZE)
+
+#define SOURCE_MASK_INTERLEAVE 32
 #define TRANSPARENT_PIXEL   0
 
-#define ConvertToRGB555(c)  (((c & 0xf80000) >> 9 ) | /* Blue  */           \
-                            ((c & 0xf800) >> 6 )    | /* Green */           \
-                            ((c & 0xf8) >> 3 )      | /* Red   */           \
-                            0x8000)                   /* Set upper bit, else we get complete transparency. */
-
-#define ConvertToRGB888(c) (c | 0xff000000)
-
-#define BYTE_SWAP_32(c)  ((c & 0xff000000) >> 24) |  \
-                         ((c & 0xff0000) >> 8) |     \
-                         ((c & 0xff00) << 8) |       \
-                         ((c & 0xff) << 24)
-
-/* Limit non-alpha cursors to 32x32 (x2 bytes) */
-#define MAX_CURSOR_SIZE 32
-
-/* Limit alpha cursors to 64x64 (x4 bytes) */
-#define MAX_CURSOR_SIZE_ALPHA (MAX_CURSOR_SIZE * 2)
-
-static void 
-ConvertCursor1555(NVPtr pNv, CARD32 *src, CARD16 *dst)
+static void
+nv_cursor_convert_cursor(int px, uint32_t *src, uint16_t *dst, int bpp, uint32_t fg, uint32_t bg)
 {
-	CARD32 b, m;
+	uint32_t b, m, pxval;
 	int i, j;
-	int sz=pNv->NVArch==0x10?MAX_CURSOR_SIZE_ALPHA:MAX_CURSOR_SIZE;
 
-	for ( i = 0; i < sz; i++ ) {
+	for (i = 0; i < px / SOURCE_MASK_INTERLEAVE; i++) {
 		b = *src++;
 		m = *src++;
-		for ( j = 0; j < sz; j++ ) {
+		for (j = 0; j < SOURCE_MASK_INTERLEAVE; j++) {
+			pxval = TRANSPARENT_PIXEL;
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-			if ( m & 0x80000000)
-				*dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
-			else
-				*dst = TRANSPARENT_PIXEL;
+			if (m & 0x80000000)
+				pxval = (b & 0x80000000) ? fg : bg;
 			b <<= 1;
 			m <<= 1;
 #else
-			if ( m & 1 )
-				*dst = ( b & 1) ? pNv->curFg : pNv->curBg;
-			else
-				*dst = TRANSPARENT_PIXEL;
+			if (m & 1)
+				pxval = (b & 1) ? fg : bg;
 			b >>= 1;
 			m >>= 1;
 #endif
-			dst++;
+			if (bpp == 32) {
+				*(uint32_t *)dst = pxval;
+				dst += 2;
+			} else
+				*dst++ = pxval;
 		}
 	}
 }
 
-
-static void
-ConvertCursor8888(NVPtr pNv, CARD32 *src, CARD32 *dst)
+static void nv_cursor_transform_cursor(NVPtr pNv, int head)
 {
-	CARD32 b, m;
-	int i, j;
+	uint32_t *tmp;
+	struct nouveau_bo *cursor = NULL;
+	int px = pNv->NVArch >= 0x10 ? NV1x_CURSOR_PIXELS : NV04_CURSOR_PIXELS;
 
-	/* Iterate over each byte in the cursor. */
-	for ( i = 0; i < MAX_CURSOR_SIZE * 4; i++ ) {
-		b = *src++;
-		m = *src++;
-		for ( j = 0; j < MAX_CURSOR_SIZE; j++ ) {
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-			if ( m & 0x80000000)
-				*dst = ( b & 0x80000000) ? pNv->curFg : pNv->curBg;
-			else
-				*dst = TRANSPARENT_PIXEL;
-			b <<= 1;
-			m <<= 1;
-#else
-			if ( m & 1 )
-				*dst = ( b & 1) ? pNv->curFg : pNv->curBg;
-			else
-				*dst = TRANSPARENT_PIXEL;
-			b >>= 1;
-			m >>= 1;
-#endif
-			dst++;
-		}
-	}
-}
+	if (!(tmp = xcalloc(px, 4)))
+		return;
 
-static void
-TransformCursor (NVPtr pNv)
-{
-	CARD32 *tmp;
-	int i, dwords;
+	/* convert to colour cursor */
+	if (pNv->alphaCursor)
+		nv_cursor_convert_cursor(px, pNv->curImage, (uint16_t *)tmp, 32, pNv->curFg, pNv->curBg);
+	else
+		nv_cursor_convert_cursor(px, pNv->curImage, (uint16_t *)tmp, 16, pNv->curFg, pNv->curBg);
 
-	/* convert to color cursor */
-	if(pNv->NVArch==0x10) {
-		dwords = (MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA) >> 1;
-		if(!(tmp = xalloc(dwords * 4))) return;
-		ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
-	} else if(pNv->alphaCursor) {
-		dwords = MAX_CURSOR_SIZE_ALPHA * MAX_CURSOR_SIZE_ALPHA;
-		if(!(tmp = xalloc(dwords * 4))) return;
-		ConvertCursor8888(pNv, pNv->curImage, tmp);
-	} else {
-		dwords = (MAX_CURSOR_SIZE * MAX_CURSOR_SIZE) >> 1;
-		if(!(tmp = xalloc(dwords * 4))) return;
-		ConvertCursor1555(pNv, pNv->curImage, (CARD16*)tmp);
-	}
+	if (pNv->Architecture >= NV_ARCH_10) {
+		nouveau_bo_ref(head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
 
-	for(i = 0; i < dwords; i++)
-		pNv->CURSOR[i] = tmp[i];
+		memcpy(cursor->map, tmp, px * 4);
+
+		nouveau_bo_unmap(cursor);
+		nouveau_bo_ref(NULL, &cursor);
+	} else
+		for (i = 0; i < (px / 2); i++)
+			pNv->CURSOR[i] = tmp[i];
 
 	xfree(tmp);
 }
 
-static void
-NVLoadCursorImage(ScrnInfoPtr pScrn, unsigned char *src)
+void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
 {
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_bo *cursor = NULL;
-
-	if (pNv->Architecture >= NV_ARCH_10) {
-		nouveau_bo_ref(pNv->Cursor, &cursor);
-		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-		pNv->CURSOR = cursor->map;
-	}
-
-	/* save copy of image for color changes */
-	memcpy(pNv->curImage, src, (pNv->alphaCursor) ? 1024 : 256);
-
-	TransformCursor(pNv);
-
-	if (cursor) {
-		nouveau_bo_unmap(cursor);
-		nouveau_bo_ref(NULL, &cursor);
-	}
-}
-
-static void
-NVSetCursorPosition(ScrnInfoPtr pScrn, int x, int y)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	nvWriteCurRAMDAC(pNv, NV_RAMDAC_CURSOR_POS, (x & 0xFFFF) | (y << 16));
-}
-
-static void
-NVSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 fore, back;
+	NVPtr pNv = NVPTR(crtc->scrn);
+	uint32_t fore, back;
+	int head = to_nouveau_crtc(crtc)->head;
 
 	if (pNv->alphaCursor) {
-		fore = ConvertToRGB888(fg);
-		back = ConvertToRGB888(bg);
+		fore = TO_ARGB8888(fg);
+		back = TO_ARGB8888(bg);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-			fore = BYTE_SWAP_32(fore);
-			back = BYTE_SWAP_32(back);
+			fore = lswapl(fore);
+			back = lswapl(back);
 		}
 #endif
 	} else {
-		fore = ConvertToRGB555(fg);
-		back = ConvertToRGB555(bg);
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-		if ((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
-			fore = ((fore & 0xff) << 8) | (fore >> 8);
-			back = ((back & 0xff) << 8) | (back >> 8);
-		}
-#endif
+		fore = TO_ARGB1555(fg);
+		back = TO_ARGB1555(bg);
 	}
 
-	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
-		struct nouveau_bo *cursor = NULL;
-
-		if (pNv->Architecture >= NV_ARCH_10) {
-			nouveau_bo_ref(pNv->Cursor, &cursor);
-			nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-			pNv->CURSOR = cursor->map;
-		}
-
+	if (pNv->curFg != fore || pNv->curBg != back) {
 		pNv->curFg = fore;
 		pNv->curBg = back;
-
-		TransformCursor(pNv);
-
-		if (cursor) {
-			nouveau_bo_unmap(cursor);
-			nouveau_bo_ref(NULL, &cursor);
-		}
+		nv_cursor_transform_cursor(pNv, head);
 	}
 }
 
-
-static void 
-NVShowCursor(ScrnInfoPtr pScrn)
+void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
 {
-	/* Enable cursor - X-Windows mode */
-	NVShowHideCursor(pScrn, 1);
+	NVPtr pNv = NVPTR(crtc->scrn);
+	int sz = (pNv->NVArch >= 0x10 ? NV1x_CURSOR_PIXELS : NV04_CURSOR_PIXELS) / 4;
+
+	/* save copy of image for colour changes */
+	memcpy(pNv->curImage, image, sz);
+
+	nv_cursor_transform_cursor(pNv, to_nouveau_crtc(crtc)->head);
 }
 
-static void
-NVHideCursor(ScrnInfoPtr pScrn)
+void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 {
-	/* Disable cursor */
-	NVShowHideCursor(pScrn, 0);
-}
-
-static Bool 
-NVUseHWCursor(ScreenPtr pScreen, CursorPtr pCurs)
-{
-	return TRUE;
-}
-
-#ifdef ARGB_CURSOR
-static Bool 
-NVUseHWCursorARGB(ScreenPtr pScreen, CursorPtr pCurs)
-{
-    if((pCurs->bits->width <= MAX_CURSOR_SIZE_ALPHA) && (pCurs->bits->height <= MAX_CURSOR_SIZE_ALPHA))
-        return TRUE;
-
-    return FALSE;
-}
-
-static void
-NVLoadCursorARGB(ScrnInfoPtr pScrn, CursorPtr pCurs)
-{
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 *image = pCurs->bits->argb;
+	NVPtr pNv = NVPTR(crtc->scrn);
+	int head = to_nouveau_crtc(crtc)->head, i, alpha;
 	struct nouveau_bo *cursor = NULL;
-	CARD32 *dst;
-	CARD32 alpha, tmp;
-	int x, y, w, h;
+	uint32_t *dst, *src = (uint32_t *)image, tmp;
 
-	if (pNv->Architecture >= NV_ARCH_10) {
-		nouveau_bo_ref(pNv->Cursor, &cursor);
-		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-		pNv->CURSOR = cursor->map;
-	}
-	dst = (CARD32*)pNv->CURSOR;
+	nouveau_bo_ref(head ? pNv->Cursor2 : pNv->Cursor, &cursor);
+	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
+	dst = cursor->map;
 
-    w = pCurs->bits->width;
-    h = pCurs->bits->height;
-
-    if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {  /* premultiply */
-       for(y = 0; y < h; y++) {
-          for(x = 0; x < w; x++) {
-             alpha = *image >> 24;
-             if(alpha == 0xff)
-                tmp = *image;
-             else {
-                tmp = (alpha << 24) |
-                         (((*image & 0xff) * alpha) / 255) |
-                        ((((*image & 0xff00) * alpha) / 255) & 0xff00) |
-                       ((((*image & 0xff0000) * alpha) / 255) & 0xff0000); 
-             }
-             image++;
+	if (pNv->NVArch != 0x11)
+		/* the blob uses non-premultiplied alpha mode for cursors on
+		 * most hardware, so here the multiplication is undone...
+		 */
+		for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
+			alpha = *src >> 24;
+			if (alpha == 0x0 || alpha == 0xff)
+				*dst++ = *src;
+			else
+				*dst++ = (alpha << 24)					      |
+					 ((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000) |
+					 ((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00) |
+					 ((((*src & 0xff) * 0xff) / alpha) 	& 0x000000ff);
+			src++;
+		}
+	else
+		/* use premultiplied alpha directly for NV11 (on-GPU blending
+		 * apparently has issues in combination with fp dithering)
+		 */
+		for (i = 0; i < NV1x_CURSOR_PIXELS; i++) {
+			alpha = (*src >> 24);
+			if (alpha == 0xff)
+				tmp = *src;
+			else
+				/* hw gets unhappy if alpha <= rgb values.  objecting to "less
+				 * than" is reasonable (as cursor images are premultiplied),
+				 * but fix "equal to" case by adding one to alpha channel
+				 */
+				tmp = ((alpha + 1) << 24) | (*src & 0xffffff);
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-             *dst++ = BYTE_SWAP_32(tmp);
+			*dst++ = lswapl(tmp);
 #else
-             *dst++ = tmp;
+			*dst++ = tmp;
 #endif
-         }
-         for(; x < MAX_CURSOR_SIZE_ALPHA; x++)
-             *dst++ = 0;
-      }
-    } else {
-       for(y = 0; y < h; y++) {
-          for(x = 0; x < w; x++)
-              *dst++ = *image++;
-          for(; x < MAX_CURSOR_SIZE_ALPHA; x++)
-              *dst++ = 0;
-       }
-    }
+			src++;
+		}
 
-	if (y < MAX_CURSOR_SIZE_ALPHA)
-		memset(dst, 0, MAX_CURSOR_SIZE_ALPHA * (MAX_CURSOR_SIZE_ALPHA - y) * 4);
-
-	if (cursor) {
-		nouveau_bo_unmap(cursor);
-		nouveau_bo_ref(NULL, &cursor);
-	}
-}
-#endif
-
-Bool 
-NVCursorInit(ScreenPtr pScreen)
-{
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    NVPtr pNv = NVPTR(pScrn);
-    xf86CursorInfoPtr infoPtr;
-
-    infoPtr = xf86CreateCursorInfoRec();
-    if(!infoPtr) return FALSE;
-    
-    pNv->CursorInfoRec = infoPtr;
-
-    if(pNv->alphaCursor)
-       infoPtr->MaxWidth = infoPtr->MaxHeight = MAX_CURSOR_SIZE_ALPHA;
-    else
-       infoPtr->MaxWidth = infoPtr->MaxHeight = MAX_CURSOR_SIZE;
-
-    infoPtr->Flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
-                     HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32; 
-    infoPtr->SetCursorColors = NVSetCursorColors;
-    infoPtr->SetCursorPosition = NVSetCursorPosition;
-    infoPtr->LoadCursorImage = NVLoadCursorImage;
-    infoPtr->HideCursor = NVHideCursor;
-    infoPtr->ShowCursor = NVShowCursor;
-    infoPtr->UseHWCursor = NVUseHWCursor;
-
-#ifdef ARGB_CURSOR
-    if(pNv->alphaCursor) {
-       infoPtr->UseHWCursorARGB = NVUseHWCursorARGB;
-       infoPtr->LoadCursorARGB = NVLoadCursorARGB;
-    }
-#endif
-
-    return(xf86InitCursor(pScreen, infoPtr));
-}
-
-Bool NVCursorInitRandr12(ScreenPtr pScreen)
-{
-	ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-	NVPtr pNv = NVPTR(pScrn);
-	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
-			HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32;
-	int cursor_size = 0;
-	if (pNv->alphaCursor) { /* >= NV11 */
-		cursor_size = MAX_CURSOR_SIZE_ALPHA;
-		flags |= HARDWARE_CURSOR_ARGB;
-	} else {
-		cursor_size = MAX_CURSOR_SIZE;
-	}
-	return xf86_cursors_init(pScreen, cursor_size, cursor_size, flags);
+	nouveau_bo_unmap(cursor);
+	nouveau_bo_ref(NULL, &cursor);
 }
 
 void nv_crtc_show_cursor(xf86CrtcPtr crtc)
@@ -383,124 +212,19 @@ void nv_crtc_hide_cursor(xf86CrtcPtr crtc)
 void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
+	NVPtr pNv = NVPTR(crtc->scrn);
 
-	NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS, ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT) | (y << CURSOR_Y_SHIFT));
+	NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS,
+		      (y << CURSOR_Y_SHIFT) | (x & CURSOR_POS_MASK));
 }
 
-void nv_crtc_set_cursor_colors(xf86CrtcPtr crtc, int bg, int fg)
+Bool NVCursorInitRandr12(ScreenPtr pScreen)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	CARD32 fore, back;
+	NVPtr pNv = NVPTR(xf86Screens[pScreen->myNum]);
+	int size = pNv->alphaCursor ? NV1x_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	int flags = HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
+		    HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_32 |
+		    (pNv->alphaCursor ? HARDWARE_CURSOR_ARGB : 0);
 
-	fore = ConvertToRGB555(fg);
-	back = ConvertToRGB555(bg);
-#if X_BYTE_ORDER == X_BIG_ENDIAN
-	if(pNv->NVArch == 0x11) {
-		fore = ((fore & 0xff) << 8) | (fore >> 8);
-		back = ((back & 0xff) << 8) | (back >> 8);
-	}
-#endif
-
-	/* Eventually this must be replaced as well */
-	if ((pNv->curFg != fore) || (pNv->curBg != back)) {
-		struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-		struct nouveau_bo *cursor = NULL;
-
-		if (pNv->Architecture >= NV_ARCH_10) {
-			nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-			nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-			pNv->CURSOR = cursor->map;
-		}
-
-		pNv->curFg = fore;
-		pNv->curBg = back;
-		TransformCursor(pNv);
-
-		if (cursor) {
-			nouveau_bo_unmap(cursor);
-			nouveau_bo_ref(NULL, &cursor);
-		}
-	}
-}
-
-
-void nv_crtc_load_cursor_image(xf86CrtcPtr crtc, CARD8 *image)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	struct nouveau_bo *cursor = NULL;
-	NVPtr pNv = NVPTR(pScrn);
-
-	/* save copy of image for color changes */
-	memcpy(pNv->curImage, image, 256);
-
-	if (pNv->Architecture >= NV_ARCH_10) {
-		/* Due to legacy code */
-		nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-		nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-		pNv->CURSOR = cursor->map;
-	}
-
-	/* Eventually this has to be replaced as well */
-	TransformCursor(pNv);
-
-	if (cursor) {
-		nouveau_bo_unmap(cursor);
-		nouveau_bo_ref(NULL, &cursor);
-	}
-}
-
-void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	struct nouveau_bo *cursor = NULL;
-	uint32_t *dst = NULL;
-	uint32_t *src = (uint32_t *)image;
-
-	nouveau_bo_ref(nv_crtc->head ? pNv->Cursor2 : pNv->Cursor, &cursor);
-	nouveau_bo_map(cursor, NOUVEAU_BO_WR);
-	dst = cursor->map;
-
-	/* It seems we get premultiplied alpha and the hardware takes non-premultiplied? */
-	/* This is needed, because without bit28 of cursorControl, we use what ever ROP is set currently */
-	/* This causes artifacts (on nv4x at least) */
-	int x, y;
-	uint32_t alpha, value;
-
-	if (pNv->NVArch == 0x11) { /* NV11 takes premultiplied cursors i think. */
-		for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
-			for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
-				/* I suspect NV11 is the only card needing cursor byteswapping. */
-				#if X_BYTE_ORDER == X_BIG_ENDIAN
-					*dst++ = BYTE_SWAP_32(*src);
-					src++;
-				#else
-					*dst++ = *src++;
-				#endif
-			}
-		}
-	} else {
-		for (x = 0; x < MAX_CURSOR_SIZE_ALPHA; x++) {
-			for (y = 0; y < MAX_CURSOR_SIZE_ALPHA; y++) {
-				alpha = *src >> 24;
-				if (alpha == 0x0 || alpha == 0xff) {
-					value = *src;
-				} else {
-					value = 	((((*src & 0xff) * 0xff) / alpha) 		& 0x000000ff)	|
-							((((*src & 0xff00) * 0xff) / alpha) 	& 0x0000ff00)	|
-							((((*src & 0xff0000) * 0xff) / alpha)	& 0x00ff0000)	|
-							((alpha << 24)				& 0xff000000);
-				}
-				src++;
-				*dst++ = value;
-			}
-		}
-	}
-
-	nouveau_bo_unmap(cursor);
+	return xf86_cursors_init(pScreen, size, size, flags);
 }

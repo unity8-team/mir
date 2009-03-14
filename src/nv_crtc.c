@@ -574,7 +574,7 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 				| SetBitField(vertStart,11:11,4:4)
 				| SetBitField(vertBlankStart,11:11,6:6);
 
-	if(mode->Flags & V_INTERLACE) {
+	if (mode->Flags & V_INTERLACE) {
 		horizTotal = (horizTotal >> 1) & ~1;
 		regp->CRTC[NV_CIO_CRE_ILACE__INDEX] = Set8Bits(horizTotal);
 		regp->CRTC[NV_CIO_CRE_HEB__INDEX] |= SetBitField(horizTotal,8:8,4:4);
@@ -675,18 +675,18 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 			regp->head |= NV_CRTC_FSEL_OVERLAY;
 	}
 
-	/* This is not what nv does, but it is what the blob does (for nv4x at least) */
-	/* This fixes my cursor corruption issue */
-	regp->cursorConfig = 0x0;
-	if(mode->Flags & V_DBLSCAN)
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
+	/* ADDRESS_SPACE_PNVM is the same as setting HCUR_ASI */
+	regp->cursorConfig = NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
 	if (pNv->alphaCursor) {
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32BPP |
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_64LINES |
 				      NV_CRTC_CURSOR_CONFIG_64PIXELS |
-				      NV_CRTC_CURSOR_CONFIG_64LINES |
-				      NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND;
+				      NV_CRTC_CURSOR_CONFIG_32BPP;
+		if (pNv->NVArch != 0x11)
+			regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_ALPHA_BLEND;
 	} else
 		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32LINES;
+	if (mode->Flags & V_DBLSCAN)
+		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
 
 	/* Unblock some timings */
 	regp->CRTC[NV_CIO_CRE_53] = 0;
@@ -1318,8 +1318,7 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 
 	crtcfuncs = nv_crtc_funcs;
 
-	/* NV04-NV10 doesn't support alpha cursors */
-	if (pNv->NVArch < 0x11) {
+	if (!pNv->alphaCursor) {
 		crtcfuncs.set_cursor_colors = nv_crtc_set_cursor_colors;
 		crtcfuncs.load_cursor_image = nv_crtc_load_cursor_image;
 		crtcfuncs.load_cursor_argb = NULL;

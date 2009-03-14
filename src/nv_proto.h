@@ -47,7 +47,6 @@ void   RivaEnterLeave(ScrnInfoPtr pScrn, Bool enter);
 void   NVCommonSetup(ScrnInfoPtr pScrn);
 
 /* in nv_cursor.c */
-Bool   NVCursorInit(ScreenPtr pScreen);
 Bool NVCursorInitRandr12(ScreenPtr pScreen);
 void nv_crtc_show_cursor(xf86CrtcPtr crtc);
 void nv_crtc_hide_cursor(xf86CrtcPtr crtc);
