@@ -688,8 +688,6 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
     drmBufPtr          buffer = info->cp->indirectBuffer;
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
-    RING_LOCALS;
-    RADEONCP_REFRESH(pScrn, info);
 
     if (!buffer) return;
     if (start == buffer->used && !discard) return;
@@ -700,10 +698,14 @@ void RADEONCPFlushIndirect(ScrnInfoPtr pScrn, int discard)
     }
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	while (buffer->used & 0x3c){
-	    BEGIN_RING(1);
-	    OUT_RING(CP_PACKET2()); /* fill up to multiple of 16 dwords */
-	    ADVANCE_RING();
+	if (buffer->used & 0x3c) {
+	    RING_LOCALS;
+
+	    while (buffer->used & 0x3c) {
+		BEGIN_RING(1);
+		OUT_RING(CP_PACKET2()); /* fill up to multiple of 16 dwords */
+		ADVANCE_RING();
+	    }
 	}
     }
 
@@ -735,12 +737,11 @@ void RADEONCPReleaseIndirect(ScrnInfoPtr pScrn)
     drmBufPtr          buffer = info->cp->indirectBuffer;
     int                start  = info->cp->indirectStart;
     drm_radeon_indirect_t  indirect;
-    RING_LOCALS;
-    RADEONCP_REFRESH(pScrn, info);
-
 
     if (info->ChipFamily >= CHIP_FAMILY_R600) {
-	if (buffer) {
+	if (buffer && (buffer->used & 0x3c)) {
+	    RING_LOCALS;
+
 	    while (buffer->used & 0x3c) {
 		BEGIN_RING(1);
 		OUT_RING(CP_PACKET2()); /* fill up to multiple of 16 dwords */
