@@ -77,7 +77,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 
 #ifdef I830_USE_EXA
-#define EXA_DRIVER_KNOWN_MAJOR 3
 #include "exa.h"
 Bool I830EXAInit(ScreenPtr pScreen);
 unsigned long long I830TexOffsetStart(PixmapPtr pPix);
