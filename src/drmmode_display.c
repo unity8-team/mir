@@ -38,6 +38,8 @@
 #include "xf86drmMode.h"
 #include "X11/Xatom.h"
 
+#include <sys/ioctl.h>
+
 typedef struct {
     int fd;
     uint32_t fb_id;
@@ -129,6 +131,90 @@ drmmode_crtc_dpms(xf86CrtcPtr drmmode_crtc, int mode)
 
 }
 
+static PixmapPtr
+drmmode_fb_pixmap(ScrnInfoPtr pScrn, int id, int *w, int *h)
+{
+	ScreenPtr pScreen = pScrn->pScreen;
+	struct nouveau_pixmap *nvpix;
+	struct drm_gem_flink req;
+	NVPtr pNv = NVPTR(pScrn);
+	drmModeFBPtr fb;
+	PixmapPtr ppix;
+	int ret;
+
+	fb = drmModeGetFB(nouveau_device(pNv->dev)->fd, id);
+	if (!fb)
+		return NULL;
+
+	ppix = pScreen->CreatePixmap(pScreen, 0, 0, fb->depth, 0);
+	nvpix = nouveau_pixmap(ppix);
+	if (!nvpix) {
+		pScreen->DestroyPixmap(ppix);
+		drmFree(fb);
+		return NULL;
+	}
+
+	miModifyPixmapHeader(ppix, fb->width, fb->height, fb->depth,
+			     pScrn->bitsPerPixel, fb->pitch, NULL);
+	if (w && h) {
+		*w = fb->width;
+		*h = fb->height;
+	}
+
+	/* This is kinda rediculous, libdrm_nouveau needs to be taught
+	 * how to create a nouveau_bo from a GEM handle, and not just
+	 * a GEM name.
+	 */
+	{
+		req.handle = fb->handle;
+		ret = ioctl(nouveau_device(pNv->dev)->fd, DRM_IOCTL_GEM_FLINK,
+					   &req);
+		if (ret) {
+			pScreen->DestroyPixmap(ppix);
+			drmFree(fb);
+			return NULL;
+		}
+	}
+
+	ret = nouveau_bo_handle_ref(pNv->dev, req.name, &nvpix->bo);
+	drmFree(fb);
+	if (ret) {
+		pScreen->DestroyPixmap(ppix);
+		return NULL;
+	}
+
+	return ppix;
+}
+
+static void
+drmmode_fb_copy(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int dst_id, int src_id,
+		int x, int y)
+{
+	ScreenPtr pScreen = pScrn->pScreen;
+	NVPtr pNv = NVPTR(pScrn);
+	ExaDriverPtr exa = pNv->EXADriverPtr;
+	PixmapPtr pspix, pdpix;
+	int w, h;
+
+	pspix = drmmode_fb_pixmap(pScrn, src_id, NULL, NULL);
+	if (!pspix)
+		return;
+
+	pdpix = drmmode_fb_pixmap(pScrn, dst_id, &w, &h);
+	if (!pdpix) {
+		pScreen->DestroyPixmap(pspix);
+		return;
+	}
+
+	exa->PrepareCopy(pspix, pdpix, 0, 0, GXcopy, ~0);
+	exa->Copy(pdpix, 0, 0, x, y, w, h);
+	exa->DoneCopy(pdpix);
+	FIRE_RING (pNv->chan);
+
+	pScreen->DestroyPixmap(pdpix);
+	pScreen->DestroyPixmap(pspix);
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		       Rotation rotation, int x, int y)
@@ -202,10 +288,17 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 	drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
-
 	fb_id = drmmode->fb_id;
+
 	if (drmmode_crtc->rotate_fb_id)
 		fb_id = drmmode_crtc->rotate_fb_id;
+	else
+	if (fb_id != drmmode_crtc->mode_crtc->buffer_id &&
+	    pNv->exa_driver_pixmaps) {
+		drmmode_fb_copy(pScrn, drmmode, fb_id,
+				drmmode_crtc->mode_crtc->buffer_id, x, y);
+	}
+
 	ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			     fb_id, x, y, output_ids, output_count, &kmode);
 	if (ret)

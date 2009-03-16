@@ -2193,6 +2193,7 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	NVInitVideo(pScreen);
 
 	pScrn->vtSema = TRUE;
+	pScrn->pScreen = pScreen;
 	if (!NVEnterVT(pScrn->scrnIndex, 0))
 		return FALSE;
 
