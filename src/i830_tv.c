@@ -1458,6 +1458,10 @@ i830_tv_detect(xf86OutputPtr output)
     int			    dpms_mode;
     int			    type = dev_priv->type;
 
+    /* If TV connector type set by user, always return connected */
+    if (dev_priv->force_type)
+	return XF86OutputStatusConnected;
+
     mode = reported_modes[0];
     xf86SetModeCrtc (&mode, INTERLACE_HALVE_V);
     crtc = i830GetLoadDetectPipe (output, &mode, &dpms_mode);
@@ -1465,13 +1469,6 @@ i830_tv_detect(xf86OutputPtr output)
     {
         type = i830_tv_detect_type (crtc, output);
         i830ReleaseLoadDetectPipe (output, dpms_mode);
-    }
-
-    if (dev_priv->force_type) {
-	if (type == TV_TYPE_NONE)
-	    return XF86OutputStatusDisconnected;
-	else
-	    return XF86OutputStatusConnected;
     }
 
     if (type != dev_priv->type)

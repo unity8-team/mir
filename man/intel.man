@@ -313,7 +313,7 @@ This property allows you to control the output standard used on your TV output p
 .B TV_Connector
 - connector type
 .TP 2
-This config option should be added to xorg.conf TV monitor's section, it allows you to control the TV output connector type, which bypass load detect. You can select between S-Video, Composite and Component.
+This config option should be added to xorg.conf TV monitor's section, it allows you to force the TV output connector type, which bypass load detect and TV will always be taken as connected. You can select between S-Video, Composite and Component.
 
 .SS "TMDS-1"
 First DVI SDVO output
