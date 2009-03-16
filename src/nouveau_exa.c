@@ -409,6 +409,10 @@ nouveau_exa_pixmap_map(PixmapPtr ppix)
 	if (bo->tiled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
+		nvpix->map_refcount++;
+		if (nvpix->linear)
+			return nvpix->linear;
+
 		nvpix->linear = xcalloc(1, ppix->devKind * ppix->drawable.height);
 
 		NVAccelDownloadM2MF(ppix, 0, 0, ppix->drawable.width,
@@ -431,11 +435,15 @@ nouveau_exa_pixmap_unmap(PixmapPtr ppix)
 	if (bo->tiled) {
 		struct nouveau_pixmap *nvpix = nouveau_pixmap(ppix);
 
+		if (--nvpix->map_refcount)
+			return;
+
 		NVAccelUploadM2MF(ppix, 0, 0, ppix->drawable.width,
 				  ppix->drawable.height, nvpix->linear,
 				  ppix->devKind);
 
 		xfree(nvpix->linear);
+		nvpix->linear = NULL;
 	}
 
 	nouveau_bo_unmap(bo);
