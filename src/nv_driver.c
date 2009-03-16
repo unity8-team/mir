@@ -658,26 +658,37 @@ NVEnterVT(int scrnIndex, int flags)
 
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVEnterVT is called.\n");
 
-	if (!pNv->kms_enable && pNv->randr12_enable)
+	if (!pNv->NoAccel)
+		NVAccelCommonInit(pScrn);
+
+	if (!pNv->kms_enable) {
+		/* Save current state, VGA fonts etc */
 		NVSave(pScrn);
+
+		/* Clear the framebuffer, we don't want to see garbage
+		 * on-screen up until X decides to draw something
+		 */
+		nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
+		memset(pNv->FB->map, 0, NOUVEAU_ALIGN(pScrn->virtualX, 64) *
+		       pScrn->virtualY * (pScrn->bitsPerPixel >> 3));
+		nouveau_bo_unmap(pNv->FB);
+
+		if (pNv->Architecture == NV_ARCH_50) {
+			if (!NV50AcquireDisplay(pScrn))
+				return FALSE;
+		}
+	}
 
 	if (!pNv->randr12_enable) {
 		if (!NVModeInit(pScrn, pScrn->currentMode))
 			return FALSE;
 		NVAdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
 	} else {
-		pScrn->vtSema = TRUE;
-
-		if (!pNv->kms_enable && pNv->Architecture == NV_ARCH_50)
-			if (!NV50AcquireDisplay(pScrn))
-				return FALSE;
-
+		pNv->allow_dpms = FALSE;
 		if (!xf86SetDesiredModes(pScrn))
 			return FALSE;
+		pNv->allow_dpms = TRUE;
 	}
-
-	if (!pNv->NoAccel)
-		NVAccelCommonInit(pScrn);
 
 	if (pNv->overlayAdaptor && pNv->Architecture != NV_ARCH_04)
 		NV10WriteOverlayParameters(pScrn);
@@ -699,20 +710,18 @@ NVLeaveVT(int scrnIndex, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
-	if (pNv->randr12_enable)
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVLeaveVT is called.\n");
 
 	NVSync(pScrn);
 
-	if (pNv->kms_enable)
-		return;
+	if (!pNv->kms_enable) {
+		if (pNv->Architecture == NV_ARCH_50) {
+			NV50ReleaseDisplay(pScrn);
+			return;
+		}
 
-	if (pNv->Architecture == NV_ARCH_50) {
-		NV50ReleaseDisplay(pScrn);
-		return;
+		NVRestore(pScrn);
 	}
-
-	NVRestore(pScrn);
 }
 
 static void 
@@ -1189,9 +1198,11 @@ NVPreInit(ScrnInfoPtr pScrn, int flags)
 	from = X_DEFAULT;
 
 	pNv->randr12_enable = true;
-	if (pNv->Architecture != NV_ARCH_50 && !xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
+	if (pNv->Architecture != NV_ARCH_50 && !pNv->kms_enable &&
+	    !xf86ReturnOptValBool(pNv->Options, OPTION_RANDR12, TRUE))
 		pNv->randr12_enable = false;
-	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n", pNv->randr12_enable ? "en" : "dis");
+	xf86DrvMsg(pScrn->scrnIndex, from, "Randr1.2 support %sabled\n",
+		   pNv->randr12_enable ? "en" : "dis");
 
 	pNv->HWCursor = TRUE;
 	/*
@@ -2052,37 +2063,6 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->kms_enable)
 		NVSave(pScrn);
 
-	/* Clear the framebuffer, we don't want to see garbage on-screen
-	 * up until X decides to draw something
-	 */
-	if (!pNv->kms_enable) {
-		nouveau_bo_map(pNv->FB, NOUVEAU_BO_WR);
-		memset(pNv->FB->map, 0, NOUVEAU_ALIGN(pScrn->virtualX, 64) *
-		       pScrn->virtualY * (pScrn->bitsPerPixel >> 3));
-		nouveau_bo_unmap(pNv->FB);
-	}
-
-	if (!pNv->randr12_enable) {
-		if (!NVModeInit(pScrn, pScrn->currentMode))
-			return FALSE;
-		pScrn->AdjustFrame(scrnIndex, pScrn->frameX0, pScrn->frameY0, 0);
-	} else {
-		pScrn->vtSema = TRUE;
-
-		if (!pNv->kms_enable && pNv->Architecture == NV_ARCH_50)
-			if (!NV50AcquireDisplay(pScrn))
-				return FALSE;
-
-		pNv->allow_dpms = FALSE;
-		if (!xf86SetDesiredModes(pScrn))
-			return FALSE;
-		pNv->allow_dpms = TRUE;
-	}
-
-	/* Darken the screen for aesthetic reasons */
-	if (!pNv->kms_enable)
-		NVSaveScreen(pScreen, SCREEN_SAVER_ON);
-
 	/*
 	 * The next step is to setup the screen's visuals, and initialise the
 	 * framebuffer code.  In cases where the framebuffer's default
@@ -2204,11 +2184,29 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
+	if (pNv->ShadowFB)
+		ShadowFBInit(pScreen, NVRefreshArea);
+
+	pScrn->memPhysBase = pNv->VRAMPhysical;
+	pScrn->fbOffset = 0;
+
+	NVInitVideo(pScreen);
+
+	pScrn->vtSema = TRUE;
+	if (!NVEnterVT(pScrn->scrnIndex, 0))
+		return FALSE;
+
 	if (pNv->randr12_enable) {
 		xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
 		if (!xf86CrtcScreenInit(pScreen))
 			return FALSE;
+	} else {
+		if(pNv->FlatPanel) {
+			xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
+		} else {
+			xf86DPMSInit(pScreen, NVDPMSSet, 0);
+		}
 	}
 
 	/* Initialise default colourmap */
@@ -2219,31 +2217,16 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	 * Initialize colormap layer.
 	 * Must follow initialization of the default colormap 
 	 */
-	if (!pNv->randr12_enable && !pNv->kms_enable) {
+	if (!pNv->randr12_enable) {
 		if(!xf86HandleColormaps(pScreen, 256, 8, NVDACLoadPalette,
-				NULL, CMAP_RELOAD_ON_MODE_SWITCH | CMAP_PALETTED_TRUECOLOR))
+					NULL, CMAP_RELOAD_ON_MODE_SWITCH |
+					CMAP_PALETTED_TRUECOLOR))
 			return FALSE;
 	} else {
 		if (!xf86HandleColormaps(pScreen, 256, 8, NVLoadPalette,
-				NULL, CMAP_PALETTED_TRUECOLOR))
+					 NULL, CMAP_PALETTED_TRUECOLOR))
 			return FALSE;
 	}
-
-	if (pNv->ShadowFB)
-		ShadowFBInit(pScreen, NVRefreshArea);
-
-	if (!pNv->randr12_enable) {
-		if(pNv->FlatPanel) {
-			xf86DPMSInit(pScreen, NVDPMSSetLCD, 0);
-		} else {
-			xf86DPMSInit(pScreen, NVDPMSSet, 0);
-		}
-	}
-
-	pScrn->memPhysBase = pNv->VRAMPhysical;
-	pScrn->fbOffset = 0;
-
-	NVInitVideo(pScreen);
 
 	pScreen->SaveScreen = NVSaveScreen;
 
