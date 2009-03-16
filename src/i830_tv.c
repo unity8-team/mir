@@ -1079,7 +1079,7 @@ i830_tv_update_contrast(I830Ptr pI830, uint8_t contrast)
 	c = float_to_fix_2_6(con);
     } else {
 	/* 2.6 floating point */
-	con = 8.875 * ((float) contrast / 255);
+	con = 2.65625 * ((float) contrast / 255);
 	c = float_to_float_2_6(con);
     }
     val |= (c << TV_CONTRAST_SHIFT) & TV_CONTRAST_MASK;
@@ -1098,7 +1098,7 @@ i830_tv_update_saturation(I830Ptr pI830, uint8_t saturation)
 	sat = 3.0 * ((float) saturation / 255);
 	s = float_to_fix_2_6(sat);
     } else {
-	sat = 8.875 * ((float) saturation / 255);
+	sat = 2.65625 * ((float) saturation / 255);
 	s = float_to_float_2_6(sat);
     }
     val |= (s << TV_SATURATION_SHIFT) & TV_SATURATION_MASK;
