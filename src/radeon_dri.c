@@ -749,6 +749,8 @@ static radeon_agpmode_quirk radeon_agpmode_quirk_list[] = {
     { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4c59,  PCI_VENDOR_IBM,0x052f,   1 },
     /* Intel 82855PM host bridge / Mobility 9600 M10 RV350 Needs AGPMode 1 (lp #195051) */
     { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4e50,  PCI_VENDOR_IBM,0x0550,   1 },
+    /* Intel 82855PM host bridge / FireGL Mobility T2 RV350 Needs AGPMode 2 (fdo #20647) */
+    { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x4e54,  PCI_VENDOR_IBM,0x054f,   2 },
     /* Intel 82855PM host bridge / Mobility M9+ / VaioPCG-V505DX Needs AGPMode 2 (fdo #17928) */
     { PCI_VENDOR_INTEL,0x3340,  PCI_VENDOR_ATI,0x5c61,  PCI_VENDOR_SONY,0x816b,  2 },
     /* Intel 82855PM Processor to I/O Controller / Mobility M9+ Needs AGPMode 8 (phoronix forum) */
