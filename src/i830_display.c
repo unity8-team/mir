@@ -67,10 +67,13 @@ typedef struct {
 
 #define INTEL_P2_NUM		      2
 
-typedef struct {
+typedef struct intel_limit intel_limit_t;
+struct intel_limit {
     intel_range_t   dot, vco, n, m, m1, m2, p, p1;
     intel_p2_t	    p2;
-} intel_limit_t;
+    Bool (* find_pll)(const intel_limit_t *, xf86CrtcPtr,
+                      int, int, intel_clock_t *);
+};
 
 #define I8XX_DOT_MIN		  25000
 #define I8XX_DOT_MAX		 350000
@@ -236,6 +239,13 @@ typedef struct {
 #define G4X_P2_DUAL_LVDS_FAST           7
 #define G4X_P2_DUAL_LVDS_LIMIT          0
 
+static Bool
+intel_find_pll_i8xx_and_i9xx(const intel_limit_t *, xf86CrtcPtr,
+                             int, int, intel_clock_t *);
+static Bool
+intel_find_pll_g4x(const intel_limit_t *, xf86CrtcPtr,
+                   int, int, intel_clock_t *);
+
 static const intel_limit_t intel_limits[] = {
     { /* INTEL_LIMIT_I8XX_DVO_DAC */
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
@@ -248,6 +258,7 @@ static const intel_limit_t intel_limits[] = {
         .p1  = { .min = I8XX_P1_MIN,		.max = I8XX_P1_MAX },
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     { /* INTEL_LIMIT_I8XX_LVDS */
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
@@ -260,6 +271,7 @@ static const intel_limit_t intel_limits[] = {
         .p1  = { .min = I8XX_P1_LVDS_MIN,	.max = I8XX_P1_LVDS_MAX },
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     { /* INTEL_LIMIT_I9XX_SDVO_DAC */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
@@ -272,6 +284,7 @@ static const intel_limit_t intel_limits[] = {
         .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     { /* INTEL_LIMIT_I9XX_LVDS */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
@@ -287,6 +300,7 @@ static const intel_limit_t intel_limits[] = {
 	 */
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     { /* INTEL_LIMIT_IGD_SDVO */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
@@ -299,6 +313,7 @@ static const intel_limit_t intel_limits[] = {
         .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     { /* INTEL_LIMIT_IGD_LVDS */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
@@ -312,6 +327,7 @@ static const intel_limit_t intel_limits[] = {
 	/* IGD only supports single-channel mode. */
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
+        .find_pll = intel_find_pll_i8xx_and_i9xx,
     },
     /* below parameter and function is for G4X Chipset Family*/
     {   /* INTEL_LIMIT_G4X_SDVO */
@@ -326,6 +342,7 @@ static const intel_limit_t intel_limits[] = {
         .p2  = { .dot_limit = G4X_P2_SDVO_LIMIT,
                  .p2_slow = G4X_P2_SDVO_SLOW,
                  .p2_fast = G4X_P2_SDVO_FAST },
+        .find_pll = intel_find_pll_g4x,
     },
     {   /* INTEL_LIMIT_G4X_HDMI_DAC */
         .dot = { .min = G4X_DOT_HDMI_DAC_MIN,	.max = G4X_DOT_HDMI_DAC_MAX },
@@ -339,6 +356,7 @@ static const intel_limit_t intel_limits[] = {
         .p2  = { .dot_limit = G4X_P2_HDMI_DAC_LIMIT,
                  .p2_slow = G4X_P2_HDMI_DAC_SLOW,
                  .p2_fast = G4X_P2_HDMI_DAC_FAST },
+        .find_pll = intel_find_pll_g4x,
     },
     {   /* INTEL_LIMIT_G4X_SINGLE_LVDS */
         .dot = { .min = G4X_DOT_SINGLE_LVDS_MIN,
@@ -360,6 +378,7 @@ static const intel_limit_t intel_limits[] = {
         .p2  = { .dot_limit = G4X_P2_SINGLE_LVDS_LIMIT,
                  .p2_slow = G4X_P2_SINGLE_LVDS_SLOW,
                  .p2_fast = G4X_P2_SINGLE_LVDS_FAST },
+        .find_pll = intel_find_pll_g4x,
     },
     {   /* INTEL_LIMIT_G4X_DUAL_LVDS */
         .dot = { .min = G4X_DOT_DUAL_LVDS_MIN,
@@ -381,6 +400,7 @@ static const intel_limit_t intel_limits[] = {
         .p2  = { .dot_limit = G4X_P2_DUAL_LVDS_LIMIT,
                  .p2_slow = G4X_P2_DUAL_LVDS_SLOW,
                  .p2_fast = G4X_P2_DUAL_LVDS_FAST },
+        .find_pll = intel_find_pll_g4x,
     },
 };
 
@@ -547,18 +567,13 @@ i830PllIsValid(xf86CrtcPtr crtc, intel_clock_t *clock)
     return TRUE;
 }
 
-/**
- * Returns a set of divisors for the desired target clock with the given
- * refclk, or FALSE.  The returned values represent the clock equation:
- * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
- */
 static Bool
-i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_clock)
+intel_find_pll_i8xx_and_i9xx(const intel_limit_t * limit, xf86CrtcPtr crtc,
+	                     int target, int refclk, intel_clock_t *best_clock)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
     I830Ptr pI830 = I830PTR(pScrn);
-    intel_clock_t   clock;
-    const intel_limit_t   *limit = intel_limit (crtc);
+    intel_clock_t clock;
     int err = target;
 
     if (i830PipeHasType(crtc, I830_OUTPUT_LVDS))
@@ -608,6 +623,64 @@ i830FindBestPLL(xf86CrtcPtr crtc, int target, int refclk, intel_clock_t *best_cl
 	}
     }
     return (err != target);
+}
+
+static Bool
+intel_find_pll_g4x(const intel_limit_t * limit, xf86CrtcPtr crtc,
+                   int target, int refclk, intel_clock_t *best_clock)
+{
+    ScrnInfoPtr pScrn = crtc->scrn;
+    I830Ptr pI830 = I830PTR(pScrn);
+    intel_clock_t clock;
+    int  max_n;
+    Bool found = FALSE;
+    int err_most = target * 0.0048;
+
+    if (i830PipeHasType(crtc, I830_OUTPUT_LVDS))
+    {
+        /* For LVDS, if the panel is on, just rely on its current settings for
+         * dual-channel.  We haven't figured out how to reliably set up
+         * different single/dual channel state, if we even can.
+         */
+        if ((INREG(LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+            clock.p2 = limit->p2.p2_fast;
+        else
+            clock.p2 = limit->p2.p2_slow;
+    } else {
+        if (target < limit->p2.dot_limit)
+            clock.p2 = limit->p2.p2_slow;
+        else
+            clock.p2 = limit->p2.p2_fast;
+    }
+
+    max_n = limit->n.max;
+    /* based on hardware requirement prefer smaller n to precision */
+    for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
+        /* based on hardware requirement prefere larger m1,m2, p1*/
+        for (clock.m1 = limit->m1.max;
+            clock.m1 >= limit->m1.min; clock.m1--) {
+            for (clock.m2 = limit->m2.max;
+                clock.m2 >= limit->m2.min; clock.m2--) {
+                for (clock.p1 = limit->p1.max;
+                    clock.p1 >= limit->p1.min; clock.p1--) {
+                    int this_err;
+
+                    intel_clock (pI830, refclk, &clock);
+                    if (!i830PllIsValid(crtc, &clock))
+                        continue;
+                    this_err = abs(clock.dot - target) ;
+                    if (this_err < err_most) {
+                        memcpy(best_clock, &clock, sizeof(intel_clock_t));
+                        err_most = this_err;
+                        /* prefer smaller n to precision */
+                        max_n = clock.n;
+                        found = TRUE;
+                    }
+                }
+            }
+        }
+    }
+    return found;
 }
 
 void
@@ -1480,6 +1553,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
     uint32_t dpll = 0, fp = 0, dspcntr, pipeconf, lvds_bits = 0;
     Bool ok, is_sdvo = FALSE, is_dvo = FALSE;
     Bool is_crt = FALSE, is_lvds = FALSE, is_tv = FALSE;
+    const intel_limit_t *limit;
 
     /* Set up some convenient bools for what outputs are connected to
      * our pipe, used in DPLL setup.
@@ -1532,7 +1606,13 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	refclk = 48000;
     }
 
-    ok = i830FindBestPLL(crtc, adjusted_mode->Clock, refclk, &clock);
+    /*
+     * Returns a set of divisors for the desired target clock with the given
+     * refclk, or FALSE.  The returned values represent the clock equation:
+     * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+     */
+    limit = intel_limit (crtc);
+    ok = limit->find_pll(limit, crtc, adjusted_mode->Clock, refclk, &clock);
     if (!ok)
 	FatalError("Couldn't find PLL settings for mode!\n");
 
