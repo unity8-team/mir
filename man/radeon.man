@@ -568,27 +568,60 @@ This option enables modesetting on R/RV4xx chips using atombios.
 The default is
 .B off.
 
+.SH TEXTURED VIDEO ATTRIBUTES
+The driver supports the following X11 Xv attributes for Textured Video.
+You can use the "xvattr" tool to query/set those attributes at runtime.
+
+.TP
+.BI "XV_VSYNC"
+XV_VSYNC is used to control whether textured adapter synchronizes
+the screen update to the monitor vertical refresh to eliminate tearing.
+It has two values: 'off'(0) and 'on'(1). The default is
+.B 'on'(1).
+
+.TP
+.BI "XV_BICUBIC"
+XV_BICUBIC is used to control whether textured adapter should apply
+a bicubic filter to smooth the output. It has three values: 'off'(0), 'on'(1)
+and 'auto'(2). 'off' means never apply the filter, 'on' means always apply
+the filter and 'auto' means apply the filter only if one of the X or Y
+sizes are scaled to more than double, this to avoid blurred output.
+The default is
+.B 'auto'(2).
+
 .SH SEE ALSO
 __xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__)
 .IP " 1." 4
-Overview about radeon development code
+Wiki page:
 .RS 4
-\%http://cgit.freedesktop.org/xorg/driver/xf86-video-ati/
+http://www.x.org/wiki/radeon
 .RE
 .IP " 2." 4
-Query the bugtracker for radeon bugs
+Overview about radeon development code:
 .RS 4
-.nf
-\%https://bugs.freedesktop.org/query.cgi?\:product=\:xorg&\:component=\:Driver/Radeon
-.fi
+http://cgit.freedesktop.org/xorg/driver/xf86-video-ati/
 .RE
 .IP " 3." 4
-Submit bugs & patches
+Mailing list:
 .RS 4
-.nf
-\%https://bugs.freedesktop.org/enter_bug.cgi?\:product=\:xorg&\:component=\:Driver/Radeon
-.fi
+http://lists.x.org/mailman/listinfo/xorg-driver-ati
 .RE
+.IP " 4." 4
+IRC channel:
+.RS 4
+#radeon on irc.freenode.net
+.RE
+.IP " 5." 4
+Query the bugtracker for radeon bugs:
+.RS 4
+https://bugs.freedesktop.org/query.cgi?product=xorg&component=Driver/Radeon
+.RE
+.IP " 6." 4
+Submit bugs & patches:
+.RS 4
+https://bugs.freedesktop.org/enter_bug.cgi?product=xorg&component=Driver/Radeon
+.RE
+
 .SH AUTHORS
 .nf
 Authors include:
