@@ -758,6 +758,32 @@ i830_get_pixmap_bo(PixmapPtr pixmap)
     return NULL;
 }
 
+void
+i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
+{
+    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
+    I830Ptr i830 = I830PTR(pScrn);
+    dri_bo  *old_bo = i830_get_pixmap_bo (pixmap);
+
+    if (old_bo)
+	dri_bo_unreference (old_bo);
+#if I830_USE_UXA
+    if (i830->accel == ACCEL_UXA) {
+	dri_bo_reference(bo);
+	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
+    }
+#endif
+#ifdef XF86DRM_MODE
+    if (i830->accel == ACCEL_EXA) {
+	struct i830_exa_pixmap_priv *driver_priv =
+	    exaGetPixmapDriverPrivate(pixmap);
+	if (driver_priv) {
+	    dri_bo_reference(bo);
+	    driver_priv->bo = bo;
+	}
+    }
+#endif
+}
 #if defined(I830_USE_UXA)
 
 static void
@@ -856,16 +882,39 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     
     if (w && h)
     {
+	unsigned int size;
+	uint32_t tiling = I915_TILING_NONE;
+
 	stride = ROUND_TO((w * pixmap->drawable.bitsPerPixel + 7) / 8,
 			  i830->accel_pixmap_pitch_alignment);
-    
-	bo = dri_bo_alloc (i830->bufmgr, "pixmap", stride * h, 
-			   i830->accel_pixmap_offset_alignment);
+
+	if (usage == INTEL_CREATE_PIXMAP_TILING_X)
+	    tiling = I915_TILING_X;
+	else if (usage == INTEL_CREATE_PIXMAP_TILING_Y)
+	    tiling = I915_TILING_Y;
+
+	if (tiling == I915_TILING_NONE) {
+	    size = stride * h;
+	} else {
+	    stride = i830_get_fence_pitch(i830, stride, tiling);
+	    /* Round the object up to the size of the fence it will live in
+	     * if necessary.  We could potentially make the kernel allocate
+	     * a larger aperture space and just bind the subset of pages in,
+	     * but this is easier and also keeps us out of trouble (as much)
+	     * with drm_intel_bufmgr_check_aperture().
+	     */
+	    size = i830_get_fence_size(i830, stride * h);
+	}
+
+	bo = drm_intel_bo_alloc_for_render(i830->bufmgr, "pixmap", size, 0);
 	if (!bo) {
 	    fbDestroyPixmap (pixmap);
 	    return NullPixmap;
 	}
-	
+
+	if (tiling != I915_TILING_NONE)
+	    drm_intel_bo_set_tiling(bo, &tiling, stride);
+
 	screen->ModifyPixmapHeader (pixmap, w, h, 0, 0, stride, NULL);
     
 	i830_uxa_set_pixmap_bo (pixmap, bo);
@@ -896,6 +945,7 @@ void i830_uxa_create_screen_resources(ScreenPtr pScreen)
     if (bo != NULL) {
 	PixmapPtr   pixmap = pScreen->GetScreenPixmap(pScreen);
 	i830_uxa_set_pixmap_bo (pixmap, bo);
+	dri_bo_reference(bo);
     }
 }
 

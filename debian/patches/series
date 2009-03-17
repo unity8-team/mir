@@ -1,10 +1,8 @@
 01_gen_pci_ids.diff
 103_quirk_intel_mb890.patch
-104_i830-vbt-timing-hack.patch
 105_no_modesetting.diff
 106_remove_triple_buffering.diff
 107_remove_pageflipping.diff
-108_dont_disable_vga_centering_bit.patch
 109_i830-fifo-watermark-conservative.patch
 110_quirk_hp_mini.patch
-111_quirks_march4_sync.patch
+112_num_used_fences.patch

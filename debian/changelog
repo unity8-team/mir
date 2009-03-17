@@ -1,3 +1,25 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu1) jaunty; urgency=low
+
+  * New upstream release:
+    - Access the Xv buffer through the GTT for the non-KMS case.
+    - Fix i915 textured video to work with the i830_memory -> bo change.
+    - Make i830_allocate_memory take tiling parameters.
+    - Fixup bogus VBT when detected.  Causes incorrect video modes for
+      several Dell and Sony machines.
+    - Various KMS, BOs, UXA, and DRI2 fixes
+    - Various new hw quirks
+  * Add ChangeLog not included in upstream tarball (else FTBS)
+  * Add 112_num_used_fences.patch: Work around FTBS due to missing kernel
+    header changes (from drm commit 0f973f27888e4664b253ab2cf69c67c2eb80ab1b)
+  * debian/control:  Update libdrm2 dependency to 2.4.5
+  * Drop patches applied upstream:
+    - 104_i830-vbt-timing-hack.patch
+    - 108_dont_disable_vga_centering_bit.patch
+    - 111_quirks_march4_sync.patch (Fixes LP: #343577)
+  * Refresh 107_remove_pageflipping.diff to apply
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 17 Mar 2009 13:34:59 -0700
+
 xserver-xorg-video-intel (2:2.6.1-1ubuntu5) jaunty; urgency=low
 
   * Add 111_quirks_march4_sync.patch: Cherrypick from upstream's quirks

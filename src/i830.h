@@ -75,7 +75,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef DAMAGE
 #include "damage.h"
 #endif
-#include "drmmode_display.h"
 #endif
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
@@ -95,6 +94,7 @@ void i830_uxa_block_handler (ScreenPtr pScreen);
 
 #if defined(I830_USE_UXA) || defined(I830_USE_EXA)
 dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
+void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
 #endif
 
 #ifdef I830_USE_XAA
@@ -140,6 +140,8 @@ enum tile_format {
     TILE_XMAJOR,
     TILE_YMAJOR
 };
+
+#define PITCH_NONE 0
 
 /** Record of a linear allocation in the aperture. */
 typedef struct _i830_memory i830_memory;
@@ -265,6 +267,8 @@ typedef struct _I830CrtcPrivateRec {
     
     int			    dpms_mode;
     
+    int			    x, y;
+
     /* Lookup table values to be set when the CRTC is enabled */
     uint8_t lut_r[256], lut_g[256], lut_b[256];
 
@@ -413,7 +417,6 @@ typedef struct _I830Rec {
    i830_memory *xaa_scratch_2;
 #ifdef I830_USE_EXA
    i830_memory *exa_offscreen;
-   i830_memory *gen4_render_state_mem;
 #endif
    i830_memory *fake_bufmgr_mem;
 
@@ -456,8 +459,6 @@ typedef struct _I830Rec {
    void (*PointerMoved)(int, int, int);
    CreateScreenResourcesProcPtr    CreateScreenResources;
 
-   i830_memory *logical_context;
-
    i830_memory *power_context;
 
 #ifdef XF86DRI
@@ -471,6 +472,8 @@ typedef struct _I830Rec {
    int TexGranularity;
    int drmMinor;
    Bool allocate_classic_textures;
+
+   Bool can_resize;
 
    Bool want_vblank_interrupts;
 #ifdef DAMAGE
@@ -544,8 +547,8 @@ typedef struct _I830Rec {
 #ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
    Bool need_flush;
-   Bool need_sync;
 #endif
+   Bool need_sync;
 #if defined(I830_USE_EXA) || defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
 #endif
@@ -730,10 +733,7 @@ typedef struct _I830Rec {
    enum last_3d *last_3d;
 
    Bool use_drm_mode;
-#ifdef XF86DRM_MODE
-   drmmode_rec drmmode;
-   int drm_mm_init;
-#endif
+   Bool kernel_exec_fencing;
 
    /** Enables logging of debug output related to mode switching. */
    Bool debug_modes;
@@ -841,6 +841,12 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen);
 void I830DRI2CloseScreen(ScreenPtr pScreen);
 #endif
 
+#ifdef XF86DRM_MODE
+extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
+extern Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
+				     dri_bo **bo);
+#endif
+
 extern Bool I830AccelInit(ScreenPtr pScreen);
 extern void I830SetupForScreenToScreenCopy(ScrnInfoPtr pScrn, int xdir,
 					   int ydir, int rop,
@@ -858,13 +864,9 @@ Bool i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset,
 			 unsigned long size);
 void i830_allocator_fini(ScrnInfoPtr pScrn);
 i830_memory * i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
-				   unsigned long size, unsigned long alignment,
-				   int flags);
-i830_memory *i830_allocate_memory_tiled(ScrnInfoPtr pScrn, const char *name,
-					unsigned long size,
-					unsigned long pitch,
-					unsigned long alignment, int flags,
-					enum tile_format tile_format);
+				   unsigned long size, unsigned long pitch,
+				   unsigned long alignment, int flags,
+				   enum tile_format tile_format);
 void i830_describe_allocations(ScrnInfoPtr pScrn, int verbosity,
 			       const char *prefix);
 void i830_reset_allocations(ScrnInfoPtr pScrn);
@@ -884,6 +886,13 @@ extern void i830_update_front_offset(ScrnInfoPtr pScrn);
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
 extern Bool I830IsPrimary(ScrnInfoPtr pScrn);
+
+Bool
+i830_tiled_width(I830Ptr i830, int *width, int cpp);
+
+int
+i830_pad_drawable_width(int width, int cpp);
+
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
@@ -913,9 +922,16 @@ extern void i830WaitSync(ScrnInfoPtr pScrn);
 /* i830_memory.c */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
+unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
+unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
+unsigned long i830_get_fence_alignment(I830Ptr pI830, unsigned long size);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);
+
+i830_memory *
+i830_allocate_framebuffer(ScrnInfoPtr pScrn, I830Ptr pI830, BoxPtr FbMemBox,
+			  Bool secondary);
 
 /* i830_modes.c */
 DisplayModePtr i830_ddc_get_modes(xf86OutputPtr output);
@@ -1021,6 +1037,38 @@ Bool i830_pixmap_tiled(PixmapPtr p);
     if (pitch > KB(8)) I830FALLBACK("pitch exceeds 3d limit 8K\n");\
 } while(0)
 
+/**
+ * Little wrapper around drm_intel_bo_reloc to return the initial value you
+ * should stuff into the relocation entry.
+ *
+ * If only we'd done this before settling on the library API.
+ */
+static inline uint32_t
+intel_emit_reloc(drm_intel_bo *bo, uint32_t offset,
+		 drm_intel_bo *target_bo, uint32_t target_offset,
+		 uint32_t read_domains, uint32_t write_domain)
+{
+    drm_intel_bo_emit_reloc(bo, offset, target_bo, target_offset,
+			    read_domains, write_domain);
+
+    return target_bo->offset + target_offset;
+}
+
+static inline drm_intel_bo *
+intel_bo_alloc_for_data(ScrnInfoPtr scrn, void *data, unsigned int size,
+			char *name)
+{
+    I830Ptr pI830 = I830PTR(scrn);
+    drm_intel_bo *bo;
+
+    bo = drm_intel_bo_alloc(pI830->bufmgr, name, size, 4096);
+    if (!bo)
+	return NULL;
+    drm_intel_bo_subdata(bo, 0, size, data);
+
+    return bo;
+}
+
 extern const int I830PatternROP[16];
 extern const int I830CopyROP[16];
 
@@ -1046,5 +1094,16 @@ extern const int I830CopyROP[16];
 #define QUIRK_PFIT_SAFE			0x00000040
 #define QUIRK_IGNORE_CRT		0x00000080
 extern void i830_fixup_devices(ScrnInfoPtr);
+
+/**
+ * Hints to CreatePixmap to tell the driver how the pixmap is going to be
+ * used.
+ *
+ * Compare to CREATE_PIXMAP_USAGE_* in the server.
+ */
+enum {
+    INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
+    INTEL_CREATE_PIXMAP_TILING_Y,
+};
 
 #endif /* _I830_H_ */

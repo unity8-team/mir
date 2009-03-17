@@ -212,6 +212,10 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i915_drm.h"
 #endif
 
+#ifdef XF86DRM_MODE
+#include <xf86drmMode.h>
+#endif
+
 #ifdef I830_USE_EXA
 const char *I830exaSymbols[] = {
     "exaGetVersion",
@@ -1085,11 +1089,108 @@ I830IsPrimary(ScrnInfoPtr pScrn)
    return TRUE;
 }
 
+
+/*
+ * Adjust *width to allow for tiling if possible
+ */
+Bool
+i830_tiled_width(I830Ptr i830, int *width, int cpp)
+{
+    Bool    tiled = FALSE;
+
+    /*
+     * Adjust the display width to allow for front buffer tiling if possible
+     */
+    if (i830->tiling) {
+	if (IS_I965G(i830)) {
+	    int tile_pixels = 512 / cpp;
+	    *width = (*width + tile_pixels - 1) &
+		~(tile_pixels - 1);
+	    tiled = TRUE;
+	} else {
+	    /* Good pitches to allow tiling.  Don't care about pitches < 1024
+	     * pixels.
+	     */
+	    static const int pitches[] = {
+		1024,
+		2048,
+		4096,
+		8192,
+		0
+	    };
+	    int i;
+
+	    for (i = 0; pitches[i] != 0; i++) {
+		if (pitches[i] >= *width) {
+		    *width = pitches[i];
+		    tiled = TRUE;
+		    break;
+		}
+	    }
+	}
+    }
+    return tiled;
+}
+
+/*
+ * Pad to accelerator requirement
+ */
+int
+i830_pad_drawable_width(int width, int cpp)
+{
+    return (width + 63) & ~63;
+}
+
 static Bool
 i830_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
+    I830Ptr	i830 = I830PTR(scrn);
+    int		old_x = scrn->virtualX;
+    int		old_y = scrn->virtualY;
+    int		old_width = scrn->displayWidth;
+
+    if (old_x == width && old_y == height)
+	return TRUE;
+
     scrn->virtualX = width;
     scrn->virtualY = height;
+#ifdef DRI2
+    if (i830->can_resize && i830->front_buffer)
+    {
+	i830_memory *new_front, *old_front;
+	BoxRec	    mem_box;
+	Bool	    tiled;
+	ScreenPtr   screen = screenInfo.screens[scrn->scrnIndex];
+
+	scrn->displayWidth = i830_pad_drawable_width(width, i830->cpp);
+	tiled = i830_tiled_width(i830, &scrn->displayWidth, i830->cpp);
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Allocate new frame buffer %dx%d stride %d\n",
+		   width, height, scrn->displayWidth);
+	I830Sync(scrn);
+	i830WaitForVblank(scrn);
+	new_front = i830_allocate_framebuffer(scrn, i830, &mem_box, FALSE);
+	if (!new_front) {
+	    scrn->virtualX = old_x;
+	    scrn->virtualY = old_y;
+	    scrn->displayWidth = old_width;
+	    return FALSE;
+	}
+	old_front = i830->front_buffer;
+	i830->front_buffer = new_front;
+	i830_set_pixmap_bo(screen->GetScreenPixmap(screen),
+			   new_front->bo);
+	scrn->fbOffset = i830->front_buffer->offset;
+	screen->ModifyPixmapHeader(screen->GetScreenPixmap(screen),
+				   width, height, -1, -1, scrn->displayWidth * i830->cpp,
+				   NULL);
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "New front buffer at 0x%lx\n",
+		   i830->front_buffer->offset);
+	i830_set_new_crtc_bo(scrn);
+	I830Sync(scrn);
+	i830WaitForVblank(scrn);
+	i830_free_memory(scrn, old_front);
+    }
+#endif
     return TRUE;
 }
 
@@ -1483,8 +1584,7 @@ I830PreInitCrtcConfig(ScrnInfoPtr pScrn)
     /* See i830_exa.c comments for why we limit the framebuffer size like this.
      */
     if (IS_I965G(pI830)) {
-	max_width = 8192;
-	max_height = 8192;
+	max_height = max_width = min(16384 / pI830->cpp, 8192);
     } else {
 	max_width = 2048;
 	max_height = 2048;
@@ -1591,7 +1691,20 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
     I830SetupOutputs(pScrn);
 
     SaveHWState(pScrn);
-    if (!xf86InitialConfiguration (pScrn, FALSE))
+    pI830->can_resize = FALSE;
+    if (pI830->accel == ACCEL_UXA && pI830->directRenderingType != DRI_XF86DRI)
+	pI830->can_resize = TRUE;
+#if !defined(DRI2) && defined(XF86DRI)
+    /* Disable resizing so that DRI1 can initialize and give us GEM support. */
+    pI830->can_resize = FALSE;
+#endif
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Resizable framebuffer: %s (%d %d)\n",
+	       pI830->can_resize ? "available" : "not available",
+	       pI830->directRenderingType, pI830->accel);
+
+    if (!xf86InitialConfiguration (pScrn, pI830->can_resize))
     {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No valid modes.\n");
 	RestoreHWState(pScrn);
@@ -1615,6 +1728,7 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
     I830Ptr pI830 = I830PTR(pScrn);
     char *bus_id;
     char *s;
+    int ret;
 
     /* Default to UXA but allow override */
     pI830->accel = ACCEL_UXA;
@@ -1628,20 +1742,35 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 	    pI830->accel = ACCEL_UXA;
     }
 
+    pI830->can_resize = FALSE;
+    if (pI830->accel == ACCEL_UXA && pI830->directRenderingType != DRI_XF86DRI)
+	pI830->can_resize = TRUE;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+	       "Resizable framebuffer: %s (%d %d)\n",
+	       pI830->can_resize ? "available" : "not available",
+	       pI830->directRenderingType, pI830->accel);
+
     bus_id = DRICreatePCIBusID(pI830->PciInfo);
-    if (drmmode_pre_init(pScrn, &pI830->drmmode, bus_id, "i915",
-			 pI830->cpp) == FALSE) {
-	xfree(bus_id);
+
+    /* Create a bus Id */
+    /* Low level DRM open */
+    ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "i915");
+    xfree(bus_id);
+    if (!ret) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "[dri] DRIGetVersion failed to open the DRM\n"
+		       "[dri] Disabling DRI.\n");
+	    return FALSE;
+    }
+
+    pI830->drmSubFD = DRIMasterFD(pScrn);
+    if (drmmode_pre_init(pScrn, pI830->drmSubFD, pI830->cpp) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Kernel modesetting setup failed\n");
 	PreInitCleanup(pScrn);
 	return FALSE;
     }
-
-    pI830->drmmode.create_new_fb = i830_create_new_fb;
-
-    pI830->drmSubFD = pI830->drmmode.fd;
-    xfree(bus_id);
 
     pI830->directRenderingType = DRI_NONE;
     pI830->allocate_classic_textures = FALSE;
@@ -1744,6 +1873,7 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    pI830->SaveGeneration = -1;
    pI830->pEnt = pEnt;
    pI830->use_drm_mode = drm_mode_setting;
+   pI830->kernel_exec_fencing = pI830->use_drm_mode;
 
    if (!I830LoadSyms(pScrn))
        return FALSE;
@@ -2575,7 +2705,6 @@ void
 IntelEmitInvarientState(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
-   uint32_t ctx_addr;
 
    if (pI830->accel == ACCEL_NONE)
       return;
@@ -2595,17 +2724,6 @@ IntelEmitInvarientState(ScrnInfoPtr pScrn)
     */
    if (*pI830->last_3d != LAST_3D_OTHER)
       return;
-
-   ctx_addr = pI830->logical_context->offset;
-   assert((pI830->logical_context->offset & 2047) == 0);
-   {
-      BEGIN_BATCH(2);
-      OUT_BATCH(MI_SET_CONTEXT);
-      OUT_BATCH(pI830->logical_context->offset |
-		CTXT_NO_RESTORE |
-		CTXT_PALETTE_SAVE_DISABLE | CTXT_PALETTE_RESTORE_DISABLE);
-      ADVANCE_BATCH();
-   }
 
    if (!IS_I965G(pI830))
    {
@@ -2737,7 +2855,6 @@ failed:
 	    tiled ? "T" : "Unt");
     return FALSE;
 }
-
 /*
  * Try to allocate memory in several ways:
  *  1) If direct rendering is enabled, try to allocate enough memory for tiled
@@ -2752,39 +2869,9 @@ i830_memory_init(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int savedDisplayWidth = pScrn->displayWidth;
-    int i;
     Bool tiled = FALSE;
 
-    /*
-     * Adjust the display width to allow for front buffer tiling if possible
-     */
-    if (pI830->tiling) {
-	if (IS_I965G(pI830)) {
-	    int tile_pixels = 512 / pI830->cpp;
-	    pScrn->displayWidth = (pScrn->displayWidth + tile_pixels - 1) &
-		~(tile_pixels - 1);
-	    tiled = TRUE;
-	} else {
-	    /* Good pitches to allow tiling.  Don't care about pitches < 1024
-	     * pixels.
-	     */
-	    static const int pitches[] = {
-		1024,
-		2048,
-		4096,
-		8192,
-		0
-	    };
-
-	    for (i = 0; pitches[i] != 0; i++) {
-		if (pitches[i] >= pScrn->displayWidth) {
-		    pScrn->displayWidth = pitches[i];
-		    tiled = TRUE;
-		    break;
-		}
-	    }
-	}
-    }
+    tiled = i830_tiled_width(pI830, &pScrn->displayWidth, pI830->cpp);
     /* Set up our video memory allocator for the chosen videoRam */
     if (!i830_allocator_init(pScrn, 0, pScrn->videoRam * KB(1))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
@@ -3005,7 +3092,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!pI830->use_drm_mode)
        hwp = VGAHWPTR(pScrn);
 
-   pScrn->displayWidth = (pScrn->virtualX + 63) & ~63;
+   pScrn->displayWidth = i830_pad_drawable_width(pScrn->virtualX, pI830->cpp);
 
    /*
     * The "VideoRam" config file parameter specifies the maximum amount of
@@ -3069,8 +3156,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
     */
    if (pI830->directRenderingType == DRI_NONE && pI830->SWCursor)
        pI830->directRenderingType = DRI_DISABLED;
-
-   if (pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
+   if (!pI830->can_resize && pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
        pI830->directRenderingType = DRI_XF86DRI;
 
    if (pI830->directRenderingType == DRI_XF86DRI) {
@@ -3209,12 +3295,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		    "needs 2D acceleration.\n");
 	 pI830->XvEnabled = FALSE;
       }
-      if (!OVERLAY_NOEXIST(pI830) && pI830->overlay_regs == NULL) {
-	  xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		     "Disabling Xv because the overlay register buffer "
-		      "allocation failed.\n");
-	 pI830->XvEnabled = FALSE;
-      }
    }
 #endif
 
@@ -3274,9 +3354,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
        if (!vgaHWMapMem(pScrn))
 	   return FALSE;
    }
-
-   if (!pI830->use_drm_mode)
-       i830_disable_render_standby(pScrn);
 
    DPRINTF(PFX, "assert( if(!I830EnterVT(scrnIndex, 0)) )\n");
 
@@ -3406,7 +3483,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	       pI830->XvMCEnabled ? "en" : "dis");
 #endif
    /* Init video */
-   if (pI830->XvEnabled && !pI830->use_drm_mode)
+   if (pI830->XvEnabled)
       I830InitVideo(pScreen);
 #endif
 
@@ -3461,6 +3538,9 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
 	   x, pI830->xoffset, y, pI830->yoffset);
+
+   if (pI830->use_drm_mode)
+      return;
 
    if (crtc && crtc->enabled)
    {
@@ -3608,6 +3688,9 @@ I830EnterVT(int scrnIndex, int flags)
    }
 
    pI830->leaving = FALSE;
+
+   if (!pI830->use_drm_mode)
+       i830_disable_render_standby(pScrn);
 
 #ifdef XF86DRI
    if (pI830->memory_manager && !pI830->use_drm_mode) {

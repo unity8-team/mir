@@ -1,8 +1,7 @@
-Index: xserver-xorg-video-intel-2.6.1/configure.ac
-===================================================================
---- xserver-xorg-video-intel-2.6.1.orig/configure.ac	2009-01-23 10:59:08.000000000 +0200
-+++ xserver-xorg-video-intel-2.6.1/configure.ac	2009-01-23 10:59:08.000000000 +0200
-@@ -105,8 +105,6 @@
+diff -Nurp patched/configure.ac working/configure.ac
+--- patched/configure.ac	2009-03-09 20:11:40.000000000 -0700
++++ working/configure.ac	2009-03-09 20:12:01.000000000 -0700
+@@ -105,8 +105,6 @@ if test x$DRI != xno; then
                        [have_sarea_h="yes"], [have_sarea_h="no"])
          AC_CHECK_FILE([${sdkdir}/dristruct.h],
                        [have_dristruct_h="yes"], [have_dristruct_h="no"])
@@ -11,7 +10,7 @@ Index: xserver-xorg-video-intel-2.6.1/configure.ac
  fi
  AC_MSG_CHECKING([whether to include DRI support])
  if test x$DRI = xauto; then
-@@ -215,9 +213,6 @@
+@@ -215,9 +213,6 @@ if test "$DRI" = yes; then
          PKG_CHECK_MODULES(DRI, [xf86driproto glproto])
          AC_DEFINE(XF86DRI,1,[Enable DRI driver support])
          AC_DEFINE(XF86DRI_DEVEL,1,[Enable developmental DRI driver support])
@@ -21,11 +20,10 @@ Index: xserver-xorg-video-intel-2.6.1/configure.ac
  fi
  
  dnl exaGetPixmapDriverPrivate required for DRM_MODE.
-Index: xserver-xorg-video-intel-2.6.1/man/intel.man
-===================================================================
---- xserver-xorg-video-intel-2.6.1.orig/man/intel.man	2009-01-23 10:59:08.000000000 +0200
-+++ xserver-xorg-video-intel-2.6.1/man/intel.man	2009-01-23 10:59:08.000000000 +0200
-@@ -150,13 +150,6 @@
+diff -Nurp patched/man/intel.man working/man/intel.man
+--- patched/man/intel.man	2009-03-09 20:11:40.000000000 -0700
++++ working/man/intel.man	2009-03-09 20:12:01.000000000 -0700
+@@ -150,13 +150,6 @@ pool.  On systems with a working GEM env
  increase the memory pool available to other graphics tasks.
  Default for i830 and newer: Enabled.
  Default for i810: this option is not used.
@@ -39,22 +37,21 @@ Index: xserver-xorg-video-intel-2.6.1/man/intel.man
  .BI "Option \*qAccelMethod\*q \*q" string \*q
  Choose acceleration architecture, either "XAA" or "EXA".  XAA is the old
  XFree86 based acceleration architecture.  EXA is a newer and simpler
-Index: xserver-xorg-video-intel-2.6.1/src/i830.h
-===================================================================
---- xserver-xorg-video-intel-2.6.1.orig/src/i830.h	2009-01-23 10:59:08.000000000 +0200
-+++ xserver-xorg-video-intel-2.6.1/src/i830.h	2009-01-23 10:59:08.000000000 +0200
-@@ -72,9 +72,6 @@
+diff -Nurp patched/src/i830.h working/src/i830.h
+--- patched/src/i830.h	2009-03-09 20:11:40.000000000 -0700
++++ working/src/i830.h	2009-03-09 20:13:21.000000000 -0700
+@@ -72,9 +72,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #include "dri.h"
  #include "GL/glxint.h"
  #include "i830_dri.h"
 -#ifdef DAMAGE
 -#include "damage.h"
 -#endif
- #include "drmmode_display.h"
  #endif
  #include "intel_bufmgr.h"
-@@ -472,16 +469,11 @@
-    Bool allocate_classic_textures;
+ #include "i915_drm.h"
+@@ -475,16 +472,11 @@ typedef struct _I830Rec {
+    Bool can_resize;
  
     Bool want_vblank_interrupts;
 -#ifdef DAMAGE
@@ -70,11 +67,10 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830.h
     Bool tiling;
     Bool fb_compression;
  
-Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
-===================================================================
---- xserver-xorg-video-intel-2.6.1.orig/src/i830_dri.c	2009-01-23 10:59:08.000000000 +0200
-+++ xserver-xorg-video-intel-2.6.1/src/i830_dri.c	2009-01-23 10:59:08.000000000 +0200
-@@ -111,14 +111,6 @@
+diff -Nurp patched/src/i830_dri.c working/src/i830_dri.c
+--- patched/src/i830_dri.c	2009-03-09 20:11:40.000000000 -0700
++++ working/src/i830_dri.c	2009-03-09 20:12:01.000000000 -0700
+@@ -111,14 +111,6 @@ static void I830DRIMoveBuffers(WindowPtr
  
  static void I830DRITransitionTo2d(ScreenPtr pScreen);
  static void I830DRITransitionTo3d(ScreenPtr pScreen);
@@ -89,7 +85,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  
  #if (DRIINFO_MAJOR_VERSION > 5 || \
       (DRIINFO_MAJOR_VERSION == 5 && DRIINFO_MINOR_VERSION >= 4))
-@@ -127,10 +119,6 @@
+@@ -127,10 +119,6 @@ static void I830DRITransitionSingleToMul
  #define DRI_DRIVER_FRAMEBUFFER_MAP 0
  #endif
  
@@ -100,7 +96,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  extern void GlxSetVisualConfigs(int nconfigs,
  				__GLXvisualConfig * configs,
  				void **configprivs);
-@@ -599,10 +587,6 @@
+@@ -599,10 +587,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
  	 pDRIInfo->texOffsetStart = I830TexOffsetStart;
  #endif
  
@@ -111,7 +107,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  #if DRI_DRIVER_FRAMEBUFFER_MAP
     /* DRI version is high enough that we can get the DRI code to not
      * try to manage the framebuffer.
-@@ -622,11 +606,6 @@
+@@ -622,11 +606,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
     pDRIInfo->TransitionTo2d = I830DRITransitionTo2d;
     pDRIInfo->TransitionTo3d = I830DRITransitionTo3d;
  
@@ -123,7 +119,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
     /* do driver-independent DRI screen initialization here */
     if (!DRIScreenInit(pScreen, pDRIInfo, &pI830->drmSubFD)) {
        xf86DrvMsg(pScreen->myNum, X_ERROR,
-@@ -729,14 +708,6 @@
+@@ -729,14 +708,6 @@ I830DRIScreenInit(ScreenPtr pScreen)
  	    return FALSE;
  	 }
  	 pI830->drmMinor = version->version_minor;
@@ -138,7 +134,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  	 drmFreeVersion(version);
        }
     }
-@@ -965,10 +936,6 @@
+@@ -965,10 +936,6 @@ I830DRICloseScreen(ScreenPtr pScreen)
  
     DPRINTF(PFX, "I830DRICloseScreen\n");
  
@@ -149,7 +145,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
     if (!pI830->memory_manager && pI830DRI->irq) {
         drmCtlUninstHandler(pI830->drmSubFD);
         pI830DRI->irq = 0;
-@@ -1022,66 +989,6 @@
+@@ -1022,66 +989,6 @@ I830DRIFinishScreenInit(ScreenPtr pScree
     return TRUE;
  }
  
@@ -216,7 +212,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  static void
  I830DRISwapContext(ScreenPtr pScreen, DRISyncType syncType,
  		   DRIContextType oldContextType, void *oldContext,
-@@ -1104,86 +1011,14 @@
+@@ -1104,86 +1011,14 @@ I830DRISwapContext(ScreenPtr pScreen, DR
        if (!pI830->memory_manager)
  	  i830_refresh_ring(pScrn);
  
@@ -303,7 +299,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
        pI830->LockHeld = 0;
     } else if (I810_DEBUG & DEBUG_VERBOSE_DRI)
        ErrorF("i830DRISwapContext (other)\n");
-@@ -1402,70 +1237,12 @@
+@@ -1402,70 +1237,12 @@ I830DRIMoveBuffers(WindowPtr pParent, DD
     i830MarkSync(pScrn);
  }
  
@@ -374,7 +370,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
     pI830->want_vblank_interrupts = TRUE;
     I830DRISetVBlankInterrupt(pScrn, TRUE);
  }
-@@ -1477,65 +1254,10 @@
+@@ -1477,65 +1254,10 @@ I830DRITransitionTo2d(ScreenPtr pScreen)
     I830Ptr pI830 = I830PTR(pScrn);
     drmI830Sarea *sPriv = (drmI830Sarea *) DRIGetSAREAPrivate(pScreen);
  
@@ -440,11 +436,10 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_dri.c
  static int
  i830_name_buffer (ScrnInfoPtr pScrn, i830_memory *mem)
  {
-Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
-===================================================================
---- xserver-xorg-video-intel-2.6.1.orig/src/i830_driver.c	2009-01-23 10:59:08.000000000 +0200
-+++ xserver-xorg-video-intel-2.6.1/src/i830_driver.c	2009-01-23 10:59:08.000000000 +0200
-@@ -323,7 +323,6 @@
+diff -Nurp patched/src/i830_driver.c working/src/i830_driver.c
+--- patched/src/i830_driver.c	2009-03-09 20:11:40.000000000 -0700
++++ working/src/i830_driver.c	2009-03-09 20:12:01.000000000 -0700
+@@ -327,7 +327,6 @@ static OptionInfoRec I830Options[] = {
     {OPTION_SW_CURSOR,	"SWcursor",	OPTV_BOOLEAN,	{0},	FALSE},
     {OPTION_CACHE_LINES,	"CacheLines",	OPTV_INTEGER,	{0},	FALSE},
     {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
@@ -452,7 +447,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
     {OPTION_XVIDEO,	"XVideo",	OPTV_BOOLEAN,	{0},	TRUE},
     {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
     {OPTION_VIDEO_KEY,	"VideoKey",	OPTV_INTEGER,	{0},	FALSE},
-@@ -1681,24 +1680,6 @@
+@@ -1810,24 +1809,6 @@ I830XvInit(ScrnInfoPtr pScrn)
  #endif
  }
  
@@ -477,7 +472,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
  /**
   * This is called per zaphod head (so usually just once) to do initialization
   * before the Screen is created.
-@@ -1852,8 +1833,6 @@
+@@ -1982,8 +1963,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags
  
     I830XvInit(pScrn);
  
@@ -486,7 +481,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
     if (!xf86SetGamma(pScrn, zeros)) {
         PreInitCleanup(pScrn);
         return FALSE;
-@@ -2809,11 +2788,6 @@
+@@ -2896,11 +2875,6 @@ i830_memory_init(ScrnInfoPtr pScrn)
  
      /* If tiling fails we have to disable page flipping & FBC */
      pScrn->displayWidth = savedDisplayWidth;
@@ -498,7 +493,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
      if (pI830->fb_compression)
  	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
  		"Couldn't allocate tiled memory, fb compression "
-@@ -3245,11 +3219,6 @@
+@@ -3325,11 +3299,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr 
         I830SwapPipes(pScrn);
  #endif
  
@@ -510,7 +505,7 @@ Index: xserver-xorg-video-intel-2.6.1/src/i830_driver.c
     if (I830IsPrimary(pScrn)) {
          pScrn->fbOffset = pI830->front_buffer->offset;
     } else {
-@@ -3803,15 +3772,6 @@
+@@ -3886,15 +3855,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr
  #ifdef XF86DRI
     if (pI830->directRenderingOpen &&
         pI830->directRenderingType == DRI_XF86DRI) {

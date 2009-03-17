@@ -1,3 +1,449 @@
+commit f04552cdbcb110c876816dfda577803e6c92fb6a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 2 11:18:27 2009 -0800
+
+    Bump version to 2.6.3.
+
+commit c0d91bd3ffea329058b63e648d2eae05edd9ad8a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Mar 2 11:17:27 2009 -0800
+
+    Only allocate pixmaps aligned for tiling when requested by DRI2 GetBuffers.
+    
+    This saves massive quantities of memory on pre-965 since the DRI2 tiling
+    enable caused the minimum size of any pixmap to be 1MB.
+    (cherry picked from commit 5bfd73cd31ba197a62f549cdbad1a1270b571027)
+
+commit 5441be42649e4f969ac16c323de2fb5ed93b271a
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Feb 24 20:54:05 2009 -0800
+
+    Disable fb resizing for DRI1-only server so that DRI1 can initialize.
+    (cherry picked from commit 70e0261208654c6c875ad462da2734c6aa9eeb96)
+
+commit 93ae6c7f8cadb60d479e626ddd2a67d7cb2cc4c0
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Feb 24 13:59:17 2009 -0800
+
+    Bump version to 2.6.2 for release.
+
+commit 626a54870fd3c5038c7bdae5d9085fe98f73885b
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Feb 24 14:05:15 2009 -0800
+
+    Fix distcheck from drmmode_display.h deletion.
+    (cherry picked from commit 9d8e5c21a1688b915bf39261d4c3b0bf2906daef)
+
+commit aa6997ecd5383ee94c8ac9cfca4a1b58820e098c
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Tue Feb 24 13:58:20 2009 -0500
+
+    Update kms to work with drmModeModeInfo API update.
+    (cherry picked from commit a6b31f38ebf470c61de0e10b0ce2af0d7ee1684b)
+
+commit 97b3ab47c6eec98baf7566e7290c6030934ad956
+Author: Eric Anholt <eric@anholt.net>
+Date:   Sat Feb 21 20:36:58 2009 -0800
+
+    Don't do AdjustFrame in KMS mode.
+    
+    This was hit by xv86vm's SwitchMode path, and for that the CRTC offsets
+    get set at mode setting time anyway.
+    (cherry picked from commit 53108994616d9751ac3a29fd61eb269cfaeab967)
+
+commit f3f21a0e45060aa7b333e026938325af133b014c
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Mon Feb 23 15:16:51 2009 -0500
+
+    KMS: Fix bug that prevented EDID data from getting propagated.
+    (cherry picked from commit 73bc7f113969834d00cd92be8374dbadc62f96a9)
+
+commit 3baf4cf7deedf2e0df13bf07cd0f329cfc7911f5
+Author: Helge Bahmann <helge.bahmann@secunet.com>
+Date:   Sat Feb 21 10:10:04 2009 -0800
+
+    Move disable_render_standby to EnterVT instead of startup.
+    
+    Otherwise, with a pre-2.6.28 older kernel the disable would be lost at
+    resume time and cause hangs.
+    
+    Bug #20214
+    (cherry picked from commit 81c652e9a666a7459bcc5217c8a5ec518b6e00da)
+
+commit 6314b9178a252292a79e21a64d47d740e23df28d
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Feb 18 13:32:44 2009 -0800
+
+    uxa: Ask for BOs ready for rendering for pixmaps.
+    
+    The assumption is that we're almost always accelerating our drawing to
+    new pixmaps (fill, copy, etc.).
+    (cherry picked from commit 0621ba12a3b694720e67a49b25ca52f0e09b3802)
+
+commit 36f3136933653ea80e72fcd3ce3c6c8fe2bf150a
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Fri Feb 20 15:34:29 2009 -0500
+
+    KMS: Hook up rotated shadow buffers.
+    (cherry picked from commit 5018d0f16cb8b44c743b5b37d194fe806d955568)
+
+commit 49093943d09a149e09639000da1ab18e2596c7c8
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Fri Feb 20 11:08:51 2009 -0500
+
+    Access the Xv buffer through the GTT for the non-KMS case.
+    (cherry picked from commit beca598bc2848093b710bd47828d622205d273df)
+
+commit 3937756ae4cae78b6c6c72714ac8898f155844f6
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Thu Feb 19 16:41:49 2009 -0500
+
+    Fix i915 textured video to work with the i830_memory -> bo change.
+    
+    Forgot to update i915_video.c in 872aadc7102bd5131e1582ede081e22672911ba2.
+    (cherry picked from commit e97e2571703e3d6188bf18f211b793fc50383f9c)
+
+commit 2587a3e1d07acde3199592a81198716f4eb4221d
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Thu Feb 19 16:40:19 2009 -0500
+
+    Dont allocate overlay registers in KMS mode.
+    (cherry picked from commit 96da26b6813a8c1da8a43036c375aa0d2bb70f16)
+
+commit be56ce2c4cdeabaf655c53ca177ec35b8536bd9b
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Wed Feb 18 17:26:06 2009 -0500
+
+    Make Xv used a buffer object instead of i830_memory.
+    
+    We still pin the buffer object in case of overlay, but for textured video
+    we're now no longer using i830_memory for Xv anymore.
+    (cherry picked from commit 872aadc7102bd5131e1582ede081e22672911ba2)
+
+commit 173270d49f218b7bcae7f887dd9e2d23343c6070
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Tue Feb 17 13:48:04 2009 -0500
+
+    KMS: Hook up crtc::gamma_set.
+    (cherry picked from commit 723b6065093adb56a2d7204bd990ceae41bfafc9)
+
+commit cdcca959ecc605fa3f98ccbf91535dbf71dd0b8f
+Author: Ma Ling <ling.ma@intel.com>
+Date:   Fri Feb 6 09:14:15 2009 +0800
+
+    Don't disable vga centering bit.
+    
+    commit id b9f5915ce812144ffd9d2aa42e8ba856129c35e,
+    which resolved bug #17235, but generate new regression-bug #19715.
+    This patch intends to resolve bug #17235, and avoid regression as well.
+    We have successfully re-tested it for bug #17235 and #19715 respectively.
+    (cherry picked from commit 3aa8591abfbe8db0f13912910c850fdd748808df)
+
+commit 5a86b78dd09a081920564d343f27a7ef9157ffed
+Author: Zhenyu Wang <zhenyu.z.wang@intel.com>
+Date:   Wed Feb 4 06:00:39 2009 +0800
+
+    TV quirk for HP Compaq nx6310
+    (cherry picked from commit 9fe5fca3fe761a4f11857d9766138a60f471a9e6)
+
+commit 79b00702e1f716a73e5998bbc2244871d311176d
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Mon Feb 2 12:02:00 2009 -0500
+
+    Fix front buffer memset() for non-KMS case.
+    
+    Missed the pI830->FbBase condition when removing the KMS hook.
+    (cherry picked from commit 5c370091620b38447172ebeffbc6ed3256e86c9d)
+
+commit 133dd16356c0a6d63a62b8cf3cbb2c2ba41ee2d9
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Mon Feb 2 11:51:47 2009 -0500
+
+    Un-revert the I915_SETPARAM_NUM_USED_FENCES commit reverted by accident.
+    
+    Oops, my bad.  Reverted 8d4bc36fae50b09a73ba2cfab920adb32141a358
+    since my kernel doesn't yet have the new param, committed
+    the revert by accident.
+    (cherry picked from commit 2013799b20599a58de48cb21a5a389e898a58af1)
+
+commit d349f368ab2e6943610224df9d003579e7e03919
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Mon Feb 2 11:02:59 2009 -0500
+
+    Fix last-minute "cleanup" that broke the patch.
+    (cherry picked from commit 127330bfd53ac7571bdd12a551142528b972893f)
+
+commit 009085d314a1c2999e1408c9627e74201591fe68
+Author: Kristian Høgsberg <krh@redhat.com>
+Date:   Fri Jan 30 17:53:03 2009 -0500
+
+    Implement front buffer resize for KMS.
+    
+    This adds back the resize hook so we can resize the front buffer under
+    kernel mode setting as well.
+    
+    The patch also pulls the drmmode_* structs from drmmode_display.h into
+    drmmode_display.c and eliminates the header file.
+    
+    (cherry picked from commit 0cb87ccfe97b0e016e47dcf236fd5ce78dddfc4b)
+
+commit 7949b712bd996c71dd8c1c2627fe8b3e011a9a9f
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jan 27 15:43:58 2009 -0800
+
+    dri2: Use modesetting's master fd instead of opening our own non-master.
+    
+    This fixes failure to auth DRI2 clients under KMS.
+    (cherry picked from commit 66bc44e8f9a0505c0b11b8042243ca74079da85f)
+
+commit ae9bbf4c3b9147ea6bce17df6f2482e27d03e407
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jan 26 17:14:06 2009 -0800
+
+    Support tiled back/depth on 915-class hardware with DRI2.
+    
+    Set alignments, tile settings and flags correctly in the 2D driver to support
+    tiled rendering.  UXA's create pixmap function currently assumes the worst
+    about the alignment constraints; that should probably be fixed.  Some of the
+    1M alignment fixes could probably be done more cleanly as well.
+    (cherry picked from commit 8d4bc36fae50b09a73ba2cfab920adb32141a358)
+
+commit 5e810863b464a1f9570fd4f931773b4a0cc28054
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jan 21 15:52:02 2009 -0800
+
+    Don't forget the new state bos in check_aperture.
+    
+    They're tiny so it shouldn't have been a problem, but play it safe.  This is
+    another <5% loss on top of the previously reported value, bringing the whole
+    series to about 8%.
+    (cherry picked from commit 6c0ca1676bf60529dd331cc739abdf68fa9e918d)
+
+commit 84f48228237037737b615946699071d5b88ccb4c
+Author: Jesse Barnes <jbarnes@virtuousgeek.org>
+Date:   Mon Jan 26 14:58:28 2009 -0800
+
+    Fixup bogus VBT modes when detected
+    
+    Several VBT modes out in the wild have H or VSyncEnd values greater than
+    the H or VTotal value.  This clearly ends up creating a bad mode,
+    causing some panels to either ignore the timing or display some sort of
+    corrupt image.
+    
+    Check for these cases and fix them up by default, making things work for
+    several Dell and Sony machines.
+    
+    Fixes FDO bug #17292.
+    (cherry picked from commit 57a02b50c60c10a25ff0f3cd93af9f37fa0d1b11)
+
+commit 8cb4d68089109f6cef0ce94429ba6f944910c646
+Author: Bill Nottingham <notting@redhat.com>
+Date:   Sat Jan 24 08:36:20 2009 +0800
+
+    Quirk MSI IM-945GSE-A LVDS, TV outputs.
+    
+    The IM-945GSE-A claims to have a TV output, and always claims a connected
+    LVDS output. It has neither.
+    (cherry picked from commit e20e1cf76fb00ba4f933a1ed6d1a4896be346c91)
+
+commit e66b78d60df6b31a070aa12426e6c03373a797da
+Author: Vincent Mussard <vmussard@free.fr>
+Date:   Sat Jan 24 08:33:16 2009 +0800
+
+    quirk for AOpen MP45
+    (cherry picked from commit 05ff561234cc2b93fe1ea2a35041fa2e119a7e38)
+
+commit fe1eb04e31993034adcf48ad9e59b6430532b8e0
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Dec 5 17:27:13 2008 -0800
+
+    Move i965 render sampler state to BOs.
+    
+    This eliminates the pinned memory allocation for 965 render state.
+    (cherry picked from commit fbf003ef2767a1a9f5e4064f04a17992030d8f5c)
+
+commit 05d349cbfbc1f47e31512386c8d9455f96600bf2
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jan 20 14:43:08 2009 -0800
+
+    Move i965 render kernels to BOs.
+    (cherry picked from commit befd4ad8beae39377f804e06c7cbd926ec4251db)
+
+commit a94ea095ecc18261731897bdbd0c35b7187f2c36
+Author: Eric Anholt <eric@anholt.net>
+Date:   Fri Dec 5 15:30:35 2008 -0800
+
+    Move 965 render unit state to BOs.
+    
+    This is a first step in a series of changes to avoid requiring a pinned object,
+    which gets in the way of doing non-root KMS.  This change appears to result in
+    about a 2-6% loss in x11perf -aa10text, which better algorithms in libdrm could
+    make up for (it hasn't really had to deal with code this bad before).
+    (cherry picked from commit 5d705de5d11297f4d6bd5237fb67619e703745bc)
+
+commit f6b054cf71dbd7755bf49bb0a5800557aad2904c
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jan 20 17:13:52 2009 -0800
+
+    Remove 965 render wm scratch space, which was just unused.
+    (cherry picked from commit 64b08ed5ad46ccd76964972e39bfed8721a920aa)
+
+commit efce94e75177b15fcd1c3e1fca973126e5911904
+Author: Eric Anholt <eric@anholt.net>
+Date:   Wed Jan 21 12:52:36 2009 -0800
+
+    Fix build with server 1.4.
+    
+    Debian "unstable" is still stuck with this ancient version.
+    (cherry picked from commit f126aabdf8952177bb15f392041da7a7094eb31b)
+
+commit 8ff94b4cf760ab4c124d55640d2818e94c374ea4
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jan 20 10:45:23 2009 -0800
+
+    Use drm_intel_bo_subdata to put render vb data in.
+    
+    This improves performance by avoiding repeated map/unmap cycles, which are
+    a bit expensive on my machine with lock debugging on in the kernel.  It could
+    do much better if we did more than 18 or so floats at a time.
+    (cherry picked from commit b6f3ce32e295929f461a7bc37e61f126fb51e4aa)
+
+commit ee2f802d7f5beb0b0af242412dda17b4093a3547
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 19:34:50 2009 -0800
+
+    Move i965 render vb setup to use time, and decouple state emit from it.
+    
+    The require_space had failed since it only checked for the space required
+    by the batch emits in the function itself, but not in the
+    i965_emit_composite_state() that it called (the state we were concerned about
+    having set up for that 12 * 4 dwords to follow!).  This is replaced by
+    intel_batch_start_atomic(), which will catch such mistakes in the future.
+    (cherry picked from commit 9a8bbb1951ad0ca0a9407a97348fc7fa03127900)
+
+commit 242fcd5fac9c18f248143a6528aadf0bacc30680
+Author: Eric Anholt <eric@anholt.net>
+Date:   Tue Jan 20 10:37:20 2009 -0800
+
+    Move i965 render transform setup from emit_composite_state to prepare_composite.
+    (cherry picked from commit 3d739597c4f5817079efd9067ad5db2f4105f765)
+
+commit b239e511277b011cd7c18f542e9b81026d958504
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 20:31:31 2009 -0800
+
+    i965: Pull check_aperture out to a separate function and make it dtrt.
+    
+    Previously it wouldn't count the pixmaps that were about to be used, which
+    is pretty much the only purpose of having the pain around.  This also
+    eliminates the check_twice confusion with emit_batch_header_for_composite().
+    (cherry picked from commit e20f7278f3abb44a3a151ac91f83c45cf1a2745a)
+
+commit 11a420003252c4158b16aece08bc33170f938183
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 20:24:20 2009 -0800
+
+    Move filter computation from emit_batch_header to prepare_composite.
+    (cherry picked from commit 013e2adfbf955cb21450b610091542ebd54392c2)
+
+commit b6c6310da1f6bb7b4011246759c559f18956acab
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 19:11:41 2009 -0800
+
+    Use intel_emit_reloc from video to prettify 965 render bind_bo setup.
+    (cherry picked from commit a340fe5e4227ebea5493e658eb6289624b07ab0b)
+
+commit fc378b15ff1bb7c8d761a6166a6c4c080ded9a63
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 18:57:01 2009 -0800
+
+    Move i965 render state bo setup back to prepare_composite.
+    
+    We want the objects to be created once per prepare/done both for efficiency and
+    so we can handle aperture checking better.
+    (cherry picked from commit aefe198ca427a5ad69717f49948eb3ede713bb28)
+
+commit 8ef4eb50193a849cb9fd0d7a85c6814e1d473101
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 14:43:20 2009 -0800
+
+    Do check_aperture_space and batch_start_atomic for i965 video.
+    
+    This increases the overhead for video in the presence of cliprects, but we
+    were already doing nasty things in that case and don't seem to care.  This
+    could fix potential bad rendering or hangs with video, particularly with
+    DRI2.
+    (cherry picked from commit 946c7ef8170e74ac178c83b1465242d57fa86f2e)
+
+commit c78dd68aec54e0247a9c15b8d3db222b1f9003f6
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Jan 19 14:29:25 2009 -0800
+
+    Move 965 video setup to a separate function so we can move it around.
+    (cherry picked from commit 7be668179a12918918cad863f6936ced4ab78dbf)
+
+commit fd89de6504279fbd2a0c7ef140a6a8ec7767f4ec
+Author: Keith Packard <keithp@keithp.com>
+Date:   Tue Jan 13 20:01:49 2009 -0800
+
+    Assign rotation memory dri_bo to rotation pixmap.
+    
+    As the rotation memory and rotation pixmap are allocated separately (to make
+    rotation at startup work), the allocate dri_bo needs to be set in the pixmap
+    for acceleration to work. This restores the performance in rotated modes.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit a4b023c17b9c3bd65fb9466ddb8a953f60244402)
+
+commit 3f2dc8381276d97a0b69d51cf3bbbeebf1301fa5
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Dec 15 15:35:35 2008 -0800
+
+    Resize framebuffer on screen size change (requires UXA and DRI2)
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 8237faf8f3ca73ecdf0ef009a7d361b318726f6f)
+
+commit f1ed73c1ef3e3daa9f695194dcc813167cbcb53d
+Author: Keith Packard <keithp@keithp.com>
+Date:   Mon Dec 15 15:19:00 2008 -0800
+
+    Make i830_allocate_memory take tiling parameters.
+    
+    This eliminates the separate i830_allocate_memory_tiled function which means
+    that all memory objects will have tiling parameters set correctly.
+    
+    Signed-off-by: Keith Packard <keithp@keithp.com>
+    (cherry picked from commit 21bd4e8974e4c0e83f5f95adb0fc17290444caf5)
+
+commit 73eb24cb30d478b367ff9be855be29e3e4f74000
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Dec 29 13:57:24 2008 -0800
+
+    warning fix.
+    (cherry picked from commit d96f774d1bb39640486c72338fe8b19ee1ceaa23)
+
+commit 12b581bb9e6dd77092cd7561b595fe37c948d894
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Dec 29 12:44:26 2008 -0800
+
+    Fix compile failure after 45f45c73469f1bd46a1b6fb206f2e9e5e4fd66b3
+    (cherry picked from commit 750d8e105831718d4a44a145fdb87571fa9f9d8e)
+
+commit 704177b5dd0ab7a5f5bef937eac53d725bc509b5
+Author: Eric Anholt <eric@anholt.net>
+Date:   Mon Dec 29 11:26:11 2008 -0800
+
+    Remove logical context setup.
+    
+    This should be a noop.  If it wasn't a noop, it means that on pre-g33 chipsets
+    we were spamming some data into a page of system memory because we used a
+    virtual instead of a physical address.  It was also supposed to not work when
+    we submit it from a batchbuffer, as we have been doing for some time now.
+    This code has existed since about the beginning of the driver's existence,
+    with no justification.
+    (cherry picked from commit 45f45c73469f1bd46a1b6fb206f2e9e5e4fd66b3)
+
 commit 08683d1d053875bcacd7c358d66ef2bfad458a56
 Author: Eric Anholt <eric@anholt.net>
 Date:   Wed Jan 21 14:10:04 2009 -0800
