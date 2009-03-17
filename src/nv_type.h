@@ -370,6 +370,7 @@ typedef struct _NVRec {
 
 	/* DRM interface */
 	struct nouveau_device *dev;
+	char drm_device_name[128];
 
 	/* GPU context */
 	struct nouveau_channel *chan;

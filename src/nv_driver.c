@@ -24,8 +24,8 @@
 
 #include "nv_include.h"
 
+#include "xorg-server.h"
 #include "xf86int10.h"
-
 #include "xf86drm.h"
 
 /*
@@ -784,7 +784,14 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVUnmapMem(pScrn);
 
 	vgaHWUnmapMem(pScrn);
-	NVDRICloseScreen(pScrn);
+
+	if (!pNv->exa_driver_pixmaps)
+		NVDRICloseScreen(pScrn);
+#ifdef DRI2
+	else
+		nouveau_dri2_fini(pScreen);
+#endif
+
 	if (pNv->randr12_enable)
 		xf86_cursors_fini(pScreen);
 	if (pNv->ShadowPtr) {
@@ -2040,6 +2047,10 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	if (!pNv->NoAccel) {
 		if (!pNv->exa_driver_pixmaps)
 			NVDRIScreenInit(pScrn);
+#ifdef DRI2
+		else
+			nouveau_dri2_init(pScreen);
+#endif
 
 		/* Init DRM - Alloc FIFO */
 		if (!NVInitDma(pScrn))

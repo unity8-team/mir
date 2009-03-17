@@ -25,6 +25,10 @@ void NVDRICloseScreen(ScrnInfoPtr pScrn);
 extern const char *drmSymbols[], *driSymbols[];
 Bool NVDRIGetVersion(ScrnInfoPtr pScrn);
 
+/* in nouveau_dri2.c */
+Bool nouveau_dri2_init(ScreenPtr pScreen);
+void nouveau_dri2_fini(ScreenPtr pScreen);
+
 /* in nv_dac.c */
 Bool   NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode);
 void   NVDACSave(ScrnInfoPtr pScrn, vgaRegPtr vgaReg,
