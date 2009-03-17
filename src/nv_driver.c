@@ -2038,7 +2038,8 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		return FALSE;
 
 	if (!pNv->NoAccel) {
-		NVDRIScreenInit(pScrn);
+		if (!pNv->exa_driver_pixmaps)
+			NVDRIScreenInit(pScrn);
 
 		/* Init DRM - Alloc FIFO */
 		if (!NVInitDma(pScrn))
