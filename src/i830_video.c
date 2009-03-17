@@ -620,7 +620,7 @@ I830InitVideo(ScreenPtr pScreen)
 
     /* Set up overlay video if we can do it at this depth. */
     if (!OVERLAY_NOEXIST(pI830) && pScrn->bitsPerPixel != 8 &&
-	    pI830->overlay_regs != NULL)
+	!pI830->use_drm_mode && pI830->overlay_regs != NULL)
     {
 	overlayAdaptor = I830SetupImageVideoOverlay(pScreen);
 	if (overlayAdaptor != NULL) {
@@ -648,8 +648,13 @@ I830InitVideo(ScreenPtr pScreen)
     }
 #endif
 
-    if (num_adaptors)
+    if (num_adaptors) {
 	xf86XVScreenInit(pScreen, adaptors, num_adaptors);
+    } else {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "Disabling Xv because no adaptors could be initialized.\n");
+	pI830->XvEnabled = FALSE;
+    }
 
 #ifdef INTEL_XVMC
     if (xvmc_status)
@@ -1073,10 +1078,9 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 	    if (pI830->entityPrivate)
 		pI830->entityPrivate->XvInUse = -1;
 	}
-	/* Sync before freeing the buffer, because the pages will be unbound.
-	 */
-	I830Sync(pScrn);
-	i830_free_memory(pScrn, pPriv->buf);
+	if (!pPriv->textured)
+	    drm_intel_bo_unpin(pPriv->buf);
+	drm_intel_bo_unreference(pPriv->buf);
 	pPriv->buf = NULL;
 	pPriv->videoStatus = 0;
     } else {
@@ -1268,7 +1272,7 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 		   int dstPitch, int top, int left, int h, int w)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned char *src, *dst;
+    unsigned char *src, *dst, *dst_base;
     int i,j;
     unsigned char *s;
 
@@ -1280,10 +1284,18 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 
     src = buf + (top * srcPitch) + (left << 1);
 
+    if (pPriv->textured) {
+	drm_intel_bo_map(pPriv->buf, TRUE);
+	dst_base = pPriv->buf->virtual;
+    } else {
+	drm_intel_gem_bo_start_gtt_access(pPriv->buf, TRUE);
+	dst_base = pI830->FbBase;
+    }
+
     if (pPriv->currentBuf == 0)
-	dst = pI830->FbBase + pPriv->YBuf0offset;
+	dst = dst_base + pPriv->YBuf0offset;
     else
-	dst = pI830->FbBase + pPriv->YBuf1offset;
+	dst = dst_base + pPriv->YBuf1offset;
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
@@ -1356,6 +1368,9 @@ I830CopyPackedData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	}
 	break;
     }
+
+    if (pPriv->textured)
+	drm_intel_bo_unmap(pPriv->buf);
 }
 
 static void
@@ -1366,7 +1381,7 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 {
     I830Ptr pI830 = I830PTR(pScrn);
     int i, j = 0;
-    unsigned char *src1, *src2, *src3, *dst1, *dst2, *dst3;
+    unsigned char *src1, *src2, *src3, *dst_base, *dst1, *dst2, *dst3;
     unsigned char *s;
     int dstPitch2 = dstPitch << 1;
 
@@ -1383,10 +1398,19 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
     ErrorF("src1 is %p, offset is %ld\n", src1,
 	   (unsigned long)src1 - (unsigned long)buf);
 #endif
+
+    if (pPriv->textured) {
+	drm_intel_bo_map(pPriv->buf, TRUE);
+	dst_base = pPriv->buf->virtual;
+    } else {
+	drm_intel_gem_bo_start_gtt_access(pPriv->buf, TRUE);
+	dst_base = pI830->FbBase + pPriv->buf->offset;
+    }
+
     if (pPriv->currentBuf == 0)
-	dst1 = pI830->FbBase + pPriv->YBuf0offset;
+	dst1 = dst_base + pPriv->YBuf0offset;
     else
-	dst1 = pI830->FbBase + pPriv->YBuf1offset;
+	dst1 = dst_base + pPriv->YBuf1offset;
 
     switch (pPriv->rotation) {
     case RR_Rotate_0:
@@ -1436,14 +1460,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 #endif
     if (pPriv->currentBuf == 0) {
 	if (id == FOURCC_I420)
-	    dst2 = pI830->FbBase + pPriv->UBuf0offset;
+	    dst2 = dst_base + pPriv->UBuf0offset;
 	else
-	    dst2 = pI830->FbBase + pPriv->VBuf0offset;
+	    dst2 = dst_base + pPriv->VBuf0offset;
     } else {
 	if (id == FOURCC_I420)
-	    dst2 = pI830->FbBase + pPriv->UBuf1offset;
+	    dst2 = dst_base + pPriv->UBuf1offset;
 	else
-	    dst2 = pI830->FbBase + pPriv->VBuf1offset;
+	    dst2 = dst_base + pPriv->VBuf1offset;
     }
 
     switch (pPriv->rotation) {
@@ -1495,14 +1519,14 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 #endif
     if (pPriv->currentBuf == 0) {
 	if (id == FOURCC_I420)
-	    dst3 = pI830->FbBase + pPriv->VBuf0offset;
+	    dst3 = dst_base + pPriv->VBuf0offset;
 	else
-	    dst3 = pI830->FbBase + pPriv->UBuf0offset;
+	    dst3 = dst_base + pPriv->UBuf0offset;
     } else {
 	if (id == FOURCC_I420)
-	    dst3 = pI830->FbBase + pPriv->VBuf1offset;
+	    dst3 = dst_base + pPriv->VBuf1offset;
 	else
-	    dst3 = pI830->FbBase + pPriv->UBuf1offset;
+	    dst3 = dst_base + pPriv->UBuf1offset;
     }
 
     switch (pPriv->rotation) {
@@ -1544,6 +1568,9 @@ I830CopyPlanarData(ScrnInfoPtr pScrn, I830PortPrivPtr pPriv,
 	}
 	break;
     }
+
+    if (pPriv->textured)
+	drm_intel_bo_unmap(pPriv->buf);
 }
 
 typedef struct {
@@ -2374,27 +2401,26 @@ I830PutImage(ScrnInfoPtr pScrn,
     if (pPriv->doubleBuffer)
 	alloc_size *= 2;
 
-    if (pPriv->buf) {
-	/* Wait for any previous acceleration to the buffer to have completed.
-	 * When we start using BOs for rendering, we won't have to worry
-	 * because mapping or freeing will take care of it automatically.
-	 */
-	I830Sync(pScrn);
-    }
-
     /* Free the current buffer if we're going to have to reallocate */
     if (pPriv->buf && pPriv->buf->size < alloc_size) {
-	i830_free_memory(pScrn, pPriv->buf);
+	if (!pPriv->textured)
+	    drm_intel_bo_unpin(pPriv->buf);
+	drm_intel_bo_unreference(pPriv->buf);
 	pPriv->buf = NULL;
     }
 
     if (pPriv->buf == NULL) {
-	pPriv->buf = i830_allocate_memory(pScrn, "xv buffer", alloc_size, 16,
-					  0);
+	pPriv->buf = drm_intel_bo_alloc(pI830->bufmgr,
+					"xv buffer", alloc_size, 4096);
+	if (pPriv->buf == NULL)
+	    return BadAlloc;
+	if (!pPriv->textured && drm_intel_bo_pin(pPriv->buf, 4096) != 0) {
+	    drm_intel_bo_unreference(pPriv->buf);
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		       "Failed to pin xv buffer\n");
+	    return BadAlloc;
+	}
     }
-
-    if (pPriv->buf == NULL)
-	return BadAlloc;
 
     /* fixup pointers */
 #ifdef INTEL_XVMC
@@ -2405,7 +2431,11 @@ I830PutImage(ScrnInfoPtr pScrn,
 	destId = FOURCC_YV12;
     } else {
 #endif
-	pPriv->YBuf0offset = pPriv->buf->offset;
+	if (pPriv->textured)
+	    pPriv->YBuf0offset = 0;
+	else
+	    pPriv->YBuf0offset = pPriv->buf->offset;
+
 	if (pPriv->rotation & (RR_Rotate_90 | RR_Rotate_270)) {
 	    pPriv->UBuf0offset = pPriv->YBuf0offset + (dstPitch * 2 * width);
 	    pPriv->VBuf0offset = pPriv->UBuf0offset + (dstPitch * width / 2);
@@ -2662,11 +2692,9 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
 	    }
 	} else {				/* FREE_TIMER */
 	    if (pPriv->freeTime < now) {
-		/* Sync before freeing the buffer, because the pages will be
-		 * unbound.
-		 */
-		I830Sync(pScrn);
-		i830_free_memory(pScrn, pPriv->buf);
+		if (!pPriv->textured)
+		    drm_intel_bo_unpin(pPriv->buf);
+		drm_intel_bo_unreference(pPriv->buf);
 		pPriv->buf = NULL;
 		pPriv->videoStatus = 0;
 	    }
@@ -2679,7 +2707,6 @@ I830VideoBlockHandler(int i, pointer blockData, pointer pTimeout,
  ***************************************************************************/
 
 typedef struct {
-    i830_memory *buf;
     Bool isOn;
 } OffscreenPrivRec, *OffscreenPrivPtr;
 
@@ -2724,14 +2751,6 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
     fbpitch = pI830->cpp * pScrn->displayWidth;
     size = pitch * h;
 
-    pPriv->buf = i830_allocate_memory(pScrn, "xv surface buffer", size, 16, 0);
-    if (pPriv->buf == NULL) {
-	xfree(surface->pitches);
-	xfree(surface->offsets);
-	xfree(pPriv);
-	return BadAlloc;
-    }
-
     surface->width = w;
     surface->height = h;
 
@@ -2740,10 +2759,8 @@ I830AllocateSurface(ScrnInfoPtr pScrn,
     surface->pScrn = pScrn;
     surface->id = id;
     surface->pitches[0] = pitch;
-    surface->offsets[0] = pPriv->buf->offset;
+    surface->offsets[0] = 0;
     surface->devPrivate.ptr = (pointer) pPriv;
-
-    memset(pI830->FbBase + surface->offsets[0], 0, size);
 
     return Success;
 }
@@ -2777,10 +2794,6 @@ I830FreeSurface(XF86SurfacePtr surface)
     OffscreenPrivPtr pPriv = (OffscreenPrivPtr) surface->devPrivate.ptr;
 
     I830StopSurface(surface);
-    /* Sync before freeing the buffer, because the pages will be unbound. */
-    I830Sync(pScrn);
-    i830_free_memory(surface->pScrn, pPriv->buf);
-    pPriv->buf = NULL;
     xfree(surface->pitches);
     xfree(surface->offsets);
     xfree(surface->devPrivate.ptr);

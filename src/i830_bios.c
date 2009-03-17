@@ -135,6 +135,12 @@ parse_panel_data(I830Ptr pI830, struct bdb_header *bdb)
     fixed_mode->Clock      = _PIXEL_CLOCK(timing_ptr) / 1000;
     fixed_mode->type       = M_T_PREFERRED;
 
+    /* Some VBTs have bogus h/vtotal values */
+    if (fixed_mode->HSyncEnd > fixed_mode->HTotal)
+	fixed_mode->HTotal = fixed_mode->HSyncEnd + 1;
+    if (fixed_mode->VSyncEnd > fixed_mode->VTotal)
+	fixed_mode->VTotal = fixed_mode->VSyncEnd + 1;
+
     xf86SetModeDefaultName(fixed_mode);
 
     pI830->lvds_fixed_mode = fixed_mode;

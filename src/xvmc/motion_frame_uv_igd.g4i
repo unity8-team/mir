@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2008 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,24 +20,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Authors:
- *    Eric Anholt <eric@anholt.net>
- *
- */
+ * Author:
+ *    Zou Nan hai <nanhai.zou@intel.com>
+ *    Zhang Hua jun <huajun.zhang@intel.com>
+ *    Xing Dong sheng <dongsheng.xing@intel.com>
+ */  
 
-#include "xorgVersion.h"
-
-/* i830_display.c */
-void i830PipeSetBase(xf86CrtcPtr crtc, int x, int y);
-void i830WaitForVblank(ScrnInfoPtr pScrn);
-void i830DescribeOutputConfiguration(ScrnInfoPtr pScrn);
-void i830_set_new_crtc_bo(ScrnInfoPtr pScrn);
-
-xf86CrtcPtr i830GetLoadDetectPipe(xf86OutputPtr output, DisplayModePtr mode, int *dpms_mode);
-void i830ReleaseLoadDetectPipe(xf86OutputPtr output, int dpms_mode);
-void i830_crtc_init(ScrnInfoPtr pScrn, int pipe);
-void i830_crtc_load_lut(xf86CrtcPtr crtc);
-DisplayModePtr i830_crtc_mode_get(ScrnInfoPtr pScrn, xf86CrtcPtr crtc);
-void i830_output_prepare (xf86OutputPtr output);
-void i830_output_commit (xf86OutputPtr output);
-
+	include(`read_frame_x0y0_uv_igd.g4i')

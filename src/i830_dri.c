@@ -1862,41 +1862,33 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	    pPixmap = pDepthPixmap;
 	    pPixmap->refcnt++;
 	} else {
-	    uint32_t tiling = I915_TILING_NONE;
+	    unsigned int hint = 0;
 
-	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
-					       pDraw->width,
-					       pDraw->height,
-					       pDraw->depth, 0);
 	    switch (attachments[i]) {
 	    case DRI2BufferDepth:
-		if (IS_I965G(pI830))
-		    tiling = I915_TILING_Y;
+		if (SUPPORTS_YTILING(pI830))
+		    hint = INTEL_CREATE_PIXMAP_TILING_Y;
 		else
-		    tiling = I915_TILING_X;
+		    hint = INTEL_CREATE_PIXMAP_TILING_X;
 		break;
 	    case DRI2BufferFakeFrontLeft:
 	    case DRI2BufferFakeFrontRight:
 	    case DRI2BufferBackLeft:
 	    case DRI2BufferBackRight:
-		    tiling = I915_TILING_X;
+		    hint = INTEL_CREATE_PIXMAP_TILING_X;
 		break;
 	    }
 
-	    /* Disable tiling on 915-class 3D for now.  Because the 2D blitter
-	     * requires fence regs to operate, and they're not being managed
-	     * by the kernel yet, we don't want to expose tiled buffers to the
-	     * 3D client as it'll just render incorrectly if it pays attention
-	     * to our tiling bits at all.
-	     */
-	    if (!IS_I965G(pI830))
-		tiling = I915_TILING_NONE;
+	    if (!pI830->tiling ||
+		(!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
+		hint = 0;
 
-	    if (tiling != I915_TILING_NONE) {
-		bo = i830_get_pixmap_bo(pPixmap);
-		drm_intel_bo_set_tiling(bo, &tiling,
-					pDraw->width * pDraw->bitsPerPixel / 8);
-	    }
+	    pPixmap = (*pScreen->CreatePixmap)(pScreen,
+					       pDraw->width,
+					       pDraw->height,
+					       pDraw->depth,
+					       hint);
+
 	}
 
 	if (attachments[i] == DRI2BufferDepth)
@@ -1996,7 +1988,17 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	    pI830->PciInfo->dev,
 	    pI830->PciInfo->func);
 
-    info.fd = drmOpen("i915", buf);
+    info.fd = -1;
+
+#ifdef XF86DRM_MODE
+    /* Use the already opened (master) fd from modesetting */
+    if (pI830->use_drm_mode)
+	info.fd = pI830->drmSubFD;
+#endif
+
+    if (info.fd < 0)
+	info.fd = drmOpen("i915", buf);
+
     if (info.fd < 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
 	return FALSE;
