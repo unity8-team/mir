@@ -2275,7 +2275,7 @@ RestoreHWState(ScrnInfoPtr pScrn)
    /* Disable pipes */
    for (i = 0; i < xf86_config->num_crtc; i++) {
       xf86CrtcPtr crtc = xf86_config->crtc[i];
-      crtc->funcs->dpms(crtc, DPMSModeOff);
+      i830_crtc_disable(crtc, TRUE);
    }
    i830WaitForVblank(pScrn);
 
@@ -3460,8 +3460,9 @@ static Bool
 I830EnterVT(int scrnIndex, int flags)
 {
    ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
+   xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
    I830Ptr  pI830 = I830PTR(pScrn);
-   int ret;
+   int i, ret;
 
    DPRINTF(PFX, "Enter VT\n");
 
@@ -3480,6 +3481,23 @@ I830EnterVT(int scrnIndex, int flags)
       pI830->SaveGeneration = serverGeneration;
       if (!pI830->use_drm_mode)
 	  SaveHWState(pScrn);
+   }
+
+   /* Get the hardware into a known state if needed */
+   if (!pI830->use_drm_mode) {
+       /* Disable outputs */
+       for (i = 0; i < xf86_config->num_output; i++) {
+	   xf86OutputPtr   output = xf86_config->output[i];
+	   output->funcs->dpms(output, DPMSModeOff);
+       }
+       i830WaitForVblank(pScrn);
+
+       /* Disable pipes */
+       for (i = 0; i < xf86_config->num_crtc; i++) {
+	   xf86CrtcPtr crtc = xf86_config->crtc[i];
+	   i830_crtc_disable(crtc, TRUE);
+       }
+       i830WaitForVblank(pScrn);
    }
 
    pI830->leaving = FALSE;
