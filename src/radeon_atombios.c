@@ -1771,12 +1771,17 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 	    con_obj_type = (path->usConnObjectId & OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
 	    if ((path->usDeviceTag == ATOM_DEVICE_TV1_SUPPORT) ||
-		(path->usDeviceTag == ATOM_DEVICE_TV2_SUPPORT) ||
-		(path->usDeviceTag == ATOM_DEVICE_CV_SUPPORT)) {
+		(path->usDeviceTag == ATOM_DEVICE_TV2_SUPPORT)) {
 		if (!enable_tv) {
 		    info->BiosConnector[i].valid = FALSE;
 		    continue;
 		}
+	    }
+
+	    /* don't support CV yet */
+	    if (path->usDeviceTag == ATOM_DEVICE_CV_SUPPORT) {
+		info->BiosConnector[i].valid = FALSE;
+		continue;
 	    }
 
 	    if ((info->ChipFamily == CHIP_FAMILY_RS780) &&
@@ -2203,7 +2208,8 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	    continue;
 	}
 
-	if (!enable_tv && (i == ATOM_DEVICE_CV_INDEX)) {
+	/* don't support CV yet */
+	if (i == ATOM_DEVICE_CV_INDEX) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Skipping Component Video\n");
 	    info->BiosConnector[i].valid = FALSE;
 	    continue;
