@@ -2084,8 +2084,11 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->PrepareAccess = R600PrepareAccess;
     info->accel_state->exa->FinishAccess = R600FinishAccess;
 
-    info->accel_state->exa->UploadToScreen = R600UploadToScreen;
-    info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreen;
+    /* AGP seems to have problems with gart transfers */
+    if (info->accelDFS) {
+	info->accel_state->exa->UploadToScreen = R600UploadToScreen;
+	info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreen;
+    }
 
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS;
 #ifdef EXA_SUPPORTS_PREPARE_AUX
