@@ -318,6 +318,7 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	ScreenPtr      pScreen = screenInfo.screens[pScrn->scrnIndex];
 	NVPtr          pNv = NVPTR(pScrn);
 	NOUVEAUDRIPtr  pNOUVEAUDRI;
+	int ret;
 
 	if (!pNv->pDRIInfo || !DRIFinishScreenInit(pScreen))
 		return FALSE;
@@ -331,7 +332,12 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	pNOUVEAUDRI->depth		= pScrn->depth;
 	pNOUVEAUDRI->bpp		= pScrn->bitsPerPixel;
 
-	pNOUVEAUDRI->front_offset 	= pNv->FB->offset;
+	ret = nouveau_bo_handle_get(pNv->FB, &pNOUVEAUDRI->front_offset);
+	if (ret) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[dri] unable to reference front buffer: %d\n", ret);
+		return FALSE;
+	}
 	pNOUVEAUDRI->front_pitch	= pScrn->displayWidth;
 	/* back/depth buffers will likely be allocated on a per-drawable
 	 * basis, but these may be useful if we want to support shared back
