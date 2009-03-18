@@ -584,7 +584,7 @@ It has two values: 'off'(0) and 'on'(1). The default is
 XV_BICUBIC is used to control whether textured adapter should apply
 a bicubic filter to smooth the output. It has three values: 'off'(0), 'on'(1)
 and 'auto'(2). 'off' means never apply the filter, 'on' means always apply
-the filter and 'auto' means apply the filter only if one of the X or Y
+the filter and 'auto' means apply the filter only if the X and Y
 sizes are scaled to more than double, this to avoid blurred output.
 The default is
 .B 'auto'(2).
