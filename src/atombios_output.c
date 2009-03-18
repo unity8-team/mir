@@ -1601,34 +1601,66 @@ atom_bios_dac_load_detect(atomBiosHandlePtr atomBIOS, xf86OutputPtr output)
 
     if (radeon_output->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT1_SUPPORT);
-	if (info->encoders[ATOM_DEVICE_CRT1_INDEX] &&
-	    (info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
-	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else
-	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	if (IS_AVIVO_VARIANT) {
+	    if (info->encoders[ATOM_DEVICE_CRT1_INDEX] &&
+		(info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1))
+		dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	    else
+		dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	} else {
+	    if (info->encoders[ATOM_DEVICE_CRT1_INDEX] &&
+		(info->encoders[ATOM_DEVICE_CRT1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
+		dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	    else
+		dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	}
     } else if (radeon_output->devices & ATOM_DEVICE_CRT2_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CRT2_SUPPORT);
-	if (info->encoders[ATOM_DEVICE_CRT2_INDEX] &&
-	    (info->encoders[ATOM_DEVICE_CRT2_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
-	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else
-	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	if (IS_AVIVO_VARIANT) {
+	    if (info->encoders[ATOM_DEVICE_CRT2_INDEX] &&
+		(info->encoders[ATOM_DEVICE_CRT2_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1))
+		dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	    else
+		dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	} else {
+	    if (info->encoders[ATOM_DEVICE_CRT2_INDEX] &&
+		(info->encoders[ATOM_DEVICE_CRT2_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
+		dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	    else
+		dac_data.sDacload.ucDacType = ATOM_DAC_B;
+	}
     } else if (radeon_output->devices & ATOM_DEVICE_CV_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_CV_SUPPORT);
-	if (info->encoders[ATOM_DEVICE_CV_INDEX] &&
-	    (info->encoders[ATOM_DEVICE_CV_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
-	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else
-	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       if (IS_AVIVO_VARIANT) {
+	   if (info->encoders[ATOM_DEVICE_CV_INDEX] &&
+	       (info->encoders[ATOM_DEVICE_CV_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1))
+	       dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	   else
+	       dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       } else {
+	   if (info->encoders[ATOM_DEVICE_CV_INDEX] &&
+	       (info->encoders[ATOM_DEVICE_CV_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
+	       dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	   else
+	       dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       }
 	if (minor >= 3)
 	    dac_data.sDacload.ucMisc = DAC_LOAD_MISC_YPrPb;
     } else if (radeon_output->devices & ATOM_DEVICE_TV1_SUPPORT) {
 	dac_data.sDacload.usDeviceID = cpu_to_le16(ATOM_DEVICE_TV1_SUPPORT);
-	if (info->encoders[ATOM_DEVICE_TV1_INDEX] &&
-	    (info->encoders[ATOM_DEVICE_TV1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
-	    dac_data.sDacload.ucDacType = ATOM_DAC_A;
-	else
-	    dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       if (IS_AVIVO_VARIANT) {
+	   if (info->encoders[ATOM_DEVICE_TV1_INDEX] &&
+	       (info->encoders[ATOM_DEVICE_TV1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1))
+	       dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	   else
+	       dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       } else {
+	   if (info->encoders[ATOM_DEVICE_TV1_INDEX] &&
+	       (info->encoders[ATOM_DEVICE_TV1_INDEX]->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1))
+	       dac_data.sDacload.ucDacType = ATOM_DAC_A;
+	   else
+	       dac_data.sDacload.ucDacType = ATOM_DAC_B;
+       }
     } else {
 	ErrorF("invalid output device for dac detection\n");
 	return ATOM_NOT_IMPLEMENTED;
