@@ -1,3 +1,10 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu2) jaunty; urgency=low
+
+  * Add 114_fix_xv_with_non_gem.patch, 115_fix_crash_xv_overlay.patch:
+    - Fix green window when playing movies with Xv extension (LP: #344740)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 18 Mar 2009 17:05:09 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu1) jaunty; urgency=low
 
   * New upstream release:
