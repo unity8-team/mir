@@ -675,10 +675,6 @@ I830EXAInit(ScreenPtr pScreen)
     memset(pI830->EXADriverPtr, 0, sizeof(*pI830->EXADriverPtr));
 
     pI830->bufferOffset = 0;
-#if EXA_VERSION_MAJOR > 2
-    pI830->EXADriverPtr->exa_major = 3;
-    pI830->EXADriverPtr->exa_minor = 0;
-#else
     pI830->EXADriverPtr->exa_major = 2;
     /* If compiled against EXA 2.2, require 2.2 so we can use the
      * PixmapIsOffscreen hook.
@@ -690,7 +686,6 @@ I830EXAInit(ScreenPtr pScreen)
     xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 	       "EXA compatibility mode.  Output rotation rendering "
 	       "performance may suffer\n");
-#endif
 #endif
     if (!pI830->use_drm_mode) {
 	pI830->EXADriverPtr->memoryBase = pI830->FbBase;
