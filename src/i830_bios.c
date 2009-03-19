@@ -161,7 +161,7 @@ parse_general_features(I830Ptr pI830, struct bdb_header *bdb)
     pI830->tv_present = general->int_tv_support;
     pI830->lvds_use_ssc = general->enable_ssc;
     if (pI830->lvds_use_ssc) {
-	if (IS_I855(pI830))
+	if (IS_I85X(pI830))
 	    pI830->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
 	else
 	    pI830->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
