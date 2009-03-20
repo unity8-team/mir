@@ -1048,11 +1048,14 @@ I830StopVideo(ScrnInfoPtr pScrn, pointer data, Bool shutdown)
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
 	    i830_overlay_off(pScrn);
 	}
-	if (!pPriv->textured)
-	    drm_intel_bo_unpin(pPriv->buf);
-	drm_intel_bo_unreference(pPriv->buf);
-	pPriv->buf = NULL;
-	pPriv->videoStatus = 0;
+
+	if (pPriv->buf) {
+	    if (!pPriv->textured)
+		drm_intel_bo_unpin(pPriv->buf);
+	    drm_intel_bo_unreference(pPriv->buf);
+	    pPriv->buf = NULL;
+	    pPriv->videoStatus = 0;
+	}
     } else {
 	if (pPriv->videoStatus & CLIENT_VIDEO_ON) {
 	    pPriv->videoStatus |= OFF_TIMER;
