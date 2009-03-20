@@ -1263,10 +1263,21 @@ radeon_create_resources(xf86OutputPtr output)
 		       "RRConfigureOutputProperty error, %d\n", err);
 	}
 	/* Set the current value of the property */
-	if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))
-	    s = "full";
-	else
+	switch (radeon_output->rmx_type) {
+	case RMX_OFF:
+	default:
 	    s = "off";
+	    break;
+	case RMX_FULL:
+	    s = "full";
+	    break;
+	case RMX_CENTER:
+	    s = "center";
+	    break;
+	case RMX_ASPECT:
+	    s = "aspect";
+	    break;
+	}
 	err = RRChangeOutputProperty(output->randr_output, rmx_atom,
 				     XA_STRING, 8, PropModeReplace, strlen(s), (pointer)s,
 				     FALSE, FALSE);
@@ -1883,6 +1894,10 @@ void RADEONInitConnector(xf86OutputPtr output)
 	radeon_output->rmx_type = RMX_FULL;
     else
 	radeon_output->rmx_type = RMX_OFF;
+
+    /* dce 3.2 chips have problems with low dot clocks, so use the scaler */
+    if (IS_DCE32_VARIANT && (radeon_output->devices & (ATOM_DEVICE_DFP_SUPPORT)))
+	radeon_output->rmx_type = RMX_FULL;
 
     if (!IS_AVIVO_VARIANT) {
 	if (radeon_output->devices & (ATOM_DEVICE_CRT2_SUPPORT)) {
