@@ -349,4 +349,6 @@ RADEONCardInfo RADEONCards[] = {
  { 0x9612, CHIP_FAMILY_RS780, 0, 1, 0, 0, 1 },
  { 0x9613, CHIP_FAMILY_RS780, 0, 1, 0, 0, 1 },
  { 0x9614, CHIP_FAMILY_RS780, 0, 1, 0, 0, 1 },
+ { 0x9615, CHIP_FAMILY_RS780, 0, 1, 0, 0, 1 },
+ { 0x9616, CHIP_FAMILY_RS780, 0, 1, 0, 0, 1 },
 };
