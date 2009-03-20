@@ -2105,10 +2105,10 @@ R600DrawInit(ScreenPtr pScreen)
 #if EXA_VERSION_MAJOR > 2 || (EXA_VERSION_MAJOR == 2 && EXA_VERSION_MINOR >= 3)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Setting EXA maxPitchBytes\n");
 
-    info->accel_state->exa->maxPitchBytes = 16320;
+    info->accel_state->exa->maxPitchBytes = 32768;
     info->accel_state->exa->maxX = 8192;
 #else
-    info->accel_state->exa->maxX = 16320 / 4;
+    info->accel_state->exa->maxX = 8192;
 #endif
     info->accel_state->exa->maxY = 8192;
 
