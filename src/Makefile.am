@@ -220,9 +220,3 @@ if XVMC
 intel_drv_la_SOURCES += \
 	$(INTEL_XVMC_SRCS)
 endif
-
-install-data-local: install-intel_drv_laLTLIBRARIES
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so && ln -s intel_drv.so i810_drv.so)
-
-uninstall-local:
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)

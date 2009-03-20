@@ -472,21 +472,6 @@ static XF86ModuleVersionInfo intelVersRec = {
 
 _X_EXPORT XF86ModuleData intelModuleData = { &intelVersRec, i810Setup, NULL };
 
-static XF86ModuleVersionInfo i810VersRec = {
-   "i810",
-   MODULEVENDORSTRING,
-   MODINFOSTRING1,
-   MODINFOSTRING2,
-   XORG_VERSION_CURRENT,
-   INTEL_VERSION_MAJOR, INTEL_VERSION_MINOR, INTEL_VERSION_PATCH,
-   ABI_CLASS_VIDEODRV,
-   ABI_VIDEODRV_VERSION,
-   MOD_CLASS_VIDEODRV,
-   {0, 0, 0, 0}
-};
-
-_X_EXPORT XF86ModuleData i810ModuleData = { &i810VersRec, i810Setup, NULL };
-
 static pointer
 i810Setup(pointer module, pointer opts, int *errmaj, int *errmin)
 {
@@ -681,9 +666,7 @@ I810Probe(DriverPtr drv, int flags)
     * driver, and return if there are none.
     */
    if ((numDevSections =
-	xf86MatchDevice(I810_DRIVER_NAME, &devSections)) <= 0 &&
-       (numDevSections =
-	xf86MatchDevice(I810_LEGACY_DRIVER_NAME, &devSections)) <= 0) {
+	xf86MatchDevice(I810_DRIVER_NAME, &devSections)) <= 0 ) {
       return FALSE;
    }
 
