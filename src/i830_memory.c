@@ -270,7 +270,8 @@ i830_unbind_memory(ScrnInfoPtr pScrn, i830_memory *mem)
     if (mem == NULL || !mem->bound)
 	return TRUE;
 
-    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode)
+    if (mem->tiling != TILE_NONE && !pI830->use_drm_mode &&
+	!pI830->kernel_exec_fencing)
 	i830_clear_tiling(pScrn, mem->fence_nr);
 
 #ifdef XF86DRI
