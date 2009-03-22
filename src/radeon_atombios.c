@@ -1784,7 +1784,7 @@ RADEONGetATOMConnectorInfoFromBIOSObject (ScrnInfoPtr pScrn)
 		continue;
 	    }
 
-	    if ((info->ChipFamily == CHIP_FAMILY_RS780) &&
+	    if (info->IsIGP &&
 		(con_obj_id == CONNECTOR_OBJECT_ID_PCIE_CONNECTOR)) {
 		uint32_t slot_config, ct;
 
