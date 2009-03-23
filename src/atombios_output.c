@@ -1406,8 +1406,12 @@ atombios_set_output_crtc_source(xf86OutputPtr output)
 	default:
 	    if (IS_AVIVO_VARIANT)
 		crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
-	    else
-		crtc_src_param.ucCRTC = radeon_crtc->crtc_id << 2;
+	    else {
+		if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DAC1)
+		    crtc_src_param.ucCRTC = radeon_crtc->crtc_id;
+		else
+		    crtc_src_param.ucCRTC = radeon_crtc->crtc_id << 2;
+	    }
 	    switch (radeon_encoder->encoder_id) {
 	    case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	    case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
