@@ -188,7 +188,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
                     mode->Clock,
                     mode->Flags);
 
-    nvReg->scale = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0xfff000ff;
+    nvReg->scale = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_TG_CONTROL) & 0xfff000ff;
     if(pNv->FlatPanel == 1) {
        nvReg->pixel |= (1 << 7);
        if(!pNv->fpScaler || (pNv->fpWidth <= mode->HDisplay)
@@ -196,7 +196,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        {
            nvReg->scale |= (1 << 8) ;
        }
-       nvReg->crtcSync = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HCRTC);
+       nvReg->crtcSync = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_HCRTC);
        nvReg->crtcSync += NVDACPanelTweaks(pNv, nvReg);
     }
 
@@ -212,7 +212,7 @@ NVDACInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
        nvReg->head2 = NVReadCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL) | 0x00001000;
        nvReg->crtcOwner = 3;
        nvReg->pllsel |= 0x20000800;
-       nvReg->vpll = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL);
+       nvReg->vpll = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_VPLL_COEFF);
        if(pNv->two_reg_pll) 
           nvReg->vpllB = NVReadRAMDAC(pNv, 0, NV_RAMDAC_VPLL_B);
     } else if(pNv->twoHeads) {

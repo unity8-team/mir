@@ -199,7 +199,7 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
 
-	NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_CURSOR_POS,
+	NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_CU_START_POS,
 		      (y << CURSOR_Y_SHIFT) | (x & CURSOR_POS_MASK));
 }
 

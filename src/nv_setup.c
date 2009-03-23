@@ -169,35 +169,35 @@ NVIsConnected (ScrnInfoPtr pScrn, int output)
                "Probing for analog device on output %s...\n", 
                 output ? "B" : "A");
 
-    reg52C = NVReadRAMDAC(pNv, output, NV_RAMDAC_OUTPUT);
-    reg608 = NVReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
+    reg52C = NVReadRAMDAC(pNv, output, NV_PRAMDAC_DACCLK);
+    reg608 = NVReadRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL);
 
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, (reg608 & ~0x00010000));
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL, (reg608 & ~0x00010000));
 
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, (reg52C & 0x0000FEEE));
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_DACCLK, (reg52C & 0x0000FEEE));
     usleep(1000);
     
-    temp = NVReadRAMDAC(pNv, output, NV_RAMDAC_OUTPUT);
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, temp | 1);
+    temp = NVReadRAMDAC(pNv, output, NV_PRAMDAC_DACCLK);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_DACCLK, temp | 1);
 
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_DATA, 0x94050140);
-    temp = NVReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, temp | 0x1000);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_TESTPOINT_DATA, 0x94050140);
+    temp = NVReadRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL, temp | 0x1000);
 
     usleep(1000);
 
-    present = (NVReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
+    present = (NVReadRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL) & (1 << 28)) ? TRUE : FALSE;
 
     if(present)
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "  ...found one\n");
     else
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "  ...can't find one\n");
 
-    temp = NVReadRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL);
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, temp & 0x000EFFF);
+    temp = NVReadRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL, temp & 0x000EFFF);
 
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_OUTPUT, reg52C);
-    NVWriteRAMDAC(pNv, output, NV_RAMDAC_TEST_CONTROL, reg608);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_DACCLK, reg52C);
+    NVWriteRAMDAC(pNv, output, NV_PRAMDAC_TEST_CONTROL, reg608);
 
     return present;
 }
@@ -577,11 +577,11 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    CARD8 cr44;
 	    
 	    if(implementation != CHIPSET_NV11) {
-		if(NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT) & 0x100)
+		if(NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK) & 0x100)
 		    outputAfromCRTC = 1;
 		else            
 		    outputAfromCRTC = 0;
-		if(NVReadRAMDAC(pNv, 1, NV_RAMDAC_OUTPUT) & 0x100)
+		if(NVReadRAMDAC(pNv, 1, NV_PRAMDAC_DACCLK) & 0x100)
 		    outputBfromCRTC = 1;
 		else
 		    outputBfromCRTC = 0;
@@ -738,9 +738,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		   pNv->crtc_active[1]);
 	
 	if(pNv->FlatPanel && !pNv->Television) {
-	    pNv->fpWidth = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_HDISP_END) + 1;
-	    pNv->fpHeight = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_VDISP_END) + 1;
-	    pNv->fpSyncs = nvReadCurRAMDAC(pNv, NV_RAMDAC_FP_CONTROL) & 0x30000033;
+	    pNv->fpWidth = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_HDISPLAY_END) + 1;
+	    pNv->fpHeight = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_VDISPLAY_END) + 1;
+	    pNv->fpSyncs = nvReadCurRAMDAC(pNv, NV_PRAMDAC_FP_TG_CONTROL) & 0x30000033;
 	    xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Panel size is %i x %i\n",
 		       pNv->fpWidth, pNv->fpHeight);
 	}
@@ -753,8 +753,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	
 	pNv->LVDS = FALSE;
 	if(pNv->FlatPanel && pNv->twoHeads) {
-	    NVWriteRAMDAC(pNv, 0, NV_RAMDAC_FP_TMDS_CONTROL, 0x00010004);
-	    if(NVReadRAMDAC(pNv, 0, NV_RAMDAC_FP_TMDS_DATA) & 1)
+	    NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_FP_TMDS_CONTROL, 0x00010004);
+	    if(NVReadRAMDAC(pNv, 0, NV_PRAMDAC_FP_TMDS_DATA) & 1)
 		pNv->LVDS = TRUE;
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Panel is %s\n", 
 		       pNv->LVDS ? "LVDS" : "TMDS");

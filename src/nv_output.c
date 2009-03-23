@@ -58,8 +58,8 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	if (pNv->vbios->dactestval)
 		testval = pNv->vbios->dactestval;
 
-	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset,
+	saved_rtest_ctrl = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset,
 		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
 
 	if (pNv->NVArch >= 0x17) {
@@ -74,38 +74,38 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 	usleep(4000);
 
-	saved_routput = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
+	saved_routput = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset);
 	head = (saved_routput & 0x100) >> 8;
 	/* if there's a spare crtc, using it will minimise flicker for the case
 	 * where the in-use crtc is in use by an off-chip tmds encoder */
 	if (xf86_config->crtc[head]->enabled && !xf86_config->crtc[head ^ 1]->enabled)
 		head ^= 1;
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset,
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset,
 		      (saved_routput & 0xfffffece) | head << 8);
 	usleep(1000);
 
-	temp = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, temp | 1);
+	temp = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset, temp | 1);
 
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA,
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_TESTPOINT_DATA,
 		      NV_PRAMDAC_TESTPOINT_DATA_NOTBLANK | testval);
-	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL,
+	temp = NVReadRAMDAC(pNv, head, NV_PRAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_TEST_CONTROL,
 		      temp | NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	usleep(1000);
 
-	present = NVReadRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset) &
+	present = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset) &
 			NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI;
 
-	temp = NVReadRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_CONTROL,
+	temp = NVReadRAMDAC(pNv, head, NV_PRAMDAC_TEST_CONTROL);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_TEST_CONTROL,
 		      temp & ~NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
-	NVWriteRAMDAC(pNv, head, NV_RAMDAC_TEST_DATA, 0);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_TESTPOINT_DATA, 0);
 
 	/* bios does something more complex for restoring, but I think this is good enough */
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + regoffset, saved_routput);
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset, saved_routput);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
 	if (pNv->NVArch >= 0x17) {
 		if (regoffset == 0x68)
 			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
@@ -676,15 +676,15 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 
 		/* bit 16-19 are bits that are set on some G70 cards,
 		 * but don't seem to have much effect */
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset,
-			      nv_crtc->head << 8 | NV_RAMDAC_OUTPUT_DAC_ENABLE);
+		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset,
+			      nv_crtc->head << 8 | NV_PRAMDAC_DACCLK_SEL_DACCLK);
 		/* force any other vga encoders to bind to the other crtc */
 		for (i = 0; i < pNv->vbios->dcb->entries; i++)
 			if (i != nv_encoder->dcb->index && pNv->encoders[i].dcb &&
 			    pNv->encoders[i].dcb->type == OUTPUT_ANALOG) {
 				dac_offset = nv_output_ramdac_offset(&pNv->encoders[i]);
-				otherdac = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset);
-				NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + dac_offset,
+				otherdac = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset);
+				NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + dac_offset,
 					      (otherdac & ~0x100) | (nv_crtc->head ^ 1) << 8);
 			}
 	}
@@ -695,13 +695,13 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 
 	/* This could use refinement for flatpanels, but it should work this way */
 	if (pNv->NVArch < 0x44)
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0xf0000000);
+		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0xf0000000);
 	else
-		NVWriteRAMDAC(pNv, 0, NV_RAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0x00100000);
+		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + nv_output_ramdac_offset(nv_encoder), 0x00100000);
 
 	/* update fp_control state for any changes made by scripts, for dpms */
 	pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control =
-			NVReadRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL);
+			NVReadRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL);
 }
 
 static void
@@ -729,8 +729,8 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
-		*fpc &= ~NV_PRAMDAC_FP_TG_CONTROL_OFF;
-		NVWriteRAMDAC(pNv, nv_crtc->head, NV_RAMDAC_FP_CONTROL, *fpc);
+		*fpc &= ~NV_RAMDAC_FP_TG_CONTROL_OFF;
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 			nv_crtc = to_nouveau_crtc(xf86_config->crtc[i]);
@@ -739,9 +739,9 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!nv_crtc->fp_users) {
 				/* cut the FP output */
-				*fpc |= NV_PRAMDAC_FP_TG_CONTROL_OFF;
+				*fpc |= NV_RAMDAC_FP_TG_CONTROL_OFF;
 				NVWriteRAMDAC(pNv, nv_crtc->head,
-					      NV_RAMDAC_FP_CONTROL, *fpc);
+					      NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 			}
 		}
 }
@@ -777,10 +777,10 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 	if (mode == DPMSModeOn)
 		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, to_nouveau_crtc(crtc)->head);
 	else {
-		pNv->ModeReg.sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK);
+		pNv->ModeReg.sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
 		pNv->ModeReg.sel_clk &= ~0xf0;
 	}
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
 }
 
 static void
@@ -796,14 +796,14 @@ vga_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crtc
 		   "Setting dpms mode %d on vga encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
 	if (pNv->twoHeads) {
-		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder));
+		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder));
 
 		if (mode == DPMSModeOff)
-			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder),
-				      outputval & ~NV_RAMDAC_OUTPUT_DAC_ENABLE);
+			NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder),
+				      outputval & ~NV_PRAMDAC_DACCLK_SEL_DACCLK);
 		else if (mode == DPMSModeOn)
-			NVWriteRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder),
-				      outputval | NV_RAMDAC_OUTPUT_DAC_ENABLE);
+			NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder),
+				      outputval | NV_PRAMDAC_DACCLK_SEL_DACCLK);
 	}
 }
 
@@ -865,7 +865,7 @@ void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 		return;
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
-		nv_encoder->restore.output = NVReadRAMDAC(pNv, 0, NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder));
+		nv_encoder->restore.output = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder));
 	if (nv_encoder->dcb->type == OUTPUT_TMDS || nv_encoder->dcb->type == OUTPUT_LVDS)
 		nv_encoder->restore.head = nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
 }
@@ -880,7 +880,7 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 
 	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		NVWriteRAMDAC(pNv, 0,
-			      NV_RAMDAC_OUTPUT + nv_output_ramdac_offset(nv_encoder),
+			      NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder),
 			      nv_encoder->restore.output);
 	if (nv_encoder->dcb->type == OUTPUT_LVDS)
 		call_lvds_script(pScrn, nv_encoder->dcb, head, LVDS_PANEL_ON,

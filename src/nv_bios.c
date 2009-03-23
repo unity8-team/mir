@@ -787,11 +787,11 @@ static int powerctrl_1_shift(int chip_version, int reg)
 	switch (reg) {
 	case NV_RAMDAC_VPLL2:
 		shift += 4;
-	case NV_RAMDAC_VPLL:
+	case NV_PRAMDAC_VPLL_COEFF:
 		shift += 4;
-	case NV_RAMDAC_MPLL:
+	case NV_PRAMDAC_MPLL_COEFF:
 		shift += 4;
-	case NV_RAMDAC_NVPLL:
+	case NV_PRAMDAC_NVPLL_COEFF:
 		shift += 4;
 	}
 
@@ -847,7 +847,7 @@ static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg,
 
 static uint32_t new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 {
-	bool head_a = (reg1 == NV_RAMDAC_VPLL);
+	bool head_a = (reg1 == NV_PRAMDAC_VPLL_COEFF);
 
 	if (ss)	/* single stage pll mode */
 		ramdac580 |= head_a ? NV_RAMDAC_580_VPLL1_ACTIVE :
@@ -880,8 +880,8 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1,
 		       (pv->N2 & 0x7) << 19 | 8 << 4 | (pv->M2 & 7) << 4;
 		pll2 = 0;
 	}
-	if (chip_version > 0x40 && reg1 >= NV_RAMDAC_VPLL) { /* not on nv40 */
-		oldramdac580 = bios_rd32(pScrn, NV_RAMDAC_580);
+	if (chip_version > 0x40 && reg1 >= NV_PRAMDAC_VPLL_COEFF) { /* !nv40 */
+		oldramdac580 = bios_rd32(pScrn, NV_PRAMDAC_580);
 		ramdac580 = new_ramdac580(reg1, single_stage, oldramdac580);
 		if (oldramdac580 != ramdac580)
 			oldpll1 = ~0;	/* force mismatch */
@@ -907,13 +907,13 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1,
 		int shift_c040 = 14;
 
 		switch (reg1) {
-		case NV_RAMDAC_MPLL:
+		case NV_PRAMDAC_MPLL_COEFF:
 			shift_c040 += 2;
-		case NV_RAMDAC_NVPLL:
+		case NV_PRAMDAC_NVPLL_COEFF:
 			shift_c040 += 2;
 		case NV_RAMDAC_VPLL2:
 			shift_c040 += 2;
-		case NV_RAMDAC_VPLL:
+		case NV_PRAMDAC_VPLL_COEFF:
 			shift_c040 += 2;
 		}
 
@@ -923,7 +923,7 @@ static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1,
 	}
 
 	if (oldramdac580 != ramdac580)
-		bios_wr32(pScrn, NV_RAMDAC_580, ramdac580);
+		bios_wr32(pScrn, NV_PRAMDAC_580, ramdac580);
 
 	if (!nv3035)
 		bios_wr32(pScrn, reg2, pll2);
@@ -1706,7 +1706,7 @@ static bool init_tmds(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t offset, i
 	if (!(reg = get_tmds_index_reg(pScrn, mlv)))
 		return false;
 
-	bios_wr32(pScrn, reg, tmdsaddr | NV_RAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
+	bios_wr32(pScrn, reg, tmdsaddr | NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
 	value = (bios_rd32(pScrn, reg + 4) & mask) | data;
 	bios_wr32(pScrn, reg + 4, value);
 	bios_wr32(pScrn, reg, tmdsaddr);
@@ -2212,12 +2212,12 @@ static bool init_configure_clk(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t 
 		return false;
 
 	clock = ROM16(bios->data[meminitoffs + 4]) * 10;
-	setPLL(pScrn, bios, NV_RAMDAC_NVPLL, clock);
+	setPLL(pScrn, bios, NV_PRAMDAC_NVPLL_COEFF, clock);
 
 	clock = ROM16(bios->data[meminitoffs + 2]) * 10;
 	if (bios->data[meminitoffs] & 1) /* DDR */
 		clock *= 2;
-	setPLL(pScrn, bios, NV_RAMDAC_MPLL, clock);
+	setPLL(pScrn, bios, NV_PRAMDAC_MPLL_COEFF, clock);
 
 	return true;
 }
@@ -3130,7 +3130,7 @@ int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Calling LVDS script %d:\n", script);
 
 	/* don't let script change pll->head binding */
-	sel_clk_binding = bios_rd32(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
+	sel_clk_binding = bios_rd32(pScrn, NV_PRAMDAC_SEL_CLK) & 0x50000;
 
 	if (lvds_ver < 0x30)
 		ret = call_lvds_manufacturer_script(pScrn, dcbent, head, script);
@@ -3139,8 +3139,8 @@ int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum
 
 	bios->fp.last_script_invoc = (script << 1 | head);
 
-	sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & ~0x50000;
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
+	sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
 	nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
@@ -3555,10 +3555,10 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	}
 
 	/* don't let script change pll->head binding */
-	sel_clk_binding = bios_rd32(pScrn, NV_RAMDAC_SEL_CLK) & 0x50000;
+	sel_clk_binding = bios_rd32(pScrn, NV_PRAMDAC_SEL_CLK) & 0x50000;
 	run_digital_op_script(pScrn, scriptptr, dcbent, head, pxclk >= 165000);
-	sel_clk = NVReadRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK) & ~0x50000;
-	NVWriteRAMDAC(pNv, 0, NV_RAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
+	sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
+	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 
 	return 0;
 }
@@ -3674,13 +3674,17 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 			for (i = 1; i < entries && !reg; i++) {
 				uint32_t cmpreg = ROM32(bios->data[plloffs + recordlen * i]);
 
-				if (limit_match == NVPLL && (cmpreg == NV_RAMDAC_NVPLL || cmpreg == 0x4000))
+				if (limit_match == NVPLL &&
+				    (cmpreg == NV_PRAMDAC_NVPLL_COEFF || cmpreg == 0x4000))
 					reg = cmpreg;
-				if (limit_match == MPLL && (cmpreg == NV_RAMDAC_MPLL || cmpreg == 0x4020))
+				if (limit_match == MPLL &&
+				    (cmpreg == NV_PRAMDAC_MPLL_COEFF || cmpreg == 0x4020))
 					reg = cmpreg;
-				if (limit_match == VPLL1 && (cmpreg == NV_RAMDAC_VPLL || cmpreg == 0x4010))
+				if (limit_match == VPLL1 &&
+				    (cmpreg == NV_PRAMDAC_VPLL_COEFF || cmpreg == 0x4010))
 					reg = cmpreg;
-				if (limit_match == VPLL2 && (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
+				if (limit_match == VPLL2 &&
+				    (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
 					reg = cmpreg;
 			}
 
@@ -3731,9 +3735,9 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 
 		/* C51 special not seen elsewhere */
 		if (cv == 0x51 && !pll_lim->refclk) {
-			uint32_t sel_clk = bios_rd32(pScrn, NV_RAMDAC_SEL_CLK);
+			uint32_t sel_clk = bios_rd32(pScrn, NV_PRAMDAC_SEL_CLK);
 
-			if (((limit_match == NV_RAMDAC_VPLL || limit_match == VPLL1) && sel_clk & 0x20) ||
+			if (((limit_match == NV_PRAMDAC_VPLL_COEFF || limit_match == VPLL1) && sel_clk & 0x20) ||
 			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
 				if (bios_idxprt_rd(pScrn, NV_CIO_CRX__COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
 					pll_lim->refclk = 200000;
