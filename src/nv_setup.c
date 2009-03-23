@@ -612,8 +612,8 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 		tvA = !(nvReadCurVGA(pNv, NV_CIO_CRE_LCD__INDEX) & 0x01);
 	    }
 	    
-	    oldhead = NVReadCRTC(pNv, 0, NV_CRTC_FSEL);
-	    NVWriteCRTC(pNv, 0, NV_CRTC_FSEL, oldhead | 0x00000010);
+	    oldhead = NVReadCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL);
+	    NVWriteCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL, oldhead | 0x00000010);
 	    
 	    monitorA = NVProbeDDC(pScrn, 0);
 	    monitorB = NVProbeDDC(pScrn, 1);
@@ -726,7 +726,7 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 	    if(implementation == CHIPSET_NV11)
 		cr44 = pNv->crtc_active[1] * 0x3;
 	    
-	    NVWriteCRTC(pNv, 0, NV_CRTC_FSEL,  oldhead);
+	    NVWriteCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL,  oldhead);
 
 	    nvWriteCurVGA(pNv, NV_CIO_CRE_44, cr44);
 	    NVSelectHeadRegisters(pScrn, pNv->crtc_active[1]);

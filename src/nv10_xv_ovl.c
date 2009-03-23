@@ -205,8 +205,10 @@ NV10SetOverlayPortAttribute(ScrnInfoPtr pScrn, Atom attribute,
                 if ((value < 0) || (value > 1))
                         return BadValue;
                 pPriv->overlayCRTC = value;
-                NVWriteCRTC(pNv, value, NV_CRTC_FSEL, NVReadCRTC(pNv, value, NV_CRTC_FSEL) | NV_CRTC_FSEL_OVERLAY);
-                NVWriteCRTC(pNv, !value, NV_CRTC_FSEL, NVReadCRTC(pNv, !value, NV_CRTC_FSEL) & ~NV_CRTC_FSEL_OVERLAY);
+                NVWriteCRTC(pNv, value, NV_PCRTC_ENGINE_CTRL,
+			    NVReadCRTC(pNv, value, NV_PCRTC_ENGINE_CTRL) | NV_CRTC_FSEL_OVERLAY);
+                NVWriteCRTC(pNv, !value, NV_PCRTC_ENGINE_CTRL,
+			    NVReadCRTC(pNv, !value, NV_PCRTC_ENGINE_CTRL) & ~NV_CRTC_FSEL_OVERLAY);
         } else
                 return BadMatch;
 

@@ -555,13 +555,13 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	}
 
 	/* ADDRESS_SPACE_PNVM is the same as setting HCUR_ASI */
-	regp->cursorConfig = NV_CRTC_CURSOR_CONFIG_64LINES |
-			     NV_CRTC_CURSOR_CONFIG_64PIXELS |
+	regp->cursorConfig = NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64 |
+			     NV_PCRTC_CURSOR_CONFIG_CUR_PIXELS_64 |
 			     NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
 	if (pNv->alphaCursor)
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_32BPP;
+		regp->cursorConfig |= NV_PCRTC_CURSOR_CONFIG_CUR_BPP_32;
 	if (mode->Flags & V_DBLSCAN)
-		regp->cursorConfig |= NV_CRTC_CURSOR_CONFIG_DOUBLE_SCAN;
+		regp->cursorConfig |= NV_PCRTC_CURSOR_CONFIG_DOUBLE_SCAN_ENABLE;
 
 	/* Unblock some timings */
 	regp->CRTC[NV_CIO_CRE_53] = 0;
@@ -600,10 +600,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	if (pNv->twoHeads)
 		/* This is what the blob does */
-		regp->unk850 = NVReadCRTC(pNv, 0, NV_CRTC_0850);
+		regp->unk850 = NVReadCRTC(pNv, 0, NV_PCRTC_850);
 
 	if (pNv->twoHeads)
-		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_CRTC_GPIO_EXT);
+		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT);
 
 	regp->config = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
@@ -913,7 +913,7 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
-	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (pNv->Architecture == NV_ARCH_40) {
 		uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_900);
 		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_900, reg900 & ~0x10000);
@@ -1257,7 +1257,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		if (pNv->twoHeads)
 			/* setting FSEL *must* come before CIO_CRE_LCD, as writing CIO_CRE_LCD sets some
 			 * bits (16 & 17) in FSEL that should not be overwritten by writing FSEL */
-			NVCrtcWriteCRTC(crtc, NV_CRTC_FSEL, regp->head);
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_ENGINE_CTRL, regp->head);
 
 		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
 		nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
@@ -1270,12 +1270,12 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_21);
-		NVCrtcWriteCRTC(crtc, NV_CRTC_CURSOR_CONFIG, regp->cursorConfig);
-		NVCrtcWriteCRTC(crtc, NV_CRTC_0830, regp->unk830);
-		NVCrtcWriteCRTC(crtc, NV_CRTC_0834, regp->unk834);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_CURSOR_CONFIG, regp->cursorConfig);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_830, regp->unk830);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_834, regp->unk834);
 		if (pNv->Architecture == NV_ARCH_40) {
-			NVCrtcWriteCRTC(crtc, NV_CRTC_0850, regp->unk850);
-			NVCrtcWriteCRTC(crtc, NV_CRTC_GPIO_EXT, regp->gpio_ext);
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_850, regp->unk850);
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_GPIO_EXT, regp->gpio_ext);
 		}
 
 		if (pNv->Architecture == NV_ARCH_40) {
@@ -1287,7 +1287,7 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		}
 	}
 
-	NVCrtcWriteCRTC(crtc, NV_CRTC_CONFIG, regp->config);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, regp->config);
 
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC1_INDEX);
@@ -1330,11 +1330,11 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_86);
 	}
 
-	NVCrtcWriteCRTC(crtc, NV_CRTC_START, regp->fb_start);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_START, regp->fb_start);
 
 	/* Setting 1 on this value gives you interrupts for every vblank period. */
-	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_EN_0, 0);
-	NVCrtcWriteCRTC(crtc, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_INTR_EN_0, 0);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_INTR_0, NV_PCRTC_INTR_0_VBLANK);
 }
 
 static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1391,18 +1391,18 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_ILACE__INDEX);
 
 	if (pNv->Architecture >= NV_ARCH_10) {
-		regp->unk830 = NVCrtcReadCRTC(crtc, NV_CRTC_0830);
-		regp->unk834 = NVCrtcReadCRTC(crtc, NV_CRTC_0834);
+		regp->unk830 = NVCrtcReadCRTC(crtc, NV_PCRTC_830);
+		regp->unk834 = NVCrtcReadCRTC(crtc, NV_PCRTC_834);
 		if (pNv->Architecture == NV_ARCH_40) {
-			regp->unk850 = NVCrtcReadCRTC(crtc, NV_CRTC_0850);
-			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_CRTC_GPIO_EXT);
+			regp->unk850 = NVCrtcReadCRTC(crtc, NV_PCRTC_850);
+			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_PCRTC_GPIO_EXT);
 		}
 		if (pNv->twoHeads)
-			regp->head = NVCrtcReadCRTC(crtc, NV_CRTC_FSEL);
-		regp->cursorConfig = NVCrtcReadCRTC(crtc, NV_CRTC_CURSOR_CONFIG);
+			regp->head = NVCrtcReadCRTC(crtc, NV_PCRTC_ENGINE_CTRL);
+		regp->cursorConfig = NVCrtcReadCRTC(crtc, NV_PCRTC_CURSOR_CONFIG);
 	}
 
-	regp->config = NVCrtcReadCRTC(crtc, NV_CRTC_CONFIG);
+	regp->config = NVCrtcReadCRTC(crtc, NV_PCRTC_CONFIG);
 
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH3__INDEX);
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH4__INDEX);
@@ -1426,7 +1426,7 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_86);
 	}
 
-	regp->fb_start = NVCrtcReadCRTC(crtc, NV_CRTC_START);
+	regp->fb_start = NVCrtcReadCRTC(crtc, NV_PCRTC_START);
 }
 
 static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
@@ -1563,10 +1563,9 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 	else
 		start += pNv->FB->offset;
 
-	/* 30 bits addresses in 32 bits according to haiku */
 	start &= ~3;
 	pNv->ModeReg.crtc_reg[nv_crtc->head].fb_start = start;
-	NVCrtcWriteCRTC(crtc, NV_CRTC_START, start);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_START, start);
 
 	crtc->x = x;
 	crtc->y = y;

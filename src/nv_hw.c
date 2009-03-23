@@ -1039,8 +1039,8 @@ void NVLoadStateExt (
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           NVWriteCRTC(pNv, 0, NV_CRTC_FSEL, state->head);
-           NVWriteCRTC(pNv, 1, NV_CRTC_FSEL, state->head2);
+           NVWriteCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL, state->head);
+           NVWriteCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL, state->head2);
         }
         temp = nvReadCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC);
         nvWriteCurRAMDAC(pNv, NV_RAMDAC_NV10_CURSYNC, temp | (1 << 25));
@@ -1055,9 +1055,9 @@ void NVLoadStateExt (
         nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(1), pNv->VRAMPhysicalSize - 1);
         nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
-        nvWriteCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG, state->cursorConfig);
-        nvWriteCurCRTC(pNv, NV_CRTC_0830, state->displayV - 3);
-        nvWriteCurCRTC(pNv, NV_CRTC_0834, state->displayV - 1);
+        nvWriteCurCRTC(pNv, NV_PCRTC_CURSOR_CONFIG, state->cursorConfig);
+        nvWriteCurCRTC(pNv, NV_PCRTC_830, state->displayV - 3);
+        nvWriteCurCRTC(pNv, NV_PCRTC_834, state->displayV - 1);
     
         if(pNv->FlatPanel) {
            if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
@@ -1111,8 +1111,8 @@ void NVLoadStateExt (
     }
     nvWriteCurRAMDAC(pNv, NV_RAMDAC_GENERAL_CONTROL, state->general);
 
-    nvWriteCurCRTC(pNv, NV_CRTC_INTR_EN_0, 0);
-    nvWriteCurCRTC(pNv, NV_CRTC_INTR_0, NV_CRTC_INTR_VBLANK);
+    nvWriteCurCRTC(pNv, NV_PCRTC_INTR_EN_0, 0);
+    nvWriteCurCRTC(pNv, NV_PCRTC_INTR_0, NV_PCRTC_INTR_0_VBLANK);
 }
 
 void NVUnloadStateExt
@@ -1150,13 +1150,13 @@ void NVUnloadStateExt
 
     if(pNv->Architecture >= NV_ARCH_10) {
         if(pNv->twoHeads) {
-           state->head     = NVReadCRTC(pNv, 0, NV_CRTC_FSEL);
-           state->head2    = NVReadCRTC(pNv, 1, NV_CRTC_FSEL);
+           state->head     = NVReadCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL);
+           state->head2    = NVReadCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL);
            state->crtcOwner = nvReadCurVGA(pNv, NV_CIO_CRE_44);
         }
         state->extra = nvReadCurVGA(pNv, NV_CIO_CRE_EBR_INDEX);
 
-        state->cursorConfig = nvReadCurCRTC(pNv, NV_CRTC_CURSOR_CONFIG);
+        state->cursorConfig = nvReadCurCRTC(pNv, NV_PCRTC_CURSOR_CONFIG);
 
         if((pNv->Chipset & 0x0ff0) == CHIPSET_NV11) {
            state->dither = nvReadCurRAMDAC(pNv, NV_RAMDAC_DITHER_NV11);
@@ -1181,7 +1181,7 @@ void NVSetStartAddress (
     CARD32 start
 )
 {
-    nvWriteCurCRTC(pNv, NV_CRTC_START, start);
+    nvWriteCurCRTC(pNv, NV_PCRTC_START, start);
 }
 
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)

@@ -841,22 +841,22 @@ NV_set_action_flags(ScrnInfoPtr pScrn, DrawablePtr pDraw, NVPortPrivPtr pPriv,
 			 * already here
 			 */
 			if (pPriv->overlayCRTC == 1) {
-				NVWriteCRTC(pNv, 0, NV_CRTC_FSEL,
-					    NVReadCRTC(pNv, 0, NV_CRTC_FSEL) |
+				NVWriteCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL,
+					    NVReadCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL) |
 					    NV_CRTC_FSEL_OVERLAY);
-				NVWriteCRTC(pNv, 1, NV_CRTC_FSEL,
-					    NVReadCRTC(pNv, 1, NV_CRTC_FSEL) &
+				NVWriteCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL,
+					    NVReadCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL) &
 					    ~NV_CRTC_FSEL_OVERLAY);
 				pPriv->overlayCRTC = 0;
 			}
 		} else
 		if ((crtc & (1 << 1))) {
 			if (pPriv->overlayCRTC == 0) {
-				NVWriteCRTC(pNv, 1, NV_CRTC_FSEL,
-					    NVReadCRTC(pNv, 1, NV_CRTC_FSEL) |
+				NVWriteCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL,
+					    NVReadCRTC(pNv, 1, NV_PCRTC_ENGINE_CTRL) |
 					    NV_CRTC_FSEL_OVERLAY);
-				NVWriteCRTC(pNv, 0, NV_CRTC_FSEL,
-					    NVReadCRTC(pNv, 0, NV_CRTC_FSEL) &
+				NVWriteCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL,
+					    NVReadCRTC(pNv, 0, NV_PCRTC_ENGINE_CTRL) &
 					    ~NV_CRTC_FSEL_OVERLAY);
 				pPriv->overlayCRTC = 1;
 			}
