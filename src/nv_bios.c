@@ -4533,6 +4533,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 	} else if (bdcb->version >= 0x14 ) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
 		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
+		    conn != 0xf2045ff2 &&
 		    conn != 0xf2045f14 && conn != 0xf207df14 && conn != 0xf2205004) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
@@ -4545,6 +4546,9 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		}
 		/* most of the below is a "best guess" atm */
 		entry->type = conn & 0xf;
+		if (entry->type == 2)
+			/* another way of specifying straps based lvds... */
+			entry->type = OUTPUT_LVDS;
 		if (entry->type == 4) { /* digital */
 			if (conn & 0x10)
 				entry->type = OUTPUT_LVDS;
