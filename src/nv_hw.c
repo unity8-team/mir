@@ -303,7 +303,7 @@ bool NVLockVgaCrtcs(NVPtr pNv, bool lock)
 	NVWriteVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX,
 		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 	/* NV11 has independently lockable extended crtcs, except when tied */
-	if (pNv->NVArch == 0x11 && !(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28)))
+	if (pNv->NVArch == 0x11 && !nv_heads_tied(pNv))
 		NVWriteVgaCrtc(pNv, 1, NV_CIO_SR_LOCK_INDEX,
 			       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 
@@ -343,9 +343,9 @@ void nv_show_cursor(NVPtr pNv, int head, bool show)
 	uint8_t *curctl1 = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
 
 	if (show)
-		*curctl1 |= NV_CIO_CRE_HCUR_ADDR1_ENABLE;
+		*curctl1 |= MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 	else
-		*curctl1 &= ~NV_CIO_CRE_HCUR_ADDR1_ENABLE;
+		*curctl1 &= ~MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 	NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, *curctl1);
 
 	if (pNv->Architecture == NV_ARCH_40)

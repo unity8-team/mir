@@ -80,6 +80,9 @@
 #define SetBit(n) (1<<(n))
 #define Set8Bits(value) ((value)&0xff)
 
+#define MASK(field) ((0xffffffff >> (31 - ((1?field) - (0?field)))) << (0?field))
+#define XLATE(src, srclowbit, outfield) ((((src) >> (srclowbit)) << (0?outfield)) & MASK(outfield))
+
 /* NV50 */
 typedef enum Head {
 	HEAD0 = 0,

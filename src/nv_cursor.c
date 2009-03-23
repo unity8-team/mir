@@ -24,9 +24,6 @@
 
 #include "nv_include.h"
 
-#define CURSOR_Y_SHIFT 16
-#define CURSOR_POS_MASK 0xffff
-
 #define TO_ARGB1555(c) (0x8000			|	/* Mask bit */	\
 			((c & 0xf80000) >> 9 )	|	/* Red      */	\
 			((c & 0xf800) >> 6 )	|	/* Green    */	\
@@ -200,7 +197,8 @@ void nv_crtc_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 	NVPtr pNv = NVPTR(crtc->scrn);
 
 	NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_CU_START_POS,
-		      (y << CURSOR_Y_SHIFT) | (x & CURSOR_POS_MASK));
+		      XLATE(y, 0, NV_PRAMDAC_CU_START_POS_Y) |
+		      XLATE(x, 0, NV_PRAMDAC_CU_START_POS_X));
 }
 
 Bool NVCursorInitRandr12(ScreenPtr pScreen)

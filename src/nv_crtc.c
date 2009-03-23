@@ -132,11 +132,13 @@ static void nv_crtc_cursor_set(xf86CrtcPtr crtc)
 	uint32_t cursor_start = head ? pNv->Cursor2->offset :
 				       pNv->Cursor->offset;
 
-	regp->CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] = NV_CIO_CRE_HCUR_ASI |
-						  (cursor_start >> 17);
-	regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] = (cursor_start >> 11) << 2;
+	regp->CRTC[NV_CIO_CRE_HCUR_ADDR0_INDEX] = MASK(NV_CIO_CRE_HCUR_ASI) |
+						  XLATE(cursor_start, 17,
+							NV_CIO_CRE_HCUR_ADDR0_ADR);
+	regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] = XLATE(cursor_start, 11,
+							NV_CIO_CRE_HCUR_ADDR1_ADR);
 	if (crtc->mode.Flags & V_DBLSCAN)
-		regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |= NV_CIO_CRE_HCUR_ADDR1_CUR_DBL;
+		regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |= MASK(NV_CIO_CRE_HCUR_ADDR1_CUR_DBL);
 	regp->CRTC[NV_CIO_CRE_HCUR_ADDR2_INDEX] = cursor_start >> 24;
 
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
@@ -375,8 +377,8 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->MiscOutReg |= (mode->ClockIndex & 0x03) << 2;
 
 	/*
-	* Time Sequencer
-	*/
+	 * Time Sequencer
+	 */
 	regp->Sequencer[NV_VIO_SR_RESET_INDEX] = 0x00;
 	/* 0x20 disables the sequencer */
 	if (mode->Flags & V_CLKDIV2)
@@ -388,44 +390,43 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	regp->Sequencer[NV_VIO_SR_MEM_MODE_INDEX] = 0x0E;
 
 	/*
-	* CRTC Controller
-	*/
-	regp->CRTC[NV_CIO_CR_HDT_INDEX]  = Set8Bits(horizTotal);
-	regp->CRTC[NV_CIO_CR_HDE_INDEX]  = Set8Bits(horizDisplay);
-	regp->CRTC[NV_CIO_CR_HBS_INDEX]  = Set8Bits(horizBlankStart);
-	regp->CRTC[NV_CIO_CR_HBE_INDEX]  = SetBitField(horizBlankEnd,4:0,4:0)
-				| SetBit(7);
-	regp->CRTC[NV_CIO_CR_HRS_INDEX]  = Set8Bits(horizStart);
-	regp->CRTC[NV_CIO_CR_HRE_INDEX]  = SetBitField(horizBlankEnd,5:5,7:7)
-				| SetBitField(horizEnd,4:0,4:0);
-	regp->CRTC[NV_CIO_CR_VDT_INDEX]  = SetBitField(vertTotal,7:0,7:0);
-	regp->CRTC[NV_CIO_CR_OVL_INDEX]  = SetBitField(vertTotal,8:8,0:0)
-				| SetBitField(vertDisplay,8:8,1:1)
-				| SetBitField(vertStart,8:8,2:2)
-				| SetBitField(vertBlankStart,8:8,3:3)
-				| SetBit(4)
-				| SetBitField(vertTotal,9:9,5:5)
-				| SetBitField(vertDisplay,9:9,6:6)
-				| SetBitField(vertStart,9:9,7:7);
-	regp->CRTC[NV_CIO_CR_RSAL_INDEX]  = 0x00;
-	regp->CRTC[NV_CIO_CR_CELL_HT_INDEX]  = SetBitField(vertBlankStart,9:9,5:5)
-				| SetBit(6)
-				| ((mode->Flags & V_DBLSCAN) ? NV_CIO_CR_CELL_HT_SCANDBL : 0);
+	 * CRTC
+	 */
+	regp->CRTC[NV_CIO_CR_HDT_INDEX] = horizTotal;
+	regp->CRTC[NV_CIO_CR_HDE_INDEX] = horizDisplay;
+	regp->CRTC[NV_CIO_CR_HBS_INDEX] = horizBlankStart;
+	regp->CRTC[NV_CIO_CR_HBE_INDEX] = (1 << 7) |
+					  XLATE(horizBlankEnd, 0, NV_CIO_CR_HBE_4_0);
+	regp->CRTC[NV_CIO_CR_HRS_INDEX] = horizStart;
+	regp->CRTC[NV_CIO_CR_HRE_INDEX] = XLATE(horizBlankEnd, 5, NV_CIO_CR_HRE_HBE_5) |
+					  XLATE(horizEnd, 0, NV_CIO_CR_HRE_4_0);
+	regp->CRTC[NV_CIO_CR_VDT_INDEX] = vertTotal;
+	regp->CRTC[NV_CIO_CR_OVL_INDEX] = XLATE(vertStart, 9, NV_CIO_CR_OVL_VRS_9) |
+					  XLATE(vertDisplay, 9, NV_CIO_CR_OVL_VDE_9) |
+					  XLATE(vertTotal, 9, NV_CIO_CR_OVL_VDT_9) |
+					  (1 << 4) |
+					  XLATE(vertBlankStart, 8, NV_CIO_CR_OVL_VBS_8) |
+					  XLATE(vertStart, 8, NV_CIO_CR_OVL_VRS_8) |
+					  XLATE(vertDisplay, 8, NV_CIO_CR_OVL_VDE_8) |
+					  XLATE(vertTotal, 8, NV_CIO_CR_OVL_VDT_8);
+	regp->CRTC[NV_CIO_CR_RSAL_INDEX] = 0x00;
+	regp->CRTC[NV_CIO_CR_CELL_HT_INDEX] = ((mode->Flags & V_DBLSCAN) ? MASK(NV_CIO_CR_CELL_HT_SCANDBL) : 0) |
+					      1 << 6 |
+					      XLATE(vertBlankStart, 9, NV_CIO_CR_CELL_HT_VBS_9);
 	regp->CRTC[NV_CIO_CR_CURS_ST_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_CURS_END_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_SA_HI_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_SA_LO_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_TCOFF_HI_INDEX] = 0x00;
 	regp->CRTC[NV_CIO_CR_TCOFF_LO_INDEX] = 0x00;
-	regp->CRTC[NV_CIO_CR_VRS_INDEX] = Set8Bits(vertStart);
-	/* What is the meaning of bit5, it is empty in the vga spec. */
-	regp->CRTC[NV_CIO_CR_VRE_INDEX] = SetBitField(vertEnd,3:0,3:0) | SetBit(5);
-	regp->CRTC[NV_CIO_CR_VDE_INDEX] = Set8Bits(vertDisplay);
+	regp->CRTC[NV_CIO_CR_VRS_INDEX] = vertStart;
+	regp->CRTC[NV_CIO_CR_VRE_INDEX] = 1 << 5 | XLATE(vertEnd, 0, NV_CIO_CR_VRE_3_0);
+	regp->CRTC[NV_CIO_CR_VDE_INDEX] = vertDisplay;
 	/* framebuffer can be larger than crtc scanout area. */
 	regp->CRTC[NV_CIO_CR_OFFSET_INDEX] = pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8;
 	regp->CRTC[NV_CIO_CR_ULINE_INDEX] = 0x00;
-	regp->CRTC[NV_CIO_CR_VBS_INDEX] = Set8Bits(vertBlankStart);
-	regp->CRTC[NV_CIO_CR_VBE_INDEX] = Set8Bits(vertBlankEnd);
+	regp->CRTC[NV_CIO_CR_VBS_INDEX] = vertBlankStart;
+	regp->CRTC[NV_CIO_CR_VBE_INDEX] = vertBlankEnd;
 	regp->CRTC[NV_CIO_CR_MODE_INDEX] = 0x43;
 	regp->CRTC[NV_CIO_CR_LCOMP_INDEX] = 0xff;
 
@@ -434,29 +435,27 @@ nv_crtc_mode_set_vga(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjus
 	 */
 
 	/* framebuffer can be larger than crtc scanout area. */
-	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] = ((pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8) & 0x700) >> 3;
+	regp->CRTC[NV_CIO_CRE_RPC0_INDEX] = XLATE(pScrn->displayWidth / 8 * pScrn->bitsPerPixel / 8, 8, NV_CIO_CRE_RPC0_OFFSET_10_8);
 	regp->CRTC[NV_CIO_CRE_RPC1_INDEX] = mode->CrtcHDisplay < 1280 ?
-					    NV_CIO_CRE_RPC1_LARGE : 0x00;
-	regp->CRTC[NV_CIO_CRE_LSR_INDEX] = SetBitField(horizBlankEnd,6:6,4:4)
-				| SetBitField(vertBlankStart,10:10,3:3)
-				| SetBitField(vertStart,10:10,2:2)
-				| SetBitField(vertDisplay,10:10,1:1)
-				| SetBitField(vertTotal,10:10,0:0);
-
-	regp->CRTC[NV_CIO_CRE_HEB__INDEX] = SetBitField(horizTotal,8:8,0:0)
-				| SetBitField(horizDisplay,8:8,1:1)
-				| SetBitField(horizBlankStart,8:8,2:2)
-				| SetBitField(horizStart,8:8,3:3);
-
-	regp->CRTC[NV_CIO_CRE_EBR_INDEX] = SetBitField(vertTotal,11:11,0:0)
-				| SetBitField(vertDisplay,11:11,2:2)
-				| SetBitField(vertStart,11:11,4:4)
-				| SetBitField(vertBlankStart,11:11,6:6);
+					    MASK(NV_CIO_CRE_RPC1_LARGE) : 0x00;
+	regp->CRTC[NV_CIO_CRE_LSR_INDEX] = XLATE(horizBlankEnd, 6, NV_CIO_CRE_LSR_HBE_6) |
+					   XLATE(vertBlankStart, 10, NV_CIO_CRE_LSR_VBS_10) |
+					   XLATE(vertStart, 10, NV_CIO_CRE_LSR_VRS_10) |
+					   XLATE(vertDisplay, 10, NV_CIO_CRE_LSR_VDE_10) |
+					   XLATE(vertTotal, 10, NV_CIO_CRE_LSR_VDT_10);
+	regp->CRTC[NV_CIO_CRE_HEB__INDEX] = XLATE(horizStart, 8, NV_CIO_CRE_HEB_HRS_8) |
+					    XLATE(horizBlankStart, 8, NV_CIO_CRE_HEB_HBS_8) |
+					    XLATE(horizDisplay, 8, NV_CIO_CRE_HEB_HDE_8) |
+					    XLATE(horizTotal, 8, NV_CIO_CRE_HEB_HDT_8);
+	regp->CRTC[NV_CIO_CRE_EBR_INDEX] = XLATE(vertBlankStart, 11, NV_CIO_CRE_EBR_VBS_11) |
+					   XLATE(vertStart, 11, NV_CIO_CRE_EBR_VRS_11) |
+					   XLATE(vertDisplay, 11, NV_CIO_CRE_EBR_VDE_11) |
+					   XLATE(vertTotal, 11, NV_CIO_CRE_EBR_VDT_11);
 
 	if (mode->Flags & V_INTERLACE) {
 		horizTotal = (horizTotal >> 1) & ~1;
-		regp->CRTC[NV_CIO_CRE_ILACE__INDEX] = Set8Bits(horizTotal);
-		regp->CRTC[NV_CIO_CRE_HEB__INDEX] |= SetBitField(horizTotal,8:8,4:4);
+		regp->CRTC[NV_CIO_CRE_ILACE__INDEX] = horizTotal;
+		regp->CRTC[NV_CIO_CRE_HEB__INDEX] |= XLATE(horizTotal, 8, NV_CIO_CRE_HEB_ILC_8);
 	} else
 		regp->CRTC[NV_CIO_CRE_ILACE__INDEX] = 0xff;  /* interlace off */
 
@@ -755,7 +754,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 			scale = (1 << 12) * mode->VDisplay / adjusted_mode->VDisplay;
 			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
-					   ((scale >> 1) & 0xfff);
+					   XLATE(scale, 1, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
 
 			/* restrict area of screen used, horizontally */
 			diff = adjusted_mode->HDisplay -
@@ -771,7 +770,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 			scale = (1 << 12) * mode->HDisplay / adjusted_mode->HDisplay;
 			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
-					   ((scale >> 1) & 0xfff) << 16;
+					   XLATE(scale, 1, NV_PRAMDAC_FP_DEBUG_1_YSCALE_VALUE);
 
 			/* restrict area of screen used, vertically */
 			diff = adjusted_mode->VDisplay -
