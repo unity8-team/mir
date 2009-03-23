@@ -3021,11 +3021,11 @@ static int call_lvds_manufacturer_script(ScrnInfoPtr pScrn, struct dcb_entry *dc
 	if ((pNv->Chipset & 0xffff) == 0x0179 || (pNv->Chipset & 0xffff) == 0x0189 || (pNv->Chipset & 0xffff) == 0x0329) {
 		if (script == LVDS_PANEL_ON) {
 			bios_wr32(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL, bios_rd32(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL) | (1 << 31));
-			bios_wr32(pScrn, NV_CRTC_GPIO_EXT, bios_rd32(pScrn, NV_CRTC_GPIO_EXT) | 1);
+			bios_wr32(pScrn, NV_PCRTC_GPIO_EXT, bios_rd32(pScrn, NV_PCRTC_GPIO_EXT) | 1);
 		}
 		if (script == LVDS_PANEL_OFF) {
 			bios_wr32(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL, bios_rd32(pScrn, NV_PBUS_DEBUG_DUALHEAD_CTL) & ~(1 << 31));
-			bios_wr32(pScrn, NV_CRTC_GPIO_EXT, bios_rd32(pScrn, NV_CRTC_GPIO_EXT) & ~3);
+			bios_wr32(pScrn, NV_PCRTC_GPIO_EXT, bios_rd32(pScrn, NV_PCRTC_GPIO_EXT) & ~3);
 		}
 	}
 #endif
