@@ -375,8 +375,8 @@ static void nouveau_hw_decode_pll(NVPtr pNv, uint32_t reg1,
 			pllvals->M1 &= 0xf; /* only 4 bits */
 			if (pll1 & NV30_RAMDAC_ENABLE_VCO2) {
 				pllvals->M2 = (pll1 >> 4) & 0x7;
-				pllvals->N2 = ((pll2 >> 21) & 0x18) |
-					      ((pll2 >> 19) & 0x7);
+				pllvals->N2 = ((pll1 >> 21) & 0x18) |
+					      ((pll1 >> 19) & 0x7);
 			}
 		}
 	}
