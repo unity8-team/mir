@@ -106,8 +106,8 @@ void nv_crtc_set_image_sharpening(xf86CrtcPtr crtc, int level)
 	nv_crtc->sharpness = level;
 	if (level < 0)	/* blur is in hw range 0x3f -> 0x20 */
 		level += 0x40;
-	regp->unk_634 = level;
-	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->unk_634);
+	regp->ramdac_634 = level;
+	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->ramdac_634);
 }
 
 /* NV4x 0x40.. pll notes:
@@ -543,25 +543,25 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
 	regp->CRTC[NV_CIO_CRE_ENH_INDEX] = savep->CRTC[NV_CIO_CRE_ENH_INDEX] & ~(1<<5);
 
-	regp->head = 0;
+	regp->crtc_eng_ctrl = 0;
 	/* Except for rare conditions I2C is enabled on the primary crtc */
 	if (nv_crtc->head == 0)
-		regp->head |= NV_CRTC_FSEL_I2C;
+		regp->crtc_eng_ctrl |= NV_CRTC_FSEL_I2C;
 	/* Set overlay to desired crtc. */
 	if (pNv->overlayAdaptor) {
 		NVPortPrivPtr pPriv = GET_OVERLAY_PRIVATE(pNv);
 		if (pPriv->overlayCRTC == nv_crtc->head)
-			regp->head |= NV_CRTC_FSEL_OVERLAY;
+			regp->crtc_eng_ctrl |= NV_CRTC_FSEL_OVERLAY;
 	}
 
 	/* ADDRESS_SPACE_PNVM is the same as setting HCUR_ASI */
-	regp->cursorConfig = NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64 |
+	regp->cursor_cfg = NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64 |
 			     NV_PCRTC_CURSOR_CONFIG_CUR_PIXELS_64 |
 			     NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
 	if (pNv->alphaCursor)
-		regp->cursorConfig |= NV_PCRTC_CURSOR_CONFIG_CUR_BPP_32;
+		regp->cursor_cfg |= NV_PCRTC_CURSOR_CONFIG_CUR_BPP_32;
 	if (mode->Flags & V_DBLSCAN)
-		regp->cursorConfig |= NV_PCRTC_CURSOR_CONFIG_DOUBLE_SCAN_ENABLE;
+		regp->cursor_cfg |= NV_PCRTC_CURSOR_CONFIG_DOUBLE_SCAN_ENABLE;
 
 	/* Unblock some timings */
 	regp->CRTC[NV_CIO_CRE_53] = 0;
@@ -595,17 +595,17 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	if (!nv_crtc->head)
 		regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] += 4;
 
-	regp->unk830 = mode->CrtcVDisplay - 3;
-	regp->unk834 = mode->CrtcVDisplay - 1;
+	regp->crtc_830 = mode->CrtcVDisplay - 3;
+	regp->crtc_834 = mode->CrtcVDisplay - 1;
 
 	if (pNv->twoHeads)
 		/* This is what the blob does */
-		regp->unk850 = NVReadCRTC(pNv, 0, NV_PCRTC_850);
+		regp->crtc_850 = NVReadCRTC(pNv, 0, NV_PCRTC_850);
 
 	if (pNv->twoHeads)
 		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT);
 
-	regp->config = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	regp->crtc_cfg = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
 	if (pNv->Architecture == NV_ARCH_40) {
@@ -627,25 +627,25 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	switch (pScrn->depth) {
 		case 24:
 		case 15:
-			regp->general = 0x00100130;
+			regp->ramdac_gen_ctrl = 0x00100130;
 			break;
 		case 16:
 		default:
-			regp->general = 0x00101130;
+			regp->ramdac_gen_ctrl = 0x00101130;
 			break;
 	}
 	if (pNv->alphaCursor)
 		/* PIPE_LONG mode, something to do with the size of the cursor? */
-		regp->general |= 1 << 29;
+		regp->ramdac_gen_ctrl |= 1 << 29;
 
-	regp->unk_630 = 0; /* turn off green mode (tv test pattern?) */
+	regp->ramdac_630 = 0; /* turn off green mode (tv test pattern?) */
 
 	nv_crtc_set_image_sharpening(crtc, nv_crtc->sharpness);
 
 	/* Some values the blob sets */
-	regp->unk_a20 = 0x0;
-	regp->unk_a24 = 0xfffff;
-	regp->unk_a34 = 0x1;
+	regp->ramdac_a20 = 0x0;
+	regp->ramdac_a24 = 0xfffff;
+	regp->ramdac_a34 = 0x1;
 }
 
 enum fp_display_regs {
@@ -727,18 +727,18 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (nv_encoder->dual_link)
 		regp->fp_control |= (8 << 28);
 
-	regp->debug_0 = NV_PRAMDAC_FP_DEBUG_0_YWEIGHT_ROUND |
-			NV_PRAMDAC_FP_DEBUG_0_XWEIGHT_ROUND |
-			NV_PRAMDAC_FP_DEBUG_0_YINTERP_BILINEAR |
-			NV_PRAMDAC_FP_DEBUG_0_XINTERP_BILINEAR |
-			NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED |
-			NV_PRAMDAC_FP_DEBUG_0_YSCALE_ENABLE |
-			NV_PRAMDAC_FP_DEBUG_0_XSCALE_ENABLE;
+	regp->fp_debug_0 = NV_PRAMDAC_FP_DEBUG_0_YWEIGHT_ROUND |
+			   NV_PRAMDAC_FP_DEBUG_0_XWEIGHT_ROUND |
+			   NV_PRAMDAC_FP_DEBUG_0_YINTERP_BILINEAR |
+			   NV_PRAMDAC_FP_DEBUG_0_XINTERP_BILINEAR |
+			   NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED |
+			   NV_PRAMDAC_FP_DEBUG_0_YSCALE_ENABLE |
+			   NV_PRAMDAC_FP_DEBUG_0_XSCALE_ENABLE;
 
 	/* We want automatic scaling */
-	regp->debug_1 = 0;
+	regp->fp_debug_1 = 0;
 	/* This can override HTOTAL and VTOTAL */
-	regp->debug_2 = 0;
+	regp->fp_debug_2 = 0;
 
 	/* Use 20.12 fixed point format to avoid floats */
 	mode_ratio = (1 << 12) * mode->HDisplay / mode->VDisplay;
@@ -754,8 +754,8 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			 * to maintain aspect */
 
 			scale = (1 << 12) * mode->VDisplay / adjusted_mode->VDisplay;
-			regp->debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
-					((scale >> 1) & 0xfff);
+			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
+					   ((scale >> 1) & 0xfff);
 
 			/* restrict area of screen used, horizontally */
 			diff = adjusted_mode->HDisplay -
@@ -770,8 +770,8 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			 * to maintain aspect */
 
 			scale = (1 << 12) * mode->HDisplay / adjusted_mode->HDisplay;
-			regp->debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
-					((scale >> 1) & 0xfff) << 16;
+			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
+					   ((scale >> 1) & 0xfff) << 16;
 
 			/* restrict area of screen used, vertically */
 			diff = adjusted_mode->VDisplay -
@@ -1259,9 +1259,11 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 
 	if (pNv->Architecture >= NV_ARCH_10) {
 		if (pNv->twoHeads)
-			/* setting FSEL *must* come before CIO_CRE_LCD, as writing CIO_CRE_LCD sets some
-			 * bits (16 & 17) in FSEL that should not be overwritten by writing FSEL */
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_ENGINE_CTRL, regp->head);
+			/* setting ENGINE_CTRL (EC) *must* come before
+			 * CIO_CRE_LCD, as writing CRE_LCD sets bits 16 & 17 in
+			 * EC that should not be overwritten by writing stale EC
+			 */
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_ENGINE_CTRL, regp->crtc_eng_ctrl);
 
 		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
 		nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
@@ -1274,24 +1276,24 @@ static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_21);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_CURSOR_CONFIG, regp->cursorConfig);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_830, regp->unk830);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_834, regp->unk834);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_830, regp->crtc_830);
+		NVCrtcWriteCRTC(crtc, NV_PCRTC_834, regp->crtc_834);
 		if (pNv->Architecture == NV_ARCH_40) {
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_850, regp->unk850);
+			NVCrtcWriteCRTC(crtc, NV_PCRTC_850, regp->crtc_850);
 			NVCrtcWriteCRTC(crtc, NV_PCRTC_GPIO_EXT, regp->gpio_ext);
 		}
 
 		if (pNv->Architecture == NV_ARCH_40) {
 			uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_900);
-			if (regp->config == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
+			if (regp->crtc_cfg == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
 				NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_900, reg900 | 0x10000);
 			else
 				NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_900, reg900 & ~0x10000);
 		}
 	}
 
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, regp->config);
+	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, regp->crtc_cfg);
 
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC1_INDEX);
@@ -1395,18 +1397,18 @@ static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_ILACE__INDEX);
 
 	if (pNv->Architecture >= NV_ARCH_10) {
-		regp->unk830 = NVCrtcReadCRTC(crtc, NV_PCRTC_830);
-		regp->unk834 = NVCrtcReadCRTC(crtc, NV_PCRTC_834);
+		regp->crtc_830 = NVCrtcReadCRTC(crtc, NV_PCRTC_830);
+		regp->crtc_834 = NVCrtcReadCRTC(crtc, NV_PCRTC_834);
 		if (pNv->Architecture == NV_ARCH_40) {
-			regp->unk850 = NVCrtcReadCRTC(crtc, NV_PCRTC_850);
+			regp->crtc_850 = NVCrtcReadCRTC(crtc, NV_PCRTC_850);
 			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_PCRTC_GPIO_EXT);
 		}
 		if (pNv->twoHeads)
-			regp->head = NVCrtcReadCRTC(crtc, NV_PCRTC_ENGINE_CTRL);
-		regp->cursorConfig = NVCrtcReadCRTC(crtc, NV_PCRTC_CURSOR_CONFIG);
+			regp->crtc_eng_ctrl = NVCrtcReadCRTC(crtc, NV_PCRTC_ENGINE_CTRL);
+		regp->cursor_cfg = NVCrtcReadCRTC(crtc, NV_PCRTC_CURSOR_CONFIG);
 	}
 
-	regp->config = NVCrtcReadCRTC(crtc, NV_PCRTC_CONFIG);
+	regp->crtc_cfg = NVCrtcReadCRTC(crtc, NV_PCRTC_CONFIG);
 
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH3__INDEX);
 	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH4__INDEX);
@@ -1447,21 +1449,22 @@ static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
 	state->pllsel = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
 
-	regp->general = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL);
+	regp->ramdac_gen_ctrl = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL);
 
 	if (pNv->twoHeads) {
 		if (pNv->NVArch >= 0x17)
-			regp->unk_630 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_630);
+			regp->ramdac_630 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_630);
 		if (pNv->NVArch >= 0x30)
-			regp->unk_634 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_634);
-		regp->fp_control	= NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_TG_CONTROL);
-		regp->debug_0	= NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0);
-		regp->debug_1	= NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1);
-		regp->debug_2	= NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2);
+			regp->ramdac_634 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_634);
 
-		regp->unk_a20 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A20);
-		regp->unk_a24 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A24);
-		regp->unk_a34 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A34);
+		regp->fp_control = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_TG_CONTROL);
+		regp->fp_debug_0 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0);
+		regp->fp_debug_1 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1);
+		regp->fp_debug_2 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2);
+
+		regp->ramdac_a20 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A20);
+		regp->ramdac_a24 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A24);
+		regp->ramdac_a34 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A34);
 	}
 
 	if (pNv->NVArch == 0x11) {
@@ -1505,25 +1508,25 @@ static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
 	nouveau_bios_setpll(pScrn, pllreg, &regp->pllvals);
 	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
 
-	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL, regp->general);
+	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL, regp->ramdac_gen_ctrl);
 
 	if (pNv->twoHeads) {
 		if (pNv->NVArch >= 0x17)
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_630, regp->unk_630);
+			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_630, regp->ramdac_630);
 		if (pNv->NVArch >= 0x30)
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->unk_634);
+			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->ramdac_634);
 		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0, regp->debug_0);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1, regp->debug_1);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2, regp->debug_2);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
 		if (pNv->NVArch == 0x30) { /* For unknown purposes. */
 			uint32_t reg890 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_890);
 			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_89C, reg890);
 		}
 
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A20, regp->unk_a20);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A24, regp->unk_a24);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A34, regp->unk_a34);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A20, regp->ramdac_a20);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A24, regp->ramdac_a24);
+		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A34, regp->ramdac_a34);
 	}
 
 	if (pNv->NVArch == 0x11)
