@@ -346,7 +346,7 @@ typedef struct _NVRec {
 	Bool randr12_enable;
 	Bool kms_enable;
 
-	I2CBusPtr           pI2CBus[MAX_NUM_DCB_ENTRIES];
+	I2CBusPtr           pI2CBus[DCB_MAX_NUM_I2C_ENTRIES];
 	struct nouveau_encoder *encoders;
 
 #ifdef XF86DRM_MODE
@@ -357,7 +357,7 @@ typedef struct _NVRec {
 	nouveauCrtcPtr crtc[2];
 	nouveauOutputPtr output; /* this a linked list. */
 	/* Assume a connector can exist for each i2c bus. */
-	nouveauConnectorPtr connector[MAX_NUM_DCB_ENTRIES];
+	nouveauConnectorPtr connector[DCB_MAX_NUM_I2C_ENTRIES];
 
 	struct {
 		ORNum dac;

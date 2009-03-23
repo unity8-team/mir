@@ -3529,7 +3529,7 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding, sel_clk;
 
-	if (dcbent->location != LOC_ON_CHIP)
+	if (dcbent->location != DCB_LOC_ON_CHIP)
 		return 0;
 
 	switch (ffs(dcbent->or)) {
@@ -4355,7 +4355,7 @@ static int
 read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint8_t *i2ctable, int index, struct dcb_i2c_entry *i2c)
 {
 	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
-	int i2c_entries = MAX_NUM_DCB_ENTRIES;
+	int i2c_entries = DCB_MAX_NUM_I2C_ENTRIES;
 	int recordoffset = 0, rdofs = 1, wrofs = 0;
 	uint8_t port_type = 0;
 
@@ -4369,7 +4369,12 @@ read_dcb_i2c_entry(ScrnInfoPtr pScrn, int dcb_version, uint8_t *i2ctable, int in
 				   i2ctable[0], dcb_version);
 		dcb_i2c_ver = i2ctable[0];
 		headerlen = i2ctable[1];
-		i2c_entries = i2ctable[2];
+		if (i2ctable[2] <= DCB_MAX_NUM_I2C_ENTRIES)
+			i2c_entries = i2ctable[2];
+		else
+			xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+				   "DCB I2C table has more entries than indexable "
+				   "(%d entries, max index 15)\n", i2ctable[2]);
 		entry_len = i2ctable[3];
 		/* [4] is i2c_default_indices, read in parse_dcb_table() */
 	}
@@ -4457,7 +4462,7 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 	entry->i2c_index = 0;
 	entry->heads = 1;
 	entry->bus = 0;
-	entry->location = LOC_ON_CHIP;
+	entry->location = DCB_LOC_ON_CHIP;
 	entry->or = 1;
 	entry->duallink_possible = false;
 
@@ -4657,7 +4662,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	struct parsed_dcb *dcb;
 	uint16_t dcbptr, i2ctabptr = 0;
 	uint8_t *dcbtable;
-	uint8_t headerlen = 0x4, entries = MAX_NUM_DCB_ENTRIES;
+	uint8_t headerlen = 0x4, entries = DCB_MAX_NUM_ENTRIES;
 	bool configblock = true;
 	int recordlength = 8, confofs = 4;
 	int i;
@@ -4738,8 +4743,8 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 			bdcb->i2c_default_indices = bdcb->i2c_table[4];
 	}
 
-	if (entries >= MAX_NUM_DCB_ENTRIES)
-		entries = MAX_NUM_DCB_ENTRIES;
+	if (entries > DCB_MAX_NUM_ENTRIES)
+		entries = DCB_MAX_NUM_ENTRIES;
 
 	for (i = 0; i < entries; i++) {
 		uint32_t connection, config = 0;

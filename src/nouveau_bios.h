@@ -26,9 +26,10 @@
 
 #include "nvreg.h"
 
-#define MAX_NUM_DCB_ENTRIES 16
+#define DCB_MAX_NUM_ENTRIES 16
+#define DCB_MAX_NUM_I2C_ENTRIES 16
 
-#define LOC_ON_CHIP 0
+#define DCB_LOC_ON_CHIP 0
 
 struct dcb_entry {
 	int index;	/* may not be raw dcb index if merging has happened */
@@ -59,8 +60,8 @@ struct dcb_i2c_entry {
 
 struct parsed_dcb {
 	int entries;
-	struct dcb_entry entry[MAX_NUM_DCB_ENTRIES];
-	struct dcb_i2c_entry i2c[MAX_NUM_DCB_ENTRIES];
+	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
+	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
 };
 
 struct bios_parsed_dcb {

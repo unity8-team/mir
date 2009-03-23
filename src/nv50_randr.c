@@ -129,7 +129,7 @@ nv50_crtc_commit(xf86CrtcPtr crtc)
 	int i, j;
 	nouveauOutputPtr output;
 
-	for (i = 0; i < MAX_NUM_DCB_ENTRIES; i++) {
+	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++) {
 		Bool connector_active = FALSE;
 		for (j = 0; j < MAX_OUTPUTS_PER_CONNECTOR; j++) {
 			output = pNv->connector[i]->outputs[j];
@@ -818,7 +818,7 @@ nv50_output_create(ScrnInfoPtr pScrn)
 	int i;
 
 	/* this is a 1:1 hookup of the connectors. */
-	for (i = 0; i < MAX_NUM_DCB_ENTRIES; i++) {
+	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++) {
 		if (!(pNv->connector[i]->outputs[0]))
 			continue; /* An empty connector is not useful. */
 

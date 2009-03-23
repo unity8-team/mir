@@ -593,7 +593,7 @@ static void nv_digital_output_prepare_sel_clk(NVPtr pNv, struct nouveau_encoder 
 	NVRegPtr state = &pNv->ModeReg;
 	uint32_t bits1618 = nv_encoder->dcb->or & OUTPUT_A ? 0x10000 : 0x40000;
 
-	if (nv_encoder->dcb->location != LOC_ON_CHIP)
+	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP)
 		return;
 
 	/* SEL_CLK is only used on the primary ramdac
@@ -651,7 +651,7 @@ nv_output_prepare(xf86OutputPtr output)
 				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= 0x8;
 			else
 				regp->CRTC[NV_CIO_CRE_LCD__INDEX] &= ~0x8;
-			if (nv_encoder->dcb->location != LOC_ON_CHIP)
+			if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP)
 				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= (nv_encoder->dcb->or << 4) & 0x30;
 		} else
 			regp->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
@@ -821,7 +821,7 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
 
-	if (nv_encoder->dcb->location != LOC_ON_CHIP) {
+	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP) {
 		struct nouveau_crtc *nv_crtc;
 		int i;
 

@@ -72,7 +72,7 @@ NV50ConnectorInit(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* Maybe a bit overdone, because often only 3 or 4 connectors are present. */
-	for (i = 0; i < MAX_NUM_DCB_ENTRIES; i++) {
+	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++) {
 		nouveauConnectorPtr connector = xnfcalloc(sizeof(nouveauConnectorRec), 1);
 		connector->scrn = pScrn;
 		connector->index = i;
@@ -97,7 +97,7 @@ NV50ConnectorDestroy(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* Maybe a bit overdone, because often only 3 or 4 connectors are present. */
-	for (i = 0; i < MAX_NUM_DCB_ENTRIES; i++) {
+	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++) {
 		nouveauConnectorPtr connector = pNv->connector[i];
 
 		if (!connector)
