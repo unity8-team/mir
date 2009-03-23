@@ -133,7 +133,7 @@ struct nouveau_bios_info {
 
 	uint32_t dactestval;
 	uint8_t digital_min_front_porch;
-	bool fp_ddc_permitted;
+	bool fp_no_ddc;
 };
 
 struct nvbios {

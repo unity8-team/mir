@@ -210,7 +210,7 @@ nv_output_detect(xf86OutputPtr output)
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
 			if (nouveau_bios_fp_mode(pScrn, NULL))
 				ret = XF86OutputStatusConnected;
-		} else if (pNv->vbios->fp_ddc_permitted &&
+		} else if (!pNv->vbios->fp_no_ddc &&
 			   nouveau_bios_embedded_edid(pScrn)) {
 			nv_connector->edid = xf86InterpretEDID(pScrn->scrnIndex,
 							       nouveau_bios_embedded_edid(pScrn));
@@ -312,6 +312,7 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	ScrnInfoPtr pScrn = output->scrn;
 	DisplayModeRec mode, *ret_mode = NULL;
+	int clock = 0;	/* needs to be zero for straps case */
 	bool dl, if_is_24bit = false;
 
 	/* panels only have one mode, and it doesn't change */
@@ -328,11 +329,12 @@ nv_lvds_output_get_modes(xf86OutputPtr output)
 
 		nv_encoder->native_mode = xf86DuplicateMode(&mode);
 		ret_mode = xf86DuplicateMode(&mode);
-	} else
+	} else {
 		ret_mode = nv_output_get_edid_modes(output);
+		clock = nv_encoder->native_mode->Clock;
+	}
 
-	if (nouveau_bios_parse_lvds_table(pScrn, nv_encoder->native_mode->Clock,
-					  &dl, &if_is_24bit))
+	if (nouveau_bios_parse_lvds_table(pScrn, clock, &dl, &if_is_24bit))
 		return NULL;
 
 	/* because of the pre-existing native mode exit above, this will only
@@ -1022,7 +1024,7 @@ void NvSetupOutputs(ScrnInfoPtr pScrn)
 			funcs = &nv_lvds_output_funcs;
 			/* don't create i2c adapter when lvds ddc not allowed */
 			if (dcbent->lvdsconf.use_straps_for_mode ||
-			    !pNv->vbios->fp_ddc_permitted)
+			    pNv->vbios->fp_no_ddc)
 				i2c_index = 0xf;
 			break;
 		default:

@@ -3231,18 +3231,13 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	struct lvdstableheader lth;
 
 	if (bios->fp.fptablepointer == 0x0) {
-#ifdef __powerpc__
 		/* Apple cards don't have the fp table; the laptops use DDC */
-		bios->pub.fp_ddc_permitted = true;
-		goto missingok;
-#else
+#ifndef __powerpc__
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel table invalid\n");
-		if (bios->chip_version == 0x67)	/* sigh, IGPs */
-			goto missingok;
-		return -EINVAL;
+		if (bios->chip_version != 0x67)	/* sigh, IGPs */
+			return -EINVAL;
 #endif
-missingok:
 		bios->pub.digital_min_front_porch = 0x4b;
 		return 0;
 	}
@@ -3335,12 +3330,9 @@ missingok:
 		return -ENOENT;
 	}
 
-	/* a strap value of 0xf is sufficient to indicate DDC use on BMP era
-	 * cards; nv4x cards need an fpindex of 0xf too
-	 */
-	if (fpstrapping == 0xf &&
-	    (lth.lvds_ver == 0x0a || fpindex == 0xf))
-		bios->pub.fp_ddc_permitted = true;
+	/* nv4x cards need both a strap value and fpindex of 0xf to use DDC */
+	if (lth.lvds_ver > 0x10)
+		bios->pub.fp_no_ddc = fpstrapping != 0xf || fpindex != 0xf;
 
 	/* if either the strap or xlated fpindex value are 0xf there is no
 	 * panel using a strap-derived bios mode present.  this condition
@@ -3436,7 +3428,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 		lvdsmanufacturerindex = bios->data[bios->fp.fpxlatemanufacturertableptr + fpstrapping];
 
 		/* we're done if this isn't the EDID panel case */
-		if (!bios->pub.fp_ddc_permitted)
+		if (!pxclk)
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
@@ -3506,7 +3498,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 	}
 
 	/* set dual_link flag for EDID case */
-	if (bios->pub.fp_ddc_permitted)
+	if (pxclk)
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
 
 	*dl = bios->fp.dual_link;
