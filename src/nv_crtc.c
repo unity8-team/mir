@@ -854,7 +854,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	/* turn on LFB swapping */
 	{
 		uint8_t tmp = NVReadVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RCR);
-		tmp |= NV_CIO_CRE_RCR_ENDIAN_BIG;
+		tmp |= MASK(NV_CIO_CRE_RCR_ENDIAN_BIG);
 		NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_RCR, tmp);
 	}
 #endif
