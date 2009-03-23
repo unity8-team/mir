@@ -716,6 +716,9 @@ nv_output_commit(xf86OutputPtr output)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_encoder->dcb->or));
 }
 
+#define FP_TG_CONTROL_OFF (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE |	\
+			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_DISABLE |	\
+			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_DISABLE)
 static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
 {
 	NVPtr pNv = NVPTR(pScrn);
@@ -729,7 +732,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 		fpc = &pNv->ModeReg.crtc_reg[nv_crtc->head].fp_control;
 
 		nv_crtc->fp_users |= 1 << nv_encoder->dcb->index;
-		*fpc &= ~NV_RAMDAC_FP_TG_CONTROL_OFF;
+		*fpc &= ~FP_TG_CONTROL_OFF;
 		NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 	} else
 		for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -739,7 +742,7 @@ static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv
 			nv_crtc->fp_users &= ~(1 << nv_encoder->dcb->index);
 			if (!nv_crtc->fp_users) {
 				/* cut the FP output */
-				*fpc |= NV_RAMDAC_FP_TG_CONTROL_OFF;
+				*fpc |= FP_TG_CONTROL_OFF;
 				NVWriteRAMDAC(pNv, nv_crtc->head,
 					      NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 			}

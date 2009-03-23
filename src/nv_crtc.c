@@ -648,6 +648,16 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->unk_a34 = 0x1;
 }
 
+enum fp_display_regs {
+	FP_DISPLAY_END,
+	FP_TOTAL,
+	FP_CRTC,
+	FP_SYNC_START,
+	FP_SYNC_END,
+	FP_VALID_START,
+	FP_VALID_END
+};
+
 /* this could be set in nv_output, but would require some rework of load/save */
 static void
 nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr adjusted_mode)
@@ -675,46 +685,34 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	if (i == xf86_config->num_output)
 		return;
 
-	regp->fp_horiz_regs[REG_DISP_END] = adjusted_mode->HDisplay - 1;
-	regp->fp_horiz_regs[REG_DISP_TOTAL] = adjusted_mode->HTotal - 1;
+	regp->fp_horiz_regs[FP_DISPLAY_END] = adjusted_mode->HDisplay - 1;
+	regp->fp_horiz_regs[FP_TOTAL] = adjusted_mode->HTotal - 1;
 	if ((adjusted_mode->HSyncStart - adjusted_mode->HDisplay) >= pNv->vbios->digital_min_front_porch)
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HDisplay;
+		regp->fp_horiz_regs[FP_CRTC] = adjusted_mode->HDisplay;
 	else
-		regp->fp_horiz_regs[REG_DISP_CRTC] = adjusted_mode->HSyncStart - pNv->vbios->digital_min_front_porch - 1;
-	regp->fp_horiz_regs[REG_DISP_SYNC_START] = adjusted_mode->HSyncStart - 1;
-	regp->fp_horiz_regs[REG_DISP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
-	regp->fp_horiz_regs[REG_DISP_VALID_START] = adjusted_mode->HSkew;
-	regp->fp_horiz_regs[REG_DISP_VALID_END] = adjusted_mode->HDisplay - 1;
+		regp->fp_horiz_regs[FP_CRTC] = adjusted_mode->HSyncStart - pNv->vbios->digital_min_front_porch - 1;
+	regp->fp_horiz_regs[FP_SYNC_START] = adjusted_mode->HSyncStart - 1;
+	regp->fp_horiz_regs[FP_SYNC_END] = adjusted_mode->HSyncEnd - 1;
+	regp->fp_horiz_regs[FP_VALID_START] = adjusted_mode->HSkew;
+	regp->fp_horiz_regs[FP_VALID_END] = adjusted_mode->HDisplay - 1;
 
-	regp->fp_vert_regs[REG_DISP_END] = adjusted_mode->VDisplay - 1;
-	regp->fp_vert_regs[REG_DISP_TOTAL] = adjusted_mode->VTotal - 1;
-	regp->fp_vert_regs[REG_DISP_CRTC] = adjusted_mode->VTotal - 5 - 1;
-	regp->fp_vert_regs[REG_DISP_SYNC_START] = adjusted_mode->VSyncStart - 1;
-	regp->fp_vert_regs[REG_DISP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
-	regp->fp_vert_regs[REG_DISP_VALID_START] = 0;
-	regp->fp_vert_regs[REG_DISP_VALID_END] = adjusted_mode->VDisplay - 1;
+	regp->fp_vert_regs[FP_DISPLAY_END] = adjusted_mode->VDisplay - 1;
+	regp->fp_vert_regs[FP_TOTAL] = adjusted_mode->VTotal - 1;
+	regp->fp_vert_regs[FP_CRTC] = adjusted_mode->VTotal - 5 - 1;
+	regp->fp_vert_regs[FP_SYNC_START] = adjusted_mode->VSyncStart - 1;
+	regp->fp_vert_regs[FP_SYNC_END] = adjusted_mode->VSyncEnd - 1;
+	regp->fp_vert_regs[FP_VALID_START] = 0;
+	regp->fp_vert_regs[FP_VALID_END] = adjusted_mode->VDisplay - 1;
 
-	/*
-	* bit0: positive vsync
-	* bit4: positive hsync
-	* bit8: enable center mode
-	* bit9: enable native mode
-	* bit24: 12/24 bit interface (12bit=on, 24bit=off)
-	* bit26: a bit sometimes seen on some g70 cards
-	* bit28: fp display enable bit
-	* bit31: set for dual link
-	*/
-
-	regp->fp_control = (savep->fp_control & 0x04100000) |
-			   NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS;
-
+	/* bit26: a bit sometimes seen on some g70 cards */
+	regp->fp_control = NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |
+			   (savep->fp_control & (1 << 26 | NV_PRAMDAC_FP_TG_CONTROL_READ_PROG));
 	/* Deal with vsync/hsync polarity */
 	/* LVDS screens do set this, but modes with +ve syncs are very rare */
 	if (adjusted_mode->Flags & V_PVSYNC)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_VSYNC_POS;
 	if (adjusted_mode->Flags & V_PHSYNC)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS;
-
 	/* panel scaling first, as native would get set otherwise */
 	if (nv_encoder->scaling_mode == SCALE_PANEL ||
 	    nv_encoder->scaling_mode == SCALE_NOSCALE)	/* panel handles it */
@@ -724,15 +722,19 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_NATIVE;
 	else /* gpu needs to scale */
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_SCALE;
-
 	if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & NV_PEXTDEV_BOOT_0_STRAP_FP_IFACE_12BIT)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12;
-
 	if (nv_encoder->dual_link)
 		regp->fp_control |= (8 << 28);
 
-	/* Use the generic value, and enable x-scaling, y-scaling, and the TMDS enable bit */
-	regp->debug_0 = 0x01101191;
+	regp->debug_0 = NV_PRAMDAC_FP_DEBUG_0_YWEIGHT_ROUND |
+			NV_PRAMDAC_FP_DEBUG_0_XWEIGHT_ROUND |
+			NV_PRAMDAC_FP_DEBUG_0_YINTERP_BILINEAR |
+			NV_PRAMDAC_FP_DEBUG_0_XINTERP_BILINEAR |
+			NV_RAMDAC_FP_DEBUG_0_TMDS_ENABLED |
+			NV_PRAMDAC_FP_DEBUG_0_YSCALE_ENABLE |
+			NV_PRAMDAC_FP_DEBUG_0_XSCALE_ENABLE;
+
 	/* We want automatic scaling */
 	regp->debug_1 = 0;
 	/* This can override HTOTAL and VTOTAL */
@@ -750,15 +752,16 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			/* vertical needs to expand to glass size (automatic)
 			 * horizontal needs to be scaled at vertical scale factor
 			 * to maintain aspect */
-	
+
 			scale = (1 << 12) * mode->VDisplay / adjusted_mode->VDisplay;
-			regp->debug_1 = 1 << 12 | ((scale >> 1) & 0xfff);
+			regp->debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
+					((scale >> 1) & 0xfff);
 
 			/* restrict area of screen used, horizontally */
 			diff = adjusted_mode->HDisplay -
 			       adjusted_mode->VDisplay * mode_ratio / (1 << 12);
-			regp->fp_horiz_regs[REG_DISP_VALID_START] += diff / 2;
-			regp->fp_horiz_regs[REG_DISP_VALID_END] -= diff / 2;
+			regp->fp_horiz_regs[FP_VALID_START] += diff / 2;
+			regp->fp_horiz_regs[FP_VALID_END] -= diff / 2;
 		}
 
 		if (mode_ratio > panel_ratio) {
@@ -767,13 +770,14 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 			 * to maintain aspect */
 
 			scale = (1 << 12) * mode->HDisplay / adjusted_mode->HDisplay;
-			regp->debug_1 = 1 << 28 | ((scale >> 1) & 0xfff) << 16;
-			
+			regp->debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
+					((scale >> 1) & 0xfff) << 16;
+
 			/* restrict area of screen used, vertically */
 			diff = adjusted_mode->VDisplay -
 			       (1 << 12) * adjusted_mode->HDisplay / mode_ratio;
-			regp->fp_vert_regs[REG_DISP_VALID_START] += diff / 2;
-			regp->fp_vert_regs[REG_DISP_VALID_END] -= diff / 2;
+			regp->fp_vert_regs[FP_VALID_START] += diff / 2;
+			regp->fp_vert_regs[FP_VALID_END] -= diff / 2;
 		}
 	}
 
