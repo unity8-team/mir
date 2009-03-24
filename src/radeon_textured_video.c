@@ -327,10 +327,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if (!xf86XVClipVideoHelper(&dstBox, &x1, &x2, &y1, &y2, clipBoxes, width, height))
 	return Success;
 
-    src_w = (x2 - x1) >> 16;
+/*    src_w = (x2 - x1) >> 16;
     src_h = (y2 - y1) >> 16;
     drw_w = dstBox.x2 - dstBox.x1;
-    drw_h = dstBox.y2 - dstBox.y1;
+    drw_h = dstBox.y2 - dstBox.y1;*/
 
     if ((x1 >= x2) || (y1 >= y2))
 	return Success;
@@ -475,7 +475,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 	    s2offset = srcPitch * height;
 	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
-	    top &= ~1;
 	    pPriv->src_addr += left << 1;
 	    tmp = ((top >> 1) * srcPitch2) + (left >> 1);
 	    s2offset += tmp;
@@ -504,7 +503,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 				 width, height);
 	} else {
 	    nlines = ((y2 + 0xffff) >> 16) - top;
-	    RADEONCopyData(pScrn, buf, pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
+	    pPriv->src_addr += left << 1;
+	    RADEONCopyData(pScrn, buf + (top * srcPitch) + (left << 1),
+			   pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
 	}
 	break;
     }
