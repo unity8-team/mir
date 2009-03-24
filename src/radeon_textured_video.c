@@ -376,11 +376,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    dstPitch = (dstPitch + 63) & ~63;
 	    dstPitch2 = ((dst_width >> 1) + 15) & ~15;
 	    dstPitch2 = (dstPitch2 + 63) & ~63;
-	    size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
 	} else {
 	    dstPitch = ((dst_width << 1) + 15) & ~15;
 	    dstPitch = (dstPitch + 63) & ~63;
-	    size = dstPitch * dst_height;
 	}
 	break;
     case FOURCC_UYVY:
@@ -390,13 +388,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	dstPitch = (dstPitch + 63) & ~63;
 	srcPitch = (width << 1);
 	srcPitch2 = 0;
-	size = dstPitch * dst_height;
 	break;
     }
 
     if (info->ChipFamily >= CHIP_FAMILY_R600)
 	dstPitch = (dstPitch + 255) & ~255;
-    /* FIXME: size calc (adjust dstPitch earlier) */
+
+    size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
 	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
