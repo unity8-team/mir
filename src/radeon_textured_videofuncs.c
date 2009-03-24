@@ -97,6 +97,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     uint32_t dst_offset, dst_pitch, dst_format;
     uint32_t txenable, colorpitch;
     uint32_t blendcntl;
+    Bool isplanar = FALSE;
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
@@ -181,16 +182,29 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	if (RADEONTilingEnabled(pScrn, pPixmap))
 	    colorpitch |= R300_COLORTILE;
 
-	if (pPriv->id == FOURCC_UYVY)
-	    txformat1 = R300_TX_FORMAT_YVYU422;
-	else
-	    txformat1 = R300_TX_FORMAT_VYUY422;
+	if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+	    isplanar = TRUE;
+	}
 
-	txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
+	if (isplanar) {
+	    txformat1 = R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_HALF_REGION_0;
+	    txpitch = pPriv->src_pitch;
+	} else {
+	    if (pPriv->id == FOURCC_UYVY)
+		txformat1 = R300_TX_FORMAT_YVYU422;
+	    else
+		txformat1 = R300_TX_FORMAT_VYUY422;
+
+	    txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
+
+	    /* pitch is in pixels */
+	    txpitch = pPriv->src_pitch / 2;
+	}
+	txpitch -= 1;
 
 	txformat0 = ((((pPriv->w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
-		     (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
-		     R300_TXPITCH_EN);
+		    (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
+		    R300_TXPITCH_EN);
 
 	info->accel_state->texW[0] = pPriv->w;
 	info->accel_state->texH[0] = pPriv->h;
@@ -201,9 +215,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		    R300_TX_MIN_FILTER_LINEAR |
 		    (0 << R300_TX_ID_SHIFT));
 
-	/* pitch is in pixels */
-	txpitch = pPriv->src_pitch / 2;
-	txpitch -= 1;
 
 	if (IS_R500_3D && ((pPriv->w - 1) & 0x800))
 	    txpitch |= R500_TXWIDTH_11;
@@ -223,6 +234,34 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
 
 	txenable = R300_TEX_0_ENABLE;
+
+	if (isplanar) {
+	    txformat0 = ((((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
+			(((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
+			R300_TXPITCH_EN);
+	    txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	    txpitch -= 1;
+	    txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
+		        R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
+			R300_TX_MIN_FILTER_LINEAR |
+			R300_TX_MAG_FILTER_LINEAR);
+
+		BEGIN_ACCEL(12);
+		OUT_ACCEL_REG(R300_TX_FILTER0_1, txfilter | (1 << R300_TX_ID_SHIFT));
+		OUT_ACCEL_REG(R300_TX_FILTER1_1, 0);
+		OUT_ACCEL_REG(R300_TX_FORMAT0_1, txformat0);
+		OUT_ACCEL_REG(R300_TX_FORMAT1_1, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_2);
+		OUT_ACCEL_REG(R300_TX_FORMAT2_1, txpitch);
+		OUT_ACCEL_REG(R300_TX_OFFSET_1, txoffset + pPriv->planeu_offset);
+		OUT_ACCEL_REG(R300_TX_FILTER0_2, txfilter | (2 << R300_TX_ID_SHIFT));
+		OUT_ACCEL_REG(R300_TX_FILTER1_2, 0);
+		OUT_ACCEL_REG(R300_TX_FORMAT0_2, txformat0);
+		OUT_ACCEL_REG(R300_TX_FORMAT1_2, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_3);
+		OUT_ACCEL_REG(R300_TX_FORMAT2_2, txpitch);
+		OUT_ACCEL_REG(R300_TX_OFFSET_2, txoffset + pPriv->planev_offset);
+		FINISH_ACCEL();
+		txenable |= R300_TEX_1_ENABLE | R300_TEX_2_ENABLE;
+	}
 
 	if (pPriv->bicubic_enabled) {
 		/* Size is 128x1 */
@@ -691,6 +730,171 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), 0);
 
 		FINISH_ACCEL();
+	    } else if (isplanar) {
+	    /*
+	     * y' = y - .0625
+	     * u' = u - .5
+	     * v' = v - .5;
+	     *
+	     * r = 1.1643 * y' + 0.0     * u' + 1.5958  * v'
+	     * g = 1.1643 * y' - 0.39173 * u' - 0.81290 * v'
+	     * b = 1.1643 * y' + 2.017   * u' + 0.0     * v'
+	     *
+	     * DP3 might look like the straightforward solution
+	     * but we'd need to move the texture yuv values in
+	     * the same reg for this to work. Therefore use MADs.
+	     * Without changing the shader at all (only the constants)
+	     * could also provide hue/saturation/brightness/contrast control.
+	     *
+	     * yco = 1.1643
+	     * uco = 0, -0.39173, 2.017
+	     * vco = 1.5958, -0.8129, 0
+	     * off = -0.0625 * yco + -0.5 * uco[r] + -0.5 * vco[r],
+	     *       -0.0625 * yco + -0.5 * uco[g] + -0.5 * vco[g],
+	     *       -0.0625 * yco + -0.5 * uco[b] + -0.5 * vco[b],
+	     *
+	     * temp = MAD(yco, yuv.yyyy, off)
+	     * temp = MAD(uco, yuv.uuuu, temp)
+	     * result = MAD(vco, yuv.vvvv, temp)
+	     */
+		float yco = 1.1643;
+		float uco[3] = {0.0, -0.39173, 2.017};
+		float vco[3] = {1.5958, -0.8129, 0.0};
+		float off[3] = {-0.0625 * yco + -0.5 * uco[0] + -0.5 * vco[0],
+				-0.0625 * yco + -0.5 * uco[1] + -0.5 * vco[1],
+				-0.0625 * yco + -0.5 * uco[2] + -0.5 * vco[2]};
+
+		BEGIN_ACCEL(33);
+		/* 2 components: same 2 for tex0/1/2 */
+		OUT_ACCEL_REG(R300_RS_COUNT,
+			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+			   R300_RS_COUNT_HIRES_EN));
+		/* R300_INST_COUNT_RS - highest RS instruction used */
+		OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+
+		OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* highest temp used */
+
+		/* Indirection levels */
+		OUT_ACCEL_REG(R300_US_CONFIG, ((0 << R300_NLEVEL_SHIFT) |
+							R300_FIRST_TEX));
+
+		OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
+						   R300_ALU_CODE_SIZE(3) |
+						   R300_TEX_CODE_OFFSET(0) |
+						   R300_TEX_CODE_SIZE(3)));
+
+		OUT_ACCEL_REG(R300_US_CODE_ADDR_3, (R300_ALU_START(0) |
+						   R300_ALU_SIZE(2) |
+						   R300_TEX_START(0) |
+						   R300_TEX_SIZE(2) |
+						   R300_RGBA_OUT));
+
+		/* tex inst */
+		OUT_ACCEL_REG(R300_US_TEX_INST_0, (R300_TEX_SRC_ADDR(0) |
+						  R300_TEX_DST_ADDR(0) |
+						  R300_TEX_ID(0) |
+						  R300_TEX_INST(R300_TEX_INST_LD)));
+		OUT_ACCEL_REG(R300_US_TEX_INST_1, (R300_TEX_SRC_ADDR(0) |
+						  R300_TEX_DST_ADDR(1) |
+						  R300_TEX_ID(1) |
+						  R300_TEX_INST(R300_TEX_INST_LD)));
+		OUT_ACCEL_REG(R300_US_TEX_INST_2, (R300_TEX_SRC_ADDR(0) |
+						  R300_TEX_DST_ADDR(2) |
+						  R300_TEX_ID(2) |
+						  R300_TEX_INST(R300_TEX_INST_LD)));
+
+		/* ALU inst */
+		/* MAD temp0, const0.a, temp0, const0.rgb */
+		OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(0), (R300_ALU_RGB_ADDR0(R300_ALU_RGB_CONST(0)) |
+						   R300_ALU_RGB_ADDR1(0) |
+						   R300_ALU_RGB_ADDR2(0) |
+						   R300_ALU_RGB_ADDRD(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_RGB)));
+		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(0), (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_AAA) |
+						   R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
+						   R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_C(R300_ALU_RGB_SRC0_RGB) |
+						   R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
+		/* alpha nop, but need to set up alpha source for rgb usage */
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(0), (R300_ALU_ALPHA_ADDR0(R300_ALU_ALPHA_CONST(0)) |
+						   R300_ALU_ALPHA_ADDR1(0) |
+						   R300_ALU_ALPHA_ADDR2(0) |
+						   R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(0), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		/* MAD const1, temp1, temp0 */
+		OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(1), (R300_ALU_RGB_ADDR0(R300_ALU_RGB_CONST(1)) |
+						   R300_ALU_RGB_ADDR1(1) |
+						   R300_ALU_RGB_ADDR2(0) |
+						   R300_ALU_RGB_ADDRD(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_RGB)));
+		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(1), (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
+						   R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
+						   R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_C(R300_ALU_RGB_SRC2_RGB) |
+						   R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
+		/* alpha nop */
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(1), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(1), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		/* MAD result, const2, temp2, temp0 */
+		OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(2), (R300_ALU_RGB_ADDR0(R300_ALU_RGB_CONST(2)) |
+						   R300_ALU_RGB_ADDR1(2) |
+						   R300_ALU_RGB_ADDR2(0) |
+						   R300_ALU_RGB_ADDRD(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_RGB) |
+						   R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_RGB)));
+		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(2), (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
+						   R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
+						   R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_C(R300_ALU_RGB_SRC2_RGB) |
+						   R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE) |
+						   R300_ALU_RGB_CLAMP));
+		/* write alpha 1 */
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(4), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
+						   R300_ALU_ALPHA_TARGET_A));
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(4), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_1_0)));
+
+		/* Shader constants. */
+		/* constant 0: off, yco */
+		OUT_ACCEL_REG(R300_US_ALU_CONST_R(0), F_TO_24(off[0]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_G(0), F_TO_24(off[1]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_B(0), F_TO_24(off[2]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_A(0), F_TO_24(yco));
+		/* constant 1: uco */
+		OUT_ACCEL_REG(R300_US_ALU_CONST_R(1), F_TO_24(uco[0]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_G(1), F_TO_24(uco[1]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_B(1), F_TO_24(uco[2]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), F_TO_24(0.0));
+		/* constant 2: vco */
+		OUT_ACCEL_REG(R300_US_ALU_CONST_R(2), F_TO_24(vco[0]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_G(2), F_TO_24(vco[1]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_B(2), F_TO_24(vco[2]));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_A(2), F_TO_24(0.0));
+
+		FINISH_ACCEL();
+
 	    } else {
 		BEGIN_ACCEL(11);
 		/* 2 components: 2 for tex0 */
@@ -760,7 +964,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_ALPHA_OMOD(R300_ALU_ALPHA_OMOD_NONE) |
 						   R300_ALU_ALPHA_CLAMP));
 		FINISH_ACCEL();
-		}
+	    }
 	} else {
 	    if (pPriv->bicubic_enabled) {
 		BEGIN_ACCEL(7);

@@ -304,8 +304,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
     INT32 x1, x2, y1, y2;
-    int srcPitch, srcPitch2, dstPitch;
+    int srcPitch, srcPitch2, dstPitch, dstPitch2 = 0;
     int s2offset, s3offset, tmp;
+    int d2line, d3line;
     int top, left, npixels, nlines, size;
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
@@ -335,18 +336,45 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     if ((x1 >= x2) || (y1 >= y2))
 	return Success;
 
+    /* Bicubic filter setup */
+    pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
+    if (!(IS_R300_3D || IS_R500_3D || IS_R600_3D))
+	pPriv->bicubic_enabled = FALSE;
+    if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
+	/*
+	 * Applying the bicubic filter with a scale of less than 200%
+	 * results in a blurred picture, so disable the filter.
+	 */
+	if ((src_w > drw_w / 2) || (src_h > drw_h / 2))
+	    pPriv->bicubic_enabled = FALSE;
+    }
+
+    pPriv->planar_hw = pPriv->planar_state;
+    if (pPriv->bicubic_enabled || !( IS_R300_3D ))
+        pPriv->planar_hw = 0;
+
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	dstPitch = ((dst_width << 1) + 15) & ~15;
 	srcPitch = (width + 3) & ~3;
 	srcPitch2 = ((width >> 1) + 3) & ~3;
-	size = dstPitch * dst_height;
+        if (pPriv->planar_hw) {
+	    dstPitch = (dst_width + 15) & ~15;
+	    dstPitch = (dstPitch + 63) & ~63;
+	    dstPitch2 = ((dst_width >> 1) + 15) & ~15;
+	    dstPitch2 = (dstPitch2 + 63) & ~63;
+	    size = dstPitch * dst_height + 2 * dstPitch2 * ((dst_height + 1) >> 1);
+	} else {
+	    dstPitch = ((dst_width << 1) + 15) & ~15;
+	    dstPitch = (dstPitch + 63) & ~63;
+	    size = dstPitch * dst_height;
+	}
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
 	dstPitch = ((dst_width << 1) + 15) & ~15;
+	dstPitch = (dstPitch + 63) & ~63;
 	srcPitch = (width << 1);
 	srcPitch2 = 0;
 	size = dstPitch * dst_height;
@@ -355,8 +383,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     if (info->ChipFamily >= CHIP_FAMILY_R600)
 	dstPitch = (dstPitch + 255) & ~255;
-    else
-	dstPitch = (dstPitch + 63) & ~63;
+    /* FIXME: size calc (adjust dstPitch earlier) */
 
     if (pPriv->video_memory != NULL && size != pPriv->size) {
 	radeon_legacy_free_memory(pScrn, pPriv->video_memory);
@@ -374,19 +401,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 								size * 2, 64);
 	if (pPriv->video_offset == 0)
 	    return BadAlloc;
-    }
-
-    /* Bicubic filter setup */
-    pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
-    if (!(IS_R300_3D || IS_R500_3D || IS_R600_3D))
-	pPriv->bicubic_enabled = FALSE;
-    if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
-	/*
-	 * Applying the bicubic filter with a scale of less than 200%
-	 * results in a blurred picture, so disable the filter.
-	 */
-	if ((src_w > drw_w / 2) || (src_h > drw_h / 2))
-	    pPriv->bicubic_enabled = FALSE;
     }
 
     /* Bicubic filter loading */
@@ -432,10 +446,16 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     else
 	pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
     pPriv->src_pitch = dstPitch;
+    pPriv->planeu_offset = dstPitch * dst_height;
+    pPriv->planev_offset = pPriv->planeu_offset + dstPitch2 * ((dst_height + 1) >> 1);
     pPriv->size = size;
     pPriv->pDraw = pDraw;
 
+
 #if 0
+    ErrorF("planeu_offset: 0x%x\n", pPriv->planeu_offset);
+    ErrorF("planev_offset: 0x%x\n", pPriv->planev_offset);
+    ErrorF("dstPitch2: 0x%x\n", dstPitch2);
     ErrorF("src_offset: 0x%x\n", pPriv->src_offset);
     ErrorF("src_addr: 0x%x\n", pPriv->src_addr);
     ErrorF("src_pitch: 0x%x\n", pPriv->src_pitch);
@@ -470,6 +490,29 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 				     srcPitch, srcPitch2, pPriv->src_pitch,
 				     width, height);
 	    }
+	}
+        else if (pPriv->planar_hw) {
+	    top &= ~1;
+	    s2offset = srcPitch * ((height + 1) & ~1);
+	    s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
+	    s2offset += (top >> 1) * srcPitch2 + (left >> 1);
+	    s3offset += (top >> 1) * srcPitch2 + (left >> 1);
+	    d2line = pPriv->planeu_offset;
+	    d3line = pPriv->planev_offset;
+	    d2line += (top >> 1) * dstPitch2 - (top * dstPitch);
+	    d3line += (top >> 1) * dstPitch2 - (top * dstPitch);
+	    nlines = ((y2 + 0xffff) >> 16) - top;
+	    if(id == FOURCC_YV12) {
+		tmp = s2offset;
+		s2offset = s3offset;
+		s3offset = tmp;
+	    }
+	    RADEONCopyData(pScrn, buf + (top * srcPitch) + left, pPriv->src_addr + left,
+		srcPitch, dstPitch, nlines, npixels, 1);
+	    RADEONCopyData(pScrn, buf + s2offset,  pPriv->src_addr + d2line + (left >> 1),
+		srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
+	    RADEONCopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line + (left >> 1),
+		srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
 	} else {
 	    top &= ~1;
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
@@ -590,17 +633,19 @@ static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R300 2
+#define NUM_ATTRIBUTES_R300 3
 
 static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
 {
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {0, 0, 0, NULL}
 };
 
 static Atom xvBicubic;
 static Atom xvVSync;
+static Atom xvHWPlanar;
 
 #define NUM_IMAGES 4
 
@@ -627,6 +672,8 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
 	*value = pPriv->bicubic_state;
     else if (attribute == xvVSync)
 	*value = pPriv->vsync;
+    else if (attribute == xvHWPlanar)
+	*value = pPriv->planar_state;
     else
 	return BadMatch;
 
@@ -648,6 +695,8 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->bicubic_state = ClipValue (value, 0, 2);
     else if (attribute == xvVSync)
 	pPriv->vsync = ClipValue (value, 0, 1);
+    else if (attribute == xvHWPlanar)
+	pPriv->planar_state = ClipValue (value, 0, 1);
     else
 	return BadMatch;
 
@@ -671,6 +720,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 
     xvBicubic         = MAKE_ATOM("XV_BICUBIC");
     xvVSync           = MAKE_ATOM("XV_VSYNC");
+    xvHWPlanar        = MAKE_ATOM("XV_HWPLANAR");
 
     adapt->type = XvWindowMask | XvInputMask | XvImageMask;
     adapt->flags = 0;
@@ -720,6 +770,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->doubleBuffer = 0;
 	pPriv->bicubic_state = BICUBIC_AUTO;
 	pPriv->vsync = TRUE;
+	pPriv->planar_state = 1;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
