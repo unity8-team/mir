@@ -289,6 +289,8 @@ Bool NVDRIScreenInit(ScrnInfoPtr pScrn)
 	pDRIInfo->createDummyCtx     = FALSE;
 	pDRIInfo->createDummyCtxPriv = FALSE;
 
+	pDRIInfo->keepFDOpen = TRUE;
+
 	if (!DRIScreenInit(pScreen, pDRIInfo, &nouveau_device(pNv->dev)->fd)) {
 		xf86DrvMsg(pScreen->myNum, X_ERROR,
 				"[dri] DRIScreenInit failed.  Disabling DRI.\n");
@@ -320,7 +322,10 @@ Bool NVDRIFinishScreenInit(ScrnInfoPtr pScrn)
 	NOUVEAUDRIPtr  pNOUVEAUDRI;
 	int ret;
 
-	if (!pNv->pDRIInfo || !DRIFinishScreenInit(pScreen))
+	if (!pNv->pDRIInfo)
+		return TRUE;
+
+	if (!DRIFinishScreenInit(pScreen))
 		return FALSE;
 
 	pNOUVEAUDRI 			= (NOUVEAUDRIPtr)pNv->pDRIInfo->devPrivate;

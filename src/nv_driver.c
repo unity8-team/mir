@@ -959,7 +959,7 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	}
 
 	/* Initialise libdrm_nouveau */
-	ret = nouveau_device_open_existing(&pNv->dev, 0, DRIMasterFD(pScrn), 0);
+	ret = nouveau_device_open_existing(&pNv->dev, 1, DRIMasterFD(pScrn), 0);
 	if (ret) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "[drm] error creating device, setting NoAccel\n");
@@ -2182,7 +2182,11 @@ NVScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 	xf86SetSilkenMouse(pScreen);
 
 	/* Finish DRI init */
-	NVDRIFinishScreenInit(pScrn);
+	if (!NVDRIFinishScreenInit(pScrn)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "[dri] NVDRIFinishScreenInit failed, disbling DRI\n");
+		NVDRICloseScreen(pScrn);
+	}
 
 	/* 
 	 * Initialize software cursor.
