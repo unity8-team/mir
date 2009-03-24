@@ -44,6 +44,7 @@ static Bool    NVEnterVT(int scrnIndex, int flags);
 static void    NVLeaveVT(int scrnIndex, int flags);
 static Bool    NVCloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool    NVSaveScreen(ScreenPtr pScreen, int mode);
+static void    NVCloseDRM(ScrnInfoPtr);
 
 /* Optional functions */
 static Bool    NVSwitchMode(int scrnIndex, DisplayModePtr mode, int flags);
@@ -792,6 +793,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 		nouveau_dri2_fini(pScreen);
 #endif
 
+	NVCloseDRM(pScrn);
+
 	if (pNv->randr12_enable)
 		xf86_cursors_fini(pScreen);
 	if (pNv->ShadowPtr) {
@@ -907,6 +910,14 @@ static const xf86CrtcConfigFuncsRec nv_xf86crtc_config_funcs = {
 	NVFreeScreen(pScrn->scrnIndex, 0);                                  \
 	return FALSE;                                                       \
 } while(0)
+
+static void
+NVCloseDRM(ScrnInfoPtr pScrn)
+{
+	NVPtr pNv = NVPTR(pScrn);
+
+	nouveau_device_close(&pNv->dev);
+}
 
 static Bool
 NVPreInitDRM(ScrnInfoPtr pScrn)

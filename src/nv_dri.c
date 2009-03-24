@@ -359,15 +359,7 @@ void NVDRICloseScreen(ScrnInfoPtr pScrn)
 	if (pNv->NoAccel)
 		return;
 
-	nouveau_device_close(&pNv->dev);
-
 	DRICloseScreen(pScreen);
-
-	/* The channel should have been removed from the drm side, that still leaves a memory leak though. */
-	if (pNv->chan) {
-		free(pNv->chan);
-		pNv->chan = NULL;
-	}
 
 	if (pNv->pDRIInfo) {
 		if (pNv->pDRIInfo->devPrivate) {
