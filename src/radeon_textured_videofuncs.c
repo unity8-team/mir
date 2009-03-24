@@ -758,7 +758,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	     * result = MAD(vco, yuv.vvvv, temp)
 	     */
 		float yco = 1.1643;
-		float uco[3] = {0.0, -0.39173, 2.017};
+		float uco[3] = {0.0, -0.39173, 2.018};
 		float vco[3] = {1.5958, -0.8129, 0.0};
 		float off[3] = {-0.0625 * yco + -0.5 * uco[0] + -0.5 * vco[0],
 				-0.0625 * yco + -0.5 * uco[1] + -0.5 * vco[1],
@@ -1567,10 +1567,18 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    return;
 	}
 
-	if (pPriv->id == FOURCC_UYVY)
-	    txformat = RADEON_TXFORMAT_YVYU422;
-	else
-	    txformat = RADEON_TXFORMAT_VYUY422;
+	if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+	    isplanar = TRUE;
+	}
+
+	if (isplanar) {
+	    txformat = RADEON_TXFORMAT_I8;
+	} else {
+	    if (pPriv->id == FOURCC_UYVY)
+		txformat = RADEON_TXFORMAT_YVYU422;
+	    else
+		txformat = RADEON_TXFORMAT_VYUY422;
+	}
 
 	txformat |= RADEON_TXFORMAT_NON_POWER2;
 
@@ -1579,12 +1587,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	if (RADEONTilingEnabled(pScrn, pPixmap))
 	    colorpitch |= RADEON_COLOR_TILE_ENABLE;
 
-	BEGIN_ACCEL(5);
+	BEGIN_ACCEL(4);
 
-	OUT_ACCEL_REG(RADEON_PP_CNTL,
-		      RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
 	OUT_ACCEL_REG(RADEON_RB3D_CNTL,
-		      dst_format | RADEON_ALPHA_BLEND_ENABLE);
+		      dst_format /*| RADEON_ALPHA_BLEND_ENABLE*/);
 	OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
 
 	OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
@@ -1603,48 +1609,346 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	    info->accel_state->texW[0] = pPriv->w;
 	    info->accel_state->texH[0] = pPriv->h;
 
-	    BEGIN_ACCEL(12);
+	    if (isplanar) {
+		/* note: in contrast to r300, use input biasing on uv components */
+		float yco = 1.1643;
+		float yoff = -0.0625 * yco;
+		float uco[3] = {0.0, -0.39173, 2.018};
+		float vco[3] = {1.5958, -0.8129, 0.0};
 
-	    OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
-	    OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
-			  (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
+		/* need 2 texcoord sets (even though they are identical) due
+		   to denormalization! hw apparently can't premultiply
+		   same coord set by different texture size */
+		vtx_count = 6;
 
-	    OUT_ACCEL_REG(R200_PP_TXFILTER_0,
-			  R200_MAG_FILTER_LINEAR |
-			  R200_MIN_FILTER_LINEAR |
-			  R200_CLAMP_S_CLAMP_LAST |
-			  R200_CLAMP_T_CLAMP_LAST |
-			  R200_YUV_TO_RGB);
-	    OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
-	    OUT_ACCEL_REG(R200_PP_TXFORMAT_X_0, 0);
-	    OUT_ACCEL_REG(R200_PP_TXSIZE_0,
-			  (pPriv->w - 1) |
-			  ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
-	    OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
+		txformat0 = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
+			    (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
+		txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+		txpitch -= 32;
+		txfilter =  R200_MAG_FILTER_LINEAR |
+			    R200_MIN_FILTER_LINEAR |
+			    R200_CLAMP_S_CLAMP_LAST |
+			    R200_CLAMP_T_CLAMP_LAST;
 
-	    OUT_ACCEL_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
+		BEGIN_ACCEL(36);
 
-	    OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
-			  R200_TXC_ARG_A_ZERO |
-			  R200_TXC_ARG_B_ZERO |
-			  R200_TXC_ARG_C_R0_COLOR |
-			  R200_TXC_OP_MADD);
-	    OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
-			  R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
-	    OUT_ACCEL_REG(R200_PP_TXABLEND_0,
-			  R200_TXA_ARG_A_ZERO |
-			  R200_TXA_ARG_B_ZERO |
-			  R200_TXA_ARG_C_R0_ALPHA |
-			  R200_TXA_OP_MADD);
-	    OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
-			  R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
-	    FINISH_ACCEL();
+		OUT_ACCEL_REG(RADEON_PP_CNTL,
+			      RADEON_TEX_0_ENABLE | RADEON_TEX_1_ENABLE | RADEON_TEX_2_ENABLE |
+			      RADEON_TEX_BLEND_0_ENABLE | RADEON_TEX_BLEND_1_ENABLE |
+			      RADEON_TEX_BLEND_2_ENABLE);
+
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
+			      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT) |
+			      (2 << R200_VTX_TEX1_COMP_CNT_SHIFT));
+
+		OUT_ACCEL_REG(R200_PP_TXFILTER_0, txfilter);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_X_0, 0);
+		OUT_ACCEL_REG(R200_PP_TXSIZE_0,
+			      (pPriv->w - 1) |
+			      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+		OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
+		OUT_ACCEL_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
+
+		OUT_ACCEL_REG(R200_PP_TXFILTER_1, txfilter);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_1, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_X_1, 0);
+		OUT_ACCEL_REG(R200_PP_TXSIZE_1, txformat0);
+		OUT_ACCEL_REG(R200_PP_TXPITCH_1, txpitch);
+		OUT_ACCEL_REG(R200_PP_TXOFFSET_1, pPriv->src_offset + pPriv->planeu_offset);
+
+		OUT_ACCEL_REG(R200_PP_TXFILTER_2, txfilter);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_2, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_X_2, 0);
+		OUT_ACCEL_REG(R200_PP_TXSIZE_2, txformat0);
+		OUT_ACCEL_REG(R200_PP_TXPITCH_2, txpitch);
+		OUT_ACCEL_REG(R200_PP_TXOFFSET_2, pPriv->src_offset + pPriv->planev_offset);
+
+		/* similar to r300 code. Note the big problem is that hardware constants
+		 * are 8 bits only, representing 0.0-1.0. We can get that up (using bias
+		 * + scale) to -1.0-1.0 (but precision will suffer). AFAIK the hw actually
+		 * has 12 bits fractional precision (plus 1 sign bit, 3 range bits) but
+		 * the constants not. To get larger range can use output scale, but for
+		 * that 2.018 value we need a total scale by 8, which means the constants
+		 * really have no accuracy whatsoever (5 fractional bits only).
+		 * The only direct way to get high  precision "constants" into the fragment
+		 * pipe I know of is to use the texcoord interpolator (not color, this one
+		 * is 8 bit only too), which seems a bit expensive. We're lucky though it
+		 * seems the values we need seem to fit better than worst case (get about
+		 * 6 fractional bits for this instead of 5, at least when not correcting for
+		 * hue/saturation/contrast/brightness, which is the same as for vco - yco and
+		 * yoff get 8 fractional bits).
+		 *
+		 * A higher precision (8 fractional bits) version might just put uco into
+		 * a texcoord, and calculate a new vcoconst in the shader, like so:
+		 * cohelper = {1.0, 0.0, 0.0} - shouldn't use 0.5 since not exactly representable
+		 * vco = {1.5958 - 1.0, -0.8129 + 1.0, 1.0}
+		 * vcocalc = ADD temp, bias/scale(cohelper), vco
+		 * would in total use 4 tex units, 4 instructions which seems fairly
+		 * balanced for this architecture (instead of 3 + 3 for the solution here)
+		 *
+		 * temp = MAD(yco, yuv.yyyy, yoff)
+		 * temp = MAD(uco, yuv.uuuu, temp)
+		 * result = MAD(vco, yuv.vvvv, temp)
+		 *
+		 * note first mad produces actually scalar, hence we transform
+		 * it into a dp2a to get 8 bit precision of yco instead of 7 -
+		 * That's assuming hw correctly expands consts to internal precision.
+		 * (y * 1 + y * (yco - 1) + yoff)
+		 * temp = DP2A / 2 (yco, yuv.yyyy, yoff)
+		 * temp = MAD (uco / 4, yuv.uuuu * 2, temp)
+		 * result = MAD x2 (vco / 2, yuv.vvvv, temp)
+		 *
+		 * vco, uco need bias (and hence scale too)
+		 *
+		 */
+
+		/* MAD temp0 / 2, const0.a * 2, temp0, -const0.rgb */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_ARG_B_R0_COLOR |
+			      R200_TXC_ARG_C_TFACTOR_COLOR |
+			      R200_TXC_NEG_ARG_C |
+			      R200_TXC_OP_DOT2_ADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
+			      (0 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      R200_TXC_SCALE_INV2 |
+			      R200_TXC_CLAMP_8_8 | R200_TXC_OUTPUT_REG_R0);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_0,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
+			      R200_TXA_OUTPUT_REG_NONE);
+
+		/* MAD temp0, (const1 - 0.5) * 2, (temp1 - 0.5) * 2, temp0 */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_1,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_BIAS_ARG_A |
+			      R200_TXC_SCALE_ARG_A |
+			      R200_TXC_ARG_B_R1_COLOR |
+			      R200_TXC_BIAS_ARG_B |
+			      R200_TXC_SCALE_ARG_B |
+			      R200_TXC_ARG_C_R0_COLOR |
+			      R200_TXC_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_1,
+			      (1 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      R200_TXC_CLAMP_8_8 | R200_TXC_OUTPUT_REG_R0);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_1,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_1,
+			      R200_TXA_OUTPUT_REG_NONE);
+
+		/* MAD temp0 x 2, (const2 - 0.5) * 2, (temp2 - 0.5), temp0 */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_2,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_BIAS_ARG_A |
+			      R200_TXC_SCALE_ARG_A |
+			      R200_TXC_ARG_B_R2_COLOR |
+			      R200_TXC_BIAS_ARG_B |
+			      R200_TXC_ARG_C_R0_COLOR |
+			      R200_TXC_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_2,
+			      (2 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      R200_TXC_SCALE_2X |
+			      R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_2,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_COMP_ARG_C |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_2,
+			      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
+
+		/* shader constants */
+		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(1.0, /* src range [1, 2] */
+							      yco - 1.0,
+							      -yoff, /* range [-1, 0] */
+							      0.0));
+		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * 0.125 + 0.5, /* range [-4, 4] */
+							      uco[1] * 0.125 + 0.5,
+							      uco[2] * 0.125 + 0.5,
+							      0.0));
+		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * 0.25 + 0.5, /* range [-2, 2] */
+							      vco[1] * 0.25 + 0.5,
+							      vco[2] * 0.25 + 0.5,
+							      0.0));
+
+		FINISH_ACCEL();
+	    }
+	    else if (info->ChipFamily == CHIP_FAMILY_RV250) {
+		/* fix up broken packed yuv - shader same as above except
+		   yuv compoents are all in same reg */
+		float yco = 1.1643;
+		float yoff = -0.0625 * yco;
+		float uco[3] = {0.0, -0.39173, 2.018};
+		float vco[3] = {1.5958, -0.8129, 0.0};
+
+		txformat0 = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
+			    (((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
+		txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+		txpitch -= 32;
+		txfilter =  R200_MAG_FILTER_LINEAR |
+			    R200_MIN_FILTER_LINEAR |
+			    R200_CLAMP_S_CLAMP_LAST |
+			    R200_CLAMP_T_CLAMP_LAST;
+
+		BEGIN_ACCEL(24);
+
+		OUT_ACCEL_REG(RADEON_PP_CNTL,
+			      RADEON_TEX_0_ENABLE |
+			      RADEON_TEX_BLEND_0_ENABLE | RADEON_TEX_BLEND_1_ENABLE |
+			      RADEON_TEX_BLEND_2_ENABLE);
+
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
+			      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
+
+		OUT_ACCEL_REG(R200_PP_TXFILTER_0, txfilter);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_X_0, 0);
+		OUT_ACCEL_REG(R200_PP_TXSIZE_0,
+			      (pPriv->w - 1) |
+			      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+		OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
+		OUT_ACCEL_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
+
+		/* MAD temp1 / 2, const0.a * 2, temp0.ggg, -const0.rgb */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_ARG_B_R0_COLOR |
+			      R200_TXC_ARG_C_TFACTOR_COLOR |
+			      R200_TXC_NEG_ARG_C |
+			      R200_TXC_OP_DOT2_ADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
+			      (0 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      R200_TXC_SCALE_INV2 |
+			      (R200_TXC_REPL_GREEN << R200_TXC_REPL_ARG_B_SHIFT) |
+			      R200_TXC_CLAMP_8_8 | R200_TXC_OUTPUT_REG_R1);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_0,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
+			      R200_TXA_OUTPUT_REG_NONE);
+
+		/* MAD temp1, (const1 - 0.5) * 2, (temp0.rrr - 0.5) * 2, temp1 */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_1,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_BIAS_ARG_A |
+			      R200_TXC_SCALE_ARG_A |
+			      R200_TXC_ARG_B_R0_COLOR |
+			      R200_TXC_BIAS_ARG_B |
+			      R200_TXC_SCALE_ARG_B |
+			      R200_TXC_ARG_C_R1_COLOR |
+			      R200_TXC_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_1,
+			      (1 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      (R200_TXC_REPL_BLUE << R200_TXC_REPL_ARG_B_SHIFT) |
+			      R200_TXC_CLAMP_8_8 | R200_TXC_OUTPUT_REG_R1);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_1,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_1,
+			      R200_TXA_OUTPUT_REG_NONE);
+
+		/* MAD temp0 x 2, (const2 - 0.5) * 2, (temp0.bbb - 0.5), temp1 */
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_2,
+			      R200_TXC_ARG_A_TFACTOR_COLOR |
+			      R200_TXC_BIAS_ARG_A |
+			      R200_TXC_SCALE_ARG_A |
+			      R200_TXC_ARG_B_R0_COLOR |
+			      R200_TXC_BIAS_ARG_B |
+			      R200_TXC_ARG_C_R1_COLOR |
+			      R200_TXC_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_2,
+			      (2 << R200_TXC_TFACTOR_SEL_SHIFT) |
+			      R200_TXC_SCALE_2X |
+			      (R200_TXC_REPL_RED << R200_TXC_REPL_ARG_B_SHIFT) |
+			      R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_2,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_ZERO |
+			      R200_TXA_COMP_ARG_C |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_2,
+			      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
+
+		/* shader constants */
+		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(1.0, /* src range [1, 2] */
+							      yco - 1.0,
+							      -yoff, /* range [-1, 0] */
+							      0.0));
+		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * 0.125 + 0.5, /* range [-4, 4] */
+							      uco[1] * 0.125 + 0.5,
+							      uco[2] * 0.125 + 0.5,
+							      0.0));
+		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * 0.25 + 0.5, /* range [-2, 2] */
+							      vco[1] * 0.25 + 0.5,
+							      vco[2] * 0.25 + 0.5,
+							      0.0));
+
+		FINISH_ACCEL();
+	    }
+	    else {
+		BEGIN_ACCEL(13);
+		OUT_ACCEL_REG(RADEON_PP_CNTL,
+			      RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
+
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
+		OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
+			      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
+
+		OUT_ACCEL_REG(R200_PP_TXFILTER_0,
+			      R200_MAG_FILTER_LINEAR |
+			      R200_MIN_FILTER_LINEAR |
+			      R200_CLAMP_S_CLAMP_LAST |
+			      R200_CLAMP_T_CLAMP_LAST |
+			      R200_YUV_TO_RGB);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
+		OUT_ACCEL_REG(R200_PP_TXFORMAT_X_0, 0);
+		OUT_ACCEL_REG(R200_PP_TXSIZE_0,
+			      (pPriv->w - 1) |
+			      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+		OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
+
+		OUT_ACCEL_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
+
+		OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
+			      R200_TXC_ARG_A_ZERO |
+			      R200_TXC_ARG_B_ZERO |
+			      R200_TXC_ARG_C_R0_COLOR |
+			      R200_TXC_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
+			      R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
+		OUT_ACCEL_REG(R200_PP_TXABLEND_0,
+			      R200_TXA_ARG_A_ZERO |
+			      R200_TXA_ARG_B_ZERO |
+			      R200_TXA_ARG_C_R0_ALPHA |
+			      R200_TXA_OP_MADD);
+		OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
+			      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
+		FINISH_ACCEL();
+	    }
 	} else {
 
 	    info->accel_state->texW[0] = 1;
 	    info->accel_state->texH[0] = 1;
 
-	    BEGIN_ACCEL(8);
+	    BEGIN_ACCEL(9);
+
+	    OUT_ACCEL_REG(RADEON_PP_CNTL,
+			  RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
 
 	    OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
 					      RADEON_SE_VTX_FMT_ST0));
@@ -1876,6 +2180,20 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			    ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
 			                                              (float)srcY / info->accel_state->texH[0]);
 		}
+	    } else if (isplanar) {
+		/*
+		 * Just render a rect (using three coords).
+		 * Filter is a bit a misnomer, it's just texcoords...
+		 */
+		VTX_OUT_FILTER((float)dstX,                                (float)(dstY + dsth),
+			(float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0],
+			(float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
+		VTX_OUT_FILTER((float)(dstX + dstw),                       (float)(dstY + dsth),
+			(float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0],
+			(float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
+		VTX_OUT_FILTER((float)(dstX + dstw),                       (float)dstY,
+			(float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
+			(float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
 	    } else {
 		/*
 		 * Just render a rect (using three coords).

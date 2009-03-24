@@ -3027,6 +3027,18 @@
 #       define R200_TXA_REPL_ARG_B_MASK		(3 << 28)
 #       define R200_TXA_REPL_ARG_C_SHIFT	30
 #       define R200_TXA_REPL_ARG_C_MASK		(3 << 30)
+#define R200_PP_TXCBLEND_1			0x2f10
+#define R200_PP_TXCBLEND2_1			0x2f14
+#define R200_PP_TXABLEND_1			0x2f18
+#define R200_PP_TXABLEND2_1			0x2f1c
+#define R200_PP_TXCBLEND_2			0x2f20
+#define R200_PP_TXCBLEND2_2			0x2f24
+#define R200_PP_TXABLEND_2			0x2f28
+#define R200_PP_TXABLEND2_2			0x2f2c
+#define R200_PP_TXCBLEND_3			0x2f30
+#define R200_PP_TXCBLEND2_3			0x2f34
+#define R200_PP_TXABLEND_3			0x2f38
+#define R200_PP_TXABLEND2_3			0x2f3c
 
 #define R200_SE_VTX_FMT_0			0x2088
 #       define R200_VTX_XY			0 /* always have xy */

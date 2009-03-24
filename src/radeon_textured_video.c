@@ -119,6 +119,15 @@ static __inline__ uint32_t F_TO_24(float val)
 	return float24;
 }
 
+static __inline__ uint32_t float4touint(float fr, float fg, float fb, float fa)
+{
+    unsigned ur = fr * 255.0 + 0.5;
+    unsigned ug = fg * 255.0 + 0.5;
+    unsigned ub = fb * 255.0 + 0.5;
+    unsigned ua = fa * 255.0 + 0.5;
+    return (ua << 24) | (ur << 16) | (ug << 8) | ub;
+}
+
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
@@ -350,7 +359,11 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     pPriv->planar_hw = pPriv->planar_state;
-    if (pPriv->bicubic_enabled || !( IS_R300_3D ))
+    if (pPriv->bicubic_enabled || !( IS_R300_3D ||
+	    (info->ChipFamily == CHIP_FAMILY_RV250) ||
+	    (info->ChipFamily == CHIP_FAMILY_RV280) ||
+	    (info->ChipFamily == CHIP_FAMILY_RS300) ||
+	    (info->ChipFamily == CHIP_FAMILY_R200) ))
         pPriv->planar_hw = 0;
 
     switch(id) {
@@ -625,11 +638,12 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
     {15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 1
+#define NUM_ATTRIBUTES 2
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {0, 0, 0, NULL}
 };
 
