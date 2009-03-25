@@ -51,6 +51,7 @@
 #include <X11/extensions/Xvlib.h>
 #include <X11/extensions/XvMC.h>
 #include <X11/extensions/XvMClib.h>
+#include <X11/extensions/vldXvMC.h>
 #include <drm_sarea.h>
 
 #include "xf86dri.h"
@@ -197,11 +198,23 @@ typedef struct _intel_xvmc_driver {
 
     Status (*get_surface_status)(Display *display, XvMCSurface *surface, int *stat);
 
-    /* XXX more for vld */
+    Status (*begin_surface)(Display *display, XvMCContext *context,
+	    XvMCSurface *target_surface,
+	    XvMCSurface *past_surface,
+	    XvMCSurface *future_surface,
+	    const XvMCMpegControl *control);
+    Status (*load_qmatrix)(Display *display, XvMCContext *context,
+	    	const XvMCQMatrix *qmx);
+    Status (*put_slice)(Display *display, XvMCContext *context,
+	    	unsigned char *slice, int bytes);
+    Status (*put_slice2)(Display *display, XvMCContext *context,
+	    	unsigned char *slice, int bytes, int slice_code);
+    
 } intel_xvmc_driver_t, *intel_xvmc_driver_ptr;
 
 extern struct _intel_xvmc_driver i915_xvmc_mc_driver;
 extern struct _intel_xvmc_driver i965_xvmc_mc_driver;
+extern struct _intel_xvmc_driver xvmc_vld_driver;
 extern struct _intel_xvmc_driver *xvmc_driver;
 
 #define SET_BLOCKED_SIGSET()   do {    \
@@ -261,5 +274,13 @@ extern void intel_xvmc_dump_render(XvMCContext *context, unsigned int picture_st
 	    XvMCSurface *future_surface, unsigned int flags,
 	    unsigned int num_macroblocks, unsigned int first_macroblock,
 	    XvMCMacroBlockArray *macroblock_array, XvMCBlockArray *blocks);
+
+
+#define	VFE_GENERIC_MODE	0x0
+#define	VFE_VLD_MODE		0x1
+#define VFE_IS_MODE		0x2
+#define VFE_AVC_MC_MODE		0x4
+#define VFE_AVC_IT_MODE		0x7
+#define VFE_VC1_IT_MODE		0x7
 
 #endif

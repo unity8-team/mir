@@ -96,13 +96,6 @@ static const uint32_t dual_prime_igd_kernel_static[][4]= {
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
 
-#define	VFE_GENERIC_MODE	0x0
-#define	VFE_VLD_MODE		0x1
-#define VFE_IS_MODE		0x2
-#define VFE_AVC_MC_MODE		0x4
-#define VFE_AVC_IT_MODE		0x7
-#define VFE_VC1_IT_MODE		0x7
-
 #define MAX_SURFACE_NUM	10
 #define DESCRIPTOR_NUM 12
 

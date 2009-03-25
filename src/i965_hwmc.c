@@ -41,36 +41,14 @@
 
 #define STRIDE(w)               (w)
 #define SIZE_YUV420(w, h)       (h * (STRIDE(w) + STRIDE(w >> 1)))
+#define VLD_MAX_SLICE_LEN	(32*1024)
+
+#ifndef XVMC_VLD
+#define XVMC_VLD  0x00020000
+#endif
 
 static PutImageFuncPtr XvPutImage;
 
-#if 0
-static int alloc_drm_memory_tiled(ScrnInfoPtr pScrn, 
-	struct drm_memory_block *mem,
-	char *name, size_t size, unsigned long pitch, unsigned long alignment)
-{
-    I830Ptr pI830 = I830PTR(pScrn);
-    if ((mem->buffer = i830_allocate_memory(pScrn,
-	    name, size, pitch,
-	    GTT_PAGE_SIZE, ALIGN_BOTH_ENDS, TILE_XMAJOR)) == NULL) {
-	ErrorF("Fail to alloc \n");
-	return BadAlloc;
-    }
-
-    if (drmAddMap(pI830->drmSubFD,
-                  (drm_handle_t)(mem->buffer->offset + pI830->LinearAddr),
-                  size, DRM_AGP, 0,
-                  (drmAddress)&mem->handle) < 0) {
-	ErrorF("Fail to map %d \n", errno);
-	i830_free_memory(pScrn, mem->buffer);
-	return BadAlloc;
-    }
-
-    mem->size = size;
-    mem->offset = mem->buffer->offset;
-    return Success;
-}
-#endif
 
 static int alloc_drm_memory(ScrnInfoPtr pScrn, 
 	struct drm_memory_block *mem, 
@@ -109,57 +87,69 @@ static void free_drm_memory(ScrnInfoPtr pScrn,
 static int create_context(ScrnInfoPtr pScrn, 
 	XvMCContextPtr context, int *num_privates, CARD32 **private)
 {
-        struct i965_xvmc_context *private_context, *context_dup;
-	I830Ptr I830 = I830PTR(pScrn);
-    	DRIInfoPtr driinfo = I830->pDRIInfo;
+    struct i965_xvmc_context *private_context, *context_dup;
+    I830Ptr I830 = I830PTR(pScrn);
+    DRIInfoPtr driinfo = I830->pDRIInfo;
 
-	unsigned int blocknum = 
-		(((context->width + 15)/16)*((context->height+15)/16));
-	unsigned int blocksize = 6*blocknum*64*sizeof(short);
-	blocksize = (blocksize + 4095)&(~4095);
-	if ((private_context = Xcalloc(sizeof(*private_context))) == NULL) {
-		ErrorF("XVMC Can not allocate private context\n");
-		return BadAlloc;
-	}
+    unsigned int blocknum = 
+	(((context->width + 15)/16)*((context->height+15)/16));
+    unsigned int blocksize = 6*blocknum*64*sizeof(short);
+    blocksize = (blocksize + 4095)&(~4095);
+    if ((private_context = Xcalloc(sizeof(*private_context))) == NULL) {
+	ErrorF("XVMC Can not allocate private context\n");
+	return BadAlloc;
+    }
 
-	if ((context_dup = Xcalloc(sizeof(*private_context))) == NULL) {
-		ErrorF("XVMC Can not allocate private context\n");
-		return BadAlloc;
-	}
+    if ((context_dup = Xcalloc(sizeof(*private_context))) == NULL) {
+	ErrorF("XVMC Can not allocate private context\n");
+	return BadAlloc;
+    }
 
-	private_context->is_g4x = IS_G4X(I830);
-	private_context->is_965_q = IS_965_Q(I830);
-	private_context->comm.type = xvmc_driver->flag;
-	private_context->comm.sarea_size = driinfo->SAREASize;
-	private_context->comm.batchbuffer.offset = xvmc_driver->batch->offset;
-	private_context->comm.batchbuffer.size = xvmc_driver->batch->size;
-	private_context->comm.batchbuffer.handle = xvmc_driver->batch_handle;
+    private_context->is_g4x = IS_G4X(I830);
+    private_context->is_965_q = IS_965_Q(I830);
+    private_context->comm.type = xvmc_driver->flag;
+    private_context->comm.sarea_size = driinfo->SAREASize;
+    private_context->comm.batchbuffer.offset = xvmc_driver->batch->offset;
+    private_context->comm.batchbuffer.size = xvmc_driver->batch->size;
+    private_context->comm.batchbuffer.handle = xvmc_driver->batch_handle;
 
-	if (alloc_drm_memory(pScrn, &private_context->static_buffer,
+    if (alloc_drm_memory(pScrn, &private_context->static_buffer,
 		"XVMC static buffers", 
 		I965_MC_STATIC_BUFFER_SIZE)) {
-	    ErrorF("Unable to allocate and map static buffer for XVMC\n");	
-	    return BadAlloc;
-	}
+	ErrorF("Unable to allocate and map static buffer for XVMC\n");	
+	return BadAlloc;
+    }
 
-	if (alloc_drm_memory(pScrn, &private_context->blocks,
+    if (alloc_drm_memory(pScrn, &private_context->blocks,
 		"XVMC blocks", blocksize)) {
-	    ErrorF("Unable to allocate and map block buffer for XVMC\n");	
+	ErrorF("Unable to allocate and map block buffer for XVMC\n");	
+	return BadAlloc;
+    }
+
+    if (IS_G4X(I830)) {
+	if (alloc_drm_memory(pScrn, &private_context->slice,
+		    "XVMC vld slice", VLD_MAX_SLICE_LEN)) {
+	    ErrorF("Unable to allocate and vld slice buffer for XVMC\n");	
 	    return BadAlloc;
 	}
-	*num_privates = sizeof(*private_context)/sizeof(CARD32);
-	*private = (CARD32 *)private_context;
-	memcpy(context_dup, private_context, sizeof(*private_context));
-	context->driver_priv = context_dup;
+    }
 
-	return Success;
+    *num_privates = sizeof(*private_context)/sizeof(CARD32);
+    *private = (CARD32 *)private_context;
+    memcpy(context_dup, private_context, sizeof(*private_context));
+    context->driver_priv = context_dup;
+
+    return Success;
 }
 
 static void destroy_context(ScrnInfoPtr pScrn, XvMCContextPtr context)
 {
     struct i965_xvmc_context *private_context;
+    I830Ptr pI830 = I830PTR(pScrn);
     private_context = context->driver_priv;
     free_drm_memory(pScrn, &private_context->static_buffer);
+    if (IS_G4X(pI830))
+	free_drm_memory(pScrn, &private_context->slice);
     Xfree(private_context);
 }
 
@@ -167,6 +157,7 @@ static int create_surface(ScrnInfoPtr pScrn, XvMCSurfacePtr surface,
   int *num_priv, CARD32 **priv)
 {
 	XvMCContextPtr ctx = surface->context;
+
 	struct i965_xvmc_surface *priv_surface, *surface_dup;
 	struct i965_xvmc_context *priv_ctx = ctx->driver_priv;
 	size_t bufsize = SIZE_YUV420(ctx->width, ctx->height);
@@ -223,6 +214,7 @@ static int create_subpicture(ScrnInfoPtr pScrn, XvMCSubpicturePtr subpicture,
 static void destroy_subpicture(ScrnInfoPtr pScrn, XvMCSubpicturePtr subpicture)
 {
 }
+
 static int put_image(ScrnInfoPtr pScrn,
         short src_x, short src_y,
         short drw_x, short drw_y, short src_w,
@@ -257,6 +249,20 @@ static Bool init(ScrnInfoPtr screen_info, XF86VideoAdaptorPtr adaptor)
 static void fini(ScrnInfoPtr screen_info)
 {
 }
+
+static XF86MCSurfaceInfoRec yv12_mpeg2_vld_surface =
+{
+    FOURCC_YV12,
+    XVMC_CHROMA_FORMAT_420,
+    0,
+    1936,
+    1096,
+    1920,
+    1080,
+    XVMC_MPEG_2|XVMC_VLD,
+    XVMC_INTRA_UNSIGNED,
+    NULL
+};
 
 static XF86MCSurfaceInfoRec yv12_mpeg2_surface =
 {
@@ -297,6 +303,23 @@ static XF86MCSurfaceInfoPtr surface_info[] = {
     &yv12_mpeg1_surface
 };
 
+static XF86MCSurfaceInfoPtr surface_info_vld[] = {
+    &yv12_mpeg2_vld_surface,
+};
+
+static XF86MCAdaptorRec adaptor_vld = {
+    .name               = "Intel(R) Textured Video",
+    .num_surfaces       = sizeof(surface_info_vld)/sizeof(surface_info_vld[0]),
+    .surfaces           = surface_info_vld,
+
+    .CreateContext 	= create_context,
+    .DestroyContext	= destroy_context,
+    .CreateSurface 	= create_surface, 
+    .DestroySurface 	= destory_surface,
+    .CreateSubpicture   = create_subpicture,
+    .DestroySubpicture  = destroy_subpicture
+};
+
 static XF86MCAdaptorRec adaptor = {
     .name               = "Intel(R) Textured Video",
     .num_surfaces       = sizeof(surface_info)/sizeof(surface_info[0]),
@@ -314,6 +337,14 @@ struct intel_xvmc_driver i965_xvmc_driver = {
     .name               = "i965_xvmc",
     .adaptor            = &adaptor,
     .flag               = XVMC_I965_MPEG2_MC,
+    .init 		= init,
+    .fini		= fini
+};
+
+struct intel_xvmc_driver vld_xvmc_driver =  {
+    .name               = "xvmc_vld",
+    .adaptor            = &adaptor_vld,
+    .flag               = XVMC_I965_MPEG2_VLD,
     .init 		= init,
     .fini		= fini
 };

@@ -337,8 +337,10 @@ _X_EXPORT Status XvMCCreateContext(Display *display, XvPortID port,
 	    case XVMC_I965_MPEG2_MC:
 		xvmc_driver = &i965_xvmc_mc_driver;
 		break;
-	    case XVMC_I945_MPEG2_VLD:
 	    case XVMC_I965_MPEG2_VLD:
+		xvmc_driver = &xvmc_vld_driver;
+		break;
+	    case XVMC_I945_MPEG2_VLD:
 	    default:
 		XVMC_ERR("unimplemented xvmc type %d", comm->type);
 		XFree(priv_data);
@@ -1157,5 +1159,49 @@ _X_EXPORT Status XvMCSetAttribute(Display *display, XvMCContext *context,
 _X_EXPORT Status XvMCGetAttribute(Display *display, XvMCContext *context,
                         Atom attribute, int *value)
 {
+    return Success;
+}
+
+_X_EXPORT Status XvMCBeginSurface(Display *display, XvMCContext *context,
+                         XvMCSurface *target,
+                         XvMCSurface *past,
+                         XvMCSurface *future,
+			 const XvMCMpegControl *control)
+{
+    if (xvmc_driver->begin_surface(display, context, 
+		target, past, future, control)) {
+	XVMC_ERR("BeginSurface fail\n");
+	return BadValue;
+    }
+    return Success;
+}
+
+_X_EXPORT Status XvMCLoadQMatrix(Display *display, XvMCContext *context,
+	const XvMCQMatrix *qmx)
+{
+    if (xvmc_driver->load_qmatrix(display, context, qmx)) {
+	XVMC_ERR("LoadQMatrix fail\n");
+	return BadValue;
+    }
+    return Success;
+}
+
+_X_EXPORT Status XvMCPutSlice(Display *display, XvMCContext *context,
+			char *slice, int nbytes)
+{
+    if (xvmc_driver->put_slice(display, context, slice, nbytes)) {
+	XVMC_ERR("PutSlice fail\n");
+	return BadValue;
+    }
+    return Success;
+}
+
+_X_EXPORT Status XvMCPutSlice2(Display *display, XvMCContext *context,
+			char *slice, int nbytes, int slice_code)
+{
+    if (xvmc_driver->put_slice2(display, context, slice, nbytes, slice_code)) {
+	XVMC_ERR("PutSlice2 fail\n");
+	return BadValue;
+    }
     return Success;
 }

@@ -271,6 +271,8 @@ AC_OUTPUT([
 	uxa/Makefile
 	src/Makefile
 	src/xvmc/Makefile
+	src/xvmc/shader/Makefile
+	src/xvmc/shader/vld/Makefile
 	src/bios_reader/Makefile
 	src/ch7017/Makefile
 	src/ch7xxx/Makefile
