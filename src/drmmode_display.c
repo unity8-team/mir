@@ -67,8 +67,7 @@ typedef struct {
 static void drmmode_output_dpms(xf86OutputPtr output, int mode);
 
 static void
-drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
-			 struct drm_mode_modeinfo *kmode,
+drmmode_ConvertFromKMode(ScrnInfoPtr scrn, drmModeModeInfo *kmode,
 			 DisplayModePtr	mode)
 {
 	memset(mode, 0, sizeof(DisplayModeRec));
@@ -99,8 +98,7 @@ drmmode_ConvertFromKMode(ScrnInfoPtr scrn,
 }
 
 static void
-drmmode_ConvertToKMode(ScrnInfoPtr scrn,
-		       struct drm_mode_modeinfo *kmode,
+drmmode_ConvertToKMode(ScrnInfoPtr scrn, drmModeModeInfo *kmode,
 		       DisplayModePtr mode)
 {
 	memset(kmode, 0, sizeof(*kmode));
@@ -232,7 +230,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int ret = TRUE;
 	int i;
 	int fb_id;
-	struct drm_mode_modeinfo kmode;
+	drmModeModeInfo kmode;
 
 	if (drmmode->fb_id == 0) {
 		unsigned int pitch =
