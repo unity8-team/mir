@@ -1113,6 +1113,9 @@ i830_disable_vga_plane (xf86CrtcPtr crtc)
     sr01 = INREG8(SRX + 1);
     OUTREG8(SRX + 1, sr01 | (1 << 5));
     usleep(30);
+    /* disable center mode on 965GM and G4X platform */
+    if (IS_I965GM(pI830) || IS_G4X(pI830))
+        vgacntrl &= ~(3 << 24);
 
     vgacntrl |= VGA_DISP_DISABLE;
 
