@@ -596,6 +596,9 @@ NVAdjustFrame(int scrnIndex, int x, int y, int flags)
 	ScrnInfoPtr pScrn = xf86Screens[scrnIndex];
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (pNv->kms_enable) {
+		drmmode_adjust_frame(pScrn, x, y, flags);
+	} else
 	if (pNv->randr12_enable) {
 		xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
 		xf86CrtcPtr crtc = config->output[config->compat_output]->crtc;

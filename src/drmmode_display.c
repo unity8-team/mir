@@ -1064,4 +1064,17 @@ Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
 	return FALSE;
 }
 
+void
+drmmode_adjust_frame(ScrnInfoPtr scrn, int x, int y, int flags)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	xf86OutputPtr output = config->output[config->compat_output];
+	xf86CrtcPtr crtc = output->crtc;
+
+	if (!crtc || !crtc->enabled)
+		return;
+
+	drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation, x, y);
+}
+
 #endif
