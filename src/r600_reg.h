@@ -51,8 +51,8 @@ enum {
     SET_LOOP_CONST_offset          = 0x0003e200,
     SET_LOOP_CONST_end             = 0x0003e380,
     SET_BOOL_CONST_offset          = 0x0003e380,
-    SET_BOOL_CONST_end             = 0x00040000,
-} ;
+    SET_BOOL_CONST_end             = 0x0003e38c,
+};
 
 /* packet3 IT_SURFACE_BASE_UPDATE bits */
 enum {

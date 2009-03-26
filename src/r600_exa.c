@@ -1486,9 +1486,9 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     /* VS bool constant */
     if (pMask)
-	set_bool_const(pScrn, accel_state->ib, 1, 1);
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (1 << 0));
     else
-	set_bool_const(pScrn, accel_state->ib, 1, 0);
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (0 << 0));
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->comp_vs_offset;

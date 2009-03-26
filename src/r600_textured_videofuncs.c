@@ -172,12 +172,12 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     switch(pPriv->id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	set_bool_const(pScrn, accel_state->ib, 0, 1);
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps, (1 << 0));
 	break;
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
-	set_bool_const(pScrn, accel_state->ib, 0, 0);
+	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_ps, (0 << 0));
 	break;
     }
 
