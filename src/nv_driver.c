@@ -719,12 +719,10 @@ NVLeaveVT(int scrnIndex, int flags)
 	NVSync(pScrn);
 
 	if (!pNv->kms_enable) {
-		if (pNv->Architecture == NV_ARCH_50) {
+		if (pNv->Architecture < NV_ARCH_50)
+			NVRestore(pScrn);
+		else
 			NV50ReleaseDisplay(pScrn);
-			return;
-		}
-
-		NVRestore(pScrn);
 	}
 }
 
@@ -767,19 +765,8 @@ NVCloseScreen(int scrnIndex, ScreenPtr pScreen)
 	NVPtr pNv = NVPTR(pScrn);
 
 	if (pScrn->vtSema) {
-#ifdef XF86DRM_MODE
-		if (pNv->kms_enable) {
-			NVSync(pScrn);
-		} else
-#endif
-		if (pNv->Architecture == NV_ARCH_50) {
-			NV50ReleaseDisplay(pScrn);
-		} else {
-			if (pNv->randr12_enable)
-				xf86DrvMsg(pScrn->scrnIndex, X_INFO, "NVCloseScreen is called.\n");
-			NVSync(pScrn);
-			NVRestore(pScrn);
-		}
+		NVLeaveVT(scrnIndex, 0);
+		pScrn->vtSema = FALSE;
 	}
 
 	NVAccelFree(pScrn);
