@@ -1,3 +1,25 @@
+
+INTEL_G4I = addidct.g4i               \
+	    do_iq_intra.g4i           \
+	    do_iq_non_intra.g4i       \
+	    idct.g4i                  \
+	    iq_intra.g4i              \
+	    iq_non_intra.g4i          \
+	    motion_field_uv.g4i       \
+	    motion_field_y.g4i        \
+	    motion_frame_uv.g4i       \
+	    motion_frame_y.g4i        \
+	    read_field_x0y0_uv.g4i    \
+	    read_field_x0y0_y.g4i     \
+	    read_field_x0y1_y.g4i     \
+	    read_field_x1y0_y.g4i     \
+	    read_field_x1y1_y.g4i     \
+	    read_frame_x0y0_uv.g4i    \
+	    read_frame_x0y0_y.g4i     \
+	    read_frame_x0y1_y.g4i     \
+	    read_frame_x1y0_y.g4i     \
+	    read_frame_x1y1_y.g4i
+
 INTEL_G4A = ipicture.g4a 	\
 	    lib.g4a		\
 	    frame_forward.g4a	\
@@ -15,6 +37,10 @@ INTEL_G4B = ipicture.g4b	\
 	    field_forward.g4b	\
 	    field_backward.g4b  \
 	    field_f_b.g4b
+
+EXTRA_DIST = $(INTEL_G4I)	\
+	     $(INTEL_G4A)       \
+	     $(INTEL_G4B)    
 
 if HAVE_GEN4ASM
 
