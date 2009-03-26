@@ -1351,22 +1351,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 	int mask_a, mask_r, mask_g, mask_b;
 
 	/* setup pixel shader */
-	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0) {
-	    src_r = SQ_SEL_0;
-	    src_g = SQ_SEL_0;
-	    src_b = SQ_SEL_0;
-	} else {
-	    src_r = SQ_SEL_X;
-	    src_g = SQ_SEL_Y;
-	    src_b = SQ_SEL_Z;
-	}
-
-	if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-	    src_a = SQ_SEL_1;
-	} else {
-	    src_a = SQ_SEL_W;
-	}
-
 	if (pMaskPicture->componentAlpha) {
 	    if (R600BlendOp[op].src_alpha) {
 		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
@@ -1380,16 +1364,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 		    src_b = SQ_SEL_W;
 		    src_a = SQ_SEL_W;
 		}
-
-		mask_r = SQ_SEL_X;
-		mask_g = SQ_SEL_Y;
-		mask_b = SQ_SEL_Z;
-
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
-		    mask_a = SQ_SEL_1;
-		} else {
-		    mask_a = SQ_SEL_W;
-		}
 	    } else {
 		src_r = SQ_SEL_X;
 		src_g = SQ_SEL_Y;
@@ -1400,30 +1374,42 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 		} else {
 		    src_a = SQ_SEL_W;
 		}
+	    }
+	    mask_r = SQ_SEL_X;
+	    mask_g = SQ_SEL_Y;
+	    mask_b = SQ_SEL_Z;
 
-		mask_r = SQ_SEL_X;
-		mask_g = SQ_SEL_Y;
-		mask_b = SQ_SEL_Z;
-
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
-		    mask_a = SQ_SEL_1;
-		} else {
-		    mask_a = SQ_SEL_W;
-		}
+	    if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
+		mask_a = SQ_SEL_1;
+	    } else {
+		mask_a = SQ_SEL_W;
 	    }
 	} else {
+	    if (PICT_FORMAT_RGB(pSrcPicture->format) == 0) {
+		src_r = SQ_SEL_0;
+		src_g = SQ_SEL_0;
+		src_b = SQ_SEL_0;
+	    } else {
+		src_r = SQ_SEL_X;
+		src_g = SQ_SEL_Y;
+		src_b = SQ_SEL_Z;
+	    }
+
+	    if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
+		src_a = SQ_SEL_1;
+	    } else {
+		src_a = SQ_SEL_W;
+	    }
+
 	    if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
 		mask_r = SQ_SEL_1;
 		mask_g = SQ_SEL_1;
 		mask_b = SQ_SEL_1;
+		mask_a = SQ_SEL_1;
 	    } else {
 		mask_r = SQ_SEL_W;
 		mask_g = SQ_SEL_W;
 		mask_b = SQ_SEL_W;
-	    }
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
-		mask_a = SQ_SEL_1;
-	    } else {
 		mask_a = SQ_SEL_W;
 	    }
 	}
