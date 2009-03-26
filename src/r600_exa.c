@@ -1098,6 +1098,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     unsigned int i;
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
+    int pix_r, pix_g, pix_b, pix_a;
 
     CLEAR (tex_res);
     CLEAR (tex_samp);
@@ -1142,45 +1143,101 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
     switch (pPict->format) {
     case PICT_a1r5g5b5:
     case PICT_a8r8g8b8:
-	tex_res.dst_sel_x           = SQ_SEL_Z; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_X; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_W; /* A */
+	pix_r = SQ_SEL_Z; /* R */
+	pix_g = SQ_SEL_Y; /* G */
+	pix_b = SQ_SEL_X; /* B */
+	pix_a = SQ_SEL_W; /* A */
 	break;
     case PICT_a8b8g8r8:
-	tex_res.dst_sel_x           = SQ_SEL_X; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_Z; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_W; /* A */
+	pix_r = SQ_SEL_X; /* R */
+	pix_g = SQ_SEL_Y; /* G */
+	pix_b = SQ_SEL_Z; /* B */
+	pix_a = SQ_SEL_W; /* A */
 	break;
     case PICT_x8b8g8r8:
-	tex_res.dst_sel_x           = SQ_SEL_X; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_Z; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_1; /* A */
+	pix_r = SQ_SEL_X; /* R */
+	pix_g = SQ_SEL_Y; /* G */
+	pix_b = SQ_SEL_Z; /* B */
+	pix_a = SQ_SEL_1; /* A */
 	break;
     case PICT_x1r5g5b5:
     case PICT_x8r8g8b8:
-	tex_res.dst_sel_x           = SQ_SEL_Z; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_X; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_1; /* A */
-	break;
     case PICT_r5g6b5:
-	tex_res.dst_sel_x           = SQ_SEL_Z; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_Y; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_X; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_1; /* A */
+	pix_r = SQ_SEL_Z; /* R */
+	pix_g = SQ_SEL_Y; /* G */
+	pix_b = SQ_SEL_X; /* B */
+	pix_a = SQ_SEL_1; /* A */
 	break;
     case PICT_a8:
-	tex_res.dst_sel_x           = SQ_SEL_0; /* R */
-	tex_res.dst_sel_y           = SQ_SEL_0; /* G */
-	tex_res.dst_sel_z           = SQ_SEL_0; /* B */
-	tex_res.dst_sel_w           = SQ_SEL_X; /* A */
+	pix_r = SQ_SEL_0; /* R */
+	pix_g = SQ_SEL_0; /* G */
+	pix_b = SQ_SEL_0; /* B */
+	pix_a = SQ_SEL_X; /* A */
 	break;
     default:
 	RADEON_FALLBACK(("Bad format 0x%x\n", pPict->format));
     }
+
+    if (unit == 0) {
+	if (!accel_state->has_mask) {
+	    if (PICT_FORMAT_RGB(pPict->format) == 0) {
+		pix_r = SQ_SEL_0;
+		pix_g = SQ_SEL_0;
+		pix_b = SQ_SEL_0;
+	    }
+
+	    if (PICT_FORMAT_A(pPict->format) == 0)
+		pix_a = SQ_SEL_1;
+	} else {
+	    if (accel_state->component_alpha) {
+		if (accel_state->src_alpha) {
+		    if (PICT_FORMAT_A(pPict->format) == 0) {
+			pix_r = SQ_SEL_1;
+			pix_g = SQ_SEL_1;
+			pix_b = SQ_SEL_1;
+			pix_a = SQ_SEL_1;
+		    } else {
+			pix_r = pix_a;
+			pix_g = pix_a;
+			pix_b = pix_a;
+		    }
+		} else {
+		    if (PICT_FORMAT_A(pPict->format) == 0)
+			pix_a = SQ_SEL_1;
+		}
+	    } else {
+		if (PICT_FORMAT_RGB(pPict->format) == 0) {
+		    pix_r = SQ_SEL_0;
+		    pix_g = SQ_SEL_0;
+		    pix_b = SQ_SEL_0;
+		}
+
+		if (PICT_FORMAT_A(pPict->format) == 0)
+		    pix_a = SQ_SEL_1;
+	    }
+	}
+    } else {
+	if (accel_state->component_alpha) {
+	    if (PICT_FORMAT_A(pPict->format) == 0)
+		pix_a = SQ_SEL_1;
+	} else {
+	    if (PICT_FORMAT_A(pPict->format) == 0) {
+		pix_r = SQ_SEL_1;
+		pix_g = SQ_SEL_1;
+		pix_b = SQ_SEL_1;
+		pix_a = SQ_SEL_1;
+	    } else {
+		pix_r = pix_a;
+		pix_g = pix_a;
+		pix_b = pix_a;
+	    }
+	}
+    }
+
+    tex_res.dst_sel_x           = pix_r; /* R */
+    tex_res.dst_sel_y           = pix_g; /* G */
+    tex_res.dst_sel_z           = pix_b; /* B */
+    tex_res.dst_sel_w           = pix_a; /* A */
 
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
@@ -1324,14 +1381,26 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     uint32_t blendcntl, dst_format;
     cb_config_t cb_conf;
     shader_config_t vs_conf, ps_conf;
-    uint32_t ps[24];
 
     /* return FALSE; */
 
-    if (pMask)
+    if (pMask) {
 	accel_state->has_mask = TRUE;
-    else
+	if (pMaskPicture->componentAlpha) {
+	    accel_state->component_alpha = TRUE;
+	    if (R600BlendOp[op].src_alpha)
+		accel_state->src_alpha = TRUE;
+	    else
+		accel_state->src_alpha = FALSE;
+	} else {
+	    accel_state->component_alpha = FALSE;
+	    accel_state->src_alpha = FALSE;
+	}
+    } else {
 	accel_state->has_mask = FALSE;
+	accel_state->component_alpha = FALSE;
+	accel_state->src_alpha = FALSE;
+    }
 
     accel_state->dst_mc_addr = exaGetPixmapOffset(pDst) + info->fbLocation + pScrn->fbOffset;
     accel_state->dst_pitch = exaGetPixmapPitch(pDst) / (pDst->drawable.bitsPerPixel / 8);
@@ -1345,102 +1414,6 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     if (!R600GetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
-
-    if (pMask) {
-	int src_a, src_r, src_g, src_b;
-	int mask_a, mask_r, mask_g, mask_b;
-
-	/* setup pixel shader */
-	if (pMaskPicture->componentAlpha) {
-	    if (R600BlendOp[op].src_alpha) {
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		    src_r = SQ_SEL_1;
-		    src_g = SQ_SEL_1;
-		    src_b = SQ_SEL_1;
-		    src_a = SQ_SEL_1;
-		} else {
-		    src_r = SQ_SEL_W;
-		    src_g = SQ_SEL_W;
-		    src_b = SQ_SEL_W;
-		    src_a = SQ_SEL_W;
-		}
-	    } else {
-		src_r = SQ_SEL_X;
-		src_g = SQ_SEL_Y;
-		src_b = SQ_SEL_Z;
-
-		if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		    src_a = SQ_SEL_1;
-		} else {
-		    src_a = SQ_SEL_W;
-		}
-	    }
-	    mask_r = SQ_SEL_X;
-	    mask_g = SQ_SEL_Y;
-	    mask_b = SQ_SEL_Z;
-
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
-		mask_a = SQ_SEL_1;
-	    } else {
-		mask_a = SQ_SEL_W;
-	    }
-	} else {
-	    if (PICT_FORMAT_RGB(pSrcPicture->format) == 0) {
-		src_r = SQ_SEL_0;
-		src_g = SQ_SEL_0;
-		src_b = SQ_SEL_0;
-	    } else {
-		src_r = SQ_SEL_X;
-		src_g = SQ_SEL_Y;
-		src_b = SQ_SEL_Z;
-	    }
-
-	    if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-		src_a = SQ_SEL_1;
-	    } else {
-		src_a = SQ_SEL_W;
-	    }
-
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0) {
-		mask_r = SQ_SEL_1;
-		mask_g = SQ_SEL_1;
-		mask_b = SQ_SEL_1;
-		mask_a = SQ_SEL_1;
-	    } else {
-		mask_r = SQ_SEL_W;
-		mask_g = SQ_SEL_W;
-		mask_b = SQ_SEL_W;
-		mask_a = SQ_SEL_W;
-	    }
-	}
-
-	R600_comp_mask_ps(info->ChipFamily, ps,
-			  src_a, src_r, src_g, src_b,
-			  mask_a, mask_r, mask_g, mask_b);
-
-    } else {
-	int src_a, src_r, src_g, src_b;
-	/* setup pixel shader */
-	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0) {
-	    src_r = SQ_SEL_0;
-	    src_g = SQ_SEL_0;
-	    src_b = SQ_SEL_0;
-	} else {
-	    src_r = SQ_SEL_X;
-	    src_g = SQ_SEL_Y;
-	    src_b = SQ_SEL_Z;
-	}
-
-	if (PICT_FORMAT_A(pSrcPicture->format) == 0) {
-	    src_a = SQ_SEL_1;
-	} else {
-	    src_a = SQ_SEL_W;
-	}
-
-	R600_comp_ps(info->ChipFamily, ps,
-		     src_a, src_r, src_g, src_b);
-
-    }
 
     CLEAR (cb_conf);
     CLEAR (vs_conf);
@@ -1470,18 +1443,18 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     } else
 	accel_state->is_transform[1] = FALSE;
 
-    /* VS bool constant */
-    if (pMask)
+    if (pMask) {
 	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (1 << 0));
-    else
+	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->comp_mask_ps_offset;
+    } else {
 	set_bool_consts(pScrn, accel_state->ib, SQ_BOOL_CONST_vs, (0 << 0));
+	accel_state->ps_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
+	    accel_state->comp_ps_offset;
+    }
 
     accel_state->vs_mc_addr = info->fbLocation + pScrn->fbOffset + accel_state->shaders->offset +
 	accel_state->comp_vs_offset;
-
-    memcpy ((char *)accel_state->ib->address + (accel_state->ib->total / 2) - 256, ps, sizeof(ps));
-    accel_state->ps_mc_addr = info->gartLocation + info->dri->bufStart +
-	(accel_state->ib->idx * accel_state->ib->total) + (accel_state->ib->total / 2) - 256;
 
     accel_state->vs_size = 512;
     accel_state->ps_size = 512;
@@ -1999,11 +1972,11 @@ R600LoadShaders(ScrnInfoPtr pScrn)
 
     /*  comp ps --------------------------------------- */
     accel_state->comp_ps_offset = 2560;
-    /*  not yet */
+    R600_comp_ps(ChipSet, shader + accel_state->comp_ps_offset / 4);
 
     /*  comp mask ps --------------------------------------- */
     accel_state->comp_mask_ps_offset = 3072;
-    /*  not yet */
+    R600_comp_mask_ps(ChipSet, shader + accel_state->comp_mask_ps_offset / 4);
 
     /*  xv vs --------------------------------------- */
     accel_state->xv_vs_offset = 3584;

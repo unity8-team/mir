@@ -1245,10 +1245,7 @@ int R600_xv_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 }
 
 /* comp mask ps --------------------------------------- */
-int R600_comp_mask_ps(RADEONChipFamily ChipSet,
-		      uint32_t* shader,
-		      int src_a, int src_r, int src_g, int src_b,
-		      int mask_a, int mask_r, int mask_g, int mask_b)
+int R600_comp_mask_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 {
     int i = 0;
 
@@ -1421,10 +1418,10 @@ int R600_comp_mask_ps(RADEONChipFamily ChipSet,
 			     R7xx_ALT_CONST(0));
     shader[i++] = TEX_DWORD1(DST_GPR(0),
 			     DST_REL(ABSOLUTE),
-			     DST_SEL_X(src_r),
-			     DST_SEL_Y(src_g),
-			     DST_SEL_Z(src_b),
-			     DST_SEL_W(src_a),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_Z),
+			     DST_SEL_W(SQ_SEL_W),
 			     LOD_BIAS(0),
 			     COORD_TYPE_X(TEX_NORMALIZED),
 			     COORD_TYPE_Y(TEX_NORMALIZED),
@@ -1449,10 +1446,10 @@ int R600_comp_mask_ps(RADEONChipFamily ChipSet,
 			     R7xx_ALT_CONST(0));
     shader[i++] = TEX_DWORD1(DST_GPR(1),
 			     DST_REL(ABSOLUTE),
-			     DST_SEL_X(mask_r),
-			     DST_SEL_Y(mask_g),
-			     DST_SEL_Z(mask_b),
-			     DST_SEL_W(mask_a),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_Z),
+			     DST_SEL_W(SQ_SEL_W),
 			     LOD_BIAS(0),
 			     COORD_TYPE_X(TEX_NORMALIZED),
 			     COORD_TYPE_Y(TEX_NORMALIZED),
@@ -1781,10 +1778,7 @@ int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* shader)
 }
 
 /* comp ps --------------------------------------- */
-int R600_comp_ps(RADEONChipFamily ChipSet,
-		 uint32_t* shader,
-		 int src_a, int src_r, int src_g, int src_b
-)
+int R600_comp_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 {
     int i = 0;
 
@@ -1831,10 +1825,10 @@ int R600_comp_ps(RADEONChipFamily ChipSet,
 			     R7xx_ALT_CONST(0));
     shader[i++] = TEX_DWORD1(DST_GPR(0),
 			     DST_REL(ABSOLUTE),
-			     DST_SEL_X(src_r),
-			     DST_SEL_Y(src_g),
-			     DST_SEL_Z(src_b),
-			     DST_SEL_W(src_a),
+			     DST_SEL_X(SQ_SEL_X),
+			     DST_SEL_Y(SQ_SEL_Y),
+			     DST_SEL_Z(SQ_SEL_Z),
+			     DST_SEL_W(SQ_SEL_W),
 			     LOD_BIAS(0),
 			     COORD_TYPE_X(TEX_NORMALIZED),
 			     COORD_TYPE_Y(TEX_NORMALIZED),

@@ -352,15 +352,8 @@ extern int R600_copy_ps(RADEONChipFamily ChipSet, uint32_t* ps);
 extern int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader);
 extern int R600_xv_ps(RADEONChipFamily ChipSet, uint32_t* shader);
 
-extern int R600_comp_mask_vs(RADEONChipFamily ChipSet, uint32_t* vs);
-extern int R600_comp_mask_ps(RADEONChipFamily ChipSet,
-			     uint32_t* ps,
-			     int src_a, int src_r, int src_g, int src_b,
-			     int mask_a, int mask_r, int mask_g, int mask_b);
-
 extern int R600_comp_vs(RADEONChipFamily ChipSet, uint32_t* vs);
-extern int R600_comp_ps(RADEONChipFamily ChipSet,
-			uint32_t* ps,
-			int src_a, int src_r, int src_g, int src_b);
+extern int R600_comp_mask_ps(RADEONChipFamily ChipSet, uint32_t* ps);
+extern int R600_comp_ps(RADEONChipFamily ChipSet, uint32_t* ps);
 
 #endif

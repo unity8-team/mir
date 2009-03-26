@@ -656,6 +656,10 @@ struct radeon_accel_state {
     Bool              same_surface;
     int               rop;
     uint32_t          planemask;
+
+    // composite
+    Bool              component_alpha;
+    Bool              src_alpha;
 #endif
 
 #ifdef USE_XAA
