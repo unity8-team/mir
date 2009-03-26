@@ -46,52 +46,52 @@ enum interface {
 };
 
 static const uint32_t ipicture_kernel_static[][4] = {
-	#include "ipicture.g4b"
+	#include "shader/mc/ipicture.g4b"
 };
 static const uint32_t null_kernel_static[][4] = {
-	#include "null.g4b"
+	#include "shader/mc/null.g4b"
 };
 static const uint32_t frame_forward_kernel_static[][4] = {
-	#include "frame_forward.g4b"
+	#include "shader/mc/frame_forward.g4b"
 };
 static const uint32_t frame_backward_kernel_static[][4] = {
-	#include "frame_backward.g4b"
+	#include "shader/mc/frame_backward.g4b"
 };
 static const uint32_t frame_f_b_kernel_static[][4] = {
-	#include "frame_f_b.g4b"
+	#include "shader/mc/frame_f_b.g4b"
 }; 
 static const uint32_t field_forward_kernel_static[][4] = {
-	#include "field_forward.g4b"
+	#include "shader/mc/field_forward.g4b"
 };
 static const uint32_t field_backward_kernel_static[][4] = {
-	#include "field_backward.g4b"
+	#include "shader/mc/field_backward.g4b"
 };
 static const uint32_t field_f_b_kernel_static[][4] = {
-	#include "field_f_b.g4b"
+	#include "shader/mc/field_f_b.g4b"
 }; 
 static const uint32_t dual_prime_kernel_static[][4]= {
-	#include "dual_prime.g4b"
+	#include "shader/mc/dual_prime.g4b"
 }; 
 static const uint32_t frame_forward_igd_kernel_static[][4] = {
-	#include "frame_forward_igd.g4b"
+	#include "shader/mc/frame_forward_igd.g4b"
 };
 static const uint32_t frame_backward_igd_kernel_static[][4] = {
-	#include "frame_backward_igd.g4b"
+	#include "shader/mc/frame_backward_igd.g4b"
 };
 static const uint32_t frame_f_b_igd_kernel_static[][4] = {
-	#include "frame_f_b_igd.g4b"
+	#include "shader/mc/frame_f_b_igd.g4b"
 }; 
 static const uint32_t field_forward_igd_kernel_static[][4] = {
-	#include "field_forward_igd.g4b"
+	#include "shader/mc/field_forward_igd.g4b"
 };
 static const uint32_t field_backward_igd_kernel_static[][4] = {
-	#include "field_backward_igd.g4b"
+	#include "shader/mc/field_backward_igd.g4b"
 };
 static const uint32_t field_f_b_igd_kernel_static[][4] = {
-	#include "field_f_b_igd.g4b"
+	#include "shader/mc/field_f_b_igd.g4b"
 }; 
 static const uint32_t dual_prime_igd_kernel_static[][4]= {
-	#include "dual_prime_igd.g4b"
+	#include "shader/mc/dual_prime_igd.g4b"
 }; 
 
 #define ALIGN(i,m)    (((i) + (m) - 1) & ~((m) - 1))
