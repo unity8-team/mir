@@ -1067,11 +1067,11 @@ static void RADEONSetTransform (ScrnInfoPtr pScrn,
     OvGCr = CAdjGCr * gamma_curve_r100[gamma].OvGammaCont;
     OvBCb = CAdjBCb * gamma_curve_r100[gamma].OvGammaCont;
     OvBCr = CAdjBCr * gamma_curve_r100[gamma].OvGammaCont;
-    OvROff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+    OvROff = RedAdj + CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
 	OvLuma * Loff - (OvRCb + OvRCr) * Coff;
-    OvGOff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+    OvGOff = GreenAdj + CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
 	OvLuma * Loff - (OvGCb + OvGCr) * Coff;
-    OvBOff = CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
+    OvBOff = BlueAdj + CAdjOff * gamma_curve_r100[gamma].OvGammaCont - 
 	OvLuma * Loff - (OvBCb + OvBCr) * Coff;
 #if 0 /* default constants */
     OvROff = -888.5;
