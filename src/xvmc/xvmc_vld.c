@@ -190,8 +190,7 @@ static void calc_state_layout()
 
 static void *offset_to_ptr(unsigned long offset)
 {
-	return media_state.state_ptr + 
-	    (offset - media_state.state_base);
+    return media_state.state_ptr + (offset - media_state.state_base);
 }
 
 static void vfe_state()
@@ -532,7 +531,6 @@ static void vld_send_media_object(unsigned long slice_offset,
     OUT_BATCH(q_scale_code<<24);
     ADVANCE_BATCH();
 }
-
 static Status put_slice2(Display *display, XvMCContext *context, 
 	unsigned char *slice, int nbytes, int sliceCode)
 {
@@ -557,7 +555,8 @@ static Status put_slice2(Display *display, XvMCContext *context,
     urb_layout();	
     cs_urb_layout();
     cs_buffer();
-    vld_send_media_object(i965_ctx->slice.offset, nbytes, 
+    vld_send_media_object(i965_ctx->slice.offset, 
+	    nbytes, 
 	    0, mb_row, 6, 127, q_scale_code);
     intelFlushBatch(TRUE);
     UNLOCK_HARDWARE(intel_ctx->hw_context);

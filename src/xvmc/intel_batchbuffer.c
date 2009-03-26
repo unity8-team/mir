@@ -162,6 +162,7 @@ static void intelRefillBatchLocked(Bool allow_unlock)
    dword[0] = MI_FLUSH | FLUSH_WRITE_DIRTY_STATE | FLUSH_RENDER_CACHE | FLUSH_MAP_CACHE;
    dword[1] = 0;
    intelCmdIoctl((char *)&dword[0], sizeof(dword));
+
    xvmc_driver->alloc.irq_emitted = intelEmitIrqLocked();
 
    if (xvmc_driver->alloc.irq_emitted) {

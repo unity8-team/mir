@@ -1,5 +1,5 @@
 /*
- * Copyright © 2009 Intel Corporation
+ * Copyright © 2008 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,4 +26,21 @@
  *    Xing Dong sheng <dongsheng.xing@intel.com>
  *
  */
-include(`read_field_x0y0_uv.g4i')
+       and.z (1) null mv1<1,1,1>W 1W {align1};       
+       (f0) jmpi L1;
+       and.z (1) null mv2<1,1,1>W 1W {align1};       
+       (f0) jmpi L2;
+       include(`read_field_x1y1_uv.g4i')
+       jmpi L5;
+L2:
+       include(`read_field_x1y0_uv.g4i')
+       jmpi L5;
+L1:
+       and.z (1) null mv2<1,1,1>W 1W {align1};       
+       (f0) jmpi L4;
+       include(`read_field_x0y1_uv.g4i')
+       jmpi L5;
+L4:
+       include(`read_field_x0y0_uv.g4i')
+L5:
+

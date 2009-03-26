@@ -24,22 +24,19 @@
  *    Zou Nan hai <nanhai.zou@intel.com>
  *    Zhang Hua jun <huajun.zhang@intel.com>
  *    Xing Dong sheng <dongsheng.xing@intel.com>
- */  
+ *
+ */
 
-	and.z (1) null mv1<1,1,1>UW 2UD {align1};	
-	(f0) jmpi LL1;
-	and.z (1) null mv2<1,1,1>UW 2UD {align1};	
-	(f0) jmpi LL2;
-	include(`read_frame_x1y1_uv.g4i')
-	jmpi LL5;
-LL2:
-	include(`read_frame_x1y0_uv.g4i')
-	jmpi LL5;
-LL1:
-	and.z (1) null mv2<1,1,1>UW 2UD {align1};	
-	(f0) jmpi LL4;
-	include(`read_frame_x0y1_uv.g4i')
-	jmpi LL5;
-LL4:
-	include(`read_frame_x0y0_uv.g4i')
-LL5:
+mov (1) g32.8<1>UD 0x007000fUD  {align1};
+send (16) 0 g34.0<1>UW g32<8,8,1>UW read(input_surface1, 2, 0, 2) mlen 1 rlen 4 {align1};
+send (16) 0 g44.0<1>UW g32<8,8,1>UW read(input_surface2, 2, 0, 2) mlen 1 rlen 4 {align1};
+
+avg (16) g74.0<1>UW g34.0<16,8,1>UB g34.1<16,8,1>UB{align1};
+avg (16) g75.0<1>UW g35.0<16,8,1>UB g35.1<16,8,1>UB{align1};
+avg (16) g76.0<1>UW g36.0<16,8,1>UB g36.1<16,8,1>UB{align1};
+avg (16) g77.0<1>UW g37.0<16,8,1>UB g37.1<16,8,1>UB{align1};
+
+avg (16) g78.0<1>UW g44.0<16,8,1>UB g44.1<16,8,1>UB{align1};
+avg (16) g79.0<1>UW g45.0<16,8,1>UB g45.1<16,8,1>UB{align1};
+avg (16) g80.0<1>UW g46.0<16,8,1>UB g46.1<16,8,1>UB{align1};
+avg (16) g81.0<1>UW g47.0<16,8,1>UB g47.1<16,8,1>UB{align1};
