@@ -181,6 +181,12 @@ parse_driver_feature(I830Ptr pI830, struct bdb_header *bdb)
     if (!IS_I9XX(pI830))
 	return;
 
+    /* XXX Disable this parsing, as it looks doesn't work for all
+       VBIOS. Reenable it if we could find out the reliable VBT parsing
+       for LVDS config later. */
+    if (1)
+	return;
+
     feature = find_section(bdb, BDB_DRIVER_FEATURES);
     if (!feature)
 	return;
