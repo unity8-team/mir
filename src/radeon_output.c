@@ -2082,12 +2082,12 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[0].load_detection = FALSE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	info->BiosConnector[0].valid = TRUE;
-	info->BiosConnector[0].devices = ATOM_DEVICE_CRT1_SUPPORT | ATOM_DEVICE_DFP2_SUPPORT;
+	info->BiosConnector[0].devices = ATOM_DEVICE_CRT2_SUPPORT | ATOM_DEVICE_DFP2_SUPPORT;
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
 									    ATOM_DEVICE_CRT1_SUPPORT,
 									    1),
-				ATOM_DEVICE_CRT1_SUPPORT))
+				ATOM_DEVICE_CRT2_SUPPORT))
 	    return FALSE;
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
@@ -2113,12 +2113,12 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	info->BiosConnector[0].load_detection = FALSE;
 	info->BiosConnector[0].ConnectorType = CONNECTOR_DVI_I;
 	info->BiosConnector[0].valid = TRUE;
-	info->BiosConnector[0].devices = ATOM_DEVICE_CRT1_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
+	info->BiosConnector[0].devices = ATOM_DEVICE_CRT2_SUPPORT | ATOM_DEVICE_DFP1_SUPPORT;
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
 									    ATOM_DEVICE_CRT1_SUPPORT,
 									    1),
-				ATOM_DEVICE_CRT1_SUPPORT))
+				ATOM_DEVICE_CRT2_SUPPORT))
 	    return FALSE;
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
