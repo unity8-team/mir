@@ -507,6 +507,7 @@ nv50_output_get_modes(xf86OutputPtr output)
 	xf86OutputSetEDID(output, ddc_mon);
 
 	DisplayModePtr ddc_modes = connector->GetDDCModes(connector);
+	DisplayModePtr default_modes = NULL;
 
 	xf86DeleteMode(&nv_output->output->native_mode, nv_output->output->native_mode);
 	nv_output->output->native_mode = NULL;
@@ -567,6 +568,13 @@ nv50_output_get_modes(xf86OutputPtr output)
 	if (nv_output->output->crtc)
 		nv_output->output->crtc->native_mode = nv_output->output->native_mode;
 
+	if (nv_output->output->type == OUTPUT_LVDS && 
+	    (!ddc_mon ||!GTF_SUPPORTED(ddc_mon->features.msc))) {
+		default_modes = xf86GetDefaultModes(output->interlaceAllowed,
+						    output->doubleScanAllowed);
+	}
+
+	xf86ModesAdd(ddc_modes, default_modes);
 	return ddc_modes;
 }
 
