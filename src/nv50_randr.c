@@ -570,8 +570,12 @@ nv50_output_get_modes(xf86OutputPtr output)
 
 	if (nv_output->output->type == OUTPUT_LVDS && 
 	    (!ddc_mon ||!GTF_SUPPORTED(ddc_mon->features.msc))) {
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,6,99,1,0)
 		default_modes = xf86GetDefaultModes(output->interlaceAllowed,
 						    output->doubleScanAllowed);
+#else
+		default_modes = xf86GetDefaultModes();
+#endif
 	}
 
 	xf86ModesAdd(ddc_modes, default_modes);
