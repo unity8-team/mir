@@ -962,6 +962,10 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	 */
 #ifdef XF86DRM_MODE
 	pNv->kms_enable = !drmCheckModesettingSupported(bus_id);
+
+	/* Additional sanity check */
+	if (!nouveau_device(pNv->dev)->mm_enabled)
+		pNv->kms_enable = false;
 #endif
 	xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
 		   "[drm] kernel modesetting %s\n", pNv->kms_enable ?
