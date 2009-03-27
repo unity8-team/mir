@@ -1052,7 +1052,7 @@ nv_crtc_shadow_allocate (xf86CrtcPtr crtc, int width, int height)
 			"Couldn't allocate shadow memory for rotated CRTC.\n");
 		return NULL;
 	}
-	offset = pNv->FB->map + nv_crtc->shadow->offset;
+	offset = pNv->FBMap + nv_crtc->shadow->offset;
 #endif /* NOUVEAU_EXA_PIXMAPS */
 
 	return offset;
