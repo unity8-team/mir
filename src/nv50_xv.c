@@ -225,7 +225,7 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 
 	if (!nv50_xv_check_image_put(ppix))
 		return BadMatch;
-	nv50_xv_state_emit(ppix, id, src, packed_y, uv, src_w, src_h);
+	nv50_xv_state_emit(ppix, id, src, packed_y, uv, width, height);
 
 	/* These are fixed point values in the 16.16 format. */
 	X1 = (float)(x1>>16)+(float)(x1&0xFFFF)/(float)0x10000;
@@ -245,10 +245,10 @@ nv50_xv_image_put(ScrnInfoPtr pScrn,
 		int sy1=pbox->y1;
 		int sy2=pbox->y2;
 
-		tx1 = tx1 / src_w;
-		tx2 = tx2 / src_w;
-		ty1 = ty1 / src_h;
-		ty2 = ty2 / src_h;
+		tx1 = tx1 / width;
+		tx2 = tx2 / width;
+		ty1 = ty1 / height;
+		ty2 = ty2 / height;
 
 		if (AVAIL_RING(chan) < 64) {
 			nv50_xv_state_emit(ppix, id, src, packed_y, uv,
