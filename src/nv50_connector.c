@@ -29,8 +29,18 @@ static xf86MonPtr
 NV50ConnectorGetEDID(nouveauConnectorPtr connector)
 {
 	ScrnInfoPtr pScrn = connector->scrn;
+	xf86MonPtr mon = NULL;
 
-	return xf86DoEDID_DDC2(pScrn->scrnIndex, connector->pDDCBus);
+#ifdef EDID_COMPLETE_RAWDATA
+	mon = xf86DoEEDID(pScrn->scrnIndex, connector->pDDCBus, TRUE);
+#else
+	mon = xf86DoEDID_DDC2(pScrn->scrnIndex, connector->pDDCBus);
+#endif
+
+	if (mon)
+		xf86DDCApplyQuirks(pScrn->scrnIndex, mon);
+
+	return mon;
 }
 
 static xf86MonPtr
