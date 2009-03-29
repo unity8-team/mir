@@ -782,17 +782,21 @@ lvds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 		   "Setting dpms mode %d on lvds encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
-		/* when removing an output, crtc may not be set, but PANEL_OFF must still be run */
-		int head = nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
-		int pclk = nv_encoder->native_mode->Clock;
-
-		if (crtc)
-			head = to_nouveau_crtc(crtc)->head;
+		/* when removing an output, crtc may not be set, but PANEL_OFF
+		 * must still be run
+		 */
+		int head = crtc ? to_nouveau_crtc(crtc)->head :
+			   nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
 
 		if (mode == DPMSModeOn)
-			call_lvds_script(pScrn, nv_encoder->dcb, head, LVDS_PANEL_ON, pclk);
+			call_lvds_script(pScrn, nv_encoder->dcb, head,
+					 LVDS_PANEL_ON, nv_encoder->native_mode->Clock);
 		else
-			call_lvds_script(pScrn, nv_encoder->dcb, head, LVDS_PANEL_OFF, pclk);
+			/* pxclk of 0 is fine for PANEL_OFF, and for a
+			 * disconnected LVDS encoder there is no native_mode
+			 */
+			call_lvds_script(pScrn, nv_encoder->dcb, head,
+					 LVDS_PANEL_OFF, 0);
 	}
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
