@@ -214,8 +214,13 @@ nv_output_detect(xf86OutputPtr output)
 			det_encoder = find_encoder_by_type(OUTPUT_ANY);
 		ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_ANALOG))) {
+		/* bind encoder if enabled in xorg.conf */
+		if (output->conf_monitor &&
+		    xf86CheckBoolOption(output->conf_monitor->mon_option_lst,
+					"Enable", FALSE))
+			ret = XF86OutputStatusConnected;
 		/* we don't have a load det function for early cards */
-		if (!pNv->twoHeads || pNv->NVArch == 0x11)
+		else if (!pNv->twoHeads || pNv->NVArch == 0x11)
 			ret = XF86OutputStatusUnknown;
 		else if (pNv->twoHeads && nv_load_detect(pScrn, det_encoder))
 			ret = XF86OutputStatusConnected;
