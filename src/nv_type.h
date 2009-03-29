@@ -167,7 +167,7 @@ typedef struct _nv_output_reg
 	int head;
 } NVOutputRegRec, *NVOutputRegPtr;
 
-typedef struct _riva_hw_state
+typedef struct nouveau_mode_state
 {
 	uint32_t bpp;
 	uint32_t width;

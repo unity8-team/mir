@@ -1852,7 +1852,7 @@ NVRestore(ScrnInfoPtr pScrn)
 		for (i = 0; i < xf86_config->num_crtc; i++)
 			xf86_config->crtc[i]->funcs->restore(xf86_config->crtc[i]);
 
-		nv_save_restore_vga_fonts(pScrn, 0);
+		nouveau_hw_save_vga_fonts(pScrn, 0);
 	} else {
 		vgaHWPtr hwp = VGAHWPTR(pScrn);
 		vgaRegPtr vgaReg = &hwp->SavedReg;
@@ -2306,7 +2306,7 @@ NVSave(ScrnInfoPtr pScrn)
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 		int i;
 
-		nv_save_restore_vga_fonts(pScrn, 1);
+		nouveau_hw_save_vga_fonts(pScrn, 1);
 
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Saving crtcs\n");
 		for (i = 0; i < xf86_config->num_crtc; i++)

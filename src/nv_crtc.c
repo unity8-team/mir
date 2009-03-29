@@ -25,59 +25,8 @@
 
 #include "nv_include.h"
 
-static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state);
-
-static uint32_t NVCrtcReadCRTC(xf86CrtcPtr crtc, uint32_t reg)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
-
-	return NVReadCRTC(pNv, nv_crtc->head, reg);
-}
-
-static void NVCrtcWriteCRTC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVWriteCRTC(pNv, nv_crtc->head, reg, val);
-}
-
-static uint32_t NVCrtcReadRAMDAC(xf86CrtcPtr crtc, uint32_t reg)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
-
-	return NVReadRAMDAC(pNv, nv_crtc->head, reg);
-}
-
-static void NVCrtcWriteRAMDAC(xf86CrtcPtr crtc, uint32_t reg, uint32_t val)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(pScrn);
-
-	NVWriteRAMDAC(pNv, nv_crtc->head, reg, val);
-}
-
-static void crtc_rd_cio_state(xf86CrtcPtr crtc, NVCrtcRegPtr crtcstate, int index)
-{
-	crtcstate->CRTC[index] = NVReadVgaCrtc(NVPTR(crtc->scrn),
-					       to_nouveau_crtc(crtc)->head,
-					       index);
-}
-
-static void crtc_wr_cio_state(xf86CrtcPtr crtc, NVCrtcRegPtr crtcstate, int index)
+static void
+crtc_wr_cio_state(xf86CrtcPtr crtc, NVCrtcRegPtr crtcstate, int index)
 {
 	NVWriteVgaCrtc(NVPTR(crtc->scrn), to_nouveau_crtc(crtc)->head, index,
 		       crtcstate->CRTC[index]);
@@ -101,13 +50,14 @@ void nv_crtc_set_digital_vibrance(xf86CrtcPtr crtc, int level)
 void nv_crtc_set_image_sharpening(xf86CrtcPtr crtc, int level)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp = &NVPTR(crtc->scrn)->ModeReg.crtc_reg[nv_crtc->head];
+	NVPtr pNv = NVPTR(crtc->scrn);
+	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	nv_crtc->sharpness = level;
 	if (level < 0)	/* blur is in hw range 0x3f -> 0x20 */
 		level += 0x40;
 	regp->ramdac_634 = level;
-	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->ramdac_634);
+	NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_634, regp->ramdac_634);
 }
 
 /* NV4x 0x40.. pll notes:
@@ -831,13 +781,7 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	nv_crtc_mode_set_fp_regs(crtc, mode, adjusted_mode);
 	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->Clock);
 
-	NVVgaProtect(pNv, nv_crtc->head, true);
-	nv_crtc_load_state_ramdac(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_ext(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
-	nv_crtc_load_state_vga(crtc, &pNv->ModeReg);
-
-	NVVgaProtect(pNv, nv_crtc->head, false);
+	nouveau_hw_load_state(pScrn, nv_crtc->head, &pNv->ModeReg);
 
 	NVCrtcSetBase(crtc, x, y);
 
@@ -859,10 +803,7 @@ static void nv_crtc_save(xf86CrtcPtr crtc)
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
 
-	nv_crtc_save_state_ramdac(crtc, &pNv->SavedReg);
-	nv_crtc_save_state_vga(crtc, &pNv->SavedReg);
-	nv_crtc_save_state_palette(crtc, &pNv->SavedReg);
-	nv_crtc_save_state_ext(crtc, &pNv->SavedReg);
+	nouveau_hw_save_state(crtc->scrn, nv_crtc->head, &pNv->SavedReg);
 
 	/* init some state to saved value */
 	pNv->ModeReg.sel_clk = pNv->SavedReg.sel_clk & ~(0x5 << 16);
@@ -877,12 +818,7 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 	if (pNv->twoHeads)
 		NVSetOwner(pNv, nv_crtc->head);
 
-	NVVgaProtect(pNv, nv_crtc->head, true);
-	nv_crtc_load_state_ramdac(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_ext(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_palette(crtc, &pNv->SavedReg);
-	nv_crtc_load_state_vga(crtc, &pNv->SavedReg);
-	NVVgaProtect(pNv, nv_crtc->head, false);
+	nouveau_hw_load_state(crtc->scrn, nv_crtc->head, &pNv->SavedReg);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 }
@@ -907,10 +843,10 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
+	NVWriteCRTC(pNv, nv_crtc->head, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (pNv->Architecture == NV_ARCH_40) {
-		uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_900);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_900, reg900 & ~0x10000);
+		uint32_t reg900 = NVReadRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_900);
+		NVWriteRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_900, reg900 & ~0x10000);
 	}
 }
 
@@ -991,7 +927,7 @@ nv_crtc_gamma_set(xf86CrtcPtr crtc, CARD16 *red, CARD16 *green, CARD16 *blue,
 		}
 	}
 
-	nv_crtc_load_state_palette(crtc, &pNv->ModeReg);
+	nouveau_hw_load_state_palette(pNv, nv_crtc->head, &pNv->ModeReg);
 }
 
 /**
@@ -1209,341 +1145,6 @@ nv_crtc_init(ScrnInfoPtr pScrn, int crtc_num)
 	}
 }
 
-static void nv_crtc_load_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	int i;
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-
-	NVWritePRMVIO(pNv, nv_crtc->head, NV_PRMVIO_MISC__WRITE, regp->MiscOutReg);
-
-	for (i = 0; i < 5; i++)
-		NVWriteVgaSeq(pNv, nv_crtc->head, i, regp->Sequencer[i]);
-
-	nv_lock_vga_crtc_base(pNv, nv_crtc->head, false);
-	for (i = 0; i < 25; i++)
-		crtc_wr_cio_state(crtc, regp, i);
-	nv_lock_vga_crtc_base(pNv, nv_crtc->head, true);
-
-	for (i = 0; i < 9; i++)
-		NVWriteVgaGr(pNv, nv_crtc->head, i, regp->Graphics[i]);
-
-	NVSetEnablePalette(pNv, nv_crtc->head, true);
-	for (i = 0; i < 21; i++)
-		NVWriteVgaAttr(pNv, nv_crtc->head, i, regp->Attribute[i]);
-
-	NVSetEnablePalette(pNv, nv_crtc->head, false);
-}
-
-static void nv_crtc_load_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);    
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp;
-	int i;
-
-	regp = &state->crtc_reg[nv_crtc->head];
-
-	if (pNv->Architecture >= NV_ARCH_10) {
-		if (pNv->twoHeads)
-			/* setting ENGINE_CTRL (EC) *must* come before
-			 * CIO_CRE_LCD, as writing CRE_LCD sets bits 16 & 17 in
-			 * EC that should not be overwritten by writing stale EC
-			 */
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_ENGINE_CTRL, regp->crtc_eng_ctrl);
-
-		nvWriteVIDEO(pNv, NV_PVIDEO_STOP, 1);
-		nvWriteVIDEO(pNv, NV_PVIDEO_INTR_EN, 0);
-		nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(0), 0);
-		nvWriteVIDEO(pNv, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(0), pNv->VRAMPhysicalSize - 1);
-		nvWriteVIDEO(pNv, NV_PVIDEO_LIMIT(1), pNv->VRAMPhysicalSize - 1);
-		nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(0), pNv->VRAMPhysicalSize - 1);
-		nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(1), pNv->VRAMPhysicalSize - 1);
-		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
-
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_21);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_830, regp->crtc_830);
-		NVCrtcWriteCRTC(crtc, NV_PCRTC_834, regp->crtc_834);
-		if (pNv->Architecture == NV_ARCH_40) {
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_850, regp->crtc_850);
-			NVCrtcWriteCRTC(crtc, NV_PCRTC_GPIO_EXT, regp->gpio_ext);
-		}
-
-		if (pNv->Architecture == NV_ARCH_40) {
-			uint32_t reg900 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_900);
-			if (regp->crtc_cfg == NV_PCRTC_CONFIG_START_ADDRESS_HSYNC)
-				NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_900, reg900 | 0x10000);
-			else
-				NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_900, reg900 & ~0x10000);
-		}
-	}
-
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_CONFIG, regp->crtc_cfg);
-
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_RPC1_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_LSR_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_PIXEL_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_LCD__INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HEB__INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_ENH_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_FF_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_FFLWM__INDEX);
-	if (pNv->Architecture >= NV_ARCH_30)
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_47);
-
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR1_INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR2_INDEX);
-	if (pNv->Architecture == NV_ARCH_40)
-		nv_fix_nv40_hw_cursor(pNv, nv_crtc->head);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_ILACE__INDEX);
-
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH3__INDEX);
-	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH4__INDEX);
-	if (pNv->Architecture >= NV_ARCH_10) {
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_EBR_INDEX);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_CSB);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_4B);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_TVOUT_LATENCY);
-	}
-	/* NV11 and NV20 stop at 0x52. */
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_53);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_54);
-
-		for (i = 0; i < 0x10; i++)
-			NVWriteVgaCrtc5758(pNv, nv_crtc->head, i, regp->CR58[i]);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_59);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_5B);
-
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_85);
-		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_86);
-	}
-
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_START, regp->fb_start);
-
-	/* Setting 1 on this value gives you interrupts for every vblank period. */
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_INTR_EN_0, 0);
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_INTR_0, NV_PCRTC_INTR_0_VBLANK);
-}
-
-static void nv_crtc_save_state_vga(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	int i;
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-
-	regp->MiscOutReg = NVReadPRMVIO(pNv, nv_crtc->head, NV_PRMVIO_MISC__READ);
-
-	for (i = 0; i < 25; i++)
-		crtc_rd_cio_state(crtc, regp, i);
-
-	NVSetEnablePalette(pNv, nv_crtc->head, true);
-	for (i = 0; i < 21; i++)
-		regp->Attribute[i] = NVReadVgaAttr(pNv, nv_crtc->head, i);
-	NVSetEnablePalette(pNv, nv_crtc->head, false);
-
-	for (i = 0; i < 9; i++)
-		regp->Graphics[i] = NVReadVgaGr(pNv, nv_crtc->head, i);
-
-	for (i = 0; i < 5; i++)
-		regp->Sequencer[i] = NVReadVgaSeq(pNv, nv_crtc->head, i);
-}
-
-static void nv_crtc_save_state_ext(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp;
-	int i;
-
-	regp = &state->crtc_reg[nv_crtc->head];
-
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_LCD__INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_RPC0_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_RPC1_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_LSR_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_PIXEL_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_HEB__INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_ENH_INDEX);
-
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_FF_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_FFLWM__INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_21);
-	if (pNv->Architecture >= NV_ARCH_30)
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_47);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR0_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR1_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_HCUR_ADDR2_INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_ILACE__INDEX);
-
-	if (pNv->Architecture >= NV_ARCH_10) {
-		regp->crtc_830 = NVCrtcReadCRTC(crtc, NV_PCRTC_830);
-		regp->crtc_834 = NVCrtcReadCRTC(crtc, NV_PCRTC_834);
-		if (pNv->Architecture == NV_ARCH_40) {
-			regp->crtc_850 = NVCrtcReadCRTC(crtc, NV_PCRTC_850);
-			regp->gpio_ext = NVCrtcReadCRTC(crtc, NV_PCRTC_GPIO_EXT);
-		}
-		if (pNv->twoHeads)
-			regp->crtc_eng_ctrl = NVCrtcReadCRTC(crtc, NV_PCRTC_ENGINE_CTRL);
-		regp->cursor_cfg = NVCrtcReadCRTC(crtc, NV_PCRTC_CURSOR_CONFIG);
-	}
-
-	regp->crtc_cfg = NVCrtcReadCRTC(crtc, NV_PCRTC_CONFIG);
-
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH3__INDEX);
-	crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_SCRATCH4__INDEX);
-	if (pNv->Architecture >= NV_ARCH_10) {
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_EBR_INDEX);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_CSB);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_4B);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_TVOUT_LATENCY);
-	}
-	/* NV11 and NV20 don't have this, they stop at 0x52. */
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_53);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_54);
-
-		for (i = 0; i < 0x10; i++)
-			regp->CR58[i] = NVReadVgaCrtc5758(pNv, nv_crtc->head, i);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_59);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_5B);
-
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_85);
-		crtc_rd_cio_state(crtc, regp, NV_CIO_CRE_86);
-	}
-
-	regp->fb_start = NVCrtcReadCRTC(crtc, NV_PCRTC_START);
-}
-
-static void nv_crtc_save_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);    
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-	enum pll_types plltype = nv_crtc->head ? VPLL2 : VPLL1;
-	int i;
-
-	nouveau_hw_get_pllvals(crtc->scrn, plltype, &regp->pllvals);
-	if (pNv->twoHeads)
-		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
-	state->pllsel = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
-
-	regp->ramdac_gen_ctrl = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL);
-
-	if (pNv->twoHeads) {
-		if (pNv->NVArch >= 0x17)
-			regp->ramdac_630 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_630);
-		if (pNv->NVArch >= 0x30)
-			regp->ramdac_634 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_634);
-
-		regp->fp_control = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_TG_CONTROL);
-		regp->fp_debug_0 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0);
-		regp->fp_debug_1 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1);
-		regp->fp_debug_2 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2);
-
-		regp->ramdac_a20 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A20);
-		regp->ramdac_a24 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A24);
-		regp->ramdac_a34 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_A34);
-	}
-
-	if (pNv->NVArch == 0x11) {
-		regp->dither = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_DITHER_NV11);
-	} else if (pNv->twoHeads) {
-		regp->dither = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_FP_DITHER);
-		for (i = 0; i < 3; i++) {
-			regp->dither_regs[i] = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_850 + i * 4);
-			regp->dither_regs[i + 3] = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_85C + i * 4);
-		}
-	}
-	if (pNv->Architecture >= NV_ARCH_10)
-		regp->nv10_cursync = NVCrtcReadRAMDAC(crtc, NV_RAMDAC_NV10_CURSYNC);
-
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_HDISPLAY_END + (i * 4);
-		regp->fp_horiz_regs[i] = NVCrtcReadRAMDAC(crtc, ramdac_reg);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
-		regp->fp_vert_regs[i] = NVCrtcReadRAMDAC(crtc, ramdac_reg);
-	}
-}
-
-static void nv_crtc_load_state_ramdac(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	NVPtr pNv = NVPTR(pScrn);    
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
-	uint32_t pllreg = nv_crtc->head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
-	int i;
-
-	/* This sequence is important, the NV28 is very sensitive in this area. */
-	/* Keep pllsel last and sel_clk first. */
-	if (pNv->twoHeads)
-		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, state->sel_clk);
-	nouveau_bios_setpll(pScrn, pllreg, &regp->pllvals);
-	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
-
-	NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_GENERAL_CONTROL, regp->ramdac_gen_ctrl);
-
-	if (pNv->twoHeads) {
-		if (pNv->NVArch >= 0x17)
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_630, regp->ramdac_630);
-		if (pNv->NVArch >= 0x30)
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_634, regp->ramdac_634);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
-		if (pNv->NVArch == 0x30) { /* For unknown purposes. */
-			uint32_t reg890 = NVCrtcReadRAMDAC(crtc, NV_PRAMDAC_890);
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_89C, reg890);
-		}
-
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A20, regp->ramdac_a20);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A24, regp->ramdac_a24);
-		NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_A34, regp->ramdac_a34);
-	}
-
-	if (pNv->NVArch == 0x11)
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_DITHER_NV11, regp->dither);
-	else if (pNv->twoHeads) {
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_FP_DITHER, regp->dither);
-		for (i = 0; i < 3; i++) {
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_850 + i * 4, regp->dither_regs[i]);
-			NVCrtcWriteRAMDAC(crtc, NV_PRAMDAC_85C + i * 4, regp->dither_regs[i + 3]);
-		}
-	}
-	if (pNv->Architecture >= NV_ARCH_10)
-		NVCrtcWriteRAMDAC(crtc, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
-
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_HDISPLAY_END + (i * 4);
-		NVCrtcWriteRAMDAC(crtc, ramdac_reg, regp->fp_horiz_regs[i]);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
-		NVCrtcWriteRAMDAC(crtc, ramdac_reg, regp->fp_vert_regs[i]);
-	}
-}
-
 void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -1562,41 +1163,8 @@ void NVCrtcSetBase(xf86CrtcPtr crtc, int x, int y)
 
 	start &= ~3;
 	pNv->ModeReg.crtc_reg[nv_crtc->head].fb_start = start;
-	NVCrtcWriteCRTC(crtc, NV_PCRTC_START, start);
+	NVWriteCRTC(pNv, nv_crtc->head, NV_PCRTC_START, start);
 
 	crtc->x = x;
 	crtc->y = y;
-}
-
-static void nv_crtc_save_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(crtc->scrn);
-	int head_offset = nv_crtc->head * NV_PRMDIO_SIZE, i;
-
-	VGA_WR08(pNv->REGS, NV_PRMDIO_PIXEL_MASK + head_offset, NV_PRMDIO_PIXEL_MASK_MASK);
-	VGA_WR08(pNv->REGS, NV_PRMDIO_READ_MODE_ADDRESS + head_offset, 0x0);
-
-	for (i = 0; i < 768; i++) {
-		state->crtc_reg[nv_crtc->head].DAC[i] = NV_RD08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset);
-		DDXMMIOH("nv_crtc_save_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[nv_crtc->head].DAC[i]);
-	}
-
-	NVSetEnablePalette(pNv, nv_crtc->head, false);
-}
-static void nv_crtc_load_state_palette(xf86CrtcPtr crtc, RIVA_HW_STATE *state)
-{
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
-	NVPtr pNv = NVPTR(crtc->scrn);
-	int head_offset = nv_crtc->head * NV_PRMDIO_SIZE, i;
-
-	VGA_WR08(pNv->REGS, NV_PRMDIO_PIXEL_MASK + head_offset, NV_PRMDIO_PIXEL_MASK_MASK);
-	VGA_WR08(pNv->REGS, NV_PRMDIO_WRITE_MODE_ADDRESS + head_offset, 0x0);
-
-	for (i = 0; i < 768; i++) {
-		DDXMMIOH("nv_crtc_load_state_palette: head %d reg 0x%04x data 0x%02x\n", nv_crtc->head, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[nv_crtc->head].DAC[i]);
-		NV_WR08(pNv->REGS, NV_PRMDIO_PALETTE_DATA + head_offset, state->crtc_reg[nv_crtc->head].DAC[i]);
-	}
-
-	NVSetEnablePalette(pNv, nv_crtc->head, false);
 }

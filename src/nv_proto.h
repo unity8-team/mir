@@ -74,9 +74,9 @@ Bool nouveau_exa_pixmap_is_onscreen(PixmapPtr pPixmap);
 bool nouveau_exa_pixmap_is_tiled(PixmapPtr ppix);
 
 /* in nv_hw.c */
-void NVCalcStateExt(ScrnInfoPtr,struct _riva_hw_state *,int,int,int,int,int,int);
-void NVLoadStateExt(ScrnInfoPtr pScrn,struct _riva_hw_state *);
-void NVUnloadStateExt(NVPtr,struct _riva_hw_state *);
+void NVCalcStateExt(ScrnInfoPtr,struct nouveau_mode_state *,int,int,int,int,int,int);
+void NVLoadStateExt(ScrnInfoPtr pScrn,struct nouveau_mode_state *);
+void NVUnloadStateExt(NVPtr,struct nouveau_mode_state *);
 void NVSetStartAddress(NVPtr,CARD32);
 
 /* in nv_shadow.c */
@@ -84,7 +84,6 @@ void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 
 /* in nv_bios.c */
 int NVParseBios(ScrnInfoPtr pScrn);
-void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, struct nouveau_pll_vals *pv);
 int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk);
 bool nouveau_bios_fp_mode(ScrnInfoPtr pScrn, DisplayModeRec *mode);
 int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *if_is_24bit);
@@ -103,18 +102,26 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
 void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 
-/* nv_hw.c */
+/* nouveau_hw.c */
 void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index);
 void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index);
 void NVSetOwner(NVPtr pNv, int owner);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
+void nouveau_hw_setpll(ScrnInfoPtr pScrn, uint32_t reg1,
+		       struct nouveau_pll_vals *pv);
 int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
 			   struct nouveau_pll_vals *pllvals);
 int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
 int nouveau_hw_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype);
-void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
+void nouveau_hw_save_vga_fonts(ScrnInfoPtr pScrn, bool save);
+void nouveau_hw_save_state(ScrnInfoPtr pScrn, int head,
+			   struct nouveau_mode_state *state);
+void nouveau_hw_load_state(ScrnInfoPtr pScrn, int head,
+			   struct nouveau_mode_state *state);
+void nouveau_hw_load_state_palette(NVPtr pNv, int head,
+				   struct nouveau_mode_state *state);
 
 /* in nv_i2c.c */
 int NV_I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, struct dcb_i2c_entry *dcb_i2c, char *name);
