@@ -131,6 +131,8 @@ struct pll_lims {
 struct nouveau_bios_info {
 	struct parsed_dcb *dcb;
 
+	uint8_t chip_version;
+
 	uint32_t dactestval;
 	uint8_t digital_min_front_porch;
 	bool fp_no_ddc;
@@ -143,7 +145,7 @@ struct nvbios {
 	unsigned int length;
 	bool execute;
 
-	uint8_t major_version, chip_version;
+	uint8_t major_version;
 	uint8_t feature_byte;
 	bool is_mobile;
 

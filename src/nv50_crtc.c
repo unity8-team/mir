@@ -207,7 +207,7 @@ NV50CrtcSetPixelClock(nouveauCrtcPtr crtc, int clock)
 	get_pll_limits(pScrn, pll_reg, &pll_lim);
 
 	/* NV5x hardware doesn't seem to support a single vco mode, otherwise the blob is hiding it well. */
-	if (!nouveau_bios_getmnp(pScrn, &pll_lim, clock, &pllvals))
+	if (!nouveau_calc_pll_mnp(pScrn, &pll_lim, clock, &pllvals))
 		return;
 
 	uint32_t reg1 = NVRead(pNv, pll_reg + 4);

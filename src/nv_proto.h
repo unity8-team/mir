@@ -1,5 +1,3 @@
-/* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_proto.h,v 1.11 2004/03/20 01:52:16 mvojkovi Exp $ */
-
 #ifndef __NV_PROTO_H__
 #define __NV_PROTO_H__
 
@@ -8,6 +6,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
 Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
 			      struct nouveau_bo **);
 void drmmode_adjust_frame(ScrnInfoPtr pScrn, int x, int y, int flags);
+
+/* in nouveau_calc.c */
+void nouveau_calc_arb(ScrnInfoPtr pScrn, int vclk, int bpp, int *burst, int *lwm);
+int nouveau_calc_pll_mnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
+			 struct nouveau_pll_vals *pv);
 
 /* in nv_accel_common.c */
 Bool NVAccelCommonInit(ScrnInfoPtr pScrn);
@@ -81,7 +84,6 @@ void NVRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
 
 /* in nv_bios.c */
 int NVParseBios(ScrnInfoPtr pScrn);
-int nouveau_bios_getmnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk, struct nouveau_pll_vals *pv);
 void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1, struct nouveau_pll_vals *pv);
 int call_lvds_script(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, enum LVDS_script script, int pxclk);
 bool nouveau_bios_fp_mode(ScrnInfoPtr pScrn, DisplayModeRec *mode);
@@ -136,8 +138,7 @@ void nv_show_cursor(NVPtr pNv, int head, bool show);
 int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
 			   struct nouveau_pll_vals *pllvals);
 int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
-void nv4_10UpdateArbitrationSettings(ScrnInfoPtr pScrn, int VClk, int bpp, uint8_t *burst, uint16_t *lwm);
-void nv30UpdateArbitrationSettings(uint8_t *burst, uint16_t *lwm);
+int nouveau_hw_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype);
 uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 

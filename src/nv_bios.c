@@ -260,13 +260,13 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	NVPtr pNv = NVPTR(pScrn);
 
 	/* C51 has misaligned regs on purpose. Marvellous */
-	if (reg & 0x2 || (reg & 0x1 && pNv->VBIOS.chip_version != 0x51)) {
+	if (reg & 0x2 || (reg & 0x1 && pNv->VBIOS.pub.chip_version != 0x51)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "========== misaligned reg 0x%08X ==========\n", reg);
 		return 0;
 	}
 	/* warn on C51 regs that haven't been verified accessible in mmiotracing */
-	if (reg & 0x1 && pNv->VBIOS.chip_version == 0x51 &&
+	if (reg & 0x1 && pNv->VBIOS.pub.chip_version == 0x51 &&
 	    reg != 0x130d && reg != 0x1311 && reg != 0x60081d)
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "==== C51 misaligned reg 0x%08X not verified ====\n", reg);
@@ -279,21 +279,21 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 	if (WITHIN(reg,NV_PFIFO_OFFSET,NV_PFIFO_SIZE))
 		return 1;
 	/* maybe a little large, but it will do for the moment. */
-	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, 0x1000, 0xEFFF))
+	if (pNv->VBIOS.pub.chip_version >= 0x80 && WITHIN(reg, 0x1000, 0xEFFF))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x30 && WITHIN(reg,0x4000,0x600))
+	if (pNv->VBIOS.pub.chip_version >= 0x30 && WITHIN(reg,0x4000,0x600))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x40 && WITHIN(reg,0xc000,0x48))
+	if (pNv->VBIOS.pub.chip_version >= 0x40 && WITHIN(reg,0xc000,0x48))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x17 && reg == 0x0000d204)
+	if (pNv->VBIOS.pub.chip_version >= 0x17 && reg == 0x0000d204)
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x40) {
+	if (pNv->VBIOS.pub.chip_version >= 0x40) {
 		if (reg == 0x00011014 || reg == 0x00020328)
 			return 1;
 		if (WITHIN(reg,0x88000,NV_PBUS_SIZE)) /* new PBUS */
 			return 1;
 	}
-	if (pNv->VBIOS.chip_version >= 0x80) {
+	if (pNv->VBIOS.pub.chip_version >= 0x80) {
 		/* No clue what they do, but because they are outside normal ranges we'd
 		 * better list them seperately. */
 		if (reg == 0x00020018 || reg == 0x0002004C || reg == 0x00020060 ||
@@ -307,13 +307,13 @@ static int valid_reg(ScrnInfoPtr pScrn, uint32_t reg)
 		return 1;
 	if (WITHIN(reg,NV_PCRTC0_OFFSET,NV_PCRTC0_SIZE * 2))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
+	if (pNv->VBIOS.pub.chip_version >= 0x80 && WITHIN(reg, NV50_DISPLAY_OFFSET, NV50_DISPLAY_SIZE))
 		return 1;
 	if (WITHIN(reg,NV_PRAMDAC0_OFFSET,NV_PRAMDAC0_SIZE * 2))
 		return 1;
-	if (pNv->VBIOS.chip_version >= 0x17 && reg == 0x0070fff0)
+	if (pNv->VBIOS.pub.chip_version >= 0x17 && reg == 0x0070fff0)
 		return 1;
-	if (pNv->VBIOS.chip_version == 0x51 && WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
+	if (pNv->VBIOS.pub.chip_version == 0x51 && WITHIN(reg,NV_PRAMIN_OFFSET,NV_PRAMIN_SIZE))
 		return 1;
 	#undef WITHIN
 
@@ -568,215 +568,6 @@ static bool io_condition_met(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t of
 	return (data == cmpval);
 }
 
-static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			 struct nouveau_pll_vals *bestpv)
-{
-	/* Find M, N and P for a single stage PLL
-	 *
-	 * Note that some bioses (NV3x) have lookup tables of precomputed MNP
-	 * values, but we're too lazy to use those atm
-	 *
-	 * "clk" parameter in kHz
-	 * returns calculated clock
-	 */
-
-	struct nvbios *bios = &NVPTR(pScrn)->VBIOS;
-	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
-	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
-	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
-	int minU = pll_lim->vco1.min_inputfreq, maxU = pll_lim->vco1.max_inputfreq;
-	int maxlog2P;
-	int crystal = pll_lim->refclk;
-	int M, N, log2P, P;
-	int clkP, calcclk;
-	int delta, bestdelta = INT_MAX;
-	int bestclk = 0;
-
-	/* this division verified for nv20, nv18, nv28 (Haiku), and nv34 */
-	/* possibly correlated with introduction of 27MHz crystal */
-	if (bios->chip_version <= 0x16 || bios->chip_version == 0x20) {
-		if (clk > 250000)
-			maxM = 6;
-		if (clk > 340000)
-			maxM = 2;
-		maxlog2P = 4;
-	} else if (bios->chip_version < 0x40) {
-		if (clk > 150000)
-			maxM = 6;
-		if (clk > 200000)
-			maxM = 4;
-		if (clk > 340000)
-			maxM = 2;
-		maxlog2P = 5;
-	} else /* nv4x may be subject to the nv17+ limits, but assume not for now */
-		maxlog2P = 6;
-
-	if ((clk << maxlog2P) < minvco) {
-		minvco = clk << maxlog2P;
-		maxvco = minvco * 2;
-	}
-	if (clk + clk/200 > maxvco)	/* +0.5% */
-		maxvco = clk + clk/200;
-
-	/* NV34 goes maxlog2P->0, NV20 goes 0->maxlog2P */
-	for (log2P = 0; log2P <= maxlog2P; log2P++) {
-		P = 1 << log2P;
-		clkP = clk * P;
-
-		if (clkP < minvco)
-			continue;
-		if (clkP > maxvco)
-			return bestclk;
-
-		for (M = minM; M <= maxM; M++) {
-			if (crystal/M < minU)
-				return bestclk;
-			if (crystal/M > maxU)
-				continue;
-
-			/* add crystal/2 to round better */
-			N = (clkP * M + crystal/2) / crystal;
-
-			if (N < minN)
-				continue;
-			if (N > maxN)
-				break;
-
-			/* more rounding additions */
-			calcclk = ((N * crystal + P/2) / P + M/2) / M;
-			delta = abs(calcclk - clk);
-			/* we do an exhaustive search rather than terminating
-			 * on an optimality condition...
-			 */
-			if (delta < bestdelta) {
-				bestdelta = delta;
-				bestclk = calcclk;
-				bestpv->N1 = N;
-				bestpv->M1 = M;
-				bestpv->log2P = log2P;
-				if (delta == 0)	/* except this one */
-					return bestclk;
-			}
-		}
-	}
-
-	return bestclk;
-}
-
-static int getMNP_double(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			 struct nouveau_pll_vals *bestpv)
-{
-	/* Find M, N and P for a two stage PLL
-	 *
-	 * Note that some bioses (NV30+) have lookup tables of precomputed MNP
-	 * values, but we're too lazy to use those atm
-	 *
-	 * "clk" parameter in kHz
-	 * returns calculated clock
-	 */
-
-	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
-	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
-	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;
-	int maxU1 = pll_lim->vco1.max_inputfreq, maxU2 = pll_lim->vco2.max_inputfreq;
-	int minM1 = pll_lim->vco1.min_m, maxM1 = pll_lim->vco1.max_m;
-	int minN1 = pll_lim->vco1.min_n, maxN1 = pll_lim->vco1.max_n;
-	int minM2 = pll_lim->vco2.min_m, maxM2 = pll_lim->vco2.max_m;
-	int minN2 = pll_lim->vco2.min_n, maxN2 = pll_lim->vco2.max_n;
-	int crystal = pll_lim->refclk;
-	bool fixedgain2 = (minM2 == maxM2 && minN2 == maxN2);
-	int M1, N1, M2, N2, log2P;
-	int clkP, calcclk1, calcclk2, calcclkout;
-	int delta, bestdelta = INT_MAX;
-	int bestclk = 0;
-
-	int vco2 = (maxvco2 - maxvco2/200) / 2;
-	for (log2P = 0; clk && log2P < 6 && clk <= (vco2 >> log2P); log2P++) /* log2P is maximum of 6 */
-		;
-	clkP = clk << log2P;
-
-	if (maxvco2 < clk + clk/200)	/* +0.5% */
-		maxvco2 = clk + clk/200;
-
-	for (M1 = minM1; M1 <= maxM1; M1++) {
-		if (crystal/M1 < minU1)
-			return bestclk;
-		if (crystal/M1 > maxU1)
-			continue;
-
-		for (N1 = minN1; N1 <= maxN1; N1++) {
-			calcclk1 = crystal * N1 / M1;
-			if (calcclk1 < minvco1)
-				continue;
-			if (calcclk1 > maxvco1)
-				break;
-
-			for (M2 = minM2; M2 <= maxM2; M2++) {
-				if (calcclk1/M2 < minU2)
-					break;
-				if (calcclk1/M2 > maxU2)
-					continue;
-
-				/* add calcclk1/2 to round better */
-				N2 = (clkP * M2 + calcclk1/2) / calcclk1;
-				if (N2 < minN2)
-					continue;
-				if (N2 > maxN2)
-					break;
-
-				if (!fixedgain2) {
-					if (NVPTR(pScrn)->VBIOS.chip_version < 0x60)
-						if (N2/M2 < 4 || N2/M2 > 10)
-							continue;
-
-					calcclk2 = calcclk1 * N2 / M2;
-					if (calcclk2 < minvco2)
-						break;
-					if (calcclk2 > maxvco2)
-						continue;
-				} else
-					calcclk2 = calcclk1;
-
-				calcclkout = calcclk2 >> log2P;
-				delta = abs(calcclkout - clk);
-				/* we do an exhaustive search rather than terminating
-				 * on an optimality condition...
-				 */
-				if (delta < bestdelta) {
-					bestdelta = delta;
-					bestclk = calcclkout;
-					bestpv->N1 = N1;
-					bestpv->M1 = M1;
-					bestpv->N2 = N2;
-					bestpv->M2 = M2;
-					bestpv->log2P = log2P;
-					if (delta == 0)	/* except this one */
-						return bestclk;
-				}
-			}
-		}
-	}
-
-	return bestclk;
-}
-
-int nouveau_bios_getmnp(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
-			struct nouveau_pll_vals *pv)
-{
-	int outclk;
-
-	if (!pll_lim->vco2.maxfreq)
-		outclk = getMNP_single(pScrn, pll_lim, clk, pv);
-	else
-		outclk = getMNP_double(pScrn, pll_lim, clk, pv);
-
-	if (!outclk)
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Could not find a compatible set of PLL values\n");
-
-	return outclk;
-}
-
 static int powerctrl_1_shift(int chip_version, int reg)
 {
 	int shift = -4;
@@ -809,7 +600,7 @@ static int powerctrl_1_shift(int chip_version, int reg)
 static void setPLL_single(ScrnInfoPtr pScrn, uint32_t reg,
 			  struct nouveau_pll_vals *pv)
 {
-	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
+	int chip_version = NVPTR(pScrn)->VBIOS.pub.chip_version;
 	uint32_t oldpll = bios_rd32(pScrn, reg);
 	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
 	uint32_t pll = (oldpll & 0xfff80000) | pv->log2P << 16 | pv->NM1;
@@ -862,7 +653,7 @@ static uint32_t new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 static void setPLL_double_highregs(ScrnInfoPtr pScrn, uint32_t reg1,
 				   struct nouveau_pll_vals *pv)
 {
-	int chip_version = NVPTR(pScrn)->VBIOS.chip_version;
+	int chip_version = NVPTR(pScrn)->VBIOS.pub.chip_version;
 	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
 	uint32_t oldpll1 = bios_rd32(pScrn, reg1);
@@ -1017,7 +808,7 @@ static void setPLL_double_lowregs(ScrnInfoPtr pScrn, uint32_t NMNMreg,
 void nouveau_bios_setpll(ScrnInfoPtr pScrn, uint32_t reg1,
 			 struct nouveau_pll_vals *pv)
 {
-	int cv = NVPTR(pScrn)->VBIOS.chip_version;
+	int cv = NVPTR(pScrn)->VBIOS.pub.chip_version;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {
@@ -1040,7 +831,7 @@ static int setPLL(ScrnInfoPtr pScrn, struct nvbios *bios, uint32_t reg, uint32_t
 	if ((ret = get_pll_limits(pScrn, reg > 0x405c ? reg : reg - 4, &pll_lim)))
 		return ret;
 
-	if (!(clk = nouveau_bios_getmnp(pScrn, &pll_lim, clk, &pllvals)))
+	if (!(clk = nouveau_calc_pll_mnp(pScrn, &pll_lim, clk, &pllvals)))
 		return -ERANGE;
 
 	nouveau_bios_setpll(pScrn, reg, &pllvals);
@@ -3235,7 +3026,7 @@ static int parse_fp_mode_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 #ifndef __powerpc__
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Pointer to flat panel table invalid\n");
-		if (bios->chip_version != 0x67)	/* sigh, IGPs */
+		if (bios->pub.chip_version != 0x67)	/* sigh, IGPs */
 			return -EINVAL;
 #endif
 		bios->pub.digital_min_front_porch = 0x4b;
@@ -3432,7 +3223,7 @@ int nouveau_bios_parse_lvds_table(ScrnInfoPtr pScrn, int pxclk, bool *dl, bool *
 			break;
 
 		/* change in behaviour guessed at nv30; see datapoints below */
-		if (bios->chip_version < 0x30) {
+		if (bios->pub.chip_version < 0x30) {
 			/* nv17 behaviour */
 			/* it seems the old style lvds script pointer is reused
 			 * to select 18/24 bit colour depth for EDID panels */
@@ -3572,7 +3363,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 
 	NVPtr pNv = NVPTR(pScrn);
 	struct nvbios *bios = &pNv->VBIOS;
-	int cv = bios->chip_version, pllindex = 0;
+	int cv = bios->pub.chip_version, pllindex = 0;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
 	uint32_t crystal_strap_mask, crystal_straps;
 
@@ -3817,7 +3608,7 @@ static void parse_bios_version(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t 
 	 */
 
 	bios->major_version = bios->data[offset + 3];
-	bios->chip_version = bios->data[offset + 2];
+	bios->pub.chip_version = bios->data[offset + 2];
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Bios version %02x.%02x.%02x.%02x\n",
 		   bios->data[offset + 3], bios->data[offset + 2],
 		   bios->data[offset + 1], bios->data[offset]);
@@ -4966,13 +4757,15 @@ int NVParseBios(ScrnInfoPtr pScrn)
 
 	bios_wr32(pScrn, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
-	if ((ret = nouveau_run_vbios_init(pScrn)))
+	pNv->vbios = &bios->pub;
+
+	if ((ret = nouveau_run_vbios_init(pScrn))) {
+		pNv->vbios = NULL;
 		return ret;
+	}
 
 	/* allow subsequent scripts to execute */
 	bios->execute = true;
-
-	pNv->vbios = &bios->pub;
 
 	return 0;
 }

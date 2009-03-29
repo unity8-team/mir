@@ -157,9 +157,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	NVCrtcRegPtr regp = &state->crtc_reg[nv_crtc->head];
 	struct nouveau_pll_vals *pv = &regp->pllvals;
 	struct pll_lims pll_lim;
-	int vclk;
-	uint8_t arbitration0;
-	uint16_t arbitration1;
+	int vclk, arb_burst, arb_fifo_lwm;
 
 	if (get_pll_limits(pScrn, nv_crtc->head ? VPLL2 : VPLL1, &pll_lim))
 		return;
@@ -180,7 +178,7 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	if (pNv->NVArch > 0x40 && dot_clock <= (pll_lim.vco1.maxfreq / 2))
 		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
 
-	if (!(vclk = nouveau_bios_getmnp(pScrn, &pll_lim, dot_clock, pv)))
+	if (!(vclk = nouveau_calc_pll_mnp(pScrn, &pll_lim, dot_clock, pv)))
 		return;
 
 	/* The blob uses this always, so let's do the same */
@@ -200,19 +198,12 @@ static void nv_crtc_calc_state_ext(xf86CrtcPtr crtc, DisplayModePtr mode, int do
 	else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "vpll: n %d m %d log2p %d\n", pv->N1, pv->M1, pv->log2P);
 
-	if (pNv->Architecture < NV_ARCH_30)
-		nv4_10UpdateArbitrationSettings(pScrn, vclk, pScrn->bitsPerPixel, &arbitration0, &arbitration1);
-	else if ((pNv->Chipset & 0xfff0) == CHIPSET_C51 ||
-		 (pNv->Chipset & 0xfff0) == CHIPSET_C512) {
-		arbitration0 = 128;
-		arbitration1 = 0x0480;
-	} else
-		nv30UpdateArbitrationSettings(&arbitration0, &arbitration1);
+	nouveau_calc_arb(pScrn, vclk, pScrn->bitsPerPixel, &arb_burst, &arb_fifo_lwm);
 
-	regp->CRTC[NV_CIO_CRE_FF_INDEX] = arbitration0;
-	regp->CRTC[NV_CIO_CRE_FFLWM__INDEX] = arbitration1 & 0xff;
+	regp->CRTC[NV_CIO_CRE_FF_INDEX] = arb_burst;
+	regp->CRTC[NV_CIO_CRE_FFLWM__INDEX] = arb_fifo_lwm & 0xff;
 	if (pNv->Architecture >= NV_ARCH_30)
-		regp->CRTC[NV_CIO_CRE_47] = arbitration1 >> 8;
+		regp->CRTC[NV_CIO_CRE_47] = arb_fifo_lwm >> 8;
 
 	nv_crtc_cursor_set(crtc);
 }
