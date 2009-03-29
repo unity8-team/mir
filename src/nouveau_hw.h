@@ -230,7 +230,7 @@ static inline bool nv_heads_tied(NVPtr pNv)
 	if (pNv->NVArch == 0x11)
 		return !!(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28));
 
-	return (NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44) == 0x4);
+	return (NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44) & 0x4);
 }
 
 /* makes cr0-7 on the specified head read-only */
