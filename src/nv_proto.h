@@ -104,42 +104,16 @@ void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder);
 void NvSetupOutputs(ScrnInfoPtr pScrn);
 
 /* nv_hw.c */
-uint32_t NVRead(NVPtr pNv, uint32_t reg);
-void NVWrite(NVPtr pNv, uint32_t reg, uint32_t val);
-uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg);
-void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
-uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg);
-void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val);
-uint8_t nv_read_tmds(NVPtr pNv, int or, int dl, uint8_t address);
-int nv_get_digital_bound_head(NVPtr pNv, int or);
-void nv_write_tmds(NVPtr pNv, int or, int dl, uint8_t address, uint8_t data);
-void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value);
-uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index);
-void NVWriteVgaCrtc5758(NVPtr pNv, int head, uint8_t index, uint8_t value);
-uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index);
-uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint32_t reg);
-void NVWritePRMVIO(NVPtr pNv, int head, uint32_t reg, uint8_t value);
 void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaSeq(NVPtr pNv, int head, uint8_t index);
 void NVWriteVgaGr(NVPtr pNv, int head, uint8_t index, uint8_t value);
 uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index);
-void NVSetEnablePalette(NVPtr pNv, int head, bool enable);
-void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value);
-uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index);
-void NVVgaSeqReset(NVPtr pNv, int head, bool start);
-void NVVgaProtect(NVPtr pNv, int head, bool protect);
 void NVSetOwner(NVPtr pNv, int owner);
-bool nv_heads_tied(NVPtr pNv);
-bool nv_lock_vga_crtc_base(NVPtr pNv, int head, bool lock);
-bool NVLockVgaCrtcs(NVPtr pNv, bool lock);
 void NVBlankScreen(NVPtr pNv, int head, bool blank);
-void nv_fix_nv40_hw_cursor(NVPtr pNv, int head);
-void nv_show_cursor(NVPtr pNv, int head, bool show);
 int nouveau_hw_get_pllvals(ScrnInfoPtr pScrn, enum pll_types plltype,
 			   struct nouveau_pll_vals *pllvals);
 int nouveau_hw_pllvals_to_clk(struct nouveau_pll_vals *pllvals);
 int nouveau_hw_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype);
-uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp);
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save);
 
 /* in nv_i2c.c */

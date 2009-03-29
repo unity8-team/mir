@@ -80,9 +80,6 @@
 #define SetBit(n) (1<<(n))
 #define Set8Bits(value) ((value)&0xff)
 
-#define MASK(field) ((0xffffffff >> (31 - ((1?field) - (0?field)))) << (0?field))
-#define XLATE(src, srclowbit, outfield) ((((src) >> (srclowbit)) << (0?outfield)) & MASK(outfield))
-
 /* NV50 */
 typedef enum Head {
 	HEAD0 = 0,
@@ -418,18 +415,6 @@ typedef struct _NVRec {
 
 #define nvReadCurCRTC(pNv, reg) NVReadCRTC(pNv, pNv->cur_head, reg)
 #define nvWriteCurCRTC(pNv, reg, val) NVWriteCRTC(pNv, pNv->cur_head, reg, val)
-
-#define nvReadFB(pNv, reg) DDXMMIOW("nvReadFB: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteFB(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteFB: reg %08x val %08x\n", reg, val))
-
-#define nvReadMC(pNv, reg) DDXMMIOW("nvReadMC: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteMC(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteMC: reg %08x val %08x\n", reg, val))
-
-#define nvReadEXTDEV(pNv, reg) DDXMMIOW("nvReadEXTDEV: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteEXTDEV(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteEXTDEV: reg %08x val %08x\n", reg, val))
-
-#define nvReadVIDEO(pNv, reg) DDXMMIOW("nvReadVIDEO: reg %08x val %08x\n", reg, (uint32_t)MMIO_IN32(pNv->REGS, reg))
-#define nvWriteVIDEO(pNv, reg, val) MMIO_OUT32(pNv->REGS, reg, DDXMMIOW("nvWriteVIDEO: reg %08x val %08x\n", reg, val))
 
 typedef struct _NVPortPrivRec {
 	short		brightness;

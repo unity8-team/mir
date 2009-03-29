@@ -44,6 +44,19 @@ static int nv_output_ramdac_offset(struct nouveau_encoder *nv_encoder)
 	return offset;
 }
 
+static int nv_get_digital_bound_head(NVPtr pNv, int or)
+{
+	/* special case of nv_read_tmds to find crtc associated with an output.
+	 * this does not give a correct answer for off-chip dvi, but there's no
+	 * use for such an answer anyway
+	 */
+	int ramdac = (or & OUTPUT_C) >> 2;
+
+	NVWriteRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL,
+	NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | 0x4);
+	return (((NVReadRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_DATA) & 0x8) >> 3) ^ ramdac);
+}
+
 static bool
 nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 {

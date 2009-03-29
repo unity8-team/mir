@@ -23,141 +23,6 @@
 
 #include "nv_include.h"
 
-uint32_t NVRead(NVPtr pNv, uint32_t reg)
-{
-	DDXMMIOW("NVRead: reg %08x val %08x\n", reg, (uint32_t)NV_RD32(pNv->REGS, reg));
-	return NV_RD32(pNv->REGS, reg);
-}
-
-void NVWrite(NVPtr pNv, uint32_t reg, uint32_t val)
-{
-	DDXMMIOW("NVWrite: reg %08x val %08x\n", reg, NV_WR32(pNv->REGS, reg, val));
-}
-
-uint32_t NVReadCRTC(NVPtr pNv, int head, uint32_t reg)
-{
-	if (head)
-		reg += NV_PCRTC0_SIZE;
-	DDXMMIOH("NVReadCRTC: head %d reg %08x val %08x\n", head, reg, (uint32_t)NV_RD32(pNv->REGS, reg));
-	return NV_RD32(pNv->REGS, reg);
-}
-
-void NVWriteCRTC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
-{
-	if (head)
-		reg += NV_PCRTC0_SIZE;
-	DDXMMIOH("NVWriteCRTC: head %d reg %08x val %08x\n", head, reg, val);
-	NV_WR32(pNv->REGS, reg, val);
-}
-
-uint32_t NVReadRAMDAC(NVPtr pNv, int head, uint32_t reg)
-{
-	if (head)
-		reg += NV_PRAMDAC0_SIZE;
-	DDXMMIOH("NVReadRamdac: head %d reg %08x val %08x\n", head, reg, (uint32_t)NV_RD32(pNv->REGS, reg));
-	return NV_RD32(pNv->REGS, reg);
-}
-
-void NVWriteRAMDAC(NVPtr pNv, int head, uint32_t reg, uint32_t val)
-{
-	if (head)
-		reg += NV_PRAMDAC0_SIZE;
-	DDXMMIOH("NVWriteRamdac: head %d reg %08x val %08x\n", head, reg, val);
-	NV_WR32(pNv->REGS, reg, val);
-}
-
-uint8_t nv_read_tmds(NVPtr pNv, int or, int dl, uint8_t address)
-{
-	int ramdac = (or & OUTPUT_C) >> 2;
-
-	NVWriteRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8,
-		      NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | address);
-	return NVReadRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_DATA + dl * 8);
-}
-
-int nv_get_digital_bound_head(NVPtr pNv, int or)
-{
-	/* special case of nv_read_tmds to find crtc associated with an output.
-	 * this does not give a correct answer for off-chip dvi, but there's no
-	 * use for such an answer anyway
-	 */
-	int ramdac = (or & OUTPUT_C) >> 2;
-
-	NVWriteRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL,
-		      NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE | 0x4);
-	return (((NVReadRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_DATA) & 0x8) >> 3) ^ ramdac);
-}
-
-void nv_write_tmds(NVPtr pNv, int or, int dl, uint8_t address, uint8_t data)
-{
-	int ramdac = (or & OUTPUT_C) >> 2;
-
-	NVWriteRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_DATA + dl * 8, data);
-	NVWriteRAMDAC(pNv, ramdac, NV_PRAMDAC_FP_TMDS_CONTROL + dl * 8, address);
-}
-
-void NVWriteVgaCrtc(NVPtr pNv, int head, uint8_t index, uint8_t value)
-{
-	DDXMMIOH("NVWriteVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, value);
-	NV_WR08(pNv->REGS, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
-	NV_WR08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
-}
-
-uint8_t NVReadVgaCrtc(NVPtr pNv, int head, uint8_t index)
-{
-	NV_WR08(pNv->REGS, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
-	DDXMMIOH("NVReadVgaCrtc: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE));
-	return NV_RD08(pNv->REGS, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
-}
-
-/* CR57 and CR58 are a fun pair of regs. CR57 provides an index (0-0xf) for CR58
- * I suspect they in fact do nothing, but are merely a way to carry useful
- * per-head variables around
- *
- * Known uses:
- * CR57		CR58
- * 0x00		index to the appropriate dcb entry (or 7f for inactive)
- * 0x02		dcb entry's "or" value (or 00 for inactive)
- * 0x03		bit0 set for dual link (LVDS, possibly elsewhere too)
- * 0x08 or 0x09	pxclk in MHz
- * 0x0f		laptop panel info -	low nibble for PEXTDEV_BOOT_0 strap
- * 					high nibble for xlat strap value
- */
-
-void NVWriteVgaCrtc5758(NVPtr pNv, int head, uint8_t index, uint8_t value)
-{
-	NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_57, index);
-	NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_58, value);
-}
-
-uint8_t NVReadVgaCrtc5758(NVPtr pNv, int head, uint8_t index)
-{
-	NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_57, index);
-	return NVReadVgaCrtc(pNv, head, NV_CIO_CRE_58);
-}
-
-uint8_t NVReadPRMVIO(NVPtr pNv, int head, uint32_t reg)
-{
-	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
-	 * NVSetOwner for the relevant head to be programmed */
-	if (head && pNv->Architecture == NV_ARCH_40)
-		reg += NV_PRMVIO_SIZE;
-
-	DDXMMIOH("NVReadPRMVIO: head %d reg %08x val %02x\n", head, reg, NV_RD08(pNv->REGS, reg));
-	return NV_RD08(pNv->REGS, reg);
-}
-
-void NVWritePRMVIO(NVPtr pNv, int head, uint32_t reg, uint8_t value)
-{
-	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
-	 * NVSetOwner for the relevant head to be programmed */
-	if (head && pNv->Architecture == NV_ARCH_40)
-		reg += NV_PRMVIO_SIZE;
-
-	DDXMMIOH("NVWritePRMVIO: head %d reg %08x val %02x\n", head, reg, value);
-	NV_WR08(pNv->REGS, reg, value);
-}
-
 void NVWriteVgaSeq(NVPtr pNv, int head, uint8_t index, uint8_t value)
 {
 	NVWritePRMVIO(pNv, head, NV_PRMVIO_SRX, index);
@@ -180,64 +45,6 @@ uint8_t NVReadVgaGr(NVPtr pNv, int head, uint8_t index)
 {
 	NVWritePRMVIO(pNv, head, NV_PRMVIO_GRX, index);
 	return NVReadPRMVIO(pNv, head, NV_PRMVIO_GX);
-}
-
-void NVSetEnablePalette(NVPtr pNv, int head, bool enable)
-{
-	VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	VGA_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
-}
-
-static bool NVGetEnablePalette(NVPtr pNv, int head)
-{
-	VGA_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	return !(VGA_RD08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
-}
-
-void NVWriteVgaAttr(NVPtr pNv, int head, uint8_t index, uint8_t value)
-{
-	if (NVGetEnablePalette(pNv, head))
-		index &= ~0x20;
-	else
-		index |= 0x20;
-
-	NV_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	DDXMMIOH("NVWriteVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, value);
-	NV_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
-	NV_WR08(pNv->REGS, NV_PRMCIO_AR__WRITE + head * NV_PRMCIO_SIZE, value);
-}
-
-uint8_t NVReadVgaAttr(NVPtr pNv, int head, uint8_t index)
-{
-	if (NVGetEnablePalette(pNv, head))
-		index &= ~0x20;
-	else
-		index |= 0x20;
-
-	NV_RD08(pNv->REGS, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
-	NV_WR08(pNv->REGS, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, index);
-	DDXMMIOH("NVReadVgaAttr: head %d index 0x%02x data 0x%02x\n", head, index, NV_RD08(pNv->REGS, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE));
-	return NV_RD08(pNv->REGS, NV_PRMCIO_AR__READ + head * NV_PRMCIO_SIZE);
-}
-
-void NVVgaSeqReset(NVPtr pNv, int head, bool start)
-{
-	NVWriteVgaSeq(pNv, head, NV_VIO_SR_RESET_INDEX, start ? 0x1 : 0x3);
-}
-
-void NVVgaProtect(NVPtr pNv, int head, bool protect)
-{
-	uint8_t seq1 = NVReadVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX);
-
-	if (protect) {
-		NVVgaSeqReset(pNv, head, true);
-		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 | 0x20);
-	} else {
-		/* Reenable sequencer, then turn on screen */
-		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 & ~0x20);   /* reenable display */
-		NVVgaSeqReset(pNv, head, false);
-	}
-	NVSetEnablePalette(pNv, head, protect);
 }
 
 /* CR44 takes values 0 (head A), 3 (head B) and 4 (heads tied)
@@ -270,46 +77,6 @@ void NVSetOwner(NVPtr pNv, int owner)
 	}
 }
 
-bool nv_heads_tied(NVPtr pNv)
-{
-	if (pNv->NVArch == 0x11)
-		return !!(nvReadMC(pNv, NV_PBUS_DEBUG_1) & (1 << 28));
-
-	return (NVReadVgaCrtc(pNv, 0, NV_CIO_CRE_44) == 0x4);
-}
-
-/* makes cr0-7 on the specified head read-only */
-bool nv_lock_vga_crtc_base(NVPtr pNv, int head, bool lock)
-{
-	uint8_t cr11 = NVReadVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX);
-	bool waslocked = cr11 & 0x80;
-
-	if (lock)
-		cr11 |= 0x80;
-	else
-		cr11 &= ~0x80;
-	NVWriteVgaCrtc(pNv, head, NV_CIO_CR_VRE_INDEX, cr11);
-
-	return waslocked;
-}
-
-/* renders the extended crtc regs (cr19+) on all crtcs impervious:
- * immutable and unreadable
- */
-bool NVLockVgaCrtcs(NVPtr pNv, bool lock)
-{
-	bool waslocked = !NVReadVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX);
-
-	NVWriteVgaCrtc(pNv, 0, NV_CIO_SR_LOCK_INDEX,
-		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
-	/* NV11 has independently lockable extended crtcs, except when tied */
-	if (pNv->NVArch == 0x11 && !nv_heads_tied(pNv))
-		NVWriteVgaCrtc(pNv, 1, NV_CIO_SR_LOCK_INDEX,
-			       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
-
-	return waslocked;
-}
-
 void NVBlankScreen(NVPtr pNv, int head, bool blank)
 {
 	unsigned char seq1;
@@ -325,31 +92,6 @@ void NVBlankScreen(NVPtr pNv, int head, bool blank)
 	else
 		NVWriteVgaSeq(pNv, head, NV_VIO_SR_CLOCK_INDEX, seq1 & ~0x20);
 	NVVgaSeqReset(pNv, head, false);
-}
-
-void nv_fix_nv40_hw_cursor(NVPtr pNv, int head)
-{
-	/* on some nv40 (such as the "true" (in the NV_PFB_BOOT_0 sense) nv40,
-	 * the gf6800gt) a hardware bug requires a write to PRAMDAC_CURSOR_POS
-	 * for changes to the CRTC CURCTL regs to take effect, whether changing
-	 * the pixmap location, or just showing/hiding the cursor
-	 */
-	volatile uint32_t curpos = NVReadRAMDAC(pNv, head, NV_PRAMDAC_CU_START_POS);
-	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_CU_START_POS, curpos);
-}
-
-void nv_show_cursor(NVPtr pNv, int head, bool show)
-{
-	uint8_t *curctl1 = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX];
-
-	if (show)
-		*curctl1 |= MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
-	else
-		*curctl1 &= ~MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
-	NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, *curctl1);
-
-	if (pNv->Architecture == NV_ARCH_40)
-		nv_fix_nv40_hw_cursor(pNv, head);
 }
 
 static void nouveau_hw_decode_pll(NVPtr pNv, uint32_t reg1,
@@ -800,24 +542,6 @@ void NVSetStartAddress (
 )
 {
     nvWriteCurCRTC(pNv, NV_PCRTC_START, start);
-}
-
-uint32_t nv_pitch_align(NVPtr pNv, uint32_t width, int bpp)
-{
-	int mask;
-
-	if (bpp == 15)
-		bpp = 16;
-	if (bpp == 24)
-		bpp = 8;
-
-	/* Alignment requirements taken from the Haiku driver */
-	if (pNv->Architecture == NV_ARCH_04)
-		mask = 128 / bpp - 1;
-	else
-		mask = 512 / bpp - 1;
-
-	return (width + mask) & ~mask;
 }
 
 void nv_save_restore_vga_fonts(ScrnInfoPtr pScrn, bool save)
