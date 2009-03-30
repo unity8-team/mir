@@ -37,6 +37,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i810_reg.h"
 #include "i915_drm.h"
 #include <string.h>
+#include <sys/mman.h>
 
 #define ALWAYS_SYNC		0
 #define ALWAYS_FLUSH		0
@@ -837,8 +838,6 @@ i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
 static Bool
 i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -853,16 +852,27 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	    i830->need_sync = FALSE;
 	}
 
-	if (pScrn->vtSema && !pI830->use_drm_mode && pI830->memory_manager) {
-	    if (drm_intel_bo_pin(bo, 4096) != 0)
-		return FALSE;
-	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
-	    pixmap->devPrivate.ptr = pI830->FbBase + bo->offset;
-	} else {
+	/* No VT sema or GEM?  No GTT mapping. */
+	if (!scrn->vtSema || !i830->memory_manager) {
 	    if (dri_bo_map(bo, access == UXA_ACCESS_RW) != 0)
 		return FALSE;
 	    pixmap->devPrivate.ptr = bo->virtual;
+	    return TRUE;
 	}
+
+	/* Kernel manages fences at GTT map/fault time */
+	if (i830->kernel_exec_fencing) {
+	    if (drm_intel_gem_bo_map_gtt(bo)) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
+			   __FUNCTION__);
+		return FALSE;
+	    }
+	} else { /* or not... */
+	    if (drm_intel_bo_pin(bo, 4096) != 0)
+		return FALSE;
+	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	}
+	pixmap->devPrivate.ptr = bo->virtual;
     }
     return TRUE;
 }
@@ -870,8 +880,6 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 static void
 i830_uxa_finish_access (PixmapPtr pixmap)
 {
-    ScrnInfoPtr pScrn = xf86Screens[pixmap->drawable.pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
     dri_bo *bo = i830_get_pixmap_bo (pixmap);
 
     if (bo) {
@@ -879,14 +887,20 @@ i830_uxa_finish_access (PixmapPtr pixmap)
 	ScrnInfoPtr scrn = xf86Screens[screen->myNum];
 	I830Ptr i830 = I830PTR(scrn);
 
-	if (pScrn->vtSema && !pI830->use_drm_mode && pI830->memory_manager)
-	    drm_intel_bo_unpin(bo);
-	else
-	    dri_bo_unmap(bo);
-
-	pixmap->devPrivate.ptr = NULL;
 	if (bo == i830->front_buffer->bo)
 	    i830->need_flush = TRUE;
+
+	if (!scrn->vtSema || !i830->memory_manager) {
+	    dri_bo_unmap(bo);
+	    pixmap->devPrivate.ptr = NULL;
+	    return;
+	}
+
+	if (i830->kernel_exec_fencing)
+	    drm_intel_gem_bo_unmap_gtt(bo);
+	else
+	    drm_intel_bo_unpin(bo);
+	pixmap->devPrivate.ptr = NULL;
     }
 }
 
