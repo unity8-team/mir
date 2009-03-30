@@ -815,7 +815,9 @@ void RADEONInitTVRegisters(xf86OutputPtr output, RADEONSavePtr save,
     save->tv_rgb_cntl = (RADEON_RGB_DITHER_EN
 			 | RADEON_TVOUT_SCALE_EN
 			 | (0x0b << RADEON_UVRAM_READ_MARGIN_SHIFT)
-			 | (0x07 << RADEON_FIFORAM_FFMACRO_READ_MARGIN_SHIFT));
+			 | (0x07 << RADEON_FIFORAM_FFMACRO_READ_MARGIN_SHIFT)
+			 | RADEON_RGB_ATTEN_SEL(0x3)
+			 | RADEON_RGB_ATTEN_VAL(0xc));
 
     if (IsPrimary) {
 	if (radeon_output->Flags & RADEON_USE_RMX)
