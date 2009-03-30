@@ -473,6 +473,37 @@ int nouveau_hw_get_clock(ScrnInfoPtr pScrn, enum pll_types plltype)
 	return nouveau_hw_pllvals_to_clk(&pllvals);
 }
 
+static void nouveau_hw_fix_bad_vpll(ScrnInfoPtr pScrn, int head)
+{
+	/* the vpll on an unused head can come up with a random value, way
+	 * beyond the pll limits.  for some reason this causes the chip to
+	 * lock up when reading the dac palette regs, so set a valid pll here
+	 * when such a condition detected.  only seen on nv11 to date
+	 */
+
+	struct pll_lims pll_lim;
+	struct nouveau_pll_vals pv;
+	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
+
+	if (get_pll_limits(pScrn, head ? VPLL2 : VPLL1, &pll_lim))
+		return;
+	nouveau_hw_get_pllvals(pScrn, head ? VPLL2 : VPLL1, &pv);
+
+	if (pv.M1 >= pll_lim.vco1.min_m && pv.M1 <= pll_lim.vco1.max_m &&
+	    pv.N1 >= pll_lim.vco1.min_n && pv.N1 <= pll_lim.vco1.max_n &&
+	    pv.log2P <= 4)	/* log2P limit for NV11 */
+		return;
+
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "VPLL %d outwith limits, attempting to fix\n", head + 1);
+
+	/* set lowest clock within static limits */
+	pv.M1 = pll_lim.vco1.max_m;
+	pv.N1 = pll_lim.vco1.min_n;
+	pv.log2P = 4;
+	nouveau_hw_setpll(pScrn, pllreg, &pv);
+}
+
 /*
  * vga font save/restore
  */
@@ -580,10 +611,9 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 {
 	NVPtr pNv = NVPTR(pScrn);
 	NVCrtcRegPtr regp = &state->crtc_reg[head];
-	enum pll_types plltype = head ? VPLL2 : VPLL1;
 	int i;
 
-	nouveau_hw_get_pllvals(pScrn, plltype, &regp->pllvals);
+	nouveau_hw_get_pllvals(pScrn, head ? VPLL2 : VPLL1, &regp->pllvals);
 	if (pNv->twoHeads)
 		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
 	state->pllsel = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
@@ -929,6 +959,9 @@ void nouveau_hw_save_state(ScrnInfoPtr pScrn, int head,
 {
 	NVPtr pNv = NVPTR(pScrn);
 
+	if (pNv->NVArch == 0x11)
+		/* NB: no attempt is made to restore the bad pll later on */
+		nouveau_hw_fix_bad_vpll(pScrn, head);
 	nv_save_state_ramdac(pScrn, head, state);
 	nv_save_state_vga(pNv, head, state);
 	nv_save_state_palette(pNv, head, state);
