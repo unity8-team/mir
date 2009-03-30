@@ -648,33 +648,56 @@ static void nv_digital_output_prepare_sel_clk(NVPtr pNv, struct nouveau_encoder 
 	}
 }
 
+#define FP_TG_CONTROL_ON  (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |	\
+			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS |		\
+			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_POS)
+#define FP_TG_CONTROL_OFF (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE |	\
+			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_DISABLE |	\
+			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_DISABLE)
+
 static void
 nv_output_prepare(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
 	NVPtr pNv = NVPTR(output->scrn);
-	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
-	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
+	int head = to_nouveau_crtc(output->crtc)->head;
+	uint8_t *lcdi = &pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX];
+	bool digital_op = nv_encoder->dcb->type == OUTPUT_LVDS ||
+			  nv_encoder->dcb->type == OUTPUT_TMDS;
 
 	output->funcs->dpms(output, DPMSModeOff);
 
-	/* calculate some output specific CRTC regs now, so that they can be written in nv_crtc_set_mode */
-	if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS)
-		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, nv_crtc->head);
+	if (nv_encoder->dcb->type == OUTPUT_ANALOG &&
+	    NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL) &
+			 FP_TG_CONTROL_ON) {
+		/* digital remnants must be cleaned before new crtc values
+		 * programmed.  delay is time for the vga stuff to realise it's
+		 * in control again
+		 */
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL,
+			      FP_TG_CONTROL_OFF);
+		usleep(50000);
+	}
 
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f etc.) which we don't alter */
-	if (!(regp->CRTC[NV_CIO_CRE_LCD__INDEX] & 0x44)) {
-		if (nv_encoder->dcb->type == OUTPUT_LVDS || nv_encoder->dcb->type == OUTPUT_TMDS) {
-			regp->CRTC[NV_CIO_CRE_LCD__INDEX] &= ~0x30;
-			regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= 0x3;
-			if (nv_crtc->head == 0)
-				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= 0x8;
+	/* calculate some output specific CRTC regs now, so that they can be
+	 * written in nv_crtc_set_mode
+	 */
+
+	if (digital_op)
+		nv_digital_output_prepare_sel_clk(pNv, nv_encoder, head);
+
+	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
+	 * at LCD__INDEX which we don't alter
+	 */
+	if (!(*lcdi & 0x44)) {
+		*lcdi = 0;
+		if (digital_op) {
+			*lcdi = 0x3;
+			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
+				*lcdi |= head ? 0x0 : 0x8;
 			else
-				regp->CRTC[NV_CIO_CRE_LCD__INDEX] &= ~0x8;
-			if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP)
-				regp->CRTC[NV_CIO_CRE_LCD__INDEX] |= (nv_encoder->dcb->or << 4) & 0x30;
-		} else
-			regp->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
+				*lcdi |= (nv_encoder->dcb->or << 4) & 0x30;
+		}
 	}
 }
 
@@ -736,9 +759,6 @@ nv_output_commit(xf86OutputPtr output)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output %s is running on CRTC %d using output %c\n", output->name, nv_crtc->head, '@' + ffs(nv_encoder->dcb->or));
 }
 
-#define FP_TG_CONTROL_OFF (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_DISABLE |	\
-			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_DISABLE |	\
-			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_DISABLE)
 static void dpms_update_fp_control(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86CrtcPtr crtc, int mode)
 {
 	NVPtr pNv = NVPTR(pScrn);
