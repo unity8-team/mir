@@ -4009,128 +4009,148 @@ static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
 }
 
 static bool
-parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, uint32_t conn, uint32_t conf)
+parse_dcb20_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb,
+		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+{
+	entry->type = conn & 0xf;
+	entry->i2c_index = (conn >> 4) & 0xf;
+	entry->heads = (conn >> 8) & 0xf;
+	entry->bus = (conn >> 16) & 0xf;
+	entry->location = (conn >> 20) & 0xf;
+	entry->or = (conn >> 24) & 0xf;
+	/* Normal entries consist of a single bit, but dual link has the
+	 * next most significant bit set too
+	 */
+	entry->duallink_possible =
+			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
+
+	switch (entry->type) {
+	case OUTPUT_ANALOG:
+		/* although the rest of a CRT conf dword is usually
+		 * zeros, mac biosen have stuff there so we must mask
+		 */
+		entry->crtconf.maxfreq = (bdcb->version < 0x30) ?
+					 (conf & 0xffff) * 10 :
+					 (conf & 0xff) * 10000;
+		break;
+	case OUTPUT_LVDS:
+		{
+		uint32_t mask;
+		if (conf & 0x1)
+			entry->lvdsconf.use_straps_for_mode = true;
+		if (bdcb->version < 0x22) {
+			mask = ~0xd;
+			/* the laptop in bug 14567 lies and claims to not use
+			 * straps when it does, so assume all DCB 2.0 laptops
+			 * use straps, until a broken EDID using one is produced
+			 */
+			entry->lvdsconf.use_straps_for_mode = true;
+			/* both 0x4 and 0x8 show up in v2.0 tables; assume they
+			 * mean the same thing (probably wrong, but might work)
+			 */
+			if (conf & 0x4 || conf & 0x8)
+				entry->lvdsconf.use_power_scripts = true;
+		} else {
+			mask = ~0x5;
+			if (conf & 0x4)
+				entry->lvdsconf.use_power_scripts = true;
+		}
+		if (conf & mask) {
+			/* I'm bored of getting this reported; left as a reminder for someone to fix it */
+			if (bdcb->version >= 0x40) {
+				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+					   "G80+ LVDS not initialized by driver; ignoring conf bits\n");
+				break;
+			}
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Unknown LVDS configuration bits, please report\n");
+			/* cause output setting to fail, so message is seen */
+			bdcb->dcb.entries = 0;
+			return false;
+		}
+		break;
+		}
+	case 0xe:
+		/* weird g80 mobile type that "nv" treats as a terminator */
+		bdcb->dcb.entries--;
+		return false;
+	}
+	/* unsure what DCB version introduces this, 3.0? */
+	if (conf & 0x100000)
+		entry->i2c_upper_default = true;
+
+	return true;
+}
+
+static bool
+parse_dcb15_entry(ScrnInfoPtr pScrn, struct parsed_dcb *dcb,
+		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
+{
+	if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
+	    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
+	    conn != 0xf2045ff2 &&
+	    conn != 0xf2045f14 && conn != 0xf207df14 && conn != 0xf2205004) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Unknown DCB 1.5 entry, please report\n");
+
+		/* cause output setting to fail for !TV, so message is seen */
+		if ((conn & 0xf) != 0x1)
+			dcb->entries = 0;
+
+		return false;
+	}
+	/* most of the below is a "best guess" atm */
+	entry->type = conn & 0xf;
+	if (entry->type == 2)
+		/* another way of specifying straps based lvds... */
+		entry->type = OUTPUT_LVDS;
+	if (entry->type == 4) { /* digital */
+		if (conn & 0x10)
+			entry->type = OUTPUT_LVDS;
+		else
+			entry->type = OUTPUT_TMDS;
+	}
+	/* what's in bits 5-13? could be some encoder maker thing, in tv case */
+	entry->i2c_index = (conn >> 14) & 0xf;
+	/* raw heads field is in range 0-1, so move to 1-2 */
+	entry->heads = ((conn >> 18) & 0x7) + 1;
+	entry->location = (conn >> 21) & 0xf;
+	/* unused: entry->bus = (conn >> 25) & 0x7; */
+	/* set or to be same as heads -- hopefully safe enough */
+	entry->or = entry->heads;
+	entry->duallink_possible = false;
+
+	switch (entry->type) {
+	case OUTPUT_ANALOG:
+		entry->crtconf.maxfreq = (conf & 0xffff) * 10;
+		break;
+	case OUTPUT_LVDS:
+		/* this is probably buried in conn's unknown bits */
+		/* this will upset EDID-ful models, if they exist */
+		entry->lvdsconf.use_straps_for_mode = true;
+		entry->lvdsconf.use_power_scripts = true;
+		break;
+	case OUTPUT_TMDS:
+		/* invent a DVI-A output, by copying the fields of the DVI-D
+		 * output; reported to work by math_b on an NV20(!) */
+		fabricate_vga_output(dcb, entry->i2c_index, entry->heads);
+	}
+
+	return true;
+}
+
+static bool parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb,
+			    uint32_t conn, uint32_t conf)
 {
 	struct dcb_entry *entry = new_dcb_entry(&bdcb->dcb);
+	bool ret;
 
-	if (bdcb->version >= 0x20) {
-		entry->type = conn & 0xf;
-		entry->i2c_index = (conn >> 4) & 0xf;
-		entry->heads = (conn >> 8) & 0xf;
-		entry->bus = (conn >> 16) & 0xf;
-		entry->location = (conn >> 20) & 0xf;
-		entry->or = (conn >> 24) & 0xf;
-		/* Normal entries consist of a single bit, but dual link has the
-		 * next most significant bit set too
-		 */
-		entry->duallink_possible =
-				((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
-
-		switch (entry->type) {
-		case OUTPUT_ANALOG:
-			/* although the rest of a CRT conf dword is usually
-			 * zeros, mac biosen have stuff there so we must mask
-			 */
-			entry->crtconf.maxfreq = (bdcb->version < 0x30) ?
-						 (conf & 0xffff) * 10 :
-						 (conf & 0xff) * 10000;
-			break;
-		case OUTPUT_LVDS:
-			{
-			uint32_t mask;
-			if (conf & 0x1)
-				entry->lvdsconf.use_straps_for_mode = true;
-			if (bdcb->version < 0x22) {
-				mask = ~0xd;
-				/* the laptop in bug 14567 lies and claims to
-				 * not use straps when it does, so assume all
-				 * DCB 2.0 laptops use straps, until a broken
-				 * EDID using one is produced
-				 */
-				entry->lvdsconf.use_straps_for_mode = true;
-				/* both 0x4 and 0x8 show up in v2.0 tables; assume they mean
-				 * the same thing, which is probably wrong, but might work */
-				if (conf & 0x4 || conf & 0x8)
-					entry->lvdsconf.use_power_scripts = true;
-			} else {
-				mask = ~0x5;
-				if (conf & 0x4)
-					entry->lvdsconf.use_power_scripts = true;
-			}
-			if (conf & mask) {
-				/* I'm bored of getting this reported; left as a reminder for someone to fix it */
-				if (bdcb->version >= 0x40) {
-					xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-						   "G80+ LVDS not initialized by driver; ignoring conf bits\n");
-					break;
-				}
-				xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-					   "Unknown LVDS configuration bits, please report\n");
-				/* cause output setting to fail, so message is seen */
-				bdcb->dcb.entries = 0;
-				return false;
-			}
-			break;
-			}
-		case 0xe:
-			/* weird type that appears on g80 mobile bios; nv driver treats it as a terminator */
-			bdcb->dcb.entries--;
-			return false;
-		}
-		/* unsure what DCB version introduces this, 3.0? */
-		if (conf & 0x100000)
-			entry->i2c_upper_default = true;
-	} else if (bdcb->version >= 0x15) {
-		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
-		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
-		    conn != 0xf2045ff2 &&
-		    conn != 0xf2045f14 && conn != 0xf207df14 && conn != 0xf2205004) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Unknown DCB 1.5 entry, please report\n");
-
-			/* cause output setting to fail for non-TVs, so message is seen */
-			if ((conn & 0xf) != 0x1)
-				bdcb->dcb.entries = 0;
-
-			return false;
-		}
-		/* most of the below is a "best guess" atm */
-		entry->type = conn & 0xf;
-		if (entry->type == 2)
-			/* another way of specifying straps based lvds... */
-			entry->type = OUTPUT_LVDS;
-		if (entry->type == 4) { /* digital */
-			if (conn & 0x10)
-				entry->type = OUTPUT_LVDS;
-			else
-				entry->type = OUTPUT_TMDS;
-		}
-		/* what's in bits 5-13? could be some brooktree/chrontel/philips thing, in tv case */
-		entry->i2c_index = (conn >> 14) & 0xf;
-		/* raw heads field is in range 0-1, so move to 1-2 */
-		entry->heads = ((conn >> 18) & 0x7) + 1;
-		entry->location = (conn >> 21) & 0xf;
-		/* unused: entry->bus = (conn >> 25) & 0x7; */
-		/* set or to be same as heads -- hopefully safe enough */
-		entry->or = entry->heads;
-		entry->duallink_possible = false;
-
-		switch (entry->type) {
-		case OUTPUT_ANALOG:
-			entry->crtconf.maxfreq = (conf & 0xffff) * 10;
-			break;
-		case OUTPUT_LVDS:
-			/* this is probably buried in conn's unknown bits */
-			/* this will upset EDID-ful models, if they exist */
-			entry->lvdsconf.use_straps_for_mode = true;
-			entry->lvdsconf.use_power_scripts = true;
-			break;
-		case OUTPUT_TMDS:
-			/* invent a DVI-A output, by copying the fields of the DVI-D output
-			 * reported to work by math_b on an NV20(!) */
-			fabricate_vga_output(&bdcb->dcb, entry->i2c_index, entry->heads);
-		}
-	}
+	if (bdcb->version >= 0x20)
+		ret = parse_dcb20_entry(pScrn, bdcb, conn, conf, entry);
+	else
+		ret = parse_dcb15_entry(pScrn, &bdcb->dcb, conn, conf, entry);
+	if (!ret)
+		return ret;
 
 	read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
 			   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
