@@ -1272,9 +1272,6 @@ CPU_copy:
 			dstBox.y1 -= ppix->screen_y;
 			dstBox.y2 -= ppix->screen_y;
 		}
-
-		/* Damage tracking */
-		DamageDamageRegion(&ppix->drawable, clipBoxes);
 #endif
 	}
 
@@ -1330,6 +1327,12 @@ CPU_copy:
 			       &dstBox, 0, 0, xb, yb, npixels, nlines,
 			       src_w, src_h, drw_w, drw_h, clipBoxes, ppix);
 	}
+
+#ifdef COMPOSITE
+	/* Damage tracking */
+	if (!(action_flags & USE_OVERLAY))
+		DamageDamageRegion(pDraw /*&ppix->drawable*/, clipBoxes);
+#endif
 
 	return Success;
 }
