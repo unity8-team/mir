@@ -3968,9 +3968,9 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, struct nvbios *bios, int index)
 	if (i2c->chan)
 		return 0;
 
-	if (bios->bdcb.version < 0x12) {
+	if (bios->bdcb.version < 0x15) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "DCB table not version 1.2 or greater\n");
+			   "DCB table not version 1.5 or greater\n");
 		return -ENOSYS;
 	}
 	if (!bios->bdcb.i2c_table) {
@@ -3987,22 +3987,31 @@ static int init_dcb_i2c_entry(ScrnInfoPtr pScrn, struct nvbios *bios, int index)
 	return NV_I2CInit(pScrn, &i2c->chan, i2c, xstrdup(adaptorname));
 }
 
-static bool
-parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint32_t conn, uint32_t conf)
+static struct dcb_entry * new_dcb_entry(struct parsed_dcb *dcb)
 {
-	struct dcb_entry *entry = &bdcb->dcb.entry[index];
+	struct dcb_entry *entry = &dcb->entry[dcb->entries];
 
 	memset(entry, 0, sizeof (struct dcb_entry));
+	entry->index = dcb->entries++;
 
-	entry->index = index;
-	/* safe defaults for a crt */
+	return entry;
+}
+
+static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
+{
+	struct dcb_entry *entry = new_dcb_entry(dcb);
+
 	entry->type = 0;
-	entry->i2c_index = 0;
-	entry->heads = 1;
-	entry->bus = 0;
+	entry->i2c_index = i2c;
+	entry->heads = heads;
 	entry->location = DCB_LOC_ON_CHIP;
-	entry->or = 1;
-	entry->duallink_possible = false;
+	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
+}
+
+static bool
+parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, uint32_t conn, uint32_t conf)
+{
+	struct dcb_entry *entry = new_dcb_entry(&bdcb->dcb);
 
 	if (bdcb->version >= 0x20) {
 		entry->type = conn & 0xf;
@@ -4012,10 +4021,10 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		entry->location = (conn >> 20) & 0xf;
 		entry->or = (conn >> 24) & 0xf;
 		/* Normal entries consist of a single bit, but dual link has the
-		 * adjacent more significant bit set too
+		 * next most significant bit set too
 		 */
-		if ((1 << (ffs(entry->or) - 1)) * 3 == entry->or)
-			entry->duallink_possible = true;
+		entry->duallink_possible =
+				((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
 
 		switch (entry->type) {
 		case OUTPUT_ANALOG:
@@ -4065,21 +4074,19 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 			}
 		case 0xe:
 			/* weird type that appears on g80 mobile bios; nv driver treats it as a terminator */
+			bdcb->dcb.entries--;
 			return false;
 		}
 		/* unsure what DCB version introduces this, 3.0? */
 		if (conf & 0x100000)
 			entry->i2c_upper_default = true;
-
-		read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
-				   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
-	} else if (bdcb->version >= 0x14 ) {
+	} else if (bdcb->version >= 0x15) {
 		if (conn != 0xf0003f00 && conn != 0xf2247f10 &&
 		    conn != 0xf2204001 && conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 && conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 && conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
 		    conn != 0xf2045ff2 &&
 		    conn != 0xf2045f14 && conn != 0xf207df14 && conn != 0xf2205004) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Unknown DCB 1.4 / 1.5 entry, please report\n");
+				   "Unknown DCB 1.5 entry, please report\n");
 
 			/* cause output setting to fail for non-TVs, so message is seen */
 			if ((conn & 0xf) != 0x1)
@@ -4103,9 +4110,10 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		/* raw heads field is in range 0-1, so move to 1-2 */
 		entry->heads = ((conn >> 18) & 0x7) + 1;
 		entry->location = (conn >> 21) & 0xf;
-		entry->bus = (conn >> 25) & 0x7;
+		/* unused: entry->bus = (conn >> 25) & 0x7; */
 		/* set or to be same as heads -- hopefully safe enough */
 		entry->or = entry->heads;
+		entry->duallink_possible = false;
 
 		switch (entry->type) {
 		case OUTPUT_ANALOG:
@@ -4120,30 +4128,12 @@ parse_dcb_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb, int index, uint
 		case OUTPUT_TMDS:
 			/* invent a DVI-A output, by copying the fields of the DVI-D output
 			 * reported to work by math_b on an NV20(!) */
-			entry[1] = entry[0];
-			entry[1].index = ++index;
-			entry[1].type = OUTPUT_ANALOG;
-			xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
-				   "Concocting additional DCB entry for analogue encoder on DVI output\n");
-			bdcb->dcb.entries++;
+			fabricate_vga_output(&bdcb->dcb, entry->i2c_index, entry->heads);
 		}
-		read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
-				   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
-	} else if (bdcb->version >= 0x12) {
-		/* v1.2 tables normally have the same 5 entries, which are not
-		 * specific to the card, so use the defaults for a crt */
-		/* DCB v1.2 does have an I2C table that read_dcb_i2c_table can
-		 * handle, but cards exist (nv11 in #14821) with a bad i2c table
-		 * pointer, so use the indices parsed in parse_bmp_structure
-		 */
-		entry->i2c_index = LEGACY_I2C_CRT;
-	} else { /* pre DCB / v1.1 - use the safe defaults for a crt */
-		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
-			   "No information in BIOS output table; assuming a CRT output exists\n");
-		entry->i2c_index = LEGACY_I2C_CRT;
 	}
 
-	bdcb->dcb.entries++;
+	read_dcb_i2c_entry(pScrn, bdcb->version, bdcb->i2c_table,
+			   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
 
 	return true;
 }
@@ -4212,10 +4202,10 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 	dcbptr = ROM16(bios->data[0x36]);
 
 	if (dcbptr == 0x0) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "No Display Configuration Block pointer found\n");
-		/* this situation likely means a really old card, pre DCB, so we'll add the safe CRT entry */
-		parse_dcb_entry(pScrn, bdcb, 0, 0, 0);
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "No output data (DCB) "
+			   "found in BIOS, assuming a CRT output exists\n");
+		/* this situation likely means a really old card, pre DCB */
+		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
 		return 0;
 	}
 
@@ -4250,7 +4240,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 				   "Bad Display Configuration Block signature (%08X)\n", sig);
 			return -EINVAL;
 		}
-	} else if (bdcb->version >= 0x14) { /* some NV15/16, and NV11+ */
+	} else if (bdcb->version >= 0x15) { /* some NV11 and NV20 */
 		char sig[8] = { 0 };
 
 		strncpy(sig, (char *)&dcbtable[-7], 7);
@@ -4263,12 +4253,21 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 				   "Bad Display Configuration Block signature (%s)\n", sig);
 			return -EINVAL;
 		}
-	} else if (bdcb->version >= 0x12) { /* some NV6/10, and NV15+ */
-		i2ctabptr = ROM16(dcbtable[2]);
-		configblock = false;
-	} else {	/* NV5+, maybe NV4 */
-		/* DCB 1.1 seems to be quite unhelpful - we'll just add the safe CRT entry */
-		parse_dcb_entry(pScrn, bdcb, 0, 0, 0);
+	} else {
+		/* v1.4 (some NV15/16, NV11+) seems the same as v1.5, but always
+		 * has the same single (crt) entry, even when tv-out present, so
+		 * the conclusion is this version cannot really be used.
+		 * v1.2 tables (some NV6/10, and NV15+) normally have the same
+		 * 5 entries, which are not specific to the card and so no use.
+		 * v1.2 does have an I2C table that read_dcb_i2c_table can
+		 * handle, but cards exist (nv11 in #14821) with a bad i2c table
+		 * pointer, so use the indices parsed in parse_bmp_structure.
+		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
+		 */
+		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE,
+			   "No useful information in BIOS output table; "
+			   "assuming a CRT output exists\n");
+		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
 		return 0;
 	}
 
@@ -4300,7 +4299,7 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		xf86DrvMsg(pScrn->scrnIndex, X_NOTICE, "Raw DCB entry %d: %08x %08x\n",
 			   dcb->entries, connection, config);
 
-		if (!parse_dcb_entry(pScrn, bdcb, dcb->entries, connection, config))
+		if (!parse_dcb_entry(pScrn, bdcb, connection, config))
 			break;
 	}
 
