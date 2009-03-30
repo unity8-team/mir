@@ -1331,7 +1331,7 @@ CPU_copy:
 #ifdef COMPOSITE
 	/* Damage tracking */
 	if (!(action_flags & USE_OVERLAY))
-		DamageDamageRegion(pDraw /*&ppix->drawable*/, clipBoxes);
+		DamageDamageRegion(&ppix->drawable, clipBoxes);
 #endif
 
 	return Success;
