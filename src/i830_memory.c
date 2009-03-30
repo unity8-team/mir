@@ -958,8 +958,6 @@ i830_allocate_memory(ScrnInfoPtr pScrn, const char *name,
 	}
     }
 
-    mem->tiling = TILE_NONE;
-
     return mem;
 }
 
