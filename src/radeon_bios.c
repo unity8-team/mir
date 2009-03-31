@@ -973,8 +973,8 @@ Bool RADEONGetClockInfoFromBIOS (ScrnInfoPtr pScrn)
 
 	    pll->xclk = RADEON_BIOS16(pll_info_block + 0x08);
 
-	    info->sclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
-	    info->mclk = RADEON_BIOS16(pll_info_block + 10) / 100.0;
+	    info->sclk = RADEON_BIOS16(pll_info_block + 10) / 100.0;
+	    info->mclk = RADEON_BIOS16(pll_info_block + 8) / 100.0;
 	}
 
 	if (info->sclk == 0) info->sclk = 200;
