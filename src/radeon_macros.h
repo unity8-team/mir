@@ -152,7 +152,9 @@ do {									\
 } while (0)
 
 #define INMC(pScrn, addr) RADEONINMC(pScrn, addr)
-
 #define OUTMC(pScrn, addr, val) RADEONOUTMC(pScrn, addr, val)
+
+#define INPCIE(pScrn, addr) RADEONINPCIE(pScrn, addr)
+#define OUTPCIE(pScrn, addr, val) RADEONOUTPCIE(pScrn, addr, val
 
 #endif

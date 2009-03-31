@@ -274,6 +274,9 @@
 #define RADEON_BUS_CNTL1                    0x0034
 #       define RADEON_BUS_WAIT_ON_LOCK_EN    (1 << 4)
 
+#define RADEON_PCIE_INDEX                   0x0030
+#define RADEON_PCIE_DATA                    0x0034
+
 #define RADEON_CACHE_CNTL                   0x1724
 #define RADEON_CACHE_LINE                   0x0f0c /* PCI */
 #define RADEON_CAPABILITIES_ID              0x0f50 /* PCI */
