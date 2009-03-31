@@ -1,3 +1,14 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu3) jaunty; urgency=low
+
+  * Add 116_865g_disable_dri.patch:
+    - On 865G chipset, X freezes during boot with DRI enabled.  Disabling it
+      as a workaround until a better fix is found.
+      (LP: #317457)
+  * Drop explicit dependency on libdrm-intel1, as libdrm now provides
+    this properly (libdrm2 commit a87c1a081b77a29fe3430d).
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Tue, 31 Mar 2009 18:36:00 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu2) jaunty; urgency=low
 
   * Add 114_fix_xv_with_non_gem.patch, 115_fix_crash_xv_overlay.patch:

@@ -1,0 +1,88 @@
+From 73db44e7ac524e84e5f0fda2d60069a9e954ad1b Mon Sep 17 00:00:00 2001
+From: Kristian Høgsberg <krh@redhat.com>
+Date: Wed, 11 Mar 2009 15:10:57 +0000
+Subject: Drop Legacy3D option, only use fixed texture space with non-gem.
+
+With this change, we always expect the 3D driver to use GEM textures
+when the 2D driver uses GEM.  When GEM is not available or disabled,
+we fall back to legacy fixed textures.
+---
+diff --git a/man/intel.man b/man/intel.man
+index ee237f8..b6f89b6 100644
+--- a/man/intel.man
++++ b/man/intel.man
+@@ -146,15 +146,6 @@ have options for selecting adaptors.
+ .IP
+ Default: Textured video adaptor is preferred.
+ .TP
+-.BI "Option \*qLegacy3D\*q \*q" boolean \*q
+-Enable support for the non-GEM mode of the 3D driver on i830 and newer.
+-This will allocate a large static area for older Mesa to use for its texture
+-pool.  On systems with a working GEM environment, this can be disabled to
+-increase the memory pool available to other graphics tasks.
+-.IP
+-Default for i830 and newer: Enabled.
+-.IP
+-Default for i810: this option is not used.
+ .BI "Option \*qAccelMethod\*q \*q" string \*q
+ Choose acceleration architecture, either "XAA", "EXA", or "UXA".  XAA is the old
+ XFree86 based acceleration architecture.  EXA is a simpler
+diff --git a/src/i830_driver.c b/src/i830_driver.c
+index 6ec1a48..3c77147 100644
+--- a/src/i830_driver.c
++++ b/src/i830_driver.c
+@@ -311,7 +311,6 @@ typedef enum {
+    OPTION_LVDS24BITMODE,
+    OPTION_FBC,
+    OPTION_TILING,
+-   OPTION_LEGACY3D,
+    OPTION_LVDSFIXEDMODE,
+    OPTION_FORCEENABLEPIPEA,
+ #ifdef INTEL_XVMC
+@@ -332,9 +331,6 @@ static OptionInfoRec I830Options[] = {
+    {OPTION_LVDS24BITMODE, "LVDS24Bit",	OPTV_BOOLEAN,	{0},	FALSE},
+    {OPTION_FBC,		"FramebufferCompression", OPTV_BOOLEAN, {0}, TRUE},
+    {OPTION_TILING,	"Tiling",	OPTV_BOOLEAN,	{0},	TRUE},
+-#ifdef XF86DRI
+-   {OPTION_LEGACY3D,	"Legacy3D",     OPTV_BOOLEAN,	{0},	FALSE},
+-#endif
+    {OPTION_LVDSFIXEDMODE, "LVDSFixedMode", OPTV_BOOLEAN,	{0},	FALSE},
+    {OPTION_FORCEENABLEPIPEA, "ForceEnablePipeA", OPTV_BOOLEAN,	{0},	FALSE},
+ #ifdef INTEL_XVMC
+@@ -3019,11 +3015,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
+     */
+    if (!pI830->can_resize && pI830->directRenderingType == DRI_NONE && I830DRIScreenInit(pScreen))
+        pI830->directRenderingType = DRI_XF86DRI;
+-
+-   if (pI830->directRenderingType == DRI_XF86DRI) {
+-       pI830->allocate_classic_textures =
+-	   xf86ReturnOptValBool(pI830->Options, OPTION_LEGACY3D, TRUE);
+-   }
+ #endif
+ 
+    /* Enable tiling by default */
+diff --git a/src/i830_memory.c b/src/i830_memory.c
+index e98c914..96e1763 100644
+--- a/src/i830_memory.c
++++ b/src/i830_memory.c
+@@ -504,9 +504,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
+ 	    mmsize -= ROUND_TO_PAGE(3 * pScrn->displayWidth * pI830->cpp *
+ 				    pScrn->virtualY);
+ 	}
+-	/* Classic textures are fixed. */
+-	if (pI830->allocate_classic_textures)
+-	    mmsize -= MB(32);
+ 	/* Overlay and cursors, if physical, need to be allocated outside
+ 	 * of the kernel memory manager.
+ 	 */
+@@ -566,6 +563,8 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
+ 	    i830_free_memory(pScrn, pI830->memory_manager);
+ 	    pI830->memory_manager = NULL;
+ 	}
++    } else {
++	pI830->allocate_classic_textures = TRUE;
+     }
+ #endif /* XF86DRI */
+ 
+--
+cgit v0.8.2

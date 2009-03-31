@@ -19,7 +19,6 @@ Build-Depends:
  x11proto-render-dev,
  x11proto-xinerama-dev,
  libdrm-dev (>= 2.4.5),
- libdrm-intel1,
  x11proto-xf86dri-dev,
  libpciaccess-dev (>= 0.8.0+git20071002),
  dpkg-dev (>= 1.14.17),

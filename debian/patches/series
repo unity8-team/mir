@@ -8,3 +8,4 @@
 112_num_used_fences.patch
 114_fix_xv_with_non_gem.patch
 115_fix_crash_xv_overlay.patch
+116_865g_disable_dri.patch
