@@ -382,7 +382,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 		 * unbound. */
 		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
 		drmmode_crtc->rotate_fb_id = 0;
-		drm_intel_bo_unmap(drmmode_crtc->rotate_bo);
+		drm_intel_gem_bo_unmap_gtt(drmmode_crtc->rotate_bo);
 		dri_bo_unreference(drmmode_crtc->rotate_bo);
 		drmmode_crtc->rotate_bo = NULL;
 	}
