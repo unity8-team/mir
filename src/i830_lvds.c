@@ -881,6 +881,13 @@ i830_lvds_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static xf86OutputStatus
 i830_lvds_detect(xf86OutputPtr output)
 {
+    /* Fallback to origin, mark LVDS always connected.
+     * From wider tests, we have seen both broken cases with
+     * ACPI lid and SWF bit. So disable them for now until we
+     * get a reliable way for LVDS detect.
+     */
+    return XF86OutputStatusConnected;
+
     enum lid_status lid;
 
     lid = i830_lvds_acpi_lid_open(output);
