@@ -668,7 +668,7 @@ void RADEONOUTMC(ScrnInfoPtr pScrn, int addr, uint32_t data)
     }
 }
 
-static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
+static Bool radeon_get_mc_idle(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
     unsigned char *RADEONMMIO = info->MMIO;
@@ -694,8 +694,18 @@ static Bool avivo_get_mc_idle(ScrnInfoPtr pScrn)
 	    return TRUE;
 	else
 	    return FALSE;
-    } else {
+    } else if (info->ChipFamily >= CHIP_FAMILY_R520) {
 	if (INMC(pScrn, R520_MC_STATUS) & R520_MC_STATUS_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
+    } else if (IS_R300_VARIANT) {
+	if (INREG(RADEON_MC_STATUS) & R300_MC_IDLE)
+	    return TRUE;
+	else
+	    return FALSE;
+    } else {
+	if (INREG(RADEON_MC_STATUS) & RADEON_MC_IDLE)
 	    return TRUE;
 	else
 	    return FALSE;
@@ -3821,7 +3831,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 
 	    usleep(10000);
 	    timeout = 0;
-	    while (!(avivo_get_mc_idle(pScrn))) {
+	    while (!(radeon_get_mc_idle(pScrn))) {
 		if (++timeout > 1000000) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			       "Timeout trying to update memory controller settings !\n");
@@ -3861,7 +3871,7 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 	if (mc_fb_loc != restore->mc_fb_location ||
 	    mc_agp_loc != restore->mc_agp_location) {
 	    uint32_t crtc_ext_cntl, crtc_gen_cntl, crtc2_gen_cntl=0, ov0_scale_cntl;
-	    uint32_t old_mc_status, status_idle;
+	    uint32_t old_mc_status;
 
 	    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 			   "  Map Changed ! Applying ...\n");
@@ -3900,15 +3910,8 @@ void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 
 	    /* Make sure the chip settles down (paranoid !) */ 
 	    usleep(100000);
-
-	    /* Wait for MC idle */
-	    if (IS_R300_VARIANT)
-		status_idle = R300_MC_IDLE;
-	    else
-		status_idle = RADEON_MC_IDLE;
-
 	    timeout = 0;
-	    while (!(INREG(RADEON_MC_STATUS) & status_idle)) {
+	    while (!(radeon_get_mc_idle(pScrn))) {
 		if (++timeout > 1000000) {
 		    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			       "Timeout trying to update memory controller settings !\n");
