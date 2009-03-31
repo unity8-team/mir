@@ -740,6 +740,9 @@ static Bool RADEONGetLegacyConnectorInfoFromBIOS (ScrnInfoPtr pScrn)
 		    if (tmp1) {
 			DDCType	= tmp1;
 			switch (DDCType) {
+			case DDC_NONE_DETECTED:
+			    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "No DDC for LCD\n");
+			    break;
 			case DDC_MONID:
 			    info->BiosConnector[4].ddc_i2c = legacy_setup_i2c_bus(RADEON_GPIO_MONID);
 			    break;
