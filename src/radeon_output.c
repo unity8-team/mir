@@ -2086,7 +2086,7 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
 									    ATOM_DEVICE_CRT2_SUPPORT,
-									    1),
+									    2),
 				ATOM_DEVICE_CRT2_SUPPORT))
 	    return FALSE;
 	if (!radeon_add_encoder(pScrn,
@@ -2117,7 +2117,7 @@ static Bool RADEONSetupAppleConnectors(ScrnInfoPtr pScrn)
 	if (!radeon_add_encoder(pScrn,
 				radeon_get_encoder_id_from_supported_device(pScrn,
 									    ATOM_DEVICE_CRT2_SUPPORT,
-									    1),
+									    2),
 				ATOM_DEVICE_CRT2_SUPPORT))
 	    return FALSE;
 	if (!radeon_add_encoder(pScrn,
