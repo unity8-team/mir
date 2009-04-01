@@ -1570,6 +1570,14 @@ i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
 	dev_priv->is_tv = TRUE;
 	intel_output->needs_tv_clock = TRUE;
     }
+    else if (flag & SDVO_OUTPUT_CVBS0)
+    {
+	dev_priv->controlled_output = SDVO_OUTPUT_CVBS0;
+	output->subpixel_order = SubPixelHorizontalRGB; /* XXX */
+	name_prefix="TV";
+	dev_priv->is_tv = TRUE;
+	intel_output->needs_tv_clock = TRUE;
+    }
     else if (flag & SDVO_OUTPUT_RGB0)
     {
 	dev_priv->controlled_output = SDVO_OUTPUT_RGB0;
