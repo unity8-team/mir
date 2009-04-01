@@ -41,6 +41,18 @@
 } while(0)
 #endif
 
+//#define NOUVEAU_DEBUG
+#ifdef NOUVEAU_DEBUG
+#define NV_DEBUG(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_INFO, fmt, ##arg)
+#else
+#define NV_DEBUG(d, fmt, arg...)
+#endif
+#define NV_ERROR(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_ERROR, fmt, ##arg)
+#define NV_INFO(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_PROBED, fmt, ##arg)
+#define NV_TRACEWARN(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_NOTICE, fmt, ##arg)
+#define NV_TRACE(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_INFO, fmt, ##arg)
+#define NV_WARN(d, fmt, arg...) xf86DrvMsg(d->scrnIndex, X_WARNING, fmt, ##arg)
+
 #define NOUVEAU_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 
 #endif
