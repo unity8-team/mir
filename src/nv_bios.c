@@ -3172,7 +3172,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 			pll_lim->vco2.max_n = 0x1f;
 		pll_lim->vco2.min_m = 0x1;
 		pll_lim->vco2.max_m = 0x4;
-	} else if (pll_lim_ver < 0x30) {	/* ver 0x20, 0x21 */
+	} else if (pll_lim_ver == 0x20 || pll_lim_ver == 0x21) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 		uint32_t reg = 0; /* default match */
 		uint8_t *pll_rec;
