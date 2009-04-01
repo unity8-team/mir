@@ -9,3 +9,5 @@
 114_fix_xv_with_non_gem.patch
 115_fix_crash_xv_overlay.patch
 116_865g_disable_dri.patch
+117_quirk_thinkpad_x30.patch
+118_drop_legacy3d.patch

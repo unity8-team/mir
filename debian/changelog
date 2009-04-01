@@ -1,3 +1,16 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu4) jaunty; urgency=low
+
+  * Add 117_quirk_thinkpad_x30.patch:
+    - Pipe-A quirk to fix lid close freeze on Thinkpad X30
+      (LP: #304614)
+  * Add 118_drop_legacy3d.patch:
+    - Remove Legacy3D as a user-configurable option and force fallback to
+      legacy fixed textures when GEM is not being used.  Fixes "couldn't
+      bind memory for BO backbuffer" issue on at least i855 chipsets.
+      (LP: #322646)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 01 Apr 2009 00:25:55 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu3) jaunty; urgency=low
 
   * Add 116_865g_disable_dri.patch:
