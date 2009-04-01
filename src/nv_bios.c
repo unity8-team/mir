@@ -3089,6 +3089,8 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 	 * Version 0x21: Found on Geforce 7, 8 and some Geforce 6 cards
 	 * 5 byte header, fifth byte of unknown purpose. 35 (0x23) byte record
 	 * length in general, some (integrated) have an extra configuration byte
+	 * Version 0x30: Found on Geforce 8, separates the register mapping
+	 * from the limits tables.
 	 */
 
 	NVPtr pNv = NVPTR(pScrn);
@@ -3126,6 +3128,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		break;
 	case 0x20:
 	case 0x21:
+	case 0x30:
 		headerlen = bios->data[bios->pll_limit_tbl_ptr + 1];
 		recordlen = bios->data[bios->pll_limit_tbl_ptr + 2];
 		entries = bios->data[bios->pll_limit_tbl_ptr + 3];
@@ -3169,7 +3172,7 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 			pll_lim->vco2.max_n = 0x1f;
 		pll_lim->vco2.min_m = 0x1;
 		pll_lim->vco2.max_m = 0x4;
-	} else if (pll_lim_ver) {	/* ver 0x20, 0x21 */
+	} else if (pll_lim_ver < 0x30) {	/* ver 0x20, 0x21 */
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
 		uint32_t reg = 0; /* default match */
 		uint8_t *pll_rec;
@@ -3258,6 +3261,47 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 					pll_lim->refclk = 25000;
 			}
 		}
+	} else if (pll_lim_ver) { /* ver 0x30 */
+		uint8_t *entry = &bios->data[bios->pll_limit_tbl_ptr + headerlen];
+		uint8_t *record = NULL;
+		int i;
+
+		BIOSLOG(pScrn, "Loading PLL limits for register 0x%08x\n",
+			limit_match);
+
+		for (i = 0; i < entries; i++, entry += recordlen) {
+			if (ROM32(entry[3]) == limit_match) {
+				record = &bios->data[ROM16(entry[1])];
+				break;
+			}
+		}
+
+		if (!record) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "Register 0x%08x not found in PLL limits "
+				   "table", limit_match);
+			return -ENOENT;
+		}
+
+		pll_lim->vco1.minfreq = ROM16(record[0]) * 1000;
+		pll_lim->vco1.maxfreq = ROM16(record[2]) * 1000;
+		pll_lim->vco2.minfreq = ROM16(record[4]) * 1000;
+		pll_lim->vco2.maxfreq = ROM16(record[6]) * 1000;
+		pll_lim->vco1.min_inputfreq = ROM16(record[8]) * 1000;
+		pll_lim->vco2.min_inputfreq = ROM16(record[10]) * 1000;
+		pll_lim->vco1.max_inputfreq = ROM16(record[12]) * 1000;
+		pll_lim->vco2.max_inputfreq = ROM16(record[14]) * 1000;
+		pll_lim->vco1.min_n = record[16];
+		pll_lim->vco1.max_n = record[17];
+		pll_lim->vco1.min_m = record[18];
+		pll_lim->vco1.max_m = record[19];
+		pll_lim->vco2.min_n = record[20];
+		pll_lim->vco2.max_n = record[21];
+		pll_lim->vco2.min_m = record[22];
+		pll_lim->vco2.max_m = record[23];
+		pll_lim->max_log2p_bias = record[25];
+		pll_lim->log2p_bias = record[27];
+		pll_lim->refclk = ROM32(record[28]);
 	}
 
 	/* By now any valid limit table ought to have set a max frequency for
