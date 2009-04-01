@@ -3277,9 +3277,8 @@ int get_pll_limits(ScrnInfoPtr pScrn, uint32_t limit_match, struct pll_lims *pll
 		}
 
 		if (!record) {
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-				   "Register 0x%08x not found in PLL limits "
-				   "table", limit_match);
+			NV_ERROR(pScrn, "Register 0x%08x not found in PLL "
+				 "limits table", limit_match);
 			return -ENOENT;
 		}
 
