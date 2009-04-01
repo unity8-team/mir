@@ -1605,7 +1605,7 @@ i830_sdvo_output_setup (xf86OutputPtr output, uint16_t flag)
 	xf86DrvMsg(intel_output->pI2CBus->scrnIndex, X_WARNING,
 		   "%s: Unknown SDVO output type (0x%02x%02x)\n",
 		   SDVO_NAME(dev_priv),
-		   bytes[0], bytes[1]);
+		   bytes[1], bytes[0]);
 	name_prefix="Unknown";
     }
 
