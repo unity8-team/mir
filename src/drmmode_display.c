@@ -897,7 +897,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		return;
 	}
 
-	snprintf(name, 32, "%s%d", output_names[koutput->connector_type],
+	snprintf(name, 32, "%s-%d", output_names[koutput->connector_type],
 		 koutput->connector_type_id);
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
