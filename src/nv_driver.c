@@ -917,6 +917,9 @@ NVPreInitDRM(ScrnInfoPtr pScrn)
 	char *bus_id;
 	int ret;
 
+	if (!NVDRIGetVersion(pScrn))
+		return FALSE;
+
 	/* Load the kernel module, and open the DRM */
 	bus_id = DRICreatePCIBusID(pNv->PciInfo);
 	ret = DRIOpenDRMMaster(pScrn, SAREA_MAX, bus_id, "nouveau");
