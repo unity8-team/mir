@@ -148,6 +148,7 @@ static void destroy_context(ScrnInfoPtr pScrn, XvMCContextPtr context)
     I830Ptr pI830 = I830PTR(pScrn);
     private_context = context->driver_priv;
     free_drm_memory(pScrn, &private_context->static_buffer);
+    free_drm_memory(pScrn, &private_context->blocks);
     if (IS_G4X(pI830))
 	free_drm_memory(pScrn, &private_context->slice);
     Xfree(private_context);
