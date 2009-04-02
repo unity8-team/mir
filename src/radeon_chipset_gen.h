@@ -265,6 +265,8 @@ static SymTabRec RADEONChipsets[] = {
   { PCI_CHIP_RV770_9456, "ATI FirePro V8700 (FireGL)" },
   { PCI_CHIP_RV770_945A, "ATI Mobility RADEON HD 4870" },
   { PCI_CHIP_RV770_945B, "ATI Mobility RADEON M98" },
+  { PCI_CHIP_RV790_9460, "ATI Radeon 4800 Series" },
+  { PCI_CHIP_RV790_9462, "ATI Radeon 4800 Series" },
   { PCI_CHIP_RV770_946A, "ATI FirePro M7750" },
   { PCI_CHIP_RV770_946B, "ATI M98" },
   { PCI_CHIP_RV770_947A, "ATI M98" },
