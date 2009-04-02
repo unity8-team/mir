@@ -623,7 +623,9 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 	regp->fp_horiz_regs[FP_DISPLAY_END] = adjusted_mode->HDisplay - 1;
 	regp->fp_horiz_regs[FP_TOTAL] = adjusted_mode->HTotal - 1;
-	if ((adjusted_mode->HSyncStart - adjusted_mode->HDisplay) >= pNv->vbios->digital_min_front_porch)
+	if (!pNv->gf4_disp_arch ||
+	    (adjusted_mode->HSyncStart - adjusted_mode->HDisplay) >=
+					pNv->vbios->digital_min_front_porch)
 		regp->fp_horiz_regs[FP_CRTC] = adjusted_mode->HDisplay;
 	else
 		regp->fp_horiz_regs[FP_CRTC] = adjusted_mode->HSyncStart - pNv->vbios->digital_min_front_porch - 1;
@@ -683,6 +685,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 	 * get treated the same as SCALE_FULLSCREEN */
 	if (nv_encoder->scaling_mode == SCALE_ASPECT && mode_ratio != panel_ratio) {
 		uint32_t diff, scale;
+		bool divide_by_2 = pNv->gf4_disp_arch;
 
 		if (mode_ratio < panel_ratio) {
 			/* vertical needs to expand to glass size (automatic)
@@ -691,7 +694,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 			scale = (1 << 12) * mode->VDisplay / adjusted_mode->VDisplay;
 			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
-					   XLATE(scale, 1, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
+					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
 
 			/* restrict area of screen used, horizontally */
 			diff = adjusted_mode->HDisplay -
@@ -707,7 +710,7 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 
 			scale = (1 << 12) * mode->HDisplay / adjusted_mode->HDisplay;
 			regp->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
-					   XLATE(scale, 1, NV_PRAMDAC_FP_DEBUG_1_YSCALE_VALUE);
+					   XLATE(scale, divide_by_2, NV_PRAMDAC_FP_DEBUG_1_YSCALE_VALUE);
 
 			/* restrict area of screen used, vertically */
 			diff = adjusted_mode->VDisplay -
