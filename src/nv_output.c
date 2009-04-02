@@ -691,8 +691,15 @@ nv_output_prepare(xf86OutputPtr output)
 			*lcdi = 0x3;
 			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
 				*lcdi |= head ? 0x0 : 0x8;
-			else
+			else if (pNv->gf4_disp_arch)
 				*lcdi |= (nv_encoder->dcb->or << 4) & 0x30;
+			else if (pNv->twoHeads)
+				/* the guess here is that 0x10 gets set when
+				 * the output is not on its "natural" crtc
+				 * (lvds naturally on head b, tmds head a)
+				 */
+				*lcdi |= (head + 1 != nv_encoder->dcb->or) ?
+					 0x10 : 0x00;
 		}
 	}
 }
@@ -864,18 +871,22 @@ tmds_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crt
 
 	dpms_update_fp_control(pScrn, nv_encoder, crtc, mode);
 
-	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP) {
-		struct nouveau_crtc *nv_crtc;
-		int i;
-
+	if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP && pNv->twoHeads) {
 		if (mode == DPMSModeOn) {
-			nv_crtc = to_nouveau_crtc(crtc);
-			NVWriteVgaCrtc(pNv, nv_crtc->head, NV_CIO_CRE_LCD__INDEX,
-				       pNv->ModeReg.crtc_reg[nv_crtc->head].CRTC[NV_CIO_CRE_LCD__INDEX]);
-		} else
-			for (i = 0; i <= pNv->twoHeads; i++)
+			int head = to_nouveau_crtc(crtc)->head;
+
+			NVWriteVgaCrtc(pNv, head, NV_CIO_CRE_LCD__INDEX,
+				       pNv->ModeReg.crtc_reg[head].CRTC[NV_CIO_CRE_LCD__INDEX]);
+		} else {
+			int i;
+			uint8_t mask = pNv->gf4_disp_arch ?
+				       ~((nv_encoder->dcb->or << 4) & 0x30) :
+				       ~0x10;
+
+			for (i = 0; i < 2; i++)
 				NVWriteVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX,
-					       NVReadVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX) & ~((nv_encoder->dcb->or << 4) & 0x30));
+					       NVReadVgaCrtc(pNv, i, NV_CIO_CRE_LCD__INDEX) & mask);
+		}
 	}
 }
 
