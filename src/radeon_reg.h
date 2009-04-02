@@ -3627,6 +3627,13 @@
 #       define AVIVO_D1GRPH_MACRO_ADDRESS_MODE          (1<<21)
 
 #define AVIVO_D1GRPH_LUT_SEL                                    0x6108
+
+#define R600_D1GRPH_SWAP_CONTROL                               0x610C
+#       define R600_D1GRPH_SWAP_ENDIAN_NONE                    (0 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_16BIT                   (1 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_32BIT                   (2 << 0)
+#       define R600_D1GRPH_SWAP_ENDIAN_64BIT                   (3 << 0)
+
 #define AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
 #define AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS                  0x6118
 #define AVIVO_D1GRPH_PITCH                                      0x6120

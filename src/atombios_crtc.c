@@ -517,6 +517,9 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 
     if (IS_AVIVO_VARIANT) {
 	uint32_t fb_format;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	uint32_t fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
+#endif
 
 	switch (crtc->scrn->bitsPerPixel) {
 	case 15:
@@ -524,10 +527,16 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	    break;
 	case 16:
 	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_16BPP | AVIVO_D1GRPH_CONTROL_16BPP_RGB565;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    fb_swap = R600_D1GRPH_SWAP_ENDIAN_16BIT;
+#endif
 	    break;
 	case 24:
 	case 32:
 	    fb_format = AVIVO_D1GRPH_CONTROL_DEPTH_32BPP | AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888;
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	    fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
+#endif
 	    break;
 	default:
 	    FatalError("Unsupported screen depth: %d\n", xf86GetDepth());
@@ -554,6 +563,11 @@ atombios_crtc_mode_set(xf86CrtcPtr crtc,
 	OUTREG(AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_SECONDARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset, fb_location);
 	OUTREG(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
+
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+	    OUTREG(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
+#endif
 
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	OUTREG(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
