@@ -613,10 +613,15 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 	NVCrtcRegPtr regp = &state->crtc_reg[head];
 	int i;
 
+	if (pNv->Architecture >= NV_ARCH_10)
+		regp->nv10_cursync = NVReadRAMDAC(pNv, head, NV_RAMDAC_NV10_CURSYNC);
+
 	nouveau_hw_get_pllvals(pScrn, head ? VPLL2 : VPLL1, &regp->pllvals);
+	state->pllsel = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
 	if (pNv->twoHeads)
 		state->sel_clk = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK);
-	state->pllsel = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
+	if (pNv->NVArch == 0x11)
+		regp->dither = NVReadRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11);
 
 	regp->ramdac_gen_ctrl = NVReadRAMDAC(pNv, head, NV_PRAMDAC_GENERAL_CONTROL);
 
@@ -625,19 +630,13 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 	if (pNv->NVArch >= 0x30)
 		regp->ramdac_634 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_634);
 
-		regp->fp_control = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
-		regp->fp_debug_0 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0);
-		regp->fp_debug_1 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1);
-		regp->fp_debug_2 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2);
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
 
-	if (pNv->Architecture == NV_ARCH_40) {
-		regp->ramdac_a20 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A20);
-		regp->ramdac_a24 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A24);
-		regp->ramdac_a34 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A34);
+		regp->fp_vert_regs[i] = NVReadRAMDAC(pNv, head, ramdac_reg);
+		regp->fp_horiz_regs[i] = NVReadRAMDAC(pNv, head, ramdac_reg + 0x20);
 	}
 
-	if (pNv->NVArch == 0x11)
-		regp->dither = NVReadRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11);
 	if (pNv->gf4_disp_arch) {
 		regp->dither = NVReadRAMDAC(pNv, head, NV_RAMDAC_FP_DITHER);
 		for (i = 0; i < 3; i++) {
@@ -645,19 +644,16 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 			regp->dither_regs[i + 3] = NVReadRAMDAC(pNv, head, NV_PRAMDAC_85C + i * 4);
 		}
 	}
-	if (pNv->Architecture >= NV_ARCH_10)
-		regp->nv10_cursync = NVReadRAMDAC(pNv, head, NV_RAMDAC_NV10_CURSYNC);
 
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
+	regp->fp_control = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
+	regp->fp_debug_0 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0);
+	regp->fp_debug_1 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1);
+	regp->fp_debug_2 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2);
 
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_HDISPLAY_END + (i * 4);
-		regp->fp_horiz_regs[i] = NVReadRAMDAC(pNv, head, ramdac_reg);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
-		regp->fp_vert_regs[i] = NVReadRAMDAC(pNv, head, ramdac_reg);
+	if (pNv->Architecture == NV_ARCH_40) {
+		regp->ramdac_a20 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A20);
+		regp->ramdac_a24 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A24);
+		regp->ramdac_a34 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A34);
 	}
 }
 
@@ -668,12 +664,15 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
 	int i;
 
-	/* This sequence is important, the NV28 is very sensitive in this area. */
-	/* Keep pllsel last and sel_clk first. */
-	if (pNv->twoHeads)
-		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, state->sel_clk);
+	if (pNv->Architecture >= NV_ARCH_10)
+		NVWriteRAMDAC(pNv, head, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
+
 	nouveau_hw_setpll(pScrn, pllreg, &regp->pllvals);
 	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
+	if (pNv->twoHeads)
+		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, state->sel_clk);
+	if (pNv->NVArch == 0x11)
+		NVWriteRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11, regp->dither);
 
 	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_GENERAL_CONTROL, regp->ramdac_gen_ctrl);
 
@@ -681,19 +680,14 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_630, regp->ramdac_630);
 	if (pNv->NVArch >= 0x30)
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_634, regp->ramdac_634);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
 
-	if (pNv->Architecture == NV_ARCH_40) {
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A20, regp->ramdac_a20);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A24, regp->ramdac_a24);
-		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A34, regp->ramdac_a34);
+	for (i = 0; i < 7; i++) {
+		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
+
+		NVWriteRAMDAC(pNv, head, ramdac_reg, regp->fp_vert_regs[i]);
+		NVWriteRAMDAC(pNv, head, ramdac_reg + 0x20, regp->fp_horiz_regs[i]);
 	}
 
-	if (pNv->NVArch == 0x11)
-		NVWriteRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11, regp->dither);
 	if (pNv->gf4_disp_arch) {
 		NVWriteRAMDAC(pNv, head, NV_RAMDAC_FP_DITHER, regp->dither);
 		for (i = 0; i < 3; i++) {
@@ -701,19 +695,16 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_85C + i * 4, regp->dither_regs[i + 3]);
 		}
 	}
-	if (pNv->Architecture >= NV_ARCH_10)
-		NVWriteRAMDAC(pNv, head, NV_RAMDAC_NV10_CURSYNC, regp->nv10_cursync);
 
-	/* The regs below are 0 for non-flatpanels, so you can load and save them */
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
+	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
 
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_HDISPLAY_END + (i * 4);
-		NVWriteRAMDAC(pNv, head, ramdac_reg, regp->fp_horiz_regs[i]);
-	}
-
-	for (i = 0; i < 7; i++) {
-		uint32_t ramdac_reg = NV_PRAMDAC_FP_VDISPLAY_END + (i * 4);
-		NVWriteRAMDAC(pNv, head, ramdac_reg, regp->fp_vert_regs[i]);
+	if (pNv->Architecture == NV_ARCH_40) {
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A20, regp->ramdac_a20);
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A24, regp->ramdac_a24);
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A34, regp->ramdac_a34);
 	}
 }
 
