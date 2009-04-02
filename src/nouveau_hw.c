@@ -685,10 +685,6 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
-		if (pNv->NVArch == 0x30) { /* For unknown purposes. */
-			uint32_t reg890 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_890);
-			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_89C, reg890);
-		}
 
 	if (pNv->Architecture == NV_ARCH_40) {
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A20, regp->ramdac_a20);

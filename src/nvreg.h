@@ -395,10 +395,6 @@
 #define NV_PRAMDAC_FP_DEBUG_2				0x00680888
 #define NV_PRAMDAC_FP_DEBUG_3				0x0068088C
 
-/* Some unknown regs, purely for NV30 it seems. */
-#define NV_PRAMDAC_890					0x00680890
-#define NV_PRAMDAC_89C					0x0068089C
-
 /* see NV_PRAMDAC_INDIR_TMDS in rules.xml */
 #define NV_PRAMDAC_FP_TMDS_CONTROL			0x006808b0
 #	define NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE		(1 << 16)
