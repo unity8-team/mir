@@ -647,6 +647,11 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 
 	regp->fp_control = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 	regp->fp_debug_0 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0);
+	if (!pNv->gf4_disp_arch && head == 0)
+		/* early chips don't allow access to PRAMDAC_TMDS_* without
+		 * the head A FPCLK on (nv11 even locks up) */
+		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0 &
+					~NV_PRAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK);
 	regp->fp_debug_1 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1);
 	regp->fp_debug_2 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2);
 
