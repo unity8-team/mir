@@ -36,6 +36,7 @@
 #define NV_CIO_CRE_44_HEADB 0x3
 #define FEATURE_MOBILE 0x10	/* also FEATURE_QUADRO for BMP */
 #define LEGACY_I2C_CRT 0x80
+#define LEGACY_I2C_PANEL 0x81
 
 #define BIOSLOG(sip, fmt, arg...) NV_DEBUG(sip, fmt, ##arg)
 #define LOG_OLD_VALUE(x) //x
@@ -3039,10 +3040,13 @@ int run_tmds_table(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, int head, int px
 
 	NVPtr pNv = NVPTR(pScrn);
 	struct nvbios *bios = &pNv->VBIOS;
+	int cv = bios->pub.chip_version;
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding, sel_clk;
 
-	if (dcbent->location != DCB_LOC_ON_CHIP)
+	/* pre-nv17 off-chip tmds uses scripts, post nv17 doesn't */
+	if (cv >= 0x17 && cv != 0x1a && cv != 0x20 &&
+	    dcbent->location != DCB_LOC_ON_CHIP)
 		return 0;
 
 	switch (ffs(dcbent->or)) {
@@ -4025,6 +4029,32 @@ static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
 	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
 }
 
+static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
+{
+	struct dcb_entry *entry = new_dcb_entry(dcb);
+
+	entry->type = 2;
+	entry->i2c_index = LEGACY_I2C_PANEL;
+	entry->heads = twoHeads ? 3 : 1;
+	entry->location = !DCB_LOC_ON_CHIP;	/* ie OFF CHIP */
+	entry->or = 1;	/* naturally on head A; see setting of CRE_LCD__INDEX */
+	entry->duallink_possible = false; /* SiI164 and co. are single link */
+
+#if 0
+	/* for dvi-a either crtc probably works, but my card appears to only
+	 * support dvi-d.  "nvidia" still attempts to program it for dvi-a,
+	 * doing the full fp output setup (program 0x6808.. fp dimension regs,
+	 * setting 0x680848 to 0x10000111 to enable, maybe setting 0x680880);
+	 * the monitor picks up the mode res ok and lights up, but no pixel
+	 * data appears, so the board manufacturer probably connected up the
+	 * sync lines, but missed the video traces / components
+	 *
+	 * with this introduction, dvi-a left as an exercise for the reader.
+	 */
+	fabricate_vga_output(dcb, LEGACY_I2C_PANEL, entry->heads);
+#endif
+}
+
 static bool
 parse_dcb20_entry(ScrnInfoPtr pScrn, struct bios_parsed_dcb *bdcb,
 		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
@@ -4219,7 +4249,7 @@ void merge_like_dcb_entries(ScrnInfoPtr pScrn, struct parsed_dcb *dcb)
 	dcb->entries = newentries;
 }
 
-static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
+static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios, bool twoHeads)
 {
 	struct bios_parsed_dcb *bdcb = &bios->bdcb;
 	struct parsed_dcb *dcb;
@@ -4299,8 +4329,11 @@ static int parse_dcb_table(ScrnInfoPtr pScrn, struct nvbios *bios)
 		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
 		 */
 		NV_TRACEWARN(pScrn, "No useful information in BIOS output table; "
-				    "assuming a CRT output exists\n");
+				    "adding all possible outputs\n");
 		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
+		if (bios->tmds.output0_script_ptr ||
+		    bios->tmds.output1_script_ptr)
+			fabricate_dvi_i_output(dcb, twoHeads);
 		return 0;
 	}
 
@@ -4349,9 +4382,12 @@ static void fixup_legacy_i2c(struct nvbios *bios)
 	struct parsed_dcb *dcb = &bios->bdcb.dcb;
 	int i;
 
-	for (i = 0; i < dcb->entries; i++)
+	for (i = 0; i < dcb->entries; i++) {
 		if (dcb->entry[i].i2c_index == LEGACY_I2C_CRT)
 			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.crt;
+		if (dcb->entry[i].i2c_index == LEGACY_I2C_PANEL)
+			dcb->entry[i].i2c_index = bios->legacy.i2c_indices.panel;
+	}
 }
 
 static int load_nv17_hwsq_ucode_entry(ScrnInfoPtr pScrn, struct nvbios *bios, uint16_t hwsq_offset, int entry)
@@ -4523,7 +4559,7 @@ int NVParseBios(ScrnInfoPtr pScrn)
 		return -ENODEV;
 	if ((ret = nouveau_parse_vbios_struct(pScrn)))
 		return ret;
-	if ((ret = parse_dcb_table(pScrn, bios)))
+	if ((ret = parse_dcb_table(pScrn, bios, pNv->twoHeads)))
 		return ret;
 	fixup_legacy_i2c(bios);
 
