@@ -160,8 +160,8 @@ void nv_crtc_load_cursor_argb(xf86CrtcPtr crtc, CARD32 *image)
 		 * get back to NPM images, due to limits of integer precision)
 		 */
 		alpha = (*src >> 24);
-		if (alpha == 0xff)
-			/* alpha == max(r,g,b) fortunately works ok for 0xff */
+		if (!alpha || alpha == 0xff)
+			/* alpha == max(r,g,b) works ok for 0x0 and 0xff */
 			tmp = *src;
 		else
 			tmp = ((alpha + 1) << 24) | (*src & 0xffffff);
