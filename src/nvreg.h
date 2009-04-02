@@ -247,7 +247,7 @@
 #		define NV_CIO_SR_UNLOCK_RW_VALUE	0x57
 #		define NV_CIO_SR_LOCK_VALUE		0x99
 #	define NV_CIO_CRE_FFLWM__INDEX		0x20	/* fifo low water mark */
-#	define NV_CIO_CRE_21			0x21	/* referred to by some .scp as `shadow lock' */
+#	define NV_CIO_CRE_21			0x21	/* vga shadow crtc lock */
 #	define NV_CIO_CRE_LSR_INDEX		0x25	/* ? */
 #		define NV_CIO_CRE_LSR_VDT_10		0:0
 #		define NV_CIO_CRE_LSR_VDE_10		1:1

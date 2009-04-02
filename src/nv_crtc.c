@@ -469,10 +469,6 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 
 	/* Registers not directly related to the (s)vga mode */
 
-	/* bit2 = 0 -> fine pitched crtc granularity */
-	/* The rest disables double buffering on CRTC access */
-	regp->CRTC[NV_CIO_CRE_21] = 0xfa;
-
 	/* the blob sometimes sets |= 0x10 (which is the same as setting |=
 	 * 1 << 30 on 0x60.830), for no apparent reason */
 	regp->CRTC[NV_CIO_CRE_59] = 0x0;
@@ -810,11 +806,14 @@ static void nv_crtc_restore(xf86CrtcPtr crtc)
 {
 	struct nouveau_crtc *nv_crtc = to_nouveau_crtc(crtc);
 	NVPtr pNv = NVPTR(crtc->scrn);
+	int head = nv_crtc->head;
+	uint8_t saved_cr21 = pNv->SavedReg.crtc_reg[head].CRTC[NV_CIO_CRE_21];
 
 	if (pNv->twoHeads)
-		NVSetOwner(pNv, nv_crtc->head);
+		NVSetOwner(pNv, head);
 
-	nouveau_hw_load_state(crtc->scrn, nv_crtc->head, &pNv->SavedReg);
+	nouveau_hw_load_state(crtc->scrn, head, &pNv->SavedReg);
+	nv_lock_vga_crtc_shadow(pNv, head, saved_cr21);
 
 	nv_crtc->last_dpms = NV_DPMS_CLEARED;
 }
@@ -839,6 +838,7 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
+	nv_lock_vga_crtc_shadow(pNv, nv_crtc->head, -1);
 	NVWriteCRTC(pNv, nv_crtc->head, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (pNv->Architecture == NV_ARCH_40) {
 		uint32_t reg900 = NVReadRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_900);

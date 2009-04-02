@@ -845,7 +845,6 @@ static void nv_load_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *st
 		nvWriteVIDEO(pNv, NV_PVIDEO_UVPLANE_LIMIT(1), pNv->VRAMPhysicalSize - 1);
 		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, 0);
 
-		wr_cio_state(pNv, head, regp, NV_CIO_CRE_21);
 		NVWriteCRTC(pNv, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
 		NVWriteCRTC(pNv, head, NV_PCRTC_830, regp->crtc_830);
 		NVWriteCRTC(pNv, head, NV_PCRTC_834, regp->crtc_834);
