@@ -75,14 +75,12 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset,
 		      saved_rtest_ctrl & ~NV_PRAMDAC_TEST_CONTROL_PWRDWN_DAC_OFF);
 
-	if (pNv->NVArch >= 0x17) {
-		saved_powerctrl_2 = nvReadMC(pNv, NV_PBUS_POWERCTRL_2);
+	saved_powerctrl_2 = nvReadMC(pNv, NV_PBUS_POWERCTRL_2);
 
-		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
-		if (regoffset == 0x68) {
-			saved_powerctrl_4 = nvReadMC(pNv, NV_PBUS_POWERCTRL_4);
-			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
-		}
+	nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2 & 0xd7ffffff);
+	if (regoffset == 0x68) {
+		saved_powerctrl_4 = nvReadMC(pNv, NV_PBUS_POWERCTRL_4);
+		nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
 	usleep(4000);
@@ -119,11 +117,9 @@ nv_load_detect(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	/* bios does something more complex for restoring, but I think this is good enough */
 	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + regoffset, saved_routput);
 	NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, saved_rtest_ctrl);
-	if (pNv->NVArch >= 0x17) {
-		if (regoffset == 0x68)
-			nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
-		nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
-	}
+	if (regoffset == 0x68)
+		nvWriteMC(pNv, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
+	nvWriteMC(pNv, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
 	if (present) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Load detected on output %c\n", '@' + ffs(nv_encoder->dcb->or));
@@ -220,9 +216,9 @@ nv_output_detect(xf86OutputPtr output)
 					"Enable", FALSE))
 			ret = XF86OutputStatusConnected;
 		/* we don't have a load det function for early cards */
-		else if (!pNv->twoHeads || pNv->NVArch == 0x11)
+		else if (!pNv->gf4_disp_arch)
 			ret = XF86OutputStatusUnknown;
-		else if (pNv->twoHeads && nv_load_detect(pScrn, det_encoder))
+		else if (nv_load_detect(pScrn, det_encoder))
 			ret = XF86OutputStatusConnected;
 	} else if ((det_encoder = find_encoder_by_type(OUTPUT_LVDS))) {
 		if (det_encoder->dcb->lvdsconf.use_straps_for_mode) {
@@ -483,7 +479,7 @@ static Atom dv_atom, sharpness_atom;
 static void nv_output_create_resources(xf86OutputPtr output)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	int arch = NVPTR(output->scrn)->NVArch;
+	NVPtr pNv = NVPTR(output->scrn);
 
 	/* may be called before encoder is picked, resources will be created
 	 * by update_output_fields()
@@ -497,15 +493,15 @@ static void nv_output_create_resources(xf86OutputPtr output)
 		nv_output_create_prop(output, "SCALING_MODE", &scaling_mode_atom,
 				      NULL, 0, get_current_scaling_name(nv_encoder->scaling_mode), TRUE);
 	}
-	if (arch >= 0x11 && output->crtc) {
+	if (pNv->NVArch >= 0x11 && output->crtc) {
 		struct nouveau_crtc *nv_crtc = to_nouveau_crtc(output->crtc);
-		INT32 dv_range[2] = { 0, (arch < 0x17 || arch == 0x20) ? 3 : 63 };
+		INT32 dv_range[2] = { 0, !pNv->gf4_disp_arch ? 3 : 63 };
 		/* unsure of correct condition here: blur works on my nv34, but not on my nv31 */
-		INT32 is_range[2] = { arch > 0x31 ? -32 : 0, 31 };
+		INT32 is_range[2] = { pNv->NVArch > 0x31 ? -32 : 0, 31 };
 
 		nv_output_create_prop(output, "DIGITAL_VIBRANCE", &dv_atom,
 				      dv_range, nv_crtc->saturation, NULL, FALSE);
-		if (arch >= 0x30)
+		if (pNv->NVArch >= 0x30)
 			nv_output_create_prop(output, "IMAGE_SHARPENING", &sharpness_atom,
 					      is_range, nv_crtc->sharpness, NULL, FALSE);
 	}
@@ -516,7 +512,7 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 				RRPropertyValuePtr value)
 {
 	struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
-	int arch = NVPTR(output->scrn)->NVArch;
+	NVPtr pNv = NVPTR(output->scrn);
 
 	if (property == scaling_mode_atom) {
 		int32_t ret;
@@ -554,12 +550,12 @@ nv_output_set_property(xf86OutputPtr output, Atom property,
 			return FALSE;
 
 		if (property == dv_atom) {
-			if (val < 0 || val > ((arch < 0x17 || arch == 0x20) ? 3 : 63))
+			if (val < 0 || val > (!pNv->gf4_disp_arch ? 3 : 63))
 				return FALSE;
 
 			nv_crtc_set_digital_vibrance(output->crtc, val);
 		} else {
-			if (val < (arch > 0x31 ? -32 : 0) || val > 31)
+			if (val < (pNv->NVArch > 0x31 ? -32 : 0) || val > 31)
 				return FALSE;
 
 			nv_crtc_set_image_sharpening(output->crtc, val);
@@ -712,7 +708,7 @@ nv_output_mode_set(xf86OutputPtr output, DisplayModePtr mode, DisplayModePtr adj
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "%s called for encoder %d\n", __func__, nv_encoder->dcb->index);
 
-	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG) {
+	if (pNv->gf4_disp_arch && nv_encoder->dcb->type == OUTPUT_ANALOG) {
 		uint32_t dac_offset = nv_output_ramdac_offset(nv_encoder);
 		uint32_t otherdac;
 		int i;
@@ -842,7 +838,7 @@ vga_encoder_dpms(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder, xf86Crtc
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Setting dpms mode %d on vga encoder (output %d)\n", mode, nv_encoder->dcb->index);
 
-	if (pNv->twoHeads) {
+	if (pNv->gf4_disp_arch) {
 		uint32_t outputval = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder));
 
 		if (mode == DPMSModeOff)
@@ -911,10 +907,14 @@ void nv_encoder_save(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	if (!nv_encoder->dcb)	/* uninitialised encoder */
 		return;
 
-	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
-		nv_encoder->restore.output = NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder));
-	if (nv_encoder->dcb->type == OUTPUT_TMDS || nv_encoder->dcb->type == OUTPUT_LVDS)
-		nv_encoder->restore.head = nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
+	if (pNv->gf4_disp_arch && nv_encoder->dcb->type == OUTPUT_ANALOG)
+		nv_encoder->restore.output =
+			NVReadRAMDAC(pNv, 0, NV_PRAMDAC_DACCLK +
+				nv_output_ramdac_offset(nv_encoder));
+	if (pNv->twoHeads && (nv_encoder->dcb->type == OUTPUT_LVDS ||
+			      nv_encoder->dcb->type == OUTPUT_TMDS))
+		nv_encoder->restore.head =
+			nv_get_digital_bound_head(pNv, nv_encoder->dcb->or);
 }
 
 void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
@@ -925,7 +925,7 @@ void nv_encoder_restore(ScrnInfoPtr pScrn, struct nouveau_encoder *nv_encoder)
 	if (!nv_encoder->dcb)	/* uninitialised encoder */
 		return;
 
-	if (pNv->twoHeads && nv_encoder->dcb->type == OUTPUT_ANALOG)
+	if (pNv->gf4_disp_arch && nv_encoder->dcb->type == OUTPUT_ANALOG)
 		NVWriteRAMDAC(pNv, 0,
 			      NV_PRAMDAC_DACCLK + nv_output_ramdac_offset(nv_encoder),
 			      nv_encoder->restore.output);

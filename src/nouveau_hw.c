@@ -107,7 +107,7 @@ static int powerctrl_1_shift(int chip_version, int reg)
 {
 	int shift = -4;
 
-	if (chip_version < 0x17 || chip_version == 0x20)
+	if (chip_version < 0x17 || chip_version == 0x1a || chip_version == 0x20)
 		return shift;
 
 	switch (reg) {
@@ -620,25 +620,25 @@ nv_save_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mode_state *sta
 
 	regp->ramdac_gen_ctrl = NVReadRAMDAC(pNv, head, NV_PRAMDAC_GENERAL_CONTROL);
 
-	if (pNv->twoHeads) {
-		if (pNv->NVArch >= 0x17)
-			regp->ramdac_630 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_630);
-		if (pNv->NVArch >= 0x30)
-			regp->ramdac_634 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_634);
+	if (pNv->gf4_disp_arch)
+		regp->ramdac_630 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_630);
+	if (pNv->NVArch >= 0x30)
+		regp->ramdac_634 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_634);
 
 		regp->fp_control = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL);
 		regp->fp_debug_0 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0);
 		regp->fp_debug_1 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1);
 		regp->fp_debug_2 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_2);
 
+	if (pNv->Architecture == NV_ARCH_40) {
 		regp->ramdac_a20 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A20);
 		regp->ramdac_a24 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A24);
 		regp->ramdac_a34 = NVReadRAMDAC(pNv, head, NV_PRAMDAC_A34);
 	}
 
-	if (pNv->NVArch == 0x11) {
+	if (pNv->NVArch == 0x11)
 		regp->dither = NVReadRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11);
-	} else if (pNv->twoHeads) {
+	if (pNv->gf4_disp_arch) {
 		regp->dither = NVReadRAMDAC(pNv, head, NV_RAMDAC_FP_DITHER);
 		for (i = 0; i < 3; i++) {
 			regp->dither_regs[i] = NVReadRAMDAC(pNv, head, NV_PRAMDAC_850 + i * 4);
@@ -677,11 +677,10 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 
 	NVWriteRAMDAC(pNv, head, NV_PRAMDAC_GENERAL_CONTROL, regp->ramdac_gen_ctrl);
 
-	if (pNv->twoHeads) {
-		if (pNv->NVArch >= 0x17)
-			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_630, regp->ramdac_630);
-		if (pNv->NVArch >= 0x30)
-			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_634, regp->ramdac_634);
+	if (pNv->gf4_disp_arch)
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_630, regp->ramdac_630);
+	if (pNv->NVArch >= 0x30)
+		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_634, regp->ramdac_634);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
@@ -691,6 +690,7 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_89C, reg890);
 		}
 
+	if (pNv->Architecture == NV_ARCH_40) {
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A20, regp->ramdac_a20);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A24, regp->ramdac_a24);
 		NVWriteRAMDAC(pNv, head, NV_PRAMDAC_A34, regp->ramdac_a34);
@@ -698,7 +698,7 @@ static void nv_load_state_ramdac(ScrnInfoPtr pScrn, int head, struct nouveau_mod
 
 	if (pNv->NVArch == 0x11)
 		NVWriteRAMDAC(pNv, head, NV_RAMDAC_DITHER_NV11, regp->dither);
-	else if (pNv->twoHeads) {
+	if (pNv->gf4_disp_arch) {
 		NVWriteRAMDAC(pNv, head, NV_RAMDAC_FP_DITHER, regp->dither);
 		for (i = 0; i < 3; i++) {
 			NVWriteRAMDAC(pNv, head, NV_PRAMDAC_850 + i * 4, regp->dither_regs[i]);
@@ -814,8 +814,7 @@ nv_save_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *state)
 		rd_cio_state(pNv, head, regp, NV_CIO_CRE_4B);
 		rd_cio_state(pNv, head, regp, NV_CIO_CRE_TVOUT_LATENCY);
 	}
-	/* NV11 and NV20 don't have this, they stop at 0x52. */
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
+	if (pNv->gf4_disp_arch) {
 		rd_cio_state(pNv, head, regp, NV_CIO_CRE_53);
 		rd_cio_state(pNv, head, regp, NV_CIO_CRE_54);
 
@@ -901,8 +900,7 @@ static void nv_load_state_ext(NVPtr pNv, int head, struct nouveau_mode_state *st
 		wr_cio_state(pNv, head, regp, NV_CIO_CRE_4B);
 		wr_cio_state(pNv, head, regp, NV_CIO_CRE_TVOUT_LATENCY);
 	}
-	/* NV11 and NV20 stop at 0x52. */
-	if (pNv->NVArch >= 0x17 && pNv->twoHeads) {
+	if (pNv->gf4_disp_arch) {
 		wr_cio_state(pNv, head, regp, NV_CIO_CRE_53);
 		wr_cio_state(pNv, head, regp, NV_CIO_CRE_54);
 

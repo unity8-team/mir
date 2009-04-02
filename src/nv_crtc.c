@@ -39,7 +39,7 @@ void nv_crtc_set_digital_vibrance(xf86CrtcPtr crtc, int level)
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 
 	regp->CRTC[NV_CIO_CRE_CSB] = nv_crtc->saturation = level;
-	if (nv_crtc->saturation && pNv->NVArch >= 0x17 && pNv->NVArch != 0x20) {
+	if (nv_crtc->saturation && pNv->gf4_disp_arch) {
 		regp->CRTC[NV_CIO_CRE_CSB] = 0x80;
 		regp->CRTC[NV_CIO_CRE_5B] = nv_crtc->saturation << 2;
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_5B);
@@ -538,11 +538,11 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->crtc_830 = mode->CrtcVDisplay - 3;
 	regp->crtc_834 = mode->CrtcVDisplay - 1;
 
-	if (pNv->twoHeads)
+	if (pNv->Architecture == NV_ARCH_40)
 		/* This is what the blob does */
 		regp->crtc_850 = NVReadCRTC(pNv, 0, NV_PCRTC_850);
 
-	if (pNv->twoHeads)
+	if (pNv->Architecture == NV_ARCH_40)
 		regp->gpio_ext = NVReadCRTC(pNv, 0, NV_PCRTC_GPIO_EXT);
 
 	regp->crtc_cfg = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
@@ -721,33 +721,29 @@ nv_crtc_mode_set_fp_regs(xf86CrtcPtr crtc, DisplayModePtr mode, DisplayModePtr a
 		}
 	}
 
-	/* Flatpanel support needs at least a NV10 */
-	if (pNv->twoHeads) {
-		/* Output property. */
-		if (nv_encoder && nv_encoder->dithering) {
-			if (pNv->NVArch == 0x11)
-				regp->dither = savep->dither | 0x00010000;
-			else {
-				int i;
-				regp->dither = savep->dither | 0x00000001;
-				for (i = 0; i < 3; i++) {
-					regp->dither_regs[i] = 0xe4e4e4e4;
-					regp->dither_regs[i + 3] = 0x44444444;
-				}
+	/* Output property. */
+	if (nv_encoder && nv_encoder->dithering) {
+		if (pNv->NVArch == 0x11)
+			regp->dither = savep->dither | 0x00010000;
+		else {
+			int i;
+			regp->dither = savep->dither | 0x00000001;
+			for (i = 0; i < 3; i++) {
+				regp->dither_regs[i] = 0xe4e4e4e4;
+				regp->dither_regs[i + 3] = 0x44444444;
 			}
-		} else {
-			if (pNv->NVArch != 0x11) {
-				/* reset them */
-				int i;
-				for (i = 0; i < 3; i++) {
-					regp->dither_regs[i] = savep->dither_regs[i];
-					regp->dither_regs[i + 3] = savep->dither_regs[i + 3];
-				}
-			}
-			regp->dither = savep->dither;
 		}
-	} else
+	} else {
+		if (pNv->NVArch != 0x11) {
+			/* reset them */
+			int i;
+			for (i = 0; i < 3; i++) {
+				regp->dither_regs[i] = savep->dither_regs[i];
+				regp->dither_regs[i + 3] = savep->dither_regs[i + 3];
+			}
+		}
 		regp->dither = savep->dither;
+	}
 }
 
 /**

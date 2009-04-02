@@ -415,7 +415,7 @@ static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 	 * returns calculated clock
 	 */
 
-	int chip_version = NVPTR(pScrn)->vbios->chip_version;
+	int cv = NVPTR(pScrn)->vbios->chip_version;
 	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
 	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
 	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
@@ -429,13 +429,13 @@ static int getMNP_single(ScrnInfoPtr pScrn, struct pll_lims *pll_lim, int clk,
 
 	/* this division verified for nv20, nv18, nv28 (Haiku), and nv34 */
 	/* possibly correlated with introduction of 27MHz crystal */
-	if (chip_version <= 0x16 || chip_version == 0x20) {
+	if (cv < 0x17 || cv == 0x1a || cv == 0x20) {
 		if (clk > 250000)
 			maxM = 6;
 		if (clk > 340000)
 			maxM = 2;
 		maxlog2P = 4;
-	} else if (chip_version < 0x40) {
+	} else if (cv < 0x40) {
 		if (clk > 150000)
 			maxM = 6;
 		if (clk > 200000)

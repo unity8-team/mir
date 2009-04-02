@@ -335,7 +335,7 @@ static void nv10GetConfig(ScrnInfoPtr pScrn)
 		pNv->RamAmountKBytes = 256*1024;
 
 	pNv->CrystalFreqKHz = (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 6)) ? 14318 : 13500;
-	if (pNv->twoHeads && implementation != CHIPSET_NV11)
+	if (pNv->gf4_disp_arch)
 		if (nvReadEXTDEV(pNv, NV_PEXTDEV_BOOT_0) & (1 << 22))
 			pNv->CrystalFreqKHz = 27000;
 
@@ -414,7 +414,9 @@ NVCommonSetup(ScrnInfoPtr pScrn)
 			(implementation != CHIPSET_NFORCE) &&
 			(implementation != CHIPSET_NV20);
 
-	pNv->fpScaler = (pNv->FpScale && pNv->twoHeads && implementation != CHIPSET_NV11);
+	pNv->gf4_disp_arch = pNv->twoHeads && implementation != CHIPSET_NV11;
+
+	pNv->fpScaler = pNv->FpScale && pNv->gf4_disp_arch;
 
 	/* nv30 and nv35 have two stage PLLs, but use only one register; they are dealt with separately */
 	pNv->two_reg_pll = (implementation == CHIPSET_NV31) ||

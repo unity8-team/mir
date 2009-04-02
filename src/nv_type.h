@@ -323,9 +323,10 @@ typedef struct _NVRec {
 	int         vtOWNER;
 	Bool		crtc_active[2];
     OptionInfoPtr	Options;
-    Bool                alphaCursor;
+    bool                alphaCursor;
     unsigned char       DDCBase;
-    Bool                twoHeads;
+    bool                twoHeads;
+    bool		gf4_disp_arch;
     bool                two_reg_pll;
     Bool                fpScaler;
     int                 fpWidth;
