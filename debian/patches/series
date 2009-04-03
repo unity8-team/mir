@@ -6,7 +6,7 @@
 109_i830-fifo-watermark-conservative.patch
 110_quirk_hp_mini.patch
 112_num_used_fences.patch
-114_fix_xv_with_non_gem.patch
+#114_fix_xv_with_non_gem.patch
 115_fix_crash_xv_overlay.patch
 116_865g_disable_dri.patch
 117_quirk_thinkpad_x30.patch

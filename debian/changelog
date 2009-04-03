@@ -1,3 +1,12 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu5) jaunty; urgency=low
+
+  * Disable 114_fix_xv_with_non_gem.patch: At the time we accepted it, it
+    sounded a little risky, so I took it on the condition that it didn't
+    cause regressions, which apparently we have proof that it does.
+    (LP: #348428) (Reopen 344740)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Fri, 03 Apr 2009 20:03:39 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu4) jaunty; urgency=low
 
   * Add 117_quirk_thinkpad_x30.patch:
