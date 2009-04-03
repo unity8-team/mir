@@ -50,8 +50,8 @@
 #define NV50_PCONNECTOR_I2C_PORT_1			0x0000e150
 #define NV50_PCONNECTOR_I2C_PORT_2			0x0000e168
 #define NV50_PCONNECTOR_I2C_PORT_3			0x0000e180
-#define NV50_PCONNECTOR_I2C_PORT_4			0x0000e254
-#define NV50_PCONNECTOR_I2C_PORT_5			0x0000e274
+#define NV50_PCONNECTOR_I2C_PORT_4			0x0000e240
+#define NV50_PCONNECTOR_I2C_PORT_5			0x0000e258
 
 /* 0x00610024 is the state register to read, all it's bits also exist in 0x0061002C in the form of interrupt switches. */
 #define NV50_DISPLAY_SUPERVISOR		0x00610024
