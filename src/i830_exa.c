@@ -867,12 +867,13 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 			   __FUNCTION__);
 		return FALSE;
 	    }
+	    pixmap->devPrivate.ptr = bo->virtual;
 	} else { /* or not... */
 	    if (drm_intel_bo_pin(bo, 4096) != 0)
 		return FALSE;
 	    drm_intel_gem_bo_start_gtt_access(bo, access == UXA_ACCESS_RW);
+	    pixmap->devPrivate.ptr = i830->FbBase + bo->offset;
 	}
-	pixmap->devPrivate.ptr = bo->virtual;
     }
     return TRUE;
 }

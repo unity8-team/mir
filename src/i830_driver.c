@@ -846,11 +846,12 @@ i830_update_front_offset(ScrnInfoPtr pScrn)
 	      if (drm_intel_gem_bo_map_gtt(bo))
 		  xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "%s: bo map failed\n",
 			     __FUNCTION__);
+	      data = bo->virtual;
 	  } else {
 	      /* Will already be pinned by bind_all_memory in this case */
 	      drm_intel_gem_bo_start_gtt_access(bo, 1);
+	      data = pI830->FbBase + bo->offset;
 	  }
-	  data = bo->virtual;
       }
    }
    if (!pScreen->ModifyPixmapHeader(pScreen->GetScreenPixmap(pScreen),
