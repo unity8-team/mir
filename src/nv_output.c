@@ -249,7 +249,6 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 	DisplayModePtr mode;
 
 	for (i = 0; i < DET_TIMINGS; i++) {
-		/* We only look at detailed timings atm */
 		if (nv_connector->edid->det_mon[i].type != DT)
 			continue;
 		/* Selecting only based on width ok? */
@@ -258,9 +257,15 @@ get_native_mode_from_edid(xf86OutputPtr output, DisplayModePtr edid_modes)
 			max_v_active = nv_connector->edid->det_mon[i].section.d_timings.v_active;
 		}
 	}
-	if (!(max_h_active && max_v_active)) {
+	if (!max_h_active || !max_v_active) /* what kind of a joke EDID is this? */
+		for (i = 0; i < STD_TIMINGS; i++)
+			if (nv_connector->edid->timings2[i].hsize > max_h_active) {
+				max_h_active = nv_connector->edid->timings2[i].hsize;
+				max_v_active = nv_connector->edid->timings2[i].vsize;
+			}
+	if (!max_h_active || !max_v_active) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "No EDID detailed timings available for finding native mode\n");
+			   "EDID too broken for finding native mode\n");
 		return NULL;
 	}
 
