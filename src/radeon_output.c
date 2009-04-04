@@ -520,32 +520,8 @@ radeon_mode_fixup(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_prepare(xf86OutputPtr output)
 {
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
-    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
-    int o;
-
-    for (o = 0; o < config->num_output; o++) {
-	xf86OutputPtr loop_output = config->output[o];
-	if (loop_output == output)
-	    continue;
-	else if (loop_output->crtc) {
-	    xf86CrtcPtr other_crtc = loop_output->crtc;
-	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
-	    if (other_crtc->enabled) {
-		if (other_radeon_crtc->initialized) {
-		    radeon_crtc_dpms(other_crtc, DPMSModeOff);
-		    if (IS_AVIVO_VARIANT || info->r4xx_atom)
-			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 1);
-		    radeon_dpms(loop_output, DPMSModeOff);
-		}
-	    }
-	}
-    }
-
     radeon_bios_output_lock(output, TRUE);
     radeon_dpms(output, DPMSModeOff);
-    radeon_crtc_dpms(output->crtc, DPMSModeOff);
-
 }
 
 static void
@@ -565,30 +541,7 @@ radeon_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 static void
 radeon_mode_commit(xf86OutputPtr output)
 {
-    RADEONInfoPtr info = RADEONPTR(output->scrn);
-    xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (output->scrn);
-    int o;
-
-    for (o = 0; o < config->num_output; o++) {
-	xf86OutputPtr loop_output = config->output[o];
-	if (loop_output == output)
-	    continue;
-	else if (loop_output->crtc) {
-	    xf86CrtcPtr other_crtc = loop_output->crtc;
-	    RADEONCrtcPrivatePtr other_radeon_crtc = other_crtc->driver_private;
-	    if (other_crtc->enabled) {
-		if (other_radeon_crtc->initialized) {
-		    radeon_crtc_dpms(other_crtc, DPMSModeOn);
-		    if (IS_AVIVO_VARIANT || info->r4xx_atom)
-			atombios_lock_crtc(info->atomBIOS, other_radeon_crtc->crtc_id, 0);
-		    radeon_dpms(loop_output, DPMSModeOn);
-		}
-	    }
-	}
-    }
-
     radeon_dpms(output, DPMSModeOn);
-    radeon_crtc_dpms(output->crtc, DPMSModeOn);
     radeon_bios_output_lock(output, FALSE);
 }
 

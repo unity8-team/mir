@@ -115,6 +115,9 @@ radeon_crtc_mode_prepare(xf86CrtcPtr crtc)
 {
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
 
+    if (radeon_crtc->initialized)
+	radeon_crtc_dpms(crtc, DPMSModeOff);
+
     if (radeon_crtc->enabled)
 	crtc->funcs->hide_cursor(crtc);
 }
@@ -283,6 +286,8 @@ radeon_crtc_mode_commit(xf86CrtcPtr crtc)
 {
     if (crtc->scrn->pScreen != NULL)
 	xf86_reload_cursors(crtc->scrn->pScreen);
+
+    radeon_crtc_dpms(crtc, DPMSModeOn);
 }
 
 void
