@@ -110,7 +110,6 @@ extern void atombios_output_mode_set(xf86OutputPtr output,
 				     DisplayModePtr adjusted_mode);
 extern void atombios_output_dpms(xf86OutputPtr output, int mode);
 extern RADEONMonitorType atombios_dac_detect(xf86OutputPtr output);
-extern int atombios_external_tmds_setup(xf86OutputPtr output, DisplayModePtr mode);
 extern AtomBiosResult
 atombios_lock_crtc(atomBiosHandlePtr atomBIOS, int crtc, int lock);
 static void
@@ -2517,10 +2516,15 @@ static RADEONMacModel RADEONDetectMacModel(ScrnInfoPtr pScrn)
 static int
 radeon_output_clones (ScrnInfoPtr pScrn, xf86OutputPtr output)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);
     int			o;
     int			index_mask = 0;
+
+    /* DIG routing gets problematic */
+    if (IS_DCE32_VARIANT)
+	return index_mask;
 
     /* LVDS is too wacky */
     if (radeon_output->devices & (ATOM_DEVICE_LCD_SUPPORT))

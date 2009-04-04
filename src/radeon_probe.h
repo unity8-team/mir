@@ -271,8 +271,10 @@ typedef struct _RADEONOutputPrivateRec {
     radeon_tvout_rec tvout;
 
     /* dce 3.x dig block */
-    int transmitter_config;
     int igp_lane_info;
+    int dig_block;
+
+    int pixel_clock;
 } RADEONOutputPrivateRec, *RADEONOutputPrivatePtr;
 
 struct avivo_pll_state {

@@ -1589,6 +1589,7 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     if (radeon_encoder == NULL)
 	return;
 
+    radeon_output->pixel_clock = adjusted_mode->Clock;
     if (radeon_crtc->crtc_id == 0) {
 	ErrorF("set RMX\n");
 	is_primary = TRUE;
@@ -1614,7 +1615,7 @@ legacy_output_mode_set(xf86OutputPtr output, DisplayModePtr mode,
 	    unsigned char *RADEONMMIO = info->MMIO;
 	    uint32_t fp2_gen_cntl;
 
-	    atombios_external_tmds_setup(output, mode);
+	    atombios_external_tmds_setup(output, ATOM_ENABLE);
 	    fp2_gen_cntl = INREG(RADEON_FP2_GEN_CNTL) & ~R200_FP2_SOURCE_SEL_MASK;
 	    if (radeon_crtc->crtc_id == 1)
 		fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC2;
