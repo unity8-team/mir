@@ -1,3 +1,11 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu8) jaunty; urgency=low
+
+  * Expand patch 116 and rename to 116_8xx_disable_dri.patch to 
+    fix freezing issue on i810 as well.
+    (LP: #279835)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 06 Apr 2009 18:18:46 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu7) jaunty; urgency=low
 
   * Add 119_drm_bo_unreference_needs_null.patch:
