@@ -1019,7 +1019,7 @@ I830SetupImageVideoTextured(ScreenPtr pScreen)
 	pPriv->doubleBuffer = 0;
 
 	pPriv->rotation = RR_Rotate_0;
-	pPriv->SyncToVblank = -1;
+	pPriv->SyncToVblank = 1;
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
@@ -2513,23 +2513,6 @@ I830PutImage(ScrnInfoPtr pScrn,
             sync = FALSE;
         } else if (pPriv->SyncToVblank == 0) {
             sync = FALSE;
-        } else if (pPriv->SyncToVblank == -1) {
-            BoxRec crtc_box;
-            BoxPtr pbox;
-            int nbox, crtc_area, coverage = 0;
-
-            i830_crtc_box(crtc, &crtc_box);
-            crtc_area = i830_box_area(&crtc_box);
-            pbox = REGION_RECTS(clipBoxes);
-            nbox = REGION_NUM_RECTS(clipBoxes);
-            
-            while (nbox--) {
-                coverage += i830_box_area(pbox);
-                pbox++;
-            }
-
-            if ((coverage << 2) < crtc_area)
-                sync = FALSE;
         }
 
         if (sync) {
