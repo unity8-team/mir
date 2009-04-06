@@ -1,3 +1,30 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu7) jaunty; urgency=low
+
+  * Add 119_drm_bo_unreference_needs_null.patch:
+    - The first time through the Xv code, an allocated buffer is
+      unreferenced but the pointer is not reset to NULL.  Thus, the next time
+      a video is played, -intel thinks it has a valid buffer and crashes
+      when it tries to access the freed memory.  Fixes a number of crashes
+      reported since moving to the 2.6.3 driver.
+    - Fixes crash on i945 with frame buffer width > 2048.  DRI is disabled
+      on this chipset when the frame buffer exceeds this width.
+      (LP: #354688)
+    - Fixes crash on i865 where DRI is off because of patch 116
+      (LP: #352760)
+    - Fixes crash on i845 starting after 304871 was fixed
+      (LP: #354889)
+    - Fixes crash on i830 when manually disabling DRI
+      (LP: #347527)
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Mon, 06 Apr 2009 14:28:29 -0700
+
+xserver-xorg-video-intel (2:2.6.3-0ubuntu6) jaunty; urgency=low
+
+  * Update 116_865g_disable_dri.patch: Permit DRI on 845.
+    Evidence so far suggests the freezes on 845 due to DRI are gone.
+
+ -- Bryce Harrington <bryce@ubuntu.com>  Sat, 04 Apr 2009 12:49:38 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu5) jaunty; urgency=low
 
   * Disable 114_fix_xv_with_non_gem.patch: At the time we accepted it, it
