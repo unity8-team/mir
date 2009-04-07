@@ -119,7 +119,7 @@ static void load_vbios_prom(NVPtr pNv, uint8_t *data)
 		pci_nv_20 = NV_PBUS_PCI_NV_20;
 
 	/* enable ROM access */
-	save_pci_nv_20 = nvReadMC(pNv, NV_PBUS_PCI_NV_20);
+	save_pci_nv_20 = nvReadMC(pNv, pci_nv_20);
 	nvWriteMC(pNv, pci_nv_20,
 		  save_pci_nv_20 & ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 
