@@ -135,15 +135,14 @@ radeon_box_area(BoxPtr box)
     return (int) (box->x2 - box->x1) * (int) (box->y2 - box->y1);
 }
 
-int
-radeon_covering_crtc_num(ScrnInfoPtr pScrn,
-			 int x1, int x2, int y1, int y2,
-			 xf86CrtcPtr desired)
+xf86CrtcPtr
+radeon_xv_pick_best_crtc(ScrnInfoPtr pScrn,
+			 int x1, int x2, int y1, int y2)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int			coverage, best_coverage;
-    int			c, best_crtc = 0;
+    int			coverage, best_coverage, c;
     BoxRec		box, crtc_box, cover_box;
+    xf86CrtcPtr         best_crtc = NULL;
 
     box.x1 = x1;
     box.x2 = x2;
@@ -155,10 +154,8 @@ radeon_covering_crtc_num(ScrnInfoPtr pScrn,
 	radeon_crtc_box(crtc, &crtc_box);
 	radeon_box_intersect(&cover_box, &crtc_box, &box);
 	coverage = radeon_box_area(&cover_box);
-	if (coverage && crtc == desired) {
-	    return c;
-	} else if (coverage > best_coverage) {
-	    best_crtc = c;
+	if (coverage > best_coverage) {
+	    best_crtc = crtc;
 	    best_coverage = coverage;
 	}
     }
