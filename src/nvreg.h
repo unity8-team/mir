@@ -297,7 +297,7 @@
 #	define NV_CIO_CRE_54			0x54	/* `fp_vtiming' according to Haiku */
 #	define NV_CIO_CRE_57			0x57	/* index reg for cr58 */
 #	define NV_CIO_CRE_58			0x58	/* data reg for cr57 */
-#	define NV_CIO_CRE_59			0x59
+#	define NV_CIO_CRE_59			0x59	/* related to on/off-chip-ness of digital outputs */
 #	define NV_CIO_CRE_5B			0x5B	/* newer colour saturation reg */
 #	define NV_CIO_CRE_85			0x85
 #	define NV_CIO_CRE_86			0x86

@@ -454,26 +454,26 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	NVCrtcRegPtr regp = &pNv->ModeReg.crtc_reg[nv_crtc->head];
 	NVCrtcRegPtr savep = &pNv->SavedReg.crtc_reg[nv_crtc->head];
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-	bool lvds_output = false, tmds_output = false;
+	bool lvds_output = false, tmds_output = false, off_chip_digital = false;
 	int i;
 
 	for (i = 0; i < xf86_config->num_output; i++) {
 		xf86OutputPtr output = xf86_config->output[i];
 		struct nouveau_encoder *nv_encoder = to_nouveau_encoder(output);
+		bool digital = false;
 
-		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_LVDS)
-			lvds_output = true;
-		if (output->crtc == crtc && nv_encoder->dcb->type == OUTPUT_TMDS)
-			tmds_output = true;
+		if (output->crtc != crtc || !nv_encoder)
+			continue;
+
+		if (nv_encoder->dcb->type == OUTPUT_LVDS)
+			digital = lvds_output = true;
+		if (nv_encoder->dcb->type == OUTPUT_TMDS)
+			digital = tmds_output = true;
+		if (nv_encoder->dcb->location != DCB_LOC_ON_CHIP && digital)
+			off_chip_digital = true;
 	}
 
 	/* Registers not directly related to the (s)vga mode */
-
-	/* the blob sometimes sets |= 0x10 (which is the same as setting |=
-	 * 1 << 30 on 0x60.830), for no apparent reason */
-	regp->CRTC[NV_CIO_CRE_59] = 0x0;
-	if (tmds_output && pNv->Architecture < NV_ARCH_40)
-		regp->CRTC[NV_CIO_CRE_59] |= 0x1;
 
 	/* What is the meaning of this register? */
 	/* A few popular values are 0x18, 0x1c, 0x38, 0x3c */ 
@@ -530,6 +530,10 @@ nv_crtc_mode_set_regs(xf86CrtcPtr crtc, DisplayModePtr mode)
 	regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] = pNv->SavedReg.crtc_reg[0].CRTC[NV_CIO_CRE_TVOUT_LATENCY];
 	if (!nv_crtc->head)
 		regp->CRTC[NV_CIO_CRE_TVOUT_LATENCY] += 4;
+
+	/* the blob sometimes sets |= 0x10 (which is the same as setting |=
+	 * 1 << 30 on 0x60.830), for no apparent reason */
+	regp->CRTC[NV_CIO_CRE_59] = off_chip_digital;
 
 	regp->crtc_830 = mode->CrtcVDisplay - 3;
 	regp->crtc_834 = mode->CrtcVDisplay - 1;
