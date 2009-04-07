@@ -39,7 +39,8 @@ NV50OrOffset(nouveauOutputPtr output)
 }
 
 static void
-NV50OutputInit(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, char *outputname, int bus_count)
+NV50OutputInit(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, char *outputname, int bus_count,
+	       int conn_id)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	int i;
@@ -55,19 +56,19 @@ NV50OutputInit(ScrnInfoPtr pScrn, struct dcb_entry *dcbent, char *outputname, in
 	/* Give the connectors better names if possible. */
 	switch (dcbent->type) {
 		case OUTPUT_LVDS:
-			sprintf(connector_name, "LVDS-%d", bus);
+			sprintf(connector_name, "LVDS-%d", conn_id);
 			break;
 		case OUTPUT_TMDS:
-			sprintf(connector_name, "DVI-%d", bus);
+			sprintf(connector_name, "DVI-%d", conn_id);
 			break;
 		case OUTPUT_ANALOG:
 			if (bus_count > 1) /* DVI-I */
-				sprintf(connector_name, "DVI-%d", bus);
+				sprintf(connector_name, "DVI-%d", conn_id);
 			else
-				sprintf(connector_name, "VGA-%d", bus);
+				sprintf(connector_name, "VGA-%d", conn_id);
 			break;
 		case OUTPUT_TV:
-			sprintf(connector_name, "TV-%d", bus);
+			sprintf(connector_name, "TV-%d", conn_id);
 			break;
 		default:
 			break;
@@ -179,8 +180,9 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct parsed_dcb *dcb = pNv->vbios->dcb;
 	int i, type, i2c_index, bus, bus_count[0xf];
+	int lvds = 0, dvi_i = 0, dvi_d = 0, vga = 0, tv = 0;
 	char outputname[20];
-	uint32_t index;
+	uint32_t index, conn_id;
 
 	memset(pNv->pI2CBus, 0, sizeof(pNv->pI2CBus));
 	memset(bus_count, 0, sizeof(bus_count));
@@ -204,15 +206,25 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 		switch (type) {
 		case OUTPUT_ANALOG:
 			sprintf(outputname, "DAC-%d", index);
+			if (bus_count[bus] > 1)
+				conn_id = dvi_i++;
+			else
+				conn_id = vga++;
 			break;
 		case OUTPUT_TMDS:
 			sprintf(outputname, "SOR-%d", index);
+			if (bus_count[bus] > 1)
+				conn_id = dvi_i++;
+			else
+				conn_id = dvi_d++;
 			break;
 		case OUTPUT_TV: /* this does not handle shared dac's yet. */
 			sprintf(outputname, "DAC-%d", index);
+			conn_id = tv++;
 			break;
 		case OUTPUT_LVDS:
 			sprintf(outputname, "SOR-%d", index);
+			conn_id = lvds++;
 			break;
 		default:
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
@@ -220,7 +232,7 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 		}
 
 		if (type < OUTPUT_NONE)
-			NV50OutputInit(pScrn, dcbent, outputname, bus_count[bus]);
+			NV50OutputInit(pScrn, dcbent, outputname, bus_count[bus], conn_id);
 	}
 }
 

@@ -863,9 +863,9 @@ static int subpixel_conv_table[7] = { 0, SubPixelUnknown,
 
 const char *output_names[] = { "None",
 			       "VGA",
-			       "DVI",
-			       "DVI",
-			       "DVI",
+			       "DVI-I",
+			       "DVI-D",
+			       "DVI-A",
 			       "Composite",
 			       "TV",
 			       "LVDS",
@@ -898,7 +898,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 	}
 
 	snprintf(name, 32, "%s-%d", output_names[koutput->connector_type],
-		 koutput->connector_type_id);
+		 koutput->connector_type_id - 1);
 
 	output = xf86OutputCreate (pScrn, &drmmode_output_funcs, name);
 	if (!output) {
