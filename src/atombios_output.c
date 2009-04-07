@@ -1544,8 +1544,12 @@ atombios_output_mode_set(xf86OutputPtr output,
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
     case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
     case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	/* disable encoder and transmitter */
+	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_DISABLE);
+	atombios_output_dig_encoder_setup(output, ATOM_DISABLE);
+
+	/* setup and enable the encoder and transmitter */
 	atombios_output_dig_encoder_setup(output, ATOM_ENABLE);
-	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_INIT);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_SETUP);
 	atombios_output_dig_transmitter_setup(output, ATOM_TRANSMITTER_ACTION_ENABLE);
 	break;
