@@ -155,6 +155,6 @@ do {									\
 #define OUTMC(pScrn, addr, val) RADEONOUTMC(pScrn, addr, val)
 
 #define INPCIE(pScrn, addr) RADEONINPCIE(pScrn, addr)
-#define OUTPCIE(pScrn, addr, val) RADEONOUTPCIE(pScrn, addr, val
+#define OUTPCIE(pScrn, addr, val) RADEONOUTPCIE(pScrn, addr, val)
 
 #endif
