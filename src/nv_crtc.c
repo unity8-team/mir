@@ -767,8 +767,10 @@ nv_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Output mode on CRTC %d:\n", nv_crtc->head);
 	xf86PrintModeline(pScrn->scrnIndex, adjusted_mode);
 
-	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
+	/* unlock must come after turning off FP_TG_CONTROL in output_prepare */
+	nv_lock_vga_crtc_shadow(pNv, nv_crtc->head, -1);
 
+	nv_crtc_mode_set_vga(crtc, mode, adjusted_mode);
 	/* calculated in output_prepare, nv40 needs it written before calculating PLLs */
 	if (pNv->Architecture == NV_ARCH_40)
 		NVWriteRAMDAC(pNv, 0, NV_PRAMDAC_SEL_CLK, pNv->ModeReg.sel_clk);
@@ -841,7 +843,6 @@ static void nv_crtc_prepare(xf86CrtcPtr crtc)
 	NVBlankScreen(pNv, nv_crtc->head, true);
 
 	/* Some more preperation. */
-	nv_lock_vga_crtc_shadow(pNv, nv_crtc->head, -1);
 	NVWriteCRTC(pNv, nv_crtc->head, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
 	if (pNv->Architecture == NV_ARCH_40) {
 		uint32_t reg900 = NVReadRAMDAC(pNv, nv_crtc->head, NV_PRAMDAC_900);
