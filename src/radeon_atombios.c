@@ -1398,7 +1398,7 @@ xf86MonPtr radeon_atom_get_edid(xf86OutputPtr output)
     AtomBiosArgRec data;
     unsigned char *space;
     int i2c_clock = 50;
-    int engine_clk = info->sclk * 100;
+    int engine_clk = (int)info->sclk * 100;
     int prescale;
     unsigned char *edid;
     xf86MonPtr mon = NULL;
