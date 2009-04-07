@@ -180,7 +180,7 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 	NVPtr pNv = NVPTR(pScrn);
 	struct parsed_dcb *dcb = pNv->vbios->dcb;
 	int i, type, i2c_index, bus, bus_count[0xf];
-	int lvds = 0, dvi_i = 0, dvi_d = 0, vga = 0, tv = 0;
+	int lvds = 0, dvi_i = 0, dvi_d = 0, vga = 0, tv = 0, unk = 0;
 	char outputname[20];
 	uint32_t index, conn_id;
 
@@ -228,6 +228,7 @@ NV50OutputSetup(ScrnInfoPtr pScrn)
 			break;
 		default:
 			xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DCB type %d not known\n", type);
+			conn_id = unk++;
 			break;
 		}
 

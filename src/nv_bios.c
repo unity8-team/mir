@@ -109,13 +109,19 @@ score_vbios(ScrnInfoPtr pScrn, const uint8_t *data, const bool writeable)
 
 static void load_vbios_prom(NVPtr pNv, uint8_t *data)
 {
-	uint32_t pci_nv_20 = nvReadMC(pNv, NV_PBUS_PCI_NV_20);
+	uint32_t pci_nv_20, save_pci_nv_20;
 	int pcir_ptr;
 	int i;
 
+	if (pNv->Architecture >= NV_ARCH_50)
+		pci_nv_20 = 0x88050;
+	else
+		pci_nv_20 = NV_PBUS_PCI_NV_20;
+
 	/* enable ROM access */
-	nvWriteMC(pNv, NV_PBUS_PCI_NV_20,
-		  pci_nv_20 & ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+	save_pci_nv_20 = nvReadMC(pNv, NV_PBUS_PCI_NV_20);
+	nvWriteMC(pNv, pci_nv_20,
+		  save_pci_nv_20 & ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 
 	/* bail if no rom signature */
 	if (NV_RD08(pNv->REGS, NV_PROM_OFFSET) != 0x55 ||
@@ -140,8 +146,8 @@ static void load_vbios_prom(NVPtr pNv, uint8_t *data)
 
 out:
 	/* disable ROM access */
-	nvWriteMC(pNv, NV_PBUS_PCI_NV_20,
-		  pci_nv_20 | NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+	nvWriteMC(pNv, pci_nv_20,
+		  save_pci_nv_20 | NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
 }
 
 static void load_vbios_pramin(NVPtr pNv, uint8_t *data)
