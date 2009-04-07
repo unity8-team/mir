@@ -2146,7 +2146,8 @@ i830_clip_video_helper (ScrnInfoPtr pScrn,
 						   pPriv->desired_crtc,
 						   &crtc_box);
 	
-	if (crtc)
+	/* For textured video, we don't actually want to clip at all. */
+	if (crtc && !pPriv->textured)
 	{
 	    REGION_INIT (pScreen, &crtc_region_local, &crtc_box, 1);
 	    crtc_region = &crtc_region_local;
