@@ -1,3 +1,13 @@
+xserver-xorg-video-intel (2:2.6.3-0ubuntu9) jaunty; urgency=low
+
+  * Add 120_fix_vt_switch.patch: Fix null pointer deref in
+    I830StopVideo(), which can lead to segfaults calling
+    drm_intel_bo_unpin or drm_intel_bo_unreference when entering DPMS.
+    Thanks to unggnu for shepherding this bug to solution!
+    (LP: #345796)
+  
+ -- Bryce Harrington <bryce@ubuntu.com>  Wed, 08 Apr 2009 19:12:39 -0700
+
 xserver-xorg-video-intel (2:2.6.3-0ubuntu8) jaunty; urgency=low
 
   * Expand patch 116 and rename to 116_8xx_disable_dri.patch to 

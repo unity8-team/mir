@@ -12,3 +12,4 @@
 117_quirk_thinkpad_x30.patch
 118_drop_legacy3d.patch
 119_drm_bo_unreference_needs_null.patch
+120_fix_vt_switch.patch
