@@ -790,7 +790,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 	drmModePropertyPtr props;
-	int mode, ret;
+	int mode, ret = 0;
 
 	if (property == scaling_mode_atom) {
 		if (value->type != XA_STRING || value->format != 8)
@@ -809,7 +809,6 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		ret = drmModeConnectorSetProperty(drmmode->fd,
 						  drmmode_output->output_id,
 						  props->prop_id, mode);
-		return ret == 0;
 	} else
 	if (property == dithering_atom) {
 		if (value->type != XA_STRING || value->format != 8)
@@ -828,10 +827,9 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		ret = drmModeConnectorSetProperty(drmmode->fd,
 						  drmmode_output->output_id,
 						  props->prop_id, mode);
-		return ret == 0;
 	}
 
-	return FALSE;
+	return ret == 0;
 }
 
 static const xf86OutputFuncsRec drmmode_output_funcs = {
