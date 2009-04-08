@@ -84,34 +84,18 @@ NVI2CPutBits(I2CBusPtr b, int clock, int data)
 
 static uint32_t NV50_GetI2CPort(ScrnInfoPtr pScrn, int index)
 {
+	NVPtr pNv = NVPTR(pScrn);
 	uint32_t reg;
 
-	switch (index) {
-		case 0:
-			reg = NV50_PCONNECTOR_I2C_PORT_0;
-			break;
-		case 1:
-			reg = NV50_PCONNECTOR_I2C_PORT_1;
-			break;
-		case 2:
-			reg = NV50_PCONNECTOR_I2C_PORT_2;
-			break;
-		case 3:
-			reg = NV50_PCONNECTOR_I2C_PORT_3;
-			break;
-		case 4:
-			reg = NV50_PCONNECTOR_I2C_PORT_4;
-			break;
-		case 5:
-			reg = NV50_PCONNECTOR_I2C_PORT_5;
-			break;
-		default:
-			xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Invalid i2c port number %d, defaulting to 0.\n", index);
-			reg = NV50_PCONNECTOR_I2C_PORT_0;
-			break;
-	}
+	if (index <= 3)
+		return 0xe138 + (index * 24);
 
-	return reg;
+	/* I have my doubts that this is 100% correct everywhere,
+	 * but this is the best guess based on the data we have.
+	 */
+	if (pNv->NVArch >= 0x90) /* 0x90, 0xA0 */
+		return 0xe1d4 + (index * 32);
+	return 0xe1e0 + (index * 24);
 }
 
 static void NV50_I2CPutBits(I2CBusPtr b, int clock, int data)
