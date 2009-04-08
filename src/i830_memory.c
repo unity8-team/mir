@@ -533,14 +533,15 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 		struct drm_i915_gem_init init;
 		int ret;
 
-		sp.param = I915_SETPARAM_NUM_USED_FENCES;
-		sp.value = 0; /* kernel gets them all */
+		if (pI830->accel == ACCEL_UXA) {
+		    sp.param = I915_SETPARAM_NUM_USED_FENCES;
+		    sp.value = 0; /* kernel gets them all */
 
-		ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM, &sp,
-				      sizeof(sp));
-		if (ret == 0)
-		    pI830->kernel_exec_fencing = TRUE;
-
+		    ret = drmCommandWrite(pI830->drmSubFD, DRM_I915_SETPARAM,
+					  &sp, sizeof(sp));
+		    if (ret == 0)
+			pI830->kernel_exec_fencing = TRUE;
+		}
 		init.gtt_start = pI830->memory_manager->offset;
 		init.gtt_end = pI830->memory_manager->offset +
 		    pI830->memory_manager->size;
