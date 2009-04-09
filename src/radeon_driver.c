@@ -3764,6 +3764,10 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
         }
     }
 
+    /* Clear the framebuffer */
+    memset(info->FB + pScrn->fbOffset, 0,
+           pScrn->virtualY * pScrn->displayWidth * info->CurrentLayout.pixel_bytes);
+
     /* set the modes with desired rotation, etc. */
     if (!xf86SetDesiredModes (pScrn))
 	return FALSE;
@@ -5659,6 +5663,10 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
 	radeon_crtc_modeset_ioctl(config->crtc[i], TRUE);
 
     pScrn->vtSema = TRUE;
+
+    /* Clear the framebuffer */
+    memset(info->FB + pScrn->fbOffset, 0,
+           pScrn->virtualY * pScrn->displayWidth * info->CurrentLayout.pixel_bytes);
 
     if (!xf86SetDesiredModes(pScrn))
 	return FALSE;
