@@ -1174,7 +1174,7 @@ radeon_create_resources(xf86OutputPtr output)
 	}
     }
 
-    if ((!IS_AVIVO_VARIANT) && (radeon_output->devices & (ATOM_DEVICE_DFP2_SUPPORT))) {
+    if ((!IS_AVIVO_VARIANT) && (radeon_output->devices & (ATOM_DEVICE_DFP1_SUPPORT))) {
 	tmds_pll_atom = MAKE_ATOM("tmds_pll");
 
 	err = RRConfigureOutputProperty(output->randr_output, tmds_pll_atom,
