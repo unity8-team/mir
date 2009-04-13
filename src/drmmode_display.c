@@ -946,7 +946,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		if (width > scrn->virtualX || height > scrn->virtualY)
 			return FALSE;
 
-		scrn->displayWidth = width;
+		scrn->displayWidth = NOUVEAU_ALIGN(width, 64);
 		return TRUE;
 	}
 
