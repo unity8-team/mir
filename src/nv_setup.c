@@ -223,7 +223,11 @@ NVProbeDDC (ScrnInfoPtr pScrn, int bus)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, 
                "Probing for EDID on I2C bus %s...\n", bus ? "B" : "A");
 
+#ifdef EDID_COMPLETE_RAWDATA
+    if ((MonInfo = xf86DoEEDID(pScrn->scrnIndex, pNv->I2C, TRUE))) {
+#else
     if ((MonInfo = xf86DoEDID_DDC2(pScrn->scrnIndex, pNv->I2C))) {
+#endif
        xf86DrvMsg(pScrn->scrnIndex, X_PROBED,
                   "DDC detected a %s:\n", MonInfo->features.input_type ?
                   "DFP" : "CRT");
