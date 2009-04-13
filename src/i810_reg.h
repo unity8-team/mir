@@ -1300,6 +1300,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_ENCODING_HDMI			(0x2 << 10)
 /** Requird for HDMI operation */
 #define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
+#define SDVO_COLOR_NOT_FULL_RANGE		(1 << 8)
 #define SDVO_BORDER_ENABLE			(1 << 7)
 #define SDVO_AUDIO_ENABLE			(1 << 6)
 /** New with 965, default is to be set */

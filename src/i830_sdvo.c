@@ -49,6 +49,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "i830_display.h"
 #include "i810_reg.h"
 #include "i830_sdvo_regs.h"
+#include "X11/Xatom.h"
 
 /** SDVO driver private structure. */
 struct i830_sdvo_priv {
@@ -110,6 +111,8 @@ struct i830_sdvo_priv {
 
     /** DDC bus used by this SDVO output */
     uint8_t ddc_bus;
+    /* Default 0 for full RGB range 0-255, 1 is for RGB range 16-235 */
+    uint32_t broadcast_rgb;
 
     /** State for save/restore */
     /** @{ */
@@ -120,6 +123,8 @@ struct i830_sdvo_priv {
     uint32_t save_SDVOX;
     /** @} */
 };
+
+static Atom broadcast_atom;
 
 /**
  * Writes the SDVOB or SDVOC with the given value, but always writes both
@@ -1927,7 +1932,94 @@ i830_sdvo_get_crtc(xf86OutputPtr output)
 }
 #endif
 
+static void
+i830_sdvo_create_resources(xf86OutputPtr output)
+{
+    ScrnInfoPtr                 pScrn = output->scrn;
+    I830Ptr                     pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr        intel_output = output->driver_private;
+    struct i830_sdvo_priv       *dev_priv = intel_output->dev_priv;
+    INT32			broadcast_range[2];
+    int                         err;
+
+    /* only R G B are 8bit color mode */
+    if (pScrn->depth != 24 ||
+        /* only 965G and G4X platform */
+        !(IS_I965G(pI830) || IS_G4X(pI830)) ||
+        /* only TMDS encoding */
+        !(strstr(output->name, "TMDS") || strstr(output->name, "HDMI")))
+        return;
+
+    broadcast_atom =
+        MakeAtom("BROADCAST_RGB", sizeof("BROADCAST_RGB") - 1, TRUE);
+
+    broadcast_range[0] = 0;
+    broadcast_range[1] = 1;
+    err = RRConfigureOutputProperty(output->randr_output,
+                                    broadcast_atom,
+                                    FALSE, TRUE, FALSE, 2, broadcast_range);
+    if (err != 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "RRConfigureOutputProperty error, %d\n", err);
+        return;
+    }
+    /* Set the current value of the broadcast property as full range */
+    dev_priv->broadcast_rgb = 0;
+    err = RRChangeOutputProperty(output->randr_output,
+                                 broadcast_atom,
+                                 XA_INTEGER, 32, PropModeReplace,
+                                 1, &dev_priv->broadcast_rgb,
+                                 FALSE, TRUE);
+    if (err != 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "RRChangeOutputProperty error, %d\n", err);
+        return;
+    }
+}
+
+static Bool
+i830_sdvo_set_property(xf86OutputPtr output, Atom property,
+		       RRPropertyValuePtr value)
+{
+    ScrnInfoPtr             pScrn = output->scrn;
+    I830Ptr                 pI830 = I830PTR(pScrn);
+    I830OutputPrivatePtr    intel_output = output->driver_private;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
+    uint32_t temp;
+
+    if (property == broadcast_atom) {
+        uint32_t val;
+
+        if (value->type != XA_INTEGER || value->format != 32 ||
+            value->size != 1)
+        {
+            return FALSE;
+        }
+
+        val = *(INT32 *)value->data;
+        if (val < 0 || val > 1)
+        {
+            return FALSE;
+        }
+        if (val == dev_priv->broadcast_rgb)
+            return TRUE;
+
+        temp = INREG(dev_priv->output_device);
+
+        if (val == 1)
+            temp |= SDVO_COLOR_NOT_FULL_RANGE;
+        else if (val == 0)
+            temp &= ~SDVO_COLOR_NOT_FULL_RANGE;
+
+        i830_sdvo_write_sdvox(output, temp);
+
+        dev_priv->broadcast_rgb = val;
+    }
+    return TRUE;
+}
+
 static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
+    .create_resources = i830_sdvo_create_resources,
     .dpms = i830_sdvo_dpms,
     .save = i830_sdvo_save,
     .restore = i830_sdvo_restore,
@@ -1938,6 +2030,7 @@ static const xf86OutputFuncsRec i830_sdvo_output_funcs = {
     .commit = i830_output_commit,
     .detect = i830_sdvo_detect,
     .get_modes = i830_sdvo_get_modes,
+    .set_property = i830_sdvo_set_property,
     .destroy = i830_sdvo_destroy,
 #ifdef RANDR_GET_CRTC_INTERFACE
     .get_crtc = i830_sdvo_get_crtc,
