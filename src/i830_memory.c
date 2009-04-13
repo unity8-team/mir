@@ -1244,8 +1244,6 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	tile_format = TILE_XMAJOR;
     if (pI830->accel == ACCEL_XAA && IS_I965G(pI830))
 	tile_format = TILE_NONE;
-    if (pI830->use_drm_mode)
-	tile_format = TILE_NONE;
 
     if (!IsTileable(pScrn, pitch))
 	tile_format = TILE_NONE;
