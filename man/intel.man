@@ -321,6 +321,14 @@ First DVI SDVO output
 .SS "TMDS-2"
 Second DVI SDVO output
 
+.SS "TMDS-1", "TMDS-2", "HDMI-1", "HDMI-2"
+DVI/HDMI outputs. Avaliable common properties include:
+.PP
+.B BROADCAST_RGB
+- method used to set RGB color range(full range 0-255, not full range 16-235)
+.TP 2
+Adjusting this propertie allows you to set RGB color range on each channel in order to match HDTV requirment(default 0 for full range). Setting 1 means RGB color range is 16-235, 0 means RGB color range is 0-255 on each channel.
+
 .PP
 SDVO and DVO TV outputs are not supported by the driver at this time.
 
