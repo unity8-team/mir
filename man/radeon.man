@@ -423,6 +423,10 @@ with this enabled.  The default is
 Enable a static low power mode.  This can help reduce heat and increase battery
 life by reducing power usage at the expense of performance. The default is
 .B off.
+.BI "Option \*qDynamicPM\*q \*q" boolean \*q
+Enable dynamic power mode switching.  This can help reduce heat and increase battery
+life by reducing power usage when the system is idle (DPMS active). The default is
+.B off.
 .TP
 .BI "Option \*qVGAAccess\*q \*q" boolean \*q
 Tell the driver if it can do legacy VGA IOs to the card. This is

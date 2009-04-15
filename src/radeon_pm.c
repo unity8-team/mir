@@ -575,6 +575,68 @@ RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable)
 	       enable ? "En" : "Dis");
 }
 
+void RADEONDynamicLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    int sclk = (int)info->sclk * 100; /* 10 khz */
+
+    if (enable && info->low_power_active)
+	return;
+
+    if (!enable && !info->low_power_active)
+	return;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    if (enable) {
+	if (info->IsAtomBios)
+	    atombios_set_engine_clock(pScrn, sclk/4);
+	else
+	    RADEONSetEngineClock(pScrn, sclk/4);
+
+	if (info->cardType == CARD_PCIE)
+	    RADEONSetPCIELanes(pScrn, 1);
+
+	info->low_power_active = TRUE;
+    } else {
+	if (info->IsAtomBios)
+	    atombios_set_engine_clock(pScrn, sclk);
+	else
+	    RADEONSetEngineClock(pScrn, sclk);
+
+	if (info->cardType == CARD_PCIE)
+	    RADEONSetPCIELanes(pScrn, 16);
+
+	info->low_power_active = FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Low Power Mode %sabled\n",
+	       enable ? "En" : "Dis");
+}
+
+void RADEONPMBlockHandler(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
+
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	xf86CrtcPtr crtc = xf86_config->crtc[i];
+	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
+
+	if (radeon_crtc->enabled)
+	    break;
+    }
+
+    if (i == xf86_config->num_crtc) {
+	if (!info->low_power_active)
+	    RADEONDynamicLowPowerMode(pScrn, TRUE);
+    } else {
+	if (info->low_power_active)
+	    RADEONDynamicLowPowerMode(pScrn, FALSE);
+    }
+}
+
 void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
@@ -590,8 +652,6 @@ void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
 
 	if (info->cardType == CARD_PCIE)
 	    RADEONSetPCIELanes(pScrn, 2);
-
-	info->low_power_mode = TRUE;
     } else {
 	if (info->IsAtomBios)
 	    atombios_set_engine_clock(pScrn, sclk);
@@ -600,10 +660,8 @@ void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
 
 	if (info->cardType == CARD_PCIE)
 	    RADEONSetPCIELanes(pScrn, 16);
-
-	info->low_power_mode = FALSE;
     }
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Low Power Mode %sabled\n",
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Static Low Power Mode %sabled\n",
 	       enable ? "En" : "Dis");
 }

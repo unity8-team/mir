@@ -208,7 +208,8 @@ typedef enum {
     OPTION_EXA_VSYNC,
     OPTION_ATOM_TVOUT,
     OPTION_R4XX_ATOM,
-    OPTION_FORCE_LOW_POWER
+    OPTION_FORCE_LOW_POWER,
+    OPTION_DYNAMIC_PM
 } RADEONOpts;
 
 
@@ -411,6 +412,12 @@ typedef enum {
 	CARD_AGP,
 	CARD_PCIE
 } RADEONCardType;
+
+typedef enum {
+	POWER_MODE_NONE,
+	POWER_MODE_STATIC,
+	POWER_MODE_DYNAMIC
+} RADEONPowerMode;
 
 typedef struct _atomBiosHandle *atomBiosHandlePtr;
 
@@ -893,7 +900,8 @@ typedef struct {
     Bool              r4xx_atom;
 
     /* pm */
-    Bool              low_power_mode;
+    RADEONPowerMode   power_mode;
+    Bool              low_power_active;
 
 } RADEONInfoRec, *RADEONInfoPtr;
 
@@ -1077,6 +1085,8 @@ extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 /* radeon_pm.c */
 extern void RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable);
 extern void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable);
+extern void RADEONPMBlockHandler(ScrnInfoPtr pScrn);
+extern void RADEONDynamicLowPowerMode(ScrnInfoPtr pScrn, Bool enable);
 
 #ifdef USE_EXA
 /* radeon_exa.c */
