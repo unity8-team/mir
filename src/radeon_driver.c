@@ -690,6 +690,29 @@ void RADEONOUTPCIE(ScrnInfoPtr pScrn, int addr, uint32_t data)
     OUTREG(RADEON_PCIE_DATA, data);
 }
 
+/* Read PCIE PORT register */
+unsigned R600INPCIE_PORT(ScrnInfoPtr pScrn, int addr)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    CARD32         data;
+
+    OUTREG(R600_PCIE_PORT_INDEX, addr & 0xff);
+    data = INREG(R600_PCIE_PORT_DATA);
+
+    return data;
+}
+
+/* Write PCIE PORT register */
+void R600OUTPCIE_PORT(ScrnInfoPtr pScrn, int addr, uint32_t data)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+
+    OUTREG(R600_PCIE_PORT_INDEX, ((addr) & 0xff));
+    OUTREG(R600_PCIE_PORT_DATA, data);
+}
+
 static Bool radeon_get_mc_idle(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);

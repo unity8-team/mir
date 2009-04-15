@@ -157,4 +157,7 @@ do {									\
 #define INPCIE(pScrn, addr) RADEONINPCIE(pScrn, addr)
 #define OUTPCIE(pScrn, addr, val) RADEONOUTPCIE(pScrn, addr, val)
 
+#define INPCIE_P(pScrn, addr) R600INPCIE_PORT(pScrn, addr)
+#define OUTPCIE_P(pScrn, addr, val) R600OUTPCIE_PORT(pScrn, addr, val)
+
 #endif

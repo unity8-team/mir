@@ -452,6 +452,105 @@ void RADEONForceSomeClocks(ScrnInfoPtr pScrn)
      OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
 }
 
+static void
+RADEONSetPCIELanes(ScrnInfoPtr pScrn, int lanes)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    unsigned char *RADEONMMIO = info->MMIO;
+    uint32_t link_width_cntl, mask, target_reg;
+
+    if (info->IsIGP)
+	return;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    switch (lanes) {
+    case 0:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X0;
+	break;
+    case 1:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X1;
+	break;
+    case 2:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X2;
+	break;
+    case 4:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X4;
+	break;
+    case 8:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X8;
+	break;
+    case 12:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X12;
+	break;
+    case 16:
+    default:
+	mask = RADEON_PCIE_LC_LINK_WIDTH_X16;
+	break;
+    }
+
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	link_width_cntl = INPCIE_P(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+
+	if ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) ==
+	    (mask << RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT))
+	    return;
+
+	link_width_cntl &= ~(RADEON_PCIE_LC_LINK_WIDTH_MASK |
+			     RADEON_PCIE_LC_RECONFIG_NOW |
+			     R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE |
+			     R600_PCIE_LC_SHORT_RECONFIG_EN |
+			     R600_PCIE_LC_RENEGOTIATE_EN);
+	link_width_cntl |= mask;
+
+#if 0
+	/* some northbridges can renegotiate the link rather than requiring
+	 * a complete re-config.
+	 * e.g., AMD 780/790 northbridges (pci ids: 0x5956, 0x5957, 0x5958, etc.)
+	 */
+	if (northbridge can renegotiate)
+	    link_width_cntl |= R600_PCIE_LC_RENEGOTIATE_EN;
+	else
+#endif
+	    link_width_cntl |= R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE;
+
+	OUTPCIE_P(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	OUTPCIE_P(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl | RADEON_PCIE_LC_RECONFIG_NOW);
+
+	if (info->ChipFamily >= CHIP_FAMILY_RV770)
+	    target_reg = R700_TARGET_AND_CURRENT_PROFILE_INDEX;
+	else
+	    target_reg = R600_TARGET_AND_CURRENT_PROFILE_INDEX;
+
+	/* wait for lane set to complete */
+	link_width_cntl = INREG(target_reg);
+	while (link_width_cntl == 0xffffffff)
+	    link_width_cntl = INREG(target_reg);
+
+    } else {
+	link_width_cntl = INPCIE(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+
+	if ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) ==
+	    (mask << RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT))
+	    return;
+
+	link_width_cntl &= ~(RADEON_PCIE_LC_LINK_WIDTH_MASK |
+			     RADEON_PCIE_LC_RECONFIG_NOW |
+			     RADEON_PCIE_LC_RECONFIG_LATER |
+			     RADEON_PCIE_LC_SHORT_RECONFIG_EN);
+	link_width_cntl |= mask;
+	OUTPCIE(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	OUTPCIE(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl | RADEON_PCIE_LC_RECONFIG_NOW);
+
+	/* wait for lane set to complete */
+	link_width_cntl = INPCIE(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	while (link_width_cntl == 0xffffffff)
+	    link_width_cntl = INPCIE(pScrn, RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+
+    }
+
+}
+
 void
 RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable)
 {
@@ -489,12 +588,18 @@ void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
 	else
 	    RADEONSetEngineClock(pScrn, sclk/2);
 
+	if (info->cardType == CARD_PCIE)
+	    RADEONSetPCIELanes(pScrn, 1);
+
 	info->low_power_mode = TRUE;
     } else {
 	if (info->IsAtomBios)
 	    atombios_set_engine_clock(pScrn, sclk);
 	else
 	    RADEONSetEngineClock(pScrn, sclk);
+
+	if (info->cardType == CARD_PCIE)
+	    RADEONSetPCIELanes(pScrn, 16);
 
 	info->low_power_mode = FALSE;
     }
