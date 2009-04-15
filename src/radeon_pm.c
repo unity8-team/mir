@@ -611,12 +611,11 @@ void RADEONPMInit(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_CLOCK_GATING, FALSE))
+    if (xf86ReturnOptValBool(info->Options, OPTION_CLOCK_GATING, FALSE)) {
 	info->pm.clock_gating_enabled = TRUE;
-    else
+	RADEONSetClockGating(pScrn, info->pm.clock_gating_enabled);
+    } else
 	info->pm.clock_gating_enabled = FALSE;
-
-    RADEONSetClockGating(pScrn, info->pm.clock_gating_enabled);
 
     info->pm.mode[0].type = POWER_DEFAULT;
     info->pm.mode[0].sclk = (uint32_t)info->sclk * 100; /* 10 khz */
@@ -670,7 +669,8 @@ void RADEONPMEnterVT(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-    RADEONSetClockGating(pScrn, info->pm.clock_gating_enabled);
+    if (info->pm.clock_gating_enabled)
+	RADEONSetClockGating(pScrn, info->pm.clock_gating_enabled);
     if (info->pm.force_low_power_enabled || info->pm.dynamic_mode_enabled)
 	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);
 }
@@ -679,7 +679,8 @@ void RADEONPMLeaveVT(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
 
-    RADEONSetClockGating(pScrn, FALSE);
+    if (info->pm.clock_gating_enabled)
+	RADEONSetClockGating(pScrn, FALSE);
     if (info->pm.force_low_power_enabled || info->pm.dynamic_mode_enabled)
 	RADEONSetStaticPowerMode(pScrn, POWER_DEFAULT);
 }
@@ -688,7 +689,8 @@ void RADEONPMFini(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    RADEONSetClockGating(pScrn, FALSE);
+    if (info->pm.clock_gating_enabled)
+	RADEONSetClockGating(pScrn, FALSE);
     if (info->pm.force_low_power_enabled || info->pm.dynamic_mode_enabled)
 	RADEONSetStaticPowerMode(pScrn, POWER_DEFAULT);
 }
