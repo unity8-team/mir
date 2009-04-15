@@ -651,12 +651,12 @@ void RADEONPMInit(ScrnInfoPtr pScrn)
 	    info->pm.mode[2].type = POWER_HIGH;
 	    info->pm.mode[2].sclk = info->pm.mode[0].sclk / 2;
 	    info->pm.mode[2].mclk = info->pm.mode[0].mclk / 2;
-	    info->pm.mode[2].pcie_lanes = 2;
+	    info->pm.mode[2].pcie_lanes = 4;
 	} else {
 	    info->pm.mode[1].type = POWER_HIGH;
 	    info->pm.mode[1].sclk = info->pm.mode[0].sclk / 2;
 	    info->pm.mode[1].mclk = info->pm.mode[0].mclk / 2;
-	    info->pm.mode[1].pcie_lanes = 2;
+	    info->pm.mode[1].pcie_lanes = 4;
 	    info->pm.num_modes += 1;
 	}
 	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);
