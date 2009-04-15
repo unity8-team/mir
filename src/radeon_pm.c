@@ -589,7 +589,7 @@ void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
 	    RADEONSetEngineClock(pScrn, sclk/2);
 
 	if (info->cardType == CARD_PCIE)
-	    RADEONSetPCIELanes(pScrn, 1);
+	    RADEONSetPCIELanes(pScrn, 2);
 
 	info->low_power_mode = TRUE;
     } else {
