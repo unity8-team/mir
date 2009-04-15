@@ -571,6 +571,59 @@ atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable)
 
 }
 
+int
+atombios_set_engine_clock(ScrnInfoPtr pScrn, int engclock)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    SET_ENGINE_CLOCK_PS_ALLOCATION eng_clock_ps;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    eng_clock_ps.ulTargetEngineClock = engclock; /* 10 khz */
+
+    /*ErrorF("Attempting to set engine clock to: %d\n", engclock);*/
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, SetEngineClock);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &eng_clock_ps;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	/* ErrorF("Set engine clock success\n"); */
+	return ATOM_SUCCESS;
+    }
+    /* ErrorF("Set engine clock failed\n"); */
+    return ATOM_NOT_IMPLEMENTED;
+}
+
+int
+atombios_set_memory_clock(ScrnInfoPtr pScrn, int memclock)
+{
+    RADEONInfoPtr info       = RADEONPTR(pScrn);
+    SET_MEMORY_CLOCK_PS_ALLOCATION mem_clock_ps;
+    AtomBiosArgRec data;
+    unsigned char *space;
+
+    if (info->IsIGP)
+	return ATOM_SUCCESS;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    mem_clock_ps.ulTargetMemoryClock = memclock; /* 10 khz */
+
+    /* ErrorF("Attempting to set mem clock to: %d\n", memclock); */
+    data.exec.index = GetIndexIntoMasterTable(COMMAND, SetMemoryClock);
+    data.exec.dataSpace = (void *)&space;
+    data.exec.pspace = &mem_clock_ps;
+
+    if (RHDAtomBiosFunc(info->atomBIOS->scrnIndex, info->atomBIOS, ATOMBIOS_EXEC, &data) == ATOM_SUCCESS) {
+	/* ErrorF("Set memory clock success\n"); */
+	return ATOM_SUCCESS;
+    }
+    /* ErrorF("Set memory clock failed\n"); */
+    return ATOM_NOT_IMPLEMENTED;
+}
+
 # endif
 
 static AtomBiosResult

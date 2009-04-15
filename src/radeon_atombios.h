@@ -122,6 +122,12 @@ atombios_clk_gating_setup(ScrnInfoPtr pScrn, Bool enable);
 extern int
 atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable);
 
+extern int
+atombios_set_engine_clock(ScrnInfoPtr pScrn, int engclock);
+
+extern int
+atombios_set_memory_clock(ScrnInfoPtr pScrn, int memclock);
+
 extern Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output);
 
