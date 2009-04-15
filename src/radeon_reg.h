@@ -288,6 +288,13 @@
 #       define RADEON_PLL_WR_EN             (1 << 7)
 #       define RADEON_PLL_DIV_SEL           (3 << 8)
 #       define RADEON_PLL2_DIV_SEL_MASK     ~(3 << 8)
+#define RADEON_M_SPLL_REF_FB_DIV            0x000a
+#       define RADEON_M_SPLL_REF_DIV_MASK   0xff
+#       define RADEON_M_SPLL_REF_DIV_SHIFT  0
+#       define RADEON_MPLL_FB_DIV_MASK      0xff
+#       define RADEON_MPLL_FB_DIV_SHIFT     8
+#       define RADEON_SPLL_FB_DIV_MASK      0xff
+#       define RADEON_SPLL_FB_DIV_SHIFT     16
 #define RADEON_CLK_PWRMGT_CNTL              0x0014
 #       define RADEON_ENGIN_DYNCLK_MODE     (1 << 12)
 #       define RADEON_ACTIVE_HILO_LAT_MASK  (3 << 13)

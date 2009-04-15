@@ -38,6 +38,68 @@
 #include "radeon_macros.h"
 #include "radeon_atombios.h"
 
+static int calc_div(int num, int den)
+{
+    int div = (num + (den / 2)) / den;
+
+    if ((div < 2) || (div > 0xff))
+	return 0;
+    else
+	return div;
+
+}
+
+/* 10 khz */
+static void
+RADEONSetEngineClock(ScrnInfoPtr pScrn, int eng_clock)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
+    uint32_t ref_div, fb_div;
+    uint32_t m_spll_ref_fb_div;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    m_spll_ref_fb_div = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
+    ref_div = m_spll_ref_fb_div & RADEON_M_SPLL_REF_DIV_MASK;
+    fb_div = calc_div(eng_clock * ref_div, pll->reference_freq);
+
+    if (!fb_div)
+	return;
+
+    m_spll_ref_fb_div &= ~(RADEON_SPLL_FB_DIV_MASK << RADEON_SPLL_FB_DIV_SHIFT);
+    m_spll_ref_fb_div |= (fb_div & RADEON_SPLL_FB_DIV_MASK) << RADEON_SPLL_FB_DIV_SHIFT;
+    OUTPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV, m_spll_ref_fb_div);
+    usleep(16000); /* Let the pll settle */
+}
+
+/* 10 khz */
+static void
+RADEONSetMemoryClock(ScrnInfoPtr pScrn, int mem_clock)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    RADEONPLLPtr pll = &info->pll;
+    uint32_t ref_div, fb_div;
+    uint32_t m_spll_ref_fb_div;
+
+    if (info->IsIGP)
+	return;
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    m_spll_ref_fb_div = INPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV);
+    ref_div = m_spll_ref_fb_div & RADEON_M_SPLL_REF_DIV_MASK;
+    fb_div = calc_div(mem_clock * ref_div, pll->reference_freq);
+
+    if (!fb_div)
+	return;
+
+    m_spll_ref_fb_div &= ~(RADEON_MPLL_FB_DIV_MASK << RADEON_MPLL_FB_DIV_SHIFT);
+    m_spll_ref_fb_div |= (fb_div & RADEON_MPLL_FB_DIV_MASK) << RADEON_MPLL_FB_DIV_SHIFT;
+    OUTPLL(pScrn, RADEON_M_SPLL_REF_FB_DIV, m_spll_ref_fb_div);
+    usleep(16000); /* Let the pll settle */
+}
+
 static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
