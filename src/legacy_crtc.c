@@ -1361,17 +1361,12 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
     uint32_t temp, data, mem_trcd, mem_trp, mem_tras, mem_trbs=0;
     float mem_tcas;
     int k1, c;
-    uint32_t MemTrcdExtMemCntl[4]     = {1, 2, 3, 4};
-    uint32_t MemTrpExtMemCntl[4]      = {1, 2, 3, 4};
-    uint32_t MemTrasExtMemCntl[8]     = {1, 2, 3, 4, 5, 6, 7, 8};
 
-    uint32_t MemTrcdMemTimingCntl[8]     = {1, 2, 3, 4, 5, 6, 7, 8};
-    uint32_t MemTrpMemTimingCntl[8]      = {1, 2, 3, 4, 5, 6, 7, 8};
-    uint32_t MemTrasMemTimingCntl[16]    = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-
-    float MemTcas[8]  = {0, 1, 2, 3, 0, 1.5, 2.5, 0};
+    float MemTcas[8]  = {0, 1, 2, 3, 0, 1.5, 2.5, 0.0};
+    float MemTcas_rs480[8]  = {0, 1, 2, 3, 0, 1.5, 2.5, 3.5};
     float MemTcas2[8] = {0, 1, 2, 3, 4, 5, 6, 7};
     float MemTrbs[8]  = {1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5};
+    float MemTrbs_r4xx[8]  = {4, 5, 6, 7, 8, 9, 10, 11};
 
     float mem_bw, peak_disp_bw;
     float min_mem_eff = 0.8;
@@ -1400,9 +1395,6 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
 	OUTREG(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
     }
 
-    /* R420 and RV410 family not supported yet */
-    if (info->ChipFamily == CHIP_FAMILY_R420 || info->ChipFamily == CHIP_FAMILY_RV410) return; 
-
     /*
      * Determine if there is enough bandwidth for current display mode
      */
@@ -1429,25 +1421,58 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
     /*  Get values from the EXT_MEM_CNTL register...converting its contents. */
     temp = INREG(RADEON_MEM_TIMING_CNTL);
     if ((info->ChipFamily == CHIP_FAMILY_RV100) || info->IsIGP) { /* RV100, M6, IGPs */
-	mem_trcd      = MemTrcdExtMemCntl[(temp & 0x0c) >> 2];
-	mem_trp       = MemTrpExtMemCntl[ (temp & 0x03) >> 0];
-	mem_tras      = MemTrasExtMemCntl[(temp & 0x70) >> 4];
-    } else { /* RV200 and later */
-	mem_trcd      = MemTrcdMemTimingCntl[(temp & 0x07) >> 0];
-	mem_trp       = MemTrpMemTimingCntl[ (temp & 0x700) >> 8];
-	mem_tras      = MemTrasMemTimingCntl[(temp & 0xf000) >> 12];
+	mem_trcd = ((temp >> 2) & 0x3) + 1;
+	mem_trp  = ((temp & 0x3)) + 1;
+	mem_tras = ((temp & 0x70) >> 4) + 1;
+    } else if (info->ChipFamily == CHIP_FAMILY_R300 ||
+	       info->ChipFamily == CHIP_FAMILY_R350) { /* r300, r350 */
+	mem_trcd = (temp & 0x7) + 1;
+	mem_trp = ((temp >> 8) & 0x7) + 1;
+	mem_tras = ((temp >> 11) & 0xf) + 4;
+    } else if (info->ChipFamily == CHIP_FAMILY_RV350 ||
+	       info->ChipFamily <= CHIP_FAMILY_RV380) {
+	/* rv3x0 */
+	mem_trcd = (temp & 0x7) + 3;
+	mem_trp = ((temp >> 8) & 0x7) + 3;
+	mem_tras = ((temp >> 11) & 0xf) + 6;
+    } else if (info->ChipFamily == CHIP_FAMILY_R420 ||
+	       info->ChipFamily == CHIP_FAMILY_RV410) {
+	/* r4xx */
+	mem_trcd = (temp & 0xf) + 3;
+	if (mem_trcd > 15)
+	    mem_trcd = 15;
+	mem_trp = ((temp >> 8) & 0xf) + 3;
+	if (mem_trp > 15)
+	    mem_trp = 15;
+	mem_tras = ((temp >> 12) & 0x1f) + 6;
+	if (mem_tras > 31)
+	    mem_tras = 31;
+    } else { /* RV200, R200 */
+	mem_trcd = (temp & 0x7) + 1;
+	mem_trp = ((temp >> 8) & 0x7) + 1;
+	mem_tras = ((temp >> 12) & 0xf) + 4;
     }
 
     /* Get values from the MEM_SDRAM_MODE_REG register...converting its */
     temp = INREG(RADEON_MEM_SDRAM_MODE_REG);
     data = (temp & (7<<20)) >> 20;
     if ((info->ChipFamily == CHIP_FAMILY_RV100) || info->IsIGP) { /* RV100, M6, IGPs */
-	mem_tcas = MemTcas [data];
+	if (info->ChipFamily == CHIP_FAMILY_RS480) /* don't think rs400 */
+	    mem_tcas = MemTcas_rs480[data];
+	else
+	    mem_tcas = MemTcas[data];
     } else {
 	mem_tcas = MemTcas2 [data];
     }
+    if (info->ChipFamily == CHIP_FAMILY_RS400 ||
+	info->ChipFamily == CHIP_FAMILY_RS480) {
+	/* extra cas latency stored in bits 23-25 0-4 clocks */
+	data = (temp >> 23) & 0x7;
+	if (data < 5)
+	    mem_tcas += data;
+    }
 
-    if (IS_R300_VARIANT) {
+    if (IS_R300_VARIANT && !info->IsIGP) {
 	/* on the R300, Tcas is included in Trbs.
 	 */
 	temp = INREG(RADEON_MEM_CNTL);
@@ -1469,7 +1494,11 @@ RADEONInitDispBandwidthLegacy(ScrnInfoPtr pScrn,
 	    data = (R300_MEM_RBS_POSITION_A_MASK & temp);
 	}
 
-	mem_trbs = MemTrbs[data];
+	if (info->ChipFamily == CHIP_FAMILY_RV410 ||
+	    info->ChipFamily == CHIP_FAMILY_R420)
+	    mem_trbs = MemTrbs_r4xx[data];
+	else
+	    mem_trbs = MemTrbs[data];
 	mem_tcas += mem_trbs;
     }
 
