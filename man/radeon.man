@@ -413,9 +413,8 @@ for CRT,
 .B RGB 
 for digital panels
 .TP
-.BI "Option \*qDynamicClocks\*q \*q" boolean \*q
-Enable dynamic clock scaling.  The on-chip clocks will scale dynamically
-based on usage. This can help reduce heat and increase battery
+.BI "Option \*qClockGating\*q \*q" boolean \*q
+Enable dynamic clock gating.  This can help reduce heat and increase battery
 life by reducing power usage.  Some users report reduced 3D performance
 with this enabled.  The default is
 .B off.

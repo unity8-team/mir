@@ -117,10 +117,10 @@ extern Bool
 RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn);
 
 extern int
-atombios_dyn_clk_setup(ScrnInfoPtr pScrn, int enable);
+atombios_clk_gating_setup(ScrnInfoPtr pScrn, Bool enable);
 
 extern int
-atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, int enable);
+atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable);
 
 extern Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output);

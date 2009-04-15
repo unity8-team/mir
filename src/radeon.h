@@ -186,7 +186,7 @@ typedef enum {
     OPTION_SUBPIXEL_ORDER,
 #endif
     OPTION_SHOWCACHE,
-    OPTION_DYNAMIC_CLOCKS,
+    OPTION_CLOCK_GATING,
     OPTION_BIOS_HOTKEYS,
     OPTION_VGA_ACCESS,
     OPTION_REVERSE_DDC,
@@ -1067,6 +1067,9 @@ extern void RADEONInitMemMapRegisters(ScrnInfoPtr pScrn, RADEONSavePtr save,
 				      RADEONInfoPtr info);
 extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
+
+/* radeon_pm.c */
+extern void RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable);
 
 #ifdef USE_EXA
 /* radeon_exa.c */

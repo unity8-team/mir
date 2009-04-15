@@ -524,7 +524,7 @@ rhdAtomASICInit(atomBiosHandlePtr handle)
 }
 
 int
-atombios_dyn_clk_setup(ScrnInfoPtr pScrn, int enable)
+atombios_clk_gating_setup(ScrnInfoPtr pScrn, Bool enable)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     DYNAMIC_CLOCK_GATING_PS_ALLOCATION dynclk_data;
@@ -548,7 +548,7 @@ atombios_dyn_clk_setup(ScrnInfoPtr pScrn, int enable)
 }
 
 int
-atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, int enable)
+atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     ENABLE_ASIC_STATIC_PWR_MGT_PS_ALLOCATION pwrmgt_data;
