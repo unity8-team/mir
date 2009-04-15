@@ -1,32 +1,40 @@
 The process for releasing a new tarball is as follows:
 
-1. make sure you have the latest build requirements installed:
+1. Make sure you have the latest build requirements installed:
 
 	git://git.freedesktop.org/git/util/macros
 	git://git.freedesktop.org/git/util/modular
 
-2. update your module version (usually found in configure.ac)
+2. Add relevant release notes to the NEWS files
+
+	Skim the git log since the last release, and add notes in a
+	similar style to previous releases.
+
+	For major releases list added features and known limitations.
+
+	For minor releases indicate which bugs were fixed and which
+	are still present.
+
+
+3. Update your module version (usually found in configure.ac)
 
 	$ vi configure.ac # bump version
         $ git push origin # make sure you're on the release branch
 
-3. verify your module builds
+4. Verify your module builds
 
 	$ make distcheck
 
-4. tag the release
+5. Tag the release
 
-	$ git tag -m "Intel <ver> release" xf86-video-intel-<ver>
+	$ git tag -m "Intel <ver> release" <ver>
 
-5. run the release script (this should push the tag)
+6. Run the release script (this should push the tag)
 
-	$ <path_to>/util/modular/release.sh driver xf86-video-intel-<last_ver> xf86-video-intel-<ver>
+	$ <path_to>/util/modular/release.sh driver <last_ver> <ver>
 
-6. edit the generated release message as needed and send it out
+7. Edit the generated release message as needed and send it out
 
-	for major releases list added features and known limitations
+	At the very least, add the release notes from the NEWS file.
 
-	for minor releases indicate which bugs were fixed and which
-	are still present
-
-7. throw a release party, you're done! :)
+8. Throw a release party, you're done! :)
