@@ -195,6 +195,7 @@ static const OptionInfoRec RADEONOptions[] = {
     { OPTION_EXA_VSYNC,         "EXAVSync",        OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_ATOM_TVOUT,	"ATOMTVOut",	   OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_R4XX_ATOM,	        "R4xxATOM",	   OPTV_BOOLEAN, {0}, FALSE },
+    { OPTION_FORCE_LOW_POWER,	"ForceLowPowerMode", OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -3333,6 +3334,9 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     else
 	RADEONSetClockGating(pScrn, FALSE);
 
+    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_LOW_POWER, FALSE))
+	RADEONStaticLowPowerMode(pScrn, TRUE);
+
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "Color tiling not supported with virtual x resolutions larger than %d, disabling\n",
@@ -5593,6 +5597,9 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     else
 	RADEONSetClockGating(pScrn, FALSE);
 
+    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_LOW_POWER, FALSE))
+	RADEONStaticLowPowerMode(pScrn, TRUE);
+
     for (i = 0; i < config->num_crtc; i++)
 	radeon_crtc_modeset_ioctl(config->crtc[i], TRUE);
 
@@ -5752,6 +5759,9 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_LOW_POWER, FALSE))
+	RADEONStaticLowPowerMode(pScrn, FALSE);
 
     /* Mark acceleration as stopped or we might try to access the engine at
      * wrong times, especially if we had DRI, after DRI has been stopped

@@ -476,3 +476,29 @@ RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable)
 	       enable ? "En" : "Dis");
 }
 
+void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable)
+{
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    int sclk = (int)info->sclk * 100; /* 10 khz */
+
+    RADEONWaitForIdleMMIO(pScrn);
+
+    if (enable) {
+	if (info->IsAtomBios)
+	    atombios_set_engine_clock(pScrn, sclk/2);
+	else
+	    RADEONSetEngineClock(pScrn, sclk/2);
+
+	info->low_power_mode = TRUE;
+    } else {
+	if (info->IsAtomBios)
+	    atombios_set_engine_clock(pScrn, sclk);
+	else
+	    RADEONSetEngineClock(pScrn, sclk);
+
+	info->low_power_mode = FALSE;
+    }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Low Power Mode %sabled\n",
+	       enable ? "En" : "Dis");
+}

@@ -207,7 +207,8 @@ typedef enum {
     OPTION_INT10,
     OPTION_EXA_VSYNC,
     OPTION_ATOM_TVOUT,
-    OPTION_R4XX_ATOM
+    OPTION_R4XX_ATOM,
+    OPTION_FORCE_LOW_POWER
 } RADEONOpts;
 
 
@@ -891,6 +892,9 @@ typedef struct {
 
     Bool              r4xx_atom;
 
+    /* pm */
+    Bool              low_power_mode;
+
 } RADEONInfoRec, *RADEONInfoPtr;
 
 #define RADEONWaitForFifo(pScrn, entries)				\
@@ -1070,6 +1074,7 @@ extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 
 /* radeon_pm.c */
 extern void RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable);
+extern void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable);
 
 #ifdef USE_EXA
 /* radeon_exa.c */
