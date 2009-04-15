@@ -414,10 +414,29 @@ typedef enum {
 } RADEONCardType;
 
 typedef enum {
-	POWER_MODE_NONE,
-	POWER_MODE_STATIC,
-	POWER_MODE_DYNAMIC
+	POWER_DEFAULT,
+	POWER_LOW,
+	POWER_HIGH
+} RADEONPMType;
+
+typedef struct {
+    RADEONPMType type;
+    uint32_t sclk;
+    uint32_t mclk;
+    uint32_t pcie_lanes;
+    uint32_t flags;
 } RADEONPowerMode;
+
+typedef struct {
+    /* power modes */
+    int num_modes;
+    int current_mode;
+    RADEONPowerMode mode[3];
+
+    Bool     clock_gating_enabled;
+    Bool     dynamic_mode_enabled;
+    Bool     force_low_power_enabled;
+} RADEONPowerManagement;
 
 typedef struct _atomBiosHandle *atomBiosHandlePtr;
 
@@ -900,8 +919,7 @@ typedef struct {
     Bool              r4xx_atom;
 
     /* pm */
-    RADEONPowerMode   power_mode;
-    Bool              low_power_active;
+    RADEONPowerManagement pm;
 
 } RADEONInfoRec, *RADEONInfoPtr;
 
@@ -1083,10 +1101,11 @@ extern void RADEONRestoreMemMapRegisters(ScrnInfoPtr pScrn,
 					 RADEONSavePtr restore);
 
 /* radeon_pm.c */
-extern void RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable);
-extern void RADEONStaticLowPowerMode(ScrnInfoPtr pScrn, Bool enable);
+extern void RADEONPMInit(ScrnInfoPtr pScrn);
 extern void RADEONPMBlockHandler(ScrnInfoPtr pScrn);
-extern void RADEONDynamicLowPowerMode(ScrnInfoPtr pScrn, Bool enable);
+extern void RADEONPMEnterVT(ScrnInfoPtr pScrn);
+extern void RADEONPMLeaveVT(ScrnInfoPtr pScrn);
+extern void RADEONPMFini(ScrnInfoPtr pScrn);
 
 #ifdef USE_EXA
 /* radeon_exa.c */

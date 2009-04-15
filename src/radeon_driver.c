@@ -3221,7 +3221,7 @@ static void RADEONBlockHandler(int i, pointer blockData,
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 #endif
 
-    if (info->power_mode == POWER_MODE_DYNAMIC)
+    if (info->pm.dynamic_mode_enabled)
 	RADEONPMBlockHandler(pScrn);
 }
 
@@ -3356,22 +3356,7 @@ Bool RADEONScreenInit(int scrnIndex, ScreenPtr pScreen,
     /* blank the outputs/crtcs */
     RADEONBlank(pScrn);
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_CLOCK_GATING, FALSE))
-	RADEONSetClockGating(pScrn, TRUE);
-    else
-	RADEONSetClockGating(pScrn, FALSE);
-
-    info->power_mode = POWER_MODE_NONE;
-    if (xf86ReturnOptValBool(info->Options, OPTION_DYNAMIC_PM, FALSE)) {
-	info->power_mode = POWER_MODE_DYNAMIC;
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Power Management Enabled\n");
-    } else
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Power Management Disabled\n");
-
-    if (xf86ReturnOptValBool(info->Options, OPTION_FORCE_LOW_POWER, FALSE)) {
-	info->power_mode = POWER_MODE_STATIC;
-	RADEONStaticLowPowerMode(pScrn, TRUE);
-    }
+    RADEONPMInit(pScrn);
 
     if (info->allowColorTiling && (pScrn->virtualX > info->MaxSurfaceWidth)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
@@ -5628,13 +5613,7 @@ Bool RADEONEnterVT(int scrnIndex, int flags)
     /* Makes sure the engine is idle before doing anything */
     RADEONWaitForIdleMMIO(pScrn);
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_CLOCK_GATING, FALSE))
-	RADEONSetClockGating(pScrn, TRUE);
-    else
-	RADEONSetClockGating(pScrn, FALSE);
-
-    if (info->power_mode == POWER_MODE_STATIC)
-	RADEONStaticLowPowerMode(pScrn, TRUE);
+    RADEONPMEnterVT(pScrn);
 
     for (i = 0; i < config->num_crtc; i++)
 	radeon_crtc_modeset_ioctl(config->crtc[i], TRUE);
@@ -5773,6 +5752,8 @@ void RADEONLeaveVT(int scrnIndex, int flags)
 
     xf86_hide_cursors (pScrn);
 
+    RADEONPMLeaveVT(pScrn);
+
     RADEONRestore(pScrn);
 
     for (i = 0; i < config->num_crtc; i++)
@@ -5796,17 +5777,7 @@ static Bool RADEONCloseScreen(int scrnIndex, ScreenPtr pScreen)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
 
-    switch (info->power_mode) {
-    case POWER_MODE_STATIC:
-	RADEONStaticLowPowerMode(pScrn, FALSE);
-	break;
-    case POWER_MODE_DYNAMIC:
-	RADEONDynamicLowPowerMode(pScrn, FALSE);
-	break;
-    case POWER_MODE_NONE:
-    default:
-	break;
-    }
+    RADEONPMFini(pScrn);
 
     /* Mark acceleration as stopped or we might try to access the engine at
      * wrong times, especially if we had DRI, after DRI has been stopped

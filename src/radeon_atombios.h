@@ -123,10 +123,10 @@ extern int
 atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable);
 
 extern int
-atombios_set_engine_clock(ScrnInfoPtr pScrn, int engclock);
+atombios_set_engine_clock(ScrnInfoPtr pScrn, uint32_t engclock);
 
 extern int
-atombios_set_memory_clock(ScrnInfoPtr pScrn, int memclock);
+atombios_set_memory_clock(ScrnInfoPtr pScrn, uint32_t memclock);
 
 extern Bool
 RADEONGetATOMTVInfo(xf86OutputPtr output);

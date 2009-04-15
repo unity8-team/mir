@@ -572,7 +572,7 @@ atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable)
 }
 
 int
-atombios_set_engine_clock(ScrnInfoPtr pScrn, int engclock)
+atombios_set_engine_clock(ScrnInfoPtr pScrn, uint32_t engclock)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     SET_ENGINE_CLOCK_PS_ALLOCATION eng_clock_ps;
@@ -597,7 +597,7 @@ atombios_set_engine_clock(ScrnInfoPtr pScrn, int engclock)
 }
 
 int
-atombios_set_memory_clock(ScrnInfoPtr pScrn, int memclock)
+atombios_set_memory_clock(ScrnInfoPtr pScrn, uint32_t memclock)
 {
     RADEONInfoPtr info       = RADEONPTR(pScrn);
     SET_MEMORY_CLOCK_PS_ALLOCATION mem_clock_ps;
