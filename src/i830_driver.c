@@ -1604,8 +1604,11 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
      * config option AccelMethod to determine which to use, defaulting to EXA
      * if none is specified, or if the string was unrecognized.
      *
-     * All this *could* go away if we removed XAA support from this driver,
-     * for example. :)
+     * Then, just to make things more confusing, the default EXA will
+     * be overridden to UXA if KMS is available. See I830DrmModeInit.
+     *
+     * All this *will* go away when we remov XAA and EXA support from
+     * this driver. (And there will be much rejoicing.)
      */
     if (!(pI830->accel == ACCEL_NONE)) {
 #ifdef I830_USE_UXA
