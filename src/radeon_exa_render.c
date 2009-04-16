@@ -1077,6 +1077,13 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 
     txformat1 = R300TexFormats[i].card_fmt;
 
+    if (IS_R300_3D) {
+	if ((unit == 0) && info->accel_state->has_mask)
+	    txformat1 |= R300_TX_FORMAT_CACHE_HALF_REGION_0;
+	else if (unit == 1)
+	    txformat1 |= R300_TX_FORMAT_CACHE_HALF_REGION_1;
+    }
+
     txformat0 = ((((w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		 (((h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT));
 
