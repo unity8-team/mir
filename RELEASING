@@ -25,6 +25,10 @@ The process for releasing a new tarball is as follows:
 
 	$ make distcheck
 
+	Note that unlike a regular "make", this will not work unless
+	you pass a valid --with-xserver-source=/path/to/xserver option
+	to configure.
+
 5. Tag the release
 
 	$ git tag -m "Intel <ver> release" <ver>
