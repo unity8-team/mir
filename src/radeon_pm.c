@@ -788,8 +788,9 @@ void RADEONPMBlockHandler(ScrnInfoPtr pScrn)
     }
 
     if (i == xf86_config->num_crtc)
-	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);
-    else
 	RADEONSetStaticPowerMode(pScrn, POWER_LOW);
+    else
+	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);
+
 }
 
