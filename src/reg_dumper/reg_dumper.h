@@ -52,6 +52,7 @@ struct pci_info_rec {
 typedef struct _i830 {
     /* Fields in common with the real pI830 */
     struct pci_info_rec *PciInfo;
+    Bool use_drm_mode;
 
     /* Fields used for setting up reg_dumper */
     struct pci_device *pci_dev;
@@ -68,6 +69,8 @@ typedef struct _scrn {
 } ScrnInfoRec, *ScrnInfoPtr;
 
 #define I830PTR(pScrn) (pScrn->pI830)
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 #define INREG8(reg) (*(volatile uint8_t *)((pI830)->mmio + (reg)))
 #define INREG16(reg) (*(volatile uint16_t *)((pI830)->mmio + (reg)))
@@ -86,3 +89,4 @@ typedef struct _scrn {
 char *XNFprintf(const char *format, ...);
 void xf86DrvMsg(int scrnIndex, int severity, const char *format, ...);
 void i830DumpRegs(ScrnInfoPtr pScrn);
+void intel_i830rec_init(I830Ptr pI830);

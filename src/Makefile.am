@@ -30,12 +30,17 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 # _ladir passes a dummy rpath to libtool so the thing will actually link
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
-AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRI_CFLAGS@ @PCIACCESS_CFLAGS@ \
-	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA
+AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
+	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa \
+	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DI830_USE_UXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
 intel_drv_ladir = @moduledir@/drivers
+intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
+if XSERVER_LIBPCIACCESS
+intel_drv_la_LIBADD += @PCIACCESS_LIBS@
+endif
 
 XMODE_SRCS=\
 	 local_xf86Rename.h \
@@ -65,7 +70,9 @@ INTEL_XVMC_SRCS = \
 	 i830_hwmc.h \
 	 i830_hwmc.c \
          i915_hwmc.c \
-         i915_hwmc.h
+         i915_hwmc.h \
+         i965_hwmc.c \
+         i965_hwmc.h
 
 
 intel_drv_la_SOURCES = \
@@ -89,6 +96,8 @@ intel_drv_la_SOURCES = \
          i830_accel.c \
          i830_bios.c \
          i830_bios.h \
+         i830_batchbuffer.c \
+         i830_batchbuffer.h \
          i830_common.h \
 	 i830_crt.c \
          i830_cursor.c \
@@ -100,6 +109,7 @@ intel_drv_la_SOURCES = \
          i830_driver.c \
 	 i830_dvo.c \
          i830.h \
+	 i830_hdmi.c \
          i830_i2c.c \
          i830_io.c \
 	 i830_lvds.c \
@@ -122,7 +132,8 @@ intel_drv_la_SOURCES = \
 	 i830_xaa.c \
 	 i830_render.c \
 	 i915_render.c \
-	 i965_render.c
+	 i965_render.c \
+	 drmmode_display.c
 
 INTEL_G4A =				\
 	packed_yuv_sf.g4a		\
@@ -133,6 +144,7 @@ INTEL_G4A =				\
 	exa_wm_src_projective.g4a 	\
 	exa_wm_src_sample_argb.g4a 	\
 	exa_wm_src_sample_a.g4a 	\
+	exa_wm_src_sample_planar.g4a 	\
 	exa_wm_mask_affine.g4a 		\
 	exa_wm_mask_projective.g4a 	\
 	exa_wm_mask_sample_argb.g4a 	\
@@ -141,13 +153,13 @@ INTEL_G4A =				\
 	exa_wm_ca.g4a			\
 	exa_wm_ca_srcalpha.g4a		\
 	exa_wm_write.g4a 		\
+	exa_wm_yuv_rgb.g4a		\
 	exa_wm_xy.g4a
 
 INTEL_G4I =				\
 	exa_wm.g4i			\
 	exa_wm_affine.g4i		\
 	exa_wm_projective.g4i
-	
 
 INTEL_G4B = 				\
 	packed_yuv_sf.g4b		\
@@ -158,6 +170,7 @@ INTEL_G4B = 				\
 	exa_wm_src_projective.g4b 	\
 	exa_wm_src_sample_argb.g4b 	\
 	exa_wm_src_sample_a.g4b 	\
+	exa_wm_src_sample_planar.g4b 	\
 	exa_wm_mask_affine.g4b 		\
 	exa_wm_mask_projective.g4b 	\
 	exa_wm_mask_sample_argb.g4b 	\
@@ -166,8 +179,9 @@ INTEL_G4B = 				\
 	exa_wm_ca.g4b			\
 	exa_wm_ca_srcalpha.g4b		\
 	exa_wm_write.g4b 		\
+	exa_wm_yuv_rgb.g4b		\
 	exa_wm_xy.g4b
-	
+
 EXTRA_DIST = 		\
 	$(XMODE_SRCS)	\
 	$(INTEL_G4A)	\
@@ -180,7 +194,7 @@ if HAVE_GEN4ASM
 
 SUFFIXES = .g4a .g4b
 .g4a.g4b:
-	m4 -s $*.g4a > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
+	m4 -I$(srcdir) -s $< > $*.g4m && intel-gen4asm -o $@ $*.g4m && rm $*.g4m
 
 $(INTEL_G4B): $(INTEL_G4I)
 
@@ -198,15 +212,11 @@ endif
 if DRI
 intel_drv_la_SOURCES += \
 	$(INTEL_DRI_SRCS)
+intel_drv_la_LIBADD += \
+	$(DRI_LIBS)
 endif
 
 if XVMC
 intel_drv_la_SOURCES += \
 	$(INTEL_XVMC_SRCS)
 endif
-
-install-data-local: install-intel_drv_laLTLIBRARIES
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so && ln -s intel_drv.so i810_drv.so)
-
-uninstall-local:
-	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)

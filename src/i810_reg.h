@@ -113,6 +113,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define COLEXP_RESERVED        0x30
 #define BITBLT_STATUS          0x01
 
+#define CHDECMISC	0x10111
+#define C0DRB0			0x10200
+#define C0DRB1			0x10202
+#define C0DRB2			0x10204
+#define C0DRB3			0x10206
+#define C0DRA01			0x10208
+#define C0DRA23			0x1020a
+#define C1DRB0			0x10600
+#define C1DRB1			0x10602
+#define C1DRB2			0x10604
+#define C1DRB3			0x10606
+#define C1DRA01			0x10608
+#define C1DRA23			0x1060a
+
 /* p375. 
  */
 #define DISPLAY_CNTL       0x70008
@@ -353,7 +367,37 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define IPEIR                  0x2088
 #define IPEHR                  0x208C
+
 #define INST_DONE                0x2090
+# define IDCT_DONE			(1 << 30)
+# define IQ_DONE			(1 << 29)
+# define PR_DONE			(1 << 28)
+# define VLD_DONE			(1 << 27)
+# define IP_DONE			(1 << 26)
+# define FBC_DONE			(1 << 25)
+# define BINNER_DONE			(1 << 24)
+# define SF_DONE			(1 << 23)
+# define SE_DONE			(1 << 22)
+# define WM_DONE			(1 << 21)
+# define IZ_DONE			(1 << 20)
+# define PERSPECTIVE_INTERP_DONE	(1 << 19)
+# define DISPATCHER_DONE		(1 << 18)
+# define PROJECTION_DONE		(1 << 17)
+# define DEPENDENT_ADDRESS_DONE		(1 << 16)
+# define QUAD_CACHE_DONE		(1 << 15)
+# define TEXTURE_FETCH_DONE		(1 << 14)
+# define TEXTURE_DECOMPRESS_DONE	(1 << 13)
+# define SAMPLER_CACHE_DONE		(1 << 12)
+# define FILTER_DONE			(1 << 11)
+# define BYPASS_FIFO_DONE		(1 << 10)
+# define PS_DONE			(1 << 9)
+# define CC_DONE			(1 << 8)
+# define MAP_FILTER_DONE		(1 << 7)
+# define MAP_L2_IDLE			(1 << 6)
+# define RING_2_ENABLE			(1 << 2)
+# define RING_1_ENABLE			(1 << 1)
+# define RING_0_ENABLE			(1 << 0)
+
 #define SCPD0                    0x209c	/* debug */
 #define INST_PS                  0x20c4
 #define IPEIR_I965                  0x2064 /* i965 */
@@ -375,7 +419,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Current active ring head address: 
  */
-#define ACTHD                 0x2074
+#define ACTHD_I965                 0x2074
+#define ACTHD			   0x20C8
 
 /* Current primary/secondary DMA fetch addresses:
  */
@@ -460,6 +505,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *   - new bits for i810
  *   - new register hwstam (mask)
  */
+#define HWS_PGA		     0x2080
 #define PWRCTXA		     0x2088 /* 965GM+ only */
 #define   PWRCTX_EN	     (1<<0)
 #define HWSTAM               0x2098 /* p290 */
@@ -867,9 +913,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define POWER_DOWN_ON_RESET			(1 << 1)
 # define POWER_TARGET_ON			(1 << 0)
 
-#define LVDSPP_ON       0x61208
-#define LVDSPP_OFF      0x6120c
-#define PP_CYCLE        0x61210
+#define PP_ON_DELAYS	0x61208
+#define PP_OFF_DELAYS	0x6120c
+#define PP_DIVISOR	0x61210
 
 #define PFIT_CONTROL	0x61230
 # define PFIT_ENABLE				(1 << 31)
@@ -923,6 +969,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define DPLLB_LVDS_P2_CLOCK_DIV_7		(1 << 24) /* i915 */
 # define DPLL_P2_CLOCK_DIV_MASK			0x03000000 /* i915 */
 # define DPLL_FPA01_P1_POST_DIV_MASK		0x00ff0000 /* i915 */
+# define DPLL_FPA01_P1_POST_DIV_MASK_IGD	0x00ff8000 /* IGD */
 /**
  *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
  * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
@@ -934,6 +981,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS	0x003f0000
 # define DPLL_FPA01_P1_POST_DIV_SHIFT		16
+# define DPLL_FPA01_P1_POST_DIV_SHIFT_IGD	15
 # define PLL_P2_DIVIDE_BY_4			(1 << 23) /* i830, required in DVO non-gang */
 # define PLL_P1_DIVIDE_BY_TWO			(1 << 21) /* i830 */
 # define PLL_REF_INPUT_DREFCLK			(0 << 13)
@@ -1121,6 +1169,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # define I965_DM_CLOCK_GATE_DISABLE		(1 << 0)
 
 #define RENCLK_GATE_D2		0x6208
+#define VF_UNIT_CLOCK_GATE_DISABLE		(1 << 9)
+#define GS_UNIT_CLOCK_GATE_DISABLE		(1 << 7)
+#define CL_UNIT_CLOCK_GATE_DISABLE		(1 << 6)
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
@@ -1179,20 +1230,43 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FPB0		0x06048
 #define FPB1		0x0604c
 # define FP_N_DIV_MASK				0x003f0000
+# define FP_N_IGD_DIV_MASK			0x00ff0000
 # define FP_N_DIV_SHIFT				16
 # define FP_M1_DIV_MASK				0x00003f00
 # define FP_M1_DIV_SHIFT			8
 # define FP_M2_DIV_MASK				0x0000003f
+# define FP_M2_IGD_DIV_MASK			0x000000ff
 # define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
+# define HDMIB_HOTPLUG_INT_EN			(1 << 29)
+# define HDMIC_HOTPLUG_INT_EN			(1 << 28)
+# define HDMID_HOTPLUG_INT_EN			(1 << 27)
 # define SDVOB_HOTPLUG_INT_EN			(1 << 26)
 # define SDVOC_HOTPLUG_INT_EN			(1 << 25)
 # define TV_HOTPLUG_INT_EN			(1 << 18)
 # define CRT_HOTPLUG_INT_EN			(1 << 9)
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_32	(0 << 8)
+/* must use period 64 on GM45 according to docs */
+# define CRT_HOTPLUG_ACTIVATION_PERIOD_64	(1 << 8)
+# define CRT_HOTPLUG_DAC_ON_TIME_2M		(0 << 7)
+# define CRT_HOTPLUG_DAC_ON_TIME_4M		(1 << 7)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_40		(0 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_50		(1 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_60		(2 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_70		(3 << 5)
+# define CRT_HOTPLUG_VOLTAGE_COMPARE_MASK	(3 << 5)
+# define CRT_HOTPLUG_DETECT_DELAY_1G		(0 << 4)
+# define CRT_HOTPLUG_DETECT_DELAY_2G		(1 << 4)
 # define CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
+# define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
+# define CRT_HOTPLUG_MASK			(0x3fc)	/* Bits 9-2 */
 
 #define PORT_HOTPLUG_STAT	0x61114
+# define HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
+# define HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
+# define HDMID_HOTPLUG_INT_STATUS		(1 << 27)
 # define CRT_HOTPLUG_INT_STATUS			(1 << 11)
 # define TV_HOTPLUG_INT_STATUS			(1 << 10)
 # define CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
@@ -1221,9 +1295,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SDVO_PHASE_SELECT_DEFAULT		(6 << 19)
 #define SDVO_CLOCK_OUTPUT_INVERT		(1 << 18)
 #define SDVOC_GANG_MODE				(1 << 16)
+#define SDVO_ENCODING_SDVO			(0x0 << 10)
+#define SDVO_ENCODING_HDMI			(0x2 << 10)
+/** Requird for HDMI operation */
+#define SDVO_NULL_PACKETS_DURING_VSYNC		(1 << 9)
+#define SDVO_COLOR_NOT_FULL_RANGE		(1 << 8)
 #define SDVO_BORDER_ENABLE			(1 << 7)
-/** new with 965, default is to be set */
+#define SDVO_AUDIO_ENABLE			(1 << 6)
+/** New with 965, default is to be set */
 #define SDVO_VSYNC_ACTIVE_HIGH			(1 << 4)
+/** New with 965, default is to be set */
 #define SDVO_HSYNC_ACTIVE_HIGH			(1 << 3)
 /** 915/945 only, read-only bit */
 #define SDVOB_PCIE_CONCURRENCY			(1 << 3)
@@ -1421,6 +1502,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /** @} */
 
+#define DP_B			0x64100
+#define DPB_AUX_CH_CTL		0x64110
+#define DPB_AUX_CH_DATA1	0x64114
+#define DPB_AUX_CH_DATA2	0x64118
+#define DPB_AUX_CH_DATA3	0x6411c
+#define DPB_AUX_CH_DATA4	0x64120
+#define DPB_AUX_CH_DATA5	0x64124
+
+#define DP_C			0x64200
+#define DPC_AUX_CH_CTL		0x64210
+#define DPC_AUX_CH_DATA1	0x64214
+#define DPC_AUX_CH_DATA2	0x64218
+#define DPC_AUX_CH_DATA3	0x6421c
+#define DPC_AUX_CH_DATA4	0x64220
+#define DPC_AUX_CH_DATA5	0x64224
+
+#define DP_D			0x64300
+#define DPD_AUX_CH_CTL		0x64310
+#define DPD_AUX_CH_DATA1	0x64314
+#define DPD_AUX_CH_DATA2	0x64318
+#define DPD_AUX_CH_DATA3	0x6431c
+#define DPD_AUX_CH_DATA4	0x64320
+#define DPD_AUX_CH_DATA5	0x64324
+
 /*
  * Two channel clock control. Turn this on if you need clkb for two channel mode
  * Overridden by global LVDS power sequencing
@@ -1493,7 +1598,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 # define TV_ENC_C0_FIX			(1 << 10)
 /** Bits that must be preserved by software */
-# define TV_CTL_SAVE			((3 << 8) | (3 << 6))
+# define TV_CTL_SAVE			((1 << 11) | (3 << 9) | (7 << 6) | 0xf)
 # define TV_FUSE_STATE_MASK		(3 << 4)
 /** Read-only state that reports all features enabled */
 # define TV_FUSE_STATE_ENABLED		(0 << 4)
@@ -2077,6 +2182,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 				 
 
 #define DSPARB			0x70030
+#define   DSPARB_CSTART_SHIFT	7
+#define   DSPARB_BSTART_SHIFT	0
+#define   DSPARB_BEND_SHIFT	9 /* on 855 */
+#define   DSPARB_AEND_SHIFT	0
 #define DSPFW1			0x70034
 #define DSPFW2			0x70038
 #define DSPFW3			0x7003c
@@ -2236,6 +2345,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define I915G_GMCH_GMS_STOLEN_64M		(0x7 << 4)
 #define G33_GMCH_GMS_STOLEN_128M		(0x8 << 4)
 #define G33_GMCH_GMS_STOLEN_256M		(0x9 << 4)
+#define INTEL_GMCH_GMS_STOLEN_96M		(0xa << 4)
+#define INTEL_GMCH_GMS_STOLEN_160M		(0xb << 4)
+#define INTEL_GMCH_GMS_STOLEN_224M		(0xc << 4)
+#define INTEL_GMCH_GMS_STOLEN_352M		(0xd << 4)
+
 
 #define I85X_CAPID			0x44
 #define I85X_VARIANT_MASK			0x7
@@ -2322,8 +2436,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_OVERLAY_FLIP_OFF		(2<<21)
 
 /* Wait for Events */
-#define MI_WAIT_FOR_EVENT		(0x03<<23)
-#define MI_WAIT_FOR_OVERLAY_FLIP	(1<<16)
+#define MI_WAIT_FOR_EVENT			(0x03<<23)
+#define MI_WAIT_FOR_PIPEB_SVBLANK		(1<<18)
+#define MI_WAIT_FOR_PIPEA_SVBLANK		(1<<17)
+#define MI_WAIT_FOR_OVERLAY_FLIP		(1<<16)
+#define MI_WAIT_FOR_PIPEB_VBLANK		(1<<7)
+#define MI_WAIT_FOR_PIPEB_SCAN_LINE_WINDOW	(1<<5)
+#define MI_WAIT_FOR_PIPEA_VBLANK		(1<<3)
+#define MI_WAIT_FOR_PIPEA_SCAN_LINE_WINDOW	(1<<1)
+
+/* Set the scan line for MI_WAIT_FOR_PIPE?_SCAN_LINE_WINDOW */
+#define MI_LOAD_SCAN_LINES_INCL			(0x12<<23)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEA	(0)
+#define MI_LOAD_SCAN_LINES_DISPLAY_PIPEB	(0x1<<20)
 
 /* Flush */
 #define MI_FLUSH			(0x04<<23)
@@ -2342,6 +2467,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define MI_NOOP_ID_MASK			(1<<22 - 1)
 
 #define STATE3D_COLOR_FACTOR	((0x3<<29)|(0x1d<<24)|(0x01<<16))
+
+/* Batch */
+#define MI_BATCH_BUFFER		((0x30 << 23) | 1)
+#define MI_BATCH_BUFFER_START	(0x31 << 23)
+#define MI_BATCH_BUFFER_END	(0xA << 23)
+#define MI_BATCH_NON_SECURE		(1)
+#define MI_BATCH_NON_SECURE_I965	(1 << 8)
 
 /* STATE3D_FOG_MODE stuff */
 #define ENABLE_FOG_SOURCE	(1<<27)
@@ -2738,5 +2870,10 @@ typedef enum {
 #define   DPFC_COMP_SEG_MASK	(0x000003ff)
 #define DPFC_STATUS2		0x3214
 #define DPFC_FENCE_YOFF		0x3218
+
+#define PEG_BAND_GAP_DATA	0x14d68
+
+#define MCHBAR_RENDER_STANDBY	0x111B8
+#define RENDER_STANDBY_ENABLE	(1 << 30)
 
 #endif /* _I810_REG_H */
