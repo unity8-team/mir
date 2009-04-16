@@ -2294,10 +2294,11 @@ RADEONGetATOMConnectorInfoFromBIOSConnectorTable (ScrnInfoPtr pScrn)
 	else if ((info->ChipFamily == CHIP_FAMILY_RS690) ||
 		 (info->ChipFamily == CHIP_FAMILY_RS740)) {
 	    /* IGP DFP ports use non-standard gpio entries */
-	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX))
+	    if ((i == ATOM_DEVICE_DFP2_INDEX) || (i == ATOM_DEVICE_DFP3_INDEX)) {
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1);
-	    else
+		info->BiosConnector[i].output_id = ci.sucI2cId.sbfAccess.bfI2C_LineMux + 1;
+	    } else
 		info->BiosConnector[i].ddc_i2c =
 		    RADEONLookupGPIOLineForDDC(pScrn, ci.sucI2cId.sbfAccess.bfI2C_LineMux);
 	} else
