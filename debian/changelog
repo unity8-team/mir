@@ -1,86 +1,92 @@
-xserver-xorg-video-intel (2:2.3.2-2+lenny6) unstable; urgency=high
+xserver-xorg-video-intel (2:2.7.0-1) unstable; urgency=low
 
-  * Remove the Cappuccino SlimPRO SP625F quirk added in -2+lenny5.
-    There are machines with the same subdevice ids and an LVDS output
-    (closes: #512595).  Thanks, Kushal Koolwal!
+  * New upstream release.
 
- -- Julien Cristau <jcristau@debian.org>  Thu, 22 Jan 2009 03:49:01 +0100
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 16 Apr 2009 07:11:09 +0200
 
-xserver-xorg-video-intel (2:2.3.2-2+lenny5) unstable; urgency=low
+xserver-xorg-video-intel (2:2.6.99.903-1) experimental; urgency=low
 
-  * Cherry-pick some more patches from upstream git:
-    - Disable display clock gating for 4 series chips
-    - Pipe A force quirk for Toshiba Satellite A30.
-    - i830: Fix timer leak
-      TimerCancel just cancels the timer: it still leaves the TimerRec intact
-      and unfreed.
-    - Disable render standby
-      Render standby is known to cause possible hang issue on some mobile
-      chips, so always disable it.
-    - Add support for G41 chipset
-      G41 is another 4 series chipset like G45/43.
-    - Add Cappuccino SlimPRO SP625F to no LVDS quirks list
-      Looks like this platform might contain VBTs that indicate an LFP is
-      present even though it isn't.  Intended to fix bz #11368.
-    - Add TV out quirk for HP Compaq nx6110
-      Adds a TV out quirk for HP Compaq nx6110.  Fixes bz #17683.
-    - Do force CRT detect sequence twice on 4 series chipset
-    - Render register clock gating disable fix on 4 series chipset
-    - Disable frame buffer compression by default for GM965.
-      We haven't found a way to make FBC work reliably with GM965 yet, (it
-      often fails to notice CPU writes). This appears to be a specific problem
-      with this device, (as we haven't gotten similar bug reports for
-      subsequent devices such as GM45). So FBC is now disabled by default for
-      GM965 but can still be enabled with the FrameBufferCompression option
-      for experimenting/debugging
-    - Fix broken stolen memory counting on G4X (closes: #502387).
-      On the GM45 we were assuming too little stolen memory (mostly harmless,
-      except when it wasn't, until the AGP fix), and on the G45 we were
-      assuming too much stolen memory, which was quite harmful when we touched
-      the page that didn't get mapped.
-    - XAA tiling support was mis-computing adjusted pitch (>>4 instead of >>2)
-      This may well explain why XAA never worked well on tiled front buffers;
-      tiled buffers require a different pitch programming on 965 than
-      non-tiled buffers, in dwords rather than bytes
-    - Handle differently tiled front/back/depth/third in DRI window management
-      When moving or clearing the extra buffer contents associated with DRI
-      windows, the XAA code needs to see which buffer is being manipulated in
-      the Setup functions to program the tiling values correctly. Calling
-      I830SelectBuffer and not then calling I830Setup... would result in
-      mis-tiled rendering
-  * Adjust patch 01_gen_pci_ids.diff to exclude G41 as well, so vesa is chosen
-    by default.  The intel driver can still be selected in xorg.conf.
+  * New upstream release candidate.
+  * Bump build-dep on libdrm-dev to 2.4.6.
 
- -- Julien Cristau <jcristau@debian.org>  Mon, 20 Oct 2008 20:28:39 +0200
+ -- Brice Goglin <bgoglin@debian.org>  Sat, 11 Apr 2009 22:45:57 +0200
 
-xserver-xorg-video-intel (2:2.3.2-2+lenny4) unstable; urgency=low
+xserver-xorg-video-intel (2:2.6.3-1) unstable; urgency=low
 
-  * Kill 02_xaa_by_default_on_i965.diff.  Switching to XAA breaks Xvideo,
-    which is Not Good™.
-  * New patch 02_965_no_exa_composite.diff: add a "RenderAccel" option, to
-    control whether EXA composite acceleration is enabled.  Default to off on
-    i965+ to hopefully avoid the font rendering issues reported in #451791 and
-    friends.
+  * New upstream release.
+  * Bump build-dep on libdrm-dev to 2.4.5.
+  * Upload to unstable.
+  * Cherry-pick some patches from upstream git, so this doesn't FTBFS with the
+    new libdrm (closes: #523125)
 
- -- Julien Cristau <jcristau@debian.org>  Fri, 05 Sep 2008 02:55:54 +0200
+ -- Julien Cristau <jcristau@debian.org>  Thu, 09 Apr 2009 10:25:22 +0100
 
-xserver-xorg-video-intel (2:2.3.2-2+lenny3) unstable; urgency=low
+xserver-xorg-video-intel (2:2.6.1-1) experimental; urgency=low
 
-  [ Brice Goglin ]
-  * Add 02_xaa_by_default_on_i965.diff to switch back to XAA on
-    i965 by default to avoid many rendering problems, closes: #451791.
-  * Drop G45 PCI ids from intel.ids so that vesa is autoloaded by
-    default for these new boards for now.
+  * New upstream release.
+  * Build against xserver 1.6 rc1.
 
- -- Julien Cristau <jcristau@debian.org>  Tue, 26 Aug 2008 16:54:07 +0200
+ -- Julien Cristau <jcristau@debian.org>  Thu, 22 Jan 2009 00:18:25 +0100
 
-xserver-xorg-video-intel (2:2.3.2-2+lenny2) unstable; urgency=low
+xserver-xorg-video-intel (2:2.6.0-1) experimental; urgency=low
 
-  * Revert the quirk for all 855GM chipsets, as it regresses some users
-    (closes: #493096).  Instead, fix up the quirk for the HP Pavilion ze4944ea
-    laptop so it actually works.
+  * New upstream release.
 
- -- Julien Cristau <jcristau@debian.org>  Mon, 04 Aug 2008 12:31:58 +0200
+ -- Brice Goglin <bgoglin@debian.org>  Thu, 15 Jan 2009 10:54:17 +0100
+
+xserver-xorg-video-intel (2:2.5.99.2-1) experimental; urgency=low
+
+  * New upstream release.
+    + doesn't crash on EnterVT with libdrm 2.4.3 (closes: #511263)
+  * Update libdrm-dev build-dep to 2.4.3.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 14 Jan 2009 08:08:20 +0100
+
+xserver-xorg-video-intel (2:2.5.1-1) experimental; urgency=low
+
+  * New upstream release.
+  * Wrap build-deps in debian/control.
+  * Build depend on libdrm-dev on all archs, since it's now required, and bump
+    the build dep to 2.4.1.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 23 Nov 2008 17:02:31 +0100
+
+xserver-xorg-video-intel (2:2.4.2-1) experimental; urgency=low
+
+  * Drop the xserver-xorg-video-i810 transitional package.
+  * Build against xorg-server 1.5.
+  * New upstream release (no changes from the previous snapshot other than the
+    version number).
+
+ -- Julien Cristau <jcristau@debian.org>  Thu, 04 Sep 2008 02:49:59 +0200
+
+xserver-xorg-video-intel (2:2.4.1-1) experimental; urgency=low
+
+  [ Timo Aaltonen ]
+  * New upstream release.
+
+  [ Julien Cristau ]
+  * Pull from 2.4-branch HEAD as of August 24th.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 24 Aug 2008 18:28:32 +0200
+
+xserver-xorg-video-intel (2:2.4.0-1) experimental; urgency=low
+
+  * New upstream release.
+  * Refresh patch 01_gen_pci_ids.diff.
+  * Don't handle the nostrip build option in debian/rules, dh_strip does that;
+    allow the parallel=n option.
+  * Run autoreconf at build-time; build-depend on automake, libtool and
+    xutils-dev.
+  * Drop the debian revision from the libxvmc-dev build-dep.
+
+ -- Julien Cristau <jcristau@debian.org>  Sun, 27 Jul 2008 13:18:42 +0200
+
+xserver-xorg-video-intel (2:2.3.2-3) experimental; urgency=low
+
+  * Build against xserver 1.5 rc5.
+
+ -- Julien Cristau <jcristau@debian.org>  Mon, 14 Jul 2008 01:26:43 +0200
 
 xserver-xorg-video-intel (2:2.3.2-2+lenny1) unstable; urgency=low
 

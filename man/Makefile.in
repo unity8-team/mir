@@ -61,10 +61,11 @@ host_triplet = @host@
 subdir = man
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 SOURCES =
@@ -102,13 +103,16 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DOLT_BASH = @DOLT_BASH@
 DRIVER_MAN_DIR = @DRIVER_MAN_DIR@
 DRIVER_MAN_SUFFIX = @DRIVER_MAN_SUFFIX@
 DRIVER_NAME = @DRIVER_NAME@
 DRI_CFLAGS = @DRI_CFLAGS@
 DRI_LIBS = @DRI_LIBS@
-DRI_MM_CFLAGS = @DRI_MM_CFLAGS@
-DRI_MM_LIBS = @DRI_MM_LIBS@
+DRM_CFLAGS = @DRM_CFLAGS@
+DRM_LIBS = @DRM_LIBS@
+DRM_MODE_CFLAGS = @DRM_MODE_CFLAGS@
+DRM_MODE_LIBS = @DRM_MODE_LIBS@
 DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
@@ -134,6 +138,8 @@ LIB_MAN_DIR = @LIB_MAN_DIR@
 LIB_MAN_SUFFIX = @LIB_MAN_SUFFIX@
 LINUXDOC = @LINUXDOC@
 LN_S = @LN_S@
+LTCOMPILE = @LTCOMPILE@
+LTCXXCOMPILE = @LTCXXCOMPILE@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
@@ -158,12 +164,16 @@ PCIACCESS_LIBS = @PCIACCESS_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 PS2PDF = @PS2PDF@
 RANLIB = @RANLIB@
-SED = sed
+SED = @SED@
+SERVER_1_5_CFLAGS = @SERVER_1_5_CFLAGS@
+SERVER_1_5_LIBS = @SERVER_1_5_LIBS@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
 WARN_CFLAGS = @WARN_CFLAGS@
+XEXT_CFLAGS = @XEXT_CFLAGS@
+XEXT_LIBS = @XEXT_LIBS@
 XMODES_CFLAGS = @XMODES_CFLAGS@
 XORG_CFLAGS = @XORG_CFLAGS@
 XORG_LIBS = @XORG_LIBS@
@@ -220,16 +230,12 @@ sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
+top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 drivermandir = $(DRIVER_MAN_DIR)
-DRIVER_MAN_DIR_SUFFIX = $(DRIVER_MAN_DIR:@mandir@/man%=%)
-driverman_PRE = @DRIVER_NAME@.man
-driverman_DATA = \
-	$(driverman_PRE:man=@DRIVER_MAN_SUFFIX@) \
-	i810.@DRIVER_MAN_SUFFIX@
-
-EXTRA_DIST = @DRIVER_NAME@.man
+driverman_DATA = $(DRIVER_NAME).$(DRIVER_MAN_SUFFIX)
+EXTRA_DIST = $(DRIVER_NAME).man
 CLEANFILES = $(driverman_DATA)
 
 # Strings to replace in man pages
@@ -248,9 +254,7 @@ MAN_SUBSTS = \
 	-e 's|__filemansuffix__|$(FILE_MAN_SUFFIX)|g'
 
 SUFFIXES = .$(DRIVER_MAN_SUFFIX) .man
-BUILT_SOURCES = shadows.DONE
-all: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) all-am
+all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .$(DRIVER_MAN_SUFFIX) .man
@@ -340,15 +344,13 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) check-am
+check: check-am
 all-am: Makefile $(DATA)
 installdirs:
 	for dir in "$(DESTDIR)$(drivermandir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: $(BUILT_SOURCES)
-	$(MAKE) $(AM_MAKEFLAGS) install-am
+install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -373,7 +375,6 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libtool mostlyclean-am
@@ -445,11 +446,6 @@ uninstall-am: uninstall-drivermanDATA
 
 .man.$(DRIVER_MAN_SUFFIX):
 	sed $(MAN_SUBSTS) < $< > $@
-
-shadows.DONE:
-	-rm -f i810.@DRIVER_MAN_SUFFIX@
-	echo .so man$(DRIVER_MAN_DIR_SUFFIX)/intel.$(DRIVER_MAN_SUFFIX) > \
-		i810.@DRIVER_MAN_SUFFIX@
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

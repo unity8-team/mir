@@ -1,16 +1,14 @@
-Drop G4x pci.ids for now.
-
 Index: xserver-xorg-video-intel/src/Makefile.am
 ===================================================================
 --- xserver-xorg-video-intel.orig/src/Makefile.am
 +++ xserver-xorg-video-intel/src/Makefile.am
-@@ -210,3 +210,9 @@
- 
- uninstall-local:
- 	(cd $(DESTDIR)$(intel_drv_ladir) && rm -f i810_drv.so)
+@@ -220,3 +220,9 @@
+ intel_drv_la_SOURCES += \
+ 	$(INTEL_XVMC_SRCS)
+ endif
 +
 +pcidatadir = $(datadir)/xserver-xorg/pci
 +pcidata_DATA = intel.ids
 +
 +intel.ids : common.h
-+	awk '/^#define PCI_CHIP/ {print $$3 }' $(srcdir)/common.h | grep -vE '0x2A42|0x2E02|0x2E22|0x2E12|0x2E32' | sed 's/^0x/8086/' > intel.ids
++	awk '/^#define PCI_CHIP/ {print $$3 }' $(srcdir)/common.h | sed 's/^0x/8086/' > intel.ids
