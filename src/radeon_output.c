@@ -222,8 +222,8 @@ radeon_ddc_connected(xf86OutputPtr output)
     if (radeon_output->pI2CBus) {
 	/* RV410 appears to have a bug where the hw i2c in reset
 	 * holds the i2c port in a bad state - switch hw i2c away before
-	 * doing DDC */
-	if (info->ChipFamily == CHIP_FAMILY_RV410) {
+	 * doing DDC - do this for all r300s for safety sakes */
+	if (IS_R300_VARIANT) {
 	    if (radeon_output->ddc_i2c.mask_clk_reg == RADEON_GPIO_VGA_DDC)
                 OUTREG(RADEON_DVI_I2C_CNTL_0, 0x30);
 	    else
