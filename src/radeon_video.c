@@ -1704,12 +1704,6 @@ RADEONSetPortAttribute(ScrnInfoPtr  pScrn,
 
     RADEON_SYNC(info, pScrn);
 
-#define RTFSaturation(a)   (1.0 + ((a)*1.0)/1000.0)
-#define RTFBrightness(a)   (((a)*1.0)/2000.0)
-#define RTFIntensity(a)   (((a)*1.0)/2000.0)
-#define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
-#define RTFHue(a)   (((a)*3.1416)/1000.0)
-
     if(attribute == xvAutopaintColorkey)
     {
 	pPriv->autopaint_colorkey = ClipValue (value, 0, 1);

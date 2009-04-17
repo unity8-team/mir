@@ -137,12 +137,6 @@ static REF_TRANSFORM trans[2] =
     {1.1643, 0.0, 1.7927, -0.2132, -0.5329, 2.1124, 0.0}  /* BT.709 */
 };
 
-
-#define RTFSaturation(a)   (1.0 + ((a)*1.0)/1000.0)
-#define RTFBrightness(a)   (((a)*1.0)/2000.0)
-#define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
-#define RTFHue(a)   (((a)*3.1416)/1000.0)
-
 #define ACCEL_MMIO
 #define ACCEL_PREAMBLE()	unsigned char *RADEONMMIO = info->MMIO
 #define BEGIN_ACCEL(n)		RADEONWaitForFifo(pScrn, (n))
@@ -712,11 +706,16 @@ static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R600 1
+#define NUM_ATTRIBUTES_R600 6
 
 static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
+    {XvSettable | XvGettable, 100, 10000, "XV_COLORSPACE"},
     {0, 0, 0, NULL}
 };
 

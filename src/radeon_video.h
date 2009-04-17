@@ -135,6 +135,12 @@ typedef struct tagREF_TRANSFORM
     float   RefBCr;
 } REF_TRANSFORM;
 
+#define RTFSaturation(a)   (1.0 + ((a)*1.0)/1000.0)
+#define RTFBrightness(a)   (((a)*1.0)/2000.0)
+#define RTFIntensity(a)   (((a)*1.0)/2000.0)
+#define RTFContrast(a)   (1.0 + ((a)*1.0)/1000.0)
+#define RTFHue(a)   (((a)*3.1416)/1000.0)
+
 xf86CrtcPtr
 radeon_xv_pick_best_crtc(ScrnInfoPtr pScrn,
 			 int x1, int x2, int y1, int y2);
