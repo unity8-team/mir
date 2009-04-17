@@ -77,12 +77,11 @@ static void NVInitDmaCB(ScrnInfoPtr pScrn)
 	/* I'm not bothering to check for failures here, the DRM will fall back
 	 * on defaults if anything's wrong (ie. out of AGP, invalid sizes)
 	 */
-	/* WARNING: on ppc at least, putting cmdbuf in MEM_FB results in DMA hangs */
-	if (pNv->GART)
-		cb_location = NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE;
-	else
-		cb_location = NOUVEAU_MEM_FB;
-	
+	/* WARNING: on ppc at least, putting cmdbuf in MEM_FB results in
+	 * DMA hangs
+	 */
+
+	cb_location = NOUVEAU_MEM_AGP | NOUVEAU_MEM_PCI_ACCEPTABLE;
 	if((s = (char *)xf86GetOptValString(pNv->Options, OPTION_CMDBUF_LOCATION))) {
 		if(!xf86NameCmp(s, "AGP"))
 			cb_location = NOUVEAU_MEM_AGP;
