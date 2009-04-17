@@ -368,7 +368,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     pPriv->planar_hw = pPriv->planar_state;
-    if (pPriv->bicubic_enabled || (IS_R600_3D || IS_R500_3D))
+    if (pPriv->bicubic_enabled || IS_R600_3D)
 	pPriv->planar_hw = 0;
 
     if (info->ChipFamily < CHIP_FAMILY_R300)
@@ -697,12 +697,18 @@ static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R500 2
+#define NUM_ATTRIBUTES_R500 8
 
 static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
 {
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
+    {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
+    {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
     {0, 0, 0, NULL}
 };
 

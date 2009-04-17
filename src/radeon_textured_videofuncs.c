@@ -2492,7 +2492,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     }
 
     if (isplanar) {
-	txformat1 = R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_HALF_REGION_0;
+	txformat1 = R300_TX_FORMAT_X8;
 	txpitch = pPriv->src_pitch;
     } else {
 	if (pPriv->id == FOURCC_UYVY)
@@ -2500,7 +2500,8 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	else
 	    txformat1 = R300_TX_FORMAT_VYUY422;
 
-	txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
+	if (pPriv->bicubic_enabled)
+	    txformat1 |= R300_TX_FORMAT_YUV_TO_RGB_CLAMP;
 
 	/* pitch is in pixels */
 	txpitch = pPriv->src_pitch / 2;
@@ -2555,13 +2556,13 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R300_TX_FILTER0_1, txfilter | (1 << R300_TX_ID_SHIFT));
 	OUT_ACCEL_REG(R300_TX_FILTER1_1, 0);
 	OUT_ACCEL_REG(R300_TX_FORMAT0_1, txformat0);
-	OUT_ACCEL_REG(R300_TX_FORMAT1_1, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_2);
+	OUT_ACCEL_REG(R300_TX_FORMAT1_1, R300_TX_FORMAT_X8);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_1, txpitch);
 	OUT_ACCEL_REG(R300_TX_OFFSET_1, txoffset + pPriv->planeu_offset);
 	OUT_ACCEL_REG(R300_TX_FILTER0_2, txfilter | (2 << R300_TX_ID_SHIFT));
 	OUT_ACCEL_REG(R300_TX_FILTER1_2, 0);
 	OUT_ACCEL_REG(R300_TX_FORMAT0_2, txformat0);
-	OUT_ACCEL_REG(R300_TX_FORMAT1_2, R300_TX_FORMAT_X8 | R300_TX_FORMAT_CACHE_FOURTH_REGION_3);
+	OUT_ACCEL_REG(R300_TX_FORMAT1_2, R300_TX_FORMAT_X8);
 	OUT_ACCEL_REG(R300_TX_FORMAT2_2, txpitch);
 	OUT_ACCEL_REG(R300_TX_OFFSET_2, txoffset + pPriv->planev_offset);
 	FINISH_ACCEL();
@@ -3162,8 +3163,76 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 
 	FINISH_ACCEL();
 
-    } else {
-	BEGIN_ACCEL(19);
+    } else if (isplanar) {
+	/*
+	 * y' = y - .0625
+	 * u' = u - .5
+	 * v' = v - .5;
+	 *
+	 * r = 1.1643 * y' + 0.0     * u' + 1.5958  * v'
+	 * g = 1.1643 * y' - 0.39173 * u' - 0.81290 * v'
+	 * b = 1.1643 * y' + 2.017   * u' + 0.0     * v'
+	 *
+	 * DP3 might look like the straightforward solution
+	 * but we'd need to move the texture yuv values in
+	 * the same reg for this to work. Therefore use MADs.
+	 * Brightness just adds to the off constant.
+	 * Contrast is multiplication of luminance.
+	 * Saturation and hue change the u and v coeffs.
+	 * Default values (before adjustments - depend on colorspace):
+	 * yco = 1.1643
+	 * uco = 0, -0.39173, 2.017
+	 * vco = 1.5958, -0.8129, 0
+	 * off = -0.0625 * yco + -0.5 * uco[r] + -0.5 * vco[r],
+	 *       -0.0625 * yco + -0.5 * uco[g] + -0.5 * vco[g],
+	 *       -0.0625 * yco + -0.5 * uco[b] + -0.5 * vco[b],
+	 *
+	 * temp = MAD(yco, yuv.yyyy, off)
+	 * temp = MAD(uco, yuv.uuuu, temp)
+	 * result = MAD(vco, yuv.vvvv, temp)
+	 */
+	/* TODO: don't recalc consts always */
+	const float Loff = -0.0627;
+	const float Coff = -0.502;
+	float uvcosf, uvsinf;
+	float yco;
+	float uco[3], vco[3], off[3];
+	float bright, cont, gamma;
+	int ref = pPriv->transform_index;
+	Bool needgamma = FALSE;
+
+	cont = RTFContrast(pPriv->contrast);
+	bright = RTFBrightness(pPriv->brightness);
+	gamma = (float)pPriv->gamma / 1000.0;
+	uvcosf = RTFSaturation(pPriv->saturation) * cos(RTFHue(pPriv->hue));
+	uvsinf = RTFSaturation(pPriv->saturation) * sin(RTFHue(pPriv->hue));
+	/* overlay video also does pre-gamma contrast/sat adjust, should we? */
+
+	yco = trans[ref].RefLuma * cont;
+	uco[0] = -trans[ref].RefRCr * uvsinf;
+	uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+	uco[2] = trans[ref].RefBCb * uvcosf;
+	vco[0] = trans[ref].RefRCr * uvcosf;
+	vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+	vco[2] = trans[ref].RefBCb * uvsinf;
+	off[0] = Loff * yco + Coff * (uco[0] + vco[0]) + bright;
+	off[1] = Loff * yco + Coff * (uco[1] + vco[1]) + bright;
+	off[2] = Loff * yco + Coff * (uco[2] + vco[2]) + bright;
+
+	//XXX gamma
+
+	if (gamma != 1.0) {
+	    needgamma = TRUE;
+	    /* note: gamma correction is out = in ^ gamma;
+	       gpu can only do LG2/EX2 therefore we transform into
+	       in ^ gamma = 2 ^ (log2(in) * gamma).
+	       Lots of scalar ops, unfortunately (better solution?) -
+	       without gamma that's 3 inst, with gamma it's 10...
+	       could use different gamma factors per channel,
+	       if that's of any use. */
+	}
+
+	BEGIN_ACCEL(56);
 	/* 2 components: 2 for tex0 */
 	OUT_ACCEL_REG(R300_RS_COUNT,
 		      ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -3173,13 +3242,339 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
 
 	/* Pixel stack frame size. */
-	OUT_ACCEL_REG(R300_US_PIXSIZE, 0); /* highest temp used */
+	OUT_ACCEL_REG(R300_US_PIXSIZE, 2); /* highest temp used */
 
 	/* FP length. */
 	OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
-					  R500_US_CODE_END_ADDR(1)));
+					  R500_US_CODE_END_ADDR(5)));
 	OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
-					   R500_US_CODE_RANGE_SIZE(1)));
+					   R500_US_CODE_RANGE_SIZE(5)));
+
+	/* Prepare for FP emission. */
+	OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_INST_INDEX(0));
+
+	/* tex inst */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK |
+					       R500_INST_RGB_CLAMP |
+					       R500_INST_ALPHA_CLAMP));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(0) |
+					       R500_TEX_INST_LD |
+					       R500_TEX_IGNORE_UNCOVERED));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
+					       R500_TEX_SRC_S_SWIZ_R |
+					       R500_TEX_SRC_T_SWIZ_G |
+					       R500_TEX_DST_ADDR(2) |
+					       R500_TEX_DST_R_SWIZ_R |
+					       R500_TEX_DST_G_SWIZ_G |
+					       R500_TEX_DST_B_SWIZ_B |
+					       R500_TEX_DST_A_SWIZ_A));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
+					       R500_DX_S_SWIZ_R |
+					       R500_DX_T_SWIZ_R |
+					       R500_DX_R_SWIZ_R |
+					       R500_DX_Q_SWIZ_R |
+					       R500_DY_ADDR(0) |
+					       R500_DY_S_SWIZ_R |
+					       R500_DY_T_SWIZ_R |
+					       R500_DY_R_SWIZ_R |
+					       R500_DY_Q_SWIZ_R));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+
+	/* tex inst */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK |
+					       R500_INST_RGB_CLAMP |
+					       R500_INST_ALPHA_CLAMP));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(1) |
+					       R500_TEX_INST_LD |
+					       R500_TEX_IGNORE_UNCOVERED));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
+					       R500_TEX_SRC_S_SWIZ_R |
+					       R500_TEX_SRC_T_SWIZ_G |
+					       R500_TEX_DST_ADDR(1) |
+					       R500_TEX_DST_R_SWIZ_R |
+					       R500_TEX_DST_G_SWIZ_G |
+					       R500_TEX_DST_B_SWIZ_B |
+					       R500_TEX_DST_A_SWIZ_A));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
+					       R500_DX_S_SWIZ_R |
+					       R500_DX_T_SWIZ_R |
+					       R500_DX_R_SWIZ_R |
+					       R500_DX_Q_SWIZ_R |
+					       R500_DY_ADDR(0) |
+					       R500_DY_S_SWIZ_R |
+					       R500_DY_T_SWIZ_R |
+					       R500_DY_R_SWIZ_R |
+					       R500_DY_Q_SWIZ_R));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+
+	/* tex inst */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_TEX |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK |
+					       R500_INST_RGB_CLAMP |
+					       R500_INST_ALPHA_CLAMP));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_ID(2) |
+					       R500_TEX_INST_LD |
+					       R500_TEX_SEM_ACQUIRE |
+					       R500_TEX_IGNORE_UNCOVERED));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_TEX_SRC_ADDR(0) |
+					       R500_TEX_SRC_S_SWIZ_R |
+					       R500_TEX_SRC_T_SWIZ_G |
+					       R500_TEX_DST_ADDR(0) |
+					       R500_TEX_DST_R_SWIZ_R |
+					       R500_TEX_DST_G_SWIZ_G |
+					       R500_TEX_DST_B_SWIZ_B |
+					       R500_TEX_DST_A_SWIZ_A));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_DX_ADDR(0) |
+					       R500_DX_S_SWIZ_R |
+					       R500_DX_T_SWIZ_R |
+					       R500_DX_R_SWIZ_R |
+					       R500_DX_Q_SWIZ_R |
+					       R500_DY_ADDR(0) |
+					       R500_DY_S_SWIZ_R |
+					       R500_DY_T_SWIZ_R |
+					       R500_DY_R_SWIZ_R |
+					       R500_DY_Q_SWIZ_R));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
+
+	/* ALU inst */
+	/* MAD temp2.rgb, const0.aaa, temp2.rgb, const0.rgb */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
+					       R500_RGB_ADDR0_CONST |
+					       R500_RGB_ADDR1(2) |
+					       R500_RGB_ADDR2(0) |
+					       R500_RGB_ADDR2_CONST));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
+					       R500_ALPHA_ADDR0_CONST |
+					       R500_ALPHA_ADDR1(2) |
+					       R500_ALPHA_ADDR2(0) |
+					       R500_ALPHA_ADDR2_CONST));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_A |
+					       R500_ALU_RGB_G_SWIZ_A_A |
+					       R500_ALU_RGB_B_SWIZ_A_A |
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_R |
+					       R500_ALU_RGB_B_SWIZ_B_G |
+					       R500_ALU_RGB_G_SWIZ_B_B));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_ADDRD(2) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_ADDRD(2) |
+					       R500_ALU_RGBA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_0));
+
+	/* MAD temp2.rgb, const1.rgb, temp1.rgb, temp2.rgb */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(1) |
+					       R500_RGB_ADDR0_CONST |
+					       R500_RGB_ADDR1(1) |
+					       R500_RGB_ADDR2(2)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(1) |
+					       R500_ALPHA_ADDR0_CONST |
+					       R500_ALPHA_ADDR1(1) |
+					       R500_ALPHA_ADDR2(2)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_R |
+					       R500_ALU_RGB_G_SWIZ_A_G |
+					       R500_ALU_RGB_B_SWIZ_A_B |
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_R |
+					       R500_ALU_RGB_B_SWIZ_B_G |
+					       R500_ALU_RGB_G_SWIZ_B_B));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_ADDRD(2) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_ADDRD(2) |
+					       R500_ALU_RGBA_SEL_C_SRC2 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_0));
+
+	/* MAD result.rgb, const2.rgb, temp0.rgb, temp2.rgb */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_LAST |
+					       R500_INST_RGB_OMASK_R |
+					       R500_INST_RGB_OMASK_G |
+					       R500_INST_RGB_OMASK_B |
+					       R500_INST_ALPHA_OMASK |
+					       R500_INST_RGB_CLAMP |
+					       R500_INST_ALPHA_CLAMP));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(2) |
+					       R500_RGB_ADDR0_CONST |
+					       R500_RGB_ADDR1(0) |
+					       R500_RGB_ADDR2(2)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(2) |
+					       R500_ALPHA_ADDR0_CONST |
+					       R500_ALPHA_ADDR1(0) |
+					       R500_ALPHA_ADDR2(2)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_R |
+					       R500_ALU_RGB_G_SWIZ_A_G |
+					       R500_ALU_RGB_B_SWIZ_A_B |
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_R |
+					       R500_ALU_RGB_B_SWIZ_B_G |
+					       R500_ALU_RGB_G_SWIZ_B_B));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_ADDRD(0) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_ADDRD(0) |
+					       R500_ALU_RGBA_SEL_C_SRC2 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_1));
+
+	/* Shader constants. */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_CONST_INDEX(0));
+
+	/* constant 0: off, yco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, yco);
+	/* constant 1: uco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, gamma);
+	/* constant 2: vco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, 0.0);
+
+	FINISH_ACCEL();
+
+    } else {
+	/*
+	 * y' = y - .0625
+	 * u' = u - .5
+	 * v' = v - .5;
+	 *
+	 * r = 1.1643 * y' + 0.0     * u' + 1.5958  * v'
+	 * g = 1.1643 * y' - 0.39173 * u' - 0.81290 * v'
+	 * b = 1.1643 * y' + 2.017   * u' + 0.0     * v'
+	 *
+	 * DP3 might look like the straightforward solution
+	 * but we'd need to move the texture yuv values in
+	 * the same reg for this to work. Therefore use MADs.
+	 * Brightness just adds to the off constant.
+	 * Contrast is multiplication of luminance.
+	 * Saturation and hue change the u and v coeffs.
+	 * Default values (before adjustments - depend on colorspace):
+	 * yco = 1.1643
+	 * uco = 0, -0.39173, 2.017
+	 * vco = 1.5958, -0.8129, 0
+	 * off = -0.0625 * yco + -0.5 * uco[r] + -0.5 * vco[r],
+	 *       -0.0625 * yco + -0.5 * uco[g] + -0.5 * vco[g],
+	 *       -0.0625 * yco + -0.5 * uco[b] + -0.5 * vco[b],
+	 *
+	 * temp = MAD(yco, yuv.yyyy, off)
+	 * temp = MAD(uco, yuv.uuuu, temp)
+	 * result = MAD(vco, yuv.vvvv, temp)
+	 */
+	/* TODO: don't recalc consts always */
+	const float Loff = -0.0627;
+	const float Coff = -0.502;
+	float uvcosf, uvsinf;
+	float yco;
+	float uco[3], vco[3], off[3];
+	float bright, cont, gamma;
+	int ref = pPriv->transform_index;
+	Bool needgamma = FALSE;
+
+	cont = RTFContrast(pPriv->contrast);
+	bright = RTFBrightness(pPriv->brightness);
+	gamma = (float)pPriv->gamma / 1000.0;
+	uvcosf = RTFSaturation(pPriv->saturation) * cos(RTFHue(pPriv->hue));
+	uvsinf = RTFSaturation(pPriv->saturation) * sin(RTFHue(pPriv->hue));
+	/* overlay video also does pre-gamma contrast/sat adjust, should we? */
+
+	yco = trans[ref].RefLuma * cont;
+	uco[0] = -trans[ref].RefRCr * uvsinf;
+	uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+	uco[2] = trans[ref].RefBCb * uvcosf;
+	vco[0] = trans[ref].RefRCr * uvcosf;
+	vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+	vco[2] = trans[ref].RefBCb * uvsinf;
+	off[0] = Loff * yco + Coff * (uco[0] + vco[0]) + bright;
+	off[1] = Loff * yco + Coff * (uco[1] + vco[1]) + bright;
+	off[2] = Loff * yco + Coff * (uco[2] + vco[2]) + bright;
+
+	//XXX gamma
+
+	if (gamma != 1.0) {
+	    needgamma = TRUE;
+	    /* note: gamma correction is out = in ^ gamma;
+	       gpu can only do LG2/EX2 therefore we transform into
+	       in ^ gamma = 2 ^ (log2(in) * gamma).
+	       Lots of scalar ops, unfortunately (better solution?) -
+	       without gamma that's 3 inst, with gamma it's 10...
+	       could use different gamma factors per channel,
+	       if that's of any use. */
+	}
+
+	BEGIN_ACCEL(44);
+	/* 2 components: 2 for tex0/1/2 */
+	OUT_ACCEL_REG(R300_RS_COUNT,
+		      ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
+		       R300_RS_COUNT_HIRES_EN));
+
+	/* R300_INST_COUNT_RS - highest RS instruction used */
+	OUT_ACCEL_REG(R300_RS_INST_COUNT, R300_INST_COUNT_RS(0) | R300_TX_OFFSET_RS(6));
+
+	/* Pixel stack frame size. */
+	OUT_ACCEL_REG(R300_US_PIXSIZE, 1); /* highest temp used */
+
+	/* FP length. */
+	OUT_ACCEL_REG(R500_US_CODE_ADDR, (R500_US_CODE_START_ADDR(0) |
+					  R500_US_CODE_END_ADDR(3)));
+	OUT_ACCEL_REG(R500_US_CODE_RANGE, (R500_US_CODE_RANGE_ADDR(0) |
+					   R500_US_CODE_RANGE_SIZE(3)));
 
 	/* Prepare for FP emission. */
 	OUT_ACCEL_REG(R500_US_CODE_OFFSET, 0);
@@ -3220,6 +3615,81 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, 0x00000000);
 
 	/* ALU inst */
+	/* MAD temp1.rgb, const0.aaa, temp0.ggg, const0.rgb */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
+					       R500_RGB_ADDR0_CONST |
+					       R500_RGB_ADDR1(0) |
+					       R500_RGB_ADDR2(0) |
+					       R500_RGB_ADDR2_CONST));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
+					       R500_ALPHA_ADDR0_CONST |
+					       R500_ALPHA_ADDR1(0) |
+					       R500_ALPHA_ADDR2(0) |
+					       R500_ALPHA_ADDR2_CONST));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_A |
+					       R500_ALU_RGB_G_SWIZ_A_A |
+					       R500_ALU_RGB_B_SWIZ_A_A |
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_G |
+					       R500_ALU_RGB_B_SWIZ_B_G |
+					       R500_ALU_RGB_G_SWIZ_B_G));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_ADDRD(1) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_ADDRD(1) |
+					       R500_ALU_RGBA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_0));
+
+	/* MAD temp1.rgb, const1.rgb, temp0.bbb, temp1.rgb */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_ALU |
+					       R500_INST_TEX_SEM_WAIT |
+					       R500_INST_RGB_WMASK_R |
+					       R500_INST_RGB_WMASK_G |
+					       R500_INST_RGB_WMASK_B |
+					       R500_INST_ALPHA_WMASK));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(1) |
+					       R500_RGB_ADDR0_CONST |
+					       R500_RGB_ADDR1(0) |
+					       R500_RGB_ADDR2(1)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(1) |
+					       R500_ALPHA_ADDR0_CONST |
+					       R500_ALPHA_ADDR1(0) |
+					       R500_ALPHA_ADDR2(1)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
+					       R500_ALU_RGB_R_SWIZ_A_R |
+					       R500_ALU_RGB_G_SWIZ_A_G |
+					       R500_ALU_RGB_B_SWIZ_A_B |
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_B |
+					       R500_ALU_RGB_B_SWIZ_B_B |
+					       R500_ALU_RGB_G_SWIZ_B_B));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
+					       R500_ALPHA_ADDRD(1) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
+					       R500_ALU_RGBA_ADDRD(1) |
+					       R500_ALU_RGBA_SEL_C_SRC2 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_0));
+
+	/* MAD result.rgb, const2.rgb, temp0.rrr, temp1.rgb */
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_INST_TYPE_OUT |
 					       R500_INST_TEX_SEM_WAIT |
 					       R500_INST_LAST |
@@ -3229,32 +3699,54 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 					       R500_INST_ALPHA_OMASK |
 					       R500_INST_RGB_CLAMP |
 					       R500_INST_ALPHA_CLAMP));
-	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(0) |
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_RGB_ADDR0(2) |
+					       R500_RGB_ADDR0_CONST |
 					       R500_RGB_ADDR1(0) |
-					       R500_RGB_ADDR1_CONST |
-					       R500_RGB_ADDR2(0) |
-					       R500_RGB_ADDR2_CONST));
-	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(0) |
+					       R500_RGB_ADDR2(1)));
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_ADDR0(1) |
+					       R500_ALPHA_ADDR0_CONST |
 					       R500_ALPHA_ADDR1(0) |
-					       R500_ALPHA_ADDR1_CONST |
-					       R500_ALPHA_ADDR2(0) |
-					       R500_ALPHA_ADDR2_CONST));
+					       R500_ALPHA_ADDR2(1)));
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGB_SEL_A_SRC0 |
 					       R500_ALU_RGB_R_SWIZ_A_R |
 					       R500_ALU_RGB_G_SWIZ_A_G |
 					       R500_ALU_RGB_B_SWIZ_A_B |
-					       R500_ALU_RGB_SEL_B_SRC0 |
-					       R500_ALU_RGB_R_SWIZ_B_1 |
-					       R500_ALU_RGB_B_SWIZ_B_1 |
-					       R500_ALU_RGB_G_SWIZ_B_1));
+					       R500_ALU_RGB_SEL_B_SRC1 |
+					       R500_ALU_RGB_R_SWIZ_B_R |
+					       R500_ALU_RGB_B_SWIZ_B_R |
+					       R500_ALU_RGB_G_SWIZ_B_R));
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALPHA_OP_MAD |
-					       R500_ALPHA_SWIZ_A_A |
-					       R500_ALPHA_SWIZ_B_1));
+					       R500_ALPHA_ADDRD(1) |
+					       R500_ALPHA_SWIZ_A_0 |
+					       R500_ALPHA_SWIZ_B_0));
 	OUT_ACCEL_REG(R500_GA_US_VECTOR_DATA, (R500_ALU_RGBA_OP_MAD |
-					       R500_ALU_RGBA_R_SWIZ_0 |
-					       R500_ALU_RGBA_G_SWIZ_0 |
-					       R500_ALU_RGBA_B_SWIZ_0 |
-					       R500_ALU_RGBA_A_SWIZ_0));
+					       R500_ALU_RGBA_ADDRD(1) |
+					       R500_ALU_RGBA_SEL_C_SRC2 |
+					       R500_ALU_RGBA_R_SWIZ_R |
+					       R500_ALU_RGBA_G_SWIZ_G |
+					       R500_ALU_RGBA_B_SWIZ_B |
+					       R500_ALU_RGBA_ALPHA_SEL_C_SRC0 |
+					       R500_ALU_RGBA_A_SWIZ_1));
+
+	/* Shader constants. */
+	OUT_ACCEL_REG(R500_GA_US_VECTOR_INDEX, R500_US_VECTOR_CONST_INDEX(0));
+
+	/* constant 0: off, yco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, off[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, yco);
+	/* constant 1: uco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, uco[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, gamma);
+	/* constant 2: vco */
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[0]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[1]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, vco[2]);
+	OUT_ACCEL_REG_F(R500_GA_US_VECTOR_DATA, 0.0);
+
 	FINISH_ACCEL();
     }
 
