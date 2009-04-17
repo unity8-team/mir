@@ -1091,7 +1091,10 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     OUT_ACCEL_REG(R300_TX_FILTER0_0, txfilter);
     OUT_ACCEL_REG(R300_TX_FILTER1_0, 0);
     OUT_ACCEL_REG(R300_TX_FORMAT0_0, txformat0);
-    OUT_ACCEL_REG(R300_TX_FORMAT1_0, txformat1);
+    if (isplanar)
+	OUT_ACCEL_REG(R300_TX_FORMAT1_0, txformat1 | R300_TX_FORMAT_CACHE_HALF_REGION_0);
+    else
+	OUT_ACCEL_REG(R300_TX_FORMAT1_0, txformat1);
     OUT_ACCEL_REG(R300_TX_FORMAT2_0, txpitch);
     OUT_ACCEL_REG(R300_TX_OFFSET_0, txoffset);
     FINISH_ACCEL();
