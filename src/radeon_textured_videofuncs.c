@@ -743,9 +743,10 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	     * DP3 might look like the straightforward solution
 	     * but we'd need to move the texture yuv values in
 	     * the same reg for this to work. Therefore use MADs.
-	     * Without changing the shader at all (only the constants)
-	     * could also provide hue/saturation/brightness/contrast control.
-	     *
+	     * Brightness just adds to the off constant.
+	     * Contrast is multiplication of luminance.
+	     * Saturation and hue change the u and v coeffs.
+	     * Default values (before adjustments - depend on colorspace):
 	     * yco = 1.1643
 	     * uco = 0, -0.39173, 2.017
 	     * vco = 1.5958, -0.8129, 0
@@ -757,14 +758,46 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	     * temp = MAD(uco, yuv.uuuu, temp)
 	     * result = MAD(vco, yuv.vvvv, temp)
 	     */
-		float yco = 1.1643;
-		float uco[3] = {0.0, -0.39173, 2.018};
-		float vco[3] = {1.5958, -0.8129, 0.0};
-		float off[3] = {-0.0625 * yco + -0.5 * uco[0] + -0.5 * vco[0],
-				-0.0625 * yco + -0.5 * uco[1] + -0.5 * vco[1],
-				-0.0625 * yco + -0.5 * uco[2] + -0.5 * vco[2]};
+	     /* TODO: don't recalc consts always */
+		const float Loff = -0.0627;
+		const float Coff = -0.502;
+		float uvcosf, uvsinf;
+		float yco;
+		float uco[3], vco[3], off[3];
+		float bright, cont, gamma;
+		int ref = pPriv->transform_index;
+		Bool needgamma = FALSE;
 
-		BEGIN_ACCEL(33);
+		cont = RTFContrast(pPriv->contrast);
+		bright = RTFBrightness(pPriv->brightness);
+		gamma = (float)pPriv->gamma / 1000.0;
+		uvcosf = RTFSaturation(pPriv->saturation) * cos(RTFHue(pPriv->hue));
+		uvsinf = RTFSaturation(pPriv->saturation) * sin(RTFHue(pPriv->hue));
+		/* overlay video also does pre-gamma contrast/sat adjust, should we? */
+
+		yco = trans[ref].RefLuma * cont;
+		uco[0] = -trans[ref].RefRCr * uvsinf;
+		uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+		uco[2] = trans[ref].RefBCb * uvcosf;
+		vco[0] = trans[ref].RefRCr * uvcosf;
+		vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+		vco[2] = trans[ref].RefBCb * uvsinf;
+		off[0] = Loff * yco + Coff * (uco[0] + vco[0]) + bright;
+		off[1] = Loff * yco + Coff * (uco[1] + vco[1]) + bright;
+		off[2] = Loff * yco + Coff * (uco[2] + vco[2]) + bright;
+
+		if (gamma != 1.0) {
+			needgamma = TRUE;
+			/* note: gamma correction is out = in ^ gamma;
+			   gpu can only do LG2/EX2 therefore we transform into
+			   in ^ gamma = 2 ^ (log2(in) * gamma).
+			   Lots of scalar ops, unfortunately (better solution?) -
+			   without gamma that's 3 inst, with gamma it's 10...
+			   could use different gamma factors per channel,
+			   if that's of any use. */
+		}
+
+		BEGIN_ACCEL(needgamma ? 28 + 33 : 33);
 		/* 2 components: same 2 for tex0/1/2 */
 		OUT_ACCEL_REG(R300_RS_COUNT,
 			  ((2 << R300_RS_COUNT_IT_COUNT_SHIFT) |
@@ -779,12 +812,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 							R300_FIRST_TEX));
 
 		OUT_ACCEL_REG(R300_US_CODE_OFFSET, (R300_ALU_CODE_OFFSET(0) |
-						   R300_ALU_CODE_SIZE(3) |
+						   R300_ALU_CODE_SIZE(needgamma ? 7 + 3 : 3) |
 						   R300_TEX_CODE_OFFSET(0) |
 						   R300_TEX_CODE_SIZE(3)));
 
 		OUT_ACCEL_REG(R300_US_CODE_ADDR_3, (R300_ALU_START(0) |
-						   R300_ALU_SIZE(2) |
+						   R300_ALU_SIZE(needgamma ? 7 + 2 : 2) |
 						   R300_TEX_START(0) |
 						   R300_TEX_SIZE(2) |
 						   R300_RGBA_OUT));
@@ -857,7 +890,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_RGB_ADDR2(0) |
 						   R300_ALU_RGB_ADDRD(0) |
 						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_RGB) |
-						   R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_RGB)));
+						   (needgamma ? 0 : R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_RGB))));
 		OUT_ACCEL_REG(R300_US_ALU_RGB_INST(2), (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
 						   R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
 						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC1_RGB) |
@@ -868,13 +901,125 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE) |
 						   R300_ALU_RGB_CLAMP));
 		/* write alpha 1 */
-		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(4), (R300_ALU_ALPHA_ADDRD(0) |
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(2), (R300_ALU_ALPHA_ADDRD(0) |
 						   R300_ALU_ALPHA_OMASK(R300_ALU_ALPHA_MASK_A) |
 						   R300_ALU_ALPHA_TARGET_A));
-		OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(4), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+		OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(2), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
 						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_0_0) |
 						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
 						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_1_0)));
+
+		if (needgamma) {
+		    /* rgb temp0.r = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(3), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_R)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(3),
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha lg2 temp0, temp0.r */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(3), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(3), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_LN2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_R) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* rgb temp0.g = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(4), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_G)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(4),
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha lg2 temp0, temp0.g */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(4), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(4), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_LN2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_G) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* rgb temp0.b = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(5), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_B)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(5),
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha lg2 temp0, temp0.b */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(5), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(5), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_LN2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_B) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* MUL const1, temp1, temp0 */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(6), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_ADDR1(0) |
+						   R300_ALU_RGB_ADDR2(0) |
+						   R300_ALU_RGB_ADDRD(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_RGB)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(6), (R300_ALU_RGB_SEL_A(R300_ALU_RGB_SRC0_RGB) |
+						   R300_ALU_RGB_MOD_A(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_B(R300_ALU_RGB_SRC0_AAA) |
+						   R300_ALU_RGB_MOD_B(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_SEL_C(R300_ALU_RGB_0_0) |
+						   R300_ALU_RGB_MOD_C(R300_ALU_RGB_MOD_NOP) |
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_MAD) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE)));
+		    /* alpha nop, but set up const1 */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(6), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_ADDR0(R300_ALU_ALPHA_CONST(1)) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(6), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_MAD) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* rgb out0.r = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(7), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_R) |
+						   R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_R)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(7), 
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha ex2 temp0, temp0.r */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(7), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(7), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_EX2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_R) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* rgb out0.g = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(8), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_G) |
+						   R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_G)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(8),
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha ex2 temp0, temp0.g */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(8), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(8), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_EX2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_G) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+
+		    /* rgb out0.b = op_sop, set up src0 reg */
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_ADDR(9), (R300_ALU_RGB_ADDR0(0) |
+						   R300_ALU_RGB_WMASK(R300_ALU_RGB_MASK_B) |
+						   R300_ALU_RGB_OMASK(R300_ALU_RGB_MASK_B)));
+		    OUT_ACCEL_REG(R300_US_ALU_RGB_INST(9),
+						   R300_ALU_RGB_OP(R300_ALU_RGB_OP_SOP) |
+						   R300_ALU_RGB_OMOD(R300_ALU_RGB_OMOD_NONE));
+		    /* alpha ex2 temp0, temp0.b */
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_ADDR(9), (R300_ALU_ALPHA_ADDRD(0) |
+						   R300_ALU_ALPHA_WMASK(R300_ALU_ALPHA_MASK_NONE)));
+		    OUT_ACCEL_REG(R300_US_ALU_ALPHA_INST(9), (R300_ALU_ALPHA_OP(R300_ALU_ALPHA_OP_EX2) |
+						   R300_ALU_ALPHA_SEL_A(R300_ALU_ALPHA_SRC0_B) |
+						   R300_ALU_ALPHA_SEL_B(R300_ALU_ALPHA_0_0) |
+						   R300_ALU_ALPHA_SEL_C(R300_ALU_ALPHA_0_0)));
+		}
 
 		/* Shader constants. */
 		/* constant 0: off, yco */
@@ -886,7 +1031,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		OUT_ACCEL_REG(R300_US_ALU_CONST_R(1), F_TO_24(uco[0]));
 		OUT_ACCEL_REG(R300_US_ALU_CONST_G(1), F_TO_24(uco[1]));
 		OUT_ACCEL_REG(R300_US_ALU_CONST_B(1), F_TO_24(uco[2]));
-		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), F_TO_24(0.0));
+		OUT_ACCEL_REG(R300_US_ALU_CONST_A(1), F_TO_24(gamma));
 		/* constant 2: vco */
 		OUT_ACCEL_REG(R300_US_ALU_CONST_R(2), F_TO_24(vco[0]));
 		OUT_ACCEL_REG(R300_US_ALU_CONST_G(2), F_TO_24(vco[1]));
@@ -1601,20 +1746,52 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	FINISH_ACCEL();
 
 
-	if ((info->ChipFamily == CHIP_FAMILY_RV250) ||
-	    (info->ChipFamily == CHIP_FAMILY_RV280) ||
-	    (info->ChipFamily == CHIP_FAMILY_RS300) ||
-	    (info->ChipFamily == CHIP_FAMILY_R200)) {
+	if (IS_R200_3D) {
 
 	    info->accel_state->texW[0] = pPriv->w;
 	    info->accel_state->texH[0] = pPriv->h;
 
 	    if (isplanar) {
 		/* note: in contrast to r300, use input biasing on uv components */
-		float yco = 1.1643;
-		float yoff = -0.0625 * yco;
-		float uco[3] = {0.0, -0.39173, 2.018};
-		float vco[3] = {1.5958, -0.8129, 0.0};
+		const float Loff = -0.0627;
+		float uvcosf, uvsinf;
+		float yco, yoff;
+		float uco[3], vco[3];
+		float bright, cont, sat;
+		int ref = pPriv->transform_index;
+		float ucscale = 0.25, vcscale = 0.25;
+		Bool needux8 = FALSE, needvx8 = FALSE;
+
+		/* contrast can cause constant overflow, clamp */
+		cont = RTFContrast(pPriv->contrast);
+		if (cont * trans[ref].RefLuma > 2.0)
+		    cont = 2.0 / trans[ref].RefLuma;
+		/* brightness is only from -0.5 to 0.5 should be safe */
+		bright = RTFBrightness(pPriv->brightness);
+		/* saturation can also cause overflow, clamp */
+		sat = RTFSaturation(pPriv->saturation);
+		if (sat * trans[ref].RefBCb > 4.0)
+		    sat = 4.0 / trans[ref].RefBCb;
+		uvcosf = sat * cos(RTFHue(pPriv->hue));
+		uvsinf = sat * sin(RTFHue(pPriv->hue));
+
+		yco = trans[ref].RefLuma * cont;
+		uco[0] = -trans[ref].RefRCr * uvsinf;
+		uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+		uco[2] = trans[ref].RefBCb * uvcosf;
+		vco[0] = trans[ref].RefRCr * uvcosf;
+		vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+		vco[2] = trans[ref].RefBCb * uvsinf;
+		yoff = Loff * yco + bright;
+
+		if ((uco[0] > 2.0) || (uco[2] > 2.0)) {
+		    needux8 = TRUE;
+		    ucscale = 0.125;
+		}
+		if ((vco[0] > 2.0) || (vco[2] > 2.0)) {
+		    needvx8 = TRUE;
+		    vcscale = 0.125;
+		}
 
 		/* need 2 texcoord sets (even though they are identical) due
 		   to denormalization! hw apparently can't premultiply
@@ -1678,7 +1855,9 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 		 * seems the values we need seem to fit better than worst case (get about
 		 * 6 fractional bits for this instead of 5, at least when not correcting for
 		 * hue/saturation/contrast/brightness, which is the same as for vco - yco and
-		 * yoff get 8 fractional bits).
+		 * yoff get 8 fractional bits). Try to preserve as much accuracy as possible
+		 * even with non-default saturation/hue/contrast/brightness adjustments,
+		 * it gets a little crazy and ultimately precision might still be lacking.
 		 *
 		 * A higher precision (8 fractional bits) version might just put uco into
 		 * a texcoord, and calculate a new vcoconst in the shader, like so:
@@ -1709,7 +1888,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_ARG_A_TFACTOR_COLOR |
 			      R200_TXC_ARG_B_R0_COLOR |
 			      R200_TXC_ARG_C_TFACTOR_COLOR |
-			      R200_TXC_NEG_ARG_C |
+			      (yoff < 0 ? R200_TXC_NEG_ARG_C : 0) |
 			      R200_TXC_OP_DOT2_ADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
 			      (0 << R200_TXC_TFACTOR_SEL_SHIFT) |
@@ -1730,7 +1909,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_SCALE_ARG_A |
 			      R200_TXC_ARG_B_R1_COLOR |
 			      R200_TXC_BIAS_ARG_B |
-			      R200_TXC_SCALE_ARG_B |
+			      (needux8 ? R200_TXC_SCALE_ARG_B : 0) |
 			      R200_TXC_ARG_C_R0_COLOR |
 			      R200_TXC_OP_MADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_1,
@@ -1751,6 +1930,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_SCALE_ARG_A |
 			      R200_TXC_ARG_B_R2_COLOR |
 			      R200_TXC_BIAS_ARG_B |
+			      (needvx8 ? R200_TXC_SCALE_ARG_B : 0) |
 			      R200_TXC_ARG_C_R0_COLOR |
 			      R200_TXC_OP_MADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_2,
@@ -1767,28 +1947,64 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
 
 		/* shader constants */
-		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(1.0, /* src range [1, 2] */
-							      yco - 1.0,
-							      -yoff, /* range [-1, 0] */
+		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(yco > 1.0 ? 1.0 : 0.0, /* range special [0, 2] */
+							      yco > 1.0 ? yco - 1.0: yco,
+							      yoff < 0 ? -yoff : yoff, /* range special [-1, 1] */
 							      0.0));
-		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * 0.125 + 0.5, /* range [-4, 4] */
-							      uco[1] * 0.125 + 0.5,
-							      uco[2] * 0.125 + 0.5,
+		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * ucscale + 0.5, /* range [-4, 4] */
+							      uco[1] * ucscale + 0.5, /* or [-2, 2] */
+							      uco[2] * ucscale + 0.5,
 							      0.0));
-		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * 0.25 + 0.5, /* range [-2, 2] */
-							      vco[1] * 0.25 + 0.5,
-							      vco[2] * 0.25 + 0.5,
+		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * vcscale + 0.5, /* range [-2, 2] */
+							      vco[1] * vcscale + 0.5, /* or [-4, 4] */
+							      vco[2] * vcscale + 0.5,
 							      0.0));
 
 		FINISH_ACCEL();
 	    }
 	    else if (info->ChipFamily == CHIP_FAMILY_RV250) {
 		/* fix up broken packed yuv - shader same as above except
-		   yuv compoents are all in same reg */
-		float yco = 1.1643;
-		float yoff = -0.0625 * yco;
-		float uco[3] = {0.0, -0.39173, 2.018};
-		float vco[3] = {1.5958, -0.8129, 0.0};
+		   yuv components are all in same reg */
+		/* note: in contrast to r300, use input biasing on uv components */
+		const float Loff = -0.0627;
+		float uvcosf, uvsinf;
+		float yco, yoff;
+		float uco[3], vco[3];
+		float bright, cont, sat;
+		int ref = pPriv->transform_index;
+		float ucscale = 0.25, vcscale = 0.25;
+		Bool needux8 = FALSE, needvx8 = FALSE;
+
+		/* contrast can cause constant overflow, clamp */
+		cont = RTFContrast(pPriv->contrast);
+		if (cont * trans[ref].RefLuma > 2.0)
+		    cont = 2.0 / trans[ref].RefLuma;
+		/* brightness is only from -0.5 to 0.5 should be safe */
+		bright = RTFBrightness(pPriv->brightness);
+		/* saturation can also cause overflow, clamp */
+		sat = RTFSaturation(pPriv->saturation);
+		if (sat * trans[ref].RefBCb > 4.0)
+		    sat = 4.0 / trans[ref].RefBCb;
+		uvcosf = sat * cos(RTFHue(pPriv->hue));
+		uvsinf = sat * sin(RTFHue(pPriv->hue));
+
+		yco = trans[ref].RefLuma * cont;
+		uco[0] = -trans[ref].RefRCr * uvsinf;
+		uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+		uco[2] = trans[ref].RefBCb * uvcosf;
+		vco[0] = trans[ref].RefRCr * uvcosf;
+		vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+		vco[2] = trans[ref].RefBCb * uvsinf;
+		yoff = Loff * yco + bright;
+
+		if ((uco[0] > 2.0) || (uco[2] > 2.0)) {
+		    needux8 = TRUE;
+		    ucscale = 0.125;
+		}
+		if ((vco[0] > 2.0) || (vco[2] > 2.0)) {
+		    needvx8 = TRUE;
+		    vcscale = 0.125;
+		}
 
 		txformat0 = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
 			    (((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
@@ -1824,7 +2040,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_ARG_A_TFACTOR_COLOR |
 			      R200_TXC_ARG_B_R0_COLOR |
 			      R200_TXC_ARG_C_TFACTOR_COLOR |
-			      R200_TXC_NEG_ARG_C |
+			      (yoff < 0 ? R200_TXC_NEG_ARG_C : 0) |
 			      R200_TXC_OP_DOT2_ADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
 			      (0 << R200_TXC_TFACTOR_SEL_SHIFT) |
@@ -1846,7 +2062,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_SCALE_ARG_A |
 			      R200_TXC_ARG_B_R0_COLOR |
 			      R200_TXC_BIAS_ARG_B |
-			      R200_TXC_SCALE_ARG_B |
+			      (needux8 ? R200_TXC_SCALE_ARG_B : 0) |
 			      R200_TXC_ARG_C_R1_COLOR |
 			      R200_TXC_OP_MADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_1,
@@ -1868,6 +2084,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXC_SCALE_ARG_A |
 			      R200_TXC_ARG_B_R0_COLOR |
 			      R200_TXC_BIAS_ARG_B |
+			      (needvx8 ? R200_TXC_SCALE_ARG_B : 0) |
 			      R200_TXC_ARG_C_R1_COLOR |
 			      R200_TXC_OP_MADD);
 		OUT_ACCEL_REG(R200_PP_TXCBLEND2_2,
@@ -1885,17 +2102,17 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 			      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
 
 		/* shader constants */
-		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(1.0, /* src range [1, 2] */
-							      yco - 1.0,
-							      -yoff, /* range [-1, 0] */
+		OUT_ACCEL_REG(R200_PP_TFACTOR_0, float4touint(yco > 1.0 ? 1.0 : 0.0, /* range special [0, 2] */
+							      yco > 1.0 ? yco - 1.0: yco,
+							      yoff < 0 ? -yoff : yoff, /* range special [-1, 1] */
 							      0.0));
-		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * 0.125 + 0.5, /* range [-4, 4] */
-							      uco[1] * 0.125 + 0.5,
-							      uco[2] * 0.125 + 0.5,
+		OUT_ACCEL_REG(R200_PP_TFACTOR_1, float4touint(uco[0] * ucscale + 0.5, /* range [-4, 4] */
+							      uco[1] * ucscale + 0.5, /* or [-2, 2] */
+							      uco[2] * ucscale + 0.5,
 							      0.0));
-		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * 0.25 + 0.5, /* range [-2, 2] */
-							      vco[1] * 0.25 + 0.5,
-							      vco[2] * 0.25 + 0.5,
+		OUT_ACCEL_REG(R200_PP_TFACTOR_2, float4touint(vco[0] * vcscale + 0.5, /* range [-2, 2] */
+							      vco[1] * vcscale + 0.5, /* or [-4, 4] */
+							      vco[2] * vcscale + 0.5,
 							      0.0));
 
 		FINISH_ACCEL();

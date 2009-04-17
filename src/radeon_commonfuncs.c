@@ -565,10 +565,7 @@ static void FUNC_NAME(RADEONInit3DEngine)(ScrnInfoPtr pScrn)
 	OUT_ACCEL_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_ACCEL_REG(R300_SC_SCREENDOOR, 0xffffff);
 	FINISH_ACCEL();
-    } else if ((info->ChipFamily == CHIP_FAMILY_RV250) ||
-	       (info->ChipFamily == CHIP_FAMILY_RV280) ||
-	       (info->ChipFamily == CHIP_FAMILY_RS300) ||
-	       (info->ChipFamily == CHIP_FAMILY_R200)) {
+    } else if (IS_R200_3D) {
 
 	BEGIN_ACCEL(6);
 	if (info->ChipFamily == CHIP_FAMILY_RS300) {

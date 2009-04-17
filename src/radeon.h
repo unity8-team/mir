@@ -378,6 +378,11 @@ typedef enum {
 	(info->ChipFamily == CHIP_FAMILY_RS400) ||  \
 	(info->ChipFamily == CHIP_FAMILY_RS480))
 
+#define IS_R200_3D ((info->ChipFamily == CHIP_FAMILY_RV250) || \
+	(info->ChipFamily == CHIP_FAMILY_RV280) || \
+	(info->ChipFamily == CHIP_FAMILY_RS300) || \
+	(info->ChipFamily == CHIP_FAMILY_R200))
+
 /*
  * Errata workarounds
  */

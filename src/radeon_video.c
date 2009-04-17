@@ -541,25 +541,12 @@ static XF86ImageRec Images[NUM_IMAGES] =
 
 #endif
 
-/* Reference color space transform data */
-typedef struct tagREF_TRANSFORM
-{
-    float   RefLuma;
-    float   RefRCb;
-    float   RefRCr;
-    float   RefGCb;
-    float   RefGCr;
-    float   RefBCb;
-    float   RefBCr;
-} REF_TRANSFORM;
-
 /* Parameters for ITU-R BT.601 and ITU-R BT.709 colour spaces */
 static REF_TRANSFORM trans[2] =
 {
     {1.1678, 0.0, 1.6007, -0.3929, -0.8154, 2.0232, 0.0}, /* BT.601 */
     {1.1678, 0.0, 1.7980, -0.2139, -0.5345, 2.1186, 0.0}  /* BT.709 */
 };
-
 
 /* Gamma curve definition for preset gammas */
 typedef struct tagGAMMA_CURVE_R100

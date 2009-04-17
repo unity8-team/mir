@@ -505,10 +505,7 @@ Bool FUNC_NAME(RADEONDrawInit)(ScreenPtr pScreen)
 		info->accel_state->exa->DoneComposite = FUNC_NAME(RadeonDoneComposite);
 	    } else
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "EXA Composite requires CP on R5xx/IGP\n");
-	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) ||
-		   (info->ChipFamily == CHIP_FAMILY_RV280) ||
-		   (info->ChipFamily == CHIP_FAMILY_RS300) ||
-		   (info->ChipFamily == CHIP_FAMILY_R200)) {
+	} else if (IS_R200_3D) {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Render acceleration "
 			       "enabled for R200 type cards.\n");
 		info->accel_state->exa->CheckComposite = R200CheckComposite;

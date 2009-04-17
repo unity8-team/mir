@@ -123,6 +123,18 @@ typedef struct {
     int vsync;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
+/* Reference color space transform data */
+typedef struct tagREF_TRANSFORM
+{
+    float   RefLuma;
+    float   RefRCb;
+    float   RefRCr;
+    float   RefGCb;
+    float   RefGCr;
+    float   RefBCb;
+    float   RefBCr;
+} REF_TRANSFORM;
+
 xf86CrtcPtr
 radeon_xv_pick_best_crtc(ScrnInfoPtr pScrn,
 			 int x1, int x2, int y1, int y2);

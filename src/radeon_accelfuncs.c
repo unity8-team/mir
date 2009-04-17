@@ -1345,10 +1345,7 @@ FUNC_NAME(RADEONAccelInit)(ScreenPtr pScreen, XAAInfoRecPtr a)
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "XAA Render acceleration "
 		       "unsupported on Radeon 9500/9700 and newer. "
 		       "Please use EXA instead.\n");
-	} else if ((info->ChipFamily == CHIP_FAMILY_RV250) || 
-		   (info->ChipFamily == CHIP_FAMILY_RV280) || 
-		   (info->ChipFamily == CHIP_FAMILY_RS300) || 
-		   (info->ChipFamily == CHIP_FAMILY_R200)) {
+	} else if (IS_R200_3D) {
 	    a->SetupForCPUToScreenAlphaTexture2 =
 		FUNC_NAME(R200SetupForCPUToScreenAlphaTexture);
 	    a->SubsequentCPUToScreenAlphaTexture =
