@@ -677,7 +677,7 @@ static XF86AttributeRec Attributes_r200[NUM_ATTRIBUTES_R200+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
-    {XvSettable | XvGettable, 100, 10000, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
     {0, 0, 0, NULL}
 };
 
@@ -715,7 +715,7 @@ static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
     {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
     {XvSettable | XvGettable, -1000, 1000, "XV_HUE"},
-    {XvSettable | XvGettable, 100, 10000, "XV_COLORSPACE"},
+    {XvSettable | XvGettable, 0, 1, "XV_COLORSPACE"},
     {0, 0, 0, NULL}
 };
 
