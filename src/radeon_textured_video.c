@@ -598,13 +598,29 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->h = height;
 
 #ifdef XF86DRI
-    if (IS_R600_3D)
-	R600DisplayTexturedVideo(pScrn, pPriv);
-    else if (info->directRenderingEnabled)
-	RADEONDisplayTexturedVideoCP(pScrn, pPriv);
-    else
+    if (info->directRenderingEnabled) {
+	if (IS_R600_3D)
+	    R600DisplayTexturedVideo(pScrn, pPriv);
+	else if (IS_R500_3D)
+	    R500DisplayTexturedVideoCP(pScrn, pPriv);
+	else if (IS_R300_3D)
+	    R300DisplayTexturedVideoCP(pScrn, pPriv);
+	else if (IS_R200_3D)
+	    R200DisplayTexturedVideoCP(pScrn, pPriv);
+	else
+	    RADEONDisplayTexturedVideoCP(pScrn, pPriv);
+    } else
 #endif
-	RADEONDisplayTexturedVideoMMIO(pScrn, pPriv);
+    {
+	if (IS_R500_3D)
+	    R500DisplayTexturedVideoMMIO(pScrn, pPriv);
+	else if (IS_R300_3D)
+	    R300DisplayTexturedVideoMMIO(pScrn, pPriv);
+	else if (IS_R200_3D)
+	    R200DisplayTexturedVideoMMIO(pScrn, pPriv);
+	else
+	    RADEONDisplayTexturedVideoMMIO(pScrn, pPriv);
+    }
 
     return Success;
 }
