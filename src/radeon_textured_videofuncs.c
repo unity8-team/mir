@@ -268,6 +268,25 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
      *     render as a quad.
      */
 
+#ifdef ACCEL_CP
+	BEGIN_RING(nBox * 3 * vtx_count + 3);
+	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
+			    nBox * 3 * vtx_count + 1));
+	OUT_RING(RADEON_CP_VC_FRMT_XY |
+		 RADEON_CP_VC_FRMT_ST0);
+	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
+		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
+		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
+		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
+		 ((nBox * 3) << RADEON_CP_VC_CNTL_NUM_SHIFT));
+#else /* ACCEL_CP */
+	BEGIN_ACCEL(nBox * vtx_count * 3 + 1);
+	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
+					  RADEON_VF_PRIM_WALK_DATA |
+					  RADEON_VF_RADEON_MODE |
+					  ((nBox * 3) << RADEON_VF_NUM_VERTICES_SHIFT)));
+#endif
+
     while (nBox--) {
 	int srcX, srcY, srcw, srch;
 	int dstX, dstY, dstw, dsth;
@@ -284,24 +303,6 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
-#ifdef ACCEL_CP
-	BEGIN_RING(3 * vtx_count + 3);
-	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
-			    3 * vtx_count + 1));
-	OUT_RING(RADEON_CP_VC_FRMT_XY |
-		 RADEON_CP_VC_FRMT_ST0);
-	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
-		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
-		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
-		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
-		 (3 << RADEON_CP_VC_CNTL_NUM_SHIFT));
-#else /* ACCEL_CP */
-	BEGIN_ACCEL(1 + vtx_count * 3);
-	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
-					  RADEON_VF_PRIM_WALK_DATA |
-					  RADEON_VF_RADEON_MODE |
-					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
-#endif
 	/*
 	 * Just render a rect (using three coords).
 	 */
@@ -312,14 +313,14 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	VTX_OUT((float)(dstX + dstw),                              (float)dstY,
 		(float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
 
+	pBox++;
+    }
+
 #ifdef ACCEL_CP
 	ADVANCE_RING();
 #else
 	FINISH_ACCEL();
 #endif /* !ACCEL_CP */
-
-	pBox++;
-    }
 
     BEGIN_ACCEL(1);
     OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
