@@ -367,26 +367,19 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 	    pPriv->bicubic_enabled = FALSE;
     }
 
-    pPriv->planar_hw = pPriv->planar_state;
-    if (pPriv->bicubic_enabled || IS_R600_3D)
-	pPriv->planar_hw = 0;
-
-    if (info->ChipFamily < CHIP_FAMILY_R300)
-	pPriv->planar_hw = 1;
-
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
 	srcPitch = (width + 3) & ~3;
 	srcPitch2 = ((width >> 1) + 3) & ~3;
-        if (pPriv->planar_hw) {
+        if (pPriv->bicubic_enabled) {
+	    dstPitch = ((dst_width << 1) + 15) & ~15;
+	    dstPitch = (dstPitch + 63) & ~63;
+	} else {
 	    dstPitch = (dst_width + 15) & ~15;
 	    dstPitch = (dstPitch + 63) & ~63;
 	    dstPitch2 = ((dst_width >> 1) + 15) & ~15;
 	    dstPitch2 = (dstPitch2 + 63) & ~63;
-	} else {
-	    dstPitch = ((dst_width << 1) + 15) & ~15;
-	    dstPitch = (dstPitch + 63) & ~63;
 	}
 	break;
     case FOURCC_UYVY:
@@ -509,8 +502,24 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 				     srcPitch, srcPitch2, pPriv->src_pitch,
 				     width, height);
 	    }
-	}
-        else if (pPriv->planar_hw) {
+	} else if (pPriv->bicubic_enabled) {
+	    top &= ~1;
+	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
+	    s2offset = srcPitch * height;
+	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
+	    pPriv->src_addr += left << 1;
+	    tmp = ((top >> 1) * srcPitch2) + (left >> 1);
+	    s2offset += tmp;
+	    s3offset += tmp;
+	    if (id == FOURCC_I420) {
+		tmp = s2offset;
+		s2offset = s3offset;
+		s3offset = tmp;
+	    }
+	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
+				 buf + s2offset, buf + s3offset, pPriv->src_addr,
+				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
+	} else {
 	    top &= ~1;
 	    s2offset = srcPitch * ((height + 1) & ~1);
 	    s3offset = s2offset + srcPitch2 * ((height + 1) >> 1);
@@ -532,23 +541,6 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 		srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
 	    RADEONCopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line + (left >> 1),
 		srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
-	} else {
-	    top &= ~1;
-	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
-	    s2offset = srcPitch * height;
-	    s3offset = (srcPitch2 * (height >> 1)) + s2offset;
-	    pPriv->src_addr += left << 1;
-	    tmp = ((top >> 1) * srcPitch2) + (left >> 1);
-	    s2offset += tmp;
-	    s3offset += tmp;
-	    if (id == FOURCC_I420) {
-		tmp = s2offset;
-		s2offset = s3offset;
-		s3offset = tmp;
-	    }
-	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
-				 buf + s2offset, buf + s3offset, pPriv->src_addr,
-				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
 	}
 	break;
     case FOURCC_UYVY:
@@ -681,13 +673,12 @@ static XF86AttributeRec Attributes_r200[NUM_ATTRIBUTES_R200+1] =
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R300 9
+#define NUM_ATTRIBUTES_R300 8
 
 static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
 {
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
-    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
     {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
@@ -697,13 +688,12 @@ static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R500 8
+#define NUM_ATTRIBUTES_R500 7
 
 static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
 {
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
-    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
     {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
@@ -727,7 +717,6 @@ static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
 
 static Atom xvBicubic;
 static Atom xvVSync;
-static Atom xvHWPlanar;
 static Atom xvBrightness, xvContrast, xvSaturation, xvHue;
 static Atom xvGamma, xvColorspace;
 
@@ -756,8 +745,6 @@ RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
 	*value = pPriv->bicubic_state;
     else if (attribute == xvVSync)
 	*value = pPriv->vsync;
-    else if (attribute == xvHWPlanar)
-	*value = pPriv->planar_state;
     else if (attribute == xvBrightness)
 	*value = pPriv->brightness;
     else if (attribute == xvContrast)
@@ -791,10 +778,6 @@ RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 	pPriv->bicubic_state = ClipValue (value, 0, 2);
     else if (attribute == xvVSync)
 	pPriv->vsync = ClipValue (value, 0, 1);
-    else if (attribute == xvHWPlanar)
-	pPriv->planar_state = ClipValue (value, 0, 1);
-    else if (attribute == xvHWPlanar)
-	pPriv->planar_state = ClipValue (value, 0, 1);
     else if (attribute == xvBrightness)
 	pPriv->brightness = ClipValue (value, -1000, 1000);
     else if (attribute == xvContrast)
@@ -830,7 +813,6 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 
     xvBicubic         = MAKE_ATOM("XV_BICUBIC");
     xvVSync           = MAKE_ATOM("XV_VSYNC");
-    xvHWPlanar        = MAKE_ATOM("XV_HWPLANAR");
     xvBrightness      = MAKE_ATOM("XV_BRIGHTNESS");
     xvContrast        = MAKE_ATOM("XV_CONTRAST");
     xvSaturation      = MAKE_ATOM("XV_SATURATION");
@@ -899,7 +881,6 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 	pPriv->doubleBuffer = 0;
 	pPriv->bicubic_state = BICUBIC_AUTO;
 	pPriv->vsync = TRUE;
-	pPriv->planar_state = 1;
 	pPriv->brightness = 0;
 	pPriv->contrast = 0;
 	pPriv->saturation = 0;

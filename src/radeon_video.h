@@ -90,8 +90,6 @@ typedef struct {
    void         *video_memory;
    int           video_offset;
 
-   Bool          planar_hw;
-   Bool          planar_state;
    int           planeu_offset;
    int           planev_offset;
 

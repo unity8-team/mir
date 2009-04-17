@@ -1050,7 +1050,8 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if (RADEONTilingEnabled(pScrn, pPixmap))
 	colorpitch |= R300_COLORTILE;
 
-    if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+
+    if (!pPriv->bicubic_enabled && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
 	isplanar = TRUE;
     }
 
@@ -2487,7 +2488,7 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     if (RADEONTilingEnabled(pScrn, pPixmap))
 	colorpitch |= R300_COLORTILE;
 
-    if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+    if (!pPriv->bicubic_enabled && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
 	isplanar = TRUE;
     }
 
