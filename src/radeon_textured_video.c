@@ -374,7 +374,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     }
 
     pPriv->planar_hw = pPriv->planar_state;
-    if (pPriv->bicubic_enabled || !( IS_R300_3D || IS_R200_3D ))
+    if (pPriv->bicubic_enabled || (IS_R600_3D || IS_R500_3D))
 	pPriv->planar_hw = 0;
 
     switch(id) {
@@ -663,11 +663,12 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
     {15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 1
+#define NUM_ATTRIBUTES 2
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {0, 0, 0, NULL}
 };
 
@@ -706,6 +707,14 @@ static XF86AttributeRec Attributes_r300[NUM_ATTRIBUTES_R300+1] =
 static XF86AttributeRec Attributes_r500[NUM_ATTRIBUTES_R500+1] =
 {
     {XvSettable | XvGettable, 0, 2, "XV_BICUBIC"},
+    {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
+    {0, 0, 0, NULL}
+};
+
+#define NUM_ATTRIBUTES_R600 1
+
+static XF86AttributeRec Attributes_r600[NUM_ATTRIBUTES_R600+1] =
+{
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
     {0, 0, 0, NULL}
 };
@@ -841,13 +850,17 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
     pPortPriv =
 	(RADEONPortPrivPtr)(&adapt->pPortPrivates[num_texture_ports]);
 
-    if (IS_R300_3D) {
-	adapt->pAttributes = Attributes_r300;
-	adapt->nAttributes = NUM_ATTRIBUTES_R300;
+    if (IS_R600_3D) {
+	adapt->pAttributes = Attributes_r600;
+	adapt->nAttributes = NUM_ATTRIBUTES_R600;
     }
     else if (IS_R500_3D) {
 	adapt->pAttributes = Attributes_r500;
 	adapt->nAttributes = NUM_ATTRIBUTES_R500;
+    }
+    else if (IS_R300_3D) {
+	adapt->pAttributes = Attributes_r300;
+	adapt->nAttributes = NUM_ATTRIBUTES_R300;
     }
     else if (IS_R200_3D) {
 	adapt->pAttributes = Attributes_r200;

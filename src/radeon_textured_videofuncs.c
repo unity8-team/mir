@@ -92,7 +92,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
-    uint32_t txformat;
+    uint32_t txformat, txsize, txpitch;
     uint32_t dst_offset, dst_pitch, dst_format;
     uint32_t colorpitch;
     Bool isplanar = FALSE;
@@ -128,22 +128,20 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	RADEON_SWITCH_TO_3D();
     } else
 #endif
-	{
-	    BEGIN_ACCEL(2);
-	    OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
-	    /* We must wait for 3d to idle, in case source was just written as a dest. */
-	    OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
-			  RADEON_WAIT_HOST_IDLECLEAN |
-			  RADEON_WAIT_2D_IDLECLEAN |
-			  RADEON_WAIT_3D_IDLECLEAN |
-			  RADEON_WAIT_DMA_GUI_IDLE);
-	    FINISH_ACCEL();
+    {
+	BEGIN_ACCEL(2);
+	OUT_ACCEL_REG(RADEON_RB3D_DSTCACHE_CTLSTAT, RADEON_RB3D_DC_FLUSH);
+	/* We must wait for 3d to idle, in case source was just written as a dest. */
+	OUT_ACCEL_REG(RADEON_WAIT_UNTIL,
+		      RADEON_WAIT_HOST_IDLECLEAN |
+		      RADEON_WAIT_2D_IDLECLEAN |
+		      RADEON_WAIT_3D_IDLECLEAN |
+		      RADEON_WAIT_DMA_GUI_IDLE);
+	FINISH_ACCEL();
 
-	    if (!info->accel_state->XInited3D)
-		RADEONInit3DEngine(pScrn);
-	}
-
-    vtx_count = 4;
+	if (!info->accel_state->XInited3D)
+	    RADEONInit3DEngine(pScrn);
+    }
 
     /* Same for R100/R200 */
     switch (pPixmap->drawable.bitsPerPixel) {
@@ -165,7 +163,7 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
     }
 
     if (isplanar) {
-	txformat = RADEON_TXFORMAT_I8;
+	txformat = RADEON_TXFORMAT_Y8;
     } else {
 	if (pPriv->id == FOURCC_UYVY)
 	    txformat = RADEON_TXFORMAT_YVYU422;
@@ -182,56 +180,149 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 
     BEGIN_ACCEL(4);
 
-    OUT_ACCEL_REG(RADEON_RB3D_CNTL,
-		  dst_format /*| RADEON_ALPHA_BLEND_ENABLE*/);
+    OUT_ACCEL_REG(RADEON_RB3D_CNTL, dst_format);
     OUT_ACCEL_REG(RADEON_RB3D_COLOROFFSET, dst_offset);
-
     OUT_ACCEL_REG(RADEON_RB3D_COLORPITCH, colorpitch);
-
     OUT_ACCEL_REG(RADEON_RB3D_BLENDCNTL,
 		  RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO);
 
     FINISH_ACCEL();
 
+    if (isplanar) {
+	/* need 2 texcoord sets (even though they are identical) due
+	   to denormalization! hw apparently can't premultiply
+	   same coord set by different texture size */
+	vtx_count = 6;
 
-    info->accel_state->texW[0] = 1;
-    info->accel_state->texH[0] = 1;
+	txsize = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
+		  (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
+	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
+	txpitch -= 32;
 
-    BEGIN_ACCEL(9);
+	BEGIN_ACCEL(23);
 
-    OUT_ACCEL_REG(RADEON_PP_CNTL,
-		  RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
+	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
+					  RADEON_SE_VTX_FMT_ST0 |
+					  RADEON_SE_VTX_FMT_ST1));
 
-    OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
-				      RADEON_SE_VTX_FMT_ST0));
+	OUT_ACCEL_REG(RADEON_PP_CNTL, (RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE |
+				       RADEON_TEX_1_ENABLE | RADEON_TEX_BLEND_1_ENABLE |
+				       RADEON_TEX_2_ENABLE | RADEON_TEX_BLEND_2_ENABLE |
+				       RADEON_PLANAR_YUV_ENABLE));
 
-    OUT_ACCEL_REG(RADEON_PP_TXFILTER_0,
-		  RADEON_MAG_FILTER_LINEAR |
-		  RADEON_MIN_FILTER_LINEAR |
-		  RADEON_CLAMP_S_CLAMP_LAST |
-		  RADEON_CLAMP_T_CLAMP_LAST |
-		  RADEON_YUV_TO_RGB);
-    OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat);
-    OUT_ACCEL_REG(RADEON_PP_TXOFFSET_0, pPriv->src_offset);
-    OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
-		  RADEON_COLOR_ARG_A_ZERO |
-		  RADEON_COLOR_ARG_B_ZERO |
-		  RADEON_COLOR_ARG_C_T0_COLOR |
-		  RADEON_BLEND_CTL_ADD |
-		  RADEON_CLAMP_TX);
-    OUT_ACCEL_REG(RADEON_PP_TXABLEND_0,
-		  RADEON_ALPHA_ARG_A_ZERO |
-		  RADEON_ALPHA_ARG_B_ZERO |
-		  RADEON_ALPHA_ARG_C_T0_ALPHA |
-		  RADEON_BLEND_CTL_ADD |
-		  RADEON_CLAMP_TX);
+	/* Y */
+	OUT_ACCEL_REG(RADEON_PP_TXFILTER_0,
+		      RADEON_MAG_FILTER_LINEAR |
+		      RADEON_MIN_FILTER_LINEAR |
+		      RADEON_CLAMP_S_CLAMP_LAST |
+		      RADEON_CLAMP_T_CLAMP_LAST |
+		      RADEON_YUV_TO_RGB);
+	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ0);
+	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_0, pPriv->src_offset);
+	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
+		      RADEON_COLOR_ARG_A_ZERO |
+		      RADEON_COLOR_ARG_B_ZERO |
+		      RADEON_COLOR_ARG_C_T0_COLOR |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+	OUT_ACCEL_REG(RADEON_PP_TXABLEND_0,
+		      RADEON_ALPHA_ARG_A_ZERO |
+		      RADEON_ALPHA_ARG_B_ZERO |
+		      RADEON_ALPHA_ARG_C_T0_ALPHA |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
 
-    OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_0,
-		  (pPriv->w - 1) |
-		  ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
-    OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_0,
-		  pPriv->src_pitch - 32);
-    FINISH_ACCEL();
+	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_0,
+		      (pPriv->w - 1) |
+		      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_0,
+		      pPriv->src_pitch - 32);
+
+	/* U */
+	OUT_ACCEL_REG(RADEON_PP_TXFILTER_1,
+		      RADEON_MAG_FILTER_LINEAR |
+		      RADEON_MIN_FILTER_LINEAR |
+		      RADEON_CLAMP_S_CLAMP_LAST |
+		      RADEON_CLAMP_T_CLAMP_LAST);
+	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_1, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
+	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_1, pPriv->src_offset + pPriv->planeu_offset);
+	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_1,
+		      RADEON_COLOR_ARG_A_ZERO |
+		      RADEON_COLOR_ARG_B_ZERO |
+		      RADEON_COLOR_ARG_C_T0_COLOR |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+	OUT_ACCEL_REG(RADEON_PP_TXABLEND_1,
+		      RADEON_ALPHA_ARG_A_ZERO |
+		      RADEON_ALPHA_ARG_B_ZERO |
+		      RADEON_ALPHA_ARG_C_T0_ALPHA |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+
+	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_1, txsize);
+	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_1, txpitch);
+
+	/* V */
+	OUT_ACCEL_REG(RADEON_PP_TXFILTER_2,
+		      RADEON_MAG_FILTER_LINEAR |
+		      RADEON_MIN_FILTER_LINEAR |
+		      RADEON_CLAMP_S_CLAMP_LAST |
+		      RADEON_CLAMP_T_CLAMP_LAST);
+	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_2, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ1);
+	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_2, pPriv->src_offset + pPriv->planev_offset);
+	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_2,
+		      RADEON_COLOR_ARG_A_ZERO |
+		      RADEON_COLOR_ARG_B_ZERO |
+		      RADEON_COLOR_ARG_C_T0_COLOR |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+	OUT_ACCEL_REG(RADEON_PP_TXABLEND_2,
+		      RADEON_ALPHA_ARG_A_ZERO |
+		      RADEON_ALPHA_ARG_B_ZERO |
+		      RADEON_ALPHA_ARG_C_T0_ALPHA |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+
+	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_2, txsize);
+	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_2, txpitch);
+	FINISH_ACCEL();
+    } else {
+	vtx_count = 4;
+	BEGIN_ACCEL(9);
+
+	OUT_ACCEL_REG(RADEON_SE_VTX_FMT, (RADEON_SE_VTX_FMT_XY |
+					  RADEON_SE_VTX_FMT_ST0));
+
+	OUT_ACCEL_REG(RADEON_PP_CNTL, RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
+
+	OUT_ACCEL_REG(RADEON_PP_TXFILTER_0,
+		      RADEON_MAG_FILTER_LINEAR |
+		      RADEON_MIN_FILTER_LINEAR |
+		      RADEON_CLAMP_S_CLAMP_LAST |
+		      RADEON_CLAMP_T_CLAMP_LAST |
+		      RADEON_YUV_TO_RGB);
+	OUT_ACCEL_REG(RADEON_PP_TXFORMAT_0, txformat | RADEON_TXFORMAT_ST_ROUTE_STQ0);
+	OUT_ACCEL_REG(RADEON_PP_TXOFFSET_0, pPriv->src_offset);
+	OUT_ACCEL_REG(RADEON_PP_TXCBLEND_0,
+		      RADEON_COLOR_ARG_A_ZERO |
+		      RADEON_COLOR_ARG_B_ZERO |
+		      RADEON_COLOR_ARG_C_T0_COLOR |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+	OUT_ACCEL_REG(RADEON_PP_TXABLEND_0,
+		      RADEON_ALPHA_ARG_A_ZERO |
+		      RADEON_ALPHA_ARG_B_ZERO |
+		      RADEON_ALPHA_ARG_C_T0_ALPHA |
+		      RADEON_BLEND_CTL_ADD |
+		      RADEON_CLAMP_TX);
+
+	OUT_ACCEL_REG(RADEON_PP_TEX_SIZE_0,
+		      (pPriv->w - 1) |
+		      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
+	OUT_ACCEL_REG(RADEON_PP_TEX_PITCH_0,
+		      pPriv->src_pitch - 32);
+	FINISH_ACCEL();
+    }
 
     if (pPriv->vsync) {
 	xf86CrtcPtr crtc = radeon_xv_pick_best_crtc(pScrn,
@@ -269,18 +360,23 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
      */
 
 #ifdef ACCEL_CP
-	BEGIN_RING(nBox * 3 * vtx_count + 3);
+	BEGIN_RING(nBox * 3 * vtx_count + 5);
 	OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_3D_DRAW_IMMD,
 			    nBox * 3 * vtx_count + 1));
-	OUT_RING(RADEON_CP_VC_FRMT_XY |
-		 RADEON_CP_VC_FRMT_ST0);
+	if (isplanar)
+	    OUT_RING(RADEON_CP_VC_FRMT_XY |
+		     RADEON_CP_VC_FRMT_ST0 |
+		     RADEON_CP_VC_FRMT_ST1);
+	else
+	    OUT_RING(RADEON_CP_VC_FRMT_XY |
+		     RADEON_CP_VC_FRMT_ST0);
 	OUT_RING(RADEON_CP_VC_CNTL_PRIM_TYPE_RECT_LIST |
 		 RADEON_CP_VC_CNTL_PRIM_WALK_RING |
 		 RADEON_CP_VC_CNTL_MAOS_ENABLE |
 		 RADEON_CP_VC_CNTL_VTX_FMT_RADEON_MODE |
 		 ((nBox * 3) << RADEON_CP_VC_CNTL_NUM_SHIFT));
 #else /* ACCEL_CP */
-	BEGIN_ACCEL(nBox * vtx_count * 3 + 1);
+	BEGIN_ACCEL(nBox * vtx_count * 3 + 2);
 	OUT_ACCEL_REG(RADEON_SE_VF_CNTL, (RADEON_VF_PRIM_TYPE_RECTANGLE_LIST |
 					  RADEON_VF_PRIM_WALK_DATA |
 					  RADEON_VF_RADEON_MODE |
@@ -303,28 +399,41 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
 
-	/*
-	 * Just render a rect (using three coords).
-	 */
-	VTX_OUT((float)dstX,                                       (float)(dstY + dsth),
-		(float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
-	VTX_OUT((float)(dstX + dstw),                              (float)(dstY + dsth),
-		(float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
-	VTX_OUT((float)(dstX + dstw),                              (float)dstY,
-		(float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+	if (isplanar) {
+	    /*
+	     * Just render a rect (using three coords).
+	     * Filter is a bit a misnomer, it's just texcoords...
+	     */
+	    VTX_OUT_FILTER((float)dstX,                (float)(dstY + dsth),
+			   (float)srcX,                (float)(srcY + srch),
+			   (float)srcX,                (float)(srcY + (srch / 2)));
+	    VTX_OUT_FILTER((float)(dstX + dstw),       (float)(dstY + dsth),
+			   (float)(srcX + srcw),       (float)(srcY + srch),
+			   (float)(srcX + (srcw / 2)), (float)(srcY + (srch / 2)));
+	    VTX_OUT_FILTER((float)(dstX + dstw),       (float)dstY,
+			   (float)(srcX + srcw),       (float)srcY,
+			   (float)(srcX + (srcw / 2)), (float)srcY);
+	} else {
+	    /*
+	     * Just render a rect (using three coords).
+	     */
+	    VTX_OUT((float)dstX,          (float)(dstY + dsth),
+		    (float)srcX,          (float)(srcY + srch));
+	    VTX_OUT((float)(dstX + dstw), (float)(dstY + dsth),
+		    (float)(srcX + srcw), (float)(srcY + srch));
+	    VTX_OUT((float)(dstX + dstw), (float)dstY,
+		    (float)(srcX + srcw), (float)srcY);
+	}
 
 	pBox++;
     }
 
+    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
 #ifdef ACCEL_CP
 	ADVANCE_RING();
 #else
 	FINISH_ACCEL();
 #endif /* !ACCEL_CP */
-
-    BEGIN_ACCEL(1);
-    OUT_ACCEL_REG(RADEON_WAIT_UNTIL, RADEON_WAIT_3D_IDLECLEAN);
-    FINISH_ACCEL();
 
     DamageDamageRegion(pPriv->pDraw, &pPriv->clip);
 }
