@@ -109,11 +109,11 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	dst_pitch = exaGetPixmapPitch(pPixmap);
     } else
 #endif
-	{
-	    dst_offset = (pPixmap->devPrivate.ptr - info->FB) +
-		info->fbLocation + pScrn->fbOffset;
-	    dst_pitch = pPixmap->devKind;
-	}
+    {
+	dst_offset = (pPixmap->devPrivate.ptr - info->FB) +
+	    info->fbLocation + pScrn->fbOffset;
+	dst_pitch = pPixmap->devKind;
+    }
 
 #ifdef COMPOSITE
     dstxoff = -pPixmap->screen_x + pPixmap->drawable.x;
@@ -158,11 +158,8 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	return;
     }
 
-    if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+    if (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12) {
 	isplanar = TRUE;
-    }
-
-    if (isplanar) {
 	txformat = RADEON_TXFORMAT_Y8;
     } else {
 	if (pPriv->id == FOURCC_UYVY)
@@ -444,13 +441,24 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     PixmapPtr pPixmap = pPriv->pPixmap;
     uint32_t txformat;
-    uint32_t txfilter, txformat0, txpitch;
+    uint32_t txfilter, txsize, txpitch;
     uint32_t dst_offset, dst_pitch, dst_format;
     uint32_t colorpitch;
     Bool isplanar = FALSE;
     int dstxoff, dstyoff, pixel_shift, vtx_count;
     BoxPtr pBox = REGION_RECTS(&pPriv->clip);
     int nBox = REGION_NUM_RECTS(&pPriv->clip);
+
+    /* note: in contrast to r300, use input biasing on uv components */
+    const float Loff = -0.0627;
+    float uvcosf, uvsinf;
+    float yco, yoff;
+    float uco[3], vco[3];
+    float bright, cont, sat;
+    int ref = pPriv->transform_index;
+    float ucscale = 0.25, vcscale = 0.25;
+    Bool needux8 = FALSE, needvx8 = FALSE;
+
     ACCEL_PREAMBLE();
 
     pixel_shift = pPixmap->drawable.bitsPerPixel >> 4;
@@ -495,8 +503,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    RADEONInit3DEngine(pScrn);
     }
 
-    vtx_count = 4;
-
     /* Same for R100/R200 */
     switch (pPixmap->drawable.bitsPerPixel) {
     case 16:
@@ -512,11 +518,8 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	return;
     }
 
-    if (pPriv->planar_hw && (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12)) {
+    if (pPriv->id == FOURCC_I420 || pPriv->id == FOURCC_YV12) {
 	isplanar = TRUE;
-    }
-
-    if (isplanar) {
 	txformat = RADEON_TXFORMAT_I8;
     } else {
 	if (pPriv->id == FOURCC_UYVY)
@@ -546,61 +549,52 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     info->accel_state->texW[0] = pPriv->w;
     info->accel_state->texH[0] = pPriv->h;
 
+    txfilter =  R200_MAG_FILTER_LINEAR |
+	R200_MIN_FILTER_LINEAR |
+	R200_CLAMP_S_CLAMP_LAST |
+	R200_CLAMP_T_CLAMP_LAST;
+
+    /* contrast can cause constant overflow, clamp */
+    cont = RTFContrast(pPriv->contrast);
+    if (cont * trans[ref].RefLuma > 2.0)
+	cont = 2.0 / trans[ref].RefLuma;
+    /* brightness is only from -0.5 to 0.5 should be safe */
+    bright = RTFBrightness(pPriv->brightness);
+    /* saturation can also cause overflow, clamp */
+    sat = RTFSaturation(pPriv->saturation);
+    if (sat * trans[ref].RefBCb > 4.0)
+	sat = 4.0 / trans[ref].RefBCb;
+    uvcosf = sat * cos(RTFHue(pPriv->hue));
+    uvsinf = sat * sin(RTFHue(pPriv->hue));
+
+    yco = trans[ref].RefLuma * cont;
+    uco[0] = -trans[ref].RefRCr * uvsinf;
+    uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
+    uco[2] = trans[ref].RefBCb * uvcosf;
+    vco[0] = trans[ref].RefRCr * uvcosf;
+    vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
+    vco[2] = trans[ref].RefBCb * uvsinf;
+    yoff = Loff * yco + bright;
+
+    if ((uco[0] > 2.0) || (uco[2] > 2.0)) {
+	needux8 = TRUE;
+	ucscale = 0.125;
+    }
+    if ((vco[0] > 2.0) || (vco[2] > 2.0)) {
+	needvx8 = TRUE;
+	vcscale = 0.125;
+    }
+
     if (isplanar) {
-	/* note: in contrast to r300, use input biasing on uv components */
-	const float Loff = -0.0627;
-	float uvcosf, uvsinf;
-	float yco, yoff;
-	float uco[3], vco[3];
-	float bright, cont, sat;
-	int ref = pPriv->transform_index;
-	float ucscale = 0.25, vcscale = 0.25;
-	Bool needux8 = FALSE, needvx8 = FALSE;
-
-	/* contrast can cause constant overflow, clamp */
-	cont = RTFContrast(pPriv->contrast);
-	if (cont * trans[ref].RefLuma > 2.0)
-	    cont = 2.0 / trans[ref].RefLuma;
-	/* brightness is only from -0.5 to 0.5 should be safe */
-	bright = RTFBrightness(pPriv->brightness);
-	/* saturation can also cause overflow, clamp */
-	sat = RTFSaturation(pPriv->saturation);
-	if (sat * trans[ref].RefBCb > 4.0)
-	    sat = 4.0 / trans[ref].RefBCb;
-	uvcosf = sat * cos(RTFHue(pPriv->hue));
-	uvsinf = sat * sin(RTFHue(pPriv->hue));
-
-	yco = trans[ref].RefLuma * cont;
-	uco[0] = -trans[ref].RefRCr * uvsinf;
-	uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
-	uco[2] = trans[ref].RefBCb * uvcosf;
-	vco[0] = trans[ref].RefRCr * uvcosf;
-	vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
-	vco[2] = trans[ref].RefBCb * uvsinf;
-	yoff = Loff * yco + bright;
-
-	if ((uco[0] > 2.0) || (uco[2] > 2.0)) {
-	    needux8 = TRUE;
-	    ucscale = 0.125;
-	}
-	if ((vco[0] > 2.0) || (vco[2] > 2.0)) {
-	    needvx8 = TRUE;
-	    vcscale = 0.125;
-	}
-
 	/* need 2 texcoord sets (even though they are identical) due
 	   to denormalization! hw apparently can't premultiply
 	   same coord set by different texture size */
 	vtx_count = 6;
 
-	txformat0 = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
-		     (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
+	txsize = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
+		  (((((pPriv->h + 1 ) >> 1) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
 	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
 	txpitch -= 32;
-	txfilter =  R200_MAG_FILTER_LINEAR |
-	    R200_MIN_FILTER_LINEAR |
-	    R200_CLAMP_S_CLAMP_LAST |
-	    R200_CLAMP_T_CLAMP_LAST;
 
 	BEGIN_ACCEL(36);
 
@@ -627,14 +621,14 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	OUT_ACCEL_REG(R200_PP_TXFILTER_1, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_1, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_X_1, 0);
-	OUT_ACCEL_REG(R200_PP_TXSIZE_1, txformat0);
+	OUT_ACCEL_REG(R200_PP_TXSIZE_1, txsize);
 	OUT_ACCEL_REG(R200_PP_TXPITCH_1, txpitch);
 	OUT_ACCEL_REG(R200_PP_TXOFFSET_1, pPriv->src_offset + pPriv->planeu_offset);
 
 	OUT_ACCEL_REG(R200_PP_TXFILTER_2, txfilter);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_2, txformat | R200_TXFORMAT_ST_ROUTE_STQ1);
 	OUT_ACCEL_REG(R200_PP_TXFORMAT_X_2, 0);
-	OUT_ACCEL_REG(R200_PP_TXSIZE_2, txformat0);
+	OUT_ACCEL_REG(R200_PP_TXSIZE_2, txsize);
 	OUT_ACCEL_REG(R200_PP_TXPITCH_2, txpitch);
 	OUT_ACCEL_REG(R200_PP_TXOFFSET_2, pPriv->src_offset + pPriv->planev_offset);
 
@@ -757,58 +751,8 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						      0.0));
 
 	FINISH_ACCEL();
-    } else if (info->ChipFamily == CHIP_FAMILY_RV250) {
-	/* fix up broken packed yuv - shader same as above except
-	   yuv components are all in same reg */
-	/* note: in contrast to r300, use input biasing on uv components */
-	const float Loff = -0.0627;
-	float uvcosf, uvsinf;
-	float yco, yoff;
-	float uco[3], vco[3];
-	float bright, cont, sat;
-	int ref = pPriv->transform_index;
-	float ucscale = 0.25, vcscale = 0.25;
-	Bool needux8 = FALSE, needvx8 = FALSE;
-
-	/* contrast can cause constant overflow, clamp */
-	cont = RTFContrast(pPriv->contrast);
-	if (cont * trans[ref].RefLuma > 2.0)
-	    cont = 2.0 / trans[ref].RefLuma;
-	/* brightness is only from -0.5 to 0.5 should be safe */
-	bright = RTFBrightness(pPriv->brightness);
-	/* saturation can also cause overflow, clamp */
-	sat = RTFSaturation(pPriv->saturation);
-	if (sat * trans[ref].RefBCb > 4.0)
-	    sat = 4.0 / trans[ref].RefBCb;
-	uvcosf = sat * cos(RTFHue(pPriv->hue));
-	uvsinf = sat * sin(RTFHue(pPriv->hue));
-
-	yco = trans[ref].RefLuma * cont;
-	uco[0] = -trans[ref].RefRCr * uvsinf;
-	uco[1] = trans[ref].RefGCb * uvcosf - trans[ref].RefGCr * uvsinf;
-	uco[2] = trans[ref].RefBCb * uvcosf;
-	vco[0] = trans[ref].RefRCr * uvcosf;
-	vco[1] = trans[ref].RefGCb * uvsinf + trans[ref].RefGCr * uvcosf;
-	vco[2] = trans[ref].RefBCb * uvsinf;
-	yoff = Loff * yco + bright;
-
-	if ((uco[0] > 2.0) || (uco[2] > 2.0)) {
-	    needux8 = TRUE;
-	    ucscale = 0.125;
-	}
-	if ((vco[0] > 2.0) || (vco[2] > 2.0)) {
-	    needvx8 = TRUE;
-	    vcscale = 0.125;
-	}
-
-	txformat0 = (((((pPriv->w + 1 ) >> 1) - 1) & 0x7ff) |
-		     (((((pPriv->h + 1 ) >> 1 ) - 1) & 0x7ff) << RADEON_TEX_VSIZE_SHIFT));
-	txpitch = ((pPriv->src_pitch >> 1) + 63) & ~63;
-	txpitch -= 32;
-	txfilter =  R200_MAG_FILTER_LINEAR |
-	    R200_MIN_FILTER_LINEAR |
-	    R200_CLAMP_S_CLAMP_LAST |
-	    R200_CLAMP_T_CLAMP_LAST;
+    } else {
+	vtx_count = 4;
 
 	BEGIN_ACCEL(24);
 
@@ -911,45 +855,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 						      0.0));
 
 	FINISH_ACCEL();
-    } else {
-	BEGIN_ACCEL(13);
-	OUT_ACCEL_REG(RADEON_PP_CNTL,
-		      RADEON_TEX_0_ENABLE | RADEON_TEX_BLEND_0_ENABLE);
-
-	OUT_ACCEL_REG(R200_SE_VTX_FMT_0, R200_VTX_XY);
-	OUT_ACCEL_REG(R200_SE_VTX_FMT_1,
-		      (2 << R200_VTX_TEX0_COMP_CNT_SHIFT));
-
-	OUT_ACCEL_REG(R200_PP_TXFILTER_0,
-		      R200_MAG_FILTER_LINEAR |
-		      R200_MIN_FILTER_LINEAR |
-		      R200_CLAMP_S_CLAMP_LAST |
-		      R200_CLAMP_T_CLAMP_LAST |
-		      R200_YUV_TO_RGB);
-	OUT_ACCEL_REG(R200_PP_TXFORMAT_0, txformat);
-	OUT_ACCEL_REG(R200_PP_TXFORMAT_X_0, 0);
-	OUT_ACCEL_REG(R200_PP_TXSIZE_0,
-		      (pPriv->w - 1) |
-		      ((pPriv->h - 1) << RADEON_TEX_VSIZE_SHIFT));
-	OUT_ACCEL_REG(R200_PP_TXPITCH_0, pPriv->src_pitch - 32);
-
-	OUT_ACCEL_REG(R200_PP_TXOFFSET_0, pPriv->src_offset);
-
-	OUT_ACCEL_REG(R200_PP_TXCBLEND_0,
-		      R200_TXC_ARG_A_ZERO |
-		      R200_TXC_ARG_B_ZERO |
-		      R200_TXC_ARG_C_R0_COLOR |
-		      R200_TXC_OP_MADD);
-	OUT_ACCEL_REG(R200_PP_TXCBLEND2_0,
-		      R200_TXC_CLAMP_0_1 | R200_TXC_OUTPUT_REG_R0);
-	OUT_ACCEL_REG(R200_PP_TXABLEND_0,
-		      R200_TXA_ARG_A_ZERO |
-		      R200_TXA_ARG_B_ZERO |
-		      R200_TXA_ARG_C_R0_ALPHA |
-		      R200_TXA_OP_MADD);
-	OUT_ACCEL_REG(R200_PP_TXABLEND2_0,
-		      R200_TXA_CLAMP_0_1 | R200_TXA_OUTPUT_REG_R0);
-	FINISH_ACCEL();
     }
 
     if (pPriv->vsync) {
@@ -1021,7 +926,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	if (isplanar) {
 	    /*
 	     * Just render a rect (using three coords).
-	     * Filter is a bit a misnomer, it's just texcoords...
 	     */
 	    VTX_OUT_6((float)dstX,                                (float)(dstY + dsth),
 		      (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0],

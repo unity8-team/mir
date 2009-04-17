@@ -362,7 +362,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* Bicubic filter setup */
     pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
-    if (!(IS_R300_3D || IS_R500_3D || IS_R600_3D))
+    if (!(IS_R300_3D || IS_R500_3D))
 	pPriv->bicubic_enabled = FALSE;
     if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
 	/*
@@ -376,6 +376,9 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->planar_hw = pPriv->planar_state;
     if (pPriv->bicubic_enabled || (IS_R600_3D || IS_R500_3D))
 	pPriv->planar_hw = 0;
+
+    if (info->ChipFamily < CHIP_FAMILY_R300)
+	pPriv->planar_hw = 1;
 
     switch(id) {
     case FOURCC_YV12:
@@ -663,21 +666,19 @@ static XF86VideoFormatRec Formats[NUM_FORMATS] =
     {15, TrueColor}, {16, TrueColor}, {24, TrueColor}
 };
 
-#define NUM_ATTRIBUTES 2
+#define NUM_ATTRIBUTES 1
 
 static XF86AttributeRec Attributes[NUM_ATTRIBUTES+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
-    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {0, 0, 0, NULL}
 };
 
-#define NUM_ATTRIBUTES_R200 7
+#define NUM_ATTRIBUTES_R200 6
 
 static XF86AttributeRec Attributes_r200[NUM_ATTRIBUTES_R200+1] =
 {
     {XvSettable | XvGettable, 0, 1, "XV_VSYNC"},
-    {XvSettable | XvGettable, 0, 1, "XV_HWPLANAR"},
     {XvSettable | XvGettable, -1000, 1000, "XV_BRIGHTNESS"},
     {XvSettable | XvGettable, -1000, 1000, "XV_CONTRAST"},
     {XvSettable | XvGettable, -1000, 1000, "XV_SATURATION"},
