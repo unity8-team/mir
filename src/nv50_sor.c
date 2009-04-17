@@ -209,11 +209,10 @@ NV50SorSetFunctionPointers(nouveauOutputPtr output)
  * Some misc functions.
  */
 
-static DisplayModePtr
-ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
+static int
+ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off, DisplayModePtr mode)
 {
 	NVPtr pNv = NVPTR(pScrn);
-	DisplayModePtr mode = xnfcalloc(1, sizeof(DisplayModeRec));
 	const CARD32 size = NVRead(pNv, 0x00610b4c + off);
 	const int width = size & 0x3fff;
 	const int height = (size >> 16) & 0x3fff;
@@ -243,23 +242,25 @@ ReadLVDSNativeMode(ScrnInfoPtr pScrn, const int off)
 	mode->status = MODE_OK;
 	mode->type = M_T_DRIVER | M_T_PREFERRED;
 
-	xf86SetModeDefaultName(mode);
-
-	return mode;
+	return 0;
 }
 
-DisplayModePtr
-GetLVDSNativeMode(ScrnInfoPtr pScrn)
+int
+NV50SorGetLVDSNativeMode(ScrnInfoPtr pScrn, DisplayModePtr mode)
 {
 	NVPtr pNv = NVPTR(pScrn);
 	uint32_t val = NVRead(pNv, NV50_DISPLAY_UNK50_CTRL);
 
 	/* This is rather crude imo, i wonder if it always works. */
-	if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC0_MASK) == NV50_DISPLAY_UNK50_CTRL_CRTC0_ACTIVE) {
-		return ReadLVDSNativeMode(pScrn, 0);
-	} else if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC1_MASK) == NV50_DISPLAY_UNK50_CTRL_CRTC1_ACTIVE) {
-		return ReadLVDSNativeMode(pScrn, 0x540);
+	if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC0_MASK) ==
+		   NV50_DISPLAY_UNK50_CTRL_CRTC0_ACTIVE) {
+		return ReadLVDSNativeMode(pScrn, 0, mode);
+	} else if ((val & NV50_DISPLAY_UNK50_CTRL_CRTC1_MASK) ==
+			  NV50_DISPLAY_UNK50_CTRL_CRTC1_ACTIVE) {
+		return ReadLVDSNativeMode(pScrn, 0x540, mode);
 	}
 
-	return NULL;
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Unable to determine LVDS head, can't get mode\n");
+	return -ENODEV;
 }
