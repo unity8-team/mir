@@ -356,8 +356,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* Bicubic filter setup */
     pPriv->bicubic_enabled = (pPriv->bicubic_state != BICUBIC_OFF);
-    if (!(IS_R300_3D || IS_R500_3D))
+    if (!(IS_R300_3D || IS_R500_3D)) {
 	pPriv->bicubic_enabled = FALSE;
+	pPriv->bicubic_state = BICUBIC_OFF;
+    }
     if (pPriv->bicubic_enabled && (pPriv->bicubic_state == BICUBIC_AUTO)) {
 	/*
 	 * Applying the bicubic filter with a scale of less than 200%
@@ -372,7 +374,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     case FOURCC_I420:
 	srcPitch = (width + 3) & ~3;
 	srcPitch2 = ((width >> 1) + 3) & ~3;
-        if (pPriv->bicubic_enabled) {
+        if (pPriv->bicubic_state != BICUBIC_OFF) {
 	    dstPitch = ((dst_width << 1) + 15) & ~15;
 	    dstPitch = (dstPitch + 63) & ~63;
 	} else {
@@ -502,7 +504,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 				     srcPitch, srcPitch2, pPriv->src_pitch,
 				     width, height);
 	    }
-	} else if (pPriv->bicubic_enabled) {
+	} else if (pPriv->bicubic_state != BICUBIC_OFF) {
 	    top &= ~1;
 	    nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 	    s2offset = srcPitch * height;
