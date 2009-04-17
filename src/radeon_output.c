@@ -217,23 +217,21 @@ radeon_ddc_connected(xf86OutputPtr output)
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
+    unsigned char *RADEONMMIO = info->MMIO;
 
     if (radeon_output->pI2CBus) {
-	/* RV410 RADEON_GPIO_VGA_DDC seems to only work via hw i2c
-	 * We may want to extend this to other cases if the need arises...
-	 */
-	if ((info->ChipFamily == CHIP_FAMILY_RV410) &&
-	    (radeon_output->ddc_i2c.mask_clk_reg == RADEON_GPIO_VGA_DDC) &&
-	    info->IsAtomBios)
-	    MonInfo = radeon_atom_get_edid(output);
-	else if (info->get_hardcoded_edid_from_bios) {
+	/* RV410 appears to have a bug where the hw i2c in reset
+	 * holds the i2c port in a bad state - switch hw i2c away before
+	 * doing DDC */
+	if (info->ChipFamily == CHIP_FAMILY_RV410) {
+	    if (radeon_output->ddc_i2c.mask_clk_reg == RADEON_GPIO_VGA_DDC)
+                OUTREG(RADEON_DVI_I2C_CNTL_0, 0x30);
+	    else
+                OUTREG(RADEON_DVI_I2C_CNTL_0, 0x20);
+	}	
+	if (info->get_hardcoded_edid_from_bios)
 	    MonInfo = RADEONGetHardCodedEDIDFromBIOS(output);
-	    if (MonInfo == NULL) {
-		RADEONI2CDoLock(output, TRUE);
-		MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-		RADEONI2CDoLock(output, FALSE);
-	    }
-	} else {
+	if (MonInfo == NULL) {
 	    RADEONI2CDoLock(output, TRUE);
 	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
 	    RADEONI2CDoLock(output, FALSE);
