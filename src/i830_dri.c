@@ -1529,6 +1529,7 @@ I830DRIUnlock(ScrnInfoPtr pScrn)
 
 typedef struct {
     PixmapPtr pPixmap;
+    unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
 static DRI2BufferPtr
@@ -1602,6 +1603,7 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 	buffers[i].driverPrivate = &privates[i];
 	buffers[i].flags = 0; /* not tiled */
 	privates[i].pPixmap = pPixmap;
+	privates[i].attachment = attachments[i];
 
 	bo = i830_get_pixmap_bo (pPixmap);
 	if (dri_bo_flink(bo, &buffers[i].name) != 0) {
@@ -1635,13 +1637,17 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 
 static void
 I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
-		   DRI2BufferPtr pDestBuffer, DRI2BufferPtr pSrcBuffer)
+		   DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
 {
-    I830DRI2BufferPrivatePtr private = pSrcBuffer->driverPrivate;
+    I830DRI2BufferPrivatePtr srcPrivate = pSrcBuffer->driverPrivate;
+    I830DRI2BufferPrivatePtr dstPrivate = pDstBuffer->driverPrivate;
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
-    PixmapPtr pPixmap = private->pPixmap;
+    PixmapPtr pSrcPixmap = (srcPrivate->attachment == DRI2BufferFrontLeft)
+	? (PixmapPtr) pDraw : srcPrivate->pPixmap;
+    PixmapPtr pDstPixmap = (dstPrivate->attachment == DRI2BufferFrontLeft)
+	? (PixmapPtr) pDraw : dstPrivate->pPixmap;
     RegionPtr pCopyClip;
     GCPtr pGC;
 
@@ -1649,9 +1655,9 @@ I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
     pCopyClip = REGION_CREATE(pScreen, NULL, 0);
     REGION_COPY(pScreen, pCopyClip, pRegion);
     (*pGC->funcs->ChangeClip) (pGC, CT_REGION, pCopyClip, 0);
-    ValidateGC(pDraw, pGC);
-    (*pGC->ops->CopyArea)(&pPixmap->drawable,
-			  pDraw, pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
+    ValidateGC(&pDstPixmap->drawable, pGC);
+    (*pGC->ops->CopyArea)(&pSrcPixmap->drawable, &pDstPixmap->drawable,
+			  pGC, 0, 0, pDraw->width, pDraw->height, 0, 0);
     FreeScratchGC(pGC);
 
     /* Emit a flush of the rendering cache, or on the 965 and beyond
