@@ -123,7 +123,6 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     tex_resource_t  tex_res;
     tex_sampler_t   tex_samp;
     shader_config_t vs_conf, ps_conf;
-    int uv_offset;
     /*
      * y' = y - .0625
      * u' = u - .5
@@ -342,12 +341,9 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
 	/* U or V texture */
-	uv_offset = accel_state->src_pitch[0] * pPriv->h;
-	uv_offset = (uv_offset + 255) & ~255;
-
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
-			    accel_state->src_mc_addr[0] + uv_offset);
+			    accel_state->src_mc_addr[0] + pPriv->planev_offset);
 
 	tex_res.id                  = 1;
 	tex_res.format              = FMT_8;
@@ -360,8 +356,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dst_sel_w           = SQ_SEL_1;
 	tex_res.interlaced          = 0;
 
-	tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
-	tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
+	tex_res.base                = accel_state->src_mc_addr[0] + pPriv->planev_offset;
+	tex_res.mip_base            = accel_state->src_mc_addr[0] + pPriv->planev_offset;
 	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
 
 	/* U or V sampler */
@@ -369,12 +365,9 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	set_tex_sampler             (pScrn, accel_state->ib, &tex_samp);
 
 	/* U or V texture */
-	uv_offset += ((accel_state->src_pitch[0] >> 1) * (pPriv->h >> 1));
-	uv_offset = (uv_offset + 255) & ~255;
-
 	cp_set_surface_sync(pScrn, accel_state->ib, TC_ACTION_ENA_bit,
 			    accel_state->src_size[0] / 4,
-			    accel_state->src_mc_addr[0] + uv_offset);
+			    accel_state->src_mc_addr[0] + pPriv->planeu_offset);
 
 	tex_res.id                  = 2;
 	tex_res.format              = FMT_8;
@@ -387,8 +380,8 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.dst_sel_w           = SQ_SEL_1;
 	tex_res.interlaced          = 0;
 
-	tex_res.base                = accel_state->src_mc_addr[0] + uv_offset;
-	tex_res.mip_base            = accel_state->src_mc_addr[0] + uv_offset;
+	tex_res.base                = accel_state->src_mc_addr[0] + pPriv->planeu_offset;
+	tex_res.mip_base            = accel_state->src_mc_addr[0] + pPriv->planeu_offset;
 	set_tex_resource            (pScrn, accel_state->ib, &tex_res);
 
 	/* UV sampler */
