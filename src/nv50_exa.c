@@ -345,7 +345,8 @@ NV50EXAStateSIFCResubmit(struct nouveau_channel *chan)
 {
 	ScrnInfoPtr pScrn = chan->user_private;
 	NVPtr pNv = NVPTR(pScrn);
-
+	
+	WAIT_RING(pNv->chan, 32);
 	NV50EXAAcquireSurface2D(pNv->pdpix, 0);
 }
 
