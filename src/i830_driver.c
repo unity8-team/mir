@@ -3016,7 +3016,7 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (pI830->use_drm_mode) {
 #ifdef XF86DRM_MODE
        pI830->stolen_size = 0;
-       pScrn->videoRam = ~0UL / KB(1);
+       pScrn->videoRam = INT_MAX / KB(1);
 #endif
    } else {
        I830AdjustMemory(pScreen);
