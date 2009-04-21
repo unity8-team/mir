@@ -202,10 +202,10 @@ I830EXASync(ScreenPtr pScreen, int marker)
 }
 
 /**
- * I830EXAPrepareSolid - prepare for a Solid operation, if possible
+ * Sets up hardware state for a series of solid fills.
  */
 static Bool
-I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
+i830_uxa_prepare_solid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -252,7 +252,7 @@ I830EXAPrepareSolid(PixmapPtr pPixmap, int alu, Pixel planemask, Pixel fg)
 }
 
 static void
-I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
+i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 {
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -287,7 +287,7 @@ I830EXASolid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 }
 
 static void
-I830EXADoneSolid(PixmapPtr pPixmap)
+i830_uxa_done_solid(PixmapPtr pPixmap)
 {
 #if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
@@ -306,8 +306,8 @@ I830EXADoneSolid(PixmapPtr pPixmap)
  *   - support planemask using FULL_BLT_CMD?
  */
 static Bool
-I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
-		   int ydir, int alu, Pixel planemask)
+i830_uxa_prepare_copy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
+		      int ydir, int alu, Pixel planemask)
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -347,8 +347,8 @@ I830EXAPrepareCopy(PixmapPtr pSrcPixmap, PixmapPtr pDstPixmap, int xdir,
 }
 
 static void
-I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
-	    int dst_y1, int w, int h)
+i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
+	      int dst_y1, int w, int h)
 {
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
@@ -399,7 +399,7 @@ I830EXACopy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 }
 
 static void
-I830EXADoneCopy(PixmapPtr pDstPixmap)
+i830_uxa_done_copy(PixmapPtr pDstPixmap)
 {
 #if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
@@ -729,14 +729,14 @@ I830EXAInit(ScreenPtr pScreen)
     pI830->EXADriverPtr->WaitMarker = I830EXASync;
 
     /* Solid fill */
-    pI830->EXADriverPtr->PrepareSolid = I830EXAPrepareSolid;
-    pI830->EXADriverPtr->Solid = I830EXASolid;
-    pI830->EXADriverPtr->DoneSolid = I830EXADoneSolid;
+    pI830->EXADriverPtr->PrepareSolid = i830_uxa_prepare_solid;
+    pI830->EXADriverPtr->Solid = i830_uxa_solid;
+    pI830->EXADriverPtr->DoneSolid = i830_uxa_done_solid;
 
     /* Copy */
-    pI830->EXADriverPtr->PrepareCopy = I830EXAPrepareCopy;
-    pI830->EXADriverPtr->Copy = I830EXACopy;
-    pI830->EXADriverPtr->DoneCopy = I830EXADoneCopy;
+    pI830->EXADriverPtr->PrepareCopy = i830_uxa_prepare_copy;
+    pI830->EXADriverPtr->Copy = i830_uxa_copy;
+    pI830->EXADriverPtr->DoneCopy = i830_uxa_done_copy;
 
     /* Composite */
     if (!IS_I9XX(pI830)) {
@@ -1054,14 +1054,14 @@ i830_uxa_init (ScreenPtr pScreen)
     i830->uxa_driver->uxa_minor = 0;
 
     /* Solid fill */
-    i830->uxa_driver->prepare_solid = I830EXAPrepareSolid;
-    i830->uxa_driver->solid = I830EXASolid;
-    i830->uxa_driver->done_solid = I830EXADoneSolid;
+    i830->uxa_driver->prepare_solid = i830_uxa_prepare_solid;
+    i830->uxa_driver->solid = i830_uxa_solid;
+    i830->uxa_driver->done_solid = i830_uxa_done_solid;
 
     /* Copy */
-    i830->uxa_driver->prepare_copy = I830EXAPrepareCopy;
-    i830->uxa_driver->copy = I830EXACopy;
-    i830->uxa_driver->done_copy = I830EXADoneCopy;
+    i830->uxa_driver->prepare_copy = i830_uxa_prepare_copy;
+    i830->uxa_driver->copy = i830_uxa_copy;
+    i830->uxa_driver->done_copy = i830_uxa_done_copy;
 
     /* Composite */
     if (!IS_I9XX(i830)) {
