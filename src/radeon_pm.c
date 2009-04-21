@@ -521,14 +521,37 @@ static void LegacySetClockGating(ScrnInfoPtr pScrn, Bool enable)
     }
 }
 
-void RADEONForceSomeClocks(ScrnInfoPtr pScrn)
+static void RADEONPMQuirks(ScrnInfoPtr pScrn)
 {
-    /* It appears from r300 and rv100 may need some clocks forced-on */
-     uint32_t tmp;
+    RADEONInfoPtr  info       = RADEONPTR(pScrn);
+    uint32_t tmp;
 
-     tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
-     tmp |= RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_VIP;
-     OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
+    RADEONWaitForIdleMMIO(pScrn);
+
+    if (info->ChipFamily < CHIP_FAMILY_RV515) {
+	tmp = INPLL(pScrn, RADEON_SCLK_CNTL);
+	if (IS_R300_VARIANT || IS_RV100_VARIANT)
+	    tmp |= RADEON_SCLK_FORCE_CP | RADEON_SCLK_FORCE_VIP;
+	if ((info->ChipFamily == CHIP_FAMILY_RV250) || (info->ChipFamily == CHIP_FAMILY_RV280))
+	    tmp |= RADEON_SCLK_FORCE_DISP1 | RADEON_SCLK_FORCE_DISP2;
+	if ((info->ChipFamily == CHIP_FAMILY_RV350) || (info->ChipFamily == CHIP_FAMILY_RV380))
+	    tmp |= R300_SCLK_FORCE_VAP;
+	if (info->ChipFamily == CHIP_FAMILY_R420)
+	    tmp |= R300_SCLK_FORCE_PX | R300_SCLK_FORCE_TX;
+	OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
+    } else if (info->ChipFamily == CHIP_FAMILY_RV530) {
+	tmp = INPLL(pScrn, AVIVO_CP_DYN_CNTL);
+	tmp |= AVIVO_CP_FORCEON;
+	OUTPLL(pScrn, AVIVO_CP_DYN_CNTL, tmp);
+
+	tmp = INPLL(pScrn, AVIVO_E2_DYN_CNTL);
+	tmp |= AVIVO_E2_FORCEON;
+	OUTPLL(pScrn, AVIVO_E2_DYN_CNTL, tmp);
+
+	tmp = INPLL(pScrn, AVIVO_IDCT_DYN_CNTL);
+	tmp |= AVIVO_IDCT_FORCEON;
+	OUTPLL(pScrn, AVIVO_IDCT_DYN_CNTL, tmp);
+    }
 }
 
 static void
@@ -645,9 +668,6 @@ RADEONSetClockGating(ScrnInfoPtr pScrn, Bool enable)
 	    atombios_clk_gating_setup(pScrn, enable);
 	} else if (info->IsMobility)
 	    LegacySetClockGating(pScrn, enable);
-
-	if (IS_R300_VARIANT || IS_RV100_VARIANT)
-	    RADEONForceSomeClocks(pScrn);
     }
 
     xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Dynamic Clock Gating %sabled\n",
@@ -742,6 +762,7 @@ void RADEONPMInit(ScrnInfoPtr pScrn)
     } else
 	info->pm.force_low_power_enabled = FALSE;
 
+    RADEONPMQuirks(pScrn);
 }
 
 void RADEONPMEnterVT(ScrnInfoPtr pScrn)
@@ -750,6 +771,7 @@ void RADEONPMEnterVT(ScrnInfoPtr pScrn)
 
     if (info->pm.clock_gating_enabled)
 	RADEONSetClockGating(pScrn, info->pm.clock_gating_enabled);
+    RADEONPMQuirks(pScrn);
     if (info->pm.force_low_power_enabled || info->pm.dynamic_mode_enabled)
 	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);
 }

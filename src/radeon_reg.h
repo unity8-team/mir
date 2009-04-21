@@ -3540,6 +3540,13 @@
 
 #define R600_SRBM_STATUS			       0x0e50
 
+#define AVIVO_CP_DYN_CNTL                              0x000f /* PLL */
+#       define AVIVO_CP_FORCEON                        (1 << 0)
+#define AVIVO_E2_DYN_CNTL                              0x0011 /* PLL */
+#       define AVIVO_E2_FORCEON                        (1 << 0)
+#define AVIVO_IDCT_DYN_CNTL                            0x0013 /* PLL */
+#       define AVIVO_IDCT_FORCEON                      (1 << 0)
+
 #define AVIVO_HDP_FB_LOCATION 0x134
 
 #define AVIVO_VGA_RENDER_CONTROL				0x0300
