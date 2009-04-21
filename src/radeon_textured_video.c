@@ -362,7 +362,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 
     pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
-    pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
+    pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset);
     pPriv->src_pitch = dstPitch;
 
     pPriv->planeu_offset = dstPitch * dst_height;
@@ -376,8 +376,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	s2offset = (srcPitch * ((height + 1) & ~1)) + ((top >> 1) * srcPitch2);
-	s3offset = (s2offset + (srcPitch2 * ((height + 1) >> 1))) + ((top >> 1) * srcPitch2);
+	s2offset = srcPitch * ((height + 1) & ~1);
+	s3offset = s2offset + (srcPitch2 * ((height + 1) >> 1));
+	s2offset += ((top >> 1) * srcPitch2);
+	s3offset += ((top >> 1) * srcPitch2);
 	if (pPriv->bicubic_state != BICUBIC_OFF) {
 	    if (id == FOURCC_I420) {
 		tmp = s2offset;
