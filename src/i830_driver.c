@@ -3147,9 +3147,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    pScrn->fbOffset = pI830->front_buffer->offset;
 
-   pI830->xoffset = (pScrn->fbOffset / pI830->cpp) % pScrn->displayWidth;
-   pI830->yoffset = (pScrn->fbOffset / pI830->cpp) / pScrn->displayWidth;
-
    if (!pI830->use_drm_mode) {
        vgaHWSetMmioFuncs(hwp, pI830->MMIOBase, 0);
        vgaHWGetIOBase(hwp);
@@ -3330,7 +3327,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    xf86CrtcPtr	crtc = output->crtc;
 
    DPRINTF(PFX, "i830AdjustFrame: y = %d (+ %d), x = %d (+ %d)\n",
-	   x, pI830->xoffset, y, pI830->yoffset);
+	   x, crtc->desiredX, y, crtc->desiredY);
 
    if (pI830->use_drm_mode)
       return;

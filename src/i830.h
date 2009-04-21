@@ -607,10 +607,6 @@ typedef struct _I830Rec {
    Bool suspended;
    Bool leaving;
 
-   /* fbOffset converted to (x, y). */
-   int xoffset;
-   int yoffset;
-
    unsigned int SaveGeneration;
 
    OsTimerPtr devicesTimer;
