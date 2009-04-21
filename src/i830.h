@@ -461,18 +461,10 @@ typedef struct _I830Rec {
 
    Bool need_mi_flush;
 
-   Bool NeedRingBufferLow;
    Bool tiling;
    Bool fb_compression;
 
-   int backPitch;
-
    Bool CursorNeedsPhysical;
- 
-   DGAModePtr DGAModes;
-   int numDGAModes;
-   Bool DGAactive;
-   int DGAViewportStatus;
 
    int Chipset;
    unsigned long LinearAddr;
