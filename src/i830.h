@@ -245,8 +245,6 @@ struct _I830DVODriver {
    pointer modhandle;
 };
 
-extern const char *i830_output_type_names[];
-
 typedef struct _I830CrtcPrivateRec {
     int			    pipe;
     int			    plane;

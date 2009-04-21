@@ -341,15 +341,6 @@ static OptionInfoRec I830Options[] = {
 };
 /* *INDENT-ON* */
 
-const char *i830_output_type_names[] = {
-   "Unused",
-   "Analog",
-   "DVO",
-   "SDVO",
-   "LVDS",
-   "TVOUT",
-};
-
 static void i830AdjustFrame(int scrnIndex, int x, int y, int flags);
 static Bool I830CloseScreen(int scrnIndex, ScreenPtr pScreen);
 static Bool I830EnterVT(int scrnIndex, int flags);
