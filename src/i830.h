@@ -124,6 +124,9 @@ typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 #endif
 #endif
 
+#define ALWAYS_SYNC 0
+#define ALWAYS_FLUSH 0
+
 typedef struct _I830Rec *I830Ptr;
 
 typedef void (*I830WriteIndexedByteFunc)(I830Ptr pI830, IOADDRESS addr,
@@ -1061,5 +1064,15 @@ enum {
     INTEL_CREATE_PIXMAP_TILING_X = 0x10000000,
     INTEL_CREATE_PIXMAP_TILING_Y,
 };
+
+#if (ALWAYS_FLUSH | ALWAYS_SYNC)
+void
+i830_debug_sync(ScrnInfoPtr scrn);
+#else
+static inline void
+i830_debug_sync(ScrnInfoPtr scrn)
+{
+}
+#endif
 
 #endif /* _I830_H_ */

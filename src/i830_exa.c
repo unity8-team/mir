@@ -39,9 +39,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <sys/mman.h>
 
-#define ALWAYS_SYNC		0
-#define ALWAYS_FLUSH		0
-
 const int I830CopyROP[16] =
 {
    ROP_0,               /* GXclear */
@@ -289,16 +286,9 @@ i830_uxa_solid(PixmapPtr pPixmap, int x1, int y1, int x2, int y2)
 static void
 i830_uxa_done_solid(PixmapPtr pPixmap)
 {
-#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pPixmap->drawable.pScreen->myNum];
 
-#if ALWAYS_FLUSH
-    intel_batch_flush(pScrn, FALSE);
-#endif
-#if ALWAYS_SYNC
-    I830Sync(pScrn);
-#endif
-#endif
+    i830_debug_sync(pScrn);
 }
 
 /**
@@ -401,16 +391,9 @@ i830_uxa_copy(PixmapPtr pDstPixmap, int src_x1, int src_y1, int dst_x1,
 static void
 i830_uxa_done_copy(PixmapPtr pDstPixmap)
 {
-#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pDstPixmap->drawable.pScreen->myNum];
 
-#if ALWAYS_FLUSH
-    intel_batch_flush(pScrn, FALSE);
-#endif
-#if ALWAYS_SYNC
-    I830Sync(pScrn);
-#endif
-#endif
+    i830_debug_sync(pScrn);
 }
 
 
@@ -422,16 +405,9 @@ i830_uxa_done_copy(PixmapPtr pDstPixmap)
 void
 i830_done_composite(PixmapPtr pDst)
 {
-#if ALWAYS_SYNC || ALWAYS_FLUSH
     ScrnInfoPtr pScrn = xf86Screens[pDst->drawable.pScreen->myNum];
 
-#if ALWAYS_FLUSH
-    intel_batch_flush(pScrn, FALSE);
-#endif
-#if ALWAYS_SYNC
-    I830Sync(pScrn);
-#endif
-#endif
+    i830_debug_sync(pScrn);
 }
 
 #define xFixedToFloat(val) \

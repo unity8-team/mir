@@ -271,6 +271,17 @@ I830SelectBuffer(ScrnInfoPtr pScrn, int buffer)
    return TRUE;
 }
 
+#if (ALWAYS_SYNC || ALWAYS_FLUSH)
+void
+i830_debug_sync(ScrnInfoPtr scrn)
+{
+    if (ALWAYS_SYNC)
+	I830Sync(scrn);
+    else
+	intel_batch_flush(scrn, FALSE);
+}
+#endif
+
 /* The following function sets up the supported acceleration. Call it
  * from the FbInit() function in the SVGA driver, or before ScreenInit
  * in a monolithic server.

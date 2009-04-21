@@ -1216,11 +1216,6 @@ i965_emit_composite_state(ScrnInfoPtr pScrn)
 
 	ADVANCE_BATCH();
     }
-
-#ifdef I830DEBUG
-    ErrorF("try to sync to show any errors...\n");
-    I830Sync(pScrn);
-#endif
 }
 
 /**
@@ -1605,10 +1600,7 @@ i965_composite(PixmapPtr pDst, int srcX, int srcY, int maskX, int maskY,
 
     intel_batch_end_atomic(pScrn);
 
-#ifdef I830DEBUG
-    ErrorF("sync after 3dprimitive\n");
-    I830Sync(pScrn);
-#endif
+    i830_debug_sync(pScrn);
 }
 
 void
