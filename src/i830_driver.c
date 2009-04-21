@@ -3831,42 +3831,6 @@ i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe)
    return NULL;
 } 
 
-#if 0
-/**
- * This function is used for testing of the screen detect functions from the
- * periodic timer.
- */
-static void
-i830MonitorDetectDebugger(ScrnInfoPtr pScrn)
-{
-   Bool found_crt;
-   I830Ptr pI830 = I830PTR(pScrn);
-   int start, finish, i;
-
-   if (!pScrn->vtSema)
-      return 1000;
-
-   for (i = 0; i < xf86_config->num_output; i++) {
-      enum output_status ret;
-      char *result;
-
-      start = GetTimeInMillis();
-      ret = pI830->output[i].detect(pScrn, &pI830->output[i]);
-      finish = GetTimeInMillis();
-
-      if (ret == OUTPUT_STATUS_CONNECTED)
-	 result = "connected";
-      else if (ret == OUTPUT_STATUS_DISCONNECTED)
-	 result = "disconnected";
-      else
-	 result = "unknown";
-
-      xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Detected SDVO as %s in %dms\n",
-		 result, finish - start);
-   }
-}
-#endif
-
 void
 i830WaitSync(ScrnInfoPtr pScrn)
 {
