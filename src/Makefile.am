@@ -32,7 +32,7 @@ SUBDIRS = xvmc bios_reader ch7017 ch7xxx ivch sil164 tfp410 $(REGDUMPER)
 
 AM_CFLAGS = @WARN_CFLAGS@ @XORG_CFLAGS@ @DRM_CFLAGS@ @DRI_CFLAGS@ \
 	@PCIACCESS_CFLAGS@ -I$(top_srcdir)/uxa \
-	@XMODES_CFLAGS@ -DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DI830_USE_UXA
+	-DI830_XV -DI830_USE_XAA -DI830_USE_EXA -DI830_USE_UXA
 
 intel_drv_la_LTLIBRARIES = intel_drv.la
 intel_drv_la_LDFLAGS = -module -avoid-version
@@ -41,23 +41,6 @@ intel_drv_la_LIBADD = -lm @DRM_LIBS@ -ldrm_intel ../uxa/libuxa.la
 if XSERVER_LIBPCIACCESS
 intel_drv_la_LIBADD += @PCIACCESS_LIBS@
 endif
-
-XMODE_SRCS=\
-	 local_xf86Rename.h \
-	 parser/xf86Parser.h \
-	 parser/xf86Optrec.h \
-	 modes/xf86Modes.h \
-	 modes/xf86Modes.c \
-	 modes/xf86cvt.c \
-	 modes/xf86Crtc.h \
-	 modes/xf86Crtc.c \
-	 modes/xf86Cursors.c \
-	 modes/xf86EdidModes.c \
-	 modes/xf86RandR12.c \
-	 modes/xf86RandR12.h \
-	 modes/xf86Rename.h \
-	 modes/xf86Rotate.c \
-	 modes/xf86DiDGA.c
 
 INTEL_DRI_SRCS = \
          i810_dri.c \
@@ -202,11 +185,6 @@ BUILT_SOURCES= $(INTEL_G4B)
 
 clean-local:
 	-rm -f $(INTEL_G4B)
-endif
-
-if XMODES
-intel_drv_la_SOURCES += \
-	$(XMODE_SRCS)
 endif
 
 if DRI

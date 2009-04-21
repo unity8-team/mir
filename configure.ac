@@ -70,11 +70,6 @@ AC_ARG_ENABLE(video-debug, AC_HELP_STRING([--enable-video-debug],
               [VIDEO_DEBUG="$enableval"],
               [VIDEO_DEBUG=no])
 
-AC_ARG_WITH(xserver-source,AC_HELP_STRING([--with-xserver-source=XSERVER_SOURCE],
-					  [Path to X server source tree]),
-			   [ XSERVER_SOURCE="$withval" ],
-			   [ XSERVER_SOURCE="" ])
-
 AC_ARG_ENABLE(xvmc, AC_HELP_STRING([--disable-xvmc],
                                   [Disable XvMC support [[default=auto]]]),
               [XVMC="$enableval"],
@@ -88,7 +83,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server xproto fontsproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3 xproto fontsproto $REQUIRED_MODULES])
 
 PKG_CHECK_MODULES(SERVER_1_5, [xorg-server >= 1.5],
 			      [SERVER_1_5=yes], [SERVER_1_5=no])
@@ -129,7 +124,6 @@ if test x$DRI = xauto; then
 fi
 AC_MSG_RESULT([$DRI])
 
-AC_CHECK_HEADER(xf86Modes.h,[XMODES=yes],[XMODES=no],[#include "xorg-server.h"])
 AC_CHECK_DECL(XSERVER_LIBPCIACCESS,
 	      [XSERVER_LIBPCIACCESS=yes],[XSERVER_LIBPCIACCESS=no],
 	      [#include "xorg-server.h"])
@@ -145,49 +139,6 @@ fi
 AM_CONDITIONAL(XSERVER_LIBPCIACCESS, test "x$XSERVER_LIBPCIACCESS" = xyes)
 AM_CONDITIONAL(LIBPCIACCESS,
 	test "x$XSERVER_LIBPCIACCESS" = xyes -o "x$have_libpciaccess" = xyes)
-AM_CONDITIONAL(XMODES, test "x$XMODES" = xno)
-
-if test "x$XSERVER_SOURCE" = x; then
-	if test -d ../../xserver; then
-		XSERVER_SOURCE="`cd ../../xserver && pwd`"
-	fi
-fi
-	
-if test -d "$XSERVER_SOURCE"; then
-	case "$XSERVER_SOURCE" in
-	/*)
-		;;
-	*)
-		XSERVER_SOURCE="`cd $XSERVER_SOURCE && pwd`"
-		;;
-	esac
-	if test -f $srcdir/src/modes/xf86Modes.h; then
-		:
-	else
-		ln -sf $XSERVER_SOURCE/hw/xfree86/modes $srcdir/src/modes
-	fi
-	
-	if test -f $srcdir/src/parser/xf86Parser.h; then
-		:
-	else
-		ln -sf $XSERVER_SOURCE/hw/xfree86/parser $srcdir/src/parser
-	fi
-fi
-
-if test "x$XMODES" = xyes; then
-	AC_MSG_NOTICE([X server has new mode code])
-	AC_DEFINE(XMODES, 1,[X server has built-in mode code])
-	XMODES_CFLAGS=
-else
-	if test -f $srcdir/src/modes/xf86Modes.h -a -f $srcdir/src/parser/xf86Parser.h; then
-		AC_MSG_NOTICE([X server is missing new mode code, using local copy])
-	else
-		AC_MSG_ERROR([Must have X server >= 1.3 source tree for mode setting code. Please specify --with-xserver-source])
-	fi
-	XMODES_CFLAGS='-DXF86_MODES_RENAME -I$(top_srcdir)/src -I$(top_srcdir)/src/modes -I$(top_srcdir)/src/parser'
-fi
-
-AC_SUBST([XMODES_CFLAGS])
 
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
