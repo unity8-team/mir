@@ -2400,7 +2400,6 @@ static const xf86CrtcFuncsRec i830_crtc_funcs = {
     .set_cursor_position = i830_crtc_set_cursor_position,
     .show_cursor = i830_crtc_show_cursor,
     .hide_cursor = i830_crtc_hide_cursor,
-/*    .load_cursor_image = i830_crtc_load_cursor_image, */
     .load_cursor_argb = i830_crtc_load_cursor_argb,
     .destroy = NULL, /* XXX */
 #if RANDR_13_INTERFACE

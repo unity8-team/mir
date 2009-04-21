@@ -136,19 +136,6 @@ I830CursorInit(ScreenPtr pScreen)
 			       HARDWARE_CURSOR_ARGB));
 }
 
-void
-i830_crtc_load_cursor_image (xf86CrtcPtr crtc, unsigned char *src)
-{
-    I830Ptr		pI830 = I830PTR(crtc->scrn);
-    I830CrtcPrivatePtr	intel_crtc = crtc->driver_private;
-    uint8_t		*pcurs;
-
-    pcurs = pI830->FbBase + intel_crtc->cursor_offset;
-
-    intel_crtc->cursor_is_argb = FALSE;
-    memcpy (pcurs, src, I810_CURSOR_X * I810_CURSOR_Y / 4);
-}
-
 #ifdef ARGB_CURSOR
 void
 i830_crtc_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
