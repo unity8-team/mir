@@ -1593,6 +1593,20 @@ static void RADEONApplyATOMQuirks(ScrnInfoPtr pScrn, int index)
 	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_D;
 	}
     }
+
+    /* Acer board, gpios for DFPs are not off by one */
+    if ((info->Chipset == PCI_CHIP_RS690_791E) &&
+	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x105b) &&
+	(PCI_SUB_DEVICE_ID(info->PciInfo) == 0x0e0b)) {
+	if (index == ATOM_DEVICE_DFP3_INDEX) {
+	    info->BiosConnector[index].ConnectorType = CONNECTOR_DVI_I;
+	    info->BiosConnector[index].output_id = 0;
+	    info->BiosConnector[index].ddc_i2c = RADEONLookupGPIOLineForDDC(pScrn, 0);
+	}
+	if (index == ATOM_DEVICE_DFP2_INDEX)
+	    info->BiosConnector[index].ddc_i2c = RADEONLookupGPIOLineForDDC(pScrn, 1);
+    }
+
     /* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
     if ((info->Chipset == PCI_CHIP_RS600_7941) &&
 	(PCI_SUB_VENDOR_ID(info->PciInfo) == 0x147b) &&
