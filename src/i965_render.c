@@ -431,7 +431,7 @@ typedef enum {
 
 #define KERNEL(kernel_enum, kernel, masked) \
     [kernel_enum] = {&kernel, sizeof(kernel), masked}
-struct wm_kernel_info {
+static struct wm_kernel_info {
     void *data;
     unsigned int size;
     Bool has_mask;

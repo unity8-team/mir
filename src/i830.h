@@ -783,7 +783,6 @@ i830_pipe_a_require_deactivate (ScrnInfoPtr scrn);
 extern Bool I830Allocate3DMemory(ScrnInfoPtr pScrn, const int flags);
 extern void I830SetupMemoryTiling(ScrnInfoPtr pScrn);
 extern Bool I830DRIScreenInit(ScreenPtr pScreen);
-extern Bool I830CheckDRIAvailable(ScrnInfoPtr pScrn);
 extern Bool I830DRIDoMappings(ScreenPtr pScreen);
 extern Bool I830DRIResume(ScreenPtr pScreen);
 extern void I830DRICloseScreen(ScreenPtr pScreen);
@@ -834,7 +833,6 @@ void i830_free_3d_memory(ScrnInfoPtr pScrn);
 void i830_free_memory(ScrnInfoPtr pScrn, i830_memory *mem);
 extern long I830CheckAvailableMemory(ScrnInfoPtr pScrn);
 Bool i830_allocate_2d_memory(ScrnInfoPtr pScrn);
-Bool i830_allocate_texture_memory(ScrnInfoPtr pScrn);
 Bool i830_allocate_pwrctx(ScrnInfoPtr pScrn);
 Bool i830_allocate_3d_memory(ScrnInfoPtr pScrn);
 void i830_init_bufmgr(ScrnInfoPtr pScrn);
@@ -842,7 +840,6 @@ void i830_init_bufmgr(ScrnInfoPtr pScrn);
 Bool i830_allocate_xvmc_buffer(ScrnInfoPtr pScrn, const char *name,
                                i830_memory **buffer, unsigned long size, int flags);
 #endif
-extern void i830_update_front_offset(ScrnInfoPtr pScrn);
 extern uint32_t i830_create_new_fb(ScrnInfoPtr pScrn, int width, int height,
 				   int *pitch);
 
@@ -855,9 +852,6 @@ i830_pad_drawable_width(int width, int cpp);
 
 extern Bool I830I2CInit(ScrnInfoPtr pScrn, I2CBusPtr *bus_ptr, int i2c_reg,
 			char *name);
-
-/* return a mask of output indices matching outputs against type_mask */
-int i830_output_clones (ScrnInfoPtr pScrn, int type_mask);
 
 /* i830_display.c */
 Bool
@@ -883,7 +877,6 @@ Bool i830_bind_all_memory(ScrnInfoPtr pScrn);
 Bool i830_unbind_all_memory(ScrnInfoPtr pScrn);
 unsigned long i830_get_fence_size(I830Ptr pI830, unsigned long size);
 unsigned long i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format);
-unsigned long i830_get_fence_alignment(I830Ptr pI830, unsigned long size);
 
 Bool I830BindAGPMemory(ScrnInfoPtr pScrn);
 Bool I830UnbindAGPMemory(ScrnInfoPtr pScrn);

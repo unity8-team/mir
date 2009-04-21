@@ -185,7 +185,7 @@ i830_get_fence_pitch(I830Ptr pI830, unsigned long pitch, int format)
  * On some chips, pitch width has to be a power of two tile width, so
  * calculate that here.
  */
-unsigned long
+static unsigned long
 i830_get_fence_alignment(I830Ptr pI830, unsigned long size)
 {
     if (IS_I965G(pI830))
@@ -1608,7 +1608,7 @@ i830_allocate_depthbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-Bool
+static Bool
 i830_allocate_texture_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);

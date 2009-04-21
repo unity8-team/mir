@@ -245,6 +245,8 @@ intel_find_pll_i8xx_and_i9xx(const intel_limit_t *, xf86CrtcPtr,
 static Bool
 intel_find_pll_g4x(const intel_limit_t *, xf86CrtcPtr,
                    int, int, intel_clock_t *);
+static void
+i830_crtc_load_lut(xf86CrtcPtr crtc);
 
 static const intel_limit_t intel_limits[] = {
     { /* INTEL_LIMIT_I8XX_DVO_DAC */
@@ -1124,7 +1126,7 @@ i830_disable_vga_plane (xf86CrtcPtr crtc)
 
 }
 
-void
+static void
 i830_crtc_enable(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
@@ -1926,7 +1928,7 @@ i830_crtc_mode_set(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
-void
+static void
 i830_crtc_load_lut(xf86CrtcPtr crtc)
 {
     ScrnInfoPtr pScrn = crtc->scrn;

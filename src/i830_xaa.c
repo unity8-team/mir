@@ -92,7 +92,7 @@ static void I830SubsequentScanlineImageWriteRect(ScrnInfoPtr pScrn,
 static void I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno);
 #endif
 
-void
+static void
 i830_xaa_composite(CARD8	op,
 		   PicturePtr	pSrc,
 		   PicturePtr	pMask,
@@ -712,7 +712,7 @@ I830SubsequentImageWriteScanline(ScrnInfoPtr pScrn, int bufno)
  * Special case acceleration for Render acceleration of rotation operations
  * by xf86Rotate.c
  */
-void
+static void
 i830_xaa_composite(CARD8	op,
 		   PicturePtr	pSrc,
 		   PicturePtr	pMask,

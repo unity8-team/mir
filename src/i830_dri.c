@@ -446,7 +446,7 @@ I830InitVisualConfigs(ScreenPtr pScreen)
    return TRUE;
 }
 
-Bool
+static Bool
 I830CheckDRIAvailable(ScrnInfoPtr pScrn)
 {
    /* Hardware 3D rendering only implemented for 16bpp and 32 bpp */

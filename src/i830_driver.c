@@ -217,7 +217,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #ifdef I830_USE_EXA
-const char *I830exaSymbols[] = {
+static const char *I830exaSymbols[] = {
     "exaGetVersion",
     "exaDriverInit",
     "exaDriverFini",
@@ -801,7 +801,7 @@ I830LoadPalette(ScrnInfoPtr pScrn, int numColors, int *indices,
    }
 }
 
-void
+static void
 i830_update_front_offset(ScrnInfoPtr pScrn)
 {
    ScreenPtr pScreen = pScrn->pScreen;
@@ -869,7 +869,7 @@ i830CreateScreenResources(ScreenPtr pScreen)
    return TRUE;
 }
 
-int
+static int
 i830_output_clones (ScrnInfoPtr pScrn, int type_mask)
 {
     xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR (pScrn);

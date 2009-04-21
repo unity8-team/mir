@@ -126,6 +126,9 @@ struct i830_sdvo_priv {
 
 static Atom broadcast_atom;
 
+static void
+i830_sdvo_dump(ScrnInfoPtr pScrn);
+
 /**
  * Writes the SDVOB or SDVOC with the given value, but always writes both
  * SDVOB and SDVOC to work around apparent hardware issues (according to
@@ -380,7 +383,7 @@ i830_sdvo_read_response(xf86OutputPtr output, void *response, int response_len)
     return status;
 }
 
-int
+static int
 i830_sdvo_get_pixel_multiplier(DisplayModePtr pMode)
 {
     if (pMode->Clock >= 100000)
@@ -1178,6 +1181,9 @@ i830_sdvo_mode_set(xf86OutputPtr output, DisplayModePtr mode,
     }
 
     i830_sdvo_write_sdvox(output, sdvox);
+
+    if (0)
+	i830_sdvo_dump(pScrn);
 }
 
 static void
@@ -1492,7 +1498,7 @@ i830_sdvo_dump_device(xf86OutputPtr output)
     i830_sdvo_dump_hdmi_buf(output);
 }
 
-void
+static void
 i830_sdvo_dump(ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
