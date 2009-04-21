@@ -388,10 +388,12 @@ FUNC_NAME(RADEONDisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
 
-	srcX = ((pBox->x1 - pPriv->drw_x) *
-		pPriv->src_w) / pPriv->dst_w;
-	srcY = ((pBox->y1 - pPriv->drw_y) *
-		pPriv->src_h) / pPriv->dst_h;
+	srcX = pPriv->src_x;
+	srcX += ((pBox->x1 - pPriv->drw_x) *
+		 pPriv->src_w) / pPriv->dst_w;
+	srcY = pPriv->src_y;
+	srcY += ((pBox->y1 - pPriv->drw_y) *
+		 pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
@@ -545,9 +547,6 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		  RADEON_SRC_BLEND_GL_ONE | RADEON_DST_BLEND_GL_ZERO);
 
     FINISH_ACCEL();
-
-    info->accel_state->texW[0] = pPriv->w;
-    info->accel_state->texH[0] = pPriv->h;
 
     txfilter =  R200_MAG_FILTER_LINEAR |
 	R200_MIN_FILTER_LINEAR |
@@ -915,10 +914,12 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
 
-	srcX = ((pBox->x1 - pPriv->drw_x) *
-		pPriv->src_w) / pPriv->dst_w;
-	srcY = ((pBox->y1 - pPriv->drw_y) *
-		pPriv->src_h) / pPriv->dst_h;
+	srcX = pPriv->src_x;
+	srcX += ((pBox->x1 - pPriv->drw_x) *
+		 pPriv->src_w) / pPriv->dst_w;
+	srcY = pPriv->src_y;
+	srcY += ((pBox->y1 - pPriv->drw_y) *
+		 pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
@@ -927,25 +928,25 @@ FUNC_NAME(R200DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	    /*
 	     * Just render a rect (using three coords).
 	     */
-	    VTX_OUT_6((float)dstX,                                (float)(dstY + dsth),
-		      (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0],
-		      (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
-	    VTX_OUT_6((float)(dstX + dstw),                       (float)(dstY + dsth),
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0],
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
-	    VTX_OUT_6((float)(dstX + dstw),                       (float)dstY,
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+	    VTX_OUT_6((float)dstX,                     (float)(dstY + dsth),
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h,
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_6((float)(dstX + dstw),            (float)(dstY + dsth),
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h,
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_6((float)(dstX + dstw),            (float)dstY,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
 	} else {
 	    /*
 	     * Just render a rect (using three coords).
 	     */
-	    VTX_OUT_4((float)dstX,                                       (float)(dstY + dsth),
-		      (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
-	    VTX_OUT_4((float)(dstX + dstw),                              (float)(dstY + dsth),
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
-	    VTX_OUT_4((float)(dstX + dstw),                              (float)dstY,
-		      (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+	    VTX_OUT_4((float)dstX,                     (float)(dstY + dsth),
+		      (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_4((float)(dstX + dstw),            (float)(dstY + dsth),
+		      (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
+	    VTX_OUT_4((float)(dstX + dstw),            (float)dstY,
+		      (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
 	}
 
 	pBox++;
@@ -1075,9 +1076,6 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     txformat0 = ((((pPriv->w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		 (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
 		 R300_TXPITCH_EN);
-
-    info->accel_state->texW[0] = pPriv->w;
-    info->accel_state->texH[0] = pPriv->h;
 
     txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
@@ -2252,10 +2250,12 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
 
-	srcX = ((pBox->x1 - pPriv->drw_x) *
-		pPriv->src_w) / pPriv->dst_w;
-	srcY = ((pBox->y1 - pPriv->drw_y) *
-		pPriv->src_h) / pPriv->dst_h;
+	srcX = pPriv->src_x;
+	srcX += ((pBox->x1 - pPriv->drw_x) *
+		 pPriv->src_w) / pPriv->dst_w;
+	srcY = pPriv->src_y;
+	srcY += ((pBox->y1 - pPriv->drw_y) *
+		 pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
@@ -2315,57 +2315,57 @@ FUNC_NAME(R300DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 		 * have to deal with the legacy handling.
 		 */
 	    if (use_quad) {
-		VTX_OUT_6((float)dstX,                                       (float)dstY,
-			  (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0],
-			  (float)srcX + 0.5,                                 (float)srcY + 0.5);
-		VTX_OUT_6((float)dstX,                                       (float)(dstY + dsth),
-			  (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0],
-			  (float)srcX + 0.5,                                 (float)(srcY + srch) + 0.5);
-		VTX_OUT_6((float)(dstX + dstw),                              (float)(dstY + dsth),
-			  (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0],
-			  (float)(srcX + srcw) + 0.5,                        (float)(srcY + srch) + 0.5);
-		VTX_OUT_6((float)(dstX + dstw),                              (float)dstY,
-			  (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0],
-			  (float)(srcX + srcw) + 0.5,                        (float)srcY + 0.5);
+		VTX_OUT_6((float)dstX,                     (float)dstY,
+			  (float)srcX / pPriv->w,          (float)srcY / pPriv->h,
+			  (float)srcX + 0.5,               (float)srcY + 0.5);
+		VTX_OUT_6((float)dstX,                     (float)(dstY + dsth),
+			  (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h,
+			  (float)srcX + 0.5,               (float)(srcY + srch) + 0.5);
+		VTX_OUT_6((float)(dstX + dstw),            (float)(dstY + dsth),
+			  (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h,
+			  (float)(srcX + srcw) + 0.5,      (float)(srcY + srch) + 0.5);
+		VTX_OUT_6((float)(dstX + dstw),            (float)dstY,
+			  (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h,
+			  (float)(srcX + srcw) + 0.5,      (float)srcY + 0.5);
 	    } else {
-		VTX_OUT_6((float)dstX,                                       (float)dstY,
-			  (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0],
-			  (float)srcX + 0.5,                                 (float)srcY + 0.5);
-		VTX_OUT_6((float)dstX,                                       (float)(dstY + dstw + dsth),
-			  (float)srcX / info->accel_state->texW[0],
-			  ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0],
+		VTX_OUT_6((float)dstX,                     (float)dstY,
+			  (float)srcX / pPriv->w,          (float)srcY / pPriv->h,
+			  (float)srcX + 0.5,               (float)srcY + 0.5);
+		VTX_OUT_6((float)dstX,                     (float)(dstY + dstw + dsth),
+			  (float)srcX / pPriv->w,
+			  ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / pPriv->h,
 			  (float)srcX + 0.5,
 			  (float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0) + 0.5);
-		VTX_OUT_6((float)(dstX + dstw + dsth),                       (float)dstY,
-			  ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
-			  (float)srcY / info->accel_state->texH[0],
+		VTX_OUT_6((float)(dstX + dstw + dsth),     (float)dstY,
+			  ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / pPriv->w,
+			  (float)srcY / pPriv->h,
 			  (float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0) + 0.5,
 			  (float)srcY + 0.5);
 	    }
 	} else {
 	    if (use_quad) {
-		VTX_OUT_4((float)dstX,                                       (float)dstY,
-			  (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0]);
-		VTX_OUT_4((float)dstX,                                       (float)(dstY + dsth),
-			  (float)srcX / info->accel_state->texW[0],          (float)(srcY + srch) / info->accel_state->texH[0]);
-		VTX_OUT_4((float)(dstX + dstw),                              (float)(dstY + dsth),
-			  (float)(srcX + srcw) / info->accel_state->texW[0], (float)(srcY + srch) / info->accel_state->texH[0]);
-		VTX_OUT_4((float)(dstX + dstw),                              (float)dstY,
-			  (float)(srcX + srcw) / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+		VTX_OUT_4((float)dstX,                     (float)dstY,
+			  (float)srcX / pPriv->w,          (float)srcY / pPriv->h);
+		VTX_OUT_4((float)dstX,                     (float)(dstY + dsth),
+			  (float)srcX / pPriv->w,          (float)(srcY + srch) / pPriv->h);
+		VTX_OUT_4((float)(dstX + dstw),            (float)(dstY + dsth),
+			  (float)(srcX + srcw) / pPriv->w, (float)(srcY + srch) / pPriv->h);
+		VTX_OUT_4((float)(dstX + dstw),            (float)dstY,
+			  (float)(srcX + srcw) / pPriv->w, (float)srcY / pPriv->h);
 	    } else {
 		/*
 		 * Render a big, scissored triangle. This means
 		 * increasing the triangle size and adjusting
 		 * texture coordinates.
 		 */
-		VTX_OUT_4((float)dstX,                              (float)dstY,
-			  (float)srcX / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
-		VTX_OUT_4((float)dstX,                              (float)(dstY + dsth + dstw),
-			  (float)srcX / info->accel_state->texW[0],
-			  ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0]);
-		VTX_OUT_4((float)(dstX + dstw + dsth),              (float)dstY,
-			  ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
-			  (float)srcY / info->accel_state->texH[0]);
+		VTX_OUT_4((float)dstX,                 (float)dstY,
+			  (float)srcX / pPriv->w,      (float)srcY / pPriv->h);
+		VTX_OUT_4((float)dstX,                 (float)(dstY + dsth + dstw),
+			  (float)srcX / pPriv->w,
+			  ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / pPriv->h);
+		VTX_OUT_4((float)(dstX + dstw + dsth), (float)dstY,
+			  ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / pPriv->w,
+			  (float)srcY / pPriv->h);
 	    }
 	}
 
@@ -2502,9 +2502,6 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
     txformat0 = ((((pPriv->w - 1) & 0x7ff) << R300_TXWIDTH_SHIFT) |
 		 (((pPriv->h - 1) & 0x7ff) << R300_TXHEIGHT_SHIFT) |
 		 R300_TXPITCH_EN);
-
-    info->accel_state->texW[0] = pPriv->w;
-    info->accel_state->texH[0] = pPriv->h;
 
     txfilter = (R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
 		R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
@@ -3805,10 +3802,12 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
 
-	srcX = ((pBox->x1 - pPriv->drw_x) *
-		pPriv->src_w) / pPriv->dst_w;
-	srcY = ((pBox->y1 - pPriv->drw_y) *
-		pPriv->src_h) / pPriv->dst_h;
+	srcX = pPriv->src_x;
+	srcX += ((pBox->x1 - pPriv->drw_x) *
+		 pPriv->src_w) / pPriv->dst_w;
+	srcY = pPriv->src_y;
+	srcY += ((pBox->y1 - pPriv->drw_y) *
+		 pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;
@@ -3834,15 +3833,15 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 					  (3 << RADEON_VF_NUM_VERTICES_SHIFT)));
 #endif
 	if (pPriv->bicubic_enabled) {
-	    VTX_OUT_6((float)dstX,                                       (float)dstY,
-		      (float)srcX / info->accel_state->texW[0],          (float)srcY / info->accel_state->texH[0],
-		      (float)srcX + 0.5,                                 (float)srcY + 0.5);
-	    VTX_OUT_6((float)dstX,                                       (float)(dstY + dstw + dsth),
-		      (float)srcX / info->accel_state->texW[0],          ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0],
-		      (float)srcX + 0.5,                                 (float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0) + 0.5);
+	    VTX_OUT_6((float)dstX,            (float)dstY,
+		      (float)srcX / pPriv->w, (float)srcY / pPriv->h,
+		      (float)srcX + 0.5,      (float)srcY + 0.5);
+	    VTX_OUT_6((float)dstX,            (float)(dstY + dstw + dsth),
+		      (float)srcX / pPriv->w, ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / pPriv->h,
+		      (float)srcX + 0.5,      (float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0) + 0.5);
 	    VTX_OUT_6((float)(dstX + dstw + dsth),                       (float)dstY,
-		      ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
-		      (float)srcY / info->accel_state->texH[0],
+		      ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / pPriv->w,
+		      (float)srcY / pPriv->h,
 		      (float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0) + 0.5,
 		      (float)srcY + 0.5);
 	} else {
@@ -3851,13 +3850,13 @@ FUNC_NAME(R500DisplayTexturedVideo)(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	     * increasing the triangle size and adjusting
 	     * texture coordinates.
 	     */
-	    VTX_OUT_4((float)dstX,                              (float)dstY,
-		      (float)srcX / info->accel_state->texW[0], (float)srcY / info->accel_state->texH[0]);
+	    VTX_OUT_4((float)dstX,            (float)dstY,
+		      (float)srcX / pPriv->w, (float)srcY / pPriv->h);
 	    VTX_OUT_4((float)dstX,                              (float)(dstY + dsth + dstw),
-		      (float)srcX / info->accel_state->texW[0], ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / info->accel_state->texH[0]);
+		      (float)srcX / pPriv->w, ((float)srcY + (float)srch * (((float)dstw / (float)dsth) + 1.0)) / pPriv->h);
 	    VTX_OUT_4((float)(dstX + dstw + dsth),              (float)dstY,
-		      ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / info->accel_state->texW[0],
-		      (float)srcY / info->accel_state->texH[0]);
+		      ((float)srcX + (float)srcw * (((float)dsth / (float)dstw) + 1.0)) / pPriv->w,
+		      (float)srcY / pPriv->h);
 	}
 
 	/* flushing is pipelined, free/finish is not */

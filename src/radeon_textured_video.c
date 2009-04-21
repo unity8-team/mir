@@ -237,7 +237,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     int srcPitch, srcPitch2, dstPitch, dstPitch2 = 0;
     int s2offset, s3offset, tmp;
     int d2line, d3line;
-    int top, left, npixels, nlines, size;
+    int top, nlines, size;
     BoxRec dstBox;
     int dst_width = width, dst_height = height;
     int hw_align;
@@ -359,13 +359,10 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 
     /* copy data */
     top = (y1 >> 16) & ~1;
-    left = (x1 >> 16) & ~1;
-    npixels = ((((x2 + 0xffff) >> 16) + 1) & ~1) - left;
     nlines = ((((y2 + 0xffff) >> 16) + 1) & ~1) - top;
 
     pPriv->src_offset = pPriv->video_offset + info->fbLocation + pScrn->fbOffset;
     pPriv->src_addr = (uint8_t *)(info->FB + pPriv->video_offset + (top * dstPitch));
-    pPriv->src_addr += left << 1;
     pPriv->src_pitch = dstPitch;
 
     pPriv->planeu_offset = dstPitch * dst_height;
@@ -379,46 +376,40 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     switch(id) {
     case FOURCC_YV12:
     case FOURCC_I420:
-	s2offset = srcPitch * ((height + 1) & ~1);
-	s3offset = s2offset + (srcPitch2 * ((height + 1) >> 1));
-	tmp = ((top >> 1) * srcPitch2) + (left >> 1);
-	s2offset += tmp;
-	s3offset += tmp;
+	s2offset = (srcPitch * ((height + 1) & ~1)) + ((top >> 1) * srcPitch2);
+	s3offset = (s2offset + (srcPitch2 * ((height + 1) >> 1))) + ((top >> 1) * srcPitch2);
 	if (pPriv->bicubic_state != BICUBIC_OFF) {
 	    if (id == FOURCC_I420) {
 		tmp = s2offset;
 		s2offset = s3offset;
 		s3offset = tmp;
 	    }
-	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch) + left,
-				 buf + s2offset, buf + s3offset, pPriv->src_addr,
-				 srcPitch, srcPitch2, dstPitch, nlines, npixels);
+	    RADEONCopyMungedData(pScrn, buf + (top * srcPitch),
+				 buf + s2offset, buf + s3offset, pPriv->src_addr + (top * dstPitch),
+				 srcPitch, srcPitch2, dstPitch, nlines, width);
 	} else {
 	    if (id == FOURCC_YV12) {
 		tmp = s2offset;
 		s2offset = s3offset;
 		s3offset = tmp;
 	    }
-	    d2line = pPriv->planeu_offset;
-	    d3line = pPriv->planev_offset;
-	    tmp = ((top >> 1) * dstPitch2) - (top * dstPitch);
-	    d2line += tmp;
-	    d3line += tmp;
+	    d2line = pPriv->planeu_offset + ((top >> 1) * dstPitch2);
+	    d3line = pPriv->planev_offset + ((top >> 1) * dstPitch2);
 
 	    if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		R600CopyData(pScrn, buf + (top * srcPitch) + left, pPriv->src_addr + left,
-			     srcPitch, dstPitch, nlines, npixels, 1);
-		R600CopyData(pScrn, buf + s2offset,  pPriv->src_addr + d2line + (left >> 1),
-			     srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
-		R600CopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line + (left >> 1),
-			     srcPitch2, dstPitch >> 1, (nlines + 1) >> 1, npixels >> 1, 1);
+		R600CopyData(pScrn, buf + (top * srcPitch), pPriv->src_addr + (top * dstPitch),
+			     srcPitch, dstPitch, nlines, width, 1);
+		R600CopyData(pScrn, buf + s2offset,  pPriv->src_addr + d2line,
+			     srcPitch2, dstPitch2, (nlines + 1) >> 1, width >> 1, 1);
+		R600CopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line,
+			     srcPitch2, dstPitch2, (nlines + 1) >> 1, width >> 1, 1);
 	    } else {
-		RADEONCopyData(pScrn, buf + (top * srcPitch) + left, pPriv->src_addr + left,
-			       srcPitch, dstPitch, nlines, npixels, 1);
-		RADEONCopyData(pScrn, buf + s2offset,  pPriv->src_addr + d2line + (left >> 1),
-			       srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
-		RADEONCopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line + (left >> 1),
-			       srcPitch2, dstPitch2, (nlines + 1) >> 1, npixels >> 1, 1);
+		RADEONCopyData(pScrn, buf + (top * srcPitch), pPriv->src_addr + (top * dstPitch),
+			       srcPitch, dstPitch, nlines, width, 1);
+		RADEONCopyData(pScrn, buf + s2offset,  pPriv->src_addr + d2line,
+			       srcPitch2, dstPitch2, (nlines + 1) >> 1, width >> 1, 1);
+		RADEONCopyData(pScrn, buf + s3offset, pPriv->src_addr + d3line,
+			       srcPitch2, dstPitch2, (nlines + 1) >> 1, width >> 1, 1);
 	    }
 	}
 	break;
@@ -426,11 +417,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     case FOURCC_YUY2:
     default:
 	if (info->ChipFamily >= CHIP_FAMILY_R600)
-	    R600CopyData(pScrn, buf + (top * srcPitch) + (left << 1),
-			 pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
+	    R600CopyData(pScrn, buf + (top * srcPitch),
+			 pPriv->src_addr + (top * dstPitch),
+			 srcPitch, dstPitch, nlines, width, 2);
 	else
-	    RADEONCopyData(pScrn, buf + (top * srcPitch) + (left << 1),
-			   pPriv->src_addr, srcPitch, dstPitch, nlines, npixels, 2);
+	    RADEONCopyData(pScrn, buf + (top * srcPitch),
+			   pPriv->src_addr + (top * dstPitch),
+			   srcPitch, dstPitch, nlines, width, 2);
 	break;
     }
 
@@ -449,6 +442,8 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     pPriv->id = id;
     pPriv->src_w = src_w;
     pPriv->src_h = src_h;
+    pPriv->src_x = src_x;
+    pPriv->src_y = src_y;
     pPriv->drw_x = drw_x;
     pPriv->drw_y = drw_y;
     pPriv->dst_w = drw_w;

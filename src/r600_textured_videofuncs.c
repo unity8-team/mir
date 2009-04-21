@@ -349,7 +349,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.format              = FMT_8;
 	tex_res.w                   = pPriv->w >> 1;
 	tex_res.h                   = pPriv->h >> 1;
-	tex_res.pitch               = accel_state->src_pitch[0] >> 1;
+	tex_res.pitch               = ((accel_state->src_pitch[0] >> 1) + 255) & ~255;
 	tex_res.dst_sel_x           = SQ_SEL_X; /* V or U */
 	tex_res.dst_sel_y           = SQ_SEL_1;
 	tex_res.dst_sel_z           = SQ_SEL_1;
@@ -373,7 +373,7 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	tex_res.format              = FMT_8;
 	tex_res.w                   = pPriv->w >> 1;
 	tex_res.h                   = pPriv->h >> 1;
-	tex_res.pitch               = accel_state->src_pitch[0] >> 1;
+	tex_res.pitch               = ((accel_state->src_pitch[0] >> 1) + 255) & ~255;
 	tex_res.dst_sel_x           = SQ_SEL_X; /* V or U */
 	tex_res.dst_sel_y           = SQ_SEL_1;
 	tex_res.dst_sel_z           = SQ_SEL_1;
@@ -559,10 +559,12 @@ R600DisplayTexturedVideo(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 	dstw = pBox->x2 - pBox->x1;
 	dsth = pBox->y2 - pBox->y1;
 
-	srcX = ((pBox->x1 - pPriv->drw_x) *
-		pPriv->src_w) / pPriv->dst_w;
-	srcY = ((pBox->y1 - pPriv->drw_y) *
-		pPriv->src_h) / pPriv->dst_h;
+	srcX = pPriv->src_x;
+	srcX += ((pBox->x1 - pPriv->drw_x) *
+		 pPriv->src_w) / pPriv->dst_w;
+	srcY = pPriv->src_y;
+	srcY += ((pBox->y1 - pPriv->drw_y) *
+		 pPriv->src_h) / pPriv->dst_h;
 
 	srcw = (pPriv->src_w * dstw) / pPriv->dst_w;
 	srch = (pPriv->src_h * dsth) / pPriv->dst_h;

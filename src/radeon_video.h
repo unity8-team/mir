@@ -118,6 +118,7 @@ typedef struct {
     int src_w, src_h, dst_w, dst_h;
     int w, h;
     int drw_x, drw_y;
+    int src_x, src_y;
     int vsync;
 } RADEONPortPrivRec, *RADEONPortPrivPtr;
 
