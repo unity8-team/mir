@@ -555,6 +555,12 @@ atombios_static_pwrmgt_setup(ScrnInfoPtr pScrn, Bool enable)
     AtomBiosArgRec data;
     unsigned char *space;
 
+    /* disabling static power management causes hangs on some r4xx chips */
+    if (((info->ChipFamily == CHIP_FAMILY_R420) ||
+	 (info->ChipFamily == CHIP_FAMILY_RV410)) &&
+	!enable)
+	return ATOM_NOT_IMPLEMENTED;
+
     pwrmgt_data.ucEnable = enable;
 
     data.exec.index = GetIndexIntoMasterTable(COMMAND, EnableASIC_StaticPwrMgt);
