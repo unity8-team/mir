@@ -55,11 +55,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef I830DEBUG
 #define MARKER() ErrorF("\n### %s:%d: >>> %s <<< ###\n\n", \
 			 __FILE__, __LINE__,__FUNCTION__)
-#define DPRINTF I830DPRINTF_stub
+#define DPRINTF I830DPRINTF
 #else /* #ifdef I830DEBUG */
 #define MARKER()
-/* this is a real ugly hack to get the compiler to optimize the debugging statements into oblivion */
-#define DPRINTF if(0) I830DPRINTF_stub
+#define DPRINTF I830DPRINTF_stub
+static inline void
+I830DPRINTF_stub(const char *filename, int line, const char *function,
+		 const char *fmt, ...)
+{
+}
 #endif /* #ifdef I830DEBUG */
 
 #define KB(x) ((x) * 1024)

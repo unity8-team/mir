@@ -352,8 +352,8 @@ extern void xf86SetCursor(ScreenPtr pScreen, CursorPtr pCurs, int x, int y);
 
 #ifdef I830DEBUG
 void
-I830DPRINTF_stub(const char *filename, int line, const char *function,
-		 const char *fmt, ...)
+I830DPRINTF(const char *filename, int line, const char *function,
+	    const char *fmt, ...)
 {
    va_list ap;
 
@@ -364,13 +364,6 @@ I830DPRINTF_stub(const char *filename, int line, const char *function,
    VErrorF(fmt, ap);
    va_end(ap);
    ErrorF("##############################################\n\n");
-}
-#else /* #ifdef I830DEBUG */
-void
-I830DPRINTF_stub(const char *filename, int line, const char *function,
-		 const char *fmt, ...)
-{
-   /* do nothing */
 }
 #endif /* #ifdef I830DEBUG */
 
