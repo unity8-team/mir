@@ -129,6 +129,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		 unsigned long freq,
 		 uint32_t *chosen_dot_clock_freq,
 		 uint32_t *chosen_feedback_div,
+		 uint32_t *chosen_frac_feedback_div,
 		 uint32_t *chosen_reference_div,
 		 uint32_t *chosen_post_div,
 		 int flags)
@@ -139,6 +140,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
     uint32_t best_post_div = 1;
     uint32_t best_ref_div = 1;
     uint32_t best_feedback_div = 1;
+    uint32_t best_frac_feedback_div = 0;
     uint32_t best_freq = -1;
     uint32_t best_error = 0xffffffff;
     uint32_t best_vco_diff = 1;
@@ -189,11 +191,15 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
 	    while (min_feed_div < max_feed_div) {
 		uint32_t vco;
+		uint32_t min_frac_feed_div = pll->min_frac_feedback_div;
+                uint32_t max_frac_feed_div = pll->max_frac_feedback_div+1;
+                uint32_t frac_feedback_div;
+                CARD64 tmp;
 
 		feedback_div = (min_feed_div+max_feed_div)/2;
 
-		vco = RADEONDiv((CARD64)pll->reference_freq * feedback_div,
-				ref_div);
+		tmp = (CARD64)pll->reference_freq * feedback_div;
+		vco = RADEONDiv(tmp, ref_div);
 
 		if (vco < pll->pll_out_min) {
 		    min_feed_div = feedback_div+1;
@@ -203,45 +209,55 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		    continue;
 		}
 
-		current_freq = RADEONDiv((CARD64)pll->reference_freq * 10000 * feedback_div,
-					 ref_div * post_div);
+		while (min_frac_feed_div < max_frac_feed_div) {
+		    frac_feedback_div = (min_frac_feed_div+max_frac_feed_div)/2;
+                    tmp = (CARD64)pll->reference_freq * 10000 * feedback_div;
+                    tmp += (CARD64)pll->reference_freq * 1000 * frac_feedback_div;
+		    current_freq = RADEONDiv(tmp, ref_div * post_div);
 
-		error = abs(current_freq - freq);
-		vco_diff = abs(vco - best_vco);
+		    error = abs(current_freq - freq);
+		    vco_diff = abs(vco - best_vco);
 
-		if ((best_vco == 0 && error < best_error) ||
-		    (best_vco != 0 &&
-		     (error < best_error - 100 ||
-		      (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
-		    best_post_div = post_div;
-		    best_ref_div = ref_div;
-		    best_feedback_div = feedback_div;
-		    best_freq = current_freq;
-		    best_error = error;
-		    best_vco_diff = vco_diff;
-		} else if (current_freq == freq) {
-		    if (best_freq == -1) {
+		    if ((best_vco == 0 && error < best_error) ||
+			(best_vco != 0 &&
+			 (error < best_error - 100 ||
+			  (abs(error - best_error) < 100 && vco_diff < best_vco_diff )))) {
 			best_post_div = post_div;
 			best_ref_div = ref_div;
 			best_feedback_div = feedback_div;
+			best_frac_feedback_div = frac_feedback_div;
 			best_freq = current_freq;
 			best_error = error;
 			best_vco_diff = vco_diff;
-		    } else if (((flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
-			       ((flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
-			       ((flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
-			       ((flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
-			       ((flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
-			       ((flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
-			best_post_div = post_div;
-			best_ref_div = ref_div;
-			best_feedback_div = feedback_div;
-			best_freq = current_freq;
-			best_error = error;
-			best_vco_diff = vco_diff;
+		    } else if (current_freq == freq) {
+			if (best_freq == -1) {
+			    best_post_div = post_div;
+			    best_ref_div = ref_div;
+			    best_feedback_div = feedback_div;
+			    best_frac_feedback_div = frac_feedback_div;
+			    best_freq = current_freq;
+			    best_error = error;
+			    best_vco_diff = vco_diff;
+			} else if (((flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
+				   ((flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
+				   ((flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
+				   ((flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
+				   ((flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
+				   ((flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
+			    best_post_div = post_div;
+			    best_ref_div = ref_div;
+			    best_feedback_div = feedback_div;
+			    best_frac_feedback_div = frac_feedback_div;
+			    best_freq = current_freq;
+			    best_error = error;
+			    best_vco_diff = vco_diff;
+			}
 		    }
+		    if (current_freq < freq)
+                        min_frac_feed_div = frac_feedback_div+1;
+                    else
+                        max_frac_feed_div = frac_feedback_div;
 		}
-
 		if (current_freq < freq)
 		    min_feed_div = feedback_div+1;
 		else
@@ -252,6 +268,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
     ErrorF("best_freq: %u\n", (unsigned int)best_freq);
     ErrorF("best_feedback_div: %u\n", (unsigned int)best_feedback_div);
+    ErrorF("best_frac_feedback_div: %u\n", (unsigned int)best_frac_feedback_div);
     ErrorF("best_ref_div: %u\n", (unsigned int)best_ref_div);
     ErrorF("best_post_div: %u\n", (unsigned int)best_post_div);
 
@@ -259,6 +276,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	FatalError("Couldn't find valid PLL dividers\n");
     *chosen_dot_clock_freq = best_freq / 10000;
     *chosen_feedback_div = best_feedback_div;
+    *chosen_frac_feedback_div = best_frac_feedback_div;
     *chosen_reference_div = best_ref_div;
     *chosen_post_div = best_post_div;
 

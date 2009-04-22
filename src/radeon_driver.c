@@ -1206,9 +1206,13 @@ static void RADEONGetClockInfo(ScrnInfoPtr pScrn)
     if (IS_AVIVO_VARIANT) {
 	pll->min_post_div = 2;
 	pll->max_post_div = 0x7f;
+	pll->min_frac_feedback_div = 0;
+	pll->max_frac_feedback_div = 9;
     } else {
 	pll->min_post_div = 1;
 	pll->max_post_div = 12; //16 on crtc0
+	pll->min_frac_feedback_div = 0;
+	pll->max_frac_feedback_div = 0;
     }
     pll->min_ref_div = 2;
     pll->max_ref_div = 0x3ff;

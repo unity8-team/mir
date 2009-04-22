@@ -277,6 +277,8 @@ typedef struct {
     uint32_t          max_post_div;
     uint32_t          min_feedback_div;
     uint32_t          max_feedback_div;
+    uint32_t          min_frac_feedback_div;
+    uint32_t          max_frac_feedback_div;
     uint32_t          best_vco;
 } RADEONPLLRec, *RADEONPLLPtr;
 
@@ -1049,6 +1051,7 @@ extern void RADEONBlank(ScrnInfoPtr pScrn);
 extern void RADEONComputePLL(RADEONPLLPtr pll, unsigned long freq,
 			     uint32_t *chosen_dot_clock_freq,
 			     uint32_t *chosen_feedback_div,
+			     uint32_t *chosen_frac_feedback_div,
 			     uint32_t *chosen_reference_div,
 			     uint32_t *chosen_post_div, int flags);
 extern DisplayModePtr RADEONCrtcFindClosestMode(xf86CrtcPtr crtc,

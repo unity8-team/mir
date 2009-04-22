@@ -259,7 +259,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
     unsigned char *RADEONMMIO = info->MMIO;
     int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
     uint32_t sclock = mode->Clock;
-    uint32_t ref_div = 0, fb_div = 0, post_div = 0;
+    uint32_t ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
     int major, minor, i;
     SET_PIXEL_CLOCK_PS_ALLOCATION spc_param;
     PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
@@ -311,15 +311,16 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
     }
 
-    RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &ref_div, &post_div, pll_flags);
+    RADEONComputePLL(&info->pll, mode->Clock, &temp, &fb_div, &frac_fb_div, &ref_div, &post_div, pll_flags);
     sclock = temp;
 
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
 	       "crtc(%d) Clock: mode %d, PLL %lu\n",
 	       radeon_crtc->crtc_id, mode->Clock, (long unsigned int)sclock * 10);
     xf86DrvMsg(crtc->scrn->scrnIndex, X_INFO,
-	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), pdiv %u\n",
-	       radeon_crtc->crtc_id, (unsigned int)ref_div, (unsigned int)fb_div, (unsigned int)fb_div, (unsigned int)post_div);
+	       "crtc(%d) PLL  : refdiv %u, fbdiv 0x%X(%u), fracfbdiv %u, pdiv %u\n",
+	       radeon_crtc->crtc_id, (unsigned int)ref_div, (unsigned int)fb_div,
+	       (unsigned int)fb_div, (unsigned int)frac_fb_div, (unsigned int)post_div);
 
     /* Can't really do cloning easily on DCE3 cards */
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -353,6 +354,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    spc2_ptr->usPixelClock = cpu_to_le16(sclock);
 	    spc2_ptr->usRefDiv = cpu_to_le16(ref_div);
 	    spc2_ptr->usFbDiv = cpu_to_le16(fb_div);
+	    spc2_ptr->ucFracFbDiv = frac_fb_div;
 	    spc2_ptr->ucPostDiv = post_div;
 	    spc2_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc2_ptr->ucCRTC = radeon_crtc->crtc_id;
@@ -364,6 +366,7 @@ atombios_crtc_set_pll(xf86CrtcPtr crtc, DisplayModePtr mode)
 	    spc3_ptr->usPixelClock = cpu_to_le16(sclock);
 	    spc3_ptr->usRefDiv = cpu_to_le16(ref_div);
 	    spc3_ptr->usFbDiv = cpu_to_le16(fb_div);
+	    spc3_ptr->ucFracFbDiv = frac_fb_div;
 	    spc3_ptr->ucPostDiv = post_div;
 	    spc3_ptr->ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
 	    spc3_ptr->ucMiscInfo = (radeon_crtc->crtc_id << 2);
