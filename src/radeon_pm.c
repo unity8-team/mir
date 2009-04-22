@@ -539,7 +539,7 @@ static void RADEONPMQuirks(ScrnInfoPtr pScrn)
 	if (info->ChipFamily == CHIP_FAMILY_R420)
 	    tmp |= R300_SCLK_FORCE_PX | R300_SCLK_FORCE_TX;
 	OUTPLL(pScrn, RADEON_SCLK_CNTL, tmp);
-    } else if (info->ChipFamily == CHIP_FAMILY_RV530) {
+    } else if (info->ChipFamily < CHIP_FAMILY_R600) {
 	tmp = INPLL(pScrn, AVIVO_CP_DYN_CNTL);
 	tmp |= AVIVO_CP_FORCEON;
 	OUTPLL(pScrn, AVIVO_CP_DYN_CNTL, tmp);
