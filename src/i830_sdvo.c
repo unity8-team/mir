@@ -1912,6 +1912,7 @@ i830_sdvo_destroy (xf86OutputPtr output)
 	xf86DestroyI2CBusRec (intel_output->pDDCBus, FALSE, FALSE);
 	xf86DestroyI2CDevRec (&dev_priv->d, FALSE);
 	xf86DestroyI2CBusRec (dev_priv->d.pI2CBus, TRUE, TRUE);
+	free(dev_priv->name);
 
 	if (output->randr_output) {
 	    RROutputPtr	randr_output = output->randr_output;
