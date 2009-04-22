@@ -1285,8 +1285,10 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     surface_state_bo = dri_bo_alloc(pI830->bufmgr, "surface_state",
 				    3 * sizeof (brw_surface_state_padded),
 				    4096);
-    if (dri_bo_map(surface_state_bo, 1) != 0)
+    if (dri_bo_map(surface_state_bo, 1) != 0) {
+	dri_bo_unreference(surface_state_bo);
 	return FALSE;
+    }
     /* Set up the state buffer for the destination surface */
     i965_set_picture_surface_state(surface_state_bo, 0,
 				   pDstPicture, pDst, TRUE);
@@ -1305,6 +1307,7 @@ i965_prepare_composite(int op, PicturePtr pSrcPicture,
     binding_table_bo = dri_bo_alloc(pI830->bufmgr, "binding_table",
 				    3 * sizeof(uint32_t), 4096);
     if (dri_bo_map (binding_table_bo, 1) != 0) {
+	dri_bo_unreference(binding_table_bo);
 	dri_bo_unreference(surface_state_bo);
 	return FALSE;
     }
