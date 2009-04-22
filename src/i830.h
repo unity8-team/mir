@@ -431,6 +431,7 @@ typedef struct _I830Rec {
 #ifdef I830_XV
    /* For Xvideo */
    i830_memory *overlay_regs;
+   void *offscreenImages;          /**< remembered memory block for release */
 #endif
 #ifdef INTEL_XVMC
    /* For XvMC */

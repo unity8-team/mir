@@ -3700,6 +3700,8 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
 #ifdef I830_XV
    i965_free_video(pScrn);
+   free(pI830->offscreenImages);
+   pI830->offscreenImages = NULL;
 #endif
 
    dri_bufmgr_destroy(pI830->bufmgr);

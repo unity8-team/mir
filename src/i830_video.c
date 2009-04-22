@@ -2886,10 +2886,11 @@ I830InitOffscreenImages(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    /* need to free this someplace */
     if (!(offscreenImages = xalloc(sizeof(XF86OffscreenImageRec)))) {
 	return;
     }
+
+    pI830->offscreenImages = offscreenImages;
 
     offscreenImages[0].image = &Images[0];
     offscreenImages[0].flags = VIDEO_OVERLAID_IMAGES /*| VIDEO_CLIP_TO_VIEWPORT*/;
