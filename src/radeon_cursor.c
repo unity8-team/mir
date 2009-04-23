@@ -194,6 +194,7 @@ void
 radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 {
     ScrnInfoPtr pScrn = crtc->scrn;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
     int crtc_id = radeon_crtc->crtc_id;
     RADEONInfoPtr      info       = RADEONPTR(pScrn);
@@ -208,9 +209,7 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
     if (yorigin >= CURSOR_HEIGHT) yorigin = CURSOR_HEIGHT - 1;
 
     if (IS_AVIVO_VARIANT) {
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int w = CURSOR_WIDTH;
-	int i;
 
 	/* avivo cursor spans the full fb width */
 	if (crtc->rotatedData == NULL) {
@@ -218,15 +217,8 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	    y += crtc->y;
 	}
 
-	for (i = 0; i < xf86_config->num_crtc; i++) {
-	    xf86CrtcPtr crtc = xf86_config->crtc[i];
-	    RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-	    if (!radeon_crtc->enabled)
-		break;
-	}
-
-	if (i == xf86_config->num_crtc) {
+	if (pRADEONEnt->Controller[0]->enabled &&
+	    pRADEONEnt->Controller[1]->enabled) {
 	    int cursor_end, frame_end;
 
 	    cursor_end = x - xorigin + w;

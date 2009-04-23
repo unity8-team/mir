@@ -798,18 +798,10 @@ void RADEONPMFini(ScrnInfoPtr pScrn)
 
 void RADEONPMBlockHandler(ScrnInfoPtr pScrn)
 {
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr crtc = xf86_config->crtc[i];
-	RADEONCrtcPrivatePtr radeon_crtc = crtc->driver_private;
-
-	if (radeon_crtc->enabled)
-	    break;
-    }
-
-    if (i == xf86_config->num_crtc)
+    if ((!pRADEONEnt->Controller[0]->enabled) &&
+	(!pRADEONEnt->Controller[1]->enabled))
 	RADEONSetStaticPowerMode(pScrn, POWER_LOW);
     else
 	RADEONSetStaticPowerMode(pScrn, POWER_HIGH);

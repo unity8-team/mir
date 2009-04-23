@@ -181,7 +181,7 @@ RADEONComputePLL(RADEONPLLPtr pll,
 	}
 
 	for (ref_div = min_ref_div; ref_div <= max_ref_div; ++ref_div) {
-	    uint32_t feedback_div, current_freq, error, vco_diff;
+	    uint32_t feedback_div, current_freq = 0, error, vco_diff;
 	    uint32_t pll_in = pll->reference_freq / ref_div;
 	    uint32_t min_feed_div = pll->min_feedback_div;
 	    uint32_t max_feed_div = pll->max_feedback_div+1;
