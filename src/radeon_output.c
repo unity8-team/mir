@@ -217,24 +217,14 @@ radeon_ddc_connected(xf86OutputPtr output)
     RADEONMonitorType MonType = MT_NONE;
     xf86MonPtr MonInfo = NULL;
     RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    unsigned char *RADEONMMIO = info->MMIO;
 
     if (radeon_output->pI2CBus) {
-	/* RV410 appears to have a bug where the hw i2c in reset
-	 * holds the i2c port in a bad state - switch hw i2c away before
-	 * doing DDC - do this for all r300s for safety sakes */
-	if (IS_R300_VARIANT) {
-	    if (radeon_output->ddc_i2c.mask_clk_reg == RADEON_GPIO_VGA_DDC)
-                OUTREG(RADEON_DVI_I2C_CNTL_0, 0x30);
-	    else
-                OUTREG(RADEON_DVI_I2C_CNTL_0, 0x20);
-	}	
 	if (info->get_hardcoded_edid_from_bios)
 	    MonInfo = RADEONGetHardCodedEDIDFromBIOS(output);
 	if (MonInfo == NULL) {
-	    RADEONI2CDoLock(output, TRUE);
+	    RADEONI2CDoLock(output, radeon_output->pI2CBus, TRUE);
 	    MonInfo = xf86OutputGetEDID(output, radeon_output->pI2CBus);
-	    RADEONI2CDoLock(output, FALSE);
+	    RADEONI2CDoLock(output, radeon_output->pI2CBus, FALSE);
 	}
     }
     if (MonInfo) {
@@ -1653,16 +1643,27 @@ static const xf86OutputFuncsRec radeon_output_funcs = {
 };
 
 Bool
-RADEONI2CDoLock(xf86OutputPtr output, int lock_state)
+RADEONI2CDoLock(xf86OutputPtr output, I2CBusPtr b, int lock_state)
 {
     ScrnInfoPtr pScrn = output->scrn;
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    RADEONOutputPrivatePtr radeon_output = output->driver_private;
-    RADEONI2CBusPtr pRADEONI2CBus = radeon_output->pI2CBus->DriverPrivate.ptr;
+    RADEONI2CBusPtr pRADEONI2CBus = b->DriverPrivate.ptr;
     unsigned char *RADEONMMIO = info->MMIO;
     uint32_t temp;
 
     if (lock_state) {
+	/* RV410 appears to have a bug where the hw i2c in reset
+	 * holds the i2c port in a bad state - switch hw i2c away before
+	 * doing DDC - do this for all r200s/r300s for safety sakes */
+	if ((info->ChipFamily >= CHIP_FAMILY_R200) && (!IS_AVIVO_VARIANT)) {
+	    if (pRADEONI2CBus->mask_clk_reg == RADEON_GPIO_CRT2_DDC)
+                OUTREG(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+					       R200_DVI_I2C_PIN_SEL(R200_SEL_DVI_DDC)));
+	    else
+                OUTREG(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
+					       R200_DVI_I2C_PIN_SEL(R200_SEL_CRT2_DDC)));
+	}
+
 	temp = INREG(pRADEONI2CBus->a_clk_reg);
 	temp &= ~(pRADEONI2CBus->a_clk_mask);
 	OUTREG(pRADEONI2CBus->a_clk_reg, temp);
