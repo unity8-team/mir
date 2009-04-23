@@ -1127,7 +1127,7 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	case RepeatReflect:
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_MIRROR) |
 		        R300_TX_CLAMP_T(R300_TX_CLAMP_MIRROR) |
-		        R300_TX_CLAMP_T(R300_TX_CLAMP_MIRROR);
+		        R300_TX_CLAMP_R(R300_TX_CLAMP_MIRROR);
 	    break;
 	case RepeatNone:
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
