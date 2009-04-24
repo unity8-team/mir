@@ -3694,6 +3694,12 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        pI830->uxa_driver = NULL;
    }
 #endif
+   if (pI830->front_buffer) {
+	i830_set_pixmap_bo(pScreen->GetScreenPixmap(pScreen), NULL);
+	i830_free_memory(pScrn, pI830->front_buffer);
+	pI830->front_buffer = NULL;
+   }
+
    xf86_cursors_fini (pScreen);
 
    i830_allocator_fini(pScrn);

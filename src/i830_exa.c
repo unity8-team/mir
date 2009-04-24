@@ -788,7 +788,8 @@ i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
 	dri_bo_unreference (old_bo);
 #if I830_USE_UXA
     if (i830->accel == ACCEL_UXA) {
-	dri_bo_reference(bo);
+	if (bo != NULL)
+	    dri_bo_reference(bo);
 	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
     }
 #endif
@@ -797,7 +798,8 @@ i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
 	struct i830_exa_pixmap_priv *driver_priv =
 	    exaGetPixmapDriverPrivate(pixmap);
 	if (driver_priv) {
-	    dri_bo_reference(bo);
+	    if (bo != NULL)
+		dri_bo_reference(bo);
 	    driver_priv->bo = bo;
 	}
     }
