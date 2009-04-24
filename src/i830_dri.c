@@ -93,6 +93,12 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef DRI2
 #include "dri2.h"
+
+#if DRI2INFOREC_VERSION >= 1
+#define USE_DRI2_1_1_0
+#endif
+
+extern XF86ModuleData dri2ModuleData;
 #endif
 
 static Bool I830InitVisualConfigs(ScreenPtr pScreen);
@@ -1532,6 +1538,7 @@ typedef struct {
     unsigned int attachment;
 } I830DRI2BufferPrivateRec, *I830DRI2BufferPrivatePtr;
 
+#ifndef USE_DRI2_1_1_0
 static DRI2BufferPtr
 I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
 {
@@ -1615,6 +1622,88 @@ I830DRI2CreateBuffers(DrawablePtr pDraw, unsigned int *attachments, int count)
     return buffers;
 }
 
+#else
+
+static DRI2BufferPtr
+I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
+		     unsigned int format)
+{
+    ScreenPtr pScreen = pDraw->pScreen;
+    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
+    I830Ptr pI830 = I830PTR(pScrn);
+    DRI2BufferPtr buffers;
+    dri_bo *bo;
+    I830DRI2BufferPrivatePtr privates;
+    PixmapPtr pPixmap;
+
+    buffers = xcalloc(1, sizeof *buffers);
+    if (buffers == NULL)
+	return NULL;
+    privates = xcalloc(1, sizeof *privates);
+    if (privates == NULL) {
+	xfree(buffers);
+	return NULL;
+    }
+
+    if (attachment == DRI2BufferFrontLeft) {
+	if (pDraw->type == DRAWABLE_PIXMAP)
+	    pPixmap = (PixmapPtr) pDraw;
+	else
+	    pPixmap = (*pScreen->GetWindowPixmap)((WindowPtr) pDraw);
+	pPixmap->refcnt++;
+    } else {
+	unsigned int hint = 0;
+
+	switch (attachment) {
+	case DRI2BufferDepth:
+	case DRI2BufferDepthStencil:
+	    if (SUPPORTS_YTILING(pI830))
+		hint = INTEL_CREATE_PIXMAP_TILING_Y;
+	    else
+		hint = INTEL_CREATE_PIXMAP_TILING_X;
+	    break;
+	case DRI2BufferFakeFrontLeft:
+	case DRI2BufferFakeFrontRight:
+	case DRI2BufferBackLeft:
+	case DRI2BufferBackRight:
+	    hint = INTEL_CREATE_PIXMAP_TILING_X;
+	    break;
+	}
+
+	if (!pI830->tiling ||
+	    (!IS_I965G(pI830) && !pI830->kernel_exec_fencing))
+	    hint = 0;
+
+	pPixmap = (*pScreen->CreatePixmap)(pScreen,
+					   pDraw->width,
+					   pDraw->height,
+					   format,
+					   hint);
+
+    }
+
+
+    buffers->attachment = attachment;
+    buffers->pitch = pPixmap->devKind;
+    buffers->cpp = pPixmap->drawable.bitsPerPixel / 8;
+    buffers->driverPrivate = privates;
+    buffers->format = format;
+    buffers->flags = 0; /* not tiled */
+    privates->pPixmap = pPixmap;
+    privates->attachment = attachment;
+
+    bo = i830_get_pixmap_bo (pPixmap);
+    if (dri_bo_flink(bo, &buffers->name) != 0) {
+	/* failed to name buffer */
+    }
+
+    return buffers;
+}
+
+#endif
+
+#ifndef USE_DRI2_1_1_0
+
 static void
 I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 {
@@ -1634,6 +1723,24 @@ I830DRI2DestroyBuffers(DrawablePtr pDraw, DRI2BufferPtr buffers, int count)
 	xfree(buffers);
     }
 }
+
+#else
+
+static void
+I830DRI2DestroyBuffer(DrawablePtr pDraw, DRI2BufferPtr buffer)
+{
+    if (buffer) {
+	I830DRI2BufferPrivatePtr private = buffer->driverPrivate;
+	ScreenPtr pScreen = pDraw->pScreen;
+
+	(*pScreen->DestroyPixmap)(private->pPixmap);
+
+	xfree(private);
+	xfree(buffer);
+    }
+}
+
+#endif
 
 static void
 I830DRI2CopyRegion(DrawablePtr pDraw, RegionPtr pRegion,
@@ -1686,11 +1793,27 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
     int i;
     struct stat sbuf;
     dev_t d;
+#ifdef USE_DRI2_1_1_0
+    int dri2_major = 1;
+    int dri2_minor = 0;
+#endif
 
     if (pI830->accel != ACCEL_UXA) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requires UXA\n");
 	return FALSE;
     }
+
+#ifdef USE_DRI2_1_1_0
+    if (xf86LoaderCheckSymbol("DRI2Version")) {
+	DRI2Version(& dri2_major, & dri2_minor);
+    }
+
+    if (dri2_minor < 1) {
+	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		   "DRI2 requires DRI2 module version 1.1.0 or later\n");
+	return FALSE;
+    }
+#endif
 
     sprintf(buf, "pci:%04x:%02x:%02x.%d",
 	    pI830->PciInfo->domain,
@@ -1736,10 +1859,19 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 
     info.driverName = IS_I965G(pI830) ? "i965" : "i915";
     info.deviceName = p;
-    info.version = 1;
 
+#ifdef USE_DRI2_1_1_0
+    info.version = 2;
+    info.CreateBuffers = NULL;
+    info.DestroyBuffers = NULL;
+    info.CreateBuffer = I830DRI2CreateBuffer;
+    info.DestroyBuffer = I830DRI2DestroyBuffer;
+#else
+    info.version = 1;
     info.CreateBuffers = I830DRI2CreateBuffers;
     info.DestroyBuffers = I830DRI2DestroyBuffers;
+#endif
+
     info.CopyRegion = I830DRI2CopyRegion;
 
     pI830->drmSubFD = info.fd;
