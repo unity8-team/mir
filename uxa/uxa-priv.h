@@ -64,6 +64,16 @@
 #endif
 #include "damage.h"
 
+/* Provide substitutes for gcc's __FUNCTION__ on other compilers */
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
+# if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
+#  define __FUNCTION__ __func__
+# else
+#  define __FUNCTION__ ""
+# endif
+#endif
+
+
 /* 1.6 and earlier server compat */
 #ifndef miGetCompositeClip
 #define miCopyRegion fbCopyRegion

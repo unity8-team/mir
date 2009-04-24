@@ -40,7 +40,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _INTEL_COMMON_H_
 
 /* Provide substitutes for gcc's __FUNCTION__ on other compilers */
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__FUNCTION__)
 # if defined(__STDC__) && (__STDC_VERSION__>=199901L) /* C99 */
 #  define __FUNCTION__ __func__
 # else
