@@ -114,6 +114,9 @@ struct i830_sdvo_priv {
     /* Default 0 for full RGB range 0-255, 1 is for RGB range 16-235 */
     uint32_t broadcast_rgb;
 
+    /** This flag means if we should switch ddc bus before next i2c Start */
+    Bool ddc_bus_switch;
+
     /** State for save/restore */
     /** @{ */
     int save_sdvo_mult;
@@ -1403,7 +1406,10 @@ i830_sdvo_ddc_i2c_start(I2CBusPtr b, int timeout)
     I2CBusPtr		    i2cbus = intel_output->pI2CBus;
     struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
 
-    i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
+    if (dev_priv->ddc_bus_switch) {
+        i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
+        dev_priv->ddc_bus_switch = FALSE;
+    }
     return i2cbus->I2CStart(i2cbus, timeout);
 }
 
@@ -1414,11 +1420,13 @@ i830_sdvo_ddc_i2c_stop(I2CDevPtr d)
     xf86OutputPtr	    output = d->pI2CBus->DriverPrivate.ptr;
     I830OutputPrivatePtr    intel_output = output->driver_private;
     I2CBusPtr		    i2cbus = intel_output->pI2CBus, savebus;
+    struct i830_sdvo_priv   *dev_priv = intel_output->dev_priv;
 
     savebus = d->pI2CBus;
     d->pI2CBus = i2cbus;
     i2cbus->I2CStop(d);
     d->pI2CBus = savebus;
+    dev_priv->ddc_bus_switch = TRUE;
 }
 
 /**
@@ -1721,7 +1729,6 @@ i830_sdvo_detect(xf86OutputPtr output)
     {
 	xf86MonPtr edid_mon;
 	/* Check EDID in DVI-I case */
-	i830_sdvo_set_control_bus_switch(output, dev_priv->ddc_bus);
 	edid_mon = xf86OutputGetEDID (output, intel_output->pDDCBus);
 	if (edid_mon && !DIGITAL(edid_mon->features.input_type)) {
 	    xfree(edid_mon);
@@ -2199,6 +2206,7 @@ i830_sdvo_init(ScrnInfoPtr pScrn, int output_device)
     ddcbus->I2CStop = i830_sdvo_ddc_i2c_stop;
     ddcbus->I2CAddress = i830_sdvo_ddc_i2c_address;
     ddcbus->DriverPrivate.ptr = output;
+    dev_priv->ddc_bus_switch = TRUE;
     
     if (!xf86I2CBusInit(ddcbus)) 
     {
