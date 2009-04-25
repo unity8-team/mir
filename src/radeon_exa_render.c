@@ -1117,28 +1117,23 @@ static Bool FUNC_NAME(R300TextureSetup)(PicturePtr pPict, PixmapPtr pPix,
 	    else
 		txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
 
-	    txfilter |= R300_TX_CLAMP_R(R300_TX_CLAMP_CLAMP_GL);
 	    break;
 	case RepeatPad:
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_LAST) |
-		        R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST) |
-		        R300_TX_CLAMP_R(R300_TX_CLAMP_CLAMP_LAST);
+		        R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_LAST);
 	    break;
 	case RepeatReflect:
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_MIRROR) |
-		        R300_TX_CLAMP_T(R300_TX_CLAMP_MIRROR) |
 		        R300_TX_CLAMP_T(R300_TX_CLAMP_MIRROR);
 	    break;
 	case RepeatNone:
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
-		        R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL) |
-		        R300_TX_CLAMP_R(R300_TX_CLAMP_CLAMP_GL);
+		        R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
 	    break;
 	}
     } else
 	txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL) |
-	            R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL) |
-	            R300_TX_CLAMP_R(R300_TX_CLAMP_CLAMP_GL);
+	            R300_TX_CLAMP_T(R300_TX_CLAMP_CLAMP_GL);
 
     switch (pPict->filter) {
     case PictFilterNearest:
