@@ -83,18 +83,6 @@ const int I830PatternROP[16] =
 static int uxa_pixmap_index;
 #endif
 
-#ifndef SERVER_1_5
-static inline void *dixLookupPrivate(DevUnion **privates, int *key)
-{
-    return (*privates)[*key].ptr;
-}
-
-static inline void dixSetPrivate(DevUnion **privates, int *key, void *val)
-{
-    (*privates)[*key].ptr = val;
-}
-#endif
-
 /**
  * Returns whether a given pixmap is tiled or not.
  *
@@ -919,11 +907,7 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     if (w > 32767 || h > 32767)
 	return NullPixmap;
 
-#ifdef SERVER_1_5
     pixmap = fbCreatePixmap (screen, 0, 0, depth, usage);
-#else
-    pixmap = fbCreatePixmap (screen, 0, 0, depth);
-#endif
 
     if (w && h)
     {
@@ -968,18 +952,6 @@ i830_uxa_create_pixmap (ScreenPtr screen, int w, int h, int depth, unsigned usag
     return pixmap;
 }
 
-
-#ifndef SERVER_1_5
-static PixmapPtr
-i830_uxa_server_14_create_pixmap (ScreenPtr screen, int w, int h, int depth)
-{
-    /* For server pre-1.6, we're never allocating DRI2 buffers, so no need for
-     * a hint.
-     */
-    return i830_uxa_create_pixmap(screen, w, h, depth, 0);
-}
-#endif
-
 static Bool
 i830_uxa_destroy_pixmap (PixmapPtr pixmap)
 {
@@ -1012,13 +984,8 @@ i830_uxa_init (ScreenPtr pScreen)
     ScrnInfoPtr scrn = xf86Screens[pScreen->myNum];
     I830Ptr i830 = I830PTR(scrn);
 
-#ifdef SERVER_1_5
     if (!dixRequestPrivate(&uxa_pixmap_index, 0))
 	return FALSE;
-#else
-    if (!AllocatePixmapPrivate(pScreen, uxa_pixmap_index, 0))
-	return FALSE;
-#endif
 
     i830->uxa_driver = uxa_driver_alloc();
     if (i830->uxa_driver == NULL) {
@@ -1073,11 +1040,7 @@ i830_uxa_init (ScreenPtr pScreen)
 	return FALSE;
     }
 
-#ifdef SERVER_1_5
     pScreen->CreatePixmap = i830_uxa_create_pixmap;
-#else
-    pScreen->CreatePixmap = i830_uxa_server_14_create_pixmap;
-#endif
     pScreen->DestroyPixmap = i830_uxa_destroy_pixmap;
 
     I830SelectBuffer(scrn, I830_SELECT_FRONT);

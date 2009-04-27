@@ -139,10 +139,6 @@ typedef struct {
     CloseScreenProcPtr 		 SavedCloseScreen;
     GetImageProcPtr 		 SavedGetImage;
     GetSpansProcPtr 		 SavedGetSpans;
-#ifndef SERVER_1_5
-    PaintWindowBackgroundProcPtr SavedPaintWindowBackground;
-    PaintWindowBorderProcPtr	 SavedPaintWindowBorder;
-#endif
     CreatePixmapProcPtr 	 SavedCreatePixmap;
     DestroyPixmapProcPtr 	 SavedDestroyPixmap;
     CopyWindowProcPtr 		 SavedCopyWindow;
@@ -181,12 +177,8 @@ extern int uxa_screen_index;
 static inline uxa_screen_t *
 uxa_get_screen(ScreenPtr screen)
 {
-#ifdef SERVER_1_5
     return (uxa_screen_t *)dixLookupPrivate(&screen->devPrivates,
 					    &uxa_screen_index);
-#else
-    return screen->devPrivates[uxa_screen_index].ptr;
-#endif
 }
 
 /** Align an offset to an arbitrary alignment */

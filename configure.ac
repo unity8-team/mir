@@ -83,14 +83,7 @@ XORG_DRIVER_CHECK_EXT(XF86DRI, xextproto x11)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.3 xproto fontsproto $REQUIRED_MODULES])
-
-PKG_CHECK_MODULES(SERVER_1_5, [xorg-server >= 1.5],
-			      [SERVER_1_5=yes], [SERVER_1_5=no])
-
-if test "$SERVER_1_5" = yes; then
-   AC_DEFINE(SERVER_1_5, 1, [Building against server 1.5])
-fi
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.6 xproto fontsproto $REQUIRED_MODULES])
 
 sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 drm_cflags=$(pkg-config --cflags libdrm)

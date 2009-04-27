@@ -818,13 +818,8 @@ uxa_create_alpha_picture (ScreenPtr     pScreen,
 	    return 0;
     }
 
-#ifdef SERVER_1_5
     pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
 					pPictFormat->depth, 0);
-#else
-    pPixmap = (*pScreen->CreatePixmap) (pScreen, width, height,
-					pPictFormat->depth);
-#endif
     if (!pPixmap)
 	return 0;
     pGC = GetScratchGC (pPixmap->drawable.depth, pScreen);
