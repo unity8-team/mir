@@ -1829,8 +1829,22 @@ Bool I830DRI2ScreenInit(ScreenPtr pScreen)
 	info.fd = pI830->drmSubFD;
 #endif
 
-    if (info.fd < 0)
+    if (info.fd < 0) {
 	info.fd = drmOpen("i915", buf);
+	drmSetVersion sv;
+	int err;
+
+	/* Check that what we opened was a master or a master-capable FD,
+	 * by setting the version of the interface we'll use to talk to it.
+	 * (see DRIOpenDRMMaster() in DRI1)
+	 */
+	sv.drm_di_major = 1;
+	sv.drm_di_minor = 1;
+	sv.drm_dd_major = -1;
+	err = drmSetInterfaceVersion(info.fd, &sv);
+	if (err != 0)
+	    return FALSE;
+    }
 
     if (info.fd < 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Failed to open DRM device\n");
