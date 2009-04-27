@@ -177,7 +177,7 @@ I830Sync(ScrnInfoPtr pScrn)
    if (I810_DEBUG & (DEBUG_VERBOSE_ACCEL | DEBUG_VERBOSE_SYNC))
       ErrorF("I830Sync\n");
 
-   if (pI830->accel == ACCEL_NONE)
+   if (pI830->accel == ACCEL_NONE || !pScrn->vtSema || !pI830->batch_bo)
        return;
 
 #ifdef XF86DRI
