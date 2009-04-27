@@ -232,6 +232,8 @@ radeon_crtc_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 		if (!(cursor_end & 0x7f))
 		    w--;
 	    }
+	    if (w <= 0)
+		w = 1;
 	}
 
 	avivo_lock_cursor(crtc, TRUE);
