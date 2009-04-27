@@ -1273,7 +1273,7 @@ i830_allocate_framebuffer(ScrnInfoPtr pScrn)
 	return NULL;
     }
 
-    if (!pI830->use_drm_mode && pI830->FbBase)
+    if (!pI830->use_drm_mode && pI830->FbBase && front_buffer->bound)
 	memset (pI830->FbBase + front_buffer->offset, 0, size);
 
     return front_buffer;
