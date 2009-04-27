@@ -670,9 +670,6 @@ I830MapMem(ScrnInfoPtr pScrn)
    for (i = 2; i < pI830->FbMapSize; i <<= 1) ;
    pI830->FbMapSize = i;
 
-   if (!I830MapMMIO(pScrn))
-      return FALSE;
-
 #if XSERVER_LIBPCIACCESS
    err = pci_device_map_range (device, pI830->LinearAddr, pI830->FbMapSize,
 			       PCI_DEV_MAP_FLAG_WRITABLE | PCI_DEV_MAP_FLAG_WRITE_COMBINE,
@@ -3071,13 +3068,20 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!pI830->use_drm_mode)
        I830MapMMIO(pScrn);
 
+   /* Need FB mapped to set up the fake bufmgr if we end up doing that
+    * in i830_memory_init() -> i830_allocator_init().
+    */
+   if (!pI830->use_drm_mode) {
+      if (!I830MapMem(pScrn))
+	 return FALSE;
+      pScrn->memPhysBase = (unsigned long)pI830->FbBase;
+   }
+
    if (!i830_memory_init(pScrn)) {
        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 	       "Couldn't allocate video memory\n");
        return FALSE;
    }
-
-   I830UnmapMMIO(pScrn);
 
    i830_fixup_mtrrs(pScrn);
 
@@ -3108,13 +3112,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 		      "allocation failed.\n");
 	   pI830->accel = ACCEL_NONE;
       }
-   }
-
-   if (!pI830->use_drm_mode) {
-      DPRINTF(PFX, "assert( if(!I830MapMem(pScrn)) )\n");
-      if (!I830MapMem(pScrn))
-	 return FALSE;
-      pScrn->memPhysBase = (unsigned long)pI830->FbBase;
    }
    i830_init_bufmgr(pScrn);
 

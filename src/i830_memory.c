@@ -1065,6 +1065,7 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
     }
 
     pI830->ring.tail_mask = pI830->ring.mem->size - 1;
+    pI830->ring.virtual_start = pI830->FbBase + pI830->ring.mem->offset;
     return TRUE;
 }
 
