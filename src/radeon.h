@@ -261,6 +261,7 @@ typedef struct {
 #define RADEON_PLL_PREFER_HIGH_FB_DIV   (1 << 7)
 #define RADEON_PLL_PREFER_LOW_POST_DIV  (1 << 8)
 #define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
+#define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 
 typedef struct {
     uint16_t          reference_freq;

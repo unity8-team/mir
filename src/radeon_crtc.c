@@ -136,6 +136,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 {
     uint32_t min_ref_div = pll->min_ref_div;
     uint32_t max_ref_div = pll->max_ref_div;
+    uint32_t min_fractional_feed_div = 0;
+    uint32_t max_fractional_feed_div = 0;
     uint32_t best_vco = pll->best_vco;
     uint32_t best_post_div = 1;
     uint32_t best_ref_div = 1;
@@ -162,6 +164,11 @@ RADEONComputePLL(RADEONPLLPtr pll,
 		min_ref_div = mid;
 	    else break;
 	}
+    }
+
+    if (flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+	min_fractional_feed_div = pll->min_frac_feedback_div;
+	max_fractional_feed_div = pll->max_frac_feedback_div;
     }
 
     for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
@@ -191,10 +198,10 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
 	    while (min_feed_div < max_feed_div) {
 		uint32_t vco;
-		uint32_t min_frac_feed_div = pll->min_frac_feedback_div;
-                uint32_t max_frac_feed_div = pll->max_frac_feedback_div+1;
-                uint32_t frac_feedback_div;
-                CARD64 tmp;
+		uint32_t min_frac_feed_div = min_fractional_feed_div;
+		uint32_t max_frac_feed_div = max_fractional_feed_div+1;
+		uint32_t frac_feedback_div;
+		CARD64 tmp;
 
 		feedback_div = (min_feed_div+max_feed_div)/2;
 
@@ -211,8 +218,8 @@ RADEONComputePLL(RADEONPLLPtr pll,
 
 		while (min_frac_feed_div < max_frac_feed_div) {
 		    frac_feedback_div = (min_frac_feed_div+max_frac_feed_div)/2;
-                    tmp = (CARD64)pll->reference_freq * 10000 * feedback_div;
-                    tmp += (CARD64)pll->reference_freq * 1000 * frac_feedback_div;
+		    tmp = (CARD64)pll->reference_freq * 10000 * feedback_div;
+		    tmp += (CARD64)pll->reference_freq * 1000 * frac_feedback_div;
 		    current_freq = RADEONDiv(tmp, ref_div * post_div);
 
 		    error = abs(current_freq - freq);
@@ -254,9 +261,9 @@ RADEONComputePLL(RADEONPLLPtr pll,
 			}
 		    }
 		    if (current_freq < freq)
-                        min_frac_feed_div = frac_feedback_div+1;
-                    else
-                        max_frac_feed_div = frac_feedback_div;
+			min_frac_feed_div = frac_feedback_div+1;
+		    else
+			max_frac_feed_div = frac_feedback_div;
 		}
 		if (current_freq < freq)
 		    min_feed_div = feedback_div+1;
