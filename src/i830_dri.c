@@ -1677,7 +1677,7 @@ I830DRI2CreateBuffer(DrawablePtr pDraw, unsigned int attachment,
 	pPixmap = (*pScreen->CreatePixmap)(pScreen,
 					   pDraw->width,
 					   pDraw->height,
-					   format,
+					   (format != 0)?format:pDraw->depth,
 					   hint);
 
     }
