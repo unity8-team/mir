@@ -3452,7 +3452,7 @@ I830LeaveVT(int scrnIndex, int flags)
    ret = drmDropMaster(pI830->drmSubFD);
    if (ret)
       xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "drmDropMaster failed: %s\n", strerror(ret));
+		 "drmDropMaster failed: %s\n", strerror(errno));
 #endif
 }
 
@@ -3471,9 +3471,16 @@ I830EnterVT(int scrnIndex, int flags)
 
 #ifdef XF86DRI
    ret = drmSetMaster(pI830->drmSubFD);
-   if (ret)
-      xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		 "drmDropMaster failed: %s\n", strerror(ret));
+   if (ret) {
+      if (errno == EINVAL) {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "drmSetMaster failed: 2.6.29 or newer kernel required for "
+		    "multi-server DRI\n");
+      } else {
+	 xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		    "drmSetMaster failed: %s\n", strerror(errno));
+      }
+   }
 #endif
 
    /*
