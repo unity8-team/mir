@@ -461,7 +461,7 @@ i830_overlay_on(ScrnInfoPtr pScrn)
     OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
     OUT_BATCH(MI_NOOP);
     ADVANCE_BATCH();
-    i830WaitSync(pScrn);
+    I830Sync(pScrn);
     
     /*
      * If we turned pipe A on up above, turn it
@@ -514,7 +514,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 
     /*
      * Wait for overlay to go idle. This has to be
-     * separated from the turning off state by a WaitSync
+     * separated from the turning off state by a Sync
      * to ensure the overlay will not read OCMD early and
      * disable the overlay before the commands here are
      * executed
@@ -524,7 +524,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
-	i830WaitSync(pScrn);
+	I830Sync(pScrn);
     }
     
     /*
@@ -545,7 +545,7 @@ i830_overlay_off(ScrnInfoPtr pScrn)
 	OUT_BATCH(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	OUT_BATCH(MI_NOOP);
 	ADVANCE_BATCH();
-	i830WaitSync(pScrn);
+	I830Sync(pScrn);
     }
     pI830->overlayOn = FALSE;
     OVERLAY_DEBUG("overlay_off\n");

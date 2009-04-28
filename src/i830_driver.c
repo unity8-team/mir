@@ -1935,7 +1935,6 @@ i830_refresh_ring(ScrnInfoPtr pScrn)
    pI830->ring.space = pI830->ring.head - (pI830->ring.tail + 8);
    if (pI830->ring.space < 0)
       pI830->ring.space += pI830->ring.mem->size;
-   i830MarkSync(pScrn);
 }
 
 enum pipe {
@@ -3050,7 +3049,7 @@ i830AdjustFrame(int scrnIndex, int x, int y, int flags)
    if (crtc && crtc->enabled)
    {
       /* Sync the engine before adjust frame */
-      i830WaitSync(pScrn);
+      I830Sync(pScrn);
       i830PipeSetBase(crtc, crtc->desiredX + x, crtc->desiredY + y);
       crtc->x = output->initial_x + x;
       crtc->y = output->initial_y + y;
@@ -3452,26 +3451,6 @@ i830_pipe_to_crtc(ScrnInfoPtr pScrn, int pipe)
 
    return NULL;
 } 
-
-void
-i830WaitSync(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   if (pI830->uxa_driver && pI830->need_sync) {
-      pI830->need_sync = FALSE;
-      I830Sync(pScrn);
-   }
-}
-
-void
-i830MarkSync(ScrnInfoPtr pScrn)
-{
-   I830Ptr pI830 = I830PTR(pScrn);
-
-   if (pI830->uxa_driver)
-      pI830->need_sync = TRUE;
-}
 
 void
 I830InitpScrn(ScrnInfoPtr pScrn)

@@ -440,7 +440,6 @@ typedef struct _I830Rec {
 
    uxa_driver_t *uxa_driver;
    Bool need_flush;
-   Bool need_sync;
    PixmapPtr pSrcPixmap;
    int accel_pixmap_pitch_alignment;
    int accel_pixmap_offset_alignment;
@@ -757,9 +756,6 @@ void i830_hdmi_init(ScrnInfoPtr pScrn, int output_reg);
 
 /* i830_lvds.c */
 void i830_lvds_init(ScrnInfoPtr pScrn);
-
-extern void i830MarkSync(ScrnInfoPtr pScrn);
-extern void i830WaitSync(ScrnInfoPtr pScrn);
 
 /* i830_memory.c */
 Bool i830_bind_all_memory(ScrnInfoPtr pScrn);

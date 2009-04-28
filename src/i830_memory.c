@@ -1368,10 +1368,7 @@ i830_set_tiling(ScrnInfoPtr pScrn, unsigned int offset,
 
     assert(tile_format != TILE_NONE);
 
-    if (pI830->need_sync) {
-	I830Sync(pScrn);
-	pI830->need_sync = FALSE;
-    }
+    I830Sync(pScrn);
 
     if (IS_I965G(pI830))
 	max_fence = FENCE_NEW_NR;

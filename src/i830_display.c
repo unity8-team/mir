@@ -1266,8 +1266,10 @@ i830_crtc_dpms(xf86CrtcPtr crtc, int mode)
 static Bool
 i830_crtc_lock (xf86CrtcPtr crtc)
 {
-    /* Sync the engine before mode switch */
-    i830WaitSync(crtc->scrn);
+    /* Sync the engine before mode switch, to finish any outstanding
+     * WAIT_FOR_EVENTS that may rely on CRTC state.
+     */
+    I830Sync(crtc->scrn);
 
     return FALSE;
 }

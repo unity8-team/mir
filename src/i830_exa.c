@@ -492,11 +492,6 @@ i830_uxa_prepare_access (PixmapPtr pixmap, uxa_access_t access)
 	I830Ptr i830 = I830PTR(scrn);
 	
 	intel_batch_flush(scrn, FALSE);
-	/* XXX: dri_bo_map should handle syncing for us, what's the deal? */
-	if (i830->need_sync) {
-	    I830Sync(scrn);
-	    i830->need_sync = FALSE;
-	}
 
 	/* No VT sema or GEM?  No GTT mapping. */
 	if (!scrn->vtSema || !i830->memory_manager) {
