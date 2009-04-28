@@ -1664,7 +1664,6 @@ I830XvInit(ScrnInfoPtr pScrn)
 
    pI830->XvPreferOverlay = xf86ReturnOptValBool(pI830->Options, OPTION_PREFER_OVERLAY, FALSE);
 
-#ifdef I830_XV
     if (xf86GetOptValInteger(pI830->Options, OPTION_VIDEO_KEY,
 			     &(pI830->colorKey))) {
 	from = X_CONFIG;
@@ -1680,7 +1679,6 @@ I830XvInit(ScrnInfoPtr pScrn)
     }
     xf86DrvMsg(pScrn->scrnIndex, from, "video overlay key set to 0x%x\n",
 	       pI830->colorKey);
-#endif
 }
 
 /**
@@ -2821,14 +2819,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    pI830->last_3d = LAST_3D_OTHER;
    pI830->overlayOn = FALSE;
 
-#ifdef I830_XV
     /*
      * Set this so that the overlay allocation is factored in when
      * appropriate.
      */
     pI830->XvEnabled = TRUE;
-#endif
-
 
    /* Need MMIO mapped to do GTT lookups during memory allocation. */
    if (!pI830->use_drm_mode)
@@ -2861,15 +2856,11 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    if (!miSetPixmapDepths())
       return FALSE;
 
-#ifdef I830_XV
    if (pI830->accel == ACCEL_NONE) {
       xf86DrvMsg(pScrn->scrnIndex, X_PROBED, "Xv is disabled because it "
 		 "needs 2D acceleration.\n");
       pI830->XvEnabled = FALSE;
    }
-#else
-   pI830->XvEnabled = FALSE;
-#endif
 
    if (pI830->accel != ACCEL_NONE && !pI830->use_drm_mode) {
       if (pI830->memory_manager == NULL && pI830->ring.mem->size == 0) {
@@ -2983,7 +2974,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
 
    xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
-#ifdef I830_XV
 #ifdef INTEL_XVMC
     pI830->XvMCEnabled = FALSE;
     from =  xf86GetOptValBool(pI830->Options, OPTION_XVMC,
@@ -2994,7 +2984,6 @@ I830ScreenInit(int scrnIndex, ScreenPtr pScreen, int argc, char **argv)
    /* Init video */
    if (pI830->XvEnabled)
       I830InitVideo(pScreen);
-#endif
 
    /* Setup 3D engine, needed for rotation too */
    IntelEmitInvarientState(pScrn);
@@ -3330,11 +3319,9 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
 
    i830_allocator_fini(pScrn);
 
-#ifdef I830_XV
    i965_free_video(pScrn);
    free(pI830->offscreenImages);
    pI830->offscreenImages = NULL;
-#endif
 
    dri_bufmgr_destroy(pI830->bufmgr);
    pI830->bufmgr = NULL;

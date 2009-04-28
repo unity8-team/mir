@@ -390,11 +390,9 @@ typedef struct _I830Rec {
    /** Ending batch_used that was verified by i830_start_batch_atomic() */
    int batch_atomic_limit;
 
-#ifdef I830_XV
    /* For Xvideo */
    i830_memory *overlay_regs;
    void *offscreenImages;          /**< remembered memory block for release */
-#endif
 #ifdef INTEL_XVMC
    /* For XvMC */
    Bool XvMCEnabled;
@@ -455,7 +453,6 @@ typedef struct _I830Rec {
    Bool XvEnabled;			/* Xv enabled for this generation. */
    Bool XvPreferOverlay;
 
-#ifdef I830_XV
    int colorKey;
    XF86VideoAdaptorPtr adaptor;
    ScreenBlockHandlerProcPtr BlockHandler;
@@ -471,7 +468,6 @@ typedef struct _I830Rec {
       drm_intel_bo *gen4_sampler_bo;
       drm_intel_bo *gen4_sip_kernel_bo;
    } video;
-#endif
 
    /* Render accel state */
    float scale_units[2][2];
@@ -671,10 +667,8 @@ i830_crtc_set_cursor_colors (xf86CrtcPtr crtc, int bg, int fg);
 extern void i830_refresh_ring(ScrnInfoPtr pScrn);
 extern void I830EmitFlush(ScrnInfoPtr pScrn);
 
-#ifdef I830_XV
 extern void I830InitVideo(ScreenPtr pScreen);
 extern void i830_crtc_dpms_video(xf86CrtcPtr crtc, Bool on);
-#endif
 
 int
 i830_crtc_pipe (xf86CrtcPtr crtc);

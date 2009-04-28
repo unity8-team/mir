@@ -999,7 +999,6 @@ i830_allocate_ringbuffer(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-#ifdef I830_XV
 /**
  * Allocate space for overlay registers.
  */
@@ -1037,7 +1036,6 @@ i830_allocate_overlay(ScrnInfoPtr pScrn)
 
     return TRUE;
 }
-#endif
 
 static Bool
 IsTileable(ScrnInfoPtr pScrn, int pitch)
@@ -1311,10 +1309,8 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 	}
     }
 
-#ifdef I830_XV
     if (!pI830->use_drm_mode)
 	i830_allocate_overlay(pScrn);
-#endif
 
     pI830->front_buffer = i830_allocate_framebuffer(pScrn);
     if (pI830->front_buffer == NULL)
