@@ -73,11 +73,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
-#ifdef I830_USE_EXA
-#include "exa.h"
-Bool I830EXAInit(ScreenPtr pScreen);
-#endif
-
 #ifdef I830_USE_UXA
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
@@ -87,7 +82,7 @@ Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table,
 			     int num_bos);
 #endif
 
-#if defined(I830_USE_UXA) || defined(I830_USE_EXA)
+#if defined(I830_USE_UXA)
 dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
 void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
 #endif
@@ -333,7 +328,6 @@ enum backlight_control {
 typedef enum accel_method {
     ACCEL_UNINIT = 0,
     ACCEL_NONE,
-    ACCEL_EXA,
     ACCEL_UXA
 } accel_method_t;
 
@@ -373,9 +367,6 @@ typedef struct _I830Rec {
    /* separate small buffers for kernels that support this */
    i830_memory *cursor_mem_classic[2];
    i830_memory *cursor_mem_argb[2];
-#ifdef I830_USE_EXA
-   i830_memory *exa_offscreen;
-#endif
    i830_memory *fake_bufmgr_mem;
 
    /* Regions allocated either from the above pools, or from agpgart. */
@@ -453,15 +444,12 @@ typedef struct _I830Rec {
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
 
-#ifdef I830_USE_EXA
-   ExaDriverPtr	EXADriverPtr;
-#endif
 #ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
    Bool need_flush;
 #endif
    Bool need_sync;
-#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
+#if defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
 #endif
    int accel_pixmap_pitch_alignment;
@@ -496,12 +484,12 @@ typedef struct _I830Rec {
    } video;
 #endif
 
-   /* EXA render state */
+   /* Render accel state */
    float scale_units[2][2];
   /** Transform pointers for src/mask, or NULL if identity */
    PictTransform *transform[2];
    float coord_adjust;
-   /* i915 EXA render state */
+   /* i915 render accel state */
    uint32_t mapstate[6];
    uint32_t samplerstate[6];
 
@@ -653,10 +641,6 @@ typedef struct _I830Rec {
 unsigned long intel_get_pixmap_offset(PixmapPtr pPix);
 unsigned long intel_get_pixmap_pitch(PixmapPtr pPix);
 
-struct i830_exa_pixmap_priv {
-    dri_bo *bo;
-};
-
 /* Batchbuffer support macros and functions */
 #include "i830_batchbuffer.h"
 
@@ -719,8 +703,6 @@ void I830DRI2CloseScreen(ScreenPtr pScreen);
 
 #ifdef XF86DRM_MODE
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, int fd, int cpp);
-extern Bool drmmode_is_rotate_pixmap(ScrnInfoPtr pScrn, pointer pPixData,
-				     dri_bo **bo);
 #endif
 
 extern Bool I830AccelInit(ScreenPtr pScreen);
@@ -889,7 +871,7 @@ static inline int i830_fb_compression_supported(I830Ptr pI830)
 do {							\
     if (I830PTR(pScrn)->fallback_debug) {		\
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,		\
-		   "EXA fallback: " s "\n", ##arg);	\
+		   "fallback: " s "\n", ##arg);	\
     }							\
     return FALSE;					\
 } while(0)

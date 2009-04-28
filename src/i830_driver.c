@@ -213,18 +213,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <xf86drmMode.h>
 #endif
 
-#ifdef I830_USE_EXA
-static const char *I830exaSymbols[] = {
-    "exaGetVersion",
-    "exaDriverInit",
-    "exaDriverFini",
-    "exaOffscreenAlloc",
-    "exaOffscreenFree",
-    "exaWaitSync",
-    NULL
-};
-#endif
-
 #define BIT(x) (1 << (x))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define NB_OF(x) (sizeof (x) / sizeof (*x))
@@ -297,7 +285,6 @@ static PciChipsets I830PciChipsets[] = {
  */
 
 typedef enum {
-   OPTION_ACCELMETHOD,
    OPTION_NOACCEL,
    OPTION_DRI,
    OPTION_VIDEO_KEY,
@@ -316,7 +303,6 @@ typedef enum {
 } I830Opts;
 
 static OptionInfoRec I830Options[] = {
-   {OPTION_ACCELMETHOD,	"AccelMethod",	OPTV_ANYSTR,	{0},	FALSE},
    {OPTION_NOACCEL,	"NoAccel",	OPTV_BOOLEAN,	{0},	FALSE},
    {OPTION_DRI,		"DRI",		OPTV_BOOLEAN,	{0},	TRUE},
    {OPTION_COLOR_KEY,	"ColorKey",	OPTV_INTEGER,	{0},	FALSE},
@@ -1471,7 +1457,6 @@ static const char *accel_name[] =
 {
    "unspecified",
    "no",
-   "EXA",
    "UXA",
 };
 
@@ -1564,34 +1549,12 @@ I830AccelMethodInit(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
     MessageType from = X_PROBED;
-    char *s;
     int i, num_pipe;
 
     if (xf86ReturnOptValBool(pI830->Options, OPTION_NOACCEL, FALSE)) {
 	pI830->accel = ACCEL_NONE;
-    }
-
-    if (!(pI830->accel == ACCEL_NONE)) {
-#ifdef I830_USE_UXA
-	pI830->accel = ACCEL_UXA;
-#endif
-#ifdef I830_USE_EXA
-	pI830->accel = ACCEL_EXA;
-#endif
-#if I830_USE_EXA + I830_USE_UXA >= 2
-	from = X_DEFAULT;
-	if ((s = (char *)xf86GetOptValString(pI830->Options,
-					     OPTION_ACCELMETHOD))) {
-	    if (!xf86NameCmp(s, "EXA")) {
-		from = X_CONFIG;
-		pI830->accel = ACCEL_EXA;
-	    }
-	    else if (!xf86NameCmp(s, "UXA")) {
-		from = X_CONFIG;
-	       pI830->accel = ACCEL_UXA;
-	    }
-	}
-#endif
+    } else {
+       pI830->accel = ACCEL_UXA;
 	xf86DrvMsg(pScrn->scrnIndex, from, "Using %s for acceleration\n",
 		   accel_name[pI830->accel]);
     }
@@ -1669,25 +1632,10 @@ I830DrmModeInit(ScrnInfoPtr pScrn)
 #ifdef XF86DRM_MODE
     I830Ptr pI830 = I830PTR(pScrn);
     char *bus_id;
-    char *s;
     int ret;
 
-    /* Default to UXA but allow override */
     pI830->accel = ACCEL_UXA;
-
-    if ((s = (char *)xf86GetOptValString(pI830->Options, OPTION_ACCELMETHOD))) {
-	if (xf86NameCmp(s, "UXA"))
-	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "kernel mode setting active,overridding accelmethod and using UXA\n");
-    }
-
-    pI830->can_resize = FALSE;
-    if (pI830->accel == ACCEL_UXA)
-	pI830->can_resize = TRUE;
-
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "Resizable framebuffer: %s (%d %d)\n",
-	       pI830->can_resize ? "available" : "not available",
-	       pI830->directRenderingType, pI830->accel);
+    pI830->can_resize = TRUE;
 
     bus_id = DRICreatePCIBusID(pI830->PciInfo);
 
@@ -1893,33 +1841,6 @@ I830PreInit(ScrnInfoPtr pScrn, int flags)
    }
 
    xf86LoaderReqSymLists(I810fbSymbols, NULL);
-
-   switch (pI830->accel) {
-#ifdef I830_USE_EXA
-   case ACCEL_EXA: {
-      XF86ModReqInfo req;
-      int errmaj, errmin;
-
-      memset(&req, 0, sizeof(req));
-      req.majorversion = 2;
-#if EXA_VERSION_MINOR >= 2
-      req.minorversion = 2;
-#else
-      req.minorversion = 1;
-#endif
-      if (!LoadSubModule(pScrn->module, "exa", NULL, NULL, NULL, &req,
-		&errmaj, &errmin)) {
-	 LoaderErrorMsg(NULL, "exa", errmaj, errmin);
-	 PreInitCleanup(pScrn);
-	 return FALSE;
-      }
-      xf86LoaderReqSymLists(I830exaSymbols, NULL);
-      break;
-   }
-#endif
-   default:
-      break;
-   }
 
    if (!pI830->use_drm_mode) {
        i830CompareRegsToSnapshot(pScrn, "After PreInit");
@@ -3235,7 +3156,7 @@ I830LeaveVT(int scrnIndex, int flags)
 	 FatalError("DRM_I915_LEAVEVT failed: %s\n", strerror(ret));
    }
 
-   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) && IS_I965G(pI830))
+   if (pI830->accel == ACCEL_UXA && IS_I965G(pI830))
       gen4_render_state_cleanup(pScrn);
 
    ret = drmDropMaster(pI830->drmSubFD);
@@ -3322,8 +3243,7 @@ I830EnterVT(int scrnIndex, int flags)
 
    intel_batch_init(pScrn);
 
-   if ((pI830->accel == ACCEL_EXA || pI830->accel == ACCEL_UXA) &&
-       IS_I965G(pI830))
+   if (pI830->accel == ACCEL_UXA && IS_I965G(pI830))
       gen4_render_state_init(pScrn);
 
    if (!pI830->use_drm_mode) {
@@ -3408,13 +3328,6 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        vgaHWUnmapMem(pScrn);
    }
 
-#ifdef I830_USE_EXA
-   if (pI830->EXADriverPtr) {
-       exaDriverFini(pScreen);
-       xfree(pI830->EXADriverPtr);
-       pI830->EXADriverPtr = NULL;
-   }
-#endif
 #ifdef I830_USE_UXA
    if (pI830->uxa_driver) {
        uxa_driver_fini (pScreen);
@@ -3560,14 +3473,6 @@ i830WaitSync(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    switch (pI830->accel) {
-#ifdef I830_USE_EXA
-   case ACCEL_EXA:
-      if (pI830->EXADriverPtr) {
-	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	 exaWaitSync(pScreen);
-      }
-      break;
-#endif
 #ifdef I830_USE_UXA
    case ACCEL_UXA:
       if (pI830->uxa_driver && pI830->need_sync) {
@@ -3587,14 +3492,6 @@ i830MarkSync(ScrnInfoPtr pScrn)
    I830Ptr pI830 = I830PTR(pScrn);
 
    switch (pI830->accel) {
-#ifdef I830_USE_EXA
-   case ACCEL_EXA:
-      if (pI830->EXADriverPtr) {
-	 ScreenPtr pScreen = screenInfo.screens[pScrn->scrnIndex];
-	 exaMarkSync(pScreen);
-      }
-      break;
-#endif
 #ifdef I830_USE_UXA
    case ACCEL_UXA:
       if (pI830->uxa_driver)

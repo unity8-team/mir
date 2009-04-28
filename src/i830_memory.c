@@ -70,10 +70,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * - Compatibility texture pool (optional, more is always better)
  * - New texture pool (optional, more is always better.  aperture allocation
  *     only)
- * - EXA offscreen pool (more is always better)
- *
- * We also want to be able to resize the front/back/depth buffers, and then
- * resize the EXA and texture memory pools appropriately.
  *
  * The user may request a specific amount of memory to be used
  * (pI830->pEnt->videoRam != 0), in which case allocations have to fit within
@@ -366,7 +362,6 @@ i830_reset_allocations(ScrnInfoPtr pScrn)
 	pI830->cursor_mem_argb[p] = NULL;
     }
     pI830->front_buffer = NULL;
-    pI830->exa_offscreen = NULL;
     pI830->overlay_regs = NULL;
     pI830->power_context = NULL;
     pI830->ring.mem = NULL;
@@ -451,11 +446,6 @@ i830_allocator_init(ScrnInfoPtr pScrn, unsigned long offset, unsigned long size)
 	 */
 	mmsize = size;
 
-	/* EXA area is fixed. */
-	if (pI830->accel == ACCEL_EXA) {
-	    mmsize -= ROUND_TO_PAGE(3 * pScrn->displayWidth * pI830->cpp *
-				    pScrn->virtualY);
-	}
 	/* Overlay and cursors, if physical, need to be allocated outside
 	 * of the kernel memory manager.
 	 */
@@ -1292,8 +1282,6 @@ Bool
 i830_allocate_2d_memory(ScrnInfoPtr pScrn)
 {
     I830Ptr pI830 = I830PTR(pScrn);
-    unsigned int pitch = pScrn->displayWidth * pI830->cpp;
-    long size;
 
     if (!pI830->use_drm_mode) {
 	if (!xf86AgpGARTSupported() || !xf86AcquireGART(pScrn->scrnIndex)) {
@@ -1338,36 +1326,6 @@ i830_allocate_2d_memory(ScrnInfoPtr pScrn)
     pI830->front_buffer = i830_allocate_framebuffer(pScrn);
     if (pI830->front_buffer == NULL)
 	return FALSE;
-
-#ifdef I830_USE_EXA
-    if (pI830->accel == ACCEL_EXA && !pI830->use_drm_mode) {
-	if (pI830->exa_offscreen == NULL) {
-	    /* Default EXA to having 3 screens worth of offscreen memory space
-	     * (for pixmaps).
-	     *
-	     * XXX: It would be nice to auto-size it larger if the user
-	     * specified a larger size, or to fit along with texture and FB
-	     * memory if a low videoRam is specified.
-	     */
-	    size = 3 * pitch * pScrn->virtualY;
-	    size = ROUND_TO_PAGE(size);
-
-	    /* EXA has no way to tell it that the offscreen memory manager has
-	     * moved its base and all the contents with it, so we have to have
-	     * it locked in place for the whole driver instance.
-	     */
-	    pI830->exa_offscreen =
-		i830_allocate_memory(pScrn, "exa offscreen",
-				     size, PITCH_NONE, 1, NEED_LIFETIME_FIXED,
-				     TILE_NONE);
-	    if (pI830->exa_offscreen == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Failed to allocate EXA offscreen memory.\n");
-		return FALSE;
-	    }
-	}
-    }
-#endif /* I830_USE_EXA */
 
     return TRUE;
 }

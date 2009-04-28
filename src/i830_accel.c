@@ -66,28 +66,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 unsigned long
 intel_get_pixmap_offset(PixmapPtr pPix)
 {
-#if defined(I830_USE_EXA) || defined(I830_USE_UXA)
     ScreenPtr pScreen = pPix->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
     I830Ptr pI830 = I830PTR(pScrn);
 
-    if (pI830->accel == ACCEL_EXA)
-	return exaGetPixmapOffset(pPix);
-#endif
     return (unsigned long)pPix->devPrivate.ptr - (unsigned long)pI830->FbBase;
 }
 
 unsigned long
 intel_get_pixmap_pitch(PixmapPtr pPix)
 {
-#ifdef I830_USE_EXA
-    ScreenPtr pScreen = pPix->drawable.pScreen;
-    ScrnInfoPtr pScrn = xf86Screens[pScreen->myNum];
-    I830Ptr pI830 = I830PTR(pScrn);
-
-    if (pI830->accel == ACCEL_EXA)
-	return exaGetPixmapPitch(pPix);
-#endif
     return (unsigned long)pPix->devKind;
 }
 
@@ -136,9 +124,6 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 else
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef I830_USE_EXA
-	 pI830->EXADriverPtr = NULL;
-#endif
 #ifdef I830_USE_UXA
 	pI830->uxa_driver = NULL;
 #endif
@@ -279,7 +264,7 @@ I830AccelInit(ScreenPtr pScreen)
      *
      * For the tiled issues, the only tiled buffer we draw to should be
      * the front, which will have an appropriate pitch/offset already set up,
-     * so EXA doesn't need to worry.
+     * so UXA doesn't need to worry.
      */
     if (IS_I965G(pI830)) {
 	pI830->accel_pixmap_offset_alignment = 4 * 2;
@@ -300,14 +285,6 @@ I830AccelInit(ScreenPtr pScreen)
     case ACCEL_UXA:
 #ifdef I830_USE_UXA
 	return i830_uxa_init(pScreen);
-#else
-	xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-		   "UXA not built in, falling back to EXA.\n");
-	return I830EXAInit(pScreen);
-#endif
-#ifdef I830_USE_EXA
-    case ACCEL_EXA:
-	return I830EXAInit(pScreen);
 #endif
     case ACCEL_UNINIT:
     case ACCEL_NONE:

@@ -138,11 +138,6 @@ static Atom xvSyncToVblank;
 #define OVERLAY_DEBUG if (0) ErrorF
 #endif
 
-/* Oops, I never exported this function in EXA.  I meant to. */
-#ifndef exaMoveInPixmap
-void exaMoveInPixmap (PixmapPtr pPixmap);
-#endif
-
 /*
  * OCMD - Overlay Command Register
  */
@@ -2478,13 +2473,6 @@ I830PutImage(ScrnInfoPtr pScrn,
     } else {
 	pPixmap = (PixmapPtr)pDraw;
     }
-
-#ifdef I830_USE_EXA
-    if (pPriv->textured && pI830->accel == ACCEL_EXA) {
-	/* Force the pixmap into framebuffer so we can draw to it. */
-	exaMoveInPixmap(pPixmap);
-    }
-#endif
 
     if (!pPriv->textured) {
 	i830_display_video(pScrn, crtc, destId, width, height, dstPitch,

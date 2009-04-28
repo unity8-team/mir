@@ -146,14 +146,6 @@ have options for selecting adaptors.
 .IP
 Default: Textured video adaptor is preferred.
 .TP
-.BI "Option \*qAccelMethod\*q \*q" string \*q
-Choose acceleration architecture, either "UXA" or "EXA".
-EXA is a simple acceleration architecture designed for systems without
-kernel memory management, while UXA is designed to take advantage of the
-capabilities of kernel memory management.
-.IP
-Default: "UXA" if kernel-modesetting is available, "EXA" otherwise.
-.TP
 .BI "Option \*qModeDebug\*q \*q" boolean \*q
 Enable printing of additional debugging information about modesetting to
 the server log.
