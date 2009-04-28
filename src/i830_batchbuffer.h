@@ -35,6 +35,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 void intel_batch_init(ScrnInfoPtr pScrn);
 void intel_batch_teardown(ScrnInfoPtr pScrn);
 void intel_batch_flush(ScrnInfoPtr pScrn, Bool flushed);
+void intel_batch_wait_last(ScrnInfoPtr pScrn);
 
 static inline int
 intel_batch_space(I830Ptr pI830)

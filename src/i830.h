@@ -385,6 +385,7 @@ typedef struct _I830Rec {
    /** Number of bytes to be emitted in the current BEGIN_BATCH. */
    uint32_t batch_emitting;
    dri_bo *batch_bo;
+   dri_bo *last_batch_bo;
    /** Whether we're in a section of code that can't tolerate flushing */
    Bool in_batch_atomic;
    /** Ending batch_used that was verified by i830_start_batch_atomic() */
