@@ -87,6 +87,8 @@
 #include "radeon_drm.h"
 #endif
 
+#include "ati_pciids_gen.h"
+
 				/* Line support */
 #include "miline.h"
 
@@ -480,6 +482,11 @@ void RADEONEngineInit(ScrnInfoPtr pScrn)
 	    }
 	}
     }
+
+    /* RV410 SE cards only have 1 quadpipe */
+    if ((info->Chipset == PCI_CHIP_RV410_5E4C) ||
+	(info->Chipset == PCI_CHIP_RV410_5E4F))
+	info->accel_state->num_gb_pipes = 1;
 
     if (IS_R300_3D || IS_R500_3D)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
