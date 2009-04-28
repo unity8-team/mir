@@ -923,6 +923,7 @@ i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
     struct brw_surface_state_padded *ss;
     struct brw_surface_state local_ss;
     dri_bo *pixmap_bo = i830_get_pixmap_bo(pPixmap);
+    uint32_t write_domain, read_domains;
 
     ss = (struct brw_surface_state_padded *)ss_bo->virtual + ss_index;
 
@@ -952,10 +953,7 @@ i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
     local_ss.ss0.vert_line_stride_ofs = 0;
     local_ss.ss0.mipmap_layout_mode = 0;
     local_ss.ss0.render_cache_read_mode = 0;
-    if (pixmap_bo != NULL)
-	local_ss.ss1.base_addr = pixmap_bo->offset;
-    else
-	local_ss.ss1.base_addr = intel_get_pixmap_offset(pPixmap);
+    local_ss.ss1.base_addr = pixmap_bo->offset;
 
     local_ss.ss2.mip_count = 0;
     local_ss.ss2.render_target_rotation = 0;
@@ -967,22 +965,20 @@ i965_set_picture_surface_state(dri_bo *ss_bo, int ss_index,
 
     memcpy(ss, &local_ss, sizeof(local_ss));
 
-    if (pixmap_bo != NULL) {
-	uint32_t write_domain, read_domains;
 
-	if (is_dst) {
-	    write_domain = I915_GEM_DOMAIN_RENDER;
-	    read_domains = I915_GEM_DOMAIN_RENDER;
-	} else {
-	    write_domain = 0;
-	    read_domains = I915_GEM_DOMAIN_SAMPLER;
-	}
-	dri_bo_emit_reloc(ss_bo, read_domains, write_domain,
-			  0,
-			  ss_index * sizeof(*ss) +
-			  offsetof(struct brw_surface_state, ss1),
-			  pixmap_bo);
+    if (is_dst) {
+	write_domain = I915_GEM_DOMAIN_RENDER;
+	read_domains = I915_GEM_DOMAIN_RENDER;
+    } else {
+	write_domain = 0;
+	read_domains = I915_GEM_DOMAIN_SAMPLER;
     }
+    drm_intel_bo_emit_reloc(ss_bo,
+			    ss_index * sizeof(*ss) +
+			    offsetof(struct brw_surface_state, ss1),
+			    pixmap_bo,
+			    0,
+			    read_domains, write_domain);
 }
 
 static void
