@@ -100,18 +100,14 @@ intel_batch_emit_reloc_pixmap(I830Ptr pI830, PixmapPtr pPixmap,
 			      uint32_t read_domains, uint32_t write_domain,
 			      uint32_t delta)
 {
-#if I830_USE_UXA
     dri_bo *bo = i830_get_pixmap_bo(pPixmap);
-#endif
     uint32_t offset;
     assert(pI830->batch_ptr != NULL);
     assert(intel_batch_space(pI830) >= 4);
-#if I830_USE_UXA
     if (bo) {
 	intel_batch_emit_reloc(pI830, bo, read_domains, write_domain, delta);
 	return;
     }
-#endif
     offset = intel_get_pixmap_offset(pPixmap);
     *(uint32_t *)(pI830->batch_ptr + pI830->batch_used) = offset + delta;
     pI830->batch_used += 4;

@@ -840,10 +840,9 @@ i830CreateScreenResources(ScreenPtr pScreen)
 
    i830_update_front_offset(pScrn);
 
-#ifdef I830_USE_UXA
    if (pI830->accel == ACCEL_UXA)
       i830_uxa_create_screen_resources(pScreen);
-#endif
+
    return TRUE;
 }
 
@@ -2456,10 +2455,8 @@ I830BlockHandler(int i,
        pI830->need_mi_flush = FALSE;
     }
 
-#ifdef I830_USE_UXA
     if (pI830->accel == ACCEL_UXA)
 	i830_uxa_block_handler (pScreen);
-#endif
 
     I830VideoBlockHandler(i, blockData, pTimeout, pReadmask);
 }
@@ -3328,13 +3325,11 @@ I830CloseScreen(int scrnIndex, ScreenPtr pScreen)
        vgaHWUnmapMem(pScrn);
    }
 
-#ifdef I830_USE_UXA
    if (pI830->uxa_driver) {
        uxa_driver_fini (pScreen);
        xfree (pI830->uxa_driver);
        pI830->uxa_driver = NULL;
    }
-#endif
    if (pI830->front_buffer) {
 	i830_set_pixmap_bo(pScreen->GetScreenPixmap(pScreen), NULL);
 	i830_free_memory(pScrn, pI830->front_buffer);
@@ -3472,17 +3467,9 @@ i830WaitSync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   switch (pI830->accel) {
-#ifdef I830_USE_UXA
-   case ACCEL_UXA:
-      if (pI830->uxa_driver && pI830->need_sync) {
-	 pI830->need_sync = FALSE;
-	 I830Sync(pScrn);
-      }
-      break;
-#endif
-   default:
-      break;
+   if (pI830->uxa_driver && pI830->need_sync) {
+      pI830->need_sync = FALSE;
+      I830Sync(pScrn);
    }
 }
 
@@ -3491,16 +3478,8 @@ i830MarkSync(ScrnInfoPtr pScrn)
 {
    I830Ptr pI830 = I830PTR(pScrn);
 
-   switch (pI830->accel) {
-#ifdef I830_USE_UXA
-   case ACCEL_UXA:
-      if (pI830->uxa_driver)
-	 pI830->need_sync = TRUE;
-      break;
-#endif
-   default:
-      break;
-   }
+   if (pI830->uxa_driver)
+      pI830->need_sync = TRUE;
 }
 
 void

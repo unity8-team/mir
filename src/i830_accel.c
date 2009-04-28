@@ -124,9 +124,7 @@ I830WaitLpRing(ScrnInfoPtr pScrn, int n, int timeout_millis)
 	 else
 	     i830_dump_error_state(pScrn);
 	 ErrorF("space: %d wanted %d\n", ring->space, n);
-#ifdef I830_USE_UXA
-	pI830->uxa_driver = NULL;
-#endif
+	 pI830->uxa_driver = NULL;
 	 FatalError("lockup\n");
       }
 
@@ -283,9 +281,7 @@ I830AccelInit(ScreenPtr pScreen)
 
     switch (pI830->accel) {
     case ACCEL_UXA:
-#ifdef I830_USE_UXA
 	return i830_uxa_init(pScreen);
-#endif
     case ACCEL_UNINIT:
     case ACCEL_NONE:
 	break;

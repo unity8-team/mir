@@ -73,19 +73,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "intel_bufmgr.h"
 #include "i915_drm.h"
 
-#ifdef I830_USE_UXA
 #include "uxa.h"
 Bool i830_uxa_init(ScreenPtr pScreen);
 void i830_uxa_create_screen_resources(ScreenPtr pScreen);
 void i830_uxa_block_handler (ScreenPtr pScreen);
 Bool i830_get_aperture_space(ScrnInfoPtr pScrn, drm_intel_bo **bo_table,
 			     int num_bos);
-#endif
 
-#if defined(I830_USE_UXA)
 dri_bo *i830_get_pixmap_bo (PixmapPtr pixmap);
 void i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo);
-#endif
 
 typedef struct _I830OutputRec I830OutputRec, *I830OutputPtr;
 
@@ -444,14 +440,10 @@ typedef struct _I830Rec {
 
    void (*batch_flush_notify)(ScrnInfoPtr pScrn);
 
-#ifdef I830_USE_UXA
    uxa_driver_t *uxa_driver;
    Bool need_flush;
-#endif
    Bool need_sync;
-#if defined(I830_USE_UXA)
    PixmapPtr pSrcPixmap;
-#endif
    int accel_pixmap_pitch_alignment;
    int accel_pixmap_offset_alignment;
    int accel_max_x;

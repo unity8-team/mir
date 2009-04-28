@@ -79,9 +79,7 @@ const int I830PatternROP[16] =
     ROP_1
 };
 
-#ifdef I830_USE_UXA
 static int uxa_pixmap_index;
-#endif
 
 /**
  * Returns whether a given pixmap is tiled or not.
@@ -455,13 +453,10 @@ i830_get_pixmap_bo(PixmapPtr pixmap)
     ScrnInfoPtr scrn = xf86Screens[screen->myNum];
     I830Ptr i830 = I830PTR(scrn);
 
-#ifdef I830_USE_UXA
-    if (i830->accel == ACCEL_UXA) {
+    if (i830->accel == ACCEL_UXA)
 	return dixLookupPrivate(&pixmap->devPrivates, &uxa_pixmap_index);
-    }
-#endif
-
-    return NULL;
+    else
+	return NULL;
 }
 
 void
@@ -473,16 +468,12 @@ i830_set_pixmap_bo(PixmapPtr pixmap, dri_bo *bo)
 
     if (old_bo)
 	dri_bo_unreference (old_bo);
-#if I830_USE_UXA
     if (i830->accel == ACCEL_UXA) {
 	if (bo != NULL)
 	    dri_bo_reference(bo);
 	dixSetPrivate(&pixmap->devPrivates, &uxa_pixmap_index, bo);
     }
-#endif
 }
-
-#if defined(I830_USE_UXA)
 
 static void
 i830_uxa_set_pixmap_bo (PixmapPtr pixmap, dri_bo *bo)
@@ -736,4 +727,3 @@ i830_uxa_init (ScreenPtr pScreen)
 
     return TRUE;
 }
-#endif /* I830_USE_UXA */
